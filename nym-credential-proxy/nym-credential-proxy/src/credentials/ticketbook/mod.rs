@@ -1,7 +1,6 @@
 // Copyright 2024 Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::deposit_maker::{DepositRequest, DepositResponse};
 use crate::error::CredentialProxyError;
 use crate::http::state::ApiState;
 use crate::storage::models::BlindedShares;
@@ -11,51 +10,19 @@ use nym_credential_proxy_requests::api::v1::ticketbook::models::{
     TicketbookWalletSharesResponse, WalletShare, WebhookTicketbookWalletShares,
     WebhookTicketbookWalletSharesRequest,
 };
-use nym_credentials::IssuanceTicketBook;
 use nym_credentials_interface::Base58;
-use nym_crypto::asymmetric::ed25519;
 use nym_validator_client::ecash::BlindSignRequestBody;
-use nym_validator_client::nyxd::Coin;
-use rand::rngs::OsRng;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 use time::OffsetDateTime;
-use tokio::sync::{oneshot, Mutex};
-use tokio::time::{timeout, Instant};
-use tracing::{debug, error, info, instrument, warn};
+use tokio::sync::Mutex;
+use tokio::time::timeout;
+use tracing::{debug, error, info, instrument};
 use uuid::Uuid;
 
 // use the same type alias as our contract without importing the whole thing just for this single line
 pub type NodeId = u64;
-
-#[instrument(skip(state), ret, err(Display))]
-async fn make_deposit(
-    state: &ApiState,
-    pub_key: ed25519::PublicKey,
-    deposit_amount: &Coin,
-) -> Result<DepositResponse, CredentialProxyError> {
-    let start = Instant::now();
-    let (on_done_tx, on_done_rx) = oneshot::channel();
-    let request = DepositRequest::new(pub_key, deposit_amount, on_done_tx);
-    state.request_deposit(request).await;
-
-    let time_taken = start.elapsed();
-    let formatted = humantime::format_duration(time_taken);
-
-    let Ok(deposit_response) = on_done_rx.await else {
-        error!("failed to receive deposit response: the corresponding sender channel got dropped by the DepositMaker!");
-        return Err(CredentialProxyError::DepositFailure);
-    };
-
-    if time_taken > Duration::from_secs(20) {
-        warn!("attempting to resolve deposit request took {formatted}. perhaps the buffer is too small or the process/chain is overloaded?")
-    } else {
-        debug!("attempting to resolve deposit request took {formatted}")
-    }
-
-    deposit_response.ok_or(CredentialProxyError::DepositFailure)
-}
 
 #[instrument(
     skip(state, request_data, request, requested_on),
@@ -70,12 +37,12 @@ pub(crate) async fn try_obtain_wallet_shares(
     requested_on: OffsetDateTime,
     request_data: TicketbookRequest,
 ) -> Result<Vec<WalletShare>, CredentialProxyError> {
-    let mut rng = OsRng;
-
-    let ed25519_keypair = ed25519::KeyPair::new(&mut rng);
+    // don't proceed if we don't have quorum available as the request will definitely fail
+    if !state.quorum_available().await {
+        return Err(CredentialProxyError::UnavailableSigningQuorum);
+    }
 
     let epoch = state.current_epoch_id().await?;
-    let deposit_amount = state.deposit_amount().await?;
     let threshold = state.ecash_threshold(epoch).await?;
     let expiration_date = request_data.expiration_date;
 
@@ -87,30 +54,11 @@ pub(crate) async fn try_obtain_wallet_shares(
         .await?;
     let ecash_api_clients = state.ecash_clients(epoch).await?.clone();
 
-    let DepositResponse {
-        deposit_id,
-        tx_hash,
-    } = make_deposit(state, *ed25519_keypair.public_key(), &deposit_amount).await?;
-
-    info!(deposit_id = %deposit_id, "deposit finished");
-
-    // store the deposit information so if we fail, we could perhaps still reuse it for another issuance
-    state
-        .storage()
-        .insert_deposit_data(
-            deposit_id,
-            tx_hash,
-            requested_on,
-            request,
-            deposit_amount,
-            &request_data.ecash_pubkey,
-            &ed25519_keypair,
-        )
+    let deposit_data = state
+        .get_deposit(request, requested_on, request_data.ecash_pubkey)
         .await?;
-
-    let plaintext =
-        IssuanceTicketBook::request_plaintext(&request_data.withdrawal_request, deposit_id);
-    let signature = ed25519_keypair.private_key().sign(plaintext);
+    let deposit_id = deposit_data.deposit_id;
+    let signature = deposit_data.sign_ticketbook_plaintext(&request_data.withdrawal_request);
 
     let credential_request = BlindSignRequestBody::new(
         request_data.withdrawal_request.into(),

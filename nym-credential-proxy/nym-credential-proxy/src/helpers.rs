@@ -6,9 +6,9 @@ use time::OffsetDateTime;
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, error, info, warn};
 
+use crate::deposits_buffer::DepositsBuffer;
 use crate::{
     cli::Cli,
-    deposit_maker::DepositMaker,
     error::CredentialProxyError,
     http::{
         state::{ApiState, ChainClient},
@@ -77,6 +77,7 @@ pub async fn wait_for_signal() {
     }
 }
 
+#[allow(clippy::panic)]
 fn build_sha_short() -> &'static str {
     let bin_info = bin_info!();
     if bin_info.commit_sha.len() < 7 {
@@ -102,19 +103,27 @@ pub(crate) async fn run_api(cli: Cli) -> Result<(), CredentialProxyError> {
     let chain_client = ChainClient::new(mnemonic)?;
     let cancellation_token = CancellationToken::new();
 
-    let deposit_maker = DepositMaker::new(
-        build_sha_short(),
+    let deposits_buffer = DepositsBuffer::new(
+        storage.clone(),
         chain_client.clone(),
-        cli.max_concurrent_deposits,
+        build_sha_short(),
         cancellation_token.clone(),
-    );
+    )
+    .await?;
 
-    let deposit_request_sender = deposit_maker.deposit_request_sender();
+    // let deposit_maker = DepositMaker::new(
+    //     build_sha_short(),
+    //     chain_client.clone(),
+    //     cli.max_concurrent_deposits,
+    //     cancellation_token.clone(),
+    // );
+
+    // let deposit_request_sender = deposit_maker.deposit_request_sender();
     let api_state = ApiState::new(
         storage.clone(),
         webhook_cfg,
         chain_client,
-        deposit_request_sender,
+        deposits_buffer,
         cancellation_token.clone(),
     )
     .await?;
@@ -129,7 +138,6 @@ pub(crate) async fn run_api(cli: Cli) -> Result<(), CredentialProxyError> {
     // spawn all the tasks
     api_state.try_spawn(http_server.run_forever());
     api_state.try_spawn(storage_pruner.run_forever());
-    api_state.try_spawn(deposit_maker.run_forever());
 
     // wait for cancel signal (SIGINT, SIGTERM or SIGQUIT)
     wait_for_signal().await;

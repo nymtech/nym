@@ -1,9 +1,10 @@
 // Copyright 2024 Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::deposit_maker::{DepositRequest, DepositRequestSender};
+use crate::deposits_buffer::{BufferedDeposit, DepositsBuffer};
 use crate::error::CredentialProxyError;
 use crate::helpers::LockTimer;
+use crate::http::state::required_deposit_cache::RequiredDepositCache;
 use crate::http::types::RequestError;
 use crate::nym_api_helpers::{
     ensure_sane_expiration_date, query_all_threshold_apis, CachedEpoch, CachedImmutableEpochItem,
@@ -19,7 +20,7 @@ use nym_compact_ecash::scheme::coin_indices_signatures::{
 use nym_compact_ecash::scheme::expiration_date_signatures::{
     aggregate_annotated_expiration_signatures, ExpirationDateSignatureShare,
 };
-use nym_compact_ecash::Base58;
+use nym_compact_ecash::{Base58, PublicKeyUser};
 use nym_credential_proxy_requests::api::v1::ticketbook::models::{
     AggregatedCoinIndicesSignaturesResponse, AggregatedExpirationDateSignaturesResponse,
     MasterVerificationKeyResponse,
@@ -34,7 +35,7 @@ use nym_validator_client::coconut::EcashApiError;
 use nym_validator_client::nym_api::EpochId;
 use nym_validator_client::nyxd::contract_traits::dkg_query_client::Epoch;
 use nym_validator_client::nyxd::contract_traits::{
-    DkgQueryClient, EcashQueryClient, NymContractsProvider, PagedDkgQueryClient,
+    DkgQueryClient, NymContractsProvider, PagedDkgQueryClient,
 };
 use nym_validator_client::nyxd::cosmwasm_client::types::ExecuteResult;
 use nym_validator_client::nyxd::{Coin, CosmWasmClient, NyxdClient};
@@ -49,8 +50,10 @@ use tokio::task::JoinHandle;
 use tokio::time::Instant;
 use tokio_util::sync::CancellationToken;
 use tokio_util::task::TaskTracker;
-use tracing::{debug, info, warn};
+use tracing::{debug, info, instrument, warn};
 use uuid::Uuid;
+
+pub(crate) mod required_deposit_cache;
 
 // currently we need to hold our keypair so that we could request a freepass credential
 #[derive(Clone)]
@@ -65,7 +68,7 @@ impl ApiState {
         storage: VpnApiStorage,
         zk_nym_web_hook_config: ZkNymWebHookConfig,
         client: ChainClient,
-        deposit_requester: DepositRequestSender,
+        deposits_buffer: DepositsBuffer,
         cancellation_token: CancellationToken,
     ) -> Result<Self, CredentialProxyError> {
         let state = ApiState {
@@ -75,7 +78,7 @@ impl ApiState {
                 ecash_state: EcashState::default(),
                 zk_nym_web_hook_config,
                 task_tracker: TaskTracker::new(),
-                deposit_requester,
+                deposits_buffer,
                 cancellation_token,
             }),
         };
@@ -123,11 +126,16 @@ impl ApiState {
 
     pub(crate) async fn cancel_and_wait(&self) {
         self.inner.cancellation_token.cancel();
+        self.inner.deposits_buffer.wait_for_shutdown().await;
         self.inner.task_tracker.wait().await
     }
 
     pub(crate) fn zk_nym_web_hook(&self) -> &ZkNymWebHookConfig {
         &self.inner.zk_nym_web_hook_config
+    }
+
+    pub(crate) async fn quorum_available(&self) -> bool {
+        todo!()
     }
 
     async fn ensure_credentials_issuable(&self) -> Result<(), CredentialProxyError> {
@@ -156,23 +164,11 @@ impl ApiState {
     }
 
     pub async fn deposit_amount(&self) -> Result<Coin, CredentialProxyError> {
-        let read_guard = self.inner.ecash_state.required_deposit_cache.read().await;
-        if read_guard.is_valid() {
-            return Ok(read_guard.required_amount.clone());
-        }
-
-        // update cache
-        drop(read_guard);
-        let mut write_guard = self.inner.ecash_state.required_deposit_cache.write().await;
-        let deposit_amount = self
-            .query_chain()
+        self.inner
+            .ecash_state
+            .required_deposit_cache
+            .get_or_update(&self.inner.client)
             .await
-            .get_required_deposit_amount()
-            .await?;
-
-        write_guard.update(deposit_amount.clone().into());
-
-        Ok(deposit_amount.into())
     }
 
     async fn current_epoch(&self) -> Result<Epoch, CredentialProxyError> {
@@ -209,17 +205,28 @@ impl ApiState {
         self.inner.client.query_chain().await
     }
 
-    pub(crate) async fn request_deposit(&self, request: DepositRequest) {
+    pub(crate) async fn get_deposit(
+        &self,
+        request_uuid: Uuid,
+        requested_on: OffsetDateTime,
+        client_pubkey: PublicKeyUser,
+    ) -> Result<BufferedDeposit, CredentialProxyError> {
         let start = Instant::now();
-        self.inner.deposit_requester.request_deposit(request).await;
+        let deposit = self
+            .inner
+            .deposits_buffer
+            .get_valid_deposit(request_uuid, requested_on, client_pubkey)
+            .await;
 
         let time_taken = start.elapsed();
         let formatted = humantime::format_duration(time_taken);
         if time_taken > Duration::from_secs(10) {
-            warn!("attempting to push new deposit request onto the queue took {formatted}. perhaps the buffer is too small or the process/chain is overloaded?")
+            warn!("attempting to get buffered deposit took {formatted}. perhaps the buffer is too small or the process/chain is overloaded?")
         } else {
-            debug!("attempting to push new deposit request onto the queue took {formatted}")
-        }
+            debug!("attempting to get buffered deposit took {formatted}")
+        };
+
+        deposit
     }
 
     pub(crate) async fn global_data(
@@ -647,7 +654,7 @@ struct ApiStateInner {
 
     client: ChainClient,
 
-    deposit_requester: DepositRequestSender,
+    deposits_buffer: DepositsBuffer,
 
     zk_nym_web_hook_config: ZkNymWebHookConfig,
 
@@ -658,39 +665,9 @@ struct ApiStateInner {
     cancellation_token: CancellationToken,
 }
 
-pub(crate) struct CachedDeposit {
-    valid_until: OffsetDateTime,
-    required_amount: Coin,
-}
-
-impl CachedDeposit {
-    const MAX_VALIDITY: time::Duration = time::Duration::MINUTE;
-
-    fn is_valid(&self) -> bool {
-        self.valid_until > OffsetDateTime::now_utc()
-    }
-
-    fn update(&mut self, required_amount: Coin) {
-        self.valid_until = OffsetDateTime::now_utc() + Self::MAX_VALIDITY;
-        self.required_amount = required_amount;
-    }
-}
-
-impl Default for CachedDeposit {
-    fn default() -> Self {
-        CachedDeposit {
-            valid_until: OffsetDateTime::UNIX_EPOCH,
-            required_amount: Coin {
-                amount: u128::MAX,
-                denom: "unym".to_string(),
-            },
-        }
-    }
-}
-
 #[derive(Default)]
 pub(crate) struct EcashState {
-    pub(crate) required_deposit_cache: RwLock<CachedDeposit>,
+    pub(crate) required_deposit_cache: RequiredDepositCache,
 
     pub(crate) cached_epoch: RwLock<CachedEpoch>,
 
@@ -717,6 +694,7 @@ pub(crate) struct ChainWritePermit<'a> {
 }
 
 impl ChainWritePermit<'_> {
+    #[instrument(skip(self, short_sha, info), err(Display))]
     pub(crate) async fn make_deposits(
         self,
         short_sha: &'static str,

@@ -401,7 +401,7 @@ impl Bytable for SecretKeyUser {
 
 impl Base58 for SecretKeyUser {}
 
-#[derive(Debug, Eq, PartialEq, Clone, Serialize, Deserialize)]
+#[derive(Debug, Eq, PartialEq, Clone, Copy, Serialize, Deserialize)]
 pub struct PublicKeyUser {
     pub(crate) pk: G1Projective,
 }

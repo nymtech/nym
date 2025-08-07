@@ -6,7 +6,6 @@ use crate::cli::commands::{
     test_throughput,
 };
 use crate::env::vars::{NYMNODE_CONFIG_ENV_FILE_ARG, NYMNODE_NO_BANNER_ARG};
-use crate::logging::setup_tracing_logger;
 use clap::{Args, Parser, Subcommand};
 use nym_bin_common::bin_info;
 use std::future::Future;

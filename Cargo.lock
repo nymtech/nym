@@ -5718,7 +5718,7 @@ dependencies = [
  "nym-types",
  "nym-validator-client",
  "nym-wireguard",
- "nym-wireguard-private-metadata",
+ "nym-wireguard-private-metadata-server",
  "nym-wireguard-types",
  "rand 0.8.5",
  "serde",
@@ -7312,27 +7312,65 @@ dependencies = [
 ]
 
 [[package]]
-name = "nym-wireguard-private-metadata"
-version = "0.1.0"
+name = "nym-wireguard-private-metadata-client"
+version = "1.0.0"
+dependencies = [
+ "async-trait",
+ "nym-http-api-client",
+ "nym-wireguard-private-metadata-shared",
+ "tracing",
+]
+
+[[package]]
+name = "nym-wireguard-private-metadata-server"
+version = "1.0.0"
 dependencies = [
  "anyhow",
  "async-trait",
  "axum 0.7.9",
- "bincode",
  "futures",
  "nym-credential-verification",
  "nym-credentials-interface",
  "nym-http-api-common",
  "nym-wireguard",
- "schemars 0.8.22",
- "serde",
- "thiserror 2.0.12",
+ "nym-wireguard-private-metadata-shared",
  "tokio",
  "tokio-util",
  "tower-http 0.5.2",
  "utoipa",
  "utoipa-swagger-ui",
- "utoipauto",
+]
+
+[[package]]
+name = "nym-wireguard-private-metadata-shared"
+version = "1.0.0"
+dependencies = [
+ "axum 0.7.9",
+ "bincode",
+ "nym-credentials-interface",
+ "schemars 0.8.22",
+ "serde",
+ "thiserror 2.0.12",
+ "utoipa",
+]
+
+[[package]]
+name = "nym-wireguard-private-metadata-tests"
+version = "1.0.0"
+dependencies = [
+ "async-trait",
+ "axum 0.7.9",
+ "nym-credential-verification",
+ "nym-credentials-interface",
+ "nym-http-api-client",
+ "nym-http-api-common",
+ "nym-wireguard",
+ "nym-wireguard-private-metadata-client",
+ "nym-wireguard-private-metadata-server",
+ "nym-wireguard-private-metadata-shared",
+ "tokio",
+ "tower-http 0.5.2",
+ "utoipa",
 ]
 
 [[package]]

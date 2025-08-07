@@ -484,7 +484,7 @@ impl GatewayTasksBuilder {
     pub async fn try_start_wireguard(
         &mut self,
     ) -> Result<
-        nym_wireguard_private_metadata::ShutdownHandles,
+        nym_wireguard_private_metadata_server::ShutdownHandles,
         Box<dyn std::error::Error + Send + Sync>,
     > {
         let all_peers = self.get_wireguard_peers().await?;
@@ -501,9 +501,9 @@ impl GatewayTasksBuilder {
             );
         };
 
-        let router = nym_wireguard_private_metadata::RouterBuilder::with_default_routes();
-        let router = router.with_state(nym_wireguard_private_metadata::AppState::new(
-            nym_wireguard_private_metadata::PeerControllerTransceiver::new(
+        let router = nym_wireguard_private_metadata_server::RouterBuilder::with_default_routes();
+        let router = router.with_state(nym_wireguard_private_metadata_server::AppState::new(
+            nym_wireguard_private_metadata_server::PeerControllerTransceiver::new(
                 wireguard_data.inner.peer_tx().clone(),
             ),
         ));
@@ -512,16 +512,6 @@ impl GatewayTasksBuilder {
             wireguard_data.inner.config().private_ipv4.into(),
             wireguard_data.inner.config().announced_metadata_port,
         );
-        let server = router.build_server(&bind_address).await?;
-
-        let cancel_token: tokio_util::sync::CancellationToken = (*self.shutdown_token).clone();
-        let axum_shutdown_receiver = cancel_token.clone().cancelled_owned();
-        let server_handle = tokio::spawn(async move {
-            {
-                info!("Started Wireguard Axum HTTP V2 server on {bind_address}");
-                server.run(axum_shutdown_receiver).await
-            }
-        });
 
         let wg_handle = nym_wireguard::start_wireguard(
             ecash_manager,
@@ -531,7 +521,18 @@ impl GatewayTasksBuilder {
             wireguard_data,
         )
         .await?;
-        let shutdown_handles = nym_wireguard_private_metadata::ShutdownHandles::new(
+
+        let server = router.build_server(&bind_address).await?;
+        let cancel_token: tokio_util::sync::CancellationToken = (*self.shutdown_token).clone();
+        let axum_shutdown_receiver = cancel_token.clone().cancelled_owned();
+        let server_handle = tokio::spawn(async move {
+            {
+                info!("Started Wireguard Axum HTTP V2 server on {bind_address}");
+                server.run(axum_shutdown_receiver).await
+            }
+        });
+
+        let shutdown_handles = nym_wireguard_private_metadata_server::ShutdownHandles::new(
             server_handle,
             wg_handle,
             cancel_token,

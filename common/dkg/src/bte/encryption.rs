@@ -2,10 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::bte::keys::{DecryptionKey, PublicKey};
-use crate::bte::{
-    evaluate_f, precompute_g2_generator_prepared, precompute_pairing_base, Params, CHUNK_SIZE,
-    NUM_CHUNKS,
-};
+use crate::bte::{evaluate_f, Params, CHUNK_SIZE, G2_GENERATOR_PREPARED, NUM_CHUNKS, PAIRING_BASE};
 use crate::error::DkgError;
 use crate::utils::{combine_g1_chunks, combine_scalar_chunks, deserialize_g1, deserialize_g2};
 use crate::{Chunk, ChunkedShare, Share};
@@ -298,14 +295,14 @@ pub fn decrypt_share(
         let cc_ij = &ciphertext.ciphertext_chunks[i][j];
 
         let miller = bls12_381::multi_miller_loop(&[
-            (&cc_ij.to_affine(), &precompute_g2_generator_prepared()),
+            (&cc_ij.to_affine(), &G2_GENERATOR_PREPARED),
             (&rr_j.to_affine(), &G2Prepared::from(b_neg)),
             (&dk.a.to_affine(), &G2Prepared::from(zz_j)),
             (&ss_j.to_affine(), &G2Prepared::from(e_neg)),
         ]);
         let m = miller.final_exponentiation();
 
-        plaintext.chunks[j] = baby_step_giant_step(&m, &precompute_pairing_base(), lookup_table)?;
+        plaintext.chunks[j] = baby_step_giant_step(&m, &PAIRING_BASE, lookup_table)?;
     }
 
     plaintext.try_into()
@@ -365,7 +362,7 @@ impl BabyStepGiantStepLookup {
 
 impl Default for BabyStepGiantStepLookup {
     fn default() -> Self {
-        BabyStepGiantStepLookup::precompute(&precompute_pairing_base())
+        BabyStepGiantStepLookup::precompute(&PAIRING_BASE)
     }
 }
 

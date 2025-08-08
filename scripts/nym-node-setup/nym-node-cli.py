@@ -109,14 +109,14 @@ class NodeSetupCLI:
         -o pipefail : fail if any command in a pipeline fails
         -x   : print each command before execution
         """
-    print("=== Running script with strict mode ===")
-    cp = subprocess.run(
-        ["bash", "-euo", "pipefail", "-x", "-"],  # strict & debug
-        input=script,
-        text=True
-    )
-    if cp.returncode != 0:
-        raise RuntimeError(f"Script failed with exit code {cp.returncode}")
+        print("=== Running script with strict mode ===")
+        cp = subprocess.run(
+            ["bash", "-euo", "pipefail", "-x", "-"],  # strict & debug
+            input=script,
+            text=True
+            )
+        if cp.returncode != 0:
+            raise RuntimeError(f"Script failed with exit code {cp.returncode}")
 
 
     def _check_gwx_mode(self):

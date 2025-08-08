@@ -337,7 +337,7 @@ impl PartiallyDelegatedHandle {
         // check if the split stream didn't error out
         let receive_res = stream_receiver
             .try_recv()
-            .expect("stream sender was somehow dropped without sending anything!");
+            .map_err(|_| GatewayClientError::ConnectionAbruptlyClosed)?;
 
         if let Some(res) = receive_res {
             let _res = res?;

@@ -47,7 +47,7 @@ impl MessageBuffer {
         self.buffer.is_empty()
     }
 
-    pub fn iter(&self) -> std::slice::Iter<DecayWrapper<ProxiedMessage>> {
+    pub fn iter(&self) -> std::slice::Iter<'_, DecayWrapper<ProxiedMessage>> {
         self.buffer.iter()
     }
 

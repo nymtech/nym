@@ -100,7 +100,7 @@ where
         &self,
         key: K,
         f: F,
-    ) -> Result<RwLockReadGuard<V>, EcashError>
+    ) -> Result<RwLockReadGuard<'_, V>, EcashError>
     where
         F: FnOnce() -> U,
         U: Future<Output = Result<V, EcashError>>,

@@ -8,30 +8,12 @@ use crate::{MixnetContractCache, NodeStatusCache};
 use nym_api_requests::models::{
     ComputeRewardEstParam, GatewayBondAnnotated, GatewayCoreStatusResponse,
     GatewayStatusReportResponse, GatewayUptimeHistoryResponse, GatewayUptimeResponse,
-    MixNodeBondAnnotated, MixnodeCoreStatusResponse, MixnodeStatus, MixnodeStatusReportResponse,
+    MixNodeBondAnnotated, MixnodeCoreStatusResponse, MixnodeStatusReportResponse,
     MixnodeStatusResponse, MixnodeUptimeHistoryResponse, RewardEstimationResponse,
     StakeSaturationResponse, UptimeResponse,
 };
 use nym_mixnet_contract_common::rewarding::RewardEstimate;
 use nym_mixnet_contract_common::NodeId;
-
-pub(crate) enum RewardedSetStatus {
-    Active,
-    Standby,
-    Inactive,
-}
-
-impl From<MixnodeStatus> for RewardedSetStatus {
-    fn from(value: MixnodeStatus) -> Self {
-        match value {
-            MixnodeStatus::Active => RewardedSetStatus::Active,
-            MixnodeStatus::Standby => RewardedSetStatus::Standby,
-            // for all intents and purposes, missing node is treated as inactive for rewarding (since it wouldn't get anything
-            MixnodeStatus::Inactive => RewardedSetStatus::Inactive,
-            MixnodeStatus::NotFound => RewardedSetStatus::Inactive,
-        }
-    }
-}
 
 async fn gateway_identity_to_node_id(
     cache: &NodeStatusCache,

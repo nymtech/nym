@@ -75,7 +75,7 @@ pub(super) fn stake_to_f64(stake: Decimal) -> f64 {
 
 impl EpochAdvancer {
     fn load_performance(
-        status_cache: &Option<RwLockReadGuard<Cache<HashMap<NodeId, NodeAnnotation>>>>,
+        status_cache: &Option<RwLockReadGuard<'_, Cache<HashMap<NodeId, NodeAnnotation>>>>,
         node_id: NodeId,
     ) -> NodeWithPerformance {
         let Some(status_cache) = status_cache.as_ref() else {

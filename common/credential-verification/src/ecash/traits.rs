@@ -12,7 +12,7 @@ pub trait EcashManager {
     async fn verification_key(
         &self,
         epoch_id: EpochId,
-    ) -> Result<RwLockReadGuard<VerificationKeyAuth>, EcashTicketError>;
+    ) -> Result<RwLockReadGuard<'_, VerificationKeyAuth>, EcashTicketError>;
     fn storage(&self) -> Box<dyn BandwidthGatewayStorage + Send + Sync>;
     async fn check_payment(
         &self,

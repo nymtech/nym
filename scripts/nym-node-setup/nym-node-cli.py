@@ -1,8 +1,11 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 
 import os
 import subprocess
+import tempfile
 import shlex
+from pathlib import Path
+from typing import Iterable, Optional, Mapping
 
 class NodeSetupCLI:
 
@@ -41,17 +44,6 @@ class NodeSetupCLI:
             print("Without confirming the points above, we cannot continue.")
             exit(1)
 
-
-
-# Build the command
-# nym_node_path = os.path.expanduser("~/nym-binaries/nym-node")
-# cmd = [nym_node_path, "run", "--mode", mode]
-
-#try:
-#    subprocess.run(cmd, check=True)
-#except subprocess.CalledProcessError as e:
-#    print(f"Command failed with error code {e.returncode}")
-
     def prompt_mode(self):
         mode = input("\
                 \nEnter the mode you want to run nym-node in: \
@@ -72,6 +64,19 @@ class NodeSetupCLI:
         os.environ["NYM_MODE"] = mode
         return mode
 
+    def fetch_script(self, script_name):
+        url = self._return_script_url(script_name)
+        print(f"Fetching file from: {url}")
+        result = subprocess.run(["wget", "-qO-", url], capture_output=True, text=True)
+        if result.returncode != 0 or not result.stdout.strip():
+            print(f"wget failed to download the file.")
+            print("stderr:", result.stderr)
+            raise RuntimeError(f"Failed to fetch {url}")
+        # Optional sanity check:
+        first_line = result.stdout.splitlines()[0] if result.stdout else ""
+        print(f"Downloaded {len(result.stdout)} bytes.")
+        return result.stdout
+
     def _return_script_url(self, script_init_name):
         github_raw_nymtech_nym_scripts_url = f"https://raw.githubusercontent.com/nymtech/nym/refs/heads/{self.branch}/scripts/"
         scripts_urls = {
@@ -87,37 +92,36 @@ class NodeSetupCLI:
                 }
         return scripts_urls[script_init_name]
 
-    def fetch_script(self, script_name):
-        url = self._return_script_url(script_name)
-        print(f"Fetching file from: {url}")
-        result = subprocess.run(["wget", "-qO-", url], capture_output=True, text=True)
-        if result.returncode != 0 or not result.stdout.strip():
-            print(f"wget failed to download the file.")
-            print("stderr:", result.stderr)
-            raise RuntimeError(f"Failed to fetch {url}")
-        # Optional sanity check:
-        first_line = result.stdout.splitlines()[0] if result.stdout else ""
-        print(f"Downloaded {len(result.stdout)} bytes.")
-        return result.stdout
-
-    def run_script(self, script):
-        """
-        Runs a bash script string with strict error handling.
-        
-        For now taken out these flags:    
-        -e   : exit immediately if a command fails
-        -u   : treat unset variables as errors
-        -o pipefail : fail if any command in a pipeline fails
-        -x   : print each command before execution
-        """
-        print("=== Running script with strict mode ===")
-        cp = subprocess.run(
-            ["bash", "-"],  # strict & debug
-            input=script,
-            text=True
-            )
-        #if cp.returncode != 0:
-            #raise RuntimeError(f"Script failed with exit code {cp.returncode}")
+    def run_script_file(
+        script_text: str,
+        args: Optional[Iterable[str]] = None,
+        env: Optional[Mapping[str, str]] = None,
+        cwd: Optional[str] = None,
+        sudo: bool = False,
+    ) -> int:
+        """Save script to a temp file and run it interactively. Returns exit code."""
+        path = _write_temp_script(script_text)
+        try:
+            cmd = ([ "sudo", str(path) ] if sudo else [ str(path) ]) + (list(args) if args else [])
+            run_env = {**os.environ, **(env or {})}
+            cp = subprocess.run(cmd, env=run_env, cwd=cwd)
+            if cp.returncode != 0:
+                raise RuntimeError(f"Script failed with exit code {cp.returncode}")
+            return cp.returncode
+        finally:
+            try:
+                path.unlink(missing_ok=True)
+            except Exception:
+                pass
+     def _write_temp_script(script_text: str) -> Path:
+        """Write script text to a temp file, ensure bash shebang, chmod +x, return its Path."""
+        if not script_text.lstrip().startswith("#!"):
+            script_text = "#!/usr/bin/env bash\n" + script_text
+        with tempfile.NamedTemporaryFile("w", delete=False, suffix=".sh") as f:
+            f.write(script_text)
+            path = Path(f.name)
+        os.chmod(path, 0o700)  # executable for owner
+        return path
 
 
     def _check_gwx_mode(self):
@@ -292,7 +296,6 @@ if __name__ == '__main__':
     cli.run_script(cli.env_vars_install_sh)
     cli.run_script(cli.node_install_sh)
     cli.run_script(cli.service_config_sh)
-    cli._check_gwx_mode() and cli.run_script(cli.landing_page_html)
     cli._check_gwx_mode() and cli.run_script(cli.nginx_proxy_wss_sh)
     cli.run_nym_node_as_service()
     cli.run_bonding_prompt()

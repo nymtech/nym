@@ -112,7 +112,7 @@ class NodeSetupCLI:
     print("=== Running script with strict mode ===")
     cp = subprocess.run(
         ["bash", "-euo", "pipefail", "-x", "-"],  # strict & debug
-        input=script_text,
+        input=script,
         text=True
     )
     if cp.returncode != 0:

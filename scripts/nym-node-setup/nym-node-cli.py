@@ -92,7 +92,8 @@ class NodeSetupCLI:
                 }
         return scripts_urls[script_init_name]
 
-    def run_script_file(
+    def run_script(
+        self,
         script_text: str,
         args: Optional[Iterable[str]] = None,
         env: Optional[Mapping[str, str]] = None,
@@ -100,21 +101,21 @@ class NodeSetupCLI:
         sudo: bool = False,
     ) -> int:
         """Save script to a temp file and run it interactively. Returns exit code."""
-        path = _write_temp_script(script_text)
+        path = self._write_temp_script(script_text)
         try:
             cmd = ([ "sudo", str(path) ] if sudo else [ str(path) ]) + (list(args) if args else [])
             run_env = {**os.environ, **(env or {})}
             cp = subprocess.run(cmd, env=run_env, cwd=cwd)
-            if cp.returncode != 0:
-                raise RuntimeError(f"Script failed with exit code {cp.returncode}")
-            return cp.returncode
+            #if cp.returncode != 0:
+            #    raise RuntimeError(f"Script failed with exit code {cp.returncode}")
+            #return cp.returncode
         finally:
             try:
                 path.unlink(missing_ok=True)
             except Exception:
                 pass
 
-    def _write_temp_script(script_text: str) -> Path:
+    def _write_temp_script(self, script_text: str) -> Path:
        """Write script text to a temp file, ensure bash shebang, chmod +x, return its Path."""
        if not script_text.lstrip().startswith("#!"):
            script_text = "#!/usr/bin/env bash\n" + script_text

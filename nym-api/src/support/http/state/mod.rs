@@ -148,7 +148,7 @@ impl AppState {
 impl AppState {
     pub(crate) async fn describe_nodes_cache_data(
         &self,
-    ) -> Result<RwLockReadGuard<Cache<DescribedNodes>>, AxumErrorResponse> {
+    ) -> Result<RwLockReadGuard<'_, Cache<DescribedNodes>>, AxumErrorResponse> {
         Ok(self.described_nodes_cache().get().await?)
     }
 
@@ -160,7 +160,8 @@ impl AppState {
 
     pub(crate) async fn node_annotations(
         &self,
-    ) -> Result<RwLockReadGuard<Cache<HashMap<NodeId, NodeAnnotation>>>, AxumErrorResponse> {
+    ) -> Result<RwLockReadGuard<'_, Cache<HashMap<NodeId, NodeAnnotation>>>, AxumErrorResponse>
+    {
         self.node_status_cache()
             .node_annotations()
             .await
@@ -169,7 +170,7 @@ impl AppState {
 
     pub(crate) async fn legacy_mixnode_annotations(
         &self,
-    ) -> Result<RwLockReadGuard<Cache<HashMap<NodeId, MixNodeBondAnnotated>>>, AxumErrorResponse>
+    ) -> Result<RwLockReadGuard<'_, Cache<HashMap<NodeId, MixNodeBondAnnotated>>>, AxumErrorResponse>
     {
         self.node_status_cache()
             .annotated_legacy_mixnodes()
@@ -179,7 +180,7 @@ impl AppState {
 
     pub(crate) async fn legacy_gateways_annotations(
         &self,
-    ) -> Result<RwLockReadGuard<Cache<HashMap<NodeId, GatewayBondAnnotated>>>, AxumErrorResponse>
+    ) -> Result<RwLockReadGuard<'_, Cache<HashMap<NodeId, GatewayBondAnnotated>>>, AxumErrorResponse>
     {
         self.node_status_cache()
             .annotated_legacy_gateways()

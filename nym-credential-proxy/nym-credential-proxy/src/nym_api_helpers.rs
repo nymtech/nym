@@ -86,7 +86,11 @@ impl<K, V> CachedImmutableItems<K, V>
 where
     K: Eq + Hash,
 {
-    pub(crate) async fn get_or_init<F, U, E>(&self, key: K, f: F) -> Result<RwLockReadGuard<V>, E>
+    pub(crate) async fn get_or_init<F, U, E>(
+        &self,
+        key: K,
+        f: F,
+    ) -> Result<RwLockReadGuard<'_, V>, E>
     where
         F: FnOnce() -> U,
         U: Future<Output = Result<V, E>>,

@@ -143,7 +143,7 @@ impl ApiState {
                 availability: finish_dt,
             })
         } else if epoch.state.is_waiting_initialisation() {
-            return Err(VpnApiError::UninitialisedDkg);
+            Err(VpnApiError::UninitialisedDkg)
         } else {
             Err(VpnApiError::UnknownEcashFailure)
         }
@@ -203,7 +203,7 @@ impl ApiState {
         Ok(epoch.epoch_id)
     }
 
-    pub(crate) async fn query_chain(&self) -> RwLockReadGuard<DirectSigningHttpRpcNyxdClient> {
+    pub(crate) async fn query_chain(&self) -> RwLockReadGuard<'_, DirectSigningHttpRpcNyxdClient> {
         self.inner.client.query_chain().await
     }
 
@@ -336,7 +336,7 @@ impl ApiState {
     pub(crate) async fn ecash_clients(
         &self,
         epoch_id: EpochId,
-    ) -> Result<RwLockReadGuard<Vec<EcashApiClient>>, VpnApiError> {
+    ) -> Result<RwLockReadGuard<'_, Vec<EcashApiClient>>, VpnApiError> {
         self.inner
             .ecash_state
             .epoch_clients
@@ -386,7 +386,7 @@ impl ApiState {
     pub(crate) async fn master_verification_key(
         &self,
         epoch_id: Option<EpochId>,
-    ) -> Result<RwLockReadGuard<VerificationKeyAuth>, VpnApiError> {
+    ) -> Result<RwLockReadGuard<'_, VerificationKeyAuth>, VpnApiError> {
         let epoch_id = match epoch_id {
             Some(id) => id,
             None => self.current_epoch_id().await?,
@@ -440,7 +440,7 @@ impl ApiState {
     pub(crate) async fn master_coin_index_signatures(
         &self,
         epoch_id: Option<EpochId>,
-    ) -> Result<RwLockReadGuard<AggregatedCoinIndicesSignatures>, VpnApiError> {
+    ) -> Result<RwLockReadGuard<'_, AggregatedCoinIndicesSignatures>, VpnApiError> {
         let epoch_id = match epoch_id {
             Some(id) => id,
             None => self.current_epoch_id().await?,
@@ -516,7 +516,7 @@ impl ApiState {
     pub(crate) async fn master_expiration_date_signatures(
         &self,
         expiration_date: Date,
-    ) -> Result<RwLockReadGuard<AggregatedExpirationDateSignatures>, VpnApiError> {
+    ) -> Result<RwLockReadGuard<'_, AggregatedExpirationDateSignatures>, VpnApiError> {
         self.inner
             .ecash_state
             .expiration_date_signatures
@@ -619,12 +619,12 @@ impl ChainClient {
         Ok(ChainClient(Arc::new(RwLock::new(client))))
     }
 
-    pub(crate) async fn query_chain(&self) -> ChainReadPermit {
+    pub(crate) async fn query_chain(&self) -> ChainReadPermit<'_> {
         let _acquire_timer = LockTimer::new("acquire chain query permit");
         self.0.read().await
     }
 
-    pub(crate) async fn start_chain_tx(&self) -> ChainWritePermit {
+    pub(crate) async fn start_chain_tx(&self) -> ChainWritePermit<'_> {
         let _acquire_timer = LockTimer::new("acquire exclusive chain write permit");
 
         ChainWritePermit {

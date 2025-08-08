@@ -39,7 +39,7 @@ impl SqliteEcashTicketbookManager {
         Ok(())
     }
 
-    pub(crate) async fn begin_storage_tx(&self) -> Result<Transaction<Sqlite>, sqlx::Error> {
+    pub(crate) async fn begin_storage_tx(&self) -> Result<Transaction<'_, Sqlite>, sqlx::Error> {
         self.connection_pool.begin().await
     }
 

@@ -65,13 +65,13 @@ impl KeyPair {
         }
     }
 
-    pub async fn keys(&self) -> Result<RwLockReadGuard<KeyPairWithEpoch>, EcashError> {
+    pub async fn keys(&self) -> Result<RwLockReadGuard<'_, KeyPairWithEpoch>, EcashError> {
         let keypair_guard = self.get().await.ok_or(EcashError::KeyPairNotDerivedYet)?;
         RwLockReadGuard::try_map(keypair_guard, |keypair| keypair.as_ref())
             .map_err(|_| EcashError::KeyPairNotDerivedYet)
     }
 
-    pub async fn signing_key(&self) -> Result<RwLockReadGuard<SecretKeyAuth>, EcashError> {
+    pub async fn signing_key(&self) -> Result<RwLockReadGuard<'_, SecretKeyAuth>, EcashError> {
         let keypair_guard = self.get().await.ok_or(EcashError::KeyPairNotDerivedYet)?;
 
         RwLockReadGuard::try_map(keypair_guard, |keypair| {
@@ -80,7 +80,7 @@ impl KeyPair {
         .map_err(|_| EcashError::KeyPairNotDerivedYet)
     }
 
-    pub async fn verification_key(&self) -> Option<RwLockReadGuard<VerificationKeyAuth>> {
+    pub async fn verification_key(&self) -> Option<RwLockReadGuard<'_, VerificationKeyAuth>> {
         RwLockReadGuard::try_map(self.get().await?, |maybe_keys| {
             maybe_keys.as_ref().map(|k| k.keys.verification_key_ref())
         })

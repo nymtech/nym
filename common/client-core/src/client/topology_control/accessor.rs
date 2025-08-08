@@ -126,7 +126,7 @@ impl TopologyAccessor {
             .map(|p| p.topology.clone())
     }
 
-    pub async fn current_route_provider(&self) -> Option<RwLockReadGuard<NymRouteProvider>> {
+    pub async fn current_route_provider(&self) -> Option<RwLockReadGuard<'_, NymRouteProvider>> {
         let provider = self.inner.topology.read().await;
         if provider.topology.is_empty() {
             None

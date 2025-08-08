@@ -148,7 +148,7 @@ async fn connect(endpoint: &str) -> Result<WsConn, ClientCoreError> {
     JSWebsocket::new(endpoint).map_err(|_| ClientCoreError::GatewayJsConnectionFailure)
 }
 
-async fn measure_latency<G>(gateway: &G) -> Result<GatewayWithLatency<G>, ClientCoreError>
+async fn measure_latency<G>(gateway: &G) -> Result<GatewayWithLatency<'_, G>, ClientCoreError>
 where
     G: ConnectableGateway,
 {

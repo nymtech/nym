@@ -44,25 +44,60 @@ class NodeSetupCLI:
             print("Without confirming the points above, we cannot continue.")
             exit(1)
 
+#    def prompt_mode(self):
+#        mode = input("\
+#                \nEnter the mode you want to run nym-node in: \
+#                \n1) mixnode \
+#                \n2) entry-gateway \
+#                \n3) exit-gateway \
+#                \nPress 1, 2 or 3 and enter: \
+#                ").strip()
+#        if mode == "1" or mode == "mixnode":
+#            mode = "mixnode"
+#        elif mode == "2" or mode == "entry-gateway":
+#            mode = "entry-gateway"
+#        elif mode == "3" or mode == "exit-gateway":
+#            mode = "exit-gateway"
+#        else:
+#            print("Only numbers 1, 2 or 3 are accepted.")
+#            exit(1)
+#        os.environ["NYM_MODE"] = mode
+#        return mode
+
     def prompt_mode(self):
-        mode = input("\
-                \nEnter the mode you want to run nym-node in: \
-                \n1) mixnode \
-                \n2) entry-gateway \
-                \n3) exit-gateway \
-                \nPress 1, 2 or 3 and enter: \
-                ").strip()
-        if mode == "1" or mode == "mixnode":
+        mode = input(
+            "\nEnter the mode you want to run nym-node in: "
+            "\n1) mixnode "
+            "\n2) entry-gateway "
+            "\n3) exit-gateway "
+            "\nPress 1, 2 or 3 and enter: "
+        ).strip()
+
+        if mode in ("1", "mixnode"):
             mode = "mixnode"
-        elif mode == "2" or mode == "entry-gateway":
+        elif mode in ("2", "entry-gateway"):
             mode = "entry-gateway"
-        elif mode == "3" or mode == "exit-gateway":
+        elif mode in ("3", "exit-gateway"):
             mode = "exit-gateway"
         else:
             print("Only numbers 1, 2 or 3 are accepted.")
-            exit(1)
-        os.environ["NYM_MODE"] = mode
+            raise SystemExit(1)
+
+        # Save mode for this Python instance
+        self.mode = mode
+        os.environ["MODE"] = mode
+
+        # Persist to env.sh so other scripts can source it
+        env_file = Path("env.sh")
+        with env_file.open("a") as f:
+            f.write(f'export MODE="{mode}"\n')
+
+        # Source env.sh so future bash subprocesses see it immediately
+        subprocess.run("source ./env.sh", shell=True, executable="/bin/bash")
+
+        print(f"Mode set to '{mode}' — stored in env.sh and sourced for immediate use.")
         return mode
+
 
     def fetch_script(self, script_name):
         url = self._return_script_url(script_name)
@@ -150,18 +185,24 @@ class NodeSetupCLI:
                 print("Invalid input. Please press 'y' or 'n' and press enter.")
         return wireguard
 
-    def run_bash_command(self, command, args=None):
-        args = args or []
 
-        if os.path.exists(os.path.expanduser(source)):
-            # It's a file path
-            path = os.path.expanduser(source)
-            print(f"Running script at path: {path} with args: {args}")
-            subprocess.run([path] + args)
+    def run_bash_command(self, command, args=None, *, env=None, cwd=None, check=True):
+        """
+        Run a command with optional args (no script stdin).
+        `command` can be a string (e.g., "ls") or a list (e.g., ["ls", "-la"]).
+        """
+        # Normalize command into a list
+        if isinstance(command, str):
+            cmd = shlex.split(command)
         else:
-            # Treat as raw script content
-            print(f"Running inline script with args: {args}")
-            subprocess.run(["bash", "-s"] + args, input=source, text=True)
+            cmd = list(command)
+
+        if args:
+            cmd += list(args)
+
+        print("Running:", " ".join(shlex.quote(c) for c in cmd))
+        return subprocess.run(cmd, env=env, cwd=cwd, check=check)
+
 
     def run_tunnel_manager_setup(self):
         print(
@@ -186,16 +227,16 @@ class NodeSetupCLI:
             ]
         for arg in args:
             parsed_args = shlex.split(arg)
-            self.run_bash_command(self.tunnel_manager_sh, parsed_Args)
+            self.run_script(self.tunnel_manager_sh, args=parsed_args)
 
     def setup_test_wg_ip_tables(self):
         print(
             "Setting up Wireguard IP tables to match Nym exit policy for mixnet, stored at: https://nymtech.net/.wellknown/network-requester/exit-policy.txt"
             "This may take a while, follow the steps below and don't kill the process..."
             )
-        self.run_bash_command(self.wg_ip_tables_manager_sh,  ["install"])
-        self.run_bash_command(self.wg_ip_tables_manager_sh,  ["status"])
-        self.run_bash_command(self.wg_ip_tables_test_sh)
+        self.run_script(self.wg_ip_tables_manager_sh,  args=["install"])
+        self.run_script(self.wg_ip_tables_manager_sh,  args=["status"])
+        self.run_script(self.wg_ip_tables_test_sh)
 
     def run_nym_node_as_service(self):
         service_path = "/etc/systemd/system/nym-node.service"
@@ -211,8 +252,9 @@ class NodeSetupCLI:
         while True:
             prompt = input("Do you want to start the service now? [y/n]: ").strip().lower()
             if prompt == 'y':
-                command = ["service", "nym-node", "start"]
-                self.run_bash_command(command)
+                command = "service"
+                args = ["nym-node", "start"]
+                self.run_bash_command(command, args)
                 print(
                     "nym-node.service started, you can check status or live journal with these commands:\n"
                     "`service nym-node status`\n"
@@ -231,8 +273,9 @@ class NodeSetupCLI:
 
     def run_bonding_prompt(self):
         print("Time to bond your node to Nyx account, to register it to Nym network")
-        node_path = "$HOME/nym-binaries/nym-node"
-        if not os.path.isfile(node_path):
+        node_path = os.path.expandvars(os.path.expanduser("$HOME/nym-binaries/nym-node"))
+        # Or: node_path = str(Path.home() / "nym-binaries" / "nym-node")
+        if not (os.path.isfile(node_path) and os.access(node_path, os.X_OK)):
             print(f"Nym node not found at {node_path}, we cannot run a bonding prompt!")
             exit(1)
         else:
@@ -241,7 +284,7 @@ class NodeSetupCLI:
                 os.path.expanduser(node_path),
                 "bonding-information",
             ])
-                self.bash_run_command("curl", ["-4", '"https://ifconfig.me"']),
+                self.run_bash_command(command="curl", args=["-4", "https://ifconfig.me"]),
                 print(
                   "====================================\n"
                   "FOLLOW THESE STEPS TO BOND YOUR NODE\n"

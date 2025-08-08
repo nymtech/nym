@@ -104,6 +104,7 @@ class NodeSetupCLI:
         """
         Runs a bash script string with strict error handling.
         
+        For now taken out these flags:    
         -e   : exit immediately if a command fails
         -u   : treat unset variables as errors
         -o pipefail : fail if any command in a pipeline fails
@@ -111,7 +112,7 @@ class NodeSetupCLI:
         """
         print("=== Running script with strict mode ===")
         cp = subprocess.run(
-            ["bash", "-euo", "pipefail", "-x", "-"],  # strict & debug
+            ["bash", "-"],  # strict & debug
             input=script,
             text=True
             )

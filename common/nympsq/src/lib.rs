@@ -3,4 +3,3 @@
 
 pub mod error;
 pub mod psq;
-pub mod stream;

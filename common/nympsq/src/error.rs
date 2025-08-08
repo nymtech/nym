@@ -15,6 +15,9 @@ pub enum PSQError {
     #[error("encountered a PSQ error")]
     PSQError,
 
+    #[error("encountered a Serialization/Deserialization error")]
+    SerializationError,
+
     #[error("encountered an IO error: {0}")]
     IoError(#[from] io::Error),
 
@@ -26,9 +29,6 @@ pub enum PSQError {
 
     #[error("Unknown PSQ version")]
     UnknownVersion,
-
-    #[error("Handshake timeout")]
-    HandshakeTimeout(#[from] tokio::time::error::Elapsed),
 }
 
 impl From<libcrux_kem::Error> for PSQError {
@@ -45,6 +45,14 @@ impl From<libcrux_psq::Error> for PSQError {
         match err {
             // Error::Decrypt => PSQError::DecryptionError,
             err => PSQError::PSQError,
+        }
+    }
+}
+
+impl From<tls_codec::Error> for PSQError {
+    fn from(err: tls_codec::Error) -> Self {
+        match err {
+            err => PSQError::SerializationError,
         }
     }
 }

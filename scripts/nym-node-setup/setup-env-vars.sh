@@ -1,26 +1,41 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-# Prompt user to enter env vars & save them to env.sh
-echo "Setting up enviromental variables to ./env.sh"
+# set -euo pipefail
 
-read -p "Enter latest binary URL: " LATEST_BINARY && \
-	read -p "Enter hostname (if you don't use a DNS, press enter): " HOSTNAME && \
-read -p "Enter node location (country code or name): " LOCATION && \
-read -p "Enter your email: " EMAIL && \
-read -p "Enter node public moniker (name in the explorer and NymVPN app): " MONIKER && \
-read -p "Enter node public description: " DESCRIPTION && \
+echo "Setting up environmental variables to ./env.sh"
 
-set -e
+# Prompt user
+read -rp "Enter hostname (if you don't use a DNS, press enter): " HOSTNAME
+read -rp "Enter node location (country code or name): " LOCATION
+read -rp "Enter your email: " EMAIL
+read -rp "Enter node public moniker (name in the explorer and NymVPN app): " MONIKER
+read -rp "Enter node public description: " DESCRIPTION
 
-LATEST_BINARY=$(wget -qO - https://github.com/nymtech/nym/releases/latest \
-  | grep -oP 'href="\/nymtech\/nym\/releases\/download\/[^"]+\/nym-node"' \
-  | head -n 1 | cut -d'"' -f2)
+# Follow redirects and parse the latest nym-node binary URL
+LATEST_BINARY=$(
+  curl -fsSL https://github.com/nymtech/nym/releases/latest \
+    | grep -Eo 'href="/nymtech/nym/releases/download/[^"]+/nym-node"' \
+    | head -n1 \
+    | cut -d'"' -f2
+)
 
-set -e
+if [[ -z "${LATEST_BINARY:-}" ]]; then
+  echo "ERROR: Could not determine latest nym-node binary URL." >&2
+  exit 1
+fi
 
-PUBLIC_IP=$(curl -s -4 https://ifconfig.me)
+PUBLIC_IP=$(curl -fsS -4 https://ifconfig.me || true)
+PUBLIC_IP=${PUBLIC_IP:-""}
 
-echo -e "export LATEST_BINARY=\"$LATEST_BINARY\"\nexport HOSTNAME=\"$HOSTNAME\"\nexport LOCATION=\"$LOCATION\"\nexport EMAIL=\"$EMAIL\"\nexport MONIKER=\"$MONIKER\"\nexport DESCRIPTION=\"$DESCRIPTION\"\nexport PUBLIC_IP=\"$PUBLIC_IP\" > env.sh && \
+cat > env.sh <<EOF
+export LATEST_BINARY="https://github.com${LATEST_BINARY}"
+export HOSTNAME="${HOSTNAME}"
+export LOCATION="${LOCATION}"
+export EMAIL="${EMAIL}"
+export MONIKER="${MONIKER}"
+export DESCRIPTION="${DESCRIPTION}"
+export PUBLIC_IP="${PUBLIC_IP}"
+EOF
 
-echo "Variables saved to env.sh — run 'source ./env.sh' to load them."
-source ./env.sh
+echo "Variables saved to ./env.sh"
+echo "To load them into your current shell, run:  source ./env.sh"

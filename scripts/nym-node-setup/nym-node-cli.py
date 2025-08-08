@@ -116,8 +116,8 @@ class NodeSetupCLI:
             input=script,
             text=True
             )
-        if cp.returncode != 0:
-            raise RuntimeError(f"Script failed with exit code {cp.returncode}")
+        #if cp.returncode != 0:
+            #raise RuntimeError(f"Script failed with exit code {cp.returncode}")
 
 
     def _check_gwx_mode(self):

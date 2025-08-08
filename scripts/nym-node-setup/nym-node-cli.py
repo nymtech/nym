@@ -10,15 +10,15 @@ class NodeSetupCLI:
         self.branch = "feature/node-setup-cli"
         self.welcome_message = self.print_welcome_message()
         self.mode = self.prompt_mode()
-        self.prereqs_install_sh = self.fetch_script("prereqs_install_sh")
-        self.env_vars_install_sh = self.fetch_script("env_vars_install_sh")
-        self.node_install_sh = self.fetch_script("node_install_sh")
-        self.service_config_sh = self.fetch_script("service_config_sh")
-        self.landing_page_html = self._check_gwx_mode() and self.fetch_script("landing_page_html")
+        self.prereqs_install_sh = self.fetch_script("nym-node-prereqs-install.sh")
+        self.env_vars_install_sh = self.fetch_script("setup-env-vars.sh")
+        self.node_install_sh = self.fetch_script("nym-node-install.sh")
+        self.service_config_sh = self.fetch_script("setup-systemd-service-file.sh")
+        self.landing_page_html = self._check_gwx_mode() and self.fetch_script("landing-page.html")
         self.nginx_proxy_wss_sh = self._check_gwx_mode() and self.fetch_script("nginx_proxy_wss_sh")
-        self.tunnel_manager_sh = self._check_gwx_mode() and self.fetch_script("tunnel_manager_sh")
-        self.wg_ip_tables_manager_sh = self._check_gwx_mode() and self.fetch_script("wg_ip_tables_manager_sh")
-        self.wg_ip_tables_test_sh = self._check_gwx_mode() and self.fetch_script("wg_ip_tables_test_sh")
+        self.tunnel_manager_sh = self._check_gwx_mode() and self.fetch_script("network_tunnel_manager.sh")
+        self.wg_ip_tables_manager_sh = self._check_gwx_mode() and self.fetch_script("wireguard-exit-policy-manager.sh")
+        self.wg_ip_tables_test_sh = self._check_gwx_mode() and self.fetch_script("exit-policy-tests.sh")
 
 
     def print_welcome_message(self):
@@ -73,28 +73,50 @@ class NodeSetupCLI:
         return mode
 
     def _return_script_url(self, script_init_name):
+        github_raw_nymtech_nym_scripts_url = f"https://raw.githubusercontent.com/nymtech/nym/refs/heads/{self.branch}/scripts/"
         scripts_urls = {
-                "prereqs_install_sh": f"https://raw.github.com/nymtech/nym/raw/refs/heads/{self.branch}/scripts/nym-node-setup/nym-node-prereqs-install.sh",
-                "env_vars_install_sh": f"https://raw.githubusercontent.com/nymtech/nym/refs/heads/{self.branch}/scripts/nym-node-setup/setup-env-vars.sh",
-                "node_install_sh": f"https://raw.github.com/nymtech/nym/raw/refs/heads/{self.branch}/scripts/nym-node-setup/nym-node-install.sh",
-                "service_config_sh": f"https://raw.github.com/nymtech/nym/raw/refs/heads/{self.branch}/scripts/nym-node-setup/setup-systemd-service-file.sh",
-                "nginx_proxy_wss_sh": f"https://raw.github.com/nymtech/nym/raw/refs/heads/{self.branch}/scripts/nym-node-setup/setup-nginx-proxy-wss.sh",
-                "landing_page_html": f"https://raw.github.com/nymtech/nym/raw/refs/heads/{self.branch}/scripts/nym-node-setup/landing-page.html",
-                "tunnel_manager_sh": f"https://raw.githubusercontent.com/nymtech/nym/refs/heads/{self.branch}/scripts/network_tunnel_manager.sh",
-                "wg_ip_tables_manager_sh": f"https://raw.githubusercontent.com/nymtech/nym/refs/heads/{self.branch}/scripts/wireguard-exit-policy/wireguard-exit-policy-manager.sh",
-                "wg_ip_tables_test_sh": f"https://raw.githubusercontent.com/nymtech/nym/refs/heads/{self.branch}/scripts/wireguard-exit-policy/exit-policy-tests.sh",
+                "nym-node-prereqs-install.sh": f"{github_raw_nymtech_nym_scripts_url}nym-node-setup/nym-node-prereqs-install.sh",
+                "setup-env-vars.sh": f"{github_raw_nymtech_nym_scripts_url}nym-node-setup/setup-env-vars.sh",
+                "nym-node-install.sh": f"{github_raw_nymtech_nym_scripts_url}nym-node-setup/nym-node-install.sh",
+                "setup-systemd-service-file.sh": f"{github_raw_nymtech_nym_scripts_url}nym-node-setup/setup-systemd-service-file.sh",
+                "nginx_proxy_wss_sh": f"{github_raw_nymtech_nym_scripts_url}nym-node-setup/setup-nginx-proxy-wss.sh",
+                "landing-page.html": f"{github_raw_nymtech_nym_scripts_url}nym-node-setup/landing-page.html",
+                "network_tunnel_manager.sh": f"{github_raw_nymtech_nym_scripts_url}network_tunnel_manager.sh",
+                "wireguard-exit-policy-manager.sh": f"{github_raw_nymtech_nym_scripts_url}wireguard-exit-policy/wireguard-exit-policy-manager.sh",
+                "exit-policy-tests.sh": f"{github_raw_nymtech_nym_scripts_url}wireguard-exit-policy/exit-policy-tests.sh",
                 }
         return scripts_urls[script_init_name]
 
     def fetch_script(self, script_name):
         url = self._return_script_url(script_name)
-        print(f"Fetching script from: {url}")
+        print(f"Fetching file from: {url}")
         result = subprocess.run(["wget", "-qO-", url], capture_output=True, text=True)
+        if result.returncode != 0 or not result.stdout.strip():
+            print(f"wget failed to download the file.")
+            print("stderr:", result.stderr)
+            raise RuntimeError(f"Failed to fetch {url}")
+        # Optional sanity check:
+        first_line = result.stdout.splitlines()[0] if result.stdout else ""
+        print(f"Downloaded {len(result.stdout)} bytes.")
         return result.stdout
 
     def run_script(self, script):
-        self.run_bash_command("chmod" ["+x", script])
-        subprocess.run(["bash", "-"], input=script, text=True)
+        """
+        Runs a bash script string with strict error handling.
+        
+        -e   : exit immediately if a command fails
+        -u   : treat unset variables as errors
+        -o pipefail : fail if any command in a pipeline fails
+        -x   : print each command before execution
+        """
+    print("=== Running script with strict mode ===")
+    cp = subprocess.run(
+        ["bash", "-euo", "pipefail", "-x", "-"],  # strict & debug
+        input=script_text,
+        text=True
+    )
+    if cp.returncode != 0:
+        raise RuntimeError(f"Script failed with exit code {cp.returncode}")
 
 
     def _check_gwx_mode(self):

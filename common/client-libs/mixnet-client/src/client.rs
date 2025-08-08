@@ -133,7 +133,7 @@ impl ManagedConnection {
                     debug!("Managed to establish connection to {}", self.address);
 
                     let noise_stream =
-                        match upgrade_noise_initiator(stream, &self.noise_config).await {
+                        match upgrade_noise_initiator(stream, &self.noise_config, None).await {
                             Ok(noise_stream) => noise_stream,
                             Err(err) => {
                                 error!("Failed to perform Noise handshake with {address} - {err}");

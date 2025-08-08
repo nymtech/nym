@@ -464,16 +464,17 @@ impl ConnectionHandler {
         )
     )]
     pub(crate) async fn handle_connection(&mut self, socket: TcpStream) {
-        let noise_stream = match upgrade_noise_responder(socket, &self.shared.noise_config).await {
-            Ok(noise_stream) => noise_stream,
-            Err(err) => {
-                error!(
-                    "Failed to perform Noise handshake with {:?} - {err}",
-                    self.remote_address
-                );
-                return;
-            }
-        };
+        let noise_stream =
+            match upgrade_noise_responder(socket, &self.shared.noise_config, None).await {
+                Ok(noise_stream) => noise_stream,
+                Err(err) => {
+                    error!(
+                        "Failed to perform Noise handshake with {:?} - {err}",
+                        self.remote_address
+                    );
+                    return;
+                }
+            };
         debug!(
             "Noise responder handshake completed for {:?}",
             self.remote_address

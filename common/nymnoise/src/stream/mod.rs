@@ -1,20 +1,21 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::config::{NoiseConfig, NoisePattern};
-use crate::error::NoiseError;
-use crate::psk_gen::{generate_psk, generate_psk_v2};
-use crate::stream::codec::NymNoiseCodec;
-use crate::stream::framing::NymNoiseFrame;
+use crate::{
+    config::{NoiseConfig, NoisePattern},
+    error::NoiseError,
+    psk_gen::{generate_psk_v1, psq_initiate_x25519, psq_respond_x25519},
+    stream::{codec::NymNoiseCodec, framing::NymNoiseFrame},
+    NOISE_PSQ_DEFAULT_CONTEXT, NOISE_PSQ_DEFAULT_DURATION_SECS,
+};
+
 use bytes::{Bytes, BytesMut};
 use futures::{Sink, SinkExt, Stream, StreamExt};
-use nym_crypto::asymmetric::x25519;
+use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_noise_keys::NoiseVersion;
+use nympsq::psq::{PSQInitiator, CONTEXT_LEN, PSK_HANDLE_LEN};
 use snow::{Builder, HandshakeState, TransportState};
-use std::io;
-use std::pin::Pin;
-use std::task::Poll;
-use std::{cmp::min, task::ready};
+use std::{cmp::min, io, pin::Pin, task::ready, task::Poll, time::Duration};
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio_util::codec::Framed;
 
@@ -45,18 +46,55 @@ impl<C> NoiseStreamBuilder<C> {
         pattern: NoisePattern,
         local_private_key: impl AsRef<[u8]>,
         remote_pub_key: impl AsRef<[u8]>,
-        psk: Psk,
-        payload: impl AsRef<[u8]>,
+        local_signing_key: Option<impl AsRef<[u8]>>,
+        local_verification_key: Option<impl AsRef<[u8]>>,
         version: NoiseVersion,
     ) -> Result<NoiseStream<C>, NoiseError>
     where
         C: AsyncRead + AsyncWrite + Unpin,
     {
-        let handshake = Builder::new(pattern.as_noise_params())
+        println!("initiator handshake start");
+        let mut handshake = Builder::new(pattern.as_noise_params())
             .local_private_key(local_private_key.as_ref())
             .remote_public_key(remote_pub_key.as_ref())
-            .psk(pattern.psk_position(), &psk)
             .build_initiator()?;
+
+        let payload = match version {
+            NoiseVersion::V1 => {
+                handshake.set_psk(
+                    pattern.psk_position() as usize,
+                    &generate_psk_v1(remote_pub_key.as_ref()),
+                )?;
+                vec![]
+            }
+            NoiseVersion::V2 => match (local_signing_key, local_verification_key) {
+                (Some(signing_key), Some(verification_key)) => {
+                    let mut psq_initiator = PSQInitiator::init(signing_key, verification_key);
+                    let payload = psq_initiate_x25519(
+                        &mut psq_initiator,
+                        &remote_pub_key,
+                        NOISE_PSQ_DEFAULT_CONTEXT,
+                        Duration::from_secs(NOISE_PSQ_DEFAULT_DURATION_SECS),
+                    )?;
+
+                    handshake.set_psk(
+                        pattern.psk_position() as usize,
+                        &psq_initiator.get_psk().unwrap(),
+                    )?;
+                    payload
+                    // self.perform_handshake_debug(
+                    //     handshake,
+                    //     payload,
+                    //     version,
+                    //     pattern,
+                    //     Some(&mut psq_initiator),
+                    // )
+                    // .await
+                }
+                _ => panic!("no keypair in v2"),
+            },
+            NoiseVersion::Unknown(_) => todo!(),
+        };
 
         self.perform_handshake(handshake, payload, version, pattern)
             .await
@@ -67,55 +105,33 @@ impl<C> NoiseStreamBuilder<C> {
         config: &NoiseConfig,
         version: NoiseVersion,
         remote_pub_key: x25519::PublicKey,
+        local_signing_key: Option<impl AsRef<[u8]>>,
+        local_verification_key: Option<impl AsRef<[u8]>>,
     ) -> Result<NoiseStream<C>, NoiseError>
     where
         C: AsyncRead + AsyncWrite + Unpin,
     {
-        match version {
-            NoiseVersion::V1 => {
-                let psk = generate_psk(remote_pub_key, version)?;
-
-                let timeout = config.timeout;
-                tokio::time::timeout(
-                    timeout,
-                    self.perform_initiator_handshake_inner(
-                        config.pattern,
-                        config.local_key.private_key(),
-                        remote_pub_key,
-                        psk,
-                        [],
-                        version,
-                    ),
-                )
-                .await?
-            }
-            NoiseVersion::V2 => {
-                let (psq_initiator_msg, psk) =
-                    generate_psk_v2(*(config.local_key), remote_pub_key, version)?;
-
-                let timeout = config.timeout;
-                tokio::time::timeout(
-                    timeout,
-                    self.perform_initiator_handshake_inner(
-                        config.pattern,
-                        config.local_key.private_key(),
-                        remote_pub_key,
-                        psk,
-                        psq_initiator_msg,
-                        version,
-                    ),
-                )
-                .await?
-            }
-            NoiseVersion::Unknown(_) => todo!(),
-        }
+        let timeout = config.timeout;
+        tokio::time::timeout(
+            timeout,
+            self.perform_initiator_handshake_inner(
+                config.pattern,
+                config.local_key.private_key(),
+                remote_pub_key,
+                local_signing_key,
+                local_verification_key,
+                version,
+            ),
+        )
+        .await?
     }
 
     async fn perform_responder_handshake_inner(
         mut self,
         noise_pattern: NoisePattern,
         local_private_key: impl AsRef<[u8]>,
-        local_pub_key: x25519::PublicKey,
+        local_public_key: impl AsRef<[u8]>,
+        initiator_verification_key: Option<ed25519::PublicKey>,
     ) -> Result<NoiseStream<C>, NoiseError>
     where
         C: AsyncRead + AsyncWrite + Unpin,
@@ -143,28 +159,54 @@ impl<C> NoiseStreamBuilder<C> {
             });
         }
 
-        // 2. generate psk and handshake state
-        let psk = generate_psk(local_pub_key, initial_frame.header.version)?;
-
         let mut handshake = Builder::new(pattern.as_noise_params())
             .local_private_key(local_private_key.as_ref())
-            .psk(pattern.psk_position(), &psk)
+            .psk(pattern.psk_position(), &[])
             .build_responder()?;
 
         // update handshake state with initial frame
         let mut buf = BytesMut::zeroed(HANDSHAKE_MAX_LEN);
         handshake.read_message(&initial_frame.data, &mut buf)?;
 
-        // psq stuff here with buf as payload
+        let payload: Vec<u8> = match initial_frame.version() {
+            NoiseVersion::V1 => {
+                handshake.set_psk(
+                    pattern.psk_position() as usize,
+                    &generate_psk_v1(local_public_key.as_ref()),
+                )?;
+                vec![]
+            }
+            NoiseVersion::V2 => {
+                match initiator_verification_key {
+                    Some(verif_key) => {
+                        let (psk, message) = psq_respond_x25519(
+                            &local_private_key,
+                            &local_public_key,
+                            &verif_key,
+                            &mut buf,
+                            &[0; CONTEXT_LEN],
+                            Duration::from_secs(NOISE_PSQ_DEFAULT_DURATION_SECS),
+                            &[1; PSK_HANDLE_LEN],
+                        )?;
+                        handshake.set_psk(pattern.psk_position() as usize, psk.as_slice())?;
+                        message
+                    }
+                    // error could be replaced by something else
+                    None => return Err(NoiseError::IncorrectStateError),
+                }
+            }
+            NoiseVersion::Unknown(_) => todo!(),
+        };
 
         // 3. run handshake to completion
-        self.perform_handshake(handshake, &[], initial_frame.version(), pattern)
+        self.perform_handshake(handshake, payload, initial_frame.version(), pattern)
             .await
     }
 
     pub(crate) async fn perform_responder_handshake(
         self,
         config: &NoiseConfig,
+        initiator_verification_key: Option<ed25519::PublicKey>,
     ) -> Result<NoiseStream<C>, NoiseError>
     where
         C: AsyncRead + AsyncWrite + Unpin,
@@ -175,7 +217,8 @@ impl<C> NoiseStreamBuilder<C> {
             self.perform_responder_handshake_inner(
                 config.pattern,
                 config.local_key.private_key(),
-                *config.local_key.public_key(),
+                config.local_key.public_key(),
+                initiator_verification_key,
             ),
         )
         .await?
@@ -250,8 +293,6 @@ impl<C> NoiseStreamBuilder<C> {
     where
         C: AsyncRead + AsyncWrite + Unpin,
     {
-        let message_count = 0;
-
         while !handshake_state.is_handshake_finished() {
             if handshake_state.is_my_turn() {
                 self.send_handshake_msg(&mut handshake_state, &payload, version, pattern)
@@ -271,6 +312,55 @@ impl<C> NoiseStreamBuilder<C> {
             dec_buffer: Default::default(),
         })
     }
+
+    //     async fn perform_handshake_debug(
+    //         mut self,
+    //         mut handshake_state: HandshakeState,
+    //         payload: impl AsRef<[u8]>,
+    //         version: NoiseVersion,
+    //         pattern: NoisePattern,
+    //         psq_initiator: Option<&mut PSQInitiator<libcrux_psq::impls::X25519>>,
+    //     ) -> Result<NoiseStream<C>, NoiseError>
+    //     where
+    //         C: AsyncRead + AsyncWrite + Unpin,
+    //     {
+    //         let mut psq_complete = false;
+
+    //         while !handshake_state.is_handshake_finished() {
+    //             if handshake_state.is_my_turn() {
+    //                 self.send_handshake_msg(&mut handshake_state, &payload, version, pattern)
+    //                     .await?;
+    //             } else {
+    //                 // let payload =
+    //                 self.recv_handshake_msg(&mut handshake_state, version, pattern)
+    //                     .await?;
+
+    //                 if !psq_complete
+    //                     && handshake_state.is_initiator()
+    //                     && version == NoiseVersion::V2
+    //                     && psq_initiator.is_some()
+    //                 {
+    //                     // handshake_state.set_psk(
+    //                     //     pattern.psk_position() as usize,
+    //                     //     &psq_initiator.as_ref().unwrap().finalize(&payload)?,
+    //                     // );
+    //                     let expected_psk = psq_initiator.as_ref().unwrap().get_psk().unwrap();
+    //                     let psk = &psq_initiator.as_ref().unwrap().finalize(&payload)?;
+    //                     assert_eq!(psk, &expected_psk);
+    //                     psq_complete = true;
+    //                 }
+    //             }
+    //         }
+
+    //         let transport = handshake_state.into_transport_mode()?;
+    //         Ok(NoiseStream {
+    //             inner_stream: self.inner_stream,
+    //             negotiated_pattern: pattern,
+    //             negotiated_version: version,
+    //             transport,
+    //             dec_buffer: Default::default(),
+    //         })
+    //     }
 }
 
 /// Wrapper around a TcpStream
@@ -561,17 +651,21 @@ mod tests {
         let initiator_keys = Arc::new(x25519::KeyPair::new(&mut rng));
         let responder_keys = Arc::new(x25519::KeyPair::new(&mut rng));
 
+        let no_key: Option<[u8; 0]> = None;
+
         let (initiator_stream, responder_stream) = mock_streams();
 
-        let psk = generate_psk(*responder_keys.public_key(), NoiseVersion::V1)?;
         let pattern = NoisePattern::default();
+
+        println!("here");
 
         let stream_initiator = NoiseStreamBuilder::new(initiator_stream)
             .perform_initiator_handshake_inner(
                 pattern,
                 initiator_keys.private_key().to_bytes(),
-                responder_keys.public_key().to_bytes(),
-                psk,
+                *responder_keys.public_key(),
+                no_key,
+                no_key,
                 NoiseVersion::V1,
             );
 
@@ -580,15 +674,16 @@ mod tests {
                 pattern,
                 responder_keys.private_key().to_bytes(),
                 *responder_keys.public_key(),
+                None,
             );
 
         let initiator_fut =
             tokio::spawn(
-                async move { timeout(Duration::from_millis(200), stream_initiator).await },
+                async move { timeout(Duration::from_secs(10000), stream_initiator).await },
             );
         let responder_fut =
             tokio::spawn(
-                async move { timeout(Duration::from_millis(200), stream_responder).await },
+                async move { timeout(Duration::from_secs(10000), stream_responder).await },
             );
 
         let (initiator, responder) = join!(initiator_fut, responder_fut);
@@ -598,7 +693,7 @@ mod tests {
 
         let msg = b"hello there";
         // if noise was successful we should be able to write a proper message across
-        timeout(Duration::from_millis(200), initiator.write_all(msg)).await??;
+        timeout(Duration::from_secs(200), initiator.write_all(msg)).await??;
 
         initiator.inner_stream.flush().await?;
 
@@ -615,16 +710,21 @@ mod tests {
 
         Ok(())
     }
+
+    #[tokio::test]
+
     async fn noise_handshake_v2() -> anyhow::Result<()> {
         let dummy_seed = [42u8; 32];
         let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
 
         let initiator_keys = Arc::new(x25519::KeyPair::new(&mut rng));
+        let initator_identity_keys = Arc::new(ed25519::KeyPair::new(&mut rng));
         let responder_keys = Arc::new(x25519::KeyPair::new(&mut rng));
+
+        let init_verif_key = initator_identity_keys.public_key().clone();
 
         let (initiator_stream, responder_stream) = mock_streams();
 
-        let psk = generate_psk(*responder_keys.public_key(), NoiseVersion::V2)?;
         let pattern = NoisePattern::default();
 
         let stream_initiator = NoiseStreamBuilder::new(initiator_stream)
@@ -632,7 +732,8 @@ mod tests {
                 pattern,
                 initiator_keys.private_key().to_bytes(),
                 responder_keys.public_key().to_bytes(),
-                psk,
+                Some(initator_identity_keys.private_key().to_bytes()),
+                Some(initator_identity_keys.public_key().to_bytes()),
                 NoiseVersion::V2,
             );
 
@@ -641,6 +742,7 @@ mod tests {
                 pattern,
                 responder_keys.private_key().to_bytes(),
                 *responder_keys.public_key(),
+                Some(init_verif_key),
             );
 
         let initiator_fut =

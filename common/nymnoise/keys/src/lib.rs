@@ -17,7 +17,7 @@ impl From<u8> for NoiseVersion {
     fn from(value: u8) -> Self {
         match value {
             1 => NoiseVersion::V1,
-            2 => NoiseVersion::V1,
+            2 => NoiseVersion::V2,
             other => NoiseVersion::Unknown(other),
         }
     }

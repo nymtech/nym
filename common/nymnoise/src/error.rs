@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use nym_noise_keys::NoiseVersion;
+use nympsq::error::PSQError;
 use snow::Error;
 use std::io;
 use thiserror::Error;
@@ -70,6 +71,9 @@ pub enum NoiseError {
 
     #[error("Handshake timeout")]
     HandshakeTimeout(#[from] tokio::time::error::Elapsed),
+
+    #[error("PSQ Error")]
+    PSQError(PSQError),
 }
 
 impl NoiseError {
@@ -78,6 +82,18 @@ impl NoiseError {
             NoiseError::IoError(err) => err,
             other => std::io::Error::other(other),
         }
+    }
+}
+
+impl From<PSQError> for NoiseError {
+    fn from(err: PSQError) -> Self {
+        NoiseError::PSQError(err)
+    }
+}
+
+impl From<libcrux_kem::Error> for NoiseError {
+    fn from(err: libcrux_kem::Error) -> Self {
+        NoiseError::PSQError(err.into())
     }
 }
 

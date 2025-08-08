@@ -70,13 +70,15 @@ mod psk_gen {
 
         let responder: PSQResponder<X25519> = PSQResponder::init(&kem_private_key, &kem_public_key);
 
-        responder.compute_responder_message(
+        let res = responder.compute_responder_message(
             &VerificationKey::from_bytes(initiator_verification_key.to_bytes()),
             initiator_message,
             context,
             psq_ttl,
             psk_handle,
-        )
+        )?;
+
+        Ok(res)
     }
 
     pub(crate) fn psq_initiate_x25519(
@@ -87,7 +89,9 @@ mod psk_gen {
     ) -> Result<Vec<u8>, NoiseError> {
         let pub_key =
             PublicKey::decode(libcrux_kem::Algorithm::X25519, responder_pub_key.as_ref())?;
-        Ok(initiator.compute_initiator_message(&mut rand::rng(), &pub_key, context, psq_ttl)?)
+        let message =
+            initiator.compute_initiator_message(&mut rand::rng(), &pub_key, context, psq_ttl)?;
+        Ok(message)
     }
 }
 

@@ -13,7 +13,7 @@ use bytes::{Bytes, BytesMut};
 use futures::{Sink, SinkExt, Stream, StreamExt};
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_noise_keys::NoiseVersion;
-use nympsq::psq::{PSQInitiator, CONTEXT_LEN, PSK_HANDLE_LEN};
+use nympsq::psq::{PSQInitiator, PSK_HANDLE_LEN};
 use snow::{Builder, HandshakeState, TransportState};
 use std::{cmp::min, io, pin::Pin, task::ready, task::Poll, time::Duration};
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
@@ -53,7 +53,6 @@ impl<C> NoiseStreamBuilder<C> {
     where
         C: AsyncRead + AsyncWrite + Unpin,
     {
-        println!("initiator handshake start");
         let mut handshake = Builder::new(pattern.as_noise_params())
             .local_private_key(local_private_key.as_ref())
             .remote_public_key(remote_pub_key.as_ref())
@@ -76,20 +75,11 @@ impl<C> NoiseStreamBuilder<C> {
                         NOISE_PSQ_DEFAULT_CONTEXT,
                         Duration::from_secs(NOISE_PSQ_DEFAULT_DURATION_SECS),
                     )?;
-
                     handshake.set_psk(
                         pattern.psk_position() as usize,
                         &psq_initiator.get_psk().unwrap(),
                     )?;
                     payload
-                    // self.perform_handshake_debug(
-                    //     handshake,
-                    //     payload,
-                    //     version,
-                    //     pattern,
-                    //     Some(&mut psq_initiator),
-                    // )
-                    // .await
                 }
                 _ => panic!("no keypair in v2"),
             },
@@ -161,12 +151,12 @@ impl<C> NoiseStreamBuilder<C> {
 
         let mut handshake = Builder::new(pattern.as_noise_params())
             .local_private_key(local_private_key.as_ref())
-            .psk(pattern.psk_position(), &[])
             .build_responder()?;
 
         // update handshake state with initial frame
         let mut buf = BytesMut::zeroed(HANDSHAKE_MAX_LEN);
-        handshake.read_message(&initial_frame.data, &mut buf)?;
+        let len = handshake.read_message(&initial_frame.data, &mut buf)?;
+        buf.truncate(len);
 
         let payload: Vec<u8> = match initial_frame.version() {
             NoiseVersion::V1 => {
@@ -184,11 +174,12 @@ impl<C> NoiseStreamBuilder<C> {
                             &local_public_key,
                             &verif_key,
                             &mut buf,
-                            &[0; CONTEXT_LEN],
+                            NOISE_PSQ_DEFAULT_CONTEXT,
                             Duration::from_secs(NOISE_PSQ_DEFAULT_DURATION_SECS),
                             &[1; PSK_HANDLE_LEN],
                         )?;
                         handshake.set_psk(pattern.psk_position() as usize, psk.as_slice())?;
+
                         message
                     }
                     // error could be replaced by something else
@@ -312,55 +303,6 @@ impl<C> NoiseStreamBuilder<C> {
             dec_buffer: Default::default(),
         })
     }
-
-    //     async fn perform_handshake_debug(
-    //         mut self,
-    //         mut handshake_state: HandshakeState,
-    //         payload: impl AsRef<[u8]>,
-    //         version: NoiseVersion,
-    //         pattern: NoisePattern,
-    //         psq_initiator: Option<&mut PSQInitiator<libcrux_psq::impls::X25519>>,
-    //     ) -> Result<NoiseStream<C>, NoiseError>
-    //     where
-    //         C: AsyncRead + AsyncWrite + Unpin,
-    //     {
-    //         let mut psq_complete = false;
-
-    //         while !handshake_state.is_handshake_finished() {
-    //             if handshake_state.is_my_turn() {
-    //                 self.send_handshake_msg(&mut handshake_state, &payload, version, pattern)
-    //                     .await?;
-    //             } else {
-    //                 // let payload =
-    //                 self.recv_handshake_msg(&mut handshake_state, version, pattern)
-    //                     .await?;
-
-    //                 if !psq_complete
-    //                     && handshake_state.is_initiator()
-    //                     && version == NoiseVersion::V2
-    //                     && psq_initiator.is_some()
-    //                 {
-    //                     // handshake_state.set_psk(
-    //                     //     pattern.psk_position() as usize,
-    //                     //     &psq_initiator.as_ref().unwrap().finalize(&payload)?,
-    //                     // );
-    //                     let expected_psk = psq_initiator.as_ref().unwrap().get_psk().unwrap();
-    //                     let psk = &psq_initiator.as_ref().unwrap().finalize(&payload)?;
-    //                     assert_eq!(psk, &expected_psk);
-    //                     psq_complete = true;
-    //                 }
-    //             }
-    //         }
-
-    //         let transport = handshake_state.into_transport_mode()?;
-    //         Ok(NoiseStream {
-    //             inner_stream: self.inner_stream,
-    //             negotiated_pattern: pattern,
-    //             negotiated_version: version,
-    //             transport,
-    //             dec_buffer: Default::default(),
-    //         })
-    //     }
 }
 
 /// Wrapper around a TcpStream
@@ -657,8 +599,6 @@ mod tests {
 
         let pattern = NoisePattern::default();
 
-        println!("here");
-
         let stream_initiator = NoiseStreamBuilder::new(initiator_stream)
             .perform_initiator_handshake_inner(
                 pattern,
@@ -679,11 +619,11 @@ mod tests {
 
         let initiator_fut =
             tokio::spawn(
-                async move { timeout(Duration::from_secs(10000), stream_initiator).await },
+                async move { timeout(Duration::from_millis(200), stream_initiator).await },
             );
         let responder_fut =
             tokio::spawn(
-                async move { timeout(Duration::from_secs(10000), stream_responder).await },
+                async move { timeout(Duration::from_millis(200), stream_responder).await },
             );
 
         let (initiator, responder) = join!(initiator_fut, responder_fut);
@@ -693,7 +633,7 @@ mod tests {
 
         let msg = b"hello there";
         // if noise was successful we should be able to write a proper message across
-        timeout(Duration::from_secs(200), initiator.write_all(msg)).await??;
+        timeout(Duration::from_millis(200), initiator.write_all(msg)).await??;
 
         initiator.inner_stream.flush().await?;
 

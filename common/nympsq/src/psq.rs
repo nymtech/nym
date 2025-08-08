@@ -1,7 +1,7 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use std::{marker::PhantomData, time::Duration};
+use std::{io::Cursor, marker::PhantomData, time::Duration};
 
 use libcrux_ed25519::VerificationKey;
 use libcrux_psq::{
@@ -66,9 +66,7 @@ impl<'a, T: PSQ> PSQInitiator<T> {
         )?;
         self.state = Some(state);
 
-        let message_bytes = message.tls_serialize_detached()?;
-
-        Ok(message_bytes)
+        Ok(message.tls_serialize_detached()?)
     }
 
     // The initator generates the PSK themselves while computing the first message.
@@ -84,7 +82,7 @@ impl<'a, T: PSQ> PSQInitiator<T> {
 
     pub fn get_psk(&self) -> Option<[u8; 32]> {
         match &self.state {
-            Some(initiator_state) => Some(initiator_state.derive_unregistered_psk().unwrap()),
+            Some(initiator_state) => Some(initiator_state.unregistered_psk()),
             None => None,
         }
     }
@@ -137,9 +135,10 @@ where
         psk_ttl: Duration,
         psk_handle: &[u8; PSK_HANDLE_LEN],
     ) -> Result<([u8; PSK_LENGTH], Vec<u8>), PSQError> {
-        let deserialized_initiator_message =
-            InitiatorMsg::tls_deserialize_exact(initiator_message)?;
+        let mut cursor = Cursor::new(initiator_message);
+        let deserialized_initiator_message = InitiatorMsg::tls_deserialize(&mut cursor)?;
 
+        // the problem is here the deserialized message is the same on the initiator's side
         let (registered_psk, responder_msg) = Responder::send::<Ed25519, T>(
             psk_handle,
             psk_ttl,

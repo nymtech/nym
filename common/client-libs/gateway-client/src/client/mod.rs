@@ -201,7 +201,7 @@ impl<C, St> GatewayClient<C, St> {
     #[cfg(not(target_arch = "wasm32"))]
     pub async fn establish_connection(&mut self) -> Result<(), GatewayClientError> {
         debug!(
-            "Attemting to establish connection to gateway at: {}",
+            "Attempting to establish connection to gateway at: {}",
             self.gateway_address
         );
         let (ws_stream, _) = connect_async(

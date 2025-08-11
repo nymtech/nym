@@ -535,6 +535,7 @@ where
             pending_acks.push(pending_ack);
         }
 
+        drop(topology_permit);
         self.insert_pending_acks(pending_acks);
         self.forward_messages(real_messages, lane).await;
 
@@ -716,17 +717,21 @@ where
 
     // tells real message sender (with the poisson timer) to send this to the mix network
     pub(crate) async fn forward_messages(
-        &self,
+        &mut self,
         messages: Vec<RealMessage>,
         transmission_lane: TransmissionLane,
     ) {
-        if let Err(err) = self
-            .real_message_sender
-            .send((messages, transmission_lane))
-            .await
-        {
-            if !self.task_client.is_shutdown_poll() {
-                error!("Failed to forward messages to the real message sender: {err}");
+        tokio::select! {
+            biased;
+            _ = self.task_client.recv() => {
+                trace!("received shutdown while attempting to forward mixnet messages");
+            }
+            sending_res = self.real_message_sender.send((messages, transmission_lane)) => {
+                if sending_res.is_err() {
+                    error!(
+                        "failed to forward mixnet messages due to closed channel (outside of shutdown!)"
+                    );
+                }
             }
         }
     }

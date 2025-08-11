@@ -7,6 +7,7 @@ use tokio_util::sync::CancellationToken;
 use tracing::{debug, error, info, warn};
 
 use crate::deposits_buffer::DepositsBuffer;
+use crate::http::state::required_deposit_cache::RequiredDepositCache;
 use crate::{
     cli::Cli,
     error::CredentialProxyError,
@@ -14,7 +15,7 @@ use crate::{
         state::{ApiState, ChainClient},
         HttpServer,
     },
-    storage::VpnApiStorage,
+    storage::CredentialProxyStorage,
     tasks::StoragePruner,
 };
 
@@ -96,27 +97,25 @@ pub(crate) async fn run_api(cli: Cli) -> Result<(), CredentialProxyError> {
     // create the tasks
     let bind_address = cli.bind_address();
 
-    let storage = VpnApiStorage::init(cli.persistent_storage_path()).await?;
+    let storage = CredentialProxyStorage::init(cli.persistent_storage_path()).await?;
     let mnemonic = cli.mnemonic;
     let auth_token = cli.http_auth_token;
     let webhook_cfg = cli.webhook;
     let chain_client = ChainClient::new(mnemonic)?;
     let cancellation_token = CancellationToken::new();
 
+    let required_deposit_cache = RequiredDepositCache::default();
+
     let deposits_buffer = DepositsBuffer::new(
         storage.clone(),
         chain_client.clone(),
+        required_deposit_cache.clone(),
         build_sha_short(),
+        cli.deposits_buffer_size,
+        cli.max_concurrent_deposits,
         cancellation_token.clone(),
     )
     .await?;
-
-    // let deposit_maker = DepositMaker::new(
-    //     build_sha_short(),
-    //     chain_client.clone(),
-    //     cli.max_concurrent_deposits,
-    //     cancellation_token.clone(),
-    // );
 
     // let deposit_request_sender = deposit_maker.deposit_request_sender();
     let api_state = ApiState::new(
@@ -124,6 +123,7 @@ pub(crate) async fn run_api(cli: Cli) -> Result<(), CredentialProxyError> {
         webhook_cfg,
         chain_client,
         deposits_buffer,
+        required_deposit_cache,
         cancellation_token.clone(),
     )
     .await?;

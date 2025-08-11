@@ -2,20 +2,18 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::credentials::ticketbook::NodeId;
+use crate::deposits_buffer::helpers::{BufferedDeposit, PerformedDeposits};
 use crate::error::CredentialProxyError;
 use crate::storage::manager::SqliteStorageManager;
 use crate::storage::models::{BlindedShares, MinimalWalletShare};
 use nym_compact_ecash::PublicKeyUser;
-use nym_credentials::ecash::bandwidth::issuance::Hash;
 use nym_credentials::ecash::bandwidth::serialiser::VersionedSerialise;
 use nym_credentials::{
     AggregatedCoinIndicesSignatures, AggregatedExpirationDateSignatures, EpochVerificationKey,
 };
-use nym_crypto::asymmetric::ed25519;
 use nym_validator_client::ecash::BlindedSignatureResponse;
 use nym_validator_client::nym_api::EpochId;
 use nym_validator_client::nyxd::contract_traits::ecash_query_client::DepositId;
-use nym_validator_client::nyxd::Coin;
 use sqlx::sqlite::{SqliteAutoVacuum, SqliteSynchronous};
 use sqlx::ConnectOptions;
 use std::fmt::Debug;
@@ -25,17 +23,16 @@ use time::{Date, OffsetDateTime};
 use tracing::log::LevelFilter;
 use tracing::{debug, error, info, instrument};
 use uuid::Uuid;
-use zeroize::Zeroizing;
 
 mod manager;
 pub mod models;
 
 #[derive(Clone)]
-pub struct VpnApiStorage {
+pub struct CredentialProxyStorage {
     pub(crate) storage_manager: SqliteStorageManager,
 }
 
-impl VpnApiStorage {
+impl CredentialProxyStorage {
     #[instrument]
     pub async fn init<P: AsRef<Path> + Debug>(
         database_path: P,
@@ -71,7 +68,7 @@ impl VpnApiStorage {
 
         info!("Database migration finished!");
 
-        Ok(VpnApiStorage {
+        Ok(CredentialProxyStorage {
             storage_manager: SqliteStorageManager { connection_pool },
         })
     }
@@ -159,13 +156,14 @@ impl VpnApiStorage {
         device_id: &str,
         credential_id: &str,
     ) -> Result<BlindedShares, CredentialProxyError> {
-        self.storage_manager
+        Ok(self
+            .storage_manager
             .update_pending_async_blinded_shares_issued(
                 available_shares as i64,
                 device_id,
                 credential_id,
             )
-            .await
+            .await?)
     }
 
     pub(crate) async fn update_pending_async_blinded_shares_error(
@@ -175,14 +173,15 @@ impl VpnApiStorage {
         credential_id: &str,
         error: &str,
     ) -> Result<BlindedShares, CredentialProxyError> {
-        self.storage_manager
+        Ok(self
+            .storage_manager
             .update_pending_async_blinded_shares_error(
                 available_shares as i64,
                 device_id,
                 credential_id,
                 error,
             )
-            .await
+            .await?)
     }
 
     pub(crate) async fn prune_old_blinded_shares(&self) -> Result<(), CredentialProxyError> {
@@ -194,34 +193,60 @@ impl VpnApiStorage {
         self.storage_manager
             .prune_old_partial_blinded_wallet_failures(max_age)
             .await?;
-        self.storage_manager.prune_old_blinded_shares(max_age).await
+        self.storage_manager
+            .prune_old_blinded_shares(max_age)
+            .await?;
+        Ok(())
     }
 
-    #[allow(clippy::too_many_arguments)]
-    pub(crate) async fn insert_deposit_data(
+    pub(crate) async fn insert_new_deposits(
         &self,
-        deposit_id: DepositId,
-        deposit_tx_hash: Hash,
-        requested_on: OffsetDateTime,
-        request: Uuid,
-        deposit_amount: Coin,
-        client_ecash_pubkey: &PublicKeyUser,
-        ed22519_keypair: &ed25519::KeyPair,
+        deposits: &PerformedDeposits,
     ) -> Result<(), CredentialProxyError> {
-        debug!("inserting deposit data");
-
-        let private_key_bytes = Zeroizing::new(ed22519_keypair.private_key().to_bytes());
+        debug!("inserting {} deposits data", deposits.deposits_data.len());
 
         self.storage_manager
-            .insert_deposit_data(
+            .insert_new_deposits(deposits.to_storable())
+            .await?;
+        Ok(())
+    }
+
+    pub(crate) async fn load_unused_deposits(
+        &self,
+    ) -> Result<Vec<BufferedDeposit>, CredentialProxyError> {
+        self.storage_manager
+            .load_unused_deposits()
+            .await?
+            .into_iter()
+            .map(|deposit| deposit.try_into())
+            .collect()
+    }
+
+    pub(crate) async fn insert_deposit_usage(
+        &self,
+        deposit_id: DepositId,
+        requested_on: OffsetDateTime,
+        client_pubkey: PublicKeyUser,
+        request_uuid: Uuid,
+    ) -> Result<(), CredentialProxyError> {
+        self.storage_manager
+            .insert_deposit_usage(
                 deposit_id,
-                deposit_tx_hash.to_string(),
                 requested_on,
-                request.to_string(),
-                deposit_amount.to_string(),
-                &client_ecash_pubkey.to_bytes(),
-                private_key_bytes.as_ref(),
+                client_pubkey.to_bytes(),
+                request_uuid.to_string(),
             )
+            .await?;
+        Ok(())
+    }
+
+    pub(crate) async fn insert_deposit_usage_error(
+        &self,
+        deposit_id: DepositId,
+        error: String,
+    ) -> Result<(), CredentialProxyError> {
+        self.storage_manager
+            .insert_deposit_usage_error(deposit_id, error)
             .await?;
         Ok(())
     }
@@ -376,6 +401,8 @@ mod tests {
     use crate::http::helpers;
     use crate::storage::models::BlindedSharesStatus;
     use nym_compact_ecash::scheme::keygen::KeyPairUser;
+    use nym_crypto::asymmetric::ed25519;
+    use nym_validator_client::nyxd::{Coin, Hash};
     use rand::rngs::OsRng;
     use rand::RngCore;
     use std::ops::Deref;
@@ -383,7 +410,7 @@ mod tests {
 
     // create the wrapper so the underlying file gets deleted when it's no longer needed
     struct StorageTestWrapper {
-        inner: VpnApiStorage,
+        inner: CredentialProxyStorage,
         _path: TempPath,
     }
 
@@ -395,12 +422,12 @@ mod tests {
             println!("Creating database at {path:?}...");
 
             Ok(StorageTestWrapper {
-                inner: VpnApiStorage::init(&path).await?,
+                inner: CredentialProxyStorage::init(&path).await?,
                 _path: path,
             })
         }
 
-        async fn insert_dummy_deposit(&self, uuid: Uuid) -> anyhow::Result<DepositId> {
+        async fn insert_dummy_used_deposit(&self, uuid: Uuid) -> anyhow::Result<DepositId> {
             let mut rng = OsRng;
             let deposit_id = rng.next_u32();
             let tx_hash = Hash::Sha256(Default::default());
@@ -409,18 +436,21 @@ mod tests {
             let client_keypair = KeyPairUser::new();
             let client_ecash_pubkey = &client_keypair.public_key();
 
-            let deposit_keypair = ed25519::KeyPair::new(&mut rng);
+            let deposit_key = ed25519::PrivateKey::new(&mut rng);
 
             self.inner
-                .insert_deposit_data(
-                    deposit_id,
+                .insert_new_deposits(&PerformedDeposits {
+                    deposits_data: vec![BufferedDeposit {
+                        deposit_id,
+                        ed25519_private_key: deposit_key,
+                    }],
                     tx_hash,
                     requested_on,
-                    uuid,
                     deposit_amount,
-                    client_ecash_pubkey,
-                    &deposit_keypair,
-                )
+                })
+                .await?;
+            self.inner
+                .insert_deposit_usage(deposit_id, requested_on, *client_ecash_pubkey, uuid)
                 .await?;
 
             Ok(deposit_id)
@@ -428,7 +458,7 @@ mod tests {
     }
 
     impl Deref for StorageTestWrapper {
-        type Target = VpnApiStorage;
+        type Target = CredentialProxyStorage;
         fn deref(&self) -> &Self::Target {
             &self.inner
         }
@@ -453,7 +483,7 @@ mod tests {
         let dummy_uuid = helpers::random_uuid();
         println!("🚀 insert_pending_blinded_share...");
 
-        storage.insert_dummy_deposit(dummy_uuid).await?;
+        storage.insert_dummy_used_deposit(dummy_uuid).await?;
         let res = storage
             .insert_new_pending_async_shares_request(dummy_uuid, "1234", "1234")
             .await;
@@ -461,7 +491,7 @@ mod tests {
             println!("❌ {e}");
         }
         assert!(res.is_ok());
-        let res = res.unwrap();
+        let res = res?;
         println!("res = {res:?}");
         assert_eq!(res.status, BlindedSharesStatus::Pending);
 
@@ -473,7 +503,7 @@ mod tests {
             println!("❌ {e}");
         }
         assert!(res.is_ok());
-        let res = res.unwrap();
+        let res = res?;
         println!("res = {res:?}");
         assert!(res.error_message.is_some());
         assert_eq!(res.status, BlindedSharesStatus::Error);
@@ -486,7 +516,7 @@ mod tests {
             println!("❌ {e}");
         }
         assert!(res.is_ok());
-        let res = res.unwrap();
+        let res = res?;
         println!("res = {res:?}");
         assert_eq!(res.status, BlindedSharesStatus::Issued);
         assert!(res.error_message.is_none());

@@ -1,66 +1,38 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::deposits_buffer::helpers::request_sizes;
+use crate::deposits_buffer::helpers::{request_sizes, BufferedDeposit, PerformedDeposits};
 use crate::deposits_buffer::refill_task::RefillTask;
 use crate::error::CredentialProxyError;
 use crate::http::state::required_deposit_cache::RequiredDepositCache;
 use crate::http::state::ChainClient;
-use crate::storage::VpnApiStorage;
-use nym_compact_ecash::{PublicKeyUser, WithdrawalRequest};
-use nym_credentials::IssuanceTicketBook;
+use crate::storage::CredentialProxyStorage;
+use nym_compact_ecash::PublicKeyUser;
 use nym_crypto::asymmetric::ed25519;
 use nym_ecash_contract_common::deposit::DepositId;
 use nym_validator_client::nyxd::cosmwasm_client::ContractResponseData;
 use nym_validator_client::nyxd::Coin;
 use rand::rngs::OsRng;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 use time::OffsetDateTime;
 use tokio::sync::Mutex as AsyncMutex;
-use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, error, info, instrument, warn};
 use uuid::Uuid;
 
-mod helpers;
+pub(crate) mod helpers;
 mod refill_task;
 
 // TODO: I guess make it configurable
 const DEPOSITS_THRESHOLD_P: f32 = 0.1;
-
-pub(crate) struct BufferedDeposit {
-    pub(crate) deposit_id: u32,
-    // note: this type implements `ZeroizeOnDrop`
-    pub(crate) ed25519_private_key: ed25519::PrivateKey,
-    pub(crate) ed25519_public_key: ed25519::PublicKey,
-}
-
-impl BufferedDeposit {
-    fn new(deposit_id: u32, keys: (ed25519::PrivateKey, ed25519::PublicKey)) -> Self {
-        BufferedDeposit {
-            deposit_id,
-            ed25519_private_key: keys.0,
-            ed25519_public_key: keys.1,
-        }
-    }
-
-    pub(crate) fn sign_ticketbook_plaintext(
-        &self,
-        withdrawal_request: &WithdrawalRequest,
-    ) -> ed25519::Signature {
-        let plaintext = IssuanceTicketBook::request_plaintext(withdrawal_request, self.deposit_id);
-        self.ed25519_private_key.sign(plaintext)
-    }
-}
 
 struct DepositsBufferInner {
     client: ChainClient,
 
     required_deposit_cache: RequiredDepositCache,
 
-    storage: VpnApiStorage,
+    storage: CredentialProxyStorage,
     target_amount: usize,
     max_concurrent_deposits: usize,
     unused_deposits: AsyncMutex<Vec<BufferedDeposit>>,
@@ -77,12 +49,30 @@ pub(crate) struct DepositsBuffer {
 
 impl DepositsBuffer {
     pub(crate) async fn new(
-        storage: VpnApiStorage,
+        storage: CredentialProxyStorage,
         client: ChainClient,
+        required_deposit_cache: RequiredDepositCache,
         short_sha: &'static str,
+        target_amount: usize,
+        max_concurrent_deposits: usize,
         cancellation_token: CancellationToken,
     ) -> Result<Self, CredentialProxyError> {
-        todo!("load all unused deposits from the storage")
+        let unused_deposits = storage.load_unused_deposits().await?;
+        info!("managed to load {} deposits", unused_deposits.len());
+
+        Ok(DepositsBuffer {
+            inner: Arc::new(DepositsBufferInner {
+                client,
+                required_deposit_cache,
+                storage,
+                target_amount,
+                max_concurrent_deposits,
+                unused_deposits: AsyncMutex::new(unused_deposits),
+                deposits_refill_task: RefillTask::default(),
+                short_sha,
+                cancellation_token,
+            }),
+        })
     }
 
     async fn deposit_amount(&self) -> Result<Coin, CredentialProxyError> {
@@ -96,23 +86,21 @@ impl DepositsBuffer {
     async fn make_deposits_request(
         &self,
         amount: usize,
-    ) -> Result<Vec<BufferedDeposit>, CredentialProxyError> {
+    ) -> Result<PerformedDeposits, CredentialProxyError> {
+        let requested_on = OffsetDateTime::now_utc();
         let chain_write_permit = self.inner.client.start_chain_tx().await;
         let mut rng = OsRng;
 
         let deposit_amount = self.deposit_amount().await?;
         let keys = (0..amount)
-            .map(|_| {
-                let private_key = ed25519::PrivateKey::new(&mut rng);
-                let public_key: ed25519::PublicKey = (&private_key).into();
-                (private_key, public_key)
-            })
+            .map(|_| ed25519::PrivateKey::new(&mut rng))
             .collect::<Vec<_>>();
 
         info!("starting {amount} deposits");
         let mut contents = Vec::new();
-        for (_, pub_key) in &keys {
-            contents.push((pub_key.to_base58_string(), deposit_amount.clone()));
+        for key in &keys {
+            let public_key: ed25519::PublicKey = key.into();
+            contents.push((public_key.to_base58_string(), deposit_amount.clone()));
         }
 
         let execute_res = chain_write_permit
@@ -141,8 +129,8 @@ impl DepositsBuffer {
             return Err(CredentialProxyError::DepositFailure);
         }
 
-        let mut buffered_deposits = Vec::new();
-        for (keys, response) in keys.into_iter().zip(contract_data) {
+        let mut deposits_data = Vec::new();
+        for (key, response) in keys.into_iter().zip(contract_data) {
             let response_index = response.message_index;
             let deposit_id = match response.parse_singleton_u32_contract_data() {
                 Ok(deposit_id) => deposit_id,
@@ -154,26 +142,30 @@ impl DepositsBuffer {
                 }
             };
 
-            buffered_deposits.push(BufferedDeposit::new(deposit_id, keys));
+            deposits_data.push(BufferedDeposit::new(deposit_id, key));
         }
 
-        Ok(buffered_deposits)
+        Ok(PerformedDeposits {
+            deposits_data,
+            tx_hash,
+            requested_on,
+            deposit_amount,
+        })
     }
 
     async fn insert_new_deposits(
         &self,
-        mut deposits: Vec<BufferedDeposit>,
+        mut deposits: PerformedDeposits,
     ) -> Result<(), CredentialProxyError> {
         // 1. insert into the db
-        // self.inner.storage.insert_new_deposits(...)
-        todo!();
+        self.inner.storage.insert_new_deposits(&deposits).await?;
 
         // 2. update the buffer
         self.inner
             .unused_deposits
             .lock()
             .await
-            .append(&mut deposits);
+            .append(&mut deposits.deposits_data);
         Ok(())
     }
 
@@ -196,7 +188,7 @@ impl DepositsBuffer {
             }
 
             // make sure to insert deposits into db/vec as we get them so on initial run,
-            // we'd start trickling down data as soon as posible
+            // we'd start trickling down data as soon as possible
             let deposits = self.make_deposits_request(request_chunk).await?;
             self.insert_new_deposits(deposits).await?;
         }
@@ -223,22 +215,14 @@ impl DepositsBuffer {
     async fn mark_deposit_as_used(
         &self,
         deposit_id: DepositId,
-        request_uuid: Uuid,
         requested_on: OffsetDateTime,
         client_pubkey: PublicKeyUser,
+        request_uuid: Uuid,
     ) -> Result<(), CredentialProxyError> {
-        // self.inner.storage.mark_deposit_as_used(deposit_id).await
-        todo!()
-    }
-
-    pub(crate) async fn return_deposit(
-        &self,
-        deposit: BufferedDeposit,
-    ) -> Result<(), CredentialProxyError> {
-        // self.inner.storage.reset_deposit_usage(deposit.deposit_id).await?;
-        // self.inner.unused_deposits.lock().await.push(deposit);
-        // Ok(())
-        todo!()
+        self.inner
+            .storage
+            .insert_deposit_usage(deposit_id, requested_on, client_pubkey, request_uuid)
+            .await
     }
 
     async fn wait_for_deposit(
@@ -253,9 +237,9 @@ impl DepositsBuffer {
                 // if the db call fails, we technically don't lose the deposit (we'll 'recover' it on restart)
                 self.mark_deposit_as_used(
                     buffered_deposit.deposit_id,
-                    request_uuid,
                     requested_on,
                     client_pubkey,
+                    request_uuid,
                 )
                 .await?;
                 return Ok(buffered_deposit);
@@ -296,9 +280,9 @@ impl DepositsBuffer {
             Some(buffered_deposit) => {
                 self.mark_deposit_as_used(
                     buffered_deposit.deposit_id,
-                    request_uuid,
                     requested_on,
                     client_pubkey,
+                    request_uuid,
                 )
                 .await?;
                 Ok(buffered_deposit)

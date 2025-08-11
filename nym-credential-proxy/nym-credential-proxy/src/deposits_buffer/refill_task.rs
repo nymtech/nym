@@ -9,6 +9,7 @@ use tracing::{debug, error};
 
 pub(super) type RefillTaskResult = Result<(), CredentialProxyError>;
 
+#[derive(Default)]
 pub(super) struct RefillTask {
     // note that we can only have a single transaction in progress (or it'd mess up with our sequence numbers)
     // if we find that we're using up deposits more quickly than we're refilling them,
@@ -19,10 +20,6 @@ pub(super) struct RefillTask {
 }
 
 impl RefillTask {
-    pub(super) fn in_progress(&self) -> bool {
-        self.in_progress.load(Ordering::SeqCst)
-    }
-
     /// Attempt to set the `in_progress` value to `true` if it's not already `true`.
     /// Returns boolean indicating whether it was successful
     fn try_set_in_progress(&self) -> bool {

@@ -226,6 +226,11 @@ where
 
         while !self.task_client.is_shutdown() {
             tokio::select! {
+                biased;
+                _ = self.task_client.recv() => {
+                    tracing::trace!("InputMessageListener: Received shutdown");
+                    break;
+                }
                 input_msg = self.input_receiver.recv() => match input_msg {
                     Some(input_msg) => {
                         self.on_input_message(input_msg).await;
@@ -235,9 +240,7 @@ where
                         break;
                     }
                 },
-                _ = self.task_client.recv() => {
-                    tracing::trace!("InputMessageListener: Received shutdown");
-                }
+
             }
         }
         self.task_client.recv_timeout().await;

@@ -108,7 +108,7 @@ impl IssuanceTicketBook {
             signing_request.withdrawal_request.clone(),
             self.deposit_id,
             request_signature,
-            signing_request.ecash_pub_key.clone(),
+            signing_request.ecash_pub_key,
             signing_request.expiration_date,
             signing_request.ticketbook_type,
         )

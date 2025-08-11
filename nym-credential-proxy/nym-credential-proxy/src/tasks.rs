@@ -22,6 +22,7 @@ impl StoragePruner {
         info!("starting the storage pruner task");
         loop {
             tokio::select! {
+                biased;
                 _ = self.cancellation_token.cancelled() => {
                     break
                 }

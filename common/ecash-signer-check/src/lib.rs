@@ -15,6 +15,9 @@ use nym_validator_client::ecash::models::EcashSignerStatusResponse;
 use nym_validator_client::models::{
     ChainBlocksStatusResponse, ChainStatusResponse, SignerInformationResponse,
 };
+use nym_validator_client::nyxd::contract_traits::dkg_query_client::{
+    ContractVKShare, DealerDetails, Epoch,
+};
 
 mod client_check;
 pub mod error;
@@ -48,7 +51,22 @@ pub async fn check_signers(
     check_signers_with_client(&client).await
 }
 
+pub struct DkgDetails {
+    pub dkg_epoch: Epoch,
+    pub threshold: Option<u64>,
+    pub network_dealers: Vec<DealerDetails>,
+    pub submitted_shared: HashMap<u64, ContractVKShare>,
+}
+
 pub async fn check_signers_with_client<C>(client: &C) -> Result<SignersTestResult, SignerCheckError>
+where
+    C: DkgQueryClient + Sync,
+{
+    let dkg_details = dkg_details_with_client(client).await?;
+    check_known_dealers(dkg_details).await
+}
+
+pub async fn dkg_details_with_client<C>(client: &C) -> Result<DkgDetails, SignerCheckError>
 where
     C: DkgQueryClient + Sync,
 {
@@ -79,16 +97,31 @@ where
         .map(|share| (share.node_index, share))
         .collect();
 
+    Ok(DkgDetails {
+        dkg_epoch,
+        threshold,
+        network_dealers: dealers,
+        submitted_shared: shares,
+    })
+}
+
+pub async fn check_known_dealers(
+    dkg_details: DkgDetails,
+) -> Result<SignersTestResult, SignerCheckError> {
     // 6. for each dealer attempt to perform the checks
-    let results = dealers
+    let results = dkg_details
+        .network_dealers
         .into_iter()
         .map(|d| {
-            let share = shares.get(&d.assigned_index);
-            check_client(d, dkg_epoch.epoch_id, share)
+            let share = dkg_details.submitted_shared.get(&d.assigned_index);
+            check_client(d, dkg_details.dkg_epoch.epoch_id, share)
         })
         .collect::<FuturesUnordered<_>>()
         .collect::<Vec<_>>()
         .await;
 
-    Ok(SignersTestResult { threshold, results })
+    Ok(SignersTestResult {
+        threshold: dkg_details.threshold,
+        results,
+    })
 }

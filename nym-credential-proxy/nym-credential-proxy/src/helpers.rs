@@ -8,6 +8,7 @@ use tracing::{debug, error, info, warn};
 
 use crate::deposits_buffer::DepositsBuffer;
 use crate::http::state::required_deposit_cache::RequiredDepositCache;
+use crate::quorum_checker::QuorumStateChecker;
 use crate::{
     cli::Cli,
     error::CredentialProxyError,
@@ -106,6 +107,14 @@ pub(crate) async fn run_api(cli: Cli) -> Result<(), CredentialProxyError> {
 
     let required_deposit_cache = RequiredDepositCache::default();
 
+    let quorum_state_checker = QuorumStateChecker::new(
+        chain_client.clone(),
+        cli.quorum_check_interval,
+        cancellation_token.clone(),
+    )
+    .await?;
+    let quorum_state = quorum_state_checker.quorum_state_ref();
+
     let deposits_buffer = DepositsBuffer::new(
         storage.clone(),
         chain_client.clone(),
@@ -120,6 +129,7 @@ pub(crate) async fn run_api(cli: Cli) -> Result<(), CredentialProxyError> {
     // let deposit_request_sender = deposit_maker.deposit_request_sender();
     let api_state = ApiState::new(
         storage.clone(),
+        quorum_state,
         webhook_cfg,
         chain_client,
         deposits_buffer,
@@ -138,6 +148,7 @@ pub(crate) async fn run_api(cli: Cli) -> Result<(), CredentialProxyError> {
     // spawn all the tasks
     api_state.try_spawn(http_server.run_forever());
     api_state.try_spawn(storage_pruner.run_forever());
+    api_state.try_spawn(quorum_state_checker.run_forever());
 
     // wait for cancel signal (SIGINT, SIGTERM or SIGQUIT)
     wait_for_signal().await;

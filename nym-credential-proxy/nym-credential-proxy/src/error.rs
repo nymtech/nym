@@ -1,6 +1,7 @@
 // Copyright 2024 Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use nym_ecash_signer_check::SignerCheckError;
 use nym_validator_client::coconut::EcashApiError;
 use nym_validator_client::nym_api::EpochId;
 use nym_validator_client::nyxd::error::NyxdError;
@@ -121,6 +122,12 @@ pub enum CredentialProxyError {
 
     #[error("can't obtain sufficient number of credential shares due to unavailable quorum")]
     UnavailableSigningQuorum,
+
+    #[error("failed to perform quorum check: {source}")]
+    QuorumCheckFailure {
+        #[from]
+        source: SignerCheckError,
+    },
 }
 
 impl CredentialProxyError {

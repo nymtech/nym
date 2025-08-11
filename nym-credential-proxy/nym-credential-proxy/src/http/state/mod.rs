@@ -11,6 +11,7 @@ use crate::nym_api_helpers::{
     ensure_sane_expiration_date, query_all_threshold_apis, CachedEpoch, CachedImmutableEpochItem,
     CachedImmutableItems,
 };
+use crate::quorum_checker::QuorumState;
 use crate::storage::CredentialProxyStorage;
 use crate::webhook::ZkNymWebHookConfig;
 use axum::http::StatusCode;
@@ -68,6 +69,7 @@ pub struct ApiState {
 impl ApiState {
     pub(crate) async fn new(
         storage: CredentialProxyStorage,
+        quorum_state: QuorumState,
         zk_nym_web_hook_config: ZkNymWebHookConfig,
         client: ChainClient,
         deposits_buffer: DepositsBuffer,
@@ -80,6 +82,7 @@ impl ApiState {
                 client,
                 ecash_state: EcashState {
                     required_deposit_cache,
+                    quorum_state,
                     cached_epoch: Default::default(),
                     master_verification_key: Default::default(),
                     threshold_values: Default::default(),
@@ -143,8 +146,8 @@ impl ApiState {
         &self.inner.zk_nym_web_hook_config
     }
 
-    pub(crate) async fn quorum_available(&self) -> bool {
-        todo!()
+    pub(crate) fn quorum_available(&self) -> bool {
+        self.inner.ecash_state.quorum_state.available()
     }
 
     async fn ensure_credentials_issuable(&self) -> Result<(), CredentialProxyError> {
@@ -684,6 +687,8 @@ struct CredentialProxyStateInner {
 
 pub(crate) struct EcashState {
     pub(crate) required_deposit_cache: RequiredDepositCache,
+
+    pub(crate) quorum_state: QuorumState,
 
     pub(crate) cached_epoch: RwLock<CachedEpoch>,
 

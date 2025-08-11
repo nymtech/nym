@@ -38,7 +38,7 @@ pub(crate) async fn try_obtain_wallet_shares(
     request_data: TicketbookRequest,
 ) -> Result<Vec<WalletShare>, CredentialProxyError> {
     // don't proceed if we don't have quorum available as the request will definitely fail
-    if !state.quorum_available().await {
+    if !state.quorum_available() {
         return Err(CredentialProxyError::UnavailableSigningQuorum);
     }
 

@@ -51,5 +51,6 @@ async fn main() -> anyhow::Result<()> {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     eprintln!("This tool is only supported on Unix systems");
+    #[allow(clippy::exit)]
     std::process::exit(1)
 }

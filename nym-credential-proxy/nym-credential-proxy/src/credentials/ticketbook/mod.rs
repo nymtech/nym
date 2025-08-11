@@ -124,10 +124,14 @@ pub(crate) async fn try_obtain_wallet_shares(
     let shares = wallet_shares.len();
 
     if shares < threshold as usize {
-        return Err(CredentialProxyError::InsufficientNumberOfCredentials {
+        let err = CredentialProxyError::InsufficientNumberOfCredentials {
             available: shares,
             threshold,
-        });
+        };
+        state
+            .insert_deposit_usage_error(deposit_id, err.to_string())
+            .await;
+        return Err(err);
     }
 
     Ok(wallet_shares

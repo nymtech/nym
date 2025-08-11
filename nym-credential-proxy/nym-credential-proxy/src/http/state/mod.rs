@@ -31,6 +31,7 @@ use nym_credentials::{
     AggregatedCoinIndicesSignatures, AggregatedExpirationDateSignatures, EpochVerificationKey,
 };
 use nym_credentials_interface::VerificationKeyAuth;
+use nym_ecash_contract_common::deposit::DepositId;
 use nym_ecash_contract_common::msg::ExecuteMsg;
 use nym_validator_client::coconut::EcashApiError;
 use nym_validator_client::nym_api::EpochId;
@@ -51,7 +52,7 @@ use tokio::task::JoinHandle;
 use tokio::time::Instant;
 use tokio_util::sync::CancellationToken;
 use tokio_util::task::TaskTracker;
-use tracing::{debug, info, instrument, warn};
+use tracing::{debug, error, info, instrument, warn};
 use uuid::Uuid;
 
 pub(crate) mod required_deposit_cache;
@@ -235,6 +236,17 @@ impl ApiState {
         };
 
         deposit
+    }
+
+    pub(crate) async fn insert_deposit_usage_error(&self, deposit_id: DepositId, error: String) {
+        if let Err(err) = self
+            .inner
+            .storage
+            .insert_deposit_usage_error(deposit_id, error)
+            .await
+        {
+            error!("failed to insert information about deposit (id: {deposit_id}) usage failure: {err}")
+        }
     }
 
     pub(crate) async fn global_data(

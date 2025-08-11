@@ -1,11 +1,49 @@
 // Copyright 2024 Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use nym_crypto::asymmetric::ed25519;
 use serde::{Deserialize, Serialize};
-use sqlx::{FromRow, Type};
-use std::convert::Into;
+use sqlx::sqlite::SqliteRow;
+use sqlx::{FromRow, Row, Type};
 use strum_macros::{Display, EnumString};
 use time::{Date, OffsetDateTime};
+use zeroize::Zeroizing;
+
+pub(crate) struct StorableEcashDeposit {
+    pub(crate) deposit_id: u32,
+    pub(crate) deposit_tx_hash: String,
+    pub(crate) requested_on: OffsetDateTime,
+    pub(crate) deposit_amount: String,
+    pub(crate) ed25519_deposit_private_key: Zeroizing<[u8; ed25519::SECRET_KEY_LENGTH]>,
+}
+
+impl<'r> FromRow<'r, SqliteRow> for StorableEcashDeposit {
+    fn from_row(row: &'r SqliteRow) -> Result<Self, sqlx::Error> {
+        let deposit_id = row.try_get("deposit_id")?;
+        let deposit_tx_hash = row.try_get("deposit_tx_hash")?;
+        let requested_on = row.try_get("requested_on")?;
+        let deposit_amount = row.try_get("deposit_amount")?;
+        let ed25519_deposit_private_key: Vec<u8> = row.try_get("ed25519_deposit_private_key")?;
+        if ed25519_deposit_private_key.len() != ed25519::SECRET_KEY_LENGTH {
+            return Err(sqlx::Error::decode(
+                "stored ed25519_deposit_private_key has invalid length",
+            ));
+        }
+
+        // SAFETY: we just checked the length is correct
+        #[allow(clippy::unwrap_used)]
+        let ed25519_deposit_private_key: [u8; ed25519::SECRET_KEY_LENGTH] =
+            ed25519_deposit_private_key.try_into().unwrap();
+
+        Ok(StorableEcashDeposit {
+            deposit_id,
+            deposit_tx_hash,
+            requested_on,
+            deposit_amount,
+            ed25519_deposit_private_key: Zeroizing::new(ed25519_deposit_private_key),
+        })
+    }
+}
 
 #[derive(Serialize, Deserialize, Debug, Clone, EnumString, Type, PartialEq, Display)]
 #[sqlx(rename_all = "snake_case")]
@@ -27,11 +65,6 @@ pub struct BlindedShares {
     pub error_message: Option<String>,
     pub created: OffsetDateTime,
     pub updated: OffsetDateTime,
-}
-
-pub struct FullBlindedShares {
-    pub status: BlindedShares,
-    pub shares: (),
 }
 
 #[derive(FromRow)]

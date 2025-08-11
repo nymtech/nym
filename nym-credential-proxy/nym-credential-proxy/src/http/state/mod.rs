@@ -1,7 +1,8 @@
 // Copyright 2024 Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::deposits_buffer::{BufferedDeposit, DepositsBuffer};
+use crate::deposits_buffer::helpers::BufferedDeposit;
+use crate::deposits_buffer::DepositsBuffer;
 use crate::error::CredentialProxyError;
 use crate::helpers::LockTimer;
 use crate::http::state::required_deposit_cache::RequiredDepositCache;
@@ -10,7 +11,7 @@ use crate::nym_api_helpers::{
     ensure_sane_expiration_date, query_all_threshold_apis, CachedEpoch, CachedImmutableEpochItem,
     CachedImmutableItems,
 };
-use crate::storage::VpnApiStorage;
+use crate::storage::CredentialProxyStorage;
 use crate::webhook::ZkNymWebHookConfig;
 use axum::http::StatusCode;
 use bip39::Mnemonic;
@@ -58,24 +59,33 @@ pub(crate) mod required_deposit_cache;
 // currently we need to hold our keypair so that we could request a freepass credential
 #[derive(Clone)]
 pub struct ApiState {
-    inner: Arc<ApiStateInner>,
+    inner: Arc<CredentialProxyStateInner>,
 }
 
 // a lot of functionalities, mostly to do with caching and storage is just copy-pasted from nym-api,
 // since we have to do more or less the same work
 impl ApiState {
-    pub async fn new(
-        storage: VpnApiStorage,
+    pub(crate) async fn new(
+        storage: CredentialProxyStorage,
         zk_nym_web_hook_config: ZkNymWebHookConfig,
         client: ChainClient,
         deposits_buffer: DepositsBuffer,
+        required_deposit_cache: RequiredDepositCache,
         cancellation_token: CancellationToken,
     ) -> Result<Self, CredentialProxyError> {
         let state = ApiState {
-            inner: Arc::new(ApiStateInner {
+            inner: Arc::new(CredentialProxyStateInner {
                 storage,
                 client,
-                ecash_state: EcashState::default(),
+                ecash_state: EcashState {
+                    required_deposit_cache,
+                    cached_epoch: Default::default(),
+                    master_verification_key: Default::default(),
+                    threshold_values: Default::default(),
+                    epoch_clients: Default::default(),
+                    coin_index_signatures: Default::default(),
+                    expiration_date_signatures: Default::default(),
+                },
                 zk_nym_web_hook_config,
                 task_tracker: TaskTracker::new(),
                 deposits_buffer,
@@ -157,7 +167,7 @@ impl ApiState {
         }
     }
 
-    pub(crate) fn storage(&self) -> &VpnApiStorage {
+    pub(crate) fn storage(&self) -> &CredentialProxyStorage {
         &self.inner.storage
     }
 
@@ -644,10 +654,8 @@ impl ChainClient {
     }
 }
 
-//
-
-struct ApiStateInner {
-    storage: VpnApiStorage,
+struct CredentialProxyStateInner {
+    storage: CredentialProxyStorage,
 
     client: ChainClient,
 
@@ -662,7 +670,6 @@ struct ApiStateInner {
     cancellation_token: CancellationToken,
 }
 
-#[derive(Default)]
 pub(crate) struct EcashState {
     pub(crate) required_deposit_cache: RequiredDepositCache,
 

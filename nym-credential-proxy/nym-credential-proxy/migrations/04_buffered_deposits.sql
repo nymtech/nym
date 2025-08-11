@@ -66,11 +66,16 @@ CREATE TABLE partial_blinded_wallet_failure_new
 
 INSERT INTO partial_blinded_wallet_new
 SELECT *
-from partial_blinded_wallet;
+FROM partial_blinded_wallet;
 INSERT INTO partial_blinded_wallet_failure_new
 SELECT *
-from partial_blinded_wallet_failure;
+FROM partial_blinded_wallet_failure;
 
 DROP TABLE partial_blinded_wallet;
 DROP TABLE partial_blinded_wallet_failure;
+DROP TABLE ticketbook_deposit;
 
+ALTER TABLE partial_blinded_wallet_new
+    RENAME TO partial_blinded_wallet;
+ALTER TABLE partial_blinded_wallet_failure_new
+    RENAME TO partial_blinded_wallet_failure;

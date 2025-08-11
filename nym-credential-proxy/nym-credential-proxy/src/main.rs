@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 mod deposits_buffer;
+mod quorum_checker;
 
 cfg_if::cfg_if! {
     if #[cfg(unix)] {

@@ -1,6 +1,6 @@
 [package]
 name = "nym-credential-proxy"
-version = "0.1.7"
+version = "0.1.8"
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
@@ -50,6 +50,7 @@ nym-validator-client = { path = "../../common/client-libs/validator-client" }
 nym-network-defaults = { path = "../../common/network-defaults" }
 
 nym-credential-proxy-requests = { path = "../nym-credential-proxy-requests", features = ["openapi"] }
+nym-ecash-signer-check = { path = "../../common/ecash-signer-check" }
 
 [dev-dependencies]
 tempfile = { workspace = true }

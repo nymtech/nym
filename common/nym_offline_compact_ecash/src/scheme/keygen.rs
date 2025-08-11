@@ -554,7 +554,7 @@ impl KeyPairUser {
     }
 
     pub fn public_key(&self) -> PublicKeyUser {
-        self.public_key.clone()
+        self.public_key
     }
 
     pub fn to_bytes(&self) -> Vec<u8> {

@@ -1,9 +1,6 @@
 // Copyright 2024 Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-mod deposits_buffer;
-mod quorum_checker;
-
 cfg_if::cfg_if! {
     if #[cfg(unix)] {
         use crate::cli::Cli;
@@ -16,7 +13,6 @@ cfg_if::cfg_if! {
         pub mod cli;
         pub mod config;
         pub mod credentials;
-        // mod deposit_maker;
         pub mod error;
         pub mod helpers;
         pub mod http;
@@ -24,6 +20,8 @@ cfg_if::cfg_if! {
         pub mod storage;
         pub mod tasks;
         mod webhook;
+        mod deposits_buffer;
+        mod quorum_checker;
     }
 }
 

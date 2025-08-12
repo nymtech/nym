@@ -18,6 +18,7 @@ digest = { workspace = true, optional = true }
 generic-array = { workspace = true, optional = true }
 hkdf = { workspace = true, optional = true }
 hmac = { workspace = true, optional = true }
+jwt-simple = { workspace = true, optional = true }
 cipher = { workspace = true, optional = true }
 x25519-dalek = { workspace = true, features = ["static_secrets"], optional = true }
 ed25519-dalek = { workspace = true, features = ["rand_core"], optional = true }
@@ -39,6 +40,7 @@ rand_chacha = { workspace = true }
 [features]
 default = []
 aead = ["dep:aead", "aead/std", "aes-gcm-siv", "generic-array"]
+naive_jwt = ["asymmetric", "jwt-simple"]
 serde = ["dep:serde", "serde_bytes", "ed25519-dalek/serde", "x25519-dalek/serde"]
 asymmetric = ["x25519-dalek", "ed25519-dalek", "zeroize"]
 hashing = ["blake3", "digest", "hkdf", "hmac", "generic-array", "sha2"]

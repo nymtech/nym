@@ -1,0 +1,30 @@
+[package]
+name = "upgrade-mode-check"
+version = "0.1.0"
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+readme.workspace = true
+
+[dependencies]
+jwt-simple = { workspace = true }
+reqwest = { workspace = true, features = ["rustls-tls"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+time = { workspace = true, features = ["serde"] }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+
+nym-http-api-client = { path = "../http-api-client", default-features = false }
+nym-crypto = { path = "../crypto", features = ["asymmetric", "serde", "naive_jwt"] }
+
+[dev-dependencies]
+anyhow = { workspace = true }
+time = { workspace = true, features = ["macros"] }
+
+[lints]
+workspace = true

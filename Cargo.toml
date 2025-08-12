@@ -96,7 +96,7 @@ members = [
     "common/ticketbooks-merkle",
     "common/topology",
     "common/tun",
-    "common/types",
+    "common/types", "common/upgrade-mode-check",
     "common/verloc",
     "common/wasm/client-core",
     "common/wasm/storage",
@@ -271,6 +271,7 @@ inquire = "0.6.2"
 ip_network = "0.4.1"
 ipnetwork = "0.20"
 itertools = "0.14.0"
+jwt-simple = "0.12.12"
 k256 = "0.13"
 lazy_static = "1.5.0"
 ledger-transport = "0.10.0"

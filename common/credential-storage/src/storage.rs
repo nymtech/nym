@@ -92,6 +92,7 @@ pub trait Storage: Clone + Send + Sync {
     async fn get_expiration_date_signatures(
         &self,
         expiration_date: Date,
+        epoch_id: u64,
     ) -> Result<Option<Vec<AnnotatedExpirationDateSignature>>, Self::StorageError>;
 
     async fn insert_expiration_date_signatures(

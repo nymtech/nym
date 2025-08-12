@@ -401,10 +401,11 @@ impl EcashState {
     pub(crate) async fn master_expiration_date_signatures(
         &self,
         expiration_date: Date,
+        epoch_id: EpochId,
     ) -> Result<RwLockReadGuard<'_, IssuedExpirationDateSignatures>> {
         self.global
             .expiration_date_signatures
-            .get_or_init(expiration_date, || async {
+            .get_or_init((epoch_id, expiration_date), || async {
                 // 1. sanity check to see if the expiration_date is not nonsense
                 ensure_sane_expiration_date(expiration_date)?;
 
@@ -412,7 +413,7 @@ impl EcashState {
                 if let Some(master_sigs) = self
                     .aux
                     .storage
-                    .get_master_expiration_date_signatures(expiration_date)
+                    .get_master_expiration_date_signatures(expiration_date, epoch_id)
                     .await?
                 {
                     return Ok(master_sigs);
@@ -435,13 +436,16 @@ impl EcashState {
                     // check if we're attempting to query ourselves, in that case just get local signature
                     // rather than making the http query
                     let partial = if Some(api.cosmos_address) == cosmos_address {
-                        self.partial_expiration_date_signatures(expiration_date)
+                        self.partial_expiration_date_signatures(expiration_date, epoch_id)
                             .await?
                             .signatures
                             .clone()
                     } else {
                         api.api_client
-                            .partial_expiration_date_signatures(Some(expiration_date))
+                            .partial_expiration_date_signatures(
+                                Some(expiration_date),
+                                Some(epoch_id),
+                            )
                             .await?
                             .signatures
                     };
@@ -480,10 +484,11 @@ impl EcashState {
     pub(crate) async fn partial_expiration_date_signatures(
         &self,
         expiration_date: Date,
+        epoch_id: EpochId,
     ) -> Result<RwLockReadGuard<'_, IssuedExpirationDateSignatures>> {
         self.local
             .partial_expiration_date_signatures
-            .get_or_init(expiration_date, || async {
+            .get_or_init((epoch_id, expiration_date), || async {
                 // 1. sanity check to see if the expiration_date is not nonsense
                 ensure_sane_expiration_date(expiration_date)?;
 
@@ -491,7 +496,7 @@ impl EcashState {
                 if let Some(partial_sigs) = self
                     .aux
                     .storage
-                    .get_partial_expiration_date_signatures(expiration_date)
+                    .get_partial_expiration_date_signatures(expiration_date, epoch_id)
                     .await?
                 {
                     return Ok(partial_sigs);

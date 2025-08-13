@@ -46,10 +46,12 @@ nym-credentials = { path = "../../common/credentials" }
 nym-credentials-interface = { path = "../../common/credentials-interface" }
 nym-ecash-contract-common = { path = "../../common/cosmwasm-smart-contracts/ecash-contract" }
 nym-http-api-common = { path = "../../common/http-api-common", features = ["utoipa", "middleware"] }
+nym-http-api-client = { path = "../../common/http-api-client", default-features = false }
 nym-validator-client = { path = "../../common/client-libs/validator-client" }
 nym-network-defaults = { path = "../../common/network-defaults" }
 
 nym-credential-proxy-requests = { path = "../nym-credential-proxy-requests", features = ["openapi"] }
+nym-upgrade-mode-check = { path = "../../common/upgrade-mode-check" }
 
 [dev-dependencies]
 tempfile = { workspace = true }
@@ -61,3 +63,6 @@ sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite", "macros
 [features]
 default = ["cors"]
 cors = ["tower-http"]
+
+[lints]
+workspace = true

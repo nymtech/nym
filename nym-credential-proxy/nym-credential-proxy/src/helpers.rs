@@ -15,7 +15,7 @@ use crate::{
         HttpServer,
     },
     storage::VpnApiStorage,
-    tasks::StoragePruner,
+    storage_pruner::StoragePruner,
 };
 
 pub struct LockTimer {

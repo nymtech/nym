@@ -3,7 +3,7 @@
 
 use crate::UpgradeModeCheckError;
 use nym_crypto::asymmetric::ed25519;
-use nym_http_api_client::generate_user_agent;
+use nym_http_api_client::{generate_user_agent, UserAgent};
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use time::OffsetDateTime;
@@ -63,8 +63,9 @@ pub fn generate_new_attestation_with_starting_time(
     }
 }
 
-pub async fn attempt_retrieve(
+pub async fn attempt_retrieve_attestation(
     url: &str,
+    user_agent: Option<UserAgent>,
 ) -> Result<Option<UpgradeModeAttestation>, UpgradeModeCheckError> {
     let retrieval_failure = |source| UpgradeModeCheckError::AttestationRetrievalFailure {
         url: url.to_string(),
@@ -72,7 +73,7 @@ pub async fn attempt_retrieve(
     };
 
     let attestation = reqwest::ClientBuilder::new()
-        .user_agent(generate_user_agent!())
+        .user_agent(user_agent.unwrap_or_else(|| generate_user_agent!()))
         .timeout(Duration::from_secs(5))
         .build()
         .map_err(retrieval_failure)?

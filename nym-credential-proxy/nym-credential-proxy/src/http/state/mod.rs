@@ -52,6 +52,8 @@ use tokio_util::task::TaskTracker;
 use tracing::{debug, info, warn};
 use uuid::Uuid;
 
+pub(crate) mod nyx_upgrade_mode;
+
 // currently we need to hold our keypair so that we could request a freepass credential
 #[derive(Clone)]
 pub struct ApiState {

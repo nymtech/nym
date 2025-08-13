@@ -24,8 +24,9 @@ cfg_if::cfg_if! {
         pub mod http;
         pub mod nym_api_helpers;
         pub mod storage;
-        pub mod tasks;
+        pub mod storage_pruner;
         mod webhook;
+        pub mod attestation_watcher;
     }
 }
 

@@ -9,7 +9,7 @@ use nym_pemstore::traits::{PemStorableKey, PemStorableKeyPair};
 use std::fmt::{self, Debug, Display, Formatter};
 use std::str::FromStr;
 use thiserror::Error;
-use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 #[cfg(feature = "serde")]
 pub mod serde_helpers;
@@ -449,9 +449,10 @@ impl From<PublicKey> for jwt_simple::algorithms::Ed25519PublicKey {
 impl PrivateKey {
     pub fn to_jwt_compatible_keys(&self) -> jwt_simple::algorithms::Ed25519KeyPair {
         let pub_key = self.public_key();
-        let mut bytes = Zeroizing::new([0u8; 64]);
+        let mut bytes = zeroize::Zeroizing::new([0u8; 64]);
 
-        bytes[..SECRET_KEY_LENGTH].copy_from_slice(Zeroizing::new(self.to_bytes()).as_ref());
+        bytes[..SECRET_KEY_LENGTH]
+            .copy_from_slice(zeroize::Zeroizing::new(self.to_bytes()).as_ref());
         bytes[SECRET_KEY_LENGTH..].copy_from_slice(&pub_key.to_bytes());
 
         // SAFETY: we have a valid ed25519 keys, we're just changing to a different library wrapper
@@ -463,10 +464,10 @@ impl PrivateKey {
 #[cfg(feature = "naive_jwt")]
 impl KeyPair {
     pub fn to_jwt_compatible_keys(&self) -> jwt_simple::algorithms::Ed25519KeyPair {
-        let mut bytes = Zeroizing::new([0u8; 64]);
+        let mut bytes = zeroize::Zeroizing::new([0u8; 64]);
 
         bytes[..SECRET_KEY_LENGTH]
-            .copy_from_slice(Zeroizing::new(self.private_key.to_bytes()).as_ref());
+            .copy_from_slice(zeroize::Zeroizing::new(self.private_key.to_bytes()).as_ref());
         bytes[SECRET_KEY_LENGTH..].copy_from_slice(&self.public_key.to_bytes());
 
         // SAFETY: we have a valid ed25519 keys, we're just changing to a different library wrapper

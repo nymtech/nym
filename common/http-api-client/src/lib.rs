@@ -608,6 +608,7 @@ impl Client {
             current_idx: Arc::new(Default::default()),
             reqwest_client: self.reqwest_client.clone(),
 
+            #[cfg(feature = "tunneling")]
             front: self.front.clone(),
             retry_limit: self.retry_limit,
 

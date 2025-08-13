@@ -1,6 +1,8 @@
 // Copyright 2024 Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::attestation_watcher::AttestationWatcher;
+use crate::http::state::ApiState;
 use crate::{cli::Cli, http::HttpServer};
 use nym_bin_common::bin_info;
 use nym_credential_proxy_lib::error::CredentialProxyError;
@@ -51,6 +53,7 @@ pub(crate) async fn run_api(cli: Cli) -> Result<(), CredentialProxyError> {
     let mnemonic = cli.mnemonic;
     let auth_token = cli.http_auth_token;
     let webhook_cfg = cli.webhook;
+    let jwt_signing_keys = cli.jwt_signing_keys.signing_keys()?;
 
     let ticketbook_manager = TicketbookManager::new(
         build_sha_short(),
@@ -63,7 +66,24 @@ pub(crate) async fn run_api(cli: Cli) -> Result<(), CredentialProxyError> {
     )
     .await?;
 
-    let http_server = HttpServer::new(bind_address, ticketbook_manager.clone(), auth_token);
+    let attestation_watcher = AttestationWatcher::new(
+        cli.upgrade_mode.attestation_check_regular_polling_interval,
+        cli.upgrade_mode
+            .attestation_check_expedited_polling_interval,
+        cli.upgrade_mode.attestation_check_url,
+        jwt_signing_keys,
+        cli.upgrade_mode.upgrade_mode_jwt_validity,
+    );
+
+    let api_state = ApiState::new(
+        ticketbook_manager.clone(),
+        attestation_watcher.shared_state(),
+    );
+
+    // spawn the attestation watcher as a separate task
+    api_state.try_spawn_in_background(attestation_watcher.run_forever(api_state.shutdown_token()));
+
+    let http_server = HttpServer::new(bind_address, api_state, auth_token);
 
     // spawn the http server as a separate task / thread(-ish)
     http_server.spawn_as_task();

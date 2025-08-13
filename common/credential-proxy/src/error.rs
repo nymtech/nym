@@ -127,6 +127,13 @@ pub enum CredentialProxyError {
     #[error("failed to create deposit")]
     DepositFailure,
 
+    #[error("failed to load jwt signing key from {path}: {err}")]
+    JWTSigningKeyLoadFailure {
+        path: String,
+        #[source]
+        err: std::io::Error,
+    },
+
     #[error("can't obtain sufficient number of credential shares due to unavailable quorum")]
     UnavailableSigningQuorum,
 

@@ -17,7 +17,7 @@ use crate::{
         HttpServer,
     },
     storage::CredentialProxyStorage,
-    tasks::StoragePruner,
+    storage_pruner::StoragePruner,
 };
 
 pub struct LockTimer {

@@ -57,6 +57,7 @@ use tracing::{debug, error, info, instrument, warn};
 use uuid::Uuid;
 
 pub(crate) mod required_deposit_cache;
+pub(crate) mod nyx_upgrade_mode;
 
 // currently we need to hold our keypair so that we could request a freepass credential
 #[derive(Clone)]

@@ -5456,8 +5456,10 @@ dependencies = [
  "nym-crypto",
  "nym-ecash-contract-common",
  "nym-ecash-signer-check",
+ "nym-http-api-client",
  "nym-http-api-common",
  "nym-network-defaults",
+ "nym-upgrade-mode-check",
  "nym-validator-client",
  "rand 0.8.5",
  "reqwest 0.12.22",
@@ -5490,6 +5492,7 @@ dependencies = [
  "nym-http-api-client",
  "nym-http-api-common",
  "nym-serde-helpers",
+ "nym-upgrade-mode-check",
  "reqwest 0.12.22",
  "schemars 0.8.22",
  "serde",
@@ -11970,17 +11973,6 @@ checksum = "9150af68066c4c5c07ddc0ce30421554771e528bde427614c61038bc2c92c2b1"
 dependencies = [
  "windows-core",
  "windows-link",
-]
-
-[[package]]
-name = "windows-registry"
-version = "0.5.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5b8a9ed28765efc97bbc954883f4e6796c33a06546ebafacbabee9696967499e"
-dependencies = [
- "windows-link",
- "windows-result",
- "windows-strings",
 ]
 
 [[package]]

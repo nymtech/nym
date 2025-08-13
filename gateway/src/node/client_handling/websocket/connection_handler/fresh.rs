@@ -27,6 +27,9 @@ use nym_gateway_requests::{
     INITIAL_PROTOCOL_VERSION,
 };
 use nym_gateway_storage::error::GatewayStorageError;
+use nym_gateway_storage::traits::BandwidthGatewayStorage;
+use nym_gateway_storage::traits::InboxGatewayStorage;
+use nym_gateway_storage::traits::SharedKeyGatewayStorage;
 use nym_node_metrics::events::MetricsEvent;
 use nym_sphinx::DestinationAddressBytes;
 use nym_task::TaskClient;

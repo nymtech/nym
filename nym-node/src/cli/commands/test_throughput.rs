@@ -6,7 +6,6 @@ use crate::logging::granual_filtered_env;
 use crate::throughput_tester::test_mixing_throughput;
 use anyhow::bail;
 use humantime_serde::re::humantime;
-use indicatif::ProgressStyle;
 use nym_bin_common::logging::default_tracing_fmt_layer;
 use std::env::temp_dir;
 use std::path::PathBuf;
@@ -41,9 +40,6 @@ pub struct Args {
 
 fn init_test_logger() -> anyhow::Result<()> {
     let indicatif_layer = IndicatifLayer::new()
-        .with_progress_style(ProgressStyle::with_template(
-            "{span_child_prefix}{spinner} {span_fields} -- {span_name} {wide_msg}",
-        )?)
         .with_span_child_prefix_symbol("↳ ")
         .with_span_child_prefix_indent(" ");
 

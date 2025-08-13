@@ -194,10 +194,11 @@ impl ActionController {
         trace!("{frag_id} is updating its delay");
         // TODO: is it possible to solve this without either locking or temporarily removing the value?
         if let Some((pending_ack_data, queue_key)) = self.pending_acks_data.remove(&frag_id) {
-            // this Action is triggered by `RetransmissionRequestListener` (for 'normal' packets)
+            // SAFETY: this Action is triggered by `RetransmissionRequestListener` (for 'normal' packets)
             // or `ReplyController` (for 'reply' packets) which held the other potential
             // reference to this Arc. HOWEVER, before the Action was pushed onto the queue, the reference
             // was dropped hence this unwrap is safe.
+            #[allow(clippy::unwrap_used)]
             let mut inner_data = Arc::try_unwrap(pending_ack_data).unwrap();
             inner_data.update_retransmitted(delay);
 
@@ -209,6 +210,7 @@ impl ActionController {
     }
 
     // note: when the entry expires it's automatically removed from pending_acks_timers
+    #[allow(clippy::panic)]
     fn handle_expired_ack_timer(&mut self, expired_ack: Expired<FragmentIdentifier>) {
         let frag_id = expired_ack.into_inner();
 

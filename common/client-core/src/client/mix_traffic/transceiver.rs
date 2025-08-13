@@ -269,6 +269,8 @@ pub struct MockGateway {
 }
 
 impl Default for MockGateway {
+    // test code
+    #[allow(clippy::unwrap_used)]
     fn default() -> Self {
         MockGateway {
             dummy_identity: "3ebjp1Fb9hdcS1AR6AZihgeJiMHkB5jjJUsvqNnfQwU7"

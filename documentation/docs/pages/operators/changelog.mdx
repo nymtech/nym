@@ -47,6 +47,83 @@ This page displays a full list of all the changes during our release cycle from 
 
 <VarInfo />
 
+
+
+## `v2025.13-emmental`
+
+- [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.13-emmental)
+- [`nym-node`](nodes/nym-node.mdx) version `1.15.0`
+
+```sh
+nym-node
+Binary Name:        nym-node
+Build Timestamp:    2025-07-22T09:24:35.790560275Z
+Build Version:      1.15.0
+Commit SHA:         578c9b0567656d86812aa21eb0b4c93b5a7235bd
+Commit Date:        2025-07-22T11:09:35.000000000+02:00
+Commit Branch:      HEAD
+rustc Version:      1.86.0
+rustc Channel:      stable
+cargo Profile:      release
+```
+
+### Operators Updates & Tools
+
+- [**NIP-3: Nym Exit Policy Update**](https://forum.nym.com/t/nip-3-nym-exit-policy-update/1462/2) is out - **VOTE [HERE](https://governator.nym.com/proposal/prop-d0c0d398-43bd-4a6f-b008-1921b64ae4ed)!**
+
+- `nym-node` can only run one `--mode` at a time. Multiple mode nodes will fail to start.
+
+### Features
+
+- [Initial performance contract](https://github.com/nymtech/nym/pull/5833): Introduces the foundational structure of the performance contract. Not yet integrated into any system.
+
+- [Basic performance contract integration within Nym API](https://github.com/nymtech/nym/pull/5871): Integrates the performance contract into `nym-api`, enabling node score source selection from the contract (disabled by default).
+
+- [Forbid running `mixnode` + `entry-gateway` on the same node](https://github.com/nymtech/nym/pull/5878): Prevents configuration of `mixnode` and `entry-gateway` node on the same host.
+
+- [HTTP Discovery objects & network defaults](https://github.com/nymtech/nym/pull/5814): Adds config options for expanded API URLs via discovery environment objects.
+
+- [Add build info endpoints](https://github.com/nymtech/nym/pull/5857)
+
+- [Batch SQL writes for packet stats](https://github.com/nymtech/nym/pull/5874)
+
+- [Update push-node-status-agent.yaml](https://github.com/nymtech/nym/pull/5882): Adds input for setting release tag and prefixes image tag with `golden-`.
+
+- [Make Mix hops optional for Mixnet Client SURBs](https://github.com/nymtech/nym/pull/5861): Allows SURBs to be configured to only use gateways in the mixnet return path.
+
+- [Check gateway supported versions](https://github.com/nymtech/nym/pull/5860)
+
+- [Clear out screaming logs](https://github.com/nymtech/nym/pull/5856): Removes unnecessary alarming log messages.
+
+- [Use display when printing paths](https://github.com/nymtech/nym/pull/5853): Uses Rust’s `display()` method for better path output.
+
+- [Remove old explorer references](https://github.com/nymtech/nym/pull/5846)
+
+- [Listen for shutdown signals during nym-node startup](https://github.com/nymtech/nym/pull/5879): This is to avoid situation where the process can't be killed without 'kill -9' because the logic to listen to shutdown signals hasn't been hit yet 
+
+### Bugfixes
+
+- [Don't allow mixnode running in exit mode](https://github.com/nymtech/nym/pull/5898)
+
+- [Fix contract build process in Makefile](https://github.com/nymtech/nym/pull/5892)
+
+- [Ignore 'Send' responses when claiming bandwidth](https://github.com/nymtech/nym/pull/5884)
+
+- [Fix the broken link](https://github.com/nymtech/nym/pull/5873)
+
+- [Scraper bugfix: ignore precommits from missing validators](https://github.com/nymtech/nym/pull/5867)
+
+- [Fix removal of qa env](https://github.com/nymtech/nym/pull/5855)
+
+- [Return true remaining](https://github.com/nymtech/nym/pull/5866)
+
+### Refactors & Maintenance
+
+- [chore: 1.88 clippy](https://github.com/nymtech/nym/pull/5877): Applies clippy fixes based on recent compiler version update.
+
+- [Security patches for the `dkg` crate](https://github.com/nymtech/nym/pull/5828): Addresses overflows, unsafe RNGs, and integrity checks as per Cryspen audit.
+
+
 ## `v2025.12-dolcelatte`
 
 - [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.12-dolcelatte)

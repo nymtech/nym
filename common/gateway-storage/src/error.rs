@@ -20,6 +20,18 @@ pub enum GatewayStorageError {
     #[error("the stored data associated with ticket {ticket_id} is malformed!")]
     MalformedStoredTicketData { ticket_id: i64 },
 
-    #[error("Failed to convert from type of database: {0}")]
-    TypeConversion(String),
+    #[error("Failed to convert from type of database: {field_key}")]
+    TypeConversion { field_key: &'static str },
+
+    #[error("Serialization failure for {field_key}")]
+    Serialize {
+        field_key: &'static str,
+        source: bincode::Error,
+    },
+
+    #[error("Deserialization failure for {field_key}")]
+    Deserialize {
+        field_key: &'static str,
+        source: bincode::Error,
+    },
 }

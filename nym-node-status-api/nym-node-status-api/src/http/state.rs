@@ -7,7 +7,7 @@ use nym_crypto::asymmetric::ed25519::PublicKey;
 use nym_mixnet_contract_common::NodeId;
 use nym_validator_client::nym_api::SkimmedNode;
 use semver::Version;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, sync::Arc, time::Duration};
 use time::UtcDateTime;
 use tokio::sync::RwLock;
@@ -181,14 +181,24 @@ impl HttpCache {
                 // the key is missing so populate it
                 tracing::trace!("No gateways in cache, refreshing cache from DB...");
 
-                let gateways = crate::db::queries::get_all_gateways(db)
-                    .await
-                    .unwrap_or_default();
+                let gateways = match crate::db::queries::get_all_gateways(db).await {
+                    Ok(gws) => {
+                        tracing::info!("Successfully fetched {} gateways from database", gws.len());
+                        if !gws.is_empty() {
+                            self.upsert_gateway_list(gws.clone()).await;
+                        }
+                        gws
+                    }
+                    Err(err) => {
+                        tracing::error!("CRITICAL: Failed to fetch gateways from database: {err}");
+                        panic!(
+                            "Cannot read gateways table - this should never happen! Error: {err}"
+                        );
+                    }
+                };
 
                 if gateways.is_empty() {
                     tracing::warn!("Database: gateway list is empty");
-                } else {
-                    self.upsert_gateway_list(gateways.clone()).await;
                 }
 
                 gateways
@@ -227,60 +237,64 @@ impl HttpCache {
                 read_lock.clone()
             }
             None => {
-                tracing::trace!("No gateways (dVPN) in cache, refreshing from DB...");
+                tracing::info!("No gateways (dVPN) in cache, refreshing from DB...");
 
                 let gateways = self.get_gateway_list(db).await;
+                tracing::info!("Found {} gateways in database", gateways.len());
 
                 let started_with = gateways.len();
-                let Ok(skimmed_nodes) = crate::db::queries::get_described_bonded_nym_nodes(db)
+                let skimmed_nodes = match crate::db::queries::get_described_bonded_nym_nodes(db)
                     .await
-                    .map(|records| {
-                        records
-                            .into_iter()
-                            .filter_map(|dto| {
-                                SkimmedNode::try_from(dto)
-                                    .inspect_err(|err| {
-                                        error!("Failed to read SkimmedNode from DB: {err}")
-                                    })
-                                    .ok()
-                            })
-                            .map(|skimmed_node| {
-                                (
-                                    skimmed_node.ed25519_identity_pubkey.to_base58_string(),
-                                    skimmed_node,
-                                )
-                            })
-                            .collect::<HashMap<_, _>>()
-                    })
-                    .inspect_err(|err| {
-                        // this would fail only in case of internal error: log and return gracefully
-                        error!("Failed to get nym_nodes from DB: {err}");
-                    })
-                else {
-                    return Vec::new();
+                {
+                    Ok(records) => {
+                        let mut nodes = HashMap::new();
+                        for dto in records {
+                            match SkimmedNode::try_from(dto) {
+                                Ok(skimmed_node) => {
+                                    let key =
+                                        skimmed_node.ed25519_identity_pubkey.to_base58_string();
+                                    nodes.insert(key, skimmed_node);
+                                }
+                                Err(err) => {
+                                    error!("CRITICAL: Failed to convert NymNodeDto to SkimmedNode: {err}");
+                                    panic!("Cannot convert database record to SkimmedNode - this should never happen! Error: {err}");
+                                }
+                            }
+                        }
+                        nodes
+                    }
+                    Err(err) => {
+                        error!("CRITICAL: Failed to query nym_nodes from database: {err}");
+                        panic!(
+                            "Cannot read nym_nodes table - database connection issue? Error: {err}"
+                        );
+                    }
                 };
 
                 let res_gws = gateways
-                    .into_iter()
+                    .iter()
                     .filter(|gw| gw.bonded)
                     .filter_map(|gw| match skimmed_nodes.get(&gw.gateway_identity_key) {
                         Some(skimmed_node) => Some((gw, skimmed_node)),
                         None => {
-                            warn!(
-                                "No SkimmedNode data found for GW, identity_key={}",
+                            error!(
+                                "CRITICAL: Gateway {} exists in gateways table but not in nym_nodes table! This should not happen.",
                                 gw.gateway_identity_key
                             );
                             None
                         }
                     })
                     .filter_map(
-                        |(gw, skimmed_node)| match DVpnGateway::new(gw, skimmed_node) {
+                        |(gw, skimmed_node)| match DVpnGateway::new(gw.clone(), skimmed_node) {
                             Ok(gw) => Some(gw),
                             Err(err) => {
                                 error!(
-                                    "Failed to convert GW node_id={} to dVPN form: {}",
-                                    skimmed_node.node_id, err
+                                    "CRITICAL: Failed to create DVpnGateway for node_id={}, identity_key={}: {}",
+                                    skimmed_node.node_id,
+                                    skimmed_node.ed25519_identity_pubkey.to_base58_string(),
+                                    err
                                 );
+                                // Don't panic here as this might be due to missing fields, but log it loudly
                                 None
                             }
                         },
@@ -315,9 +329,26 @@ impl HttpCache {
                     })
                     .collect::<Vec<_>>();
 
+                let bonded_count = gateways.iter().filter(|gw| gw.bonded).count();
+                tracing::info!(
+                    "DVpn gateway filtering: {} total gateways, {} bonded, {} nym_nodes, {} final DVpn gateways",
+                    started_with,
+                    bonded_count,
+                    skimmed_nodes.len(),
+                    res_gws.len()
+                );
+
                 if res_gws.is_empty() && started_with > 0 {
-                    tracing::warn!("Started with {}, got 0 gateways", started_with);
+                    tracing::error!(
+                        "CRITICAL: Started with {} gateways but got 0 DVpn gateways! Min version: {}",
+                        started_with,
+                        min_node_version
+                    );
                 } else {
+                    tracing::info!(
+                        "Successfully loaded {} DVpn gateways into cache",
+                        res_gws.len()
+                    );
                     self.upsert_dvpn_gateway_list(res_gws.clone()).await;
                 }
 
@@ -663,7 +694,7 @@ impl BinaryInfo {
     }
 }
 
-#[derive(Serialize, ToSchema)]
+#[derive(Serialize, ToSchema, Deserialize)]
 pub(crate) struct HealthInfo {
-    uptime: i64,
+    pub(crate) uptime: i64,
 }

@@ -1,6 +1,6 @@
 use super::helpers::scrape_and_store_description;
+use crate::db::DbPool;
 use anyhow::Result;
-use sqlx::SqlitePool;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -17,12 +17,12 @@ static TASK_COUNTER: AtomicUsize = AtomicUsize::new(0);
 static TASK_ID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
 pub struct DescriptionScraper {
-    pool: SqlitePool,
+    pool: DbPool,
     description_queue: Arc<Mutex<Vec<ScraperNodeInfo>>>,
 }
 
 impl DescriptionScraper {
-    pub fn new(pool: SqlitePool) -> Self {
+    pub fn new(pool: DbPool) -> Self {
         Self {
             pool,
             description_queue: Arc::new(Mutex::new(Vec::new())),
@@ -50,7 +50,7 @@ impl DescriptionScraper {
 
     #[instrument(level = "info", name = "description_scraper", skip_all)]
     async fn run_description_scraper(
-        pool: &SqlitePool,
+        pool: &DbPool,
         queue: Arc<Mutex<Vec<ScraperNodeInfo>>>,
     ) -> Result<()> {
         let nodes = get_nodes_for_scraping(pool).await?;
@@ -65,7 +65,7 @@ impl DescriptionScraper {
         Ok(())
     }
 
-    async fn process_description_queue(pool: &SqlitePool, queue: Arc<Mutex<Vec<ScraperNodeInfo>>>) {
+    async fn process_description_queue(pool: &DbPool, queue: Arc<Mutex<Vec<ScraperNodeInfo>>>) {
         loop {
             let running_tasks = TASK_COUNTER.load(Ordering::Relaxed);
 
@@ -88,7 +88,7 @@ impl DescriptionScraper {
                 let pool = pool.clone();
 
                 tokio::spawn(async move {
-                    match scrape_and_store_description(&pool, &node).await {
+                    match scrape_and_store_description(&pool, node.clone()).await {
                         Ok(_) => debug!(
                             "📝 ✅ Description task #{} for node {} complete",
                             task_id,

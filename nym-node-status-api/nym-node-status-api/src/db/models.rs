@@ -38,11 +38,11 @@ pub(crate) struct GatewayInsertRecord {
     pub(crate) performance: u8,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, FromRow)]
 pub(crate) struct GatewayDto {
     pub(crate) gateway_identity_key: String,
     pub(crate) bonded: bool,
-    pub(crate) performance: i64,
+    pub(crate) performance: i32,
     pub(crate) self_described: Option<String>,
     pub(crate) explorer_pretty_bond: Option<String>,
     pub(crate) last_probe_result: Option<String>,
@@ -121,7 +121,7 @@ pub(crate) struct MixnodeRecord {
     pub(crate) is_dp_delegatee: bool,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, FromRow)]
 pub(crate) struct MixnodeDto {
     pub(crate) mix_id: i64,
     pub(crate) bonded: bool,
@@ -183,14 +183,14 @@ pub(crate) struct BondedStatusDto {
 }
 
 #[allow(unused)]
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, FromRow)]
 pub(crate) struct SummaryDto {
     pub(crate) key: String,
     pub(crate) value_json: String,
     pub(crate) last_updated_utc: i64,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, FromRow)]
 pub(crate) struct SummaryHistoryDto {
     #[allow(dead_code)]
     pub id: i64,
@@ -287,11 +287,11 @@ pub(crate) mod gateway {
 }
 
 #[allow(dead_code)] // not dead code, this is SQL data model
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, FromRow)]
 pub struct TestRunDto {
-    pub id: i64,
-    pub gateway_id: i64,
-    pub status: i64,
+    pub id: i32,
+    pub gateway_id: i32,
+    pub status: i32,
     pub created_utc: i64,
     pub ip_address: String,
     pub log: String,
@@ -313,9 +313,9 @@ pub struct GatewayIdentityDto {
 }
 
 #[allow(dead_code)] // it's not dead code but clippy doesn't detect usage in sqlx macros
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, FromRow)]
 pub struct GatewayInfoDto {
-    pub id: i64,
+    pub id: i32,
     pub gateway_identity_key: String,
     pub self_described: Option<String>,
     pub explorer_pretty_bond: Option<String>,
@@ -379,6 +379,7 @@ impl ScrapeNodeKind {
     }
 }
 
+#[derive(Clone)]
 pub(crate) struct ScraperNodeInfo {
     pub node_kind: ScrapeNodeKind,
     pub hosts: Vec<String>,
@@ -412,11 +413,11 @@ impl ScraperNodeInfo {
 #[allow(dead_code)] // it's not dead code but clippy doesn't detect usage in sqlx macros
 #[derive(FromRow, Debug)]
 pub(crate) struct NymNodeDto {
-    pub node_id: i64,
+    pub node_id: i32,
     pub ed25519_identity_pubkey: String,
     pub total_stake: i64,
     pub ip_addresses: serde_json::Value,
-    pub mix_port: i64,
+    pub mix_port: i32,
     pub x25519_sphinx_pubkey: String,
     pub node_role: serde_json::Value,
     pub supported_roles: serde_json::Value,
@@ -429,11 +430,11 @@ pub(crate) struct NymNodeDto {
 #[allow(dead_code)] // it's not dead code but clippy doesn't detect usage in sqlx macros
 #[derive(Debug)]
 pub(crate) struct NymNodeInsertRecord {
-    pub node_id: i64,
+    pub node_id: i32,
     pub ed25519_identity_pubkey: String,
     pub total_stake: i64,
     pub ip_addresses: serde_json::Value,
-    pub mix_port: i64,
+    pub mix_port: i32,
     pub x25519_sphinx_pubkey: String,
     pub node_role: serde_json::Value,
     pub supported_roles: serde_json::Value,
@@ -441,7 +442,7 @@ pub(crate) struct NymNodeInsertRecord {
     pub entry: Option<serde_json::Value>,
     pub self_described: Option<serde_json::Value>,
     pub bond_info: Option<serde_json::Value>,
-    pub last_updated_utc: String,
+    pub last_updated_utc: i64,
 }
 
 impl NymNodeInsertRecord {
@@ -450,7 +451,7 @@ impl NymNodeInsertRecord {
         bond_info: Option<&NymNodeDetails>,
         self_described: Option<&NymNodeDescription>,
     ) -> anyhow::Result<Self> {
-        let now = OffsetDateTime::now_utc().to_string();
+        let now = OffsetDateTime::now_utc().unix_timestamp();
 
         // if bond info is missing, set stake to 0
         let total_stake = bond_info
@@ -461,11 +462,11 @@ impl NymNodeInsertRecord {
         let self_described = serialize_opt_to_value!(self_described)?;
 
         let record = Self {
-            node_id: skimmed_node.node_id.into(),
+            node_id: skimmed_node.node_id as i32,
             ed25519_identity_pubkey: skimmed_node.ed25519_identity_pubkey.to_base58_string(),
             total_stake,
             ip_addresses: serde_json::to_value(&skimmed_node.ip_addresses)?,
-            mix_port: skimmed_node.mix_port as i64,
+            mix_port: skimmed_node.mix_port as i32,
             x25519_sphinx_pubkey: skimmed_node.x25519_sphinx_pubkey.to_base58_string(),
             node_role: serde_json::to_value(&skimmed_node.role)?,
             supported_roles: serde_json::to_value(skimmed_node.supported_roles)?,
@@ -514,11 +515,11 @@ impl TryFrom<NymNodeDto> for SkimmedNode {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, sqlx::Decode)]
+#[derive(Debug, Serialize, Deserialize, sqlx::Decode, FromRow)]
 pub struct NodeStats {
-    pub packets_received: i64,
-    pub packets_sent: i64,
-    pub packets_dropped: i64,
+    pub packets_received: i32,
+    pub packets_sent: i32,
+    pub packets_dropped: i32,
 }
 
 pub struct InsertStatsRecord {

@@ -41,3 +41,15 @@ async fn summary_history(State(state): State<AppState>) -> HttpResult<Json<Vec<S
         state.cache().get_summary_history(state.db_pool()).await,
     ))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_routes_construction() {
+        let router = routes();
+        // Verify the router builds without panic
+        let _routes = router;
+    }
+}

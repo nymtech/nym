@@ -164,7 +164,7 @@ impl ServiceProvidersData {
         Ok(())
     }
 
-    async fn initialise_client_gateway_storage(
+    pub(crate) async fn initialise_client_gateway_storage(
         storage_path: &Path,
         registration: &GatewayRegistration,
     ) -> Result<(), ServiceProvidersError> {

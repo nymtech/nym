@@ -11,6 +11,7 @@ mod dealers;
 mod dealings;
 mod epoch_state;
 pub mod error;
+mod queued_migrations;
 mod state;
 mod support;
 mod verification_key_shares;

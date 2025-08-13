@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::cli::commands::{
-    bonding_information, build_info, migrate, node_details, reset_sphinx_keys, run, sign,
+    bonding_information, build_info, debug, migrate, node_details, reset_sphinx_keys, run, sign,
     test_throughput,
 };
 use crate::env::vars::{NYMNODE_CONFIG_ENV_FILE_ARG, NYMNODE_NO_BANNER_ARG};
 use crate::logging::setup_tracing_logger;
-use clap::{Parser, Subcommand};
+use clap::{Args, Parser, Subcommand};
 use nym_bin_common::bin_info;
 use std::future::Future;
 use std::sync::OnceLock;
@@ -56,7 +56,7 @@ impl Cli {
     pub(crate) fn execute(self) -> anyhow::Result<()> {
         // NOTE: `test_throughput` sets up its own logger as it has to include additional layers
         if !matches!(self.command, Commands::TestThroughput(..)) {
-            setup_tracing_logger()?;
+            crate::logging::setup_tracing_logger()?;
         }
 
         match self.command {
@@ -72,6 +72,11 @@ impl Cli {
             Commands::UnsafeResetSphinxKeys(args) => {
                 { Self::execute_async(reset_sphinx_keys::execute(args))? }?
             }
+            Commands::Debug(debug) => match debug.command {
+                DebugCommands::ResetProvidersGatewayDbs(args) => {
+                    { Self::execute_async(debug::reset_providers_dbs::execute(args))? }?
+                }
+            },
         }
         Ok(())
     }
@@ -100,10 +105,26 @@ pub(crate) enum Commands {
     /// UNSAFE: reset existing sphinx keys and attempt to generate fresh one for the current network state
     UnsafeResetSphinxKeys(reset_sphinx_keys::Args),
 
+    /// Commands exposed for debug purposes, usually not meant to be used by operators
+    #[clap(hide = true)]
+    Debug(Debug),
+
     /// Attempt to approximate the maximum mixnet throughput if nym-node
     /// was running on this machine in mixnet mode
     #[clap(hide = true)]
     TestThroughput(test_throughput::Args),
+}
+
+#[derive(Debug, Args)]
+pub(crate) struct Debug {
+    #[clap(subcommand)]
+    pub(crate) command: DebugCommands,
+}
+
+#[derive(Subcommand, Debug)]
+pub(crate) enum DebugCommands {
+    /// Reset the internal GatewaysDetailsStores of all service providers in case they got corrupted
+    ResetProvidersGatewayDbs(debug::reset_providers_dbs::Args),
 }
 
 #[cfg(test)]

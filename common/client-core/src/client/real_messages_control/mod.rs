@@ -224,14 +224,20 @@ impl RealMessagesController<OsRng> {
         let ack_control = self.ack_control;
         let mut reply_control = self.reply_control;
 
-        spawn_future(async move {
-            out_queue_control.run().await;
-            debug!("The out queue controller has finished execution!");
-        });
-        spawn_future(async move {
-            reply_control.run().await;
-            debug!("The reply controller has finished execution!");
-        });
+        spawn_future!(
+            async move {
+                out_queue_control.run().await;
+                debug!("The out queue controller has finished execution!");
+            },
+            "RealMessagesController::OutQueueControl)"
+        );
+        spawn_future!(
+            async move {
+                reply_control.run().await;
+                debug!("The reply controller has finished execution!");
+            },
+            "RealMessagesController::ReplyController"
+        );
 
         ack_control.start(packet_type);
     }

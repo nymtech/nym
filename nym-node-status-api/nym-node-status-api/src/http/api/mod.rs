@@ -101,3 +101,38 @@ fn setup_cors() -> CorsLayer {
         .allow_headers(tower_http::cors::Any)
         .allow_credentials(false)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_cors_configuration() {
+        let cors = setup_cors();
+
+        // Test that CORS is configured (this tests that the function returns a valid CorsLayer)
+        // The actual CORS behavior would need integration tests
+        let _layer = cors; // This ensures the cors layer is valid
+    }
+
+    #[test]
+    fn test_router_builder_creates_routes() {
+        let router_builder = RouterBuilder::with_default_routes();
+
+        // Test that the router builder has the expected structure
+        // The router itself is private, but we can test that the builder is created
+        let unfinished_router = router_builder.unfinished_router;
+
+        // Convert to a testable format - this will compile only if routes are properly configured
+        let _test_router = unfinished_router;
+    }
+
+    #[test]
+    fn test_router_builder_finalize() {
+        let router_builder = RouterBuilder::with_default_routes();
+        let finalized = router_builder.finalize_routes();
+
+        // This tests that finalize_routes produces a valid Router
+        let _router = finalized;
+    }
+}

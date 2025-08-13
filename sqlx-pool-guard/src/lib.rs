@@ -39,7 +39,12 @@ pub struct SqlitePoolGuard {
 
 impl SqlitePoolGuard {
     /// Create new instance providing path to database and connection pool
-    pub fn new(database_path: PathBuf, connection_pool: sqlx::SqlitePool) -> Self {
+    pub fn new(connection_pool: sqlx::SqlitePool) -> Self {
+        let database_path = connection_pool
+            .connect_options()
+            .get_filename()
+            .to_path_buf();
+
         Self {
             database_path,
             connection_pool,
@@ -160,7 +165,7 @@ mod tests {
             .await
             .unwrap();
 
-        let guard = SqlitePoolGuard::new(database_path.clone(), connection_pool);
+        let guard = SqlitePoolGuard::new(connection_pool);
         assert!(
             guard
                 .wait_for_db_files_close()

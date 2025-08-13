@@ -1,17 +1,20 @@
-use anyhow::{anyhow, Result};
+use anyhow::Result;
+#[cfg(feature = "sqlite")]
 use sqlx::{Connection, SqliteConnection};
+#[cfg(feature = "sqlite")]
 #[cfg(target_family = "unix")]
 use std::fs::Permissions;
+#[cfg(feature = "sqlite")]
 #[cfg(target_family = "unix")]
 use std::os::unix::fs::PermissionsExt;
+#[cfg(feature = "sqlite")]
 use tokio::{fs::File, io::AsyncWriteExt};
 
+#[cfg(feature = "sqlite")]
 const SQLITE_DB_FILENAME: &str = "nym-node-status-api.sqlite";
 
-/// If you need to re-run migrations or reset the db, just run
-/// cargo clean -p nym-node-status-api
-#[tokio::main(flavor = "current_thread")]
-async fn main() -> Result<()> {
+#[cfg(feature = "sqlite")]
+async fn init_db() -> Result<()> {
     let out_dir = read_env_var("OUT_DIR")?;
     let database_path = format!("{out_dir}/{SQLITE_DB_FILENAME}?mode=rwc");
 
@@ -30,11 +33,22 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
+/// If you need to re-run migrations or reset the db, just run
+/// cargo clean -p nym-node-status-api
+#[tokio::main(flavor = "current_thread")]
+async fn main() -> Result<()> {
+    #[cfg(feature = "sqlite")]
+    init_db().await?;
+    Ok(())
+}
+
+#[cfg(feature = "sqlite")]
 fn read_env_var(var: &str) -> Result<String> {
-    std::env::var(var).map_err(|_| anyhow!("You need to set {} env var", var))
+    std::env::var(var).map_err(|_| anyhow::anyhow!("You need to set {} env var", var))
 }
 
 /// use `./enter_db.sh` to inspect DB
+#[cfg(feature = "sqlite")]
 async fn write_db_path_to_file(out_dir: &str, db_filename: &str) -> anyhow::Result<()> {
     let mut file = File::create("settings.sql").await?;
     let settings = ".mode columns

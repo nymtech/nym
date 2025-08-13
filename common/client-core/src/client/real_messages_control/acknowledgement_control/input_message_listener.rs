@@ -120,6 +120,7 @@ where
         }
     }
 
+    #[allow(clippy::panic)]
     async fn on_input_message(&mut self, msg: InputMessage) {
         match msg {
             InputMessage::Regular {
@@ -213,7 +214,9 @@ where
                     self.handle_premade_packets(msgs, lane).await
                 }
                 // MessageWrappers can't be nested
-                InputMessage::MessageWrapper { .. } => unimplemented!(),
+                InputMessage::MessageWrapper { .. } => {
+                    panic!("attempted to use nested MessageWrapper")
+                }
             },
         };
     }

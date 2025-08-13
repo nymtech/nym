@@ -20,6 +20,16 @@ pub struct UserAgent {
     pub git_commit: String,
 }
 
+/// Create `UserAgent` based on the caller's crate information
+// we can't use normal function as then `application` and `version` would correspond
+// of that of `nym-http-api-client` lib
+#[macro_export]
+macro_rules! generate_user_agent {
+    () => {
+        $crate::UserAgent::from($crate::bin_info!())
+    };
+}
+
 #[derive(Clone, Debug, thiserror::Error)]
 #[error("invalid user agent string: {0}")]
 pub struct UserAgentError(String);

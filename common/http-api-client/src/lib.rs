@@ -173,6 +173,10 @@ mod path;
 #[cfg(not(target_arch = "wasm32"))]
 pub use dns::{HickoryDnsError, HickoryDnsResolver};
 
+// helper for generating user agent based on binary information
+#[doc(hidden)]
+pub use nym_bin_common::bin_info;
+
 /// Default HTTP request connection timeout.
 ///
 /// The timeout is relatively high as we are often making requests over the mixnet, where latency is

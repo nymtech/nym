@@ -7,9 +7,9 @@
 // #![warn(clippy::unwrap_used)]
 
 use defguard_wireguard_rs::{host::Peer, key::Key, net::IpAddrMask, WGApi, WireguardInterfaceApi};
-use nym_crypto::asymmetric::x25519::KeyPair;
 #[cfg(target_os = "linux")]
-use nym_gateway_storage::GatewayStorage;
+use nym_credential_verification::ecash::EcashManager;
+use nym_crypto::asymmetric::x25519::KeyPair;
 use nym_wireguard_types::Config;
 use peer_controller::PeerControlRequest;
 use std::sync::Arc;
@@ -158,7 +158,7 @@ pub struct WireguardData {
 /// Start wireguard device
 #[cfg(target_os = "linux")]
 pub async fn start_wireguard(
-    storage: GatewayStorage,
+    ecash_manager: Arc<EcashManager>,
     metrics: nym_node_metrics::NymNodeMetrics,
     peers: Vec<Peer>,
     task_client: nym_task::TaskClient,
@@ -167,6 +167,7 @@ pub async fn start_wireguard(
     use base64::{prelude::BASE64_STANDARD, Engine};
     use defguard_wireguard_rs::{InterfaceConfiguration, WireguardInterfaceApi};
     use ip_network::IpNetwork;
+    use nym_credential_verification::ecash::traits::EcashManager;
     use peer_controller::PeerController;
     use std::collections::HashMap;
     use tokio::sync::RwLock;
@@ -178,7 +179,7 @@ pub async fn start_wireguard(
 
     for peer in peers.iter() {
         let bandwidth_manager = Arc::new(RwLock::new(
-            PeerController::generate_bandwidth_manager(Box::new(storage.clone()), &peer.public_key)
+            PeerController::generate_bandwidth_manager(ecash_manager.storage(), &peer.public_key)
                 .await?,
         ));
         peer_bandwidth_managers.insert(peer.public_key.clone(), (bandwidth_manager, peer.clone()));
@@ -233,7 +234,7 @@ pub async fn start_wireguard(
     let host = wg_api.read_interface_data()?;
     let wg_api = std::sync::Arc::new(WgApiWrapper::new(wg_api));
     let mut controller = PeerController::new(
-        Box::new(storage),
+        ecash_manager,
         metrics,
         wg_api.clone(),
         host,

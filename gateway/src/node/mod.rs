@@ -486,8 +486,14 @@ impl GatewayTasksBuilder {
             );
         };
 
+        let Some(ecash_manager) = self.ecash_manager.clone() else {
+            return Err(
+                GatewayError::InternalWireguardError("ecash manager not set".to_string()).into(),
+            );
+        };
+
         let wg_handle = nym_wireguard::start_wireguard(
-            self.storage.clone(),
+            ecash_manager,
             self.metrics.clone(),
             all_peers,
             self.shutdown.fork("wireguard"),

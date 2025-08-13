@@ -62,7 +62,8 @@ impl PeerHandle {
         let success = response_rx
             .await
             .map_err(|_| Error::Internal("peer controller didn't respond".to_string()))?
-            .success;
+            .inspect_err(|err| tracing::error!("Could not remove peer: {err:?}"))
+            .is_ok();
         Ok(success)
     }
 

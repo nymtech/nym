@@ -171,6 +171,7 @@ members = [
 default-members = [
     "clients/native",
     "clients/socks5",
+    "nym-authenticator-client",
     "nym-api",
     "nym-credential-proxy/nym-credential-proxy",
     "nym-node",

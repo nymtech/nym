@@ -1,7 +1,7 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use super::{v1, v2, v3, v4, v5};
+use super::{v1, v2, v3, v4, v5, v6};
 use nym_service_provider_requests_common::{Protocol, ServiceProviderType};
 
 #[derive(Copy, Clone, Debug, PartialEq, strum_macros::Display)]
@@ -22,12 +22,19 @@ pub enum AuthenticatorVersion {
     /// introduced in dorina-patched release (1.6.1)
     V5,
 
+    /// introduced in yet to be named release, currently aiming for Kase (1.21.0)
+    V6,
+
+    /// an unknown, future, variant that can be present if running outdated software
     UNKNOWN,
 }
 
 impl AuthenticatorVersion {
-    pub const LATEST: Self = Self::V5;
+    pub const LATEST: Self = Self::V6;
 
+    #[deprecated(
+        note = "the final version of V6 won't be known until appropriate release is scheduled. after that happens From<semver::Version> trait will have to be adjusted"
+    )]
     pub const fn release_version(&self) -> semver::Version {
         match self {
             AuthenticatorVersion::V1 => semver::Version::new(1, 1, 5),
@@ -35,6 +42,7 @@ impl AuthenticatorVersion {
             AuthenticatorVersion::V3 => semver::Version::new(1, 1, 10),
             AuthenticatorVersion::V4 => semver::Version::new(1, 2, 0),
             AuthenticatorVersion::V5 => semver::Version::new(1, 6, 1),
+            AuthenticatorVersion::V6 => semver::Version::new(1, 21, 0),
             AuthenticatorVersion::UNKNOWN => semver::Version::new(0, 0, 0),
         }
     }
@@ -54,6 +62,8 @@ impl From<Protocol> for AuthenticatorVersion {
             AuthenticatorVersion::V4
         } else if value.version == v5::VERSION {
             AuthenticatorVersion::V5
+        } else if value.version == v6::VERSION {
+            AuthenticatorVersion::V6
         } else {
             AuthenticatorVersion::UNKNOWN
         }
@@ -72,6 +82,8 @@ impl From<u8> for AuthenticatorVersion {
             AuthenticatorVersion::V4
         } else if value == v5::VERSION {
             AuthenticatorVersion::V5
+        } else if value == v6::VERSION {
+            AuthenticatorVersion::V6
         } else {
             AuthenticatorVersion::UNKNOWN
         }
@@ -126,11 +138,14 @@ impl From<semver::Version> for AuthenticatorVersion {
         if semver < AuthenticatorVersion::V5.release_version() {
             return Self::V4;
         }
-        // if provided version is higher (or equal) to release version of V5,
-        // we return the latest (i.e. v5)
+        if semver < AuthenticatorVersion::V6.release_version() {
+            return Self::V5;
+        }
+        // if provided version is higher (or equal) to release version of V6,
+        // we return the latest (i.e. v6)
 
         debug_assert_eq!(
-            Self::V5,
+            Self::V6,
             Self::LATEST,
             "a new AuthenticatorVersion variant has been introduced without adjusting the `From<semver::Version>` trait"
         );
@@ -191,5 +206,8 @@ mod tests {
         assert_eq!(AuthenticatorVersion::V5, "1.7.0".into());
         assert_eq!(AuthenticatorVersion::V5, "1.16.11".into());
         assert_eq!(AuthenticatorVersion::V5, "1.17.0".into());
+        assert_eq!(AuthenticatorVersion::V5, "1.20.0".into());
+        assert_eq!(AuthenticatorVersion::V6, "1.21.0".into());
+        assert_eq!(AuthenticatorVersion::V6, "1.22.0".into());
     }
 }

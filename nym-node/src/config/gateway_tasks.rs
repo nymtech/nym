@@ -2,13 +2,18 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::config::persistence::GatewayTasksPaths;
-use nym_config::defaults::{DEFAULT_CLIENT_LISTENING_PORT, TICKETBOOK_VALIDITY_DAYS};
+use nym_config::defaults::{
+    DEFAULT_CLIENT_LISTENING_PORT, TICKETBOOK_VALIDITY_DAYS, mainnet, var_names,
+};
 use nym_config::helpers::in6addr_any_init;
 use nym_config::serde_helpers::de_maybe_port;
 use serde::{Deserialize, Serialize};
+use std::env;
 use std::net::SocketAddr;
 use std::path::Path;
 use std::time::Duration;
+use tracing::error;
+use url::Url;
 
 pub const DEFAULT_WS_PORT: u16 = DEFAULT_CLIENT_LISTENING_PORT;
 
@@ -35,6 +40,8 @@ pub struct GatewayTasksConfig {
     /// (default: None)
     #[serde(deserialize_with = "de_maybe_port")]
     pub announce_wss_port: Option<u16>,
+
+    pub upgrade_mode_watcher: UpgradeModeWatcher,
 
     #[serde(default)]
     pub debug: Debug,
@@ -63,6 +70,10 @@ pub struct Debug {
     pub client_bandwidth: ClientBandwidthDebug,
 
     pub zk_nym_tickets: ZkNymTicketHandlerDebug,
+
+    /// The minimum duration since the last explicit check for the upgrade mode to allow creation of new requests.
+    #[serde(with = "humantime_serde")]
+    pub upgrade_mode_min_staleness_recheck: Duration,
 }
 
 impl Debug {
@@ -70,6 +81,7 @@ impl Debug {
     pub const DEFAULT_MINIMUM_MIX_PERFORMANCE: u8 = 50;
     pub const DEFAULT_MAXIMUM_AUTH_REQUEST_TIMESTAMP_SKEW: Duration = Duration::from_secs(120);
     pub const DEFAULT_MAXIMUM_OPEN_CONNECTIONS: usize = 8192;
+    pub const DEFAULT_UPGRADE_MODE_MIN_STALENESS_RECHECK: Duration = Duration::from_secs(30);
 }
 
 impl Default for Debug {
@@ -82,6 +94,7 @@ impl Default for Debug {
             stale_messages: Default::default(),
             client_bandwidth: Default::default(),
             zk_nym_tickets: Default::default(),
+            upgrade_mode_min_staleness_recheck: Self::DEFAULT_UPGRADE_MODE_MIN_STALENESS_RECHECK,
         }
     }
 }
@@ -208,7 +221,93 @@ impl GatewayTasksConfig {
             ws_bind_address: SocketAddr::new(in6addr_any_init(), DEFAULT_WS_PORT),
             announce_ws_port: None,
             announce_wss_port: None,
+            upgrade_mode_watcher: UpgradeModeWatcher::new_default(),
             debug: Default::default(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UpgradeModeWatcher {
+    /// Specifies whether this gateway watches for upgrade mode changes
+    /// via the published attestation file.
+    pub enabled: bool,
+
+    /// Endpoint to query to retrieve current upgrade mode attestation.
+    /// If not provided, it implicitly disables the watcher and upgrade-mode features
+    pub attestation_url: Option<Url>,
+
+    pub debug: UpgradeModeWatcherDebug,
+}
+
+impl From<UpgradeModeWatcher> for nym_gateway::config::UpgradeModeWatcher {
+    fn from(config: UpgradeModeWatcher) -> Self {
+        nym_gateway::config::UpgradeModeWatcher {
+            enabled: config.enabled,
+            attestation_url: config.attestation_url,
+            debug: nym_gateway::config::UpgradeModeWatcherDebug {
+                regular_polling_interval: config.debug.regular_polling_interval,
+                expedited_poll_interval: config.debug.expedited_poll_interval,
+            },
+        }
+    }
+}
+
+impl UpgradeModeWatcher {
+    pub fn new_default() -> UpgradeModeWatcher {
+        // SAFETY:
+        // our hardcoded values should always be valid
+        #[allow(clippy::expect_used)]
+        // is if there's anything set in the environment, otherwise fallback to mainnet
+        let attestation_url =
+            if let Ok(env_value) = env::var(var_names::UPGRADE_MOST_ATTESTATION_URL) {
+                match Url::parse(&env_value) {
+                    Ok(url) => Some(url),
+                    Err(err) => {
+                        error!("provided attestation url {env_value} is invalid: {err}!");
+                        None
+                    }
+                }
+            } else if env::var(var_names::CONFIGURED).is_ok() {
+                // we're configured to different env where attestation hasn't been set
+                None
+            } else {
+                Some(
+                    mainnet::UPGRADE_MOST_ATTESTATION_URL
+                        .parse()
+                        .expect("Invalid default upgrade mode attestation URL"),
+                )
+            };
+
+        UpgradeModeWatcher {
+            enabled: true,
+            attestation_url,
+            debug: UpgradeModeWatcherDebug::default(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub struct UpgradeModeWatcherDebug {
+    /// Default polling interval
+    #[serde(with = "humantime_serde")]
+    pub regular_polling_interval: Duration,
+
+    /// Expedited polling interval for once upgrade mode is detected
+    #[serde(with = "humantime_serde")]
+    pub expedited_poll_interval: Duration,
+}
+
+impl UpgradeModeWatcherDebug {
+    const DEFAULT_REGULAR_POLLING_INTERVAL: Duration = Duration::from_secs(15 * 60);
+    const DEFAULT_EXPEDITED_POLL_INTERVAL: Duration = Duration::from_secs(2 * 60);
+}
+
+impl Default for UpgradeModeWatcherDebug {
+    fn default() -> Self {
+        UpgradeModeWatcherDebug {
+            regular_polling_interval: Self::DEFAULT_REGULAR_POLLING_INTERVAL,
+            expedited_poll_interval: Self::DEFAULT_EXPEDITED_POLL_INTERVAL,
         }
     }
 }

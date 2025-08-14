@@ -14,9 +14,10 @@ use axum::routing::{get, post};
 use axum::{Json, Router};
 use nym_compact_ecash::Base58;
 use nym_credential_proxy_requests::api::v1::ticketbook::models::{
-    CurrentEpochResponse, DepositResponse, MasterVerificationKeyResponse, PartialVerificationKey,
-    PartialVerificationKeysResponse, TicketbookAsyncRequest, TicketbookObtainQueryParams,
-    TicketbookRequest, TicketbookWalletSharesAsyncResponse, TicketbookWalletSharesResponse,
+    CurrentEpochResponse, DepositResponse, MasterVerificationKeyResponse,
+    ObtainTicketBookSharesAsyncResponse, PartialVerificationKey, PartialVerificationKeysResponse,
+    TicketbookAsyncRequest, TicketbookObtainQueryParams, TicketbookRequest,
+    TicketbookWalletSharesAsyncResponse, TicketbookWalletSharesResponse,
 };
 use nym_credential_proxy_requests::routes::api::v1::ticketbook;
 use nym_http_api_common::{FormattedResponse, OutputParams};
@@ -33,7 +34,7 @@ pub type FormattedPartialVerificationKeysResponse =
 pub type FormattedTicketbookWalletSharesResponse =
     FormattedResponse<TicketbookWalletSharesResponse>;
 pub type FormattedTicketbookWalletSharesAsyncResponse =
-    FormattedResponse<TicketbookWalletSharesAsyncResponse>;
+    FormattedResponse<ObtainTicketBookSharesAsyncResponse>;
 
 /// Attempt to obtain blinded shares of an ecash ticketbook wallet
 #[utoipa::path(
@@ -138,8 +139,8 @@ pub(crate) async fn obtain_ticketbook_shares(
     ),
     responses(
         (status = 200, content(
-            (TicketbookWalletSharesAsyncResponse = "application/json"),
-            (TicketbookWalletSharesAsyncResponse = "application/yaml"),
+            (ObtainTicketBookSharesAsyncResponse = "application/json"),
+            (ObtainTicketBookSharesAsyncResponse = "application/yaml"),
         )),
         (status = 400, description = "the provided request hasn't been created against correct attributes"),
         (status = 401, description = "authentication token is missing or is invalid"),
@@ -165,6 +166,11 @@ pub(crate) async fn obtain_ticketbook_shares_async(
     async move {
         info!("");
         let output = params.output.unwrap_or_default();
+
+        // 0. check if we're in 'upgrade-mode' - if so, just return the attestation and associated jwt
+        if let Some(upgrade_mode_response) = state.upgrade_mode_response().await {
+            return Ok(output.to_response(upgrade_mode_response.into()));
+        }
 
         // 1. perform basic validation
         state.ensure_not_in_epoch_transition(Some(uuid)).await?;
@@ -221,7 +227,7 @@ pub(crate) async fn obtain_ticketbook_shares_async(
         }
 
         // 4. in the meantime, return the id to the user
-        Ok(output.to_response(TicketbookWalletSharesAsyncResponse { id, uuid }))
+        Ok(output.to_response(TicketbookWalletSharesAsyncResponse { id, uuid }.into()))
     }
     .instrument(span)
     .await

@@ -9,22 +9,27 @@ use std::time::Duration;
 use time::OffsetDateTime;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Copy)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct UpgradeModeAttestation {
     #[serde(flatten)]
     pub content: UpgradeModeAttestationContent,
 
     #[serde(with = "ed25519::bs58_ed25519_signature")]
+    #[cfg_attr(feature = "openapi", schema(value_type = String))]
     pub signature: ed25519::Signature,
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Copy)]
 #[serde(tag = "type")]
 #[serde(rename = "upgrade_mode")]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct UpgradeModeAttestationContent {
     #[serde(with = "time::serde::timestamp")]
+    #[cfg_attr(feature = "openapi", schema(value_type = i64))]
     pub starting_time: OffsetDateTime,
 
     #[serde(with = "ed25519::bs58_ed25519_pubkey")]
+    #[cfg_attr(feature = "openapi", schema(value_type = String))]
     pub attester_public_key: ed25519::PublicKey,
 }
 

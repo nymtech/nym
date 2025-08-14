@@ -6,6 +6,7 @@ use crate::deposits_buffer::DepositsBuffer;
 use crate::error::CredentialProxyError;
 use crate::helpers::LockTimer;
 use crate::http::state::required_deposit_cache::RequiredDepositCache;
+use crate::http::state::nyx_upgrade_mode::UpgradeModeState;
 use crate::http::types::RequestError;
 use crate::nym_api_helpers::{
     ensure_sane_expiration_date, query_all_threshold_apis, CachedEpoch, CachedImmutableEpochItem,
@@ -25,7 +26,7 @@ use nym_compact_ecash::scheme::expiration_date_signatures::{
 use nym_compact_ecash::{Base58, PublicKeyUser};
 use nym_credential_proxy_requests::api::v1::ticketbook::models::{
     AggregatedCoinIndicesSignaturesResponse, AggregatedExpirationDateSignaturesResponse,
-    MasterVerificationKeyResponse,
+    MasterVerificationKeyResponse, UpgradeModeResponse,
 };
 use nym_credentials::ecash::utils::{ecash_today, EcashTime};
 use nym_credentials::{
@@ -70,6 +71,7 @@ pub struct ApiState {
 impl ApiState {
     pub(crate) async fn new(
         storage: CredentialProxyStorage,
+        upgrade_mode_state: UpgradeModeState,
         quorum_state: QuorumState,
         zk_nym_web_hook_config: ZkNymWebHookConfig,
         client: ChainClient,
@@ -80,6 +82,7 @@ impl ApiState {
         let state = ApiState {
             inner: Arc::new(CredentialProxyStateInner {
                 storage,
+                upgrade_mode: upgrade_mode_state,
                 client,
                 ecash_state: EcashState {
                     required_deposit_cache,
@@ -99,7 +102,7 @@ impl ApiState {
         };
 
         // since this is startup,
-        // might as well do all the needed network queries to establish needed global signatures
+        // might as well do all the required network queries to establish needed global signatures
         // if we don't already have them
         state.build_initial_cache().await?;
 
@@ -176,6 +179,15 @@ impl ApiState {
 
     pub(crate) fn storage(&self) -> &CredentialProxyStorage {
         &self.inner.storage
+    }
+
+    pub(crate) async fn upgrade_mode_response(&self) -> Option<UpgradeModeResponse> {
+        let (upgrade_mode_attestation, jwt) =
+            self.inner.upgrade_mode.attestation_with_jwt().await?;
+        Some(UpgradeModeResponse {
+            upgrade_mode_attestation,
+            jwt,
+        })
     }
 
     pub async fn deposit_amount(&self) -> Result<Coin, CredentialProxyError> {
@@ -675,6 +687,8 @@ impl ChainClient {
 
 struct CredentialProxyStateInner {
     storage: CredentialProxyStorage,
+
+    upgrade_mode: UpgradeModeState,
 
     client: ChainClient,
 

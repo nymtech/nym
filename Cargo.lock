@@ -6150,6 +6150,7 @@ dependencies = [
  "mime",
  "nym-bin-common 0.6.0",
  "nym-http-api-common 0.1.0",
+ "nym-network-defaults 0.1.0",
  "once_cell",
  "reqwest 0.12.22",
  "serde",

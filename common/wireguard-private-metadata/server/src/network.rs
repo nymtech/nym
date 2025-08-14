@@ -8,16 +8,13 @@ use axum::{
     Json, Router,
 };
 use nym_http_api_common::{FormattedResponse, OutputParams};
+use nym_wireguard_private_metadata_shared::{
+    interface::{RequestData, ResponseData},
+    latest, AxumErrorResponse, AxumResult, Construct, Extract, Request, Response, Version,
+};
 use tower_http::compression::CompressionLayer;
 
-use crate::{
-    http::state::AppState,
-    models::{
-        interface::{RequestData, ResponseData},
-        AxumErrorResponse, AxumResult, Construct, Extract, Request, Response,
-    },
-    Version,
-};
+use crate::http::state::AppState;
 
 pub(crate) fn bandwidth_routes() -> Router<AppState> {
     Router::new()
@@ -39,7 +36,7 @@ pub(crate) fn bandwidth_routes() -> Router<AppState> {
 )]
 async fn version(Query(output): Query<OutputParams>) -> AxumResult<FormattedResponse<Version>> {
     let output = output.output.unwrap_or_default();
-    Ok(output.to_response(crate::models::latest::VERSION))
+    Ok(output.to_response(latest::VERSION))
 }
 
 #[utoipa::path(
@@ -104,7 +101,7 @@ async fn topup_bandwidth(
         return Err(AxumErrorResponse::bad_request("incorrect request type"));
     };
     let available_bandwidth = state
-        .topup_bandwidth(addr.ip(), credential)
+        .topup_bandwidth(addr.ip(), *credential)
         .await
         .map_err(AxumErrorResponse::bad_request)?;
     let response = Response::construct(ResponseData::TopUpBandwidth(available_bandwidth), version)

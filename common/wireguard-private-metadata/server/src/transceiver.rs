@@ -1,13 +1,15 @@
-use futures::channel::oneshot;
-use nym_credential_verification::ClientBandwidth;
-use nym_credentials_interface::CredentialSpendingData;
-use tokio::sync::mpsc;
+// Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
 
 use std::net::IpAddr;
 
-use nym_wireguard::peer_controller::PeerControlRequest;
+use futures::channel::oneshot;
+use tokio::sync::mpsc;
 
-use crate::error::MetadataError;
+use nym_credential_verification::ClientBandwidth;
+use nym_credentials_interface::CredentialSpendingData;
+use nym_wireguard::peer_controller::PeerControlRequest;
+use nym_wireguard_private_metadata_shared::error::MetadataError;
 
 #[derive(Clone)]
 pub struct PeerControllerTransceiver {

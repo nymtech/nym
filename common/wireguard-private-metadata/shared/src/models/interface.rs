@@ -3,13 +3,13 @@
 
 use nym_credentials_interface::CredentialSpendingData;
 
-#[cfg(test)]
+#[cfg(feature = "testing")]
 use crate::models::v0;
 use crate::models::{v1, Construct, Extract, Request, Response, Version};
 
 pub enum RequestData {
     AvailableBandwidth(()),
-    TopUpBandwidth(CredentialSpendingData),
+    TopUpBandwidth(Box<CredentialSpendingData>),
 }
 
 impl From<super::latest::interface::RequestData> for RequestData {
@@ -63,8 +63,13 @@ impl From<ResponseData> for super::latest::interface::ResponseData {
 impl Construct<RequestData> for Request {
     fn construct(info: RequestData, version: Version) -> Result<Self, super::error::Error> {
         match version {
-            #[cfg(test)]
-            Version::V0 => todo!(),
+            #[cfg(feature = "testing")]
+            Version::V0 => {
+                let translate_info = super::latest::interface::RequestData::from(info);
+                let downgrade_info = v0::interface::RequestData::try_from(translate_info)?;
+                let versioned_request = v0::VersionedRequest::construct(downgrade_info, version)?;
+                Ok(versioned_request.try_into()?)
+            }
             Version::V1 => {
                 let versioned_request = v1::VersionedRequest::construct(info.into(), version)?;
                 Ok(versioned_request.try_into()?)
@@ -76,7 +81,7 @@ impl Construct<RequestData> for Request {
 impl Extract<RequestData> for Request {
     fn extract(&self) -> Result<(RequestData, Version), crate::models::Error> {
         match self.version {
-            #[cfg(test)]
+            #[cfg(feature = "testing")]
             super::Version::V0 => {
                 let versioned_request = v0::VersionedRequest::try_from(self.clone())?;
                 let (request, version) = versioned_request.extract()?;
@@ -102,7 +107,7 @@ pub enum ResponseData {
 impl Construct<ResponseData> for Response {
     fn construct(info: ResponseData, version: Version) -> Result<Self, super::error::Error> {
         match version {
-            #[cfg(test)]
+            #[cfg(feature = "testing")]
             super::Version::V0 => {
                 let translate_response = super::latest::interface::ResponseData::from(info);
                 let downgrade_response = v0::interface::ResponseData::try_from(translate_response)?;
@@ -121,7 +126,7 @@ impl Construct<ResponseData> for Response {
 impl Extract<ResponseData> for Response {
     fn extract(&self) -> Result<(ResponseData, Version), super::error::Error> {
         match self.version {
-            #[cfg(test)]
+            #[cfg(feature = "testing")]
             super::Version::V0 => {
                 let versioned_response = v0::VersionedResponse::try_from(self.clone())?;
                 let (response, version) = versioned_response.extract()?;

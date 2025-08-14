@@ -3,7 +3,7 @@
 
 use nym_credentials_interface::CredentialSpendingData;
 
-#[cfg(test)]
+#[cfg(feature = "testing")]
 use super::super::v0 as previous;
 
 use super::{
@@ -18,7 +18,7 @@ use crate::models::{error::Error, Construct, Extract, Version};
 #[derive(Debug, Clone, PartialEq)]
 pub enum RequestData {
     AvailableBandwidth(()),
-    TopUpBandwidth(CredentialSpendingData),
+    TopUpBandwidth(Box<CredentialSpendingData>),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -31,9 +31,10 @@ impl Construct<RequestData> for VersionedRequest {
     fn construct(info: RequestData, _version: Version) -> Result<Self, Error> {
         match info {
             RequestData::AvailableBandwidth(_) => Ok(InnerAvailableBandwidthRequest {}.try_into()?),
-            RequestData::TopUpBandwidth(credential) => {
-                Ok(InnerTopUpRequest { credential }.try_into()?)
+            RequestData::TopUpBandwidth(credential) => Ok(InnerTopUpRequest {
+                credential: *credential,
             }
+            .try_into()?),
         }
     }
 }
@@ -47,7 +48,10 @@ impl Extract<RequestData> for VersionedRequest {
             }
             QueryType::TopupBandwidth => {
                 let req = InnerTopUpRequest::try_from(self.clone())?;
-                Ok((RequestData::TopUpBandwidth(req.credential), VERSION))
+                Ok((
+                    RequestData::TopUpBandwidth(Box::new(req.credential)),
+                    VERSION,
+                ))
             }
         }
     }
@@ -91,8 +95,8 @@ impl Extract<ResponseData> for VersionedResponse {
     }
 }
 
-// this should be with cfg(test) only coming from v0, don't copy this for future versions
-#[cfg(test)]
+// this should be with #[cfg(feature = "testing")] only coming from v0, don't copy this for future versions
+#[cfg(feature = "testing")]
 impl TryFrom<previous::interface::RequestData> for RequestData {
     type Error = super::Error;
 
@@ -111,8 +115,8 @@ impl TryFrom<previous::interface::RequestData> for RequestData {
     }
 }
 
-// this should be with cfg(test) only coming from v0, don't copy this for future versions
-#[cfg(test)]
+// this should be with #[cfg(feature = "testing")] only coming from v0, don't copy this for future versions
+#[cfg(feature = "testing")]
 impl TryFrom<RequestData> for previous::interface::RequestData {
     type Error = super::Error;
 
@@ -124,8 +128,8 @@ impl TryFrom<RequestData> for previous::interface::RequestData {
     }
 }
 
-// this should be with cfg(test) only coming from v0, don't copy this for future versions
-#[cfg(test)]
+// this should be with #[cfg(feature = "testing")] only coming from v0, don't copy this for future versions
+#[cfg(feature = "testing")]
 impl TryFrom<previous::interface::ResponseData> for ResponseData {
     type Error = super::Error;
 
@@ -147,8 +151,8 @@ impl TryFrom<previous::interface::ResponseData> for ResponseData {
     }
 }
 
-// this should be with cfg(test) only coming from v0, don't copy this for future versions
-#[cfg(test)]
+// this should be with #[cfg(feature = "testing")] only coming from v0, don't copy this for future versions
+#[cfg(feature = "testing")]
 impl TryFrom<ResponseData> for previous::interface::ResponseData {
     type Error = super::Error;
 
@@ -162,7 +166,7 @@ impl TryFrom<ResponseData> for previous::interface::ResponseData {
 
 #[cfg(test)]
 mod test {
-    use crate::transceiver::tests::CREDENTIAL_BYTES;
+    use crate::models::tests::CREDENTIAL_BYTES;
 
     use super::*;
 
@@ -197,9 +201,9 @@ mod test {
             previous::interface::RequestData::AvailableBandwidth(())
         );
         assert_eq!(
-            previous::interface::RequestData::try_from(RequestData::TopUpBandwidth(
+            previous::interface::RequestData::try_from(RequestData::TopUpBandwidth(Box::new(
                 CredentialSpendingData::try_from_bytes(&CREDENTIAL_BYTES).unwrap()
-            ))
+            )))
             .unwrap(),
             previous::interface::RequestData::TopUpBandwidth(())
         );

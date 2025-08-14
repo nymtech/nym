@@ -66,7 +66,7 @@ impl TryFrom<InnerTopUpRequest> for Request {
 
 #[cfg(test)]
 mod tests {
-    use crate::transceiver::tests::CREDENTIAL_BYTES;
+    use crate::models::tests::CREDENTIAL_BYTES;
 
     use super::*;
 

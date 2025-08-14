@@ -20,6 +20,14 @@ pub(crate) mod topup_bandwidth;
 
 pub const VERSION: Version = Version::V0;
 
+pub use available_bandwidth::{
+    request::InnerAvailableBandwidthRequest as AvailableBandwidthRequest,
+    response::InnerAvailableBandwidthResponse as AvailableBandwidthResponse,
+};
+pub use topup_bandwidth::{
+    request::InnerTopUpRequest as TopUpRequest, response::InnerTopUpResponse as TopUpResponse,
+};
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema, ToSchema)]
 pub enum QueryType {
     AvailableBandwidth,
@@ -28,7 +36,7 @@ pub enum QueryType {
 
 impl Display for QueryType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self)
+        write!(f, "{self:?}")
     }
 }
 
@@ -96,13 +104,11 @@ impl TryFrom<Response> for VersionedResponse {
 
 #[cfg(test)]
 mod tests {
-    use crate::{client::WireguardMetadataApiClient, tests::spawn_server_and_create_client};
-
     use self::{
         available_bandwidth::{
             request::InnerAvailableBandwidthRequest, response::InnerAvailableBandwidthResponse,
         },
-        topup_bandwidth::request::InnerTopUpRequest,
+        topup_bandwidth::{request::InnerTopUpRequest, response::InnerTopUpResponse},
     };
 
     use super::*;
@@ -127,7 +133,7 @@ mod tests {
         let resp = VersionedResponse {
             query_type: QueryType::AvailableBandwidth,
             inner: make_bincode_serializer()
-                .serialize(&InnerAvailableBandwidthRequest {})
+                .serialize(&InnerAvailableBandwidthResponse {})
                 .unwrap(),
         };
 
@@ -142,7 +148,7 @@ mod tests {
         let req = VersionedRequest {
             query_type: QueryType::TopupBandwidth,
             inner: make_bincode_serializer()
-                .serialize(&InnerAvailableBandwidthRequest {})
+                .serialize(&InnerTopUpRequest {})
                 .unwrap(),
         };
 
@@ -157,7 +163,7 @@ mod tests {
         let resp = VersionedResponse {
             query_type: QueryType::TopupBandwidth,
             inner: make_bincode_serializer()
-                .serialize(&InnerAvailableBandwidthRequest {})
+                .serialize(&InnerTopUpResponse {})
                 .unwrap(),
         };
 
@@ -165,24 +171,5 @@ mod tests {
         assert_eq!(VERSION, ser.version);
         let de = VersionedResponse::try_from(ser).unwrap();
         assert_eq!(resp, de);
-    }
-
-    #[tokio::test]
-    async fn query_available_bandwidth() {
-        let client = spawn_server_and_create_client().await;
-        let request = InnerAvailableBandwidthRequest {}.try_into().unwrap();
-
-        let response = client.available_bandwidth(&request).await.unwrap();
-
-        InnerAvailableBandwidthResponse::try_from(response).unwrap();
-    }
-
-    #[tokio::test]
-    async fn query_topup_bandwidth() {
-        let client = spawn_server_and_create_client().await;
-        let request = InnerTopUpRequest {}.try_into().unwrap();
-
-        // topup no longer possible with latest version (needs credential)
-        assert!(client.topup_bandwidth(&request).await.is_err());
     }
 }

@@ -36,7 +36,7 @@ pub enum QueryType {
 
 impl Display for QueryType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self)
+        write!(f, "{self:?}")
     }
 }
 
@@ -104,13 +104,10 @@ impl TryFrom<Response> for VersionedResponse {
 
 #[cfg(test)]
 mod tests {
+
     use nym_credentials_interface::CredentialSpendingData;
 
-    use crate::{
-        client::WireguardMetadataApiClient,
-        tests::{spawn_server_and_create_client, VERIFIER_AVAILABLE_BANDWIDTH},
-        transceiver::tests::CREDENTIAL_BYTES,
-    };
+    use crate::models::tests::CREDENTIAL_BYTES;
 
     use self::{
         available_bandwidth::{
@@ -164,7 +161,9 @@ mod tests {
         let req = VersionedRequest {
             query_type: QueryType::AvailableBandwidth,
             inner: make_bincode_serializer()
-                .serialize(&InnerAvailableBandwidthRequest {})
+                .serialize(&InnerAvailableBandwidthResponse {
+                    available_bandwidth: 42,
+                })
                 .unwrap(),
         };
 
@@ -194,7 +193,9 @@ mod tests {
         let req = VersionedRequest {
             query_type: QueryType::TopupBandwidth,
             inner: make_bincode_serializer()
-                .serialize(&InnerAvailableBandwidthRequest {})
+                .serialize(&InnerTopUpRequest {
+                    credential: CredentialSpendingData::try_from_bytes(&CREDENTIAL_BYTES).unwrap(),
+                })
                 .unwrap(),
         };
 
@@ -209,7 +210,9 @@ mod tests {
         let resp = VersionedResponse {
             query_type: QueryType::TopupBandwidth,
             inner: make_bincode_serializer()
-                .serialize(&InnerAvailableBandwidthRequest {})
+                .serialize(&InnerTopUpResponse {
+                    available_bandwidth: 42,
+                })
                 .unwrap(),
         };
 
@@ -217,35 +220,5 @@ mod tests {
         assert_eq!(VERSION, ser.version);
         let de = VersionedResponse::try_from(ser).unwrap();
         assert_eq!(resp, de);
-    }
-
-    #[tokio::test]
-    async fn query_available_bandwidth() {
-        let client = spawn_server_and_create_client().await;
-        let request = InnerAvailableBandwidthRequest {}.try_into().unwrap();
-
-        let response = client.available_bandwidth(&request).await.unwrap();
-
-        let available_bandwidth = InnerAvailableBandwidthResponse::try_from(response)
-            .unwrap()
-            .available_bandwidth;
-        assert_eq!(available_bandwidth, 0);
-    }
-
-    #[tokio::test]
-    async fn query_topup_bandwidth() {
-        let client = spawn_server_and_create_client().await;
-        let request = InnerTopUpRequest {
-            credential: CredentialSpendingData::try_from_bytes(&CREDENTIAL_BYTES).unwrap(),
-        }
-        .try_into()
-        .unwrap();
-
-        let response = client.topup_bandwidth(&request).await.unwrap();
-
-        let available_bandwidth = InnerTopUpResponse::try_from(response)
-            .unwrap()
-            .available_bandwidth;
-        assert_eq!(available_bandwidth, VERIFIER_AVAILABLE_BANDWIDTH);
     }
 }

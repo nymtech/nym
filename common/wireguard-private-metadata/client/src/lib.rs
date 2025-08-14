@@ -6,9 +6,8 @@ use tracing::instrument;
 
 use nym_http_api_client::{ApiClient, Client, HttpClientError, NO_PARAMS};
 
-use crate::{
-    models::{ErrorResponse, Request, Response},
-    routes, Version,
+use nym_wireguard_private_metadata_shared::{
+    routes, Version, {ErrorResponse, Request, Response},
 };
 
 pub type WireguardMetadataApiClientError = HttpClientError<ErrorResponse>;

@@ -1,0 +1,27 @@
+[package]
+name = "nym-wireguard-private-metadata-tests"
+version = "1.0.0"
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+async-trait = { workspace = true }
+axum = { workspace = true, features = ["tokio", "macros"] }
+nym-credential-verification = { path = "../../credential-verification" }
+nym-credentials-interface = { path = "../../credentials-interface" }
+nym-http-api-client = { path = "../../http-api-client" }
+nym-wireguard = { path = "../../wireguard" }
+tokio = { workspace = true, features = ["rt-multi-thread", "net", "io-util"] }
+
+nym-wireguard-private-metadata-client = { path = "../client" }
+nym-wireguard-private-metadata-shared = { path = "../shared", features = [
+    "testing",
+] }
+nym-wireguard-private-metadata-server = { path = "../server" }
+
+[lints]
+workspace = true

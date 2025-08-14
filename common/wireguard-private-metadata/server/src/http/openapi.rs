@@ -3,7 +3,7 @@
 
 use utoipa::OpenApi;
 
-use crate::models::{Request, Response};
+use nym_wireguard_private_metadata_shared::{Request, Response};
 
 #[derive(OpenApi)]
 #[openapi(

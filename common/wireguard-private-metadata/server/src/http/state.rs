@@ -5,7 +5,8 @@ use std::net::IpAddr;
 
 use nym_credentials_interface::CredentialSpendingData;
 
-use crate::{error::MetadataError, transceiver::PeerControllerTransceiver};
+use crate::transceiver::PeerControllerTransceiver;
+use nym_wireguard_private_metadata_shared::error::MetadataError;
 
 #[derive(Clone, axum::extract::FromRef)]
 pub struct AppState {

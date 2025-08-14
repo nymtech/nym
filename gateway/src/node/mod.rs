@@ -484,7 +484,7 @@ impl GatewayTasksBuilder {
     pub async fn try_start_wireguard(
         &mut self,
     ) -> Result<
-        nym_wireguard_private_metadata::ShutdownHandles,
+        nym_wireguard_private_metadata_server::ShutdownHandles,
         Box<dyn std::error::Error + Send + Sync>,
     > {
         let all_peers = self.get_wireguard_peers().await?;
@@ -501,9 +501,9 @@ impl GatewayTasksBuilder {
             );
         };
 
-        let router = nym_wireguard_private_metadata::RouterBuilder::with_default_routes();
-        let router = router.with_state(nym_wireguard_private_metadata::AppState::new(
-            nym_wireguard_private_metadata::PeerControllerTransceiver::new(
+        let router = nym_wireguard_private_metadata_server::RouterBuilder::with_default_routes();
+        let router = router.with_state(nym_wireguard_private_metadata_server::AppState::new(
+            nym_wireguard_private_metadata_server::PeerControllerTransceiver::new(
                 wireguard_data.inner.peer_tx().clone(),
             ),
         ));
@@ -531,7 +531,7 @@ impl GatewayTasksBuilder {
             wireguard_data,
         )
         .await?;
-        let shutdown_handles = nym_wireguard_private_metadata::ShutdownHandles::new(
+        let shutdown_handles = nym_wireguard_private_metadata_server::ShutdownHandles::new(
             server_handle,
             wg_handle,
             cancel_token,

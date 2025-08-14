@@ -1,0 +1,43 @@
+[package]
+name = "nym-wireguard-private-metadata-server"
+version = "1.0.0"
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+axum = { workspace = true, features = ["tokio", "macros"] }
+futures = { workspace = true }
+tokio = { workspace = true, features = ["rt-multi-thread", "net", "io-util"] }
+tokio-util = { workspace = true }
+tower-http = { workspace = true, features = [
+    "cors",
+    "trace",
+    "compression-br",
+    "compression-deflate",
+    "compression-gzip",
+    "compression-zstd",
+] }
+utoipa = { workspace = true, features = ["axum_extras", "time"] }
+utoipa-swagger-ui = { workspace = true, features = ["axum"] }
+
+nym-credentials-interface = { path = "../../credentials-interface" }
+nym-credential-verification = { path = "../../credential-verification" }
+nym-http-api-common = { path = "../../http-api-common", features = [
+    "middleware",
+    "utoipa",
+    "output",
+] }
+nym-wireguard = { path = "../../wireguard" }
+nym-wireguard-private-metadata-shared = { path = "../shared" }
+
+[dev-dependencies]
+async-trait = { workspace = true }
+
+
+[lints]
+workspace = true

@@ -56,7 +56,7 @@ EOF
   echo -e "\nService file saved in $SERVICE_PATH, printing it below for control:"
   cat "$SERVICE_PATH"
 
-  echo -e "* * * Reloading systemd and enabling service..."
+  echo -e "\n* * * Reloading systemd and enabling service..."
   systemctl daemon-reload && systemctl enable nym-node.service
 }
 

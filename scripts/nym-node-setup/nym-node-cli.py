@@ -268,28 +268,47 @@ class NodeSetupCLI:
 
 
     def run_nym_node_as_service(self):
+        """
+        Ensures the systemd unit file exists (non-interactively, using MODE),
+        then offers restart/start and delegates the wait/polling to the control script.
+        """
         service = "nym-node.service"
         service_path = "/etc/systemd/system/nym-node.service"
         print(f"We are going to start {service} from systemd config located at: {service_path}")
 
+        # 1) If the unit file is missing, create it NON-INTERACTIVELY using MODE
         if not os.path.isfile(service_path):
-            print(f"Service file not found at {service_path}. Please run your setup first.")
-            return
+            print(f"Service file not found at {service_path}. Running setup (non-interactive)...")
+            # Choose a mode without prompting; change 'mixnode' if you prefer a different default.
+            mode_to_use = os.environ.get("MODE", "mixnode")
+            setup_env = {
+                **os.environ,
+                "SYSTEMD_PAGER": "",
+                "SYSTEMD_COLORS": "0",
+                "NONINTERACTIVE": "1",     # <<< key: tells the script to skip prompts
+                "MODE": mode_to_use,       # <<< key: 1|2|3 or mixnode|entry-gateway|exit-gateway
+            }
+            # self.service_config_sh must contain the setup script text shown below
+            self.run_script(self.service_config_sh, env=setup_env, sudo=True)
 
+            # Re-check after setup
+            if not os.path.isfile(service_path):
+                print("Service file still not present after setup. Aborting.")
+                return
+
+        # Shared env for systemctl & control script
         run_env = {**os.environ, "SYSTEMD_PAGER": "", "SYSTEMD_COLORS": "0", "WAIT_TIMEOUT": "600"}
-        is_active = (subprocess.run(["systemctl", "is-active", "--quiet", service], env=run_env).returncode == 0)
+
+        # 2) Check if service is already active
+        is_active = subprocess.run(["systemctl", "is-active", "--quiet", service], env=run_env).returncode == 0
 
         if is_active:
+            # Already running → offer restart
             while True:
                 ans = input(f"{service} is already running. Restart it now? [y/n]: ").strip().lower()
                 if ans == "y":
-                    # Trim before heavy operation so our RSS is small during the wait
-                    self._trim_memory()
-                    # Restart + poll done in bash (non-blocking + bounded)
-                    self.run_script(self.start_node_systemd_service_sh,
-                                    args=["restart-poll"], env=run_env, sudo=True)
-                    # Optionally trim again after
-                    self._trim_memory()
+                    # self.start_node_systemd_service_sh must contain the control script below
+                    self.run_script(self.start_node_systemd_service_sh, args=["restart-poll"], env=run_env, sudo=True)
                     return
                 elif ans == "n":
                     print("Continuing without restart.")
@@ -297,13 +316,11 @@ class NodeSetupCLI:
                 else:
                     print("Invalid input. Please press 'y' or 'n' and press enter.")
         else:
+            # Not running → offer start
             while True:
                 ans = input(f"{service} is not running. Start it now? [y/n]: ").strip().lower()
                 if ans == "y":
-                    self._trim_memory()
-                    self.run_script(self.start_node_systemd_service_sh,
-                                    args=["start-poll"], env=run_env, sudo=True)
-                    self._trim_memory()
+                    self.run_script(self.start_node_systemd_service_sh, args=["start-poll"], env=run_env, sudo=True)
                     return
                 elif ans == "n":
                     print("Okay, not starting it.")
@@ -377,10 +394,21 @@ class NodeSetupCLI:
                       )
                     return
 
-    def print_character(self, character, length):
-        for n in range(1,length):
-            character += character
-        print(character)
+
+def print_character(self, ch: str, count: int):
+    """Print `ch` repeated `count` times (no unbounded growth)."""
+    if not ch:
+        return
+    # Use exactly one codepoint char; trim if longer
+    ch = ch[:1]
+    # Clamp count to a sensible max to avoid huge outputs
+    try:
+        n = int(count)
+    except Exception:
+        n = 0
+    n = max(0, min(n, 2000))  # adjust max as you like
+    print(ch * n)
+
 
 if __name__ == '__main__':
     cli = NodeSetupCLI()

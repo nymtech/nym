@@ -1,5 +1,5 @@
 #!/bin/bash
-# control_service.sh
+# start_node_systemd_service_sh (control script)
 set -euo pipefail
 
 SERVICE="nym-node.service"

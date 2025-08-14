@@ -1,12 +1,8 @@
 #!/bin/bash
-# setup_service.sh
+# service_config_sh
 set -euo pipefail
 
 SERVICE_PATH="/etc/systemd/system/nym-node.service"
-
-# Flags / env for non-interactive runs:
-#   NONINTERACTIVE=1  -> do not prompt; create if missing
-#   MODE=<mixnode|entry-gateway|exit-gateway|1|2|3>
 
 normalize_mode() {
   local input="${1,,}"
@@ -46,7 +42,7 @@ ExecStart=/root/nym-binaries/nym-node run --mode ${MODE} --accept-operator-terms
 KillSignal=SIGINT
 Restart=on-failure
 RestartSec=30
-# Optional safeguards; tweak or remove if undesired:
+# If you want memory caps, uncomment and tune:
 # MemoryHigh=800M
 # MemoryMax=1G
 # MemorySwapMax=1G
@@ -58,10 +54,14 @@ EOF
 
   echo "Service file saved in $SERVICE_PATH, printing it below for control:"
   cat "$SERVICE_PATH"
+  echo "* * * Reloading systemd and enabling service..."
+  systemctl daemon-reload
+  systemctl enable nym-node.service
 }
 
 echo -e "\n* * * Setting up systemd service config file for node automation * * *"
 
+# If it already exists, just reload + enable and exit
 if [[ -f "$SERVICE_PATH" ]]; then
   echo "Service file already exists at: $SERVICE_PATH"
   echo "* * * Reloading systemd and enabling service..."
@@ -70,7 +70,7 @@ if [[ -f "$SERVICE_PATH" ]]; then
   exit 0
 fi
 
-# Service file missing
+# Non-interactive creation (used by Python)
 if [[ "${NONINTERACTIVE:-}" = "1" ]]; then
   MODE="$(normalize_mode "${MODE:-}")"
   if [[ -z "$MODE" ]]; then
@@ -78,20 +78,14 @@ if [[ "${NONINTERACTIVE:-}" = "1" ]]; then
     exit 2
   fi
   create_service_file
-  echo "* * * Reloading systemd and enabling service..."
-  systemctl daemon-reload
-  systemctl enable nym-node.service
   exit 0
 fi
 
-# Interactive path:
+# Interactive path (manual runs)
 ensure_mode
 read -rp "Service file not found. Create it now? [y/N]: " create_ans
 if [[ "${create_ans:-}" =~ ^[Yy]$ ]]; then
   create_service_file
-  echo "* * * Reloading systemd and enabling service..."
-  systemctl daemon-reload
-  systemctl enable nym-node.service
 else
   echo "Not creating the service file."
 fi

@@ -1,6 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::node::upgrade_mode::common_state::UpgradeModeCommon;
 use crate::node::ActiveClientsStore;
 use nym_credential_verification::{ecash::EcashManager, BandwidthFlushingBehaviourConfig};
 use nym_crypto::asymmetric::ed25519;
@@ -11,7 +12,7 @@ use nym_node_metrics::NymNodeMetrics;
 use std::sync::Arc;
 use std::time::Duration;
 
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub(crate) struct Config {
     pub(crate) enforce_zk_nym: bool,
     pub(crate) max_request_timestamp_skew: Duration,
@@ -29,6 +30,7 @@ pub(crate) struct CommonHandlerState {
     pub(crate) metrics_sender: MetricEventsSender,
     pub(crate) outbound_mix_sender: MixForwardingSender,
     pub(crate) active_clients_store: ActiveClientsStore,
+    pub(crate) upgrade_mode: UpgradeModeCommon,
 }
 
 impl CommonHandlerState {

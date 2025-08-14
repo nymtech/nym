@@ -5,7 +5,7 @@ use crate::traits::{
     Id, PendingRegistrationResponse, RegisteredResponse, RemainingBandwidthResponse,
     TopUpBandwidthResponse,
 };
-use crate::{v2, v3, v4, v5};
+use crate::{v2, v3, v4, v5, v6};
 
 #[derive(Debug)]
 pub enum AuthenticatorResponse {
@@ -99,6 +99,25 @@ impl From<v5::response::AuthenticatorResponse> for AuthenticatorResponse {
                 remaining_bandwidth_response,
             ) => Self::RemainingBandwidth(Box::new(remaining_bandwidth_response)),
             v5::response::AuthenticatorResponseData::TopUpBandwidth(top_up_bandwidth_response) => {
+                Self::TopUpBandwidth(Box::new(top_up_bandwidth_response))
+            }
+        }
+    }
+}
+
+impl From<v6::response::AuthenticatorResponse> for AuthenticatorResponse {
+    fn from(value: v6::response::AuthenticatorResponse) -> Self {
+        match value.data {
+            v6::response::AuthenticatorResponseData::PendingRegistration(
+                pending_registration_response,
+            ) => Self::PendingRegistration(Box::new(pending_registration_response)),
+            v6::response::AuthenticatorResponseData::Registered(registered_response) => {
+                Self::Registered(Box::new(registered_response))
+            }
+            v6::response::AuthenticatorResponseData::RemainingBandwidth(
+                remaining_bandwidth_response,
+            ) => Self::RemainingBandwidth(Box::new(remaining_bandwidth_response)),
+            v6::response::AuthenticatorResponseData::TopUpBandwidth(top_up_bandwidth_response) => {
                 Self::TopUpBandwidth(Box::new(top_up_bandwidth_response))
             }
         }

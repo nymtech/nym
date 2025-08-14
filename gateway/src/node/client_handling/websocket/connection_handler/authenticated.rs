@@ -9,7 +9,9 @@ use crate::node::client_handling::{
             IsActive, IsActiveRequestReceiver, IsActiveResultSender, MixMessageReceiver,
         },
     },
+    DEFAULT_MIXNET_CLIENT_BANDWIDTH_THRESHOLD,
 };
+use crate::node::upgrade_mode::UpgradeModeEnableError;
 use futures::{
     future::{FusedFuture, OptionFuture},
     FutureExt, StreamExt,
@@ -20,8 +22,8 @@ use nym_credential_verification::{
 };
 use nym_gateway_requests::{
     types::{BinaryRequest, ServerResponse},
-    ClientControlRequest, ClientRequest, GatewayRequestsError, SensitiveServerResponse,
-    SimpleGatewayRequestsError,
+    BandwidthResponse, ClientControlRequest, ClientRequest, GatewayRequestsError, SendResponse,
+    SensitiveServerResponse, SimpleGatewayRequestsError,
 };
 use nym_gateway_storage::error::GatewayStorageError;
 use nym_gateway_storage::traits::BandwidthGatewayStorage;
@@ -31,6 +33,7 @@ use nym_sphinx::forwarding::packet::MixPacket;
 use nym_statistics_common::{gateways::GatewaySessionEvent, types::SessionType};
 use nym_validator_client::coconut::EcashApiError;
 use rand::{random, CryptoRng, Rng};
+use std::cmp::max;
 use std::{process, time::Duration};
 use thiserror::Error;
 use tokio::io::{AsyncRead, AsyncWrite};
@@ -92,8 +95,11 @@ pub enum RequestHandlingError {
     #[error("failed to recover bandwidth value: {0}")]
     BandwidthRecoveryFailure(#[from] BandwidthError),
 
-    #[error("{0}")]
+    #[error(transparent)]
     CredentialVerification(#[from] nym_credential_verification::Error),
+
+    #[error(transparent)]
+    UpgradeModeEnable(#[from] UpgradeModeEnableError),
 }
 
 impl RequestHandlingError {
@@ -159,6 +165,10 @@ impl<R, S> Drop for AuthenticatedHandler<R, S> {
 impl<R, S> AuthenticatedHandler<R, S> {
     pub(crate) fn inner(&self) -> &FreshHandler<R, S> {
         &self.inner
+    }
+
+    fn upgrade_mode_enabled(&self) -> bool {
+        self.inner.upgrade_mode_enabled()
     }
 
     /// Upgrades `FreshHandler` into the Authenticated variant implying the client is now authenticated
@@ -271,7 +281,50 @@ impl<R, S> AuthenticatedHandler<R, S> {
             .inspect_err(|verification_failure| debug!("{verification_failure}"))?;
         trace!("available total bandwidth: {available_total}");
 
-        Ok(ServerResponse::Bandwidth { available_total })
+        Ok(ServerResponse::Bandwidth(BandwidthResponse {
+            available_total,
+            upgrade_mode: self.upgrade_mode_enabled(),
+        }))
+    }
+
+    async fn upgrade_mode_bandwidth(&self) -> i64 {
+        // if we're undergoing upgrade mode, we don't meter bandwidth,
+        // we simply return MAX of clients current bandwidth and minimum bandwidth before default
+        // client would have attempted to send new ticket
+        // the latter is to support older clients that will ignore `upgrade_mode` field in the response
+        // as they're not aware of its existence
+        let available_bandwidth = self.bandwidth_storage_manager.available_bandwidth().await;
+        max(
+            DEFAULT_MIXNET_CLIENT_BANDWIDTH_THRESHOLD,
+            available_bandwidth,
+        )
+    }
+
+    /// Tries to handle the received JWT token request by checking its correctness and
+    /// internally enables upgrade mode if it hasn't been set before.
+    /// Furthermore, clients bandwidth metering is getting disabled.
+    async fn handle_upgrade_mode_jwt(
+        &self,
+        token: String,
+    ) -> Result<ServerResponse, RequestHandlingError> {
+        // if we're already in the upgrade mode, don't bother validating the token
+        if self.upgrade_mode_enabled() {
+            return Ok(ServerResponse::Bandwidth(BandwidthResponse {
+                available_total: self.upgrade_mode_bandwidth().await,
+                upgrade_mode: true,
+            }));
+        }
+
+        self.inner
+            .shared_state
+            .upgrade_mode
+            .try_enable_via_received_jwt(token)
+            .await?;
+
+        Ok(ServerResponse::Bandwidth(BandwidthResponse {
+            available_total: self.upgrade_mode_bandwidth().await,
+            upgrade_mode: true,
+        }))
     }
 
     /// Tries to handle request to forward sphinx packet into the network. The request can only succeed
@@ -289,15 +342,22 @@ impl<R, S> AuthenticatedHandler<R, S> {
     ) -> Result<ServerResponse, RequestHandlingError> {
         let required_bandwidth = mix_packet.packet().len() as i64;
 
-        let remaining_bandwidth = self
-            .bandwidth_storage_manager
-            .try_use_bandwidth(required_bandwidth)
-            .await?;
+        let upgrade_mode = self.upgrade_mode_enabled();
+
+        let remaining_bandwidth = if self.upgrade_mode_enabled() {
+            self.upgrade_mode_bandwidth().await
+        } else {
+            self.bandwidth_storage_manager
+                .try_use_bandwidth(required_bandwidth)
+                .await?
+        };
+
         self.forward_packet(mix_packet);
 
-        Ok(ServerResponse::Send {
+        Ok(ServerResponse::Send(SendResponse {
             remaining_bandwidth,
-        })
+            upgrade_mode,
+        }))
     }
 
     /// Attempts to handle a binary data frame websocket message.
@@ -432,6 +492,9 @@ impl<R, S> AuthenticatedHandler<R, S> {
             ClientControlRequest::EcashCredential { enc_credential, iv } => {
                 self.handle_ecash_bandwidth(enc_credential, iv).await
             }
+            ClientControlRequest::UpgradeModeJWT { token } => {
+                self.handle_upgrade_mode_jwt(token).await
+            }
             ClientControlRequest::BandwidthCredential { .. } => {
                 Err(RequestHandlingError::IllegalRequest {
                     additional_context: "coconut credential are not longer supported".into(),
@@ -446,7 +509,13 @@ impl<R, S> AuthenticatedHandler<R, S> {
                 .bandwidth_storage_manager
                 .handle_claim_testnet_bandwidth()
                 .await
-                .map_err(|e| e.into()),
+                .map_err(|e| e.into())
+                .map(|available_total| {
+                    ServerResponse::Bandwidth(BandwidthResponse {
+                        available_total,
+                        upgrade_mode: self.upgrade_mode_enabled(),
+                    })
+                }),
             ClientControlRequest::SupportedProtocol { .. } => {
                 Ok(self.inner.handle_supported_protocol_request())
             }

@@ -7,13 +7,15 @@
 // #![warn(clippy::unwrap_used)]
 
 use defguard_wireguard_rs::{WGApi, WireguardInterfaceApi, host::Peer, key::Key, net::IpAddrMask};
-#[cfg(target_os = "linux")]
-use nym_credential_verification::ecash::EcashManager;
 use nym_crypto::asymmetric::x25519::KeyPair;
 use nym_wireguard_types::Config;
 use peer_controller::PeerControlRequest;
 use std::sync::Arc;
 use tokio::sync::mpsc::{self, Receiver, Sender};
+use tracing::error;
+
+#[cfg(target_os = "linux")]
+use nym_credential_verification::ecash::EcashManager;
 
 #[cfg(target_os = "linux")]
 use nym_network_defaults::constants::WG_TUN_BASE_NAME;
@@ -114,7 +116,7 @@ impl Drop for WgApiWrapper {
     fn drop(&mut self) {
         if let Err(e) = defguard_wireguard_rs::WireguardInterfaceApi::remove_interface(&self.inner)
         {
-            log::error!("Could not remove the wireguard interface: {e:?}");
+            error!("Could not remove the wireguard interface: {e:?}");
         }
     }
 }
@@ -163,6 +165,7 @@ pub async fn start_wireguard(
     ecash_manager: Arc<EcashManager>,
     metrics: nym_node_metrics::NymNodeMetrics,
     peers: Vec<Peer>,
+    upgrade_mode_status: nym_credential_verification::upgrade_mode::UpgradeModeStatus,
     shutdown_token: nym_task::ShutdownToken,
     wireguard_data: WireguardData,
 ) -> Result<std::sync::Arc<WgApiWrapper>, Box<dyn std::error::Error + Send + Sync + 'static>> {
@@ -250,6 +253,7 @@ pub async fn start_wireguard(
         peer_bandwidth_managers,
         wireguard_data.inner.peer_tx.clone(),
         wireguard_data.peer_rx,
+        upgrade_mode_status,
         shutdown_token,
     );
     tokio::spawn(async move { controller.run().await });

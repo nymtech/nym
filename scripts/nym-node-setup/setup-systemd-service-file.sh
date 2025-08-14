@@ -60,39 +60,15 @@ EOF
   systemctl daemon-reload && systemctl enable nym-node.service
 }
 
-start_service_now() {
-  # Start (or restart) the service
-  if systemctl is-active --quiet nym-node.service; then
-    echo "Service already active. Restarting..."
-    systemctl restart nym-node.service
-  else
-    echo "Starting service..."
-    systemctl start nym-node.service
-  fi
-  systemctl status --no-pager --lines=5 nym-node.service || true
-}
-
 # --- main flow ---
 ensure_mode
 
 if [[ -f "$SERVICE_PATH" ]]; then
   echo "Service file already exists at: $SERVICE_PATH"
-  read -rp "Do you want to start (or restart) the service now? [y/N]: " ans
-  if [[ "${ans:-}" =~ ^[Yy]$ ]]; then
-    start_service_now
-  else
-    echo "Okay, not starting the service."
-  fi
 else
   read -rp "Service file not found. Create it now? [y/N]: " create_ans
   if [[ "${create_ans:-}" =~ ^[Yy]$ ]]; then
     create_service_file
-    read -rp "Do you want to start the service now? [y/N]: " start_ans
-    if [[ "${start_ans:-}" =~ ^[Yy]$ ]]; then
-      start_service_now
-    else
-      echo "Service created but not started."
-    fi
   else
     echo "Not creating the service file."
   fi

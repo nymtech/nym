@@ -50,6 +50,8 @@ use time::Date;
 use tracing::instrument;
 
 pub use nym_coconut_dkg_common::types::EpochId;
+// DEPRECATED: Use nym_http_api_client::Client directly
+#[deprecated(since = "1.2.0", note = "Use nym_http_api_client::Client directly")]
 pub use nym_http_api_client::Client;
 
 pub mod error;

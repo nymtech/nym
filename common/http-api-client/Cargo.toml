@@ -13,6 +13,7 @@ license.workspace = true
 [features]
 default=["tunneling"]
 tunneling=[]
+network-defaults = ["dep:nym-network-defaults"]
 
 [dependencies]
 async-trait = { workspace = true }
@@ -34,6 +35,7 @@ mime = { workspace = true }
 
 nym-http-api-common = { path = "../http-api-common", default-features = false }
 nym-bin-common = { path = "../bin-common" }
+nym-network-defaults = { path = "../network-defaults", optional = true }
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies]
 hickory-resolver = { workspace = true, features = ["https-ring", "tls-ring", "webpki-roots"] }

@@ -243,52 +243,45 @@ class NodeSetupCLI:
         self.run_script(self.wg_ip_tables_manager_sh,  args=["status"])
         self.run_script(self.wg_ip_tables_test_sh)
 
-      @staticmethod
-      def _is_active(service: str, env=None) -> bool:
-          return subprocess.run(["systemctl", "is-active", "--quiet", service], env=env).returncode == 0
+    def run_nym_node_as_service(self):
+        service = "nym-node.service"
+        service_path = "/etc/systemd/system/nym-node.service"
+        print(f"We are going to start {service} from systemd config located at: {service_path}")
 
-      def run_nym_node_as_service(self):
-          service = "nym-node.service"
-          service_path = "/etc/systemd/system/nym-node.service"
-          print(f"We are going to start {service} from systemd config located at: {service_path}")
+        if not os.path.isfile(service_path):
+            print(f"Service file not found at {service_path}. Please run your setup first.")
+            return
 
-          if not os.path.isfile(service_path):
-              print(f"Service file not found at {service_path}. Please run your setup first.")
-              return
+        run_env = {**os.environ, "SYSTEMD_PAGER": "", "SYSTEMD_COLORS": "0", "WAIT_TIMEOUT": "600"}
+        is_active = (subprocess.run(["systemctl", "is-active", "--quiet", service], env=run_env).returncode == 0)
 
-          run_env = {**os.environ, "SYSTEMD_PAGER": "", "SYSTEMD_COLORS": "0"}
-          is_active = self._is_active(service, env=run_env)
-
-          if is_active:
-              while True:
-                  ans = input(f"{service} is already running. Restart it now? [y/n]: ").strip().lower()
-                  if ans == "y":
-                      # Let the bash script do restart + wait (with timeout)
-                      # Optionally set WAIT_TIMEOUT in env if you want a different timeout
-                      self.run_script(self.start_node_systemd_service_sh,
-                                      args=["restart-wait"], env=run_env, sudo=True)
-                      # Bash prints final state; we just return
-                      return
-                  elif ans == "n":
-                      print("Continuing without restart.")
-                      return
-                  else:
-                      print("Invalid input. Please press 'y' or 'n' and press enter.")
-          else:
-              while True:
-                  ans = input(f"{service} is not running. Start it now? [y/n]: ").strip().lower()
-                  if ans == "y":
-                      self.run_script(self.start_node_systemd_service_sh,
-                                      args=["start-wait"], env=run_env, sudo=True)
-                      return
-                  elif ans == "n":
-                      print("Okay, not starting it.")
-                      return
-                  else:
-                      print("Invalid input. Please press 'y' or 'n' and press enter.")
+        if is_active:
+            while True:
+                ans = input(f"{service} is already running. Restart it now? [y/n]: ").strip().lower()
+                if ans == "y":
+                    # Non-interactive restart + wait handled in bash
+                    self.run_script(self.start_node_systemd_service_sh,
+                                    args=["restart-wait"], env=run_env, sudo=True)
+                    return
+                elif ans == "n":
+                    print("Continuing without restart.")
+                    return
+                else:
+                    print("Invalid input. Please press 'y' or 'n' and press enter.")
+        else:
+            while True:
+                ans = input(f"{service} is not running. Start it now? [y/n]: ").strip().lower()
+                if ans == "y":
+                    self.run_script(self.start_node_systemd_service_sh,
+                                    args=["start-wait"], env=run_env, sudo=True)
+                    return
+                elif ans == "n":
+                    print("Okay, not starting it.")
+                    return
+                else:
+                    print("Invalid input. Please press 'y' or 'n' and press enter.")
 
     def run_bonding_prompt(self):
-
         print("\n")
         self.print_character("-", 36)
         print("Time to register your node to Nym Network by bonding it using Nym wallet ...")

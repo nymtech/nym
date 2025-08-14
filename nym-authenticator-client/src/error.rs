@@ -45,6 +45,9 @@ pub enum Error {
 
     #[error("failed to wait on AuthenticatorClientListener")]
     FailedToJoinOnTask(#[from] tokio::task::JoinError),
+
+    #[error("encountered an internal error")]
+    InternalError,
 }
 
 // Result type based on our error type

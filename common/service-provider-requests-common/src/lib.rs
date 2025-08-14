@@ -82,6 +82,17 @@ pub struct Protocol {
     pub service_provider_type: ServiceProviderType,
 }
 
+impl Protocol {
+    pub const fn new(version: u8, service_provider_type: ServiceProviderType) -> Self {
+        Self {
+            version,
+            service_provider_type,
+        }
+    }
+}
+
+// NOTE: this only works under the assumption of using bincode for serialisation
+// with the current field layout
 impl TryFrom<&[u8; 2]> for Protocol {
     type Error = ProtocolError;
 

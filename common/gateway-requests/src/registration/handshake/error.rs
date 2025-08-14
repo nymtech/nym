@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::shared_key::SharedKeyUsageError;
+use crate::GatewayProtocolVersion;
+use crate::GatewayProtocolVersionExt;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -34,4 +36,10 @@ pub enum HandshakeError {
 
     #[error("timed out waiting for a handshake message")]
     Timeout,
+
+    #[error("Connection is in an invalid state - please send a bug report")]
+    ConnectionInInvalidState,
+
+    #[error("the gateway requests protocol version that's not supported by this client. it wants to use v{version} whilst we only understand up to v{}", GatewayProtocolVersion::CURRENT)]
+    UnsupportedProtocol { version: GatewayProtocolVersion },
 }

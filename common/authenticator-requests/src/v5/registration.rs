@@ -108,7 +108,7 @@ pub struct RegistrationData {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-pub struct RegistredData {
+pub struct RegisteredData {
     pub pub_key: PeerPublicKey,
     pub private_ips: IpPair,
     pub wg_port: u16,

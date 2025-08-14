@@ -1,7 +1,9 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::{AuthenticationFailure, GatewayRequestsError, SharedGatewayKey};
+use crate::{
+    AuthenticationFailure, GatewayProtocolVersion, GatewayRequestsError, SharedGatewayKey,
+};
 use nym_crypto::asymmetric::ed25519;
 use serde::{Deserialize, Serialize};
 use std::iter;
@@ -20,7 +22,7 @@ pub struct AuthenticateRequest {
 
 impl AuthenticateRequest {
     pub fn new(
-        protocol_version: u8,
+        protocol_version: GatewayProtocolVersion,
         shared_key: &SharedGatewayKey,
         identity_keys: &ed25519::KeyPair,
     ) -> Result<AuthenticateRequest, GatewayRequestsError> {
@@ -98,7 +100,7 @@ impl AuthenticateRequest {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct AuthenticateRequestContent {
-    pub protocol_version: u8,
+    pub protocol_version: GatewayProtocolVersion,
 
     // this is identical to the client's address
     pub client_identity: ed25519::PublicKey,

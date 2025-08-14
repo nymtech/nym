@@ -3,10 +3,12 @@
 
 use crate::registration::handshake::messages::{Finalization, GatewayMaterialExchange};
 use crate::registration::handshake::state::State;
-use crate::registration::handshake::SharedGatewayKey;
+use crate::registration::handshake::HandshakeResult;
 use crate::registration::handshake::{error::HandshakeError, WsItem};
+use crate::{GatewayProtocolVersionExt, INITIAL_PROTOCOL_VERSION};
 use futures::{Sink, Stream};
 use rand::{CryptoRng, RngCore};
+use tracing::info;
 use tungstenite::Message as WsMessage;
 
 impl<S, R> State<'_, S, R> {
@@ -25,9 +27,25 @@ impl<S, R> State<'_, S, R> {
 
         // 2. wait for response with remote x25519 pubkey as well as encrypted signature
         // <- g^y || AES(k, sig(gate_priv, (g^y || g^x)) || MAYBE_NONCE
-        let mid_res = self
+        let (mid_res, gateway_protocol) = self
             .receive_handshake_message::<GatewayMaterialExchange>()
             .await?;
+
+        // NEGOTIATE PROTOCOL
+        if gateway_protocol.is_future_version() {
+            // SAFETY: future version means it's greater than CURRENT, which is always a `Some`
+            #[allow(clippy::unwrap_used)]
+            return Err(HandshakeError::UnsupportedProtocol {
+                version: gateway_protocol.unwrap(),
+            });
+        }
+        let gateway_protocol = gateway_protocol.unwrap_or(INITIAL_PROTOCOL_VERSION);
+
+        // that should never happen, but we're fine with that outcome
+        if Some(gateway_protocol) != self.proposed_protocol_version() {
+            info!("the gateway insists on protocol version different from the one we suggested. it wants {gateway_protocol} whilst we wanted {:?}, however, we can support it", self.proposed_protocol_version());
+            self.set_protocol_version(gateway_protocol);
+        }
 
         // 3. derive shared keys locally
         // hkdf::<blake3>::(g^xy)
@@ -42,14 +60,14 @@ impl<S, R> State<'_, S, R> {
         self.send_handshake_data(materials).await?;
 
         // 6. wait for remote confirmation of finalizing the handshake
-        let finalization = self.receive_handshake_message::<Finalization>().await?;
+        let (finalization, _) = self.receive_handshake_message::<Finalization>().await?;
         finalization.ensure_success()?;
         Ok(())
     }
 
     pub(crate) async fn perform_client_handshake(
         mut self,
-    ) -> Result<SharedGatewayKey, HandshakeError>
+    ) -> Result<HandshakeResult, HandshakeError>
     where
         S: Stream<Item = WsItem> + Sink<WsMessage> + Unpin,
         R: CryptoRng + RngCore,

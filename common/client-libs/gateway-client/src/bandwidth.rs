@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use si_scale::helpers::bibytes2;
+use std::fmt::{Display, Formatter};
 use std::sync::atomic::{AtomicBool, AtomicI64, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
@@ -24,6 +25,39 @@ impl Drop for BandwidthClaimGuard {
 #[derive(Clone)]
 pub struct ClientBandwidth {
     inner: Arc<ClientBandwidthInner>,
+}
+
+// simple helper for logging purposes to accommodate 'unknown' case
+pub(crate) enum UpgradeModeEnabledWrapper {
+    True,
+    False,
+    Unknown,
+}
+
+impl From<Option<bool>> for UpgradeModeEnabledWrapper {
+    fn from(value: Option<bool>) -> Self {
+        match value {
+            Some(true) => UpgradeModeEnabledWrapper::True,
+            Some(false) => UpgradeModeEnabledWrapper::False,
+            None => UpgradeModeEnabledWrapper::Unknown,
+        }
+    }
+}
+
+impl From<bool> for UpgradeModeEnabledWrapper {
+    fn from(value: bool) -> Self {
+        Some(value).into()
+    }
+}
+
+impl Display for UpgradeModeEnabledWrapper {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            UpgradeModeEnabledWrapper::True => write!(f, "true"),
+            UpgradeModeEnabledWrapper::False => write!(f, "false"),
+            UpgradeModeEnabledWrapper::Unknown => write!(f, "unknown"),
+        }
+    }
 }
 
 struct ClientBandwidthInner {
@@ -71,26 +105,41 @@ impl ClientBandwidth {
         self.inner.available.load(Ordering::Acquire)
     }
 
-    pub(crate) fn maybe_log_bandwidth(&self, now: Option<OffsetDateTime>) {
+    pub(crate) fn maybe_log_bandwidth(
+        &self,
+        now: Option<OffsetDateTime>,
+        upgrade_mode: impl Into<UpgradeModeEnabledWrapper>,
+    ) {
         let last = self.last_logged();
         let now = now.unwrap_or_else(OffsetDateTime::now_utc);
         if last + Duration::from_secs(10) < now {
-            self.log_bandwidth(Some(now))
+            self.log_bandwidth(Some(now), upgrade_mode)
         }
     }
 
-    pub(crate) fn log_bandwidth(&self, now: Option<OffsetDateTime>) {
+    pub(crate) fn log_bandwidth(
+        &self,
+        now: Option<OffsetDateTime>,
+        upgrade_mode: impl Into<UpgradeModeEnabledWrapper>,
+    ) {
         let now = now.unwrap_or_else(OffsetDateTime::now_utc);
+        let upgrade_mode = upgrade_mode.into();
 
         let remaining = self.remaining();
         let remaining_bi2 = bibytes2(remaining as f64);
 
         if remaining < 0 {
-            tracing::warn!("OUT OF BANDWIDTH. remaining: {remaining_bi2}");
+            tracing::warn!(
+                "OUT OF BANDWIDTH. remaining: {remaining_bi2}. in 'upgrade mode': {upgrade_mode}"
+            );
         } else if remaining < 1_000_000 {
-            tracing::info!("remaining bandwidth: {remaining_bi2}");
+            tracing::info!(
+                "remaining bandwidth: {remaining_bi2}. in 'upgrade mode': {upgrade_mode}"
+            );
         } else {
-            tracing::debug!("remaining bandwidth: {remaining_bi2}");
+            tracing::trace!(
+                "remaining bandwidth: {remaining_bi2}. in 'upgrade mode': {upgrade_mode}"
+            );
         }
 
         self.inner
@@ -98,26 +147,35 @@ impl ClientBandwidth {
             .store(now.unix_timestamp(), Ordering::Relaxed)
     }
 
-    pub(crate) fn update_and_maybe_log(&self, remaining: i64) {
+    pub(crate) fn update_and_maybe_log(
+        &self,
+        remaining: i64,
+        upgrade_mode: impl Into<UpgradeModeEnabledWrapper>,
+    ) {
         let now = OffsetDateTime::now_utc();
         self.inner.available.store(remaining, Ordering::Release);
         self.inner
             .last_updated_ts
             .store(now.unix_timestamp(), Ordering::Relaxed);
-        self.maybe_log_bandwidth(Some(now))
+        self.maybe_log_bandwidth(Some(now), upgrade_mode)
     }
 
-    pub(crate) fn update_and_log(&self, remaining: i64) {
+    pub(crate) fn update_and_log(
+        &self,
+        remaining: i64,
+        upgrade_mode: impl Into<UpgradeModeEnabledWrapper>,
+    ) {
         let now = OffsetDateTime::now_utc();
         self.inner.available.store(remaining, Ordering::Release);
         self.inner
             .last_updated_ts
             .store(now.unix_timestamp(), Ordering::Relaxed);
-        self.log_bandwidth(Some(now))
+        self.log_bandwidth(Some(now), upgrade_mode)
     }
 
     fn last_logged(&self) -> OffsetDateTime {
         // SAFETY: this value is always populated with valid timestamps
+        #[allow(clippy::unwrap_used)]
         OffsetDateTime::from_unix_timestamp(self.inner.last_logged_ts.load(Ordering::Relaxed))
             .unwrap()
     }

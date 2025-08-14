@@ -9,10 +9,23 @@ use std::fmt;
 use std::ops::Deref;
 use std::str::FromStr;
 
+use nym_crypto::asymmetric::x25519;
 use x25519_dalek::PublicKey;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
 pub struct PeerPublicKey(PublicKey);
+
+impl From<x25519::PublicKey> for PeerPublicKey {
+    fn from(pk: x25519::PublicKey) -> Self {
+        PeerPublicKey(pk.into())
+    }
+}
+
+impl From<&x25519::PublicKey> for PeerPublicKey {
+    fn from(pk: &x25519::PublicKey) -> Self {
+        (*pk).into()
+    }
+}
 
 impl PeerPublicKey {
     pub fn new(key: PublicKey) -> Self {

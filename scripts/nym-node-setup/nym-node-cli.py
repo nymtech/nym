@@ -198,7 +198,7 @@ class NodeSetupCLI:
         wireguard = os.environ.get("WIREGUARD")
         while wireguard is None:
             user_input = input(
-                "Wireguard is not configured.\n"
+                "\nWireguard is not configured.\n"
                 "Please note that a node routing WireGuard will be listed as both entry and exit in the application."
                 "Enable Wireguard support? (y/n): "
             ).strip().lower()
@@ -234,8 +234,9 @@ class NodeSetupCLI:
 
     def run_tunnel_manager_setup(self):
         print(
-            "Setting up network configuration for mixnet IP router and Wireguard tunneling. More info: https://nym.com/docs/operators/nodes/nym-node/configuration#1-download-network_tunnel_managersh-make-executable-and-run"
-            "This may take a while, follow the steps below and don't kill the process..."
+            "\n* * *Setting up network configuration for mixnet IP router and Wireguard tunneling * * *"
+            "\nMore info: https://nym.com/docs/operators/nodes/nym-node/configuration#1-download-network_tunnel_managersh-make-executable-and-run"
+            "\nThis may take a while, follow the steps below and don't kill the process..."
             )
         args = [
             " ",
@@ -347,7 +348,7 @@ class NodeSetupCLI:
                 self.run_bash_command(command="curl", args=["-4", "https://ifconfig.me"]),
                 print("\n")
                 self.print_character("=", 36)
-                print("FOLLOW THESE STEPS TO BOND YOUR NODE\n")
+                print("FOLLOW THESE STEPS TO BOND YOUR NODE")
                 self.print_character("=", 36)
                 print(
                   "- Open your wallet and go to Bonding menu\n"
@@ -422,4 +423,4 @@ if __name__ == '__main__':
     cli.run_nym_node_as_service()
     cli.run_bonding_prompt()
     cli._check_gwx_mode() and cli.run_script(cli.run_tunnel_manager_setup)
-    cli.check_wg_enabled() and cli.run_script(cli.setup_test_wg_ip_tables)
+    cli._check_gwx_mode and cli.check_wg_enabled() and cli.run_script(cli.setup_test_wg_ip_tables)

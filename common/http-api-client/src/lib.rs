@@ -660,6 +660,8 @@ impl Client {
 
         if self.base_urls.len() > 1 {
             let orig = self.current_idx.load(Ordering::Relaxed);
+
+            #[allow(unused_mut)]
             let mut next = (orig + 1) % self.base_urls.len();
 
             // if fronting is enabled we want to update to a host that has fronts configured

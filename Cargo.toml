@@ -443,6 +443,11 @@ opt-level = 'z'
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(tokio_unstable)'] }
 
 [workspace.lints.clippy]
+suspicious = "deny"
+complexity = "deny"
+perf = "deny"
+style = "deny"
+
 unwrap_used = "deny"
 expect_used = "deny"
 todo = "deny"
@@ -451,4 +456,3 @@ exit = "deny"
 panic = "deny"
 unimplemented = "deny"
 unreachable = "deny"
-

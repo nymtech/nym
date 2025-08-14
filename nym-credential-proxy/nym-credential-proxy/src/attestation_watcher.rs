@@ -5,6 +5,7 @@ use crate::http::state::nyx_upgrade_mode::UpgradeModeState;
 use nym_crypto::asymmetric::ed25519;
 use nym_http_api_client::generate_user_agent;
 use nym_upgrade_mode_check::attempt_retrieve_attestation;
+use std::sync::Arc;
 use std::time::Duration;
 use tokio::time::Instant;
 use tokio_util::sync::CancellationToken;
@@ -30,6 +31,31 @@ pub struct AttestationWatcher {
 }
 
 impl AttestationWatcher {
+    pub(crate) fn new(
+        regular_polling_interval: Duration,
+        expedited_poll_interval: Duration,
+        attestation_url: Url,
+        jwt_signing_keys: ed25519::KeyPair,
+        jwt_validity: Duration,
+        cancellation_token: CancellationToken,
+    ) -> Self {
+        AttestationWatcher {
+            regular_polling_interval,
+            expedited_poll_interval,
+            attestation_url,
+            jwt_signing_keys,
+            jwt_validity,
+            cancellation_token,
+            upgrade_mode_state: UpgradeModeState {
+                inner: Arc::new(Default::default()),
+            },
+        }
+    }
+
+    pub(crate) fn shared_state(&self) -> UpgradeModeState {
+        self.upgrade_mode_state.clone()
+    }
+
     async fn try_update_state(&self) {
         match attempt_retrieve_attestation(
             self.attestation_url.as_str(),

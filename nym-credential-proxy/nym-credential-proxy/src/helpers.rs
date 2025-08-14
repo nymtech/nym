@@ -6,6 +6,7 @@ use time::OffsetDateTime;
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, error, info, warn};
 
+use crate::attestation_watcher::AttestationWatcher;
 use crate::{
     cli::Cli,
     deposit_maker::DepositMaker,
@@ -77,6 +78,7 @@ pub async fn wait_for_signal() {
     }
 }
 
+#[allow(clippy::panic)]
 fn build_sha_short() -> &'static str {
     let bin_info = bin_info!();
     if bin_info.commit_sha.len() < 7 {
@@ -99,8 +101,20 @@ pub(crate) async fn run_api(cli: Cli) -> Result<(), VpnApiError> {
     let mnemonic = cli.mnemonic;
     let auth_token = cli.http_auth_token;
     let webhook_cfg = cli.webhook;
+    let jwt_signing_keys = cli.jwt_signing_keys.signing_keys()?;
     let chain_client = ChainClient::new(mnemonic)?;
     let cancellation_token = CancellationToken::new();
+
+    let attestation_watcher = AttestationWatcher::new(
+        cli.attestation_check_regular_polling_interval,
+        cli.attestation_check_expedited_polling_interval,
+        cli.attestation_check_url,
+        jwt_signing_keys,
+        cli.upgrade_mode_jwt_validity,
+        cancellation_token.clone(),
+    );
+
+    let upgrade_mode_state = attestation_watcher.shared_state();
 
     let deposit_maker = DepositMaker::new(
         build_sha_short(),
@@ -112,6 +126,7 @@ pub(crate) async fn run_api(cli: Cli) -> Result<(), VpnApiError> {
     let deposit_request_sender = deposit_maker.deposit_request_sender();
     let api_state = ApiState::new(
         storage.clone(),
+        upgrade_mode_state,
         webhook_cfg,
         chain_client,
         deposit_request_sender,
@@ -130,6 +145,7 @@ pub(crate) async fn run_api(cli: Cli) -> Result<(), VpnApiError> {
     api_state.try_spawn(http_server.run_forever());
     api_state.try_spawn(storage_pruner.run_forever());
     api_state.try_spawn(deposit_maker.run_forever());
+    api_state.try_spawn(attestation_watcher.run_forever());
 
     // wait for cancel signal (SIGINT, SIGTERM or SIGQUIT)
     wait_for_signal().await;

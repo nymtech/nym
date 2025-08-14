@@ -4,6 +4,7 @@
 use crate::deposit_maker::{DepositRequest, DepositRequestSender};
 use crate::error::VpnApiError;
 use crate::helpers::LockTimer;
+use crate::http::state::nyx_upgrade_mode::UpgradeModeState;
 use crate::http::types::RequestError;
 use crate::nym_api_helpers::{
     ensure_sane_expiration_date, query_all_threshold_apis, CachedEpoch, CachedImmutableEpochItem,
@@ -22,7 +23,7 @@ use nym_compact_ecash::scheme::expiration_date_signatures::{
 use nym_compact_ecash::Base58;
 use nym_credential_proxy_requests::api::v1::ticketbook::models::{
     AggregatedCoinIndicesSignaturesResponse, AggregatedExpirationDateSignaturesResponse,
-    MasterVerificationKeyResponse,
+    MasterVerificationKeyResponse, UpgradeModeResponse,
 };
 use nym_credentials::ecash::utils::{ecash_today, EcashTime};
 use nym_credentials::{
@@ -63,8 +64,9 @@ pub struct ApiState {
 // a lot of functionalities, mostly to do with caching and storage is just copy-pasted from nym-api,
 // since we have to do more or less the same work
 impl ApiState {
-    pub async fn new(
+    pub(crate) async fn new(
         storage: VpnApiStorage,
+        upgrade_mode_state: UpgradeModeState,
         zk_nym_web_hook_config: ZkNymWebHookConfig,
         client: ChainClient,
         deposit_requester: DepositRequestSender,
@@ -73,6 +75,7 @@ impl ApiState {
         let state = ApiState {
             inner: Arc::new(ApiStateInner {
                 storage,
+                upgrade_mode: upgrade_mode_state,
                 client,
                 ecash_state: EcashState::default(),
                 zk_nym_web_hook_config,
@@ -83,7 +86,7 @@ impl ApiState {
         };
 
         // since this is startup,
-        // might as well do all the needed network queries to establish needed global signatures
+        // might as well do all the required network queries to establish needed global signatures
         // if we don't already have them
         state.build_initial_cache().await?;
 
@@ -155,6 +158,15 @@ impl ApiState {
 
     pub(crate) fn storage(&self) -> &VpnApiStorage {
         &self.inner.storage
+    }
+
+    pub(crate) async fn upgrade_mode_response(&self) -> Option<UpgradeModeResponse> {
+        let (upgrade_mode_attestation, jwt) =
+            self.inner.upgrade_mode.attestation_with_jwt().await?;
+        Some(UpgradeModeResponse {
+            upgrade_mode_attestation,
+            jwt,
+        })
     }
 
     pub async fn deposit_amount(&self) -> Result<Coin, VpnApiError> {
@@ -643,6 +655,8 @@ impl ChainClient {
 
 struct ApiStateInner {
     storage: VpnApiStorage,
+
+    upgrade_mode: UpgradeModeState,
 
     client: ChainClient,
 

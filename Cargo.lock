@@ -5804,6 +5804,7 @@ dependencies = [
  "nym-http-api-client 0.1.0",
  "nym-http-api-common 0.1.0",
  "nym-network-defaults 0.1.0",
+ "nym-pemstore 0.3.0",
  "nym-upgrade-mode-check",
  "nym-validator-client 0.1.0",
  "rand 0.8.5",
@@ -8019,6 +8020,7 @@ dependencies = [
  "thiserror 2.0.12",
  "time",
  "tracing",
+ "utoipa",
 ]
 
 [[package]]

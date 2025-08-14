@@ -118,6 +118,13 @@ pub enum VpnApiError {
 
     #[error("failed to create deposit")]
     DepositFailure,
+
+    #[error("failed to load jwt signing key from {path}: {err}")]
+    JWTSigningKeyLoadFailure {
+        path: String,
+        #[source]
+        err: std::io::Error,
+    },
 }
 
 impl VpnApiError {

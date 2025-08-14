@@ -52,12 +52,10 @@ impl UpgradeModeState {
         }
     }
 
-    pub(crate) async fn jwt(&self) -> Option<String> {
-        self.inner
-            .read()
-            .await
-            .as_ref()
-            .map(|state| state.jwt.token.clone())
+    pub(crate) async fn attestation_with_jwt(&self) -> Option<(UpgradeModeAttestation, String)> {
+        let guard = self.inner.read().await;
+        let inner = guard.as_ref()?;
+        Some((inner.attestation, inner.jwt.token.clone()))
     }
 }
 
@@ -113,10 +111,6 @@ impl Jwt {
         // less than 20% of validity left
         let now = OffsetDateTime::now_utc();
         let validity_threshold = Duration::from_secs_f32(self.issued_for.as_secs_f32() * 0.8);
-        if now - self.issued_at >= validity_threshold {
-            true
-        } else {
-            false
-        }
+        now - self.issued_at >= validity_threshold
     }
 }

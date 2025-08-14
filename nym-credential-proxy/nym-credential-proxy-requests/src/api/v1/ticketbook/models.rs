@@ -11,16 +11,18 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::ops::{Deref, DerefMut};
 use time::{Date, OffsetDateTime};
+use uuid::Uuid;
 
 #[cfg(feature = "query-types")]
 use nym_http_api_common::Output;
 
 #[cfg(feature = "tsify")]
 use tsify::Tsify;
-use uuid::Uuid;
 
 #[cfg(feature = "tsify")]
 use wasm_bindgen::prelude::wasm_bindgen;
+
+pub use nym_upgrade_mode_check::UpgradeModeAttestation;
 
 #[derive(JsonSchema)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
@@ -224,6 +226,27 @@ pub struct TicketbookWalletSharesResponse {
     pub aggregated_expiration_date_signatures: Option<AggregatedExpirationDateSignaturesResponse>,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[serde(rename_all = "camelCase")]
+#[serde(untagged)]
+pub enum ObtainTicketBookSharesAsyncResponse {
+    InProgress(TicketbookWalletSharesAsyncResponse),
+    UpgradeMode(Box<UpgradeModeResponse>),
+}
+
+impl From<TicketbookWalletSharesAsyncResponse> for ObtainTicketBookSharesAsyncResponse {
+    fn from(response: TicketbookWalletSharesAsyncResponse) -> Self {
+        Self::InProgress(response)
+    }
+}
+
+impl From<UpgradeModeResponse> for ObtainTicketBookSharesAsyncResponse {
+    fn from(response: UpgradeModeResponse) -> Self {
+        Self::UpgradeMode(Box::new(response))
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(rename_all = "camelCase")]
@@ -293,4 +316,12 @@ pub struct SharesQueryParams {
     pub include_coin_index_signatures: bool,
 
     pub include_expiration_date_signatures: bool,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[serde(rename_all = "camelCase")]
+pub struct UpgradeModeResponse {
+    pub upgrade_mode_attestation: UpgradeModeAttestation,
+    pub jwt: String,
 }

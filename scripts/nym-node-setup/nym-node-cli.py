@@ -279,7 +279,7 @@ class NodeSetupCLI:
                   "- Open your wallet and go to Bonding menu\n"
                   "- Fill your IP address (printed above) to the Host field\n"
                   "- Setup your operators cost and profit margin\n"
-                  "- Copy the long contract message from your wallet\n"
+                  "- Copy the long contract message from your wallet"
                   )
                 msg = "- Paste the contract message from clipboard here and press enter:\n"
                 contract_msg = input(msg).strip()

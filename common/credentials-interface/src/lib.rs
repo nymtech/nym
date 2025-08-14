@@ -29,6 +29,22 @@ pub use nym_compact_ecash::{
     PartialWallet, PayInfo, PublicKeyUser, SecretKeyUser, VerificationKeyAuth, WithdrawalRequest,
 };
 pub use nym_ecash_time::{ecash_today, EcashTime};
+pub use nym_upgrade_mode_check::UpgradeModeAttestation;
+
+#[derive(Debug, Clone)]
+pub enum BandwidthCredential {
+    ZkNym(Box<CredentialSpendingData>),
+    UpgradeModeJWT {
+        attestation: Box<UpgradeModeAttestation>,
+        token: String,
+    },
+}
+
+impl From<CredentialSpendingData> for BandwidthCredential {
+    fn from(credential: CredentialSpendingData) -> Self {
+        Self::ZkNym(Box::new(credential))
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct CredentialSigningData {

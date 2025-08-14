@@ -1,7 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use nym_credentials_interface::CredentialSpendingData;
+use nym_credentials_interface::{BandwidthCredential, CredentialSpendingData};
 use nym_crypto::asymmetric::x25519::PrivateKey;
 use nym_service_provider_requests_common::{Protocol, ServiceProviderType};
 use nym_sphinx::addressing::clients::Recipient;
@@ -81,7 +81,7 @@ pub trait FinalMessage {
     fn pub_key(&self) -> PeerPublicKey;
     fn verify(&self, private_key: &PrivateKey, nonce: u64) -> Result<(), Error>;
     fn private_ips(&self) -> IpPair;
-    fn credential(&self) -> Option<CredentialSpendingData>;
+    fn credential(&self) -> Option<BandwidthCredential>;
 }
 
 impl FinalMessage for v1::GatewayClient {
@@ -97,7 +97,7 @@ impl FinalMessage for v1::GatewayClient {
         self.private_ip.into()
     }
 
-    fn credential(&self) -> Option<CredentialSpendingData> {
+    fn credential(&self) -> Option<BandwidthCredential> {
         None
     }
 }
@@ -115,8 +115,8 @@ impl FinalMessage for v2::registration::FinalMessage {
         self.gateway_client.private_ip.into()
     }
 
-    fn credential(&self) -> Option<CredentialSpendingData> {
-        self.credential.clone()
+    fn credential(&self) -> Option<BandwidthCredential> {
+        self.credential.clone().map(Into::into)
     }
 }
 
@@ -133,8 +133,8 @@ impl FinalMessage for v3::registration::FinalMessage {
         self.gateway_client.private_ip.into()
     }
 
-    fn credential(&self) -> Option<CredentialSpendingData> {
-        self.credential.clone()
+    fn credential(&self) -> Option<BandwidthCredential> {
+        self.credential.clone().map(Into::into)
     }
 }
 
@@ -151,8 +151,8 @@ impl FinalMessage for v4::registration::FinalMessage {
         self.gateway_client.private_ips.into()
     }
 
-    fn credential(&self) -> Option<CredentialSpendingData> {
-        self.credential.clone()
+    fn credential(&self) -> Option<BandwidthCredential> {
+        self.credential.clone().map(Into::into)
     }
 }
 
@@ -169,8 +169,8 @@ impl FinalMessage for v5::registration::FinalMessage {
         self.gateway_client.private_ips
     }
 
-    fn credential(&self) -> Option<CredentialSpendingData> {
-        self.credential.clone()
+    fn credential(&self) -> Option<BandwidthCredential> {
+        self.credential.clone().map(Into::into)
     }
 }
 

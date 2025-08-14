@@ -99,9 +99,8 @@ impl PeerController {
         request_rx: mpsc::Receiver<PeerControlRequest>,
         task_client: nym_task::TaskClient,
     ) -> Self {
-        let timeout_check_interval = tokio_stream::wrappers::IntervalStream::new(
-            tokio::time::interval(DEFAULT_PEER_TIMEOUT_CHECK),
-        );
+        let timeout_check_interval =
+            IntervalStream::new(tokio::time::interval(DEFAULT_PEER_TIMEOUT_CHECK));
         let host_information = Arc::new(RwLock::new(initial_host_information));
         for (public_key, (bandwidth_storage_manager, peer)) in bw_storage_managers.iter() {
             let cached_peer_manager = CachedPeerManager::new(peer);
@@ -547,6 +546,7 @@ pub async fn stop_controller(mut task_manager: nym_task::TaskManager) {
 }
 
 #[cfg(test)]
+#[cfg(feature = "mock")]
 mod tests {
     use super::*;
 

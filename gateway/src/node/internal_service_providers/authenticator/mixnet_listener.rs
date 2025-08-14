@@ -507,6 +507,9 @@ impl MixnetListener {
         let Some(credential) = final_message.credential() else {
             return Err(AuthenticatorError::NoCredentialReceived);
         };
+
+        // todo!();
+
         let client_id = self
             .ecash_verifier
             .storage()

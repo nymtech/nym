@@ -46,6 +46,23 @@ pub trait WireguardMetadataApiClient: ApiClient {
         )
         .await
     }
+
+    #[instrument(level = "debug", skip(self, request_body))]
+    async fn request_upgrade_mode_check(
+        &self,
+        request_body: &Request,
+    ) -> Result<Response, HttpClientError> {
+        self.post_json(
+            &[
+                routes::V1_API_VERSION,
+                routes::BANDWIDTH,
+                routes::UPGRADE_MODE_CHECK,
+            ],
+            NO_PARAMS,
+            request_body,
+        )
+        .await
+    }
 }
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]

@@ -42,12 +42,18 @@ pub enum AuthenticationClientError {
 
     #[error("unknown authenticator version number")]
     UnsupportedAuthenticatorVersion,
+
+    #[error("failed to wait on AuthenticatorClientListener")]
+    FailedToJoinOnTask(#[from] tokio::task::JoinError),
+
+    #[error("encountered an internal error")]
+    InternalError,
 }
 
 #[derive(thiserror::Error, Debug)]
 pub enum RegistrationError {
     #[error(transparent)]
-    NoCredentialSent(AuthenticationClientError), // This intentionnally doesn't use `from` to avoid random ? operator to land here when they shouldn't
+    NoCredentialSent(AuthenticationClientError), // This intentionally doesn't use `from` to avoid random ? operator to land here when they shouldn't
 
     #[error("an error occured after a credential was sent : {source}")]
     CredentialSent {

@@ -1,8 +1,10 @@
 // Copyright 2020-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::config::Config;
 use crate::error::GatewayError;
 use crate::node::client_handling::websocket;
+use crate::node::internal_service_providers::authenticator::Authenticator;
 use crate::node::internal_service_providers::{
     authenticator, ExitServiceProviders, ServiceProviderBeingBuilt, SpMessageRouterBuilder,
 };
@@ -10,6 +12,9 @@ use crate::node::stale_data_cleaner::StaleMessagesCleaner;
 use futures::channel::oneshot;
 use nym_credential_verification::ecash::{
     credential_sender::CredentialHandlerConfig, EcashManager,
+};
+use nym_credential_verification::upgrade_mode::{
+    UpgradeModeCheckConfig, UpgradeModeDetails, UpgradeModeState,
 };
 use nym_crypto::asymmetric::ed25519;
 use nym_ip_packet_router::IpPacketRouter;
@@ -30,13 +35,9 @@ use std::sync::Arc;
 use tracing::*;
 use zeroize::Zeroizing;
 
-pub(crate) mod client_handling;
-pub(crate) mod internal_service_providers;
-mod stale_data_cleaner;
-
-use crate::config::Config;
-use crate::node::internal_service_providers::authenticator::Authenticator;
+pub use crate::node::upgrade_mode::watcher::UpgradeModeWatcher;
 pub use client_handling::active_clients::ActiveClientsStore;
+pub use nym_credential_verification::upgrade_mode::UpgradeModeCheckRequestSender;
 pub use nym_gateway_stats_storage::PersistentStatsStorage;
 pub use nym_gateway_storage::{
     error::GatewayStorageError,
@@ -44,6 +45,11 @@ pub use nym_gateway_storage::{
     GatewayStorage,
 };
 pub use nym_sdk::{NymApiTopologyProvider, NymApiTopologyProviderConfig, UserAgent};
+
+pub(crate) mod client_handling;
+pub(crate) mod internal_service_providers;
+mod stale_data_cleaner;
+pub(crate) mod upgrade_mode;
 
 #[derive(Debug, Clone)]
 pub struct LocalNetworkRequesterOpts {
@@ -78,6 +84,8 @@ pub struct GatewayTasksBuilder {
     // TODO: combine with authenticator, since you have to start both
     wireguard_data: Option<nym_wireguard::WireguardData>,
 
+    user_agent: UserAgent,
+
     /// ed25519 keypair used to assert one's identity.
     identity_keypair: Arc<ed25519::KeyPair>,
 
@@ -88,6 +96,8 @@ pub struct GatewayTasksBuilder {
     metrics_sender: MetricEventsSender,
 
     metrics: NymNodeMetrics,
+
+    upgrade_mode_state: UpgradeModeState,
 
     mnemonic: Arc<Zeroizing<bip39::Mnemonic>>,
 
@@ -111,6 +121,8 @@ impl GatewayTasksBuilder {
         metrics_sender: MetricEventsSender,
         metrics: NymNodeMetrics,
         mnemonic: Arc<Zeroizing<bip39::Mnemonic>>,
+        user_agent: UserAgent,
+        upgrade_mode_attester_public_key: ed25519::PublicKey,
         shutdown_tracker: ShutdownTracker,
     ) -> GatewayTasksBuilder {
         GatewayTasksBuilder {
@@ -119,11 +131,13 @@ impl GatewayTasksBuilder {
             ip_packet_router_opts: None,
             authenticator_opts: None,
             wireguard_data: None,
+            user_agent,
             identity_keypair: identity,
             storage,
             mix_packet_sender,
             metrics_sender,
             metrics,
+            upgrade_mode_state: UpgradeModeState::new(upgrade_mode_attester_public_key),
             mnemonic,
             shutdown_tracker,
             ecash_manager: None,
@@ -247,6 +261,7 @@ impl GatewayTasksBuilder {
     pub async fn build_websocket_listener(
         &mut self,
         active_clients_store: ActiveClientsStore,
+        upgrade_mode_common_state: UpgradeModeDetails,
     ) -> Result<websocket::Listener, GatewayError> {
         let shared_state = websocket::CommonHandlerState {
             cfg: websocket::Config {
@@ -261,6 +276,7 @@ impl GatewayTasksBuilder {
             metrics_sender: self.metrics_sender.clone(),
             outbound_mix_sender: self.mix_packet_sender.clone(),
             active_clients_store: active_clients_store.clone(),
+            upgrade_mode: upgrade_mode_common_state,
         };
 
         Ok(websocket::Listener::new(
@@ -407,6 +423,7 @@ impl GatewayTasksBuilder {
 
     pub async fn build_wireguard_authenticator(
         &mut self,
+        upgrade_mode_common: UpgradeModeDetails,
         topology_provider: Box<dyn TopologyProvider + Send + Sync>,
     ) -> Result<ServiceProviderBeingBuilt<Authenticator>, GatewayError> {
         let ecash_manager = self.ecash_manager().await?;
@@ -431,6 +448,7 @@ impl GatewayTasksBuilder {
 
         let mut authenticator_server = Authenticator::new(
             opts.config.clone(),
+            upgrade_mode_common,
             wireguard_data.inner.clone(),
             used_private_network_ips,
             ecash_manager,
@@ -462,9 +480,47 @@ impl GatewayTasksBuilder {
         )
     }
 
+    pub fn build_upgrade_mode_common_state(
+        &self,
+        request_checker: UpgradeModeCheckRequestSender,
+    ) -> UpgradeModeDetails {
+        UpgradeModeDetails::new(
+            UpgradeModeCheckConfig {
+                min_staleness_recheck: self.config.debug.upgrade_mode_min_staleness_recheck,
+            },
+            request_checker,
+            self.upgrade_mode_state.clone(),
+        )
+    }
+
+    pub fn try_build_upgrade_mode_watcher(&self) -> Option<UpgradeModeWatcher> {
+        if !self.config.upgrade_mode_watcher.enabled {
+            warn!("upgrade mode watcher is disabled");
+            return None;
+        }
+
+        Some(UpgradeModeWatcher::new(
+            self.config
+                .upgrade_mode_watcher
+                .debug
+                .regular_polling_interval,
+            self.config
+                .upgrade_mode_watcher
+                .debug
+                .expedited_poll_interval,
+            self.config.debug.upgrade_mode_min_staleness_recheck,
+            self.config.upgrade_mode_watcher.attestation_url.clone(),
+            self.upgrade_mode_state.clone(),
+            self.user_agent.clone(),
+            self.shutdown_tracker.clone_shutdown_token(),
+        ))
+    }
+
     #[cfg(not(target_os = "linux"))]
+    #[allow(clippy::unimplemented)]
     pub async fn try_start_wireguard(
         &mut self,
+        _upgrade_mode_details: UpgradeModeDetails,
     ) -> Result<Arc<nym_wireguard::WgApiWrapper>, Box<dyn std::error::Error + Send + Sync>> {
         let _ = self.metrics.clone();
         let _ = self.shutdown_tracker.clone();
@@ -474,6 +530,7 @@ impl GatewayTasksBuilder {
     #[cfg(target_os = "linux")]
     pub async fn try_start_wireguard(
         &mut self,
+        upgrade_mode_details: UpgradeModeDetails,
     ) -> Result<
         nym_wireguard_private_metadata_server::ShutdownHandles,
         Box<dyn std::error::Error + Send + Sync>,
@@ -497,6 +554,7 @@ impl GatewayTasksBuilder {
             nym_wireguard_private_metadata_server::PeerControllerTransceiver::new(
                 wireguard_data.inner.peer_tx().clone(),
             ),
+            upgrade_mode_details,
         ));
 
         let bind_address = std::net::SocketAddr::new(
@@ -508,6 +566,7 @@ impl GatewayTasksBuilder {
             ecash_manager,
             self.metrics.clone(),
             all_peers,
+            self.upgrade_mode_state.upgrade_mode_status(),
             self.shutdown_tracker.clone_shutdown_token(),
             wireguard_data,
         )

@@ -70,6 +70,7 @@ pub(crate) async fn run_api(cli: Cli) -> Result<(), CredentialProxyError> {
         cli.upgrade_mode.attestation_check_regular_polling_interval,
         cli.upgrade_mode
             .attestation_check_expedited_polling_interval,
+        cli.upgrade_mode.attester_pubkey,
         cli.upgrade_mode.attestation_check_url,
         jwt_signing_keys,
         cli.upgrade_mode.upgrade_mode_jwt_validity,

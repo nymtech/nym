@@ -17,7 +17,6 @@ cosmwasm-std = { workspace = true }
 cw-utils = { workspace = true }
 dyn-clone = { workspace = true }
 futures = { workspace = true }
-rand = { workspace = true }
 si-scale = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
@@ -27,8 +26,10 @@ tracing = { workspace = true }
 nym-api-requests = { path = "../../nym-api/nym-api-requests" }
 nym-credentials = { path = "../credentials" }
 nym-credentials-interface = { path = "../credentials-interface" }
+nym-crypto = { path = "../crypto", features = ["asymmetric"] }
 nym-ecash-contract-common = { path = "../cosmwasm-smart-contracts/ecash-contract" }
 nym-gateway-requests = { path = "../gateway-requests" }
 nym-gateway-storage = { path = "../gateway-storage" }
 nym-task = { path = "../task" }
 nym-validator-client = { path = "../client-libs/validator-client" }
+nym-upgrade-mode-check = { path = "../upgrade-mode-check" }

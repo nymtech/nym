@@ -47,6 +47,25 @@ pub enum Error {
     UnknownTicketType(#[from] nym_credentials_interface::UnknownTicketType),
 }
 
+impl Error {
+    pub fn is_out_of_bandwidth(&self) -> bool {
+        matches!(self, Error::OutOfBandwidth { .. })
+    }
+}
+
+pub trait OutOfBandwidthResultExt {
+    fn is_out_of_bandwidth(&self) -> bool;
+}
+
+impl<T> OutOfBandwidthResultExt for Result<T> {
+    fn is_out_of_bandwidth(&self) -> bool {
+        match &self {
+            Ok(_) => false,
+            Err(err) => err.is_out_of_bandwidth(),
+        }
+    }
+}
+
 impl From<EcashTicketError> for Error {
     fn from(err: EcashTicketError) -> Self {
         // don't expose storage issue details to the user

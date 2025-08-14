@@ -299,8 +299,8 @@ impl From<v2::registration::RegistrationData> for v3::registration::Registration
     }
 }
 
-impl From<v3::registration::RegistredData> for v2::registration::RegistredData {
-    fn from(value: v3::registration::RegistredData) -> Self {
+impl From<v3::registration::RegisteredData> for v2::registration::RegisteredData {
+    fn from(value: v3::registration::RegisteredData) -> Self {
         Self {
             pub_key: value.pub_key,
             private_ip: value.private_ip,
@@ -309,8 +309,8 @@ impl From<v3::registration::RegistredData> for v2::registration::RegistredData {
     }
 }
 
-impl From<v2::registration::RegistredData> for v3::registration::RegistredData {
-    fn from(value: v2::registration::RegistredData) -> Self {
+impl From<v2::registration::RegisteredData> for v3::registration::RegisteredData {
+    fn from(value: v2::registration::RegisteredData) -> Self {
         Self {
             pub_key: value.pub_key,
             private_ip: value.private_ip,
@@ -674,7 +674,7 @@ mod tests {
         let pub_key = PeerPublicKey::new(PublicKey::from([0; 32]));
         let private_ip = IpAddr::from_str("10.10.10.10").unwrap();
         let wg_port = 51822;
-        let registred_data = v2::registration::RegistredData {
+        let registred_data = v2::registration::RegisteredData {
             pub_key,
             private_ip,
             wg_port,
@@ -701,7 +701,7 @@ mod tests {
             v3::response::AuthenticatorResponseData::Registered(v3::response::RegisteredResponse {
                 request_id,
                 reply_to,
-                reply: v3::registration::RegistredData {
+                reply: v3::registration::RegisteredData {
                     wg_port,
                     pub_key,
                     private_ip
@@ -715,7 +715,7 @@ mod tests {
         let pub_key = PeerPublicKey::new(PublicKey::from([0; 32]));
         let private_ip = IpAddr::from_str("10.10.10.10").unwrap();
         let wg_port = 51822;
-        let registred_data = v3::registration::RegistredData {
+        let registred_data = v3::registration::RegisteredData {
             pub_key,
             private_ip,
             wg_port,
@@ -742,7 +742,7 @@ mod tests {
             v2::response::AuthenticatorResponseData::Registered(v2::response::RegisteredResponse {
                 request_id,
                 reply_to,
-                reply: v2::registration::RegistredData {
+                reply: v2::registration::RegisteredData {
                     wg_port,
                     pub_key,
                     private_ip

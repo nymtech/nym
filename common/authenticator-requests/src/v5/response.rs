@@ -1,7 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use super::registration::{RegistrationData, RegistredData, RemainingBandwidthData};
+use super::registration::{RegisteredData, RegistrationData, RemainingBandwidthData};
 use nym_service_provider_requests_common::{Protocol, ServiceProviderType};
 use serde::{Deserialize, Serialize};
 
@@ -32,7 +32,7 @@ impl AuthenticatorResponse {
         }
     }
 
-    pub fn new_registered(registred_data: RegistredData, request_id: u64) -> Self {
+    pub fn new_registered(registred_data: RegisteredData, request_id: u64) -> Self {
         Self {
             protocol: Protocol {
                 service_provider_type: ServiceProviderType::Authenticator,
@@ -116,7 +116,7 @@ pub struct PendingRegistrationResponse {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct RegisteredResponse {
     pub request_id: u64,
-    pub reply: RegistredData,
+    pub reply: RegisteredData,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]

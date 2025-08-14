@@ -5,7 +5,7 @@ echo "Installing needed prerequisities"
 
 apt update  -y && apt --fix-broken install
 apt upgrade
-apt -y install apt -y install ca-certificates jq curl wget ufw jq tmux pkg-config build-essential libssl-dev git ntp ntpdate neovim tree tmux tig nginx -y
+apt install apt ca-certificates jq curl wget ufw jq tmux pkg-config build-essential libssl-dev git ntp ntpdate neovim tree tmux tig nginx -y
 apt install ufw --fix-missing
 
 

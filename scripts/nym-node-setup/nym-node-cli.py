@@ -370,7 +370,7 @@ class NodeSetupCLI:
                   )
                 if confirmation == "1":
                     print("Congratulation, your Nym node is registered to Nym network, wait until the end of epoch for the change to propagate (max 60 min)")
-                    break
+                    return
                 elif confirmation == "3":
                     print(
                       "Your node is not bonded, we are skipping this step.\n"
@@ -378,7 +378,7 @@ class NodeSetupCLI:
                       "You can always bond manually using:\n"
                       "`$HOME/nym-binaries/nym-node sign --contract-msg <CONTRACT_MESSAGE>`"
                       )
-                    break
+                    return
                 elif confirmation == "2":
                     continue
                 else:
@@ -386,7 +386,7 @@ class NodeSetupCLI:
                       "Your input was wrong, we are skipping this step. You can always bond manually using:\n"
                       "`$HOME/nym-binaries/nym-node sign --contract-msg <CONTRACT_MESSAGE>`"
                       )
-                    break
+                    return
 
     def print_character(self, character, length):
         for n in range(1,length):

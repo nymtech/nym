@@ -385,6 +385,11 @@ impl<C, S> Client<C, S> {
     }
 }
 
+/// DEPRECATED: Use nym_http_api_client::Client with from_network() or with_bincode() instead
+#[deprecated(
+    since = "1.2.0",
+    note = "Use nym_http_api_client::Client::from_network() or ClientBuilder::with_bincode() instead"
+)]
 #[derive(Clone)]
 pub struct NymApiClient {
     pub use_bincode: bool,

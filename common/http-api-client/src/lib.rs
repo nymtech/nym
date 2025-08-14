@@ -162,6 +162,8 @@ use std::sync::Arc;
 
 #[cfg(feature = "tunneling")]
 mod fronted;
+#[cfg(feature = "tunneling")]
+pub use fronted::FrontPolicy;
 mod url;
 pub use url::{IntoUrl, Url};
 mod user_agent;
@@ -191,6 +193,15 @@ pub type Params<'a, K, V> = &'a [(K, V)];
 
 /// Empty collection of HTTP Request Parameters.
 pub const NO_PARAMS: Params<'_, &'_ str, &'_ str> = &[];
+
+/// Serialization format for API requests and responses
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SerializationFormat {
+    /// Use JSON serialization (default, always works)
+    Json,
+    /// Use bincode serialization (must be explicitly opted into)
+    Bincode,
+}
 
 /// The Errors that may occur when creating or using an HTTP client.
 #[derive(Debug, Error)]
@@ -371,6 +382,7 @@ pub struct ClientBuilder {
     front: Option<fronted::Front>,
 
     retry_limit: usize,
+    serialization: SerializationFormat,
 }
 
 impl ClientBuilder {
@@ -394,6 +406,43 @@ impl ClientBuilder {
             let url = url.to_url()?;
             Ok(Self::new_with_urls(vec![url]))
         }
+    }
+
+    /// Create a client builder from network details with sensible defaults
+    #[cfg(feature = "network-defaults")]
+    pub fn from_network(network: &nym_network_defaults::NymNetworkDetails) -> Result<Self, HttpClientError> {
+        let urls = network.nym_api_urls
+            .as_ref()
+            .ok_or_else(|| HttpClientError::GenericRequestFailure("No API URLs configured in network details".to_string()))?
+            .iter()
+            .map(|api_url| {
+                // Convert ApiUrl to our Url type with fronting support
+                let mut url = Url::parse(&api_url.url)?;
+                
+                // Add fronting domains if available
+                #[cfg(feature = "tunneling")]
+                if let Some(ref front_hosts) = api_url.front_hosts {
+                    let fronts: Vec<String> = front_hosts
+                        .iter()
+                        .map(|host| format!("https://{}", host))
+                        .collect();
+                    url = Url::new(api_url.url.clone(), Some(fronts))
+                        .map_err(|e| HttpClientError::GenericRequestFailure(e.to_string()))?;
+                }
+                
+                Ok(url)
+            })
+            .collect::<Result<Vec<_>, HttpClientError>>()?;
+
+        let mut builder = Self::new_with_urls(urls);
+        
+        // Enable domain fronting by default (on retry)
+        #[cfg(feature = "tunneling")]
+        {
+            builder = builder.with_fronting(FrontPolicy::OnRetry);
+        }
+        
+        Ok(builder)
     }
 
     /// Constructs a new http `ClientBuilder` from a valid url.
@@ -429,6 +478,7 @@ impl ClientBuilder {
             front: None,
 
             retry_limit: 0,
+            serialization: SerializationFormat::Json,
         }
     }
 
@@ -501,6 +551,17 @@ impl ClientBuilder {
         self
     }
 
+    /// Set the serialization format for API requests and responses
+    pub fn with_serialization(mut self, format: SerializationFormat) -> Self {
+        self.serialization = format;
+        self
+    }
+
+    /// Configure the client to use bincode serialization
+    pub fn with_bincode(self) -> Self {
+        self.with_serialization(SerializationFormat::Bincode)
+    }
+
     /// Returns a Client that uses this ClientBuilder configuration.
     pub fn build<E>(self) -> Result<Client, HttpClientError<E>>
     where
@@ -542,6 +603,7 @@ impl ClientBuilder {
             #[cfg(target_arch = "wasm32")]
             request_timeout: self.timeout.unwrap_or(DEFAULT_TIMEOUT),
             retry_limit: self.retry_limit,
+            serialization: self.serialization,
         };
 
         Ok(client)
@@ -562,6 +624,7 @@ pub struct Client {
     request_timeout: Duration,
 
     retry_limit: usize,
+    serialization: SerializationFormat,
 }
 
 impl Client {
@@ -619,6 +682,7 @@ impl Client {
 
             #[cfg(target_arch = "wasm32")]
             request_timeout: self.request_timeout,
+            serialization: self.serialization,
         }
     }
 
@@ -742,6 +806,13 @@ impl ApiClientCore for Client {
         self.apply_hosts_to_req(&mut req);
 
         let mut rb = RequestBuilder::from_parts(self.reqwest_client.clone(), req);
+
+        // Set Accept header based on serialization preference
+        let accept_header = match self.serialization {
+            SerializationFormat::Json => "application/json",
+            SerializationFormat::Bincode => "application/bincode",
+        };
+        rb = rb.header(reqwest::header::ACCEPT, accept_header);
 
         if let Some(body) = json_body {
             rb = rb.json(body);

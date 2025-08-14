@@ -376,7 +376,10 @@ class NodeSetupCLI:
                   "Press 1, 2, or 3 and enter:\n"
                   )
                 if confirmation == "1":
-                    print("Congratulation, your Nym node is registered to Nym network, wait until the end of epoch for the change to propagate (max 60 min)")
+                    message = "C O N G R A T U L A T I O N !\nYour Nym node is registered to Nym network, wait until the end of epoch for the change to propagate (max 60 min)"
+                    self.print_character("*",36)
+                    print(message)
+                    self.print_character("*",36)
                     return
                 elif confirmation == "3":
                     print(
@@ -423,4 +426,4 @@ if __name__ == '__main__':
     cli.run_nym_node_as_service()
     cli.run_bonding_prompt()
     cli._check_gwx_mode() and cli.run_script(cli.run_tunnel_manager_setup)
-    cli._check_gwx_mode and cli.check_wg_enabled() and cli.run_script(cli.setup_test_wg_ip_tables)
+    cli._check_gwx_mode() and cli.check_wg_enabled() and cli.run_script(cli.setup_test_wg_ip_tables)

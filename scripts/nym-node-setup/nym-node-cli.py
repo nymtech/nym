@@ -257,7 +257,7 @@ class NodeSetupCLI:
     def run_bonding_prompt(self):
 
         print("\n")
-        print_character("-", 36)
+        self.print_character("-", 36)
         print("Time to register your node to Nym Network by bonding it using Nym wallet ...")
         node_path = os.path.expandvars(os.path.expanduser("$HOME/nym-binaries/nym-node"))
         # Or: node_path = str(Path.home() / "nym-binaries" / "nym-node")
@@ -272,9 +272,9 @@ class NodeSetupCLI:
             ])
                 self.run_bash_command(command="curl", args=["-4", "https://ifconfig.me"]),
                 print("\n")
-                print_character("=", 36)
+                self.print_character("=", 36)
                 print("FOLLOW THESE STEPS TO BOND YOUR NODE\n")
-                print_character("=", 36)
+                self.print_character("=", 36)
                 print(
                   "- Open your wallet and go to Bonding menu\n"
                   "- Fill your IP address (printed above) to the Host field\n"
@@ -320,7 +320,7 @@ class NodeSetupCLI:
                       )
                     break
 
-    def print_character(character, length):
+    def print_character(self, character, length):
         for n in range(1,length):
             character += character
         print(character)

@@ -2,7 +2,7 @@
 
 # set -euo pipefail
 
-echo "Setting up environmental variables to ./env.sh"
+echo -e "\n* * * Setting up environmental variables to ./env.sh * * *"
 
 # Prompt user
 read -rp "Enter hostname (if you don't use a DNS, press enter): " HOSTNAME
@@ -37,5 +37,5 @@ export DESCRIPTION="${DESCRIPTION}"
 export PUBLIC_IP="${PUBLIC_IP}"
 EOF
 
-echo "Variables saved to ./env.sh"
+echo -e "\nVariables saved to ./env.sh"
 echo "To load them into your current shell, run:  source ./env.sh"

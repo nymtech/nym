@@ -218,6 +218,110 @@ class NodeSetupCLI:
         self.run_script(self.wg_ip_tables_manager_sh,  args=["status"])
         self.run_script(self.wg_ip_tables_test_sh)
 
+
+
+    def _in_same_cgroup_as_service(self, service_name: str) -> bool:
+        # Get our cgroup
+        try:
+            with open("/proc/self/cgroup", "r", encoding="utf-8") as f:
+                my_cgroups = f.read()
+        except Exception:
+            my_cgroups = ""
+
+        # Get the service control group
+        try:
+            out = subprocess.check_output(
+                ["systemctl", "show", "-p", "ControlGroup", "--value", service_name],
+                text=True
+            ).strip()
+        except subprocess.CalledProcessError:
+            out = ""
+
+        # If we can’t determine, play it safe and say False
+        if not out:
+            return False
+
+        # If any of our cgroup lines contains the service control group path, we’re inside it
+        return out and out in my_cgroups
+
+    def run_nym_node_as_service(self):
+        service_name = "nym-node.service"
+        service_path = "/etc/systemd/system/nym-node.service"
+        print(f"We are going to start {service_name} from systemd config located at: {service_path}")
+
+        # If running, offer daemon-reload + non-blocking restart
+        try:
+            is_active = (subprocess.run(
+                ["systemctl", "is-active", "--quiet", service_name],
+                check=False
+            ).returncode == 0)
+        except Exception as e:
+            print(f"Could not check service status: {e}")
+            is_active = False
+
+        if is_active:
+            while True:
+                prompt = input(
+                    f"{service_name} is already running. Reload daemon and restart it now? [y/n]: "
+                ).strip().lower()
+                if prompt == 'y':
+                    if self._in_same_cgroup_as_service(service_name):
+                        print(
+                            "Refusing to restart because this script appears to be running inside "
+                            f"the {service_name} cgroup and would be killed. Run this script from a shell "
+                            "that is not managed by that service, or restart it manually."
+                        )
+                        return
+                    # Reload, then restart WITHOUT blocking so our process won’t get nuked while waiting
+                    self.run_bash_command("systemctl", ["daemon-reload"])
+                    self.run_bash_command("systemctl", ["restart", service_name, "--no-block"])
+                    print(
+                        f"{service_name} restart requested (non-blocking). You can check status or logs with:\n"
+                        "`service nym-node status`\n"
+                        "`journalctl -u nym-node -f --all`"
+                    )
+                    return
+                elif prompt == 'n':
+                    print("Continuing without restart.")
+                    return
+                else:
+                    print("Invalid input. Please press 'y' or 'n' and press enter.")
+
+        # Not running -> ensure service file exists (generate if missing)
+        if not os.path.isfile(service_path):
+            print(f"Service file not found at {service_path}. Generating one now...")
+            self.run_script(self.service_config_sh)
+        else:
+            print(f"Service file found at {service_path}")
+
+        # Offer to start (non-blocking) or continue
+        while True:
+            prompt = input("Do you want to start the service now? [y/n]: ").strip().lower()
+            if prompt == 'y':
+                self.run_bash_command("systemctl", ["daemon-reload"])
+                # Non-blocking start avoids waiting in case dependencies bounce cgroups
+                self.run_bash_command("systemctl", ["start", service_name, "--no-block"])
+                print(
+                    f"{service_name} start requested. You can check status or logs with:\n"
+                    "`service nym-node status`\n"
+                    "`journalctl -u nym-node -f --all`"
+                )
+                return
+            elif prompt == 'n':
+                print(
+                    "Nym node service has not been started. Make sure to run your nym-node.service before bonding!\n"
+                    "You can do it manually:\n"
+                    "`service nym-node start`\n"
+                    "and check status or live journal with these commands:\n"
+                    "`service nym-node status`\n"
+                    "`journalctl -u nym-node -f --all`"
+                )
+                return
+            else:
+                print("Invalid input. Please press 'y' or 'n' and press enter.")
+
+
+
 #    def run_nym_node_as_service(self):
 #        service_path = "/etc/systemd/system/nym-node.service"
 #        print(
@@ -253,74 +357,74 @@ class NodeSetupCLI:
 #                break
 #            else:
 #                print("Invalid input. Please press 'y' or 'n' and press enter.")
-
-    def run_nym_node_as_service(self):
-        service_name = "nym-node.service"
-        service_path = "/etc/systemd/system/nym-node.service"
-        print(
-            f"We are going to start {service_name} from systemd config located at: {service_path}"
-        )
-
-        try:
-            status = subprocess.run(
-                ["systemctl", "is-active", "--quiet", service_name],
-                check=False
-            )
-            is_active = (status.returncode == 0)
-        except Exception as e:
-            print(f"Could not check service status: {e}")
-            is_active = False
-
-        if is_active:
-            while True:
-                prompt = input(
-                    f"{service_name} is already running. Reload daemon and restart it now? [y/n]: "
-                ).strip().lower()
-                if prompt == 'y':
-                    # Reload daemon, then restart the existing service
-                    self.run_bash_command("systemctl", ["daemon-reload"])
-                    self.run_bash_command("service", ["nym-node", "restart"])
-                    print(
-                        f"{service_name} restarted. You can check status or live journal with:\n"
-                        "`service nym-node status`\n"
-                        "`journalctl -u nym-node -f --all`"
-                    )
-                    return
-                elif prompt == 'n':
-                    print("Continuing without restart.")
-                    return
-                else:
-                    print("Invalid input. Please press 'y' or 'n' and press enter.")
-
-        if not os.path.isfile(service_path):
-            print(f"Service file not found at {service_path}. Generating one now...")
-            self.run_script(self.service_config_sh)
-        else:
-            print(f"Service file found at {service_path}")
-
-        while True:
-            prompt = input("Do you want to start the service now? [y/n]: ").strip().lower()
-            if prompt == 'y':
-                self.run_bash_command("systemctl", ["daemon-reload"])
-                self.run_bash_command("service", ["nym-node", "start"])
-                print(
-                    f"{service_name} started, you can check status or live journal with these commands:\n"
-                    "`service nym-node status`\n"
-                    "`journalctl -u nym-node -f --all`"
-                )
-                break
-            elif prompt == 'n':
-                print(
-                    "Nym node service has not been started. Make sure to run your nym-node.service before bonding!\n"
-                    "You can do it manually:\n"
-                    "`service nym-node start`\n"
-                    "and check status or live journal with these commands:\n"
-                    "`service nym-node status`\n"
-                    "`journalctl -u nym-node -f --all`"
-                )
-                break
-            else:
-                print("Invalid input. Please press 'y' or 'n' and press enter.")
+#
+#    def run_nym_node_as_service(self):
+#        service_name = "nym-node.service"
+#        service_path = "/etc/systemd/system/nym-node.service"
+#        print(
+#            f"We are going to start {service_name} from systemd config located at: {service_path}"
+#        )
+#
+#        try:
+#            status = subprocess.run(
+#                ["systemctl", "is-active", "--quiet", service_name],
+#                check=False
+#            )
+#            is_active = (status.returncode == 0)
+#        except Exception as e:
+#            print(f"Could not check service status: {e}")
+#            is_active = False
+#
+#        if is_active:
+#            while True:
+#                prompt = input(
+#                    f"{service_name} is already running. Reload daemon and restart it now? [y/n]: "
+#                ).strip().lower()
+#                if prompt == 'y':
+#                    # Reload daemon, then restart the existing service
+#                    self.run_bash_command("systemctl", ["daemon-reload"])
+#                    self.run_bash_command("service", ["nym-node", "restart"])
+#                    print(
+#                        f"{service_name} restarted. You can check status or live journal with:\n"
+#                        "`service nym-node status`\n"
+#                        "`journalctl -u nym-node -f --all`"
+#                    )
+#                    return
+#                elif prompt == 'n':
+#                    print("Continuing without restart.")
+#                    return
+#                else:
+#                    print("Invalid input. Please press 'y' or 'n' and press enter.")
+#
+#        if not os.path.isfile(service_path):
+#            print(f"Service file NOT found at {service_path}. Generating one now...")
+#            self.run_script(self.service_config_sh)
+#        else:
+#            print(f"Service file is located at {service_path}")
+#
+#        while True:
+#            prompt = input("Do you want to start the service now? [y/n]: ").strip().lower()
+#            if prompt == 'y':
+#                self.run_bash_command("systemctl", ["daemon-reload"])
+#                self.run_bash_command("service", ["nym-node", "start"])
+#                print(
+#                    f"{service_name} started, you can check status or live journal with these commands:\n"
+#                    "`service nym-node status`\n"
+#                    "`journalctl -u nym-node -f --all`"
+#                )
+#                break
+#            elif prompt == 'n':
+#                print(
+#                    "Nym node service has not been started. Make sure to run your nym-node.service before bonding!\n"
+#                    "You can do it manually:\n"
+#                    "`service nym-node start`\n"
+#                    "and check status or live journal with these commands:\n"
+#                    "`service nym-node status`\n"
+#                    "`journalctl -u nym-node -f --all`"
+#                )
+#                break
+#            else:
+#                print("Invalid input. Please press 'y' or 'n' and press enter.")
 
     def run_bonding_prompt(self):
 

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Update, upgrade & install dependencies
-echo "Installing needed prerequisities"
+echo -e "\n* * * Installing needed prerequisities * * *"
 
 apt update  -y && apt --fix-broken install
 apt upgrade
@@ -11,7 +11,7 @@ apt install ufw --fix-missing
 
 
 # Enable & setup firewall
-echo "Setting up firewall using ufw"
+echo -e "\n* * * Setting up firewall using ufw * * * "
 
 ufw enable
 ufw allow 22/tcp    # SSH - you're in control of these ports

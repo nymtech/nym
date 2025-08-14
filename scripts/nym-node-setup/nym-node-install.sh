@@ -2,10 +2,10 @@
 
 # set -euo pipefail
 
-echo "==> Ensuring ~/nym-binaries exists"
+echo -e "\n* * * Ensuring ~/nym-binaries exists * * *"
 mkdir -p "$HOME/nym-binaries"
 
-echo "==> Resolving latest release tag URL"
+echo -e "\n* * * Resolving latest release tag URL * * *"
 LATEST_TAG_URL="$(curl -sI -L -o /dev/null -w '%{url_effective}' https://github.com/nymtech/nym/releases/latest)"
 # Example: https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.13-emmental
 
@@ -17,11 +17,11 @@ fi
 DOWNLOAD_URL="${LATEST_TAG_URL/tag/download}/nym-node"
 NYM_NODE="$HOME/nym-binaries/nym-node"
 
-echo "==> Downloading nym-node from:"
+echo -e "\n * * * Downloading nym-node from:"
 echo "    ${DOWNLOAD_URL}"
 curl -fL "${DOWNLOAD_URL}" -o "${NYM_NODE}"
 
-echo "==> Making binary executable"
+echo -e "\n * * * Making binary executable * * *"
 chmod +x "${NYM_NODE}"
 
 echo "---------------------------------------------------"
@@ -37,7 +37,7 @@ if [[ -z "${MODE:-}" ]]; then
 fi
 
 # Determine public IP (fallback if ifconfig.me fails)
-echo "==> Discovering public IP (IPv4)"
+echo -e "\n* * * Discovering public IP (IPv4) * * *"
 if ! PUBLIC_IP="$(curl -fsS -4 https://ifconfig.me)"; then
   PUBLIC_IP="$(curl -fsS https://api.ipify.org || echo '')"
 fi
@@ -70,7 +70,7 @@ DESCRIPTION="${DESCRIPTION:-}"
 # Initialize node config
 case "${MODE}" in
   mixnode)
-    echo "==> Initialising nym-node in mode: mixnode"
+    echo -e "\n* * * Initialising nym-node in mode: mixnode * * *"
     "${NYM_NODE}" run \
       --mode mixnode \
       ${PUBLIC_IP:+--public-ips "$PUBLIC_IP"} \
@@ -80,7 +80,7 @@ case "${MODE}" in
       --init-only
     ;;
   entry-gateway)
-    echo "==> Initialising nym-node in mode: entry-gateway"
+    echo -e "\n* * * Initialising nym-node in mode: entry-gateway * * *"
     "${NYM_NODE}" run \
       --mode entry-gateway \
       ${PUBLIC_IP:+--public-ips "$PUBLIC_IP"} \
@@ -92,7 +92,7 @@ case "${MODE}" in
       --init-only
     ;;
   exit-gateway)
-    echo "==> Initialising nym-node in mode: exit-gateway"
+    echo -e "\n* * *Initialising nym-node in mode: exit-gateway * * *"
     if [[ -z "${HOSTNAME}" || -z "${LOCATION}" ]]; then
       echo "ERROR: HOSTNAME and LOCATION must be exported for exit-gateway."
       exit 1
@@ -116,7 +116,7 @@ case "${MODE}" in
 esac
 
 echo
-echo "==> nym-node initialised. Config path should be:"
+echo "* * * nym-node initialised. Config path should be:"
 echo "    $HOME/.nym/nym-nodes/default-nym-node/"
 
 # Setup description.toml (if init created the dir)
@@ -124,7 +124,7 @@ DESC_DIR="$HOME/.nym/nym-nodes/default-nym-node/data"
 DESC_FILE="$DESC_DIR/description.toml"
 
 if [[ -d "$DESC_DIR" ]]; then
-  echo "==> Writing node description: $DESC_FILE"
+  echo -e "\n* * * Writing node description: $DESC_FILE * * *"
   mkdir -p "$DESC_DIR"
   cat > "$DESC_FILE" <<EOF
 moniker = "${MONIKER}"

@@ -4,7 +4,7 @@
 # Setup systemd service config file
 SERVICE_PATH="/etc/systemd/system/nym-node.service"
 
-echo "Setting up systemd service config file for node automation"
+echo -e "\n* * *Setting up systemd service config file for node automation * * *"
 
 # --- helpers ---
 normalize_mode() {
@@ -53,10 +53,10 @@ RestartSec=30
 WantedBy=multi-user.target
 EOF
 
-  echo "Service file saved in $SERVICE_PATH, printing it below for control:"
+  echo -e "\nService file saved in $SERVICE_PATH, printing it below for control:"
   cat "$SERVICE_PATH"
 
-  echo "Reloading systemd and enabling service..."
+  echo -e "* * * Reloading systemd and enabling service..."
   systemctl daemon-reload && systemctl enable nym-node.service
 }
 

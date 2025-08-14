@@ -27,9 +27,9 @@ class NodeSetupCLI:
     def print_welcome_message(self):
         msg = """
         \nWelcome to NymNodeCLI, an interactive tool to download, install, setup and run nym-node. \
-        \n\n================================= \
+        \n\n==================================== \
         \nBefore you begin, make sure that: \
-        \n================================= \
+        \n==================================== \
         \n- You run this setup on Debian based Linux (ie Ubuntu) \
         \n- You meet minimal requirements: https://nym.com/docs/operators/nodes \
         \n- You agree with Operators Terms & Conditions: https://nym.com/operators-validators-terms \
@@ -43,26 +43,6 @@ class NodeSetupCLI:
         else:
             print("Without confirming the points above, we cannot continue.")
             exit(1)
-
-#    def prompt_mode(self):
-#        mode = input("\
-#                \nEnter the mode you want to run nym-node in: \
-#                \n1) mixnode \
-#                \n2) entry-gateway \
-#                \n3) exit-gateway \
-#                \nPress 1, 2 or 3 and enter: \
-#                ").strip()
-#        if mode == "1" or mode == "mixnode":
-#            mode = "mixnode"
-#        elif mode == "2" or mode == "entry-gateway":
-#            mode = "entry-gateway"
-#        elif mode == "3" or mode == "exit-gateway":
-#            mode = "exit-gateway"
-#        else:
-#            print("Only numbers 1, 2 or 3 are accepted.")
-#            exit(1)
-#        os.environ["NYM_MODE"] = mode
-#        return mode
 
     def prompt_mode(self):
         mode = input(
@@ -263,16 +243,22 @@ class NodeSetupCLI:
                 break
             elif prompt == 'n':
                 print(
-                    "Nym node service has not been started. Make sure to run it your nym-node.service before bonding!\n"
+                    "Nym node service has not been started. Make sure to run your nym-node.service before bonding!\n"
                     "You can do it manually:\n"
-                    "`service nym-node start`"
+                    "`service nym-node start`\n"
+                    "and check status or live journal with these commands:\n"
+                    "`service nym-node status`\n"
+                    "`journalctl -u nym-node -f --all`"
                 )
                 break
             else:
                 print("Invalid input. Please press 'y' or 'n' and press enter.")
 
     def run_bonding_prompt(self):
-        print("Time to bond your node to Nyx account, to register it to Nym network")
+
+        print("\n")
+        print_character("-", 36)
+        print("Time to register your node to Nym Network by bonding it using Nym wallet ...")
         node_path = os.path.expandvars(os.path.expanduser("$HOME/nym-binaries/nym-node"))
         # Or: node_path = str(Path.home() / "nym-binaries" / "nym-node")
         if not (os.path.isfile(node_path) and os.access(node_path, os.X_OK)):
@@ -285,10 +271,11 @@ class NodeSetupCLI:
                 "bonding-information",
             ])
                 self.run_bash_command(command="curl", args=["-4", "https://ifconfig.me"]),
+                print("\n")
+                print_character("=", 36)
+                print("FOLLOW THESE STEPS TO BOND YOUR NODE\n")
+                print_character("=", 36)
                 print(
-                  "====================================\n"
-                  "FOLLOW THESE STEPS TO BOND YOUR NODE\n"
-                  "====================================\n"
                   "- Open your wallet and go to Bonding menu\n"
                   "- Fill your IP address (printed above) to the Host field\n"
                   "- Setup your operators cost and profit margin\n"
@@ -307,10 +294,10 @@ class NodeSetupCLI:
                   "- Confirm the transaction"
                   )
                 confirmation = input(
-                  "Did it work out?"
-                  "1. YES"
-                  "2. NO, try again"
-                  "3. Skip for now"
+                  "Did it work out?\n"
+                  "1. YES\n"
+                  "2. NO, try again\n"
+                  "3. Skip for now\n"
                   "Press 1, 2, or 3 and enter:\n"
                   )
                 if confirmation == "1":
@@ -333,6 +320,10 @@ class NodeSetupCLI:
                       )
                     break
 
+    def print_character(character, length):
+        for n in range(1,length):
+            character += character
+        print(character)
 
 if __name__ == '__main__':
     cli = NodeSetupCLI()

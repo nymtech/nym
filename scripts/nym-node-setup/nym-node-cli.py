@@ -395,19 +395,19 @@ class NodeSetupCLI:
                     return
 
 
-def print_character(self, ch: str, count: int):
-    """Print `ch` repeated `count` times (no unbounded growth)."""
-    if not ch:
-        return
-    # Use exactly one codepoint char; trim if longer
-    ch = ch[:1]
-    # Clamp count to a sensible max to avoid huge outputs
-    try:
-        n = int(count)
-    except Exception:
-        n = 0
-    n = max(0, min(n, 2000))  # adjust max as you like
-    print(ch * n)
+    def print_character(self, ch: str, count: int):
+        """Print `ch` repeated `count` times (no unbounded growth)."""
+        if not ch:
+            return
+        # Use exactly one codepoint char; trim if longer
+        ch = ch[:1]
+        # Clamp count to a sensible max to avoid huge outputs
+        try:
+            n = int(count)
+        except Exception:
+            n = 0
+        n = max(0, min(n, 161))  # adjust max as you like
+        print(ch * n)
 
 
 if __name__ == '__main__':

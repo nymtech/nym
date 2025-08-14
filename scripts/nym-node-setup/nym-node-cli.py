@@ -4,6 +4,7 @@ import os
 import subprocess
 import tempfile
 import shlex
+import time
 from datetime import datetime
 from pathlib import Path
 from typing import Iterable, Optional, Mapping
@@ -26,9 +27,16 @@ class NodeSetupCLI:
         self.wg_ip_tables_test_sh = self._check_gwx_mode() and self.fetch_script("exit-policy-tests.sh")
 
 
+    def _protect_from_oom(self, score: int = -900):
+        try:
+            with open("/proc/self/oom_score_adj", "w") as f:
+                f.write(str(score))
+        except Exception:
+            pass
+
     def print_welcome_message(self):
         msg = """
-        \nWelcome to NymNodeCLI, an interactive tool to download, install, setup and run nym-node. \
+        \n* * * Starting NymNodeCLI, an interactive tool to download, install, setup and run nym-node * * *  \
         \n\n==================================== \
         \nBefore you begin, make sure that: \
         \n==================================== \
@@ -82,6 +90,7 @@ class NodeSetupCLI:
 
 
     def fetch_script(self, script_name):
+        #print("\n* * * Fetching required scripts * * *")
         url = self._return_script_url(script_name)
         print(f"Fetching file from: {url}")
         result = subprocess.run(["wget", "-qO-", url], capture_output=True, text=True)
@@ -117,16 +126,29 @@ class NodeSetupCLI:
         env: Optional[Mapping[str, str]] = None,
         cwd: Optional[str] = None,
         sudo: bool = False,
+        detached: bool = False,   # <-- new
     ) -> int:
-        """Save script to a temp file and run it interactively. Returns exit code."""
+        """Save script to a temp file and run it. Returns exit code (0 if detached fire-and-forget)."""
         path = self._write_temp_script(script_text)
         try:
-            cmd = ([ "sudo", str(path) ] if sudo else [ str(path) ]) + (list(args) if args else [])
+            cmd = (["sudo", str(path)] if sudo else [str(path)]) + (list(args) if args else [])
             run_env = {**os.environ, **(env or {})}
-            cp = subprocess.run(cmd, env=run_env, cwd=cwd)
-            #if cp.returncode != 0:
-            #    raise RuntimeError(f"Script failed with exit code {cp.returncode}")
-            #return cp.returncode
+            if detached:
+                # Fully detach so our Python isn’t in the blast radius of the restart
+                subprocess.Popen(
+                    cmd,
+                    env=run_env,
+                    cwd=cwd,
+                    stdin=subprocess.DEVNULL,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    start_new_session=True,
+                    close_fds=True,
+                )
+                return 0
+            else:
+                cp = subprocess.run(cmd, env=run_env, cwd=cwd)
+                return cp.returncode
         finally:
             try:
                 path.unlink(missing_ok=True)
@@ -221,47 +243,49 @@ class NodeSetupCLI:
         self.run_script(self.wg_ip_tables_manager_sh,  args=["status"])
         self.run_script(self.wg_ip_tables_test_sh)
 
+      @staticmethod
+      def _is_active(service: str, env=None) -> bool:
+          return subprocess.run(["systemctl", "is-active", "--quiet", service], env=env).returncode == 0
 
-    def run_nym_node_as_service(self):
-        service_name = "nym-node.service"
-        service_path = "/etc/systemd/system/nym-node.service"
-        print(f"We are going to start {service_name} from systemd config located at: {service_path}")
+      def run_nym_node_as_service(self):
+          service = "nym-node.service"
+          service_path = "/etc/systemd/system/nym-node.service"
+          print(f"We are going to start {service} from systemd config located at: {service_path}")
 
-        if not os.path.isfile(service_path):
-            print(f"Service file not found at {service_path}. Please run your setup first.")
-            return
+          if not os.path.isfile(service_path):
+              print(f"Service file not found at {service_path}. Please run your setup first.")
+              return
 
-        # Check if the service is active
-        try:
-            is_active = subprocess.run(
-                ["systemctl", "is-active", "--quiet", service_name],
-                check=False
-            ).returncode == 0
-        except Exception as e:
-            print(f"Could not check service status: {e}")
-            is_active = False
+          run_env = {**os.environ, "SYSTEMD_PAGER": "", "SYSTEMD_COLORS": "0"}
+          is_active = self._is_active(service, env=run_env)
 
-        if is_active:
-            # Service is already running — ask if we should restart.
-            while True:
-                ans = input(f"{service_name} is already running. Restart it now? [y/n]: ").strip().lower()
-                if ans == "y":
-                    # Use the fetched script text, pass "restart" as arg, run with sudo
-                    self.run_script(self.start_node_systemd_service_sh, args=["restart"], sudo=True)
-                    print(f"{service_name} restart requested.")
-                    return
-                elif ans == "n":
-                    print("Continuing without restart.")
-                    return
-                else:
-                    print("Invalid input. Please press 'y' or 'n' and press enter.")
-        else:
-            # Not running — hand off to the script, which will prompt whether to start.
-            print(f"{service_name} is not running; handing off to the service control script.")
-            self.run_script(self.start_node_systemd_service_sh, sudo=True)
-            return
-
-
+          if is_active:
+              while True:
+                  ans = input(f"{service} is already running. Restart it now? [y/n]: ").strip().lower()
+                  if ans == "y":
+                      # Let the bash script do restart + wait (with timeout)
+                      # Optionally set WAIT_TIMEOUT in env if you want a different timeout
+                      self.run_script(self.start_node_systemd_service_sh,
+                                      args=["restart-wait"], env=run_env, sudo=True)
+                      # Bash prints final state; we just return
+                      return
+                  elif ans == "n":
+                      print("Continuing without restart.")
+                      return
+                  else:
+                      print("Invalid input. Please press 'y' or 'n' and press enter.")
+          else:
+              while True:
+                  ans = input(f"{service} is not running. Start it now? [y/n]: ").strip().lower()
+                  if ans == "y":
+                      self.run_script(self.start_node_systemd_service_sh,
+                                      args=["start-wait"], env=run_env, sudo=True)
+                      return
+                  elif ans == "n":
+                      print("Okay, not starting it.")
+                      return
+                  else:
+                      print("Invalid input. Please press 'y' or 'n' and press enter.")
 
     def run_bonding_prompt(self):
 
@@ -336,6 +360,7 @@ class NodeSetupCLI:
 
 if __name__ == '__main__':
     cli = NodeSetupCLI()
+    cli._protect_from_oom(-900)
     cli.run_script(cli.prereqs_install_sh)
     cli.run_script(cli.env_vars_install_sh)
     cli.run_script(cli.node_install_sh)

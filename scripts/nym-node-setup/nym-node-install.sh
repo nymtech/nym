@@ -17,7 +17,7 @@ fi
 DOWNLOAD_URL="${LATEST_TAG_URL/tag/download}/nym-node"
 NYM_NODE="$HOME/nym-binaries/nym-node"
 
-echo -e "\n * * * Downloading nym-node from:"
+echo -e "\n* * * Downloading nym-node from:"
 echo "    ${DOWNLOAD_URL}"
 curl -fL "${DOWNLOAD_URL}" -o "${NYM_NODE}"
 

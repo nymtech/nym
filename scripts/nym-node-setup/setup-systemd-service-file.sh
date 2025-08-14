@@ -48,6 +48,10 @@ ExecStart=/root/nym-binaries/nym-node run --mode ${MODE} --accept-operator-terms
 KillSignal=SIGINT
 Restart=on-failure
 RestartSec=30
+MemoryHigh=800M
+MemoryMax=1G
+MemorySwapMax=1G
+OOMScoreAdjust=500
 
 [Install]
 WantedBy=multi-user.target

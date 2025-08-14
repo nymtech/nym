@@ -159,7 +159,7 @@ impl Args {
                 name: "id".to_string(),
             })?;
 
-        let config = ConfigBuilder::new(id, config_path.clone(), data_dir.clone())
+        ConfigBuilder::new(id, config_path.clone(), data_dir.clone())
             // the old default behaviour of running in mixnode mode if nothing is explicitly set
             .with_modes(
                 self.custom_modes()
@@ -172,11 +172,9 @@ impl Args {
             .with_storage_paths(NymNodePaths::new(&data_dir))
             .with_verloc(self.verloc.build_config_section())
             .with_metrics(self.metrics.build_config_section())
-            .with_gateway_tasks(self.entry_gateway.build_config_section(&data_dir))
+            .with_gateway_tasks(self.entry_gateway.build_config_section(&data_dir)?)
             .with_service_providers(self.exit_gateway.build_config_section(&data_dir))
-            .build();
-
-        Ok(config)
+            .build()
     }
 
     pub(crate) fn override_config(self, mut config: Config) -> Config {

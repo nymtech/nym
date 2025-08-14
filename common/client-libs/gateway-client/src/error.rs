@@ -128,6 +128,9 @@ pub enum GatewayClientError {
         "this operation couldn't be completed as the program is in the process of shutting down"
     )]
     ShutdownInProgress,
+
+    #[error("the system is an unexpected upgrade mode state")]
+    UnexpectedUpgradeModeState,
 }
 
 impl From<WsError> for GatewayClientError {

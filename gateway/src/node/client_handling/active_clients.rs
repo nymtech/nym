@@ -147,7 +147,7 @@ impl ActiveClientsStore {
         handle: MixMessageSender,
         is_active_request_sender: IsActiveRequestSender,
         session_request_timestamp: OffsetDateTime,
-    ) {
+    ) -> bool {
         let entry = ActiveClient::Remote(RemoteClientData {
             session_request_timestamp,
             channels: ClientIncomingChannels {
@@ -156,11 +156,16 @@ impl ActiveClientsStore {
             },
         });
         if self.inner.insert(client, entry).is_some() {
-            panic!("inserted a duplicate remote client")
+            // this should be impossible under normal circumstances,
+            // but in some rare edge cases of clients performing very careful timing attacks,
+            // this branch could be potentially triggered
+            return false;
         }
+        true
     }
 
     /// Inserts a handle to the embedded client
+    #[allow(clippy::panic)]
     pub fn insert_embedded(&self, local_client_handle: LocalEmbeddedClientHandle) {
         let key = local_client_handle.client_destination();
         let entry = ActiveClient::Embedded(Box::new(local_client_handle));

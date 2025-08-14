@@ -15,7 +15,7 @@ pub enum Error {
     },
 
     #[error(
-        "trying to deserialize from query type {source_query_type} query type {target_query_type}"
+        "trying to deserialize from query type {source_query_type} into query type {target_query_type}"
     )]
     InvalidQueryType {
         source_query_type: String,

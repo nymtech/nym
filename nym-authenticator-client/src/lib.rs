@@ -12,18 +12,21 @@ use tracing::{debug, error, trace};
 
 use crate::error::Result;
 use crate::mixnet_listener::{MixnetMessageBroadcastReceiver, MixnetMessageInputSender};
+use crate::types::{AvailableBandwidthClientResponse, TopUpClientResponse};
+use nym_authenticator_requests::traits::UpgradeModeStatus;
 use nym_authenticator_requests::{
     AuthenticatorVersion, client_message::ClientMessage, response::AuthenticatorResponse,
-    traits::Id, v2, v3, v4, v5,
+    traits::Id, v2, v3, v4, v5, v6,
 };
 use nym_credentials_interface::{CredentialSpendingData, TicketType};
-use nym_sdk::mixnet::{IncludedSurbs, Recipient};
+use nym_sdk::mixnet::{IncludedSurbs, Recipient, ReconstructedMessage};
 use nym_service_provider_requests_common::{Protocol, ServiceProviderTypeExt};
 use nym_wireguard_types::PeerPublicKey;
 
 mod error;
 mod helpers;
 mod mixnet_listener;
+pub mod types;
 
 pub use crate::error::{AuthenticationClientError, RegistrationError};
 pub use crate::mixnet_listener::{AuthClientMixnetListener, AuthClientMixnetListenerHandle};
@@ -61,6 +64,10 @@ impl AuthenticatorClient {
         }
     }
 
+    fn peer_public_key(&self) -> PeerPublicKey {
+        PeerPublicKey::from(self.keypair.public_key().inner())
+    }
+
     pub async fn send_and_wait_for_response(
         &mut self,
         message: &ClientMessage,
@@ -72,7 +79,9 @@ impl AuthenticatorClient {
     }
 
     async fn send_request(&self, message: &ClientMessage) -> Result<u64> {
-        let (data, request_id) = message.bytes(self.our_nym_address)?;
+        let serialised = message.bytes(self.our_nym_address)?;
+        let data = serialised.bytes;
+        let request_id = serialised.request_id;
 
         // We use 20 surbs for the connect request because typically the
         // authenticator mixnet client on the nym-node is configured to have a min
@@ -96,6 +105,81 @@ impl AuthenticatorClient {
         Ok(request_id)
     }
 
+    fn handle_response(
+        &self,
+        msg: Arc<ReconstructedMessage>,
+        request_id: u64,
+    ) -> Option<Result<AuthenticatorResponse>> {
+        let Some(header) = msg.message.first_chunk::<2>() else {
+            debug!(
+                "received too short message that couldn't have been from the authenticator while waiting for connect response"
+            );
+            return None;
+        };
+
+        let Ok(protocol) = Protocol::try_from(header) else {
+            debug!(
+                "received a message not meant to any service provider while waiting for connect response"
+            );
+            return None;
+        };
+
+        if !protocol.service_provider_type.is_authenticator() {
+            debug!("Received non-authenticator message while waiting for connect response");
+            return None;
+        }
+        // Confirm that the version is correct
+        let version = AuthenticatorVersion::from(protocol.version);
+
+        // Then we deserialize the message
+        debug!(
+            "AuthClient: got message while waiting for connect response with version {version:?}"
+        );
+        let ret: Result<AuthenticatorResponse> = match version {
+            AuthenticatorVersion::V1 | AuthenticatorVersion::UNKNOWN => {
+                return Some(Err(
+                    AuthenticationClientError::UnsupportedAuthenticatorVersion,
+                ));
+            }
+            AuthenticatorVersion::V2 => {
+                v2::response::AuthenticatorResponse::from_reconstructed_message(&msg)
+                    .map(Into::into)
+                    .map_err(Into::into)
+            }
+            AuthenticatorVersion::V3 => {
+                v3::response::AuthenticatorResponse::from_reconstructed_message(&msg)
+                    .map(Into::into)
+                    .map_err(Into::into)
+            }
+            AuthenticatorVersion::V4 => {
+                v4::response::AuthenticatorResponse::from_reconstructed_message(&msg)
+                    .map(Into::into)
+                    .map_err(Into::into)
+            }
+            AuthenticatorVersion::V5 => {
+                v5::response::AuthenticatorResponse::from_reconstructed_message(&msg)
+                    .map(Into::into)
+                    .map_err(Into::into)
+            }
+            AuthenticatorVersion::V6 => {
+                v6::response::AuthenticatorResponse::from_reconstructed_message(&msg)
+                    .map(Into::into)
+                    .map_err(Into::into)
+            }
+        };
+        let Ok(response) = ret else {
+            // This is ok, it's likely just one of our self-pings
+            debug!("Failed to deserialize reconstructed message");
+            return None;
+        };
+
+        if response.id() == request_id {
+            debug!("Got response with matching id");
+            return Some(Ok(response));
+        }
+        None
+    }
+
     async fn listen_for_response(&mut self, request_id: u64) -> Result<AuthenticatorResponse> {
         let timeout = tokio::time::sleep(Duration::from_secs(10));
         tokio::pin!(timeout);
@@ -111,42 +195,9 @@ impl AuthenticatorClient {
                         return Err(AuthenticationClientError::NoMixnetMessagesReceived);
                     }
                     Ok(msg) => {
-                        let Some(header) = msg.message.first_chunk::<2>() else {
-                            debug!("received too short message that couldn't have been from the authenticator while waiting for connect response");
-                            continue;
-                        };
-
-                        let Ok(protocol) = Protocol::try_from(header) else {
-                            debug!("received a message not meant to any service provider while waiting for connect response");
-                            continue;
-                        };
-
-                        if !protocol.service_provider_type.is_authenticator() {
-                            debug!("Received non-authenticator message while waiting for connect response");
-                            continue;
-                        }
-                        // Confirm that the version is correct
-                        let version = AuthenticatorVersion::from(protocol.version);
-
-                        // Then we deserialize the message
-                        debug!("AuthClient: got message while waiting for connect response with version {version:?}");
-                        let ret: Result<AuthenticatorResponse> = match version {
-                            AuthenticatorVersion::V1 => Err(AuthenticationClientError::UnsupportedVersion),
-                            AuthenticatorVersion::V2 => v2::response::AuthenticatorResponse::from_reconstructed_message(&msg).map(Into::into).map_err(Into::into),
-                            AuthenticatorVersion::V3 => v3::response::AuthenticatorResponse::from_reconstructed_message(&msg).map(Into::into).map_err(Into::into),
-                            AuthenticatorVersion::V4 => v4::response::AuthenticatorResponse::from_reconstructed_message(&msg).map(Into::into).map_err(Into::into),
-                            AuthenticatorVersion::V5 => v5::response::AuthenticatorResponse::from_reconstructed_message(&msg).map(Into::into).map_err(Into::into),
-                            AuthenticatorVersion::UNKNOWN => Err(AuthenticationClientError::UnknownVersion),
-                        };
-                        let Ok(response) = ret else {
-                            // This is ok, it's likely just one of our self-pings
-                            debug!("Failed to deserialize reconstructed message");
-                            continue;
-                        };
-
-                        if response.id() == request_id {
-                            debug!("Got response with matching id");
-                            return Ok(response);
+                        match self.handle_response(msg, request_id) {
+                            None => continue,
+                            Some(res) => return res,
                         }
                     }
                 }
@@ -160,6 +211,8 @@ impl AuthenticatorClient {
         ticketbook_type: TicketType,
     ) -> std::result::Result<GatewayData, RegistrationError> {
         debug!("Registering with the wg gateway...");
+        let pub_key = self.peer_public_key();
+
         let init_message = match self.auth_version {
             AuthenticatorVersion::V1 | AuthenticatorVersion::UNKNOWN => {
                 return Err(RegistrationError::NoCredentialSent(
@@ -167,24 +220,19 @@ impl AuthenticatorClient {
                 ));
             }
             AuthenticatorVersion::V2 => {
-                ClientMessage::Initial(Box::new(v2::registration::InitMessage {
-                    pub_key: PeerPublicKey::new(self.keypair.public_key().to_bytes().into()),
-                }))
+                ClientMessage::Initial(Box::new(v2::registration::InitMessage { pub_key }))
             }
             AuthenticatorVersion::V3 => {
-                ClientMessage::Initial(Box::new(v3::registration::InitMessage {
-                    pub_key: PeerPublicKey::new(self.keypair.public_key().to_bytes().into()),
-                }))
+                ClientMessage::Initial(Box::new(v3::registration::InitMessage { pub_key }))
             }
             AuthenticatorVersion::V4 => {
-                ClientMessage::Initial(Box::new(v4::registration::InitMessage {
-                    pub_key: PeerPublicKey::new(self.keypair.public_key().to_bytes().into()),
-                }))
+                ClientMessage::Initial(Box::new(v4::registration::InitMessage { pub_key }))
             }
             AuthenticatorVersion::V5 => {
-                ClientMessage::Initial(Box::new(v5::registration::InitMessage {
-                    pub_key: PeerPublicKey::new(self.keypair.public_key().to_bytes().into()),
-                }))
+                ClientMessage::Initial(Box::new(v5::registration::InitMessage { pub_key }))
+            }
+            AuthenticatorVersion::V6 => {
+                ClientMessage::Initial(Box::new(v6::registration::InitMessage { pub_key }))
             }
         };
         trace!("sending init msg to {}: {:?}", &self.ip_addr, &init_message);
@@ -224,65 +272,22 @@ impl AuthenticatorClient {
                         })?
                         .data,
                 );
+                let credential = credential
+                .map(TryInto::try_into)
+                    .transpose()
+                    .inspect_err(|err| error!("failed to convert {ticketbook_type} ticket to a valid BandwidthClaim: {err}"))
+                    .map_err(|_| RegistrationError::CredentialSent {
+                        source: AuthenticationClientError::InternalError,
+                    })?;
 
-                let finalized_message = match self.auth_version {
-                    AuthenticatorVersion::V1 | AuthenticatorVersion::UNKNOWN => {
-                        return Err(RegistrationError::CredentialSent {
-                            source: AuthenticationClientError::UnsupportedAuthenticatorVersion,
-                        });
-                    }
-                    AuthenticatorVersion::V2 => {
-                        ClientMessage::Final(Box::new(v2::registration::FinalMessage {
-                            gateway_client: v2::registration::GatewayClient::new(
-                                self.keypair.private_key(),
-                                pending_registration_response.pub_key().inner(),
-                                pending_registration_response.private_ips().ipv4.into(),
-                                pending_registration_response.nonce(),
-                            ),
-                            credential,
-                        }))
-                    }
-                    AuthenticatorVersion::V3 => {
-                        ClientMessage::Final(Box::new(v3::registration::FinalMessage {
-                            gateway_client: v3::registration::GatewayClient::new(
-                                self.keypair.private_key(),
-                                pending_registration_response.pub_key().inner(),
-                                pending_registration_response.private_ips().ipv4.into(),
-                                pending_registration_response.nonce(),
-                            ),
-                            credential,
-                        }))
-                    }
-                    AuthenticatorVersion::V4 => {
-                        ClientMessage::Final(Box::new(v4::registration::FinalMessage {
-                            gateway_client: v4::registration::GatewayClient::new(
-                                self.keypair.private_key(),
-                                pending_registration_response.pub_key().inner(),
-                                pending_registration_response.private_ips().into(),
-                                pending_registration_response.nonce(),
-                            ),
-                            credential,
-                        }))
-                    }
-                    AuthenticatorVersion::V5 => {
-                        ClientMessage::Final(Box::new(v5::registration::FinalMessage {
-                            gateway_client: v5::registration::GatewayClient::new(
-                                self.keypair.private_key(),
-                                pending_registration_response.pub_key().inner(),
-                                pending_registration_response.private_ips(),
-                                pending_registration_response.nonce(),
-                            ),
-                            credential,
-                        }))
-                    }
-                };
-                trace!(
-                    "sending final msg to {}: {:?}",
-                    &self.ip_addr, &finalized_message
-                );
+                let finalized_message = pending_registration_response
+                    .finalise_registration(self.keypair.private_key(), credential);
+                let client_message = ClientMessage::Final(finalized_message);
+
+                trace!("sending final msg to {}: {client_message:?}", &self.ip_addr);
 
                 let response = self
-                    .send_and_wait_for_response(&finalized_message)
+                    .send_and_wait_for_response(&client_message)
                     .await
                     .map_err(|source| RegistrationError::CredentialSent { source })?;
                 let AuthenticatorResponse::Registered(registered_response) = response else {
@@ -316,32 +321,24 @@ impl AuthenticatorClient {
     }
 
     // This is up to the caller to know nothing is ever spent there
-    pub async fn query_bandwidth(&mut self) -> Result<Option<i64>> {
+    pub async fn query_bandwidth(&mut self) -> Result<AvailableBandwidthClientResponse> {
+        let pub_key = self.peer_public_key();
+        let version = self.auth_version;
+
         let query_message = match self.auth_version {
-            AuthenticatorVersion::V1 => {
+            AuthenticatorVersion::V1 | AuthenticatorVersion::UNKNOWN => {
                 return Err(AuthenticationClientError::UnsupportedAuthenticatorVersion);
             }
-            AuthenticatorVersion::V2 => ClientMessage::Query(Box::new(QueryMessageImpl {
-                pub_key: PeerPublicKey::new(self.keypair.public_key().to_bytes().into()),
-                version: AuthenticatorVersion::V2,
-            })),
-            AuthenticatorVersion::V3 => ClientMessage::Query(Box::new(QueryMessageImpl {
-                pub_key: PeerPublicKey::new(self.keypair.public_key().to_bytes().into()),
-                version: AuthenticatorVersion::V3,
-            })),
-            AuthenticatorVersion::V4 => ClientMessage::Query(Box::new(QueryMessageImpl {
-                pub_key: PeerPublicKey::new(self.keypair.public_key().to_bytes().into()),
-                version: AuthenticatorVersion::V4,
-            })),
-            AuthenticatorVersion::V5 => ClientMessage::Query(Box::new(QueryMessageImpl {
-                pub_key: PeerPublicKey::new(self.keypair.public_key().to_bytes().into()),
-                version: AuthenticatorVersion::V5,
-            })),
-            AuthenticatorVersion::UNKNOWN => {
-                return Err(AuthenticationClientError::UnsupportedAuthenticatorVersion);
+            AuthenticatorVersion::V2
+            | AuthenticatorVersion::V3
+            | AuthenticatorVersion::V4
+            | AuthenticatorVersion::V5
+            | AuthenticatorVersion::V6 => {
+                ClientMessage::Query(Box::new(QueryMessageImpl { pub_key, version }))
             }
         };
         let response = self.send_and_wait_for_response(&query_message).await?;
+        let current_upgrade_mode_status = response.upgrade_mode_status();
 
         let available_bandwidth = match response {
             AuthenticatorResponse::RemainingBandwidth(remaining_bandwidth_response) => {
@@ -350,7 +347,10 @@ impl AuthenticatorClient {
                 {
                     available_bandwidth
                 } else {
-                    return Ok(None);
+                    return Ok(AvailableBandwidthClientResponse {
+                        available_bandwidth_bytes: None,
+                        current_upgrade_mode_status,
+                    });
                 }
             }
             _ => return Err(AuthenticationClientError::InvalidGatewayAuthResponse),
@@ -371,24 +371,35 @@ impl AuthenticatorClient {
                 "Remaining bandwidth is under 1 MB. The wireguard mode will get suspended after that until tomorrow, UTC time. The client might shutdown with timeout soon"
             );
         }
-        Ok(Some(available_bandwidth))
+        Ok(AvailableBandwidthClientResponse {
+            available_bandwidth_bytes: Some(available_bandwidth),
+            current_upgrade_mode_status,
+        })
     }
 
     // Since the caller provides the credential, it knows it is spent
-    pub async fn top_up(&mut self, credential: CredentialSpendingData) -> Result<i64> {
+    pub async fn top_up(
+        &mut self,
+        credential: CredentialSpendingData,
+    ) -> Result<TopUpClientResponse> {
+        let pub_key = self.peer_public_key();
         let top_up_message = match self.auth_version {
             AuthenticatorVersion::V3 => ClientMessage::TopUp(Box::new(v3::topup::TopUpMessage {
-                pub_key: PeerPublicKey::new(self.keypair.public_key().to_bytes().into()),
+                pub_key,
                 credential,
             })),
             // NOTE: looks like a bug here using v3. But we're leaving it as is since it's working
             // and V4 is deprecated in favour of V5
             AuthenticatorVersion::V4 => ClientMessage::TopUp(Box::new(v4::topup::TopUpMessage {
-                pub_key: PeerPublicKey::new(self.keypair.public_key().to_bytes().into()),
+                pub_key,
                 credential,
             })),
             AuthenticatorVersion::V5 => ClientMessage::TopUp(Box::new(v5::topup::TopUpMessage {
-                pub_key: PeerPublicKey::new(self.keypair.public_key().to_bytes().into()),
+                pub_key,
+                credential,
+            })),
+            AuthenticatorVersion::V6 => ClientMessage::TopUp(Box::new(v6::topup::TopUpMessage {
+                pub_key,
                 credential,
             })),
             AuthenticatorVersion::V1 | AuthenticatorVersion::V2 | AuthenticatorVersion::UNKNOWN => {
@@ -396,14 +407,18 @@ impl AuthenticatorClient {
             }
         };
         let response = self.send_and_wait_for_response(&top_up_message).await?;
+        let current_upgrade_mode_status = response.upgrade_mode_status();
 
-        let remaining_bandwidth = match response {
+        let remaining_bandwidth_bytes = match response {
             AuthenticatorResponse::TopUpBandwidth(top_up_bandwidth_response) => {
                 top_up_bandwidth_response.available_bandwidth()
             }
             _ => return Err(AuthenticationClientError::InvalidGatewayAuthResponse),
         };
 
-        Ok(remaining_bandwidth)
+        Ok(TopUpClientResponse {
+            remaining_bandwidth_bytes,
+            current_upgrade_mode_status,
+        })
     }
 }

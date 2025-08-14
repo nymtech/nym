@@ -8,3 +8,4 @@ pub const BANDWIDTH: &str = "bandwidth";
 pub const VERSION: &str = "version";
 pub const AVAILABLE: &str = "available";
 pub const TOPUP: &str = "topup";
+pub const UPGRADE_MODE_CHECK: &str = "upgrade-mode-check";

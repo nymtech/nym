@@ -1,6 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::GatewayProtocolVersion;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 
@@ -9,7 +10,7 @@ use std::str::FromStr;
 pub enum RegistrationHandshake {
     HandshakePayload {
         #[serde(default)]
-        protocol_version: Option<u8>,
+        protocol_version: Option<GatewayProtocolVersion>,
         data: Vec<u8>,
     },
     HandshakeError {
@@ -18,9 +19,9 @@ pub enum RegistrationHandshake {
 }
 
 impl RegistrationHandshake {
-    pub fn new_payload(data: Vec<u8>, protocol_version: u8) -> Self {
+    pub fn new_payload(data: Vec<u8>, protocol_version: Option<GatewayProtocolVersion>) -> Self {
         RegistrationHandshake::HandshakePayload {
-            protocol_version: Some(protocol_version),
+            protocol_version,
             data,
         }
     }
@@ -48,11 +49,11 @@ impl TryFrom<String> for RegistrationHandshake {
     }
 }
 
-impl TryInto<String> for RegistrationHandshake {
-    type Error = serde_json::Error;
-
-    fn try_into(self) -> Result<String, serde_json::Error> {
-        serde_json::to_string(&self)
+impl From<RegistrationHandshake> for String {
+    fn from(value: RegistrationHandshake) -> Self {
+        // SAFETY: we have infallible serde implementation
+        #[allow(clippy::unwrap_used)]
+        serde_json::to_string(&value).unwrap()
     }
 }
 
@@ -79,7 +80,7 @@ mod tests {
                 assert_eq!(protocol_version, Some(42));
                 assert_eq!(data, handshake_data)
             }
-            _ => unreachable!("this branch shouldn't have been reached!"),
+            _ => panic!("this branch shouldn't have been reached!"),
         }
 
         let handshake_payload_without_protocol = RegistrationHandshake::HandshakePayload {
@@ -97,7 +98,7 @@ mod tests {
                 assert!(protocol_version.is_none());
                 assert_eq!(data, handshake_data)
             }
-            _ => unreachable!("this branch shouldn't have been reached!"),
+            _ => panic!("this branch shouldn't have been reached!"),
         }
     }
 }

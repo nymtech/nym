@@ -10,6 +10,8 @@ use nym_crypto::asymmetric::ed25519;
 use std::collections::HashSet;
 use std::time::Duration;
 
+pub const CREDENTIAL_PROXY_JWT_ISSUER: &str = "nym-credential-proxy";
+
 // for now use static issuer such as "nym-credential-proxy"
 pub fn generate_jwt_for_upgrade_mode_attestation(
     attestation: UpgradeModeAttestation,
@@ -109,11 +111,11 @@ mod tests {
             attestation.clone(),
             Duration::from_secs(60 * 60),
             &unauthorised_jwt_keys,
-            Some("nym-credential-proxy"),
+            Some(CREDENTIAL_PROXY_JWT_ISSUER),
         );
 
         // we expect 'nym-credential-proxy' issuer
-        assert!(validate_upgrade_mode_jwt(&jwt_issuer, Some("nym-credential-proxy")).is_ok());
+        assert!(validate_upgrade_mode_jwt(&jwt_issuer, Some(CREDENTIAL_PROXY_JWT_ISSUER)).is_ok());
 
         // we don't care about issuer
         assert!(validate_upgrade_mode_jwt(&jwt_issuer, None).is_ok());
@@ -133,7 +135,9 @@ mod tests {
             None,
         );
         // we expect 'nym-credential-proxy' issuer
-        assert!(validate_upgrade_mode_jwt(&jwt_no_issuer, Some("nym-credential-proxy")).is_err());
+        assert!(
+            validate_upgrade_mode_jwt(&jwt_no_issuer, Some(CREDENTIAL_PROXY_JWT_ISSUER)).is_err()
+        );
 
         // we don't care about issuer
         assert!(validate_upgrade_mode_jwt(&jwt_no_issuer, None).is_ok());

@@ -245,14 +245,25 @@ class NodeSetupCLI:
         self.run_script(self.wg_ip_tables_manager_sh,  args=["status"])
         self.run_script(self.wg_ip_tables_test_sh)
 
+
     def run_nym_node_as_service(self):
         service = "nym-node.service"
         service_path = "/etc/systemd/system/nym-node.service"
         print(f"We are going to start {service} from systemd config located at: {service_path}")
 
+        # Ensure the unit file exists; if not, run your setup script:
         if not os.path.isfile(service_path):
-            print(f"Service file not found at {service_path}. Please run your setup first.")
-            return
+            print(f"Service file not found at {service_path}. Running setup...")
+            # Non-interactive creation if you know MODE; else let the script prompt
+            setup_env = {**os.environ, "SYSTEMD_PAGER": "", "SYSTEMD_COLORS": "0"}
+            # Example non-interactive: uncomment next line and provide MODE value
+            # setup_env.update({"NONINTERACTIVE": "1", "MODE": "mixnode"})
+            self.run_script(self.service_config_sh, env=setup_env, sudo=True)
+
+            # Re-check and bail if still missing
+            if not os.path.isfile(service_path):
+                print("Service file still not present after setup. Aborting.")
+                return
 
         run_env = {**os.environ, "SYSTEMD_PAGER": "", "SYSTEMD_COLORS": "0", "WAIT_TIMEOUT": "600"}
         is_active = (subprocess.run(["systemctl", "is-active", "--quiet", service], env=run_env).returncode == 0)
@@ -261,7 +272,6 @@ class NodeSetupCLI:
             while True:
                 ans = input(f"{service} is already running. Restart it now? [y/n]: ").strip().lower()
                 if ans == "y":
-                    # restart + poll handled entirely in the bash script
                     self.run_script(self.start_node_systemd_service_sh,
                                     args=["restart-poll"], env=run_env, sudo=True)
                     return
@@ -282,6 +292,7 @@ class NodeSetupCLI:
                     return
                 else:
                     print("Invalid input. Please press 'y' or 'n' and press enter.")
+
 
     def run_bonding_prompt(self):
         print("\n")

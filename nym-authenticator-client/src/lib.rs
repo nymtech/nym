@@ -14,7 +14,7 @@ use tracing::{debug, error, trace};
 use crate::mixnet_listener::{MixnetMessageBroadcastReceiver, MixnetMessageInputSender};
 use nym_authenticator_requests::{
     AuthenticatorVersion, client_message::ClientMessage, response::AuthenticatorResponse,
-    traits::Id, v2, v3, v4, v5,
+    traits::Id, v2, v3, v4, v5, v6,
 };
 use nym_credentials_interface::{CredentialSpendingData, TicketType};
 use nym_sdk::mixnet::{IncludedSurbs, Recipient};
@@ -72,7 +72,9 @@ impl AuthenticatorClient {
     }
 
     async fn send_request(&self, message: &ClientMessage) -> Result<u64> {
-        let (data, request_id) = message.bytes(self.our_nym_address)?;
+        let serialised = message.bytes(self.our_nym_address)?;
+        let data = serialised.bytes;
+        let request_id = serialised.request_id;
 
         // We use 20 surbs for the connect request because typically the
         // authenticator mixnet client on the nym-node is configured to have a min
@@ -136,6 +138,7 @@ impl AuthenticatorClient {
                             AuthenticatorVersion::V3 => v3::response::AuthenticatorResponse::from_reconstructed_message(&msg).map(Into::into).map_err(Into::into),
                             AuthenticatorVersion::V4 => v4::response::AuthenticatorResponse::from_reconstructed_message(&msg).map(Into::into).map_err(Into::into),
                             AuthenticatorVersion::V5 => v5::response::AuthenticatorResponse::from_reconstructed_message(&msg).map(Into::into).map_err(Into::into),
+                            AuthenticatorVersion::V6 => v6::response::AuthenticatorResponse::from_reconstructed_message(&msg).map(Into::into).map_err(Into::into),
                             AuthenticatorVersion::UNKNOWN => Err(Error::UnknownVersion),
                         };
                         let Ok(response) = ret else {
@@ -179,6 +182,11 @@ impl AuthenticatorClient {
             }
             AuthenticatorVersion::V5 => {
                 ClientMessage::Initial(Box::new(v5::registration::InitMessage {
+                    pub_key: PeerPublicKey::new(self.keypair.public_key().to_bytes().into()),
+                }))
+            }
+            AuthenticatorVersion::V6 => {
+                ClientMessage::Initial(Box::new(v6::registration::InitMessage {
                     pub_key: PeerPublicKey::new(self.keypair.public_key().to_bytes().into()),
                 }))
             }
@@ -243,7 +251,11 @@ impl AuthenticatorClient {
                             gateway_client: v4::registration::GatewayClient::new(
                                 self.keypair.private_key(),
                                 pending_registration_response.pub_key().inner(),
-                                pending_registration_response.private_ips().into(),
+                                // v6 -> v5 -> v4
+                                v5::registration::IpPair::from(
+                                    pending_registration_response.private_ips(),
+                                )
+                                .into(),
                                 pending_registration_response.nonce(),
                             ),
                             credential,
@@ -254,10 +266,27 @@ impl AuthenticatorClient {
                             gateway_client: v5::registration::GatewayClient::new(
                                 self.keypair.private_key(),
                                 pending_registration_response.pub_key().inner(),
-                                pending_registration_response.private_ips(),
+                                pending_registration_response.private_ips().into(),
                                 pending_registration_response.nonce(),
                             ),
                             credential,
+                        }))
+                    }
+                    AuthenticatorVersion::V6 => {
+                        ClientMessage::Final(Box::new(v6::registration::FinalMessage {
+                            gateway_client: v6::registration::GatewayClient::new(
+                                self.keypair.private_key(),
+                                pending_registration_response.pub_key().inner(),
+                                pending_registration_response.private_ips(),
+                                pending_registration_response.nonce(),
+                            ),
+                            // this conversion, in this context, should be infallible,
+                            // as we should have retrieved a valid ticket type
+                            credential: credential
+                                .map(TryInto::try_into)
+                                .transpose()
+                                .inspect_err(|err| error!("failed to convert {ticketbook_type} ticket to a valid BandwidthClaim: {err}"))
+                                .map_err(|_| Error::InternalError)?,
                         }))
                     }
                     AuthenticatorVersion::UNKNOWN => {
@@ -318,6 +347,10 @@ impl AuthenticatorClient {
                 pub_key: PeerPublicKey::new(self.keypair.public_key().to_bytes().into()),
                 version: AuthenticatorVersion::V5,
             })),
+            AuthenticatorVersion::V6 => ClientMessage::Query(Box::new(QueryMessageImpl {
+                pub_key: PeerPublicKey::new(self.keypair.public_key().to_bytes().into()),
+                version: AuthenticatorVersion::V6,
+            })),
             AuthenticatorVersion::UNKNOWN => return Err(Error::UnsupportedAuthenticatorVersion),
         };
         let response = self.send_and_wait_for_response(&query_message).await?;
@@ -347,9 +380,8 @@ impl AuthenticatorClient {
         );
         if available_bandwidth < 1024 * 1024 {
             tracing::warn!(
-                            "Remaining bandwidth is under 1 MB. The wireguard mode will get suspended after that until tomorrow, UTC time. The client might shutdown with timeout soon
-            "
-                        );
+                "Remaining bandwidth is under 1 MB. The wireguard mode will get suspended after that until tomorrow, UTC time. The client might shutdown with timeout soon"
+            );
         }
         Ok(Some(available_bandwidth))
     }
@@ -367,6 +399,10 @@ impl AuthenticatorClient {
                 credential,
             })),
             AuthenticatorVersion::V5 => ClientMessage::TopUp(Box::new(v5::topup::TopUpMessage {
+                pub_key: PeerPublicKey::new(self.keypair.public_key().to_bytes().into()),
+                credential,
+            })),
+            AuthenticatorVersion::V6 => ClientMessage::TopUp(Box::new(v6::topup::TopUpMessage {
                 pub_key: PeerPublicKey::new(self.keypair.public_key().to_bytes().into()),
                 credential,
             })),

@@ -11,27 +11,15 @@ license.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-async-trait = { workspace = true }
 base64 = { workspace = true }
-bincode = { workspace = true }
-chrono = { workspace = true }
-dashmap = { workspace = true }
 defguard_wireguard_rs = { workspace = true }
-dyn-clone = { workspace = true }
 futures = { workspace = true }
-# The latest version on crates.io at the time of writing this (6.0.0) has a
-# version mismatch with x25519-dalek/curve25519-dalek that is resolved in the
-# latest commit. So pick that for now.
-x25519-dalek = { workspace = true }
 ip_network = { workspace = true }
-log.workspace = true
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "net", "io-util"] }
 tokio-stream = { workspace = true }
-time = { workspace = true }
 tracing = { workspace = true }
 
-nym-authenticator-requests = { path = "../authenticator-requests" }
 nym-credentials-interface = { path = "../credentials-interface" }
 nym-credential-verification = { path = "../credential-verification" }
 nym-crypto = { path = "../crypto", features = ["asymmetric"] }
@@ -48,3 +36,6 @@ nym-gateway-storage = { path = "../gateway-storage", features = ["mock"] }
 [features]
 default = []
 mock = ["nym-gateway-storage/mock"]
+
+[lints]
+workspace = true

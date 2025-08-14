@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 
 import os
+import sys
 import subprocess
 import tempfile
 import shlex
@@ -33,6 +34,7 @@ class NodeSetupCLI:
                 f.write(str(score))
         except Exception:
             pass
+
 
     def print_welcome_message(self):
         msg = """
@@ -259,9 +261,9 @@ class NodeSetupCLI:
             while True:
                 ans = input(f"{service} is already running. Restart it now? [y/n]: ").strip().lower()
                 if ans == "y":
-                    # Non-interactive restart + wait handled in bash
+                    # restart + poll handled entirely in the bash script
                     self.run_script(self.start_node_systemd_service_sh,
-                                    args=["restart-wait"], env=run_env, sudo=True)
+                                    args=["restart-poll"], env=run_env, sudo=True)
                     return
                 elif ans == "n":
                     print("Continuing without restart.")
@@ -273,7 +275,7 @@ class NodeSetupCLI:
                 ans = input(f"{service} is not running. Start it now? [y/n]: ").strip().lower()
                 if ans == "y":
                     self.run_script(self.start_node_systemd_service_sh,
-                                    args=["start-wait"], env=run_env, sudo=True)
+                                    args=["start-poll"], env=run_env, sudo=True)
                     return
                 elif ans == "n":
                     print("Okay, not starting it.")

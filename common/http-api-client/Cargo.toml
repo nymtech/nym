@@ -11,13 +11,22 @@ license.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
-default=["tunneling"]
-tunneling=[]
+default = ["tunneling"]
+tunneling = []
+axum_test = ["axum-test"]
 
 [dependencies]
 async-trait = { workspace = true }
+axum-test = { workspace = true, features = ["reqwest"], optional = true }
 bincode = { workspace = true }
-reqwest = { workspace = true, features = ["json", "gzip", "deflate", "brotli", "zstd", "rustls-tls"] }
+reqwest = { workspace = true, features = [
+    "json",
+    "gzip",
+    "deflate",
+    "brotli",
+    "zstd",
+    "rustls-tls",
+] }
 http.workspace = true
 url = { workspace = true }
 once_cell = { workspace = true }
@@ -36,7 +45,11 @@ nym-http-api-common = { path = "../http-api-common", default-features = false }
 nym-bin-common = { path = "../bin-common" }
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies]
-hickory-resolver = { workspace = true, features = ["https-ring", "tls-ring", "webpki-roots"] }
+hickory-resolver = { workspace = true, features = [
+    "https-ring",
+    "tls-ring",
+    "webpki-roots",
+] }
 
 # for request timeout until https://github.com/seanmonstar/reqwest/issues/1135 is fixed
 [target."cfg(target_arch = \"wasm32\")".dependencies.wasmtimer]
@@ -45,4 +58,3 @@ features = ["tokio"]
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["rt", "macros"] }
-

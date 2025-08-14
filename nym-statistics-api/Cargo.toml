@@ -48,8 +48,8 @@ nym-statistics-common = { path = "../common/statistics", features = [
 ] }
 nym-task = { path = "../common/task" }
 
-nym-http-api-client = { git = "https://github.com/nymtech/nym", branch = "release/2025.11-cheddar" }
-nym-validator-client = { git = "https://github.com/nymtech/nym", branch = "release/2025.11-cheddar" } # current develop is incompatible with current deployed API
+nym-http-api-client = { path = "../common/http-api-client" }
+nym-validator-client = { path = "../common/client-libs/validator-client" }
 
 [build-dependencies]
 anyhow = { workspace = true }

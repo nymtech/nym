@@ -58,20 +58,20 @@ class NodeSetupCLI:
             pass
 
     def print_welcome_message(self):
-        msg = """
-        \n* * * Starting NymNodeCLI, an interactive tool to download, install, setup and run nym-node * * *  \
-        \n\n==================================== \
-        \nBefore you begin, make sure that: \
-        \n==================================== \
-        \n- You run this setup on Debian based Linux (ie Ubuntu) \
-        \n- You run this installation program from a root shell \
-        \n- You meet minimal requirements: https://nym.com/docs/operators/nodes \
-        \n- You agree with Operators Terms & Conditions: https://nym.com/operators-validators-terms \
-        \n- You have Nym wallet with at least 101 NYM: https://nym.com/docs/operators/nodes/preliminary-steps/wallet-preparation \
-        \n- In case of Gateway behind reverse proxy, you have A and AAAA DNS record pointing to this IP and propagated \
-        \n\nTo confirm and continue, write "YES" and press enter:\n
-        """
-        confirmation = input(msg)
+        self.print_character("=", 66)
+        print("\n* * * Starting NymNodeCLI * * *\nAn interactive tool to download, install, setup and run nym-node")
+        self.print_character("=", 66)
+        msg = \
+            "Before you begin, make sure that:\n"\
+            "* You run this setup on Debian based Linux (ie Ubuntu)\n"\
+            "* You run this installation program from a root shell\n"\
+            "* You meet minimal requirements: https://nym.com/docs/operators/nodes\n"\
+            "* You agree with Operators Terms & Conditions: https://nym.com/operators-validators-terms\n"\
+            "* You have Nym wallet with at least 101 NYM: https://nym.com/docs/operators/nodes/preliminary-steps/wallet-preparation\n"\
+            "* In case of Gateway behind reverse proxy, you have A and AAAA DNS record pointing to this IP and propagated\n"\
+            "\nTo confirm and continue, write 'YES' and press enter:"
+        print(msg)
+        confirmation = input("\n")
         if confirmation.upper() == "YES":
             pass
         else:

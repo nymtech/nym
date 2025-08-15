@@ -137,9 +137,9 @@ class NodeSetupCLI:
                 "start-node-systemd-service.sh": f"{github_raw_nymtech_nym_scripts_url}nym-node-setup/start-node-systemd-service.sh",
                 "nginx_proxy_wss_sh": f"{github_raw_nymtech_nym_scripts_url}nym-node-setup/setup-nginx-proxy-wss.sh",
                 "landing-page.html": f"{github_raw_nymtech_nym_scripts_url}nym-node-setup/landing-page.html",
-                "network_tunnel_manager.sh": f"{github_raw_nymtech_nym_scripts_url}network_tunnel_manager.sh",
-                "wireguard-exit-policy-manager.sh": f"{github_raw_nymtech_nym_scripts_url}wireguard-exit-policy/wireguard-exit-policy-manager.sh",
-                "exit-policy-tests.sh": f"{github_raw_nymtech_nym_scripts_url}wireguard-exit-policy/exit-policy-tests.sh",
+                "network_tunnel_manager.sh": f"https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/network_tunnel_manager.sh",
+                "wireguard-exit-policy-manager.sh": f"https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/wireguard-exit-policy/wireguard-exit-policy-manager.sh",
+                "exit-policy-tests.sh": f"https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/wireguard-exit-policy/exit-policy-tests.sh",
                 }
         return scripts_urls[script_init_name]
 
@@ -414,7 +414,7 @@ class NodeSetupCLI:
                 self.print_character("=", 36)
                 print(
                   "- Open your wallet and go to Bonding menu\n"
-                  "- Fill your IP address (printed above) to the Host field\n"
+                  "- Paste Identity key and your IP address (printed above)\n"
                   "- Setup your operators cost and profit margin\n"
                   "- Copy the long contract message from your wallet"
                   )

@@ -1,9 +1,17 @@
 #!/bin/bash
-
-# set -euo pipefail
+set -euo pipefail
 
 echo -e "\n* * * Ensuring ~/nym-binaries exists * * *"
 mkdir -p "$HOME/nym-binaries"
+
+# --- Load ./env.sh if it exists so saved variables are visible here ---
+if [[ -f "./env.sh" ]]; then
+  # export all variables defined by env.sh
+  set -a
+  # shellcheck disable=SC1091
+  . ./env.sh
+  set +a
+fi
 
 echo -e "\n* * * Resolving latest release tag URL * * *"
 LATEST_TAG_URL="$(curl -sI -L -o /dev/null -w '%{url_effective}' https://github.com/nymtech/nym/releases/latest)"
@@ -29,7 +37,7 @@ echo "Nym node binary downloaded:"
 "${NYM_NODE}" --version || true
 echo "---------------------------------------------------"
 
-# Check that MODE is set
+# Check that MODE is set (after sourcing env.sh)
 if [[ -z "${MODE:-}" ]]; then
   echo "ERROR: Environment variable MODE is not set."
   echo "Please export MODE as one of: mixnode, entry-gateway, exit-gateway"
@@ -45,22 +53,22 @@ if [[ -z "${PUBLIC_IP}" ]]; then
   echo "WARNING: Could not determine public IP automatically."
 fi
 
-# Default wireguard setting
-WIREGUARD="false"
-
-# Prompt for WireGuard if mode is gateway
-if [[ "${MODE}" == "entry-gateway" || "${MODE}" == "exit-gateway" ]]; then
+# Respect existing WIREGUARD; only prompt if unset AND mode is a gateway
+WIREGUARD="${WIREGUARD:-}"
+if [[ -z "${WIREGUARD}" && ( "${MODE}" == "entry-gateway" || "${MODE}" == "exit-gateway" ) ]]; then
   echo
   echo "Gateways can also route WireGuard in NymVPN."
   echo "Enabling it means your node may be listed as both entry and exit in the app."
-  read -r -p "Enable WireGuard support? (y/n) [n]: " answer || true
+  read -r -p "Enable WireGuard support? (y/n): " answer || true
   case "${answer:-n}" in
-    [Yy]* ) WIREGUARD="true";;
-    * )     WIREGUARD="false";;
+    [Yy]* ) WIREGUARD="true" ;;
+    * )     WIREGUARD="false" ;;
   esac
 fi
+# Default to "false" if still empty
+WIREGUARD="${WIREGUARD:-false}"
 
-# Helpers: ensure optional env vars exist (avoid unbound errors)
+# Helpers: ensure optional env vars exist (avoid -u issues)
 HOSTNAME="${HOSTNAME:-}"
 LOCATION="${LOCATION:-}"
 EMAIL="${EMAIL:-}"
@@ -92,7 +100,7 @@ case "${MODE}" in
       --init-only
     ;;
   exit-gateway)
-    echo -e "\n* * *Initialising nym-node in mode: exit-gateway * * *"
+    echo -e "\n* * * Initialising nym-node in mode: exit-gateway * * *"
     if [[ -z "${HOSTNAME}" || -z "${LOCATION}" ]]; then
       echo "ERROR: HOSTNAME and LOCATION must be exported for exit-gateway."
       exit 1

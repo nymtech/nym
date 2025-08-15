@@ -480,7 +480,7 @@ class SystemSafeGuards:
         except Exception:
             pass
 if __name__ == '__main__':
-    safeguards = SystemSafeguards()
+    safeguards = SystemSafeGuards()
     safeguards._protect_from_oom(-900)             # de-prioritize controller as OOM victim
     safeguards._cap_controller_memory(2 * 1024**3) # optional: cap controller to 2 GiB
     cli = NodeSetupCLI()

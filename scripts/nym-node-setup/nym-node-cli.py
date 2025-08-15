@@ -64,6 +64,7 @@ class NodeSetupCLI:
         \nBefore you begin, make sure that: \
         \n==================================== \
         \n- You run this setup on Debian based Linux (ie Ubuntu) \
+        \n- You run this installation program from a root shell \
         \n- You meet minimal requirements: https://nym.com/docs/operators/nodes \
         \n- You agree with Operators Terms & Conditions: https://nym.com/operators-validators-terms \
         \n- You have Nym wallet with at least 101 NYM: https://nym.com/docs/operators/nodes/preliminary-steps/wallet-preparation \
@@ -148,16 +149,37 @@ class NodeSetupCLI:
         args: Optional[Iterable[str]] = None,
         env: Optional[Mapping[str, str]] = None,
         cwd: Optional[str] = None,
-        sudo: bool = False,
-        detached: bool = False,   # <-- new
+        sudo: bool = False,         # ignored when you're root; kept for signature compat
+        detached: bool = False,
     ) -> int:
-        """Save script to a temp file and run it. Returns exit code (0 if detached fire-and-forget)."""
+        """
+        Save script to a temp file and run it.
+        - Automatically injects ENV_FILE=<abs path to ./env.sh> unless already provided.
+        - Adds SYSTEMD_PAGER="" and SYSTEMD_COLORS="0" by default.
+        Returns exit code (0 if detached fire-and-forget).
+        """
+        import os, subprocess
+
         path = self._write_temp_script(script_text)
         try:
-            cmd = (["sudo", str(path)] if sudo else [str(path)]) + (list(args) if args else [])
-            run_env = {**os.environ, **(env or {})}
+            # Build env with sensible defaults
+            run_env = dict(os.environ)
+            if env:
+                run_env.update(env)
+
+            # Ensure ENV_FILE is absolute and present for all scripts
+            if "ENV_FILE" not in run_env:
+                # If you keep env.sh elsewhere, change this to your known base dir
+                env_file = os.path.abspath(os.path.join(os.getcwd(), "env.sh"))
+                run_env["ENV_FILE"] = env_file
+
+            # Make systemctl non-interactive everywhere
+            run_env.setdefault("SYSTEMD_PAGER", "")
+            run_env.setdefault("SYSTEMD_COLORS", "0")
+
+            cmd = [str(path)] + (list(args) if args else [])
+
             if detached:
-                # Fully detach so our Python isn’t in the blast radius of the restart
                 subprocess.Popen(
                     cmd,
                     env=run_env,
@@ -178,73 +200,79 @@ class NodeSetupCLI:
             except Exception:
                 pass
 
-    def _write_temp_script(self, script_text: str) -> Path:
-       """Write script text to a temp file, ensure bash shebang, chmod +x, return its Path."""
-       if not script_text.lstrip().startswith("#!"):
-           script_text = "#!/usr/bin/env bash\n" + script_text
-       with tempfile.NamedTemporaryFile("w", delete=False, suffix=".sh") as f:
-           f.write(script_text)
-           path = Path(f.name)
-       os.chmod(path, 0o700)  # executable for owner
-       return path
-
-    def _check_gwx_mode(self):
-        if self.mode == "exit-gateway":
-            return True
-        else:
-            return False
-
     def check_wg_enabled(self):
+        import os, re
 
-        env_file = os.path.join(os.getcwd(), "env.sh")
-        wireguard = os.environ.get("WIREGUARD")
+        # Use absolute path so child scripts can be told via ENV_FILE if needed
+        env_file = os.path.abspath(os.path.join(os.getcwd(), "env.sh"))
 
-        while wireguard is None:
+        def _bool_from_str(s: str) -> bool:
+            return str(s).strip().lower() in ("1", "true", "yes", "y")
+
+        # 0) If env.sh already has WIREGUARD, load it and avoid prompting
+        if os.path.isfile(env_file):
+            try:
+                with open(env_file, "r", encoding="utf-8") as f:
+                    for line in f:
+                        if line.startswith("export WIREGUARD="):
+                            raw = line.split("=", 1)[1].strip().strip('"')
+                            os.environ["WIREGUARD"] = raw
+                            return _bool_from_str(raw)
+            except Exception:
+                pass  # if env.sh unreadable we'll just prompt
+
+        # 1) If present in current env (e.g., set by earlier code), normalize and persist
+        existing_env = os.environ.get("WIREGUARD")
+        if existing_env is not None:
+            raw = "true" if _bool_from_str(existing_env) else "false"
+            os.environ["WIREGUARD"] = raw
+            _write_wireguard(env_file, raw)
+            return raw == "true"
+
+        # 2) Otherwise prompt once
+        while True:
             ans = input(
                 "\nWireguard is not configured.\n"
                 "Please note that a node routing WireGuard will be listed as both entry and exit in the application.\n"
-                "Enable Wireguard support? (y/n): "
+                "Enable WireGuard support? (y/n): "
             ).strip().lower()
 
-            if ans == "y":
-                value = "true"
-                wireguard = True
-            elif ans == "n":
-                value = "false"
-                wireguard = False
+            if ans in ("y", "yes"):
+                raw = "true"
+                break
+            elif ans in ("n", "no"):
+                raw = "false"
+                break
             else:
                 print("Invalid input. Please press 'y' or 'n' and press enter.")
-                continue
 
-            # 1) Update this process's environment
-            os.environ["WIREGUARD"] = value
+        # 3) Update process env and persist to env.sh
+        os.environ["WIREGUARD"] = raw
+        _write_wireguard(env_file, raw)
+        return raw == "true"
 
-            # 2) Persist to ./env.sh (create or update 'export WIREGUARD="..."')
+
+    def _write_wireguard(env_file: str, raw: str) -> None:
+        """Create/update export WIREGUARD in env.sh."""
+        import os, re
+        try:
             existing = ""
             if os.path.isfile(env_file):
-                try:
-                    with open(env_file, "r", encoding="utf-8") as f:
-                        existing = f.read()
-                except Exception:
-                    existing = ""
-
-            new_line = f'export WIREGUARD="{value}"'
-            pattern = r'^[ \t]*export[ \t]+WIREGUARD=.*$'  # match any existing export line
-
+                with open(env_file, "r", encoding="utf-8") as f:
+                    existing = f.read()
+            new_line = f'export WIREGUARD="{raw}"'
+            pattern = r'^[ \t]*export[ \t]+WIREGUARD=.*$'
             if re.search(pattern, existing, flags=re.MULTILINE):
                 updated = re.sub(pattern, new_line, existing, count=1, flags=re.MULTILINE)
             else:
-                # Ensure trailing newline before appending
-                updated = (existing if existing.endswith("\n") or existing == "" else existing + "\n") + new_line + "\n"
-
-            try:
-                with open(env_file, "w", encoding="utf-8") as f:
-                    f.write(updated)
-                print(f'WIREGUARD={value} saved to {env_file}')
-            except Exception as e:
-                print(f"Warning: could not write {env_file}: {e}")
-
-        return wireguard
+                if existing and not existing.endswith("\n"):
+                    existing += "\n"
+                updated = existing + new_line + "\n"
+            with open(env_file, "w", encoding="utf-8") as f:
+                f.write(updated)
+            print(f'WIREGUARD={raw} saved to {env_file}')
+        except Exception as e:
+            print(f"Warning: could not write {env_file}: {e}")
 
     def run_bash_command(self, command, args=None, *, env=None, cwd=None, check=True):
         """
@@ -301,47 +329,34 @@ class NodeSetupCLI:
 
 
     def run_nym_node_as_service(self):
-        """
-        Ensures the systemd unit file exists (non-interactively, using MODE),
-        then offers restart/start and delegates the wait/polling to the control script.
-        """
         service = "nym-node.service"
         service_path = "/etc/systemd/system/nym-node.service"
         print(f"We are going to start {service} from systemd config located at: {service_path}")
 
-        # 1) If the unit file is missing, create it NON-INTERACTIVELY using MODE
+        # If the service file is missing, run setup non-interactively
         if not os.path.isfile(service_path):
-            print(f"Service file not found at {service_path}. Running setup (non-interactive)...")
-            # Choose a mode without prompting; change 'mixnode' if you prefer a different default.
-            mode_to_use = os.environ.get("MODE", "mixnode")
+            print(f"Service file not found at {service_path}. Running setup...")
             setup_env = {
                 **os.environ,
                 "SYSTEMD_PAGER": "",
                 "SYSTEMD_COLORS": "0",
-                "NONINTERACTIVE": "1",     # <<< key: tells the script to skip prompts
-                "MODE": mode_to_use,       # <<< key: 1|2|3 or mixnode|entry-gateway|exit-gateway
+                "NONINTERACTIVE": "1",
+                "MODE": os.environ.get("MODE", "mixnode"),
             }
-            # self.service_config_sh must contain the setup script text shown below
-            self.run_script(self.service_config_sh, env=setup_env, sudo=True)
-
-            # Re-check after setup
+            self.run_script(self.service_config_sh, env=setup_env)
             if not os.path.isfile(service_path):
-                print("Service file still not present after setup. Aborting.")
+                print("Service file still not found after setup. Aborting.")
                 return
 
-        # Shared env for systemctl & control script
+        # Always run as root, so no sudo needed
         run_env = {**os.environ, "SYSTEMD_PAGER": "", "SYSTEMD_COLORS": "0", "WAIT_TIMEOUT": "600"}
-
-        # 2) Check if service is already active
         is_active = subprocess.run(["systemctl", "is-active", "--quiet", service], env=run_env).returncode == 0
 
         if is_active:
-            # Already running → offer restart
             while True:
                 ans = input(f"{service} is already running. Restart it now? [y/n]: ").strip().lower()
                 if ans == "y":
-                    # self.start_node_systemd_service_sh must contain the control script below
-                    self.run_script(self.start_node_systemd_service_sh, args=["restart-poll"], env=run_env, sudo=True)
+                    self.run_script(self.start_node_systemd_service_sh, args=["restart-poll"], env=run_env)
                     return
                 elif ans == "n":
                     print("Continuing without restart.")
@@ -349,11 +364,10 @@ class NodeSetupCLI:
                 else:
                     print("Invalid input. Please press 'y' or 'n' and press enter.")
         else:
-            # Not running → offer start
             while True:
                 ans = input(f"{service} is not running. Start it now? [y/n]: ").strip().lower()
                 if ans == "y":
-                    self.run_script(self.start_node_systemd_service_sh, args=["start-poll"], env=run_env, sudo=True)
+                    self.run_script(self.start_node_systemd_service_sh, args=["start-poll"], env=run_env)
                     return
                 elif ans == "n":
                     print("Okay, not starting it.")
@@ -450,6 +464,13 @@ class NodeSetupCLI:
         n = max(0, min(n, 161))  # adjust max as you like
         print(ch * n)
 
+    def _env_with_envfile(self) -> dict:
+        import os
+        env = dict(os.environ)
+        env["SYSTEMD_PAGER"] = ""
+        env["SYSTEMD_COLORS"] = "0"
+        env["ENV_FILE"] = os.path.abspath(os.path.join(os.getcwd(), "env.sh"))
+        return env
 
 if __name__ == '__main__':
     cli = NodeSetupCLI()

@@ -4,9 +4,13 @@ set -euo pipefail
 echo -e "\n* * * Ensuring ~/nym-binaries exists * * *"
 mkdir -p "$HOME/nym-binaries"
 
-# --- Load ./env.sh if it exists so saved variables are visible here ---
-if [[ -f "./env.sh" ]]; then
-  # export all variables defined by env.sh
+# --- Load env.sh via absolute path if provided, else try ./env.sh ---
+if [[ -n "${ENV_FILE:-}" && -f "${ENV_FILE}" ]]; then
+  set -a
+  # shellcheck disable=SC1090
+  . "${ENV_FILE}"
+  set +a
+elif [[ -f "./env.sh" ]]; then
   set -a
   # shellcheck disable=SC1091
   . ./env.sh
@@ -101,7 +105,7 @@ case "${MODE}" in
     ;;
   exit-gateway)
     echo -e "\n* * * Initialising nym-node in mode: exit-gateway * * *"
-    if [[ -z "${HOSTNAME}" || -z "${LOCATION}" ]]; then
+    if [[ -z "${HOSTNAME:-}" || -z "${LOCATION:-}" ]]; then
       echo "ERROR: HOSTNAME and LOCATION must be exported for exit-gateway."
       exit 1
     fi
@@ -110,7 +114,7 @@ case "${MODE}" in
       ${PUBLIC_IP:+--public-ips "$PUBLIC_IP"} \
       --hostname "$HOSTNAME" \
       --location "$LOCATION" \
-      --wireguard-enabled "${WIREGUARD}" \
+      --wireguard-enabled "${WIREGUARD:-false}" \
       --announce-wss-port 9001 \
       --landing-page-assets-path "/var/www/${HOSTNAME}" \
       -w \

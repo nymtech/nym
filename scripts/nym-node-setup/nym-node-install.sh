@@ -59,7 +59,7 @@ fi
 
 # Respect existing WIREGUARD; only prompt if unset AND mode is a gateway
 WIREGUARD="${WIREGUARD:-}"
-if [[ -z "${WIREGUARD}" && ( "${MODE}" == "entry-gateway" || "${MODE}" == "exit-gateway" ) ]]; then
+if [[ -z "$WIREGUARD" && ( "$MODE" == "entry-gateway" || "$MODE" == "exit-gateway" ) ]]; then
   echo
   echo "Gateways can also route WireGuard in NymVPN."
   echo "Enabling it means your node may be listed as both entry and exit in the app."
@@ -69,8 +69,9 @@ if [[ -z "${WIREGUARD}" && ( "${MODE}" == "entry-gateway" || "${MODE}" == "exit-
     * )     WIREGUARD="false" ;;
   esac
 fi
-# Default to "false" if still empty
+# Final default only if still empty
 WIREGUARD="${WIREGUARD:-false}"
+
 
 # Helpers: ensure optional env vars exist (avoid -u issues)
 HOSTNAME="${HOSTNAME:-}"

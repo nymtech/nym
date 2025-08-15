@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 
 import os
+import re
 import sys
 import subprocess
 import tempfile
@@ -28,38 +29,11 @@ class NodeSetupCLI:
         self.wg_ip_tables_test_sh = self._check_gwx_mode() and self.fetch_script("exit-policy-tests.sh")
 
 
-    def _protect_from_oom(self, score: int = -900):
-        try:
-            with open("/proc/self/oom_score_adj", "w") as f:
-                f.write(str(score))
-        except Exception:
-            pass
 
-    def _trim_memory(self):
-        # Free freeable Python objects and return arenas to the OS if possible
-        try:
-            import gc, ctypes
-            gc.collect()
-            try:
-                libc = ctypes.CDLL("libc.so.6")
-                # 0 = “trim as much as possible”
-                libc.malloc_trim(0)
-            except Exception:
-                pass
-        except Exception:
-            pass
-
-    def _cap_controller_memory(self, bytes_limit: int = 2 * 1024**3):
-        # Limit this Python process to e.g. 2 GiB virtual memory
-        try:
-            import resource
-            resource.setrlimit(resource.RLIMIT_AS, (bytes_limit, bytes_limit))
-        except Exception:
-            pass
 
     def print_welcome_message(self):
         self.print_character("=", 66)
-        print("\n* * * Starting NymNodeCLI * * *\nAn interactive tool to download, install, setup and run nym-node")
+        print("* * * Starting Nym Node CLI * * *\nAn interactive tool to download, install, setup and run nym-node")
         self.print_character("=", 66)
         msg = \
             "Before you begin, make sure that:\n"\
@@ -217,76 +191,55 @@ class NodeSetupCLI:
             return False
 
     def check_wg_enabled(self):
-        # Absolute path to env.sh
+
         env_file = os.path.abspath(os.path.join(os.getcwd(), "env.sh"))
 
-        def _bool_from_str(s: str) -> bool:
-            return str(s).strip().lower() in ("1", "true", "yes", "y")
+        def norm(v):  # always "true" or "false" strings
+            return "true" if str(v).strip().lower() in ("1", "true", "yes", "y") else "false"
 
-        def _write_wireguard(raw: str) -> None:
-            """Create/update: export WIREGUARD="<raw>" inside env.sh, preserving other exports."""
-            try:
-                lines = []
-                found = False
-                if os.path.isfile(env_file):
-                    with open(env_file, "r", encoding="utf-8") as f:
-                        for line in f:
-                            if line.lstrip().startswith("export WIREGUARD="):
-                                lines.append(f'export WIREGUARD="{raw}"\n')
-                                found = True
-                            else:
-                                lines.append(line)
-                if not found:
-                    # Ensure a trailing newline before appending, if file existed and lacked one
-                    if lines and not lines[-1].endswith("\n"):
-                        lines[-1] = lines[-1] + "\n"
-                    lines.append(f'export WIREGUARD="{raw}"\n')
-                with open(env_file, "w", encoding="utf-8") as f:
-                    f.writelines(lines)
-                print(f'WIREGUARD={raw} saved to {env_file}')
-            except Exception as e:
-                print(f"Warning: could not write {env_file}: {e}")
+        # 1) precedence: process env → env.sh → prompt
+        val = os.environ.get("WIREGUARD")
 
-        # 0) If env.sh already has WIREGUARD, use it and avoid prompting
-        if os.path.isfile(env_file):
+        if val is None and os.path.isfile(env_file):
             try:
                 with open(env_file, "r", encoding="utf-8") as f:
-                    for line in f:
-                        if line.lstrip().startswith("export WIREGUARD="):
-                            raw = line.split("=", 1)[1].strip().strip('"')
-                            os.environ["WIREGUARD"] = "true" if _bool_from_str(raw) else "false"
-                            return _bool_from_str(raw)
+                    m = re.search(r'^\s*export\s+WIREGUARD\s*=\s*"?([^"\n]+)"?', f.read(), re.M)
+                    if m:
+                        val = m.group(1)
             except Exception:
-                pass  # fall back to env/prompt
+                pass
 
-        # 1) If present in current env, normalize and persist
-        existing_env = os.environ.get("WIREGUARD")
-        if existing_env is not None:
-            raw = "true" if _bool_from_str(existing_env) else "false"
-            os.environ["WIREGUARD"] = raw
-            _write_wireguard(raw)
-            return raw == "true"
-
-        # 2) Otherwise prompt once
-        while True:
+        if val is None:
             ans = input(
-                "\nWireguard is not configured.\n"
-                "Please note that a node routing WireGuard will be listed as both entry and exit in the application.\n"
+                "\nWireGuard is not configured.\n"
+                "Nodes routing WireGuard can be listed as both entry and exit in the app.\n"
                 "Enable WireGuard support? (y/n): "
             ).strip().lower()
-            if ans in ("y", "yes"):
-                raw = "true"
-                break
-            elif ans in ("n", "no"):
-                raw = "false"
-                break
-            else:
-                print("Invalid input. Please press 'y' or 'n' and press enter.")
+            val = "true" if ans in ("y", "yes") else "false"
 
-        # 3) Update process env and persist
-        os.environ["WIREGUARD"] = raw
-        _write_wireguard(raw)
-        return raw == "true"
+        # 2) normalize and export for this process
+        val = norm(val)
+        os.environ["WIREGUARD"] = val
+
+        # 3) persist to env.sh (replace or append)
+        try:
+            text = ""
+            if os.path.isfile(env_file):
+                with open(env_file, "r", encoding="utf-8") as f:
+                    text = f.read()
+            if re.search(r'^\s*export\s+WIREGUARD\s*=.*$', text, re.M):
+                text = re.sub(r'^\s*export\s+WIREGUARD\s*=.*$', f'export WIREGUARD="{val}"', text, flags=re.M)
+            else:
+                if text and not text.endswith("\n"):
+                    text += "\n"
+                text += f'export WIREGUARD="{val}"\n'
+            with open(env_file, "w", encoding="utf-8") as f:
+                f.write(text)
+            print(f'WIREGUARD={val} saved to {env_file}')
+        except Exception as e:
+            print(f"Warning: could not write {env_file}: {e}")
+
+        return (val == "true")
 
     def run_bash_command(self, command, args=None, *, env=None, cwd=None, check=True):
         """
@@ -493,10 +446,43 @@ class NodeSetupCLI:
         env["ENV_FILE"] = os.path.abspath(os.path.join(os.getcwd(), "env.sh"))
         return env
 
+def SystemSafeGuards:
+    def __init__(self):
+
+
+    def _protect_from_oom(self, score: int = -900):
+        try:
+            with open("/proc/self/oom_score_adj", "w") as f:
+                f.write(str(score))
+        except Exception:
+            pass
+
+    def _trim_memory(self):
+        # Free freeable Python objects and return arenas to the OS if possible
+        try:
+            import gc, ctypes
+            gc.collect()
+            try:
+                libc = ctypes.CDLL("libc.so.6")
+                # 0 = “trim as much as possible”
+                libc.malloc_trim(0)
+            except Exception:
+                pass
+        except Exception:
+            pass
+
+    def _cap_controller_memory(self, bytes_limit: int = 2 * 1024**3):
+        # Limit this Python process to e.g. 2 GiB virtual memory
+        try:
+            import resource
+            resource.setrlimit(resource.RLIMIT_AS, (bytes_limit, bytes_limit))
+        except Exception:
+            pass
 if __name__ == '__main__':
+    safeguards = SystemSafeguards()
+    safeguards._protect_from_oom(-900)             # de-prioritize controller as OOM victim
+    safeguards._cap_controller_memory(2 * 1024**3) # optional: cap controller to 2 GiB
     cli = NodeSetupCLI()
-    cli._protect_from_oom(-900)             # de-prioritize controller as OOM victim
-    cli._cap_controller_memory(2 * 1024**3) # optional: cap controller to 2 GiB
     cli.run_script(cli.prereqs_install_sh)
     cli.run_script(cli.env_vars_install_sh)
     cli.run_script(cli.node_install_sh)

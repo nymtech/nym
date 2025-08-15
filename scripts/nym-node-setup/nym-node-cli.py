@@ -195,7 +195,6 @@ class NodeSetupCLI:
             return False
 
     def check_wg_enabled(self):
-        import os, re
 
         env_file = os.path.join(os.getcwd(), "env.sh")
         wireguard = os.environ.get("WIREGUARD")

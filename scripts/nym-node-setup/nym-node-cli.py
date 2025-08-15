@@ -446,7 +446,7 @@ class NodeSetupCLI:
         env["ENV_FILE"] = os.path.abspath(os.path.join(os.getcwd(), "env.sh"))
         return env
 
-def SystemSafeGuards:
+class SystemSafeGuards:
     def __init__(self):
 
 

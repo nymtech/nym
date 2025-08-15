@@ -2,6 +2,7 @@
 set -euo pipefail
 
 # ===== Load environment =====
+# Prefer absolute ENV_FILE injected by your Python run_script; fallback to ./env.sh in cwd.
 if [[ -n "${ENV_FILE:-}" && -f "${ENV_FILE}" ]]; then
   set -a; . "${ENV_FILE}"; set +a
 elif [[ -f "./env.sh" ]]; then
@@ -40,14 +41,49 @@ else
 HTML
 fi
 
-# ===== Nginx base :80 site =====
+# ===== Paths =====
 SITES_AVAIL="/etc/nginx/sites-available"
 SITES_EN="/etc/nginx/sites-enabled"
 BASE_PATH="${SITES_AVAIL}/${HOSTNAME}"
 BASE_LINK="${SITES_EN}/${HOSTNAME}"
 
+# ===== Disable default site and sanitize stale SSL configs before any nginx -t =====
 [[ -L "${SITES_EN}/default" ]] && unlink "${SITES_EN}/default" || true
 
+# Disable any enabled site referencing localhost LE certs
+for f in /etc/nginx/sites-enabled/*; do
+  [[ -L "$f" ]] || continue
+  if grep -q "/etc/letsencrypt/live/localhost" "$f"; then
+    echo "Disabling stale SSL vhost referencing localhost cert: $f"
+    unlink "$f"
+  fi
+done
+
+# Also sanitize conf.d drop-ins pointing at localhost certs
+if ls /etc/nginx/conf.d/*.conf >/dev/null 2>&1; then
+  for f in /etc/nginx/conf.d/*.conf; do
+    [[ -f "$f" ]] || continue
+    if grep -q "/etc/letsencrypt/live/localhost" "$f"; then
+      echo "Disabling stale SSL drop-in referencing localhost cert: $f"
+      mv "$f" "$f.disabled.$(date +%s)"
+    fi
+  done
+fi
+
+# OPTIONAL: disable any SSL vhost with missing cert/key
+for f in /etc/nginx/sites-enabled/*; do
+  [[ -L "$f" ]] || continue
+  if grep -q "listen .*443" "$f"; then
+    cert=$(awk '/ssl_certificate[ \t]+/ {print $2}' "$f" | tr -d ';' | head -n1)
+    key=$(awk '/ssl_certificate_key[ \t]+/ {print $2}' "$f" | tr -d ';' | head -n1)
+    if [[ -n "${cert:-}" && ! -s "$cert" ]] || [[ -n "${key:-}" && ! -s "$key" ]]; then
+      echo "Disabling SSL vhost with missing cert/key: $f"
+      unlink "$f"
+    fi
+  fi
+done
+
+# ===== Plain HTTP site (no SSL yet) =====
 if [[ -f "${BASE_PATH}" ]]; then
   cp -f "${BASE_PATH}" "${BASE_PATH}.bak.$(date +%s)"
 fi
@@ -86,7 +122,7 @@ systemctl restart nginx
 # ===== ACME preflight =====
 echo -e "\n* * * ACME preflight checks * * *"
 if ! curl -fsSL https://acme-v02.api.letsencrypt.org/directory >/dev/null; then
-  echo "ERROR: Cannot reach Let's Encrypt directory." >&2
+  echo "ERROR: Cannot reach Let's Encrypt directory. Check outbound HTTPS / firewall / DNS." >&2
   exit 2
 fi
 
@@ -94,32 +130,37 @@ THIS_IP="$(curl -fsS -4 https://ifconfig.me || true)"
 DNS_IP="$(getent ahostsv4 "${HOSTNAME}" 2>/dev/null | awk '{print $1; exit}')"
 echo "Public IPv4: ${THIS_IP:-unknown}   DNS A(${HOSTNAME}): ${DNS_IP:-unresolved}"
 if [[ -n "${THIS_IP:-}" && -n "${DNS_IP:-}" && "${THIS_IP}" != "${DNS_IP}" ]]; then
-  echo "WARNING: DNS for ${HOSTNAME} does not match this server's public IPv4."
+  echo "WARNING: DNS for ${HOSTNAME} does not match this server's public IPv4. ACME challenge may fail."
 fi
 
 if ! timedatectl show -p NTPSynchronized --value 2>/dev/null | grep -qi yes; then
+  echo "NTP not synchronized. Enabling time sync..."
   timedatectl set-ntp true || true
 fi
 
-# ===== Certbot =====
+# ===== Certbot install =====
 if ! command -v certbot >/dev/null 2>&1; then
   if command -v snap >/dev/null 2>&1; then
+    echo -e "\n* * * Installing Certbot via snap * * *"
     snap install core || true
     snap refresh core || true
     snap install --classic certbot
     ln -sf /snap/bin/certbot /usr/bin/certbot
   else
+    echo -e "\n* * * Installing Certbot via apt * * *"
     apt update
     apt install -y certbot python3-certbot-nginx
   fi
 fi
 
+# Use staging if requested to avoid rate limits during testing:
 STAGING_FLAG=""
 if [[ "${CERTBOT_STAGING:-0}" == "1" ]]; then
   STAGING_FLAG="--staging"
   echo "Using Let's Encrypt STAGING environment."
 fi
 
+echo -e "\n* * * Requesting certificate for ${HOSTNAME} * * *"
 certbot --nginx --non-interactive --agree-tos -m "${EMAIL}" -d "${HOSTNAME}" ${STAGING_FLAG} --redirect
 
 LE_DIR="/etc/letsencrypt/live/${HOSTNAME}"
@@ -131,7 +172,7 @@ if [[ ! -s "${FULLCHAIN}" || ! -s "${PRIVKEY}" ]]; then
   exit 3
 fi
 
-# ===== WSS :9001 site =====
+# ===== WSS :9001 SSL site =====
 WSS_AVAIL="/etc/nginx/sites-available/wss-config-nym"
 WSS_LINK="/etc/nginx/sites-enabled/wss-config-nym"
 
@@ -150,6 +191,9 @@ server {
     ssl_certificate_key ${PRIVKEY};
     include /etc/letsencrypt/options-ssl-nginx.conf;
     ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+
+    access_log /var/log/nginx/access.log;
+    error_log /var/log/nginx/error.log;
 
     location = /favicon.ico { return 204; access_log off; log_not_found off; }
 
@@ -177,5 +221,7 @@ nginx -t
 systemctl daemon-reexec
 systemctl restart nginx
 
-echo -e "\nLanding page + SSL + WSS config completed for ${HOSTNAME}"
-[[ "${STAGING_FLAG}" == "--staging" ]] && echo "NOTE: STAGING cert in use."
+echo -e "\nAll done."
+echo "HTTP :80 site for ${HOSTNAME} is active (with redirect if certbot enabled it)."
+echo "WSS  :9001 TLS site is active using /etc/letsencrypt/live/${HOSTNAME}/ certs."
+[[ "${STAGING_FLAG}" == "--staging" ]] && echo "NOTE: STAGING cert in use. Re-run without CERTBOT_STAGING=1 for a real cert."

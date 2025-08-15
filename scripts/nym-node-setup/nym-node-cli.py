@@ -307,27 +307,22 @@ class NodeSetupCLI:
 
 
     def run_tunnel_manager_setup(self):
-        import os
-
         print(
             "\n* * * Setting up network configuration for mixnet IP router and Wireguard tunneling * * *"
             "\nMore info: https://nym.com/docs/operators/nodes/nym-node/configuration#1-download-network_tunnel_managersh-make-executable-and-run"
             "\nThis may take a while; follow the steps below and don't kill the process..."
         )
 
-        # Ensure jq exists because the script uses it in joke_* functions
-        self.run_bash_command(["bash", "-lc", "command -v jq >/dev/null || apt-get update && apt-get install -y jq"], check=False)
-
-        # Each entry is the exact argv you want to pass to the script (one subcommand per invocation)
+        # Each entry is the exact argv to pass to the script
         steps = [
             ["check_nymtun_iptables"],
             ["remove_duplicate_rules", "nymtun0"],
             ["remove_duplicate_rules", "nymwg"],
             ["check_nymtun_iptables"],
             ["adjust_ip_forwarding"],
-            ["apply_iptables_rules"],          # defaults to nymtun0 inside the script
+            ["apply_iptables_rules"],          # for nymtun0 inside script
             ["check_nymtun_iptables"],
-            ["apply_iptables_rules_wg"],       # applies for nymwg inside the script
+            ["apply_iptables_rules_wg"],       # for nymwg inside script
             ["configure_dns_and_icmp_wg"],
             ["adjust_ip_forwarding"],
             ["check_ipv6_ipv4_forwarding"],
@@ -335,10 +330,8 @@ class NodeSetupCLI:
             ["joke_through_wg_tunnel"],
         ]
 
-        # Run the downloaded script once per subcommand
         for argv in steps:
-            # Helpful print for visibility
-            print("Running:", "network_tunnel_manager.sh", *argv)
+            print("Running: network_tunnel_manager.sh", *argv)
             rc = self.run_script(self.tunnel_manager_sh, args=argv)
             if rc != 0:
                 print(f"Step {' '.join(argv)} failed with exit code {rc}. Stopping.")
@@ -511,5 +504,5 @@ if __name__ == '__main__':
     cli._check_gwx_mode() and cli.run_script(cli.nginx_proxy_wss_sh)
     cli.run_nym_node_as_service()
     cli.run_bonding_prompt()
-    cli._check_gwx_mode() and cli.run_script(cli.run_tunnel_manager_setup)
-    cli._check_gwx_mode() and cli.check_wg_enabled() and cli.run_script(cli.setup_test_wg_ip_tables)
+    cli._check_gwx_mode() and cli.run_tunnel_manager_setup()
+    cli._check_gwx_mode() and cli.check_wg_enabled() and cli.setup_test_wg_ip_tables()

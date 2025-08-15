@@ -217,32 +217,54 @@ class NodeSetupCLI:
             return False
 
     def check_wg_enabled(self):
-        import os, re
-
-        # Use absolute path so child scripts can be told via ENV_FILE if needed
+        # Absolute path to env.sh
         env_file = os.path.abspath(os.path.join(os.getcwd(), "env.sh"))
 
         def _bool_from_str(s: str) -> bool:
             return str(s).strip().lower() in ("1", "true", "yes", "y")
 
-        # 0) If env.sh already has WIREGUARD, load it and avoid prompting
+        def _write_wireguard(raw: str) -> None:
+            """Create/update: export WIREGUARD="<raw>" inside env.sh, preserving other exports."""
+            try:
+                lines = []
+                found = False
+                if os.path.isfile(env_file):
+                    with open(env_file, "r", encoding="utf-8") as f:
+                        for line in f:
+                            if line.lstrip().startswith("export WIREGUARD="):
+                                lines.append(f'export WIREGUARD="{raw}"\n')
+                                found = True
+                            else:
+                                lines.append(line)
+                if not found:
+                    # Ensure a trailing newline before appending, if file existed and lacked one
+                    if lines and not lines[-1].endswith("\n"):
+                        lines[-1] = lines[-1] + "\n"
+                    lines.append(f'export WIREGUARD="{raw}"\n')
+                with open(env_file, "w", encoding="utf-8") as f:
+                    f.writelines(lines)
+                print(f'WIREGUARD={raw} saved to {env_file}')
+            except Exception as e:
+                print(f"Warning: could not write {env_file}: {e}")
+
+        # 0) If env.sh already has WIREGUARD, use it and avoid prompting
         if os.path.isfile(env_file):
             try:
                 with open(env_file, "r", encoding="utf-8") as f:
                     for line in f:
-                        if line.startswith("export WIREGUARD="):
+                        if line.lstrip().startswith("export WIREGUARD="):
                             raw = line.split("=", 1)[1].strip().strip('"')
-                            os.environ["WIREGUARD"] = raw
+                            os.environ["WIREGUARD"] = "true" if _bool_from_str(raw) else "false"
                             return _bool_from_str(raw)
             except Exception:
-                pass  # if env.sh unreadable we'll just prompt
+                pass  # fall back to env/prompt
 
-        # 1) If present in current env (e.g., set by earlier code), normalize and persist
+        # 1) If present in current env, normalize and persist
         existing_env = os.environ.get("WIREGUARD")
         if existing_env is not None:
             raw = "true" if _bool_from_str(existing_env) else "false"
             os.environ["WIREGUARD"] = raw
-            _write_wireguard(env_file, raw)
+            _write_wireguard(raw)
             return raw == "true"
 
         # 2) Otherwise prompt once
@@ -252,7 +274,6 @@ class NodeSetupCLI:
                 "Please note that a node routing WireGuard will be listed as both entry and exit in the application.\n"
                 "Enable WireGuard support? (y/n): "
             ).strip().lower()
-
             if ans in ("y", "yes"):
                 raw = "true"
                 break
@@ -262,33 +283,10 @@ class NodeSetupCLI:
             else:
                 print("Invalid input. Please press 'y' or 'n' and press enter.")
 
-        # 3) Update process env and persist to env.sh
+        # 3) Update process env and persist
         os.environ["WIREGUARD"] = raw
-        _write_wireguard(env_file, raw)
+        _write_wireguard(raw)
         return raw == "true"
-
-
-    def _write_wireguard(env_file: str, raw: str) -> None:
-        """Create/update export WIREGUARD in env.sh."""
-        import os, re
-        try:
-            existing = ""
-            if os.path.isfile(env_file):
-                with open(env_file, "r", encoding="utf-8") as f:
-                    existing = f.read()
-            new_line = f'export WIREGUARD="{raw}"'
-            pattern = r'^[ \t]*export[ \t]+WIREGUARD=.*$'
-            if re.search(pattern, existing, flags=re.MULTILINE):
-                updated = re.sub(pattern, new_line, existing, count=1, flags=re.MULTILINE)
-            else:
-                if existing and not existing.endswith("\n"):
-                    existing += "\n"
-                updated = existing + new_line + "\n"
-            with open(env_file, "w", encoding="utf-8") as f:
-                f.write(updated)
-            print(f'WIREGUARD={raw} saved to {env_file}')
-        except Exception as e:
-            print(f"Warning: could not write {env_file}: {e}")
 
     def run_bash_command(self, command, args=None, *, env=None, cwd=None, check=True):
         """
@@ -309,30 +307,45 @@ class NodeSetupCLI:
 
 
     def run_tunnel_manager_setup(self):
+        import os
+
         print(
-            "\n* * *Setting up network configuration for mixnet IP router and Wireguard tunneling * * *"
+            "\n* * * Setting up network configuration for mixnet IP router and Wireguard tunneling * * *"
             "\nMore info: https://nym.com/docs/operators/nodes/nym-node/configuration#1-download-network_tunnel_managersh-make-executable-and-run"
-            "\nThis may take a while, follow the steps below and don't kill the process..."
-            )
-        args = [
-            " ",
-            "check_nymtun_iptables",
-            "remove_duplicate_rules nymtun0",
-            "remove_duplicate_rules nymwg",
-            "check_nymtun_iptables",
-            "adjust_ip_forwarding",
-            "apply_iptables_rules",
-            "check_nymtun_iptables",
-            "apply_iptables_rules_wg",
-            "configure_dns_and_icmp_wg",
-            "adjust_ip_forwarding",
-            "check_ipv6_ipv4_forwarding",
-            "joke_through_the_mixnet",
-            "joke_through_wg_tunnel",
-            ]
-        for arg in args:
-            parsed_args = shlex.split(arg)
-            self.run_script(self.tunnel_manager_sh, args=parsed_args)
+            "\nThis may take a while; follow the steps below and don't kill the process..."
+        )
+
+        # Ensure jq exists because the script uses it in joke_* functions
+        self.run_bash_command(["bash", "-lc", "command -v jq >/dev/null || apt-get update && apt-get install -y jq"], check=False)
+
+        # Each entry is the exact argv you want to pass to the script (one subcommand per invocation)
+        steps = [
+            ["check_nymtun_iptables"],
+            ["remove_duplicate_rules", "nymtun0"],
+            ["remove_duplicate_rules", "nymwg"],
+            ["check_nymtun_iptables"],
+            ["adjust_ip_forwarding"],
+            ["apply_iptables_rules"],          # defaults to nymtun0 inside the script
+            ["check_nymtun_iptables"],
+            ["apply_iptables_rules_wg"],       # applies for nymwg inside the script
+            ["configure_dns_and_icmp_wg"],
+            ["adjust_ip_forwarding"],
+            ["check_ipv6_ipv4_forwarding"],
+            ["joke_through_the_mixnet"],
+            ["joke_through_wg_tunnel"],
+        ]
+
+        # Run the downloaded script once per subcommand
+        for argv in steps:
+            # Helpful print for visibility
+            print("Running:", "network_tunnel_manager.sh", *argv)
+            rc = self.run_script(self.tunnel_manager_sh, args=argv)
+            if rc != 0:
+                print(f"Step {' '.join(argv)} failed with exit code {rc}. Stopping.")
+                return rc
+
+        print("Network tunnel manager setup completed successfully.")
+        return 0
 
     def setup_test_wg_ip_tables(self):
         print(
@@ -438,12 +451,11 @@ class NodeSetupCLI:
                   "Press 1, 2, or 3 and enter:\n"
                   )
                 if confirmation == "1":
-                    message = """
-                    * * * C O N G R A T U L A T I O N ! * * *\n\
-                    Your Nym node is registered to Nym network\n\
-                    Wait until the end of epoch for the change\n\
-                    to propagate (max 60 min)"
-                    """
+                    message = \
+                        "* * * C O N G R A T U L A T I O N ! * * *\n" \
+                        "Your Nym node is registered to Nym network\n" \
+                        "Wait until the end of epoch for the change\n" \
+                        "to propagate (max 60 min)"
                     self.print_character("*",42)
                     print(message)
                     self.print_character("*",42)

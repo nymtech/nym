@@ -7,7 +7,6 @@ use nym_coconut_dkg_common::types::NodeIndex;
 use nym_compact_ecash::VerificationKeyAuth;
 use nym_crypto::asymmetric::ed25519;
 use nym_validator_client::nyxd::{AccountId, Coin};
-use nym_validator_client::NymApiClient;
 use std::fmt::{Display, Formatter};
 use tracing::info;
 
@@ -68,7 +67,7 @@ impl TicketbookIssuanceResults {
 pub struct CredentialIssuer {
     pub public_key: ed25519::PublicKey,
     pub operator_account: AccountId,
-    pub api_client: NymApiClient,
+    pub api_client: nym_http_api_client::Client,
     pub verification_key: VerificationKeyAuth,
     pub node_id: NodeIndex,
 }

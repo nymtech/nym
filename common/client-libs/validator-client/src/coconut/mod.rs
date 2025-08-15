@@ -3,7 +3,7 @@
 
 use crate::nyxd::contract_traits::{DkgQueryClient, PagedDkgQueryClient};
 use crate::nyxd::error::NyxdError;
-use crate::NymApiClient;
+use crate::nym_api::NymApiClientExt;
 use nym_coconut_dkg_common::types::{EpochId, NodeIndex};
 use nym_coconut_dkg_common::verification_key::ContractVKShare;
 use nym_compact_ecash::error::CompactEcashError;
@@ -15,7 +15,7 @@ use url::Url;
 // TODO: it really doesn't feel like this should live in this crate.
 #[derive(Clone)]
 pub struct EcashApiClient {
-    pub api_client: NymApiClient,
+    pub api_client: nym_http_api_client::Client,
     pub verification_key: VerificationKeyAuth,
     pub node_id: NodeIndex,
     pub cosmos_address: cosmrs::AccountId,
@@ -25,10 +25,10 @@ impl Display for EcashApiClient {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "[id: {}] {} @ {}",
+            "[id: {}] {} @ {:?}",
             self.node_id,
             self.cosmos_address,
-            self.api_client.api_url()
+            self.api_client.base_urls()
         )
     }
 }
@@ -60,6 +60,9 @@ pub enum EcashApiError {
         source: CompactEcashError,
     },
 
+    #[error("failed to create API client: {0}")]
+    ClientError(String),
+
     #[error("the provided account address is malformed: {source}")]
     MalformedAccountAddress {
         #[from]
@@ -89,8 +92,13 @@ impl TryFrom<ContractVKShare> for EcashApiClient {
         // In non-client applications this resolver can cause warning logs about H2 connection
         // failure. This indicates that the long lived https connection was closed by the remote
         // peer and the resolver will have to reconnect. It should not impact actual functionality
+        let api_client = nym_http_api_client::Client::builder::<_, nym_api_requests::models::RequestError>(url_address)
+            .map_err(|e| EcashApiError::ClientError(e.to_string()))?
+            .build::<nym_api_requests::models::RequestError>()
+            .map_err(|e| EcashApiError::ClientError(e.to_string()))?;
+        
         Ok(EcashApiClient {
-            api_client: NymApiClient::new(url_address),
+            api_client,
             verification_key: VerificationKeyAuth::try_from_bs58(&share.share)?,
             node_id: share.node_index,
             cosmos_address: share.owner.as_str().parse()?,

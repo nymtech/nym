@@ -7,7 +7,7 @@ use futures::{SinkExt, StreamExt};
 use nym_crypto::asymmetric::ed25519;
 use nym_gateway_client::GatewayClient;
 use nym_topology::node::RoutingNode;
-use nym_validator_client::client::IdentityKeyRef;
+use nym_validator_client::client::{IdentityKeyRef, NymApiClientExt};
 use nym_validator_client::UserAgent;
 use rand::{seq::SliceRandom, Rng};
 #[cfg(unix)]
@@ -83,6 +83,48 @@ struct GatewayWithLatency<'a, G: ConnectableGateway> {
     latency: Duration,
 }
 
+// Helper to collect all pages of entry nodes - replicates NymApiClient's convenience method
+async fn get_all_basic_entry_nodes_with_metadata(
+    client: &nym_http_api_client::Client,
+    use_bincode: bool,
+) -> Result<SkimmedNodesWithMetadata, ClientCoreError> {
+    // Get first page to obtain metadata
+    let mut page = 0;
+    let res = client
+        .get_basic_entry_assigned_nodes_v2(false, Some(page), None, use_bincode)
+        .await?;
+    let mut nodes = res.nodes.data;
+    let metadata = res.metadata;
+
+    if res.nodes.pagination.total == nodes.len() {
+        return Ok(SkimmedNodesWithMetadata::new(nodes, metadata));
+    }
+
+    page += 1;
+
+    // Collect remaining pages
+    loop {
+        let mut res = client
+            .get_basic_entry_assigned_nodes_v2(false, Some(page), None, use_bincode)
+            .await?;
+
+        if !metadata.consistency_check(&res.metadata) {
+            return Err(ClientCoreError::ValidatorClientError(
+                nym_validator_client::ValidatorClientError::InconsistentPagedMetadata,
+            ));
+        }
+
+        nodes.append(&mut res.nodes.data);
+        if nodes.len() < res.nodes.pagination.total {
+            page += 1
+        } else {
+            break;
+        }
+    }
+
+    Ok(SkimmedNodesWithMetadata::new(nodes, metadata))
+}
+
 impl<'a, G: ConnectableGateway> GatewayWithLatency<'a, G> {
     fn new(gateway: &'a G, latency: Duration) -> Self {
         GatewayWithLatency { gateway, latency }
@@ -99,16 +141,28 @@ pub async fn gateways_for_init<R: Rng>(
     let nym_api = nym_apis
         .choose(rng)
         .ok_or(ClientCoreError::ListOfNymApisIsEmpty)?;
-    let client = if let Some(user_agent) = user_agent {
-        nym_validator_client::client::NymApiClient::new_with_user_agent(nym_api.clone(), user_agent)
-    } else {
-        nym_validator_client::client::NymApiClient::new(nym_api.clone())
-    };
+    
+    // Use the unified HTTP client directly with optional user agent
+    let mut builder = nym_http_api_client::Client::builder(nym_api.clone())
+        .map_err(|e| ClientCoreError::ValidatorClientError(
+            nym_validator_client::ValidatorClientError::MalformedUrlProvided(e),
+        ))?
+        .with_bincode();  // Use bincode for better performance
+    
+    if let Some(user_agent) = user_agent {
+        builder = builder.with_user_agent(user_agent);
+    }
+    
+    let client = builder
+        .build::<nym_api_requests::models::RequestError>()
+        .map_err(|e| ClientCoreError::ValidatorClientError(
+            nym_validator_client::ValidatorClientError::NymAPIError { source: e },
+        ))?;
 
     tracing::debug!("Fetching list of gateways from: {nym_api}");
 
-    let gateways = client
-        .get_all_basic_entry_assigned_nodes_with_metadata()
+    // Use our helper to handle pagination
+    let gateways = get_all_basic_entry_nodes_with_metadata(&client, true)
         .await?
         .nodes;
     info!("nym api reports {} gateways", gateways.len());

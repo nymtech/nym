@@ -409,10 +409,15 @@ class NodeSetupCLI:
                   "Press 1, 2, or 3 and enter:\n"
                   )
                 if confirmation == "1":
-                    message = "C O N G R A T U L A T I O N !\nYour Nym node is registered to Nym network, wait until the end of epoch for the change to propagate (max 60 min)"
-                    self.print_character("*",36)
+                    message = """
+                    * * * C O N G R A T U L A T I O N ! * * *\n\
+                    Your Nym node is registered to Nym network\n\
+                    Wait until the end of epoch for the change\n\
+                    to propagate (max 60 min)"
+                    """
+                    self.print_character("*",42)
                     print(message)
-                    self.print_character("*",36)
+                    self.print_character("*",42)
                     return
                 elif confirmation == "3":
                     print(

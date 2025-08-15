@@ -624,6 +624,7 @@ impl NymNode {
             metrics_sender,
             self.metrics.clone(),
             self.entry_gateway.mnemonic.clone(),
+            Self::user_agent(),
             legacy_task_client,
             shutdown_token,
         );
@@ -699,6 +700,11 @@ impl NymNode {
         // start task for removing stale and un-retrieved client messages
         let stale_messages_cleaner = gateway_tasks_builder.build_stale_messages_cleaner();
         stale_messages_cleaner.start();
+
+        // start task for watching the changes in upgrade mode attestation
+        if let Some(upgrade_mode_watcher) = gateway_tasks_builder.try_build_upgrade_mode_watcher() {
+            upgrade_mode_watcher.start();
+        }
 
         Ok(())
     }

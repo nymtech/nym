@@ -8,6 +8,7 @@ use crate::node::internal_service_providers::{
     authenticator, ExitServiceProviders, ServiceProviderBeingBuilt, SpMessageRouterBuilder,
 };
 use crate::node::stale_data_cleaner::StaleMessagesCleaner;
+use crate::node::upgrade_mode_watcher::UpgradeModeWatcher;
 use futures::channel::oneshot;
 use nym_credential_verification::ecash::{
     credential_sender::CredentialHandlerConfig, EcashManager,
@@ -34,9 +35,11 @@ use zeroize::Zeroizing;
 pub(crate) mod client_handling;
 pub(crate) mod internal_service_providers;
 mod stale_data_cleaner;
+mod upgrade_mode_watcher;
 
 use crate::node::internal_service_providers::authenticator::Authenticator;
 pub use client_handling::active_clients::ActiveClientsStore;
+use nym_credential_verification::upgrade_mode::UpgradeModeState;
 pub use nym_gateway_stats_storage::PersistentStatsStorage;
 pub use nym_gateway_storage::{
     error::GatewayStorageError,
@@ -78,6 +81,8 @@ pub struct GatewayTasksBuilder {
     // TODO: combine with authenticator, since you have to start both
     wireguard_data: Option<nym_wireguard::WireguardData>,
 
+    user_agent: UserAgent,
+
     /// ed25519 keypair used to assert one's identity.
     identity_keypair: Arc<ed25519::KeyPair>,
 
@@ -88,6 +93,8 @@ pub struct GatewayTasksBuilder {
     metrics_sender: MetricEventsSender,
 
     metrics: NymNodeMetrics,
+
+    upgrade_mode_state: UpgradeModeState,
 
     mnemonic: Arc<Zeroizing<bip39::Mnemonic>>,
 
@@ -121,6 +128,7 @@ impl GatewayTasksBuilder {
         metrics_sender: MetricEventsSender,
         metrics: NymNodeMetrics,
         mnemonic: Arc<Zeroizing<bip39::Mnemonic>>,
+        user_agent: UserAgent,
         legacy_task_client: TaskClient,
         shutdown_token: ShutdownToken,
     ) -> GatewayTasksBuilder {
@@ -130,11 +138,13 @@ impl GatewayTasksBuilder {
             ip_packet_router_opts: None,
             authenticator_opts: None,
             wireguard_data: None,
+            user_agent,
             identity_keypair: identity,
             storage,
             mix_packet_sender,
             metrics_sender,
             metrics,
+            upgrade_mode_state: UpgradeModeState::new_empty(),
             mnemonic,
             legacy_task_client,
             shutdown_token,
@@ -469,6 +479,30 @@ impl GatewayTasksBuilder {
             self.config.debug.stale_messages_max_age,
             self.config.debug.stale_messages_cleaner_run_interval,
         )
+    }
+
+    pub fn try_build_upgrade_mode_watcher(&self) -> Option<UpgradeModeWatcher> {
+        let Some(upgrade_mode_attestation_url) =
+            self.config.upgrade_mode_watcher.attestation_url.clone()
+        else {
+            error!("upgrade mode attestation URL is not set - this node will not support the upgrade mode!");
+            return None;
+        };
+
+        Some(UpgradeModeWatcher::new(
+            self.config
+                .upgrade_mode_watcher
+                .debug
+                .regular_polling_interval,
+            self.config
+                .upgrade_mode_watcher
+                .debug
+                .expedited_poll_interval,
+            upgrade_mode_attestation_url,
+            self.upgrade_mode_state.clone(),
+            self.user_agent.clone(),
+            self.legacy_task_client.fork("upgrade_mode_watcher"),
+        ))
     }
 
     #[cfg(not(target_os = "linux"))]

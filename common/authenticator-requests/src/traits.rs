@@ -81,7 +81,8 @@ pub trait FinalMessage {
     fn pub_key(&self) -> PeerPublicKey;
     fn verify(&self, private_key: &PrivateKey, nonce: u64) -> Result<(), Error>;
     fn private_ips(&self) -> IpPair;
-    fn credential(&self) -> Option<BandwidthCredential>;
+    // fn credential(&self) -> Option<BandwidthCredential>;
+    fn credential(&self) -> Option<CredentialSpendingData>;
 }
 
 impl FinalMessage for v1::GatewayClient {
@@ -97,7 +98,8 @@ impl FinalMessage for v1::GatewayClient {
         self.private_ip.into()
     }
 
-    fn credential(&self) -> Option<BandwidthCredential> {
+    // fn credential(&self) -> Option<BandwidthCredential> {
+    fn credential(&self) -> Option<CredentialSpendingData> {
         None
     }
 }
@@ -115,7 +117,8 @@ impl FinalMessage for v2::registration::FinalMessage {
         self.gateway_client.private_ip.into()
     }
 
-    fn credential(&self) -> Option<BandwidthCredential> {
+    // fn credential(&self) -> Option<BandwidthCredential> {
+    fn credential(&self) -> Option<CredentialSpendingData> {
         self.credential.clone().map(Into::into)
     }
 }
@@ -133,7 +136,8 @@ impl FinalMessage for v3::registration::FinalMessage {
         self.gateway_client.private_ip.into()
     }
 
-    fn credential(&self) -> Option<BandwidthCredential> {
+    // fn credential(&self) -> Option<BandwidthCredential> {
+    fn credential(&self) -> Option<CredentialSpendingData> {
         self.credential.clone().map(Into::into)
     }
 }
@@ -151,7 +155,8 @@ impl FinalMessage for v4::registration::FinalMessage {
         self.gateway_client.private_ips.into()
     }
 
-    fn credential(&self) -> Option<BandwidthCredential> {
+    // fn credential(&self) -> Option<BandwidthCredential> {
+    fn credential(&self) -> Option<CredentialSpendingData> {
         self.credential.clone().map(Into::into)
     }
 }
@@ -169,7 +174,8 @@ impl FinalMessage for v5::registration::FinalMessage {
         self.gateway_client.private_ips
     }
 
-    fn credential(&self) -> Option<BandwidthCredential> {
+    // fn credential(&self) -> Option<BandwidthCredential> {
+    fn credential(&self) -> Option<CredentialSpendingData> {
         self.credential.clone().map(Into::into)
     }
 }

@@ -7,12 +7,38 @@ use std::sync::Arc;
 use time::OffsetDateTime;
 use tokio::sync::RwLock;
 
-struct UpgradeModeState {
-    // very much tbd
+#[derive(Clone)]
+pub struct UpgradeModeState {
     inner: Arc<UpgradeModeStateInner>,
 }
 
 impl UpgradeModeState {
+    pub fn new_empty() -> UpgradeModeState {
+        UpgradeModeState {
+            inner: Arc::new(UpgradeModeStateInner {
+                expected_attestation: RwLock::new(None),
+                last_queried_ts: AtomicI64::new(OffsetDateTime::UNIX_EPOCH.unix_timestamp()),
+                upgrade_mode_enabled: AtomicBool::new(false),
+            }),
+        }
+    }
+
+    pub async fn set_expected_attestation(
+        &self,
+        expected_attestation: Option<UpgradeModeAttestation>,
+    ) {
+        let mut guard = self.inner.expected_attestation.write().await;
+        // make sure to only enable upgrade mode flag AFTER we have written the expected value
+        // (or still hold the exclusive lock as in this instance)
+        if expected_attestation.is_some() {
+            self.enable_upgrade_mode()
+        } else {
+            self.disable_upgrade_mode()
+        }
+        self.update_last_queried(OffsetDateTime::now_utc());
+        *guard = expected_attestation;
+    }
+
     pub fn upgrade_mode_enabled(&self) -> bool {
         self.inner.upgrade_mode_enabled.load(Ordering::Acquire)
     }
@@ -41,10 +67,6 @@ impl UpgradeModeState {
             .last_queried_ts
             .store(queried_at.unix_timestamp(), Ordering::Release);
     }
-}
-
-struct UpgradeModeDetails {
-    expected_attestation: Option<UpgradeModeAttestation>,
 }
 
 struct UpgradeModeStateInner {

@@ -3,7 +3,7 @@
 
 use crate::config::authenticator::{Authenticator, AuthenticatorDebug};
 use crate::config::gateway_tasks::{
-    ClientBandwidthDebug, StaleMessageDebug, ZkNymTicketHandlerDebug,
+    ClientBandwidthDebug, StaleMessageDebug, UpgradeModeWatcher, ZkNymTicketHandlerDebug,
 };
 use crate::config::persistence::{
     AuthenticatorPaths, GatewayTasksPaths, IpPacketRouterPaths, KeysPaths, NetworkRequesterPaths,
@@ -1474,6 +1474,7 @@ pub async fn try_upgrade_config_v10<P: AsRef<Path>>(
             ws_bind_address: old_cfg.gateway_tasks.ws_bind_address,
             announce_ws_port: old_cfg.gateway_tasks.announce_ws_port,
             announce_wss_port: old_cfg.gateway_tasks.announce_wss_port,
+            upgrade_mode_watcher: UpgradeModeWatcher::new_default(),
             debug: gateway_tasks::Debug {
                 message_retrieval_limit: old_cfg.gateway_tasks.debug.message_retrieval_limit,
                 maximum_open_connections: old_cfg.gateway_tasks.debug.maximum_open_connections,

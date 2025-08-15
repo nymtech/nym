@@ -426,6 +426,14 @@ pub(crate) struct EntryGatewayArgs {
         env = NYMNODE_MNEMONIC_ARG
     )]
     pub(crate) mnemonic: Option<bip39::Mnemonic>,
+
+    /// Endpoint to query to retrieve current upgrade mode attestation.
+    #[clap(
+        long,
+        env = NYMNODE_UPGRADE_MODE_ATTESTATION_URL_ARG
+    )]
+    #[zeroize(skip)]
+    pub(crate) upgrade_mode_attestation_url: Option<Url>,
 }
 
 impl EntryGatewayArgs {
@@ -438,7 +446,7 @@ impl EntryGatewayArgs {
     }
 
     pub(crate) fn override_config_section(
-        self,
+        mut self,
         mut section: config::GatewayTasksConfig,
     ) -> config::GatewayTasksConfig {
         if let Some(bind_address) = self.entry_bind_address {
@@ -452,6 +460,9 @@ impl EntryGatewayArgs {
         }
         if let Some(enforce_zk_nyms) = self.enforce_zk_nyms {
             section.enforce_zk_nyms = enforce_zk_nyms
+        }
+        if let Some(upgrade_mode_attestation_url) = self.upgrade_mode_attestation_url.take() {
+            section.upgrade_mode_watcher.attestation_url = Some(upgrade_mode_attestation_url)
         }
 
         section

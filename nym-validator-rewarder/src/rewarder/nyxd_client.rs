@@ -15,7 +15,7 @@ use nym_validator_client::nyxd::module_traits::staking::{
 use nym_validator_client::nyxd::{
     AccountId, Coin, CosmWasmClient, Hash, PageRequest, StakingQueryClient,
 };
-use nym_validator_client::{nyxd, DirectSigningHttpRpcNyxdClient, NymApiClient};
+use nym_validator_client::{nyxd, DirectSigningHttpRpcNyxdClient};
 use std::collections::HashMap;
 use std::ops::Deref;
 use std::sync::Arc;
@@ -139,10 +139,20 @@ impl NyxdClient {
                     continue;
                 };
 
+                let api_client = match nym_http_api_client::Client::builder(api_address)
+                    .and_then(|b| b.build::<nym_api_requests::models::RequestError>())
+                {
+                    Ok(client) => client,
+                    Err(err) => {
+                        error!("Failed to create API client for issuer {}: {}", info.assigned_index, err);
+                        continue;
+                    }
+                };
+
                 issuers.push(CredentialIssuer {
                     public_key,
                     operator_account: addr_to_account_id(share.owner),
-                    api_client: NymApiClient::new(api_address),
+                    api_client,
                     verification_key,
                     node_id: info.assigned_index,
                 })

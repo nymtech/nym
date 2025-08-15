@@ -1,7 +1,8 @@
 use crate::nyxd::contract_traits::MixnetQueryClient;
 use crate::nyxd::error::NyxdError;
 use crate::nyxd::Config as ClientConfig;
-use crate::{NymApiClient, QueryHttpRpcNyxdClient, ValidatorClientError};
+use crate::nym_api::NymApiClientExt;
+use crate::{QueryHttpRpcNyxdClient, ValidatorClientError};
 use colored::Colorize;
 use core::fmt;
 use itertools::Itertools;
@@ -87,8 +88,16 @@ fn setup_connection_tests<H: BuildHasher + 'static>(
         }
     });
 
-    let api_connection_test_clients = api_urls.map(|(network, url)| {
-        ClientForConnectionTest::Api(network, url.clone(), NymApiClient::new(url))
+    let api_connection_test_clients = api_urls.filter_map(|(network, url)| {
+        match nym_http_api_client::Client::builder(url.clone())
+            .and_then(|b| b.build::<nym_api_requests::models::RequestError>())
+        {
+            Ok(client) => Some(ClientForConnectionTest::Api(network, url, client)),
+            Err(err) => {
+                eprintln!("Failed to create API client for {}: {err}", network.network_name);
+                None
+            }
+        }
     });
 
     nyxd_connection_test_clients.chain(api_connection_test_clients)
@@ -160,7 +169,7 @@ async fn test_nyxd_connection(
 async fn test_nym_api_connection(
     network: NymNetworkDetails,
     url: &Url,
-    client: &NymApiClient,
+    client: &nym_http_api_client::Client,
 ) -> ConnectionResult {
     let result = match timeout(
         Duration::from_secs(CONNECTION_TEST_TIMEOUT_SEC),
@@ -186,7 +195,7 @@ async fn test_nym_api_connection(
 
 enum ClientForConnectionTest {
     Nyxd(NymNetworkDetails, Url, Box<QueryHttpRpcNyxdClient>),
-    Api(NymNetworkDetails, Url, NymApiClient),
+    Api(NymNetworkDetails, Url, nym_http_api_client::Client),
 }
 
 impl ClientForConnectionTest {

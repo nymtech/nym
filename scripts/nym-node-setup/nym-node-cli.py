@@ -200,6 +200,22 @@ class NodeSetupCLI:
             except Exception:
                 pass
 
+    def _write_temp_script(self, script_text: str) -> Path:
+       """Write script text to a temp file, ensure bash shebang, chmod +x, return its Path."""
+       if not script_text.lstrip().startswith("#!"):
+           script_text = "#!/usr/bin/env bash\n" + script_text
+       with tempfile.NamedTemporaryFile("w", delete=False, suffix=".sh") as f:
+           f.write(script_text)
+           path = Path(f.name)
+       os.chmod(path, 0o700)  # executable for owner
+       return path
+
+    def _check_gwx_mode(self):
+        if self.mode == "exit-gateway":
+            return True
+        else:
+            return False
+
     def check_wg_enabled(self):
         import os, re
 

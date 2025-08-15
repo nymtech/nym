@@ -10,7 +10,7 @@ use futures::StreamExt;
 use nym_crypto::asymmetric::ed25519;
 use nym_task::ShutdownToken;
 use nym_validator_client::models::NymNodeDescription;
-use nym_validator_client::NymApiClient;
+use nym_validator_client::nym_api::NymApiClientExt;
 use rand::prelude::SliceRandom;
 use rand::thread_rng;
 use std::net::SocketAddr;
@@ -135,10 +135,16 @@ impl VerlocMeasurer {
         let mut api_endpoints = self.config.nym_api_urls.clone();
         api_endpoints.shuffle(&mut thread_rng());
         for api_endpoint in api_endpoints {
-            let client = NymApiClient::new_with_user_agent(
-                api_endpoint.clone(),
-                self.config.user_agent.clone(),
-            );
+            let client = match nym_http_api_client::Client::builder(api_endpoint.clone())
+                .and_then(|b| b.with_user_agent(self.config.user_agent.clone())
+                    .build::<nym_api_requests::models::RequestError>())
+            {
+                Ok(c) => c,
+                Err(err) => {
+                    warn!("failed to create client for {api_endpoint}: {err}");
+                    continue;
+                }
+            };
             match client.get_all_described_nodes().await {
                 Ok(res) => return Some(res),
                 Err(err) => {

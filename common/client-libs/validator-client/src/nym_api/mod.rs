@@ -1375,6 +1375,7 @@ pub trait NymApiClientExt: ApiClient {
     }
 }
 
+// Client is already nym_http_api_client::Client (re-exported above), so just one impl needed
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl NymApiClientExt for Client {}

@@ -12,6 +12,7 @@ use nym_sdk::mixnet::{self, MixnetClient};
 use nym_sphinx::chunking::monitoring;
 use nym_topology::provider_trait::ToTopologyMetadata;
 use nym_topology::{HardcodedTopologyProvider, NymTopology};
+use nym_validator_client::nym_api::NymApiClientExt;
 use std::fs::File;
 use std::io::Write;
 use std::sync::LazyLock;
@@ -160,10 +161,11 @@ async fn nym_topology_from_env() -> anyhow::Result<NymTopology> {
     let api_url = std::env::var(NYM_API)?;
 
     info!("Generating topology from {api_url}");
-    let client = nym_validator_client::client::NymApiClient::new_with_user_agent(
-        api_url.parse()?,
-        bin_info!(),
-    );
+    let client = nym_http_api_client::Client::builder(api_url.parse()?)
+        .map_err(anyhow::Error::from)?
+        .with_user_agent(bin_info!())
+        .build::<nym_api_requests::models::RequestError>()
+        .map_err(anyhow::Error::from)?;
 
     let rewarded_set = client.get_current_rewarded_set().await?;
 

@@ -448,6 +448,7 @@ class NodeSetupCLI:
 
 class SystemSafeGuards:
     def __init__(self):
+        self.branch = "feature/node-setup-cli"
 
 
     def _protect_from_oom(self, score: int = -900):

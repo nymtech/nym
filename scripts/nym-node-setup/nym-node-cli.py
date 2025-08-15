@@ -68,7 +68,7 @@ class NodeSetupCLI:
         \n- You agree with Operators Terms & Conditions: https://nym.com/operators-validators-terms \
         \n- You have Nym wallet with at least 101 NYM: https://nym.com/docs/operators/nodes/preliminary-steps/wallet-preparation \
         \n- In case of Gateway behind reverse proxy, you have A and AAAA DNS record pointing to this IP and propagated \
-        \n\nTo confirm and continue, write "YES" and press enter: \
+        \n\nTo confirm and continue, write "YES" and press enter:\n
         """
         confirmation = input(msg)
         if confirmation.upper() == "YES":
@@ -83,7 +83,7 @@ class NodeSetupCLI:
             "\n1) mixnode "
             "\n2) entry-gateway "
             "\n3) exit-gateway "
-            "\nPress 1, 2 or 3 and enter: "
+            "\nPress 1, 2 or 3 and enter:\n"
         ).strip()
 
         if mode in ("1", "mixnode"):
@@ -195,24 +195,57 @@ class NodeSetupCLI:
             return False
 
     def check_wg_enabled(self):
+        import os, re
+
+        env_file = os.path.join(os.getcwd(), "env.sh")
         wireguard = os.environ.get("WIREGUARD")
+
         while wireguard is None:
-            user_input = input(
+            ans = input(
                 "\nWireguard is not configured.\n"
-                "Please note that a node routing WireGuard will be listed as both entry and exit in the application."
+                "Please note that a node routing WireGuard will be listed as both entry and exit in the application.\n"
                 "Enable Wireguard support? (y/n): "
             ).strip().lower()
 
-            if user_input == "y":
-                os.environ["WIREGUARD"] = "true"
+            if ans == "y":
+                value = "true"
                 wireguard = True
-            elif user_input == "n":
-                os.environ["WIREGUARD"] = "false"
+            elif ans == "n":
+                value = "false"
                 wireguard = False
             else:
                 print("Invalid input. Please press 'y' or 'n' and press enter.")
-        return wireguard
+                continue
 
+            # 1) Update this process's environment
+            os.environ["WIREGUARD"] = value
+
+            # 2) Persist to ./env.sh (create or update 'export WIREGUARD="..."')
+            existing = ""
+            if os.path.isfile(env_file):
+                try:
+                    with open(env_file, "r", encoding="utf-8") as f:
+                        existing = f.read()
+                except Exception:
+                    existing = ""
+
+            new_line = f'export WIREGUARD="{value}"'
+            pattern = r'^[ \t]*export[ \t]+WIREGUARD=.*$'  # match any existing export line
+
+            if re.search(pattern, existing, flags=re.MULTILINE):
+                updated = re.sub(pattern, new_line, existing, count=1, flags=re.MULTILINE)
+            else:
+                # Ensure trailing newline before appending
+                updated = (existing if existing.endswith("\n") or existing == "" else existing + "\n") + new_line + "\n"
+
+            try:
+                with open(env_file, "w", encoding="utf-8") as f:
+                    f.write(updated)
+                print(f'WIREGUARD={value} saved to {env_file}')
+            except Exception as e:
+                print(f"Warning: could not write {env_file}: {e}")
+
+        return wireguard
 
     def run_bash_command(self, command, args=None, *, env=None, cwd=None, check=True):
         """

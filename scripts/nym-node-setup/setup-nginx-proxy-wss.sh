@@ -4,7 +4,7 @@
 LANDING_PAGE_PATH="/etc/nginx/sites-available/${HOSTNAME}"
 LANDING_PAGE_LINK="/etc/nginx/sites-enabled/${HOSTNAME}"
 
-echo "Starting nginx configuration for landing page, reverse proxy and web secure socket"
+echo -e "\n* * * Starting nginx configuration for landing page, reverse proxy and web secure socket (WSS) * * *"
 echo "Creating a landing page stored at /var/www/'$HOSTNAME'"
 mkdir -p /var/www/"${HOSTNAME}" && cp ./landing-page.html /var/www/"${HOSTNAME}"/index.html
 

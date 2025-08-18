@@ -4,6 +4,7 @@ import os
 import re
 import sys
 import subprocess
+import argparse
 import tempfile
 import shlex
 import time
@@ -13,8 +14,8 @@ from typing import Iterable, Optional, Mapping
 
 class NodeSetupCLI:
 
-    def __init__(self):
-        self.branch = "feature/node-setup-cli"
+    def __init__(self, args):
+        self.branch = self._branch(args)
         self.welcome_message = self.print_welcome_message()
         self.mode = self.prompt_mode()
         self.prereqs_install_sh = self.fetch_script("nym-node-prereqs-install.sh")
@@ -29,10 +30,14 @@ class NodeSetupCLI:
         self.wg_ip_tables_test_sh = self._check_gwx_mode() and self.fetch_script("exit-policy-tests.sh")
 
 
+    def _branch(self, args):
+        branch = args.dev
+        return branch
+
     def print_welcome_message(self):
-        self.print_character("=", 66)
-        print("* * * * * * NYM * NODE * CLI * * * * * *\nAn interactive tool to download, install, setup and run nym-node")
-        self.print_character("=", 66)
+        self.print_character("=", 41)
+        print("* * * * * * NYM - NODE - CLI * * * * * *\nAn interactive tool to download, install\n* * * * * setup & run nym-node * * * * *")
+        self.print_character("=", 41)
         msg = \
             "Before you begin, make sure that:\n"\
             "* You run this setup on Debian based Linux (ie Ubuntu)\n"\
@@ -444,6 +449,69 @@ class NodeSetupCLI:
         env["ENV_FILE"] = os.path.abspath(os.path.join(os.getcwd(), "env.sh"))
         return env
 
+
+class ArgParser:
+
+    def __init__(self):
+        # Don’t create NodeSetupCLI here (args doesn’t exist yet)
+        self.cli = None
+
+    def parser_main(self):
+        parser = argparse.ArgumentParser(
+            prog='* * * * * * NYM * NODE * CLI * * * * * *',
+            description='An interactive tool to download, install, setup and run nym-node',
+            epilog='Privacy infrastructure operated by people around the world'
+        )
+        parser.add_argument("-V","--version", action="version", version='%(prog)s 1.0.0')
+        parser.add_argument("-d", "--dev", help='Define github branch, default="develop"',
+                            type=str, default='develop')
+
+        subparsers = parser.add_subparsers(help="[-h] shows this help menu")
+        parser_install = subparsers.add_parser('install', help='Starts nym-node installation setup CLI',
+                                               aliases=['i','I'])
+        parser_install.set_defaults(func=self.run_node_installation)
+
+        args = parser.parse_args()
+
+        self.cli = NodeSetupCLI(args)
+
+        try:
+            args.func(args)
+        except AttributeError as e:
+            msg = f"{e}.\nPlease run: ./nym-node-cli --help"
+            self.panic(msg)
+        except KeyError as e:
+            self.panic(f"{e}.")
+        except ConnectionError as e:
+            msg = f"{e}.\nMake sure you have internet connection or the branch passed to `--dev <BRANCH>` contains this program."
+            self.panic(msg)
+
+#    def run_node_installation(self,args):
+#        self.cli.run_script(cli.prereqs_install_sh)
+#        self.cli.run_script(cli.env_vars_install_sh)
+#        self.cli.run_script(cli.node_install_sh)
+#        self.cli.run_script(cli.service_config_sh)
+#        self.cli._check_gwx_mode() and cli.run_script(cli.nginx_proxy_wss_sh)
+#        self.cli.run_nym_node_as_service()
+#        self.cli.run_bonding_prompt()
+#        self.cli._check_gwx_mode() and cli.run_tunnel_manager_setup()
+#        self.cli._check_gwx_mode() and cli.check_wg_enabled() and cli.setup_test_wg_ip_tables()
+
+    def run_node_installation(self, args):
+        self.cli.run_script(self.cli.prereqs_install_sh)
+        self.cli.run_script(self.cli.env_vars_install_sh)
+        self.cli.run_script(self.cli.node_install_sh)
+        self.cli.run_script(self.cli.service_config_sh)
+        if self.cli._check_gwx_mode():
+            self.cli.run_script(self.cli.nginx_proxy_wss_sh)
+        self.cli.run_nym_node_as_service()
+        self.cli.run_bonding_prompt()
+        if self.cli._check_gwx_mode():
+            self.cli.run_tunnel_manager_setup()
+            if self.cli.check_wg_enabled():
+                self.cli.setup_test_wg_ip_tables()
+
+
 class SystemSafeGuards:
     def __init__(self):
         self.branch = "feature/node-setup-cli"
@@ -477,17 +545,11 @@ class SystemSafeGuards:
             resource.setrlimit(resource.RLIMIT_AS, (bytes_limit, bytes_limit))
         except Exception:
             pass
+
+
 if __name__ == '__main__':
     safeguards = SystemSafeGuards()
     safeguards._protect_from_oom(-900)             # de-prioritize controller as OOM victim
     safeguards._cap_controller_memory(2 * 1024**3) # optional: cap controller to 2 GiB
-    cli = NodeSetupCLI()
-    cli.run_script(cli.prereqs_install_sh)
-    cli.run_script(cli.env_vars_install_sh)
-    cli.run_script(cli.node_install_sh)
-    cli.run_script(cli.service_config_sh)
-    cli._check_gwx_mode() and cli.run_script(cli.nginx_proxy_wss_sh)
-    cli.run_nym_node_as_service()
-    cli.run_bonding_prompt()
-    cli._check_gwx_mode() and cli.run_tunnel_manager_setup()
-    cli._check_gwx_mode() and cli.check_wg_enabled() and cli.setup_test_wg_ip_tables()
+    app = ArgParser()
+    app.parser_main()

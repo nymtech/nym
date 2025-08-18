@@ -33,7 +33,7 @@ class NodeSetupCLI:
 
     def print_welcome_message(self):
         self.print_character("=", 66)
-        print("* * * Starting Nym Node CLI * * *\nAn interactive tool to download, install, setup and run nym-node")
+        print("* * * * * * NYM * NODE * CLI * * * * * *\nAn interactive tool to download, install, setup and run nym-node")
         self.print_character("=", 66)
         msg = \
             "Before you begin, make sure that:\n"\
@@ -192,12 +192,13 @@ class NodeSetupCLI:
 
     def check_wg_enabled(self):
 
+
         env_file = os.path.abspath(os.path.join(os.getcwd(), "env.sh"))
 
-        def norm(v):  # always "true" or "false" strings
+        def norm(v):  # -> "true" or "false"
             return "true" if str(v).strip().lower() in ("1", "true", "yes", "y") else "false"
 
-        # 1) precedence: process env → env.sh → prompt
+        # precedence: process env → env.sh → prompt
         val = os.environ.get("WIREGUARD")
 
         if val is None and os.path.isfile(env_file):
@@ -217,11 +218,10 @@ class NodeSetupCLI:
             ).strip().lower()
             val = "true" if ans in ("y", "yes") else "false"
 
-        # 2) normalize and export for this process
         val = norm(val)
         os.environ["WIREGUARD"] = val
 
-        # 3) persist to env.sh (replace or append)
+        # persist to env.sh (replace or append)
         try:
             text = ""
             if os.path.isfile(env_file):

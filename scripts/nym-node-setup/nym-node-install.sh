@@ -72,6 +72,22 @@ fi
 # Final default only if still empty
 WIREGUARD="${WIREGUARD:-false}"
 
+# --- Persist WIREGUARD to the same env file Python uses ---
+ENV_PATH="${ENV_FILE:-./env.sh}"
+if [[ -n "$ENV_PATH" ]]; then
+  mkdir -p "$(dirname "$ENV_PATH")"
+  if [[ -f "$ENV_PATH" ]]; then
+    # replace existing export or append
+    if grep -qE '^[[:space:]]*export[[:space:]]+WIREGUARD=' "$ENV_PATH"; then
+      sed -i -E 's|^[[:space:]]*export[[:space:]]+WIREGUARD=.*$|export WIREGUARD="'"$WIREGUARD"'"|' "$ENV_PATH"
+    else
+      printf '\nexport WIREGUARD="%s"\n' "$WIREGUARD" >> "$ENV_PATH"
+    fi
+  else
+    printf 'export WIREGUARD="%s"\n' "$WIREGUARD" > "$ENV_PATH"
+  fi
+  echo "WIREGUARD=${WIREGUARD} persisted to $ENV_PATH"
+fi
 
 # Helpers: ensure optional env vars exist (avoid -u issues)
 HOSTNAME="${HOSTNAME:-}"

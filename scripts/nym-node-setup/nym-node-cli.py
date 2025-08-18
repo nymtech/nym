@@ -462,32 +462,27 @@ class ArgParser:
             description='An interactive tool to download, install, setup and run nym-node',
             epilog='Privacy infrastructure operated by people around the world'
         )
-        parser.add_argument("-V","--version", action="version", version='%(prog)s 1.0.0')
+        parser.add_argument("-V", "--version", action="version", version='%(prog)s 1.0.0')
         parser.add_argument("-d", "--dev", help='Define github branch, default="develop"',
                             type=str, default='develop')
 
-        subparsers = parser.add_subparsers(help="[-h] shows this help menu")
-        parser_install = subparsers.add_parser('install', help='Starts nym-node installation setup CLI',
-                                               aliases=['i','I'])
-        parser_install.set_defaults(func=self.run_node_installation)
+        # default to install if no subcommand provided
+        parser.set_defaults(func=self.run_node_installation)
+
+        subparsers = parser.add_subparsers(dest="command", help="[-h] shows this help menu")
+        p_install = subparsers.add_parser('install', help='Starts nym-node installation setup CLI',
+                                          aliases=['i', 'I'])
+        p_install.set_defaults(func=self.run_node_installation)
 
         args = parser.parse_args()
-
         self.cli = NodeSetupCLI(args)
 
-        try:
-            args.func(args)
-        except RuntimeError as e:
-            msg = f"{e}.\nMake sure that the branch passed to `--dev <BRANCH>` contains this program."
-            self.panic(msg)
-        except AttributeError as e:
-            msg = f"{e}.\nPlease run: ./nym-node-cli --help"
-            self.panic(msg)
-        except KeyError as e:
-            self.panic(f"{e}.")
-        except ConnectionError as e:
-            msg = f"{e}.\nMake sure you have internet connection."
-            self.panic(msg)
+        # if you still want to show help when nothing provided, uncomment:
+        # if args.command is None:
+        #     parser.print_help(); sys.exit(2)
+
+        args.func(args)
+
 
 #    def run_node_installation(self,args):
 #        self.cli.run_script(cli.prereqs_install_sh)

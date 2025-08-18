@@ -380,6 +380,7 @@ class NodeSetupCLI:
                   "- Setup your operators cost and profit margin\n"
                   "- Copy the long contract message from your wallet\n"
                   "- Paste the contract message from clipboard here and press enter:"
+                  )
                 msg = "(If you already bonded your node before, just press enter)\n"
                 contract_msg = input(msg).strip()
                 subprocess.run([

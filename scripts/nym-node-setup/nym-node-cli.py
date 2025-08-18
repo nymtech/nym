@@ -478,7 +478,7 @@ class ArgParser:
             parents=[parent],  # so root also has -d/-V
         )
 
-        subparsers = parser.add_subparsers(dest="command", help="[-h] shows this help menu")
+        subparsers = parser.add_subparsers(dest="command")
         subparsers.required = True
 
         # install subcommand inherits parent options too (so -d works after the subcommand)

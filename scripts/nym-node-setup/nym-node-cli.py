@@ -458,7 +458,7 @@ class ArgParser:
 
     def parser_main(self):
         parser = argparse.ArgumentParser(
-            prog='* * * * * * NYM * NODE * CLI * * * * * *',
+            prog='nym-node-cli',
             description='An interactive tool to download, install, setup and run nym-node',
             epilog='Privacy infrastructure operated by people around the world'
         )

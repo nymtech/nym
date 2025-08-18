@@ -13,7 +13,7 @@ use nym_crypto::asymmetric::x25519;
 use nym_noise_keys::{NoiseVersion, VersionedNoiseKey};
 use snow::params::NoiseParams;
 
-use strum::{EnumIter, FromRepr};
+use strum_macros::{EnumIter, FromRepr};
 
 #[derive(Default, Debug, Clone, Copy, EnumIter, FromRepr, Eq, PartialEq)]
 #[repr(u8)]

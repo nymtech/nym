@@ -5,7 +5,7 @@ use crate::config::NoisePattern;
 use crate::error::NoiseError;
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use nym_noise_keys::NoiseVersion;
-use strum::FromRepr;
+use strum_macros::FromRepr;
 
 #[derive(Debug)]
 pub struct NymNoiseFrame {

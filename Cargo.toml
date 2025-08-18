@@ -102,7 +102,8 @@ members = [
     "common/wasm/storage",
     "common/wasm/utils",
     "common/wireguard",
-    "common/wireguard-types", "common/zulip-client",
+    "common/wireguard-types",
+    "common/zulip-client",
     "documentation/autodoc",
     "gateway",
     "nym-api",
@@ -320,8 +321,8 @@ si-scale = "0.2.3"
 snow = "0.9.6"
 sphinx-packet = "=0.6.0"
 sqlx = "0.8.6"
-strum = "0.26"
-strum_macros = "0.26"
+strum = "0.27.2"
+strum_macros = "0.27.2"
 subtle-encoding = "0.5"
 syn = "1"
 sysinfo = "0.33.0"
@@ -450,4 +451,3 @@ exit = "deny"
 panic = "deny"
 unimplemented = "deny"
 unreachable = "deny"
-

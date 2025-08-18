@@ -24,9 +24,13 @@ check_existing_config() {
   # proceed only if dir exists AND has any entries inside
   if [[ -d "$NODE_CONFIG_DIR" ]] && find "$NODE_CONFIG_DIR" -mindepth 1 -maxdepth 1 | read -r _; then
     echo
-    echo "Initialising nym-node will not overwrite your private keys, only adjust the changes of your choice (like mode, wireguard etc)."
+    echo "Nym node configuration already exist at $NODE_CONFIG_DIR"
     echo
-    read -r -p "If you wanted to remove your old node with its keys and configuration files, type RESET and press enter, otherwise just press enter to continue rec-onfiguring your existing node: " resp
+    echo "Initialising nym-node again will NOT overwrite your existing private keys, only adjust your preferences (like mode, wireguard optionality etc)."
+    echo
+    echo "You can remove your old node configuration and all its keys and stored data files."
+    echo
+    read -r -p "To completely remove your existing node,type RESET and press enter, otherwise just press enter and continue re-configuring your existing node: " resp
 
     if [[ "${resp}" =~ ^([Rr][Ee][Ss][Ee][Tt])$ ]]; then
       echo

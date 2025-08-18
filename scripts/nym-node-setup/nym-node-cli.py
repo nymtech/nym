@@ -378,9 +378,9 @@ class NodeSetupCLI:
                   "- Open your wallet and go to Bonding menu\n"
                   "- Paste Identity key and your IP address (printed above)\n"
                   "- Setup your operators cost and profit margin\n"
-                  "- Copy the long contract message from your wallet"
-                  )
-                msg = "- Paste the contract message from clipboard here and press enter:\n"
+                  "- Copy the long contract message from your wallet\n"
+                  "- Paste the contract message from clipboard here and press enter:"
+                msg = "(If you already bonded your node before, just press enter)\n"
                 contract_msg = input(msg).strip()
                 subprocess.run([
                 os.path.expanduser(node_path),
@@ -390,8 +390,7 @@ class NodeSetupCLI:
             ])
                 print(
                   "- Copy the last last part of the string back to your Nym wallet\n"
-                  "- Confirm the transaction\n"
-                  "(If you already have your node bonded, just press enter)\n"
+                  "- Confirm the transaction"
                   )
                 confirmation = input(
                   "Is your node bonded?\n"
@@ -458,9 +457,9 @@ class NodeSetupCLI:
         self._check_gwx_mode() and self.run_script(self.nginx_proxy_wss_sh)
         self.run_nym_node_as_service()
         self.run_bonding_prompt()
-        if self.cli._check_gwx_mode():
-            self.cli.run_tunnel_manager_setup()
-            if self.cli.check_wg_enabled():
+        if self._check_gwx_mode():
+            self.run_tunnel_manager_setup()
+            if self.check_wg_enabled():
                 self.setup_test_wg_ip_tables()
                 self.setup_test_wg_ip_tables()
 

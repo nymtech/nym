@@ -477,13 +477,16 @@ class ArgParser:
 
         try:
             args.func(args)
+        except RuntimeError as e:
+            msg = f"{e}.\nMake sure that the branch passed to `--dev <BRANCH>` contains this program."
+            self.panic(msg)
         except AttributeError as e:
             msg = f"{e}.\nPlease run: ./nym-node-cli --help"
             self.panic(msg)
         except KeyError as e:
             self.panic(f"{e}.")
         except ConnectionError as e:
-            msg = f"{e}.\nMake sure you have internet connection or the branch passed to `--dev <BRANCH>` contains this program."
+            msg = f"{e}.\nMake sure you have internet connection."
             self.panic(msg)
 
 #    def run_node_installation(self,args):

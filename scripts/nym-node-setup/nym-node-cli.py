@@ -390,10 +390,11 @@ class NodeSetupCLI:
             ])
                 print(
                   "- Copy the last last part of the string back to your Nym wallet\n"
-                  "- Confirm the transaction"
+                  "- Confirm the transaction\n"
+                  "(If you already have your node bonded, just press enter)\n"
                   )
                 confirmation = input(
-                  "Did it work out?\n"
+                  "Is your node bonded?\n"
                   "1. YES\n"
                   "2. NO, try again\n"
                   "3. Skip for now\n"
@@ -457,8 +458,11 @@ class NodeSetupCLI:
         self._check_gwx_mode() and self.run_script(self.nginx_proxy_wss_sh)
         self.run_nym_node_as_service()
         self.run_bonding_prompt()
-        self._check_gwx_mode() and self.run_tunnel_manager_setup()
-
+        if self.cli._check_gwx_mode():
+            self.cli.run_tunnel_manager_setup()
+            if self.cli.check_wg_enabled():
+                self.setup_test_wg_ip_tables()
+                self.setup_test_wg_ip_tables()
 
 class ArgParser:
 

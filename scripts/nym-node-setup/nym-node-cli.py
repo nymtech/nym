@@ -15,7 +15,7 @@ from typing import Iterable, Optional, Mapping
 class NodeSetupCLI:
 
     def __init__(self, args):
-        self.branch = self._branch(args)
+        self.branch = args.dev
         self.welcome_message = self.print_welcome_message()
         self.mode = self.prompt_mode()
         self.prereqs_install_sh = self.fetch_script("nym-node-prereqs-install.sh")
@@ -30,9 +30,9 @@ class NodeSetupCLI:
         self.wg_ip_tables_test_sh = self._check_gwx_mode() and self.fetch_script("exit-policy-tests.sh")
 
 
-    def _branch(self, args):
-        branch = args.dev
-        return branch
+#    def _branch(self, args):
+#        branch = args.dev
+#        return branch
 
     def print_welcome_message(self):
         self.print_character("=", 41)
@@ -449,77 +449,57 @@ class NodeSetupCLI:
         env["ENV_FILE"] = os.path.abspath(os.path.join(os.getcwd(), "env.sh"))
         return env
 
+    def run_node_installation(self,args):
+        self.run_script(self.prereqs_install_sh)
+        self.run_script(self.env_vars_install_sh)
+        self.run_script(self.node_install_sh)
+        self.run_script(self.service_config_sh)
+        self._check_gwx_mode() and cli.run_script(self.nginx_proxy_wss_sh)
+        self.run_nym_node_as_service()
+        self.run_bonding_prompt()
+        self._check_gwx_mode() and self.run_tunnel_manager_setup()
+
 
 class ArgParser:
 
-    def __init__(self):
-        # Don’t create NodeSetupCLI here (args doesn’t exist yet)
-        self.cli = None
-
     def parser_main(self):
+        # parent parser for options shared by all commands
+        parent = argparse.ArgumentParser(add_help=False)
+        parent.add_argument("-V", "--version", action="version", version='nym-node-cli 1.0.0')
+        parent.add_argument("-d", "--dev", help='Define github branch', type=str, default="develop")
+
         parser = argparse.ArgumentParser(
             prog='nym-node-cli',
             description='An interactive tool to download, install, setup and run nym-node',
-            epilog='Privacy infrastructure operated by people around the world'
+            epilog='Privacy infrastructure operated by people around the world',
+            parents=[parent],  # so root also has -d/-V
         )
-        parser.add_argument("-V","--version", action="version", version='%(prog)s 1.0.0')
 
-        subparsers = parser.add_subparsers(help="[-h] shows this help menu")
-        parser_install = subparsers.add_parser('install', help='Starts nym-node installation setup CLI',
-                                               aliases=['i','I'])
-        parser_install.add_argument("-d", "--dev", help='Define github branch, default="develop"',
-                            type=str, default='develop')
-        subparsers.required = True  # <-- require a subcommand
-        parser_install.set_defaults(func=self.run_node_installation)
+        subparsers = parser.add_subparsers(dest="command", help="[-h] shows this help menu")
+        subparsers.required = True
+
+        # install subcommand inherits parent options too (so -d works after the subcommand)
+        p_install = subparsers.add_parser(
+            'install', parents=[parent], help='Starts nym-node installation setup CLI',
+            aliases=['i', 'I'], add_help=True
+        )
 
         args = parser.parse_args()
 
-        self.cli = NodeSetupCLI(args)
+        cli = NodeSetupCLI(args)
+
+        # dispatch
+        cmd = args.command
+        if cmd in ("install", "i", "I"):
+            func = cli.run_node_installation
+        else:
+            parser.error(f"Unknown command: {cmd}")
 
         try:
-            args.func(args)
-        except RuntimeError as e:
-            msg = f"{e}.\nMake sure that the branch passed to `--dev <BRANCH>` contains this program."
-            self.panic(msg)
-        except AttributeError as e:
-            msg = f"{e}.\nPlease run: ./nym-node-cli --help"
-            self.panic(msg)
-        except KeyError as e:
-            self.panic(f"{e}.")
-        except ConnectionError as e:
-            msg = f"{e}.\nMake sure you have internet connection."
-            self.panic(msg)
-
-#    def run_node_installation(self,args):
-#        self.cli.run_script(cli.prereqs_install_sh)
-#        self.cli.run_script(cli.env_vars_install_sh)
-#        self.cli.run_script(cli.node_install_sh)
-#        self.cli.run_script(cli.service_config_sh)
-#        self.cli._check_gwx_mode() and cli.run_script(cli.nginx_proxy_wss_sh)
-#        self.cli.run_nym_node_as_service()
-#        self.cli.run_bonding_prompt()
-#        self.cli._check_gwx_mode() and cli.run_tunnel_manager_setup()
-#        self.cli._check_gwx_mode() and cli.check_wg_enabled() and cli.setup_test_wg_ip_tables()
-
-    def run_node_installation(self, args):
-        self.cli.run_script(self.cli.prereqs_install_sh)
-        self.cli.run_script(self.cli.env_vars_install_sh)
-        self.cli.run_script(self.cli.node_install_sh)
-        self.cli.run_script(self.cli.service_config_sh)
-        if self.cli._check_gwx_mode():
-            self.cli.run_script(self.cli.nginx_proxy_wss_sh)
-        self.cli.run_nym_node_as_service()
-        self.cli.run_bonding_prompt()
-        if self.cli._check_gwx_mode():
-            self.cli.run_tunnel_manager_setup()
-            if self.cli.check_wg_enabled():
-                self.cli.setup_test_wg_ip_tables()
-
-    def panic(self,msg):
-        """Error message print"""
-        print(f"error: {msg}", file=sys.stderr)
-        sys.exit(-1)
-
+            func(args)
+        except Exception as e:
+            print(f"error: {e}", file=sys.stderr)
+            sys.exit(1)
 
 class SystemSafeGuards:
     def __init__(self):

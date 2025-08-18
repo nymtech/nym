@@ -6,7 +6,6 @@ use crate::BandwidthFlushingBehaviourConfig;
 use crate::ClientBandwidth;
 use nym_credentials::ecash::utils::ecash_today;
 use nym_credentials_interface::Bandwidth;
-use nym_gateway_requests::ServerResponse;
 use nym_gateway_storage::traits::BandwidthGatewayStorage;
 use si_scale::helpers::bibytes2;
 use time::OffsetDateTime;
@@ -66,7 +65,7 @@ impl BandwidthStorageManager {
         Ok(())
     }
 
-    pub async fn handle_claim_testnet_bandwidth(&mut self) -> Result<ServerResponse> {
+    pub async fn handle_claim_testnet_bandwidth(&mut self) -> Result<i64> {
         debug!("handling testnet bandwidth request");
 
         if self.only_coconut_credentials {
@@ -76,8 +75,7 @@ impl BandwidthStorageManager {
         self.increase_bandwidth(FREE_TESTNET_BANDWIDTH_VALUE, ecash_today())
             .await?;
         let available_total = self.client_bandwidth.available().await;
-
-        Ok(ServerResponse::Bandwidth { available_total })
+        Ok(available_total)
     }
 
     #[instrument(skip_all)]

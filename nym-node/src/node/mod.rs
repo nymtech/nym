@@ -40,7 +40,7 @@ use crate::node::shared_network::{
 };
 use nym_bin_common::bin_info;
 use nym_crypto::asymmetric::{ed25519, x25519};
-use nym_gateway::node::{ActiveClientsStore, GatewayTasksBuilder};
+use nym_gateway::node::{ActiveClientsStore, GatewayTasksBuilder, UpgradeModeCheckRequestSender};
 use nym_mixnet_client::client::ActiveConnections;
 use nym_mixnet_client::forwarder::MixForwardingSender;
 use nym_network_requester::{
@@ -629,6 +629,22 @@ impl NymNode {
             shutdown_token,
         );
 
+        // start task for watching the changes in upgrade mode attestation
+        let upgrade_check_request_sender = if let Some(upgrade_mode_watcher) =
+            gateway_tasks_builder.try_build_upgrade_mode_watcher()
+        {
+            let req_sender = upgrade_mode_watcher.request_sender();
+            upgrade_mode_watcher.start();
+            req_sender
+        } else {
+            UpgradeModeCheckRequestSender::new_empty()
+        };
+
+        // create the common state for subtasks relying on the upgrade mode information
+        // (i.e. everything that'd require ticket/bandwidth processing)
+        let upgrade_mode_common_state =
+            gateway_tasks_builder.build_upgrade_mode_common_state(upgrade_check_request_sender);
+
         // if we're running in entry mode, start the websocket
         if self.modes().entry {
             info!(
@@ -636,7 +652,10 @@ impl NymNode {
                 self.config.gateway_tasks.ws_bind_address
             );
             let websocket = gateway_tasks_builder
-                .build_websocket_listener(active_clients_store.clone())
+                .build_websocket_listener(
+                    active_clients_store.clone(),
+                    upgrade_mode_common_state.clone(),
+                )
                 .await?;
             websocket.start();
         } else {
@@ -700,11 +719,6 @@ impl NymNode {
         // start task for removing stale and un-retrieved client messages
         let stale_messages_cleaner = gateway_tasks_builder.build_stale_messages_cleaner();
         stale_messages_cleaner.start();
-
-        // start task for watching the changes in upgrade mode attestation
-        if let Some(upgrade_mode_watcher) = gateway_tasks_builder.try_build_upgrade_mode_watcher() {
-            upgrade_mode_watcher.start();
-        }
 
         Ok(())
     }

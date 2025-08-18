@@ -162,6 +162,10 @@ impl<R, S> AuthenticatedHandler<R, S> {
         &self.inner
     }
 
+    fn upgrade_mode(&self) -> bool {
+        self.inner.upgrade_mode()
+    }
+
     /// Upgrades `FreshHandler` into the Authenticated variant implying the client is now authenticated
     /// and thus allowed to perform more actions with the gateway, such as redeeming bandwidth or
     /// sending sphinx packets.
@@ -272,7 +276,10 @@ impl<R, S> AuthenticatedHandler<R, S> {
             .inspect_err(|verification_failure| debug!("{verification_failure}"))?;
         trace!("available total bandwidth: {available_total}");
 
-        Ok(ServerResponse::Bandwidth { available_total })
+        Ok(ServerResponse::Bandwidth {
+            available_total,
+            upgrade_mode: self.upgrade_mode(),
+        })
     }
 
     /// Tries to handle request to forward sphinx packet into the network. The request can only succeed
@@ -290,6 +297,10 @@ impl<R, S> AuthenticatedHandler<R, S> {
     ) -> Result<ServerResponse, RequestHandlingError> {
         let required_bandwidth = mix_packet.packet().len() as i64;
 
+        let upgrade_mode = self.upgrade_mode();
+
+        let todo = "disable metering";
+
         let remaining_bandwidth = self
             .bandwidth_storage_manager
             .try_use_bandwidth(required_bandwidth)
@@ -298,6 +309,7 @@ impl<R, S> AuthenticatedHandler<R, S> {
 
         Ok(ServerResponse::Send {
             remaining_bandwidth,
+            upgrade_mode,
         })
     }
 
@@ -447,7 +459,11 @@ impl<R, S> AuthenticatedHandler<R, S> {
                 .bandwidth_storage_manager
                 .handle_claim_testnet_bandwidth()
                 .await
-                .map_err(|e| e.into()),
+                .map_err(|e| e.into())
+                .map(|available_total| ServerResponse::Bandwidth {
+                    available_total,
+                    upgrade_mode: self.upgrade_mode(),
+                }),
             ClientControlRequest::SupportedProtocol { .. } => {
                 Ok(self.inner.handle_supported_protocol_request())
             }

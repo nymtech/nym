@@ -130,6 +130,9 @@ pub struct Debug {
 
     /// Defines the timestamp skew of a signed authentication request before it's deemed too excessive to process.
     pub max_request_timestamp_skew: Duration,
+
+    /// The minimum duration since the last explicit check for the upgrade mode to allow creation of new requests.
+    pub upgrade_mode_min_staleness_recheck: Duration,
 }
 
 #[derive(Debug, Clone)]

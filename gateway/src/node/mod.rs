@@ -9,10 +9,14 @@ use crate::node::internal_service_providers::{
 };
 use crate::node::stale_data_cleaner::StaleMessagesCleaner;
 use crate::node::upgrade_mode_watcher::UpgradeModeWatcher;
+use crate::node::upgrade_mode::common_state::{
+    Config as UpgradeModeCommonConfig, UpgradeModeCommon,
+};
 use futures::channel::oneshot;
 use nym_credential_verification::ecash::{
     credential_sender::CredentialHandlerConfig, EcashManager,
 };
+use nym_credential_verification::upgrade_mode::UpgradeModeState;
 use nym_crypto::asymmetric::ed25519;
 use nym_ip_packet_router::IpPacketRouter;
 use nym_mixnet_client::forwarder::MixForwardingSender;
@@ -32,14 +36,9 @@ use std::sync::Arc;
 use tracing::*;
 use zeroize::Zeroizing;
 
-pub(crate) mod client_handling;
-pub(crate) mod internal_service_providers;
-mod stale_data_cleaner;
-mod upgrade_mode_watcher;
-
+pub use crate::node::upgrade_mode::watcher::{UpgradeModeCheckRequestSender, UpgradeModeWatcher};
 use crate::node::internal_service_providers::authenticator::Authenticator;
 pub use client_handling::active_clients::ActiveClientsStore;
-use nym_credential_verification::upgrade_mode::UpgradeModeState;
 pub use nym_gateway_stats_storage::PersistentStatsStorage;
 pub use nym_gateway_storage::{
     error::GatewayStorageError,
@@ -47,6 +46,11 @@ pub use nym_gateway_storage::{
     GatewayStorage,
 };
 pub use nym_sdk::{NymApiTopologyProvider, NymApiTopologyProviderConfig, UserAgent};
+
+pub(crate) mod client_handling;
+mod internal_service_providers;
+mod stale_data_cleaner;
+pub(crate) mod upgrade_mode;
 
 #[derive(Debug, Clone)]
 pub struct LocalNetworkRequesterOpts {
@@ -264,6 +268,7 @@ impl GatewayTasksBuilder {
     pub async fn build_websocket_listener(
         &mut self,
         active_clients_store: ActiveClientsStore,
+        upgrade_mode_common_state: UpgradeModeCommon,
     ) -> Result<websocket::Listener, GatewayError> {
         let shared_state = websocket::CommonHandlerState {
             cfg: websocket::Config {
@@ -278,6 +283,7 @@ impl GatewayTasksBuilder {
             metrics_sender: self.metrics_sender.clone(),
             outbound_mix_sender: self.mix_packet_sender.clone(),
             active_clients_store: active_clients_store.clone(),
+            upgrade_mode: upgrade_mode_common_state,
         };
 
         Ok(websocket::Listener::new(
@@ -479,6 +485,19 @@ impl GatewayTasksBuilder {
             self.config.debug.stale_messages_max_age,
             self.config.debug.stale_messages_cleaner_run_interval,
         )
+    }
+
+    pub fn build_upgrade_mode_common_state(
+        &self,
+        request_checker: UpgradeModeCheckRequestSender,
+    ) -> UpgradeModeCommon {
+        UpgradeModeCommon {
+            config: UpgradeModeCommonConfig {
+                min_staleness_recheck: self.config.debug.upgrade_mode_min_staleness_recheck,
+            },
+            request_checker,
+            state: self.upgrade_mode_state.clone(),
+        }
     }
 
     pub fn try_build_upgrade_mode_watcher(&self) -> Option<UpgradeModeWatcher> {

@@ -70,6 +70,10 @@ pub struct Debug {
     pub client_bandwidth: ClientBandwidthDebug,
 
     pub zk_nym_tickets: ZkNymTicketHandlerDebug,
+
+    /// The minimum duration since the last explicit check for the upgrade mode to allow creation of new requests.
+    #[serde(with = "humantime_serde")]
+    pub upgrade_mode_min_staleness_recheck: Duration,
 }
 
 impl Debug {
@@ -77,6 +81,7 @@ impl Debug {
     pub const DEFAULT_MINIMUM_MIX_PERFORMANCE: u8 = 50;
     pub const DEFAULT_MAXIMUM_AUTH_REQUEST_TIMESTAMP_SKEW: Duration = Duration::from_secs(120);
     pub const DEFAULT_MAXIMUM_OPEN_CONNECTIONS: usize = 8192;
+    pub const DEFAULT_UPGRADE_MODE_MIN_STALENESS_RECHECK: Duration = Duration::from_secs(30);
 }
 
 impl Default for Debug {
@@ -89,6 +94,7 @@ impl Default for Debug {
             stale_messages: Default::default(),
             client_bandwidth: Default::default(),
             zk_nym_tickets: Default::default(),
+            upgrade_mode_min_staleness_recheck: Self::DEFAULT_UPGRADE_MODE_MIN_STALENESS_RECHECK,
         }
     }
 }

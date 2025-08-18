@@ -160,9 +160,10 @@ impl PartiallyDelegatedRouter {
         match ServerResponse::try_from(text).map_err(|_| GatewayClientError::MalformedResponse)? {
             ServerResponse::Send {
                 remaining_bandwidth,
+                upgrade_mode,
             } => {
                 self.client_bandwidth
-                    .update_and_maybe_log(remaining_bandwidth);
+                    .update_and_maybe_log(remaining_bandwidth, upgrade_mode);
                 Ok(())
             }
             ServerResponse::Error { message } => {
@@ -178,7 +179,7 @@ impl PartiallyDelegatedRouter {
                         let available_bi2 = bibytes2(available as f64);
                         let required_bi2 = bibytes2(required as f64);
                         warn!("run out of bandwidth when attempting to send the message! we got {available_bi2} available, but needed at least {required_bi2} to send the previous message");
-                        self.client_bandwidth.update_and_log(available);
+                        self.client_bandwidth.update_and_log(available, None);
                         // UNIMPLEMENTED: we should stop sending messages until we recover bandwidth
                         Ok(())
                     }

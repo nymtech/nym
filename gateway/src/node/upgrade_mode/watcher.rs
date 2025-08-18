@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::node::UserAgent;
+use futures::channel::mpsc::{unbounded, UnboundedReceiver, UnboundedSender};
 use nym_credential_verification::upgrade_mode::UpgradeModeState;
 use nym_task::TaskClient;
 use nym_upgrade_mode_check::attempt_retrieve_attestation;
@@ -18,8 +19,30 @@ use url::Url;
 // it's been relatively a long time since the watcher last performed its checks (since it's in 'regular' mode)
 // and some client has just sent a JWT. we have to retrieve most recent information in case upgrade mode
 // has just been enabled and we haven't learned about it yet
-pub(crate) struct CheckRequestSender(tokio::sync::mpsc::UnboundedSender<CheckRequest>);
-pub(crate) type CheckRequestReceiver = tokio::sync::mpsc::UnboundedReceiver<CheckRequest>;
+#[derive(Clone)]
+pub struct UpgradeModeCheckRequestSender(Option<UnboundedSender<CheckRequest>>);
+
+impl UpgradeModeCheckRequestSender {
+    pub fn new_empty() -> Self {
+        Self(None)
+    }
+
+    pub(crate) fn send_request(&self, on_done: Arc<Notify>) {
+        let Some(ref inner) = self.0 else {
+            // make sure the caller gets notified so it doesn't wait forever
+            on_done.notify_waiters();
+            return;
+        };
+
+        if let Err(not_sent) = inner.unbounded_send(CheckRequest { on_done }) {
+            debug!("failed to send upgrade mode check request - {not_sent}");
+            // make sure the caller gets notified so it doesn't wait forever
+            not_sent.into_inner().on_done.notify_waiters();
+        }
+    }
+}
+
+pub(crate) type UpgradeModeCheckRequestReceiver = UnboundedReceiver<CheckRequest>;
 
 pub(crate) struct CheckRequest {
     on_done: Arc<Notify>,
@@ -33,6 +56,10 @@ pub struct UpgradeModeWatcher {
     expedited_poll_interval: Duration,
 
     attestation_url: Url,
+
+    check_request_sender: UpgradeModeCheckRequestSender,
+
+    check_request_receiver: UpgradeModeCheckRequestReceiver,
 
     upgrade_mode_state: UpgradeModeState,
 
@@ -50,14 +77,21 @@ impl UpgradeModeWatcher {
         user_agent: UserAgent,
         task_client: TaskClient,
     ) -> Self {
+        let (tx, rx) = unbounded();
         UpgradeModeWatcher {
             regular_polling_interval,
             expedited_poll_interval,
             attestation_url,
+            check_request_sender: UpgradeModeCheckRequestSender(Some(tx)),
+            check_request_receiver: rx,
             upgrade_mode_state,
             user_agent,
             task_client,
         }
+    }
+
+    pub fn request_sender(&self) -> UpgradeModeCheckRequestSender {
+        self.check_request_sender.clone()
     }
 
     async fn try_update_state(&self) {

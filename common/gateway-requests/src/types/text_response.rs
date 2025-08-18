@@ -52,11 +52,21 @@ pub enum ServerResponse {
         protocol_version: Option<u8>,
         status: bool,
         bandwidth_remaining: i64,
+
+        /// Flag indicating whether the gateway has detected the system is undergoing the upgrade
+        /// (thus it will not meter bandwidth)
+        #[serde(default)]
+        upgrade_mode: bool,
     },
     Register {
         #[serde(default)]
         protocol_version: Option<u8>,
         status: bool,
+
+        /// Flag indicating whether the gateway has detected the system is undergoing the upgrade
+        /// (thus it will not meter bandwidth)
+        #[serde(default)]
+        upgrade_mode: bool,
     },
     EncryptedResponse {
         ciphertext: Vec<u8>,
@@ -64,9 +74,19 @@ pub enum ServerResponse {
     },
     Bandwidth {
         available_total: i64,
+
+        /// Flag indicating whether the gateway has detected the system is undergoing the upgrade
+        /// (thus it will not meter bandwidth)
+        #[serde(default)]
+        upgrade_mode: bool,
     },
     Send {
         remaining_bandwidth: i64,
+
+        /// Flag indicating whether the gateway has detected the system is undergoing the upgrade
+        /// (thus it will not meter bandwidth)
+        #[serde(default)]
+        upgrade_mode: bool,
     },
     SupportedProtocol {
         version: u8,

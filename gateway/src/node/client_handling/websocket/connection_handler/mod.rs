@@ -79,13 +79,16 @@ impl InitialAuthResult {
         }
     }
 
-    fn new_failed(protocol_version: Option<u8>) -> Self {
+    fn new_legacy_failed(protocol_version: Option<u8>) -> Self {
         InitialAuthResult {
             client_details: None,
             server_response: ServerResponse::Authenticate {
                 protocol_version,
                 status: false,
                 bandwidth_remaining: 0,
+                // given this response is given only to legacy clients,
+                // we use the default value as clients wouldn't deserialise it anyway
+                upgrade_mode: false,
             },
         }
     }

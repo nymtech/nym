@@ -4,8 +4,10 @@
 use nym_upgrade_mode_check::UpgradeModeAttestation;
 use std::sync::atomic::{AtomicBool, AtomicI64, Ordering};
 use std::sync::Arc;
+use std::time::Duration;
 use time::OffsetDateTime;
 use tokio::sync::RwLock;
+use tracing::error;
 
 #[derive(Clone)]
 pub struct UpgradeModeState {
@@ -66,6 +68,15 @@ impl UpgradeModeState {
         self.inner
             .last_queried_ts
             .store(queried_at.unix_timestamp(), Ordering::Release);
+    }
+
+    pub fn since_last_query(&self) -> Duration {
+        (OffsetDateTime::now_utc() - self.last_queried())
+            .try_into()
+            .unwrap_or_else(|_| {
+                error!("somehow our last query for upgrade mode was in the future!");
+                Duration::ZERO
+            })
     }
 }
 

@@ -525,7 +525,13 @@ impl<C, St> GatewayClient<C, St> {
             ServerResponse::Register {
                 protocol_version,
                 status,
-            } => (status, protocol_version),
+                upgrade_mode,
+            } => {
+                if upgrade_mode {
+                    warn!("the system is currently undergoing an upgrade. some of its functionalities might be unstable")
+                }
+                (status, protocol_version)
+            }
             ServerResponse::Error { message } => {
                 return Err(GatewayClientError::GatewayError(message))
             }
@@ -623,13 +629,18 @@ impl<C, St> GatewayClient<C, St> {
                 protocol_version,
                 status,
                 bandwidth_remaining,
+                upgrade_mode,
             } => {
                 self.check_gateway_protocol(protocol_version)?;
                 self.authenticated = status;
-                self.bandwidth.update_and_maybe_log(bandwidth_remaining);
+                self.bandwidth
+                    .update_and_maybe_log(bandwidth_remaining, upgrade_mode);
 
                 self.negotiated_protocol = protocol_version;
                 log::debug!("authenticated: {status}, bandwidth remaining: {bandwidth_remaining}");
+                if upgrade_mode {
+                    warn!("the system is currently undergoing an upgrade. some of its functionalities might be unstable")
+                }
 
                 self.task_client.send_status_msg(Box::new(
                     BandwidthStatusMessage::RemainingBandwidth(bandwidth_remaining),
@@ -794,11 +805,19 @@ impl<C, St> GatewayClient<C, St> {
             credential,
             self.shared_key.as_ref().unwrap(),
         )?;
-        let bandwidth_remaining = match self
+        let (bandwidth_remaining, upgrade_mode) = match self
             .send_websocket_message_with_non_send_response(msg)
             .await?
         {
-            ServerResponse::Bandwidth { available_total } => Ok(available_total),
+            ServerResponse::Bandwidth {
+                available_total,
+                upgrade_mode,
+            } => {
+                if upgrade_mode {
+                    info!("the system is currently undergoing an upgrade. our bandwidth shouldn't have been metered")
+                }
+                Ok((available_total, upgrade_mode))
+            }
             ServerResponse::Error { message } => Err(GatewayClientError::GatewayError(message)),
             ServerResponse::TypedError { error } => {
                 Err(GatewayClientError::TypedGatewayError(error))
@@ -808,24 +827,34 @@ impl<C, St> GatewayClient<C, St> {
 
         // TODO: create tracing span
         info!("managed to claim ecash bandwidth");
-        self.bandwidth.update_and_log(bandwidth_remaining);
+        self.bandwidth
+            .update_and_log(bandwidth_remaining, upgrade_mode);
 
         Ok(())
     }
 
     async fn try_claim_testnet_bandwidth(&mut self) -> Result<(), GatewayClientError> {
         let msg = ClientControlRequest::ClaimFreeTestnetBandwidth;
-        let bandwidth_remaining = match self
+        let (bandwidth_remaining, upgrade_mode) = match self
             .send_websocket_message_with_non_send_response(msg)
             .await?
         {
-            ServerResponse::Bandwidth { available_total } => Ok(available_total),
+            ServerResponse::Bandwidth {
+                available_total,
+                upgrade_mode,
+            } => {
+                if upgrade_mode {
+                    info!("the system is currently undergoing an upgrade. our bandwidth shouldn't have been metered")
+                }
+                Ok((available_total, upgrade_mode))
+            }
             ServerResponse::Error { message } => Err(GatewayClientError::GatewayError(message)),
             other => Err(GatewayClientError::UnexpectedResponse { name: other.name() }),
         }?;
 
         info!("managed to claim testnet bandwidth");
-        self.bandwidth.update_and_log(bandwidth_remaining);
+        self.bandwidth
+            .update_and_log(bandwidth_remaining, upgrade_mode);
 
         Ok(())
     }

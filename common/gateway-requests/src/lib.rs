@@ -19,7 +19,7 @@ pub use shared_key::{
     SharedGatewayKey, SharedKeyConversionError, SharedKeyUsageError, SharedSymmetricKey,
 };
 
-pub const CURRENT_PROTOCOL_VERSION: u8 = EMBEDDED_KEY_ROTATION_INFO_VERSION;
+pub const CURRENT_PROTOCOL_VERSION: u8 = UPGRADE_MODE_VERSION;
 
 /// Defines the current version of the communication protocol between gateway and clients.
 /// It has to be incremented for any breaking change.
@@ -29,11 +29,13 @@ pub const CURRENT_PROTOCOL_VERSION: u8 = EMBEDDED_KEY_ROTATION_INFO_VERSION;
 // 3 - change to AES-GCM-SIV and non-zero IVs
 // 4 - introduction of v2 authentication protocol to prevent reply attacks
 // 5 - add key rotation information to the serialised mix packet
+// 6 - support for 'upgrade mode'
 pub const INITIAL_PROTOCOL_VERSION: u8 = 1;
 pub const CREDENTIAL_UPDATE_V2_PROTOCOL_VERSION: u8 = 2;
 pub const AES_GCM_SIV_PROTOCOL_VERSION: u8 = 3;
 pub const AUTHENTICATE_V2_PROTOCOL_VERSION: u8 = 4;
 pub const EMBEDDED_KEY_ROTATION_INFO_VERSION: u8 = 5;
+pub const UPGRADE_MODE_VERSION: u8 = 6;
 
 // TODO: could using `Mac` trait here for OutputSize backfire?
 // Should hmac itself be exposed, imported and used instead?
@@ -43,6 +45,7 @@ pub trait GatewayProtocolVersionExt {
     fn supports_aes256_gcm_siv(&self) -> bool;
     fn supports_authenticate_v2(&self) -> bool;
     fn supports_key_rotation_packet(&self) -> bool;
+    fn supports_upgrade_mode(&self) -> bool;
 }
 
 impl GatewayProtocolVersionExt for Option<u8> {
@@ -59,5 +62,10 @@ impl GatewayProtocolVersionExt for Option<u8> {
     fn supports_key_rotation_packet(&self) -> bool {
         let Some(protocol) = *self else { return false };
         protocol >= EMBEDDED_KEY_ROTATION_INFO_VERSION
+    }
+
+    fn supports_upgrade_mode(&self) -> bool {
+        let Some(protocol) = *self else { return false };
+        protocol >= UPGRADE_MODE_VERSION
     }
 }

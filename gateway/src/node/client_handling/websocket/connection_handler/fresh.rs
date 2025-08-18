@@ -138,6 +138,10 @@ impl<R, S> FreshHandler<R, S> {
         &self.shared_state
     }
 
+    pub(crate) fn upgrade_mode(&self) -> bool {
+        self.shared_state.upgrade_mode.enabled()
+    }
+
     // for time being we assume handle is always constructed from raw socket.
     // if we decide we want to change it, that's not too difficult
     pub(crate) fn new(
@@ -592,7 +596,9 @@ impl<R, S> FreshHandler<R, S> {
             .await?
         else {
             // it feels weird to be returning an 'Ok' here, but I didn't want to change the existing behaviour
-            return Ok(InitialAuthResult::new_failed(Some(negotiated_protocol)));
+            return Ok(InitialAuthResult::new_legacy_failed(Some(
+                negotiated_protocol,
+            )));
         };
 
         // in v1 we don't have explicit data so we have to use current timestamp
@@ -637,6 +643,7 @@ impl<R, S> FreshHandler<R, S> {
                 protocol_version: Some(negotiated_protocol),
                 status: true,
                 bandwidth_remaining,
+                upgrade_mode: self.upgrade_mode(),
             },
         ))
     }
@@ -723,6 +730,7 @@ impl<R, S> FreshHandler<R, S> {
                 protocol_version: Some(negotiated_protocol),
                 status: true,
                 bandwidth_remaining,
+                upgrade_mode: self.upgrade_mode(),
             },
         ))
     }
@@ -811,6 +819,9 @@ impl<R, S> FreshHandler<R, S> {
 
         debug!(client_id = %client_id, "managed to finalize client registration");
 
+        let upgrade_mode = self.upgrade_mode();
+        let todo = "during upgrade mode set initial bandwidth";
+
         let client_details = ClientDetails::new(
             client_id,
             remote_address,
@@ -823,6 +834,7 @@ impl<R, S> FreshHandler<R, S> {
             ServerResponse::Register {
                 protocol_version: Some(negotiated_protocol),
                 status: true,
+                upgrade_mode,
             },
         ))
     }

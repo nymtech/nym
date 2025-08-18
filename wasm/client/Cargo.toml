@@ -4,7 +4,7 @@ authors = [
     "Dave Hrycyszyn <futurechimp@users.noreply.github.com>",
     "Jedrzej Stuczynski <andrew@nymtech.net>",
 ]
-version.workspace = true
+version = "1.4.0-rc.0"
 edition = "2021"
 keywords = ["nym", "sphinx", "wasm", "webassembly", "privacy"]
 license = "Apache-2.0"

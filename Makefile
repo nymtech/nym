@@ -107,7 +107,7 @@ sdk-wasm-build:
 	$(MAKE) -C nym-browser-extension/storage wasm-pack
 	$(MAKE) -C wasm/client
 	$(MAKE) -C wasm/node-tester
-	$(MAKE) -C wasm/mix-fetch
+	# $(MAKE) -C wasm/mix-fetch
 	$(MAKE) -C wasm/zknym-lib
 	#$(MAKE) -C wasm/full-nym-wasm
 

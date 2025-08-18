@@ -1,6 +1,6 @@
 [package]
 name = "nym-ip-packet-router"
-version.workspace = true
+version = "0.1.0"
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
@@ -17,7 +17,10 @@ clap.workspace = true
 etherparse = { workspace = true }
 futures = { workspace = true }
 log = { workspace = true }
-nym-bin-common = { path = "../../common/bin-common", features = ["clap", "basic_tracing"] }
+nym-bin-common = { path = "../../common/bin-common", features = [
+    "clap",
+    "basic_tracing",
+] }
 nym-client-core = { path = "../../common/client-core" }
 nym-config = { path = "../../common/config" }
 nym-crypto = { path = "../../common/crypto" }
@@ -41,7 +44,12 @@ serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 time = { workspace = true }
-tokio = { workspace = true, features = ["rt-multi-thread", "net", "io-util", "macros"] }
+tokio = { workspace = true, features = [
+    "rt-multi-thread",
+    "net",
+    "io-util",
+    "macros",
+] }
 tokio-util = { workspace = true, features = ["codec"] }
 url.workspace = true
 

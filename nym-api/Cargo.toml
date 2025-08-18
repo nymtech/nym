@@ -4,7 +4,7 @@
 [package]
 name = "nym-api"
 license = "GPL-3.0"
-version.workspace = true
+version = "1.1.62"
 authors.workspace = true
 edition = "2021"
 rust-version.workspace = true
@@ -67,7 +67,14 @@ zeroize = { workspace = true }
 # for axum server
 axum = { workspace = true, features = ["tokio"] }
 axum-extra = { workspace = true, features = ["typed-header"] }
-tower-http = { workspace = true, features = ["cors", "trace", "compression-br", "compression-deflate", "compression-gzip", "compression-zstd"] }
+tower-http = { workspace = true, features = [
+    "cors",
+    "trace",
+    "compression-br",
+    "compression-deflate",
+    "compression-gzip",
+    "compression-zstd",
+] }
 utoipa = { workspace = true, features = ["axum_extras", "time"] }
 utoipauto = { workspace = true }
 utoipa-swagger-ui = { workspace = true, features = ["axum"] }
@@ -103,9 +110,14 @@ cw4 = { workspace = true }
 nym-dkg = { path = "../common/dkg", features = ["cw-types"] }
 nym-gateway-client = { path = "../common/client-libs/gateway-client" }
 nym-inclusion-probability = { path = "../common/inclusion-probability" }
-nym-mixnet-contract-common = { path = "../common/cosmwasm-smart-contracts/mixnet-contract", features = ["utoipa"] }
+nym-mixnet-contract-common = { path = "../common/cosmwasm-smart-contracts/mixnet-contract", features = [
+    "utoipa",
+] }
 nym-vesting-contract-common = { path = "../common/cosmwasm-smart-contracts/vesting-contract" }
-nym-contracts-common = { path = "../common/cosmwasm-smart-contracts/contracts-common", features = ["naive_float", "utoipa"] }
+nym-contracts-common = { path = "../common/cosmwasm-smart-contracts/contracts-common", features = [
+    "naive_float",
+    "utoipa",
+] }
 nym-multisig-contract-common = { path = "../common/cosmwasm-smart-contracts/multisig-contract" }
 nym-sphinx = { path = "../common/nymsphinx" }
 nym-pemstore = { path = "../common/pemstore" }
@@ -113,11 +125,19 @@ nym-task = { path = "../common/task" }
 nym-topology = { path = "../common/topology" }
 nym-api-requests = { path = "nym-api-requests" }
 nym-validator-client = { path = "../common/client-libs/validator-client" }
-nym-bin-common = { path = "../common/bin-common", features = ["output_format", "openapi", "basic_tracing"] }
+nym-bin-common = { path = "../common/bin-common", features = [
+    "output_format",
+    "openapi",
+    "basic_tracing",
+] }
 nym-node-tester-utils = { path = "../common/node-tester-utils" }
 nym-node-requests = { path = "../nym-node/nym-node-requests" }
 nym-types = { path = "../common/types" }
-nym-http-api-common = { path = "../common/http-api-common", features = ["utoipa", "output", "middleware"] }
+nym-http-api-common = { path = "../common/http-api-common", features = [
+    "utoipa",
+    "output",
+    "middleware",
+] }
 nym-serde-helpers = { path = "../common/serde-helpers", features = ["date"] }
 nym-ticketbooks-merkle = { path = "../common/ticketbooks-merkle" }
 nym-statistics-common = { path = "../common/statistics" }

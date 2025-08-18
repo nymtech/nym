@@ -29,8 +29,6 @@ class NodeSetupCLI:
         self.wg_ip_tables_test_sh = self._check_gwx_mode() and self.fetch_script("exit-policy-tests.sh")
 
 
-
-
     def print_welcome_message(self):
         self.print_character("=", 66)
         print("* * * * * * NYM * NODE * CLI * * * * * *\nAn interactive tool to download, install, setup and run nym-node")

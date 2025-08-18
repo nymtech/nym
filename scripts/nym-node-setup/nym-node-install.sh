@@ -17,6 +17,40 @@ elif [[ -f "./env.sh" ]]; then
   set +a
 fi
 
+# === New: check for existing node config and optionally reset ===
+NODE_CONFIG_DIR="$HOME/.nym/nym-nodes/default-nym-node"
+
+check_existing_config() {
+  # proceed only if dir exists AND has any entries inside
+  if [[ -d "$NODE_CONFIG_DIR" ]] && find "$NODE_CONFIG_DIR" -mindepth 1 -maxdepth 1 | read -r _; then
+    echo
+    echo "Initialising nym-node will not overwrite your private keys, only adjust the changes of your choice (like mode, wireguard etc)."
+    echo
+    read -r -p "If you wanted to remove your old node with its keys and configuration files, type RESET and press enter, otherwise just press enter to continue rec-onfiguring your existing node: " resp
+
+    if [[ "${resp}" =~ ^([Rr][Ee][Ss][Ee][Tt])$ ]]; then
+      echo
+      read -r -p "We are going to remove the existing node with configuration $NODE_CONFIG_DIR and replace it with a fresh one, do you want to back up the old one first? (y/n) " backup_ans
+      if [[ "${backup_ans}" =~ ^[Yy]$ ]]; then
+        ts="$(date +%Y%m%d-%H%M%S)"
+        backup_dir="$HOME/.nym/backup/$(basename "$NODE_CONFIG_DIR")-$ts"
+        echo "Backing up to: $backup_dir"
+        mkdir -p "$(dirname "$backup_dir")"
+        cp -a "$NODE_CONFIG_DIR" "$backup_dir"
+      fi
+      echo "Removing $NODE_CONFIG_DIR ..."
+      rm -rf "$NODE_CONFIG_DIR"
+      echo "Old node removed. Proceeding with fresh initialization..."
+    else
+      echo "Keeping existing node configuration. Proceeding to re-configure."
+    fi
+  fi
+}
+
+# run the check before any initialization
+check_existing_config
+# === End of new block ===
+
 echo -e "\n* * * Resolving latest release tag URL * * *"
 LATEST_TAG_URL="$(curl -sI -L -o /dev/null -w '%{url_effective}' https://github.com/nymtech/nym/releases/latest)"
 # Example: https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.13-emmental

@@ -12,14 +12,34 @@ else
   __SOURCED=0
 fi
 
-# Prompt user
-read -rp "Enter hostname (if you don't use a DNS, press enter): " HOSTNAME
-read -rp "Enter node location (country code or name): " LOCATION
-read -rp "Enter your email: " EMAIL
-read -rp "Enter node public moniker (visible in the explorer and NymVPN app): " MONIKER
-read -rp "Enter node public description: " DESCRIPTION
+while true; do
+  # Prompt user
+  read -rp "Enter hostname (if you don't use a DNS, press enter): " HOSTNAME
+  read -rp "Enter node location (country code or name): " LOCATION
+  read -rp "Enter your email: " EMAIL
+  read -rp "Enter node public moniker (visible in the explorer and NymVPN app): " MONIKER
+  read -rp "Enter node public description: " DESCRIPTION
 
-# Try to get a latest binary URL, but DO NOT fail if it can’t be parsed
+  # Show summary table
+  echo -e "\nPlease confirm the values you entered:"
+  echo "---------------------------------------"
+  printf "%-20s %s\n" "HOSTNAME:"    "$HOSTNAME"
+  printf "%-20s %s\n" "LOCATION:"    "$LOCATION"
+  printf "%-20s %s\n" "EMAIL:"       "$EMAIL"
+  printf "%-20s %s\n" "MONIKER:"     "$MONIKER"
+  printf "%-20s %s\n" "DESCRIPTION:" "$DESCRIPTION"
+  echo "---------------------------------------"
+
+  read -rp "Are these correct? (y/n): " CONFIRM
+
+  case "$CONFIRM" in
+    [Yy]* ) break ;;   # confirmed, exit loop
+    [Nn]* ) echo -e "\nLet's try again...\n" ;;  # loop restarts
+    * ) echo "Please answer y or n." ;;
+  esac
+done
+
+# Try to get the latest binary URL (non-fatal if missing)
 LATEST_BINARY=$(
   curl -fsSL https://github.com/nymtech/nym/releases/latest \
     | grep -Eo 'href="/nymtech/nym/releases/download/[^"]+/nym-node"' \
@@ -33,7 +53,7 @@ fi
 PUBLIC_IP=$(curl -fsS -4 https://ifconfig.me || true)
 PUBLIC_IP=${PUBLIC_IP:-""}
 
-# Write env.sh even if LATEST_BINARY is missing
+# Write env.sh
 {
   [[ -n "${LATEST_BINARY:-}" ]] && echo "export LATEST_BINARY=\"https://github.com${LATEST_BINARY}\""
   echo "export HOSTNAME=\"${HOSTNAME}\""

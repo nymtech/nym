@@ -454,7 +454,7 @@ class NodeSetupCLI:
         self.run_script(self.env_vars_install_sh)
         self.run_script(self.node_install_sh)
         self.run_script(self.service_config_sh)
-        self._check_gwx_mode() and cli.run_script(self.nginx_proxy_wss_sh)
+        self._check_gwx_mode() and self.run_script(self.nginx_proxy_wss_sh)
         self.run_nym_node_as_service()
         self.run_bonding_prompt()
         self._check_gwx_mode() and self.run_tunnel_manager_setup()
@@ -500,6 +500,7 @@ class ArgParser:
         except Exception as e:
             print(f"error: {e}", file=sys.stderr)
             sys.exit(1)
+
 
 class SystemSafeGuards:
     def __init__(self):

@@ -463,12 +463,12 @@ class ArgParser:
             epilog='Privacy infrastructure operated by people around the world'
         )
         parser.add_argument("-V","--version", action="version", version='%(prog)s 1.0.0')
-        parser.add_argument("-d", "--dev", help='Define github branch, default="develop"',
-                            type=str, default='develop')
 
         subparsers = parser.add_subparsers(help="[-h] shows this help menu")
         parser_install = subparsers.add_parser('install', help='Starts nym-node installation setup CLI',
                                                aliases=['i','I'])
+        parser_install.add_argument("-d", "--dev", help='Define github branch, default="develop"',
+                            type=str, default='develop')
         subparsers.required = True  # <-- require a subcommand
         parser_install.set_defaults(func=self.run_node_installation)
 

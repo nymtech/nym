@@ -511,6 +511,11 @@ class ArgParser:
             if self.cli.check_wg_enabled():
                 self.cli.setup_test_wg_ip_tables()
 
+    def panic(self,msg):
+        """Error message print"""
+        print(f"error: {msg}", file=sys.stderr)
+        sys.exit(-1)
+
 
 class SystemSafeGuards:
     def __init__(self):

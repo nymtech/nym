@@ -1,5 +1,7 @@
 #!/usr/bin/python3
 
+__version__ = "1.0.0"
+
 import os
 import re
 import sys
@@ -326,7 +328,6 @@ class NodeSetupCLI:
                 print("Service file still not found after setup. Aborting.")
                 return
 
-        # Always run as root, so no sudo needed
         run_env = {**os.environ, "SYSTEMD_PAGER": "", "SYSTEMD_COLORS": "0", "WAIT_TIMEOUT": "600"}
         is_active = subprocess.run(["systemctl", "is-active", "--quiet", service], env=run_env).returncode == 0
 
@@ -369,7 +370,7 @@ class NodeSetupCLI:
                 os.path.expanduser(node_path),
                 "bonding-information",
             ])
-                self.run_bash_command(command="curl", args=["-4", "https://ifconfig.me"]),
+                self.run_bash_command(command="curl", args=["-4", "https://ifconfig.me"])
                 print("\n")
                 self.print_character("=", 36)
                 print("FOLLOW THESE STEPS TO BOND YOUR NODE")
@@ -383,16 +384,20 @@ class NodeSetupCLI:
                   )
                 msg = "(If you already bonded your node before, just press enter)\n"
                 contract_msg = input(msg).strip()
-                subprocess.run([
-                os.path.expanduser(node_path),
-                "sign",
-                "--contract-msg",
-                contract_msg
-            ])
-                print(
-                  "- Copy the last last part of the string back to your Nym wallet\n"
-                  "- Confirm the transaction"
-                  )
+                if contract_msg == "":
+                    print("Skipping bonding process as your node is already bonded")
+                    return
+                else:
+                    subprocess.run([
+                    os.path.expanduser(node_path),
+                    "sign",
+                    "--contract-msg",
+                    contract_msg
+                ])
+                    print(
+                    "- Copy the last last part of the string back to your Nym wallet\n"
+                    "- Confirm the transaction"
+                    )
                 confirmation = input(
                   "Is your node bonded?\n"
                   "1. YES\n"
@@ -465,51 +470,63 @@ class NodeSetupCLI:
                 self.setup_test_wg_ip_tables()
 
 class ArgParser:
-
     def parser_main(self):
-        # parent parser for options shared by all commands
+        # Shared options (work before/after subcommands)
         parent = argparse.ArgumentParser(add_help=False)
-        parent.add_argument("-V", "--version", action="version", version='nym-node-cli 1.0.0')
-        parent.add_argument("-d", "--dev", help='Define github branch', type=str, default="develop")
+        parent.add_argument(
+            "-V", "--version",
+            action="version",
+            version=f"nym-node-cli {__version__}"
+        )
+        parent.add_argument("-d", "--dev", help="Define github branch", type=str, default="develop")
+        parent.add_argument("-v", "--verbose", action="store_true", help="Show full error tracebacks")
 
         parser = argparse.ArgumentParser(
-            prog='nym-node-cli',
-            description='An interactive tool to download, install, setup and run nym-node',
-            epilog='Privacy infrastructure operated by people around the world',
-            parents=[parent],  # so root also has -d/-V
+            prog="nym-node-cli",
+            description="An interactive tool to download, install, setup and run nym-node",
+            epilog="Privacy infrastructure operated by people around the world",
+            parents=[parent],
         )
 
-        subparsers = parser.add_subparsers(dest="command")
+        subparsers = parser.add_subparsers(dest="command", help="subcommands")
         subparsers.required = True
 
-        # install subcommand inherits parent options too (so -d works after the subcommand)
         p_install = subparsers.add_parser(
-            'install', parents=[parent], help='Starts nym-node installation setup CLI',
-            aliases=['i', 'I'], add_help=True
+            "install", parents=[parent],
+            help="Starts nym-node installation setup CLI",
+            aliases=["i", "I"], add_help=True
         )
+        # If install had flags unique to it, you'd add them to p_install here.
 
         args = parser.parse_args()
 
+        # Build CLI with parsed args
         cli = NodeSetupCLI(args)
 
-        # dispatch
-        cmd = args.command
-        if cmd in ("install", "i", "I"):
-            func = cli.run_node_installation
-        else:
-            parser.error(f"Unknown command: {cmd}")
+        # Dispatch map (easier to extend with more commands)
+        commands = {
+            "install": cli.run_node_installation,
+            "i":       cli.run_node_installation,
+            "I":       cli.run_node_installation,
+        }
+
+        func = commands.get(args.command)
+        if func is None:
+            parser.print_help()
+            parser.error(f"Unknown command: {args.command}")
 
         try:
             func(args)
+        except SystemExit:
+            raise  # allow clean exits to propagate
         except Exception as e:
-            print(f"error: {e}", file=sys.stderr)
+            if getattr(args, "verbose", False):
+                traceback.print_exc()
+            else:
+                print(f"error: {e}", file=sys.stderr)
             sys.exit(1)
 
-
 class SystemSafeGuards:
-    def __init__(self):
-        self.branch = "feature/node-setup-cli"
-
 
     def _protect_from_oom(self, score: int = -900):
         try:

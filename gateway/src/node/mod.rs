@@ -491,13 +491,13 @@ impl GatewayTasksBuilder {
         &self,
         request_checker: UpgradeModeCheckRequestSender,
     ) -> UpgradeModeCommon {
-        UpgradeModeCommon {
-            config: UpgradeModeCommonConfig {
+        UpgradeModeCommon::new(
+            UpgradeModeCommonConfig {
                 min_staleness_recheck: self.config.debug.upgrade_mode_min_staleness_recheck,
             },
             request_checker,
-            state: self.upgrade_mode_state.clone(),
-        }
+            self.upgrade_mode_state.clone(),
+        )
     }
 
     pub fn try_build_upgrade_mode_watcher(&self) -> Option<UpgradeModeWatcher> {
@@ -517,6 +517,7 @@ impl GatewayTasksBuilder {
                 .upgrade_mode_watcher
                 .debug
                 .expedited_poll_interval,
+            self.config.debug.upgrade_mode_min_staleness_recheck,
             upgrade_mode_attestation_url,
             self.upgrade_mode_state.clone(),
             self.user_agent.clone(),

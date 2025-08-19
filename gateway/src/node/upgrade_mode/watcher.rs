@@ -3,6 +3,7 @@
 
 use crate::node::UserAgent;
 use futures::channel::mpsc::{unbounded, UnboundedReceiver, UnboundedSender};
+use futures::{FutureExt, StreamExt};
 use nym_credential_verification::upgrade_mode::UpgradeModeState;
 use nym_task::TaskClient;
 use nym_upgrade_mode_check::attempt_retrieve_attestation;
@@ -14,11 +15,10 @@ use tokio::time::Instant;
 use tracing::{debug, error, info, trace};
 use url::Url;
 
-// TODO:
-// the idea behind those is as follows:
+// the idea behind this is as follows:
 // it's been relatively a long time since the watcher last performed its checks (since it's in 'regular' mode)
 // and some client has just sent a JWT. we have to retrieve most recent information in case upgrade mode
-// has just been enabled and we haven't learned about it yet
+// has just been enabled, and we haven't learned about it yet
 #[derive(Clone)]
 pub struct UpgradeModeCheckRequestSender(Option<UnboundedSender<CheckRequest>>);
 
@@ -55,6 +55,8 @@ pub struct UpgradeModeWatcher {
     // expedited polling interval once upgrade mode is detected
     expedited_poll_interval: Duration,
 
+    min_staleness_recheck: Duration,
+
     attestation_url: Url,
 
     check_request_sender: UpgradeModeCheckRequestSender,
@@ -72,6 +74,7 @@ impl UpgradeModeWatcher {
     pub(crate) fn new(
         regular_polling_interval: Duration,
         expedited_poll_interval: Duration,
+        min_staleness_recheck: Duration,
         attestation_url: Url,
         upgrade_mode_state: UpgradeModeState,
         user_agent: UserAgent,
@@ -81,6 +84,7 @@ impl UpgradeModeWatcher {
         UpgradeModeWatcher {
             regular_polling_interval,
             expedited_poll_interval,
+            min_staleness_recheck,
             attestation_url,
             check_request_sender: UpgradeModeCheckRequestSender(Some(tx)),
             check_request_receiver: rx,
@@ -118,6 +122,21 @@ impl UpgradeModeWatcher {
         }
     }
 
+    async fn handle_check_request(&mut self, polled_request: CheckRequest) {
+        let mut requests = vec![polled_request];
+        while let Ok(Some(queued_up)) = self.check_request_receiver.try_next() {
+            requests.push(queued_up);
+        }
+
+        if self.upgrade_mode_state.since_last_query() > self.min_staleness_recheck {
+            self.try_update_state().await;
+        }
+
+        for request in requests {
+            request.on_done.notify_waiters();
+        }
+    }
+
     async fn run(&mut self) {
         info!("starting the update mode watcher");
 
@@ -130,7 +149,15 @@ impl UpgradeModeWatcher {
                 _ = self.task_client.recv() => {
                     trace!("UpdateModeWatcher: received shutdown");
                 }
-                // TODO: request channel
+                polled_request = self.check_request_receiver.next() => {
+                    let Some(request) = polled_request else {
+                        // this should NEVER happen as `UpgradeModeWatcher` itself holds one sender instance
+                        // but just in case, don't blow up
+                        error!("UpgradeModeCheckRequestReceiver is finished even though we still hold one of the senders!");
+                        break;
+                    };
+                    self.handle_check_request(request).await
+                }
 
                 _ = &mut check_wait => {
                     self.try_update_state().await;

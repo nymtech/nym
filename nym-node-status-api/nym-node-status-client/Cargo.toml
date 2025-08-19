@@ -16,12 +16,8 @@ readme.workspace = true
 [dependencies]
 anyhow = { workspace = true }
 bincode = { workspace = true }
-nym-crypto = { git = "https://github.com/nymtech/nym.git", branch = "release/2025.11-cheddar", features = [
-    "asymmetric",
-    "serde",
-] }
-nym-http-api-client = { git = "https://github.com/nymtech/nym.git", branch = "release/2025.11-cheddar" }
-reqwest = { workspace = true }
+nym-crypto = { path = "../../common/crypto", features = ["asymmetric", "serde", ] }
+reqwest = { workspace = true, features = ["json"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 time = { workspace = true }

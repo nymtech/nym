@@ -78,11 +78,9 @@ impl<'a, T: PSQ> PSQInitiator<T> {
     // In other words, instead of using the responder's PSQ message for key confirmation,
     // we could use a Noise handshake for key confirmation.
 
-    // We need to ask Cryspen to make Initiator.k_pq to be accessible for this.
-
     pub fn get_psk(&self) -> Option<[u8; 32]> {
         match &self.state {
-            Some(initiator_state) => Some(initiator_state.unregistered_psk()),
+            Some(initiator_state) => Some(*initiator_state.unregistered_psk()),
             None => None,
         }
     }

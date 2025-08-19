@@ -11,10 +11,10 @@ thiserror = { workspace = true }
 # internal
 nym-crypto = { path = "../crypto", features = ["asymmetric", "serde"]}
 
-libcrux-traits = { git = "https://github.com/georgio/libcrux" }
-libcrux-kem = { git = "https://github.com/georgio/libcrux" }
-libcrux-psq = { git = "https://github.com/georgio/libcrux", features = ["test-utils"] }
-libcrux-ed25519 = { git = "https://github.com/georgio/libcrux" }
+libcrux-traits = { git = "https://github.com/cryspen/libcrux" }
+libcrux-kem = { git = "https://github.com/cryspen/libcrux" }
+libcrux-psq = { git = "https://github.com/cryspen/libcrux", features = ["test-utils"] }
+libcrux-ed25519 = { git = "https://github.com/cryspen/libcrux" }
 rand = "0.9.2"
 tls_codec = { version = "0.4.2", features = ["derive"] }
 

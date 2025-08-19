@@ -23,9 +23,9 @@ nym-crypto = { path = "../crypto" }
 nym-noise-keys = { path = "keys" }
 
 nympsq = {path = "../nympsq"}
-libcrux-ed25519 = { git = "https://github.com/georgio/libcrux" }
-libcrux-psq = { git = "https://github.com/georgio/libcrux", features = ["test-utils"] }
-libcrux-kem = { git = "https://github.com/georgio/libcrux" }
+libcrux-ed25519 = { git = "https://github.com/cryspen/libcrux" }
+libcrux-psq = { git = "https://github.com/cryspen/libcrux", features = ["test-utils"] }
+libcrux-kem = { git = "https://github.com/cryspen/libcrux" }
 rand = "0.9.2"
 
 [dev-dependencies]

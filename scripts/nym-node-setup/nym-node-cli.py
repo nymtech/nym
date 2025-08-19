@@ -485,11 +485,12 @@ class NodeSetupCLI:
                 self.setup_test_wg_ip_tables()
 
 
+
 class ArgParser:
     """CLI argument interface managing the NodeSetupCLI functions based on user input"""
 
     def parser_main(self):
-        # shared options to work before adn after subcommands
+        # shared options to work before and after subcommands
         parent = argparse.ArgumentParser(add_help=False)
         parent.add_argument(
             "-V", "--version",
@@ -498,7 +499,8 @@ class ArgParser:
         )
         parent.add_argument("-d", "--dev", metavar="BRANCH",
                             help="Define github branch",
-                            type=str, default=f"{__default_branch__}")
+                            type=str,
+                            default=argparse.SUPPRESS)
         parent.add_argument("-v", "--verbose", action="store_true",
                             help="Show full error tracebacks")
 
@@ -519,6 +521,10 @@ class ArgParser:
         )
 
         args = parser.parse_args()
+
+        # assign default manually only if user didn’t supply --dev
+        if not hasattr(args, "dev"):
+            args.dev = __default_branch__
 
         try:
             # build CLI with parsed args to catch errors soon
@@ -549,6 +555,7 @@ class ArgParser:
             else:
                 print(f"error: {e}", file=sys.stderr)
             sys.exit(1)
+
 
 class SystemSafeGuards:
     """A few safe guards to deal with memory usage by this program"""

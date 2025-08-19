@@ -1,17 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# load env (prefer absolute ENV_FILE injected by Python CLI; fallback to ./env.sh)
+# ===== Load env (prefer absolute ENV_FILE injected by Python; fallback to ./env.sh) =====
 if [[ -n "${ENV_FILE:-}" && -f "${ENV_FILE}" ]]; then
-  set -a; # export sourced vars
-  # shellcheck disable=SC1090
-  . "${ENV_FILE}"
-  set +a
+  set -a; . "${ENV_FILE}"; set +a
 elif [[ -f "./env.sh" ]]; then
-  set -a
-  # shellcheck disable=SC1091
-  . ./env.sh
-  set +a
+  set -a; . ./env.sh; set +a
 fi
 
 : "${HOSTNAME:?HOSTNAME not set in env.sh}"
@@ -21,53 +15,47 @@ export SYSTEMD_PAGER=""
 export SYSTEMD_COLORS="0"
 DEBIAN_FRONTEND=noninteractive
 
-# sanity check
+# ===== Sanity =====
 if [[ "${HOSTNAME}" == "localhost" || "${HOSTNAME}" == "127.0.0.1" ]]; then
-  echo "ERROR: HOSTNAME cannot be 'localhost'. Use a public FQDN for Let's Encrypt." >&2
+  echo "ERROR: HOSTNAME cannot be 'localhost'. Use a public FQDN." >&2
   exit 1
 fi
 
 echo -e "\n* * * Starting nginx configuration for landing page, reverse proxy and WSS * * *"
 
-# define paths & ports
+# ===== Paths / Ports =====
 WEBROOT="/var/www/${HOSTNAME}"
 LE_ACME_DIR="/var/www/letsencrypt"
 SITES_AVAIL="/etc/nginx/sites-available"
 SITES_EN="/etc/nginx/sites-enabled"
-BASE_PATH="${SITES_AVAIL}/${HOSTNAME}"
-BASE_LINK="${SITES_EN}/${HOSTNAME}"
+BASE_HTTP="${SITES_AVAIL}/${HOSTNAME}"         # :80 vhost
+BASE_HTTPS="${SITES_AVAIL}/${HOSTNAME}-ssl"    # :443 vhost (we’ll write it ourselves)
 WSS_AVAIL="${SITES_AVAIL}/wss-config-nym"
-WSS_LINK="${SITES_EN}/wss-config-nym"
 BACKUP_DIR="/etc/nginx/sites-backups"
 
-NYM_PORT_HTTP="${NYM_PORT_HTTP:-8080}"      # nym-node HTTP (landing/proxy)
-NYM_PORT_WSS="${NYM_PORT_WSS:-9000}"        # nym-node WSS upstream
-WSS_LISTEN_PORT="${WSS_LISTEN_PORT:-9001}"  # public TLS WSS
+NYM_PORT_HTTP="${NYM_PORT_HTTP:-8080}"
+NYM_PORT_WSS="${NYM_PORT_WSS:-9000}"
+WSS_LISTEN_PORT="${WSS_LISTEN_PORT:-9001}"
 
-mkdir -p "${WEBROOT}" "${LE_ACME_DIR}" "${BACKUP_DIR}"
+mkdir -p "${WEBROOT}" "${LE_ACME_DIR}" "${BACKUP_DIR}" "${SITES_AVAIL}" "${SITES_EN}"
 
-# helpers
+# ===== Helpers =====
 neat_backup() {
-  local file="$1"
-  [[ -f "$file" ]] || return 0
+  local file="$1"; [[ -f "$file" ]] || return 0
   local sha_now; sha_now="$(sha256sum "$file" | awk '{print $1}')" || return 0
   local tag; tag="$(basename "$file")"
   local latest="${BACKUP_DIR}/${tag}.latest"
   if [[ -f "$latest" ]]; then
     local sha_prev; sha_prev="$(awk '{print $1}' "$latest")"
-    if [[ "$sha_now" == "$sha_prev" ]]; then
-      return 0
-    fi
+    [[ "$sha_now" == "$sha_prev" ]] && return 0
   fi
   cp -a "$file" "${BACKUP_DIR}/${tag}.bak.$(date +%s)"
   echo "$sha_now  ${tag}" > "$latest"
-  # keep last 5 backups
   ls -1t "${BACKUP_DIR}/${tag}.bak."* 2>/dev/null | tail -n +6 | xargs -r rm -f
 }
 
 ensure_enabled() {
-  local src="$1"
-  local name; name="$(basename "$src")"
+  local src="$1"; local name; name="$(basename "$src")"
   ln -sf "$src" "${SITES_EN}/${name}"
 }
 
@@ -93,49 +81,40 @@ HTML
   fi
 }
 
-reload_nginx() {
-  nginx -t
-  systemctl reload nginx
-}
+reload_nginx() { nginx -t && systemctl reload nginx; }
 
-# landing page (idempotent)
+# ===== Landing page (idempotent) =====
 fetch_landing
 echo "Landing page at ${WEBROOT}/index.html"
 
-# disable obvious stale/default blockers (safe)
+# ===== Disable default and stale SSL configs =====
 [[ -L "${SITES_EN}/default" ]] && unlink "${SITES_EN}/default" || true
-
-# disable any enabled site referencing localhost LE certs (avoids past crash you hit)
 for f in "${SITES_EN}"/*; do
   [[ -L "$f" ]] || continue
   if grep -q "/etc/letsencrypt/live/localhost" "$f"; then
-    echo "Disabling vhost referencing localhost cert: $f"
-    unlink "$f"
+    echo "Disabling vhost referencing localhost cert: $f"; unlink "$f"
   fi
 done
-
-# disable SSL vhosts with missing cert/key (don’t break nginx)
 for f in "${SITES_EN}"/*; do
   [[ -L "$f" ]] || continue
   if grep -qE 'listen\s+.*443' "$f"; then
     cert=$(awk '/ssl_certificate[ \t]+/ {print $2}' "$f" | tr -d ';' | head -n1)
     key=$(awk '/ssl_certificate_key[ \t]+/ {print $2}' "$f" | tr -d ';' | head -n1)
     if [[ -n "${cert:-}" && ! -s "$cert" ]] || [[ -n "${key:-}" && ! -s "$key" ]]; then
-      echo "Disabling SSL vhost with missing cert/key: $f"
-      unlink "$f"
+      echo "Disabling SSL vhost with missing cert/key: $f"; unlink "$f"
     fi
   fi
 done
 
-# plain HTTP site (port 80, ACME-safe, proxies to 8080)
-neat_backup "${BASE_PATH}"
-cat > "${BASE_PATH}" <<EOF
+# ===== HTTP :80 vhost (ACME-safe, proxy to :8080) =====
+neat_backup "${BASE_HTTP}"
+cat > "${BASE_HTTP}" <<EOF
 server {
     listen 80;
     listen [::]:80;
     server_name ${HOSTNAME};
 
-    # ACME challenge path (must be HTTP reachable)
+    # ACME challenge path (HTTP only)
     location ^~ /.well-known/acme-challenge/ {
         root ${LE_ACME_DIR};
         default_type "text/plain";
@@ -158,67 +137,110 @@ server {
     }
 }
 EOF
-
-ensure_enabled "${BASE_PATH}"
+ensure_enabled "${BASE_HTTP}"
 reload_nginx
 systemctl status nginx --no-pager | sed -n '1,6p' || true
 
-# ACME preflight
+# ===== ACME preflight (informative) =====
 echo -e "\n* * * ACME preflight checks * * *"
 if ! curl -fsSL https://acme-v02.api.letsencrypt.org/directory >/dev/null; then
-  echo "ERROR: Cannot reach Let's Encrypt directory. Check outbound HTTPS / firewall / DNS." >&2
-  # keep HTTP alive; skip cert for now
+  echo "WARNING: Can't reach Let's Encrypt directory. We'll still keep HTTP up." >&2
 fi
-
 THIS_IP="$(curl -fsS -4 https://ifconfig.me || true)"
 DNS_IP="$(getent ahostsv4 "${HOSTNAME}" 2>/dev/null | awk '{print $1; exit}')"
 echo "Public IPv4: ${THIS_IP:-unknown}   DNS A(${HOSTNAME}): ${DNS_IP:-unresolved}"
 if [[ -n "${THIS_IP:-}" && -n "${DNS_IP:-}" && "${THIS_IP}" != "${DNS_IP}" ]]; then
-  echo "WARNING: DNS for ${HOSTNAME} does not match this server's public IPv4. ACME challenge may fail."
+  echo "WARNING: DNS for ${HOSTNAME} does not match this server's public IPv4."
 fi
+timedatectl show -p NTPSynchronized --value 2>/dev/null | grep -qi yes || timedatectl set-ntp true || true
 
-if ! timedatectl show -p NTPSynchronized --value 2>/dev/null | grep -qi yes; then
-  echo "Enabling time sync (NTP)..."
-  timedatectl set-ntp true || true
-fi
-
-# install certbot if missing
+# ===== Install certbot if missing =====
 if ! command -v certbot >/dev/null 2>&1; then
   if command -v snap >/dev/null 2>&1; then
-    echo -e "\n* * * Installing Certbot via snap * * *"
-    snap install core || true
-    snap refresh core || true
-    snap install --classic certbot
-    ln -sf /snap/bin/certbot /usr/bin/certbot
+    snap install core || true; snap refresh core || true
+    snap install --classic certbot; ln -sf /snap/bin/certbot /usr/bin/certbot
   else
-    echo -e "\n* * * Installing Certbot via apt * * *"
     apt-get update -y >/dev/null 2>&1 || true
-    apt-get install -y certbot python3-certbot-nginx >/dev/null 2>&1 || true
+    apt-get install -y certbot >/dev/null 2>&1 || true
   fi
 fi
 
-# issue/renew certificate (non-fatal if it fails; we keep HTTP working)
-STAGING_FLAG=""
-if [[ "${CERTBOT_STAGING:-0}" == "1" ]]; then
-  STAGING_FLAG="--staging"
-  echo "Using Let's Encrypt STAGING."
-fi
-
-echo -e "\n* * * Requesting certificate for ${HOSTNAME} * * *"
+# ===== Issue/renew via WEBROOT (no nginx auto-edit), non-fatal if it fails =====
+STAGING_FLAG=""; [[ "${CERTBOT_STAGING:-0}" == "1" ]] && STAGING_FLAG="--staging" && echo "Using Let's Encrypt STAGING."
 if ! cert_ok; then
-  certbot --nginx --non-interactive --agree-tos -m "${EMAIL}" -d "${HOSTNAME}" ${STAGING_FLAG} --redirect || true
-  reload_nginx || true
+  certbot certonly --non-interactive --agree-tos -m "${EMAIL}" -d "${HOSTNAME}" \
+    --webroot -w "${LE_ACME_DIR}" ${STAGING_FLAG} || true
 fi
 
-# WSS TLS site (only if certs exist)
+# ===== Our own 443 vhost (only if certs exist) =====
 if cert_ok; then
-  echo -e "\n* * * Writing WSS TLS site on :${WSS_LISTEN_PORT} * * *"
+  neat_backup "${BASE_HTTPS}"
+  cat > "${BASE_HTTPS}" <<EOF
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name ${HOSTNAME};
+
+    ssl_certificate /etc/letsencrypt/live/${HOSTNAME}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${HOSTNAME}/privkey.pem;
+    include /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+
+    root ${WEBROOT};
+    index index.html;
+
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+
+    location = /favicon.ico { return 204; access_log off; log_not_found off; }
+
+    location / {
+        try_files \$uri \$uri/ @app;
+    }
+
+    location @app {
+        proxy_pass http://127.0.0.1:${NYM_PORT_HTTP};
+        proxy_http_version 1.1;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+    }
+}
+EOF
+  ensure_enabled "${BASE_HTTPS}"
+
+  # Optional: redirect HTTP->HTTPS (keeps ACME path in HTTP too via separate small server)
+  neat_backup "${BASE_HTTP}"
+  cat > "${BASE_HTTP}" <<EOF
+server {
+    listen 80;
+    listen [::]:80;
+    server_name ${HOSTNAME};
+
+    # Keep ACME reachable over HTTP:
+    location ^~ /.well-known/acme-challenge/ {
+        root ${LE_ACME_DIR};
+        default_type "text/plain";
+    }
+
+    # Redirect the rest to HTTPS
+    location / {
+        return 301 https://\$host\$request_uri;
+    }
+}
+EOF
+  ensure_enabled "${BASE_HTTP}"
+  reload_nginx
+else
+  echo "NOTE: Cert not present yet; HTTPS (443) will not listen. Only HTTP (80) is active."
+fi
+
+# ===== WSS TLS :9001 (only if certs exist) =====
+if cert_ok; then
   neat_backup "${WSS_AVAIL}"
   cat > "${WSS_AVAIL}" <<EOF
 server {
     listen ${WSS_LISTEN_PORT} ssl http2;
     listen [::]:${WSS_LISTEN_PORT} ssl http2;
-
     server_name ${HOSTNAME};
 
     ssl_certificate /etc/letsencrypt/live/${HOSTNAME}/fullchain.pem;
@@ -247,25 +269,15 @@ server {
     }
 }
 EOF
-
   ensure_enabled "${WSS_AVAIL}"
   reload_nginx
-else
-  echo "WARNING: Certificates for ${HOSTNAME} not found yet. Skipping WSS TLS site on :${WSS_LISTEN_PORT}."
-  echo "         Re-run this script after DNS/ACME succeeds to enable WSS."
 fi
 
-echo -e "\nAll done."
-echo "HTTP :80 for ${HOSTNAME} is active (with redirect if certbot enabled it)."
+echo -e "\nDone."
 if cert_ok; then
-  echo "WSS  :${WSS_LISTEN_PORT} TLS site is active using /etc/letsencrypt/live/${HOSTNAME}/ certs."
-  [[ "${STAGING_FLAG}" == "--staging" ]] && echo "NOTE: STAGING cert in use. Re-run without CERTBOT_STAGING=1 for a real cert."
+  echo "HTTP : http://${HOSTNAME}/  (redirects to HTTPS)"
+  echo "TLS  : https://${HOSTNAME}/  (served by nginx)"
+  echo "WSS  : wss://${HOSTNAME}:${WSS_LISTEN_PORT}/  (served by nginx)"
 else
-  echo "TLS cert not present yet — only HTTP is active. WSS will be enabled automatically on next run after cert exists."
+  echo "Only HTTP is active (no cert yet). Re-run after DNS/ACME is ready to enable HTTPS + WSS."
 fi
-
-# quick checks
-echo
-echo "Local tests:"
-echo "  curl -sv http://127.0.0.1/ -H 'Host: ${HOSTNAME}' | head -n 10"
-echo "  ss -ltnp | egrep ':80|:${WSS_LISTEN_PORT}|:443' || true"

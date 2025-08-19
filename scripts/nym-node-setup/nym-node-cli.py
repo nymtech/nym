@@ -185,13 +185,13 @@ class NodeSetupCLI:
 
     def _write_temp_script(self, script_text: str) -> Path:
         """Helper: write script text to a temp file, ensure bash shebang, chmod +x, return its path"""
-       if not script_text.lstrip().startswith("#!"):
-           script_text = "#!/usr/bin/env bash\n" + script_text
-       with tempfile.NamedTemporaryFile("w", delete=False, suffix=".sh") as f:
-           f.write(script_text)
-           path = Path(f.name)
-       os.chmod(path, 0o700)
-       return path
+        if not script_text.lstrip().startswith("#!"):
+            script_text = "#!/usr/bin/env bash\n" + script_text
+        with tempfile.NamedTemporaryFile("w", delete=False, suffix=".sh") as f:
+            f.write(script_text)
+            path = Path(f.name)
+        os.chmod(path, 0o700)
+        return path
 
     def _check_gwx_mode(self):
         """Helper: Several fns run only for GWx - this fn checks this condition"""

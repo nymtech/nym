@@ -484,19 +484,23 @@ class NodeSetupCLI:
                 self.setup_test_wg_ip_tables()
                 self.setup_test_wg_ip_tables()
 
+
 class ArgParser:
     """CLI argument interface managing the NodeSetupCLI functions based on user input"""
 
     def parser_main(self):
-        # shared options (work before/after subcommands)
+        # shared options to work before adn after subcommands
         parent = argparse.ArgumentParser(add_help=False)
         parent.add_argument(
             "-V", "--version",
             action="version",
             version=f"nym-node-cli {__version__}"
         )
-        parent.add_argument("-d", "--dev", metavar="BRANCH", help="Define github branch", type=str, default=f"{__default_branch__}")
-        parent.add_argument("-v", "--verbose", action="store_true", help="Show full error tracebacks")
+        parent.add_argument("-d", "--dev", metavar="BRANCH",
+                            help="Define github branch",
+                            type=str, default=f"{__default_branch__}")
+        parent.add_argument("-v", "--verbose", action="store_true",
+                            help="Show full error tracebacks")
 
         parser = argparse.ArgumentParser(
             prog="nym-node-cli",
@@ -513,29 +517,32 @@ class ArgParser:
             help="Starts nym-node installation setup CLI",
             aliases=["i", "I"], add_help=True
         )
-        # if install had flags unique to it, you'd add them to p_install here
 
         args = parser.parse_args()
 
-        # build CLI with parsed args
-        cli = NodeSetupCLI(args)
-
-        # dispatch map (easier to extend with more commands)
-        commands = {
-            "install": cli.run_node_installation,
-            "i":       cli.run_node_installation,
-            "I":       cli.run_node_installation,
-        }
-
-        func = commands.get(args.command)
-        if func is None:
-            parser.print_help()
-            parser.error(f"Unknown command: {args.command}")
-
         try:
+            # build CLI with parsed args to catch errors soon
+            cli = NodeSetupCLI(args)
+
+            commands = {
+                "install": cli.run_node_installation,
+                "i":       cli.run_node_installation,
+                "I":       cli.run_node_installation,
+            }
+
+            func = commands.get(args.command)
+            if func is None:
+                parser.print_help()
+                parser.error(f"Unknown command: {args.command}")
+
+            # execute subcommand within error test
             func(args)
+
         except SystemExit:
-            raise  # allow clean exits to propagate
+            raise
+        except RuntimeError as e:
+            print(f"{e}\nMake sure that the your BRANCH provided in --dev flag contains this program.")
+            sys.exit(1)
         except Exception as e:
             if getattr(args, "verbose", False):
                 traceback.print_exc()

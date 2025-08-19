@@ -9,6 +9,7 @@ use crate::node::client_handling::{
             IsActive, IsActiveRequestReceiver, IsActiveResultSender, MixMessageReceiver,
         },
     },
+    DEFAULT_CLIENT_BANDWIDTH_THRESHOLD,
 };
 use futures::{
     future::{FusedFuture, OptionFuture},
@@ -32,6 +33,7 @@ use nym_statistics_common::{gateways::GatewaySessionEvent, types::SessionType};
 use nym_task::TaskClient;
 use nym_validator_client::coconut::EcashApiError;
 use rand::{random, CryptoRng, Rng};
+use std::cmp::max;
 use std::{process, time::Duration};
 use thiserror::Error;
 use tokio::io::{AsyncRead, AsyncWrite};
@@ -299,12 +301,20 @@ impl<R, S> AuthenticatedHandler<R, S> {
 
         let upgrade_mode = self.upgrade_mode();
 
-        let todo = "disable metering";
+        let remaining_bandwidth = if self.upgrade_mode() {
+            // if we're undergoing upgrade mode, we don't meter bandwidth,
+            // we simply return MAX of clients current bandwidth and minimum bandwidth before default
+            // client would have attempted to send new ticket
+            // the latter is to support older clients that will ignore `upgrade_mode` field in the response
+            // as they're not aware of its existence
+            let available = self.bandwidth_storage_manager.available_bandwidth().await;
+            max(DEFAULT_CLIENT_BANDWIDTH_THRESHOLD, available)
+        } else {
+            self.bandwidth_storage_manager
+                .try_use_bandwidth(required_bandwidth)
+                .await?
+        };
 
-        let remaining_bandwidth = self
-            .bandwidth_storage_manager
-            .try_use_bandwidth(required_bandwidth)
-            .await?;
         self.forward_packet(mix_packet);
 
         Ok(ServerResponse::Send {

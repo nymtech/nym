@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 
 __version__ = "1.0.0"
+__default_branch__ = "develop"
 
 import os
 import re
@@ -478,7 +479,7 @@ class ArgParser:
             action="version",
             version=f"nym-node-cli {__version__}"
         )
-        parent.add_argument("-d", "--dev", help="Define github branch", type=str, default="develop")
+        parent.add_argument("-d", "--dev", metavar="BRANCH", help="Define github branch", type=str, default=f"{__default_branch__}")
         parent.add_argument("-v", "--verbose", action="store_true", help="Show full error tracebacks")
 
         parser = argparse.ArgumentParser(

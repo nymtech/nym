@@ -1,4 +1,5 @@
 #!/bin/bash
+
 # start_node_systemd_service_sh (control script)
 set -euo pipefail
 

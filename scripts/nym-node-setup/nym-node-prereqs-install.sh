@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Update, upgrade & install dependencies
+# update, upgrade & install dependencies
 echo -e "\n* * * Installing needed prerequisities * * *"
 
 apt update  -y && apt --fix-broken install
@@ -10,7 +10,7 @@ apt install ufw --fix-missing
 
 
 
-# Enable & setup firewall
+# enable & setup firewall
 echo -e "\n* * * Setting up firewall using ufw * * * "
 
 ufw enable

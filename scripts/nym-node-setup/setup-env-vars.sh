@@ -5,7 +5,7 @@
 
 echo -e "\n* * * Setting up environmental variables to ./env.sh * * *"
 
-# Detect if we're being sourced
+# detect if we're being sourced
 if [[ "${BASH_SOURCE[0]}" != "$0" ]]; then
   __SOURCED=1
 else
@@ -13,14 +13,14 @@ else
 fi
 
 while true; do
-  # Prompt user
+  # prompt user
   read -rp "Enter hostname (if you don't use a DNS, press enter): " HOSTNAME
   read -rp "Enter node location (country code or name): " LOCATION
   read -rp "Enter your email: " EMAIL
   read -rp "Enter node public moniker (visible in the explorer and NymVPN app): " MONIKER
   read -rp "Enter node public description: " DESCRIPTION
 
-  # Show summary table
+  # show summary table
   echo -e "\nPlease confirm the values you entered:"
   echo "---------------------------------------"
   printf "%-20s %s\n" "HOSTNAME:"    "$HOSTNAME"
@@ -39,7 +39,7 @@ while true; do
   esac
 done
 
-# Try to get the latest binary URL (non-fatal if missing)
+# try to get the latest binary URL (non-fatal if missing)
 LATEST_BINARY=$(
   curl -fsSL https://github.com/nymtech/nym/releases/latest \
     | grep -Eo 'href="/nymtech/nym/releases/download/[^"]+/nym-node"' \
@@ -53,7 +53,7 @@ fi
 PUBLIC_IP=$(curl -fsS -4 https://ifconfig.me || true)
 PUBLIC_IP=${PUBLIC_IP:-""}
 
-# Write env.sh
+# write env.sh
 {
   [[ -n "${LATEST_BINARY:-}" ]] && echo "export LATEST_BINARY=\"https://github.com${LATEST_BINARY}\""
   echo "export HOSTNAME=\"${HOSTNAME}\""

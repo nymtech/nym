@@ -1,8 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
-# ===== Load environment =====
-# Prefer absolute ENV_FILE injected by your Python run_script; fallback to ./env.sh in cwd.
+# load env
+# prefer absolute ENV_FILE injected by Python run_script; fallback to ./env.sh in cwd.
 if [[ -n "${ENV_FILE:-}" && -f "${ENV_FILE}" ]]; then
   set -a; . "${ENV_FILE}"; set +a
 elif [[ -f "./env.sh" ]]; then
@@ -15,7 +15,7 @@ fi
 export SYSTEMD_PAGER=""
 export SYSTEMD_COLORS="0"
 
-# ===== Sanity =====
+# sanity
 if [[ "${HOSTNAME}" == "localhost" || "${HOSTNAME}" == "127.0.0.1" ]]; then
   echo "ERROR: HOSTNAME cannot be 'localhost' for Let's Encrypt. Set a public FQDN in env.sh." >&2
   exit 1
@@ -23,7 +23,7 @@ fi
 
 echo -e "\n* * * Starting nginx configuration for landing page, reverse proxy and WSS * * *"
 
-# ===== Ensure web root + landing page =====
+# ensure web root + landing page
 WEBROOT="/var/www/${HOSTNAME}"
 mkdir -p "${WEBROOT}"
 
@@ -41,16 +41,16 @@ else
 HTML
 fi
 
-# ===== Paths =====
+# def paths vars
 SITES_AVAIL="/etc/nginx/sites-available"
 SITES_EN="/etc/nginx/sites-enabled"
 BASE_PATH="${SITES_AVAIL}/${HOSTNAME}"
 BASE_LINK="${SITES_EN}/${HOSTNAME}"
 
-# ===== Disable default site and sanitize stale SSL configs before any nginx -t =====
+# disable default site and sanitize stale SSL configs before any nginx -t
 [[ -L "${SITES_EN}/default" ]] && unlink "${SITES_EN}/default" || true
 
-# Disable any enabled site referencing localhost LE certs
+# disable any enabled site referencing localhost LE certs
 for f in /etc/nginx/sites-enabled/*; do
   [[ -L "$f" ]] || continue
   if grep -q "/etc/letsencrypt/live/localhost" "$f"; then
@@ -59,7 +59,7 @@ for f in /etc/nginx/sites-enabled/*; do
   fi
 done
 
-# Also sanitize conf.d drop-ins pointing at localhost certs
+# sanitize conf.d drop-ins pointing at localhost certs
 if ls /etc/nginx/conf.d/*.conf >/dev/null 2>&1; then
   for f in /etc/nginx/conf.d/*.conf; do
     [[ -f "$f" ]] || continue
@@ -83,7 +83,7 @@ for f in /etc/nginx/sites-enabled/*; do
   fi
 done
 
-# ===== Plain HTTP site (no SSL yet) =====
+# plain HTTP site (no SSL yet)
 if [[ -f "${BASE_PATH}" ]]; then
   cp -f "${BASE_PATH}" "${BASE_PATH}.bak.$(date +%s)"
 fi
@@ -119,7 +119,7 @@ nginx -t
 systemctl daemon-reexec
 systemctl restart nginx
 
-# ===== ACME preflight =====
+# ACME preflight
 echo -e "\n* * * ACME preflight checks * * *"
 if ! curl -fsSL https://acme-v02.api.letsencrypt.org/directory >/dev/null; then
   echo "ERROR: Cannot reach Let's Encrypt directory. Check outbound HTTPS / firewall / DNS." >&2
@@ -138,7 +138,7 @@ if ! timedatectl show -p NTPSynchronized --value 2>/dev/null | grep -qi yes; the
   timedatectl set-ntp true || true
 fi
 
-# ===== Certbot install =====
+# certbot install
 if ! command -v certbot >/dev/null 2>&1; then
   if command -v snap >/dev/null 2>&1; then
     echo -e "\n* * * Installing Certbot via snap * * *"
@@ -153,7 +153,7 @@ if ! command -v certbot >/dev/null 2>&1; then
   fi
 fi
 
-# Use staging if requested to avoid rate limits during testing:
+# use staging if requested to avoid rate limits during testing:
 STAGING_FLAG=""
 if [[ "${CERTBOT_STAGING:-0}" == "1" ]]; then
   STAGING_FLAG="--staging"
@@ -172,7 +172,7 @@ if [[ ! -s "${FULLCHAIN}" || ! -s "${PRIVKEY}" ]]; then
   exit 3
 fi
 
-# ===== WSS :9001 SSL site =====
+# WSS :9001 SSL site
 WSS_AVAIL="/etc/nginx/sites-available/wss-config-nym"
 WSS_LINK="/etc/nginx/sites-enabled/wss-config-nym"
 

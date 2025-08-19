@@ -61,7 +61,7 @@ EOF
 
 echo -e "\n* * * Setting up systemd service config file for node automation * * *"
 
-# If it already exists, just reload + enable and exit
+# if already exists, just reload + enable and exit
 if [[ -f "$SERVICE_PATH" ]]; then
   echo "Service file already exists at: $SERVICE_PATH"
   echo "* * * Reloading systemd and enabling service..."
@@ -70,7 +70,7 @@ if [[ -f "$SERVICE_PATH" ]]; then
   exit 0
 fi
 
-# Non-interactive creation (used by Python)
+# non-interactive creation (used by Python)
 if [[ "${NONINTERACTIVE:-}" = "1" ]]; then
   MODE="$(normalize_mode "${MODE:-}")"
   if [[ -z "$MODE" ]]; then
@@ -81,7 +81,7 @@ if [[ "${NONINTERACTIVE:-}" = "1" ]]; then
   exit 0
 fi
 
-# Interactive path (manual runs)
+# interactive path (manual runs)
 ensure_mode
 read -rp "Service file not found. Create it now? [y/N]: " create_ans
 if [[ "${create_ans:-}" =~ ^[Yy]$ ]]; then

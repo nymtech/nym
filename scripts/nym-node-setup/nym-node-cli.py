@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Iterable, Optional, Mapping
 
 class NodeSetupCLI:
+    """All CLI main functions"""
 
     def __init__(self, args):
         self.branch = args.dev
@@ -32,23 +33,19 @@ class NodeSetupCLI:
         self.wg_ip_tables_manager_sh = self._check_gwx_mode() and self.fetch_script("wireguard-exit-policy-manager.sh")
         self.wg_ip_tables_test_sh = self._check_gwx_mode() and self.fetch_script("exit-policy-tests.sh")
 
-
-#    def _branch(self, args):
-#        branch = args.dev
-#        return branch
-
     def print_welcome_message(self):
+        """Welcome user, warns for needed pre-reqs and asks for confimation"""
         self.print_character("=", 41)
         print("* * * * * * NYM - NODE - CLI * * * * * *\nAn interactive tool to download, install\n* * * * * setup & run nym-node * * * * *")
         self.print_character("=", 41)
         msg = \
             "Before you begin, make sure that:\n"\
-            "* You run this setup on Debian based Linux (ie Ubuntu)\n"\
-            "* You run this installation program from a root shell\n"\
-            "* You meet minimal requirements: https://nym.com/docs/operators/nodes\n"\
-            "* You agree with Operators Terms & Conditions: https://nym.com/operators-validators-terms\n"\
-            "* You have Nym wallet with at least 101 NYM: https://nym.com/docs/operators/nodes/preliminary-steps/wallet-preparation\n"\
-            "* In case of Gateway behind reverse proxy, you have A and AAAA DNS record pointing to this IP and propagated\n"\
+            "1. You run this setup on Debian based Linux (ie Ubuntu)\n"\
+            "2. You run this installation program from a root shell\n"\
+            "3. You meet minimal requirements: https://nym.com/docs/operators/nodes\n"\
+            "4. You agree with Operators Terms & Conditions: https://nym.com/operators-validators-terms\n"\
+            "5. You have Nym wallet with at least 101 NYM: https://nym.com/docs/operators/nodes/preliminary-steps/wallet-preparation\n"\
+            "6. In case of Gateway behind reverse proxy, you have A and AAAA DNS record pointing to this IP and propagated\n"\
             "\nTo confirm and continue, write 'YES' and press enter:"
         print(msg)
         confirmation = input("\n")
@@ -59,6 +56,7 @@ class NodeSetupCLI:
             exit(1)
 
     def prompt_mode(self):
+        """Ask user to insert node functionality and save it in python and bash envs"""
         mode = input(
             "\nEnter the mode you want to run nym-node in: "
             "\n1) mixnode "
@@ -77,16 +75,16 @@ class NodeSetupCLI:
             print("Only numbers 1, 2 or 3 are accepted.")
             raise SystemExit(1)
 
-        # Save mode for this Python instance
+        # save mode for this Python instance
         self.mode = mode
         os.environ["MODE"] = mode
 
-        # Persist to env.sh so other scripts can source it
+        # persist to env.sh so other scripts can source it
         env_file = Path("env.sh")
         with env_file.open("a") as f:
             f.write(f'export MODE="{mode}"\n')
 
-        # Source env.sh so future bash subprocesses see it immediately
+        # source env.sh so future bash subprocesses see it immediately
         subprocess.run("source ./env.sh", shell=True, executable="/bin/bash")
 
         print(f"Mode set to '{mode}' — stored in env.sh and sourced for immediate use.")
@@ -94,7 +92,11 @@ class NodeSetupCLI:
 
 
     def fetch_script(self, script_name):
-        #print("\n* * * Fetching required scripts * * *")
+        """Fetches needed scripts according to a defined mode"""
+        # print header only the first time
+        if not getattr(self, "_fetched_once", False):
+            print("\n* * * Fetching required scripts * * *")
+            self._fetched_once = True
         url = self._return_script_url(script_name)
         print(f"Fetching file from: {url}")
         result = subprocess.run(["wget", "-qO-", url], capture_output=True, text=True)
@@ -108,6 +110,7 @@ class NodeSetupCLI:
         return result.stdout
 
     def _return_script_url(self, script_init_name):
+        """Dictionary pointing to scripts url returning value according to a passed key"""
         github_raw_nymtech_nym_scripts_url = f"https://raw.githubusercontent.com/nymtech/nym/refs/heads/{self.branch}/scripts/"
         scripts_urls = {
                 "nym-node-prereqs-install.sh": f"{github_raw_nymtech_nym_scripts_url}nym-node-setup/nym-node-prereqs-install.sh",
@@ -129,31 +132,31 @@ class NodeSetupCLI:
         args: Optional[Iterable[str]] = None,
         env: Optional[Mapping[str, str]] = None,
         cwd: Optional[str] = None,
-        sudo: bool = False,         # ignored when you're root; kept for signature compat
+        sudo: bool = False,         # ignored for root; kept for signature compat
         detached: bool = False,
     ) -> int:
         """
-        Save script to a temp file and run it.
-        - Automatically injects ENV_FILE=<abs path to ./env.sh> unless already provided.
-        - Adds SYSTEMD_PAGER="" and SYSTEMD_COLORS="0" by default.
-        Returns exit code (0 if detached fire-and-forget).
+        Save script to a temp file and run it
+        - Automatically injects ENV_FILE=<abs path to ./env.sh> unless already provided
+        - Adds SYSTEMD_PAGER="" and SYSTEMD_COLORS="0" by default
+        Returns exit code (0 if detached fire-and-forget)
         """
         import os, subprocess
 
         path = self._write_temp_script(script_text)
         try:
-            # Build env with sensible defaults
+            # build env with sensible defaults
             run_env = dict(os.environ)
             if env:
                 run_env.update(env)
 
-            # Ensure ENV_FILE is absolute and present for all scripts
+            # ensure ENV_FILE is absolute and present for all scripts
             if "ENV_FILE" not in run_env:
-                # If you keep env.sh elsewhere, change this to your known base dir
+                # if env.sh is elsewhere, change this to your known base dir
                 env_file = os.path.abspath(os.path.join(os.getcwd(), "env.sh"))
                 run_env["ENV_FILE"] = env_file
 
-            # Make systemctl non-interactive everywhere
+            # make systemctl non-interactive everywhere
             run_env.setdefault("SYSTEMD_PAGER", "")
             run_env.setdefault("SYSTEMD_COLORS", "0")
 
@@ -181,22 +184,24 @@ class NodeSetupCLI:
                 pass
 
     def _write_temp_script(self, script_text: str) -> Path:
-       """Write script text to a temp file, ensure bash shebang, chmod +x, return its Path."""
+        """Helper: write script text to a temp file, ensure bash shebang, chmod +x, return its path"""
        if not script_text.lstrip().startswith("#!"):
            script_text = "#!/usr/bin/env bash\n" + script_text
        with tempfile.NamedTemporaryFile("w", delete=False, suffix=".sh") as f:
            f.write(script_text)
            path = Path(f.name)
-       os.chmod(path, 0o700)  # executable for owner
+       os.chmod(path, 0o700)
        return path
 
     def _check_gwx_mode(self):
+        """Helper: Several fns run only for GWx - this fn checks this condition"""
         if self.mode == "exit-gateway":
             return True
         else:
             return False
 
     def check_wg_enabled(self):
+        """Checks if Wireguard is enabled and if not, prompts user if they want to enable it, stores it to env.sh"""
 
 
         env_file = os.path.abspath(os.path.join(os.getcwd(), "env.sh"))
@@ -249,10 +254,10 @@ class NodeSetupCLI:
 
     def run_bash_command(self, command, args=None, *, env=None, cwd=None, check=True):
         """
-        Run a command with optional args (no script stdin).
+        Run a command with optional args (no script stdin)
         `command` can be a string (e.g., "ls") or a list (e.g., ["ls", "-la"]).
         """
-        # Normalize command into a list
+        # normalize command into a list
         if isinstance(command, str):
             cmd = shlex.split(command)
         else:
@@ -266,22 +271,23 @@ class NodeSetupCLI:
 
 
     def run_tunnel_manager_setup(self):
+        """A standalone fn to pass full cmd list needed for correct setup and test network tunneling, using an external script"""
         print(
             "\n* * * Setting up network configuration for mixnet IP router and Wireguard tunneling * * *"
             "\nMore info: https://nym.com/docs/operators/nodes/nym-node/configuration#1-download-network_tunnel_managersh-make-executable-and-run"
             "\nThis may take a while; follow the steps below and don't kill the process..."
         )
 
-        # Each entry is the exact argv to pass to the script
+        # each entry is the exact argv to pass to the script
         steps = [
             ["check_nymtun_iptables"],
             ["remove_duplicate_rules", "nymtun0"],
             ["remove_duplicate_rules", "nymwg"],
             ["check_nymtun_iptables"],
             ["adjust_ip_forwarding"],
-            ["apply_iptables_rules"],          # for nymtun0 inside script
+            ["apply_iptables_rules"],
             ["check_nymtun_iptables"],
-            ["apply_iptables_rules_wg"],       # for nymwg inside script
+            ["apply_iptables_rules_wg"],
             ["configure_dns_and_icmp_wg"],
             ["adjust_ip_forwarding"],
             ["check_ipv6_ipv4_forwarding"],
@@ -300,6 +306,7 @@ class NodeSetupCLI:
         return 0
 
     def setup_test_wg_ip_tables(self):
+        """Configuration and test of Wireguard exit policy according to mixnet exit policy using external scripts"""
         print(
             "Setting up Wireguard IP tables to match Nym exit policy for mixnet, stored at: https://nymtech.net/.wellknown/network-requester/exit-policy.txt"
             "This may take a while, follow the steps below and don't kill the process..."
@@ -310,11 +317,12 @@ class NodeSetupCLI:
 
 
     def run_nym_node_as_service(self):
+        """Starts /etc/systemd/system/nym-node.service based on prompt using external script"""
         service = "nym-node.service"
         service_path = "/etc/systemd/system/nym-node.service"
-        print(f"We are going to start {service} from systemd config located at: {service_path}")
+        print(f"\n* * * We are going to start {service} from systemd config located at: {service_path} * * *")
 
-        # If the service file is missing, run setup non-interactively
+        # if the service file is missing, run setup non-interactively
         if not os.path.isfile(service_path):
             print(f"Service file not found at {service_path}. Running setup...")
             setup_env = {
@@ -357,11 +365,12 @@ class NodeSetupCLI:
 
 
     def run_bonding_prompt(self):
+        """Interactive function navigating user to bond node"""
         print("\n")
         print("* * * Bonding Nym Node * * *")
         print("Time to register your node to Nym Network by bonding it using Nym wallet ...")
         node_path = os.path.expandvars(os.path.expanduser("$HOME/nym-binaries/nym-node"))
-        # Or: node_path = str(Path.home() / "nym-binaries" / "nym-node")
+        # or: node_path = str(Path.home() / "nym-binaries" / "nym-node")
         if not (os.path.isfile(node_path) and os.access(node_path, os.X_OK)):
             print(f"Nym node not found at {node_path}, we cannot run a bonding prompt!")
             exit(1)
@@ -435,7 +444,7 @@ class NodeSetupCLI:
 
 
     def print_character(self, ch: str, count: int):
-        """Print `ch` repeated `count` times (no unbounded growth)."""
+        """Print `ch` repeated `count` times (no unbounded growth)"""
         if not ch:
             return
         # Use exactly one codepoint char; trim if longer
@@ -445,11 +454,11 @@ class NodeSetupCLI:
             n = int(count)
         except Exception:
             n = 0
-        n = max(0, min(n, 161))  # adjust max as you like
+        n = max(0, min(n, 161))
         print(ch * n)
 
     def _env_with_envfile(self) -> dict:
-        import os
+        """Helper for env persistence sanity"""
         env = dict(os.environ)
         env["SYSTEMD_PAGER"] = ""
         env["SYSTEMD_COLORS"] = "0"
@@ -457,6 +466,7 @@ class NodeSetupCLI:
         return env
 
     def run_node_installation(self,args):
+        """Main function called by argparser command install running full node install flow"""
         self.run_script(self.prereqs_install_sh)
         self.run_script(self.env_vars_install_sh)
         self.run_script(self.node_install_sh)
@@ -471,8 +481,10 @@ class NodeSetupCLI:
                 self.setup_test_wg_ip_tables()
 
 class ArgParser:
+    """CLI argument interface managing the NodeSetupCLI functions based on user input"""
+
     def parser_main(self):
-        # Shared options (work before/after subcommands)
+        # shared options (work before/after subcommands)
         parent = argparse.ArgumentParser(add_help=False)
         parent.add_argument(
             "-V", "--version",
@@ -497,14 +509,14 @@ class ArgParser:
             help="Starts nym-node installation setup CLI",
             aliases=["i", "I"], add_help=True
         )
-        # If install had flags unique to it, you'd add them to p_install here.
+        # if install had flags unique to it, you'd add them to p_install here
 
         args = parser.parse_args()
 
-        # Build CLI with parsed args
+        # build CLI with parsed args
         cli = NodeSetupCLI(args)
 
-        # Dispatch map (easier to extend with more commands)
+        # dispatch map (easier to extend with more commands)
         commands = {
             "install": cli.run_node_installation,
             "i":       cli.run_node_installation,
@@ -528,6 +540,7 @@ class ArgParser:
             sys.exit(1)
 
 class SystemSafeGuards:
+    """A few safe guards to deal with memory usage by this program"""
 
     def _protect_from_oom(self, score: int = -900):
         try:
@@ -537,7 +550,7 @@ class SystemSafeGuards:
             pass
 
     def _trim_memory(self):
-        # Free freeable Python objects and return arenas to the OS if possible
+        """Liberate freeable Python objects and return arenas to the OS if possible"""
         try:
             import gc, ctypes
             gc.collect()
@@ -551,7 +564,7 @@ class SystemSafeGuards:
             pass
 
     def _cap_controller_memory(self, bytes_limit: int = 2 * 1024**3):
-        # Limit this Python process to e.g. 2 GiB virtual memory
+        # limit this Python process to e.g. 2 GiB virtual memory
         try:
             import resource
             resource.setrlimit(resource.RLIMIT_AS, (bytes_limit, bytes_limit))

@@ -31,6 +31,7 @@ use nym_node_metrics::events::MetricsEvent;
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_statistics_common::{gateways::GatewaySessionEvent, types::SessionType};
 use nym_task::TaskClient;
+use nym_upgrade_mode_check::{validate_upgrade_mode_jwt, CREDENTIAL_PROXY_JWT_ISSUER};
 use nym_validator_client::coconut::EcashApiError;
 use rand::{random, CryptoRng, Rng};
 use std::cmp::max;
@@ -95,8 +96,20 @@ pub enum RequestHandlingError {
     #[error("failed to recover bandwidth value: {0}")]
     BandwidthRecoveryFailure(#[from] BandwidthError),
 
-    #[error("{0}")]
+    #[error(transparent)]
     CredentialVerification(#[from] nym_credential_verification::Error),
+
+    #[error("provided upgrade mode JWT is invalid: {0}")]
+    InvalidUpgradeModeJWT(#[from] nym_upgrade_mode_check::UpgradeModeCheckError),
+
+    #[error("the upgrade mode attestation does not appear to have been published")]
+    AttestationNotPublished,
+
+    #[error("the provided upgrade mode attestation is different from the published one")]
+    MismatchedUpgradeModeAttestation,
+
+    #[error("can't perform another upgrade mode attestation check - please try again later")]
+    TooManyRecheckRequests,
 }
 
 impl RequestHandlingError {
@@ -284,6 +297,67 @@ impl<R, S> AuthenticatedHandler<R, S> {
         })
     }
 
+    async fn upgrade_mode_bandwidth(&self) -> i64 {
+        // if we're undergoing upgrade mode, we don't meter bandwidth,
+        // we simply return MAX of clients current bandwidth and minimum bandwidth before default
+        // client would have attempted to send new ticket
+        // the latter is to support older clients that will ignore `upgrade_mode` field in the response
+        // as they're not aware of its existence
+        let available_bandwidth = self.bandwidth_storage_manager.available_bandwidth().await;
+        max(DEFAULT_CLIENT_BANDWIDTH_THRESHOLD, available_bandwidth)
+    }
+
+    /// Tries to handle the received JWT token request by checking its correctness and
+    /// internally enables upgrade mode if it hasn't been set before.
+    /// Furthermore, clients bandwidth metering is getting disabled.
+    async fn handle_upgrade_mode_jwt(
+        &self,
+        token: String,
+    ) -> Result<ServerResponse, RequestHandlingError> {
+        // if we're already in the upgrade mode, don't bother validating the token
+        if self.upgrade_mode() {
+            return Ok(ServerResponse::Bandwidth {
+                available_total: self.upgrade_mode_bandwidth().await,
+                upgrade_mode: true,
+            });
+        }
+
+        // see if it's viable to perform another expedited check
+        if !self.inner.shared_state.upgrade_mode.can_request_recheck() {
+            return Err(RequestHandlingError::TooManyRecheckRequests);
+        }
+
+        // first validate whether the received JWT is even valid
+        // note: we expect the token has been signed by our credential proxy
+        // (in the future, we won't care about it, and we'll have proper key discovery endpoint. 2026™️)
+        let attestation = validate_upgrade_mode_jwt(&token, Some(CREDENTIAL_PROXY_JWT_ISSUER))?;
+
+        // send request to revalidate internal state
+        self.inner.shared_state.upgrade_mode.request_recheck().await;
+
+        // not strictly necessary, but check if provided attestation actually matches the one retrieved
+        // (if any)
+        let Some(retrieved_attestation) = self
+            .inner
+            .shared_state
+            .upgrade_mode
+            .state
+            .attestation()
+            .await
+        else {
+            return Err(RequestHandlingError::AttestationNotPublished);
+        };
+        if retrieved_attestation != attestation {
+            return Err(RequestHandlingError::MismatchedUpgradeModeAttestation);
+        }
+
+        // (if attestation has been returned it means we're in upgrade mode)
+        Ok(ServerResponse::Bandwidth {
+            available_total: self.upgrade_mode_bandwidth().await,
+            upgrade_mode: true,
+        })
+    }
+
     /// Tries to handle request to forward sphinx packet into the network. The request can only succeed
     /// if the client has enough available bandwidth.
     ///
@@ -302,13 +376,7 @@ impl<R, S> AuthenticatedHandler<R, S> {
         let upgrade_mode = self.upgrade_mode();
 
         let remaining_bandwidth = if self.upgrade_mode() {
-            // if we're undergoing upgrade mode, we don't meter bandwidth,
-            // we simply return MAX of clients current bandwidth and minimum bandwidth before default
-            // client would have attempted to send new ticket
-            // the latter is to support older clients that will ignore `upgrade_mode` field in the response
-            // as they're not aware of its existence
-            let available = self.bandwidth_storage_manager.available_bandwidth().await;
-            max(DEFAULT_CLIENT_BANDWIDTH_THRESHOLD, available)
+            self.upgrade_mode_bandwidth().await
         } else {
             self.bandwidth_storage_manager
                 .try_use_bandwidth(required_bandwidth)
@@ -454,6 +522,9 @@ impl<R, S> AuthenticatedHandler<R, S> {
             }
             ClientControlRequest::EcashCredential { enc_credential, iv } => {
                 self.handle_ecash_bandwidth(enc_credential, iv).await
+            }
+            ClientControlRequest::UpgradeModeJWT { token } => {
+                self.handle_upgrade_mode_jwt(token).await
             }
             ClientControlRequest::BandwidthCredential { .. } => {
                 Err(RequestHandlingError::IllegalRequest {

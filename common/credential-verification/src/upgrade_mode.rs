@@ -25,6 +25,10 @@ impl UpgradeModeState {
         }
     }
 
+    pub async fn attestation(&self) -> Option<UpgradeModeAttestation> {
+        self.inner.expected_attestation.read().await.clone()
+    }
+
     pub async fn set_expected_attestation(
         &self,
         expected_attestation: Option<UpgradeModeAttestation>,

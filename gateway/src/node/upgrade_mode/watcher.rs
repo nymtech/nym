@@ -3,7 +3,7 @@
 
 use crate::node::UserAgent;
 use futures::channel::mpsc::{unbounded, UnboundedReceiver, UnboundedSender};
-use futures::{FutureExt, StreamExt};
+use futures::StreamExt;
 use nym_credential_verification::upgrade_mode::UpgradeModeState;
 use nym_task::TaskClient;
 use nym_upgrade_mode_check::attempt_retrieve_attestation;

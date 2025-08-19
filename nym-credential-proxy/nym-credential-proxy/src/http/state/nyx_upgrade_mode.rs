@@ -1,9 +1,10 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use nym_credential_proxy_requests::CREDENTIAL_PROXY_JWT_ISSUER;
 use nym_crypto::asymmetric::ed25519;
-use nym_upgrade_mode_check::{generate_jwt_for_upgrade_mode_attestation, UpgradeModeAttestation};
+use nym_upgrade_mode_check::{
+    generate_jwt_for_upgrade_mode_attestation, UpgradeModeAttestation, CREDENTIAL_PROXY_JWT_ISSUER,
+};
 use std::sync::Arc;
 use std::time::Duration;
 use time::OffsetDateTime;

@@ -98,6 +98,10 @@ pub enum ClientControlRequest {
         enc_credential: Vec<u8>,
         iv: Vec<u8>,
     },
+    UpgradeModeJWT {
+        // no need to encrypt it as it's public anyway
+        token: String,
+    },
     ClaimFreeTestnetBandwidth,
     EncryptedRequest {
         ciphertext: Vec<u8>,
@@ -159,6 +163,7 @@ impl ClientControlRequest {
                 "BandwidthCredentialV2".to_string()
             }
             ClientControlRequest::EcashCredential { .. } => "EcashCredential".to_string(),
+            ClientControlRequest::UpgradeModeJWT { .. } => "UpgradeModeJWT".to_string(),
             ClientControlRequest::ClaimFreeTestnetBandwidth => {
                 "ClaimFreeTestnetBandwidth".to_string()
             }

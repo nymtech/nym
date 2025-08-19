@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# ===== Load env (prefer absolute ENV_FILE injected by Python; fallback to ./env.sh) =====
+# load env (prefer absolute ENV_FILE injected by Python CLI; fallback to ./env.sh)
 if [[ -n "${ENV_FILE:-}" && -f "${ENV_FILE}" ]]; then
   set -a; . "${ENV_FILE}"; set +a
 elif [[ -f "./env.sh" ]]; then
@@ -15,7 +15,7 @@ export SYSTEMD_PAGER=""
 export SYSTEMD_COLORS="0"
 DEBIAN_FRONTEND=noninteractive
 
-# ===== Sanity =====
+# sanity check
 if [[ "${HOSTNAME}" == "localhost" || "${HOSTNAME}" == "127.0.0.1" ]]; then
   echo "ERROR: HOSTNAME cannot be 'localhost'. Use a public FQDN." >&2
   exit 1
@@ -23,7 +23,7 @@ fi
 
 echo -e "\n* * * Starting nginx configuration for landing page, reverse proxy and WSS * * *"
 
-# ===== Paths / Ports =====
+# set paths & ports vars
 WEBROOT="/var/www/${HOSTNAME}"
 LE_ACME_DIR="/var/www/letsencrypt"
 SITES_AVAIL="/etc/nginx/sites-available"
@@ -39,7 +39,7 @@ WSS_LISTEN_PORT="${WSS_LISTEN_PORT:-9001}"
 
 mkdir -p "${WEBROOT}" "${LE_ACME_DIR}" "${BACKUP_DIR}" "${SITES_AVAIL}" "${SITES_EN}"
 
-# ===== Helpers =====
+# helpers
 neat_backup() {
   local file="$1"; [[ -f "$file" ]] || return 0
   local sha_now; sha_now="$(sha256sum "$file" | awk '{print $1}')" || return 0
@@ -83,11 +83,11 @@ HTML
 
 reload_nginx() { nginx -t && systemctl reload nginx; }
 
-# ===== Landing page (idempotent) =====
+# landing page (idempotent)
 fetch_landing
 echo "Landing page at ${WEBROOT}/index.html"
 
-# ===== Disable default and stale SSL configs =====
+# disable default and stale SSL configs
 [[ -L "${SITES_EN}/default" ]] && unlink "${SITES_EN}/default" || true
 for f in "${SITES_EN}"/*; do
   [[ -L "$f" ]] || continue
@@ -106,7 +106,7 @@ for f in "${SITES_EN}"/*; do
   fi
 done
 
-# ===== HTTP :80 vhost (ACME-safe, proxy to :8080) =====
+# HTTP :80 vhost (ACME-safe, proxy to :8080)
 neat_backup "${BASE_HTTP}"
 cat > "${BASE_HTTP}" <<EOF
 server {
@@ -141,7 +141,7 @@ ensure_enabled "${BASE_HTTP}"
 reload_nginx
 systemctl status nginx --no-pager | sed -n '1,6p' || true
 
-# ===== ACME preflight (informative) =====
+# ACME preflight (informative)
 echo -e "\n* * * ACME preflight checks * * *"
 if ! curl -fsSL https://acme-v02.api.letsencrypt.org/directory >/dev/null; then
   echo "WARNING: Can't reach Let's Encrypt directory. We'll still keep HTTP up." >&2
@@ -154,7 +154,7 @@ if [[ -n "${THIS_IP:-}" && -n "${DNS_IP:-}" && "${THIS_IP}" != "${DNS_IP}" ]]; t
 fi
 timedatectl show -p NTPSynchronized --value 2>/dev/null | grep -qi yes || timedatectl set-ntp true || true
 
-# ===== Install certbot if missing =====
+# install certbot if missing
 if ! command -v certbot >/dev/null 2>&1; then
   if command -v snap >/dev/null 2>&1; then
     snap install core || true; snap refresh core || true
@@ -165,14 +165,14 @@ if ! command -v certbot >/dev/null 2>&1; then
   fi
 fi
 
-# ===== Issue/renew via WEBROOT (no nginx auto-edit), non-fatal if it fails =====
+# issue/renew via WEBROOT (no nginx auto-edit), non-fatal if it fails
 STAGING_FLAG=""; [[ "${CERTBOT_STAGING:-0}" == "1" ]] && STAGING_FLAG="--staging" && echo "Using Let's Encrypt STAGING."
 if ! cert_ok; then
   certbot certonly --non-interactive --agree-tos -m "${EMAIL}" -d "${HOSTNAME}" \
     --webroot -w "${LE_ACME_DIR}" ${STAGING_FLAG} || true
 fi
 
-# ===== Our own 443 vhost (only if certs exist) =====
+# create own 443 vhost (only if certs exist)
 if cert_ok; then
   neat_backup "${BASE_HTTPS}"
   cat > "${BASE_HTTPS}" <<EOF
@@ -208,7 +208,7 @@ server {
 EOF
   ensure_enabled "${BASE_HTTPS}"
 
-  # Optional: redirect HTTP->HTTPS (keeps ACME path in HTTP too via separate small server)
+  # optional: redirect HTTP->HTTPS (keeps ACME path in HTTP too via separate small server)
   neat_backup "${BASE_HTTP}"
   cat > "${BASE_HTTP}" <<EOF
 server {
@@ -234,7 +234,7 @@ else
   echo "NOTE: Cert not present yet; HTTPS (443) will not listen. Only HTTP (80) is active."
 fi
 
-# ===== WSS TLS :9001 (only if certs exist) =====
+# WSS TLS :9001 (only if certs exist)
 if cert_ok; then
   neat_backup "${WSS_AVAIL}"
   cat > "${WSS_AVAIL}" <<EOF

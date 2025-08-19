@@ -36,7 +36,11 @@ class NodeSetupCLI:
     def print_welcome_message(self):
         """Welcome user, warns for needed pre-reqs and asks for confimation"""
         self.print_character("=", 41)
-        print("* * * * * * NYM - NODE - CLI * * * * * *\nAn interactive tool to download, install\n* * * * * setup & run nym-node * * * * *")
+        print(\
+            "* * * * * * NYM - NODE - CLI * * * * * *\n" \
+            "An interactive tool to download, install\n" \
+            "* * * * * setup & run nym-node * * * * *"
+            )
         self.print_character("=", 41)
         msg = \
             "Before you begin, make sure that:\n"\

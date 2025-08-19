@@ -358,7 +358,7 @@ class NodeSetupCLI:
 
     def run_bonding_prompt(self):
         print("\n")
-        self.print_character("-", 36)
+        print("* * * Bonding Nym Node * * *")
         print("Time to register your node to Nym Network by bonding it using Nym wallet ...")
         node_path = os.path.expandvars(os.path.expanduser("$HOME/nym-binaries/nym-node"))
         # Or: node_path = str(Path.home() / "nym-binaries" / "nym-node")

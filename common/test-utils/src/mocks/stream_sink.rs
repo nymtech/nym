@@ -160,3 +160,22 @@ where
         Poll::Ready(Ok(()))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use futures::{SinkExt, StreamExt};
+
+    #[tokio::test]
+    async fn basic() {
+        let (mut stream1, mut stream2) = mock_streams();
+        stream1.send("foomp").await.unwrap();
+
+        let received = stream2.next().await.unwrap();
+        assert_eq!(received, "foomp");
+
+        stream2.send("bar").await.unwrap();
+        let received = stream1.next().await.unwrap();
+        assert_eq!(received, "bar");
+    }
+}

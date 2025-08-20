@@ -114,14 +114,11 @@ DONE(status)
 mod tests {
     use super::*;
     use crate::ClientControlRequest;
-    use anyhow::Context;
     use futures::StreamExt;
     use nym_test_utils::helpers::u64_seeded_rng;
     use nym_test_utils::mocks::stream_sink::mock_streams;
     use nym_test_utils::traits::{Leak, Timeboxed, TimeboxedSpawnable};
-    use std::time::Duration;
     use tokio::join;
-    use tokio::time::timeout;
     use tungstenite::Message;
 
     #[tokio::test]

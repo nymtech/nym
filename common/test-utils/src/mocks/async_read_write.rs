@@ -133,3 +133,29 @@ impl AsyncWrite for MockIOStream {
         Poll::Ready(Ok(()))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+    #[tokio::test]
+    async fn basic() {
+        let (mut stream1, mut stream2) = mock_io_streams();
+        stream1.write_all(&[1, 2, 3, 4, 5]).await.unwrap();
+        stream1.flush().await.unwrap();
+
+        let mut buf = [0u8; 5];
+        let read = stream2.read(&mut buf).await.unwrap();
+        assert_eq!(read, 5);
+        assert_eq!(&buf[0..5], &[1, 2, 3, 4, 5]);
+
+        let mut buf = [0u8; 5];
+        stream2.write_all(&[6, 7, 8, 9, 10]).await.unwrap();
+        stream2.flush().await.unwrap();
+
+        let read = stream1.read(&mut buf).await.unwrap();
+        assert_eq!(read, 5);
+        assert_eq!(&buf[0..5], &[6, 7, 8, 9, 10]);
+    }
+}

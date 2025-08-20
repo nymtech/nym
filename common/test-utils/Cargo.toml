@@ -16,5 +16,8 @@ futures = { workspace = true }
 rand_chacha = { workspace = true }
 tokio = { workspace = true, features = ["sync", "time", "rt"] }
 
+[dev-dependencies]
+tokio = { workspace = true, features = ["full"] }
+
 [lints]
 workspace = true

@@ -1,0 +1,180 @@
+pub mod error;
+mod trace_id_format;
+
+use tracing::{info, Level};
+use tracing_subscriber::filter::Directive;
+use tracing_subscriber::layer::SubscriberExt;
+use tracing_subscriber::util::SubscriberInitExt;
+use tracing_subscriber::{fmt, Layer};
+
+use crate::logging::{default_tracing_env_filter, default_tracing_fmt_layer};
+use crate::opentelemetry::error::TracingError;
+use opentelemetry::trace::TracerProvider;
+use opentelemetry::{global, KeyValue};
+use opentelemetry_otlp::tonic_types::metadata::MetadataMap;
+use opentelemetry_otlp::tonic_types::transport::ClientTlsConfig;
+use opentelemetry_otlp::{WithExportConfig, WithTonicConfig};
+use opentelemetry_sdk::metrics::{MeterProviderBuilder, PeriodicReader, SdkMeterProvider};
+use opentelemetry_sdk::trace::{RandomIdGenerator, SdkTracerProvider};
+use opentelemetry_sdk::{trace::Sampler, Resource};
+use opentelemetry_semantic_conventions::resource::{DEPLOYMENT_ENVIRONMENT_NAME, SERVICE_VERSION};
+use opentelemetry_semantic_conventions::SCHEMA_URL;
+use tracing_opentelemetry::{MetricsLayer, OpenTelemetryLayer};
+use tracing_subscriber::fmt::format::FmtSpan;
+
+pub(crate) fn granual_filtered_env() -> Result<tracing_subscriber::filter::EnvFilter, TracingError>
+{
+    fn directive_checked(directive: impl Into<String>) -> Result<Directive, TracingError> {
+        directive.into().parse().map_err(From::from)
+    }
+
+    let mut filter = default_tracing_env_filter();
+
+    // these crates are more granularly filtered
+    let filter_crates = ["defguard_wireguard_rs"];
+    for crate_name in filter_crates {
+        filter = filter.add_directive(directive_checked(format!("{crate_name}=warn"))?);
+    }
+    Ok(filter)
+}
+
+pub(crate) fn build_tracing_logger() -> Result<impl SubscriberExt, TracingError> {
+    let key =
+        std::env::var("SIGNOZ_INGESTION_KEY".to_string()).expect("SIGNOZ_INGESTION_KEY not set");
+    let mut metadata = MetadataMap::new();
+    metadata.insert(
+        "signoz-ingestion-key",
+        key.parse().expect("Could not parse signoz ingestion key"),
+    );
+
+    let tracer_provider = init_tracer_provider(metadata)?;
+    let meter_provider = init_meter_provider()?;
+    let tracer = tracer_provider.tracer("tracing-otel-subscriber");
+
+    let fmt_layer = fmt::layer()
+        .json()
+        .with_writer(std::io::stderr)
+        .with_span_events(FmtSpan::NEW | FmtSpan::CLOSE)
+        .with_span_list(false)
+        .with_current_span(true)
+        .event_format(trace_id_format::TraceIdFormat);
+
+    let registry = tracing_subscriber::registry()
+        .with(fmt_layer)
+        .with(granual_filtered_env()?)
+        .with(tracing_subscriber::filter::LevelFilter::from_level(
+            Level::DEBUG,
+        ))
+        .with(MetricsLayer::new(meter_provider))
+        .with(OpenTelemetryLayer::new(tracer));
+
+    Ok(registry)
+}
+
+pub fn setup_tracing_logger() -> Result<(), TracingError> {
+    let stderr_layer =
+        default_tracing_fmt_layer(std::io::stderr).with_filter(granual_filtered_env()?);
+
+    cfg_if::cfg_if! {if #[cfg(feature = "tokio-console")] {
+        // instrument tokio console subscriber needs RUSTFLAGS="--cfg tokio_unstable" at build time
+        let console_layer = console_subscriber::spawn();
+
+        tracing_subscriber::registry()
+            .with(console_layer)
+            .with(stderr_layer)
+            .init();
+    } else {
+        tracing_subscriber::registry()
+            .with(stderr_layer)
+            .init();
+    }}
+
+    build_tracing_logger()?.init();
+    Ok(())
+}
+
+pub fn setup_no_otel_logger() -> Result<(), error::TracingError> {
+    // Only set up if not already initialized
+    if tracing::dispatcher::has_been_set() {
+        // It shouldn't be - this is really checking that it is torn down between async command executions
+        return Err(error::TracingError::TracingLoggerAlreadyInitialised);
+    }
+
+    let registry = tracing_subscriber::registry()
+        .with(default_tracing_fmt_layer(std::io::stderr))
+        .with(granual_filtered_env()?)
+        .with(tracing_subscriber::filter::LevelFilter::from_level(
+            Level::INFO,
+        ));
+
+    registry
+        .try_init()
+        .map_err(|e| error::TracingError::TracingTryInitError(e))?;
+
+    Ok(())
+}
+
+fn resource() -> Resource {
+    Resource::builder()
+        .with_service_name("nym-node")
+        .with_schema_url(
+            [
+                KeyValue::new(SERVICE_VERSION, env!("CARGO_PKG_VERSION")),
+                KeyValue::new(DEPLOYMENT_ENVIRONMENT_NAME, "develop"),
+            ],
+            SCHEMA_URL,
+        )
+        .build()
+}
+
+fn init_tracer_provider(metadata: MetadataMap) -> Result<SdkTracerProvider, TracingError> {
+    let endpoint = std::env::var("SIGNOZ_ENDPOINT".to_string()).expect("SIGNOZ_ENDPOINT not set");
+    info!("SIGNOZ_ENDPOINT = {}", endpoint);
+
+    let mut exporter_builder = opentelemetry_otlp::SpanExporter::builder()
+        .with_tonic()
+        .with_metadata(metadata)
+        .with_endpoint(&endpoint);
+
+    if endpoint.starts_with("https://") {
+        exporter_builder =
+            exporter_builder.with_tls_config(ClientTlsConfig::new().with_enabled_roots());
+    }
+
+    let exporter = exporter_builder.build()?;
+
+    let tracer = SdkTracerProvider::builder()
+        .with_sampler(Sampler::ParentBased(Box::new(Sampler::TraceIdRatioBased(
+            1.0,
+        ))))
+        .with_id_generator(RandomIdGenerator::default())
+        .with_resource(resource())
+        .with_batch_exporter(exporter)
+        .build();
+
+    Ok(tracer)
+}
+
+fn init_meter_provider() -> Result<SdkMeterProvider, TracingError> {
+    let exporter = opentelemetry_otlp::MetricExporter::builder()
+        .with_tonic()
+        .with_temporality(opentelemetry_sdk::metrics::Temporality::default())
+        .build()?;
+
+    let reader = PeriodicReader::builder(exporter)
+        .with_interval(std::time::Duration::from_secs(30))
+        .build();
+
+    let stdout_reader =
+        PeriodicReader::builder(opentelemetry_stdout::MetricExporter::default()).build();
+
+    let meter_provider = MeterProviderBuilder::default()
+        .with_resource(resource())
+        .with_reader(reader)
+        .with_reader(stdout_reader)
+        .build();
+
+    global::set_meter_provider(meter_provider.clone());
+
+    Ok(meter_provider)
+}

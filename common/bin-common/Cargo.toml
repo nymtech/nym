@@ -8,40 +8,57 @@ license = { workspace = true }
 repository = { workspace = true }
 
 [dependencies]
+chrono = { workspace = true, optional = true }
+cfg-if = { workspace = true }
 clap = { workspace = true, features = ["derive"], optional = true }
 clap_complete = { workspace = true, optional = true }
 clap_complete_fig = { workspace = true, optional = true }
 const-str = { workspace = true }
-log = { workspace = true }
+opentelemetry = { workspace = true, optional = true }
+opentelemetry-otlp = { workspace = true,features=["metrics", "grpc-tonic", "tls",
+    "tls-webpki-roots"], optional = true }
+opentelemetry-semantic-conventions = { workspace = true, features = ["semconv_experimental"], optional = true }
+opentelemetry-stdout = { workspace = true, features = ["trace", "metrics"], optional = true }
+opentelemetry_sdk = { workspace = true, optional = true }
 schemars = { workspace = true, features = ["preserve_order"], optional = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, optional = true }
-
-## tracing
-tracing-subscriber = { workspace = true, features = ["env-filter"], optional = true }
-tracing-tree = { workspace = true, optional = true }
+thiserror = { workspace = true }
 tracing = { workspace = true, optional = true }
-opentelemetry-jaeger = { workspace = true, features = ["rt-tokio", "collector_client", "isahc_collector_client"], optional = true }
+tracing-core = { workspace = true, optional = true }
 tracing-opentelemetry = { workspace = true, optional = true }
+tracing-serde = { workspace = true, optional = true }
+tracing-subscriber = { workspace = true, features = ["env-filter", "json"], optional = true }
+tracing-tree = { workspace = true, optional = true }
 utoipa = { workspace = true, optional = true }
-opentelemetry = { workspace = true, features = ["rt-tokio"], optional = true }
-
 
 [build-dependencies]
 vergen = { workspace = true, features = ["build", "git", "gitcl", "rustc", "cargo"] }
 
 [features]
-default = []
+default = ["otel"] # 🚨🚨🚨 TODO: remove otel as a default feature 🚨🚨🚨
 openapi = ["utoipa"]
 output_format = ["serde_json", "dep:clap"]
 bin_info_schema = ["schemars"]
 basic_tracing = ["dep:tracing", "tracing-subscriber"]
+tokio-console = ["dep:tracing", "tracing-subscriber"]
 tracing = [
     "basic_tracing",
-    "tracing-tree",
-    "opentelemetry-jaeger",
+    "chrono",
+    "serde_json",
+    "tracing-core",
     "tracing-opentelemetry",
+    "tracing-serde",
+    "tracing-subscriber",
+    "tracing-tree",
+]
+otel = [
+    "tracing",
     "opentelemetry",
+    "opentelemetry-otlp",
+    "opentelemetry-semantic-conventions",
+    "opentelemetry-stdout",
+    "opentelemetry_sdk",
 ]
 clap = ["dep:clap", "dep:clap_complete", "dep:clap_complete_fig"]
 models = []

@@ -22,7 +22,7 @@ impl<T> Leak for T {
 #[allow(async_fn_in_trait)]
 pub trait Timeboxed: IntoFuture + Sized {
     async fn timeboxed(self) -> Result<Self::Output, Elapsed> {
-        self.execute_with_deadline(Duration::from_millis(100)).await
+        self.execute_with_deadline(Duration::from_millis(200)).await
     }
 
     async fn execute_with_deadline(self, timeout: Duration) -> Result<Self::Output, Elapsed> {

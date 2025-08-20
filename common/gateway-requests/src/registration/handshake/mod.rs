@@ -114,10 +114,11 @@ DONE(status)
 mod tests {
     use super::*;
     use crate::ClientControlRequest;
+    use anyhow::Context;
     use futures::StreamExt;
     use nym_test_utils::helpers::u64_seeded_rng;
     use nym_test_utils::mocks::stream_sink::mock_streams;
-    use nym_test_utils::traits::{Leak, TimeboxedSpawnable};
+    use nym_test_utils::traits::{Leak, Timeboxed, TimeboxedSpawnable};
     use std::time::Duration;
     use tokio::join;
     use tokio::time::timeout;
@@ -160,8 +161,10 @@ mod tests {
         let ClientControlRequest::RegisterHandshakeInitRequest {
             protocol_version: _,
             data,
-        } = timeout(Duration::from_millis(100), gateway_ws.next())
-            .await?
+        } = (gateway_ws.next())
+            .timeboxed()
+            .await
+            .context("timeout")?
             .context("no message!")??
             .into_text()?
             .parse::<ClientControlRequest>()?

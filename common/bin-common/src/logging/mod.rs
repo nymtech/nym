@@ -4,17 +4,6 @@
 use serde::{Deserialize, Serialize};
 use std::io::IsTerminal;
 
-#[cfg(feature = "tracing")]
-pub use opentelemetry;
-#[cfg(feature = "tracing")]
-pub use opentelemetry_jaeger;
-#[cfg(feature = "tracing")]
-pub use tracing_opentelemetry;
-#[cfg(feature = "tracing")]
-pub use tracing_subscriber;
-#[cfg(feature = "tracing")]
-pub use tracing_tree;
-
 #[derive(Debug, Default, Copy, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct LoggingSettings {
@@ -74,34 +63,7 @@ pub fn setup_tracing_logger() {
 #[macro_export]
 macro_rules! setup_tracing {
     ($service_name: expr) => {
-        use nym_bin_common::logging::tracing_subscriber::layer::SubscriberExt;
-        use nym_bin_common::logging::tracing_subscriber::util::SubscriberInitExt;
-
-        let registry = nym_bin_common::logging::tracing_subscriber::Registry::default()
-            .with(nym_bin_common::logging::tracing_subscriber::EnvFilter::from_default_env())
-            .with(
-                nym_bin_common::logging::tracing_tree::HierarchicalLayer::new(4)
-                    .with_targets(true)
-                    .with_bracketed_fields(true),
-            );
-
-        let tracer = nym_bin_common::logging::opentelemetry_jaeger::new_collector_pipeline()
-            .with_endpoint("http://44.199.230.10:14268/api/traces")
-            .with_service_name($service_name)
-            .with_isahc()
-            .with_trace_config(
-                nym_bin_common::logging::opentelemetry::sdk::trace::config().with_sampler(
-                    nym_bin_common::logging::opentelemetry::sdk::trace::Sampler::TraceIdRatioBased(
-                        0.1,
-                    ),
-                ),
-            )
-            .install_batch(nym_bin_common::logging::opentelemetry::runtime::Tokio)
-            .expect("Could not init tracer");
-
-        let telemetry = nym_bin_common::logging::tracing_opentelemetry::layer().with_tracer(tracer);
-
-        registry.with(telemetry).init();
+        crate::opentelemetry::setup_no_otel_logger()
     };
 }
 

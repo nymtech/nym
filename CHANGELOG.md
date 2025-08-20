@@ -4,6 +4,42 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [2025.15-gruyere] (2025-08-20)
+
+- Migrate strum to 0.27.2 ([#5960])
+- WG exit policy scripts update ([#5921])
+- Make DNS Resolver fallback optional ([#5920])
+- nym-node debug command to reset providers db ([#5914])
+- basic zulip client for sending messages ([#5913])
+- chore: allow compatibility with 'CDLA-Permissive-2.0' ([#5910])
+- feat: ecash liveness check ([#5890])
+- Remove old free credential handle ([#5864])
+
+[#5960]: https://github.com/nymtech/nym/pull/5960
+[#5921]: https://github.com/nymtech/nym/pull/5921
+[#5920]: https://github.com/nymtech/nym/pull/5920
+[#5914]: https://github.com/nymtech/nym/pull/5914
+[#5913]: https://github.com/nymtech/nym/pull/5913
+[#5910]: https://github.com/nymtech/nym/pull/5910
+[#5890]: https://github.com/nymtech/nym/pull/5890
+[#5864]: https://github.com/nymtech/nym/pull/5864
+
+## [2025.14-feta] (2025-08-05)
+
+- chore: nym node tokio console ([#5909])
+- Feature/dkg snapshot epoch ([#5900])
+- Feature/dkg epoch dealers query ([#5899])
+- sqlx-pool-guard: allocate more memory on windows ([#5896])
+- Support mnemonic in the NS agent ([#5883])
+- Allow PG database backend ([#5880])
+
+[#5909]: https://github.com/nymtech/nym/pull/5909
+[#5900]: https://github.com/nymtech/nym/pull/5900
+[#5899]: https://github.com/nymtech/nym/pull/5899
+[#5896]: https://github.com/nymtech/nym/pull/5896
+[#5883]: https://github.com/nymtech/nym/pull/5883
+[#5880]: https://github.com/nymtech/nym/pull/5880
+
 ## [2025.13-emmental] (2025-07-22)
 
 - fix: don't allow mixnode running in exit mode ([#5898])

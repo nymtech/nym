@@ -12,8 +12,10 @@ use nym_credentials_interface::CredentialSpendingData;
 use nym_crypto::asymmetric::ed25519;
 use nym_sphinx::DestinationAddressBytes;
 use nym_statistics_common::types::SessionType;
+use opentelemetry::trace::TraceContextExt;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
+use tracing::{instrument, warn};
 use tungstenite::Message;
 
 pub mod authenticate;
@@ -76,6 +78,10 @@ pub enum ClientControlRequest {
         address: String,
         enc_address: String,
         iv: String,
+        /// this is a trace id that is used in testing and performance verification
+        /// in mainnet, this will always be set to None
+        #[serde(default)]
+        debug_trace_id: Option<String>,
     },
 
     AuthenticateV2(Box<AuthenticateRequest>),
@@ -127,14 +133,21 @@ impl ClientControlRequest {
         let nonce = shared_key.random_nonce_or_iv();
         let ciphertext = shared_key.encrypt_naive(address.as_bytes_ref(), Some(&nonce))?;
 
+        let otel_context = opentelemetry::Context::current();
+        let span = otel_context.span();
+        let context = span.span_context();
+        let trace_id = context.trace_id();
+
         Ok(ClientControlRequest::Authenticate {
             protocol_version,
             address: address.as_base58_string(),
             enc_address: bs58::encode(&ciphertext).into_string(),
             iv: bs58::encode(&nonce).into_string(),
+            debug_trace_id: Some(trace_id.to_string()),
         })
     }
 
+    #[instrument]
     pub fn new_authenticate_v2(
         shared_key: &SharedGatewayKey,
         identity_keys: &ed25519::KeyPair,
@@ -142,8 +155,18 @@ impl ClientControlRequest {
         // if we're using v2 authentication, we must announce at least that protocol version
         let protocol_version = AUTHENTICATE_V2_PROTOCOL_VERSION;
 
+        let otel_context = opentelemetry::Context::current();
+        let span = otel_context.span();
+        let context = span.span_context();
+        let trace_id = context.trace_id();
+
         Ok(ClientControlRequest::AuthenticateV2(Box::new(
-            AuthenticateRequest::new(protocol_version, shared_key, identity_keys)?,
+            AuthenticateRequest::new(
+                protocol_version,
+                shared_key,
+                identity_keys,
+                Some(trace_id.to_string()),
+            )?,
         )))
     }
 

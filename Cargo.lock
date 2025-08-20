@@ -5827,6 +5827,7 @@ dependencies = [
  "nym-statistics-common",
  "nym-task",
  "nym-test-utils",
+ "opentelemetry",
  "rand 0.8.5",
  "serde",
  "serde_json",

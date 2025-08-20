@@ -22,6 +22,14 @@ pub(crate) fn granual_filtered_env() -> anyhow::Result<EnvFilter> {
     Ok(filter)
 }
 
+pub(crate) fn setup_no_otel_logger() -> anyhow::Result<()> {
+    let stderr_layer =
+        default_tracing_fmt_layer(std::io::stderr).with_filter(granual_filtered_env()?);
+
+    tracing_subscriber::registry().with(stderr_layer).init();
+    Ok(())
+}
+
 pub(crate) fn setup_tracing_logger() -> anyhow::Result<()> {
     let stderr_layer =
         default_tracing_fmt_layer(std::io::stderr).with_filter(granual_filtered_env()?);

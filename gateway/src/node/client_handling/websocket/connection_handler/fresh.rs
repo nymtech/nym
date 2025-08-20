@@ -861,6 +861,7 @@ impl<R, S> FreshHandler<R, S> {
                 address,
                 enc_address,
                 iv,
+                debug_trace_id: None,
             } => {
                 self.handle_legacy_authenticate(protocol_version, address, enc_address, iv)
                     .await

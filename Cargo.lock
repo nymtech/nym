@@ -5814,6 +5814,7 @@ dependencies = [
 name = "nym-gateway-requests"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "bs58",
  "futures",
  "generic-array 0.14.7",
@@ -5826,6 +5827,7 @@ dependencies = [
  "nym-sphinx",
  "nym-statistics-common",
  "nym-task",
+ "nym-test-utils",
  "rand 0.8.5",
  "serde",
  "serde_json",
@@ -6503,6 +6505,7 @@ dependencies = [
  "futures",
  "nym-crypto",
  "nym-noise-keys",
+ "nym-test-utils",
  "pin-project",
  "rand_chacha 0.3.1",
  "sha2 0.10.9",
@@ -7050,6 +7053,16 @@ dependencies = [
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "wasmtimer",
+]
+
+[[package]]
+name = "nym-test-utils"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "futures",
+ "rand_chacha 0.3.1",
+ "tokio",
 ]
 
 [[package]]

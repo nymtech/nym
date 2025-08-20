@@ -130,7 +130,12 @@ criterion = { workspace = true, features = ["async_tokio"] }
 rand_chacha = { workspace = true }
 
 [features]
+default = ["otel"] # 🚨🚨🚨 TODO: remove otel as a default feature 🚨🚨🚨
 tokio-console = ["console-subscriber"]
+otel = [
+
+]
+
 
 [lints]
 workspace = true

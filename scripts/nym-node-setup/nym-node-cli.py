@@ -47,13 +47,13 @@ class NodeSetupCLI:
             "1. You run this setup on Debian based Linux (ie Ubuntu)\n"\
             "2. You run this installation program from a root shell\n"\
             "3. You meet minimal requirements: https://nym.com/docs/operators/nodes\n"\
-            "4. You agree with Operators Terms & Conditions: https://nym.com/operators-validators-terms\n"\
+            "4. You accept Operators Terms & Conditions: https://nym.com/operators-validators-terms\n"\
             "5. You have Nym wallet with at least 101 NYM: https://nym.com/docs/operators/nodes/preliminary-steps/wallet-preparation\n"\
             "6. In case of Gateway behind reverse proxy, you have A and AAAA DNS record pointing to this IP and propagated\n"\
-            "\nTo confirm and continue, write 'YES' and press enter:"
+            "\nTo confirm and continue, write 'ACCEPT' and press enter:"
         print(msg)
         confirmation = input("\n")
-        if confirmation.upper() == "YES":
+        if confirmation.upper() == "ACCEPT":
             pass
         else:
             print("Without confirming the points above, we cannot continue.")
@@ -63,9 +63,9 @@ class NodeSetupCLI:
         """Ask user to insert node functionality and save it in python and bash envs"""
         mode = input(
             "\nEnter the mode you want to run nym-node in: "
-            "\n1) mixnode "
-            "\n2) entry-gateway "
-            "\n3) exit-gateway "
+            "\n1. mixnode "
+            "\n2. entry-gateway "
+            "\n3. exit-gateway (works as entry-gateway as well) "
             "\nPress 1, 2 or 3 and enter:\n"
         ).strip()
 
@@ -313,7 +313,7 @@ class NodeSetupCLI:
         """Configuration and test of Wireguard exit policy according to mixnet exit policy using external scripts"""
         print(
             "Setting up Wireguard IP tables to match Nym exit policy for mixnet, stored at: https://nymtech.net/.wellknown/network-requester/exit-policy.txt"
-            "This may take a while, follow the steps below and don't kill the process..."
+            "\nThis may take a while, follow the steps below and don't kill the process..."
             )
         self.run_script(self.wg_ip_tables_manager_sh,  args=["install"])
         self.run_script(self.wg_ip_tables_manager_sh,  args=["status"])
@@ -346,7 +346,7 @@ class NodeSetupCLI:
 
         if is_active:
             while True:
-                ans = input(f"{service} is already running. Restart it now? [y/n]: ").strip().lower()
+                ans = input(f"{service} is already running. Restart it now? (y/n):\n").strip().lower()
                 if ans == "y":
                     self.run_script(self.start_node_systemd_service_sh, args=["restart-poll"], env=run_env)
                     return
@@ -357,7 +357,7 @@ class NodeSetupCLI:
                     print("Invalid input. Please press 'y' or 'n' and press enter.")
         else:
             while True:
-                ans = input(f"{service} is not running. Start it now? [y/n]: ").strip().lower()
+                ans = input(f"{service} is not running. Start it now? (y/n):\n").strip().lower()
                 if ans == "y":
                     self.run_script(self.start_node_systemd_service_sh, args=["start-poll"], env=run_env)
                     return
@@ -547,7 +547,7 @@ class ArgParser:
         except SystemExit:
             raise
         except RuntimeError as e:
-            print(f"{e}\nMake sure that the your BRANCH provided in --dev flag contains this program.")
+            print(f"{e}\nMake sure that the your BRANCH ('{args.dev}') provided in --dev option contains this program.")
             sys.exit(1)
         except Exception as e:
             if getattr(args, "verbose", False):

@@ -12,7 +12,8 @@ apt install ufw --fix-missing
 
 # enable & setup firewall
 echo -e "\n* * * Setting up firewall using ufw * * * "
-
+echo "Please enable the firewall in the next prompt for node proper routing!"
+echo
 ufw enable
 ufw allow 22/tcp    # SSH - you're in control of these ports
 ufw allow 80/tcp    # HTTP

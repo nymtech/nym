@@ -70,7 +70,7 @@ NYM_NODE="$HOME/nym-binaries/nym-node"
 # if binary already exists, ask to overwrite; if yes, remove first
 if [[ -e "${NYM_NODE}" ]]; then
   echo
-  echo "A nym-node binary already exists at: ${NYM_NODE}"
+  echo -e "\n* * * A nym-node binary already exists at: ${NYM_NODE}"
   read -r -p "Overwrite with the latest release? (y/n): " ow_ans
   if [[ "${ow_ans}" =~ ^[Yy]$ ]]; then
     echo "Removing existing binary to avoid 'text file busy'..."
@@ -219,7 +219,7 @@ website = "${HOSTNAME}"
 security_contact = "${EMAIL}"
 details = "${DESCRIPTION}"
 EOF
-  echo "Node description saved."
+  echo "* * * Node description saved * * *"
   echo "You can edit it later at: $DESC_FILE (restart node to apply)."
 else
   echo "NOTE: Description directory not found yet ($DESC_DIR)."

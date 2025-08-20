@@ -6,10 +6,13 @@ use crate::cli::commands::{
     test_throughput,
 };
 use crate::env::vars::{NYMNODE_CONFIG_ENV_FILE_ARG, NYMNODE_NO_BANNER_ARG};
+use crate::error::NymNodeError;
+use crate::logging::{setup_no_otel_logger, setup_tracing_logger};
 use clap::{Args, Parser, Subcommand};
 use nym_bin_common::bin_info;
 use std::future::Future;
 use std::sync::OnceLock;
+use tracing::instrument;
 
 pub(crate) mod commands;
 mod helpers;
@@ -52,6 +55,7 @@ impl Cli {
             .block_on(fut))
     }
 
+    #[instrument]
     pub(crate) fn execute(self) -> anyhow::Result<()> {
         // NOTE: `test_throughput` sets up its own logger as it has to include additional layers
         if !matches!(self.command, Commands::TestThroughput(..)) {
@@ -59,23 +63,45 @@ impl Cli {
         }
 
         match self.command {
-            Commands::BuildInfo(args) => build_info::execute(args)?,
-            Commands::BondingInformation(args) => {
-                { Self::execute_async(bonding_information::execute(args))? }?
+            // Sync commands get logger w. no OTEL
+            Commands::BuildInfo(args) => {
+                setup_no_otel_logger()?;
+                build_info::execute(args)?
             }
-            Commands::NodeDetails(args) => { Self::execute_async(node_details::execute(args))? }?,
-            Commands::Run(args) => { Self::execute_async(run::execute(*args))? }?,
-            Commands::Migrate(args) => migrate::execute(*args)?,
-            Commands::Sign(args) => { Self::execute_async(sign::execute(args))? }?,
-            Commands::TestThroughput(args) => test_throughput::execute(args)?,
-            Commands::UnsafeResetSphinxKeys(args) => {
-                { Self::execute_async(reset_sphinx_keys::execute(args))? }?
+            Commands::Migrate(args) => {
+                setup_no_otel_logger()?;
+                migrate::execute(*args)?
             }
             Commands::Debug(debug) => match debug.command {
                 DebugCommands::ResetProvidersGatewayDbs(args) => {
                     { Self::execute_async(debug::reset_providers_dbs::execute(args))? }?
                 }
             },
+            Commands::TestThroughput(args) => {
+                // Has its own logging setup
+                test_throughput::execute(args)?
+            }
+            // SigNoz/OTEL run in async context
+            Commands::BondingInformation(args) => Self::execute_async(async move {
+                setup_tracing_logger().map_err(NymNodeError::TracingSetupFailure)?;
+                bonding_information::execute(args).await
+            })??,
+            Commands::NodeDetails(args) => Self::execute_async(async move {
+                setup_tracing_logger().map_err(NymNodeError::TracingSetupFailure)?;
+                node_details::execute(args).await
+            })??,
+            Commands::Run(args) => Self::execute_async(async move {
+                setup_tracing_logger().map_err(NymNodeError::TracingSetupFailure)?;
+                run::execute(*args).await
+            })??,
+            Commands::Sign(args) => Self::execute_async(async move {
+                setup_tracing_logger().map_err(NymNodeError::TracingSetupFailure)?;
+                sign::execute(args).await
+            })??,
+            Commands::UnsafeResetSphinxKeys(args) => Self::execute_async(async move {
+                setup_tracing_logger().map_err(NymNodeError::TracingSetupFailure)?;
+                reset_sphinx_keys::execute(args).await
+            })??,
         }
         Ok(())
     }

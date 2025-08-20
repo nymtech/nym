@@ -4,9 +4,9 @@
 use crate::models::CredentialSpendingRequest;
 use crate::text_request::authenticate::AuthenticateRequest;
 use crate::{
-    GatewayRequestsError, SharedGatewayKey, SymmetricKey, AES_GCM_SIV_PROTOCOL_VERSION,
-    AUTHENTICATE_V2_PROTOCOL_VERSION, CREDENTIAL_UPDATE_V2_PROTOCOL_VERSION,
-    INITIAL_PROTOCOL_VERSION,
+    GatewayProtocolVersion, GatewayRequestsError, SharedGatewayKey, SymmetricKey,
+    AES_GCM_SIV_PROTOCOL_VERSION, AUTHENTICATE_V2_PROTOCOL_VERSION,
+    CREDENTIAL_UPDATE_V2_PROTOCOL_VERSION, INITIAL_PROTOCOL_VERSION,
 };
 use nym_credentials_interface::CredentialSpendingData;
 use nym_crypto::asymmetric::ed25519;
@@ -72,7 +72,7 @@ pub enum ClientControlRequest {
     // have the shared key derived?
     Authenticate {
         #[serde(default)]
-        protocol_version: Option<u8>,
+        protocol_version: Option<GatewayProtocolVersion>,
         address: String,
         enc_address: String,
         iv: String,
@@ -83,7 +83,7 @@ pub enum ClientControlRequest {
     #[serde(alias = "handshakePayload")]
     RegisterHandshakeInitRequest {
         #[serde(default)]
-        protocol_version: Option<u8>,
+        protocol_version: Option<GatewayProtocolVersion>,
         data: Vec<u8>,
     },
     BandwidthCredential {
@@ -142,10 +142,8 @@ impl ClientControlRequest {
     pub fn new_authenticate_v2(
         shared_key: &SharedGatewayKey,
         identity_keys: &ed25519::KeyPair,
+        protocol_version: GatewayProtocolVersion,
     ) -> Result<Self, GatewayRequestsError> {
-        // if we're using v2 authentication, we must announce at least that protocol version
-        let protocol_version = AUTHENTICATE_V2_PROTOCOL_VERSION;
-
         Ok(ClientControlRequest::AuthenticateV2(Box::new(
             AuthenticateRequest::new(protocol_version, shared_key, identity_keys)?,
         )))

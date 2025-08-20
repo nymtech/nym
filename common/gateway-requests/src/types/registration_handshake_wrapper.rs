@@ -1,6 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::GatewayProtocolVersion;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 
@@ -9,7 +10,7 @@ use std::str::FromStr;
 pub enum RegistrationHandshake {
     HandshakePayload {
         #[serde(default)]
-        protocol_version: Option<u8>,
+        protocol_version: Option<GatewayProtocolVersion>,
         data: Vec<u8>,
     },
     HandshakeError {
@@ -18,9 +19,9 @@ pub enum RegistrationHandshake {
 }
 
 impl RegistrationHandshake {
-    pub fn new_payload(data: Vec<u8>, protocol_version: u8) -> Self {
+    pub fn new_payload(data: Vec<u8>, protocol_version: Option<GatewayProtocolVersion>) -> Self {
         RegistrationHandshake::HandshakePayload {
-            protocol_version: Some(protocol_version),
+            protocol_version,
             data,
         }
     }

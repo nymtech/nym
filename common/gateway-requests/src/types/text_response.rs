@@ -1,7 +1,9 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{GatewayRequestsError, SimpleGatewayRequestsError, SymmetricKey};
+use crate::{
+    GatewayProtocolVersion, GatewayRequestsError, SimpleGatewayRequestsError, SymmetricKey,
+};
 use serde::{Deserialize, Serialize};
 use tungstenite::Message;
 
@@ -49,7 +51,7 @@ impl SensitiveServerResponse {
 pub enum ServerResponse {
     Authenticate {
         #[serde(default)]
-        protocol_version: Option<u8>,
+        protocol_version: Option<GatewayProtocolVersion>,
         status: bool,
         bandwidth_remaining: i64,
 
@@ -60,7 +62,7 @@ pub enum ServerResponse {
     },
     Register {
         #[serde(default)]
-        protocol_version: Option<u8>,
+        protocol_version: Option<GatewayProtocolVersion>,
         status: bool,
 
         /// Flag indicating whether the gateway has detected the system is undergoing the upgrade

@@ -23,8 +23,8 @@ use nym_gateway_requests::authentication::encrypted_address::{
 use nym_gateway_requests::{
     registration::handshake::{error::HandshakeError, gateway_handshake},
     types::{ClientControlRequest, ServerResponse},
-    AuthenticationFailure, BinaryResponse, SharedGatewayKey, CURRENT_PROTOCOL_VERSION,
-    INITIAL_PROTOCOL_VERSION,
+    AuthenticationFailure, BinaryResponse, GatewayProtocolVersion, SharedGatewayKey,
+    CURRENT_PROTOCOL_VERSION, INITIAL_PROTOCOL_VERSION,
 };
 use nym_gateway_storage::error::GatewayStorageError;
 use nym_gateway_storage::traits::BandwidthGatewayStorage;
@@ -417,8 +417,8 @@ impl<R, S> FreshHandler<R, S> {
 
     fn negotiate_client_protocol(
         &self,
-        client_protocol: Option<u8>,
-    ) -> Result<u8, InitialAuthenticationError> {
+        client_protocol: Option<GatewayProtocolVersion>,
+    ) -> Result<GatewayProtocolVersion, InitialAuthenticationError> {
         debug!("client protocol: {client_protocol:?}, ours: {CURRENT_PROTOCOL_VERSION}");
         let Some(client_protocol_version) = client_protocol else {
             warn!("the client we're connected to has not specified its protocol version. It's probably running version < 1.1.X, but that's still fine for now. It will become a hard error in 1.2.0");
@@ -451,6 +451,11 @@ impl<R, S> FreshHandler<R, S> {
         // a v5 gateway will understand v4 requests (key-rotation)
         if client_protocol_version == 4 {
             return Ok(4);
+        }
+
+        // a v6 gateway will understand v5 requests (upgrade-mode)
+        if client_protocol_version == 5 {
+            return Ok(5);
         }
 
         // we can't handle clients with higher protocol than ours
@@ -790,7 +795,7 @@ impl<R, S> FreshHandler<R, S> {
     /// * `init_data`: init payload of the registration handshake.
     async fn handle_register(
         &mut self,
-        client_protocol_version: Option<u8>,
+        client_protocol_version: Option<GatewayProtocolVersion>,
         init_data: Vec<u8>,
     ) -> Result<InitialAuthResult, InitialAuthenticationError>
     where

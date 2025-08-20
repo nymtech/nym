@@ -3,7 +3,7 @@
 
 use self::error::HandshakeError;
 use crate::registration::handshake::state::State;
-use crate::SharedGatewayKey;
+use crate::{GatewayProtocolVersion, GatewayProtocolVersionExt, SharedGatewayKey};
 use futures::future::BoxFuture;
 use futures::{Sink, Stream};
 use nym_crypto::asymmetric::ed25519;
@@ -50,8 +50,7 @@ pub fn client_handshake<'a, S, R>(
     ws_stream: &'a mut S,
     identity: &'a ed25519::KeyPair,
     gateway_pubkey: ed25519::PublicKey,
-    expects_credential_usage: bool,
-    derive_aes256_gcm_siv_key: bool,
+    gateway_protocol: Option<GatewayProtocolVersion>,
     #[cfg(not(target_arch = "wasm32"))] shutdown: TaskClient,
 ) -> GatewayHandshake<'a>
 where
@@ -63,11 +62,10 @@ where
         ws_stream,
         identity,
         Some(gateway_pubkey),
+        gateway_protocol,
         #[cfg(not(target_arch = "wasm32"))]
         shutdown,
-    )
-    .with_credential_usage(expects_credential_usage)
-    .with_aes256_gcm_siv_key(derive_aes256_gcm_siv_key);
+    );
 
     GatewayHandshake {
         handshake_future: Box::pin(state.perform_client_handshake()),
@@ -80,13 +78,21 @@ pub fn gateway_handshake<'a, S, R>(
     ws_stream: &'a mut S,
     identity: &'a ed25519::KeyPair,
     received_init_payload: Vec<u8>,
+    requested_client_protocol: Option<GatewayProtocolVersion>,
     shutdown: TaskClient,
 ) -> GatewayHandshake<'a>
 where
     S: Stream<Item = WsItem> + Sink<WsMessage> + Unpin + Send + 'a,
     R: CryptoRng + RngCore + Send,
 {
-    let state = State::new(rng, ws_stream, identity, None, shutdown);
+    let state = State::new(
+        rng,
+        ws_stream,
+        identity,
+        None,
+        requested_client_protocol,
+        shutdown,
+    );
     GatewayHandshake {
         handshake_future: Box::pin(state.perform_gateway_handshake(received_init_payload)),
     }
@@ -113,7 +119,7 @@ DONE(status)
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ClientControlRequest;
+    use crate::{ClientControlRequest, CURRENT_PROTOCOL_VERSION};
     use futures::StreamExt;
     use nym_test_utils::helpers::u64_seeded_rng;
     use nym_test_utils::mocks::stream_sink::mock_streams;
@@ -147,8 +153,7 @@ mod tests {
             client_ws,
             client_keys,
             *gateway_keys.public_key(),
-            false,
-            true,
+            Some(CURRENT_PROTOCOL_VERSION),
             TaskClient::dummy(),
         );
 
@@ -176,6 +181,7 @@ mod tests {
             gateway_ws,
             gateway_keys,
             init_msg,
+            Some(CURRENT_PROTOCOL_VERSION),
             TaskClient::dummy(),
         );
 

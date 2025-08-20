@@ -99,8 +99,9 @@ impl HandshakeMessage for Initialisation {
         let identity = ed25519::PublicKey::from_bytes(&bytes[..ed25519::PUBLIC_KEY_LENGTH])
             .map_err(|_| HandshakeError::MalformedRequest)?;
 
-        // this can only fail if the provided bytes have len different from encryption::PUBLIC_KEY_SIZE
+        // SAFETY: this can only fail if the provided bytes have len different from encryption::PUBLIC_KEY_SIZE
         // which is impossible
+        #[allow(clippy::unwrap_used)]
         let ephemeral_dh =
             x25519::PublicKey::from_bytes(&bytes[ed25519::PUBLIC_KEY_LENGTH..legacy_len]).unwrap();
 

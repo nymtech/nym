@@ -8,8 +8,8 @@ use crate::registration::handshake::messages::{
 use crate::registration::handshake::{SharedGatewayKey, WsItem, KDF_SALT_LENGTH};
 use crate::shared_key::SharedKeySize;
 use crate::{
-    types, LegacySharedKeySize, LegacySharedKeys, SharedSymmetricKey, AES_GCM_SIV_PROTOCOL_VERSION,
-    CREDENTIAL_UPDATE_V2_PROTOCOL_VERSION, INITIAL_PROTOCOL_VERSION,
+    types, GatewayProtocolVersion, GatewayProtocolVersionExt, LegacySharedKeySize,
+    LegacySharedKeys, SharedSymmetricKey,
 };
 use futures::{Sink, SinkExt, Stream, StreamExt};
 use nym_crypto::asymmetric::{ed25519, x25519};
@@ -54,12 +54,11 @@ pub(crate) struct State<'a, S, R> {
     /// Ideally it would always be known before the handshake was initiated.
     remote_pubkey: Option<ed25519::PublicKey>,
 
-    // this field is really out of place here, however, we need to propagate this information somehow
-    // in order to establish correct protocol for backwards compatibility reasons
-    expects_credential_usage: bool,
-
-    /// Specifies whether the end product should be an AES128Ctr + blake3 HMAC keys (legacy) or AES256-GCM-SIV (current)
-    derive_aes256_gcm_siv_key: bool,
+    /// Version of the protocol to use during the handshake that also implicitly specifies
+    /// additional features such as the type of derived shared keys, i.e.
+    /// AES128Ctr + blake3 HMAC keys (legacy) or AES256-GCM-SIV (current)
+    /// the above is decided by whether the specified protocol version supports the new variant or not.
+    protocol_version: Option<GatewayProtocolVersion>,
 
     // channel to receive shutdown signal
     #[cfg(not(target_arch = "wasm32"))]
@@ -72,6 +71,7 @@ impl<'a, S, R> State<'a, S, R> {
         ws_stream: &'a mut S,
         identity: &'a ed25519::KeyPair,
         remote_pubkey: Option<ed25519::PublicKey>,
+        protocol_version: Option<GatewayProtocolVersion>,
         #[cfg(not(target_arch = "wasm32"))] shutdown: TaskClient,
     ) -> Self
     where
@@ -84,28 +84,11 @@ impl<'a, S, R> State<'a, S, R> {
             ephemeral_keypair,
             identity,
             remote_pubkey,
+            protocol_version,
             derived_shared_keys: None,
-            // later on this should become the default
-            expects_credential_usage: false,
-            derive_aes256_gcm_siv_key: false,
             #[cfg(not(target_arch = "wasm32"))]
             shutdown,
         }
-    }
-
-    pub(crate) fn with_credential_usage(mut self, expects_credential_usage: bool) -> Self {
-        self.expects_credential_usage = expects_credential_usage;
-        self
-    }
-
-    pub(crate) fn with_aes256_gcm_siv_key(mut self, derive_aes256_gcm_siv_key: bool) -> Self {
-        self.derive_aes256_gcm_siv_key = derive_aes256_gcm_siv_key;
-        self
-    }
-
-    #[cfg(not(target_arch = "wasm32"))]
-    pub(crate) fn set_aes256_gcm_siv_key_derivation(&mut self, derive_aes256_gcm_siv_key: bool) {
-        self.derive_aes256_gcm_siv_key = derive_aes256_gcm_siv_key;
     }
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -117,7 +100,7 @@ impl<'a, S, R> State<'a, S, R> {
     where
         R: CryptoRng + RngCore,
     {
-        if self.derive_aes256_gcm_siv_key {
+        if self.protocol_version.supports_aes256_gcm_siv() {
             let mut salt = vec![0u8; KDF_SALT_LENGTH];
             self.rng.fill_bytes(&mut salt);
             Some(salt)
@@ -154,13 +137,14 @@ impl<'a, S, R> State<'a, S, R> {
             .private_key()
             .diffie_hellman(remote_ephemeral_key);
 
-        let key_size = if self.derive_aes256_gcm_siv_key {
+        let key_size = if self.protocol_version.supports_aes256_gcm_siv() {
             SharedKeySize::to_usize()
         } else {
             LegacySharedKeySize::to_usize()
         };
 
-        // there is no reason for this to fail as our okm is expected to be only 16 bytes
+        // SAFETY: there is no reason for this to fail as our okm is expected to be only 16 bytes
+        #[allow(clippy::expect_used)]
         let okm = hkdf::extract_then_expand::<GatewaySharedKeyHkdfAlgorithm>(
             initiator_salt,
             &dh_result,
@@ -169,11 +153,14 @@ impl<'a, S, R> State<'a, S, R> {
         )
         .expect("somehow too long okm was provided");
 
-        let shared_key = if self.derive_aes256_gcm_siv_key {
+        // SAFETY: the okm has been expanded to the length expected by the corresponding keys
+        let shared_key = if self.protocol_version.supports_aes256_gcm_siv() {
+            #[allow(clippy::expect_used)]
             let current_key = SharedSymmetricKey::try_from_bytes(&okm)
                 .expect("okm was expanded to incorrect length!");
             SharedGatewayKey::Current(current_key)
         } else {
+            #[allow(clippy::expect_used)]
             let legacy_key = LegacySharedKeys::try_from_bytes(&okm)
                 .expect("okm was expanded to incorrect length!");
             SharedGatewayKey::Legacy(legacy_key)
@@ -196,7 +183,7 @@ impl<'a, S, R> State<'a, S, R> {
             .collect();
         let signature = self.identity.private_key().sign(plaintext);
 
-        let nonce = if self.derive_aes256_gcm_siv_key {
+        let nonce = if self.protocol_version.supports_aes256_gcm_siv() {
             let mut rng = thread_rng();
             Some(random_nonce::<GatewayEncryptionAlgorithm, _>(&mut rng).to_vec())
         } else {
@@ -228,7 +215,7 @@ impl<'a, S, R> State<'a, S, R> {
             .expect("shared key was not derived!");
 
         // if the [client] init message contained non-legacy flag, the associated nonce MUST be present
-        if self.derive_aes256_gcm_siv_key && remote_response.nonce.is_none() {
+        if self.protocol_version.supports_aes256_gcm_siv() && remote_response.nonce.is_none() {
             return Err(HandshakeError::MissingNonceForCurrentKey);
         }
 
@@ -362,16 +349,6 @@ impl<'a, S, R> State<'a, S, R> {
             .map_err(|_| HandshakeError::ClosedStream)
     }
 
-    fn request_protocol_version(&self) -> u8 {
-        if self.derive_aes256_gcm_siv_key {
-            AES_GCM_SIV_PROTOCOL_VERSION
-        } else if self.expects_credential_usage {
-            CREDENTIAL_UPDATE_V2_PROTOCOL_VERSION
-        } else {
-            INITIAL_PROTOCOL_VERSION
-        }
-    }
-
     pub(crate) async fn send_handshake_data<M>(
         &mut self,
         inner_message: M,
@@ -384,7 +361,7 @@ impl<'a, S, R> State<'a, S, R> {
 
         let handshake_message = types::RegistrationHandshake::new_payload(
             inner_message.into_bytes(),
-            self.request_protocol_version(),
+            self.protocol_version,
         );
         self.ws_stream
             .send(WsMessage::Text(handshake_message.try_into().unwrap()))

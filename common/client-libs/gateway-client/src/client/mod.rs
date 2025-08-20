@@ -20,9 +20,10 @@ use nym_credentials_interface::TicketType;
 use nym_crypto::asymmetric::ed25519;
 use nym_gateway_requests::registration::handshake::client_handshake;
 use nym_gateway_requests::{
-    BinaryRequest, ClientControlRequest, ClientRequest, GatewayProtocolVersionExt,
-    GatewayRequestsError, SensitiveServerResponse, ServerResponse, SharedGatewayKey,
-    SharedSymmetricKey, CREDENTIAL_UPDATE_V2_PROTOCOL_VERSION, CURRENT_PROTOCOL_VERSION,
+    BinaryRequest, ClientControlRequest, ClientRequest, GatewayProtocolVersion,
+    GatewayProtocolVersionExt, GatewayRequestsError, SensitiveServerResponse, ServerResponse,
+    SharedGatewayKey, SharedSymmetricKey, CREDENTIAL_UPDATE_V2_PROTOCOL_VERSION,
+    CURRENT_PROTOCOL_VERSION,
 };
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_statistics_common::clients::connection::ConnectionStatsEvent;
@@ -101,7 +102,6 @@ pub struct GatewayClient<C, St = EphemeralCredentialStorage> {
     bandwidth_controller: Option<BandwidthController<C, St>>,
     stats_reporter: ClientStatsSender,
 
-    // currently unused (but populated)
     negotiated_protocol: Option<u8>,
 
     // Callback on the fd as soon as the connection has been established
@@ -489,11 +489,13 @@ impl<C, St> GatewayClient<C, St> {
 
     async fn register(
         &mut self,
-        derive_aes256_gcm_siv_key: bool,
+        supported_gateway_protocol: Option<GatewayProtocolVersion>,
     ) -> Result<(), GatewayClientError> {
         if !self.connection.is_established() {
             return Err(GatewayClientError::ConnectionNotEstablished);
         }
+
+        let derive_aes256_gcm_siv_key = supported_gateway_protocol.supports_aes256_gcm_siv();
 
         debug_assert!(self.connection.is_available());
         log::debug!(
@@ -512,7 +514,7 @@ impl<C, St> GatewayClient<C, St> {
                 self.local_identity.as_ref(),
                 self.gateway_identity,
                 self.cfg.bandwidth.require_tickets,
-                derive_aes256_gcm_siv_key,
+                supported_gateway_protocol,
                 #[cfg(not(target_arch = "wasm32"))]
                 self.task_client.clone(),
             )
@@ -673,25 +675,40 @@ impl<C, St> GatewayClient<C, St> {
             .await
     }
 
-    async fn authenticate_v2(&mut self) -> Result<(), GatewayClientError> {
+    async fn authenticate_v2(
+        &mut self,
+        requested_protocol_version: u8,
+    ) -> Result<(), GatewayClientError> {
         debug!("using v2 authentication");
         let Some(shared_key) = self.shared_key.as_ref() else {
             return Err(GatewayClientError::NoSharedKeyAvailable);
         };
 
-        let msg = ClientControlRequest::new_authenticate_v2(shared_key, &self.local_identity)?;
+        let msg = ClientControlRequest::new_authenticate_v2(
+            shared_key,
+            &self.local_identity,
+            requested_protocol_version,
+        )?;
         self.send_authenticate_request_and_handle_response(msg)
             .await
     }
 
-    async fn authenticate(&mut self, use_v2: bool) -> Result<(), GatewayClientError> {
+    async fn authenticate(
+        &mut self,
+        supported_gateway_protocol: Option<GatewayProtocolVersion>,
+    ) -> Result<(), GatewayClientError> {
         if !self.connection.is_established() {
             return Err(GatewayClientError::ConnectionNotEstablished);
         }
         debug!("authenticating with gateway");
 
-        if use_v2 {
-            self.authenticate_v2().await
+        if supported_gateway_protocol.supports_authenticate_v2() {
+            // use the highest possible protocol version the gateway has announced support for
+
+            // SAFETY: if announced protocol supports auth v2, it means it's properly set
+            #[allow(clippy::unwrap_used)]
+            self.authenticate_v2(supported_gateway_protocol.unwrap())
+                .await
         } else {
             self.authenticate_v1().await
         }
@@ -722,9 +739,12 @@ impl<C, St> GatewayClient<C, St> {
             }
         };
 
+        debug!("supported gateway protocol: {gw_protocol:?}");
+
         let supports_aes_gcm_siv = gw_protocol.supports_aes256_gcm_siv();
         let supports_auth_v2 = gw_protocol.supports_authenticate_v2();
         let supports_key_rotation_info = gw_protocol.supports_key_rotation_packet();
+        let supports_upgrade_mode = gw_protocol.supports_upgrade_mode();
 
         if !supports_aes_gcm_siv {
             warn!("this gateway is on an old version that doesn't support AES256-GCM-SIV");
@@ -734,6 +754,9 @@ impl<C, St> GatewayClient<C, St> {
         }
         if !supports_key_rotation_info {
             warn!("this gateway is on an old version that doesn't support key rotation packets")
+        }
+        if !supports_upgrade_mode {
+            warn!("this gateway is on an old version that doesn't support upgrade mode")
         }
 
         if self.authenticated {
@@ -749,7 +772,7 @@ impl<C, St> GatewayClient<C, St> {
         }
 
         if self.shared_key.is_some() {
-            self.authenticate(supports_auth_v2).await?;
+            self.authenticate(gw_protocol).await?;
 
             if self.authenticated {
                 // if we are authenticated it means we MUST have an associated shared_key
@@ -765,7 +788,7 @@ impl<C, St> GatewayClient<C, St> {
                 Err(GatewayClientError::AuthenticationFailure)
             }
         } else {
-            self.register(supports_aes_gcm_siv).await?;
+            self.register(gw_protocol).await?;
 
             // if registration didn't return an error, we MUST have an associated shared key
             let shared_key = self.shared_key.as_ref().unwrap();
@@ -1114,8 +1137,7 @@ impl<C, St> GatewayClient<C, St> {
         }
 
         // if we're reconnecting, because we lost connection, we need to re-authenticate the connection
-        self.authenticate(self.negotiated_protocol.supports_authenticate_v2())
-            .await?;
+        self.authenticate(self.negotiated_protocol).await?;
 
         // this call is NON-blocking
         self.start_listening_for_mixnet_messages()?;

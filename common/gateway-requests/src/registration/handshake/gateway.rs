@@ -22,7 +22,6 @@ impl<S, R> State<'_, S, R> {
         // LOCAL_ID_PUBKEY || EPHEMERAL_KEY || MAYBE_NON_LEGACY
         let init_message = Initialisation::try_from_bytes(&raw_init_message)?;
         self.update_remote_identity(init_message.identity);
-        self.set_aes256_gcm_siv_key_derivation(!init_message.is_legacy());
 
         // 2. derive shared keys locally
         // hkdf::<blake3>::(g^xy)
@@ -51,6 +50,7 @@ impl<S, R> State<'_, S, R> {
         Ok(())
     }
 
+    #[deprecated(note = "do protocol version negotiation here")]
     pub(crate) async fn perform_gateway_handshake(
         mut self,
         raw_init_message: Vec<u8>,

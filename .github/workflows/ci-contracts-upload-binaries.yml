@@ -34,7 +34,7 @@ jobs:
           targets: wasm32-unknown-unknown
 
       - name: Install cosmwasm-check
-        run: cargo install cosmwasm-check --features alloc
+        run: cargo install cosmwasm-check --version 3.0.0
 
       - name: Build release contracts
         run: make publish-contracts

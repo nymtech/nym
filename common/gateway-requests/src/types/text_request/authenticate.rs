@@ -16,6 +16,9 @@ pub struct AuthenticateRequest {
     pub content: AuthenticateRequestContent,
 
     pub request_signature: ed25519::Signature,
+
+    #[serde(default)]
+    pub debug_trace_id: Option<String>,
 }
 
 impl AuthenticateRequest {
@@ -23,6 +26,7 @@ impl AuthenticateRequest {
         protocol_version: u8,
         shared_key: &SharedGatewayKey,
         identity_keys: &ed25519::KeyPair,
+        debug_trace_id: Option<String>,
     ) -> Result<AuthenticateRequest, GatewayRequestsError> {
         let content = AuthenticateRequestContent::new(
             protocol_version,
@@ -35,6 +39,7 @@ impl AuthenticateRequest {
         Ok(AuthenticateRequest {
             content,
             request_signature,
+            debug_trace_id,
         })
     }
 

@@ -29,11 +29,9 @@ jobs:
           echo $OUTPUT_DIR
 
       - name: Install Rust stable
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: stable
-          target: wasm32-unknown-unknown
-          override: true
+          targets: wasm32-unknown-unknown
 
       - name: Install cosmwasm-check
         run: cargo install cosmwasm-check

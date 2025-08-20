@@ -109,3 +109,85 @@ GATEWAY -> CLIENT
 DONE(status)
 
 */
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::ClientControlRequest;
+    use futures::StreamExt;
+    use nym_test_utils::helpers::u64_seeded_rng;
+    use nym_test_utils::mocks::stream_sink::mock_streams;
+    use nym_test_utils::traits::{Leak, TimeboxedSpawnable};
+    use std::time::Duration;
+    use tokio::join;
+    use tokio::time::timeout;
+    use tungstenite::Message;
+
+    #[tokio::test]
+    async fn basic_handshake() -> anyhow::Result<()> {
+        use anyhow::Context as _;
+
+        // solve the lifetime issue by just leaking the contents of the boxes
+        // which is perfectly fine in test
+        let client_rng = u64_seeded_rng(42).leak();
+        let gateway_rng = u64_seeded_rng(69).leak();
+
+        let client_keys = ed25519::KeyPair::new(client_rng).leak();
+        let gateway_keys = ed25519::KeyPair::new(gateway_rng).leak();
+
+        let (client_ws, gateway_ws) = mock_streams::<Message>();
+
+        // we need streams that return Result<Message, WsError>
+        let client_ws = client_ws.map(Ok);
+        let gateway_ws = gateway_ws.map(Ok);
+
+        let client_ws = client_ws.leak();
+        let gateway_ws = gateway_ws.leak();
+
+        let handshake_client = client_handshake(
+            client_rng,
+            client_ws,
+            client_keys,
+            *gateway_keys.public_key(),
+            false,
+            true,
+            TaskClient::dummy(),
+        );
+
+        let client_fut = handshake_client.spawn_timeboxed();
+
+        // we need to receive the first message so that it could be propagated to the gateway side of the handshake
+        let ClientControlRequest::RegisterHandshakeInitRequest {
+            protocol_version: _,
+            data,
+        } = timeout(Duration::from_millis(100), gateway_ws.next())
+            .await?
+            .context("no message!")??
+            .into_text()?
+            .parse::<ClientControlRequest>()?
+        else {
+            panic!("bad message")
+        };
+
+        let init_msg = data;
+
+        let handshake_gateway = gateway_handshake(
+            gateway_rng,
+            gateway_ws,
+            gateway_keys,
+            init_msg,
+            TaskClient::dummy(),
+        );
+
+        let gateway_fut = handshake_gateway.spawn_timeboxed();
+        let (client, gateway) = join!(client_fut, gateway_fut);
+
+        let client_key = client???;
+        let gateway_key = gateway???;
+
+        // ensure the created keys are the same
+        assert_eq!(client_key, gateway_key);
+
+        Ok(())
+    }
+}

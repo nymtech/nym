@@ -92,7 +92,7 @@ members = [
     "common/socks5/requests",
     "common/statistics",
     "common/store-cipher",
-    "common/task",
+    "common/task", "common/test-utils",
     "common/ticketbooks-merkle",
     "common/topology",
     "common/tun",

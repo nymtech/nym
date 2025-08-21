@@ -109,7 +109,7 @@ sdk-wasm-build:
 	$(MAKE) -C wasm/node-tester
 	$(MAKE) -C wasm/mix-fetch
 	$(MAKE) -C wasm/zknym-lib
-	#$(MAKE) -C wasm/full-nym-wasm
+	# $(MAKE) -C wasm/full-nym-wasm
 
 # run this from npm/yarn to ensure tools are in the path, e.g. yarn build:sdk from root of repo
 sdk-typescript-build:

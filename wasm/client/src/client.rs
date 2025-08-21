@@ -67,6 +67,7 @@ pub struct NymClient {
 // TODO: we don't really need a builder anymore,
 // but we might as well leave it for backwards compatibility
 #[wasm_bindgen]
+#[derive(Debug)]
 pub struct NymClientBuilder {
     config: ClientConfig,
     force_tls: bool,
@@ -197,19 +198,21 @@ impl NymClientBuilder {
     }
 
     async fn start_client_async(mut self) -> Result<NymClient, WasmClientError> {
-        console_log!("Starting the wasm client");
+        console_log!("start client async: starting the wasm client");
 
         // TODO: resolve this properly
         self.config.base.debug.topology.ignore_egress_epoch_role = true;
 
         // TODO: this will have to be re-used for surbs. but this is a problem for another PR.
         let client_store = self.initialise_client_storage().await?;
+        console_log!("start client async:Initialised client storage");
 
         // if we don't have an active gateway (i.e. no gateways), add one
         // otherwise, see if we set a preferred gateway and attempt to set its details as active
         if !self.has_active_gateway(&client_store).await?
             || !self.try_set_preferred_gateway(&client_store).await?
         {
+            console_log!("start client async:!has_active_gw / try_set_preferred_gw: adding gw");
             add_gateway(
                 self.preferred_gateway.clone(),
                 self.latency_based_selection,
@@ -222,12 +225,16 @@ impl NymClientBuilder {
             )
             .await?;
         }
+        console_log!("start client async: debug log self: \n{:?}", self);
 
         let packet_type = self.config.base.debug.traffic.packet_type;
+        console_log!("self config base debug packet type: {packet_type:?}");
         let storage = Self::initialise_storage(&self.config, client_store);
+        console_log!("start client async: storage initialised");
 
         let base_builder =
             BaseClientBuilder::<QueryReqwestRpcNyxdClient, _>::new(self.config.base, storage, None);
+        console_log!("start client async: base builder done");
         // if let Some(topology_provider) = maybe_topology_provider {
         //     base_builder = base_builder.with_topology_provider(topology_provider);
         // }
@@ -237,7 +244,9 @@ impl NymClientBuilder {
         // }
 
         let mut started_client = base_builder.start_base().await?;
+        console_log!("start client async: started base");
         let self_address = started_client.address.to_string();
+        console_log!("start client async: self address: {self_address}");
 
         let client_input = started_client.client_input.register_producer();
         let client_output = started_client.client_output.register_consumer();
@@ -343,6 +352,7 @@ impl NymClient {
     #[wasm_bindgen(constructor)]
     #[allow(clippy::new_ret_no_self)]
     pub fn new(on_message: js_sys::Function, opts: Option<ClientOpts>) -> Promise {
+        console_log!("start of new()");
         let opts = opts.unwrap_or_default();
         let mut config = check_promise_result!(ClientConfig::new((&opts).into()));
 

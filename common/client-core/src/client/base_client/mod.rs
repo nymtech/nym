@@ -68,6 +68,7 @@ use time::OffsetDateTime;
 use tokio::sync::mpsc::Sender;
 use tracing::*;
 use url::Url;
+use wasm_utils::{check_promise_result, console_error, console_log};
 
 #[cfg(all(
     not(target_arch = "wasm32"),
@@ -857,6 +858,8 @@ where
         )
         .await?;
 
+        console_log!("start_base: 1");
+
         let (reply_storage_backend, credential_store, details_store) =
             self.client_store.into_runtime_stores();
 
@@ -887,15 +890,19 @@ where
             None => nym_task::get_sdk_shutdown_tracker()?,
         };
 
+        console_log!("start_base: 3");
         // channels responsible for dealing with reply-related fun
         let (reply_controller_sender, reply_controller_receiver) =
             reply_controller::requests::new_control_channels();
 
+        console_log!("start_base: 4");
         let self_address = Self::mix_address(&init_res);
+        console_log!("self addr: {self_address}");
         let ack_key = init_res.client_keys.ack_key();
         let encryption_keys = init_res.client_keys.encryption_keypair();
         let identity_keys = init_res.client_keys.identity_keypair();
 
+        console_log!("start_base: 5");
         // the components are started in very specific order. Unless you know what you are doing,
         // do not change that.
         let bandwidth_controller = self
@@ -912,6 +919,7 @@ where
             nym_api_client,
         );
 
+        console_log!("start_base: 7");
         let stats_reporter = Self::start_statistics_control(
             &self.config,
             self.user_agent.clone(),
@@ -920,6 +928,7 @@ where
             &shutdown_tracker.child_tracker(),
         );
 
+        console_log!("start_base: 8");
         // needs to be started as the first thing to block if required waiting for the gateway
         Self::start_topology_refresher(
             topology_provider,
@@ -931,12 +940,14 @@ where
         )
         .await?;
 
+        console_log!("start_base: 9");
         let gateway_packet_router = PacketRouter::new(
             ack_sender,
             mixnet_messages_sender,
             shutdown_tracker.clone_shutdown_token(),
         );
 
+        console_log!("start_base: 10");
         let gateway_transceiver = Self::setup_gateway_transceiver(
             self.custom_gateway_transceiver,
             &self.config,
@@ -959,6 +970,8 @@ where
         )
         .await?;
 
+        console_log!("start_base: 11");
+
         Self::start_received_messages_buffer_controller(
             encryption_keys,
             received_buffer_request_receiver,
@@ -969,6 +982,8 @@ where
             &shutdown_tracker.child_tracker(),
         );
 
+        console_log!("start_base: 12");
+
         // The message_sender is the transmitter for any component generating sphinx packets
         // that are to be sent to the mixnet. They are used by cover traffic stream and real
         // traffic stream.
@@ -978,6 +993,8 @@ where
             gateway_transceiver,
             &shutdown_tracker.child_tracker(),
         );
+
+        console_log!("start_base: 13");
 
         // Channels that the websocket listener can use to signal downstream to the real traffic
         // controller that connections are closed.

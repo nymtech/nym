@@ -271,7 +271,7 @@ inquire = "0.6.2"
 ip_network = "0.4.1"
 ipnetwork = "0.20"
 itertools = "0.14.0"
-jwt-simple = "0.12.12"
+jwt-simple = { version = "0.12.12", default-features = false, features = ["pure-rust"] }
 k256 = "0.13"
 lazy_static = "1.5.0"
 ledger-transport = "0.10.0"

@@ -665,8 +665,7 @@ where
         CosmWasmClient::broadcast_tx_commit(self, tx_bytes).await
     }
 
-    /// Broadcast a transaction to the network and monitors its inclusion in a block.
-    async fn sign_and_broadcast(
+    async fn sign_and_broadcast_inner(
         &self,
         signer_address: &AccountId,
         messages: Vec<Any>,
@@ -684,6 +683,35 @@ where
             .map_err(|_| NyxdError::SerializationError("Tx".to_owned()))?;
 
         self.broadcast_tx(tx_bytes, None, None).await
+    }
+
+    /// Broadcast a transaction to the network and monitors its inclusion in a block.
+    async fn sign_and_broadcast(
+        &self,
+        signer_address: &AccountId,
+        messages: Vec<Any>,
+        fee: Fee,
+        memo: impl Into<String> + Send + 'static,
+    ) -> Result<TxResponse, NyxdError> {
+        let memo = memo.into();
+        loop {
+            match self
+                .sign_and_broadcast_inner(
+                    signer_address,
+                    messages.clone(),
+                    fee.clone(),
+                    memo.clone(),
+                )
+                .await
+            {
+                Ok(res) => return Ok(res),
+                Err(err) => {
+                    if !err.to_string().contains("sequence") {
+                        return Err(err);
+                    }
+                }
+            }
+        }
     }
 
     async fn sign(

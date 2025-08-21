@@ -244,6 +244,7 @@ impl NymClientBuilder {
         // }
 
         let mut started_client = base_builder.start_base().await?;
+        // TODO not getting here - keep digging
         console_log!("start client async: started base");
         let self_address = started_client.address.to_string();
         console_log!("start client async: self address: {self_address}");

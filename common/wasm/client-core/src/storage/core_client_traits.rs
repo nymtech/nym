@@ -85,8 +85,11 @@ impl KeyStore for ClientStorage {
 
         // all keys implement `ZeroizeOnDrop`, so if we return an Error, whatever was already loaded will be cleared
         let identity_keypair = self.must_read_identity_keypair().await?;
+        console_log!("load keys: identity keypair read");
         let encryption_keypair = self.must_read_encryption_keypair().await?;
+        console_log!("load keys: encryption keypair read");
         let ack_keypair = self.must_read_ack_key().await?;
+        console_log!("load keys: ack keypair read");
 
         Ok(ClientKeys::from_keys(
             identity_keypair,

@@ -14,6 +14,7 @@ import time
 from datetime import datetime
 from pathlib import Path
 from typing import Iterable, Optional, Mapping
+from typing import Optional, Tuple
 
 class NodeSetupCLI:
     """All CLI main functions"""
@@ -368,66 +369,61 @@ class NodeSetupCLI:
                     print("Invalid input. Please press 'y' or 'n' and press enter.")
 
 
+
     def run_bonding_prompt(self):
         """Interactive function navigating user to bond node"""
         print("\n")
         print("* * * Bonding Nym Node * * *")
         print("Time to register your node to Nym Network by bonding it using Nym wallet ...")
         node_path = os.path.expandvars(os.path.expanduser("$HOME/nym-binaries/nym-node"))
-        # or: node_path = str(Path.home() / "nym-binaries" / "nym-node")
         if not (os.path.isfile(node_path) and os.access(node_path, os.X_OK)):
             print(f"Nym node not found at {node_path}, we cannot run a bonding prompt!")
             exit(1)
         else:
             while True:
-                subprocess.run([
-                os.path.expanduser(node_path),
-                "bonding-information",
-            ])
+                subprocess.run([os.path.expanduser(node_path), "bonding-information"])
                 self.run_bash_command(command="curl", args=["-4", "https://ifconfig.me"])
                 print("\n")
-                self.print_character("=", 36)
-                print("FOLLOW THESE STEPS TO BOND YOUR NODE")
-                self.print_character("=", 36)
+                self.print_character("=", 56)
+                print("* * *  FOLLOW  THESE  STEPS  TO  BOND  YOUR  NODE  * * *")
+                print("If you already bonded your node before, just press enter")
+                self.print_character("=", 56)
                 print(
-                  "- Open your wallet and go to Bonding menu\n"
-                  "- Paste Identity key and your IP address (printed above)\n"
-                  "- Setup your operators cost and profit margin\n"
-                  "- Copy the long contract message from your wallet\n"
-                  "- Paste the contract message from clipboard here and press enter:"
-                  )
-                msg = "(If you already bonded your node before, just press enter)\n"
+                  "1. Open your wallet and go to Bonding menu\n"
+                  "2. Paste Identity key and your IP address (printed above)\n"
+                  "3. Setup your operators cost and profit margin\n"
+                  "4. Copy the long contract message from your wallet"
+                )
+                msg = "5. Paste the contract message from clipboard here and press enter:\n"
                 contract_msg = input(msg).strip()
                 if contract_msg == "":
-                    print("Skipping bonding process as your node is already bonded")
+                    print("Skipping bonding process as your node is already bonded\n")
                     return
                 else:
                     subprocess.run([
-                    os.path.expanduser(node_path),
-                    "sign",
-                    "--contract-msg",
-                    contract_msg
-                ])
+                        os.path.expanduser(node_path),
+                        "sign",
+                        "--contract-msg",
+                        contract_msg
+                    ])
                     print(
-                    "- Copy the last last part of the string back to your Nym wallet\n"
-                    "- Confirm the transaction"
+                      "6. Copy the last last part of the string back to your Nym wallet\n"
+                      "7. Confirm the transaction"
                     )
                 confirmation = input(
                   "Is your node bonded?\n"
                   "1. YES\n"
                   "2. NO, try again\n"
-                  "3. Skip for now\n"
+                  "3. Skip bonding for now\n"
                   "Press 1, 2, or 3 and enter:\n"
-                  )
+                ).strip()
+
                 if confirmation == "1":
-                    message = \
-                        "* * * C O N G R A T U L A T I O N ! * * *\n" \
-                        "Your Nym node is registered to Nym network\n" \
-                        "Wait until the end of epoch for the change\n" \
-                        "to propagate (max 60 min)"
-                    self.print_character("*",42)
+                    # NEW: fetch identity + composed message and print it
+                    _, message = self._explorer_message_from_identity(node_path)
+                    self.print_character("*", 42)
                     print(message)
-                    self.print_character("*",42)
+                    self.print_character("*", 42)
                     return
                 elif confirmation == "3":
                     print(
@@ -435,7 +431,7 @@ class NodeSetupCLI:
                       "Note that without bonding network tunnel manager will not work fully!\n"
                       "You can always bond manually using:\n"
                       "`$HOME/nym-binaries/nym-node sign --contract-msg <CONTRACT_MESSAGE>`"
-                      )
+                    )
                     return
                 elif confirmation == "2":
                     continue
@@ -443,9 +439,52 @@ class NodeSetupCLI:
                     print(
                       "Your input was wrong, we are skipping this step. You can always bond manually using:\n"
                       "`$HOME/nym-binaries/nym-node sign --contract-msg <CONTRACT_MESSAGE>`"
-                      )
+                    )
                     return
 
+    def _explorer_message_from_identity(self, node_path: str) -> Tuple[Optional[str], str]:
+        """
+        Runs `$HOME/nym-binaries/nym-node bonding-information` to
+        extract the id_key and returns explorer URL with a message
+        else return the message without the URL
+        """
+        try:
+            cp = subprocess.run(
+                [os.path.expanduser(node_path), "bonding-information"],
+                capture_output=True, text=True, check=False, timeout=30
+            )
+            output = cp.stdout or ""
+        except Exception as e:
+            output = ""
+            # still return the generic message
+            key = None
+            msg = (
+                "* * * C O N G R A T U L A T I O N ! * * *\n"
+                "Your Nym node is registered to Nym network\n"
+                "Wait until the end of epoch for the change\n"
+                "to propagate (max 60 min)\n"
+                "(Could not obtain Identity Key automatically.)"
+            )
+            return key, msg
+
+        # parse the id_key
+        m = re.search(r"^Identity Key:\s*([A-Za-z0-9]+)\s*$", output, flags=re.MULTILINE)
+        key = m.group(1) if m else None
+
+        base_msg = (
+            "* * * C O N G R A T U L A T I O N ! * * *\n"
+            "Your Nym node is registered to Nym network\n"
+            "Wait until the end of epoch for the change\n"
+            "to propagate (max 60 min)\n"
+        )
+
+        if key:
+            url = f"https://explorer.nym.spectredao.net/nodes/{key}"
+            msg = base_msg + f"Then you can see your node at:\n{url}"
+        else:
+            msg = base_msg + "(Could not obtain Identity Key automatically.)"
+
+        return key, msg
 
     def print_character(self, ch: str, count: int):
         """Print `ch` repeated `count` times (no unbounded growth)"""

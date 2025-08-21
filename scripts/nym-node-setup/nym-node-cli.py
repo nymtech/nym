@@ -407,11 +407,11 @@ class NodeSetupCLI:
                         contract_msg
                     ])
                     print(
-                      "6. Copy the last last part of the string back to your Nym wallet\n"
+                      "6. Copy the last part of the string back to your Nym wallet\n"
                       "7. Confirm the transaction"
                     )
                 confirmation = input(
-                  "Is your node bonded?\n"
+                  "\n* * * Is your node bonded?\n"
                   "1. YES\n"
                   "2. NO, try again\n"
                   "3. Skip bonding for now\n"

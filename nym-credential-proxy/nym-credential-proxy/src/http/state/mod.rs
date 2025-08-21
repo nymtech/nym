@@ -5,8 +5,8 @@ use crate::deposits_buffer::helpers::BufferedDeposit;
 use crate::deposits_buffer::DepositsBuffer;
 use crate::error::CredentialProxyError;
 use crate::helpers::LockTimer;
-use crate::http::state::required_deposit_cache::RequiredDepositCache;
 use crate::http::state::nyx_upgrade_mode::UpgradeModeState;
+use crate::http::state::required_deposit_cache::RequiredDepositCache;
 use crate::http::types::RequestError;
 use crate::nym_api_helpers::{
     ensure_sane_expiration_date, query_all_threshold_apis, CachedEpoch, CachedImmutableEpochItem,
@@ -57,8 +57,8 @@ use tokio_util::task::TaskTracker;
 use tracing::{debug, error, info, instrument, warn};
 use uuid::Uuid;
 
-pub(crate) mod required_deposit_cache;
 pub(crate) mod nyx_upgrade_mode;
+pub(crate) mod required_deposit_cache;
 
 // currently we need to hold our keypair so that we could request a freepass credential
 #[derive(Clone)]
@@ -69,6 +69,7 @@ pub struct ApiState {
 // a lot of functionalities, mostly to do with caching and storage is just copy-pasted from nym-api,
 // since we have to do more or less the same work
 impl ApiState {
+    #[allow(clippy::too_many_arguments)]
     pub(crate) async fn new(
         storage: CredentialProxyStorage,
         upgrade_mode_state: UpgradeModeState,

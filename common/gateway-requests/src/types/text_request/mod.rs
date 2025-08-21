@@ -5,8 +5,7 @@ use crate::models::CredentialSpendingRequest;
 use crate::text_request::authenticate::AuthenticateRequest;
 use crate::{
     GatewayProtocolVersion, GatewayRequestsError, SharedGatewayKey, SymmetricKey,
-    AES_GCM_SIV_PROTOCOL_VERSION, AUTHENTICATE_V2_PROTOCOL_VERSION,
-    CREDENTIAL_UPDATE_V2_PROTOCOL_VERSION, INITIAL_PROTOCOL_VERSION,
+    AES_GCM_SIV_PROTOCOL_VERSION, CREDENTIAL_UPDATE_V2_PROTOCOL_VERSION, INITIAL_PROTOCOL_VERSION,
 };
 use nym_credentials_interface::CredentialSpendingData;
 use nym_crypto::asymmetric::ed25519;
@@ -46,6 +45,7 @@ impl ClientRequest {
         // - the schema is self-describing which simplifies deserialisation
 
         // SAFETY: the trait has been derived correctly with no weird variants
+        #[allow(clippy::unwrap_used)]
         let plaintext = serde_json::to_vec(self).unwrap();
         let nonce = key.random_nonce_or_iv();
         let ciphertext = key.encrypt(&plaintext, Some(&nonce))?;
@@ -112,12 +112,14 @@ pub enum ClientControlRequest {
 }
 
 impl ClientControlRequest {
-    pub fn new_authenticate(
+    pub fn new_legacy_authenticate(
         address: DestinationAddressBytes,
         shared_key: &SharedGatewayKey,
         uses_credentials: bool,
     ) -> Result<Self, GatewayRequestsError> {
         // if we're encrypting with non-legacy key, the remote must support AES256-GCM-SIV
+        // since we are using legacy authentication, the gateway definitely doesn't understand the protocol downgrade,
+        // so use the lowest possible version we can
         let protocol_version = if !shared_key.is_legacy() {
             Some(AES_GCM_SIV_PROTOCOL_VERSION)
         } else if uses_credentials {

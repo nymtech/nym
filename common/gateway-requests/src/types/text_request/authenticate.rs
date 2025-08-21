@@ -100,7 +100,7 @@ impl AuthenticateRequest {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct AuthenticateRequestContent {
-    pub protocol_version: u8,
+    pub protocol_version: GatewayProtocolVersion,
 
     // this is identical to the client's address
     pub client_identity: ed25519::PublicKey,

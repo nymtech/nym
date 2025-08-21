@@ -20,11 +20,12 @@ use nym_gateway_requests::authenticate::AuthenticateRequest;
 use nym_gateway_requests::authentication::encrypted_address::{
     EncryptedAddressBytes, EncryptedAddressConversionError,
 };
+use nym_gateway_requests::registration::handshake::HandshakeResult;
 use nym_gateway_requests::{
     registration::handshake::{error::HandshakeError, gateway_handshake},
     types::{ClientControlRequest, ServerResponse},
-    AuthenticationFailure, BinaryResponse, GatewayProtocolVersion, SharedGatewayKey,
-    CURRENT_PROTOCOL_VERSION, INITIAL_PROTOCOL_VERSION,
+    AuthenticationFailure, BinaryResponse, GatewayProtocolVersion, GatewayProtocolVersionExt,
+    SharedGatewayKey, CURRENT_PROTOCOL_VERSION,
 };
 use nym_gateway_storage::error::GatewayStorageError;
 use nym_gateway_storage::traits::BandwidthGatewayStorage;
@@ -88,9 +89,6 @@ pub(crate) enum InitialAuthenticationError {
     #[error("Experienced connection error: {0}")]
     ConnectionError(Box<WsError>),
 
-    #[error("Attempted to negotiate connection with client using incompatible protocol version. Ours is {current} and the client reports {client:?}")]
-    IncompatibleProtocol { client: Option<u8>, current: u8 },
-
     #[error("failed to send authentication response: {source}")]
     ResponseSendFailure {
         #[source]
@@ -130,7 +128,7 @@ pub(crate) struct FreshHandler<R, S> {
     pub(crate) shutdown: TaskClient,
 
     // currently unused (but populated)
-    pub(crate) negotiated_protocol: Option<u8>,
+    pub(crate) negotiated_protocol: Option<GatewayProtocolVersion>,
 }
 
 impl<R, S> FreshHandler<R, S> {
@@ -193,7 +191,8 @@ impl<R, S> FreshHandler<R, S> {
     async fn perform_registration_handshake(
         &mut self,
         init_msg: Vec<u8>,
-    ) -> Result<SharedGatewayKey, HandshakeError>
+        requested_protocol: Option<GatewayProtocolVersion>,
+    ) -> Result<HandshakeResult, HandshakeError>
     where
         S: AsyncRead + AsyncWrite + Unpin + Send,
         R: CryptoRng + RngCore + Send,
@@ -206,6 +205,7 @@ impl<R, S> FreshHandler<R, S> {
                     ws_stream,
                     self.shared_state.local_identity.as_ref(),
                     init_msg,
+                    requested_protocol,
                     self.shutdown.clone(),
                 )
                 .await
@@ -415,64 +415,6 @@ impl<R, S> FreshHandler<R, S> {
         }
     }
 
-    fn negotiate_client_protocol(
-        &self,
-        client_protocol: Option<GatewayProtocolVersion>,
-    ) -> Result<GatewayProtocolVersion, InitialAuthenticationError> {
-        debug!("client protocol: {client_protocol:?}, ours: {CURRENT_PROTOCOL_VERSION}");
-        let Some(client_protocol_version) = client_protocol else {
-            warn!("the client we're connected to has not specified its protocol version. It's probably running version < 1.1.X, but that's still fine for now. It will become a hard error in 1.2.0");
-            // note: in +1.2.0 we will have to return a hard error here
-            return Ok(INITIAL_PROTOCOL_VERSION);
-        };
-
-        // #####
-        // On backwards compat:
-        // Currently it is the case that gateways will understand all previous protocol versions
-        // and will downgrade accordingly, but this will now always be the case.
-        // For example, once we remove downgrade on legacy auth, anything below version 4 will be rejected
-        // #####
-
-        // a v2 gateway will understand v1 requests, but v1 client will not understand v2 responses
-        if client_protocol_version == 1 {
-            return Ok(1);
-        }
-
-        // a v3 gateway will understand v2 requests (legacy keys)
-        if client_protocol_version == 2 {
-            return Ok(2);
-        }
-
-        // a v4 gateway will understand v3 requests (aes256gcm-siv)
-        if client_protocol_version == 3 {
-            return Ok(3);
-        }
-
-        // a v5 gateway will understand v4 requests (key-rotation)
-        if client_protocol_version == 4 {
-            return Ok(4);
-        }
-
-        // a v6 gateway will understand v5 requests (upgrade-mode)
-        if client_protocol_version == 5 {
-            return Ok(5);
-        }
-
-        // we can't handle clients with higher protocol than ours
-        // (perhaps we could try to negotiate downgrade on our end? sounds like a nice future improvement)
-        if client_protocol_version <= CURRENT_PROTOCOL_VERSION {
-            debug!("the client is using exactly the same (or older) protocol version as we are. We're good to continue!");
-            Ok(CURRENT_PROTOCOL_VERSION)
-        } else {
-            let err = InitialAuthenticationError::IncompatibleProtocol {
-                client: client_protocol,
-                current: CURRENT_PROTOCOL_VERSION,
-            };
-            error!("{err}");
-            Err(err)
-        }
-    }
-
     async fn handle_duplicate_client(
         &mut self,
         address: DestinationAddressBytes,
@@ -560,6 +502,29 @@ impl<R, S> FreshHandler<R, S> {
         Ok(available_bandwidth)
     }
 
+    fn negotiate_proposed_protocol(
+        &self,
+        client_protocol_version: Option<GatewayProtocolVersion>,
+    ) -> Option<GatewayProtocolVersion> {
+        if client_protocol_version.is_future_version() {
+            // this should never happen in a non-malicious client as it should use at most whatever version this gateway has announced
+            warn!("client has announced protocol version greater than one known by this gateway (v{client_protocol_version:?} vs v{}). attempting to downgrade.", GatewayProtocolVersion::CURRENT);
+            // we just reply with our current version, and it's up to the client to accept it or terminate the connection
+            Some(GatewayProtocolVersion::CURRENT)
+        } else {
+            // #####
+            // On backwards compat:
+            // Currently it is the case that gateways will understand all previous protocol versions
+            // and will downgrade accordingly, but this will not always be the case.
+            // For example, once we remove downgrade on legacy auth, anything below version 4 will be rejected
+            // #####
+            debug!(
+                "using the protocol version proposed by the client: v{client_protocol_version:?}"
+            );
+            client_protocol_version
+        }
+    }
+
     /// Tries to handle the received authentication request by checking correctness of the received data.
     ///
     /// # Arguments
@@ -574,7 +539,7 @@ impl<R, S> FreshHandler<R, S> {
     )]
     async fn handle_legacy_authenticate(
         &mut self,
-        client_protocol_version: Option<u8>,
+        client_protocol_version: Option<GatewayProtocolVersion>,
         address: String,
         enc_address: String,
         raw_nonce: String,
@@ -584,9 +549,9 @@ impl<R, S> FreshHandler<R, S> {
     {
         debug!("handling client authentication (v1)");
 
-        let negotiated_protocol = self.negotiate_client_protocol(client_protocol_version)?;
+        let negotiated_protocol = self.negotiate_proposed_protocol(client_protocol_version);
         // populate the negotiated protocol for future uses
-        self.negotiated_protocol = Some(negotiated_protocol);
+        self.negotiated_protocol = negotiated_protocol;
 
         let address = DestinationAddressBytes::try_from_base58_string(address)
             .map_err(|err| InitialAuthenticationError::MalformedClientAddress(err.to_string()))?;
@@ -601,9 +566,7 @@ impl<R, S> FreshHandler<R, S> {
             .await?
         else {
             // it feels weird to be returning an 'Ok' here, but I didn't want to change the existing behaviour
-            return Ok(InitialAuthResult::new_legacy_failed(Some(
-                negotiated_protocol,
-            )));
+            return Ok(InitialAuthResult::new_legacy_failed(negotiated_protocol));
         };
 
         // in v1 we don't have explicit data so we have to use current timestamp
@@ -645,7 +608,7 @@ impl<R, S> FreshHandler<R, S> {
                 session_request_start,
             )),
             ServerResponse::Authenticate {
-                protocol_version: Some(negotiated_protocol),
+                protocol_version: negotiated_protocol,
                 status: true,
                 bandwidth_remaining,
                 upgrade_mode: self.upgrade_mode(),
@@ -663,9 +626,9 @@ impl<R, S> FreshHandler<R, S> {
         debug!("handling client authentication (v2)");
 
         let negotiated_protocol =
-            self.negotiate_client_protocol(Some(request.content.protocol_version))?;
+            self.negotiate_proposed_protocol(Some(request.content.protocol_version));
         // populate the negotiated protocol for future uses
-        self.negotiated_protocol = Some(negotiated_protocol);
+        self.negotiated_protocol = negotiated_protocol;
 
         let address = request.content.client_identity.derive_destination_address();
 
@@ -732,7 +695,7 @@ impl<R, S> FreshHandler<R, S> {
                 session_request_start,
             )),
             ServerResponse::Authenticate {
-                protocol_version: Some(negotiated_protocol),
+                protocol_version: negotiated_protocol,
                 status: true,
                 bandwidth_remaining,
                 upgrade_mode: self.upgrade_mode(),
@@ -802,10 +765,6 @@ impl<R, S> FreshHandler<R, S> {
         S: AsyncRead + AsyncWrite + Unpin + Send,
         R: CryptoRng + RngCore + Send,
     {
-        let negotiated_protocol = self.negotiate_client_protocol(client_protocol_version)?;
-        // populate the negotiated protocol for future uses
-        self.negotiated_protocol = Some(negotiated_protocol);
-
         let remote_identity = Self::extract_remote_identity_from_register_init(&init_data)?;
         let remote_address = remote_identity.derive_destination_address();
 
@@ -819,13 +778,19 @@ impl<R, S> FreshHandler<R, S> {
             return Err(InitialAuthenticationError::DuplicateConnection);
         }
 
-        let shared_keys = self.perform_registration_handshake(init_data).await?;
+        let handshake_result = self
+            .perform_registration_handshake(init_data, client_protocol_version)
+            .await?;
+        let shared_keys = handshake_result.derived_key;
+
+        // populate the negotiated protocol for future uses
+        self.negotiated_protocol = Some(handshake_result.negotiated_protocol);
+
         let client_id = self.register_client(remote_address, &shared_keys).await?;
 
         debug!(client_id = %client_id, "managed to finalize client registration");
 
         let upgrade_mode = self.upgrade_mode();
-        let todo = "during upgrade mode set initial bandwidth";
 
         let client_details = ClientDetails::new(
             client_id,
@@ -837,7 +802,7 @@ impl<R, S> FreshHandler<R, S> {
         Ok(InitialAuthResult::new(
             Some(client_details),
             ServerResponse::Register {
-                protocol_version: Some(negotiated_protocol),
+                protocol_version: self.negotiated_protocol,
                 status: true,
                 upgrade_mode,
             },

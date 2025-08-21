@@ -23,7 +23,6 @@ use nym_gateway_requests::{
     BinaryRequest, ClientControlRequest, ClientRequest, GatewayProtocolVersion,
     GatewayProtocolVersionExt, GatewayRequestsError, SensitiveServerResponse, ServerResponse,
     SharedGatewayKey, SharedSymmetricKey, CREDENTIAL_UPDATE_V2_PROTOCOL_VERSION,
-    CURRENT_PROTOCOL_VERSION,
 };
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_statistics_common::clients::connection::ConnectionStatsEvent;
@@ -102,7 +101,7 @@ pub struct GatewayClient<C, St = EphemeralCredentialStorage> {
     bandwidth_controller: Option<BandwidthController<C, St>>,
     stats_reporter: ClientStatsSender,
 
-    negotiated_protocol: Option<u8>,
+    negotiated_protocol: Option<GatewayProtocolVersion>,
 
     // Callback on the fd as soon as the connection has been established
     #[cfg(unix)]
@@ -458,35 +457,6 @@ impl<C, St> GatewayClient<C, St> {
         }
     }
 
-    fn check_gateway_protocol(
-        &self,
-        gateway_protocol: Option<u8>,
-    ) -> Result<(), GatewayClientError> {
-        debug!("gateway protocol: {gateway_protocol:?}, ours: {CURRENT_PROTOCOL_VERSION}");
-
-        // right now there are no failure cases here, but this might change in the future
-        match gateway_protocol {
-            None => {
-                warn!("the gateway we're connected to has not specified its protocol version. It's probably running version < 1.1.X, but that's still fine for now. It will become a hard error in 1.2.0");
-                // note: in +1.2.0 we will have to return a hard error here
-                Ok(())
-            }
-            Some(v) if v > CURRENT_PROTOCOL_VERSION => {
-                let err = GatewayClientError::IncompatibleProtocol {
-                    gateway: Some(v),
-                    current: CURRENT_PROTOCOL_VERSION,
-                };
-                error!("{err}");
-                Err(err)
-            }
-
-            Some(_) => {
-                debug!("the gateway is using exactly the same (or older) protocol version as we are. We're good to continue!");
-                Ok(())
-            }
-        }
-    }
-
     async fn register(
         &mut self,
         supported_gateway_protocol: Option<GatewayProtocolVersion>,
@@ -507,13 +477,12 @@ impl<C, St> GatewayClient<C, St> {
         // and putting it into the GatewayClient struct would be a hassle
         let mut rng = OsRng;
 
-        let shared_key = match &mut self.connection {
+        let handshake_result = match &mut self.connection {
             SocketState::Available(ws_stream) => client_handshake(
                 &mut rng,
                 ws_stream,
                 self.local_identity.as_ref(),
                 self.gateway_identity,
-                self.cfg.bandwidth.require_tickets,
                 supported_gateway_protocol,
                 #[cfg(not(target_arch = "wasm32"))]
                 self.task_client.clone(),
@@ -523,16 +492,16 @@ impl<C, St> GatewayClient<C, St> {
             _ => return Err(GatewayClientError::ConnectionInInvalidState),
         }?;
 
-        let (authentication_status, gateway_protocol) = match self.read_control_response().await? {
+        let authentication_status = match self.read_control_response().await? {
             ServerResponse::Register {
-                protocol_version,
                 status,
                 upgrade_mode,
+                ..
             } => {
                 if upgrade_mode {
                     warn!("the system is currently undergoing an upgrade. some of its functionalities might be unstable")
                 }
-                (status, protocol_version)
+                status
             }
             ServerResponse::Error { message } => {
                 return Err(GatewayClientError::GatewayError(message))
@@ -540,15 +509,14 @@ impl<C, St> GatewayClient<C, St> {
             other => return Err(GatewayClientError::UnexpectedResponse { name: other.name() }),
         };
 
-        self.check_gateway_protocol(gateway_protocol)?;
         self.authenticated = authentication_status;
 
         if self.authenticated {
-            self.shared_key = Some(Arc::new(shared_key));
+            self.shared_key = Some(Arc::new(handshake_result.derived_key));
         }
 
         // populate the negotiated protocol for future uses
-        self.negotiated_protocol = gateway_protocol;
+        self.negotiated_protocol = Some(handshake_result.negotiated_protocol);
 
         Ok(())
     }
@@ -633,7 +601,13 @@ impl<C, St> GatewayClient<C, St> {
                 bandwidth_remaining,
                 upgrade_mode,
             } => {
-                self.check_gateway_protocol(protocol_version)?;
+                if protocol_version.is_future_version() {
+                    // SAFETY: future version is always defined
+                    #[allow(clippy::unwrap_used)]
+                    let version = protocol_version.unwrap();
+                    error!("the gateway insists on using v{version} protocol which is not supported by this client");
+                    return Err(GatewayClientError::AuthenticationFailure);
+                }
                 self.authenticated = status;
                 self.bandwidth
                     .update_and_maybe_log(bandwidth_remaining, upgrade_mode);
@@ -666,7 +640,7 @@ impl<C, St> GatewayClient<C, St> {
             .public_key()
             .derive_destination_address();
 
-        let msg = ClientControlRequest::new_authenticate(
+        let msg = ClientControlRequest::new_legacy_authenticate(
             self_address,
             shared_key,
             self.cfg.bandwidth.require_tickets,
@@ -677,7 +651,7 @@ impl<C, St> GatewayClient<C, St> {
 
     async fn authenticate_v2(
         &mut self,
-        requested_protocol_version: u8,
+        requested_protocol_version: GatewayProtocolVersion,
     ) -> Result<(), GatewayClientError> {
         debug!("using v2 authentication");
         let Some(shared_key) = self.shared_key.as_ref() else {
@@ -758,6 +732,13 @@ impl<C, St> GatewayClient<C, St> {
         if !supports_upgrade_mode {
             warn!("this gateway is on an old version that doesn't support upgrade mode")
         }
+
+        let gw_protocol = if gw_protocol.is_future_version() {
+            warn!("we're running outdated software as gateway is announcing protocol {gw_protocol:?} whilst we're using {}. we're going to attempt to downgrade", GatewayProtocolVersion::CURRENT);
+            Some(GatewayProtocolVersion::CURRENT)
+        } else {
+            gw_protocol
+        };
 
         if self.authenticated {
             debug!("Already authenticated");

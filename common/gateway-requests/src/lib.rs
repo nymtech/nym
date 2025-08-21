@@ -44,10 +44,13 @@ pub const UPGRADE_MODE_VERSION: GatewayProtocolVersion = 6;
 pub type LegacyGatewayMacSize = <GatewayIntegrityHmacAlgorithm as OutputSizeUser>::OutputSize;
 
 pub trait GatewayProtocolVersionExt {
+    const CURRENT: GatewayProtocolVersion = CURRENT_PROTOCOL_VERSION;
+
     fn supports_aes256_gcm_siv(&self) -> bool;
     fn supports_authenticate_v2(&self) -> bool;
     fn supports_key_rotation_packet(&self) -> bool;
     fn supports_upgrade_mode(&self) -> bool;
+    fn is_future_version(&self) -> bool;
 }
 
 impl GatewayProtocolVersionExt for Option<GatewayProtocolVersion> {
@@ -70,6 +73,11 @@ impl GatewayProtocolVersionExt for Option<GatewayProtocolVersion> {
         let Some(protocol) = self else { return false };
         protocol.supports_upgrade_mode()
     }
+
+    fn is_future_version(&self) -> bool {
+        let Some(protocol) = self else { return false };
+        protocol.is_future_version()
+    }
 }
 
 impl GatewayProtocolVersionExt for GatewayProtocolVersion {
@@ -87,5 +95,9 @@ impl GatewayProtocolVersionExt for GatewayProtocolVersion {
 
     fn supports_upgrade_mode(&self) -> bool {
         *self >= UPGRADE_MODE_VERSION
+    }
+
+    fn is_future_version(&self) -> bool {
+        *self > CURRENT_PROTOCOL_VERSION
     }
 }

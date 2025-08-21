@@ -5,11 +5,11 @@ use crate::registration::handshake::error::HandshakeError;
 use crate::registration::handshake::messages::{
     HandshakeMessage, Initialisation, MaterialExchange,
 };
-use crate::registration::handshake::{SharedGatewayKey, WsItem, KDF_SALT_LENGTH};
+use crate::registration::handshake::{HandshakeResult, SharedGatewayKey, WsItem, KDF_SALT_LENGTH};
 use crate::shared_key::SharedKeySize;
 use crate::{
     types, GatewayProtocolVersion, GatewayProtocolVersionExt, LegacySharedKeySize,
-    LegacySharedKeys, SharedSymmetricKey,
+    LegacySharedKeys, SharedSymmetricKey, INITIAL_PROTOCOL_VERSION,
 };
 use futures::{Sink, SinkExt, Stream, StreamExt};
 use nym_crypto::asymmetric::{ed25519, x25519};
@@ -94,6 +94,14 @@ impl<'a, S, R> State<'a, S, R> {
     #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn local_ephemeral_key(&self) -> &x25519::PublicKey {
         self.ephemeral_keypair.public_key()
+    }
+
+    pub(crate) fn proposed_protocol_version(&self) -> Option<GatewayProtocolVersion> {
+        self.protocol_version
+    }
+
+    pub(crate) fn set_protocol_version(&mut self, protocol_version: GatewayProtocolVersion) {
+        self.protocol_version = Some(protocol_version);
     }
 
     pub(crate) fn maybe_generate_initiator_salt(&mut self) -> Option<Vec<u8>>
@@ -191,6 +199,7 @@ impl<'a, S, R> State<'a, S, R> {
         };
 
         // SAFETY: this function is only called after the local key has already been derived
+        #[allow(clippy::expect_used)]
         let signature_ciphertext = self
             .derived_shared_keys
             .as_ref()
@@ -209,6 +218,7 @@ impl<'a, S, R> State<'a, S, R> {
         remote_ephemeral_key: &x25519::PublicKey,
     ) -> Result<(), HandshakeError> {
         // SAFETY: this function is only called after the local key has already been derived
+        #[allow(clippy::expect_used)]
         let derived_shared_key = self
             .derived_shared_keys
             .as_ref()
@@ -236,6 +246,7 @@ impl<'a, S, R> State<'a, S, R> {
             .chain(self.ephemeral_keypair.public_key().to_bytes())
             .collect();
 
+        #[allow(clippy::unwrap_used)]
         self.remote_pubkey
             .as_ref()
             .unwrap()
@@ -248,7 +259,10 @@ impl<'a, S, R> State<'a, S, R> {
         self.remote_pubkey = Some(remote_pubkey)
     }
 
-    fn on_wg_msg(msg: Option<WsItem>) -> Result<Option<Vec<u8>>, HandshakeError> {
+    #[allow(clippy::complexity)]
+    fn on_wg_msg(
+        msg: Option<WsItem>,
+    ) -> Result<Option<(Vec<u8>, Option<GatewayProtocolVersion>)>, HandshakeError> {
         let Some(msg) = msg else {
             return Err(HandshakeError::ClosedStream);
         };
@@ -264,9 +278,10 @@ impl<'a, S, R> State<'a, S, R> {
                             // hehe, that's a bit disgusting that the type system requires we explicitly ignore the
                             // protocol_version field that we actually never attach at this point
                             // yet another reason for the overdue refactor
-                            types::RegistrationHandshake::HandshakePayload { data, .. } => {
-                                Ok(Some(data))
-                            }
+                            types::RegistrationHandshake::HandshakePayload {
+                                protocol_version,
+                                data,
+                            } => Ok(Some((data, protocol_version))),
                             types::RegistrationHandshake::HandshakeError { message } => {
                                 Err(HandshakeError::RemoteError(message))
                             }
@@ -286,7 +301,9 @@ impl<'a, S, R> State<'a, S, R> {
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    async fn _receive_handshake_message_bytes(&mut self) -> Result<Vec<u8>, HandshakeError>
+    async fn _receive_handshake_message_bytes(
+        &mut self,
+    ) -> Result<(Vec<u8>, Option<GatewayProtocolVersion>), HandshakeError>
     where
         S: Stream<Item = WsItem> + Unpin,
     {
@@ -305,7 +322,9 @@ impl<'a, S, R> State<'a, S, R> {
     }
 
     #[cfg(target_arch = "wasm32")]
-    async fn _receive_handshake_message_bytes(&mut self) -> Result<Vec<u8>, HandshakeError>
+    async fn _receive_handshake_message_bytes(
+        &mut self,
+    ) -> Result<(Vec<u8>, Option<GatewayProtocolVersion>), HandshakeError>
     where
         S: Stream<Item = WsItem> + Unpin,
     {
@@ -318,20 +337,22 @@ impl<'a, S, R> State<'a, S, R> {
         }
     }
 
-    pub(crate) async fn receive_handshake_message<M>(&mut self) -> Result<M, HandshakeError>
+    pub(crate) async fn receive_handshake_message<M>(
+        &mut self,
+    ) -> Result<(M, Option<GatewayProtocolVersion>), HandshakeError>
     where
         S: Stream<Item = WsItem> + Unpin,
         M: HandshakeMessage,
     {
         // TODO: make timeout duration configurable
-        let bytes = timeout(
+        let (bytes, protocol) = timeout(
             Duration::from_secs(5),
             self._receive_handshake_message_bytes(),
         )
         .await
         .map_err(|_| HandshakeError::Timeout)??;
 
-        M::try_from_bytes(&bytes)
+        M::try_from_bytes(&bytes).map(|msg| (msg, protocol))
     }
 
     // upon receiving this, the receiver should terminate the handshake
@@ -371,8 +392,15 @@ impl<'a, S, R> State<'a, S, R> {
 
     /// Finish the handshake, yielding the derived shared key and implicitly dropping all borrowed
     /// values.
-    pub(crate) fn finalize_handshake(self) -> SharedGatewayKey {
-        self.derived_shared_keys.unwrap()
+    pub(crate) fn finalize_handshake(self) -> HandshakeResult {
+        // SAFETY: handshake can't be finalised without deriving the shared keys
+        #[allow(clippy::unwrap_used)]
+        HandshakeResult {
+            negotiated_protocol: self
+                .proposed_protocol_version()
+                .unwrap_or(INITIAL_PROTOCOL_VERSION),
+            derived_key: self.derived_shared_keys.unwrap(),
+        }
     }
 
     // If any step along the way failed (that are non-network related),

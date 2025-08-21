@@ -24,13 +24,6 @@ pub struct Initialisation {
     pub initiator_salt: Option<Vec<u8>>,
 }
 
-impl Initialisation {
-    #[cfg(not(target_arch = "wasm32"))]
-    pub fn is_legacy(&self) -> bool {
-        self.initiator_salt.is_none()
-    }
-}
-
 #[derive(Debug)]
 pub struct MaterialExchange {
     pub signature_ciphertext: Vec<u8>,

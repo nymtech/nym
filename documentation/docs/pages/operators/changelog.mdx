@@ -47,6 +47,52 @@ This page displays a full list of all the changes during our release cycle from 
 
 <VarInfo />
 
+## `v2025.15-gruyere`
+
+- [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.15-gruyere)
+- [`nym-node`](nodes/nym-node.mdx) version `1.17.0`
+
+```sh
+nym-node
+Binary Name:        nym-node
+Build Timestamp:    2025-08-20T10:37:05.965300480Z
+Build Version:      1.17.0
+Commit SHA:         40e1cbc7a9f518eafbb5649c383626b096dd167d
+Commit Date:        2025-08-20T12:34:04.000000000+02:00
+Commit Branch:      HEAD
+rustc Version:      1.86.0
+rustc Channel:      stable
+cargo Profile:      release
+```
+
+### Operators Updates & Tools
+
+- [**NIP-3: Nym Exit Policy Update**](https://forum.nym.com/t/nip-3-nym-exit-policy-update/1462/2) resulted by operators [governance](https://governator.nym.com/proposal/prop-d0c0d398-43bd-4a6f-b008-1921b64ae4ed) is implemented.
+
+- If you operate a node routing wireguard, please re-run [these steps](nodes/nym-node/configuration#wireguard-exit-policy-configuration) to update your wireguard exit policy through IP tables rules.
+
+- [**NIP-2: Changing stake saturation**](https://governator.nym.com/proposal/prop-8dfa4a28-55b1-45a5-968f-f2897c2670df) will be implemented soon, with that we are going to adjust rules of Delegation Program. **Join [Community call ](https://www.youtube.com/watch?v=KaO6-WLWzMo) on Thursday August 21st, 14:00UTC** to find out more info.
+
+### Features
+
+- [Remove old free credential handle](https://github.com/nymtech/nym/pull/5864): And create some traits for unit testing purposes.
+
+- [Ecash liveness check](https://github.com/nymtech/nym/pull/5890)
+
+- [Basic zulip client for sending messages](https://github.com/nymtech/nym/pull/5913): In order to be able to send zulip notifications about *emergency* upgrade mode being activated, we need some sort of client. Unfortunately there isn't any rust library that's maintained (the only one had last commit 4 years ago). This simple thing now currently only supports message sending 
+
+- [`nym-node` debug command to reset providers db](https://github.com/nymtech/nym/pull/5914)
+
+- [Make DNS Resolver fallback optional](https://github.com/nymtech/nym/pull/5920): Default to no dns system fallback, but keep support in the custom hickory dns resolver used for resolving internal domains.
+
+- [WG exit policy scripts update](https://github.com/nymtech/nym/pull/5921): This PR modifies the scripts `wireguard-exit-policy-manager.sh` and `exit-policy-tests.sh` supporting operators to easily configure and test their IP tables rules in order to have same exit policy for WG as the one for NR, adding the ports decided to be enabled in [NIP-3](https://governator.nym.com/proposal/prop-d0c0d398-43bd-4a6f-b008-1921b64ae4ed) protocol upgrade.
+
+### Refactors & Maintenance
+
+- [Allow compatibility with 'CDLA-Permissive-2.0'](https://github.com/nymtech/nym/pull/5910): This license is present in the included `webpki-roots` 
+
+- [Migrate strum to `0.27.2`](https://github.com/nymtech/nym/pull/5960): This PR migrates strum to the latest. Notably all macros' were moved into `strum_macros`. The rest stays the same.
+
 ## `v2025.14-feta`
 
 - [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.14-feta)

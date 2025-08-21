@@ -11,23 +11,11 @@ From the **root of the monorepo** (aka `home/path/to/nym/`) run:
 
 ```
 yarn dev:on
+yarn
 yarn build:wasm
 ```
 
 Then `cd` here.
-
-Change the monorepo settings to include the examples directory:
-
-In the `package.json` in the root of the repo, change:
-```
-  "workspaces": [
-    "sdk/typescript/packages/**",
-```
-to:
-```
-  "workspaces": [
-    "sdk/typescript/**",
-```
 
 Run these commands to build the SDK from `sdk/typescript/packages/sdk`:
 

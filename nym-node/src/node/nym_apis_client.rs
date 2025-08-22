@@ -122,9 +122,7 @@ impl InnerClient {
     {
         let broadcast_fut =
             stream::iter(self.available_urls.clone()).for_each_concurrent(None, |url| {
-                let mut nym_api = self
-                    .active_client
-                    .clone();
+                let mut nym_api = self.active_client.clone();
                 nym_api.change_base_urls(vec![url.clone().into()]);
                 let req_fut = req(nym_api, request_body);
                 async move {
@@ -171,9 +169,7 @@ impl InnerClient {
             .skip(last_working)
             .chain(self.available_urls.iter().enumerate().take(last_working))
         {
-            let mut nym_api = self
-                .active_client
-                .clone();
+            let mut nym_api = self.active_client.clone();
             nym_api.change_base_urls(vec![url.clone().into()]);
 
             let timeout_fut = sleep(timeout_duration);

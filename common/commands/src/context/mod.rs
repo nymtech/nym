@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::context::errors::ContextError;
+pub use nym_http_api_client::Client as NymApiClient;
 use nym_network_defaults::{
     setup_env,
     var_names::{MIXNET_CONTRACT_ADDRESS, NYM_API, NYXD, VESTING_CONTRACT_ADDRESS},
     NymNetworkDetails,
 };
-pub use nym_http_api_client::Client as NymApiClient;
 use nym_validator_client::nyxd::{self, AccountId, NyxdClient};
 use nym_validator_client::{
     DirectSigningHttpRpcNyxdClient, DirectSigningHttpRpcValidatorClient, QueryHttpRpcNyxdClient,

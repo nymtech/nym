@@ -56,12 +56,12 @@ impl SignerStatus {
             }
         };
 
-        Some(
-            nym_http_api_client::Client::builder::<_, nym_validator_client::models::RequestError>(api_endpoint)
-                .ok()?
-                .build::<nym_validator_client::models::RequestError>()
-                .ok()?
+        nym_http_api_client::Client::builder::<_, nym_validator_client::models::RequestError>(
+            api_endpoint,
         )
+        .ok()?
+        .build::<nym_validator_client::models::RequestError>()
+        .ok()
     }
 
     pub(crate) async fn try_update_api_version(&mut self) {

@@ -190,7 +190,13 @@ impl NymNetworkDetails {
             },
             nym_vpn_api_url: parse_optional_str(mainnet::NYM_VPN_API),
             nym_api_urls: Some(mainnet::NYM_APIS.iter().copied().map(Into::into).collect()),
-            nym_vpn_api_urls: Some(mainnet::NYM_VPN_APIS.iter().copied().map(Into::into).collect()),
+            nym_vpn_api_urls: Some(
+                mainnet::NYM_VPN_APIS
+                    .iter()
+                    .copied()
+                    .map(Into::into)
+                    .collect(),
+            ),
         }
     }
 

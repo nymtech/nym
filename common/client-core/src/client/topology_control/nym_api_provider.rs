@@ -62,7 +62,13 @@ impl NymApiTopologyProvider {
             use_bincode: true,
         };
         // Set the initial API URL
-        provider.validator_client.change_base_urls(provider.nym_api_urls.iter().map(|u| u.clone().into()).collect());
+        provider.validator_client.change_base_urls(
+            provider
+                .nym_api_urls
+                .iter()
+                .map(|u| u.clone().into())
+                .collect(),
+        );
         provider
     }
 
@@ -82,7 +88,9 @@ impl NymApiTopologyProvider {
 
         self.currently_used_api = (self.currently_used_api + 1) % self.nym_api_urls.len();
         self.validator_client
-            .change_base_urls(vec![self.nym_api_urls[self.currently_used_api].clone().into()])
+            .change_base_urls(vec![self.nym_api_urls[self.currently_used_api]
+                .clone()
+                .into()])
     }
 
     async fn get_current_compatible_topology(&mut self) -> Option<NymTopology> {
@@ -109,8 +117,12 @@ impl NymApiTopologyProvider {
                 .collect::<Vec<_>>();
 
             let epoch_rewarded_set: EpochRewardedSet = rewarded_set.into();
-            NymTopology::new(metadata.to_topology_metadata(), epoch_rewarded_set, Vec::new())
-                .with_skimmed_nodes(&nodes_filtered)
+            NymTopology::new(
+                metadata.to_topology_metadata(),
+                epoch_rewarded_set,
+                Vec::new(),
+            )
+            .with_skimmed_nodes(&nodes_filtered)
         } else {
             // if we're not using extended topology, we're only getting active set mixnodes and gateways
 
@@ -159,8 +171,12 @@ impl NymApiTopologyProvider {
             }
 
             let epoch_rewarded_set: EpochRewardedSet = rewarded_set.into();
-            NymTopology::new(metadata.to_topology_metadata(), epoch_rewarded_set, Vec::new())
-                .with_skimmed_nodes(&nodes)
+            NymTopology::new(
+                metadata.to_topology_metadata(),
+                epoch_rewarded_set,
+                Vec::new(),
+            )
+            .with_skimmed_nodes(&nodes)
         };
 
         if !topology.is_minimally_routable() {

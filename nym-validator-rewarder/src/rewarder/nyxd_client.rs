@@ -144,7 +144,10 @@ impl NyxdClient {
                 {
                     Ok(client) => client,
                     Err(err) => {
-                        error!("Failed to create API client for issuer {}: {}", info.assigned_index, err);
+                        error!(
+                            "Failed to create API client for issuer {}: {}",
+                            info.assigned_index, err
+                        );
                         continue;
                     }
                 };

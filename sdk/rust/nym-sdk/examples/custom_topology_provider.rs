@@ -4,7 +4,7 @@
 use nym_sdk::mixnet;
 use nym_sdk::mixnet::MixnetMessageSender;
 use nym_topology::provider_trait::{async_trait, ToTopologyMetadata, TopologyProvider};
-use nym_topology::{NymTopology, EpochRewardedSet};
+use nym_topology::{EpochRewardedSet, NymTopology};
 use nym_validator_client::nym_api::NymApiClientExt;
 use url::Url;
 
@@ -14,14 +14,15 @@ struct MyTopologyProvider {
 
 impl MyTopologyProvider {
     fn new(nym_api_url: Url) -> MyTopologyProvider {
-        let validator_client = nym_http_api_client::Client::builder::<_, nym_validator_client::models::RequestError>(nym_api_url)
-            .expect("Failed to create API client builder")
-            .build::<nym_validator_client::models::RequestError>()
-            .expect("Failed to build API client");
-        
-        MyTopologyProvider {
-            validator_client,
-        }
+        let validator_client = nym_http_api_client::Client::builder::<
+            _,
+            nym_validator_client::models::RequestError,
+        >(nym_api_url)
+        .expect("Failed to create API client builder")
+        .build::<nym_validator_client::models::RequestError>()
+        .expect("Failed to build API client");
+
+        MyTopologyProvider { validator_client }
     }
 
     async fn get_topology(&self) -> NymTopology {

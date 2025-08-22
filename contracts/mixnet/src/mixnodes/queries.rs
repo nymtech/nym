@@ -503,8 +503,8 @@ pub(crate) mod tests {
                         storage,
                         id,
                         &UnbondedMixnode {
-                            identity_key: format!("dummy{}", id),
-                            owner: Addr::unchecked(format!("dummy{}", id)),
+                            identity_key: format!("dummy{id}"),
+                            owner: Addr::unchecked(format!("dummy{id}")),
                             proxy: None,
                             unbonding_height: 123,
                         },
@@ -570,7 +570,7 @@ pub(crate) mod tests {
                     storage,
                     id,
                     &UnbondedMixnode {
-                        identity_key: format!("dummy{}", id),
+                        identity_key: format!("dummy{id}"),
                         owner: owner.clone(),
                         proxy: None,
                         unbonding_height: 123,
@@ -817,7 +817,7 @@ pub(crate) mod tests {
                     id,
                     &UnbondedMixnode {
                         identity_key: identity.to_string(),
-                        owner: Addr::unchecked(format!("dummy{}", id)),
+                        owner: Addr::unchecked(format!("dummy{id}")),
                         proxy: None,
                         unbonding_height: 123,
                     },

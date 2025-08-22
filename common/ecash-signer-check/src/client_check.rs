@@ -4,7 +4,7 @@
 use crate::{LocalChainStatus, SignerCheckError, SigningStatus, TypedSignerResult};
 use nym_ecash_signer_check_types::dealer_information::RawDealerInformation;
 use nym_ecash_signer_check_types::status::{SignerStatus, SignerTestResult};
-use nym_validator_client::models::{BinaryBuildInformationOwned};
+use nym_validator_client::models::BinaryBuildInformationOwned;
 use nym_validator_client::nym_api::NymApiClientExt;
 use nym_validator_client::nyxd::contract_traits::dkg_query_client::{
     ContractVKShare, DealerDetails,

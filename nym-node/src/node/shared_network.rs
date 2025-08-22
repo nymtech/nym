@@ -7,6 +7,7 @@ use crate::node::routing_filter::network_filter::NetworkRoutingFilter;
 use async_trait::async_trait;
 use nym_crypto::asymmetric::ed25519;
 use nym_gateway::node::UserAgent;
+use nym_http_api_client::Client;
 use nym_node_metrics::prometheus_wrapper::{PrometheusMetric, PROMETHEUS_METRICS};
 use nym_noise::config::NoiseNetworkView;
 use nym_task::ShutdownToken;
@@ -31,7 +32,6 @@ use tokio::time::interval;
 use tracing::log::error;
 use tracing::{debug, trace, warn};
 use url::Url;
-use nym_http_api_client::Client;
 
 const LOCAL_NODE_ID: NodeId = 1234567890;
 
@@ -50,7 +50,7 @@ impl NodesQuerier {
 
         self.currently_used_api = (self.currently_used_api + 1) % self.nym_api_urls.len();
         self.client
-            .change_base_urls(self.nym_api_urls.iter().map(|u|u.clone().into()).collect())
+            .change_base_urls(self.nym_api_urls.iter().map(|u| u.clone().into()).collect())
     }
 
     async fn rewarded_set(&mut self) -> Result<EpochRewardedSet, ValidatorClientError> {

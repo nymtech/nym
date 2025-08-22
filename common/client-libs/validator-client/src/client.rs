@@ -5,8 +5,8 @@ use crate::nyxd::{self, NyxdClient};
 use crate::signing::direct_wallet::DirectSecp256k1HdWallet;
 use crate::signing::signer::{NoSigner, OfflineSigner};
 use crate::{
-    DirectSigningReqwestRpcValidatorClient, QueryReqwestRpcValidatorClient,
-    ReqwestRpcClient, ValidatorClientError,
+    DirectSigningReqwestRpcValidatorClient, QueryReqwestRpcValidatorClient, ReqwestRpcClient,
+    ValidatorClientError,
 };
 use nym_api_requests::ecash::models::{
     AggregatedCoinIndicesSignatureResponse, AggregatedExpirationDateSignatureResponse,

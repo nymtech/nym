@@ -3,7 +3,6 @@
 
 use crate::nyxd::contract_traits::{DkgQueryClient, PagedDkgQueryClient};
 use crate::nyxd::error::NyxdError;
-use crate::nym_api::NymApiClientExt;
 use nym_coconut_dkg_common::types::{EpochId, NodeIndex};
 use nym_coconut_dkg_common::verification_key::ContractVKShare;
 use nym_compact_ecash::error::CompactEcashError;

@@ -12,6 +12,8 @@ use nym_credential_proxy_requests::api::v1::ticketbook::models::{
 };
 use nym_credentials_interface::Base58;
 use nym_validator_client::ecash::BlindSignRequestBody;
+use nym_validator_client::nyxd::Coin;
+use rand::rngs::OsRng;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;

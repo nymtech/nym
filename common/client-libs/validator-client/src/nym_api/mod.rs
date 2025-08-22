@@ -23,6 +23,7 @@ use nym_api_requests::nym_nodes::{
     NodesByAddressesRequestBody, NodesByAddressesResponse, PaginatedCachedNodesResponseV1,
     PaginatedCachedNodesResponseV2,
 };
+use crate::nym_nodes::SkimmedNodesWithMetadata;
 use nym_api_requests::pagination::PaginatedResponse;
 pub use nym_api_requests::{
     ecash::{
@@ -50,10 +51,6 @@ use time::Date;
 use tracing::instrument;
 
 pub use nym_coconut_dkg_common::types::EpochId;
-// DEPRECATED: Use nym_http_api_client::Client directly
-#[deprecated(since = "1.2.0", note = "Use nym_http_api_client::Client directly")]
-pub use nym_http_api_client::Client;
-
 pub mod error;
 pub mod routes;
 
@@ -64,6 +61,9 @@ pub fn rfc_3339_date() -> Vec<BorrowedFormatItem<'static>> {
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait NymApiClientExt: ApiClient {
+    /// Get the current API URL being used by the client
+    fn api_url(&self) -> &url::Url;
+
     async fn health(&self) -> Result<ApiHealthResponse, NymAPIError> {
         self.get_json(
             &[
@@ -241,6 +241,68 @@ pub trait NymApiClientExt: ApiClient {
             &params,
         )
         .await
+    }
+
+    async fn get_current_rewarded_set(&self) -> Result<RewardedSetResponse, NymAPIError> {
+        self.get_rewarded_set().await
+    }
+
+    async fn get_all_basic_nodes_with_metadata(&self) -> Result<SkimmedNodesWithMetadata, NymAPIError> {
+        // unroll first loop iteration in order to obtain the metadata
+        let mut page = 0;
+        let res = self
+            .get_basic_nodes_v2(false, Some(page), None, true)
+            .await?;
+        let mut nodes = res.nodes.data;
+        let metadata = res.metadata;
+
+        if res.nodes.pagination.total == nodes.len() {
+            return Ok(SkimmedNodesWithMetadata::new(nodes, metadata));
+        }
+
+        page += 1;
+
+        loop {
+            let mut res = self
+                .get_basic_nodes_v2(false, Some(page), None, true)
+                .await?;
+
+            if !metadata.consistency_check(&res.metadata) {
+                // Create a custom error for inconsistent metadata
+                return Err(NymAPIError::EndpointFailure {
+                    status: reqwest::StatusCode::INTERNAL_SERVER_ERROR,
+                    error: nym_api_requests::models::RequestError::new("Inconsistent paged metadata"),
+                });
+            }
+
+            nodes.append(&mut res.nodes.data);
+            if nodes.len() >= res.nodes.pagination.total {
+                break;
+            } else {
+                page += 1
+            }
+        }
+
+        Ok(SkimmedNodesWithMetadata::new(nodes, metadata))
+    }
+
+    async fn get_all_described_nodes(&self) -> Result<Vec<NymNodeDescription>, NymAPIError> {
+        // TODO: deal with paging in macro or some helper function or something, because it's the same pattern everywhere
+        let mut page = 0;
+        let mut descriptions = Vec::new();
+
+        loop {
+            let mut res = self.get_nodes_described(Some(page), None).await?;
+
+            descriptions.append(&mut res.data);
+            if descriptions.len() < res.pagination.total {
+                page += 1
+            } else {
+                break;
+            }
+        }
+
+        Ok(descriptions)
     }
 
     #[tracing::instrument(level = "debug", skip_all)]
@@ -1378,4 +1440,8 @@ pub trait NymApiClientExt: ApiClient {
 // Client is already nym_http_api_client::Client (re-exported above), so just one impl needed
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl NymApiClientExt for Client {}
+impl NymApiClientExt for nym_http_api_client::Client {
+    fn api_url(&self) -> &url::Url {
+        self.current_url().as_ref()
+    }
+}

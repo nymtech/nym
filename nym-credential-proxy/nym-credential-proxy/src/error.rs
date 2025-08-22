@@ -3,7 +3,7 @@
 
 use nym_ecash_signer_check::SignerCheckError;
 use nym_validator_client::coconut::EcashApiError;
-use nym_validator_client::nym_api::EpochId;
+use nym_validator_client::nym_api::{EpochId, error::NymAPIError};
 use nym_validator_client::nyxd::error::NyxdError;
 use std::io;
 use std::net::SocketAddr;
@@ -69,6 +69,12 @@ pub enum CredentialProxyError {
     EcashApiFailure {
         #[from]
         source: EcashApiError,
+    },
+
+    #[error("Nym API request failed: {source}")]
+    NymApiFailure {
+        #[from]
+        source: NymAPIError,
     },
 
     #[error("Compact ecash internal error: {0}")]

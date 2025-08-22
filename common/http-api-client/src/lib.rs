@@ -765,17 +765,24 @@ impl Client {
         #[cfg(feature = "tunneling")]
         if let Some(ref front) = self.front {
             if front.is_enabled() {
+                let front_host = url.front_str().unwrap_or("");
+                let actual_host = url.host_str().unwrap_or("");
+                
+                tracing::debug!(
+                    "Domain fronting enabled: routing via CDN {} to actual host {}",
+                    front_host,
+                    actual_host
+                );
+                
                 // this should never fail as we are transplanting the host from one url to another
-                r.url_mut().set_host(url.front_str()).unwrap();
+                r.url_mut().set_host(Some(front_host)).unwrap();
 
-                let actual_host: HeaderValue = url
-                    .host_str()
-                    .unwrap_or("")
+                let actual_host_header: HeaderValue = actual_host
                     .parse()
                     .unwrap_or(HeaderValue::from_static(""));
                 // If the map did have this key present, the new value is associated with the key
                 // and all previous values are removed. (reqwest HeaderMap docs)
-                _ = r.headers_mut().insert(reqwest::header::HOST, actual_host);
+                _ = r.headers_mut().insert(reqwest::header::HOST, actual_host_header);
             }
         }
     }
@@ -862,7 +869,14 @@ impl ApiClientCore for Client {
                     if let Some(ref front) = self.front {
                         // If fronting is set to be enabled on error, enable domain fronting as we
                         // have encountered an error.
+                        let was_enabled = front.is_enabled();
                         front.retry_enable();
+                        if !was_enabled && front.is_enabled() {
+                            tracing::info!(
+                                "Domain fronting activated after connection failure: {}",
+                                e
+                            );
+                        }
                     }
 
                     if attempts < self.retry_limit {

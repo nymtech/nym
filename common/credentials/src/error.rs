@@ -4,7 +4,7 @@
 use crate::ecash::bandwidth::issued::CURRENT_SERIALIZATION_REVISION;
 use nym_credentials_interface::CompactEcashError;
 use nym_crypto::asymmetric::x25519::KeyRecoveryError;
-use nym_validator_client::ValidatorClientError;
+use nym_validator_client::{ValidatorClientError, nym_api::error::NymAPIError};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -36,6 +36,9 @@ pub enum Error {
 
     #[error("Ran into a validator client error - {0}")]
     ValidatorClientError(#[from] ValidatorClientError),
+
+    #[error("Nym API request failed - {0}")]
+    NymAPIError(#[from] NymAPIError),
 
     #[error("Bandwidth operation overflowed. {0}")]
     BandwidthOverflow(String),

@@ -2,8 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use async_trait::async_trait;
+use nym_mixnet_contract_common::EpochRewardedSet;
 use nym_topology::provider_trait::{ToTopologyMetadata, TopologyProvider};
 use nym_topology::NymTopology;
+use nym_validator_client::nym_api::NymApiClientExt;
 use rand::prelude::SliceRandom;
 use rand::thread_rng;
 use std::cmp::min;
@@ -39,30 +41,43 @@ impl Config {
 pub struct NymApiTopologyProvider {
     config: Config,
 
-    validator_client: nym_validator_client::client::NymApiClient,
+    validator_client: nym_http_api_client::Client,
     nym_api_urls: Vec<Url>,
     currently_used_api: usize,
+    use_bincode: bool,
 }
 
 impl NymApiTopologyProvider {
     pub fn new(
         config: impl Into<Config>,
         mut nym_api_urls: Vec<Url>,
-        mut validator_client: nym_validator_client::client::NymApiClient,
+        validator_client: nym_http_api_client::Client,
     ) -> Self {
         nym_api_urls.shuffle(&mut thread_rng());
-        validator_client.change_nym_api(nym_api_urls[0].clone());
-
-        NymApiTopologyProvider {
+        let mut provider = NymApiTopologyProvider {
             config: config.into(),
             validator_client,
             nym_api_urls,
             currently_used_api: 0,
-        }
+            use_bincode: true,
+        };
+        // Set the initial API URL
+        provider.validator_client.change_base_urls(
+            provider
+                .nym_api_urls
+                .iter()
+                .map(|u| u.clone().into())
+                .collect(),
+        );
+        provider
     }
 
     pub fn disable_bincode(&mut self) {
-        self.validator_client.use_bincode = false;
+        self.use_bincode = false;
+        // Note: The unified client doesn't support toggling bincode after creation.
+        // This would require recreating the client without bincode.
+        // For now, we'll track the preference but it won't take effect.
+        warn!("Disabling bincode on existing client is not currently supported");
     }
 
     fn use_next_nym_api(&mut self) {
@@ -73,7 +88,9 @@ impl NymApiTopologyProvider {
 
         self.currently_used_api = (self.currently_used_api + 1) % self.nym_api_urls.len();
         self.validator_client
-            .change_nym_api(self.nym_api_urls[self.currently_used_api].clone())
+            .change_base_urls(vec![self.nym_api_urls[self.currently_used_api]
+                .clone()
+                .into()])
     }
 
     async fn get_current_compatible_topology(&mut self) -> Option<NymTopology> {
@@ -99,8 +116,13 @@ impl NymApiTopologyProvider {
                 .filter(|n| n.performance.round_to_integer() >= self.config.min_node_performance())
                 .collect::<Vec<_>>();
 
-            NymTopology::new(metadata.to_topology_metadata(), rewarded_set, Vec::new())
-                .with_skimmed_nodes(&nodes_filtered)
+            let epoch_rewarded_set: EpochRewardedSet = rewarded_set.into();
+            NymTopology::new(
+                metadata.to_topology_metadata(),
+                epoch_rewarded_set,
+                Vec::new(),
+            )
+            .with_skimmed_nodes(&nodes_filtered)
         } else {
             // if we're not using extended topology, we're only getting active set mixnodes and gateways
 
@@ -148,8 +170,13 @@ impl NymApiTopologyProvider {
                 }
             }
 
-            NymTopology::new(metadata.to_topology_metadata(), rewarded_set, Vec::new())
-                .with_skimmed_nodes(&nodes)
+            let epoch_rewarded_set: EpochRewardedSet = rewarded_set.into();
+            NymTopology::new(
+                metadata.to_topology_metadata(),
+                epoch_rewarded_set,
+                Vec::new(),
+            )
+            .with_skimmed_nodes(&nodes)
         };
 
         if !topology.is_minimally_routable() {

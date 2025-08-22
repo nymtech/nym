@@ -10,7 +10,6 @@ use nym_task::ShutdownToken;
 use nym_validator_client::client::NymApiClientExt;
 use nym_validator_client::models::{KeyRotationInfoResponse, NodeRefreshBody};
 use nym_validator_client::nym_api::error::NymAPIError;
-use nym_validator_client::NymApiClient;
 use rand::prelude::SliceRandom;
 use rand::thread_rng;
 use std::sync::Arc;
@@ -27,7 +26,7 @@ pub struct NymApisClient {
 
 struct InnerClient {
     // NOTE: this was implemented before the internal http client supported multiple URLs
-    active_client: NymApiClient,
+    active_client: Client,
     available_urls: Vec<Url>,
     shutdown_token: ShutdownToken,
     currently_used_api: usize,
@@ -45,7 +44,7 @@ impl NymApisClient {
         let mut urls = nym_apis.to_vec();
         urls.shuffle(&mut thread_rng());
 
-        let active_client = nym_http_api_client::Client::builder(urls[0].clone())?
+        let active_client = Client::builder(urls[0].clone())?
             .no_hickory_dns()
             .with_user_agent(NymNode::user_agent())
             .with_timeout(Duration::from_secs(5))
@@ -53,7 +52,7 @@ impl NymApisClient {
 
         Ok(NymApisClient {
             inner: Arc::new(RwLock::new(InnerClient {
-                active_client: NymApiClient::from(active_client),
+                active_client: active_client.clone(),
                 available_urls: urls,
                 shutdown_token,
                 currently_used_api: 0,
@@ -90,7 +89,7 @@ impl NymApisClient {
             let mut guard = self.inner.write().await;
             let next_url = guard.available_urls[last_working_endpoint].clone();
             guard.currently_used_api = last_working_endpoint;
-            guard.active_client.change_nym_api(next_url);
+            guard.active_client.change_base_urls(vec![next_url.into()]);
         }
 
         Ok(res)
@@ -123,10 +122,8 @@ impl InnerClient {
     {
         let broadcast_fut =
             stream::iter(self.available_urls.clone()).for_each_concurrent(None, |url| {
-                let nym_api = self
-                    .active_client
-                    .nym_api
-                    .clone_with_new_url(url.clone().into());
+                let mut nym_api = self.active_client.clone();
+                nym_api.change_base_urls(vec![url.clone().into()]);
                 let req_fut = req(nym_api, request_body);
                 async move {
                     if let Err(err) = req_fut.await {
@@ -172,10 +169,8 @@ impl InnerClient {
             .skip(last_working)
             .chain(self.available_urls.iter().enumerate().take(last_working))
         {
-            let nym_api = self
-                .active_client
-                .nym_api
-                .clone_with_new_url(url.clone().into());
+            let mut nym_api = self.active_client.clone();
+            nym_api.change_base_urls(vec![url.clone().into()]);
 
             let timeout_fut = sleep(timeout_duration);
             let query_fut = req(nym_api);
@@ -216,8 +211,8 @@ impl InnerClient {
     }
 }
 
-impl AsRef<NymApiClient> for InnerClient {
-    fn as_ref(&self) -> &NymApiClient {
+impl AsRef<Client> for InnerClient {
+    fn as_ref(&self) -> &Client {
         &self.active_client
     }
 }

@@ -1148,7 +1148,10 @@ impl DummyCommunicationChannel {
         cosmos_address: AccountId,
     ) -> Self {
         let client = EcashApiClient {
-            api_client: nym_http_api_client::Client::new("http://localhost:1234".parse().unwrap(), None),
+            api_client: nym_http_api_client::Client::new(
+                "http://localhost:1234".parse().unwrap(),
+                None,
+            ),
             verification_key: aggregated_verification_key,
             node_id: 1,
             cosmos_address,

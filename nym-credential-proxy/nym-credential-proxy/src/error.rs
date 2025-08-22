@@ -3,7 +3,7 @@
 
 use nym_ecash_signer_check::SignerCheckError;
 use nym_validator_client::coconut::EcashApiError;
-use nym_validator_client::nym_api::{EpochId, error::NymAPIError};
+use nym_validator_client::nym_api::{error::NymAPIError, EpochId};
 use nym_validator_client::nyxd::error::NyxdError;
 use std::io;
 use std::net::SocketAddr;

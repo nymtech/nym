@@ -1,8 +1,7 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use nym_validator_client::client::NymApiClientExt;
-use nym_validator_client::NymApiClient;
+use nym_validator_client::nym_api::NymApiClientExt;
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
 use strum::{Display, EnumProperty};
@@ -48,8 +47,8 @@ impl SignerStatus {
         matches!(self.rpc_status, RpcStatus::Up)
     }
 
-    fn build_api_client(&self) -> Option<NymApiClient> {
-        let api_endpoint = match self.api_endpoint.as_str().parse() {
+    fn build_api_client(&self) -> Option<nym_http_api_client::Client> {
+        let api_endpoint: nym_http_api_client::Url = match self.api_endpoint.as_str().parse() {
             Ok(endpoint) => endpoint,
             Err(err) => {
                 error!("{} is not a valid api endpoint: {err}", self.api_endpoint);
@@ -57,14 +56,19 @@ impl SignerStatus {
             }
         };
 
-        Some(NymApiClient::new(api_endpoint))
+        nym_http_api_client::Client::builder::<_, nym_validator_client::models::RequestError>(
+            api_endpoint,
+        )
+        .ok()?
+        .build::<nym_validator_client::models::RequestError>()
+        .ok()
     }
 
     pub(crate) async fn try_update_api_version(&mut self) {
         let Some(client) = self.build_api_client() else {
             return;
         };
-        match client.nym_api.build_information().await {
+        match client.build_information().await {
             Ok(build_info) => {
                 self.api_version = ApiVersion::Available {
                     version: build_info.build_version,
@@ -84,7 +88,7 @@ impl SignerStatus {
             return;
         };
 
-        match client.nym_api.get_chain_status().await {
+        match client.get_chain_status().await {
             Ok(chain_status) => {
                 self.used_rpc_endpoint = RpcEndpoint(chain_status.connected_nyxd);
                 let last_block =

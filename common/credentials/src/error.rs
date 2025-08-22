@@ -4,7 +4,7 @@
 use crate::ecash::bandwidth::issued::CURRENT_SERIALIZATION_REVISION;
 use nym_credentials_interface::CompactEcashError;
 use nym_crypto::asymmetric::x25519::KeyRecoveryError;
-use nym_validator_client::{ValidatorClientError, nym_api::error::NymAPIError};
+use nym_validator_client::{nym_api::error::NymAPIError, ValidatorClientError};
 use thiserror::Error;
 
 #[derive(Debug, Error)]

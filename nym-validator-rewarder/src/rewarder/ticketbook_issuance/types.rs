@@ -6,8 +6,8 @@ use cosmwasm_std::{Addr, Decimal, Uint128};
 use nym_coconut_dkg_common::types::NodeIndex;
 use nym_compact_ecash::VerificationKeyAuth;
 use nym_crypto::asymmetric::ed25519;
-use nym_validator_client::nyxd::{AccountId, Coin};
 use nym_validator_client::nym_api::NymApiClientExt;
+use nym_validator_client::nyxd::{AccountId, Coin};
 use std::fmt::{Display, Formatter};
 use tracing::info;
 

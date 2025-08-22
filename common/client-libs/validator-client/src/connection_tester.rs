@@ -1,7 +1,7 @@
+use crate::nym_api::NymApiClientExt;
 use crate::nyxd::contract_traits::MixnetQueryClient;
 use crate::nyxd::error::NyxdError;
 use crate::nyxd::Config as ClientConfig;
-use crate::nym_api::NymApiClientExt;
 use crate::{QueryHttpRpcNyxdClient, ValidatorClientError};
 use colored::Colorize;
 use core::fmt;
@@ -94,7 +94,10 @@ fn setup_connection_tests<H: BuildHasher + 'static>(
         {
             Ok(client) => Some(ClientForConnectionTest::Api(network, url, client)),
             Err(err) => {
-                eprintln!("Failed to create API client for {}: {err}", network.network_name);
+                eprintln!(
+                    "Failed to create API client for {}: {err}",
+                    network.network_name
+                );
                 None
             }
         }

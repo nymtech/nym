@@ -16,9 +16,9 @@ use nym_validator_client::ecash::models::{
     IssuedTicketbooksChallengeCommitmentResponse, IssuedTicketbooksDataRequestBody,
     IssuedTicketbooksDataResponse, IssuedTicketbooksDataResponseBody, IssuedTicketbooksForResponse,
 };
+use nym_validator_client::nym_api::NymApiClientExt;
 use nym_validator_client::nyxd::AccountId;
 use nym_validator_client::signable::{SignableMessageBody, SignedMessage};
-use nym_validator_client::nym_api::NymApiClientExt;
 use rand::distributions::{Distribution, WeightedIndex};
 use rand::prelude::SliceRandom;
 use rand::thread_rng;

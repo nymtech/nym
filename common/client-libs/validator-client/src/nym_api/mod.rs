@@ -3,6 +3,7 @@
 
 use crate::nym_api::error::NymAPIError;
 use crate::nym_api::routes::{ecash, CORE_STATUS_COUNT, SINCE_ARG};
+use crate::nym_nodes::SkimmedNodesWithMetadata;
 use async_trait::async_trait;
 use nym_api_requests::ecash::models::{
     AggregatedCoinIndicesSignatureResponse, AggregatedExpirationDateSignatureResponse,
@@ -23,7 +24,6 @@ use nym_api_requests::nym_nodes::{
     NodesByAddressesRequestBody, NodesByAddressesResponse, PaginatedCachedNodesResponseV1,
     PaginatedCachedNodesResponseV2,
 };
-use crate::nym_nodes::SkimmedNodesWithMetadata;
 use nym_api_requests::pagination::PaginatedResponse;
 pub use nym_api_requests::{
     ecash::{
@@ -38,7 +38,7 @@ pub use nym_api_requests::{
         MixnodeStatusResponse, MixnodeUptimeHistoryResponse, RewardEstimationResponse,
         StakeSaturationResponse, UptimeResponse,
     },
-    nym_nodes::{CachedNodesResponse, SemiSkimmedNode, SkimmedNode},
+    nym_nodes::{CachedNodesResponse, SemiSkimmedNode, SemiSkimmedNodesWithMetadata, SkimmedNode},
     NymNetworkDetailsResponse,
 };
 use nym_contracts_common::IdentityKey;
@@ -247,7 +247,9 @@ pub trait NymApiClientExt: ApiClient {
         self.get_rewarded_set().await
     }
 
-    async fn get_all_basic_nodes_with_metadata(&self) -> Result<SkimmedNodesWithMetadata, NymAPIError> {
+    async fn get_all_basic_nodes_with_metadata(
+        &self,
+    ) -> Result<SkimmedNodesWithMetadata, NymAPIError> {
         // unroll first loop iteration in order to obtain the metadata
         let mut page = 0;
         let res = self
@@ -271,7 +273,9 @@ pub trait NymApiClientExt: ApiClient {
                 // Create a custom error for inconsistent metadata
                 return Err(NymAPIError::EndpointFailure {
                     status: reqwest::StatusCode::INTERNAL_SERVER_ERROR,
-                    error: nym_api_requests::models::RequestError::new("Inconsistent paged metadata"),
+                    error: nym_api_requests::models::RequestError::new(
+                        "Inconsistent paged metadata",
+                    ),
                 });
             }
 
@@ -280,6 +284,96 @@ pub trait NymApiClientExt: ApiClient {
                 break;
             } else {
                 page += 1
+            }
+        }
+
+        Ok(SkimmedNodesWithMetadata::new(nodes, metadata))
+    }
+
+    async fn get_all_basic_active_mixing_assigned_nodes_with_metadata(
+        &self,
+    ) -> Result<SkimmedNodesWithMetadata, NymAPIError> {
+        // Get all mixing nodes that are in the active/rewarded set
+        let mut page = 0;
+        let res = self
+            .get_basic_active_mixing_assigned_nodes_v2(false, Some(page), None, false)
+            .await?;
+
+        let metadata = res.metadata;
+        let mut nodes = res.nodes.data;
+
+        if res.nodes.pagination.total == nodes.len() {
+            return Ok(SkimmedNodesWithMetadata::new(nodes, metadata));
+        }
+
+        page += 1;
+
+        loop {
+            let res = self
+                .get_basic_active_mixing_assigned_nodes_v2(false, Some(page), None, false)
+                .await?;
+
+            if !metadata.consistency_check(&res.metadata) {
+                return Err(NymAPIError::EndpointFailure {
+                    status: reqwest::StatusCode::INTERNAL_SERVER_ERROR,
+                    error: nym_api_requests::models::RequestError::new(
+                        "Inconsistent paged metadata",
+                    ),
+                });
+            }
+
+            nodes.append(&mut res.nodes.data.clone());
+
+            // Check if we've got all nodes
+            if nodes.len() >= res.nodes.pagination.total {
+                break;
+            } else {
+                page += 1;
+            }
+        }
+
+        Ok(SkimmedNodesWithMetadata::new(nodes, metadata))
+    }
+
+    async fn get_all_basic_entry_assigned_nodes_with_metadata(
+        &self,
+    ) -> Result<SkimmedNodesWithMetadata, NymAPIError> {
+        // Get all nodes that can act as entry gateways
+        let mut page = 0;
+        let res = self
+            .get_basic_entry_assigned_nodes_v2(false, Some(page), None, false)
+            .await?;
+
+        let metadata = res.metadata;
+        let mut nodes = res.nodes.data;
+
+        if res.nodes.pagination.total == nodes.len() {
+            return Ok(SkimmedNodesWithMetadata::new(nodes, metadata));
+        }
+
+        page += 1;
+
+        loop {
+            let res = self
+                .get_basic_entry_assigned_nodes_v2(false, Some(page), None, false)
+                .await?;
+
+            if !metadata.consistency_check(&res.metadata) {
+                return Err(NymAPIError::EndpointFailure {
+                    status: reqwest::StatusCode::INTERNAL_SERVER_ERROR,
+                    error: nym_api_requests::models::RequestError::new(
+                        "Inconsistent paged metadata",
+                    ),
+                });
+            }
+
+            nodes.append(&mut res.nodes.data.clone());
+
+            // Check if we've got all nodes
+            if nodes.len() >= res.nodes.pagination.total {
+                break;
+            } else {
+                page += 1;
             }
         }
 
@@ -1435,6 +1529,38 @@ pub trait NymApiClientExt: ApiClient {
         )
         .await
     }
+
+    /// Method to change the base API URLs being used by the client
+    fn change_base_urls(&mut self, urls: Vec<url::Url>);
+
+    /// Retrieve expanded information for all bonded nodes on the network
+    async fn get_all_expanded_nodes(&self) -> Result<SemiSkimmedNodesWithMetadata, NymAPIError> {
+        // Unroll the first iteration to get the metadata
+        let mut page = 0;
+
+        let res = self.get_expanded_nodes(false, Some(page), None).await?;
+        let mut nodes = res.nodes.data;
+        let metadata = res.metadata;
+
+        if res.nodes.pagination.total == nodes.len() {
+            return Ok(SemiSkimmedNodesWithMetadata::new(nodes, metadata));
+        }
+
+        page += 1;
+
+        loop {
+            let mut res = self.get_expanded_nodes(false, Some(page), None).await?;
+
+            nodes.append(&mut res.nodes.data);
+            if nodes.len() < res.nodes.pagination.total {
+                page += 1
+            } else {
+                break;
+            }
+        }
+
+        Ok(SemiSkimmedNodesWithMetadata::new(nodes, metadata))
+    }
 }
 
 // Client is already nym_http_api_client::Client (re-exported above), so just one impl needed
@@ -1443,5 +1569,9 @@ pub trait NymApiClientExt: ApiClient {
 impl NymApiClientExt for nym_http_api_client::Client {
     fn api_url(&self) -> &url::Url {
         self.current_url().as_ref()
+    }
+
+    fn change_base_urls(&mut self, urls: Vec<url::Url>) {
+        self.change_base_urls(urls.into_iter().map(|u| u.into()).collect());
     }
 }

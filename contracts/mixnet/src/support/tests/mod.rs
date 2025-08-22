@@ -165,9 +165,9 @@ pub mod test_helpers {
     #[track_caller]
     pub fn assert_eq_with_leeway(a: Uint128, b: Uint128, leeway: Uint128) {
         if a > b {
-            assert!(a - b <= leeway, "{} != {}", a, b)
+            assert!(a - b <= leeway, "{a} != {b}")
         } else {
-            assert!(b - a <= leeway, "{} != {}", a, b)
+            assert!(b - a <= leeway, "{a} != {b}")
         }
     }
 
@@ -175,9 +175,9 @@ pub mod test_helpers {
     pub fn assert_decimals(a: Decimal, b: Decimal) {
         let epsilon = Decimal::from_ratio(1u128, 100_000_000u128);
         if a > b {
-            assert!(a - b < epsilon, "{} != {}", a, b)
+            assert!(a - b < epsilon, "{a} != {b}")
         } else {
-            assert!(b - a < epsilon, "{} != {}", a, b)
+            assert!(b - a < epsilon, "{a} != {b}")
         }
     }
 
@@ -1699,7 +1699,7 @@ pub mod test_helpers {
                 deps.branch(),
                 &env,
                 env.block.height,
-                Addr::unchecked(format!("owner{}", i)),
+                Addr::unchecked(format!("owner{i}")),
                 mix_id,
                 tests::fixtures::good_mixnode_pledge().pop().unwrap(),
             )
@@ -1713,7 +1713,7 @@ pub mod test_helpers {
         n: usize,
     ) {
         for i in 0..n {
-            add_unbonded_mixnode(&mut rng, deps.branch(), None, &addr(format!("owner{}", i)));
+            add_unbonded_mixnode(&mut rng, deps.branch(), None, &addr(format!("owner{i}")));
         }
     }
 
@@ -1765,7 +1765,7 @@ pub mod test_helpers {
                 id,
                 &UnbondedMixnode {
                     identity_key: identity_key
-                        .unwrap_or(&*format!("identity{}", id))
+                        .unwrap_or(&*format!("identity{id}"))
                         .to_string(),
                     owner: Addr::unchecked(owner),
                     proxy: None,

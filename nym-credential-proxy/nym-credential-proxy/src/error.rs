@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use nym_validator_client::coconut::EcashApiError;
-use nym_validator_client::nym_api::{EpochId, error::NymAPIError};
+use nym_validator_client::nym_api::{error::NymAPIError, EpochId};
 use nym_validator_client::nyxd::error::NyxdError;
 use std::io;
 use std::net::SocketAddr;

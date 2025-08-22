@@ -409,15 +409,22 @@ impl ClientBuilder {
 
     /// Create a client builder from network details with sensible defaults
     #[cfg(feature = "network-defaults")]
-    pub fn from_network(network: &nym_network_defaults::NymNetworkDetails) -> Result<Self, HttpClientError> {
-        let urls = network.nym_api_urls
+    pub fn from_network(
+        network: &nym_network_defaults::NymNetworkDetails,
+    ) -> Result<Self, HttpClientError> {
+        let urls = network
+            .nym_api_urls
             .as_ref()
-            .ok_or_else(|| HttpClientError::GenericRequestFailure("No API URLs configured in network details".to_string()))?
+            .ok_or_else(|| {
+                HttpClientError::GenericRequestFailure(
+                    "No API URLs configured in network details".to_string(),
+                )
+            })?
             .iter()
             .map(|api_url| {
                 // Convert ApiUrl to our Url type with fronting support
                 let mut url = Url::parse(&api_url.url)?;
-                
+
                 // Add fronting domains if available
                 #[cfg(feature = "tunneling")]
                 if let Some(ref front_hosts) = api_url.front_hosts {
@@ -428,19 +435,19 @@ impl ClientBuilder {
                     url = Url::new(api_url.url.clone(), Some(fronts))
                         .map_err(|e| HttpClientError::GenericRequestFailure(e.to_string()))?;
                 }
-                
+
                 Ok(url)
             })
             .collect::<Result<Vec<_>, HttpClientError>>()?;
 
         let mut builder = Self::new_with_urls(urls);
-        
+
         // Enable domain fronting by default (on retry)
         #[cfg(feature = "tunneling")]
         {
             builder = builder.with_fronting(FrontPolicy::OnRetry);
         }
-        
+
         Ok(builder)
     }
 
@@ -757,7 +764,7 @@ impl Client {
     /// this method. For example, if the client is configured to rotate hosts after each error, this
     /// method should be called after the host has been updated -- i.e. as part of the subsequent
     /// send.
-    fn apply_hosts_to_req(&self, r: &mut reqwest::Request) {
+    fn apply_hosts_to_req(&self, r: &mut reqwest::Request) -> (&str, Option<&str>) {
         let url = self.current_url();
         r.url_mut().set_host(url.host_str()).unwrap();
 
@@ -766,24 +773,28 @@ impl Client {
             if front.is_enabled() {
                 let front_host = url.front_str().unwrap_or("");
                 let actual_host = url.host_str().unwrap_or("");
-                
+
                 tracing::debug!(
                     "Domain fronting enabled: routing via CDN {} to actual host {}",
                     front_host,
                     actual_host
                 );
-                
+
                 // this should never fail as we are transplanting the host from one url to another
                 r.url_mut().set_host(Some(front_host)).unwrap();
 
-                let actual_host_header: HeaderValue = actual_host
-                    .parse()
-                    .unwrap_or(HeaderValue::from_static(""));
+                let actual_host_header: HeaderValue =
+                    actual_host.parse().unwrap_or(HeaderValue::from_static(""));
                 // If the map did have this key present, the new value is associated with the key
                 // and all previous values are removed. (reqwest HeaderMap docs)
-                _ = r.headers_mut().insert(reqwest::header::HOST, actual_host_header);
+                _ = r
+                    .headers_mut()
+                    .insert(reqwest::header::HOST, actual_host_header);
+
+                return (url.as_str(), url.front_str());
             }
         }
+        (url.as_str(), None)
     }
 }
 

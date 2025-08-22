@@ -19,7 +19,7 @@ use nym_validator_client::{
 use nym_validator_client::{
     nym_nodes::{NodeRole, SkimmedNode},
     nyxd::{contract_traits::PagedMixnetQueryClient, AccountId},
-    NymApiClient, QueryHttpRpcNyxdClient,
+    QueryHttpRpcNyxdClient,
 };
 use std::{
     collections::{HashMap, HashSet},
@@ -111,9 +111,7 @@ impl Monitor {
                 .with_timeout(self.nym_api_client_timeout)
                 .build::<&str>()?;
 
-        let api_client = NymApiClient::from(nym_api);
-
-        let described_nodes = api_client
+        let described_nodes = nym_api
             .get_all_described_nodes()
             .await
             .log_error("get_all_described_nodes")?
@@ -135,7 +133,7 @@ impl Monitor {
 
         tracing::info!("🟣 🚪 gateway nodes: {}", gateways.len());
 
-        let bonded_nym_nodes = api_client
+        let bonded_nym_nodes = nym_api
             .get_all_bonded_nym_nodes()
             .await?
             .into_iter()
@@ -146,10 +144,11 @@ impl Monitor {
         tracing::info!("🟣 bonded_nodes: {}", bonded_nym_nodes.len());
 
         // returns only bonded nodes
-        let nym_nodes = api_client
-            .get_all_basic_nodes()
+        let nym_nodes = nym_api
+            .get_all_basic_nodes_with_metadata()
             .await
-            .log_error("get_all_basic_nodes")?;
+            .log_error("get_all_basic_nodes")?
+            .nodes;
 
         let nym_node_count = nym_nodes.len();
         tracing::info!("🟣 get_all_basic_nodes: {}", nym_node_count);
@@ -167,8 +166,7 @@ impl Monitor {
             self.location_cached(node_description).await;
         }
 
-        let mixnodes_detailed = api_client
-            .nym_api
+        let mixnodes_detailed = nym_api
             .get_mixnodes_detailed_unfiltered()
             .await
             .log_error("get_mixnodes_detailed_unfiltered")?;
@@ -190,15 +188,13 @@ impl Monitor {
             })
             .collect::<Vec<_>>();
 
-        let mixnodes_described = api_client
-            .nym_api
+        let mixnodes_described = nym_api
             .get_mixnodes_described()
             .await
             .log_error("get_mixnodes_described")?;
 
         tracing::info!("🟣 mixnodes_described: {}", mixnodes_described.len());
-        let mixing_assigned_nodes = api_client
-            .nym_api
+        let mixing_assigned_nodes = nym_api
             .get_basic_active_mixing_assigned_nodes(false, None, None, false)
             .await
             .log_error("get_basic_active_mixing_assigned_nodes")?

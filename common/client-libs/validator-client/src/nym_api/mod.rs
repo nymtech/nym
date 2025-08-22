@@ -50,7 +50,9 @@ use time::format_description::BorrowedFormatItem;
 use time::Date;
 use tracing::instrument;
 
+use crate::ValidatorClientError;
 pub use nym_coconut_dkg_common::types::EpochId;
+
 pub mod error;
 pub mod routes;
 
@@ -424,6 +426,25 @@ pub trait NymApiClientExt: ApiClient {
             &params,
         )
         .await
+    }
+
+    async fn get_all_bonded_nym_nodes(&self) -> Result<Vec<NymNodeDetails>, ValidatorClientError> {
+        // TODO: deal with paging in macro or some helper function or something, because it's the same pattern everywhere
+        let mut page = 0;
+        let mut bonds = Vec::new();
+
+        loop {
+            let mut res = self.get_nym_nodes(Some(page), None).await?;
+
+            bonds.append(&mut res.data);
+            if bonds.len() < res.pagination.total {
+                page += 1
+            } else {
+                break;
+            }
+        }
+
+        Ok(bonds)
     }
 
     #[deprecated]

@@ -6,7 +6,6 @@ use nym_task::ShutdownToken;
 
 use celes::Country;
 use nym_validator_client::models::NymNodeDescription;
-use nym_validator_client::NymApiClient;
 use std::collections::HashMap;
 use std::time::Duration;
 use std::{net::IpAddr, sync::Arc};
@@ -14,6 +13,8 @@ use tokio::sync::RwLock;
 use tokio::time::interval;
 use url::Url;
 
+use nym_http_api_client::Client;
+use nym_validator_client::client::NymApiClientExt;
 use tracing::{error, info, trace, warn};
 
 const NETWORK_CACHE_TTL: Duration = Duration::from_secs(600);
@@ -22,7 +23,7 @@ type IpToCountryMap = HashMap<IpAddr, Option<Country>>;
 
 // SW this should use a proper NS API client once it exists
 struct NodesQuerier {
-    client: NymApiClient,
+    client: Client,
 }
 
 impl NodesQuerier {
@@ -99,14 +100,11 @@ impl NetworkRefresher {
         this
     }
 
-    fn build_http_api_client(url: Url) -> Result<NymApiClient> {
-        Ok(
-            nym_http_api_client::Client::builder::<_, anyhow::Error>(url)?
-                .no_hickory_dns()
-                .with_user_agent("node-statistics-api")
-                .build::<anyhow::Error>()?
-                .into(),
-        )
+    fn build_http_api_client(url: Url) -> Result<Client> {
+        Ok(Client::builder::<_, anyhow::Error>(url)?
+            .no_hickory_dns()
+            .with_user_agent("node-statistics-api")
+            .build::<anyhow::Error>()?)
     }
 
     async fn refresh_network_nodes(&mut self) -> Result<()> {

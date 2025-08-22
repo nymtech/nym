@@ -5,11 +5,11 @@ use nym_node_requests::api::{client::NymNodeApiClientExt, v1::metrics::models::S
 use nym_validator_client::{
     client::{NodeId, NymNodeDetails},
     models::{DescribedNodeType, NymNodeDescription},
-    NymApiClient,
 };
 use time::OffsetDateTime;
 
 use nym_statistics_common::types::SessionType;
+use nym_validator_client::client::NymApiClientExt;
 use std::collections::HashMap;
 use tokio::time::Duration;
 use tracing::instrument;
@@ -62,11 +62,9 @@ async fn run(
         .with_timeout(nym_api_client_timeout)
         .build::<&str>()?;
 
-    let api_client = NymApiClient::from(nym_api);
-
     //SW TBC what nodes exactly need to be scraped, the skimmed node endpoint seems to return more nodes
-    let bonded_nodes = api_client.get_all_bonded_nym_nodes().await?;
-    let all_nodes = api_client.get_all_described_nodes().await?; //legacy node that did not upgrade the contract bond yet
+    let bonded_nodes = nym_api.get_all_bonded_nym_nodes().await?;
+    let all_nodes = nym_api.get_all_described_nodes().await?; //legacy node that did not upgrade the contract bond yet
     tracing::debug!("Fetched {} total nodes", all_nodes.len());
 
     let mut nodes_to_scrape: HashMap<NodeId, MetricsScrapingData> = bonded_nodes

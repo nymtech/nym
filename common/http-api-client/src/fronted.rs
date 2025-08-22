@@ -54,10 +54,14 @@ impl Front {
 
 #[derive(Debug, Default, PartialEq, Clone)]
 #[cfg(feature = "tunneling")]
+/// Policy for when to use domain fronting for HTTP requests.
 pub enum FrontPolicy {
+    /// Always use domain fronting for all requests.
     Always,
+    /// Only use domain fronting when retrying failed requests.
     OnRetry,
     #[default]
+    /// Never use domain fronting.
     Off,
 }
 

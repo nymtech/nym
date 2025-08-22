@@ -7,7 +7,7 @@ use nym_network_defaults::{
     var_names::{MIXNET_CONTRACT_ADDRESS, NYM_API, NYXD, VESTING_CONTRACT_ADDRESS},
     NymNetworkDetails,
 };
-pub use nym_validator_client::nym_api::Client as NymApiClient;
+pub use nym_http_api_client::Client as NymApiClient;
 use nym_validator_client::nyxd::{self, AccountId, NyxdClient};
 use nym_validator_client::{
     DirectSigningHttpRpcNyxdClient, DirectSigningHttpRpcValidatorClient, QueryHttpRpcNyxdClient,

@@ -8,6 +8,7 @@ use nym_crypto::asymmetric::ed25519;
 use nym_gateway_client::GatewayClient;
 use nym_topology::node::RoutingNode;
 use nym_validator_client::client::{IdentityKeyRef, NymApiClientExt};
+use nym_validator_client::nym_nodes::SkimmedNodesWithMetadata;
 use nym_validator_client::UserAgent;
 use rand::{seq::SliceRandom, Rng};
 #[cfg(unix)]
@@ -145,7 +146,7 @@ pub async fn gateways_for_init<R: Rng>(
     // Use the unified HTTP client directly with optional user agent
     let mut builder = nym_http_api_client::Client::builder(nym_api.clone())
         .map_err(|e| ClientCoreError::ValidatorClientError(
-            nym_validator_client::ValidatorClientError::MalformedUrlProvided(e),
+            nym_validator_client::ValidatorClientError::NymAPIError { source: e },
         ))?
         .with_bincode();  // Use bincode for better performance
     
@@ -154,7 +155,7 @@ pub async fn gateways_for_init<R: Rng>(
     }
     
     let client = builder
-        .build::<nym_api_requests::models::RequestError>()
+        .build::<nym_validator_client::models::RequestError>()
         .map_err(|e| ClientCoreError::ValidatorClientError(
             nym_validator_client::ValidatorClientError::NymAPIError { source: e },
         ))?;

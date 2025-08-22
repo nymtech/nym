@@ -13,6 +13,8 @@ use nym_sphinx::chunking::monitoring;
 use nym_topology::provider_trait::ToTopologyMetadata;
 use nym_topology::{HardcodedTopologyProvider, NymTopology};
 use nym_validator_client::nym_api::NymApiClientExt;
+use nym_validator_client::UserAgent;
+use nym_mixnet_contract_common::EpochRewardedSet;
 use std::fs::File;
 use std::io::Write;
 use std::sync::LazyLock;
@@ -161,11 +163,9 @@ async fn nym_topology_from_env() -> anyhow::Result<NymTopology> {
     let api_url = std::env::var(NYM_API)?;
 
     info!("Generating topology from {api_url}");
-    let client = nym_http_api_client::Client::builder(api_url.parse()?)
-        .map_err(anyhow::Error::from)?
-        .with_user_agent(bin_info!())
-        .build::<nym_api_requests::models::RequestError>()
-        .map_err(anyhow::Error::from)?;
+    let client = nym_http_api_client::Client::builder::<_, nym_validator_client::models::RequestError>(api_url)?
+        .with_user_agent(UserAgent::from(bin_info!()))
+        .build::<nym_validator_client::models::RequestError>()?;
 
     let rewarded_set = client.get_current_rewarded_set().await?;
 
@@ -174,8 +174,11 @@ async fn nym_topology_from_env() -> anyhow::Result<NymTopology> {
     let nodes = nodes_response.nodes;
     let metadata = nodes_response.metadata;
 
+    // Convert RewardedSetResponse to EpochRewardedSet which can then be converted to CachedEpochRewardedSet
+    let epoch_rewarded_set: EpochRewardedSet = rewarded_set.into();
+
     Ok(
-        NymTopology::new(metadata.to_topology_metadata(), rewarded_set, Vec::new())
+        NymTopology::new(metadata.to_topology_metadata(), epoch_rewarded_set, Vec::new())
             .with_skimmed_nodes(&nodes),
     )
 }

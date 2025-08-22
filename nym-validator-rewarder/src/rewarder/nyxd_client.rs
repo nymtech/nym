@@ -16,6 +16,7 @@ use nym_validator_client::nyxd::{
     AccountId, Coin, CosmWasmClient, Hash, PageRequest, StakingQueryClient,
 };
 use nym_validator_client::{nyxd, DirectSigningHttpRpcNyxdClient};
+use nym_validator_client::nym_api::NymApiClientExt;
 use std::collections::HashMap;
 use std::ops::Deref;
 use std::sync::Arc;
@@ -140,7 +141,7 @@ impl NyxdClient {
                 };
 
                 let api_client = match nym_http_api_client::Client::builder(api_address)
-                    .and_then(|b| b.build::<nym_api_requests::models::RequestError>())
+                    .and_then(|b| b.build::<nym_validator_client::models::RequestError>())
                 {
                     Ok(client) => client,
                     Err(err) => {

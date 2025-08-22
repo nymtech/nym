@@ -22,6 +22,7 @@ url = { workspace = true }
 nym-validator-client = { path = "../client-libs/validator-client" }
 nym-network-defaults = { path = "../network-defaults" }
 nym-ecash-signer-check-types = { path = "../ecash-signer-check-types" }
+nym-http-api-client = { path = "../http-api-client" }
 
 [lints]
 workspace = true

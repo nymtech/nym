@@ -4,17 +4,23 @@
 use nym_sdk::mixnet;
 use nym_sdk::mixnet::MixnetMessageSender;
 use nym_topology::provider_trait::{async_trait, ToTopologyMetadata, TopologyProvider};
-use nym_topology::NymTopology;
+use nym_topology::{NymTopology, EpochRewardedSet};
+use nym_validator_client::nym_api::NymApiClientExt;
 use url::Url;
 
 struct MyTopologyProvider {
-    validator_client: nym_validator_client::client::NymApiClient,
+    validator_client: nym_http_api_client::Client,
 }
 
 impl MyTopologyProvider {
     fn new(nym_api_url: Url) -> MyTopologyProvider {
+        let validator_client = nym_http_api_client::Client::builder::<_, nym_validator_client::models::RequestError>(nym_api_url)
+            .expect("Failed to create API client builder")
+            .build::<nym_validator_client::models::RequestError>()
+            .expect("Failed to build API client");
+        
         MyTopologyProvider {
-            validator_client: nym_validator_client::client::NymApiClient::new(nym_api_url),
+            validator_client,
         }
     }
 
@@ -33,7 +39,8 @@ impl MyTopologyProvider {
 
         let metadata = mixnodes_response.metadata.to_topology_metadata();
 
-        let mut base_topology = NymTopology::new(metadata, rewarded_set, Vec::new());
+        let epoch_rewarded_set: EpochRewardedSet = rewarded_set.into();
+        let mut base_topology = NymTopology::new(metadata, epoch_rewarded_set, Vec::new());
 
         // in our topology provider only use mixnodes that have node_id divisible by 3
         // and has exactly 100 performance score

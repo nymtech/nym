@@ -1,6 +1,7 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use nym_http_api_client::HttpClientError;
 use nym_validator_client::nyxd::error::NyxdError;
 use thiserror::Error;
 
@@ -11,6 +12,9 @@ pub enum SignerCheckError {
 
     #[error("failed to query the DKG contract: {source}")]
     DKGContractQueryFailure { source: NyxdError },
+
+    #[error("failed to build client: {source}")]
+    HttpClient { #[from] source: HttpClientError },
 }
 
 impl SignerCheckError {

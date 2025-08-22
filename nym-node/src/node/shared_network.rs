@@ -20,7 +20,7 @@ use nym_validator_client::nym_api::NymApiClientExt;
 use nym_validator_client::nym_nodes::{
     NodesByAddressesResponse, SemiSkimmedNode, SemiSkimmedNodesWithMetadata,
 };
-use nym_validator_client::{NymApiClient, ValidatorClientError};
+use nym_validator_client::ValidatorClientError;
 use std::collections::{HashMap, HashSet};
 use std::net::{IpAddr, SocketAddr};
 use std::ops::Deref;
@@ -31,11 +31,12 @@ use tokio::time::interval;
 use tracing::log::error;
 use tracing::{debug, trace, warn};
 use url::Url;
+use nym_http_api_client::Client;
 
 const LOCAL_NODE_ID: NodeId = 1234567890;
 
 struct NodesQuerier {
-    client: NymApiClient,
+    client: Client,
     nym_api_urls: Vec<Url>,
     currently_used_api: usize,
 }
@@ -49,7 +50,7 @@ impl NodesQuerier {
 
         self.currently_used_api = (self.currently_used_api + 1) % self.nym_api_urls.len();
         self.client
-            .change_nym_api(self.nym_api_urls[self.currently_used_api].clone())
+            .change_base_urls(self.nym_api_urls.iter().map(|u|u.clone().into()).collect())
     }
 
     async fn rewarded_set(&mut self) -> Result<EpochRewardedSet, ValidatorClientError> {
@@ -62,7 +63,7 @@ impl NodesQuerier {
         if res.is_err() {
             self.use_next_nym_api()
         }
-        res
+        Ok(res?.into())
     }
 
     async fn current_nymnodes(
@@ -77,7 +78,7 @@ impl NodesQuerier {
         if res.is_err() {
             self.use_next_nym_api()
         }
-        res
+        Ok(res?)
     }
 
     async fn query_for_info(
@@ -86,7 +87,6 @@ impl NodesQuerier {
     ) -> Result<NodesByAddressesResponse, ValidatorClientError> {
         let res = self
             .client
-            .nym_api
             .nodes_by_addresses(ips)
             .await
             .inspect_err(|err| error!("failed to obtain node information: {err}"));
@@ -228,7 +228,7 @@ impl NetworkRefresher {
 
         let mut this = NetworkRefresher {
             querier: NodesQuerier {
-                client: NymApiClient::from(nym_api),
+                client: nym_api,
                 nym_api_urls,
                 currently_used_api: 0,
             },

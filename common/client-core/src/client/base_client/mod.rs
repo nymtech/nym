@@ -57,7 +57,7 @@ use nym_task::{TaskClient, TaskHandle};
 use nym_topology::provider_trait::TopologyProvider;
 use nym_topology::HardcodedTopologyProvider;
 use nym_validator_client::nym_api::NymApiClientExt;
-use nym_validator_client::{nyxd::contract_traits::DkgQueryClient, NymApiClient, UserAgent};
+use nym_validator_client::{nyxd::contract_traits::DkgQueryClient, UserAgent};
 use rand::prelude::SliceRandom;
 use rand::rngs::OsRng;
 use rand::thread_rng;
@@ -566,7 +566,7 @@ where
         custom_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
         config_topology: config::Topology,
         nym_api_urls: Vec<Url>,
-        nym_api_client: NymApiClient,
+        nym_api_client: nym_http_api_client::Client,
     ) -> Box<dyn TopologyProvider + Send + Sync> {
         // if no custom provider was ... provided ..., create one using nym-api
         custom_provider.unwrap_or_else(|| {
@@ -749,21 +749,31 @@ where
         setup_gateway(setup_method, key_store, details_store).await
     }
 
-    fn construct_nym_api_client(config: &Config, user_agent: Option<UserAgent>) -> NymApiClient {
+    fn construct_nym_api_client(config: &Config, user_agent: Option<UserAgent>) -> Result<nym_http_api_client::Client, ClientCoreError> {
         let mut nym_api_urls = config.get_nym_api_endpoints();
         nym_api_urls.shuffle(&mut thread_rng());
 
+        let mut builder = nym_http_api_client::Client::builder::<_, nym_validator_client::models::RequestError>(nym_api_urls[0].clone())
+            .map_err(|e| ClientCoreError::NymApiQueryFailure {
+                source: nym_validator_client::nym_api::error::NymAPIError::GenericRequestFailure(e.to_string())
+            })?;
+        
         if let Some(user_agent) = user_agent {
-            NymApiClient::new_with_user_agent(nym_api_urls[0].clone(), user_agent)
-        } else {
-            NymApiClient::new(nym_api_urls[0].clone())
+            builder = builder.with_user_agent(user_agent);
         }
+        
+        builder = builder.with_bincode();
+        
+        builder.build::<nym_validator_client::models::RequestError>()
+            .map_err(|e| ClientCoreError::NymApiQueryFailure {
+                source: nym_validator_client::nym_api::error::NymAPIError::GenericRequestFailure(e.to_string())
+            })
     }
 
     async fn determine_key_rotation_state(
-        client: &NymApiClient,
+        client: &nym_http_api_client::Client,
     ) -> Result<KeyRotationConfig, ClientCoreError> {
-        Ok(client.nym_api.get_key_rotation_info().await?.into())
+        Ok(client.get_key_rotation_info().await?.into())
     }
 
     pub async fn start_base(mut self) -> Result<BaseClient, ClientCoreError>
@@ -830,7 +840,7 @@ where
             .dkg_query_client
             .map(|client| BandwidthController::new(credential_store, client));
 
-        let nym_api_client = Self::construct_nym_api_client(&self.config, self.user_agent.clone());
+        let nym_api_client = Self::construct_nym_api_client(&self.config, self.user_agent.clone())?;
         let key_rotation_config = Self::determine_key_rotation_state(&nym_api_client).await?;
 
         let topology_provider = Self::setup_topology_provider(

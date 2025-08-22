@@ -757,7 +757,7 @@ impl Client {
     /// this method. For example, if the client is configured to rotate hosts after each error, this
     /// method should be called after the host has been updated -- i.e. as part of the subsequent
     /// send.
-    fn apply_hosts_to_req(&self, r: &mut reqwest::Request) {
+    fn apply_hosts_to_req(&self, r: &mut reqwest::Request) -> (&str, Option<&str>) {
         let url = self.current_url();
         r.url_mut().set_host(url.host_str()).unwrap();
 
@@ -782,8 +782,11 @@ impl Client {
                 // If the map did have this key present, the new value is associated with the key
                 // and all previous values are removed. (reqwest HeaderMap docs)
                 _ = r.headers_mut().insert(reqwest::header::HOST, actual_host_header);
+                
+                return (url.as_str(), url.front_str());
             }
         }
+        (url.as_str(), None)
     }
 }
 

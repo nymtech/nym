@@ -398,27 +398,9 @@ pub struct NymApiClient {
     // we could re-implement the communication with the REST API on port 1317
 }
 
-impl From<nym_http_api_client::Client> for NymApiClient {
-    fn from(nym_api: nym_http_api_client::Client) -> Self {
-        NymApiClient {
-            use_bincode: false,
-            nym_api,
-        }
-    }
-}
-
 // we have to allow the use of deprecated method here as they're calling the deprecated trait methods
 #[allow(deprecated)]
 impl NymApiClient {
-    pub fn new(api_url: Url) -> Self {
-        let nym_api = nym_http_api_client::Client::new(api_url, None);
-
-        NymApiClient {
-            use_bincode: true,
-            nym_api,
-        }
-    }
-
     #[cfg(not(target_arch = "wasm32"))]
     pub fn new_with_timeout(api_url: Url, timeout: std::time::Duration) -> Self {
         let nym_api = nym_http_api_client::Client::new(api_url, Some(timeout));

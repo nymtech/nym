@@ -7,7 +7,7 @@ use crate::manager::network::LoadedNetwork;
 use crate::manager::NetworkManager;
 use console::style;
 use nym_config::{must_get_home, DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, NYM_DIR};
-use nym_validator_client::NymApiClient;
+use nym_validator_client::nym_api::NymApiClientExt;
 use rand::{thread_rng, RngCore};
 use std::fs;
 use std::fs::OpenOptions;
@@ -91,7 +91,10 @@ impl NetworkManager {
             "⌛waiting for any gateway to appear in the directory ({api_url})..."
         ));
 
-        let api_client = NymApiClient::new(api_url);
+        let api_client = nym_http_api_client::Client::builder::<_, nym_validator_client::models::RequestError>(api_url.clone())
+            .expect("Failed to create API client builder")
+            .build::<nym_validator_client::models::RequestError>()
+            .expect("Failed to build API client");
 
         let wait_fut = async {
             let inner_fut = async {

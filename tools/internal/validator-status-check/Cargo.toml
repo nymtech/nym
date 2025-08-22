@@ -25,6 +25,7 @@ time = { workspace = true }
 nym-validator-client = { path = "../../../common/client-libs/validator-client" }
 nym-bin-common = { path = "../../../common/bin-common", features = ["output_format", "basic_tracing"] }
 nym-network-defaults = { path = "../../../common/network-defaults" }
+nym-http-api-client = { path = "../../../common/http-api-client" }
 
 [lints]
 workspace = true

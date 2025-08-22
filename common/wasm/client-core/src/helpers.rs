@@ -21,7 +21,7 @@ use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nym_topology::wasm_helpers::WasmFriendlyNymTopology;
 use nym_topology::{NymTopology, RoutingNode};
 use nym_validator_client::client::IdentityKey;
-use nym_validator_client::{NymApiClient, UserAgent};
+use nym_validator_client::{UserAgent, nym_api::NymApiClientExt};
 use rand::thread_rng;
 use url::Url;
 use wasm_bindgen::prelude::wasm_bindgen;
@@ -72,7 +72,16 @@ pub async fn current_network_topology_async(
         }
     };
 
-    let api_client = NymApiClient::new(url);
+    let api_client = nym_http_api_client::Client::builder::<_, nym_validator_client::models::RequestError>(url)
+        .map_err(|err| WasmCoreError::MalformedUrl { 
+            raw: err.to_string(),
+            source: err.to_string().into() 
+        })?
+        .build::<nym_validator_client::models::RequestError>()
+        .map_err(|err| WasmCoreError::MalformedUrl { 
+            raw: err.to_string(),
+            source: err.to_string().into() 
+        })?;
     let rewarded_set = api_client.get_current_rewarded_set().await?;
     let mixnodes_res = api_client
         .get_all_basic_active_mixing_assigned_nodes_with_metadata()

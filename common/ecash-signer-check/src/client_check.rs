@@ -1,15 +1,14 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{LocalChainStatus, SigningStatus, TypedSignerResult};
+use crate::{LocalChainStatus, SignerCheckError, SigningStatus, TypedSignerResult};
 use nym_ecash_signer_check_types::dealer_information::RawDealerInformation;
 use nym_ecash_signer_check_types::status::{SignerStatus, SignerTestResult};
-use nym_validator_client::client::NymApiClientExt;
-use nym_validator_client::models::BinaryBuildInformationOwned;
+use nym_validator_client::models::{BinaryBuildInformationOwned};
+use nym_validator_client::nym_api::NymApiClientExt;
 use nym_validator_client::nyxd::contract_traits::dkg_query_client::{
     ContractVKShare, DealerDetails,
 };
-use nym_validator_client::NymApiClient;
 use std::time::Duration;
 use tracing::{error, warn};
 use url::Url;
@@ -32,37 +31,38 @@ pub(crate) mod signing_status {
 }
 
 struct ClientUnderTest {
-    api_client: NymApiClient,
+    api_client: nym_http_api_client::Client,
     build_info: Option<BinaryBuildInformationOwned>,
 }
 
 impl ClientUnderTest {
-    pub(crate) fn new(api_url: &Url) -> Self {
-        ClientUnderTest {
-            api_client: NymApiClient::new(api_url.clone()),
+    pub(crate) fn new(api_url: &Url) -> Result<Self, SignerCheckError> {
+        // The builder should not fail with a valid URL that's already parsed
+        // If it does fail, it's an internal error that we can't recover from
+        let api_client = nym_http_api_client::Client::builder(api_url.clone())?.build()?;
+
+        Ok(ClientUnderTest {
+            api_client,
             build_info: None,
-        }
+        })
     }
 
     pub(crate) async fn try_retrieve_build_information(&mut self) -> bool {
-        match tokio::time::timeout(
-            Duration::from_secs(5),
-            self.api_client.nym_api.build_information(),
-        )
-        .await
+        match tokio::time::timeout(Duration::from_secs(5), self.api_client.build_information())
+            .await
         {
             Ok(Ok(build_information)) => {
                 self.build_info = Some(build_information);
                 true
             }
             Ok(Err(err)) => {
-                warn!("{}: failed to retrieve build information: {err}. the signer is most likely down", self.api_client.api_url());
+                warn!("{}: failed to retrieve build information: {err}. the signer is most likely down", self.api_client.current_url());
                 false
             }
             Err(_timeout) => {
                 warn!(
                     "{}: timed out while attempting to retrieve build information",
-                    self.api_client.api_url()
+                    self.api_client.current_url()
                 );
                 false
             }
@@ -77,7 +77,7 @@ impl ClientUnderTest {
                 .inspect_err(|err| {
                     error!(
                         "ecash signer '{}' reports invalid version {}: {err}",
-                        self.api_client.api_url(),
+                        self.api_client.current_url(),
                         build_info.build_version
                     )
                 })
@@ -121,14 +121,14 @@ impl ClientUnderTest {
 
         // check if it supports the current query
         if self.supports_chain_status_query() {
-            return match self.api_client.nym_api.get_chain_blocks_status().await {
+            return match self.api_client.get_chain_blocks_status().await {
                 Ok(status) => LocalChainStatus::Reachable {
                     response: Box::new(status),
                 },
                 Err(err) => {
                     warn!(
                         "{}: failed to retrieve local chain status: {err}",
-                        self.api_client.api_url()
+                        self.api_client.current_url()
                     );
                     LocalChainStatus::Unreachable
                 }
@@ -136,14 +136,14 @@ impl ClientUnderTest {
         }
 
         // fallback to the legacy query
-        match self.api_client.nym_api.get_chain_status().await {
+        match self.api_client.get_chain_status().await {
             Ok(status) => LocalChainStatus::ReachableLegacy {
                 response: Box::new(status),
             },
             Err(err) => {
                 warn!(
                     "{}: failed to retrieve [legacy] local chain status: {err}",
-                    self.api_client.api_url()
+                    self.api_client.current_url()
                 );
                 LocalChainStatus::Unreachable
             }
@@ -158,14 +158,14 @@ impl ClientUnderTest {
 
         // check if it supports the current query
         if self.supports_signing_status_query() {
-            return match self.api_client.nym_api.get_signer_status().await {
+            return match self.api_client.get_signer_status().await {
                 Ok(response) => SigningStatus::Reachable {
                     response: Box::new(response),
                 },
                 Err(err) => {
                     warn!(
                         "{}: failed to retrieve signer chain status: {err}",
-                        self.api_client.api_url()
+                        self.api_client.current_url()
                     );
                     SigningStatus::Unreachable
                 }
@@ -173,14 +173,14 @@ impl ClientUnderTest {
         }
 
         // fallback to the legacy query
-        match self.api_client.nym_api.get_signer_information().await {
+        match self.api_client.get_signer_information().await {
             Ok(status) => SigningStatus::ReachableLegacy {
                 response: Box::new(status),
             },
             Err(err) => {
                 warn!(
                     "{}: failed to retrieve [legacy] signer chain status: {err}",
-                    self.api_client.api_url()
+                    self.api_client.current_url()
                 );
                 // NOTE: this might equally mean the signing is disabled
                 SigningStatus::Unreachable
@@ -201,7 +201,13 @@ pub(crate) async fn check_client(
         return SignerStatus::ProvidedInvalidDetails.with_details(dealer_information, dkg_epoch);
     };
 
-    let mut client = ClientUnderTest::new(&parsed_information.announce_address);
+    let mut client = match ClientUnderTest::new(&parsed_information.announce_address) {
+        Ok(client) => client,
+        Err(err) => {
+            error!("failed to create client instance: {err}");
+            return SignerStatus::Unreachable.with_details(dealer_information, dkg_epoch);
+        }
+    };
 
     // 8. check basic connection status - can you retrieve build information?
     if !client.try_retrieve_build_information().await {

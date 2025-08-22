@@ -16,6 +16,7 @@ use nym_credentials_interface::Base58;
 use nym_crypto::asymmetric::ed25519;
 use nym_validator_client::ecash::BlindSignRequestBody;
 use nym_validator_client::nyxd::Coin;
+use nym_validator_client::nym_api::NymApiClientExt;
 use rand::rngs::OsRng;
 use std::collections::HashMap;
 use std::sync::Arc;

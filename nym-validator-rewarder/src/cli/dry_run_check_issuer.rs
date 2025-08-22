@@ -8,6 +8,7 @@ use crate::rewarder::ticketbook_issuance::types::CredentialIssuer;
 use crate::rewarder::ticketbook_issuance::verifier::TicketbookIssuanceVerifier;
 use crate::rewarder::Rewarder;
 use anyhow::bail;
+use nym_validator_client::nym_api::NymApiClientExt;
 use nym_ecash_time::ecash_default_expiration_date;
 use std::collections::HashSet;
 use std::path::PathBuf;

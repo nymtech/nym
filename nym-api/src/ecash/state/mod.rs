@@ -27,6 +27,7 @@ use nym_api_requests::ecash::models::{
 };
 use nym_api_requests::ecash::BlindSignRequestBody;
 use nym_coconut_dkg_common::types::EpochId;
+use nym_validator_client::nym_api::NymApiClientExt;
 use nym_compact_ecash::scheme::coin_indices_signatures::{
     aggregate_annotated_indices_signatures, sign_coin_indices, CoinIndexSignatureShare,
 };

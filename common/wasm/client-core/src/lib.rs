@@ -29,7 +29,7 @@ pub use nym_sphinx::{
 pub use nym_statistics_common::clients::ClientStatsSender;
 pub use nym_task;
 pub use nym_topology::{HardcodedTopologyProvider, MixLayer, NymTopology, TopologyProvider};
-pub use nym_validator_client::nym_api::Client as ApiClient;
+pub use nym_http_api_client::Client as ApiClient;
 pub use nym_validator_client::{DirectSigningReqwestRpcNyxdClient, QueryReqwestRpcNyxdClient};
 // TODO: that's a very nasty import path. it should come from contracts instead!
 pub use nym_validator_client::client::IdentityKey;

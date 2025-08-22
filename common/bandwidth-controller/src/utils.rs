@@ -13,7 +13,7 @@ use nym_credentials_interface::{
 };
 use nym_ecash_time::Date;
 use nym_validator_client::coconut::all_ecash_api_clients;
-use nym_validator_client::nym_api::EpochId;
+use nym_validator_client::nym_api::{EpochId, NymApiClientExt};
 use nym_validator_client::nyxd::contract_traits::DkgQueryClient;
 use nym_validator_client::EcashApiClient;
 use rand::prelude::SliceRandom;

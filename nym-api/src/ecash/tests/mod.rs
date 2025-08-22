@@ -67,7 +67,7 @@ use nym_validator_client::nym_api::routes::{
 use nym_validator_client::nyxd::cosmwasm_client::logs::Log;
 use nym_validator_client::nyxd::cosmwasm_client::types::ExecuteResult;
 use nym_validator_client::nyxd::{AccountId, ExecTxResult, Fee, Hash, TxResponse};
-use nym_validator_client::{EcashApiClient, NymApiClient};
+use nym_validator_client::EcashApiClient;
 use rand::rngs::OsRng;
 use rand::RngCore;
 use std::collections::{BTreeMap, HashMap};
@@ -1148,7 +1148,7 @@ impl DummyCommunicationChannel {
         cosmos_address: AccountId,
     ) -> Self {
         let client = EcashApiClient {
-            api_client: NymApiClient::new("http://localhost:1234".parse().unwrap()),
+            api_client: nym_http_api_client::Client::new("http://localhost:1234".parse().unwrap(), None),
             verification_key: aggregated_verification_key,
             node_id: 1,
             cosmos_address,

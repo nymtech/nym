@@ -87,9 +87,18 @@ impl NymApisClient {
         if guard.currently_used_api != last_working_endpoint {
             drop(guard);
             let mut guard = self.inner.write().await;
-            let next_url = guard.available_urls[last_working_endpoint].clone();
             guard.currently_used_api = last_working_endpoint;
-            guard.active_client.change_base_urls(vec![next_url.into()]);
+            
+            // Provide all URLs starting from the working endpoint for automatic failover
+            let rotated_urls: Vec<_> = guard.available_urls
+                .iter()
+                .cycle()
+                .skip(last_working_endpoint)
+                .take(guard.available_urls.len())
+                .map(|u| u.clone().into())
+                .collect();
+            
+            guard.active_client.change_base_urls(rotated_urls);
         }
 
         Ok(res)
@@ -123,6 +132,8 @@ impl InnerClient {
         let broadcast_fut =
             stream::iter(self.available_urls.clone()).for_each_concurrent(None, |url| {
                 let mut nym_api = self.active_client.clone();
+                // For broadcast, we intentionally set a single URL per client
+                // to ensure each endpoint receives the request
                 nym_api.change_base_urls(vec![url.clone().into()]);
                 let req_fut = req(nym_api, request_body);
                 async move {
@@ -170,6 +181,8 @@ impl InnerClient {
             .chain(self.available_urls.iter().enumerate().take(last_working))
         {
             let mut nym_api = self.active_client.clone();
+            // For exhaustive query, we test each endpoint individually in sequence
+            // to find a working one - so single URL is correct here
             nym_api.change_base_urls(vec![url.clone().into()]);
 
             let timeout_fut = sleep(timeout_duration);

@@ -61,7 +61,7 @@ impl NymApiTopologyProvider {
             currently_used_api: 0,
             use_bincode: true,
         };
-        // Set the initial API URL
+        // Set all API URLs - the client will try them in order with automatic failover
         provider.validator_client.change_base_urls(
             provider
                 .nym_api_urls
@@ -87,10 +87,18 @@ impl NymApiTopologyProvider {
         }
 
         self.currently_used_api = (self.currently_used_api + 1) % self.nym_api_urls.len();
-        self.validator_client
-            .change_base_urls(vec![self.nym_api_urls[self.currently_used_api]
-                .clone()
-                .into()])
+        
+        // Provide all URLs starting from the next one in rotation order
+        // This enables automatic failover to other endpoints
+        let rotated_urls: Vec<_> = self.nym_api_urls
+            .iter()
+            .cycle()
+            .skip(self.currently_used_api)
+            .take(self.nym_api_urls.len())
+            .map(|u| u.clone().into())
+            .collect();
+        
+        self.validator_client.change_base_urls(rotated_urls)
     }
 
     async fn get_current_compatible_topology(&mut self) -> Option<NymTopology> {

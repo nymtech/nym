@@ -190,7 +190,6 @@ async fn submit_testrun_v2(
     Json(submission): Json<submit_results_v2::SubmitResultsV2>,
 ) -> HttpResult<StatusCode> {
     authenticate(&submission, &state)?;
-    is_fresh(&submission.payload.assigned_at_utc)?;
 
     let db = state.db_pool();
     let mut conn = db

@@ -16,12 +16,8 @@ use axum::{
     extract::{Path, State},
     Router,
 };
-use nym_node_status_client::{
-    auth::VerifiableRequest,
-    models::{get_testrun, submit_results, submit_results_v2},
-};
+use nym_node_status_client::models::{get_testrun, submit_results, submit_results_v2};
 use reqwest::StatusCode;
-use tracing::warn;
 
 // TODO dz consider adding endpoint to trigger testrun scan for a given gateway_id
 // like in H< src/http/testruns.rs
@@ -40,8 +36,8 @@ async fn request_testrun(
     Json(request): Json<get_testrun::GetTestrunRequest>,
 ) -> HttpResult<Json<TestrunAssignment>> {
     // TODO dz log agent's network probe version
-    authenticate(&request, &state)?;
-    is_fresh(&request.payload.timestamp)?;
+    state.authenticate_agent_submission(&request)?;
+    state.is_fresh(&request.payload.timestamp)?;
 
     tracing::debug!("Agent requested testrun");
 
@@ -87,7 +83,7 @@ async fn submit_testrun(
     State(state): State<AppState>,
     Json(submitted_result): Json<submit_results::SubmitResults>,
 ) -> HttpResult<StatusCode> {
-    authenticate(&submitted_result, &state)?;
+    state.authenticate_agent_submission(&submitted_result)?;
 
     let db = state.db_pool();
     let mut conn = db
@@ -189,7 +185,7 @@ async fn submit_testrun_v2(
     State(state): State<AppState>,
     Json(submission): Json<submit_results_v2::SubmitResultsV2>,
 ) -> HttpResult<StatusCode> {
-    authenticate(&submission, &state)?;
+    state.authenticate_agent_submission(&submission)?;
 
     let db = state.db_pool();
     let mut conn = db
@@ -248,43 +244,7 @@ async fn submit_testrun_v2(
     }
 }
 
-// TODO dz this should be middleware
-#[tracing::instrument(level = "debug", skip_all)]
-fn authenticate(request: &impl VerifiableRequest, state: &AppState) -> HttpResult<()> {
-    if !state.is_registered(request.public_key()) {
-        tracing::warn!("Public key not registered with NS API, rejecting");
-        return Err(HttpError::unauthorized());
-    };
-
-    request.verify_signature().map_err(|_| {
-        tracing::warn!("Signature verification failed, rejecting");
-        HttpError::unauthorized()
-    })?;
-
-    Ok(())
-}
-
-static FRESHNESS_CUTOFF: time::Duration = time::Duration::minutes(2);
-
-fn is_fresh(request_time: &i64) -> HttpResult<()> {
-    // if a request took longer than N minutes to reach NS API, something is very wrong
-    let request_time = time::UtcDateTime::from_unix_timestamp(*request_time).map_err(|e| {
-        warn!("Failed to parse request time: {e}");
-        HttpError::unauthorized()
-    })?;
-
-    let cutoff_timestamp = now_utc() - FRESHNESS_CUTOFF;
-    if request_time < cutoff_timestamp {
-        warn!(
-            "Request time {} is older than cutoff {} ({}s ago), rejecting",
-            request_time,
-            cutoff_timestamp,
-            FRESHNESS_CUTOFF.whole_seconds()
-        );
-        return Err(HttpError::unauthorized());
-    }
-    Ok(())
-}
+// static AGENT_REQUEST_FRESHNESS_CUTOFF: OnceCell<time::Duration>  = OnceCell::new();
 
 fn get_result_from_log(log: &str) -> String {
     static RE: std::sync::LazyLock<regex::Regex> =

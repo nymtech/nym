@@ -38,7 +38,7 @@ pub(crate) struct Cli {
 
     /// Nym api client timeout.
     #[clap(long, default_value = "15", env = "NYM_API_CLIENT_TIMEOUT")]
-    #[arg(value_parser = parse_duration)]
+    #[arg(value_parser = parse_duration_std)]
     pub(crate) nym_api_client_timeout: Duration,
 
     /// Connection url for the database.
@@ -46,7 +46,7 @@ pub(crate) struct Cli {
     pub(crate) database_url: String,
 
     #[clap(long, default_value = "5", env = "SQLX_BUSY_TIMEOUT_S")]
-    #[arg(value_parser = parse_duration)]
+    #[arg(value_parser = parse_duration_std)]
     pub(crate) sqlx_busy_timeout_s: Duration,
 
     #[clap(
@@ -54,7 +54,7 @@ pub(crate) struct Cli {
         default_value = "300",
         env = "NODE_STATUS_API_MONITOR_REFRESH_INTERVAL"
     )]
-    #[arg(value_parser = parse_duration)]
+    #[arg(value_parser = parse_duration_std)]
     pub(crate) monitor_refresh_interval: Duration,
 
     #[clap(
@@ -62,16 +62,20 @@ pub(crate) struct Cli {
         default_value = "300",
         env = "NODE_STATUS_API_TESTRUN_REFRESH_INTERVAL"
     )]
-    #[arg(value_parser = parse_duration)]
+    #[arg(value_parser = parse_duration_std)]
     pub(crate) testruns_refresh_interval: Duration,
 
     #[clap(long, default_value = "86400", env = "NODE_STATUS_API_GEODATA_TTL")]
-    #[arg(value_parser = parse_duration)]
+    #[arg(value_parser = parse_duration_std)]
     pub(crate) geodata_ttl: Duration,
 
     #[clap(env = "NODE_STATUS_API_AGENT_KEY_LIST")]
     #[arg(value_delimiter = ',')]
     pub(crate) agent_key_list: Vec<String>,
+
+    #[clap(long, default_value = "120", env = "AGENT_REQUEST_FRESHNESS")]
+    #[arg(value_parser = parse_duration_time)]
+    pub(crate) agent_request_freshness: time::Duration,
 
     #[clap(
         long,
@@ -92,7 +96,12 @@ pub(crate) struct Cli {
     pub(crate) max_agent_count: i64,
 }
 
-fn parse_duration(arg: &str) -> Result<std::time::Duration, std::num::ParseIntError> {
+fn parse_duration_std(arg: &str) -> Result<std::time::Duration, std::num::ParseIntError> {
     let seconds = arg.parse()?;
     Ok(std::time::Duration::from_secs(seconds))
+}
+
+fn parse_duration_time(arg: &str) -> Result<time::Duration, std::num::ParseIntError> {
+    let seconds = arg.parse()?;
+    Ok(time::Duration::new(seconds, 0))
 }

@@ -13,12 +13,14 @@ use crate::{
 
 /// Return handles that allow for graceful shutdown of server + awaiting its
 /// background tokio task
+#[allow(clippy::too_many_arguments)]
 pub(crate) async fn start_http_api(
     db_pool: DbPool,
     http_port: u16,
     nym_http_cache_ttl: u64,
     agent_key_list: Vec<PublicKey>,
     agent_max_count: i64,
+    agent_request_freshness_requirement: time::Duration,
     node_geocache: NodeGeoCache,
     node_delegations: Arc<RwLock<DelegationsCache>>,
 ) -> anyhow::Result<ShutdownHandles> {
@@ -29,6 +31,7 @@ pub(crate) async fn start_http_api(
         nym_http_cache_ttl,
         agent_key_list,
         agent_max_count,
+        agent_request_freshness_requirement,
         node_geocache,
         node_delegations,
     )

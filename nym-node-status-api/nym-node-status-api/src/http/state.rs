@@ -5,6 +5,7 @@ use nym_bin_common::bin_info_owned;
 use nym_contracts_common::NaiveFloat;
 use nym_crypto::asymmetric::ed25519::PublicKey;
 use nym_mixnet_contract_common::NodeId;
+use nym_node_status_client::auth::VerifiableRequest;
 use nym_validator_client::nym_api::SkimmedNode;
 use semver::Version;
 use serde::{Deserialize, Serialize};
@@ -17,8 +18,11 @@ use utoipa::ToSchema;
 use super::models::SessionStats;
 use crate::{
     db::{queries, DbPool},
-    http::models::{
-        DVpnGateway, DailyStats, ExtendedNymNode, Gateway, Mixnode, NodeGeoData, SummaryHistory,
+    http::{
+        error::{HttpError, HttpResult},
+        models::{
+            DVpnGateway, DailyStats, ExtendedNymNode, Gateway, Mixnode, NodeGeoData, SummaryHistory,
+        },
     },
     monitor::{DelegationsCache, NodeGeoCache},
 };
@@ -31,6 +35,7 @@ pub(crate) struct AppState {
     cache: HttpCache,
     agent_key_list: Vec<PublicKey>,
     agent_max_count: i64,
+    agent_request_freshness_requirement: time::Duration,
     node_geocache: NodeGeoCache,
     node_delegations: Arc<RwLock<DelegationsCache>>,
     bin_info: BinaryInfo,
@@ -42,6 +47,7 @@ impl AppState {
         cache_ttl: u64,
         agent_key_list: Vec<PublicKey>,
         agent_max_count: i64,
+        agent_request_freshness_requirement: time::Duration,
         node_geocache: NodeGeoCache,
         node_delegations: Arc<RwLock<DelegationsCache>>,
     ) -> Self {
@@ -50,6 +56,7 @@ impl AppState {
             cache: HttpCache::new(cache_ttl).await,
             agent_key_list,
             agent_max_count,
+            agent_request_freshness_requirement,
             node_geocache,
             node_delegations,
             bin_info: BinaryInfo::new(),
@@ -93,6 +100,44 @@ impl AppState {
 
     pub(crate) fn build_information(&self) -> &BinaryBuildInformationOwned {
         &self.bin_info.build_info
+    }
+
+    #[tracing::instrument(level = "debug", skip_all)]
+    pub(crate) fn authenticate_agent_submission(
+        &self,
+        request: &impl VerifiableRequest,
+    ) -> HttpResult<()> {
+        if self.is_registered(request.public_key()) {
+            tracing::warn!("Public key not registered with NS API, rejecting");
+            return Err(HttpError::unauthorized());
+        };
+
+        request.verify_signature().map_err(|_| {
+            tracing::warn!("Signature verification failed, rejecting");
+            HttpError::unauthorized()
+        })?;
+
+        Ok(())
+    }
+
+    pub(crate) fn is_fresh(&self, request_time: &i64) -> HttpResult<()> {
+        // if a request took longer than N minutes to reach NS API, something is very wrong
+        let request_time = time::UtcDateTime::from_unix_timestamp(*request_time).map_err(|e| {
+            warn!("Failed to parse request time: {e}");
+            HttpError::unauthorized()
+        })?;
+
+        let cutoff_timestamp = crate::utils::now_utc() - self.agent_request_freshness_requirement;
+        if request_time < cutoff_timestamp {
+            warn!(
+                "Request time {} is older than cutoff {} ({}s ago), rejecting",
+                request_time,
+                cutoff_timestamp,
+                self.agent_request_freshness_requirement.whole_seconds()
+            );
+            return Err(HttpError::unauthorized());
+        }
+        Ok(())
     }
 }
 

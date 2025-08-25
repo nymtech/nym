@@ -1005,6 +1005,7 @@ impl<R, S> FreshHandler<R, S> {
         Ok(Some(client_details))
     }
 
+    #[instrument(skip_all)]
     pub(crate) async fn handle_until_authenticated_or_failure(
         mut self,
         shutdown: &mut TaskClient,
@@ -1066,6 +1067,7 @@ impl<R, S> FreshHandler<R, S> {
         None
     }
 
+    #[instrument(skip_all)]
     pub(crate) async fn wait_for_initial_message(
         &mut self,
     ) -> Result<ClientControlRequest, InitialAuthenticationError>

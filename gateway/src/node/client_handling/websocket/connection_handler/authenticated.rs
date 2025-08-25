@@ -306,7 +306,7 @@ impl<R, S> AuthenticatedHandler<R, S> {
     /// # Arguments
     ///
     /// * `bin_msg`: raw message to handle.
-    #[instrument(skip_all)]
+    // #[instrument(skip_all)]
     async fn handle_binary(&mut self, bin_msg: Vec<u8>) -> Message {
         trace!("binary request");
         // this function decrypts the request and checks the MAC

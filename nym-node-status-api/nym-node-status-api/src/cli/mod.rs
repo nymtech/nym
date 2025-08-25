@@ -73,8 +73,8 @@ pub(crate) struct Cli {
     #[arg(value_delimiter = ',')]
     pub(crate) agent_key_list: Vec<String>,
 
-    #[clap(long, default_value = "120", env = "AGENT_REQUEST_FRESHNESS")]
-    #[arg(value_parser = parse_duration_time)]
+    #[clap(long, default_value = "120s", env = "AGENT_REQUEST_FRESHNESS")]
+    #[arg(value_parser = parse_duration_humantime)]
     pub(crate) agent_request_freshness: time::Duration,
 
     #[clap(
@@ -96,12 +96,40 @@ pub(crate) struct Cli {
     pub(crate) max_agent_count: i64,
 }
 
+fn parse_duration_humantime(arg: &str) -> Result<time::Duration, anyhow::Error> {
+    let std_duration = match humantime::parse_duration(arg) {
+        Ok(duration) => duration,
+        // assume old format (seconds) as a fallback
+        Err(_) => parse_duration_std(arg)?,
+    };
+
+    Ok(time::Duration::seconds(std_duration.as_secs() as i64))
+}
+
 fn parse_duration_std(arg: &str) -> Result<std::time::Duration, std::num::ParseIntError> {
     let seconds = arg.parse()?;
     Ok(std::time::Duration::from_secs(seconds))
 }
 
-fn parse_duration_time(arg: &str) -> Result<time::Duration, std::num::ParseIntError> {
-    let seconds = arg.parse()?;
-    Ok(time::Duration::new(seconds, 0))
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn humantime_should_work() {
+        let should_parse = [("120s", 120), ("120", 120), ("0s", 0), ("0", 0)];
+
+        for (raw, expected) in should_parse {
+            if let Ok(parsed) = parse_duration_humantime(raw) {
+                assert_eq!(parsed.whole_seconds(), expected);
+            } else {
+                panic!("Failed to parse {raw}")
+            }
+        }
+
+        let should_not_parse = ["0.1s", "-15s"];
+        for raw in should_not_parse {
+            assert!(parse_duration_humantime(raw).is_err());
+        }
+    }
 }

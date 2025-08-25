@@ -6401,6 +6401,7 @@ dependencies = [
  "clap",
  "cosmwasm-std",
  "futures-util",
+ "humantime",
  "itertools 0.14.0",
  "moka",
  "nym-bin-common",

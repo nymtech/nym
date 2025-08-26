@@ -14,19 +14,36 @@ pub struct UpgradeModeState {
     inner: Arc<UpgradeModeStateInner>,
 }
 
+#[derive(Clone, Default)]
+pub struct UpgradeModeStatus(Arc<AtomicBool>);
+
+impl UpgradeModeStatus {
+    pub fn enabled(&self) -> bool {
+        self.0.load(Ordering::Acquire)
+    }
+
+    pub fn enable(&self) {
+        self.0.store(true, Ordering::Relaxed);
+    }
+
+    pub fn disable(&self) {
+        self.0.store(false, Ordering::Release);
+    }
+}
+
 impl UpgradeModeState {
     pub fn new_empty() -> UpgradeModeState {
         UpgradeModeState {
             inner: Arc::new(UpgradeModeStateInner {
                 expected_attestation: RwLock::new(None),
                 last_queried_ts: AtomicI64::new(OffsetDateTime::UNIX_EPOCH.unix_timestamp()),
-                upgrade_mode_enabled: AtomicBool::new(false),
+                status: UpgradeModeStatus(Arc::new(AtomicBool::new(false))),
             }),
         }
     }
 
     pub async fn attestation(&self) -> Option<UpgradeModeAttestation> {
-        self.inner.expected_attestation.read().await.clone()
+        *self.inner.expected_attestation.read().await
     }
 
     pub async fn set_expected_attestation(
@@ -45,20 +62,20 @@ impl UpgradeModeState {
         *guard = expected_attestation;
     }
 
+    pub fn upgrade_mode_status(&self) -> UpgradeModeStatus {
+        self.inner.status.clone()
+    }
+
     pub fn upgrade_mode_enabled(&self) -> bool {
-        self.inner.upgrade_mode_enabled.load(Ordering::Acquire)
+        self.inner.status.enabled()
     }
 
     pub fn enable_upgrade_mode(&self) {
-        self.inner
-            .upgrade_mode_enabled
-            .store(true, Ordering::Release);
+        self.inner.status.enable()
     }
 
     pub fn disable_upgrade_mode(&self) {
-        self.inner
-            .upgrade_mode_enabled
-            .store(false, Ordering::Release);
+        self.inner.status.disable()
     }
 
     pub fn last_queried(&self) -> OffsetDateTime {
@@ -96,5 +113,5 @@ struct UpgradeModeStateInner {
     /// flag indicating whether upgrade mode is currently enabled. this is to perform cheap checks
     /// that avoid having to acquire the lock
     // (and dealing with the async consequences of that)
-    upgrade_mode_enabled: AtomicBool,
+    status: UpgradeModeStatus,
 }

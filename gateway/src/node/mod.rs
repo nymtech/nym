@@ -8,7 +8,6 @@ use crate::node::internal_service_providers::{
     authenticator, ExitServiceProviders, ServiceProviderBeingBuilt, SpMessageRouterBuilder,
 };
 use crate::node::stale_data_cleaner::StaleMessagesCleaner;
-use crate::node::upgrade_mode_watcher::UpgradeModeWatcher;
 use crate::node::upgrade_mode::common_state::{
     Config as UpgradeModeCommonConfig, UpgradeModeCommon,
 };
@@ -36,8 +35,8 @@ use std::sync::Arc;
 use tracing::*;
 use zeroize::Zeroizing;
 
-pub use crate::node::upgrade_mode::watcher::{UpgradeModeCheckRequestSender, UpgradeModeWatcher};
 use crate::node::internal_service_providers::authenticator::Authenticator;
+pub use crate::node::upgrade_mode::watcher::{UpgradeModeCheckRequestSender, UpgradeModeWatcher};
 pub use client_handling::active_clients::ActiveClientsStore;
 pub use nym_gateway_stats_storage::PersistentStatsStorage;
 pub use nym_gateway_storage::{
@@ -48,7 +47,7 @@ pub use nym_gateway_storage::{
 pub use nym_sdk::{NymApiTopologyProvider, NymApiTopologyProviderConfig, UserAgent};
 
 pub(crate) mod client_handling;
-mod internal_service_providers;
+pub(crate) mod internal_service_providers;
 mod stale_data_cleaner;
 pub(crate) mod upgrade_mode;
 

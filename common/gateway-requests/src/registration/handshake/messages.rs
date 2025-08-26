@@ -188,6 +188,7 @@ impl HandshakeMessage for GatewayMaterialExchange {
 
         // this can only fail if the provided bytes have len different from PUBLIC_KEY_SIZE
         // which is impossible
+        #[allow(clippy::unwrap_used)]
         let ephemeral_dh =
             x25519::PublicKey::from_bytes(&bytes[..x25519::PUBLIC_KEY_SIZE]).unwrap();
         let materials = MaterialExchange::try_from_bytes(&bytes[x25519::PUBLIC_KEY_SIZE..])?;

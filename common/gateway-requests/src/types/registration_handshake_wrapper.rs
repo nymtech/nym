@@ -49,11 +49,11 @@ impl TryFrom<String> for RegistrationHandshake {
     }
 }
 
-impl TryInto<String> for RegistrationHandshake {
-    type Error = serde_json::Error;
-
-    fn try_into(self) -> Result<String, serde_json::Error> {
-        serde_json::to_string(&self)
+impl From<RegistrationHandshake> for String {
+    fn from(value: RegistrationHandshake) -> Self {
+        // SAFETY: we have infallible serde implementation
+        #[allow(clippy::unwrap_used)]
+        serde_json::to_string(&value).unwrap()
     }
 }
 

@@ -805,7 +805,7 @@ impl<C, St> GatewayClient<C, St> {
         &mut self,
         msg: ClientControlRequest,
     ) -> Result<BandwidthResponse, GatewayClientError> {
-        let (response) = match self
+        let response = match self
             .send_websocket_message_with_non_send_response(msg)
             .await?
         {

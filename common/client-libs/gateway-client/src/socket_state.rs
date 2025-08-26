@@ -10,7 +10,9 @@ use futures::channel::oneshot;
 use futures::stream::{SplitSink, SplitStream};
 use futures::{SinkExt, StreamExt};
 use nym_gateway_requests::shared_key::SharedGatewayKey;
-use nym_gateway_requests::{SensitiveServerResponse, ServerResponse, SimpleGatewayRequestsError};
+use nym_gateway_requests::{
+    SendResponse, SensitiveServerResponse, ServerResponse, SimpleGatewayRequestsError,
+};
 use nym_task::TaskClient;
 use si_scale::helpers::bibytes2;
 use std::os::raw::c_int as RawFd;
@@ -158,10 +160,10 @@ impl PartiallyDelegatedRouter {
     fn handle_text_message(&self, text: String) -> Result<(), GatewayClientError> {
         // if we fail to deserialise the response, return a hard error. we can't handle garbage
         match ServerResponse::try_from(text).map_err(|_| GatewayClientError::MalformedResponse)? {
-            ServerResponse::Send {
+            ServerResponse::Send(SendResponse {
                 remaining_bandwidth,
                 upgrade_mode,
-            } => {
+            }) => {
                 self.client_bandwidth
                     .update_and_maybe_log(remaining_bandwidth, upgrade_mode);
                 Ok(())

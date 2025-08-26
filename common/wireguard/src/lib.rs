@@ -10,13 +10,13 @@ use defguard_wireguard_rs::{host::Peer, key::Key, net::IpAddrMask, WGApi, Wiregu
 #[cfg(target_os = "linux")]
 use nym_credential_verification::ecash::EcashManager;
 use nym_crypto::asymmetric::x25519::KeyPair;
+#[cfg(target_os = "linux")]
+use nym_network_defaults::constants::WG_TUN_BASE_NAME;
 use nym_wireguard_types::Config;
 use peer_controller::PeerControlRequest;
 use std::sync::Arc;
 use tokio::sync::mpsc::{self, Receiver, Sender};
-
-#[cfg(target_os = "linux")]
-use nym_network_defaults::constants::WG_TUN_BASE_NAME;
+use tracing::error;
 
 pub mod error;
 pub mod peer_controller;
@@ -114,7 +114,7 @@ impl Drop for WgApiWrapper {
     fn drop(&mut self) {
         if let Err(e) = defguard_wireguard_rs::WireguardInterfaceApi::remove_interface(&self.inner)
         {
-            log::error!("Could not remove the wireguard interface: {e:?}");
+            error!("Could not remove the wireguard interface: {e:?}");
         }
     }
 }

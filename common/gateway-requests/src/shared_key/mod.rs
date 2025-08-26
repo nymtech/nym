@@ -47,6 +47,8 @@ impl SharedGatewayKey {
         }
     }
 
+    // it is responsibility of the caller to ensure the correct variant is present
+    #[allow(clippy::panic)]
     pub fn unwrap_legacy(&self) -> &LegacySharedKeys {
         match self {
             SharedGatewayKey::Current(_) => panic!("expected legacy key"),

@@ -21,8 +21,8 @@ use nym_credential_verification::{
 };
 use nym_gateway_requests::{
     types::{BinaryRequest, ServerResponse},
-    ClientControlRequest, ClientRequest, GatewayRequestsError, SensitiveServerResponse,
-    SimpleGatewayRequestsError,
+    BandwidthResponse, ClientControlRequest, ClientRequest, GatewayRequestsError, SendResponse,
+    SensitiveServerResponse, SimpleGatewayRequestsError,
 };
 use nym_gateway_storage::error::GatewayStorageError;
 use nym_gateway_storage::traits::BandwidthGatewayStorage;
@@ -291,10 +291,10 @@ impl<R, S> AuthenticatedHandler<R, S> {
             .inspect_err(|verification_failure| debug!("{verification_failure}"))?;
         trace!("available total bandwidth: {available_total}");
 
-        Ok(ServerResponse::Bandwidth {
+        Ok(ServerResponse::Bandwidth(BandwidthResponse {
             available_total,
             upgrade_mode: self.upgrade_mode(),
-        })
+        }))
     }
 
     async fn upgrade_mode_bandwidth(&self) -> i64 {
@@ -316,10 +316,10 @@ impl<R, S> AuthenticatedHandler<R, S> {
     ) -> Result<ServerResponse, RequestHandlingError> {
         // if we're already in the upgrade mode, don't bother validating the token
         if self.upgrade_mode() {
-            return Ok(ServerResponse::Bandwidth {
+            return Ok(ServerResponse::Bandwidth(BandwidthResponse {
                 available_total: self.upgrade_mode_bandwidth().await,
                 upgrade_mode: true,
-            });
+            }));
         }
 
         // see if it's viable to perform another expedited check
@@ -352,10 +352,10 @@ impl<R, S> AuthenticatedHandler<R, S> {
         }
 
         // (if attestation has been returned it means we're in upgrade mode)
-        Ok(ServerResponse::Bandwidth {
+        Ok(ServerResponse::Bandwidth(BandwidthResponse {
             available_total: self.upgrade_mode_bandwidth().await,
             upgrade_mode: true,
-        })
+        }))
     }
 
     /// Tries to handle request to forward sphinx packet into the network. The request can only succeed
@@ -385,10 +385,10 @@ impl<R, S> AuthenticatedHandler<R, S> {
 
         self.forward_packet(mix_packet);
 
-        Ok(ServerResponse::Send {
+        Ok(ServerResponse::Send(SendResponse {
             remaining_bandwidth,
             upgrade_mode,
-        })
+        }))
     }
 
     /// Attempts to handle a binary data frame websocket message.
@@ -541,9 +541,11 @@ impl<R, S> AuthenticatedHandler<R, S> {
                 .handle_claim_testnet_bandwidth()
                 .await
                 .map_err(|e| e.into())
-                .map(|available_total| ServerResponse::Bandwidth {
-                    available_total,
-                    upgrade_mode: self.upgrade_mode(),
+                .map(|available_total| {
+                    ServerResponse::Bandwidth(BandwidthResponse {
+                        available_total,
+                        upgrade_mode: self.upgrade_mode(),
+                    })
                 }),
             ClientControlRequest::SupportedProtocol { .. } => {
                 Ok(self.inner.handle_supported_protocol_request())

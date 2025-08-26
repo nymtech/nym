@@ -365,7 +365,7 @@ impl<'a, S, R> State<'a, S, R> {
     {
         let handshake_message = types::RegistrationHandshake::new_error(message);
         self.ws_stream
-            .send(WsMessage::Text(handshake_message.try_into().unwrap()))
+            .send(WsMessage::Text(handshake_message.into()))
             .await
             .map_err(|_| HandshakeError::ClosedStream)
     }
@@ -385,7 +385,7 @@ impl<'a, S, R> State<'a, S, R> {
             self.protocol_version,
         );
         self.ws_stream
-            .send(WsMessage::Text(handshake_message.try_into().unwrap()))
+            .send(WsMessage::Text(handshake_message.into()))
             .await
             .map_err(|_| HandshakeError::ClosedStream)
     }

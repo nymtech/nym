@@ -3,7 +3,7 @@
 
 [package]
 name = "nym-node-status-api"
-version = "3.2.2"
+version = "3.3.0"
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
@@ -21,6 +21,7 @@ celes = { workspace = true }
 clap = { workspace = true, features = ["cargo", "derive", "env", "string"] }
 cosmwasm-std = { workspace = true }
 futures-util = { workspace = true }
+humantime = { workspace = true }
 itertools = { workspace = true }
 moka = { workspace = true, features = ["future"] }
 

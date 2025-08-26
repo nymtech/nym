@@ -107,7 +107,7 @@ impl AppState {
         &self,
         request: &impl VerifiableRequest,
     ) -> HttpResult<()> {
-        if self.is_registered(request.public_key()) {
+        if !self.is_registered(request.public_key()) {
             tracing::warn!("Public key not registered with NS API, rejecting");
             return Err(HttpError::unauthorized());
         };

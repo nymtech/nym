@@ -244,8 +244,6 @@ async fn submit_testrun_v2(
     }
 }
 
-// static AGENT_REQUEST_FRESHNESS_CUTOFF: OnceCell<time::Duration>  = OnceCell::new();
-
 fn get_result_from_log(log: &str) -> String {
     static RE: std::sync::LazyLock<regex::Regex> =
         std::sync::LazyLock::new(|| regex::Regex::new(r"\n\{\s").expect("Invalid regex pattern"));

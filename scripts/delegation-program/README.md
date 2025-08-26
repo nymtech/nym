@@ -3,16 +3,18 @@
 ### Overview
 
 This simple argument based program is designed primarily for Delegation program management.
-The main goal is to generate a csv which can also be reused for nym-cli as input:
+The main goal is to generate a `.csv` which can also be reused for `nym-cli` as input:
+```sh
 ./nym-cli mixnet delegators delegate-multi --mnemonic "<MNEMONIC>" --input <PATH>/<FILE>.csv
+```
 
 The default values therefore are:
---wallet_address: Nym Team DP wallet address
---saturation: 250k NYM
---stake_cap: 90% as per DP rules
---adjustment_Step: 25k NYM as per DP rules
---max_wallet_delegation: 125k NYM as per DP rules
---denom: NYM not uNYM to make it smoother and aligned with delegate-multi command of nym-cli
+`--wallet_address`: Nym Team DP wallet address
+`--saturation`: 250k NYM
+`--stake_cap`: 90% as per DP rules
+`--adjustment_step`: 25k NYM as per DP rules
+`--max_wallet_delegation`: 125k NYM as per DP rules
+`--denom`: NYM not uNYM to make it smoother and aligned with delegate-multi command of nym-cli
 
 ### Install and Run
 

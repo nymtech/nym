@@ -2,7 +2,7 @@ use crate::models::{get_testrun, submit_results, submit_results_v2, TestrunAssig
 use anyhow::bail;
 use api::ApiPaths;
 use nym_crypto::asymmetric::ed25519::{PrivateKey, Signature};
-use tracing::instrument;
+use tracing::{instrument, warn};
 
 mod api;
 pub mod auth;
@@ -18,7 +18,18 @@ impl NsApiClient {
     pub fn new(server_ip: &str, server_port: u16, auth_key: PrivateKey) -> Self {
         let server_address = format!("{server_ip}:{server_port}");
         let api = ApiPaths::new(server_address);
-        let client = reqwest::Client::new();
+        let user_agent = format!("{}/{}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
+        let client = reqwest::Client::builder()
+            .user_agent(user_agent)
+            .build()
+            .inspect_err(|err| {
+                warn!(
+                    "Failed to create client with user agent, falling back to default ({})",
+                    err
+                )
+            })
+            // failing to set user agent shouldn't be a critical error
+            .unwrap_or_default();
 
         Self {
             api,

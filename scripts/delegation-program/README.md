@@ -36,7 +36,7 @@ wget https://raw.githubusercontent.com/nymtech/nym/refs/heads/feature/operators/
 ```
 3. Run the program with the input arg and (for DP use the dedfault values):
 ```sh
-stake_adjustment.py input.csv
+./stake_adjustment.py input.csv
 ```
 
 4. The output is a csv with a few useful columns

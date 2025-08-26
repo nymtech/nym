@@ -3,9 +3,9 @@ mod trace_id_format;
 
 use tracing::{info, Level};
 use tracing_subscriber::filter::Directive;
+use tracing_subscriber::fmt;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
-use tracing_subscriber::{fmt, Layer};
 
 use crate::logging::{default_tracing_env_filter, default_tracing_fmt_layer};
 use crate::opentelemetry::error::TracingError;
@@ -72,23 +72,6 @@ pub(crate) fn build_tracing_logger() -> Result<impl SubscriberExt, TracingError>
 }
 
 pub fn setup_tracing_logger() -> Result<(), TracingError> {
-    let stderr_layer =
-        default_tracing_fmt_layer(std::io::stderr).with_filter(granual_filtered_env()?);
-
-    cfg_if::cfg_if! {if #[cfg(feature = "tokio-console")] {
-        // instrument tokio console subscriber needs RUSTFLAGS="--cfg tokio_unstable" at build time
-        let console_layer = console_subscriber::spawn();
-
-        tracing_subscriber::registry()
-            .with(console_layer)
-            .with(stderr_layer)
-            .init();
-    } else {
-        tracing_subscriber::registry()
-            .with(stderr_layer)
-            .init();
-    }}
-
     build_tracing_logger()?.init();
     Ok(())
 }

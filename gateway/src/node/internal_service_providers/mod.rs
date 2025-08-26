@@ -22,6 +22,8 @@ use std::fmt::Display;
 use tokio::task::JoinHandle;
 use tracing::error;
 
+pub mod authenticator;
+
 pub trait LocalRecipient {
     fn address(&self) -> Recipient;
 }

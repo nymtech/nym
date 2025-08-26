@@ -4955,11 +4955,7 @@ dependencies = [
 name = "nym-authenticator"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "bincode",
- "bs58",
- "bytes",
- "clap",
  "defguard_wireguard_rs",
  "fastrand 2.3.0",
  "futures",
@@ -4967,9 +4963,7 @@ dependencies = [
  "log",
  "mock_instant",
  "nym-authenticator-requests",
- "nym-bin-common",
  "nym-client-core",
- "nym-config",
  "nym-credential-verification",
  "nym-credentials-interface",
  "nym-crypto",
@@ -4979,21 +4973,16 @@ dependencies = [
  "nym-network-defaults",
  "nym-sdk",
  "nym-service-provider-requests-common",
- "nym-service-providers-common",
  "nym-sphinx",
  "nym-task",
- "nym-types",
  "nym-wireguard",
  "nym-wireguard-types",
  "rand 0.8.5",
  "serde",
- "serde_json",
  "thiserror 2.0.12",
  "time",
  "tokio",
  "tokio-stream",
- "tokio-util",
- "url",
 ]
 
 [[package]]

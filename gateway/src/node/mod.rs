@@ -430,6 +430,7 @@ impl GatewayTasksBuilder {
 
     pub async fn build_wireguard_authenticator(
         &mut self,
+        upgrade_mode_common: UpgradeModeCommon,
         topology_provider: Box<dyn TopologyProvider + Send + Sync>,
     ) -> Result<ServiceProviderBeingBuilt<Authenticator>, GatewayError> {
         let ecash_manager = self.ecash_manager().await?;
@@ -455,6 +456,7 @@ impl GatewayTasksBuilder {
 
         let mut authenticator_server = Authenticator::new(
             opts.config.clone(),
+            upgrade_mode_common,
             wireguard_data.inner.clone(),
             used_private_network_ips,
             ecash_manager,

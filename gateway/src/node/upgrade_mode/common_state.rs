@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::node::upgrade_mode::watcher::UpgradeModeCheckRequestSender;
+use crate::node::upgrade_mode::UpgradeModeEnableError;
 use nym_credential_verification::upgrade_mode::UpgradeModeState;
+use nym_upgrade_mode_check::{validate_upgrade_mode_jwt, CREDENTIAL_PROXY_JWT_ISSUER};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::Notify;
@@ -58,5 +60,37 @@ impl UpgradeModeCommon {
 
         // check the state again
         self.enabled()
+    }
+
+    pub(crate) async fn try_enable_via_received_jwt(
+        &self,
+        token: String,
+    ) -> Result<(), UpgradeModeEnableError> {
+        // see if it's viable to perform another expedited check
+        if !self.can_request_recheck() {
+            return Err(UpgradeModeEnableError::TooManyRecheckRequests);
+        }
+
+        // first validate whether the received JWT is even valid
+        // note: we expect the token has been signed by our credential proxy
+        // (in the future, we won't care about it, and we'll have proper key discovery endpoint. 2026™️)
+        let attestation = validate_upgrade_mode_jwt(&token, Some(CREDENTIAL_PROXY_JWT_ISSUER))?;
+
+        // send request to revalidate internal state
+        self.request_recheck().await;
+
+        // not strictly necessary, but check if provided attestation actually matches the one retrieved
+        // (if any)
+        let Some(retrieved_attestation) = self.state.attestation().await else {
+            return Err(UpgradeModeEnableError::AttestationNotPublished);
+        };
+        if retrieved_attestation != attestation {
+            return Err(UpgradeModeEnableError::MismatchedUpgradeModeAttestation);
+        }
+
+        // note: if attestation has been returned, it means we're definitely in upgrade mode
+        // (otherwise it wouldn't have existed in the state)
+
+        Ok(())
     }
 }

@@ -9,8 +9,9 @@ use crate::node::client_handling::{
             IsActive, IsActiveRequestReceiver, IsActiveResultSender, MixMessageReceiver,
         },
     },
-    DEFAULT_CLIENT_BANDWIDTH_THRESHOLD,
+    DEFAULT_MIXNET_CLIENT_BANDWIDTH_THRESHOLD,
 };
+use crate::node::upgrade_mode::UpgradeModeEnableError;
 use futures::{
     future::{FusedFuture, OptionFuture},
     FutureExt, StreamExt,
@@ -31,7 +32,6 @@ use nym_node_metrics::events::MetricsEvent;
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_statistics_common::{gateways::GatewaySessionEvent, types::SessionType};
 use nym_task::TaskClient;
-use nym_upgrade_mode_check::{validate_upgrade_mode_jwt, CREDENTIAL_PROXY_JWT_ISSUER};
 use nym_validator_client::coconut::EcashApiError;
 use rand::{random, CryptoRng, Rng};
 use std::cmp::max;
@@ -99,17 +99,8 @@ pub enum RequestHandlingError {
     #[error(transparent)]
     CredentialVerification(#[from] nym_credential_verification::Error),
 
-    #[error("provided upgrade mode JWT is invalid: {0}")]
-    InvalidUpgradeModeJWT(#[from] nym_upgrade_mode_check::UpgradeModeCheckError),
-
-    #[error("the upgrade mode attestation does not appear to have been published")]
-    AttestationNotPublished,
-
-    #[error("the provided upgrade mode attestation is different from the published one")]
-    MismatchedUpgradeModeAttestation,
-
-    #[error("can't perform another upgrade mode attestation check - please try again later")]
-    TooManyRecheckRequests,
+    #[error(transparent)]
+    UpgradeModeEnable(#[from] UpgradeModeEnableError),
 }
 
 impl RequestHandlingError {
@@ -177,8 +168,8 @@ impl<R, S> AuthenticatedHandler<R, S> {
         &self.inner
     }
 
-    fn upgrade_mode(&self) -> bool {
-        self.inner.upgrade_mode()
+    fn upgrade_mode_enabled(&self) -> bool {
+        self.inner.upgrade_mode_enabled()
     }
 
     /// Upgrades `FreshHandler` into the Authenticated variant implying the client is now authenticated
@@ -293,7 +284,7 @@ impl<R, S> AuthenticatedHandler<R, S> {
 
         Ok(ServerResponse::Bandwidth(BandwidthResponse {
             available_total,
-            upgrade_mode: self.upgrade_mode(),
+            upgrade_mode: self.upgrade_mode_enabled(),
         }))
     }
 
@@ -304,7 +295,10 @@ impl<R, S> AuthenticatedHandler<R, S> {
         // the latter is to support older clients that will ignore `upgrade_mode` field in the response
         // as they're not aware of its existence
         let available_bandwidth = self.bandwidth_storage_manager.available_bandwidth().await;
-        max(DEFAULT_CLIENT_BANDWIDTH_THRESHOLD, available_bandwidth)
+        max(
+            DEFAULT_MIXNET_CLIENT_BANDWIDTH_THRESHOLD,
+            available_bandwidth,
+        )
     }
 
     /// Tries to handle the received JWT token request by checking its correctness and
@@ -315,43 +309,19 @@ impl<R, S> AuthenticatedHandler<R, S> {
         token: String,
     ) -> Result<ServerResponse, RequestHandlingError> {
         // if we're already in the upgrade mode, don't bother validating the token
-        if self.upgrade_mode() {
+        if self.upgrade_mode_enabled() {
             return Ok(ServerResponse::Bandwidth(BandwidthResponse {
                 available_total: self.upgrade_mode_bandwidth().await,
                 upgrade_mode: true,
             }));
         }
 
-        // see if it's viable to perform another expedited check
-        if !self.inner.shared_state.upgrade_mode.can_request_recheck() {
-            return Err(RequestHandlingError::TooManyRecheckRequests);
-        }
-
-        // first validate whether the received JWT is even valid
-        // note: we expect the token has been signed by our credential proxy
-        // (in the future, we won't care about it, and we'll have proper key discovery endpoint. 2026™️)
-        let attestation = validate_upgrade_mode_jwt(&token, Some(CREDENTIAL_PROXY_JWT_ISSUER))?;
-
-        // send request to revalidate internal state
-        self.inner.shared_state.upgrade_mode.request_recheck().await;
-
-        // not strictly necessary, but check if provided attestation actually matches the one retrieved
-        // (if any)
-        let Some(retrieved_attestation) = self
-            .inner
+        self.inner
             .shared_state
             .upgrade_mode
-            .state
-            .attestation()
-            .await
-        else {
-            return Err(RequestHandlingError::AttestationNotPublished);
-        };
-        if retrieved_attestation != attestation {
-            return Err(RequestHandlingError::MismatchedUpgradeModeAttestation);
-        }
+            .try_enable_via_received_jwt(token)
+            .await?;
 
-        // (if attestation has been returned it means we're in upgrade mode)
         Ok(ServerResponse::Bandwidth(BandwidthResponse {
             available_total: self.upgrade_mode_bandwidth().await,
             upgrade_mode: true,
@@ -373,9 +343,9 @@ impl<R, S> AuthenticatedHandler<R, S> {
     ) -> Result<ServerResponse, RequestHandlingError> {
         let required_bandwidth = mix_packet.packet().len() as i64;
 
-        let upgrade_mode = self.upgrade_mode();
+        let upgrade_mode = self.upgrade_mode_enabled();
 
-        let remaining_bandwidth = if self.upgrade_mode() {
+        let remaining_bandwidth = if self.upgrade_mode_enabled() {
             self.upgrade_mode_bandwidth().await
         } else {
             self.bandwidth_storage_manager
@@ -544,7 +514,7 @@ impl<R, S> AuthenticatedHandler<R, S> {
                 .map(|available_total| {
                     ServerResponse::Bandwidth(BandwidthResponse {
                         available_total,
-                        upgrade_mode: self.upgrade_mode(),
+                        upgrade_mode: self.upgrade_mode_enabled(),
                     })
                 }),
             ClientControlRequest::SupportedProtocol { .. } => {

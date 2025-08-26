@@ -5027,11 +5027,13 @@ dependencies = [
  "nym-network-defaults",
  "nym-service-provider-requests-common",
  "nym-sphinx",
+ "nym-test-utils",
  "nym-wireguard-types",
  "rand 0.8.5",
  "serde",
  "sha2 0.10.9",
  "thiserror 2.0.12",
+ "tracing",
  "x25519-dalek",
 ]
 
@@ -7471,10 +7473,7 @@ name = "nym-wireguard-types"
 version = "0.1.0"
 dependencies = [
  "base64 0.22.1",
- "log",
- "nym-config",
  "nym-crypto",
- "nym-network-defaults",
  "rand 0.8.5",
  "serde",
  "thiserror 2.0.12",

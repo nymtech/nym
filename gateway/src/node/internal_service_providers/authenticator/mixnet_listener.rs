@@ -1,62 +1,66 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use std::{
-    net::IpAddr,
-    sync::Arc,
-    time::{Duration, SystemTime},
-};
-
 use crate::node::internal_service_providers::authenticator::{
     config::Config, error::AuthenticatorError, peer_manager::PeerManager,
     seen_credential_cache::SeenCredentialCache,
 };
+use crate::node::upgrade_mode::common_state::UpgradeModeCommon;
 use defguard_wireguard_rs::net::IpAddrMask;
 use defguard_wireguard_rs::{host::Peer, key::Key};
 use futures::StreamExt;
-use nym_authenticator_requests::{
-    latest::registration::RegistrationData, v4::registration::IpPair,
-};
+use nym_authenticator_requests::traits::BandwidthClaim;
+use nym_authenticator_requests::{latest, v4::registration::IpPair};
 use nym_authenticator_requests::{
     latest::registration::{GatewayClient, PendingRegistrations, PrivateIPs},
     traits::{
         AuthenticatorRequest, AuthenticatorVersion, FinalMessage, InitMessage,
         QueryBandwidthMessage, TopUpMessage,
     },
-    v1, v2, v3, v4, v5, CURRENT_VERSION,
+    v1, v2, v3, v4, v5, v6, CURRENT_VERSION,
 };
 use nym_credential_verification::ecash::traits::EcashManager;
 use nym_credential_verification::{
     bandwidth_storage_manager::BandwidthStorageManager, BandwidthFlushingBehaviourConfig,
     ClientBandwidth, CredentialVerifier,
 };
-use nym_credentials_interface::{CredentialSpendingData, TicketType};
+use nym_credentials_interface::{BandwidthCredential, CredentialSpendingData};
 use nym_crypto::asymmetric::x25519::KeyPair;
 use nym_gateway_requests::models::CredentialSpendingRequest;
 use nym_gateway_storage::models::PersistedBandwidth;
 use nym_sdk::mixnet::{
     AnonymousSenderTag, InputMessage, MixnetMessageSender, Recipient, TransmissionLane,
 };
-use nym_service_provider_requests_common::{Protocol, ServiceProviderType};
+use nym_service_provider_requests_common::{Protocol, ServiceProviderTypeExt};
 use nym_sphinx::receiver::ReconstructedMessage;
 use nym_task::TaskHandle;
 use nym_wireguard::WireguardGatewayData;
 use nym_wireguard_types::PeerPublicKey;
 use rand::{prelude::IteratorRandom, thread_rng};
+use std::cmp::max;
+use std::{
+    net::IpAddr,
+    sync::Arc,
+    time::{Duration, SystemTime},
+};
 use tokio::sync::RwLock;
 use tokio_stream::wrappers::IntervalStream;
 
 type AuthenticatorHandleResult = Result<(Vec<u8>, Option<Recipient>), AuthenticatorError>;
 const DEFAULT_REGISTRATION_TIMEOUT_CHECK: Duration = Duration::from_secs(60); // 1 minute
 
-pub(crate) struct RegistredAndFree {
+// we need to be above MINIMUM_REMAINING_BANDWIDTH (500MB) plus we also have to trick the client
+// its depletion is low enough to not require sending new tickets
+const DEFAULT_WG_CLIENT_BANDWIDTH_THRESHOLD: i64 = 1024 * 1024 * 1024;
+
+pub(crate) struct RegisteredAndFree {
     registration_in_progres: PendingRegistrations,
     free_private_network_ips: PrivateIPs,
 }
 
-impl RegistredAndFree {
+impl RegisteredAndFree {
     pub(crate) fn new(free_private_network_ips: PrivateIPs) -> Self {
-        RegistredAndFree {
+        RegisteredAndFree {
             registration_in_progres: Default::default(),
             free_private_network_ips,
         }
@@ -74,9 +78,11 @@ pub(crate) struct MixnetListener {
     pub(crate) task_handle: TaskHandle,
 
     // Registrations awaiting confirmation
-    pub(crate) registred_and_free: RwLock<RegistredAndFree>,
+    pub(crate) registered_and_free: RwLock<RegisteredAndFree>,
 
     pub(crate) peer_manager: PeerManager,
+
+    pub(crate) upgrade_mode: UpgradeModeCommon,
 
     pub(crate) ecash_verifier: Arc<dyn EcashManager + Send + Sync>,
 
@@ -91,6 +97,7 @@ impl MixnetListener {
         free_private_network_ips: PrivateIPs,
         wireguard_gateway_data: WireguardGatewayData,
         mixnet_client: nym_sdk::mixnet::MixnetClient,
+        upgrade_mode: UpgradeModeCommon,
         task_handle: TaskHandle,
         ecash_verifier: Arc<dyn EcashManager + Send + Sync>,
     ) -> Self {
@@ -100,27 +107,45 @@ impl MixnetListener {
             config,
             mixnet_client,
             task_handle,
-            registred_and_free: RwLock::new(RegistredAndFree::new(free_private_network_ips)),
+            registered_and_free: RwLock::new(RegisteredAndFree::new(free_private_network_ips)),
             peer_manager: PeerManager::new(wireguard_gateway_data),
+            upgrade_mode,
             ecash_verifier,
             timeout_check_interval,
             seen_credential_cache: SeenCredentialCache::new(),
         }
     }
 
+    fn upgrade_mode_enabled(&self) -> bool {
+        self.upgrade_mode.enabled()
+    }
+
     fn keypair(&self) -> &Arc<KeyPair> {
         self.peer_manager.wireguard_gateway_data.keypair()
     }
 
+    async fn upgrade_mode_bandwidth(&self, peer: PeerPublicKey) -> Result<i64, AuthenticatorError> {
+        // if we're undergoing upgrade mode, we don't meter bandwidth,
+        // we simply return MAX of clients current bandwidth and minimum bandwidth before default
+        // client would have attempted to send new ticket (hopefully)
+        // the latter is to support older clients that will ignore `upgrade_mode` field in the response
+        // as they're not aware of its existence
+        let available_bandwidth = self.peer_manager.query_bandwidth(peer).await?;
+        Ok(max(
+            DEFAULT_WG_CLIENT_BANDWIDTH_THRESHOLD,
+            available_bandwidth,
+        ))
+    }
+
     async fn remove_stale_registrations(&self) -> Result<(), AuthenticatorError> {
-        let mut registred_and_free = self.registred_and_free.write().await;
-        let registred_values: Vec<_> = registred_and_free
+        let mut registered_and_free = self.registered_and_free.write().await;
+        let registered_values: Vec<_> = registered_and_free
             .registration_in_progres
             .values()
             .cloned()
             .collect();
-        for reg in registred_values {
-            let ip = registred_and_free
+        for reg in registered_values {
+            let ip = registered_and_free
                 .free_private_network_ips
                 .get_mut(&reg.gateway_data.private_ips)
                 .ok_or(AuthenticatorError::InternalDataCorruption(format!(
@@ -129,7 +154,7 @@ impl MixnetListener {
                 )))?;
 
             let Some(timestamp) = ip else {
-                registred_and_free
+                registered_and_free
                     .registration_in_progres
                     .remove(&reg.gateway_data.pub_key());
                 tracing::debug!(
@@ -145,7 +170,7 @@ impl MixnetListener {
             })?;
             if duration > DEFAULT_REGISTRATION_TIMEOUT_CHECK {
                 *ip = None;
-                registred_and_free
+                registered_and_free
                     .registration_in_progres
                     .remove(&reg.gateway_data.pub_key());
                 tracing::debug!(
@@ -166,8 +191,8 @@ impl MixnetListener {
     ) -> AuthenticatorHandleResult {
         let remote_public = init_message.pub_key();
         let nonce: u64 = fastrand::u64(..);
-        let mut registred_and_free = self.registred_and_free.write().await;
-        if let Some(registration_data) = registred_and_free
+        let mut registered_and_free = self.registered_and_free.write().await;
+        if let Some(registration_data) = registered_and_free
             .registration_in_progres
             .get(&remote_public)
         {
@@ -188,9 +213,7 @@ impl MixnetListener {
                         reply_to.ok_or(AuthenticatorError::MissingReplyToForOldClient)?,
                     )
                     .to_bytes()
-                    .map_err(|err| {
-                        AuthenticatorError::FailedToSerializeResponsePacket { source: err }
-                    })?
+                    .map_err(AuthenticatorError::response_serialisation)?
                 }
                 AuthenticatorVersion::V2 => {
                     v2::response::AuthenticatorResponse::new_pending_registration_success(
@@ -208,9 +231,7 @@ impl MixnetListener {
                         reply_to.ok_or(AuthenticatorError::MissingReplyToForOldClient)?,
                     )
                     .to_bytes()
-                    .map_err(|err| {
-                        AuthenticatorError::FailedToSerializeResponsePacket { source: err }
-                    })?
+                    .map_err(AuthenticatorError::response_serialisation)?
                 }
                 AuthenticatorVersion::V3 => {
                     v3::response::AuthenticatorResponse::new_pending_registration_success(
@@ -228,38 +249,49 @@ impl MixnetListener {
                         reply_to.ok_or(AuthenticatorError::MissingReplyToForOldClient)?,
                     )
                     .to_bytes()
-                    .map_err(|err| {
-                        AuthenticatorError::FailedToSerializeResponsePacket { source: err }
-                    })?
+                    .map_err(AuthenticatorError::response_serialisation)?
                 }
                 AuthenticatorVersion::V4 => {
                     v4::response::AuthenticatorResponse::new_pending_registration_success(
                         v4::registration::RegistrationData {
                             nonce: registration_data.nonce,
-                            gateway_data: registration_data.gateway_data.clone().into(),
+                            // convert current to v5 and then v5 to v4 (current as of 28.08.25)
+                            gateway_data: v5::registration::GatewayClient::from(
+                                registration_data.gateway_data.clone(),
+                            )
+                            .into(),
                             wg_port: registration_data.wg_port,
                         },
                         request_id,
                         reply_to.ok_or(AuthenticatorError::MissingReplyToForOldClient)?,
                     )
                     .to_bytes()
-                    .map_err(|err| {
-                        AuthenticatorError::FailedToSerializeResponsePacket { source: err }
-                    })?
+                    .map_err(AuthenticatorError::response_serialisation)?
                 }
                 AuthenticatorVersion::V5 => {
                     v5::response::AuthenticatorResponse::new_pending_registration_success(
                         v5::registration::RegistrationData {
                             nonce: registration_data.nonce,
-                            gateway_data: registration_data.gateway_data.clone(),
+                            gateway_data: registration_data.gateway_data.clone().into(),
                             wg_port: registration_data.wg_port,
                         },
                         request_id,
                     )
                     .to_bytes()
-                    .map_err(|err| {
-                        AuthenticatorError::FailedToSerializeResponsePacket { source: err }
-                    })?
+                    .map_err(AuthenticatorError::response_serialisation)?
+                }
+                AuthenticatorVersion::V6 => {
+                    v6::response::AuthenticatorResponse::new_pending_registration_success(
+                        v6::registration::RegistrationData {
+                            nonce: registration_data.nonce,
+                            gateway_data: registration_data.gateway_data.clone().into(),
+                            wg_port: registration_data.wg_port,
+                        },
+                        request_id,
+                        self.upgrade_mode_enabled(),
+                    )
+                    .to_bytes()
+                    .map_err(AuthenticatorError::response_serialisation)?
                 }
                 AuthenticatorVersion::UNKNOWN => return Err(AuthenticatorError::UnknownVersion),
             };
@@ -272,7 +304,7 @@ impl MixnetListener {
                 .allowed_ips
                 .iter()
                 .find_map(|ip_mask| match ip_mask.ip {
-                    std::net::IpAddr::V4(ipv4_addr) => Some(ipv4_addr),
+                    IpAddr::V4(ipv4_addr) => Some(ipv4_addr),
                     _ => None,
                 })
                 .ok_or(AuthenticatorError::InternalError(
@@ -282,14 +314,14 @@ impl MixnetListener {
                 .allowed_ips
                 .iter()
                 .find_map(|ip_mask| match ip_mask.ip {
-                    std::net::IpAddr::V6(ipv6_addr) => Some(ipv6_addr),
+                    IpAddr::V6(ipv6_addr) => Some(ipv6_addr),
                     _ => None,
                 })
                 .unwrap_or(IpPair::from(IpAddr::from(allowed_ipv4)).ipv6);
             let bytes = match AuthenticatorVersion::from(protocol) {
                 AuthenticatorVersion::V1 => v1::response::AuthenticatorResponse::new_registered(
                     v1::registration::RegistredData {
-                        pub_key: PeerPublicKey::new(self.keypair().public_key().to_bytes().into()),
+                        pub_key: self.keypair().public_key().into(),
                         private_ip: allowed_ipv4.into(),
                         wg_port: self.config.authenticator.tunnel_announced_port,
                     },
@@ -297,12 +329,10 @@ impl MixnetListener {
                     request_id,
                 )
                 .to_bytes()
-                .map_err(|err| {
-                    AuthenticatorError::FailedToSerializeResponsePacket { source: err }
-                })?,
+                .map_err(AuthenticatorError::response_serialisation)?,
                 AuthenticatorVersion::V2 => v2::response::AuthenticatorResponse::new_registered(
                     v2::registration::RegistredData {
-                        pub_key: PeerPublicKey::new(self.keypair().public_key().to_bytes().into()),
+                        pub_key: self.keypair().public_key().into(),
                         private_ip: allowed_ipv4.into(),
                         wg_port: self.config.authenticator.tunnel_announced_port,
                     },
@@ -310,12 +340,10 @@ impl MixnetListener {
                     request_id,
                 )
                 .to_bytes()
-                .map_err(|err| {
-                    AuthenticatorError::FailedToSerializeResponsePacket { source: err }
-                })?,
+                .map_err(AuthenticatorError::response_serialisation)?,
                 AuthenticatorVersion::V3 => v3::response::AuthenticatorResponse::new_registered(
                     v3::registration::RegistredData {
-                        pub_key: PeerPublicKey::new(self.keypair().public_key().to_bytes().into()),
+                        pub_key: self.keypair().public_key().into(),
                         private_ip: allowed_ipv4.into(),
                         wg_port: self.config.authenticator.tunnel_announced_port,
                     },
@@ -323,12 +351,10 @@ impl MixnetListener {
                     request_id,
                 )
                 .to_bytes()
-                .map_err(|err| {
-                    AuthenticatorError::FailedToSerializeResponsePacket { source: err }
-                })?,
+                .map_err(AuthenticatorError::response_serialisation)?,
                 AuthenticatorVersion::V4 => v4::response::AuthenticatorResponse::new_registered(
                     v4::registration::RegistredData {
-                        pub_key: PeerPublicKey::new(self.keypair().public_key().to_bytes().into()),
+                        pub_key: self.keypair().public_key().into(),
                         private_ips: (allowed_ipv4, allowed_ipv6).into(),
                         wg_port: self.config.authenticator.tunnel_announced_port,
                     },
@@ -336,27 +362,34 @@ impl MixnetListener {
                     request_id,
                 )
                 .to_bytes()
-                .map_err(|err| {
-                    AuthenticatorError::FailedToSerializeResponsePacket { source: err }
-                })?,
+                .map_err(AuthenticatorError::response_serialisation)?,
                 AuthenticatorVersion::V5 => v5::response::AuthenticatorResponse::new_registered(
                     v5::registration::RegistredData {
-                        pub_key: PeerPublicKey::new(self.keypair().public_key().to_bytes().into()),
+                        pub_key: self.keypair().public_key().into(),
                         private_ips: (allowed_ipv4, allowed_ipv6).into(),
                         wg_port: self.config.authenticator.tunnel_announced_port,
                     },
                     request_id,
                 )
                 .to_bytes()
-                .map_err(|err| {
-                    AuthenticatorError::FailedToSerializeResponsePacket { source: err }
-                })?,
+                .map_err(AuthenticatorError::response_serialisation)?,
+                AuthenticatorVersion::V6 => v6::response::AuthenticatorResponse::new_registered(
+                    v6::registration::RegisteredData {
+                        pub_key: self.keypair().public_key().into(),
+                        private_ips: (allowed_ipv4, allowed_ipv6).into(),
+                        wg_port: self.config.authenticator.announced_port,
+                    },
+                    request_id,
+                    self.upgrade_mode_enabled(),
+                )
+                .to_bytes()
+                .map_err(AuthenticatorError::response_serialisation)?,
                 AuthenticatorVersion::UNKNOWN => return Err(AuthenticatorError::UnknownVersion),
             };
             return Ok((bytes, reply_to));
         }
 
-        let private_ip_ref = registred_and_free
+        let private_ip_ref = registered_and_free
             .free_private_network_ips
             .iter_mut()
             .filter(|r| r.1.is_none())
@@ -371,12 +404,12 @@ impl MixnetListener {
             *private_ip_ref.0,
             nonce,
         );
-        let registration_data = RegistrationData {
+        let registration_data = latest::registration::RegistrationData {
             nonce,
             gateway_data: gateway_data.clone(),
             wg_port: self.config.authenticator.tunnel_announced_port,
         };
-        registred_and_free
+        registered_and_free
             .registration_in_progres
             .insert(remote_public, registration_data.clone());
         let bytes = match AuthenticatorVersion::from(protocol) {
@@ -396,9 +429,7 @@ impl MixnetListener {
                     reply_to.ok_or(AuthenticatorError::MissingReplyToForOldClient)?,
                 )
                 .to_bytes()
-                .map_err(|err| {
-                    AuthenticatorError::FailedToSerializeResponsePacket { source: err }
-                })?
+                .map_err(AuthenticatorError::response_serialisation)?
             }
             AuthenticatorVersion::V2 => {
                 v2::response::AuthenticatorResponse::new_pending_registration_success(
@@ -416,9 +447,7 @@ impl MixnetListener {
                     reply_to.ok_or(AuthenticatorError::MissingReplyToForOldClient)?,
                 )
                 .to_bytes()
-                .map_err(|err| {
-                    AuthenticatorError::FailedToSerializeResponsePacket { source: err }
-                })?
+                .map_err(AuthenticatorError::response_serialisation)?
             }
             AuthenticatorVersion::V3 => {
                 v3::response::AuthenticatorResponse::new_pending_registration_success(
@@ -436,43 +465,77 @@ impl MixnetListener {
                     reply_to.ok_or(AuthenticatorError::MissingReplyToForOldClient)?,
                 )
                 .to_bytes()
-                .map_err(|err| {
-                    AuthenticatorError::FailedToSerializeResponsePacket { source: err }
-                })?
+                .map_err(AuthenticatorError::response_serialisation)?
             }
             AuthenticatorVersion::V4 => {
                 v4::response::AuthenticatorResponse::new_pending_registration_success(
                     v4::registration::RegistrationData {
                         nonce: registration_data.nonce,
-                        gateway_data: registration_data.gateway_data.into(),
+                        // convert current to v5 and then v5 to v4 (current as of 28.08.25)
+                        gateway_data: v5::registration::GatewayClient::from(
+                            registration_data.gateway_data.clone(),
+                        )
+                        .into(),
                         wg_port: registration_data.wg_port,
                     },
                     request_id,
                     reply_to.ok_or(AuthenticatorError::MissingReplyToForOldClient)?,
                 )
                 .to_bytes()
-                .map_err(|err| {
-                    AuthenticatorError::FailedToSerializeResponsePacket { source: err }
-                })?
+                .map_err(AuthenticatorError::response_serialisation)?
             }
             AuthenticatorVersion::V5 => {
                 v5::response::AuthenticatorResponse::new_pending_registration_success(
                     v5::registration::RegistrationData {
                         nonce: registration_data.nonce,
-                        gateway_data: registration_data.gateway_data,
+                        gateway_data: registration_data.gateway_data.into(),
                         wg_port: registration_data.wg_port,
                     },
                     request_id,
                 )
                 .to_bytes()
-                .map_err(|err| {
-                    AuthenticatorError::FailedToSerializeResponsePacket { source: err }
-                })?
+                .map_err(AuthenticatorError::response_serialisation)?
+            }
+            AuthenticatorVersion::V6 => {
+                v6::response::AuthenticatorResponse::new_pending_registration_success(
+                    v6::registration::RegistrationData {
+                        nonce: registration_data.nonce,
+                        gateway_data: registration_data.gateway_data.into(),
+                        wg_port: registration_data.wg_port,
+                    },
+                    request_id,
+                    self.upgrade_mode_enabled(),
+                )
+                .to_bytes()
+                .map_err(AuthenticatorError::response_serialisation)?
             }
             AuthenticatorVersion::UNKNOWN => return Err(AuthenticatorError::UnknownVersion),
         };
 
         Ok((bytes, reply_to))
+    }
+
+    async fn handle_final_credential_claim(
+        &self,
+        claim: BandwidthClaim,
+        client_id: i64,
+    ) -> Result<(), AuthenticatorError> {
+        match claim.credential {
+            BandwidthCredential::ZkNym(zk_nym) => {
+                // if we got zk-nym, we just try to verify it
+                credential_verification(self.ecash_verifier.clone(), *zk_nym, client_id).await?;
+                Ok(())
+            }
+            BandwidthCredential::UpgradeModeJWT { token } => {
+                // if we're already in the upgrade mode, don't bother validating the token
+                if self.upgrade_mode_enabled() {
+                    return Ok(());
+                }
+
+                self.upgrade_mode.try_enable_via_received_jwt(token).await?;
+                Ok(())
+            }
+        }
     }
 
     async fn on_final_request(
@@ -482,8 +545,8 @@ impl MixnetListener {
         request_id: u64,
         reply_to: Option<Recipient>,
     ) -> AuthenticatorHandleResult {
-        let mut registred_and_free = self.registred_and_free.write().await;
-        let registration_data = registred_and_free
+        let mut registered_and_free = self.registered_and_free.write().await;
+        let registration_data = registered_and_free
             .registration_in_progres
             .get(&final_message.pub_key())
             .ok_or(AuthenticatorError::RegistrationNotInProgress)?
@@ -504,29 +567,31 @@ impl MixnetListener {
             128,
         ));
 
+        // ideally credential wouldn't have been required in upgrade mode,
+        // however, we need some basic information to insert valid wg peer
         let Some(credential) = final_message.credential() else {
             return Err(AuthenticatorError::NoCredentialReceived);
         };
 
+        let typ = credential.kind;
+
         let client_id = self
             .ecash_verifier
             .storage()
-            .insert_wireguard_peer(
-                &peer,
-                TicketType::try_from_encoded(credential.payment.t_type)
-                    .map_err(|_| AuthenticatorError::InvalidCredentialType)?
-                    .into(),
-            )
+            .insert_wireguard_peer(&peer, typ.into())
             .await?;
-        if let Err(e) =
-            credential_verification(self.ecash_verifier.clone(), credential, client_id).await
+
+        if let Err(err) = self
+            .handle_final_credential_claim(credential, client_id)
+            .await
         {
             self.ecash_verifier
                 .storage()
                 .remove_wireguard_peer(&peer.public_key.to_string())
                 .await?;
-            return Err(e);
+            return Err(err);
         }
+
         let public_key = peer.public_key.to_string();
         if let Err(e) = self.peer_manager.add_peer(peer).await {
             self.ecash_verifier
@@ -536,7 +601,7 @@ impl MixnetListener {
             return Err(e);
         }
 
-        registred_and_free
+        registered_and_free
             .registration_in_progres
             .remove(&final_message.pub_key());
 
@@ -551,7 +616,7 @@ impl MixnetListener {
                 request_id,
             )
             .to_bytes()
-            .map_err(|err| AuthenticatorError::FailedToSerializeResponsePacket { source: err })?,
+            .map_err(AuthenticatorError::response_serialisation)?,
             AuthenticatorVersion::V2 => v2::response::AuthenticatorResponse::new_registered(
                 v2::registration::RegistredData {
                     pub_key: registration_data.gateway_data.pub_key,
@@ -562,7 +627,7 @@ impl MixnetListener {
                 request_id,
             )
             .to_bytes()
-            .map_err(|err| AuthenticatorError::FailedToSerializeResponsePacket { source: err })?,
+            .map_err(AuthenticatorError::response_serialisation)?,
             AuthenticatorVersion::V3 => v3::response::AuthenticatorResponse::new_registered(
                 v3::registration::RegistredData {
                     pub_key: registration_data.gateway_data.pub_key,
@@ -573,28 +638,43 @@ impl MixnetListener {
                 request_id,
             )
             .to_bytes()
-            .map_err(|err| AuthenticatorError::FailedToSerializeResponsePacket { source: err })?,
+            .map_err(AuthenticatorError::response_serialisation)?,
             AuthenticatorVersion::V4 => v4::response::AuthenticatorResponse::new_registered(
                 v4::registration::RegistredData {
                     pub_key: registration_data.gateway_data.pub_key,
-                    private_ips: registration_data.gateway_data.private_ips.into(),
+                    // convert current to v5 and then v5 to v4 (current as of 28.08.25)
+                    private_ips: v5::registration::IpPair::from(
+                        registration_data.gateway_data.private_ips,
+                    )
+                    .into(),
                     wg_port: registration_data.wg_port,
                 },
                 reply_to.ok_or(AuthenticatorError::MissingReplyToForOldClient)?,
                 request_id,
             )
             .to_bytes()
-            .map_err(|err| AuthenticatorError::FailedToSerializeResponsePacket { source: err })?,
+            .map_err(AuthenticatorError::response_serialisation)?,
             AuthenticatorVersion::V5 => v5::response::AuthenticatorResponse::new_registered(
                 v5::registration::RegistredData {
                     pub_key: registration_data.gateway_data.pub_key,
-                    private_ips: registration_data.gateway_data.private_ips,
+                    private_ips: registration_data.gateway_data.private_ips.into(),
                     wg_port: registration_data.wg_port,
                 },
                 request_id,
             )
             .to_bytes()
-            .map_err(|err| AuthenticatorError::FailedToSerializeResponsePacket { source: err })?,
+            .map_err(AuthenticatorError::response_serialisation)?,
+            AuthenticatorVersion::V6 => v6::response::AuthenticatorResponse::new_registered(
+                v6::registration::RegisteredData {
+                    pub_key: registration_data.gateway_data.pub_key,
+                    private_ips: registration_data.gateway_data.private_ips.into(),
+                    wg_port: registration_data.wg_port,
+                },
+                request_id,
+                self.upgrade_mode_enabled(),
+            )
+            .to_bytes()
+            .map_err(AuthenticatorError::response_serialisation)?,
             AuthenticatorVersion::UNKNOWN => return Err(AuthenticatorError::UnknownVersion),
         };
         Ok((bytes, reply_to))
@@ -607,7 +687,12 @@ impl MixnetListener {
         request_id: u64,
         reply_to: Option<Recipient>,
     ) -> AuthenticatorHandleResult {
-        let available_bandwidth = self.peer_manager.query_bandwidth(msg.pub_key()).await?;
+        let available_bandwidth = if self.upgrade_mode_enabled() {
+            self.upgrade_mode_bandwidth(msg.pub_key()).await?
+        } else {
+            self.peer_manager.query_bandwidth(msg.pub_key()).await?
+        };
+
         let bytes = match AuthenticatorVersion::from(protocol) {
             AuthenticatorVersion::V1 => {
                 v1::response::AuthenticatorResponse::new_remaining_bandwidth(
@@ -619,9 +704,7 @@ impl MixnetListener {
                     request_id,
                 )
                 .to_bytes()
-                .map_err(|err| {
-                    AuthenticatorError::FailedToSerializeResponsePacket { source: err }
-                })?
+                .map_err(AuthenticatorError::response_serialisation)?
             }
             AuthenticatorVersion::V2 => {
                 v2::response::AuthenticatorResponse::new_remaining_bandwidth(
@@ -632,9 +715,7 @@ impl MixnetListener {
                     request_id,
                 )
                 .to_bytes()
-                .map_err(|err| {
-                    AuthenticatorError::FailedToSerializeResponsePacket { source: err }
-                })?
+                .map_err(AuthenticatorError::response_serialisation)?
             }
             AuthenticatorVersion::V3 => {
                 v3::response::AuthenticatorResponse::new_remaining_bandwidth(
@@ -645,9 +726,7 @@ impl MixnetListener {
                     request_id,
                 )
                 .to_bytes()
-                .map_err(|err| {
-                    AuthenticatorError::FailedToSerializeResponsePacket { source: err }
-                })?
+                .map_err(AuthenticatorError::response_serialisation)?
             }
             AuthenticatorVersion::V4 => {
                 v4::response::AuthenticatorResponse::new_remaining_bandwidth(
@@ -658,9 +737,7 @@ impl MixnetListener {
                     request_id,
                 )
                 .to_bytes()
-                .map_err(|err| {
-                    AuthenticatorError::FailedToSerializeResponsePacket { source: err }
-                })?
+                .map_err(AuthenticatorError::response_serialisation)?
             }
             AuthenticatorVersion::V5 => {
                 v5::response::AuthenticatorResponse::new_remaining_bandwidth(
@@ -670,15 +747,25 @@ impl MixnetListener {
                     request_id,
                 )
                 .to_bytes()
-                .map_err(|err| {
-                    AuthenticatorError::FailedToSerializeResponsePacket { source: err }
-                })?
+                .map_err(AuthenticatorError::response_serialisation)?
+            }
+            AuthenticatorVersion::V6 => {
+                v6::response::AuthenticatorResponse::new_remaining_bandwidth(
+                    Some(v6::registration::RemainingBandwidthData {
+                        available_bandwidth,
+                    }),
+                    request_id,
+                    self.upgrade_mode_enabled(),
+                )
+                .to_bytes()
+                .map_err(AuthenticatorError::response_serialisation)?
             }
             AuthenticatorVersion::UNKNOWN => return Err(AuthenticatorError::UnknownVersion),
         };
         Ok((bytes, reply_to))
     }
 
+    // if we received a topup request, don't do anything with the upgrade mode
     async fn on_topup_bandwidth_request(
         &mut self,
         msg: Box<dyn TopUpMessage + Send + Sync + 'static>,
@@ -701,6 +788,15 @@ impl MixnetListener {
         };
 
         let bytes = match AuthenticatorVersion::from(protocol) {
+            AuthenticatorVersion::V6 => v6::response::AuthenticatorResponse::new_topup_bandwidth(
+                v6::registration::RemainingBandwidthData {
+                    available_bandwidth,
+                },
+                request_id,
+                self.upgrade_mode_enabled(),
+            )
+            .to_bytes()
+            .map_err(AuthenticatorError::response_serialisation)?,
             AuthenticatorVersion::V5 => v5::response::AuthenticatorResponse::new_topup_bandwidth(
                 v5::registration::RemainingBandwidthData {
                     available_bandwidth,
@@ -708,7 +804,7 @@ impl MixnetListener {
                 request_id,
             )
             .to_bytes()
-            .map_err(|err| AuthenticatorError::FailedToSerializeResponsePacket { source: err })?,
+            .map_err(AuthenticatorError::response_serialisation)?,
             AuthenticatorVersion::V4 => v4::response::AuthenticatorResponse::new_topup_bandwidth(
                 v4::registration::RemainingBandwidthData {
                     available_bandwidth,
@@ -717,7 +813,7 @@ impl MixnetListener {
                 request_id,
             )
             .to_bytes()
-            .map_err(|err| AuthenticatorError::FailedToSerializeResponsePacket { source: err })?,
+            .map_err(AuthenticatorError::response_serialisation)?,
             AuthenticatorVersion::V3 => v3::response::AuthenticatorResponse::new_topup_bandwidth(
                 v3::registration::RemainingBandwidthData {
                     available_bandwidth,
@@ -726,7 +822,7 @@ impl MixnetListener {
                 request_id,
             )
             .to_bytes()
-            .map_err(|err| AuthenticatorError::FailedToSerializeResponsePacket { source: err })?,
+            .map_err(AuthenticatorError::response_serialisation)?,
             AuthenticatorVersion::V1 | AuthenticatorVersion::V2 | AuthenticatorVersion::UNKNOWN => {
                 return Err(AuthenticatorError::UnknownVersion)
             }
@@ -897,64 +993,46 @@ async fn credential_verification(
 fn deserialize_request(
     reconstructed: &ReconstructedMessage,
 ) -> Result<AuthenticatorRequest, AuthenticatorError> {
-    let request_version = *reconstructed
+    let request_version = reconstructed
         .message
         .first_chunk::<2>()
         .ok_or(AuthenticatorError::ShortPacket)?;
 
+    let version = request_version[0];
+    let service_provider = request_version[1];
+
+    // special case for v1 request where service provider information hasn't been exposed in the header
+    if version == v1::VERSION {
+        return v1::request::AuthenticatorRequest::from_reconstructed_message(reconstructed)
+            .map_err(|err| AuthenticatorError::FailedToDeserializeTaggedPacket { source: err })
+            .map(Into::into);
+    }
+
+    if !service_provider.is_authenticator() {
+        return Err(AuthenticatorError::InvalidPacketType(service_provider));
+    }
+
     // Check version of the request and convert to the latest version if necessary
-    match request_version {
-        [1, _] => v1::request::AuthenticatorRequest::from_reconstructed_message(reconstructed)
+    match version {
+        v2::VERSION => v2::request::AuthenticatorRequest::from_reconstructed_message(reconstructed)
+            .map_err(|err| AuthenticatorError::FailedToDeserializeTaggedPacket { source: err })
+            .map(Into::<v3::request::AuthenticatorRequest>::into)
+            .map(Into::into),
+        v3::VERSION => v3::request::AuthenticatorRequest::from_reconstructed_message(reconstructed)
             .map_err(|err| AuthenticatorError::FailedToDeserializeTaggedPacket { source: err })
             .map(Into::into),
-        [2, request_type] => {
-            if request_type == ServiceProviderType::Authenticator as u8 {
-                v2::request::AuthenticatorRequest::from_reconstructed_message(reconstructed)
-                    .map_err(|err| AuthenticatorError::FailedToDeserializeTaggedPacket {
-                        source: err,
-                    })
-                    .map(Into::<v3::request::AuthenticatorRequest>::into)
-                    .map(Into::into)
-            } else {
-                Err(AuthenticatorError::InvalidPacketType(request_type))
-            }
-        }
-        [3, request_type] => {
-            if request_type == ServiceProviderType::Authenticator as u8 {
-                v3::request::AuthenticatorRequest::from_reconstructed_message(reconstructed)
-                    .map_err(|err| AuthenticatorError::FailedToDeserializeTaggedPacket {
-                        source: err,
-                    })
-                    .map(Into::into)
-            } else {
-                Err(AuthenticatorError::InvalidPacketType(request_type))
-            }
-        }
-        [4, request_type] => {
-            if request_type == ServiceProviderType::Authenticator as u8 {
-                v4::request::AuthenticatorRequest::from_reconstructed_message(reconstructed)
-                    .map_err(|err| AuthenticatorError::FailedToDeserializeTaggedPacket {
-                        source: err,
-                    })
-                    .map(Into::into)
-            } else {
-                Err(AuthenticatorError::InvalidPacketType(request_type))
-            }
-        }
-        [5, request_type] => {
-            if request_type == ServiceProviderType::Authenticator as u8 {
-                v5::request::AuthenticatorRequest::from_reconstructed_message(reconstructed)
-                    .map_err(|err| AuthenticatorError::FailedToDeserializeTaggedPacket {
-                        source: err,
-                    })
-                    .map(Into::into)
-            } else {
-                Err(AuthenticatorError::InvalidPacketType(request_type))
-            }
-        }
-        [version, _] => {
-            tracing::info!("Received packet with invalid version: v{version}");
-            Err(AuthenticatorError::InvalidPacketVersion(version))
+        v4::VERSION => v4::request::AuthenticatorRequest::from_reconstructed_message(reconstructed)
+            .map_err(|err| AuthenticatorError::FailedToDeserializeTaggedPacket { source: err })
+            .map(Into::into),
+        v5::VERSION => v5::request::AuthenticatorRequest::from_reconstructed_message(reconstructed)
+            .map_err(|err| AuthenticatorError::FailedToDeserializeTaggedPacket { source: err })
+            .map(Into::into),
+        v6::VERSION => v6::request::AuthenticatorRequest::from_reconstructed_message(reconstructed)
+            .map_err(|err| AuthenticatorError::FailedToDeserializeTaggedPacket { source: err })
+            .map(Into::into),
+        unknown => {
+            tracing::info!("Received packet with invalid version: v{unknown}");
+            Err(AuthenticatorError::InvalidPacketVersion(unknown))
         }
     }
 }

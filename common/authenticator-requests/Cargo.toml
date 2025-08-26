@@ -14,6 +14,7 @@ bincode = { workspace = true }
 rand = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 thiserror = { workspace = true }
+tracing = { workspace = true }
 
 nym-credentials-interface = { path = "../credentials-interface" }
 nym-crypto = { path = "../crypto", features = ["asymmetric"] }
@@ -27,7 +28,13 @@ hmac = { workspace = true, optional = true }
 sha2 = { workspace = true, optional = true }
 x25519-dalek = { workspace = true, features = ["static_secrets"] }
 
+[dev-dependencies]
+nym-test-utils = { path = "../test-utils" }
+
 [features]
 default = ["verify"]
 # this is moved to a separate feature as we really need clients to import it (especially, *cough*, wasm)
 verify = ["hmac", "sha2"]
+
+[lints]
+workspace = true

@@ -9,4 +9,5 @@ pub(crate) mod embedded_clients;
 pub(crate) mod websocket;
 
 // as defined in common/client-libs/gateway-client/src/client/config.rs::BandwidthTickets::DEFAULT_REMAINING_BANDWIDTH_THRESHOLD
-pub const DEFAULT_CLIENT_BANDWIDTH_THRESHOLD: i64 = (V1MixnetEntry.bandwidth_value() / 5) as i64;
+pub const DEFAULT_MIXNET_CLIENT_BANDWIDTH_THRESHOLD: i64 =
+    (V1MixnetEntry.bandwidth_value() / 5) as i64;

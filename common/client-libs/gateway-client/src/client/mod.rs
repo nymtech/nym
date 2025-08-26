@@ -165,10 +165,12 @@ impl<C, St> GatewayClient<C, St> {
     }
 
     #[cfg(not(target_arch = "wasm32"))]
+    #[allow(clippy::unreachable)]
     async fn _close_connection(&mut self) -> Result<(), GatewayClientError> {
         match std::mem::replace(&mut self.connection, SocketState::NotConnected) {
             SocketState::Available(mut socket) => Ok((*socket).close(None).await?),
             SocketState::PartiallyDelegated(_) => {
+                // SAFETY: this is only called after the caller has already recovered the connection
                 unreachable!("this branch should have never been reached!")
             }
             _ => Ok(()), // no need to do anything in those cases
@@ -176,6 +178,7 @@ impl<C, St> GatewayClient<C, St> {
     }
 
     #[cfg(target_arch = "wasm32")]
+    #[allow(clippy::unreachable)]
     async fn _close_connection(&mut self) -> Result<(), GatewayClientError> {
         match std::mem::replace(&mut self.connection, SocketState::NotConnected) {
             SocketState::Available(socket) => {
@@ -183,6 +186,7 @@ impl<C, St> GatewayClient<C, St> {
                 Ok(())
             }
             SocketState::PartiallyDelegated(_) => {
+                // SAFETY: this is only called after the caller has already recovered the connection
                 unreachable!("this branch should have never been reached!")
             }
             _ => Ok(()), // no need to do anything in those cases
@@ -757,6 +761,7 @@ impl<C, St> GatewayClient<C, St> {
 
             if self.authenticated {
                 // if we are authenticated it means we MUST have an associated shared_key
+                #[allow(clippy::unwrap_used)]
                 let shared_key = self.shared_key.as_ref().unwrap();
 
                 let requires_key_upgrade = shared_key.is_legacy() && supports_aes_gcm_siv;
@@ -772,6 +777,7 @@ impl<C, St> GatewayClient<C, St> {
             self.register(gw_protocol).await?;
 
             // if registration didn't return an error, we MUST have an associated shared key
+            #[allow(clippy::unwrap_used)]
             let shared_key = self.shared_key.as_ref().unwrap();
 
             // we're always registering with the highest supported protocol,
@@ -828,6 +834,9 @@ impl<C, St> GatewayClient<C, St> {
         &mut self,
         credential: CredentialSpendingData,
     ) -> Result<(), GatewayClientError> {
+        // SAFETY: claiming ecash bandwidth is called as part of `claim_bandwidth` which
+        // ensures the shared key is defined
+        #[allow(clippy::unwrap_used)]
         let msg = ClientControlRequest::new_enc_ecash_credential(
             credential,
             self.shared_key.as_ref().unwrap(),
@@ -871,6 +880,8 @@ impl<C, St> GatewayClient<C, St> {
     }
 
     fn unchecked_bandwidth_controller(&self) -> &BandwidthController<C, St> {
+        // this is an unchecked method
+        #[allow(clippy::unwrap_used)]
         self.bandwidth_controller.as_ref().unwrap()
     }
 
@@ -962,6 +973,7 @@ impl<C, St> GatewayClient<C, St> {
             BinaryRequest::ForwardSphinx { packet }
         };
 
+        #[allow(clippy::expect_used)]
         req.into_ws_message(
             self.shared_key
                 .as_ref()
@@ -1068,6 +1080,8 @@ impl<C, St> GatewayClient<C, St> {
         self.send_with_reconnection_on_failure(msg).await
     }
 
+    // SAFETY: this method is only called when the connection is in `PartiallyDelegated` state
+    #[allow(clippy::unreachable)]
     async fn recover_socket_connection(&mut self) -> Result<(), GatewayClientError> {
         if self.connection.is_available() {
             return Ok(());
@@ -1097,6 +1111,7 @@ impl<C, St> GatewayClient<C, St> {
             return Err(GatewayClientError::ConnectionInInvalidState);
         }
 
+        #[allow(clippy::expect_used)]
         let partially_delegated =
             match std::mem::replace(&mut self.connection, SocketState::Invalid) {
                 SocketState::Available(conn) => {
@@ -1112,7 +1127,13 @@ impl<C, St> GatewayClient<C, St> {
                         self.task_client.clone(),
                     )
                 }
-                _ => unreachable!(),
+                other => {
+                    error!(
+                        "attempted to start mixnet listener whilst the connection is in {} state!",
+                        other.name()
+                    );
+                    return Err(GatewayClientError::ConnectionInInvalidState);
+                }
             };
 
         self.connection = SocketState::PartiallyDelegated(partially_delegated);

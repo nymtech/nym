@@ -4702,9 +4702,7 @@ name = "nym-wireguard-types"
 version = "0.1.0"
 dependencies = [
  "base64 0.22.1",
- "log",
- "nym-config",
- "nym-network-defaults",
+ "nym-crypto",
  "serde",
  "thiserror 2.0.12",
  "x25519-dalek",

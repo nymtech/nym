@@ -31,13 +31,10 @@ pub use nym_compact_ecash::{
 pub use nym_ecash_time::{ecash_today, EcashTime};
 pub use nym_upgrade_mode_check::UpgradeModeAttestation;
 
-#[derive(Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub enum BandwidthCredential {
     ZkNym(Box<CredentialSpendingData>),
-    UpgradeModeJWT {
-        attestation: Box<UpgradeModeAttestation>,
-        token: String,
-    },
+    UpgradeModeJWT { token: String },
 }
 
 impl From<CredentialSpendingData> for BandwidthCredential {

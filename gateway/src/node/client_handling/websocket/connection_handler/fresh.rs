@@ -136,7 +136,7 @@ impl<R, S> FreshHandler<R, S> {
         &self.shared_state
     }
 
-    pub(crate) fn upgrade_mode(&self) -> bool {
+    pub(crate) fn upgrade_mode_enabled(&self) -> bool {
         self.shared_state.upgrade_mode.enabled()
     }
 
@@ -611,7 +611,7 @@ impl<R, S> FreshHandler<R, S> {
                 protocol_version: negotiated_protocol,
                 status: true,
                 bandwidth_remaining,
-                upgrade_mode: self.upgrade_mode(),
+                upgrade_mode: self.upgrade_mode_enabled(),
             },
         ))
     }
@@ -698,7 +698,7 @@ impl<R, S> FreshHandler<R, S> {
                 protocol_version: negotiated_protocol,
                 status: true,
                 bandwidth_remaining,
-                upgrade_mode: self.upgrade_mode(),
+                upgrade_mode: self.upgrade_mode_enabled(),
             },
         ))
     }
@@ -790,7 +790,7 @@ impl<R, S> FreshHandler<R, S> {
 
         debug!(client_id = %client_id, "managed to finalize client registration");
 
-        let upgrade_mode = self.upgrade_mode();
+        let upgrade_mode = self.upgrade_mode_enabled();
 
         let client_details = ClientDetails::new(
             client_id,

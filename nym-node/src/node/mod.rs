@@ -698,7 +698,7 @@ impl NymNode {
             gateway_tasks_builder.set_wireguard_data(wg_data.into());
 
             let authenticator = gateway_tasks_builder
-                .build_wireguard_authenticator(topology_provider)
+                .build_wireguard_authenticator(upgrade_mode_common_state, topology_provider)
                 .await?;
             let started_authenticator = authenticator.start_service_provider().await?;
             active_clients_store.insert_embedded(started_authenticator.handle);

@@ -175,6 +175,7 @@ impl ClientBandwidth {
 
     fn last_logged(&self) -> OffsetDateTime {
         // SAFETY: this value is always populated with valid timestamps
+        #[allow(clippy::unwrap_used)]
         OffsetDateTime::from_unix_timestamp(self.inner.last_logged_ts.load(Ordering::Relaxed))
             .unwrap()
     }

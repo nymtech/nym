@@ -1,17 +1,35 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use nym_credentials_interface::CredentialSpendingData;
+use nym_credentials_interface::{
+    BandwidthCredential, CredentialSpendingData, TicketType, UnknownTicketType,
+};
 use nym_crypto::asymmetric::x25519::PrivateKey;
 use nym_service_provider_requests_common::{Protocol, ServiceProviderType};
 use nym_sphinx::addressing::clients::Recipient;
 use nym_wireguard_types::PeerPublicKey;
+use serde::{Deserialize, Serialize};
+use tracing::error;
 
-use crate::{
-    v1, v2, v3, v4,
-    v5::{self, registration::IpPair},
-    Error,
-};
+use crate::latest::registration::IpPair;
+use crate::{v1, v2, v3, v4, v5, v6, Error};
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct BandwidthClaim {
+    pub credential: BandwidthCredential,
+    pub kind: TicketType,
+}
+
+impl TryFrom<CredentialSpendingData> for BandwidthClaim {
+    type Error = UnknownTicketType;
+
+    fn try_from(credential: CredentialSpendingData) -> Result<Self, Self::Error> {
+        Ok(BandwidthClaim {
+            kind: TicketType::try_from_encoded(credential.payment.t_type)?,
+            credential: BandwidthCredential::from(credential),
+        })
+    }
+}
 
 #[derive(Copy, Clone, Debug)]
 pub enum AuthenticatorVersion {
@@ -20,6 +38,7 @@ pub enum AuthenticatorVersion {
     V3,
     V4,
     V5,
+    V6,
     UNKNOWN,
 }
 
@@ -37,6 +56,8 @@ impl From<Protocol> for AuthenticatorVersion {
             AuthenticatorVersion::V4
         } else if value.version == v5::VERSION {
             AuthenticatorVersion::V5
+        } else if value.version == v6::VERSION {
+            AuthenticatorVersion::V6
         } else {
             AuthenticatorVersion::UNKNOWN
         }
@@ -77,12 +98,17 @@ impl InitMessage for v5::registration::InitMessage {
     }
 }
 
+impl InitMessage for v6::registration::InitMessage {
+    fn pub_key(&self) -> PeerPublicKey {
+        self.pub_key
+    }
+}
+
 pub trait FinalMessage {
     fn pub_key(&self) -> PeerPublicKey;
     fn verify(&self, private_key: &PrivateKey, nonce: u64) -> Result<(), Error>;
     fn private_ips(&self) -> IpPair;
-    // fn credential(&self) -> Option<BandwidthCredential>;
-    fn credential(&self) -> Option<CredentialSpendingData>;
+    fn credential(&self) -> Option<BandwidthClaim>;
 }
 
 impl FinalMessage for v1::GatewayClient {
@@ -98,8 +124,7 @@ impl FinalMessage for v1::GatewayClient {
         self.private_ip.into()
     }
 
-    // fn credential(&self) -> Option<BandwidthCredential> {
-    fn credential(&self) -> Option<CredentialSpendingData> {
+    fn credential(&self) -> Option<BandwidthClaim> {
         None
     }
 }
@@ -117,9 +142,12 @@ impl FinalMessage for v2::registration::FinalMessage {
         self.gateway_client.private_ip.into()
     }
 
-    // fn credential(&self) -> Option<BandwidthCredential> {
-    fn credential(&self) -> Option<CredentialSpendingData> {
-        self.credential.clone().map(Into::into)
+    fn credential(&self) -> Option<BandwidthClaim> {
+        self.credential.clone().and_then(|c| {
+            c.try_into()
+                .inspect_err(|err| error!("credential conversion error: {err}"))
+                .ok()
+        })
     }
 }
 
@@ -136,9 +164,12 @@ impl FinalMessage for v3::registration::FinalMessage {
         self.gateway_client.private_ip.into()
     }
 
-    // fn credential(&self) -> Option<BandwidthCredential> {
-    fn credential(&self) -> Option<CredentialSpendingData> {
-        self.credential.clone().map(Into::into)
+    fn credential(&self) -> Option<BandwidthClaim> {
+        self.credential.clone().and_then(|c| {
+            c.try_into()
+                .inspect_err(|err| error!("credential conversion error: {err}"))
+                .ok()
+        })
     }
 }
 
@@ -152,12 +183,15 @@ impl FinalMessage for v4::registration::FinalMessage {
     }
 
     fn private_ips(&self) -> IpPair {
-        self.gateway_client.private_ips.into()
+        v5::registration::IpPair::from(self.gateway_client.private_ips).into()
     }
 
-    // fn credential(&self) -> Option<BandwidthCredential> {
-    fn credential(&self) -> Option<CredentialSpendingData> {
-        self.credential.clone().map(Into::into)
+    fn credential(&self) -> Option<BandwidthClaim> {
+        self.credential.clone().and_then(|c| {
+            c.try_into()
+                .inspect_err(|err| error!("credential conversion error: {err}"))
+                .ok()
+        })
     }
 }
 
@@ -171,12 +205,33 @@ impl FinalMessage for v5::registration::FinalMessage {
     }
 
     fn private_ips(&self) -> IpPair {
+        self.gateway_client.private_ips.into()
+    }
+
+    fn credential(&self) -> Option<BandwidthClaim> {
+        self.credential.clone().and_then(|c| {
+            c.try_into()
+                .inspect_err(|err| error!("credential conversion error: {err}"))
+                .ok()
+        })
+    }
+}
+
+impl FinalMessage for v6::registration::FinalMessage {
+    fn pub_key(&self) -> PeerPublicKey {
+        self.gateway_client.pub_key
+    }
+
+    fn verify(&self, private_key: &PrivateKey, nonce: u64) -> Result<(), Error> {
+        self.gateway_client.verify(private_key, nonce)
+    }
+
+    fn private_ips(&self) -> IpPair {
         self.gateway_client.private_ips
     }
 
-    // fn credential(&self) -> Option<BandwidthCredential> {
-    fn credential(&self) -> Option<CredentialSpendingData> {
-        self.credential.clone().map(Into::into)
+    fn credential(&self) -> Option<BandwidthClaim> {
+        self.credential.clone()
     }
 }
 
@@ -216,6 +271,16 @@ impl TopUpMessage for v4::topup::TopUpMessage {
 }
 
 impl TopUpMessage for v5::topup::TopUpMessage {
+    fn pub_key(&self) -> PeerPublicKey {
+        self.pub_key
+    }
+
+    fn credential(&self) -> CredentialSpendingData {
+        self.credential.clone()
+    }
+}
+
+impl TopUpMessage for v6::topup::TopUpMessage {
     fn pub_key(&self) -> PeerPublicKey {
         self.pub_key
     }
@@ -409,6 +474,41 @@ impl From<v5::request::AuthenticatorRequest> for AuthenticatorRequest {
                 }
             }
             v5::request::AuthenticatorRequestData::TopUpBandwidth(top_up_message) => {
+                Self::TopUpBandwidth {
+                    msg: top_up_message,
+                    protocol: value.protocol,
+                    reply_to: None,
+                    request_id: value.request_id,
+                }
+            }
+        }
+    }
+}
+
+impl From<v6::request::AuthenticatorRequest> for AuthenticatorRequest {
+    fn from(value: v6::request::AuthenticatorRequest) -> Self {
+        match value.data {
+            v6::request::AuthenticatorRequestData::Initial(init_message) => Self::Initial {
+                msg: Box::new(init_message),
+                protocol: value.protocol,
+                reply_to: None,
+                request_id: value.request_id,
+            },
+            v6::request::AuthenticatorRequestData::Final(final_message) => Self::Final {
+                msg: final_message,
+                protocol: value.protocol,
+                reply_to: None,
+                request_id: value.request_id,
+            },
+            v6::request::AuthenticatorRequestData::QueryBandwidth(peer_public_key) => {
+                Self::QueryBandwidth {
+                    msg: Box::new(peer_public_key),
+                    protocol: value.protocol,
+                    reply_to: None,
+                    request_id: value.request_id,
+                }
+            }
+            v6::request::AuthenticatorRequestData::TopUpBandwidth(top_up_message) => {
                 Self::TopUpBandwidth {
                     msg: top_up_message,
                     protocol: value.protocol,

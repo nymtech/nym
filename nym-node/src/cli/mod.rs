@@ -92,11 +92,40 @@ impl Cli {
                 setup_tracing_logger().map_err(NymNodeError::TracingSetupFailure)?;
                 reset_sphinx_keys::execute(args).await
             })??,
-            Commands::TestTracing => Self::execute_async(async move {
+            // Commands::TestTracing => Self::execute_async(async move {
+            //     setup_tracing_logger().map_err(NymNodeError::TracingSetupFailure)?;
+            //     Ok::<(), crate::error::NymNodeError>(())
+            // })??,
+            Commands::TestTracing => Self::execute_async(async move { // ==== [DEBUG] tracing test propagation in async context 
                 setup_tracing_logger().map_err(NymNodeError::TracingSetupFailure)?;
+
+                self.test_span_propagation().await?;
                 Ok::<(), crate::error::NymNodeError>(())
             })??,
         }
+        Ok(())
+    }
+
+    #[instrument]
+    async fn test_span_propagation(&self) -> Result<(), crate::error::NymNodeError> {
+        tracing::info!("In the root span");
+        let _span = tracing::info_span!("my_span");
+
+        let _child1 = tracing::info_span!("my_child_span").entered();
+        tracing::info!("In my_child_span");
+
+        tokio::spawn(async {
+            let _child2 = tracing::info_span!("my_child_span_2").entered();
+            tracing::info!("In spawned my_child_span_2");
+        }).await.unwrap();
+
+        self.foo_async_function().await?;
+        Ok(())
+    }
+
+    #[instrument]
+    async fn foo_async_function(&self) -> Result<(), crate::error::NymNodeError> {
+        tracing::info!("In foo_async_function");
         Ok(())
     }
 

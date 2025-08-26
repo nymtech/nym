@@ -1,7 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::error::*;
+use crate::node::nym_authenticator::error::*;
 use defguard_wireguard_rs::{host::Peer, key::Key};
 use futures::channel::oneshot;
 use nym_credential_verification::{ClientBandwidth, CredentialVerifier};

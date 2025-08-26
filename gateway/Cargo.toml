@@ -45,7 +45,6 @@ url = { workspace = true, features = ["serde"] }
 zeroize = { workspace = true }
 
 # internal
-nym-authenticator = { path = "../service-providers/authenticator" }
 nym-api-requests = { path = "../nym-api/nym-api-requests" }
 nym-credentials = { path = "../common/credentials" }
 nym-credentials-interface = { path = "../common/credentials-interface" }
@@ -72,6 +71,25 @@ nym-wireguard = { path = "../common/wireguard" }
 nym-wireguard-types = { path = "../common/wireguard-types", default-features = false }
 
 defguard_wireguard_rs = { workspace = true }
+
+
+
+# temp: needed by authenticator
+
+bincode = { workspace = true }
+fastrand = { workspace = true }
+log = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+
+nym-authenticator-requests = { path = "../common/authenticator-requests" }
+nym-client-core = { path = "../common/client-core", features = ["cli"] }
+nym-id = { path = "../common/nym-id" }
+nym-service-provider-requests-common = { path = "../common/service-provider-requests-common" }
+
+[dev-dependencies]
+mock_instant = "0.5.3"
+time = { workspace = true }
+
 
 [build-dependencies]
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }

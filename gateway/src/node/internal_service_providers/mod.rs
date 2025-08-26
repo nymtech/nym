@@ -24,6 +24,9 @@ use tracing::error;
 
 pub mod authenticator;
 
+// temp to fix import problems
+pub use authenticator as nym_authenticator;
+
 pub trait LocalRecipient {
     fn address(&self) -> Recipient;
 }

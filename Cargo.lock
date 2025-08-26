@@ -4952,40 +4952,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "nym-authenticator"
-version = "0.1.0"
-dependencies = [
- "bincode",
- "defguard_wireguard_rs",
- "fastrand 2.3.0",
- "futures",
- "ipnetwork",
- "log",
- "mock_instant",
- "nym-authenticator-requests",
- "nym-client-core",
- "nym-credential-verification",
- "nym-credentials-interface",
- "nym-crypto",
- "nym-gateway-requests",
- "nym-gateway-storage",
- "nym-id",
- "nym-network-defaults",
- "nym-sdk",
- "nym-service-provider-requests-common",
- "nym-sphinx",
- "nym-task",
- "nym-wireguard",
- "nym-wireguard-types",
- "rand 0.8.5",
- "serde",
- "thiserror 2.0.12",
- "time",
- "tokio",
- "tokio-stream",
-]
-
-[[package]]
 name = "nym-authenticator-requests"
 version = "0.1.0"
 dependencies = [
@@ -5717,14 +5683,19 @@ version = "1.1.36"
 dependencies = [
  "anyhow",
  "async-trait",
+ "bincode",
  "bip39",
  "bs58",
  "dashmap",
  "defguard_wireguard_rs",
+ "fastrand 2.3.0",
  "futures",
  "ipnetwork",
+ "log",
+ "mock_instant",
  "nym-api-requests",
- "nym-authenticator",
+ "nym-authenticator-requests",
+ "nym-client-core",
  "nym-credential-verification",
  "nym-credentials",
  "nym-credentials-interface",
@@ -5732,6 +5703,7 @@ dependencies = [
  "nym-gateway-requests",
  "nym-gateway-stats-storage",
  "nym-gateway-storage",
+ "nym-id",
  "nym-ip-packet-router",
  "nym-mixnet-client",
  "nym-mixnode-common",
@@ -5739,6 +5711,7 @@ dependencies = [
  "nym-network-requester",
  "nym-node-metrics",
  "nym-sdk",
+ "nym-service-provider-requests-common",
  "nym-sphinx",
  "nym-statistics-common",
  "nym-task",
@@ -5748,6 +5721,7 @@ dependencies = [
  "nym-wireguard",
  "nym-wireguard-types",
  "rand 0.8.5",
+ "serde",
  "sha2 0.10.9",
  "sqlx",
  "thiserror 2.0.12",
@@ -6265,7 +6239,6 @@ dependencies = [
  "indicatif 0.17.11",
  "ipnetwork",
  "lioness",
- "nym-authenticator",
  "nym-bin-common",
  "nym-client-core-config-types",
  "nym-config",

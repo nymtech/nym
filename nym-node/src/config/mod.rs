@@ -21,6 +21,7 @@ use nym_config::{
     must_get_home, parse_urls, read_config_from_toml_file, save_formatted_config_to_file,
     NymConfigTemplate, DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, DEFAULT_DATA_DIR, NYM_DIR,
 };
+use nym_gateway::nym_authenticator;
 use serde::{Deserialize, Serialize};
 use std::env;
 use std::fmt::{Display, Formatter};

@@ -7,8 +7,10 @@ use std::{
     time::{Duration, SystemTime},
 };
 
-use crate::{config::Config, error::*, seen_credential_cache::SeenCredentialCache};
-use crate::{error::AuthenticatorError, peer_manager::PeerManager};
+use crate::node::nym_authenticator::{
+    config::Config, error::*, seen_credential_cache::SeenCredentialCache,
+};
+use crate::node::nym_authenticator::{error::AuthenticatorError, peer_manager::PeerManager};
 use defguard_wireguard_rs::net::IpAddrMask;
 use defguard_wireguard_rs::{host::Peer, key::Key};
 use futures::StreamExt;

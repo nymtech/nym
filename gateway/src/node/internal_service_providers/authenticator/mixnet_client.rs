@@ -5,7 +5,7 @@ use nym_client_core::{config::disk_persistence::CommonClientPaths, TopologyProvi
 use nym_sdk::{GatewayTransceiver, NymNetworkDetails};
 use nym_task::TaskClient;
 
-use crate::{config::BaseClientConfig, error::AuthenticatorError};
+use crate::node::nym_authenticator::{config::BaseClientConfig, error::AuthenticatorError};
 
 // Helper function to create the mixnet client.
 // This is NOT in the SDK since we don't want to expose any of the client-core config types.

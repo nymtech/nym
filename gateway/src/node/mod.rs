@@ -5,7 +5,7 @@ use crate::config::Config;
 use crate::error::GatewayError;
 use crate::node::client_handling::websocket;
 use crate::node::internal_service_providers::{
-    ExitServiceProviders, ServiceProviderBeingBuilt, SpMessageRouterBuilder,
+    nym_authenticator, ExitServiceProviders, ServiceProviderBeingBuilt, SpMessageRouterBuilder,
 };
 use futures::channel::oneshot;
 use nym_authenticator::Authenticator;
@@ -31,7 +31,7 @@ use tracing::*;
 use zeroize::Zeroizing;
 
 pub(crate) mod client_handling;
-mod internal_service_providers;
+pub(crate) mod internal_service_providers;
 mod stale_data_cleaner;
 
 use crate::node::stale_data_cleaner::StaleMessagesCleaner;

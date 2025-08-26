@@ -1,2 +1,13 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: Apache-2.0
+
+pub use authenticator::{Authenticator, OnStartData};
+pub use config::Config;
+
+pub mod authenticator;
+pub mod config;
+pub mod error;
+pub mod mixnet_client;
+pub mod mixnet_listener;
+mod peer_manager;
+mod seen_credential_cache;

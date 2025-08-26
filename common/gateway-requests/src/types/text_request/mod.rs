@@ -197,6 +197,10 @@ impl ClientControlRequest {
         CredentialSpendingRequest::try_from_bytes(credential_bytes.as_slice())
             .map_err(|_| GatewayRequestsError::MalformedEncryption)
     }
+
+    pub fn new_upgrade_mode_jwt(token: String) -> Self {
+        ClientControlRequest::UpgradeModeJWT { token }
+    }
 }
 
 impl From<ClientControlRequest> for Message {

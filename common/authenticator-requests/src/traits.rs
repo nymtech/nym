@@ -1,7 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use nym_credentials_interface::{BandwidthCredential, CredentialSpendingData};
+use nym_credentials_interface::CredentialSpendingData;
 use nym_crypto::asymmetric::x25519::PrivateKey;
 use nym_service_provider_requests_common::{Protocol, ServiceProviderType};
 use nym_sphinx::addressing::clients::Recipient;

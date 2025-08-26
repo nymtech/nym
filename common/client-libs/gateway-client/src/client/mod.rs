@@ -20,7 +20,7 @@ use nym_credentials_interface::TicketType;
 use nym_crypto::asymmetric::ed25519;
 use nym_gateway_requests::registration::handshake::client_handshake;
 use nym_gateway_requests::{
-    BinaryRequest, ClientControlRequest, ClientRequest, GatewayProtocolVersion,
+    BandwidthResponse, BinaryRequest, ClientControlRequest, ClientRequest, GatewayProtocolVersion,
     GatewayProtocolVersionExt, GatewayRequestsError, SensitiveServerResponse, ServerResponse,
     SharedGatewayKey, SharedSymmetricKey, CREDENTIAL_UPDATE_V2_PROTOCOL_VERSION,
 };
@@ -801,6 +801,29 @@ impl<C, St> GatewayClient<C, St> {
         }
     }
 
+    async fn wait_for_bandwidth_response(
+        &mut self,
+        msg: ClientControlRequest,
+    ) -> Result<BandwidthResponse, GatewayClientError> {
+        let (response) = match self
+            .send_websocket_message_with_non_send_response(msg)
+            .await?
+        {
+            ServerResponse::Bandwidth(response) => {
+                if response.upgrade_mode {
+                    info!("the system is currently undergoing an upgrade. our bandwidth shouldn't have been metered")
+                }
+                Ok(response)
+            }
+            ServerResponse::Error { message } => Err(GatewayClientError::GatewayError(message)),
+            ServerResponse::TypedError { error } => {
+                Err(GatewayClientError::TypedGatewayError(error))
+            }
+            other => Err(GatewayClientError::UnexpectedResponse { name: other.name() }),
+        }?;
+        Ok(response)
+    }
+
     async fn claim_ecash_bandwidth(
         &mut self,
         credential: CredentialSpendingData,
@@ -809,56 +832,40 @@ impl<C, St> GatewayClient<C, St> {
             credential,
             self.shared_key.as_ref().unwrap(),
         )?;
-        let (bandwidth_remaining, upgrade_mode) = match self
-            .send_websocket_message_with_non_send_response(msg)
-            .await?
-        {
-            ServerResponse::Bandwidth {
-                available_total,
-                upgrade_mode,
-            } => {
-                if upgrade_mode {
-                    info!("the system is currently undergoing an upgrade. our bandwidth shouldn't have been metered")
-                }
-                Ok((available_total, upgrade_mode))
-            }
-            ServerResponse::Error { message } => Err(GatewayClientError::GatewayError(message)),
-            ServerResponse::TypedError { error } => {
-                Err(GatewayClientError::TypedGatewayError(error))
-            }
-            other => Err(GatewayClientError::UnexpectedResponse { name: other.name() }),
-        }?;
+        let response = self.wait_for_bandwidth_response(msg).await?;
 
         // TODO: create tracing span
         info!("managed to claim ecash bandwidth");
         self.bandwidth
-            .update_and_log(bandwidth_remaining, upgrade_mode);
+            .update_and_log(response.available_total, response.upgrade_mode);
+
+        Ok(())
+    }
+
+    pub async fn send_upgrade_mode_jwt(&mut self, token: String) -> Result<(), GatewayClientError> {
+        let msg = ClientControlRequest::new_upgrade_mode_jwt(token);
+        let response = self.wait_for_bandwidth_response(msg).await?;
+
+        // if gateway rejected our jwt, we would have returned an error
+        info!("gateway has accepted our jwt");
+        if !response.upgrade_mode {
+            error!("but we're not in upgrade mode - something is wrong!");
+            return Err(GatewayClientError::UnexpectedUpgradeModeState);
+        }
+
+        self.bandwidth
+            .update_and_log(response.available_total, response.upgrade_mode);
 
         Ok(())
     }
 
     async fn try_claim_testnet_bandwidth(&mut self) -> Result<(), GatewayClientError> {
         let msg = ClientControlRequest::ClaimFreeTestnetBandwidth;
-        let (bandwidth_remaining, upgrade_mode) = match self
-            .send_websocket_message_with_non_send_response(msg)
-            .await?
-        {
-            ServerResponse::Bandwidth {
-                available_total,
-                upgrade_mode,
-            } => {
-                if upgrade_mode {
-                    info!("the system is currently undergoing an upgrade. our bandwidth shouldn't have been metered")
-                }
-                Ok((available_total, upgrade_mode))
-            }
-            ServerResponse::Error { message } => Err(GatewayClientError::GatewayError(message)),
-            other => Err(GatewayClientError::UnexpectedResponse { name: other.name() }),
-        }?;
+        let response = self.wait_for_bandwidth_response(msg).await?;
 
         info!("managed to claim testnet bandwidth");
         self.bandwidth
-            .update_and_log(bandwidth_remaining, upgrade_mode);
+            .update_and_log(response.available_total, response.upgrade_mode);
 
         Ok(())
     }

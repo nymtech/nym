@@ -24,6 +24,7 @@ use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::Duration;
 use tracing::*;
+use wasm_utils::{check_promise_result, console_error, console_log};
 
 // The interval at which we check for stale buffers
 const STALE_BUFFER_CHECK_INTERVAL: Duration = Duration::from_secs(10);
@@ -579,6 +580,8 @@ impl<R: MessageReceiver + Clone + Send + 'static> ReceivedMessagesBufferControll
         metrics_reporter: ClientStatsSender,
         shutdown_token: ShutdownToken,
     ) -> Self {
+        console_log!("ReceivedMessagesBufferController::new 1");
+
         let received_buffer = ReceivedMessagesBuffer::new(
             local_encryption_keypair,
             reply_key_storage,
@@ -586,6 +589,8 @@ impl<R: MessageReceiver + Clone + Send + 'static> ReceivedMessagesBufferControll
             metrics_reporter,
             shutdown_token.clone(),
         );
+
+        console_log!("ReceivedMessagesBufferController::new 2");
 
         ReceivedMessagesBufferController {
             fragmented_message_receiver: FragmentedMessageReceiver::new(

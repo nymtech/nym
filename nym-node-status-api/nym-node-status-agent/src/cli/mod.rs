@@ -50,7 +50,7 @@ pub(crate) struct Args {
 #[derive(Subcommand, Debug)]
 pub(crate) enum Command {
     RunProbe {
-        /// Server configurations in format "address:port:auth_key"
+        /// Server configurations in format "address|port"
         /// Can be specified multiple times for multiple servers
         #[arg(short, long, required = true)]
         server: Vec<String>,

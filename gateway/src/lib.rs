@@ -11,4 +11,4 @@ pub mod node;
 pub use error::GatewayError;
 pub use node::GatewayTasksBuilder;
 
-pub use node::internal_service_providers::nym_authenticator;
+pub use node::internal_service_providers::authenticator as nym_authenticator;

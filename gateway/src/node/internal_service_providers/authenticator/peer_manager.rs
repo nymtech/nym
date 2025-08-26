@@ -1,7 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::node::nym_authenticator::error::*;
+use crate::node::internal_service_providers::authenticator::error::AuthenticatorError;
 use defguard_wireguard_rs::{host::Peer, key::Key};
 use futures::channel::oneshot;
 use nym_credential_verification::{ClientBandwidth, CredentialVerifier};
@@ -19,7 +19,7 @@ impl PeerManager {
             wireguard_gateway_data,
         }
     }
-    pub async fn add_peer(&mut self, peer: Peer) -> Result<()> {
+    pub async fn add_peer(&mut self, peer: Peer) -> Result<(), AuthenticatorError> {
         let (response_tx, response_rx) = oneshot::channel();
         let msg = PeerControlRequest::AddPeer { peer, response_tx };
         self.wireguard_gateway_data
@@ -38,7 +38,7 @@ impl PeerManager {
             })
     }
 
-    pub async fn _remove_peer(&mut self, pub_key: PeerPublicKey) -> Result<()> {
+    pub async fn _remove_peer(&mut self, pub_key: PeerPublicKey) -> Result<(), AuthenticatorError> {
         let key = Key::new(pub_key.to_bytes());
         let (response_tx, response_rx) = oneshot::channel();
         let msg = PeerControlRequest::RemovePeer { key, response_tx };
@@ -60,7 +60,10 @@ impl PeerManager {
             })
     }
 
-    pub async fn query_peer(&mut self, public_key: PeerPublicKey) -> Result<Option<Peer>> {
+    pub async fn query_peer(
+        &mut self,
+        public_key: PeerPublicKey,
+    ) -> Result<Option<Peer>, AuthenticatorError> {
         let key = Key::new(public_key.to_bytes());
         let (response_tx, response_rx) = oneshot::channel();
         let msg = PeerControlRequest::QueryPeer { key, response_tx };
@@ -82,12 +85,18 @@ impl PeerManager {
             })
     }
 
-    pub async fn query_bandwidth(&mut self, public_key: PeerPublicKey) -> Result<i64> {
+    pub async fn query_bandwidth(
+        &mut self,
+        public_key: PeerPublicKey,
+    ) -> Result<i64, AuthenticatorError> {
         let client_bandwidth = self.query_client_bandwidth(public_key).await?;
         Ok(client_bandwidth.available().await)
     }
 
-    pub async fn query_client_bandwidth(&mut self, key: PeerPublicKey) -> Result<ClientBandwidth> {
+    pub async fn query_client_bandwidth(
+        &mut self,
+        key: PeerPublicKey,
+    ) -> Result<ClientBandwidth, AuthenticatorError> {
         let key = Key::new(key.to_bytes());
         let (response_tx, response_rx) = oneshot::channel();
         let msg = PeerControlRequest::GetClientBandwidth { key, response_tx };
@@ -115,7 +124,7 @@ impl PeerManager {
         &mut self,
         key: PeerPublicKey,
         credential: CredentialSpendingData,
-    ) -> Result<CredentialVerifier> {
+    ) -> Result<CredentialVerifier, AuthenticatorError> {
         let key = Key::new(key.to_bytes());
         let (response_tx, response_rx) = oneshot::channel();
         let msg = PeerControlRequest::GetVerifier {
@@ -157,7 +166,9 @@ mod tests {
     use time::{Duration, OffsetDateTime};
     use tokio::sync::RwLock;
 
-    use crate::{config::Authenticator, mixnet_listener::credential_storage_preparation};
+    use crate::nym_authenticator::{
+        config::Authenticator, mixnet_listener::credential_storage_preparation,
+    };
 
     use super::*;
 

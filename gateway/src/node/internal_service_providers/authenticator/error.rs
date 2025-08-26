@@ -101,5 +101,3 @@ pub enum AuthenticatorError {
     #[error("no credential received")]
     NoCredentialReceived,
 }
-
-pub type Result<T> = std::result::Result<T, AuthenticatorError>;

@@ -7,10 +7,10 @@ use std::{
     time::{Duration, SystemTime},
 };
 
-use crate::node::nym_authenticator::{
-    config::Config, error::*, seen_credential_cache::SeenCredentialCache,
+use crate::node::internal_service_providers::authenticator::{
+    config::Config, error::AuthenticatorError, peer_manager::PeerManager,
+    seen_credential_cache::SeenCredentialCache,
 };
-use crate::node::nym_authenticator::{error::AuthenticatorError, peer_manager::PeerManager};
 use defguard_wireguard_rs::net::IpAddrMask;
 use defguard_wireguard_rs::{host::Peer, key::Key};
 use futures::StreamExt;
@@ -46,7 +46,7 @@ use rand::{prelude::IteratorRandom, thread_rng};
 use tokio::sync::RwLock;
 use tokio_stream::wrappers::IntervalStream;
 
-type AuthenticatorHandleResult = Result<(Vec<u8>, Option<Recipient>)>;
+type AuthenticatorHandleResult = Result<(Vec<u8>, Option<Recipient>), AuthenticatorError>;
 const DEFAULT_REGISTRATION_TIMEOUT_CHECK: Duration = Duration::from_secs(60); // 1 minute
 
 pub(crate) struct RegistredAndFree {
@@ -112,7 +112,7 @@ impl MixnetListener {
         self.peer_manager.wireguard_gateway_data.keypair()
     }
 
-    async fn remove_stale_registrations(&self) -> Result<()> {
+    async fn remove_stale_registrations(&self) -> Result<(), AuthenticatorError> {
         let mut registred_and_free = self.registred_and_free.write().await;
         let registred_values: Vec<_> = registred_and_free
             .registration_in_progres
@@ -132,7 +132,7 @@ impl MixnetListener {
                 registred_and_free
                     .registration_in_progres
                     .remove(&reg.gateway_data.pub_key());
-                log::debug!(
+                tracing::debug!(
                     "Removed stale registration of {}",
                     reg.gateway_data.pub_key()
                 );
@@ -148,7 +148,7 @@ impl MixnetListener {
                 registred_and_free
                     .registration_in_progres
                     .remove(&reg.gateway_data.pub_key());
-                log::debug!(
+                tracing::debug!(
                     "Removed stale registration of {}",
                     reg.gateway_data.pub_key()
                 );
@@ -750,7 +750,7 @@ impl MixnetListener {
         &mut self,
         reconstructed: ReconstructedMessage,
     ) -> AuthenticatorHandleResult {
-        log::debug!(
+        tracing::debug!(
             "Received message with sender_tag: {:?}",
             reconstructed.sender_tag
         );
@@ -803,7 +803,7 @@ impl MixnetListener {
         response: Vec<u8>,
         recipient: Option<Recipient>,
         sender_tag: Option<AnonymousSenderTag>,
-    ) -> Result<()> {
+    ) -> Result<(), AuthenticatorError> {
         let input_message = create_input_message(recipient, sender_tag, response)?;
         self.mixnet_client.send(input_message).await.map_err(|err| {
             AuthenticatorError::FailedToSendPacketToMixnet {
@@ -812,18 +812,18 @@ impl MixnetListener {
         })
     }
 
-    pub(crate) async fn run(mut self) -> Result<()> {
-        log::info!("Using authenticator version {CURRENT_VERSION}");
+    pub(crate) async fn run(mut self) -> Result<(), AuthenticatorError> {
+        tracing::info!("Using authenticator version {CURRENT_VERSION}");
         let mut task_client = self.task_handle.fork("main_loop");
 
         while !task_client.is_shutdown() {
             tokio::select! {
                 _ = task_client.recv() => {
-                    log::debug!("Authenticator [main loop]: received shutdown");
+                    tracing::debug!("Authenticator [main loop]: received shutdown");
                 },
                 _ = self.timeout_check_interval.next() => {
                     if let Err(e) = self.remove_stale_registrations().await {
-                        log::error!("Could not clear stale registrations. The registration process might get jammed soon - {e:?}");
+                        tracing::error!("Could not clear stale registrations. The registration process might get jammed soon - {e:?}");
                     }
                     self.seen_credential_cache.remove_stale();
                 }
@@ -833,23 +833,23 @@ impl MixnetListener {
                         match self.on_reconstructed_message(msg).await {
                             Ok((response, recipient)) => {
                                 if let Err(err) = self.handle_response(response, recipient, sender_tag).await {
-                                    log::error!("Mixnet listener failed to handle response: {err}");
+                                    tracing::error!("Mixnet listener failed to handle response: {err}");
                                 }
                             }
                             Err(err) => {
-                                log::error!("Error handling reconstructed mixnet message: {err}");
+                                tracing::error!("Error handling reconstructed mixnet message: {err}");
                             }
 
                         };
                     } else {
-                        log::trace!("Authenticator [main loop]: stopping since channel closed");
+                        tracing::trace!("Authenticator [main loop]: stopping since channel closed");
                         break;
                     };
                 },
 
             }
         }
-        log::debug!("Authenticator: stopping");
+        tracing::debug!("Authenticator: stopping");
         Ok(())
     }
 }
@@ -857,7 +857,7 @@ impl MixnetListener {
 pub async fn credential_storage_preparation(
     ecash_verifier: Arc<dyn EcashManager + Send + Sync>,
     client_id: i64,
-) -> Result<PersistedBandwidth> {
+) -> Result<PersistedBandwidth, AuthenticatorError> {
     ecash_verifier
         .storage()
         .create_bandwidth_entry(client_id)
@@ -876,7 +876,7 @@ async fn credential_verification(
     ecash_verifier: Arc<dyn EcashManager + Send + Sync>,
     credential: CredentialSpendingData,
     client_id: i64,
-) -> Result<i64> {
+) -> Result<i64, AuthenticatorError> {
     let bandwidth = credential_storage_preparation(ecash_verifier.clone(), client_id).await?;
     let client_bandwidth = ClientBandwidth::new(bandwidth.into());
     let mut verifier = CredentialVerifier::new(
@@ -893,7 +893,9 @@ async fn credential_verification(
     Ok(verifier.verify().await?)
 }
 
-fn deserialize_request(reconstructed: &ReconstructedMessage) -> Result<AuthenticatorRequest> {
+fn deserialize_request(
+    reconstructed: &ReconstructedMessage,
+) -> Result<AuthenticatorRequest, AuthenticatorError> {
     let request_version = *reconstructed
         .message
         .first_chunk::<2>()
@@ -950,7 +952,7 @@ fn deserialize_request(reconstructed: &ReconstructedMessage) -> Result<Authentic
             }
         }
         [version, _] => {
-            log::info!("Received packet with invalid version: v{version}");
+            tracing::info!("Received packet with invalid version: v{version}");
             Err(AuthenticatorError::InvalidPacketVersion(version))
         }
     }
@@ -960,11 +962,11 @@ fn create_input_message(
     nym_address: Option<Recipient>,
     reply_to_tag: Option<AnonymousSenderTag>,
     response_packet: Vec<u8>,
-) -> Result<InputMessage> {
+) -> Result<InputMessage, AuthenticatorError> {
     let lane = TransmissionLane::General;
     let packet_type = None;
     if let Some(reply_to_tag) = reply_to_tag {
-        log::debug!("Creating message using SURB");
+        tracing::debug!("Creating message using SURB");
         Ok(InputMessage::new_reply(
             reply_to_tag,
             response_packet,
@@ -972,7 +974,7 @@ fn create_input_message(
             packet_type,
         ))
     } else if let Some(nym_address) = nym_address {
-        log::debug!("Creating message using nym_address");
+        tracing::debug!("Creating message using nym_address");
         Ok(InputMessage::new_regular(
             nym_address,
             response_packet,
@@ -980,7 +982,7 @@ fn create_input_message(
             packet_type,
         ))
     } else {
-        log::error!("No nym-address or sender tag provided");
+        tracing::error!("No nym-address or sender tag provided");
         Err(AuthenticatorError::MissingReplyToForOldClient)
     }
 }

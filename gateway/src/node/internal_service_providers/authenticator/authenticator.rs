@@ -1,8 +1,7 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::node::internal_service_providers::authenticator::error::AuthenticatorError;
-use crate::node::internal_service_providers::nym_authenticator;
+use crate::node::internal_service_providers::authenticator::{self, error::AuthenticatorError};
 use futures::channel::oneshot;
 use ipnetwork::IpNetwork;
 use nym_client_core::{HardcodedTopologyProvider, TopologyProvider};
@@ -25,7 +24,7 @@ impl OnStartData {
 
 pub struct Authenticator {
     #[allow(unused)]
-    config: nym_authenticator::Config,
+    config: authenticator::Config,
     wait_for_gateway: bool,
     custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
     custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send + Sync>>,
@@ -38,7 +37,7 @@ pub struct Authenticator {
 
 impl Authenticator {
     pub fn new(
-        config: nym_authenticator::Config,
+        config: authenticator::Config,
         wireguard_gateway_data: WireguardGatewayData,
         used_private_network_ips: Vec<IpAddr>,
         ecash_verifier: Arc<EcashManager>,
@@ -118,7 +117,7 @@ impl Authenticator {
         let task_handle: TaskHandle = self.shutdown.map(Into::into).unwrap_or_default();
 
         // Connect to the mixnet
-        let mixnet_client = nym_authenticator::mixnet_client::create_mixnet_client(
+        let mixnet_client = authenticator::mixnet_client::create_mixnet_client(
             &self.config.base,
             task_handle
                 .get_handle()
@@ -149,7 +148,7 @@ impl Authenticator {
                 }
             })
             .collect();
-        let mixnet_listener = nym_authenticator::mixnet_listener::MixnetListener::new(
+        let mixnet_listener = authenticator::mixnet_listener::MixnetListener::new(
             self.config,
             free_private_network_ips,
             self.wireguard_gateway_data,

@@ -5,10 +5,10 @@ use crate::config::Config;
 use crate::error::GatewayError;
 use crate::node::client_handling::websocket;
 use crate::node::internal_service_providers::{
-    nym_authenticator, ExitServiceProviders, ServiceProviderBeingBuilt, SpMessageRouterBuilder,
+    authenticator, ExitServiceProviders, ServiceProviderBeingBuilt, SpMessageRouterBuilder,
 };
+use crate::node::stale_data_cleaner::StaleMessagesCleaner;
 use futures::channel::oneshot;
-use nym_authenticator::Authenticator;
 use nym_credential_verification::ecash::{
     credential_sender::CredentialHandlerConfig, EcashManager,
 };
@@ -18,6 +18,7 @@ use nym_mixnet_client::forwarder::MixForwardingSender;
 use nym_network_defaults::NymNetworkDetails;
 use nym_network_requester::NRServiceProviderBuilder;
 use nym_node_metrics::events::MetricEventsSender;
+use nym_node_metrics::NymNodeMetrics;
 use nym_task::TaskClient;
 use nym_topology::TopologyProvider;
 use nym_validator_client::nyxd::{Coin, CosmWasmClient};
@@ -34,7 +35,7 @@ pub(crate) mod client_handling;
 pub(crate) mod internal_service_providers;
 mod stale_data_cleaner;
 
-use crate::node::stale_data_cleaner::StaleMessagesCleaner;
+use crate::node::internal_service_providers::authenticator::Authenticator;
 pub use client_handling::active_clients::ActiveClientsStore;
 pub use nym_gateway_stats_storage::PersistentStatsStorage;
 pub use nym_gateway_storage::{
@@ -42,7 +43,6 @@ pub use nym_gateway_storage::{
     traits::{BandwidthGatewayStorage, InboxGatewayStorage},
     GatewayStorage,
 };
-use nym_node_metrics::NymNodeMetrics;
 pub use nym_sdk::{NymApiTopologyProvider, NymApiTopologyProviderConfig, UserAgent};
 
 #[derive(Debug, Clone)]
@@ -61,7 +61,7 @@ pub struct LocalIpPacketRouterOpts {
 
 #[derive(Debug, Clone)]
 pub struct LocalAuthenticatorOpts {
-    pub config: nym_authenticator::Config,
+    pub config: authenticator::Config,
 
     pub custom_mixnet_path: Option<PathBuf>,
 }

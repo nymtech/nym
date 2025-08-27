@@ -306,6 +306,7 @@ impl<R, S> AuthenticatedHandler<R, S> {
     /// # Arguments
     ///
     /// * `bin_msg`: raw message to handle.
+    #[instrument(skip_all)]
     async fn handle_binary(&mut self, bin_msg: Vec<u8>) -> Message {
         trace!("binary request");
         // this function decrypts the request and checks the MAC
@@ -583,6 +584,11 @@ impl<R, S> AuthenticatedHandler<R, S> {
     /// Simultaneously listens for incoming client requests, which realistically should only be
     /// binary requests to forward sphinx packets or increase bandwidth
     /// and for sphinx packets received from the mix network that should be sent back to the client.
+    #[instrument(level = "debug", skip_all,
+        fields(
+            client = %self.client.address.as_base58_string()
+        )
+    )]
     pub(crate) async fn listen_for_requests(mut self, mut shutdown: TaskClient)
     where
         R: Rng + CryptoRng,
@@ -594,12 +600,17 @@ impl<R, S> AuthenticatedHandler<R, S> {
         let mut ping_timeout: OptionFuture<_> = None.into();
 
         while !shutdown.is_shutdown() {
+            let current_context = tracing::Span::current();
             tokio::select! {
                 _ = shutdown.recv() => {
+                    let span = tracing::span!(parent: current_context, tracing::Level::DEBUG, "shutdown_signal_received");
+                    let _handle = span.enter();
                     trace!("client_handling::AuthenticatedHandler: received shutdown");
                 },
                 // Received a request to ping the client to check if it's still active
                 tx = self.is_active_request_receiver.next() => {
+                    let span = tracing::span!(parent: current_context, tracing::Level::DEBUG, "is_active_request_received");
+                    let _enter = span.enter();
                     match tx {
                         None => break,
                         Some(reply_tx) => {
@@ -613,10 +624,14 @@ impl<R, S> AuthenticatedHandler<R, S> {
                 },
                 // The ping timeout expired, meaning the client didn't respond to our ping request
                 _ = &mut ping_timeout, if !ping_timeout.is_terminated() => {
-                   ping_timeout = None.into();
-                   self.handle_ping_timeout().await;
+                    let span = tracing::span!(parent: current_context, tracing::Level::DEBUG, "ping_timeout");
+                    let _enter = span.enter();
+                    ping_timeout = None.into();
+                    self.handle_ping_timeout().await;
                 },
                 socket_msg = self.inner.read_websocket_message() => {
+                    let span = tracing::span!(parent: current_context, tracing::Level::DEBUG, "websocket_message_received");
+                    let _enter = span.enter();
                     let socket_msg = match socket_msg {
                         None => break,
                         Some(Ok(socket_msg)) => socket_msg,
@@ -640,6 +655,8 @@ impl<R, S> AuthenticatedHandler<R, S> {
                     }
                 },
                 mix_messages = self.mix_receiver.next() => {
+                    let span = tracing::span!(parent: current_context, tracing::Level::DEBUG, "mix_message_received");
+                    let _enter = span.enter();
                     let mix_messages = match mix_messages {
                         None => {
                             debug!("mix receiver was closed! Assuming the connection is dead.");

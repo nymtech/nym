@@ -57,6 +57,7 @@ impl Listener {
         )
     }
 
+    #[instrument(skip_all)]
     fn try_handle_accepted_connection(&self, accepted: io::Result<(TcpStream, SocketAddr)>) {
         match accepted {
             Ok((socket, remote_address)) => {
@@ -87,9 +88,13 @@ impl Listener {
                     .network
                     .new_ingress_websocket_client();
 
+                
                 // 4. spawn the task handling the client connection
+                let current_span = tracing::Span::current();
                 tokio::spawn(async move {
                     // TODO: refactor it similarly to the mixnet listener on the nym-node
+                    let span = tracing::span!(parent: current_span, tracing::Level::DEBUG, "websocket_connection");
+                    let _enter = span.enter();
                     let metrics_ref = handle.shared_state.metrics.clone();
 
                     // 4.1. handle all client requests until connection gets terminated
@@ -105,6 +110,7 @@ impl Listener {
 
     // TODO: change the signature to pub(crate) async fn run(&self, handler: Handler)
 
+    #[instrument(skip_all)]
     pub(crate) async fn run(&mut self) {
         info!("Starting websocket listener at {}", self.address);
         let tcp_listener = match tokio::net::TcpListener::bind(self.address).await {

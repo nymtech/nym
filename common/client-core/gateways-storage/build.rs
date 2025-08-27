@@ -1,24 +1,32 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use anyhow::Context;
+
 #[tokio::main]
-async fn main() {
+async fn main() -> anyhow::Result<()> {
     #[cfg(feature = "fs-gateways-storage")]
     {
         use sqlx::{Connection, SqliteConnection};
         use std::env;
 
-        let out_dir = env::var("OUT_DIR").unwrap();
+        let out_dir = env::var("OUT_DIR")?;
         let database_path = format!("{out_dir}/gateways-storage-example.sqlite");
+
+        // remove the db file if it already existed from previous build
+        // in case it was from a different branch
+        if std::fs::exists(&database_path)? {
+            std::fs::remove_file(&database_path)?;
+        }
 
         let mut conn = SqliteConnection::connect(&format!("sqlite://{database_path}?mode=rwc"))
             .await
-            .expect("Failed to create SQLx database connection");
+            .context("Failed to create SQLx database connection")?;
 
         sqlx::migrate!("./fs_gateways_migrations")
             .run(&mut conn)
             .await
-            .expect("Failed to perform SQLx migrations");
+            .context("Failed to perform SQLx migrations")?;
 
         #[cfg(target_family = "unix")]
         println!("cargo:rustc-env=DATABASE_URL=sqlite://{}", &database_path);
@@ -28,4 +36,6 @@ async fn main() {
         // not a valid windows path... but hey, it works...
         println!("cargo:rustc-env=DATABASE_URL=sqlite:///{}", &database_path);
     }
+
+    Ok(())
 }

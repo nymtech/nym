@@ -5211,6 +5211,7 @@ dependencies = [
 name = "nym-client-core-gateways-storage"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "async-trait",
  "cosmrs",
  "nym-crypto",
@@ -5229,6 +5230,7 @@ dependencies = [
 name = "nym-client-core-surb-storage"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "async-trait",
  "dashmap",
  "nym-crypto",
@@ -5439,6 +5441,7 @@ dependencies = [
 name = "nym-credential-storage"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "async-trait",
  "bincode",
  "log",
@@ -5807,6 +5810,7 @@ dependencies = [
 name = "nym-gateway-stats-storage"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "nym-node-metrics",
  "nym-sphinx",
  "nym-statistics-common",
@@ -5822,6 +5826,7 @@ dependencies = [
 name = "nym-gateway-storage"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "async-trait",
  "bincode",
  "defguard_wireguard_rs",
@@ -7390,6 +7395,7 @@ dependencies = [
 name = "nyxd-scraper"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "async-trait",
  "const_format",
  "cosmrs",

@@ -305,6 +305,7 @@ impl<R, S> AuthenticatedHandler<R, S> {
     /// # Arguments
     ///
     /// * `bin_msg`: raw message to handle.
+    #[instrument(skip_all)]
     async fn handle_binary(&mut self, bin_msg: Vec<u8>) -> Message {
         trace!("binary request");
         // this function decrypts the request and checks the MAC
@@ -582,6 +583,11 @@ impl<R, S> AuthenticatedHandler<R, S> {
     /// Simultaneously listens for incoming client requests, which realistically should only be
     /// binary requests to forward sphinx packets or increase bandwidth
     /// and for sphinx packets received from the mix network that should be sent back to the client.
+    #[instrument(level = "debug", skip_all,
+        fields(
+            client = %self.client.address.as_base58_string()
+        )
+    )]
     pub(crate) async fn listen_for_requests(mut self)
     where
         R: Rng + CryptoRng,
@@ -609,8 +615,8 @@ impl<R, S> AuthenticatedHandler<R, S> {
                 },
                 // The ping timeout expired, meaning the client didn't respond to our ping request
                 _ = &mut ping_timeout, if !ping_timeout.is_terminated() => {
-                   ping_timeout = None.into();
-                   self.handle_ping_timeout().await;
+                    ping_timeout = None.into();
+                    self.handle_ping_timeout().await;
                 },
                 socket_msg = self.inner.read_websocket_message() => {
                     let socket_msg = match socket_msg {

@@ -53,6 +53,7 @@ impl Listener {
         )
     }
 
+    #[instrument(skip_all)]
     fn try_handle_accepted_connection(&self, accepted: io::Result<(TcpStream, SocketAddr)>) {
         match accepted {
             Ok((socket, remote_address)) => {
@@ -83,6 +84,7 @@ impl Listener {
                     .network
                     .new_ingress_websocket_client();
 
+                
                 // 4. spawn the task handling the client connection
                 self.shutdown.try_spawn_named(
                     async move {
@@ -104,6 +106,7 @@ impl Listener {
 
     // TODO: change the signature to pub(crate) async fn run(&self, handler: Handler)
 
+    #[instrument(skip_all)]
     pub async fn run(&mut self) {
         info!("Starting websocket listener at {}", self.address);
         let tcp_listener = match tokio::net::TcpListener::bind(self.address).await {

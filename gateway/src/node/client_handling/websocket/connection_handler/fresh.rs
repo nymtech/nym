@@ -641,6 +641,9 @@ impl<R, S> FreshHandler<R, S> {
         ))
     }
 
+    #[instrument(skip_all, fields(
+        address = %request.content.client_identity.derive_destination_address(),
+    ))]
     async fn handle_authenticate_v2(
         &mut self,
         request: Box<AuthenticateRequest>,
@@ -845,7 +848,7 @@ impl<R, S> FreshHandler<R, S> {
             debug!("failed to reply with protocol version: {err}")
         }
     }
-
+#[instrument(skip_all)]
     pub(crate) async fn handle_initial_client_request(
         &mut self,
         request: ClientControlRequest,
@@ -916,6 +919,7 @@ impl<R, S> FreshHandler<R, S> {
         Ok(Some(client_details))
     }
 
+    #[instrument(skip_all)]
     pub(crate) async fn handle_until_authenticated_or_failure(
         mut self,
     ) -> Option<AuthenticatedHandler<R, S>>
@@ -923,13 +927,25 @@ impl<R, S> FreshHandler<R, S> {
         S: AsyncRead + AsyncWrite + Unpin + Send,
         R: CryptoRng + RngCore + Send,
     {
-        let initial_request = match self.wait_for_initial_message().await {
-            Ok(req) => req,
-            Err(err) => {
-                self.send_and_forget_error_response(err).await;
-                return None;
-            }
-        };
+        let current_span = tracing::Span::current();
+        while !shutdown.is_shutdown() {
+            let req = tokio::select! {
+                biased;
+                _ = shutdown.recv() => {
+                    let span = tracing::span!(parent: current_span, tracing::Level::DEBUG, "websocket_listener_shutdown");
+                    let _enter = span.enter();
+                    return None
+                },
+                req = self.wait_for_initial_message() => req,
+            };
+
+            let initial_request = match req {
+                Ok(req) => req,
+                Err(err) => {
+                    self.send_and_forget_error_response(err).await;
+                    return None;
+                }
+            };
 
         // see if we managed to register the client through this request
         let maybe_auth_res = match self.handle_initial_client_request(initial_request).await {
@@ -1016,6 +1032,7 @@ impl<R, S> FreshHandler<R, S> {
             .map_err(|_| InitialAuthenticationError::InvalidRequest)
     }
 
+    #[instrument(skip_all)]
     pub(crate) async fn start_handling(self)
     where
         S: AsyncRead + AsyncWrite + Unpin + Send,

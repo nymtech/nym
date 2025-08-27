@@ -9,29 +9,30 @@ import tempfile
 
 prefix = '/usr/local'
 clean = True
-linktype = 'so'
+darwin = platform.system() == 'Darwin'
 
-host = platform.machine()
-host = ''.join(c for c in host if c in '_0123456789abcdefghijklmnopqrstuvwxyz')
+def hostsanitize(host):
+  host = host.split('-')[0]
+  host = ''.join(c for c in host if c in '_0123456789abcdefghijklmnopqrstuvwxyz')
+  for prefix,result in (
+    ('amd64','amd64'), ('x86_64','amd64'),
+    ('x86','x86'), ('i386','x86'), ('i686','x86'),
+    ('arm64','arm64'), ('armv8','arm64'), ('aarch64','arm64'),
+    ('arm','arm32'),
+    ('riscv64','riscv64'),
+    ('riscv','riscv32'),
+    ('mips64','mips64'),
+    ('mips','mips32'),
+    ('ppc64','ppc64'), ('powerpc64','ppc64'),
+    ('powerpc','ppc32'),
+    ('ppc','ppc32'),
+    ('sparc64','sparc64'), ('sparcv9','sparc64'), ('sun4u','sparc64'),
+    ('sparc','sparc32'), ('sun','sparc32'),
+  ):
+    if host.startswith(prefix): return result
+  return host
 
-if host == 'x86_64': host = 'amd64'
-if host == 'i386': host = 'x86'
-if host == 'i686': host = 'x86'
-
-if host.startswith('armv8') or host.startswith('aarch64'): host = 'arm64'
-if host.startswith('arm'): host = 'arm32'
-
-if host.startswith('riscv64'): host = 'riscv64'
-if host.startswith('riscv'): host = 'riscv32'
-
-if host.startswith('mips64'): host = 'mips64'
-if host.startswith('mips'): host = 'mips32'
-
-if host.startswith('powerpc64') or host.startswith('ppc64'): host = 'ppc64'
-if host.startswith('powerpc') or host.startswith('ppc'): host = 'ppc32'
-
-if host.startswith('sparcv9') or host.startswith('sun4u'): host = 'sparc64'
-if host.startswith('sparc') or host.startswith('sun'): host = 'sparc32'
+host = hostsanitize(platform.machine())
 
 makefile = ''
 
@@ -40,14 +41,19 @@ for arg in sys.argv[1:]:
     prefix = arg[9:]
     continue
   if arg.startswith('--host='):
-    host = arg[7:]
-    host = host.split('-')[0]
+    host = hostsanitize(arg[7:])
     continue
   if arg == '--clean':
     clean = True
     continue
   if arg == '--noclean':
     clean = False
+    continue
+  if arg == '--darwin':
+    darwin = True
+    continue
+  if arg == '--nodarwin':
+    darwin = False
     continue
   raise ValueError('unrecognized argument %s' % arg)
 
@@ -56,6 +62,8 @@ echoargs += ' --prefix=%s' % prefix
 echoargs += ' --host=%s' % host
 if clean: echoargs += ' --clean'
 if not clean: echoargs += ' --noclean'
+if darwin: echoargs += ' --darwin'
+if not darwin: echoargs += ' --nodarwin'
 print(echoargs)
 
 if prefix[0] != '/':
@@ -84,6 +92,13 @@ if clean:
 
 os.makedirs('build/%s/scripts'%host,exist_ok=True)
 dirlinksym('build/%s/scripts'%host,'install','../src/scripts-build/install')
+
+# ----- shared-library variations
+
+so = 'dylib' if darwin else 'so'
+so1 = '1.dylib' if darwin else 'so.1'
+soname = 'install_name' if darwin else 'soname'
+syslibs = '-lm' if darwin else '-lm -lrt'
 
 # ----- compilers
 
@@ -129,11 +144,13 @@ os.chmod('build/%s/scripts/compiledefault' % host,0o755)
 # ----- libcpucycles
 
 os.makedirs('build/%s/cpucycles' % host,exist_ok=True)
+os.makedirs('build/%s/package/man/man1' % host,exist_ok=True)
 os.makedirs('build/%s/package/man/man3' % host,exist_ok=True)
 
 dirlinksym('build/%s/cpucycles'%host,'cpucycles.h','../src/cpucycles/cpucycles.h')
 dirlinksym('build/%s/cpucycles'%host,'cpucycles_internal.h','../src/cpucycles/cpucycles_internal.h')
 shutil.copy2('cpucycles/cpucycles.h','build/%s/package/include/cpucycles.h'%host)
+shutil.copy2('doc/man/cpucycles-info.1','build/%s/package/man/man1/cpucycles-info.1'%host)
 shutil.copy2('doc/man/cpucycles.3','build/%s/package/man/man3/cpucycles.3'%host)
 
 with open('build/%s/cpucycles/compile-ticks' % host,'w') as f:
@@ -150,7 +167,7 @@ with open('build/%s/cpucycles/compile-ticks' % host,'w') as f:
   f.write('  case $? in\n')
   f.write('    0) break ;;\n')
   f.write('    111) exit 111 ;;\n')
-  f.write('    *) echo "skipping option that did not compile" ;;\n')
+  f.write('    *) echo "[1;34mskipping option that did not compile[0m" ;;\n')
   f.write('  esac\n')
   f.write('done\n')
 os.chmod('build/%s/cpucycles/compile-ticks' % host,0o755)
@@ -222,20 +239,20 @@ with open('build/%s/scripts/sharedlib' % host,'w') as f:
   f.write('%s -shared \\\n' % firstcompiler)
   if rpath:
     f.write('  -Wl,-rpath=%s \\\n' % rpath)
-  f.write('  -Wl,-soname,libcpucycles.so.1 \\\n')
-  f.write('  -o package/lib/libcpucycles.so.1 \\\n')
+  f.write(f'  -Wl,-{soname},libcpucycles.{so1} \\\n')
+  f.write(f'  -o package/lib/libcpucycles.{so1} \\\n')
   f.write('  "$@"\n')
-  f.write('chmod 644 package/lib/libcpucycles.so.1\n')
+  f.write(f'chmod 644 package/lib/libcpucycles.{so1}\n')
 os.chmod('build/%s/scripts/sharedlib' % host,0o755)
 
-M = 'package/lib/libcpucycles.so.1: scripts/sharedlib %s\n' % ' '.join(cpucyclesofiles)
+M = f'package/lib/libcpucycles.{so1}: scripts/sharedlib %s\n' % ' '.join(cpucyclesofiles)
 M += '\tscripts/sharedlib %s\n' % ' '.join(cpucyclesofiles)
 M += '\n'
 makefile = M + makefile
 
-M = 'package/lib/libcpucycles.so: package/lib/libcpucycles.so.1\n'
-M += '\trm -f package/lib/libcpucycles.so\n'
-M += '\tln -s libcpucycles.so.1 package/lib/libcpucycles.so\n'
+M = f'package/lib/libcpucycles.{so}: package/lib/libcpucycles.{so1}\n'
+M += f'\trm -f package/lib/libcpucycles.{so}\n'
+M += f'\tln -s libcpucycles.{so1} package/lib/libcpucycles.{so}\n'
 M += '\n'
 makefile = M + makefile
 
@@ -267,8 +284,8 @@ for fn in sorted(os.listdir('command')):
   M += '\tscripts/compiledefault command %s c -I include\n' % base
   M += '\n'
   makefile = M + makefile
-  M = 'package/bin/%s: command/%s.o%s\n' % (base,base,''.join(' package/lib/%s.%s' % (x,linktype) for x in libs))
-  M += '\tcd command && ./link bin/%s %s.o%s -lm -lrt\n' % (base,base,''.join(' lib/%s.%s' % (x,linktype) for x in libs))
+  M = 'package/bin/%s: command/%s.o%s\n' % (base,base,''.join(' package/lib/%s.%s' % (x,so) for x in libs))
+  M += f'\tcd command && ./link bin/%s %s.o%s {syslibs}\n' % (base,base,''.join(' lib/%s.%s' % (x,so) for x in libs))
   M += '\n'
   makefile = M + makefile
   commands += ['package/bin/%s' % base]
@@ -286,7 +303,7 @@ makefile = M + makefile
 
 # ----- make default
 
-M = 'default: package/lib/libcpucycles.a package/lib/libcpucycles.so package/lib/libcpucycles.so.1 \\\n'
+M = f'default: package/lib/libcpucycles.a package/lib/libcpucycles.{so} package/lib/libcpucycles.{so1} \\\n'
 M += 'commands\n'
 M += '\n'
 makefile = M + makefile

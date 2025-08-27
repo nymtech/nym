@@ -2,6 +2,7 @@ amd64-pmc
 amd64-tsc
 amd64-tscasm
 arm32-cortex
+arm32-1176
 arm64-pmc
 arm64-vct
 mips64-cc

@@ -6,7 +6,7 @@ import shutil
 import tempfile
 
 prefix = sys.argv[1]
-dirs = 'man/man3','lib','include','bin'
+dirs = 'man/man1','man/man3','lib','include','bin'
 install = {}
 
 os.umask(0o22)

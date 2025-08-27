@@ -1,40 +1,48 @@
 Prerequisites: `python3`; `gcc` and/or `clang`. Currently tested only
 under Linux, but porting to other systems shouldn't be difficult.
 
-For sysadmins, to install in `/usr/local/{include,lib,bin}`:
+### For sysadmins
 
-        ./configure && make -j8 install
+To install in `/usr/local/{include,lib,bin,man}`:
 
-For developers with an unprivileged account (typically with
+    ./configure && make -j8 install
 
-        export LD_LIBRARY_PATH="$HOME/lib"
-        export LIBRARY_PATH="$HOME/lib"
-        export CPATH="$HOME/include"
-        export PATH="$HOME/bin:$PATH"
+### For developers with an unprivileged account
 
-in `$HOME/.profile`), to install in `$HOME/{include,lib,bin}`:
+Typically you'll already have
 
-        ./configure --prefix=$HOME && make -j8 install
+    export LD_LIBRARY_PATH="$HOME/lib"
+    export LIBRARY_PATH="$HOME/lib"
+    export CPATH="$HOME/include"
+    export PATH="$HOME/bin:$PATH"
 
-For distributors creating a package: Run
+in `$HOME/.profile`. To install in `$HOME/{include,lib,bin,man}`:
 
-        ./configure --prefix=/usr && make -j8
+    ./configure --prefix=$HOME && make -j8 install
+
+### For distributors creating a package
+
+Run
+
+    ./configure --prefix=/usr && make -j8
 
 and then follow your usual packaging procedures for the
 `build/0/package` files:
 
-        build/0/package/man/man3/cpucycles.3
-        build/0/package/include/cpucycles.h
-        build/0/package/lib/libcpucycles*
-        build/0/package/bin/cpucycles-info
+    build/0/package/man/man3/cpucycles.3
+    build/0/package/include/cpucycles.h
+    build/0/package/lib/libcpucycles*
+    build/0/package/bin/cpucycles-info
 
 There are some old systems where libcpucycles requires `-lrt` for
 `clock_gettime`; currently `libcpucycles.so` doesn't link to `-lrt`,
 so it's up to the caller to link to `-lrt`.
 
-More options: You can run
+### More options
 
-        ./configure --host=amd64
+You can run
+
+    ./configure --host=amd64
 
 to override `./configure`'s guess of the architecture that it should
 compile for. The architecture controls which cycle counters to try

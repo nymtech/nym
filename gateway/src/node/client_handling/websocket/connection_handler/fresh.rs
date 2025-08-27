@@ -1015,12 +1015,19 @@ impl<R, S> FreshHandler<R, S> {
         R: CryptoRng + RngCore + Send,
     {
         while !shutdown.is_shutdown() {
+            let current_span = tracing::Span::current();
             let req = tokio::select! {
                 biased;
                 _ = shutdown.recv() => {
+                    let _shutdown_span = tracing::span!(parent: current_span, tracing::Level::DEBUG, "shutdown");
+                    let _span_guard = _shutdown_span.enter();
                     return None
                 },
-                req = self.wait_for_initial_message() => req,
+                req = self.wait_for_initial_message() => {
+                    let _msg_span = tracing::span!(parent: current_span, tracing::Level::DEBUG, "initial_message");
+                    let _span_guard = _msg_span.enter();
+                    req
+                },
             };
 
             let initial_request = match req {

@@ -38,7 +38,7 @@ pub fn default_tracing_env_filter() -> tracing_subscriber::filter::EnvFilter {
     } else {
         // if the env value was not found, default to `INFO` level rather than `ERROR`
         tracing_subscriber::filter::EnvFilter::builder()
-            .with_default_directive(tracing_subscriber::filter::LevelFilter::INFO.into())
+            .with_default_directive(tracing_subscriber::filter::LevelFilter::DEBUG.into())
             .parse_lossy("")
     }
 }

@@ -169,7 +169,7 @@ default-members = [
     "tools/nymvisor",
 ]
 
-exclude = ["explorer", "contracts", "nym-wallet", "cpu-cycles"]
+exclude = ["contracts", "nym-wallet", "cpu-cycles"]
 
 [workspace.package]
 authors = ["Nym Technologies SA"]

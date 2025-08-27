@@ -1118,6 +1118,7 @@ impl<R, S> FreshHandler<R, S> {
             .map_err(|_| InitialAuthenticationError::InvalidRequest)
     }
 
+    #[instrument(skip_all)]
     pub(crate) async fn start_handling(self)
     where
         S: AsyncRead + AsyncWrite + Unpin + Send,

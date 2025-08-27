@@ -32,58 +32,58 @@ const {
 
 let client = null;
 
-function dummyTopology() {
-  const l1Mixnode = {
-    mixId: 1,
-    owner: "n1lftjhnl35cjsfd533zhgrwrspx6qmumd8vjgp9",
-    host: "80.85.86.75",
-    mixPort: 1789,
-    identityKey: "91mNjhJSBkJ9Lb6f1iuYMDQPLiX3kAv6paSUCWjGRwQz",
-    sphinxKey: "DmfN1mL1T95nPXvLK44AQKCpW1pStHNQCi6Fgpz5dxDV",
-    layer: 1,
-    version: "1.1.20",
-  };
-  const l2Mixnode = {
-    mixId: 2,
-    owner: "n18ztkyh20gwzrel0e5m4sahd358fq9p4skwa7d3",
-    host: "139.162.199.75",
-    mixPort: 1789,
-    identityKey: "BkLhuKQNyPS19sHZ3HHKCTKwK7hCU6XiFLndyZZHiB7s",
-    sphinxKey: "7KGC97tJRhJZKhDqFcsp4Vu715VVxizuD7BktnzuSmZC",
-    layer: 2,
-    version: "1.1.20",
-  };
-  const l3Mixnode = {
-    mixId: 3,
-    owner: "n1njq8h4nndp7ngays5el2rdp22hq67lwqcaq3ph",
-    host: "139.162.244.139",
-    identityKey: "EPja9Kv8JtPHsFbzPdBQierMu5GmQy5roE5njyD6dmND",
-    sphinxKey: "HWpsZChDrtEH8XNscW3qJMRzdCfUD8N8DmMcKqFv7tcf",
-    layer: 3,
-  };
+// function dummyTopology() {
+//   const l1Mixnode = {
+//     mixId: 1,
+//     owner: "n1lftjhnl35cjsfd533zhgrwrspx6qmumd8vjgp9",
+//     host: "80.85.86.75",
+//     mixPort: 1789,
+//     identityKey: "91mNjhJSBkJ9Lb6f1iuYMDQPLiX3kAv6paSUCWjGRwQz",
+//     sphinxKey: "DmfN1mL1T95nPXvLK44AQKCpW1pStHNQCi6Fgpz5dxDV",
+//     layer: 1,
+//     version: "1.1.20",
+//   };
+//   const l2Mixnode = {
+//     mixId: 2,
+//     owner: "n18ztkyh20gwzrel0e5m4sahd358fq9p4skwa7d3",
+//     host: "139.162.199.75",
+//     mixPort: 1789,
+//     identityKey: "BkLhuKQNyPS19sHZ3HHKCTKwK7hCU6XiFLndyZZHiB7s",
+//     sphinxKey: "7KGC97tJRhJZKhDqFcsp4Vu715VVxizuD7BktnzuSmZC",
+//     layer: 2,
+//     version: "1.1.20",
+//   };
+//   const l3Mixnode = {
+//     mixId: 3,
+//     owner: "n1njq8h4nndp7ngays5el2rdp22hq67lwqcaq3ph",
+//     host: "139.162.244.139",
+//     identityKey: "EPja9Kv8JtPHsFbzPdBQierMu5GmQy5roE5njyD6dmND",
+//     sphinxKey: "HWpsZChDrtEH8XNscW3qJMRzdCfUD8N8DmMcKqFv7tcf",
+//     layer: 3,
+//   };
 
-  const gateway = {
-    owner: "n1d9lclqnfddgg57xe5p0fw4ng54m9f95hal5tlq",
-    host: "85.159.211.99",
-    mixPort: 1789,
-    clientsPort: 9000,
-    identityKey: "6pXQcG1Jt9hxBzMgTbQL5Y58z6mu4KXVRbA1idmibwsw",
-    sphinxKey: "GSdqV7GFSwHWQrVV13pNLMeafTLDVFKBKVPxuhdGrpR3",
-    version: "1.1.19",
-  };
+//   const gateway = {
+//     owner: "n1d9lclqnfddgg57xe5p0fw4ng54m9f95hal5tlq",
+//     host: "85.159.211.99",
+//     mixPort: 1789,
+//     clientsPort: 9000,
+//     identityKey: "6pXQcG1Jt9hxBzMgTbQL5Y58z6mu4KXVRbA1idmibwsw",
+//     sphinxKey: "GSdqV7GFSwHWQrVV13pNLMeafTLDVFKBKVPxuhdGrpR3",
+//     version: "1.1.19",
+//   };
 
-  const mixnodes = new Map();
-  mixnodes.set(1, [l1Mixnode]);
-  mixnodes.set(2, [l2Mixnode]);
-  mixnodes.set(3, [l3Mixnode]);
+//   const mixnodes = new Map();
+//   mixnodes.set(1, [l1Mixnode]);
+//   mixnodes.set(2, [l2Mixnode]);
+//   mixnodes.set(3, [l3Mixnode]);
 
-  const gateways = [gateway];
+//   const gateways = [gateway];
 
-  return {
-    mixnodes,
-    gateways,
-  };
-}
+//   return {
+//     mixnodes,
+//     gateways,
+//   };
+// }
 
 function printAndDisplayTestResult(result) {
   result.log_details();
@@ -102,8 +102,8 @@ function printAndDisplayTestResult(result) {
 }
 
 async function wasm_bindgenSetup(onMessageHandler) {
-  const preferredGateway = "6qQYb4ArXANU6HJDxzH4PFCUqYb39Dae2Gem2KpxescM";
-  const validator = "https://qa-nym-api.qa.nymte.ch/api";
+  // const preferredGateway = "6qQYb4ArXANU6HJDxzH4PFCUqYb39Dae2Gem2KpxescM";
+  // const validator = "https://qa-nym-api.qa.nymte.ch/api";
 
   // STEP 1. construct config
   // those are just some examples, there are obviously more permutations;
@@ -156,7 +156,6 @@ async function wasm_bindgenSetup(onMessageHandler) {
 }
 
 async function nativeSetup(onMessageHandler) {
-  // const preferredGateway = "8ookuLkA9oWfRTjb7Jq4tLGcWrqoXKGQxw84MjMrv2S4";
   const validator = "https://validator.nymtech.net/api";
 
   // those are just some examples, there are obviously more permutations;
@@ -187,18 +186,16 @@ async function nativeSetup(onMessageHandler) {
   return new NymClient(onMessageHandler, {
     // storagePassphrase: "foomp",
     nymApiUrl: validator,
-    clientId: "my-client",
-    clientOverride: noCoverTrafficOverride,
+    // clientId: "my-client",
+    // clientOverride: noCoverTrafficOverride,
   });
 }
 
-console.log("after return");
-
 async function normalNymClientUsage() {
-  self.postMessage({ kind: "DisableMagicTestButton" });
+  // self.postMessage({ kind: "DisableMagicTestButton" });
 
   const onMessageHandler = (message) => {
-    console.log("abc", message);
+    console.log(">>>>> RECEIVED", message);
     self.postMessage({
       kind: "ReceiveMessage",
       args: {
@@ -208,13 +205,19 @@ async function normalNymClientUsage() {
   };
 
   console.log("Instantiating WASM client...");
-  // let localClient = await wasm_bindgenSetup(onMessageHandler)
-  let localClient = await nativeSetup(onMessageHandler);
-  console.log("WASM client running!");
+
+  const validator = "https://validator.nymtech.net/api";
+
+  const config = new ClientConfig({
+    nymApiUrl: validator,
+  });
+
+  let localClient = await NymClient.newWithConfig(config, onMessageHandler, {});
+
+  console.log(">>>>>>>>>>>> WASM client running!");
 
   const selfAddress = localClient.selfAddress();
 
-  // set the global (I guess we don't have to anymore?)
   client = localClient;
 
   console.log(`Client address is ${selfAddress}`);
@@ -225,7 +228,6 @@ async function normalNymClientUsage() {
     },
   });
 
-  // Set callback to handle messages passed to the worker.
   self.onmessage = async (event) => {
     console.log(event);
     if (event.data && event.data.kind) {
@@ -256,7 +258,7 @@ async function main() {
   //
   // 'Normal' client setup (to send 'normal' messages)
   await normalNymClientUsage();
-  //
+
   console.log(">>>>>>>>>>>>>>>>>>>>> JS WORKER MAIN END");
 }
 

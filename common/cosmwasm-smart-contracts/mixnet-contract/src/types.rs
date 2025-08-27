@@ -3,6 +3,7 @@
 
 use crate::config_score::{ConfigScoreParams, OutdatedVersionWeights, VersionScoreFormulaParams};
 use crate::nym_node::Role;
+use crate::reward_params::RewardedSetParams;
 use crate::EpochId;
 use contracts_common::Percent;
 use cosmwasm_schema::cw_serde;
@@ -85,7 +86,11 @@ impl RewardedSet {
     }
 
     pub fn rewarded_set_size(&self) -> usize {
-        self.active_set_size() + self.standby.len()
+        self.active_set_size() + self.standby_set_size()
+    }
+
+    pub fn standby_set_size(&self) -> usize {
+        self.standby.len()
     }
 
     pub fn get_role(&self, node_id: NodeId) -> Option<Role> {
@@ -109,6 +114,13 @@ impl RewardedSet {
             return Some(Role::Standby);
         }
         None
+    }
+
+    pub fn matches_parameters(&self, params: RewardedSetParams) -> bool {
+        self.entry_gateways.len() <= params.entry_gateways as usize
+            && self.exit_gateways.len() <= params.exit_gateways as usize
+            && self.layer1.len() + self.layer2.len() + self.layer3.len() <= params.mixnodes as usize
+            && self.standby.len() <= params.standby as usize
     }
 }
 

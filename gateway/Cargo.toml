@@ -85,5 +85,5 @@ defguard_wireguard_rs = { workspace = true }
 [dev-dependencies]
 nym-gateway-storage = { path = "../common/gateway-storage", features = ["mock"] }
 nym-wireguard = { path = "../common/wireguard", features = ["mock"] }
-mock_instant = "0.5.3"
+mock_instant = "0.6.0"
 time = { workspace = true }

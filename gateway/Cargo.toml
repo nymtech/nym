@@ -11,7 +11,7 @@ authors = [
 ]
 description = "Implementation of the Nym Mixnet Gateway"
 edition = "2021"
-rust-version = "1.76"
+rust-version = "1.77"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -20,13 +20,16 @@ path = "src/lib.rs"
 
 [dependencies]
 anyhow = { workspace = true }
+bincode = { workspace = true }
 async-trait = { workspace = true }
 bip39 = { workspace = true }
 bs58 = { workspace = true }
 dashmap = { workspace = true }
+fastrand = { workspace = true }
 futures = { workspace = true }
 ipnetwork = { workspace = true }
 rand = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
 sha2 = { workspace = true }
 thiserror = { workspace = true }
 time = { workspace = true }
@@ -44,8 +47,8 @@ tracing = { workspace = true }
 url = { workspace = true, features = ["serde"] }
 zeroize = { workspace = true }
 
+
 # internal
-nym-authenticator = { path = "../service-providers/authenticator" }
 nym-api-requests = { path = "../nym-api/nym-api-requests" }
 nym-credentials = { path = "../common/credentials" }
 nym-credentials-interface = { path = "../common/credentials-interface" }
@@ -71,13 +74,16 @@ nym-node-metrics = { path = "../nym-node/nym-node-metrics" }
 nym-wireguard = { path = "../common/wireguard" }
 nym-wireguard-types = { path = "../common/wireguard-types", default-features = false }
 
+nym-authenticator-requests = { path = "../common/authenticator-requests" }
+nym-client-core = { path = "../common/client-core", features = ["cli"] }
+nym-id = { path = "../common/nym-id" }
+nym-service-provider-requests-common = { path = "../common/service-provider-requests-common" }
+
+
 defguard_wireguard_rs = { workspace = true }
 
-[build-dependencies]
-tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
-sqlx = { workspace = true, features = [
-    "runtime-tokio-rustls",
-    "sqlite",
-    "macros",
-    "migrate",
-] }
+[dev-dependencies]
+nym-gateway-storage = { path = "../common/gateway-storage", features = ["mock"] }
+nym-wireguard = { path = "../common/wireguard", features = ["mock"] }
+mock_instant = "0.5.3"
+time = { workspace = true }

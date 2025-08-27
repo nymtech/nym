@@ -1,8 +1,7 @@
-// Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use std::{net::IpAddr, path::Path, sync::Arc, time::SystemTime};
-
+use crate::node::internal_service_providers::authenticator::error::AuthenticatorError;
 use futures::channel::oneshot;
 use ipnetwork::IpNetwork;
 use nym_client_core::{HardcodedTopologyProvider, TopologyProvider};
@@ -10,8 +9,16 @@ use nym_credential_verification::ecash::EcashManager;
 use nym_sdk::{mixnet::Recipient, GatewayTransceiver};
 use nym_task::{TaskClient, TaskHandle};
 use nym_wireguard::WireguardGatewayData;
+use std::{net::IpAddr, path::Path, sync::Arc, time::SystemTime};
 
-use crate::{config::Config, error::AuthenticatorError};
+pub mod config;
+pub mod error;
+pub mod mixnet_client;
+pub mod mixnet_listener;
+mod peer_manager;
+mod seen_credential_cache;
+
+pub use config::Config;
 
 pub struct OnStartData {
     // to add more fields as required
@@ -26,7 +33,7 @@ impl OnStartData {
 
 pub struct Authenticator {
     #[allow(unused)]
-    config: Config,
+    config: crate::node::internal_service_providers::authenticator::Config,
     wait_for_gateway: bool,
     custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
     custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send + Sync>>,
@@ -39,7 +46,7 @@ pub struct Authenticator {
 
 impl Authenticator {
     pub fn new(
-        config: Config,
+        config: crate::node::internal_service_providers::authenticator::Config,
         wireguard_gateway_data: WireguardGatewayData,
         used_private_network_ips: Vec<IpAddr>,
         ecash_verifier: Arc<EcashManager>,
@@ -119,7 +126,7 @@ impl Authenticator {
         let task_handle: TaskHandle = self.shutdown.map(Into::into).unwrap_or_default();
 
         // Connect to the mixnet
-        let mixnet_client = crate::mixnet_client::create_mixnet_client(
+        let mixnet_client = crate::node::internal_service_providers::authenticator::mixnet_client::create_mixnet_client(
             &self.config.base,
             task_handle
                 .get_handle()
@@ -129,7 +136,7 @@ impl Authenticator {
             self.wait_for_gateway,
             &self.config.storage_paths.common_paths,
         )
-        .await?;
+            .await?;
 
         let self_address = *mixnet_client.nym_address();
 
@@ -150,7 +157,7 @@ impl Authenticator {
                 }
             })
             .collect();
-        let mixnet_listener = crate::mixnet_listener::MixnetListener::new(
+        let mixnet_listener = crate::node::internal_service_providers::authenticator::mixnet_listener::MixnetListener::new(
             self.config,
             free_private_network_ips,
             self.wireguard_gateway_data,
@@ -159,8 +166,8 @@ impl Authenticator {
             self.ecash_verifier,
         );
 
-        log::info!("The address of this client is: {self_address}");
-        log::info!("All systems go. Press CTRL-C to stop the server.");
+        tracing::info!("The address of this client is: {self_address}");
+        tracing::info!("All systems go. Press CTRL-C to stop the server.");
 
         if let Some(on_start) = self.on_start {
             if on_start.send(OnStartData::new(self_address)).is_err() {

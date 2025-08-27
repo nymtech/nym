@@ -7,6 +7,7 @@ use clap::crate_version;
 use nym_gateway::node::{
     LocalAuthenticatorOpts, LocalIpPacketRouterOpts, LocalNetworkRequesterOpts,
 };
+use nym_gateway::nym_authenticator;
 
 // a temporary solution until further refactoring is made
 fn ephemeral_gateway_config(config: &Config) -> nym_gateway::config::Config {
@@ -182,7 +183,6 @@ pub fn gateway_tasks_config(config: &Config) -> GatewayTasksConfig {
                     .authenticator
                     .to_common_client_paths(),
             },
-            logging: config.logging,
         },
         custom_mixnet_path: None,
     };

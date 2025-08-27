@@ -5,10 +5,10 @@ use crate::node::client_handling::embedded_clients::{LocalEmbeddedClientHandle, 
 use crate::node::client_handling::websocket::message_receiver::{
     MixMessageReceiver, MixMessageSender,
 };
+use crate::node::internal_service_providers::authenticator::Authenticator;
 use crate::GatewayError;
 use async_trait::async_trait;
 use futures::channel::{mpsc, oneshot};
-use nym_authenticator::Authenticator;
 use nym_crypto::asymmetric::ed25519;
 use nym_ip_packet_router::error::IpPacketRouterError;
 use nym_ip_packet_router::IpPacketRouter;
@@ -21,6 +21,8 @@ use nym_task::TaskClient;
 use std::fmt::Display;
 use tokio::task::JoinHandle;
 use tracing::error;
+
+pub mod authenticator;
 
 pub trait LocalRecipient {
     fn address(&self) -> Recipient;
@@ -38,7 +40,7 @@ impl LocalRecipient for nym_ip_packet_router::OnStartData {
     }
 }
 
-impl LocalRecipient for nym_authenticator::OnStartData {
+impl LocalRecipient for authenticator::OnStartData {
     fn address(&self) -> Recipient {
         self.address
     }
@@ -78,8 +80,8 @@ impl RunnableServiceProvider for IpPacketRouter {
 #[async_trait]
 impl RunnableServiceProvider for Authenticator {
     const NAME: &'static str = "authenticator";
-    type OnStartData = nym_authenticator::OnStartData;
-    type Error = nym_authenticator::error::AuthenticatorError;
+    type OnStartData = authenticator::OnStartData;
+    type Error = authenticator::error::AuthenticatorError;
 
     async fn run_service_provider(self) -> Result<(), Self::Error> {
         self.run_service_provider().await

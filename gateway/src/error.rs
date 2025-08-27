@@ -1,7 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use nym_authenticator::error::AuthenticatorError;
+use crate::node::internal_service_providers::authenticator::error::AuthenticatorError;
 use nym_gateway_stats_storage::error::StatsStorageError;
 use nym_gateway_storage::error::GatewayStorageError;
 use nym_ip_packet_router::error::IpPacketRouterError;

@@ -1,12 +1,11 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use anyhow::Context;
-
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     #[cfg(feature = "fs-surb-storage")]
     {
+        use anyhow::Context;
         use sqlx::{Connection, SqliteConnection};
         use std::env;
 

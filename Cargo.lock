@@ -5277,10 +5277,12 @@ version = "1.4.0-rc.0"
 dependencies = [
  "anyhow",
  "futures",
+ "gloo-timers",
  "js-sys",
  "nym-bin-common",
  "nym-node-tester-utils",
  "nym-node-tester-wasm",
+ "once_cell",
  "rand 0.8.5",
  "serde",
  "serde-wasm-bindgen 0.6.5",

@@ -88,8 +88,13 @@ pub fn setup_tracing_logger() -> Result<(), TracingError> {
     let tracer_provider = init_tracer_provider(metadata)?;
     let meter_provider = init_meter_provider()?;
     let tracer = tracer_provider.tracer("tracing-otel-subscriber");
-    let stderr_layer =
-        default_tracing_fmt_layer(std::io::stderr).with_filter(granual_filtered_env()?);
+    let fmt_layer = fmt::layer()
+        .json()
+        .with_writer(std::io::stderr)
+        .with_span_events(FmtSpan::NEW | FmtSpan::CLOSE)
+        .with_span_list(false)
+        .with_current_span(true)
+        .event_format(trace_id_format::TraceIdFormat);
 
     cfg_if::cfg_if! {if #[cfg(feature = "tokio-console")] {
         // instrument tokio console subscriber needs RUSTFLAGS="--cfg tokio_unstable" at build time
@@ -97,16 +102,22 @@ pub fn setup_tracing_logger() -> Result<(), TracingError> {
 
         tracing_subscriber::registry()
             .with(console_layer)
-            .with(stderr_layer)
+            .with(fmt_layer)
+            .with(granual_filtered_env()?)
+            .with(tracing_subscriber::filter::LevelFilter::from_level(Level::DEBUG))
             .with(MetricsLayer::new(meter_provider))
             .with(OpenTelemetryLayer::new(tracer))
-            .init();
+            .try_init()
+            .map_err(|e| TracingError::TracingTryInitError(e))?;
     } else {
         tracing_subscriber::registry()
-            .with(stderr_layer)
+            .with(fmt_layer)
+            .with(granual_filtered_env()?)
+            .with(tracing_subscriber::filter::LevelFilter::from_level(Level::DEBUG))
             .with(MetricsLayer::new(meter_provider))
             .with(OpenTelemetryLayer::new(tracer))
-            .init();
+            .try_init()
+            .map_err(|e| TracingError::TracingTryInitError(e))?;
     }}
     
     Ok(())

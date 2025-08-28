@@ -87,17 +87,18 @@ impl NymApiTopologyProvider {
         }
 
         self.currently_used_api = (self.currently_used_api + 1) % self.nym_api_urls.len();
-        
+
         // Provide all URLs starting from the next one in rotation order
         // This enables automatic failover to other endpoints
-        let rotated_urls: Vec<_> = self.nym_api_urls
+        let rotated_urls: Vec<_> = self
+            .nym_api_urls
             .iter()
             .cycle()
             .skip(self.currently_used_api)
             .take(self.nym_api_urls.len())
             .map(|u| u.clone().into())
             .collect();
-        
+
         self.validator_client.change_base_urls(rotated_urls)
     }
 

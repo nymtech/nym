@@ -88,16 +88,17 @@ impl NymApisClient {
             drop(guard);
             let mut guard = self.inner.write().await;
             guard.currently_used_api = last_working_endpoint;
-            
+
             // Provide all URLs starting from the working endpoint for automatic failover
-            let rotated_urls: Vec<_> = guard.available_urls
+            let rotated_urls: Vec<_> = guard
+                .available_urls
                 .iter()
                 .cycle()
                 .skip(last_working_endpoint)
                 .take(guard.available_urls.len())
                 .map(|u| u.clone().into())
                 .collect();
-            
+
             guard.active_client.change_base_urls(rotated_urls);
         }
 

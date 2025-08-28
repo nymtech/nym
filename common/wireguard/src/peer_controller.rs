@@ -436,6 +436,9 @@ struct MockWgApi {
 }
 
 #[cfg(feature = "mock")]
+// unwraps, etc. are fine in test code
+#[allow(clippy::unwrap_used)]
+#[allow(clippy::todo)]
 impl WireguardInterfaceApi for MockWgApi {
     fn create_interface(
         &self,
@@ -550,6 +553,8 @@ pub fn start_controller(
 }
 
 #[cfg(feature = "mock")]
+// unwraps are fine in test code
+#[allow(clippy::unwrap_used)]
 pub async fn stop_controller(mut task_manager: nym_task::TaskManager) {
     task_manager.signal_shutdown().unwrap();
     task_manager.wait_for_shutdown().await;

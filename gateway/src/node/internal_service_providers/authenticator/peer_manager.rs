@@ -243,7 +243,7 @@ mod tests {
             Authenticator::default().into(),
             Arc::new(KeyPair::new(&mut OsRng)),
         );
-        let mut peer_manager = PeerManager::new(wireguard_data);
+        let peer_manager = PeerManager::new(wireguard_data);
         let (storage, task_manager) = start_controller(
             peer_manager.wireguard_gateway_data.peer_tx().clone(),
             request_rx,

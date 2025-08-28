@@ -12,7 +12,7 @@ use nym_task::{TaskClient, TaskHandle};
 use nym_wireguard::WireguardGatewayData;
 use std::{net::IpAddr, path::Path, sync::Arc, time::SystemTime};
 
-pub(crate) use config::Config;
+pub use config::Config;
 
 pub mod config;
 pub mod error;

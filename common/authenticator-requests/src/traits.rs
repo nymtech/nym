@@ -11,7 +11,7 @@ use nym_wireguard_types::PeerPublicKey;
 use serde::{Deserialize, Serialize};
 use tracing::error;
 
-use crate::latest::registration::IpPair;
+use crate::latest::registration::{GatewayClient, IpPair};
 use crate::{v1, v2, v3, v4, v5, v6, Error};
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
@@ -28,39 +28,6 @@ impl TryFrom<CredentialSpendingData> for BandwidthClaim {
             kind: TicketType::try_from_encoded(credential.payment.t_type)?,
             credential: BandwidthCredential::from(credential),
         })
-    }
-}
-
-#[derive(Copy, Clone, Debug)]
-pub enum AuthenticatorVersion {
-    V1,
-    V2,
-    V3,
-    V4,
-    V5,
-    V6,
-    UNKNOWN,
-}
-
-impl From<Protocol> for AuthenticatorVersion {
-    fn from(value: Protocol) -> Self {
-        if value.service_provider_type != ServiceProviderType::Authenticator {
-            AuthenticatorVersion::UNKNOWN
-        } else if value.version == v1::VERSION {
-            AuthenticatorVersion::V1
-        } else if value.version == v2::VERSION {
-            AuthenticatorVersion::V2
-        } else if value.version == v3::VERSION {
-            AuthenticatorVersion::V3
-        } else if value.version == v4::VERSION {
-            AuthenticatorVersion::V4
-        } else if value.version == v5::VERSION {
-            AuthenticatorVersion::V5
-        } else if value.version == v6::VERSION {
-            AuthenticatorVersion::V6
-        } else {
-            AuthenticatorVersion::UNKNOWN
-        }
     }
 }
 
@@ -108,6 +75,7 @@ pub trait FinalMessage {
     fn pub_key(&self) -> PeerPublicKey;
     fn verify(&self, private_key: &PrivateKey, nonce: u64) -> Result<(), Error>;
     fn private_ips(&self) -> IpPair;
+    fn gateway_client(&self) -> GatewayClient;
     fn credential(&self) -> Option<BandwidthClaim>;
 }
 
@@ -122,6 +90,14 @@ impl FinalMessage for v1::GatewayClient {
 
     fn private_ips(&self) -> IpPair {
         self.private_ip.into()
+    }
+
+    fn gateway_client(&self) -> GatewayClient {
+        GatewayClient {
+            pub_key: self.pub_key,
+            private_ips: self.private_ip.into(),
+            mac: self.mac.to_vec().into(),
+        }
     }
 
     fn credential(&self) -> Option<BandwidthClaim> {
@@ -140,6 +116,14 @@ impl FinalMessage for v2::registration::FinalMessage {
 
     fn private_ips(&self) -> IpPair {
         self.gateway_client.private_ip.into()
+    }
+
+    fn gateway_client(&self) -> GatewayClient {
+        GatewayClient {
+            pub_key: self.gateway_client.pub_key,
+            private_ips: self.gateway_client.private_ip.into(),
+            mac: self.gateway_client.mac.to_vec().into(),
+        }
     }
 
     fn credential(&self) -> Option<BandwidthClaim> {
@@ -164,6 +148,14 @@ impl FinalMessage for v3::registration::FinalMessage {
         self.gateway_client.private_ip.into()
     }
 
+    fn gateway_client(&self) -> GatewayClient {
+        GatewayClient {
+            pub_key: self.gateway_client.pub_key,
+            private_ips: self.gateway_client.private_ip.into(),
+            mac: self.gateway_client.mac.to_vec().into(),
+        }
+    }
+
     fn credential(&self) -> Option<BandwidthClaim> {
         self.credential.clone().and_then(|c| {
             c.try_into()
@@ -183,7 +175,13 @@ impl FinalMessage for v4::registration::FinalMessage {
     }
 
     fn private_ips(&self) -> IpPair {
+        // convert v4 to v5 and then v5 to current (current as of 28.08.25)
         v5::registration::IpPair::from(self.gateway_client.private_ips).into()
+    }
+
+    fn gateway_client(&self) -> GatewayClient {
+        // convert v4 to v5 and then v5 to current (current as of 28.08.25)
+        v5::registration::GatewayClient::from(self.gateway_client.clone()).into()
     }
 
     fn credential(&self) -> Option<BandwidthClaim> {
@@ -208,6 +206,10 @@ impl FinalMessage for v5::registration::FinalMessage {
         self.gateway_client.private_ips.into()
     }
 
+    fn gateway_client(&self) -> GatewayClient {
+        self.gateway_client.clone().into()
+    }
+
     fn credential(&self) -> Option<BandwidthClaim> {
         self.credential.clone().and_then(|c| {
             c.try_into()
@@ -228,6 +230,10 @@ impl FinalMessage for v6::registration::FinalMessage {
 
     fn private_ips(&self) -> IpPair {
         self.gateway_client.private_ips
+    }
+
+    fn gateway_client(&self) -> GatewayClient {
+        self.gateway_client.clone()
     }
 
     fn credential(&self) -> Option<BandwidthClaim> {

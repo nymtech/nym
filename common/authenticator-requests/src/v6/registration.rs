@@ -201,6 +201,12 @@ impl fmt::Display for ClientMac {
     }
 }
 
+impl From<Vec<u8>> for ClientMac {
+    fn from(v: Vec<u8>) -> Self {
+        ClientMac(v)
+    }
+}
+
 impl ClientMac {
     #[allow(dead_code)]
     pub fn new(mac: Vec<u8>) -> Self {

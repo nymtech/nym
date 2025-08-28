@@ -14,10 +14,9 @@ use nym_authenticator_requests::{latest, v4::registration::IpPair};
 use nym_authenticator_requests::{
     latest::registration::{GatewayClient, PendingRegistrations, PrivateIPs},
     traits::{
-        AuthenticatorRequest, AuthenticatorVersion, FinalMessage, InitMessage,
-        QueryBandwidthMessage, TopUpMessage,
+        AuthenticatorRequest, FinalMessage, InitMessage, QueryBandwidthMessage, TopUpMessage,
     },
-    v1, v2, v3, v4, v5, v6, CURRENT_VERSION,
+    v1, v2, v3, v4, v5, v6, AuthenticatorVersion, CURRENT_VERSION,
 };
 use nym_credential_verification::ecash::traits::EcashManager;
 use nym_credential_verification::{

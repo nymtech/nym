@@ -11,11 +11,13 @@ pub mod v6;
 
 mod error;
 mod util;
+mod version;
 
 pub use error::Error;
 pub use v6 as latest;
+pub use version::AuthenticatorVersion;
 
-pub const CURRENT_VERSION: u8 = 6;
+pub const CURRENT_VERSION: u8 = latest::VERSION;
 
 fn make_bincode_serializer() -> impl bincode::Options {
     use bincode::Options;

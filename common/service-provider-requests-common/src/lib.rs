@@ -91,6 +91,8 @@ impl Protocol {
     }
 }
 
+// NOTE: this only works under the assumption of using bincode for serialisation
+// with the current field layout
 impl TryFrom<&[u8; 2]> for Protocol {
     type Error = ProtocolError;
 

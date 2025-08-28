@@ -163,6 +163,7 @@ pub async fn start_wireguard(
     ecash_manager: Arc<EcashManager>,
     metrics: nym_node_metrics::NymNodeMetrics,
     peers: Vec<Peer>,
+    upgrade_mode_status: nym_credential_verification::upgrade_mode::UpgradeModeStatus,
     task_client: nym_task::TaskClient,
     wireguard_data: WireguardData,
 ) -> Result<std::sync::Arc<WgApiWrapper>, Box<dyn std::error::Error + Send + Sync + 'static>> {
@@ -250,6 +251,7 @@ pub async fn start_wireguard(
         peer_bandwidth_managers,
         wireguard_data.inner.peer_tx.clone(),
         wireguard_data.peer_rx,
+        upgrade_mode_status,
         task_client,
     );
     tokio::spawn(async move { controller.run().await });

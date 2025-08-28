@@ -573,6 +573,7 @@ impl GatewayTasksBuilder {
             ecash_manager,
             self.metrics.clone(),
             all_peers,
+            self.upgrade_mode_state.upgrade_mode_status(),
             self.legacy_task_client.fork("wireguard"),
             wireguard_data,
         )

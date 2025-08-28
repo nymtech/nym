@@ -1,0 +1,25 @@
+[package]
+name = "nym-wireguard-private-metadata-shared"
+version = "1.0.0"
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+axum = { workspace = true }
+bincode = { workspace = true }
+schemars = { workspace = true, features = ["preserve_order"] }
+serde = { workspace = true }
+thiserror = { workspace = true }
+utoipa = { workspace = true }
+
+nym-credentials-interface = { path = "../../credentials-interface" }
+
+[features]
+testing = []
+
+[lints]
+workspace = true

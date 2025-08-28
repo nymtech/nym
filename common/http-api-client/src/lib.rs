@@ -136,6 +136,7 @@
 //! ```
 #![warn(missing_docs)]
 
+pub use reqwest::ClientBuilder as ReqwestClientBuilder;
 pub use reqwest::StatusCode;
 
 use crate::path::RequestPath;

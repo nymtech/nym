@@ -72,7 +72,7 @@ nym-ip-packet-router = { path = "../service-providers/ip-packet-router" }
 nym-node-metrics = { path = "../nym-node/nym-node-metrics" }
 
 nym-wireguard = { path = "../common/wireguard" }
-nym-wireguard-private-metadata = { path = "../common/wireguard-private-metadata" }
+nym-wireguard-private-metadata-server = { path = "../common/wireguard-private-metadata/server" }
 nym-wireguard-types = { path = "../common/wireguard-types", default-features = false }
 
 nym-authenticator-requests = { path = "../common/authenticator-requests" }

@@ -80,7 +80,7 @@ mod tests {
                 assert_eq!(protocol_version, Some(42));
                 assert_eq!(data, handshake_data)
             }
-            _ => unreachable!("this branch shouldn't have been reached!"),
+            _ => panic!("this branch shouldn't have been reached!"),
         }
 
         let handshake_payload_without_protocol = RegistrationHandshake::HandshakePayload {
@@ -98,7 +98,7 @@ mod tests {
                 assert!(protocol_version.is_none());
                 assert_eq!(data, handshake_data)
             }
-            _ => unreachable!("this branch shouldn't have been reached!"),
+            _ => panic!("this branch shouldn't have been reached!"),
         }
     }
 }

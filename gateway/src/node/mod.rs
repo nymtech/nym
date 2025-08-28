@@ -527,6 +527,7 @@ impl GatewayTasksBuilder {
     }
 
     #[cfg(not(target_os = "linux"))]
+    #[allow(clippy::unimplemented)]
     pub async fn try_start_wireguard(
         &mut self,
     ) -> Result<Arc<nym_wireguard::WgApiWrapper>, Box<dyn std::error::Error + Send + Sync>> {

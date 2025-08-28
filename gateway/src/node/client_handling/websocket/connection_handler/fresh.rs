@@ -210,11 +210,12 @@ impl<R, S> FreshHandler<R, S> {
                 )
                 .await
             }
-            _ => unreachable!(),
+            _ => Err(HandshakeError::ConnectionInInvalidState),
         }
     }
 
     /// Attempts to read websocket message from the associated socket.
+    #[allow(clippy::panic)]
     pub(crate) async fn read_websocket_message(&mut self) -> Option<Result<Message, WsError>>
     where
         S: AsyncRead + AsyncWrite + Unpin,
@@ -230,6 +231,7 @@ impl<R, S> FreshHandler<R, S> {
     /// # Arguments
     ///
     /// * `msg`: WebSocket message to write back to the client.
+    #[allow(clippy::panic)]
     pub(crate) async fn send_websocket_message(
         &mut self,
         msg: impl Into<Message>,
@@ -273,6 +275,7 @@ impl<R, S> FreshHandler<R, S> {
     ///
     /// * `shared_keys`: keys derived between the client and gateway.
     /// * `packets`: unwrapped packets that are to be pushed back to the client.
+    #[allow(clippy::panic)]
     pub(crate) async fn push_packets_to_client(
         &mut self,
         shared_keys: &SharedGatewayKey,
@@ -936,12 +939,15 @@ impl<R, S> FreshHandler<R, S> {
                 let (mix_sender, mix_receiver) = mpsc::unbounded();
                 // Channel for handlers to ask other handlers if they are still active.
                 let (is_active_request_sender, is_active_request_receiver) = mpsc::unbounded();
-                self.shared_state.active_clients_store.insert_remote(
+                if !self.shared_state.active_clients_store.insert_remote(
                     registration_details.address,
                     mix_sender,
                     is_active_request_sender,
                     registration_details.session_request_timestamp,
-                );
+                ) {
+                    error!("failed to insert remote client handle as it already existed!");
+                    return None;
+                }
 
                 return AuthenticatedHandler::upgrade(
                     self,

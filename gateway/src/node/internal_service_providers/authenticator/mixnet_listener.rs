@@ -291,7 +291,7 @@ impl MixnetListener {
                     v1::registration::RegistredData {
                         pub_key: PeerPublicKey::new(self.keypair().public_key().to_bytes().into()),
                         private_ip: allowed_ipv4.into(),
-                        wg_port: self.config.authenticator.announced_port,
+                        wg_port: self.config.authenticator.tunnel_announced_port,
                     },
                     reply_to.ok_or(AuthenticatorError::MissingReplyToForOldClient)?,
                     request_id,
@@ -304,7 +304,7 @@ impl MixnetListener {
                     v2::registration::RegistredData {
                         pub_key: PeerPublicKey::new(self.keypair().public_key().to_bytes().into()),
                         private_ip: allowed_ipv4.into(),
-                        wg_port: self.config.authenticator.announced_port,
+                        wg_port: self.config.authenticator.tunnel_announced_port,
                     },
                     reply_to.ok_or(AuthenticatorError::MissingReplyToForOldClient)?,
                     request_id,
@@ -317,7 +317,7 @@ impl MixnetListener {
                     v3::registration::RegistredData {
                         pub_key: PeerPublicKey::new(self.keypair().public_key().to_bytes().into()),
                         private_ip: allowed_ipv4.into(),
-                        wg_port: self.config.authenticator.announced_port,
+                        wg_port: self.config.authenticator.tunnel_announced_port,
                     },
                     reply_to.ok_or(AuthenticatorError::MissingReplyToForOldClient)?,
                     request_id,
@@ -330,7 +330,7 @@ impl MixnetListener {
                     v4::registration::RegistredData {
                         pub_key: PeerPublicKey::new(self.keypair().public_key().to_bytes().into()),
                         private_ips: (allowed_ipv4, allowed_ipv6).into(),
-                        wg_port: self.config.authenticator.announced_port,
+                        wg_port: self.config.authenticator.tunnel_announced_port,
                     },
                     reply_to.ok_or(AuthenticatorError::MissingReplyToForOldClient)?,
                     request_id,
@@ -343,7 +343,7 @@ impl MixnetListener {
                     v5::registration::RegistredData {
                         pub_key: PeerPublicKey::new(self.keypair().public_key().to_bytes().into()),
                         private_ips: (allowed_ipv4, allowed_ipv6).into(),
-                        wg_port: self.config.authenticator.announced_port,
+                        wg_port: self.config.authenticator.tunnel_announced_port,
                     },
                     request_id,
                 )
@@ -374,7 +374,7 @@ impl MixnetListener {
         let registration_data = RegistrationData {
             nonce,
             gateway_data: gateway_data.clone(),
-            wg_port: self.config.authenticator.announced_port,
+            wg_port: self.config.authenticator.tunnel_announced_port,
         };
         registred_and_free
             .registration_in_progres
@@ -691,7 +691,7 @@ impl MixnetListener {
         } else {
             let mut verifier = self
                 .peer_manager
-                .query_verifier(msg.pub_key(), msg.credential())
+                .query_verifier_by_key(msg.pub_key(), msg.credential())
                 .await?;
             let available_bandwidth = verifier.verify().await?;
             self.seen_credential_cache

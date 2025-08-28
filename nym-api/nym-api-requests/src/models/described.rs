@@ -311,7 +311,10 @@ impl From<Authenticator> for AuthenticatorDetails {
 }
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
 pub struct WireguardDetails {
+    // NOTE: the port field is deprecated in favour of tunnel_port
     pub port: u16,
+    pub tunnel_port: u16,
+    pub metadata_port: u16,
     pub public_key: String,
 }
 
@@ -320,6 +323,8 @@ impl From<Wireguard> for WireguardDetails {
     fn from(value: Wireguard) -> Self {
         WireguardDetails {
             port: value.port,
+            tunnel_port: value.tunnel_port,
+            metadata_port: value.metadata_port,
             public_key: value.public_key,
         }
     }

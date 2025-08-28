@@ -6,10 +6,12 @@ use crate::cli::commands::{
     test_throughput,
 };
 use crate::env::vars::{NYMNODE_CONFIG_ENV_FILE_ARG, NYMNODE_NO_BANNER_ARG};
-use crate::error::NymNodeError;
-use crate::logging::{setup_no_otel_logger, setup_tracing_logger};
+// use crate::error::NymNodeError;
 use clap::{Args, Parser, Subcommand};
-use nym_bin_common::bin_info;
+use nym_bin_common::{
+    bin_info,
+    opentelemetry::{setup_no_otel_logger, setup_tracing_logger, error::TracingError},
+};
 use std::future::Future;
 use std::sync::OnceLock;
 use tracing::instrument;
@@ -67,40 +69,45 @@ impl Cli {
             Commands::BuildInfo(args) => {
                 setup_no_otel_logger()?;
                 build_info::execute(args)?
-            }
+            },
             Commands::Migrate(args) => {
                 setup_no_otel_logger()?;
                 migrate::execute(*args)?
-            }
+            },
             Commands::Debug(debug) => match debug.command {
                 DebugCommands::ResetProvidersGatewayDbs(args) => {
-                    { Self::execute_async(debug::reset_providers_dbs::execute(args))? }?
+                    let _ = Self::execute_async(debug::reset_providers_dbs::execute(args))?;
                 }
             },
             Commands::TestThroughput(args) => {
                 // Has its own logging setup
                 test_throughput::execute(args)?
-            }
+            },
             // SigNoz/OTEL run in async context
             Commands::BondingInformation(args) => Self::execute_async(async move {
-                setup_tracing_logger().map_err(NymNodeError::TracingSetupFailure)?;
-                bonding_information::execute(args).await
+                setup_tracing_logger("nym-node".to_string())?;
+                bonding_information::execute(args).await?;
+                Ok::<(), anyhow::Error>(())
             })??,
             Commands::NodeDetails(args) => Self::execute_async(async move {
-                setup_tracing_logger().map_err(NymNodeError::TracingSetupFailure)?;
-                node_details::execute(args).await
+                setup_tracing_logger("nym-node".to_string()).map_err(TracingError::from)?;
+                node_details::execute(args).await?;
+                Ok::<(), anyhow::Error>(())
             })??,
             Commands::Run(args) => Self::execute_async(async move {
-                setup_tracing_logger().map_err(NymNodeError::TracingSetupFailure)?;
-                run::execute(*args).await
+                setup_tracing_logger("nym-node".to_string()).map_err(TracingError::from)?;
+                run::execute(*args).await?;
+                Ok::<(), anyhow::Error>(())
             })??,
             Commands::Sign(args) => Self::execute_async(async move {
-                setup_tracing_logger().map_err(NymNodeError::TracingSetupFailure)?;
-                sign::execute(args).await
+                setup_tracing_logger("nym-node".to_string()).map_err(TracingError::from)?;
+                sign::execute(args).await?;
+                Ok::<(), anyhow::Error>(())
             })??,
             Commands::UnsafeResetSphinxKeys(args) => Self::execute_async(async move {
-                setup_tracing_logger().map_err(NymNodeError::TracingSetupFailure)?;
-                reset_sphinx_keys::execute(args).await
+                setup_tracing_logger("nym-node".to_string()).map_err(TracingError::from)?;
+                reset_sphinx_keys::execute(args).await?;
+                Ok::<(), anyhow::Error>(())
             })??,
         }
         Ok(())

@@ -5,7 +5,7 @@ use tracing::{info, Level};
 use tracing_subscriber::filter::Directive;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
-use tracing_subscriber::{fmt, Layer};
+use tracing_subscriber::fmt;
 
 use crate::logging::{default_tracing_env_filter, default_tracing_fmt_layer};
 use crate::opentelemetry::error::TracingError;
@@ -38,40 +38,7 @@ pub(crate) fn granual_filtered_env() -> Result<tracing_subscriber::filter::EnvFi
     Ok(filter)
 }
 
-// pub(crate) fn build_tracing_logger() -> Result<impl tracing_subscriber::Registry, TracingError> {
-//     let key =
-//         std::env::var("SIGNOZ_INGESTION_KEY".to_string()).expect("SIGNOZ_INGESTION_KEY not set");
-//     let mut metadata = MetadataMap::new();
-//     metadata.insert(
-//         "signoz-ingestion-key",
-//         key.parse().expect("Could not parse signoz ingestion key"),
-//     );
-
-//     let tracer_provider = init_tracer_provider(metadata)?;
-//     let meter_provider = init_meter_provider()?;
-//     let tracer = tracer_provider.tracer("tracing-otel-subscriber");
-
-//     let fmt_layer = fmt::layer()
-//         .json()
-//         .with_writer(std::io::stderr)
-//         .with_span_events(FmtSpan::NEW | FmtSpan::CLOSE)
-//         .with_span_list(false)
-//         .with_current_span(true)
-//         .event_format(trace_id_format::TraceIdFormat);
-
-//     let registry = tracing_subscriber::registry()
-//         .with(fmt_layer)
-//         .with(granual_filtered_env()?)
-//         .with(tracing_subscriber::filter::LevelFilter::from_level(
-//             Level::DEBUG,
-//         ))
-//         .with(MetricsLayer::new(meter_provider))
-//         .with(OpenTelemetryLayer::new(tracer));
-
-//     Ok(registry)
-// }
-
-pub fn setup_tracing_logger() -> Result<(), TracingError> {
+pub fn setup_tracing_logger(service_name: String) -> Result<(), TracingError> {
     if tracing::dispatcher::has_been_set() {
         // It shouldn't be - this is really checking that it is torn down between async command executions
         return Err(error::TracingError::TracingLoggerAlreadyInitialised);
@@ -85,8 +52,8 @@ pub fn setup_tracing_logger() -> Result<(), TracingError> {
         key.parse().expect("Could not parse signoz ingestion key"),
     );
 
-    let tracer_provider = init_tracer_provider(metadata)?;
-    let meter_provider = init_meter_provider()?;
+    let tracer_provider = init_tracer_provider(metadata.clone(), service_name.clone())?;
+    let meter_provider = init_meter_provider(metadata.clone(), service_name.clone())?;
     let tracer = tracer_provider.tracer("tracing-otel-subscriber");
     let fmt_layer = fmt::layer()
         .json()
@@ -123,11 +90,11 @@ pub fn setup_tracing_logger() -> Result<(), TracingError> {
     Ok(())
 }
 
-pub fn setup_no_otel_logger() -> Result<(), error::TracingError> {
+pub fn setup_no_otel_logger() -> Result<(), TracingError> {
     // Only set up if not already initialized
     if tracing::dispatcher::has_been_set() {
         // It shouldn't be - this is really checking that it is torn down between async command executions
-        return Err(error::TracingError::TracingLoggerAlreadyInitialised);
+        return Err(TracingError::TracingLoggerAlreadyInitialised);
     }
 
     let registry = tracing_subscriber::registry()
@@ -139,14 +106,14 @@ pub fn setup_no_otel_logger() -> Result<(), error::TracingError> {
 
     registry
         .try_init()
-        .map_err(|e| error::TracingError::TracingTryInitError(e))?;
+        .map_err(|e| TracingError::TracingTryInitError(e))?;
 
     Ok(())
 }
 
-fn resource() -> Resource {
+fn resource(service_name: String) -> Resource {
     Resource::builder()
-        .with_service_name("nym-node")
+        .with_service_name(service_name)
         .with_schema_url(
             [
                 KeyValue::new(SERVICE_VERSION, env!("CARGO_PKG_VERSION")),
@@ -157,7 +124,7 @@ fn resource() -> Resource {
         .build()
 }
 
-fn init_tracer_provider(metadata: MetadataMap) -> Result<SdkTracerProvider, TracingError> {
+fn init_tracer_provider(metadata: MetadataMap, service_name: String) -> Result<SdkTracerProvider, TracingError> {
     let endpoint = std::env::var("SIGNOZ_ENDPOINT".to_string()).expect("SIGNOZ_ENDPOINT not set");
     info!("SIGNOZ_ENDPOINT = {}", endpoint);
 
@@ -178,18 +145,28 @@ fn init_tracer_provider(metadata: MetadataMap) -> Result<SdkTracerProvider, Trac
             1.0,
         ))))
         .with_id_generator(RandomIdGenerator::default())
-        .with_resource(resource())
+        .with_resource(resource(service_name))
         .with_batch_exporter(exporter)
         .build();
 
+    global::set_tracer_provider(tracer.clone());
     Ok(tracer)
 }
 
-fn init_meter_provider() -> Result<SdkMeterProvider, TracingError> {
-    let exporter = opentelemetry_otlp::MetricExporter::builder()
+fn init_meter_provider(metadata: MetadataMap, service_name: String) -> Result<SdkMeterProvider, TracingError> {
+    let endpoint = std::env::var("SIGNOZ_ENDPOINT".to_string()).expect("SIGNOZ_ENDPOINT not set");
+
+    let mut exporter_builder = opentelemetry_otlp::MetricExporter::builder()
         .with_tonic()
-        .with_temporality(opentelemetry_sdk::metrics::Temporality::default())
-        .build()?;
+        .with_metadata(metadata)
+        .with_endpoint(&endpoint)
+        .with_temporality(opentelemetry_sdk::metrics::Temporality::default());
+
+    if endpoint.starts_with("https://") {
+        exporter_builder = exporter_builder.with_tls_config(ClientTlsConfig::new().with_enabled_roots());
+    }
+
+    let exporter = exporter_builder.build()?;
 
     let reader = PeriodicReader::builder(exporter)
         .with_interval(std::time::Duration::from_secs(30))
@@ -199,7 +176,7 @@ fn init_meter_provider() -> Result<SdkMeterProvider, TracingError> {
         PeriodicReader::builder(opentelemetry_stdout::MetricExporter::default()).build();
 
     let meter_provider = MeterProviderBuilder::default()
-        .with_resource(resource())
+        .with_resource(resource(service_name))
         .with_reader(reader)
         .with_reader(stdout_reader)
         .build();

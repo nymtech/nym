@@ -38,7 +38,45 @@ pub(crate) fn granual_filtered_env() -> Result<tracing_subscriber::filter::EnvFi
     Ok(filter)
 }
 
-pub(crate) fn build_tracing_logger() -> Result<impl SubscriberExt, TracingError> {
+// pub(crate) fn build_tracing_logger() -> Result<impl tracing_subscriber::Registry, TracingError> {
+//     let key =
+//         std::env::var("SIGNOZ_INGESTION_KEY".to_string()).expect("SIGNOZ_INGESTION_KEY not set");
+//     let mut metadata = MetadataMap::new();
+//     metadata.insert(
+//         "signoz-ingestion-key",
+//         key.parse().expect("Could not parse signoz ingestion key"),
+//     );
+
+//     let tracer_provider = init_tracer_provider(metadata)?;
+//     let meter_provider = init_meter_provider()?;
+//     let tracer = tracer_provider.tracer("tracing-otel-subscriber");
+
+//     let fmt_layer = fmt::layer()
+//         .json()
+//         .with_writer(std::io::stderr)
+//         .with_span_events(FmtSpan::NEW | FmtSpan::CLOSE)
+//         .with_span_list(false)
+//         .with_current_span(true)
+//         .event_format(trace_id_format::TraceIdFormat);
+
+//     let registry = tracing_subscriber::registry()
+//         .with(fmt_layer)
+//         .with(granual_filtered_env()?)
+//         .with(tracing_subscriber::filter::LevelFilter::from_level(
+//             Level::DEBUG,
+//         ))
+//         .with(MetricsLayer::new(meter_provider))
+//         .with(OpenTelemetryLayer::new(tracer));
+
+//     Ok(registry)
+// }
+
+pub fn setup_tracing_logger() -> Result<(), TracingError> {
+    if tracing::dispatcher::has_been_set() {
+        // It shouldn't be - this is really checking that it is torn down between async command executions
+        return Err(error::TracingError::TracingLoggerAlreadyInitialised);
+    }
+
     let key =
         std::env::var("SIGNOZ_INGESTION_KEY".to_string()).expect("SIGNOZ_INGESTION_KEY not set");
     let mut metadata = MetadataMap::new();
@@ -50,28 +88,6 @@ pub(crate) fn build_tracing_logger() -> Result<impl SubscriberExt, TracingError>
     let tracer_provider = init_tracer_provider(metadata)?;
     let meter_provider = init_meter_provider()?;
     let tracer = tracer_provider.tracer("tracing-otel-subscriber");
-
-    let fmt_layer = fmt::layer()
-        .json()
-        .with_writer(std::io::stderr)
-        .with_span_events(FmtSpan::NEW | FmtSpan::CLOSE)
-        .with_span_list(false)
-        .with_current_span(true)
-        .event_format(trace_id_format::TraceIdFormat);
-
-    let registry = tracing_subscriber::registry()
-        .with(fmt_layer)
-        .with(granual_filtered_env()?)
-        .with(tracing_subscriber::filter::LevelFilter::from_level(
-            Level::DEBUG,
-        ))
-        .with(MetricsLayer::new(meter_provider))
-        .with(OpenTelemetryLayer::new(tracer));
-
-    Ok(registry)
-}
-
-pub fn setup_tracing_logger() -> Result<(), TracingError> {
     let stderr_layer =
         default_tracing_fmt_layer(std::io::stderr).with_filter(granual_filtered_env()?);
 
@@ -82,14 +98,17 @@ pub fn setup_tracing_logger() -> Result<(), TracingError> {
         tracing_subscriber::registry()
             .with(console_layer)
             .with(stderr_layer)
+            .with(MetricsLayer::new(meter_provider))
+            .with(OpenTelemetryLayer::new(tracer))
             .init();
     } else {
         tracing_subscriber::registry()
             .with(stderr_layer)
+            .with(MetricsLayer::new(meter_provider))
+            .with(OpenTelemetryLayer::new(tracer))
             .init();
     }}
     
-    build_tracing_logger()?.init();
     Ok(())
 }
 

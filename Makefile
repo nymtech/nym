@@ -192,10 +192,10 @@ cosmwasm-check-contracts:
 	done
 
 # Default development build
-contracts: build-release-contracts wasm-opt-contracts
+contracts: build-release-contracts wasm-opt-contracts cosmwasm-check-contracts
 
 # Publishing build used by CI – deterministic Docker optimiser
-publish-contracts: optimize-contracts
+publish-contracts: optimize-contracts cosmwasm-check-contracts
 
 # Consider adding 's' to make plural consistent (beware: used in github workflow)
 contract-schema:

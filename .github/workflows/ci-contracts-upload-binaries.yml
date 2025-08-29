@@ -11,7 +11,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: [ ubuntu-latest ]
+        platform: [ arc-linux-latest ]
 
     runs-on: ${{ matrix.platform }}
     env:
@@ -33,9 +33,8 @@ jobs:
         with:
           targets: wasm32-unknown-unknown
 
-      # temporarily disable
-      # - name: Install cosmwasm-check
-      #   run: cargo install cosmwasm-check --version 3.0.0
+      - name: Install cosmwasm-check
+        run: cargo install cosmwasm-check --version 3.0.0
 
       - name: Build release contracts
         run: make publish-contracts

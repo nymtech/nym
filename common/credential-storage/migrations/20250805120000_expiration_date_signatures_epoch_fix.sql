@@ -110,14 +110,14 @@ FROM ecash_ticketbook;
 
 -- 6. finally swap out the old tables
 -- drop old tables
-DROP TABLE expiration_date_signatures;
 DROP TABLE pending_issuance;
 DROP TABLE ecash_ticketbook;
+DROP TABLE expiration_date_signatures;
 
 -- rename new tables
-ALTER TABLE expiration_date_signatures_new
-    RENAME TO expiration_date_signatures;
 ALTER TABLE pending_issuance_new
     RENAME TO pending_issuance;
 ALTER TABLE ecash_ticketbook_new
     RENAME TO ecash_ticketbook;
+ALTER TABLE expiration_date_signatures_new
+    RENAME TO expiration_date_signatures;

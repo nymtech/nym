@@ -187,7 +187,7 @@ async function nativeSetup(onMessageHandler) {
     // storagePassphrase: "foomp",
     nymApiUrl: validator,
     // clientId: "my-client",
-    // clientOverride: noCoverTrafficOverride,
+    clientOverride: noCoverTrafficOverride,
   });
 }
 
@@ -212,7 +212,17 @@ async function normalNymClientUsage() {
     nymApiUrl: validator,
   });
 
-  let localClient = await NymClient.newWithConfig(config, onMessageHandler, {});
+  try {
+    let localClient = await NymClient.newWithConfig(
+      config,
+      onMessageHandler,
+      {}
+    );
+    console.log(">>>>>>>> POST PROMISE");
+    console.log(localClient);
+  } catch (e) {
+    console.log("local client creation error: ", e);
+  }
 
   console.log(">>>>>>>>>>>> WASM client running!");
 

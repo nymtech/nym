@@ -82,6 +82,9 @@ nym-service-provider-requests-common = { path = "../common/service-provider-requ
 
 
 defguard_wireguard_rs = { workspace = true }
+opentelemetry.workspace = true
+opentelemetry_sdk.workspace = true
+tracing-opentelemetry.workspace = true
 
 [dev-dependencies]
 nym-gateway-storage = { path = "../common/gateway-storage", features = ["mock"] }

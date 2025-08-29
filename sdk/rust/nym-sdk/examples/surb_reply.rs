@@ -2,14 +2,40 @@ use nym_sdk::mixnet::{
     AnonymousSenderTag, MixnetClientBuilder, MixnetMessageSender, ReconstructedMessage,
     // StoragePaths,
 };
-use tracing::instrument;
+use opentelemetry::trace::TraceContextExt;
+use opentelemetry::trace::Tracer;
+use opentelemetry::Context;
+use opentelemetry::global;
+use tracing::warn;
+use tracing::{instrument, info_span};
 // use std::path::PathBuf;
 // use tempfile::TempDir;
 
 #[tokio::main]
 #[instrument(name = "sdk-example-surb-reply", skip_all)]
 async fn main() {
-    nym_bin_common::opentelemetry::setup_tracing_logger("sdk-example-surb-reply".to_string()).unwrap();
+    let _guard = nym_bin_common::opentelemetry::setup_tracing_logger("sdk-example-surb-reply".to_string()).unwrap();
+
+    let tracer = global::tracer("sdk-example-surb-reply");
+    let span = tracer.start("test_span");
+    let cx = Context::current_with_span(span);
+    let _guard = cx.clone().attach();
+
+    let trace_id = cx.span().span_context().trace_id();
+    warn!("Main trace ID: {}", trace_id);
+
+    let span = info_span!(
+        "surb_reply_example session",
+        trace_id = %trace_id.to_string()
+    );
+    let _enter = span.enter();
+
+    let otel_context = opentelemetry::Context::current();
+    warn!("OTEL CONTEXT: {:?}", otel_context);
+    let span = otel_context.span();
+    let context = span.span_context();
+    let trace_id = context.trace_id();
+    warn!("TRACE_ID: {:?}", trace_id);
 
     // // Specify some config options
     // let config_dir: PathBuf = TempDir::new().unwrap().path().to_path_buf();

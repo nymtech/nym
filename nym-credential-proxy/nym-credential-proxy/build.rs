@@ -11,6 +11,12 @@ async fn main() -> anyhow::Result<()> {
     let out_dir = env::var("OUT_DIR")?;
     let database_path = format!("{out_dir}/nym-credential-proxy-example.sqlite");
 
+    // remove the db file if it already existed from previous build
+    // in case it was from a different branch
+    if std::fs::exists(&database_path)? {
+        std::fs::remove_file(&database_path)?;
+    }
+
     let mut conn = SqliteConnection::connect(&format!("sqlite://{database_path}?mode=rwc"))
         .await
         .context("Failed to create SQLx database connection")?;

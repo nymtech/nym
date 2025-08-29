@@ -49,6 +49,7 @@ nym-serde-helpers = { path = "../common/serde-helpers", features = ["base64"] }
 nym-pemstore = { path = "../common/pemstore" }
 
 [build-dependencies]
+anyhow = { workspace = true }
 sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"] }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
 

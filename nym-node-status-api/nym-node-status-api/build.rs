@@ -18,6 +18,12 @@ async fn init_db() -> Result<()> {
     let out_dir = read_env_var("OUT_DIR")?;
     let database_path = format!("{out_dir}/{SQLITE_DB_FILENAME}?mode=rwc");
 
+    // remove the db file if it already existed from previous build
+    // in case it was from a different branch
+    if std::fs::exists(&database_path)? {
+        std::fs::remove_file(&database_path)?;
+    }
+
     write_db_path_to_file(&out_dir, SQLITE_DB_FILENAME).await?;
     let mut conn = SqliteConnection::connect(&database_path).await?;
     sqlx::migrate!("./migrations").run(&mut conn).await?;
@@ -44,7 +50,7 @@ async fn main() -> Result<()> {
 
 #[cfg(feature = "sqlite")]
 fn read_env_var(var: &str) -> Result<String> {
-    std::env::var(var).map_err(|_| anyhow::anyhow!("You need to set {} env var", var))
+    std::env::var(var).map_err(|_| anyhow::anyhow!("You need to set {var} env var"))
 }
 
 /// use `./enter_db.sh` to inspect DB

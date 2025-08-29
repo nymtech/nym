@@ -4,6 +4,7 @@
 use clap::{Args, Subcommand};
 
 pub mod ecash;
+pub mod nyx;
 
 #[derive(Debug, Args)]
 #[clap(args_conflicts_with_subcommands = true, subcommand_required = true)]
@@ -16,4 +17,6 @@ pub struct Internal {
 pub enum InternalCommands {
     /// Ecash related internal commands
     Ecash(ecash::InternalEcash),
+
+    Nyx(nyx::InternalNyx),
 }

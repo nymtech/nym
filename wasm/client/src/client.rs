@@ -221,10 +221,11 @@ impl NymClientBuilder {
             )
             .await?;
         }
-        console_log!(
-            "TODO REMOVE start client async: debug log self: \n{:?}",
-            self
-        );
+        // debug log a bunch of config
+        // console_log!(
+        //     "start client async: debug log self: \n{:?}",
+        //     self
+        // );
 
         let packet_type = self.config.base.debug.traffic.packet_type;
         let storage = Self::initialise_storage(&self.config, client_store);
@@ -245,6 +246,7 @@ impl NymClientBuilder {
         let client_input = started_client.client_input.register_producer();
         let client_output = started_client.client_output.register_consumer();
 
+        // MAX TODO NOTE: THIS RETURNS () MAYBE WE'RE NOT RESOLVING HERE?
         Self::start_reconstructed_pusher(client_output, self.on_message);
 
         Ok(NymClient {
@@ -324,27 +326,79 @@ impl NymClient {
         on_message: js_sys::Function,
         opts: Option<ClientOptsSimple>,
     ) -> Result<NymClient, WasmClientError> {
+        console_log!("_new: Starting client creation");
+
         if let Some(opts) = opts {
+            console_log!("_new: Using provided options");
             let preferred_gateway = opts.preferred_gateway;
             let storage_passphrase = opts.storage_passphrase;
             let force_tls = opts.force_tls.unwrap_or_default();
-            NymClientBuilder::new(
+            let builder = NymClientBuilder::new(
                 config,
                 on_message,
                 force_tls,
                 preferred_gateway,
                 storage_passphrase,
-            )
+            );
+            console_log!("_new: About to call start_client_async");
+            let result = builder.start_client_async().await;
+            console_log!("_new: start_client_async completed: {:?}", result.is_ok());
+            result.inspect_err(|err| console_error!("failed to start the client: {err}"))
         } else {
-            NymClientBuilder::new(config, on_message, false, None, None)
+            console_log!("_new: Using default options");
+            let builder = NymClientBuilder::new(config, on_message, false, None, None);
+            console_log!("_new: About to call start_client_async (default)");
+            let result = builder.start_client_async().await;
+            console_log!(
+                "_new: start_client_async (default) completed: {:?}",
+                result.is_ok()
+            );
+            result.inspect_err(|err| console_error!("failed to start the client: {err}"))
         }
-        .start_client_async()
-        .await
-        .inspect_err(|err| console_error!("failed to start the client: {err}"))
     }
 
+    // async fn _new(
+    //     config: ClientConfig,
+    //     on_message: js_sys::Function,
+    //     opts: Option<ClientOptsSimple>,
+    // ) -> Result<NymClient, WasmClientError> {
+    //     if let Some(opts) = opts {
+    //         let preferred_gateway = opts.preferred_gateway;
+    //         let storage_passphrase = opts.storage_passphrase;
+    //         let force_tls = opts.force_tls.unwrap_or_default();
+    //         NymClientBuilder::new(
+    //             config,
+    //             on_message,
+    //             force_tls,
+    //             preferred_gateway,
+    //             storage_passphrase,
+    //         )
+    //     } else {
+    //         NymClientBuilder::new(config, on_message, false, None, None)
+    //     }
+    //     .start_client_async()
+    //     .await
+    //     .inspect_err(|err| console_error!("failed to start the client: {err}"))
+    // }
+
+    // #[wasm_bindgen(constructor)]
+    // #[allow(clippy::new_ret_no_self)]
+    // pub fn new(on_message: js_sys::Function, opts: Option<ClientOpts>) -> Promise {
+    //     console_log!("start of new()");
+    //     let opts = opts.unwrap_or_default();
+    //     let mut config = check_promise_result!(ClientConfig::new((&opts).into()));
+
+    //     if let Some(dbg) = opts.client_override {
+    //         config.override_debug(dbg);
+    //     }
+
+    //     future_to_promise(async move {
+    //         Self::_new(config, on_message, opts.base)
+    //             .await
+    //             .into_promise_result()
+    //     })
+    // }
     #[wasm_bindgen(constructor)]
-    #[allow(clippy::new_ret_no_self)]
     pub fn new(on_message: js_sys::Function, opts: Option<ClientOpts>) -> Promise {
         console_log!("start of new()");
         let opts = opts.unwrap_or_default();
@@ -355,9 +409,22 @@ impl NymClient {
         }
 
         future_to_promise(async move {
-            Self::_new(config, on_message, opts.base)
-                .await
-                .into_promise_result()
+            console_log!("future_to_promise: Starting async block");
+            let result = Self::_new(config, on_message, opts.base).await;
+            console_log!("future_to_promise: _new completed: {:?}", result.is_ok());
+
+            match result {
+                Ok(client) => {
+                    console_log!("future_to_promise: Converting successful result to JsValue");
+                    let js_result = JsValue::from(client);
+                    console_log!("future_to_promise: Conversion successful, returning Ok");
+                    Ok(js_result)
+                }
+                Err(err) => {
+                    console_error!("future_to_promise: Error occurred: {:?}", err);
+                    Err(JsValue::from(err))
+                }
+            }
         })
     }
 
@@ -368,11 +435,46 @@ impl NymClient {
         opts: ClientOptsSimple,
     ) -> Promise {
         future_to_promise(async move {
-            Self::_new(config, on_message, Some(opts))
-                .await
-                .into_promise_result()
+            console_log!("new_with_config: future_to_promise: Starting async block");
+            let result = Self::_new(config, on_message, Some(opts)).await;
+            console_log!(
+                "new_with_config: future_to_promise: _new completed: {:?}",
+                result.is_ok()
+            );
+            // .into_promise_result()
+            match result {
+                Ok(client) => {
+                    console_log!("new_with_config: future_to_promise: Converting successful result to JsValue");
+                    let js_result = JsValue::from(client);
+                    console_log!(
+                        "new_with_config: future_to_promise: Conversion successful, returning Ok"
+                    );
+                    Ok(js_result)
+                }
+                Err(err) => {
+                    console_error!(
+                        "new_with_config: future_to_promise: Error occurred: {:?}",
+                        err
+                    );
+                    Err(JsValue::from(err))
+                }
+            }
         })
     }
+
+    // #[wasm_bindgen(js_name = "newWithConfig")]
+    // pub fn new_with_config(
+    //     config: ClientConfig,
+    //     on_message: js_sys::Function,
+    //     opts: ClientOptsSimple,
+    // ) -> Promise {
+    //     future_to_promise(async move {
+    //         console_log!("new_with_config: future_to_promise: Starting async block");
+    //         Self::_new(config, on_message, Some(opts))
+    //             .await
+    //             .into_promise_result()
+    //     })
+    // }
 
     // no cover traffic
     // no poisson delay

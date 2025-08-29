@@ -138,6 +138,7 @@ impl MixTrafficController {
         }
     }
 
+    #[instrument(skip_all)]
     pub fn start(mut self) {
         spawn_future!(
             async move {

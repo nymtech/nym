@@ -217,9 +217,9 @@ dependencies = [
 
 [[package]]
 name = "anyhow"
-version = "1.0.98"
+version = "1.0.99"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e16d2d3311acee920a9eb8d33b8cbc1787ce4a264e85f964c2404b969bdcd487"
+checksum = "b0674a1ddeecb70197781e945de4b3b8ffb61fa939a5597bcf48503737663100"
 
 [[package]]
 name = "arbitrary"
@@ -495,9 +495,9 @@ dependencies = [
 
 [[package]]
 name = "async-trait"
-version = "0.1.88"
+version = "0.1.89"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e539d3fca749fcee5236ab05e93a52867dd549cc157c8cb7f99595f3cedffdb5"
+checksum = "9035ad2d096bed7955a320ee7e2230574d28fd3c3a0f186cbea1ff3c7eed5dbb"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1138,7 +1138,7 @@ dependencies = [
  "semver 1.0.26",
  "serde",
  "serde_json",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
 ]
 
 [[package]]
@@ -1176,9 +1176,9 @@ dependencies = [
 
 [[package]]
 name = "cfg-if"
-version = "1.0.1"
+version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9555578bc9e57714c812a1f84e4fc5b4d21fcb063490c624de019f7464c91268"
+checksum = "2fd1289c04a9ea8cb22300a459a72a385d7c73d3259e2ed7dcb2af674838cfa9"
 
 [[package]]
 name = "cfg_aliases"
@@ -1275,9 +1275,9 @@ dependencies = [
 
 [[package]]
 name = "clap"
-version = "4.5.41"
+version = "4.5.46"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "be92d32e80243a54711e5d7ce823c35c41c9d929dc4ab58e1276f625841aadf9"
+checksum = "2c5e4fcf9c21d2e544ca1ee9d8552de13019a42aa7dbf32747fa7aaf1df76e57"
 dependencies = [
  "clap_builder",
  "clap_derive",
@@ -1285,9 +1285,9 @@ dependencies = [
 
 [[package]]
 name = "clap_builder"
-version = "4.5.41"
+version = "4.5.46"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "707eab41e9622f9139419d573eca0900137718000c517d47da73045f54331c3d"
+checksum = "fecb53a0e6fcfb055f686001bc2e2592fa527efaf38dbe81a6a9563562e57d41"
 dependencies = [
  "anstream",
  "anstyle",
@@ -1297,9 +1297,9 @@ dependencies = [
 
 [[package]]
 name = "clap_complete"
-version = "4.5.55"
+version = "4.5.57"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a5abde44486daf70c5be8b8f8f1b66c49f86236edf6fa2abadb4d961c4c6229a"
+checksum = "4d9501bd3f5f09f7bbee01da9a511073ed30a80cd7a509f1214bb74eadea71ad"
 dependencies = [
  "clap",
 ]
@@ -1316,9 +1316,9 @@ dependencies = [
 
 [[package]]
 name = "clap_derive"
-version = "4.5.41"
+version = "4.5.45"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ef4f52386a59ca4c860f7393bcf8abd8dfd91ecccc0f774635ff68e92eeef491"
+checksum = "14cb31bb0a7d536caef2639baa7fad459e15c3144efefa6dbd1c84562c4739f6"
 dependencies = [
  "heck 0.5.0",
  "proc-macro2",
@@ -1990,7 +1990,7 @@ dependencies = [
  "schemars 0.8.22",
  "serde",
  "sha2 0.10.9",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
 ]
 
 [[package]]
@@ -2130,8 +2130,8 @@ checksum = "2a2330da5de22e8a3cb63252ce2abb30116bf5265e89c0e01bc17015ce30a476"
 
 [[package]]
 name = "defguard_wireguard_rs"
-version = "0.7.5"
-source = "git+https://github.com/DefGuard/wireguard-rs.git?rev=v0.7.5#d090d2249e5bb3d4154f07de098387e2ab69bfdc"
+version = "0.4.7"
+source = "git+https://github.com/DefGuard/wireguard-rs.git?rev=v0.4.7#ef1cf3714629bf5016fb38cbb7320451dc69fb09"
 dependencies = [
  "base64 0.22.1",
  "libc",
@@ -2142,10 +2142,9 @@ dependencies = [
  "netlink-packet-utils",
  "netlink-packet-wireguard",
  "netlink-sys",
- "nix 0.30.1",
+ "nix 0.29.0",
  "serde",
- "thiserror 2.0.12",
- "x25519-dalek",
+ "thiserror 1.0.69",
 ]
 
 [[package]]
@@ -2361,9 +2360,9 @@ dependencies = [
 
 [[package]]
 name = "dyn-clone"
-version = "1.0.19"
+version = "1.0.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1c7a8fb8a9fbf66c1f703fe16184d10ca0ee9d23be5b4436400408ba54a95005"
+checksum = "d0881ea181b1df73ff77ffaaf9c7544ecc11e82fba9b5f27b262a3c73a332555"
 
 [[package]]
 name = "easy-addr"
@@ -2618,7 +2617,7 @@ dependencies = [
  "console_error_panic_hook",
  "js-sys",
  "serde-wasm-bindgen 0.6.5",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "wasm-storage",
@@ -3287,7 +3286,7 @@ dependencies = [
  "rand 0.9.2",
  "ring",
  "rustls 0.23.29",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "tinyvec",
  "tokio",
  "tokio-rustls 0.26.2",
@@ -3313,7 +3312,7 @@ dependencies = [
  "resolv-conf",
  "rustls 0.23.29",
  "smallvec",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "tokio",
  "tokio-rustls 0.26.2",
  "tracing",
@@ -3567,9 +3566,9 @@ dependencies = [
 
 [[package]]
 name = "hyper-util"
-version = "0.1.15"
+version = "0.1.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7f66d5bd4c6f02bf0542fad85d626775bab9258cf795a4256dcaf3161114d1df"
+checksum = "8d9b05277c7e8da2c93a568989bb6207bef0112e8d17df7a6eda4a3cf143bc5e"
 dependencies = [
  "base64 0.22.1",
  "bytes",
@@ -3583,7 +3582,7 @@ dependencies = [
  "libc",
  "percent-encoding",
  "pin-project-lite",
- "socket2 0.5.10",
+ "socket2 0.6.0",
  "tokio",
  "tower-service",
  "tracing",
@@ -3787,7 +3786,7 @@ dependencies = [
  "js-sys",
  "sealed",
  "smallvec",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "tokio",
  "wasm-bindgen",
  "wasm-bindgen-futures",
@@ -4493,7 +4492,7 @@ dependencies = [
  "rand 0.8.5",
  "serde",
  "serde-wasm-bindgen 0.6.5",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "tokio",
  "tsify",
  "url",
@@ -4588,9 +4587,9 @@ dependencies = [
 
 [[package]]
 name = "netlink-packet-route"
-version = "0.22.0"
+version = "0.20.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fc0e7987b28514adf555dc1f9a5c30dfc3e50750bbaffb1aec41ca7b23dcd8e4"
+checksum = "55e5bda7ca0f9ac5e75b5debac3b75e29a8ac8e2171106a2c3bb466389a8dd83"
 dependencies = [
  "anyhow",
  "bitflags 2.9.1",
@@ -4669,18 +4668,6 @@ name = "nix"
 version = "0.29.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "71e2746dc3a24dd78b3cfcb7be93368c6de9963d30f43a6a73998a9cf4b17b46"
-dependencies = [
- "bitflags 2.9.1",
- "cfg-if",
- "cfg_aliases",
- "libc",
-]
-
-[[package]]
-name = "nix"
-version = "0.30.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "74523f3a35e05aba87a1d978330aef40f67b0304ac79c1c00b294c9830543db6"
 dependencies = [
  "bitflags 2.9.1",
  "cfg-if",
@@ -4892,7 +4879,7 @@ dependencies = [
  "pin-project",
  "rand 0.8.5",
  "rand_chacha 0.3.1",
- "reqwest 0.12.22",
+ "reqwest 0.12.23",
  "schemars 0.8.22",
  "semver 1.0.26",
  "serde",
@@ -4901,7 +4888,7 @@ dependencies = [
  "sqlx",
  "tempfile",
  "tendermint",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "time",
  "tokio",
  "tokio-stream",
@@ -4947,7 +4934,7 @@ dependencies = [
  "sha2 0.10.9",
  "tendermint",
  "tendermint-rpc",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "time",
  "tracing",
  "ts-rs",
@@ -4980,7 +4967,7 @@ dependencies = [
  "rand 0.8.5",
  "serde",
  "sha2 0.10.9",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "x25519-dalek",
 ]
 
@@ -5000,7 +4987,7 @@ dependencies = [
  "nym-task",
  "nym-validator-client",
  "rand 0.8.5",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "url",
  "zeroize",
 ]
@@ -5101,7 +5088,7 @@ dependencies = [
  "serde_json",
  "tap",
  "tempfile",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "time",
  "tokio",
  "toml 0.8.23",
@@ -5138,7 +5125,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tap",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "time",
  "tokio",
  "tokio-tungstenite",
@@ -5190,7 +5177,7 @@ dependencies = [
  "sha2 0.10.9",
  "si-scale",
  "tempfile",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "time",
  "tokio",
  "tokio-stream",
@@ -5216,7 +5203,7 @@ dependencies = [
  "nym-sphinx-params",
  "nym-statistics-common",
  "serde",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "url",
 ]
 
@@ -5231,7 +5218,7 @@ dependencies = [
  "nym-gateway-requests",
  "serde",
  "sqlx",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "time",
  "tokio",
  "tracing",
@@ -5251,7 +5238,7 @@ dependencies = [
  "nym-task",
  "sqlx",
  "sqlx-pool-guard",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "time",
  "tokio",
  "tracing",
@@ -5271,7 +5258,7 @@ dependencies = [
  "serde",
  "serde-wasm-bindgen 0.6.5",
  "serde_json",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "tsify",
  "wasm-bindgen",
  "wasm-bindgen-futures",
@@ -5322,7 +5309,7 @@ dependencies = [
  "serde",
  "sha2 0.10.9",
  "subtle 2.6.1",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "zeroize",
 ]
 
@@ -5335,7 +5322,7 @@ dependencies = [
  "log",
  "nym-network-defaults",
  "serde",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "toml 0.8.23",
  "url",
 ]
@@ -5352,7 +5339,7 @@ dependencies = [
  "schemars 0.8.22",
  "serde",
  "serde_json",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "utoipa",
  "vergen",
 ]
@@ -5409,14 +5396,14 @@ dependencies = [
  "nym-network-defaults",
  "nym-validator-client",
  "rand 0.8.5",
- "reqwest 0.12.22",
+ "reqwest 0.12.23",
  "serde",
  "serde_json",
  "sqlx",
  "strum",
  "strum_macros",
  "tempfile",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "time",
  "tokio",
  "tokio-util",
@@ -5439,7 +5426,7 @@ dependencies = [
  "nym-http-api-client",
  "nym-http-api-common",
  "nym-serde-helpers",
- "reqwest 0.12.22",
+ "reqwest 0.12.23",
  "schemars 0.8.22",
  "serde",
  "serde_json",
@@ -5465,7 +5452,7 @@ dependencies = [
  "serde",
  "sqlx",
  "sqlx-pool-guard",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "tokio",
  "zeroize",
 ]
@@ -5483,7 +5470,7 @@ dependencies = [
  "nym-credentials-interface",
  "nym-ecash-time",
  "nym-validator-client",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "time",
  "tokio",
 ]
@@ -5508,7 +5495,7 @@ dependencies = [
  "nym-validator-client",
  "rand 0.8.5",
  "si-scale",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "time",
  "tokio",
  "tracing",
@@ -5532,7 +5519,7 @@ dependencies = [
  "nym-validator-client",
  "rand 0.8.5",
  "serde",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "time",
  "zeroize",
 ]
@@ -5549,7 +5536,7 @@ dependencies = [
  "serde",
  "strum",
  "strum_macros",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "time",
  "utoipa",
 ]
@@ -5578,7 +5565,7 @@ dependencies = [
  "serde_bytes",
  "sha2 0.10.9",
  "subtle-encoding",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "x25519-dalek",
  "zeroize",
 ]
@@ -5602,7 +5589,7 @@ dependencies = [
  "serde",
  "serde_derive",
  "sha2 0.10.9",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "zeroize",
 ]
 
@@ -5617,7 +5604,7 @@ dependencies = [
  "cw-utils",
  "cw2",
  "nym-multisig-contract-common",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
 ]
 
 [[package]]
@@ -5629,7 +5616,7 @@ dependencies = [
  "nym-network-defaults",
  "nym-validator-client",
  "semver 1.0.26",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "tokio",
  "tracing",
  "url",
@@ -5643,7 +5630,7 @@ dependencies = [
  "nym-crypto",
  "semver 1.0.26",
  "serde",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "time",
  "tracing",
  "url",
@@ -5670,10 +5657,10 @@ dependencies = [
 name = "nym-exit-policy"
 version = "0.1.0"
 dependencies = [
- "reqwest 0.12.22",
+ "reqwest 0.12.23",
  "serde",
  "serde_json",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "tracing",
  "utoipa",
 ]
@@ -5740,7 +5727,7 @@ dependencies = [
  "rand 0.8.5",
  "serde",
  "sha2 0.10.9",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "time",
  "tokio",
  "tokio-stream",
@@ -5774,7 +5761,7 @@ dependencies = [
  "rand 0.8.5",
  "serde",
  "si-scale",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "time",
  "tokio",
  "tokio-stream",
@@ -5812,7 +5799,7 @@ dependencies = [
  "serde_json",
  "strum",
  "subtle 2.6.1",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "time",
  "tokio",
  "tracing",
@@ -5831,7 +5818,7 @@ dependencies = [
  "nym-statistics-common",
  "sqlx",
  "strum",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "time",
  "tokio",
  "tracing",
@@ -5850,7 +5837,7 @@ dependencies = [
  "nym-gateway-requests",
  "nym-sphinx",
  "sqlx",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "time",
  "tokio",
  "tracing",
@@ -5867,7 +5854,7 @@ dependencies = [
  "nym-ffi-shared",
  "nym-sdk",
  "nym-sphinx-anonymous-replies",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "tokio",
  "uniffi",
  "uniffi_build",
@@ -5899,10 +5886,10 @@ dependencies = [
  "nym-bin-common",
  "nym-http-api-common",
  "once_cell",
- "reqwest 0.12.22",
+ "reqwest 0.12.23",
  "serde",
  "serde_json",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "tokio",
  "tracing",
  "url",
@@ -5937,7 +5924,7 @@ version = "0.1.0"
 dependencies = [
  "nym-credential-storage",
  "nym-credentials",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "time",
  "tracing",
  "zeroize",
@@ -5963,7 +5950,7 @@ version = "0.1.0"
 dependencies = [
  "log",
  "rand 0.8.5",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
 ]
 
 [[package]]
@@ -5978,7 +5965,7 @@ dependencies = [
  "nym-sphinx",
  "rand 0.8.5",
  "serde",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "time",
  "tokio",
  "tokio-util",
@@ -6016,10 +6003,10 @@ dependencies = [
  "nym-wireguard",
  "nym-wireguard-types",
  "rand 0.8.5",
- "reqwest 0.12.22",
+ "reqwest 0.12.23",
  "serde",
  "serde_json",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "time",
  "tokio",
  "tokio-tun",
@@ -6035,7 +6022,7 @@ dependencies = [
  "k256",
  "ledger-transport",
  "ledger-transport-hid",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
 ]
 
 [[package]]
@@ -6082,7 +6069,7 @@ dependencies = [
  "semver 1.0.26",
  "serde",
  "serde_repr",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "time",
  "ts-rs",
  "utoipa",
@@ -6108,7 +6095,7 @@ dependencies = [
  "nym-task",
  "rand 0.8.5",
  "serde",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "time",
  "tokio",
  "tokio-util",
@@ -6127,7 +6114,7 @@ dependencies = [
  "cw4",
  "schemars 0.8.22",
  "serde",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
 ]
 
 [[package]]
@@ -6167,7 +6154,7 @@ dependencies = [
  "petgraph",
  "rand 0.8.5",
  "rand_chacha 0.3.1",
- "reqwest 0.12.22",
+ "reqwest 0.12.23",
  "serde",
  "serde_json",
  "tokio",
@@ -6213,13 +6200,13 @@ dependencies = [
  "publicsuffix",
  "rand 0.8.5",
  "regex",
- "reqwest 0.12.22",
+ "reqwest 0.12.23",
  "serde",
  "serde_json",
  "sqlx",
  "tap",
  "tempfile",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "time",
  "tokio",
  "tokio-tungstenite",
@@ -6296,7 +6283,7 @@ dependencies = [
  "serde_json",
  "sha2 0.10.9",
  "sysinfo",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "time",
  "tokio",
  "tokio-util",
@@ -6345,7 +6332,7 @@ dependencies = [
  "serde_json",
  "strum",
  "strum_macros",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "time",
  "tokio",
  "utoipa",
@@ -6401,7 +6388,7 @@ dependencies = [
  "rand 0.8.5",
  "rand_chacha 0.3.1",
  "regex",
- "reqwest 0.12.22",
+ "reqwest 0.12.23",
  "semver 1.0.26",
  "serde",
  "serde_json",
@@ -6409,7 +6396,7 @@ dependencies = [
  "sqlx",
  "strum",
  "strum_macros",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "time",
  "tokio",
  "tokio-util",
@@ -6429,7 +6416,7 @@ dependencies = [
  "anyhow",
  "bincode",
  "nym-crypto",
- "reqwest 0.12.22",
+ "reqwest 0.12.23",
  "serde",
  "serde_json",
  "time",
@@ -6451,7 +6438,7 @@ dependencies = [
  "rand_chacha 0.3.1",
  "serde",
  "serde_json",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "tokio",
  "wasm-utils",
 ]
@@ -6466,7 +6453,7 @@ dependencies = [
  "rand 0.8.5",
  "serde",
  "serde-wasm-bindgen 0.6.5",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "tokio",
  "tsify",
  "wasm-bindgen",
@@ -6493,7 +6480,7 @@ dependencies = [
  "snow",
  "strum",
  "strum_macros",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "tokio",
  "tokio-util",
  "tracing",
@@ -6540,7 +6527,7 @@ name = "nym-ordered-buffer"
 version = "0.1.0"
 dependencies = [
  "log",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
 ]
 
 [[package]]
@@ -6557,7 +6544,7 @@ dependencies = [
  "rand 0.8.5",
  "rayon",
  "sphinx-packet",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "x25519-dalek",
  "zeroize",
 ]
@@ -6581,7 +6568,7 @@ dependencies = [
  "nym-contracts-common",
  "schemars 0.8.22",
  "serde",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
 ]
 
 [[package]]
@@ -6593,7 +6580,7 @@ dependencies = [
  "cw-controllers",
  "schemars 0.8.22",
  "serde",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "time",
 ]
 
@@ -6638,11 +6625,11 @@ dependencies = [
  "nym-validator-client",
  "parking_lot",
  "rand 0.8.5",
- "reqwest 0.12.22",
+ "reqwest 0.12.23",
  "serde",
  "tap",
  "tempfile",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "time",
  "tokio",
  "tokio-stream",
@@ -6672,7 +6659,7 @@ version = "0.1.0"
 dependencies = [
  "bincode",
  "serde",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
 ]
 
 [[package]]
@@ -6688,7 +6675,7 @@ dependencies = [
  "nym-sphinx-anonymous-replies",
  "serde",
  "serde_json",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "tokio",
 ]
 
@@ -6718,7 +6705,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tap",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "time",
  "tokio",
  "url",
@@ -6748,11 +6735,11 @@ dependencies = [
  "nym-validator-client",
  "pin-project",
  "rand 0.8.5",
- "reqwest 0.12.22",
+ "reqwest 0.12.23",
  "schemars 0.8.22",
  "serde",
  "tap",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "tokio",
  "url",
 ]
@@ -6784,7 +6771,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tap",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
 ]
 
 [[package]]
@@ -6808,7 +6795,7 @@ dependencies = [
  "rand 0.8.5",
  "rand_chacha 0.3.1",
  "rand_distr",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "tokio",
  "tracing",
 ]
@@ -6827,7 +6814,7 @@ dependencies = [
  "nym-topology",
  "rand 0.8.5",
  "serde",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "zeroize",
 ]
 
@@ -6839,7 +6826,7 @@ dependencies = [
  "nym-sphinx-types",
  "rand 0.8.5",
  "serde",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
 ]
 
 [[package]]
@@ -6855,7 +6842,7 @@ dependencies = [
  "nym-topology",
  "rand 0.8.5",
  "rand_chacha 0.3.1",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "tracing",
  "wasm-bindgen",
 ]
@@ -6873,7 +6860,7 @@ dependencies = [
  "nym-sphinx-types",
  "rand 0.8.5",
  "serde",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "utoipa",
 ]
 
@@ -6891,7 +6878,7 @@ dependencies = [
  "nym-sphinx-types",
  "nym-topology",
  "rand 0.8.5",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
 ]
 
 [[package]]
@@ -6902,7 +6889,7 @@ dependencies = [
  "nym-sphinx-anonymous-replies",
  "nym-sphinx-params",
  "nym-sphinx-types",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
 ]
 
 [[package]]
@@ -6915,7 +6902,7 @@ dependencies = [
  "nym-sphinx-forwarding",
  "nym-sphinx-params",
  "nym-sphinx-types",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "tokio",
  "tokio-util",
  "tracing",
@@ -6928,7 +6915,7 @@ dependencies = [
  "nym-crypto",
  "nym-sphinx-types",
  "serde",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
 ]
 
 [[package]]
@@ -6937,7 +6924,7 @@ version = "0.1.0"
 dependencies = [
  "nym-sphinx-addressing",
  "nym-sphinx-types",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
 ]
 
 [[package]]
@@ -6946,7 +6933,7 @@ version = "0.2.0"
 dependencies = [
  "nym-outfox",
  "sphinx-packet",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
 ]
 
 [[package]]
@@ -6998,7 +6985,7 @@ dependencies = [
  "strum",
  "strum_macros",
  "sysinfo",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "time",
  "tokio",
  "utoipa",
@@ -7016,7 +7003,7 @@ dependencies = [
  "rand 0.8.5",
  "serde",
  "serde_json",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "zeroize",
 ]
 
@@ -7027,7 +7014,7 @@ dependencies = [
  "cfg-if",
  "futures",
  "log",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "tokio",
  "tokio-util",
  "tracing",
@@ -7074,10 +7061,10 @@ dependencies = [
  "nym-sphinx-addressing",
  "nym-sphinx-types",
  "rand 0.8.5",
- "reqwest 0.12.22",
+ "reqwest 0.12.23",
  "serde",
  "serde_json",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "time",
  "tracing",
  "tsify",
@@ -7092,7 +7079,7 @@ dependencies = [
  "etherparse",
  "log",
  "nym-wireguard-types",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "tokio",
  "tokio-tun",
 ]
@@ -7113,7 +7100,7 @@ dependencies = [
  "nym-mixnet-contract-common",
  "nym-validator-client",
  "nym-vesting-contract-common",
- "reqwest 0.12.22",
+ "reqwest 0.12.23",
  "schemars 0.8.22",
  "serde",
  "serde_json",
@@ -7121,7 +7108,7 @@ dependencies = [
  "strum",
  "strum_macros",
  "tempfile",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "ts-rs",
  "url",
  "utoipa",
@@ -7163,12 +7150,12 @@ dependencies = [
  "nym-serde-helpers",
  "nym-vesting-contract-common",
  "prost",
- "reqwest 0.12.22",
+ "reqwest 0.12.23",
  "serde",
  "serde_json",
  "sha2 0.10.9",
  "tendermint-rpc",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "time",
  "tokio",
  "tracing",
@@ -7212,7 +7199,7 @@ dependencies = [
  "serde_with",
  "sha2 0.10.9",
  "sqlx",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "time",
  "tokio",
  "tracing",
@@ -7231,7 +7218,7 @@ dependencies = [
  "nym-task",
  "nym-validator-client",
  "rand 0.8.5",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "time",
  "tokio",
  "tokio-util",
@@ -7249,7 +7236,7 @@ dependencies = [
  "nym-contracts-common",
  "nym-mixnet-contract-common",
  "serde",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "ts-rs",
 ]
 
@@ -7270,7 +7257,7 @@ dependencies = [
  "serde",
  "serde-wasm-bindgen 0.6.5",
  "serde_json",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "time",
  "tsify",
  "wasm-bindgen",
@@ -7322,7 +7309,7 @@ dependencies = [
  "nym-node-metrics",
  "nym-task",
  "nym-wireguard-types",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "time",
  "tokio",
  "tokio-stream",
@@ -7369,7 +7356,7 @@ dependencies = [
  "nym-credentials-interface",
  "schemars 0.8.22",
  "serde",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "utoipa",
 ]
 
@@ -7403,7 +7390,7 @@ dependencies = [
  "nym-network-defaults",
  "rand 0.8.5",
  "serde",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "x25519-dalek",
 ]
 
@@ -7425,12 +7412,12 @@ dependencies = [
  "nym-bin-common",
  "nym-config",
  "nym-task",
- "reqwest 0.12.22",
+ "reqwest 0.12.23",
  "serde",
  "serde_json",
  "sha2 0.10.9",
  "tar",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "time",
  "tokio",
  "tracing",
@@ -7452,11 +7439,11 @@ dependencies = [
  "nym-task",
  "nym-validator-client",
  "nyxd-scraper",
- "reqwest 0.12.22",
+ "reqwest 0.12.23",
  "schemars 0.8.22",
  "serde",
  "sqlx",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "time",
  "tokio",
  "tokio-util",
@@ -7484,7 +7471,7 @@ dependencies = [
  "sqlx",
  "tendermint",
  "tendermint-rpc",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "time",
  "tokio",
  "tokio-stream",
@@ -7811,7 +7798,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1db05f56d34358a8b1066f67cbb203ee3e7ed2ba674a6263a1d5ec6db2204323"
 dependencies = [
  "memchr",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "ucd-trie",
 ]
 
@@ -8165,7 +8152,7 @@ dependencies = [
  "memchr",
  "parking_lot",
  "protobuf",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
 ]
 
 [[package]]
@@ -8265,7 +8252,7 @@ dependencies = [
  "rustc-hash",
  "rustls 0.23.29",
  "socket2 0.5.10",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "tokio",
  "tracing",
  "web-time",
@@ -8286,7 +8273,7 @@ dependencies = [
  "rustls 0.23.29",
  "rustls-pki-types",
  "slab",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "tinyvec",
  "tracing",
  "web-time",
@@ -8458,9 +8445,9 @@ dependencies = [
 
 [[package]]
 name = "regex"
-version = "1.11.1"
+version = "1.11.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b544ef1b4eac5dc2db33ea63606ae9ffcfac26c1416a2806ae0bf5f56b201191"
+checksum = "23d7fd106d8c02486a8d64e778353d1cffe08ce79ac2e82f540c86d0facf6912"
 dependencies = [
  "aho-corasick",
  "memchr",
@@ -8543,9 +8530,9 @@ dependencies = [
 
 [[package]]
 name = "reqwest"
-version = "0.12.22"
+version = "0.12.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cbc931937e6ca3a06e3b6c0aa7841849b160a90351d6ab467a8b9b9959767531"
+checksum = "d429f34c8092b2d42c7c93cec323bb4adeb7c67698f70839adec842ec10c7ceb"
 dependencies = [
  "async-compression",
  "base64 0.22.1",
@@ -8589,7 +8576,7 @@ version = "2.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "21918d6644020c6f6ef1993242989bf6d4952d2e025617744f184c02df51c356"
 dependencies = [
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
 ]
 
 [[package]]
@@ -8744,7 +8731,7 @@ dependencies = [
  "http 1.3.1",
  "mime",
  "rand 0.9.2",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
 ]
 
 [[package]]
@@ -9226,9 +9213,9 @@ dependencies = [
 
 [[package]]
 name = "serde_json"
-version = "1.0.141"
+version = "1.0.143"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "30b9eff21ebe718216c6ec64e1d9ac57087aad11efc64e32002bce4a0d4c03d3"
+checksum = "d401abef1d108fbd9cbaebc3e46611f4b1021f714a0597a71f41ee463f5f4a5a"
 dependencies = [
  "itoa",
  "memchr",
@@ -9249,7 +9236,7 @@ dependencies = [
  "serde_json",
  "serde_json_path_core",
  "serde_json_path_macros",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
 ]
 
 [[package]]
@@ -9261,7 +9248,7 @@ dependencies = [
  "inventory",
  "serde",
  "serde_json",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
 ]
 
 [[package]]
@@ -9684,7 +9671,7 @@ dependencies = [
  "serde_json",
  "sha2 0.10.9",
  "smallvec",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "time",
  "tokio",
  "tokio-stream",
@@ -9769,7 +9756,7 @@ dependencies = [
  "smallvec",
  "sqlx-core",
  "stringprep",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "time",
  "tracing",
  "whoami",
@@ -9821,7 +9808,7 @@ dependencies = [
  "smallvec",
  "sqlx-core",
  "stringprep",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "time",
  "tracing",
  "whoami",
@@ -9847,7 +9834,7 @@ dependencies = [
  "serde",
  "serde_urlencoded",
  "sqlx-core",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "time",
  "tracing",
  "url",
@@ -10229,7 +10216,7 @@ dependencies = [
  "serde_json",
  "sqlx",
  "tempfile",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "time",
  "tokio",
  "toml 0.8.23",
@@ -10258,11 +10245,11 @@ dependencies = [
 
 [[package]]
 name = "thiserror"
-version = "2.0.12"
+version = "2.0.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "567b8a2dae586314f7be2a752ec7474332959c6460e02bde30d702a66d488708"
+checksum = "3467d614147380f2e4e374161426ff399c91084acd2363eaf549172b3d5e60c0"
 dependencies = [
- "thiserror-impl 2.0.12",
+ "thiserror-impl 2.0.16",
 ]
 
 [[package]]
@@ -10278,9 +10265,9 @@ dependencies = [
 
 [[package]]
 name = "thiserror-impl"
-version = "2.0.12"
+version = "2.0.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7f7cf42b4507d8ea322120659672cf1b9dbb93f8f2d4ecfd6e51350ff5b17a1d"
+checksum = "6c5e1be1c48b9172ee610da68fd9cd2770e7a4056cb3fc98710ee6906f0c7960"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -10530,15 +10517,14 @@ dependencies = [
 
 [[package]]
 name = "tokio-util"
-version = "0.7.15"
+version = "0.7.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "66a539a9ad6d5d281510d5bd368c973d636c02dbf8a67300bfb6b950696ad7df"
+checksum = "14307c986784f72ef81c89db7d9e28d6ac26d16213b109ea501696195e6e3ce5"
 dependencies = [
  "bytes",
  "futures-core",
  "futures-sink",
  "futures-util",
- "hashbrown 0.15.4",
  "pin-project-lite",
  "slab",
  "tokio",
@@ -10762,9 +10748,9 @@ dependencies = [
 
 [[package]]
 name = "tracing-indicatif"
-version = "0.3.11"
+version = "0.3.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8c714cc8fc46db04fcfddbd274c6ef59bebb1b435155984e7c6e89c3ce66f200"
+checksum = "04d4e11e0e27acef25a47f27e9435355fecdc488867fa2bc90e75b0700d2823d"
 dependencies = [
  "indicatif 0.18.0",
  "tracing",
@@ -10880,7 +10866,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e640d9b0964e9d39df633548591090ab92f7a4567bc31d3891af23471a3365c6"
 dependencies = [
  "lazy_static",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "ts-rs-macros",
 ]
 
@@ -11050,9 +11036,9 @@ checksum = "ebc1c04c71510c7f702b52b7c350734c9ff1295c464a03335b00bb84fc54f853"
 
 [[package]]
 name = "uniffi"
-version = "0.29.3"
+version = "0.29.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b334fd69b3cf198b63616c096aabf9820ab21ed9b2aa1367ddd4b411068bf520"
+checksum = "c6d968cb62160c11f2573e6be724ef8b1b18a277aededd17033f8a912d73e2b4"
 dependencies = [
  "anyhow",
  "camino",
@@ -11067,9 +11053,9 @@ dependencies = [
 
 [[package]]
 name = "uniffi_bindgen"
-version = "0.29.3"
+version = "0.29.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2ff0132b533483cf19abb30bba5c72c24d9f3e4d9a2ff71cb3e22e73899fd46e"
+checksum = "f6b39ef1acbe1467d5d210f274fae344cb6f8766339330cb4c9688752899bf6b"
 dependencies = [
  "anyhow",
  "askama",
@@ -11093,9 +11079,9 @@ dependencies = [
 
 [[package]]
 name = "uniffi_build"
-version = "0.29.3"
+version = "0.29.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0d84d607076008df3c32dd2100ee4e727269f11d3faa35691af70d144598f666"
+checksum = "6683e6b665423cddeacd89a3f97312cf400b2fb245a26f197adaf65c45d505b2"
 dependencies = [
  "anyhow",
  "camino",
@@ -11104,9 +11090,9 @@ dependencies = [
 
 [[package]]
 name = "uniffi_core"
-version = "0.29.3"
+version = "0.29.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "53e3b997192dc15ef1778c842001811ec7f241a093a693ac864e1fc938e64fa9"
+checksum = "c2d990b553d6b9a7ee9c3ae71134674739913d52350b56152b0e613595bb5a6f"
 dependencies = [
  "anyhow",
  "bytes",
@@ -11116,9 +11102,9 @@ dependencies = [
 
 [[package]]
 name = "uniffi_internal_macros"
-version = "0.29.3"
+version = "0.29.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f64bec2f3a33f2f08df8150e67fa45ba59a2ca740bf20c1beb010d4d791f9a1b"
+checksum = "04f4f224becf14885c10e6e400b95cc4d1985738140cb194ccc2044563f8a56b"
 dependencies = [
  "anyhow",
  "indexmap 2.10.0",
@@ -11129,9 +11115,9 @@ dependencies = [
 
 [[package]]
 name = "uniffi_macros"
-version = "0.29.3"
+version = "0.29.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5d8708716d2582e4f3d7e9f320290b5966eb951ca421d7630571183615453efc"
+checksum = "b481d385af334871d70904e6a5f129be7cd38c18fcf8dd8fd1f646b426a56d58"
 dependencies = [
  "camino",
  "fs-err",
@@ -11146,9 +11132,9 @@ dependencies = [
 
 [[package]]
 name = "uniffi_meta"
-version = "0.29.3"
+version = "0.29.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3d226fc167754ce548c5ece9828c8a06f03bf1eea525d2659ba6bd648bd8e2f3"
+checksum = "10f817868a3b171bb7bf259e882138d104deafde65684689b4694c846d322491"
 dependencies = [
  "anyhow",
  "siphasher 0.3.11",
@@ -11158,9 +11144,9 @@ dependencies = [
 
 [[package]]
 name = "uniffi_pipeline"
-version = "0.29.3"
+version = "0.29.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b925b6421df15cf4bedee27714022cd9626fb4d7eee0923522a608b274ba4371"
+checksum = "4b147e133ad7824e32426b90bc41fda584363563f2ba747f590eca1fd6fd14e6"
 dependencies = [
  "anyhow",
  "heck 0.5.0",
@@ -11171,9 +11157,9 @@ dependencies = [
 
 [[package]]
 name = "uniffi_udl"
-version = "0.29.3"
+version = "0.29.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9c42649b721df759d9d4692a376b82b62ce3028ec9fc466f4780fb8cdf728996"
+checksum = "caed654fb73da5abbc7a7e9c741532284532ba4762d6fe5071372df22a41730a"
 dependencies = [
  "anyhow",
  "textwrap",
@@ -11579,7 +11565,7 @@ dependencies = [
  "rand 0.8.5",
  "serde",
  "serde-wasm-bindgen 0.6.5",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "time",
  "tsify",
  "url",
@@ -11601,7 +11587,7 @@ dependencies = [
  "nym-store-cipher",
  "serde",
  "serde-wasm-bindgen 0.6.5",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "wasm-bindgen",
  "wasm-utils",
 ]
@@ -12371,7 +12357,7 @@ dependencies = [
  "flate2",
  "indexmap 2.10.0",
  "memchr",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "zopfli",
 ]
 
@@ -12390,9 +12376,9 @@ dependencies = [
  "nym-crypto",
  "nym-http-api-client",
  "rand 0.8.5",
- "reqwest 0.12.22",
+ "reqwest 0.12.23",
  "serde",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "tokio",
  "tsify",
  "uuid",
@@ -12449,10 +12435,10 @@ dependencies = [
  "itertools 0.14.0",
  "nym-bin-common",
  "nym-http-api-client",
- "reqwest 0.12.22",
+ "reqwest 0.12.23",
  "serde",
  "serde_json",
- "thiserror 2.0.12",
+ "thiserror 2.0.16",
  "tokio",
  "tracing",
  "url",

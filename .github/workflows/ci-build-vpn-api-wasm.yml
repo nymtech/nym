@@ -15,7 +15,7 @@ jobs:
       RUSTUP_PERMIT_COPY_RENAME: 1
     steps:
       - name: Check out repository code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1

@@ -38,6 +38,8 @@ use std::path::Path;
 use std::path::PathBuf;
 #[cfg(unix)]
 use std::sync::Arc;
+use tokio_util::sync::CancellationToken;
+use tracing::instrument;
 use url::Url;
 use zeroize::Zeroizing;
 
@@ -694,6 +696,7 @@ where
         BandwidthImporter::new(self.storage.credential_store())
     }
 
+    #[instrument(skip_all)]
     async fn connect_to_mixnet_common(mut self) -> Result<(BaseClient, Recipient)> {
         self.setup_client_keys().await?;
         self.setup_gateway().await?;
@@ -826,6 +829,7 @@ where
     ///     let client = client.connect_to_mixnet().await.unwrap();
     /// }
     /// ```
+    #[instrument(skip_all)]
     pub async fn connect_to_mixnet(self) -> Result<MixnetClient> {
         if self.socks5_config.is_some() {
             return Err(Error::Socks5Config { set: true });

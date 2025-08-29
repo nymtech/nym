@@ -33,6 +33,8 @@ use nym_gateway_storage::traits::SharedKeyGatewayStorage;
 use nym_node_metrics::events::MetricsEvent;
 use nym_sphinx::DestinationAddressBytes;
 use nym_task::ShutdownToken;
+use opentelemetry::trace::TraceContextExt;
+use opentelemetry_sdk::trace::{IdGenerator, RandomIdGenerator};
 use rand::CryptoRng;
 use std::net::SocketAddr;
 use std::time::Duration;
@@ -41,7 +43,8 @@ use time::OffsetDateTime;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::time::timeout;
 use tokio_tungstenite::tungstenite::{protocol::Message, Error as WsError};
-use tracing::*;
+use tracing::{debug, error, info, info_span, instrument, warn};
+use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 #[derive(Debug, Error)]
 pub(crate) enum InitialAuthenticationError {
@@ -848,7 +851,7 @@ impl<R, S> FreshHandler<R, S> {
             debug!("failed to reply with protocol version: {err}")
         }
     }
-#[instrument(skip_all)]
+    #[instrument(skip_all)]
     pub(crate) async fn handle_initial_client_request(
         &mut self,
         request: ClientControlRequest,
@@ -857,6 +860,58 @@ impl<R, S> FreshHandler<R, S> {
         S: AsyncRead + AsyncWrite + Unpin + Send,
         R: CryptoRng + RngCore + Send,
     {
+        let span = if let ClientControlRequest::AuthenticateV2(ref auth_req) = request {
+            if let Some(ref trace_id) = auth_req.debug_trace_id {
+                warn!("RAW TRACE ID: {trace_id:?}");
+                let trace_id = opentelemetry::trace::TraceId::from_hex(&trace_id)
+                    .expect("Invalid trace ID format");
+                warn!("🫂TraceID: {trace_id}🫂");
+
+                // We don't need to try and preserve the SpanID, just the TraceID (right?) so
+                // just making a new SpanID for the moment
+                let id_generator = RandomIdGenerator::default();
+                let span_id = id_generator.new_span_id();
+
+                let span_context = opentelemetry::trace::SpanContext::new(
+                    trace_id,
+                    span_id,
+                    opentelemetry::trace::TraceFlags::SAMPLED,
+                    true, // is_remote = true since this comes from another service
+                    Default::default(),
+                );
+
+                let remote_context =
+                    opentelemetry::Context::current().with_remote_span_context(span_context);
+
+                let _context_guard = remote_context.clone().attach();
+                let span = info_span!(
+                    "authenticate_v2",
+                    trace_id = %trace_id
+                );
+                span.set_parent(remote_context.clone());
+
+                Some(span)
+            } else {
+                warn!("AuthenticateV2 request but no trace_id provided");
+                None
+            }
+        } else {
+            warn!("Not an AuthenticateV2 request");
+            None
+        };
+
+        // Probably a nicer way to do this but for now just match
+        let _guard = match &span {
+            Some(s) => {
+                warn!("ENTERED SPAN");
+                Some(s.enter())
+            }
+            None => {
+                warn!("COULDN'T ENTER SPAN");
+                None
+            }
+        };
+
         // we can handle stateless client requests without prior authentication, like `ClientControlRequest::SupportedProtocol`
         let auth_result = match request {
             ClientControlRequest::Authenticate {

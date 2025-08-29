@@ -10186,7 +10186,7 @@ dependencies = [
  "bip39",
  "bs58",
  "clap",
- "console 0.15.11",
+ "console 0.16.0",
  "cw-utils",
  "dkg-bypass-contract",
  "humantime",

@@ -433,6 +433,7 @@ where
 
     // buffer controlling all messages fetched from provider
     // required so that other components would be able to use them (say the websocket)
+    #[instrument(skip_all)]
     fn start_received_messages_buffer_controller(
         local_encryption_keypair: Arc<x25519::KeyPair>,
         query_receiver: ReceivedBufferRequestReceiver,
@@ -465,6 +466,7 @@ where
     }
 
     #[allow(clippy::too_many_arguments)]
+    #[instrument(skip_all)]
     async fn start_gateway_client(
         config: &Config,
         initialisation_result: InitialisationResult,
@@ -571,6 +573,7 @@ where
     }
 
     #[allow(clippy::too_many_arguments)]
+    #[instrument(skip_all)]
     async fn setup_gateway_transceiver(
         custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send>>,
         config: &Config,
@@ -728,7 +731,7 @@ where
             shutdown_tracker,
         )
     }
-
+    #[instrument(skip_all)]
     fn start_mix_traffic_controller(
         gateway_transceiver: Box<dyn GatewayTransceiver + Send>,
         shutdown_tracker: &ShutdownTracker,
@@ -838,6 +841,7 @@ where
         Ok(client.get_key_rotation_info().await?.into())
     }
 
+    #[instrument(skip_all)]
     pub async fn start_base(mut self) -> Result<BaseClient, ClientCoreError>
     where
         S::ReplyStore: Send + Sync,

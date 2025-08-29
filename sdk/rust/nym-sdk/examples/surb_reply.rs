@@ -1,28 +1,38 @@
 use nym_sdk::mixnet::{
     AnonymousSenderTag, MixnetClientBuilder, MixnetMessageSender, ReconstructedMessage,
-    StoragePaths,
+    // StoragePaths,
 };
-use std::path::PathBuf;
-use tempfile::TempDir;
+use tracing::instrument;
+// use std::path::PathBuf;
+// use tempfile::TempDir;
 
 #[tokio::main]
+#[instrument(name = "sdk-example-surb-reply", skip_all)]
 async fn main() {
     nym_bin_common::opentelemetry::setup_tracing_logger("sdk-example-surb-reply".to_string()).unwrap();
 
-    // Specify some config options
-    let config_dir: PathBuf = TempDir::new().unwrap().path().to_path_buf();
-    let storage_paths = StoragePaths::new_from_dir(&config_dir).unwrap();
+    // // Specify some config options
+    // let config_dir: PathBuf = TempDir::new().unwrap().path().to_path_buf();
+    // let storage_paths = StoragePaths::new_from_dir(&config_dir).unwrap();
 
     // Create the client with a storage backend, and enable it by giving it some paths. If keys
     // exists at these paths, they will be loaded, otherwise they will be generated.
-    let client = MixnetClientBuilder::new_with_default_storage(storage_paths)
-        .await
-        .unwrap()
+    // let client = MixnetClientBuilder::new_with_default_storage(storage_paths)
+    //     .await
+    //     .unwrap()
+    //     .build()
+    //     .unwrap();
+    let client_builder  = MixnetClientBuilder::new_ephemeral();
+    let mixnet_client = client_builder
+        .request_gateway("BAF2aYpzcK9KbSS3Y7EdLisxiogkTr88FXkdL8EDNigH".to_string())
+        .with_ignore_epoch_roles(true)
+        .with_extended_topology(true)
         .build()
         .unwrap();
 
+    let mut client = mixnet_client.connect_to_mixnet().await.unwrap();
     // Now we connect to the mixnet, using keys now stored in the paths provided.
-    let mut client = client.connect_to_mixnet().await.unwrap();
+    // let mut client = client.connect_to_mixnet().await.unwrap();
 
     // Be able to get our client address
     let our_address = client.nym_address();
@@ -30,9 +40,8 @@ async fn main() {
 
     // Send a message through the mixnet to ourselves using our nym address
     client
-        .send_plain_message(*our_address, "hello there")
-        .await
-        .unwrap();
+        .on_messages(|msg| println!("Received: {}", String::from_utf8_lossy(&msg.message)))
+        .await;
 
     // we're going to parse the sender_tag (AnonymousSenderTag) from the incoming message and use it to 'reply' to ourselves instead of our Nym address.
     // we know there will be a sender_tag since the sdk sends SURBs along with messages by default.

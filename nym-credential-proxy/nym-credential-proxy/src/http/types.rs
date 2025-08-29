@@ -1,7 +1,7 @@
 // Copyright 2024 Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::error::VpnApiError;
+use crate::error::CredentialProxyError;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::Json;
@@ -35,7 +35,7 @@ impl RequestError {
         }
     }
 
-    pub fn new_server_error(err: VpnApiError, uuid: Uuid) -> Self {
+    pub fn new_server_error(err: CredentialProxyError, uuid: Uuid) -> Self {
         RequestError::new_with_uuid(err.to_string(), uuid, StatusCode::INTERNAL_SERVER_ERROR)
     }
 

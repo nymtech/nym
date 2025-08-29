@@ -1,17 +1,17 @@
 // Copyright 2024 Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::storage::VpnApiStorage;
+use crate::storage::CredentialProxyStorage;
 use tokio_util::sync::CancellationToken;
 use tracing::{error, info};
 
 pub struct StoragePruner {
     cancellation_token: CancellationToken,
-    storage: VpnApiStorage,
+    storage: CredentialProxyStorage,
 }
 
 impl StoragePruner {
-    pub fn new(cancellation_token: CancellationToken, storage: VpnApiStorage) -> Self {
+    pub fn new(cancellation_token: CancellationToken, storage: CredentialProxyStorage) -> Self {
         Self {
             cancellation_token,
             storage,
@@ -22,6 +22,7 @@ impl StoragePruner {
         info!("starting the storage pruner task");
         loop {
             tokio::select! {
+                biased;
                 _ = self.cancellation_token.cancelled() => {
                     break
                 }

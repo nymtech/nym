@@ -10,6 +10,7 @@ use std::fs::create_dir_all;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::path::PathBuf;
 use std::sync::OnceLock;
+use std::time::Duration;
 use tracing::info;
 
 fn pretty_build_info_static() -> &'static str {
@@ -64,6 +65,23 @@ pub struct Cli {
     )]
     pub(crate) max_concurrent_deposits: usize,
 
+    /// Specify the size of the deposits buffer the credential proxy should have available at any time
+    /// (default: 256)
+    #[clap(
+        long,
+        env = "NYM_CREDENTIAL_PROXY_DEPOSITS_BUFFER",
+        default_value_t = 256
+    )]
+    pub(crate) deposits_buffer_size: usize,
+
+    #[clap(
+        long,
+        env = "NYM_CREDENTIAL_PROXY_QUORUM_CHECK_INTERVAL",
+        default_value = "5m",
+        value_parser = humantime::parse_duration
+    )]
+    pub(crate) quorum_check_interval: Duration,
+
     #[clap(long, env = "NYM_CREDENTIAL_PROXY_PERSISTENT_STORAGE_STORAGE")]
     pub(crate) persistent_storage_path: Option<PathBuf>,
 }
@@ -90,10 +108,7 @@ impl Cli {
                 create_dir_all(parent).unwrap();
             }
 
-            info!(
-                "setting the storage path path to {}",
-                default_path.display()
-            );
+            info!("setting the storage path to {}", default_path.display());
 
             default_path
         })

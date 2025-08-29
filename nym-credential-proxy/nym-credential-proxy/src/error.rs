@@ -1,6 +1,7 @@
 // Copyright 2024 Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use nym_ecash_signer_check::SignerCheckError;
 use nym_validator_client::coconut::EcashApiError;
 use nym_validator_client::nym_api::EpochId;
 use nym_validator_client::nyxd::error::NyxdError;
@@ -10,7 +11,7 @@ use thiserror::Error;
 use time::OffsetDateTime;
 
 #[derive(Debug, Error)]
-pub enum VpnApiError {
+pub enum CredentialProxyError {
     #[error("encountered an internal io error: {source}")]
     IoError {
         #[from]
@@ -118,11 +119,20 @@ pub enum VpnApiError {
 
     #[error("failed to create deposit")]
     DepositFailure,
+
+    #[error("can't obtain sufficient number of credential shares due to unavailable quorum")]
+    UnavailableSigningQuorum,
+
+    #[error("failed to perform quorum check: {source}")]
+    QuorumCheckFailure {
+        #[from]
+        source: SignerCheckError,
+    },
 }
 
-impl VpnApiError {
-    pub fn database_inconsistency<S: Into<String>>(reason: S) -> VpnApiError {
-        VpnApiError::DatabaseInconsistency {
+impl CredentialProxyError {
+    pub fn database_inconsistency<S: Into<String>>(reason: S) -> CredentialProxyError {
+        CredentialProxyError::DatabaseInconsistency {
             reason: reason.into(),
         }
     }

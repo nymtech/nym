@@ -50,7 +50,7 @@ impl CredentialRequest for BlindSignRequestBody {
     }
 
     fn ecash_pubkey(&self) -> PublicKeyUser {
-        self.ecash_pubkey.clone()
+        self.ecash_pubkey
     }
 }
 
@@ -60,7 +60,7 @@ pub(crate) fn blind_sign<C: CredentialRequest>(
 ) -> Result<BlindedSignature, EcashError> {
     Ok(nym_compact_ecash::scheme::withdrawal::issue(
         signing_key,
-        request.ecash_pubkey().clone(),
+        request.ecash_pubkey(),
         request.withdrawal_request(),
         request.expiration_date_timestamp(),
         request.ticketbook_type(),

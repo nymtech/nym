@@ -1,11 +1,6 @@
 // Copyright 2024 Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-#![warn(clippy::expect_used)]
-#![warn(clippy::unwrap_used)]
-#![warn(clippy::todo)]
-#![warn(clippy::dbg_macro)]
-
 cfg_if::cfg_if! {
     if #[cfg(unix)] {
         use crate::cli::Cli;
@@ -18,7 +13,6 @@ cfg_if::cfg_if! {
         pub mod cli;
         pub mod config;
         pub mod credentials;
-        mod deposit_maker;
         pub mod error;
         pub mod helpers;
         pub mod http;
@@ -26,6 +20,8 @@ cfg_if::cfg_if! {
         pub mod storage;
         pub mod tasks;
         mod webhook;
+        mod deposits_buffer;
+        mod quorum_checker;
     }
 }
 
@@ -55,5 +51,6 @@ async fn main() -> anyhow::Result<()> {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     eprintln!("This tool is only supported on Unix systems");
+    #[allow(clippy::exit)]
     std::process::exit(1)
 }

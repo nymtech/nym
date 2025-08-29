@@ -1,13 +1,13 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::error::VpnApiError;
 use crate::storage::models::{
     BlindedShares, BlindedSharesStatus, MinimalWalletShare, RawCoinIndexSignatures,
-    RawExpirationDateSignatures, RawVerificationKey,
+    RawExpirationDateSignatures, RawVerificationKey, StorableEcashDeposit,
 };
 use nym_validator_client::nyxd::contract_traits::ecash_query_client::DepositId;
 use time::{Date, OffsetDateTime};
+use tracing::error;
 
 #[derive(Clone)]
 pub(crate) struct SqliteStorageManager {
@@ -42,7 +42,7 @@ impl SqliteStorageManager {
             r#"
                 SELECT t1.node_id, t1.blinded_signature, t1.epoch_id, t1.expiration_date as "expiration_date!: Date"
                 FROM partial_blinded_wallet as t1
-                JOIN ticketbook_deposit as t2
+                JOIN ecash_deposit_usage as t2
                     on t1.corresponding_deposit = t2.deposit_id
                 JOIN blinded_shares as t3
                     ON t2.request_uuid = t3.request_uuid
@@ -106,7 +106,7 @@ impl SqliteStorageManager {
                     t1.epoch_id as "epoch_id!",
                     t1.expiration_date as "expiration_date!: Date"
                 FROM partial_blinded_wallet as t1
-                JOIN ticketbook_deposit as t2
+                JOIN ecash_deposit_usage as t2
                     on t1.corresponding_deposit = t2.deposit_id
                 JOIN blinded_shares as t3
                     ON t2.request_uuid = t3.request_uuid
@@ -169,7 +169,7 @@ impl SqliteStorageManager {
         available_shares: i64,
         device_id: &str,
         credential_id: &str,
-    ) -> Result<BlindedShares, VpnApiError> {
+    ) -> Result<BlindedShares, sqlx::Error> {
         let now = OffsetDateTime::now_utc();
         let res = sqlx::query_as(
             r#"
@@ -196,7 +196,7 @@ impl SqliteStorageManager {
         device_id: &str,
         credential_id: &str,
         error: &str,
-    ) -> Result<BlindedShares, VpnApiError> {
+    ) -> Result<BlindedShares, sqlx::Error> {
         let now = time::OffsetDateTime::now_utc();
         let res = sqlx::query_as(
             r#"
@@ -221,7 +221,7 @@ impl SqliteStorageManager {
     pub(crate) async fn prune_old_blinded_shares(
         &self,
         delete_after: OffsetDateTime,
-    ) -> Result<(), VpnApiError> {
+    ) -> Result<(), sqlx::Error> {
         sqlx::query!(
             r#"
                 DELETE FROM blinded_shares WHERE created < ?
@@ -236,7 +236,7 @@ impl SqliteStorageManager {
     pub(crate) async fn prune_old_partial_blinded_wallets(
         &self,
         delete_after: OffsetDateTime,
-    ) -> Result<(), VpnApiError> {
+    ) -> Result<(), sqlx::Error> {
         sqlx::query!(
             r#"
                 DELETE FROM partial_blinded_wallet WHERE created < ?
@@ -251,7 +251,7 @@ impl SqliteStorageManager {
     pub(crate) async fn prune_old_partial_blinded_wallet_failures(
         &self,
         delete_after: OffsetDateTime,
-    ) -> Result<(), VpnApiError> {
+    ) -> Result<(), sqlx::Error> {
         sqlx::query!(
             r#"
                 DELETE FROM partial_blinded_wallet_failure WHERE created < ?
@@ -370,32 +370,87 @@ impl SqliteStorageManager {
         Ok(())
     }
 
-    #[allow(clippy::too_many_arguments)]
-    pub(crate) async fn insert_deposit_data(
+    pub(crate) async fn insert_new_deposits(
+        &self,
+        deposits: Vec<StorableEcashDeposit>,
+    ) -> Result<(), sqlx::Error> {
+        if deposits.is_empty() {
+            // this should NEVER happen
+            error!("attempted to insert empty list of deposits");
+            return Ok(());
+        }
+
+        let mut query_builder =
+            sqlx::QueryBuilder::new("INSERT INTO ecash_deposit (deposit_id, deposit_tx_hash, requested_on, deposit_amount, ed25519_deposit_private_key) ");
+
+        query_builder.push_values(&deposits, |mut b, deposit| {
+            b.push_bind(deposit.deposit_id)
+                .push_bind(deposit.deposit_tx_hash.clone())
+                .push_bind(deposit.requested_on)
+                .push_bind(deposit.deposit_amount.clone())
+                .push_bind(deposit.ed25519_deposit_private_key.as_ref());
+        });
+
+        query_builder.build().execute(&self.connection_pool).await?;
+        Ok(())
+    }
+
+    pub(crate) async fn load_unused_deposits(
+        &self,
+    ) -> Result<Vec<StorableEcashDeposit>, sqlx::Error> {
+        // select all entries from ecash_deposit where there is NO associated marked usage
+        sqlx::query_as(
+            r#"
+                SELECT ecash_deposit.*
+                FROM ecash_deposit ecash_deposit
+                LEFT JOIN ecash_deposit_usage deposit_usage
+                    ON ecash_deposit.deposit_id = deposit_usage.deposit_id
+                WHERE deposit_usage.deposit_id IS NULL;
+            "#,
+        )
+        .fetch_all(&self.connection_pool)
+        .await
+    }
+
+    pub(crate) async fn insert_deposit_usage(
         &self,
         deposit_id: DepositId,
-        deposit_tx_hash: String,
         requested_on: OffsetDateTime,
+        client_pubkey: Vec<u8>,
         request_uuid: String,
-        deposit_amount: String,
-        client_pubkey: &[u8],
-        deposit_ed25519_private_key: &[u8],
     ) -> Result<(), sqlx::Error> {
         sqlx::query!(
             r#"
-                INSERT INTO ticketbook_deposit(deposit_id, deposit_tx_hash, requested_on, request_uuid, deposit_amount, client_pubkey, ed25519_deposit_private_key)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO ecash_deposit_usage (deposit_id, ticketbooks_requested_on, client_pubkey, request_uuid)
+                VALUES (?, ?, ?, ?)
             "#,
-                deposit_id,
-                deposit_tx_hash,
-                requested_on,
-                request_uuid,
-                deposit_amount,
-                client_pubkey,
-                deposit_ed25519_private_key,
+            deposit_id,
+            requested_on,
+            client_pubkey,
+            request_uuid
         )
-            .execute(&self.connection_pool)
-            .await?;
+        .execute(&self.connection_pool)
+        .await?;
+
+        Ok(())
+    }
+
+    pub(crate) async fn insert_deposit_usage_error(
+        &self,
+        deposit_id: DepositId,
+        error: String,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query!(
+            r#"
+                UPDATE ecash_deposit_usage
+                SET ticketbook_request_error = ?
+                WHERE deposit_id = ?
+            "#,
+            error,
+            deposit_id
+        )
+        .execute(&self.connection_pool)
+        .await?;
 
         Ok(())
     }

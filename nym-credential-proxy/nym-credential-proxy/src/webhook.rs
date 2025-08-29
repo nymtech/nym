@@ -1,7 +1,7 @@
 // Copyright 2024 Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::error::VpnApiError;
+use crate::error::CredentialProxyError;
 use clap::Args;
 use reqwest::header::AUTHORIZATION;
 use serde::Serialize;
@@ -22,9 +22,9 @@ pub struct ZkNymWebHookConfig {
 }
 
 impl ZkNymWebHookConfig {
-    pub fn ensure_valid_client_url(&self) -> Result<(), VpnApiError> {
+    pub fn ensure_valid_client_url(&self) -> Result<(), CredentialProxyError> {
         self.client_url()
-            .map_err(|_| VpnApiError::InvalidWebhookUrl)
+            .map_err(|_| CredentialProxyError::InvalidWebhookUrl)
             .map(|_| ())
     }
 

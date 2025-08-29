@@ -1,8 +1,7 @@
 // Copyright 2024 Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::deposit_maker::{DepositRequest, DepositResponse};
-use crate::error::VpnApiError;
+use crate::error::CredentialProxyError;
 use crate::http::state::ApiState;
 use crate::storage::models::BlindedShares;
 use futures::{stream, StreamExt};
@@ -11,51 +10,19 @@ use nym_credential_proxy_requests::api::v1::ticketbook::models::{
     TicketbookWalletSharesResponse, WalletShare, WebhookTicketbookWalletShares,
     WebhookTicketbookWalletSharesRequest,
 };
-use nym_credentials::IssuanceTicketBook;
 use nym_credentials_interface::Base58;
-use nym_crypto::asymmetric::ed25519;
 use nym_validator_client::ecash::BlindSignRequestBody;
-use nym_validator_client::nyxd::Coin;
-use rand::rngs::OsRng;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 use time::OffsetDateTime;
-use tokio::sync::{oneshot, Mutex};
-use tokio::time::{timeout, Instant};
-use tracing::{debug, error, info, instrument, warn};
+use tokio::sync::Mutex;
+use tokio::time::timeout;
+use tracing::{debug, error, info, instrument};
 use uuid::Uuid;
 
 // use the same type alias as our contract without importing the whole thing just for this single line
 pub type NodeId = u64;
-
-#[instrument(skip(state), ret, err(Display))]
-async fn make_deposit(
-    state: &ApiState,
-    pub_key: ed25519::PublicKey,
-    deposit_amount: &Coin,
-) -> Result<DepositResponse, VpnApiError> {
-    let start = Instant::now();
-    let (on_done_tx, on_done_rx) = oneshot::channel();
-    let request = DepositRequest::new(pub_key, deposit_amount, on_done_tx);
-    state.request_deposit(request).await;
-
-    let time_taken = start.elapsed();
-    let formatted = humantime::format_duration(time_taken);
-
-    let Ok(deposit_response) = on_done_rx.await else {
-        error!("failed to receive deposit response: the corresponding sender channel got dropped by the DepositMaker!");
-        return Err(VpnApiError::DepositFailure);
-    };
-
-    if time_taken > Duration::from_secs(20) {
-        warn!("attempting to resolve deposit request took {formatted}. perhaps the buffer is too small or the process/chain is overloaded?")
-    } else {
-        debug!("attempting to resolve deposit request took {formatted}")
-    }
-
-    deposit_response.ok_or(VpnApiError::DepositFailure)
-}
 
 #[instrument(
     skip(state, request_data, request, requested_on),
@@ -69,13 +36,13 @@ pub(crate) async fn try_obtain_wallet_shares(
     request: Uuid,
     requested_on: OffsetDateTime,
     request_data: TicketbookRequest,
-) -> Result<Vec<WalletShare>, VpnApiError> {
-    let mut rng = OsRng;
-
-    let ed25519_keypair = ed25519::KeyPair::new(&mut rng);
+) -> Result<Vec<WalletShare>, CredentialProxyError> {
+    // don't proceed if we don't have quorum available as the request will definitely fail
+    if !state.quorum_available() {
+        return Err(CredentialProxyError::UnavailableSigningQuorum);
+    }
 
     let epoch = state.current_epoch_id().await?;
-    let deposit_amount = state.deposit_amount().await?;
     let threshold = state.ecash_threshold(epoch).await?;
     let expiration_date = request_data.expiration_date;
 
@@ -87,30 +54,11 @@ pub(crate) async fn try_obtain_wallet_shares(
         .await?;
     let ecash_api_clients = state.ecash_clients(epoch).await?.clone();
 
-    let DepositResponse {
-        deposit_id,
-        tx_hash,
-    } = make_deposit(state, *ed25519_keypair.public_key(), &deposit_amount).await?;
-
-    info!(deposit_id = %deposit_id, "deposit finished");
-
-    // store the deposit information so if we fail, we could perhaps still reuse it for another issuance
-    state
-        .storage()
-        .insert_deposit_data(
-            deposit_id,
-            tx_hash,
-            requested_on,
-            request,
-            deposit_amount,
-            &request_data.ecash_pubkey,
-            &ed25519_keypair,
-        )
+    let deposit_data = state
+        .get_deposit(request, requested_on, request_data.ecash_pubkey)
         .await?;
-
-    let plaintext =
-        IssuanceTicketBook::request_plaintext(&request_data.withdrawal_request, deposit_id);
-    let signature = ed25519_keypair.private_key().sign(plaintext);
+    let deposit_id = deposit_data.deposit_id;
+    let signature = deposit_data.sign_ticketbook_plaintext(&request_data.withdrawal_request);
 
     let credential_request = BlindSignRequestBody::new(
         request_data.withdrawal_request.into(),
@@ -135,7 +83,7 @@ pub(crate) async fn try_obtain_wallet_shares(
                 client.api_client.blind_sign(&credential_request),
             )
             .await
-            .map_err(|_| VpnApiError::EcashApiRequestTimeout {
+            .map_err(|_| CredentialProxyError::EcashApiRequestTimeout {
                 client_repr: client.to_string(),
             })
             .and_then(|res| res.map_err(Into::into));
@@ -176,10 +124,14 @@ pub(crate) async fn try_obtain_wallet_shares(
     let shares = wallet_shares.len();
 
     if shares < threshold as usize {
-        return Err(VpnApiError::InsufficientNumberOfCredentials {
+        let err = CredentialProxyError::InsufficientNumberOfCredentials {
             available: shares,
             threshold,
-        });
+        };
+        state
+            .insert_deposit_usage_error(deposit_id, err.to_string())
+            .await;
+        return Err(err);
     }
 
     Ok(wallet_shares
@@ -199,12 +151,14 @@ async fn try_obtain_wallet_shares_async(
     request_data: TicketbookRequest,
     device_id: &str,
     credential_id: &str,
-) -> Result<Vec<WalletShare>, VpnApiError> {
+) -> Result<Vec<WalletShare>, CredentialProxyError> {
     let shares = match try_obtain_wallet_shares(state, request, requested_on, request_data).await {
         Ok(shares) => shares,
         Err(err) => {
             let obtained = match err {
-                VpnApiError::InsufficientNumberOfCredentials { available, .. } => available,
+                CredentialProxyError::InsufficientNumberOfCredentials { available, .. } => {
+                    available
+                }
                 _ => 0,
             };
 
@@ -235,7 +189,7 @@ async fn try_obtain_blinded_ticketbook_async_inner(
     request_data: TicketbookAsyncRequest,
     params: TicketbookObtainQueryParams,
     pending: &BlindedShares,
-) -> Result<(), VpnApiError> {
+) -> Result<(), CredentialProxyError> {
     let epoch_id = state.current_epoch_id().await?;
 
     let device_id = &request_data.device_id;
@@ -318,7 +272,7 @@ async fn try_trigger_webhook_request_for_error(
     request_data: TicketbookAsyncRequest,
     pending: &BlindedShares,
     error_message: String,
-) -> Result<(), VpnApiError> {
+) -> Result<(), CredentialProxyError> {
     let device_id = &request_data.device_id;
     let credential_id = &request_data.credential_id;
     let secret = request_data.secret.clone();

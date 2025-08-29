@@ -1,7 +1,7 @@
 // Copyright 2024 Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::error::VpnApiError;
+use crate::error::CredentialProxyError;
 use crate::http::types::RequestError;
 use axum::http::StatusCode;
 use rand::rngs::OsRng;
@@ -16,7 +16,7 @@ pub fn random_uuid() -> Uuid {
     Uuid::from_bytes(bytes)
 }
 
-pub fn db_failure<T>(err: VpnApiError, uuid: Uuid) -> Result<T, RequestError> {
+pub fn db_failure<T>(err: CredentialProxyError, uuid: Uuid) -> Result<T, RequestError> {
     warn!("db failure: {err}");
     Err(RequestError::new_with_uuid(
         format!("oh no, something went wrong {err}"),

@@ -6,15 +6,17 @@ use time::OffsetDateTime;
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, error, info, warn};
 
+use crate::deposits_buffer::DepositsBuffer;
+use crate::http::state::required_deposit_cache::RequiredDepositCache;
+use crate::quorum_checker::QuorumStateChecker;
 use crate::{
     cli::Cli,
-    deposit_maker::DepositMaker,
-    error::VpnApiError,
+    error::CredentialProxyError,
     http::{
         state::{ApiState, ChainClient},
         HttpServer,
     },
-    storage::VpnApiStorage,
+    storage::CredentialProxyStorage,
     tasks::StoragePruner,
 };
 
@@ -77,6 +79,7 @@ pub async fn wait_for_signal() {
     }
 }
 
+#[allow(clippy::panic)]
 fn build_sha_short() -> &'static str {
     let bin_info = bin_info!();
     if bin_info.commit_sha.len() < 7 {
@@ -91,30 +94,46 @@ fn build_sha_short() -> &'static str {
     &bin_info.commit_sha[..7]
 }
 
-pub(crate) async fn run_api(cli: Cli) -> Result<(), VpnApiError> {
+pub(crate) async fn run_api(cli: Cli) -> Result<(), CredentialProxyError> {
     // create the tasks
     let bind_address = cli.bind_address();
 
-    let storage = VpnApiStorage::init(cli.persistent_storage_path()).await?;
+    let storage = CredentialProxyStorage::init(cli.persistent_storage_path()).await?;
     let mnemonic = cli.mnemonic;
     let auth_token = cli.http_auth_token;
     let webhook_cfg = cli.webhook;
     let chain_client = ChainClient::new(mnemonic)?;
     let cancellation_token = CancellationToken::new();
 
-    let deposit_maker = DepositMaker::new(
-        build_sha_short(),
+    let required_deposit_cache = RequiredDepositCache::default();
+
+    let quorum_state_checker = QuorumStateChecker::new(
         chain_client.clone(),
+        cli.quorum_check_interval,
+        cancellation_token.clone(),
+    )
+    .await?;
+    let quorum_state = quorum_state_checker.quorum_state_ref();
+
+    let deposits_buffer = DepositsBuffer::new(
+        storage.clone(),
+        chain_client.clone(),
+        required_deposit_cache.clone(),
+        build_sha_short(),
+        cli.deposits_buffer_size,
         cli.max_concurrent_deposits,
         cancellation_token.clone(),
-    );
+    )
+    .await?;
 
-    let deposit_request_sender = deposit_maker.deposit_request_sender();
+    // let deposit_request_sender = deposit_maker.deposit_request_sender();
     let api_state = ApiState::new(
         storage.clone(),
+        quorum_state,
         webhook_cfg,
         chain_client,
-        deposit_request_sender,
+        deposits_buffer,
+        required_deposit_cache,
         cancellation_token.clone(),
     )
     .await?;
@@ -129,7 +148,7 @@ pub(crate) async fn run_api(cli: Cli) -> Result<(), VpnApiError> {
     // spawn all the tasks
     api_state.try_spawn(http_server.run_forever());
     api_state.try_spawn(storage_pruner.run_forever());
-    api_state.try_spawn(deposit_maker.run_forever());
+    api_state.try_spawn(quorum_state_checker.run_forever());
 
     // wait for cancel signal (SIGINT, SIGTERM or SIGQUIT)
     wait_for_signal().await;

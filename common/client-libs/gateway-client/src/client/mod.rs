@@ -1043,6 +1043,12 @@ impl<C, St> GatewayClient<C, St> {
     }
 
     // Note: this requires prior authentication
+    #[instrument(skip_all,
+        fields(
+            gateway = %self.gateway_identity,
+            gateway_address = %self.gateway_address
+        )
+    )]
     pub fn start_listening_for_mixnet_messages(&mut self) -> Result<(), GatewayClientError> {
         if !self.authenticated {
             return Err(GatewayClientError::NotAuthenticated);

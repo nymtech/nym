@@ -2,7 +2,8 @@ use nym_sdk::mixnet::{
     AnonymousSenderTag, MixnetClientBuilder, MixnetMessageSender, ReconstructedMessage,
     // StoragePaths,
 };
-use opentelemetry::trace::TraceContextExt;
+use opentelemetry::trace::{TraceContextExt, Tracer};
+use opentelemetry::{global, Context};
 // use opentelemetry::trace::Tracer;
 // use opentelemetry::Context;
 // use opentelemetry::global;
@@ -17,30 +18,42 @@ use tracing_opentelemetry::OpenTelemetrySpanExt;
 async fn main() {
     nym_bin_common::opentelemetry::setup_tracing_logger("sdk-example-surb-reply".to_string()).unwrap();
 
-    let main_span = info_span!("surb_example_session");
-    let _main_span_enter = main_span.enter();
+    // let main_span = info_span!("surb_example_session");
+    // let _main_span_enter = main_span.enter();
 
-    let current_span = tracing::Span::current();
-    let otel_context = current_span.context();
-    let binding = otel_context.span();
-    let span_context = binding.span_context();
-    let trace_id = span_context.trace_id();
+    // let current_span = tracing::Span::current();
+    // let otel_context = current_span.context();
+    // let binding = otel_context.span();
+    // let span_context = binding.span_context();
+    // let trace_id = span_context.trace_id();
     
-    warn!("Starting the SURB reply example - trace id: {}", trace_id);
-    warn!("Otel context: {:?}", otel_context);
-    warn!("trace id: {}", trace_id);
+    // warn!("Starting the SURB reply example - trace id: {}", trace_id);
+    // warn!("Otel context: {:?}", otel_context);
+    // warn!("trace id: {}", trace_id);
+    let tracer = global::tracer("sdk-example-surb-reply");
+    let span = tracer.start("test_span");
+    let cx = Context::current_with_span(span);
+    let _guard = cx.clone().attach();
 
-    // // Specify some config options
-    // let config_dir: PathBuf = TempDir::new().unwrap().path().to_path_buf();
-    // let storage_paths = StoragePaths::new_from_dir(&config_dir).unwrap();
+    let trace_id = cx.span().span_context().trace_id();
+    warn!("Main TRACE_ID: {:?}", trace_id);
+
+    let span = info_span!(
+        "surb_reply_example_session",
+        trace_id = %trace_id.to_string()
+    );
+    let _enter = span.enter();
+
+    let otel_context = opentelemetry::Context::current();
+    warn!("OTEL CONTEXT: {:?}", otel_context);
+    let span = otel_context.span();
+    let context = span.span_context();
+    let trace_id = context.trace_id();
+    warn!("TRACE_ID: {:?}", trace_id);
 
     // Create the client with a storage backend, and enable it by giving it some paths. If keys
     // exists at these paths, they will be loaded, otherwise they will be generated.
-    // let client = MixnetClientBuilder::new_with_default_storage(storage_paths)
-    //     .await
-    //     .unwrap()
-    //     .build()
-    //     .unwrap();
+
     let client_builder  = MixnetClientBuilder::new_ephemeral();
     let mixnet_client = client_builder
         .request_gateway("BAF2aYpzcK9KbSS3Y7EdLisxiogkTr88FXkdL8EDNigH".to_string())

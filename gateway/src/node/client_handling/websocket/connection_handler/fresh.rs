@@ -835,6 +835,129 @@ impl<R, S> FreshHandler<R, S> {
         ))
     }
 
+    // #[instrument(skip_all)]
+    // pub(crate) async fn handle_initial_client_request(
+    //     &mut self,
+    //     request: ClientControlRequest,
+    // ) -> Result<Option<ClientDetails>, InitialAuthenticationError>
+    // where
+    //     S: AsyncRead + AsyncWrite + Unpin + Send,
+    //     R: CryptoRng + RngCore + Send,
+    // {
+    //     let span = if let ClientControlRequest::AuthenticateV2(ref auth_req) = request {
+    //         if let Some(ref trace_id) = auth_req.debug_trace_id {
+    //             warn!("RAW TRACE ID: {trace_id:?}");
+    //             let trace_id = opentelemetry::trace::TraceId::from_hex(&trace_id)
+    //                 .expect("Invalid trace ID format");
+    //             warn!("🫂TraceID: {trace_id}🫂");
+
+    //             // We don't need to try and preserve the SpanID, just the TraceID (right?) so
+    //             // just making a new SpanID for the moment
+    //             let id_generator = RandomIdGenerator::default();
+    //             let span_id = id_generator.new_span_id();
+
+    //             let span_context = opentelemetry::trace::SpanContext::new(
+    //                 trace_id,
+    //                 span_id,
+    //                 opentelemetry::trace::TraceFlags::SAMPLED,
+    //                 true, // is_remote = true since this comes from another service
+    //                 Default::default(),
+    //             );
+
+    //             let remote_context =
+    //                 opentelemetry::Context::current().with_remote_span_context(span_context);
+
+    //             let _context_guard = remote_context.clone().attach();
+    //             let span = info_span!(
+    //                 "authenticate_v2",
+    //                 trace_id = %trace_id
+    //             );
+    //             span.set_parent(remote_context.clone());
+
+    //             Some(span)
+    //         } else {
+    //             warn!("AuthenticateV2 request but no trace_id provided");
+    //             None
+    //         }
+    //     } else {
+    //         warn!("Not an AuthenticateV2 request");
+    //         None
+    //     };
+
+    //     // Probably a nicer way to do this but for now just match
+    //     let _guard = match &span {
+    //         Some(s) => {
+    //             warn!("ENTERED SPAN");
+    //             Some(s.enter())
+    //         }
+    //         None => {
+    //             warn!("COULDN'T ENTER SPAN");
+    //             None
+    //         }
+    //     };
+
+    //     // we can handle stateless client requests without prior authentication, like `ClientControlRequest::SupportedProtocol`
+    //     let auth_result = match request {
+    //         ClientControlRequest::Authenticate {
+    //             protocol_version,
+    //             address,
+    //             enc_address,
+    //             iv,
+    //             debug_trace_id: None,
+    //         } => {
+    //             self.handle_legacy_authenticate(protocol_version, address, enc_address, iv)
+    //                 .await
+    //         }
+    //         ClientControlRequest::AuthenticateV2(req) => self.handle_authenticate_v2(req).await,
+    //         ClientControlRequest::RegisterHandshakeInitRequest {
+    //             protocol_version,
+    //             data,
+    //         } => self.handle_register(protocol_version, data).await,
+    //         ClientControlRequest::SupportedProtocol { .. } => {
+    //             self.handle_reply_supported_protocol_request().await;
+    //             return Ok(None);
+    //         }
+    //         _ => {
+    //             debug!("received an invalid client request");
+    //             return Err(InitialAuthenticationError::InvalidRequest);
+    //         }
+    //     };
+
+    //     let auth_result = match auth_result {
+    //         Ok(res) => res,
+    //         Err(err) => {
+    //             match &err {
+    //                 InitialAuthenticationError::StorageError(inner_storage) => {
+    //                     debug!("authentication failure due to storage issue: {inner_storage}")
+    //                 }
+    //                 other => debug!("authentication failure: {other}"),
+    //             }
+
+    //             self.send_and_forget_error_response(&err).await;
+    //             return Err(err);
+    //         }
+    //     };
+
+    //     // try to send auth response back to the client
+    //     if let Err(source) = self
+    //         .send_websocket_message(auth_result.server_response)
+    //         .await
+    //     {
+    //         debug!("failed to send authentication response: {source}");
+    //         return Err(InitialAuthenticationError::ResponseSendFailure {
+    //             source: Box::new(source),
+    //         });
+    //     }
+
+    //     let Some(client_details) = auth_result.client_details else {
+    //         // honestly, it's been so long I don't remember under what conditions its possible (if at all)
+    //         // to have empty client details
+    //         warn!("could not establish client details");
+    //         return Err(InitialAuthenticationError::EmptyClientDetails);
+    //     };
+    //     Ok(Some(client_details))
+    // }
+
     pub(crate) fn handle_supported_protocol_request(&self) -> ServerResponse {
         debug!("returning gateway protocol version");
         ServerResponse::SupportedProtocol {
@@ -884,15 +1007,15 @@ impl<R, S> FreshHandler<R, S> {
                         let remote_context = opentelemetry::Context::current()
                             .with_remote_span_context(span_context);
 
+                        let _context_guard = remote_context.attach();
+
                         let span = info_span!(
                             "handle_initial_client_request_distributed",
                             trace_id = %trace_id,
                             service = "nym-node"
                         );
 
-                        span.set_parent(remote_context);
-
-                        warn!("Distributed context established");
+                        warn!("Distributed context established. trace_id: {:?}", trace_id);
                         Some(span)
                     }
                     Err(err) => {

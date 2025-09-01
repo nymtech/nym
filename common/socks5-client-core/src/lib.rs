@@ -23,9 +23,7 @@ use nym_client_core::init::types::GatewaySetup;
 use nym_credential_storage::storage::Storage as CredentialStorage;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::params::PacketType;
-use nym_task::{TaskClient, TaskHandle, TaskStatus};
-
-use anyhow::anyhow;
+use nym_task::{ShutdownManager, ShutdownToken};
 use nym_validator_client::UserAgent;
 use std::error::Error;
 use std::path::PathBuf;
@@ -46,7 +44,7 @@ pub enum Socks5ControlMessage {
 
 pub struct StartedSocks5Client {
     /// Handle for managing graceful shutdown of this client. If dropped, the client will be stopped.
-    pub shutdown_handle: TaskHandle,
+    pub shutdown_handle: ShutdownManager,
 
     /// Address of the started client
     pub address: Recipient,
@@ -65,6 +63,8 @@ pub struct NymClient<S> {
 
     /// Optional path to a .json file containing standalone network details.
     custom_mixnet: Option<PathBuf>,
+
+    shutdown_manager: ShutdownManager,
 }
 
 impl<S> NymClient<S>
@@ -92,6 +92,7 @@ where
             setup_method: GatewaySetup::MustLoad { gateway_id: None },
             user_agent,
             custom_mixnet,
+            shutdown_manager: Default::default(),
         }
     }
 
@@ -108,7 +109,7 @@ where
         client_output: ClientOutput,
         client_status: ClientState,
         self_address: Recipient,
-        shutdown: TaskClient,
+        shutdown: ShutdownToken,
         packet_type: PacketType,
     ) {
         info!("Starting socks5 listener...");
@@ -151,48 +152,36 @@ where
             shutdown.clone(),
             packet_type,
         );
-        nym_task::spawn_with_report_error(
-            async move {
-                sphinx_socks
-                    .serve(
-                        input_sender,
-                        received_buffer_request_sender,
-                        connection_command_sender,
-                    )
-                    .await
-            },
-            shutdown,
-        );
+        nym_task::spawn_future(async move {
+            sphinx_socks
+                .serve(
+                    input_sender,
+                    received_buffer_request_sender,
+                    connection_command_sender,
+                )
+                .await
+        });
     }
 
     /// blocking version of `start` method. Will run forever (or until SIGINT is sent)
     pub async fn run_forever(self) -> Result<(), Box<dyn Error + Send + Sync>> {
         let started = self.start().await?;
 
-        let res = started.shutdown_handle.wait_for_shutdown().await;
+        started.shutdown_handle.run_until_shutdown().await;
         log::info!("Stopping nym-socks5-client");
-        res
+        Ok(())
     }
 
     // Variant of `run_forever` that listens for remote control messages
     pub async fn run_and_listen(
         self,
         mut receiver: Socks5ControlMessageReceiver,
-        sender: nym_task::StatusSender,
     ) -> Result<(), Box<dyn Error + Send + Sync>> {
         // Start the main task
         let started = self.start().await?;
-        let mut shutdown = started
-            .shutdown_handle
-            .try_into_task_manager()
-            .ok_or(anyhow!(
-                "attempted to use `run_and_listen` without owning shutdown handle"
-            ))?;
+        let mut task_manager = started.shutdown_handle;
 
-        // Listen to status messages from task, that we forward back to the caller
-        shutdown
-            .start_status_listener(sender, TaskStatus::Ready)
-            .await;
+        let mut shutdown_signals = task_manager.detach_shutdown_signals();
 
         let res = tokio::select! {
             biased;
@@ -207,22 +196,20 @@ where
                     }
                 }
                 Ok(())
-            }
-            Some(msg) = shutdown.wait_for_error() => {
-                log::info!("Task error: {msg:?}");
-                Err(msg)
-            }
-            _ = tokio::signal::ctrl_c() => {
-                log::info!("Received SIGINT");
+            },
+            _ = shutdown_signals.wait_for_signal() => {
+                log::info!("Received shutdown signal");
                 Ok(())
             },
         };
 
-        log::info!("Sending shutdown");
-        shutdown.signal_shutdown().ok();
+        if !task_manager.is_cancelled() {
+            log::info!("Sending shutdown");
+            task_manager.send_cancellation();
+        }
 
         log::info!("Waiting for tasks to finish... (Press ctrl-c to force)");
-        shutdown.wait_for_shutdown().await;
+        task_manager.perform_shutdown().await;
 
         log::info!("Stopping nym-socks5-client");
         res
@@ -238,6 +225,7 @@ where
 
         let mut base_builder =
             BaseClientBuilder::new(self.config.base(), self.storage, dkg_query_client)
+                .with_shutdown(self.shutdown_manager.child_shutdown_token())
                 .with_gateway_setup(self.setup_method)
                 .with_user_agent(self.user_agent);
 
@@ -261,7 +249,7 @@ where
             client_output,
             client_state,
             self_address,
-            started_client.task_handle.get_handle(),
+            self.shutdown_manager.child_shutdown_token(),
             packet_type,
         );
 
@@ -269,7 +257,7 @@ where
         info!("The address of this client is: {self_address}");
 
         Ok(StartedSocks5Client {
-            shutdown_handle: started_client.task_handle,
+            shutdown_handle: self.shutdown_manager,
             address: self_address,
         })
     }

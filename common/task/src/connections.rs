@@ -2,12 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use futures::channel::mpsc;
-use std::{
-    collections::HashMap,
-    time::{Duration, Instant},
-};
+use std::collections::HashMap;
 
-const LANE_CONSIDERED_CLEAR: usize = 10;
+// const LANE_CONSIDERED_CLEAR: usize = 10;
 
 pub type ConnectionId = u64;
 
@@ -83,21 +80,21 @@ impl LaneQueueLengths {
         }
     }
 
-    pub async fn wait_until_clear(&self, lane: &TransmissionLane, timeout: Option<Duration>) {
-        let total_time_waited = Instant::now();
-        loop {
-            let lane_length = self.get(lane).unwrap_or_default();
-            if lane_length < LANE_CONSIDERED_CLEAR {
-                break;
-            }
-            if timeout.is_some_and(|timeout| total_time_waited.elapsed() > timeout) {
-                log::warn!("Timeout reached while waiting for queue to clear");
-                break;
-            }
-            log::trace!("Waiting for queue to clear ({lane_length} items left)");
-            tokio::time::sleep(Duration::from_millis(100)).await;
-        }
-    }
+    // pub async fn wait_until_clear(&self, lane: &TransmissionLane, timeout: Option<Duration>) {
+    //     let total_time_waited = Instant::now();
+    //     loop {
+    //         let lane_length = self.get(lane).unwrap_or_default();
+    //         if lane_length < LANE_CONSIDERED_CLEAR {
+    //             break;
+    //         }
+    //         if timeout.is_some_and(|timeout| total_time_waited.elapsed() > timeout) {
+    //             log::warn!("Timeout reached while waiting for queue to clear");
+    //             break;
+    //         }
+    //         log::trace!("Waiting for queue to clear ({lane_length} items left)");
+    //         tokio::time::sleep(Duration::from_millis(100)).await;
+    //     }
+    // }
 }
 
 impl Default for LaneQueueLengths {

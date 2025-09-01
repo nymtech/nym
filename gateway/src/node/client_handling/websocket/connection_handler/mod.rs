@@ -99,13 +99,10 @@ where
     S: AsyncRead + AsyncWrite + Unpin + Send,
 {
     // don't accept any new requests if we have already received shutdown
-    if handle.shutdown.is_shutdown_poll() {
+    if handle.shutdown.is_cancelled() {
         debug!("stopping the handle as we have received a shutdown");
         return;
     }
-
-    // If the connection handler abruptly stops, we shouldn't signal global shutdown
-    handle.shutdown.disarm();
 
     match tokio::time::timeout(
         WEBSOCKET_HANDSHAKE_TIMEOUT,
@@ -126,10 +123,10 @@ where
 
     trace!("managed to perform websocket handshake!");
 
-    let mut shutdown = handle.shutdown.clone();
+    let shutdown = handle.shutdown.clone();
 
     if let Some(auth_handle) = handle
-        .handle_until_authenticated_or_failure(&mut shutdown)
+        .handle_until_authenticated_or_failure(&shutdown)
         .await
     {
         auth_handle.listen_for_requests(shutdown).await

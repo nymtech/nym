@@ -18,6 +18,7 @@ pub use nym_topology::{
 };
 
 #[cfg(target_arch = "wasm32")]
+#[track_caller]
 pub fn spawn_future<F>(future: F)
 where
     F: Future<Output = ()> + 'static,

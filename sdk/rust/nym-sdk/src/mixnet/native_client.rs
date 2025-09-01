@@ -19,7 +19,7 @@ use nym_sphinx::{params::PacketType, receiver::ReconstructedMessage};
 use nym_statistics_common::clients::{ClientStatsEvents, ClientStatsSender};
 use nym_task::{
     connections::{ConnectionCommandSender, LaneQueueLengths},
-    TaskHandle,
+    ShutdownManager,
 };
 use nym_topology::{NymRouteProvider, NymTopology};
 use std::pin::Pin;
@@ -54,7 +54,7 @@ pub struct MixnetClient {
     pub(crate) stats_events_reporter: ClientStatsSender,
 
     /// The task manager that controls all the spawned tasks that the clients uses to do it's job.
-    pub(crate) task_handle: TaskHandle,
+    pub(crate) shutdown_handle: Option<ShutdownManager>,
     pub(crate) packet_type: Option<PacketType>,
 
     // internal state used for the `Stream` implementation
@@ -74,7 +74,7 @@ impl MixnetClient {
         client_state: ClientState,
         reconstructed_receiver: ReconstructedMessagesReceiver,
         stats_events_reporter: ClientStatsSender,
-        task_handle: TaskHandle,
+        task_handle: Option<ShutdownManager>,
         packet_type: Option<PacketType>,
         client_request_sender: ClientRequestSender,
         forget_me: ForgetMe,
@@ -88,7 +88,7 @@ impl MixnetClient {
             client_state,
             reconstructed_receiver,
             stats_events_reporter,
-            task_handle,
+            shutdown_handle: task_handle,
             packet_type,
             _buffered: Vec::new(),
             client_request_sender,
@@ -221,9 +221,9 @@ impl MixnetClient {
         self.stats_events_reporter.clone()
     }
 
-    /// Disconnect from the mixnet. Currently it is not supported to reconnect a disconnected
+    /// Disconnect from the mixnet. Currently, it is not supported to reconnect a disconnected
     /// client.
-    pub async fn disconnect(mut self) {
+    pub async fn disconnect(self) {
         if self.forget_me.any() {
             log::debug!("Sending forget me request: {:?}", self.forget_me);
             match self.send_forget_me().await {
@@ -240,13 +240,9 @@ impl MixnetClient {
             tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
         }
 
-        if let TaskHandle::Internal(task_manager) = &mut self.task_handle {
-            task_manager.signal_shutdown().ok();
-            task_manager.wait_for_shutdown().await;
+        if let Some(task_manager) = self.shutdown_handle {
+            task_manager.perform_shutdown().await;
         }
-
-        // note: it's important to take ownership of the struct as if the shutdown is `TaskHandle::External`,
-        // it must be dropped to finalize the shutdown
     }
 
     pub async fn send_forget_me(&self) -> Result<()> {

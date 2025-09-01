@@ -5,7 +5,7 @@ use crate::spawn_future;
 pub(crate) use accessor::{TopologyAccessor, TopologyReadPermit};
 use futures::StreamExt;
 use nym_sphinx::addressing::nodes::NodeIdentity;
-use nym_task::TaskClient;
+use nym_task::ShutdownToken;
 use nym_topology::NymTopologyError;
 use std::time::Duration;
 use tracing::*;
@@ -42,7 +42,7 @@ pub struct TopologyRefresher {
     refresh_rate: Duration,
     consecutive_failure_count: usize,
 
-    task_client: TaskClient,
+    shutdown_token: ShutdownToken,
 }
 
 impl TopologyRefresher {
@@ -50,14 +50,14 @@ impl TopologyRefresher {
         cfg: TopologyRefresherConfig,
         topology_accessor: TopologyAccessor,
         topology_provider: Box<dyn TopologyProvider + Send + Sync>,
-        task_client: TaskClient,
+        shutdown_token: ShutdownToken,
     ) -> Self {
         TopologyRefresher {
             topology_provider,
             topology_accessor,
             refresh_rate: cfg.refresh_rate,
             consecutive_failure_count: 0,
-            task_client,
+            shutdown_token,
         }
     }
 
@@ -164,17 +164,16 @@ impl TopologyRefresher {
                 #[cfg(not(target_arch = "wasm32"))]
                 interval.next().await;
 
-                while !self.task_client.is_shutdown() {
+                while !self.shutdown_token.is_cancelled() {
                     tokio::select! {
                         _ = interval.next() => {
                             self.try_refresh().await;
                         },
-                        _ = self.task_client.recv() => {
+                        _ = self.shutdown_token.cancelled() => {
                             tracing::trace!("TopologyRefresher: Received shutdown");
                         },
                     }
                 }
-                self.task_client.recv_timeout().await;
                 tracing::debug!("TopologyRefresher: Exiting");
             },
             "TopologyRefresher"

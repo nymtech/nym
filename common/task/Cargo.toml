@@ -32,3 +32,6 @@ features = ["tokio"]
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["rt-multi-thread", "net", "signal", "test-util", "macros"] }
+
+[lints]
+workspace = true

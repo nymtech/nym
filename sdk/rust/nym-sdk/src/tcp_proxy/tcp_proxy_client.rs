@@ -223,7 +223,7 @@ impl NymProxyClient {
             loop {
                 tokio::select! {
                     _ = &mut rx => {
-                        info!("Closing write end of session: {} in {} seconds", session_id, close_timeout);
+                        info!("Closing write end of session: {session_id} in {close_timeout} seconds");
                         break
                     }
                     Some(message) = client.next() => {

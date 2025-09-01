@@ -54,7 +54,7 @@ use nym_noise::config::{NoiseConfig, NoiseNetworkView};
 use nym_noise_keys::VersionedNoiseKey;
 use nym_sphinx_acknowledgements::AckKey;
 use nym_sphinx_addressing::Recipient;
-use nym_task::{ShutdownManager, ShutdownToken, TaskClient};
+use nym_task::{ShutdownManager, ShutdownToken};
 use nym_validator_client::UserAgent;
 use nym_verloc::measurements::SharedVerlocStats;
 use nym_verloc::{self, measurements::VerlocMeasurer};
@@ -465,7 +465,7 @@ impl NymNode {
             wireguard: Some(wireguard_data),
             config,
             accepted_operator_terms_and_conditions: false,
-            shutdown_manager: ShutdownManager::new("NymNode")
+            shutdown_manager: ShutdownManager::new()
                 .with_legacy_task_manager()
                 .with_default_shutdown_signals()
                 .map_err(|source| NymNodeError::ShutdownSignalFailure { source })?,
@@ -476,8 +476,8 @@ impl NymNode {
         &self.config
     }
 
-    pub(crate) fn shutdown_token<S: Into<String>>(&self, child_suffix: S) -> ShutdownToken {
-        self.shutdown_manager.clone_token(child_suffix)
+    pub(crate) fn shutdown_token(&self) -> ShutdownToken {
+        self.shutdown_manager.clone_shutdown_token()
     }
 
     pub(crate) fn with_accepted_operator_terms_and_conditions(
@@ -561,7 +561,7 @@ impl NymNode {
             self.config.mixnet.nym_api_urls.clone(),
             self.config.debug.topology_cache_ttl,
             self.config.debug.routing_nodes_check_interval,
-            self.shutdown_manager.clone_token("network-refresher"),
+            self.shutdown_manager.clone_shutdown_token(),
         )
         .await
     }
@@ -605,7 +605,6 @@ impl NymNode {
         metrics_sender: MetricEventsSender,
         active_clients_store: ActiveClientsStore,
         mix_packet_sender: MixForwardingSender,
-        legacy_task_client: TaskClient,
         shutdown_token: ShutdownToken,
     ) -> Result<(), NymNodeError> {
         let config = gateway_tasks_config(&self.config);
@@ -624,7 +623,6 @@ impl NymNode {
             metrics_sender,
             self.metrics.clone(),
             self.entry_gateway.mnemonic.clone(),
-            legacy_task_client,
             shutdown_token,
         );
 
@@ -875,7 +873,7 @@ impl NymNode {
         let mut verloc_measurer = VerlocMeasurer::new(
             config,
             self.ed25519_identity_keys.clone(),
-            self.shutdown_manager.clone_token("verloc"),
+            self.shutdown_manager.clone_shutdown_token(),
         );
         verloc_measurer.set_shared_state(self.verloc_stats.clone());
         tokio::spawn(async move { verloc_measurer.run().await });
@@ -892,7 +890,7 @@ impl NymNode {
         // aggregator (to listen for any metrics events)
         let mut metrics_aggregator = MetricsAggregator::new(
             self.config.metrics.debug.aggregator_update_rate,
-            shutdown.clone_with_suffix("aggregator"),
+            shutdown.clone(),
         );
 
         // >>>> START: register all relevant handlers for custom events
@@ -953,7 +951,7 @@ impl NymNode {
             ConsoleLogger::new(
                 self.config.metrics.debug.console_logging_update_interval,
                 self.metrics.clone(),
-                shutdown.clone_with_suffix("metrics-console-logger"),
+                shutdown.clone(),
             )
             .start();
         }
@@ -983,8 +981,7 @@ impl NymNode {
             sphinx_keys.keys.primary_key_rotation_id(),
             sphinx_keys.keys.secondary_key_rotation_id(),
             self.metrics.clone(),
-            self.shutdown_manager
-                .clone_token("replay-detection-background-flush"),
+            self.shutdown_manager.clone_shutdown_token(),
         )
         .await?;
 
@@ -998,7 +995,7 @@ impl NymNode {
     fn setup_nym_apis_client(&self) -> Result<NymApisClient, NymNodeError> {
         NymApisClient::new(
             &self.config.mixnet.nym_api_urls,
-            self.shutdown_manager.clone_token("nym-apis-client"),
+            self.shutdown_manager.clone_shutdown_token(),
         )
     }
 
@@ -1029,7 +1026,7 @@ impl NymNode {
             nym_apis_client,
             replay_protection_manager,
             managed_keys,
-            self.shutdown_manager.clone_token("key-rotation-controller"),
+            self.shutdown_manager.clone_shutdown_token(),
         );
 
         rotation_controller.start();
@@ -1077,7 +1074,7 @@ impl NymNode {
             mixnet_client,
             routing_filter,
             self.metrics.clone(),
-            shutdown.clone_with_suffix("mix-packet-forwarder"),
+            shutdown.clone(),
         );
         let mix_packet_sender = packet_forwarder.sender();
         tokio::spawn(async move { packet_forwarder.run().await });
@@ -1115,11 +1112,11 @@ impl NymNode {
             ReplayProtectionBloomfilters::new_disabled(),
             OpenFilter,
             noise_config,
-            self.shutdown_manager.clone_token("mixnet-traffic"),
+            self.shutdown_manager.clone_shutdown_token(),
         )
         .await?;
 
-        self.shutdown_manager.close();
+        self.shutdown_manager.close_tracker();
         self.shutdown_manager.run_until_shutdown().await;
 
         Ok(())
@@ -1137,7 +1134,7 @@ impl NymNode {
 
         let http_server = self.build_http_server().await?;
         let bind_address = self.config.http.bind_address;
-        let server_shutdown = self.shutdown_manager.clone_token("http-server");
+        let server_shutdown = self.shutdown_manager.clone_shutdown_token();
 
         self.shutdown_manager.spawn(async move {
             {
@@ -1172,14 +1169,14 @@ impl NymNode {
                 bloomfilters_manager.bloomfilters(),
                 network_refresher.routing_filter(),
                 noise_config,
-                self.shutdown_manager.clone_token("mixnet-traffic"),
+                self.shutdown_manager.clone_shutdown_token(),
             )
             .await?;
 
         let metrics_sender = self.setup_metrics_backend(
             active_clients_store.clone(),
             active_egress_mixnet_connections,
-            self.shutdown_manager.clone_token("metrics"),
+            self.shutdown_manager.clone_shutdown_token(),
         );
 
         self.start_gateway_tasks(
@@ -1187,8 +1184,7 @@ impl NymNode {
             metrics_sender,
             active_clients_store,
             mix_packet_sender,
-            self.shutdown_manager.subscribe_legacy("gateway-tasks"),
-            self.shutdown_manager.child_token("gateway-tasks"),
+            self.shutdown_manager.child_shutdown_token(),
         )
         .await?;
 
@@ -1196,7 +1192,7 @@ impl NymNode {
             .await?;
 
         network_refresher.start();
-        self.shutdown_manager.close();
+        self.shutdown_manager.close_tracker();
 
         Ok(self.shutdown_manager)
     }

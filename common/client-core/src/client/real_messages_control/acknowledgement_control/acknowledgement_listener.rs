@@ -10,7 +10,7 @@ use nym_sphinx::{
     acknowledgements::{identifier::recover_identifier, AckKey},
     chunking::fragment::{FragmentIdentifier, COVER_FRAG_ID},
 };
-use nym_task::TaskClient;
+use nym_task::ShutdownToken;
 use std::sync::Arc;
 use tracing::*;
 
@@ -21,7 +21,7 @@ pub(super) struct AcknowledgementListener {
     ack_receiver: AcknowledgementReceiver,
     action_sender: AckActionSender,
     stats_tx: ClientStatsSender,
-    task_client: TaskClient,
+    shutdown_token: ShutdownToken,
 }
 
 impl AcknowledgementListener {
@@ -30,14 +30,14 @@ impl AcknowledgementListener {
         ack_receiver: AcknowledgementReceiver,
         action_sender: AckActionSender,
         stats_tx: ClientStatsSender,
-        task_client: TaskClient,
+        shutdown_token: ShutdownToken,
     ) -> Self {
         AcknowledgementListener {
             ack_key,
             ack_receiver,
             action_sender,
             stats_tx,
-            task_client,
+            shutdown_token,
         }
     }
 
@@ -72,7 +72,7 @@ impl AcknowledgementListener {
             .action_sender
             .unbounded_send(Action::new_remove(frag_id))
         {
-            if !self.task_client.is_shutdown_poll() {
+            if !self.shutdown_token.is_cancelled() {
                 error!("Failed to send remove action to action controller: {err}");
             }
         }
@@ -88,7 +88,7 @@ impl AcknowledgementListener {
     pub(super) async fn run(&mut self) {
         debug!("Started AcknowledgementListener with graceful shutdown support");
 
-        while !self.task_client.is_shutdown() {
+        while !self.shutdown_token.is_cancelled() {
             tokio::select! {
                 acks = self.ack_receiver.next() => match acks {
                     Some(acks) => self.handle_ack_receiver_item(acks).await,
@@ -97,12 +97,11 @@ impl AcknowledgementListener {
                         break;
                     }
                 },
-                _ = self.task_client.recv() => {
+                _ = self.shutdown_token.cancelled() => {
                     tracing::trace!("AcknowledgementListener: Received shutdown");
                 }
             }
         }
-        self.task_client.recv_timeout().await;
         tracing::debug!("AcknowledgementListener: Exiting");
     }
 }

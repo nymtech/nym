@@ -1,7 +1,6 @@
 // Copyright 2020-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::config::Config;
 use crate::error::GatewayError;
 use crate::node::client_handling::websocket;
 use crate::node::internal_service_providers::{
@@ -19,7 +18,7 @@ use nym_network_defaults::NymNetworkDetails;
 use nym_network_requester::NRServiceProviderBuilder;
 use nym_node_metrics::events::MetricEventsSender;
 use nym_node_metrics::NymNodeMetrics;
-use nym_task::{ShutdownToken, TaskClient};
+use nym_task::ShutdownToken;
 use nym_topology::TopologyProvider;
 use nym_validator_client::nyxd::{Coin, CosmWasmClient};
 use nym_validator_client::{nyxd, DirectSigningHttpRpcNyxdClient};
@@ -35,6 +34,7 @@ pub(crate) mod client_handling;
 pub(crate) mod internal_service_providers;
 mod stale_data_cleaner;
 
+use crate::config::Config;
 use crate::node::internal_service_providers::authenticator::Authenticator;
 pub use client_handling::active_clients::ActiveClientsStore;
 pub use nym_gateway_stats_storage::PersistentStatsStorage;
@@ -91,8 +91,6 @@ pub struct GatewayTasksBuilder {
 
     mnemonic: Arc<Zeroizing<bip39::Mnemonic>>,
 
-    legacy_task_client: TaskClient,
-
     shutdown_token: ShutdownToken,
 
     // populated and cached as necessary
@@ -101,14 +99,6 @@ pub struct GatewayTasksBuilder {
     wireguard_peers: Option<Vec<defguard_wireguard_rs::host::Peer>>,
 
     wireguard_networks: Option<Vec<IpAddr>>,
-}
-
-impl Drop for GatewayTasksBuilder {
-    fn drop(&mut self) {
-        // disarm the shutdown as it was already used to construct relevant tasks and we don't want the builder
-        // to cause shutdown
-        self.legacy_task_client.disarm();
-    }
 }
 
 impl GatewayTasksBuilder {
@@ -121,7 +111,6 @@ impl GatewayTasksBuilder {
         metrics_sender: MetricEventsSender,
         metrics: NymNodeMetrics,
         mnemonic: Arc<Zeroizing<bip39::Mnemonic>>,
-        legacy_task_client: TaskClient,
         shutdown_token: ShutdownToken,
     ) -> GatewayTasksBuilder {
         GatewayTasksBuilder {
@@ -136,7 +125,6 @@ impl GatewayTasksBuilder {
             metrics_sender,
             metrics,
             mnemonic,
-            legacy_task_client,
             shutdown_token,
             ecash_manager: None,
             wireguard_peers: None,
@@ -232,7 +220,7 @@ impl GatewayTasksBuilder {
                 handler_config,
                 nyxd_client,
                 self.identity_keypair.public_key().to_bytes(),
-                self.legacy_task_client.fork("ecash_manager"),
+                self.shutdown_token.clone(),
                 self.storage.clone(),
             )
             .await?,
@@ -274,7 +262,7 @@ impl GatewayTasksBuilder {
             self.config.gateway.websocket_bind_address,
             self.config.debug.maximum_open_connections,
             shared_state,
-            self.legacy_task_client.fork("websocket"),
+            self.shutdown_token.clone(),
         ))
     }
 
@@ -290,19 +278,18 @@ impl GatewayTasksBuilder {
         let mut message_router_builder = SpMessageRouterBuilder::new(
             *self.identity_keypair.public_key(),
             self.mix_packet_sender.clone(),
-            self.legacy_task_client
-                .fork("network_requester_message_router"),
+            self.shutdown_token.clone(),
         );
         let transceiver = message_router_builder.gateway_transceiver();
 
         let (on_start_tx, on_start_rx) = oneshot::channel();
-        let mut nr_builder = NRServiceProviderBuilder::new(nr_opts.config.clone())
-            .with_shutdown(self.legacy_task_client.fork("network_requester_sp"))
-            .with_custom_gateway_transceiver(transceiver)
-            .with_wait_for_gateway(true)
-            .with_minimum_gateway_performance(0)
-            .with_custom_topology_provider(topology_provider)
-            .with_on_start(on_start_tx);
+        let mut nr_builder =
+            NRServiceProviderBuilder::new(nr_opts.config.clone(), self.shutdown_token.clone())
+                .with_custom_gateway_transceiver(transceiver)
+                .with_wait_for_gateway(true)
+                .with_minimum_gateway_performance(0)
+                .with_custom_topology_provider(topology_provider)
+                .with_on_start(on_start_tx);
 
         if let Some(custom_mixnet) = &nr_opts.custom_mixnet_path {
             nr_builder = nr_builder.with_stored_topology(custom_mixnet)?
@@ -326,18 +313,18 @@ impl GatewayTasksBuilder {
         let mut message_router_builder = SpMessageRouterBuilder::new(
             *self.identity_keypair.public_key(),
             self.mix_packet_sender.clone(),
-            self.legacy_task_client.fork("ipr_message_router"),
+            self.shutdown_token.clone(),
         );
         let transceiver = message_router_builder.gateway_transceiver();
 
         let (on_start_tx, on_start_rx) = oneshot::channel();
-        let mut ip_packet_router = IpPacketRouter::new(ip_opts.config.clone())
-            .with_shutdown(self.legacy_task_client.fork("ipr_sp"))
-            .with_custom_gateway_transceiver(Box::new(transceiver))
-            .with_wait_for_gateway(true)
-            .with_minimum_gateway_performance(0)
-            .with_custom_topology_provider(topology_provider)
-            .with_on_start(on_start_tx);
+        let mut ip_packet_router =
+            IpPacketRouter::new(ip_opts.config.clone(), self.shutdown_token.clone())
+                .with_custom_gateway_transceiver(Box::new(transceiver))
+                .with_wait_for_gateway(true)
+                .with_minimum_gateway_performance(0)
+                .with_custom_topology_provider(topology_provider)
+                .with_on_start(on_start_tx);
 
         if let Some(custom_mixnet) = &ip_opts.custom_mixnet_path {
             ip_packet_router = ip_packet_router.with_stored_topology(custom_mixnet)?
@@ -432,7 +419,7 @@ impl GatewayTasksBuilder {
         let mut message_router_builder = SpMessageRouterBuilder::new(
             *self.identity_keypair.public_key(),
             self.mix_packet_sender.clone(),
-            self.legacy_task_client.fork("authenticator_message_router"),
+            self.shutdown_token.clone(),
         );
         let transceiver = message_router_builder.gateway_transceiver();
 
@@ -443,9 +430,9 @@ impl GatewayTasksBuilder {
             wireguard_data.inner.clone(),
             used_private_network_ips,
             ecash_manager,
+            self.shutdown_token.clone(),
         )
         .with_custom_gateway_transceiver(transceiver)
-        .with_shutdown(self.legacy_task_client.fork("authenticator_sp"))
         .with_wait_for_gateway(true)
         .with_minimum_gateway_performance(0)
         .with_custom_topology_provider(topology_provider)
@@ -465,7 +452,7 @@ impl GatewayTasksBuilder {
     pub fn build_stale_messages_cleaner(&self) -> StaleMessagesCleaner {
         StaleMessagesCleaner::new(
             &self.storage,
-            self.legacy_task_client.fork("stale_messages_cleaner"),
+            self.shutdown_token.clone(),
             self.config.debug.stale_messages_max_age,
             self.config.debug.stale_messages_cleaner_run_interval,
         )
@@ -517,18 +504,19 @@ impl GatewayTasksBuilder {
             ecash_manager,
             self.metrics.clone(),
             all_peers,
-            self.legacy_task_client.fork("wireguard"),
+            self.shutdown_token.clone(),
             wireguard_data,
         )
         .await?;
 
         let server = router.build_server(&bind_address).await?;
-        let cancel_token: tokio_util::sync::CancellationToken = (*self.shutdown_token).clone();
-        let axum_shutdown_receiver = cancel_token.clone().cancelled_owned();
+        let cancel_token = self.shutdown_token.clone();
         let server_handle = tokio::spawn(async move {
             {
                 info!("Started Wireguard Axum HTTP V2 server on {bind_address}");
-                server.run(axum_shutdown_receiver).await
+                server
+                    .run(async move { cancel_token.cancelled().await })
+                    .await
             }
         });
 

@@ -15,6 +15,9 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum NymRewarderError {
+    #[error(transparent)]
+    IoFailure(#[from] io::Error),
+
     #[error("experienced internal database error: {0}")]
     InternalDatabaseError(#[from] sqlx::Error),
 

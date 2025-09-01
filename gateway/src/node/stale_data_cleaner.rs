@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use nym_gateway_storage::{GatewayStorage, InboxManager};
-use nym_task::TaskClient;
+use nym_task::ShutdownToken;
 use std::error::Error;
 use std::time::Duration;
 use time::OffsetDateTime;
@@ -11,7 +11,7 @@ use tracing::{debug, trace, warn};
 
 pub struct StaleMessagesCleaner {
     inbox_manager: InboxManager,
-    task_client: TaskClient,
+    shutdown_token: ShutdownToken,
     max_message_age: Duration,
     run_interval: Duration,
 }
@@ -19,13 +19,13 @@ pub struct StaleMessagesCleaner {
 impl StaleMessagesCleaner {
     pub(crate) fn new(
         storage: &GatewayStorage,
-        task_client: TaskClient,
+        shutdown_token: ShutdownToken,
         max_message_age: Duration,
         run_interval: Duration,
     ) -> Self {
         StaleMessagesCleaner {
             inbox_manager: storage.inbox_manager().clone(),
-            task_client,
+            shutdown_token,
             max_message_age,
             run_interval,
         }
@@ -38,10 +38,10 @@ impl StaleMessagesCleaner {
 
     async fn run(&mut self) {
         let mut interval = tokio::time::interval(self.run_interval);
-        while !self.task_client.is_shutdown() {
+        while !self.shutdown_token.is_cancelled() {
             tokio::select! {
                 biased;
-                _ = self.task_client.recv() => {
+                _ = self.shutdown_token.cancelled() => {
                     trace!("StaleMessagesCleaner: received shutdown");
                 }
                 _ = interval.tick() => {

@@ -82,7 +82,7 @@ impl EcashManager {
         credential_handler_cfg: CredentialHandlerConfig,
         nyxd_client: DirectSigningHttpRpcNyxdClient,
         pk_bytes: [u8; 32],
-        shutdown: nym_task::TaskClient,
+        shutdown: nym_task::ShutdownToken,
         storage: GatewayStorage,
     ) -> Result<Self, Error> {
         let shared_state = SharedState::new(nyxd_client, Box::new(storage)).await?;

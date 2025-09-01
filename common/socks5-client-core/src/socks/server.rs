@@ -12,7 +12,7 @@ use nym_socks5_proxy_helpers::connection_controller::Controller;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::params::PacketType;
 use nym_task::connections::{ConnectionCommandSender, LaneQueueLengths};
-use nym_task::TaskClient;
+use nym_task::ShutdownToken;
 use std::net::SocketAddr;
 use tap::TapFallible;
 use tokio::net::TcpListener;
@@ -25,7 +25,7 @@ pub struct NymSocksServer {
     self_address: Recipient,
     client_config: client::Config,
     lane_queue_lengths: LaneQueueLengths,
-    shutdown: TaskClient,
+    shutdown: ShutdownToken,
     packet_type: PacketType,
 }
 
@@ -39,7 +39,7 @@ impl NymSocksServer {
         self_address: Recipient,
         lane_queue_lengths: LaneQueueLengths,
         client_config: client::Config,
-        shutdown: TaskClient,
+        shutdown: ShutdownToken,
         packet_type: PacketType,
     ) -> Self {
         info!("Listening on {bind_address}");
@@ -121,7 +121,7 @@ impl NymSocksServer {
                         }
                     });
                 },
-                _ = self.shutdown.recv() => {
+                _ = self.shutdown.cancelled() => {
                     log::trace!("NymSocksServer: Received shutdown");
                     log::debug!("NymSocksServer: Exiting");
                     return Ok(());

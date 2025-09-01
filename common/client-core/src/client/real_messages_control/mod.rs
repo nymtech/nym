@@ -30,7 +30,7 @@ use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::params::PacketType;
 use nym_statistics_common::clients::ClientStatsSender;
 use nym_task::connections::{ConnectionCommandReceiver, LaneQueueLengths};
-use nym_task::TaskClient;
+use nym_task::ShutdownToken;
 use rand::{rngs::OsRng, CryptoRng, Rng};
 use std::sync::Arc;
 use tracing::*;
@@ -146,7 +146,7 @@ impl RealMessagesController<OsRng> {
         lane_queue_lengths: LaneQueueLengths,
         client_connection_rx: ConnectionCommandReceiver,
         stats_tx: ClientStatsSender,
-        task_client: TaskClient,
+        shutdown_token: ShutdownToken,
     ) -> Self {
         let rng = OsRng;
 
@@ -178,7 +178,7 @@ impl RealMessagesController<OsRng> {
             topology_access.clone(),
             reply_storage.key_storage(),
             reply_storage.tags_storage(),
-            task_client.fork("message_handler"),
+            shutdown_token.clone(),
         );
 
         let ack_control = AcknowledgementController::new(
@@ -188,7 +188,7 @@ impl RealMessagesController<OsRng> {
             message_handler.clone(),
             reply_controller_sender,
             stats_tx.clone(),
-            task_client.fork("ack_control"),
+            shutdown_token.clone(),
         );
 
         let reply_control = ReplyController::new(
@@ -196,7 +196,7 @@ impl RealMessagesController<OsRng> {
             message_handler,
             reply_storage,
             reply_controller_receiver,
-            task_client.fork("reply_controller"),
+            shutdown_token.clone(),
         );
 
         let out_queue_control = OutQueueControl::new(
@@ -209,7 +209,7 @@ impl RealMessagesController<OsRng> {
             lane_queue_lengths,
             client_connection_rx,
             stats_tx,
-            task_client.with_suffix("out_queue_control"),
+            shutdown_token.clone(),
         );
 
         RealMessagesController {

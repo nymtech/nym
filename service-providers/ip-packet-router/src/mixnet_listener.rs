@@ -1,15 +1,6 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use futures::StreamExt;
-use nym_ip_packet_requests::codec::MultiIpPacketCodec;
-use nym_sdk::mixnet::MixnetMessageSender;
-use nym_sphinx::receiver::ReconstructedMessage;
-use nym_task::TaskHandle;
-use std::{net::SocketAddr, time::Duration};
-use tokio::io::AsyncWriteExt;
-use tokio_util::codec::FramedRead;
-
 use crate::{
     clients::{ConnectedClientHandler, ConnectedClients},
     config::Config,
@@ -30,6 +21,14 @@ use crate::{
     request_filter::RequestFilter,
     util::parse_ip::ParsedPacket,
 };
+use futures::StreamExt;
+use nym_ip_packet_requests::codec::MultiIpPacketCodec;
+use nym_sdk::mixnet::MixnetMessageSender;
+use nym_sphinx::receiver::ReconstructedMessage;
+use nym_task::ShutdownToken;
+use std::{net::SocketAddr, time::Duration};
+use tokio::io::AsyncWriteExt;
+use tokio_util::codec::FramedRead;
 
 #[cfg(not(target_os = "linux"))]
 type TunDevice = crate::non_linux_dummy::DummyDevice;
@@ -52,7 +51,7 @@ pub(crate) struct MixnetListener {
     pub(crate) mixnet_client: nym_sdk::mixnet::MixnetClient,
 
     // The task handle for the main loop
-    pub(crate) task_handle: TaskHandle,
+    pub(crate) shutdown_token: ShutdownToken,
 
     // The map of connected clients that the mixnet listener keeps track of. It monitors
     // activity and disconnects clients that have been inactive for too long.
@@ -138,7 +137,7 @@ impl MixnetListener {
         Ok(responses)
     }
 
-    // Receving a static connect request from a client with an IP provided that we assign to them,
+    // Receiving a static connect request from a client with an IP provided that we assign to them,
     // if it's available. If it's not available, we send a failure response.
     async fn on_static_connect_request(
         &mut self,
@@ -463,12 +462,11 @@ impl MixnetListener {
     }
 
     pub(crate) async fn run(mut self) -> Result<()> {
-        let mut task_client = self.task_handle.fork("main_loop");
         let mut disconnect_timer = tokio::time::interval(DISCONNECT_TIMER_INTERVAL);
 
-        while !task_client.is_shutdown() {
+        while !self.shutdown_token.is_cancelled() {
             tokio::select! {
-                _ = task_client.recv() => {
+                _ = self.shutdown_token.cancelled() => {
                     log::debug!("IpPacketRouter [main loop]: received shutdown");
                 },
                 _ = disconnect_timer.tick() => {

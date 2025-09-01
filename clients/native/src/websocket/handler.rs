@@ -19,7 +19,7 @@ use nym_sphinx::receiver::ReconstructedMessage;
 use nym_task::connections::{
     ConnectionCommand, ConnectionCommandSender, ConnectionId, LaneQueueLengths, TransmissionLane,
 };
-use nym_task::TaskClient;
+use nym_task::ShutdownToken;
 use std::time::Duration;
 use tokio::net::TcpStream;
 use tokio::time::Instant;
@@ -44,7 +44,7 @@ pub(crate) struct HandlerBuilder {
     lane_queue_lengths: LaneQueueLengths,
     reply_controller_sender: ReplyControllerSender,
     packet_type: Option<PacketType>,
-    task_client: TaskClient,
+    shutdown_token: ShutdownToken,
 }
 
 impl HandlerBuilder {
@@ -57,7 +57,7 @@ impl HandlerBuilder {
         lane_queue_lengths: LaneQueueLengths,
         reply_controller_sender: ReplyControllerSender,
         packet_type: Option<PacketType>,
-        task_client: TaskClient,
+        shutdown_token: ShutdownToken,
     ) -> Self {
         Self {
             msg_input,
@@ -67,14 +67,13 @@ impl HandlerBuilder {
             lane_queue_lengths,
             reply_controller_sender,
             packet_type,
-            task_client,
+            shutdown_token,
         }
     }
 
     // TODO: make sure we only ever have one active handler
     pub fn create_active_handler(&self) -> Handler {
-        let mut task_client = self.task_client.fork("active_handler");
-        task_client.disarm();
+        let shutdown_token = self.shutdown_token.clone();
         Handler {
             msg_input: self.msg_input.clone(),
             client_connection_tx: self.client_connection_tx.clone(),
@@ -85,7 +84,7 @@ impl HandlerBuilder {
             lane_queue_lengths: self.lane_queue_lengths.clone(),
             reply_controller_sender: self.reply_controller_sender.clone(),
             packet_type: self.packet_type,
-            task_client,
+            shutdown_token,
         }
     }
 }
@@ -100,7 +99,7 @@ pub(crate) struct Handler {
     lane_queue_lengths: LaneQueueLengths,
     reply_controller_sender: ReplyControllerSender,
     packet_type: Option<PacketType>,
-    task_client: TaskClient,
+    shutdown_token: ShutdownToken,
 }
 
 impl Drop for Handler {
@@ -109,7 +108,7 @@ impl Drop for Handler {
             .buffer_requester
             .unbounded_send(ReceivedBufferMessage::ReceiverDisconnect)
         {
-            if !self.task_client.is_shutdown_poll() {
+            if !self.shutdown_token.is_cancelled() {
                 error!("failed to disconnect the receiver from the buffer: {err}");
             }
         }
@@ -142,7 +141,7 @@ impl Handler {
         {
             Ok(length) => length,
             Err(err) => {
-                if !self.task_client.is_shutdown_poll() {
+                if !self.shutdown_token.is_cancelled() {
                     error!(
                         "Failed to get reply queue length for connection {connection_id}: {err}"
                     );
@@ -192,7 +191,7 @@ impl Handler {
         // the ack control is now responsible for chunking, etc.
         let input_msg = InputMessage::new_regular(recipient, message, lane, self.packet_type);
         if let Err(err) = self.msg_input.send(input_msg).await {
-            if !self.task_client.is_shutdown_poll() {
+            if !self.shutdown_token.is_cancelled() {
                 error!("Failed to send message to the input buffer: {err}");
             }
         }
@@ -225,7 +224,7 @@ impl Handler {
         let input_msg =
             InputMessage::new_anonymous(recipient, message, reply_surbs, lane, self.packet_type);
         if let Err(err) = self.msg_input.send(input_msg).await {
-            if !self.task_client.is_shutdown_poll() {
+            if !self.shutdown_token.is_cancelled() {
                 error!("Failed to send anonymous message to the input buffer: {err}");
             }
         }
@@ -253,7 +252,7 @@ impl Handler {
 
         let input_msg = InputMessage::new_reply(recipient_tag, message, lane, self.packet_type);
         if let Err(err) = self.msg_input.send(input_msg).await {
-            if !self.task_client.is_shutdown_poll() {
+            if !self.shutdown_token.is_cancelled() {
                 error!("Failed to send reply message to the input buffer: {err}");
             }
         }
@@ -275,7 +274,7 @@ impl Handler {
             .client_connection_tx
             .unbounded_send(ConnectionCommand::Close(connection_id))
         {
-            if !self.task_client.is_shutdown_poll() {
+            if !self.shutdown_token.is_cancelled() {
                 error!("Failed to send close connection command: {err}");
             }
         }
@@ -394,10 +393,9 @@ impl Handler {
     }
 
     async fn listen_for_requests(&mut self, mut msg_receiver: ReconstructedMessagesReceiver) {
-        let mut task_client = self.task_client.fork("select");
-        task_client.disarm();
+        let shutdown_token = self.shutdown_token.clone();
 
-        while !task_client.is_shutdown() {
+        while !shutdown_token.is_cancelled() {
             tokio::select! {
                 // we can either get a client request from the websocket
                 socket_msg = self.next_websocket_request() => {
@@ -436,7 +434,7 @@ impl Handler {
                         break;
                     }
                 }
-                _ = task_client.recv() => {
+                _ = shutdown_token.cancelled() => {
                     log::trace!("Websocket handler: Received shutdown");
                 }
             }
@@ -464,7 +462,7 @@ impl Handler {
                     reconstructed_sender,
                 ))
         {
-            if !self.task_client.is_shutdown_poll() {
+            if !self.shutdown_token.is_cancelled() {
                 error!("failed to announce the receiver to the buffer: {err}");
             }
         }

@@ -21,7 +21,7 @@ use nym_statistics_common::clients::{packet_statistics::PacketStatisticsEvent, C
 use nym_task::connections::{
     ConnectionCommand, ConnectionCommandReceiver, ConnectionId, LaneQueueLengths, TransmissionLane,
 };
-use nym_task::TaskClient;
+use nym_task::ShutdownToken;
 use rand::{CryptoRng, Rng};
 use std::pin::Pin;
 use std::sync::Arc;
@@ -119,7 +119,7 @@ where
     /// Channel used for sending metrics events (specifically `PacketStatistics` events) to the metrics tracker.
     stats_tx: ClientStatsSender,
 
-    task_client: TaskClient,
+    shutdown_token: ShutdownToken,
 }
 
 #[derive(Debug)]
@@ -179,7 +179,7 @@ where
         lane_queue_lengths: LaneQueueLengths,
         client_connection_rx: ConnectionCommandReceiver,
         stats_tx: ClientStatsSender,
-        task_client: TaskClient,
+        shutdown_token: ShutdownToken,
     ) -> Self {
         OutQueueControl {
             config,
@@ -194,7 +194,7 @@ where
             client_connection_rx,
             lane_queue_lengths,
             stats_tx,
-            task_client,
+            shutdown_token,
         }
     }
 
@@ -282,7 +282,7 @@ where
 
         let sending_res = tokio::select! {
             biased;
-            _ = self.task_client.recv() => {
+            _ = self.shutdown_token.cancelled() => {
                 trace!("received shutdown signal while attempting to send mix message");
                 return
             }
@@ -293,7 +293,7 @@ where
 
         match sending_res {
             Err(_) => {
-                if !self.task_client.is_shutdown_poll() {
+                if !self.shutdown_token.is_cancelled() {
                     tracing::error!(
                         "failed to send mixnet packet due to closed channel (outside of shutdown!)"
                     );
@@ -536,9 +536,7 @@ where
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    fn log_status(&self, shutdown: &mut TaskClient) {
-        use crate::error::ClientCoreStatusMessage;
-
+    fn log_status(&self) {
         let packets = self.transmission_buffer.total_size();
         let lanes = self.transmission_buffer.lanes();
         let mult = self.sending_delay_controller.current_multiplier();
@@ -567,32 +565,33 @@ where
             tracing::debug!("{status_str}");
         }
 
-        // Send status message to whoever is listening (possibly UI)
-        if mult == self.sending_delay_controller.max_multiplier() {
-            shutdown.send_status_msg(Box::new(ClientCoreStatusMessage::GatewayIsVerySlow));
-        } else if mult > self.sending_delay_controller.min_multiplier() {
-            shutdown.send_status_msg(Box::new(ClientCoreStatusMessage::GatewayIsSlow));
-        }
+        // leave the code commented in case somebody wanted to restore this logic with a different channel
+        // // Send status message to whoever is listening (possibly UI)
+        // if mult == self.sending_delay_controller.max_multiplier() {
+        //     shutdown.send_status_msg(Box::new(ClientCoreStatusMessage::GatewayIsVerySlow));
+        // } else if mult > self.sending_delay_controller.min_multiplier() {
+        //     shutdown.send_status_msg(Box::new(ClientCoreStatusMessage::GatewayIsSlow));
+        // }
     }
 
     pub(super) async fn run(&mut self) {
         debug!("Started OutQueueControl with graceful shutdown support");
 
-        let mut shutdown = self.task_client.fork("select");
+        let shutdown = self.shutdown_token.clone();
 
         #[cfg(not(target_arch = "wasm32"))]
         {
             let mut status_timer = tokio::time::interval(Duration::from_secs(5));
 
-            while !shutdown.is_shutdown() {
+            while !shutdown.is_cancelled() {
                 tokio::select! {
                     biased;
-                    _ = shutdown.recv() => {
+                    _ = shutdown.cancelled() => {
                         tracing::trace!("OutQueueControl: Received shutdown");
                         break;
                     }
                     _ = status_timer.tick() => {
-                        self.log_status(&mut shutdown);
+                        self.log_status();
                     }
                     next_message = self.next() => if let Some(next_message) = next_message {
                         self.on_message(next_message).await;
@@ -602,15 +601,14 @@ where
                     }
                 }
             }
-            shutdown.recv_timeout().await;
         }
 
         #[cfg(target_arch = "wasm32")]
         {
-            while !shutdown.is_shutdown() {
+            while !shutdown.is_cancelled() {
                 tokio::select! {
                     biased;
-                    _ = shutdown.recv() => {
+                    _ = shutdown.cancelled() => {
                         tracing::trace!("OutQueueControl: Received shutdown");
                     }
                     next_message = self.next() => if let Some(next_message) = next_message {

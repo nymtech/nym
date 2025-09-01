@@ -1,6 +1,7 @@
-use crate::{manager::SentError, TaskManager};
+use crate::manager::SentError;
 
 #[cfg(unix)]
+#[allow(clippy::expect_used)]
 pub async fn wait_for_signal() {
     use tokio::signal::unix::{signal, SignalKind};
     let mut sigterm = signal(SignalKind::terminate()).expect("Failed to setup SIGTERM channel");
@@ -28,8 +29,10 @@ pub async fn wait_for_signal() {
     }
 }
 
+#[allow(deprecated)]
 #[cfg(unix)]
-pub async fn wait_for_signal_and_error(shutdown: &mut TaskManager) -> Result<(), SentError> {
+#[allow(clippy::expect_used)]
+pub async fn wait_for_signal_and_error(shutdown: &mut crate::TaskManager) -> Result<(), SentError> {
     use tokio::signal::unix::{signal, SignalKind};
 
     let mut sigterm = signal(SignalKind::terminate()).expect("Failed to setup SIGTERM channel");
@@ -55,8 +58,9 @@ pub async fn wait_for_signal_and_error(shutdown: &mut TaskManager) -> Result<(),
     }
 }
 
+#[allow(deprecated)]
 #[cfg(not(unix))]
-pub async fn wait_for_signal_and_error(shutdown: &mut TaskManager) -> Result<(), SentError> {
+pub async fn wait_for_signal_and_error(shutdown: &mut crate::TaskManager) -> Result<(), SentError> {
     tokio::select! {
         _ = tokio::signal::ctrl_c() => {
             log::info!("Received SIGINT");

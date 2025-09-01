@@ -7,7 +7,7 @@ use crate::client::replies::reply_controller::key_rotation_helpers::KeyRotationC
 use crate::client::replies::reply_storage::CombinedReplyStorage;
 use crate::config;
 use futures::StreamExt;
-use nym_task::TaskClient;
+use nym_task::ShutdownToken;
 use rand::rngs::OsRng;
 use rand::{CryptoRng, Rng};
 use std::time::Duration;
@@ -62,7 +62,7 @@ pub struct ReplyController<R> {
     request_receiver: ReplyControllerReceiver,
 
     // Listen for shutdown signals
-    task_client: TaskClient,
+    shutdown_token: ShutdownToken,
 }
 
 impl ReplyController<OsRng> {
@@ -71,7 +71,7 @@ impl ReplyController<OsRng> {
         message_handler: MessageHandler<OsRng>,
         full_reply_storage: CombinedReplyStorage,
         request_receiver: ReplyControllerReceiver,
-        task_client: TaskClient,
+        shutdown_token: ShutdownToken,
     ) -> Self {
         ReplyController {
             config,
@@ -86,7 +86,7 @@ impl ReplyController<OsRng> {
                 message_handler,
             ),
             request_receiver,
-            task_client,
+            shutdown_token,
         }
     }
 }
@@ -151,7 +151,7 @@ where
     pub(crate) async fn run(&mut self) {
         debug!("Started ReplyController with graceful shutdown support");
 
-        let mut shutdown = self.task_client.fork("reply-controller");
+        let shutdown = self.shutdown_token.clone();
 
         let polling_rate = Duration::from_secs(5);
         let mut stale_inspection = new_interval_stream(polling_rate);
@@ -159,10 +159,10 @@ where
         let polling_rate = self.config.key_rotation.epoch_duration / 8;
         let mut invalidation_inspection = new_interval_stream(polling_rate);
 
-        while !shutdown.is_shutdown() {
+        while !shutdown.is_cancelled() {
             tokio::select! {
                 biased;
-                _ = shutdown.recv() => {
+                _ = shutdown.cancelled() => {
                     tracing::trace!("ReplyController: Received shutdown");
                 },
                 req = self.request_receiver.next() => match req {
@@ -181,7 +181,7 @@ where
                 }
             }
         }
-        assert!(shutdown.is_shutdown_poll());
+        assert!(shutdown.is_cancelled());
         tracing::debug!("ReplyController: Exiting");
     }
 }

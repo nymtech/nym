@@ -319,7 +319,7 @@ impl<R: RngCore + CryptoRng + Clone> DkgController<R> {
     where
         R: Sync + Send + 'static,
     {
-        let shutdown_listener = shutdown_manager.clone_token("DKG controller");
+        let shutdown_listener = shutdown_manager.clone_shutdown_token();
         let dkg_controller = DkgController::new(
             config,
             nyxd_client,

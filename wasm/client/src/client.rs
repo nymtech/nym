@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tsify::Tsify;
 use wasm_bindgen::prelude::*;
-use wasm_bindgen_futures::future_to_promise;
+use wasm_bindgen_futures::{future_to_promise, spawn_local};
 use wasm_client_core::client::base_client::storage::GatewaysDetailsStore;
 use wasm_client_core::client::{
     base_client::{BaseClientBuilder, ClientInput, ClientOutput, ClientState},
@@ -28,7 +28,7 @@ use wasm_client_core::helpers::{
     add_gateway, generate_new_client_keys, parse_recipient, parse_sender_tag,
 };
 use wasm_client_core::nym_task::connections::TransmissionLane;
-use wasm_client_core::nym_task::TaskManager;
+use wasm_client_core::nym_task::ShutdownManager;
 use wasm_client_core::storage::core_client_traits::FullWasmClientStorage;
 use wasm_client_core::storage::wasm_client_traits::WasmClientStorage;
 use wasm_client_core::storage::ClientStorage;
@@ -59,7 +59,7 @@ pub struct NymClient {
 
     // even though we don't use graceful shutdowns, other components rely on existence of this struct
     // and if it's dropped, everything will start going offline
-    _task_manager: TaskManager,
+    _task_manager: ShutdownManager,
 
     packet_type: PacketType,
 }
@@ -249,8 +249,10 @@ impl NymClientBuilder {
             client_input: Arc::new(client_input),
             client_state: Arc::new(started_client.client_state),
             _full_topology: None,
-            // this cannot failed as we haven't passed an external task manager
-            _task_manager: started_client.task_handle.try_into_task_manager().unwrap(),
+            // this cannot fail as we haven't passed an external task manager
+            _task_manager: started_client
+                .shutdown_handle
+                .expect("shutdown manager missing"),
             packet_type,
         })
     }

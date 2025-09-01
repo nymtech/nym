@@ -39,7 +39,7 @@ use nym_sdk::mixnet::{
 };
 use nym_service_provider_requests_common::{Protocol, ServiceProviderType};
 use nym_sphinx::receiver::ReconstructedMessage;
-use nym_task::TaskHandle;
+use nym_task::ShutdownToken;
 use nym_wireguard::WireguardGatewayData;
 use nym_wireguard_types::PeerPublicKey;
 use rand::{prelude::IteratorRandom, thread_rng};
@@ -71,7 +71,7 @@ pub(crate) struct MixnetListener {
     pub(crate) mixnet_client: nym_sdk::mixnet::MixnetClient,
 
     // The task handle for the main loop
-    pub(crate) task_handle: TaskHandle,
+    pub(crate) shutdown_token: ShutdownToken,
 
     // Registrations awaiting confirmation
     pub(crate) registred_and_free: RwLock<RegistredAndFree>,
@@ -91,7 +91,7 @@ impl MixnetListener {
         free_private_network_ips: PrivateIPs,
         wireguard_gateway_data: WireguardGatewayData,
         mixnet_client: nym_sdk::mixnet::MixnetClient,
-        task_handle: TaskHandle,
+        shutdown_token: ShutdownToken,
         ecash_verifier: Arc<dyn EcashManager + Send + Sync>,
     ) -> Self {
         let timeout_check_interval =
@@ -99,7 +99,7 @@ impl MixnetListener {
         MixnetListener {
             config,
             mixnet_client,
-            task_handle,
+            shutdown_token,
             registred_and_free: RwLock::new(RegistredAndFree::new(free_private_network_ips)),
             peer_manager: PeerManager::new(wireguard_gateway_data),
             ecash_verifier,
@@ -814,11 +814,10 @@ impl MixnetListener {
 
     pub(crate) async fn run(mut self) -> Result<(), AuthenticatorError> {
         tracing::info!("Using authenticator version {CURRENT_VERSION}");
-        let mut task_client = self.task_handle.fork("main_loop");
 
-        while !task_client.is_shutdown() {
+        while !self.shutdown_token.is_cancelled() {
             tokio::select! {
-                _ = task_client.recv() => {
+                _ = self.shutdown_token.cancelled() => {
                     tracing::debug!("Authenticator [main loop]: received shutdown");
                 },
                 _ = self.timeout_check_interval.next() => {

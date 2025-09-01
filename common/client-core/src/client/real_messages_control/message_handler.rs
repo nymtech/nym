@@ -20,7 +20,7 @@ use nym_sphinx::params::{PacketSize, PacketType};
 use nym_sphinx::preparer::{MessagePreparer, PreparedFragment};
 use nym_sphinx::Delay;
 use nym_task::connections::TransmissionLane;
-use nym_task::TaskClient;
+use nym_task::ShutdownToken;
 use nym_topology::{NymRouteProvider, NymTopologyError};
 use rand::{CryptoRng, Rng};
 use std::collections::HashMap;
@@ -189,7 +189,7 @@ pub(crate) struct MessageHandler<R> {
     topology_access: TopologyAccessor,
     reply_key_storage: SentReplyKeys,
     tag_storage: UsedSenderTags,
-    task_client: TaskClient,
+    shutdown_token: ShutdownToken,
 }
 
 impl<R> MessageHandler<R>
@@ -205,7 +205,7 @@ where
         topology_access: TopologyAccessor,
         reply_key_storage: SentReplyKeys,
         tag_storage: UsedSenderTags,
-        task_client: TaskClient,
+        shutdown_token: ShutdownToken,
     ) -> Self
     where
         R: Copy,
@@ -228,7 +228,7 @@ where
             topology_access,
             reply_key_storage,
             tag_storage,
-            task_client,
+            shutdown_token,
         }
     }
 
@@ -712,7 +712,7 @@ where
             .action_sender
             .unbounded_send(Action::UpdatePendingAck(id, new_delay))
         {
-            if !self.task_client.is_shutdown_poll() {
+            if !self.shutdown_token.is_cancelled() {
                 error!("Failed to send update action to the controller: {err}");
             }
         }
@@ -723,7 +723,7 @@ where
             .action_sender
             .unbounded_send(Action::new_insert(pending_acks))
         {
-            if !self.task_client.is_shutdown_poll() {
+            if !self.shutdown_token.is_cancelled() {
                 error!("Failed to send insert action to the controller: {err}");
             }
         }
@@ -737,7 +737,7 @@ where
     ) {
         tokio::select! {
             biased;
-            _ = self.task_client.recv() => {
+            _ = self.shutdown_token.cancelled() => {
                 trace!("received shutdown while attempting to forward mixnet messages");
             }
             sending_res = self.real_message_sender.send((messages, transmission_lane)) => {

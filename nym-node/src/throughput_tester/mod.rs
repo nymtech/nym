@@ -132,7 +132,7 @@ pub(crate) fn test_mixing_throughput(
     let mut tasks_handles = Vec::new();
 
     for (sender_id, stats) in stats.iter().enumerate() {
-        let token = nym_node.shutdown_token(format!("dummy-load-client-{sender_id}"));
+        let token = nym_node.shutdown_token();
 
         let client_future = run_testing_client(
             sender_id,
@@ -152,7 +152,7 @@ pub(crate) fn test_mixing_throughput(
         header_span,
         stats,
         output_directory,
-        nym_node.shutdown_token("global-stats"),
+        nym_node.shutdown_token(),
     );
 
     let stats_handle = tester.clients_runtime.spawn(async move {

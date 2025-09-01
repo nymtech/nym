@@ -120,8 +120,8 @@ pub(crate) struct Args {
 }
 
 async fn start_nym_api_tasks(config: &Config) -> anyhow::Result<ShutdownManager> {
-    let shutdown_manager = ShutdownManager::new("nym-api")
-        .with_shutdown_duration(Duration::from_secs(TASK_MANAGER_TIMEOUT_S));
+    let shutdown_manager =
+        ShutdownManager::new().with_shutdown_duration(Duration::from_secs(TASK_MANAGER_TIMEOUT_S));
 
     let nyxd_client = nyxd::Client::new(config)?;
     let connected_nyxd = config.get_nyxd_url();
@@ -248,8 +248,8 @@ async fn start_nym_api_tasks(config: &Config) -> anyhow::Result<ShutdownManager>
 
     let describe_cache_refresh_requester = describe_cache_refresher.refresh_requester();
 
-    let describe_cache_watcher = describe_cache_refresher
-        .start_with_watcher(shutdown_manager.clone_token("node-self-described-data-refresher"));
+    let describe_cache_watcher =
+        describe_cache_refresher.start_with_watcher(shutdown_manager.clone_shutdown_token());
 
     let performance_provider = if config.performance_provider.use_performance_contract_data {
         if network_details
@@ -286,8 +286,8 @@ async fn start_nym_api_tasks(config: &Config) -> anyhow::Result<ShutdownManager>
         &mixnet_contract_cache_state.clone(),
         nyxd_client.clone(),
     );
-    let contract_cache_watcher = mixnet_contract_cache_refresher
-        .start_with_watcher(shutdown_manager.clone_token("contracts-data-refresher"));
+    let contract_cache_watcher =
+        mixnet_contract_cache_refresher.start_with_watcher(shutdown_manager.clone_shutdown_token());
 
     node_status_api::start_cache_refresh(
         &config.node_status_api,
@@ -355,12 +355,12 @@ async fn start_nym_api_tasks(config: &Config) -> anyhow::Result<ShutdownManager>
         contract_cache_watcher,
         mixnet_contract_cache_state,
     )
-    .start(shutdown_manager.clone_token("KeyRotationController"));
+    .start(shutdown_manager.clone_shutdown_token());
 
     let bind_address = config.base.bind_address.to_owned();
     let server = router.build_server(&bind_address).await?;
 
-    let http_shutdown = shutdown_manager.clone_token("axum-http");
+    let http_shutdown = shutdown_manager.clone_shutdown_token();
     tokio::spawn(async move {
         {
             info!("Started Axum HTTP V2 server on {bind_address}");
@@ -368,7 +368,7 @@ async fn start_nym_api_tasks(config: &Config) -> anyhow::Result<ShutdownManager>
         }
     });
 
-    shutdown_manager.close();
+    shutdown_manager.close_tracker();
 
     Ok(shutdown_manager)
 }

@@ -5,7 +5,7 @@ use crate::connection_controller::ConnectionReceiver;
 use crate::ordered_sender::OrderedMessageSender;
 use nym_socks5_requests::{ConnectionId, SocketData};
 use nym_task::connections::LaneQueueLengths;
-use nym_task::TaskClient;
+use nym_task::ShutdownToken;
 use std::fmt::Debug;
 use std::{sync::Arc, time::Duration};
 use tokio::{net::TcpStream, sync::Notify};
@@ -57,7 +57,7 @@ pub struct ProxyRunner<S> {
     available_plaintext_per_mix_packet: usize,
 
     // Listens to shutdown commands from higher up
-    shutdown_listener: TaskClient,
+    shutdown_listener: ShutdownToken,
 }
 
 impl<S> ProxyRunner<S>
@@ -74,7 +74,7 @@ where
         available_plaintext_per_mix_packet: usize,
         connection_id: ConnectionId,
         lane_queue_lengths: Option<LaneQueueLengths>,
-        shutdown_listener: TaskClient,
+        shutdown_listener: ShutdownToken,
     ) -> Self {
         ProxyRunner {
             mix_receiver: Some(mix_receiver),
@@ -148,7 +148,6 @@ where
     }
 
     pub fn into_inner(mut self) -> (TcpStream, ConnectionReceiver) {
-        self.shutdown_listener.disarm();
         (
             self.socket.take().unwrap(),
             self.mix_receiver.take().unwrap(),

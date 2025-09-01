@@ -907,7 +907,7 @@ impl CredentialHandler {
         Ok(())
     }
 
-    async fn run(mut self, mut shutdown: nym_task::TaskClient) {
+    async fn run(mut self, shutdown: nym_task::ShutdownToken) {
         info!("Starting Ecash CredentialSender");
 
         // attempt to clear any pending operations
@@ -919,11 +919,12 @@ impl CredentialHandler {
         let start = Instant::now() + self.config.pending_poller;
         let mut resolver_interval = interval_at(start, self.config.pending_poller);
 
-        while !shutdown.is_shutdown() {
+        while !shutdown.is_cancelled() {
             tokio::select! {
                 biased;
-                _ = shutdown.recv() => {
+                _ = shutdown.cancelled() => {
                     trace!("client_handling::credentialSender : received shutdown");
+                    break
                 },
                 Some(ticket) = self.ticket_receiver.next() => {
                     let (queued_up, _) = self.ticket_receiver.size_hint();
@@ -947,7 +948,7 @@ impl CredentialHandler {
         }
     }
 
-    pub(crate) fn start(self, shutdown: nym_task::TaskClient) {
+    pub(crate) fn start(self, shutdown: nym_task::ShutdownToken) {
         tokio::spawn(async move { self.run(shutdown).await });
     }
 }

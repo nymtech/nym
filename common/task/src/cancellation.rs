@@ -1,190 +1,120 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{TaskClient, TaskManager};
+use crate::event::SentStatus;
 use futures::stream::FuturesUnordered;
 use futures::StreamExt;
 use std::future::Future;
 use std::mem;
-use std::ops::Deref;
 use std::pin::Pin;
 use std::time::Duration;
-use tokio::task::JoinSet;
-use tokio::time::sleep;
-use tokio_util::sync::{CancellationToken, DropGuard};
+use thiserror::Error;
+use tokio_util::sync::{
+    CancellationToken, DropGuard, WaitForCancellationFuture, WaitForCancellationFutureOwned,
+};
 use tokio_util::task::TaskTracker;
-use tracing::{debug, info, trace};
+use tracing::{debug, info, trace, warn};
+
+use crate::spawn::{spawn_named_future, JoinHandle};
+use crate::spawn_future;
+use tokio::task::JoinSet;
 
 #[cfg(unix)]
 use tokio::signal::unix::{signal, SignalKind};
 
+#[cfg(not(target_arch = "wasm32"))]
+use tokio::time::sleep;
+
+#[cfg(target_arch = "wasm32")]
+use wasmtimer::tokio::sleep;
+
 pub const DEFAULT_MAX_SHUTDOWN_DURATION: Duration = Duration::from_secs(5);
 
-pub fn token_name(name: &Option<String>) -> String {
-    name.clone().unwrap_or_else(|| "unknown".to_string())
-}
+#[derive(Debug, Error)]
+#[error("task got cancelled")]
+pub struct Cancelled;
 
-// a wrapper around tokio's CancellationToken that adds optional `name` information to more easily
-// track down sources of shutdown
-#[derive(Debug, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct ShutdownToken {
-    name: Option<String>,
     inner: CancellationToken,
 }
 
-impl Clone for ShutdownToken {
-    fn clone(&self) -> Self {
-        // make sure to not accidentally overflow the stack if we keep cloning the handle
-        let name = if let Some(name) = &self.name {
-            if name != Self::OVERFLOW_NAME && name.len() < Self::MAX_NAME_LENGTH {
-                Some(format!("{name}-child"))
-            } else {
-                Some(Self::OVERFLOW_NAME.to_string())
-            }
-        } else {
-            None
-        };
-
-        ShutdownToken {
-            name,
-            inner: self.inner.clone(),
-        }
-    }
-}
-
-impl Deref for ShutdownToken {
-    type Target = CancellationToken;
-
-    fn deref(&self) -> &Self::Target {
-        &self.inner
-    }
-}
-
 impl ShutdownToken {
-    const MAX_NAME_LENGTH: usize = 128;
-    const OVERFLOW_NAME: &'static str = "reached maximum ShutdownToken children name depth";
+    #[deprecated]
+    #[track_caller]
+    pub fn send_status_msg(&self, status: SentStatus) {
+        let caller = std::panic::Location::caller();
+        warn!("{caller} attempted to send {status} - there are no more listeners of those");
+    }
 
-    pub fn new(name: impl Into<String>) -> Self {
+    pub fn new() -> Self {
         ShutdownToken {
-            name: Some(name.into()),
             inner: CancellationToken::new(),
         }
     }
 
     pub fn ephemeral() -> Self {
-        ShutdownToken::new("ephemeral-token")
+        ShutdownToken::default()
     }
 
-    // Creates a ShutdownToken which will get cancelled whenever the current token gets cancelled.
-    // Unlike a cloned/forked ShutdownToken, cancelling a child token does not cancel the parent token.
-    #[must_use]
-    pub fn child_token<S: Into<String>>(&self, child_suffix: S) -> Self {
-        let suffix = child_suffix.into();
-        let child_name = if let Some(base) = &self.name {
-            format!("{base}-{suffix}")
-        } else {
-            format!("unknown-{suffix}")
-        };
+    pub fn inner(&self) -> &CancellationToken {
+        &self.inner
+    }
 
+    pub fn child_token(&self) -> ShutdownToken {
         ShutdownToken {
-            name: Some(child_name),
             inner: self.inner.child_token(),
         }
     }
 
-    // Creates a clone of the ShutdownToken which will get cancelled whenever the current token gets cancelled, and vice versa.
-    #[must_use]
-    pub fn clone_with_suffix<S: Into<String>>(&self, child_suffix: S) -> Self {
-        let mut child = self.clone();
-        let suffix = child_suffix.into();
-        let child_name = if let Some(base) = &self.name {
-            format!("{base}-{suffix}")
-        } else {
-            format!("unknown-{suffix}")
-        };
-
-        child.name = Some(child_name);
-        child
+    pub fn cancel(&self) {
+        self.inner.cancel();
     }
 
-    // exposed method with the old name for easier migration
-    // it will eventually be removed so please try to use `.clone_with_suffix` instead
-    #[must_use]
-    #[deprecated(note = "use .clone_with_suffix instead")]
-    pub fn fork<S: Into<String>>(&self, child_suffix: S) -> Self {
-        self.clone_with_suffix(child_suffix)
+    /// Returns `true` if the `ShutdownToken` is cancelled.
+    pub fn is_cancelled(&self) -> bool {
+        self.inner.is_cancelled()
     }
 
-    // exposed method with the old name for easier migration
-    // it will eventually be removed so please try to use `.clone().named(name)` instead
-    #[must_use]
-    #[deprecated(note = "use .clone().named(name) instead")]
-    pub fn fork_named<S: Into<String>>(&self, name: S) -> Self {
-        self.clone().named(name)
+    pub fn cancelled(&self) -> WaitForCancellationFuture<'_> {
+        self.inner.cancelled()
     }
 
-    #[must_use]
-    pub fn named<S: Into<String>>(mut self, name: S) -> Self {
-        self.name = Some(name.into());
-        self
-    }
-
-    #[must_use]
-    pub fn add_suffix<S: Into<String>>(self, suffix: S) -> Self {
-        let suffix = suffix.into();
-        let name = if let Some(base) = &self.name {
-            format!("{base}-{suffix}")
-        } else {
-            format!("unknown-{suffix}")
-        };
-        self.named(name)
+    pub fn cancelled_owned(self) -> WaitForCancellationFutureOwned {
+        self.inner.cancelled_owned()
     }
 
     // Returned guard will cancel this token (and all its children) on drop unless disarmed.
     pub fn drop_guard(self) -> ShutdownDropGuard {
         ShutdownDropGuard {
-            name: self.name,
             inner: self.inner.drop_guard(),
         }
-    }
-
-    pub fn name(&self) -> String {
-        token_name(&self.name)
     }
 
     pub async fn run_until_cancelled<F>(&self, fut: F) -> Option<F::Output>
     where
         F: Future,
     {
-        let res = self.inner.run_until_cancelled(fut).await;
-        trace!("'{}' got cancelled", self.name());
-        res
+        self.inner.run_until_cancelled(fut).await
+    }
+
+    pub async fn run_until_cancelled_owned<F>(self, fut: F) -> Option<F::Output>
+    where
+        F: Future,
+    {
+        self.inner.run_until_cancelled_owned(fut).await
     }
 }
 
 pub struct ShutdownDropGuard {
-    name: Option<String>,
     inner: DropGuard,
-}
-
-impl Deref for ShutdownDropGuard {
-    type Target = DropGuard;
-
-    fn deref(&self) -> &Self::Target {
-        &self.inner
-    }
 }
 
 impl ShutdownDropGuard {
     pub fn disarm(self) -> ShutdownToken {
         ShutdownToken {
-            name: self.name,
             inner: self.inner.disarm(),
         }
-    }
-
-    pub fn name(&self) -> String {
-        token_name(&self.name)
     }
 }
 
@@ -197,56 +127,251 @@ impl ShutdownSignals {
     }
 }
 
-pub struct ShutdownManager {
-    pub root_token: ShutdownToken,
-
-    legacy_task_manager: Option<TaskManager>,
-
-    shutdown_signals: ShutdownSignals,
+/// Extracted [`TaskTracker`] and [`ShutdownToken`] to more easily allow tracking nested tasks
+/// without having to pass whole [`ShutdownManager`] around
+#[derive(Clone, Default)]
+pub struct CancellationTracker {
+    root_cancellation_token: ShutdownToken,
 
     // the reason I'm not using a `JoinSet` is because it forces us to use futures with the same `::Output` type
     tracker: TaskTracker,
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+impl CancellationTracker {
+    #[track_caller]
+    pub fn spawn<F>(&self, task: F) -> JoinHandle<F::Output>
+    where
+        F: Future + Send + 'static,
+        F::Output: Send + 'static,
+    {
+        let tracked = self.tracker.track_future(task);
+        spawn_future(tracked)
+    }
+
+    #[track_caller]
+    pub fn try_spawn_named<F>(&self, task: F, name: &str) -> JoinHandle<F::Output>
+    where
+        F: Future + Send + 'static,
+        F::Output: Send + 'static,
+    {
+        let tracked = self.tracker.track_future(task);
+        spawn_named_future(tracked, name)
+    }
+
+    #[track_caller]
+    pub fn spawn_on<F>(&self, task: F, handle: &tokio::runtime::Handle) -> JoinHandle<F::Output>
+    where
+        F: Future + Send + 'static,
+        F::Output: Send + 'static,
+    {
+        self.tracker.spawn_on(task, handle)
+    }
+
+    #[track_caller]
+    pub fn spawn_local<F>(&self, task: F) -> JoinHandle<F::Output>
+    where
+        F: Future + 'static,
+        F::Output: 'static,
+    {
+        self.tracker.spawn_local(task)
+    }
+
+    #[track_caller]
+    pub fn spawn_blocking<F, T>(&self, task: F) -> JoinHandle<T>
+    where
+        F: FnOnce() -> T,
+        F: Send + 'static,
+        T: Send + 'static,
+    {
+        self.tracker.spawn_blocking(task)
+    }
+
+    #[track_caller]
+    pub fn spawn_blocking_on<F, T>(&self, task: F, handle: &tokio::runtime::Handle) -> JoinHandle<T>
+    where
+        F: FnOnce() -> T,
+        F: Send + 'static,
+        T: Send + 'static,
+    {
+        self.tracker.spawn_blocking_on(task, handle)
+    }
+
+    /// Spawn the task that will get cancelled if a global shutdown signal is detected
+    #[track_caller]
+    pub fn try_spawn_named_with_shutdown<F>(
+        &self,
+        task: F,
+        name: &str,
+    ) -> JoinHandle<Result<F::Output, Cancelled>>
+    where
+        F: Future + Send + 'static,
+        F::Output: Send + 'static,
+    {
+        let caller = std::panic::Location::caller();
+        let shutdown_token = self.clone_shutdown_token();
+        let tracked = self.tracker.track_future(async move {
+            match shutdown_token.run_until_cancelled_owned(task).await {
+                Some(result) => {
+                    debug!("{caller}: task has finished execution");
+                    Ok(result)
+                }
+                None => {
+                    trace!("{caller}: shutdown signal received, shutting down");
+                    Err(Cancelled)
+                }
+            }
+        });
+        spawn_named_future(tracked, name)
+    }
+
+    /// Spawn the task that will get cancelled if a global shutdown signal is detected
+    #[track_caller]
+    pub fn spawn_with_shutdown<F>(&self, task: F) -> JoinHandle<Result<F::Output, Cancelled>>
+    where
+        F: Future + Send + 'static,
+        F::Output: Send + 'static,
+    {
+        let caller = std::panic::Location::caller();
+        let shutdown_token = self.clone_shutdown_token();
+        self.tracker.spawn(async move {
+            match shutdown_token.run_until_cancelled_owned(task).await {
+                Some(result) => {
+                    debug!("{caller}: task has finished execution");
+                    Ok(result)
+                }
+                None => {
+                    trace!("{caller}: shutdown signal received, shutting down");
+                    Err(Cancelled)
+                }
+            }
+        })
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+impl CancellationTracker {
+    #[track_caller]
+    pub fn spawn<F>(&self, task: F) -> JoinHandle<F::Output>
+    where
+        F: Future + 'static,
+    {
+        let tracked = self.tracker.track_future(task);
+        spawn_future(tracked)
+    }
+
+    #[track_caller]
+    pub fn try_spawn_named<F>(&self, task: F, name: &str) -> JoinHandle<F::Output>
+    where
+        F: Future + 'static,
+    {
+        let tracked = self.tracker.track_future(task);
+        spawn_named_future(tracked, name)
+    }
+
+    /// Spawn the task that will get cancelled if a global shutdown signal is detected
+    #[track_caller]
+    pub fn try_spawn_named_with_shutdown<F>(
+        &self,
+        task: F,
+        name: &str,
+    ) -> JoinHandle<Result<F::Output, Cancelled>>
+    where
+        F: Future<Output = ()> + Send + 'static,
+    {
+        let caller = std::panic::Location::caller();
+        let shutdown_token = self.clone_shutdown_token();
+        let tracked = self.tracker.track_future(async move {
+            match shutdown_token.run_until_cancelled_owned(task).await {
+                Some(result) => {
+                    debug!("{caller}: task has finished execution");
+                    Ok(result)
+                }
+                None => {
+                    trace!("{caller}: shutdown signal received, shutting down");
+                    Err(Cancelled)
+                }
+            }
+        });
+        spawn_named_future(tracked, name)
+    }
+
+    /// Spawn the task that will get cancelled if a global shutdown signal is detected
+    #[track_caller]
+    pub fn spawn_with_shutdown<F>(&self, task: F) -> JoinHandle<Result<F::Output, Cancelled>>
+    where
+        F: Future<Output = ()> + Send + 'static,
+    {
+        let caller = std::panic::Location::caller();
+        let shutdown_token = self.clone_shutdown_token();
+        let tracked = self.tracker.track_future(async move {
+            match shutdown_token.run_until_cancelled_owned(task).await {
+                Some(result) => {
+                    debug!("{caller}: task has finished execution");
+                    Ok(result)
+                }
+                None => {
+                    trace!("{caller}: shutdown signal received, shutting down");
+                    Err(Cancelled)
+                }
+            }
+        });
+        spawn_future(tracked)
+    }
+}
+
+impl CancellationTracker {
+    pub fn child_shutdown_token(&self) -> ShutdownToken {
+        self.root_cancellation_token.child_token()
+    }
+
+    pub fn clone_shutdown_token(&self) -> ShutdownToken {
+        self.root_cancellation_token.clone()
+    }
+}
+
+#[allow(deprecated)]
+pub struct ShutdownManager {
+    legacy_task_manager: Option<crate::TaskManager>,
+
+    shutdown_signals: ShutdownSignals,
+
+    tracker: CancellationTracker,
 
     max_shutdown_duration: Duration,
 }
 
-impl Deref for ShutdownManager {
-    type Target = TaskTracker;
-
-    fn deref(&self) -> &Self::Target {
-        &self.tracker
+// note: default implementation will ONLY listen for SIGINT and will ignore SIGTERM and SIGQUIT
+// this is due to result type when registering the signal
+#[cfg(not(target_arch = "wasm32"))]
+impl Default for ShutdownManager {
+    fn default() -> Self {
+        ShutdownManager::new().with_interrupt_signal()
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 impl ShutdownManager {
-    pub fn new(root_token_name: impl Into<String>) -> Self {
-        let manager = ShutdownManager {
-            root_token: ShutdownToken::new(root_token_name),
-            legacy_task_manager: None,
-            shutdown_signals: Default::default(),
-            tracker: Default::default(),
-            max_shutdown_duration: Duration::from_secs(10),
-        };
+    #[must_use]
+    #[track_caller]
+    pub fn with_shutdown<F>(mut self, shutdown: F) -> Self
+    where
+        F: Future<Output = ()>,
+        F: Send + 'static,
+    {
+        let shutdown_token = self.tracker.clone_shutdown_token();
+        self.shutdown_signals.0.spawn(async move {
+            shutdown.await;
 
-        // we need to add an explicit watcher for the cancellation token being cancelled
-        // so that we could cancel all legacy tasks
-        let cancel_watcher = manager.root_token.clone();
-        manager.with_shutdown(async move { cancel_watcher.cancelled().await })
+            info!("sending cancellation after receiving shutdown signal");
+            shutdown_token.cancel();
+        });
+        self
     }
 
-    pub fn empty_mock() -> Self {
-        ShutdownManager {
-            root_token: ShutdownToken::ephemeral(),
-            legacy_task_manager: None,
-            shutdown_signals: Default::default(),
-            tracker: Default::default(),
-            max_shutdown_duration: Default::default(),
-        }
-    }
-
+    #[allow(deprecated)]
     pub fn with_legacy_task_manager(mut self) -> Self {
-        let mut legacy_manager =
-            TaskManager::default().named(format!("{}-legacy", self.root_token.name()));
+        let mut legacy_manager = crate::TaskManager::default().named("legacy-task-manager");
         let mut legacy_error_rx = legacy_manager.task_return_error_rx();
         let mut legacy_drop_rx = legacy_manager.task_drop_rx();
 
@@ -263,36 +388,6 @@ impl ShutdownManager {
         })
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
-    pub fn with_default_shutdown_signals(self) -> std::io::Result<Self> {
-        cfg_if::cfg_if! {
-            if #[cfg(unix)] {
-                self.with_interrupt_signal()
-                    .with_terminate_signal()?
-                    .with_quit_signal()
-            } else {
-                Ok(self.with_interrupt_signal())
-            }
-        }
-    }
-
-    #[must_use]
-    #[track_caller]
-    pub fn with_shutdown<F>(mut self, shutdown: F) -> Self
-    where
-        F: Future<Output = ()>,
-        F: Send + 'static,
-    {
-        let shutdown_token = self.root_token.clone();
-        self.shutdown_signals.0.spawn(async move {
-            shutdown.await;
-
-            info!("sending cancellation after receiving shutdown signal");
-            shutdown_token.cancel();
-        });
-        self
-    }
-
     #[cfg(unix)]
     #[track_caller]
     pub fn with_shutdown_signal(self, signal_kind: SignalKind) -> std::io::Result<Self> {
@@ -300,14 +395,6 @@ impl ShutdownManager {
         Ok(self.with_shutdown(async move {
             sig.recv().await;
         }))
-    }
-
-    #[cfg(not(target_arch = "wasm32"))]
-    #[track_caller]
-    pub fn with_interrupt_signal(self) -> Self {
-        self.with_shutdown(async move {
-            let _ = tokio::signal::ctrl_c().await;
-        })
     }
 
     #[cfg(unix)]
@@ -322,22 +409,222 @@ impl ShutdownManager {
         self.with_shutdown_signal(SignalKind::quit())
     }
 
+    pub fn with_default_shutdown_signals(self) -> std::io::Result<Self> {
+        cfg_if::cfg_if! {
+            if #[cfg(unix)] {
+                self.with_interrupt_signal()
+                    .with_terminate_signal()?
+                    .with_quit_signal()
+            } else {
+                Ok(self.with_interrupt_signal())
+            }
+        }
+    }
+
+    #[track_caller]
+    pub fn with_interrupt_signal(self) -> Self {
+        self.with_shutdown(async move {
+            let _ = tokio::signal::ctrl_c().await;
+        })
+    }
+
+    #[track_caller]
+    pub fn spawn<F>(&self, task: F) -> JoinHandle<F::Output>
+    where
+        F: Future + Send + 'static,
+        F::Output: Send + 'static,
+    {
+        self.tracker.spawn(task)
+    }
+
+    #[track_caller]
+    pub fn try_spawn_named<F>(&self, task: F, name: &str) -> JoinHandle<F::Output>
+    where
+        F: Future + Send + 'static,
+        F::Output: Send + 'static,
+    {
+        self.tracker.try_spawn_named(task, name)
+    }
+
+    #[track_caller]
+    pub fn spawn_on<F>(&self, task: F, handle: &tokio::runtime::Handle) -> JoinHandle<F::Output>
+    where
+        F: Future + Send + 'static,
+        F::Output: Send + 'static,
+    {
+        self.tracker.spawn_on(task, handle)
+    }
+
+    #[track_caller]
+    pub fn spawn_local<F>(&self, task: F) -> JoinHandle<F::Output>
+    where
+        F: Future + 'static,
+        F::Output: 'static,
+    {
+        self.tracker.spawn_local(task)
+    }
+
+    #[track_caller]
+    pub fn spawn_blocking<F, T>(&self, task: F) -> JoinHandle<T>
+    where
+        F: FnOnce() -> T,
+        F: Send + 'static,
+        T: Send + 'static,
+    {
+        self.tracker.spawn_blocking(task)
+    }
+
+    #[track_caller]
+    pub fn spawn_blocking_on<F, T>(&self, task: F, handle: &tokio::runtime::Handle) -> JoinHandle<T>
+    where
+        F: FnOnce() -> T,
+        F: Send + 'static,
+        T: Send + 'static,
+    {
+        self.tracker.spawn_blocking_on(task, handle)
+    }
+
+    #[track_caller]
+    pub fn try_spawn_named_with_shutdown<F>(
+        &self,
+        task: F,
+        name: &str,
+    ) -> JoinHandle<Result<F::Output, Cancelled>>
+    where
+        F: Future + Send + 'static,
+        F::Output: Send + 'static,
+    {
+        self.tracker.try_spawn_named_with_shutdown(task, name)
+    }
+
+    /// Spawn the task that will get cancelled if a global shutdown signal is detected
+    #[track_caller]
+    pub fn spawn_with_shutdown<F>(&self, task: F) -> JoinHandle<Result<F::Output, Cancelled>>
+    where
+        F: Future + Send + 'static,
+        F::Output: Send + 'static,
+    {
+        self.tracker.spawn_with_shutdown(task)
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+impl ShutdownManager {
+    #[track_caller]
+    pub fn spawn<F>(&self, task: F) -> JoinHandle<F::Output>
+    where
+        F: Future + 'static,
+    {
+        self.tracker.spawn(task)
+    }
+
+    #[track_caller]
+    pub fn try_spawn_named<F>(&self, task: F, name: &str) -> JoinHandle<F::Output>
+    where
+        F: Future + 'static,
+    {
+        self.tracker.try_spawn_named(task, name)
+    }
+
+    #[track_caller]
+    pub fn try_spawn_named_with_shutdown<F>(
+        &self,
+        task: F,
+        name: &str,
+    ) -> JoinHandle<Result<F::Output, Cancelled>>
+    where
+        F: Future<Output = ()> + Send + 'static,
+    {
+        self.tracker.try_spawn_named_with_shutdown(task, name)
+    }
+
+    /// Spawn the task that will get cancelled if a global shutdown signal is detected
+    #[track_caller]
+    pub fn spawn_with_shutdown<F>(&self, task: F) -> JoinHandle<Result<F::Output, Cancelled>>
+    where
+        F: Future<Output = ()> + Send + 'static,
+    {
+        self.tracker.spawn_with_shutdown(task)
+    }
+}
+
+impl ShutdownManager {
+    pub fn new() -> Self {
+        let mut manager = ShutdownManager {
+            legacy_task_manager: None,
+            shutdown_signals: Default::default(),
+            tracker: Default::default(),
+            max_shutdown_duration: Duration::from_secs(10),
+        };
+
+        // we need to add an explicit watcher for the cancellation token being cancelled
+        // so that we could cancel all legacy tasks
+        cfg_if::cfg_if! {if #[cfg(not(target_arch = "wasm32"))] {
+            let cancel_watcher = manager.tracker.clone_shutdown_token();
+            manager.with_shutdown(async move { cancel_watcher.cancelled().await })
+        } else {
+            manager
+        }}
+    }
+
+    pub fn empty_mock() -> Self {
+        ShutdownManager {
+            legacy_task_manager: None,
+            shutdown_signals: Default::default(),
+            tracker: Default::default(),
+            max_shutdown_duration: Default::default(),
+        }
+    }
+
     #[must_use]
     pub fn with_shutdown_duration(mut self, duration: Duration) -> Self {
         self.max_shutdown_duration = duration;
         self
     }
 
-    pub fn child_token<S: Into<String>>(&self, child_suffix: S) -> ShutdownToken {
-        self.root_token.child_token(child_suffix)
+    pub fn is_cancelled(&self) -> bool {
+        self.tracker.root_cancellation_token.is_cancelled()
     }
 
-    pub fn clone_token<S: Into<String>>(&self, child_suffix: S) -> ShutdownToken {
-        self.root_token.clone_with_suffix(child_suffix)
+    pub fn cancellation_tracker(&self) -> CancellationTracker {
+        self.tracker.clone()
+    }
+
+    pub async fn wait_for_tracker(&self) {
+        self.tracker.tracker.wait().await;
+    }
+
+    pub fn close_tracker(&self) -> bool {
+        self.tracker.tracker.close()
+    }
+
+    pub fn reopen_tracker(&self) -> bool {
+        self.tracker.tracker.reopen()
+    }
+
+    pub fn is_tracker_closed(&self) -> bool {
+        self.tracker.tracker.is_closed()
+    }
+
+    pub fn is_tracker_empty(&self) -> bool {
+        self.tracker.tracker.is_empty()
+    }
+
+    pub fn tracked_tasks(&self) -> usize {
+        self.tracker.tracker.len()
+    }
+
+    pub fn child_shutdown_token(&self) -> ShutdownToken {
+        self.tracker.root_cancellation_token.child_token()
+    }
+
+    pub fn clone_shutdown_token(&self) -> ShutdownToken {
+        self.tracker.root_cancellation_token.clone()
     }
 
     #[must_use]
-    pub fn subscribe_legacy<S: Into<String>>(&self, child_suffix: S) -> TaskClient {
+    #[allow(deprecated)]
+    pub fn subscribe_legacy<S: Into<String>>(&self, child_suffix: S) -> crate::TaskClient {
         // alternatively we could have set self.legacy_task_manager = Some(TaskManager::default());
         // on demand if it wasn't unavailable, but then we'd have to use mutable reference
         #[allow(clippy::expect_used)]
@@ -348,7 +635,7 @@ impl ShutdownManager {
     }
 
     async fn finish_shutdown(mut self) {
-        let mut wait_futures = FuturesUnordered::<Pin<Box<dyn Future<Output = ()>>>>::new();
+        let mut wait_futures = FuturesUnordered::<Pin<Box<dyn Future<Output = ()> + Send>>>::new();
 
         // force shutdown via ctrl-c
         wait_futures.push(Box::pin(async move {
@@ -370,7 +657,7 @@ impl ShutdownManager {
 
         // graceful
         wait_futures.push(Box::pin(async move {
-            self.tracker.wait().await;
+            self.wait_for_tracker().await;
             debug!("migrated tasks successfully shutdown");
             if let Some(legacy) = self.legacy_task_manager.as_mut() {
                 legacy.wait_for_graceful_shutdown().await;
@@ -391,21 +678,36 @@ impl ShutdownManager {
         self.shutdown_signals = signals;
     }
 
-    // cancellation safe
-    pub async fn wait_for_shutdown_signal(&mut self) {
-        self.shutdown_signals.0.join_next().await;
-    }
-
-    pub async fn perform_shutdown(mut self) {
-        if let Some(legacy_manager) = self.legacy_task_manager.as_mut() {
+    pub fn send_cancellation(&self) {
+        if let Some(legacy_manager) = self.legacy_task_manager.as_ref() {
             info!("attempting to shutdown legacy tasks");
             let _ = legacy_manager.signal_shutdown();
         }
+        self.tracker.root_cancellation_token.cancel();
+    }
+
+    /// Wait until receiving one of the registered shutdown signals
+    /// this method is cancellation safe
+    pub async fn wait_for_shutdown_signal(&mut self) {
+        #[cfg(not(target_arch = "wasm32"))]
+        self.shutdown_signals.0.join_next().await;
+
+        #[cfg(target_arch = "wasm32")]
+        self.tracker.root_cancellation_token.cancelled().await;
+    }
+
+    /// Perform system shutdown by sending relevant signals and waiting until either:
+    /// - all tracked tasks have terminated
+    /// - timeout has been reached
+    /// - shutdown has been forced (by sending SIGINT)
+    pub async fn perform_shutdown(self) {
+        self.send_cancellation();
 
         info!("waiting for tasks to finish... (press ctrl-c to force)");
         self.finish_shutdown().await;
     }
 
+    /// Wait until a shutdown signal has been received and trigger system shutdown.
     pub async fn run_until_shutdown(mut self) {
         self.wait_for_shutdown_signal().await;
 

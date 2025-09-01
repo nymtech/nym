@@ -7,7 +7,7 @@
 use crate::error::GatewayClientError;
 use crate::GatewayPacketRouter;
 use futures::channel::mpsc;
-use nym_task::TaskClient;
+use nym_task::ShutdownToken;
 
 pub type MixnetMessageSender = mpsc::UnboundedSender<Vec<Vec<u8>>>;
 pub type MixnetMessageReceiver = mpsc::UnboundedReceiver<Vec<Vec<u8>>>;
@@ -19,14 +19,14 @@ pub type AcknowledgementReceiver = mpsc::UnboundedReceiver<Vec<Vec<u8>>>;
 pub struct PacketRouter {
     ack_sender: AcknowledgementSender,
     mixnet_message_sender: MixnetMessageSender,
-    shutdown: TaskClient,
+    shutdown: ShutdownToken,
 }
 
 impl PacketRouter {
     pub fn new(
         ack_sender: AcknowledgementSender,
         mixnet_message_sender: MixnetMessageSender,
-        shutdown: TaskClient,
+        shutdown: ShutdownToken,
     ) -> Self {
         PacketRouter {
             ack_sender,
@@ -42,7 +42,7 @@ impl PacketRouter {
         if let Err(err) = self.mixnet_message_sender.unbounded_send(received_messages) {
             // check if the failure is due to the shutdown being in progress and thus the receiver channel
             // having already been dropped
-            if self.shutdown.is_shutdown_poll() || self.shutdown.is_dummy() {
+            if self.shutdown.is_cancelled() {
                 // This should ideally not happen, but it's ok
                 tracing::warn!("Failed to send mixnet messages due to receiver task shutdown");
                 return Err(GatewayClientError::ShutdownInProgress);
@@ -58,7 +58,7 @@ impl PacketRouter {
         if let Err(err) = self.ack_sender.unbounded_send(received_acks) {
             // check if the failure is due to the shutdown being in progress and thus the receiver channel
             // having already been dropped
-            if self.shutdown.is_shutdown_poll() || self.shutdown.is_dummy() {
+            if self.shutdown.is_cancelled() {
                 // This should ideally not happen, but it's ok
                 tracing::warn!("Failed to send acks due to receiver task shutdown");
                 return Err(GatewayClientError::ShutdownInProgress);
@@ -68,10 +68,6 @@ impl PacketRouter {
             panic!("Failed to send acks: {err}");
         }
         Ok(())
-    }
-
-    pub fn disarm(&mut self) {
-        self.shutdown.disarm();
     }
 }
 

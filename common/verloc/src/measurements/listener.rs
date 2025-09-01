@@ -60,7 +60,7 @@ impl PacketListener {
                     match socket {
                         Ok((socket, remote_addr)) => {
                             debug!("New verloc connection from {remote_addr}");
-                            let cancel = self.shutdown_token.child_token(format!("handler_{remote_addr}"));
+                            let cancel = self.shutdown_token.child_token();
                             tokio::spawn(async move { cancel.run_until_cancelled(connection_handler.handle_connection(socket, remote_addr)).await });
                         }
                         Err(err) => warn!("Failed to accept incoming connection - {err}"),

@@ -9,7 +9,7 @@ use futures::StreamExt;
 use nym_crypto::asymmetric::x25519;
 use nym_sphinx::acknowledgements::AckKey;
 use nym_sphinx::receiver::{MessageReceiver, SphinxMessageReceiver};
-use nym_task::TaskClient;
+use nym_task::ShutdownToken;
 use serde::de::DeserializeOwned;
 use std::sync::Arc;
 
@@ -24,7 +24,7 @@ pub struct SimpleMessageReceiver<T, R: MessageReceiver = SphinxMessageReceiver> 
     acks_receiver: mpsc::UnboundedReceiver<Vec<Vec<u8>>>,
 
     received_sender: ReceivedSender<T>,
-    shutdown: TaskClient,
+    shutdown: ShutdownToken,
 }
 
 impl<T> SimpleMessageReceiver<T, SphinxMessageReceiver> {
@@ -34,7 +34,7 @@ impl<T> SimpleMessageReceiver<T, SphinxMessageReceiver> {
         mixnet_message_receiver: mpsc::UnboundedReceiver<Vec<Vec<u8>>>,
         acks_receiver: mpsc::UnboundedReceiver<Vec<Vec<u8>>>,
         received_sender: ReceivedSender<T>,
-        shutdown: TaskClient,
+        shutdown: ShutdownToken,
     ) -> Self {
         Self::new(
             local_encryption_keypair,
@@ -54,7 +54,7 @@ impl<T, R: MessageReceiver> SimpleMessageReceiver<T, R> {
         mixnet_message_receiver: mpsc::UnboundedReceiver<Vec<Vec<u8>>>,
         acks_receiver: mpsc::UnboundedReceiver<Vec<Vec<u8>>>,
         received_sender: ReceivedSender<T>,
-        shutdown: TaskClient,
+        shutdown: ShutdownToken,
     ) -> Self {
         SimpleMessageReceiver {
             message_processor: TestPacketProcessor::new(local_encryption_keypair, ack_key),
@@ -91,10 +91,10 @@ impl<T, R: MessageReceiver> SimpleMessageReceiver<T, R> {
     where
         T: DeserializeOwned,
     {
-        while !self.shutdown.is_shutdown() {
+        while !self.shutdown.is_cancelled() {
             tokio::select! {
                 biased;
-                _ = self.shutdown.recv() => {
+                _ = self.shutdown.cancelled() => {
                     log_info!("SimpleMessageReceiver: received shutdown")
                 }
                 mixnet_messages = self.mixnet_message_receiver.next() => {

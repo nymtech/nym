@@ -159,7 +159,6 @@ pub fn gateway_tasks_config(config: &Config) -> GatewayTasksConfig {
                     .to_common_client_paths(),
                 ip_packet_router_description: Default::default(),
             },
-
             logging: config.logging,
         },
         custom_mixnet_path: None,

@@ -17,7 +17,7 @@ use nym_network_requester::error::NetworkRequesterError;
 use nym_network_requester::NRServiceProviderBuilder;
 use nym_sdk::mixnet::Recipient;
 use nym_sdk::{GatewayTransceiver, LocalGateway, PacketRouter};
-use nym_task::TaskClient;
+use nym_task::ShutdownToken;
 use std::fmt::Display;
 use tokio::task::JoinHandle;
 use tracing::error;
@@ -185,14 +185,14 @@ pub struct SpMessageRouterBuilder {
     mix_receiver: MixMessageReceiver,
     router_receiver: oneshot::Receiver<PacketRouter>,
     gateway_transceiver: Option<LocalGateway>,
-    shutdown: TaskClient,
+    shutdown: ShutdownToken,
 }
 
 impl SpMessageRouterBuilder {
     pub(crate) fn new(
         node_identity: ed25519::PublicKey,
         forwarding_channel: MixForwardingSender,
-        shutdown: TaskClient,
+        shutdown: ShutdownToken,
     ) -> Self {
         let (mix_sender, mix_receiver) = mpsc::unbounded();
         let (router_tx, router_rx) = oneshot::channel();

@@ -91,7 +91,6 @@ impl Drop for ConnectionHandler {
 
 impl ConnectionHandler {
     pub(crate) fn new(shared: &SharedData, remote_address: SocketAddr) -> Self {
-        let shutdown = shared.shutdown.child_token(remote_address.to_string());
         shared.metrics.network.new_active_ingress_mixnet_client();
 
         ConnectionHandler {
@@ -103,7 +102,7 @@ impl ConnectionHandler {
                 final_hop: shared.final_hop.clone(),
                 noise_config: shared.noise_config.clone(),
                 metrics: shared.metrics.clone(),
-                shutdown,
+                shutdown: shared.shutdown.clone(),
             },
             remote_address,
             pending_packets: PendingReplayCheckPackets::new(),

@@ -255,7 +255,7 @@ impl EpochAdvancer {
             described_cache,
             storage.to_owned(),
         );
-        let shutdown_listener = shutdown_manager.clone_token("epoch-advancer");
+        let shutdown_listener = shutdown_manager.clone_shutdown_token();
         tokio::spawn(async move { epoch_advancer.run(shutdown_listener).await });
     }
 }

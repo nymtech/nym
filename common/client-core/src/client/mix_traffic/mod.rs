@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::client::mix_traffic::transceiver::GatewayTransceiver;
-use crate::error::ClientCoreError;
 use crate::spawn_future;
 use nym_gateway_requests::ClientRequest;
 use nym_sphinx::forwarding::packet::MixPacket;
-use nym_task::TaskClient;
+use nym_task::ShutdownToken;
 use tracing::*;
 use transceiver::ErasedGatewayError;
 
@@ -34,13 +33,13 @@ pub struct MixTrafficController {
     // in long run `gateway_client` will be moved away from `MixTrafficController` anyway.
     consecutive_gateway_failure_count: usize,
 
-    task_client: TaskClient,
+    shutdown_token: ShutdownToken,
 }
 
 impl MixTrafficController {
     pub fn new<T>(
         gateway_transceiver: T,
-        task_client: TaskClient,
+        shutdown_token: ShutdownToken,
     ) -> (
         MixTrafficController,
         BatchMixMessageSender,
@@ -60,7 +59,7 @@ impl MixTrafficController {
                 mix_rx: message_receiver,
                 client_rx: client_receiver,
                 consecutive_gateway_failure_count: 0,
-                task_client,
+                shutdown_token,
             },
             message_sender,
             client_sender,
@@ -69,7 +68,7 @@ impl MixTrafficController {
 
     pub fn new_dynamic(
         gateway_transceiver: Box<dyn GatewayTransceiver + Send>,
-        task_client: TaskClient,
+        shutdown_token: ShutdownToken,
     ) -> (
         MixTrafficController,
         BatchMixMessageSender,
@@ -84,7 +83,7 @@ impl MixTrafficController {
                 mix_rx: message_receiver,
                 client_rx: client_receiver,
                 consecutive_gateway_failure_count: 0,
-                task_client,
+                shutdown_token,
             },
             message_sender,
             client_sender,
@@ -107,7 +106,7 @@ impl MixTrafficController {
 
         tokio::select! {
             biased;
-            _ = self.task_client.recv() => {
+            _ = self.shutdown_token.cancelled() => {
                 trace!("received shutdown while handling messages");
                 Ok(())
             }
@@ -127,7 +126,7 @@ impl MixTrafficController {
     async fn on_client_request(&mut self, client_request: ClientRequest) {
         tokio::select! {
             biased;
-             _ = self.task_client.recv() => {
+             _ = self.shutdown_token.cancelled() => {
                 trace!("received shutdown while handling client request");
             }
             result = self.gateway_transceiver.send_client_request(client_request) => {
@@ -142,11 +141,11 @@ impl MixTrafficController {
         spawn_future!(
             async move {
                 debug!("Started MixTrafficController with graceful shutdown support");
-                while !self.task_client.is_shutdown() {
+                while !self.shutdown_token.is_cancelled() {
                     tokio::select! {
                         biased;
-                        _ = self.task_client.recv() => {
-                            tracing::trace!("MixTrafficController: Received shutdown");
+                        _ = self.shutdown_token.cancelled() => {
+                            trace!("MixTrafficController: Received shutdown");
                             break;
                         }
                         mix_packets = self.mix_rx.recv() => match mix_packets {
@@ -159,13 +158,12 @@ impl MixTrafficController {
                                         error!("Failed to send sphinx packet to the gateway {MAX_FAILURE_COUNT} times in a row - assuming the gateway is dead");
                                         // Do we need to handle the embedded mixnet client case
                                         // separately?
-                                        self.task_client.send_we_stopped(Box::new(ClientCoreError::GatewayFailedToForwardMessages));
                                         break;
                                     }
                                 }
                             },
                             None => {
-                                tracing::trace!("MixTrafficController: Stopping since channel closed");
+                                trace!("MixTrafficController: Stopping since channel closed");
                                 break;
                             }
                         },
@@ -174,13 +172,12 @@ impl MixTrafficController {
                                 self.on_client_request(client_request).await;
                             },
                             None => {
-                                tracing::trace!("MixTrafficController, client request channel closed");
+                                trace!("MixTrafficController, client request channel closed");
                             }
                         },
                     }
                 }
-                self.task_client.recv_timeout().await;
-                tracing::debug!("MixTrafficController: Exiting");
+                debug!("MixTrafficController: Exiting");
             },
             "MixTrafficController"
         );

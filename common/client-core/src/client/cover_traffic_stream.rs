@@ -12,7 +12,7 @@ use nym_sphinx::cover::generate_loop_cover_packet;
 use nym_sphinx::params::{PacketSize, PacketType};
 use nym_sphinx::utils::sample_poisson_duration;
 use nym_statistics_common::clients::{packet_statistics::PacketStatisticsEvent, ClientStatsSender};
-use nym_task::TaskClient;
+use nym_task::ShutdownToken;
 use rand::{rngs::OsRng, CryptoRng, Rng};
 use std::pin::Pin;
 use std::sync::Arc;
@@ -70,7 +70,7 @@ where
 
     stats_tx: ClientStatsSender,
 
-    task_client: TaskClient,
+    shutdown_token: ShutdownToken,
 }
 
 impl<R> Stream for LoopCoverTrafficStream<R>
@@ -117,7 +117,7 @@ impl LoopCoverTrafficStream<OsRng> {
         traffic_config: config::Traffic,
         cover_config: config::CoverTraffic,
         stats_tx: ClientStatsSender,
-        task_client: TaskClient,
+        shutdown_token: ShutdownToken,
     ) -> Self {
         let rng = OsRng;
 
@@ -137,7 +137,7 @@ impl LoopCoverTrafficStream<OsRng> {
             use_legacy_sphinx_format: traffic_config.use_legacy_sphinx_format,
             packet_type: traffic_config.packet_type,
             stats_tx,
-            task_client,
+            shutdown_token,
         }
     }
 
@@ -250,16 +250,16 @@ impl LoopCoverTrafficStream<OsRng> {
         );
         self.set_next_delay(sampled);
 
-        let mut shutdown = self.task_client.fork("select");
+        let shutdown = self.shutdown_token.clone();
 
         spawn_future!(
             async move {
                 debug!("Started LoopCoverTrafficStream with graceful shutdown support");
 
-                while !shutdown.is_shutdown() {
+                while !shutdown.is_cancelled() {
                     tokio::select! {
                         biased;
-                        _ = shutdown.recv() => {
+                        _ = shutdown.cancelled() => {
                             tracing::trace!("LoopCoverTrafficStream: Received shutdown");
                         }
                         next = self.next() => {
@@ -272,7 +272,6 @@ impl LoopCoverTrafficStream<OsRng> {
                         }
                     }
                 }
-                shutdown.recv_timeout().await;
                 tracing::debug!("LoopCoverTrafficStream: Exiting");
             },
             "LoopCoverTrafficStream"

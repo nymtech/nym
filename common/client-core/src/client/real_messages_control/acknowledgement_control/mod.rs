@@ -23,7 +23,7 @@ use nym_sphinx::{
     Delay as SphinxDelay,
 };
 use nym_statistics_common::clients::ClientStatsSender;
-use nym_task::TaskClient;
+use nym_task::ShutdownToken;
 use rand::{CryptoRng, Rng};
 use std::{
     sync::{Arc, Weak},
@@ -234,7 +234,7 @@ where
         message_handler: MessageHandler<R>,
         reply_controller_sender: ReplyControllerSender,
         stats_tx: ClientStatsSender,
-        task_client: TaskClient,
+        shutdown_token: ShutdownToken,
     ) -> Self {
         let (retransmission_tx, retransmission_rx) = mpsc::unbounded();
 
@@ -244,7 +244,7 @@ where
             action_config,
             retransmission_tx,
             connectors.ack_action_receiver,
-            task_client.fork("action_controller"),
+            shutdown_token.clone(),
         );
 
         // will listen for any acks coming from the network
@@ -253,7 +253,7 @@ where
             connectors.ack_receiver,
             connectors.ack_action_sender.clone(),
             stats_tx,
-            task_client.fork("acknowledgement_listener"),
+            shutdown_token.clone(),
         );
 
         // will listen for any new messages from the client
@@ -261,7 +261,7 @@ where
             connectors.input_receiver,
             message_handler.clone(),
             reply_controller_sender.clone(),
-            task_client.fork("input_message_listener"),
+            shutdown_token.clone(),
         );
 
         // will listen for any ack timeouts and trigger retransmission
@@ -271,7 +271,7 @@ where
             message_handler,
             retransmission_rx,
             reply_controller_sender,
-            task_client.fork("retransmission_request_listener"),
+            shutdown_token.clone(),
         );
 
         // will listen for events indicating the packet was sent through the network so that
@@ -279,7 +279,7 @@ where
         let sent_notification_listener = SentNotificationListener::new(
             connectors.sent_notifier,
             connectors.ack_action_sender,
-            task_client.with_suffix("sent_notification_listener"),
+            shutdown_token.clone(),
         );
 
         AcknowledgementController {

@@ -10,8 +10,10 @@ use opentelemetry::{global, Context};
 use tracing::warn;
 use tracing::{instrument, info_span};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
-// use std::path::PathBuf;
-// use tempfile::TempDir;
+use std::path::PathBuf;
+use tempfile::TempDir;
+// use nym_sdk::storage::paths::StoragePaths;
+use nym_sdk::mixnet::StoragePaths;
 
 #[tokio::main]
 #[instrument(name = "sdk-example-surb-reply", skip_all)]
@@ -51,8 +53,23 @@ async fn main() {
     let trace_id = context.trace_id();
     warn!("TRACE_ID: {:?}", trace_id);
 
+        
+    // Specify some config options
+    let config_dir: PathBuf = TempDir::new().unwrap().path().to_path_buf();
+    let storage_paths = StoragePaths::new_from_dir(&config_dir).unwrap();
+
     // Create the client with a storage backend, and enable it by giving it some paths. If keys
     // exists at these paths, they will be loaded, otherwise they will be generated.
+    // let client = MixnetClientBuilder::new_with_default_storage(storage_paths)
+    //     .await
+    //     .unwrap()
+    //     .build()
+    //     .unwrap();
+
+    // Now we connect to the mixnet, using keys now stored in the paths provided.
+    // let mut client = client.connect_to_mixnet().await.unwrap();
+
+    // Create a mixnet client which connect to a specific node
 
     let client_builder  = MixnetClientBuilder::new_ephemeral();
     let mixnet_client = client_builder
@@ -62,9 +79,9 @@ async fn main() {
         .build()
         .unwrap();
 
-    let mut client = mixnet_client.connect_to_mixnet().await.unwrap();
     // Now we connect to the mixnet, using keys now stored in the paths provided.
     // let mut client = client.connect_to_mixnet().await.unwrap();
+    let mut client = mixnet_client.connect_to_mixnet().await.unwrap();
 
     // Be able to get our client address
     let our_address = client.nym_address();

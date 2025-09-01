@@ -127,7 +127,7 @@ cw-utils = { workspace = true }
 rand_chacha = { workspace = true }
 sha2 = { workspace = true }
 dotenvy = { workspace = true }
-test-with = { workspace = true, features = ["runtime"] }
+test-with = { workspace = true, default-features = false }
 
 [lints]
 workspace = true

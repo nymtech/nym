@@ -61,7 +61,7 @@ impl ConnectedClients {
 
     pub(crate) fn disconnect_client(&mut self, client_id: &ConnectedClientId) {
         if let Some(ips) = self.lookup_ip_from_client_id(client_id) {
-            log::debug!("Disconnect client that requested to do so: {ips}");
+            tracing::debug!("Disconnect client that requested to do so: {ips}");
             self.disconnect_client_handle(ips);
         }
     }
@@ -72,7 +72,7 @@ impl ConnectedClients {
         self.tun_listener_connected_client_tx
             .send(ConnectedClientEvent::Disconnect(DisconnectEvent(ips)))
             .inspect_err(|err| {
-                log::error!("Failed to send disconnect event: {err}");
+                tracing::error!("Failed to send disconnect event: {err}");
             })
             .ok();
     }
@@ -117,7 +117,7 @@ impl ConnectedClients {
             handle: Arc::new(handle),
         };
 
-        log::info!("Inserting {} and {}", ips.ipv4, ips.ipv6);
+        tracing::info!("Inserting {} and {}", ips.ipv4, ips.ipv6);
         self.clients_ipv4_mapping.insert(ips.ipv4, client.clone());
         self.clients_ipv6_mapping.insert(ips.ipv6, client);
 
@@ -129,7 +129,7 @@ impl ConnectedClients {
                 forward_from_tun_tx,
             })))
             .inspect_err(|err| {
-                log::error!("Failed to send connected client event: {err}");
+                tracing::error!("Failed to send connected client event: {err}");
             })
             .ok();
     }
@@ -181,7 +181,7 @@ impl ConnectedClients {
         stopped_clients: Vec<(IpPair, ConnectedClientId)>,
     ) {
         for (ips, _) in &stopped_clients {
-            log::info!("Disconnect stopped client: {ips}");
+            tracing::info!("Disconnect stopped client: {ips}");
             self.disconnect_client_handle(*ips);
         }
     }
@@ -191,7 +191,7 @@ impl ConnectedClients {
         inactive_clients: Vec<(IpPair, ConnectedClientId)>,
     ) {
         for (ips, _) in &inactive_clients {
-            log::info!("Disconnect inactive client: {ips}");
+            tracing::info!("Disconnect inactive client: {ips}");
             self.disconnect_client_handle(*ips);
         }
     }
@@ -242,7 +242,7 @@ impl ConnectedClient {
 
 impl Drop for CloseTx {
     fn drop(&mut self) {
-        log::debug!("signal to close client: {}", self.client_id);
+        tracing::debug!("signal to close client: {}", self.client_id);
         if let Some(close_tx) = self.inner.take() {
             close_tx.send(()).ok();
         }

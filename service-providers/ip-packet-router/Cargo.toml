@@ -13,7 +13,7 @@ bincode = { workspace = true }
 bytes = { workspace = true }
 etherparse = { workspace = true }
 futures = { workspace = true }
-log = { workspace = true }
+tracing = { workspace = true }
 nym-bin-common = { path = "../../common/bin-common" }
 nym-client-core = { path = "../../common/client-core" }
 nym-exit-policy = { path = "../../common/exit-policy", features = ["client"] }

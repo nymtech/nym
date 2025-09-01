@@ -115,7 +115,9 @@ impl IpPacketRouter {
     pub async fn run_service_provider(self) -> Result<(), IpPacketRouterError> {
         // for debugging purposes, don't crash in debug builds on non-linux platforms
         if cfg!(debug_assertions) {
-            log::error!("ip packet router service provider is not yet supported on this platform");
+            tracing::error!(
+                "ip packet router service provider is not yet supported on this platform"
+            );
             Ok(())
         } else {
             todo!("service provider is not yet supported on this platform")
@@ -180,8 +182,8 @@ impl IpPacketRouter {
             connected_clients,
         };
 
-        log::info!("The address of this client is: {self_address}");
-        log::info!("All systems go. Press CTRL-C to stop the server.");
+        tracing::info!("The address of this client is: {self_address}");
+        tracing::info!("All systems go. Press CTRL-C to stop the server.");
 
         if let Some(on_start) = self.on_start {
             if on_start

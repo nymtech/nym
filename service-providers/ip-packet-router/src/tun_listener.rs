@@ -50,7 +50,7 @@ impl ConnectedClientsListener {
                     ips,
                     forward_from_tun_tx,
                 } = *connected_event;
-                log::trace!("Connect client: {ips}");
+                tracing::trace!("Connect client: {ips}");
                 self.clients_ipv4.insert(
                     ips.ipv4,
                     ConnectedClientMirror {
@@ -67,7 +67,7 @@ impl ConnectedClientsListener {
                 );
             }
             ConnectedClientEvent::Disconnect(DisconnectEvent(ips)) => {
-                log::trace!("Disconnect client: {ips}");
+                tracing::trace!("Disconnect client: {ips}");
                 self.clients_ipv4.remove(&ips.ipv4);
                 self.clients_ipv6.remove(&ips.ipv6);
             }
@@ -87,7 +87,7 @@ pub(crate) struct TunListener {
 impl TunListener {
     async fn handle_packet(&mut self, buf: &[u8], len: usize) -> Result<()> {
         let Some(dst_addr) = parse_dst_addr(&buf[..len]) else {
-            log::warn!("Failed to parse packet");
+            tracing::warn!("Failed to parse packet");
             return Ok(());
         };
 
@@ -98,12 +98,12 @@ impl TunListener {
         {
             let packet = buf[..len].to_vec();
             if forward_from_tun_tx.send(packet).is_err() {
-                log::warn!("Failed to forward packet to connected client {dst_addr}: disconnecting it from tun listener");
+                tracing::warn!("Failed to forward packet to connected client {dst_addr}: disconnecting it from tun listener");
                 self.connected_clients
                     .update(ConnectedClientEvent::Disconnect(DisconnectEvent(*ips)));
             }
         } else {
-            log::debug!(
+            tracing::debug!(
                 "dropping packet from network: no registered client for destination: {dst_addr}"
             );
         }
@@ -116,37 +116,37 @@ impl TunListener {
         while !self.task_client.is_shutdown() {
             tokio::select! {
                 _ = self.task_client.recv() => {
-                    log::trace!("TunListener: received shutdown");
+                    tracing::trace!("TunListener: received shutdown");
                 },
                 // TODO: ConnectedClientsListener::update should poll the channel instead
                 event = self.connected_clients.connected_client_rx.recv() => match event {
                     Some(event) => self.connected_clients.update(event),
                     None => {
-                        log::error!("TunListener: connected client channel closed");
+                        tracing::error!("TunListener: connected client channel closed");
                         break;
                     },
                 },
                 len = self.tun_reader.read(&mut buf) => match len {
                     Ok(len) => {
                         if let Err(err) = self.handle_packet(&buf, len).await {
-                            log::error!("tun: failed to handle packet: {err}");
+                            tracing::error!("tun: failed to handle packet: {err}");
                         }
                     },
                     Err(err) => {
-                        log::warn!("iface: read error: {err}");
+                        tracing::warn!("iface: read error: {err}");
                         // break;
                     }
                 }
             }
         }
-        log::debug!("TunListener: stopping");
+        tracing::debug!("TunListener: stopping");
         Ok(())
     }
 
     pub(crate) fn start(self) {
         tokio::spawn(async move {
             if let Err(err) = self.run().await {
-                log::error!("tun listener router has failed: {err}")
+                tracing::error!("tun listener router has failed: {err}")
             }
         });
     }

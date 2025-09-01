@@ -66,7 +66,7 @@ impl MixnetListener {
         ip_packet: &[u8],
         version: ClientVersion,
     ) -> PacketHandleResult {
-        log::trace!("Received data request");
+        tracing::trace!("Received data request");
 
         // We don't forward packets that we are not able to parse. BUT, there might be a good
         // reason to still forward them.
@@ -80,7 +80,7 @@ impl MixnetListener {
         } = crate::util::parse_ip::parse_packet(ip_packet)?;
 
         let dst_str = dst.map_or(dst_addr.to_string(), |dst| dst.to_string());
-        log::debug!("Received packet: {packet_type}: {src_addr} -> {dst_str}");
+        tracing::debug!("Received packet: {packet_type}: {src_addr} -> {dst_str}");
 
         if let Some(connected_client) = self.connected_clients.get_client_from_ip_mut(&src_addr) {
             // Keep track of activity so we can disconnect inactive clients
@@ -98,7 +98,7 @@ impl MixnetListener {
                     .map_err(|_| IpPacketRouterError::FailedToWritePacketToTun)?;
                 Ok(None)
             } else {
-                log::debug!("Denied filter check: {dst}");
+                tracing::debug!("Denied filter check: {dst}");
                 Ok(Some(VersionedResponse {
                     version,
                     reply_to: connected_client.client_id.clone(),
@@ -115,7 +115,7 @@ impl MixnetListener {
             }
         } else {
             // If the client is not connected, just drop the packet silently
-            log::debug!("dropping packet from mixnet: no registered client for packet with source: {src_addr}");
+            tracing::debug!("dropping packet from mixnet: no registered client for packet with source: {src_addr}");
             Ok(None)
         }
     }
@@ -144,7 +144,7 @@ impl MixnetListener {
         &mut self,
         connect_request: StaticConnectRequest,
     ) -> PacketHandleResult {
-        log::info!(
+        tracing::info!(
             "Received static connect request from {}",
             connect_request.sent_by
         );
@@ -166,14 +166,14 @@ impl MixnetListener {
 
         let response = match (is_ip_taken, is_client_id_taken) {
             (true, true) => {
-                log::info!("Connecting an already connected client");
+                tracing::info!("Connecting an already connected client");
                 if self
                     .connected_clients
                     .update_activity(&requested_ips)
                     .await
                     .is_err()
                 {
-                    log::error!("Failed to update activity for client");
+                    tracing::error!("Failed to update activity for client");
                 };
                 Response::StaticConnect {
                     request_id,
@@ -181,7 +181,7 @@ impl MixnetListener {
                 }
             }
             (false, false) => {
-                log::info!("Connecting a new client");
+                tracing::info!("Connecting a new client");
 
                 // Spawn the ConnectedClientHandler for the new client
                 let (forward_from_tun_tx, close_tx, handle) = ConnectedClientHandler::start(
@@ -205,14 +205,14 @@ impl MixnetListener {
                 }
             }
             (true, false) => {
-                log::info!("Requested IP is not available");
+                tracing::info!("Requested IP is not available");
                 Response::StaticConnect {
                     request_id,
                     reply: StaticConnectFailureReason::RequestedIpAlreadyInUse.into(),
                 }
             }
             (false, true) => {
-                log::info!("Nym address is already registered");
+                tracing::info!("Nym address is already registered");
                 Response::StaticConnect {
                     request_id,
                     reply: StaticConnectFailureReason::ClientAlreadyConnected.into(),
@@ -231,7 +231,7 @@ impl MixnetListener {
         &mut self,
         connect_request: DynamicConnectRequest,
     ) -> PacketHandleResult {
-        log::info!(
+        tracing::info!(
             "Received dynamic connect request from {}",
             connect_request.sent_by
         );
@@ -245,7 +245,7 @@ impl MixnetListener {
             .unwrap_or(nym_ip_packet_requests::codec::BUFFER_TIMEOUT);
 
         if let Some(ips) = self.connected_clients.lookup_ip_from_client_id(&reply_to) {
-            log::debug!("Reconnecting to the previous session");
+            tracing::debug!("Reconnecting to the previous session");
             return Ok(Some(VersionedResponse {
                 version,
                 reply_to,
@@ -257,7 +257,7 @@ impl MixnetListener {
         }
 
         let Some(new_ips) = self.connected_clients.find_new_ip() else {
-            log::info!("No available IP address");
+            tracing::info!("No available IP address");
             return Ok(Some(VersionedResponse {
                 version,
                 reply_to,
@@ -299,7 +299,7 @@ impl MixnetListener {
         &mut self,
         disconnect_request: DisconnectRequest,
     ) -> PacketHandleResult {
-        log::info!(
+        tracing::info!(
             "Received disconnect request from {}",
             disconnect_request.sent_by
         );
@@ -310,7 +310,7 @@ impl MixnetListener {
 
         // Check if the client is connected
         if !self.connected_clients.is_client_connected(&client_id) {
-            log::info!("Client {client_id} is not connected, cannot disconnect");
+            tracing::info!("Client {client_id} is not connected, cannot disconnect");
             return Ok(Some(VersionedResponse {
                 version,
                 reply_to: client_id,
@@ -322,7 +322,7 @@ impl MixnetListener {
         }
 
         // Disconnect the client
-        log::info!("Disconnecting client {client_id}");
+        tracing::info!("Disconnecting client {client_id}");
         self.connected_clients.disconnect_client(&client_id);
 
         Ok(Some(VersionedResponse {
@@ -384,7 +384,7 @@ impl MixnetListener {
         &mut self,
         reconstructed: ReconstructedMessage,
     ) -> Result<Vec<PacketHandleResult>> {
-        log::debug!(
+        tracing::debug!(
             "Received message with sender_tag: {}",
             reconstructed
                 .sender_tag
@@ -395,13 +395,13 @@ impl MixnetListener {
         // First deserialize the request
         let request = match IpPacketRequest::try_from(&reconstructed) {
             Err(IpPacketRouterError::InvalidPacketVersion(version)) => {
-                log::debug!("Received packet with invalid version: v{version}");
+                tracing::debug!("Received packet with invalid version: v{version}");
                 return Ok(vec![self.on_version_mismatch(version, &reconstructed)]);
             }
             req => req,
         }?;
 
-        log::debug!("Received request: {request}");
+        tracing::debug!("Received request: {request}");
 
         match request {
             IpPacketRequest::Data(request) => self.on_data_request(request).await,
@@ -417,7 +417,7 @@ impl MixnetListener {
         //for (ip, nym_address) in stopped_clients.iter().chain(disconnected_clients.iter()) {
         //    let response = IpPacketResponse::new_unrequested_disconnect(...)
         //    if let Err(err) = self.handle_response(response).await {
-        //        log::error!("Failed to send disconnect response: {err}");
+        //        tracing::error!("Failed to send disconnect response: {err}");
         //    }
         //}
 
@@ -449,14 +449,14 @@ impl MixnetListener {
             match response {
                 Ok(Some(response)) => {
                     if let Err(err) = self.handle_response(response).await {
-                        log::error!("Mixnet listener failed to handle response: {err}");
+                        tracing::error!("Mixnet listener failed to handle response: {err}");
                     }
                 }
                 Ok(None) => {
                     continue;
                 }
                 Err(err) => {
-                    log::error!("Error handling mixnet message: {err}");
+                    tracing::error!("Error handling mixnet message: {err}");
                 }
             }
         }
@@ -469,7 +469,7 @@ impl MixnetListener {
         while !task_client.is_shutdown() {
             tokio::select! {
                 _ = task_client.recv() => {
-                    log::debug!("IpPacketRouter [main loop]: received shutdown");
+                    tracing::debug!("IpPacketRouter [main loop]: received shutdown");
                 },
                 _ = disconnect_timer.tick() => {
                     self.handle_disconnect_timer().await;
@@ -479,19 +479,19 @@ impl MixnetListener {
                         match self.on_reconstructed_message(msg).await {
                             Ok(responses) => self.handle_responses(responses).await,
                             Err(err) => {
-                                log::error!("Error handling reconstructed mixnet message: {err}");
+                                tracing::error!("Error handling reconstructed mixnet message: {err}");
                             }
 
                         };
                     } else {
-                        log::trace!("IpPacketRouter [main loop]: stopping since channel closed");
+                        tracing::trace!("IpPacketRouter [main loop]: stopping since channel closed");
                         break;
                     };
                 },
 
             }
         }
-        log::debug!("IpPacketRouter: stopping");
+        tracing::debug!("IpPacketRouter: stopping");
         Ok(())
     }
 }

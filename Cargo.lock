@@ -6023,7 +6023,6 @@ dependencies = [
  "bytes",
  "etherparse",
  "futures",
- "log",
  "nym-bin-common",
  "nym-client-core",
  "nym-exit-policy",
@@ -6046,6 +6045,7 @@ dependencies = [
  "tokio",
  "tokio-tun",
  "tokio-util",
+ "tracing",
  "url",
 ]
 

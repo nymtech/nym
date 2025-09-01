@@ -69,8 +69,8 @@ impl ConnectedClientHandler {
         oneshot::Sender<()>,
         tokio::task::JoinHandle<()>,
     ) {
-        log::debug!("Starting connected client handler for: {client_id}");
-        log::debug!("client version: {client_version:?}");
+        tracing::debug!("Starting connected client handler for: {client_id}");
+        tracing::debug!("client version: {client_version:?}");
         let (close_tx, close_rx) = oneshot::channel();
         let (forward_from_tun_tx, forward_from_tun_rx) = mpsc::unbounded_channel();
 
@@ -101,7 +101,7 @@ impl ConnectedClientHandler {
 
         let handle = tokio::spawn(async move {
             if let Err(err) = connected_client_handler.run().await {
-                log::error!("connected client handler has failed: {err}")
+                tracing::error!("connected client handler has failed: {err}")
             }
         });
 
@@ -149,33 +149,33 @@ impl ConnectedClientHandler {
         loop {
             tokio::select! {
                 _ = &mut self.close_rx => {
-                    log::info!("client handler stopping: received close: {}", self.sent_by);
+                    tracing::info!("client handler stopping: received close: {}", self.sent_by);
                     break;
                 },
                 _ = self.activity_timeout.tick() => {
-                    log::info!("client handler stopping: activity timeout: {}", self.sent_by);
+                    tracing::info!("client handler stopping: activity timeout: {}", self.sent_by);
                     break;
                 },
                 _ = self.payload_topup_interval.tick() => {
                     if let Err(err) = self.handle_packet(IprPacket::Flush).await {
-                        log::error!("client handler: failed to handle packet: {err}");
+                        tracing::error!("client handler: failed to handle packet: {err}");
                     }
                 },
                 packet = self.forward_from_tun_rx.recv() => match packet {
                     Some(packet) => {
                         if let Err(err) = self.handle_packet(IprPacket::from(packet)).await {
-                            log::error!("client handler: failed to handle packet: {err}");
+                            tracing::error!("client handler: failed to handle packet: {err}");
                         }
                     },
                     None => {
-                        log::info!("client handler stopping: tun channel closed");
+                        tracing::info!("client handler stopping: tun channel closed");
                         break;
                     }
                 },
             }
         }
 
-        log::debug!("ConnectedClientHandler: exiting");
+        tracing::debug!("ConnectedClientHandler: exiting");
         Ok(())
     }
 }

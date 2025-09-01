@@ -11,7 +11,7 @@ pub(crate) struct ParsedPacket<'a> {
 
 pub(crate) fn parse_packet(packet: &[u8]) -> Result<ParsedPacket<'_>, IpPacketRouterError> {
     let headers = etherparse::SlicedPacket::from_ip(packet).map_err(|err| {
-        log::warn!("Unable to parse incoming data as IP packet: {err}");
+        tracing::warn!("Unable to parse incoming data as IP packet: {err}");
         IpPacketRouterError::PacketParseFailed { source: err }
     })?;
 
@@ -22,7 +22,7 @@ pub(crate) fn parse_packet(packet: &[u8]) -> Result<ParsedPacket<'_>, IpPacketRo
         Some(etherparse::TransportSlice::Icmpv6(_)) => ("icmpv6", None),
         Some(etherparse::TransportSlice::Unknown(_)) => ("unknown", None),
         None => {
-            log::warn!("Received packet missing transport header");
+            tracing::warn!("Received packet missing transport header");
             return Err(IpPacketRouterError::PacketMissingTransportHeader);
         }
     };
@@ -41,7 +41,7 @@ pub(crate) fn parse_packet(packet: &[u8]) -> Result<ParsedPacket<'_>, IpPacketRo
             (src_addr, dst_addr, dst)
         }
         None => {
-            log::warn!("Received packet missing IP header");
+            tracing::warn!("Received packet missing IP header");
             return Err(IpPacketRouterError::PacketMissingIpHeader);
         }
     };

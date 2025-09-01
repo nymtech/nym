@@ -130,7 +130,7 @@ impl TryFrom<&ReconstructedMessage> for IpPacketRequest {
                 Ok(IpPacketRequest::from((request_v8, sender_tag)))
             }
             _ => {
-                log::info!("Received packet with invalid version: v{request_version}");
+                tracing::info!("Received packet with invalid version: v{request_version}");
                 Err(IpPacketRouterError::InvalidPacketVersion(request_version))
             }
         }

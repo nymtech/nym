@@ -1,12 +1,11 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use std::net::SocketAddr;
-
 use crate::error::IpPacketRouterError;
 use nym_exit_policy::client::get_exit_policy;
 use nym_exit_policy::ExitPolicy;
 use reqwest::IntoUrl;
+use std::net::SocketAddr;
 use url::Url;
 
 pub struct ExitPolicyRequestFilter {

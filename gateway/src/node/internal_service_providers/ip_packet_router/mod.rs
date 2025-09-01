@@ -144,14 +144,14 @@ impl IpPacketRouter {
     pub async fn run_service_provider(self) -> Result<(), IpPacketRouterError> {
         // Used to notify tasks to shutdown. Not all tasks fully supports this (yet).
 
-        use crate::{
+        use crate::service_providers::ip_packet_router::{
             clients::ConnectedClients, mixnet_listener::MixnetListener,
             request_filter::RequestFilter, tun_listener::TunListener,
         };
         let task_handle: TaskHandle = self.shutdown.map(Into::into).unwrap_or_default();
 
         // Connect to the mixnet
-        let mixnet_client = crate::mixnet_client::create_mixnet_client(
+        let mixnet_client = mixnet_client::create_mixnet_client(
             &self.config.base,
             task_handle.get_handle().named("nym_sdk::MixnetClient[IPR]"),
             self.custom_gateway_transceiver,

@@ -11,6 +11,7 @@ use tokio::sync::mpsc;
 use crate::node::internal_service_providers::ip_packet_router::clients::{
     ConnectEvent, ConnectedClientEvent, DisconnectEvent,
 };
+use crate::service_providers::ip_packet_router::error::IpPacketRouterError;
 
 // The TUN listener keeps a local map of the connected clients that has its state updated by the
 // mixnet listener. Basically it's just so that we don't have to have mutexes around shared state.
@@ -84,8 +85,10 @@ pub(crate) struct TunListener {
 
 #[cfg(target_os = "linux")]
 impl TunListener {
-    async fn handle_packet(&mut self, buf: &[u8], len: usize) -> Result<()> {
-        let Some(dst_addr) = util::parse_ip::parse_dst_addr(&buf[..len]) else {
+    async fn handle_packet(&mut self, buf: &[u8], len: usize) -> Result<(), IpPacketRouterError> {
+        let Some(dst_addr) =
+            crate::service_providers::ip_packet_router::util::parse_ip::parse_dst_addr(&buf[..len])
+        else {
             tracing::warn!("Failed to parse packet");
             return Ok(());
         };
@@ -110,7 +113,7 @@ impl TunListener {
         Ok(())
     }
 
-    async fn run(mut self) -> Result<()> {
+    async fn run(mut self) -> Result<(), IpPacketRouterError> {
         let mut buf = [0u8; 65535];
         while !self.task_client.is_shutdown() {
             tokio::select! {

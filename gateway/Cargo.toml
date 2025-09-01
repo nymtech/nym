@@ -92,6 +92,7 @@ etherparse = { workspace = true }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 tokio-tun.workspace = true
+nym-tun = { path = "../common/tun" }
 
 [dev-dependencies]
 nym-gateway-storage = { path = "../common/gateway-storage", features = ["mock"] }

@@ -5765,6 +5765,7 @@ dependencies = [
  "nym-statistics-common",
  "nym-task",
  "nym-topology",
+ "nym-tun",
  "nym-validator-client",
  "nym-wireguard",
  "nym-wireguard-private-metadata-server",

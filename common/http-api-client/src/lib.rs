@@ -809,57 +809,6 @@ impl ApiClientCore for Client {
     }
 }
 
-/// An axum test client useful for writing unit tests
-#[cfg(feature = "axum_test")]
-pub struct AxumTestClient<'a> {
-    axum_test: &'a axum_test::TestServer,
-}
-
-#[cfg(feature = "axum_test")]
-impl<'a> AxumTestClient<'a> {
-    /// Create an instance of AxumTestClient using a axum_test::TestServer
-    pub fn new(axum_test: &'a axum_test::TestServer) -> Self {
-        Self { axum_test }
-    }
-}
-
-#[cfg(feature = "axum_test")]
-#[async_trait::async_trait]
-impl<'a> ApiClientCore for AxumTestClient<'a> {
-    fn create_request<P, B, K, V>(
-        &self,
-        method: reqwest::Method,
-        path: P,
-        _params: Params<'_, K, V>,
-        json_body: Option<&B>,
-    ) -> RequestBuilder
-    where
-        P: RequestPath,
-        B: Serialize + ?Sized,
-        K: AsRef<str>,
-        V: AsRef<str>,
-    {
-        let segments = path.to_sanitized_segments();
-        let path = if segments.is_empty() {
-            String::from("/")
-        } else {
-            segments.join("/")
-        };
-        let mut req_builder = self.axum_test.reqwest_method(method, &path);
-        if let Some(json) = json_body {
-            req_builder = req_builder.json(json);
-        }
-        req_builder
-    }
-
-    async fn send<E>(&self, request: RequestBuilder) -> Result<Response, HttpClientError<E>>
-    where
-        E: Display,
-    {
-        Ok(request.send().await?)
-    }
-}
-
 /// Common usage functionality for the http client.
 ///
 /// These functions allow for cleaner downstream usage free of type parameters and unneeded imports.

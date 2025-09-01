@@ -24,8 +24,8 @@ url = { workspace = true }
 once_cell = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-serde_yaml = "0.9.34-deprecated"
-serde_plain = "1.0.2"
+serde_yaml = { workspace = true}
+serde_plain = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 itertools = { workspace = true }

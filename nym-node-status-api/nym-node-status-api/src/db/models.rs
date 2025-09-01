@@ -4,14 +4,17 @@ use crate::{
 };
 use anyhow::Context;
 use nym_contracts_common::Percent;
+use nym_crypto::asymmetric::ed25519::serde_helpers::bs58_ed25519_pubkey;
+use nym_crypto::asymmetric::x25519::serde_helpers::bs58_x25519_pubkey;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_network_defaults::DEFAULT_NYM_NODE_HTTP_PORT;
-use nym_node_requests::api::v1::node::models::NodeDescription;
+use nym_node_requests::api::v1::node::models::{AuxiliaryDetails, NodeDescription};
 use nym_validator_client::{
     client::NymNodeDetails, models::NymNodeDescription, nym_api::SkimmedNode,
 };
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
+use std::net::IpAddr;
 use std::str::FromStr;
 use strum_macros::{EnumString, FromRepr};
 use time::{Date, OffsetDateTime, UtcDateTime};
@@ -229,6 +232,13 @@ pub(crate) const GATEWAYS_HISTORICAL_COUNT: &str = "gateways.historical.count";
 //  have to import it
 use gateway::GatewaySummary;
 use mixnode::MixnodeSummary;
+use nym_bin_common::build_information::BinaryBuildInformationOwned;
+use nym_mixnet_contract_common::NodeId;
+use nym_validator_client::models::{
+    AuthenticatorDetails, DeclaredRoles, DescribedNodeType, HostInformation, HostKeys,
+    IpPacketRouterDetails, NetworkRequesterDetails, NymNodeData, OffsetDateTimeJsonSchemaWrapper,
+    SphinxKey, VersionedNoiseKey, WebSockets, WireguardDetails,
+};
 
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
 pub(crate) struct NetworkSummary {
@@ -527,4 +537,120 @@ pub struct InsertStatsRecord {
     pub timestamp_utc: UtcDateTime,
     pub unix_timestamp: i64,
     pub stats: NodeStats,
+}
+
+#[derive(Clone, Serialize, Deserialize, Debug)]
+pub struct NymNodeDescriptionDeHelper {
+    pub node_id: NodeId,
+    pub contract_node_type: DescribedNodeType,
+    pub description: NymNodeDataDeHelper,
+}
+
+#[allow(deprecated)]
+impl From<NymNodeDescriptionDeHelper> for NymNodeDescription {
+    fn from(helper: NymNodeDescriptionDeHelper) -> Self {
+        let current_x25519_sphinx_key = helper
+            .description
+            .host_information
+            .keys
+            .current_x25519_sphinx_key
+            .unwrap_or(SphinxKey {
+                // indicate the legacy case
+                rotation_id: u32::MAX,
+                public_key: helper.description.host_information.keys.x25519,
+            });
+
+        NymNodeDescription {
+            node_id: helper.node_id,
+            contract_node_type: helper.contract_node_type,
+            description: NymNodeData {
+                last_polled: helper.description.last_polled,
+                host_information: HostInformation {
+                    ip_address: helper.description.host_information.ip_address,
+                    hostname: helper.description.host_information.hostname,
+                    keys: HostKeys {
+                        ed25519: helper.description.host_information.keys.ed25519,
+                        x25519: helper.description.host_information.keys.x25519,
+                        current_x25519_sphinx_key,
+                        pre_announced_x25519_sphinx_key: helper
+                            .description
+                            .host_information
+                            .keys
+                            .pre_announced_x25519_sphinx_key,
+                        x25519_versioned_noise: helper
+                            .description
+                            .host_information
+                            .keys
+                            .x25519_versioned_noise,
+                    },
+                },
+                declared_role: helper.description.declared_role,
+                auxiliary_details: helper.description.auxiliary_details,
+                build_information: helper.description.build_information,
+                network_requester: helper.description.network_requester,
+                ip_packet_router: helper.description.ip_packet_router,
+                authenticator: helper.description.authenticator,
+                wireguard: helper.description.wireguard,
+                mixnet_websockets: helper.description.mixnet_websockets,
+            },
+        }
+    }
+}
+
+#[derive(Clone, Serialize, Deserialize, Debug)]
+pub struct NymNodeDataDeHelper {
+    #[serde(default)]
+    pub last_polled: OffsetDateTimeJsonSchemaWrapper,
+
+    pub host_information: HostInformationDeHelper,
+
+    #[serde(default)]
+    pub declared_role: DeclaredRoles,
+
+    #[serde(default)]
+    pub auxiliary_details: AuxiliaryDetails,
+
+    // TODO: do we really care about ALL build info or just the version?
+    pub build_information: BinaryBuildInformationOwned,
+
+    #[serde(default)]
+    pub network_requester: Option<NetworkRequesterDetails>,
+
+    #[serde(default)]
+    pub ip_packet_router: Option<IpPacketRouterDetails>,
+
+    #[serde(default)]
+    pub authenticator: Option<AuthenticatorDetails>,
+
+    #[serde(default)]
+    pub wireguard: Option<WireguardDetails>,
+
+    // for now we only care about their ws/wss situation, nothing more
+    pub mixnet_websockets: WebSockets,
+}
+
+#[derive(Clone, Serialize, Deserialize, Debug)]
+pub struct HostInformationDeHelper {
+    pub ip_address: Vec<IpAddr>,
+    pub hostname: Option<String>,
+    pub keys: HostKeysDeHelper,
+}
+
+#[derive(Clone, Serialize, Deserialize, Debug)]
+pub struct HostKeysDeHelper {
+    #[serde(with = "bs58_ed25519_pubkey")]
+    pub ed25519: ed25519::PublicKey,
+
+    #[deprecated(note = "use the current_x25519_sphinx_key with explicit rotation information")]
+    #[serde(with = "bs58_x25519_pubkey")]
+    pub x25519: x25519::PublicKey,
+
+    // legacy data will NOT have this information
+    pub current_x25519_sphinx_key: Option<SphinxKey>,
+
+    #[serde(default)]
+    pub pre_announced_x25519_sphinx_key: Option<SphinxKey>,
+
+    #[serde(default)]
+    pub x25519_versioned_noise: Option<VersionedNoiseKey>,
 }

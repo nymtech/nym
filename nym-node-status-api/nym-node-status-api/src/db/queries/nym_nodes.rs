@@ -6,8 +6,9 @@ use nym_validator_client::{
 };
 use sqlx::Row;
 use std::collections::HashMap;
-use tracing::instrument;
+use tracing::{instrument, warn};
 
+use crate::db::models::NymNodeDescriptionDeHelper;
 use crate::{
     db::{
         models::{NymNodeDto, NymNodeInsertRecord},
@@ -214,9 +215,12 @@ pub(crate) async fn get_node_self_description(
             .filter_map(|record| {
                 let node_id: i32 = record.try_get("node_id").ok()?;
                 let self_described: serde_json::Value = record.try_get("self_described").ok()?;
-                serde_json::from_value::<NymNodeDescription>(self_described)
-                    .ok()
-                    .map(|res| (node_id as i64 as NodeId, res))
+
+                let val = serde_json::from_value::<NymNodeDescriptionDeHelper>(self_described)
+                    .inspect_err(|err| {
+                        warn!("malformed description data for node {node_id}: {err}")
+                    });
+                val.ok().map(|res| (node_id as NodeId, res.into()))
             })
             .collect::<HashMap<_, _>>()
     })
@@ -249,7 +253,7 @@ pub(crate) async fn get_bonded_node_description(
         records
             .into_iter()
             .map(|elem| {
-                let node_id: i64 = elem.try_get("node_id").unwrap_or(0);
+                let node_id: i32 = elem.try_get("node_id").unwrap_or(0);
                 let node_id: NodeId = node_id.try_into().unwrap_or_default();
                 (
                     node_id,

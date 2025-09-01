@@ -92,7 +92,7 @@ impl InitialAuthResult {
 }
 
 // imo there's no point in including the peer address in anything higher than debug
-#[instrument(level = "debug", skip_all)]
+#[instrument(skip_all)]
 pub(crate) async fn handle_connection<R, S>(mut handle: FreshHandler<R, S>)
 where
     R: Rng + CryptoRng + Send,

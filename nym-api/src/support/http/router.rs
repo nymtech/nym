@@ -19,8 +19,8 @@ use axum::routing::get;
 use axum::Router;
 use core::net::SocketAddr;
 use nym_http_api_common::middleware::logging::log_request_info;
+use nym_task::ShutdownToken;
 use tokio::net::TcpListener;
-use tokio_util::sync::WaitForCancellationFutureOwned;
 use tower_http::cors::CorsLayer;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
@@ -131,14 +131,13 @@ pub(crate) struct ApiHttpServer {
 }
 
 impl ApiHttpServer {
-    pub async fn run(self, receiver: WaitForCancellationFutureOwned) -> Result<(), std::io::Error> {
-        // into_make_service_with_connect_info allows us to see client ip address
+    pub async fn run(self, shutdown_token: ShutdownToken) -> Result<(), std::io::Error> {
         axum::serve(
             self.listener,
             self.router
                 .into_make_service_with_connect_info::<SocketAddr>(),
         )
-        .with_graceful_shutdown(receiver)
+        .with_graceful_shutdown(async move { shutdown_token.cancelled().await })
         .await
     }
 }

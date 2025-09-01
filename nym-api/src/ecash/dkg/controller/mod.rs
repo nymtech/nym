@@ -11,7 +11,7 @@ use anyhow::{bail, Result};
 use nym_coconut_dkg_common::types::{Epoch, EpochId, EpochState};
 use nym_crypto::asymmetric::ed25519;
 use nym_dkg::bte::keys::KeyPair as DkgKeyPair;
-use nym_task::{TaskClient, TaskManager};
+use nym_task::{ShutdownManager, ShutdownToken};
 use rand::rngs::OsRng;
 use rand::{CryptoRng, Rng, RngCore};
 use std::path::PathBuf;
@@ -273,7 +273,7 @@ impl<R: RngCore + CryptoRng + Clone> DkgController<R> {
         tick_duration < min
     }
 
-    pub(crate) async fn run(mut self, mut shutdown: TaskClient) {
+    pub(crate) async fn run(mut self, shutdown: ShutdownToken) {
         let mut interval = interval(self.polling_rate);
         interval.set_missed_tick_behavior(MissedTickBehavior::Delay);
 
@@ -282,7 +282,7 @@ impl<R: RngCore + CryptoRng + Clone> DkgController<R> {
         let mut last_polled = OffsetDateTime::now_utc();
         let mut last_tick_duration = Default::default();
 
-        while !shutdown.is_shutdown() {
+        while !shutdown.is_cancelled() {
             tokio::select! {
                 _ = interval.tick() => {
                     let now = OffsetDateTime::now_utc();
@@ -300,7 +300,7 @@ impl<R: RngCore + CryptoRng + Clone> DkgController<R> {
                         error!("failed to update the DKG state: {err}")
                     }
                 }
-                _ = shutdown.recv() => {
+                _ = shutdown.cancelled() => {
                     trace!("DkgController: Received shutdown");
                 }
             }
@@ -314,12 +314,12 @@ impl<R: RngCore + CryptoRng + Clone> DkgController<R> {
         dkg_bte_keypair: DkgKeyPair,
         identity_key: ed25519::PublicKey,
         rng: R,
-        shutdown: &TaskManager,
+        shutdown_manager: &ShutdownManager,
     ) -> Result<()>
     where
         R: Sync + Send + 'static,
     {
-        let shutdown_listener = shutdown.subscribe();
+        let shutdown_listener = shutdown_manager.clone_token("DKG controller");
         let dkg_controller = DkgController::new(
             config,
             nyxd_client,

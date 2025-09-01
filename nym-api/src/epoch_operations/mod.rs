@@ -21,7 +21,7 @@ use crate::support::storage::NymApiStorage;
 use error::RewardingError;
 pub(crate) use helpers::RewardedNodeWithParams;
 use nym_mixnet_contract_common::{CurrentIntervalResponse, Interval};
-use nym_task::{TaskClient, TaskManager};
+use nym_task::{ShutdownManager, ShutdownToken};
 use std::time::Duration;
 use tokio::time::sleep;
 use tracing::{error, info, trace, warn};
@@ -164,7 +164,7 @@ impl EpochAdvancer {
         Ok(())
     }
 
-    async fn wait_until_epoch_end(&mut self, shutdown: &mut TaskClient) -> Option<Interval> {
+    async fn wait_until_epoch_end(&mut self, shutdown_token: &ShutdownToken) -> Option<Interval> {
         const POLL_INTERVAL: Duration = Duration::from_secs(120);
 
         loop {
@@ -175,7 +175,7 @@ impl EpochAdvancer {
                         _ = sleep(POLL_INTERVAL) => {
                             continue
                         },
-                        _ = shutdown.recv() => {
+                        _ = shutdown_token.cancelled() => {
                             trace!("wait_until_epoch_end: Received shutdown");
                             break None
                         }
@@ -203,7 +203,7 @@ impl EpochAdvancer {
                     _ = sleep(wait_time) => {
 
                     },
-                    _ = shutdown.recv() => {
+                    _ = shutdown_token.cancelled() => {
                         trace!("wait_until_epoch_end: Received shutdown");
                         break None
                     }
@@ -212,7 +212,10 @@ impl EpochAdvancer {
         }
     }
 
-    pub(crate) async fn run(&mut self, mut shutdown: TaskClient) -> Result<(), RewardingError> {
+    pub(crate) async fn run(
+        &mut self,
+        shutdown_token: ShutdownToken,
+    ) -> Result<(), RewardingError> {
         info!("waiting for initial contract cache values before we can start rewarding");
         self.nym_contract_cache
             .naive_wait_for_initial_values()
@@ -221,8 +224,8 @@ impl EpochAdvancer {
         info!("waiting for initial self-described cache values before we can start rewarding");
         self.described_cache.naive_wait_for_initial_values().await;
 
-        while !shutdown.is_shutdown() {
-            let interval_details = match self.wait_until_epoch_end(&mut shutdown).await {
+        while !shutdown_token.is_cancelled() {
+            let interval_details = match self.wait_until_epoch_end(&shutdown_token).await {
                 // received a shutdown
                 None => return Ok(()),
                 Some(interval) => interval,
@@ -243,17 +246,17 @@ impl EpochAdvancer {
         status_cache: &NodeStatusCache,
         described_cache: SharedCache<DescribedNodes>,
         storage: &NymApiStorage,
-        shutdown: &TaskManager,
+        shutdown_manager: &ShutdownManager,
     ) {
-        let mut rewarded_set_updater = EpochAdvancer::new(
+        let mut epoch_advancer = EpochAdvancer::new(
             nyxd_client,
             nym_contract_cache.to_owned(),
             status_cache.to_owned(),
             described_cache,
             storage.to_owned(),
         );
-        let shutdown_listener = shutdown.subscribe();
-        tokio::spawn(async move { rewarded_set_updater.run(shutdown_listener).await });
+        let shutdown_listener = shutdown_manager.clone_token("epoch-advancer");
+        tokio::spawn(async move { epoch_advancer.run(shutdown_listener).await });
     }
 }
 

@@ -4,7 +4,7 @@
 use crate::support::caching::cache::SharedCache;
 use crate::support::caching::CacheNotification;
 use async_trait::async_trait;
-use nym_task::TaskClient;
+use nym_task::ShutdownToken;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::{watch, Notify};
@@ -223,33 +223,33 @@ where
         }
     }
 
-    pub async fn refresh(&mut self, task_client: &mut TaskClient) {
+    pub async fn refresh(&mut self, shutdown_token: &ShutdownToken) {
         info!("{}: refreshing cache state", self.name);
 
         tokio::select! {
             biased;
-            _ = task_client.recv() => {
+            _ = shutdown_token.cancelled() => {
                 trace!("{}: Received shutdown while refreshing cache", self.name)
             }
             _ = self.do_refresh_cache() => (),
         }
     }
 
-    pub async fn run(&mut self, mut task_client: TaskClient) {
+    pub async fn run(&mut self, shutdown_token: ShutdownToken) {
         self.provider.wait_until_ready().await;
 
         let mut refresh_interval = interval(self.refreshing_interval);
-        while !task_client.is_shutdown() {
+        while !shutdown_token.is_cancelled() {
             tokio::select! {
                 biased;
-                _ = task_client.recv() => {
+                _ = shutdown_token.cancelled() => {
                     trace!("{}: Received shutdown", self.name)
                 }
-                _ = refresh_interval.tick() => self.refresh(&mut task_client).await,
+                _ = refresh_interval.tick() => self.refresh(&shutdown_token).await,
                 // note: `Notify` is not cancellation safe, HOWEVER, there's only one listener,
                 // so it doesn't matter if we lose our queue position
                 _ = self.refresh_requester.0.notified() => {
-                    self.refresh(&mut task_client).await;
+                    self.refresh(&shutdown_token).await;
                     // since we just performed the full request, we can reset our existing interval
                     refresh_interval.reset();
                 }
@@ -257,16 +257,16 @@ where
         }
     }
 
-    pub fn start(mut self, task_client: TaskClient)
+    pub fn start(mut self, shutdown_token: ShutdownToken)
     where
         T: Send + Sync + 'static,
         E: Send + Sync + 'static,
         S: Send + Sync + 'static,
     {
-        tokio::spawn(async move { self.run(task_client).await });
+        tokio::spawn(async move { self.run(shutdown_token).await });
     }
 
-    pub fn start_with_delay(mut self, mut task_client: TaskClient, delay: Duration)
+    pub fn start_with_delay(mut self, shutdown_token: ShutdownToken, delay: Duration)
     where
         T: Send + Sync + 'static,
         E: Send + Sync + 'static,
@@ -276,24 +276,24 @@ where
             let sleep = tokio::time::sleep(delay);
             tokio::select! {
                 biased;
-                _ = task_client.recv() => {
+                _ = shutdown_token.cancelled() => {
                     trace!("{}: Received shutdown", self.name);
                     return
                 }
                 _ = sleep => {},
             }
-            self.run(task_client).await
+            self.run(shutdown_token).await
         });
     }
 
-    pub fn start_with_watcher(self, task_client: TaskClient) -> CacheUpdateWatcher
+    pub fn start_with_watcher(self, shutdown_token: ShutdownToken) -> CacheUpdateWatcher
     where
         T: Send + Sync + 'static,
         E: Send + Sync + 'static,
         S: Send + Sync + 'static,
     {
         let receiver = self.update_watcher();
-        self.start(task_client);
+        self.start(shutdown_token);
         receiver
     }
 }

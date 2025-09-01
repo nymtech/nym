@@ -10,7 +10,7 @@ use crate::support::caching::cache::SharedCache;
 use crate::support::caching::refresher::CacheRefresher;
 use crate::support::{config, nyxd};
 use anyhow::bail;
-use nym_task::TaskManager;
+use nym_task::ShutdownManager;
 
 pub(crate) mod data;
 pub(crate) mod refresher;
@@ -19,7 +19,7 @@ pub(crate) async fn start_cache_refresher(
     config: &config::PerformanceProvider,
     nyxd_client: nyxd::Client,
     mixnet_contract_cache: MixnetContractCache,
-    task_manager: &TaskManager,
+    shutdown_manager: &ShutdownManager,
 ) -> anyhow::Result<SharedCache<PerformanceContractCacheData>> {
     let values_to_retain = config.debug.max_epoch_entries_to_retain;
 
@@ -45,7 +45,7 @@ pub(crate) async fn start_cache_refresher(
     .with_update_fn(move |main_cache, update| {
         refresher_update_fn(main_cache, update, values_to_retain)
     })
-    .start(task_manager.subscribe_named("performance-contract-cache-refresher"));
+    .start(shutdown_manager.clone_token("performance-contract-cache-refresher"));
 
     Ok(warmed_up_cache)
 }

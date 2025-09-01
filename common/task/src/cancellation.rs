@@ -110,6 +110,7 @@ impl ShutdownToken {
     // exposed method with the old name for easier migration
     // it will eventually be removed so please try to use `.clone_with_suffix` instead
     #[must_use]
+    #[deprecated(note = "use .clone_with_suffix instead")]
     pub fn fork<S: Into<String>>(&self, child_suffix: S) -> Self {
         self.clone_with_suffix(child_suffix)
     }
@@ -117,6 +118,7 @@ impl ShutdownToken {
     // exposed method with the old name for easier migration
     // it will eventually be removed so please try to use `.clone().named(name)` instead
     #[must_use]
+    #[deprecated(note = "use .clone().named(name) instead")]
     pub fn fork_named<S: Into<String>>(&self, name: S) -> Self {
         self.clone().named(name)
     }
@@ -230,6 +232,16 @@ impl ShutdownManager {
         // so that we could cancel all legacy tasks
         let cancel_watcher = manager.root_token.clone();
         manager.with_shutdown(async move { cancel_watcher.cancelled().await })
+    }
+
+    pub fn empty_mock() -> Self {
+        ShutdownManager {
+            root_token: ShutdownToken::ephemeral(),
+            legacy_task_manager: None,
+            shutdown_signals: Default::default(),
+            tracker: Default::default(),
+            max_shutdown_duration: Default::default(),
+        }
     }
 
     pub fn with_legacy_task_manager(mut self) -> Self {

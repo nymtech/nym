@@ -6,7 +6,7 @@ use crate::node_status_api::models::NymApiStorageError;
 use crate::support::config::Config;
 use crate::support::storage::NymApiStorage;
 use nym_ecash_time::ecash_today_date;
-use nym_task::TaskClient;
+use nym_task::ShutdownToken;
 use std::time::Duration;
 use time::Date;
 use tokio::task::JoinHandle;
@@ -20,11 +20,15 @@ pub struct EcashBackgroundStateCleaner {
     verified_tickets_retention_period_days: u32,
 
     storage: NymApiStorage,
-    task_client: TaskClient,
+    shutdown_token: ShutdownToken,
 }
 
 impl EcashBackgroundStateCleaner {
-    pub fn new(global_config: &Config, storage: NymApiStorage, task_client: TaskClient) -> Self {
+    pub fn new(
+        global_config: &Config,
+        storage: NymApiStorage,
+        shutdown_token: ShutdownToken,
+    ) -> Self {
         EcashBackgroundStateCleaner {
             run_interval: global_config.ecash_signer.debug.stale_data_cleaner_interval,
             issued_ticketbooks_retention_period_days: global_config
@@ -36,7 +40,7 @@ impl EcashBackgroundStateCleaner {
                 .debug
                 .verified_tickets_retention_period_days,
             storage,
-            task_client,
+            shutdown_token,
         }
     }
 
@@ -68,7 +72,7 @@ impl EcashBackgroundStateCleaner {
         let mut ticker = tokio::time::interval(self.run_interval);
         loop {
             tokio::select! {
-                _ = self.task_client.recv() => {
+                _ = self.shutdown_token.cancelled() => {
                     trace!("EcashBackgroundStateCleaner: Received shutdown");
                     break;
                 }

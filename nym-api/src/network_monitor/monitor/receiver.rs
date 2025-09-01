@@ -7,7 +7,7 @@ use futures::channel::mpsc;
 use futures::StreamExt;
 use nym_crypto::asymmetric::ed25519;
 use nym_gateway_client::{AcknowledgementReceiver, MixnetMessageReceiver};
-use nym_task::TaskClient;
+use nym_task::ShutdownToken;
 use tracing::{error, trace};
 
 pub(crate) type GatewayClientUpdateSender = mpsc::UnboundedSender<GatewayClientUpdate>;
@@ -57,11 +57,11 @@ impl PacketReceiver {
         }
     }
 
-    pub(crate) async fn run(&mut self, mut shutdown: TaskClient) {
-        while !shutdown.is_shutdown() {
+    pub(crate) async fn run(&mut self, shutdown_token: ShutdownToken) {
+        while !shutdown_token.is_cancelled() {
             tokio::select! {
                 biased;
-                _ = shutdown.recv() => {
+                _ = shutdown_token.cancelled() => {
                     trace!("UpdateHandler: Received shutdown");
                 }
                 // unwrap here is fine as it can only return a `None` if the PacketSender has died

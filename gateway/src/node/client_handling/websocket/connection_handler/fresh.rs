@@ -855,6 +855,7 @@ impl<R, S> FreshHandler<R, S> {
         }
     }
 
+    #[instrument(skip_all)]
     pub(crate) async fn handle_initial_client_request(
         &mut self,
         request: ClientControlRequest,
@@ -978,13 +979,13 @@ impl<R, S> FreshHandler<R, S> {
         S: AsyncRead + AsyncWrite + Unpin + Send,
         R: CryptoRng + RngCore + Send,
     {
-        let current_span = tracing::Span::current();
+        // let current_span = tracing::Span::current();
         while !shutdown.is_shutdown() {
             let req = tokio::select! {
                 biased;
                 _ = shutdown.recv() => {
-                    let span = tracing::span!(parent: current_span, tracing::Level::DEBUG, "websocket_listener_shutdown");
-                    let _enter = span.enter();
+                    // let span = tracing::span!(parent: current_span, tracing::Level::DEBUG, "websocket_listener_shutdown");
+                    // let _enter = span.enter();
                     return None
                 },
                 req = self.wait_for_initial_message() => req,

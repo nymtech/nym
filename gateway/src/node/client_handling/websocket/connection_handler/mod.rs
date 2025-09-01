@@ -11,7 +11,7 @@ use std::time::Duration;
 use time::OffsetDateTime;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_tungstenite::WebSocketStream;
-use tracing::{debug, instrument, trace, warn};
+use tracing::{debug, instrument, Instrument, trace, warn};
 
 pub(crate) use self::authenticated::AuthenticatedHandler;
 pub(crate) use self::fresh::FreshHandler;
@@ -117,8 +117,14 @@ where
 
     trace!("managed to perform websocket handshake!");
 
-    if let Some(auth_handle) = handle.handle_until_authenticated_or_failure().await {
-        auth_handle.listen_for_requests().await
+    let mut shutdown = handle.shutdown.clone();
+
+    if let Some(auth_handle) = handle
+        .handle_until_authenticated_or_failure(&mut shutdown)
+        .await
+    {
+        let span = tracing::span!(tracing::Level::DEBUG, "websocket_listener");
+        auth_handle.listen_for_requests(shutdown).instrument(span).await
     }
 
     trace!("the handler is done!");

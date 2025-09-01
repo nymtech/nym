@@ -1,17 +1,16 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: GPL-3.0-only
-
-use std::collections::HashMap;
-use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
+// SPDX-License-Identifier: Apache-2.0
 
 use nym_ip_packet_requests::IpPair;
-use nym_task::TaskClient;
+use std::collections::HashMap;
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 #[cfg(target_os = "linux")]
 use tokio::io::AsyncReadExt;
 use tokio::sync::mpsc;
 
-use crate::clients::{ConnectEvent, ConnectedClientEvent, DisconnectEvent};
-use crate::{error::Result, util::parse_ip::parse_dst_addr};
+use crate::node::internal_service_providers::ip_packet_router::clients::{
+    ConnectEvent, ConnectedClientEvent, DisconnectEvent,
+};
 
 // The TUN listener keeps a local map of the connected clients that has its state updated by the
 // mixnet listener. Basically it's just so that we don't have to have mutexes around shared state.
@@ -79,14 +78,14 @@ impl ConnectedClientsListener {
 #[cfg(target_os = "linux")]
 pub(crate) struct TunListener {
     pub(crate) tun_reader: tokio::io::ReadHalf<tokio_tun::Tun>,
-    pub(crate) task_client: TaskClient,
+    pub(crate) task_client: nym_task::TaskClient,
     pub(crate) connected_clients: ConnectedClientsListener,
 }
 
 #[cfg(target_os = "linux")]
 impl TunListener {
     async fn handle_packet(&mut self, buf: &[u8], len: usize) -> Result<()> {
-        let Some(dst_addr) = parse_dst_addr(&buf[..len]) else {
+        let Some(dst_addr) = util::parse_ip::parse_dst_addr(&buf[..len]) else {
             tracing::warn!("Failed to parse packet");
             return Ok(());
         };

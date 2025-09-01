@@ -1,10 +1,9 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::error::IpPacketRouterError;
+use crate::service_providers::ip_packet_router::error::IpPacketRouterError;
 use nym_exit_policy::client::get_exit_policy;
 use nym_exit_policy::ExitPolicy;
-use reqwest::IntoUrl;
 use std::net::SocketAddr;
 use url::Url;
 
@@ -15,11 +14,7 @@ pub struct ExitPolicyRequestFilter {
 }
 
 impl ExitPolicyRequestFilter {
-    pub(crate) async fn new_upstream(url: impl IntoUrl) -> Result<Self, IpPacketRouterError> {
-        let url = url
-            .into_url()
-            .map_err(|source| IpPacketRouterError::MalformedExitPolicyUpstreamUrl { source })?;
-
+    pub(crate) async fn new_upstream(url: Url) -> Result<Self, IpPacketRouterError> {
         Ok(ExitPolicyRequestFilter {
             upstream: Some(url.clone()),
             policy: get_exit_policy(url).await?,

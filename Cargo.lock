@@ -5732,8 +5732,10 @@ dependencies = [
  "bincode",
  "bip39",
  "bs58",
+ "bytes",
  "dashmap",
  "defguard_wireguard_rs",
+ "etherparse",
  "fastrand 2.3.0",
  "futures",
  "ipnetwork",
@@ -5750,7 +5752,7 @@ dependencies = [
  "nym-gateway-stats-storage",
  "nym-gateway-storage",
  "nym-id",
- "nym-ip-packet-router",
+ "nym-ip-packet-requests",
  "nym-mixnet-client",
  "nym-network-defaults",
  "nym-node-metrics",
@@ -5773,6 +5775,7 @@ dependencies = [
  "time",
  "tokio",
  "tokio-stream",
+ "tokio-tun",
  "tokio-tungstenite",
  "tokio-util",
  "tracing",
@@ -6015,41 +6018,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "nym-ip-packet-router"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "bincode",
- "bytes",
- "etherparse",
- "futures",
- "nym-bin-common",
- "nym-client-core",
- "nym-exit-policy",
- "nym-id",
- "nym-ip-packet-requests",
- "nym-network-defaults",
- "nym-sdk",
- "nym-service-provider-requests-common",
- "nym-service-providers-common",
- "nym-sphinx",
- "nym-task",
- "nym-tun",
- "nym-wireguard",
- "nym-wireguard-types",
- "rand 0.8.5",
- "reqwest 0.12.22",
- "serde",
- "thiserror 2.0.12",
- "time",
- "tokio",
- "tokio-tun",
- "tokio-util",
- "tracing",
- "url",
-]
-
-[[package]]
 name = "nym-ledger"
 version = "0.1.0"
 dependencies = [
@@ -6237,7 +6205,6 @@ dependencies = [
  "nym-gateway-stats-storage",
  "nym-http-api-client",
  "nym-http-api-common",
- "nym-ip-packet-router",
  "nym-metrics",
  "nym-mixnet-client",
  "nym-node-metrics",

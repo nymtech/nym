@@ -1,9 +1,9 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::config::Config;
-use crate::error::IpPacketRouterError;
-use crate::request_filter::exit_policy::ExitPolicyRequestFilter;
+use crate::service_providers::ip_packet_router::error::IpPacketRouterError;
+use crate::service_providers::ip_packet_router::request_filter::exit_policy::ExitPolicyRequestFilter;
+use crate::service_providers::ip_packet_router::Config;
 use std::{net::SocketAddr, sync::Arc};
 use tracing::{info, warn};
 

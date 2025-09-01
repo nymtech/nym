@@ -4,10 +4,10 @@
 pub use crate::node::client_handling::websocket::connection_handler::authenticated::RequestHandlingError;
 use crate::node::internal_service_providers::authenticator::error::AuthenticatorError;
 use crate::node::internal_service_providers::network_requester::error::NetworkRequesterError;
+use crate::service_providers::ip_packet_router::error::IpPacketRouterError;
 use nym_client_core::error::ClientCoreError;
 use nym_gateway_stats_storage::error::StatsStorageError;
 use nym_gateway_storage::error::GatewayStorageError;
-use nym_ip_packet_router::error::IpPacketRouterError;
 use nym_validator_client::nyxd::error::NyxdError;
 use nym_validator_client::nyxd::{AccountId, Coin};
 use nym_validator_client::ValidatorClientError;

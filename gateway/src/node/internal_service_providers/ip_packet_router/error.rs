@@ -1,5 +1,5 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: Apache-2.0
 
 use std::net::SocketAddr;
 
@@ -75,12 +75,6 @@ pub enum IpPacketRouterError {
         source: PolicyError,
     },
 
-    #[error("the url provided for the upstream exit policy source is malformed: {source}")]
-    MalformedExitPolicyUpstreamUrl {
-        #[source]
-        source: reqwest::Error,
-    },
-
     #[error("can't setup an exit policy without any upstream urls")]
     NoUpstreamExitPolicy,
 
@@ -117,5 +111,3 @@ pub enum IpPacketRouterError {
     #[error("failed to deserialize protocol: {source}")]
     FailedToDeserializeProtocol { source: ProtocolError },
 }
-
-pub type Result<T> = std::result::Result<T, IpPacketRouterError>;

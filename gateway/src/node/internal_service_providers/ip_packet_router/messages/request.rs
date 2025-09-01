@@ -5,6 +5,9 @@ mod v6;
 mod v7;
 mod v8;
 
+use super::ClientVersion;
+use crate::service_providers::ip_packet_router::clients::ConnectedClientId;
+use crate::service_providers::ip_packet_router::error::IpPacketRouterError;
 use nym_ip_packet_requests::{
     v6::request::IpPacketRequest as IpPacketRequestV6,
     v7::request::IpPacketRequest as IpPacketRequestV7,
@@ -13,10 +16,6 @@ use nym_ip_packet_requests::{
 use nym_sdk::mixnet::ReconstructedMessage;
 use nym_service_provider_requests_common::{Protocol, ServiceProviderType};
 use std::fmt;
-
-use crate::{clients::ConnectedClientId, error::IpPacketRouterError};
-
-use super::ClientVersion;
 
 // The internal representation of the request after deserialization, valid for all versions
 #[derive(Clone, Debug, PartialEq)]

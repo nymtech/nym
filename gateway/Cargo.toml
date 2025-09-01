@@ -19,8 +19,9 @@ rust-version = "1.77"
 path = "src/lib.rs"
 
 [dependencies]
-bincode = { workspace = true }
 async-trait = { workspace = true }
+bincode = { workspace = true }
+bytes = { workspace = true }
 bip39 = { workspace = true }
 bs58 = { workspace = true }
 dashmap = { workspace = true }
@@ -63,7 +64,6 @@ nym-statistics-common = { path = "../common/statistics" }
 nym-task = { path = "../common/task" }
 nym-topology = { path = "../common/topology" }
 nym-validator-client = { path = "../common/client-libs/validator-client" }
-nym-ip-packet-router = { path = "../service-providers/ip-packet-router" }
 nym-node-metrics = { path = "../nym-node/nym-node-metrics" }
 
 nym-wireguard = { path = "../common/wireguard" }
@@ -85,6 +85,13 @@ nym-authenticator-requests = { path = "../common/authenticator-requests" }
 nym-socks5-proxy-helpers = { path = "../common/socks5/proxy-helpers" }
 nym-socks5-requests = { path = "../common/socks5/requests" }
 nym-exit-policy = { path = "../common/exit-policy", features = ["client"] }
+
+# ipr specific
+nym-ip-packet-requests = { path = "../common/ip-packet-requests" }
+etherparse = { workspace = true }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+tokio-tun.workspace = true
 
 [dev-dependencies]
 nym-gateway-storage = { path = "../common/gateway-storage", features = ["mock"] }

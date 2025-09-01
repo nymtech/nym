@@ -59,6 +59,7 @@ pub struct NetworkRequester {
     pub upstream_exit_policy_url: Option<Url>,
 }
 
+#[allow(clippy::expect_used)]
 impl Default for NetworkRequester {
     fn default() -> Self {
         NetworkRequester {

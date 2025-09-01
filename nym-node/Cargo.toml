@@ -100,9 +100,7 @@ nym-node-requests = { path = "nym-node-requests", default-features = false, feat
 ] }
 nym-node-metrics = { path = "nym-node-metrics" }
 
-# nodes:
 nym-gateway = { path = "../gateway" }
-nym-ip-packet-router = { path = "../service-providers/ip-packet-router" }
 
 
 # throughput tester to recreate lioness

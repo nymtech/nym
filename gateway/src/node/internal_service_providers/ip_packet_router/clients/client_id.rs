@@ -1,11 +1,9 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use std::fmt;
-
+use crate::service_providers::ip_packet_router::error::IpPacketRouterError;
 use nym_sdk::mixnet::{AnonymousSenderTag, Recipient};
-
-use crate::error::{IpPacketRouterError, Result};
+use std::fmt;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum ConnectedClientId {
@@ -14,7 +12,7 @@ pub(crate) enum ConnectedClientId {
 }
 
 impl ConnectedClientId {
-    pub(crate) fn into_nym_address(self) -> Result<Recipient> {
+    pub(crate) fn into_nym_address(self) -> Result<Recipient, IpPacketRouterError> {
         match self {
             ConnectedClientId::NymAddress(nym_address) => Ok(*nym_address),
             ConnectedClientId::AnonymousSenderTag(_) => Err(IpPacketRouterError::InvalidReplyTo),

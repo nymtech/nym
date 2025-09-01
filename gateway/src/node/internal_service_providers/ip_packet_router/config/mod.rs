@@ -1,19 +1,10 @@
-pub use nym_client_core::config::Config as BaseClientConfig;
-
-pub use crate::config::persistence::IpPacketRouterPaths;
+use crate::service_providers::ip_packet_router::config::persistence::IpPacketRouterPaths;
 use nym_bin_common::logging::LoggingSettings;
+pub use nym_client_core::config::Config as BaseClientConfig;
 use nym_network_defaults::mainnet;
-use nym_service_providers_common::DEFAULT_SERVICE_PROVIDERS_DIR;
-use std::{
-    io,
-    path::{Path, PathBuf},
-    str::FromStr,
-};
 use url::Url;
 
 mod persistence;
-
-const DEFAULT_IP_PACKET_ROUTER_DIR: &str = "ip-packet-router";
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Config {

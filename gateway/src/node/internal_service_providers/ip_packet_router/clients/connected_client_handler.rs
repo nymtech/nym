@@ -1,8 +1,11 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use std::time::Duration;
-
+use crate::service_providers::ip_packet_router::{
+    clients::ConnectedClientId, constants::CLIENT_HANDLER_ACTIVITY_TIMEOUT,
+    error::IpPacketRouterError, messages::ClientVersion,
+    util::create_message::create_input_message,
+};
 use bytes::{Bytes, BytesMut};
 use nym_ip_packet_requests::{
     codec::{IprPacket, MultiIpPacketCodec},
@@ -13,18 +16,12 @@ use nym_ip_packet_requests::{
 use nym_sdk::mixnet::{
     InputMessage, MixnetClientSender, MixnetMessageSender, MixnetMessageSinkTranslator,
 };
+use std::time::Duration;
 use tokio::{
     sync::{mpsc, oneshot},
     time::{interval, Interval},
 };
 use tokio_util::codec::Encoder;
-
-use crate::{
-    clients::ConnectedClientId,
-    constants::CLIENT_HANDLER_ACTIVITY_TIMEOUT,
-    error::{IpPacketRouterError, Result},
-    messages::ClientVersion,
-};
 
 // Data flow
 // Out: mixnet_listener -> decode -> handle_packet -> write_to_tun
@@ -108,7 +105,7 @@ impl ConnectedClientHandler {
         (forward_from_tun_tx, close_tx, handle)
     }
 
-    fn bundle_packet(&mut self, packet: IprPacket) -> Result<Option<Bytes>> {
+    fn bundle_packet(&mut self, packet: IprPacket) -> Result<Option<Bytes>, IpPacketRouterError> {
         let mut bundled_packets = BytesMut::new();
         self.packet_bundler
             .encode(packet, &mut bundled_packets)
@@ -120,7 +117,7 @@ impl ConnectedClientHandler {
         }
     }
 
-    async fn handle_packet(&mut self, packet: IprPacket) -> Result<()> {
+    async fn handle_packet(&mut self, packet: IprPacket) -> Result<(), IpPacketRouterError> {
         self.activity_timeout.reset();
 
         let bundled_packets = match self.bundle_packet(packet)? {
@@ -145,7 +142,7 @@ impl ConnectedClientHandler {
             })
     }
 
-    async fn run(mut self) -> Result<()> {
+    async fn run(mut self) -> Result<(), IpPacketRouterError> {
         loop {
             tokio::select! {
                 _ = &mut self.close_rx => {
@@ -210,8 +207,7 @@ impl MixnetMessageSinkTranslator for ToIprDataResponse {
 
         // Wrap the response packet in a mixnet input message
         let input_message =
-            crate::util::create_message::create_input_message(&self.send_to, response_packet)
-                .with_max_retransmissions(0);
+            create_input_message(&self.send_to, response_packet).with_max_retransmissions(0);
 
         Ok(input_message)
     }

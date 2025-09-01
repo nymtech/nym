@@ -12,6 +12,7 @@ use nym_task::connections::LaneQueueLengths;
 use nym_task::TaskClient;
 use std::io;
 use tokio::net::TcpStream;
+use tracing::error;
 
 /// An outbound TCP connection between the Socks5 service provider, which makes
 /// requests on behalf of users and returns the responses through
@@ -49,7 +50,10 @@ impl Connection {
         lane_queue_lengths: LaneQueueLengths,
         shutdown: TaskClient,
     ) {
-        let stream = self.conn.take().unwrap();
+        let Some(stream) = self.conn.take() else {
+            error!("the proxy is being run for the second time");
+            return;
+        };
         let remote_source_address = "???".to_string(); // we don't know ip address of requester
         let connection_id = self.id;
         let return_address = self.return_address.clone();

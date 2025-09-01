@@ -1,6 +1,5 @@
+use crate::service_providers::ip_packet_router::error::IpPacketRouterError;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
-
-use crate::error::IpPacketRouterError;
 
 pub(crate) struct ParsedPacket<'a> {
     pub(crate) packet_type: &'a str,

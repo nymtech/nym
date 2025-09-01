@@ -5,7 +5,7 @@ use std::net::SocketAddr;
 use std::time::Duration;
 use url::Url;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Config {
     pub gateway: Gateway,
 
@@ -40,7 +40,7 @@ impl Config {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Gateway {
     /// Indicates whether this gateway is accepting only zk-nym credentials for accessing the mixnet
     /// or if it also accepts non-paying clients
@@ -57,7 +57,7 @@ pub struct Gateway {
     pub nyxd_urls: Vec<Url>,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct NetworkRequester {
     /// Specifies whether network requester service is enabled in this process.
     pub enabled: bool,
@@ -70,7 +70,7 @@ impl Default for NetworkRequester {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct IpPacketRouter {
     /// Specifies whether ip packet router service is enabled in this process.
     pub enabled: bool,
@@ -83,7 +83,7 @@ impl Default for IpPacketRouter {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct Debug {
     /// Defines maximum delay between client bandwidth information being flushed to the persistent storage.
     pub client_bandwidth_max_flushing_rate: Duration,
@@ -106,7 +106,7 @@ pub struct Debug {
     pub max_request_timestamp_skew: Duration,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct ZkNymTicketHandlerDebug {
     /// Specifies the multiplier for revoking a malformed/double-spent ticket
     /// (if it has to go all the way to the nym-api for verification)

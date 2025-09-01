@@ -1,6 +1,12 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use super::{
+    DisconnectFailureReason, DisconnectResponse, DynamicConnectFailureReason,
+    DynamicConnectResponse, DynamicConnectSuccess, HealthResponse, InfoLevel, InfoResponseReply,
+    Response, StaticConnectFailureReason, StaticConnectResponse, VersionedResponse,
+};
+use crate::service_providers::ip_packet_router::error::IpPacketRouterError;
 use nym_ip_packet_requests::v7::response::{
     DisconnectFailureReason as DisconnectFailureReasonV7,
     DisconnectResponse as DisconnectResponseV7,
@@ -15,14 +21,6 @@ use nym_ip_packet_requests::v7::response::{
     PongResponse as PongResponseV7, StaticConnectFailureReason as StaticConnectFailureReasonV7,
     StaticConnectResponse as StaticConnectResponseV7,
     StaticConnectResponseReply as StaticConnectResponseReplyV7,
-};
-
-use crate::error::IpPacketRouterError;
-
-use super::{
-    DisconnectFailureReason, DisconnectResponse, DynamicConnectFailureReason,
-    DynamicConnectResponse, DynamicConnectSuccess, HealthResponse, InfoLevel, InfoResponseReply,
-    Response, StaticConnectFailureReason, StaticConnectResponse, VersionedResponse,
 };
 
 impl TryFrom<VersionedResponse> for IpPacketResponseV7 {

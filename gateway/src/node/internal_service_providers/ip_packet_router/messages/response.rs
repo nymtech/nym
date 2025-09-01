@@ -12,12 +12,9 @@ use nym_ip_packet_requests::{
     v8::response::IpPacketResponse as IpPacketResponseV8, IpPair,
 };
 
-use crate::{
-    clients::ConnectedClientId,
-    error::{IpPacketRouterError, Result},
-};
-
 use super::ClientVersion;
+use crate::service_providers::ip_packet_router::clients::ConnectedClientId;
+use crate::service_providers::ip_packet_router::error::IpPacketRouterError;
 
 pub(crate) struct VersionedResponse {
     pub(crate) version: ClientVersion,
@@ -124,7 +121,7 @@ pub(crate) struct HealthResponse {
 }
 
 impl VersionedResponse {
-    pub(crate) fn try_into_bytes(self) -> Result<Vec<u8>> {
+    pub(crate) fn try_into_bytes(self) -> Result<Vec<u8>, IpPacketRouterError> {
         match self.version {
             ClientVersion::V6 => IpPacketResponseV6::try_from(self)?.to_bytes(),
             ClientVersion::V7 => IpPacketResponseV7::try_from(self)?.to_bytes(),

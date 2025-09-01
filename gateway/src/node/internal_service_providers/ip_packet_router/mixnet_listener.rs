@@ -1,5 +1,5 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: Apache-2.0
 
 use futures::StreamExt;
 use nym_ip_packet_requests::codec::MultiIpPacketCodec;
@@ -10,11 +10,11 @@ use std::{net::SocketAddr, time::Duration};
 use tokio::io::AsyncWriteExt;
 use tokio_util::codec::FramedRead;
 
-use crate::{
+use crate::service_providers::ip_packet_router::{
     clients::{ConnectedClientHandler, ConnectedClients},
     config::Config,
     constants::DISCONNECT_TIMER_INTERVAL,
-    error::{IpPacketRouterError, Result},
+    error::IpPacketRouterError,
     messages::{
         request::{
             ControlRequest, DataRequest, DisconnectRequest, DynamicConnectRequest, HealthRequest,
@@ -28,11 +28,14 @@ use crate::{
         ClientVersion,
     },
     request_filter::RequestFilter,
-    util::parse_ip::ParsedPacket,
+    util::{
+        create_message::create_input_message,
+        parse_ip::{parse_packet, ParsedPacket},
+    },
 };
 
 #[cfg(not(target_os = "linux"))]
-type TunDevice = crate::non_linux_dummy::DummyDevice;
+type TunDevice = crate::service_providers::ip_packet_router::non_linux_dummy::DummyDevice;
 
 #[cfg(target_os = "linux")]
 type TunDevice = tokio_tun::Tun;
@@ -77,7 +80,7 @@ impl MixnetListener {
             src_addr,
             dst_addr,
             dst,
-        } = crate::util::parse_ip::parse_packet(ip_packet)?;
+        } = parse_packet(ip_packet)?;
 
         let dst_str = dst.map_or(dst_addr.to_string(), |dst| dst.to_string());
         tracing::debug!("Received packet: {packet_type}: {src_addr} -> {dst_str}");
@@ -123,7 +126,7 @@ impl MixnetListener {
     async fn on_data_request(
         &mut self,
         data_request: DataRequest,
-    ) -> Result<Vec<PacketHandleResult>> {
+    ) -> Result<Vec<PacketHandleResult>, IpPacketRouterError> {
         let mut responses = Vec::new();
         let decoder = MultiIpPacketCodec::new();
         let mut framed_reader = FramedRead::new(data_request.ip_packets.as_ref(), decoder);
@@ -383,7 +386,7 @@ impl MixnetListener {
     async fn on_reconstructed_message(
         &mut self,
         reconstructed: ReconstructedMessage,
-    ) -> Result<Vec<PacketHandleResult>> {
+    ) -> Result<Vec<PacketHandleResult>, IpPacketRouterError> {
         tracing::debug!(
             "Received message with sender_tag: {}",
             reconstructed
@@ -429,11 +432,13 @@ impl MixnetListener {
 
     // When an incoming mixnet message triggers a response that we send back, such as during
     // connect handshake.
-    async fn handle_response(&self, response: VersionedResponse) -> Result<()> {
+    async fn handle_response(
+        &self,
+        response: VersionedResponse,
+    ) -> Result<(), IpPacketRouterError> {
         let send_to = response.reply_to.clone();
         let response_bytes = response.try_into_bytes()?;
-        let input_message =
-            crate::util::create_message::create_input_message(&send_to, response_bytes);
+        let input_message = create_input_message(&send_to, response_bytes);
 
         self.mixnet_client.send(input_message).await.map_err(|err| {
             IpPacketRouterError::FailedToSendPacketToMixnet {
@@ -462,7 +467,7 @@ impl MixnetListener {
         }
     }
 
-    pub(crate) async fn run(mut self) -> Result<()> {
+    pub(crate) async fn run(mut self) -> Result<(), IpPacketRouterError> {
         let mut task_client = self.task_handle.fork("main_loop");
         let mut disconnect_timer = tokio::time::interval(DISCONNECT_TIMER_INTERVAL);
 
@@ -496,4 +501,4 @@ impl MixnetListener {
     }
 }
 
-pub(crate) type PacketHandleResult = Result<Option<VersionedResponse>>;
+pub(crate) type PacketHandleResult = Result<Option<VersionedResponse>, IpPacketRouterError>;

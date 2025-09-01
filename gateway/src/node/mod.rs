@@ -4,8 +4,8 @@
 use crate::config::Config;
 use crate::error::GatewayError;
 use crate::node::client_handling::websocket;
-use crate::node::internal_service_providers::authenticator::Authenticator;
-use crate::node::internal_service_providers::authenticator::{self};
+use crate::node::internal_service_providers::authenticator::{self, Authenticator};
+use crate::node::internal_service_providers::ip_packet_router::{self, IpPacketRouter};
 use crate::node::internal_service_providers::network_requester::{self, NRServiceProviderBuilder};
 use crate::node::internal_service_providers::{
     ExitServiceProviders, ServiceProviderBeingBuilt, SpMessageRouterBuilder,
@@ -17,7 +17,6 @@ use nym_credential_verification::ecash::{
     credential_sender::CredentialHandlerConfig, EcashManager,
 };
 use nym_crypto::asymmetric::ed25519;
-use nym_ip_packet_router::IpPacketRouter;
 use nym_mixnet_client::forwarder::MixForwardingSender;
 use nym_network_defaults::NymNetworkDetails;
 use nym_node_metrics::events::MetricEventsSender;
@@ -56,7 +55,7 @@ pub struct LocalNetworkRequesterOpts {
 
 #[derive(Debug, Clone)]
 pub struct LocalIpPacketRouterOpts {
-    pub config: nym_ip_packet_router::Config,
+    pub config: ip_packet_router::Config,
 
     pub custom_mixnet_path: Option<PathBuf>,
 }

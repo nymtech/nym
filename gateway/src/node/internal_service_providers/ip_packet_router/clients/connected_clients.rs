@@ -1,23 +1,19 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use super::ConnectedClientId;
+use crate::service_providers::ip_packet_router::{
+    constants::CLIENT_MIXNET_INACTIVITY_TIMEOUT, error::IpPacketRouterError, tun_listener,
+    util::generate_new_ip,
+};
+use nym_ip_packet_requests::IpPair;
 use std::{
     collections::HashMap,
     net::{IpAddr, Ipv4Addr, Ipv6Addr},
     sync::Arc,
     time::Instant,
 };
-
-use nym_ip_packet_requests::IpPair;
 use tokio::sync::{mpsc, oneshot, RwLock};
-
-use crate::{
-    constants::CLIENT_MIXNET_INACTIVITY_TIMEOUT,
-    error::{IpPacketRouterError, Result},
-    tun_listener,
-};
-
-use super::ConnectedClientId;
 
 pub(crate) struct ConnectedClients {
     // The set of connected clients
@@ -134,7 +130,10 @@ impl ConnectedClients {
             .ok();
     }
 
-    pub(crate) async fn update_activity(&mut self, ips: &IpPair) -> Result<()> {
+    pub(crate) async fn update_activity(
+        &mut self,
+        ips: &IpPair,
+    ) -> Result<(), IpPacketRouterError> {
         if let Some(client) = self.clients_ipv4_mapping.get(&ips.ipv4) {
             *client.last_activity.write().await = Instant::now();
             Ok(())
@@ -197,10 +196,7 @@ impl ConnectedClients {
     }
 
     pub(crate) fn find_new_ip(&self) -> Option<IpPair> {
-        crate::util::generate_new_ip::find_new_ips(
-            &self.clients_ipv4_mapping,
-            &self.clients_ipv6_mapping,
-        )
+        generate_new_ip::find_new_ips(&self.clients_ipv4_mapping, &self.clients_ipv6_mapping)
     }
 }
 

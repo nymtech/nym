@@ -4,8 +4,9 @@
 #![cfg_attr(not(target_os = "linux"), allow(dead_code))]
 #![cfg_attr(not(target_os = "linux"), allow(unused_imports))]
 
-use std::path::Path;
-
+use crate::node::internal_service_providers::ip_packet_router::{
+    error::IpPacketRouterError, request_filter::RequestFilter,
+};
 use futures::channel::oneshot;
 use nym_client_core::{
     client::mix_traffic::transceiver::GatewayTransceiver, HardcodedTopologyProvider,
@@ -13,8 +14,23 @@ use nym_client_core::{
 };
 use nym_sdk::mixnet::Recipient;
 use nym_task::{TaskClient, TaskHandle};
+use std::path::Path;
 
-use crate::{config::Config, error::IpPacketRouterError, request_filter::RequestFilter};
+pub mod config;
+pub mod error;
+pub mod request_filter;
+
+pub(crate) mod messages;
+pub(crate) mod non_linux_dummy;
+
+mod clients;
+mod constants;
+mod mixnet_client;
+mod mixnet_listener;
+mod tun_listener;
+mod util;
+
+pub use config::Config;
 
 pub struct OnStartData {
     // to add more fields as required

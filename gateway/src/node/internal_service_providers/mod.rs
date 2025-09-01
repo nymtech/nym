@@ -9,12 +9,11 @@ use crate::node::internal_service_providers::authenticator::Authenticator;
 use crate::node::internal_service_providers::network_requester::{
     error::NetworkRequesterError, NRServiceProviderBuilder,
 };
+use crate::service_providers::ip_packet_router::{error::IpPacketRouterError, IpPacketRouter};
 use crate::GatewayError;
 use async_trait::async_trait;
 use futures::channel::{mpsc, oneshot};
 use nym_crypto::asymmetric::ed25519;
-use nym_ip_packet_router::error::IpPacketRouterError;
-use nym_ip_packet_router::IpPacketRouter;
 use nym_mixnet_client::forwarder::MixForwardingSender;
 use nym_sdk::mixnet::Recipient;
 use nym_task::TaskClient;
@@ -38,6 +37,7 @@ pub use nym_client_core::client::{
 };
 
 pub mod authenticator;
+pub mod ip_packet_router;
 pub mod network_requester;
 
 pub trait LocalRecipient {
@@ -50,7 +50,7 @@ impl LocalRecipient for network_requester::OnStartData {
     }
 }
 
-impl LocalRecipient for nym_ip_packet_router::OnStartData {
+impl LocalRecipient for ip_packet_router::OnStartData {
     fn address(&self) -> Recipient {
         self.address
     }
@@ -85,7 +85,7 @@ impl RunnableServiceProvider for NRServiceProviderBuilder {
 #[async_trait]
 impl RunnableServiceProvider for IpPacketRouter {
     const NAME: &'static str = "ip router";
-    type OnStartData = nym_ip_packet_router::OnStartData;
+    type OnStartData = ip_packet_router::OnStartData;
     type Error = IpPacketRouterError;
 
     async fn run_service_provider(self) -> Result<(), Self::Error> {

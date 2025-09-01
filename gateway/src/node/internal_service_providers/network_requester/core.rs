@@ -39,7 +39,7 @@ use nym_task::manager::TaskHandle;
 use nym_task::TaskClient;
 use std::path::Path;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use tracing::{debug, warn};
+use tracing::{debug, error, warn};
 
 // Since it's an atomic, it's safe to be kept static and shared across threads
 static ACTIVE_PROXIES: AtomicUsize = AtomicUsize::new(0);
@@ -101,10 +101,9 @@ impl ServiceProvider<Socks5Request> for NRServiceProvider {
             // TODO: this (i.e. `reply::MixnetAddress`) should be incorporated into the actual interface
             if let Some(return_address) = reply::MixnetAddress::new(None, sender) {
                 let msg = MixnetMessage::new_provider_response(return_address, 0, response);
-                self.mix_input_sender
-                    .send(msg)
-                    .await
-                    .expect("InputMessageReceiver has stopped receiving!");
+                if self.mix_input_sender.send(msg).await.is_err() {
+                    error!("InputMessageReceiver has stopped receiving!");
+                }
             } else {
                 warn!("currently we can only send generic replies via reply surbs and we haven't got any : (")
             }
@@ -367,7 +366,10 @@ impl NRServiceProvider {
                 socks5_msg = mix_input_reader.recv() => {
                     if let Some(msg) = socks5_msg {
                         let response_message = msg.into_input_message(packet_type);
-                        mixnet_client_sender.send(response_message).await.unwrap();
+                        if mixnet_client_sender.send(response_message).await.is_err() {
+                            error!("failed to send response - channel is closed");
+                            break;
+                        }
                     } else {
                         tracing::error!("Exiting: channel closed!");
                         break;
@@ -409,10 +411,9 @@ impl NRServiceProvider {
                     SocketData::new(0, connection_id, true, Vec::new()),
                 );
 
-                mix_input_sender
-                    .send(mixnet_message)
-                    .await
-                    .expect("InputMessageReceiver has stopped receiving!");
+                if mix_input_sender.send(mixnet_message).await.is_err() {
+                    error!("InputMessageReceiver has stopped receiving!")
+                }
 
                 return;
             }
@@ -420,12 +421,16 @@ impl NRServiceProvider {
 
         // Connect implies it's a fresh connection - register it with our controller
         let (mix_sender, mix_receiver) = mpsc::unbounded();
-        controller_sender
+        if controller_sender
             .unbounded_send(ControllerCommand::Insert {
                 connection_id,
                 connection_sender: mix_sender,
             })
-            .unwrap();
+            .is_err()
+        {
+            error!("failed to insert new proxy info - the channel is closed!");
+            return;
+        }
 
         let old_count = ACTIVE_PROXIES.fetch_add(1, Ordering::SeqCst);
         tracing::info!(
@@ -445,9 +450,12 @@ impl NRServiceProvider {
         .await;
 
         // proxy is done - remove the access channel from the controller
-        controller_sender
+        if controller_sender
             .unbounded_send(ControllerCommand::Remove { connection_id })
-            .unwrap();
+            .is_err()
+        {
+            error!("failed to send controller remove request - the channel is closed")
+        }
 
         let old_count = ACTIVE_PROXIES.fetch_sub(1, Ordering::SeqCst);
         tracing::info!(
@@ -500,11 +508,12 @@ impl NRServiceProvider {
                     log_msg,
                 );
 
-                mix_input_sender_clone
-                    .send(error_msg)
-                    .await
-                    .expect("InputMessageReceiver has stopped receiving!");
-                shutdown.disarm();
+                if mix_input_sender_clone.send(error_msg).await.is_err() {
+                    // don't disarm the shutdown, do cause global shutdown here!
+                    error!("InputMessageReceiver has stopped receiving!");
+                } else {
+                    shutdown.disarm();
+                }
                 return;
             }
 
@@ -525,9 +534,13 @@ impl NRServiceProvider {
     }
 
     fn handle_proxy_send(&mut self, req: SendRequest) {
-        self.controller_sender
+        if self
+            .controller_sender
             .unbounded_send(ControllerCommand::new_send(req.data))
-            .unwrap()
+            .is_err()
+        {
+            error!("failed to handle proxy send request - the channel is closed")
+        }
     }
 
     fn handle_query(

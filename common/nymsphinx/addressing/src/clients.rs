@@ -105,6 +105,8 @@ impl<'de> Deserialize<'de> for Recipient {
 
                 let mut recipient_bytes = [0u8; Recipient::LEN];
 
+                // clippy's suggestion is completely wrong and it iterates wrong sequence
+                #[allow(clippy::needless_range_loop)]
                 for i in 0..Recipient::LEN {
                     let Some(elem) = seq.next_element::<u8>()? else {
                         return Err(SerdeError::invalid_length(i + 1, &self));

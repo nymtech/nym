@@ -66,7 +66,7 @@ use std::ops::Deref;
 use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::mpsc;
-use tracing::{debug, info, trace};
+use tracing::{debug, info, instrument, trace};
 use zeroize::Zeroizing;
 
 pub mod bonding_information;
@@ -601,6 +601,7 @@ impl NymNode {
         })
     }
 
+    #[instrument(skip_all)]
     async fn start_gateway_tasks(
         &mut self,
         cached_network: CachedNetwork,
@@ -1050,6 +1051,7 @@ impl NymNode {
         Ok(())
     }
 
+    #[instrument(skip_all)]
     pub(crate) async fn start_mixnet_listener<F>(
         &self,
         active_clients_store: &ActiveClientsStore,
@@ -1146,6 +1148,7 @@ impl NymNode {
         Ok(())
     }
 
+    #[instrument(skip_all)]
     async fn start_nym_node_tasks(mut self) -> Result<ShutdownManager, NymNodeError> {
         info!("starting Nym Node {} with the following modes: mixnode: {}, entry: {}, exit: {}, wireguard: {}",
             self.ed25519_identity_key(),
@@ -1219,6 +1222,7 @@ impl NymNode {
         Ok(self.shutdown_manager)
     }
 
+    #[instrument(skip_all)]
     pub(crate) async fn run(mut self) -> Result<(), NymNodeError> {
         let mut shutdown_signals = self.shutdown_manager.detach_shutdown_signals();
 

@@ -1081,10 +1081,10 @@ impl<R, S> FreshHandler<R, S> {
         let shutdown = self.shutdown.clone();
         tokio::select! {
             _ = shutdown.cancelled() => {
-                trace!("received cancellation")
+                tracing::trace!("received cancellation")
             }
             _ = super::handle_connection(self) => {
-                debug!("finished connection handler for {remote}")
+                tracing::debug!("finished connection handler for {remote}")
             }
         }
     }

@@ -5745,6 +5745,7 @@ dependencies = [
  "nym-credentials",
  "nym-credentials-interface",
  "nym-crypto",
+ "nym-exit-policy",
  "nym-gateway-requests",
  "nym-gateway-stats-storage",
  "nym-gateway-storage",
@@ -5752,10 +5753,12 @@ dependencies = [
  "nym-ip-packet-router",
  "nym-mixnet-client",
  "nym-network-defaults",
- "nym-network-requester",
  "nym-node-metrics",
  "nym-sdk",
  "nym-service-provider-requests-common",
+ "nym-service-providers-common",
+ "nym-socks5-proxy-helpers",
+ "nym-socks5-requests",
  "nym-sphinx",
  "nym-statistics-common",
  "nym-task",
@@ -6032,7 +6035,6 @@ dependencies = [
  "nym-id",
  "nym-ip-packet-requests",
  "nym-network-defaults",
- "nym-network-requester",
  "nym-sdk",
  "nym-service-provider-requests-common",
  "nym-service-providers-common",
@@ -6205,34 +6207,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "nym-network-requester"
-version = "1.1.62"
-dependencies = [
- "anyhow",
- "async-trait",
- "futures",
- "humantime-serde",
- "nym-bin-common",
- "nym-client-core",
- "nym-config",
- "nym-exit-policy",
- "nym-id",
- "nym-network-defaults",
- "nym-sdk",
- "nym-service-providers-common",
- "nym-socks5-proxy-helpers",
- "nym-socks5-requests",
- "nym-sphinx",
- "nym-task",
- "reqwest 0.12.22",
- "serde",
- "thiserror 2.0.12",
- "tokio",
- "tracing",
- "url",
-]
-
-[[package]]
 name = "nym-node"
 version = "1.17.0"
 dependencies = [
@@ -6273,7 +6247,6 @@ dependencies = [
  "nym-ip-packet-router",
  "nym-metrics",
  "nym-mixnet-client",
- "nym-network-requester",
  "nym-node-metrics",
  "nym-node-requests",
  "nym-noise",

@@ -1,8 +1,8 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::config::Config;
-use crate::error::NetworkRequesterError;
+use crate::node::internal_service_providers::network_requester::config::Config;
+use crate::node::internal_service_providers::network_requester::error::NetworkRequesterError;
 use nym_socks5_requests::RemoteAddress;
 use std::sync::Arc;
 use tracing::warn;

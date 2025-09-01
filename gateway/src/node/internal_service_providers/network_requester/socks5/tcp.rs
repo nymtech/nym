@@ -1,8 +1,8 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::reply;
-use crate::reply::MixnetMessage;
+use crate::node::internal_service_providers::network_requester::reply;
+use crate::node::internal_service_providers::network_requester::reply::MixnetMessage;
 use nym_service_providers_common::interface::RequestVersion;
 use nym_socks5_proxy_helpers::connection_controller::ConnectionReceiver;
 use nym_socks5_proxy_helpers::proxy_runner::{MixProxySender, ProxyRunner};

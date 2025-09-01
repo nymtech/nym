@@ -8,6 +8,7 @@ use nym_gateway::node::{
     LocalAuthenticatorOpts, LocalIpPacketRouterOpts, LocalNetworkRequesterOpts,
 };
 use nym_gateway::nym_authenticator;
+use nym_gateway::nym_network_requester;
 
 // a temporary solution until further refactoring is made
 fn ephemeral_gateway_config(config: &Config) -> nym_gateway::config::Config {

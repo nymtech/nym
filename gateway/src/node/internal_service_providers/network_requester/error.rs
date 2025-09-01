@@ -58,12 +58,6 @@ pub enum NetworkRequesterError {
         source: PolicyError,
     },
 
-    #[error("the url provided for the upstream exit policy source is malformed: {source}")]
-    MalformedExitPolicyUpstreamUrl {
-        #[source]
-        source: reqwest::Error,
-    },
-
     #[error("can't setup an exit policy without any upstream urls")]
     NoUpstreamExitPolicy,
 

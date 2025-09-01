@@ -1,18 +1,18 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+pub use crate::node::client_handling::websocket::connection_handler::authenticated::RequestHandlingError;
 use crate::node::internal_service_providers::authenticator::error::AuthenticatorError;
+use crate::node::internal_service_providers::network_requester::error::NetworkRequesterError;
+use nym_client_core::error::ClientCoreError;
 use nym_gateway_stats_storage::error::StatsStorageError;
 use nym_gateway_storage::error::GatewayStorageError;
 use nym_ip_packet_router::error::IpPacketRouterError;
-use nym_network_requester::error::{ClientCoreError, NetworkRequesterError};
 use nym_validator_client::nyxd::error::NyxdError;
 use nym_validator_client::nyxd::{AccountId, Coin};
 use nym_validator_client::ValidatorClientError;
 use std::net::IpAddr;
 use thiserror::Error;
-
-pub use crate::node::client_handling::websocket::connection_handler::authenticated::RequestHandlingError;
 
 #[derive(Debug, Error)]
 pub enum GatewayError {

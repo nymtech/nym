@@ -1,32 +1,26 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use nym_config::serde_helpers::de_maybe_stringified;
 use nym_network_defaults::mainnet;
-use serde::{Deserialize, Serialize};
 use std::path::Path;
 use std::time::Duration;
 use url::Url;
 
-pub use crate::config::persistence::NetworkRequesterPaths;
 pub use nym_client_core::config::Config as BaseClientConfig;
+pub use persistence::NetworkRequesterPaths;
 
 mod persistence;
 
 pub const DEFAULT_STANDARD_LIST_UPDATE_INTERVAL: Duration = Duration::from_secs(30 * 60);
 
-#[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
-#[serde(deny_unknown_fields)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Config {
-    #[serde(flatten)]
     pub base: BaseClientConfig,
 
-    #[serde(default)]
     pub network_requester: NetworkRequester,
 
     pub storage_paths: NetworkRequesterPaths,
 
-    #[serde(default)]
     pub network_requester_debug: Debug,
 }
 
@@ -51,8 +45,7 @@ impl Config {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
-#[serde(default)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct NetworkRequester {
     /// specifies whether this network requester should run in 'open-proxy' mode
     /// and thus would attempt to resolve **ANY** request it receives.
@@ -63,7 +56,6 @@ pub struct NetworkRequester {
     pub disable_poisson_rate: bool,
 
     /// Specifies the url for an upstream source of the exit policy used by this node.
-    #[serde(deserialize_with = "de_maybe_stringified")]
     pub upstream_exit_policy_url: Option<Url>,
 }
 
@@ -81,12 +73,10 @@ impl Default for NetworkRequester {
     }
 }
 
-#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Serialize)]
-#[serde(default, deny_unknown_fields)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Debug {
     /// Defines how often the standard allow list should get updated
     /// Deprecated
-    #[serde(with = "humantime_serde")]
     pub standard_list_update_interval: Duration,
 }
 

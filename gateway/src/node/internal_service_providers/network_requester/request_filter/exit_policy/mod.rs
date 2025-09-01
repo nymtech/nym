@@ -1,12 +1,11 @@
 // Copyright 2023-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::config::Config;
-use crate::error::NetworkRequesterError;
+use crate::node::internal_service_providers::network_requester::config::Config;
+use crate::node::internal_service_providers::network_requester::error::NetworkRequesterError;
 use nym_exit_policy::client::get_exit_policy;
 use nym_exit_policy::ExitPolicy;
 use nym_socks5_requests::RemoteAddress;
-use reqwest::IntoUrl;
 use tokio::net::lookup_host;
 use tracing::trace;
 use url::Url;
@@ -23,11 +22,7 @@ impl From<ExitPolicy> for ExitPolicyRequestFilter {
 }
 
 impl ExitPolicyRequestFilter {
-    pub(crate) async fn new_upstream(url: impl IntoUrl) -> Result<Self, NetworkRequesterError> {
-        let url = url
-            .into_url()
-            .map_err(|source| NetworkRequesterError::MalformedExitPolicyUpstreamUrl { source })?;
-
+    pub(crate) async fn new_upstream(url: Url) -> Result<Self, NetworkRequesterError> {
         Ok(ExitPolicyRequestFilter {
             upstream: Some(url.clone()),
             policy: get_exit_policy(url).await?,

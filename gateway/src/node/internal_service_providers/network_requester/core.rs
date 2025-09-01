@@ -1,11 +1,13 @@
-// Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: GPL-3.0-only
+// Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
 
-use crate::config::{BaseClientConfig, Config};
-use crate::error::NetworkRequesterError;
-use crate::reply::MixnetMessage;
-use crate::request_filter::RequestFilter;
-use crate::{reply, socks5};
+use crate::node::internal_service_providers::network_requester::config::{
+    BaseClientConfig, Config,
+};
+use crate::node::internal_service_providers::network_requester::error::NetworkRequesterError;
+use crate::node::internal_service_providers::network_requester::reply::MixnetMessage;
+use crate::node::internal_service_providers::network_requester::request_filter::RequestFilter;
+use crate::node::internal_service_providers::network_requester::{reply, socks5};
 use async_trait::async_trait;
 use futures::channel::{mpsc, oneshot};
 use futures::stream::StreamExt;

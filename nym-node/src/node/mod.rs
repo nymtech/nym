@@ -41,12 +41,12 @@ use crate::node::shared_network::{
 use nym_bin_common::bin_info;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_gateway::node::{ActiveClientsStore, GatewayTasksBuilder};
-use nym_mixnet_client::client::ActiveConnections;
-use nym_mixnet_client::forwarder::MixForwardingSender;
-use nym_network_requester::{
+use nym_gateway::service_providers::{
     set_active_gateway, setup_fs_gateways_storage, store_gateway_details, CustomGatewayDetails,
     GatewayDetails, GatewayRegistration,
 };
+use nym_mixnet_client::client::ActiveConnections;
+use nym_mixnet_client::forwarder::MixForwardingSender;
 use nym_node_metrics::events::MetricEventsSender;
 use nym_node_metrics::NymNodeMetrics;
 use nym_node_requests::api::v1::node::models::{AnnouncePorts, NodeDescription};

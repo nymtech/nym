@@ -102,7 +102,6 @@ nym-node-metrics = { path = "nym-node-metrics" }
 
 # nodes:
 nym-gateway = { path = "../gateway" }
-nym-network-requester = { path = "../service-providers/network-requester" }
 nym-ip-packet-router = { path = "../service-providers/ip-packet-router" }
 
 

@@ -7,7 +7,7 @@ use crate::{config::*, error::KeyIOFailure};
 use nym_client_core_config_types::DebugConfig as ClientDebugConfig;
 use nym_config::serde_helpers::de_maybe_port;
 use nym_crypto::asymmetric::{ed25519, x25519};
-use nym_network_requester::{
+use nym_gateway::service_providers::{
     set_active_gateway, setup_fs_gateways_storage, store_gateway_details, CustomGatewayDetails,
     GatewayDetails,
 };

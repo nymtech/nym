@@ -1,11 +1,9 @@
-// Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: GPL-3.0-only
+// Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
 
 use nym_client_core::config::disk_persistence::CommonClientPaths;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
-
-pub mod old;
 
 #[derive(Debug, Deserialize, PartialEq, Eq, Serialize, Clone)]
 pub struct NetworkRequesterPaths {

@@ -10,7 +10,7 @@ use async_trait::async_trait;
 use futures::channel::{mpsc, oneshot};
 use futures::stream::StreamExt;
 use log::{debug, warn};
-use nym_bin_common::bin_info_owned;
+use nym_bin_common::build_information::BinaryBuildInformation;
 use nym_client_core::client::mix_traffic::transceiver::GatewayTransceiver;
 use nym_client_core::config::disk_persistence::CommonClientPaths;
 use nym_client_core::HardcodedTopologyProvider;
@@ -69,6 +69,7 @@ pub struct NRServiceProviderBuilder {
     custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send + Sync>>,
     shutdown: Option<TaskClient>,
     on_start: Option<oneshot::Sender<OnStartData>>,
+    binary_build_information: BinaryBuildInformation,
 }
 
 pub struct NRServiceProvider {
@@ -77,6 +78,7 @@ pub struct NRServiceProvider {
 
     mixnet_client: nym_sdk::mixnet::MixnetClient,
     controller_sender: ControllerSender,
+    binary_build_information: BinaryBuildInformation,
 
     mix_input_sender: MixProxySender<MixnetMessage>,
     shutdown: TaskHandle,
@@ -113,7 +115,7 @@ impl ServiceProvider<Socks5Request> for NRServiceProvider {
     ) -> Result<BinaryInformation, Self::ServiceProviderError> {
         Ok(BinaryInformation {
             binary_name: env!("CARGO_PKG_NAME").to_string(),
-            build_information: bin_info_owned!(),
+            build_information: self.binary_build_information.to_owned(),
         })
     }
 
@@ -148,7 +150,10 @@ impl ServiceProvider<Socks5Request> for NRServiceProvider {
 }
 
 impl NRServiceProviderBuilder {
-    pub fn new(config: Config) -> NRServiceProviderBuilder {
+    pub fn new(
+        config: Config,
+        binary_build_information: BinaryBuildInformation,
+    ) -> NRServiceProviderBuilder {
         NRServiceProviderBuilder {
             config,
             wait_for_gateway: false,
@@ -156,6 +161,7 @@ impl NRServiceProviderBuilder {
             custom_gateway_transceiver: None,
             shutdown: None,
             on_start: None,
+            binary_build_information,
         }
     }
 
@@ -284,6 +290,7 @@ impl NRServiceProviderBuilder {
             request_filter: request_filter.clone(),
             mixnet_client,
             controller_sender,
+            binary_build_information: self.binary_build_information,
             mix_input_sender,
             shutdown,
         };

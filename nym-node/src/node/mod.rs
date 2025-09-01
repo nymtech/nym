@@ -624,6 +624,7 @@ impl NymNode {
             metrics_sender,
             self.metrics.clone(),
             self.entry_gateway.mnemonic.clone(),
+            bin_info!(),
             legacy_task_client,
             shutdown_token,
         );

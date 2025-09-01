@@ -117,7 +117,6 @@ pub fn gateway_tasks_config(config: &Config) -> GatewayTasksConfig {
                     .to_common_client_paths(),
             },
             network_requester_debug: Default::default(),
-            logging: config.logging,
         },
         custom_mixnet_path: None,
     };

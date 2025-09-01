@@ -7,7 +7,7 @@
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub struct BinaryBuildInformation {
     /// Provides the name of the binary, i.e. the content of `CARGO_PKG_NAME` environmental variable.
     pub binary_name: &'static str,

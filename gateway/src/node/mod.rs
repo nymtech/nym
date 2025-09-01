@@ -9,6 +9,7 @@ use crate::node::internal_service_providers::{
 };
 use crate::node::stale_data_cleaner::StaleMessagesCleaner;
 use futures::channel::oneshot;
+use nym_bin_common::build_information::BinaryBuildInformation;
 use nym_credential_verification::ecash::{
     credential_sender::CredentialHandlerConfig, EcashManager,
 };
@@ -69,6 +70,8 @@ pub struct LocalAuthenticatorOpts {
 pub struct GatewayTasksBuilder {
     config: Config,
 
+    binary_build_information: BinaryBuildInformation,
+
     network_requester_opts: Option<LocalNetworkRequesterOpts>,
 
     ip_packet_router_opts: Option<LocalIpPacketRouterOpts>,
@@ -121,11 +124,13 @@ impl GatewayTasksBuilder {
         metrics_sender: MetricEventsSender,
         metrics: NymNodeMetrics,
         mnemonic: Arc<Zeroizing<bip39::Mnemonic>>,
+        binary_build_information: BinaryBuildInformation,
         legacy_task_client: TaskClient,
         shutdown_token: ShutdownToken,
     ) -> GatewayTasksBuilder {
         GatewayTasksBuilder {
             config,
+            binary_build_information,
             network_requester_opts: None,
             ip_packet_router_opts: None,
             authenticator_opts: None,
@@ -296,13 +301,14 @@ impl GatewayTasksBuilder {
         let transceiver = message_router_builder.gateway_transceiver();
 
         let (on_start_tx, on_start_rx) = oneshot::channel();
-        let mut nr_builder = NRServiceProviderBuilder::new(nr_opts.config.clone())
-            .with_shutdown(self.legacy_task_client.fork("network_requester_sp"))
-            .with_custom_gateway_transceiver(transceiver)
-            .with_wait_for_gateway(true)
-            .with_minimum_gateway_performance(0)
-            .with_custom_topology_provider(topology_provider)
-            .with_on_start(on_start_tx);
+        let mut nr_builder =
+            NRServiceProviderBuilder::new(nr_opts.config.clone(), self.binary_build_information)
+                .with_shutdown(self.legacy_task_client.fork("network_requester_sp"))
+                .with_custom_gateway_transceiver(transceiver)
+                .with_wait_for_gateway(true)
+                .with_minimum_gateway_performance(0)
+                .with_custom_topology_provider(topology_provider)
+                .with_on_start(on_start_tx);
 
         if let Some(custom_mixnet) = &nr_opts.custom_mixnet_path {
             nr_builder = nr_builder.with_stored_topology(custom_mixnet)?

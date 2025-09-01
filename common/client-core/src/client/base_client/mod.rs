@@ -4,6 +4,7 @@
 use super::mix_traffic::ClientRequestSender;
 use super::received_buffer::ReceivedBufferMessage;
 use super::statistics_control::StatisticsControl;
+use crate::client::base_client::helpers::ShutdownHelper;
 use crate::client::base_client::storage::helpers::store_client_keys;
 use crate::client::base_client::storage::MixnetClientStorage;
 use crate::client::cover_traffic_stream::LoopCoverTrafficStream;
@@ -53,7 +54,7 @@ use nym_sphinx::receiver::{ReconstructedMessage, SphinxMessageReceiver};
 use nym_statistics_common::clients::ClientStatsSender;
 use nym_statistics_common::generate_client_stats_id;
 use nym_task::connections::{ConnectionCommandReceiver, ConnectionCommandSender, LaneQueueLengths};
-use nym_task::{TaskClient, TaskHandle};
+use nym_task::{ShutdownManager, ShutdownToken};
 use nym_topology::provider_trait::TopologyProvider;
 use nym_topology::HardcodedTopologyProvider;
 use nym_validator_client::nym_api::NymApiClientExt;
@@ -95,7 +96,6 @@ impl ClientInput {
     }
 }
 
-#[derive(Clone)]
 pub struct ClientOutput {
     pub received_buffer_request_sender: ReceivedBufferRequestSender,
 }
@@ -195,7 +195,7 @@ pub struct BaseClientBuilder<C, S: MixnetClientStorage> {
     wait_for_gateway: bool,
     custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
     custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send>>,
-    shutdown: Option<TaskClient>,
+    shutdown: Option<ShutdownToken>,
     user_agent: Option<UserAgent>,
 
     setup_method: GatewaySetup,
@@ -281,7 +281,7 @@ where
     }
 
     #[must_use]
-    pub fn with_shutdown(mut self, shutdown: TaskClient) -> Self {
+    pub fn with_shutdown(mut self, shutdown: ShutdownToken) -> Self {
         self.shutdown = Some(shutdown);
         self
     }
@@ -325,7 +325,7 @@ where
         topology_accessor: TopologyAccessor,
         mix_tx: BatchMixMessageSender,
         stats_tx: ClientStatsSender,
-        task_client: TaskClient,
+        shutdown_token: ShutdownToken,
     ) {
         info!("Starting loop cover traffic stream...");
 
@@ -338,7 +338,7 @@ where
             debug_config.traffic,
             debug_config.cover_traffic,
             stats_tx,
-            task_client,
+            shutdown_token,
         );
 
         stream.start();
@@ -357,7 +357,7 @@ where
         reply_controller_receiver: ReplyControllerReceiver,
         lane_queue_lengths: LaneQueueLengths,
         client_connection_rx: ConnectionCommandReceiver,
-        task_client: TaskClient,
+        shutdown_token: ShutdownToken,
         packet_type: PacketType,
         stats_tx: ClientStatsSender,
     ) {
@@ -376,7 +376,7 @@ where
             lane_queue_lengths,
             client_connection_rx,
             stats_tx,
-            task_client,
+            shutdown_token,
         )
         .start(packet_type);
     }
@@ -389,7 +389,7 @@ where
         mixnet_receiver: MixnetMessageReceiver,
         reply_key_storage: SentReplyKeys,
         reply_controller_sender: ReplyControllerSender,
-        shutdown: TaskClient,
+        shutdown: ShutdownToken,
         metrics_reporter: ClientStatsSender,
     ) {
         info!("Starting received messages buffer controller...");
@@ -415,7 +415,7 @@ where
         packet_router: PacketRouter,
         stats_reporter: ClientStatsSender,
         #[cfg(unix)] connection_fd_callback: Option<Arc<dyn Fn(RawFd) + Send + Sync>>,
-        shutdown: TaskClient,
+        shutdown: ShutdownToken,
     ) -> Result<GatewayClient<C, S::CredentialStore>, ClientCoreError>
     where
         <S::KeyStore as KeyStore>::StorageError: Send + Sync + 'static,
@@ -522,7 +522,7 @@ where
         packet_router: PacketRouter,
         stats_reporter: ClientStatsSender,
         #[cfg(unix)] connection_fd_callback: Option<Arc<dyn Fn(RawFd) + Send + Sync>>,
-        mut shutdown: TaskClient,
+        shutdown: ShutdownToken,
     ) -> Result<Box<dyn GatewayTransceiver + Send>, ClientCoreError>
     where
         <S::KeyStore as KeyStore>::StorageError: Send + Sync + 'static,
@@ -539,7 +539,6 @@ where
                 Err(ClientCoreError::CustomGatewaySelectionExpected)
             } else {
                 // and make sure to invalidate the task client, so we wouldn't cause premature shutdown
-                shutdown.disarm();
                 custom_gateway_transceiver.set_packet_router(packet_router)?;
                 Ok(custom_gateway_transceiver)
             };
@@ -586,22 +585,21 @@ where
         topology_accessor: TopologyAccessor,
         local_gateway: NodeIdentity,
         wait_for_gateway: bool,
-        mut task_client: TaskClient,
+        shutdown_token: ShutdownToken,
     ) -> Result<(), ClientCoreError> {
         let topology_refresher_config =
             TopologyRefresherConfig::new(topology_config.topology_refresh_rate);
 
         if topology_config.disable_refreshing {
             // if we're not spawning the refresher, don't cause shutdown immediately
-            info!("The background topology refesher is not going to be started");
-            task_client.disarm();
+            info!("The background topology refresher is not going to be started");
         }
 
         let mut topology_refresher = TopologyRefresher::new(
             topology_refresher_config,
             topology_accessor,
             topology_provider,
-            task_client,
+            shutdown_token,
         );
         // before returning, block entire runtime to refresh the current network view so that any
         // components depending on topology would see a non-empty view
@@ -657,7 +655,7 @@ where
         user_agent: Option<UserAgent>,
         client_stats_id: String,
         input_sender: Sender<InputMessage>,
-        task_client: TaskClient,
+        shutdown_token: ShutdownToken,
     ) -> ClientStatsSender {
         info!("Starting statistics control...");
         StatisticsControl::create_and_start(
@@ -667,13 +665,13 @@ where
                 .unwrap_or("unknown".to_string()),
             client_stats_id,
             input_sender.clone(),
-            task_client,
+            shutdown_token,
         )
     }
 
     fn start_mix_traffic_controller(
         gateway_transceiver: Box<dyn GatewayTransceiver + Send>,
-        shutdown: TaskClient,
+        shutdown: ShutdownToken,
     ) -> (BatchMixMessageSender, ClientRequestSender) {
         info!("Starting mix traffic controller...");
         let (mix_traffic_controller, mix_tx, client_tx) =
@@ -686,7 +684,7 @@ where
     async fn setup_persistent_reply_storage(
         backend: S::ReplyStore,
         key_rotation_config: KeyRotationConfig,
-        shutdown: TaskClient,
+        shutdown: ShutdownToken,
     ) -> Result<CombinedReplyStorage, ClientCoreError>
     where
         <S::ReplyStore as ReplyStorageBackend>::StorageError: Sync + Send,
@@ -809,11 +807,7 @@ where
             TopologyAccessor::new(self.config.debug.topology.ignore_egress_epoch_role);
 
         // Shutdown notifier for signalling tasks to stop
-        let shutdown = self
-            .shutdown
-            .map(Into::<TaskHandle>::into)
-            .unwrap_or_default()
-            .name_if_unnamed("BaseNymClient");
+        let shutdown = ShutdownHelper::new(self.shutdown)?;
 
         // channels responsible for dealing with reply-related fun
         let (reply_controller_sender, reply_controller_receiver) =
@@ -845,7 +839,7 @@ where
             self.user_agent.clone(),
             generate_client_stats_id(*self_address.identity()),
             input_sender.clone(),
-            shutdown.fork("statistics_control"),
+            shutdown.shutdown_token(),
         );
 
         // needs to be started as the first thing to block if required waiting for the gateway
@@ -855,14 +849,14 @@ where
             shared_topology_accessor.clone(),
             self_address.gateway(),
             self.wait_for_gateway,
-            shutdown.fork("topology_refresher"),
+            shutdown.shutdown_token(),
         )
         .await?;
 
         let gateway_packet_router = PacketRouter::new(
             ack_sender,
             mixnet_messages_sender,
-            shutdown.get_handle().named("gateway-packet-router"),
+            shutdown.shutdown_token(),
         );
 
         let gateway_transceiver = Self::setup_gateway_transceiver(
@@ -875,7 +869,7 @@ where
             stats_reporter.clone(),
             #[cfg(unix)]
             self.connection_fd_callback,
-            shutdown.fork("gateway_transceiver"),
+            shutdown.shutdown_token(),
         )
         .await?;
         let gateway_ws_fd = gateway_transceiver.ws_fd();
@@ -883,7 +877,7 @@ where
         let reply_storage = Self::setup_persistent_reply_storage(
             reply_storage_backend,
             key_rotation_config,
-            shutdown.fork("persistent_reply_storage"),
+            shutdown.shutdown_token(),
         )
         .await?;
 
@@ -893,7 +887,7 @@ where
             mixnet_messages_receiver,
             reply_storage.key_storage(),
             reply_controller_sender.clone(),
-            shutdown.fork("received_messages_buffer"),
+            shutdown.shutdown_token(),
             stats_reporter.clone(),
         );
 
@@ -902,10 +896,8 @@ where
         // traffic stream.
         // The MixTrafficController then sends the actual traffic
 
-        let (message_sender, client_request_sender) = Self::start_mix_traffic_controller(
-            gateway_transceiver,
-            shutdown.fork("mix_traffic_controller"),
-        );
+        let (message_sender, client_request_sender) =
+            Self::start_mix_traffic_controller(gateway_transceiver, shutdown.shutdown_token());
 
         // Channels that the websocket listener can use to signal downstream to the real traffic
         // controller that connections are closed.
@@ -933,7 +925,7 @@ where
             reply_controller_receiver,
             shared_lane_queue_lengths.clone(),
             client_connection_rx,
-            shutdown.fork("real_traffic_controller"),
+            shutdown.shutdown_token(),
             self.config.debug.traffic.packet_type,
             stats_reporter.clone(),
         );
@@ -951,7 +943,7 @@ where
                 shared_topology_accessor.clone(),
                 message_sender,
                 stats_reporter.clone(),
-                shutdown.fork("cover_traffic_stream"),
+                shutdown.shutdown_token(),
             );
         }
 
@@ -979,7 +971,7 @@ where
                 gateway_connection: GatewayConnection { gateway_ws_fd },
             },
             stats_reporter,
-            task_handle: shutdown,
+            shutdown_handle: shutdown.into_internal(),
             client_request_sender,
             forget_me: self.config.debug.forget_me,
             remember_me: self.config.debug.remember_me,
@@ -995,7 +987,7 @@ pub struct BaseClient {
     pub client_state: ClientState,
     pub stats_reporter: ClientStatsSender,
     pub client_request_sender: ClientRequestSender,
-    pub task_handle: TaskHandle,
+    pub shutdown_handle: Option<ShutdownManager>,
     pub forget_me: ForgetMe,
     pub remember_me: RememberMe,
 }

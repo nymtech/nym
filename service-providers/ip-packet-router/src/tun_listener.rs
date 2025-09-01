@@ -5,7 +5,6 @@ use std::collections::HashMap;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
 use nym_ip_packet_requests::IpPair;
-use nym_task::TaskClient;
 #[cfg(target_os = "linux")]
 use tokio::io::AsyncReadExt;
 use tokio::sync::mpsc;
@@ -113,9 +112,9 @@ impl TunListener {
 
     async fn run(mut self) -> Result<()> {
         let mut buf = [0u8; 65535];
-        while !self.task_client.is_shutdown() {
+        while !self.shutdown_token.is_cancelled() {
             tokio::select! {
-                _ = self.task_client.recv() => {
+                _ = self.shutdown_token.cancelled() => {
                     log::trace!("TunListener: received shutdown");
                 },
                 // TODO: ConnectedClientsListener::update should poll the channel instead

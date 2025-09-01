@@ -10,7 +10,7 @@ use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_sphinx::params::PacketType;
 use nym_task::connections::TransmissionLane;
-use nym_task::TaskClient;
+use nym_task::ShutdownToken;
 use rand::{CryptoRng, Rng};
 use tracing::*;
 
@@ -24,7 +24,7 @@ where
     input_receiver: InputMessageReceiver,
     message_handler: MessageHandler<R>,
     reply_controller_sender: ReplyControllerSender,
-    task_client: TaskClient,
+    shutdown_token: ShutdownToken,
 }
 
 impl<R> InputMessageListener<R>
@@ -38,13 +38,13 @@ where
         input_receiver: InputMessageReceiver,
         message_handler: MessageHandler<R>,
         reply_controller_sender: ReplyControllerSender,
-        task_client: TaskClient,
+        shutdown_token: ShutdownToken,
     ) -> Self {
         InputMessageListener {
             input_receiver,
             message_handler,
             reply_controller_sender,
-            task_client,
+            shutdown_token,
         }
     }
 
@@ -72,7 +72,7 @@ where
             self.reply_controller_sender
                 .send_reply(recipient_tag, data, lane, max_retransmissions)
         {
-            if !self.task_client.is_shutdown_poll() {
+            if !self.shutdown_token.is_cancelled() {
                 error!("failed to send a reply - {err}");
             }
         }
@@ -224,10 +224,10 @@ where
     pub(super) async fn run(&mut self) {
         debug!("Started InputMessageListener with graceful shutdown support");
 
-        while !self.task_client.is_shutdown() {
+        while !self.shutdown_token.is_cancelled() {
             tokio::select! {
                 biased;
-                _ = self.task_client.recv() => {
+                _ = self.shutdown_token.cancelled() => {
                     tracing::trace!("InputMessageListener: Received shutdown");
                     break;
                 }
@@ -243,7 +243,6 @@ where
 
             }
         }
-        self.task_client.recv_timeout().await;
         tracing::debug!("InputMessageListener: Exiting");
     }
 }

@@ -8,7 +8,7 @@ use futures::StreamExt;
 use nym_nonexhaustive_delayqueue::{Expired, NonExhaustiveDelayQueue, QueueKey};
 use nym_sphinx::chunking::fragment::FragmentIdentifier;
 use nym_sphinx::Delay as SphinxDelay;
-use nym_task::TaskClient;
+use nym_task::ShutdownToken;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
@@ -103,7 +103,7 @@ pub(super) struct ActionController {
     /// Channel for notifying `RetransmissionRequestListener` about expired acknowledgements.
     retransmission_sender: RetransmissionRequestSender,
 
-    task_client: TaskClient,
+    shutdown_token: ShutdownToken,
 }
 
 impl ActionController {
@@ -111,7 +111,7 @@ impl ActionController {
         config: Config,
         retransmission_sender: RetransmissionRequestSender,
         incoming_actions: AckActionReceiver,
-        task_client: TaskClient,
+        shutdown_token: ShutdownToken,
     ) -> Self {
         ActionController {
             config,
@@ -119,7 +119,7 @@ impl ActionController {
             pending_acks_timers: NonExhaustiveDelayQueue::new(),
             incoming_actions,
             retransmission_sender,
-            task_client,
+            shutdown_token,
         }
     }
 
@@ -230,7 +230,7 @@ impl ActionController {
                 .retransmission_sender
                 .unbounded_send(Arc::downgrade(pending_ack_data))
             {
-                if !self.task_client.is_shutdown_poll() {
+                if !self.shutdown_token.is_cancelled() {
                     tracing::error!("Failed to send pending ack for retransmission: {err}");
                 }
             }
@@ -254,7 +254,7 @@ impl ActionController {
     pub(super) async fn run(&mut self) {
         debug!("Started ActionController with graceful shutdown support");
 
-        while !self.task_client.is_shutdown() {
+        while !self.shutdown_token.is_cancelled() {
             tokio::select! {
                 action = self.incoming_actions.next() => match action {
                     Some(action) => self.process_action(action),
@@ -272,13 +272,12 @@ impl ActionController {
                         break;
                     }
                 },
-                _ = self.task_client.recv() => {
+                _ = self.shutdown_token.cancelled() => {
                     tracing::trace!("ActionController: Received shutdown");
                     break;
                 }
             }
         }
-        self.task_client.recv_timeout().await;
         tracing::debug!("ActionController: Exiting");
     }
 }

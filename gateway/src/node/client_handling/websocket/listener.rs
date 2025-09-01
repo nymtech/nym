@@ -3,7 +3,7 @@
 
 use crate::node::client_handling::websocket::common_state::CommonHandlerState;
 use crate::node::client_handling::websocket::connection_handler::FreshHandler;
-use nym_task::TaskClient;
+use nym_task::ShutdownToken;
 use rand::rngs::OsRng;
 use std::net::SocketAddr;
 use std::{io, process};
@@ -15,7 +15,7 @@ pub struct Listener {
     address: SocketAddr,
     maximum_open_connections: usize,
     shared_state: CommonHandlerState,
-    shutdown: TaskClient,
+    shutdown: ShutdownToken,
 }
 
 impl Listener {
@@ -23,7 +23,7 @@ impl Listener {
         address: SocketAddr,
         maximum_open_connections: usize,
         shared_state: CommonHandlerState,
-        shutdown: TaskClient,
+        shutdown: ShutdownToken,
     ) -> Self {
         Listener {
             address,
@@ -45,15 +45,12 @@ impl Listener {
         socket: TcpStream,
         remote_address: SocketAddr,
     ) -> FreshHandler<OsRng, TcpStream> {
-        let shutdown = self
-            .shutdown
-            .fork(format!("websocket_handler_{remote_address}"));
         FreshHandler::new(
             OsRng,
             socket,
             self.shared_state.clone(),
             remote_address,
-            shutdown,
+            self.shutdown.clone(),
         )
     }
 
@@ -115,10 +112,10 @@ impl Listener {
             }
         };
 
-        while !self.shutdown.is_shutdown() {
+        while !self.shutdown.is_cancelled() {
             tokio::select! {
                 biased;
-                _ = self.shutdown.recv() => {
+                _ = self.shutdown.cancelled() => {
                     trace!("client_handling::Listener: received shutdown");
                 }
                 connection = tcp_listener.accept() => {

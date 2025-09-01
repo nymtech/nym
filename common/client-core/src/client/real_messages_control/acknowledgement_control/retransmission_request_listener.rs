@@ -13,7 +13,7 @@ use futures::StreamExt;
 use nym_sphinx::chunking::fragment::Fragment;
 use nym_sphinx::preparer::PreparedFragment;
 use nym_sphinx::{addressing::clients::Recipient, params::PacketType};
-use nym_task::{connections::TransmissionLane, TaskClient};
+use nym_task::{connections::TransmissionLane, ShutdownToken};
 use rand::{CryptoRng, Rng};
 use std::sync::{Arc, Weak};
 use tracing::*;
@@ -25,7 +25,7 @@ pub(super) struct RetransmissionRequestListener<R> {
     message_handler: MessageHandler<R>,
     request_receiver: RetransmissionRequestReceiver,
     reply_controller_sender: ReplyControllerSender,
-    task_client: TaskClient,
+    shutdown_token: ShutdownToken,
 }
 
 impl<R> RetransmissionRequestListener<R>
@@ -38,7 +38,7 @@ where
         message_handler: MessageHandler<R>,
         request_receiver: RetransmissionRequestReceiver,
         reply_controller_sender: ReplyControllerSender,
-        task_client: TaskClient,
+        shutdown_token: ShutdownToken,
     ) -> Self {
         RetransmissionRequestListener {
             maximum_retransmissions,
@@ -46,7 +46,7 @@ where
             message_handler,
             request_receiver,
             reply_controller_sender,
-            task_client,
+            shutdown_token,
         }
     }
 
@@ -102,7 +102,7 @@ where
                     weak_timed_out_ack,
                     *extra_surb_request,
                 ) {
-                    if !self.task_client.is_shutdown_poll() {
+                    if !self.shutdown_token.is_cancelled() {
                         error!("Failed to send retransmission data to the reply controller: {err}");
                     }
                 }
@@ -157,7 +157,7 @@ where
             .action_sender
             .unbounded_send(Action::new_update_pending_ack(frag_id, new_delay))
         {
-            if !self.task_client.is_shutdown_poll() {
+            if !self.shutdown_token.is_cancelled() {
                 error!("Failed to send update pending ack action to the controller: {err}");
             }
         }
@@ -177,10 +177,10 @@ where
     pub(super) async fn run(&mut self, packet_type: PacketType) {
         debug!("Started RetransmissionRequestListener with graceful shutdown support");
 
-        while !self.task_client.is_shutdown() {
+        while !self.shutdown_token.is_cancelled() {
             tokio::select! {
                 biased;
-                 _ = self.task_client.recv() => {
+                 _ = self.shutdown_token.cancelled() => {
                     tracing::trace!("RetransmissionRequestListener: Received shutdown");
                     break;
                 }
@@ -194,7 +194,6 @@ where
 
             }
         }
-        self.task_client.recv_timeout().await;
         tracing::debug!("RetransmissionRequestListener: Exiting");
     }
 }

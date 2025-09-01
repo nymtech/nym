@@ -188,7 +188,12 @@ impl MixFetchClientBuilder {
             client_input,
             requests: active_requests,
             // this cannot failed as we haven't passed an external task manager
-            _task_manager: Mutex::new(started_client.task_handle.try_into_task_manager().unwrap()),
+            _task_manager: Mutex::new(
+                started_client
+                    .shutdown_handle
+                    .try_into_task_manager()
+                    .unwrap(),
+            ),
         })
     }
 }

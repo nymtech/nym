@@ -22,7 +22,7 @@ use nym_sphinx::addressing::Recipient;
 use nym_statistics_common::clients::{
     ClientStatsController, ClientStatsReceiver, ClientStatsSender,
 };
-use nym_task::{connections::TransmissionLane, TaskClient};
+use nym_task::{connections::TransmissionLane, ShutdownToken};
 use std::time::Duration;
 
 use crate::{
@@ -30,7 +30,7 @@ use crate::{
     spawn_future,
 };
 
-/// Time interval between reporting statistics locally (logging/task_client)
+/// Time interval between reporting statistics locally (logging/shutdown_token)
 const LOCAL_REPORT_INTERVAL: Duration = Duration::from_secs(2);
 /// Interval for taking snapshots of the statistics
 const SNAPSHOT_INTERVAL: Duration = Duration::from_millis(500);
@@ -53,7 +53,7 @@ pub(crate) struct StatisticsControl {
     reporting_config: StatsReporting,
 
     /// Task client for listening for shutdown
-    task_client: TaskClient,
+    shutdown_token: ShutdownToken,
 }
 
 impl StatisticsControl {
@@ -62,14 +62,13 @@ impl StatisticsControl {
         client_type: String,
         client_stats_id: String,
         report_tx: InputMessageSender,
-        task_client: TaskClient,
+        shutdown_token: ShutdownToken,
     ) -> (Self, ClientStatsSender) {
         let (stats_tx, stats_rx) = tokio::sync::mpsc::unbounded_channel();
 
         let stats = ClientStatsController::new(client_stats_id, client_type);
 
-        let mut task_client_stats_sender = task_client.fork("stats_sender");
-        task_client_stats_sender.disarm();
+        let shutdown_token_stats_sender = shutdown_token.clone();
 
         (
             StatisticsControl {
@@ -77,9 +76,9 @@ impl StatisticsControl {
                 stats_rx,
                 report_tx,
                 reporting_config,
-                task_client,
+                shutdown_token,
             },
-            ClientStatsSender::new(Some(stats_tx), task_client_stats_sender),
+            ClientStatsSender::new(Some(stats_tx), shutdown_token_stats_sender),
         )
     }
 
@@ -129,10 +128,10 @@ impl StatisticsControl {
         let mut snapshot_interval =
             gloo_timers::future::IntervalStream::new(SNAPSHOT_INTERVAL.as_millis() as u32);
 
-        while !self.task_client.is_shutdown() {
+        while !self.shutdown_token.is_cancelled() {
             tokio::select! {
                 biased;
-                _ = self.task_client.recv() => {
+                _ = self.shutdown_token.cancelled() => {
                     tracing::trace!("StatisticsControl: Received shutdown");
                     break;
                 },
@@ -157,7 +156,7 @@ impl StatisticsControl {
                 }
 
                 _ = local_report_interval.next() => {
-                    self.stats.local_report(&mut self.task_client);
+                    self.stats.local_report();
                 }
             }
         }
@@ -178,14 +177,14 @@ impl StatisticsControl {
         client_type: String,
         client_stats_id: String,
         report_tx: InputMessageSender,
-        task_client: TaskClient,
+        shutdown_token: ShutdownToken,
     ) -> ClientStatsSender {
         let (controller, sender) = Self::create(
             reporting_config,
             client_type,
             client_stats_id,
             report_tx,
-            task_client,
+            shutdown_token,
         );
         controller.start();
         sender

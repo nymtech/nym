@@ -118,7 +118,7 @@ impl HistoricalUptimeUpdater {
 
     pub(crate) fn start(storage: NymApiStorage, shutdown: &ShutdownManager) {
         let uptime_updater = HistoricalUptimeUpdater::new(storage);
-        let shutdown_listener = shutdown.child_token("uptime-updater");
+        let shutdown_listener = shutdown.child_shutdown_token();
         tokio::spawn(async move { uptime_updater.run(shutdown_listener).await });
     }
 }

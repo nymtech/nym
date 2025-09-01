@@ -163,7 +163,7 @@ pub async fn start_wireguard(
     ecash_manager: Arc<EcashManager>,
     metrics: nym_node_metrics::NymNodeMetrics,
     peers: Vec<Peer>,
-    task_client: nym_task::TaskClient,
+    shutdown_token: nym_task::ShutdownToken,
     wireguard_data: WireguardData,
 ) -> Result<std::sync::Arc<WgApiWrapper>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     use base64::{prelude::BASE64_STANDARD, Engine};
@@ -250,7 +250,7 @@ pub async fn start_wireguard(
         peer_bandwidth_managers,
         wireguard_data.inner.peer_tx.clone(),
         wireguard_data.peer_rx,
-        task_client,
+        shutdown_token,
     );
     tokio::spawn(async move { controller.run().await });
 

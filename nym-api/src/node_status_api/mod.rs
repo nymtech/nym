@@ -50,6 +50,6 @@ pub(crate) fn start_cache_refresh(
         described_cache_cache_listener,
         performance_provider,
     );
-    let shutdown_listener = shutdown_manager.clone_token("node-status-refresher");
+    let shutdown_listener = shutdown_manager.clone_shutdown_token();
     tokio::spawn(async move { nym_api_cache_refresher.run(shutdown_listener).await });
 }

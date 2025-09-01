@@ -9,7 +9,7 @@ use crate::{reply, socks5};
 use async_trait::async_trait;
 use futures::channel::{mpsc, oneshot};
 use futures::stream::StreamExt;
-use log::{debug, warn};
+use log::{debug, error, warn};
 use nym_bin_common::bin_info_owned;
 use nym_client_core::client::mix_traffic::transceiver::GatewayTransceiver;
 use nym_client_core::config::disk_persistence::CommonClientPaths;
@@ -34,8 +34,7 @@ use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nym_sphinx::params::{PacketSize, PacketType};
 use nym_sphinx::receiver::ReconstructedMessage;
 use nym_task::connections::LaneQueueLengths;
-use nym_task::manager::TaskHandle;
-use nym_task::TaskClient;
+use nym_task::ShutdownToken;
 use std::path::Path;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -67,7 +66,7 @@ pub struct NRServiceProviderBuilder {
     wait_for_gateway: bool,
     custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
     custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send + Sync>>,
-    shutdown: Option<TaskClient>,
+    shutdown: ShutdownToken,
     on_start: Option<oneshot::Sender<OnStartData>>,
 }
 
@@ -79,7 +78,7 @@ pub struct NRServiceProvider {
     controller_sender: ControllerSender,
 
     mix_input_sender: MixProxySender<MixnetMessage>,
-    shutdown: TaskHandle,
+    shutdown: ShutdownToken,
 }
 
 #[async_trait]
@@ -148,24 +147,15 @@ impl ServiceProvider<Socks5Request> for NRServiceProvider {
 }
 
 impl NRServiceProviderBuilder {
-    pub fn new(config: Config) -> NRServiceProviderBuilder {
+    pub fn new(config: Config, shutdown: ShutdownToken) -> NRServiceProviderBuilder {
         NRServiceProviderBuilder {
             config,
             wait_for_gateway: false,
             custom_topology_provider: None,
             custom_gateway_transceiver: None,
-            shutdown: None,
+            shutdown,
             on_start: None,
         }
-    }
-
-    #[must_use]
-    // this is a false positive, this method is actually called when used as a library
-    // but clippy complains about it when building the binary
-    #[allow(unused)]
-    pub fn with_shutdown(mut self, shutdown: TaskClient) -> Self {
-        self.shutdown = Some(shutdown);
-        self
     }
 
     #[must_use]
@@ -233,13 +223,10 @@ impl NRServiceProviderBuilder {
 
     /// Start all subsystems
     pub async fn run_service_provider(self) -> Result<(), NetworkRequesterError> {
-        // Used to notify tasks to shutdown. Not all tasks fully supports this (yet).
-        let shutdown: TaskHandle = self.shutdown.map(Into::into).unwrap_or_default();
-
         // Connect to the mixnet
         let mixnet_client = create_mixnet_client(
             &self.config.base,
-            shutdown.get_handle().named("nym_sdk::MixnetClient[NR]"),
+            self.shutdown.clone(),
             self.custom_gateway_transceiver,
             self.custom_topology_provider,
             self.wait_for_gateway,
@@ -254,9 +241,7 @@ impl NRServiceProviderBuilder {
         // Controller for managing all active connections.
         let (mut active_connections_controller, controller_sender) = Controller::new(
             mixnet_client.connection_command_sender(),
-            shutdown
-                .get_handle()
-                .named("nym_socks5_proxy_helpers::connection_controller::Controller"),
+            self.shutdown.clone(),
         );
 
         tokio::spawn(async move {
@@ -285,7 +270,7 @@ impl NRServiceProviderBuilder {
             mixnet_client,
             controller_sender,
             mix_input_sender,
-            shutdown,
+            shutdown: self.shutdown,
         };
 
         log::info!("The address of this client is: {self_address}");
@@ -307,11 +292,11 @@ impl NRServiceProviderBuilder {
 
 impl NRServiceProvider {
     async fn run(&mut self) -> Result<(), NetworkRequesterError> {
-        let mut shutdown = self.shutdown.fork("main_loop");
-        while !shutdown.is_shutdown() {
+        let shutdown = self.shutdown.clone();
+        while !shutdown.is_cancelled() {
             tokio::select! {
                 biased;
-                _ = shutdown.recv() => {
+                _ = shutdown.cancelled() => {
                     debug!("NRServiceProvider [main loop]: received shutdown")
                 },
                 msg = self.mixnet_client.next() => match msg {
@@ -378,7 +363,7 @@ impl NRServiceProvider {
         controller_sender: ControllerSender,
         mix_input_sender: MixProxySender<MixnetMessage>,
         lane_queue_lengths: LaneQueueLengths,
-        mut shutdown: TaskClient,
+        shutdown: ShutdownToken,
     ) {
         let mut conn = match socks5::tcp::Connection::new(
             connection_id,
@@ -390,7 +375,6 @@ impl NRServiceProvider {
             Ok(conn) => conn,
             Err(err) => {
                 log::error!("error while connecting to {remote_addr}: {err}",);
-                shutdown.disarm();
 
                 // inform the remote that the connection is closed before it even was established
                 let mixnet_message = MixnetMessage::new_network_data_response(
@@ -472,10 +456,11 @@ impl NRServiceProvider {
         let controller_sender_clone = self.controller_sender.clone();
         let mix_input_sender_clone = self.mix_input_sender.clone();
         let lane_queue_lengths_clone = self.mixnet_client.shared_lane_queue_lengths();
-        let mut shutdown = self.shutdown.get_handle();
 
         // we're just cloning the underlying pointer, nothing expensive is happening here
         let request_filter = self.request_filter.clone();
+
+        let proxy_shutdown = self.shutdown.clone();
 
         // at this point move it into the separate task
         // because we might have to resolve the underlying address and it can take some time
@@ -491,11 +476,10 @@ impl NRServiceProvider {
                     log_msg,
                 );
 
-                mix_input_sender_clone
-                    .send(error_msg)
-                    .await
-                    .expect("InputMessageReceiver has stopped receiving!");
-                shutdown.disarm();
+                if mix_input_sender_clone.send(error_msg).await.is_err() {
+                    // don't disarm the shutdown, do cause global shutdown here!
+                    error!("InputMessageReceiver has stopped receiving!");
+                }
                 return;
             }
 
@@ -509,7 +493,7 @@ impl NRServiceProvider {
                 controller_sender_clone,
                 mix_input_sender_clone,
                 lane_queue_lengths_clone,
-                shutdown,
+                proxy_shutdown,
             )
             .await
         });
@@ -563,7 +547,7 @@ impl NRServiceProvider {
 // TODO: refactor this function and its arguments
 async fn create_mixnet_client(
     config: &BaseClientConfig,
-    shutdown: TaskClient,
+    shutdown: ShutdownToken,
     custom_transceiver: Option<Box<dyn GatewayTransceiver + Send + Sync>>,
     custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
     wait_for_gateway: bool,

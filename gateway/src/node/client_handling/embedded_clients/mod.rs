@@ -8,7 +8,7 @@ use futures::StreamExt;
 use nym_network_requester::{GatewayPacketRouter, PacketRouter};
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::DestinationAddressBytes;
-use nym_task::TaskClient;
+use nym_task::ShutdownToken;
 use tokio::task::JoinHandle;
 use tracing::{debug, error, trace};
 
@@ -53,7 +53,7 @@ impl MessageRouter {
         }
     }
 
-    pub(crate) fn start_with_shutdown(self, shutdown: TaskClient) -> JoinHandle<()> {
+    pub(crate) fn start_with_shutdown(self, shutdown: ShutdownToken) -> JoinHandle<()> {
         tokio::spawn(self.run_with_shutdown(shutdown))
     }
 
@@ -65,9 +65,9 @@ impl MessageRouter {
         }
     }
 
-    pub(crate) async fn run_with_shutdown(mut self, mut shutdown: TaskClient) {
+    pub(crate) async fn run_with_shutdown(mut self, shutdown: ShutdownToken) {
         debug!("Started embedded client message router with graceful shutdown support");
-        while !shutdown.is_shutdown() {
+        while !shutdown.is_cancelled() {
             tokio::select! {
                 messages = self.mix_receiver.next() => match messages {
                     Some(messages) => self.handle_received_messages(messages),
@@ -76,9 +76,9 @@ impl MessageRouter {
                         break;
                     }
                 },
-                _ = shutdown.recv_with_delay() => {
+                _ = shutdown.cancelled() => {
                     trace!("embedded_clients::MessageRouter: Received shutdown");
-                    debug_assert!(shutdown.is_shutdown());
+                    debug_assert!(shutdown.is_cancelled());
                     break
                 }
             }

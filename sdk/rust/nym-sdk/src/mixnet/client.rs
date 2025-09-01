@@ -8,8 +8,6 @@ use crate::mixnet::{CredentialStorage, MixnetClient, Recipient};
 use crate::GatewayTransceiver;
 use crate::NymNetworkDetails;
 use crate::{Error, Result};
-use futures::channel::mpsc;
-use futures::StreamExt;
 use log::{debug, warn};
 use nym_client_core::client::base_client::storage::helpers::{
     get_active_gateway_identity, get_all_registered_identities, has_gateway_details,
@@ -31,7 +29,7 @@ use nym_client_core::init::types::{GatewaySelectionSpecification, GatewaySetup};
 use nym_credentials_interface::TicketType;
 use nym_crypto::hkdf::DerivationMaterial;
 use nym_socks5_client_core::config::Socks5;
-use nym_task::{TaskClient, TaskHandle, TaskStatus};
+use nym_task::ShutdownToken;
 use nym_topology::provider_trait::TopologyProvider;
 use nym_validator_client::{nyxd, QueryHttpRpcNyxdClient, UserAgent};
 use rand::rngs::OsRng;
@@ -54,7 +52,7 @@ pub struct MixnetClientBuilder<S: MixnetClientStorage = Ephemeral> {
     wait_for_gateway: bool,
     custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
     custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send + Sync>>,
-    custom_shutdown: Option<TaskClient>,
+    custom_shutdown: Option<ShutdownToken>,
     force_tls: bool,
     user_agent: Option<UserAgent>,
     #[cfg(unix)]
@@ -266,7 +264,7 @@ where
 
     /// Use an externally managed shutdown mechanism.
     #[must_use]
-    pub fn custom_shutdown(mut self, shutdown: TaskClient) -> Self {
+    pub fn custom_shutdown(mut self, shutdown: ShutdownToken) -> Self {
         self.custom_shutdown = Some(shutdown);
         self
     }
@@ -380,7 +378,7 @@ where
     force_tls: bool,
 
     /// Allows passing an externally controlled shutdown handle.
-    custom_shutdown: Option<TaskClient>,
+    custom_shutdown: Option<ShutdownToken>,
 
     user_agent: Option<UserAgent>,
 
@@ -740,7 +738,13 @@ where
         let debug_config = self.config.debug_config;
         let packet_type = self.config.debug_config.traffic.packet_type;
         let (mut started_client, nym_address) = self.connect_to_mixnet_common().await?;
-        let (socks5_status_tx, mut socks5_status_rx) = mpsc::channel(128);
+
+        // TODO: more graceful handling here, surely both variants should work... I think?
+        let Some(task_manager) = started_client.shutdown_handle else {
+            return Err(Error::new_unsupported(
+                "connecting with socks5 is currently unsupported with custom shutdown",
+            ));
+        };
 
         let client_input = started_client.client_input.register_producer();
         let client_output = started_client.client_output.register_consumer();
@@ -753,40 +757,14 @@ where
             client_output,
             client_state.clone(),
             nym_address,
-            started_client.task_handle.get_handle(),
+            task_manager.child_shutdown_token(),
             packet_type,
         );
-
-        // TODO: more graceful handling here, surely both variants should work... I think?
-        if let TaskHandle::Internal(task_manager) = &mut started_client.task_handle {
-            task_manager
-                .start_status_listener(socks5_status_tx, TaskStatus::Ready)
-                .await;
-            match socks5_status_rx
-                .next()
-                .await
-                .ok_or(Error::Socks5NotStarted)?
-                .as_any()
-                .downcast_ref::<TaskStatus>()
-                .ok_or(Error::Socks5NotStarted)?
-            {
-                TaskStatus::Ready => {
-                    log::debug!("Socks5 connected");
-                }
-                TaskStatus::ReadyWithGateway(gateway) => {
-                    log::debug!("Socks5 connected to {gateway}");
-                }
-            }
-        } else {
-            return Err(Error::new_unsupported(
-                "connecting with socks5 is currently unsupported with custom shutdown",
-            ));
-        }
 
         Ok(Socks5MixnetClient {
             nym_address,
             client_state,
-            task_handle: started_client.task_handle,
+            task_handle: task_manager,
             socks5_config,
         })
     }
@@ -833,7 +811,7 @@ where
             client_state,
             reconstructed_receiver,
             stats_events_reporter,
-            started_client.task_handle,
+            started_client.shutdown_handle,
             None,
             started_client.client_request_sender,
             started_client.forget_me,

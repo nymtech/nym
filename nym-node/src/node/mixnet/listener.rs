@@ -17,7 +17,7 @@ impl Listener {
     pub(crate) fn new(bind_address: SocketAddr, shared_data: SharedData) -> Self {
         Listener {
             bind_address,
-            shutdown: shared_data.shutdown.clone_with_suffix("socket-listener"),
+            shutdown: shared_data.shutdown.clone(),
             shared_data,
         }
     }

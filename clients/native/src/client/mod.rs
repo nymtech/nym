@@ -11,7 +11,7 @@ use nym_client_core::client::base_client::{
     BaseClientBuilder, ClientInput, ClientOutput, ClientState,
 };
 use nym_sphinx::params::PacketType;
-use nym_task::TaskHandle;
+use nym_task::ShutdownManager;
 use nym_validator_client::QueryHttpRpcNyxdClient;
 use std::error::Error;
 use std::path::PathBuf;
@@ -29,6 +29,8 @@ pub struct SocketClient {
 
     /// Optional path to a .json file containing standalone network details.
     custom_mixnet: Option<PathBuf>,
+
+    shutdown_manager: ShutdownManager,
 }
 
 impl SocketClient {
@@ -40,6 +42,7 @@ impl SocketClient {
         SocketClient {
             config,
             custom_mixnet,
+            shutdown_manager: Default::default(),
         }
     }
 
@@ -49,7 +52,7 @@ impl SocketClient {
         client_output: ClientOutput,
         client_state: ClientState,
         self_address: &Recipient,
-        task_client: nym_task::TaskClient,
+        shutdown_token: nym_task::ShutdownToken,
         packet_type: PacketType,
     ) {
         info!("Starting websocket listener...");
@@ -77,13 +80,13 @@ impl SocketClient {
             shared_lane_queue_lengths,
             reply_controller_sender,
             Some(packet_type),
-            task_client.fork("websocket_handler"),
+            shutdown_token.clone(),
         );
 
         websocket::Listener::new(
             config.socket.host,
             config.socket.listening_port,
-            task_client.with_suffix("websocket_listener"),
+            shutdown_token.child_token(),
         )
         .start(websocket_handler);
     }
@@ -92,9 +95,9 @@ impl SocketClient {
     pub async fn run_socket_forever(self) -> Result<(), Box<dyn Error + Send + Sync>> {
         let shutdown = self.start_socket().await?;
 
-        let res = shutdown.wait_for_shutdown().await;
+        shutdown.run_until_shutdown().await;
         log::info!("Stopping nym-client");
-        res
+        Ok(())
     }
 
     async fn initialise_storage(&self) -> Result<OnDiskPersistent, ClientError> {
@@ -119,6 +122,7 @@ impl SocketClient {
 
         let mut base_client =
             BaseClientBuilder::new(self.config().base(), storage, dkg_query_client)
+                .with_shutdown(self.shutdown_manager.child_shutdown_token())
                 .with_user_agent(user_agent);
 
         if let Some(custom_mixnet) = &self.custom_mixnet {
@@ -128,7 +132,7 @@ impl SocketClient {
         Ok(base_client)
     }
 
-    pub async fn start_socket(self) -> Result<TaskHandle, ClientError> {
+    pub async fn start_socket(self) -> Result<ShutdownManager, ClientError> {
         if !self.config.socket.socket_type.is_websocket() {
             return Err(ClientError::InvalidSocketMode);
         }
@@ -147,13 +151,13 @@ impl SocketClient {
             client_output,
             client_state,
             &self_address,
-            started_client.task_handle.get_handle(),
+            self.shutdown_manager.child_shutdown_token(),
             packet_type,
         );
 
         info!("Client startup finished!");
         info!("The address of this client is: {self_address}");
 
-        Ok(started_client.task_handle)
+        Ok(self.shutdown_manager)
     }
 }

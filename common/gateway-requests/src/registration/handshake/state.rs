@@ -24,7 +24,7 @@ use tracing::log::*;
 use tungstenite::Message as WsMessage;
 
 #[cfg(not(target_arch = "wasm32"))]
-use nym_task::TaskClient;
+use nym_task::ShutdownToken;
 
 #[cfg(not(target_arch = "wasm32"))]
 use tokio::time::timeout;
@@ -63,7 +63,7 @@ pub(crate) struct State<'a, S, R> {
 
     // channel to receive shutdown signal
     #[cfg(not(target_arch = "wasm32"))]
-    shutdown: TaskClient,
+    shutdown_token: ShutdownToken,
 }
 
 impl<'a, S, R> State<'a, S, R> {
@@ -72,7 +72,7 @@ impl<'a, S, R> State<'a, S, R> {
         ws_stream: &'a mut S,
         identity: &'a ed25519::KeyPair,
         remote_pubkey: Option<ed25519::PublicKey>,
-        #[cfg(not(target_arch = "wasm32"))] shutdown: TaskClient,
+        #[cfg(not(target_arch = "wasm32"))] shutdown_token: ShutdownToken,
     ) -> Self
     where
         R: CryptoRng + RngCore,
@@ -89,7 +89,7 @@ impl<'a, S, R> State<'a, S, R> {
             expects_credential_usage: false,
             derive_aes256_gcm_siv_key: false,
             #[cfg(not(target_arch = "wasm32"))]
-            shutdown,
+            shutdown_token,
         }
     }
 
@@ -306,7 +306,7 @@ impl<'a, S, R> State<'a, S, R> {
         loop {
             tokio::select! {
                 biased;
-                _ = self.shutdown.recv() => return Err(HandshakeError::ReceivedShutdown),
+                _ = self.shutdown_token.cancelled() => return Err(HandshakeError::ReceivedShutdown),
                 msg = self.ws_stream.next() => {
                     let Some(ret) = Self::on_wg_msg(msg)? else {
                         continue;

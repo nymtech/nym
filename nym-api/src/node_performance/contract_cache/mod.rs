@@ -45,7 +45,7 @@ pub(crate) async fn start_cache_refresher(
     .with_update_fn(move |main_cache, update| {
         refresher_update_fn(main_cache, update, values_to_retain)
     })
-    .start(shutdown_manager.clone_token("performance-contract-cache-refresher"));
+    .start(shutdown_manager.clone_shutdown_token());
 
     Ok(warmed_up_cache)
 }

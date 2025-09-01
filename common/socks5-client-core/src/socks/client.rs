@@ -21,7 +21,7 @@ use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::params::PacketSize;
 use nym_sphinx::params::PacketType;
 use nym_task::connections::{LaneQueueLengths, TransmissionLane};
-use nym_task::TaskClient;
+use nym_task::ShutdownToken;
 use pin_project::pin_project;
 use rand::RngCore;
 use std::io;
@@ -185,7 +185,7 @@ pub(crate) struct SocksClient {
     self_address: Recipient,
     started_proxy: bool,
     lane_queue_lengths: LaneQueueLengths,
-    shutdown_listener: TaskClient,
+    shutdown_listener: ShutdownToken,
     packet_type: Option<PacketType>,
 }
 
@@ -214,12 +214,9 @@ impl SocksClient {
         controller_sender: ControllerSender,
         self_address: &Recipient,
         lane_queue_lengths: LaneQueueLengths,
-        mut shutdown_listener: TaskClient,
+        shutdown_listener: ShutdownToken,
         packet_type: Option<PacketType>,
     ) -> Self {
-        // If this task fails and exits, we don't want to send shutdown signal
-        shutdown_listener.disarm();
-
         let connection_id = Self::generate_random();
 
         SocksClient {
@@ -294,7 +291,6 @@ impl SocksClient {
             .shutdown()
             .await
             .map_err(|source| SocksProxyError::SocketShutdownFailure { source })?;
-        self.shutdown_listener.disarm();
         Ok(())
     }
 

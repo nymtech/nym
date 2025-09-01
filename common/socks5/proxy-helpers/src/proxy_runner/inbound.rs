@@ -11,7 +11,7 @@ use log::*;
 use nym_socks5_requests::{ConnectionId, SocketData};
 use nym_task::connections::LaneQueueLengths;
 use nym_task::connections::TransmissionLane;
-use nym_task::TaskClient;
+use nym_task::ShutdownToken;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::select;
@@ -81,7 +81,7 @@ pub(super) async fn run_inbound<F, S>(
     available_plaintext_per_mix_packet: usize,
     shutdown_notify: Arc<Notify>,
     lane_queue_lengths: Option<LaneQueueLengths>,
-    mut shutdown_listener: TaskClient,
+    shutdown_listener: ShutdownToken,
 ) -> OwnedReadHalf
 where
     F: Fn(SocketData) -> S + Send + 'static,
@@ -129,7 +129,7 @@ where
                 message_sender.send_empty_close().await;
                 break;
             }
-            _ = shutdown_listener.recv() => {
+            _ = shutdown_listener.cancelled() => {
                 log::trace!("ProxyRunner inbound: Received shutdown");
                 break;
             }
@@ -171,6 +171,5 @@ where
     trace!("{connection_id} - inbound closed");
     shutdown_notify.notify_one();
 
-    shutdown_listener.disarm();
     reader
 }

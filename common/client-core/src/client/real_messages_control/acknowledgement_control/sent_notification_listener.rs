@@ -5,7 +5,7 @@ use super::action_controller::{AckActionSender, Action};
 use super::SentPacketNotificationReceiver;
 use futures::StreamExt;
 use nym_sphinx::chunking::fragment::{FragmentIdentifier, COVER_FRAG_ID};
-use nym_task::TaskClient;
+use nym_task::ShutdownToken;
 use tracing::*;
 
 /// Module responsible for starting up retransmission timers.
@@ -15,19 +15,19 @@ use tracing::*;
 pub(super) struct SentNotificationListener {
     sent_notifier: SentPacketNotificationReceiver,
     action_sender: AckActionSender,
-    task_client: TaskClient,
+    shutdown_token: ShutdownToken,
 }
 
 impl SentNotificationListener {
     pub(super) fn new(
         sent_notifier: SentPacketNotificationReceiver,
         action_sender: AckActionSender,
-        task_client: TaskClient,
+        shutdown_token: ShutdownToken,
     ) -> Self {
         SentNotificationListener {
             sent_notifier,
             action_sender,
-            task_client,
+            shutdown_token,
         }
     }
 
@@ -40,7 +40,7 @@ impl SentNotificationListener {
             .action_sender
             .unbounded_send(Action::new_start_timer(frag_id))
         {
-            if !self.task_client.is_shutdown_poll() {
+            if !self.shutdown_token.is_cancelled() {
                 error!("Failed to send start timer action to action controller: {err}");
             }
         }
@@ -49,7 +49,7 @@ impl SentNotificationListener {
     pub(super) async fn run(&mut self) {
         debug!("Started SentNotificationListener with graceful shutdown support");
 
-        while !self.task_client.is_shutdown() {
+        while !self.shutdown_token.is_cancelled() {
             tokio::select! {
                 frag_id = self.sent_notifier.next() => match frag_id {
                     Some(frag_id) => {
@@ -60,13 +60,13 @@ impl SentNotificationListener {
                         break;
                     }
                 },
-                _ = self.task_client.recv() => {
+                _ = self.shutdown_token.cancelled() => {
                     tracing::trace!("SentNotificationListener: Received shutdown");
                     break;
                 }
             }
         }
-        assert!(self.task_client.is_shutdown_poll());
+        assert!(self.shutdown_token.is_cancelled());
         tracing::debug!("SentNotificationListener: Exiting");
     }
 }

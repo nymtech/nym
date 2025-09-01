@@ -60,7 +60,7 @@ async fn run(
     let nym_api = nym_http_api_client::ClientBuilder::new_with_urls(vec![default_api_url.into()])
         .no_hickory_dns()
         .with_timeout(nym_api_client_timeout)
-        .build::<&str>()?;
+        .build()?;
 
     //SW TBC what nodes exactly need to be scraped, the skimmed node endpoint seems to return more nodes
     let bonded_nodes = nym_api.get_all_bonded_nym_nodes().await?;

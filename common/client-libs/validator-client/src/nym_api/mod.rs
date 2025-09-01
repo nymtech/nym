@@ -275,9 +275,7 @@ pub trait NymApiClientExt: ApiClient {
                 // Create a custom error for inconsistent metadata
                 return Err(NymAPIError::EndpointFailure {
                     status: reqwest::StatusCode::INTERNAL_SERVER_ERROR,
-                    error: nym_api_requests::models::RequestError::new(
-                        "Inconsistent paged metadata",
-                    ),
+                    error: "Inconsistent paged metadata".to_string(),
                 });
             }
 
@@ -318,9 +316,7 @@ pub trait NymApiClientExt: ApiClient {
             if !metadata.consistency_check(&res.metadata) {
                 return Err(NymAPIError::EndpointFailure {
                     status: reqwest::StatusCode::INTERNAL_SERVER_ERROR,
-                    error: nym_api_requests::models::RequestError::new(
-                        "Inconsistent paged metadata",
-                    ),
+                    error: "Inconsistent paged metadata".to_string(),
                 });
             }
 
@@ -363,9 +359,7 @@ pub trait NymApiClientExt: ApiClient {
             if !metadata.consistency_check(&res.metadata) {
                 return Err(NymAPIError::EndpointFailure {
                     status: reqwest::StatusCode::INTERNAL_SERVER_ERROR,
-                    error: nym_api_requests::models::RequestError::new(
-                        "Inconsistent paged metadata",
-                    ),
+                    error: "Inconsistent paged metadata".to_string(),
                 });
             }
 

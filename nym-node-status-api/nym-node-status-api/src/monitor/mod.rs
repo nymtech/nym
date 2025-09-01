@@ -109,7 +109,7 @@ impl Monitor {
             nym_http_api_client::ClientBuilder::new_with_urls(vec![default_api_url.into()])
                 .no_hickory_dns()
                 .with_timeout(self.nym_api_client_timeout)
-                .build::<&str>()?;
+                .build()?;
 
         let described_nodes = nym_api
             .get_all_described_nodes()

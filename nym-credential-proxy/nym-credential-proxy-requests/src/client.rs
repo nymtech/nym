@@ -97,7 +97,7 @@ impl NymVpnApiClient for VpnApiClient {
     {
         let req = self
             .inner
-            .create_get_request(path, NO_PARAMS)
+            .create_get_request(path, NO_PARAMS)?
             .bearer_auth(&self.bearer_token)
             .send();
 
@@ -129,7 +129,7 @@ impl NymVpnApiClient for VpnApiClient {
     {
         let req = self
             .inner
-            .create_post_request(path, params, json_body)
+            .create_post_request(path, params, json_body)?
             .bearer_auth(&self.bearer_token)
             .send();
 

@@ -91,13 +91,10 @@ impl TryFrom<ContractVKShare> for EcashApiClient {
         // In non-client applications this resolver can cause warning logs about H2 connection
         // failure. This indicates that the long lived https connection was closed by the remote
         // peer and the resolver will have to reconnect. It should not impact actual functionality
-        let api_client = nym_http_api_client::Client::builder::<
-            _,
-            nym_api_requests::models::RequestError,
-        >(url_address)
-        .map_err(|e| EcashApiError::ClientError(e.to_string()))?
-        .build::<nym_api_requests::models::RequestError>()
-        .map_err(|e| EcashApiError::ClientError(e.to_string()))?;
+        let api_client = nym_http_api_client::Client::builder(url_address)
+            .map_err(|e| EcashApiError::ClientError(e.to_string()))?
+            .build()
+            .map_err(|e| EcashApiError::ClientError(e.to_string()))?;
 
         Ok(EcashApiClient {
             api_client,

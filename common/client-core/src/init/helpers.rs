@@ -156,13 +156,11 @@ pub async fn gateways_for_init<R: Rng>(
         builder = builder.with_user_agent(user_agent);
     }
 
-    let client = builder
-        .build::<nym_validator_client::models::RequestError>()
-        .map_err(|e| {
-            ClientCoreError::ValidatorClientError(
-                nym_validator_client::ValidatorClientError::NymAPIError { source: e },
-            )
-        })?;
+    let client = builder.build().map_err(|e| {
+        ClientCoreError::ValidatorClientError(
+            nym_validator_client::ValidatorClientError::NymAPIError { source: e },
+        )
+    })?;
 
     tracing::debug!("Fetching list of gateways from: {nym_api}");
 

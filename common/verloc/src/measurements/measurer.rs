@@ -135,17 +135,15 @@ impl VerlocMeasurer {
         let mut api_endpoints = self.config.nym_api_urls.clone();
         api_endpoints.shuffle(&mut thread_rng());
         for api_endpoint in api_endpoints {
-            let client =
-                match nym_http_api_client::Client::builder(api_endpoint.clone()).and_then(|b| {
-                    b.with_user_agent(self.config.user_agent.clone())
-                        .build::<nym_api_requests::models::RequestError>()
-                }) {
-                    Ok(c) => c,
-                    Err(err) => {
-                        warn!("failed to create client for {api_endpoint}: {err}");
-                        continue;
-                    }
-                };
+            let client = match nym_http_api_client::Client::builder(api_endpoint.clone())
+                .and_then(|b| b.with_user_agent(self.config.user_agent.clone()).build())
+            {
+                Ok(c) => c,
+                Err(err) => {
+                    warn!("failed to create client for {api_endpoint}: {err}");
+                    continue;
+                }
+            };
             match client.get_all_described_nodes().await {
                 Ok(res) => return Some(res),
                 Err(err) => {

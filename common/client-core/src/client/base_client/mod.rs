@@ -756,23 +756,24 @@ where
         let mut nym_api_urls = config.get_nym_api_endpoints();
         nym_api_urls.shuffle(&mut thread_rng());
 
-        let mut builder = nym_http_api_client::Client::builder::<
-            _,
-            nym_validator_client::models::RequestError,
-        >(nym_api_urls[0].clone())
-        .map_err(|e| ClientCoreError::NymApiQueryFailure {
-            source: nym_validator_client::nym_api::error::NymAPIError::GenericRequestFailure(
-                e.to_string(),
-            ),
-        })?;
+        let mut builder =
+            nym_http_api_client::Client::builder(nym_api_urls[0].clone()).map_err(|e| {
+                ClientCoreError::NymApiQueryFailure {
+                    source:
+                        nym_validator_client::nym_api::error::NymAPIError::GenericRequestFailure(
+                            e.to_string(),
+                        ),
+                }
+            })?;
 
         if let Some(user_agent) = user_agent {
             builder = builder.with_user_agent(user_agent);
         }
 
+        builder = builder.with_bincode();
+
         builder
-            .with_bincode()
-            .build::<nym_validator_client::models::RequestError>()
+            .build()
             .map_err(|e| ClientCoreError::NymApiQueryFailure {
                 source: nym_validator_client::nym_api::error::NymAPIError::GenericRequestFailure(
                     e.to_string(),

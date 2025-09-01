@@ -140,7 +140,7 @@ impl NyxdClient {
                 };
 
                 let api_client = match nym_http_api_client::Client::builder(api_address)
-                    .and_then(|b| b.build::<nym_validator_client::models::RequestError>())
+                    .and_then(|b| b.build())
                 {
                     Ok(client) => client,
                     Err(err) => {

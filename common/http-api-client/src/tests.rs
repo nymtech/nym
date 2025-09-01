@@ -97,7 +97,7 @@ async fn api_client_retry() -> Result<(), Box<dyn std::error::Error>> {
     .with_retries(3)
     .build::<HttpClientError>()?;
 
-    let req = client.create_get_request(&["/"], NO_PARAMS);
+    let req = client.create_get_request(&["/"], NO_PARAMS).unwrap();
     let resp = client.send::<HttpClientError>(req).await?;
 
     assert_eq!(resp.status(), 200);

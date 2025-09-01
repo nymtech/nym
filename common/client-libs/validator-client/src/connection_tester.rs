@@ -89,9 +89,7 @@ fn setup_connection_tests<H: BuildHasher + 'static>(
     });
 
     let api_connection_test_clients = api_urls.filter_map(|(network, url)| {
-        match nym_http_api_client::Client::builder(url.clone())
-            .and_then(|b| b.build::<nym_api_requests::models::RequestError>())
-        {
+        match nym_http_api_client::Client::builder(url.clone()).and_then(|b| b.build()) {
             Ok(client) => Some(ClientForConnectionTest::Api(network, url, client)),
             Err(err) => {
                 eprintln!(

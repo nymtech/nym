@@ -101,10 +101,10 @@ impl NetworkRefresher {
     }
 
     fn build_http_api_client(url: Url) -> Result<Client> {
-        Ok(Client::builder::<_, anyhow::Error>(url)?
+        Ok(Client::builder(url)?
             .no_hickory_dns()
             .with_user_agent("node-statistics-api")
-            .build::<anyhow::Error>()?)
+            .build()?)
     }
 
     async fn refresh_network_nodes(&mut self) -> Result<()> {

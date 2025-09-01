@@ -21,19 +21,22 @@ use std::fmt::Display;
 use tokio::task::JoinHandle;
 use tracing::error;
 
-pub use nym_client_core::client::{
-    base_client::{
-        non_wasm_helpers::{setup_fs_gateways_storage, setup_fs_reply_surb_backend},
-        storage::{
-            gateways_storage::{
-                CustomGatewayDetails, GatewayDetails, GatewayRegistration, RemoteGatewayDetails,
+pub use nym_client_core::{
+    client::{
+        base_client::{
+            non_wasm_helpers::{setup_fs_gateways_storage, setup_fs_reply_surb_backend},
+            storage::{
+                gateways_storage::{
+                    CustomGatewayDetails, GatewayDetails, GatewayRegistration, RemoteGatewayDetails,
+                },
+                helpers::{set_active_gateway, store_gateway_details},
+                GatewaysDetailsStore, OnDiskGatewaysDetails, OnDiskPersistent,
             },
-            helpers::{set_active_gateway, store_gateway_details},
-            GatewaysDetailsStore, OnDiskGatewaysDetails, OnDiskPersistent,
         },
+        key_manager::persistence::OnDiskKeys,
+        mix_traffic::transceiver::*,
     },
-    key_manager::persistence::OnDiskKeys,
-    mix_traffic::transceiver::*,
+    error::ClientCoreError,
 };
 
 pub mod authenticator;

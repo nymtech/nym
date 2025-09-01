@@ -9,6 +9,7 @@ use nym_gateway::node::{
 };
 use nym_gateway::nym_authenticator;
 use nym_gateway::nym_network_requester;
+use nym_gateway::service_providers::ip_packet_router;
 
 // a temporary solution until further refactoring is made
 fn ephemeral_gateway_config(config: &Config) -> nym_gateway::config::Config {
@@ -136,12 +137,12 @@ pub fn gateway_tasks_config(config: &Config) -> GatewayTasksConfig {
         .unwrap();
 
     let mut ipr_opts = LocalIpPacketRouterOpts {
-        config: nym_ip_packet_router::Config {
+        config: ip_packet_router::Config {
             base: nym_client_core_config_types::Config {
                 client: base_client_config(config),
                 debug: config.service_providers.ip_packet_router.debug.client_debug,
             },
-            ip_packet_router: nym_ip_packet_router::config::IpPacketRouter {
+            ip_packet_router: ip_packet_router::config::IpPacketRouter {
                 disable_poisson_rate: config
                     .service_providers
                     .ip_packet_router
@@ -151,7 +152,7 @@ pub fn gateway_tasks_config(config: &Config) -> GatewayTasksConfig {
                     config.service_providers.upstream_exit_policy_url.clone(),
                 ),
             },
-            storage_paths: nym_ip_packet_router::config::IpPacketRouterPaths {
+            storage_paths: ip_packet_router::config::IpPacketRouterPaths {
                 common_paths: config
                     .service_providers
                     .storage_paths

@@ -1,10 +1,11 @@
-use crate::service_providers::ip_packet_router::config::persistence::IpPacketRouterPaths;
 use nym_bin_common::logging::LoggingSettings;
-pub use nym_client_core::config::Config as BaseClientConfig;
 use nym_network_defaults::mainnet;
 use url::Url;
 
 mod persistence;
+
+pub use crate::service_providers::ip_packet_router::config::persistence::IpPacketRouterPaths;
+pub use nym_client_core::config::Config as BaseClientConfig;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Config {

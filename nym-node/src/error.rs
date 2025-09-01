@@ -3,8 +3,8 @@
 
 use crate::node::http::error::NymNodeHttpError;
 use crate::wireguard::error::WireguardError;
+use nym_gateway::service_providers::ClientCoreError;
 use nym_http_api_client::HttpClientError;
-use nym_ip_packet_router::error::ClientCoreError;
 use nym_validator_client::nyxd::error::NyxdError;
 use nym_validator_client::ValidatorClientError;
 use std::io;

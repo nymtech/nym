@@ -7,7 +7,7 @@
 use crate::nodes::{NodeIdentity, NODE_IDENTITY_SIZE};
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_sphinx_types::Destination;
-use serde::de::{Error as SerdeError, Unexpected, Visitor};
+use serde::de::{Error as SerdeError, SeqAccess, Unexpected, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt::{self, Formatter};
 use std::str::FromStr;
@@ -64,7 +64,7 @@ impl<'de> Deserialize<'de> for Recipient {
     {
         struct RecipientVisitor;
 
-        impl Visitor<'_> for RecipientVisitor {
+        impl<'de> Visitor<'de> for RecipientVisitor {
             type Value = Recipient;
 
             fn expecting(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
@@ -82,6 +82,42 @@ impl<'de> Deserialize<'de> for Recipient {
                 let mut recipient_bytes = [0u8; Recipient::LEN];
                 // this shouldn't panic as we just checked for length
                 recipient_bytes.copy_from_slice(bytes);
+
+                Recipient::try_from_bytes(recipient_bytes).map_err(|_| {
+                    SerdeError::invalid_value(
+                        Unexpected::Other("At least one of the curve points was malformed"),
+                        &self,
+                    )
+                })
+            }
+
+            fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+            where
+                A: SeqAccess<'de>,
+            {
+                // if we know the size hint, check if it matches expectation,
+                // otherwise return an error
+                if let Some(size_hint) = seq.size_hint() {
+                    if size_hint != Recipient::LEN {
+                        return Err(SerdeError::invalid_length(size_hint, &self));
+                    }
+                }
+
+                let mut recipient_bytes = [0u8; Recipient::LEN];
+
+                // clippy's suggestion is completely wrong and it iterates wrong sequence
+                #[allow(clippy::needless_range_loop)]
+                for i in 0..Recipient::LEN {
+                    let Some(elem) = seq.next_element::<u8>()? else {
+                        return Err(SerdeError::invalid_length(i + 1, &self));
+                    };
+                    recipient_bytes[i] = elem;
+                }
+
+                // make sure there are no trailing bytes
+                if seq.next_element::<u8>()?.is_some() {
+                    return Err(SerdeError::invalid_length(Recipient::LEN + 1, &self));
+                }
 
                 Recipient::try_from_bytes(recipient_bytes).map_err(|_| {
                     SerdeError::invalid_value(
@@ -245,6 +281,18 @@ impl FromStr for Recipient {
 mod tests {
     use super::*;
 
+    fn mock_recipient() -> Recipient {
+        Recipient::try_from_bytes([
+            67, 5, 132, 146, 3, 236, 116, 89, 254, 57, 131, 159, 69, 181, 55, 208, 12, 108, 136,
+            83, 58, 76, 171, 195, 31, 98, 92, 64, 68, 53, 156, 184, 100, 189, 73, 3, 238, 103, 156,
+            108, 124, 199, 42, 79, 172, 98, 81, 177, 182, 100, 167, 164, 74, 183, 199, 213, 162,
+            173, 102, 112, 30, 159, 148, 66, 44, 75, 230, 182, 138, 114, 170, 163, 209, 82, 204,
+            100, 118, 91, 57, 150, 212, 147, 151, 135, 148, 16, 213, 223, 182, 164, 242, 37, 40,
+            73, 137, 228,
+        ])
+        .unwrap()
+    }
+
     #[test]
     fn string_conversion_works() {
         let mut rng = rand::thread_rng();
@@ -307,5 +355,41 @@ mod tests {
             recipient.gateway.to_bytes(),
             recovered_recipient.gateway.to_bytes()
         );
+    }
+
+    // calls `visit_bytes`
+    #[test]
+    fn bincode_serialisation_works() {
+        let recipient = mock_recipient();
+
+        #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq)]
+        struct MyStruct {
+            recipient: Recipient,
+        }
+        let a = MyStruct { recipient };
+        let s = bincode::serialize(&a).unwrap();
+
+        let b = bincode::deserialize(&s).unwrap();
+
+        assert_eq!(a, b);
+    }
+
+    // calls `visit_seq`
+    #[test]
+    fn json_serialisation_works() {
+        use serde::{Deserialize, Serialize};
+
+        let recipient = mock_recipient();
+
+        #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq)]
+        struct MyStruct {
+            recipient: Recipient,
+        }
+        let a = MyStruct { recipient };
+        let s = serde_json::to_string(&a).unwrap();
+
+        let b = serde_json::from_str(&s).unwrap();
+
+        assert_eq!(a, b);
     }
 }

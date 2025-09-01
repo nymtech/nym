@@ -585,14 +585,12 @@ pub async fn get_nym_node_description(
     port: u16,
 ) -> Result<NodeDescription, BackendError> {
     Ok(
-        nym_node_requests::api::Client::builder(format!(
-            "http://{host}:{port}"
-        ))?
-        .with_timeout(Duration::from_millis(1000))
-        .with_user_agent(format!("nym-wallet/{}", env!("CARGO_PKG_VERSION")))
-        .build()?
-        .get_description()
-        .await?,
+        nym_node_requests::api::Client::builder(format!("http://{host}:{port}"))?
+            .with_timeout(Duration::from_millis(1000))
+            .with_user_agent(format!("nym-wallet/{}", env!("CARGO_PKG_VERSION")))
+            .build()?
+            .get_description()
+            .await?,
     )
 }
 

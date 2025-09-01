@@ -9,7 +9,6 @@ use crate::{reply, socks5};
 use async_trait::async_trait;
 use futures::channel::{mpsc, oneshot};
 use futures::stream::StreamExt;
-use log::{debug, warn};
 use nym_bin_common::build_information::BinaryBuildInformation;
 use nym_client_core::client::mix_traffic::transceiver::GatewayTransceiver;
 use nym_client_core::config::disk_persistence::CommonClientPaths;
@@ -38,6 +37,7 @@ use nym_task::manager::TaskHandle;
 use nym_task::TaskClient;
 use std::path::Path;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use tracing::{debug, warn};
 
 // Since it's an atomic, it's safe to be kept static and shared across threads
 static ACTIVE_PROXIES: AtomicUsize = AtomicUsize::new(0);
@@ -94,7 +94,7 @@ impl ServiceProvider<Socks5Request> for NRServiceProvider {
         request: Request<Socks5Request>,
     ) -> Result<(), Self::ServiceProviderError> {
         // TODO: this should perhaps be parallelised
-        log::debug!("on_request {:?}", request);
+        tracing::debug!("on_request {:?}", request);
         if let Some(response) = self.handle_request(sender, request).await? {
             // TODO: this (i.e. `reply::MixnetAddress`) should be incorporated into the actual interface
             if let Some(return_address) = reply::MixnetAddress::new(None, sender) {
@@ -125,12 +125,12 @@ impl ServiceProvider<Socks5Request> for NRServiceProvider {
         request: Socks5Request,
         interface_version: ProviderInterfaceVersion,
     ) -> Result<Option<Socks5Response>, Self::ServiceProviderError> {
-        log::debug!("handle_provider_data_request {:?}", request);
+        tracing::debug!("handle_provider_data_request {:?}", request);
 
         // TODO: streamline this a bit more
         let request_version = RequestVersion::new(interface_version, request.protocol_version);
 
-        log::debug!(
+        tracing::debug!(
             "received request of version {:?} (interface) / {:?} (socks5)",
             interface_version,
             request.protocol_version
@@ -295,8 +295,8 @@ impl NRServiceProviderBuilder {
             shutdown,
         };
 
-        log::info!("The address of this client is: {self_address}");
-        log::info!("All systems go. Press CTRL-C to stop the server.");
+        tracing::info!("The address of this client is: {self_address}");
+        tracing::info!("All systems go. Press CTRL-C to stop the server.");
 
         if let Some(on_start) = self.on_start {
             if on_start
@@ -324,7 +324,7 @@ impl NRServiceProvider {
                 msg = self.mixnet_client.next() => match msg {
                     Some(msg) => self.on_message(msg).await,
                     None => {
-                        log::trace!("NRServiceProvider::run: Stopping since channel closed");
+                        tracing::trace!("NRServiceProvider::run: Stopping since channel closed");
                         break;
                     }
                 },
@@ -340,7 +340,7 @@ impl NRServiceProvider {
             Ok(req) => req,
             Err(err) => {
                 // TODO: or should it even be further lowered to debug/trace?
-                log::warn!("Failed to deserialize received message: {err}");
+                tracing::warn!("Failed to deserialize received message: {err}");
                 return;
             }
         };
@@ -349,7 +349,7 @@ impl NRServiceProvider {
             // TODO: again, should it be a warning?
             // we should also probably log some information regarding the origin of the request
             // so that it would be easier to debug it
-            log::warn!("failed to resolve the received request: {err}");
+            tracing::warn!("failed to resolve the received request: {err}");
         }
     }
 
@@ -367,7 +367,7 @@ impl NRServiceProvider {
                         let response_message = msg.into_input_message(packet_type);
                         mixnet_client_sender.send(response_message).await.unwrap();
                     } else {
-                        log::error!("Exiting: channel closed!");
+                        tracing::error!("Exiting: channel closed!");
                         break;
                     }
                 },
@@ -396,7 +396,7 @@ impl NRServiceProvider {
         {
             Ok(conn) => conn,
             Err(err) => {
-                log::error!("error while connecting to {remote_addr}: {err}",);
+                tracing::error!("error while connecting to {remote_addr}: {err}",);
                 shutdown.disarm();
 
                 // inform the remote that the connection is closed before it even was established
@@ -426,7 +426,7 @@ impl NRServiceProvider {
             .unwrap();
 
         let old_count = ACTIVE_PROXIES.fetch_add(1, Ordering::SeqCst);
-        log::info!(
+        tracing::info!(
             "Starting proxy for {remote_addr} (currently there are {} proxies being handled)",
             old_count + 1
         );
@@ -448,7 +448,7 @@ impl NRServiceProvider {
             .unwrap();
 
         let old_count = ACTIVE_PROXIES.fetch_sub(1, Ordering::SeqCst);
-        log::info!(
+        tracing::info!(
             "Proxy for {remote_addr} is finished  (currently there are {} proxies being handled)",
             old_count - 1
         );
@@ -463,7 +463,7 @@ impl NRServiceProvider {
         let Some(return_address) =
             reply::MixnetAddress::new(connect_req.return_address, sender_tag)
         else {
-            log::warn!(
+            tracing::warn!(
                 "attempted to start connection with no way of returning data back to the sender"
             );
             return;
@@ -490,7 +490,7 @@ impl NRServiceProvider {
         tokio::spawn(async move {
             if !request_filter.check_address(&remote_addr).await {
                 let log_msg = format!("Domain {remote_addr:?} failed filter check");
-                log::info!("{log_msg}");
+                tracing::info!("{log_msg}");
                 let error_msg = MixnetMessage::new_connection_error(
                     return_address,
                     remote_version,

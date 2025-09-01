@@ -6212,7 +6212,6 @@ dependencies = [
  "async-trait",
  "futures",
  "humantime-serde",
- "log",
  "nym-bin-common",
  "nym-client-core",
  "nym-config",
@@ -6229,6 +6228,7 @@ dependencies = [
  "serde",
  "thiserror 2.0.12",
  "tokio",
+ "tracing",
  "url",
 ]
 

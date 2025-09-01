@@ -3,9 +3,9 @@
 
 use crate::config::Config;
 use crate::error::NetworkRequesterError;
-use log::warn;
 use nym_socks5_requests::RemoteAddress;
 use std::sync::Arc;
+use tracing::warn;
 
 pub mod exit_policy;
 

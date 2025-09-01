@@ -3,12 +3,12 @@
 
 use crate::config::Config;
 use crate::error::NetworkRequesterError;
-use log::trace;
 use nym_exit_policy::client::get_exit_policy;
 use nym_exit_policy::ExitPolicy;
 use nym_socks5_requests::RemoteAddress;
 use reqwest::IntoUrl;
 use tokio::net::lookup_host;
+use tracing::trace;
 use url::Url;
 
 pub struct ExitPolicyRequestFilter {

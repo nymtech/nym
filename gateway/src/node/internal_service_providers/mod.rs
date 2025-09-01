@@ -23,6 +23,7 @@ use tokio::task::JoinHandle;
 use tracing::error;
 
 pub mod authenticator;
+mod network_requester;
 
 pub trait LocalRecipient {
     fn address(&self) -> Recipient;

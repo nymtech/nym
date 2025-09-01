@@ -17,41 +17,26 @@ path = "src/lib.rs"
 
 [dependencies]
 anyhow = { workspace = true }
-addr = { workspace = true }
 async-trait = { workspace = true }
 bs58 = { workspace = true }
-clap = { workspace = true, features = ["cargo", "derive"]}
+clap = { workspace = true, features = ["cargo", "derive"] }
 dirs = { workspace = true }
 futures = { workspace = true }
 humantime-serde = { workspace = true }
-ipnetwork = { workspace = true }
 log = { workspace = true }
-publicsuffix = { workspace = true }
-rand = { workspace = true }
-regex = { workspace = true }
 reqwest = { workspace = true, features = ["json"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
-sqlx = { workspace = true, features = ["runtime-tokio-rustls", "chrono"]}
-tap = { workspace = true }
 thiserror = { workspace = true }
-tokio = { workspace = true, features = [ "net", "rt-multi-thread", "macros" ] }
-tokio-tungstenite = { workspace = true }
+tokio = { workspace = true, features = ["net", "rt-multi-thread", "macros"] }
 url = { workspace = true }
-time = { workspace = true }
-zeroize = { workspace = true }
 
 # internal
-nym-async-file-watcher = { path = "../../common/async-file-watcher" }
 nym-bin-common = { path = "../../common/bin-common", features = ["output_format", "clap", "basic_tracing"] }
 nym-client-core = { path = "../../common/client-core", features = ["cli", "fs-gateways-storage", "fs-surb-storage"] }
-nym-client-websocket-requests = { path = "../../clients/native/websocket-requests" }
 nym-config = { path = "../../common/config" }
-nym-credentials = { path = "../../common/credentials" }
-nym-credential-storage = { path = "../../common/credential-storage" }
 nym-crypto = { path = "../../common/crypto" }
 nym-network-defaults = { path = "../../common/network-defaults" }
-nym-ordered-buffer = { path = "../../common/socks5/ordered-buffer" }
 nym-sdk = { path = "../../sdk/rust/nym-sdk" }
 nym-service-providers-common = { path = "../common" }
 nym-socks5-proxy-helpers = { path = "../../common/socks5/proxy-helpers" }
@@ -62,5 +47,3 @@ nym-types = { path = "../../common/types" }
 nym-exit-policy = { path = "../../common/exit-policy", features = ["client"] }
 nym-id = { path = "../../common/nym-id" }
 
-[dev-dependencies]
-tempfile = { workspace = true }

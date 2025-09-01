@@ -1,6 +1,7 @@
 use crate::utils::{base_url, make_request, validate_json_response};
 
 #[tokio::test]
+#[test_with::env(NYM_API)]
 async fn test_get_config_score_details() -> Result<(), String> {
     let url = format!("{}/v1/status/config-score-details", base_url()?);
     let res = make_request(&url).await?;

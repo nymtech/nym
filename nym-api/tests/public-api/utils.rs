@@ -1,4 +1,4 @@
-use dotenv::dotenv;
+use dotenvy::dotenv;
 use reqwest::{Client, Response};
 use serde_json::Value;
 

@@ -133,4 +133,9 @@ impl Listener {
             }
         }
     }
+
+    #[instrument(skip_all)]
+    pub fn start(mut self) -> JoinHandle<()> {
+        tokio::spawn(async move { self.run().await })
+    }
 }

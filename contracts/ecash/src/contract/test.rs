@@ -52,7 +52,7 @@ impl TestSetup {
         }
     }
 
-    pub fn query_ctx(&self) -> QueryCtx {
+    pub fn query_ctx(&self) -> QueryCtx<'_> {
         QueryCtx::from((self.deps.as_ref(), self.env.clone()))
     }
 }

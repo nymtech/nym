@@ -13,7 +13,7 @@ mod tests {
     use nym_wireguard_private_metadata_server::{
         AppState, PeerControllerTransceiver, RouterBuilder,
     };
-    use nym_wireguard_private_metadata_shared::{latest, v0, v1, ErrorResponse};
+    use nym_wireguard_private_metadata_shared::{latest, v0, v1};
     use tokio::{net::TcpListener, sync::mpsc};
 
     pub(crate) const VERIFIER_AVAILABLE_BANDWIDTH: i64 = 42;
@@ -140,7 +140,7 @@ mod tests {
             .await
             .unwrap();
         });
-        Client::new_url::<_, ErrorResponse>(addr.to_string(), None).unwrap()
+        Client::new_url(addr.to_string(), None).unwrap()
     }
 
     #[tokio::test]

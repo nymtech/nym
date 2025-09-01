@@ -15,7 +15,6 @@ pub(crate) mod test {
     use nym_http_api_common::{FormattedResponse, OutputParams};
     use nym_wireguard::{peer_controller::PeerControlRequest, CONTROL_CHANNEL_SIZE};
     use nym_wireguard_private_metadata_server::PeerControllerTransceiver;
-    use nym_wireguard_private_metadata_shared::ErrorResponse;
     use nym_wireguard_private_metadata_shared::{
         v0 as latest, AxumErrorResponse, AxumResult, Construct, Extract, Request, Response,
     };
@@ -141,6 +140,6 @@ pub(crate) mod test {
             .await
             .unwrap();
         });
-        Client::new_url::<_, ErrorResponse>(addr.to_string(), None).unwrap()
+        Client::new_url(addr.to_string(), None).unwrap()
     }
 }

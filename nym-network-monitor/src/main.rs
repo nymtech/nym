@@ -163,12 +163,9 @@ async fn nym_topology_from_env() -> anyhow::Result<NymTopology> {
     let api_url = std::env::var(NYM_API)?;
 
     info!("Generating topology from {api_url}");
-    let client = nym_http_api_client::Client::builder::<
-        _,
-        nym_validator_client::models::RequestError,
-    >(api_url)?
-    .with_user_agent(UserAgent::from(bin_info!()))
-    .build::<nym_validator_client::models::RequestError>()?;
+    let client = nym_http_api_client::Client::builder(api_url)?
+        .with_user_agent(UserAgent::from(bin_info!()))
+        .build()?;
 
     let rewarded_set = client.get_current_rewarded_set().await?;
 

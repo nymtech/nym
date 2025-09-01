@@ -72,19 +72,16 @@ pub async fn current_network_topology_async(
         }
     };
 
-    let api_client = nym_http_api_client::Client::builder::<
-        _,
-        nym_validator_client::models::RequestError,
-    >(url.clone())
-    .map_err(|_err| WasmCoreError::MalformedUrl {
-        raw: nym_api_url.to_string(),
-        source: url::ParseError::EmptyHost,
-    })?
-    .build::<nym_validator_client::models::RequestError>()
-    .map_err(|_err| WasmCoreError::MalformedUrl {
-        raw: nym_api_url.to_string(),
-        source: url::ParseError::EmptyHost,
-    })?;
+    let api_client = nym_http_api_client::Client::builder(url.clone())
+        .map_err(|_err| WasmCoreError::MalformedUrl {
+            raw: nym_api_url.to_string(),
+            source: url::ParseError::EmptyHost,
+        })?
+        .build()
+        .map_err(|_err| WasmCoreError::MalformedUrl {
+            raw: nym_api_url.to_string(),
+            source: url::ParseError::EmptyHost,
+        })?;
     let rewarded_set = api_client.get_current_rewarded_set().await?;
     let mixnodes_res = api_client
         .get_all_basic_active_mixing_assigned_nodes_with_metadata()

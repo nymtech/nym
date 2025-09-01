@@ -95,10 +95,10 @@ async fn api_client_retry() -> Result<(), Box<dyn std::error::Error>> {
         "http://example.com/".parse()?,
     ])
     .with_retries(3)
-    .build::<HttpClientError>()?;
+    .build()?;
 
     let req = client.create_get_request(&["/"], NO_PARAMS).unwrap();
-    let resp = client.send::<HttpClientError>(req).await?;
+    let resp = client.send(req).await?;
 
     assert_eq!(resp.status(), 200);
 
@@ -111,10 +111,7 @@ async fn api_client_retry() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn host_updating() {
     let url = Url::new("http://example.com", None).unwrap();
-    let mut client = ClientBuilder::new::<_, &str>(url)
-        .unwrap()
-        .build::<&str>()
-        .unwrap();
+    let mut client = ClientBuilder::new(url).unwrap().build().unwrap();
 
     // check that the url is set correctly
     let current_url = client.current_url();
@@ -171,10 +168,10 @@ fn host_updating() {
 #[cfg(feature = "tunneling")]
 fn fronted_host_updating() {
     let url = Url::new("http://example.com", Some(vec!["http://front1.com"])).unwrap();
-    let mut client = ClientBuilder::new::<_, &str>(url)
+    let mut client = ClientBuilder::new(url)
         .unwrap()
         .with_fronting(crate::fronted::FrontPolicy::Always)
-        .build::<&str>()
+        .build()
         .unwrap();
 
     // check that the url is set correctly

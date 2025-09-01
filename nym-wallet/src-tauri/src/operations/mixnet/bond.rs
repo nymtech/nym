@@ -15,7 +15,6 @@ use nym_mixnet_contract_common::nym_node::{NodeConfigUpdate, StakeSaturationResp
 use nym_mixnet_contract_common::{MixNodeConfigUpdate, NodeId, NymNode};
 use nym_node_requests::api::client::NymNodeApiClientExt;
 use nym_node_requests::api::v1::node::models::NodeDescription;
-use nym_node_requests::api::ErrorResponse;
 use nym_types::currency::DecCoin;
 use nym_types::gateway::GatewayBond;
 use nym_types::mixnode::{MixNodeDetails, NodeCostParams};
@@ -586,12 +585,12 @@ pub async fn get_nym_node_description(
     port: u16,
 ) -> Result<NodeDescription, BackendError> {
     Ok(
-        nym_node_requests::api::Client::builder::<_, ErrorResponse>(format!(
+        nym_node_requests::api::Client::builder(format!(
             "http://{host}:{port}"
         ))?
         .with_timeout(Duration::from_millis(1000))
         .with_user_agent(format!("nym-wallet/{}", env!("CARGO_PKG_VERSION")))
-        .build::<ErrorResponse>()?
+        .build()?
         .get_description()
         .await?,
     )

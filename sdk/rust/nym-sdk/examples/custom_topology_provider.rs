@@ -14,13 +14,10 @@ struct MyTopologyProvider {
 
 impl MyTopologyProvider {
     fn new(nym_api_url: Url) -> MyTopologyProvider {
-        let validator_client = nym_http_api_client::Client::builder::<
-            _,
-            nym_validator_client::models::RequestError,
-        >(nym_api_url)
-        .expect("Failed to create API client builder")
-        .build::<nym_validator_client::models::RequestError>()
-        .expect("Failed to build API client");
+        let validator_client = nym_http_api_client::Client::builder(nym_api_url)
+            .expect("Failed to create API client builder")
+            .build()
+            .expect("Failed to build API client");
 
         MyTopologyProvider { validator_client }
     }

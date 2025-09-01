@@ -2,7 +2,6 @@ use nym_contracts_common::signing::SigningAlgorithm;
 use nym_crypto::asymmetric::ed25519::Ed25519RecoveryError;
 use nym_node_requests::api::client::NymNodeApiClientError;
 use nym_types::error::TypesError;
-use nym_validator_client::nym_api::error::NymAPIError;
 use nym_validator_client::signing::direct_wallet::DirectSecp256k1HdWalletError;
 use nym_validator_client::{nyxd::error::NyxdError, ValidatorClientError};
 use nym_wallet_types::network::Network;
@@ -43,11 +42,6 @@ pub enum BackendError {
     ErrorReport {
         #[from]
         source: eyre::Report,
-    },
-    #[error(transparent)]
-    NymApiError {
-        #[from]
-        source: NymAPIError,
     },
     #[error(transparent)]
     NymNodeApiError {

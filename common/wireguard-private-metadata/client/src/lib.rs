@@ -7,16 +7,14 @@ use tracing::instrument;
 use nym_http_api_client::{ApiClient, Client, HttpClientError, NO_PARAMS};
 
 use nym_wireguard_private_metadata_shared::{
-    routes, Version, {ErrorResponse, Request, Response},
+    routes, Version, {Request, Response},
 };
-
-pub type WireguardMetadataApiClientError = HttpClientError<ErrorResponse>;
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait WireguardMetadataApiClient: ApiClient {
     #[instrument(level = "debug", skip(self))]
-    async fn version(&self) -> Result<Version, WireguardMetadataApiClientError> {
+    async fn version(&self) -> Result<Version, HttpClientError> {
         let version: u64 = self
             .get_json(
                 &[routes::V1_API_VERSION, routes::BANDWIDTH, routes::VERSION],
@@ -30,7 +28,7 @@ pub trait WireguardMetadataApiClient: ApiClient {
     async fn available_bandwidth(
         &self,
         request_body: &Request,
-    ) -> Result<Response, WireguardMetadataApiClientError> {
+    ) -> Result<Response, HttpClientError> {
         self.post_json(
             &[routes::V1_API_VERSION, routes::BANDWIDTH, routes::AVAILABLE],
             NO_PARAMS,
@@ -40,10 +38,7 @@ pub trait WireguardMetadataApiClient: ApiClient {
     }
 
     #[instrument(level = "debug", skip(self, request_body))]
-    async fn topup_bandwidth(
-        &self,
-        request_body: &Request,
-    ) -> Result<Response, WireguardMetadataApiClientError> {
+    async fn topup_bandwidth(&self, request_body: &Request) -> Result<Response, HttpClientError> {
         self.post_json(
             &[routes::V1_API_VERSION, routes::BANDWIDTH, routes::TOPUP],
             NO_PARAMS,

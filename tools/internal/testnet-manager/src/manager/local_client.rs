@@ -91,13 +91,10 @@ impl NetworkManager {
             "⌛waiting for any gateway to appear in the directory ({api_url})..."
         ));
 
-        let api_client = nym_http_api_client::Client::builder::<
-            _,
-            nym_validator_client::models::RequestError,
-        >(api_url.clone())
-        .expect("Failed to create API client builder")
-        .build::<nym_validator_client::models::RequestError>()
-        .expect("Failed to build API client");
+        let api_client = nym_http_api_client::Client::builder(api_url.clone())
+            .expect("Failed to create API client builder")
+            .build()
+            .expect("Failed to build API client");
 
         let wait_fut = async {
             let inner_fut = async {

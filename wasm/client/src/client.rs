@@ -50,11 +50,14 @@ pub(crate) const NODE_TESTER_CLIENT_ID: &str = "_nym-node-tester-client";
 #[wasm_bindgen]
 pub struct NymClient {
     self_address: String,
+    #[wasm_bindgen(skip)]
     client_input: Arc<ClientInput>,
+    #[wasm_bindgen(skip)]
     client_state: Arc<ClientState>,
 
     // keep track of the "old" topology for the purposes of node tester
     // so that it could be restored after the check is done
+    #[wasm_bindgen(skip)]
     _full_topology: Option<NymTopology>,
 
     // even though we don't use graceful shutdowns, other components rely on existence of this struct
@@ -453,6 +456,7 @@ impl NymClient {
                         "new_with_config: future_to_promise: Conversion successful, returning Ok"
                     );
                     Ok(js_result)
+                    // Ok(JsValue::from_str(&client.self_address)) // test to return simpler type across the boundary - THIS WORKS
                 }
                 Err(err) => {
                     console_error!(

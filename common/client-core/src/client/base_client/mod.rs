@@ -770,9 +770,8 @@ where
             builder = builder.with_user_agent(user_agent);
         }
 
-        builder = builder.with_bincode();
-
         builder
+            .with_bincode()
             .build::<nym_validator_client::models::RequestError>()
             .map_err(|e| ClientCoreError::NymApiQueryFailure {
                 source: nym_validator_client::nym_api::error::NymAPIError::GenericRequestFailure(

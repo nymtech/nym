@@ -854,6 +854,7 @@ impl<R, S> FreshHandler<R, S> {
         }
     }
 
+    #[instrument(skip_all)]
     pub(crate) async fn handle_initial_client_request(
         &mut self,
         request: ClientControlRequest,

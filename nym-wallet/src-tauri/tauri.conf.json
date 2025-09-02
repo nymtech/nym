@@ -20,7 +20,7 @@
     "longDescription": "",
     "macOS": {
       "frameworks": [],
-      "minimumSystemVersion": "15.3.2",
+      "minimumSystemVersion": "14.4.1",
       "exceptionDomain": "",
       "signingIdentity": "Developer ID Application: Nym Technologies SA (VW5DZLFHM5)",
       "entitlements": null

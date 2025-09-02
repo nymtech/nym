@@ -219,7 +219,7 @@ async function normalNymClientUsage() {
       {}
     );
     console.log(">>>>>>>> POST PROMISE");
-    console.log(localClient);
+    console.log(localClient.selfAddress);
   } catch (e) {
     console.log("local client creation error: ", e);
   }

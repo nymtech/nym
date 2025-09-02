@@ -81,17 +81,14 @@ where
             auth_info: single_unspecified_signer_auth(public_key, sequence_response.sequence),
             signatures: vec![Vec::new()],
         };
-        self.query_simulate(Some(partial_tx), Vec::new()).await
 
-        // for completion sake, once we're able to transition into using `tx_bytes`,
-        // we might want to use something like this instead:
-        // let tx_raw: tx::Raw = cosmrs::proto::cosmos::tx::v1beta1::TxRaw {
-        //     body_bytes: partial_tx.body.into_bytes().unwrap(),
-        //     auth_info_bytes: partial_tx.auth_info.into_bytes().unwrap(),
-        //     signatures: partial_tx.signatures,
-        // }
-        // .into();
-        // self.query_simulate(None, tx_raw.to_bytes().unwrap()).await
+        let tx_raw: tx::Raw = cosmrs::proto::cosmos::tx::v1beta1::TxRaw {
+            body_bytes: partial_tx.body.into_bytes()?,
+            auth_info_bytes: partial_tx.auth_info.into_bytes()?,
+            signatures: partial_tx.signatures,
+        }
+        .into();
+        self.query_simulate(tx_raw.to_bytes()?).await
     }
 
     async fn upload(

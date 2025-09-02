@@ -520,7 +520,6 @@ impl<R, S> AuthenticatedHandler<R, S> {
         // apparently tungstenite auto-handles ping/pong/close messages so for now let's ignore
         // them and let's test that claim. If that's not the case, just copy code from
         // desktop nym-client websocket as I've manually handled everything there
-        tracing::debug!("[TEST TEST] Do I appear here? handle_request");
         match raw_request {
             Message::Binary(bin_msg) => Some(self.handle_binary(bin_msg).await),
             Message::Text(text_msg) => Some(self.handle_text(text_msg).await),

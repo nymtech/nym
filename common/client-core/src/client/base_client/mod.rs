@@ -215,6 +215,7 @@ where
         client_store: S,
         dkg_query_client: Option<C>,
     ) -> BaseClientBuilder<C, S> {
+        console_log!("Starting BaseClientBuilder with NONE connection_fd_callback");
         BaseClientBuilder {
             config: base_config,
             client_store,
@@ -305,6 +306,7 @@ where
         mut self,
         callback: Arc<dyn Fn(RawFd) + Send + Sync>,
     ) -> Self {
+        console_log!("!!!!! SETTING CONNECTION_CALLBACK");
         self.connection_fd_callback = Some(callback);
         self
     }
@@ -1031,7 +1033,7 @@ where
         debug!("Core client startup finished!");
         debug!("The address of this client is: {self_address}");
         console_log!("Core client startup finished!");
-        console_log!("The address of this client is: {self_address}");
+        console_log!("Rust::start_base: the address of this client is: {self_address}");
 
         Ok(BaseClient {
             address: self_address,

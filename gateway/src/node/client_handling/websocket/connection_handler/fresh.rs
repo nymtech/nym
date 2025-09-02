@@ -858,101 +858,77 @@ impl<R, S> FreshHandler<R, S> {
     pub(crate) async fn handle_initial_client_request(
         &mut self,
         request: ClientControlRequest,
-    ) -> Result<Option<ClientDetails>, InitialAuthenticationError>
+    ) -> Result<(Option<ClientDetails>, Option<TraceId>), InitialAuthenticationError>
     where
         S: AsyncRead + AsyncWrite + Unpin + Send,
         R: CryptoRng + RngCore + Send,
     {
-        // let _distributed_context = if let ClientControlRequest::AuthenticateV2(ref auth_req) = request {
-        //     if let Some(ref trace_id_str) = auth_req.debug_trace_id {
-        //         warn!("Received debug trace ID: {trace_id_str}");
-
-        //         match TraceId::from_hex(&trace_id_str) {
-        //             Ok(trace_id) => {
-        //                 warn!("Parsed debug trace ID: {trace_id}");
-
-        //                 let id_gen = RandomIdGenerator::default();
-        //                 let span_id = id_gen.new_span_id();
-
-        //                 let span_context = opentelemetry::trace::SpanContext::new(
-        //                     trace_id,
-        //                     span_id,
-        //                     opentelemetry::trace::TraceFlags::SAMPLED,
-        //                     true,
-        //                     Default::default(),
-        //                 );
-
-        //                 let remote_context = opentelemetry::Context::current()
-        //                     .with_remote_span_context(span_context);
-
-        //                 let context_guard = remote_context.attach();
-
-        //                 let span = info_span!(
-        //                     "handle_initial_client_request",
-        //                     trace_id = %trace_id,
-        //                     service = "nym-node"
-        //                 );
-
-        //                 warn!("Distributed context established. trace_id: {:?}", trace_id);
-        //                 Some(span)
-        //             }
-        //             Err(err) => {
-        //                 warn!("Failed to parse debug trace ID: {err}");
-        //                 None
-        //             }
-        //         }
-        //     } else {
-        //         warn!("Received debug trace ID without context");
-        //         None
-        //     }
-        // } else {
-        //     None
-        // };
-        let span = if let ClientControlRequest::AuthenticateV2(ref auth_req) = request {
-            if let Some(ref trace_id) = auth_req.debug_trace_id {
-                warn!("RAW TRACE ID: {trace_id:?}");
-                let trace_id = opentelemetry::trace::TraceId::from_hex(&trace_id)
-                    .expect("Invalid trace ID format");
-                warn!("🫂TraceID: {trace_id}🫂");
-                // We don't need to try and preserve the SpanID, just the TraceID (right?) so
-                // just making a new SpanID for the moment
-                let id_generator = RandomIdGenerator::default();
-                let span_id = id_generator.new_span_id();
-                let span_context = opentelemetry::trace::SpanContext::new(
-                    trace_id,
-                    span_id,
-                    opentelemetry::trace::TraceFlags::SAMPLED,
-                    true, // is_remote = true since this comes from another service
-                    Default::default(),
-                );
-                let remote_context =
-                    opentelemetry::Context::current().with_remote_span_context(span_context);
-                let contextguard = remote_context.clone().attach();
-                let span = info_span!(
-                    "authenticate_v2",
-                    trace_id = %trace_id
-                );
-                span.set_parent(remote_context.clone());
-                Some(span)
+        let distributed_trace_id = if let ClientControlRequest::AuthenticateV2(ref auth_req) = request {
+            if let Some(ref trace_id_str) = auth_req.debug_trace_id {
+                warn!("Received debug trace ID: {trace_id_str}");
+                match TraceId::from_hex(&trace_id_str) {
+                    Ok(trace_id) => {
+                        warn!("Parsed debug trace ID: {trace_id}");
+                        Some(trace_id)
+                    }
+                    Err(err) => {
+                        warn!("Failed to parse debug trace ID: {err}");
+                        None
+                    }
+                }
             } else {
                 warn!("AuthenticateV2 request but no trace_id provided");
                 None
             }
         } else {
-            warn!("Not an AuthenticateV2 request");
             None
         };
-        // Probably a nicer way to do this but for now just match
-        let _guard = match &span {
-            Some(s) => {
-                warn!("ENTERED SPAN");
-                Some(s.enter())
-            }
-            None => {
-                warn!("COULDN'T ENTER SPAN");
-                None
-            }
-        };
+        // mark/otel method
+        // let span = if let ClientControlRequest::AuthenticateV2(ref auth_req) = request {
+        //     if let Some(ref trace_id) = auth_req.debug_trace_id {
+        //         warn!("RAW TRACE ID: {trace_id:?}");
+        //         let trace_id = opentelemetry::trace::TraceId::from_hex(&trace_id)
+        //             .expect("Invalid trace ID format");
+        //         warn!("🫂TraceID: {trace_id}🫂");
+        //         // We don't need to try and preserve the SpanID, just the TraceID (right?) so
+        //         // just making a new SpanID for the moment
+        //         let id_generator = RandomIdGenerator::default();
+        //         let span_id = id_generator.new_span_id();
+        //         let span_context = opentelemetry::trace::SpanContext::new(
+        //             trace_id,
+        //             span_id,
+        //             opentelemetry::trace::TraceFlags::SAMPLED,
+        //             true, // is_remote = true since this comes from another service
+        //             Default::default(),
+        //         );
+        //         let remote_context =
+        //             opentelemetry::Context::current().with_remote_span_context(span_context);
+        //         let contextguard = remote_context.clone().attach();
+        //         let span = info_span!(
+        //             "authenticate_v2",
+        //             trace_id = %trace_id
+        //         );
+        //         span.set_parent(remote_context.clone());
+        //         Some(span)
+        //     } else {
+        //         warn!("AuthenticateV2 request but no trace_id provided");
+        //         None
+        //     }
+        // } else {
+        //     warn!("Not an AuthenticateV2 request");
+        //     None
+        // };
+        // // Probably a nicer way to do this but for now just match
+        // let _guard = match &span {
+        //     Some(s) => {
+        //         warn!("ENTERED SPAN");
+        //         Some(s.enter())
+        //     }
+        //     None => {
+        //         warn!("COULDN'T ENTER SPAN");
+        //         None
+        //     }
+        // };
 
         let auth_result = match request {
             ClientControlRequest::Authenticate {
@@ -972,7 +948,7 @@ impl<R, S> FreshHandler<R, S> {
             } => self.handle_register(protocol_version, data).await,
             ClientControlRequest::SupportedProtocol { .. } => {
                 self.handle_reply_supported_protocol_request().await;
-                return Ok(None);
+                return Ok((None, distributed_trace_id));
             }
             _ => {
                 debug!("received an invalid client request");
@@ -1012,7 +988,7 @@ impl<R, S> FreshHandler<R, S> {
             return Err(InitialAuthenticationError::EmptyClientDetails);
         };
 
-        Ok(Some(client_details))
+        Ok((Some(client_details), distributed_trace_id))
     }
 
     #[instrument(skip_all)]
@@ -1034,7 +1010,7 @@ impl<R, S> FreshHandler<R, S> {
             };
 
             // see if we managed to register the client through this request
-            let maybe_auth_res = match self.handle_initial_client_request(initial_request).await {
+            let (maybe_auth_res, distributed_trace_id) = match self.handle_initial_client_request(initial_request).await {
                 Ok(maybe_auth_res) => maybe_auth_res,
                 Err(err) => {
                     debug!("initial client request handling error: {err}");
@@ -1045,7 +1021,6 @@ impl<R, S> FreshHandler<R, S> {
 
             if let Some(registration_details) = maybe_auth_res {
                 let (mix_sender, mix_receiver) = mpsc::unbounded();
-                // Channel for handlers to ask other handlers if they are still active.
                 let (is_active_request_sender, is_active_request_receiver) = mpsc::unbounded();
                 self.shared_state.active_clients_store.insert_remote(
                     registration_details.address,

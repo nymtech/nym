@@ -47,6 +47,36 @@ use rand::{rngs::OsRng, RngCore};
 #[allow(dead_code)]
 pub(crate) const NODE_TESTER_CLIENT_ID: &str = "_nym-node-tester-client";
 
+// Wrapper to hide TaskManager from wasm-bindgen
+struct TaskManagerHolder {
+    inner: *mut TaskManager,
+}
+
+impl TaskManagerHolder {
+    fn new(tm: TaskManager) -> Self {
+        Self {
+            inner: Box::into_raw(Box::new(tm)),
+        }
+    }
+}
+
+impl Drop for TaskManagerHolder {
+    fn drop(&mut self) {
+        unsafe {
+            let _ = Box::from_raw(self.inner);
+        }
+    }
+}
+
+// For accessing it elsewher ein the code
+impl std::ops::Deref for TaskManagerHolder {
+    type Target = TaskManager;
+
+    fn deref(&self) -> &Self::Target {
+        unsafe { &*self.inner }
+    }
+}
+
 #[wasm_bindgen]
 pub struct NymClient {
     self_address: String,
@@ -249,8 +279,19 @@ impl NymClientBuilder {
         let client_input = started_client.client_input.register_producer();
         let client_output = started_client.client_output.register_consumer();
 
-        // MAX TODO NOTE: THIS RETURNS () MAYBE WE'RE NOT RESOLVING HERE?
         Self::start_reconstructed_pusher(client_output, self.on_message);
+
+        // MAX TODO CLEANUP: experiment with starting task manager but keeping it out of the struct
+        // this still causes a hang, even though the logging shows its set - so must be something that
+        // the task manager starts that blocks / hangs..
+        // let _task_manager = started_client.task_handle.try_into_task_manager().unwrap();
+        // console_log!("About to set task manager in OnceCell");
+        // TASK_MANAGER_KEEPER
+        //     .set(task_manager)
+        //     .expect("Task manager already exists");
+        // console_log!("Task manager set successfully");
+        // Box::leak(Box::new(task_manager));
+        // TEST_CELL.set("test".to_string()).unwrap(); DOESNT HANG
 
         Ok(NymClient {
             self_address,

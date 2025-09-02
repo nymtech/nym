@@ -25,7 +25,7 @@
 //! ```
 
 use crate::error::ZulipClientError;
-use crate::message::{SendMessageResponse, SendableMessage};
+use crate::message::{DirectMessage, SendMessageResponse, SendableMessage, StreamMessage};
 use nym_bin_common::bin_info;
 use nym_http_api_client::UserAgent;
 use reqwest::{header, Method, RequestBuilder};
@@ -90,6 +90,20 @@ impl Client {
             .json()
             .await
             .map_err(|source| ZulipClientError::RequestDecodeFailure { source })
+    }
+
+    pub async fn send_direct_message(
+        &self,
+        msg: impl Into<DirectMessage>,
+    ) -> Result<SendMessageResponse, ZulipClientError> {
+        self.send_message(msg.into()).await
+    }
+
+    pub async fn send_channel_message(
+        &self,
+        msg: impl Into<StreamMessage>,
+    ) -> Result<SendMessageResponse, ZulipClientError> {
+        self.send_message(msg.into()).await
     }
 
     fn build_request(&self, method: Method, endpoint: &'static str) -> RequestBuilder {

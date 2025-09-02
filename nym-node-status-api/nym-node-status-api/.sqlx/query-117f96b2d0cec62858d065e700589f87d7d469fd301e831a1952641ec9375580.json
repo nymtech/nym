@@ -1,0 +1,26 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO gateways (\n            gateway_identity_key,\n            bonded,\n            performance,\n            self_described,\n            last_updated_utc\n        ) VALUES ($1, $2, $3, $4, $5)\n        RETURNING id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Varchar",
+        "Bool",
+        "Int4",
+        "Varchar",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "117f96b2d0cec62858d065e700589f87d7d469fd301e831a1952641ec9375580"
+}

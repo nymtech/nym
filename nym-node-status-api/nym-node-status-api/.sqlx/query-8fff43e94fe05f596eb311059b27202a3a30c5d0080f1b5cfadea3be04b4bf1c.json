@@ -1,0 +1,19 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO nym_node_descriptions (\n            node_id, moniker, website, security_contact, details, last_updated_utc\n        ) VALUES ($1, $2, $3, $4, $5, $6)\n        ON CONFLICT (node_id) DO UPDATE SET\n            moniker = excluded.moniker,\n            website = excluded.website,\n            security_contact = excluded.security_contact,\n            details = excluded.details,\n            last_updated_utc = excluded.last_updated_utc\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Varchar",
+        "Varchar",
+        "Varchar",
+        "Varchar",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "8fff43e94fe05f596eb311059b27202a3a30c5d0080f1b5cfadea3be04b4bf1c"
+}

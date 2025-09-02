@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT\n            COUNT(id) as \"count: i64\"\n         FROM testruns\n         WHERE\n            status = $1\n         ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "count: i64",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "d5a22865b11127c53eaa0efb74fa94df734bb29a5ea1eac12f51a55e32d40836"
+}

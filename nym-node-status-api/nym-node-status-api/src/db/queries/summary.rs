@@ -23,12 +23,13 @@ use crate::{
 
 pub(crate) async fn get_summary_history(pool: &DbPool) -> anyhow::Result<Vec<SummaryHistory>> {
     let mut conn = pool.acquire().await?;
-    let items = crate::db::query_as::<SummaryHistoryDto>(
+    let items = sqlx::query_as!(
+        SummaryHistoryDto,
         r#"SELECT
-            id,
-            date,
-            timestamp_utc,
-            value_json
+            id as "id!",
+            date as "date!",
+            timestamp_utc as "timestamp_utc!",
+            value_json as "value_json!"
          FROM summary_history
          ORDER BY date DESC
          LIMIT 30"#,
@@ -50,12 +51,13 @@ pub(crate) async fn get_summary_history(pool: &DbPool) -> anyhow::Result<Vec<Sum
 
 async fn get_summary_dto(pool: &DbPool) -> anyhow::Result<Vec<SummaryDto>> {
     let mut conn = pool.acquire().await?;
-    Ok(crate::db::query_as::<SummaryDto>(
+    Ok(sqlx::query_as!(
+        SummaryDto,
         r#"SELECT
-            key,
-            value_json,
-            last_updated_utc
-         FROM summary"#,
+            key as "key!",
+            value_json as "value_json!",
+            last_updated_utc as "last_updated_utc!"
+         FROM summary"#
     )
     .fetch(&mut *conn)
     .try_collect::<Vec<_>>()

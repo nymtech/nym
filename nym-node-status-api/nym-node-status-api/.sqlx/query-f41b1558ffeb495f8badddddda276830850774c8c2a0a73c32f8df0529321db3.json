@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT\n            mn.mix_id as \"mix_id!\",\n            mn.bonded as \"bonded: bool\",\n            mn.is_dp_delegatee as \"is_dp_delegatee: bool\",\n            mn.total_stake as \"total_stake!\",\n            mn.full_details as \"full_details!\",\n            mn.self_described as \"self_described\",\n            mn.last_updated_utc as \"last_updated_utc!\",\n            md.moniker as \"moniker!\",\n            md.website as \"website!\",\n            md.security_contact as \"security_contact!\",\n            md.details as \"details!\"\n         FROM mixnodes mn\n         LEFT JOIN mixnode_description md ON mn.mix_id = md.mix_id\n         ORDER BY mn.mix_id",
+  "query": "SELECT\n            mn.mix_id as \"mix_id!\",\n            mn.bonded as \"bonded: bool\",\n            mn.is_dp_delegatee as \"is_dp_delegatee: bool\",\n            mn.total_stake as \"total_stake!\",\n            mn.full_details as \"full_details!\",\n            mn.self_described as \"self_described\",\n            mn.last_updated_utc as \"last_updated_utc!\",\n            COALESCE(md.moniker, 'NA') as \"moniker!\",\n            COALESCE(md.website, 'NA') as \"website!\",\n            COALESCE(md.security_contact, 'NA') as \"security_contact!\",\n            COALESCE(md.details, 'NA') as \"details!\"\n         FROM mixnodes mn\n         LEFT JOIN mixnode_description md ON mn.mix_id = md.mix_id\n         ORDER BY mn.mix_id",
   "describe": {
     "columns": [
       {
@@ -70,11 +70,11 @@
       true,
       true,
       false,
-      true,
-      true,
-      true,
-      true
+      null,
+      null,
+      null,
+      null
     ]
   },
-  "hash": "74b76cd0d94c1afc51c21c14c12236a2b964b981c8cbcc282117fe9bc38338dd"
+  "hash": "f41b1558ffeb495f8badddddda276830850774c8c2a0a73c32f8df0529321db3"
 }

@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO mixnodes\n                (mix_id, identity_key, bonded, total_stake,\n                    host, http_api_port, full_details,\n                    self_described, last_updated_utc, is_dp_delegatee)\n                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)\n                ON CONFLICT(mix_id) DO UPDATE SET\n                bonded=excluded.bonded,\n                total_stake=excluded.total_stake, host=excluded.host,\n                http_api_port=excluded.http_api_port,\n                full_details=excluded.full_details,self_described=excluded.self_described,\n                last_updated_utc=excluded.last_updated_utc,\n                is_dp_delegatee = excluded.is_dp_delegatee;",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Varchar",
+        "Bool",
+        "Int8",
+        "Varchar",
+        "Int8",
+        "Varchar",
+        "Varchar",
+        "Int8",
+        "Bool"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "b02b76627839703b6745db83ebeda08f7f79aa384aeaea20f34e7863d55fdf63"
+}

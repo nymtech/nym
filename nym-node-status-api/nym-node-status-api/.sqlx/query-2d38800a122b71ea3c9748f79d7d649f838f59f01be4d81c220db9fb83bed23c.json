@@ -1,0 +1,18 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n                INSERT INTO mixnode_packet_stats_raw (\n                    mix_id, timestamp_utc, packets_received, packets_sent, packets_dropped\n                ) VALUES ($1, $2, $3, $4, $5)\n                ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Int4",
+        "Int4",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "2d38800a122b71ea3c9748f79d7d649f838f59f01be4d81c220db9fb83bed23c"
+}

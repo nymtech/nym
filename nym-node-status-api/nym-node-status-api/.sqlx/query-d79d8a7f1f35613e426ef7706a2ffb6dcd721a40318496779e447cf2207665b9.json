@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE gateways SET last_testrun_utc = $1, last_updated_utc = $2 WHERE id = $3",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "d79d8a7f1f35613e426ef7706a2ffb6dcd721a40318496779e447cf2207665b9"
+}

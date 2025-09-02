@@ -1,0 +1,44 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT\n            nd.node_id,\n            moniker,\n            website,\n            security_contact,\n            details\n        FROM\n            nym_node_descriptions nd\n        INNER JOIN\n            nym_nodes nn on nd.node_id = nn.node_id\n        WHERE\n            bond_info IS NOT NULL\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "node_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "moniker",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "website",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "security_contact",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 4,
+        "name": "details",
+        "type_info": "Varchar"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "56854f703321ff8d8f30628c7e5322024ea01b778ab55efa9c7c6b219ef36308"
+}

@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT\n            gateway_identity_key\n        FROM\n            gateways\n        WHERE\n            id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "gateway_identity_key",
+        "type_info": "Varchar"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "7b1c9b42347e83c396c51cfbd03558d124f3d4f0209de661832560001cddb0eb"
+}

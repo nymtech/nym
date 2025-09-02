@@ -1,0 +1,40 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT\n            id,\n            gateway_identity_key,\n            self_described,\n            explorer_pretty_bond\n         FROM gateways\n         WHERE gateway_identity_key = $1\n         AND bonded = true\n         ORDER BY gateway_identity_key\n         LIMIT 1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "gateway_identity_key",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "self_described",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "explorer_pretty_bond",
+        "type_info": "Varchar"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "7e68a05cd72b223ba363aa497097dac4aa2f08d12ed1ce590f7ab9caafc9574d"
+}

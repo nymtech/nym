@@ -1,0 +1,86 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT\n            node_id,\n            ed25519_identity_pubkey,\n            total_stake,\n            ip_addresses as \"ip_addresses!: serde_json::Value\",\n            mix_port,\n            x25519_sphinx_pubkey,\n            node_role as \"node_role: serde_json::Value\",\n            supported_roles as \"supported_roles: serde_json::Value\",\n            entry as \"entry: serde_json::Value\",\n            performance,\n            self_described as \"self_described: serde_json::Value\",\n            bond_info as \"bond_info: serde_json::Value\"\n        FROM\n            nym_nodes\n        WHERE\n            self_described IS NOT NULL\n        AND\n            bond_info IS NOT NULL\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "node_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "ed25519_identity_pubkey",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "total_stake",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 3,
+        "name": "ip_addresses!: serde_json::Value",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 4,
+        "name": "mix_port",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 5,
+        "name": "x25519_sphinx_pubkey",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 6,
+        "name": "node_role: serde_json::Value",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 7,
+        "name": "supported_roles: serde_json::Value",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 8,
+        "name": "entry: serde_json::Value",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 9,
+        "name": "performance",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 10,
+        "name": "self_described: serde_json::Value",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 11,
+        "name": "bond_info: serde_json::Value",
+        "type_info": "Jsonb"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "283f49a65c7d70bf271702ff6a5c7ad6e68c81932d295ff18ed198c54706a57c"
+}

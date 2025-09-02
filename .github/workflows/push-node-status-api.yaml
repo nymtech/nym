@@ -69,6 +69,6 @@ jobs:
 
       - name: BuildAndPushImageOnHarbor
         run: |
-          docker build -f ${{ env.WORKING_DIRECTORY }}/Dockerfile-pg . -t harbor.nymte.ch/nym/${{ env.IMAGE_NAME_AND_TAGS }} -t harbor.nymte.ch/nym/${{ env.CONTAINER_NAME }}:latest
+          docker build -f ${{ env.WORKING_DIRECTORY }}/Dockerfile . -t harbor.nymte.ch/nym/${{ env.IMAGE_NAME_AND_TAGS }} -t harbor.nymte.ch/nym/${{ env.CONTAINER_NAME }}:latest
           docker push harbor.nymte.ch/nym/${{ env.CONTAINER_NAME }} --all-tags
 

@@ -149,7 +149,7 @@ pub async fn scrape_and_store_description(pool: &DbPool, node: ScraperNodeInfo) 
     })?;
 
     let sanitized_description = sanitize_description(description, *node.node_id());
-    insert_scraped_node_description(pool, node.node_kind.clone(), sanitized_description).await?;
+    insert_scraped_node_description(pool, &node.node_kind, &sanitized_description).await?;
 
     Ok(())
 }
@@ -194,51 +194,6 @@ pub async fn scrape_packet_stats(node: &ScraperNodeInfo) -> Result<InsertStatsRe
     Ok(result)
 }
 
-#[cfg(feature = "sqlite")]
-pub async fn update_daily_stats_uncommitted(
-    tx: &mut Transaction<'static, sqlx::Sqlite>,
-    node_kind: &ScrapeNodeKind,
-    timestamp: UtcDateTime,
-    current_stats: &NodeStats,
-) -> Result<()> {
-    use crate::db::queries::{get_raw_node_stats, insert_daily_node_stats_uncommitted};
-
-    let date_utc = format!(
-        "{:04}-{:02}-{:02}",
-        timestamp.year(),
-        timestamp.month() as u8,
-        timestamp.day()
-    );
-
-    // Get previous stats
-    let previous_stats = get_raw_node_stats(tx, node_kind).await?;
-
-    let (diff_received, diff_sent, diff_dropped) = if let Some(prev) = previous_stats {
-        (
-            calculate_packet_difference(current_stats.packets_received, prev.packets_received),
-            calculate_packet_difference(current_stats.packets_sent, prev.packets_sent),
-            calculate_packet_difference(current_stats.packets_dropped, prev.packets_dropped),
-        )
-    } else {
-        (0, 0, 0) // No previous stats available
-    };
-
-    insert_daily_node_stats_uncommitted(
-        tx,
-        node_kind,
-        &date_utc,
-        NodeStats {
-            packets_received: diff_received,
-            packets_sent: diff_sent,
-            packets_dropped: diff_dropped,
-        },
-    )
-    .await?;
-
-    Ok(())
-}
-
-#[cfg(feature = "pg")]
 pub async fn update_daily_stats_uncommitted(
     tx: &mut Transaction<'static, sqlx::Postgres>,
     node_kind: &ScrapeNodeKind,

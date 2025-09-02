@@ -3,7 +3,7 @@
 
 [package]
 name = "nym-node-status-api"
-version = "3.3.2"
+version = "3.3.3"
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
@@ -49,7 +49,7 @@ serde_json = { workspace = true }
 serde_json_path = { workspace = true }
 strum = { workspace = true }
 strum_macros = { workspace = true }
-sqlx = { workspace = true, features = ["runtime-tokio-rustls", "time"] }
+sqlx = { workspace = true, features = ["runtime-tokio-rustls", "time", "postgres"] }
 thiserror = { workspace = true }
 time = { workspace = true, features = ["formatting"] }
 tokio = { workspace = true, features = ["rt-multi-thread"] }
@@ -63,11 +63,6 @@ utoipa-swagger-ui = { workspace = true, features = ["axum"] }
 utoipauto = { workspace = true }
 
 nym-node-metrics = { path = "../../nym-node/nym-node-metrics" }
-
-[features]
-default = ["pg"]
-sqlite = ["sqlx/sqlite"]
-pg = ["sqlx/postgres"]
 
 [build-dependencies]
 anyhow = { workspace = true }

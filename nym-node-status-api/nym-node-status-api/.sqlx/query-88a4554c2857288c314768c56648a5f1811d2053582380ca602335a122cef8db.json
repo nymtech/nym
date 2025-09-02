@@ -1,0 +1,20 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO testruns (\n            id,\n            gateway_id,\n            status,\n            created_utc,\n            last_assigned_utc,\n            ip_address,\n            log\n        ) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Int4",
+        "Int4",
+        "Int8",
+        "Int8",
+        "Varchar",
+        "Varchar"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "88a4554c2857288c314768c56648a5f1811d2053582380ca602335a122cef8db"
+}

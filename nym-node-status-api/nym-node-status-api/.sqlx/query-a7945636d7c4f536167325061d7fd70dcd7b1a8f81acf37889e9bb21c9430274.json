@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM gateway_session_stats WHERE day <= $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Date"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "a7945636d7c4f536167325061d7fd70dcd7b1a8f81acf37889e9bb21c9430274"
+}

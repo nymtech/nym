@@ -1,0 +1,30 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE testruns\n            SET\n                status = $1,\n                last_assigned_utc = $2\n            WHERE id =\n        (\n            SELECT id\n            FROM testruns\n            WHERE status = $3\n            ORDER BY created_utc asc\n            LIMIT 1\n        )\n        RETURNING\n            id as \"id!\",\n            gateway_id\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "gateway_id",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Int8",
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "343930f2d3e08c52cae8877a71f8dbacb1667ff4afdc94bed92dcfc1a8f9dd35"
+}

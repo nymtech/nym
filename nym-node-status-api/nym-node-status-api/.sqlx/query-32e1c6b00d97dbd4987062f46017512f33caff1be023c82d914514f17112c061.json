@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE testruns SET status = $1 WHERE gateway_id = $2 AND status = $3",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Int4",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "32e1c6b00d97dbd4987062f46017512f33caff1be023c82d914514f17112c061"
+}

@@ -49,7 +49,8 @@ async fn request_testrun(
 
     let active_testruns = db::queries::testruns::count_testruns_in_progress(&mut conn)
         .await
-        .map_err(HttpError::internal_with_logging)?;
+        .map_err(HttpError::internal_with_logging)?
+        .unwrap_or_default();
     if active_testruns >= state.agent_max_count() {
         tracing::warn!(
             "{}/{} testruns in progress, rejecting",
@@ -147,7 +148,7 @@ async fn submit_testrun(
     queries::testruns::update_gateway_last_probe_log(
         &mut conn,
         assigned_testrun.gateway_id,
-        submitted_result.payload.probe_result.clone(),
+        &submitted_result.payload.probe_result.clone(),
     )
     .await
     .map_err(HttpError::internal_with_logging)?;
@@ -155,7 +156,7 @@ async fn submit_testrun(
     queries::testruns::update_gateway_last_probe_result(
         &mut conn,
         assigned_testrun.gateway_id,
-        result,
+        &result,
     )
     .await
     .map_err(HttpError::internal_with_logging)?;
@@ -300,13 +301,13 @@ async fn process_testrun_submission_by_gateway(
     queries::testruns::update_gateway_last_probe_log(
         conn,
         gateway_id,
-        payload.probe_result.clone(),
+        &payload.probe_result.clone(),
     )
     .await
     .map_err(HttpError::internal_with_logging)?;
 
     let result = get_result_from_log(&payload.probe_result);
-    queries::testruns::update_gateway_last_probe_result(conn, gateway_id, result)
+    queries::testruns::update_gateway_last_probe_result(conn, gateway_id, &result)
         .await
         .map_err(HttpError::internal_with_logging)?;
 

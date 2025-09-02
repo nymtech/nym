@@ -10,13 +10,13 @@ use defguard_wireguard_rs::{host::Peer, key::Key, net::IpAddrMask, WGApi, Wiregu
 #[cfg(target_os = "linux")]
 use nym_credential_verification::ecash::EcashManager;
 use nym_crypto::asymmetric::x25519::KeyPair;
+#[cfg(target_os = "linux")]
+use nym_network_defaults::constants::WG_TUN_BASE_NAME;
 use nym_wireguard_types::Config;
 use peer_controller::PeerControlRequest;
 use std::sync::Arc;
 use tokio::sync::mpsc::{self, Receiver, Sender};
-
-#[cfg(target_os = "linux")]
-use nym_network_defaults::constants::WG_TUN_BASE_NAME;
+use tracing::error;
 
 pub mod error;
 pub mod peer_controller;
@@ -114,7 +114,7 @@ impl Drop for WgApiWrapper {
     fn drop(&mut self) {
         if let Err(e) = defguard_wireguard_rs::WireguardInterfaceApi::remove_interface(&self.inner)
         {
-            log::error!("Could not remove the wireguard interface: {e:?}");
+            error!("Could not remove the wireguard interface: {e:?}");
         }
     }
 }
@@ -163,6 +163,7 @@ pub async fn start_wireguard(
     ecash_manager: Arc<EcashManager>,
     metrics: nym_node_metrics::NymNodeMetrics,
     peers: Vec<Peer>,
+    upgrade_mode_status: nym_credential_verification::upgrade_mode::UpgradeModeStatus,
     task_client: nym_task::TaskClient,
     wireguard_data: WireguardData,
 ) -> Result<std::sync::Arc<WgApiWrapper>, Box<dyn std::error::Error + Send + Sync + 'static>> {
@@ -250,6 +251,7 @@ pub async fn start_wireguard(
         peer_bandwidth_managers,
         wireguard_data.inner.peer_tx.clone(),
         wireguard_data.peer_rx,
+        upgrade_mode_status,
         task_client,
     );
     tokio::spawn(async move { controller.run().await });

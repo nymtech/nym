@@ -1,6 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::node::upgrade_mode::UpgradeModeEnableError;
 use ipnetwork::IpNetworkError;
 use nym_client_core::error::ClientCoreError;
 use nym_id::NymIdError;
@@ -16,9 +17,6 @@ pub enum AuthenticatorError {
 
     #[error("{0}")]
     CredentialVerificationError(#[from] nym_credential_verification::Error),
-
-    #[error("invalid credential type")]
-    InvalidCredentialType,
 
     #[error("the entity wrapping the network requester has disconnected")]
     DisconnectedParent,
@@ -100,4 +98,15 @@ pub enum AuthenticatorError {
 
     #[error("no credential received")]
     NoCredentialReceived,
+
+    #[error(transparent)]
+    UpgradeModeEnable(#[from] UpgradeModeEnableError),
+}
+
+impl AuthenticatorError {
+    pub fn response_serialisation(source: impl Into<Box<bincode::ErrorKind>>) -> Self {
+        AuthenticatorError::FailedToSerializeResponsePacket {
+            source: source.into(),
+        }
+    }
 }

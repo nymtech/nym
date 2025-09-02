@@ -24,6 +24,7 @@ fn ephemeral_gateway_config(config: &Config) -> nym_gateway::config::Config {
         nym_gateway::config::IpPacketRouter {
             enabled: config.service_providers.network_requester.debug.enabled,
         },
+        config.gateway_tasks.upgrade_mode_watcher.clone(),
         nym_gateway::config::Debug {
             client_bandwidth_max_flushing_rate: config
                 .gateway_tasks
@@ -62,6 +63,10 @@ fn ephemeral_gateway_config(config: &Config) -> nym_gateway::config::Config {
                     .maximum_time_between_redemption,
             },
             max_request_timestamp_skew: config.gateway_tasks.debug.max_request_timestamp_skew,
+            upgrade_mode_min_staleness_recheck: config
+                .gateway_tasks
+                .debug
+                .upgrade_mode_min_staleness_recheck,
         },
     )
 }

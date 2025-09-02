@@ -19,7 +19,7 @@ use nym_topology::NymTopology;
 use nym_validator_client::UserAgent;
 use rand::rngs::OsRng;
 use std::path::PathBuf;
-use tracing::{info, instrument};
+use tracing::info;
 
 // we can suppress this warning (as suggested by linter itself) since we're only using it in our own code
 #[allow(async_fn_in_trait)]
@@ -104,7 +104,6 @@ pub struct InitResultsWithConfig<T> {
     pub init_results: InitResults,
 }
 
-#[instrument(skip_all)]
 pub async fn initialise_client<C>(
     init_args: C::InitArgs,
     user_agent: Option<UserAgent>,

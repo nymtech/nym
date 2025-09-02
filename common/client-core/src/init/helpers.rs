@@ -13,7 +13,6 @@ use rand::{seq::SliceRandom, Rng};
 #[cfg(unix)]
 use std::os::fd::RawFd;
 use std::{sync::Arc, time::Duration};
-use tracing::instrument;
 use tracing::{debug, info, trace, warn};
 use tungstenite::Message;
 use url::Url;
@@ -315,7 +314,6 @@ pub(super) fn get_specified_gateway(
     Ok(gateway.clone())
 }
 
-#[instrument(skip_all)]
 pub(super) async fn register_with_gateway(
     gateway_id: ed25519::PublicKey,
     gateway_listener: Url,

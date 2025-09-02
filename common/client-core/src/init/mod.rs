@@ -25,7 +25,6 @@ use rand::{CryptoRng, RngCore};
 use serde::Serialize;
 #[cfg(unix)]
 use std::{os::fd::RawFd, sync::Arc};
-use tracing::instrument;
 
 pub mod helpers;
 pub mod types;
@@ -192,7 +191,6 @@ fn reuse_gateway_connection(
     }
 }
 
-#[instrument(skip_all)]
 pub async fn setup_gateway<K, D>(
     setup: GatewaySetup,
     key_store: &K,

@@ -258,8 +258,8 @@ impl DVpnGateway {
 
         let (last_probe_result, performance_v2) = match gateway.last_probe_result {
             Some(ref value) => {
-                let mut parsed = serde_json::from_value::<LastProbeResult>(value.clone())
-                    .inspect_err(|err| {
+                let mut parsed = serde_json::from_value::<LastProbeResult>(value.clone()).inspect_err(
+                    |err| {
                         error!("Failed to deserialize probe result: {err}");
                     })?;
 

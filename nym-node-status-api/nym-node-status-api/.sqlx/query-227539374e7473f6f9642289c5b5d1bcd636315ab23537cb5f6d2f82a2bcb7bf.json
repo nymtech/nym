@@ -1,0 +1,26 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT\n            node_id,\n            bond_info as \"bond_info: serde_json::Value\"\n        FROM\n            nym_nodes\n        WHERE\n            bond_info IS NOT NULL\n        AND\n            self_described IS NOT NULL\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "node_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "bond_info: serde_json::Value",
+        "type_info": "Jsonb"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      true
+    ]
+  },
+  "hash": "227539374e7473f6f9642289c5b5d1bcd636315ab23537cb5f6d2f82a2bcb7bf"
+}

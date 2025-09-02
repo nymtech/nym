@@ -1,0 +1,34 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n                SELECT\n                    COALESCE(packets_received, 0) as \"packets_received!: _\",\n                    COALESCE(packets_sent, 0) as \"packets_sent!: _\",\n                    COALESCE(packets_dropped, 0) as \"packets_dropped!: _\"\n                FROM mixnode_packet_stats_raw\n                WHERE mix_id = $1\n                ORDER BY timestamp_utc DESC\n                LIMIT 1 OFFSET 1\n                ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "packets_received!: _",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "packets_sent!: _",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 2,
+        "name": "packets_dropped!: _",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "6b3a2f4577de18728921a65b89a3f13e8010c8c371fe61e3c599bdadf6ce1381"
+}

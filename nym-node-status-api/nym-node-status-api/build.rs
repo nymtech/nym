@@ -4,7 +4,6 @@ use anyhow::Result;
 /// cargo clean -p nym-node-status-api
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<()> {
-    #[cfg(feature = "pg")]
     if let Ok(database_url) = std::env::var("DATABASE_URL") {
         println!("cargo::rustc-env=DATABASE_URL={database_url}");
     }

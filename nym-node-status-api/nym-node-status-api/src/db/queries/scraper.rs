@@ -12,7 +12,6 @@ use crate::{
 };
 use anyhow::Result;
 use nym_validator_client::nym_api::SkimmedNode;
-use sqlx::Row;
 
 pub(crate) async fn get_nodes_for_scraping(pool: &DbPool) -> Result<Vec<ScraperNodeInfo>> {
     let mut nodes_to_scrape = Vec::new();
@@ -69,12 +68,12 @@ pub(crate) async fn get_nodes_for_scraping(pool: &DbPool) -> Result<Vec<ScraperN
     tracing::debug!("Fetched {} 🚪 entry/exit nodes", entry_exit_nodes);
 
     let mut conn = pool.acquire().await?;
-    let mixnodes = crate::db::query(
+    let mixnodes = sqlx::query!(
         r#"
             SELECT mix_id as node_id, host, http_api_port
             FROM mixnodes
             WHERE bonded = true
-        "#,
+        "#
     )
     .fetch_all(&mut *conn)
     .await?;
@@ -86,20 +85,18 @@ pub(crate) async fn get_nodes_for_scraping(pool: &DbPool) -> Result<Vec<ScraperN
     let mut legacy_not_in_nym_node_list = 0;
     let total_legacy_mixnodes = mixnodes.len();
     for mixnode in mixnodes {
-        let node_id: i64 = mixnode.try_get("node_id")?;
-        let host: String = mixnode.try_get("host")?;
-        let http_api_port: i64 = mixnode.try_get("http_api_port")?;
-
         if nodes_to_scrape
             .iter()
-            .all(|node| node.node_id() != &node_id)
+            .all(|node| node.node_id() != &mixnode.node_id)
         {
             // in case polyfilling on Nym API gets removed, this part ensures
             // mixnodes are added to the final list of nodes to scrape
             nodes_to_scrape.push(ScraperNodeInfo {
-                node_kind: ScrapeNodeKind::LegacyMixnode { mix_id: node_id },
-                hosts: vec![host],
-                http_api_port,
+                node_kind: ScrapeNodeKind::LegacyMixnode {
+                    mix_id: mixnode.node_id,
+                },
+                hosts: vec![mixnode.host],
+                http_api_port: mixnode.http_api_port,
             });
 
             legacy_not_in_nym_node_list += 1;
@@ -124,8 +121,8 @@ pub(crate) async fn get_nodes_for_scraping(pool: &DbPool) -> Result<Vec<ScraperN
 
 pub(crate) async fn insert_scraped_node_description(
     pool: &DbPool,
-    node_kind: ScrapeNodeKind,
-    description: NodeDescriptionResponse,
+    node_kind: &ScrapeNodeKind,
+    description: &NodeDescriptionResponse,
 ) -> Result<()> {
     let timestamp = now_utc().unix_timestamp();
     let mut conn = pool.acquire().await?;
@@ -141,7 +138,7 @@ pub(crate) async fn insert_scraped_node_description(
             node_id,
             identity_key,
         } => {
-            insert_nym_node_description(&mut conn, node_id, description.clone(), timestamp).await?;
+            insert_nym_node_description(&mut conn, node_id, description, timestamp).await?;
             // for historic reasons (/gateways API), store this info into gateways table as well
             insert_gateway_description(&mut conn, identity_key, description, timestamp).await?;
         }

@@ -309,12 +309,26 @@ impl From<Authenticator> for AuthenticatorDetails {
         }
     }
 }
+
+fn default_tunnel_port() -> u16 {
+    51822
+}
+
+fn default_metadata_port() -> u16 {
+    51830
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
 pub struct WireguardDetails {
     // NOTE: the port field is deprecated in favour of tunnel_port
     pub port: u16,
+
+    #[serde(default = "default_tunnel_port")]
     pub tunnel_port: u16,
+
+    #[serde(default = "default_metadata_port")]
     pub metadata_port: u16,
+
     pub public_key: String,
 }
 

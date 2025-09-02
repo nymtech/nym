@@ -1,0 +1,19 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO mixnode_description (\n            mix_id, moniker, website, security_contact, details, last_updated_utc\n        ) VALUES ($1, $2, $3, $4, $5, $6)\n        ON CONFLICT (mix_id) DO UPDATE SET\n            moniker = excluded.moniker,\n            website = excluded.website,\n            security_contact = excluded.security_contact,\n            details = excluded.details,\n            last_updated_utc = excluded.last_updated_utc\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Varchar",
+        "Varchar",
+        "Varchar",
+        "Varchar",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "2c477a7aa3b896c415ee2be6b887e24e87fb9d8185938ef582b86f8e547d5dbe"
+}

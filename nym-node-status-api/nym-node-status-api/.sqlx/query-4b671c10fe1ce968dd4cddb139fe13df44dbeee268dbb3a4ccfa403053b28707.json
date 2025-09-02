@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO summary\n                    (key, value_json, last_updated_utc)\n                    VALUES ($1, $2, $3)\n                    ON CONFLICT(key) DO UPDATE SET\n                    value_json=excluded.value_json,\n                    last_updated_utc=excluded.last_updated_utc;",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Varchar",
+        "Varchar",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "4b671c10fe1ce968dd4cddb139fe13df44dbeee268dbb3a4ccfa403053b28707"
+}

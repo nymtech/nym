@@ -5,12 +5,6 @@ use nym_task::signal::wait_for_signal;
 use nym_validator_client::nyxd::NyxdClient;
 use std::sync::Arc;
 
-#[cfg(all(feature = "sqlite", feature = "pg"))]
-compile_error!("Features 'sqlite' and 'pg' are mutually exclusive");
-
-#[cfg(not(any(feature = "sqlite", feature = "pg")))]
-compile_error!("Either 'sqlite' or 'pg' feature must be enabled");
-
 mod cli;
 mod db;
 mod http;

@@ -1,6 +1,12 @@
-# PostgreSQL Support for nym-node-status-api
+# Node Status API
 
-This project now supports both SQLite (default) and PostgreSQL databases.
+This is a standalone service that can be run by anyone to monitor the status of nodes in the Nym network.
+
+## Wellknown instances
+
+Below is a list of wellknown public instances:
+
+- https://node-status.nym.com (Nym Technologies SA)
 
 ## Quick Start with PostgreSQL
 
@@ -29,7 +35,7 @@ make prepare-pg
 make build-pg
 
 # Or manually:
-cargo build --features pg --no-default-features
+cargo build
 ```
 
 ### 4. Run with PostgreSQL
@@ -40,35 +46,17 @@ make dev-db
 
 # In another terminal, run the application
 DATABASE_URL=postgres://testuser:testpass@localhost:5433/nym_node_status_api_test \
-cargo run --features pg --no-default-features
+cargo run
 ```
-
-## Database Features
-
-- `sqlite` (default): Uses SQLite database
-- `pg`: Uses PostgreSQL database
-
-Only one database feature can be active at a time.
-
-## Migration Differences
-
-SQLite migrations are in `migrations/`, PostgreSQL migrations are in `migrations_pg/`.
-
-Key differences:
-- **AUTOINCREMENT** → **SERIAL**
-- **INTEGER CHECK (0,1)** → **BOOLEAN**
-- **REAL** → **DOUBLE PRECISION**
-- No table recreation needed for constraint changes in PostgreSQL
 
 ## Makefile Targets
 
 ```bash
-make help                # Show all available targets
-make prepare-pg         # Setup PostgreSQL and prepare SQLx cache
+make help              # Show all available targets
+make prepare           # Setup PostgreSQL and prepare SQLx cache
 make dev-db            # Start PostgreSQL for development
 make test-db           # Run tests with PostgreSQL
-make build-pg          # Build with PostgreSQL
-make build-sqlite      # Build with SQLite
+make build             # Build with PostgreSQL
 make psql              # Connect to running PostgreSQL
 make clean             # Clean build artifacts
 make clean-db          # Stop database and clean volumes
@@ -81,9 +69,6 @@ See `.env.example` for all configuration options. Key variable:
 ```bash
 # For PostgreSQL:
 DATABASE_URL=postgres://testuser:testpass@localhost:5433/nym_node_status_api_test
-
-# For SQLite:
-DATABASE_URL=sqlite://nym-node-status-api.sqlite
 ```
 
 ## Troubleshooting

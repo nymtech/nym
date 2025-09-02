@@ -52,46 +52,28 @@ test-db-migrate: ## Run database migrations against PostgreSQL
 .PHONY: test-db-prepare
 test-db-prepare: ## Run sqlx prepare for compile-time query verification
 	@echo "Running sqlx prepare for PostgreSQL..."
-	DATABASE_URL="$(TEST_DATABASE_URL)" cargo sqlx prepare -- --features pg
+	DATABASE_URL="$(TEST_DATABASE_URL)" cargo sqlx prepare
 
 # --- Build and Test Targets ---
 .PHONY: test-db-run
-test-db-run: ## Run tests with PostgreSQL feature
+test-db-run: ## Run tests
 	@echo "Running tests with PostgreSQL..."
-	DATABASE_URL="$(TEST_DATABASE_URL)" cargo test --features pg --no-default-features
+	DATABASE_URL="$(TEST_DATABASE_URL)" cargo test
 
-.PHONY: build-pg
-build-pg: ## Build with PostgreSQL feature
-	@echo "Building with PostgreSQL feature..."
-	cargo build --features pg --no-default-features
+.PHONY: build
+build: ## Build
+	@echo "Building..."
+	cargo build
 
-.PHONY: build-sqlite
-build-sqlite: ## Build with SQLite feature (default)
-	@echo "Building with SQLite feature..."
-	cargo build --features sqlite --no-default-features
-
-.PHONY: check-pg
-check-pg: ## Check code with PostgreSQL feature
-	@echo "Checking code with PostgreSQL feature..."
-	cargo check --features pg --no-default-features
-
-.PHONY: check-sqlite
-check-sqlite: ## Check code with SQLite feature
-	@echo "Checking code with SQLite feature..."
-	cargo check --features sqlite --no-default-features
+.PHONY: check
+check: ## Check code
+	@echo "Checking code..."
+	cargo check
 
 .PHONY: clippy
-clippy: clippy-pg clippy-sqlite
-
-.PHONY: clippy-pg
-clippy-pg: ## Run clippy with PostgreSQL feature
-	@echo "Running clippy with PostgreSQL feature..."
-	cargo clippy --features pg --no-default-features -- -D warnings
-
-.PHONY: clippy-sqlite
-clippy-sqlite: ## Run clippy with SQLite feature (default)
-	@echo "Running clippy with SQLite feature..."
-	cargo clippy --features sqlite --no-default-features -- -D warnings
+clippy: ## Run clippy
+	@echo "Running clippy..."
+	cargo clippy -- -D warnings
 
 # --- Cleanup Targets ---
 .PHONY: clean
@@ -106,7 +88,7 @@ clean-db: test-db-down ## Stop database and clean volumes
 # --- Utility Targets ---
 .PHONY: sqlx-cli
 sqlx-cli: ## Install sqlx-cli if not already installed
-	@command -v sqlx >/dev/null 2>&1 || cargo install sqlx-cli --features postgres,sqlite
+	@command -v sqlx >/dev/null 2>&1 || cargo install sqlx-cli --features postgres
 
 .PHONY: psql
 psql: ## Connect to the running PostgreSQL database with psql

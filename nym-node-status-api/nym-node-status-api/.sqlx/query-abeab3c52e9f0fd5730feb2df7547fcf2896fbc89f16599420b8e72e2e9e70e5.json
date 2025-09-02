@@ -1,0 +1,18 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n                INSERT INTO nym_nodes_packet_stats_raw (\n                    node_id, timestamp_utc, packets_received, packets_sent, packets_dropped\n                ) VALUES ($1, $2, $3, $4, $5)\n                ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Int4",
+        "Int4",
+        "Int4",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "abeab3c52e9f0fd5730feb2df7547fcf2896fbc89f16599420b8e72e2e9e70e5"
+}

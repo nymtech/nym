@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO summary_history\n                (date, timestamp_utc, value_json)\n                VALUES ($1, $2, $3)\n                ON CONFLICT(date) DO UPDATE SET\n                timestamp_utc=excluded.timestamp_utc,\n                value_json=excluded.value_json;",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Varchar",
+        "Int8",
+        "Varchar"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "4c55e15e47237149282bd8c0e3d861fc752db87fd57d7ff41709a7aa469b1aa5"
+}

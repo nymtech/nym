@@ -13,7 +13,7 @@ use nym_sphinx_forwarding::packet::MixPacket;
 use nym_task::ShutdownToken;
 use std::io;
 use tokio::time::Instant;
-use tracing::{debug, error, instrument, trace, warn};
+use tracing::{debug, error, trace, warn};
 
 pub(crate) mod global;
 
@@ -53,7 +53,6 @@ impl<C, F> PacketForwarder<C, F> {
         self.packet_sender.clone()
     }
 
-    #[instrument(skip_all)]
     fn forward_packet(&mut self, packet: MixPacket)
     where
         C: SendWithoutResponse,
@@ -77,7 +76,6 @@ impl<C, F> PacketForwarder<C, F> {
     }
 
     /// Upon packet being finished getting delayed, forward it to the mixnet.
-    #[instrument(skip_all)]
     fn handle_done_delaying(&mut self, packet: Expired<MixPacket>)
     where
         C: SendWithoutResponse,
@@ -87,7 +85,6 @@ impl<C, F> PacketForwarder<C, F> {
         self.forward_packet(delayed_packet);
     }
 
-    #[instrument(skip_all)]
     fn handle_new_packet(&mut self, new_packet: PacketToForward)
     where
         C: SendWithoutResponse,
@@ -130,9 +127,6 @@ impl<C, F> PacketForwarder<C, F> {
             .update_packet_forwarder_queue_size(channel_size)
     }
 
-    #[instrument(skip_all, name = "run_packet_forwarder",
-        level = "debug"
-    )]
     pub async fn run(&mut self)
     where
         C: SendWithoutResponse,

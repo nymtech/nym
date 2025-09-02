@@ -863,50 +863,95 @@ impl<R, S> FreshHandler<R, S> {
         S: AsyncRead + AsyncWrite + Unpin + Send,
         R: CryptoRng + RngCore + Send,
     {
-        let _distributed_context = if let ClientControlRequest::AuthenticateV2(ref auth_req) = request {
-            if let Some(ref trace_id_str) = auth_req.debug_trace_id {
-                warn!("Received debug trace ID: {trace_id_str}");
+        // let _distributed_context = if let ClientControlRequest::AuthenticateV2(ref auth_req) = request {
+        //     if let Some(ref trace_id_str) = auth_req.debug_trace_id {
+        //         warn!("Received debug trace ID: {trace_id_str}");
 
-                match TraceId::from_hex(&trace_id_str) {
-                    Ok(trace_id) => {
-                        warn!("Parsed debug trace ID: {trace_id}");
+        //         match TraceId::from_hex(&trace_id_str) {
+        //             Ok(trace_id) => {
+        //                 warn!("Parsed debug trace ID: {trace_id}");
 
-                        let id_gen = RandomIdGenerator::default();
-                        let span_id = id_gen.new_span_id();
+        //                 let id_gen = RandomIdGenerator::default();
+        //                 let span_id = id_gen.new_span_id();
 
-                        let span_context = opentelemetry::trace::SpanContext::new(
-                            trace_id,
-                            span_id,
-                            opentelemetry::trace::TraceFlags::SAMPLED,
-                            true,
-                            Default::default(),
-                        );
+        //                 let span_context = opentelemetry::trace::SpanContext::new(
+        //                     trace_id,
+        //                     span_id,
+        //                     opentelemetry::trace::TraceFlags::SAMPLED,
+        //                     true,
+        //                     Default::default(),
+        //                 );
 
-                        let remote_context = opentelemetry::Context::current()
-                            .with_remote_span_context(span_context);
+        //                 let remote_context = opentelemetry::Context::current()
+        //                     .with_remote_span_context(span_context);
 
-                        let _context_guard = remote_context.attach();
+        //                 let context_guard = remote_context.attach();
 
-                        let span = info_span!(
-                            "handle_initial_client_request",
-                            trace_id = %trace_id,
-                            service = "nym-node"
-                        );
+        //                 let span = info_span!(
+        //                     "handle_initial_client_request",
+        //                     trace_id = %trace_id,
+        //                     service = "nym-node"
+        //                 );
 
-                        warn!("Distributed context established. trace_id: {:?}", trace_id);
-                        Some(span)
-                    }
-                    Err(err) => {
-                        warn!("Failed to parse debug trace ID: {err}");
-                        None
-                    }
-                }
+        //                 warn!("Distributed context established. trace_id: {:?}", trace_id);
+        //                 Some(span)
+        //             }
+        //             Err(err) => {
+        //                 warn!("Failed to parse debug trace ID: {err}");
+        //                 None
+        //             }
+        //         }
+        //     } else {
+        //         warn!("Received debug trace ID without context");
+        //         None
+        //     }
+        // } else {
+        //     None
+        // };
+        let span = if let ClientControlRequest::AuthenticateV2(ref auth_req) = request {
+            if let Some(ref trace_id) = auth_req.debug_trace_id {
+                warn!("RAW TRACE ID: {trace_id:?}");
+                let trace_id = opentelemetry::trace::TraceId::from_hex(&trace_id)
+                    .expect("Invalid trace ID format");
+                warn!("🫂TraceID: {trace_id}🫂");
+                // We don't need to try and preserve the SpanID, just the TraceID (right?) so
+                // just making a new SpanID for the moment
+                let id_generator = RandomIdGenerator::default();
+                let span_id = id_generator.new_span_id();
+                let span_context = opentelemetry::trace::SpanContext::new(
+                    trace_id,
+                    span_id,
+                    opentelemetry::trace::TraceFlags::SAMPLED,
+                    true, // is_remote = true since this comes from another service
+                    Default::default(),
+                );
+                let remote_context =
+                    opentelemetry::Context::current().with_remote_span_context(span_context);
+                let contextguard = remote_context.clone().attach();
+                let span = info_span!(
+                    "authenticate_v2",
+                    trace_id = %trace_id
+                );
+                span.set_parent(remote_context.clone());
+                Some(span)
             } else {
-                warn!("Received debug trace ID without context");
+                warn!("AuthenticateV2 request but no trace_id provided");
                 None
             }
         } else {
+            warn!("Not an AuthenticateV2 request");
             None
+        };
+        // Probably a nicer way to do this but for now just match
+        let _guard = match &span {
+            Some(s) => {
+                warn!("ENTERED SPAN");
+                Some(s.enter())
+            }
+            None => {
+                warn!("COULDN'T ENTER SPAN");
+                None
+            }
         };
 
         let auth_result = match request {

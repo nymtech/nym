@@ -66,7 +66,7 @@ use std::ops::Deref;
 use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::mpsc;
-use tracing::{debug, info, instrument, trace};
+use tracing::{debug, info, trace};
 use zeroize::Zeroizing;
 
 pub mod bonding_information;
@@ -599,12 +599,6 @@ impl NymNode {
         })
     }
 
-    #[instrument(skip_all, 
-        name = "gateway_tasks_orchestrator"
-        fields(
-            node_id = %self.ed25519_identity_key().to_base58_string(),
-        )
-    )]
     async fn start_gateway_tasks(
         &mut self,
         cached_network: CachedNetwork,
@@ -634,12 +628,6 @@ impl NymNode {
 
         // if we're running in entry mode, start the websocket
         if self.modes().entry {
-            // Create websocket span 
-            let ws_span = tracing::info_span!(
-                "websocket_service",
-                node_id = %self.ed25519_identity_key().to_base58_string(),
-            );
-            let _ws_guard = ws_span.enter();
             info!(
                 "starting the clients websocket... on {}",
                 self.config.gateway_tasks.ws_bind_address
@@ -655,12 +643,6 @@ impl NymNode {
         // if we're running in exit mode, start the IPR and NR
         if self.modes().exit {
             info!("starting the exit service providers: NR + IPR");
-            // Create exit service providers span
-            let exit_span = tracing::info_span!(
-                "exit_service_providers",
-                node_id = %self.ed25519_identity_key().to_base58_string(),
-            );
-            let _exit_guard = exit_span.enter();
             gateway_tasks_builder.set_network_requester_opts(config.nr_opts);
             gateway_tasks_builder.set_ip_packet_router_opts(config.ipr_opts);
 
@@ -1138,12 +1120,6 @@ impl NymNode {
         Ok(())
     }
 
-    #[instrument(skip_all, 
-        name = "nym_node_orchestrator"
-        fields(
-            node_id = %self.ed25519_identity_key().to_base58_string(),
-        )
-    )]
     async fn start_nym_node_tasks(mut self) -> Result<ShutdownManager, NymNodeError> {
         info!("starting Nym Node {} with the following modes: mixnode: {}, entry: {}, exit: {}, wireguard: {}",
             self.ed25519_identity_key(),
@@ -1153,13 +1129,6 @@ impl NymNode {
             self.config.wireguard.enabled
         );
         debug!("config: {:#?}", self.config);
-
-        // create http server span
-        let server_span = tracing::info_span!(
-            "http_server",
-            bind_address = %self.config.http.bind_address
-        );
-        let _server_guard = server_span.enter();
 
         let http_server = self.build_http_server().await?;
         let bind_address = self.config.http.bind_address;

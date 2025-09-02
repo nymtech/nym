@@ -1,3 +1,4 @@
+use crate::db::models::NymNodeDescriptionDeHelper;
 use futures_util::TryStreamExt;
 use nym_node_requests::api::v1::node::models::NodeDescription;
 use nym_validator_client::{
@@ -5,7 +6,7 @@ use nym_validator_client::{
     models::NymNodeDescription,
 };
 use std::collections::HashMap;
-use tracing::instrument;
+use tracing::{instrument, warn};
 
 use crate::db::DbConnection;
 use crate::{
@@ -210,13 +211,18 @@ pub(crate) async fn get_node_self_description(
         records
             .into_iter()
             .filter_map(|record| {
+                let node_id = record.node_id;
                 record
                     .self_described
                     // only return details for nodes which have details stored
                     .and_then(|description| {
-                        serde_json::from_value::<NymNodeDescription>(description).ok()
+                        serde_json::from_value::<NymNodeDescriptionDeHelper>(description)
+                            .inspect_err(|err| {
+                                warn!("malformed description data for node {node_id}: {err}")
+                            })
+                            .ok()
                     })
-                    .map(|res| (record.node_id as NodeId, res))
+                    .map(|res| (record.node_id as NodeId, res.into()))
             })
             .collect::<HashMap<_, _>>()
     })

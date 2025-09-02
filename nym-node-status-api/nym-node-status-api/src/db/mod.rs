@@ -36,7 +36,11 @@ impl Storage {
             .await
             .map_err(|err| anyhow!("Failed to connect to {}: {}", &connection_url, err))?;
 
-        MIGRATOR.run(&pool).await?;
+        if env::var("SKIP_MIGRATIONS").unwrap_or_default() != "true" {
+            MIGRATOR.run(&pool).await?;
+        } else {
+            tracing::warn!("Skipping migrations");
+        }
 
         Ok(Storage { pool })
     }

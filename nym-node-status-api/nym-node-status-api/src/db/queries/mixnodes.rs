@@ -108,10 +108,10 @@ pub(crate) async fn get_daily_stats(pool: &DbPool) -> anyhow::Result<Vec<DailySt
         r#"
         SELECT
             date_utc as "date_utc!",
-            SUM(total_stake) as "total_stake!: i64",
-            SUM(packets_received) as "total_packets_received!: i64",
-            SUM(packets_sent) as "total_packets_sent!: i64",
-            SUM(packets_dropped) as "total_packets_dropped!: i64"
+            SUM(total_stake)::BIGINT as "total_stake!: i64",
+            SUM(packets_received)::BIGINT as "total_packets_received!: i64",
+            SUM(packets_sent)::BIGINT as "total_packets_sent!: i64",
+            SUM(packets_dropped)::BIGINT as "total_packets_dropped!: i64"
         FROM (
             SELECT
                 date_utc,

@@ -175,6 +175,7 @@ impl MixTrafficController {
                             },
                             None => {
                                 tracing::trace!("MixTrafficController, client request channel closed");
+                                break
                             }
                         },
                     }

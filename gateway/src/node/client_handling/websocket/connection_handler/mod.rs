@@ -6,6 +6,9 @@ use nym_credential_verification::BandwidthFlushingBehaviourConfig;
 use nym_gateway_requests::shared_key::SharedGatewayKey;
 use nym_gateway_requests::ServerResponse;
 use nym_sphinx::DestinationAddressBytes;
+use opentelemetry::Context;
+use opentelemetry_sdk::trace::{IdGenerator, RandomIdGenerator};
+use opentelemetry::trace::TraceContextExt;
 use rand::{CryptoRng, Rng};
 use std::time::Duration;
 use time::OffsetDateTime;
@@ -128,10 +131,27 @@ where
 
     let mut shutdown = handle.shutdown.clone();
 
-    if let Some(auth_handle) = handle
+    if let Some((auth_handle, distributed_trace_id)) = handle
         .handle_until_authenticated_or_failure(&mut shutdown)
         .await
     {
+        // establish distributed tracing context to attach all further spans to shared context
+        let _context_guard = if let Some(trace_id) = distributed_trace_id {
+            let id_generator = RandomIdGenerator::default();
+            let span_id = id_generator.new_span_id();
+            // Create distributed context
+            let span_context = opentelemetry::trace::SpanContext::new(
+                trace_id,
+                span_id,
+                opentelemetry::trace::TraceFlags::SAMPLED,
+                true,
+                Default::default()
+            );
+            let remote_context = opentelemetry::Context::current().with_remote_span_context(span_context);
+            Some(remote_context.attach())
+        } else {
+            None
+        };
         let span = tracing::span!(tracing::Level::DEBUG, "websocket_listener");
         auth_handle.listen_for_requests(shutdown).instrument(span).await
     }

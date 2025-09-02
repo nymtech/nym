@@ -1,6 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::client::helpers::get_time_now;
 use crate::client::replies::{
     reply_controller::ReplyControllerSender, reply_storage::SentReplyKeys,
 };
@@ -22,7 +23,7 @@ use nym_statistics_common::clients::{packet_statistics::PacketStatisticsEvent, C
 use nym_task::TaskClient;
 use std::collections::HashSet;
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 use tracing::*;
 
 // The interval at which we check for stale buffers
@@ -54,7 +55,7 @@ struct ReceivedMessagesBufferInner<R: MessageReceiver> {
     stats_tx: ClientStatsSender,
 
     // Periodically check for stale buffers to clean up
-    last_stale_check: Instant,
+    last_stale_check: crate::client::helpers::Instant,
 }
 
 impl<R: MessageReceiver> ReceivedMessagesBufferInner<R> {
@@ -154,7 +155,7 @@ impl<R: MessageReceiver> ReceivedMessagesBufferInner<R> {
     }
 
     fn cleanup_stale_buffers(&mut self) {
-        let now = Instant::now();
+        let now = get_time_now();
         if now - self.last_stale_check > STALE_BUFFER_CHECK_INTERVAL {
             self.last_stale_check = now;
             self.message_receiver
@@ -190,7 +191,7 @@ impl<R: MessageReceiver> ReceivedMessagesBuffer<R> {
                 message_sender: None,
                 recently_reconstructed: HashSet::new(),
                 stats_tx,
-                last_stale_check: Instant::now(),
+                last_stale_check: get_time_now(),
             })),
             reply_key_storage,
             reply_controller_sender,

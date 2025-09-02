@@ -376,7 +376,7 @@ impl MixnetListener {
                     v6::registration::RegisteredData {
                         pub_key: self.keypair().public_key().into(),
                         private_ips: (allowed_ipv4, allowed_ipv6).into(),
-                        wg_port: self.config.authenticator.announced_port,
+                        wg_port: self.config.authenticator.tunnel_announced_port,
                     },
                     request_id,
                     self.upgrade_mode_enabled(),

@@ -1,9 +1,9 @@
 use std::collections::HashSet;
 
 use futures_util::TryStreamExt;
-use sqlx::{pool::PoolConnection, Postgres};
 use tracing::error;
 
+use crate::db::DbConnection;
 use crate::{
     db::{
         models::{MixnodeDto, MixnodeRecord},
@@ -161,7 +161,7 @@ pub(crate) async fn get_bonded_mix_ids(pool: &DbPool) -> anyhow::Result<HashSet<
 }
 
 pub(crate) async fn insert_mixnode_description(
-    conn: &mut PoolConnection<Postgres>,
+    conn: &mut DbConnection,
     mix_id: &i64,
     description: &NodeDescriptionResponse,
     timestamp: i64,

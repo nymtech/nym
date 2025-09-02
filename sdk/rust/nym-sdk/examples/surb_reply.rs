@@ -12,7 +12,6 @@ use tracing::{instrument, info_span};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 use std::path::PathBuf;
 use tempfile::TempDir;
-// use nym_sdk::storage::paths::StoragePaths;
 use nym_sdk::mixnet::StoragePaths;
 
 #[tokio::main]
@@ -52,8 +51,7 @@ async fn main() {
     let context = span.span_context();
     let trace_id = context.trace_id();
     warn!("TRACE_ID: {:?}", trace_id);
-
-        
+   
     // Specify some config options
     let config_dir: PathBuf = TempDir::new().unwrap().path().to_path_buf();
     let storage_paths = StoragePaths::new_from_dir(&config_dir).unwrap();
@@ -74,14 +72,12 @@ async fn main() {
     let client_builder  = MixnetClientBuilder::new_ephemeral();
     let mixnet_client = client_builder
         .request_gateway("BAF2aYpzcK9KbSS3Y7EdLisxiogkTr88FXkdL8EDNigH".to_string())
-        .with_ignore_epoch_roles(true)
-        .with_extended_topology(true)
         .build()
         .unwrap();
 
+    let mut client = mixnet_client.connect_to_mixnet().await.unwrap();
     // Now we connect to the mixnet, using keys now stored in the paths provided.
     // let mut client = client.connect_to_mixnet().await.unwrap();
-    let mut client = mixnet_client.connect_to_mixnet().await.unwrap();
 
     // Be able to get our client address
     let our_address = client.nym_address();
@@ -89,9 +85,10 @@ async fn main() {
 
     // Send a message through the mixnet to ourselves using our nym address
     client
-        .on_messages(|msg| println!("Received: {}", String::from_utf8_lossy(&msg.message)))
-        .await;
-
+        .send_plain_message(*our_address, "hello there")
+        .await
+        .unwrap();
+    
     // we're going to parse the sender_tag (AnonymousSenderTag) from the incoming message and use it to 'reply' to ourselves instead of our Nym address.
     // we know there will be a sender_tag since the sdk sends SURBs along with messages by default.
     println!("Waiting for message\n");

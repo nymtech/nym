@@ -584,7 +584,6 @@ impl<R, S> AuthenticatedHandler<R, S> {
     /// Simultaneously listens for incoming client requests, which realistically should only be
     /// binary requests to forward sphinx packets or increase bandwidth
     /// and for sphinx packets received from the mix network that should be sent back to the client.
-    #[instrument(level = "debug", skip_all)]
     pub(crate) async fn listen_for_requests(mut self, mut shutdown: TaskClient)
     where
         R: Rng + CryptoRng,

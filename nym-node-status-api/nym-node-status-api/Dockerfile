@@ -4,7 +4,7 @@ FROM harbor.nymte.ch/dockerhub/rust:latest AS builder
 COPY ./ /usr/src/nym
 WORKDIR /usr/src/nym/nym-node-status-api/nym-node-status-api/
 
-RUN cargo build --release --features pg
+RUN cargo build --release
 
 
 #-------------------------------------------------------------------

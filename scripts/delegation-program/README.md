@@ -28,7 +28,7 @@ NODE ID, SUGGESTED WALLET DELEGATION, CURRENT WALLET DELEGATION, SUGGESTED TOTAL
 
 1. Download from this branch and make executable
 ```sh
-wget https://raw.githubusercontent.com/nymtech/nym/refs/heads/feature/operators/delegation-program-adjuster/scripts/delegation-program/stake_adjustment.py && chmod u+x stake_adjustment.py
+wget https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/delegation-program/stake_adjustment.py && chmod u+x stake_adjustment.py
 ```
 2. Make a simple column csv with `node_ids` (for DP, use all the DP nodes `node_id` column, and save it to the same dir, example can be `input.csv`:
 ```csv

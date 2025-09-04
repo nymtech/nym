@@ -60,9 +60,6 @@ pub struct ReplyController<R> {
     receiver_controller: ReceiverReplyController<R>,
 
     request_receiver: ReplyControllerReceiver,
-
-    // Listen for shutdown signals
-    shutdown_token: ShutdownToken,
 }
 
 impl ReplyController<OsRng> {
@@ -71,7 +68,6 @@ impl ReplyController<OsRng> {
         message_handler: MessageHandler<OsRng>,
         full_reply_storage: CombinedReplyStorage,
         request_receiver: ReplyControllerReceiver,
-        shutdown_token: ShutdownToken,
     ) -> Self {
         ReplyController {
             config,
@@ -86,7 +82,6 @@ impl ReplyController<OsRng> {
                 message_handler,
             ),
             request_receiver,
-            shutdown_token,
         }
     }
 }
@@ -148,10 +143,8 @@ where
         self.sender_controller.inspect_and_clear_stale_data(now)
     }
 
-    pub(crate) async fn run(&mut self) {
+    pub(crate) async fn run(&mut self, shutdown_token: ShutdownToken) {
         debug!("Started ReplyController with graceful shutdown support");
-
-        let shutdown = self.shutdown_token.clone();
 
         let polling_rate = Duration::from_secs(5);
         let mut stale_inspection = new_interval_stream(polling_rate);
@@ -159,10 +152,10 @@ where
         let polling_rate = self.config.key_rotation.epoch_duration / 8;
         let mut invalidation_inspection = new_interval_stream(polling_rate);
 
-        while !shutdown.is_cancelled() {
+        while !shutdown_token.is_cancelled() {
             tokio::select! {
                 biased;
-                _ = shutdown.cancelled() => {
+                _ = shutdown_token.cancelled() => {
                     tracing::trace!("ReplyController: Received shutdown");
                 },
                 req = self.request_receiver.next() => match req {
@@ -181,7 +174,6 @@ where
                 }
             }
         }
-        assert!(shutdown.is_cancelled());
         tracing::debug!("ReplyController: Exiting");
     }
 }

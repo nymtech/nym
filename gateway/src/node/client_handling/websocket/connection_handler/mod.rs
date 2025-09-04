@@ -132,8 +132,26 @@ where
         .handle_until_authenticated_or_failure(&mut shutdown)
         .await
     {
-        let span = tracing::span!(tracing::Level::DEBUG, "websocket_listener");
-        auth_handle.listen_for_requests(shutdown).instrument(span).await
+        // opentelemetry::global::get_text_map_propagator(|propagator| {
+        //     let carrier = helpers::HeaderExtractor(&auth_handle.request_headers);
+        //     let parent_cx = propagator.extract(&carrier);
+        //     let span = tracing::span!(
+        //         parent: parent_cx.span(),
+        //         tracing::Level::TRACE,
+        //         "websocket_authenticated_client",
+        //         client_address = %auth_handle.remote_address,
+        //         client_id = auth_handle.client_id,
+        //     );
+        //     auth_handle
+        //         .listen_for_requests(shutdown)
+        //         .instrument(span)
+        //         .await
+        // });
+        let trace_id = opentelemetry::trace::TraceContextExt::span(&opentelemetry::Context::current())
+            .span_context()
+            .trace_id();
+        tracing::error!("==== websocket authenticated client trace id: {trace_id} ====");
+        auth_handle.listen_for_requests(shutdown).await
     }
 
     trace!("the handler is done!");

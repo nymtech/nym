@@ -25,7 +25,7 @@ pub(crate) enum ShutdownHelper {
 fn new_shutdown_manager() -> Result<ShutdownManager, ClientCoreError> {
     cfg_if::cfg_if! {
         if #[cfg(not(target_arch = "wasm32"))] {
-            Ok(ShutdownManager::new_without_signals().with_default_shutdown_signals()?.with_cancel_on_panic())
+            Ok(ShutdownManager::build_new_default()?)
         } else {
             Ok(ShutdownManager::new())
         }

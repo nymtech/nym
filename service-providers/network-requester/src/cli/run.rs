@@ -59,8 +59,7 @@ pub(crate) async fn execute(args: &Run) -> Result<(), NetworkRequesterError> {
     }
 
     log::info!("Starting socks5 service provider");
-    let shutdown_manager =
-        ShutdownManager::new_without_signals().with_default_shutdown_signals()?;
+    let shutdown_manager = ShutdownManager::build_new_default?;
     let mut server = crate::core::NRServiceProviderBuilder::new(
         config,
         shutdown_manager.shutdown_tracker_owned(),

@@ -863,33 +863,34 @@ impl<R, S> FreshHandler<R, S> {
         S: AsyncRead + AsyncWrite + Unpin + Send,
         R: CryptoRng + RngCore + Send,
     {
-        let span = if let ClientControlRequest::AuthenticateV2(ref auth_req) = request {
+        let trace_id = if let ClientControlRequest::AuthenticateV2(ref auth_req) = request {
             if let Some(ref trace_id) = auth_req.debug_trace_id {
                 warn!("Parsed trace id: {trace_id}");
                 let trace_id = opentelemetry::trace::TraceId::from_hex(&trace_id)
                     .expect("Invalid trace ID format");
-                let id_generator = RandomIdGenerator::default();
-                let span_id = id_generator.new_span_id();
 
-                let span_context = opentelemetry::trace::SpanContext::new(
-                    trace_id,
-                    span_id,
-                    opentelemetry::trace::TraceFlags::SAMPLED,
-                    true, // is_remote = true since this comes from another service
-                    Default::default(),
-                );
+                // let id_generator = RandomIdGenerator::default();
+                // let span_id = id_generator.new_span_id();
 
-                let remote_context = opentelemetry::Context::current()
-                    .with_remote_span_context(span_context);
+                // let span_context = opentelemetry::trace::SpanContext::new(
+                //     trace_id,
+                //     span_id,
+                //     opentelemetry::trace::TraceFlags::SAMPLED,
+                //     true, // is_remote = true since this comes from another service
+                //     Default::default(),
+                // );
 
-                let _context_guard = remote_context.clone().attach();
-                let span = info_span!(
-                    "websocket_authentication",
-                    trace_id = %trace_id
-                );
-                span.set_parent(remote_context.clone());
+                // let remote_context = opentelemetry::Context::current()
+                //     .with_remote_span_context(span_context);
 
-                Some(span)
+                // let _context_guard = remote_context.clone().attach();
+                // let span = info_span!(
+                //     "websocket_authentication",
+                //     trace_id = %trace_id
+                // );
+                // span.set_parent(remote_context.clone());
+
+                Some(trace_id)
             } else {
                 warn!("AuthenticateV2 request but no trace_id provided");
                 None
@@ -899,16 +900,26 @@ impl<R, S> FreshHandler<R, S> {
             None
         };
 
-        let _guard = match &span{
-            Some(s) => {
-                warn!("==== ENTERED SPAN ====");
-                Some(s.enter())
-            }
-            None => {
-                warn!("==== COULDN'T ENTER SPAN ====");
-                None
-            }
-        };
+        use opentelemetry::trace::Tracer;
+        let tracer = opentelemetry::global::tracer("gateway-websocket");
+        let span = tracer
+            .span_builder("websocket_authentication")
+            .with_trace_id(trace_id.unwrap())
+            .start(&tracer);
+
+        let cx = opentelemetry::Context::current_with_span(span);
+        let _guard = cx.attach();
+
+        // let _guard = match &span{
+        //     Some(s) => {
+        //         warn!("==== ENTERED SPAN ====");
+        //         Some(s.enter())
+        //     }
+        //     None => {
+        //         warn!("==== COULDN'T ENTER SPAN ====");
+        //         None
+        //     }
+        // };
 
         let auth_result = match request {
             ClientControlRequest::Authenticate {
@@ -968,10 +979,9 @@ impl<R, S> FreshHandler<R, S> {
             return Err(InitialAuthenticationError::EmptyClientDetails);
         };
 
-        info_span!("THE SOLE PURPOSE OF THIS SPAN IS TO SEE ITS TRACE ID");
         let current_context = opentelemetry::Context::current();
         let final_trace_id = current_context.span().span_context().trace_id();
-        error!("trace_id at the end of initial authentication: {:?}", final_trace_id);
+        error!("==== trace_id at the end of initial authentication: {:?} ====", final_trace_id);
         Ok(Some(client_details))
     }
 
@@ -1006,8 +1016,8 @@ impl<R, S> FreshHandler<R, S> {
                 info_span!("THE SOLE PURPOSE OF THIS SPAN IS TO SEE ITS TRACE ID");
                 let current_context = opentelemetry::Context::current();
                 let final_trace_id = current_context.span().span_context().trace_id();
-                error!("trace_id after initial client request handling returns: {:?}", final_trace_id);
-                
+                error!("==== trace_id after initial client request handling returns: {:?} ====", final_trace_id);
+
             if let Some(registration_details) = maybe_auth_res {
                 let (mix_sender, mix_receiver) = mpsc::unbounded();
                 // Channel for handlers to ask other handlers if they are still active.

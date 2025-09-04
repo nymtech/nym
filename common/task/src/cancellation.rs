@@ -360,6 +360,12 @@ impl Default for ShutdownManager {
 
 #[cfg(not(target_arch = "wasm32"))]
 impl ShutdownManager {
+    pub fn build_new_default() -> std::io::Result<Self> {
+        Ok(ShutdownManager::new_without_signals()
+            .with_default_shutdown_signals()?
+            .with_cancel_on_panic())
+    }
+
     #[must_use]
     #[track_caller]
     pub fn with_shutdown<F>(mut self, shutdown: F) -> Self
@@ -664,6 +670,7 @@ impl ShutdownManager {
     }
 
     #[must_use]
+    #[deprecated]
     #[allow(deprecated)]
     pub fn subscribe_legacy<S: Into<String>>(&self, child_suffix: S) -> crate::TaskClient {
         // alternatively we could have set self.legacy_task_manager = Some(TaskManager::default());

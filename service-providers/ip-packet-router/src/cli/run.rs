@@ -28,8 +28,7 @@ pub(crate) async fn execute(args: &Run) -> Result<(), IpPacketRouterError> {
     log::debug!("Using config: {config:#?}");
 
     log::info!("Starting ip packet router service provider");
-    let shutdown_manager =
-        ShutdownManager::new_without_signals().with_default_shutdown_signals()?;
+    let shutdown_manager = ShutdownManager::build_new_default?;
     let mut server = nym_ip_packet_router::IpPacketRouter::new(
         config,
         shutdown_manager.shutdown_tracker_owned(),

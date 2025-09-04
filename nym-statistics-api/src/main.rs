@@ -27,7 +27,7 @@ async fn main() -> anyhow::Result<()> {
     .await?;
     tracing::info!("Connection to database successful");
 
-    let shutdown_manager = ShutdownManager::new_without_signals();
+    let shutdown_manager = ShutdownManager::build_new_default()?;
 
     let network_refresher =
         NetworkRefresher::initialise_new(args.nym_api_url, shutdown_manager.child_shutdown_token())

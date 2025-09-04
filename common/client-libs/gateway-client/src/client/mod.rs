@@ -1140,7 +1140,7 @@ impl GatewayClient<InitOnly, EphemeralCredentialStorage> {
         // perfectly fine here, because it's not meant to be used
         let (ack_tx, _) = mpsc::unbounded();
         let (mix_tx, _) = mpsc::unbounded();
-        let shutdown_token = ShutdownToken::ephemeral();
+        let shutdown_token = ShutdownToken::default();
         let packet_router = PacketRouter::new(ack_tx, mix_tx, shutdown_token.clone());
 
         GatewayClient {

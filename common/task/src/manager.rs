@@ -682,6 +682,7 @@ mod tests {
     use super::*;
 
     #[tokio::test]
+    #[allow(deprecated)]
     async fn signal_shutdown() {
         let shutdown = TaskManager::default();
         let mut listener = shutdown.subscribe();

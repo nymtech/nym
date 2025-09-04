@@ -512,8 +512,10 @@ impl ClientBuilder {
                 .deflate(true)
                 .brotli(true)
                 .zstd(true)
-                .local_address(IpAddr::from_str("0.0.0.0").unwrap())
         };
+
+        #[cfg(feature = "force-ipv4")]
+        let reqwest_client_builder = reqwest_client_builder.local_address(IpAddr::from_str("0.0.0.0").unwrap());
 
         ClientBuilder {
             urls,

@@ -14,6 +14,7 @@ license.workspace = true
 default=["tunneling"]
 tunneling=[]
 network-defaults = ["dep:nym-network-defaults"]
+force-ipv4 = []
 
 [dependencies]
 async-trait = { workspace = true }
@@ -49,4 +50,5 @@ features = ["tokio"]
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["rt", "macros"] }
+
 

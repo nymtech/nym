@@ -1,5 +1,3 @@
 export const TABLET_WIDTH = "(min-width:700px)";
 
-export const RECOMMENDED_NODES = [
-  1362, 291, 1719, 1768, 1772, 1512, 896, 1415, 2114, 2010,
-];
+export const RECOMMENDED_NODES = [1456, 2248, 2257, 1946, 1867, 2001, 2056, 1910, 1995, 2057];

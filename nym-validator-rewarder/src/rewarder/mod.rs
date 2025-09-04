@@ -582,7 +582,8 @@ impl Rewarder {
         info!("Starting nym validators rewarder");
 
         // setup shutdowns
-        let shutdown_manager = ShutdownManager::new().with_default_shutdown_signals()?;
+        let shutdown_manager =
+            ShutdownManager::new_without_signals().with_default_shutdown_signals()?;
         let scraper_cancellation = self.setup_tasks().await?;
 
         if let Err(err) = self.startup_resync().await {

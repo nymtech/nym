@@ -9,7 +9,7 @@ pub mod manager;
 pub mod signal;
 pub mod spawn;
 
-pub use cancellation::{ShutdownDropGuard, ShutdownManager, ShutdownToken};
+pub use cancellation::{ShutdownDropGuard, ShutdownManager, ShutdownToken, ShutdownTracker};
 pub use event::{StatusReceiver, StatusSender, TaskStatus, TaskStatusEvent};
 #[allow(deprecated)]
 pub use manager::{TaskClient, TaskManager};

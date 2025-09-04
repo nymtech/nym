@@ -59,7 +59,8 @@ pub(crate) async fn execute(args: &Run) -> Result<(), NetworkRequesterError> {
     }
 
     log::info!("Starting socks5 service provider");
-    let shutdown_manager = ShutdownManager::new().with_default_shutdown_signals()?;
+    let shutdown_manager =
+        ShutdownManager::new_without_signals().with_default_shutdown_signals()?;
     let mut server =
         crate::core::NRServiceProviderBuilder::new(config, shutdown_manager.clone_shutdown_token());
     if let Some(custom_mixnet) = &args.common_args.custom_mixnet {

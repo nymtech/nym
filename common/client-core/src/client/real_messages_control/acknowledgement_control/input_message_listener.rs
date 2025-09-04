@@ -17,14 +17,13 @@ use tracing::*;
 /// Module responsible for dealing with the received messages: splitting them, creating acknowledgements,
 /// putting everything into sphinx packets, etc.
 /// It also makes an initial sending attempt for said messages.
-pub(super) struct InputMessageListener<R>
+pub(crate) struct InputMessageListener<R>
 where
     R: CryptoRng + Rng,
 {
     input_receiver: InputMessageReceiver,
     message_handler: MessageHandler<R>,
     reply_controller_sender: ReplyControllerSender,
-    shutdown_token: ShutdownToken,
 }
 
 impl<R> InputMessageListener<R>
@@ -38,13 +37,11 @@ where
         input_receiver: InputMessageReceiver,
         message_handler: MessageHandler<R>,
         reply_controller_sender: ReplyControllerSender,
-        shutdown_token: ShutdownToken,
     ) -> Self {
         InputMessageListener {
             input_receiver,
             message_handler,
             reply_controller_sender,
-            shutdown_token,
         }
     }
 
@@ -68,14 +65,9 @@ where
         max_retransmissions: Option<u32>,
     ) {
         // offload reply handling to the dedicated task
-        if let Err(err) =
+        let _ =
             self.reply_controller_sender
-                .send_reply(recipient_tag, data, lane, max_retransmissions)
-        {
-            if !self.shutdown_token.is_cancelled() {
-                error!("failed to send a reply - {err}");
-            }
-        }
+                .send_reply(recipient_tag, data, lane, max_retransmissions);
     }
 
     async fn handle_plain_message(
@@ -221,13 +213,13 @@ where
         };
     }
 
-    pub(super) async fn run(&mut self) {
+    pub(crate) async fn run(&mut self, shutdown_token: ShutdownToken) {
         debug!("Started InputMessageListener with graceful shutdown support");
 
-        while !self.shutdown_token.is_cancelled() {
+        while !shutdown_token.is_cancelled() {
             tokio::select! {
                 biased;
-                _ = self.shutdown_token.cancelled() => {
+                _ = shutdown_token.cancelled() => {
                     tracing::trace!("InputMessageListener: Received shutdown");
                     break;
                 }

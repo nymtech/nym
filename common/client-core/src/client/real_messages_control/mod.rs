@@ -14,26 +14,21 @@ use crate::client::replies::reply_controller::{
     ReplyController, ReplyControllerReceiver, ReplyControllerSender,
 };
 use crate::client::replies::reply_storage::CombinedReplyStorage;
-use crate::config;
-use crate::{
-    client::{
-        inbound_messages::InputMessageReceiver, mix_traffic::BatchMixMessageSender,
-        real_messages_control::acknowledgement_control::AcknowledgementControllerConnectors,
-        topology_control::TopologyAccessor,
-    },
-    spawn_future,
+use crate::client::{
+    inbound_messages::InputMessageReceiver, mix_traffic::BatchMixMessageSender,
+    real_messages_control::acknowledgement_control::AcknowledgementControllerConnectors,
+    topology_control::TopologyAccessor,
 };
+use crate::config;
 use futures::channel::mpsc;
 use nym_gateway_client::AcknowledgementReceiver;
 use nym_sphinx::acknowledgements::AckKey;
 use nym_sphinx::addressing::clients::Recipient;
-use nym_sphinx::params::PacketType;
 use nym_statistics_common::clients::ClientStatsSender;
 use nym_task::connections::{ConnectionCommandReceiver, LaneQueueLengths};
 use nym_task::ShutdownToken;
 use rand::{rngs::OsRng, CryptoRng, Rng};
 use std::sync::Arc;
-use tracing::*;
 
 use crate::client::replies::reply_controller::key_rotation_helpers::KeyRotationConfig;
 pub(crate) use acknowledgement_control::{AckActionSender, Action};
@@ -69,6 +64,7 @@ impl<'a> From<&'a Config> for acknowledgement_control::Config {
             cfg.traffic.maximum_number_of_retransmissions,
             cfg.acks.ack_wait_addition,
             cfg.acks.ack_wait_multiplier,
+            cfg.traffic.packet_type,
         )
         .with_custom_packet_size(cfg.traffic.primary_packet_size)
     }
@@ -188,7 +184,6 @@ impl RealMessagesController<OsRng> {
             message_handler.clone(),
             reply_controller_sender,
             stats_tx.clone(),
-            shutdown_token.clone(),
         );
 
         let reply_control = ReplyController::new(
@@ -196,7 +191,6 @@ impl RealMessagesController<OsRng> {
             message_handler,
             reply_storage,
             reply_controller_receiver,
-            shutdown_token.clone(),
         );
 
         let out_queue_control = OutQueueControl::new(
@@ -219,26 +213,13 @@ impl RealMessagesController<OsRng> {
         }
     }
 
-    pub fn start(self, packet_type: PacketType) {
-        let mut out_queue_control = self.out_queue_control;
-        let ack_control = self.ack_control;
-        let mut reply_control = self.reply_control;
-
-        spawn_future!(
-            async move {
-                out_queue_control.run().await;
-                debug!("The out queue controller has finished execution!");
-            },
-            "RealMessagesController::OutQueueControl)"
-        );
-        spawn_future!(
-            async move {
-                reply_control.run().await;
-                debug!("The reply controller has finished execution!");
-            },
-            "RealMessagesController::ReplyController"
-        );
-
-        ack_control.start(packet_type);
+    pub fn into_tasks(
+        self,
+    ) -> (
+        OutQueueControl<OsRng>,
+        ReplyController<OsRng>,
+        AcknowledgementController<OsRng>,
+    ) {
+        (self.out_queue_control, self.reply_control, self.ack_control)
     }
 }

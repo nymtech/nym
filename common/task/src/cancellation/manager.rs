@@ -23,21 +23,32 @@ use wasmtimer::tokio::sleep;
 use tokio::signal::unix::{signal, SignalKind};
 use tokio::task::JoinSet;
 
+/// A top level structure responsible for controlling process shutdown by listening to
+/// the underlying registered signals and issuing cancellation to tasks derived from its root cancellation token.
 #[allow(deprecated)]
 pub struct ShutdownManager {
+    /// Optional reference to the legacy [TaskManager](crate::TaskManager) to allow easier
+    /// transition to the new system.
     pub(crate) legacy_task_manager: Option<crate::TaskManager>,
 
+    /// Registered [ShutdownSignals](ShutdownSignals) that will trigger process shutdown if detected.
     pub(crate) shutdown_signals: ShutdownSignals,
 
+    /// Combined [TaskTracker](tokio_util::task::TaskTracker) and [ShutdownToken](ShutdownToken)
+    /// for spawning and tracking tasks associated with this ShutdownManager.
     pub(crate) tracker: ShutdownTracker,
 
+    /// The maximum shutdown duration when tracked tasks could gracefully exit
+    /// before forcing the shutdown.
     pub(crate) max_shutdown_duration: Duration,
 }
 
+/// Wrapper behind futures that upon completion will trigger binary shutdown.
 #[derive(Default)]
 pub struct ShutdownSignals(JoinSet<()>);
 
 impl ShutdownSignals {
+    /// Wait for any of the registered signals to be ready
     pub async fn wait_for_signal(&mut self) {
         self.0.join_next().await;
     }
@@ -56,12 +67,16 @@ impl Default for ShutdownManager {
 
 #[cfg(not(target_arch = "wasm32"))]
 impl ShutdownManager {
+    /// Create new instance of ShutdownManager with the most sensible defaults, so that:
+    /// - shutdown will be triggered upon either SIGINT, SIGTERM (unix only) or SIGQUIT (unix only)  being sent
+    /// - shutdown will be triggered upon any task panicking
     pub fn build_new_default() -> std::io::Result<Self> {
         Ok(ShutdownManager::new_without_signals()
             .with_default_shutdown_signals()?
             .with_cancel_on_panic())
     }
 
+    /// Register a new shutdown signal that upon completion will trigger system shutdown.
     #[must_use]
     #[track_caller]
     pub fn with_shutdown<F>(mut self, shutdown: F) -> Self
@@ -79,6 +94,8 @@ impl ShutdownManager {
         self
     }
 
+    /// Include support for the legacy [TaskManager](TaskManager) to this instance of the ShutdownManager.
+    /// This will allow issuing [TaskClient](TaskClient) for tasks that still require them.
     #[allow(deprecated)]
     pub fn with_legacy_task_manager(mut self) -> Self {
         let mut legacy_manager = crate::TaskManager::default().named("legacy-task-manager");
@@ -98,6 +115,8 @@ impl ShutdownManager {
         })
     }
 
+    /// Add the specified signal to the currently registered shutdown signals that will trigger
+    /// cancellation of all registered tasks.
     #[cfg(unix)]
     #[track_caller]
     pub fn with_shutdown_signal(self, signal_kind: SignalKind) -> std::io::Result<Self> {
@@ -107,18 +126,25 @@ impl ShutdownManager {
         }))
     }
 
+    /// Add the SIGTERM signal to the currently registered shutdown signals that will trigger
+    /// cancellation of all registered tasks.
     #[cfg(unix)]
     #[track_caller]
     pub fn with_terminate_signal(self) -> std::io::Result<Self> {
         self.with_shutdown_signal(SignalKind::terminate())
     }
 
+    /// Add the SIGQUIT signal to the currently registered shutdown signals that will trigger
+    /// cancellation of all registered tasks.
     #[cfg(unix)]
     #[track_caller]
     pub fn with_quit_signal(self) -> std::io::Result<Self> {
         self.with_shutdown_signal(SignalKind::quit())
     }
 
+    /// Add default signals to the set of the currently registered shutdown signals that will trigger
+    /// cancellation of all registered tasks.
+    /// This includes SIGINT, SIGTERM and SIGQUIT for unix-based platforms and SIGINT for other targets (such as windows)/
     pub fn with_default_shutdown_signals(self) -> std::io::Result<Self> {
         cfg_if::cfg_if! {
             if #[cfg(unix)] {
@@ -131,6 +157,8 @@ impl ShutdownManager {
         }
     }
 
+    /// Add the SIGINT (ctrl-c) signal to the currently registered shutdown signals that will trigger
+    /// cancellation of all registered tasks.
     #[track_caller]
     pub fn with_interrupt_signal(self) -> Self {
         self.with_shutdown(async move {
@@ -138,6 +166,7 @@ impl ShutdownManager {
         })
     }
 
+    /// Spawn the provided future on the current Tokio runtime, and track it in the underlying [TaskTracker](tokio_util::task::TaskTracker).
     #[track_caller]
     pub fn spawn<F>(&self, task: F) -> JoinHandle<F::Output>
     where
@@ -147,6 +176,12 @@ impl ShutdownManager {
         self.tracker.spawn(task)
     }
 
+    /// Spawn the provided future on the current Tokio runtime,
+    /// and track it in the underlying [TaskTracker](tokio_util::task::TaskTracker).
+    /// Furthermore, attach a name to the spawned task to more easily track it within a [tokio console](https://github.com/tokio-rs/console)
+    ///
+    /// Note that is no different from [spawn](Self::spawn) if the underlying binary
+    /// has not been built with `RUSTFLAGS="--cfg tokio_unstable"` and `--features="tokio-tracing"`
     #[track_caller]
     pub fn try_spawn_named<F>(&self, task: F, name: &str) -> JoinHandle<F::Output>
     where
@@ -156,6 +191,8 @@ impl ShutdownManager {
         self.tracker.try_spawn_named(task, name)
     }
 
+    /// Spawn the provided future on the provided Tokio runtime,
+    /// and track it in the underlying [TaskTracker](tokio_util::task::TaskTracker).
     #[track_caller]
     pub fn spawn_on<F>(&self, task: F, handle: &tokio::runtime::Handle) -> JoinHandle<F::Output>
     where
@@ -165,6 +202,8 @@ impl ShutdownManager {
         self.tracker.spawn_on(task, handle)
     }
 
+    /// Spawn the provided future on the current [LocalSet](tokio::task::LocalSet),
+    /// and track it in the underlying [TaskTracker](tokio_util::task::TaskTracker).
     #[track_caller]
     pub fn spawn_local<F>(&self, task: F) -> JoinHandle<F::Output>
     where
@@ -174,6 +213,8 @@ impl ShutdownManager {
         self.tracker.spawn_local(task)
     }
 
+    /// Spawn the provided blocking task on the current Tokio runtime,
+    /// and track it in the underlying [TaskTracker](tokio_util::task::TaskTracker).
     #[track_caller]
     pub fn spawn_blocking<F, T>(&self, task: F) -> JoinHandle<T>
     where
@@ -184,6 +225,8 @@ impl ShutdownManager {
         self.tracker.spawn_blocking(task)
     }
 
+    /// Spawn the provided blocking task on the provided Tokio runtime,
+    /// and track it in the underlying [TaskTracker](tokio_util::task::TaskTracker).
     #[track_caller]
     pub fn spawn_blocking_on<F, T>(&self, task: F, handle: &tokio::runtime::Handle) -> JoinHandle<T>
     where
@@ -194,6 +237,12 @@ impl ShutdownManager {
         self.tracker.spawn_blocking_on(task, handle)
     }
 
+    /// Spawn the provided future on the current Tokio runtime
+    /// that will get cancelled once a global shutdown signal is detected,
+    /// and track it in the underlying [TaskTracker](tokio_util::task::TaskTracker).
+    ///
+    /// Note that to fully use the naming feature, such as tracking within a [tokio console](https://github.com/tokio-rs/console),
+    /// the underlying binary has to be built with `RUSTFLAGS="--cfg tokio_unstable"` and `--features="tokio-tracing"`
     #[track_caller]
     pub fn try_spawn_named_with_shutdown<F>(
         &self,
@@ -207,7 +256,9 @@ impl ShutdownManager {
         self.tracker.try_spawn_named_with_shutdown(task, name)
     }
 
-    /// Spawn the task that will get cancelled if a global shutdown signal is detected
+    /// Spawn the provided future on the current Tokio runtime
+    /// that will get cancelled once a global shutdown signal is detected,
+    /// and track it in the underlying [TaskTracker](tokio_util::task::TaskTracker).
     #[track_caller]
     pub fn spawn_with_shutdown<F>(&self, task: F) -> JoinHandle<Result<F::Output, Cancelled>>
     where
@@ -220,6 +271,7 @@ impl ShutdownManager {
 
 #[cfg(target_arch = "wasm32")]
 impl ShutdownManager {
+    /// Run the provided future on the current thread, and track it in the underlying [TaskTracker](tokio_util::task::TaskTracker).
     #[track_caller]
     pub fn spawn<F>(&self, task: F) -> JoinHandle<F::Output>
     where
@@ -228,6 +280,9 @@ impl ShutdownManager {
         self.tracker.spawn(task)
     }
 
+    /// Run the provided future on the current thread, and track it in the underlying [TaskTracker](tokio_util::task::TaskTracker).
+    /// It has exactly the same behaviour as [spawn](Self::spawn) and it only exists to provide
+    /// the same interface as non-wasm32 targets.
     #[track_caller]
     pub fn try_spawn_named<F>(&self, task: F, name: &str) -> JoinHandle<F::Output>
     where
@@ -236,6 +291,11 @@ impl ShutdownManager {
         self.tracker.try_spawn_named(task, name)
     }
 
+    /// Run the provided future on the current thread
+    /// that will get cancelled once a global shutdown signal is detected,
+    /// and track it in the underlying [TaskTracker](tokio_util::task::TaskTracker).
+    /// It has exactly the same behaviour as [spawn_with_shutdown](Self::spawn_with_shutdown) and it only exists to provide
+    /// the same interface as non-wasm32 targets.
     #[track_caller]
     pub fn try_spawn_named_with_shutdown<F>(
         &self,
@@ -248,7 +308,9 @@ impl ShutdownManager {
         self.tracker.try_spawn_named_with_shutdown(task, name)
     }
 
-    /// Spawn the task that will get cancelled if a global shutdown signal is detected
+    /// Run the provided future on the current thread
+    /// that will get cancelled once a global shutdown signal is detected,
+    /// and track it in the underlying [TaskTracker](tokio_util::task::TaskTracker).
     #[track_caller]
     pub fn spawn_with_shutdown<F>(&self, task: F) -> JoinHandle<Result<F::Output, Cancelled>>
     where
@@ -259,8 +321,8 @@ impl ShutdownManager {
 }
 
 impl ShutdownManager {
-    /// Create new instance of `ShutdownManager` without any shutdown signals registered,
-    /// meaning it will only attempt to for all tasks spawned on its tracker to gracefully finish execution.
+    /// Create new instance of ShutdownManager without any external shutdown signals registered,
+    /// meaning it will only attempt to wait for all tasks spawned on its tracker to gracefully finish execution.
     pub fn new_without_signals() -> Self {
         let manager = ShutdownManager {
             legacy_task_manager: None,
@@ -279,6 +341,7 @@ impl ShutdownManager {
         }}
     }
 
+    /// Create an empty testing mock of the ShutdownManager with no signals registered.
     pub fn empty_mock() -> Self {
         ShutdownManager {
             legacy_task_manager: None,
@@ -288,6 +351,10 @@ impl ShutdownManager {
         }
     }
 
+    /// Add additional panic hook such that upon triggering, the root [ShutdownToken](ShutdownToken) gets cancelled.
+    /// Note: an unfortunate limitation of this is that graceful shutdown will no longer be possible
+    /// since that task that has panicked will not exit and thus all shutdowns will have to be either forced
+    /// or will have to time out.
     #[must_use]
     pub fn with_cancel_on_panic(self) -> Self {
         let current_hook = std::panic::take_hook();
@@ -315,56 +382,87 @@ impl ShutdownManager {
         self
     }
 
+    /// Change the maximum shutdown duration when tracked tasks could gracefully exit
+    /// before forcing the shutdown.
     #[must_use]
     pub fn with_shutdown_duration(mut self, duration: Duration) -> Self {
         self.max_shutdown_duration = duration;
         self
     }
 
+    /// Returns true if the root [ShutdownToken](ShutdownToken) has been cancelled.
     pub fn is_cancelled(&self) -> bool {
         self.tracker.root_cancellation_token.is_cancelled()
     }
 
+    /// Get a reference to the used [ShutdownTracker](ShutdownTracker)
     pub fn shutdown_tracker(&self) -> &ShutdownTracker {
         &self.tracker
     }
 
+    /// Get a cloned instance of the used [ShutdownTracker](ShutdownTracker)
     pub fn shutdown_tracker_owned(&self) -> ShutdownTracker {
         self.tracker.clone()
     }
 
+    /// Waits until the underlying [TaskTracker](tokio_util::task::TaskTracker) is both closed and empty.
+    ///
+    /// If the underlying [TaskTracker](tokio_util::task::TaskTracker) is already closed and empty when this method is called, then it
+    /// returns immediately.
     pub async fn wait_for_tracker(&self) {
-        self.tracker.tracker.wait().await;
+        self.tracker.wait_for_tracker().await;
     }
 
+    /// Close the underlying [TaskTracker](tokio_util::task::TaskTracker).
+    ///
+    /// This allows [`wait_for_tracker`] futures to complete. It does not prevent you from spawning new tasks.
+    ///
+    /// Returns `true` if this closed the underlying [TaskTracker](tokio_util::task::TaskTracker), or `false` if it was already closed.
+    ///
+    /// [`wait_for_tracker`]: ShutdownTracker::wait_for_tracker
     pub fn close_tracker(&self) -> bool {
-        self.tracker.tracker.close()
+        self.tracker.close_tracker()
     }
 
+    /// Reopen the underlying [TaskTracker](tokio_util::task::TaskTracker).
+    ///
+    /// This prevents [`wait_for_tracker`] futures from completing even if the underlying [TaskTracker](tokio_util::task::TaskTracker) is empty.
+    ///
+    /// Returns `true` if this reopened the underlying [TaskTracker](tokio_util::task::TaskTracker), or `false` if it was already open.
+    ///
+    /// [`wait_for_tracker`]: ShutdownTracker::wait_for_tracker
     pub fn reopen_tracker(&self) -> bool {
-        self.tracker.tracker.reopen()
+        self.tracker.reopen_tracker()
     }
 
+    /// Returns `true` if the underlying [TaskTracker](tokio_util::task::TaskTracker) is [closed](Self::close_tracker).
     pub fn is_tracker_closed(&self) -> bool {
-        self.tracker.tracker.is_closed()
+        self.tracker.is_tracker_closed()
     }
 
-    pub fn is_tracker_empty(&self) -> bool {
-        self.tracker.tracker.is_empty()
-    }
-
+    /// Returns the number of tasks tracked by the underlying [TaskTracker](tokio_util::task::TaskTracker).
     pub fn tracked_tasks(&self) -> usize {
-        self.tracker.tracker.len()
+        self.tracker.tracked_tasks()
     }
 
+    /// Returns `true` if there are no tasks in the underlying [TaskTracker](tokio_util::task::TaskTracker).
+    pub fn is_tracker_empty(&self) -> bool {
+        self.tracker.is_tracker_empty()
+    }
+
+    /// Obtain a [ShutdownToken](crate::cancellation::ShutdownToken) that is a child of the root token
     pub fn child_shutdown_token(&self) -> ShutdownToken {
         self.tracker.root_cancellation_token.child_token()
     }
 
+    /// Obtain a [ShutdownToken](crate::cancellation::ShutdownToken) on the same hierarchical structure as the root token
     pub fn clone_shutdown_token(&self) -> ShutdownToken {
         self.tracker.root_cancellation_token.clone()
     }
 
+    /// Attempt to create a handle to a legacy [TaskClient] to support tasks that hasn't migrated
+    /// from the legacy [TaskManager].
+    /// Note. To use this method [ShutdownManager] must be built with `.with_legacy_task_manager()`
     #[must_use]
     #[deprecated]
     #[allow(deprecated)]
@@ -378,6 +476,10 @@ impl ShutdownManager {
             .subscribe_named(child_suffix)
     }
 
+    /// Finalise the shutdown procedure by waiting until either:
+    /// - all tracked tasks have terminated
+    /// - timeout has been reached
+    /// - shutdown has been forced (by sending SIGINT)
     async fn finish_shutdown(mut self) {
         let mut wait_futures = FuturesUnordered::<Pin<Box<dyn Future<Output = ()> + Send>>>::new();
 
@@ -414,14 +516,23 @@ impl ShutdownManager {
         wait_futures.next().await;
     }
 
+    /// Remove the current set of [ShutdownSignals] from this instance of
+    /// [ShutdownManager] replacing it with an empty set.
+    ///
+    /// This is potentially useful if one wishes to start listening for the signals
+    /// before the whole process has been fully set up.
     pub fn detach_shutdown_signals(&mut self) -> ShutdownSignals {
         mem::take(&mut self.shutdown_signals)
     }
 
+    /// Replace the current set of [ShutdownSignals] used for determining
+    /// whether the underlying process should be stopped.
     pub fn replace_shutdown_signals(&mut self, signals: ShutdownSignals) {
         self.shutdown_signals = signals;
     }
 
+    /// Send cancellation signal to all registered tasks by cancelling the root token
+    /// and sending shutdown signal, if applicable, on the legacy [TaskManager]
     pub fn send_cancellation(&self) {
         if let Some(legacy_manager) = self.legacy_task_manager.as_ref() {
             info!("attempting to shutdown legacy tasks");
@@ -457,5 +568,164 @@ impl ShutdownManager {
         self.wait_for_shutdown_signal().await;
 
         self.perform_shutdown().await;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use nym_test_utils::traits::{ElapsedExt, Timeboxed};
+    use std::sync::atomic::AtomicBool;
+    use std::sync::Arc;
+
+    #[tokio::test]
+    async fn shutdown_with_no_tracked_tasks_and_signals() -> anyhow::Result<()> {
+        let manager = ShutdownManager::new_without_signals();
+        let res = manager.run_until_shutdown().timeboxed().await;
+        assert!(res.has_elapsed());
+
+        let manager = ShutdownManager::new_without_signals();
+        let shutdown = manager.clone_shutdown_token();
+        shutdown.cancel();
+        let res = manager.run_until_shutdown().timeboxed().await;
+        assert!(!res.has_elapsed());
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn shutdown_signal() -> anyhow::Result<()> {
+        let timeout_shutdown = sleep(Duration::from_millis(100));
+        let manager = ShutdownManager::new_without_signals().with_shutdown(timeout_shutdown);
+
+        // execution finishes after the sleep gets finishes
+        let res = manager
+            .run_until_shutdown()
+            .execute_with_deadline(Duration::from_millis(200))
+            .await;
+        assert!(!res.has_elapsed());
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn panic_hook() -> anyhow::Result<()> {
+        let manager = ShutdownManager::new_without_signals().with_cancel_on_panic();
+        manager.spawn_with_shutdown(async move {
+            sleep(Duration::from_millis(10000)).await;
+        });
+        manager.spawn_with_shutdown(async move {
+            sleep(Duration::from_millis(10)).await;
+            panic!("panicking");
+        });
+
+        // execution finishes after the panic gets triggered
+        let res = manager
+            .run_until_shutdown()
+            .execute_with_deadline(Duration::from_millis(200))
+            .await;
+        assert!(!res.has_elapsed());
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn task_cancellation() -> anyhow::Result<()> {
+        let timeout_shutdown = sleep(Duration::from_millis(100));
+        let manager = ShutdownManager::new_without_signals().with_shutdown(timeout_shutdown);
+
+        let cancelled1 = Arc::new(AtomicBool::new(false));
+        let cancelled1_clone = cancelled1.clone();
+        let cancelled2 = Arc::new(AtomicBool::new(false));
+        let cancelled2_clone = cancelled2.clone();
+
+        let shutdown = manager.clone_shutdown_token();
+        manager.spawn(async move {
+            shutdown.cancelled().await;
+            cancelled1_clone.store(true, std::sync::atomic::Ordering::Relaxed);
+        });
+
+        let shutdown = manager.clone_shutdown_token();
+        manager.spawn(async move {
+            shutdown.cancelled().await;
+            cancelled2_clone.store(true, std::sync::atomic::Ordering::Relaxed);
+        });
+
+        let res = manager
+            .run_until_shutdown()
+            .execute_with_deadline(Duration::from_millis(200))
+            .await;
+
+        assert!(!res.has_elapsed());
+        assert_eq!(cancelled1.load(std::sync::atomic::Ordering::Relaxed), true);
+        assert_eq!(cancelled2.load(std::sync::atomic::Ordering::Relaxed), true);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn cancellation_within_task() -> anyhow::Result<()> {
+        let manager = ShutdownManager::new_without_signals();
+
+        let cancelled1 = Arc::new(AtomicBool::new(false));
+        let cancelled1_clone = cancelled1.clone();
+
+        let shutdown = manager.clone_shutdown_token();
+        manager.spawn(async move {
+            shutdown.cancelled().await;
+            cancelled1_clone.store(true, std::sync::atomic::Ordering::Relaxed);
+        });
+
+        let shutdown = manager.clone_shutdown_token();
+        manager.spawn(async move {
+            sleep(Duration::from_millis(10)).await;
+            shutdown.cancel();
+        });
+
+        let res = manager
+            .run_until_shutdown()
+            .execute_with_deadline(Duration::from_millis(200))
+            .await;
+
+        assert!(!res.has_elapsed());
+        assert_eq!(cancelled1.load(std::sync::atomic::Ordering::Relaxed), true);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn shutdown_timeout() -> anyhow::Result<()> {
+        let timeout_shutdown = sleep(Duration::from_millis(50));
+        let manager = ShutdownManager::new_without_signals()
+            .with_shutdown(timeout_shutdown)
+            .with_shutdown_duration(Duration::from_millis(1000));
+
+        // ignore shutdown signals
+        manager.spawn(async move {
+            sleep(Duration::from_millis(1000)).await;
+        });
+
+        let res = manager
+            .run_until_shutdown()
+            .execute_with_deadline(Duration::from_millis(200))
+            .await;
+
+        assert!(res.has_elapsed());
+
+        let timeout_shutdown = sleep(Duration::from_millis(50));
+        let manager = ShutdownManager::new_without_signals()
+            .with_shutdown(timeout_shutdown)
+            .with_shutdown_duration(Duration::from_millis(100));
+
+        // ignore shutdown signals
+        manager.spawn(async move {
+            sleep(Duration::from_millis(1000)).await;
+        });
+
+        let res = manager
+            .run_until_shutdown()
+            .execute_with_deadline(Duration::from_millis(200))
+            .await;
+
+        assert!(!res.has_elapsed());
+        Ok(())
     }
 }

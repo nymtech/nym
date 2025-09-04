@@ -149,7 +149,7 @@ mod tests {
             *gateway_keys.public_key(),
             false,
             true,
-            ShutdownToken::ephemeral(),
+            ShutdownToken::default(),
         );
 
         let client_fut = handshake_client.spawn_timeboxed();
@@ -176,7 +176,7 @@ mod tests {
             gateway_ws,
             gateway_keys,
             init_msg,
-            ShutdownToken::ephemeral(),
+            ShutdownToken::default(),
         );
 
         let gateway_fut = handshake_gateway.spawn_timeboxed();

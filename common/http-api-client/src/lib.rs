@@ -151,6 +151,7 @@ use reqwest::{RequestBuilder, Response};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
+use std::net::IpAddr;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 use thiserror::Error;
@@ -158,6 +159,7 @@ use tracing::{debug, instrument, warn};
 
 #[cfg(not(target_arch = "wasm32"))]
 use std::net::SocketAddr;
+use std::str::FromStr;
 use std::sync::Arc;
 
 #[cfg(feature = "tunneling")]
@@ -412,11 +414,14 @@ impl ClientBuilder {
             //
             // I am going to leave these here anyways so that removing a decompression method
             // from the features list will throw an error if it is not also removed here.
+            warn!("FORCING IPv4 CONNECTIONS");
+
             reqwest::ClientBuilder::new()
                 .gzip(true)
                 .deflate(true)
                 .brotli(true)
                 .zstd(true)
+                .local_address(IpAddr::from_str("0.0.0.0:0").unwrap())
         };
 
         ClientBuilder {

@@ -86,11 +86,8 @@ impl Listener {
 
                 
                 // 4. spawn the task handling the client connection
-                let current_span = tracing::Span::current();
                 tokio::spawn(async move {
                     // TODO: refactor it similarly to the mixnet listener on the nym-node
-                    let span = tracing::span!(parent: current_span, tracing::Level::DEBUG, "websocket_connection");
-                    let _enter = span.enter();
                     let metrics_ref = handle.shared_state.metrics.clone();
 
                         // 4.1. handle all client requests until connection gets terminated

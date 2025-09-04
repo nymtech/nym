@@ -968,6 +968,10 @@ impl<R, S> FreshHandler<R, S> {
             return Err(InitialAuthenticationError::EmptyClientDetails);
         };
 
+        info_span!("THE SOLE PURPOSE OF THIS SPAN IS TO SEE ITS TRACE ID");
+        let current_context = opentelemetry::Context::current();
+        let final_trace_id = current_context.span().span_context().trace_id();
+        error!("trace_id at the end of initial authentication: {:?}", final_trace_id);
         Ok(Some(client_details))
     }
 
@@ -999,6 +1003,11 @@ impl<R, S> FreshHandler<R, S> {
                 }
             };
 
+                info_span!("THE SOLE PURPOSE OF THIS SPAN IS TO SEE ITS TRACE ID");
+                let current_context = opentelemetry::Context::current();
+                let final_trace_id = current_context.span().span_context().trace_id();
+                error!("trace_id after initial client request handling returns: {:?}", final_trace_id);
+                
             if let Some(registration_details) = maybe_auth_res {
                 let (mix_sender, mix_receiver) = mpsc::unbounded();
                 // Channel for handlers to ask other handlers if they are still active.

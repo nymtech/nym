@@ -465,9 +465,7 @@ impl NymNode {
             wireguard: Some(wireguard_data),
             config,
             accepted_operator_terms_and_conditions: false,
-            shutdown_manager: ShutdownManager::new_without_signals()
-                .with_legacy_task_manager()
-                .with_default_shutdown_signals()
+            shutdown_manager: ShutdownManager::build_new_default()
                 .map_err(|source| NymNodeError::ShutdownSignalFailure { source })?,
         })
     }

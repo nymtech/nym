@@ -131,7 +131,7 @@ impl ShutdownSignals {
 
 /// Extracted [`TaskTracker`] and [`ShutdownToken`] to more easily allow tracking nested tasks
 /// without having to pass whole [`ShutdownManager`] around
-#[derive(Clone, Default)]
+#[derive(Clone, Default, Debug)]
 pub struct ShutdownTracker {
     root_cancellation_token: ShutdownToken,
 
@@ -625,6 +625,10 @@ impl ShutdownManager {
 
     pub fn shutdown_tracker(&self) -> &ShutdownTracker {
         &self.tracker
+    }
+
+    pub fn shutdown_tracker_owned(&self) -> ShutdownTracker {
+        self.tracker.clone()
     }
 
     pub async fn wait_for_tracker(&self) {

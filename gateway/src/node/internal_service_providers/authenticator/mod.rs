@@ -7,7 +7,7 @@ use ipnetwork::IpNetwork;
 use nym_client_core::{HardcodedTopologyProvider, TopologyProvider};
 use nym_credential_verification::ecash::EcashManager;
 use nym_sdk::{mixnet::Recipient, GatewayTransceiver};
-use nym_task::ShutdownToken;
+use nym_task::ShutdownTracker;
 use nym_wireguard::WireguardGatewayData;
 use std::{net::IpAddr, path::Path, sync::Arc, time::SystemTime};
 
@@ -40,7 +40,7 @@ pub struct Authenticator {
     wireguard_gateway_data: WireguardGatewayData,
     ecash_verifier: Arc<EcashManager>,
     used_private_network_ips: Vec<IpAddr>,
-    shutdown: ShutdownToken,
+    shutdown: ShutdownTracker,
     on_start: Option<oneshot::Sender<OnStartData>>,
 }
 
@@ -50,7 +50,7 @@ impl Authenticator {
         wireguard_gateway_data: WireguardGatewayData,
         used_private_network_ips: Vec<IpAddr>,
         ecash_verifier: Arc<EcashManager>,
-        shutdown: ShutdownToken,
+        shutdown: ShutdownTracker,
     ) -> Self {
         Self {
             config,
@@ -152,7 +152,6 @@ impl Authenticator {
             free_private_network_ips,
             self.wireguard_gateway_data,
             mixnet_client,
-            self.shutdown,
             self.ecash_verifier,
         );
 
@@ -166,6 +165,8 @@ impl Authenticator {
             }
         }
 
-        mixnet_listener.run().await
+        mixnet_listener
+            .run(self.shutdown.clone_shutdown_token())
+            .await
     }
 }

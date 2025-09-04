@@ -119,7 +119,7 @@ impl StatisticsControl {
         let mut snapshot_interval =
             gloo_timers::future::IntervalStream::new(SNAPSHOT_INTERVAL.as_millis() as u32);
 
-        while !shutdown_token.is_cancelled() {
+        loop {
             tokio::select! {
                 biased;
                 _ = shutdown_token.cancelled() => {

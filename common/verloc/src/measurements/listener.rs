@@ -51,11 +51,16 @@ impl PacketListener {
 
         info!("Started listening for echo packets on {}", self.address);
 
-        while !self.shutdown_token.is_cancelled() {
+        loop {
             // cloning the arc as each accepted socket is handled in separate task
             let connection_handler = Arc::clone(&self.connection_handler);
 
             tokio::select! {
+                biased;
+                _ = self.shutdown_token.cancelled() => {
+                    trace!("PacketListener: Received shutdown");
+                    break;
+                }
                 socket = listener.accept() => {
                     match socket {
                         Ok((socket, remote_addr)) => {
@@ -66,9 +71,6 @@ impl PacketListener {
                         Err(err) => warn!("Failed to accept incoming connection - {err}"),
                     }
                 },
-                _ = self.shutdown_token.cancelled() => {
-                    trace!("PacketListener: Received shutdown");
-                }
             }
         }
     }

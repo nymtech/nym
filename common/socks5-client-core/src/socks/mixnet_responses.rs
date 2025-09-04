@@ -130,8 +130,12 @@ impl MixnetResponseListener {
     }
 
     pub(crate) async fn run(&mut self) {
-        while !self.shutdown.is_cancelled() {
+        loop {
             tokio::select! {
+                biased;
+                _ = self.shutdown.cancelled() => {
+                    log::trace!("MixnetResponseListener: Received shutdown");
+                }
                 received_responses = self.mix_response_receiver.next() => {
                     if let Some(received_responses) = received_responses {
                         for reconstructed_message in received_responses {
@@ -144,9 +148,6 @@ impl MixnetResponseListener {
                         break;
                     }
                 },
-                _ = self.shutdown.cancelled() => {
-                    log::trace!("MixnetResponseListener: Received shutdown");
-                }
             }
         }
         log::debug!("MixnetResponseListener: Exiting");

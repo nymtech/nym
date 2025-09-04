@@ -152,11 +152,12 @@ where
         let polling_rate = self.config.key_rotation.epoch_duration / 8;
         let mut invalidation_inspection = new_interval_stream(polling_rate);
 
-        while !shutdown_token.is_cancelled() {
+        loop {
             tokio::select! {
                 biased;
                 _ = shutdown_token.cancelled() => {
                     tracing::trace!("ReplyController: Received shutdown");
+                    break;
                 },
                 req = self.request_receiver.next() => match req {
                     Some(req) => self.handle_request(req).await,

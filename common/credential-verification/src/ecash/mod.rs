@@ -82,9 +82,8 @@ impl EcashManager {
         credential_handler_cfg: CredentialHandlerConfig,
         nyxd_client: DirectSigningHttpRpcNyxdClient,
         pk_bytes: [u8; 32],
-        shutdown: nym_task::ShutdownToken,
         storage: GatewayStorage,
-    ) -> Result<Self, Error> {
+    ) -> Result<(Self, CredentialHandler), Error> {
         let shared_state = SharedState::new(nyxd_client, Box::new(storage)).await?;
 
         let (cred_sender, cred_receiver) = mpsc::unbounded();
@@ -92,14 +91,16 @@ impl EcashManager {
         let cs =
             CredentialHandler::new(credential_handler_cfg, cred_receiver, shared_state.clone())
                 .await?;
-        cs.start(shutdown);
 
-        Ok(EcashManager {
-            shared_state,
-            pk_bytes,
-            pay_infos: Default::default(),
-            cred_sender,
-        })
+        Ok((
+            EcashManager {
+                shared_state,
+                pk_bytes,
+                pay_infos: Default::default(),
+                cred_sender,
+            },
+            cs,
+        ))
     }
 
     pub async fn verify_pay_info(&self, pay_info: NymPayInfo) -> Result<usize, EcashTicketError> {

@@ -102,7 +102,7 @@ impl ConnectionHandler {
                 final_hop: shared.final_hop.clone(),
                 noise_config: shared.noise_config.clone(),
                 metrics: shared.metrics.clone(),
-                shutdown: shared.shutdown.clone(),
+                shutdown_token: shared.shutdown_token.child_token(),
             },
             remote_address,
             pending_packets: PendingReplayCheckPackets::new(),
@@ -368,7 +368,7 @@ impl ConnectionHandler {
             Some(Err(_)) => {
                 // our mutex got poisoned - we have to shut down
                 error!("CRITICAL FAILURE: replay bloomfilter mutex poisoning!");
-                self.shared.shutdown.cancel();
+                self.shared.shutdown_token.cancel();
                 return false;
             }
         };
@@ -393,7 +393,7 @@ impl ConnectionHandler {
         else {
             // our mutex got poisoned - we have to shut down
             error!("CRITICAL FAILURE: replay bloomfilter mutex poisoning!");
-            self.shared.shutdown.cancel();
+            self.shared.shutdown_token.cancel();
             return;
         };
 
@@ -488,7 +488,7 @@ impl ConnectionHandler {
         loop {
             tokio::select! {
                 biased;
-                _ = self.shared.shutdown.cancelled() => {
+                _ = self.shared.shutdown_token.cancelled() => {
                     trace!("connection handler: received shutdown");
                     break
                 }

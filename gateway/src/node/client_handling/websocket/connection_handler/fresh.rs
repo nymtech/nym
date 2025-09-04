@@ -917,60 +917,49 @@ impl<R, S> FreshHandler<R, S> {
 
     pub(crate) async fn handle_until_authenticated_or_failure(
         mut self,
-        shutdown: &ShutdownToken,
     ) -> Option<AuthenticatedHandler<R, S>>
     where
         S: AsyncRead + AsyncWrite + Unpin + Send,
         R: CryptoRng + RngCore + Send,
     {
-        while !shutdown.is_cancelled() {
-            let req = tokio::select! {
-                biased;
-                _ = shutdown.cancelled() => {
-                    return None
-                },
-                req = self.wait_for_initial_message() => req,
-            };
-
-            let initial_request = match req {
-                Ok(req) => req,
-                Err(err) => {
-                    self.send_and_forget_error_response(err).await;
-                    return None;
-                }
-            };
-
-            // see if we managed to register the client through this request
-            let maybe_auth_res = match self.handle_initial_client_request(initial_request).await {
-                Ok(maybe_auth_res) => maybe_auth_res,
-                Err(err) => {
-                    debug!("initial client request handling error: {err}");
-                    self.send_and_forget_error_response(err).await;
-                    return None;
-                }
-            };
-
-            if let Some(registration_details) = maybe_auth_res {
-                let (mix_sender, mix_receiver) = mpsc::unbounded();
-                // Channel for handlers to ask other handlers if they are still active.
-                let (is_active_request_sender, is_active_request_receiver) = mpsc::unbounded();
-                self.shared_state.active_clients_store.insert_remote(
-                    registration_details.address,
-                    mix_sender,
-                    is_active_request_sender,
-                    registration_details.session_request_timestamp,
-                );
-
-                return AuthenticatedHandler::upgrade(
-                    self,
-                    registration_details,
-                    mix_receiver,
-                    is_active_request_receiver,
-                )
-                .await
-                .inspect_err(|err| error!("failed to upgrade client handler: {err}"))
-                .ok();
+        let initial_request = match self.wait_for_initial_message().await {
+            Ok(req) => req,
+            Err(err) => {
+                self.send_and_forget_error_response(err).await;
+                return None;
             }
+        };
+
+        // see if we managed to register the client through this request
+        let maybe_auth_res = match self.handle_initial_client_request(initial_request).await {
+            Ok(maybe_auth_res) => maybe_auth_res,
+            Err(err) => {
+                debug!("initial client request handling error: {err}");
+                self.send_and_forget_error_response(err).await;
+                return None;
+            }
+        };
+
+        if let Some(registration_details) = maybe_auth_res {
+            let (mix_sender, mix_receiver) = mpsc::unbounded();
+            // Channel for handlers to ask other handlers if they are still active.
+            let (is_active_request_sender, is_active_request_receiver) = mpsc::unbounded();
+            self.shared_state.active_clients_store.insert_remote(
+                registration_details.address,
+                mix_sender,
+                is_active_request_sender,
+                registration_details.session_request_timestamp,
+            );
+
+            AuthenticatedHandler::upgrade(
+                self,
+                registration_details,
+                mix_receiver,
+                is_active_request_receiver,
+            )
+            .await
+            .inspect_err(|err| error!("failed to upgrade client handler: {err}"))
+            .ok();
         }
 
         None
@@ -1031,6 +1020,15 @@ impl<R, S> FreshHandler<R, S> {
         S: AsyncRead + AsyncWrite + Unpin + Send,
         R: CryptoRng + RngCore + Send,
     {
-        super::handle_connection(self).await
+        let remote = self.peer_address;
+        let shutdown = self.shutdown.clone();
+        tokio::select! {
+            _ = shutdown.cancelled() => {
+                trace!("received cancellation")
+            }
+            _ = super::handle_connection(self) => {
+                debug!("finished connection handler for {remote}")
+            }
+        }
     }
 }

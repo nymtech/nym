@@ -12,7 +12,7 @@ use nym_socks5_proxy_helpers::connection_controller::Controller;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::params::PacketType;
 use nym_task::connections::{ConnectionCommandSender, LaneQueueLengths};
-use nym_task::ShutdownToken;
+use nym_task::ShutdownTracker;
 use std::net::SocketAddr;
 use tap::TapFallible;
 use tokio::net::TcpListener;
@@ -25,7 +25,7 @@ pub struct NymSocksServer {
     self_address: Recipient,
     client_config: client::Config,
     lane_queue_lengths: LaneQueueLengths,
-    shutdown: ShutdownToken,
+    shutdown: ShutdownTracker,
     packet_type: PacketType,
 }
 
@@ -39,7 +39,7 @@ impl NymSocksServer {
         self_address: Recipient,
         lane_queue_lengths: LaneQueueLengths,
         client_config: client::Config,
-        shutdown: ShutdownToken,
+        shutdown: ShutdownTracker,
         packet_type: PacketType,
     ) -> Self {
         info!("Listening on {bind_address}");
@@ -72,7 +72,7 @@ impl NymSocksServer {
         let (mut active_streams_controller, controller_sender) = Controller::new(
             client_connection_tx,
             //BroadcastActiveConnections::Off,
-            self.shutdown.clone(),
+            self.shutdown.clone_shutdown_token(),
         );
         tokio::spawn(async move {
             active_streams_controller.run().await;
@@ -82,20 +82,30 @@ impl NymSocksServer {
         let mut mixnet_response_listener = MixnetResponseListener::new(
             buffer_requester,
             controller_sender.clone(),
-            self.shutdown.clone(),
+            self.shutdown.clone_shutdown_token(),
         );
-        tokio::spawn(async move {
-            mixnet_response_listener.run().await;
-        });
+        self.shutdown.try_spawn_named(
+            async move {
+                mixnet_response_listener.run().await;
+            },
+            "socks5-mixnet-listener",
+        );
 
         // TODO:, if required, there should be another task here responsible for control requests.
         // it should get `input_sender` to send actual requests into the mixnet
         // and some channel that connects it from `MixnetResponseListener` to receive
         // any control responses
 
+        let shutdown = self.shutdown.clone_shutdown_token();
         loop {
             tokio::select! {
-                Ok((stream, _remote)) = listener.accept() => {
+                biased;
+                _ = shutdown.cancelled() => {
+                    log::trace!("NymSocksServer: Received shutdown");
+                    log::debug!("NymSocksServer: Exiting");
+                    return Ok(());
+                }
+                Ok((stream, remote)) = listener.accept() => {
                     let mut client = SocksClient::new(
                         self.client_config,
                         stream,
@@ -109,23 +119,20 @@ impl NymSocksServer {
                         Some(self.packet_type)
                     );
 
-                    tokio::spawn(async move {
-                        if let Err(err) = client.run().await {
-                            error!("Error! {err}");
-                            if client.send_error(err).await.is_err() {
-                                warn!("Failed to send error code");
+                    self.shutdown.try_spawn_named(
+                        async move {
+                            if let Err(err) = client.run().await {
+                                error!("Error! {err}");
+                                if client.send_error(err).await.is_err() {
+                                    warn!("Failed to send error code");
+                                };
+                                if client.shutdown().await.is_err() {
+                                    warn!("Failed to shutdown TcpStream");
+                                };
                             };
-                            if client.shutdown().await.is_err() {
-                                warn!("Failed to shutdown TcpStream");
-                            };
-                        }
-                    });
+                        }, &format!("socks5-client-{remote}")
+                    );
                 },
-                _ = self.shutdown.cancelled() => {
-                    log::trace!("NymSocksServer: Received shutdown");
-                    log::debug!("NymSocksServer: Exiting");
-                    return Ok(());
-                }
             }
         }
     }

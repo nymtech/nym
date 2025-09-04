@@ -126,7 +126,7 @@ pub struct CredentialHandlerConfig {
     pub maximum_time_between_redemption: Duration,
 }
 
-pub(crate) struct CredentialHandler {
+pub struct CredentialHandler {
     config: CredentialHandlerConfig,
     multisig_threshold: f32,
     ticket_receiver: UnboundedReceiver<ClientTicket>,
@@ -907,7 +907,7 @@ impl CredentialHandler {
         Ok(())
     }
 
-    async fn run(mut self, shutdown: nym_task::ShutdownToken) {
+    pub async fn run(mut self, shutdown: nym_task::ShutdownToken) {
         info!("Starting Ecash CredentialSender");
 
         // attempt to clear any pending operations
@@ -919,7 +919,7 @@ impl CredentialHandler {
         let start = Instant::now() + self.config.pending_poller;
         let mut resolver_interval = interval_at(start, self.config.pending_poller);
 
-        while !shutdown.is_cancelled() {
+        loop {
             tokio::select! {
                 biased;
                 _ = shutdown.cancelled() => {
@@ -946,9 +946,5 @@ impl CredentialHandler {
                 }
             }
         }
-    }
-
-    pub(crate) fn start(self, shutdown: nym_task::ShutdownToken) {
-        tokio::spawn(async move { self.run(shutdown).await });
     }
 }

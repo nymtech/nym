@@ -21,7 +21,7 @@ use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::params::PacketSize;
 use nym_sphinx::params::PacketType;
 use nym_task::connections::{LaneQueueLengths, TransmissionLane};
-use nym_task::ShutdownToken;
+use nym_task::ShutdownTracker;
 use pin_project::pin_project;
 use rand::RngCore;
 use std::io;
@@ -185,7 +185,7 @@ pub(crate) struct SocksClient {
     self_address: Recipient,
     started_proxy: bool,
     lane_queue_lengths: LaneQueueLengths,
-    shutdown_listener: ShutdownToken,
+    shutdown_listener: ShutdownTracker,
     packet_type: Option<PacketType>,
 }
 
@@ -214,7 +214,7 @@ impl SocksClient {
         controller_sender: ControllerSender,
         self_address: &Recipient,
         lane_queue_lengths: LaneQueueLengths,
-        shutdown_listener: ShutdownToken,
+        shutdown_listener: ShutdownTracker,
         packet_type: Option<PacketType>,
     ) -> Self {
         let connection_id = Self::generate_random();

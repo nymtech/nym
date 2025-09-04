@@ -26,16 +26,10 @@ pub struct PacketForwarder<C, F> {
 
     packet_sender: MixForwardingSender,
     packet_receiver: MixForwardingReceiver,
-    shutdown: ShutdownToken,
 }
 
 impl<C, F> PacketForwarder<C, F> {
-    pub fn new(
-        client: C,
-        routing_filter: F,
-        metrics: NymNodeMetrics,
-        shutdown: ShutdownToken,
-    ) -> Self {
+    pub fn new(client: C, routing_filter: F, metrics: NymNodeMetrics) -> Self {
         let (packet_sender, packet_receiver) = mix_forwarding_channels();
 
         PacketForwarder {
@@ -45,7 +39,6 @@ impl<C, F> PacketForwarder<C, F> {
             routing_filter,
             packet_sender,
             packet_receiver,
-            shutdown,
         }
     }
 
@@ -127,7 +120,7 @@ impl<C, F> PacketForwarder<C, F> {
             .update_packet_forwarder_queue_size(channel_size)
     }
 
-    pub async fn run(&mut self)
+    pub async fn run(&mut self, shutdown_token: ShutdownToken)
     where
         C: SendWithoutResponse,
         F: RoutingFilter,
@@ -137,7 +130,7 @@ impl<C, F> PacketForwarder<C, F> {
         loop {
             tokio::select! {
                 biased;
-                _ = self.shutdown.cancelled() => {
+                _ = shutdown_token.cancelled() => {
                     debug!("PacketForwarder: Received shutdown");
                     break;
                 }

@@ -132,6 +132,7 @@ where
         .handle_until_authenticated_or_failure(&mut shutdown)
         .await
     {
+
         // opentelemetry::global::get_text_map_propagator(|propagator| {
         //     let carrier = helpers::HeaderExtractor(&auth_handle.request_headers);
         //     let parent_cx = propagator.extract(&carrier);

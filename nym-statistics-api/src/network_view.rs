@@ -142,11 +142,12 @@ impl NetworkRefresher {
         let mut full_refresh_interval = interval(self.full_refresh_interval);
         full_refresh_interval.reset();
 
-        while !self.shutdown_token.is_cancelled() {
+        loop {
             tokio::select! {
                 biased;
                 _ = self.shutdown_token.cancelled() => {
                    trace!("NetworkRefresher: Received shutdown");
+                    break;
                 }
                 _ = full_refresh_interval.tick() => {
                     if self.refresh_network_nodes().await.is_err() {

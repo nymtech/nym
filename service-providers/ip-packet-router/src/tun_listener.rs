@@ -112,10 +112,12 @@ impl TunListener {
 
     async fn run(mut self) -> Result<()> {
         let mut buf = [0u8; 65535];
-        while !self.shutdown_token.is_cancelled() {
+        loop {
             tokio::select! {
+                biased;
                 _ = self.shutdown_token.cancelled() => {
                     log::trace!("TunListener: received shutdown");
+                    break;
                 },
                 // TODO: ConnectedClientsListener::update should poll the channel instead
                 event = self.connected_clients.connected_client_rx.recv() => match event {

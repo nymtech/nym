@@ -757,7 +757,7 @@ where
             client_output,
             client_state.clone(),
             nym_address,
-            task_manager.child_shutdown_token(),
+            task_manager.shutdown_tracker_owned(),
             packet_type,
         );
 

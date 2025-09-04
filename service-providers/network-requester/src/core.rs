@@ -34,7 +34,7 @@ use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nym_sphinx::params::{PacketSize, PacketType};
 use nym_sphinx::receiver::ReconstructedMessage;
 use nym_task::connections::LaneQueueLengths;
-use nym_task::ShutdownToken;
+use nym_task::ShutdownTracker;
 use std::path::Path;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -66,7 +66,7 @@ pub struct NRServiceProviderBuilder {
     wait_for_gateway: bool,
     custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
     custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send + Sync>>,
-    shutdown: ShutdownToken,
+    shutdown: ShutdownTracker,
     on_start: Option<oneshot::Sender<OnStartData>>,
 }
 
@@ -78,7 +78,7 @@ pub struct NRServiceProvider {
     controller_sender: ControllerSender,
 
     mix_input_sender: MixProxySender<MixnetMessage>,
-    shutdown: ShutdownToken,
+    shutdown: ShutdownTracker,
 }
 
 #[async_trait]
@@ -147,7 +147,7 @@ impl ServiceProvider<Socks5Request> for NRServiceProvider {
 }
 
 impl NRServiceProviderBuilder {
-    pub fn new(config: Config, shutdown: ShutdownToken) -> NRServiceProviderBuilder {
+    pub fn new(config: Config, shutdown: ShutdownTracker) -> NRServiceProviderBuilder {
         NRServiceProviderBuilder {
             config,
             wait_for_gateway: false,
@@ -241,7 +241,7 @@ impl NRServiceProviderBuilder {
         // Controller for managing all active connections.
         let (mut active_connections_controller, controller_sender) = Controller::new(
             mixnet_client.connection_command_sender(),
-            self.shutdown.clone(),
+            self.shutdown.clone_shutdown_token(),
         );
 
         tokio::spawn(async move {
@@ -292,12 +292,13 @@ impl NRServiceProviderBuilder {
 
 impl NRServiceProvider {
     async fn run(&mut self) -> Result<(), NetworkRequesterError> {
-        let shutdown = self.shutdown.clone();
-        while !shutdown.is_cancelled() {
+        let shutdown = self.shutdown.clone_shutdown_token();
+        loop {
             tokio::select! {
                 biased;
                 _ = shutdown.cancelled() => {
-                    debug!("NRServiceProvider [main loop]: received shutdown")
+                    debug!("NRServiceProvider [main loop]: received shutdown");
+                    break
                 },
                 msg = self.mixnet_client.next() => match msg {
                     Some(msg) => self.on_message(msg).await,
@@ -363,7 +364,7 @@ impl NRServiceProvider {
         controller_sender: ControllerSender,
         mix_input_sender: MixProxySender<MixnetMessage>,
         lane_queue_lengths: LaneQueueLengths,
-        shutdown: ShutdownToken,
+        shutdown: ShutdownTracker,
     ) {
         let mut conn = match socks5::tcp::Connection::new(
             connection_id,
@@ -547,7 +548,7 @@ impl NRServiceProvider {
 // TODO: refactor this function and its arguments
 async fn create_mixnet_client(
     config: &BaseClientConfig,
-    shutdown: ShutdownToken,
+    shutdown: ShutdownTracker,
     custom_transceiver: Option<Box<dyn GatewayTransceiver + Send + Sync>>,
     custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
     wait_for_gateway: bool,

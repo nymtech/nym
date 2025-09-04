@@ -496,11 +496,12 @@ impl<R: MessageReceiver> RequestReceiver<R> {
 
     pub(crate) async fn run(&mut self) {
         debug!("Started RequestReceiver with graceful shutdown support");
-        while !self.shutdown_token.is_cancelled() {
+        loop {
             tokio::select! {
                 biased;
                 _ = self.shutdown_token.cancelled() => {
                     tracing::trace!("RequestReceiver: Received shutdown");
+                    break;
                 }
                 request = self.query_receiver.next() => {
                     if let Some(message) = request {
@@ -538,11 +539,12 @@ impl<R: MessageReceiver> FragmentedMessageReceiver<R> {
 
     pub(crate) async fn run(&mut self) -> Result<(), MessageRecoveryError> {
         debug!("Started FragmentedMessageReceiver with graceful shutdown support");
-        while !self.shutdown_token.is_cancelled() {
+        loop {
             tokio::select! {
                 biased;
                 _ = self.shutdown_token.cancelled() => {
                     tracing::trace!("FragmentedMessageReceiver: Received shutdown");
+                    break;
                 }
                 new_messages = self.mixnet_packet_receiver.next() => {
                     if let Some(new_messages) = new_messages {

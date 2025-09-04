@@ -8,7 +8,6 @@ use rand::rngs::OsRng;
 use std::net::SocketAddr;
 use std::{io, process};
 use tokio::net::TcpStream;
-use tokio::task::JoinHandle;
 use tracing::*;
 
 pub struct Listener {
@@ -102,7 +101,7 @@ impl Listener {
 
     // TODO: change the signature to pub(crate) async fn run(&self, handler: Handler)
 
-    pub(crate) async fn run(&mut self) {
+    pub async fn run(&mut self) {
         info!("Starting websocket listener at {}", self.address);
         let tcp_listener = match tokio::net::TcpListener::bind(self.address).await {
             Ok(listener) => listener,
@@ -112,7 +111,7 @@ impl Listener {
             }
         };
 
-        while !self.shutdown.is_cancelled() {
+        loop {
             tokio::select! {
                 biased;
                 _ = self.shutdown.cancelled() => {
@@ -124,9 +123,5 @@ impl Listener {
 
             }
         }
-    }
-
-    pub fn start(mut self) -> JoinHandle<()> {
-        tokio::spawn(async move { self.run().await })
     }
 }

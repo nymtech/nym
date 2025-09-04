@@ -63,7 +63,7 @@ impl ProcessingConfig {
     }
 }
 
-// explicitly do NOT derive clone as we want to manually apply relevant suffixes to the task clients
+// explicitly do NOT derive clone as we want the childs to use CHILD shutdown tokens
 pub(crate) struct SharedData {
     pub(super) processing_config: ProcessingConfig,
     pub(super) sphinx_keys: ActiveSphinxKeys,
@@ -79,7 +79,8 @@ pub(crate) struct SharedData {
     pub(super) noise_config: NoiseConfig,
 
     pub(super) metrics: NymNodeMetrics,
-    pub(super) shutdown: ShutdownToken,
+
+    pub(super) shutdown_token: ShutdownToken,
 }
 
 fn convert_to_metrics_version(processed: MixPacketVersion) -> PacketKind {
@@ -99,7 +100,7 @@ impl SharedData {
         final_hop: SharedFinalHopData,
         noise_config: NoiseConfig,
         metrics: NymNodeMetrics,
-        shutdown: ShutdownToken,
+        shutdown_token: ShutdownToken,
     ) -> Self {
         SharedData {
             processing_config,
@@ -109,7 +110,7 @@ impl SharedData {
             final_hop,
             noise_config,
             metrics,
-            shutdown,
+            shutdown_token,
         }
     }
 
@@ -188,10 +189,10 @@ impl SharedData {
             .mixnet_forwarder
             .forward_packet(PacketToForward::new(packet, delay_until))
             .is_err()
-            && !self.shutdown.is_cancelled()
+            && !self.shutdown_token.is_cancelled()
         {
             error!("failed to forward sphinx packet on the channel while the process is not going through the shutdown!");
-            self.shutdown.cancel();
+            self.shutdown_token.cancel();
         }
     }
 

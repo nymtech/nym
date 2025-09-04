@@ -583,7 +583,7 @@ where
         {
             let mut status_timer = tokio::time::interval(Duration::from_secs(5));
 
-            while !shutdown_token.is_cancelled() {
+            loop {
                 tokio::select! {
                     biased;
                     _ = shutdown_token.cancelled() => {
@@ -605,11 +605,12 @@ where
 
         #[cfg(target_arch = "wasm32")]
         {
-            while !shutdown_token.is_cancelled() {
+            loop {
                 tokio::select! {
                     biased;
                     _ = shutdown_token.cancelled() => {
                         tracing::trace!("OutQueueControl: Received shutdown");
+                        break;
                     }
                     next_message = self.next() => if let Some(next_message) = next_message {
                         self.on_message(next_message).await;

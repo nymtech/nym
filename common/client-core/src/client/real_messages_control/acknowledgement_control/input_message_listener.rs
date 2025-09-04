@@ -216,7 +216,7 @@ where
     pub(crate) async fn run(&mut self, shutdown_token: ShutdownToken) {
         debug!("Started InputMessageListener with graceful shutdown support");
 
-        while !shutdown_token.is_cancelled() {
+        loop {
             tokio::select! {
                 biased;
                 _ = shutdown_token.cancelled() => {

@@ -157,7 +157,7 @@ impl TopologyRefresher {
         #[cfg(not(target_arch = "wasm32"))]
         interval.next().await;
 
-        while let Some(_) = interval.next().await {
+        while interval.next().await.is_some() {
             self.try_refresh().await;
         }
 

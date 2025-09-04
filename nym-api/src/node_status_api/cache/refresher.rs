@@ -69,11 +69,12 @@ impl NodeStatusCacheRefresher {
     pub async fn run(&mut self, shutdown_token: ShutdownToken) {
         let mut last_update = OffsetDateTime::now_utc();
         let mut fallback_interval = time::interval(self.fallback_caching_interval);
-        while !shutdown_token.is_cancelled() {
+        loop {
             tokio::select! {
                 biased;
                 _ = shutdown_token.cancelled() => {
                     trace!("NodeStatusCacheRefresher: Received shutdown");
+                    break;
                 }
                 // Update node status cache when the contract cache / describe cache is updated
                 Ok(_) = self.mixnet_contract_cache_listener.changed() => {
@@ -81,6 +82,7 @@ impl NodeStatusCacheRefresher {
                         _ = self.maybe_refresh(&mut fallback_interval, &mut last_update) => (),
                         _ = shutdown_token.cancelled() => {
                             trace!("NodeStatusCacheRefresher: Received shutdown");
+                            break;
                         }
                     }
                 }
@@ -89,6 +91,7 @@ impl NodeStatusCacheRefresher {
                         _ = self.maybe_refresh(&mut fallback_interval, &mut last_update) => (),
                         _ = shutdown_token.cancelled() => {
                             trace!("NodeStatusCacheRefresher: Received shutdown");
+                            break;
                         }
                     }
                 }
@@ -99,6 +102,7 @@ impl NodeStatusCacheRefresher {
                         _ = self.maybe_refresh(&mut fallback_interval, &mut last_update) => (),
                         _ = shutdown_token.cancelled() => {
                             trace!("NodeStatusCacheRefresher: Received shutdown");
+                            break;
                         }
                     }
                 }

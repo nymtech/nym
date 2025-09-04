@@ -18,7 +18,7 @@ use nym_network_defaults::NymNetworkDetails;
 use nym_network_requester::NRServiceProviderBuilder;
 use nym_node_metrics::events::MetricEventsSender;
 use nym_node_metrics::NymNodeMetrics;
-use nym_task::ShutdownToken;
+use nym_task::ShutdownTracker;
 use nym_topology::TopologyProvider;
 use nym_validator_client::nyxd::{Coin, CosmWasmClient};
 use nym_validator_client::{nyxd, DirectSigningHttpRpcNyxdClient};
@@ -91,7 +91,7 @@ pub struct GatewayTasksBuilder {
 
     mnemonic: Arc<Zeroizing<bip39::Mnemonic>>,
 
-    shutdown_token: ShutdownToken,
+    shutdown_tracker: ShutdownTracker,
 
     // populated and cached as necessary
     ecash_manager: Option<Arc<EcashManager>>,
@@ -111,7 +111,7 @@ impl GatewayTasksBuilder {
         metrics_sender: MetricEventsSender,
         metrics: NymNodeMetrics,
         mnemonic: Arc<Zeroizing<bip39::Mnemonic>>,
-        shutdown_token: ShutdownToken,
+        shutdown_tracker: ShutdownTracker,
     ) -> GatewayTasksBuilder {
         GatewayTasksBuilder {
             config,
@@ -125,7 +125,7 @@ impl GatewayTasksBuilder {
             metrics_sender,
             metrics,
             mnemonic,
-            shutdown_token,
+            shutdown_tracker,
             ecash_manager: None,
             wireguard_peers: None,
             wireguard_networks: None,
@@ -215,17 +215,22 @@ impl GatewayTasksBuilder {
         };
 
         let nyxd_client = self.build_nyxd_signing_client().await?;
-        let ecash_manager = Arc::new(
-            EcashManager::new(
-                handler_config,
-                nyxd_client,
-                self.identity_keypair.public_key().to_bytes(),
-                self.shutdown_token.clone(),
-                self.storage.clone(),
-            )
-            .await?,
+
+        let (ecash_manager, credential_handler) = EcashManager::new(
+            handler_config,
+            nyxd_client,
+            self.identity_keypair.public_key().to_bytes(),
+            self.storage.clone(),
+        )
+        .await?;
+
+        let shutdown_token = self.shutdown_tracker.clone_shutdown_token();
+        self.shutdown_tracker.try_spawn_named(
+            async move { credential_handler.run(shutdown_token).await },
+            "EcashCredentialHandler",
         );
-        Ok(ecash_manager)
+
+        Ok(Arc::new(ecash_manager))
     }
 
     async fn ecash_manager(&mut self) -> Result<Arc<EcashManager>, GatewayError> {
@@ -262,7 +267,7 @@ impl GatewayTasksBuilder {
             self.config.gateway.websocket_bind_address,
             self.config.debug.maximum_open_connections,
             shared_state,
-            self.shutdown_token.clone(),
+            self.shutdown_tracker.clone_shutdown_token(),
         ))
     }
 
@@ -278,13 +283,12 @@ impl GatewayTasksBuilder {
         let mut message_router_builder = SpMessageRouterBuilder::new(
             *self.identity_keypair.public_key(),
             self.mix_packet_sender.clone(),
-            self.shutdown_token.clone(),
         );
         let transceiver = message_router_builder.gateway_transceiver();
 
         let (on_start_tx, on_start_rx) = oneshot::channel();
         let mut nr_builder =
-            NRServiceProviderBuilder::new(nr_opts.config.clone(), self.shutdown_token.clone())
+            NRServiceProviderBuilder::new(nr_opts.config.clone(), self.shutdown_tracker.clone())
                 .with_custom_gateway_transceiver(transceiver)
                 .with_wait_for_gateway(true)
                 .with_minimum_gateway_performance(0)
@@ -299,6 +303,7 @@ impl GatewayTasksBuilder {
             on_start_rx,
             nr_builder,
             message_router_builder,
+            self.shutdown_tracker.clone(),
         ))
     }
 
@@ -313,13 +318,12 @@ impl GatewayTasksBuilder {
         let mut message_router_builder = SpMessageRouterBuilder::new(
             *self.identity_keypair.public_key(),
             self.mix_packet_sender.clone(),
-            self.shutdown_token.clone(),
         );
         let transceiver = message_router_builder.gateway_transceiver();
 
         let (on_start_tx, on_start_rx) = oneshot::channel();
         let mut ip_packet_router =
-            IpPacketRouter::new(ip_opts.config.clone(), self.shutdown_token.clone())
+            IpPacketRouter::new(ip_opts.config.clone(), self.shutdown_tracker.clone())
                 .with_custom_gateway_transceiver(Box::new(transceiver))
                 .with_wait_for_gateway(true)
                 .with_minimum_gateway_performance(0)
@@ -334,6 +338,7 @@ impl GatewayTasksBuilder {
             on_start_rx,
             ip_packet_router,
             message_router_builder,
+            self.shutdown_tracker.clone(),
         ))
     }
 
@@ -419,7 +424,6 @@ impl GatewayTasksBuilder {
         let mut message_router_builder = SpMessageRouterBuilder::new(
             *self.identity_keypair.public_key(),
             self.mix_packet_sender.clone(),
-            self.shutdown_token.clone(),
         );
         let transceiver = message_router_builder.gateway_transceiver();
 
@@ -430,7 +434,7 @@ impl GatewayTasksBuilder {
             wireguard_data.inner.clone(),
             used_private_network_ips,
             ecash_manager,
-            self.shutdown_token.clone(),
+            self.shutdown_tracker.clone(),
         )
         .with_custom_gateway_transceiver(transceiver)
         .with_wait_for_gateway(true)
@@ -446,13 +450,13 @@ impl GatewayTasksBuilder {
             on_start_rx,
             authenticator_server,
             message_router_builder,
+            self.shutdown_tracker.clone(),
         ))
     }
 
     pub fn build_stale_messages_cleaner(&self) -> StaleMessagesCleaner {
         StaleMessagesCleaner::new(
             &self.storage,
-            self.shutdown_token.clone(),
             self.config.debug.stale_messages_max_age,
             self.config.debug.stale_messages_cleaner_run_interval,
         )
@@ -463,7 +467,7 @@ impl GatewayTasksBuilder {
         &mut self,
     ) -> Result<Arc<nym_wireguard::WgApiWrapper>, Box<dyn std::error::Error + Send + Sync>> {
         let _ = self.metrics.clone();
-        let _ = self.shutdown_token.clone();
+        let _ = self.shutdown_tracker.clone();
         unimplemented!("wireguard is not supported on this platform")
     }
 
@@ -504,13 +508,13 @@ impl GatewayTasksBuilder {
             ecash_manager,
             self.metrics.clone(),
             all_peers,
-            self.shutdown_token.clone(),
+            self.shutdown_tracker.clone(),
             wireguard_data,
         )
         .await?;
 
         let server = router.build_server(&bind_address).await?;
-        let cancel_token = self.shutdown_token.clone();
+        let cancel_token = self.shutdown_tracker.clone();
         let server_handle = tokio::spawn(async move {
             {
                 info!("Started Wireguard Axum HTTP V2 server on {bind_address}");

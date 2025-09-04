@@ -91,7 +91,7 @@ impl<T, R: MessageReceiver> SimpleMessageReceiver<T, R> {
     where
         T: DeserializeOwned,
     {
-        while !self.shutdown.is_cancelled() {
+        loop {
             tokio::select! {
                 biased;
                 _ = self.shutdown.cancelled() => {

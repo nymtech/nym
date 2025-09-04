@@ -70,9 +70,6 @@ pub(crate) struct MixnetListener {
     // The mixnet client that we use to send and receive packets from the mixnet
     pub(crate) mixnet_client: nym_sdk::mixnet::MixnetClient,
 
-    // The task handle for the main loop
-    pub(crate) shutdown_token: ShutdownToken,
-
     // Registrations awaiting confirmation
     pub(crate) registred_and_free: RwLock<RegistredAndFree>,
 
@@ -91,7 +88,6 @@ impl MixnetListener {
         free_private_network_ips: PrivateIPs,
         wireguard_gateway_data: WireguardGatewayData,
         mixnet_client: nym_sdk::mixnet::MixnetClient,
-        shutdown_token: ShutdownToken,
         ecash_verifier: Arc<dyn EcashManager + Send + Sync>,
     ) -> Self {
         let timeout_check_interval =
@@ -99,7 +95,6 @@ impl MixnetListener {
         MixnetListener {
             config,
             mixnet_client,
-            shutdown_token,
             registred_and_free: RwLock::new(RegistredAndFree::new(free_private_network_ips)),
             peer_manager: PeerManager::new(wireguard_gateway_data),
             ecash_verifier,
@@ -812,13 +807,18 @@ impl MixnetListener {
         })
     }
 
-    pub(crate) async fn run(mut self) -> Result<(), AuthenticatorError> {
+    pub(crate) async fn run(
+        mut self,
+        shutdown_token: ShutdownToken,
+    ) -> Result<(), AuthenticatorError> {
         tracing::info!("Using authenticator version {CURRENT_VERSION}");
 
-        while !self.shutdown_token.is_cancelled() {
+        loop {
             tokio::select! {
-                _ = self.shutdown_token.cancelled() => {
+                biased;
+                _ = shutdown_token.cancelled() => {
                     tracing::debug!("Authenticator [main loop]: received shutdown");
+                    break;
                 },
                 _ = self.timeout_check_interval.next() => {
                     if let Err(e) = self.remove_stale_registrations().await {

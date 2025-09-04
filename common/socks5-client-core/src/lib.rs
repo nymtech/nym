@@ -23,7 +23,7 @@ use nym_client_core::init::types::GatewaySetup;
 use nym_credential_storage::storage::Storage as CredentialStorage;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::params::PacketType;
-use nym_task::{ShutdownManager, ShutdownToken};
+use nym_task::{ShutdownManager, ShutdownTracker};
 use nym_validator_client::UserAgent;
 use std::error::Error;
 use std::path::PathBuf;
@@ -109,7 +109,7 @@ where
         client_output: ClientOutput,
         client_status: ClientState,
         self_address: Recipient,
-        shutdown: ShutdownToken,
+        shutdown: ShutdownTracker,
         packet_type: PacketType,
     ) {
         info!("Starting socks5 listener...");
@@ -149,7 +149,7 @@ where
                 socks5_config.send_anonymously,
                 socks5_config.socks5_debug,
             ),
-            shutdown.clone(),
+            shutdown,
             packet_type,
         );
         nym_task::spawn_future(async move {
@@ -225,7 +225,7 @@ where
 
         let mut base_builder =
             BaseClientBuilder::new(self.config.base(), self.storage, dkg_query_client)
-                .with_shutdown(self.shutdown_manager.shutdown_tracker().clone())
+                .with_shutdown(self.shutdown_manager.shutdown_tracker_owned())
                 .with_gateway_setup(self.setup_method)
                 .with_user_agent(self.user_agent);
 
@@ -249,7 +249,7 @@ where
             client_output,
             client_state,
             self_address,
-            self.shutdown_manager.child_shutdown_token(),
+            self.shutdown_manager.shutdown_tracker_owned(),
             packet_type,
         );
 

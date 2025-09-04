@@ -334,20 +334,24 @@ impl<R: MessageReceiver + Send + Sync> Monitor<R> {
             .await;
 
         let mut run_interval = tokio::time::interval(self.run_interval);
-        while !shutdown_token.is_cancelled() {
+        loop {
             tokio::select! {
+                biased;
+                _ = shutdown_token.cancelled() => {
+                    trace!("UpdateHandler: Received shutdown");
+                    break;
+                }
                 _  = run_interval.tick() => {
                     tokio::select! {
                         biased;
                         _ = shutdown_token.cancelled() => {
                             trace!("UpdateHandler: Received shutdown");
+                            break;
                         }
                         _ = self.test_run() => (),
                     }
                 }
-                _ = shutdown_token.cancelled() => {
-                    trace!("UpdateHandler: Received shutdown");
-                }
+
             }
         }
     }

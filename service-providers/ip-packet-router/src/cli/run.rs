@@ -30,8 +30,10 @@ pub(crate) async fn execute(args: &Run) -> Result<(), IpPacketRouterError> {
     log::info!("Starting ip packet router service provider");
     let shutdown_manager =
         ShutdownManager::new_without_signals().with_default_shutdown_signals()?;
-    let mut server =
-        nym_ip_packet_router::IpPacketRouter::new(config, shutdown_manager.clone_shutdown_token());
+    let mut server = nym_ip_packet_router::IpPacketRouter::new(
+        config,
+        shutdown_manager.shutdown_tracker_owned(),
+    );
     if let Some(custom_mixnet) = &args.common_args.custom_mixnet {
         server = server.with_stored_topology(custom_mixnet)?
     }

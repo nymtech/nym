@@ -104,14 +104,9 @@ pub(crate) struct Handler {
 
 impl Drop for Handler {
     fn drop(&mut self) {
-        if let Err(err) = self
+        let _ = self
             .buffer_requester
-            .unbounded_send(ReceivedBufferMessage::ReceiverDisconnect)
-        {
-            if !self.shutdown_token.is_cancelled() {
-                error!("failed to disconnect the receiver from the buffer: {err}");
-            }
-        }
+            .unbounded_send(ReceivedBufferMessage::ReceiverDisconnect);
     }
 }
 
@@ -395,8 +390,12 @@ impl Handler {
     async fn listen_for_requests(&mut self, mut msg_receiver: ReconstructedMessagesReceiver) {
         let shutdown_token = self.shutdown_token.clone();
 
-        while !shutdown_token.is_cancelled() {
+        loop {
             tokio::select! {
+                  _ = shutdown_token.cancelled() => {
+                    log::trace!("Websocket handler: Received shutdown");
+                    break;
+                }
                 // we can either get a client request from the websocket
                 socket_msg = self.next_websocket_request() => {
                     if socket_msg.is_none() {
@@ -433,9 +432,6 @@ impl Handler {
                         warn!("failed to send sphinx packets back to the client - {err}, assuming the connection is dead");
                         break;
                     }
-                }
-                _ = shutdown_token.cancelled() => {
-                    log::trace!("Websocket handler: Received shutdown");
                 }
             }
         }

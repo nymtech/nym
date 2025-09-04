@@ -12,7 +12,7 @@ use nym_client_core::{
     TopologyProvider,
 };
 use nym_sdk::mixnet::Recipient;
-use nym_task::ShutdownToken;
+use nym_task::ShutdownTracker;
 
 use crate::{config::Config, error::IpPacketRouterError, request_filter::RequestFilter};
 
@@ -39,12 +39,12 @@ pub struct IpPacketRouter {
     wait_for_gateway: bool,
     custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
     custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send + Sync>>,
-    shutdown: ShutdownToken,
+    shutdown: ShutdownTracker,
     on_start: Option<oneshot::Sender<OnStartData>>,
 }
 
 impl IpPacketRouter {
-    pub fn new(config: Config, shutdown: ShutdownToken) -> Self {
+    pub fn new(config: Config, shutdown: ShutdownTracker) -> Self {
         Self {
             config,
             wait_for_gateway: false,

@@ -151,6 +151,7 @@ use reqwest::{RequestBuilder, Response};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
+use std::net::IpAddr;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 use thiserror::Error;
@@ -158,6 +159,7 @@ use tracing::{debug, instrument, warn};
 
 #[cfg(not(target_arch = "wasm32"))]
 use std::net::SocketAddr;
+use std::str::FromStr;
 use std::sync::Arc;
 
 #[cfg(feature = "tunneling")]
@@ -494,6 +496,8 @@ impl ClientBuilder {
         #[cfg(target_arch = "wasm32")]
         let reqwest_client_builder = reqwest::ClientBuilder::new();
 
+        warn!("FORCING IPv4 CONNECTIONS");
+
         #[cfg(not(target_arch = "wasm32"))]
         let reqwest_client_builder = {
             // Note: I believe the manual enable calls for the compression methods are extra
@@ -508,6 +512,7 @@ impl ClientBuilder {
                 .deflate(true)
                 .brotli(true)
                 .zstd(true)
+                .local_address(IpAddr::from_str("0.0.0.0:0").unwrap())
         };
 
         ClientBuilder {

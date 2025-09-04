@@ -28,7 +28,7 @@ where
     }
 }
 
-/// Note: prefer spawning tasks directly on the ShutdownManager
+// Note: prefer spawning tasks directly on the ShutdownManager
 #[cfg(not(target_arch = "wasm32"))]
 #[track_caller]
 pub fn spawn_future<F>(future: F) -> JoinHandle<F::Output>
@@ -39,7 +39,7 @@ where
     tokio::spawn(future)
 }
 
-/// Note: prefer spawning tasks directly on the ShutdownManager
+// Note: prefer spawning tasks directly on the ShutdownManager
 #[cfg(not(target_arch = "wasm32"))]
 #[track_caller]
 pub fn spawn_named_future<F>(future: F, name: &str) -> JoinHandle<F::Output>
@@ -47,7 +47,7 @@ where
     F: Future + Send + 'static,
     F::Output: Send + 'static,
 {
-    cfg_if::cfg_if! {if #[cfg(tokio_unstable)] {
+    cfg_if::cfg_if! {if #[cfg(all(tokio_unstable, feature="tokio-tracing"))] {
         #[allow(clippy::expect_used)]
         tokio::task::Builder::new().name(name).spawn(future).expect("failed to spawn future")
     } else {

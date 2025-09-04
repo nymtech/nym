@@ -32,6 +32,19 @@ pub trait Timeboxed: IntoFuture + Sized {
 
 impl<T> Timeboxed for T where T: IntoFuture + Sized {}
 
+pub trait ElapsedExt {
+    fn has_elapsed(&self) -> bool;
+}
+
+impl<T> ElapsedExt for Result<T, Elapsed> {
+    fn has_elapsed(&self) -> bool {
+        match self {
+            Ok(_) => false,
+            Err(_) => true,
+        }
+    }
+}
+
 // those are internal testing traits so we're not concerned about auto traits
 #[allow(async_fn_in_trait)]
 pub trait Spawnable: Future + Sized + Send + 'static {

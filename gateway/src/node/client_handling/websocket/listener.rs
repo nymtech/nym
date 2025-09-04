@@ -3,7 +3,7 @@
 
 use crate::node::client_handling::websocket::common_state::CommonHandlerState;
 use crate::node::client_handling::websocket::connection_handler::FreshHandler;
-use nym_task::ShutdownToken;
+use nym_task::ShutdownTracker;
 use rand::rngs::OsRng;
 use std::net::SocketAddr;
 use std::{io, process};
@@ -14,7 +14,7 @@ pub struct Listener {
     address: SocketAddr,
     maximum_open_connections: usize,
     shared_state: CommonHandlerState,
-    shutdown: ShutdownToken,
+    shutdown: ShutdownTracker,
 }
 
 impl Listener {
@@ -22,7 +22,7 @@ impl Listener {
         address: SocketAddr,
         maximum_open_connections: usize,
         shared_state: CommonHandlerState,
-        shutdown: ShutdownToken,
+        shutdown: ShutdownTracker,
     ) -> Self {
         Listener {
             address,
@@ -49,7 +49,7 @@ impl Listener {
             socket,
             self.shared_state.clone(),
             remote_address,
-            self.shutdown.clone(),
+            self.shutdown.clone_shutdown_token(),
         )
     }
 
@@ -84,16 +84,19 @@ impl Listener {
                     .new_ingress_websocket_client();
 
                 // 4. spawn the task handling the client connection
-                tokio::spawn(async move {
-                    // TODO: refactor it similarly to the mixnet listener on the nym-node
-                    let metrics_ref = handle.shared_state.metrics.clone();
+                self.shutdown.try_spawn_named(
+                    async move {
+                        // TODO: refactor it similarly to the mixnet listener on the nym-node
+                        let metrics_ref = handle.shared_state.metrics.clone();
 
-                    // 4.1. handle all client requests until connection gets terminated
-                    handle.start_handling().await;
+                        // 4.1. handle all client requests until connection gets terminated
+                        handle.start_handling().await;
 
-                    // 4.2. decrement the connection counter
-                    metrics_ref.network.disconnected_ingress_websocket_client();
-                });
+                        // 4.2. decrement the connection counter
+                        metrics_ref.network.disconnected_ingress_websocket_client();
+                    },
+                    &format!("websocket-{remote_address}"),
+                );
             }
             Err(err) => warn!("failed to accept client connection: {err}"),
         }
@@ -111,16 +114,17 @@ impl Listener {
             }
         };
 
+        let shutdown_token = self.shutdown.clone_shutdown_token();
         loop {
             tokio::select! {
                 biased;
-                _ = self.shutdown.cancelled() => {
+                _ = shutdown_token.cancelled() => {
                     trace!("client_handling::Listener: received shutdown");
+                    break
                 }
                 connection = tcp_listener.accept() => {
                     self.try_handle_accepted_connection(connection)
                 }
-
             }
         }
     }

@@ -910,6 +910,14 @@ impl<R, S> FreshHandler<R, S> {
         let cx = opentelemetry::Context::current_with_span(span);
         let _guard = cx.attach();
 
+        let current_context = opentelemetry::Context::current();
+        let initial_trace_id = current_context.span().span_context().trace_id();
+        error!("==== trace_id at the start of initial authentication: {:?} ====", initial_trace_id);
+        //
+
+        drop(_guard);
+
+
         // let _guard = match &span{
         //     Some(s) => {
         //         warn!("==== ENTERED SPAN ====");

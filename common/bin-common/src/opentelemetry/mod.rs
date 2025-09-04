@@ -1,3 +1,4 @@
+pub mod context;
 pub mod error;
 mod trace_id_format;
 

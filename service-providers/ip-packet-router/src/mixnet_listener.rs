@@ -464,10 +464,12 @@ impl MixnetListener {
     pub(crate) async fn run(mut self) -> Result<()> {
         let mut disconnect_timer = tokio::time::interval(DISCONNECT_TIMER_INTERVAL);
 
-        while !self.shutdown_token.is_cancelled() {
+        loop {
             tokio::select! {
+                biased;
                 _ = self.shutdown_token.cancelled() => {
                     log::debug!("IpPacketRouter [main loop]: received shutdown");
+                    break;
                 },
                 _ = disconnect_timer.tick() => {
                     self.handle_disconnect_timer().await;

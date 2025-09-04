@@ -1,15 +1,15 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use futures::StreamExt;
 use human_repr::HumanCount;
 use human_repr::HumanThroughput;
 use nym_node_metrics::NymNodeMetrics;
-use nym_task::ShutdownToken;
 use std::time::Duration;
 use time::OffsetDateTime;
-use tokio::task::JoinHandle;
 use tokio::time::{interval_at, Instant};
-use tracing::{info, trace};
+use tokio_stream::wrappers::IntervalStream;
+use tracing::{error, info, trace};
 
 struct AtLastUpdate {
     time: OffsetDateTime,
@@ -49,20 +49,14 @@ pub(crate) struct ConsoleLogger {
     logging_delay: Duration,
     at_last_update: AtLastUpdate,
     metrics: NymNodeMetrics,
-    shutdown: ShutdownToken,
 }
 
 impl ConsoleLogger {
-    pub(crate) fn new(
-        logging_delay: Duration,
-        metrics: NymNodeMetrics,
-        shutdown: ShutdownToken,
-    ) -> Self {
+    pub(crate) fn new(logging_delay: Duration, metrics: NymNodeMetrics) -> Self {
         ConsoleLogger {
             logging_delay,
             at_last_update: AtLastUpdate::new(),
             metrics,
-            shutdown,
         }
     }
 
@@ -123,23 +117,19 @@ impl ConsoleLogger {
         // TODO: add websocket-client traffic
     }
 
-    async fn run(&mut self) {
+    pub(crate) async fn run(&mut self) {
         trace!("Starting ConsoleLogger");
-        let mut interval = interval_at(Instant::now() + self.logging_delay, self.logging_delay);
-        loop {
-            tokio::select! {
-                biased;
-               _ = self.shutdown.cancelled() => {
-                    trace!("ConsoleLogger: Received shutdown");
-                    break
-                }
-                _ = interval.tick() => self.log_running_stats().await,
-            };
-        }
-        trace!("ConsoleLogger: Exiting");
-    }
 
-    pub(crate) fn start(mut self) -> JoinHandle<()> {
-        tokio::spawn(async move { self.run().await })
+        let mut stream = IntervalStream::new(interval_at(
+            Instant::now() + self.logging_delay,
+            self.logging_delay,
+        ));
+
+        while stream.next().await.is_some() {
+            self.log_running_stats().await
+        }
+
+        // this should never get triggered
+        error!("console logger interval has been exhausted!")
     }
 }

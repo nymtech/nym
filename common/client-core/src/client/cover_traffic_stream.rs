@@ -246,7 +246,7 @@ impl LoopCoverTrafficStream<OsRng> {
         );
         self.set_next_delay(sampled);
 
-        while let Some(_) = self.next().await {
+        while self.next().await.is_some() {
             self.on_new_message().await;
         }
 

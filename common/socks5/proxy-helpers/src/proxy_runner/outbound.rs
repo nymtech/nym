@@ -60,6 +60,11 @@ pub(super) async fn run_outbound(
 
     loop {
         select! {
+            biased;
+            _ = shutdown_listener.cancelled() => {
+                log::trace!("ProxyRunner outbound: Received shutdown");
+                break;
+            }
             connection_message = mix_receiver.next() => {
                 if let Some(connection_message) = connection_message {
                     if deal_with_message(connection_message, &mut writer, &local_destination_address, &remote_source_address, connection_id).await {
@@ -78,10 +83,6 @@ pub(super) async fn run_outbound(
             }
             _ = &mut shutdown_future => {
                 debug!("closing outbound proxy after inbound was closed {SHUTDOWN_TIMEOUT:?} ago");
-                break;
-            }
-            _ = shutdown_listener.cancelled() => {
-                log::trace!("ProxyRunner outbound: Received shutdown");
                 break;
             }
         }

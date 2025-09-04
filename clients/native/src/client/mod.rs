@@ -122,7 +122,7 @@ impl SocketClient {
 
         let mut base_client =
             BaseClientBuilder::new(self.config().base(), storage, dkg_query_client)
-                .with_shutdown(self.shutdown_manager.child_shutdown_token())
+                .with_shutdown(self.shutdown_manager.shutdown_tracker_owned())
                 .with_user_agent(user_agent);
 
         if let Some(custom_mixnet) = &self.custom_mixnet {

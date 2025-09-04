@@ -56,7 +56,7 @@ impl ShutdownHelper {
 
     pub(crate) fn tracker(&self) -> &ShutdownTracker {
         match self {
-            ShutdownHelper::External(shutdown) => &shutdown,
+            ShutdownHelper::External(shutdown) => shutdown,
             ShutdownHelper::Internal(shutdown) => shutdown.shutdown_tracker(),
         }
     }

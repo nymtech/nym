@@ -80,11 +80,12 @@ impl AcknowledgementListener {
     pub(crate) async fn run(&mut self, shutdown_token: ShutdownToken) {
         debug!("Started AcknowledgementListener with graceful shutdown support");
 
-        while !shutdown_token.is_cancelled() {
+        loop {
             tokio::select! {
                 biased;
                 _ = shutdown_token.cancelled() => {
                     tracing::trace!("AcknowledgementListener: Received shutdown");
+                    break;
                 }
                 acks = self.ack_receiver.next() => match acks {
                     Some(acks) => self.handle_ack_receiver_item(acks).await,

@@ -245,8 +245,13 @@ impl ActionController {
     pub(crate) async fn run(&mut self, shutdown_token: ShutdownToken) {
         debug!("Started ActionController with graceful shutdown support");
 
-        while !shutdown_token.is_cancelled() {
+        loop {
             tokio::select! {
+                biased;
+                _ = shutdown_token.cancelled() => {
+                    tracing::trace!("ActionController: Received shutdown");
+                    break;
+                }
                 action = self.incoming_actions.next() => match action {
                     Some(action) => self.process_action(action),
                     None => {
@@ -263,10 +268,6 @@ impl ActionController {
                         break;
                     }
                 },
-                _ = shutdown_token.cancelled() => {
-                    tracing::trace!("ActionController: Received shutdown");
-                    break;
-                }
             }
         }
         tracing::debug!("ActionController: Exiting");

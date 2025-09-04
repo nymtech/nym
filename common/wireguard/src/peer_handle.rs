@@ -180,8 +180,18 @@ impl PeerHandle {
     }
 
     pub async fn run(&mut self) {
-        while !self.shutdown_token.is_cancelled() {
+        loop {
             tokio::select! {
+                biased;
+                _ = self.shutdown_token.cancelled() => {
+                    log::trace!("PeerHandle: Received shutdown");
+                    if let Err(e) = self.bandwidth_storage_manager.inner().write().await.sync_storage_bandwidth().await {
+                        log::error!("Storage sync failed - {e}, unaccounted bandwidth might have been consumed");
+                    }
+
+                    log::trace!("PeerHandle: Finished shutdown");
+                    break;
+                }
                 _ = self.timeout_check_interval.next() => {
                     match self.continue_checking().await {
                         Ok(true) => continue,
@@ -199,15 +209,6 @@ impl PeerHandle {
                             }
                         },
                     }
-                }
-
-                _ = self.shutdown_token.cancelled() => {
-                    log::trace!("PeerHandle: Received shutdown");
-                    if let Err(e) = self.bandwidth_storage_manager.inner().write().await.sync_storage_bandwidth().await {
-                        log::error!("Storage sync failed - {e}, unaccounted bandwidth might have been consumed");
-                    }
-
-                    log::trace!("PeerHandle: Finished shutdown");
                 }
             }
         }

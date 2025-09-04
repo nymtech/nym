@@ -239,11 +239,12 @@ where
         self.provider.wait_until_ready().await;
 
         let mut refresh_interval = interval(self.refreshing_interval);
-        while !shutdown_token.is_cancelled() {
+        loop {
             tokio::select! {
                 biased;
                 _ = shutdown_token.cancelled() => {
-                    trace!("{}: Received shutdown", self.name)
+                    trace!("{}: Received shutdown", self.name);
+                    break
                 }
                 _ = refresh_interval.tick() => self.refresh(&shutdown_token).await,
                 // note: `Notify` is not cancellation safe, HOWEVER, there's only one listener,

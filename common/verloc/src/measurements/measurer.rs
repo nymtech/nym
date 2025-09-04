@@ -92,8 +92,13 @@ impl VerlocMeasurer {
                 .collect::<FuturesUnordered<_>>();
 
             // exhaust the results
-            while !self.shutdown_token.is_cancelled() {
+            loop {
                 tokio::select! {
+                    biased;
+                     _ = self.shutdown_token.cancelled() => {
+                        trace!("Shutdown received while measuring");
+                        return MeasurementOutcome::Shutdown;
+                    }
                     measurement_result = measurement_chunk.next() => {
                         let Some(result) = measurement_result else {
                             // if the stream has finished, it means we got everything we could have gotten
@@ -117,10 +122,6 @@ impl VerlocMeasurer {
                         };
                         chunk_results.push(VerlocNodeResult::new(identity, measurement_result));
                     },
-                    _ = self.shutdown_token.cancelled() => {
-                        trace!("Shutdown received while measuring");
-                        return MeasurementOutcome::Shutdown;
-                    }
                 }
             }
 
@@ -208,6 +209,7 @@ impl VerlocMeasurer {
                 _ = sleep(self.config.testing_interval) => {},
                 _ = self.shutdown_token.cancelled() => {
                     trace!("Shutdown received while sleeping");
+                    break;
                 }
             }
         }

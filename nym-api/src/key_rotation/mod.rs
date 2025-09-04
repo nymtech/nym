@@ -114,11 +114,12 @@ impl KeyRotationController {
         self.contract_cache.naive_wait_for_initial_values().await;
         self.handle_contract_cache_update().await;
 
-        while !shutdown_token.is_cancelled() {
+        loop {
             tokio::select! {
                 biased;
                 _ = shutdown_token.cancelled() => {
                     trace!("KeyRotationController: Received shutdown");
+                    break;
                 }
                 _ = self.contract_cache_watcher.changed() => {
                     self.handle_contract_cache_update().await

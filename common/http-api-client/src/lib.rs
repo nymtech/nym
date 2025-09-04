@@ -512,7 +512,7 @@ impl ClientBuilder {
                 .deflate(true)
                 .brotli(true)
                 .zstd(true)
-                .local_address(IpAddr::from_str("0.0.0.0:0").unwrap())
+                .local_address(IpAddr::from_str("0.0.0.0").unwrap())
         };
 
         ClientBuilder {

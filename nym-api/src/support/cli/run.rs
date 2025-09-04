@@ -120,8 +120,8 @@ pub(crate) struct Args {
 }
 
 async fn start_nym_api_tasks(config: &Config) -> anyhow::Result<ShutdownManager> {
-    let shutdown_manager =
-        ShutdownManager::new().with_shutdown_duration(Duration::from_secs(TASK_MANAGER_TIMEOUT_S));
+    let shutdown_manager = ShutdownManager::new_without_signals()
+        .with_shutdown_duration(Duration::from_secs(TASK_MANAGER_TIMEOUT_S));
 
     let nyxd_client = nyxd::Client::new(config)?;
     let connected_nyxd = config.get_nyxd_url();

@@ -159,7 +159,7 @@ impl NymNodeTesterBuilder {
     }
 
     async fn _setup_client(mut self) -> Result<NymNodeTester, NodeTesterError> {
-        let task_manager = ShutdownManager::new();
+        let task_manager = ShutdownManager::new_without_signals();
 
         let storage_id = if let Some(client_id) = &self.id {
             format!("{NODE_TESTER_ID}-{client_id}")

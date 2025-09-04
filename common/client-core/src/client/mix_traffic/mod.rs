@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::client::mix_traffic::transceiver::GatewayTransceiver;
-use crate::spawn_future;
 use nym_gateway_requests::ClientRequest;
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_task::ShutdownToken;
@@ -137,50 +136,44 @@ impl MixTrafficController {
         }
     }
 
-    pub fn start(mut self) {
-        spawn_future!(
-            async move {
-                debug!("Started MixTrafficController with graceful shutdown support");
-                while !self.shutdown_token.is_cancelled() {
-                    tokio::select! {
-                        biased;
-                        _ = self.shutdown_token.cancelled() => {
-                            trace!("MixTrafficController: Received shutdown");
-                            break;
-                        }
-                        mix_packets = self.mix_rx.recv() => match mix_packets {
-                            Some(mix_packets) => {
-                                if let Err(err) = self.on_messages(mix_packets).await {
-                                    error!("Failed to send sphinx packet(s) to the gateway: {err}");
-                                    if self.consecutive_gateway_failure_count == MAX_FAILURE_COUNT {
-                                        // Disconnect from the gateway. If we should try to re-connect
-                                        // is handled at a higher layer.
-                                        error!("Failed to send sphinx packet to the gateway {MAX_FAILURE_COUNT} times in a row - assuming the gateway is dead");
-                                        // Do we need to handle the embedded mixnet client case
-                                        // separately?
-                                        break;
-                                    }
-                                }
-                            },
-                            None => {
-                                trace!("MixTrafficController: Stopping since channel closed");
+    pub async fn run(&mut self) {
+        debug!("Started MixTrafficController with graceful shutdown support");
+        while !self.shutdown_token.is_cancelled() {
+            tokio::select! {
+                biased;
+                _ = self.shutdown_token.cancelled() => {
+                    trace!("MixTrafficController: Received shutdown");
+                    break;
+                }
+                mix_packets = self.mix_rx.recv() => match mix_packets {
+                    Some(mix_packets) => {
+                        if let Err(err) = self.on_messages(mix_packets).await {
+                            error!("Failed to send sphinx packet(s) to the gateway: {err}");
+                            if self.consecutive_gateway_failure_count == MAX_FAILURE_COUNT {
+                                // Disconnect from the gateway. If we should try to re-connect
+                                // is handled at a higher layer.
+                                error!("Failed to send sphinx packet to the gateway {MAX_FAILURE_COUNT} times in a row - assuming the gateway is dead");
+                                // Do we need to handle the embedded mixnet client case
+                                // separately?
                                 break;
                             }
-                        },
-                        client_request = self.client_rx.recv() => match client_request {
-                            Some(client_request) => {
-                                self.on_client_request(client_request).await;
-                            },
-                            None => {
-                                trace!("MixTrafficController, client request channel closed");
-                                break
-                            }
-                        },
+                        }
+                    },
+                    None => {
+                        trace!("MixTrafficController: Stopping since channel closed");
+                        break;
                     }
-                }
-                debug!("MixTrafficController: Exiting");
-            },
-            "MixTrafficController"
-        );
+                },
+                client_request = self.client_rx.recv() => match client_request {
+                    Some(client_request) => {
+                        self.on_client_request(client_request).await;
+                    },
+                    None => {
+                        trace!("MixTrafficController, client request channel closed");
+                    break}
+                },
+            }
+        }
+        debug!("MixTrafficController: Exiting");
     }
 }

@@ -29,7 +29,7 @@ use nym_client_core::init::types::{GatewaySelectionSpecification, GatewaySetup};
 use nym_credentials_interface::TicketType;
 use nym_crypto::hkdf::DerivationMaterial;
 use nym_socks5_client_core::config::Socks5;
-use nym_task::ShutdownToken;
+use nym_task::ShutdownTracker;
 use nym_topology::provider_trait::TopologyProvider;
 use nym_validator_client::{nyxd, QueryHttpRpcNyxdClient, UserAgent};
 use rand::rngs::OsRng;
@@ -52,7 +52,7 @@ pub struct MixnetClientBuilder<S: MixnetClientStorage = Ephemeral> {
     wait_for_gateway: bool,
     custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
     custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send + Sync>>,
-    custom_shutdown: Option<ShutdownToken>,
+    custom_shutdown: Option<ShutdownTracker>,
     force_tls: bool,
     user_agent: Option<UserAgent>,
     #[cfg(unix)]
@@ -264,7 +264,7 @@ where
 
     /// Use an externally managed shutdown mechanism.
     #[must_use]
-    pub fn custom_shutdown(mut self, shutdown: ShutdownToken) -> Self {
+    pub fn custom_shutdown(mut self, shutdown: ShutdownTracker) -> Self {
         self.custom_shutdown = Some(shutdown);
         self
     }
@@ -378,7 +378,7 @@ where
     force_tls: bool,
 
     /// Allows passing an externally controlled shutdown handle.
-    custom_shutdown: Option<ShutdownToken>,
+    custom_shutdown: Option<ShutdownTracker>,
 
     user_agent: Option<UserAgent>,
 

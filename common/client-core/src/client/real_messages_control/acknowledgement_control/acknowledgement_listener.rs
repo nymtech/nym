@@ -16,12 +16,11 @@ use tracing::*;
 
 /// Module responsible for listening for any data resembling acknowledgements from the network
 /// and firing actions to remove them from the 'Pending' state.
-pub(super) struct AcknowledgementListener {
+pub(crate) struct AcknowledgementListener {
     ack_key: Arc<AckKey>,
     ack_receiver: AcknowledgementReceiver,
     action_sender: AckActionSender,
     stats_tx: ClientStatsSender,
-    shutdown_token: ShutdownToken,
 }
 
 impl AcknowledgementListener {
@@ -30,14 +29,12 @@ impl AcknowledgementListener {
         ack_receiver: AcknowledgementReceiver,
         action_sender: AckActionSender,
         stats_tx: ClientStatsSender,
-        shutdown_token: ShutdownToken,
     ) -> Self {
         AcknowledgementListener {
             ack_key,
             ack_receiver,
             action_sender,
             stats_tx,
-            shutdown_token,
         }
     }
 
@@ -68,14 +65,9 @@ impl AcknowledgementListener {
         trace!("Received {frag_id} from the mix network");
         self.stats_tx
             .report(PacketStatisticsEvent::RealAckReceived(ack_content.len()).into());
-        if let Err(err) = self
+        let _ = self
             .action_sender
-            .unbounded_send(Action::new_remove(frag_id))
-        {
-            if !self.shutdown_token.is_cancelled() {
-                error!("Failed to send remove action to action controller: {err}");
-            }
-        }
+            .unbounded_send(Action::new_remove(frag_id));
     }
 
     async fn handle_ack_receiver_item(&mut self, item: Vec<Vec<u8>>) {
@@ -85,11 +77,15 @@ impl AcknowledgementListener {
         }
     }
 
-    pub(super) async fn run(&mut self) {
+    pub(crate) async fn run(&mut self, shutdown_token: ShutdownToken) {
         debug!("Started AcknowledgementListener with graceful shutdown support");
 
-        while !self.shutdown_token.is_cancelled() {
+        while !shutdown_token.is_cancelled() {
             tokio::select! {
+                biased;
+                _ = shutdown_token.cancelled() => {
+                    tracing::trace!("AcknowledgementListener: Received shutdown");
+                }
                 acks = self.ack_receiver.next() => match acks {
                     Some(acks) => self.handle_ack_receiver_item(acks).await,
                     None => {
@@ -97,9 +93,7 @@ impl AcknowledgementListener {
                         break;
                     }
                 },
-                _ = self.shutdown_token.cancelled() => {
-                    tracing::trace!("AcknowledgementListener: Received shutdown");
-                }
+
             }
         }
         tracing::debug!("AcknowledgementListener: Exiting");

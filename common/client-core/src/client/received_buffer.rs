@@ -5,7 +5,6 @@ use crate::client::helpers::get_time_now;
 use crate::client::replies::{
     reply_controller::ReplyControllerSender, reply_storage::SentReplyKeys,
 };
-use crate::spawn_future;
 use futures::channel::mpsc;
 use futures::lock::Mutex;
 use futures::StreamExt;
@@ -466,7 +465,7 @@ pub enum ReceivedBufferMessage {
     ReceiverDisconnect,
 }
 
-struct RequestReceiver<R: MessageReceiver> {
+pub(crate) struct RequestReceiver<R: MessageReceiver> {
     received_buffer: ReceivedMessagesBuffer<R>,
     query_receiver: ReceivedBufferRequestReceiver,
     shutdown_token: ShutdownToken,
@@ -496,7 +495,7 @@ impl<R: MessageReceiver> RequestReceiver<R> {
         }
     }
 
-    async fn run(&mut self) {
+    pub(crate) async fn run(&mut self) {
         debug!("Started RequestReceiver with graceful shutdown support");
         while !self.shutdown_token.is_cancelled() {
             tokio::select! {
@@ -519,7 +518,7 @@ impl<R: MessageReceiver> RequestReceiver<R> {
     }
 }
 
-struct FragmentedMessageReceiver<R: MessageReceiver> {
+pub(crate) struct FragmentedMessageReceiver<R: MessageReceiver> {
     received_buffer: ReceivedMessagesBuffer<R>,
     mixnet_packet_receiver: MixnetMessageReceiver,
     shutdown_token: ShutdownToken,
@@ -538,7 +537,7 @@ impl<R: MessageReceiver> FragmentedMessageReceiver<R> {
         }
     }
 
-    async fn run(&mut self) -> Result<(), MessageRecoveryError> {
+    pub(crate) async fn run(&mut self) -> Result<(), MessageRecoveryError> {
         debug!("Started FragmentedMessageReceiver with graceful shutdown support");
         while !self.shutdown_token.is_cancelled() {
             tokio::select! {
@@ -599,24 +598,7 @@ impl<R: MessageReceiver + Clone + Send + 'static> ReceivedMessagesBufferControll
         }
     }
 
-    pub fn start(self) {
-        let mut fragmented_message_receiver = self.fragmented_message_receiver;
-        let mut request_receiver = self.request_receiver;
-
-        spawn_future!(
-            async move {
-                match fragmented_message_receiver.run().await {
-                    Ok(_) => {}
-                    Err(e) => error!("{e}"),
-                }
-            },
-            "ReceivedMessagesBufferController::FragmentedMessageReceiver"
-        );
-        spawn_future!(
-            async move {
-                request_receiver.run().await;
-            },
-            "ReceivedMessagesBufferController::RequestReceiver"
-        );
+    pub(crate) fn into_tasks(self) -> (FragmentedMessageReceiver<R>, RequestReceiver<R>) {
+        (self.fragmented_message_receiver, self.request_receiver)
     }
 }

@@ -4,6 +4,7 @@
 use crate::event::SentStatus;
 use futures::stream::FuturesUnordered;
 use futures::StreamExt;
+use log::error;
 use std::future::Future;
 use std::mem;
 use std::pin::Pin;
@@ -40,6 +41,7 @@ pub struct ShutdownToken {
 }
 
 impl ShutdownToken {
+    /// Leave the drop in no-op replacement for `send_status_msg` for easier migration from `TaskClient`.
     #[deprecated]
     #[track_caller]
     pub fn send_status_msg(&self, status: SentStatus) {
@@ -130,7 +132,7 @@ impl ShutdownSignals {
 /// Extracted [`TaskTracker`] and [`ShutdownToken`] to more easily allow tracking nested tasks
 /// without having to pass whole [`ShutdownManager`] around
 #[derive(Clone, Default)]
-pub struct CancellationTracker {
+pub struct ShutdownTracker {
     root_cancellation_token: ShutdownToken,
 
     // the reason I'm not using a `JoinSet` is because it forces us to use futures with the same `::Output` type
@@ -138,7 +140,7 @@ pub struct CancellationTracker {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-impl CancellationTracker {
+impl ShutdownTracker {
     #[track_caller]
     pub fn spawn<F>(&self, task: F) -> JoinHandle<F::Output>
     where
@@ -155,6 +157,7 @@ impl CancellationTracker {
         F: Future + Send + 'static,
         F::Output: Send + 'static,
     {
+        trace!("attempting to spawn task {name}");
         let tracked = self.tracker.track_future(task);
         spawn_named_future(tracked, name)
     }
@@ -208,16 +211,19 @@ impl CancellationTracker {
         F: Future + Send + 'static,
         F::Output: Send + 'static,
     {
+        trace!("attempting to spawn task {name} (with top-level cancellation)");
+
         let caller = std::panic::Location::caller();
         let shutdown_token = self.clone_shutdown_token();
+        let name_owned = name.to_string();
         let tracked = self.tracker.track_future(async move {
             match shutdown_token.run_until_cancelled_owned(task).await {
                 Some(result) => {
-                    debug!("{caller}: task has finished execution");
+                    debug!("{name_owned} @ {caller}: task has finished execution");
                     Ok(result)
                 }
                 None => {
-                    trace!("{caller}: shutdown signal received, shutting down");
+                    debug!("{name_owned} @ {caller}: shutdown signal received, shutting down");
                     Err(Cancelled)
                 }
             }
@@ -250,7 +256,7 @@ impl CancellationTracker {
 }
 
 #[cfg(target_arch = "wasm32")]
-impl CancellationTracker {
+impl ShutdownTracker {
     #[track_caller]
     pub fn spawn<F>(&self, task: F) -> JoinHandle<F::Output>
     where
@@ -320,7 +326,7 @@ impl CancellationTracker {
     }
 }
 
-impl CancellationTracker {
+impl ShutdownTracker {
     pub fn child_shutdown_token(&self) -> ShutdownToken {
         self.root_cancellation_token.child_token()
     }
@@ -336,7 +342,7 @@ pub struct ShutdownManager {
 
     shutdown_signals: ShutdownSignals,
 
-    tracker: CancellationTracker,
+    tracker: ShutdownTracker,
 
     max_shutdown_duration: Duration,
 }
@@ -346,7 +352,9 @@ pub struct ShutdownManager {
 #[cfg(not(target_arch = "wasm32"))]
 impl Default for ShutdownManager {
     fn default() -> Self {
-        ShutdownManager::new().with_interrupt_signal()
+        ShutdownManager::new_without_signals()
+            .with_interrupt_signal()
+            .with_cancel_on_panic()
     }
 }
 
@@ -549,8 +557,10 @@ impl ShutdownManager {
 }
 
 impl ShutdownManager {
-    pub fn new() -> Self {
-        let mut manager = ShutdownManager {
+    /// Create new instance of `ShutdownManager` without any shutdown signals registered,
+    /// meaning it will only attempt to for all tasks spawned on its tracker to gracefully finish execution.
+    pub fn new_without_signals() -> Self {
+        let manager = ShutdownManager {
             legacy_task_manager: None,
             shutdown_signals: Default::default(),
             tracker: Default::default(),
@@ -577,6 +587,33 @@ impl ShutdownManager {
     }
 
     #[must_use]
+    pub fn with_cancel_on_panic(self) -> Self {
+        let current_hook = std::panic::take_hook();
+
+        let shutdown_token = self.clone_shutdown_token();
+        std::panic::set_hook(Box::new(move |panic_info| {
+            // 1. call existing hook
+            current_hook(panic_info);
+
+            let location = panic_info
+                .location()
+                .map(|l| l.to_string())
+                .unwrap_or_else(|| "<unknown>".to_string());
+
+            let payload = if let Some(payload) = panic_info.payload().downcast_ref::<&str>() {
+                payload
+            } else {
+                ""
+            };
+
+            // 2. issue cancellation
+            error!("panicked at {location}: {payload}. issuing global cancellation");
+            shutdown_token.cancel();
+        }));
+        self
+    }
+
+    #[must_use]
     pub fn with_shutdown_duration(mut self, duration: Duration) -> Self {
         self.max_shutdown_duration = duration;
         self
@@ -586,8 +623,8 @@ impl ShutdownManager {
         self.tracker.root_cancellation_token.is_cancelled()
     }
 
-    pub fn cancellation_tracker(&self) -> CancellationTracker {
-        self.tracker.clone()
+    pub fn shutdown_tracker(&self) -> &ShutdownTracker {
+        &self.tracker
     }
 
     pub async fn wait_for_tracker(&self) {
@@ -652,16 +689,16 @@ impl ShutdownManager {
         // timeout
         wait_futures.push(Box::pin(async move {
             sleep(self.max_shutdown_duration).await;
-            info!("timeout reached, forcing shutdown");
+            info!("timeout reached - forcing shutdown");
         }));
 
         // graceful
         wait_futures.push(Box::pin(async move {
             self.wait_for_tracker().await;
-            debug!("migrated tasks successfully shutdown");
+            info!("all tracked tasks successfully shutdown");
             if let Some(legacy) = self.legacy_task_manager.as_mut() {
                 legacy.wait_for_graceful_shutdown().await;
-                debug!("legacy tasks successfully shutdown");
+                info!("all legacy tasks successfully shutdown");
             }
 
             info!("all registered tasks successfully shutdown")
@@ -709,6 +746,7 @@ impl ShutdownManager {
 
     /// Wait until a shutdown signal has been received and trigger system shutdown.
     pub async fn run_until_shutdown(mut self) {
+        self.close_tracker();
         self.wait_for_shutdown_signal().await;
 
         self.perform_shutdown().await;

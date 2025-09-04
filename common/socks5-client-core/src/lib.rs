@@ -225,7 +225,7 @@ where
 
         let mut base_builder =
             BaseClientBuilder::new(self.config.base(), self.storage, dkg_query_client)
-                .with_shutdown(self.shutdown_manager.child_shutdown_token())
+                .with_shutdown(self.shutdown_manager.shutdown_tracker().clone())
                 .with_gateway_setup(self.setup_method)
                 .with_user_agent(self.user_agent);
 

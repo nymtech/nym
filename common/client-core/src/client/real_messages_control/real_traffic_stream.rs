@@ -574,19 +574,19 @@ where
         // }
     }
 
-    pub(super) async fn run(&mut self) {
+    pub(crate) async fn run(&mut self) {
         debug!("Started OutQueueControl with graceful shutdown support");
 
-        let shutdown = self.shutdown_token.clone();
-
+        // avoid borrow on self
+        let shutdown_token = self.shutdown_token.clone();
         #[cfg(not(target_arch = "wasm32"))]
         {
             let mut status_timer = tokio::time::interval(Duration::from_secs(5));
 
-            while !shutdown.is_cancelled() {
+            while !shutdown_token.is_cancelled() {
                 tokio::select! {
                     biased;
-                    _ = shutdown.cancelled() => {
+                    _ = shutdown_token.cancelled() => {
                         tracing::trace!("OutQueueControl: Received shutdown");
                         break;
                     }
@@ -605,10 +605,10 @@ where
 
         #[cfg(target_arch = "wasm32")]
         {
-            while !shutdown.is_cancelled() {
+            while !shutdown_token.is_cancelled() {
                 tokio::select! {
                     biased;
-                    _ = shutdown.cancelled() => {
+                    _ = shutdown_token.cancelled() => {
                         tracing::trace!("OutQueueControl: Received shutdown");
                     }
                     next_message = self.next() => if let Some(next_message) = next_message {

@@ -1,5 +1,6 @@
 import { cache } from "react";
 
+// Minimal typed shape (only fields we use)
 type DeclaredRole = {
   entry?: boolean;
   exit_ipr?: boolean;
@@ -31,7 +32,7 @@ function toNumber(x: unknown, fallback = 0): number {
   return Number.isFinite(n) ? n : fallback;
 }
 
-const MIN_STAKE = 50_000_000_000; // 50B
+const MIN_STAKE = 50_000_000_000;
 const MAX_PM = 0.2;
 
 function hasRequiredRoles(n: ApiNode): boolean {
@@ -79,11 +80,13 @@ async function fetchRecommendedNodes(): Promise<number[]> {
   const baseFilter = (n: ApiNode) =>
     hasWs9000(n) && hasRequiredRoles(n) && hasGoodPM(n) && stakeOk(n);
 
+  // Require WG
   const wgCandidates = nodes
     .filter((n) => baseFilter(n) && wireguardOn(n))
     .sort(sortByUptimeDescStakeAsc);
 
-  let picked = wgCandidates.slice(0, 10);
+  // `picked` never reassigned, so const is correct
+  const picked = wgCandidates.slice(0, 10);
 
   if (picked.length < 10) {
     const relaxed = nodes

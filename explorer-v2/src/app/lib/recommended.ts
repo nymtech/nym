@@ -1,3 +1,5 @@
+
+// src/app/lib/recommended.ts
 import { cache } from "react";
 
 type DeclaredRole = {
@@ -35,11 +37,11 @@ const MIN_STAKE = 50_000_000_000;   // 50k NYM
 const MAX_STAKE = 150_000_000_000;  // 150k NYM
 const MAX_PM = 0.2;
 
+// Require: mixnode=false, entry/exit_ipr/exit_nr all true
 function hasRequiredRoles(n: ApiNode): boolean {
   const r = n.self_description?.declared_role ?? n.description?.declared_role ?? {};
-  return r.mixnode === false && !!(r.entry && r.exit_ipr && r.exit_nr);
+  return r.mixnode === false && !!r.entry && !!r.exit_ipr && !!r.exit_nr;
 }
-
 
 function hasGoodPM(n: ApiNode): boolean {
   const pm = toNumber(n.rewarding_details?.cost_params?.profit_margin_percent, NaN);
@@ -64,17 +66,32 @@ function sortByUptimeDescStakeAsc(a: ApiNode, b: ApiNode): number {
   return sa - sb; // then lower stake first
 }
 
+// Fetch all pages of nodes from the API
+async function fetchAllNodes(): Promise<ApiNode[]> {
+  let page = 0;
+  const pageSize = 200; // API default max
+  let all: ApiNode[] = [];
+
+  while (true) {
+    const res = await fetch(
+      `https://api.nym.spectredao.net/api/v1/nodes?page=${page}&size=${pageSize}`,
+      { cache: "no-store" }
+    );
+    if (!res.ok) throw new Error(`Failed to fetch page ${page}`);
+    const json = await res.json();
+    const data: ApiNode[] = Array.isArray(json) ? json : json.data;
+    if (!data || data.length === 0) break;
+    all = [...all, ...data];
+    if (data.length < pageSize) break; // last page
+    page++;
+  }
+
+  return all;
+}
+
 async function fetchRecommendedNodes(): Promise<number[]> {
-  const url = "https://api.nym.spectredao.net/api/v1/nodes?size=3000";
-  const res = await fetch(url, { cache: "no-store" });
-  if (!res.ok) throw new Error(`Failed to fetch nodes: ${res.status}`);
+  const nodes = await fetchAllNodes();
 
-  const json = (await res.json()) as unknown;
-  if (!Array.isArray(json)) throw new Error("Unexpected API shape: expected an array");
-
-  const nodes = json as ApiNode[];
-
-  // core predicate stake, role & PM <= 20%
   const baseFilter = (n: ApiNode) =>
     (n.bonded === true || n.bonded === undefined) &&
     hasRequiredRoles(n) &&
@@ -106,6 +123,6 @@ async function fetchRecommendedNodes(): Promise<number[]> {
     .filter((id) => Number.isFinite(id) && id > 0);
 }
 
-// export a cached getter AND the promise so existing imports work
+// Export same API as before
 export const getRecommendedNodes = cache(fetchRecommendedNodes);
 export const RECOMMENDED_NODES: Promise<number[]> = getRecommendedNodes();

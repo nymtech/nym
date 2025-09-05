@@ -37,7 +37,7 @@ const MAX_PM = 0.2;
 
 function hasRequiredRoles(n: ApiNode): boolean {
   const r = n.self_description?.declared_role ?? n.description?.declared_role ?? {};
-  return !!(r.entry && r.exit_ipr && r.exit_nr);
+  return r.mixnode === false && !!r.entry && !!r.exit_ipr && !!r.exit_nr;
 }
 
 function hasGoodPM(n: ApiNode): boolean {
@@ -73,9 +73,9 @@ async function fetchRecommendedNodes(): Promise<number[]> {
 
   const nodes = json as ApiNode[];
 
-  // core predicate stake, exit gw & PM 20
+  // core predicate stake, role & PM <= 20%
   const baseFilter = (n: ApiNode) =>
-    (n.bonded === true || n.bonded === undefined) && // tolerate missing field
+    (n.bonded === true || n.bonded === undefined) &&
     hasRequiredRoles(n) &&
     hasGoodPM(n) &&
     stakeInRange(n);

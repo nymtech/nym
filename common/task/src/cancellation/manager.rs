@@ -657,8 +657,8 @@ mod tests {
             .await;
 
         assert!(!res.has_elapsed());
-        assert_eq!(cancelled1.load(std::sync::atomic::Ordering::Relaxed), true);
-        assert_eq!(cancelled2.load(std::sync::atomic::Ordering::Relaxed), true);
+        assert!(cancelled1.load(std::sync::atomic::Ordering::Relaxed));
+        assert!(cancelled2.load(std::sync::atomic::Ordering::Relaxed));
         Ok(())
     }
 
@@ -687,7 +687,7 @@ mod tests {
             .await;
 
         assert!(!res.has_elapsed());
-        assert_eq!(cancelled1.load(std::sync::atomic::Ordering::Relaxed), true);
+        assert!(cancelled1.load(std::sync::atomic::Ordering::Relaxed));
         Ok(())
     }
 

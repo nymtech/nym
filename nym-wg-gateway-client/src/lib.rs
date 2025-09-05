@@ -18,13 +18,11 @@ use nym_authenticator_client::{
 use nym_authenticator_requests::{v2, v3, v4, v5};
 use nym_bandwidth_controller::PreparedCredential;
 use nym_credentials_interface::TicketType;
-use nym_crypto::asymmetric::{encryption, x25519::KeyPair};
-use nym_gateway_directory::{NodeIdentity, Recipient};
+use nym_crypto::asymmetric::{encryption, x25519::KeyPair, x25519::PublicKey};
 use nym_node_requests::api::v1::gateway::client_interfaces::wireguard::models::PeerPublicKey;
 use nym_pemstore::KeyPairPath;
-use nym_sdk::mixnet::CredentialStorage;
+use nym_sdk::mixnet::{CredentialStorage, NodeIdentity, Recipient};
 use nym_validator_client::QueryHttpRpcNyxdClient;
-use nym_wg_go::PublicKey;
 use rand::{rngs::OsRng, CryptoRng, RngCore};
 use tracing::{debug, error, trace};
 
@@ -272,7 +270,7 @@ impl WgGatewayClient {
         );
 
         let gateway_data = GatewayData {
-            public_key: PublicKey::from(registered_data.pub_key().to_bytes()),
+            public_key: registered_data.pub_key().inner().into(),
             endpoint: SocketAddr::from_str(&format!(
                 "{}:{}",
                 gateway_host,

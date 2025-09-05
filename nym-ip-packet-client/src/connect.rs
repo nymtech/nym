@@ -1,9 +1,11 @@
 // Copyright 2023-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+// To remove with the Registration Client PR
+#![allow(clippy::unwrap_used)]
+
 use std::{sync::Arc, time::Duration};
 
-use nym_gateway_directory::IpPacketRouterAddress;
 use nym_ip_packet_requests::IpPair;
 use nym_sdk::mixnet::{
     InputMessage, MixnetClient, MixnetClientSender, MixnetMessageSender, Recipient,
@@ -59,10 +61,7 @@ impl IprClientConnect {
         }
     }
 
-    pub async fn connect(
-        &mut self,
-        ip_packet_router_address: IpPacketRouterAddress,
-    ) -> Result<IpPair> {
+    pub async fn connect(&mut self, ip_packet_router_address: Recipient) -> Result<IpPair> {
         if self.connected != ConnectionState::Disconnected {
             return Err(Error::AlreadyConnected);
         }
@@ -83,20 +82,14 @@ impl IprClientConnect {
         }
     }
 
-    async fn connect_inner(
-        &mut self,
-        ip_packet_router_address: IpPacketRouterAddress,
-    ) -> Result<IpPair> {
+    async fn connect_inner(&mut self, ip_packet_router_address: Recipient) -> Result<IpPair> {
         let request_id = self.send_connect_request(ip_packet_router_address).await?;
 
         debug!("Waiting for reply...");
         self.listen_for_connect_response(request_id).await
     }
 
-    async fn send_connect_request(
-        &self,
-        ip_packet_router_address: IpPacketRouterAddress,
-    ) -> Result<u64> {
+    async fn send_connect_request(&self, ip_packet_router_address: Recipient) -> Result<u64> {
         let (request, request_id) = IpPacketRequest::new_connect_request(None);
 
         // We use 20 surbs for the connect request because typically the IPR is configured to have
@@ -104,7 +97,7 @@ impl IprClientConnect {
         let surbs = 20;
         self.mixnet_sender
             .send(create_input_message(
-                Recipient::from(ip_packet_router_address),
+                ip_packet_router_address,
                 request,
                 surbs,
             ))

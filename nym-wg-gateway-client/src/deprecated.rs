@@ -7,8 +7,8 @@ use nym_authenticator_client::{
 use nym_authenticator_requests::{v3, v4, v5};
 use nym_credentials_interface::CredentialSpendingData;
 use nym_crypto::asymmetric::encryption;
-use nym_gateway_directory::Recipient;
 use nym_node_requests::api::v1::gateway::client_interfaces::wireguard::models::PeerPublicKey;
+use nym_sdk::mixnet::Recipient;
 
 use crate::error::{Error, Result};
 

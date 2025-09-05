@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use nym_credentials_interface::TicketType;
-use nym_gateway_directory::NodeIdentity;
+use nym_sdk::mixnet::NodeIdentity;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -14,9 +14,6 @@ pub enum Error {
 
     #[error(transparent)]
     AuthenticatorClientError(#[from] nym_authenticator_client::Error),
-
-    #[error(transparent)]
-    MetadataClientError(#[from] nym_wg_metadata_client::error::MetadataClientError),
 
     #[error("error that should stop auto retrying")]
     NoRetry {

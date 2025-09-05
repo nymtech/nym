@@ -11,6 +11,7 @@ repository = { workspace = true }
 aes-gcm-siv = { workspace = true, optional = true }
 aes = { workspace = true, optional = true }
 aead = { workspace = true, optional = true }
+base64.workspace = true
 bs58 = { workspace = true }
 blake3 = { workspace = true, features = ["traits-preview"], optional = true }
 ctr = { workspace = true, optional = true }

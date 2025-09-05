@@ -1,16 +1,16 @@
 // Copyright 2024 Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::error::CredentialProxyError;
 use crate::http::helpers::{db_failure, random_uuid};
 use crate::http::router::api::v1::ticketbook::FormattedTicketbookWalletSharesResponse;
 use crate::http::state::ApiState;
 use crate::http::types::RequestError;
-use crate::storage::models::MinimalWalletShare;
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::routing::get;
 use axum::Router;
+use nym_credential_proxy_lib::error::CredentialProxyError;
+use nym_credential_proxy_lib::storage::models::MinimalWalletShare;
 use nym_credential_proxy_requests::api::v1::ticketbook::models::{
     SharesQueryParams, TicketbookWalletSharesResponse,
 };

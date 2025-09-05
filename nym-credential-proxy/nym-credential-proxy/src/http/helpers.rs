@@ -1,9 +1,9 @@
 // Copyright 2024 Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::error::CredentialProxyError;
 use crate::http::types::RequestError;
 use axum::http::StatusCode;
+use nym_credential_proxy_lib::error::CredentialProxyError;
 use rand::rngs::OsRng;
 use rand::RngCore;
 use tracing::warn;

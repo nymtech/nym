@@ -5450,6 +5450,7 @@ dependencies = [
  "nym-bin-common",
  "nym-compact-ecash",
  "nym-config",
+ "nym-credential-proxy-lib",
  "nym-credential-proxy-requests",
  "nym-credentials",
  "nym-credentials-interface",
@@ -5476,6 +5477,39 @@ dependencies = [
  "url",
  "utoipa",
  "utoipa-swagger-ui",
+ "uuid",
+ "zeroize",
+]
+
+[[package]]
+name = "nym-credential-proxy-lib"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bip39",
+ "bs58",
+ "futures",
+ "humantime",
+ "nym-compact-ecash",
+ "nym-credential-proxy-requests",
+ "nym-credentials",
+ "nym-crypto",
+ "nym-ecash-contract-common",
+ "nym-ecash-signer-check",
+ "nym-network-defaults",
+ "nym-validator-client",
+ "rand 0.8.5",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "strum",
+ "strum_macros",
+ "tempfile",
+ "thiserror 2.0.12",
+ "time",
+ "tokio",
+ "tokio-util",
+ "tracing",
  "uuid",
  "zeroize",
 ]
@@ -6414,7 +6448,7 @@ dependencies = [
 
 [[package]]
 name = "nym-node-status-api"
-version = "3.3.1"
+version = "3.3.2"
 dependencies = [
  "ammonia",
  "anyhow",
@@ -11970,17 +12004,6 @@ checksum = "9150af68066c4c5c07ddc0ce30421554771e528bde427614c61038bc2c92c2b1"
 dependencies = [
  "windows-core",
  "windows-link",
-]
-
-[[package]]
-name = "windows-registry"
-version = "0.5.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5b8a9ed28765efc97bbc954883f4e6796c33a06546ebafacbabee9696967499e"
-dependencies = [
- "windows-link",
- "windows-result",
- "windows-strings",
 ]
 
 [[package]]

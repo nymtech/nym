@@ -13,14 +13,11 @@ cfg_if::cfg_if! {
         pub mod cli;
         pub mod config;
         pub mod credentials;
-        pub mod error;
         pub mod helpers;
         pub mod http;
         pub mod nym_api_helpers;
-        pub mod storage;
         pub mod tasks;
         mod webhook;
-        mod deposits_buffer;
         mod quorum_checker;
     }
 }

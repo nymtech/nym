@@ -1,61 +1,20 @@
 // Copyright 2024 Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use nym_bin_common::bin_info;
-use time::OffsetDateTime;
-use tokio_util::sync::CancellationToken;
-use tracing::{debug, error, info, warn};
-
-use crate::deposits_buffer::DepositsBuffer;
-use crate::http::state::required_deposit_cache::RequiredDepositCache;
 use crate::quorum_checker::QuorumStateChecker;
 use crate::{
     cli::Cli,
-    error::CredentialProxyError,
-    http::{
-        state::{ApiState, ChainClient},
-        HttpServer,
-    },
-    storage::CredentialProxyStorage,
+    http::{state::ApiState, HttpServer},
     tasks::StoragePruner,
 };
-
-pub struct LockTimer {
-    created: OffsetDateTime,
-    message: String,
-}
-
-impl LockTimer {
-    pub fn new<S: Into<String>>(message: S) -> Self {
-        LockTimer {
-            message: message.into(),
-            ..Default::default()
-        }
-    }
-}
-
-impl Drop for LockTimer {
-    fn drop(&mut self) {
-        let time_taken = OffsetDateTime::now_utc() - self.created;
-        let time_taken_formatted = humantime::format_duration(time_taken.unsigned_abs());
-        if time_taken > time::Duration::SECOND * 10 {
-            warn!(time_taken = %time_taken_formatted, "{}", self.message)
-        } else if time_taken > time::Duration::SECOND * 5 {
-            info!(time_taken = %time_taken_formatted, "{}", self.message)
-        } else {
-            debug!(time_taken = %time_taken_formatted, "{}", self.message)
-        };
-    }
-}
-
-impl Default for LockTimer {
-    fn default() -> Self {
-        LockTimer {
-            created: OffsetDateTime::now_utc(),
-            message: "released the lock".to_string(),
-        }
-    }
-}
+use nym_bin_common::bin_info;
+use nym_credential_proxy_lib::deposits_buffer::DepositsBuffer;
+use nym_credential_proxy_lib::error::CredentialProxyError;
+use nym_credential_proxy_lib::shared_state::nyxd_client::ChainClient;
+use nym_credential_proxy_lib::shared_state::required_deposit_cache::RequiredDepositCache;
+use nym_credential_proxy_lib::storage::CredentialProxyStorage;
+use tokio_util::sync::CancellationToken;
+use tracing::{error, info};
 
 pub async fn wait_for_signal() {
     use tokio::signal::unix::{signal, SignalKind};

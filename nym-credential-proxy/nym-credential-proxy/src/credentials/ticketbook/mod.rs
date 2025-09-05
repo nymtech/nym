@@ -1,10 +1,10 @@
 // Copyright 2024 Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::error::CredentialProxyError;
 use crate::http::state::ApiState;
-use crate::storage::models::BlindedShares;
 use futures::{stream, StreamExt};
+use nym_credential_proxy_lib::error::CredentialProxyError;
+use nym_credential_proxy_lib::storage::models::BlindedShares;
 use nym_credential_proxy_requests::api::v1::ticketbook::models::{
     TicketbookAsyncRequest, TicketbookObtainQueryParams, TicketbookRequest,
     TicketbookWalletSharesResponse, WalletShare, WebhookTicketbookWalletShares,

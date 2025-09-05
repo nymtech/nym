@@ -1,11 +1,11 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::deposits_buffer::helpers::{request_sizes, BufferedDeposit, PerformedDeposits};
+use crate::deposits_buffer::helpers::request_sizes;
 use crate::deposits_buffer::refill_task::RefillTask;
 use crate::error::CredentialProxyError;
-use crate::http::state::required_deposit_cache::RequiredDepositCache;
-use crate::http::state::ChainClient;
+use crate::shared_state::nyxd_client::ChainClient;
+use crate::shared_state::required_deposit_cache::RequiredDepositCache;
 use crate::storage::CredentialProxyStorage;
 use nym_compact_ecash::PublicKeyUser;
 use nym_crypto::asymmetric::ed25519;
@@ -20,6 +20,8 @@ use tokio::sync::Mutex as AsyncMutex;
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, error, info, instrument, warn};
 use uuid::Uuid;
+
+pub use helpers::{BufferedDeposit, PerformedDeposits};
 
 pub(crate) mod helpers;
 mod refill_task;
@@ -43,12 +45,12 @@ struct DepositsBufferInner {
 }
 
 #[derive(Clone)]
-pub(crate) struct DepositsBuffer {
+pub struct DepositsBuffer {
     inner: Arc<DepositsBufferInner>,
 }
 
 impl DepositsBuffer {
-    pub(crate) async fn new(
+    pub async fn new(
         storage: CredentialProxyStorage,
         client: ChainClient,
         required_deposit_cache: RequiredDepositCache,
@@ -250,7 +252,7 @@ impl DepositsBuffer {
         }
     }
 
-    pub(crate) async fn get_valid_deposit(
+    pub async fn get_valid_deposit(
         &self,
         request_uuid: Uuid,
         requested_on: OffsetDateTime,
@@ -290,7 +292,7 @@ impl DepositsBuffer {
         }
     }
 
-    pub(crate) async fn wait_for_shutdown(&self) {
+    pub async fn wait_for_shutdown(&self) {
         let task_handle = self.inner.deposits_refill_task.take_task_join_handle();
         if let Some(task_handle) = task_handle {
             if !task_handle.is_finished() {

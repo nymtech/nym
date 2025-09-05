@@ -1,8 +1,8 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::error::CredentialProxyError;
-use crate::http::state::ChainClient;
+use nym_credential_proxy_lib::error::CredentialProxyError;
+use nym_credential_proxy_lib::shared_state::nyxd_client::ChainClient;
 use nym_ecash_signer_check::{check_known_dealers, dkg_details_with_client};
 use std::ops::Deref;
 use std::sync::atomic::{AtomicBool, Ordering};

@@ -1,21 +1,14 @@
 // Copyright 2024 Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::deposits_buffer::helpers::BufferedDeposit;
-use crate::deposits_buffer::DepositsBuffer;
-use crate::error::CredentialProxyError;
-use crate::helpers::LockTimer;
-use crate::http::state::required_deposit_cache::RequiredDepositCache;
 use crate::http::types::RequestError;
 use crate::nym_api_helpers::{
     ensure_sane_expiration_date, query_all_threshold_apis, CachedEpoch, CachedImmutableEpochItem,
     CachedImmutableItems,
 };
 use crate::quorum_checker::QuorumState;
-use crate::storage::CredentialProxyStorage;
 use crate::webhook::ZkNymWebHookConfig;
 use axum::http::StatusCode;
-use bip39::Mnemonic;
 use nym_compact_ecash::scheme::coin_indices_signatures::{
     aggregate_annotated_indices_signatures, CoinIndexSignatureShare,
 };
@@ -23,6 +16,11 @@ use nym_compact_ecash::scheme::expiration_date_signatures::{
     aggregate_annotated_expiration_signatures, ExpirationDateSignatureShare,
 };
 use nym_compact_ecash::{Base58, PublicKeyUser};
+use nym_credential_proxy_lib::deposits_buffer::{BufferedDeposit, DepositsBuffer};
+use nym_credential_proxy_lib::error::CredentialProxyError;
+use nym_credential_proxy_lib::shared_state::nyxd_client::ChainClient;
+use nym_credential_proxy_lib::shared_state::required_deposit_cache::RequiredDepositCache;
+use nym_credential_proxy_lib::storage::CredentialProxyStorage;
 use nym_credential_proxy_requests::api::v1::ticketbook::models::{
     AggregatedCoinIndicesSignaturesResponse, AggregatedExpirationDateSignaturesResponse,
     MasterVerificationKeyResponse,
@@ -33,30 +31,23 @@ use nym_credentials::{
 };
 use nym_credentials_interface::VerificationKeyAuth;
 use nym_ecash_contract_common::deposit::DepositId;
-use nym_ecash_contract_common::msg::ExecuteMsg;
 use nym_validator_client::coconut::EcashApiError;
 use nym_validator_client::nym_api::EpochId;
 use nym_validator_client::nyxd::contract_traits::dkg_query_client::Epoch;
-use nym_validator_client::nyxd::contract_traits::{
-    DkgQueryClient, NymContractsProvider, PagedDkgQueryClient,
-};
-use nym_validator_client::nyxd::cosmwasm_client::types::ExecuteResult;
-use nym_validator_client::nyxd::{Coin, CosmWasmClient, NyxdClient};
-use nym_validator_client::{nyxd, DirectSigningHttpRpcNyxdClient, EcashApiClient};
+use nym_validator_client::nyxd::contract_traits::{DkgQueryClient, PagedDkgQueryClient};
+use nym_validator_client::nyxd::Coin;
+use nym_validator_client::{DirectSigningHttpRpcNyxdClient, EcashApiClient};
 use std::future::Future;
-use std::ops::Deref;
 use std::sync::Arc;
 use std::time::Duration;
 use time::{Date, OffsetDateTime};
-use tokio::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
+use tokio::sync::{RwLock, RwLockReadGuard};
 use tokio::task::JoinHandle;
 use tokio::time::Instant;
 use tokio_util::sync::CancellationToken;
 use tokio_util::task::TaskTracker;
-use tracing::{debug, error, info, instrument, warn};
+use tracing::{debug, error, info, warn};
 use uuid::Uuid;
-
-pub(crate) mod required_deposit_cache;
 
 // currently we need to hold our keypair so that we could request a freepass credential
 #[derive(Clone)]
@@ -629,49 +620,6 @@ impl ApiState {
     }
 }
 
-#[derive(Clone)]
-pub struct ChainClient(Arc<RwLock<DirectSigningHttpRpcNyxdClient>>);
-
-impl ChainClient {
-    pub fn new(mnemonic: Mnemonic) -> Result<Self, CredentialProxyError> {
-        let network_details = nym_network_defaults::NymNetworkDetails::new_from_env();
-        let client_config = nyxd::Config::try_from_nym_network_details(&network_details)?;
-
-        let nyxd_url = network_details
-            .endpoints
-            .first()
-            .ok_or_else(|| CredentialProxyError::NoNyxEndpointsAvailable)?
-            .nyxd_url
-            .as_str();
-
-        let client = NyxdClient::connect_with_mnemonic(client_config, nyxd_url, mnemonic)?;
-
-        if client.ecash_contract_address().is_none() {
-            return Err(CredentialProxyError::UnavailableEcashContract);
-        }
-
-        if client.dkg_contract_address().is_none() {
-            return Err(CredentialProxyError::UnavailableDKGContract);
-        }
-
-        Ok(ChainClient(Arc::new(RwLock::new(client))))
-    }
-
-    pub(crate) async fn query_chain(&self) -> ChainReadPermit<'_> {
-        let _acquire_timer = LockTimer::new("acquire chain query permit");
-        self.0.read().await
-    }
-
-    pub(crate) async fn start_chain_tx(&self) -> ChainWritePermit<'_> {
-        let _acquire_timer = LockTimer::new("acquire exclusive chain write permit");
-
-        ChainWritePermit {
-            lock_timer: LockTimer::new("exclusive chain access permit"),
-            inner: self.0.write().await,
-        }
-    }
-}
-
 struct CredentialProxyStateInner {
     storage: CredentialProxyStorage,
 
@@ -705,72 +653,4 @@ pub(crate) struct EcashState {
 
     pub(crate) expiration_date_signatures:
         CachedImmutableItems<(EpochId, Date), AggregatedExpirationDateSignatures>,
-}
-
-pub(crate) type ChainReadPermit<'a> = RwLockReadGuard<'a, DirectSigningHttpRpcNyxdClient>;
-
-// explicitly wrap the WriteGuard for extra information regarding time taken
-pub(crate) struct ChainWritePermit<'a> {
-    // it's not really dead, we only care about it being dropped
-    #[allow(dead_code)]
-    lock_timer: LockTimer,
-    inner: RwLockWriteGuard<'a, DirectSigningHttpRpcNyxdClient>,
-}
-
-impl ChainWritePermit<'_> {
-    #[instrument(skip(self, short_sha, info), err(Display))]
-    pub(crate) async fn make_deposits(
-        self,
-        short_sha: &'static str,
-        info: Vec<(String, Coin)>,
-    ) -> Result<ExecuteResult, CredentialProxyError> {
-        let address = self.inner.address();
-        let starting_sequence = self.inner.get_sequence(&address).await?.sequence;
-
-        let deposits = info.len();
-
-        let ecash_contract = self
-            .inner
-            .ecash_contract_address()
-            .ok_or(CredentialProxyError::UnavailableEcashContract)?;
-        let deposit_messages = info
-            .into_iter()
-            .map(|(identity_key, amount)| {
-                (
-                    ExecuteMsg::DepositTicketBookFunds { identity_key },
-                    vec![amount],
-                )
-            })
-            .collect::<Vec<_>>();
-
-        let res = self
-            .inner
-            .execute_multiple(
-                ecash_contract,
-                deposit_messages,
-                None,
-                format!("cp-{short_sha}: performing {deposits} deposits"),
-            )
-            .await?;
-
-        loop {
-            let updated_sequence = self.inner.get_sequence(&address).await?.sequence;
-
-            if updated_sequence > starting_sequence {
-                break;
-            }
-            warn!("wrong sequence number... waiting before releasing chain lock");
-            tokio::time::sleep(Duration::from_millis(50)).await;
-        }
-
-        Ok(res)
-    }
-}
-
-impl Deref for ChainWritePermit<'_> {
-    type Target = DirectSigningHttpRpcNyxdClient;
-
-    fn deref(&self) -> &Self::Target {
-        self.inner.deref()
-    }
 }

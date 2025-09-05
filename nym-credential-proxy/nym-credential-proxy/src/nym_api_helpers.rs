@@ -4,8 +4,8 @@
 // TODO: this was just copied from nym-api;
 // it should have been therefore extracted to a common crate instead and imported as dependency
 
-use crate::error::CredentialProxyError;
 use futures::{stream, StreamExt};
+use nym_credential_proxy_lib::error::CredentialProxyError;
 use nym_credentials::ecash::utils::{cred_exp_date, ecash_today, EcashTime};
 use nym_validator_client::nym_api::EpochId;
 use nym_validator_client::nyxd::contract_traits::dkg_query_client::Epoch;

@@ -1,10 +1,10 @@
 // Copyright 2024 Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::error::CredentialProxyError;
 use crate::http::router::build_router;
 use crate::http::state::ApiState;
 use axum::Router;
+use nym_credential_proxy_lib::error::CredentialProxyError;
 use std::net::SocketAddr;
 use tokio_util::sync::CancellationToken;
 use tracing::info;

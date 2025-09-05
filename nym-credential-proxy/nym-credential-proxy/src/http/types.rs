@@ -1,10 +1,10 @@
 // Copyright 2024 Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::error::CredentialProxyError;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::Json;
+use nym_credential_proxy_lib::error::CredentialProxyError;
 use nym_credential_proxy_requests::api::v1::ErrorResponse;
 use uuid::Uuid;
 

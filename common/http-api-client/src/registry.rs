@@ -1,6 +1,8 @@
-pub use reqwest; // re-export so macros can refer to ::common_http::reqwest
+
 
 /// A record contributed by any crate describing how to mutate a reqwest::ClientBuilder.
+pub use reqwest;
+
 pub struct ConfigRecord {
     /// Lower numbers run earlier.
     pub priority: i32,

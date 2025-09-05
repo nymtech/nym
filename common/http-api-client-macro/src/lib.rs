@@ -2,7 +2,7 @@
 //!
 //! - `client_cfg!(...)` -> returns `impl FnOnce(reqwest::ClientBuilder) -> reqwest::ClientBuilder`
 //! - `#[client_defaults(...)]` on a module that defines `pub fn __cfg(...) -> ...`
-//! - registers that function into the `inventory` registry owned by `common_http`.
+//! - registers that function into the `inventory` registry owned by `nym_http_api_client`.
 
 use proc_macro::TokenStream;
 use syn::parse::Parser;
@@ -105,7 +105,7 @@ impl Parse for HeaderMapInit {
     }
 }
 
-/// Turn `Items` into statements that mutate a variable named `b: ::common_http::reqwest::ClientBuilder`.
+/// Turn `Items` into statements that mutate a variable named `b: ReqwestClientBuilder`.
 fn to_stmts(items: Items) -> proc_macro2::TokenStream {
     let mut stmts = Vec::new();
 
@@ -123,10 +123,10 @@ fn to_stmts(items: Items) -> proc_macro2::TokenStream {
             Item::DefaultHeaders { map, .. } => {
                 let (ks, vs): (Vec<_>, Vec<_>) = map.pairs.into_iter().map(|p| (p.k, p.v)).unzip();
                 stmts.push(quote! {
-                    let mut __cm = ::common_http::reqwest::header::HeaderMap::new();
+                    let mut __cm = ::nym_http_api_client::reqwest::header::HeaderMap::new();
                     #(
                         {
-                            use ::common_http::reqwest::header::{HeaderName, HeaderValue};
+                            use ::nym_http_api_client::reqwest::header::{HeaderName, HeaderValue};
                             let __k = HeaderName::try_from(#ks).expect("invalid header name");
                             let __v = HeaderValue::try_from(#vs).expect("invalid header value");
                             __cm.insert(__k, __v);
@@ -159,7 +159,7 @@ pub fn client_cfg(input: TokenStream) -> TokenStream {
     let items = parse_macro_input!(input as Items);
     let body = to_stmts(items);
     let out = quote! {
-        |mut b: ::common_http::reqwest::ClientBuilder| {
+        |mut b: ::nym_http_api_client::reqwest::ClientBuilder| {
             #body
             b
         }
@@ -179,9 +179,9 @@ pub fn client_cfg(input: TokenStream) -> TokenStream {
 ///
 /// Attach to a module that defines:
 /// ```ignore
-/// pub fn __cfg(b: common_http::reqwest::ClientBuilder) -> common_http::reqwest::ClientBuilder
+/// pub fn __cfg(b: nym_http_api_client::reqwest::ClientBuilder) -> nym_http_api_client::reqwest::ClientBuilder
 /// ```
-/// The function will be registered into `inventory` owned by the crate `common_http`.
+/// The function will be registered into `inventory` owned by the crate `nym_http_api_client`.
 #[proc_macro_attribute]
 pub fn client_defaults(attr: TokenStream, item: TokenStream) -> TokenStream {
     // Parse attribute args with the new syn 2 meta parser.
@@ -222,7 +222,7 @@ pub fn client_defaults(attr: TokenStream, item: TokenStream) -> TokenStream {
         quote!( None )
     };
 
-    // Emit: the module (unchanged), plus an inventory::submit! for common_http::ConfigRecord.
+    // Emit: the module (unchanged), plus an inventory::submit! for nym_http_api_client::ConfigRecord.
     let out = quote! {
         #[allow(non_snake_case)]
         mod #mod_ident {
@@ -230,8 +230,8 @@ pub fn client_defaults(attr: TokenStream, item: TokenStream) -> TokenStream {
             #content
 
             ::inventory::submit! {
-                #![crate = common_http] // adjust if you rename the common_http crate
-                ::common_http::ConfigRecord {
+                #![crate = nym_http_api_client] // adjust if you rename the nym_http_api_client crate
+                ::nym_http_api_client::ConfigRecord {
                     priority: #priority,
                     scope: #scope_tokens,
                     apply: __cfg,

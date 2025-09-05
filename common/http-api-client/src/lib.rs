@@ -138,6 +138,9 @@
 
 pub use reqwest::ClientBuilder as ReqwestClientBuilder;
 pub use reqwest::StatusCode;
+pub use reqwest;
+
+pub mod registry;
 
 use crate::path::RequestPath;
 use async_trait::async_trait;
@@ -1397,4 +1400,3 @@ fn try_get_mime_type(headers: &HeaderMap) -> Option<Mime> {
 
 #[cfg(test)]
 mod tests;
-mod inventory;

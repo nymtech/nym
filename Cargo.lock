@@ -5870,9 +5870,11 @@ dependencies = [
 name = "nym-http-api-client-macro"
 version = "0.1.0"
 dependencies = [
+ "nym-http-api-client",
  "proc-macro-crate",
  "proc-macro2",
  "quote",
+ "reqwest 0.12.22",
  "syn 2.0.106",
 ]
 

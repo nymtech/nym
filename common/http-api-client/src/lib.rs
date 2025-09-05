@@ -136,10 +136,10 @@
 //! ```
 #![warn(missing_docs)]
 
+pub use inventory;
+pub use reqwest;
 pub use reqwest::ClientBuilder as ReqwestClientBuilder;
 pub use reqwest::StatusCode;
-pub use reqwest;
-pub use inventory;
 
 pub mod registry;
 
@@ -181,10 +181,10 @@ mod path;
 pub use dns::{HickoryDnsError, HickoryDnsResolver};
 
 // helper for generating user agent based on binary information
+use crate::registry::default_builder;
 #[doc(hidden)]
 pub use nym_bin_common::bin_info;
 use nym_http_api_client_macro::client_defaults;
-use crate::registry::default_builder;
 
 client_defaults!(
     priority = -100;

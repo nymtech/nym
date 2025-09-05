@@ -19,5 +19,9 @@ syn = { workspace = true, features = ["full"] }
 quote = "1.0.40"
 proc-macro-crate = "3"
 
+[dev-dependencies]
+nym-http-api-client = { path = "../http-api-client" }
+reqwest = { workspace = true }
+
 [lints]
 workspace = true

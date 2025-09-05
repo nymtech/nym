@@ -1,5 +1,3 @@
-
-// src/app/lib/recommended.ts
 import { cache } from "react";
 
 type DeclaredRole = {
@@ -37,7 +35,7 @@ const MIN_STAKE = 50_000_000_000;   // 50k NYM
 const MAX_STAKE = 150_000_000_000;  // 150k NYM
 const MAX_PM = 0.2;
 
-// Require: mixnode=false, entry/exit_ipr/exit_nr all true
+// require exit gw
 function hasRequiredRoles(n: ApiNode): boolean {
   const r = n.self_description?.declared_role ?? n.description?.declared_role ?? {};
   return r.mixnode === false && !!r.entry && !!r.exit_ipr && !!r.exit_nr;
@@ -66,7 +64,7 @@ function sortByUptimeDescStakeAsc(a: ApiNode, b: ApiNode): number {
   return sa - sb; // then lower stake first
 }
 
-// Fetch all pages of nodes from the API
+// fetch all pages of nodes from the API
 async function fetchAllNodes(): Promise<ApiNode[]> {
   let page = 0;
   const pageSize = 200; // API default max
@@ -123,6 +121,5 @@ async function fetchRecommendedNodes(): Promise<number[]> {
     .filter((id) => Number.isFinite(id) && id > 0);
 }
 
-// Export same API as before
 export const getRecommendedNodes = cache(fetchRecommendedNodes);
 export const RECOMMENDED_NODES: Promise<number[]> = getRecommendedNodes();

@@ -267,7 +267,7 @@ impl GatewayTasksBuilder {
             self.config.gateway.websocket_bind_address,
             self.config.debug.maximum_open_connections,
             shared_state,
-            self.shutdown_tracker.clone_shutdown_token(),
+            self.shutdown_tracker.clone(),
         ))
     }
 

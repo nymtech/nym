@@ -37,8 +37,9 @@ const MAX_PM = 0.2;
 
 function hasRequiredRoles(n: ApiNode): boolean {
   const r = n.self_description?.declared_role ?? n.description?.declared_role ?? {};
-  return r.mixnode === false && !!r.entry && !!r.exit_ipr && !!r.exit_nr;
+  return r.mixnode === false && !!(r.entry && r.exit_ipr && r.exit_nr);
 }
+
 
 function hasGoodPM(n: ApiNode): boolean {
   const pm = toNumber(n.rewarding_details?.cost_params?.profit_margin_percent, NaN);

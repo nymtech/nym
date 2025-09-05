@@ -399,7 +399,7 @@ impl CredentialProxyStorage {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::http::helpers;
+    use crate::helpers::random_uuid;
     use crate::storage::models::BlindedSharesStatus;
     use nym_compact_ecash::scheme::keygen::KeyPairUser;
     use nym_crypto::asymmetric::ed25519;
@@ -481,7 +481,7 @@ mod tests {
     async fn test_add() -> anyhow::Result<()> {
         let storage = get_storage().await?;
 
-        let dummy_uuid = helpers::random_uuid();
+        let dummy_uuid = random_uuid();
         println!("🚀 insert_pending_blinded_share...");
 
         storage.insert_dummy_used_deposit(dummy_uuid).await?;

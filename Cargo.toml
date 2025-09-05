@@ -57,7 +57,7 @@ members = [
     "common/gateway-requests",
     "common/gateway-stats-storage",
     "common/gateway-storage",
-    "common/http-api-client",
+    "common/http-api-client", "common/http-api-client-macro",
     "common/http-api-common",
     "common/inclusion-probability",
     "common/ip-packet-requests",

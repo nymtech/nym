@@ -1397,3 +1397,4 @@ fn try_get_mime_type(headers: &HeaderMap) -> Option<Mime> {
 
 #[cfg(test)]
 mod tests;
+mod inventory;

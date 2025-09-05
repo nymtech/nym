@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tsify::Tsify;
 use wasm_bindgen::prelude::*;
-use wasm_bindgen_futures::{future_to_promise, spawn_local};
+use wasm_bindgen_futures::future_to_promise;
 use wasm_client_core::client::base_client::storage::GatewaysDetailsStore;
 use wasm_client_core::client::{
     base_client::{BaseClientBuilder, ClientInput, ClientOutput, ClientState},

@@ -81,7 +81,7 @@ impl Socks5MixnetClient {
 
     /// Disconnect from the mixnet. Currently it is not supported to reconnect a disconnected
     /// client.
-    pub async fn disconnect(self) {
+    pub async fn disconnect(mut self) {
         self.task_handle.run_until_shutdown().await;
     }
 }

@@ -20,7 +20,7 @@ use wasm_client_core::client::base_client::{BaseClientBuilder, ClientInput, Clie
 use wasm_client_core::client::inbound_messages::InputMessage;
 use wasm_client_core::helpers::{add_gateway, generate_new_client_keys};
 use wasm_client_core::nym_task::connections::TransmissionLane;
-use wasm_client_core::nym_task::TaskManager;
+use wasm_client_core::nym_task::ShutdownManager;
 use wasm_client_core::storage::core_client_traits::FullWasmClientStorage;
 use wasm_client_core::storage::wasm_client_traits::WasmClientStorage;
 use wasm_client_core::storage::ClientStorage;
@@ -41,7 +41,7 @@ pub struct MixFetchClient {
     requests: ActiveRequests,
 
     // this has to be guarded by a mutex to be able to disconnect with an immutable reference
-    _task_manager: Mutex<TaskManager>,
+    _shutdown_manager: Mutex<ShutdownManager>,
 }
 
 #[wasm_bindgen]
@@ -187,12 +187,11 @@ impl MixFetchClientBuilder {
             self_address,
             client_input,
             requests: active_requests,
-            // this cannot failed as we haven't passed an external task manager
-            _task_manager: Mutex::new(
+            // this cannot fail as we haven't passed an external task manager
+            _shutdown_manager: Mutex::new(
                 started_client
                     .shutdown_handle
-                    .try_into_task_manager()
-                    .unwrap(),
+                    .expect("shutdown manager missing"),
             ),
         })
     }
@@ -234,11 +233,11 @@ impl MixFetchClient {
         self.invalidated.store(true, Ordering::Relaxed);
 
         console_log!("sending shutdown signal");
-        let mut shutdown_guard = self._task_manager.lock().await;
-        shutdown_guard.signal_shutdown().ok();
+        let mut shutdown_guard = self._shutdown_manager.lock().await;
+        shutdown_guard.send_cancellation();
 
         console_log!("waiting for shutdown to complete");
-        shutdown_guard.wait_for_shutdown().await;
+        shutdown_guard.run_until_shutdown().await;
 
         self.requests.invalidate_all().await;
 

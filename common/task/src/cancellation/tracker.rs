@@ -133,7 +133,7 @@ impl ShutdownTracker {
                     Ok(result)
                 }
                 None => {
-                    debug!("{name_owned} @ {caller}: shutdown signal received, shutting down");
+                    trace!("{name_owned} @ {caller}: shutdown signal received, shutting down");
                     Err(Cancelled)
                 }
             }

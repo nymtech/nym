@@ -190,12 +190,14 @@ impl TaskManager {
     }
 
     // used for compatibility with the ShutdownManager
+    #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn task_return_error_rx(&mut self) -> ErrorReceiver {
         self.task_return_error_rx
             .take()
             .expect("unable to get error channel: attempt to wait twice?")
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn task_drop_rx(&mut self) -> ErrorReceiver {
         self.task_drop_rx
             .take()

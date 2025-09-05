@@ -203,7 +203,7 @@ impl ShutdownTracker {
         name: &str,
     ) -> JoinHandle<Result<F::Output, Cancelled>>
     where
-        F: Future<Output = ()> + Send + 'static,
+        F: Future<Output = ()> + 'static,
     {
         let caller = std::panic::Location::caller();
         let shutdown_token = self.clone_shutdown_token();
@@ -228,7 +228,7 @@ impl ShutdownTracker {
     #[track_caller]
     pub fn spawn_with_shutdown<F>(&self, task: F) -> JoinHandle<Result<F::Output, Cancelled>>
     where
-        F: Future<Output = ()> + Send + 'static,
+        F: Future<Output = ()> + 'static,
     {
         let caller = std::panic::Location::caller();
         let shutdown_token = self.clone_shutdown_token();

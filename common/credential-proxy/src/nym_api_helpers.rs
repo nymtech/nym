@@ -4,8 +4,8 @@
 // TODO: this was just copied from nym-api;
 // it should have been therefore extracted to a common crate instead and imported as dependency
 
+use crate::error::CredentialProxyError;
 use futures::{stream, StreamExt};
-use nym_credential_proxy_lib::error::CredentialProxyError;
 use nym_credentials::ecash::utils::{cred_exp_date, ecash_today, EcashTime};
 use nym_validator_client::nym_api::EpochId;
 use nym_validator_client::nyxd::contract_traits::dkg_query_client::Epoch;
@@ -19,9 +19,9 @@ use time::{Date, OffsetDateTime};
 use tokio::sync::{Mutex, RwLock, RwLockReadGuard};
 use tracing::warn;
 
-pub(crate) struct CachedEpoch {
+pub struct CachedEpoch {
     valid_until: OffsetDateTime,
-    pub(crate) current_epoch: Epoch,
+    pub current_epoch: Epoch,
 }
 
 impl Default for CachedEpoch {
@@ -34,11 +34,11 @@ impl Default for CachedEpoch {
 }
 
 impl CachedEpoch {
-    pub(crate) fn is_valid(&self) -> bool {
+    pub fn is_valid(&self) -> bool {
         self.valid_until > OffsetDateTime::now_utc()
     }
 
-    pub(crate) fn update(&mut self, epoch: Epoch) {
+    pub fn update(&mut self, epoch: Epoch) {
         let now = OffsetDateTime::now_utc();
 
         let validity_duration = if let Some(epoch_finish) = epoch.deadline {
@@ -58,13 +58,13 @@ impl CachedEpoch {
 }
 
 // a map of items that never change for given key
-pub(crate) struct CachedImmutableItems<K, V> {
+pub struct CachedImmutableItems<K, V> {
     // I wonder if there's a more efficient structure with OnceLock or OnceCell or something
     inner: RwLock<HashMap<K, V>>,
 }
 
 // an item that stays constant throughout given epoch
-pub(crate) type CachedImmutableEpochItem<T> = CachedImmutableItems<EpochId, T>;
+pub type CachedImmutableEpochItem<T> = CachedImmutableItems<EpochId, T>;
 
 impl<K, V> Default for CachedImmutableItems<K, V> {
     fn default() -> Self {
@@ -86,11 +86,7 @@ impl<K, V> CachedImmutableItems<K, V>
 where
     K: Eq + Hash,
 {
-    pub(crate) async fn get_or_init<F, U, E>(
-        &self,
-        key: K,
-        f: F,
-    ) -> Result<RwLockReadGuard<'_, V>, E>
+    pub async fn get_or_init<F, U, E>(&self, key: K, f: F) -> Result<RwLockReadGuard<'_, V>, E>
     where
         F: FnOnce() -> U,
         U: Future<Output = Result<V, E>>,
@@ -129,9 +125,7 @@ where
     }
 }
 
-pub(crate) fn ensure_sane_expiration_date(
-    expiration_date: Date,
-) -> Result<(), CredentialProxyError> {
+pub fn ensure_sane_expiration_date(expiration_date: Date) -> Result<(), CredentialProxyError> {
     let today = ecash_today();
 
     if expiration_date < today.date() {
@@ -146,7 +140,7 @@ pub(crate) fn ensure_sane_expiration_date(
     Ok(())
 }
 
-pub(crate) async fn query_all_threshold_apis<F, T, U>(
+pub async fn query_all_threshold_apis<F, T, U>(
     all_apis: Vec<EcashApiClient>,
     threshold: u64,
     f: F,

@@ -1,7 +1,6 @@
 // Copyright 2024 Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::quorum_checker::QuorumStateChecker;
 use crate::{
     cli::Cli,
     http::{state::ApiState, HttpServer},
@@ -10,6 +9,7 @@ use crate::{
 use nym_bin_common::bin_info;
 use nym_credential_proxy_lib::deposits_buffer::DepositsBuffer;
 use nym_credential_proxy_lib::error::CredentialProxyError;
+use nym_credential_proxy_lib::quorum_checker::QuorumStateChecker;
 use nym_credential_proxy_lib::shared_state::nyxd_client::ChainClient;
 use nym_credential_proxy_lib::shared_state::required_deposit_cache::RequiredDepositCache;
 use nym_credential_proxy_lib::storage::CredentialProxyStorage;

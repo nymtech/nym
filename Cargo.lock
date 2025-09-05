@@ -5493,6 +5493,7 @@ dependencies = [
  "nym-compact-ecash",
  "nym-credential-proxy-requests",
  "nym-credentials",
+ "nym-credentials-interface",
  "nym-crypto",
  "nym-ecash-contract-common",
  "nym-ecash-signer-check",

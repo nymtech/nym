@@ -1,8 +1,8 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use nym_credential_proxy_lib::error::CredentialProxyError;
-use nym_credential_proxy_lib::shared_state::nyxd_client::ChainClient;
+use crate::error::CredentialProxyError;
+use crate::shared_state::nyxd_client::ChainClient;
 use nym_ecash_signer_check::{check_known_dealers, dkg_details_with_client};
 use std::ops::Deref;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -12,17 +12,17 @@ use tokio_util::sync::CancellationToken;
 use tracing::{error, info, warn};
 
 #[derive(Clone)]
-pub(crate) struct QuorumState {
+pub struct QuorumState {
     available: Arc<AtomicBool>,
 }
 
 impl QuorumState {
-    pub(crate) fn available(&self) -> bool {
+    pub fn available(&self) -> bool {
         self.available.load(Ordering::Acquire)
     }
 }
 
-pub(crate) struct QuorumStateChecker {
+pub struct QuorumStateChecker {
     client: ChainClient,
     cancellation_token: CancellationToken,
     check_interval: Duration,

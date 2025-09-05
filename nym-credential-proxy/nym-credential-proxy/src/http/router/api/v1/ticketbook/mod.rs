@@ -7,12 +7,12 @@ use crate::credentials::ticketbook::{
 use crate::http::helpers::random_uuid;
 use crate::http::state::ApiState;
 use crate::http::types::RequestError;
-use crate::nym_api_helpers::ensure_sane_expiration_date;
 use axum::extract::{Query, State};
 use axum::http::StatusCode;
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use nym_compact_ecash::Base58;
+use nym_credential_proxy_lib::nym_api_helpers::ensure_sane_expiration_date;
 use nym_credential_proxy_requests::api::v1::ticketbook::models::{
     CurrentEpochResponse, DepositResponse, MasterVerificationKeyResponse, PartialVerificationKey,
     PartialVerificationKeysResponse, TicketbookAsyncRequest, TicketbookObtainQueryParams,

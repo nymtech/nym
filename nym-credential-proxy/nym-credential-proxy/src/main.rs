@@ -15,10 +15,8 @@ cfg_if::cfg_if! {
         pub mod credentials;
         pub mod helpers;
         pub mod http;
-        pub mod nym_api_helpers;
         pub mod tasks;
         mod webhook;
-        mod quorum_checker;
     }
 }
 

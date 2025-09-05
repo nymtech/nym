@@ -11,6 +11,7 @@ rust-version.workspace = true
 readme.workspace = true
 
 [dependencies]
+anyhow = { workspace = true }
 bip39 = { workspace = true, features = ["zeroize"] }
 bs58 = { workspace = true }
 futures = { workspace = true }
@@ -31,6 +32,7 @@ zeroize = { workspace = true }
 
 nym-credentials = { path = "../credentials" }
 nym-crypto = { path = "../crypto", features = ["asymmetric", "rand", "serde"] }
+nym-credentials-interface = { path = "../credentials-interface" }
 nym-credential-proxy-requests = { path = "../../nym-credential-proxy/nym-credential-proxy-requests" }
 nym-ecash-signer-check = { path = "../ecash-signer-check" }
 nym-ecash-contract-common = { path = "../cosmwasm-smart-contracts/ecash-contract" }

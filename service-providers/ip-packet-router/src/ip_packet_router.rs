@@ -155,7 +155,7 @@ impl IpPacketRouter {
 
         let tun_listener = TunListener {
             tun_reader,
-            task_client: task_handle.get_handle(),
+            shutdown_token: self.shutdown.clone_shutdown_token(),
             connected_clients: connected_clients_rx,
         };
         tun_listener.start();
@@ -168,7 +168,7 @@ impl IpPacketRouter {
             request_filter: request_filter.clone(),
             tun_writer,
             mixnet_client,
-            shutdown_token: task_handle,
+            shutdown_token: self.shutdown.clone_shutdown_token(),
             connected_clients,
         };
 

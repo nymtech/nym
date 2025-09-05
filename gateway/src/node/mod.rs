@@ -508,13 +508,13 @@ impl GatewayTasksBuilder {
             ecash_manager,
             self.metrics.clone(),
             all_peers,
-            self.shutdown_tracker.clone(),
+            self.shutdown_tracker.clone_shutdown_token(),
             wireguard_data,
         )
         .await?;
 
         let server = router.build_server(&bind_address).await?;
-        let cancel_token = self.shutdown_tracker.clone();
+        let cancel_token = self.shutdown_tracker.clone_shutdown_token();
         let server_handle = tokio::spawn(async move {
             {
                 info!("Started Wireguard Axum HTTP V2 server on {bind_address}");
@@ -524,11 +524,8 @@ impl GatewayTasksBuilder {
             }
         });
 
-        let shutdown_handles = nym_wireguard_private_metadata_server::ShutdownHandles::new(
-            server_handle,
-            wg_handle,
-            cancel_token,
-        );
+        let shutdown_handles =
+            nym_wireguard_private_metadata_server::ShutdownHandles::new(server_handle, wg_handle);
 
         Ok(shutdown_handles)
     }

@@ -9,25 +9,23 @@ import { countryName } from "../../utils/countryName";
 import NodeTable from "./NodeTable";
 import { useState, useEffect } from "react";
 import AdvancedFilters from "./AdvancedFilters";
-import { RECOMMENDED_NODES } from "@/app/constants";
 
-// Utility function to calculate node saturation point
+type Props = {
+  /** Recommended node IDs provided by the server page */
+  recommendedIds: number[];
+};
+
 function getNodeSaturationPoint(
   totalStake: number,
   stakeSaturationPoint: string
 ): number {
   const saturation = Number.parseFloat(stakeSaturationPoint);
-
   if (Number.isNaN(saturation) || saturation <= 0) {
     throw new Error("Invalid stake saturation point provided");
   }
-
   const ratio = (totalStake / saturation) * 100;
-
   return Number(ratio.toFixed());
 }
-
-// Map nodes with rewards data
 
 const mappedNSApiNodes = (
   nodes: NS_NODE[],
@@ -77,19 +75,16 @@ const mappedNSApiNodes = (
       };
     })
     .sort((a, b) => {
-      // Handle null country names by putting them at the end
       if (!a.countryName && !b.countryName) return 0;
       if (!a.countryName) return 1;
       if (!b.countryName) return -1;
-
-      // Sort alphabetically by country name
       return a.countryName.localeCompare(b.countryName);
     });
 
 export type MappedNymNodes = ReturnType<typeof mappedNSApiNodes>;
 export type MappedNymNode = MappedNymNodes[0];
 
-const NodeTableWithAction = () => {
+const NodeTableWithAction = ({ recommendedIds }: Props) => {
   // All hooks at the top!
   const [activeFilter, setActiveFilter] = useState<
     "all" | "mixnodes" | "gateways" | "recommended"
@@ -160,7 +155,7 @@ const NodeTableWithAction = () => {
     queryKey: ["epochRewards"],
     queryFn: fetchEpochRewards,
     staleTime: 10 * 60 * 1000, // 10 minutes
-    refetchOnWindowFocus: false, // Prevents unnecessary refetching
+    refetchOnWindowFocus: false,
     refetchOnReconnect: false,
     refetchOnMount: false,
   });
@@ -174,7 +169,7 @@ const NodeTableWithAction = () => {
     queryKey: ["nsApiNodes"],
     queryFn: fetchNSApiNodes,
     staleTime: 10 * 60 * 1000, // 10 minutes
-    refetchOnWindowFocus: false, // Prevents unnecessary refetching
+    refetchOnWindowFocus: false,
     refetchOnReconnect: false,
     refetchOnMount: false,
   });
@@ -232,7 +227,6 @@ const NodeTableWithAction = () => {
     );
   }
 
-  // Map nodes with rewards data
   if (!epochRewardsData) {
     return null;
   }
@@ -245,13 +239,13 @@ const NodeTableWithAction = () => {
       case "gateways":
         return node.gateway;
       case "recommended":
-        return RECOMMENDED_NODES.includes(node.nodeId);
+        return recommendedIds.includes(node.nodeId);
       default:
         return true;
     }
   });
 
-  // Step 2: If advanced filters are open, apply them only if sliders are not at default
+  // Step 2: Apply advanced filters if open (but only if sliders moved from defaults)
   const isDefault = {
     uptime: uptime[0] === 0 && uptime[1] === 100,
     saturation: saturation[0] === 0 && saturation[1] === maxSaturation,
@@ -275,6 +269,8 @@ const NodeTableWithAction = () => {
       })
     : typeFilteredNodes;
 
+  const recommendedCount = recommendedIds.length;
+
   return (
     <Stack spacing={3}>
       <AdvancedFilters
@@ -290,6 +286,7 @@ const NodeTableWithAction = () => {
         activeFilter={activeFilter}
         setActiveFilter={handleActiveFilterChange}
         nodeCounts={nodeCounts}
+        recommendedCount={recommendedCount}
       />
       <NodeTable nodes={filteredNodes} />
     </Stack>

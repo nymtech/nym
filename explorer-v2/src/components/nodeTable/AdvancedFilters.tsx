@@ -15,7 +15,6 @@ import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import PieChartIcon from "@mui/icons-material/PieChart";
 import PercentIcon from "@mui/icons-material/Percent";
 import NodeFilterButtonGroup from "../toggleButton/NodeFilterButtonGroup";
-import { RECOMMENDED_NODES } from "@/app/constants";
 
 type AdvancedFiltersProps = {
   uptime: [number, number];
@@ -36,6 +35,8 @@ type AdvancedFiltersProps = {
     mixnodes: number;
     gateways: number;
   };
+  /** Count of recommended nodes (passed from server) */
+  recommendedCount: number;
 };
 
 export default function AdvancedFilters({
@@ -51,6 +52,7 @@ export default function AdvancedFilters({
   activeFilter,
   setActiveFilter,
   nodeCounts,
+  recommendedCount,
 }: AdvancedFiltersProps) {
   const theme = useTheme();
   const green = "#14e76f"; // from theme colours
@@ -263,7 +265,7 @@ export default function AdvancedFilters({
             size="medium"
             options={[
               {
-                label: `Recommended servers (${RECOMMENDED_NODES.length})`,
+                label: `Recommended servers (${recommendedCount})`,
                 isSelected: activeFilter === "recommended",
                 value: "recommended",
               },

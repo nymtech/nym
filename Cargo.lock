@@ -5016,6 +5016,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-authenticator-client"
+version = "0.1.0"
+dependencies = [
+ "bincode",
+ "futures",
+ "nym-authenticator-requests",
+ "nym-credentials-interface",
+ "nym-crypto",
+ "nym-sdk",
+ "nym-service-provider-requests-common",
+ "nym-wireguard-types",
+ "semver 1.0.26",
+ "thiserror 2.0.12",
+ "tokio",
+ "tokio-util",
+ "tracing",
+]
+
+[[package]]
 name = "nym-authenticator-requests"
 version = "0.1.0"
 dependencies = [
@@ -6011,6 +6030,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-ip-packet-client"
+version = "0.1.0"
+dependencies = [
+ "bytes",
+ "futures",
+ "nym-ip-packet-requests",
+ "nym-sdk",
+ "thiserror 2.0.12",
+ "tokio",
+ "tokio-util",
+ "tracing",
+]
+
+[[package]]
 name = "nym-ip-packet-requests"
 version = "0.1.0"
 dependencies = [
@@ -6414,7 +6447,7 @@ dependencies = [
 
 [[package]]
 name = "nym-node-status-api"
-version = "3.3.1"
+version = "3.3.2"
 dependencies = [
  "ammonia",
  "anyhow",
@@ -7378,6 +7411,26 @@ dependencies = [
  "strum",
  "strum_macros",
  "ts-rs",
+]
+
+[[package]]
+name = "nym-wg-gateway-client"
+version = "0.1.0"
+dependencies = [
+ "nym-authenticator-client",
+ "nym-authenticator-requests",
+ "nym-bandwidth-controller",
+ "nym-credentials-interface",
+ "nym-crypto",
+ "nym-node-requests",
+ "nym-pemstore",
+ "nym-sdk",
+ "nym-statistics-common",
+ "nym-validator-client",
+ "rand 0.8.5",
+ "thiserror 2.0.12",
+ "tracing",
+ "url",
 ]
 
 [[package]]
@@ -11970,17 +12023,6 @@ checksum = "9150af68066c4c5c07ddc0ce30421554771e528bde427614c61038bc2c92c2b1"
 dependencies = [
  "windows-core",
  "windows-link",
-]
-
-[[package]]
-name = "windows-registry"
-version = "0.5.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5b8a9ed28765efc97bbc954883f4e6796c33a06546ebafacbabee9696967499e"
-dependencies = [
- "windows-link",
- "windows-result",
- "windows-strings",
 ]
 
 [[package]]

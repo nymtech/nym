@@ -13,7 +13,6 @@ type ApiNode = {
   total_stake?: number | string;
   uptime?: number | string;
   description?: {
-    mixnet_websockets?: { ws_port?: number | null };
     wireguard?: unknown | null;
     declared_role?: DeclaredRole;
   };
@@ -32,16 +31,12 @@ function toNumber(x: unknown, fallback = 0): number {
   return Number.isFinite(n) ? n : fallback;
 }
 
-const MIN_STAKE = 50_000_000_000;
+const MIN_STAKE = 50_000_000_000; // 50B
 const MAX_PM = 0.2;
 
 function hasRequiredRoles(n: ApiNode): boolean {
   const r = n.self_description?.declared_role ?? n.description?.declared_role ?? {};
   return !!(r.entry && r.exit_ipr && r.exit_nr);
-}
-
-function hasWs9000(n: ApiNode): boolean {
-  return n.description?.mixnet_websockets?.ws_port === 9000;
 }
 
 function hasGoodPM(n: ApiNode): boolean {
@@ -60,10 +55,10 @@ function wireguardOn(n: ApiNode): boolean {
 function sortByUptimeDescStakeAsc(a: ApiNode, b: ApiNode): number {
   const ua = toNumber(a.uptime, 0);
   const ub = toNumber(b.uptime, 0);
-  if (ub !== ua) return ub - ua;
+  if (ub !== ua) return ub - ua; // higher uptime first
   const sa = toNumber(a.total_stake, 0);
   const sb = toNumber(b.total_stake, 0);
-  return sa - sb;
+  return sa - sb; // then lower stake first
 }
 
 async function fetchRecommendedNodes(): Promise<number[]> {
@@ -72,27 +67,22 @@ async function fetchRecommendedNodes(): Promise<number[]> {
   if (!res.ok) throw new Error(`Failed to fetch nodes: ${res.status}`);
 
   const json = (await res.json()) as unknown;
-  if (!Array.isArray(json)) {
-    throw new Error("Unexpected API shape: expected an array");
-  }
+  if (!Array.isArray(json)) throw new Error("Unexpected API shape: expected an array");
   const nodes = json as ApiNode[];
 
-  const baseFilter = (n: ApiNode) =>
-    hasWs9000(n) && hasRequiredRoles(n) && hasGoodPM(n) && stakeOk(n);
+  const baseFilter = (n: ApiNode) => hasRequiredRoles(n) && hasGoodPM(n) && stakeOk(n);
 
-  // Require WG
+  // require WireGuard
   const wgCandidates = nodes
     .filter((n) => baseFilter(n) && wireguardOn(n))
     .sort(sortByUptimeDescStakeAsc);
 
-  // `picked` never reassigned, so const is correct
+  // Pick up to 10 with WG first
   const picked = wgCandidates.slice(0, 10);
 
+  // If fewer than 10, relax WG to pad
   if (picked.length < 10) {
-    const relaxed = nodes
-      .filter((n) => baseFilter(n)) // WG relaxed
-      .sort(sortByUptimeDescStakeAsc);
-
+    const relaxed = nodes.filter(baseFilter).sort(sortByUptimeDescStakeAsc);
     const set = new Set(picked.map((n) => n.node_id));
     for (const n of relaxed) {
       if (set.size >= 10) break;
@@ -103,9 +93,11 @@ async function fetchRecommendedNodes(): Promise<number[]> {
     }
   }
 
+  // Return numeric ids
   return picked
     .map((n) => (typeof n.node_id === "number" ? n.node_id : toNumber(n.node_id, 0)))
     .filter((id) => Number.isFinite(id) && id > 0);
 }
 
+// Per-request dedupe if called multiple times during a render
 export const getRecommendedNodes = cache(fetchRecommendedNodes);

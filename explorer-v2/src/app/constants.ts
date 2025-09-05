@@ -4,4 +4,4 @@ export const TABLET_WIDTH = "(min-width:700px)";
 import { fetchRecommendedNodes } from "./lib/recommended";
 
 // export a promise that resolves to number[]
-export const RECOMMENDED_NODES_PROMISE = fetchRecommendedNodes();
+export const RECOMMENDED_NODES = fetchRecommendedNodes();

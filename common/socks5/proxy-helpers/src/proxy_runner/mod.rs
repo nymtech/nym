@@ -133,14 +133,14 @@ where
         let handle_inbound = self.shutdown_tracker.try_spawn_named(
             inbound_future,
             &format!(
-                "socks5-inbound-{}-{}",
+                "Socks5Inbound::{}::{}",
                 self.remote_source_address, self.connection_id
             ),
         );
         let handle_outbound = self.shutdown_tracker.try_spawn_named(
             outbound_future,
             &format!(
-                "socks5-inbound-{}-{}",
+                "Socks5Outbound::{}::{}",
                 self.remote_source_address, self.connection_id
             ),
         );

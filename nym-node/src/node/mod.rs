@@ -637,7 +637,7 @@ impl NymNode {
                 .build_websocket_listener(active_clients_store.clone())
                 .await?;
             self.shutdown_tracker()
-                .try_spawn_named(async move { websocket.run().await }, "entry-websocket");
+                .try_spawn_named(async move { websocket.run().await }, "EntryWebsocket");
         } else {
             info!("node not running in entry mode: the websocket will remain closed");
         }
@@ -882,7 +882,8 @@ impl NymNode {
             self.shutdown_manager.clone_shutdown_token(),
         );
         verloc_measurer.set_shared_state(self.verloc_stats.clone());
-        tokio::spawn(async move { verloc_measurer.run().await });
+        self.shutdown_manager
+            .try_spawn_named(async move { verloc_measurer.run().await }, "VerlocMeasurer");
     }
 
     pub(crate) fn setup_metrics_backend(
@@ -996,8 +997,10 @@ impl NymNode {
         .await?;
 
         let bloomfilters_manager = replay_detection_background.bloomfilters_manager();
-        self.shutdown_manager
-            .spawn(async move { replay_detection_background.run().await });
+        self.shutdown_manager.try_spawn_named(
+            async move { replay_detection_background.run().await },
+            "ReplayDetection",
+        );
         Ok(bloomfilters_manager)
     }
 
@@ -1160,7 +1163,7 @@ impl NymNode {
                     .with_graceful_shutdown(async move { server_shutdown.cancelled().await })
                     .await
             },
-            "http api",
+            "HttpApi",
         );
 
         let nym_apis_client = self.setup_nym_apis_client()?;

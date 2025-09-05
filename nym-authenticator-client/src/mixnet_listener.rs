@@ -1,6 +1,9 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+// To remove with the Registration Client PR
+#![allow(clippy::unwrap_used)]
+
 use std::sync::Arc;
 
 use futures::StreamExt;

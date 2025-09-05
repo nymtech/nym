@@ -480,7 +480,7 @@ impl ShutdownManager {
     /// - all tracked tasks have terminated
     /// - timeout has been reached
     /// - shutdown has been forced (by sending SIGINT)
-    async fn finish_shutdown(mut self) {
+    async fn finish_shutdown(&mut self) {
         let mut wait_futures = FuturesUnordered::<Pin<Box<dyn Future<Output = ()> + Send>>>::new();
 
         // force shutdown via ctrl-c
@@ -496,14 +496,16 @@ impl ShutdownManager {
         }));
 
         // timeout
+        let max_shutdown = self.max_shutdown_duration;
         wait_futures.push(Box::pin(async move {
-            sleep(self.max_shutdown_duration).await;
+            sleep(max_shutdown).await;
             info!("timeout reached - forcing shutdown");
         }));
 
         // graceful
+        let tracker = self.tracker.clone();
         wait_futures.push(Box::pin(async move {
-            self.wait_for_tracker().await;
+            tracker.wait_for_tracker().await;
             info!("all tracked tasks successfully shutdown");
             if let Some(legacy) = self.legacy_task_manager.as_mut() {
                 legacy.wait_for_graceful_shutdown().await;
@@ -555,7 +557,7 @@ impl ShutdownManager {
     /// - all tracked tasks have terminated
     /// - timeout has been reached
     /// - shutdown has been forced (by sending SIGINT)
-    pub async fn perform_shutdown(self) {
+    pub async fn perform_shutdown(&mut self) {
         self.send_cancellation();
 
         info!("waiting for tasks to finish... (press ctrl-c to force)");
@@ -563,7 +565,7 @@ impl ShutdownManager {
     }
 
     /// Wait until a shutdown signal has been received and trigger system shutdown.
-    pub async fn run_until_shutdown(mut self) {
+    pub async fn run_until_shutdown(&mut self) {
         self.close_tracker();
         self.wait_for_shutdown_signal().await;
 
@@ -580,11 +582,11 @@ mod tests {
 
     #[tokio::test]
     async fn shutdown_with_no_tracked_tasks_and_signals() -> anyhow::Result<()> {
-        let manager = ShutdownManager::new_without_signals();
+        let mut manager = ShutdownManager::new_without_signals();
         let res = manager.run_until_shutdown().timeboxed().await;
         assert!(res.has_elapsed());
 
-        let manager = ShutdownManager::new_without_signals();
+        let mut manager = ShutdownManager::new_without_signals();
         let shutdown = manager.clone_shutdown_token();
         shutdown.cancel();
         let res = manager.run_until_shutdown().timeboxed().await;
@@ -596,7 +598,7 @@ mod tests {
     #[tokio::test]
     async fn shutdown_signal() -> anyhow::Result<()> {
         let timeout_shutdown = sleep(Duration::from_millis(100));
-        let manager = ShutdownManager::new_without_signals().with_shutdown(timeout_shutdown);
+        let mut manager = ShutdownManager::new_without_signals().with_shutdown(timeout_shutdown);
 
         // execution finishes after the sleep gets finishes
         let res = manager
@@ -610,7 +612,7 @@ mod tests {
 
     #[tokio::test]
     async fn panic_hook() -> anyhow::Result<()> {
-        let manager = ShutdownManager::new_without_signals().with_cancel_on_panic();
+        let mut manager = ShutdownManager::new_without_signals().with_cancel_on_panic();
         manager.spawn_with_shutdown(async move {
             sleep(Duration::from_millis(10000)).await;
         });
@@ -632,7 +634,7 @@ mod tests {
     #[tokio::test]
     async fn task_cancellation() -> anyhow::Result<()> {
         let timeout_shutdown = sleep(Duration::from_millis(100));
-        let manager = ShutdownManager::new_without_signals().with_shutdown(timeout_shutdown);
+        let mut manager = ShutdownManager::new_without_signals().with_shutdown(timeout_shutdown);
 
         let cancelled1 = Arc::new(AtomicBool::new(false));
         let cancelled1_clone = cancelled1.clone();
@@ -664,7 +666,7 @@ mod tests {
 
     #[tokio::test]
     async fn cancellation_within_task() -> anyhow::Result<()> {
-        let manager = ShutdownManager::new_without_signals();
+        let mut manager = ShutdownManager::new_without_signals();
 
         let cancelled1 = Arc::new(AtomicBool::new(false));
         let cancelled1_clone = cancelled1.clone();
@@ -694,7 +696,7 @@ mod tests {
     #[tokio::test]
     async fn shutdown_timeout() -> anyhow::Result<()> {
         let timeout_shutdown = sleep(Duration::from_millis(50));
-        let manager = ShutdownManager::new_without_signals()
+        let mut manager = ShutdownManager::new_without_signals()
             .with_shutdown(timeout_shutdown)
             .with_shutdown_duration(Duration::from_millis(1000));
 
@@ -711,7 +713,7 @@ mod tests {
         assert!(res.has_elapsed());
 
         let timeout_shutdown = sleep(Duration::from_millis(50));
-        let manager = ShutdownManager::new_without_signals()
+        let mut manager = ShutdownManager::new_without_signals()
             .with_shutdown(timeout_shutdown)
             .with_shutdown_duration(Duration::from_millis(100));
 

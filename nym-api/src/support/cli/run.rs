@@ -385,7 +385,7 @@ pub(crate) async fn execute(args: Args) -> anyhow::Result<()> {
 
     config.validate()?;
 
-    let shutdown_manager = start_nym_api_tasks(&config).await?;
+    let mut shutdown_manager = start_nym_api_tasks(&config).await?;
     shutdown_manager.run_until_shutdown().await;
 
     Ok(())

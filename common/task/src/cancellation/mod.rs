@@ -30,7 +30,7 @@
 //!     }
 //! #[tokio::main]
 //! async fn main() {
-//!     let shutdown_manager = ShutdownManager::build_new_default().expect("failed to register default shutdown signals");
+//!     let mut shutdown_manager = ShutdownManager::build_new_default().expect("failed to register default shutdown signals");
 //!
 //!     let shutdown_token = shutdown_manager.child_shutdown_token();
 //!     shutdown_manager.try_spawn_named(async move { my_managed_task(shutdown_token).await }, "important-managed-task");

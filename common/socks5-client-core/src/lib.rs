@@ -165,7 +165,7 @@ where
 
     /// blocking version of `start` method. Will run forever (or until SIGINT is sent)
     pub async fn run_forever(self) -> Result<(), Box<dyn Error + Send + Sync>> {
-        let started = self.start().await?;
+        let mut started = self.start().await?;
 
         started.shutdown_handle.run_until_shutdown().await;
         log::info!("Stopping nym-socks5-client");

@@ -240,7 +240,7 @@ impl MixnetClient {
             tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
         }
 
-        if let Some(task_manager) = self.shutdown_handle {
+        if let Some(mut task_manager) = self.shutdown_handle {
             task_manager.perform_shutdown().await;
         }
     }

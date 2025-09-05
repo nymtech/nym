@@ -1120,7 +1120,7 @@ impl NymNode {
         Ok((mix_packet_sender, active_connections))
     }
 
-    pub(crate) async fn run_minimal_mixnet_processing(self) -> Result<(), NymNodeError> {
+    pub(crate) async fn run_minimal_mixnet_processing(mut self) -> Result<(), NymNodeError> {
         let noise_config = nym_noise::config::NoiseConfig::new(
             self.x25519_noise_keys.clone(),
             NoiseNetworkView::new_empty(),

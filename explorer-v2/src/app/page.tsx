@@ -11,11 +11,9 @@ import { StakersNumberCardWrapper } from "../components/landingPageComponents/St
 import { TokenomicsCardWrapper } from "../components/landingPageComponents/TokenomicsCardWrapper";
 import NodeTable from "../components/nodeTable/NodeTableWithAction";
 import NodeAndAddressSearch from "../components/search/NodeAndAddressSearch";
-
-import { RECOMMENDED_NODES } from "../constants"; // Promise<number[]>
+import { RECOMMENDED_NODES } from "./constants";
 
 export default async function Home() {
-  // Resolve on the server and pass to the client table
   const recommendedIds = await RECOMMENDED_NODES;
 
   return (
@@ -47,7 +45,6 @@ export default async function Home() {
           <SectionHeading title="Nym Servers" />
         </Grid>
         <Grid size={12}>
-          {/* Pass the required prop */}
           <NodeTable recommendedIds={recommendedIds} />
         </Grid>
       </Grid>

@@ -5,7 +5,7 @@ use std::cmp::Ordering;
 
 use nym_sdk::mixnet::ReconstructedMessage;
 
-use crate::{Error, current::VERSION as CURRENT_VERSION, error::Result};
+use crate::{current::VERSION as CURRENT_VERSION, error::Result, Error};
 
 pub(crate) fn check_ipr_message_version(message: &ReconstructedMessage) -> Result<()> {
     // Assuming it's a IPR message, it will have a version as its first byte

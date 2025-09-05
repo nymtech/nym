@@ -139,6 +139,7 @@
 pub use reqwest::ClientBuilder as ReqwestClientBuilder;
 pub use reqwest::StatusCode;
 pub use reqwest;
+pub use inventory;
 
 pub mod registry;
 
@@ -182,6 +183,16 @@ pub use dns::{HickoryDnsError, HickoryDnsResolver};
 // helper for generating user agent based on binary information
 #[doc(hidden)]
 pub use nym_bin_common::bin_info;
+use nym_http_api_client_macro::client_defaults;
+use crate::registry::default_builder;
+
+client_defaults!(
+    priority = -100;
+    gzip = true,
+    deflate = true,
+    brotli = true,
+    zstd = true
+);
 
 /// Default HTTP request connection timeout.
 ///
@@ -498,20 +509,7 @@ impl ClientBuilder {
         let reqwest_client_builder = reqwest::ClientBuilder::new();
 
         #[cfg(not(target_arch = "wasm32"))]
-        let reqwest_client_builder = {
-            // Note: I believe the manual enable calls for the compression methods are extra
-            // as the various compression features for `reqwest` crate should be enabled
-            // just by including the feature which:
-            // `"Enable[s] auto decompression by checking the Content-Encoding response header."`
-            //
-            // I am going to leave these here anyways so that removing a decompression method
-            // from the features list will throw an error if it is not also removed here.
-            reqwest::ClientBuilder::new()
-                .gzip(true)
-                .deflate(true)
-                .brotli(true)
-                .zstd(true)
-        };
+        let reqwest_client_builder = default_builder();
 
         ClientBuilder {
             urls,

@@ -5850,6 +5850,7 @@ dependencies = [
  "itertools 0.14.0",
  "mime",
  "nym-bin-common",
+ "nym-http-api-client-macro",
  "nym-http-api-common",
  "nym-network-defaults",
  "once_cell",
@@ -5869,7 +5870,7 @@ dependencies = [
 name = "nym-http-api-client-macro"
 version = "0.1.0"
 dependencies = [
- "inventory",
+ "proc-macro-crate",
  "proc-macro2",
  "quote",
  "syn 2.0.106",
@@ -8107,6 +8108,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "353e1ca18966c16d9deb1c69278edbc5f194139612772bd9537af60ac231e1e6"
 dependencies = [
  "elliptic-curve",
+]
+
+[[package]]
+name = "proc-macro-crate"
+version = "3.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "edce586971a4dfaa28950c6f18ed55e0406c1ab88bbce2c6f6293a7aaba73d35"
+dependencies = [
+ "toml_edit",
 ]
 
 [[package]]

@@ -1,23 +1,36 @@
-//! Proc-macros for configuring reqwest clients via a tiny DSL and a link-time registry.
-//!
-//! - `client_cfg!(...)` -> returns `impl FnOnce(reqwest::ClientBuilder) -> reqwest::ClientBuilder`
-//! - `#[client_defaults(...)]` on a module that defines `pub fn __cfg(...) -> ...`
-//! - registers that function into the `inventory` registry owned by `nym_http_api_client`.
+//! Proc-macros (syn 2) for configuring a reqwest-like builder via `inventory`.
+//! Works both in leaf crates and inside the core crate by resolving the core
+//! crate path dynamically with `proc_macro_crate`.
 
 use proc_macro::TokenStream;
-use syn::parse::Parser;
+use proc_macro2::{Span, TokenStream as TokenStream2};
+use proc_macro_crate::{crate_name, FoundCrate};
 use quote::{format_ident, quote};
 use syn::{
     braced,
     parse::{Parse, ParseStream},
     parse_macro_input,
     punctuated::Punctuated,
-    token, Expr, Ident, ItemMod, LitInt, LitStr, Result, Token,
+    token, Expr, Ident, LitInt, Result, Token,
 };
 
-// ======================
-// Builder-DSL parsing
-// ======================
+// ------------------ core crate path resolution ------------------
+
+fn core_path() -> TokenStream2 {
+    match crate_name("nym-http-api-client") {
+        Ok(FoundCrate::Itself) => quote!( crate ),
+        Ok(FoundCrate::Name(name)) => {
+            let ident = Ident::new(&name, Span::call_site());
+            quote!( ::#ident )
+        }
+        Err(_) => {
+            // Fallback if the crate is not found by name (unlikely if deps set up correctly)
+            quote!( ::nym_http_api_client )
+        }
+    }
+}
+
+// ------------------ DSL parsing ------------------
 
 struct Items(Punctuated<Item, Token![,]>);
 impl Parse for Items {
@@ -27,27 +40,10 @@ impl Parse for Items {
 }
 
 enum Item {
-    /// `foo = EXPR` (sugar for `foo(EXPR)`)
-    Assign {
-        key: Ident,
-        _eq: Token![=],
-        value: Expr,
-    },
-    /// `foo(arg1, arg2, ...)`
-    Call {
-        key: Ident,
-        args: Punctuated<Expr, Token![,]>,
-        _p: token::Paren,
-    },
-    /// `default_headers { "K" => "V", ... }`
-    DefaultHeaders {
-        _key: Ident,
-        map: HeaderMapInit,
-    },
-    /// `foo` (zero-arg method)
-    Flag {
-        key: Ident,
-    },
+    Assign { key: Ident, _eq: Token![=], value: Expr },                       // foo = EXPR
+    Call { key: Ident, args: Punctuated<Expr, Token![,]>, _p: token::Paren }, // foo(a,b)
+    DefaultHeaders { _key: Ident, map: HeaderMapInit },                       // default_headers { ... }
+    Flag { key: Ident },                                                      // foo
 }
 
 impl Parse for Item {
@@ -59,56 +55,39 @@ impl Parse for Item {
             let value: Expr = input.parse()?;
             return Ok(Self::Assign { key, _eq, value });
         }
-
         if input.peek(token::Paren) {
             let content;
             let _p = syn::parenthesized!(content in input);
             let args = Punctuated::<Expr, Token![,]>::parse_terminated(&content)?;
             return Ok(Self::Call { key, args, _p });
         }
-
-        // Recognize `default_headers { ... }`
         if input.peek(token::Brace) && key == format_ident!("default_headers") {
             let map = input.parse::<HeaderMapInit>()?;
             return Ok(Self::DefaultHeaders { _key: key, map });
         }
-
         Ok(Self::Flag { key })
     }
 }
 
-struct HeaderPair {
-    k: Expr,
-    _arrow: Token![=>],
-    v: Expr,
-}
+struct HeaderPair { k: Expr, _arrow: Token![=>], v: Expr }
 impl Parse for HeaderPair {
     fn parse(input: ParseStream<'_>) -> Result<Self> {
-        Ok(Self {
-            k: input.parse()?,
-            _arrow: input.parse()?,
-            v: input.parse()?,
-        })
+        Ok(Self { k: input.parse()?, _arrow: input.parse()?, v: input.parse()? })
     }
 }
 
-struct HeaderMapInit {
-    _brace: token::Brace,
-    pairs: Punctuated<HeaderPair, Token![,]>,
-}
+struct HeaderMapInit { _brace: token::Brace, pairs: Punctuated<HeaderPair, Token![,]> }
 impl Parse for HeaderMapInit {
     fn parse(input: ParseStream<'_>) -> Result<Self> {
-        let content;
-        let _brace = braced!(content in input);
+        let content; let _brace = braced!(content in input);
         let pairs = Punctuated::<HeaderPair, Token![,]>::parse_terminated(&content)?;
         Ok(Self { _brace, pairs })
     }
 }
 
-/// Turn `Items` into statements that mutate a variable named `b: ReqwestClientBuilder`.
-fn to_stmts(items: Items) -> proc_macro2::TokenStream {
+// Generate statements that mutate a builder named `b` using the resolved core path.
+fn to_stmts(items: Items, core: &TokenStream2) -> TokenStream2 {
     let mut stmts = Vec::new();
-
     for it in items.0 {
         match it {
             Item::Assign { key, value, .. } => {
@@ -123,10 +102,10 @@ fn to_stmts(items: Items) -> proc_macro2::TokenStream {
             Item::DefaultHeaders { map, .. } => {
                 let (ks, vs): (Vec<_>, Vec<_>) = map.pairs.into_iter().map(|p| (p.k, p.v)).unzip();
                 stmts.push(quote! {
-                    let mut __cm = ::nym_http_api_client::reqwest::header::HeaderMap::new();
+                    let mut __cm = #core::reqwest::header::HeaderMap::new();
                     #(
                         {
-                            use ::nym_http_api_client::reqwest::header::{HeaderName, HeaderValue};
+                            use #core::reqwest::header::{HeaderName, HeaderValue};
                             let __k = HeaderName::try_from(#ks).expect("invalid header name");
                             let __v = HeaderValue::try_from(#vs).expect("invalid header value");
                             __cm.insert(__k, __v);
@@ -141,104 +120,75 @@ fn to_stmts(items: Items) -> proc_macro2::TokenStream {
             }
         }
     }
-
     quote! { #(#stmts)* }
 }
 
-// ======================
-// client_cfg! (fn-like)  -> returns closure
-// ======================
+// ------------------ client_cfg! ------------------
 
-/// Example:
-/// ```ignore
-/// let cfg = client_cfg!(timeout = Duration::from_secs(5), no_proxy());
-/// let builder = cfg(reqwest::ClientBuilder::new());
-/// ```
+/// Returns a closure: `FnOnce(ReqwestClientBuilder) -> ReqwestClientBuilder`
 #[proc_macro]
 pub fn client_cfg(input: TokenStream) -> TokenStream {
     let items = parse_macro_input!(input as Items);
-    let body = to_stmts(items);
+    let core = core_path();
+    let body = to_stmts(items, &core);
     let out = quote! {
-        |mut b: ::nym_http_api_client::reqwest::ClientBuilder| {
-            #body
-            b
-        }
+        |mut b: #core::ReqwestClientBuilder| { #body b }
     };
     out.into()
 }
 
-// ======================
-// #[client_defaults(...)] (attribute-like)  -> registers module's __cfg via inventory
-// ======================
+// ------------------ client_defaults! with optional priority header ------------------
 
-/// syn 2 attribute arg parsing using `syn::meta::ParseNestedMeta`.
-///
-/// Supported args:
-/// - `priority = <int>`
-/// - `scope = "<str>"`
-///
-/// Attach to a module that defines:
-/// ```ignore
-/// pub fn __cfg(b: nym_http_api_client::reqwest::ClientBuilder) -> nym_http_api_client::reqwest::ClientBuilder
-/// ```
-/// The function will be registered into `inventory` owned by the crate `nym_http_api_client`.
-#[proc_macro_attribute]
-pub fn client_defaults(attr: TokenStream, item: TokenStream) -> TokenStream {
-    // Parse attribute args with the new syn 2 meta parser.
-    let mut priority: i32 = 0;
-    let mut scope: Option<String> = None;
-
-    let parser = syn::meta::parser(|meta| {
-        if meta.path.is_ident("priority") {
-            let v: LitInt = meta.value()?.parse()?;
-            priority = v.base10_parse::<i32>()?;
-            Ok(())
-        } else if meta.path.is_ident("scope") {
-            let v: LitStr = meta.value()?.parse()?;
-            scope = Some(v.value());
-            Ok(())
-        } else {
-            Err(meta.error("unsupported argument (expected `priority = <int>` or `scope = \"...\"`)"))
+struct MaybePrioritized {
+    priority: i32,
+    items: Items,
+}
+impl Parse for MaybePrioritized {
+    fn parse(input: ParseStream<'_>) -> Result<Self> {
+        // Optional header: `priority = <int> ;`
+        let fork = input.fork();
+        let mut priority = 0i32;
+        if fork.peek(Ident)
+            && fork.parse::<Ident>()? == "priority"
+            && fork.peek(Token![=])
+        {
+            // commit
+            let _ = input.parse::<Ident>()?;         // priority
+            let _ = input.parse::<Token![=]>()?;
+            let lit: LitInt = input.parse()?;
+            priority = lit.base10_parse()?;
+            let _ = input.parse::<Token![;]>()?;
         }
-    });
-
-    // Convert proc_macro::TokenStream to proc_macro2 for the parser.
-    if let Err(e) = parser.parse2(proc_macro2::TokenStream::from(attr)) {
-        return e.to_compile_error().into();
+        let items = input.parse::<Items>()?;
+        Ok(Self { priority, items })
     }
+}
 
-    // Parse the annotated item as a module; we expect the user to define `pub fn __cfg(...)`.
-    let m = parse_macro_input!(item as ItemMod);
-    let mod_ident = &m.ident;
-    let content = m
-        .content
-        .as_ref()
-        .map(|(_, items)| quote! { #( #items )* })
-        .unwrap_or_default();
+#[proc_macro]
+pub fn client_defaults(input: TokenStream) -> TokenStream {
+    let MaybePrioritized { priority, items } = parse_macro_input!(input as MaybePrioritized);
+    let core = core_path();
+    let body = to_stmts(items, &core);
 
-    let scope_tokens = if let Some(s) = scope {
-        quote!( Some(#s) )
-    } else {
-        quote!( None )
-    };
-
-    // Emit: the module (unchanged), plus an inventory::submit! for nym_http_api_client::ConfigRecord.
     let out = quote! {
         #[allow(non_snake_case)]
-        mod #mod_ident {
+        mod __client_defaults {
             use super::*;
-            #content
+            #[allow(unused)]
+            pub fn __cfg(
+                mut b: #core::ReqwestClientBuilder
+            ) -> #core::ReqwestClientBuilder {
+                #body
+                b
+            }
 
-            ::inventory::submit! {
-                #![crate = nym_http_api_client] // adjust if you rename the nym_http_api_client crate
-                ::nym_http_api_client::ConfigRecord {
+            #core::inventory::submit! {
+                #core::registry::ConfigRecord {
                     priority: #priority,
-                    scope: #scope_tokens,
                     apply: __cfg,
                 }
             }
         }
     };
-
     out.into()
 }

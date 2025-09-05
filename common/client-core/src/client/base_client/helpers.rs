@@ -27,7 +27,7 @@ fn new_shutdown_manager() -> Result<ShutdownManager, ClientCoreError> {
         if #[cfg(not(target_arch = "wasm32"))] {
             Ok(ShutdownManager::build_new_default()?)
         } else {
-            Ok(ShutdownManager::new())
+            Ok(ShutdownManager::new_without_signals())
         }
     }
 }

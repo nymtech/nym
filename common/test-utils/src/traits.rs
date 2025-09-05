@@ -38,10 +38,7 @@ pub trait ElapsedExt {
 
 impl<T> ElapsedExt for Result<T, Elapsed> {
     fn has_elapsed(&self) -> bool {
-        match self {
-            Ok(_) => false,
-            Err(_) => true,
-        }
+        self.is_err()
     }
 }
 

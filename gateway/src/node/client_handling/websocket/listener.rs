@@ -95,7 +95,7 @@ impl Listener {
                         // 4.2. decrement the connection counter
                         metrics_ref.network.disconnected_ingress_websocket_client();
                     },
-                    &format!("websocket-{remote_address}"),
+                    &format!("Websocket::{remote_address}"),
                 );
             }
             Err(err) => warn!("failed to accept client connection: {err}"),

@@ -131,7 +131,7 @@ where
                     )
                 }
             },
-            &format!("{}-provider", T::NAME),
+            &format!("{}::Provider", T::NAME),
         );
 
         // TODO: if something is blocking during SP startup, the below will wait forever
@@ -235,7 +235,7 @@ impl<T> SpMessageRouterBuilder<T> {
             async move {
                 message_router.run_with_shutdown(shutdown_token).await;
             },
-            &format!("{}-message-router", T::NAME),
+            &format!("{}::MessageRouter", T::NAME),
         );
     }
 }

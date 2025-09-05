@@ -88,7 +88,7 @@ impl NymSocksServer {
             async move {
                 mixnet_response_listener.run().await;
             },
-            "socks5-mixnet-listener",
+            "Socks5MixnetListener",
         );
 
         // TODO:, if required, there should be another task here responsible for control requests.
@@ -130,7 +130,7 @@ impl NymSocksServer {
                                     warn!("Failed to shutdown TcpStream");
                                 };
                             };
-                        }, &format!("socks5-client-{remote}")
+                        }, &format!("Socks5Client::{remote}")
                     );
                 },
             }

@@ -338,10 +338,8 @@ where
             debug_config.cover_traffic,
             stats_tx,
         );
-        shutdown_tracker.try_spawn_named_with_shutdown(
-            async move { stream.run().await },
-            "cover traffic stream",
-        );
+        shutdown_tracker
+            .try_spawn_named_with_shutdown(async move { stream.run().await }, "CoverTrafficStream");
     }
 
     #[allow(clippy::too_many_arguments)]

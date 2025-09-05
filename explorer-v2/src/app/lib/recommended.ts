@@ -1,100 +1,63 @@
-import { cache } from "react";
+import { ApiNode } from "../api/types";
 
-type DeclaredRole = {
-  entry?: boolean;
-  exit_ipr?: boolean;
-  exit_nr?: boolean;
-  mixnode?: boolean;
-};
+const API_URL = "https://api.nym.spectredao.net/api/v1/nodes?per_page=3000";
 
-type ApiNode = {
-  node_id?: number;
-  total_stake?: number | string;
-  uptime?: number | string;
-  description?: {
-    wireguard?: unknown | null;
-    declared_role?: DeclaredRole;
-  };
-  self_description?: {
-    declared_role?: DeclaredRole;
-  };
-  rewarding_details?: {
-    cost_params?: {
-      profit_margin_percent?: string | number;
-    };
-  };
-};
+// filter logic
+function baseFilter(node: ApiNode): boolean {
+  const profitMargin = Number(node.rewarding_details?.cost_params.profit_margin_percent ?? "1");
+  const totalStake = Number(node.total_stake);
+  const hasRoles =
+    node.self_description?.declared_role.entry === true &&
+    node.self_description?.declared_role.exit_ipr === true &&
+    node.self_description?.declared_role.exit_nr === true;
 
-function toNumber(x: unknown, fallback = 0): number {
-  const n = typeof x === "string" || typeof x === "number" ? Number(x) : NaN;
-  return Number.isFinite(n) ? n : fallback;
+  return (
+    node.bonded === true &&
+    profitMargin <= 0.2 &&
+    hasRoles &&
+    totalStake > 50_000_000_000 &&
+    totalStake <= 150_000_000_000
+  );
 }
 
-const MIN_STAKE = 50_000_000_000;   // 50k NYM
-const MAX_STAKE = 150_000_000_000;  // 150k NYM
-const MAX_PM = 0.2;
-
-function hasRequiredRoles(n: ApiNode): boolean {
-  const r = n.self_description?.declared_role ?? n.description?.declared_role ?? {};
-  return !!(r.entry && r.exit_ipr && r.exit_nr);
-}
-
-function hasGoodPM(n: ApiNode): boolean {
-  const pm = toNumber(n.rewarding_details?.cost_params?.profit_margin_percent, NaN);
-  return !Number.isNaN(pm) && pm <= MAX_PM;
-}
-
-function stakeInRange(n: ApiNode): boolean {
-  const s = toNumber(n.total_stake, 0);
-  return s > MIN_STAKE && s < MAX_STAKE;
-}
-
-function wireguardOn(n: ApiNode): boolean {
-  return n.description?.wireguard != null;
+function wireguardOn(node: ApiNode): boolean {
+  return node.description?.wireguard != null;
 }
 
 function sortByUptimeDescStakeAsc(a: ApiNode, b: ApiNode): number {
-  const ua = toNumber(a.uptime, 0);
-  const ub = toNumber(b.uptime, 0);
-  if (ub !== ua) return ub - ua;
-  const sa = toNumber(a.total_stake, 0);
-  const sb = toNumber(b.total_stake, 0);
-  return sa - sb;
+  if (a.uptime !== b.uptime) {
+    return b.uptime - a.uptime; // higher uptime first
+  }
+  return Number(a.total_stake) - Number(b.total_stake); // lower stake first
 }
 
 async function fetchRecommendedNodes(): Promise<number[]> {
-  const url = "https://api.nym.spectredao.net/api/v1/nodes?size=3000";
-  const res = await fetch(url, { cache: "no-store" });
+  const res = await fetch(API_URL, { cache: "no-store" });
   if (!res.ok) throw new Error(`Failed to fetch nodes: ${res.status}`);
+  const nodes: ApiNode[] = await res.json();
 
-  const json = (await res.json()) as unknown;
-  if (!Array.isArray(json)) throw new Error("Unexpected API shape: expected an array");
-  const nodes = json as ApiNode[];
+  // refer wg enabled nodes
+  const wgCandidates = nodes
+    .filter((n) => baseFilter(n) && wireguardOn(n))
+    .sort(sortByUptimeDescStakeAsc);
 
-  // core predicate stake check mandatory
-  const baseFilter = (n: ApiNode) => hasRequiredRoles(n) && hasGoodPM(n) && stakeInRange(n);
+  let picked: ApiNode[] = wgCandidates.slice(0, 10);
 
-  // prefer WireGuard-enabled nodes
-  const wgCandidates = nodes.filter((n) => baseFilter(n) && wireguardOn(n)).sort(sortByUptimeDescStakeAsc);
-
-  let picked = wgCandidates.slice(0, 10);
-
-  // if fewer than 10, relax WireGuard but still enforce stake range
+  // if < 10, relax wg but still enforce stake range
   if (picked.length < 10) {
     const relaxed = nodes.filter(baseFilter).sort(sortByUptimeDescStakeAsc);
     const set = new Set(picked.map((n) => n.node_id));
     for (const n of relaxed) {
       if (set.size >= 10) break;
       if (!set.has(n.node_id)) {
-        picked.push(n);
+        picked = [...picked, n];
         set.add(n.node_id);
       }
     }
   }
 
-  return picked
-    .map((n) => (typeof n.node_id === "number" ? n.node_id : toNumber(n.node_id, 0)))
-    .filter((id) => Number.isFinite(id) && id > 0);
+  return picked.map((n) => n.node_id);
 }
 
-export const getRecommendedNodes = cache(fetchRecommendedNodes);
+// export as a promise so constants.ts and pages can await it
+export const RECOMMENDED_NODES: Promise<number[]> = fetchRecommendedNodes();

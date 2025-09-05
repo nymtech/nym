@@ -863,34 +863,34 @@ impl<R, S> FreshHandler<R, S> {
         S: AsyncRead + AsyncWrite + Unpin + Send,
         R: CryptoRng + RngCore + Send,
     {
-        let trace_id = if let ClientControlRequest::AuthenticateV2(ref auth_req) = request {
+        let span = if let ClientControlRequest::AuthenticateV2(ref auth_req) = request {
             if let Some(ref trace_id) = auth_req.debug_trace_id {
                 warn!("Parsed trace id: {trace_id}");
                 let trace_id = opentelemetry::trace::TraceId::from_hex(&trace_id)
                     .expect("Invalid trace ID format");
 
-                // let id_generator = RandomIdGenerator::default();
-                // let span_id = id_generator.new_span_id();
+                let id_generator = RandomIdGenerator::default();
+                let span_id = id_generator.new_span_id();
 
-                // let span_context = opentelemetry::trace::SpanContext::new(
-                //     trace_id,
-                //     span_id,
-                //     opentelemetry::trace::TraceFlags::SAMPLED,
-                //     true, // is_remote = true since this comes from another service
-                //     Default::default(),
-                // );
+                let span_context = opentelemetry::trace::SpanContext::new(
+                    trace_id,
+                    span_id,
+                    opentelemetry::trace::TraceFlags::SAMPLED,
+                    true, // is_remote = true since this comes from another service
+                    Default::default(),
+                );
 
-                // let remote_context = opentelemetry::Context::current()
-                //     .with_remote_span_context(span_context);
+                let remote_context = opentelemetry::Context::current()
+                    .with_remote_span_context(span_context);
 
-                // let _context_guard = remote_context.clone().attach();
-                // let span = info_span!(
-                //     "websocket_authentication",
-                //     trace_id = %trace_id
-                // );
-                // span.set_parent(remote_context.clone());
+                let _context_guard = remote_context.clone().attach();
+                let span = info_span!(
+                    "websocket_authentication",
+                    trace_id = %trace_id
+                );
+                span.set_parent(remote_context.clone());
 
-                Some(trace_id)
+                Some(span)
             } else {
                 warn!("AuthenticateV2 request but no trace_id provided");
                 None
@@ -900,34 +900,20 @@ impl<R, S> FreshHandler<R, S> {
             None
         };
 
-        use opentelemetry::trace::Tracer;
-        let tracer = opentelemetry::global::tracer("gateway-websocket");
-        let span = tracer
-            .span_builder("websocket_authentication")
-            .with_trace_id(trace_id.unwrap())
-            .start(&tracer);
-
-        let cx = opentelemetry::Context::current_with_span(span);
-        let _guard = cx.attach();
+        let _guard = match &span{
+            Some(s) => {
+                warn!("==== ENTERED SPAN ====");
+                Some(s.enter())
+            }
+            None => {
+                warn!("==== COULDN'T ENTER SPAN ====");
+                None
+            }
+        };
 
         let current_context = opentelemetry::Context::current();
         let initial_trace_id = current_context.span().span_context().trace_id();
         error!("==== trace_id at the start of initial authentication: {:?} ====", initial_trace_id);
-        //
-
-        drop(_guard);
-
-
-        // let _guard = match &span{
-        //     Some(s) => {
-        //         warn!("==== ENTERED SPAN ====");
-        //         Some(s.enter())
-        //     }
-        //     None => {
-        //         warn!("==== COULDN'T ENTER SPAN ====");
-        //         None
-        //     }
-        // };
 
         let auth_result = match request {
             ClientControlRequest::Authenticate {

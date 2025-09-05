@@ -145,7 +145,7 @@ pub(crate) async fn current_deposit(
         .inner_state()
         .current_deposit()
         .await
-        .map_err(|err| RequestError::new_plain_error(err))?;
+        .map_err(RequestError::new_plain_error)?;
 
     Ok(output.to_response(response))
 }
@@ -180,7 +180,7 @@ pub(crate) async fn partial_verification_keys(
         .inner_state()
         .partial_verification_keys()
         .await
-        .map_err(|err| RequestError::new_plain_error(err))?;
+        .map_err(RequestError::new_plain_error)?;
 
     Ok(output.to_response(response))
 }
@@ -215,7 +215,7 @@ pub(crate) async fn master_verification_key(
         .inner_state()
         .master_verification_key()
         .await
-        .map_err(|err| RequestError::new_plain_error(err))?;
+        .map_err(RequestError::new_plain_error)?;
 
     Ok(output.to_response(response))
 }
@@ -251,7 +251,7 @@ pub(crate) async fn current_epoch(
         .inner_state()
         .current_epoch()
         .await
-        .map_err(|err| RequestError::new_plain_error(err))?;
+        .map_err(RequestError::new_plain_error)?;
 
     Ok(output.to_response(response))
 }

@@ -1,57 +1,34 @@
-// Copyright 2024 Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: GPL-3.0-only
+// Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
 
-use clap::Args;
-use nym_credential_proxy_lib::error::CredentialProxyError;
 use reqwest::header::AUTHORIZATION;
 use serde::Serialize;
 use tracing::{debug, error, instrument, span, Instrument, Level};
 use url::Url;
 use uuid::Uuid;
 
-#[derive(Args, Debug, Clone)]
-pub struct ZkNymWebHookConfig {
-    #[clap(long, env = "WEBHOOK_ZK_NYMS_URL")]
-    pub webhook_url: Url,
+#[derive(Debug, Clone)]
+pub struct ZkNymWebhook {
+    pub webhook_client_url: Url,
 
-    #[clap(long, env = "WEBHOOK_ZK_NYMS_CLIENT_ID")]
-    pub webhook_client_id: String,
-
-    #[clap(long, env = "WEBHOOK_ZK_NYMS_CLIENT_SECRET")]
     pub webhook_client_secret: String,
 }
 
-impl ZkNymWebHookConfig {
-    pub fn ensure_valid_client_url(&self) -> Result<(), CredentialProxyError> {
-        self.client_url()
-            .map_err(|_| CredentialProxyError::InvalidWebhookUrl)
-            .map(|_| ())
-    }
-
-    fn client_url(&self) -> Result<Url, url::ParseError> {
-        self.webhook_url.join(&self.webhook_client_id)
-    }
-
-    fn unchecked_client_url(&self) -> Url {
-        // we ensured we have valid url on startup
-        #[allow(clippy::unwrap_used)]
-        self.client_url().unwrap()
-    }
-
+impl ZkNymWebhook {
     fn bearer_token(&self) -> String {
         format!("Bearer {}", self.webhook_client_secret)
     }
 
     #[instrument(skip_all)]
     pub async fn try_trigger<T: Serialize + ?Sized>(&self, original_uuid: Uuid, payload: &T) {
-        let url = self.unchecked_client_url();
+        let url = self.webhook_client_url.clone();
         let span = span!(Level::DEBUG, "webhook", uuid = %original_uuid, url = %url);
 
         async move {
             debug!("🕸️ about to trigger the webhook");
 
             match reqwest::Client::new()
-                .post(url.clone())
+                .post(url)
                 .header(AUTHORIZATION, self.bearer_token())
                 .json(payload)
                 .send()

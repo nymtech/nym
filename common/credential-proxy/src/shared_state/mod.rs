@@ -1,7 +1,7 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::deposits_buffer::DepositsBuffer;
+use crate::deposits_buffer::{BufferedDeposit, DepositsBuffer};
 use crate::error::CredentialProxyError;
 use crate::nym_api_helpers::{ensure_sane_expiration_date, query_all_threshold_apis};
 use crate::shared_state::ecash_state::EcashState;
@@ -13,28 +13,35 @@ use nym_compact_ecash::scheme::coin_indices_signatures::{
 use nym_compact_ecash::scheme::expiration_date_signatures::{
     aggregate_annotated_expiration_signatures, ExpirationDateSignatureShare,
 };
-use nym_compact_ecash::{Base58, VerificationKeyAuth};
+use nym_compact_ecash::{Base58, PublicKeyUser, VerificationKeyAuth};
 use nym_credential_proxy_requests::api::v1::ticketbook::models::{
     AggregatedCoinIndicesSignaturesResponse, AggregatedExpirationDateSignaturesResponse,
-    MasterVerificationKeyResponse,
+    GlobalDataParams, MasterVerificationKeyResponse,
 };
 use nym_credentials::ecash::utils::EcashTime;
 use nym_credentials::{
     AggregatedCoinIndicesSignatures, AggregatedExpirationDateSignatures, EpochVerificationKey,
 };
+use nym_ecash_contract_common::deposit::DepositId;
 use nym_validator_client::coconut::EcashApiError;
 use nym_validator_client::nym_api::EpochId;
+use nym_validator_client::nyxd::contract_traits::dkg_query_client::Epoch;
 use nym_validator_client::nyxd::contract_traits::{DkgQueryClient, PagedDkgQueryClient};
+use nym_validator_client::nyxd::Coin;
 use nym_validator_client::{DirectSigningHttpRpcNyxdClient, EcashApiClient};
 use std::sync::Arc;
-use time::Date;
+use std::time::Duration;
+use time::{Date, OffsetDateTime};
 use tokio::sync::RwLockReadGuard;
-use tracing::{debug, info, warn};
+use tokio::time::Instant;
+use tracing::{debug, error, info, warn};
+use uuid::Uuid;
 
 pub mod ecash_state;
 pub mod nyxd_client;
 pub mod required_deposit_cache;
 
+#[derive(Clone)]
 pub struct CredentialProxyState {
     inner: Arc<CredentialProxyStateInner>,
 }
@@ -60,6 +67,13 @@ impl CredentialProxyState {
         &self.inner.storage
     }
 
+    pub async fn deposit_amount(&self) -> Result<Coin, CredentialProxyError> {
+        self.ecash_state()
+            .required_deposit_cache
+            .get_or_update(self.client())
+            .await
+    }
+
     pub fn client(&self) -> &ChainClient {
         &self.inner.client
     }
@@ -74,6 +88,60 @@ impl CredentialProxyState {
 
     pub(crate) async fn query_chain(&self) -> RwLockReadGuard<'_, DirectSigningHttpRpcNyxdClient> {
         self.inner.client.query_chain().await
+    }
+
+    pub async fn ensure_credentials_issuable(&self) -> Result<(), CredentialProxyError> {
+        let epoch = self.current_epoch().await?;
+
+        if epoch.state.is_final() {
+            Ok(())
+        } else if let Some(final_timestamp) = epoch.final_timestamp_secs() {
+            // SAFETY: the timestamp values in our DKG contract should be valid timestamps,
+            // otherwise it means the chain is seriously misbehaving
+            #[allow(clippy::unwrap_used)]
+            let finish_dt = OffsetDateTime::from_unix_timestamp(final_timestamp as i64).unwrap();
+
+            Err(CredentialProxyError::CredentialsNotYetIssuable {
+                availability: finish_dt,
+            })
+        } else if epoch.state.is_waiting_initialisation() {
+            Err(CredentialProxyError::UninitialisedDkg)
+        } else {
+            Err(CredentialProxyError::UnknownEcashFailure)
+        }
+    }
+
+    pub async fn get_deposit(
+        &self,
+        request_uuid: Uuid,
+        requested_on: OffsetDateTime,
+        client_pubkey: PublicKeyUser,
+    ) -> Result<BufferedDeposit, CredentialProxyError> {
+        let start = Instant::now();
+        let deposit = self
+            .deposits_buffer()
+            .get_valid_deposit(request_uuid, requested_on, client_pubkey)
+            .await;
+
+        let time_taken = start.elapsed();
+        let formatted = humantime::format_duration(time_taken);
+        if time_taken > Duration::from_secs(10) {
+            warn!("attempting to get buffered deposit took {formatted}. perhaps the buffer is too small or the process/chain is overloaded?")
+        } else {
+            debug!("attempting to get buffered deposit took {formatted}")
+        };
+
+        deposit
+    }
+
+    pub async fn insert_deposit_usage_error(&self, deposit_id: DepositId, error: String) {
+        if let Err(err) = self
+            .storage()
+            .insert_deposit_usage_error(deposit_id, error)
+            .await
+        {
+            error!("failed to insert information about deposit (id: {deposit_id}) usage failure: {err}")
+        }
     }
 
     pub async fn current_epoch_id(&self) -> Result<EpochId, CredentialProxyError> {
@@ -91,11 +159,24 @@ impl CredentialProxyState {
         Ok(epoch.epoch_id)
     }
 
+    pub async fn current_epoch(&self) -> Result<Epoch, CredentialProxyError> {
+        let read_guard = self.ecash_state().cached_epoch.read().await;
+        if read_guard.is_valid() {
+            return Ok(read_guard.current_epoch);
+        }
+
+        // update cache
+        drop(read_guard);
+        let mut write_guard = self.ecash_state().cached_epoch.write().await;
+        let epoch = self.query_chain().await.get_current_epoch().await?;
+
+        write_guard.update(epoch);
+        Ok(epoch)
+    }
+
     pub async fn global_data(
         &self,
-        include_master_verification_key: bool,
-        include_expiration_date_signatures: bool,
-        include_coin_index_signatures: bool,
+        global_data: GlobalDataParams,
         epoch_id: EpochId,
         expiration_date: Date,
     ) -> Result<
@@ -106,7 +187,7 @@ impl CredentialProxyState {
         ),
         CredentialProxyError,
     > {
-        let master_verification_key = if include_master_verification_key {
+        let master_verification_key = if global_data.include_master_verification_key {
             debug!("including master verification key in the response");
             Some(
                 self.master_verification_key(Some(epoch_id))
@@ -121,21 +202,22 @@ impl CredentialProxyState {
             None
         };
 
-        let aggregated_expiration_date_signatures = if include_expiration_date_signatures {
-            debug!("including expiration date signatures in the response");
-            Some(
-                self.master_expiration_date_signatures(epoch_id, expiration_date)
-                    .await
-                    .map(|signatures| AggregatedExpirationDateSignaturesResponse {
-                        signatures: signatures.clone(),
-                    })
-                    .inspect_err(|err| warn!("request failure: {err}"))?,
-            )
-        } else {
-            None
-        };
+        let aggregated_expiration_date_signatures =
+            if global_data.include_expiration_date_signatures {
+                debug!("including expiration date signatures in the response");
+                Some(
+                    self.master_expiration_date_signatures(epoch_id, expiration_date)
+                        .await
+                        .map(|signatures| AggregatedExpirationDateSignaturesResponse {
+                            signatures: signatures.clone(),
+                        })
+                        .inspect_err(|err| warn!("request failure: {err}"))?,
+                )
+            } else {
+                None
+            };
 
-        let aggregated_coin_index_signatures = if include_coin_index_signatures {
+        let aggregated_coin_index_signatures = if global_data.include_coin_index_signatures {
             debug!("including coin index signatures in the response");
             Some(
                 self.master_coin_index_signatures(Some(epoch_id))

@@ -12,11 +12,8 @@ cfg_if::cfg_if! {
 
         pub mod cli;
         pub mod config;
-        pub mod credentials;
         pub mod helpers;
         pub mod http;
-        pub mod tasks;
-        mod webhook;
     }
 }
 
@@ -29,7 +26,6 @@ async fn main() -> anyhow::Result<()> {
     // );
 
     let cli = Cli::parse();
-    cli.webhook.ensure_valid_client_url()?;
     trace!("args: {cli:#?}");
 
     setup_env(cli.config_env_file.as_ref());

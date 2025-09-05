@@ -1,6 +1,5 @@
 import { cache } from "react";
 
-// Minimal typed shape (only fields we use)
 type DeclaredRole = {
   entry?: boolean;
   exit_ipr?: boolean;
@@ -31,7 +30,8 @@ function toNumber(x: unknown, fallback = 0): number {
   return Number.isFinite(n) ? n : fallback;
 }
 
-const MIN_STAKE = 50_000_000_000; // 50B
+const MIN_STAKE = 50_000_000_000;   // 50k NYM
+const MAX_STAKE = 150_000_000_000;  // 150k NYM
 const MAX_PM = 0.2;
 
 function hasRequiredRoles(n: ApiNode): boolean {
@@ -44,8 +44,9 @@ function hasGoodPM(n: ApiNode): boolean {
   return !Number.isNaN(pm) && pm <= MAX_PM;
 }
 
-function stakeOk(n: ApiNode): boolean {
-  return toNumber(n.total_stake, 0) > MIN_STAKE;
+function stakeInRange(n: ApiNode): boolean {
+  const s = toNumber(n.total_stake, 0);
+  return s > MIN_STAKE && s < MAX_STAKE;
 }
 
 function wireguardOn(n: ApiNode): boolean {
@@ -55,10 +56,10 @@ function wireguardOn(n: ApiNode): boolean {
 function sortByUptimeDescStakeAsc(a: ApiNode, b: ApiNode): number {
   const ua = toNumber(a.uptime, 0);
   const ub = toNumber(b.uptime, 0);
-  if (ub !== ua) return ub - ua; // higher uptime first
+  if (ub !== ua) return ub - ua;
   const sa = toNumber(a.total_stake, 0);
   const sb = toNumber(b.total_stake, 0);
-  return sa - sb; // then lower stake first
+  return sa - sb;
 }
 
 async function fetchRecommendedNodes(): Promise<number[]> {
@@ -70,17 +71,15 @@ async function fetchRecommendedNodes(): Promise<number[]> {
   if (!Array.isArray(json)) throw new Error("Unexpected API shape: expected an array");
   const nodes = json as ApiNode[];
 
-  const baseFilter = (n: ApiNode) => hasRequiredRoles(n) && hasGoodPM(n) && stakeOk(n);
+  // core predicate stake check mandatory
+  const baseFilter = (n: ApiNode) => hasRequiredRoles(n) && hasGoodPM(n) && stakeInRange(n);
 
-  // require WireGuard
-  const wgCandidates = nodes
-    .filter((n) => baseFilter(n) && wireguardOn(n))
-    .sort(sortByUptimeDescStakeAsc);
+  // prefer WireGuard-enabled nodes
+  const wgCandidates = nodes.filter((n) => baseFilter(n) && wireguardOn(n)).sort(sortByUptimeDescStakeAsc);
 
-  // Pick up to 10 with WG first
-  const picked = wgCandidates.slice(0, 10);
+  let picked = wgCandidates.slice(0, 10);
 
-  // If fewer than 10, relax WG to pad
+  // if fewer than 10, relax WireGuard but still enforce stake range
   if (picked.length < 10) {
     const relaxed = nodes.filter(baseFilter).sort(sortByUptimeDescStakeAsc);
     const set = new Set(picked.map((n) => n.node_id));
@@ -93,11 +92,9 @@ async function fetchRecommendedNodes(): Promise<number[]> {
     }
   }
 
-  // Return numeric ids
   return picked
     .map((n) => (typeof n.node_id === "number" ? n.node_id : toNumber(n.node_id, 0)))
     .filter((id) => Number.isFinite(id) && id > 0);
 }
 
-// Per-request dedupe if called multiple times during a render
 export const getRecommendedNodes = cache(fetchRecommendedNodes);

@@ -23,6 +23,7 @@ time = { workspace = true }
 subtle = { workspace = true }
 zeroize = { workspace = true }
 
+nym-bin-common = { path = "../bin-common" }
 nym-crypto = { path = "../crypto", features = ["aead", "hashing"] }
 nym-pemstore = { path = "../pemstore" }
 nym-sphinx = { path = "../nymsphinx" }
@@ -34,6 +35,7 @@ nym-credentials = { path = "../credentials" }
 nym-credentials-interface = { path = "../credentials-interface" }
 
 opentelemetry = { workspace = true, features = ["trace"], optional = true }
+opentelemetry_sdk = { workspace = true }
 tracing = { workspace = true, features = ["std", "attributes", "tracing-attributes"], optional = true }
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio]

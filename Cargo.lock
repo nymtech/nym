@@ -2043,8 +2043,8 @@ dependencies = [
  "base64 0.22.1",
  "libc",
  "log",
- "netlink-packet-core",
- "netlink-packet-generic",
+ "netlink-packet-core 0.7.0",
+ "netlink-packet-generic 0.3.3",
  "netlink-packet-route",
  "netlink-packet-utils",
  "netlink-packet-wireguard",
@@ -2405,16 +2405,15 @@ dependencies = [
 
 [[package]]
 name = "ed25519-zebra"
-version = "4.0.3"
+version = "4.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7d9ce6874da5d4415896cd45ffbc4d1cfc0c4f9c079427bd870742c30f2f65a9"
+checksum = "0017d969298eec91e3db7a2985a8cab4df6341d86e6f3a6f5878b13fb7846bc9"
 dependencies = [
  "curve25519-dalek",
  "ed25519",
- "hashbrown 0.14.5",
- "hex",
  "rand_core 0.6.4",
  "sha2 0.10.9",
+ "subtle 2.6.1",
  "zeroize",
 ]
 
@@ -3076,10 +3075,6 @@ name = "hashbrown"
 version = "0.14.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e5274423e17b7c9fc20b6e7e208532f9b19825d82dfd615708b70edd83df41f1"
-dependencies = [
- "ahash",
- "allocator-api2",
-]
 
 [[package]]
 name = "hashbrown"
@@ -4447,6 +4442,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "netlink-packet-core"
+version = "0.8.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3463cbb78394cb0141e2c926b93fc2197e473394b761986eca3b9da2c63ae0f4"
+dependencies = [
+ "paste",
+]
+
+[[package]]
 name = "netlink-packet-generic"
 version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4454,8 +4458,17 @@ checksum = "1cd7eb8ad331c84c6b8cb7f685b448133e5ad82e1ffd5acafac374af4a5a308b"
 dependencies = [
  "anyhow",
  "byteorder",
- "netlink-packet-core",
+ "netlink-packet-core 0.7.0",
  "netlink-packet-utils",
+]
+
+[[package]]
+name = "netlink-packet-generic"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2f891b2e0054cac5a684a06628f59568f841c93da4e551239da6e518f539e775"
+dependencies = [
+ "netlink-packet-core 0.8.1",
 ]
 
 [[package]]
@@ -4469,7 +4482,7 @@ dependencies = [
  "byteorder",
  "libc",
  "log",
- "netlink-packet-core",
+ "netlink-packet-core 0.7.0",
  "netlink-packet-utils",
 ]
 
@@ -4487,16 +4500,14 @@ dependencies = [
 
 [[package]]
 name = "netlink-packet-wireguard"
-version = "0.2.3"
+version = "0.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "60b25b050ff1f6a1e23c6777b72db22790fe5b6b5ccfd3858672587a79876c8f"
+checksum = "598962d9067d3153a00106da10e7b8276cea68f396f4a22f5b4a079270d92e29"
 dependencies = [
- "anyhow",
- "byteorder",
  "libc",
  "log",
- "netlink-packet-generic",
- "netlink-packet-utils",
+ "netlink-packet-core 0.8.1",
+ "netlink-packet-generic 0.4.0",
 ]
 
 [[package]]
@@ -5685,6 +5696,7 @@ dependencies = [
  "mock_instant",
  "nym-api-requests",
  "nym-authenticator-requests",
+ "nym-bin-common",
  "nym-client-core",
  "nym-credential-verification",
  "nym-credentials",
@@ -5819,6 +5831,7 @@ dependencies = [
  "bs58",
  "futures",
  "generic-array 0.14.9",
+ "nym-bin-common",
  "nym-compact-ecash",
  "nym-credentials",
  "nym-credentials-interface",
@@ -5830,6 +5843,7 @@ dependencies = [
  "nym-task",
  "nym-test-utils",
  "opentelemetry",
+ "opentelemetry_sdk",
  "rand 0.8.5",
  "serde",
  "serde_json",

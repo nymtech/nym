@@ -35,8 +35,10 @@ use nym_sphinx::DestinationAddressBytes;
 use nym_task::ShutdownToken;
 use opentelemetry::trace::TraceContextExt;
 use opentelemetry::TraceId;
+use opentelemetry_sdk::logs::TraceContext;
 use opentelemetry_sdk::trace::{IdGenerator, RandomIdGenerator};
 use rand::CryptoRng;
+use std::hash::Hash;
 use std::net::SocketAddr;
 use std::time::Duration;
 use thiserror::Error;
@@ -863,57 +865,26 @@ impl<R, S> FreshHandler<R, S> {
         S: AsyncRead + AsyncWrite + Unpin + Send,
         R: CryptoRng + RngCore + Send,
     {
-        let span = if let ClientControlRequest::AuthenticateV2(ref auth_req) = request {
-            if let Some(ref trace_id) = auth_req.debug_trace_id {
-                warn!("Parsed trace id: {trace_id}");
-                let trace_id = opentelemetry::trace::TraceId::from_hex(&trace_id)
-                    .expect("Invalid trace ID format");
+        use nym_bin_common::opentelemetry::context::ContextCarrier;
+        use opentelemetry_sdk::propagation::TraceContextPropagator;
+        use opentelemetry::propagation::TextMapPropagator;
 
-                let id_generator = RandomIdGenerator::default();
-                let span_id = id_generator.new_span_id();
+        let otel_context = match &request {
+            ClientControlRequest::Authenticate { otel_context, .. } => otel_context.as_ref(),
+            _ => None,
+        };
+        if let Some(otel_context) = otel_context {
+            let carrier = ContextCarrier::from_map(otel_context.clone());
+            let propagator = TraceContextPropagator::new();
+            let extracted_context = propagator.extract(&carrier);
 
-                let span_context = opentelemetry::trace::SpanContext::new(
-                    trace_id,
-                    span_id,
-                    opentelemetry::trace::TraceFlags::SAMPLED,
-                    true, // is_remote = true since this comes from another service
-                    Default::default(),
-                );
-
-                let remote_context = opentelemetry::Context::current()
-                    .with_remote_span_context(span_context);
-
-                let _context_guard = remote_context.clone().attach();
-                let span = info_span!(
-                    "websocket_authentication",
-                    trace_id = %trace_id
-                );
-                span.set_parent(remote_context.clone());
-
-                Some(span)
-            } else {
-                warn!("AuthenticateV2 request but no trace_id provided");
-                None
-            }
+            let span = tracing::info_span!("websocket_authentication");
+            span.set_parent(extracted_context.clone());
+            
+            error!("==== Context propagation successful! Current context: {:?} ====", extracted_context);
         } else {
-            warn!("Not an AuthenticateV2 request");
-            None
-        };
-
-        let _guard = match &span{
-            Some(s) => {
-                warn!("==== ENTERED SPAN ====");
-                Some(s.enter())
-            }
-            None => {
-                warn!("==== COULDN'T ENTER SPAN ====");
-                None
-            }
-        };
-
-        let current_context = opentelemetry::Context::current();
-        let initial_trace_id = current_context.span().span_context().trace_id();
-        error!("==== trace_id at the start of initial authentication: {:?} ====", initial_trace_id);
+            warn!("No OpenTelemetry context provided in the request");
+        }
 
         let auth_result = match request {
             ClientControlRequest::Authenticate {
@@ -921,7 +892,7 @@ impl<R, S> FreshHandler<R, S> {
                 address,
                 enc_address,
                 iv,
-                debug_trace_id: _,
+                otel_context: _,
             } => {
                 self.handle_legacy_authenticate(protocol_version, address, enc_address, iv)
                     .await
@@ -973,9 +944,6 @@ impl<R, S> FreshHandler<R, S> {
             return Err(InitialAuthenticationError::EmptyClientDetails);
         };
 
-        let current_context = opentelemetry::Context::current();
-        let final_trace_id = current_context.span().span_context().trace_id();
-        error!("==== trace_id at the end of initial authentication: {:?} ====", final_trace_id);
         Ok(Some(client_details))
     }
 

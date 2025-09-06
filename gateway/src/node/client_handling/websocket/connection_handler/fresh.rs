@@ -869,21 +869,19 @@ impl<R, S> FreshHandler<R, S> {
         use opentelemetry_sdk::propagation::TraceContextPropagator;
         use opentelemetry::propagation::TextMapPropagator;
 
-        let otel_context = match &request {
-            ClientControlRequest::Authenticate { otel_context, .. } => otel_context.as_ref(),
-            _ => None,
-        };
-        if let Some(otel_context) = otel_context {
-            let carrier = ContextCarrier::from_map(otel_context.clone());
-            let propagator = TraceContextPropagator::new();
-            let extracted_context = propagator.extract(&carrier);
+        if let ClientControlRequest::AuthenticateV2(ref auth_req) = request {
+            if let Some(otel_context) = &auth_req.otel_context {
+                let carrier = ContextCarrier::from_map(otel_context.clone());
+                let propagator = TraceContextPropagator::new();
+                let extracted_context = propagator.extract(&carrier);
 
-            let span = tracing::info_span!("websocket_authentication");
-            span.set_parent(extracted_context.clone());
-            
-            error!("==== Context propagation successful! Current context: {:?} ====", extracted_context);
-        } else {
-            warn!("No OpenTelemetry context provided in the request");
+                let span = tracing::info_span!("websocket_authentication");
+                span.set_parent(extracted_context.clone());
+                
+                error!("==== Context propagation successful! Current context: {:?} ====", extracted_context);
+            } else {
+                warn!("No OpenTelemetry context provided in the request");
+            }
         }
 
         let auth_result = match request {

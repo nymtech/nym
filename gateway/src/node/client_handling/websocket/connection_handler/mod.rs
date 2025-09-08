@@ -131,7 +131,7 @@ where
         let propagator = TraceContextPropagator::new();
         let extracted_context = propagator.extract(&new_carrier);
         let extracted_trace_id = new_carrier.extract_trace_id();
-        tracing::error!("Extracted trace id: {:?}", extracted_trace_id);
+        tracing::error!("==== THIS IS MEANT TO STAND OUT Extracted trace id in handle_connection: {:?} ====", extracted_trace_id);
         tracing::Span::current().set_parent(extracted_context);
         let span = tracing::info_span!("handle_authenticated_client");
         let _entered_span = span.enter();

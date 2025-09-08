@@ -1006,8 +1006,8 @@ impl<R, S> FreshHandler<R, S> {
                 tracing::Span::current().set_parent(extracted_context);
                 let span = tracing::info_span!("handle_authenticated_client");
                 let _entered_span = span.enter();
-                warn!("==== Context propagation successful ====");
-                
+                warn!("==== Context propagation successful to handle until authenticated client ====");
+
                 let (mix_sender, mix_receiver) = mpsc::unbounded();
                 // Channel for handlers to ask other handlers if they are still active.
                 let (is_active_request_sender, is_active_request_receiver) = mpsc::unbounded();

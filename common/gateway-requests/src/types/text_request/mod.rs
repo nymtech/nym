@@ -145,13 +145,16 @@ impl ClientControlRequest {
         let propagator = TraceContextPropagator::new();
         let mut carrier = ContextCarrier::new();
         propagator.inject_context(&context, &mut carrier);
+        let context_carrier = carrier.into_map();
+
+        tracing::error!("context_carrier is {:?}", context_carrier);
 
         Ok(ClientControlRequest::Authenticate {
             protocol_version,
             address: address.as_base58_string(),
             enc_address: bs58::encode(&ciphertext).into_string(),
             iv: bs58::encode(&nonce).into_string(),
-            otel_context: Some(carrier.into_map()),
+            otel_context: Some(context_carrier),
         })
     }
 
@@ -167,13 +170,15 @@ impl ClientControlRequest {
         let propagator = TraceContextPropagator::new();
         let mut carrier =ContextCarrier::new();
         propagator.inject_context(&otel_context, &mut carrier);
+        let context_carrier = carrier.into_map();
+        tracing::error!("carrier is {:?}", context_carrier);
 
         Ok(ClientControlRequest::AuthenticateV2(Box::new(
             AuthenticateRequest::new(
                 protocol_version,
                 shared_key,
                 identity_keys,
-                Some(carrier.into_map())
+                Some(context_carrier)
             )?,
         )))
     }

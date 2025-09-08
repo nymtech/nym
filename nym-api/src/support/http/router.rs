@@ -3,7 +3,7 @@
 
 use crate::circulating_supply_api::handlers::circulating_supply_routes;
 use crate::ecash::api_routes::handlers::ecash_routes;
-use crate::mixnet_contract_cache::handlers::epoch_routes;
+use crate::mixnet_contract_cache::handlers::{epoch_routes, legacy_nodes_routes};
 use crate::network::handlers::nym_network_routes;
 use crate::node_status_api::handlers::status_routes;
 use crate::nym_nodes::handlers::nym_node_routes;
@@ -63,7 +63,8 @@ impl RouterBuilder {
                     .nest("/api-status", status::handlers::api_status_routes())
                     .nest("/nym-nodes", nym_node_routes())
                     .nest("/ecash", ecash_routes())
-                    .nest("/unstable", unstable_routes_v1()), // CORS layer needs to be "outside" of routes
+                    .nest("/unstable", unstable_routes_v1())
+                    .nest("/legacy", legacy_nodes_routes()), // CORS layer needs to be "outside" of routes
             )
             .nest("/v2", Router::new().nest("/unstable", unstable_routes_v2()));
 

@@ -11,7 +11,7 @@ use crate::{
     support::{self},
 };
 pub(crate) use cache::NodeStatusCache;
-use nym_task::TaskManager;
+use nym_task::ShutdownManager;
 use std::time::Duration;
 use tokio::sync::watch;
 
@@ -39,7 +39,7 @@ pub(crate) fn start_cache_refresh(
     performance_provider: Box<dyn NodePerformanceProvider + Send + Sync>,
     nym_contract_cache_listener: watch::Receiver<support::caching::CacheNotification>,
     described_cache_cache_listener: watch::Receiver<support::caching::CacheNotification>,
-    shutdown: &TaskManager,
+    shutdown_manager: &ShutdownManager,
 ) {
     let mut nym_api_cache_refresher = NodeStatusCacheRefresher::new(
         node_status_cache_state.to_owned(),
@@ -50,6 +50,6 @@ pub(crate) fn start_cache_refresh(
         described_cache_cache_listener,
         performance_provider,
     );
-    let shutdown_listener = shutdown.subscribe();
+    let shutdown_listener = shutdown_manager.clone_token("node-status-refresher");
     tokio::spawn(async move { nym_api_cache_refresher.run(shutdown_listener).await });
 }

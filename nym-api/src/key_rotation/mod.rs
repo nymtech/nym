@@ -4,7 +4,7 @@
 use crate::mixnet_contract_cache::cache::MixnetContractCache;
 use crate::support::caching::refresher::{CacheUpdateWatcher, RefreshRequester};
 use nym_mixnet_contract_common::{Interval, KeyRotationState};
-use nym_task::TaskClient;
+use nym_task::ShutdownToken;
 use time::OffsetDateTime;
 use tracing::{debug, error, info, trace};
 
@@ -110,14 +110,14 @@ impl KeyRotationController {
         }
     }
 
-    async fn run(&mut self, mut task_client: TaskClient) {
+    async fn run(&mut self, shutdown_token: ShutdownToken) {
         self.contract_cache.naive_wait_for_initial_values().await;
         self.handle_contract_cache_update().await;
 
-        while !task_client.is_shutdown() {
+        while !shutdown_token.is_cancelled() {
             tokio::select! {
                 biased;
-                _ = task_client.recv() => {
+                _ = shutdown_token.cancelled() => {
                     trace!("KeyRotationController: Received shutdown");
                 }
                 _ = self.contract_cache_watcher.changed() => {
@@ -129,8 +129,8 @@ impl KeyRotationController {
         trace!("KeyRotationController: exiting")
     }
 
-    pub(crate) fn start(mut self, task_client: TaskClient) {
-        tokio::spawn(async move { self.run(task_client).await });
+    pub(crate) fn start(mut self, shutdown_token: ShutdownToken) {
+        tokio::spawn(async move { self.run(shutdown_token).await });
     }
 }
 

@@ -6,7 +6,7 @@ use crate::signers_cache::cache::SignersCacheData;
 use crate::support::caching::cache::SharedCache;
 use crate::support::caching::refresher::CacheRefresher;
 use crate::support::{config, nyxd};
-use nym_task::TaskManager;
+use nym_task::ShutdownManager;
 
 pub(crate) mod cache;
 pub(crate) mod handlers;
@@ -14,7 +14,7 @@ pub(crate) mod handlers;
 pub(crate) fn start_refresher(
     config: &config::SignersCache,
     nyxd_client: nyxd::Client,
-    task_manager: &TaskManager,
+    shutdown_manager: &ShutdownManager,
 ) -> SharedCache<SignersCacheData> {
     let refresher = CacheRefresher::new(
         SignersCacheDataProvider::new(nyxd_client),
@@ -23,7 +23,7 @@ pub(crate) fn start_refresher(
     .named("signers-cache-refresher");
     let shared_cache = refresher.get_shared_cache();
     refresher.start_with_delay(
-        task_manager.subscribe_named("signers-cache-refresher"),
+        shutdown_manager.clone_token("signers-cache-refresher"),
         config.debug.refresher_start_delay,
     );
     shared_cache

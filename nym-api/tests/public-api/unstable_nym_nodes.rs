@@ -1,6 +1,7 @@
 use crate::utils::{base_url, make_request, validate_json_response};
 
 #[tokio::test]
+#[test_with::env(NYM_API)]
 async fn test_get_skimmed_nodes_active() -> Result<(), String> {
     let url = format!("{}/v1/unstable/nym-nodes/skimmed/active", base_url()?);
     let res = make_request(&url).await?;
@@ -19,6 +20,7 @@ async fn test_get_skimmed_nodes_active() -> Result<(), String> {
 }
 
 #[tokio::test]
+#[test_with::env(NYM_API)]
 async fn test_get_skimmed_active_mixnodes() -> Result<(), String> {
     let url = format!(
         "{}/v1/unstable/nym-nodes/skimmed/mixnodes/active",
@@ -44,6 +46,7 @@ async fn test_get_skimmed_active_mixnodes() -> Result<(), String> {
 }
 
 #[tokio::test]
+#[test_with::env(NYM_API)]
 async fn test_get_skimmed_all_mixnodes() -> Result<(), String> {
     let url = format!("{}/v1/unstable/nym-nodes/skimmed/mixnodes/all", base_url()?);
     let res = make_request(&url).await?;
@@ -66,6 +69,7 @@ async fn test_get_skimmed_all_mixnodes() -> Result<(), String> {
 }
 
 #[tokio::test]
+#[test_with::env(NYM_API)]
 async fn test_get_skimmed_active_exit_gateways() -> Result<(), String> {
     let url = format!(
         "{}/v1/unstable/nym-nodes/skimmed/exit-gateways/active",
@@ -91,6 +95,7 @@ async fn test_get_skimmed_active_exit_gateways() -> Result<(), String> {
 }
 
 #[tokio::test]
+#[test_with::env(NYM_API)]
 async fn test_get_skimmed_all_exit_gateways() -> Result<(), String> {
     let url = format!(
         "{}/v1/unstable/nym-nodes/skimmed/exit-gateways/all",
@@ -116,6 +121,7 @@ async fn test_get_skimmed_all_exit_gateways() -> Result<(), String> {
 }
 
 #[tokio::test]
+#[test_with::env(NYM_API)]
 async fn test_get_skimmed_active_entry_gateways() -> Result<(), String> {
     let url = format!(
         "{}/v1/unstable/nym-nodes/skimmed/entry-gateways/active",
@@ -141,6 +147,7 @@ async fn test_get_skimmed_active_entry_gateways() -> Result<(), String> {
 }
 
 #[tokio::test]
+#[test_with::env(NYM_API)]
 async fn test_get_skimmed_all_entry_gateways() -> Result<(), String> {
     let url = format!(
         "{}/v1/unstable/nym-nodes/skimmed/entry-gateways/all",

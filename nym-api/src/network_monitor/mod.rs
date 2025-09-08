@@ -25,7 +25,7 @@ use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_sphinx::acknowledgements::AckKey;
 use nym_sphinx::params::PacketType;
 use nym_sphinx::receiver::MessageReceiver;
-use nym_task::TaskManager;
+use nym_task::ShutdownManager;
 use std::sync::Arc;
 use tracing::info;
 
@@ -167,12 +167,12 @@ impl<R: MessageReceiver + Send + Sync + 'static> NetworkMonitorRunnables<R> {
     // TODO: note, that is not exactly doing what we want, because when
     // `ReceivedProcessor` is constructed, it already spawns a future
     // this needs to be refactored!
-    pub(crate) fn spawn_tasks(self, shutdown: &TaskManager) {
+    pub(crate) fn spawn_tasks(self, shutdown: &ShutdownManager) {
         let mut packet_receiver = self.packet_receiver;
         let mut monitor = self.monitor;
-        let shutdown_listener = shutdown.subscribe();
+        let shutdown_listener = shutdown.clone_token("NM-packet-receiver");
         tokio::spawn(async move { packet_receiver.run(shutdown_listener).await });
-        let shutdown_listener = shutdown.subscribe();
+        let shutdown_listener = shutdown.clone_token("NM-main");
         tokio::spawn(async move { monitor.run(shutdown_listener).await });
     }
 }
@@ -241,7 +241,7 @@ pub(crate) async fn start<R: MessageReceiver + Send + Sync + 'static>(
     node_status_cache: NodeStatusCache,
     storage: &NymApiStorage,
     nyxd_client: nyxd::Client,
-    shutdown: &TaskManager,
+    shutdown: &ShutdownManager,
 ) {
     let monitor_builder = setup(
         config,

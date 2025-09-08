@@ -21,7 +21,7 @@ use nym_api_requests::models::{
     NodePerformance,
 };
 use nym_mixnet_contract_common::{NodeId, NymNodeDetails, RewardingParams};
-use nym_task::TaskClient;
+use nym_task::ShutdownToken;
 use nym_topology::CachedEpochRewardedSet;
 use std::collections::HashMap;
 use std::time::Duration;
@@ -66,20 +66,20 @@ impl NodeStatusCacheRefresher {
     }
 
     /// Runs the node status cache refresher task.
-    pub async fn run(&mut self, mut shutdown: TaskClient) {
+    pub async fn run(&mut self, shutdown_token: ShutdownToken) {
         let mut last_update = OffsetDateTime::now_utc();
         let mut fallback_interval = time::interval(self.fallback_caching_interval);
-        while !shutdown.is_shutdown() {
+        while !shutdown_token.is_cancelled() {
             tokio::select! {
                 biased;
-                _ = shutdown.recv() => {
+                _ = shutdown_token.cancelled() => {
                     trace!("NodeStatusCacheRefresher: Received shutdown");
                 }
                 // Update node status cache when the contract cache / describe cache is updated
                 Ok(_) = self.mixnet_contract_cache_listener.changed() => {
                     tokio::select! {
                         _ = self.maybe_refresh(&mut fallback_interval, &mut last_update) => (),
-                        _ = shutdown.recv() => {
+                        _ = shutdown_token.cancelled() => {
                             trace!("NodeStatusCacheRefresher: Received shutdown");
                         }
                     }
@@ -87,7 +87,7 @@ impl NodeStatusCacheRefresher {
                 Ok(_) = self.describe_cache_listener.changed() => {
                     tokio::select! {
                         _ = self.maybe_refresh(&mut fallback_interval, &mut last_update) => (),
-                        _ = shutdown.recv() => {
+                        _ = shutdown_token.cancelled() => {
                             trace!("NodeStatusCacheRefresher: Received shutdown");
                         }
                     }
@@ -97,7 +97,7 @@ impl NodeStatusCacheRefresher {
                 _ = fallback_interval.tick() => {
                     tokio::select! {
                         _ = self.maybe_refresh(&mut fallback_interval, &mut last_update) => (),
-                        _ = shutdown.recv() => {
+                        _ = shutdown_token.cancelled() => {
                             trace!("NodeStatusCacheRefresher: Received shutdown");
                         }
                     }

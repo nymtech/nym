@@ -44,7 +44,7 @@ use nym_ecash_contract_common::deposit::{Deposit, DepositId};
 use nym_ecash_contract_common::msg::ExecuteMsg;
 use nym_ecash_contract_common::redeem_credential::BATCH_REDEMPTION_PROPOSAL_TITLE;
 use nym_ecash_time::{ecash_default_expiration_date, ecash_today_date};
-use nym_task::TaskClient;
+use nym_task::ShutdownManager;
 use nym_ticketbooks_merkle::{IssuedTicketbook, IssuedTicketbooksFullMerkleProof, MerkleLeaf};
 use nym_validator_client::nyxd::AccountId;
 use nym_validator_client::EcashApiClient;
@@ -126,7 +126,7 @@ impl EcashState {
         key_pair: KeyPair,
         comm_channel: D,
         storage: NymApiStorage,
-        task_client: TaskClient,
+        shutdown_manager: &ShutdownManager,
     ) -> Self
     where
         C: LocalClient + Send + Sync + 'static,
@@ -135,7 +135,11 @@ impl EcashState {
         Self {
             config: EcashStateConfig::new(global_config),
             background_cleaner_state: BackgroundCleanerState::WaitingStartup(
-                EcashBackgroundStateCleaner::new(global_config, storage.clone(), task_client),
+                EcashBackgroundStateCleaner::new(
+                    global_config,
+                    storage.clone(),
+                    shutdown_manager.clone_token("ecash-state-data-cleaner"),
+                ),
             ),
             global: GlobalEcachState::new(contract_address),
             local: LocalEcashState::new(

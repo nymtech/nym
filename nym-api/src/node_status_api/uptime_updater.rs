@@ -6,7 +6,7 @@ use crate::node_status_api::models::{
 };
 use crate::node_status_api::ONE_DAY;
 use crate::storage::NymApiStorage;
-use nym_task::{TaskClient, TaskManager};
+use nym_task::{ShutdownManager, ShutdownToken};
 use std::time::Duration;
 use time::macros::time;
 use time::{OffsetDateTime, PrimitiveDateTime};
@@ -70,7 +70,7 @@ impl HistoricalUptimeUpdater {
         Ok(())
     }
 
-    pub(crate) async fn run(&self, mut shutdown: TaskClient) {
+    pub(crate) async fn run(&self, shutdown_token: ShutdownToken) {
         // update uptimes at 23:00 UTC each day so that we'd have data from the actual [almost] whole day
         // and so that we would avoid the edge case of starting validator API at 23:59 and having some
         // nodes update for different days
@@ -98,10 +98,10 @@ impl HistoricalUptimeUpdater {
 
         let start = Instant::now() + time_left;
         let mut interval = interval_at(start, ONE_DAY);
-        while !shutdown.is_shutdown() {
+        while !shutdown_token.is_cancelled() {
             tokio::select! {
                 biased;
-                _ = shutdown.recv() => {
+                _ = shutdown_token.cancelled() => {
                     trace!("UpdateHandler: Received shutdown");
                 }
                 _ = interval.tick() => {
@@ -116,9 +116,9 @@ impl HistoricalUptimeUpdater {
         }
     }
 
-    pub(crate) fn start(storage: NymApiStorage, shutdown: &TaskManager) {
+    pub(crate) fn start(storage: NymApiStorage, shutdown: &ShutdownManager) {
         let uptime_updater = HistoricalUptimeUpdater::new(storage);
-        let shutdown_listener = shutdown.subscribe();
+        let shutdown_listener = shutdown.child_token("uptime-updater");
         tokio::spawn(async move { uptime_updater.run(shutdown_listener).await });
     }
 }

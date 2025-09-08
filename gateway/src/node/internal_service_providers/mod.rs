@@ -6,35 +6,54 @@ use crate::node::client_handling::websocket::message_receiver::{
     MixMessageReceiver, MixMessageSender,
 };
 use crate::node::internal_service_providers::authenticator::Authenticator;
+use crate::node::internal_service_providers::network_requester::{
+    error::NetworkRequesterError, NRServiceProviderBuilder,
+};
+use crate::service_providers::ip_packet_router::{error::IpPacketRouterError, IpPacketRouter};
 use crate::GatewayError;
 use async_trait::async_trait;
 use futures::channel::{mpsc, oneshot};
 use nym_crypto::asymmetric::ed25519;
-use nym_ip_packet_router::error::IpPacketRouterError;
-use nym_ip_packet_router::IpPacketRouter;
 use nym_mixnet_client::forwarder::MixForwardingSender;
-use nym_network_requester::error::NetworkRequesterError;
-use nym_network_requester::NRServiceProviderBuilder;
 use nym_sdk::mixnet::Recipient;
-use nym_sdk::{GatewayTransceiver, LocalGateway, PacketRouter};
 use nym_task::TaskClient;
 use std::fmt::Display;
 use tokio::task::JoinHandle;
 use tracing::error;
 
+pub use nym_client_core::{
+    client::{
+        base_client::{
+            non_wasm_helpers::{setup_fs_gateways_storage, setup_fs_reply_surb_backend},
+            storage::{
+                gateways_storage::{
+                    CustomGatewayDetails, GatewayDetails, GatewayRegistration, RemoteGatewayDetails,
+                },
+                helpers::{set_active_gateway, store_gateway_details},
+                GatewaysDetailsStore, OnDiskGatewaysDetails, OnDiskPersistent,
+            },
+        },
+        key_manager::persistence::OnDiskKeys,
+        mix_traffic::transceiver::*,
+    },
+    error::ClientCoreError,
+};
+
 pub mod authenticator;
+pub mod ip_packet_router;
+pub mod network_requester;
 
 pub trait LocalRecipient {
     fn address(&self) -> Recipient;
 }
 
-impl LocalRecipient for nym_network_requester::core::OnStartData {
+impl LocalRecipient for network_requester::OnStartData {
     fn address(&self) -> Recipient {
         self.address
     }
 }
 
-impl LocalRecipient for nym_ip_packet_router::OnStartData {
+impl LocalRecipient for ip_packet_router::OnStartData {
     fn address(&self) -> Recipient {
         self.address
     }
@@ -58,7 +77,7 @@ pub trait RunnableServiceProvider {
 #[async_trait]
 impl RunnableServiceProvider for NRServiceProviderBuilder {
     const NAME: &'static str = "network requester";
-    type OnStartData = nym_network_requester::core::OnStartData;
+    type OnStartData = network_requester::OnStartData;
     type Error = NetworkRequesterError;
 
     async fn run_service_provider(self) -> Result<(), Self::Error> {
@@ -69,7 +88,7 @@ impl RunnableServiceProvider for NRServiceProviderBuilder {
 #[async_trait]
 impl RunnableServiceProvider for IpPacketRouter {
     const NAME: &'static str = "ip router";
-    type OnStartData = nym_ip_packet_router::OnStartData;
+    type OnStartData = ip_packet_router::OnStartData;
     type Error = IpPacketRouterError;
 
     async fn run_service_provider(self) -> Result<(), Self::Error> {

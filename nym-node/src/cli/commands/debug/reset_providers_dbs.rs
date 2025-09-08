@@ -5,7 +5,7 @@ use crate::cli::helpers::ConfigArgs;
 use crate::config::upgrade_helpers::try_load_current_config;
 use crate::node::helpers::load_ed25519_identity_public_key;
 use crate::node::ServiceProvidersData;
-use nym_network_requester::{CustomGatewayDetails, GatewayDetails, GatewayRegistration};
+use nym_gateway::service_providers::{CustomGatewayDetails, GatewayDetails, GatewayRegistration};
 use std::fs;
 
 #[derive(Debug, clap::Args)]

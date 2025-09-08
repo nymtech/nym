@@ -15,16 +15,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "addr"
-version = "0.15.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a93b8a41dbe230ad5087cc721f8d41611de654542180586b315d9f4cf6b72bef"
-dependencies = [
- "psl",
- "psl-types",
-]
-
-[[package]]
 name = "addr2line"
 version = "0.24.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5737,52 +5727,55 @@ dependencies = [
 name = "nym-gateway"
 version = "1.1.36"
 dependencies = [
- "anyhow",
  "async-trait",
  "bincode",
  "bip39",
  "bs58",
+ "bytes",
  "dashmap",
  "defguard_wireguard_rs",
+ "etherparse",
  "fastrand 2.3.0",
  "futures",
  "ipnetwork",
  "mock_instant",
- "nym-api-requests",
  "nym-authenticator-requests",
+ "nym-bin-common",
  "nym-client-core",
  "nym-credential-verification",
  "nym-credentials",
  "nym-credentials-interface",
  "nym-crypto",
+ "nym-exit-policy",
  "nym-gateway-requests",
  "nym-gateway-stats-storage",
  "nym-gateway-storage",
  "nym-id",
- "nym-ip-packet-router",
+ "nym-ip-packet-requests",
  "nym-mixnet-client",
- "nym-mixnode-common",
  "nym-network-defaults",
- "nym-network-requester",
  "nym-node-metrics",
  "nym-sdk",
  "nym-service-provider-requests-common",
+ "nym-service-providers-common",
+ "nym-socks5-proxy-helpers",
+ "nym-socks5-requests",
  "nym-sphinx",
  "nym-statistics-common",
  "nym-task",
  "nym-topology",
- "nym-types",
+ "nym-tun",
  "nym-validator-client",
  "nym-wireguard",
  "nym-wireguard-private-metadata-server",
  "nym-wireguard-types",
  "rand 0.8.5",
  "serde",
- "sha2 0.10.9",
  "thiserror 2.0.12",
  "time",
  "tokio",
  "tokio-stream",
+ "tokio-tun",
  "tokio-tungstenite",
  "tokio-util",
  "tracing",
@@ -6024,49 +6017,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "nym-ip-packet-router"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "bincode",
- "bs58",
- "bytes",
- "clap",
- "etherparse",
- "futures",
- "log",
- "nym-bin-common",
- "nym-client-core",
- "nym-config",
- "nym-crypto",
- "nym-exit-policy",
- "nym-id",
- "nym-ip-packet-requests",
- "nym-network-defaults",
- "nym-network-requester",
- "nym-sdk",
- "nym-service-provider-requests-common",
- "nym-service-providers-common",
- "nym-sphinx",
- "nym-task",
- "nym-tun",
- "nym-types",
- "nym-wireguard",
- "nym-wireguard-types",
- "rand 0.8.5",
- "reqwest 0.12.22",
- "serde",
- "serde_json",
- "thiserror 2.0.12",
- "time",
- "tokio",
- "tokio-tun",
- "tokio-util",
- "url",
-]
-
-[[package]]
 name = "nym-ledger"
 version = "0.1.0"
 dependencies = [
@@ -6217,56 +6167,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "nym-network-requester"
-version = "1.1.62"
-dependencies = [
- "addr",
- "anyhow",
- "async-trait",
- "bs58",
- "clap",
- "dirs",
- "futures",
- "humantime-serde",
- "ipnetwork",
- "log",
- "nym-async-file-watcher",
- "nym-bin-common",
- "nym-client-core",
- "nym-client-websocket-requests",
- "nym-config",
- "nym-credential-storage",
- "nym-credentials",
- "nym-crypto",
- "nym-exit-policy",
- "nym-id",
- "nym-network-defaults",
- "nym-ordered-buffer",
- "nym-sdk",
- "nym-service-providers-common",
- "nym-socks5-proxy-helpers",
- "nym-socks5-requests",
- "nym-sphinx",
- "nym-task",
- "nym-types",
- "publicsuffix",
- "rand 0.8.5",
- "regex",
- "reqwest 0.12.22",
- "serde",
- "serde_json",
- "sqlx",
- "tap",
- "tempfile",
- "thiserror 2.0.12",
- "time",
- "tokio",
- "tokio-tungstenite",
- "url",
- "zeroize",
-]
-
-[[package]]
 name = "nym-node"
 version = "1.17.0"
 dependencies = [
@@ -6304,10 +6204,8 @@ dependencies = [
  "nym-gateway-stats-storage",
  "nym-http-api-client",
  "nym-http-api-common",
- "nym-ip-packet-router",
  "nym-metrics",
  "nym-mixnet-client",
- "nym-network-requester",
  "nym-node-metrics",
  "nym-node-requests",
  "nym-noise",
@@ -8329,15 +8227,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3e36c2f31e0a47f9280fb347ef5e461ffcd2c52dd520d8e216b52f93b0b0d7d6"
 dependencies = [
  "thiserror 1.0.69",
-]
-
-[[package]]
-name = "psl"
-version = "2.1.126"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "45f621acfbd2ca5670eee9a95270747dfa9a29e63e1937d7e6a1ac6994331966"
-dependencies = [
- "psl-types",
 ]
 
 [[package]]

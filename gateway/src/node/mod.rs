@@ -4,19 +4,21 @@
 use crate::config::Config;
 use crate::error::GatewayError;
 use crate::node::client_handling::websocket;
+use crate::node::internal_service_providers::authenticator::{self, Authenticator};
+use crate::node::internal_service_providers::ip_packet_router::{self, IpPacketRouter};
+use crate::node::internal_service_providers::network_requester::{self, NRServiceProviderBuilder};
 use crate::node::internal_service_providers::{
-    authenticator, ExitServiceProviders, ServiceProviderBeingBuilt, SpMessageRouterBuilder,
+    ExitServiceProviders, ServiceProviderBeingBuilt, SpMessageRouterBuilder,
 };
 use crate::node::stale_data_cleaner::StaleMessagesCleaner;
 use futures::channel::oneshot;
+use nym_bin_common::build_information::BinaryBuildInformation;
 use nym_credential_verification::ecash::{
     credential_sender::CredentialHandlerConfig, EcashManager,
 };
 use nym_crypto::asymmetric::ed25519;
-use nym_ip_packet_router::IpPacketRouter;
 use nym_mixnet_client::forwarder::MixForwardingSender;
 use nym_network_defaults::NymNetworkDetails;
-use nym_network_requester::NRServiceProviderBuilder;
 use nym_node_metrics::events::MetricEventsSender;
 use nym_node_metrics::NymNodeMetrics;
 use nym_task::{ShutdownToken, TaskClient};
@@ -32,10 +34,9 @@ use tracing::*;
 use zeroize::Zeroizing;
 
 pub(crate) mod client_handling;
-pub(crate) mod internal_service_providers;
+pub mod internal_service_providers;
 mod stale_data_cleaner;
 
-use crate::node::internal_service_providers::authenticator::Authenticator;
 pub use client_handling::active_clients::ActiveClientsStore;
 pub use nym_gateway_stats_storage::PersistentStatsStorage;
 pub use nym_gateway_storage::{
@@ -47,14 +48,14 @@ pub use nym_sdk::{NymApiTopologyProvider, NymApiTopologyProviderConfig, UserAgen
 
 #[derive(Debug, Clone)]
 pub struct LocalNetworkRequesterOpts {
-    pub config: nym_network_requester::Config,
+    pub config: network_requester::Config,
 
     pub custom_mixnet_path: Option<PathBuf>,
 }
 
 #[derive(Debug, Clone)]
 pub struct LocalIpPacketRouterOpts {
-    pub config: nym_ip_packet_router::Config,
+    pub config: ip_packet_router::Config,
 
     pub custom_mixnet_path: Option<PathBuf>,
 }
@@ -68,6 +69,8 @@ pub struct LocalAuthenticatorOpts {
 
 pub struct GatewayTasksBuilder {
     config: Config,
+
+    binary_build_information: BinaryBuildInformation,
 
     network_requester_opts: Option<LocalNetworkRequesterOpts>,
 
@@ -121,11 +124,13 @@ impl GatewayTasksBuilder {
         metrics_sender: MetricEventsSender,
         metrics: NymNodeMetrics,
         mnemonic: Arc<Zeroizing<bip39::Mnemonic>>,
+        binary_build_information: BinaryBuildInformation,
         legacy_task_client: TaskClient,
         shutdown_token: ShutdownToken,
     ) -> GatewayTasksBuilder {
         GatewayTasksBuilder {
             config,
+            binary_build_information,
             network_requester_opts: None,
             ip_packet_router_opts: None,
             authenticator_opts: None,
@@ -296,13 +301,14 @@ impl GatewayTasksBuilder {
         let transceiver = message_router_builder.gateway_transceiver();
 
         let (on_start_tx, on_start_rx) = oneshot::channel();
-        let mut nr_builder = NRServiceProviderBuilder::new(nr_opts.config.clone())
-            .with_shutdown(self.legacy_task_client.fork("network_requester_sp"))
-            .with_custom_gateway_transceiver(transceiver)
-            .with_wait_for_gateway(true)
-            .with_minimum_gateway_performance(0)
-            .with_custom_topology_provider(topology_provider)
-            .with_on_start(on_start_tx);
+        let mut nr_builder =
+            NRServiceProviderBuilder::new(nr_opts.config.clone(), self.binary_build_information)
+                .with_shutdown(self.legacy_task_client.fork("network_requester_sp"))
+                .with_custom_gateway_transceiver(transceiver)
+                .with_wait_for_gateway(true)
+                .with_minimum_gateway_performance(0)
+                .with_custom_topology_provider(topology_provider)
+                .with_on_start(on_start_tx);
 
         if let Some(custom_mixnet) = &nr_opts.custom_mixnet_path {
             nr_builder = nr_builder.with_stored_topology(custom_mixnet)?

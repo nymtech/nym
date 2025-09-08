@@ -5,7 +5,7 @@ use crate::node::client_handling::websocket::message_receiver::{
     MixMessageReceiver, MixMessageSender,
 };
 use futures::StreamExt;
-use nym_network_requester::{GatewayPacketRouter, PacketRouter};
+use nym_client_core::client::mix_traffic::transceiver::{GatewayPacketRouter, PacketRouter};
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::DestinationAddressBytes;
 use nym_task::TaskClient;

@@ -19,9 +19,9 @@ rust-version = "1.77"
 path = "src/lib.rs"
 
 [dependencies]
-anyhow = { workspace = true }
-bincode = { workspace = true }
 async-trait = { workspace = true }
+bincode = { workspace = true }
+bytes = { workspace = true }
 bip39 = { workspace = true }
 bs58 = { workspace = true }
 dashmap = { workspace = true }
@@ -30,7 +30,6 @@ futures = { workspace = true }
 ipnetwork = { workspace = true }
 rand = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
-sha2 = { workspace = true }
 thiserror = { workspace = true }
 time = { workspace = true }
 tokio = { workspace = true, features = [
@@ -49,7 +48,7 @@ zeroize = { workspace = true }
 
 
 # internal
-nym-api-requests = { path = "../nym-api/nym-api-requests" }
+nym-bin-common = { path = "../common/bin-common" }
 nym-credentials = { path = "../common/credentials" }
 nym-credentials-interface = { path = "../common/credentials-interface" }
 nym-credential-verification = { path = "../common/credential-verification" }
@@ -58,30 +57,42 @@ nym-gateway-storage = { path = "../common/gateway-storage" }
 nym-gateway-stats-storage = { path = "../common/gateway-stats-storage" }
 nym-gateway-requests = { path = "../common/gateway-requests" }
 nym-mixnet-client = { path = "../common/client-libs/mixnet-client" }
-nym-mixnode-common = { path = "../common/mixnode-common" }
 nym-network-defaults = { path = "../common/network-defaults" }
-nym-network-requester = { path = "../service-providers/network-requester" }
 nym-sdk = { path = "../sdk/rust/nym-sdk" }
 nym-sphinx = { path = "../common/nymsphinx" }
 nym-statistics-common = { path = "../common/statistics" }
 nym-task = { path = "../common/task" }
 nym-topology = { path = "../common/topology" }
-nym-types = { path = "../common/types" }
 nym-validator-client = { path = "../common/client-libs/validator-client" }
-nym-ip-packet-router = { path = "../service-providers/ip-packet-router" }
 nym-node-metrics = { path = "../nym-node/nym-node-metrics" }
 
 nym-wireguard = { path = "../common/wireguard" }
 nym-wireguard-private-metadata-server = { path = "../common/wireguard-private-metadata/server" }
 nym-wireguard-types = { path = "../common/wireguard-types", default-features = false }
 
-nym-authenticator-requests = { path = "../common/authenticator-requests" }
 nym-client-core = { path = "../common/client-core", features = ["cli"] }
 nym-id = { path = "../common/nym-id" }
 nym-service-provider-requests-common = { path = "../common/service-provider-requests-common" }
 
-
 defguard_wireguard_rs = { workspace = true }
+
+nym-service-providers-common = { path = "../service-providers/common" }
+
+# authenticator specific
+nym-authenticator-requests = { path = "../common/authenticator-requests" }
+
+# network-requester specific
+nym-socks5-proxy-helpers = { path = "../common/socks5/proxy-helpers" }
+nym-socks5-requests = { path = "../common/socks5/requests" }
+nym-exit-policy = { path = "../common/exit-policy", features = ["client"] }
+
+# ipr specific
+nym-ip-packet-requests = { path = "../common/ip-packet-requests" }
+etherparse = { workspace = true }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+tokio-tun.workspace = true
+nym-tun = { path = "../common/tun" }
 
 [dev-dependencies]
 nym-gateway-storage = { path = "../common/gateway-storage", features = ["mock"] }

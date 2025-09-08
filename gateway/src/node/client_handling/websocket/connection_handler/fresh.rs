@@ -990,8 +990,7 @@ impl<R, S> FreshHandler<R, S> {
                 }
             };
 
-            if let (Some(registration_details), Some(herited_span)) = (maybe_auth_res, herited_span) {
-
+            if let (Some(registration_details), Some(ref herited_span)) = (maybe_auth_res, herited_span) {
                 let span = info_span!(parent: herited_span, "upgrading_to_authenticated_handler");
                 let _enter = span.enter();
                 let (mix_sender, mix_receiver) = mpsc::unbounded();
@@ -1004,7 +1003,8 @@ impl<R, S> FreshHandler<R, S> {
                     registration_details.session_request_timestamp,
                 );
 
-                return AuthenticatedHandler::upgrade(
+                let exit_span = info_span!("upgraded_to_authenticated_handler");
+                let auth_handle = AuthenticatedHandler::upgrade(
                     self,
                     registration_details,
                     mix_receiver,
@@ -1013,6 +1013,7 @@ impl<R, S> FreshHandler<R, S> {
                 .await
                 .inspect_err(|err| error!("failed to upgrade client handler: {err}"))
                 .ok();
+                return auth_handle;
             }
         }
     }

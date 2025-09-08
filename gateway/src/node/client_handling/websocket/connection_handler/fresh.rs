@@ -875,10 +875,12 @@ impl<R, S> FreshHandler<R, S> {
                 let propagator = TraceContextPropagator::new();
                 let extracted_context = propagator.extract(&carrier);
 
+                error!("==== Context propagation successful! Current context: {:?} ====", extracted_context);
+                
                 let span = tracing::info_span!("websocket_authentication");
                 span.set_parent(extracted_context.clone());
+                span.enter();
                 
-                error!("==== Context propagation successful! Current context: {:?} ====", extracted_context);
             } else {
                 warn!("No OpenTelemetry context provided in the request");
             }

@@ -2,16 +2,20 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::config::Config;
+use nym_bin_common::opentelemetry::context::ContextCarrier;
 use nym_credential_verification::BandwidthFlushingBehaviourConfig;
 use nym_gateway_requests::shared_key::SharedGatewayKey;
 use nym_gateway_requests::ServerResponse;
 use nym_sphinx::DestinationAddressBytes;
+use opentelemetry::propagation::TextMapPropagator;
+use opentelemetry_sdk::propagation::TraceContextPropagator;
 use rand::{CryptoRng, Rng};
 use std::time::Duration;
 use time::OffsetDateTime;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_tungstenite::WebSocketStream;
 use tracing::{debug, instrument, trace, warn};
+use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 pub(crate) use self::authenticated::AuthenticatedHandler;
 pub(crate) use self::fresh::FreshHandler;
@@ -128,12 +132,18 @@ where
 
     let mut shutdown = handle.shutdown.clone();
 
-    if let (Some(auth_handle), Some(herited_span)) = handle
+    if let (Some(auth_handle), Some(context_carrier)) = handle
         .handle_until_authenticated_or_failure(&mut shutdown)
         .await
     {
-        let span = tracing::info_span!(parent: &herited_span, "authenticated_client_handler");
-        let _enter = span.enter();
+        let new_carrier  = ContextCarrier::from_map(context_carrier);
+        let propagator = TraceContextPropagator::new();
+        let extracted_context = propagator.extract(&new_carrier);
+        tracing::Span::current().set_parent(extracted_context);
+        let span = tracing::info_span!("handle_authenticated_client");
+        let _entered_span = span.enter();
+        warn!("=== Context propagated to authenticated client handler");
+
         auth_handle.listen_for_requests(shutdown).await
     }
 

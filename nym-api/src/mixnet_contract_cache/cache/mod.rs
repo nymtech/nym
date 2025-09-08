@@ -9,9 +9,12 @@ use data::MixnetContractCacheData;
 use nym_api_requests::models::CirculatingSupplyResponse;
 use nym_contracts_common::truncate_decimal;
 use nym_crypto::asymmetric::ed25519;
-use nym_mixnet_contract_common::{Interval, KeyRotationState, NymNodeDetails, RewardingParams};
+use nym_mixnet_contract_common::{
+    Interval, KeyRotationState, NodeId, NymNodeDetails, RewardingParams,
+};
 use nym_topology::CachedEpochRewardedSet;
 use nym_validator_client::nyxd::Coin;
+use time::OffsetDateTime;
 use tokio::sync::RwLockReadGuard;
 
 pub(crate) mod data;
@@ -50,6 +53,14 @@ impl MixnetContractCache {
         Ok(RwLockReadGuard::map(guard, fn_arg))
     }
 
+    pub async fn cache_timestamp(&self) -> OffsetDateTime {
+        let Ok(cache) = self.inner.get().await else {
+            return OffsetDateTime::UNIX_EPOCH;
+        };
+
+        cache.timestamp()
+    }
+
     pub async fn all_cached_nym_nodes(&self) -> Option<RwLockReadGuard<'_, Vec<NymNodeDetails>>> {
         self.get(|c| &c.nym_nodes).await.ok()
     }
@@ -58,6 +69,14 @@ impl MixnetContractCache {
         self.get_owned(|c| c.nym_nodes.clone())
             .await
             .unwrap_or_default()
+    }
+
+    pub async fn nym_node(
+        &self,
+        node_id: NodeId,
+    ) -> Result<Option<NymNodeDetails>, UninitialisedCache> {
+        self.get_owned(|c| c.nym_nodes.iter().find(|n| n.node_id() == node_id).cloned())
+            .await
     }
 
     pub async fn cached_rewarded_set(

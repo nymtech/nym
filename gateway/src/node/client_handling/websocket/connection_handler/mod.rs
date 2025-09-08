@@ -119,10 +119,12 @@ where
 
     let mut shutdown = handle.shutdown.clone();
 
-    if let Some(auth_handle) = handle
+    if let (Some(auth_handle), Some(herited_span)) = handle
         .handle_until_authenticated_or_failure(&mut shutdown)
         .await
     {
+        let span = tracing::info_span!(parent: &herited_span, "authenticated_client_handler");
+        let _enter = span.enter();
         auth_handle.listen_for_requests(shutdown).await
     }
 

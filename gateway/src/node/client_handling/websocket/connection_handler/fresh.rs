@@ -13,6 +13,7 @@ use futures::{
     channel::{mpsc, oneshot},
     SinkExt, StreamExt,
 };
+use nym_bin_common::opentelemetry::context::ContextCarrier;
 use nym_credentials_interface::AvailableBandwidth;
 use nym_crypto::aes::cipher::crypto_common::rand_core::RngCore;
 use nym_crypto::asymmetric::ed25519;
@@ -38,7 +39,10 @@ use opentelemetry::TraceId;
 use opentelemetry::Context;
 use opentelemetry_sdk::logs::TraceContext;
 use opentelemetry_sdk::trace::{IdGenerator, RandomIdGenerator};
+use opentelemetry::propagation::TextMapPropagator;
+use opentelemetry_sdk::propagation::TraceContextPropagator;
 use rand::CryptoRng;
+use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::time::Duration;
 use thiserror::Error;
@@ -48,6 +52,8 @@ use tokio::time::timeout;
 use tokio_tungstenite::tungstenite::{protocol::Message, Error as WsError};
 use tracing::{debug, error, info, info_span, instrument, warn};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
+
+
 
 #[derive(Debug, Error)]
 pub(crate) enum InitialAuthenticationError {
@@ -860,15 +866,11 @@ impl<R, S> FreshHandler<R, S> {
     pub(crate) async fn handle_initial_client_request(
         &mut self,
         request: ClientControlRequest,
-    ) -> Result<(Option<ClientDetails>, Option<tracing::Span>), InitialAuthenticationError>
+    ) -> Result<(Option<ClientDetails>, Option<HashMap<String, String>>), InitialAuthenticationError>
     where
         S: AsyncRead + AsyncWrite + Unpin + Send,
         R: CryptoRng + RngCore + Send,
     {
-        use nym_bin_common::opentelemetry::context::ContextCarrier;
-        use opentelemetry_sdk::propagation::TraceContextPropagator;
-        use opentelemetry::propagation::TextMapPropagator;
-
         let remote_cx_span = if let ClientControlRequest::AuthenticateV2(ref auth_req) = request {
             if let Some(otel_context) = &auth_req.otel_context {
                 let carrier = ContextCarrier::from_map(otel_context.clone());
@@ -899,6 +901,13 @@ impl<R, S> FreshHandler<R, S> {
         };
         let _enter = child_span.enter();
 
+        let gateway_context = opentelemetry::Context::current();
+        let mut carrier = ContextCarrier::new();
+        let propagator = TraceContextPropagator::new();
+        propagator.inject_context(&gateway_context, &mut carrier);
+        let gw_carrier = carrier.into_map();
+
+
         let auth_result = match request {
             ClientControlRequest::Authenticate {
                 protocol_version,
@@ -917,8 +926,7 @@ impl<R, S> FreshHandler<R, S> {
             } => self.handle_register(protocol_version, data).await,
             ClientControlRequest::SupportedProtocol { .. } => {
                 self.handle_reply_supported_protocol_request().await;
-                let exit_span = info_span!(parent: &child_span, "supported_protocol_request_handled");
-                return Ok((None, Some(exit_span)));
+                return Ok((None, Some(gw_carrier)));
             }
             _ => {
                 debug!("received an invalid client request");
@@ -958,8 +966,7 @@ impl<R, S> FreshHandler<R, S> {
             return Err(InitialAuthenticationError::EmptyClientDetails);
         };
 
-        let exit_span = info_span!(parent: &child_span, "initial client request handled");
-        Ok((Some(client_details), Some(exit_span)))
+        Ok((Some(client_details), Some(gw_carrier)))
     }
 
     #[instrument(skip_all)]
@@ -981,8 +988,8 @@ impl<R, S> FreshHandler<R, S> {
             };
 
             // see if we managed to register the client through this request
-            let (maybe_auth_res, herited_span) = match self.handle_initial_client_request(initial_request).await {
-                Ok((maybe_auth_res, herited_span)) => (maybe_auth_res, herited_span),
+            let (maybe_auth_res, context_carrier) = match self.handle_initial_client_request(initial_request).await {
+                Ok((maybe_auth_res, context_carrier)) => (maybe_auth_res, context_carrier),
                 Err(err) => {
                     debug!("initial client request handling error: {err}");
                     self.send_and_forget_error_response(err).await;
@@ -990,9 +997,15 @@ impl<R, S> FreshHandler<R, S> {
                 }
             };
 
-            if let (Some(registration_details), Some(ref herited_span)) = (maybe_auth_res, herited_span) {
-                let span = info_span!(parent: herited_span, "upgrading_to_authenticated_handler");
-                let _enter = span.enter();
+            if let (Some(registration_details), Some(context_carrier)) = (maybe_auth_res, context_carrier) {
+                let new_carrier  = ContextCarrier::from_map(context_carrier);
+                let propagator = TraceContextPropagator::new();
+                let extracted_context = propagator.extract(&new_carrier);
+                tracing::Span::current().set_parent(extracted_context);
+                let span = tracing::info_span!("handle_authenticated_client");
+                let _entered_span = span.enter();
+                warn!("==== Context propagation successful ====");
+                
                 let (mix_sender, mix_receiver) = mpsc::unbounded();
                 // Channel for handlers to ask other handlers if they are still active.
                 let (is_active_request_sender, is_active_request_receiver) = mpsc::unbounded();
@@ -1003,7 +1016,6 @@ impl<R, S> FreshHandler<R, S> {
                     registration_details.session_request_timestamp,
                 );
 
-                let exit_span = info_span!(parent: &span, "upgraded_to_authenticated_handler");
                 let auth_handle = AuthenticatedHandler::upgrade(
                     self,
                     registration_details,

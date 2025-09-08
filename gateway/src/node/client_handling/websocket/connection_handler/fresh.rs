@@ -35,6 +35,7 @@ use nym_sphinx::DestinationAddressBytes;
 use nym_task::ShutdownToken;
 use opentelemetry::trace::TraceContextExt;
 use opentelemetry::TraceId;
+use opentelemetry::Context;
 use opentelemetry_sdk::logs::TraceContext;
 use opentelemetry_sdk::trace::{IdGenerator, RandomIdGenerator};
 use rand::CryptoRng;
@@ -869,21 +870,38 @@ impl<R, S> FreshHandler<R, S> {
         use opentelemetry_sdk::propagation::TraceContextPropagator;
         use opentelemetry::propagation::TextMapPropagator;
 
-        if let ClientControlRequest::AuthenticateV2(ref auth_req) = request {
+        let remote_cx_span = if let ClientControlRequest::AuthenticateV2(ref auth_req) = request {
             if let Some(otel_context) = &auth_req.otel_context {
                 let carrier = ContextCarrier::from_map(otel_context.clone());
+
+                let extracted_trace_id =  carrier.extract_trace_id();
+                info!("Extracted trace id: {:?}", extracted_trace_id);
+
                 let propagator = TraceContextPropagator::new();
                 let extracted_context = propagator.extract(&carrier);
-                let _guard = extracted_context.attach();
 
+
+                let span = info_span!("extracted_otel_context");
+                tracing::Span::current().set_parent(extracted_context);
                 error!("==== Context propagation successful ====");
+                
+                Some(span)
             } else {
                 warn!("No OpenTelemetry context provided in the request");
+                None
             }
-        }
+        } else {
+            None
+        };
 
-        let span = info_span!("websocket_authentication", request = ?request);
-        let _ = span.enter();
+        let child_span = if let Some(ref parent_span) = remote_cx_span {
+            info_span!(parent: parent_span, "handling_initial_client_request")
+        } else {
+            info_span!("handling_initial_client_request")
+        };
+        let _enter = child_span.enter();
+
+        tracing::error!("handling initial client request");
 
         let auth_result = match request {
             ClientControlRequest::Authenticate {
@@ -973,11 +991,6 @@ impl<R, S> FreshHandler<R, S> {
                     return None;
                 }
             };
-
-                info_span!("THE SOLE PURPOSE OF THIS SPAN IS TO SEE ITS TRACE ID");
-                let current_context = opentelemetry::Context::current();
-                let final_trace_id = current_context.span().span_context().trace_id();
-                error!("==== trace_id after initial client request handling returns: {:?} ====", final_trace_id);
 
             if let Some(registration_details) = maybe_auth_res {
                 let (mix_sender, mix_receiver) = mpsc::unbounded();

@@ -12,6 +12,7 @@ pub mod client;
 pub mod config;
 pub mod error;
 pub mod init;
+use wasm_utils::console_log;
 
 pub use nym_topology::{
     HardcodedTopologyProvider, NymRouteProvider, NymTopology, NymTopologyError, TopologyProvider,
@@ -24,7 +25,9 @@ pub fn spawn_future<F>(future: F)
 where
     F: Future<Output = ()> + 'static,
 {
+    console_log!("spawn_future called (WASM)");
     wasm_bindgen_futures::spawn_local(future);
+    console_log!("spawn_local returned");
 }
 
 #[deprecated(note = "use spawn_future from nym_task crate instead")]

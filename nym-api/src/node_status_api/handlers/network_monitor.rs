@@ -5,22 +5,17 @@ use super::unstable;
 use crate::node_status_api::handlers::unstable::{latest_monitor_run_report, monitor_run_report};
 use crate::node_status_api::handlers::MixIdParam;
 use crate::node_status_api::helpers::{
-    _compute_mixnode_reward_estimation, _gateway_core_status_count, _gateway_report,
-    _gateway_uptime_history, _get_gateway_avg_uptime, _get_legacy_gateways_detailed,
-    _get_legacy_gateways_detailed_unfiltered, _get_mixnode_avg_uptime,
-    _get_mixnode_reward_estimation, _get_mixnodes_detailed_unfiltered, _mixnode_core_status_count,
-    _mixnode_report, _mixnode_uptime_history,
+    _gateway_core_status_count, _gateway_report, _gateway_uptime_history, _get_gateway_avg_uptime,
+    _get_mixnode_avg_uptime, _mixnode_core_status_count, _mixnode_report, _mixnode_uptime_history,
 };
 use crate::node_status_api::models::AxumResult;
 use crate::support::http::state::AppState;
 use axum::extract::{Path, Query, State};
-use axum::Json;
 use axum::Router;
 use nym_api_requests::models::{
-    ComputeRewardEstParam, GatewayBondAnnotated, GatewayCoreStatusResponse,
-    GatewayStatusReportResponse, GatewayUptimeHistoryResponse, GatewayUptimeResponse,
-    MixNodeBondAnnotated, MixnodeCoreStatusResponse, MixnodeStatusReportResponse,
-    MixnodeUptimeHistoryResponse, RewardEstimationResponse, UptimeResponse,
+    GatewayCoreStatusResponse, GatewayStatusReportResponse, GatewayUptimeHistoryResponse,
+    GatewayUptimeResponse, MixnodeCoreStatusResponse, MixnodeStatusReportResponse,
+    MixnodeUptimeHistoryResponse, UptimeResponse,
 };
 use nym_http_api_common::{FormattedResponse, Output, OutputParams};
 use serde::Deserialize;
@@ -50,40 +45,21 @@ pub(super) fn network_monitor_routes() -> Router<AppState> {
                     "/core-status-count",
                     axum::routing::get(mixnode_core_status_count),
                 )
-                .route(
-                    "/reward-estimation",
-                    axum::routing::get(get_mixnode_reward_estimation),
-                )
-                .route(
-                    "/compute-reward-estimation",
-                    axum::routing::post(compute_mixnode_reward_estimation),
-                )
                 .route("/avg_uptime", axum::routing::get(get_mixnode_avg_uptime)),
         )
         .nest(
             "/mixnodes",
-            Router::new()
-                .route(
-                    "/detailed-unfiltered",
-                    axum::routing::get(get_mixnodes_detailed_unfiltered),
-                )
-                .route(
-                    "/unstable/:mix_id/test-results",
-                    axum::routing::get(unstable::mixnode_test_results),
-                ),
+            Router::new().route(
+                "/unstable/:mix_id/test-results",
+                axum::routing::get(unstable::mixnode_test_results),
+            ),
         )
         .nest(
             "/gateways",
-            Router::new()
-                .route("/detailed", axum::routing::get(get_gateways_detailed))
-                .route(
-                    "/detailed-unfiltered",
-                    axum::routing::get(get_gateways_detailed_unfiltered),
-                )
-                .route(
-                    "/unstable/:gateway_identity/test-results",
-                    axum::routing::get(unstable::gateway_test_results),
-                ),
+            Router::new().route(
+                "/unstable/:gateway_identity/test-results",
+                axum::routing::get(unstable::gateway_test_results),
+            ),
         )
         .nest(
             "/network-monitor/unstable",
@@ -288,75 +264,6 @@ async fn mixnode_core_status_count(
     params(
         MixIdParam, OutputParams
     ),
-    path = "/v1/status/mixnode/{mix_id}/reward-estimation",
-    responses(
-        (status = 200, content(
-            (RewardEstimationResponse = "application/json"),
-            (RewardEstimationResponse = "application/yaml"),
-            (RewardEstimationResponse = "application/bincode")
-        ))
-    ),
-)]
-#[deprecated]
-async fn get_mixnode_reward_estimation(
-    Path(MixIdParam { mix_id }): Path<MixIdParam>,
-    Query(output): Query<OutputParams>,
-    State(state): State<AppState>,
-) -> AxumResult<FormattedResponse<RewardEstimationResponse>> {
-    let output = output.output.unwrap_or_default();
-
-    Ok(output.to_response(
-        _get_mixnode_reward_estimation(
-            state.node_status_cache(),
-            state.nym_contract_cache(),
-            mix_id,
-        )
-        .await?,
-    ))
-}
-
-#[utoipa::path(
-    tag = "network-monitor-status",
-    post,
-    params(
-        OutputParams, MixIdParam
-    ),
-    path = "/v1/status/mixnode/{mix_id}/compute-reward-estimation",
-    request_body = ComputeRewardEstParam,
-    responses(
-        (status = 200, content(
-            (RewardEstimationResponse = "application/json"),
-            (RewardEstimationResponse = "application/yaml"),
-            (RewardEstimationResponse = "application/bincode")
-        ))
-    ),
-)]
-#[deprecated]
-async fn compute_mixnode_reward_estimation(
-    Path(MixIdParam { mix_id }): Path<MixIdParam>,
-    Query(output): Query<OutputParams>,
-    State(state): State<AppState>,
-    Json(user_reward_param): Json<ComputeRewardEstParam>,
-) -> AxumResult<FormattedResponse<RewardEstimationResponse>> {
-    let output = output.output.unwrap_or_default();
-
-    Ok(output.to_response(
-        _compute_mixnode_reward_estimation(
-            &user_reward_param,
-            state.node_status_cache(),
-            state.nym_contract_cache(),
-            mix_id,
-        )
-        .await?,
-    ))
-}
-
-#[utoipa::path(
-    tag = "network-monitor-status",
-    get,
-    params(
-        MixIdParam, OutputParams
-    ),
     path = "/v1/status/mixnode/{mix_id}/avg_uptime",
     responses(
         (status = 200, content(
@@ -375,73 +282,4 @@ async fn get_mixnode_avg_uptime(
     let output = output.output.unwrap_or_default();
 
     Ok(output.to_response(_get_mixnode_avg_uptime(state.node_status_cache(), mix_id).await?))
-}
-
-#[utoipa::path(
-    tag = "network-monitor-status",
-    get,
-    path = "/v1/status/mixnodes/detailed-unfiltered",
-    responses(
-        (status = 200, content(
-            (MixNodeBondAnnotated = "application/json"),
-            (MixNodeBondAnnotated = "application/yaml"),
-            (MixNodeBondAnnotated = "application/bincode")
-        ))
-    ),
-    params(OutputParams)
-)]
-#[deprecated]
-pub async fn get_mixnodes_detailed_unfiltered(
-    Query(output): Query<OutputParams>,
-    State(state): State<AppState>,
-) -> FormattedResponse<Vec<MixNodeBondAnnotated>> {
-    let output = output.output.unwrap_or_default();
-
-    output.to_response(_get_mixnodes_detailed_unfiltered(state.node_status_cache()).await)
-}
-
-#[utoipa::path(
-    tag = "network-monitor-status",
-    get,
-    path = "/v1/status/gateways/detailed",
-    responses(
-        (status = 200, content(
-            (GatewayBondAnnotated = "application/json"),
-            (GatewayBondAnnotated = "application/yaml"),
-            (GatewayBondAnnotated = "application/bincode")
-        ))
-    ),
-    params(OutputParams)
-)]
-#[deprecated]
-pub async fn get_gateways_detailed(
-    Query(output): Query<OutputParams>,
-    State(state): State<AppState>,
-) -> FormattedResponse<Vec<GatewayBondAnnotated>> {
-    let output = output.output.unwrap_or_default();
-
-    output.to_response(_get_legacy_gateways_detailed(state.node_status_cache()).await)
-}
-
-#[utoipa::path(
-    tag = "network-monitor-status",
-    get,
-    path = "/v1/status/gateways/detailed-unfiltered",
-    responses(
-        (status = 200, content(
-            (GatewayBondAnnotated = "application/json"),
-            (GatewayBondAnnotated = "application/yaml"),
-            (GatewayBondAnnotated = "application/bincode")
-        ))
-    ),
-    params(OutputParams)
-)]
-#[deprecated]
-pub async fn get_gateways_detailed_unfiltered(
-    Query(output): Query<OutputParams>,
-    State(state): State<AppState>,
-) -> FormattedResponse<Vec<GatewayBondAnnotated>> {
-    let output = output.output.unwrap_or_default();
-
-    output.to_response(_get_legacy_gateways_detailed_unfiltered(state.node_status_cache()).await)
 }

@@ -1,11 +1,11 @@
 // Copyright 2022-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use nym_api_requests::legacy::{LegacyGatewayBondWithId, LegacyMixNodeDetailsWithLayer};
+use nym_api_requests::legacy::LegacyGatewayBondWithId;
 use nym_api_requests::models::ConfigScoreDataResponse;
 use nym_mixnet_contract_common::{
-    ConfigScoreParams, HistoricalNymNodeVersionEntry, Interval, KeyRotationState, NymNodeDetails,
-    RewardingParams,
+    ConfigScoreParams, HistoricalNymNodeVersionEntry, Interval, KeyRotationState, MixNodeBond,
+    MixNodeDetails, NymNodeDetails, RewardingParams,
 };
 use nym_topology::CachedEpochRewardedSet;
 
@@ -31,7 +31,7 @@ impl From<ConfigScoreData> for ConfigScoreDataResponse {
 pub(crate) struct MixnetContractCacheData {
     pub(crate) rewarding_denom: String,
 
-    pub(crate) legacy_mixnodes: Vec<LegacyMixNodeDetailsWithLayer>,
+    pub(crate) legacy_mixnodes: Vec<MixNodeDetails>,
     pub(crate) legacy_gateways: Vec<LegacyGatewayBondWithId>,
     pub(crate) nym_nodes: Vec<NymNodeDetails>,
     pub(crate) rewarded_set: CachedEpochRewardedSet,

@@ -880,9 +880,8 @@ impl<R, S> FreshHandler<R, S> {
                 let propagator = TraceContextPropagator::new();
                 let extracted_context = propagator.extract(&carrier);
 
-
-                let span = info_span!("extracted_otel_context");
                 tracing::Span::current().set_parent(extracted_context);
+                let span = info_span!("extracted_otel_context");
                 error!("==== Context propagation successful ====");
                 
                 Some(span)

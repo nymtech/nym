@@ -1,4 +1,5 @@
 use opentelemetry::propagation::{Injector, Extractor};
+use opentelemetry::trace::TraceId;
 use std::collections::HashMap;
 
 /// Make a Carrier for context propagation
@@ -19,6 +20,17 @@ impl ContextCarrier {
 
     pub fn into_map(self) -> HashMap<String, String> {
         self.data
+    }
+
+    pub fn extract_trace_id(&self) -> Option<TraceId> {
+        self.get("traceparent").and_then(|tp| {
+            let parts: Vec<&str> = tp.split('-').collect();
+            if parts.len() == 4 {
+                TraceId::from_hex(parts[1]).ok()
+            } else {
+                None
+            }
+        })
     }
 }
 

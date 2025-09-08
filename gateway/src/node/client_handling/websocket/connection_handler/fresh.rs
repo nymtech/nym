@@ -39,7 +39,6 @@ use opentelemetry::Context;
 use opentelemetry_sdk::logs::TraceContext;
 use opentelemetry_sdk::trace::{IdGenerator, RandomIdGenerator};
 use rand::CryptoRng;
-use std::hash::Hash;
 use std::net::SocketAddr;
 use std::time::Duration;
 use thiserror::Error;
@@ -49,7 +48,6 @@ use tokio::time::timeout;
 use tokio_tungstenite::tungstenite::{protocol::Message, Error as WsError};
 use tracing::{debug, error, info, info_span, instrument, warn};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
-use tracing::Instrument;
 
 #[derive(Debug, Error)]
 pub(crate) enum InitialAuthenticationError {
@@ -660,6 +658,7 @@ impl<R, S> FreshHandler<R, S> {
         S: AsyncRead + AsyncWrite + Unpin,
     {
         debug!("handling client authentication (v2)");
+        tracing::info_span!("Authenticate v2");
 
         let negotiated_protocol =
             self.negotiate_client_protocol(Some(request.content.protocol_version))?;
@@ -861,7 +860,7 @@ impl<R, S> FreshHandler<R, S> {
     pub(crate) async fn handle_initial_client_request(
         &mut self,
         request: ClientControlRequest,
-    ) -> Result<Option<ClientDetails>, InitialAuthenticationError>
+    ) -> Result<(Option<ClientDetails>, Option<tracing::Span>), InitialAuthenticationError>
     where
         S: AsyncRead + AsyncWrite + Unpin + Send,
         R: CryptoRng + RngCore + Send,
@@ -882,7 +881,7 @@ impl<R, S> FreshHandler<R, S> {
 
                 tracing::Span::current().set_parent(extracted_context);
                 let span = info_span!("extracted_otel_context");
-                error!("==== Context propagation successful ====");
+                warn!("==== Context propagation successful ====");
                 
                 Some(span)
             } else {
@@ -894,13 +893,11 @@ impl<R, S> FreshHandler<R, S> {
         };
 
         let child_span = if let Some(ref parent_span) = remote_cx_span {
-            info_span!(parent: parent_span, "handling_initial_client_request")
+            info_span!(parent: parent_span, "handling initial client request with otel context")
         } else {
             info_span!("handling_initial_client_request")
         };
         let _enter = child_span.enter();
-
-        tracing::error!("handling initial client request");
 
         let auth_result = match request {
             ClientControlRequest::Authenticate {
@@ -920,7 +917,7 @@ impl<R, S> FreshHandler<R, S> {
             } => self.handle_register(protocol_version, data).await,
             ClientControlRequest::SupportedProtocol { .. } => {
                 self.handle_reply_supported_protocol_request().await;
-                return Ok(None);
+                return Ok((None, Some(child_span.clone())));
             }
             _ => {
                 debug!("received an invalid client request");
@@ -960,7 +957,7 @@ impl<R, S> FreshHandler<R, S> {
             return Err(InitialAuthenticationError::EmptyClientDetails);
         };
 
-        Ok(Some(client_details))
+        Ok((Some(client_details), Some(child_span.clone())))
     }
 
     #[instrument(skip_all)]
@@ -982,8 +979,8 @@ impl<R, S> FreshHandler<R, S> {
             };
 
             // see if we managed to register the client through this request
-            let maybe_auth_res = match self.handle_initial_client_request(initial_request).await {
-                Ok(maybe_auth_res) => maybe_auth_res,
+            let (maybe_auth_res, herited_span) = match self.handle_initial_client_request(initial_request).await {
+                Ok((maybe_auth_res, herited_span)) => (maybe_auth_res, herited_span),
                 Err(err) => {
                     debug!("initial client request handling error: {err}");
                     self.send_and_forget_error_response(err).await;
@@ -991,7 +988,10 @@ impl<R, S> FreshHandler<R, S> {
                 }
             };
 
-            if let Some(registration_details) = maybe_auth_res {
+            if let (Some(registration_details), Some(herited_span)) = (maybe_auth_res, herited_span) {
+
+                let span = info_span!(parent: herited_span, "upgrading_to_authenticated_handler");
+                let _enter = span.enter();
                 let (mix_sender, mix_receiver) = mpsc::unbounded();
                 // Channel for handlers to ask other handlers if they are still active.
                 let (is_active_request_sender, is_active_request_receiver) = mpsc::unbounded();

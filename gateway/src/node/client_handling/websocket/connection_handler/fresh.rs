@@ -917,7 +917,7 @@ impl<R, S> FreshHandler<R, S> {
             } => self.handle_register(protocol_version, data).await,
             ClientControlRequest::SupportedProtocol { .. } => {
                 self.handle_reply_supported_protocol_request().await;
-                let exit_span = info_span!("supported_protocol_request_handled");
+                let exit_span = info_span!(parent: &child_span, "supported_protocol_request_handled");
                 return Ok((None, Some(exit_span)));
             }
             _ => {
@@ -958,7 +958,7 @@ impl<R, S> FreshHandler<R, S> {
             return Err(InitialAuthenticationError::EmptyClientDetails);
         };
 
-        let exit_span = info_span!("initial client request handled");
+        let exit_span = info_span!(parent: &child_span, "initial client request handled");
         Ok((Some(client_details), Some(exit_span)))
     }
 
@@ -1003,7 +1003,7 @@ impl<R, S> FreshHandler<R, S> {
                     registration_details.session_request_timestamp,
                 );
 
-                let exit_span = info_span!("upgraded_to_authenticated_handler");
+                let exit_span = info_span!(parent: &span, "upgraded_to_authenticated_handler");
                 let auth_handle = AuthenticatedHandler::upgrade(
                     self,
                     registration_details,

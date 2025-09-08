@@ -36,8 +36,10 @@ use nym_sphinx::DestinationAddressBytes;
 use nym_task::TaskClient;
 use nym_validator_client::nyxd::bip32::secp256k1::elliptic_curve::bigint::Random;
 use opentelemetry::propagation::TextMapPropagator;
-use opentelemetry::trace::TraceContextExt;
+use opentelemetry::trace::{SpanContext, TraceContextExt};
+use opentelemetry::{SpanId, TraceFlags, TraceId};
 use opentelemetry_sdk::propagation::TraceContextPropagator;
+use opentelemetry_sdk::trace::{IdGenerator, RandomIdGenerator};
 use rand::CryptoRng;
 use std::collections::HashMap;
 use std::net::SocketAddr;
@@ -863,12 +865,12 @@ impl<R, S> FreshHandler<R, S> {
     pub(crate) async fn handle_initial_client_request(
         &mut self,
         request: ClientControlRequest,
-    ) -> Result<(Option<ClientDetails>, Option<HashMap<String, String>>), InitialAuthenticationError>
+    ) -> Result<(Option<ClientDetails>, Option<TraceId>), InitialAuthenticationError>
     where
         S: AsyncRead + AsyncWrite + Unpin + Send,
         R: CryptoRng + RngCore + Send,
     {
-        let remote_cx_span = if let ClientControlRequest::AuthenticateV2(ref auth_req) = request {
+        let (remote_cx_span, trace_id) = if let ClientControlRequest::AuthenticateV2(ref auth_req) = request {
             if let Some(otel_context) = &auth_req.otel_context {
                 let carrier = ContextCarrier::from_map(otel_context.clone());
 
@@ -882,13 +884,13 @@ impl<R, S> FreshHandler<R, S> {
                 let span = info_span!("extracted_otel_context");
                 warn!("==== Context propagation successful ====");
                 
-                Some(span)
+                (Some(span), extracted_trace_id)
             } else {
                 warn!("No OpenTelemetry context provided in the request");
-                None
+                (None, None)
             }
         } else {
-            None
+            (None, None)
         };
 
         let child_span = if let Some(ref parent_span) = remote_cx_span {
@@ -897,18 +899,6 @@ impl<R, S> FreshHandler<R, S> {
             info_span!("handling_initial_client_request")
         };
         let _enter = child_span.enter();
-
-        let gateway_context = opentelemetry::Context::current();
-        let mut carrier = ContextCarrier::new();
-        let propagator = TraceContextPropagator::new();
-        propagator.inject_context(&gateway_context, &mut carrier);
-        let extracted_trace_id = carrier.extract_trace_id();
-        info!("handle_initial_client_request: Extracted trace id after child_span: {:?}", extracted_trace_id);
-        let gw_carrier = carrier.into_map();
-
-        let context = opentelemetry::Context::current();
-        let trace_id = context.span().span_context().trace_id();
-        error!("=== [DEBUG SPAN] Current trace id in handle_initial_client_request: {:?}", trace_id);
 
         let auth_result = match request {
             ClientControlRequest::Authenticate {
@@ -928,7 +918,7 @@ impl<R, S> FreshHandler<R, S> {
             } => self.handle_register(protocol_version, data).await,
             ClientControlRequest::SupportedProtocol { .. } => {
                 self.handle_reply_supported_protocol_request().await;
-                return Ok((None, Some(gw_carrier)));
+                return Ok((None, trace_id));
             }
             _ => {
                 debug!("received an invalid client request");
@@ -967,15 +957,14 @@ impl<R, S> FreshHandler<R, S> {
             warn!("could not establish client details");
             return Err(InitialAuthenticationError::EmptyClientDetails);
         };
-
-        Ok((Some(client_details), Some(gw_carrier)))
+        Ok((Some(client_details), trace_id))
     }
 
     #[instrument(skip_all)]
     pub(crate) async fn handle_until_authenticated_or_failure(
         mut self,
         shutdown: &mut TaskClient,
-    ) -> (Option<AuthenticatedHandler<R, S>>, Option<HashMap<String, String>>)
+    ) -> (Option<AuthenticatedHandler<R, S>>, Option<TraceId>)
     where
         S: AsyncRead + AsyncWrite + Unpin + Send,
         R: CryptoRng + RngCore + Send,
@@ -1001,8 +990,8 @@ impl<R, S> FreshHandler<R, S> {
             };
 
             // see if we managed to register the client through this request
-            let (maybe_auth_res, context_carrier) = match self.handle_initial_client_request(initial_request).await {
-                Ok((maybe_auth_res, context_carrier)) => (maybe_auth_res, context_carrier),
+            let (maybe_auth_res, maybe_trace_id) = match self.handle_initial_client_request(initial_request).await {
+                Ok((maybe_auth_res, trace_id)) => (maybe_auth_res, trace_id),
                 Err(err) => {
                     debug!("initial client request handling error: {err}");
                     self.send_and_forget_error_response(err).await;
@@ -1010,14 +999,26 @@ impl<R, S> FreshHandler<R, S> {
                 }
             };
 
-            if let (Some(registration_details), Some(context_carrier)) = (maybe_auth_res, context_carrier) {
-                let new_carrier  = ContextCarrier::from_map(context_carrier);
-                let propagator = TraceContextPropagator::new();
-                let extracted_context = propagator.extract(&new_carrier);
-                tracing::Span::current().set_parent(extracted_context);
-                let span = tracing::info_span!("handle_authenticated_client");
-                let _entered_span = span.enter();
-                warn!("==== Context propagation successful to handle until authenticated client handler ====");
+            if let (Some(registration_details), Some(trace_id)) = (maybe_auth_res, maybe_trace_id) {
+                let span = {
+                    let id_gen = opentelemetry_sdk::trace::RandomIdGenerator::default();
+                    let span_id = id_gen.new_span_id();
+                    let span_context = SpanContext::new(
+                        trace_id,
+                        span_id,
+                        TraceFlags::SAMPLED,
+                        true,
+                        Default::default(),
+                    );
+                    let cx = opentelemetry::Context::current().with_remote_span_context(span_context);
+                    let _context_guard = cx.clone().attach();
+
+                    let span = info_span!("authentication handler with otel", %trace_id);
+                    span.set_parent(cx.clone());
+                    span
+                };
+
+                let _guard = span.enter();
 
                 let (mix_sender, mix_receiver) = mpsc::unbounded();
                 // Channel for handlers to ask other handlers if they are still active.
@@ -1039,12 +1040,7 @@ impl<R, S> FreshHandler<R, S> {
                 .inspect_err(|err| error!("failed to upgrade client handler: {err}"))
                 .ok();
 
-                let context = opentelemetry::Context::current();
-                let mut new_context_carrier = ContextCarrier::new();
-                let propagator = TraceContextPropagator::new();
-                propagator.inject_context(&context, &mut new_context_carrier);
-                let new_context_carrier =  new_context_carrier.into_map();
-                return (auth_handle, Some(new_context_carrier));
+                return (auth_handle, Some(trace_id));
             }
         }
 

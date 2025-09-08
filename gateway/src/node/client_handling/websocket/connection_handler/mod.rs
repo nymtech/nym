@@ -9,13 +9,15 @@ use nym_gateway_requests::ServerResponse;
 use nym_sphinx::DestinationAddressBytes;
 use opentelemetry::propagation::TextMapPropagator;
 use opentelemetry_sdk::propagation::TraceContextPropagator;
+use opentelemetry_sdk::trace::IdGenerator;
 use rand::{CryptoRng, Rng};
 use std::time::Duration;
 use time::OffsetDateTime;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_tungstenite::WebSocketStream;
-use tracing::{debug, instrument, trace, warn};
+use tracing::{debug, instrument, trace, warn, info_span};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
+use opentelemetry::trace::{SpanContext, TraceContextExt, TraceFlags};
 
 pub(crate) use self::authenticated::AuthenticatedHandler;
 pub(crate) use self::fresh::FreshHandler;
@@ -123,16 +125,28 @@ where
 
     let mut shutdown = handle.shutdown.clone();
 
-    if let (Some(auth_handle), Some(context_carrier)) = handle
+    if let (Some(auth_handle), Some(trace_id)) = handle
         .handle_until_authenticated_or_failure(&mut shutdown)
         .await
     {
-        let new_carrier  = ContextCarrier::from_map(context_carrier);
-        let propagator = TraceContextPropagator::new();
-        let extracted_context = propagator.extract(&new_carrier);
-        tracing::Span::current().set_parent(extracted_context);
-        let span = tracing::info_span!("handle_authenticated_client");
-        let _entered_span = span.enter();
+        let span = {
+            let id_gen = opentelemetry_sdk::trace::RandomIdGenerator::default();
+            let span_id = id_gen.new_span_id();
+            let span_context = SpanContext::new(
+                trace_id,
+                span_id,
+                TraceFlags::SAMPLED,
+                true,
+                Default::default(),
+            );
+            let cx = opentelemetry::Context::current().with_remote_span_context(span_context);
+            let _context_guard = cx.clone().attach();
+
+            let span = info_span!("authentication handler with otel", %trace_id);
+            span.set_parent(cx.clone());
+            span
+        };
+        let _guard = span.enter();
         warn!("=== Context propagated to authenticated client handler ===");
 
         auth_handle.listen_for_requests(shutdown).await

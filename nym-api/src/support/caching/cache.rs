@@ -175,8 +175,7 @@ impl<T> Cache<Option<T>> {
 }
 
 impl<T> Cache<T> {
-    // ugh. I hate to expose it, but it'd have broken pre-existing code
-    pub(crate) fn new(value: T) -> Self {
+    fn new(value: T) -> Self {
         Cache {
             value,
             as_at: OffsetDateTime::now_utc(),
@@ -205,17 +204,6 @@ impl<T> Cache<T> {
         }
     }
 
-    // ugh. I hate to expose it, but it'd have broken pre-existing code
-    pub(crate) fn clone_cache(&self) -> Self
-    where
-        T: Clone,
-    {
-        Cache {
-            value: self.value.clone(),
-            as_at: self.as_at,
-        }
-    }
-
     pub(crate) fn update<S>(&mut self, update: S, update_fn: impl Fn(&mut T, S)) {
         update_fn(&mut self.value, update);
         self.as_at = OffsetDateTime::now_utc();
@@ -241,10 +229,6 @@ impl<T> Cache<T> {
 
     pub fn timestamp(&self) -> OffsetDateTime {
         self.as_at
-    }
-
-    pub fn into_inner(self) -> T {
-        self.value
     }
 }
 

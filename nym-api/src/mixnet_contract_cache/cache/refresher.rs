@@ -6,13 +6,9 @@ use crate::nyxd::Client;
 use crate::support::caching::refresher::CacheItemProvider;
 use anyhow::Result;
 use async_trait::async_trait;
-use nym_api_requests::legacy::LegacyGatewayBondWithId;
-use nym_mixnet_contract_common::LegacyMixLayer;
+use nym_api_requests::models::LegacyGatewayBondWithId;
 use nym_validator_client::nyxd::error::NyxdError;
-use rand::prelude::SliceRandom;
-use rand::rngs::OsRng;
 use std::collections::HashMap;
-use std::collections::HashSet;
 use tracing::info;
 
 pub struct MixnetContractDataProvider {
@@ -40,9 +36,9 @@ impl MixnetContractDataProvider {
         let contract_state = self.nyxd_client.get_mixnet_contract_state().await?;
 
         let nym_nodes = self.nyxd_client.get_nymnodes().await?;
-        let mixnode_details = self.nyxd_client.get_mixnodes().await?;
-        let gateway_bonds = self.nyxd_client.get_gateways().await?;
-        let gateway_ids: HashMap<_, _> = self
+        let legacy_mixnode_details = self.nyxd_client.get_mixnodes().await?;
+        let legacy_gateway_bonds = self.nyxd_client.get_gateways().await?;
+        let legacy_gateway_ids: HashMap<_, _> = self
             .nyxd_client
             .get_gateway_ids()
             .await?
@@ -50,12 +46,12 @@ impl MixnetContractDataProvider {
             .map(|id| (id.identity, id.node_id))
             .collect();
 
-        let mut legacy_gateways = Vec::with_capacity(gateway_bonds.len());
+        let mut legacy_gateways = Vec::with_capacity(legacy_gateway_bonds.len());
         #[allow(clippy::panic)]
-        for bond in gateway_bonds {
+        for bond in legacy_gateway_bonds {
             // we explicitly panic here because that value MUST exist.
             // if it doesn't, we messed up the migration and we have big problems
-            let node_id = *gateway_ids.get(bond.identity()).unwrap_or_else(|| {
+            let node_id = *legacy_gateway_ids.get(bond.identity()).unwrap_or_else(|| {
                 panic!(
                     "CONTRACT DATA INCONSISTENCY: MISSING GATEWAY ID FOR: {}",
                     bond.identity()
@@ -71,14 +67,14 @@ impl MixnetContractDataProvider {
 
         info!(
             "Updating validator cache. There are {} [legacy] mixnodes, {} [legacy] gateways and {} nym nodes",
-            mixnode_details.len(),
+            legacy_mixnode_details.len(),
             legacy_gateways.len(),
             nym_nodes.len(),
         );
 
         Ok(MixnetContractCacheData {
             rewarding_denom: contract_state.rewarding_denom,
-            legacy_mixnodes: mixnode_details,
+            legacy_mixnodes: legacy_mixnode_details,
             legacy_gateways,
             nym_nodes,
             rewarded_set: rewarded_set.into(),

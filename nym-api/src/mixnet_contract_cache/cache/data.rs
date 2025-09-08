@@ -1,11 +1,10 @@
 // Copyright 2022-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use nym_api_requests::legacy::LegacyGatewayBondWithId;
-use nym_api_requests::models::ConfigScoreDataResponse;
+use nym_api_requests::models::{ConfigScoreDataResponse, LegacyGatewayBondWithId};
 use nym_mixnet_contract_common::{
-    ConfigScoreParams, HistoricalNymNodeVersionEntry, Interval, KeyRotationState, MixNodeBond,
-    MixNodeDetails, NymNodeDetails, RewardingParams,
+    ConfigScoreParams, HistoricalNymNodeVersionEntry, Interval, KeyRotationState, MixNodeDetails,
+    NymNodeDetails, RewardingParams,
 };
 use nym_topology::CachedEpochRewardedSet;
 

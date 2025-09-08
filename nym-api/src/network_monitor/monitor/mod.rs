@@ -291,8 +291,6 @@ impl<R: MessageReceiver + Send + Sync> Monitor<R> {
             prepared_packets.mixnodes_under_test,
             prepared_packets.gateways_under_test,
             received,
-            prepared_packets.invalid_mixnodes,
-            prepared_packets.invalid_gateways,
             routes,
         );
 

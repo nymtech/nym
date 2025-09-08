@@ -1,7 +1,6 @@
 // Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::network_monitor::monitor::preparer::InvalidNode;
 use crate::network_monitor::test_packet::NodeTestMessage;
 use crate::network_monitor::test_route::TestRoute;
 use nym_node_tester_utils::node::{NodeType, TestableNode};
@@ -283,8 +282,6 @@ impl SummaryProducer {
         tested_mixnodes: Vec<TestableNode>,
         tested_gateways: Vec<TestableNode>,
         received_packets: Vec<NodeTestMessage>,
-        invalid_mixnodes: Vec<InvalidNode>,
-        invalid_gateways: Vec<InvalidNode>,
         test_routes: &[TestRoute],
     ) -> TestSummary {
         // we expect each route to receive this many packets in the ideal world
@@ -305,14 +302,6 @@ impl SummaryProducer {
 
         for tested_gateway in tested_gateways {
             raw_results.insert(tested_gateway, 0);
-        }
-
-        for invalid_mixnode in invalid_mixnodes {
-            raw_results.insert(invalid_mixnode.into(), 0);
-        }
-
-        for invalid_gateway in invalid_gateways {
-            raw_results.insert(invalid_gateway.into(), 0);
         }
 
         for received in received_packets {

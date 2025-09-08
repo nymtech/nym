@@ -6,8 +6,6 @@ use crate::support::cli;
 use crate::support::storage;
 use ::nym_config::defaults::setup_env;
 use clap::Parser;
-use mixnet_contract_cache::cache::MixnetContractCache;
-use node_status_api::NodeStatusCache;
 use support::nyxd;
 use tracing::{info, trace};
 

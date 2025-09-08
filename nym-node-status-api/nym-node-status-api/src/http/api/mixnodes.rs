@@ -57,26 +57,7 @@ fn validate_offset(offset: Option<i64>) -> HttpResult<usize> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::http::models::{DailyStats, Mixnode};
-    use nym_node_requests::api::v1::node::models::NodeDescription;
-
-    fn create_test_mixnode(mix_id: u32, is_dp_delegatee: bool) -> Mixnode {
-        Mixnode {
-            mix_id,
-            bonded: true,
-            is_dp_delegatee,
-            total_stake: 100000,
-            full_details: Some(serde_json::json!({"test": "data"})),
-            self_described: Some(serde_json::json!({"version": "1.0"})),
-            description: NodeDescription {
-                moniker: format!("Mixnode {mix_id}"),
-                website: "".to_string(),
-                security_contact: "".to_string(),
-                details: "".to_string(),
-            },
-            last_updated_utc: "2024-01-20T10:00:00Z".to_string(),
-        }
-    }
+    use crate::http::models::DailyStats;
 
     #[test]
     fn test_routes_construction() {

@@ -380,9 +380,6 @@ fn test_scraper_node_info_contact_addresses() {
 fn test_scrape_node_kind_node_id() {
     use crate::db::models::ScrapeNodeKind;
 
-    let legacy = ScrapeNodeKind::LegacyMixnode { mix_id: 42 };
-    assert_eq!(*legacy.node_id(), 42);
-
     let mixing = ScrapeNodeKind::MixingNymNode { node_id: 123 };
     assert_eq!(*mixing.node_id(), 123);
 

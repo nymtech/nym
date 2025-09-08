@@ -36,6 +36,7 @@ use nym_sphinx::DestinationAddressBytes;
 use nym_task::TaskClient;
 use nym_validator_client::nyxd::bip32::secp256k1::elliptic_curve::bigint::Random;
 use opentelemetry::propagation::TextMapPropagator;
+use opentelemetry::trace::TraceContextExt;
 use opentelemetry_sdk::propagation::TraceContextPropagator;
 use rand::CryptoRng;
 use std::collections::HashMap;
@@ -905,6 +906,9 @@ impl<R, S> FreshHandler<R, S> {
         info!("handle_initial_client_request: Extracted trace id after child_span: {:?}", extracted_trace_id);
         let gw_carrier = carrier.into_map();
 
+        let context = opentelemetry::Context::current();
+        let trace_id = context.span().span_context().trace_id();
+        error!("=== [DEBUG SPAN] Current trace id in handle_initial_client_request: {:?}", trace_id);
 
         let auth_result = match request {
             ClientControlRequest::Authenticate {
@@ -1010,12 +1014,10 @@ impl<R, S> FreshHandler<R, S> {
                 let new_carrier  = ContextCarrier::from_map(context_carrier);
                 let propagator = TraceContextPropagator::new();
                 let extracted_context = propagator.extract(&new_carrier);
-                let extracted_trace_id = new_carrier.extract_trace_id();
-                error!("Extracted trace id: {:?}", extracted_trace_id);
                 tracing::Span::current().set_parent(extracted_context);
                 let span = tracing::info_span!("handle_authenticated_client");
                 let _entered_span = span.enter();
-                warn!("==== Context propagation successful to handle until authenticated client ====");
+                warn!("==== Context propagation successful to handle until authenticated client handler ====");
 
                 let (mix_sender, mix_receiver) = mpsc::unbounded();
                 // Channel for handlers to ask other handlers if they are still active.

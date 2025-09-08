@@ -9,6 +9,7 @@ use std::collections::HashMap;
 use tracing::{instrument, warn};
 
 use crate::db::models::NymNodeDescriptionDeHelper;
+use crate::http::models::DailyStats;
 use crate::{
     db::{
         models::{NymNodeDto, NymNodeInsertRecord},
@@ -299,4 +300,35 @@ pub(crate) async fn insert_nym_node_description(
     .await
     .map(drop)
     .map_err(From::from)
+}
+
+pub(crate) async fn get_daily_stats(pool: &DbPool) -> anyhow::Result<Vec<DailyStats>> {
+    let mut conn = pool.acquire().await?;
+    let items = sqlx::query_as!(
+        DailyStats,
+        r#"
+        SELECT
+            date_utc as "date_utc!",
+            SUM(total_stake) as "total_stake!: i64",
+            SUM(packets_received) as "total_packets_received!: i64",
+            SUM(packets_sent) as "total_packets_sent!: i64",
+            SUM(packets_dropped) as "total_packets_dropped!: i64"
+        FROM (
+            SELECT
+                date_utc,
+                n.total_stake,
+                n.packets_received,
+                n.packets_sent,
+                n.packets_dropped
+            FROM nym_node_daily_mixing_stats n
+        )
+        GROUP BY date_utc
+        ORDER BY date_utc ASC
+        "#,
+    )
+    .fetch(&mut *conn)
+    .try_collect::<Vec<DailyStats>>()
+    .await?;
+
+    Ok(items)
 }

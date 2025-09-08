@@ -1,5 +1,5 @@
 use axum::{
-    extract::{Path, Query, State},
+    extract::{Query, State},
     Json, Router,
 };
 use serde::Deserialize;
@@ -8,67 +8,12 @@ use utoipa::IntoParams;
 
 use crate::http::{
     error::{HttpError, HttpResult},
-    models::{DailyStats, Mixnode},
+    models::DailyStats,
     state::AppState,
-    PagedResult, Pagination,
 };
 
 pub(crate) fn routes() -> Router<AppState> {
-    Router::new()
-        .route("/", axum::routing::get(mixnodes))
-        .route("/:mix_id", axum::routing::get(get_mixnodes))
-        .route("/stats", axum::routing::get(get_stats))
-}
-
-#[utoipa::path(
-    tag = "Mixnodes",
-    get,
-    params(
-        Pagination
-    ),
-    path = "/v2/mixnodes",
-    responses(
-        (status = 200, body = PagedResult<Mixnode>)
-    )
-)]
-#[instrument(level = tracing::Level::DEBUG, skip_all, fields(page=pagination.page, size=pagination.size))]
-async fn mixnodes(
-    Query(pagination): Query<Pagination>,
-    State(state): State<AppState>,
-) -> HttpResult<Json<PagedResult<Mixnode>>> {
-    let db = state.db_pool();
-    let res = state.cache().get_mixnodes_list(db).await;
-
-    Ok(Json(PagedResult::paginate(pagination, res)))
-}
-
-#[derive(Deserialize, IntoParams)]
-#[into_params(parameter_in = Path)]
-struct MixIdParam {
-    mix_id: String,
-}
-
-#[utoipa::path(
-    tag = "Mixnodes",
-    get,
-    params(
-        MixIdParam
-    ),
-    path = "/v2/mixnodes/{mix_id}",
-    responses(
-        (status = 200, body = Mixnode)
-    )
-)]
-#[instrument(level = tracing::Level::DEBUG, skip_all, fields(mix_id = mix_id))]
-async fn get_mixnodes(
-    Path(MixIdParam { mix_id }): Path<MixIdParam>,
-    State(state): State<AppState>,
-) -> HttpResult<Json<Mixnode>> {
-    find_mixnode_by_id(
-        &mix_id,
-        state.cache().get_mixnodes_list(state.db_pool()).await,
-    )
-    .map(Json)
+    Router::new().route("/stats", axum::routing::get(get_stats))
 }
 
 #[derive(Deserialize, IntoParams)]
@@ -100,17 +45,6 @@ async fn get_stats(
         .await;
 
     Ok(Json(last_30_days))
-}
-
-// Extract business logic for testing
-fn find_mixnode_by_id(mix_id: &str, mixnodes: Vec<Mixnode>) -> HttpResult<Mixnode> {
-    match mix_id.parse::<u32>() {
-        Ok(parsed_mix_id) => mixnodes
-            .into_iter()
-            .find(|item| item.mix_id == parsed_mix_id)
-            .ok_or_else(|| HttpError::invalid_input(mix_id)),
-        Err(_e) => Err(HttpError::invalid_input(mix_id)),
-    }
 }
 
 fn validate_offset(offset: Option<i64>) -> HttpResult<usize> {
@@ -153,49 +87,6 @@ mod tests {
     }
 
     #[test]
-    fn test_find_mixnode_by_id_success() {
-        let mixnodes = vec![
-            create_test_mixnode(1, false),
-            create_test_mixnode(42, true),
-            create_test_mixnode(100, false),
-        ];
-
-        let result = find_mixnode_by_id("42", mixnodes).unwrap();
-        assert_eq!(result.mix_id, 42);
-        assert!(result.is_dp_delegatee);
-    }
-
-    #[test]
-    fn test_find_mixnode_by_id_not_found() {
-        let mixnodes = vec![create_test_mixnode(1, false), create_test_mixnode(2, false)];
-
-        let result = find_mixnode_by_id("99", mixnodes);
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_find_mixnode_by_id_invalid_format() {
-        let mixnodes = vec![create_test_mixnode(1, false)];
-
-        // Test various invalid formats
-        assert!(find_mixnode_by_id("abc", mixnodes.clone()).is_err());
-        assert!(find_mixnode_by_id("", mixnodes.clone()).is_err());
-        assert!(find_mixnode_by_id("12.34", mixnodes.clone()).is_err());
-        assert!(find_mixnode_by_id("-1", mixnodes).is_err());
-    }
-
-    #[test]
-    fn test_find_mixnode_by_id_edge_cases() {
-        let mixnodes = vec![
-            create_test_mixnode(0, false),
-            create_test_mixnode(u32::MAX, false),
-        ];
-
-        assert!(find_mixnode_by_id("0", mixnodes.clone()).is_ok());
-        assert!(find_mixnode_by_id(&u32::MAX.to_string(), mixnodes).is_ok());
-    }
-
-    #[test]
     fn test_validate_offset_valid() {
         assert_eq!(validate_offset(None).unwrap(), 0);
         assert_eq!(validate_offset(Some(0)).unwrap(), 0);
@@ -208,13 +99,6 @@ mod tests {
         assert!(validate_offset(Some(-1)).is_err());
         assert!(validate_offset(Some(-100)).is_err());
         assert!(validate_offset(Some(i64::MIN)).is_err());
-    }
-
-    #[test]
-    fn test_mix_id_param_deserialization() {
-        let json = r#"{"mix_id": "123"}"#;
-        let param: MixIdParam = serde_json::from_str(json).unwrap();
-        assert_eq!(param.mix_id, "123");
     }
 
     #[test]

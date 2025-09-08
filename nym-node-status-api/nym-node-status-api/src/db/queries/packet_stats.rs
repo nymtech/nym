@@ -67,22 +67,6 @@ pub(crate) async fn insert_node_packet_stats_uncommitted(
     timestamp_utc: i64,
 ) -> Result<()> {
     match node_kind {
-        ScrapeNodeKind::LegacyMixnode { mix_id } => {
-            sqlx::query(
-                r#"
-                INSERT INTO mixnode_packet_stats_raw (
-                    mix_id, timestamp_utc, packets_received, packets_sent, packets_dropped
-                ) VALUES (?, ?, ?, ?, ?)
-                "#,
-            )
-            .bind(mix_id)
-            .bind(timestamp_utc)
-            .bind(stats.packets_received)
-            .bind(stats.packets_sent)
-            .bind(stats.packets_dropped)
-            .execute(tx.as_mut())
-            .await?;
-        }
         ScrapeNodeKind::MixingNymNode { node_id }
         | ScrapeNodeKind::EntryExitNymNode { node_id, .. } => {
             sqlx::query(
@@ -113,22 +97,6 @@ pub(crate) async fn insert_node_packet_stats_uncommitted(
     timestamp_utc: i64,
 ) -> Result<()> {
     match node_kind {
-        ScrapeNodeKind::LegacyMixnode { mix_id } => {
-            sqlx::query(
-                r#"
-                INSERT INTO mixnode_packet_stats_raw (
-                    mix_id, timestamp_utc, packets_received, packets_sent, packets_dropped
-                ) VALUES ($1, $2, $3, $4, $5)
-                "#,
-            )
-            .bind(mix_id)
-            .bind(timestamp_utc)
-            .bind(stats.packets_received)
-            .bind(stats.packets_sent)
-            .bind(stats.packets_dropped)
-            .execute(tx.as_mut())
-            .await?;
-        }
         ScrapeNodeKind::MixingNymNode { node_id }
         | ScrapeNodeKind::EntryExitNymNode { node_id, .. } => {
             sqlx::query(
@@ -159,23 +127,6 @@ pub(crate) async fn get_raw_node_stats(
     let packets = match node_kind {
         // if no packets are found, it's fine to assume 0 because that's also
         // SQL default value if none provided
-        ScrapeNodeKind::LegacyMixnode { mix_id } => {
-            sqlx::query_as::<_, NodeStats>(
-                r#"
-                SELECT
-                    COALESCE(packets_received, 0) as packets_received,
-                    COALESCE(packets_sent, 0) as packets_sent,
-                    COALESCE(packets_dropped, 0) as packets_dropped
-                FROM mixnode_packet_stats_raw
-                WHERE mix_id = ?
-                ORDER BY timestamp_utc DESC
-                LIMIT 1 OFFSET 1
-                "#,
-            )
-            .bind(mix_id)
-            .fetch_optional(tx.as_mut())
-            .await?
-        }
         ScrapeNodeKind::MixingNymNode { node_id }
         | ScrapeNodeKind::EntryExitNymNode { node_id, .. } => {
             sqlx::query_as::<_, NodeStats>(
@@ -207,23 +158,6 @@ pub(crate) async fn get_raw_node_stats(
     let packets = match node_kind {
         // if no packets are found, it's fine to assume 0 because that's also
         // SQL default value if none provided
-        ScrapeNodeKind::LegacyMixnode { mix_id } => {
-            sqlx::query_as::<_, NodeStats>(
-                r#"
-                SELECT
-                    COALESCE(packets_received, 0) as packets_received,
-                    COALESCE(packets_sent, 0) as packets_sent,
-                    COALESCE(packets_dropped, 0) as packets_dropped
-                FROM mixnode_packet_stats_raw
-                WHERE mix_id = $1
-                ORDER BY timestamp_utc DESC
-                LIMIT 1 OFFSET 1
-                "#,
-            )
-            .bind(mix_id)
-            .fetch_optional(tx.as_mut())
-            .await?
-        }
         ScrapeNodeKind::MixingNymNode { node_id }
         | ScrapeNodeKind::EntryExitNymNode { node_id, .. } => {
             sqlx::query_as::<_, NodeStats>(
@@ -255,42 +189,6 @@ pub(crate) async fn insert_daily_node_stats_uncommitted(
     packets: NodeStats,
 ) -> Result<()> {
     match node_kind {
-        ScrapeNodeKind::LegacyMixnode { mix_id } => {
-            let total_stake = sqlx::query_scalar::<_, i64>(
-                r#"
-                    SELECT
-                        total_stake
-                    FROM mixnodes
-                    WHERE mix_id = ?
-                   "#,
-            )
-            .bind(mix_id)
-            .fetch_one(tx.as_mut())
-            .await?;
-
-            sqlx::query(
-                r#"
-                INSERT INTO mixnode_daily_stats (
-                    mix_id, date_utc,
-                    total_stake, packets_received,
-                    packets_sent, packets_dropped
-                ) VALUES (?, ?, ?, ?, ?, ?)
-                ON CONFLICT(mix_id, date_utc) DO UPDATE SET
-                    total_stake = excluded.total_stake,
-                    packets_received = mixnode_daily_stats.packets_received + excluded.packets_received,
-                    packets_sent = mixnode_daily_stats.packets_sent + excluded.packets_sent,
-                    packets_dropped = mixnode_daily_stats.packets_dropped + excluded.packets_dropped
-                "#,
-            )
-            .bind(mix_id)
-            .bind(date_utc)
-            .bind(total_stake)
-            .bind(packets.packets_received)
-            .bind(packets.packets_sent)
-            .bind(packets.packets_dropped)
-            .execute(tx.as_mut())
-            .await?;
-        }
         ScrapeNodeKind::MixingNymNode { node_id }
         | ScrapeNodeKind::EntryExitNymNode { node_id, .. } => {
             let total_stake = sqlx::query_scalar::<_, i64>(
@@ -341,42 +239,6 @@ pub(crate) async fn insert_daily_node_stats_uncommitted(
     packets: NodeStats,
 ) -> Result<()> {
     match node_kind {
-        ScrapeNodeKind::LegacyMixnode { mix_id } => {
-            let total_stake = sqlx::query_scalar::<_, i64>(
-                r#"
-                    SELECT
-                        total_stake
-                    FROM mixnodes
-                    WHERE mix_id = $1
-                   "#,
-            )
-            .bind(mix_id)
-            .fetch_one(tx.as_mut())
-            .await?;
-
-            sqlx::query(
-                r#"
-                INSERT INTO mixnode_daily_stats (
-                    mix_id, date_utc,
-                    total_stake, packets_received,
-                    packets_sent, packets_dropped
-                ) VALUES ($1, $2, $3, $4, $5, $6)
-                ON CONFLICT(mix_id, date_utc) DO UPDATE SET
-                    total_stake = excluded.total_stake,
-                    packets_received = mixnode_daily_stats.packets_received + excluded.packets_received,
-                    packets_sent = mixnode_daily_stats.packets_sent + excluded.packets_sent,
-                    packets_dropped = mixnode_daily_stats.packets_dropped + excluded.packets_dropped
-                "#,
-            )
-            .bind(mix_id)
-            .bind(date_utc)
-            .bind(total_stake)
-            .bind(packets.packets_received)
-            .bind(packets.packets_sent)
-            .bind(packets.packets_dropped)
-            .execute(tx.as_mut())
-            .await?;
-        }
         ScrapeNodeKind::MixingNymNode { node_id }
         | ScrapeNodeKind::EntryExitNymNode { node_id, .. } => {
             let total_stake = sqlx::query_scalar::<_, i64>(

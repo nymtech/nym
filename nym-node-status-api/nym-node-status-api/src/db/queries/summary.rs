@@ -9,8 +9,8 @@ use crate::{
             mixnode::{MixingNodesSummary, MixnodeSummary, MixnodeSummaryHistorical},
             NetworkSummary, SummaryDto, SummaryHistoryDto, ASSIGNED_ENTRY_COUNT,
             ASSIGNED_EXIT_COUNT, ASSIGNED_MIXING_COUNT, GATEWAYS_BONDED_COUNT,
-            GATEWAYS_HISTORICAL_COUNT, MIXNODES_HISTORICAL_COUNT, MIXNODES_LEGACY_COUNT,
-            NYMNODES_DESCRIBED_COUNT, NYMNODE_COUNT,
+            GATEWAYS_HISTORICAL_COUNT, MIXNODES_HISTORICAL_COUNT, NYMNODES_DESCRIBED_COUNT,
+            NYMNODE_COUNT,
         },
         DbPool,
     },
@@ -81,7 +81,6 @@ async fn from_summary_dto(items: Vec<SummaryDto>) -> HttpResult<NetworkSummary> 
     let keys = [
         NYMNODE_COUNT,
         ASSIGNED_MIXING_COUNT,
-        MIXNODES_LEGACY_COUNT,
         NYMNODES_DESCRIBED_COUNT,
         GATEWAYS_BONDED_COUNT,
         ASSIGNED_ENTRY_COUNT,
@@ -113,8 +112,7 @@ async fn from_summary_dto(items: Vec<SummaryDto>) -> HttpResult<NetworkSummary> 
         .get(NYMNODES_DESCRIBED_COUNT)
         .cloned()
         .unwrap_or_default();
-    let legacy_mixnodes_count: SummaryDto =
-        map.get(MIXNODES_LEGACY_COUNT).cloned().unwrap_or_default();
+
     let gateways_bonded_count: SummaryDto =
         map.get(GATEWAYS_BONDED_COUNT).cloned().unwrap_or_default();
     let mixnodes_historical_count: SummaryDto = map
@@ -132,7 +130,6 @@ async fn from_summary_dto(items: Vec<SummaryDto>) -> HttpResult<NetworkSummary> 
             bonded: MixingNodesSummary {
                 count: to_count_i32(&assigned_mixing_count),
                 self_described: to_count_i32(&self_described),
-                legacy: to_count_i32(&legacy_mixnodes_count),
                 last_updated_utc: to_timestamp(&assigned_mixing_count),
             },
             historical: MixnodeSummaryHistorical {

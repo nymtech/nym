@@ -20,9 +20,7 @@ use crate::{
     db::{queries, DbPool},
     http::{
         error::{HttpError, HttpResult},
-        models::{
-            DVpnGateway, DailyStats, ExtendedNymNode, Gateway, Mixnode, NodeGeoData, SummaryHistory,
-        },
+        models::{DVpnGateway, DailyStats, ExtendedNymNode, Gateway, NodeGeoData, SummaryHistory},
     },
     monitor::{DelegationsCache, NodeGeoCache},
 };
@@ -143,7 +141,6 @@ impl AppState {
 
 static GATEWAYS_LIST_KEY: &str = "gateways";
 static DVPN_GATEWAYS_LIST_KEY: &str = "dvpn_gateways";
-static MIXNODES_LIST_KEY: &str = "mixnodes";
 static NYM_NODES_LIST_KEY: &str = "nym_nodes";
 static MIXSTATS_LIST_KEY: &str = "mixstats";
 static SUMMARY_HISTORY_LIST_KEY: &str = "summary-history";
@@ -155,7 +152,6 @@ const MIXNODE_STATS_HISTORY_DAYS: usize = 30;
 pub(crate) struct HttpCache {
     gateways: Cache<String, Arc<RwLock<Vec<Gateway>>>>,
     dvpn_gateways: Cache<String, Arc<RwLock<Vec<DVpnGateway>>>>,
-    mixnodes: Cache<String, Arc<RwLock<Vec<Mixnode>>>>,
     nym_nodes: Cache<String, Arc<RwLock<Vec<ExtendedNymNode>>>>,
     mixstats: Cache<String, Arc<RwLock<Vec<DailyStats>>>>,
     history: Cache<String, Arc<RwLock<Vec<SummaryHistory>>>>,
@@ -171,10 +167,6 @@ impl HttpCache {
                 .build(),
             dvpn_gateways: Cache::builder()
                 .max_capacity(6)
-                .time_to_live(Duration::from_secs(ttl_seconds))
-                .build(),
-            mixnodes: Cache::builder()
-                .max_capacity(2)
                 .time_to_live(Duration::from_secs(ttl_seconds))
                 .build(),
             nym_nodes: Cache::builder()
@@ -424,50 +416,6 @@ impl HttpCache {
             .into_iter()
             .filter(DVpnGateway::can_route_exit)
             .collect()
-    }
-
-    pub async fn upsert_mixnode_list(
-        &self,
-        new_mixnode_list: Vec<Mixnode>,
-    ) -> Entry<String, Arc<RwLock<Vec<Mixnode>>>> {
-        self.mixnodes
-            .entry_by_ref(MIXNODES_LIST_KEY)
-            .and_upsert_with(|maybe_entry| async {
-                if let Some(entry) = maybe_entry {
-                    let v = entry.into_value();
-                    let mut guard = v.write().await;
-                    *guard = new_mixnode_list;
-                    v.clone()
-                } else {
-                    Arc::new(RwLock::new(new_mixnode_list))
-                }
-            })
-            .await
-    }
-
-    pub async fn get_mixnodes_list(&self, db: &DbPool) -> Vec<Mixnode> {
-        match self.mixnodes.get(MIXNODES_LIST_KEY).await {
-            Some(guard) => {
-                tracing::trace!("Fetching from cache...");
-                let read_lock = guard.read().await;
-                read_lock.clone()
-            }
-            None => {
-                tracing::trace!("No mixnodes in cache, refreshing cache from DB...");
-
-                let mixnodes = crate::db::queries::get_all_mixnodes(db)
-                    .await
-                    .unwrap_or_default();
-
-                if mixnodes.is_empty() {
-                    tracing::warn!("Database contains 0 mixnodes");
-                } else {
-                    self.upsert_mixnode_list(mixnodes.clone()).await;
-                }
-
-                mixnodes
-            }
-        }
     }
 
     pub async fn upsert_nym_node_list(

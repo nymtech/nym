@@ -9,13 +9,15 @@ use nym_gateway_requests::ServerResponse;
 use nym_sphinx::DestinationAddressBytes;
 use opentelemetry::propagation::TextMapPropagator;
 use opentelemetry_sdk::propagation::TraceContextPropagator;
+use opentelemetry_sdk::trace::IdGenerator;
 use rand::{CryptoRng, Rng};
 use std::time::Duration;
 use time::OffsetDateTime;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_tungstenite::WebSocketStream;
-use tracing::{debug, instrument, trace, warn};
+use tracing::{debug, instrument, trace, warn, info_span};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
+use opentelemetry::trace::{SpanContext, TraceContextExt, TraceFlags};
 
 pub(crate) use self::authenticated::AuthenticatedHandler;
 pub(crate) use self::fresh::FreshHandler;

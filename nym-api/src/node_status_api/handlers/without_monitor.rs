@@ -1,24 +1,12 @@
 // Copyright 2021-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-// we want to mark the routes as deprecated in swagger, but still expose them
-use crate::node_status_api::handlers::MixIdParam;
-use crate::node_status_api::helpers::{
-    _get_active_set_legacy_mixnodes_detailed, _get_legacy_mixnodes_detailed,
-    _get_mixnode_inclusion_probabilities, _get_mixnode_inclusion_probability,
-    _get_mixnode_stake_saturation, _get_mixnode_status, _get_rewarded_set_legacy_mixnodes_detailed,
-};
 use crate::node_status_api::models::{AxumErrorResponse, AxumResult};
 use crate::support::http::state::AppState;
-use axum::extract::{Path, Query, State};
-use axum::routing::{get, post};
+use axum::extract::State;
+use axum::routing::post;
 use axum::Json;
 use axum::Router;
-use nym_api_requests::models::{
-    MixNodeBondAnnotated, MixnodeStatusResponse, StakeSaturationResponse,
-};
-use nym_http_api_common::{FormattedResponse, OutputParams};
-use nym_mixnet_contract_common::NodeId;
 use nym_types::monitoring::MonitorMessage;
 use tracing::error;
 

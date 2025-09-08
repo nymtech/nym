@@ -8,8 +8,6 @@ use crate::node_describe_cache::cache::DescribedNodes;
 use crate::node_describe_cache::NodeDescriptionTopologyExt;
 use crate::node_status_api::NodeStatusCache;
 use crate::support::caching::cache::SharedCache;
-use crate::support::legacy_helpers::legacy_host_to_ips_and_hostname;
-use nym_api_requests::legacy::{LegacyGatewayBondWithId, LegacyMixNodeBondWithLayer};
 use nym_api_requests::models::{NodeAnnotation, NymNodeDescription};
 use nym_contracts_common::NaiveFloat;
 use nym_crypto::asymmetric::{ed25519, x25519};
@@ -20,41 +18,16 @@ use nym_sphinx::acknowledgements::AckKey;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_sphinx::params::{PacketSize, PacketType};
-use nym_topology::node::{EntryDetails, RoutingNode, SupportedRoles};
+use nym_topology::node::RoutingNode;
 use rand::prelude::SliceRandom;
 use rand::{rngs::ThreadRng, thread_rng, Rng};
 use std::collections::HashMap;
-use std::fmt::{self, Display, Formatter};
-use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
 use tracing::{debug, error, info, trace};
 
 const DEFAULT_AVERAGE_PACKET_DELAY: Duration = Duration::from_millis(200);
 const DEFAULT_AVERAGE_ACK_DELAY: Duration = Duration::from_millis(200);
-
-#[derive(Clone)]
-pub(crate) enum InvalidNode {
-    Malformed { node: TestableNode },
-}
-
-impl Display for InvalidNode {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        match self {
-            InvalidNode::Malformed { node } => {
-                write!(f, "{node} is malformed")
-            }
-        }
-    }
-}
-
-impl From<InvalidNode> for TestableNode {
-    fn from(value: InvalidNode) -> Self {
-        match value {
-            InvalidNode::Malformed { node } => node,
-        }
-    }
-}
 
 pub(crate) struct PreparedPackets {
     /// All packets that are going to get sent during the test as well as the gateways through
@@ -66,14 +39,6 @@ pub(crate) struct PreparedPackets {
 
     /// Vector containing list of public keys and owners of all gateways being tested.
     pub(super) gateways_under_test: Vec<TestableNode>,
-
-    /// All mixnodes that failed to get parsed correctly or were not version compatible.
-    /// They will be marked to the validator as being down for the test.
-    pub(super) invalid_mixnodes: Vec<InvalidNode>,
-
-    /// All gateways that failed to get parsed correctly or were not version compatible.
-    /// They will be marked to the validator as being down for the test.
-    pub(super) invalid_gateways: Vec<InvalidNode>,
 }
 
 #[derive(Clone)]
@@ -163,8 +128,6 @@ impl PacketPreparer {
         info!("Waiting for minimal topology to be online");
         let initialisation_backoff = Duration::from_secs(30);
         loop {
-            let gateways = self.contract_cache.legacy_gateways_all().await;
-            let mixnodes = self.contract_cache.legacy_mixnodes_all_basic().await;
             let nym_nodes = self.contract_cache.nym_nodes().await;
 
             #[allow(clippy::expect_used)]
@@ -174,8 +137,8 @@ impl PacketPreparer {
                 .await
                 .expect("the self-describe cache should have been initialised!");
 
-            let mut gateways_count = gateways.len();
-            let mut mixnodes_count = mixnodes.len();
+            let mut gateways_count = 0;
+            let mut mixnodes_count = 0;
 
             for nym_node in nym_nodes {
                 if let Some(described) = described_nodes.get_description(&nym_node.node_id()) {
@@ -197,78 +160,6 @@ impl PacketPreparer {
 
             self.topology_wait_backoff(initialisation_backoff).await;
         }
-    }
-
-    async fn all_legacy_mixnodes_and_gateways(
-        &self,
-    ) -> (
-        Vec<LegacyMixNodeBondWithLayer>,
-        Vec<LegacyGatewayBondWithId>,
-    ) {
-        info!("Obtaining network topology...");
-
-        let mixnodes = self.contract_cache.legacy_mixnodes_all_basic().await;
-        let gateways = self.contract_cache.legacy_gateways_all().await;
-
-        (mixnodes, gateways)
-    }
-
-    pub(crate) fn try_parse_legacy_mix_bond(
-        &self,
-        bond: &LegacyMixNodeBondWithLayer,
-    ) -> Result<RoutingNode, String> {
-        fn parse_bond(bond: &LegacyMixNodeBondWithLayer) -> Option<RoutingNode> {
-            let (ips, _) = legacy_host_to_ips_and_hostname(&bond.mix_node.host)?;
-
-            Some(RoutingNode {
-                node_id: bond.mix_id,
-                mix_host: SocketAddr::new(*ips.first()?, bond.mix_node.mix_port),
-                entry: None,
-                identity_key: ed25519::PublicKey::from_base58_string(&bond.mix_node.identity_key)
-                    .ok()?,
-                sphinx_key: x25519::PublicKey::from_base58_string(&bond.mix_node.sphinx_key)
-                    .ok()?,
-                supported_roles: SupportedRoles {
-                    mixnode: true,
-                    mixnet_entry: false,
-                    mixnet_exit: false,
-                },
-            })
-        }
-
-        let identity = bond.mix_node.identity_key.clone();
-        parse_bond(bond).ok_or(identity)
-    }
-
-    pub(crate) fn try_parse_legacy_gateway_bond(
-        &self,
-        gateway: &LegacyGatewayBondWithId,
-    ) -> Result<RoutingNode, String> {
-        fn parse_bond(bond: &LegacyGatewayBondWithId) -> Option<RoutingNode> {
-            let (ips, hostname) = legacy_host_to_ips_and_hostname(&bond.gateway.host)?;
-
-            Some(RoutingNode {
-                node_id: bond.node_id,
-                mix_host: SocketAddr::new(*ips.first()?, bond.gateway.mix_port),
-                entry: Some(EntryDetails {
-                    ip_addresses: ips,
-                    clients_ws_port: bond.gateway.clients_port,
-                    hostname,
-                    clients_wss_port: None,
-                }),
-                identity_key: ed25519::PublicKey::from_base58_string(&bond.gateway.identity_key)
-                    .ok()?,
-                sphinx_key: x25519::PublicKey::from_base58_string(&bond.gateway.sphinx_key).ok()?,
-                supported_roles: SupportedRoles {
-                    mixnode: false,
-                    mixnet_entry: true,
-                    mixnet_exit: false,
-                },
-            })
-        }
-
-        let identity = gateway.gateway.identity_key.clone();
-        parse_bond(gateway).ok_or(identity)
     }
 
     fn random_legacy_layer<R: Rng>(&self, rng: &mut R) -> LegacyMixLayer {
@@ -467,45 +358,6 @@ impl PacketPreparer {
         )
     }
 
-    fn filter_outdated_and_malformed_mixnodes(
-        &self,
-        nodes: Vec<LegacyMixNodeBondWithLayer>,
-    ) -> (Vec<RoutingNode>, Vec<InvalidNode>) {
-        let mut parsed_nodes = Vec::new();
-        let mut invalid_nodes = Vec::new();
-        for mixnode in nodes {
-            if let Ok(parsed_node) = self.try_parse_legacy_mix_bond(&mixnode) {
-                parsed_nodes.push(parsed_node)
-            } else {
-                invalid_nodes.push(InvalidNode::Malformed {
-                    node: TestableNode::new_mixnode(mixnode.identity().to_owned(), mixnode.mix_id),
-                });
-            }
-        }
-        (parsed_nodes, invalid_nodes)
-    }
-
-    fn filter_outdated_and_malformed_gateways(
-        &self,
-        nodes: Vec<LegacyGatewayBondWithId>,
-    ) -> (Vec<RoutingNode>, Vec<InvalidNode>) {
-        let mut parsed_nodes = Vec::new();
-        let mut invalid_nodes = Vec::new();
-        for gateway in nodes {
-            if let Ok(parsed_node) = self.try_parse_legacy_gateway_bond(&gateway) {
-                parsed_nodes.push(parsed_node)
-            } else {
-                invalid_nodes.push(InvalidNode::Malformed {
-                    node: TestableNode::new_gateway(
-                        gateway.bond.identity().to_owned(),
-                        gateway.node_id,
-                    ),
-                });
-            }
-        }
-        (parsed_nodes, invalid_nodes)
-    }
-
     fn nym_node_to_routing_node(
         &self,
         current_rotation_id: u32,
@@ -521,8 +373,6 @@ impl PacketPreparer {
         // TODO: Maybe do this
         _packet_type: PacketType,
     ) -> PreparedPackets {
-        let (mixnodes, gateways) = self.all_legacy_mixnodes_and_gateways().await;
-
         // SAFETY: cache has already been initialised
         #[allow(clippy::unwrap_used)]
         let current_rotation_id = self.contract_cache.current_key_rotation_id().await.unwrap();
@@ -536,20 +386,10 @@ impl PacketPreparer {
         let mixing_nym_nodes = descriptions.mixing_nym_nodes();
         let gateway_capable_nym_nodes = descriptions.entry_capable_nym_nodes();
 
-        let (mut mixnodes_to_test_details, invalid_mixnodes) =
-            self.filter_outdated_and_malformed_mixnodes(mixnodes);
-        let (mut gateways_to_test_details, invalid_gateways) =
-            self.filter_outdated_and_malformed_gateways(gateways);
-
-        // summary of nodes that got tested
-        let mut mixnodes_under_test = mixnodes_to_test_details
-            .iter()
-            .map(|node| TestableNode::new_routing(node, NodeType::Mixnode))
-            .collect::<Vec<_>>();
-        let mut gateways_under_test = gateways_to_test_details
-            .iter()
-            .map(|node| TestableNode::new_routing(node, NodeType::Gateway))
-            .collect::<Vec<_>>();
+        let mut mixnodes_to_test_details = Vec::new();
+        let mut gateways_to_test_details = Vec::new();
+        let mut mixnodes_under_test = Vec::new();
+        let mut gateways_under_test = Vec::new();
 
         // try to add nym-nodes into the fold
         for mix in mixing_nym_nodes {
@@ -647,8 +487,6 @@ impl PacketPreparer {
             packets,
             mixnodes_under_test,
             gateways_under_test,
-            invalid_mixnodes,
-            invalid_gateways,
         }
     }
 }

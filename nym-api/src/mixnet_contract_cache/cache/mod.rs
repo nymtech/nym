@@ -6,18 +6,12 @@ use crate::node_describe_cache::refresh::RefreshData;
 use crate::support::caching::cache::{SharedCache, UninitialisedCache};
 use crate::support::caching::Cache;
 use data::MixnetContractCacheData;
-use nym_api_requests::legacy::{
-    LegacyGatewayBondWithId, LegacyMixNodeBondWithLayer, LegacyMixNodeDetailsWithLayer,
-};
-use nym_api_requests::models::{CirculatingSupplyResponse, MixnodeStatus};
+use nym_api_requests::models::CirculatingSupplyResponse;
 use nym_contracts_common::truncate_decimal;
 use nym_crypto::asymmetric::ed25519;
-use nym_mixnet_contract_common::{
-    Interval, KeyRotationState, NodeId, NymNodeDetails, RewardingParams,
-};
+use nym_mixnet_contract_common::{Interval, KeyRotationState, NymNodeDetails, RewardingParams};
 use nym_topology::CachedEpochRewardedSet;
 use nym_validator_client::nyxd::Coin;
-use time::OffsetDateTime;
 use tokio::sync::RwLockReadGuard;
 
 pub(crate) mod data;
@@ -56,60 +50,8 @@ impl MixnetContractCache {
         Ok(RwLockReadGuard::map(guard, fn_arg))
     }
 
-    pub async fn cache_timestamp(&self) -> OffsetDateTime {
-        let Ok(cache) = self.inner.get().await else {
-            return OffsetDateTime::UNIX_EPOCH;
-        };
-
-        cache.timestamp()
-    }
-
-    pub async fn all_cached_legacy_mixnodes(
-        &self,
-    ) -> Option<RwLockReadGuard<'_, Vec<LegacyMixNodeDetailsWithLayer>>> {
-        self.get(|c| &c.legacy_mixnodes).await.ok()
-    }
-
-    pub async fn legacy_gateway_owner(&self, node_id: NodeId) -> Option<String> {
-        let Ok(cache) = self.inner.get().await else {
-            return Default::default();
-        };
-
-        cache
-            .legacy_gateways
-            .iter()
-            .find(|gateway| gateway.node_id == node_id)
-            .map(|gateway| gateway.owner.to_string())
-    }
-
-    pub async fn all_cached_legacy_gateways(
-        &self,
-    ) -> Option<RwLockReadGuard<'_, Vec<LegacyGatewayBondWithId>>> {
-        self.get(|c| &c.legacy_gateways).await.ok()
-    }
-
     pub async fn all_cached_nym_nodes(&self) -> Option<RwLockReadGuard<'_, Vec<NymNodeDetails>>> {
         self.get(|c| &c.nym_nodes).await.ok()
-    }
-
-    pub async fn legacy_mixnodes_all(&self) -> Vec<LegacyMixNodeDetailsWithLayer> {
-        self.get_owned(|c| c.legacy_mixnodes.clone())
-            .await
-            .unwrap_or_default()
-    }
-
-    pub async fn legacy_mixnodes_all_basic(&self) -> Vec<LegacyMixNodeBondWithLayer> {
-        self.legacy_mixnodes_all()
-            .await
-            .into_iter()
-            .map(|bond| bond.bond_information)
-            .collect()
-    }
-
-    pub async fn legacy_gateways_all(&self) -> Vec<LegacyGatewayBondWithId> {
-        self.get_owned(|c| c.legacy_gateways.clone())
-            .await
-            .unwrap_or_default()
     }
 
     pub async fn nym_nodes(&self) -> Vec<NymNodeDetails> {
@@ -123,10 +65,6 @@ impl MixnetContractCache {
     ) -> Result<Cache<CachedEpochRewardedSet>, UninitialisedCache> {
         let cache = self.inner.get().await?;
         Ok(Cache::as_mapped(&cache, |c| c.rewarded_set.clone()))
-    }
-
-    pub async fn rewarded_set(&self) -> Option<RwLockReadGuard<'_, CachedEpochRewardedSet>> {
-        self.get(|c| &c.rewarded_set).await.ok()
     }
 
     pub async fn rewarded_set_owned(&self) -> Result<CachedEpochRewardedSet, UninitialisedCache> {
@@ -161,18 +99,6 @@ impl MixnetContractCache {
             .key_rotation_id(current_absolute_epoch_id))
     }
 
-    pub async fn mixnode_status(&self, mix_id: NodeId) -> MixnodeStatus {
-        let Ok(cache) = self.inner.get().await else {
-            return Default::default();
-        };
-
-        if cache.legacy_mixnodes.iter().any(|n| n.mix_id() == mix_id) {
-            MixnodeStatus::Inactive
-        } else {
-            MixnodeStatus::NotFound
-        }
-    }
-
     pub async fn get_node_refresh_data(
         &self,
         node_identity: ed25519::PublicKey,
@@ -189,28 +115,10 @@ impl MixnetContractCache {
             .iter()
             .find(|n| n.bond_information.identity() == encoded_identity)
         {
-            return nym_node.try_into().ok();
+            nym_node.try_into().ok()
+        } else {
+            None
         }
-
-        // 2. check legacy mixnodes
-        if let Some(mixnode) = cache
-            .legacy_mixnodes
-            .iter()
-            .find(|n| n.bond_information.identity() == encoded_identity)
-        {
-            return mixnode.try_into().ok();
-        }
-
-        // 3. check legacy gateways
-        if let Some(gateway) = cache
-            .legacy_gateways
-            .iter()
-            .find(|n| n.identity() == &encoded_identity)
-        {
-            return gateway.try_into().ok();
-        }
-
-        None
     }
 
     pub(crate) async fn get_circulating_supply(&self) -> Option<CirculatingSupplyResponse> {

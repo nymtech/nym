@@ -5,8 +5,7 @@ use self::data::NodeStatusCacheData;
 use crate::node_performance::provider::PerformanceRetrievalFailure;
 use crate::support::caching::cache::UninitialisedCache;
 use crate::support::caching::Cache;
-use nym_api_requests::models::{GatewayBondAnnotated, MixNodeBondAnnotated, NodeAnnotation};
-use nym_contracts_common::IdentityKey;
+use nym_api_requests::models::NodeAnnotation;
 use nym_mixnet_contract_common::NodeId;
 use std::collections::HashMap;
 use std::{sync::Arc, time::Duration};
@@ -19,7 +18,6 @@ const CACHE_TIMEOUT_MS: u64 = 100;
 
 mod config_score;
 pub mod data;
-mod inclusion_probabilities;
 pub mod refresher;
 
 #[derive(Debug, Error)]
@@ -58,42 +56,12 @@ impl NodeStatusCache {
     }
 
     /// Updates the cache with the latest data.
-    #[allow(deprecated)]
-    async fn update(
-        &self,
-        legacy_gateway_mapping: HashMap<IdentityKey, NodeId>,
-        node_annotations: HashMap<NodeId, NodeAnnotation>,
-        mixnodes: HashMap<NodeId, MixNodeBondAnnotated>,
-        gateways: HashMap<NodeId, GatewayBondAnnotated>,
-        inclusion_probabilities: inclusion_probabilities::InclusionProbabilities,
-    ) {
+    async fn update(&self, node_annotations: HashMap<NodeId, NodeAnnotation>) {
         match time::timeout(Duration::from_millis(CACHE_TIMEOUT_MS), self.inner.write()).await {
             Ok(mut cache) => {
-                cache.mixnodes_annotated.unchecked_update(mixnodes);
-                cache
-                    .legacy_gateway_mapping
-                    .unchecked_update(legacy_gateway_mapping);
                 cache.node_annotations.unchecked_update(node_annotations);
-                cache.gateways_annotated.unchecked_update(gateways);
-                cache
-                    .inclusion_probabilities
-                    .unchecked_update(inclusion_probabilities);
             }
             Err(e) => error!("{e}"),
-        }
-    }
-
-    /// Returns a copy of the current cache data.
-    async fn get_owned<T>(
-        &self,
-        fn_arg: impl FnOnce(RwLockReadGuard<'_, NodeStatusCacheData>) -> Cache<T>,
-    ) -> Option<Cache<T>> {
-        match time::timeout(Duration::from_millis(CACHE_TIMEOUT_MS), self.inner.read()).await {
-            Ok(cache) => Some(fn_arg(cache)),
-            Err(e) => {
-                error!("{e}");
-                None
-            }
         }
     }
 
@@ -114,68 +82,5 @@ impl NodeStatusCache {
         &self,
     ) -> Option<RwLockReadGuard<'_, Cache<HashMap<NodeId, NodeAnnotation>>>> {
         self.get(|c| &c.node_annotations).await
-    }
-
-    pub(crate) async fn map_identity_to_node_id(&self, identity: &str) -> Option<NodeId> {
-        self.inner
-            .read()
-            .await
-            .legacy_gateway_mapping
-            .get(identity)
-            .copied()
-    }
-
-    pub(crate) async fn annotated_legacy_mixnodes(
-        &self,
-    ) -> Option<RwLockReadGuard<'_, Cache<HashMap<NodeId, MixNodeBondAnnotated>>>> {
-        self.get(|c| &c.mixnodes_annotated).await
-    }
-
-    pub(crate) async fn mixnodes_annotated_full(&self) -> Option<Vec<MixNodeBondAnnotated>> {
-        let mixnodes = self.get(|c| &c.mixnodes_annotated).await?;
-
-        // just clone everything and return the vec to work with the existing code
-        Some(mixnodes.values().cloned().collect())
-    }
-
-    pub(crate) async fn mixnodes_annotated_filtered(&self) -> Option<Vec<MixNodeBondAnnotated>> {
-        let full = self.mixnodes_annotated_full().await?;
-        Some(full.iter().filter(|m| !m.blacklisted).cloned().collect())
-    }
-
-    pub(crate) async fn mixnode_annotated(&self, mix_id: NodeId) -> Option<MixNodeBondAnnotated> {
-        let mixnodes = self.get(|c| &c.mixnodes_annotated).await?;
-        mixnodes.get(&mix_id).cloned()
-    }
-
-    pub(crate) async fn annotated_legacy_gateways(
-        &self,
-    ) -> Option<RwLockReadGuard<'_, Cache<HashMap<NodeId, GatewayBondAnnotated>>>> {
-        self.get(|c| &c.gateways_annotated).await
-    }
-
-    pub(crate) async fn gateways_annotated_full(&self) -> Option<Vec<GatewayBondAnnotated>> {
-        let gateways = self.get(|c| &c.gateways_annotated).await?;
-
-        // just clone everything and return the vec to work with the existing code
-        Some(gateways.values().cloned().collect())
-    }
-
-    pub(crate) async fn gateways_annotated_filtered(&self) -> Option<Vec<GatewayBondAnnotated>> {
-        let full = self.gateways_annotated_full().await?;
-        Some(full.iter().filter(|m| !m.blacklisted).cloned().collect())
-    }
-
-    pub(crate) async fn gateway_annotated(&self, node_id: NodeId) -> Option<GatewayBondAnnotated> {
-        let gateways = self.get(|c| &c.gateways_annotated).await?;
-        gateways.get(&node_id).cloned()
-    }
-
-    #[allow(deprecated)]
-    pub(crate) async fn inclusion_probabilities(
-        &self,
-    ) -> Option<Cache<inclusion_probabilities::InclusionProbabilities>> {
-        self.get_owned(|c| c.inclusion_probabilities.clone_cache())
-            .await
     }
 }

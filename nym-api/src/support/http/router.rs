@@ -3,10 +3,9 @@
 
 use crate::circulating_supply_api::handlers::circulating_supply_routes;
 use crate::ecash::api_routes::handlers::ecash_routes;
-use crate::mixnet_contract_cache::handlers::nym_contract_cache_routes;
+use crate::mixnet_contract_cache::handlers::epoch_routes;
 use crate::network::handlers::nym_network_routes;
 use crate::node_status_api::handlers::status_routes;
-use crate::nym_nodes::handlers::legacy::legacy_nym_node_routes;
 use crate::nym_nodes::handlers::nym_node_routes;
 use crate::status;
 use crate::support::http::openapi::ApiDoc;
@@ -57,8 +56,7 @@ impl RouterBuilder {
                 "/v1",
                 Router::new()
                     // unfortunately some routes didn't use correct prefix and were attached to the root
-                    .merge(nym_contract_cache_routes())
-                    .merge(legacy_nym_node_routes())
+                    .nest("/epoch", epoch_routes())
                     .nest("/circulating-supply", circulating_supply_routes())
                     .nest("/status", status_routes(network_monitor))
                     .nest("/network", nym_network_routes())

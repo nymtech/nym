@@ -962,7 +962,7 @@ impl<R, S> FreshHandler<R, S> {
     pub(crate) async fn handle_until_authenticated_or_failure(
         mut self,
         shutdown: &mut TaskClient,
-    ) -> Option<AuthenticatedHandler<R, S>>
+    ) -> (Option<AuthenticatedHandler<R, S>>, Option<tracing::Span>)
     where
         S: AsyncRead + AsyncWrite + Unpin + Send,
         R: CryptoRng + RngCore + Send,
@@ -974,7 +974,7 @@ impl<R, S> FreshHandler<R, S> {
                 _ = shutdown.recv() => {
                     // let span = tracing::span!(parent: current_span, tracing::Level::DEBUG, "websocket_listener_shutdown");
                     // let _enter = span.enter();
-                    return None
+                    return (None, None);
                 },
                 req = self.wait_for_initial_message() => req,
             };
@@ -983,7 +983,7 @@ impl<R, S> FreshHandler<R, S> {
                 Ok(req) => req,
                 Err(err) => {
                     self.send_and_forget_error_response(err).await;
-                    return None;
+                    return (None, None);
                 }
             };
 
@@ -993,12 +993,11 @@ impl<R, S> FreshHandler<R, S> {
                 Err(err) => {
                     debug!("initial client request handling error: {err}");
                     self.send_and_forget_error_response(err).await;
-                    return None;
+                    return (None, None);
                 }
             };
 
-            if let (Some(registration_details), Some(herited_span)) = (maybe_auth_res, herited_span) {
-
+            if let (Some(registration_details), Some(ref herited_span)) = (maybe_auth_res, herited_span) {
                 let span = info_span!(parent: herited_span, "upgrading_to_authenticated_handler");
                 let _enter = span.enter();
                 let (mix_sender, mix_receiver) = mpsc::unbounded();
@@ -1011,7 +1010,8 @@ impl<R, S> FreshHandler<R, S> {
                     registration_details.session_request_timestamp,
                 );
 
-                return AuthenticatedHandler::upgrade(
+                let exit_span = info_span!("upgraded_to_authenticated_handler");
+                let auth_handle = AuthenticatedHandler::upgrade(
                     self,
                     registration_details,
                     mix_receiver,
@@ -1020,10 +1020,11 @@ impl<R, S> FreshHandler<R, S> {
                 .await
                 .inspect_err(|err| error!("failed to upgrade client handler: {err}"))
                 .ok();
+                return (auth_handle, Some(exit_span));
             }
         }
 
-        None
+        (None, None)
     }
 
     pub(crate) async fn wait_for_initial_message(

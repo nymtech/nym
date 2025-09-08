@@ -10,7 +10,7 @@ use axum::{Json, Router};
 use nym_api_requests::models::{
     AnnotationResponse, NodeDatePerformanceResponse, NodePerformanceResponse, NodeRefreshBody,
     NoiseDetails, NymNodeDescription, PerformanceHistoryResponse, RewardedSetResponse,
-    UptimeHistoryResponse,
+    StakeSaturationResponse, UptimeHistoryResponse,
 };
 use nym_api_requests::pagination::{PaginatedResponse, Pagination};
 use nym_contracts_common::NaiveFloat;
@@ -31,6 +31,7 @@ pub(crate) fn nym_node_routes() -> Router<AppState> {
         .route("/described", get(get_described_nodes))
         .route("/annotation/:node_id", get(get_node_annotation))
         .route("/performance/:node_id", get(get_current_node_performance))
+        .route("/stake-saturation/:node_id", get(get_node_stake_saturation))
         .route(
             "/historical-performance/:node_id",
             get(get_historical_performance),
@@ -315,6 +316,44 @@ async fn get_current_node_performance(
         performance: annotations
             .get(&node_id)
             .map(|n| n.last_24h_performance.naive_to_f64()),
+    }))
+}
+
+#[utoipa::path(
+    tag = "Nym Nodes",
+    get,
+    path = "/stake-saturation/{node_id}",
+    context_path = "/v1/nym-nodes",
+    responses(
+        (status = 200, content(
+            (StakeSaturationResponse = "application/json"),
+            (StakeSaturationResponse = "application/yaml"),
+            (StakeSaturationResponse = "application/bincode")
+        ))
+    ),
+    params(NodeIdParam, OutputParams),
+)]
+async fn get_node_stake_saturation(
+    Path(NodeIdParam { node_id }): Path<NodeIdParam>,
+    Query(output): Query<OutputParams>,
+    State(state): State<AppState>,
+) -> AxumResult<FormattedResponse<StakeSaturationResponse>> {
+    let output = output.get_output();
+
+    let contract_cache = state.nym_contract_cache();
+    let Some(node) = contract_cache.nym_node(node_id).await? else {
+        return Err(AxumErrorResponse::not_found("nym node bond not found"));
+    };
+
+    let rewarding_params = contract_cache.interval_reward_params().await?;
+    let as_at = contract_cache.cache_timestamp().await;
+
+    Ok(output.to_response(StakeSaturationResponse {
+        saturation: node.rewarding_details.bond_saturation(&rewarding_params),
+        uncapped_saturation: node
+            .rewarding_details
+            .uncapped_bond_saturation(&rewarding_params),
+        as_at: as_at.unix_timestamp(),
     }))
 }
 

@@ -6,11 +6,11 @@ use crate::node_describe_cache::refresh::RefreshData;
 use crate::support::caching::cache::{SharedCache, UninitialisedCache};
 use crate::support::caching::Cache;
 use data::MixnetContractCacheData;
-use nym_api_requests::models::CirculatingSupplyResponse;
+use nym_api_requests::models::{CirculatingSupplyResponse, LegacyGatewayBondWithId};
 use nym_contracts_common::truncate_decimal;
 use nym_crypto::asymmetric::ed25519;
 use nym_mixnet_contract_common::{
-    Interval, KeyRotationState, NodeId, NymNodeDetails, RewardingParams,
+    Interval, KeyRotationState, MixNodeDetails, NodeId, NymNodeDetails, RewardingParams,
 };
 use nym_topology::CachedEpochRewardedSet;
 use nym_validator_client::nyxd::Coin;
@@ -59,6 +59,16 @@ impl MixnetContractCache {
         };
 
         cache.timestamp()
+    }
+
+    pub async fn legacy_mixnodes(&self) -> Result<Vec<MixNodeDetails>, UninitialisedCache> {
+        self.get_owned(|c| c.legacy_mixnodes.clone()).await
+    }
+
+    pub async fn legacy_gateways(
+        &self,
+    ) -> Result<Vec<LegacyGatewayBondWithId>, UninitialisedCache> {
+        self.get_owned(|c| c.legacy_gateways.clone()).await
     }
 
     pub async fn all_cached_nym_nodes(&self) -> Option<RwLockReadGuard<'_, Vec<NymNodeDetails>>> {

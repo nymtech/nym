@@ -905,6 +905,8 @@ impl<R, S> FreshHandler<R, S> {
         let mut carrier = ContextCarrier::new();
         let propagator = TraceContextPropagator::new();
         propagator.inject_context(&gateway_context, &mut carrier);
+        let extracted_trace_id = carrier.extract_trace_id();
+        info!("handle_initial_client_request: Extracted trace id after child_span: {:?}", extracted_trace_id);
         let gw_carrier = carrier.into_map();
 
 

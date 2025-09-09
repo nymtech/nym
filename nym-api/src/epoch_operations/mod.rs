@@ -16,6 +16,7 @@ use crate::mixnet_contract_cache::cache::MixnetContractCache;
 use crate::node_describe_cache::cache::DescribedNodes;
 use crate::node_status_api::{NodeStatusCache, ONE_DAY};
 use crate::support::caching::cache::SharedCache;
+use crate::support::caching::refresher::RefreshRequester;
 use crate::support::nyxd::Client;
 use crate::support::storage::NymApiStorage;
 use error::RewardingError;
@@ -37,7 +38,8 @@ mod transition_beginning;
 // this is struct responsible for advancing an epoch
 pub struct EpochAdvancer {
     nyxd_client: Client,
-    nym_contract_cache: MixnetContractCache,
+    mixnet_contract_cache: MixnetContractCache,
+    mixnet_contract_cache_refresh_requester: RefreshRequester,
     described_cache: SharedCache<DescribedNodes>,
     status_cache: NodeStatusCache,
     storage: NymApiStorage,
@@ -52,14 +54,16 @@ impl EpochAdvancer {
 
     pub(crate) fn new(
         nyxd_client: Client,
-        nym_contract_cache: MixnetContractCache,
+        mixnet_contract_cache: MixnetContractCache,
+        mixnet_contract_cache_refresh_requester: RefreshRequester,
         status_cache: NodeStatusCache,
         described_cache: SharedCache<DescribedNodes>,
         storage: NymApiStorage,
     ) -> Self {
         EpochAdvancer {
             nyxd_client,
-            nym_contract_cache,
+            mixnet_contract_cache,
+            mixnet_contract_cache_refresh_requester,
             described_cache,
             status_cache,
             storage,
@@ -119,7 +123,7 @@ impl EpochAdvancer {
 
         let epoch_end = interval.current_epoch_end();
 
-        let nym_nodes = self.nym_contract_cache.nym_nodes().await;
+        let nym_nodes = self.mixnet_contract_cache.nym_nodes().await;
 
         if nym_nodes.is_empty() {
             // that's a bit weird, but ok
@@ -160,6 +164,11 @@ impl EpochAdvancer {
         info!("Purging old node statuses from the storage...");
         let cutoff = (epoch_end - 2 * ONE_DAY).unix_timestamp();
         self.storage.purge_old_statuses(cutoff).await?;
+
+        // after all epoch progression has finished - force refresh the mixnet contract cache,
+        // so we'd know about new rewarded set (that's easier than manually overwriting the data)
+        self.mixnet_contract_cache_refresh_requester
+            .request_cache_refresh();
 
         Ok(())
     }
@@ -217,7 +226,7 @@ impl EpochAdvancer {
         shutdown_token: ShutdownToken,
     ) -> Result<(), RewardingError> {
         info!("waiting for initial contract cache values before we can start rewarding");
-        self.nym_contract_cache
+        self.mixnet_contract_cache
             .naive_wait_for_initial_values()
             .await;
 
@@ -243,6 +252,7 @@ impl EpochAdvancer {
     pub(crate) fn start(
         nyxd_client: Client,
         nym_contract_cache: &MixnetContractCache,
+        mixnet_contract_cache_refresh_requester: RefreshRequester,
         status_cache: &NodeStatusCache,
         described_cache: SharedCache<DescribedNodes>,
         storage: &NymApiStorage,
@@ -251,6 +261,7 @@ impl EpochAdvancer {
         let mut epoch_advancer = EpochAdvancer::new(
             nyxd_client,
             nym_contract_cache.to_owned(),
+            mixnet_contract_cache_refresh_requester,
             status_cache.to_owned(),
             described_cache,
             storage.to_owned(),

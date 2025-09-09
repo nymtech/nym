@@ -212,22 +212,29 @@ async function normalNymClientUsage() {
     nymApiUrl: validator,
   });
 
+  // try {
+  //   let localClient = await NymClient.newWithConfig(
+  //     config,
+  //     onMessageHandler,
+  //     {}
+  //   );
+  //   console.log(">>>>>>>> POST PROMISE");
+  //   // console.log(localClient.selfAddress);
+  // } catch (e) {
+  //   console.log("local client creation error: ", e);
+  // }
+
+  let localClient;
   try {
-    let localClient = await NymClient.newWithConfig(
-      config,
-      onMessageHandler,
-      {}
-    );
+    localClient = await NymClient.newWithConfig(config, onMessageHandler, {});
     console.log(">>>>>>>> POST PROMISE");
-    console.log(localClient.selfAddress);
   } catch (e) {
     console.log("local client creation error: ", e);
+    throw e;
   }
 
   console.log(">>>>>>>>>>>> WASM client running!");
-
   const selfAddress = localClient.selfAddress();
-
   client = localClient;
 
   console.log(`Client address is ${selfAddress}`);

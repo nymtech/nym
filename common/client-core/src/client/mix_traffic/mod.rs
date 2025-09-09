@@ -7,6 +7,7 @@ use nym_sphinx::forwarding::packet::MixPacket;
 use nym_task::ShutdownToken;
 use tracing::*;
 use transceiver::ErasedGatewayError;
+use wasm_utils::console_log;
 
 pub type BatchMixMessageSender = tokio::sync::mpsc::Sender<Vec<MixPacket>>;
 pub type BatchMixMessageReceiver = tokio::sync::mpsc::Receiver<Vec<MixPacket>>;
@@ -36,6 +37,34 @@ pub struct MixTrafficController {
 }
 
 impl MixTrafficController {
+    // pub fn new<T>(
+    //     gateway_transceiver: T,
+    //     task_client: TaskClient,
+    // ) -> (
+    //     MixTrafficController,
+    //     BatchMixMessageSender,
+    //     ClientRequestSender,
+    // )
+    // where
+    //     T: GatewayTransceiver + Send + 'static,
+    // {
+    //     let (message_sender, message_receiver) =
+    //         tokio::sync::mpsc::channel(MIX_MESSAGE_RECEIVER_BUFFER_SIZE);
+
+    //     let (client_sender, client_receiver) = tokio::sync::mpsc::channel(8);
+
+    //     (
+    //         MixTrafficController {
+    //             gateway_transceiver: Box::new(gateway_transceiver),
+    //             mix_rx: message_receiver,
+    //             client_rx: client_receiver,
+    //             consecutive_gateway_failure_count: 0,
+    //             task_client,
+    //         },
+    //         message_sender,
+    //         client_sender,
+    //     )
+    // }
     pub fn new<T>(
         gateway_transceiver: T,
         shutdown_token: ShutdownToken,
@@ -49,8 +78,14 @@ impl MixTrafficController {
     {
         let (message_sender, message_receiver) =
             tokio::sync::mpsc::channel(MIX_MESSAGE_RECEIVER_BUFFER_SIZE);
-
         let (client_sender, client_receiver) = tokio::sync::mpsc::channel(8);
+
+        // Use TaskClient::dummy() for WASM, real TaskClient for native
+        #[cfg(target_arch = "wasm32")]
+        let task_client = nym_task::TaskClient::dummy(); // Never hangs
+
+        #[cfg(not(target_arch = "wasm32"))]
+        let task_client = TaskClient::default(); // Normal behavior
 
         (
             MixTrafficController {

@@ -54,6 +54,7 @@ pub(crate) struct ClientDetails {
     // note, this does **NOT ALWAYS** indicate timestamp of when client connected
     // it is (for v2 auth) timestamp the client **signed** when it created the request
     pub(crate) session_request_timestamp: OffsetDateTime,
+    pub(crate) otel_context: Option<std::collections::HashMap<String, String>>,
 }
 
 impl ClientDetails {
@@ -62,12 +63,14 @@ impl ClientDetails {
         address: DestinationAddressBytes,
         shared_keys: SharedGatewayKey,
         session_request_timestamp: OffsetDateTime,
+        otel_context: Option<std::collections::HashMap<String, String>>,
     ) -> Self {
         ClientDetails {
             address,
             id,
             shared_keys,
             session_request_timestamp,
+            otel_context,
         }
     }
 }

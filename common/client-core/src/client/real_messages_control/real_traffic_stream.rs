@@ -326,18 +326,19 @@ where
         // ready and hence was immediately re-scheduled causing other tasks to be starved;
         // yield makes it go back the scheduling queue regardless of its value availability
 
-        // TODO: temporary and BAD workaround for wasm (we should find a way to yield here in wasm)
-        console_log!("OutQueueControl::on_message: about to yield in tokio (NOT WASM)");
         #[cfg(not(target_arch = "wasm32"))]
-        tokio::task::yield_now().await;
-        console_log!("on_message: post-yield");
+        {
+            // console_log!("Yielding task in real traffic stream (native)");
+            tokio::task::yield_now().await;
+            // console_log!("Task yielded in real traffic stream (native)");
+        }
 
-        // TODO MAX: trying to find a way to yield here in WASM: we should see this once we get the
-        // WASM client running
-        console_log!("OutQueueControl::on_message: about to yield in tokio_with_wasm (WASM)");
         #[cfg(target_arch = "wasm32")]
-        tokio_with_wasm::task::yield_now().await;
-        console_log!("OutQueueControl::on_message: post-yield");
+        {
+            // console_log!("Yielding task in real traffic stream (WASM)");
+            tokio_with_wasm::task::yield_now().await;
+            // console_log!("Task yielded in real traffic stream (WASM)");
+        }
     }
 
     fn on_close_connection(&mut self, connection_id: ConnectionId) {

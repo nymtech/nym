@@ -28,6 +28,7 @@ url = { workspace = true, features = ["serde"] }
 time = { workspace = true }
 tokio = { workspace = true, features = ["sync", "macros"] }
 tracing = { workspace = true }
+wasmtimer = { workspace = true }
 zeroize = { workspace = true }
 
 # internal

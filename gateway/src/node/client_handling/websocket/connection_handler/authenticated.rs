@@ -14,6 +14,7 @@ use futures::{
     future::{FusedFuture, OptionFuture},
     FutureExt, StreamExt,
 };
+use nym_bin_common::opentelemetry::context::ContextCarrier;
 use nym_credential_verification::CredentialVerifier;
 use nym_credential_verification::{
     bandwidth_storage_manager::BandwidthStorageManager, ClientBandwidth,
@@ -30,10 +31,13 @@ use nym_node_metrics::events::MetricsEvent;
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_statistics_common::{gateways::GatewaySessionEvent, types::SessionType};
 use nym_validator_client::coconut::EcashApiError;
+use opentelemetry_sdk::propagation::TraceContextPropagator;
+use opentelemetry::propagation::TextMapPropagator;
 use rand::{random, CryptoRng, Rng};
+use tracing_opentelemetry::OpenTelemetrySpanExt;
 use std::{process, time::Duration};
 use thiserror::Error;
-use tokio::io::{AsyncRead, AsyncWrite};
+use tokio::{io::{AsyncRead, AsyncWrite}, time::error::Elapsed};
 use tokio_tungstenite::tungstenite::{protocol::Message, Error as WsError};
 use tracing::*;
 
@@ -594,7 +598,29 @@ impl<R, S> AuthenticatedHandler<R, S> {
         S: AsyncRead + AsyncWrite + Unpin,
     {
         trace!("Started listening for ALL incoming requests...");
+        let remote_span = if let Some(ctx) = &self.client.otel_context {
+            let carrier = ContextCarrier::from_map(ctx.clone());
+            let extracted_trace_id = carrier.extract_trace_id();
+            warn!("=== Listen for requests: Extracted trace id from client: {:?} ===", extracted_trace_id);
 
+            let propagator = TraceContextPropagator::new();
+            let extracted_cx = propagator.extract(&carrier);
+
+            tracing::Span::current().set_parent(extracted_cx);
+            let span = info_span!("starting point with otel");
+            warn!("=== Context propagated to authenticated client handler listen_for_requests ===");
+            Some(span)
+        } else {
+            None
+        };
+
+        let child_span = if let Some(ref remote_span) = remote_span {
+            info_span!(parent: remote_span, "listen_for_requests with otel")
+        } else {
+            info_span!("listen_for_requests without otel")
+        };
+        let _child_span_guard = child_span.enter();
+        
         // Ping timeout future used to check if the client responded to our ping request
         let mut ping_timeout: OptionFuture<_> = None.into();
 

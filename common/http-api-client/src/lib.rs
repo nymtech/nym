@@ -737,7 +737,8 @@ impl ClientBuilder {
 
             // unless explicitly disabled use the DoT/DoH enabled resolver
             if self.use_secure_dns {
-                builder = builder.dns_resolver(Arc::new(HickoryDnsResolver::default()));
+                warn!("not setting up hickory DNS resolver")
+                // builder = builder.dns_resolver(Arc::new(HickoryDnsResolver::default()));
             }
 
             builder

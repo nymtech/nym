@@ -643,6 +643,7 @@ impl<R, S> FreshHandler<R, S> {
                 address,
                 shared_keys.key,
                 session_request_start,
+                None,
             )),
             ServerResponse::Authenticate {
                 protocol_version: Some(negotiated_protocol),
@@ -658,6 +659,7 @@ impl<R, S> FreshHandler<R, S> {
     async fn handle_authenticate_v2(
         &mut self,
         request: Box<AuthenticateRequest>,
+        otel_context: Option<std::collections::HashMap<String, String>>,
     ) -> Result<InitialAuthResult, InitialAuthenticationError>
     where
         S: AsyncRead + AsyncWrite + Unpin,
@@ -733,6 +735,7 @@ impl<R, S> FreshHandler<R, S> {
                 address,
                 shared_key.key,
                 session_request_start,
+                otel_context,
             )),
             ServerResponse::Authenticate {
                 protocol_version: Some(negotiated_protocol),
@@ -831,6 +834,7 @@ impl<R, S> FreshHandler<R, S> {
             remote_address,
             shared_keys,
             OffsetDateTime::now_utc(),
+            None
         );
 
         Ok(InitialAuthResult::new(
@@ -900,6 +904,11 @@ impl<R, S> FreshHandler<R, S> {
         };
         let _enter = child_span.enter();
 
+        let context_carrier = match &request {
+            ClientControlRequest::AuthenticateV2(ref auth_req) => auth_req.otel_context.clone(),
+            _ => None,
+        };
+
         let auth_result = match request {
             ClientControlRequest::Authenticate {
                 protocol_version,
@@ -911,7 +920,7 @@ impl<R, S> FreshHandler<R, S> {
                 self.handle_legacy_authenticate(protocol_version, address, enc_address, iv)
                     .await
             }
-            ClientControlRequest::AuthenticateV2(req) => self.handle_authenticate_v2(req).await,
+            ClientControlRequest::AuthenticateV2(req) => self.handle_authenticate_v2(req, context_carrier).await,
                 ClientControlRequest::RegisterHandshakeInitRequest {
                 protocol_version,
                 data,
@@ -957,6 +966,7 @@ impl<R, S> FreshHandler<R, S> {
             warn!("could not establish client details");
             return Err(InitialAuthenticationError::EmptyClientDetails);
         };
+
         Ok((Some(client_details), trace_id))
     }
 

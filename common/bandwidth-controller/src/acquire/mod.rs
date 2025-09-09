@@ -5,7 +5,7 @@ use crate::error::BandwidthControllerError;
 use crate::utils::{
     get_aggregate_verification_key, get_coin_index_signatures, get_expiration_date_signatures,
 };
-use log::info;
+use log::{error, info};
 use nym_credential_storage::storage::Storage;
 use nym_credentials::ecash::bandwidth::IssuanceTicketBook;
 use nym_credentials::ecash::utils::obtain_aggregate_wallet;
@@ -42,7 +42,8 @@ where
             deposit_amount.into(),
             None,
         )
-        .await?;
+        .await
+        .inspect_err(|err| error!("ticketbook deposit fail with: {err}"))?;
 
     let deposit_id = result.parse_singleton_u32_contract_data()?;
 

@@ -293,6 +293,10 @@ pub enum HttpClientError {
         source: reqwest::Error,
     },
 
+    #[deprecated(note = "use another more strongly typed variant")]
+    #[error("request failed with error message: {0}")]
+    GenericRequestFailure(String),
+
     #[error("failed to parse {raw} as a valid URL: {source}")]
     MalformedUrl {
         raw: String,

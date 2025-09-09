@@ -156,6 +156,14 @@ async fn start_nym_api_tasks(config: &Config) -> anyhow::Result<ShutdownManager>
     let described_nodes_cache = SharedCache::<DescribedNodes>::new();
     let node_info_cache = unstable::NodeInfoCache::default();
 
+    let mixnet_contract_cache_refresher = mixnet_contract_cache::build_refresher(
+        &config.mixnet_contract_cache,
+        &mixnet_contract_cache_state.clone(),
+        nyxd_client.clone(),
+    );
+    let mixnet_contract_cache_refresh_requester =
+        mixnet_contract_cache_refresher.refresh_requester();
+
     let ecash_contract = nyxd_client
         .get_ecash_contract_address()
         .await
@@ -281,11 +289,6 @@ async fn start_nym_api_tasks(config: &Config) -> anyhow::Result<ShutdownManager>
     };
 
     // start all the caches first
-    let mixnet_contract_cache_refresher = mixnet_contract_cache::build_refresher(
-        &config.mixnet_contract_cache,
-        &mixnet_contract_cache_state.clone(),
-        nyxd_client.clone(),
-    );
     let contract_cache_watcher = mixnet_contract_cache_refresher
         .start_with_watcher(shutdown_manager.clone_token("contracts-data-refresher"));
 
@@ -341,6 +344,7 @@ async fn start_nym_api_tasks(config: &Config) -> anyhow::Result<ShutdownManager>
         EpochAdvancer::start(
             nyxd_client,
             &mixnet_contract_cache_state,
+            mixnet_contract_cache_refresh_requester,
             &node_status_cache_state,
             described_nodes_cache.clone(),
             &storage,

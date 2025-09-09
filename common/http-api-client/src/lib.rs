@@ -297,6 +297,13 @@ pub enum HttpClientError {
     #[error("request failed with error message: {0}")]
     GenericRequestFailure(String),
 
+    #[deprecated(note = "use another more strongly typed variant")]
+    #[error("there was an issue with the REST request: {source}")]
+    ReqwestClientError {
+        #[from]
+        source: reqwest::Error,
+    },
+
     #[error("failed to parse {raw} as a valid URL: {source}")]
     MalformedUrl {
         raw: String,
@@ -386,7 +393,32 @@ pub enum HttpClientError {
 }
 
 #[allow(missing_docs)]
+#[allow(deprecated)]
 impl HttpClientError {
+    /// Returns true if the error is a timeout.
+    pub fn is_timeout(&self) -> bool {
+        match self {
+            HttpClientError::ReqwestClientError { source } => source.is_timeout(),
+            HttpClientError::RequestSendFailure { source, .. } => source.0.is_timeout(),
+            HttpClientError::ResponseReadFailure { source, .. } => source.0.is_timeout(),
+            #[cfg(target_arch = "wasm32")]
+            HttpClientError::RequestTimeout => true,
+            _ => false,
+        }
+    }
+
+    /// Returns the HTTP status code if available.
+    pub fn status_code(&self) -> Option<StatusCode> {
+        match self {
+            HttpClientError::ResponseReadFailure { status, .. } => Some(*status),
+            HttpClientError::RequestFailure { status, .. } => Some(*status),
+            HttpClientError::EmptyResponse { status, .. } => Some(*status),
+            HttpClientError::EndpointFailure { status, .. } => Some(*status),
+            HttpClientError::EndpointFailure { status, .. } => Some(*status),
+            _ => None,
+        }
+    }
+
     pub fn reqwest_client_build_error(source: reqwest::Error) -> Self {
         HttpClientError::ReqwestBuildError { source }
     }

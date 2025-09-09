@@ -6,6 +6,7 @@ use time::OffsetDateTime;
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, error, info, warn};
 
+use crate::attestation_watcher::AttestationWatcher;
 use crate::deposits_buffer::DepositsBuffer;
 use crate::http::state::required_deposit_cache::RequiredDepositCache;
 use crate::quorum_checker::QuorumStateChecker;
@@ -17,7 +18,7 @@ use crate::{
         HttpServer,
     },
     storage::CredentialProxyStorage,
-    tasks::StoragePruner,
+    storage_pruner::StoragePruner,
 };
 
 pub struct LockTimer {
@@ -102,8 +103,20 @@ pub(crate) async fn run_api(cli: Cli) -> Result<(), CredentialProxyError> {
     let mnemonic = cli.mnemonic;
     let auth_token = cli.http_auth_token;
     let webhook_cfg = cli.webhook;
+    let jwt_signing_keys = cli.jwt_signing_keys.signing_keys()?;
     let chain_client = ChainClient::new(mnemonic)?;
     let cancellation_token = CancellationToken::new();
+
+    let attestation_watcher = AttestationWatcher::new(
+        cli.attestation_check_regular_polling_interval,
+        cli.attestation_check_expedited_polling_interval,
+        cli.attestation_check_url,
+        jwt_signing_keys,
+        cli.upgrade_mode_jwt_validity,
+        cancellation_token.clone(),
+    );
+
+    let upgrade_mode_state = attestation_watcher.shared_state();
 
     let required_deposit_cache = RequiredDepositCache::default();
 
@@ -129,6 +142,7 @@ pub(crate) async fn run_api(cli: Cli) -> Result<(), CredentialProxyError> {
     // let deposit_request_sender = deposit_maker.deposit_request_sender();
     let api_state = ApiState::new(
         storage.clone(),
+        upgrade_mode_state,
         quorum_state,
         webhook_cfg,
         chain_client,
@@ -149,6 +163,7 @@ pub(crate) async fn run_api(cli: Cli) -> Result<(), CredentialProxyError> {
     api_state.try_spawn(http_server.run_forever());
     api_state.try_spawn(storage_pruner.run_forever());
     api_state.try_spawn(quorum_state_checker.run_forever());
+    api_state.try_spawn(attestation_watcher.run_forever());
 
     // wait for cancel signal (SIGINT, SIGTERM or SIGQUIT)
     wait_for_signal().await;

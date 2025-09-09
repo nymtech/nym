@@ -18,8 +18,9 @@ cfg_if::cfg_if! {
         pub mod http;
         pub mod nym_api_helpers;
         pub mod storage;
-        pub mod tasks;
+        pub mod storage_pruner;
         mod webhook;
+        pub mod attestation_watcher;
         mod deposits_buffer;
         mod quorum_checker;
     }
@@ -49,6 +50,7 @@ async fn main() -> anyhow::Result<()> {
 
 #[cfg(not(unix))]
 #[tokio::main]
+#[allow(clippy::exit)]
 async fn main() -> anyhow::Result<()> {
     eprintln!("This tool is only supported on Unix systems");
     #[allow(clippy::exit)]

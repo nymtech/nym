@@ -67,7 +67,7 @@ impl MessageRouter {
                 biased;
                  _ = shutdown.cancelled() => {
                     trace!("embedded_clients::MessageRouter: Received shutdown");
-                    break
+                    break;
                 }
                 messages = self.mix_receiver.next() => match messages {
                     Some(messages) => self.handle_received_messages(messages),

@@ -95,7 +95,8 @@ impl<T, R: MessageReceiver> SimpleMessageReceiver<T, R> {
             tokio::select! {
                 biased;
                 _ = self.shutdown.cancelled() => {
-                    log_info!("SimpleMessageReceiver: received shutdown")
+                    log_info!("SimpleMessageReceiver: received shutdown");
+                    break
                 }
                 mixnet_messages = self.mixnet_message_receiver.next() => {
                     let Some(mixnet_messages) = mixnet_messages else {

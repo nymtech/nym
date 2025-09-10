@@ -135,6 +135,7 @@ impl MixnetResponseListener {
                 biased;
                 _ = self.shutdown.cancelled() => {
                     log::trace!("MixnetResponseListener: Received shutdown");
+                    break;
                 }
                 received_responses = self.mix_response_receiver.next() => {
                     if let Some(received_responses) = received_responses {

@@ -509,12 +509,12 @@ impl<R: MessageReceiver> RequestReceiver<R> {
                         self.handle_message(message).await
                     } else {
                         tracing::trace!("RequestReceiver: Stopping since channel closed");
+                        self.shutdown_token.cancelled().await;
                         break;
                     }
                 },
             }
         }
-        self.shutdown_token.cancelled().await;
         tracing::debug!("RequestReceiver: Exiting");
     }
 }
@@ -552,6 +552,7 @@ impl<R: MessageReceiver> FragmentedMessageReceiver<R> {
                         self.received_buffer.handle_new_received(new_messages).await?;
                     } else {
                         tracing::trace!("FragmentedMessageReceiver: Stopping since channel closed");
+                        self.shutdown_token.cancelled().await;
                         break;
                     }
                 },

@@ -68,7 +68,7 @@ pub(crate) async fn execute(args: &Run) -> Result<(), NetworkRequesterError> {
         server = server.with_stored_topology(custom_mixnet)?
     }
 
-    tokio::spawn(async move { server.run_service_provider().await });
+    tokio::spawn(server.run_service_provider());
 
     shutdown_manager.run_until_shutdown().await;
     Ok(())

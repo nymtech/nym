@@ -518,9 +518,7 @@ impl GatewayTasksBuilder {
         let server_handle = tokio::spawn(async move {
             {
                 info!("Started Wireguard Axum HTTP V2 server on {bind_address}");
-                server
-                    .run(async move { cancel_token.cancelled().await })
-                    .await
+                server.run(cancel_token.cancelled_owned()).await
             }
         });
 

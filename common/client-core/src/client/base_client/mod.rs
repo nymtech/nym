@@ -69,6 +69,8 @@ use time::OffsetDateTime;
 use tokio::sync::mpsc::Sender;
 use tracing::*;
 use url::Url;
+
+#[cfg(target_arch = "wasm32")]
 use wasm_utils::{check_promise_result, console_error, console_log};
 
 #[cfg(all(

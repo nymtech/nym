@@ -14,11 +14,12 @@ use futures::{
     future::{FusedFuture, OptionFuture},
     FutureExt, StreamExt,
 };
-use nym_bin_common::opentelemetry::context::ContextCarrier;
+use nym_bin_common::opentelemetry::context::{new_span_context_with_id, AsyncSpanContextExt, ContextCarrier};
 use nym_credential_verification::CredentialVerifier;
 use nym_credential_verification::{
     bandwidth_storage_manager::BandwidthStorageManager, ClientBandwidth,
 };
+use nym_crypto::shared_key::new_ephemeral_shared_key;
 use nym_gateway_requests::{
     types::{BinaryRequest, ServerResponse},
     ClientControlRequest, ClientRequest, GatewayRequestsError, SensitiveServerResponse,
@@ -31,13 +32,13 @@ use nym_node_metrics::events::MetricsEvent;
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_statistics_common::{gateways::GatewaySessionEvent, types::SessionType};
 use nym_validator_client::coconut::EcashApiError;
-use opentelemetry_sdk::{propagation::TraceContextPropagator, trace::IdGenerator};
-use opentelemetry::{propagation::TextMapPropagator, trace::{SpanContext, TraceContextExt, Tracer}, TraceFlags};
+use opentelemetry::{propagation::TextMapPropagator, trace::TraceContextExt};
+use opentelemetry_sdk::propagation::TraceContextPropagator;
 use rand::{random, CryptoRng, Rng};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 use std::{process, time::Duration};
 use thiserror::Error;
-use tokio::{io::{AsyncRead, AsyncWrite}, time::error::Elapsed};
+use tokio::{io::{AsyncRead, AsyncWrite}, time::{error::Elapsed, interval}};
 use tokio_tungstenite::tungstenite::{protocol::Message, Error as WsError};
 use tracing::*;
 
@@ -598,74 +599,30 @@ impl<R, S> AuthenticatedHandler<R, S> {
         S: AsyncRead + AsyncWrite + Unpin,
     {
         trace!("Started listening for ALL incoming requests...");
-        let remote_span = if let Some(ctx) = &self.client.otel_context {
-            let carrier = ContextCarrier::from_map(ctx.clone());
-            let extracted_trace_id = carrier.extract_trace_id();
-            warn!("=== Listen for requests: Extracted trace id from client: {:?} ===", extracted_trace_id);
+        let context_ext = if let Some(ctx) = &self.client.otel_context {
+            //retrieve the context from the client
+            let context_ext = AsyncSpanContextExt::new()
+                .with_context_carrier(ContextCarrier::from_map(ctx.clone()));
 
-            let id_generator = opentelemetry_sdk::trace::RandomIdGenerator::default();
-            let span_id = id_generator.new_span_id();
-            let trace_id = extracted_trace_id.unwrap_or_else(|| {
-                warn!("Failed to extract trace id from the provided otel context carrier");
-                let context = opentelemetry::Context::current();
-                context.span().span_context().trace_id()
-            });
+            // extract the parent context from the carrier
+            let extractor = TraceContextPropagator::new();
+            let parent_cx = extractor.extract(&context_ext.context_carrier);
+            let trace_id = parent_cx.span().span_context().trace_id();
 
-            let span_context = SpanContext::new(
-                trace_id,
-                span_id,
-                TraceFlags::SAMPLED,
-                true,
-                Default::default(),
-            );
-            let cx = opentelemetry::Context::current().with_remote_span_context(span_context);
-            let _context_guard = cx.clone().attach();
-            let span = info_span!("starting point with otel", trace_id = %trace_id);
-            span.set_parent(cx);
+            let span_cx = new_span_context_with_id(trace_id);
+            let _guard = span_cx.clone().attach();
 
-            Some(span)
+            let span = info_span!("Started listening for incomming requests with otel", %trace_id);
+            span.set_parent(span_cx);
+            let context_ext = context_ext.set_root_span(span);
+            context_ext
         } else {
-            None
+            AsyncSpanContextExt::new()
         };
 
-        let child_span = if let Some(ref remote_span) = remote_span {
-            info_span!(parent: remote_span, "listen_for_requests with otel")
-        } else {
-            info_span!("listen_for_requests without otel")
-        };
-        let _child_span_guard = child_span.enter();
+        let _guard = context_ext.root_span.enter();
 
-        // Note: the commented out code below is an alternative way of propagating the context
-        // it does not work because of the way we spawn the task 
-        // i.e. `tokio::spawn(async move { ... })` prevents the context from being propagated
-        // since the `async move` creates a new future that does not capture the current context
-        // so for now we just manually extract the trace id from the client and create a new span with it
-        
-        // if we ever change the way we spawn the task, we can try using the code below instead
-        // let span = if let Some(remote_ctx) = &self.client.otel_context {
-        //     let carrier = ContextCarrier::from_map(remote_ctx.clone());
-        //     let extracted_trace_id = carrier.extract_trace_id().unwrap_or_else(|| {
-        //         warn!("Failed to extract trace id from the provided otel context carrier");
-        //         let context = opentelemetry::Context::current();
-        //         context.span().span_context().trace_id()
-        //     });
-        //     warn!("=== Listen for requests: Extracted trace id from client: {:?} ===", extracted_trace_id);
 
-        //     let tracer = opentelemetry::global::tracer("nym-ws-listener");
-        //     tracer
-        //         .span_builder("websocket listen_for_requests")
-        //         .with_trace_id(extracted_trace_id)
-        //         .start(&tracer)
-        // } else {
-        //     let tracer = opentelemetry::global::tracer("nym-ws-listener");
-        //     tracer
-        //         .span_builder("websocket listen_for_requests")
-        //         .start(&tracer)
-        // };
-        // let context = opentelemetry::Context::current_with_span(span);
-        // let _guard = context.clone().attach();
-        // warn!("=== Context propagated to authenticated client handler listen_for_requests ===");
-        
         // Ping timeout future used to check if the client responded to our ping request
         let mut ping_timeout: OptionFuture<_> = None.into();
 
@@ -690,7 +647,7 @@ impl<R, S> AuthenticatedHandler<R, S> {
                     self.handle_ping_timeout().await;
                 },
                 socket_msg = self.inner.read_websocket_message() => {
-                    let span = info_span!(parent: &child_span, "client_message_received");
+                    let span = info_span!(parent: &context_ext.root_span, "client_message_received");
                     let _enter = span.enter();
                     let socket_msg = match socket_msg {
                         None => break,
@@ -715,7 +672,7 @@ impl<R, S> AuthenticatedHandler<R, S> {
                     }
                 },
                 mix_messages = self.mix_receiver.next() => {
-                    let span = info_span!(parent: &child_span, "mix_message_received");
+                    let span = info_span!(parent: &context_ext.root_span, "mix_message_received");
                     let _enter = span.enter();
                     let mix_messages = match mix_messages {
                         None => {

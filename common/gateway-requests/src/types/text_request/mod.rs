@@ -8,6 +8,7 @@ use crate::{
     AUTHENTICATE_V2_PROTOCOL_VERSION, CREDENTIAL_UPDATE_V2_PROTOCOL_VERSION,
     INITIAL_PROTOCOL_VERSION,
 };
+use nym_bin_common::opentelemetry::context::ContextCarrier;
 use nym_credentials_interface::CredentialSpendingData;
 use nym_crypto::asymmetric::ed25519;
 use nym_sphinx::DestinationAddressBytes;
@@ -17,9 +18,6 @@ use std::collections::HashMap;
 use std::str::FromStr;
 use tracing::{instrument, warn};
 use tungstenite::Message;
-use nym_bin_common::opentelemetry::context::ContextCarrier;
-use opentelemetry::propagation::TextMapPropagator;
-use opentelemetry_sdk::propagation::TraceContextPropagator;
 
 pub mod authenticate;
 
@@ -137,17 +135,8 @@ impl ClientControlRequest {
         let nonce = shared_key.random_nonce_or_iv();
         let ciphertext = shared_key.encrypt_naive(address.as_bytes_ref(), Some(&nonce))?;
 
-        use nym_bin_common::opentelemetry::context::ContextCarrier;
-        use opentelemetry::propagation::TextMapPropagator;
-        use opentelemetry_sdk::propagation::TraceContextPropagator;
-        
         let context = opentelemetry::Context::current();
-        let propagator = TraceContextPropagator::new();
-        let mut carrier = ContextCarrier::new();
-        propagator.inject_context(&context, &mut carrier);
-        let context_carrier = carrier.into_map();
-
-        tracing::error!("context_carrier is {:?}", context_carrier);
+        let context_carrier = ContextCarrier::new_with_current_context(context).into_map();
 
         Ok(ClientControlRequest::Authenticate {
             protocol_version,
@@ -167,11 +156,7 @@ impl ClientControlRequest {
         let protocol_version = AUTHENTICATE_V2_PROTOCOL_VERSION;
 
         let otel_context = opentelemetry::Context::current();
-        let propagator = TraceContextPropagator::new();
-        let mut carrier =ContextCarrier::new();
-        propagator.inject_context(&otel_context, &mut carrier);
-        let context_carrier = carrier.into_map();
-        tracing::error!("carrier is {:?}", context_carrier);
+        let context_carrier = ContextCarrier::new_with_current_context(otel_context).into_map();
 
         Ok(ClientControlRequest::AuthenticateV2(Box::new(
             AuthenticateRequest::new(

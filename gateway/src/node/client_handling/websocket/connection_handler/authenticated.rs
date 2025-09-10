@@ -152,6 +152,7 @@ pub(crate) struct AuthenticatedHandler<R, S> {
     // senders that are used to return the result of the ping to the handler requesting the ping.
     is_active_request_receiver: IsActiveRequestReceiver,
     is_active_ping_pending_reply: Option<(u64, IsActiveResultSender)>,
+    root_span: Option<tracing::Span>,
 }
 
 // explicitly remove handle from the global store upon being dropped
@@ -207,6 +208,7 @@ impl<R, S> AuthenticatedHandler<R, S> {
             mix_receiver,
             is_active_request_receiver,
             is_active_ping_pending_reply: None,
+            root_span: None,
         };
         handler.send_metrics(GatewaySessionEvent::new_session_start(
             handler.client.address,
@@ -233,6 +235,10 @@ impl<R, S> AuthenticatedHandler<R, S> {
     ///
     /// * `mix_packet`: packet received from the client that should get forwarded into the network.
     fn forward_packet(&self, mix_packet: MixPacket) {
+        let herited_span = self.root_span.as_ref().cloned().unwrap_or_else(|| tracing::Span::none());
+        let span = info_span!(parent: &herited_span, "forwarding_packet");
+        let _enter = span.enter();
+
         if let Err(err) = self
             .inner
             .shared_state
@@ -287,11 +293,14 @@ impl<R, S> AuthenticatedHandler<R, S> {
     /// # Arguments
     ///
     /// * `mix_packet`: packet received from the client that should get forwarded into the network.
-    #[instrument(skip_all)]
     async fn handle_forward_sphinx(
         &mut self,
         mix_packet: MixPacket,
     ) -> Result<ServerResponse, RequestHandlingError> {
+        let herited_span = self.root_span.as_ref().cloned().unwrap_or_else(|| tracing::Span::none());
+        let span = info_span!(parent: &herited_span, "forwarding_sphinx_packet");
+        let _enter = span.enter();
+
         let required_bandwidth = mix_packet.packet().len() as i64;
 
         let remaining_bandwidth = self
@@ -310,9 +319,12 @@ impl<R, S> AuthenticatedHandler<R, S> {
     /// # Arguments
     ///
     /// * `bin_msg`: raw message to handle.
-    #[instrument(skip_all)]
     async fn handle_binary(&mut self, bin_msg: Vec<u8>) -> Message {
         trace!("binary request");
+        let herited_span = self.root_span.as_ref().cloned().unwrap_or_else(|| tracing::Span::none());
+        let span = info_span!(parent: &herited_span, "handling_binary");
+        let _enter = span.enter();
+
         // this function decrypts the request and checks the MAC
         match BinaryRequest::try_from_encrypted_tagged_bytes(bin_msg, &self.client.shared_keys) {
             Err(e) => {
@@ -612,6 +624,8 @@ impl<R, S> AuthenticatedHandler<R, S> {
             let span_cx = new_span_context_with_id(trace_id);
             let _guard = span_cx.clone().attach();
 
+            warn!("=== Context propagated to authenticated client handler ===");
+
             let span = info_span!("Started listening for incomming requests with otel", %trace_id);
             span.set_parent(span_cx);
             let context_ext = context_ext.set_root_span(span);
@@ -621,6 +635,10 @@ impl<R, S> AuthenticatedHandler<R, S> {
         };
 
         let _guard = context_ext.root_span.enter();
+        let mother_span = info_span!(parent: &context_ext.root_span, "listening_for_requests");
+        let child_span = info_span!(parent: &context_ext.root_span, "client_handling_loop");
+
+        self.root_span = Some(mother_span);
 
 
         // Ping timeout future used to check if the client responded to our ping request
@@ -647,7 +665,7 @@ impl<R, S> AuthenticatedHandler<R, S> {
                     self.handle_ping_timeout().await;
                 },
                 socket_msg = self.inner.read_websocket_message() => {
-                    let span = info_span!(parent: &context_ext.root_span, "client_message_received");
+                    let span = info_span!(parent: &child_span, "client_message_received");
                     let _enter = span.enter();
                     let socket_msg = match socket_msg {
                         None => break,
@@ -672,7 +690,7 @@ impl<R, S> AuthenticatedHandler<R, S> {
                     }
                 },
                 mix_messages = self.mix_receiver.next() => {
-                    let span = info_span!(parent: &context_ext.root_span, "mix_message_received");
+                    let span = info_span!(parent: &child_span, "mix_message_received");
                     let _enter = span.enter();
                     let mix_messages = match mix_messages {
                         None => {

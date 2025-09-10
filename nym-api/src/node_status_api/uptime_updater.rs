@@ -98,11 +98,12 @@ impl HistoricalUptimeUpdater {
 
         let start = Instant::now() + time_left;
         let mut interval = interval_at(start, ONE_DAY);
-        while !shutdown_token.is_cancelled() {
+        loop {
             tokio::select! {
                 biased;
                 _ = shutdown_token.cancelled() => {
                     trace!("UpdateHandler: Received shutdown");
+                    break;
                 }
                 _ = interval.tick() => {
                     info!("updating historical uptimes of nodes");
@@ -118,7 +119,7 @@ impl HistoricalUptimeUpdater {
 
     pub(crate) fn start(storage: NymApiStorage, shutdown: &ShutdownManager) {
         let uptime_updater = HistoricalUptimeUpdater::new(storage);
-        let shutdown_listener = shutdown.child_token("uptime-updater");
+        let shutdown_listener = shutdown.child_shutdown_token();
         tokio::spawn(async move { uptime_updater.run(shutdown_listener).await });
     }
 }

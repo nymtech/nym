@@ -187,7 +187,7 @@ pub(crate) async fn get_current_rotation_id(
     nym_apis: &[Url],
     fallback_nyxd: &[Url],
 ) -> Result<u32, NymNodeError> {
-    let apis_client = NymApisClient::new(nym_apis, ShutdownToken::ephemeral())?;
+    let apis_client = NymApisClient::new(nym_apis, ShutdownToken::default())?;
     if let Ok(rotation_info) = apis_client.get_key_rotation_info().await.map(|r| r.details) {
         if rotation_info.is_epoch_stuck() {
             return Err(NymNodeError::StuckEpoch);

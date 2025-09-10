@@ -190,15 +190,15 @@ impl SignersMonitor {
     }
 
     pub(crate) async fn run(&mut self) -> anyhow::Result<()> {
-        let shutdown_manager =
-            ShutdownManager::new("nym-signers-monitor").with_default_shutdown_signals()?;
+        let mut shutdown_manager = ShutdownManager::build_new_default()?;
+        let root_token = shutdown_manager.clone_shutdown_token();
 
         let mut check_interval = interval(self.check_interval);
 
-        while !shutdown_manager.root_token.is_cancelled() {
+        while !root_token.is_cancelled() {
             tokio::select! {
                 biased;
-                _ = shutdown_manager.root_token.cancelled() => {
+                _ = root_token.cancelled() => {
                     info!("received shutdown");
                     break;
                 }
@@ -211,7 +211,6 @@ impl SignersMonitor {
             }
         }
 
-        shutdown_manager.close();
         shutdown_manager.run_until_shutdown().await;
 
         if let Err(err) = self.send_shutdown_notification().await {

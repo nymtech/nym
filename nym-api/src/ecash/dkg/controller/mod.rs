@@ -282,8 +282,13 @@ impl<R: RngCore + CryptoRng + Clone> DkgController<R> {
         let mut last_polled = OffsetDateTime::now_utc();
         let mut last_tick_duration = Default::default();
 
-        while !shutdown.is_cancelled() {
+        loop {
             tokio::select! {
+                biased;
+              _ = shutdown.cancelled() => {
+                    trace!("DkgController: Received shutdown");
+                    break;
+                }
                 _ = interval.tick() => {
                     let now = OffsetDateTime::now_utc();
                     let tick_duration = now - last_polled;
@@ -299,9 +304,6 @@ impl<R: RngCore + CryptoRng + Clone> DkgController<R> {
                     if let Err(err) = self.handle_epoch_state().await {
                         error!("failed to update the DKG state: {err}")
                     }
-                }
-                _ = shutdown.cancelled() => {
-                    trace!("DkgController: Received shutdown");
                 }
             }
         }
@@ -319,7 +321,7 @@ impl<R: RngCore + CryptoRng + Clone> DkgController<R> {
     where
         R: Sync + Send + 'static,
     {
-        let shutdown_listener = shutdown_manager.clone_token("DKG controller");
+        let shutdown_listener = shutdown_manager.clone_shutdown_token();
         let dkg_controller = DkgController::new(
             config,
             nyxd_client,

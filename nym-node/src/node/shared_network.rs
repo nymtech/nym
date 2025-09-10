@@ -378,11 +378,12 @@ impl NetworkRefresher {
         let mut pending_check_interval = interval(self.pending_check_interval);
         pending_check_interval.reset();
 
-        while !self.shutdown_token.is_cancelled() {
+        loop {
             tokio::select! {
                 biased;
                 _ = self.shutdown_token.cancelled() => {
-                   trace!("NetworkRefresher: Received shutdown");
+                    trace!("NetworkRefresher: Received shutdown");
+                    break;
                 }
                 _ = pending_check_interval.tick() => {
                     self.inspect_pending().await;

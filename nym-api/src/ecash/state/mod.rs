@@ -138,7 +138,7 @@ impl EcashState {
                 EcashBackgroundStateCleaner::new(
                     global_config,
                     storage.clone(),
-                    shutdown_manager.clone_token("ecash-state-data-cleaner"),
+                    shutdown_manager.clone_shutdown_token(),
                 ),
             ),
             global: GlobalEcachState::new(contract_address),

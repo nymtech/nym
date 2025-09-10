@@ -6410,6 +6410,7 @@ dependencies = [
  "thiserror 2.0.12",
  "time",
  "tokio",
+ "tokio-stream",
  "tokio-util",
  "toml 0.8.23",
  "tower-http 0.5.2",
@@ -7157,9 +7158,11 @@ dependencies = [
 name = "nym-task"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "cfg-if",
  "futures",
  "log",
+ "nym-test-utils",
  "thiserror 2.0.12",
  "tokio",
  "tokio-util",

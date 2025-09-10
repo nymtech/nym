@@ -5,7 +5,6 @@ use crate::client::helpers::get_time_now;
 use crate::client::replies::{
     reply_controller::ReplyControllerSender, reply_storage::SentReplyKeys,
 };
-use crate::spawn_future;
 use futures::channel::mpsc;
 use futures::lock::Mutex;
 use futures::StreamExt;
@@ -20,7 +19,7 @@ use nym_sphinx::message::{NymMessage, PlainMessage};
 use nym_sphinx::params::ReplySurbKeyDigestAlgorithm;
 use nym_sphinx::receiver::{MessageReceiver, MessageRecoveryError, ReconstructedMessage};
 use nym_statistics_common::clients::{packet_statistics::PacketStatisticsEvent, ClientStatsSender};
-use nym_task::TaskClient;
+use nym_task::ShutdownToken;
 use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::Duration;
@@ -172,7 +171,7 @@ struct ReceivedMessagesBuffer<R: MessageReceiver> {
     inner: Arc<Mutex<ReceivedMessagesBufferInner<R>>>,
     reply_key_storage: SentReplyKeys,
     reply_controller_sender: ReplyControllerSender,
-    task_client: TaskClient,
+    shutdown_token: ShutdownToken,
 }
 
 impl<R: MessageReceiver> ReceivedMessagesBuffer<R> {
@@ -181,7 +180,7 @@ impl<R: MessageReceiver> ReceivedMessagesBuffer<R> {
         reply_key_storage: SentReplyKeys,
         reply_controller_sender: ReplyControllerSender,
         stats_tx: ClientStatsSender,
-        task_client: TaskClient,
+        shutdown_token: ShutdownToken,
     ) -> Self {
         ReceivedMessagesBuffer {
             inner: Arc::new(Mutex::new(ReceivedMessagesBufferInner {
@@ -195,7 +194,7 @@ impl<R: MessageReceiver> ReceivedMessagesBuffer<R> {
             })),
             reply_key_storage,
             reply_controller_sender,
-            task_client,
+            shutdown_token,
         }
     }
 
@@ -316,7 +315,7 @@ impl<R: MessageReceiver> ReceivedMessagesBuffer<R> {
                     reply_surbs,
                     from_surb_request,
                 ) {
-                    if !self.task_client.is_shutdown_poll() {
+                    if !self.shutdown_token.is_cancelled() {
                         error!("{err}");
                     }
                 }
@@ -339,7 +338,7 @@ impl<R: MessageReceiver> ReceivedMessagesBuffer<R> {
                         .reply_controller_sender
                         .send_additional_surbs_request(*recipient, amount)
                     {
-                        if !self.task_client.is_shutdown_poll() {
+                        if !self.shutdown_token.is_cancelled() {
                             error!("{err}");
                         }
                     }
@@ -466,22 +465,22 @@ pub enum ReceivedBufferMessage {
     ReceiverDisconnect,
 }
 
-struct RequestReceiver<R: MessageReceiver> {
+pub(crate) struct RequestReceiver<R: MessageReceiver> {
     received_buffer: ReceivedMessagesBuffer<R>,
     query_receiver: ReceivedBufferRequestReceiver,
-    task_client: TaskClient,
+    shutdown_token: ShutdownToken,
 }
 
 impl<R: MessageReceiver> RequestReceiver<R> {
     fn new(
         received_buffer: ReceivedMessagesBuffer<R>,
         query_receiver: ReceivedBufferRequestReceiver,
-        task_client: TaskClient,
+        shutdown_token: ShutdownToken,
     ) -> Self {
         RequestReceiver {
             received_buffer,
             query_receiver,
-            task_client,
+            shutdown_token,
         }
     }
 
@@ -496,66 +495,70 @@ impl<R: MessageReceiver> RequestReceiver<R> {
         }
     }
 
-    async fn run(&mut self) {
+    pub(crate) async fn run(&mut self) {
         debug!("Started RequestReceiver with graceful shutdown support");
-        while !self.task_client.is_shutdown() {
+        loop {
             tokio::select! {
                 biased;
-                _ = self.task_client.recv() => {
+                _ = self.shutdown_token.cancelled() => {
                     tracing::trace!("RequestReceiver: Received shutdown");
+                    break;
                 }
                 request = self.query_receiver.next() => {
                     if let Some(message) = request {
                         self.handle_message(message).await
                     } else {
                         tracing::trace!("RequestReceiver: Stopping since channel closed");
+                        self.shutdown_token.cancelled().await;
                         break;
                     }
                 },
             }
         }
-        self.task_client.recv().await;
         tracing::debug!("RequestReceiver: Exiting");
     }
 }
 
-struct FragmentedMessageReceiver<R: MessageReceiver> {
+pub(crate) struct FragmentedMessageReceiver<R: MessageReceiver> {
     received_buffer: ReceivedMessagesBuffer<R>,
     mixnet_packet_receiver: MixnetMessageReceiver,
-    task_client: TaskClient,
+    shutdown_token: ShutdownToken,
 }
 
 impl<R: MessageReceiver> FragmentedMessageReceiver<R> {
     fn new(
         received_buffer: ReceivedMessagesBuffer<R>,
         mixnet_packet_receiver: MixnetMessageReceiver,
-        task_client: TaskClient,
+        shutdown_token: ShutdownToken,
     ) -> Self {
         FragmentedMessageReceiver {
             received_buffer,
             mixnet_packet_receiver,
-            task_client,
+            shutdown_token,
         }
     }
 
-    async fn run(&mut self) -> Result<(), MessageRecoveryError> {
+    pub(crate) async fn run(&mut self) -> Result<(), MessageRecoveryError> {
         debug!("Started FragmentedMessageReceiver with graceful shutdown support");
-        while !self.task_client.is_shutdown() {
+        loop {
             tokio::select! {
+                biased;
+                _ = self.shutdown_token.cancelled() => {
+                    tracing::trace!("FragmentedMessageReceiver: Received shutdown");
+                    break;
+                }
                 new_messages = self.mixnet_packet_receiver.next() => {
                     if let Some(new_messages) = new_messages {
                         self.received_buffer.handle_new_received(new_messages).await?;
                     } else {
                         tracing::trace!("FragmentedMessageReceiver: Stopping since channel closed");
+                        self.shutdown_token.cancelled().await;
                         break;
                     }
                 },
-                _ = self.task_client.recv_with_delay() => {
-                    tracing::trace!("FragmentedMessageReceiver: Received shutdown");
-                }
+
             }
         }
-        self.task_client.recv_timeout().await;
         tracing::debug!("FragmentedMessageReceiver: Exiting");
         Ok(())
     }
@@ -574,48 +577,31 @@ impl<R: MessageReceiver + Clone + Send + 'static> ReceivedMessagesBufferControll
         reply_key_storage: SentReplyKeys,
         reply_controller_sender: ReplyControllerSender,
         metrics_reporter: ClientStatsSender,
-        task_client: TaskClient,
+        shutdown_token: ShutdownToken,
     ) -> Self {
         let received_buffer = ReceivedMessagesBuffer::new(
             local_encryption_keypair,
             reply_key_storage,
             reply_controller_sender,
             metrics_reporter,
-            task_client.fork("received_messages_buffer"),
+            shutdown_token.clone(),
         );
 
         ReceivedMessagesBufferController {
             fragmented_message_receiver: FragmentedMessageReceiver::new(
                 received_buffer.clone(),
                 mixnet_packet_receiver,
-                task_client.fork("fragmented_message_receiver"),
+                shutdown_token.clone(),
             ),
             request_receiver: RequestReceiver::new(
                 received_buffer,
                 query_receiver,
-                task_client.with_suffix("request_receiver"),
+                shutdown_token.clone(),
             ),
         }
     }
 
-    pub fn start(self) {
-        let mut fragmented_message_receiver = self.fragmented_message_receiver;
-        let mut request_receiver = self.request_receiver;
-
-        spawn_future!(
-            async move {
-                match fragmented_message_receiver.run().await {
-                    Ok(_) => {}
-                    Err(e) => error!("{e}"),
-                }
-            },
-            "ReceivedMessagesBufferController::FragmentedMessageReceiver"
-        );
-        spawn_future!(
-            async move {
-                request_receiver.run().await;
-            },
-            "ReceivedMessagesBufferController::RequestReceiver"
-        );
+    pub(crate) fn into_tasks(self) -> (FragmentedMessageReceiver<R>, RequestReceiver<R>) {
+        (self.fragmented_message_receiver, self.request_receiver)
     }
 }

@@ -58,11 +58,12 @@ impl PacketReceiver {
     }
 
     pub(crate) async fn run(&mut self, shutdown_token: ShutdownToken) {
-        while !shutdown_token.is_cancelled() {
+        loop {
             tokio::select! {
                 biased;
                 _ = shutdown_token.cancelled() => {
                     trace!("UpdateHandler: Received shutdown");
+                    break;
                 }
                 // unwrap here is fine as it can only return a `None` if the PacketSender has died
                 // and if that was the case, then the entire monitor is already in an undefined state

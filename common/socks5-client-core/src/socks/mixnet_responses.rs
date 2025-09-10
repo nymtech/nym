@@ -13,13 +13,13 @@ use nym_service_providers_common::interface::{ControlResponse, ResponseContent};
 use nym_socks5_proxy_helpers::connection_controller::{ControllerCommand, ControllerSender};
 use nym_socks5_requests::{Socks5ProviderResponse, Socks5Response, Socks5ResponseContent};
 use nym_sphinx::receiver::ReconstructedMessage;
-use nym_task::TaskClient;
+use nym_task::ShutdownToken;
 
 pub(crate) struct MixnetResponseListener {
     buffer_requester: ReceivedBufferRequestSender,
     mix_response_receiver: ReconstructedMessagesReceiver,
     controller_sender: ControllerSender,
-    shutdown: TaskClient,
+    shutdown: ShutdownToken,
 }
 
 impl Drop for MixnetResponseListener {
@@ -28,7 +28,7 @@ impl Drop for MixnetResponseListener {
             .buffer_requester
             .unbounded_send(ReceivedBufferMessage::ReceiverDisconnect)
         {
-            if self.shutdown.is_shutdown_poll() {
+            if self.shutdown.is_cancelled() {
                 log::debug!("The buffer request failed: {err}");
             } else {
                 log::error!("The buffer request failed: {err}");
@@ -41,7 +41,7 @@ impl MixnetResponseListener {
     pub(crate) fn new(
         buffer_requester: ReceivedBufferRequestSender,
         controller_sender: ControllerSender,
-        shutdown: TaskClient,
+        shutdown: ShutdownToken,
     ) -> Self {
         let (mix_response_sender, mix_response_receiver) = mpsc::unbounded();
         buffer_requester
@@ -130,13 +130,18 @@ impl MixnetResponseListener {
     }
 
     pub(crate) async fn run(&mut self) {
-        while !self.shutdown.is_shutdown() {
+        loop {
             tokio::select! {
+                biased;
+                _ = self.shutdown.cancelled() => {
+                    log::trace!("MixnetResponseListener: Received shutdown");
+                    break;
+                }
                 received_responses = self.mix_response_receiver.next() => {
                     if let Some(received_responses) = received_responses {
                         for reconstructed_message in received_responses {
                             if let Err(err) = self.on_message(reconstructed_message) {
-                                self.shutdown.send_status_msg(Box::new(err));
+                                debug!("message handling error: {err}")
                             }
                         }
                     } else {
@@ -144,12 +149,8 @@ impl MixnetResponseListener {
                         break;
                     }
                 },
-                _ = self.shutdown.recv() => {
-                    log::trace!("MixnetResponseListener: Received shutdown");
-                }
             }
         }
-        self.shutdown.recv_timeout().await;
         log::debug!("MixnetResponseListener: Exiting");
     }
 }

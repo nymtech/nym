@@ -13,7 +13,7 @@ use futures::{
     channel::{mpsc, oneshot},
     SinkExt, StreamExt,
 };
-use nym_bin_common::opentelemetry::context::ContextCarrier;
+use nym_bin_common::opentelemetry::context::{ContextCarrier, AsyncSpanContextExt, new_span_context_with_id};
 use nym_credentials_interface::AvailableBandwidth;
 use nym_crypto::aes::cipher::crypto_common::rand_core::RngCore;
 use nym_crypto::asymmetric::ed25519;
@@ -40,9 +40,9 @@ use opentelemetry::Context;
 use opentelemetry_sdk::logs::TraceContext;
 use opentelemetry_sdk::trace::{IdGenerator, RandomIdGenerator};
 use opentelemetry::propagation::TextMapPropagator;
+use opentelemetry::TraceId;
 use opentelemetry_sdk::propagation::TraceContextPropagator;
 use rand::CryptoRng;
-use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::time::Duration;
 use thiserror::Error;
@@ -875,40 +875,70 @@ impl<R, S> FreshHandler<R, S> {
         S: AsyncRead + AsyncWrite + Unpin + Send,
         R: CryptoRng + RngCore + Send,
     {
-        let (remote_cx_span, trace_id) = if let ClientControlRequest::AuthenticateV2(ref auth_req) = request {
+        let context_ext = if let ClientControlRequest::AuthenticateV2(ref auth_req) = request {
             if let Some(otel_context) = &auth_req.otel_context {
-                let carrier = ContextCarrier::from_map(otel_context.clone());
+                let context_ext = AsyncSpanContextExt::new()
+                    .with_context_carrier(ContextCarrier::from_map(otel_context.clone()));
 
-                let extracted_trace_id =  carrier.extract_trace_id();
-                info!("Extracted trace id: {:?}", extracted_trace_id);
-
-                let propagator = TraceContextPropagator::new();
-                let extracted_context = propagator.extract(&carrier);
-
+                info!("Extracted trace id: {:?}", context_ext.trace_id);
+                
+                let extractor = TraceContextPropagator::new();
+                let extracted_context = extractor.extract(&context_ext.context_carrier);
                 tracing::Span::current().set_parent(extracted_context);
                 let span = info_span!("extracted_otel_context");
+                let context_ext = context_ext.set_root_span(span);
                 warn!("==== Context propagation successful ====");
-                
-                (Some(span), extracted_trace_id)
+
+                context_ext
             } else {
                 warn!("No OpenTelemetry context provided in the request");
-                (None, None)
+                AsyncSpanContextExt::new()
             }
         } else {
-            (None, None)
+            warn!("No OpenTelemetry context provided in the request");
+            AsyncSpanContextExt::new()
         };
 
-        let child_span = if let Some(ref parent_span) = remote_cx_span {
-            info_span!(parent: parent_span, "handling initial client request with otel context")
-        } else {
+        let child_span = if context_ext.root_span.is_none() {
             info_span!("handling_initial_client_request")
+        } else {
+            info_span!(parent: &context_ext.root_span, "handling initial client request with otel context")
         };
         let _enter = child_span.enter();
 
-        let context_carrier = match &request {
-            ClientControlRequest::AuthenticateV2(ref auth_req) => auth_req.otel_context.clone(),
-            _ => None,
-        };
+        // let (remote_cx_span, trace_id) = if let ClientControlRequest::AuthenticateV2(ref auth_req) = request {
+        //     if let Some(otel_context) = &auth_req.otel_context {
+        //         let carrier = ContextCarrier::from_map(otel_context.clone());
+
+        //         let extracted_trace_id =  carrier.extract_trace_id();
+        //         info!("Extracted trace id: {:?}", extracted_trace_id);
+
+        //         let propagator = TraceContextPropagator::new();
+        //         let extracted_context = propagator.extract(&carrier);
+
+        //         tracing::Span::current().set_parent(extracted_context);
+        //         let span = info_span!("extracted_otel_context");
+        //         warn!("==== Context propagation successful ====");
+                
+        //         (Some(span), extracted_trace_id)
+        //     } else {
+        //         warn!("No OpenTelemetry context provided in the request");
+        //         (None, None)
+        //     }
+        // } else {
+        //     (None, None)
+        // };
+
+        // let child_span = if let Some(ref parent_span) = remote_cx_span {
+        //     info_span!(parent: parent_span, "handling initial client request with otel context")
+        // } else {
+        //     info_span!("handling_initial_client_request")
+        // };
+
+        // let context_carrier = match &request {
+        //     ClientControlRequest::AuthenticateV2(ref auth_req) => auth_req.otel_context.clone(),
+        //     _ => None,
+        // };
 
         let auth_result = match request {
             ClientControlRequest::Authenticate {
@@ -921,14 +951,14 @@ impl<R, S> FreshHandler<R, S> {
                 self.handle_legacy_authenticate(protocol_version, address, enc_address, iv)
                     .await
             }
-            ClientControlRequest::AuthenticateV2(req) => self.handle_authenticate_v2(req, context_carrier).await,
+            ClientControlRequest::AuthenticateV2(req) => self.handle_authenticate_v2(req, Some(context_ext.context_carrier.into_map())).await,
                 ClientControlRequest::RegisterHandshakeInitRequest {
                 protocol_version,
                 data,
             } => self.handle_register(protocol_version, data).await,
             ClientControlRequest::SupportedProtocol { .. } => {
                 self.handle_reply_supported_protocol_request().await;
-                return Ok((None, trace_id));
+                return Ok((None, context_ext.trace_id));
             }
             _ => {
                 debug!("received an invalid client request");
@@ -968,7 +998,7 @@ impl<R, S> FreshHandler<R, S> {
             return Err(InitialAuthenticationError::EmptyClientDetails);
         };
 
-        Ok((Some(client_details), trace_id))
+        Ok((Some(client_details), context_ext.trace_id))
     }
 
     #[instrument(skip_all)]
@@ -1001,16 +1031,7 @@ impl<R, S> FreshHandler<R, S> {
 
             if let (Some(registration_details), Some(trace_id)) = (maybe_auth_res, maybe_trace_id) {
                 let span = {
-                    let id_gen = opentelemetry_sdk::trace::RandomIdGenerator::default();
-                    let span_id = id_gen.new_span_id();
-                    let span_context = SpanContext::new(
-                        trace_id,
-                        span_id,
-                        TraceFlags::SAMPLED,
-                        true,
-                        Default::default(),
-                    );
-                    let cx = opentelemetry::Context::current().with_remote_span_context(span_context);
+                    let cx = new_span_context_with_id(trace_id);
                     let _context_guard = cx.clone().attach();
 
                     let span = info_span!("authentication handler with otel", %trace_id);

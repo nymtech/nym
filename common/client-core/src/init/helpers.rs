@@ -146,9 +146,9 @@ pub async fn gateways_for_init<R: Rng>(
     // Use the unified HTTP client directly with optional user agent
     let mut builder = nym_http_api_client::Client::builder(nym_api.clone())
         .map_err(|e| {
-            ClientCoreError::ValidatorClientError(
-                nym_validator_client::ValidatorClientError::NymAPIError { source: e },
-            )
+            ClientCoreError::ValidatorClientError(nym_validator_client::ValidatorClientError::from(
+                e,
+            ))
         })?
         .with_bincode(); // Use bincode for better performance
 
@@ -157,9 +157,7 @@ pub async fn gateways_for_init<R: Rng>(
     }
 
     let client = builder.build().map_err(|e| {
-        ClientCoreError::ValidatorClientError(
-            nym_validator_client::ValidatorClientError::NymAPIError { source: e },
-        )
+        ClientCoreError::ValidatorClientError(nym_validator_client::ValidatorClientError::from(e))
     })?;
 
     tracing::debug!("Fetching list of gateways from: {nym_api}");

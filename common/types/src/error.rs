@@ -33,10 +33,7 @@ pub enum TypesError {
         source: eyre::Report,
     },
     #[error("{source}")]
-    NymApiError {
-        #[from]
-        source: NymAPIError,
-    },
+    NymApiError { source: Box<NymAPIError> },
     #[error("{source}")]
     IOError {
         #[from]
@@ -97,10 +94,18 @@ impl Serialize for TypesError {
     }
 }
 
+impl From<NymAPIError> for TypesError {
+    fn from(value: NymAPIError) -> Self {
+        TypesError::NymApiError {
+            source: Box::new(value),
+        }
+    }
+}
+
 impl From<ValidatorClientError> for TypesError {
     fn from(e: ValidatorClientError) -> Self {
         match e {
-            ValidatorClientError::NymAPIError { source } => source.into(),
+            ValidatorClientError::NymAPIError { source } => (*source).into(),
             ValidatorClientError::MalformedUrlProvided(e) => e.into(),
             ValidatorClientError::NyxdError(e) => e.into(),
             ValidatorClientError::NoAPIUrlAvailable => TypesError::NoNymApiUrlConfigured,

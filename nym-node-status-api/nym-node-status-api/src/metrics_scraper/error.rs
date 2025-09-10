@@ -10,7 +10,7 @@ pub enum NodeScraperError {
         host: String,
         node_id: NodeId,
         #[source]
-        source: NymNodeApiClientError,
+        source: Box<NymNodeApiClientError>,
     },
 
     #[error("node {node_id} with host '{host}' doesn't seem to expose its declared http port nor any of the standard API ports, i.e.: 80, 443 or {}", DEFAULT_NYM_NODE_HTTP_PORT)]
@@ -22,14 +22,19 @@ mod tests {
     use super::*;
     use std::error::Error;
 
+    fn dummy_url() -> reqwest::Url {
+        "http://nym.com".parse().unwrap()
+    }
+
     #[test]
+    #[allow(deprecated)]
     fn test_malformed_host_error() {
         // Create a generic error to test with
         let source_error = NymNodeApiClientError::GenericRequestFailure("Invalid URL".to_string());
         let error = NodeScraperError::MalformedHost {
             host: "invalid-host:abc".to_string(),
             node_id: 42,
-            source: source_error,
+            source: Box::new(source_error),
         };
 
         // Test error message formatting
@@ -43,12 +48,13 @@ mod tests {
     }
 
     #[test]
+    #[allow(deprecated)]
     fn test_malformed_host_error_edge_cases() {
         // Test with empty host
         let error = NodeScraperError::MalformedHost {
             host: "".to_string(),
             node_id: 0,
-            source: NymNodeApiClientError::NotFound,
+            source: Box::new(NymNodeApiClientError::NotFound { url: dummy_url() }),
         };
 
         let error_msg = error.to_string();
@@ -59,7 +65,9 @@ mod tests {
         let error = NodeScraperError::MalformedHost {
             host: long_host.clone(),
             node_id: u32::MAX,
-            source: NymNodeApiClientError::GenericRequestFailure("Too long".to_string()),
+            source: Box::new(NymNodeApiClientError::GenericRequestFailure(
+                "Too long".to_string(),
+            )),
         };
 
         let error_msg = error.to_string();
@@ -98,20 +106,21 @@ mod tests {
     }
 
     #[test]
+    #[allow(deprecated)]
     fn test_error_different_sources() {
         // Test with different NymNodeApiClientError variants
-        let not_found_error = NymNodeApiClientError::NotFound;
+        let not_found_error = NymNodeApiClientError::NotFound { url: dummy_url() };
         let error1 = NodeScraperError::MalformedHost {
             host: "host1".to_string(),
             node_id: 1,
-            source: not_found_error,
+            source: Box::new(not_found_error),
         };
 
         let generic_error = NymNodeApiClientError::GenericRequestFailure("404 error".to_string());
         let error2 = NodeScraperError::MalformedHost {
             host: "host2".to_string(),
             node_id: 2,
-            source: generic_error,
+            source: Box::new(generic_error),
         };
 
         // Both should format differently based on their source

@@ -14,10 +14,15 @@ pub enum SignerCheckError {
     DKGContractQueryFailure { source: NyxdError },
 
     #[error("failed to build client: {source}")]
-    HttpClient {
-        #[from]
-        source: HttpClientError,
-    },
+    HttpClient { source: Box<HttpClientError> },
+}
+
+impl From<HttpClientError> for SignerCheckError {
+    fn from(e: HttpClientError) -> Self {
+        SignerCheckError::HttpClient {
+            source: Box::new(e),
+        }
+    }
 }
 
 impl SignerCheckError {

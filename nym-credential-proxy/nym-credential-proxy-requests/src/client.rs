@@ -22,6 +22,7 @@ pub struct VpnApiClient {
     bearer_token: String,
 }
 
+#[allow(clippy::result_large_err)]
 pub fn new_client(
     base_url: impl IntoUrl,
     bearer_token: impl Into<String>,

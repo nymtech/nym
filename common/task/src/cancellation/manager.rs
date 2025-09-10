@@ -324,10 +324,21 @@ impl ShutdownManager {
     /// Create new instance of ShutdownManager without any external shutdown signals registered,
     /// meaning it will only attempt to wait for all tasks spawned on its tracker to gracefully finish execution.
     pub fn new_without_signals() -> Self {
+        Self::new_from_external_shutdown_token(ShutdownToken::new())
+    }
+
+    /// Create new instance of the ShutdownManager using an external shutdown token.
+    ///
+    /// Note: it will not listen to any external shutdown signals!
+    /// You might want further customise it with [shutdown signals](Self::with_shutdown)
+    /// (or just use [the default set](Self::with_default_shutdown_signals).
+    /// Similarly, you might want to include [cancellation on panic](Self::with_cancel_on_panic)
+    /// to make sure everything gets cancelled if one of the tasks panics.
+    pub fn new_from_external_shutdown_token(shutdown_token: ShutdownToken) -> Self {
         let manager = ShutdownManager {
             legacy_task_manager: None,
             shutdown_signals: Default::default(),
-            tracker: Default::default(),
+            tracker: ShutdownTracker::new_from_external_shutdown_token(shutdown_token),
             max_shutdown_duration: Duration::from_secs(10),
         };
 

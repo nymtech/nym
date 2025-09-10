@@ -65,6 +65,9 @@ impl MixTrafficController {
     //         client_sender,
     //     )
     // }
+
+    // MAX TODO DEBUG: smush this back into the original fn above, where we pass the task client, and either work out
+    // what the problem is in WASM or just give it a dummy
     pub fn new<T>(
         gateway_transceiver: T,
         shutdown_token: ShutdownToken,
@@ -80,12 +83,12 @@ impl MixTrafficController {
             tokio::sync::mpsc::channel(MIX_MESSAGE_RECEIVER_BUFFER_SIZE);
         let (client_sender, client_receiver) = tokio::sync::mpsc::channel(8);
 
-        // Use TaskClient::dummy() for WASM, real TaskClient for native
+        // MAX TODO DEBUG: Use TaskClient::dummy() for WASM, real TaskClient for native
         #[cfg(target_arch = "wasm32")]
-        let task_client = nym_task::TaskClient::dummy(); // Never hangs
+        let task_client = nym_task::TaskClient::dummy();
 
         #[cfg(not(target_arch = "wasm32"))]
-        let task_client = TaskClient::default(); // Normal behavior
+        let task_client = TaskClient::default(); // TODO FIX THIS
 
         (
             MixTrafficController {
@@ -212,4 +215,69 @@ impl MixTrafficController {
         }
         debug!("MixTrafficController: Exiting");
     }
+
+    // MAX TODO DEBUG debug version dont think we need anymore keeping in comment for moment
+    // pub fn start(mut self) {
+    //     spawn_future!(
+    //         async move {
+    //             console_log!("MixTrafficController: Starting main loop");
+    //             console_log!(
+    //                 "MixTrafficController: TaskClient is_dummy() = {:?}",
+    //                 self.task_client.is_dummy()
+    //             );
+    //             // Keep running until shutdown signal
+    //             while !self.task_client.is_shutdown() {
+    //                 tokio::select! {
+    //                     biased;
+
+    //                     _ = self.task_client.recv() => {
+    //                         console_log!("MixTrafficController: Shutdown received");
+    //                         break;
+    //                     }
+
+    //                     mix_packets = self.mix_rx.recv() => {
+    //                         match mix_packets {
+    //                             Some(packets) => {
+    //                                 console_log!("MixTrafficController: Processing {} packets", packets.len());
+    //                                 // Handle packets with proper error counting
+    //                                 if let Err(err) = self.on_messages(packets).await {
+    //                                     error!("Failed to send packets: {:?}", err);
+    //                                     self.consecutive_gateway_failure_count += 1;
+    //                                     if self.consecutive_gateway_failure_count >= MAX_FAILURE_COUNT {
+    //                                         error!("Gateway failed too many times");
+    //                                         break;
+    //                                     }
+    //                                 } else {
+    //                                     self.consecutive_gateway_failure_count = 0;
+    //                                 }
+    //                             }
+    //                             None => {
+    //                                 console_log!("MixTrafficController: mix_rx channel closed - this shouldn't happen!");
+    //                                 // Keep running - don't exit on channel closure
+    //                                 continue;
+    //                             }
+    //                         }
+    //                     }
+
+    //                     client_request = self.client_rx.recv() => {
+    //                         match client_request {
+    //                             Some(request) => {
+    //                                 console_log!("MixTrafficController: Processing client request");
+    //                                 self.on_client_request(request).await;
+    //                             }
+    //                             None => {
+    //                                 console_log!("MixTrafficController: client_rx channel closed - continuing");
+    //                                 // Keep running - this is expected behavior
+    //                                 continue;
+    //                             }
+    //                         }
+    //                     }
+    //                 }
+    //             }
+
+    //             console_log!("MixTrafficController: Exiting due to shutdown");
+    //         },
+    //         "MixTrafficController"
+    //     );
+    // }
 }

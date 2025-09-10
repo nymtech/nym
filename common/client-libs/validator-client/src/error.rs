@@ -9,8 +9,7 @@ use thiserror::Error;
 pub enum ValidatorClientError {
     #[error("nym api request failed: {source}")]
     NymAPIError {
-        #[from]
-        source: nym_api::error::NymAPIError,
+        source: Box<nym_api::error::NymAPIError>,
     },
 
     #[error("Tendermint RPC request failure: {0}")]
@@ -27,4 +26,12 @@ pub enum ValidatorClientError {
 
     #[error("No validator API url has been provided")]
     NoAPIUrlAvailable,
+}
+
+impl From<nym_api::error::NymAPIError> for ValidatorClientError {
+    fn from(source: nym_api::error::NymAPIError) -> Self {
+        ValidatorClientError::NymAPIError {
+            source: Box::new(source),
+        }
+    }
 }

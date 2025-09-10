@@ -3385,6 +3385,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "inventory"
+version = "0.3.21"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bc61209c082fbeb19919bee74b176221b27223e27b65d781eb91af24eb1fb46e"
+dependencies = [
+ "rustversion",
+]
+
+[[package]]
 name = "io-uring"
 version = "0.7.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4216,9 +4225,11 @@ dependencies = [
  "encoding_rs",
  "hickory-resolver",
  "http 1.3.1",
+ "inventory",
  "itertools 0.14.0",
  "mime",
  "nym-bin-common",
+ "nym-http-api-client-macro",
  "nym-http-api-common",
  "once_cell",
  "reqwest 0.12.15",
@@ -4230,6 +4241,16 @@ dependencies = [
  "tracing",
  "url",
  "wasmtimer",
+]
+
+[[package]]
+name = "nym-http-api-client-macro"
+version = "0.1.0"
+dependencies = [
+ "proc-macro-crate 3.3.0",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.100",
 ]
 
 [[package]]

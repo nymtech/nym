@@ -38,7 +38,7 @@ pub enum Error {
     ValidatorClientError(#[from] ValidatorClientError),
 
     #[error("Nym API request failed - {0}")]
-    NymAPIError(#[from] NymAPIError),
+    NymAPIError(Box<NymAPIError>),
 
     #[error("Bandwidth operation overflowed. {0}")]
     BandwidthOverflow(String),
@@ -63,4 +63,10 @@ pub enum Error {
 
     #[error("failed to create a secp256k1 signature")]
     Secp256k1SignFailure,
+}
+
+impl From<NymAPIError> for Error {
+    fn from(e: NymAPIError) -> Self {
+        Error::NymAPIError(Box::new(e))
+    }
 }

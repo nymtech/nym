@@ -51,7 +51,7 @@
 //!     Up,
 //! }
 //!
-//! # type Err = HttpClientError<String>;
+//! # type Err = HttpClientError;
 //! # async fn run() -> Result<(), Err> {
 //! // This will POST a body of `{"lang":"rust","body":"json"}`
 //! let mut map = HashMap::new();
@@ -140,6 +140,7 @@ pub use inventory;
 pub use reqwest;
 pub use reqwest::ClientBuilder as ReqwestClientBuilder;
 pub use reqwest::StatusCode;
+use std::error::Error;
 
 pub mod registry;
 
@@ -244,42 +245,138 @@ impl SerializationFormat {
     }
 }
 
+#[allow(missing_docs)]
+#[derive(Debug)]
+pub struct ReqwestErrorWrapper(reqwest::Error);
+
+impl Display for ReqwestErrorWrapper {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if self.0.is_connect() {
+            write!(f, "failed to connect: ")?;
+        }
+        if self.0.is_timeout() {
+            write!(f, "timed out: ")?;
+        }
+        if self.0.is_redirect() {
+            if let Some(final_stop) = self.0.url() {
+                write!(f, "redirect loop at {final_stop}: ")?;
+            }
+        }
+
+        self.0.fmt(f)?;
+        if let Some(status_code) = self.0.status() {
+            write!(f, " status: {status_code}")?;
+        } else {
+            write!(f, " unknown status code")?;
+        }
+
+        if let Some(source) = self.0.source() {
+            write!(f, " source: {source}")?;
+        } else {
+            write!(f, " unknown lower-level error source")?;
+        }
+
+        Ok(())
+    }
+}
+
+impl std::error::Error for ReqwestErrorWrapper {}
+
 /// The Errors that may occur when creating or using an HTTP client.
 #[derive(Debug, Error)]
 #[allow(missing_docs)]
 pub enum HttpClientError {
+    #[error("failed to construct inner reqwest client: {source}")]
+    ReqwestBuildError {
+        #[source]
+        source: reqwest::Error,
+    },
+
+    #[deprecated(
+        note = "use another more strongly typed variant - this variant is only left for compatibility reasons"
+    )]
+    #[error("request failed with error message: {0}")]
+    GenericRequestFailure(String),
+
+    #[deprecated(
+        note = "use another more strongly typed variant - this variant is only left for compatibility reasons"
+    )]
     #[error("there was an issue with the REST request: {source}")]
     ReqwestClientError {
         #[from]
         source: reqwest::Error,
     },
 
+    #[error("failed to parse {raw} as a valid URL: {source}")]
+    MalformedUrl {
+        raw: String,
+        #[source]
+        source: reqwest::Error,
+    },
+
+    #[error("failed to send request for {url}: {source}")]
+    RequestSendFailure {
+        url: reqwest::Url,
+        #[source]
+        source: ReqwestErrorWrapper,
+    },
+
+    #[error("failed to read response body from {url}: {source}")]
+    ResponseReadFailure {
+        url: reqwest::Url,
+        headers: Box<HeaderMap>,
+        status: StatusCode,
+        #[source]
+        source: ReqwestErrorWrapper,
+    },
+
     #[error("failed to deserialize received response: {source}")]
     ResponseDeserialisationFailure { source: serde_json::Error },
 
     #[error("provided url is malformed: {source}")]
-    MalformedUrl {
+    UrlParseFailure {
         #[from]
         source: url::ParseError,
     },
 
-    #[error("the requested resource could not be found")]
-    NotFound,
+    #[error("the requested resource could not be found at {url}")]
+    NotFound { url: reqwest::Url },
 
-    #[error("request failed with error message: {0}")]
-    GenericRequestFailure(String),
+    #[error("attempted to use domain fronting and clone a request containing stream data")]
+    AttemptedToCloneStreamRequest,
 
-    #[error("the request failed with status '{status}'. no additional error message provided")]
-    RequestFailure { status: StatusCode },
+    // #[error("request failed with error message: {0}")]
+    // GenericRequestFailure(String),
+    //
+    #[error("the request for {url} failed with status '{status}'. no additional error message provided. response headers: {headers:?}")]
+    RequestFailure {
+        url: reqwest::Url,
+        status: StatusCode,
+        headers: Box<HeaderMap>,
+    },
 
-    #[error("the returned response was empty. status: '{status}'")]
-    EmptyResponse { status: StatusCode },
+    #[error(
+        "the returned response from {url} was empty. status: '{status}'. response headers: {headers:?}"
+    )]
+    EmptyResponse {
+        url: reqwest::Url,
+        status: StatusCode,
+        headers: Box<HeaderMap>,
+    },
 
-    #[error("failed to resolve request. status: '{status}', additional error message: {error}")]
-    EndpointFailure { status: StatusCode, error: String },
+    #[error("failed to resolve request for {url}. status: '{status}'. response headers: {headers:?}. additional error message: {error}")]
+    EndpointFailure {
+        url: reqwest::Url,
+        status: StatusCode,
+        headers: Box<HeaderMap>,
+        error: String,
+    },
 
     #[error("failed to decode response body: {message} from {content}")]
     ResponseDecodeFailure { message: String, content: String },
+
+    #[error("failed to resolve request to {url} due to data inconsistency: {details}")]
+    InternalResponseInconsistency { url: ::url::Url, details: String },
 
     #[error("Failed to encode bincode: {0}")]
     Bincode(#[from] bincode::Error),
@@ -298,11 +395,15 @@ pub enum HttpClientError {
     RequestTimeout,
 }
 
+#[allow(missing_docs)]
+#[allow(deprecated)]
 impl HttpClientError {
     /// Returns true if the error is a timeout.
     pub fn is_timeout(&self) -> bool {
         match self {
             HttpClientError::ReqwestClientError { source } => source.is_timeout(),
+            HttpClientError::RequestSendFailure { source, .. } => source.0.is_timeout(),
+            HttpClientError::ResponseReadFailure { source, .. } => source.0.is_timeout(),
             #[cfg(target_arch = "wasm32")]
             HttpClientError::RequestTimeout => true,
             _ => false,
@@ -312,10 +413,22 @@ impl HttpClientError {
     /// Returns the HTTP status code if available.
     pub fn status_code(&self) -> Option<StatusCode> {
         match self {
-            HttpClientError::RequestFailure { status } => Some(*status),
-            HttpClientError::EmptyResponse { status } => Some(*status),
+            HttpClientError::ResponseReadFailure { status, .. } => Some(*status),
+            HttpClientError::RequestFailure { status, .. } => Some(*status),
+            HttpClientError::EmptyResponse { status, .. } => Some(*status),
             HttpClientError::EndpointFailure { status, .. } => Some(*status),
             _ => None,
+        }
+    }
+
+    pub fn reqwest_client_build_error(source: reqwest::Error) -> Self {
+        HttpClientError::ReqwestBuildError { source }
+    }
+
+    pub fn request_send_error(url: reqwest::Url, source: reqwest::Error) -> Self {
+        HttpClientError::RequestSendFailure {
+            url,
+            source: ReqwestErrorWrapper(source),
         }
     }
 }
@@ -629,7 +742,9 @@ impl ClientBuilder {
                 builder = builder.dns_resolver(Arc::new(HickoryDnsResolver::default()));
             }
 
-            builder.build()?
+            builder
+                .build()
+                .map_err(HttpClientError::reqwest_client_build_error)?
         };
 
         let client = Client {
@@ -895,14 +1010,15 @@ impl ApiClientCore for Client {
             // try_clone may fail if the body is a stream in which case using retries is not advised.
             let r = request
                 .try_clone()
-                .ok_or(HttpClientError::GenericRequestFailure(
-                    "failed to send request".to_string(),
-                ))?;
+                .ok_or(HttpClientError::AttemptedToCloneStreamRequest)?;
 
             // apply any changes based on the current state of the client wrt. hosts,
             // fronting domains, etc.
-            let mut req = r.build()?;
+            let mut req = r
+                .build()
+                .map_err(HttpClientError::reqwest_client_build_error)?;
             self.apply_hosts_to_req(&mut req);
+            let url = req.url().clone();
 
             #[cfg(target_arch = "wasm32")]
             let response: Result<Response, HttpClientError> = {
@@ -919,7 +1035,7 @@ impl ApiClientCore for Client {
 
             match response {
                 Ok(resp) => return Ok(resp),
-                Err(e) => {
+                Err(err) => {
                     // if we have multiple urls, update to the next
                     self.update_host();
 
@@ -931,21 +1047,20 @@ impl ApiClientCore for Client {
                         front.retry_enable();
                         if !was_enabled && front.is_enabled() {
                             tracing::info!(
-                                "Domain fronting activated after connection failure: {}",
-                                e
+                                "Domain fronting activated after connection failure: {err}",
                             );
                         }
                     }
 
                     if attempts < self.retry_limit {
-                        warn!("Retrying request due to http error: {}", e);
+                        warn!("Retrying request due to http error: {err}");
                         attempts += 1;
                         continue;
                     }
 
                     // if we have exhausted our attempts, return the error
                     #[allow(clippy::useless_conversion)] // conversion considered useless in wasm
-                    return Err(e.into());
+                    return Err(HttpClientError::request_send_error(url, err));
                 }
             }
         }
@@ -1301,36 +1416,52 @@ where
     T: DeserializeOwned,
 {
     let status = res.status();
-    tracing::trace!("Status: {} (success: {})", &status, status.is_success());
+    let headers = res.headers().clone();
+    let url = res.url().clone();
+
+    tracing::trace!("status: {status} (success: {})", status.is_success());
+    tracing::trace!("headers: {headers:?}");
 
     if !allow_empty {
         if let Some(0) = res.content_length() {
-            return Err(HttpClientError::EmptyResponse { status });
+            return Err(HttpClientError::EmptyResponse {
+                url,
+                status,
+                headers: Box::new(headers),
+            });
         }
     }
-    let headers = res.headers().clone();
-    tracing::trace!("headers: {:?}", headers);
 
     if res.status().is_success() {
         // internally reqwest is first retrieving bytes and then performing parsing via serde_json
         // (and similarly does the same thing for text())
-        let full = res.bytes().await?;
+        let full = res
+            .bytes()
+            .await
+            .map_err(|source| HttpClientError::ResponseReadFailure {
+                url,
+                headers: Box::new(headers.clone()),
+                status,
+                source: ReqwestErrorWrapper(source),
+            })?;
         decode_raw_response(&headers, full)
     } else if res.status() == StatusCode::NOT_FOUND {
-        Err(HttpClientError::NotFound)
+        Err(HttpClientError::NotFound { url })
     } else {
         let Ok(plaintext) = res.text().await else {
-            return Err(HttpClientError::RequestFailure { status });
+            return Err(HttpClientError::RequestFailure {
+                url,
+                status,
+                headers: Box::new(headers),
+            });
         };
 
-        if let Ok(request_error) = serde_json::from_str(&plaintext) {
-            Err(HttpClientError::EndpointFailure {
-                status,
-                error: request_error,
-            })
-        } else {
-            Err(HttpClientError::GenericRequestFailure(plaintext))
-        }
+        Err(HttpClientError::EndpointFailure {
+            url,
+            status,
+            headers: Box::new(headers),
+            error: plaintext,
+        })
     }
 }
 

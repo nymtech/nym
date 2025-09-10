@@ -354,7 +354,7 @@ impl CredentialHandler {
             Err(err) => {
                 error!("failed to send ticket {ticket_id} for verification to ecash signer '{client}': {err}. if we don't reach quorum, we'll retry later");
                 Err(EcashTicketError::ApiFailure(EcashApiError::NymApi {
-                    source: nym_validator_client::ValidatorClientError::NymAPIError { source: err },
+                    source: nym_validator_client::ValidatorClientError::from(err),
                 }))
             }
         }

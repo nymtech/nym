@@ -48,7 +48,7 @@ pub enum EcashError {
     CoconutApiError(#[from] EcashApiError),
 
     #[error("nym api query failure: {0}")]
-    NymApiError(#[from] NymAPIError),
+    NymApiError(Box<NymAPIError>),
 
     #[error(transparent)]
     SerdeJsonError(#[from] serde_json::Error),
@@ -163,6 +163,12 @@ pub enum EcashError {
 
     #[error("could not generate merkle proof for the provided deposits")]
     MerkleProofGenerationFailure,
+}
+
+impl From<NymAPIError> for EcashError {
+    fn from(e: NymAPIError) -> Self {
+        EcashError::NymApiError(Box::new(e))
+    }
 }
 
 // impl<'r, 'o: 'r> Responder<'r, 'o> for EcashError {

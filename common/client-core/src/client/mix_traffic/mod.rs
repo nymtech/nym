@@ -5,11 +5,50 @@ use crate::client::mix_traffic::transceiver::GatewayTransceiver;
 use nym_gateway_requests::ClientRequest;
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_task::ShutdownToken;
+use std::sync::Arc;
+use tokio::sync::mpsc;
 use tracing::*;
 use transceiver::ErasedGatewayError;
+
+#[cfg(target_arch = "wasm32")]
 use wasm_utils::console_log;
 
-pub type BatchMixMessageSender = tokio::sync::mpsc::Sender<Vec<MixPacket>>;
+#[derive(Debug)]
+pub struct CountedSender<T>(pub Arc<mpsc::Sender<T>>);
+
+impl<T> Clone for CountedSender<T> {
+    fn clone(&self) -> Self {
+        let cnt = Arc::strong_count(&self.0);
+        console_log!("Sender cloned (was {})", cnt);
+        CountedSender(Arc::clone(&self.0))
+    }
+}
+impl<T> Drop for CountedSender<T> {
+    fn drop(&mut self) {
+        let left = Arc::strong_count(&self.0).saturating_sub(1);
+        console_log!("Sender dropped, {} left", left);
+    }
+}
+
+impl<T> CountedSender<T> {
+    pub fn send(
+        &self,
+        value: T,
+    ) -> impl std::future::Future<Output = Result<(), mpsc::error::SendError<T>>> + '_ {
+        self.0.send(value)
+    }
+    pub fn try_send(&self, value: T) -> Result<(), mpsc::error::TrySendError<T>> {
+        self.0.try_send(value)
+    }
+    pub fn capacity(&self) -> usize {
+        self.0.capacity()
+    }
+    pub fn max_capacity(&self) -> usize {
+        self.0.max_capacity()
+    }
+}
+
+pub type BatchMixMessageSender = CountedSender<Vec<MixPacket>>;
 pub type BatchMixMessageReceiver = tokio::sync::mpsc::Receiver<Vec<MixPacket>>;
 pub type ClientRequestReceiver = tokio::sync::mpsc::Receiver<ClientRequest>;
 pub type ClientRequestSender = tokio::sync::mpsc::Sender<ClientRequest>;
@@ -37,37 +76,6 @@ pub struct MixTrafficController {
 }
 
 impl MixTrafficController {
-    // pub fn new<T>(
-    //     gateway_transceiver: T,
-    //     task_client: TaskClient,
-    // ) -> (
-    //     MixTrafficController,
-    //     BatchMixMessageSender,
-    //     ClientRequestSender,
-    // )
-    // where
-    //     T: GatewayTransceiver + Send + 'static,
-    // {
-    //     let (message_sender, message_receiver) =
-    //         tokio::sync::mpsc::channel(MIX_MESSAGE_RECEIVER_BUFFER_SIZE);
-
-    //     let (client_sender, client_receiver) = tokio::sync::mpsc::channel(8);
-
-    //     (
-    //         MixTrafficController {
-    //             gateway_transceiver: Box::new(gateway_transceiver),
-    //             mix_rx: message_receiver,
-    //             client_rx: client_receiver,
-    //             consecutive_gateway_failure_count: 0,
-    //             task_client,
-    //         },
-    //         message_sender,
-    //         client_sender,
-    //     )
-    // }
-
-    // MAX TODO DEBUG: smush this back into the original fn above, where we pass the task client, and either work out
-    // what the problem is in WASM or just give it a dummy
     pub fn new<T>(
         gateway_transceiver: T,
         shutdown_token: ShutdownToken,
@@ -79,16 +87,23 @@ impl MixTrafficController {
     where
         T: GatewayTransceiver + Send + 'static,
     {
-        let (message_sender, message_receiver) =
-            tokio::sync::mpsc::channel(MIX_MESSAGE_RECEIVER_BUFFER_SIZE);
-        let (client_sender, client_receiver) = tokio::sync::mpsc::channel(8);
+        console_log!("MixTrafficController::new called");
+        console_log!(
+            "MixTrafficController: task_client.is_dummy() = {}",
+            task_client.is_dummy()
+        );
 
-        // MAX TODO DEBUG: Use TaskClient::dummy() for WASM, real TaskClient for native
-        #[cfg(target_arch = "wasm32")]
-        let task_client = nym_task::TaskClient::dummy();
+        let (raw_tx, mix_rx) = mpsc::channel(MIX_MESSAGE_RECEIVER_BUFFER_SIZE);
+        let mix_tx = CountedSender(Arc::new(raw_tx));
+        let (client_tx, client_rx) = tokio::sync::mpsc::channel(8);
 
-        #[cfg(not(target_arch = "wasm32"))]
-        let task_client = TaskClient::default(); // TODO FIX THIS
+        let controller = MixTrafficController {
+            gateway_transceiver: Box::new(gateway_transceiver),
+            mix_rx,
+            client_rx,
+            consecutive_gateway_failure_count: 0,
+            task_client,
+        };
 
         (
             MixTrafficController {
@@ -111,8 +126,13 @@ impl MixTrafficController {
         BatchMixMessageSender,
         ClientRequestSender,
     ) {
-        let (message_sender, message_receiver) =
-            tokio::sync::mpsc::channel(MIX_MESSAGE_RECEIVER_BUFFER_SIZE);
+        console_log!("MixTrafficController::new_dynamic called");
+        console_log!(
+            "MixTrafficController::new_dynamic: task_client.is_dummy() = {}",
+            task_client.is_dummy()
+        );
+        let (raw_tx, message_receiver) = mpsc::channel(MIX_MESSAGE_RECEIVER_BUFFER_SIZE);
+        let message_sender = CountedSender(Arc::new(raw_tx));
         let (client_sender, client_receiver) = tokio::sync::mpsc::channel(8);
         (
             MixTrafficController {
@@ -215,69 +235,4 @@ impl MixTrafficController {
         }
         debug!("MixTrafficController: Exiting");
     }
-
-    // MAX TODO DEBUG debug version dont think we need anymore keeping in comment for moment
-    // pub fn start(mut self) {
-    //     spawn_future!(
-    //         async move {
-    //             console_log!("MixTrafficController: Starting main loop");
-    //             console_log!(
-    //                 "MixTrafficController: TaskClient is_dummy() = {:?}",
-    //                 self.task_client.is_dummy()
-    //             );
-    //             // Keep running until shutdown signal
-    //             while !self.task_client.is_shutdown() {
-    //                 tokio::select! {
-    //                     biased;
-
-    //                     _ = self.task_client.recv() => {
-    //                         console_log!("MixTrafficController: Shutdown received");
-    //                         break;
-    //                     }
-
-    //                     mix_packets = self.mix_rx.recv() => {
-    //                         match mix_packets {
-    //                             Some(packets) => {
-    //                                 console_log!("MixTrafficController: Processing {} packets", packets.len());
-    //                                 // Handle packets with proper error counting
-    //                                 if let Err(err) = self.on_messages(packets).await {
-    //                                     error!("Failed to send packets: {:?}", err);
-    //                                     self.consecutive_gateway_failure_count += 1;
-    //                                     if self.consecutive_gateway_failure_count >= MAX_FAILURE_COUNT {
-    //                                         error!("Gateway failed too many times");
-    //                                         break;
-    //                                     }
-    //                                 } else {
-    //                                     self.consecutive_gateway_failure_count = 0;
-    //                                 }
-    //                             }
-    //                             None => {
-    //                                 console_log!("MixTrafficController: mix_rx channel closed - this shouldn't happen!");
-    //                                 // Keep running - don't exit on channel closure
-    //                                 continue;
-    //                             }
-    //                         }
-    //                     }
-
-    //                     client_request = self.client_rx.recv() => {
-    //                         match client_request {
-    //                             Some(request) => {
-    //                                 console_log!("MixTrafficController: Processing client request");
-    //                                 self.on_client_request(request).await;
-    //                             }
-    //                             None => {
-    //                                 console_log!("MixTrafficController: client_rx channel closed - continuing");
-    //                                 // Keep running - this is expected behavior
-    //                                 continue;
-    //                             }
-    //                         }
-    //                     }
-    //                 }
-    //             }
-
-    //             console_log!("MixTrafficController: Exiting due to shutdown");
-    //         },
-    //         "MixTrafficController"
-    //     );
-    // }
 }

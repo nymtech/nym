@@ -45,7 +45,15 @@
     "types:lint:fix": "lerna run lint:fix --scope @nymproject/types --scope @nymproject/nym-wallet-app",
     "audit:fix": "npm_config_yes=true npx yarn-audit-fix -- --dry-run",
     "dev:on": "node sdk/typescript/scripts/dev-mode-add.mjs",
-    "dev:off": "node sdk/typescript/scripts/dev-mode-remove.mjs"
+    "dev:off": "node sdk/typescript/scripts/dev-mode-remove.mjs",
+    "security:audit": "yarn audit --level moderate",
+    "security:audit:fix": "yarn audit --fix",
+    "security:audit:ci": "yarn install --frozen-lockfile && yarn audit --level moderate",
+    "security:check": "yarn audit --level high && yarn list --depth=0",
+    "security:outdated": "yarn outdated",
+    "security:verify": "yarn audit --level moderate && yarn list --depth=0 && yarn outdated",
+    "security:full": "./scripts/security-check.sh",
+    "security:ci": "yarn install --frozen-lockfile && ./scripts/security-check.sh"
   },
   "devDependencies": {
     "@npmcli/node-gyp": "^3.0.0",
@@ -62,6 +70,13 @@
     "@cosmjs/proto-signing": "^0.32.4",
     "@cosmjs/stargate": "^0.32.4",
     "@cosmjs/cosmwasm-stargate": "^0.32.4",
-    "cosmjs-types": "^0.9.0"
+    "cosmjs-types": "^0.9.0",
+    "chalk": "5.3.0",
+    "strip-ansi": "7.1.0",
+    "color-convert": "2.0.1",
+    "color-name": "1.1.4",
+    "is-core-module": "2.13.1",
+    "error-ex": "1.3.2",
+    "has-ansi": "5.0.1"
   }
 }

@@ -40,7 +40,6 @@ use opentelemetry::Context;
 use opentelemetry_sdk::logs::TraceContext;
 use opentelemetry_sdk::trace::{IdGenerator, RandomIdGenerator};
 use opentelemetry::propagation::TextMapPropagator;
-use opentelemetry::TraceId;
 use opentelemetry_sdk::propagation::TraceContextPropagator;
 use rand::CryptoRng;
 use std::net::SocketAddr;

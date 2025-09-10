@@ -284,7 +284,6 @@ impl std::error::Error for ReqwestErrorWrapper {}
 
 /// The Errors that may occur when creating or using an HTTP client.
 #[derive(Debug, Error)]
-#[allow(clippy::large_enum_variant)] // TODO: box relevant variants
 #[allow(missing_docs)]
 pub enum HttpClientError {
     #[error("failed to construct inner reqwest client: {source}")]
@@ -293,11 +292,15 @@ pub enum HttpClientError {
         source: reqwest::Error,
     },
 
-    #[deprecated(note = "use another more strongly typed variant")]
+    #[deprecated(
+        note = "use another more strongly typed variant - this variant is only left for compatibility reasons"
+    )]
     #[error("request failed with error message: {0}")]
     GenericRequestFailure(String),
 
-    #[deprecated(note = "use another more strongly typed variant")]
+    #[deprecated(
+        note = "use another more strongly typed variant - this variant is only left for compatibility reasons"
+    )]
     #[error("there was an issue with the REST request: {source}")]
     ReqwestClientError {
         #[from]
@@ -321,7 +324,7 @@ pub enum HttpClientError {
     #[error("failed to read response body from {url}: {source}")]
     ResponseReadFailure {
         url: reqwest::Url,
-        headers: HeaderMap,
+        headers: Box<HeaderMap>,
         status: StatusCode,
         #[source]
         source: ReqwestErrorWrapper,
@@ -349,7 +352,7 @@ pub enum HttpClientError {
     RequestFailure {
         url: reqwest::Url,
         status: StatusCode,
-        headers: HeaderMap,
+        headers: Box<HeaderMap>,
     },
 
     #[error(
@@ -358,14 +361,14 @@ pub enum HttpClientError {
     EmptyResponse {
         url: reqwest::Url,
         status: StatusCode,
-        headers: HeaderMap,
+        headers: Box<HeaderMap>,
     },
 
     #[error("failed to resolve request for {url}. status: '{status}'. response headers: {headers:?}. additional error message: {error}")]
     EndpointFailure {
         url: reqwest::Url,
         status: StatusCode,
-        headers: HeaderMap,
+        headers: Box<HeaderMap>,
         error: String,
     },
 
@@ -398,7 +401,7 @@ impl HttpClientError {
     /// Returns true if the error is a timeout.
     pub fn is_timeout(&self) -> bool {
         match self {
-            HttpClientError::ReqwestClientError { source } => source.is_timeout(),
+            // HttpClientError::ReqwestClientError { source } => source.is_timeout(),
             HttpClientError::RequestSendFailure { source, .. } => source.0.is_timeout(),
             HttpClientError::ResponseReadFailure { source, .. } => source.0.is_timeout(),
             #[cfg(target_arch = "wasm32")]
@@ -413,7 +416,6 @@ impl HttpClientError {
             HttpClientError::ResponseReadFailure { status, .. } => Some(*status),
             HttpClientError::RequestFailure { status, .. } => Some(*status),
             HttpClientError::EmptyResponse { status, .. } => Some(*status),
-            HttpClientError::EndpointFailure { status, .. } => Some(*status),
             HttpClientError::EndpointFailure { status, .. } => Some(*status),
             _ => None,
         }
@@ -1425,7 +1427,7 @@ where
             return Err(HttpClientError::EmptyResponse {
                 url,
                 status,
-                headers,
+                headers: Box::new(headers),
             });
         }
     }
@@ -1438,7 +1440,7 @@ where
             .await
             .map_err(|source| HttpClientError::ResponseReadFailure {
                 url,
-                headers: headers.clone(),
+                headers: Box::new(headers.clone()),
                 status,
                 source: ReqwestErrorWrapper(source),
             })?;
@@ -1450,14 +1452,14 @@ where
             return Err(HttpClientError::RequestFailure {
                 url,
                 status,
-                headers,
+                headers: Box::new(headers),
             });
         };
 
         Err(HttpClientError::EndpointFailure {
             url,
             status,
-            headers,
+            headers: Box::new(headers),
             error: plaintext,
         })
     }

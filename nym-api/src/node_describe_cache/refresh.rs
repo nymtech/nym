@@ -132,7 +132,7 @@ async fn try_get_client(
                 return Err(NodeDescribeCacheError::MalformedHost {
                     host: host.to_string(),
                     node_id,
-                    source: err,
+                    source: Box::new(err),
                 });
             }
         };
@@ -158,7 +158,7 @@ async fn try_get_description(
 
     let map_query_err = |err| NodeDescribeCacheError::ApiFailure {
         node_id: data.node_id,
-        source: err,
+        source: Box::new(err),
     };
 
     let host_info = client.get_host_information().await.map_err(map_query_err)?;

@@ -1,7 +1,6 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::credentials::ticketbook::NodeId;
 use crate::deposits_buffer::helpers::{BufferedDeposit, PerformedDeposits};
 use crate::error::CredentialProxyError;
 use crate::storage::manager::SqliteStorageManager;
@@ -26,6 +25,10 @@ use uuid::Uuid;
 
 mod manager;
 pub mod models;
+pub(crate) mod pruner;
+
+// TODO: proper import
+type NodeId = u64;
 
 #[derive(Clone)]
 pub struct CredentialProxyStorage {
@@ -74,7 +77,7 @@ impl CredentialProxyStorage {
     }
 
     #[allow(dead_code)]
-    pub(crate) async fn load_blinded_shares_status_by_shares_id(
+    pub async fn load_blinded_shares_status_by_shares_id(
         &self,
         id: i64,
     ) -> Result<Option<BlindedShares>, CredentialProxyError> {
@@ -84,7 +87,7 @@ impl CredentialProxyStorage {
             .await?)
     }
 
-    pub(crate) async fn load_wallet_shares_by_shares_id(
+    pub async fn load_wallet_shares_by_shares_id(
         &self,
         id: i64,
     ) -> Result<Vec<MinimalWalletShare>, CredentialProxyError> {
@@ -94,7 +97,7 @@ impl CredentialProxyStorage {
             .await?)
     }
 
-    pub(crate) async fn load_shares_error_by_shares_id(
+    pub async fn load_shares_error_by_shares_id(
         &self,
         id: i64,
     ) -> Result<Option<String>, CredentialProxyError> {
@@ -105,7 +108,7 @@ impl CredentialProxyStorage {
     }
 
     #[allow(dead_code)]
-    pub(crate) async fn load_blinded_shares_status_by_device_and_credential_id(
+    pub async fn load_blinded_shares_status_by_device_and_credential_id(
         &self,
         device_id: &str,
         credential_id: &str,
@@ -116,7 +119,7 @@ impl CredentialProxyStorage {
             .await?)
     }
 
-    pub(crate) async fn load_wallet_shares_by_device_and_credential_id(
+    pub async fn load_wallet_shares_by_device_and_credential_id(
         &self,
         device_id: &str,
         credential_id: &str,
@@ -127,7 +130,7 @@ impl CredentialProxyStorage {
             .await?)
     }
 
-    pub(crate) async fn load_shares_error_by_device_and_credential_id(
+    pub async fn load_shares_error_by_device_and_credential_id(
         &self,
         device_id: &str,
         credential_id: &str,
@@ -138,7 +141,7 @@ impl CredentialProxyStorage {
             .await?)
     }
 
-    pub(crate) async fn insert_new_pending_async_shares_request(
+    pub async fn insert_new_pending_async_shares_request(
         &self,
         request: Uuid,
         device_id: &str,
@@ -150,7 +153,7 @@ impl CredentialProxyStorage {
             .await?)
     }
 
-    pub(crate) async fn update_pending_async_blinded_shares_issued(
+    pub async fn update_pending_async_blinded_shares_issued(
         &self,
         available_shares: usize,
         device_id: &str,
@@ -166,7 +169,7 @@ impl CredentialProxyStorage {
             .await?)
     }
 
-    pub(crate) async fn update_pending_async_blinded_shares_error(
+    pub async fn update_pending_async_blinded_shares_error(
         &self,
         available_shares: usize,
         device_id: &str,
@@ -184,7 +187,7 @@ impl CredentialProxyStorage {
             .await?)
     }
 
-    pub(crate) async fn prune_old_blinded_shares(&self) -> Result<(), CredentialProxyError> {
+    pub async fn prune_old_blinded_shares(&self) -> Result<(), CredentialProxyError> {
         let max_age = OffsetDateTime::now_utc() - time::Duration::days(31);
 
         self.storage_manager
@@ -199,7 +202,7 @@ impl CredentialProxyStorage {
         Ok(())
     }
 
-    pub(crate) async fn insert_new_deposits(
+    pub async fn insert_new_deposits(
         &self,
         deposits: &PerformedDeposits,
     ) -> Result<(), CredentialProxyError> {
@@ -211,9 +214,7 @@ impl CredentialProxyStorage {
         Ok(())
     }
 
-    pub(crate) async fn load_unused_deposits(
-        &self,
-    ) -> Result<Vec<BufferedDeposit>, CredentialProxyError> {
+    pub async fn load_unused_deposits(&self) -> Result<Vec<BufferedDeposit>, CredentialProxyError> {
         self.storage_manager
             .load_unused_deposits()
             .await?
@@ -222,7 +223,7 @@ impl CredentialProxyStorage {
             .collect()
     }
 
-    pub(crate) async fn insert_deposit_usage(
+    pub async fn insert_deposit_usage(
         &self,
         deposit_id: DepositId,
         requested_on: OffsetDateTime,
@@ -240,7 +241,7 @@ impl CredentialProxyStorage {
         Ok(())
     }
 
-    pub(crate) async fn insert_deposit_usage_error(
+    pub async fn insert_deposit_usage_error(
         &self,
         deposit_id: DepositId,
         error: String,
@@ -251,7 +252,7 @@ impl CredentialProxyStorage {
         Ok(())
     }
 
-    pub(crate) async fn insert_partial_wallet_share(
+    pub async fn insert_partial_wallet_share(
         &self,
         deposit_id: DepositId,
         epoch_id: EpochId,
@@ -291,7 +292,7 @@ impl CredentialProxyStorage {
         Ok(())
     }
 
-    pub(crate) async fn get_master_verification_key(
+    pub async fn get_master_verification_key(
         &self,
         epoch_id: EpochId,
     ) -> Result<Option<EpochVerificationKey>, CredentialProxyError> {
@@ -309,7 +310,7 @@ impl CredentialProxyStorage {
         Ok(Some(deserialised))
     }
 
-    pub(crate) async fn insert_master_verification_key(
+    pub async fn insert_master_verification_key(
         &self,
         key: &EpochVerificationKey,
     ) -> Result<(), CredentialProxyError> {
@@ -320,7 +321,7 @@ impl CredentialProxyStorage {
             .await?)
     }
 
-    pub(crate) async fn get_master_coin_index_signatures(
+    pub async fn get_master_coin_index_signatures(
         &self,
         epoch_id: EpochId,
     ) -> Result<Option<AggregatedCoinIndicesSignatures>, CredentialProxyError> {
@@ -340,7 +341,7 @@ impl CredentialProxyStorage {
         Ok(Some(deserialised))
     }
 
-    pub(crate) async fn insert_master_coin_index_signatures(
+    pub async fn insert_master_coin_index_signatures(
         &self,
         signatures: &AggregatedCoinIndicesSignatures,
     ) -> Result<(), CredentialProxyError> {
@@ -355,7 +356,7 @@ impl CredentialProxyStorage {
         Ok(())
     }
 
-    pub(crate) async fn get_master_expiration_date_signatures(
+    pub async fn get_master_expiration_date_signatures(
         &self,
         expiration_date: Date,
         epoch_id: EpochId,
@@ -376,7 +377,7 @@ impl CredentialProxyStorage {
         Ok(Some(deserialised))
     }
 
-    pub(crate) async fn insert_master_expiration_date_signatures(
+    pub async fn insert_master_expiration_date_signatures(
         &self,
         signatures: &AggregatedExpirationDateSignatures,
     ) -> Result<(), CredentialProxyError> {
@@ -398,7 +399,7 @@ impl CredentialProxyStorage {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::http::helpers;
+    use crate::helpers::random_uuid;
     use crate::storage::models::BlindedSharesStatus;
     use nym_compact_ecash::scheme::keygen::KeyPairUser;
     use nym_crypto::asymmetric::ed25519;
@@ -480,7 +481,7 @@ mod tests {
     async fn test_add() -> anyhow::Result<()> {
         let storage = get_storage().await?;
 
-        let dummy_uuid = helpers::random_uuid();
+        let dummy_uuid = random_uuid();
         println!("🚀 insert_pending_blinded_share...");
 
         storage.insert_dummy_used_deposit(dummy_uuid).await?;

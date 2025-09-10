@@ -1,4 +1,4 @@
-// Copyright 2024 Nym Technologies SA <contact@nymtech.net>
+// Copyright 2025 Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
 use nym_ecash_signer_check::SignerCheckError;
@@ -127,6 +127,30 @@ pub enum CredentialProxyError {
     QuorumCheckFailure {
         #[from]
         source: SignerCheckError,
+    },
+
+    #[error(
+        "this operation couldn't be completed as the program is in the process of shutting down"
+    )]
+    ShutdownInProgress,
+
+    #[error("failed to obtain wallet shares with id {id}: {message}")]
+    ShareByIdLoadError { message: String, id: i64 },
+
+    #[error("failed to obtain wallet shares with device_id {device_id} and credential_id: {credential_id}: {message}")]
+    ShareByDeviceLoadError {
+        message: String,
+        device_id: String,
+        credential_id: String,
+    },
+
+    #[error("could not find shares with id {id}")]
+    SharesByIdNotFound { id: i64 },
+
+    #[error("could not find shares with device_id {device_id} and credential_id: {credential_id}")]
+    SharesByDeviceNotFound {
+        device_id: String,
+        credential_id: String,
     },
 }
 

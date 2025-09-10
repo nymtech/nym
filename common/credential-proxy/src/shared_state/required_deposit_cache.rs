@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::error::CredentialProxyError;
-use crate::http::state::ChainClient;
+use crate::shared_state::nyxd_client::ChainClient;
 use nym_validator_client::nyxd::contract_traits::EcashQueryClient;
 use nym_validator_client::nyxd::Coin;
 use std::sync::Arc;
 use time::OffsetDateTime;
 use tokio::sync::RwLock;
 
-pub(crate) struct CachedDeposit {
+pub struct CachedDeposit {
     valid_until: OffsetDateTime,
     required_amount: Coin,
 }
@@ -40,12 +40,12 @@ impl Default for CachedDeposit {
 }
 
 #[derive(Clone, Default)]
-pub(crate) struct RequiredDepositCache {
+pub struct RequiredDepositCache {
     inner: Arc<RwLock<CachedDeposit>>,
 }
 
 impl RequiredDepositCache {
-    pub(crate) async fn get_or_update(
+    pub async fn get_or_update(
         &self,
         chain_client: &ChainClient,
     ) -> Result<Coin, CredentialProxyError> {

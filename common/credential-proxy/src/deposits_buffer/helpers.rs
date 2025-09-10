@@ -10,11 +10,11 @@ use nym_validator_client::nyxd::{Coin, Hash};
 use time::OffsetDateTime;
 use zeroize::Zeroizing;
 
-pub(crate) struct BufferedDeposit {
-    pub(crate) deposit_id: u32,
+pub struct BufferedDeposit {
+    pub deposit_id: u32,
 
     // note: this type implements `ZeroizeOnDrop`
-    pub(crate) ed25519_private_key: ed25519::PrivateKey,
+    pub ed25519_private_key: ed25519::PrivateKey,
 }
 
 impl TryFrom<StorableEcashDeposit> for BufferedDeposit {
@@ -36,14 +36,14 @@ impl TryFrom<StorableEcashDeposit> for BufferedDeposit {
 }
 
 impl BufferedDeposit {
-    pub(crate) fn new(deposit_id: u32, ed25519_private_key: ed25519::PrivateKey) -> Self {
+    pub fn new(deposit_id: u32, ed25519_private_key: ed25519::PrivateKey) -> Self {
         BufferedDeposit {
             deposit_id,
             ed25519_private_key,
         }
     }
 
-    pub(crate) fn sign_ticketbook_plaintext(
+    pub fn sign_ticketbook_plaintext(
         &self,
         withdrawal_request: &WithdrawalRequest,
     ) -> ed25519::Signature {
@@ -52,13 +52,13 @@ impl BufferedDeposit {
     }
 }
 
-pub(crate) struct PerformedDeposits {
-    pub(crate) deposits_data: Vec<BufferedDeposit>,
+pub struct PerformedDeposits {
+    pub deposits_data: Vec<BufferedDeposit>,
 
     // shared by all performed deposits as they were included in the same tx
-    pub(crate) tx_hash: Hash,
-    pub(crate) requested_on: OffsetDateTime,
-    pub(crate) deposit_amount: Coin,
+    pub tx_hash: Hash,
+    pub requested_on: OffsetDateTime,
+    pub deposit_amount: Coin,
 }
 
 impl PerformedDeposits {

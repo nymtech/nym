@@ -1,11 +1,12 @@
-// Copyright 2024 Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: GPL-3.0-only
+// Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
 
 use crate::error::CredentialProxyError;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::Json;
 use nym_credential_proxy_requests::api::v1::ErrorResponse;
+use tracing::warn;
 use uuid::Uuid;
 
 #[derive(Debug, Clone)]
@@ -35,6 +36,10 @@ impl RequestError {
         }
     }
 
+    pub fn new_plain_error(err: CredentialProxyError) -> Self {
+        Self::from_err(err, StatusCode::INTERNAL_SERVER_ERROR)
+    }
+
     pub fn new_server_error(err: CredentialProxyError, uuid: Uuid) -> Self {
         RequestError::new_with_uuid(err.to_string(), uuid, StatusCode::INTERNAL_SERVER_ERROR)
     }
@@ -58,4 +63,13 @@ impl IntoResponse for RequestError {
     fn into_response(self) -> Response {
         (self.status, Json(self.inner)).into_response()
     }
+}
+
+pub fn db_failure<T>(err: CredentialProxyError, uuid: Uuid) -> Result<T, RequestError> {
+    warn!("db failure: {err}");
+    Err(RequestError::new_with_uuid(
+        format!("oh no, something went wrong {err}"),
+        uuid,
+        StatusCode::INTERNAL_SERVER_ERROR,
+    ))
 }

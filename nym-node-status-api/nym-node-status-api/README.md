@@ -46,7 +46,7 @@ make dev-db
 
 # In another terminal, run the application
 DATABASE_URL=postgres://testuser:testpass@localhost:5433/nym_node_status_api_test \
-cargo run --features pg --no-default-features
+cargo run
 ```
 
 ## Makefile Targets

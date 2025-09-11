@@ -13,7 +13,7 @@ use futures::{
     channel::{mpsc, oneshot},
     SinkExt, StreamExt,
 };
-use nym_bin_common::opentelemetry::context::{ContextCarrier, AsyncSpanContextExt, new_span_context_with_id};
+use nym_bin_common::opentelemetry::context::{new_span_context_with_id, ManualSpanContextExt};
 use nym_credentials_interface::AvailableBandwidth;
 use nym_crypto::aes::cipher::crypto_common::rand_core::RngCore;
 use nym_crypto::asymmetric::ed25519;
@@ -28,6 +28,7 @@ use nym_gateway_requests::{
     INITIAL_PROTOCOL_VERSION,
 };
 use nym_gateway_storage::error::GatewayStorageError;
+use nym_gateway_storage::models::Client;
 use nym_gateway_storage::traits::BandwidthGatewayStorage;
 use nym_gateway_storage::traits::InboxGatewayStorage;
 use nym_gateway_storage::traits::SharedKeyGatewayStorage;
@@ -49,7 +50,7 @@ use time::OffsetDateTime;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::time::timeout;
 use tokio_tungstenite::tungstenite::{protocol::Message, Error as WsError};
-use tracing::{debug, error, info, info_span, instrument, warn};
+use tracing::{debug, error, info, info_span, instrument, span, warn};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 
@@ -659,7 +660,7 @@ impl<R, S> FreshHandler<R, S> {
     async fn handle_authenticate_v2(
         &mut self,
         request: Box<AuthenticateRequest>,
-        otel_context: Option<std::collections::HashMap<String, String>>,
+        otel_context: Option<ManualSpanContextExt>,
     ) -> Result<InitialAuthResult, InitialAuthenticationError>
     where
         S: AsyncRead + AsyncWrite + Unpin,
@@ -869,75 +870,52 @@ impl<R, S> FreshHandler<R, S> {
     pub(crate) async fn handle_initial_client_request(
         &mut self,
         request: ClientControlRequest,
-    ) -> Result<(Option<ClientDetails>, Option<TraceId>), InitialAuthenticationError>
+    ) -> Result<Option<ClientDetails>, InitialAuthenticationError>
     where
         S: AsyncRead + AsyncWrite + Unpin + Send,
         R: CryptoRng + RngCore + Send,
     {
+        // extract and set up opentelemetry context if provided
         let context_ext = if let ClientControlRequest::AuthenticateV2(ref auth_req) = request {
             if let Some(otel_context) = &auth_req.otel_context {
-                let context_ext = AsyncSpanContextExt::new()
-                    .with_context_carrier(ContextCarrier::from_map(otel_context.clone()));
-
+                // Extract OpenTelemetry context
+                let context_ext = ManualSpanContextExt::new()
+                    .with_extracted_context(otel_context.clone());
                 info!("Extracted trace id: {:?}", context_ext.trace_id);
-                
+
+                // Build imported context and set it as parent
                 let extractor = TraceContextPropagator::new();
                 let extracted_context = extractor.extract(&context_ext.context_carrier);
-                tracing::Span::current().set_parent(extracted_context);
-                let span = info_span!("extracted_otel_context");
-                let context_ext = context_ext.set_root_span(span);
+                let trace_id = if let Some(trace_id) = &context_ext.trace_id {
+                    *trace_id
+                } else {
+                    warn!("No trace id provided in the request, falling back to extracted context");
+                    extracted_context.span().span_context().trace_id()
+                };
+                let span_cx = new_span_context_with_id(trace_id);
+                let _context_guard = span_cx.clone().attach();
                 warn!("==== Context propagation successful ====");
 
+                // Build root_span with extracted context as parent
+                let span = info_span!("=== Manual context propagation starting point ===", %trace_id);
+                span.set_parent(span_cx.clone());
+                let context_ext = context_ext.set_root_span(span);
                 context_ext
             } else {
                 warn!("No OpenTelemetry context provided in the request");
-                AsyncSpanContextExt::new()
+                ManualSpanContextExt::new()
             }
         } else {
             warn!("No OpenTelemetry context provided in the request");
-            AsyncSpanContextExt::new()
+            ManualSpanContextExt::new()
         };
 
-        let child_span = if context_ext.root_span.is_none() {
-            info_span!("handling_initial_client_request")
-        } else {
+        let child_span = if context_ext.is_valid() {
             info_span!(parent: &context_ext.root_span, "handling initial client request with otel context")
+        } else {
+            info_span!("handling_initial_client_request")
         };
         let _enter = child_span.enter();
-
-        // let (remote_cx_span, trace_id) = if let ClientControlRequest::AuthenticateV2(ref auth_req) = request {
-        //     if let Some(otel_context) = &auth_req.otel_context {
-        //         let carrier = ContextCarrier::from_map(otel_context.clone());
-
-        //         let extracted_trace_id =  carrier.extract_trace_id();
-        //         info!("Extracted trace id: {:?}", extracted_trace_id);
-
-        //         let propagator = TraceContextPropagator::new();
-        //         let extracted_context = propagator.extract(&carrier);
-
-        //         tracing::Span::current().set_parent(extracted_context);
-        //         let span = info_span!("extracted_otel_context");
-        //         warn!("==== Context propagation successful ====");
-                
-        //         (Some(span), extracted_trace_id)
-        //     } else {
-        //         warn!("No OpenTelemetry context provided in the request");
-        //         (None, None)
-        //     }
-        // } else {
-        //     (None, None)
-        // };
-
-        // let child_span = if let Some(ref parent_span) = remote_cx_span {
-        //     info_span!(parent: parent_span, "handling initial client request with otel context")
-        // } else {
-        //     info_span!("handling_initial_client_request")
-        // };
-
-        // let context_carrier = match &request {
-        //     ClientControlRequest::AuthenticateV2(ref auth_req) => auth_req.otel_context.clone(),
-        //     _ => None,
-        // };
 
         let auth_result = match request {
             ClientControlRequest::Authenticate {
@@ -950,14 +928,14 @@ impl<R, S> FreshHandler<R, S> {
                 self.handle_legacy_authenticate(protocol_version, address, enc_address, iv)
                     .await
             }
-            ClientControlRequest::AuthenticateV2(req) => self.handle_authenticate_v2(req, Some(context_ext.context_carrier.into_map())).await,
-                ClientControlRequest::RegisterHandshakeInitRequest {
+            ClientControlRequest::AuthenticateV2(req) => self.handle_authenticate_v2(req, Some(context_ext)).await,
+            ClientControlRequest::RegisterHandshakeInitRequest {
                 protocol_version,
                 data,
             } => self.handle_register(protocol_version, data).await,
             ClientControlRequest::SupportedProtocol { .. } => {
                 self.handle_reply_supported_protocol_request().await;
-                return Ok((None, context_ext.trace_id));
+                return Ok(None);
             }
             _ => {
                 debug!("received an invalid client request");
@@ -997,7 +975,7 @@ impl<R, S> FreshHandler<R, S> {
             return Err(InitialAuthenticationError::EmptyClientDetails);
         };
 
-        Ok((Some(client_details), context_ext.trace_id))
+        Ok(Some(client_details))
     }
 
     #[instrument(skip_all)]
@@ -1019,8 +997,8 @@ impl<R, S> FreshHandler<R, S> {
             };
 
             // see if we managed to register the client through this request
-            let (maybe_auth_res, maybe_trace_id) = match self.handle_initial_client_request(initial_request).await {
-                Ok((maybe_auth_res, trace_id)) => (maybe_auth_res, trace_id),
+            let maybe_auth_res = match self.handle_initial_client_request(initial_request).await {
+                Ok(maybe_auth_res) => maybe_auth_res,
                 Err(err) => {
                     debug!("initial client request handling error: {err}");
                     self.send_and_forget_error_response(err).await;
@@ -1028,18 +1006,7 @@ impl<R, S> FreshHandler<R, S> {
                 }
             };
 
-            if let (Some(registration_details), Some(trace_id)) = (maybe_auth_res, maybe_trace_id) {
-                let span = {
-                    let cx = new_span_context_with_id(trace_id);
-                    let _context_guard = cx.clone().attach();
-
-                    let span = info_span!("authentication handler with otel", %trace_id);
-                    span.set_parent(cx.clone());
-                    span
-                };
-
-                let _guard = span.enter();
-
+            if let Some(registration_details) = maybe_auth_res {
                 let (mix_sender, mix_receiver) = mpsc::unbounded();
                 // Channel for handlers to ask other handlers if they are still active.
                 let (is_active_request_sender, is_active_request_receiver) = mpsc::unbounded();

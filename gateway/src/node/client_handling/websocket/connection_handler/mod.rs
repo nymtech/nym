@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::config::Config;
-use nym_bin_common::opentelemetry::context::new_span_context_with_id;
+use nym_bin_common::opentelemetry::context::{new_span_context_with_id, ManualSpanContextExt};
 use nym_credential_verification::BandwidthFlushingBehaviourConfig;
 use nym_gateway_requests::shared_key::SharedGatewayKey;
 use nym_gateway_requests::ServerResponse;
 use nym_sphinx::DestinationAddressBytes;
+use opentelemetry::TraceId;
 use rand::{CryptoRng, Rng};
 use std::time::Duration;
 use time::OffsetDateTime;
@@ -50,7 +51,7 @@ pub(crate) struct ClientDetails {
     // note, this does **NOT ALWAYS** indicate timestamp of when client connected
     // it is (for v2 auth) timestamp the client **signed** when it created the request
     pub(crate) session_request_timestamp: OffsetDateTime,
-    pub(crate) otel_context: Option<std::collections::HashMap<String, String>>,
+    pub(crate) otel_context: Option<ManualSpanContextExt>,
 }
 
 impl ClientDetails {
@@ -59,7 +60,7 @@ impl ClientDetails {
         address: DestinationAddressBytes,
         shared_keys: SharedGatewayKey,
         session_request_timestamp: OffsetDateTime,
-        otel_context: Option<std::collections::HashMap<String, String>>,
+        otel_context: Option<ManualSpanContextExt>,
     ) -> Self {
         ClientDetails {
             address,
@@ -68,6 +69,10 @@ impl ClientDetails {
             session_request_timestamp,
             otel_context,
         }
+    }
+
+    pub(crate) fn get_extracted_trace_id(&self) -> Option<TraceId> {
+        self.otel_context.as_ref().and_then(|ctx| ctx.trace_id)
     }
 }
 
@@ -123,6 +128,18 @@ where
     trace!("managed to perform websocket handshake!");
 
     if let Some(auth_handle) = handle.handle_until_authenticated_or_failure().await {
+        let span = if let Some(trace_id) = auth_handle.get_trace_id() {
+            let cx = new_span_context_with_id(trace_id);
+            let _context_guard = cx.clone().attach();
+
+            let span = info_span!("authentication handler with otel", %trace_id);
+            span.set_parent(cx.clone());
+            span
+        } else {
+            info_span!("authentication handler without otel context")
+        };
+        let _guard = span.enter();
+
         auth_handle.listen_for_requests().await
     }
 

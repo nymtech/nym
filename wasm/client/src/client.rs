@@ -48,34 +48,34 @@ use rand::{rngs::OsRng, RngCore};
 pub(crate) const NODE_TESTER_CLIENT_ID: &str = "_nym-node-tester-client";
 
 // Wrapper to hide TaskManager from wasm-bindgen
-struct TaskManagerHolder {
-    inner: *mut TaskManager,
-}
+// struct TaskManagerHolder {
+//     inner: *mut TaskManager,
+// }
 
-impl TaskManagerHolder {
-    fn new(tm: TaskManager) -> Self {
-        Self {
-            inner: Box::into_raw(Box::new(tm)),
-        }
-    }
-}
+// impl TaskManagerHolder {
+//     fn new(tm: TaskManager) -> Self {
+//         Self {
+//             inner: Box::into_raw(Box::new(tm)),
+//         }
+//     }
+// }
 
-impl Drop for TaskManagerHolder {
-    fn drop(&mut self) {
-        unsafe {
-            let _ = Box::from_raw(self.inner);
-        }
-    }
-}
+// impl Drop for TaskManagerHolder {
+//     fn drop(&mut self) {
+//         unsafe {
+//             let _ = Box::from_raw(self.inner);
+//         }
+//     }
+// }
 
-// For accessing it elsewher ein the code
-impl std::ops::Deref for TaskManagerHolder {
-    type Target = TaskManager;
+// // For accessing it elsewher ein the code
+// impl std::ops::Deref for TaskManagerHolder {
+//     type Target = TaskManager;
 
-    fn deref(&self) -> &Self::Target {
-        unsafe { &*self.inner }
-    }
-}
+//     fn deref(&self) -> &Self::Target {
+//         unsafe { &*self.inner }
+//     }
+// }
 
 #[wasm_bindgen]
 pub struct NymClient {
@@ -263,8 +263,11 @@ impl NymClientBuilder {
         let packet_type = self.config.base.debug.traffic.packet_type;
         let storage = Self::initialise_storage(&self.config, client_store);
 
+        console_log!("Config {:?}", self.config);
+
         let base_builder =
             BaseClientBuilder::<QueryReqwestRpcNyxdClient, _>::new(self.config.base, storage, None);
+
         // if let Some(topology_provider) = maybe_topology_provider {
         //     base_builder = base_builder.with_topology_provider(topology_provider);
         // }
@@ -465,6 +468,11 @@ impl NymClient {
                     console_log!("future_to_promise: Converting successful result to JsValue");
                     let js_result = JsValue::from(client);
                     console_log!("future_to_promise: Conversion successful, returning Ok");
+                    {
+                        console_log!("Yielding in new (WASM)");
+                        tokio_with_wasm::task::yield_now().await;
+                        console_log!("Task yielded in new (WASM)");
+                    }
                     Ok(js_result)
                 }
                 Err(err) => {
@@ -496,6 +504,11 @@ impl NymClient {
                     console_log!(
                         "new_with_config: future_to_promise: Conversion successful, returning Ok"
                     );
+                    {
+                        console_log!("Yielding in new_with_config (WASM)");
+                        tokio_with_wasm::task::yield_now().await;
+                        console_log!("Task yielded in new_with_config (WASM)");
+                    }
                     Ok(js_result)
                     // Ok(JsValue::from_str(&client.self_address)) // test to return simpler type across the boundary - THIS WORKS
                 }

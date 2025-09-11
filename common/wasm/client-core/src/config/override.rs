@@ -50,9 +50,8 @@ pub struct DebugWasmOverride {
 
     #[tsify(optional)]
     pub forget_me: Option<ForgetMeWasmOverride>,
-
-    #[tsify(optional)]
-    pub remember_me: Option<RememberMeWasmOverride>,
+    // #[tsify(optional)]
+    // pub remember_me: Option<RememberMeWasmOverride>,
 }
 
 impl From<DebugWasmOverride> for DebugWasm {
@@ -65,8 +64,8 @@ impl From<DebugWasmOverride> for DebugWasm {
             topology: value.topology.map(Into::into).unwrap_or_default(),
             reply_surbs: value.reply_surbs.map(Into::into).unwrap_or_default(),
             stats_reporting: value.stats_reporting.map(Into::into).unwrap_or_default(),
-            forget_me: value.forget_me.map(Into::into).unwrap_or_default(),
-            remember_me: value.remember_me.map(Into::into).unwrap_or_default(),
+            // forget_me: value.forget_me.map(Into::into).unwrap_or_default(),
+            // remember_me: value.remember_me.map(Into::into).unwrap_or_default(),
         }
     }
 }

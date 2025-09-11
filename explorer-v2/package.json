@@ -9,7 +9,7 @@
     "lint": "biome check --fix"
   },
   "engines": {
-    "node": "20.18.0"
+    "node": "20.x"
   },
   "dependencies": {
     "@chain-registry/types": "^0.50.36",

@@ -24,9 +24,40 @@ pub fn default_builder() -> ReqwestClientBuilder {
     let mut records: Vec<&'static ConfigRecord> =
         inventory::iter::<ConfigRecord>.into_iter().collect();
     records.sort_by_key(|r| r.priority); // lower runs first
+
+    #[cfg(feature = "debug-inventory")]
+    {
+        eprintln!(
+            "[HTTP-INVENTORY] Building client with {} registered configurations",
+            records.len()
+        );
+    }
+
     for r in records {
         b = (r.apply)(b);
     }
+
+    #[cfg(feature = "debug-inventory")]
+    {
+        eprintln!("[HTTP-INVENTORY] Final builder state (Debug):");
+        eprintln!("{:#?}", b);
+        eprintln!(
+            "[HTTP-INVENTORY] Note: reqwest::ClientBuilder doesn't expose all internal state"
+        );
+        eprintln!("[HTTP-INVENTORY] Building test client to verify configuration...");
+
+        // Try to build a client to see if it works
+        match b.try_clone().unwrap().build() {
+            Ok(client) => {
+                eprintln!("[HTTP-INVENTORY] ✓ Client built successfully");
+                eprintln!("[HTTP-INVENTORY] Client debug info: {:#?}", client);
+            }
+            Err(e) => {
+                eprintln!("[HTTP-INVENTORY] ✗ Failed to build client: {}", e);
+            }
+        }
+    }
+
     b
 }
 
@@ -37,7 +68,6 @@ pub fn build_client() -> reqwest::Result<reqwest::Client> {
 
 /// Debug function to inspect registered configurations.
 /// Returns a vector of (priority, function_pointer) tuples for debugging.
-#[cfg(debug_assertions)]
 pub fn inspect_registered_configs() -> Vec<(i32, usize)> {
     let mut configs: Vec<(i32, usize)> = inventory::iter::<ConfigRecord>
         .into_iter()
@@ -45,6 +75,24 @@ pub fn inspect_registered_configs() -> Vec<(i32, usize)> {
         .collect();
     configs.sort_by_key(|(priority, _)| *priority);
     configs
+}
+
+/// Print all registered configurations to stderr for debugging.
+/// This shows the priority and function pointer address of each registered config.
+pub fn debug_print_inventory() {
+    eprintln!("[HTTP-INVENTORY] Registered configurations:");
+    let configs = inspect_registered_configs();
+    if configs.is_empty() {
+        eprintln!("  (none)");
+    } else {
+        for (i, (priority, ptr)) in configs.iter().enumerate() {
+            eprintln!(
+                "  [{:2}] Priority: {:4}, Function: 0x{:016x}",
+                i, priority, ptr
+            );
+        }
+        eprintln!("  Total: {} configurations", configs.len());
+    }
 }
 
 /// Returns the count of registered configuration records.

@@ -285,11 +285,82 @@ impl Parse for MaybePrioritized {
 pub fn client_defaults(input: TokenStream) -> TokenStream {
     let MaybePrioritized { priority, items } = parse_macro_input!(input as MaybePrioritized);
     let core = core_path();
+
+    // Generate a description of what this config does (before consuming items)
+    let config_description = if cfg!(feature = "debug-inventory") {
+        let descriptions = items
+            .0
+            .iter()
+            .map(|item| match item {
+                Item::Assign { key, value, .. } => {
+                    format!("{}={:?}", quote!(#key), quote!(#value).to_string())
+                }
+                Item::Call { key, args, .. } => {
+                    let args_str = args
+                        .iter()
+                        .map(|a| quote!(#a).to_string())
+                        .collect::<Vec<_>>()
+                        .join(", ");
+                    format!("{}({})", quote!(#key), args_str)
+                }
+                Item::Flag { key } => {
+                    format!("{}()", quote!(#key))
+                }
+                Item::DefaultHeaders { .. } => "default_headers{{...}}".to_string(),
+            })
+            .collect::<Vec<_>>()
+            .join(", ");
+
+        quote! {
+            pub const __CONFIG_DESC: &str = #descriptions;
+        }
+    } else {
+        quote! {}
+    };
+
+    // Now consume items to generate the body
     let body = to_stmts(items, &core);
+
+    // Generate a unique identifier for this submission
+    let submission_id = format!("__client_defaults_{}", uuid::Uuid::new_v4().simple());
+    let submission_ident = syn::Ident::new(&submission_id, proc_macro2::Span::call_site());
+
+    // Debug output at compile time if enabled
+    if std::env::var("DEBUG_HTTP_INVENTORY").is_ok() {
+        eprintln!(
+            "cargo:warning=[HTTP-INVENTORY] Registering config with priority={} from {}",
+            priority,
+            std::env::var("CARGO_PKG_NAME").unwrap_or_else(|_| "unknown".to_string())
+        );
+    }
+
+    // Add debug_print_inventory call if the feature is enabled
+    let debug_call = if cfg!(feature = "debug-inventory") {
+        quote! {
+            #config_description
+
+            // Ensure the debug function gets called when config is applied
+            pub fn __cfg_with_debug(
+                b: #core::ReqwestClientBuilder
+            ) -> #core::ReqwestClientBuilder {
+                eprintln!("[HTTP-INVENTORY] Applying: {} (priority={})", __CONFIG_DESC, #priority);
+                __cfg(b)
+            }
+        }
+    } else {
+        quote! {}
+    };
+
+    // Use the debug wrapper if feature is enabled
+    let apply_fn = if cfg!(feature = "debug-inventory") {
+        quote! { __cfg_with_debug }
+    } else {
+        quote! { __cfg }
+    };
 
     let out = quote! {
         #[allow(non_snake_case)]
-        mod __client_defaults {
+        mod #submission_ident {
             use super::*;
             #[allow(unused)]
             pub fn __cfg(
@@ -299,10 +370,12 @@ pub fn client_defaults(input: TokenStream) -> TokenStream {
                 b
             }
 
+            #debug_call
+
             #core::inventory::submit! {
                 #core::registry::ConfigRecord {
                     priority: #priority,
-                    apply: __cfg,
+                    apply: #apply_fn,
                 }
             }
         }

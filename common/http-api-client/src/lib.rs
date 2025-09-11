@@ -187,19 +187,20 @@ use crate::registry::default_builder;
 pub use nym_bin_common::bin_info;
 use nym_http_api_client_macro::client_defaults;
 
-client_defaults!(
-    priority = -100;
-    gzip = true,
-    deflate = true,
-    brotli = true,
-    zstd = true
-);
-
 /// Default HTTP request connection timeout.
 ///
 /// The timeout is relatively high as we are often making requests over the mixnet, where latency is
 /// high and chatty protocols take a while to complete.
 pub const DEFAULT_TIMEOUT: Duration = Duration::from_secs(30);
+
+client_defaults!(
+    priority = -100;
+    gzip = true,
+    deflate = true,
+    brotli = true,
+    zstd = true,
+    timeout = DEFAULT_TIMEOUT
+);
 
 /// Collection of URL Path Segments
 pub type PathSegments<'a> = &'a [&'a str];
@@ -727,9 +728,7 @@ impl ClientBuilder {
         // but that'd break bunch of things due to type changes
         #[cfg(not(target_arch = "wasm32"))]
         let reqwest_client = {
-            let mut builder = self
-                .reqwest_client_builder
-                .timeout(self.timeout.unwrap_or(DEFAULT_TIMEOUT));
+            let mut builder = self.reqwest_client_builder;
 
             // if no custom user agent was set, use a default
             if !self.custom_user_agent {

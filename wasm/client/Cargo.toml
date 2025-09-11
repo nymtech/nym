@@ -38,6 +38,8 @@ wasm-utils = { path = "../../common/wasm/utils" }
 nym-node-tester-utils = { path = "../../common/node-tester-utils", optional = true }
 nym-node-tester-wasm = { path = "../node-tester", optional = true }
 
+tokio_with_wasm = { version = "0.8.7", features = ["full"] }
+
 [dev-dependencies]
 wasm-bindgen-test = { workspace = true }
 

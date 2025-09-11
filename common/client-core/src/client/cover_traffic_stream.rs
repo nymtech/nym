@@ -234,7 +234,7 @@ impl LoopCoverTrafficStream<OsRng> {
 
         #[cfg(target_arch = "wasm32")]
         {
-            // console_log!("Yielding task in cover traffic stream(WASM)");
+            console_log!("Yielding task in cover traffic stream(WASM)");
             tokio_with_wasm::task::yield_now().await;
             // console_log!("Task yielded in cover traffic stream (WASM)");
         }

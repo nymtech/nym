@@ -59,8 +59,8 @@ pub struct MixnetClient {
     // internal state used for the `Stream` implementation
     _buffered: Vec<ReconstructedMessage>,
     pub(crate) client_request_sender: ClientRequestSender,
-    pub(crate) forget_me: ForgetMe,
-    pub(crate) remember_me: RememberMe,
+    // pub(crate) forget_me: ForgetMe,
+    // pub(crate) remember_me: RememberMe,
 }
 
 impl MixnetClient {
@@ -76,8 +76,8 @@ impl MixnetClient {
         task_handle: ShutdownTracker,
         packet_type: Option<PacketType>,
         client_request_sender: ClientRequestSender,
-        forget_me: ForgetMe,
-        remember_me: RememberMe,
+        // forget_me: ForgetMe,
+        // remember_me: RememberMe,
     ) -> Self {
         Self {
             nym_address,
@@ -91,8 +91,8 @@ impl MixnetClient {
             packet_type,
             _buffered: Vec::new(),
             client_request_sender,
-            forget_me,
-            remember_me,
+            // forget_me,
+            // remember_me,
         }
     }
 

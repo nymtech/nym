@@ -66,7 +66,42 @@ impl Storage for EphemeralStorage {
         &self,
         ticketbook: &IssuedTicketBook,
     ) -> Result<(), StorageError> {
-        self.storage_manager.insert_new_ticketbook(ticketbook).await;
+        self.storage_manager
+            .insert_new_ticketbook(
+                ticketbook,
+                ticketbook.params_total_tickets() as u32,
+                ticketbook.spent_tickets() as u32,
+            )
+            .await;
+        Ok(())
+    }
+
+    async fn insert_partial_issued_ticketbook(
+        &self,
+        ticketbook: &IssuedTicketBook,
+        allowed_start_ticket_index: u32,
+        allowed_final_ticket_index: u32,
+    ) -> Result<(), Self::StorageError> {
+        // sanity check: start <= final && final <= params max
+        if allowed_start_ticket_index > allowed_final_ticket_index {
+            return Err(StorageError::database_inconsistency(
+                "start_ticket_index must be less than or equal to final_ticket_index",
+            ));
+        }
+
+        if allowed_final_ticket_index > ticketbook.params_total_tickets() as u32 {
+            return Err(StorageError::database_inconsistency(
+                "final ticket index must be less than or equal to params_total_tickets()",
+            ));
+        }
+
+        self.storage_manager
+            .insert_new_ticketbook(
+                ticketbook,
+                allowed_final_ticket_index + 1,
+                allowed_start_ticket_index,
+            )
+            .await;
         Ok(())
     }
 
@@ -182,5 +217,15 @@ impl Storage for EphemeralStorage {
             .insert_expiration_date_signatures(signatures)
             .await;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn storing_partial_ticketbook() {
+        todo!()
     }
 }

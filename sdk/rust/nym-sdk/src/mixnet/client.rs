@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::{connection_state::BuilderState, Config, StoragePaths};
-use crate::bandwidth::BandwidthAcquireClient;
+use crate::bandwidth::{BandwidthAcquireClient, BandwidthImporter};
 use crate::mixnet::socks5_client::Socks5MixnetClient;
 use crate::mixnet::{CredentialStorage, MixnetClient, Recipient};
 use crate::GatewayTransceiver;
@@ -663,6 +663,10 @@ where
             client_id,
             ticketbook_type,
         )
+    }
+
+    pub fn begin_bandwidth_import(&self) -> BandwidthImporter<'_, S::CredentialStore> {
+        BandwidthImporter::new(self.storage.credential_store())
     }
 
     async fn connect_to_mixnet_common(mut self) -> Result<(BaseClient, Recipient)> {

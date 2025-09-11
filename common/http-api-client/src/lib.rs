@@ -199,7 +199,8 @@ client_defaults!(
     deflate = true,
     brotli = true,
     zstd = true,
-    timeout = DEFAULT_TIMEOUT
+    timeout = DEFAULT_TIMEOUT,
+    user_agent = format!("nym-http-api-client/{}", env!("CARGO_PKG_VERSION"))
 );
 
 /// Collection of URL Path Segments
@@ -729,12 +730,6 @@ impl ClientBuilder {
         #[cfg(not(target_arch = "wasm32"))]
         let reqwest_client = {
             let mut builder = self.reqwest_client_builder;
-
-            // if no custom user agent was set, use a default
-            if !self.custom_user_agent {
-                builder =
-                    builder.user_agent(format!("nym-http-api-client/{}", env!("CARGO_PKG_VERSION")))
-            }
 
             // unless explicitly disabled use the DoT/DoH enabled resolver
             if self.use_secure_dns {

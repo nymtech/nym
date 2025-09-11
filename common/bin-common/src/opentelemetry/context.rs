@@ -17,17 +17,14 @@ impl ContextCarrier {
         }
     }
 
+    pub fn new_with_data(data: HashMap<String, String>) -> Self {
+        ContextCarrier { data }
+    }
     pub fn new_with_current_context(context: Context) -> Self {
         let propagator = TraceContextPropagator::new();
         let mut carrier = ContextCarrier::new_empty();
         propagator.inject_context(&context, &mut carrier);
         carrier
-    }
-
-    pub fn new_with_extracted_context(external_context: &ContextCarrier) -> Self {
-        let extractor = TraceContextPropagator::new();
-        let context = extractor.extract(external_context);
-        ContextCarrier::new_with_current_context(context)
     }
 
     pub fn from_map(data: HashMap<String, String>) -> Self {
@@ -66,29 +63,31 @@ impl Extractor for ContextCarrier {
     }
 }
 
-pub struct AsyncSpanContextExt {
+pub struct ManualSpanContextExt {
     pub context_carrier: ContextCarrier,
     pub root_span: tracing::Span,
     pub trace_id: Option<TraceId>,
+    pub is_valid: bool,
 }
 
-impl AsyncSpanContextExt {
+impl ManualSpanContextExt {
     pub fn new() -> Self {
-        AsyncSpanContextExt {
+        ManualSpanContextExt {
             context_carrier: ContextCarrier::new_empty(),
-            root_span: tracing::Span::none(),
+            root_span: tracing::Span::current(),
             trace_id: None,
+            is_valid: false,
         }
     }
 
-    pub fn with_context_carrier(mut self, carrier: ContextCarrier) -> Self {
-        self.context_carrier = carrier;
+    pub fn with_context_carrier(mut self, carrier: &ContextCarrier) -> Self {
+        self.context_carrier = ContextCarrier::new_with_data(carrier.data.clone());
         self.trace_id = self.context_carrier.extract_trace_id();
         self
     }
 
-    pub fn with_extracted_context(mut self, external_context: &ContextCarrier) -> Self {
-        self.context_carrier = ContextCarrier::new_with_extracted_context(external_context);
+    pub fn with_extracted_context(mut self, external_context: HashMap<String, String> ) -> Self {
+        self.context_carrier = ContextCarrier::new_with_data(external_context);
         self.trace_id = self.context_carrier.extract_trace_id();
         self
     }
@@ -96,6 +95,10 @@ impl AsyncSpanContextExt {
     pub fn set_root_span(mut self, span: tracing::Span) -> Self {
         self.root_span = span;
         self
+    }
+
+    pub fn is_valid(&self) -> bool {
+        self.is_valid
     }
  }
 

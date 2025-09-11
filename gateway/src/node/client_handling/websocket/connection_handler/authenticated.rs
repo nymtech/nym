@@ -14,7 +14,7 @@ use futures::{
     future::{FusedFuture, OptionFuture},
     FutureExt, StreamExt,
 };
-use nym_bin_common::opentelemetry::context::{new_span_context_with_id, AsyncSpanContextExt, ContextCarrier};
+use nym_bin_common::opentelemetry::context::{new_span_context_with_id, ManualSpanContextExt};
 use nym_credential_verification::CredentialVerifier;
 use nym_credential_verification::{
     bandwidth_storage_manager::BandwidthStorageManager, ClientBandwidth,
@@ -32,8 +32,6 @@ use nym_node_metrics::events::MetricsEvent;
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_statistics_common::{gateways::GatewaySessionEvent, types::SessionType};
 use nym_validator_client::coconut::EcashApiError;
-use opentelemetry::{propagation::TextMapPropagator, trace::TraceContextExt};
-use opentelemetry_sdk::propagation::TraceContextPropagator;
 use rand::{random, CryptoRng, Rng};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 use std::{process, time::Duration};
@@ -227,6 +225,10 @@ impl<R, S> AuthenticatedHandler<R, S> {
 
     fn send_metrics(&self, event: impl Into<MetricsEvent>) {
         self.inner.send_metrics(event)
+    }
+
+    pub fn get_trace_id(&self) -> Option<opentelemetry::trace::TraceId> {
+        self.client.get_extracted_trace_id()
     }
 
     /// Forwards the received mix packet from the client into the mix network.
@@ -611,35 +613,31 @@ impl<R, S> AuthenticatedHandler<R, S> {
         S: AsyncRead + AsyncWrite + Unpin,
     {
         trace!("Started listening for ALL incoming requests...");
-        let context_ext = if let Some(ctx) = &self.client.otel_context {
-            //retrieve the context from the client
-            let context_ext = AsyncSpanContextExt::new()
-                .with_context_carrier(ContextCarrier::from_map(ctx.clone()));
+        let context_ext: ManualSpanContextExt = match &self.client.otel_context {
+            Some(otel_context) => {
+                let context_ext = ManualSpanContextExt::new()
+                    .with_context_carrier(&otel_context.context_carrier);
+                let span = if let Some(trace_id) = self.client.get_extracted_trace_id() {
+                    let cx = new_span_context_with_id(trace_id);
+                    let _context_guard = cx.clone().attach();
 
-            // extract the parent context from the carrier
-            let extractor = TraceContextPropagator::new();
-            let parent_cx = extractor.extract(&context_ext.context_carrier);
-            let trace_id = parent_cx.span().span_context().trace_id();
-
-            let span_cx = new_span_context_with_id(trace_id);
-            let _guard = span_cx.clone().attach();
-
-            warn!("=== Context propagated to authenticated client handler ===");
-
-            let span = info_span!("Started listening for incomming requests with otel", %trace_id);
-            span.set_parent(span_cx);
-            let context_ext = context_ext.set_root_span(span);
-            context_ext
-        } else {
-            AsyncSpanContextExt::new()
+                    let span = info_span!("client handling with otel", %trace_id);
+                    span.set_parent(cx.clone());
+                    span
+                } else {
+                    info_span!("client handling without otel context")
+                };
+                let context_ext = context_ext.set_root_span(span);
+                context_ext
+            }
+            None => {
+                warn!("No otel context associated with the client - this should never happen if otel has been set up!");
+                ManualSpanContextExt::new()
+            }
         };
 
         let _guard = context_ext.root_span.enter();
-        let mother_span = info_span!(parent: &context_ext.root_span, "listening_for_requests");
-        let child_span = info_span!(parent: &context_ext.root_span, "client_handling_loop");
-
-        self.root_span = Some(mother_span);
-
+        let handling_span = info_span!(parent: &context_ext.root_span, "client_handling_loop");
 
         // Ping timeout future used to check if the client responded to our ping request
         let mut ping_timeout: OptionFuture<_> = None.into();
@@ -665,7 +663,7 @@ impl<R, S> AuthenticatedHandler<R, S> {
                     self.handle_ping_timeout().await;
                 },
                 socket_msg = self.inner.read_websocket_message() => {
-                    let span = info_span!(parent: &child_span, "client_message_received");
+                    let span = info_span!(parent: &handling_span, "client_message_received");
                     let _enter = span.enter();
                     let socket_msg = match socket_msg {
                         None => break,
@@ -690,7 +688,7 @@ impl<R, S> AuthenticatedHandler<R, S> {
                     }
                 },
                 mix_messages = self.mix_receiver.next() => {
-                    let span = info_span!(parent: &child_span, "mix_message_received");
+                    let span = info_span!(parent: &handling_span, "mix_message_received");
                     let _enter = span.enter();
                     let mix_messages = match mix_messages {
                         None => {

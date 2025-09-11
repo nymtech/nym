@@ -1,6 +1,6 @@
 "use client";
 import Grid from "@mui/material/Grid2";
-import { ReactNode } from "react";
+import type { ReactNode } from "react";
 
 interface ConditionalCardWrapperProps {
   children: ReactNode;

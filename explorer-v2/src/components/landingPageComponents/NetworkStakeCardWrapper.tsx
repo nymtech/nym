@@ -1,8 +1,8 @@
 "use client";
 import { fetchNoise } from "@/app/api";
 import { useQuery } from "@tanstack/react-query";
-import { NetworkStakeCard } from "./NetworkStakeCard";
 import { ConditionalCardWrapper } from "./ConditionalCardWrapper";
+import { NetworkStakeCard } from "./NetworkStakeCard";
 
 export const NetworkStakeCardWrapper = () => {
   const { data, isLoading, isError } = useQuery({

@@ -10,7 +10,7 @@ import { bannerApiPath } from "../../banner/config/constants";
 
 // Fetch footer data
 export const getBanner = async (
-  locale: Languages
+  locale: Languages,
 ): Promise<{
   id?: number;
   attributes?: components["schemas"]["ExplorerBanner"];

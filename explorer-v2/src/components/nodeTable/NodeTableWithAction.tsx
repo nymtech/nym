@@ -3,12 +3,12 @@
 import { Card, CardContent, Skeleton, Stack, Typography } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import DOMPurify from "isomorphic-dompurify";
+import { useEffect, useState } from "react";
 import { fetchEpochRewards, fetchNSApiNodes } from "../../app/api";
 import type { ExplorerData, NS_NODE } from "../../app/api/types";
 import { countryName } from "../../utils/countryName";
-import NodeTable from "./NodeTable";
-import { useState, useEffect } from "react";
 import AdvancedFilters from "./AdvancedFilters";
+import NodeTable from "./NodeTable";
 
 type Props = {
   /** Recommended node IDs provided by the server page */
@@ -17,7 +17,7 @@ type Props = {
 
 function getNodeSaturationPoint(
   totalStake: number,
-  stakeSaturationPoint: string
+  stakeSaturationPoint: string,
 ): number {
   const saturation = Number.parseFloat(stakeSaturationPoint);
   if (Number.isNaN(saturation) || saturation <= 0) {
@@ -29,18 +29,18 @@ function getNodeSaturationPoint(
 
 const mappedNSApiNodes = (
   nodes: NS_NODE[],
-  epochRewardsData: ExplorerData["currentEpochRewardsData"]
+  epochRewardsData: ExplorerData["currentEpochRewardsData"],
 ) =>
   nodes
     .map((node) => {
       const nodeSaturationPoint = getNodeSaturationPoint(
         +node.total_stake,
-        epochRewardsData.interval.stake_saturation_point
+        epochRewardsData.interval.stake_saturation_point,
       );
 
       const cleanMoniker = DOMPurify.sanitize(node.description.moniker).replace(
         /&amp;/g,
-        "&"
+        "&",
       );
 
       const selfBondFormatted = node.original_pledge
@@ -49,7 +49,7 @@ const mappedNSApiNodes = (
 
       const operatingCostsFormatted = node.rewarding_details
         ? Number(
-            node.rewarding_details.cost_params.interval_operating_cost.amount
+            node.rewarding_details.cost_params.interval_operating_cost.amount,
           ) / 1_000_000
         : 0;
 
@@ -111,7 +111,7 @@ const NodeTableWithAction = ({ recommendedIds }: Props) => {
 
   // Wrapper functions to handle filter changes and sessionStorage
   const handleActiveFilterChange = (
-    newFilter: "all" | "mixnodes" | "gateways" | "recommended"
+    newFilter: "all" | "mixnodes" | "gateways" | "recommended",
   ) => {
     setActiveFilter(newFilter);
     sessionStorage.setItem("nodeTableActiveFilter", newFilter);
@@ -126,7 +126,7 @@ const NodeTableWithAction = ({ recommendedIds }: Props) => {
     setSaturation(newSaturation);
     sessionStorage.setItem(
       "nodeTableSaturation",
-      JSON.stringify(newSaturation)
+      JSON.stringify(newSaturation),
     );
   };
 
@@ -134,7 +134,7 @@ const NodeTableWithAction = ({ recommendedIds }: Props) => {
     setProfitMargin(newProfitMargin);
     sessionStorage.setItem(
       "nodeTableProfitMargin",
-      JSON.stringify(newProfitMargin)
+      JSON.stringify(newProfitMargin),
     );
   };
 
@@ -142,7 +142,7 @@ const NodeTableWithAction = ({ recommendedIds }: Props) => {
     setAdvancedOpen(newAdvancedOpen);
     sessionStorage.setItem(
       "nodeTableAdvancedOpen",
-      JSON.stringify(newAdvancedOpen)
+      JSON.stringify(newAdvancedOpen),
     );
   };
 
@@ -182,7 +182,7 @@ const NodeTableWithAction = ({ recommendedIds }: Props) => {
   // Calculate max saturation from all nodes
   const maxSaturation = Math.max(
     100,
-    ...nsApiNodesData.map((n) => n.stakeSaturation || 0)
+    ...nsApiNodesData.map((n) => n.stakeSaturation || 0),
   );
 
   // Initialize saturation from sessionStorage or set to maxSaturation when data is loaded

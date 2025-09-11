@@ -45,7 +45,7 @@ const getAllocation = (unyms: number, totalUnyms: number): number => {
 };
 
 const calculateStakingRewards = (
-  accumulatedRewards: IRewardDetails[]
+  accumulatedRewards: IRewardDetails[],
 ): number => {
   if (accumulatedRewards.length > 0) {
     const totalRewards = accumulatedRewards.reduce((total, rewardDetail) => {
@@ -118,7 +118,7 @@ export const AccountBalancesCard = (props: IAccountBalancesCardProps) => {
 
   const totalBalanceUSD = getPriceInUSD(
     Number(accountInfo.total_value.amount),
-    nymPriceData
+    nymPriceData,
   );
   const spendableNYM =
     accountInfo.balances.length > 0
@@ -132,46 +132,46 @@ export const AccountBalancesCard = (props: IAccountBalancesCardProps) => {
     accountInfo.balances.length > 0
       ? getAllocation(
           Number(accountInfo.balances[0].amount),
-          Number(accountInfo.total_value.amount)
+          Number(accountInfo.total_value.amount),
         )
       : 0;
 
   const delegationsNYM = getNymsFormated(
-    Number(accountInfo.total_delegations.amount)
+    Number(accountInfo.total_delegations.amount),
   );
   const delegationsUSD = getPriceInUSD(
     Number(accountInfo.total_delegations.amount),
-    nymPriceData
+    nymPriceData,
   );
   const delegationsAllocation = getAllocation(
     Number(accountInfo.total_delegations.amount),
-    Number(accountInfo.total_value.amount)
+    Number(accountInfo.total_value.amount),
   );
 
   const operatorRewardsAllocation = getAllocation(
     Number(accountInfo.operator_rewards?.amount || 0),
-    Number(accountInfo.total_value.amount)
+    Number(accountInfo.total_value.amount),
   );
 
   const operatorRewardsNYM = getNymsFormated(
-    Number(accountInfo.operator_rewards?.amount || 0)
+    Number(accountInfo.operator_rewards?.amount || 0),
   );
 
   const operatorRewardsUSD = getPriceInUSD(
     Number(accountInfo.operator_rewards?.amount || 0),
-    nymPriceData
+    nymPriceData,
   );
 
   const claimableNYM = getNymsFormated(
-    Number(accountInfo.claimable_rewards.amount)
+    Number(accountInfo.claimable_rewards.amount),
   );
   const claimableUSD = getPriceInUSD(
     Number(accountInfo.claimable_rewards.amount),
-    nymPriceData
+    nymPriceData,
   );
   const claimableAllocation = getAllocation(
     Number(accountInfo.claimable_rewards.amount),
-    Number(accountInfo.total_value.amount)
+    Number(accountInfo.total_value.amount),
   );
 
   const stakingRewards =

@@ -72,11 +72,11 @@ export const NodeParametersCard = ({ paramId }: Props) => {
 
   if (paramId.length > 10) {
     nodeInfo = nsApiNodes.find(
-      (node: NS_NODE) => node.identity_key === paramId
+      (node: NS_NODE) => node.identity_key === paramId,
     );
   } else {
     nodeInfo = nsApiNodes.find(
-      (node: NS_NODE) => node.node_id === Number(paramId)
+      (node: NS_NODE) => node.node_id === Number(paramId),
     );
   }
 
@@ -94,14 +94,14 @@ export const NodeParametersCard = ({ paramId }: Props) => {
 
   const operatingCosts = nodeInfo.rewarding_details
     ? Number(
-        nodeInfo.rewarding_details.cost_params.interval_operating_cost.amount
+        nodeInfo.rewarding_details.cost_params.interval_operating_cost.amount,
       ) / 1_000_000
     : 0;
   const operatingCostsFormated = `${operatingCosts.toString()} NYM`;
 
   const getNodeSaturationPoint = (
     nodeTotalStake: string,
-    stakeSaturationPoint: string
+    stakeSaturationPoint: string,
   ): string => {
     const saturation = Number.parseFloat(stakeSaturationPoint);
     const totalStake = Number.parseFloat(nodeTotalStake);
@@ -117,7 +117,7 @@ export const NodeParametersCard = ({ paramId }: Props) => {
 
   const nodeSaturationPoint = getNodeSaturationPoint(
     nodeInfo.total_stake,
-    epochRewardsData.interval.stake_saturation_point
+    epochRewardsData.interval.stake_saturation_point,
   );
 
   return (

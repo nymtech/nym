@@ -51,7 +51,7 @@ const NodeAndAddressSearch = () => {
             }
           } catch {
             setErrorText(
-              "No node found with the provided Name, Node ID or Identity Key. Please check your input and try again."
+              "No node found with the provided Name, Node ID or Identity Key. Please check your input and try again.",
             );
             setIsLoading(false); // Stop loading
 
@@ -59,7 +59,7 @@ const NodeAndAddressSearch = () => {
           }
         } else {
           setErrorText(
-            "No node found with the provided Name, Node ID or Identity Key. Please check your input and try again."
+            "No node found with the provided Name, Node ID or Identity Key. Please check your input and try again.",
           );
           setIsLoading(false); // Stop loading
 
@@ -69,7 +69,7 @@ const NodeAndAddressSearch = () => {
         // Check if it's a node identity key
         if (nsApiNodes) {
           const matchingNode = nsApiNodes.find(
-            (node: NS_NODE) => node.identity_key === inputValue
+            (node: NS_NODE) => node.identity_key === inputValue,
           );
 
           if (matchingNode) {
@@ -78,13 +78,13 @@ const NodeAndAddressSearch = () => {
           }
         }
         setErrorText(
-          "No node found with the provided Name, Node ID or Identity Key. Please check your input and try again."
+          "No node found with the provided Name, Node ID or Identity Key. Please check your input and try again.",
         );
         setIsLoading(false);
       }
     } catch (error) {
       setErrorText(
-        "No node found with the provided Name, Node ID or Identity Key. Please check your input and try again."
+        "No node found with the provided Name, Node ID or Identity Key. Please check your input and try again.",
       );
       console.error(error);
       setIsLoading(false); // Stop loading
@@ -93,7 +93,7 @@ const NodeAndAddressSearch = () => {
 
   // Handle search input change
   const handleSearchInputChange = (
-    event: React.ChangeEvent<HTMLInputElement>
+    event: React.ChangeEvent<HTMLInputElement>,
   ) => {
     const value = event.target.value;
     setInputValue(value);
@@ -106,7 +106,7 @@ const NodeAndAddressSearch = () => {
     // Filter nodes by moniker if input is not empty
     if (value.trim() !== "") {
       const filteredNodes = nsApiNodes.filter((node: NS_NODE) =>
-        node.description.moniker?.toLowerCase().includes(value.toLowerCase())
+        node.description.moniker?.toLowerCase().includes(value.toLowerCase()),
       );
       setSearchOptions(filteredNodes);
     } else {
@@ -117,7 +117,7 @@ const NodeAndAddressSearch = () => {
   // Handle node selection from dropdown
   const handleNodeSelect = (
     event: React.SyntheticEvent,
-    value: string | NS_NODE | null
+    value: string | NS_NODE | null,
   ) => {
     if (value && typeof value !== "string") {
       setIsLoading(true); // Show loading spinner

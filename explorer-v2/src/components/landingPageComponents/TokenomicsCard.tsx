@@ -103,7 +103,7 @@ export const TokenomicsCard = () => {
   function calculateTVL(
     epochRewards: ExplorerData["currentEpochRewardsData"],
     nymPriceData: NymTokenomics,
-    packetsAndStaking: ExplorerData["packetsAndStakingData"]
+    packetsAndStaking: ExplorerData["packetsAndStakingData"],
   ): number {
     const lastTotalStake =
       packetsAndStaking[packetsAndStaking.length - 1]?.total_stake || 0;
@@ -114,7 +114,7 @@ export const TokenomicsCard = () => {
     );
   }
   const TVL = formatBigNum(
-    calculateTVL(epochRewardsData, nymPrice, packetsAndStakingData)
+    calculateTVL(epochRewardsData, nymPrice, packetsAndStakingData),
   );
 
   const dataRows = [

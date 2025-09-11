@@ -24,6 +24,6 @@ type BlogArticle = {
   }[];
 };
 
-export type BlogArticleWithLink = BlogArticle; 
+export type BlogArticleWithLink = BlogArticle;
 
 export default BlogArticle;

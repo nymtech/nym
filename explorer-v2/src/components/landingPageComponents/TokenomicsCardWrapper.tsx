@@ -1,8 +1,8 @@
 "use client";
 import { fetchEpochRewards, fetchNoise, fetchNymPrice } from "@/app/api";
 import { useQuery } from "@tanstack/react-query";
-import { TokenomicsCard } from "./TokenomicsCard";
 import { ConditionalCardWrapper } from "./ConditionalCardWrapper";
+import { TokenomicsCard } from "./TokenomicsCard";
 
 export const TokenomicsCardWrapper = () => {
   const {

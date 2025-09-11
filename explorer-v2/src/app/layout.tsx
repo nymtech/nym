@@ -1,5 +1,5 @@
-import { Header } from "@/components/header";
 import { Banner } from "@/components/banner/Banner";
+import { Header } from "@/components/header";
 import { Wrapper } from "@/components/wrapper";
 import Providers from "@/providers";
 import type { Metadata } from "next";

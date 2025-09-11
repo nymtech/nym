@@ -19,11 +19,11 @@ const NodeFilterButtonGroup = ({
   options: Options;
   onPage: string;
   onFilterChange: (
-    filter: "all" | "mixnodes" | "gateways" | "recommended"
+    filter: "all" | "mixnodes" | "gateways" | "recommended",
   ) => void;
 }) => {
   const handleClick = (
-    value: "all" | "mixnodes" | "gateways" | "recommended"
+    value: "all" | "mixnodes" | "gateways" | "recommended",
   ) => {
     if (onPage === value) return;
     onFilterChange(value);

@@ -12,6 +12,7 @@ import {
 } from "@mui/material";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { colours } from "@/theme/colours";
 import type { Delegation } from "@nymproject/contract-clients/Mixnet.types";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLocalStorage } from "@uidotdev/usehooks";
@@ -37,8 +38,6 @@ import StakeActions from "./StakeActions";
 import StakeModal from "./StakeModal";
 import type { MappedNymNode, MappedNymNodes } from "./StakeTableWithAction";
 import { fee } from "./schemas";
-import { colours } from "@/theme/colours";
-
 
 type DelegationWithNodeDetails = {
   node: MappedNymNode | undefined;

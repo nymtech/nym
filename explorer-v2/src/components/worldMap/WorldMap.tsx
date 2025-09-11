@@ -1,8 +1,15 @@
 "use client";
 
+import { fetchWorldMapCountries } from "@/app/api";
+import AddIcon from "@mui/icons-material/Add";
+import RemoveIcon from "@mui/icons-material/Remove";
+import RestartAltIcon from "@mui/icons-material/RestartAlt";
+import { Box, IconButton, Skeleton, Typography } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
+import { useQuery } from "@tanstack/react-query";
 import { scaleLinear } from "d3-scale";
-import * as React from "react";
 import Image from "next/image";
+import * as React from "react";
 import {
   ComposableMap,
   Geographies,
@@ -10,13 +17,6 @@ import {
   ZoomableGroup,
 } from "react-simple-maps";
 import { Tooltip } from "react-tooltip";
-import { fetchWorldMapCountries } from "@/app/api";
-import AddIcon from "@mui/icons-material/Add";
-import RemoveIcon from "@mui/icons-material/Remove";
-import RestartAltIcon from "@mui/icons-material/RestartAlt";
-import { IconButton, Skeleton, Typography, Box } from "@mui/material";
-import { useTheme } from "@mui/material/styles";
-import { useQuery } from "@tanstack/react-query";
 import type { CountryDataResponse } from "../../app/api/types";
 import MAP_TOPOJSON from "../../assets/world-110m.json";
 import ExplorerCard from "../cards/ExplorerCard";
@@ -66,7 +66,7 @@ export const WorldMap = (): JSX.Element => {
   const colorScale = React.useMemo(() => {
     if (countries) {
       const heighestNumberOfNodes = Math.max(
-        ...Object.values(countries).map((country) => country.nodes)
+        ...Object.values(countries).map((country) => country.nodes),
       );
       return scaleLinear<string, string>()
         .domain([
@@ -91,7 +91,7 @@ export const WorldMap = (): JSX.Element => {
                 "#147A3D", // Medium green
                 "#1A994C", // Light green
                 theme.palette.accent.main,
-              ]
+              ],
         )
         .unknown(isDarkMode ? theme.palette.pine[950] : theme.palette.pine[25]);
     }

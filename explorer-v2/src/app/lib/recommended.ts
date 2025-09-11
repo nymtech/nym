@@ -27,22 +27,27 @@ type ApiNode = {
 };
 
 function toNumber(x: unknown, fallback = 0): number {
-  const n = typeof x === "string" || typeof x === "number" ? Number(x) : NaN;
+  const n =
+    typeof x === "string" || typeof x === "number" ? Number(x) : Number.NaN;
   return Number.isFinite(n) ? n : fallback;
 }
 
-const MIN_STAKE = 50_000_000_000;   // 50k NYM
-const MAX_STAKE = 150_000_000_000;  // 150k NYM
+const MIN_STAKE = 50_000_000_000; // 50k NYM
+const MAX_STAKE = 150_000_000_000; // 150k NYM
 const MAX_PM = 0.2;
 
 // require exit gw
 function hasRequiredRoles(n: ApiNode): boolean {
-  const r = n.self_description?.declared_role ?? n.description?.declared_role ?? {};
+  const r =
+    n.self_description?.declared_role ?? n.description?.declared_role ?? {};
   return r.mixnode === false && !!r.entry && !!r.exit_ipr && !!r.exit_nr;
 }
 
 function hasGoodPM(n: ApiNode): boolean {
-  const pm = toNumber(n.rewarding_details?.cost_params?.profit_margin_percent, NaN);
+  const pm = toNumber(
+    n.rewarding_details?.cost_params?.profit_margin_percent,
+    Number.NaN,
+  );
   return !Number.isNaN(pm) && pm <= MAX_PM;
 }
 
@@ -73,7 +78,7 @@ async function fetchAllNodes(): Promise<ApiNode[]> {
   while (true) {
     const res = await fetch(
       `https://api.nym.spectredao.net/api/v1/nodes?page=${page}&size=${pageSize}`,
-      { cache: "no-store" }
+      { cache: "no-store" },
     );
     if (!res.ok) throw new Error(`Failed to fetch page ${page}`);
     const json = await res.json();
@@ -117,7 +122,9 @@ async function fetchRecommendedNodes(): Promise<number[]> {
   }
 
   return picked
-    .map((n) => (typeof n.node_id === "number" ? n.node_id : toNumber(n.node_id, 0)))
+    .map((n) =>
+      typeof n.node_id === "number" ? n.node_id : toNumber(n.node_id, 0),
+    )
     .filter((id) => Number.isFinite(id) && id > 0);
 }
 

@@ -108,7 +108,7 @@ pub(crate) struct OverrideConfig {
     nyxd_urls: Option<Vec<url::Url>>,
     enabled_credentials_mode: Option<bool>,
     stats_reporting_address: Option<Recipient>,
-    forget_me: ForgetMe,
+    // forget_me: ForgetMe,
 }
 
 pub(crate) async fn execute(args: Cli) -> Result<(), Box<dyn Error + Send + Sync>> {

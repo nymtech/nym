@@ -63,8 +63,8 @@ pub struct MixnetClientBuilder<S: MixnetClientStorage = Ephemeral> {
     gateway_endpoint_config_path: Option<PathBuf>,
 
     storage: S,
-    forget_me: ForgetMe,
-    remember_me: RememberMe,
+    // forget_me: ForgetMe,
+    // remember_me: RememberMe,
     derivation_material: Option<DerivationMaterial>,
 }
 
@@ -102,8 +102,8 @@ impl MixnetClientBuilder<OnDiskPersistent> {
             user_agent: None,
             #[cfg(unix)]
             connection_fd_callback: None,
-            forget_me: Default::default(),
-            remember_me: Default::default(),
+            // forget_me: Default::default(),
+            // remember_me: Default::default(),
             derivation_material: None,
         })
     }
@@ -141,8 +141,8 @@ where
             connection_fd_callback: None,
             gateway_endpoint_config_path: None,
             storage,
-            forget_me: Default::default(),
-            remember_me: Default::default(),
+            // forget_me: Default::default(),
+            // remember_me: Default::default(),
             derivation_material: None,
         }
     }
@@ -164,8 +164,8 @@ where
             connection_fd_callback: self.connection_fd_callback,
             gateway_endpoint_config_path: self.gateway_endpoint_config_path,
             storage,
-            forget_me: self.forget_me,
-            remember_me: self.remember_me,
+            // forget_me: self.forget_me,
+            // remember_me: self.remember_me,
             derivation_material: self.derivation_material,
         }
     }
@@ -193,7 +193,7 @@ where
 
     #[must_use]
     pub fn with_remember_me(mut self, remember_me: RememberMe) -> Self {
-        self.remember_me = remember_me;
+        // self.remember_me = remember_me;
         self
     }
 
@@ -336,8 +336,8 @@ where
         if self.connection_fd_callback.is_some() {
             client.connection_fd_callback = self.connection_fd_callback;
         }
-        client.forget_me = self.forget_me;
-        client.remember_me = self.remember_me;
+        // client.forget_me = self.forget_me;
+        // client.remember_me = self.remember_me;
         client.derivation_material = self.derivation_material;
         Ok(client)
     }
@@ -392,10 +392,9 @@ where
     #[cfg(unix)]
     connection_fd_callback: Option<Arc<dyn Fn(std::os::fd::RawFd) + Send + Sync>>,
 
-    forget_me: ForgetMe,
+    // forget_me: ForgetMe,
 
-    remember_me: RememberMe,
-
+    // remember_me: RememberMe,
     /// The derivation material to use for the client keys, its up to the caller to save this for rederivation later
     derivation_material: Option<DerivationMaterial>,
 }
@@ -435,8 +434,8 @@ where
             None
         };
 
-        let forget_me = config.debug_config.forget_me;
-        let remember_me = config.debug_config.remember_me;
+        // let forget_me = config.debug_config.forget_me;
+        // let remember_me = config.debug_config.remember_me;
 
         Ok(DisconnectedMixnetClient {
             config,
@@ -452,8 +451,8 @@ where
             user_agent: None,
             #[cfg(unix)]
             connection_fd_callback: None,
-            forget_me,
-            remember_me,
+            // forget_me,
+            // remember_me,
             derivation_material: None,
         })
     }
@@ -826,8 +825,8 @@ where
             started_client.shutdown_handle,
             None,
             started_client.client_request_sender,
-            started_client.forget_me,
-            started_client.remember_me,
+            // started_client.forget_me,
+            // started_client.remember_me,
         ))
     }
 }

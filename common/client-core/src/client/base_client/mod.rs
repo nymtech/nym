@@ -245,13 +245,13 @@ where
 
     #[must_use]
     pub fn with_forget_me(mut self, forget_me: &ForgetMe) -> Self {
-        self.config.debug.forget_me = *forget_me;
+        // self.config.debug.forget_me = *forget_me;
         self
     }
 
     #[must_use]
     pub fn with_remember_me(mut self, remember_me: &RememberMe) -> Self {
-        self.config.debug.remember_me = *remember_me;
+        // self.config.debug.remember_me = *remember_me;
         self
     }
 
@@ -1015,6 +1015,8 @@ where
             &shutdown_tracker.child_tracker(),
         );
 
+        // MAX TODO DEBUG
+        // console_log!("base_client::start_cover_traffic_stream = {self.cover_traffic}");
         if !self
             .config
             .debug
@@ -1060,8 +1062,8 @@ where
             stats_reporter,
             shutdown_handle: Some(shutdown_tracker), // The primary tracker for this client
             client_request_sender,
-            forget_me: self.config.debug.forget_me,
-            remember_me: self.config.debug.remember_me,
+            // forget_me: self.config.debug.forget_me,
+            // remember_me: self.config.debug.remember_me,
         })
     }
 }

@@ -145,7 +145,7 @@ impl Config {
     }
 
     pub fn with_forget_me(mut self, forget_me: ForgetMe) -> Self {
-        self.debug.forget_me = forget_me;
+        // self.debug.forget_me = forget_me;
         self
     }
 
@@ -707,15 +707,13 @@ pub struct DebugConfig {
 
     /// Defines all configuration options related to reply SURBs.
     pub reply_surbs: ReplySurbs,
-
     /// Defines all configuration options related to stats reporting.
     pub stats_reporting: StatsReporting,
+    // Defines all configuration options related to the forget me flag.
+    // pub forget_me: ForgetMe,
 
-    /// Defines all configuration options related to the forget me flag.
-    pub forget_me: ForgetMe,
-
-    /// Defines all configuration options related to the remember me flag.
-    pub remember_me: RememberMe,
+    // Defines all configuration options related to the remember me flag.
+    // pub remember_me: RememberMe,
 }
 
 impl DebugConfig {
@@ -738,8 +736,8 @@ impl Default for DebugConfig {
             topology: Default::default(),
             reply_surbs: Default::default(),
             stats_reporting: Default::default(),
-            forget_me: Default::default(),
-            remember_me: Default::default(),
+            // forget_me: Default::default(),
+            // remember_me: Default::default(),
         }
     }
 }

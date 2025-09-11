@@ -1,5 +1,11 @@
+use nym_credentials::ecash::bandwidth::serialiser::VersionSerialised;
+use nym_credentials::{
+    AggregatedCoinIndicesSignatures, AggregatedExpirationDateSignatures, EpochVerificationKey,
+    IssuedTicketBook,
+};
 use nym_crypto::asymmetric::ed25519::{PublicKey, Signature};
 use serde::{Deserialize, Serialize};
+use std::fmt::Debug;
 
 pub mod get_testrun {
     use crate::auth::SignedRequest;
@@ -34,11 +40,63 @@ pub mod get_testrun {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Serialize, Deserialize)]
+pub struct AttachedTicket {
+    pub ticketbook: VersionSerialised<IssuedTicketBook>,
+    pub usable_index: u32,
+}
+
+#[derive(Deserialize, Serialize)]
+pub struct AttachedTicketMaterials {
+    pub coin_indices_signatures: Option<VersionSerialised<AggregatedCoinIndicesSignatures>>,
+
+    pub expiration_date_signatures: Option<VersionSerialised<AggregatedExpirationDateSignatures>>,
+
+    pub master_verification_key: Option<VersionSerialised<EpochVerificationKey>>,
+
+    // we need one ticket per type
+    pub attached_tickets: Vec<AttachedTicket>,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
 pub struct TestrunAssignment {
     pub testrun_id: i32,
     pub assigned_at_utc: i64,
     pub gateway_identity_key: String,
+}
+
+#[derive(Deserialize, Serialize)]
+pub struct TestrunAssignmentWithTickets {
+    #[serde(flatten)]
+    pub assignment: TestrunAssignment,
+
+    #[serde(default)]
+    pub ticket_materials: Option<AttachedTicketMaterials>,
+}
+
+impl Debug for TestrunAssignmentWithTickets {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        trait Attached {
+            fn attached(&self) -> String;
+        }
+
+        impl<T> Attached for Option<T> {
+            fn attached(&self) -> String {
+                if self.is_some() {
+                    "attached"
+                } else {
+                    "not attached"
+                }
+                .to_string()
+            }
+        }
+
+        // no need to include full binary data behind the ticketbook data
+        f.debug_struct("TestrunAssignmentWithTickets")
+            .field("assignment", &self.assignment)
+            .field("ticket_materials", &self.ticket_materials.attached())
+            .finish()
+    }
 }
 
 pub mod submit_results {

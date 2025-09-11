@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO master_verification_key(epoch_id, serialised_key, serialization_revision) VALUES ($1, $2, $3)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Bytea",
+        "Int2"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "2226e8df296fc708cdbb15128d97cf948453bba95f75f50e3cbb0b0d54cf88d9"
+}

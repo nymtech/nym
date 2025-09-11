@@ -1,7 +1,8 @@
 use crate::monitor::DelegationsCache;
+use crate::ticketbook_manager::TicketbookManager;
 use clap::Parser;
 use nym_crypto::asymmetric::ed25519::PublicKey;
-use nym_task::signal::wait_for_signal;
+use nym_task::ShutdownManager;
 use nym_validator_client::nyxd::NyxdClient;
 use std::sync::Arc;
 
@@ -13,6 +14,7 @@ mod metrics_scraper;
 mod monitor;
 mod node_scraper;
 mod testruns;
+mod ticketbook_manager;
 mod utils;
 
 #[tokio::main]
@@ -20,6 +22,8 @@ async fn main() -> anyhow::Result<()> {
     logging::setup_tracing_logger()?;
 
     let args = cli::Cli::parse();
+
+    let mut shutdown_manager = ShutdownManager::build_new_default()?;
 
     let agent_key_list = args
         .agent_key_list
@@ -36,14 +40,14 @@ async fn main() -> anyhow::Result<()> {
 
     // Start the node scraper
     let scraper = node_scraper::DescriptionScraper::new(storage.pool_owned());
-    tokio::spawn(async move {
+    shutdown_manager.spawn_with_shutdown(async move {
         scraper.start().await;
     });
     let scraper = node_scraper::PacketScraper::new(
         storage.pool_owned(),
         args.packet_stats_max_concurrent_tasks,
     );
-    tokio::spawn(async move {
+    shutdown_manager.spawn_with_shutdown(async move {
         scraper.start().await;
     });
 
@@ -63,8 +67,8 @@ async fn main() -> anyhow::Result<()> {
     let nyxd_client = NyxdClient::connect(config, args.nyxd_addr.as_str())
         .map_err(|err| anyhow::anyhow!("Couldn't connect: {}", err))?;
 
-    tokio::spawn(async move {
-        monitor::spawn_in_background(
+    shutdown_manager.spawn_with_shutdown(async move {
+        monitor::run_in_background(
             db_pool,
             args_clone.nym_api_client_timeout,
             nyxd_client,
@@ -77,16 +81,26 @@ async fn main() -> anyhow::Result<()> {
         tracing::info!("Started monitor task");
     });
 
-    testruns::spawn(storage.pool_owned(), args.testruns_refresh_interval).await;
+    let pool = storage.pool_owned();
+    shutdown_manager.spawn_with_shutdown(async move {
+        testruns::start(pool, args.testruns_refresh_interval).await
+    });
 
     let db_pool_scraper = storage.pool_owned();
-    tokio::spawn(async move {
-        metrics_scraper::spawn_in_background(db_pool_scraper, args_clone.nym_api_client_timeout)
+    shutdown_manager.spawn_with_shutdown(async move {
+        metrics_scraper::run_in_background(db_pool_scraper, args_clone.nym_api_client_timeout)
             .await;
         tracing::info!("Started metrics scraper task");
     });
 
-    let shutdown_handles = http::server::start_http_api(
+    let ticketbook_manager = TicketbookManager::new(storage.clone());
+    let shutdown_token = shutdown_manager.clone_shutdown_token();
+    shutdown_manager.spawn_with_shutdown(async move {
+        ticketbook_manager.run(shutdown_token).await;
+    });
+
+    let shutdown_tracker = shutdown_manager.shutdown_tracker();
+    http::server::start_http_api(
         storage.pool_owned(),
         args.http_port,
         args.nym_http_cache_ttl,
@@ -95,17 +109,14 @@ async fn main() -> anyhow::Result<()> {
         args.agent_request_freshness,
         geocache,
         delegations_cache,
+        shutdown_tracker,
     )
     .await
     .expect("Failed to start server");
 
     tracing::info!("Started HTTP server on port {}", args.http_port);
 
-    wait_for_signal().await;
-
-    if let Err(err) = shutdown_handles.shutdown().await {
-        tracing::error!("{err}");
-    };
+    shutdown_manager.run_until_shutdown().await;
 
     Ok(())
 }

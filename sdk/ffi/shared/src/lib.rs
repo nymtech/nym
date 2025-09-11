@@ -7,6 +7,8 @@ use nym_sdk::mixnet::{
     MixnetClient, MixnetClientBuilder, MixnetMessageSender, Recipient, ReconstructedMessage,
     StoragePaths,
 };
+
+use nym_crypto::asymmetric::ed25519;
 use nym_sdk::tcp_proxy::{NymProxyClient, NymProxyServer};
 use nym_sphinx_anonymous_replies::requests::AnonymousSenderTag;
 use std::path::PathBuf;
@@ -221,12 +223,14 @@ pub fn proxy_server_new_internal(
     upstream_address: &str,
     config_dir: &str,
     env: Option<String>,
+    gateway: Option<ed25519::PublicKey>,
 ) -> Result<(), Error> {
     if NYM_PROXY_SERVER.lock().unwrap().as_ref().is_some() {
         bail!("proxy client already exists");
     } else {
         RUNTIME.block_on(async move {
-            let init_proxy_server = NymProxyServer::new(upstream_address, config_dir, env).await?;
+            let init_proxy_server =
+                NymProxyServer::new(upstream_address, config_dir, env, gateway).await?;
             let mut client = NYM_PROXY_SERVER.try_lock();
             if let Ok(ref mut client) = client {
                 **client = Some(init_proxy_server);

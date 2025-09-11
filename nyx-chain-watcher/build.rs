@@ -14,7 +14,7 @@ async fn main() -> Result<()> {
     }
 
     let db_path_str = db_path.display().to_string().replace('\\', "/");
-    let db_url = format!("sqlite:{}", db_path_str);
+    let db_url = format!("sqlite:{db_path_str}");
 
     // Ensure database file is created with proper permissions
     let connect_options = SqliteConnectOptions::from_str(&db_url)?
@@ -30,7 +30,7 @@ async fn main() -> Result<()> {
 
     // Force SQLx to prepare all queries during build
     println!("cargo:rustc-env=SQLX_OFFLINE=true");
-    println!("cargo:rustc-env=DATABASE_URL={}", db_url);
+    println!("cargo:rustc-env=DATABASE_URL={db_url}");
 
     // Add rerun-if-changed directives
     println!("cargo:rerun-if-changed=migrations");
@@ -46,7 +46,7 @@ fn export_db_variables(db_url: &str) -> Result<()> {
 
     let mut file = File::create(".env")?;
     for (var, value) in map.iter() {
-        writeln!(file, "{}={}", var, value)?;
+        writeln!(file, "{var}={value}")?;
     }
 
     Ok(())

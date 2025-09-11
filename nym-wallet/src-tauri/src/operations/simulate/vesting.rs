@@ -114,8 +114,7 @@ pub async fn simulate_vesting_update_pledge(
                 })?
                 .into();
             log::info!(
-                ">>> Simulate pledge more, calculated additional pledge {}",
-                additional_pledge,
+                ">>> Simulate pledge more, calculated additional pledge {additional_pledge}",
             );
             simulate_vesting_operation(
                 ExecuteMsg::PledgeMore {
@@ -134,8 +133,7 @@ pub async fn simulate_vesting_update_pledge(
                 })?
                 .into();
             log::info!(
-                ">>> Simulate decrease pledge, calculated decrease pledge {}",
-                decrease_pledge,
+                ">>> Simulate decrease pledge, calculated decrease pledge {decrease_pledge}",
             );
             simulate_vesting_operation(
                 ExecuteMsg::DecreasePledge {

@@ -22,7 +22,7 @@ enum ActiveClient {
     Remote(RemoteClientData),
 
     /// Handle to a locally (inside the same process) running client.
-    Embedded(LocalEmbeddedClientHandle),
+    Embedded(Box<LocalEmbeddedClientHandle>),
 }
 
 impl ActiveClient {
@@ -163,7 +163,7 @@ impl ActiveClientsStore {
     /// Inserts a handle to the embedded client
     pub fn insert_embedded(&self, local_client_handle: LocalEmbeddedClientHandle) {
         let key = local_client_handle.client_destination();
-        let entry = ActiveClient::Embedded(local_client_handle);
+        let entry = ActiveClient::Embedded(Box::new(local_client_handle));
         if self.inner.insert(key, entry).is_some() {
             // this is literally impossible since we're starting the local embedded client before
             // even spawning the websocket listener task

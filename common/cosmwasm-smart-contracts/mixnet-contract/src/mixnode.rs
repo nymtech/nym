@@ -16,7 +16,7 @@ use crate::{
     Percent, ProfitMarginRange, SphinxKey,
 };
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Addr, Coin, Decimal, StdResult, Uint128};
+use cosmwasm_std::{to_json_string, Addr, Coin, Decimal, StdResult, Uint128};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
@@ -170,6 +170,11 @@ impl NodeRewarding {
         }
     }
 
+    // we panic here as opposed to returning an error as this is undefined behaviour,
+    // because the pledge amount has decreased (i.e. slashing has occurred) which
+    // should not be possible under any situation. at this point we don't know how many other things
+    // might have failed so we have to bail
+    #[allow(clippy::panic)]
     pub fn pending_detailed_operator_reward(&self, original_pledge: &Coin) -> StdResult<Decimal> {
         let initial_dec = original_pledge.amount.into_base_decimal()?;
         if initial_dec > self.operator {
@@ -189,6 +194,11 @@ impl NodeRewarding {
         Ok(truncate_reward(delegator_reward, &delegation.amount.denom))
     }
 
+    // we panic here as opposed to returning an error as this is undefined behaviour,
+    // because the pledge amount has decreased (i.e. slashing has occurred) which
+    // should not be possible under any situation. at this point we don't know how many other things
+    // might have failed so we have to bail
+    #[allow(clippy::panic)]
     pub fn withdraw_operator_reward(
         &mut self,
         original_pledge: &Coin,
@@ -594,7 +604,7 @@ pub struct NodeCostParams {
 
 impl NodeCostParams {
     pub fn to_inline_json(&self) -> String {
-        serde_json_wasm::to_string(self).unwrap_or_else(|_| "serialisation failure".into())
+        to_json_string(self).unwrap_or_else(|_| "serialisation failure".into())
     }
 }
 
@@ -763,7 +773,7 @@ pub struct MixNodeConfigUpdate {
 
 impl MixNodeConfigUpdate {
     pub fn to_inline_json(&self) -> String {
-        serde_json_wasm::to_string(self).unwrap_or_else(|_| "serialisation failure".into())
+        to_json_string(self).unwrap_or_else(|_| "serialisation failure".into())
     }
 }
 

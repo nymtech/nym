@@ -22,3 +22,6 @@ mod support;
 #[cfg(feature = "contract-testing")]
 mod testing;
 mod vesting_migration;
+
+#[cfg(feature = "testable-mixnet-contract")]
+pub mod testable_mixnet_contract;

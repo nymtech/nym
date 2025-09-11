@@ -10,6 +10,7 @@ tokio = { workspace = true, features = ["full"] }
 # Nym clients, addressing, packet format, common tools (logging)
 nym-sdk = { path = "../../rust/nym-sdk/" }
 nym-bin-common = { path = "../../../common/bin-common" }
+nym-crypto = { path = "../../../common/crypto" }
 nym-sphinx-anonymous-replies = { path = "../../../common/nymsphinx/anonymous-replies" }
 # static var macro
 lazy_static = { workspace = true }

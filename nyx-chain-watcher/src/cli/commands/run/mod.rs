@@ -133,7 +133,7 @@ pub(crate) async fn execute(args: Args, http_port: u16) -> Result<(), NyxChainWa
         std::fs::create_dir_all(parent)?;
     }
 
-    let connection_url = format!("sqlite://{}?mode=rwc", db_path);
+    let connection_url = format!("sqlite://{db_path}?mode=rwc");
     let storage = db::Storage::init(connection_url).await?;
     let watcher_pool = storage.pool_owned();
 

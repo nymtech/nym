@@ -1,15 +1,15 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{ReplySurb, ReplySurbError};
+use crate::requests::v1::{AdditionalSurbsV1, DataV1, HeartbeatV1};
+use crate::requests::v2::{AdditionalSurbsV2, DataV2, HeartbeatV2};
+use crate::{ReplySurbError, ReplySurbWithKeyRotation};
 use nym_sphinx_addressing::clients::{Recipient, RecipientFormattingError};
+use nym_sphinx_params::key_rotation::InvalidSphinxKeyRotation;
 use rand::{CryptoRng, RngCore};
 use std::fmt::{Display, Formatter};
 use std::mem;
 use thiserror::Error;
-
-use crate::requests::v1::{AdditionalSurbsV1, DataV1, HeartbeatV1};
-use crate::requests::v2::{AdditionalSurbsV2, DataV2, HeartbeatV2};
 
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
@@ -84,7 +84,7 @@ impl AnonymousSenderTag {
 
 #[derive(Debug, Error)]
 pub enum InvalidReplyRequestError {
-    #[error("Did not provide sufficient number of bytes to deserialize a valid request")]
+    #[error("Did not provide sufficient number of bytes to deserialise a valid request")]
     RequestTooShortToDeserialize,
 
     #[error("{received} is not a valid content tag for a repliable message")]
@@ -93,10 +93,13 @@ pub enum InvalidReplyRequestError {
     #[error("{received} is not a valid content tag for a reply message")]
     InvalidReplyContentTag { received: u8 },
 
-    #[error("failed to deserialize recipient information - {0}")]
+    #[error("failed to deserialise sphinx key rotation details: {0}")]
+    MalformedSphinxKeyRotation(#[from] InvalidSphinxKeyRotation),
+
+    #[error("failed to deserialise recipient information: {0}")]
     MalformedRecipient(#[from] RecipientFormattingError),
 
-    #[error("failed to deserialize replySURB - {0}")]
+    #[error("failed to deserialise replySURB: {0}")]
     MalformedReplySurb(#[from] ReplySurbError),
 }
 
@@ -136,7 +139,7 @@ impl RepliableMessage {
         use_legacy_surb_format: bool,
         data: Vec<u8>,
         sender_tag: AnonymousSenderTag,
-        reply_surbs: Vec<ReplySurb>,
+        reply_surbs: Vec<ReplySurbWithKeyRotation>,
     ) -> Self {
         let content = if use_legacy_surb_format {
             RepliableMessageContent::Data(DataV1 {
@@ -159,7 +162,7 @@ impl RepliableMessage {
     pub fn new_additional_surbs(
         use_legacy_surb_format: bool,
         sender_tag: AnonymousSenderTag,
-        reply_surbs: Vec<ReplySurb>,
+        reply_surbs: Vec<ReplySurbWithKeyRotation>,
     ) -> Self {
         let content = if use_legacy_surb_format {
             RepliableMessageContent::AdditionalSurbs(AdditionalSurbsV1 { reply_surbs })
@@ -484,9 +487,10 @@ mod tests {
         use crate::requests::v1::{AdditionalSurbsV1, DataV1, HeartbeatV1};
         use crate::requests::v2::{AdditionalSurbsV2, DataV2, HeartbeatV2};
         use crate::requests::{AnonymousSenderTag, RepliableMessageContent, ReplyMessageContent};
-        use crate::{ReplySurb, SurbEncryptionKey};
+        use crate::{ReplySurb, ReplySurbWithKeyRotation, SurbEncryptionKey};
         use nym_crypto::asymmetric::{ed25519, x25519};
         use nym_sphinx_addressing::clients::Recipient;
+        use nym_sphinx_params::SphinxKeyRotation;
         use nym_sphinx_types::{
             Delay, Destination, DestinationAddressBytes, Node, NodeAddressBytes, PrivateKey,
             SURBMaterial, NODE_ADDRESS_LENGTH, X25519_WITH_EXPLICIT_PAYLOAD_KEYS_VERSION,
@@ -571,10 +575,12 @@ mod tests {
             n: usize,
             legacy: bool,
             hops: u8,
-        ) -> Vec<ReplySurb> {
+        ) -> Vec<ReplySurbWithKeyRotation> {
             let mut surbs = Vec::with_capacity(n);
             for _ in 0..n {
-                surbs.push(reply_surb(rng, legacy, hops))
+                surbs.push(
+                    reply_surb(rng, legacy, hops).with_key_rotation(SphinxKeyRotation::Unknown),
+                )
             }
             surbs
         }

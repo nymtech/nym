@@ -63,7 +63,7 @@ impl IpInfoClient {
     }
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct ExplorerPrettyBond {
     pub(crate) identity_key: String,
     pub(crate) owner: Addr,
@@ -71,7 +71,7 @@ pub(crate) struct ExplorerPrettyBond {
     pub(crate) location: Location,
 }
 
-#[derive(Debug, Clone, Default, Serialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub(crate) struct Location {
     pub(crate) two_letter_iso_country_code: String,
     #[serde(flatten)]

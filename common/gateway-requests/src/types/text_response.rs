@@ -12,6 +12,7 @@ use tungstenite::Message;
 pub enum SensitiveServerResponse {
     KeyUpgradeAck {},
     ForgetMeAck {},
+    RememberMeAck {},
 }
 
 impl SensitiveServerResponse {
@@ -110,6 +111,10 @@ impl ServerResponse {
             ServerResponse::Register { status, .. } => *status,
             _ => false,
         }
+    }
+
+    pub fn is_send(&self) -> bool {
+        matches!(self, ServerResponse::Send { .. })
     }
 }
 

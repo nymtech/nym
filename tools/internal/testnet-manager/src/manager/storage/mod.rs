@@ -1,6 +1,6 @@
-use std::fs;
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
+
 use crate::{
     error::NetworkManagerError,
     manager::{
@@ -14,6 +14,7 @@ use sqlx::{
     sqlite::{SqliteAutoVacuum, SqliteSynchronous},
     ConnectOptions,
 };
+use std::fs;
 use std::path::Path;
 use tracing::{error, info};
 use url::Url;
@@ -159,7 +160,7 @@ impl NetworkManagerStorage {
             .await?)
     }
 
-    async fn persist_account(&self, account: &Account) -> Result<(), NetworkManagerError> {
+    async fn persist_account(&self, account: &Account) -> Result<i64, NetworkManagerError> {
         let as_str = Zeroizing::new(account.mnemonic.to_string());
         Ok(self
             .manager
@@ -191,6 +192,18 @@ impl NetworkManagerStorage {
         Ok(())
     }
 
+    async fn persist_authorised_network_monitor(
+        &self,
+        network_id: i64,
+        account: &Account,
+    ) -> Result<(), NetworkManagerError> {
+        self.persist_account(account).await?;
+        self.manager
+            .save_authorised_network_monitor(network_id, account.address.as_ref())
+            .await?;
+        Ok(())
+    }
+
     pub(crate) async fn persist_network(
         &self,
         network: &Network,
@@ -206,6 +219,8 @@ impl NetworkManagerStorage {
         self.persist_account(network.contracts.cw4_group.admin()?)
             .await?;
         self.persist_account(network.contracts.dkg.admin()?).await?;
+        self.persist_account(network.contracts.performance.admin()?)
+            .await?;
 
         self.persist_account(&network.auxiliary_addresses.mixnet_rewarder)
             .await?;
@@ -220,6 +235,9 @@ impl NetworkManagerStorage {
             .await?;
         let cw4_group_id = self.persist_contract(&network.contracts.cw4_group).await?;
         let dkg_id = self.persist_contract(&network.contracts.dkg).await?;
+        let performance_id = self
+            .persist_contract(&network.contracts.performance)
+            .await?;
 
         let network_id = self
             .manager
@@ -232,6 +250,7 @@ impl NetworkManagerStorage {
                 cw3_multisig_id,
                 cw4_group_id,
                 dkg_id,
+                performance_id,
                 network.auxiliary_addresses.mixnet_rewarder.address.as_ref(),
                 network
                     .auxiliary_addresses
@@ -242,6 +261,10 @@ impl NetworkManagerStorage {
             .await?;
 
         self.manager.save_latest_network_id(network_id).await?;
+        for nm in &network.auxiliary_addresses.network_monitors {
+            self.persist_authorised_network_monitor(network_id, nm)
+                .await?
+        }
 
         Ok(())
     }
@@ -255,6 +278,20 @@ impl NetworkManagerStorage {
             .get_rpc_endpoint()
             .await?
             .ok_or_else(|| NetworkManagerError::RpcEndpointNotSet)?;
+
+        let authorised = self
+            .manager
+            .load_authorised_network_monitors(base_network.id)
+            .await?;
+        let mut network_monitors = Vec::with_capacity(authorised.len());
+        for authorised in authorised {
+            network_monitors.push(
+                self.manager
+                    .load_account(&authorised.address)
+                    .await?
+                    .try_into()?,
+            )
+        }
 
         Ok(LoadedNetwork {
             id: base_network.id,
@@ -292,6 +329,11 @@ impl NetworkManagerStorage {
                     .load_contract(base_network.dkg_contract_id)
                     .await?
                     .try_into()?,
+                performance: self
+                    .manager
+                    .load_contract(base_network.performance_contract_id)
+                    .await?
+                    .try_into()?,
             },
             auxiliary_addresses: SpecialAddresses {
                 ecash_holding_account: self
@@ -304,6 +346,7 @@ impl NetworkManagerStorage {
                     .load_account(&base_network.rewarder_address)
                     .await?
                     .try_into()?,
+                network_monitors,
             },
         })
     }

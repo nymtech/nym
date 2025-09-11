@@ -186,7 +186,7 @@ impl StorageManager {
         amount: String,
         voting_power: i64,
         voting_power_share: String,
-        signed_blocks: i32,
+        signed_blocks: i64,
         signed_blocks_percent: String,
     ) -> Result<(), sqlx::Error> {
         sqlx::query!(

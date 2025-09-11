@@ -61,7 +61,7 @@ impl MixnetResponseListener {
         control_response: ControlResponse,
     ) -> Result<(), Socks5ClientCoreError> {
         error!("received a control response which we don't know how to handle yet!");
-        error!("got: {:?}", control_response);
+        error!("got: {control_response:?}");
 
         // I guess we'd need another channel here to forward those to where they need to go
 
@@ -88,7 +88,7 @@ impl MixnetResponseListener {
             }
             Socks5ResponseContent::Query(response) => {
                 error!("received a query response which we don't know how to handle yet!");
-                error!("got: {:?}", response);
+                error!("got: {response:?}");
 
                 // I guess we'd need another channel here to forward those to where they need to go
 

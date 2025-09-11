@@ -3,11 +3,11 @@
 
 use nym_sdk::mixnet;
 use nym_sdk::mixnet::MixnetMessageSender;
-use nym_topology::{NymTopology, RoutingNode, SupportedRoles};
+use nym_topology::{NymTopology, NymTopologyMetadata, RoutingNode, SupportedRoles};
 
 #[tokio::main]
 async fn main() {
-    nym_bin_common::logging::setup_logging();
+    nym_bin_common::logging::setup_tracing_logger();
 
     // Passing no config makes the client fire up an ephemeral session and figure shit out on its own
     let mut client = mixnet::MixnetClient::connect_new().await.unwrap();
@@ -76,7 +76,10 @@ async fn main() {
     // during client initialisation to make sure we are able to send to ourselves : )  )
     let gateways = starting_topology.topology.entry_capable_nodes();
 
-    let mut custom_topology = NymTopology::new_empty(rewarded_set);
+    // you should have obtained valid metadata information, in particular the key rotation ID!
+    let metadata = NymTopologyMetadata::new(u32::MAX, 123, time::OffsetDateTime::now_utc());
+
+    let mut custom_topology = NymTopology::new(metadata, rewarded_set, Vec::new());
     custom_topology.add_routing_nodes(nodes);
     custom_topology.add_routing_nodes(gateways);
 

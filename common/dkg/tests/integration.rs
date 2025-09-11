@@ -53,11 +53,12 @@ fn single_sender() {
 
     // make sure each share is actually decryptable (even though proofs say they must be, perform this sanity check)
     for (i, (ref dk, _)) in full_keys.iter().enumerate() {
-        let _recovered = decrypt_share(dk, i, &dealing.ciphertexts, None).unwrap();
+        let _recovered = decrypt_share(&params, dk, i, &dealing.ciphertexts, None).unwrap();
     }
 
     // and for good measure, check that the dealer's share matches decryption result
-    let recovered_dealer = decrypt_share(&full_keys[0].0, 0, &dealing.ciphertexts, None).unwrap();
+    let recovered_dealer =
+        decrypt_share(&params, &full_keys[0].0, 0, &dealing.ciphertexts, None).unwrap();
     assert_eq!(recovered_dealer, dealer_share.unwrap());
 }
 
@@ -115,7 +116,7 @@ fn full_threshold_secret_sharing() {
     for (i, (ref dk, _)) in full_keys.iter().enumerate() {
         let shares = dealings
             .values()
-            .map(|dealing| decrypt_share(dk, i, &dealing.ciphertexts, None).unwrap())
+            .map(|dealing| decrypt_share(&params, dk, i, &dealing.ciphertexts, None).unwrap())
             .collect();
 
         // we know dealer_share matches, but it would be inconvenient to try to put them in here,
@@ -189,7 +190,7 @@ fn full_threshold_secret_resharing() {
     for (i, (ref dk, _)) in full_keys.iter().enumerate() {
         let shares = first_dealings
             .values()
-            .map(|dealing| decrypt_share(dk, i, &dealing.ciphertexts, None).unwrap())
+            .map(|dealing| decrypt_share(&params, dk, i, &dealing.ciphertexts, None).unwrap())
             .collect();
 
         let recovered_secret =
@@ -240,7 +241,7 @@ fn full_threshold_secret_resharing() {
     for (i, (ref dk, _)) in full_keys.iter().enumerate() {
         let shares = resharing_dealings
             .values()
-            .map(|dealing| decrypt_share(dk, i, &dealing.ciphertexts, None).unwrap())
+            .map(|dealing| decrypt_share(&params, dk, i, &dealing.ciphertexts, None).unwrap())
             .collect();
 
         let recovered_secret =
@@ -305,7 +306,7 @@ fn full_threshold_secret_resharing_left_party() {
     for (i, (ref dk, _)) in full_keys.iter().enumerate() {
         let shares = first_dealings
             .values()
-            .map(|dealing| decrypt_share(dk, i, &dealing.ciphertexts, None).unwrap())
+            .map(|dealing| decrypt_share(&params, dk, i, &dealing.ciphertexts, None).unwrap())
             .collect();
 
         let recovered_secret =
@@ -369,7 +370,7 @@ fn full_threshold_secret_resharing_left_party() {
     for (i, (ref dk, _)) in full_keys.iter().enumerate() {
         let shares = resharing_dealings
             .values()
-            .map(|dealing| decrypt_share(dk, i, &dealing.ciphertexts, None).unwrap())
+            .map(|dealing| decrypt_share(&params, dk, i, &dealing.ciphertexts, None).unwrap())
             .collect();
 
         let recovered_secret = combine_shares(shares, &node_indices).unwrap();

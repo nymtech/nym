@@ -9,7 +9,7 @@ pub(crate) struct ParsedPacket<'a> {
     pub(crate) dst: Option<SocketAddr>,
 }
 
-pub(crate) fn parse_packet(packet: &[u8]) -> Result<ParsedPacket, IpPacketRouterError> {
+pub(crate) fn parse_packet(packet: &[u8]) -> Result<ParsedPacket<'_>, IpPacketRouterError> {
     let headers = etherparse::SlicedPacket::from_ip(packet).map_err(|err| {
         log::warn!("Unable to parse incoming data as IP packet: {err}");
         IpPacketRouterError::PacketParseFailed { source: err }

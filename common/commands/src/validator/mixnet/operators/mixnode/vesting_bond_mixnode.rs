@@ -106,5 +106,5 @@ pub async fn vesting_bond_mixnode(client: SigningClient, args: Args, denom: &str
         .await
         .expect("failed to bond vesting mixnode!");
 
-    info!("Bonding vesting result: {:?}", res)
+    info!("Bonding vesting result: {res:?}")
 }

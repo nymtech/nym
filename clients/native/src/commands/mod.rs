@@ -5,6 +5,7 @@ use crate::client::config::old_config_v1_1_13::OldConfigV1_1_13;
 use crate::client::config::old_config_v1_1_20::ConfigV1_1_20;
 use crate::client::config::old_config_v1_1_20_2::ConfigV1_1_20_2;
 use crate::client::config::old_config_v1_1_33::ConfigV1_1_33;
+use crate::client::config::old_config_v1_1_54::ConfigV1_1_54;
 use crate::client::config::{BaseClientConfig, Config};
 use crate::commands::ecash::Ecash;
 use crate::error::ClientError;
@@ -177,7 +178,8 @@ async fn try_upgrade_v1_1_13_config(id: &str) -> Result<bool, ClientError> {
     let updated_step2: ConfigV1_1_20_2 = updated_step1.into();
     let (updated_step3, gateway_config) = updated_step2.upgrade()?;
     let old_paths = updated_step3.storage_paths.clone();
-    let updated = updated_step3.try_upgrade()?;
+    let updated_step4: ConfigV1_1_54 = updated_step3.try_into()?;
+    let updated = updated_step4.try_upgrade()?;
 
     v1_1_33::migrate_gateway_details(
         &old_paths.common_paths,
@@ -205,7 +207,8 @@ async fn try_upgrade_v1_1_20_config(id: &str) -> Result<bool, ClientError> {
     let updated_step1: ConfigV1_1_20_2 = old_config.into();
     let (updated_step2, gateway_config) = updated_step1.upgrade()?;
     let old_paths = updated_step2.storage_paths.clone();
-    let updated = updated_step2.try_upgrade()?;
+    let updated_step3: ConfigV1_1_54 = updated_step2.try_into()?;
+    let updated = updated_step3.try_upgrade()?;
 
     v1_1_33::migrate_gateway_details(
         &old_paths.common_paths,
@@ -229,7 +232,8 @@ async fn try_upgrade_v1_1_20_2_config(id: &str) -> Result<bool, ClientError> {
 
     let (updated_step1, gateway_config) = old_config.upgrade()?;
     let old_paths = updated_step1.storage_paths.clone();
-    let updated = updated_step1.try_upgrade()?;
+    let updated_step2: ConfigV1_1_54 = updated_step1.try_into()?;
+    let updated = updated_step2.try_upgrade()?;
 
     v1_1_33::migrate_gateway_details(
         &old_paths.common_paths,
@@ -252,7 +256,8 @@ async fn try_upgrade_v1_1_33_config(id: &str) -> Result<bool, ClientError> {
     info!("It is going to get updated to the current specification.");
 
     let old_paths = old_config.storage_paths.clone();
-    let updated = old_config.try_upgrade()?;
+    let updated_step1: ConfigV1_1_54 = old_config.try_into()?;
+    let updated = updated_step1.try_upgrade()?;
 
     v1_1_33::migrate_gateway_details(
         &old_paths.common_paths,
@@ -260,6 +265,22 @@ async fn try_upgrade_v1_1_33_config(id: &str) -> Result<bool, ClientError> {
         None,
     )
     .await?;
+
+    updated.save_to_default_location()?;
+    Ok(true)
+}
+
+async fn try_upgrade_v1_1_54_config(id: &str) -> Result<bool, ClientError> {
+    // explicitly load it as v1.1.54 (which is incompatible with the current one, i.e. +1.1.55)
+    let Ok(old_config) = ConfigV1_1_54::read_from_default_path(id) else {
+        // if we failed to load it, there might have been nothing to upgrade
+        // or maybe it was an even older file. in either way. just ignore it and carry on with our day
+        return Ok(false);
+    };
+    info!("It seems the client is using <= v1.1.54 config template.");
+    info!("It is going to get updated to the current specification.");
+
+    let updated = old_config.try_upgrade()?;
 
     updated.save_to_default_location()?;
     Ok(true)
@@ -276,6 +297,9 @@ async fn try_upgrade_config(id: &str) -> Result<(), ClientError> {
         return Ok(());
     }
     if try_upgrade_v1_1_33_config(id).await? {
+        return Ok(());
+    }
+    if try_upgrade_v1_1_54_config(id).await? {
         return Ok(());
     }
 

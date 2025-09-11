@@ -40,5 +40,5 @@ pub async fn claim_delegator_reward(args: Args, client: SigningClient) {
         .await
         .expect("failed to claim delegator-reward");
 
-    info!("Claiming delegator reward: {:?}", res)
+    info!("Claiming delegator reward: {res:?}")
 }

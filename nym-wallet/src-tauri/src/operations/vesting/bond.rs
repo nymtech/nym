@@ -48,7 +48,7 @@ pub async fn vesting_bond_gateway(
         .vesting_bond_gateway(gateway, msg_signature, pledge_base, fee)
         .await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
-    log::trace!("<<< {:?}", res);
+    log::trace!("<<< {res:?}");
     Ok(TransactionExecuteResult::from_execute_result(
         res, fee_amount,
     )?)
@@ -61,13 +61,10 @@ pub async fn vesting_unbond_gateway(
 ) -> Result<TransactionExecuteResult, BackendError> {
     let guard = state.read().await;
     let fee_amount = guard.convert_tx_fee(fee.as_ref());
-    log::info!(
-        ">>> Unbond gateway bonded with locked tokens, fee = {:?}",
-        fee
-    );
+    log::info!(">>> Unbond gateway bonded with locked tokens, fee = {fee:?}");
     let res = nyxd_client!(state).vesting_unbond_gateway(fee).await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
-    log::trace!("<<< {:?}", res);
+    log::trace!("<<< {res:?}");
     Ok(TransactionExecuteResult::from_execute_result(
         res, fee_amount,
     )?)
@@ -118,7 +115,7 @@ pub async fn vesting_bond_mixnode(
         .vesting_bond_mixnode(mixnode, cost_params, msg_signature, pledge_base, fee)
         .await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
-    log::trace!("<<< {:?}", res);
+    log::trace!("<<< {res:?}");
     Ok(TransactionExecuteResult::from_execute_result(
         res, fee_amount,
     )?)
@@ -144,9 +141,7 @@ pub async fn vesting_update_pledge(
     let res = match new_pledge.amount.cmp(&current_pledge.amount) {
         Ordering::Greater => {
             log::info!(
-                "Pledge increase with locked tokens, calculated additional pledge {}, fee = {:?}",
-                dec_delta,
-                fee,
+                "Pledge increase with locked tokens, calculated additional pledge {dec_delta}, fee = {fee:?}",
             );
             guard
                 .current_client()?
@@ -156,9 +151,7 @@ pub async fn vesting_update_pledge(
         }
         Ordering::Less => {
             log::info!(
-                "Pledge reduction with locked tokens, calculated reduction pledge {}, fee = {:?}",
-                dec_delta,
-                fee,
+                "Pledge reduction with locked tokens, calculated reduction pledge {dec_delta}, fee = {fee:?}",
             );
             guard
                 .current_client()?
@@ -170,7 +163,7 @@ pub async fn vesting_update_pledge(
     };
 
     log::info!("<<< tx hash = {}", res.transaction_hash);
-    log::trace!("<<< {:?}", res);
+    log::trace!("<<< {res:?}");
 
     Ok(TransactionExecuteResult::from_execute_result(
         res, fee_amount,
@@ -187,10 +180,7 @@ pub async fn vesting_pledge_more(
     let additional_pledge_base = guard.attempt_convert_to_base_coin(additional_pledge.clone())?;
     let fee_amount = guard.convert_tx_fee(fee.as_ref());
     log::info!(
-        ">>> Pledge more with locked tokens, additional_pledge_display = {}, additional_pledge_base = {}, fee = {:?}",
-        additional_pledge,
-        additional_pledge_base,
-        fee,
+        ">>> Pledge more with locked tokens, additional_pledge_display = {additional_pledge}, additional_pledge_base = {additional_pledge_base}, fee = {fee:?}",
     );
     let res = guard
         .current_client()?
@@ -198,7 +188,7 @@ pub async fn vesting_pledge_more(
         .vesting_pledge_more(additional_pledge_base, fee)
         .await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
-    log::trace!("<<< {:?}", res);
+    log::trace!("<<< {res:?}");
     Ok(TransactionExecuteResult::from_execute_result(
         res, fee_amount,
     )?)
@@ -214,10 +204,7 @@ pub async fn vesting_decrease_pledge(
     let decrease_by_base = guard.attempt_convert_to_base_coin(decrease_by.clone())?;
     let fee_amount = guard.convert_tx_fee(fee.as_ref());
     log::info!(
-        ">>> Decrease pledge with locked tokens, pledge_decrease_display = {}, pledge_decrease_base = {}, fee = {:?}",
-        decrease_by,
-        decrease_by_base,
-        fee,
+        ">>> Decrease pledge with locked tokens, pledge_decrease_display = {decrease_by}, pledge_decrease_base = {decrease_by_base}, fee = {fee:?}",
     );
     let res = guard
         .current_client()?
@@ -225,7 +212,7 @@ pub async fn vesting_decrease_pledge(
         .vesting_decrease_pledge(decrease_by_base, fee)
         .await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
-    log::trace!("<<< {:?}", res);
+    log::trace!("<<< {res:?}");
     Ok(TransactionExecuteResult::from_execute_result(
         res, fee_amount,
     )?)
@@ -238,17 +225,14 @@ pub async fn vesting_unbond_mixnode(
 ) -> Result<TransactionExecuteResult, BackendError> {
     let guard = state.read().await;
     let fee_amount = guard.convert_tx_fee(fee.as_ref());
-    log::info!(
-        ">>> Unbond mixnode bonded with locked tokens, fee = {:?}",
-        fee
-    );
+    log::info!(">>> Unbond mixnode bonded with locked tokens, fee = {fee:?}");
     let res = guard
         .current_client()?
         .nyxd
         .vesting_unbond_mixnode(fee)
         .await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
-    log::trace!("<<< {:?}", res);
+    log::trace!("<<< {res:?}");
     Ok(TransactionExecuteResult::from_execute_result(
         res, fee_amount,
     )?)
@@ -265,10 +249,7 @@ pub async fn withdraw_vested_coins(
     let fee_amount = guard.convert_tx_fee(fee.as_ref());
 
     log::info!(
-        ">>> Withdraw vested liquid coins: amount_base = {}, amount_base = {}, fee = {:?}",
-        amount,
-        amount_base,
-        fee
+        ">>> Withdraw vested liquid coins: amount_base = {amount}, amount_base = {amount_base}, fee = {fee:?}"
     );
     let res = guard
         .current_client()?
@@ -276,7 +257,7 @@ pub async fn withdraw_vested_coins(
         .withdraw_vested_coins(amount_base, fee)
         .await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
-    log::trace!("<<< {:?}", res);
+    log::trace!("<<< {res:?}");
     Ok(TransactionExecuteResult::from_execute_result(
         res, fee_amount,
     )?)
@@ -304,7 +285,7 @@ pub async fn vesting_update_mixnode_cost_params(
         .vesting_update_mixnode_cost_params(cost_params, fee)
         .await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
-    log::trace!("<<< {:?}", res);
+    log::trace!("<<< {res:?}");
     Ok(TransactionExecuteResult::from_execute_result(
         res, fee_amount,
     )?)
@@ -329,7 +310,7 @@ pub async fn vesting_update_mixnode_config(
         .vesting_update_mixnode_config(update, fee)
         .await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
-    log::trace!("<<< {:?}", res);
+    log::trace!("<<< {res:?}");
     Ok(TransactionExecuteResult::from_execute_result(
         res, fee_amount,
     )?)
@@ -354,7 +335,7 @@ pub async fn vesting_update_gateway_config(
         .vesting_update_gateway_config(update, fee)
         .await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
-    log::trace!("<<< {:?}", res);
+    log::trace!("<<< {res:?}");
     Ok(TransactionExecuteResult::from_execute_result(
         res, fee_amount,
     )?)

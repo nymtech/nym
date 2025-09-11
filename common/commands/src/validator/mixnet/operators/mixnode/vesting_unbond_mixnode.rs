@@ -20,5 +20,5 @@ pub async fn vesting_unbond_mixnode(client: SigningClient) {
         .await
         .expect("failed to unbond vesting mixnode!");
 
-    info!("Unbonding vesting result: {:?}", res)
+    info!("Unbonding vesting result: {res:?}")
 }

@@ -70,6 +70,8 @@ impl EpochAdvancer {
         Ok(())
     }
 
+    // SAFETY: `EpochAdvancer` is not started until cache is properly initialised
+    #[allow(clippy::unwrap_used)]
     pub(crate) async fn nodes_to_reward(
         &self,
     ) -> Result<Vec<RewardedNodeWithParams>, RewardingError> {
@@ -79,25 +81,23 @@ impl EpochAdvancer {
             Ok(rewarded_set) => rewarded_set,
             Err(err) => {
                 warn!("failed to obtain the current rewarded set: {err}. falling back to the cached version");
-                self.nym_contract_cache
+                self.mixnet_contract_cache
                     .rewarded_set_owned()
                     .await
-                    .into_inner()
+                    .unwrap()
                     .into()
             }
         };
 
         // we only need reward parameters for active set work factor and rewarded/active set sizes;
         // we do not need exact values of reward pool, staking supply, etc., so it's fine if it's slightly out of sync
-        let Some(reward_params) = self
-            .nym_contract_cache
+
+        // SAFETY: `EpochAdvancer` is not started until cache is properly initialised
+        let reward_params = self
+            .mixnet_contract_cache
             .interval_reward_params()
             .await
-            .into_inner()
-        else {
-            error!("failed to obtain the current interval rewarding parameters. can't determine rewards without them");
-            return Err(RewardingError::RewardingParamsRetrievalFailure);
-        };
+            .unwrap();
 
         Ok(self
             .load_nodes_for_rewarding(&rewarded_set, reward_params)

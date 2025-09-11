@@ -4,7 +4,6 @@
 use crate::error::ClientCoreError;
 use crate::init::types::RegistrationResult;
 use futures::{SinkExt, StreamExt};
-use log::{debug, info, trace, warn};
 use nym_crypto::asymmetric::ed25519;
 use nym_gateway_client::GatewayClient;
 use nym_topology::node::RoutingNode;
@@ -14,6 +13,7 @@ use rand::{seq::SliceRandom, Rng};
 #[cfg(unix)]
 use std::os::fd::RawFd;
 use std::{sync::Arc, time::Duration};
+use tracing::{debug, info, trace, warn};
 use tungstenite::Message;
 use url::Url;
 
@@ -105,12 +105,15 @@ pub async fn gateways_for_init<R: Rng>(
         nym_validator_client::client::NymApiClient::new(nym_api.clone())
     };
 
-    log::debug!("Fetching list of gateways from: {nym_api}");
+    tracing::debug!("Fetching list of gateways from: {nym_api}");
 
-    let gateways = client.get_all_basic_entry_assigned_nodes().await?;
+    let gateways = client
+        .get_all_basic_entry_assigned_nodes_with_metadata()
+        .await?
+        .nodes;
     info!("nym api reports {} gateways", gateways.len());
 
-    log::trace!("Gateways: {:#?}", gateways);
+    tracing::trace!("Gateways: {gateways:#?}");
 
     // filter out gateways below minimum performance and ones that could operate as a mixnode
     // (we don't want instability)
@@ -120,10 +123,10 @@ pub async fn gateways_for_init<R: Rng>(
         .filter(|g| g.performance.round_to_integer() >= minimum_performance)
         .filter_map(|gateway| gateway.try_into().ok())
         .collect::<Vec<_>>();
-    log::debug!("After checking validity: {}", valid_gateways.len());
-    log::trace!("Valid gateways: {:#?}", valid_gateways);
+    tracing::debug!("After checking validity: {}", valid_gateways.len());
+    tracing::trace!("Valid gateways: {valid_gateways:#?}");
 
-    log::info!(
+    tracing::info!(
         "and {} after validity and performance filtering",
         valid_gateways.len()
     );
@@ -145,7 +148,7 @@ async fn connect(endpoint: &str) -> Result<WsConn, ClientCoreError> {
     JSWebsocket::new(endpoint).map_err(|_| ClientCoreError::GatewayJsConnectionFailure)
 }
 
-async fn measure_latency<G>(gateway: &G) -> Result<GatewayWithLatency<G>, ClientCoreError>
+async fn measure_latency<G>(gateway: &G) -> Result<GatewayWithLatency<'_, G>, ClientCoreError>
 where
     G: ConnectableGateway,
 {
@@ -242,7 +245,7 @@ pub async fn choose_gateway_by_latency<R: Rng, G: ConnectableGateway + Clone>(
     let gateways_with_latency = gateways_with_latency.lock().await;
     let chosen = gateways_with_latency
         .choose_weighted(rng, |item| 1. / item.latency.as_secs_f32())
-        .expect("invalid selection weight!");
+        .map_err(|source| ClientCoreError::GatewaySelectionFailure { source })?;
 
     info!(
         "chose gateway {} with average latency of {:?}",
@@ -286,7 +289,7 @@ pub(super) fn get_specified_gateway(
     gateways: &[RoutingNode],
     must_use_tls: bool,
 ) -> Result<RoutingNode, ClientCoreError> {
-    log::debug!("Requesting specified gateway: {}", gateway_identity);
+    tracing::debug!("Requesting specified gateway: {gateway_identity}");
     let user_gateway = ed25519::PublicKey::from_base58_string(gateway_identity)
         .map_err(ClientCoreError::UnableToCreatePublicKeyFromGatewayId)?;
 
@@ -326,20 +329,20 @@ pub(super) async fn register_with_gateway(
     );
 
     gateway_client.establish_connection().await.map_err(|err| {
-        log::warn!("Failed to establish connection with gateway!");
+        tracing::warn!("Failed to establish connection with gateway!");
         ClientCoreError::GatewayClientError {
             gateway_id: gateway_id.to_base58_string(),
-            source: err,
+            source: Box::new(err),
         }
     })?;
     let auth_response = gateway_client
         .perform_initial_authentication()
         .await
         .map_err(|err| {
-            log::warn!("Failed to register with the gateway {gateway_id}: {err}");
+            tracing::warn!("Failed to register with the gateway {gateway_id}: {err}");
             ClientCoreError::GatewayClientError {
                 gateway_id: gateway_id.to_base58_string(),
-                source: err,
+                source: Box::new(err),
             }
         })?;
 

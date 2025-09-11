@@ -1,0 +1,38 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "NodeMeasurementsResponse",
+  "type": "object",
+  "properties": {
+    "measurements": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/NodeResults"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "Decimal": {
+      "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
+      "type": "string"
+    },
+    "NodeResults": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/Percent"
+      }
+    },
+    "Percent": {
+      "description": "Percent represents a value between 0 and 100% (i.e. between 0.0 and 1.0)",
+      "allOf": [
+        {
+          "$ref": "#/definitions/Decimal"
+        }
+      ]
+    }
+  }
+}

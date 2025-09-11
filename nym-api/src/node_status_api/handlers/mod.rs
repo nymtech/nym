@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::node_status_api::models::AxumResult;
-use crate::support::caching::cache::UninitialisedCache;
 use crate::support::http::state::AppState;
-use axum::extract::State;
+use axum::extract::{Query, State};
 use axum::routing::get;
-use axum::{Json, Router};
+use axum::Router;
 use nym_api_requests::models::ConfigScoreDataResponse;
+use nym_http_api_common::{FormattedResponse, OutputParams};
 use nym_mixnet_contract_common::NodeId;
 use serde::Deserialize;
 use utoipa::IntoParams;
@@ -43,17 +43,21 @@ struct MixIdParam {
     path = "/config-score-details",
     context_path = "/v1/status",
     responses(
-        (status = 200, body = ConfigScoreDataResponse)
+        (status = 200, content(
+            (ConfigScoreDataResponse = "application/json"),
+            (ConfigScoreDataResponse = "application/yaml"),
+            (ConfigScoreDataResponse = "application/bincode")
+        ))
     ),
+    params(OutputParams)
 )]
 async fn config_score_details(
+    Query(output): Query<OutputParams>,
     State(state): State<AppState>,
-) -> AxumResult<Json<ConfigScoreDataResponse>> {
-    let data = state
-        .nym_contract_cache()
-        .maybe_config_score_data_owned()
-        .await
-        .ok_or(UninitialisedCache)?;
+) -> AxumResult<FormattedResponse<ConfigScoreDataResponse>> {
+    let output = output.output.unwrap_or_default();
 
-    Ok(Json(data.into_inner().into()))
+    let data = state.nym_contract_cache().maybe_config_score_data().await?;
+
+    Ok(output.to_response(data.into()))
 }

@@ -1,6 +1,7 @@
 // Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::mixnet_contract_cache::cache::MixnetContractCache;
 use crate::network_monitor::monitor::preparer::PacketPreparer;
 use crate::network_monitor::monitor::processor::{
     ReceivedProcessor, ReceivedProcessorReceiver, ReceivedProcessorSender,
@@ -11,9 +12,8 @@ use crate::network_monitor::monitor::receiver::{
 use crate::network_monitor::monitor::sender::PacketSender;
 use crate::network_monitor::monitor::summary_producer::SummaryProducer;
 use crate::network_monitor::monitor::Monitor;
-use crate::node_describe_cache::DescribedNodes;
+use crate::node_describe_cache::cache::DescribedNodes;
 use crate::node_status_api::NodeStatusCache;
-use crate::nym_contract_cache::cache::NymContractCache;
 use crate::storage::NymApiStorage;
 use crate::support::caching::cache::SharedCache;
 use crate::support::config::Config;
@@ -25,7 +25,7 @@ use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_sphinx::acknowledgements::AckKey;
 use nym_sphinx::params::PacketType;
 use nym_sphinx::receiver::MessageReceiver;
-use nym_task::TaskManager;
+use nym_task::ShutdownManager;
 use std::sync::Arc;
 use tracing::info;
 
@@ -38,7 +38,7 @@ pub(crate) const ROUTE_TESTING_TEST_NONCE: u64 = 0;
 
 pub(crate) fn setup<'a>(
     config: &'a Config,
-    nym_contract_cache: &NymContractCache,
+    nym_contract_cache: &MixnetContractCache,
     described_cache: SharedCache<DescribedNodes>,
     node_status_cache: NodeStatusCache,
     storage: &NymApiStorage,
@@ -58,7 +58,7 @@ pub(crate) struct NetworkMonitorBuilder<'a> {
     config: &'a Config,
     nyxd_client: nyxd::Client,
     node_status_storage: NymApiStorage,
-    contract_cache: NymContractCache,
+    contract_cache: MixnetContractCache,
     described_cache: SharedCache<DescribedNodes>,
     node_status_cache: NodeStatusCache,
 }
@@ -68,7 +68,7 @@ impl<'a> NetworkMonitorBuilder<'a> {
         config: &'a Config,
         nyxd_client: nyxd::Client,
         node_status_storage: NymApiStorage,
-        contract_cache: NymContractCache,
+        contract_cache: MixnetContractCache,
         described_cache: SharedCache<DescribedNodes>,
         node_status_cache: NodeStatusCache,
     ) -> Self {
@@ -167,18 +167,18 @@ impl<R: MessageReceiver + Send + Sync + 'static> NetworkMonitorRunnables<R> {
     // TODO: note, that is not exactly doing what we want, because when
     // `ReceivedProcessor` is constructed, it already spawns a future
     // this needs to be refactored!
-    pub(crate) fn spawn_tasks(self, shutdown: &TaskManager) {
+    pub(crate) fn spawn_tasks(self, shutdown: &ShutdownManager) {
         let mut packet_receiver = self.packet_receiver;
         let mut monitor = self.monitor;
-        let shutdown_listener = shutdown.subscribe();
+        let shutdown_listener = shutdown.clone_token("NM-packet-receiver");
         tokio::spawn(async move { packet_receiver.run(shutdown_listener).await });
-        let shutdown_listener = shutdown.subscribe();
+        let shutdown_listener = shutdown.clone_token("NM-main");
         tokio::spawn(async move { monitor.run(shutdown_listener).await });
     }
 }
 
 fn new_packet_preparer(
-    contract_cache: NymContractCache,
+    contract_cache: MixnetContractCache,
     described_cache: SharedCache<DescribedNodes>,
     node_status_cache: NodeStatusCache,
     per_node_test_packets: usize,
@@ -236,12 +236,12 @@ fn new_packet_receiver(
 // TODO: 2) how do we make it non-async as other 'start' methods?
 pub(crate) async fn start<R: MessageReceiver + Send + Sync + 'static>(
     config: &Config,
-    nym_contract_cache: &NymContractCache,
+    nym_contract_cache: &MixnetContractCache,
     described_cache: SharedCache<DescribedNodes>,
     node_status_cache: NodeStatusCache,
     storage: &NymApiStorage,
     nyxd_client: nyxd::Client,
-    shutdown: &TaskManager,
+    shutdown: &ShutdownManager,
 ) {
     let monitor_builder = setup(
         config,

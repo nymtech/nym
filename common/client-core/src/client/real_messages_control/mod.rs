@@ -24,7 +24,6 @@ use crate::{
     spawn_future,
 };
 use futures::channel::mpsc;
-use log::*;
 use nym_gateway_client::AcknowledgementReceiver;
 use nym_sphinx::acknowledgements::AckKey;
 use nym_sphinx::addressing::clients::Recipient;
@@ -34,7 +33,9 @@ use nym_task::connections::{ConnectionCommandReceiver, LaneQueueLengths};
 use nym_task::TaskClient;
 use rand::{rngs::OsRng, CryptoRng, Rng};
 use std::sync::Arc;
+use tracing::*;
 
+use crate::client::replies::reply_controller::key_rotation_helpers::KeyRotationConfig;
 pub(crate) use acknowledgement_control::{AckActionSender, Action};
 
 pub(crate) mod acknowledgement_control;
@@ -85,12 +86,6 @@ impl<'a> From<&'a Config> for real_traffic_stream::Config {
     }
 }
 
-impl<'a> From<&'a Config> for reply_controller::Config {
-    fn from(cfg: &'a Config) -> Self {
-        reply_controller::Config::new(cfg.reply_surbs)
-    }
-}
-
 impl<'a> From<&'a Config> for message_handler::Config {
     fn from(cfg: &'a Config) -> Self {
         message_handler::Config::new(
@@ -103,6 +98,7 @@ impl<'a> From<&'a Config> for message_handler::Config {
         )
         .with_custom_primary_packet_size(cfg.traffic.primary_packet_size)
         .with_custom_secondary_packet_size(cfg.traffic.secondary_packet_size)
+        .disable_mix_hops(cfg.traffic.disable_mix_hops)
     }
 }
 
@@ -138,6 +134,7 @@ impl RealMessagesController<OsRng> {
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         config: Config,
+        key_rotation_config: KeyRotationConfig,
         ack_receiver: AcknowledgementReceiver,
         input_receiver: InputMessageReceiver,
         mix_sender: BatchMixMessageSender,
@@ -168,7 +165,8 @@ impl RealMessagesController<OsRng> {
         // create all configs for the components
         let ack_control_config = (&config).into();
         let out_queue_config = (&config).into();
-        let reply_controller_config = (&config).into();
+        let reply_controller_config =
+            reply_controller::Config::new(config.reply_surbs, key_rotation_config);
         let message_handler_config = (&config).into();
 
         // create the actual components
@@ -226,14 +224,20 @@ impl RealMessagesController<OsRng> {
         let ack_control = self.ack_control;
         let mut reply_control = self.reply_control;
 
-        spawn_future(async move {
-            out_queue_control.run().await;
-            debug!("The out queue controller has finished execution!");
-        });
-        spawn_future(async move {
-            reply_control.run().await;
-            debug!("The reply controller has finished execution!");
-        });
+        spawn_future!(
+            async move {
+                out_queue_control.run().await;
+                debug!("The out queue controller has finished execution!");
+            },
+            "RealMessagesController::OutQueueControl)"
+        );
+        spawn_future!(
+            async move {
+                reply_control.run().await;
+                debug!("The reply controller has finished execution!");
+            },
+            "RealMessagesController::ReplyController"
+        );
 
         ack_control.start(packet_type);
     }

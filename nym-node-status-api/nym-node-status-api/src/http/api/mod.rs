@@ -1,17 +1,20 @@
 use anyhow::anyhow;
 use axum::{response::Redirect, Router};
+use nym_http_api_common::middleware::logging::log_request_debug;
 use tokio::net::ToSocketAddrs;
-use tower_http::{cors::CorsLayer, trace::TraceLayer};
+use tower_http::cors::CorsLayer;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
 use crate::http::{server::HttpServer, state::AppState};
 
+pub(crate) mod dvpn;
 pub(crate) mod gateways;
 pub(crate) mod metrics;
 pub(crate) mod mixnodes;
 pub(crate) mod nym_nodes;
 pub(crate) mod services;
+pub(crate) mod status;
 pub(crate) mod summary;
 pub(crate) mod testruns;
 
@@ -37,9 +40,17 @@ impl RouterBuilder {
                     .nest("/mixnodes", mixnodes::routes())
                     .nest("/services", services::routes())
                     .nest("/summary", summary::routes())
-                    .nest("/metrics", metrics::routes()),
+                    .nest("/metrics", metrics::routes())
+                    .nest("/status", status::routes()),
             )
-            .nest("/v3", Router::new().nest("/nym-nodes", nym_nodes::routes()))
+            .nest(
+                "/explorer/v3",
+                Router::new().nest("/nym-nodes", nym_nodes::routes()),
+            )
+            .nest(
+                "/dvpn/v1",
+                Router::new().nest("/directory/gateways", dvpn::routes()),
+            )
             .nest(
                 "/internal",
                 Router::new().nest("/testruns", testruns::routes()),
@@ -62,7 +73,7 @@ impl RouterBuilder {
             // CORS layer needs to wrap other API layers
             .layer(setup_cors())
             // logger should be outermost layer
-            .layer(TraceLayer::new_for_http())
+            .layer(axum::middleware::from_fn(log_request_debug))
     }
 }
 
@@ -89,4 +100,39 @@ fn setup_cors() -> CorsLayer {
         .allow_methods([Method::POST, Method::GET, Method::PATCH, Method::OPTIONS])
         .allow_headers(tower_http::cors::Any)
         .allow_credentials(false)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_cors_configuration() {
+        let cors = setup_cors();
+
+        // Test that CORS is configured (this tests that the function returns a valid CorsLayer)
+        // The actual CORS behavior would need integration tests
+        let _layer = cors; // This ensures the cors layer is valid
+    }
+
+    #[test]
+    fn test_router_builder_creates_routes() {
+        let router_builder = RouterBuilder::with_default_routes();
+
+        // Test that the router builder has the expected structure
+        // The router itself is private, but we can test that the builder is created
+        let unfinished_router = router_builder.unfinished_router;
+
+        // Convert to a testable format - this will compile only if routes are properly configured
+        let _test_router = unfinished_router;
+    }
+
+    #[test]
+    fn test_router_builder_finalize() {
+        let router_builder = RouterBuilder::with_default_routes();
+        let finalized = router_builder.finalize_routes();
+
+        // This tests that finalize_routes produces a valid Router
+        let _router = finalized;
+    }
 }

@@ -73,5 +73,5 @@ pub async fn bond_gateway(args: Args, client: SigningClient) {
         .await
         .expect("failed to bond gateway!");
 
-    info!("Bonding result: {:?}", res)
+    info!("Bonding result: {res:?}")
 }

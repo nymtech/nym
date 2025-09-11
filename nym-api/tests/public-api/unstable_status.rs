@@ -4,6 +4,7 @@ use crate::utils::{
 };
 
 #[tokio::test]
+#[test_with::env(NYM_API)]
 async fn test_get_gateway_unstable_test_results() -> Result<(), String> {
     let identity = get_gateway_identity_key().await?;
     let url = format!(
@@ -35,6 +36,7 @@ async fn test_get_gateway_unstable_test_results() -> Result<(), String> {
 }
 
 #[tokio::test]
+#[test_with::env(NYM_API)]
 async fn test_get_mixnode_unstable_test_results() -> Result<(), String> {
     let mix_id = get_mixnode_node_id().await?;
     let url = format!(
@@ -66,6 +68,7 @@ async fn test_get_mixnode_unstable_test_results() -> Result<(), String> {
 }
 
 #[tokio::test]
+#[test_with::env(NYM_API)]
 async fn test_get_latest_network_monitor_run_details() -> Result<(), String> {
     let url = format!(
         "{}/v1/status/network-monitor/unstable/run/latest/details",
@@ -87,7 +90,7 @@ async fn test_get_latest_network_monitor_run_details() -> Result<(), String> {
         .get(&follow_up_url)
         .send()
         .await
-        .map_err(|err| format!("Failed to follow up with URL {}: {}", follow_up_url, err))?;
+        .map_err(|err| format!("Failed to follow up with URL {follow_up_url}: {err}"))?;
     assert!(follow_up_res.status().is_success());
     Ok(())
 }

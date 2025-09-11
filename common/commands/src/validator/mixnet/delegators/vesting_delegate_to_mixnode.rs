@@ -53,5 +53,5 @@ pub async fn vesting_delegate_to_mixnode(args: Args, client: SigningClient) {
         .await
         .expect("failed to delegate to mixnode!");
 
-    info!("vesting delegating to mixnode: {:?}", res);
+    info!("vesting delegating to mixnode: {res:?}");
 }

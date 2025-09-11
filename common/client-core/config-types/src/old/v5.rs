@@ -1,15 +1,13 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{
-    Acknowledgements, Client, Config, CoverTraffic, DebugConfig, GatewayConnection, ReplySurbs,
-    Topology, Traffic,
-};
 use nym_sphinx_addressing::Recipient;
 use nym_sphinx_params::{PacketSize, PacketType};
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use url::Url;
+
+use super::v6::*;
 
 // 'DEBUG'
 const DEFAULT_ACK_WAIT_MULTIPLIER: f64 = 1.5;
@@ -87,18 +85,18 @@ pub struct ConfigV5 {
     pub debug: DebugConfigV5,
 }
 
-impl From<ConfigV5> for Config {
+impl From<ConfigV5> for ConfigV6 {
     fn from(value: ConfigV5) -> Self {
-        Config {
-            client: Client {
+        ConfigV6 {
+            client: ClientV6 {
                 version: value.client.version,
                 id: value.client.id,
                 disabled_credentials_mode: value.client.disabled_credentials_mode,
                 nyxd_urls: value.client.nyxd_urls,
                 nym_api_urls: value.client.nym_api_urls,
             },
-            debug: DebugConfig {
-                traffic: Traffic {
+            debug: DebugConfigV6 {
+                traffic: TrafficV6 {
                     average_packet_delay: value.debug.traffic.average_packet_delay,
                     message_sending_average_delay: value
                         .debug
@@ -113,7 +111,7 @@ impl From<ConfigV5> for Config {
                     packet_type: value.debug.traffic.packet_type,
                     ..Default::default()
                 },
-                cover_traffic: CoverTraffic {
+                cover_traffic: CoverTrafficV6 {
                     loop_cover_traffic_average_delay: value
                         .debug
                         .cover_traffic
@@ -127,18 +125,18 @@ impl From<ConfigV5> for Config {
                         .cover_traffic
                         .disable_loop_cover_traffic_stream,
                 },
-                gateway_connection: GatewayConnection {
+                gateway_connection: GatewayConnectionV6 {
                     gateway_response_timeout: value
                         .debug
                         .gateway_connection
                         .gateway_response_timeout,
                 },
-                acknowledgements: Acknowledgements {
+                acknowledgements: AcknowledgementsV6 {
                     average_ack_delay: value.debug.acknowledgements.average_ack_delay,
                     ack_wait_multiplier: value.debug.acknowledgements.ack_wait_multiplier,
                     ack_wait_addition: value.debug.acknowledgements.ack_wait_addition,
                 },
-                topology: Topology {
+                topology: TopologyV6 {
                     topology_refresh_rate: value.debug.topology.topology_refresh_rate,
                     topology_resolution_timeout: value.debug.topology.topology_resolution_timeout,
                     disable_refreshing: value.debug.topology.disable_refreshing,
@@ -148,7 +146,7 @@ impl From<ConfigV5> for Config {
                         .max_startup_gateway_waiting_period,
                     ..Default::default()
                 },
-                reply_surbs: ReplySurbs {
+                reply_surbs: ReplySurbsV6 {
                     minimum_reply_surb_storage_threshold: value
                         .debug
                         .reply_surbs

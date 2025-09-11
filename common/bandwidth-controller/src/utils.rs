@@ -207,7 +207,7 @@ where
     <St as Storage>::StorageError: Send + Sync + 'static,
 {
     if let Some(stored) = storage
-        .get_expiration_date_signatures(expiration_date)
+        .get_expiration_date_signatures(expiration_date, epoch_id)
         .await
         .map_err(BandwidthControllerError::credential_storage_error)?
     {
@@ -220,7 +220,7 @@ where
         ecash_apis,
         |api| async move {
             api.api_client
-                .global_expiration_date_signatures(Some(expiration_date))
+                .global_expiration_date_signatures(Some(expiration_date), Some(epoch_id))
                 .await
         },
         format!("aggregated coin index signatures for date {expiration_date}"),

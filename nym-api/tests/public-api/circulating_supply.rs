@@ -1,6 +1,7 @@
 use crate::utils::{base_url, make_request, validate_json_response};
 
 #[tokio::test]
+#[test_with::env(NYM_API)]
 async fn test_get_circulating_supply() -> Result<(), String> {
     let url = format!("{}/v1/circulating-supply", base_url()?);
     let res = make_request(&url).await?;
@@ -14,6 +15,7 @@ async fn test_get_circulating_supply() -> Result<(), String> {
 }
 
 #[tokio::test]
+#[test_with::env(NYM_API)]
 async fn test_get_circulating_supply_value() -> Result<(), String> {
     let url = format!(
         "{}/v1/circulating-supply/circulating-supply-value",
@@ -32,6 +34,7 @@ async fn test_get_circulating_supply_value() -> Result<(), String> {
 }
 
 #[tokio::test]
+#[test_with::env(NYM_API)]
 async fn test_get_total_supply_value() -> Result<(), String> {
     let url = format!("{}/v1/circulating-supply/total-supply-value", base_url()?);
     let res = make_request(&url).await?;

@@ -1,12 +1,14 @@
+// Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: GPL-3.0-only
+
 use crate::client_pool::ClientPool;
 use crate::mixnet::{IncludedSurbs, MixnetClientBuilder, MixnetMessageSender, NymNetworkDetails};
-use std::sync::Arc;
-#[path = "utils.rs"]
-mod utils;
+use crate::tcp_proxy::utils::{MessageBuffer, Payload, ProxiedMessage};
 use anyhow::Result;
 use dashmap::DashSet;
 use nym_network_defaults::setup_env;
 use nym_sphinx::addressing::Recipient;
+use std::sync::Arc;
 use tokio::{
     net::{TcpListener, TcpStream},
     sync::oneshot,
@@ -15,7 +17,6 @@ use tokio_stream::StreamExt;
 use tokio_util::codec::{BytesCodec, FramedRead};
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, info, instrument};
-use utils::{MessageBuffer, Payload, ProxiedMessage};
 
 const DEFAULT_CLOSE_TIMEOUT: u64 = 60; // seconds
 const DEFAULT_LISTEN_HOST: &str = "127.0.0.1";

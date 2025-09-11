@@ -138,6 +138,24 @@ impl NyxdClient<HttpClient> {
             config,
         })
     }
+
+    pub fn connect_with_network_details<U>(
+        endpoint: U,
+        network_details: NymNetworkDetails,
+    ) -> Result<QueryHttpRpcNyxdClient, NyxdError>
+    where
+        U: TryInto<HttpClientUrl, Error = TendermintRpcError>,
+    {
+        let config = Config::try_from_nym_network_details(&network_details)?;
+        Self::connect(config, endpoint)
+    }
+
+    pub fn connect_to_default_env<U>(endpoint: U) -> Result<QueryHttpRpcNyxdClient, NyxdError>
+    where
+        U: TryInto<HttpClientUrl, Error = TendermintRpcError>,
+    {
+        Self::connect_with_network_details(endpoint, NymNetworkDetails::new_from_env())
+    }
 }
 
 impl NyxdClient<ReqwestRpcClient> {
@@ -266,6 +284,10 @@ impl<C, S> NymContractsProvider for NyxdClient<C, S> {
 
     fn vesting_contract_address(&self) -> Option<&AccountId> {
         self.config.contracts.vesting_contract_address.as_ref()
+    }
+
+    fn performance_contract_address(&self) -> Option<&AccountId> {
+        self.config.contracts.performance_contract_address.as_ref()
     }
 
     fn ecash_contract_address(&self) -> Option<&AccountId> {

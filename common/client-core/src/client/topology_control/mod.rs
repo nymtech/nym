@@ -4,11 +4,11 @@
 use crate::spawn_future;
 pub(crate) use accessor::{TopologyAccessor, TopologyReadPermit};
 use futures::StreamExt;
-use log::*;
 use nym_sphinx::addressing::nodes::NodeIdentity;
 use nym_task::TaskClient;
 use nym_topology::NymTopologyError;
 use std::time::Duration;
+use tracing::*;
 
 #[cfg(not(target_arch = "wasm32"))]
 use tokio::time::sleep;
@@ -20,7 +20,7 @@ mod accessor;
 pub mod nym_api_provider;
 
 pub use nym_api_provider::{Config as NymApiTopologyProviderConfig, NymApiTopologyProvider};
-pub use nym_topology::provider_trait::TopologyProvider;
+pub use nym_topology::provider_trait::{ToTopologyMetadata, TopologyProvider};
 
 // TODO: move it to config later
 const MAX_FAILURE_COUNT: usize = 10;
@@ -145,30 +145,39 @@ impl TopologyRefresher {
     }
 
     pub fn start(mut self) {
-        spawn_future(async move {
-            debug!("Started TopologyRefresher with graceful shutdown support");
+        spawn_future!(
+            async move {
+                debug!("Started TopologyRefresher with graceful shutdown support");
 
-            #[cfg(not(target_arch = "wasm32"))]
-            let mut interval = tokio_stream::wrappers::IntervalStream::new(tokio::time::interval(
-                self.refresh_rate,
-            ));
+                #[cfg(not(target_arch = "wasm32"))]
+                let mut interval = tokio_stream::wrappers::IntervalStream::new(
+                    tokio::time::interval(self.refresh_rate),
+                );
 
-            #[cfg(target_arch = "wasm32")]
-            let mut interval =
-                gloo_timers::future::IntervalStream::new(self.refresh_rate.as_millis() as u32);
+                #[cfg(target_arch = "wasm32")]
+                let mut interval =
+                    gloo_timers::future::IntervalStream::new(self.refresh_rate.as_millis() as u32);
 
-            while !self.task_client.is_shutdown() {
-                tokio::select! {
-                    _ = interval.next() => {
-                        self.try_refresh().await;
-                    },
-                    _ = self.task_client.recv() => {
-                        log::trace!("TopologyRefresher: Received shutdown");
-                    },
+                // We already have an initial topology, so no need to refresh it immediately.
+                // My understanding is that js setInterval does not fire immediately, so it's not
+                // needed there.
+                #[cfg(not(target_arch = "wasm32"))]
+                interval.next().await;
+
+                while !self.task_client.is_shutdown() {
+                    tokio::select! {
+                        _ = interval.next() => {
+                            self.try_refresh().await;
+                        },
+                        _ = self.task_client.recv() => {
+                            tracing::trace!("TopologyRefresher: Received shutdown");
+                        },
+                    }
                 }
-            }
-            self.task_client.recv_timeout().await;
-            log::debug!("TopologyRefresher: Exiting");
-        })
+                self.task_client.recv_timeout().await;
+                tracing::debug!("TopologyRefresher: Exiting");
+            },
+            "TopologyRefresher"
+        )
     }
 }

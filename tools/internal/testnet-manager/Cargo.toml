@@ -7,6 +7,7 @@ homepage.workspace = true
 documentation.workspace = true
 edition.workspace = true
 license.workspace = true
+rust-version.workspace = true
 
 [dependencies]
 anyhow.workspace = true
@@ -16,6 +17,7 @@ console = { workspace = true }
 cw-utils.workspace = true
 clap = { workspace = true, features = ["cargo", "derive"] }
 indicatif = { workspace = true }
+humantime = { workspace = true }
 rand.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
@@ -45,9 +47,11 @@ nym-group-contract-common = { path = "../../../common/cosmwasm-smart-contracts/g
 nym-ecash-contract-common = { path = "../../../common/cosmwasm-smart-contracts/ecash-contract" }
 nym-coconut-dkg-common = { path = "../../../common/cosmwasm-smart-contracts/coconut-dkg" }
 nym-multisig-contract-common = { path = "../../../common/cosmwasm-smart-contracts/multisig-contract" }
+nym-performance-contract-common = { path = "../../../common/cosmwasm-smart-contracts/nym-performance-contract" }
 nym-pemstore = { path = "../../../common/pemstore" }
 
 
 [build-dependencies]
+anyhow = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
 sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"] }

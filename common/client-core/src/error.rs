@@ -6,7 +6,10 @@ use nym_crypto::asymmetric::ed25519::Ed25519RecoveryError;
 use nym_gateway_client::error::GatewayClientError;
 use nym_topology::node::RoutingNodeError;
 use nym_topology::{NodeId, NymTopologyError};
+use nym_validator_client::nym_api::error::NymAPIError;
+use nym_validator_client::nyxd::error::NyxdError;
 use nym_validator_client::ValidatorClientError;
+use rand::distributions::WeightedError;
 use std::error::Error;
 use std::path::PathBuf;
 
@@ -18,7 +21,7 @@ pub enum ClientCoreError {
     #[error("gateway client error ({gateway_id}): {source}")]
     GatewayClientError {
         gateway_id: String,
-        source: GatewayClientError,
+        source: Box<GatewayClientError>,
     },
 
     #[error("custom gateway client error: {source}")]
@@ -52,7 +55,15 @@ pub enum ClientCoreError {
     #[error("list of nym apis is empty")]
     ListOfNymApisIsEmpty,
 
-    #[error("the current network topology seem to be insufficient to route any packets through")]
+    #[error("failed to resolve a query to nym API: {source}")]
+    NymApiQueryFailure {
+        #[from]
+        source: NymAPIError,
+    },
+
+    #[error(
+        "the current network topology seem to be insufficient to route any packets through:\n\t{0}"
+    )]
     InsufficientNetworkTopology(#[from] NymTopologyError),
 
     #[error("experienced a failure with our reply surb persistent storage: {source}")]
@@ -88,10 +99,7 @@ pub enum ClientCoreError {
     },
 
     #[error("failed to establish connection to gateway: {source}")]
-    GatewayConnectionFailure {
-        #[from]
-        source: tungstenite::Error,
-    },
+    GatewayConnectionFailure { source: Box<tungstenite::Error> },
 
     #[cfg(target_arch = "wasm32")]
     #[error("failed to establish gateway connection (wasm)")]
@@ -224,7 +232,27 @@ pub enum ClientCoreError {
     UnexpectedKeyUpgrade { gateway_id: String },
 
     #[error("failed to derive keys from master key")]
-    HkdfDerivationError {},
+    HkdfDerivationError,
+
+    #[error("missing url for constructing RPC client")]
+    RpcClientMissingUrl,
+
+    #[error("provided nym network details were malformed: {source}")]
+    InvalidNetworkDetails { source: NyxdError },
+
+    #[error("failed to construct RPC client: {source}")]
+    RpcClientCreationFailure { source: NyxdError },
+
+    #[error("failed to select valid gateway due to incomputable latency")]
+    GatewaySelectionFailure { source: WeightedError },
+}
+
+impl From<tungstenite::Error> for ClientCoreError {
+    fn from(err: tungstenite::Error) -> ClientCoreError {
+        ClientCoreError::GatewayConnectionFailure {
+            source: Box::new(err),
+        }
+    }
 }
 
 /// Set of messages that the client can send to listeners via the task manager

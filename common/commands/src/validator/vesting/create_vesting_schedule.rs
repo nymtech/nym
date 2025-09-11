@@ -86,6 +86,6 @@ pub async fn create(args: Args, client: SigningClient, network_details: &NymNetw
         .await
         .unwrap();
 
-    info!("Vesting result: {:?}", res);
-    info!("Coin send result: {:?}", send_coin_response);
+    info!("Vesting result: {res:?}");
+    info!("Coin send result: {send_coin_response:?}");
 }

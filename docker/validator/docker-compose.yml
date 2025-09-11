@@ -1,0 +1,30 @@
+services:
+  validator:
+    build:
+      context: ./
+      args: 
+        NYM_CLI_GIT_TAG: "2025.8-tourist"
+        WASMD_VERSION: "v0.54.3"
+    image: validator:latest
+    container_name: validator
+    ports:
+      - "127.0.0.1:26657:26657"
+      - "127.0.0.1:26656:26656"
+      - "127.0.0.1:1317:1317"
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+    volumes:
+      - ./data/addresses:/root/output
+      - ./data/validator:/root/.nyxd
+    environment:
+      BECH32_PREFIX: "n"
+      DENOM: "nym"
+      STAKE_DENOM: "nyx"
+      WASMD_VERSION: "v0.54.3"
+      CHAIN_ID: "nymtestnetwork"
+      NYM_CLI_GIT_TAG: "2025.8-tourist"
+      RETAIN_BLOCKS: "no"

@@ -57,17 +57,17 @@ pub fn get_pubkey_from_mnemonic(address: AccountId, prefix: &str, mnemonic: bip3
                 println!("{}", account.public_key().to_string());
             }
             None => {
-                error!("Could not derive key that matches {}", address)
+                error!("Could not derive key that matches {address}")
             }
         },
         Err(e) => {
-            error!("Failed to derive accounts. {}", e);
+            error!("Failed to derive accounts. {e}");
         }
     }
 }
 
 pub async fn get_pubkey_from_chain(address: AccountId, client: &QueryClient) {
-    info!("Getting public key for address {} from chain...", address);
+    info!("Getting public key for address {address} from chain...");
     match client.get_account(&address).await {
         Ok(Some(account)) => {
             if let Ok(base_account) = account.try_get_base_account() {

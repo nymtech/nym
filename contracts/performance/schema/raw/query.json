@@ -1,0 +1,339 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "QueryMsg",
+  "oneOf": [
+    {
+      "type": "object",
+      "required": [
+        "admin"
+      ],
+      "properties": {
+        "admin": {
+          "type": "object",
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Returns performance of particular node for the provided epoch",
+      "type": "object",
+      "required": [
+        "node_performance"
+      ],
+      "properties": {
+        "node_performance": {
+          "type": "object",
+          "required": [
+            "epoch_id",
+            "node_id"
+          ],
+          "properties": {
+            "epoch_id": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "node_id": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Returns historical performance for particular node",
+      "type": "object",
+      "required": [
+        "node_performance_paged"
+      ],
+      "properties": {
+        "node_performance_paged": {
+          "type": "object",
+          "required": [
+            "node_id"
+          ],
+          "properties": {
+            "limit": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "node_id": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "start_after": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Returns all submitted measurements for the particular node",
+      "type": "object",
+      "required": [
+        "node_measurements"
+      ],
+      "properties": {
+        "node_measurements": {
+          "type": "object",
+          "required": [
+            "epoch_id",
+            "node_id"
+          ],
+          "properties": {
+            "epoch_id": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "node_id": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Returns (paged) measurements for particular epoch",
+      "type": "object",
+      "required": [
+        "epoch_measurements_paged"
+      ],
+      "properties": {
+        "epoch_measurements_paged": {
+          "type": "object",
+          "required": [
+            "epoch_id"
+          ],
+          "properties": {
+            "epoch_id": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "limit": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "start_after": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Returns (paged) performance for particular epoch",
+      "type": "object",
+      "required": [
+        "epoch_performance_paged"
+      ],
+      "properties": {
+        "epoch_performance_paged": {
+          "type": "object",
+          "required": [
+            "epoch_id"
+          ],
+          "properties": {
+            "epoch_id": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "limit": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "start_after": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Returns full (paged) historical performance of the whole network",
+      "type": "object",
+      "required": [
+        "full_historical_performance_paged"
+      ],
+      "properties": {
+        "full_historical_performance_paged": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "start_after": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": [
+                {
+                  "type": "integer",
+                  "format": "uint32",
+                  "minimum": 0.0
+                },
+                {
+                  "type": "integer",
+                  "format": "uint32",
+                  "minimum": 0.0
+                }
+              ],
+              "maxItems": 2,
+              "minItems": 2
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Returns information about particular network monitor",
+      "type": "object",
+      "required": [
+        "network_monitor"
+      ],
+      "properties": {
+        "network_monitor": {
+          "type": "object",
+          "required": [
+            "address"
+          ],
+          "properties": {
+            "address": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Returns information about all network monitors",
+      "type": "object",
+      "required": [
+        "network_monitors_paged"
+      ],
+      "properties": {
+        "network_monitors_paged": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "start_after": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Returns information about all retired network monitors",
+      "type": "object",
+      "required": [
+        "retired_network_monitors_paged"
+      ],
+      "properties": {
+        "retired_network_monitors_paged": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "start_after": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Returns information regarding the latest submitted performance data",
+      "type": "object",
+      "required": [
+        "last_submitted_measurement"
+      ],
+      "properties": {
+        "last_submitted_measurement": {
+          "type": "object",
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  ]
+}

@@ -25,5 +25,5 @@ pub async fn pledge_more(args: Args, client: SigningClient) {
         .await
         .expect("failed to pledge more!");
 
-    info!("pledging more: {:?}", res);
+    info!("pledging more: {res:?}");
 }

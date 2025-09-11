@@ -130,20 +130,22 @@ pub mod tests {
     use crate::mixnet_contract_settings::queries::query_rewarding_validator_address;
     use crate::mixnet_contract_settings::storage::rewarding_denom;
     use crate::support::tests::test_helpers;
-    use cosmwasm_std::testing::{message_info, MockApi};
+    use cosmwasm_std::testing::message_info;
     use cosmwasm_std::{Coin, Uint128};
     use cw_controllers::AdminError::NotAdmin;
     use mixnet_contract_common::OperatorsParamsUpdate;
+    use nym_contracts_common_testing::mock_api;
 
     #[test]
     fn update_contract_rewarding_validator_address() {
         let mut deps = test_helpers::init_contract();
+        let mock_api = mock_api();
 
         let info = message_info(&deps.api.addr_make("not-the-creator"), &[]);
         let res = try_update_rewarding_validator_address(
             deps.as_mut(),
             info,
-            MockApi::default().addr_make("not-the-creator").to_string(),
+            mock_api.addr_make("not-the-creator").to_string(),
         );
         assert_eq!(res, Err(MixnetContractError::Admin(NotAdmin {})));
 
@@ -151,14 +153,14 @@ pub mod tests {
         let res = try_update_rewarding_validator_address(
             deps.as_mut(),
             info,
-            MockApi::default().addr_make("new-good-address").to_string(),
+            mock_api.addr_make("new-good-address").to_string(),
         );
         assert_eq!(
             res,
             Ok(
                 Response::default().add_event(new_rewarding_validator_address_update_event(
-                    MockApi::default().addr_make("rewarder"),
-                    MockApi::default().addr_make("new-good-address")
+                    mock_api.addr_make("rewarder"),
+                    mock_api.addr_make("new-good-address")
                 ))
             )
         );
@@ -166,7 +168,7 @@ pub mod tests {
         let state = storage::CONTRACT_STATE.load(&deps.storage).unwrap();
         assert_eq!(
             state.rewarding_validator_address,
-            MockApi::default().addr_make("new-good-address")
+            mock_api.addr_make("new-good-address")
         );
 
         assert_eq!(

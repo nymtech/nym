@@ -5,7 +5,7 @@ use crate::ecash::error::EcashError;
 use crate::ecash::state::EcashState;
 use crate::node_status_api::models::{AxumErrorResponse, AxumResult};
 use crate::support::http::state::AppState;
-use axum::extract::State;
+use axum::extract::{Query, State};
 use axum::http::StatusCode;
 use axum::{Json, Router};
 use nym_api_requests::constants::MIN_BATCH_REDEMPTION_DELAY;
@@ -15,6 +15,7 @@ use nym_api_requests::ecash::models::{
 };
 use nym_compact_ecash::identify::IdentifyResult;
 use nym_ecash_time::EcashTime;
+use nym_http_api_common::{FormattedResponse, Output, OutputParams};
 use std::collections::HashSet;
 use std::ops::Deref;
 use std::sync::Arc;
@@ -39,9 +40,10 @@ pub(crate) fn spending_routes() -> Router<AppState> {
 const ONE_AM: Time = time!(1:00);
 
 fn reject_ticket(
+    output: Output,
     reason: EcashTicketVerificationRejection,
-) -> AxumResult<Json<EcashTicketVerificationResponse>> {
-    Ok(Json(EcashTicketVerificationResponse::reject(reason)))
+) -> AxumResult<FormattedResponse<EcashTicketVerificationResponse>> {
+    Ok(output.to_response(EcashTicketVerificationResponse::reject(reason)))
 }
 
 // TODO: optimise it; for now it's just dummy split of the original `verify_offline_credential`
@@ -52,23 +54,29 @@ fn reject_ticket(
     request_body = VerifyEcashTicketBody,
     path = "/v1/ecash/verify-ecash-ticket",
     responses(
-        (status = 200, body = EcashTicketVerificationResponse),
+        (status = 200, content(
+            (EcashTicketVerificationResponse = "application/json"),
+            (EcashTicketVerificationResponse = "application/yaml"),
+            (EcashTicketVerificationResponse = "application/bincode")
+        )),
         (status = 400, body = String, description = "this nym-api is not an ecash signer in the current epoch"),
     )
 )]
 async fn verify_ticket(
+    Query(output): Query<OutputParams>,
     State(state): State<Arc<EcashState>>,
     // TODO in the future: make it send binary data rather than json
     Json(verify_ticket_body): Json<VerifyEcashTicketBody>,
-) -> AxumResult<Json<EcashTicketVerificationResponse>> {
+) -> AxumResult<FormattedResponse<EcashTicketVerificationResponse>> {
     state.ensure_signer().await?;
+    let output = output.output.unwrap_or_default();
 
     let credential_data = &verify_ticket_body.credential;
     let gateway_cosmos_addr = &verify_ticket_body.gateway_cosmos_addr;
 
     // easy check: is there only a single payment attached?
     if credential_data.payment.spend_value != 1 {
-        return reject_ticket(EcashTicketVerificationRejection::MultipleTickets);
+        return reject_ticket(output, EcashTicketVerificationRejection::MultipleTickets);
     }
 
     let sn = &credential_data.encoded_serial_number();
@@ -83,11 +91,14 @@ async fn verify_ticket(
 
     // only accept yesterday date if we're near the day transition, i.e. before 1AM UTC
     if spend_date != today_ecash && now.time() > ONE_AM && spend_date != yesterday_ecash {
-        return reject_ticket(EcashTicketVerificationRejection::InvalidSpentDate {
-            today: today_ecash,
-            yesterday: yesterday_ecash,
-            received: spend_date,
-        });
+        return reject_ticket(
+            output,
+            EcashTicketVerificationRejection::InvalidSpentDate {
+                today: today_ecash,
+                yesterday: yesterday_ecash,
+                received: spend_date,
+            },
+        );
     }
 
     // actual double spend detection with storage
@@ -101,7 +112,7 @@ async fn verify_ticket(
             IdentifyResult::NotADuplicatePayment => {} //SW NOTE This should never happen, quick message?
             IdentifyResult::DuplicatePayInfo(_) => {
                 warn!("Identical payInfo");
-                return reject_ticket(EcashTicketVerificationRejection::ReplayedTicket);
+                return reject_ticket(output, EcashTicketVerificationRejection::ReplayedTicket);
             }
             IdentifyResult::DoubleSpendingPublicKeys(pub_key) => {
                 //Actual double spending
@@ -110,7 +121,7 @@ async fn verify_ticket(
                     pub_key.to_base58_string()
                 );
                 error!("UNIMPLEMENTED: blacklisting the double spend key");
-                return reject_ticket(EcashTicketVerificationRejection::DoubleSpend);
+                return reject_ticket(output, EcashTicketVerificationRejection::DoubleSpend);
             }
         }
     }
@@ -119,7 +130,7 @@ async fn verify_ticket(
 
     // perform actual crypto verification
     if credential_data.verify(&verification_key).is_err() {
-        return reject_ticket(EcashTicketVerificationRejection::InvalidTicket);
+        return reject_ticket(output, EcashTicketVerificationRejection::InvalidTicket);
     }
 
     // store credential and check whether it wasn't already there (due to a parallel request)
@@ -127,10 +138,10 @@ async fn verify_ticket(
         .store_verified_ticket(credential_data, gateway_cosmos_addr)
         .await?;
     if !was_inserted {
-        return reject_ticket(EcashTicketVerificationRejection::ReplayedTicket);
+        return reject_ticket(output, EcashTicketVerificationRejection::ReplayedTicket);
     }
 
-    Ok(Json(EcashTicketVerificationResponse { verified: Ok(()) }))
+    Ok(output.to_response(EcashTicketVerificationResponse { verified: Ok(()) }))
 }
 
 #[utoipa::path(
@@ -139,16 +150,23 @@ async fn verify_ticket(
     request_body = BatchRedeemTicketsBody,
     path = "/v1/ecash/batch-redeem-ecash-tickets",
     responses(
-        (status = 200, body = EcashBatchTicketRedemptionResponse),
+        (status = 200, content(
+            (EcashBatchTicketRedemptionResponse = "application/json"),
+            (EcashBatchTicketRedemptionResponse = "application/yaml"),
+            (EcashBatchTicketRedemptionResponse = "application/bincode")
+        )),
         (status = 400, body = String, description = "this nym-api is not an ecash signer in the current epoch"),
-    )
+    ),
+    params(OutputParams)
 )]
 async fn batch_redeem_tickets(
+    Query(output): Query<OutputParams>,
     State(state): State<Arc<EcashState>>,
     // TODO in the future: make it send binary data rather than json
     Json(batch_redeem_credentials_body): Json<BatchRedeemTicketsBody>,
-) -> AxumResult<Json<EcashBatchTicketRedemptionResponse>> {
+) -> AxumResult<FormattedResponse<EcashBatchTicketRedemptionResponse>> {
     state.ensure_signer().await?;
+    let output = output.output.unwrap_or_default();
 
     // 1. see if that gateway has even submitted any tickets
     let Some(provider_info) = state
@@ -208,7 +226,7 @@ async fn batch_redeem_tickets(
     // 7. update the time of the last verification for this provider
     state.update_last_batch_verification(&provider_info).await?;
 
-    Ok(Json(EcashBatchTicketRedemptionResponse {
+    Ok(output.to_response(EcashBatchTicketRedemptionResponse {
         proposal_accepted: true,
     }))
 }
@@ -224,7 +242,7 @@ async fn batch_redeem_tickets(
     )
 )]
 #[deprecated]
-async fn double_spending_filter_v1() -> AxumResult<Json<SpentCredentialsResponse>> {
+async fn double_spending_filter_v1() -> AxumResult<FormattedResponse<SpentCredentialsResponse>> {
     AxumResult::Err(AxumErrorResponse::new(
         "permanently restricted",
         StatusCode::GONE,

@@ -47,6 +47,7 @@ test_port_range_rules() {
         "8087-8088:tcp:Simplify Media"
         "8232-8233:tcp:Zcash"
         "8332-8333:tcp:Bitcoin"
+	"18080-18081:tcp:Monero"
     )
 
     local total_failures=0
@@ -148,7 +149,7 @@ test_critical_services() {
 # Verify default reject rule exists
 test_default_reject_rule() {
     echo -e "${YELLOW}This test takes some time, do not quit the process${NC}"
-    echo 
+    echo
     echo -e "${YELLOW}Testing Default Reject Rule...${NC}"
 
     # Try different patterns to detect the reject rule

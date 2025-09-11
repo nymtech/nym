@@ -23,7 +23,7 @@ pub async fn claim_operator_reward(
         .withdraw_operator_reward(fee)
         .await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
-    log::trace!("<<< {:?}", res);
+    log::trace!("<<< {res:?}");
     Ok(TransactionExecuteResult::from_execute_result(
         res, fee_amount,
     )?)
@@ -44,7 +44,7 @@ pub async fn claim_delegator_reward(
         .withdraw_delegator_reward(node_id, fee)
         .await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
-    log::trace!("<<< {:?}", res);
+    log::trace!("<<< {res:?}");
     Ok(TransactionExecuteResult::from_execute_result(
         res, fee_amount,
     )?)
@@ -87,9 +87,7 @@ pub async fn claim_locked_and_unlocked_delegator_reward(
     let did_delegate_with_vesting_contract = vesting_delegation.delegation.is_some();
 
     log::trace!(
-        "<<< Delegations done with: mixnet contract = {}, vesting contract = {}",
-        did_delegate_with_mixnet_contract,
-        did_delegate_with_vesting_contract
+        "<<< Delegations done with: mixnet contract = {did_delegate_with_mixnet_contract}, vesting contract = {did_delegate_with_vesting_contract}"
     );
 
     let mut res: Vec<TransactionExecuteResult> = vec![];
@@ -99,7 +97,7 @@ pub async fn claim_locked_and_unlocked_delegator_reward(
     if did_delegate_with_vesting_contract {
         res.push(vesting_claim_delegator_reward(node_id, fee, state).await?);
     }
-    log::trace!("<<< {:?}", res);
+    log::trace!("<<< {res:?}");
     Ok(res)
 }
 

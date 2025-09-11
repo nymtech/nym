@@ -6,7 +6,7 @@ use crate::Error;
 use cosmwasm_std::{from_json, CosmosMsg, WasmMsg};
 use nym_credentials_interface::VerificationKeyAuth;
 use nym_ecash_contract_common::msg::ExecuteMsg;
-use nym_gateway_storage::GatewayStorage;
+use nym_gateway_storage::traits::BandwidthGatewayStorage;
 use nym_validator_client::coconut::all_ecash_api_clients;
 use nym_validator_client::nym_api::EpochId;
 use nym_validator_client::nyxd::contract_traits::{
@@ -22,18 +22,28 @@ use tokio::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use tracing::{error, trace, warn};
 
 // state shared by different subtasks dealing with credentials
-#[derive(Clone)]
 pub(crate) struct SharedState {
     pub(crate) nyxd_client: Arc<RwLock<DirectSigningHttpRpcNyxdClient>>,
     pub(crate) address: AccountId,
     pub(crate) epoch_data: Arc<RwLock<BTreeMap<EpochId, EpochState>>>,
-    pub(crate) storage: GatewayStorage,
+    pub(crate) storage: Box<dyn BandwidthGatewayStorage + Send + Sync>,
+}
+
+impl Clone for SharedState {
+    fn clone(&self) -> Self {
+        Self {
+            nyxd_client: self.nyxd_client.clone(),
+            address: self.address.clone(),
+            epoch_data: self.epoch_data.clone(),
+            storage: dyn_clone::clone_box(&*self.storage),
+        }
+    }
 }
 
 impl SharedState {
     pub(crate) async fn new(
         nyxd_client: DirectSigningHttpRpcNyxdClient,
-        storage: GatewayStorage,
+        storage: Box<dyn BandwidthGatewayStorage + Send + Sync>,
     ) -> Result<Self, Error> {
         let address = nyxd_client.address();
 
@@ -115,7 +125,7 @@ impl SharedState {
     async fn set_epoch_data(
         &self,
         epoch_id: EpochId,
-    ) -> Result<RwLockWriteGuard<BTreeMap<EpochId, EpochState>>, EcashTicketError> {
+    ) -> Result<RwLockWriteGuard<'_, BTreeMap<EpochId, EpochState>>, EcashTicketError> {
         let Some(threshold) = self.threshold(epoch_id).await? else {
             return Err(EcashTicketError::DKGThresholdUnavailable { epoch_id });
         };
@@ -176,7 +186,7 @@ impl SharedState {
     pub(crate) async fn api_clients(
         &self,
         epoch_id: EpochId,
-    ) -> Result<RwLockReadGuard<Vec<EcashApiClient>>, EcashTicketError> {
+    ) -> Result<RwLockReadGuard<'_, Vec<EcashApiClient>>, EcashTicketError> {
         let guard = self.epoch_data.read().await;
 
         // the key was already in the map
@@ -202,7 +212,7 @@ impl SharedState {
     pub(crate) async fn verification_key(
         &self,
         epoch_id: EpochId,
-    ) -> Result<RwLockReadGuard<VerificationKeyAuth>, EcashTicketError> {
+    ) -> Result<RwLockReadGuard<'_, VerificationKeyAuth>, EcashTicketError> {
         let guard = self.epoch_data.read().await;
 
         // the key was already in the map
@@ -225,11 +235,11 @@ impl SharedState {
         }))
     }
 
-    pub(crate) async fn start_tx(&self) -> RwLockWriteGuard<DirectSigningHttpRpcNyxdClient> {
+    pub(crate) async fn start_tx(&self) -> RwLockWriteGuard<'_, DirectSigningHttpRpcNyxdClient> {
         self.nyxd_client.write().await
     }
 
-    pub(crate) async fn start_query(&self) -> RwLockReadGuard<DirectSigningHttpRpcNyxdClient> {
+    pub(crate) async fn start_query(&self) -> RwLockReadGuard<'_, DirectSigningHttpRpcNyxdClient> {
         self.nyxd_client.read().await
     }
 

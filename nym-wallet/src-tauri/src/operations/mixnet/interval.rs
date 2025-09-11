@@ -14,7 +14,7 @@ pub async fn get_current_interval(
 ) -> Result<Interval, BackendError> {
     log::info!(">>> Get current interval");
     let res = nyxd_client!(state).get_current_interval_details().await?;
-    log::info!("<<< current interval = {:?}", res);
+    log::info!("<<< current interval = {res:?}");
     Ok(res.interval.into())
 }
 

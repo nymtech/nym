@@ -1,5 +1,16 @@
 # Client Pool
 
+import { Callout } from 'nextra/components';
+
+<Callout type="warning">
+  There will be a breaking SDK upgrade in the coming months. This upgrade will make the SDK a lot easier to build with.
+
+This upgrade will affect the interface of the SDK dramatically, and will be coupled with a protocol change - stay tuned for information on early access to the new protocol testnet.
+
+
+It will also be coupled with the documentation of the SDK on [crates.io](https://crates.io/).
+</Callout>
+
 We have a configurable-size Client Pool for processes that require multiple clients in quick succession (this is used by default by the [`TcpProxyClient`](./tcpproxy) for instance)
 
 This will be useful for developers looking to build connection logic, or just are using raw SDK clients in a sitatuation where there are multiple connections with a lot of churn.

@@ -7,20 +7,32 @@ net.ipv6.conf.all.forwarding = 1
 net.ipv4.ip_forward = 1
 IP forwarding configured successfully.
 Creating Nym exit policy chain...
-Creating chain NYM-EXIT...
-Creating chain NYM-EXIT in ip6tables...
-Linking NYM-EXIT to FORWARD chain...
-Linking NYM-EXIT to IPv6 FORWARD chain...
+Chain NYM-EXIT already exists. Flushing it...
+Chain NYM-EXIT already exists in ip6tables. Flushing it...
+NYM-EXIT  all opt -- in * out nymwg  0.0.0.0/0  -> 0.0.0.0/0
+NYM-EXIT  all opt    in * out nymwg  ::/0  -> ::/0
 Setting up NAT rules...
+MASQUERADE  all opt -- in * out ens3  0.0.0.0/0  -> 0.0.0.0/0
 IPv4 NAT rule already exists.
+MASQUERADE  all opt    in * out ens3  ::/0  -> ::/0
 IPv6 NAT rule already exists.
+ACCEPT  all opt -- in nymwg out ens3  0.0.0.0/0  -> 0.0.0.0/0
+ACCEPT  all opt -- in ens3 out nymwg  0.0.0.0/0  -> 0.0.0.0/0   state RELATED,ESTABLISHED
+ACCEPT  all opt    in nymwg out ens3  ::/0  -> ::/0
+ACCEPT  all opt    in ens3 out nymwg  ::/0  -> ::/0   state RELATED,ESTABLISHED
 Configuring DNS and ICMP rules...
-Added IPv6 ICMP rule (allow ping6).
-Added IPv6 DNS rule (UDP).
-Added IPv6 DNS rule (TCP).
+ACCEPT  icmp opt -- in * out *  0.0.0.0/0  -> 0.0.0.0/0   icmptype 8
+ACCEPT  icmp opt -- in * out *  0.0.0.0/0  -> 0.0.0.0/0   icmptype 0
+ACCEPT  icmpv6 opt    in * out *  ::/0  -> ::/0
+ACCEPT  udp opt -- in * out *  0.0.0.0/0  -> 0.0.0.0/0   udp dpt:53
+ACCEPT  tcp opt -- in * out *  0.0.0.0/0  -> 0.0.0.0/0   tcp dpt:53
+ACCEPT  udp opt    in * out *  ::/0  -> ::/0   udp dpt:53
+ACCEPT  tcp opt    in * out *  ::/0  -> ::/0   tcp dpt:53
 Applying Spamhaus blocklist...
 Downloading exit policy from https://nymtech.net/.wellknown/network-requester/exit-policy.txt
 Processing 429 blocklist rules...
+REJECT  all opt -- in * out *  0.0.0.0/0  -> 205.189.71.0/24   reject-with icmp-port-unreachable
+REJECT  all opt -- in * out *  0.0.0.0/0  -> 205.189.72.0/23   reject-with icmp-port-unreachable
 Blocklist applied successfully.
 Applying allowed ports...
 Adding rules for SILC (Port: 706)
@@ -103,6 +115,11 @@ Adding rules for POP3OverTLS (Port: 995)
   Added: NYM-EXIT tcp port 995
   Added: NYM-EXIT udp port 995
   Added: NYM-EXIT udp port 995
+Adding rules for DarkFiTor (Port: 25551)
+  Added: NYM-EXIT tcp port 25551
+  Added: NYM-EXIT tcp port 25551
+  Added: NYM-EXIT udp port 25551
+  Added: NYM-EXIT udp port 25551
 Adding rules for MMCC (Port: 5050)
   Added: NYM-EXIT tcp port 5050
   Added: NYM-EXIT tcp port 5050
@@ -268,6 +285,11 @@ Adding rules for Mumble (Port: 64738)
   Added: NYM-EXIT tcp port 64738
   Added: NYM-EXIT udp port 64738
   Added: NYM-EXIT udp port 64738
+Adding rules for DarkFi (Port: 26661)
+  Added: NYM-EXIT tcp port 26661
+  Added: NYM-EXIT tcp port 26661
+  Added: NYM-EXIT udp port 26661
+  Added: NYM-EXIT udp port 26661
 Adding rules for PPTP (Port: 1723)
   Added: NYM-EXIT tcp port 1723
   Added: NYM-EXIT tcp port 1723
@@ -333,6 +355,11 @@ Adding rules for Kpasswd (Port: 464)
   Added: NYM-EXIT tcp port 464
   Added: NYM-EXIT udp port 464
   Added: NYM-EXIT udp port 464
+Adding rules for MoneroRPC (Port: 18089)
+  Added: NYM-EXIT tcp port 18089
+  Added: NYM-EXIT tcp port 18089
+  Added: NYM-EXIT udp port 18089
+  Added: NYM-EXIT udp port 18089
 Adding rules for RemoteHTTPS (Port: 981)
   Added: NYM-EXIT tcp port 981
   Added: NYM-EXIT tcp port 981
@@ -398,6 +425,11 @@ Adding rules for GroupWise (Port: 1677)
   Added: NYM-EXIT tcp port 1677
   Added: NYM-EXIT udp port 1677
   Added: NYM-EXIT udp port 1677
+Adding rules for Monero (Port: 18080-18081)
+  Added: NYM-EXIT tcp port range 18080:18081
+  Added: NYM-EXIT tcp port range 18080:18081
+  Added: NYM-EXIT udp port range 18080:18081
+  Added: NYM-EXIT udp port range 18080:18081
 Adding rules for EnsimControlPanel (Port: 19638)
   Added: NYM-EXIT tcp port 19638
   Added: NYM-EXIT tcp port 19638

@@ -18,5 +18,5 @@ pub async fn unbond_nymnode(_args: Args, client: SigningClient) {
         .await
         .expect("failed to unbond Nym Node!");
 
-    info!("Unbonding result: {:?}", res)
+    info!("Unbonding result: {res:?}")
 }

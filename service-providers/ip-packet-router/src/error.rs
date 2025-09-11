@@ -29,10 +29,10 @@ pub enum IpPacketRouterError {
     ConfigValidationFailure,
 
     #[error("failed to setup mixnet client: {source}")]
-    FailedToSetupMixnetClient { source: nym_sdk::Error },
+    FailedToSetupMixnetClient { source: Box<nym_sdk::Error> },
 
     #[error("failed to connect to mixnet: {source}")]
-    FailedToConnectToMixnet { source: nym_sdk::Error },
+    FailedToConnectToMixnet { source: Box<nym_sdk::Error> },
 
     #[error("the entity wrapping the ip packet router has disconnected")]
     DisconnectedParent,
@@ -59,7 +59,7 @@ pub enum IpPacketRouterError {
     FailedToWritePacketToTun,
 
     #[error("failed to send packet to mixnet: {source}")]
-    FailedToSendPacketToMixnet { source: nym_sdk::Error },
+    FailedToSendPacketToMixnet { source: Box<nym_sdk::Error> },
 
     #[error("failed to encode mixnet message: {source}")]
     FailedToEncodeMixnetMessage {

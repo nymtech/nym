@@ -7,7 +7,7 @@ use tempfile::TempDir;
 
 #[tokio::main]
 async fn main() {
-    nym_bin_common::logging::setup_logging();
+    nym_bin_common::logging::setup_tracing_logger();
 
     // Specify some config options
     let config_dir: PathBuf = TempDir::new().unwrap().path().to_path_buf();
@@ -55,8 +55,7 @@ async fn main() {
     // parse sender_tag: we will use this to reply to sender without needing their Nym address
     let return_recipient: AnonymousSenderTag = message[0].sender_tag.unwrap();
     println!(
-        "\nReceived the following message: {} \nfrom sender with surb bucket {}",
-        parsed, return_recipient
+        "\nReceived the following message: {parsed} \nfrom sender with surb bucket {return_recipient}"
     );
 
     // reply to self with it: note we use `send_str_reply` instead of `send_str`

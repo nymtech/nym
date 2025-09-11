@@ -22,6 +22,7 @@ use nym_api_requests::models::{
     MixNodeBondAnnotated, MixnodeCoreStatusResponse, MixnodeStatusReportResponse,
     MixnodeUptimeHistoryResponse, RewardEstimationResponse, UptimeResponse,
 };
+use nym_http_api_common::{FormattedResponse, Output, OutputParams};
 use serde::Deserialize;
 use utoipa::IntoParams;
 
@@ -103,17 +104,23 @@ pub(super) fn network_monitor_routes() -> Router<AppState> {
     get,
     path = "/v1/status/gateway/{identity}/report",
     responses(
-        (status = 200, body = GatewayStatusReportResponse)
-    )
+        (status = 200, content(
+            (GatewayStatusReportResponse = "application/json"),
+            (GatewayStatusReportResponse = "application/yaml"),
+            (GatewayStatusReportResponse = "application/bincode")
+        ))
+    ),
+    params(OutputParams)
 )]
 #[deprecated]
 async fn gateway_report(
     Path(identity): Path<String>,
+    Query(output): Query<OutputParams>,
     State(state): State<AppState>,
-) -> AxumResult<Json<GatewayStatusReportResponse>> {
-    Ok(Json(
-        _gateway_report(state.node_status_cache(), &identity).await?,
-    ))
+) -> AxumResult<FormattedResponse<GatewayStatusReportResponse>> {
+    let output = output.output.unwrap_or_default();
+
+    Ok(output.to_response(_gateway_report(state.node_status_cache(), &identity).await?))
 }
 
 #[utoipa::path(
@@ -121,15 +128,23 @@ async fn gateway_report(
     get,
     path = "/v1/status/gateway/{identity}/history",
     responses(
-        (status = 200, body = GatewayUptimeHistoryResponse)
-    )
+        (status = 200, content(
+            (GatewayUptimeHistoryResponse = "application/json"),
+            (GatewayUptimeHistoryResponse = "application/yaml"),
+            (GatewayUptimeHistoryResponse = "application/bincode")
+        ))
+    ),
+    params(OutputParams)
 )]
 #[deprecated]
 async fn gateway_uptime_history(
     Path(identity): Path<String>,
+    Query(output): Query<OutputParams>,
     State(state): State<AppState>,
-) -> AxumResult<Json<GatewayUptimeHistoryResponse>> {
-    Ok(Json(
+) -> AxumResult<FormattedResponse<GatewayUptimeHistoryResponse>> {
+    let output = output.output.unwrap_or_default();
+
+    Ok(output.to_response(
         _gateway_uptime_history(state.storage(), state.nym_contract_cache(), &identity).await?,
     ))
 }
@@ -138,6 +153,7 @@ async fn gateway_uptime_history(
 #[into_params(parameter_in = Query)]
 struct SinceQueryParams {
     since: Option<i64>,
+    output: Option<Output>,
 }
 
 #[utoipa::path(
@@ -148,18 +164,22 @@ struct SinceQueryParams {
     ),
     path = "/v1/status/gateway/{identity}/core-status-count",
     responses(
-        (status = 200, body = GatewayCoreStatusResponse)
-    )
+        (status = 200, content(
+            (GatewayCoreStatusResponse = "application/json"),
+            (GatewayCoreStatusResponse = "application/yaml"),
+            (GatewayCoreStatusResponse = "application/bincode")
+        ))
+    ),
 )]
 #[deprecated]
 async fn gateway_core_status_count(
     Path(identity): Path<String>,
-    Query(SinceQueryParams { since }): Query<SinceQueryParams>,
+    Query(SinceQueryParams { since, output }): Query<SinceQueryParams>,
     State(state): State<AppState>,
-) -> AxumResult<Json<GatewayCoreStatusResponse>> {
-    Ok(Json(
-        _gateway_core_status_count(state.storage(), &identity, since).await?,
-    ))
+) -> AxumResult<FormattedResponse<GatewayCoreStatusResponse>> {
+    Ok(output
+        .unwrap_or_default()
+        .to_response(_gateway_core_status_count(state.storage(), &identity, since).await?))
 }
 
 #[utoipa::path(
@@ -167,57 +187,71 @@ async fn gateway_core_status_count(
     get,
     path = "/v1/status/gateway/{identity}/avg_uptime",
     responses(
-        (status = 200, body = GatewayUptimeResponse)
-    )
+        (status = 200, content(
+            (GatewayUptimeResponse = "application/json"),
+            (GatewayUptimeResponse = "application/yaml"),
+            (GatewayUptimeResponse = "application/bincode")
+        ))
+    ),
+    params(OutputParams)
 )]
 #[deprecated]
 async fn get_gateway_avg_uptime(
     Path(identity): Path<String>,
+    Query(output): Query<OutputParams>,
     State(state): State<AppState>,
-) -> AxumResult<Json<GatewayUptimeResponse>> {
-    Ok(Json(
-        _get_gateway_avg_uptime(state.node_status_cache(), &identity).await?,
-    ))
+) -> AxumResult<FormattedResponse<GatewayUptimeResponse>> {
+    let output = output.output.unwrap_or_default();
+
+    Ok(output.to_response(_get_gateway_avg_uptime(state.node_status_cache(), &identity).await?))
 }
 
 #[utoipa::path(
     tag = "network-monitor-status",
     get,
-    params(
-        MixIdParam
-    ),
     path = "/v1/status/mixnode/{mix_id}/report",
     responses(
-        (status = 200, body = MixnodeStatusReportResponse)
-    )
+        (status = 200, content(
+            (MixnodeStatusReportResponse = "application/json"),
+            (MixnodeStatusReportResponse = "application/yaml"),
+            (MixnodeStatusReportResponse = "application/bincode")
+        ))
+    ),
+    params(OutputParams, MixIdParam)
 )]
 #[deprecated]
 async fn mixnode_report(
     Path(MixIdParam { mix_id }): Path<MixIdParam>,
+    Query(output): Query<OutputParams>,
     State(state): State<AppState>,
-) -> AxumResult<Json<MixnodeStatusReportResponse>> {
-    Ok(Json(
-        _mixnode_report(state.node_status_cache(), mix_id).await?,
-    ))
+) -> AxumResult<FormattedResponse<MixnodeStatusReportResponse>> {
+    let output = output.output.unwrap_or_default();
+
+    Ok(output.to_response(_mixnode_report(state.node_status_cache(), mix_id).await?))
 }
 
 #[utoipa::path(
     tag = "network-monitor-status",
     get,
-    params(
-        MixIdParam
-    ),
     path = "/v1/status/mixnode/{mix_id}/history",
     responses(
-        (status = 200, body = MixnodeUptimeHistoryResponse)
-    )
+        (status = 200, content(
+            (MixnodeUptimeHistoryResponse = "application/json"),
+            (MixnodeUptimeHistoryResponse = "application/yaml"),
+            (MixnodeUptimeHistoryResponse = "application/bincode")
+        ))
+    ),
+    params(MixIdParam, OutputParams)
 )]
 #[deprecated]
 async fn mixnode_uptime_history(
     Path(MixIdParam { mix_id }): Path<MixIdParam>,
+    Query(output): Query<OutputParams>,
     State(state): State<AppState>,
-) -> AxumResult<Json<MixnodeUptimeHistoryResponse>> {
-    Ok(Json(
+) -> AxumResult<FormattedResponse<MixnodeUptimeHistoryResponse>> {
+    let output = output.output.unwrap_or_default();
+
+    Ok(output.to_response(
         _mixnode_uptime_history(state.storage(), state.nym_contract_cache(), mix_id).await?,
     ))
 }
@@ -230,37 +264,48 @@ async fn mixnode_uptime_history(
     ),
     path = "/v1/status/mixnode/{mix_id}/core-status-count",
     responses(
-        (status = 200, body = MixnodeCoreStatusResponse)
-    )
+        (status = 200, content(
+            (MixnodeCoreStatusResponse = "application/json"),
+            (MixnodeCoreStatusResponse = "application/yaml"),
+            (MixnodeCoreStatusResponse = "application/bincode")
+        ))
+    ),
 )]
 #[deprecated]
 async fn mixnode_core_status_count(
     Path(MixIdParam { mix_id }): Path<MixIdParam>,
-    Query(SinceQueryParams { since }): Query<SinceQueryParams>,
+    Query(SinceQueryParams { since, output }): Query<SinceQueryParams>,
     State(state): State<AppState>,
-) -> AxumResult<Json<MixnodeCoreStatusResponse>> {
-    Ok(Json(
-        _mixnode_core_status_count(state.storage(), mix_id, since).await?,
-    ))
+) -> AxumResult<FormattedResponse<MixnodeCoreStatusResponse>> {
+    let output = output.unwrap_or_default();
+
+    Ok(output.to_response(_mixnode_core_status_count(state.storage(), mix_id, since).await?))
 }
 
 #[utoipa::path(
     tag = "network-monitor-status",
     get,
     params(
-        MixIdParam
+        MixIdParam, OutputParams
     ),
     path = "/v1/status/mixnode/{mix_id}/reward-estimation",
     responses(
-        (status = 200, body = RewardEstimationResponse)
-    )
+        (status = 200, content(
+            (RewardEstimationResponse = "application/json"),
+            (RewardEstimationResponse = "application/yaml"),
+            (RewardEstimationResponse = "application/bincode")
+        ))
+    ),
 )]
 #[deprecated]
 async fn get_mixnode_reward_estimation(
     Path(MixIdParam { mix_id }): Path<MixIdParam>,
+    Query(output): Query<OutputParams>,
     State(state): State<AppState>,
-) -> AxumResult<Json<RewardEstimationResponse>> {
-    Ok(Json(
+) -> AxumResult<FormattedResponse<RewardEstimationResponse>> {
+    let output = output.output.unwrap_or_default();
+
+    Ok(output.to_response(
         _get_mixnode_reward_estimation(
             state.node_status_cache(),
             state.nym_contract_cache(),
@@ -274,21 +319,28 @@ async fn get_mixnode_reward_estimation(
     tag = "network-monitor-status",
     post,
     params(
-        ComputeRewardEstParam, MixIdParam
+        OutputParams, MixIdParam
     ),
     path = "/v1/status/mixnode/{mix_id}/compute-reward-estimation",
     request_body = ComputeRewardEstParam,
     responses(
-        (status = 200, body = RewardEstimationResponse)
-    )
+        (status = 200, content(
+            (RewardEstimationResponse = "application/json"),
+            (RewardEstimationResponse = "application/yaml"),
+            (RewardEstimationResponse = "application/bincode")
+        ))
+    ),
 )]
 #[deprecated]
 async fn compute_mixnode_reward_estimation(
     Path(MixIdParam { mix_id }): Path<MixIdParam>,
+    Query(output): Query<OutputParams>,
     State(state): State<AppState>,
     Json(user_reward_param): Json<ComputeRewardEstParam>,
-) -> AxumResult<Json<RewardEstimationResponse>> {
-    Ok(Json(
+) -> AxumResult<FormattedResponse<RewardEstimationResponse>> {
+    let output = output.output.unwrap_or_default();
+
+    Ok(output.to_response(
         _compute_mixnode_reward_estimation(
             &user_reward_param,
             state.node_status_cache(),
@@ -303,21 +355,26 @@ async fn compute_mixnode_reward_estimation(
     tag = "network-monitor-status",
     get,
     params(
-        MixIdParam
+        MixIdParam, OutputParams
     ),
     path = "/v1/status/mixnode/{mix_id}/avg_uptime",
     responses(
-        (status = 200, body = UptimeResponse)
-    )
+        (status = 200, content(
+            (UptimeResponse = "application/json"),
+            (UptimeResponse = "application/yaml"),
+            (UptimeResponse = "application/bincode")
+        ))
+    ),
 )]
 #[deprecated]
 async fn get_mixnode_avg_uptime(
     Path(MixIdParam { mix_id }): Path<MixIdParam>,
+    Query(output): Query<OutputParams>,
     State(state): State<AppState>,
-) -> AxumResult<Json<UptimeResponse>> {
-    Ok(Json(
-        _get_mixnode_avg_uptime(state.node_status_cache(), mix_id).await?,
-    ))
+) -> AxumResult<FormattedResponse<UptimeResponse>> {
+    let output = output.output.unwrap_or_default();
+
+    Ok(output.to_response(_get_mixnode_avg_uptime(state.node_status_cache(), mix_id).await?))
 }
 
 #[utoipa::path(
@@ -325,14 +382,22 @@ async fn get_mixnode_avg_uptime(
     get,
     path = "/v1/status/mixnodes/detailed-unfiltered",
     responses(
-        (status = 200, body = MixNodeBondAnnotated)
-    )
+        (status = 200, content(
+            (MixNodeBondAnnotated = "application/json"),
+            (MixNodeBondAnnotated = "application/yaml"),
+            (MixNodeBondAnnotated = "application/bincode")
+        ))
+    ),
+    params(OutputParams)
 )]
 #[deprecated]
 pub async fn get_mixnodes_detailed_unfiltered(
+    Query(output): Query<OutputParams>,
     State(state): State<AppState>,
-) -> Json<Vec<MixNodeBondAnnotated>> {
-    Json(_get_mixnodes_detailed_unfiltered(state.node_status_cache()).await)
+) -> FormattedResponse<Vec<MixNodeBondAnnotated>> {
+    let output = output.output.unwrap_or_default();
+
+    output.to_response(_get_mixnodes_detailed_unfiltered(state.node_status_cache()).await)
 }
 
 #[utoipa::path(
@@ -340,14 +405,22 @@ pub async fn get_mixnodes_detailed_unfiltered(
     get,
     path = "/v1/status/gateways/detailed",
     responses(
-        (status = 200, body = GatewayBondAnnotated)
-    )
+        (status = 200, content(
+            (GatewayBondAnnotated = "application/json"),
+            (GatewayBondAnnotated = "application/yaml"),
+            (GatewayBondAnnotated = "application/bincode")
+        ))
+    ),
+    params(OutputParams)
 )]
 #[deprecated]
 pub async fn get_gateways_detailed(
+    Query(output): Query<OutputParams>,
     State(state): State<AppState>,
-) -> Json<Vec<GatewayBondAnnotated>> {
-    Json(_get_legacy_gateways_detailed(state.node_status_cache()).await)
+) -> FormattedResponse<Vec<GatewayBondAnnotated>> {
+    let output = output.output.unwrap_or_default();
+
+    output.to_response(_get_legacy_gateways_detailed(state.node_status_cache()).await)
 }
 
 #[utoipa::path(
@@ -355,12 +428,20 @@ pub async fn get_gateways_detailed(
     get,
     path = "/v1/status/gateways/detailed-unfiltered",
     responses(
-        (status = 200, body = GatewayBondAnnotated)
-    )
+        (status = 200, content(
+            (GatewayBondAnnotated = "application/json"),
+            (GatewayBondAnnotated = "application/yaml"),
+            (GatewayBondAnnotated = "application/bincode")
+        ))
+    ),
+    params(OutputParams)
 )]
 #[deprecated]
 pub async fn get_gateways_detailed_unfiltered(
+    Query(output): Query<OutputParams>,
     State(state): State<AppState>,
-) -> Json<Vec<GatewayBondAnnotated>> {
-    Json(_get_legacy_gateways_detailed_unfiltered(state.node_status_cache()).await)
+) -> FormattedResponse<Vec<GatewayBondAnnotated>> {
+    let output = output.output.unwrap_or_default();
+
+    output.to_response(_get_legacy_gateways_detailed_unfiltered(state.node_status_cache()).await)
 }

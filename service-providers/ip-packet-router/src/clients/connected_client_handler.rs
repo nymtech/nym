@@ -69,8 +69,8 @@ impl ConnectedClientHandler {
         oneshot::Sender<()>,
         tokio::task::JoinHandle<()>,
     ) {
-        log::debug!("Starting connected client handler for: {}", client_id);
-        log::debug!("client version: {:?}", client_version);
+        log::debug!("Starting connected client handler for: {client_id}");
+        log::debug!("client version: {client_version:?}");
         let (close_tx, close_rx) = oneshot::channel();
         let (forward_from_tun_tx, forward_from_tun_rx) = mpsc::unbounded_channel();
 
@@ -133,12 +133,16 @@ impl ConnectedClientHandler {
         let input_packet = self
             .input_message_creator
             .to_input_message(&bundled_packets)
-            .map_err(|source| IpPacketRouterError::FailedToSendPacketToMixnet { source })?;
+            .map_err(|source| IpPacketRouterError::FailedToSendPacketToMixnet {
+                source: Box::new(source),
+            })?;
 
         self.mixnet_client_sender
             .send(input_packet)
             .await
-            .map_err(|source| IpPacketRouterError::FailedToSendPacketToMixnet { source })
+            .map_err(|source| IpPacketRouterError::FailedToSendPacketToMixnet {
+                source: Box::new(source),
+            })
     }
 
     async fn run(mut self) -> Result<()> {

@@ -29,6 +29,7 @@ cw4 = { workspace = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]
+anyhow = { workspace = true }
 easy-addr = { path = "../../common/cosmwasm-smart-contracts/easy_addr" }
 cw-multi-test = { workspace = true }
 cw4-group = { path = "../multisig/cw4-group" }

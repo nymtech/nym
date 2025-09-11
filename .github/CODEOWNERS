@@ -14,22 +14,12 @@
 # contracts
 /contracts/mixnet @durch @jstuczyn
 /contracts/vesting @durch @jstuczyn
-/contracts/service-provider-directory @octol
 
 # crypto code
 /common/crypto/ @jstuczyn
 /common/nymcoconut/ @jstuczyn
 /common/dkg/ @jstuczyn
 /common/nymsphinx/ @jstuczyn
-
-# rust sdk
-/sdk/rust/ @octol
-
-# nym-connect (rust)
-/nym-connect/desktop/src-tauri/ @octol
-
-# nym-wallet (rust)
-/nym-wallet/src-tauri/ @octol
 
 # documentation
 /documentation @mfahampshire

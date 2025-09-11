@@ -8,7 +8,7 @@ use nym_topology::provider_trait::async_trait;
 
 #[tokio::main]
 async fn main() {
-    nym_bin_common::logging::setup_logging();
+    nym_bin_common::logging::setup_tracing_logger();
 
     // Just some plain data to pretend we have some external storage that the application
     // implementer is using.

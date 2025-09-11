@@ -31,7 +31,7 @@ pub struct Args {
 pub async fn generate(args: Args) {
     info!("Starting to generate vesting contract instantiate msg");
 
-    debug!("Received arguments: {:?}", args);
+    debug!("Received arguments: {args:?}");
 
     let ecash_contract_address = args.ecash_contract_address.unwrap_or_else(|| {
         let address = std::env::var(nym_network_defaults::var_names::ECASH_CONTRACT_ADDRESS)
@@ -60,7 +60,7 @@ pub async fn generate(args: Args) {
         coconut_dkg_contract_address: coconut_dkg_contract_address.to_string(),
     };
 
-    debug!("instantiate_msg: {:?}", instantiate_msg);
+    debug!("instantiate_msg: {instantiate_msg:?}");
 
     let res =
         serde_json::to_string(&instantiate_msg).expect("failed to convert instantiate msg to json");

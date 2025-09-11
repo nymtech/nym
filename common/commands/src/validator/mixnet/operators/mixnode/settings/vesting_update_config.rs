@@ -65,5 +65,5 @@ pub async fn vesting_update_config(client: SigningClient, args: Args) {
         .await
         .expect("updating vesting mix-node config");
 
-    info!("mixnode config updated: {:?}", res)
+    info!("mixnode config updated: {res:?}")
 }

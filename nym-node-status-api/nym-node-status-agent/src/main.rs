@@ -51,7 +51,7 @@ pub(crate) fn setup_tracing() {
         "axum",
     ];
     for crate_name in filter_crates {
-        filter = filter.add_directive(directive_checked(format!("{}=warn", crate_name)));
+        filter = filter.add_directive(directive_checked(format!("{crate_name}=warn")));
     }
 
     filter = filter.add_directive(directive_checked("nym_bin_common=debug"));

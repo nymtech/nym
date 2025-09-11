@@ -9,12 +9,12 @@ import { AccordionTemplate } from 'components/accordion-template.tsx';
 
 > Nym has two main codebases:
 > - the [Nym platform](https://github.com/nymtech/nym), written in Rust. This contains all of our code except for the validators.
-> - the [Nym validators](https://github.com/nymtech/nyxd), written in Go & maintained as a no-modification fork of [wasmd](https://github.com/CosmWasm/wasmd)
+> - the [Nym validators](https://github.com/nymtech/nyxd), written in Go & maintained as fork of [wasmd](https://github.com/CosmWasm/wasmd)
 
 The validator is a Go application which implements it's functionalities using [Cosmos SDK](https://v1.cosmos.network/sdk). The underlying state-replication engine is powered by [CometBFT](https://cometbft.com/), where the consensus mechanism is based on the [Tendermint Consensus Algorithm](https://arxiv.org/abs/1807.04938). Finally, a [CosmWasm](https://cosmwasm.com) smart contract module controls crucial mixnet functionalities like decentralised directory service, node bonding, and delegated mixnet staking.
 
 <Callout type="info" emoji="ℹ️">
-We are currently running mainnet with a closed set of reputable validators. To ensure decentralisation of Nyx chain, we are working on a mechanism to onboard new validators to the network. To join the waitlist, please drop an email to `validators [at] nymtech.net` with details of your setup, experience and any other relevent information
+At present, our mainnet operates with a select group of reputed validators. We are not accepting new validators at this time. Any updates or changes to this policy will be promptly announced.
 </Callout>
 
 ## Building your validator
@@ -52,7 +52,7 @@ pacman -S git gcc jq
 - First remove any existing old Go installation and extract the archive you just downloaded into /usr/local:
 
 ```sh
-rm -rf /usr/local/go && tar -C /usr/local -xzf go1.20.10.linux-amd64.tar.gz
+rm -rf /usr/local/go && tar -C /usr/local -xzf go1.23.11.linux-amd64.tar.gz
 ```
 
 - Then add /usr/local/go/bin to the PATH environment variable
@@ -69,14 +69,14 @@ go version
 
 - Should return something like:
 ```sh
-go version go1.20.10 linux/amd64
+go version go1.23.11 linux/amd64
 ```
 
 </Steps>
 
 ### Download a precompiled validator binary
 
-You can find pre-compiled binaries for Ubuntu `22.04` and `20.04` [here](https://github.com/nymtech/nyxd/releases).
+You can find pre-compiled binaries for Ubuntu `22.04` and `24.04` [here](https://github.com/nymtech/nyxd/releases).
 
 ### Manually compiling your validator binary
 
@@ -109,8 +109,9 @@ Usage:
   nyxd [command]
 
 Available Commands:
+  comet       CometBFT subcommands
   completion  Generate the autocompletion script for the specified shell
-  config      Create or query an application CLI configuration file
+  config      Utilities for managing application configuration
   debug       Tool for helping with debugging your application
   export      Export state to JSON
   genesis     Application's genesis-related subcommands
@@ -119,20 +120,20 @@ Available Commands:
   keys        Manage your application's keys
   prune       Prune app history states by keeping the recent heights and deleting old heights
   query       Querying subcommands
-  rollback    rollback cosmos-sdk and tendermint state by one height
-  rosetta     spin up a rosetta server
+  rollback    rollback Cosmos SDK and CometBFT state by one height
+  snapshots   Manage local snapshots
   start       Run the full node
   status      Query remote node for status
-  tendermint  Tendermint subcommands
   testnet     subcommands for starting or configuring local testnets
   tx          Transactions subcommands
   version     Print the application binary version information
 
 Flags:
   -h, --help                help for nyxd
-      --home string         directory for config and data
+      --home string         directory for config and data (default "/Users/neo/.nyxd")
       --log_format string   The logging format (json|plain) (default "plain")
-      --log_level string    The logging level (trace|debug|info|warn|error|fatal|panic) (default "info")
+      --log_level string    The logging level (trace|debug|info|warn|error|fatal|panic|disabled or '*:<level>,<key>:<level>') (default "info")
+      --log_no_color        Disable colored logs
       --trace               print out full stack trace on errors
 
 Use "nyxd [command] --help" for more information about a command.
@@ -180,8 +181,9 @@ Usage:
   nyxd [command]
 
 Available Commands:
+  comet       CometBFT subcommands
   completion  Generate the autocompletion script for the specified shell
-  config      Create or query an application CLI configuration file
+  config      Utilities for managing application configuration
   debug       Tool for helping with debugging your application
   export      Export state to JSON
   genesis     Application's genesis-related subcommands
@@ -190,20 +192,20 @@ Available Commands:
   keys        Manage your application's keys
   prune       Prune app history states by keeping the recent heights and deleting old heights
   query       Querying subcommands
-  rollback    rollback cosmos-sdk and tendermint state by one height
-  rosetta     spin up a rosetta server
+  rollback    rollback Cosmos SDK and CometBFT state by one height
+  snapshots   Manage local snapshots
   start       Run the full node
   status      Query remote node for status
-  tendermint  Tendermint subcommands
   testnet     subcommands for starting or configuring local testnets
   tx          Transactions subcommands
   version     Print the application binary version information
 
 Flags:
   -h, --help                help for nyxd
-      --home string         directory for config and data
+      --home string         directory for config and data (default "/Users/neo/.nyxd")
       --log_format string   The logging format (json|plain) (default "plain")
-      --log_level string    The logging level (trace|debug|info|warn|error|fatal|panic) (default "info")
+      --log_level string    The logging level (trace|debug|info|warn|error|fatal|panic|disabled or '*:<level>,<key>:<level>') (default "info")
+      --log_no_color        Disable colored logs
       --trace               print out full stack trace on errors
 
 Use "nyxd [command] --help" for more information about a command.
@@ -246,7 +248,7 @@ You can use the following command to download them for the correct network:
 wget  -O $HOME/.nyxd/config/genesis.json https://nymtech.net/genesis/genesis.json
 
 # Sandbox testnet
-curl https://rpc.sandbox.nymtech.net/snapshots/genesis.json | jq '.result.genesis' > $HOME/.nyxd/config/genesis.json
+curl https://rpc.sandbox.nymtech.net/genesis | jq '.result.genesis' > $HOME/.nyxd/config/genesis.json
 ```
 
 ### `config.toml` configuration
@@ -512,7 +514,7 @@ nyxd tx slashing unjail
   --from="KEYRING_NAME"
   --chain-id=nyx
   --gas=auto
-  --gas-adjustment=1.4
+  --gas-adjustment=1.5
   --gas-prices=0.025unyx
 ```
 
@@ -523,7 +525,7 @@ nyxd tx slashing unjail
   --from="KEYRING_NAME"
   --chain-id=sandbox
   --gas=auto
-  --gas-adjustment=1.4
+  --gas-adjustment=1.5
   --gas-prices=0.025unyx
 ```
 

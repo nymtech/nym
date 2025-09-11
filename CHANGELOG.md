@@ -4,6 +4,308 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [2025.15-gruyere] (2025-08-20)
+
+- Migrate strum to 0.27.2 ([#5960])
+- WG exit policy scripts update ([#5921])
+- Make DNS Resolver fallback optional ([#5920])
+- nym-node debug command to reset providers db ([#5914])
+- basic zulip client for sending messages ([#5913])
+- chore: allow compatibility with 'CDLA-Permissive-2.0' ([#5910])
+- feat: ecash liveness check ([#5890])
+- Remove old free credential handle ([#5864])
+
+[#5960]: https://github.com/nymtech/nym/pull/5960
+[#5921]: https://github.com/nymtech/nym/pull/5921
+[#5920]: https://github.com/nymtech/nym/pull/5920
+[#5914]: https://github.com/nymtech/nym/pull/5914
+[#5913]: https://github.com/nymtech/nym/pull/5913
+[#5910]: https://github.com/nymtech/nym/pull/5910
+[#5890]: https://github.com/nymtech/nym/pull/5890
+[#5864]: https://github.com/nymtech/nym/pull/5864
+
+## [2025.14-feta] (2025-08-05)
+
+- chore: nym node tokio console ([#5909])
+- Feature/dkg snapshot epoch ([#5900])
+- Feature/dkg epoch dealers query ([#5899])
+- sqlx-pool-guard: allocate more memory on windows ([#5896])
+- Support mnemonic in the NS agent ([#5883])
+- Allow PG database backend ([#5880])
+
+[#5909]: https://github.com/nymtech/nym/pull/5909
+[#5900]: https://github.com/nymtech/nym/pull/5900
+[#5899]: https://github.com/nymtech/nym/pull/5899
+[#5896]: https://github.com/nymtech/nym/pull/5896
+[#5883]: https://github.com/nymtech/nym/pull/5883
+[#5880]: https://github.com/nymtech/nym/pull/5880
+
+## [2025.13-emmental] (2025-07-22)
+
+- fix: don't allow mixnode running in exit mode ([#5898])
+- fix contract build process in Makefile ([#5892])
+- bugfix: ignore 'Send' responses when claiming bandwidth ([#5884])
+- Update push-node-status-agent.yaml ([#5882])
+- listen for shutdown signals during nym-node startup ([#5879])
+- feat: forbid running mixnode + entry on the same node ([#5878])
+- chore: 1.88 clippy ([#5877])
+- Batch SQL writes for packet stats ([#5874])
+- fix the broken link ([#5873])
+- Set busy_timeout in sqlx ([#5872])
+- feat: basic performance contract integration [within Nym API] ([#5871])
+- scraper bugfix: ignore precommits from missing validators ([#5867])
+- Return true remaining ([#5866])
+- Make Mix hops optional for Mixnet Client SURBs ([#5861])
+- Check gateway supported versions ([#5860])
+- Add build info endpoints ([#5857])
+- Clear out screaming logs ([#5856])
+- fix removal of qa env ([#5855])
+- Use display when printing paths ([#5853])
+- feat: initial performance contract ([#5833])
+- Security patches for the `dkg` crate ([#5828])
+- HTTP Discovery objects & network defaults ([#5814])
+
+[#5898]: https://github.com/nymtech/nym/pull/5898
+[#5892]: https://github.com/nymtech/nym/pull/5892
+[#5884]: https://github.com/nymtech/nym/pull/5884
+[#5882]: https://github.com/nymtech/nym/pull/5882
+[#5879]: https://github.com/nymtech/nym/pull/5879
+[#5878]: https://github.com/nymtech/nym/pull/5878
+[#5877]: https://github.com/nymtech/nym/pull/5877
+[#5874]: https://github.com/nymtech/nym/pull/5874
+[#5873]: https://github.com/nymtech/nym/pull/5873
+[#5872]: https://github.com/nymtech/nym/pull/5872
+[#5871]: https://github.com/nymtech/nym/pull/5871
+[#5867]: https://github.com/nymtech/nym/pull/5867
+[#5866]: https://github.com/nymtech/nym/pull/5866
+[#5861]: https://github.com/nymtech/nym/pull/5861
+[#5860]: https://github.com/nymtech/nym/pull/5860
+[#5857]: https://github.com/nymtech/nym/pull/5857
+[#5856]: https://github.com/nymtech/nym/pull/5856
+[#5855]: https://github.com/nymtech/nym/pull/5855
+[#5853]: https://github.com/nymtech/nym/pull/5853
+[#5833]: https://github.com/nymtech/nym/pull/5833
+[#5828]: https://github.com/nymtech/nym/pull/5828
+[#5814]: https://github.com/nymtech/nym/pull/5814
+
+## [2025.12-dolcelatte] (2025-07-07)
+
+- bugfix: key-rotation + reply SURBs ([#5876])
+- Bugfix/backwards compat ([#5865])
+- bugfix: allow gateways to permit authentication from v4 clients ([#5862])
+- fixed client route for obtaining v2 list of gateways ([#5859])
+- Updated browser extension piece removal ([#5849])
+- Remove/old env references ([#5848])
+- Remove qa env ([#5847])
+- remove not used old mock-api ([#5845])
+- remove bity dir ([#5844])
+- build(deps-dev): bump webpack-dev-server from 4.13.2 to 5.2.1 in /wasm/mix-fetch/internal-dev ([#5843])
+- Amended the buy section ([#5841])
+- Removing test-net faucet ([#5840])
+- Feature/node status dvpn directory ([#5829])
+- build(deps-dev): bump webpack-dev-server from 4.15.2 to 5.2.1 in /nym-credential-proxy/vpn-api-lib-wasm/internal-dev ([#5826])
+- bugfix: fix swapped total and circulating supplies ([#5822])
+- build(deps): bump tar-fs from 3.0.8 to 3.0.9 in /sdk/typescript/tests/integration-tests/mix-fetch ([#5821])
+- Url scheme warning log ([#5819])
+- chore: adjust heuristic for wireguard peer activity ([#5818])
+- Use the same client bandwidth for top up ([#5813])
+- Replace chrono with time in NS API ([#5811])
+- build(deps-dev): bump http-proxy-middleware from 2.0.4 to 2.0.9 in /clients/native/examples/js-examples/websocket ([#5810])
+- build(deps): bump tokio from 1.44.2 to 1.45.1 ([#5798])
+- Close sqlite pool before moving or reopening databases ([#5796])
+- HTTP Client Retries, Fallbacks, and Redirects ([#5789])
+- feat: key rotation ([#5777])
+- build(deps): bump next from 14.2.15 to 14.2.26 in /documentation/docs ([#5772])
+- build(deps): bump undici from 5.28.5 to 5.29.0 in /.github/actions/nym-hash-releases/src ([#5771])
+- build(deps): bump cargo_metadata from 0.18.1 to 0.19.2 ([#5765])
+- build(deps): bump tempfile from 3.19.1 to 3.20.0 ([#5764])
+- [Feature] Noise XKpsk3 integration (2025 version) ([#5692])
+- feature: nympool contract ([#5464])
+- chore: fixed typo in API endpoint parameter ([#5449])
+
+[#5876]: https://github.com/nymtech/nym/pull/5876
+[#5865]: https://github.com/nymtech/nym/pull/5865
+[#5862]: https://github.com/nymtech/nym/pull/5862
+[#5859]: https://github.com/nymtech/nym/pull/5859
+[#5849]: https://github.com/nymtech/nym/pull/5849
+[#5848]: https://github.com/nymtech/nym/pull/5848
+[#5847]: https://github.com/nymtech/nym/pull/5847
+[#5845]: https://github.com/nymtech/nym/pull/5845
+[#5844]: https://github.com/nymtech/nym/pull/5844
+[#5843]: https://github.com/nymtech/nym/pull/5843
+[#5841]: https://github.com/nymtech/nym/pull/5841
+[#5840]: https://github.com/nymtech/nym/pull/5840
+[#5829]: https://github.com/nymtech/nym/pull/5829
+[#5826]: https://github.com/nymtech/nym/pull/5826
+[#5822]: https://github.com/nymtech/nym/pull/5822
+[#5821]: https://github.com/nymtech/nym/pull/5821
+[#5819]: https://github.com/nymtech/nym/pull/5819
+[#5818]: https://github.com/nymtech/nym/pull/5818
+[#5813]: https://github.com/nymtech/nym/pull/5813
+[#5811]: https://github.com/nymtech/nym/pull/5811
+[#5810]: https://github.com/nymtech/nym/pull/5810
+[#5798]: https://github.com/nymtech/nym/pull/5798
+[#5796]: https://github.com/nymtech/nym/pull/5796
+[#5789]: https://github.com/nymtech/nym/pull/5789
+[#5777]: https://github.com/nymtech/nym/pull/5777
+[#5772]: https://github.com/nymtech/nym/pull/5772
+[#5771]: https://github.com/nymtech/nym/pull/5771
+[#5765]: https://github.com/nymtech/nym/pull/5765
+[#5764]: https://github.com/nymtech/nym/pull/5764
+[#5692]: https://github.com/nymtech/nym/pull/5692
+[#5464]: https://github.com/nymtech/nym/pull/5464
+[#5449]: https://github.com/nymtech/nym/pull/5449
+
+## [2025.11-cheddar] (2025-06-10)
+
+- No autoremoval of peers ([#5831])
+- Set cached storage counters to 0 ([#5812])
+- hack: temporarily use next.config.js instead of next.config.ts ([#5805])
+- chore: resolve 1.87 clippy warnings ([#5802])
+- Nym Statistics API ([#5800])
+- QoL: RequestPath trait for http-api-client ([#5788])
+- Fix contains ticketbook function that always returned true ([#5787])
+- swap a decode into a fromrow to please future postgres feature ([#5785])
+- Make address cache configurable ([#5784])
+- Track wireguard credential retries ([#5783])
+
+[#5831]: https://github.com/nymtech/nym/pull/5831
+[#5812]: https://github.com/nymtech/nym/pull/5812
+[#5805]: https://github.com/nymtech/nym/pull/5805
+[#5802]: https://github.com/nymtech/nym/pull/5802
+[#5800]: https://github.com/nymtech/nym/pull/5800
+[#5788]: https://github.com/nymtech/nym/pull/5788
+[#5787]: https://github.com/nymtech/nym/pull/5787
+[#5785]: https://github.com/nymtech/nym/pull/5785
+[#5784]: https://github.com/nymtech/nym/pull/5784
+[#5783]: https://github.com/nymtech/nym/pull/5783
+
+## [2025.10-brie] (2025-05-27)
+
+- Backport PR 5779 ([#5801])
+- Expanded Accept Encoding for `reqwest` ([#5779])
+- Teach HttpClientError how to report its status code and timeout ([#5770])
+- Skip refreshing the topology on startup as we already have an initial set ([#5768])
+- Fetch the topology from the nym-api concurrently ([#5767])
+- feat: use bincode by default in NymApiClient + remove feature-lock ([#5761])
+- Instrument create_request ([#5760])
+- Add node_bonded field to delegations ([#5759])
+- build(deps): bump mikefarah/yq from 4.45.1 to 4.45.4 ([#5758])
+- Raw route submissions ([#5756])
+- feat: expires header for `/active` nym-api responses ([#5755])
+- Decrease default average packet delay to 15 ms ([#5754])
+- build(deps): bump the patch-updates group across 1 directory with 12 updates ([#5753])
+- Remove pretty_env_logger and switch remaining crates to use tracing ([#5749])
+- Update pretty_env_logger to latest to not depend on unmaintained crate atty ([#5748])
+- Upgrade prometheus crate to fix security warning ([#5747])
+- Downgrade deranged crate to 0.4.0 ([#5746])
+- feat: nym-api bincode + yaml support ([#5745])
+- fix parallel feature in ecash crate with send + sync ([#5744])
+- Remove old test directory - Update validator docker ([#5743])
+- [Feature] `RememberMe` is the new don't `ForgetMe` ([#5742])
+- build(deps): bump ammonia from 4.0.0 to 4.1.0 ([#5739])
+- build(deps): bump base-x from 3.0.9 to 3.0.11 in /testnet-faucet ([#5737])
+- build(deps): bump http-proxy-middleware from 2.0.8 to 2.0.9 ([#5730])
+
+[#5801]: https://github.com/nymtech/nym/pull/5801
+[#5779]: https://github.com/nymtech/nym/pull/5779
+[#5770]: https://github.com/nymtech/nym/pull/5770
+[#5768]: https://github.com/nymtech/nym/pull/5768
+[#5767]: https://github.com/nymtech/nym/pull/5767
+[#5761]: https://github.com/nymtech/nym/pull/5761
+[#5760]: https://github.com/nymtech/nym/pull/5760
+[#5759]: https://github.com/nymtech/nym/pull/5759
+[#5758]: https://github.com/nymtech/nym/pull/5758
+[#5756]: https://github.com/nymtech/nym/pull/5756
+[#5755]: https://github.com/nymtech/nym/pull/5755
+[#5754]: https://github.com/nymtech/nym/pull/5754
+[#5753]: https://github.com/nymtech/nym/pull/5753
+[#5749]: https://github.com/nymtech/nym/pull/5749
+[#5748]: https://github.com/nymtech/nym/pull/5748
+[#5747]: https://github.com/nymtech/nym/pull/5747
+[#5746]: https://github.com/nymtech/nym/pull/5746
+[#5745]: https://github.com/nymtech/nym/pull/5745
+[#5744]: https://github.com/nymtech/nym/pull/5744
+[#5743]: https://github.com/nymtech/nym/pull/5743
+[#5742]: https://github.com/nymtech/nym/pull/5742
+[#5739]: https://github.com/nymtech/nym/pull/5739
+[#5737]: https://github.com/nymtech/nym/pull/5737
+[#5730]: https://github.com/nymtech/nym/pull/5730
+
+## [2025.9-appenzeller] (2025-05-13)
+
+- build(deps): bump clap from 4.5.36 to 4.5.37 in the patch-updates group ([#5722])
+- build(deps): bump golang.org/x/net from 0.36.0 to 0.38.0 in /wasm/mix-fetch/go-mix-conn ([#5720])
+- build(deps-dev): bump http-proxy-middleware from 2.0.6 to 2.0.9 in /wasm/client/internal-dev ([#5719])
+- Add /account/{address} ([#5673])
+- Add contains ticketbook data db query ([#5670])
+
+[#5722]: https://github.com/nymtech/nym/pull/5722
+[#5720]: https://github.com/nymtech/nym/pull/5720
+[#5719]: https://github.com/nymtech/nym/pull/5719
+[#5673]: https://github.com/nymtech/nym/pull/5673
+[#5670]: https://github.com/nymtech/nym/pull/5670
+
+## [2025.8-tourist] (2025-04-29)
+
+- add reserved byte to reply surb serialisation ([#5731])
+- Remove inactive peers ([#5721])
+- Update Hickory DNS "0.24.4" to "0.25" ([#5709])
+- build(deps): bump the patch-updates group across 1 directory with 7 updates ([#5708])
+- Peer handle should die more gracefully ([#5704])
+- build(deps): bump crossbeam-channel from 0.5.14 to 0.5.15 ([#5702])
+- build(deps): bump actions/checkout from 3 to 4 ([#5700])
+- Feature/updated sphinx payload keys ([#5698])
+- Bump the nym-vpn deb metapackage to 1.0 ([#5697])
+- Make mix hops optional for Mixnet Client ([#5696])
+- build(deps): bump tokio from 1.44.1 to 1.44.2 ([#5693])
+- Feature/replay protection ([#5682])
+- Adding fresh nym-api tests and workflow ([#5659])
+- build(deps): bump next from 14.2.21 to 14.2.25 ([#5655])
+- build(deps): bump pnpm/action-setup from 4.0.0 to 4.1.0 ([#5436])
+
+[#5731]: https://github.com/nymtech/nym/pull/5731
+[#5721]: https://github.com/nymtech/nym/pull/5721
+[#5709]: https://github.com/nymtech/nym/pull/5709
+[#5708]: https://github.com/nymtech/nym/pull/5708
+[#5704]: https://github.com/nymtech/nym/pull/5704
+[#5702]: https://github.com/nymtech/nym/pull/5702
+[#5700]: https://github.com/nymtech/nym/pull/5700
+[#5698]: https://github.com/nymtech/nym/pull/5698
+[#5697]: https://github.com/nymtech/nym/pull/5697
+[#5696]: https://github.com/nymtech/nym/pull/5696
+[#5693]: https://github.com/nymtech/nym/pull/5693
+[#5682]: https://github.com/nymtech/nym/pull/5682
+[#5659]: https://github.com/nymtech/nym/pull/5659
+[#5655]: https://github.com/nymtech/nym/pull/5655
+[#5436]: https://github.com/nymtech/nym/pull/5436
+
+## [2025.7-tex] (2025-04-14)
+
+- Expand /v3/nym-nodes with geodata ([#5686])
+- chore: clippy for 1.86 ([#5685])
+- Featrure: Bash scripts to init and configure VMs conveniently and update docs ([#5681])
+- Update node versions in CI ([#5677])
+- build(deps): bump the patch-updates group across 1 directory with 8 updates ([#5668])
+- Update log crate ([#5667])
+- Minor fixes involving key cloning and hashing ([#5664])
+- mix throughput tester ([#5661])
+- build(deps): bump blake3 from 1.6.1 to 1.7.0 ([#5658])
+- build(deps): bump elliptic from 6.5.5 to 6.6.1 ([#5483])
+- Move all workflows on ubuntu-20 to ubuntu-22 ([#5455])
+
+[#5686]: https://github.com/nymtech/nym/pull/5686
+[#5685]: https://github.com/nymtech/nym/pull/5685
+[#5681]: https://github.com/nymtech/nym/pull/5681
+[#5677]: https://github.com/nymtech/nym/pull/5677
+[#5668]: https://github.com/nymtech/nym/pull/5668
+[#5667]: https://github.com/nymtech/nym/pull/5667
+[#5664]: https://github.com/nymtech/nym/pull/5664
+[#5661]: https://github.com/nymtech/nym/pull/5661
+[#5658]: https://github.com/nymtech/nym/pull/5658
+[#5483]: https://github.com/nymtech/nym/pull/5483
+[#5455]: https://github.com/nymtech/nym/pull/5455
+
 ## [2025.6-chuckles] (2025-03-31)
 
 - Remove Google public DNS ([#5660])

@@ -104,6 +104,7 @@ allow = [
     "Unicode-3.0",
     "OpenSSL",
     "Zlib",
+    "CDLA-Permissive-2.0",
 ]
 # The confidence threshold for detecting a license from license text.
 # The higher the value, the more closely the license text must be to the
@@ -118,7 +119,6 @@ exceptions = [
     #{ allow = ["Zlib"], crate = "adler32" },
     { allow = ["GPL-3.0"], crate = "nym-api" },
     { allow = ["GPL-3.0"], crate = "nym-gateway" },
-    { allow = ["GPL-3.0"], crate = "nym-mixnode" },
     { allow = ["GPL-3.0"], crate = "nym-network-requester" },
     { allow = ["GPL-3.0"], crate = "nym-node" },
     { allow = ["GPL-3.0"], crate = "nym-validator-rewarder" },

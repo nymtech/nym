@@ -3,11 +3,11 @@
 
 use dashmap::DashMap;
 use futures::StreamExt;
-use nym_sphinx::addressing::nodes::NymNodeRoutingAddress;
+use nym_noise::config::NoiseConfig;
+use nym_noise::upgrade_noise_initiator;
+use nym_sphinx::forwarding::packet::MixPacket;
 use nym_sphinx::framing::codec::NymCodec;
 use nym_sphinx::framing::packet::FramedNymPacket;
-use nym_sphinx::params::PacketType;
-use nym_sphinx::NymPacket;
 use std::io;
 use std::net::SocketAddr;
 use std::ops::Deref;
@@ -28,6 +28,7 @@ pub struct Config {
     pub maximum_reconnection_backoff: Duration,
     pub initial_connection_timeout: Duration,
     pub maximum_connection_buffer_size: usize,
+    pub use_legacy_packet_encoding: bool,
 }
 
 impl Config {
@@ -36,12 +37,14 @@ impl Config {
         maximum_reconnection_backoff: Duration,
         initial_connection_timeout: Duration,
         maximum_connection_buffer_size: usize,
+        use_legacy_packet_encoding: bool,
     ) -> Self {
         Config {
             initial_reconnection_backoff,
             maximum_reconnection_backoff,
             initial_connection_timeout,
             maximum_connection_buffer_size,
+            use_legacy_packet_encoding,
         }
     }
 }
@@ -49,23 +52,19 @@ impl Config {
 pub trait SendWithoutResponse {
     // Without response in this context means we will not listen for anything we might get back (not
     // that we should get anything), including any possible io errors
-    fn send_without_response(
-        &self,
-        address: NymNodeRoutingAddress,
-        packet: NymPacket,
-        packet_type: PacketType,
-    ) -> io::Result<()>;
+    fn send_without_response(&self, packet: MixPacket) -> io::Result<()>;
 }
 
 pub struct Client {
     active_connections: ActiveConnections,
+    noise_config: NoiseConfig,
     connections_count: Arc<AtomicUsize>,
     config: Config,
 }
 
 #[derive(Default, Clone)]
 pub struct ActiveConnections {
-    inner: Arc<DashMap<NymNodeRoutingAddress, ConnectionSender>>,
+    inner: Arc<DashMap<SocketAddr, ConnectionSender>>,
 }
 
 impl ActiveConnections {
@@ -82,7 +81,7 @@ impl ActiveConnections {
 }
 
 impl Deref for ActiveConnections {
-    type Target = DashMap<NymNodeRoutingAddress, ConnectionSender>;
+    type Target = DashMap<SocketAddr, ConnectionSender>;
     fn deref(&self) -> &Self::Target {
         &self.inner
     }
@@ -104,6 +103,7 @@ impl ConnectionSender {
 
 struct ManagedConnection {
     address: SocketAddr,
+    noise_config: NoiseConfig,
     message_receiver: ReceiverStream<FramedNymPacket>,
     connection_timeout: Duration,
     current_reconnection: Arc<AtomicU32>,
@@ -112,12 +112,14 @@ struct ManagedConnection {
 impl ManagedConnection {
     fn new(
         address: SocketAddr,
+        noise_config: NoiseConfig,
         message_receiver: mpsc::Receiver<FramedNymPacket>,
         connection_timeout: Duration,
         current_reconnection: Arc<AtomicU32>,
     ) -> Self {
         ManagedConnection {
             address,
+            noise_config,
             message_receiver: ReceiverStream::new(message_receiver),
             connection_timeout,
             current_reconnection,
@@ -132,9 +134,21 @@ impl ManagedConnection {
             Ok(stream_res) => match stream_res {
                 Ok(stream) => {
                     debug!("Managed to establish connection to {}", self.address);
-                    // if we managed to connect, reset the reconnection count (whatever it might have been)
+
+                    let noise_stream =
+                        match upgrade_noise_initiator(stream, &self.noise_config).await {
+                            Ok(noise_stream) => noise_stream,
+                            Err(err) => {
+                                error!("Failed to perform Noise handshake with {address} - {err}");
+                                // we failed to finish the noise handshake - increase reconnection attempt
+                                self.current_reconnection.fetch_add(1, Ordering::SeqCst);
+                                return;
+                            }
+                        };
+                    // if we managed to connect AND do the noise handshake, reset the reconnection count (whatever it might have been)
                     self.current_reconnection.store(0, Ordering::Release);
-                    Framed::new(stream, NymCodec)
+                    debug!("Noise initiator handshake completed for {:?}", address);
+                    Framed::new(noise_stream, NymCodec)
                 }
                 Err(err) => {
                     debug!("failed to establish connection to {address} (err: {err})",);
@@ -167,9 +181,14 @@ impl ManagedConnection {
 }
 
 impl Client {
-    pub fn new(config: Config, connections_count: Arc<AtomicUsize>) -> Client {
+    pub fn new(
+        config: Config,
+        noise_config: NoiseConfig,
+        connections_count: Arc<AtomicUsize>,
+    ) -> Client {
         Client {
             active_connections: Default::default(),
+            noise_config,
             connections_count,
             config,
         }
@@ -196,7 +215,7 @@ impl Client {
         }
     }
 
-    fn make_connection(&self, address: NymNodeRoutingAddress, pending_packet: FramedNymPacket) {
+    fn make_connection(&self, address: SocketAddr, pending_packet: FramedNymPacket) {
         let (sender, receiver) = mpsc::channel(self.config.maximum_connection_buffer_size);
 
         // this CAN'T fail because we just created the channel which has a non-zero capacity
@@ -224,6 +243,7 @@ impl Client {
         let initial_connection_timeout = self.config.initial_connection_timeout;
 
         let connections_count = self.connections_count.clone();
+        let noise_config = self.noise_config.clone();
         tokio::spawn(async move {
             // before executing the manager, wait for what was specified, if anything
             if let Some(backoff) = backoff {
@@ -233,7 +253,8 @@ impl Client {
 
             connections_count.fetch_add(1, Ordering::SeqCst);
             ManagedConnection::new(
-                address.into(),
+                address,
+                noise_config,
                 receiver,
                 initial_connection_timeout,
                 current_reconnection_attempt,
@@ -246,18 +267,19 @@ impl Client {
 }
 
 impl SendWithoutResponse for Client {
-    fn send_without_response(
-        &self,
-        address: NymNodeRoutingAddress,
-        packet: NymPacket,
-        packet_type: PacketType,
-    ) -> io::Result<()> {
-        trace!("Sending packet to {address:?}");
-        let framed_packet = FramedNymPacket::new(packet, packet_type);
+    fn send_without_response(&self, packet: MixPacket) -> io::Result<()> {
+        let address = packet.next_hop_address();
+        trace!("Sending packet to {address}");
+
+        // TODO: optimisation for the future: rather than constantly using legacy encoding,
+        // once we're addressing by node_id (and thus have full node info here),
+        // we could simply infer supported encoding based on their version
+        let framed_packet =
+            FramedNymPacket::from_mix_packet(packet, self.config.use_legacy_packet_encoding);
 
         let Some(sender) = self.active_connections.get_mut(&address) else {
             // there was never a connection to begin with
-            debug!("establishing initial connection to {}", address);
+            debug!("establishing initial connection to {address}");
             // it's not a 'big' error, but we did not manage to send the packet, but queue the packet
             // for sending for as soon as the connection is created
             self.make_connection(address, framed_packet);
@@ -302,15 +324,25 @@ impl SendWithoutResponse for Client {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use nym_crypto::asymmetric::x25519;
+    use nym_noise::config::NoiseNetworkView;
+    use rand::rngs::OsRng;
 
     fn dummy_client() -> Client {
+        let mut rng = OsRng; //for test only, so we don't care if rng source isn't crypto grade
         Client::new(
             Config {
                 initial_reconnection_backoff: Duration::from_millis(10_000),
                 maximum_reconnection_backoff: Duration::from_millis(300_000),
                 initial_connection_timeout: Duration::from_millis(1_500),
                 maximum_connection_buffer_size: 128,
+                use_legacy_packet_encoding: false,
             },
+            NoiseConfig::new(
+                Arc::new(x25519::KeyPair::new(&mut rng)),
+                NoiseNetworkView::new_empty(),
+                Duration::from_millis(1_500),
+            ),
             Default::default(),
         )
     }

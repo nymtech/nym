@@ -111,7 +111,7 @@ impl SocketClient {
         let dkg_query_client = if self.config.base.client.disabled_credentials_mode {
             None
         } else {
-            Some(default_query_dkg_client_from_config(&self.config.base))
+            Some(default_query_dkg_client_from_config(&self.config.base)?)
         };
 
         let storage = self.initialise_storage().await?;

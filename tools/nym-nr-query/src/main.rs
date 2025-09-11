@@ -75,7 +75,7 @@ fn parse_socks5_response(received: Vec<mixnet::ReconstructedMessage>) -> Socks5R
     assert_eq!(received.len(), 1);
     let response: Response<Socks5Request> = Response::try_from_bytes(&received[0].message).unwrap();
     match response.content {
-        ResponseContent::Control(control) => panic!("unexpected control response: {:?}", control),
+        ResponseContent::Control(control) => panic!("unexpected control response: {control:?}"),
         ResponseContent::ProviderData(data) => data,
     }
 }
@@ -276,9 +276,9 @@ enum ClientResponse {
 impl fmt::Display for ClientResponse {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ClientResponse::Control(control) => write!(f, "{:#?}", control),
-            ClientResponse::Query(query) => write!(f, "{:#?}", query),
-            ClientResponse::Ping(ping) => write!(f, "{}", ping),
+            ClientResponse::Control(control) => write!(f, "{control:#?}"),
+            ClientResponse::Query(query) => write!(f, "{query:#?}"),
+            ClientResponse::Ping(ping) => write!(f, "{ping}"),
         }
     }
 }
@@ -312,7 +312,7 @@ async fn main() -> anyhow::Result<()> {
     let args = Cli::parse();
 
     if args.debug {
-        nym_bin_common::logging::setup_logging();
+        nym_bin_common::logging::setup_tracing_logger();
     }
 
     nym_network_defaults::setup_env(args.config_env_file.as_ref());

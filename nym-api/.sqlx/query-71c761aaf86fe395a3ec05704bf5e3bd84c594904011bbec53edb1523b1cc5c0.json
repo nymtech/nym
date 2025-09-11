@@ -6,7 +6,7 @@
       {
         "name": "deposit_id: DepositId",
         "ordinal": 0,
-        "type_info": "Int64"
+        "type_info": "Integer"
       },
       {
         "name": "merkle_leaf",
@@ -16,7 +16,7 @@
       {
         "name": "merkle_index: u32",
         "ordinal": 2,
-        "type_info": "Int64"
+        "type_info": "Integer"
       }
     ],
     "parameters": {

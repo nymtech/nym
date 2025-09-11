@@ -13,7 +13,7 @@ fn parse_response(received: Vec<ReconstructedMessage>) -> Socks5Response {
     assert_eq!(received.len(), 1);
     let response: Response<Socks5Request> = Response::try_from_bytes(&received[0].message).unwrap();
     match response.content {
-        ResponseContent::Control(control) => panic!("unexpected control response: {:?}", control),
+        ResponseContent::Control(control) => panic!("unexpected control response: {control:?}"),
         ResponseContent::ProviderData(data) => data,
     }
 }

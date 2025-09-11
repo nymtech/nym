@@ -49,14 +49,14 @@ pub fn show_error<E>(e: E)
 where
     E: Display,
 {
-    error!("{}", e);
+    error!("{e}");
 }
 
 pub fn show_error_passthrough<E>(e: E) -> E
 where
     E: Error + Display,
 {
-    error!("{}", e);
+    error!("{e}");
     e
 }
 

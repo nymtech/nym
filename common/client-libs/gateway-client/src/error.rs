@@ -25,7 +25,7 @@ pub enum GatewayClientError {
     RequestError(#[from] GatewayRequestsError),
 
     #[error("There was a network error: {0}")]
-    NetworkError(#[from] WsError),
+    NetworkError(Box<WsError>),
 
     #[error("failed to upgrade our shared key - the gateway sent malformed response")]
     FatalKeyUpgradeFailure,
@@ -41,7 +41,10 @@ pub enum GatewayClientError {
     NetworkErrorWasm(#[from] JsError),
 
     #[error("connection failed: {address}: {source}")]
-    NetworkConnectionFailed { address: String, source: WsError },
+    NetworkConnectionFailed {
+        address: String,
+        source: Box<WsError>,
+    },
 
     #[error("no socket address for endpoint: {address}")]
     NoEndpointForConnection { address: String },
@@ -127,10 +130,16 @@ pub enum GatewayClientError {
     ShutdownInProgress,
 }
 
+impl From<WsError> for GatewayClientError {
+    fn from(error: WsError) -> Self {
+        GatewayClientError::NetworkError(Box::new(error))
+    }
+}
+
 impl GatewayClientError {
     pub fn is_closed_connection(&self) -> bool {
         match self {
-            GatewayClientError::NetworkError(ws_err) => match ws_err {
+            GatewayClientError::NetworkError(ws_err) => match ws_err.as_ref() {
                 WsError::AlreadyClosed | WsError::ConnectionClosed => true,
                 WsError::Io(io_err) => matches!(
                     io_err.kind(),

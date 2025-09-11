@@ -20,12 +20,7 @@ pub async fn send(
     let from_address = guard.current_client()?.nyxd.address().to_string();
     let fee_amount = guard.convert_tx_fee(fee.as_ref());
     log::info!(
-        ">>> Send: display_amount = {}, base_amount = {}, from = {}, to = {}, fee = {:?}",
-        amount,
-        amount_base,
-        from_address,
-        to_address,
-        fee,
+        ">>> Send: display_amount = {amount}, base_amount = {amount_base}, from = {from_address}, to = {to_address}, fee = {fee:?}",
     );
     let raw_res = guard
         .current_client()?
@@ -38,6 +33,6 @@ pub async fn send(
         TransactionDetails::new(amount, from_address, to_address.to_string()),
         fee_amount,
     );
-    log::trace!("<<< {:?}", res);
+    log::trace!("<<< {res:?}");
     Ok(res)
 }

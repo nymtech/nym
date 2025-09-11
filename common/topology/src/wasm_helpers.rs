@@ -5,7 +5,7 @@
 #![allow(clippy::empty_docs)]
 
 use crate::node::{EntryDetails, RoutingNode, RoutingNodeError, SupportedRoles};
-use crate::{CachedEpochRewardedSet, NymTopology};
+use crate::{CachedEpochRewardedSet, NymTopology, NymTopologyMetadata};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::net::SocketAddr;
@@ -38,6 +38,8 @@ impl From<SerializableTopologyError> for JsValue {
 #[serde(rename_all = "camelCase")]
 #[serde(deny_unknown_fields)]
 pub struct WasmFriendlyNymTopology {
+    pub metadata: NymTopologyMetadata,
+
     pub rewarded_set: CachedEpochRewardedSet,
 
     pub node_details: HashMap<u32, WasmFriendlyRoutingNode>,
@@ -53,13 +55,18 @@ impl TryFrom<WasmFriendlyNymTopology> for NymTopology {
             .map(|details| details.try_into())
             .collect::<Result<_, _>>()?;
 
-        Ok(NymTopology::new(value.rewarded_set, node_details))
+        Ok(NymTopology::new(
+            value.metadata,
+            value.rewarded_set,
+            node_details,
+        ))
     }
 }
 
 impl From<NymTopology> for WasmFriendlyNymTopology {
     fn from(value: NymTopology) -> Self {
         WasmFriendlyNymTopology {
+            metadata: value.metadata,
             rewarded_set: value.rewarded_set,
             node_details: value
                 .node_details

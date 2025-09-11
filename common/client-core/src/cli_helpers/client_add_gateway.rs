@@ -12,12 +12,12 @@ use crate::{
     error::ClientCoreError,
     init::types::{GatewaySelectionSpecification, GatewaySetup},
 };
-use log::info;
 use nym_client_core_gateways_storage::GatewayDetails;
 use nym_crypto::asymmetric::ed25519;
 use nym_topology::NymTopology;
 use nym_validator_client::UserAgent;
 use std::path::PathBuf;
+use tracing::info;
 
 #[cfg_attr(feature = "cli", derive(clap::Args))]
 #[derive(Debug, Clone)]
@@ -81,14 +81,14 @@ where
 
     // Attempt to use a user-provided gateway, if possible
     let user_chosen_gateway_id = common_args.gateway_id;
-    log::debug!("User chosen gateway id: {user_chosen_gateway_id:?}");
+    tracing::debug!("User chosen gateway id: {user_chosen_gateway_id:?}");
 
     let selection_spec = GatewaySelectionSpecification::new(
         user_chosen_gateway_id.map(|id| id.to_base58_string()),
         Some(common_args.latency_based_selection),
         common_args.force_tls_gateway,
     );
-    log::debug!("Gateway selection specification: {selection_spec:?}");
+    tracing::debug!("Gateway selection specification: {selection_spec:?}");
 
     let registered_gateways = get_all_registered_identities(&details_store).await?;
 

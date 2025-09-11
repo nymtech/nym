@@ -7,25 +7,36 @@ use crate::ClientBandwidth;
 use nym_credentials::ecash::utils::ecash_today;
 use nym_credentials_interface::Bandwidth;
 use nym_gateway_requests::ServerResponse;
-use nym_gateway_storage::GatewayStorage;
+use nym_gateway_storage::traits::BandwidthGatewayStorage;
 use si_scale::helpers::bibytes2;
 use time::OffsetDateTime;
 use tracing::*;
 
 const FREE_TESTNET_BANDWIDTH_VALUE: Bandwidth = Bandwidth::new_unchecked(64 * 1024 * 1024 * 1024); // 64GB
 
-#[derive(Clone)]
 pub struct BandwidthStorageManager {
-    pub(crate) storage: GatewayStorage,
+    pub(crate) storage: Box<dyn BandwidthGatewayStorage + Send + Sync>,
     pub(crate) client_bandwidth: ClientBandwidth,
     pub(crate) client_id: i64,
     pub(crate) bandwidth_cfg: BandwidthFlushingBehaviourConfig,
     pub(crate) only_coconut_credentials: bool,
 }
 
+impl Clone for BandwidthStorageManager {
+    fn clone(&self) -> Self {
+        Self {
+            storage: dyn_clone::clone_box(&*self.storage),
+            client_bandwidth: self.client_bandwidth.clone(),
+            client_id: self.client_id,
+            bandwidth_cfg: self.bandwidth_cfg,
+            only_coconut_credentials: self.only_coconut_credentials,
+        }
+    }
+}
+
 impl BandwidthStorageManager {
     pub fn new(
-        storage: GatewayStorage,
+        storage: Box<dyn BandwidthGatewayStorage + Send + Sync>,
         client_bandwidth: ClientBandwidth,
         client_id: i64,
         bandwidth_cfg: BandwidthFlushingBehaviourConfig,
@@ -38,6 +49,10 @@ impl BandwidthStorageManager {
             bandwidth_cfg,
             only_coconut_credentials,
         }
+    }
+
+    pub fn client_bandwidth(&self) -> ClientBandwidth {
+        self.client_bandwidth.clone()
     }
 
     pub async fn available_bandwidth(&self) -> i64 {
@@ -84,7 +99,8 @@ impl BandwidthStorageManager {
         debug!(available = available_bi2, required = required_bi2);
 
         self.consume_bandwidth(required_bandwidth).await?;
-        Ok(available_bandwidth)
+        let remaining_bandwidth = self.client_bandwidth.available().await;
+        Ok(remaining_bandwidth)
     }
 
     async fn expire_bandwidth(&mut self) -> Result<()> {

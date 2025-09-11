@@ -1,5 +1,6 @@
 use anyhow::Result;
 use clap::Parser;
+use nym_crypto::asymmetric::ed25519;
 use nym_sdk::tcp_proxy;
 
 #[derive(Parser, Debug)]
@@ -15,11 +16,14 @@ struct Args {
     /// Optional env filepath - if none is supplied then the proxy defaults to using mainnet else just use a path to one of the supplied files in envs/ e.g. ./envs/sandbox.env
     #[clap(short, long)]
     env_path: Option<String>,
+
+    #[clap(short, long)]
+    gateway: Option<ed25519::PublicKey>,
 }
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    nym_bin_common::logging::setup_logging();
+    nym_bin_common::logging::setup_tracing_logger();
 
     let args = Args::parse();
 
@@ -30,6 +34,7 @@ async fn main() -> Result<()> {
         &args.upstream_tcp_address,
         &conf_path,
         args.env_path.clone(),
+        args.gateway,
     )
     .await?;
 

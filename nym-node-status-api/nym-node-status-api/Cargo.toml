@@ -3,7 +3,7 @@
 
 [package]
 name = "nym-node-status-api"
-version = "2.1.0"
+version = "3.3.2"
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
@@ -17,36 +17,41 @@ ammonia = { workspace = true }
 anyhow = { workspace = true }
 axum = { workspace = true, features = ["tokio", "macros"] }
 bip39 = { workspace = true }
-chrono = { workspace = true }
+celes = { workspace = true }
 clap = { workspace = true, features = ["cargo", "derive", "env", "string"] }
 cosmwasm-std = { workspace = true }
-envy = { workspace = true }
 futures-util = { workspace = true }
+humantime = { workspace = true }
 itertools = { workspace = true }
 moka = { workspace = true, features = ["future"] }
+
 nym-contracts-common = { path = "../../common/cosmwasm-smart-contracts/contracts-common" }
+nym-mixnet-contract-common = { path = "../../common/cosmwasm-smart-contracts/mixnet-contract", features = ["utoipa"] }
 nym-bin-common = { path = "../../common/bin-common", features = ["models"] }
 nym-node-status-client = { path = "../nym-node-status-client" }
 nym-crypto = { path = "../../common/crypto", features = ["asymmetric", "serde"] }
 nym-http-api-client = { path = "../../common/http-api-client" }
+nym-http-api-common = { path = "../../common/http-api-common", features = ["middleware"] }
 nym-network-defaults = { path = "../../common/network-defaults" }
 nym-serde-helpers = { path = "../../common/serde-helpers" }
 nym-statistics-common = { path = "../../common/statistics" }
 nym-validator-client = { path = "../../common/client-libs/validator-client" }
 nym-task = { path = "../../common/task" }
 nym-node-requests = { path = "../../nym-node/nym-node-requests", features = ["openapi"] }
+
 rand = { workspace = true }
 rand_chacha = { workspace = true }
 regex = { workspace = true }
 reqwest = { workspace = true }
+semver = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 serde_json_path = { workspace = true }
 strum = { workspace = true }
 strum_macros = { workspace = true }
-sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite", "time"] }
+sqlx = { workspace = true, features = ["runtime-tokio-rustls", "time"] }
 thiserror = { workspace = true }
-time = { workspace = true }
+time = { workspace = true, features = ["formatting"] }
 tokio = { workspace = true, features = ["rt-multi-thread"] }
 tokio-util = { workspace = true }
 tracing = { workspace = true }
@@ -59,13 +64,20 @@ utoipauto = { workspace = true }
 
 nym-node-metrics = { path = "../../nym-node/nym-node-metrics" }
 
+[features]
+default = ["pg"]
+sqlite = ["sqlx/sqlite"]
+pg = ["sqlx/postgres"]
 
 [build-dependencies]
 anyhow = { workspace = true }
 tokio = { workspace = true, features = ["macros"] }
 sqlx = { workspace = true, features = [
     "runtime-tokio-rustls",
-    "sqlite",
     "macros",
     "migrate",
 ] }
+
+[dev-dependencies]
+axum-test = "17.3.0"
+time = { workspace = true, features = ["macros"] }

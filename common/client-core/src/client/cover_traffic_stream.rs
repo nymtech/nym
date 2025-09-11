@@ -6,7 +6,6 @@ use crate::client::topology_control::TopologyAccessor;
 use crate::{config, spawn_future};
 use futures::task::{Context, Poll};
 use futures::{Future, Stream, StreamExt};
-use log::*;
 use nym_sphinx::acknowledgements::AckKey;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::cover::generate_loop_cover_packet;
@@ -19,6 +18,7 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::mpsc::error::TrySendError;
+use tracing::*;
 
 #[cfg(not(target_arch = "wasm32"))]
 use tokio::time::{sleep, Sleep};
@@ -210,10 +210,10 @@ impl LoopCoverTrafficStream<OsRng> {
                 TrySendError::Full(_) => {
                     // This isn't a problem, if the channel is full means we're already sending the
                     // max amount of messages downstream can handle.
-                    log::debug!("Failed to send cover message - channel full");
+                    tracing::debug!("Failed to send cover message - channel full");
                 }
                 TrySendError::Closed(_) => {
-                    log::warn!("Failed to send cover message - channel closed");
+                    tracing::warn!("Failed to send cover message - channel closed");
                 }
             }
         } else {
@@ -235,6 +235,7 @@ impl LoopCoverTrafficStream<OsRng> {
         tokio::task::yield_now().await;
     }
 
+    #[allow(clippy::panic)]
     pub fn start(mut self) {
         if self.cover_traffic.disable_loop_cover_traffic_stream {
             // we should have never got here in the first place - the task should have never been created to begin with
@@ -251,27 +252,30 @@ impl LoopCoverTrafficStream<OsRng> {
 
         let mut shutdown = self.task_client.fork("select");
 
-        spawn_future(async move {
-            debug!("Started LoopCoverTrafficStream with graceful shutdown support");
+        spawn_future!(
+            async move {
+                debug!("Started LoopCoverTrafficStream with graceful shutdown support");
 
-            while !shutdown.is_shutdown() {
-                tokio::select! {
-                    biased;
-                    _ = shutdown.recv() => {
-                        log::trace!("LoopCoverTrafficStream: Received shutdown");
-                    }
-                    next = self.next() => {
-                        if next.is_some() {
-                            self.on_new_message().await;
-                        } else {
-                            log::trace!("LoopCoverTrafficStream: Stopping since channel closed");
-                            break;
+                while !shutdown.is_shutdown() {
+                    tokio::select! {
+                        biased;
+                        _ = shutdown.recv() => {
+                            tracing::trace!("LoopCoverTrafficStream: Received shutdown");
+                        }
+                        next = self.next() => {
+                            if next.is_some() {
+                                self.on_new_message().await;
+                            } else {
+                                tracing::trace!("LoopCoverTrafficStream: Stopping since channel closed");
+                                break;
+                            }
                         }
                     }
                 }
-            }
-            shutdown.recv_timeout().await;
-            log::debug!("LoopCoverTrafficStream: Exiting");
-        })
+                shutdown.recv_timeout().await;
+                tracing::debug!("LoopCoverTrafficStream: Exiting");
+            },
+            "LoopCoverTrafficStream"
+        )
     }
 }

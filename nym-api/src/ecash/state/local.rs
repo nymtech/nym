@@ -9,6 +9,7 @@ use crate::ecash::helpers::{
 use crate::ecash::keys::KeyPair;
 use crate::ecash::storage::models::IssuedHash;
 use nym_api_requests::ecash::models::{CommitedDeposit, DepositId};
+use nym_coconut_dkg_common::types::EpochId;
 use nym_crypto::asymmetric::ed25519;
 use nym_ticketbooks_merkle::{
     IssuedTicketbook, IssuedTicketbooksFullMerkleProof, IssuedTicketbooksMerkleTree, MerkleLeaf,
@@ -143,7 +144,7 @@ pub(crate) struct LocalEcashState {
 
     pub(crate) partial_coin_index_signatures: CachedImmutableEpochItem<IssuedCoinIndicesSignatures>,
     pub(crate) partial_expiration_date_signatures:
-        CachedImmutableItems<Date, IssuedExpirationDateSignatures>,
+        CachedImmutableItems<(EpochId, Date), IssuedExpirationDateSignatures>,
 
     // merkle trees for ticketbooks issued for particular expiration dates
     pub(crate) issued_merkle_trees: Arc<RwLock<HashMap<Date, DailyMerkleTree>>>,

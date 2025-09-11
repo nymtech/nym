@@ -16,8 +16,18 @@ pub struct UserAgent {
     pub version: String,
     /// client platform
     pub platform: String,
-    /// source commit version for the calling calling crate / subsystem
+    /// source commit version for the calling crate / subsystem
     pub git_commit: String,
+}
+
+/// Create `UserAgent` based on the caller's crate information
+// we can't use normal function as then `application` and `version` would correspond
+// of that of `nym-http-api-client` lib
+#[macro_export]
+macro_rules! generate_user_agent {
+    () => {
+        $crate::UserAgent::from($crate::bin_info!())
+    };
 }
 
 #[derive(Clone, Debug, thiserror::Error)]
@@ -141,7 +151,7 @@ mod tests {
         };
 
         assert_eq!(
-            format!("{}", user_agent),
+            format!("{user_agent}"),
             "nym-mixnode/0.11.0/x86_64-unknown-linux-gnu/abcdefg"
         );
     }

@@ -50,6 +50,7 @@ pub enum NymPacketError {
     FromSlice(#[from] TryFromSliceError),
 }
 
+// TODO: wrap that guy and add extra metadata to indicate key rotation?
 #[allow(clippy::large_enum_variant)]
 pub enum NymPacket {
     #[cfg(feature = "sphinx")]
@@ -179,6 +180,7 @@ impl NymPacket {
     }
 
     #[cfg(feature = "sphinx")]
+    #[allow(unreachable_patterns)]
     pub fn sphinx_packet_ref(&self) -> Option<&SphinxPacket> {
         match self {
             NymPacket::Sphinx(packet) => Some(packet),
@@ -187,6 +189,7 @@ impl NymPacket {
     }
 
     #[cfg(feature = "sphinx")]
+    #[allow(unreachable_patterns)]
     pub fn to_sphinx_packet(self) -> Option<SphinxPacket> {
         match self {
             NymPacket::Sphinx(packet) => Some(packet),

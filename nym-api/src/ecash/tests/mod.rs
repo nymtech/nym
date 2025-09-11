@@ -1,22 +1,25 @@
 // Copyright 2022-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::circulating_supply_api::cache::CirculatingSupplyCache;
 use crate::ecash::api_routes::handlers::ecash_routes;
 use crate::ecash::error::{EcashError, Result};
 use crate::ecash::keys::KeyPairWithEpoch;
 use crate::ecash::state::EcashState;
+use crate::mixnet_contract_cache::cache::MixnetContractCache;
 use crate::network::models::NetworkDetails;
-use crate::node_describe_cache::DescribedNodes;
+use crate::node_describe_cache::cache::DescribedNodes;
 use crate::node_status_api::handlers::unstable;
 use crate::node_status_api::NodeStatusCache;
-use crate::nym_contract_cache::cache::NymContractCache;
 use crate::status::ApiStatusState;
 use crate::support::caching::cache::SharedCache;
 use crate::support::config;
-use crate::support::http::state::{AppState, ChainStatusCache, ForcedRefresh};
+use crate::support::http::state::chain_status::ChainStatusCache;
+use crate::support::http::state::contract_details::ContractDetailsCache;
+use crate::support::http::state::force_refresh::ForcedRefresh;
+use crate::support::http::state::AppState;
 use crate::support::nyxd::Client;
 use crate::support::storage::NymApiStorage;
+use crate::unstable_routes::v1::account::cache::AddressInfoCache;
 use async_trait::async_trait;
 use axum::Router;
 use axum_test::http::StatusCode;
@@ -29,9 +32,10 @@ use cw3::{Proposal, ProposalResponse, Vote, VoteInfo, VoteResponse, Votes};
 use cw4::{Cw4Contract, MemberResponse};
 use nym_api_requests::ecash::models::{
     IssuedTicketbooksChallengeCommitmentRequestBody, IssuedTicketbooksChallengeCommitmentResponse,
-    IssuedTicketbooksForResponse, SignableMessageBody,
+    IssuedTicketbooksForResponse,
 };
 use nym_api_requests::ecash::{BlindSignRequestBody, BlindedSignatureResponse};
+use nym_api_requests::signable::SignableMessageBody;
 use nym_coconut_dkg_common::dealer::{
     DealerDetails, DealerDetailsResponse, DealerType, RegisteredDealerDetails,
 };
@@ -55,10 +59,10 @@ use nym_crypto::asymmetric::ed25519;
 use nym_dkg::{NodeIndex, Threshold};
 use nym_ecash_contract_common::blacklist::{BlacklistedAccountResponse, Blacklisting};
 use nym_ecash_contract_common::deposit::{Deposit, DepositId, DepositResponse};
-use nym_task::TaskClient;
+use nym_task::ShutdownManager;
 use nym_validator_client::nym_api::routes::{
-    API_VERSION, ECASH_BLIND_SIGN, ECASH_ISSUED_TICKETBOOKS_CHALLENGE_COMMITMENT,
-    ECASH_ISSUED_TICKETBOOKS_FOR, ECASH_ROUTES,
+    ECASH_BLIND_SIGN, ECASH_ISSUED_TICKETBOOKS_CHALLENGE_COMMITMENT, ECASH_ISSUED_TICKETBOOKS_FOR,
+    ECASH_ROUTES, V1_API_VERSION,
 };
 use nym_validator_client::nyxd::cosmwasm_client::logs::Log;
 use nym_validator_client::nyxd::cosmwasm_client::types::ExecuteResult;
@@ -1274,10 +1278,11 @@ impl TestFixture {
         AppState {
             nyxd_client,
             chain_status_cache: ChainStatusCache::new(Duration::from_secs(42)),
+            ecash_signers_cache: Default::default(),
+            address_info_cache: AddressInfoCache::new(Duration::from_secs(42), 1000),
             forced_refresh: ForcedRefresh::new(true),
-            nym_contract_cache: NymContractCache::new(),
+            mixnet_contract_cache: MixnetContractCache::new(),
             node_status_cache: NodeStatusCache::new(),
-            circulating_supply_cache: CirculatingSupplyCache::new("unym".to_owned()),
             storage,
             described_nodes_cache: SharedCache::<DescribedNodes>::new(),
             network_details: NetworkDetails::new(
@@ -1285,6 +1290,7 @@ impl TestFixture {
                 NymNetworkDetails::new_empty(),
             ),
             node_info_cache: unstable::NodeInfoCache::default(),
+            contract_info_cache: ContractDetailsCache::new(Duration::from_secs(42)),
             api_status: ApiStatusState::new(None),
             ecash_state: Arc::new(ecash_state),
         }
@@ -1342,7 +1348,7 @@ impl TestFixture {
             staged_key_pair,
             comm_channel,
             storage.clone(),
-            TaskClient::dummy(),
+            &ShutdownManager::empty_mock(),
         );
 
         // ideally this would have been generic, but that's way too much work
@@ -1419,7 +1425,9 @@ impl TestFixture {
     async fn issue_ticketbook(&self, req: BlindSignRequestBody) -> BlindedSignatureResponse {
         let response = self
             .axum
-            .post(&format!("/{API_VERSION}/{ECASH_ROUTES}/{ECASH_BLIND_SIGN}"))
+            .post(&format!(
+                "/{V1_API_VERSION}/{ECASH_ROUTES}/{ECASH_BLIND_SIGN}"
+            ))
             .json(&req)
             .await;
 
@@ -1434,7 +1442,7 @@ impl TestFixture {
         let response = self
             .axum
             .get(&format!(
-                "/{API_VERSION}/{ECASH_ROUTES}/{ECASH_ISSUED_TICKETBOOKS_FOR}/{expiration_date}"
+                "/{V1_API_VERSION}/{ECASH_ROUTES}/{ECASH_ISSUED_TICKETBOOKS_FOR}/{expiration_date}"
             ))
             .await;
 
@@ -1450,7 +1458,7 @@ impl TestFixture {
         let dummy_keypair = ed25519::KeyPair::new(&mut OsRng);
         self.axum
             .post(&format!(
-                "/{API_VERSION}/{ECASH_ROUTES}/{ECASH_ISSUED_TICKETBOOKS_CHALLENGE_COMMITMENT}"
+                "/{V1_API_VERSION}/{ECASH_ROUTES}/{ECASH_ISSUED_TICKETBOOKS_CHALLENGE_COMMITMENT}"
             ))
             .json(
                 &IssuedTicketbooksChallengeCommitmentRequestBody {
@@ -1481,7 +1489,6 @@ mod credential_tests {
     use super::*;
     use crate::ecash::storage::EcashStorageExt;
     use axum::http::StatusCode;
-    use nym_task::TaskClient;
     use nym_ticketbooks_merkle::MerkleLeaf;
 
     #[tokio::test]
@@ -1517,7 +1524,9 @@ mod credential_tests {
 
         let response = test_fixture
             .axum
-            .post(&format!("/{API_VERSION}/{ECASH_ROUTES}/{ECASH_BLIND_SIGN}"))
+            .post(&format!(
+                "/{V1_API_VERSION}/{ECASH_ROUTES}/{ECASH_BLIND_SIGN}"
+            ))
             .json(&request_body)
             .await;
 
@@ -1570,7 +1579,7 @@ mod credential_tests {
             staged_key_pair,
             comm_channel,
             storage.clone(),
-            TaskClient::dummy(),
+            &ShutdownManager::empty_mock(),
         );
 
         let deposit_id = 42;
@@ -1701,7 +1710,9 @@ mod credential_tests {
 
         let response = test
             .axum
-            .post(&format!("/{API_VERSION}/{ECASH_ROUTES}/{ECASH_BLIND_SIGN}"))
+            .post(&format!(
+                "/{V1_API_VERSION}/{ECASH_ROUTES}/{ECASH_BLIND_SIGN}"
+            ))
             .json(&request_body)
             .await;
 

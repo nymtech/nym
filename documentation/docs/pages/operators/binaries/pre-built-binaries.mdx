@@ -2,12 +2,17 @@ import { Steps } from 'nextra/components';
 import { VarInfo } from 'components/variable-info.tsx';
 import { Tabs } from 'nextra/components';
 import { MyTab } from 'components/generic-tabs.tsx';
+import {Callout} from 'nextra/components';
 
 # Pre-built Binaries
 
 This page is for operators who prefer to download ready made binaries. The [Github releases page](https://github.com/nymtech/nym/releases) has pre-built binaries which should work on Ubuntu 22.04 and other Debian-based systems, but at this stage cannot be guaranteed to work everywhere.
 
 If the pre-built binaries don't work or are unavailable for your system, you will need to build the platform yourself.
+
+<Callout type="info" emoji="ℹ️">
+**[Nym release binaries](https://github.com/nymtech/nym/releases) no longer work on distributions based on Debian bullseye/sid (11) like Ubuntu 20.04 LTS and older! Please upgrade your sever to Debian bookworm (Debian 12) or Ubuntu 22.04 (and newer)!** Alternatively [compile the binaries from source](building-nym.mdx).
+</Callout>
 
 ## Setup Binaries
 
@@ -35,12 +40,12 @@ In case you want to download binary to your current working directory, drop `<PA
     <strong>One-liner</strong>,
     ]} defaultIndex="0">
     <MyTab>
-To see your binary `sha256sum` hash, run: 
+To see your binary `sha256sum` hash, run:
 ```sh
 sha256sum <BINARY>
-``` 
+```
 ```sh
-# for example 
+# for example
 # sha256sum ./nym-wallet_1.2.15_amd64.AppImage
 # or
 # sha256sum ./nym-node
@@ -49,7 +54,7 @@ sha256sum <BINARY>
 - Open it with your text editor or print its content with `cat hashes.json`
 - Check it if your binary `sha256sum` output is in `hashes.json` by using the `sha256sum` and searching for it or using `grep` command:
 ```
-grep -i <SHA_HASH> 
+grep -i <SHA_HASH>
 ```
     </MyTab>
     <MyTab>

@@ -1,9 +1,10 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use nym_credentials_interface::TicketType;
 use nym_sphinx::DestinationAddressBytes;
 use time::OffsetDateTime;
+
+use crate::types::SessionType;
 
 /// Channel for receiving incoming Stats events
 pub type GatewayStatsReceiver = tokio::sync::mpsc::UnboundedReceiver<GatewayStatsEvent>;
@@ -51,15 +52,9 @@ pub enum GatewaySessionEvent {
         /// Address of the remote client opening the connection
         client: DestinationAddressBytes,
     },
-    /// A new ecash ticket has been added / requested
-    EcashTicket {
-        /// Type of ecash ticket that has been created as part of the session
-        ticket_type: TicketType,
-        /// Address of the remote client opening the connection
-        client: DestinationAddressBytes,
-    },
-    SessionDelete {
-        /// Address of the remote client opening the connection
+    /// An active session should be given a type and remembered
+    SessionRemember {
+        session_type: SessionType,
         client: DestinationAddressBytes,
     },
 }
@@ -81,18 +76,13 @@ impl GatewaySessionEvent {
         }
     }
 
-    /// A new ecash ticket has been added / requested
-    pub fn new_ecash_ticket(
+    pub fn new_session_remember(
+        session_type: SessionType,
         client: DestinationAddressBytes,
-        ticket_type: TicketType,
     ) -> GatewaySessionEvent {
-        GatewaySessionEvent::EcashTicket {
-            ticket_type,
+        GatewaySessionEvent::SessionRemember {
+            session_type,
             client,
         }
-    }
-
-    pub fn new_session_delete(client: DestinationAddressBytes) -> GatewaySessionEvent {
-        GatewaySessionEvent::SessionDelete { client }
     }
 }

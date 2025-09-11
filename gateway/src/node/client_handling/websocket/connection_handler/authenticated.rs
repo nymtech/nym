@@ -18,16 +18,17 @@ use nym_credential_verification::CredentialVerifier;
 use nym_credential_verification::{
     bandwidth_storage_manager::BandwidthStorageManager, ClientBandwidth,
 };
-use nym_credentials_interface::TicketType;
 use nym_gateway_requests::{
     types::{BinaryRequest, ServerResponse},
     ClientControlRequest, ClientRequest, GatewayRequestsError, SensitiveServerResponse,
     SimpleGatewayRequestsError,
 };
 use nym_gateway_storage::error::GatewayStorageError;
+use nym_gateway_storage::traits::BandwidthGatewayStorage;
+use nym_gateway_storage::traits::SharedKeyGatewayStorage;
 use nym_node_metrics::events::MetricsEvent;
 use nym_sphinx::forwarding::packet::MixPacket;
-use nym_statistics_common::gateways::GatewaySessionEvent;
+use nym_statistics_common::{gateways::GatewaySessionEvent, types::SessionType};
 use nym_task::TaskClient;
 use nym_validator_client::coconut::EcashApiError;
 use rand::{random, CryptoRng, Rng};
@@ -191,7 +192,7 @@ impl<R, S> AuthenticatedHandler<R, S> {
 
         let handler = AuthenticatedHandler {
             bandwidth_storage_manager: BandwidthStorageManager::new(
-                fresh.shared_state.storage.clone(),
+                Box::new(fresh.shared_state.storage.clone()),
                 ClientBandwidth::new(bandwidth.into()),
                 client.id,
                 fresh.shared_state.cfg.bandwidth,
@@ -258,7 +259,7 @@ impl<R, S> AuthenticatedHandler<R, S> {
             &self.client.shared_keys,
             iv,
         )?;
-        let maybe_ticket_type = TicketType::try_from_encoded(credential.data.payment.t_type);
+
         let mut verifier = CredentialVerifier::new(
             credential,
             self.inner.shared_state.ecash_verifier.clone(),
@@ -270,14 +271,6 @@ impl<R, S> AuthenticatedHandler<R, S> {
             .await
             .inspect_err(|verification_failure| debug!("{verification_failure}"))?;
         trace!("available total bandwidth: {available_total}");
-
-        if let Ok(ticket_type) = maybe_ticket_type {
-            self.inner.shared_state.metrics_sender.report_unchecked(
-                GatewaySessionEvent::new_ecash_ticket(self.client.address, ticket_type),
-            );
-        } else {
-            error!("Somehow verified a ticket with an unknown ticket type");
-        }
 
         Ok(ServerResponse::Bandwidth { available_total })
     }
@@ -323,7 +316,8 @@ impl<R, S> AuthenticatedHandler<R, S> {
             }
             Ok(request) => match request {
                 // currently only a single type exists
-                BinaryRequest::ForwardSphinx { packet } => {
+                BinaryRequest::ForwardSphinx { packet }
+                | BinaryRequest::ForwardSphinxV2 { packet } => {
                     self.handle_forward_sphinx(packet).await.into_ws_message()
                 }
                 _ => RequestHandlingError::UnknownBinaryRequest.into_error_message(),
@@ -334,7 +328,7 @@ impl<R, S> AuthenticatedHandler<R, S> {
     async fn handle_forget_me(
         &mut self,
         client: bool,
-        stats: bool,
+        _stats: bool,
     ) -> Result<ServerResponse, RequestHandlingError> {
         if client {
             self.inner()
@@ -343,10 +337,18 @@ impl<R, S> AuthenticatedHandler<R, S> {
                 .handle_forget_me(self.client.address)
                 .await?;
         }
-        if stats {
-            self.send_metrics(GatewaySessionEvent::new_session_delete(self.client.address));
-        }
         Ok(SensitiveServerResponse::ForgetMeAck {}.encrypt(&self.client.shared_keys)?)
+    }
+
+    async fn handle_remember_me(
+        &self,
+        session_type: SessionType,
+    ) -> Result<ServerResponse, RequestHandlingError> {
+        self.send_metrics(GatewaySessionEvent::new_session_remember(
+            session_type,
+            self.client.address,
+        ));
+        Ok(SensitiveServerResponse::RememberMeAck {}.encrypt(&self.client.shared_keys)?)
     }
 
     async fn handle_key_upgrade(
@@ -393,6 +395,9 @@ impl<R, S> AuthenticatedHandler<R, S> {
                 derived_key_digest,
             } => self.handle_key_upgrade(hkdf_salt, derived_key_digest).await,
             ClientRequest::ForgetMe { client, stats } => self.handle_forget_me(client, stats).await,
+            ClientRequest::RememberMe { session_type } => {
+                self.handle_remember_me(session_type).await
+            }
             _ => Err(RequestHandlingError::UnknownEncryptedTextRequest),
         }
     }

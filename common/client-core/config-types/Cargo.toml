@@ -19,6 +19,7 @@ nym-pemstore = { path = "../../pemstore", optional = true }
 # those are pulling so many deps T.T
 nym-sphinx-params = { path = "../../nymsphinx/params" }
 nym-sphinx-addressing = { path = "../../nymsphinx/addressing" }
+nym-statistics-common = { path = "../../statistics" }
 
 
 [features]

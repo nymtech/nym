@@ -83,7 +83,7 @@ impl QueryCommunicationChannel {
         }
     }
 
-    async fn update_epoch_cache(&self) -> Result<RwLockWriteGuard<CachedEpoch>> {
+    async fn update_epoch_cache(&self) -> Result<RwLockWriteGuard<'_, CachedEpoch>> {
         let mut guard = self.cached_epoch.write().await;
 
         let epoch = ecash::client::Client::get_current_epoch(&self.nyxd_client).await?;

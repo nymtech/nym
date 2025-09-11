@@ -1,6 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::client::helpers::get_time_now;
 use crate::client::replies::{
     reply_controller::ReplyControllerSender, reply_storage::SentReplyKeys,
 };
@@ -8,7 +9,6 @@ use crate::spawn_future;
 use futures::channel::mpsc;
 use futures::lock::Mutex;
 use futures::StreamExt;
-use log::*;
 use nym_crypto::asymmetric::x25519;
 use nym_crypto::Digest;
 use nym_gateway_client::MixnetMessageReceiver;
@@ -23,7 +23,8 @@ use nym_statistics_common::clients::{packet_statistics::PacketStatisticsEvent, C
 use nym_task::TaskClient;
 use std::collections::HashSet;
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::Duration;
+use tracing::*;
 
 // The interval at which we check for stale buffers
 const STALE_BUFFER_CHECK_INTERVAL: Duration = Duration::from_secs(10);
@@ -54,7 +55,7 @@ struct ReceivedMessagesBufferInner<R: MessageReceiver> {
     stats_tx: ClientStatsSender,
 
     // Periodically check for stale buffers to clean up
-    last_stale_check: Instant,
+    last_stale_check: crate::client::helpers::Instant,
 }
 
 impl<R: MessageReceiver> ReceivedMessagesBufferInner<R> {
@@ -154,7 +155,7 @@ impl<R: MessageReceiver> ReceivedMessagesBufferInner<R> {
     }
 
     fn cleanup_stale_buffers(&mut self) {
-        let now = Instant::now();
+        let now = get_time_now();
         if now - self.last_stale_check > STALE_BUFFER_CHECK_INTERVAL {
             self.last_stale_check = now;
             self.message_receiver
@@ -190,7 +191,7 @@ impl<R: MessageReceiver> ReceivedMessagesBuffer<R> {
                 message_sender: None,
                 recently_reconstructed: HashSet::new(),
                 stats_tx,
-                last_stale_check: Instant::now(),
+                last_stale_check: get_time_now(),
             })),
             reply_key_storage,
             reply_controller_sender,
@@ -198,6 +199,7 @@ impl<R: MessageReceiver> ReceivedMessagesBuffer<R> {
         }
     }
 
+    #[allow(clippy::panic)]
     async fn disconnect_sender(&mut self) {
         let mut guard = self.inner.lock().await;
         if guard.message_sender.is_none() {
@@ -208,6 +210,7 @@ impl<R: MessageReceiver> ReceivedMessagesBuffer<R> {
         guard.message_sender = None;
     }
 
+    #[allow(clippy::panic)]
     async fn connect_sender(&mut self, sender: ReconstructedMessagesSender) {
         let mut guard = self.inner.lock().await;
         if guard.message_sender.is_some() {
@@ -221,10 +224,7 @@ impl<R: MessageReceiver> ReceivedMessagesBuffer<R> {
         let stored_messages = std::mem::take(&mut guard.messages);
         if !stored_messages.is_empty() {
             if let Err(err) = sender.unbounded_send(stored_messages) {
-                error!(
-                    "The sender channel we just received is already invalidated - {:?}",
-                    err
-                );
+                error!("The sender channel we just received is already invalidated - {err:?}");
                 // put the values back to the buffer
                 // the returned error has two fields: err: SendError and val: T,
                 // where val is the value that was failed to get sent;
@@ -310,13 +310,15 @@ impl<R: MessageReceiver> ReceivedMessagesBuffer<R> {
                 }
             };
 
-            if let Err(err) = self.reply_controller_sender.send_additional_surbs(
-                msg.sender_tag,
-                reply_surbs,
-                from_surb_request,
-            ) {
-                if !self.task_client.is_shutdown_poll() {
-                    error!("{err}");
+            if !reply_surbs.is_empty() {
+                if let Err(err) = self.reply_controller_sender.send_additional_surbs(
+                    msg.sender_tag,
+                    reply_surbs,
+                    from_surb_request,
+                ) {
+                    if !self.task_client.is_shutdown_poll() {
+                        error!("{err}");
+                    }
                 }
             }
         }
@@ -500,20 +502,20 @@ impl<R: MessageReceiver> RequestReceiver<R> {
             tokio::select! {
                 biased;
                 _ = self.task_client.recv() => {
-                    log::trace!("RequestReceiver: Received shutdown");
+                    tracing::trace!("RequestReceiver: Received shutdown");
                 }
                 request = self.query_receiver.next() => {
                     if let Some(message) = request {
                         self.handle_message(message).await
                     } else {
-                        log::trace!("RequestReceiver: Stopping since channel closed");
+                        tracing::trace!("RequestReceiver: Stopping since channel closed");
                         break;
                     }
                 },
             }
         }
         self.task_client.recv().await;
-        log::debug!("RequestReceiver: Exiting");
+        tracing::debug!("RequestReceiver: Exiting");
     }
 }
 
@@ -544,17 +546,17 @@ impl<R: MessageReceiver> FragmentedMessageReceiver<R> {
                     if let Some(new_messages) = new_messages {
                         self.received_buffer.handle_new_received(new_messages).await?;
                     } else {
-                        log::trace!("FragmentedMessageReceiver: Stopping since channel closed");
+                        tracing::trace!("FragmentedMessageReceiver: Stopping since channel closed");
                         break;
                     }
                 },
                 _ = self.task_client.recv_with_delay() => {
-                    log::trace!("FragmentedMessageReceiver: Received shutdown");
+                    tracing::trace!("FragmentedMessageReceiver: Received shutdown");
                 }
             }
         }
         self.task_client.recv_timeout().await;
-        log::debug!("FragmentedMessageReceiver: Exiting");
+        tracing::debug!("FragmentedMessageReceiver: Exiting");
         Ok(())
     }
 }
@@ -600,14 +602,20 @@ impl<R: MessageReceiver + Clone + Send + 'static> ReceivedMessagesBufferControll
         let mut fragmented_message_receiver = self.fragmented_message_receiver;
         let mut request_receiver = self.request_receiver;
 
-        spawn_future(async move {
-            match fragmented_message_receiver.run().await {
-                Ok(_) => {}
-                Err(e) => error!("{e}"),
-            }
-        });
-        spawn_future(async move {
-            request_receiver.run().await;
-        });
+        spawn_future!(
+            async move {
+                match fragmented_message_receiver.run().await {
+                    Ok(_) => {}
+                    Err(e) => error!("{e}"),
+                }
+            },
+            "ReceivedMessagesBufferController::FragmentedMessageReceiver"
+        );
+        spawn_future!(
+            async move {
+                request_receiver.run().await;
+            },
+            "ReceivedMessagesBufferController::RequestReceiver"
+        );
     }
 }

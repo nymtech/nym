@@ -4,7 +4,7 @@ use log::error;
 use nym_bin_common::bin_info;
 use nym_bin_common::completions::{fig_generate, ArgShell};
 use nym_client_core::cli_helpers::CliClient;
-use nym_ip_packet_router::config::helpers::try_upgrade_config;
+use nym_ip_packet_router::config::helpers::{try_upgrade_config, try_upgrade_config_by_id};
 use nym_ip_packet_router::config::{BaseClientConfig, Config};
 use nym_ip_packet_router::error::IpPacketRouterError;
 use std::sync::OnceLock;
@@ -151,7 +151,7 @@ async fn try_load_current_config(id: &str) -> Result<Config, IpPacketRouterError
     }
 
     // we couldn't load it - try upgrading it from older revisions
-    try_upgrade_config(id).await?;
+    try_upgrade_config_by_id(id).await?;
 
     let config = match Config::read_from_default_path(id) {
         Ok(cfg) => cfg,

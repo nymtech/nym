@@ -25,12 +25,11 @@ impl CombinedReplyStorage {
     pub fn load(
         sent_reply_keys: SentReplyKeys,
         received_reply_surbs: ReceivedReplySurbsMap,
-        used_tags: UsedSenderTags,
     ) -> Self {
         CombinedReplyStorage {
             sent_reply_keys,
             received_reply_surbs,
-            used_tags,
+            used_tags: UsedSenderTags::new(),
         }
     }
 

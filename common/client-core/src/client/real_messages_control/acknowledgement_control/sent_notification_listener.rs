@@ -4,9 +4,9 @@
 use super::action_controller::{AckActionSender, Action};
 use super::SentPacketNotificationReceiver;
 use futures::StreamExt;
-use log::*;
 use nym_sphinx::chunking::fragment::{FragmentIdentifier, COVER_FRAG_ID};
 use nym_task::TaskClient;
+use tracing::*;
 
 /// Module responsible for starting up retransmission timers.
 /// It is required because when we send our packet to the `real traffic stream` controlled
@@ -56,17 +56,17 @@ impl SentNotificationListener {
                         self.on_sent_message(frag_id).await;
                     }
                     None => {
-                        log::trace!("SentNotificationListener: Stopping since channel closed");
+                        tracing::trace!("SentNotificationListener: Stopping since channel closed");
                         break;
                     }
                 },
                 _ = self.task_client.recv() => {
-                    log::trace!("SentNotificationListener: Received shutdown");
+                    tracing::trace!("SentNotificationListener: Received shutdown");
                     break;
                 }
             }
         }
         assert!(self.task_client.is_shutdown_poll());
-        log::debug!("SentNotificationListener: Exiting");
+        tracing::debug!("SentNotificationListener: Exiting");
     }
 }

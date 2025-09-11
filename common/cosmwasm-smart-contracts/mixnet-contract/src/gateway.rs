@@ -3,7 +3,7 @@
 
 use crate::{IdentityKey, NodeId, SphinxKey};
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Addr, Coin};
+use cosmwasm_std::{to_json_string, Addr, Coin};
 use std::cmp::Ordering;
 use std::fmt::Display;
 
@@ -154,7 +154,7 @@ pub struct GatewayConfigUpdate {
 
 impl GatewayConfigUpdate {
     pub fn to_inline_json(&self) -> String {
-        serde_json_wasm::to_string(self).unwrap_or_else(|_| "serialisation failure".into())
+        to_json_string(self).unwrap_or_else(|_| "serialisation failure".into())
     }
 }
 

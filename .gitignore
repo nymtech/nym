@@ -35,12 +35,13 @@ validator-api/keypair
 contracts/mixnet/code_id
 contracts/mixnet/Justfile
 contracts/mixnet/Makefile
+artifacts
+contracts/artifacts
 validator-config
 *.patch
 validator-api-config.toml
 dist
 storybook-static
-envs/qwerty.env
 .parcel-cache
 **/.DS_Store
 cpu-cycles/libcpucycles/build
@@ -59,3 +60,6 @@ nym-api/redocly/formatted-openapi.json
 
 *.sqlite
 .build
+
+**/settings.sql
+**/enter_db.sh

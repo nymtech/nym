@@ -64,5 +64,5 @@ pub async fn update_config(args: Args, client: SigningClient) {
         .await
         .expect("updating mix-node config");
 
-    info!("mixnode config updated: {:?}", res)
+    info!("mixnode config updated: {res:?}")
 }

@@ -103,4 +103,7 @@ pub enum NetworkManagerError {
 
     #[error("timed out while waiting for the gateway to start receiving traffic (you need to actually run it!)")]
     GatewayWaitTimeout,
+
+    #[error("attempted to bond nodes on a non-empty network")]
+    NetworkNotEmpty,
 }

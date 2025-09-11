@@ -38,8 +38,9 @@ impl InitCtx {
             network_name: "foomp".to_string(), // does this matter?
             endpoints: vec![],
             contracts: Default::default(),
-            explorer_api: None,
             nym_vpn_api_url: None,
+            nym_vpn_api_urls: None,
+            nym_api_urls: None,
         };
         Ok(Config::try_from_nym_network_details(&network_details)?)
     }
@@ -127,6 +128,7 @@ impl NetworkManager {
         &self,
         ctx: &InitCtx,
         custom_epoch_duration: Option<Duration>,
+        key_validity_in_epochs: Option<u32>,
     ) -> Result<nym_mixnet_contract_common::InstantiateMsg, NetworkManagerError> {
         Ok(nym_mixnet_contract_common::InstantiateMsg {
             rewarding_validator_address: ctx
@@ -165,6 +167,7 @@ impl NetworkManager {
             version_score_params: Default::default(),
             profit_margin: Default::default(),
             interval_operating_cost: Default::default(),
+            key_validity_in_epochs,
         })
     }
 
@@ -258,6 +261,22 @@ impl NetworkManager {
         })
     }
 
+    fn performance_init_message(
+        &self,
+        ctx: &InitCtx,
+    ) -> Result<nym_performance_contract_common::msg::InstantiateMsg, NetworkManagerError> {
+        Ok(nym_performance_contract_common::msg::InstantiateMsg {
+            mixnet_contract_address: ctx.network.contracts.mixnet.address()?.to_string(),
+            authorised_network_monitors: ctx
+                .network
+                .auxiliary_addresses
+                .network_monitors
+                .iter()
+                .map(|acc| acc.address.to_string())
+                .collect(),
+        })
+    }
+
     fn find_contracts<P: AsRef<Path>>(
         &self,
         ctx: &mut InitCtx,
@@ -292,6 +311,10 @@ impl NetworkManager {
         ctx.println(format!(
             "\tdiscovered dkg contract at '{}'",
             ctx.network.contracts.dkg.wasm_path()?.display()
+        ));
+        ctx.println(format!(
+            "\tdiscovered performance contract at '{}'",
+            ctx.network.contracts.performance.wasm_path()?.display()
         ));
 
         ctx.println("\t✅ found all the contracts!");
@@ -389,6 +412,11 @@ impl NetworkManager {
             ctx.admin.mix_coins(10_000000),
         ));
 
+        // and to any network monitors
+        for network_monitor in &ctx.network.auxiliary_addresses.network_monitors {
+            receivers.push((network_monitor.address(), ctx.admin.mix_coins(10_000000)))
+        }
+
         ctx.set_pb_message("attempting to send admin tokens...");
 
         let send_future =
@@ -408,6 +436,7 @@ impl NetworkManager {
         &self,
         ctx: &mut InitCtx,
         custom_epoch_duration: Option<Duration>,
+        key_validity_in_epochs: Option<u32>,
     ) -> Result<(), NetworkManagerError> {
         ctx.println(format!(
             "💽 {}Instantiating all the contracts...",
@@ -422,7 +451,8 @@ impl NetworkManager {
         let code_id = ctx.network.contracts.mixnet.upload_info()?.code_id;
         let admin = ctx.network.contracts.mixnet.admin()?.address.clone();
         ctx.set_pb_message(format!("attempting to instantiate {name} contract..."));
-        let init_msg = self.mixnet_init_message(ctx, custom_epoch_duration)?;
+        let init_msg =
+            self.mixnet_init_message(ctx, custom_epoch_duration, key_validity_in_epochs)?;
         let init_fut = ctx.admin.instantiate(
             code_id,
             &init_msg,
@@ -547,6 +577,28 @@ impl NetworkManager {
             "\t{name} contract instantiated with address: {address}",
         ));
         ctx.network.contracts.ecash.init_info = Some(res.into());
+
+        // performance (semi-temp)
+        ctx.set_pb_prefix(format!("[7/{total}]"));
+        let name = &ctx.network.contracts.performance.name;
+        let code_id = ctx.network.contracts.performance.upload_info()?.code_id;
+        let admin = ctx.network.contracts.performance.admin()?.address.clone();
+        ctx.set_pb_message(format!("attempting to instantiate {name} contract..."));
+        let init_msg = self.performance_init_message(ctx)?;
+        let init_fut = ctx.admin.instantiate(
+            code_id,
+            &init_msg,
+            format!("{name} contract"),
+            "contract instantiation from testnet-manager",
+            Some(InstantiateOptions::default().with_admin(admin)),
+            None,
+        );
+        let res = ctx.async_with_progress(init_fut).await?;
+        let address = &res.contract_address;
+        ctx.println(format!(
+            "\t{name} contract instantiated with address: {address}",
+        ));
+        ctx.network.contracts.performance.init_info = Some(res.into());
 
         ctx.println("\t✅ instantiated all the contracts!");
 
@@ -694,6 +746,7 @@ impl NetworkManager {
         contracts: P,
         network_name: Option<String>,
         custom_epoch_duration: Option<Duration>,
+        key_validity_in_epochs: Option<u32>,
     ) -> Result<Network, NetworkManagerError> {
         let network_name = self.get_network_name(network_name);
         let mut ctx = InitCtx::new(network_name, self.admin.deref().clone(), &self.rpc_endpoint)?;
@@ -702,7 +755,7 @@ impl NetworkManager {
         self.upload_contracts(&mut ctx).await?;
         self.create_contract_admins_mnemonics(&mut ctx)?;
         self.transfer_admin_tokens(&ctx).await?;
-        self.instantiate_contracts(&mut ctx, custom_epoch_duration)
+        self.instantiate_contracts(&mut ctx, custom_epoch_duration, key_validity_in_epochs)
             .await?;
         self.perform_final_migrations(&mut ctx).await?;
         self.get_build_info(&mut ctx).await?;

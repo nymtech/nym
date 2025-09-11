@@ -7,6 +7,7 @@ use clap::crate_version;
 use nym_gateway::node::{
     LocalAuthenticatorOpts, LocalIpPacketRouterOpts, LocalNetworkRequesterOpts,
 };
+use nym_gateway::nym_authenticator;
 
 // a temporary solution until further refactoring is made
 fn ephemeral_gateway_config(config: &Config) -> nym_gateway::config::Config {
@@ -182,7 +183,6 @@ pub fn gateway_tasks_config(config: &Config) -> GatewayTasksConfig {
                     .authenticator
                     .to_common_client_paths(),
             },
-            logging: config.logging,
         },
         custom_mixnet_path: None,
     };
@@ -202,7 +202,8 @@ pub fn gateway_tasks_config(config: &Config) -> GatewayTasksConfig {
             bind_address: config.wireguard.bind_address,
             private_ipv4: config.wireguard.private_ipv4,
             private_ipv6: config.wireguard.private_ipv6,
-            announced_port: config.wireguard.announced_port,
+            announced_tunnel_port: config.wireguard.announced_tunnel_port,
+            announced_metadata_port: config.wireguard.announced_metadata_port,
             private_network_prefix_v4: config.wireguard.private_network_prefix_v4,
             private_network_prefix_v6: config.wireguard.private_network_prefix_v6,
             storage_paths: config.wireguard.storage_paths.clone(),

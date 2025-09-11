@@ -71,7 +71,7 @@ pub async fn bond_gateway(
         .bond_gateway(gateway, msg_signature, pledge_base, fee)
         .await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
-    log::trace!("<<< {:?}", res);
+    log::trace!("<<< {res:?}");
     Ok(TransactionExecuteResult::from_execute_result(
         res, fee_amount,
     )?)
@@ -84,10 +84,10 @@ pub async fn unbond_gateway(
 ) -> Result<TransactionExecuteResult, BackendError> {
     let guard = state.read().await;
     let fee_amount = guard.convert_tx_fee(fee.as_ref());
-    log::info!(">>> Unbond gateway, fee = {:?}", fee);
+    log::info!(">>> Unbond gateway, fee = {fee:?}");
     let res = guard.current_client()?.nyxd.unbond_gateway(fee).await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
-    log::trace!("<<< {:?}", res);
+    log::trace!("<<< {res:?}");
     Ok(TransactionExecuteResult::from_execute_result(
         res, fee_amount,
     )?)
@@ -136,7 +136,7 @@ pub async fn bond_mixnode(
         .bond_mixnode(mixnode, cost_params, msg_signature, pledge_base, fee)
         .await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
-    log::trace!("<<< {:?}", res);
+    log::trace!("<<< {res:?}");
     Ok(TransactionExecuteResult::from_execute_result(
         res, fee_amount,
     )?)
@@ -184,7 +184,7 @@ pub async fn bond_nymnode(
         .bond_nymnode(nymnode, cost_params, msg_signature, pledge_base, fee)
         .await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
-    log::trace!("<<< {:?}", res);
+    log::trace!("<<< {res:?}");
     Ok(TransactionExecuteResult::from_execute_result(
         res, fee_amount,
     )?)
@@ -232,7 +232,7 @@ pub async fn update_pledge(
     };
 
     log::info!("<<< tx hash = {}", res.transaction_hash);
-    log::trace!("<<< {:?}", res);
+    log::trace!("<<< {res:?}");
 
     Ok(TransactionExecuteResult::from_execute_result(
         res, fee_amount,
@@ -249,10 +249,7 @@ pub async fn pledge_more(
     let additional_pledge_base = guard.attempt_convert_to_base_coin(additional_pledge.clone())?;
     let fee_amount = guard.convert_tx_fee(fee.as_ref());
     log::info!(
-        ">>> Pledge more, additional_pledge_display = {}, additional_pledge_base = {}, fee = {:?}",
-        additional_pledge,
-        additional_pledge_base,
-        fee,
+        ">>> Pledge more, additional_pledge_display = {additional_pledge}, additional_pledge_base = {additional_pledge_base}, fee = {fee:?}",
     );
     let res = guard
         .current_client()?
@@ -260,7 +257,7 @@ pub async fn pledge_more(
         .pledge_more(additional_pledge_base, fee)
         .await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
-    log::trace!("<<< {:?}", res);
+    log::trace!("<<< {res:?}");
     Ok(TransactionExecuteResult::from_execute_result(
         res, fee_amount,
     )?)
@@ -276,10 +273,7 @@ pub async fn decrease_pledge(
     let decrease_by_base = guard.attempt_convert_to_base_coin(decrease_by.clone())?;
     let fee_amount = guard.convert_tx_fee(fee.as_ref());
     log::info!(
-        ">>> Decrease pledge, pledge_decrease_display = {}, pledge_decrease_base = {}, fee = {:?}",
-        decrease_by,
-        decrease_by_base,
-        fee,
+        ">>> Decrease pledge, pledge_decrease_display = {decrease_by}, pledge_decrease_base = {decrease_by_base}, fee = {fee:?}",
     );
     let res = guard
         .current_client()?
@@ -287,7 +281,7 @@ pub async fn decrease_pledge(
         .decrease_pledge(decrease_by_base, fee)
         .await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
-    log::trace!("<<< {:?}", res);
+    log::trace!("<<< {res:?}");
     Ok(TransactionExecuteResult::from_execute_result(
         res, fee_amount,
     )?)
@@ -300,10 +294,10 @@ pub async fn unbond_mixnode(
 ) -> Result<TransactionExecuteResult, BackendError> {
     let guard = state.read().await;
     let fee_amount = guard.convert_tx_fee(fee.as_ref());
-    log::info!(">>> Unbond mixnode, fee = {:?}", fee);
+    log::info!(">>> Unbond mixnode, fee = {fee:?}");
     let res = guard.current_client()?.nyxd.unbond_mixnode(fee).await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
-    log::trace!("<<< {:?}", res);
+    log::trace!("<<< {res:?}");
     Ok(TransactionExecuteResult::from_execute_result(
         res, fee_amount,
     )?)
@@ -319,7 +313,7 @@ pub async fn unbond_nymnode(
     log::info!(">>> Unbond NymNode, fee = {fee:?}");
     let res = guard.current_client()?.nyxd.unbond_nymnode(fee).await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
-    log::trace!("<<< {:?}", res);
+    log::trace!("<<< {res:?}");
 
     Ok(TransactionExecuteResult::from_execute_result(
         res, fee_amount,
@@ -347,7 +341,7 @@ pub async fn update_mixnode_cost_params(
         .update_cost_params(cost_params, fee)
         .await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
-    log::trace!("<<< {:?}", res);
+    log::trace!("<<< {res:?}");
     Ok(TransactionExecuteResult::from_execute_result(
         res, fee_amount,
     )?)
@@ -372,7 +366,7 @@ pub async fn update_mixnode_config(
         .update_mixnode_config(update, fee)
         .await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
-    log::trace!("<<< {:?}", res);
+    log::trace!("<<< {res:?}");
     Ok(TransactionExecuteResult::from_execute_result(
         res, fee_amount,
     )?)
@@ -397,7 +391,7 @@ pub async fn update_gateway_config(
         .update_gateway_config(update, fee)
         .await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
-    log::trace!("<<< {:?}", res);
+    log::trace!("<<< {res:?}");
     Ok(TransactionExecuteResult::from_execute_result(
         res, fee_amount,
     )?)
@@ -420,14 +414,14 @@ pub async fn get_mixnode_avg_uptime(
     match res.mixnode_details {
         Some(details) => {
             let id = details.mix_id();
-            log::trace!("  >>> Get average uptime percentage: mix_id = {}", id);
+            log::trace!("  >>> Get average uptime percentage: mix_id = {id}");
             let avg_uptime_percent = client
                 .nym_api
                 .get_mixnode_avg_uptime(id)
                 .await
                 .ok()
                 .map(|r| r.avg_uptime);
-            log::trace!("  <<< {:?}", avg_uptime_percent);
+            log::trace!("  <<< {avg_uptime_percent:?}");
             Ok(avg_uptime_percent)
         }
         None => Ok(None),
@@ -461,7 +455,7 @@ pub async fn mixnode_bond_details(
             &r.bond_information.mix_node.identity_key
         ))
     );
-    log::trace!("<<< {:?}", details);
+    log::trace!("<<< {details:?}");
     Ok(details)
 }
 
@@ -490,7 +484,7 @@ pub async fn gateway_bond_details(
         "<<< identity_key = {:?}",
         res.as_ref().map(|r| r.gateway.identity_key.to_string())
     );
-    log::trace!("<<< {:?}", res);
+    log::trace!("<<< {res:?}");
     Ok(res)
 }
 
@@ -521,7 +515,7 @@ pub async fn nym_node_bond_details(
             &r.bond_information.node.identity_key
         ))
     );
-    log::trace!("<<< {:?}", details);
+    log::trace!("<<< {details:?}");
     Ok(details)
 }
 
@@ -530,7 +524,7 @@ pub async fn get_pending_operator_rewards(
     address: String,
     state: tauri::State<'_, WalletState>,
 ) -> Result<DecCoin, BackendError> {
-    log::info!(">>> Get pending operator rewards for {}", address);
+    log::info!(">>> Get pending operator rewards for {address}");
     let guard = state.read().await;
     let res = guard
         .current_client()?
@@ -554,11 +548,7 @@ pub async fn get_pending_operator_rewards(
         .transpose()?
         .unwrap_or_else(|| guard.default_zero_mix_display_coin());
 
-    log::info!(
-        "<<< rewards_base = {:?}, rewards_display = {}",
-        base_coin,
-        display_coin
-    );
+    log::info!("<<< rewards_base = {base_coin:?}, rewards_display = {display_coin}");
     Ok(display_coin)
 }
 
@@ -637,7 +627,7 @@ pub async fn migrate_legacy_mixnode(
 
     let res = client.nyxd.migrate_legacy_mixnode(fee).await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
-    log::trace!("<<< {:?}", res);
+    log::trace!("<<< {res:?}");
     Ok(TransactionExecuteResult::from_execute_result(
         res, fee_amount,
     )?)
@@ -657,7 +647,7 @@ pub async fn migrate_legacy_gateway(
     let res = client.nyxd.migrate_legacy_gateway(None, fee).await?;
 
     log::info!("<<< tx hash = {}", res.transaction_hash);
-    log::trace!("<<< {:?}", res);
+    log::trace!("<<< {res:?}");
     Ok(TransactionExecuteResult::from_execute_result(
         res, fee_amount,
     )?)
@@ -678,7 +668,7 @@ pub async fn update_nymnode_config(
         .update_nymnode_config(update, fee)
         .await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
-    log::trace!("<<< {:?}", res);
+    log::trace!("<<< {res:?}");
     Ok(TransactionExecuteResult::from_execute_result(
         res, fee_amount,
     )?)
@@ -705,7 +695,7 @@ pub async fn update_nymnode_cost_params(
         .update_cost_params(cost_params, fee)
         .await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
-    log::trace!("<<< {:?}", res);
+    log::trace!("<<< {res:?}");
     Ok(TransactionExecuteResult::from_execute_result(
         res, fee_amount,
     )?)

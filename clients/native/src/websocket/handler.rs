@@ -318,7 +318,7 @@ impl Handler {
 
     async fn handle_text_message(&mut self, msg: String) -> Option<WsMessage> {
         debug!("Handling text message request");
-        trace!("Content: {:?}", msg);
+        trace!("Content: {msg:?}");
 
         self.received_response_type = ReceivedResponseType::Text;
         let client_request = ClientRequest::try_from_text(msg);

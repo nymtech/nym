@@ -3,7 +3,6 @@
 
 use crate::message::{NymMessage, ACK_OVERHEAD, OUTFOX_ACK_OVERHEAD};
 use crate::NymPayloadBuilder;
-use log::debug;
 use nym_crypto::asymmetric::x25519;
 use nym_crypto::Digest;
 use nym_sphinx_acknowledgements::surb_ack::SurbAck;
@@ -14,12 +13,14 @@ use nym_sphinx_anonymous_replies::reply_surb::ReplySurb;
 use nym_sphinx_chunking::fragment::{Fragment, FragmentIdentifier};
 use nym_sphinx_forwarding::packet::MixPacket;
 use nym_sphinx_params::packet_sizes::PacketSize;
-use nym_sphinx_params::{PacketType, ReplySurbKeyDigestAlgorithm};
+use nym_sphinx_params::{PacketType, ReplySurbKeyDigestAlgorithm, SphinxKeyRotation};
 use nym_sphinx_types::{Delay, NymPacket};
 use nym_topology::{NymRouteProvider, NymTopologyError};
 use rand::{CryptoRng, Rng, SeedableRng};
 use rand_chacha::ChaCha8Rng;
+use tracing::*;
 
+use nym_sphinx_anonymous_replies::ReplySurbWithKeyRotation;
 use nym_sphinx_chunking::monitoring;
 use std::time::Duration;
 
@@ -52,6 +53,10 @@ pub trait FragmentPreparer {
     type Rng: CryptoRng + Rng;
 
     fn use_legacy_sphinx_format(&self) -> bool;
+    fn mix_hops_disabled(&self) -> bool {
+        // Unless otherwise configured, mix hops are enabled
+        false
+    }
 
     fn deterministic_route_selection(&self) -> bool;
     fn rng(&mut self) -> &mut Self::Rng;
@@ -69,6 +74,7 @@ pub trait FragmentPreparer {
     ) -> Result<SurbAck, NymTopologyError> {
         let ack_delay = self.average_ack_delay();
         let use_legacy_sphinx_format = self.use_legacy_sphinx_format();
+        let disable_mix_hops = self.mix_hops_disabled();
 
         SurbAck::construct(
             self.rng(),
@@ -79,6 +85,7 @@ pub trait FragmentPreparer {
             ack_delay,
             topology,
             packet_type,
+            disable_mix_hops,
         )
     }
 
@@ -97,10 +104,12 @@ pub trait FragmentPreparer {
         fragment: Fragment,
         topology: &NymRouteProvider,
         ack_key: &AckKey,
-        reply_surb: ReplySurb,
+        reply_surb: ReplySurbWithKeyRotation,
         packet_sender: &Recipient,
         packet_type: PacketType,
     ) -> Result<PreparedFragment, NymTopologyError> {
+        debug!("Preparing reply chunk for sending");
+
         // each reply attaches the digest of the encryption key so that the recipient could
         // lookup correct key for decryption,
         let reply_overhead = ReplySurbKeyDigestAlgorithm::output_size();
@@ -140,7 +149,7 @@ pub trait FragmentPreparer {
 
         // the unwrap here is fine as the failures can only originate from attempting to use invalid payload lengths
         // and we just very carefully constructed a (presumably) valid one
-        let (sphinx_packet, first_hop_address) = reply_surb
+        let applied_surb = reply_surb
             .apply_surb(packet_payload, packet_size, packet_type)
             .unwrap();
 
@@ -149,7 +158,7 @@ pub trait FragmentPreparer {
             // well as the total delay of the ack packet.
             // we don't know the delays inside the reply surbs so we use best-effort estimation from our poisson distribution
             total_delay: expected_forward_delay + ack_delay,
-            mix_packet: MixPacket::new(first_hop_address, sphinx_packet, packet_type),
+            mix_packet: MixPacket::from_applied_surb(applied_surb, packet_type),
             fragment_identifier,
         })
     }
@@ -203,6 +212,9 @@ pub trait FragmentPreparer {
         let packet_size = PacketSize::get_type_from_plaintext(expected_plaintext, packet_type)
             .expect("the message has been incorrectly fragmented");
 
+        let rotation_id = topology.current_key_rotation();
+        let sphinx_key_rotation = SphinxKeyRotation::from(rotation_id);
+
         let fragment_identifier = fragment.fragment_identifier();
 
         // create an ack
@@ -222,15 +234,17 @@ pub trait FragmentPreparer {
             Err(_e) => return Err(NymTopologyError::PayloadBuilder),
         };
 
-        // generate pseudorandom route for the packet
-        log::trace!("Preparing chunk for sending");
-        let route = if self.deterministic_route_selection() {
-            log::trace!("using deterministic route selection");
+        // generate pseudorandom route for the packet. Unless mix hops are disabled then build an empty route.
+        trace!("Preparing chunk for sending");
+        let route = if self.mix_hops_disabled() {
+            topology.empty_route_to_egress(destination)?
+        } else if self.deterministic_route_selection() {
+            trace!("using deterministic route selection");
             let seed = fragment_header.seed().wrapping_mul(self.nonce());
             let mut rng = ChaCha8Rng::seed_from_u64(seed as u64);
             topology.random_route_to_egress(&mut rng, destination)?
         } else {
-            log::trace!("using pseudorandom route selection");
+            trace!("using pseudorandom route selection");
             let mut rng = self.rng();
             topology.random_route_to_egress(&mut rng, destination)?
         };
@@ -269,7 +283,7 @@ pub trait FragmentPreparer {
             // well as the total delay of the ack packet.
             // note that the last hop of the packet is a gateway that does not do any delays
             total_delay: delays.iter().take(delays.len() - 1).sum::<Delay>() + ack_delay,
-            mix_packet: MixPacket::new(first_hop_address, packet, packet_type),
+            mix_packet: MixPacket::new(first_hop_address, packet, packet_type, sphinx_key_rotation),
             fragment_identifier,
         })
     }
@@ -316,6 +330,15 @@ pub struct MessagePreparer<R> {
     use_legacy_sphinx_format: bool,
 
     nonce: i32,
+
+    /// Indicates whether to mix hops or not. If mix hops are enabled, traffic
+    /// will be routed as usual, to the entry gateway, through three mix nodes, egressing
+    /// through the exit gateway. If mix hops are disabled, traffic will be routed directly
+    /// from the entry gateway to the exit gateway, bypassing the mix nodes.
+    ///
+    /// This overrides the `use_legacy_sphinx_format` setting as reduced/disabled mix hops
+    /// requires use of the updated SURB packet format.
+    pub disable_mix_hops: bool,
 }
 
 impl<R> MessagePreparer<R>
@@ -329,6 +352,7 @@ where
         average_packet_delay: Duration,
         average_ack_delay: Duration,
         use_legacy_sphinx_format: bool,
+        disable_mix_hops: bool,
     ) -> Self {
         let mut rng = rng;
         let nonce = rng.gen();
@@ -340,6 +364,7 @@ where
             average_ack_delay,
             use_legacy_sphinx_format,
             nonce,
+            disable_mix_hops,
         }
     }
 
@@ -353,8 +378,12 @@ where
         use_legacy_reply_surb_format: bool,
         amount: usize,
         topology: &NymRouteProvider,
-    ) -> Result<Vec<ReplySurb>, NymTopologyError> {
+    ) -> Result<Vec<ReplySurbWithKeyRotation>, NymTopologyError> {
         let mut reply_surbs = Vec::with_capacity(amount);
+        let disabled_mix_hops = self.mix_hops_disabled();
+
+        let key_rotation = SphinxKeyRotation::from(topology.current_key_rotation());
+
         for _ in 0..amount {
             let reply_surb = ReplySurb::construct(
                 &mut self.rng,
@@ -362,7 +391,9 @@ where
                 self.average_packet_delay,
                 use_legacy_reply_surb_format,
                 topology,
-            )?;
+                disabled_mix_hops,
+            )?
+            .with_key_rotation(key_rotation);
             reply_surbs.push(reply_surb)
         }
 
@@ -374,7 +405,7 @@ where
         fragment: Fragment,
         topology: &NymRouteProvider,
         ack_key: &AckKey,
-        reply_surb: ReplySurb,
+        reply_surb: ReplySurbWithKeyRotation,
         packet_type: PacketType,
     ) -> Result<PreparedFragment, NymTopologyError> {
         let sender = self.sender_address;
@@ -441,6 +472,10 @@ where
 
 impl<R: CryptoRng + Rng> FragmentPreparer for MessagePreparer<R> {
     type Rng = R;
+
+    fn mix_hops_disabled(&self) -> bool {
+        self.disable_mix_hops
+    }
 
     fn use_legacy_sphinx_format(&self) -> bool {
         self.use_legacy_sphinx_format

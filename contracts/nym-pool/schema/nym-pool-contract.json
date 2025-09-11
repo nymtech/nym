@@ -1,0 +1,1957 @@
+{
+  "contract_name": "nym-pool-contract",
+  "contract_version": "0.1.0",
+  "idl_version": "1.0.0",
+  "instantiate": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "InstantiateMsg",
+    "type": "object",
+    "required": [
+      "grants",
+      "pool_denomination"
+    ],
+    "properties": {
+      "grants": {
+        "description": "Initial map of grants to be created at instantiation",
+        "type": "object",
+        "additionalProperties": false
+      },
+      "pool_denomination": {
+        "type": "string"
+      }
+    },
+    "additionalProperties": false,
+    "definitions": {
+      "Allowance": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "basic"
+            ],
+            "properties": {
+              "basic": {
+                "$ref": "#/definitions/BasicAllowance"
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "classic_periodic"
+            ],
+            "properties": {
+              "classic_periodic": {
+                "$ref": "#/definitions/ClassicPeriodicAllowance"
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "cumulative_periodic"
+            ],
+            "properties": {
+              "cumulative_periodic": {
+                "$ref": "#/definitions/CumulativePeriodicAllowance"
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "delayed"
+            ],
+            "properties": {
+              "delayed": {
+                "$ref": "#/definitions/DelayedAllowance"
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
+      },
+      "BasicAllowance": {
+        "description": "BasicAllowance is an allowance with a one-time grant of coins that optionally expires. The grantee can use up to SpendLimit to cover fees.",
+        "type": "object",
+        "properties": {
+          "expiration_unix_timestamp": {
+            "description": "expiration specifies an optional time when this allowance expires",
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "uint64",
+            "minimum": 0.0
+          },
+          "spend_limit": {
+            "description": "spend_limit specifies the maximum amount of coins that can be spent by this allowance and will be updated as coins are spent. If it is empty, there is no spend limit and any amount of coins can be spent.",
+            "anyOf": [
+              {
+                "$ref": "#/definitions/Coin"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "ClassicPeriodicAllowance": {
+        "description": "ClassicPeriodicAllowance extends BasicAllowance to allow for both a maximum cap, as well as a limit per time period.",
+        "type": "object",
+        "required": [
+          "basic",
+          "period_duration_secs",
+          "period_spend_limit"
+        ],
+        "properties": {
+          "basic": {
+            "description": "basic specifies a struct of `BasicAllowance`",
+            "allOf": [
+              {
+                "$ref": "#/definitions/BasicAllowance"
+              }
+            ]
+          },
+          "period_can_spend": {
+            "description": "period_can_spend is the number of coins left to be spent before the period_reset time",
+            "default": null,
+            "anyOf": [
+              {
+                "$ref": "#/definitions/Coin"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "period_duration_secs": {
+            "description": "period_duration_secs specifies the time duration in which period_spend_limit coins can be spent before that allowance is reset",
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          },
+          "period_reset_unix_timestamp": {
+            "description": "period_reset is the time at which this period resets and a new one begins, it is calculated from the start time of the first transaction after the last period ended",
+            "default": 0,
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          },
+          "period_spend_limit": {
+            "description": "period_spend_limit specifies the maximum number of coins that can be spent in the period",
+            "allOf": [
+              {
+                "$ref": "#/definitions/Coin"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "Coin": {
+        "type": "object",
+        "required": [
+          "amount",
+          "denom"
+        ],
+        "properties": {
+          "amount": {
+            "$ref": "#/definitions/Uint128"
+          },
+          "denom": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "CumulativePeriodicAllowance": {
+        "type": "object",
+        "required": [
+          "basic",
+          "period_duration_secs",
+          "period_grant"
+        ],
+        "properties": {
+          "accumulation_limit": {
+            "description": "accumulation_limit is the maximum value the grants and accumulate to",
+            "anyOf": [
+              {
+                "$ref": "#/definitions/Coin"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "basic": {
+            "description": "basic specifies a struct of `BasicAllowance`",
+            "allOf": [
+              {
+                "$ref": "#/definitions/BasicAllowance"
+              }
+            ]
+          },
+          "last_grant_applied_unix_timestamp": {
+            "description": "last_grant_applied is the time at which last transaction associated with this allowance has been sent and `spendable` value has been adjusted",
+            "default": 0,
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          },
+          "period_duration_secs": {
+            "description": "period_duration_secs specifies the time duration in which spendable coins can be spent before that allowance is incremented",
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          },
+          "period_grant": {
+            "description": "period_grant specifies the maximum number of coins that is granted per period",
+            "allOf": [
+              {
+                "$ref": "#/definitions/Coin"
+              }
+            ]
+          },
+          "spendable": {
+            "description": "spendable is the number of coins left to be spent before additional grant is applied",
+            "default": null,
+            "anyOf": [
+              {
+                "$ref": "#/definitions/Coin"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "DelayedAllowance": {
+        "description": "Create a grant to allow somebody to withdraw from the pool only after the specified time. For example, we could create a grant for mixnet rewarding/testing/etc However, if the required work has not been completed, the grant could be revoked before it's withdrawn",
+        "type": "object",
+        "required": [
+          "available_at_unix_timestamp",
+          "basic"
+        ],
+        "properties": {
+          "available_at_unix_timestamp": {
+            "description": "available_at specifies when this allowance is going to become usable",
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          },
+          "basic": {
+            "description": "basic specifies a struct of `BasicAllowance`",
+            "allOf": [
+              {
+                "$ref": "#/definitions/BasicAllowance"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "Uint128": {
+        "description": "A thin wrapper around u128 that is using strings for JSON encoding/decoding, such that the full u128 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u128` to get the value out:\n\n``` # use cosmwasm_std::Uint128; let a = Uint128::from(123u128); assert_eq!(a.u128(), 123);\n\nlet b = Uint128::from(42u64); assert_eq!(b.u128(), 42);\n\nlet c = Uint128::from(70u32); assert_eq!(c.u128(), 70); ```",
+        "type": "string"
+      }
+    }
+  },
+  "execute": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "ExecuteMsg",
+    "oneOf": [
+      {
+        "description": "Change the admin",
+        "type": "object",
+        "required": [
+          "update_admin"
+        ],
+        "properties": {
+          "update_admin": {
+            "type": "object",
+            "required": [
+              "admin"
+            ],
+            "properties": {
+              "admin": {
+                "type": "string"
+              },
+              "update_granter_set": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Attempt to grant new allowance to the specified grantee",
+        "type": "object",
+        "required": [
+          "grant_allowance"
+        ],
+        "properties": {
+          "grant_allowance": {
+            "type": "object",
+            "required": [
+              "allowance",
+              "grantee"
+            ],
+            "properties": {
+              "allowance": {
+                "$ref": "#/definitions/Allowance"
+              },
+              "grantee": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Attempt to revoke previously granted allowance",
+        "type": "object",
+        "required": [
+          "revoke_allowance"
+        ],
+        "properties": {
+          "revoke_allowance": {
+            "type": "object",
+            "required": [
+              "grantee"
+            ],
+            "properties": {
+              "grantee": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Attempt to use allowance",
+        "type": "object",
+        "required": [
+          "use_allowance"
+        ],
+        "properties": {
+          "use_allowance": {
+            "type": "object",
+            "required": [
+              "recipients"
+            ],
+            "properties": {
+              "recipients": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/definitions/TransferRecipient"
+                }
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Attempt to withdraw the specified amount into the grantee's account",
+        "type": "object",
+        "required": [
+          "withdraw_allowance"
+        ],
+        "properties": {
+          "withdraw_allowance": {
+            "type": "object",
+            "required": [
+              "amount"
+            ],
+            "properties": {
+              "amount": {
+                "$ref": "#/definitions/Coin"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Attempt to lock part of existing allowance for future use",
+        "type": "object",
+        "required": [
+          "lock_allowance"
+        ],
+        "properties": {
+          "lock_allowance": {
+            "type": "object",
+            "required": [
+              "amount"
+            ],
+            "properties": {
+              "amount": {
+                "$ref": "#/definitions/Coin"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Attempt to unlock previously locked allowance",
+        "type": "object",
+        "required": [
+          "unlock_allowance"
+        ],
+        "properties": {
+          "unlock_allowance": {
+            "type": "object",
+            "required": [
+              "amount"
+            ],
+            "properties": {
+              "amount": {
+                "$ref": "#/definitions/Coin"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Attempt to use part of the locked allowance",
+        "type": "object",
+        "required": [
+          "use_locked_allowance"
+        ],
+        "properties": {
+          "use_locked_allowance": {
+            "type": "object",
+            "required": [
+              "recipients"
+            ],
+            "properties": {
+              "recipients": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/definitions/TransferRecipient"
+                }
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Attempt to withdraw the specified amount of locked tokens into the grantee's account",
+        "type": "object",
+        "required": [
+          "withdraw_locked_allowance"
+        ],
+        "properties": {
+          "withdraw_locked_allowance": {
+            "type": "object",
+            "required": [
+              "amount"
+            ],
+            "properties": {
+              "amount": {
+                "$ref": "#/definitions/Coin"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Attempt to add a new account to the permitted set of grant granters",
+        "type": "object",
+        "required": [
+          "add_new_granter"
+        ],
+        "properties": {
+          "add_new_granter": {
+            "type": "object",
+            "required": [
+              "granter"
+            ],
+            "properties": {
+              "granter": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Revoke the provided account from the permitted set of granters",
+        "type": "object",
+        "required": [
+          "revoke_granter"
+        ],
+        "properties": {
+          "revoke_granter": {
+            "type": "object",
+            "required": [
+              "granter"
+            ],
+            "properties": {
+              "granter": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Attempt to remove expired grant from the storage and unlock (if any) locked tokens",
+        "type": "object",
+        "required": [
+          "remove_expired_grant"
+        ],
+        "properties": {
+          "remove_expired_grant": {
+            "type": "object",
+            "required": [
+              "grantee"
+            ],
+            "properties": {
+              "grantee": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      }
+    ],
+    "definitions": {
+      "Allowance": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "basic"
+            ],
+            "properties": {
+              "basic": {
+                "$ref": "#/definitions/BasicAllowance"
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "classic_periodic"
+            ],
+            "properties": {
+              "classic_periodic": {
+                "$ref": "#/definitions/ClassicPeriodicAllowance"
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "cumulative_periodic"
+            ],
+            "properties": {
+              "cumulative_periodic": {
+                "$ref": "#/definitions/CumulativePeriodicAllowance"
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "delayed"
+            ],
+            "properties": {
+              "delayed": {
+                "$ref": "#/definitions/DelayedAllowance"
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
+      },
+      "BasicAllowance": {
+        "description": "BasicAllowance is an allowance with a one-time grant of coins that optionally expires. The grantee can use up to SpendLimit to cover fees.",
+        "type": "object",
+        "properties": {
+          "expiration_unix_timestamp": {
+            "description": "expiration specifies an optional time when this allowance expires",
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "uint64",
+            "minimum": 0.0
+          },
+          "spend_limit": {
+            "description": "spend_limit specifies the maximum amount of coins that can be spent by this allowance and will be updated as coins are spent. If it is empty, there is no spend limit and any amount of coins can be spent.",
+            "anyOf": [
+              {
+                "$ref": "#/definitions/Coin"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "ClassicPeriodicAllowance": {
+        "description": "ClassicPeriodicAllowance extends BasicAllowance to allow for both a maximum cap, as well as a limit per time period.",
+        "type": "object",
+        "required": [
+          "basic",
+          "period_duration_secs",
+          "period_spend_limit"
+        ],
+        "properties": {
+          "basic": {
+            "description": "basic specifies a struct of `BasicAllowance`",
+            "allOf": [
+              {
+                "$ref": "#/definitions/BasicAllowance"
+              }
+            ]
+          },
+          "period_can_spend": {
+            "description": "period_can_spend is the number of coins left to be spent before the period_reset time",
+            "default": null,
+            "anyOf": [
+              {
+                "$ref": "#/definitions/Coin"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "period_duration_secs": {
+            "description": "period_duration_secs specifies the time duration in which period_spend_limit coins can be spent before that allowance is reset",
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          },
+          "period_reset_unix_timestamp": {
+            "description": "period_reset is the time at which this period resets and a new one begins, it is calculated from the start time of the first transaction after the last period ended",
+            "default": 0,
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          },
+          "period_spend_limit": {
+            "description": "period_spend_limit specifies the maximum number of coins that can be spent in the period",
+            "allOf": [
+              {
+                "$ref": "#/definitions/Coin"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "Coin": {
+        "type": "object",
+        "required": [
+          "amount",
+          "denom"
+        ],
+        "properties": {
+          "amount": {
+            "$ref": "#/definitions/Uint128"
+          },
+          "denom": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "CumulativePeriodicAllowance": {
+        "type": "object",
+        "required": [
+          "basic",
+          "period_duration_secs",
+          "period_grant"
+        ],
+        "properties": {
+          "accumulation_limit": {
+            "description": "accumulation_limit is the maximum value the grants and accumulate to",
+            "anyOf": [
+              {
+                "$ref": "#/definitions/Coin"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "basic": {
+            "description": "basic specifies a struct of `BasicAllowance`",
+            "allOf": [
+              {
+                "$ref": "#/definitions/BasicAllowance"
+              }
+            ]
+          },
+          "last_grant_applied_unix_timestamp": {
+            "description": "last_grant_applied is the time at which last transaction associated with this allowance has been sent and `spendable` value has been adjusted",
+            "default": 0,
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          },
+          "period_duration_secs": {
+            "description": "period_duration_secs specifies the time duration in which spendable coins can be spent before that allowance is incremented",
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          },
+          "period_grant": {
+            "description": "period_grant specifies the maximum number of coins that is granted per period",
+            "allOf": [
+              {
+                "$ref": "#/definitions/Coin"
+              }
+            ]
+          },
+          "spendable": {
+            "description": "spendable is the number of coins left to be spent before additional grant is applied",
+            "default": null,
+            "anyOf": [
+              {
+                "$ref": "#/definitions/Coin"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "DelayedAllowance": {
+        "description": "Create a grant to allow somebody to withdraw from the pool only after the specified time. For example, we could create a grant for mixnet rewarding/testing/etc However, if the required work has not been completed, the grant could be revoked before it's withdrawn",
+        "type": "object",
+        "required": [
+          "available_at_unix_timestamp",
+          "basic"
+        ],
+        "properties": {
+          "available_at_unix_timestamp": {
+            "description": "available_at specifies when this allowance is going to become usable",
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          },
+          "basic": {
+            "description": "basic specifies a struct of `BasicAllowance`",
+            "allOf": [
+              {
+                "$ref": "#/definitions/BasicAllowance"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "TransferRecipient": {
+        "type": "object",
+        "required": [
+          "amount",
+          "recipient"
+        ],
+        "properties": {
+          "amount": {
+            "$ref": "#/definitions/Coin"
+          },
+          "recipient": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "Uint128": {
+        "description": "A thin wrapper around u128 that is using strings for JSON encoding/decoding, such that the full u128 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u128` to get the value out:\n\n``` # use cosmwasm_std::Uint128; let a = Uint128::from(123u128); assert_eq!(a.u128(), 123);\n\nlet b = Uint128::from(42u64); assert_eq!(b.u128(), 42);\n\nlet c = Uint128::from(70u32); assert_eq!(c.u128(), 70); ```",
+        "type": "string"
+      }
+    }
+  },
+  "query": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "QueryMsg",
+    "oneOf": [
+      {
+        "type": "object",
+        "required": [
+          "admin"
+        ],
+        "properties": {
+          "admin": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "get_available_tokens"
+        ],
+        "properties": {
+          "get_available_tokens": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "get_total_locked_tokens"
+        ],
+        "properties": {
+          "get_total_locked_tokens": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "get_locked_tokens"
+        ],
+        "properties": {
+          "get_locked_tokens": {
+            "type": "object",
+            "required": [
+              "grantee"
+            ],
+            "properties": {
+              "grantee": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "get_grant"
+        ],
+        "properties": {
+          "get_grant": {
+            "type": "object",
+            "required": [
+              "grantee"
+            ],
+            "properties": {
+              "grantee": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "get_granter"
+        ],
+        "properties": {
+          "get_granter": {
+            "type": "object",
+            "required": [
+              "granter"
+            ],
+            "properties": {
+              "granter": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "get_locked_tokens_paged"
+        ],
+        "properties": {
+          "get_locked_tokens_paged": {
+            "type": "object",
+            "properties": {
+              "limit": {
+                "description": "Controls the maximum number of entries returned by the query. Note that too large values will be overwritten by a saner default.",
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "uint32",
+                "minimum": 0.0
+              },
+              "start_after": {
+                "description": "Pagination control for the values returned by the query. Note that the provided value itself will **not** be used for the response.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "get_granters_paged"
+        ],
+        "properties": {
+          "get_granters_paged": {
+            "type": "object",
+            "properties": {
+              "limit": {
+                "description": "Controls the maximum number of entries returned by the query. Note that too large values will be overwritten by a saner default.",
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "uint32",
+                "minimum": 0.0
+              },
+              "start_after": {
+                "description": "Pagination control for the values returned by the query. Note that the provided value itself will **not** be used for the response.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "get_grants_paged"
+        ],
+        "properties": {
+          "get_grants_paged": {
+            "type": "object",
+            "properties": {
+              "limit": {
+                "description": "Controls the maximum number of entries returned by the query. Note that too large values will be overwritten by a saner default.",
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "uint32",
+                "minimum": 0.0
+              },
+              "start_after": {
+                "description": "Pagination control for the values returned by the query. Note that the provided value itself will **not** be used for the response.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      }
+    ]
+  },
+  "migrate": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "MigrateMsg",
+    "type": "object",
+    "additionalProperties": false
+  },
+  "sudo": null,
+  "responses": {
+    "admin": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "AdminResponse",
+      "description": "Returned from Admin.query_admin()",
+      "type": "object",
+      "properties": {
+        "admin": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "get_available_tokens": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "AvailableTokensResponse",
+      "type": "object",
+      "required": [
+        "available"
+      ],
+      "properties": {
+        "available": {
+          "$ref": "#/definitions/Coin"
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "Coin": {
+          "type": "object",
+          "required": [
+            "amount",
+            "denom"
+          ],
+          "properties": {
+            "amount": {
+              "$ref": "#/definitions/Uint128"
+            },
+            "denom": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "Uint128": {
+          "description": "A thin wrapper around u128 that is using strings for JSON encoding/decoding, such that the full u128 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u128` to get the value out:\n\n``` # use cosmwasm_std::Uint128; let a = Uint128::from(123u128); assert_eq!(a.u128(), 123);\n\nlet b = Uint128::from(42u64); assert_eq!(b.u128(), 42);\n\nlet c = Uint128::from(70u32); assert_eq!(c.u128(), 70); ```",
+          "type": "string"
+        }
+      }
+    },
+    "get_grant": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "GrantResponse",
+      "type": "object",
+      "required": [
+        "grantee"
+      ],
+      "properties": {
+        "grant": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/GrantInformation"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "grantee": {
+          "$ref": "#/definitions/Addr"
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "Addr": {
+          "description": "A human readable address.\n\nIn Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.\n\nThis type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.\n\nThis type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.",
+          "type": "string"
+        },
+        "Allowance": {
+          "oneOf": [
+            {
+              "type": "object",
+              "required": [
+                "basic"
+              ],
+              "properties": {
+                "basic": {
+                  "$ref": "#/definitions/BasicAllowance"
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "required": [
+                "classic_periodic"
+              ],
+              "properties": {
+                "classic_periodic": {
+                  "$ref": "#/definitions/ClassicPeriodicAllowance"
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "required": [
+                "cumulative_periodic"
+              ],
+              "properties": {
+                "cumulative_periodic": {
+                  "$ref": "#/definitions/CumulativePeriodicAllowance"
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "required": [
+                "delayed"
+              ],
+              "properties": {
+                "delayed": {
+                  "$ref": "#/definitions/DelayedAllowance"
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "BasicAllowance": {
+          "description": "BasicAllowance is an allowance with a one-time grant of coins that optionally expires. The grantee can use up to SpendLimit to cover fees.",
+          "type": "object",
+          "properties": {
+            "expiration_unix_timestamp": {
+              "description": "expiration specifies an optional time when this allowance expires",
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "spend_limit": {
+              "description": "spend_limit specifies the maximum amount of coins that can be spent by this allowance and will be updated as coins are spent. If it is empty, there is no spend limit and any amount of coins can be spent.",
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/Coin"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "ClassicPeriodicAllowance": {
+          "description": "ClassicPeriodicAllowance extends BasicAllowance to allow for both a maximum cap, as well as a limit per time period.",
+          "type": "object",
+          "required": [
+            "basic",
+            "period_duration_secs",
+            "period_spend_limit"
+          ],
+          "properties": {
+            "basic": {
+              "description": "basic specifies a struct of `BasicAllowance`",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/BasicAllowance"
+                }
+              ]
+            },
+            "period_can_spend": {
+              "description": "period_can_spend is the number of coins left to be spent before the period_reset time",
+              "default": null,
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/Coin"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "period_duration_secs": {
+              "description": "period_duration_secs specifies the time duration in which period_spend_limit coins can be spent before that allowance is reset",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "period_reset_unix_timestamp": {
+              "description": "period_reset is the time at which this period resets and a new one begins, it is calculated from the start time of the first transaction after the last period ended",
+              "default": 0,
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "period_spend_limit": {
+              "description": "period_spend_limit specifies the maximum number of coins that can be spent in the period",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Coin"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "Coin": {
+          "type": "object",
+          "required": [
+            "amount",
+            "denom"
+          ],
+          "properties": {
+            "amount": {
+              "$ref": "#/definitions/Uint128"
+            },
+            "denom": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "CumulativePeriodicAllowance": {
+          "type": "object",
+          "required": [
+            "basic",
+            "period_duration_secs",
+            "period_grant"
+          ],
+          "properties": {
+            "accumulation_limit": {
+              "description": "accumulation_limit is the maximum value the grants and accumulate to",
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/Coin"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "basic": {
+              "description": "basic specifies a struct of `BasicAllowance`",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/BasicAllowance"
+                }
+              ]
+            },
+            "last_grant_applied_unix_timestamp": {
+              "description": "last_grant_applied is the time at which last transaction associated with this allowance has been sent and `spendable` value has been adjusted",
+              "default": 0,
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "period_duration_secs": {
+              "description": "period_duration_secs specifies the time duration in which spendable coins can be spent before that allowance is incremented",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "period_grant": {
+              "description": "period_grant specifies the maximum number of coins that is granted per period",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Coin"
+                }
+              ]
+            },
+            "spendable": {
+              "description": "spendable is the number of coins left to be spent before additional grant is applied",
+              "default": null,
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/Coin"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "DelayedAllowance": {
+          "description": "Create a grant to allow somebody to withdraw from the pool only after the specified time. For example, we could create a grant for mixnet rewarding/testing/etc However, if the required work has not been completed, the grant could be revoked before it's withdrawn",
+          "type": "object",
+          "required": [
+            "available_at_unix_timestamp",
+            "basic"
+          ],
+          "properties": {
+            "available_at_unix_timestamp": {
+              "description": "available_at specifies when this allowance is going to become usable",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "basic": {
+              "description": "basic specifies a struct of `BasicAllowance`",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/BasicAllowance"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "Grant": {
+          "type": "object",
+          "required": [
+            "allowance",
+            "granted_at_height",
+            "grantee",
+            "granter"
+          ],
+          "properties": {
+            "allowance": {
+              "$ref": "#/definitions/Allowance"
+            },
+            "granted_at_height": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "grantee": {
+              "$ref": "#/definitions/Addr"
+            },
+            "granter": {
+              "$ref": "#/definitions/Addr"
+            }
+          },
+          "additionalProperties": false
+        },
+        "GrantInformation": {
+          "type": "object",
+          "required": [
+            "expired",
+            "grant"
+          ],
+          "properties": {
+            "expired": {
+              "type": "boolean"
+            },
+            "grant": {
+              "$ref": "#/definitions/Grant"
+            }
+          },
+          "additionalProperties": false
+        },
+        "Uint128": {
+          "description": "A thin wrapper around u128 that is using strings for JSON encoding/decoding, such that the full u128 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u128` to get the value out:\n\n``` # use cosmwasm_std::Uint128; let a = Uint128::from(123u128); assert_eq!(a.u128(), 123);\n\nlet b = Uint128::from(42u64); assert_eq!(b.u128(), 42);\n\nlet c = Uint128::from(70u32); assert_eq!(c.u128(), 70); ```",
+          "type": "string"
+        }
+      }
+    },
+    "get_granter": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "GranterResponse",
+      "type": "object",
+      "required": [
+        "granter"
+      ],
+      "properties": {
+        "granter": {
+          "$ref": "#/definitions/Addr"
+        },
+        "information": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/GranterInformation"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "Addr": {
+          "description": "A human readable address.\n\nIn Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.\n\nThis type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.\n\nThis type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.",
+          "type": "string"
+        },
+        "GranterInformation": {
+          "type": "object",
+          "required": [
+            "created_at_height",
+            "created_by"
+          ],
+          "properties": {
+            "created_at_height": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "created_by": {
+              "$ref": "#/definitions/Addr"
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    },
+    "get_granters_paged": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "GrantersPagedResponse",
+      "type": "object",
+      "required": [
+        "granters"
+      ],
+      "properties": {
+        "granters": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/GranterDetails"
+          }
+        },
+        "start_next_after": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "Addr": {
+          "description": "A human readable address.\n\nIn Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.\n\nThis type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.\n\nThis type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.",
+          "type": "string"
+        },
+        "GranterDetails": {
+          "type": "object",
+          "required": [
+            "granter",
+            "information"
+          ],
+          "properties": {
+            "granter": {
+              "$ref": "#/definitions/Addr"
+            },
+            "information": {
+              "$ref": "#/definitions/GranterInformation"
+            }
+          },
+          "additionalProperties": false
+        },
+        "GranterInformation": {
+          "type": "object",
+          "required": [
+            "created_at_height",
+            "created_by"
+          ],
+          "properties": {
+            "created_at_height": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "created_by": {
+              "$ref": "#/definitions/Addr"
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    },
+    "get_grants_paged": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "GrantsPagedResponse",
+      "type": "object",
+      "required": [
+        "grants"
+      ],
+      "properties": {
+        "grants": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/GrantInformation"
+          }
+        },
+        "start_next_after": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "Addr": {
+          "description": "A human readable address.\n\nIn Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.\n\nThis type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.\n\nThis type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.",
+          "type": "string"
+        },
+        "Allowance": {
+          "oneOf": [
+            {
+              "type": "object",
+              "required": [
+                "basic"
+              ],
+              "properties": {
+                "basic": {
+                  "$ref": "#/definitions/BasicAllowance"
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "required": [
+                "classic_periodic"
+              ],
+              "properties": {
+                "classic_periodic": {
+                  "$ref": "#/definitions/ClassicPeriodicAllowance"
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "required": [
+                "cumulative_periodic"
+              ],
+              "properties": {
+                "cumulative_periodic": {
+                  "$ref": "#/definitions/CumulativePeriodicAllowance"
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "required": [
+                "delayed"
+              ],
+              "properties": {
+                "delayed": {
+                  "$ref": "#/definitions/DelayedAllowance"
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "BasicAllowance": {
+          "description": "BasicAllowance is an allowance with a one-time grant of coins that optionally expires. The grantee can use up to SpendLimit to cover fees.",
+          "type": "object",
+          "properties": {
+            "expiration_unix_timestamp": {
+              "description": "expiration specifies an optional time when this allowance expires",
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "spend_limit": {
+              "description": "spend_limit specifies the maximum amount of coins that can be spent by this allowance and will be updated as coins are spent. If it is empty, there is no spend limit and any amount of coins can be spent.",
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/Coin"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "ClassicPeriodicAllowance": {
+          "description": "ClassicPeriodicAllowance extends BasicAllowance to allow for both a maximum cap, as well as a limit per time period.",
+          "type": "object",
+          "required": [
+            "basic",
+            "period_duration_secs",
+            "period_spend_limit"
+          ],
+          "properties": {
+            "basic": {
+              "description": "basic specifies a struct of `BasicAllowance`",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/BasicAllowance"
+                }
+              ]
+            },
+            "period_can_spend": {
+              "description": "period_can_spend is the number of coins left to be spent before the period_reset time",
+              "default": null,
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/Coin"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "period_duration_secs": {
+              "description": "period_duration_secs specifies the time duration in which period_spend_limit coins can be spent before that allowance is reset",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "period_reset_unix_timestamp": {
+              "description": "period_reset is the time at which this period resets and a new one begins, it is calculated from the start time of the first transaction after the last period ended",
+              "default": 0,
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "period_spend_limit": {
+              "description": "period_spend_limit specifies the maximum number of coins that can be spent in the period",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Coin"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "Coin": {
+          "type": "object",
+          "required": [
+            "amount",
+            "denom"
+          ],
+          "properties": {
+            "amount": {
+              "$ref": "#/definitions/Uint128"
+            },
+            "denom": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "CumulativePeriodicAllowance": {
+          "type": "object",
+          "required": [
+            "basic",
+            "period_duration_secs",
+            "period_grant"
+          ],
+          "properties": {
+            "accumulation_limit": {
+              "description": "accumulation_limit is the maximum value the grants and accumulate to",
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/Coin"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "basic": {
+              "description": "basic specifies a struct of `BasicAllowance`",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/BasicAllowance"
+                }
+              ]
+            },
+            "last_grant_applied_unix_timestamp": {
+              "description": "last_grant_applied is the time at which last transaction associated with this allowance has been sent and `spendable` value has been adjusted",
+              "default": 0,
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "period_duration_secs": {
+              "description": "period_duration_secs specifies the time duration in which spendable coins can be spent before that allowance is incremented",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "period_grant": {
+              "description": "period_grant specifies the maximum number of coins that is granted per period",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Coin"
+                }
+              ]
+            },
+            "spendable": {
+              "description": "spendable is the number of coins left to be spent before additional grant is applied",
+              "default": null,
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/Coin"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "DelayedAllowance": {
+          "description": "Create a grant to allow somebody to withdraw from the pool only after the specified time. For example, we could create a grant for mixnet rewarding/testing/etc However, if the required work has not been completed, the grant could be revoked before it's withdrawn",
+          "type": "object",
+          "required": [
+            "available_at_unix_timestamp",
+            "basic"
+          ],
+          "properties": {
+            "available_at_unix_timestamp": {
+              "description": "available_at specifies when this allowance is going to become usable",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "basic": {
+              "description": "basic specifies a struct of `BasicAllowance`",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/BasicAllowance"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "Grant": {
+          "type": "object",
+          "required": [
+            "allowance",
+            "granted_at_height",
+            "grantee",
+            "granter"
+          ],
+          "properties": {
+            "allowance": {
+              "$ref": "#/definitions/Allowance"
+            },
+            "granted_at_height": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "grantee": {
+              "$ref": "#/definitions/Addr"
+            },
+            "granter": {
+              "$ref": "#/definitions/Addr"
+            }
+          },
+          "additionalProperties": false
+        },
+        "GrantInformation": {
+          "type": "object",
+          "required": [
+            "expired",
+            "grant"
+          ],
+          "properties": {
+            "expired": {
+              "type": "boolean"
+            },
+            "grant": {
+              "$ref": "#/definitions/Grant"
+            }
+          },
+          "additionalProperties": false
+        },
+        "Uint128": {
+          "description": "A thin wrapper around u128 that is using strings for JSON encoding/decoding, such that the full u128 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u128` to get the value out:\n\n``` # use cosmwasm_std::Uint128; let a = Uint128::from(123u128); assert_eq!(a.u128(), 123);\n\nlet b = Uint128::from(42u64); assert_eq!(b.u128(), 42);\n\nlet c = Uint128::from(70u32); assert_eq!(c.u128(), 70); ```",
+          "type": "string"
+        }
+      }
+    },
+    "get_locked_tokens": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "LockedTokensResponse",
+      "type": "object",
+      "required": [
+        "grantee"
+      ],
+      "properties": {
+        "grantee": {
+          "$ref": "#/definitions/Addr"
+        },
+        "locked": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Coin"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "Addr": {
+          "description": "A human readable address.\n\nIn Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.\n\nThis type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.\n\nThis type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.",
+          "type": "string"
+        },
+        "Coin": {
+          "type": "object",
+          "required": [
+            "amount",
+            "denom"
+          ],
+          "properties": {
+            "amount": {
+              "$ref": "#/definitions/Uint128"
+            },
+            "denom": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "Uint128": {
+          "description": "A thin wrapper around u128 that is using strings for JSON encoding/decoding, such that the full u128 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u128` to get the value out:\n\n``` # use cosmwasm_std::Uint128; let a = Uint128::from(123u128); assert_eq!(a.u128(), 123);\n\nlet b = Uint128::from(42u64); assert_eq!(b.u128(), 42);\n\nlet c = Uint128::from(70u32); assert_eq!(c.u128(), 70); ```",
+          "type": "string"
+        }
+      }
+    },
+    "get_locked_tokens_paged": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "LockedTokensPagedResponse",
+      "type": "object",
+      "required": [
+        "locked"
+      ],
+      "properties": {
+        "locked": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/LockedTokens"
+          }
+        },
+        "start_next_after": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "Addr": {
+          "description": "A human readable address.\n\nIn Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.\n\nThis type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.\n\nThis type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.",
+          "type": "string"
+        },
+        "Coin": {
+          "type": "object",
+          "required": [
+            "amount",
+            "denom"
+          ],
+          "properties": {
+            "amount": {
+              "$ref": "#/definitions/Uint128"
+            },
+            "denom": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "LockedTokens": {
+          "type": "object",
+          "required": [
+            "grantee",
+            "locked"
+          ],
+          "properties": {
+            "grantee": {
+              "$ref": "#/definitions/Addr"
+            },
+            "locked": {
+              "$ref": "#/definitions/Coin"
+            }
+          },
+          "additionalProperties": false
+        },
+        "Uint128": {
+          "description": "A thin wrapper around u128 that is using strings for JSON encoding/decoding, such that the full u128 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u128` to get the value out:\n\n``` # use cosmwasm_std::Uint128; let a = Uint128::from(123u128); assert_eq!(a.u128(), 123);\n\nlet b = Uint128::from(42u64); assert_eq!(b.u128(), 42);\n\nlet c = Uint128::from(70u32); assert_eq!(c.u128(), 70); ```",
+          "type": "string"
+        }
+      }
+    },
+    "get_total_locked_tokens": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "TotalLockedTokensResponse",
+      "type": "object",
+      "required": [
+        "locked"
+      ],
+      "properties": {
+        "locked": {
+          "$ref": "#/definitions/Coin"
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "Coin": {
+          "type": "object",
+          "required": [
+            "amount",
+            "denom"
+          ],
+          "properties": {
+            "amount": {
+              "$ref": "#/definitions/Uint128"
+            },
+            "denom": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "Uint128": {
+          "description": "A thin wrapper around u128 that is using strings for JSON encoding/decoding, such that the full u128 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u128` to get the value out:\n\n``` # use cosmwasm_std::Uint128; let a = Uint128::from(123u128); assert_eq!(a.u128(), 123);\n\nlet b = Uint128::from(42u64); assert_eq!(b.u128(), 42);\n\nlet c = Uint128::from(70u32); assert_eq!(c.u128(), 70); ```",
+          "type": "string"
+        }
+      }
+    }
+  }
+}

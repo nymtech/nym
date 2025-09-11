@@ -37,6 +37,14 @@ pub trait Storage: Clone + Send + Sync {
         ticketbook: &IssuedTicketBook,
     ) -> Result<(), Self::StorageError>;
 
+    // note that both start and final are **INCLUSIVE**
+    async fn insert_partial_issued_ticketbook(
+        &self,
+        ticketbook: &IssuedTicketBook,
+        allowed_start_ticket_index: u32,
+        allowed_final_ticket_index: u32,
+    ) -> Result<(), Self::StorageError>;
+
     async fn contains_issued_ticketbook(
         &self,
         ticketbook: &IssuedTicketBook,

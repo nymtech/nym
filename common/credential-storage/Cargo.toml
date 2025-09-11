@@ -33,6 +33,14 @@ workspace = true
 features = ["rt-multi-thread", "net", "signal", "fs"]
 
 
+[dev-dependencies]
+anyhow = { workspace = true }
+nym-crypto = { path = "../crypto", features = ["asymmetric", "rand"] }
+nym-test-utils = { path = "../test-utils" }
+nym-credentials-interface = { path = "../credentials-interface" }
+nym-compact-ecash = { path = "../nym_offline_compact_ecash" }
+
+
 [build-dependencies]
 anyhow = { workspace = true }
 sqlx = { workspace = true, features = [

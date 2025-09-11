@@ -90,12 +90,13 @@ impl MemoryEcachTicketbookManager {
                 continue;
             }
 
+            let cloned = hack_clone_ticketbook(&t.ticketbook);
             t.ticketbook
                 .update_spent_tickets(t.ticketbook.spent_tickets() + tickets as u64);
             return Some(RetrievedTicketbook {
                 ticketbook_id: t.ticketbook_id,
                 total_tickets: t.total_tickets,
-                ticketbook: hack_clone_ticketbook(&t.ticketbook),
+                ticketbook: cloned,
             });
         }
 

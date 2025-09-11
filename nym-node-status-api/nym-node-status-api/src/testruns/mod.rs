@@ -8,20 +8,18 @@ use tracing::instrument;
 pub(crate) mod models;
 mod queue;
 
-pub(crate) async fn spawn(pool: DbPool, refresh_interval: Duration) {
-    tokio::spawn(async move {
-        loop {
-            if let Err(e) = refresh_stale_testruns(&pool, refresh_interval).await {
-                tracing::error!("{e}");
-            }
-
-            if let Err(e) = run(&pool).await {
-                tracing::error!("Assigning testruns failed: {}", e);
-            }
-            tracing::debug!("Sleeping for {}s...", refresh_interval.as_secs());
-            tokio::time::sleep(refresh_interval).await;
+pub(crate) async fn start(pool: DbPool, refresh_interval: Duration) {
+    loop {
+        if let Err(e) = refresh_stale_testruns(&pool, refresh_interval).await {
+            tracing::error!("{e}");
         }
-    });
+
+        if let Err(e) = run(&pool).await {
+            tracing::error!("Assigning testruns failed: {}", e);
+        }
+        tracing::debug!("Sleeping for {}s...", refresh_interval.as_secs());
+        tokio::time::sleep(refresh_interval).await;
+    }
 }
 
 #[instrument(level = "info", name = "testrun_queue", skip_all)]

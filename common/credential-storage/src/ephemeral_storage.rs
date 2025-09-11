@@ -223,9 +223,100 @@ impl Storage for EphemeralStorage {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use nym_compact_ecash::tests::helpers::generate_expiration_date_signatures;
+    use nym_compact_ecash::{issue, ttp_keygen};
+    use nym_credentials_interface::TicketType;
+    use nym_crypto::asymmetric::ed25519;
+    use nym_ecash_time::EcashTime;
+    use nym_test_utils::helpers::deterministic_rng;
+
+    fn mock_ticketbook() -> anyhow::Result<IssuedTicketBook> {
+        let signing_keys = ttp_keygen(1, 1)?.remove(0);
+
+        let deposit_id = 42;
+        let identifier = "foomp";
+        let mut rng = deterministic_rng();
+        let key = ed25519::PrivateKey::new(&mut rng);
+        let typ = TicketType::V1MixnetEntry;
+
+        let issuance = IssuanceTicketBook::new(deposit_id, identifier, key, typ);
+        let expiration_date = issuance.expiration_date();
+
+        let sig_req = issuance.prepare_for_signing();
+        let exp_date_sigs = generate_expiration_date_signatures(
+            sig_req.expiration_date.ecash_unix_timestamp(),
+            &[signing_keys.secret_key()],
+            &vec![signing_keys.verification_key()],
+            &signing_keys.verification_key(),
+            &[1],
+        )?;
+        let blind_sig = issue(
+            signing_keys.secret_key(),
+            sig_req.ecash_pub_key,
+            &sig_req.withdrawal_request,
+            expiration_date.ecash_unix_timestamp(),
+            issuance.ticketbook_type().encode(),
+        )?;
+
+        let partial_wallet =
+            issuance.unblind_signature(&signing_keys.verification_key(), &sig_req, blind_sig, 1)?;
+
+        let wallet = issuance.aggregate_signature_shares(
+            &signing_keys.verification_key(),
+            &vec![partial_wallet],
+            sig_req,
+        )?;
+
+        Ok(issuance.into_issued_ticketbook(wallet, 1))
+    }
 
     #[tokio::test]
-    async fn storing_partial_ticketbook() {
-        todo!()
+    async fn storing_partial_ticketbook() -> anyhow::Result<()> {
+        let storage = EphemeralStorage::default();
+        let ticketbook = mock_ticketbook()?;
+        let typ = ticketbook.ticketbook_type();
+
+        storage
+            .insert_partial_issued_ticketbook(&ticketbook, 5, 5)
+            .await?;
+        let retrieved = storage
+            .get_next_unspent_usable_ticketbook(typ.to_string(), 1)
+            .await?;
+        assert!(retrieved.is_some());
+        let val = retrieved.unwrap();
+        assert_eq!(val.total_tickets, 6);
+        assert_eq!(val.ticketbook.spent_tickets(), 5);
+
+        // we only had 1 ticket
+        let retrieved2 = storage
+            .get_next_unspent_usable_ticketbook(typ.to_string(), 1)
+            .await?;
+        assert!(retrieved2.is_none());
+
+        let another = mock_ticketbook()?;
+        let typ = ticketbook.ticketbook_type();
+
+        // 3 tickets (4, 5, 6)
+        storage
+            .insert_partial_issued_ticketbook(&ticketbook, 4, 6)
+            .await?;
+        assert!(storage
+            .get_next_unspent_usable_ticketbook(typ.to_string(), 1)
+            .await?
+            .is_some());
+        assert!(storage
+            .get_next_unspent_usable_ticketbook(typ.to_string(), 1)
+            .await?
+            .is_some());
+        assert!(storage
+            .get_next_unspent_usable_ticketbook(typ.to_string(), 1)
+            .await?
+            .is_some());
+        assert!(storage
+            .get_next_unspent_usable_ticketbook(typ.to_string(), 1)
+            .await?
+            .is_none());
+
+        Ok(())
     }
 }

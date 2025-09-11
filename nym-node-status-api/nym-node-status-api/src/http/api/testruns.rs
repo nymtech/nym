@@ -51,31 +51,30 @@ async fn request_testrun(
         .await
         .map_err(HttpError::internal_with_logging)?
         .unwrap_or_default();
-    if active_testruns >= state.agent_max_count() {
-        tracing::warn!(
-            "{}/{} testruns in progress, rejecting",
-            active_testruns,
-            state.agent_max_count()
-        );
+    let max_count = state.agent_max_count();
+    if active_testruns >= max_count {
+        tracing::warn!("{active_testruns}/{max_count} testruns in progress, rejecting",);
         return Err(HttpError::no_testruns_available());
     }
 
-    return match db::queries::testruns::assign_oldest_testrun(&mut conn).await {
+    match db::queries::testruns::assign_oldest_testrun(&mut conn).await {
         Ok(res) => {
-            if let Some(testrun) = res {
-                tracing::info!(
-                    "🏃‍ Assigned testrun row_id {} gateway {} to agent",
-                    &testrun.testrun_id,
-                    testrun.gateway_identity_key,
-                );
-                Ok(Json(testrun))
-            } else {
+            let Some(assignment) = res else {
                 tracing::debug!("No testruns available");
-                Err(HttpError::no_testruns_available())
-            }
+                return Err(HttpError::no_testruns_available());
+            };
+
+            todo!("retrieve ticket and global data");
+
+            tracing::info!(
+                "🏃‍ Assigned testrun row_id {} gateway {} to agent",
+                &assignment.testrun_id,
+                assignment.gateway_identity_key,
+            );
+            Ok(Json(assignment))
         }
         Err(err) => Err(HttpError::internal_with_logging(err)),
-    };
+    }
 }
 
 #[tracing::instrument(level = "debug", skip_all)]

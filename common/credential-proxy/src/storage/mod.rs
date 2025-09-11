@@ -26,6 +26,7 @@ use uuid::Uuid;
 mod manager;
 pub mod models;
 pub(crate) mod pruner;
+pub mod traits;
 
 // TODO: proper import
 type NodeId = u64;

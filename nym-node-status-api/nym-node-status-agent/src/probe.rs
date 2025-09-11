@@ -1,3 +1,4 @@
+use nym_node_status_client::models::AttachedTicketMaterials;
 use tracing::{debug, error, info};
 
 pub(crate) struct GwProbe {
@@ -75,6 +76,7 @@ impl GwProbe {
         gateway_key: &Option<String>,
         mnemonic: &str,
         probe_extra_args: &Vec<String>,
+        ticket_materials: Option<AttachedTicketMaterials>,
     ) -> String {
         let mut command = std::process::Command::new(&self.path);
         command.stdout(std::process::Stdio::piped());

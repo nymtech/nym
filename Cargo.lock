@@ -4908,6 +4908,7 @@ dependencies = [
  "nym-api-requests",
  "nym-bandwidth-controller",
  "nym-bin-common",
+ "nym-cache",
  "nym-coconut-dkg-common",
  "nym-compact-ecash",
  "nym-config",
@@ -5091,6 +5092,13 @@ dependencies = [
  "tracing-tree",
  "utoipa",
  "vergen",
+]
+
+[[package]]
+name = "nym-cache"
+version = "0.1.0"
+dependencies = [
+ "tokio",
 ]
 
 [[package]]
@@ -5508,6 +5516,7 @@ dependencies = [
  "bs58",
  "futures",
  "humantime",
+ "nym-cache",
  "nym-compact-ecash",
  "nym-credential-proxy-requests",
  "nym-credentials",
@@ -5567,7 +5576,10 @@ dependencies = [
  "log",
  "nym-compact-ecash",
  "nym-credentials",
+ "nym-credentials-interface",
+ "nym-crypto",
  "nym-ecash-time",
+ "nym-test-utils",
  "serde",
  "sqlx",
  "sqlx-pool-guard",
@@ -6523,7 +6535,9 @@ dependencies = [
  "itertools 0.14.0",
  "moka",
  "nym-bin-common",
+ "nym-cache",
  "nym-contracts-common",
+ "nym-credential-proxy-lib",
  "nym-crypto",
  "nym-http-api-client",
  "nym-http-api-common",
@@ -6566,6 +6580,7 @@ version = "0.2.0"
 dependencies = [
  "anyhow",
  "bincode",
+ "nym-credentials",
  "nym-crypto",
  "reqwest 0.12.22",
  "serde",

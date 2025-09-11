@@ -66,7 +66,7 @@ members = [
     "common/mixnode-common",
     "common/network-defaults",
     "common/node-tester-utils",
-    "common/nonexhaustive-delayqueue",
+    "common/nonexhaustive-delayqueue", "common/nym-cache",
     "common/nym-id",
     "common/nym-metrics",
     "common/nym_offline_compact_ecash",

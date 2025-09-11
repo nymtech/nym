@@ -15,6 +15,7 @@ pub(crate) type DbPool = PgPool;
 
 pub(crate) type DbConnection = sqlx::pool::PoolConnection<sqlx::Postgres>;
 
+#[derive(Clone)]
 pub(crate) struct Storage {
     pool: DbPool,
 }

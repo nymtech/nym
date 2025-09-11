@@ -3,39 +3,28 @@
 
 use crate::deposits_buffer::{BufferedDeposit, DepositsBuffer};
 use crate::error::CredentialProxyError;
-use crate::nym_api_helpers::{ensure_sane_expiration_date, query_all_threshold_apis};
 use crate::shared_state::ecash_state::EcashState;
 use crate::shared_state::nyxd_client::ChainClient;
 use crate::storage::CredentialProxyStorage;
-use nym_compact_ecash::scheme::coin_indices_signatures::{
-    aggregate_annotated_indices_signatures, CoinIndexSignatureShare,
-};
-use nym_compact_ecash::scheme::expiration_date_signatures::{
-    aggregate_annotated_expiration_signatures, ExpirationDateSignatureShare,
-};
+
 use nym_compact_ecash::{Base58, PublicKeyUser, VerificationKeyAuth};
 use nym_credential_proxy_requests::api::v1::ticketbook::models::{
     AggregatedCoinIndicesSignaturesResponse, AggregatedExpirationDateSignaturesResponse,
     GlobalDataParams, MasterVerificationKeyResponse,
 };
-use nym_credentials::ecash::utils::EcashTime;
-use nym_credentials::{
-    AggregatedCoinIndicesSignatures, AggregatedExpirationDateSignatures, EpochVerificationKey,
-};
+use nym_credentials::{AggregatedCoinIndicesSignatures, AggregatedExpirationDateSignatures};
 use nym_ecash_contract_common::deposit::DepositId;
 use nym_validator_client::client::NymApiClientExt;
-use nym_validator_client::coconut::EcashApiError;
 use nym_validator_client::nym_api::EpochId;
 use nym_validator_client::nyxd::contract_traits::dkg_query_client::Epoch;
-use nym_validator_client::nyxd::contract_traits::{DkgQueryClient, PagedDkgQueryClient};
 use nym_validator_client::nyxd::Coin;
-use nym_validator_client::{DirectSigningHttpRpcNyxdClient, EcashApiClient};
+use nym_validator_client::EcashApiClient;
 use std::sync::Arc;
 use std::time::Duration;
 use time::{Date, OffsetDateTime};
 use tokio::sync::RwLockReadGuard;
 use tokio::time::Instant;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, warn};
 use uuid::Uuid;
 
 pub mod ecash_state;
@@ -69,10 +58,7 @@ impl CredentialProxyState {
     }
 
     pub async fn deposit_amount(&self) -> Result<Coin, CredentialProxyError> {
-        self.ecash_state()
-            .required_deposit_cache
-            .get_or_update(self.client())
-            .await
+        self.ecash_state().deposit_amount(self.client()).await
     }
 
     pub fn client(&self) -> &ChainClient {
@@ -87,29 +73,10 @@ impl CredentialProxyState {
         &self.inner.ecash_state
     }
 
-    pub(crate) async fn query_chain(&self) -> RwLockReadGuard<'_, DirectSigningHttpRpcNyxdClient> {
-        self.inner.client.query_chain().await
-    }
-
     pub async fn ensure_credentials_issuable(&self) -> Result<(), CredentialProxyError> {
-        let epoch = self.current_epoch().await?;
-
-        if epoch.state.is_final() {
-            Ok(())
-        } else if let Some(final_timestamp) = epoch.final_timestamp_secs() {
-            // SAFETY: the timestamp values in our DKG contract should be valid timestamps,
-            // otherwise it means the chain is seriously misbehaving
-            #[allow(clippy::unwrap_used)]
-            let finish_dt = OffsetDateTime::from_unix_timestamp(final_timestamp as i64).unwrap();
-
-            Err(CredentialProxyError::CredentialsNotYetIssuable {
-                availability: finish_dt,
-            })
-        } else if epoch.state.is_waiting_initialisation() {
-            Err(CredentialProxyError::UninitialisedDkg)
-        } else {
-            Err(CredentialProxyError::UnknownEcashFailure)
-        }
+        self.ecash_state()
+            .ensure_credentials_issuable(self.client())
+            .await
     }
 
     pub async fn get_deposit(
@@ -146,33 +113,11 @@ impl CredentialProxyState {
     }
 
     pub async fn current_epoch_id(&self) -> Result<EpochId, CredentialProxyError> {
-        let read_guard = self.inner.ecash_state.cached_epoch.read().await;
-        if read_guard.is_valid() {
-            return Ok(read_guard.current_epoch.epoch_id);
-        }
-
-        // update cache
-        drop(read_guard);
-        let mut write_guard = self.inner.ecash_state.cached_epoch.write().await;
-        let epoch = self.query_chain().await.get_current_epoch().await?;
-
-        write_guard.update(epoch);
-        Ok(epoch.epoch_id)
+        self.ecash_state().current_epoch_id(self.client()).await
     }
 
     pub async fn current_epoch(&self) -> Result<Epoch, CredentialProxyError> {
-        let read_guard = self.ecash_state().cached_epoch.read().await;
-        if read_guard.is_valid() {
-            return Ok(read_guard.current_epoch);
-        }
-
-        // update cache
-        drop(read_guard);
-        let mut write_guard = self.ecash_state().cached_epoch.write().await;
-        let epoch = self.query_chain().await.get_current_epoch().await?;
-
-        write_guard.update(epoch);
-        Ok(epoch)
+        self.ecash_state().current_epoch(self.client()).await
     }
 
     pub async fn global_data(
@@ -243,53 +188,8 @@ impl CredentialProxyState {
         &self,
         epoch_id: Option<EpochId>,
     ) -> Result<RwLockReadGuard<'_, VerificationKeyAuth>, CredentialProxyError> {
-        let epoch_id = match epoch_id {
-            Some(id) => id,
-            None => self.current_epoch_id().await?,
-        };
-
-        self.inner
-            .ecash_state
-            .master_verification_key
-            .get_or_init(epoch_id, || async {
-                // 1. check the storage
-                if let Some(stored) = self
-                    .inner
-                    .storage
-                    .get_master_verification_key(epoch_id)
-                    .await?
-                {
-                    return Ok(stored.key);
-                }
-
-                info!("attempting to establish master verification key for epoch {epoch_id}...");
-
-                // 2. perform actual aggregation
-                let all_apis = self.ecash_clients(epoch_id).await?;
-                let threshold = self.ecash_threshold(epoch_id).await?;
-
-                if all_apis.len() < threshold as usize {
-                    return Err(CredentialProxyError::InsufficientNumberOfSigners {
-                        threshold,
-                        available: all_apis.len(),
-                    });
-                }
-
-                let master_key = nym_credentials::aggregate_verification_keys(&all_apis)?;
-
-                let epoch = EpochVerificationKey {
-                    epoch_id,
-                    key: master_key,
-                };
-
-                // 3. save the key in the storage for when we reboot
-                self.inner
-                    .storage
-                    .insert_master_verification_key(&epoch)
-                    .await?;
-
-                Ok(epoch.key)
-            })
+        self.ecash_state()
+            .master_verification_key(self.client(), self.storage(), epoch_id)
             .await
     }
 
@@ -297,75 +197,8 @@ impl CredentialProxyState {
         &self,
         epoch_id: Option<EpochId>,
     ) -> Result<RwLockReadGuard<'_, AggregatedCoinIndicesSignatures>, CredentialProxyError> {
-        let epoch_id = match epoch_id {
-            Some(id) => id,
-            None => self.current_epoch_id().await?,
-        };
-
-        self.inner
-            .ecash_state
-            .coin_index_signatures
-            .get_or_init(epoch_id, || async {
-                // 1. check the storage
-                if let Some(master_sigs) = self
-                    .inner
-                    .storage
-                    .get_master_coin_index_signatures(epoch_id)
-                    .await?
-                {
-                    return Ok(master_sigs);
-                }
-
-                info!(
-                    "attempting to establish master coin index signatures for epoch {epoch_id}..."
-                );
-
-                // 2. go around APIs and attempt to aggregate the data
-                let master_vk = self.master_verification_key(Some(epoch_id)).await?;
-                let all_apis = self.ecash_clients(epoch_id).await?;
-                let threshold = self.ecash_threshold(epoch_id).await?;
-
-                let get_partial_signatures = |api: EcashApiClient| async {
-                    // move the api into the closure
-                    let api = api;
-                    let node_index = api.node_id;
-                    let partial_vk = api.verification_key;
-
-                    let partial = api
-                        .api_client
-                        .partial_coin_indices_signatures(Some(epoch_id))
-                        .await?
-                        .signatures;
-                    Ok(CoinIndexSignatureShare {
-                        index: node_index,
-                        key: partial_vk,
-                        signatures: partial,
-                    })
-                };
-
-                let shares =
-                    query_all_threshold_apis(all_apis.clone(), threshold, get_partial_signatures)
-                        .await?;
-
-                let aggregated = aggregate_annotated_indices_signatures(
-                    nym_credentials_interface::ecash_parameters(),
-                    &master_vk,
-                    &shares,
-                )?;
-
-                let sigs = AggregatedCoinIndicesSignatures {
-                    epoch_id,
-                    signatures: aggregated,
-                };
-
-                // 3. save the signatures in the storage for when we reboot
-                self.inner
-                    .storage
-                    .insert_master_coin_index_signatures(&sigs)
-                    .await?;
-
-                Ok(sigs)
-            })
+        self.ecash_state()
+            .master_coin_index_signatures(self.client(), self.storage(), epoch_id)
             .await
     }
 
@@ -374,73 +207,13 @@ impl CredentialProxyState {
         epoch_id: EpochId,
         expiration_date: Date,
     ) -> Result<RwLockReadGuard<'_, AggregatedExpirationDateSignatures>, CredentialProxyError> {
-        self.inner.ecash_state
-            .expiration_date_signatures
-            .get_or_init((epoch_id, expiration_date), || async {
-                // 1. sanity check to see if the expiration_date is not nonsense
-                ensure_sane_expiration_date(expiration_date)?;
-
-                // 2. check the storage
-                if let Some(master_sigs) = self
-                    .storage()
-                    .get_master_expiration_date_signatures(expiration_date, epoch_id)
-                    .await?
-                {
-                    return Ok(master_sigs);
-                }
-
-
-                info!(
-                    "attempting to establish master expiration date signatures for {expiration_date} and epoch {epoch_id}..."
-                );
-
-                // 3. go around APIs and attempt to aggregate the data
-                let epoch_id = self.current_epoch_id().await?;
-                let master_vk = self.master_verification_key(Some(epoch_id)).await?;
-                let all_apis = self.ecash_clients(epoch_id).await?;
-                let threshold = self.ecash_threshold(epoch_id).await?;
-
-                let get_partial_signatures = |api: EcashApiClient| async {
-                    // move the api into the closure
-                    let api = api;
-                    let node_index = api.node_id;
-                    let partial_vk = api.verification_key;
-
-                    let partial = api
-                        .api_client
-                        .partial_expiration_date_signatures(Some(expiration_date), Some(epoch_id))
-                        .await?
-                        .signatures;
-                    Ok(ExpirationDateSignatureShare {
-                        index: node_index,
-                        key: partial_vk,
-                        signatures: partial,
-                    })
-                };
-
-                let shares =
-                    query_all_threshold_apis(all_apis.clone(), threshold, get_partial_signatures)
-                        .await?;
-
-                let aggregated = aggregate_annotated_expiration_signatures(
-                    &master_vk,
-                    expiration_date.ecash_unix_timestamp(),
-                    &shares,
-                )?;
-
-                let sigs = AggregatedExpirationDateSignatures {
-                    epoch_id,
-                    expiration_date,
-                    signatures: aggregated,
-                };
-
-                // 4. save the signatures in the storage for when we reboot
-                self.inner.storage
-                    .insert_master_expiration_date_signatures(&sigs)
-                    .await?;
-
-                Ok(sigs)
-            })
+        self.ecash_state()
+            .master_expiration_date_signatures(
+                self.client(),
+                self.storage(),
+                epoch_id,
+                expiration_date,
+            )
             .await
     }
 
@@ -448,40 +221,15 @@ impl CredentialProxyState {
         &self,
         epoch_id: EpochId,
     ) -> Result<RwLockReadGuard<'_, Vec<EcashApiClient>>, CredentialProxyError> {
-        self.inner
-            .ecash_state
-            .epoch_clients
-            .get_or_init(epoch_id, || async {
-                Ok(self
-                    .query_chain()
-                    .await
-                    .get_all_verification_key_shares(epoch_id)
-                    .await?
-                    .into_iter()
-                    .map(TryInto::try_into)
-                    .collect::<anyhow::Result<Vec<_>, EcashApiError>>()?)
-            })
+        self.ecash_state()
+            .ecash_clients(self.client(), epoch_id)
             .await
     }
 
     pub async fn ecash_threshold(&self, epoch_id: EpochId) -> Result<u64, CredentialProxyError> {
-        self.inner
-            .ecash_state
-            .threshold_values
-            .get_or_init(epoch_id, || async {
-                if let Some(threshold) = self
-                    .query_chain()
-                    .await
-                    .get_epoch_threshold(epoch_id)
-                    .await?
-                {
-                    Ok(threshold)
-                } else {
-                    Err(CredentialProxyError::UnavailableThreshold { epoch_id })
-                }
-            })
+        self.ecash_state()
+            .ecash_threshold(self.client(), epoch_id)
             .await
-            .map(|t| *t)
     }
 }
 

@@ -3,6 +3,7 @@
 
 use std::sync::LazyLock;
 
+use crate::bte::encryption::BabyStepGiantStepLookup;
 use crate::utils::hash_g2;
 use crate::{Chunk, Share};
 use bls12_381::{G1Affine, G2Affine, G2Prepared, G2Projective, Gt};
@@ -21,6 +22,8 @@ pub(crate) static PAIRING_BASE: LazyLock<Gt> =
     LazyLock::new(|| bls12_381::pairing(&G1Affine::generator(), &G2Affine::generator()));
 pub(crate) static G2_GENERATOR_PREPARED: LazyLock<G2Prepared> =
     LazyLock::new(|| G2Prepared::from(G2Affine::generator()));
+pub(crate) static BSGS_TABLE: LazyLock<BabyStepGiantStepLookup> =
+    LazyLock::new(|| BabyStepGiantStepLookup::default());
 
 // Domain tries to follow guidelines specified by:
 // https://datatracker.ietf.org/doc/html/draft-irtf-cfrg-hash-to-curve-11#section-3.1

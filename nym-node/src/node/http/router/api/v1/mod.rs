@@ -16,6 +16,7 @@ pub mod mixnode;
 pub mod network_requester;
 pub mod node;
 pub mod openapi;
+pub mod bridges;
 
 #[derive(Debug, Clone)]
 pub struct Config {
@@ -23,6 +24,7 @@ pub struct Config {
     pub metrics: metrics::Config,
     pub gateway: gateway::Config,
     pub mixnode: mixnode::Config,
+    pub bridges: bridges::Config,
     pub network_requester: network_requester::Config,
     pub ip_packet_router: ip_packet_router::Config,
     pub authenticator: authenticator::Config,
@@ -33,6 +35,7 @@ pub(super) fn routes(config: Config) -> Router<AppState> {
         .route(v1::HEALTH, get(health::root_health))
         .route(v1::LOAD, get(load::root_load))
         .nest(v1::METRICS, metrics::routes(config.metrics))
+        .nest(v1::BRIDGES, bridges::routes(config.bridges))
         .nest(v1::GATEWAY, gateway::routes(config.gateway))
         .nest(v1::MIXNODE, mixnode::routes(config.mixnode))
         .nest(

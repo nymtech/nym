@@ -10,7 +10,7 @@ use axum::Router;
 use nym_bin_common::bin_info_owned;
 use nym_http_api_common::middleware::logging;
 use nym_node_requests::api::v1::authenticator::models::Authenticator;
-use nym_node_requests::api::v1::gateway::models::Gateway;
+use nym_node_requests::api::v1::gateway::models::{Bridges, Gateway};
 use nym_node_requests::api::v1::ip_packet_router::models::IpPacketRouter;
 use nym_node_requests::api::v1::mixnode::models::Mixnode;
 use nym_node_requests::api::v1::network_requester::exit_policy::models::UsedExitPolicy;
@@ -18,7 +18,7 @@ use nym_node_requests::api::v1::network_requester::models::NetworkRequester;
 use nym_node_requests::api::v1::node::models::{AuxiliaryDetails, HostSystem, NodeDescription};
 use nym_node_requests::routes;
 use std::net::SocketAddr;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use zeroize::Zeroizing;
 
@@ -48,6 +48,7 @@ impl HttpServerConfig {
                     metrics: Default::default(),
                     gateway: Default::default(),
                     mixnode: Default::default(),
+                    bridges: Default::default(),
                     network_requester: Default::default(),
                     ip_packet_router: Default::default(),
                     authenticator: Default::default(),
@@ -119,6 +120,13 @@ impl HttpServerConfig {
     #[must_use]
     pub fn with_prometheus_bearer_token(mut self, bearer_token: Option<String>) -> Self {
         self.api.v1_config.metrics.bearer_token = bearer_token.map(|b| Arc::new(Zeroizing::new(b)));
+        self
+    }
+
+    pub fn with_bridge_client_params_file(mut self, path: &PathBuf) -> Self {
+        self.api.v1_config.bridges.details = Some(Bridges {
+            client_params_path: path.to_string_lossy().to_string(),
+        });
         self
     }
 }

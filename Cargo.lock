@@ -5350,6 +5350,7 @@ dependencies = [
  "wasm-bindgen-test",
  "wasm-client-core",
  "wasm-utils",
+ "web-sys",
 ]
 
 [[package]]

@@ -398,7 +398,7 @@ pub fn baby_step_giant_step(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::bte::{encryption, keygen, setup};
+    use crate::bte::{encryption, keygen, setup, BSGS_TABLE};
     use rand_core::SeedableRng;
 
     fn verify_hazmat_rand(ciphertext: &Ciphertexts, randomness: &HazmatRandomness) {
@@ -456,8 +456,6 @@ mod tests {
         let (decryption_key1, public_key1) = keygen(&params, &mut rng);
         let (decryption_key2, public_key2) = keygen(&params, &mut rng);
 
-        let lookup_table = encryption::BabyStepGiantStepLookup::default();
-
         for _ in 0..10 {
             let m1 = Share::random(&mut rng);
             let m2 = Share::random(&mut rng);
@@ -466,22 +464,12 @@ mod tests {
             let (ciphertext, hazmat) = encrypt_shares(shares, &params, &mut rng);
             verify_hazmat_rand(&ciphertext, &hazmat);
 
-            let recovered1 = decrypt_share(
-                &params,
-                &decryption_key1,
-                0,
-                &ciphertext,
-                Some(&lookup_table),
-            )
-            .unwrap();
-            let recovered2 = decrypt_share(
-                &params,
-                &decryption_key2,
-                1,
-                &ciphertext,
-                Some(&lookup_table),
-            )
-            .unwrap();
+            let recovered1 =
+                decrypt_share(&params, &decryption_key1, 0, &ciphertext, Some(&BSGS_TABLE))
+                    .unwrap();
+            let recovered2 =
+                decrypt_share(&params, &decryption_key2, 1, &ciphertext, Some(&BSGS_TABLE))
+                    .unwrap();
             assert_eq!(m1, recovered1);
             assert_eq!(m2, recovered2);
         }
@@ -497,8 +485,6 @@ mod tests {
         let (decryption_key1, public_key1) = keygen(&params, &mut rng);
         let (decryption_key2, public_key2) = keygen(&params, &mut rng);
 
-        let lookup_table = encryption::BabyStepGiantStepLookup::default();
-
         for _ in 0..10 {
             let m1 = Share::random(&mut rng);
             let m2 = Share::random(&mut rng);
@@ -507,22 +493,12 @@ mod tests {
             let (ciphertext, hazmat) = encrypt_shares(shares, &params, &mut rng);
             verify_hazmat_rand(&ciphertext, &hazmat);
 
-            let recovered1 = decrypt_share(
-                &params,
-                &decryption_key1,
-                0,
-                &ciphertext,
-                Some(&lookup_table),
-            )
-            .unwrap();
-            let recovered2 = decrypt_share(
-                &params,
-                &decryption_key2,
-                1,
-                &ciphertext,
-                Some(&lookup_table),
-            )
-            .unwrap();
+            let recovered1 =
+                decrypt_share(&params, &decryption_key1, 0, &ciphertext, Some(&BSGS_TABLE))
+                    .unwrap();
+            let recovered2 =
+                decrypt_share(&params, &decryption_key2, 1, &ciphertext, Some(&BSGS_TABLE))
+                    .unwrap();
             assert_eq!(m1, recovered1);
             assert_eq!(m2, recovered2);
         }

@@ -398,7 +398,7 @@ pub fn baby_step_giant_step(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::bte::{encryption, keygen, setup, BSGS_TABLE};
+    use crate::bte::{keygen, setup, BSGS_TABLE};
     use rand_core::SeedableRng;
 
     fn verify_hazmat_rand(ciphertext: &Ciphertexts, randomness: &HazmatRandomness) {

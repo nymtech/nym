@@ -41,6 +41,7 @@ pub mod routes {
             pub const GATEWAY: &str = "/gateway";
             pub const MIXNODE: &str = "/mixnode";
             pub const METRICS: &str = "/metrics";
+            pub const BRIDGES: &str = "/bridges";
             pub const NETWORK_REQUESTER: &str = "/network-requester";
             pub const IP_PACKET_ROUTER: &str = "/ip-packet-router";
             pub const AUTHENTICATOR: &str = "/authenticator";

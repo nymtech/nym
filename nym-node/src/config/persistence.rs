@@ -146,6 +146,9 @@ pub struct GatewayTasksPaths {
 
     /// Path to file containing cosmos account mnemonic used for zk-nym redemption.
     pub cosmos_mnemonic: PathBuf,
+
+    /// Path to file containing bridge client params to be served in the node self-described. 
+    pub bridge_client_params: Option<PathBuf>,
 }
 
 impl GatewayTasksPaths {
@@ -154,6 +157,7 @@ impl GatewayTasksPaths {
             clients_storage: data_dir.as_ref().join(DEFAULT_CLIENTS_STORAGE_FILENAME),
             stats_storage: data_dir.as_ref().join(DEFAULT_STATS_STORAGE_FILENAME),
             cosmos_mnemonic: data_dir.as_ref().join(DEFAULT_MNEMONIC_FILENAME),
+            bridge_client_params: None,
         }
     }
 

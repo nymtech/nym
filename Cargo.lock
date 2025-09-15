@@ -4938,7 +4938,7 @@ dependencies = [
  "rand 0.8.5",
  "rand_chacha 0.3.1",
  "reqwest 0.12.22",
- "schemars 0.8.22",
+ "schemars 1.0.4",
  "semver 1.0.26",
  "serde",
  "serde_json",
@@ -4987,7 +4987,7 @@ dependencies = [
  "nym-serde-helpers",
  "nym-ticketbooks-merkle",
  "rand_chacha 0.3.1",
- "schemars 0.8.22",
+ "schemars 1.0.4",
  "serde",
  "serde_json",
  "sha2 0.10.9",
@@ -5081,7 +5081,7 @@ dependencies = [
  "log",
  "opentelemetry",
  "opentelemetry-jaeger",
- "schemars 0.8.22",
+ "schemars 1.0.4",
  "serde",
  "serde_json",
  "tracing",
@@ -5414,7 +5414,7 @@ dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
  "cw-storage-plus",
- "schemars 0.8.22",
+ "schemars 1.0.4",
  "serde",
  "serde_json",
  "thiserror 2.0.12",
@@ -5543,7 +5543,7 @@ dependencies = [
  "nym-http-api-common",
  "nym-serde-helpers",
  "reqwest 0.12.22",
- "schemars 0.8.22",
+ "schemars 1.0.4",
  "serde",
  "serde_json",
  "time",
@@ -5977,7 +5977,7 @@ dependencies = [
  "cosmwasm-schema",
  "cw-controllers",
  "cw4",
- "schemars 0.8.22",
+ "schemars 1.0.4",
  "serde",
 ]
 
@@ -6189,7 +6189,7 @@ dependencies = [
  "humantime-serde",
  "nym-contracts-common",
  "rand_chacha 0.3.1",
- "schemars 0.8.22",
+ "schemars 1.0.4",
  "semver 1.0.26",
  "serde",
  "serde_repr",
@@ -6236,7 +6236,7 @@ dependencies = [
  "cw-utils",
  "cw3",
  "cw4",
- "schemars 0.8.22",
+ "schemars 1.0.4",
  "serde",
  "thiserror 2.0.12",
 ]
@@ -6249,7 +6249,7 @@ dependencies = [
  "dotenvy",
  "log",
  "regex",
- "schemars 0.8.22",
+ "schemars 1.0.4",
  "serde",
  "url",
  "utoipa",
@@ -6452,7 +6452,7 @@ dependencies = [
  "nym-noise-keys",
  "nym-wireguard-types",
  "rand_chacha 0.3.1",
- "schemars 0.8.22",
+ "schemars 1.0.4",
  "serde",
  "serde_json",
  "strum",
@@ -6616,7 +6616,7 @@ name = "nym-noise-keys"
 version = "0.1.0"
 dependencies = [
  "nym-crypto",
- "schemars 0.8.22",
+ "schemars 1.0.4",
  "serde",
  "utoipa",
 ]
@@ -6691,7 +6691,7 @@ dependencies = [
  "cosmwasm-std",
  "cw-controllers",
  "nym-contracts-common",
- "schemars 0.8.22",
+ "schemars 1.0.4",
  "serde",
  "thiserror 2.0.12",
 ]
@@ -6703,7 +6703,7 @@ dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
  "cw-controllers",
- "schemars 0.8.22",
+ "schemars 1.0.4",
  "serde",
  "thiserror 2.0.12",
  "time",
@@ -6881,7 +6881,7 @@ dependencies = [
  "pin-project",
  "rand 0.8.5",
  "reqwest 0.12.22",
- "schemars 0.8.22",
+ "schemars 1.0.4",
  "serde",
  "tap",
  "thiserror 2.0.12",
@@ -7191,7 +7191,7 @@ dependencies = [
  "rand 0.8.5",
  "rand_chacha 0.3.1",
  "rs_merkle",
- "schemars 0.8.22",
+ "schemars 1.0.4",
  "serde",
  "serde_json",
  "sha2 0.10.9",
@@ -7250,7 +7250,7 @@ dependencies = [
  "nym-validator-client",
  "nym-vesting-contract-common",
  "reqwest 0.12.22",
- "schemars 0.8.22",
+ "schemars 1.0.4",
  "serde",
  "serde_json",
  "sha2 0.10.9",
@@ -7539,7 +7539,7 @@ dependencies = [
  "axum 0.7.9",
  "bincode",
  "nym-credentials-interface",
- "schemars 0.8.22",
+ "schemars 1.0.4",
  "serde",
  "thiserror 2.0.12",
  "utoipa",
@@ -7625,7 +7625,7 @@ dependencies = [
  "nym-validator-client",
  "nyxd-scraper",
  "reqwest 0.12.22",
- "schemars 0.8.22",
+ "schemars 1.0.4",
  "serde",
  "sqlx",
  "thiserror 2.0.12",
@@ -9173,11 +9173,9 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3fbf2ae1b8bc8e02df939598064d22402220cd5bbcca1c76f7d6a310974d5615"
 dependencies = [
  "dyn-clone",
- "indexmap 1.9.3",
- "schemars_derive",
+ "schemars_derive 0.8.22",
  "serde",
  "serde_json",
- "uuid",
 ]
 
 [[package]]
@@ -9200,8 +9198,10 @@ checksum = "82d20c4491bc164fa2f6c5d44565947a52ad80b9505d8e36f8d54c27c739fcd0"
 dependencies = [
  "dyn-clone",
  "ref-cast",
+ "schemars_derive 1.0.4",
  "serde",
  "serde_json",
+ "uuid",
 ]
 
 [[package]]
@@ -9209,6 +9209,18 @@ name = "schemars_derive"
 version = "0.8.22"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32e265784ad618884abaea0600a9adf15393368d840e0222d101a072f3f7534d"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "serde_derive_internals 0.29.1",
+ "syn 2.0.104",
+]
+
+[[package]]
+name = "schemars_derive"
+version = "1.0.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "33d020396d1d138dc19f1165df7545479dcd58d93810dc5d646a16e55abefa80"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -9437,6 +9449,7 @@ version = "1.0.141"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "30b9eff21ebe718216c6ec64e1d9ac57087aad11efc64e32002bce4a0d4c03d3"
 dependencies = [
+ "indexmap 2.10.0",
  "itoa",
  "memchr",
  "ryu",

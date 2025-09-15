@@ -2,14 +2,12 @@
   "buildCommand": "yarn build",
   "installCommand": "yarn install",
   "framework": "nextjs",
-  "functions": {
-    "app/**/*.tsx": {
-      "runtime": "nodejs20.x"
-    }
-  },
   "build": {
     "env": {
       "NODE_VERSION": "20"
     }
+  },
+  "engines": {
+    "node": "20.x"
   }
 }

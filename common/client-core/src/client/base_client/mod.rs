@@ -251,7 +251,7 @@ where
 
     #[must_use]
     pub fn with_remember_me(mut self, remember_me: &RememberMe) -> Self {
-        // self.config.debug.remember_me = *remember_me;
+        self.config.debug.remember_me = *remember_me;
         self
     }
 
@@ -308,7 +308,6 @@ where
         mut self,
         callback: Arc<dyn Fn(RawFd) + Send + Sync>,
     ) -> Self {
-        console_log!("!!!!! SETTING CONNECTION_CALLBACK");
         self.connection_fd_callback = Some(callback);
         self
     }

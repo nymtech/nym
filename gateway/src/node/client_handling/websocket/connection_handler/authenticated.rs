@@ -402,6 +402,7 @@ impl<R, S> AuthenticatedHandler<R, S> {
         Ok(SensitiveServerResponse::KeyUpgradeAck {}.encrypt(&self.client.shared_keys)?)
     }
 
+    #[instrument(skip_all)]
     async fn handle_encrypted_text_request(
         &mut self,
         ciphertext: Vec<u8>,
@@ -431,6 +432,7 @@ impl<R, S> AuthenticatedHandler<R, S> {
     /// # Arguments
     ///
     /// * `raw_request`: raw message to handle.
+    #[instrument(skip_all)]
     async fn handle_text(&mut self, raw_request: String) -> Message
     where
         R: Rng + CryptoRng,

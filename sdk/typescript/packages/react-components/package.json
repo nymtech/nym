@@ -60,6 +60,7 @@
     "@types/react-dom": "^18.0.10",
     "@typescript-eslint/eslint-plugin": "^5.13.0",
     "@typescript-eslint/parser": "^5.13.0",
+    "@types/minimatch": "^3.0.5",
     "babel-loader": "^8.2.3",
     "babel-plugin-root-import": "^5.1.0",
     "eslint": "^8.10.0",

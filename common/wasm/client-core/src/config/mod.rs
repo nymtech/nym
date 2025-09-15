@@ -111,8 +111,8 @@ pub struct DebugWasm {
     /// Defines all configuration options related to stats reporting.
     #[wasm_bindgen(getter_with_clone)]
     pub stats_reporting: StatsReportingWasm,
-    // pub forget_me: ForgetMeWasm,
-    // pub remember_me: RememberMeWasm,
+    pub forget_me: ForgetMeWasm,
+    pub remember_me: RememberMeWasm,
 }
 
 impl Default for DebugWasm {
@@ -131,8 +131,8 @@ impl From<DebugWasm> for ConfigDebug {
             topology: debug.topology.into(),
             reply_surbs: debug.reply_surbs.into(),
             stats_reporting: debug.stats_reporting.into(),
-            // forget_me: debug.forget_me.into(),
-            // remember_me: debug.remember_me.into(),
+            forget_me: debug.forget_me.into(),
+            remember_me: debug.remember_me.into(),
         }
     }
 }
@@ -147,8 +147,8 @@ impl From<ConfigDebug> for DebugWasm {
             topology: debug.topology.into(),
             reply_surbs: debug.reply_surbs.into(),
             stats_reporting: debug.stats_reporting.into(),
-            // forget_me: ForgetMeWasm::from(debug.forget_me),
-            // remember_me: RememberMeWasm::from(debug.remember_me),
+            forget_me: ForgetMeWasm::from(debug.forget_me),
+            remember_me: RememberMeWasm::from(debug.remember_me),
         }
     }
 }

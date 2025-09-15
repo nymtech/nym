@@ -237,6 +237,7 @@ impl<R, S> AuthenticatedHandler<R, S> {
     /// # Arguments
     ///
     /// * `mix_packet`: packet received from the client that should get forwarded into the network.
+    #[instrument(skip_all)]
     fn forward_packet(&self, mix_packet: MixPacket) {
         let herited_span = self.root_span.as_ref().cloned().unwrap_or_else(|| tracing::Span::none());
         let span = info_span!(parent: &herited_span, "forwarding_packet");
@@ -296,6 +297,7 @@ impl<R, S> AuthenticatedHandler<R, S> {
     /// # Arguments
     ///
     /// * `mix_packet`: packet received from the client that should get forwarded into the network.
+    #[instrument(skip_all)]
     async fn handle_forward_sphinx(
         &mut self,
         mix_packet: MixPacket,
@@ -322,6 +324,7 @@ impl<R, S> AuthenticatedHandler<R, S> {
     /// # Arguments
     ///
     /// * `bin_msg`: raw message to handle.
+    #[instrument(skip_all)]
     async fn handle_binary(&mut self, bin_msg: Vec<u8>) -> Message {
         trace!("binary request");
         let herited_span = self.root_span.as_ref().cloned().unwrap_or_else(|| tracing::Span::none());

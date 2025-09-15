@@ -18,7 +18,7 @@ use nym_node_requests::api::v1::network_requester::models::NetworkRequester;
 use nym_node_requests::api::v1::node::models::{AuxiliaryDetails, HostSystem, NodeDescription};
 use nym_node_requests::routes;
 use std::net::SocketAddr;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::Arc;
 use zeroize::Zeroizing;
 
@@ -123,7 +123,7 @@ impl HttpServerConfig {
         self
     }
 
-    pub fn with_bridge_client_params_file(mut self, path: &PathBuf) -> Self {
+    pub fn with_bridge_client_params_file(mut self, path: &Path) -> Self {
         self.api.v1_config.bridges.details = Some(Bridges {
             client_params_path: path.to_string_lossy().to_string(),
         });

@@ -1034,6 +1034,7 @@ impl<R, S> FreshHandler<R, S> {
         }
     }
 
+    #[instrument(skip_all)]
     pub(crate) async fn wait_for_initial_message(
         &mut self,
     ) -> Result<ClientControlRequest, InitialAuthenticationError>

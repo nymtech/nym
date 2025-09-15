@@ -62,6 +62,7 @@ pub trait MixnetMessageSender {
     ///     client.send_message(recipient, "hi".to_owned().into_bytes(), surbs).await.unwrap();
     /// }
     /// ```
+    #[instrument(skip_all)]
     async fn send_message<M>(
         &self,
         address: Recipient,

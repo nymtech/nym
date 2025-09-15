@@ -23,9 +23,11 @@ pub fn new_client(
     bearer_token: impl Into<String>,
 ) -> Result<VpnApiClient, ZkNymError> {
     Ok(VpnApiClient {
-        inner: Client::builder(base_url)?
+        inner: Client::builder(base_url)
+            .map_err(Box::new)?
             .with_user_agent(format!("nym-wasm-znym-lib/{}", env!("CARGO_PKG_VERSION")))
-            .build()?,
+            .build()
+            .map_err(Box::new)?,
         bearer_token: bearer_token.into(),
     })
 }

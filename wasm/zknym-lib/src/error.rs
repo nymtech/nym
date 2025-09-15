@@ -16,7 +16,7 @@ pub enum ZkNymError {
     #[error("failed to contact the vpn api")]
     HttpClientFailure {
         #[from]
-        source: HttpClientError,
+        source: Box<HttpClientError>,
     },
     #[error("the provided shares and issuers are not from the same epoch! {shares} and {issuers}")]
     InconsistentEpochId { shares: u64, issuers: u64 },

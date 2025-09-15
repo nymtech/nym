@@ -19,6 +19,7 @@ debug-inventory = ["nym-http-api-client-macro/debug-inventory"]
 [dependencies]
 async-trait = { workspace = true }
 bincode = { workspace = true }
+cfg-if = { workspace = true}
 reqwest = { workspace = true, features = ["json", "gzip", "deflate", "brotli", "zstd", "rustls-tls"] }
 http.workspace = true
 url = { workspace = true }

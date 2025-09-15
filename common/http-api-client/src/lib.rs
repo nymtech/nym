@@ -182,9 +182,11 @@ mod path;
 pub use dns::{HickoryDnsError, HickoryDnsResolver};
 
 // helper for generating user agent based on binary information
+#[cfg(not(target_arch = "wasm32"))]
 use crate::registry::default_builder;
 #[doc(hidden)]
 pub use nym_bin_common::bin_info;
+#[cfg(not(target_arch = "wasm32"))]
 use nym_http_api_client_macro::client_defaults;
 
 /// Default HTTP request connection timeout.
@@ -193,6 +195,7 @@ use nym_http_api_client_macro::client_defaults;
 /// high and chatty protocols take a while to complete.
 pub const DEFAULT_TIMEOUT: Duration = Duration::from_secs(30);
 
+#[cfg(not(target_arch = "wasm32"))]
 client_defaults!(
     priority = -100;
     gzip = true,
@@ -253,9 +256,14 @@ pub struct ReqwestErrorWrapper(reqwest::Error);
 
 impl Display for ReqwestErrorWrapper {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if self.0.is_connect() {
-            write!(f, "failed to connect: ")?;
+        cfg_if::cfg_if! {
+            if #[cfg(not(target_arch = "wasm32"))] {
+                if self.0.is_connect() {
+                    write!(f, "failed to connect: ")?;
+                }
+            }
         }
+
         if self.0.is_timeout() {
             write!(f, "timed out: ")?;
         }
@@ -1012,6 +1020,7 @@ impl ApiClientCore for Client {
                 .build()
                 .map_err(HttpClientError::reqwest_client_build_error)?;
             self.apply_hosts_to_req(&mut req);
+            #[cfg(not(target_arch = "wasm32"))]
             let url = req.url().clone();
 
             #[cfg(target_arch = "wasm32")]
@@ -1053,8 +1062,13 @@ impl ApiClientCore for Client {
                     }
 
                     // if we have exhausted our attempts, return the error
-                    #[allow(clippy::useless_conversion)] // conversion considered useless in wasm
-                    return Err(HttpClientError::request_send_error(url, err));
+                    cfg_if::cfg_if! {
+                        if #[cfg(target_arch = "wasm32")] {
+                            return Err(err);
+                        } else {
+                            return Err(HttpClientError::request_send_error(url, err));
+                        }
+                    }
                 }
             }
         }

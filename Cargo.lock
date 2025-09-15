@@ -5281,6 +5281,7 @@ dependencies = [
  "gloo-timers",
  "js-sys",
  "nym-bin-common",
+ "nym-gateway-requests",
  "nym-node-tester-utils",
  "nym-node-tester-wasm",
  "once_cell",

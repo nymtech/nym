@@ -202,14 +202,14 @@ impl From<ConfigV6> for Config {
                     provider_address: value.debug.stats_reporting.provider_address,
                     reporting_interval: value.debug.stats_reporting.reporting_interval,
                 },
-                // forget_me: ForgetMe {
-                //     client: value.debug.forget_me.client,
-                //     stats: value.debug.forget_me.stats,
-                // },
-                // remember_me: RememberMe {
-                //     stats: value.debug.remember_me.stats,
-                //     session_type: value.debug.remember_me.session_type.into(),
-                // },
+                forget_me: ForgetMe {
+                    client: value.debug.forget_me.client,
+                    stats: value.debug.forget_me.stats,
+                },
+                remember_me: RememberMe {
+                    stats: value.debug.remember_me.stats,
+                    session_type: value.debug.remember_me.session_type.into(),
+                },
             },
         }
     }
@@ -545,11 +545,11 @@ pub struct DebugConfigV6 {
     pub reply_surbs: ReplySurbsV6,
     /// Defines all configuration options related to stats reporting.
     pub stats_reporting: StatsReportingV6,
-    // Defines all configuration options related to the forget me flag.
-    // pub forget_me: ForgetMeV6,
+    /// Defines all configuration options related to the forget me flag.
+    pub forget_me: ForgetMeV6,
 
-    // Defines all configuration options related to the remember me flag.
-    // pub remember_me: RememberMeV6,
+    /// Defines all configuration options related to the remember me flag.
+    pub remember_me: RememberMeV6,
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Serialize)]

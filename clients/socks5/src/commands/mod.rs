@@ -112,7 +112,7 @@ pub(crate) struct OverrideConfig {
     enabled_credentials_mode: Option<bool>,
     outfox: bool,
     stats_reporting_address: Option<Recipient>,
-    // forget_me: ForgetMe,
+    forget_me: ForgetMe,
 }
 
 pub(crate) async fn execute(args: Cli) -> Result<(), Box<dyn Error + Send + Sync>> {

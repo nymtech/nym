@@ -15,11 +15,8 @@ pub struct Config {
 
 pub(crate) fn routes<S: Send + Sync + 'static + Clone>(config: Config) -> Router<S> {
     if let Some(cfg) = config.details {
-        Router::new().route_service(
-            "/client-params",
-            ServeFile::new(cfg.client_params_path),
-        )
+        Router::new().route_service("/client-params", ServeFile::new(cfg.client_params_path))
     } else {
-		Router::new()
-	}
+        Router::new()
+    }
 }

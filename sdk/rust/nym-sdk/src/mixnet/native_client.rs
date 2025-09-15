@@ -58,8 +58,8 @@ pub struct MixnetClient {
     // internal state used for the `Stream` implementation
     _buffered: Vec<ReconstructedMessage>,
     pub(crate) client_request_sender: ClientRequestSender,
-    // pub(crate) forget_me: ForgetMe,
-    // pub(crate) remember_me: RememberMe,
+    pub(crate) forget_me: ForgetMe,
+    pub(crate) remember_me: RememberMe,
 }
 
 impl MixnetClient {

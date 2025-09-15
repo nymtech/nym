@@ -14,6 +14,7 @@ license.workspace = true
 default=["tunneling"]
 tunneling=[]
 network-defaults = ["dep:nym-network-defaults"]
+debug-inventory = ["nym-http-api-client-macro/debug-inventory"]
 
 [dependencies]
 async-trait = { workspace = true }
@@ -29,6 +30,7 @@ serde_plain = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 itertools = { workspace = true }
+inventory = { workspace = true }
 
 # used for decoding text responses (they were already implicitly included)
 bytes = { workspace = true }
@@ -38,6 +40,7 @@ mime = { workspace = true }
 nym-http-api-common = { path = "../http-api-common", default-features = false }
 nym-bin-common = { path = "../bin-common" }
 nym-network-defaults = { path = "../network-defaults", optional = true }
+nym-http-api-client-macro = { path = "../http-api-client-macro" }
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies]
 hickory-resolver = { workspace = true, features = ["https-ring", "tls-ring", "webpki-roots"] }

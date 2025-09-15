@@ -72,10 +72,7 @@ pub enum CredentialProxyError {
     },
 
     #[error("Nym API request failed: {source}")]
-    NymApiFailure {
-        #[from]
-        source: NymAPIError,
-    },
+    NymApiFailure { source: Box<NymAPIError> },
 
     #[error("Compact ecash internal error: {0}")]
     CompactEcashInternalError(#[from] nym_compact_ecash::error::CompactEcashError),
@@ -158,6 +155,14 @@ pub enum CredentialProxyError {
         device_id: String,
         credential_id: String,
     },
+}
+
+impl From<NymAPIError> for CredentialProxyError {
+    fn from(source: NymAPIError) -> Self {
+        CredentialProxyError::NymApiFailure {
+            source: Box::new(source),
+        }
+    }
 }
 
 impl CredentialProxyError {

@@ -181,7 +181,7 @@ impl MetricsScrapingData {
                     return Err(NodeScraperError::MalformedHost {
                         host: self.host.to_string(),
                         node_id: self.node_id,
-                        source: err,
+                        source: Box::new(err),
                     });
                 }
             };

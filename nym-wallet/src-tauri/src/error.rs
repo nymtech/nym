@@ -44,10 +44,7 @@ pub enum BackendError {
         source: eyre::Report,
     },
     #[error(transparent)]
-    NymNodeApiError {
-        #[from]
-        source: NymNodeApiClientError,
-    },
+    NymNodeApiError { source: Box<NymNodeApiClientError> },
     #[error(transparent)]
     IOError {
         #[from]
@@ -206,5 +203,13 @@ impl From<NyxdError> for BackendError {
 impl From<ValidatorClientError> for BackendError {
     fn from(e: ValidatorClientError) -> Self {
         TypesError::from(e).into()
+    }
+}
+
+impl From<NymNodeApiClientError> for BackendError {
+    fn from(e: NymNodeApiClientError) -> Self {
+        BackendError::NymNodeApiError {
+            source: Box::new(e),
+        }
     }
 }

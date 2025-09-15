@@ -821,15 +821,8 @@ where
         let mut nym_api_urls = config.get_nym_api_endpoints();
         nym_api_urls.shuffle(&mut thread_rng());
 
-        let mut builder =
-            nym_http_api_client::Client::builder(nym_api_urls[0].clone()).map_err(|e| {
-                ClientCoreError::NymApiQueryFailure {
-                    source:
-                        nym_validator_client::nym_api::error::NymAPIError::GenericRequestFailure(
-                            e.to_string(),
-                        ),
-                }
-            })?;
+        let mut builder = nym_http_api_client::Client::builder(nym_api_urls[0].clone())
+            .map_err(ClientCoreError::from)?;
 
         if let Some(user_agent) = user_agent {
             builder = builder.with_user_agent(user_agent);
@@ -837,13 +830,7 @@ where
 
         builder = builder.with_bincode();
 
-        builder
-            .build()
-            .map_err(|e| ClientCoreError::NymApiQueryFailure {
-                source: nym_validator_client::nym_api::error::NymAPIError::GenericRequestFailure(
-                    e.to_string(),
-                ),
-            })
+        builder.build().map_err(ClientCoreError::from)
     }
 
     async fn determine_key_rotation_state(

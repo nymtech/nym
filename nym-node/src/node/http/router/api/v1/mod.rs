@@ -7,6 +7,7 @@ use axum::Router;
 use nym_node_requests::routes::api::v1;
 
 pub mod authenticator;
+pub mod bridges;
 pub mod gateway;
 pub mod health;
 pub mod ip_packet_router;
@@ -16,7 +17,6 @@ pub mod mixnode;
 pub mod network_requester;
 pub mod node;
 pub mod openapi;
-pub mod bridges;
 
 #[derive(Debug, Clone)]
 pub struct Config {

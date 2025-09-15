@@ -871,6 +871,9 @@ pub struct GatewayTasksPathsV8 {
 
     /// Path to file containing cosmos account mnemonic used for zk-nym redemption.
     pub cosmos_mnemonic: PathBuf,
+
+    /// Path to file containing bridge client params to be served in the node self-described.
+    pub bridge_client_params: Option<PathBuf>,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
@@ -1315,6 +1318,7 @@ pub async fn try_upgrade_config_v8<P: AsRef<Path>>(
                 clients_storage: old_cfg.gateway_tasks.storage_paths.clients_storage,
                 stats_storage: old_cfg.gateway_tasks.storage_paths.stats_storage,
                 cosmos_mnemonic: old_cfg.gateway_tasks.storage_paths.cosmos_mnemonic,
+                bridge_client_params: old_cfg.gateway_tasks.storage_paths.bridge_client_params,
             },
             enforce_zk_nyms: old_cfg.gateway_tasks.enforce_zk_nyms,
             ws_bind_address: old_cfg.gateway_tasks.ws_bind_address,

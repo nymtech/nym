@@ -810,7 +810,7 @@ impl NymNode {
             config.api.v1_config.node.roles.network_requester_enabled = true;
             config.api.v1_config.node.roles.ip_packet_router_enabled = true;
         }
-        
+
         if let Some(path) = &self.config.gateway_tasks.storage_paths.bridge_client_params {
             config = config.with_bridge_client_params_file(&path);
         }

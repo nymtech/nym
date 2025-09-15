@@ -30,13 +30,11 @@ jobs:
       release_date: ${{ fromJSON(steps.create-release.outputs.assets)[0].published_at }}
       client_hash: ${{ steps.binary-hashes.outputs.client_hash }}
       nymvisor_hash: ${{ steps.binary-hashes.outputs.nymvisor_hash }}
-      nymnode_hash: ${{ steps.binary-hashes.outputs.nymnode_hash }}
       socks5_hash: ${{ steps.binary-hashes.outputs.socks5_hash }}
       netreq_hash: ${{ steps.binary-hashes.outputs.netreq_hash }}
       cli_hash: ${{ steps.binary-hashes.outputs.cli_hash }}
       client_version: ${{ steps.binary-versions.outputs.client_version }}
       nymvisor_version: ${{ steps.binary-versions.outputs.nymvisor_version }}
-      nymnode_version: ${{ steps.binary-versions.outputs.nymnode_version }}
       socks5_version: ${{ steps.binary-versions.outputs.socks5_version }}
       netreq_version: ${{ steps.binary-versions.outputs.netreq_version }}
       cli_version: ${{ steps.binary-versions.outputs.cli_version }}
@@ -76,7 +74,6 @@ jobs:
             target/release/nym-network-requester
             target/release/nym-cli
             target/release/nymvisor
-            target/release/nym-node
           retention-days: 30
     
       - id: create-release
@@ -91,7 +88,6 @@ jobs:
             target/release/nym-network-requester
             target/release/nym-cli
             target/release/nymvisor
-            target/release/nym-node
 
   push-release-data-client:
     if: ${{ (startsWith(github.ref, 'refs/tags/nym-binaries-') && github.event_name == 'release') || github.event_name == 'workflow_dispatch' }}

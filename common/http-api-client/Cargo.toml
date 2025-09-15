@@ -14,7 +14,6 @@ license.workspace = true
 default=["tunneling"]
 tunneling=[]
 network-defaults = ["dep:nym-network-defaults"]
-axum_test = ["axum-test"]
 
 [dependencies]
 async-trait = { workspace = true }

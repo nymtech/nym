@@ -12,16 +12,8 @@ cfg_if::cfg_if! {
 
         pub mod cli;
         pub mod config;
-        pub mod credentials;
-        pub mod error;
         pub mod helpers;
         pub mod http;
-        pub mod nym_api_helpers;
-        pub mod storage;
-        pub mod tasks;
-        mod webhook;
-        mod deposits_buffer;
-        mod quorum_checker;
     }
 }
 
@@ -34,7 +26,6 @@ async fn main() -> anyhow::Result<()> {
     // );
 
     let cli = Cli::parse();
-    cli.webhook.ensure_valid_client_url()?;
     trace!("args: {cli:#?}");
 
     setup_env(cli.config_env_file.as_ref());

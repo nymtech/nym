@@ -13,19 +13,19 @@ use futures::StreamExt;
 use nym_sphinx::chunking::fragment::Fragment;
 use nym_sphinx::preparer::PreparedFragment;
 use nym_sphinx::{addressing::clients::Recipient, params::PacketType};
-use nym_task::{connections::TransmissionLane, TaskClient};
+use nym_task::{connections::TransmissionLane, ShutdownToken};
 use rand::{CryptoRng, Rng};
 use std::sync::{Arc, Weak};
 use tracing::*;
 
 // responsible for packet retransmission upon fired timer
-pub(super) struct RetransmissionRequestListener<R> {
+pub(crate) struct RetransmissionRequestListener<R> {
     maximum_retransmissions: Option<u32>,
     action_sender: AckActionSender,
     message_handler: MessageHandler<R>,
     request_receiver: RetransmissionRequestReceiver,
     reply_controller_sender: ReplyControllerSender,
-    task_client: TaskClient,
+    packet_type: PacketType,
 }
 
 impl<R> RetransmissionRequestListener<R>
@@ -38,7 +38,7 @@ where
         message_handler: MessageHandler<R>,
         request_receiver: RetransmissionRequestReceiver,
         reply_controller_sender: ReplyControllerSender,
-        task_client: TaskClient,
+        packet_type: PacketType,
     ) -> Self {
         RetransmissionRequestListener {
             maximum_retransmissions,
@@ -46,7 +46,7 @@ where
             message_handler,
             request_receiver,
             reply_controller_sender,
-            task_client,
+            packet_type,
         }
     }
 
@@ -67,7 +67,6 @@ where
     async fn on_retransmission_request(
         &mut self,
         weak_timed_out_ack: Weak<PendingAcknowledgement>,
-        packet_type: PacketType,
     ) {
         let timed_out_ack = match weak_timed_out_ack.upgrade() {
             Some(timed_out_ack) => timed_out_ack,
@@ -97,22 +96,18 @@ where
             } => {
                 // if this is retransmission for reply, offload it to the dedicated task
                 // that deals with all the surbs
-                if let Err(err) = self.reply_controller_sender.send_retransmission_data(
+                let _ = self.reply_controller_sender.send_retransmission_data(
                     *recipient_tag,
                     weak_timed_out_ack,
                     *extra_surb_request,
-                ) {
-                    if !self.task_client.is_shutdown_poll() {
-                        error!("Failed to send retransmission data to the reply controller: {err}");
-                    }
-                }
+                );
                 return;
             }
             PacketDestination::KnownRecipient(recipient) => {
                 self.prepare_normal_retransmission_chunk(
                     **recipient,
                     timed_out_ack.message_chunk.clone(),
-                    packet_type,
+                    self.packet_type,
                 )
                 .await
             }
@@ -153,14 +148,9 @@ where
         // is sent to the `OutQueueControl` and has gone through its internal queue
         // with the additional poisson delay.
         // And since Actions are executed in order `UpdateTimer` will HAVE TO be executed before `StartTimer`
-        if let Err(err) = self
+        let _ = self
             .action_sender
-            .unbounded_send(Action::new_update_pending_ack(frag_id, new_delay))
-        {
-            if !self.task_client.is_shutdown_poll() {
-                error!("Failed to send update pending ack action to the controller: {err}");
-            }
-        }
+            .unbounded_send(Action::new_update_pending_ack(frag_id, new_delay));
 
         // send to `OutQueueControl` to eventually send to the mix network
         self.message_handler
@@ -174,18 +164,18 @@ where
             .await
     }
 
-    pub(super) async fn run(&mut self, packet_type: PacketType) {
+    pub(crate) async fn run(&mut self, shutdown_token: ShutdownToken) {
         debug!("Started RetransmissionRequestListener with graceful shutdown support");
 
-        while !self.task_client.is_shutdown() {
+        loop {
             tokio::select! {
                 biased;
-                 _ = self.task_client.recv() => {
+                _ = shutdown_token.cancelled() => {
                     tracing::trace!("RetransmissionRequestListener: Received shutdown");
                     break;
                 }
                 timed_out_ack = self.request_receiver.next() => match timed_out_ack {
-                    Some(timed_out_ack) => self.on_retransmission_request(timed_out_ack, packet_type).await,
+                    Some(timed_out_ack) => self.on_retransmission_request(timed_out_ack).await,
                     None => {
                         tracing::trace!("RetransmissionRequestListener: Stopping since channel closed");
                         break;
@@ -194,7 +184,6 @@ where
 
             }
         }
-        self.task_client.recv_timeout().await;
         tracing::debug!("RetransmissionRequestListener: Exiting");
     }
 }

@@ -12,7 +12,7 @@ use nym_client_core::{
     TopologyProvider,
 };
 use nym_sdk::mixnet::Recipient;
-use nym_task::{TaskClient, TaskHandle};
+use nym_task::ShutdownTracker;
 
 use crate::{config::Config, error::IpPacketRouterError, request_filter::RequestFilter};
 
@@ -39,27 +39,20 @@ pub struct IpPacketRouter {
     wait_for_gateway: bool,
     custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
     custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send + Sync>>,
-    shutdown: Option<TaskClient>,
+    shutdown: ShutdownTracker,
     on_start: Option<oneshot::Sender<OnStartData>>,
 }
 
 impl IpPacketRouter {
-    pub fn new(config: Config) -> Self {
+    pub fn new(config: Config, shutdown: ShutdownTracker) -> Self {
         Self {
             config,
             wait_for_gateway: false,
             custom_topology_provider: None,
             custom_gateway_transceiver: None,
-            shutdown: None,
+            shutdown,
             on_start: None,
         }
-    }
-
-    #[must_use]
-    #[allow(unused)]
-    pub fn with_shutdown(mut self, shutdown: TaskClient) -> Self {
-        self.shutdown = Some(shutdown);
-        self
     }
 
     #[must_use]
@@ -130,12 +123,11 @@ impl IpPacketRouter {
             clients::ConnectedClients, mixnet_listener::MixnetListener,
             request_filter::RequestFilter, tun_listener::TunListener,
         };
-        let task_handle: TaskHandle = self.shutdown.map(Into::into).unwrap_or_default();
 
         // Connect to the mixnet
         let mixnet_client = crate::mixnet_client::create_mixnet_client(
             &self.config.base,
-            task_handle.get_handle().named("nym_sdk::MixnetClient[IPR]"),
+            self.shutdown.clone(),
             self.custom_gateway_transceiver,
             self.custom_topology_provider,
             self.wait_for_gateway,
@@ -163,7 +155,7 @@ impl IpPacketRouter {
 
         let tun_listener = TunListener {
             tun_reader,
-            task_client: task_handle.get_handle(),
+            shutdown_token: self.shutdown.clone_shutdown_token(),
             connected_clients: connected_clients_rx,
         };
         tun_listener.start();
@@ -176,7 +168,7 @@ impl IpPacketRouter {
             request_filter: request_filter.clone(),
             tun_writer,
             mixnet_client,
-            task_handle,
+            shutdown_token: self.shutdown.clone_shutdown_token(),
             connected_clients,
         };
 

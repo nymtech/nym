@@ -10,7 +10,6 @@ use self::{
 use crate::client::inbound_messages::InputMessageReceiver;
 use crate::client::real_messages_control::message_handler::MessageHandler;
 use crate::client::replies::reply_controller::ReplyControllerSender;
-use crate::spawn_future;
 use action_controller::AckActionReceiver;
 use futures::channel::mpsc;
 use nym_gateway_client::AcknowledgementReceiver;
@@ -23,13 +22,11 @@ use nym_sphinx::{
     Delay as SphinxDelay,
 };
 use nym_statistics_common::clients::ClientStatsSender;
-use nym_task::TaskClient;
 use rand::{CryptoRng, Rng};
 use std::{
     sync::{Arc, Weak},
     time::Duration,
 };
-use tracing::*;
 
 pub(crate) use action_controller::{AckActionSender, Action};
 
@@ -190,6 +187,9 @@ pub(super) struct Config {
 
     /// Predefined packet size used for the encapsulated messages.
     packet_size: PacketSize,
+
+    /// Type of packets used for retransmissions
+    packet_type: PacketType,
 }
 
 impl Config {
@@ -197,12 +197,14 @@ impl Config {
         maximum_retransmissions: Option<u32>,
         ack_wait_addition: Duration,
         ack_wait_multiplier: f64,
+        packet_type: PacketType,
     ) -> Self {
         Config {
             maximum_retransmissions,
             ack_wait_addition,
             ack_wait_multiplier,
             packet_size: Default::default(),
+            packet_type,
         }
     }
 
@@ -212,7 +214,7 @@ impl Config {
     }
 }
 
-pub(super) struct AcknowledgementController<R>
+pub(crate) struct AcknowledgementController<R>
 where
     R: CryptoRng + Rng,
 {
@@ -234,7 +236,6 @@ where
         message_handler: MessageHandler<R>,
         reply_controller_sender: ReplyControllerSender,
         stats_tx: ClientStatsSender,
-        task_client: TaskClient,
     ) -> Self {
         let (retransmission_tx, retransmission_rx) = mpsc::unbounded();
 
@@ -244,7 +245,6 @@ where
             action_config,
             retransmission_tx,
             connectors.ack_action_receiver,
-            task_client.fork("action_controller"),
         );
 
         // will listen for any acks coming from the network
@@ -253,7 +253,6 @@ where
             connectors.ack_receiver,
             connectors.ack_action_sender.clone(),
             stats_tx,
-            task_client.fork("acknowledgement_listener"),
         );
 
         // will listen for any new messages from the client
@@ -261,7 +260,6 @@ where
             connectors.input_receiver,
             message_handler.clone(),
             reply_controller_sender.clone(),
-            task_client.fork("input_message_listener"),
         );
 
         // will listen for any ack timeouts and trigger retransmission
@@ -271,16 +269,13 @@ where
             message_handler,
             retransmission_rx,
             reply_controller_sender,
-            task_client.fork("retransmission_request_listener"),
+            config.packet_type,
         );
 
         // will listen for events indicating the packet was sent through the network so that
         // the retransmission timer should be started.
-        let sent_notification_listener = SentNotificationListener::new(
-            connectors.sent_notifier,
-            connectors.ack_action_sender,
-            task_client.with_suffix("sent_notification_listener"),
-        );
+        let sent_notification_listener =
+            SentNotificationListener::new(connectors.sent_notifier, connectors.ack_action_sender);
 
         AcknowledgementController {
             acknowledgement_listener,
@@ -291,51 +286,21 @@ where
         }
     }
 
-    pub(super) fn start(self, packet_type: PacketType) {
-        let mut acknowledgement_listener = self.acknowledgement_listener;
-        let mut input_message_listener = self.input_message_listener;
-        let mut retransmission_request_listener = self.retransmission_request_listener;
-        let mut sent_notification_listener = self.sent_notification_listener;
-        let mut action_controller = self.action_controller;
-
-        spawn_future!(
-            async move {
-                acknowledgement_listener.run().await;
-                debug!("The acknowledgement listener has finished execution!");
-            },
-            "AcknowledgementController::AcknowledgementListener"
-        );
-
-        spawn_future!(
-            async move {
-                input_message_listener.run().await;
-                debug!("The input listener has finished execution!");
-            },
-            "AcknowledgementController::InputMessageListener"
-        );
-
-        spawn_future!(
-            async move {
-                retransmission_request_listener.run(packet_type).await;
-                debug!("The retransmission request listener has finished execution!");
-            },
-            "AcknowledgementController::RetransmissionRequestListener"
-        );
-
-        spawn_future!(
-            async move {
-                sent_notification_listener.run().await;
-                debug!("The sent notification listener has finished execution!");
-            },
-            "AcknowledgementController::SentNotificationListener"
-        );
-
-        spawn_future!(
-            async move {
-                action_controller.run().await;
-                debug!("The controller has finished execution!");
-            },
-            "AcknowledgementController::ActionController"
-        );
+    pub(crate) fn into_tasks(
+        self,
+    ) -> (
+        AcknowledgementListener,
+        InputMessageListener<R>,
+        RetransmissionRequestListener<R>,
+        SentNotificationListener,
+        ActionController,
+    ) {
+        (
+            self.acknowledgement_listener,
+            self.input_message_listener,
+            self.retransmission_request_listener,
+            self.sent_notification_listener,
+            self.action_controller,
+        )
     }
 }

@@ -43,6 +43,7 @@ members = [
     "common/cosmwasm-smart-contracts/nym-performance-contract",
     "common/cosmwasm-smart-contracts/nym-pool-contract",
     "common/cosmwasm-smart-contracts/vesting-contract",
+    "common/credential-proxy",
     "common/credential-storage",
     "common/credential-utils",
     "common/credential-verification",
@@ -95,7 +96,7 @@ members = [
     "common/ticketbooks-merkle",
     "common/topology",
     "common/tun",
-    "common/types",
+    "common/types", "common/upgrade-mode-check",
     "common/verloc",
     "common/wasm/client-core",
     "common/wasm/storage",
@@ -111,10 +112,12 @@ members = [
     "gateway",
     "nym-api",
     "nym-api/nym-api-requests",
+    "nym-authenticator-client",
     "nym-browser-extension/storage",
     "nym-credential-proxy/nym-credential-proxy",
     "nym-credential-proxy/nym-credential-proxy-requests",
     "nym-credential-proxy/vpn-api-lib-wasm",
+    "nym-ip-packet-client",
     "nym-network-monitor",
     "nym-node",
     "nym-node-status-api/nym-node-status-agent",
@@ -122,9 +125,10 @@ members = [
     "nym-node-status-api/nym-node-status-client",
     "nym-node/nym-node-metrics",
     "nym-node/nym-node-requests",
-    "nym-outfox",
+    "nym-outfox", "nym-signers-monitor",
     "nym-statistics-api",
     "nym-validator-rewarder",
+    "nym-wg-gateway-client",
     "nyx-chain-watcher",
     "sdk/ffi/cpp",
     "sdk/ffi/go",
@@ -274,6 +278,7 @@ inquire = "0.6.2"
 ip_network = "0.4.1"
 ipnetwork = "0.20"
 itertools = "0.14.0"
+jwt-simple = { version = "0.12.12", default-features = false, features = ["pure-rust"] }
 k256 = "0.13"
 lazy_static = "1.5.0"
 ledger-transport = "0.10.0"
@@ -330,6 +335,7 @@ syn = "2"
 sysinfo = "0.37.0"
 tap = "1.0.1"
 tar = "0.4.44"
+test-with = { version = "0.15.4", default-features = false }
 tempfile = "3.20"
 thiserror = "2.0"
 time = "0.3.41"

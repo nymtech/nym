@@ -1,0 +1,28 @@
+[package]
+name = "nym-authenticator-client"
+version = "0.1.0"
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+bincode.workspace = true
+futures.workspace = true
+semver.workspace = true
+thiserror.workspace = true
+tokio-util.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+
+nym-authenticator-requests = { path = "../common/authenticator-requests" }
+nym-credentials-interface = { path = "../common/credentials-interface" }
+nym-crypto = { path = "../common/crypto" }
+nym-sdk = { path = "../sdk/rust/nym-sdk" }
+nym-service-provider-requests-common = { path = "../common/service-provider-requests-common" }
+nym-wireguard-types = { path = "../common/wireguard-types" }

@@ -53,6 +53,8 @@ nym-network-defaults = { path = "../../common/network-defaults" }
 nym-credential-proxy-requests = { path = "../nym-credential-proxy-requests", features = ["openapi"] }
 nym-ecash-signer-check = { path = "../../common/ecash-signer-check" }
 
+nym-credential-proxy-lib = { path = "../../common/credential-proxy" }
+
 [dev-dependencies]
 tempfile = { workspace = true }
 

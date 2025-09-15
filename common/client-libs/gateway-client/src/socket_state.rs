@@ -11,7 +11,7 @@ use futures::stream::{SplitSink, SplitStream};
 use futures::{SinkExt, StreamExt};
 use nym_gateway_requests::shared_key::SharedGatewayKey;
 use nym_gateway_requests::{SensitiveServerResponse, ServerResponse, SimpleGatewayRequestsError};
-use nym_task::TaskClient;
+use nym_task::ShutdownToken;
 use si_scale::helpers::bibytes2;
 use std::os::raw::c_int as RawFd;
 use std::sync::Arc;
@@ -87,13 +87,13 @@ impl PartiallyDelegatedRouter {
         }
     }
 
-    async fn run(mut self, mut split_stream: SplitStream<WsConn>, mut task_client: TaskClient) {
+    async fn run(mut self, mut split_stream: SplitStream<WsConn>, shutdown_token: ShutdownToken) {
         let mut chunked_stream = (&mut split_stream).ready_chunks(8);
         let ret: Result<_, GatewayClientError> = loop {
             tokio::select! {
                 biased;
                 // received system-wide shutdown
-                _ = task_client.recv() => {
+                _ = shutdown_token.cancelled() => {
                     log::trace!("GatewayClient listener: Received shutdown");
                     log::debug!("GatewayClient listener: Exiting");
                     return;
@@ -118,11 +118,7 @@ impl PartiallyDelegatedRouter {
 
         let return_res = match ret {
             Err(err) => self.stream_return.send(Err(err)),
-            Ok(_) => {
-                self.packet_router.disarm();
-                task_client.disarm();
-                self.stream_return.send(Ok(split_stream))
-            }
+            Ok(_) => self.stream_return.send(Ok(split_stream)),
         };
 
         if return_res.is_err() {
@@ -266,8 +262,8 @@ impl PartiallyDelegatedRouter {
         Ok(plaintexts)
     }
 
-    fn spawn(self, split_stream: SplitStream<WsConn>, task_client: TaskClient) {
-        let fut = async move { self.run(split_stream, task_client).await };
+    fn spawn(self, split_stream: SplitStream<WsConn>, shutdown_token: ShutdownToken) {
+        let fut = async move { self.run(split_stream, shutdown_token).await };
 
         #[cfg(target_arch = "wasm32")]
         wasm_bindgen_futures::spawn_local(fut);
@@ -283,7 +279,7 @@ impl PartiallyDelegatedHandle {
         packet_router: PacketRouter,
         shared_key: Arc<SharedGatewayKey>,
         client_bandwidth: ClientBandwidth,
-        shutdown: TaskClient,
+        shutdown: ShutdownToken,
     ) -> Self {
         // when called for, it NEEDS TO yield back the stream so that we could merge it and
         // read control request responses.

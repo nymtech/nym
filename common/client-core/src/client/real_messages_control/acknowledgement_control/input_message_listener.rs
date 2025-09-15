@@ -10,21 +10,20 @@ use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_sphinx::params::PacketType;
 use nym_task::connections::TransmissionLane;
-use nym_task::TaskClient;
+use nym_task::ShutdownToken;
 use rand::{CryptoRng, Rng};
 use tracing::*;
 
 /// Module responsible for dealing with the received messages: splitting them, creating acknowledgements,
 /// putting everything into sphinx packets, etc.
 /// It also makes an initial sending attempt for said messages.
-pub(super) struct InputMessageListener<R>
+pub(crate) struct InputMessageListener<R>
 where
     R: CryptoRng + Rng,
 {
     input_receiver: InputMessageReceiver,
     message_handler: MessageHandler<R>,
     reply_controller_sender: ReplyControllerSender,
-    task_client: TaskClient,
 }
 
 impl<R> InputMessageListener<R>
@@ -38,13 +37,11 @@ where
         input_receiver: InputMessageReceiver,
         message_handler: MessageHandler<R>,
         reply_controller_sender: ReplyControllerSender,
-        task_client: TaskClient,
     ) -> Self {
         InputMessageListener {
             input_receiver,
             message_handler,
             reply_controller_sender,
-            task_client,
         }
     }
 
@@ -68,14 +65,9 @@ where
         max_retransmissions: Option<u32>,
     ) {
         // offload reply handling to the dedicated task
-        if let Err(err) =
+        let _ =
             self.reply_controller_sender
-                .send_reply(recipient_tag, data, lane, max_retransmissions)
-        {
-            if !self.task_client.is_shutdown_poll() {
-                error!("failed to send a reply - {err}");
-            }
-        }
+                .send_reply(recipient_tag, data, lane, max_retransmissions);
     }
 
     async fn handle_plain_message(
@@ -221,13 +213,13 @@ where
         };
     }
 
-    pub(super) async fn run(&mut self) {
+    pub(crate) async fn run(&mut self, shutdown_token: ShutdownToken) {
         debug!("Started InputMessageListener with graceful shutdown support");
 
-        while !self.task_client.is_shutdown() {
+        loop {
             tokio::select! {
                 biased;
-                _ = self.task_client.recv() => {
+                _ = shutdown_token.cancelled() => {
                     tracing::trace!("InputMessageListener: Received shutdown");
                     break;
                 }
@@ -243,7 +235,6 @@ where
 
             }
         }
-        self.task_client.recv_timeout().await;
         tracing::debug!("InputMessageListener: Exiting");
     }
 }

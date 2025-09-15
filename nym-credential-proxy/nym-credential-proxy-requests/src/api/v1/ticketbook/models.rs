@@ -268,12 +268,20 @@ pub struct WebhookTicketbookWalletSharesRequest {
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema, utoipa::IntoParams))]
 #[cfg(feature = "query-types")]
 #[serde(default, rename_all = "kebab-case")]
-pub struct TicketbookObtainQueryParams {
-    pub output: Option<Output>,
-
+pub struct TicketbookObtainParams {
     #[serde(default)]
     pub skip_webhook: bool,
 
+    #[serde(default)]
+    #[serde(flatten)]
+    pub global: GlobalDataParams,
+}
+
+#[derive(Default, Debug, Serialize, Deserialize, Clone)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema, utoipa::IntoParams))]
+#[cfg(feature = "query-types")]
+#[serde(default, rename_all = "kebab-case")]
+pub struct GlobalDataParams {
     pub include_master_verification_key: bool,
 
     pub include_coin_index_signatures: bool,
@@ -285,12 +293,22 @@ pub struct TicketbookObtainQueryParams {
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema, utoipa::IntoParams))]
 #[cfg(feature = "query-types")]
 #[serde(default, rename_all = "kebab-case")]
+pub struct TicketbookObtainQueryParams {
+    pub output: Option<Output>,
+
+    #[serde(default)]
+    #[serde(flatten)]
+    pub obtain_params: TicketbookObtainParams,
+}
+
+#[derive(Default, Debug, Serialize, Deserialize, Clone)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema, utoipa::IntoParams))]
+#[cfg(feature = "query-types")]
+#[serde(default, rename_all = "kebab-case")]
 pub struct SharesQueryParams {
     pub output: Option<Output>,
 
-    pub include_master_verification_key: bool,
-
-    pub include_coin_index_signatures: bool,
-
-    pub include_expiration_date_signatures: bool,
+    #[serde(default)]
+    #[serde(flatten)]
+    pub global: GlobalDataParams,
 }

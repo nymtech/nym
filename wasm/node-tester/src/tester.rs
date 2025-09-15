@@ -15,7 +15,6 @@ use js_sys::Promise;
 use nym_node_tester_utils::receiver::SimpleMessageReceiver;
 use nym_node_tester_utils::tester::LegacyMixLayer;
 use nym_node_tester_utils::{NodeTester, PacketSize, PreparedFragment};
-use nym_task::TaskManager;
 use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
@@ -32,6 +31,7 @@ use wasm_client_core::client::mix_traffic::transceiver::PacketRouter;
 use wasm_client_core::helpers::{
     current_network_topology_async, setup_from_topology, EphemeralCredentialStorage,
 };
+use wasm_client_core::nym_task::ShutdownManager;
 use wasm_client_core::storage::ClientStorage;
 use wasm_client_core::topology::WasmFriendlyNymTopology;
 use wasm_client_core::{
@@ -70,7 +70,7 @@ pub struct NymNodeTester {
 
     // even though we don't use graceful shutdowns, other components rely on existence of this struct
     // and if it's dropped, everything will start going offline
-    _task_manager: TaskManager,
+    _task_manager: ShutdownManager,
 }
 
 #[wasm_bindgen]
@@ -159,7 +159,7 @@ impl NymNodeTesterBuilder {
     }
 
     async fn _setup_client(mut self) -> Result<NymNodeTester, NodeTesterError> {
-        let task_manager = TaskManager::default();
+        let task_manager = ShutdownManager::new_without_signals();
 
         let storage_id = if let Some(client_id) = &self.id {
             format!("{NODE_TESTER_ID}-{client_id}")
@@ -181,17 +181,13 @@ impl NymNodeTesterBuilder {
         let (mixnet_message_sender, mixnet_message_receiver) = mpsc::unbounded();
         let (ack_sender, ack_receiver) = mpsc::unbounded();
 
-        let gateway_task = task_manager.subscribe().named("gateway_client");
-        let packet_router = PacketRouter::new(
-            ack_sender,
-            mixnet_message_sender,
-            gateway_task.fork("packet_router"),
-        );
+        let gateway_task = task_manager.clone_shutdown_token();
+        let packet_router =
+            PacketRouter::new(ack_sender, mixnet_message_sender, gateway_task.clone());
 
         let gateway_identity = gateway_info.gateway_id;
 
-        let mut stats_sender_task = task_manager.subscribe().named("stats_sender");
-        stats_sender_task.disarm();
+        let stats_sender_task = task_manager.clone_shutdown_token();
 
         let mut gateway_client =
             if let Some(existing_client) = initialisation_result.authenticated_ephemeral_client {
@@ -199,7 +195,7 @@ impl NymNodeTesterBuilder {
                     packet_router,
                     self.bandwidth_controller.take(),
                     ClientStatsSender::new(None, stats_sender_task),
-                    gateway_task,
+                    gateway_task.clone(),
                 )
             } else {
                 let cfg = GatewayConfig::new(
@@ -250,10 +246,10 @@ impl NymNodeTesterBuilder {
             mixnet_message_receiver,
             ack_receiver,
             processed_sender,
-            task_manager.subscribe(),
+            task_manager.clone_shutdown_token(),
         );
 
-        nym_task::spawn(async move { receiver.run().await });
+        nym_task::spawn_future(async move { receiver.run().await });
 
         Ok(NymNodeTester {
             test_in_progress: Arc::new(AtomicBool::new(false)),

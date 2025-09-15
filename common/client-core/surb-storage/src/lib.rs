@@ -40,7 +40,7 @@ where
     pub async fn flush_on_shutdown(
         mut self,
         mem_state: CombinedReplyStorage,
-        mut shutdown: nym_task::TaskClient,
+        shutdown: nym_task::ShutdownToken,
     ) {
         use tracing::{debug, error, info};
 
@@ -50,7 +50,7 @@ where
             return;
         }
 
-        shutdown.recv().await;
+        shutdown.cancelled().await;
 
         info!("PersistentReplyStorage is flushing all reply-related data to underlying storage");
         if let Err(err) = self.backend.flush_surb_storage(&mem_state).await {

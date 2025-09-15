@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 pub use ed25519_dalek::SignatureError;
-use ed25519_dalek::{SecretKey, Signer, SigningKey};
 pub use ed25519_dalek::{Verifier, PUBLIC_KEY_LENGTH, SECRET_KEY_LENGTH, SIGNATURE_LENGTH};
+
+use ed25519_dalek::Signer;
 use nym_pemstore::traits::{PemStorableKey, PemStorableKeyPair};
 use std::fmt::{self, Debug, Display, Formatter};
 use std::str::FromStr;
@@ -12,6 +13,9 @@ use zeroize::{Zeroize, ZeroizeOnDrop};
 
 #[cfg(feature = "serde")]
 pub mod serde_helpers;
+
+#[cfg(feature = "serde")]
+pub use serde_helpers::*;
 
 #[cfg(feature = "sphinx")]
 use nym_sphinx_types::{DestinationAddressBytes, DESTINATION_ADDRESS_LENGTH};
@@ -81,8 +85,8 @@ impl KeyPair {
         }
     }
 
-    pub fn from_secret(secret: SecretKey, index: u32) -> Self {
-        let ed25519_signing_key = SigningKey::from(secret);
+    pub fn from_secret(secret: ed25519_dalek::SecretKey, index: u32) -> Self {
+        let ed25519_signing_key = ed25519_dalek::SigningKey::from(secret);
 
         KeyPair {
             private_key: PrivateKey(ed25519_signing_key.to_bytes()),
@@ -276,7 +280,7 @@ impl Display for PrivateKey {
 
 impl<'a> From<&'a PrivateKey> for PublicKey {
     fn from(pk: &'a PrivateKey) -> Self {
-        PublicKey(SigningKey::from_bytes(&pk.0).verifying_key())
+        PublicKey(ed25519_dalek::SigningKey::from_bytes(&pk.0).verifying_key())
     }
 }
 
@@ -320,7 +324,7 @@ impl PrivateKey {
     }
 
     pub fn sign<M: AsRef<[u8]>>(&self, message: M) -> Signature {
-        let signing_key: SigningKey = self.0.into();
+        let signing_key: ed25519_dalek::SigningKey = self.0.into();
         let sig = signing_key.sign(message.as_ref());
         Signature(sig)
     }
@@ -425,9 +429,57 @@ impl<'d> Deserialize<'d> for Signature {
     }
 }
 
+#[cfg(feature = "naive_jwt")]
+impl PublicKey {
+    pub fn to_jwt_compatible_key(&self) -> jwt_simple::algorithms::Ed25519PublicKey {
+        (*self).into()
+    }
+}
+
+#[cfg(feature = "naive_jwt")]
+impl From<PublicKey> for jwt_simple::algorithms::Ed25519PublicKey {
+    fn from(value: PublicKey) -> Self {
+        // SAFETY: we have a valid ed25519 pubkey, we're just changing to a different library wrapper
+        #[allow(clippy::unwrap_used)]
+        jwt_simple::algorithms::Ed25519PublicKey::from_bytes(&value.to_bytes()).unwrap()
+    }
+}
+
+#[cfg(feature = "naive_jwt")]
+impl PrivateKey {
+    pub fn to_jwt_compatible_keys(&self) -> jwt_simple::algorithms::Ed25519KeyPair {
+        let pub_key = self.public_key();
+        let mut bytes = zeroize::Zeroizing::new([0u8; 64]);
+
+        bytes[..SECRET_KEY_LENGTH]
+            .copy_from_slice(zeroize::Zeroizing::new(self.to_bytes()).as_ref());
+        bytes[SECRET_KEY_LENGTH..].copy_from_slice(&pub_key.to_bytes());
+
+        // SAFETY: we have a valid ed25519 keys, we're just changing to a different library wrapper
+        #[allow(clippy::unwrap_used)]
+        jwt_simple::algorithms::Ed25519KeyPair::from_bytes(bytes.as_ref()).unwrap()
+    }
+}
+
+#[cfg(feature = "naive_jwt")]
+impl KeyPair {
+    pub fn to_jwt_compatible_keys(&self) -> jwt_simple::algorithms::Ed25519KeyPair {
+        let mut bytes = zeroize::Zeroizing::new([0u8; 64]);
+
+        bytes[..SECRET_KEY_LENGTH]
+            .copy_from_slice(zeroize::Zeroizing::new(self.private_key.to_bytes()).as_ref());
+        bytes[SECRET_KEY_LENGTH..].copy_from_slice(&self.public_key.to_bytes());
+
+        // SAFETY: we have a valid ed25519 keys, we're just changing to a different library wrapper
+        #[allow(clippy::unwrap_used)]
+        jwt_simple::algorithms::Ed25519KeyPair::from_bytes(bytes.as_ref()).unwrap()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rand::thread_rng;
 
     fn assert_zeroize_on_drop<T: ZeroizeOnDrop>() {}
 
@@ -437,5 +489,30 @@ mod tests {
     fn private_key_is_zeroized() {
         assert_zeroize::<PrivateKey>();
         assert_zeroize_on_drop::<PrivateKey>();
+    }
+
+    #[test]
+    #[cfg(all(feature = "naive_jwt", feature = "rand"))]
+    fn check_jwt_key_compat_conversion() {
+        let mut rng = thread_rng();
+        let keys = KeyPair::new(&mut rng);
+        let jwt_keys = keys.to_jwt_compatible_keys();
+
+        // internally they're represented by hidden `Edwards25519KeyPair` (plus key_id)
+        // which has way nicer API for assertions
+        let jwt_keys_inner =
+            jwt_simple::algorithms::Edwards25519KeyPair::from_bytes(&jwt_keys.to_bytes()).unwrap();
+
+        let compact_ed25519 = jwt_keys_inner.as_ref();
+        assert!(compact_ed25519
+            .sk
+            .validate_public_key(&compact_ed25519.pk)
+            .is_ok());
+
+        let dummy_message = "hello world";
+        let sig1 = keys.private_key.sign(dummy_message).to_bytes();
+        let sig2 = compact_ed25519.sk.sign(dummy_message, None).to_vec();
+
+        assert_eq!(sig1.to_vec(), sig2);
     }
 }

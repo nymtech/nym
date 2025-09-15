@@ -15,7 +15,7 @@ use nym_credentials_interface::{
 use nym_crypto::asymmetric::ed25519;
 use nym_ecash_contract_common::deposit::DepositId;
 use nym_ecash_time::{ecash_default_expiration_date, ecash_today, EcashTime};
-use nym_validator_client::nym_api::EpochId;
+use nym_validator_client::nym_api::{EpochId, NymApiClientExt};
 use serde::{Deserialize, Serialize};
 use time::Date;
 
@@ -116,7 +116,7 @@ impl IssuanceTicketBook {
 
     pub async fn obtain_blinded_credential(
         &self,
-        client: &nym_validator_client::client::NymApiClient,
+        client: &nym_http_api_client::Client,
         request_body: &BlindSignRequestBody,
     ) -> Result<BlindedSignature, Error> {
         let server_response = client.blind_sign(request_body).await?;
@@ -179,7 +179,7 @@ impl IssuanceTicketBook {
     // ideally this would have been generic over credential type, but we really don't need secp256k1 keys for bandwidth vouchers
     pub async fn obtain_partial_ticketbook_credential(
         &self,
-        client: &nym_validator_client::client::NymApiClient,
+        client: &nym_http_api_client::Client,
         signer_index: u64,
         validator_vk: &VerificationKeyAuth,
         signing_data: CredentialSigningData,

@@ -73,13 +73,13 @@ impl TestSetupSimple {
         message_info(&admin, &[])
     }
 
-    pub fn execute_ctx(&mut self, sender: MessageInfo) -> ExecCtx {
+    pub fn execute_ctx(&mut self, sender: MessageInfo) -> ExecCtx<'_> {
         let env = self.env.clone();
         ExecCtx::from((self.deps.as_mut(), env, sender))
     }
 
     #[allow(dead_code)]
-    pub fn query_ctx(&self) -> QueryCtx {
+    pub fn query_ctx(&self) -> QueryCtx<'_> {
         QueryCtx::from((self.deps.as_ref(), self.env.clone()))
     }
 

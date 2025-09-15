@@ -11,6 +11,7 @@ use nym_credential_proxy_requests::api::v1::ticketbook::models::{
     TicketbookWalletSharesResponse, WalletShare, WebhookTicketbookWalletShares,
     WebhookTicketbookWalletSharesRequest,
 };
+use nym_validator_client::client::NymApiClientExt;
 use nym_validator_client::ecash::BlindSignRequestBody;
 use std::collections::HashMap;
 use std::sync::Arc;

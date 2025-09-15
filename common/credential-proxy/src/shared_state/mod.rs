@@ -23,6 +23,7 @@ use nym_credentials::{
     AggregatedCoinIndicesSignatures, AggregatedExpirationDateSignatures, EpochVerificationKey,
 };
 use nym_ecash_contract_common::deposit::DepositId;
+use nym_validator_client::client::NymApiClientExt;
 use nym_validator_client::coconut::EcashApiError;
 use nym_validator_client::nym_api::EpochId;
 use nym_validator_client::nyxd::contract_traits::dkg_query_client::Epoch;

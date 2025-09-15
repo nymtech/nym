@@ -130,7 +130,7 @@ pub enum NymRewarderError {
     },
 
     #[error("failed to resolve nym-api query: {0}")]
-    ApiQueryFailure(#[from] NymAPIError),
+    ApiQueryFailure(Box<NymAPIError>),
 
     #[error("operator {runner_account} didn't return all requested credentials! requested {requested} but got only {received}")]
     IncompleteRequest {
@@ -211,6 +211,12 @@ pub enum NymRewarderError {
 
     #[error("there were no blocks processed within the epoch {epoch}")]
     NoBlocksProcessedInEpoch { epoch: Epoch },
+}
+
+impl From<NymAPIError> for NymRewarderError {
+    fn from(err: NymAPIError) -> Self {
+        NymRewarderError::ApiQueryFailure(Box::new(err))
+    }
 }
 
 #[derive(Debug)]

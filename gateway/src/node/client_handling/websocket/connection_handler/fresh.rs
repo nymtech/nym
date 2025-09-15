@@ -220,6 +220,7 @@ impl<R, S> FreshHandler<R, S> {
     }
 
     /// Attempts to read websocket message from the associated socket.
+    #[instrument(skip_all)]
     pub(crate) async fn read_websocket_message(&mut self) -> Option<Result<Message, WsError>>
     where
         S: AsyncRead + AsyncWrite + Unpin,
@@ -235,6 +236,7 @@ impl<R, S> FreshHandler<R, S> {
     /// # Arguments
     ///
     /// * `msg`: WebSocket message to write back to the client.
+    #[instrument(skip_all)]
     pub(crate) async fn send_websocket_message(
         &mut self,
         msg: impl Into<Message>,
@@ -251,6 +253,7 @@ impl<R, S> FreshHandler<R, S> {
         }
     }
 
+    #[instrument(skip_all)]
     pub(crate) async fn send_error_response(
         &mut self,
         err: impl std::error::Error,

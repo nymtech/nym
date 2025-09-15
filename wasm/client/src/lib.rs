@@ -35,7 +35,7 @@ pub fn main() {
     );
 }
 
-// MAX TODO SET THIS AS DEBUG_PANIC_HOOK and have hanging about for future debugging
+// MAX TODO SET THIS AS SET_DEBUG_PANIC_HOOK and have hanging about for future debugging
 use std::panic;
 use web_sys;
 
@@ -44,7 +44,5 @@ pub fn set_panic_hook() {
     panic::set_hook(Box::new(|info| {
         let msg = format!("PANIC: {}", info);
         web_sys::console::error_1(&msg.into());
-        // uncomment next line to halt immediately instead of continuing
-        // std::process::abort();
     }));
 }

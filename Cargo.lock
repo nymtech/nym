@@ -7031,6 +7031,7 @@ dependencies = [
  "serde",
  "thiserror 2.0.17",
  "utoipa",
+ "wasmtimer",
 ]
 
 [[package]]
@@ -7414,6 +7415,7 @@ dependencies = [
  "tokio-util",
  "tracing",
  "url",
+ "wasmtimer",
 ]
 
 [[package]]

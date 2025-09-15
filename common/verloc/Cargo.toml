@@ -27,3 +27,4 @@ nym-task = { path = "../task" }
 nym-validator-client = { path = "../client-libs/validator-client" }
 nym-http-api-client = { path = "../http-api-client" }
 nym-api-requests = { path = "../../nym-api/nym-api-requests" }
+wasmtimer = { workspace = true }

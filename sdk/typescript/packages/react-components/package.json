@@ -47,14 +47,13 @@
   "devDependencies": {
     "@babel/core": "^7.17.5",
     "@nymproject/eslint-config-react-typescript": "^1.0.0",
-    "@storybook/addon-actions": "^6.5.8",
-    "@storybook/addon-essentials": "^6.5.8",
-    "@storybook/addon-interactions": "^6.5.8",
-    "@storybook/addon-links": "^6.5.8",
-    "@storybook/builder-webpack5": "^6.5.8",
+    "@storybook/addon-actions": "9.0.8",
+    "@storybook/addon-interactions": "8.6.14",
+    "@storybook/addon-links": "9.1.5",
+    "@storybook/builder-webpack5": "9.1.5",
     "@storybook/manager-webpack5": "^6.5.8",
     "@storybook/react": "^6.5.15",
-    "@storybook/testing-library": "^0.0.9",
+    "@storybook/testing-library": "0.2.2",
     "@svgr/webpack": "^6.1.1",
     "@types/flat": "^5.0.2",
     "@types/react": "^18.0.26",
@@ -92,5 +91,8 @@
     "storybook": "start-storybook -p 6006",
     "storybook:build": "build-storybook"
   },
-  "sideEffects": false
+  "sideEffects": false,
+  "resolutions": {
+    "nx": "^21.0.0"
+  }
 }

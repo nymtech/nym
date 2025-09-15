@@ -27,14 +27,13 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;
 use tracing::*;
-use wasm_utils::console_log;
 
 #[cfg(not(target_arch = "wasm32"))]
 use tokio::time::{sleep, Sleep};
 
+use wasm_utils::console_log;
 #[cfg(target_arch = "wasm32")]
 use wasmtimer::tokio::{sleep, Sleep};
-
 mod sending_delay_controller;
 
 /// Configurable parameters of the `OutQueueControl`

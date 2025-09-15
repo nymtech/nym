@@ -187,7 +187,7 @@ where
 
     #[must_use]
     pub fn with_remember_me(mut self, remember_me: RememberMe) -> Self {
-        // self.remember_me = remember_me;
+        self.remember_me = remember_me;
         self
     }
 

@@ -35,6 +35,7 @@ web-sys = { workspace = true }
 nym-bin-common = { path = "../../common/bin-common" }
 wasm-client-core = { path = "../../common/wasm/client-core" }
 wasm-utils = { path = "../../common/wasm/utils" }
+nym-gateway-requests = { path = "../../common/gateway-requests" }
 
 nym-node-tester-utils = { path = "../../common/node-tester-utils", optional = true }
 nym-node-tester-wasm = { path = "../node-tester", optional = true }

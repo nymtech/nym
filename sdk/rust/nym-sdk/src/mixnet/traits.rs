@@ -7,6 +7,7 @@ use async_trait::async_trait;
 use nym_client_core::client::inbound_messages::InputMessage;
 use nym_sphinx::params::PacketType;
 use nym_task::connections::TransmissionLane;
+use tracing::instrument;
 
 // defined to guarantee common interface regardless of whether you're using the full client
 // or just the sending handler
@@ -35,6 +36,7 @@ pub trait MixnetMessageSender {
     ///     client.send_plain_message(recipient, "hi").await.unwrap();
     /// }
     /// ```
+    #[instrument(skip_all)]
     async fn send_plain_message<M>(&self, address: Recipient, message: M) -> Result<()>
     where
         M: AsRef<[u8]> + Send,
@@ -103,6 +105,7 @@ pub trait MixnetMessageSender {
     ///     client.send_reply(tag, b"hi").await.unwrap();
     /// }
     /// ```
+    #[instrument(skip_all)]
     async fn send_reply<M>(&self, recipient_tag: AnonymousSenderTag, message: M) -> Result<()>
     where
         M: AsRef<[u8]> + Send,

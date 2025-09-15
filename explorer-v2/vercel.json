@@ -2,9 +2,5 @@
   "buildCommand": "yarn build",
   "installCommand": "yarn install",
   "framework": "nextjs",
-  "build": {
-    "env": {
-      "NODE_VERSION": "20"
-    }
-  }
+  "build": { "env": { "NODE_VERSION": "20", "LERNA_USE_NX": "false", "NX_DAEMON": "false" } }
 }

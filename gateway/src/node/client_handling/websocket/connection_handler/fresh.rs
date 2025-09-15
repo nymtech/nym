@@ -894,12 +894,12 @@ impl<R, S> FreshHandler<R, S> {
                 };
                 let span_cx = new_span_context_with_id(trace_id);
                 let _context_guard = span_cx.clone().attach();
-                warn!("==== Context propagation successful ====");
 
                 // Build root_span with extracted context as parent
                 let span = info_span!("=== Manual context propagation starting point ===", %trace_id);
                 span.set_parent(span_cx.clone());
                 let context_ext = context_ext.set_root_span(span);
+                warn!("==== Context propagation successful ====");
                 context_ext
             } else {
                 warn!("No OpenTelemetry context provided in the request");

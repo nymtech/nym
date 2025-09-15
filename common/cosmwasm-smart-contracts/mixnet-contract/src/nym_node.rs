@@ -58,7 +58,7 @@ impl<'a> PrimaryKey<'a> for Role {
     type Suffix = <u8 as PrimaryKey<'a>>::Suffix;
     type SuperSuffix = <u8 as PrimaryKey<'a>>::SuperSuffix;
 
-    fn key(&self) -> Vec<Key> {
+    fn key(&self) -> Vec<Key<'_>> {
         // I'm not sure why it wasn't possible to delegate the call to
         // `(*self as u8).key()` directly...
         // I guess because of the `Key::Ref(&'a [u8])` variant?

@@ -26,54 +26,54 @@ pub enum ScraperError {
     WebSocketConnectionFailure {
         url: String,
         #[source]
-        source: tendermint_rpc::Error,
+        source: Box<tendermint_rpc::Error>,
     },
 
     #[error("failed to establish rpc connection to {url}: {source}")]
     HttpConnectionFailure {
         url: String,
         #[source]
-        source: tendermint_rpc::Error,
+        source: Box<tendermint_rpc::Error>,
     },
 
     #[error("failed to create chain subscription: {source}")]
     ChainSubscriptionFailure {
         #[source]
-        source: tendermint_rpc::Error,
+        source: Box<tendermint_rpc::Error>,
     },
 
     #[error("could not obtain basic block information at height: {height}: {source}")]
     BlockQueryFailure {
         height: u32,
         #[source]
-        source: tendermint_rpc::Error,
+        source: Box<tendermint_rpc::Error>,
     },
 
     #[error("could not obtain block results information at height: {height}: {source}")]
     BlockResultsQueryFailure {
         height: u32,
         #[source]
-        source: tendermint_rpc::Error,
+        source: Box<tendermint_rpc::Error>,
     },
 
     #[error("could not obtain validators information at height: {height}: {source}")]
     ValidatorsQueryFailure {
         height: u32,
         #[source]
-        source: tendermint_rpc::Error,
+        source: Box<tendermint_rpc::Error>,
     },
 
     #[error("could not obtain tx results for tx: {hash}: {source}")]
     TxResultsQueryFailure {
         hash: Hash,
         #[source]
-        source: tendermint_rpc::Error,
+        source: Box<tendermint_rpc::Error>,
     },
 
     #[error("could not obtain current abci info: {source}")]
     AbciInfoQueryFailure {
         #[source]
-        source: tendermint_rpc::Error,
+        source: Box<tendermint_rpc::Error>,
     },
 
     #[error("could not parse tx {hash}: {source}")]

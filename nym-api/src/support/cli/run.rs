@@ -1,7 +1,6 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::circulating_supply_api::cache::CirculatingSupplyCache;
 use crate::ecash::client::Client;
 use crate::ecash::comm::QueryCommunicationChannel;
 use crate::ecash::dkg::controller::keys::{
@@ -10,36 +9,42 @@ use crate::ecash::dkg::controller::keys::{
 use crate::ecash::dkg::controller::DkgController;
 use crate::ecash::state::EcashState;
 use crate::epoch_operations::EpochAdvancer;
+use crate::key_rotation::KeyRotationController;
+use crate::mixnet_contract_cache::cache::MixnetContractCache;
 use crate::network::models::NetworkDetails;
-use crate::node_describe_cache::DescribedNodes;
+use crate::node_describe_cache::cache::DescribedNodes;
+use crate::node_performance::provider::contract_provider::ContractPerformanceProvider;
+use crate::node_performance::provider::legacy_storage_provider::LegacyStoragePerformanceProvider;
+use crate::node_performance::provider::NodePerformanceProvider;
 use crate::node_status_api::handlers::unstable;
 use crate::node_status_api::uptime_updater::HistoricalUptimeUpdater;
 use crate::node_status_api::NodeStatusCache;
-use crate::nym_contract_cache::cache::NymContractCache;
 use crate::status::{ApiStatusState, SignerState};
 use crate::support::caching::cache::SharedCache;
 use crate::support::config::helpers::try_load_current_config;
 use crate::support::config::{Config, DEFAULT_CHAIN_STATUS_CACHE_TTL};
-use crate::support::http::state::{
-    AppState, ChainStatusCache, ForcedRefresh, ShutdownHandles, TASK_MANAGER_TIMEOUT_S,
-};
-use crate::support::http::RouterBuilder;
+use crate::support::http::state::chain_status::ChainStatusCache;
+use crate::support::http::state::contract_details::ContractDetailsCache;
+use crate::support::http::state::force_refresh::ForcedRefresh;
+use crate::support::http::state::AppState;
+use crate::support::http::{RouterBuilder, TASK_MANAGER_TIMEOUT_S};
 use crate::support::nyxd;
 use crate::support::storage::runtime_migrations::m001_directory_services_v2_1::migrate_to_directory_services_v2_1;
 use crate::support::storage::NymApiStorage;
+use crate::unstable_routes::v1::account::cache::AddressInfoCache;
 use crate::{
-    circulating_supply_api, ecash, epoch_operations, network_monitor, node_describe_cache,
-    node_status_api, nym_contract_cache,
+    ecash, epoch_operations, mixnet_contract_cache, network_monitor, node_describe_cache,
+    node_performance, node_status_api, signers_cache,
 };
 use anyhow::{bail, Context};
 use nym_config::defaults::NymNetworkDetails;
 use nym_sphinx::receiver::SphinxMessageReceiver;
-use nym_task::TaskManager;
+use nym_task::ShutdownManager;
 use nym_validator_client::nyxd::Coin;
 use std::net::SocketAddr;
 use std::sync::Arc;
-use tokio_util::sync::CancellationToken;
-use tracing::{error, info};
+use std::time::Duration;
+use tracing::info;
 
 #[derive(clap::Args, Debug)]
 pub(crate) struct Args {
@@ -101,12 +106,22 @@ pub(crate) struct Args {
     #[clap(long)]
     pub(crate) bind_address: Option<SocketAddr>,
 
+    /// account/address cache TTL: should be lower than epoch length (1 hour)
+    /// because, at worst, data will be stale for <epoch_length> + <cache_ttl> seconds
+    #[clap(long, env = "ADDRESS_CACHE_REFRESH_INTERVAL_S")]
+    pub(crate) address_cache_ttl_seconds: Option<u64>,
+
+    /// number of addresses that are cached on account/address endpoint
+    #[clap(long, env = "ADDRESS_CACHE_CAPACITY")]
+    pub(crate) address_cache_capacity: Option<u64>,
+
     #[clap(hide = true, long, default_value_t = false)]
     pub(crate) allow_illegal_ips: bool,
 }
 
-async fn start_nym_api_tasks_axum(config: &Config) -> anyhow::Result<ShutdownHandles> {
-    let task_manager = TaskManager::new(TASK_MANAGER_TIMEOUT_S);
+async fn start_nym_api_tasks(config: &Config) -> anyhow::Result<ShutdownManager> {
+    let shutdown_manager = ShutdownManager::new("nym-api")
+        .with_shutdown_duration(Duration::from_secs(TASK_MANAGER_TIMEOUT_S));
 
     let nyxd_client = nyxd::Client::new(config)?;
     let connected_nyxd = config.get_nyxd_url();
@@ -135,12 +150,19 @@ async fn start_nym_api_tasks_axum(config: &Config) -> anyhow::Result<ShutdownHan
 
     let router = RouterBuilder::with_default_routes(config.network_monitor.enabled);
 
-    let nym_contract_cache_state = NymContractCache::new();
+    let mixnet_contract_cache_state = MixnetContractCache::new();
     let node_status_cache_state = NodeStatusCache::new();
     let mix_denom = network_details.network.chain_details.mix_denom.base.clone();
-    let circulating_supply_cache = CirculatingSupplyCache::new(mix_denom.to_owned());
     let described_nodes_cache = SharedCache::<DescribedNodes>::new();
     let node_info_cache = unstable::NodeInfoCache::default();
+
+    let mixnet_contract_cache_refresher = mixnet_contract_cache::build_refresher(
+        &config.mixnet_contract_cache,
+        &mixnet_contract_cache_state.clone(),
+        nyxd_client.clone(),
+    );
+    let mixnet_contract_cache_refresh_requester =
+        mixnet_contract_cache_refresher.refresh_requester();
 
     let ecash_contract = nyxd_client
         .get_ecash_contract_address()
@@ -158,7 +180,7 @@ async fn start_nym_api_tasks_axum(config: &Config) -> anyhow::Result<ShutdownHan
         ecash_keypair_wrapper.clone(),
         comm_channel,
         storage.clone(),
-        task_manager.subscribe_named("ecash-state-data-cleaner"),
+        &shutdown_manager,
     );
 
     // if ecash signer is enabled, there are additional constraints on the nym-api,
@@ -189,20 +211,34 @@ async fn start_nym_api_tasks_axum(config: &Config) -> anyhow::Result<ShutdownHan
         None
     };
 
+    // check if signers cache is enabled, and if so, start the refresher
+    let ecash_signers_cache = if config.signers_cache.enabled {
+        signers_cache::start_refresher(
+            &config.signers_cache,
+            nyxd_client.clone(),
+            &shutdown_manager,
+        )
+    } else {
+        SharedCache::new()
+    };
+
     ecash_state.spawn_background_cleaner();
     let router = router.with_state(AppState {
         nyxd_client: nyxd_client.clone(),
         chain_status_cache: ChainStatusCache::new(DEFAULT_CHAIN_STATUS_CACHE_TTL),
-        forced_refresh: ForcedRefresh::new(
-            config.topology_cacher.debug.node_describe_allow_illegal_ips,
+        ecash_signers_cache,
+        address_info_cache: AddressInfoCache::new(
+            config.address_cache.time_to_live,
+            config.address_cache.capacity,
         ),
-        nym_contract_cache: nym_contract_cache_state.clone(),
+        forced_refresh: ForcedRefresh::new(config.describe_cache.debug.allow_illegal_ips),
+        mixnet_contract_cache: mixnet_contract_cache_state.clone(),
         node_status_cache: node_status_cache_state.clone(),
-        circulating_supply_cache: circulating_supply_cache.clone(),
         storage: storage.clone(),
         described_nodes_cache: described_nodes_cache.clone(),
-        network_details,
+        network_details: network_details.clone(),
         node_info_cache,
+        contract_info_cache: ContractDetailsCache::new(config.contracts_info_cache.time_to_live),
         api_status: ApiStatusState::new(signer_information),
         ecash_state: Arc::new(ecash_state),
     });
@@ -211,36 +247,60 @@ async fn start_nym_api_tasks_axum(config: &Config) -> anyhow::Result<ShutdownHan
     // we should be doing the below, but can't due to our current startup structure
     // let refresher = node_describe_cache::new_refresher(&config.topology_cacher);
     // let cache = refresher.get_shared_cache();
-    let describe_cache_watcher = node_describe_cache::new_refresher_with_initial_value(
-        &config.topology_cacher,
-        nym_contract_cache_state.clone(),
+    let describe_cache_refresher = node_describe_cache::provider::new_provider_with_initial_value(
+        &config.describe_cache,
+        mixnet_contract_cache_state.clone(),
         described_nodes_cache.clone(),
     )
-    .named("node-self-described-data-refresher")
-    .start_with_watcher(task_manager.subscribe_named("node-self-described-data-refresher"));
+    .named("node-self-described-data-refresher");
+
+    let describe_cache_refresh_requester = describe_cache_refresher.refresh_requester();
+
+    let describe_cache_watcher = describe_cache_refresher
+        .start_with_watcher(shutdown_manager.clone_token("node-self-described-data-refresher"));
+
+    let performance_provider = if config.performance_provider.use_performance_contract_data {
+        if network_details
+            .network
+            .contracts
+            .performance_contract_address
+            .is_none()
+        {
+            bail!("can't use performance contract data without setting the address of the contract")
+        }
+
+        let performance_contract_cache = node_performance::contract_cache::start_cache_refresher(
+            &config.performance_provider,
+            nyxd_client.clone(),
+            mixnet_contract_cache_state.clone(),
+            &shutdown_manager,
+        )
+        .await?;
+        let provider = ContractPerformanceProvider::new(
+            &config.performance_provider,
+            performance_contract_cache,
+        );
+        Box::new(provider) as Box<dyn NodePerformanceProvider + Send + Sync>
+    } else {
+        Box::new(LegacyStoragePerformanceProvider::new(
+            storage.clone(),
+            mixnet_contract_cache_state.clone(),
+        ))
+    };
 
     // start all the caches first
-    let contract_cache_watcher = nym_contract_cache::start_refresher(
-        &config.node_status_api,
-        &nym_contract_cache_state,
-        nyxd_client.clone(),
-        &task_manager,
-    );
+    let contract_cache_watcher = mixnet_contract_cache_refresher
+        .start_with_watcher(shutdown_manager.clone_token("contracts-data-refresher"));
+
     node_status_api::start_cache_refresh(
         &config.node_status_api,
-        &nym_contract_cache_state,
+        &mixnet_contract_cache_state,
         &described_nodes_cache,
         &node_status_cache_state,
-        storage.clone(),
-        contract_cache_watcher,
+        performance_provider,
+        contract_cache_watcher.clone(),
         describe_cache_watcher,
-        &task_manager,
-    );
-    circulating_supply_api::start_cache_refresh(
-        &config.circulating_supply_cacher,
-        nyxd_client.clone(),
-        &circulating_supply_cache,
-        &task_manager,
+        &shutdown_manager,
     );
 
     // start dkg task
@@ -254,56 +314,67 @@ async fn start_nym_api_tasks_axum(config: &Config) -> anyhow::Result<ShutdownHan
             dkg_bte_keypair,
             identity_public_key,
             rand::rngs::OsRng,
-            &task_manager,
+            &shutdown_manager,
         )?;
     }
+
+    let has_performance_data =
+        config.network_monitor.enabled || config.performance_provider.use_performance_contract_data;
 
     // and then only start the uptime updater (and the monitor itself, duh)
     // if the monitoring is enabled
     if config.network_monitor.enabled {
         network_monitor::start::<SphinxMessageReceiver>(
             config,
-            &nym_contract_cache_state,
+            &mixnet_contract_cache_state,
             described_nodes_cache.clone(),
             node_status_cache_state.clone(),
             &storage,
             nyxd_client.clone(),
-            &task_manager,
+            &shutdown_manager,
         )
         .await;
 
-        HistoricalUptimeUpdater::start(storage.to_owned(), &task_manager);
-
-        // start 'rewarding' if its enabled
-        if config.rewarding.enabled {
-            epoch_operations::ensure_rewarding_permission(&nyxd_client).await?;
-            EpochAdvancer::start(
-                nyxd_client,
-                &nym_contract_cache_state,
-                &node_status_cache_state,
-                described_nodes_cache.clone(),
-                &storage,
-                &task_manager,
-            );
-        }
+        HistoricalUptimeUpdater::start(storage.to_owned(), &shutdown_manager);
     }
+
+    // start 'rewarding' if its enabled and there exists source for performance data
+    if config.rewarding.enabled && has_performance_data {
+        epoch_operations::ensure_rewarding_permission(&nyxd_client).await?;
+        EpochAdvancer::start(
+            nyxd_client,
+            &mixnet_contract_cache_state,
+            mixnet_contract_cache_refresh_requester,
+            &node_status_cache_state,
+            described_nodes_cache.clone(),
+            &storage,
+            &shutdown_manager,
+        );
+    }
+
+    // finally start a background task watching the contract changes and requesting
+    // self-described cache refresh upon being close to key rotation rollover
+    KeyRotationController::new(
+        describe_cache_refresh_requester,
+        contract_cache_watcher,
+        mixnet_contract_cache_state,
+    )
+    .start(shutdown_manager.clone_token("KeyRotationController"));
 
     let bind_address = config.base.bind_address.to_owned();
     let server = router.build_server(&bind_address).await?;
 
-    let cancellation_token = CancellationToken::new();
-    let shutdown_button = cancellation_token.clone();
-    let axum_shutdown_receiver = cancellation_token.cancelled_owned();
-    let server_handle = tokio::spawn(async move {
+    let http_shutdown = shutdown_manager.clone_token("axum-http");
+    tokio::spawn(async move {
         {
             info!("Started Axum HTTP V2 server on {bind_address}");
-            server.run(axum_shutdown_receiver).await
+            server.run(http_shutdown).await
         }
     });
 
-    let shutdown = ShutdownHandles::new(task_manager, server_handle, shutdown_button);
+    shutdown_manager.close();
 
-    Ok(shutdown)
+    Ok(shutdown_manager)
 }
 
 pub(crate) async fn execute(args: Args) -> anyhow::Result<()> {
@@ -314,32 +385,8 @@ pub(crate) async fn execute(args: Args) -> anyhow::Result<()> {
 
     config.validate()?;
 
-    let mut axum_shutdown = start_nym_api_tasks_axum(&config).await?;
-
-    // it doesn't matter which server catches the interrupt: it needs only be caught once
-    if let Err(err) = axum_shutdown.task_manager_mut().catch_interrupt().await {
-        error!("Error stopping axum tasks: {err}");
-    }
-
-    info!("Stopping nym API");
-
-    axum_shutdown.task_manager_mut().signal_shutdown().ok();
-    axum_shutdown.task_manager_mut().wait_for_shutdown().await;
-
-    let running_server = axum_shutdown.shutdown_axum();
-
-    match running_server.await {
-        Ok(Ok(_)) => {
-            info!("Axum HTTP server shut down without errors");
-        }
-        Ok(Err(err)) => {
-            error!("Axum HTTP server terminated with: {err}");
-            anyhow::bail!(err)
-        }
-        Err(err) => {
-            error!("Server task panicked: {err}");
-        }
-    };
+    let shutdown_manager = start_nym_api_tasks(&config).await?;
+    shutdown_manager.run_until_shutdown().await;
 
     Ok(())
 }

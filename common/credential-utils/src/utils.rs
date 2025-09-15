@@ -95,7 +95,7 @@ where
         } else if let Some(final_timestamp) = epoch.final_timestamp_secs() {
             // Use 1 additional second to not start the next iteration immediately and spam get_current_epoch queries
             let secs_until_final = final_timestamp.saturating_sub(current_timestamp_secs) + 1;
-            info!("Approximately {} seconds until coconut is available. Sleeping until then. You can safely kill the process at any moment.", secs_until_final);
+            info!("Approximately {secs_until_final} seconds until coconut is available. Sleeping until then. You can safely kill the process at any moment.");
             tokio::time::sleep(Duration::from_secs(secs_until_final)).await;
         } else if matches!(epoch.state, EpochState::WaitingInitialisation) {
             info!("dkg hasn't been initialised yet and it is not known when it will be. Going to check again later");

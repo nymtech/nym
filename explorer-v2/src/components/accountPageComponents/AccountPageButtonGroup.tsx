@@ -22,7 +22,7 @@ export default function AccountPageButtonGroup({ address }: Props) {
   if (!nsApiNodes || isNSApiNodesError) return null;
 
   const nymNode = nsApiNodes.find(
-    (node: NS_NODE) => node.bonding_address === address
+    (node: NS_NODE) => node.bonding_address === address,
   );
 
   if (!nymNode) return null;

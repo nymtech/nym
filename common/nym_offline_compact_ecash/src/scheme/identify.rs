@@ -319,9 +319,9 @@ mod tests {
             let sk = grp.random_scalar();
             let sk_user = SecretKeyUser { sk };
             let pk_user = sk_user.public_key();
-            public_keys.push(pk_user.clone());
+            public_keys.push(pk_user);
         }
-        public_keys.push(user_keypair.public_key().clone());
+        public_keys.push(user_keypair.public_key());
 
         let (req, req_info) =
             withdrawal_request(user_keypair.secret_key(), expiration_date, t_type).unwrap();
@@ -462,9 +462,9 @@ mod tests {
             let sk = grp.random_scalar();
             let sk_user = SecretKeyUser { sk };
             let pk_user = sk_user.public_key();
-            public_keys.push(pk_user.clone());
+            public_keys.push(pk_user);
         }
-        public_keys.push(user_keypair.public_key().clone());
+        public_keys.push(user_keypair.public_key());
 
         let (req, req_info) =
             withdrawal_request(user_keypair.secret_key(), expiration_date, t_type).unwrap();

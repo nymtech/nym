@@ -1,0 +1,80 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT\n            mn.mix_id as \"mix_id!\",\n            mn.bonded as \"bonded: bool\",\n            mn.is_dp_delegatee as \"is_dp_delegatee: bool\",\n            mn.total_stake as \"total_stake!\",\n            mn.full_details as \"full_details!\",\n            mn.self_described as \"self_described\",\n            mn.last_updated_utc as \"last_updated_utc!\",\n            md.moniker as \"moniker!\",\n            md.website as \"website!\",\n            md.security_contact as \"security_contact!\",\n            md.details as \"details!\"\n         FROM mixnodes mn\n         LEFT JOIN mixnode_description md ON mn.mix_id = md.mix_id\n         ORDER BY mn.mix_id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "mix_id!",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "bonded: bool",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 2,
+        "name": "is_dp_delegatee: bool",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 3,
+        "name": "total_stake!",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 4,
+        "name": "full_details!",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 5,
+        "name": "self_described",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 6,
+        "name": "last_updated_utc!",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 7,
+        "name": "moniker!",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 8,
+        "name": "website!",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 9,
+        "name": "security_contact!",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 10,
+        "name": "details!",
+        "type_info": "Varchar"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      false,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "74b76cd0d94c1afc51c21c14c12236a2b964b981c8cbcc282117fe9bc38338dd"
+}

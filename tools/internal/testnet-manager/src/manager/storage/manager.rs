@@ -1,6 +1,8 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
-use crate::manager::storage::models::{RawAccount, RawContract, RawNetwork};
+use crate::manager::storage::models::{
+    RawAccount, RawAuthorisedNetworkMonitor, RawContract, RawNetwork,
+};
 use time::OffsetDateTime;
 
 #[derive(Clone)]
@@ -85,6 +87,7 @@ impl StorageManager {
         cw3_id: i64,
         cw4_id: i64,
         dkg_id: i64,
+        performance_id: i64,
         rewarder_address: &str,
         ecash_holding_address: &str,
     ) -> Result<i64, sqlx::Error> {
@@ -99,10 +102,11 @@ impl StorageManager {
                     cw3_multisig_contract_id,
                     cw4_group_contract_id,
                     dkg_contract_id,
+                    performance_contract_id,
                     rewarder_address,
                     ecash_holding_account_address
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             "#,
             name,
             created_at,
@@ -112,6 +116,7 @@ impl StorageManager {
             cw3_id,
             cw4_id,
             dkg_id,
+            performance_id,
             rewarder_address,
             ecash_holding_address,
         )
@@ -159,19 +164,46 @@ impl StorageManager {
         .await
     }
 
+    pub(crate) async fn save_authorised_network_monitor(
+        &self,
+        network_id: i64,
+        address: &str,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query!(
+            "INSERT INTO authorised_network_monitor (network_id, address) VALUES (?, ?)",
+            network_id,
+            address,
+        )
+        .execute(&self.connection_pool)
+        .await?;
+
+        Ok(())
+    }
+
+    pub(crate) async fn load_authorised_network_monitors(
+        &self,
+        network_id: i64,
+    ) -> Result<Vec<RawAuthorisedNetworkMonitor>, sqlx::Error> {
+        sqlx::query_as("SELECT * FROM authorised_network_monitor WHERE network_id = ?")
+            .bind(network_id)
+            .fetch_all(&self.connection_pool)
+            .await
+    }
+
     pub(crate) async fn save_account(
         &self,
         address: &str,
         mnemonic: &str,
-    ) -> Result<(), sqlx::Error> {
-        sqlx::query!(
+    ) -> Result<i64, sqlx::Error> {
+        let account_id = sqlx::query!(
             "INSERT INTO account (address, mnemonic) VALUES (?, ?)",
             address,
             mnemonic
         )
         .execute(&self.connection_pool)
-        .await?;
-        Ok(())
+        .await?
+        .last_insert_rowid();
+        Ok(account_id)
     }
 
     pub(crate) async fn load_account(&self, address: &str) -> Result<RawAccount, sqlx::Error> {

@@ -72,7 +72,7 @@ pub async fn init(args: Args, client: SigningClient, network_details: &NymNetwor
         .await
         .expect("failed to instantiate the contract!");
 
-    info!("Init result: {:?}", res);
+    info!("Init result: {res:?}");
 
     println!("{}", res.contract_address)
 }

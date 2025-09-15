@@ -85,5 +85,5 @@ pub async fn bond_nymnode(args: Args, client: SigningClient) {
         .await
         .expect("failed to bond nymnode!");
 
-    info!("Bonding result: {:?}", res)
+    info!("Bonding result: {res:?}")
 }

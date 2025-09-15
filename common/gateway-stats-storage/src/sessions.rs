@@ -107,10 +107,20 @@ impl SessionManager {
         typ: String,
     ) -> Result<()> {
         sqlx::query!(
-            "INSERT INTO sessions_active (client_address, start_time, typ) VALUES (?, ?, ?)",
+            "INSERT INTO sessions_active (client_address, start_time, typ, remember) VALUES (?, ?, ?, 0)",
             client_address_b58,
             start_time,
             typ
+        )
+        .execute(&self.connection_pool)
+        .await?;
+        Ok(())
+    }
+
+    pub(crate) async fn remember_active_session(&self, client_address_b58: String) -> Result<()> {
+        sqlx::query!(
+            "UPDATE sessions_active SET remember = 1 WHERE client_address = ?",
+            client_address_b58,
         )
         .execute(&self.connection_pool)
         .await?;
@@ -136,19 +146,21 @@ impl SessionManager {
         &self,
         client_address_b58: String,
     ) -> Result<Option<StoredActiveSession>> {
-        sqlx::query_as("SELECT start_time, typ FROM sessions_active WHERE client_address = ?")
-            .bind(client_address_b58)
-            .fetch_optional(&self.connection_pool)
-            .await
+        sqlx::query_as(
+            "SELECT start_time, typ, remember FROM sessions_active WHERE client_address = ?",
+        )
+        .bind(client_address_b58)
+        .fetch_optional(&self.connection_pool)
+        .await
     }
 
     pub(crate) async fn get_all_active_sessions(&self) -> Result<Vec<StoredActiveSession>> {
-        sqlx::query_as("SELECT start_time, typ FROM sessions_active")
+        sqlx::query_as("SELECT start_time, typ, remember FROM sessions_active")
             .fetch_all(&self.connection_pool)
             .await
     }
 
-    pub(crate) async fn get_started_sessions_count(&self, start_date: Date) -> Result<i32> {
+    pub(crate) async fn get_started_sessions_count(&self, start_date: Date) -> Result<i64> {
         Ok(sqlx::query!(
             "SELECT COUNT(*) as count FROM sessions_active WHERE date(start_time) = ?",
             start_date

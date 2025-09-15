@@ -4,8 +4,9 @@
 pub use backend::*;
 pub use combined::CombinedReplyStorage;
 pub use key_storage::SentReplyKeys;
-pub use surb_storage::ReceivedReplySurbsMap;
+pub use surb_storage::{ReceivedReplySurb, ReceivedReplySurbsMap, RetrievedReplySurb};
 pub use tag_storage::UsedSenderTags;
+use time::OffsetDateTime;
 
 mod backend;
 mod combined;
@@ -29,17 +30,19 @@ where
         PersistentReplyStorage { backend }
     }
 
-    pub async fn load_state_from_backend(&self) -> Result<CombinedReplyStorage, T::StorageError> {
-        self.backend.load_surb_storage().await
+    pub async fn load_state_from_backend(
+        &self,
+        surb_freshness_cutoff: OffsetDateTime,
+    ) -> Result<CombinedReplyStorage, T::StorageError> {
+        self.backend.load_surb_storage(surb_freshness_cutoff).await
     }
 
-    // this will have to get enabled after merging develop
     pub async fn flush_on_shutdown(
         mut self,
         mem_state: CombinedReplyStorage,
         mut shutdown: nym_task::TaskClient,
     ) {
-        use log::{debug, error, info};
+        use tracing::{debug, error, info};
 
         debug!("Started PersistentReplyStorage");
         if let Err(err) = self.backend.start_storage_session().await {
@@ -50,7 +53,6 @@ where
         shutdown.recv().await;
 
         info!("PersistentReplyStorage is flushing all reply-related data to underlying storage");
-        info!("you MUST NOT forcefully shutdown now or you risk data corruption!");
         if let Err(err) = self.backend.flush_surb_storage(&mem_state).await {
             error!("failed to flush our reply-related data to the persistent storage: {err}")
         } else {

@@ -49,7 +49,7 @@ pub async fn wait_for_signal_and_error(shutdown: &mut TaskManager) -> Result<(),
             Ok(())
         }
         Some(msg) = shutdown.wait_for_error() => {
-            log::info!("Task error: {:?}", msg);
+            log::info!("Task error: {msg:?}");
             Err(msg)
         }
     }
@@ -63,7 +63,7 @@ pub async fn wait_for_signal_and_error(shutdown: &mut TaskManager) -> Result<(),
             Ok(())
         },
         Some(msg) = shutdown.wait_for_error() => {
-            log::info!("Task error: {:?}", msg);
+            log::info!("Task error: {msg:?}");
             Err(msg)
         }
     }

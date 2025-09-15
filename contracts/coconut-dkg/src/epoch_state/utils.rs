@@ -1,7 +1,7 @@
 // Copyright 2022-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::epoch_state::storage::CURRENT_EPOCH;
+use crate::epoch_state::storage::load_current_epoch;
 use crate::error::ContractError;
 use crate::state::storage::STATE;
 use cosmwasm_std::Storage;
@@ -52,7 +52,7 @@ pub(crate) fn check_epoch_state(
     storage: &dyn Storage,
     against: EpochState,
 ) -> Result<(), ContractError> {
-    let epoch_state = CURRENT_EPOCH.load(storage)?.state;
+    let epoch_state = load_current_epoch(storage)?.state;
     if epoch_state != against {
         Err(ContractError::IncorrectEpochState {
             current_state: epoch_state.to_string(),
@@ -66,6 +66,7 @@ pub(crate) fn check_epoch_state(
 #[cfg(test)]
 pub(crate) mod test {
     use super::*;
+    use crate::epoch_state::storage::save_epoch;
     use crate::support::tests::helpers::init_contract;
     use cosmwasm_std::testing::mock_env;
     use cosmwasm_std::Timestamp;
@@ -210,12 +211,12 @@ pub(crate) mod test {
         let env = mock_env();
 
         for fixed_state in EpochState::first().all_until(EpochState::InProgress) {
-            CURRENT_EPOCH
-                .save(
-                    deps.as_mut().storage,
-                    &Epoch::new(fixed_state, 0, TimeConfiguration::default(), env.block.time),
-                )
-                .unwrap();
+            save_epoch(
+                deps.as_mut().storage,
+                env.block.height,
+                &Epoch::new(fixed_state, 0, TimeConfiguration::default(), env.block.time),
+            )
+            .unwrap();
             for against_state in EpochState::first().all_until(EpochState::InProgress) {
                 let ret = check_epoch_state(deps.as_mut().storage, against_state);
                 if fixed_state == against_state {

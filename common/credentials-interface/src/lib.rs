@@ -229,9 +229,9 @@ impl From<PayInfo> for NymPayInfo {
     Serialize,
     Deserialize,
     Hash,
-    strum::Display,
-    strum::EnumString,
-    strum::EnumIter,
+    strum_macros::Display,
+    strum_macros::EnumString,
+    strum_macros::EnumIter,
 )]
 #[serde(rename_all = "kebab-case")]
 #[strum(serialize_all = "kebab-case")]

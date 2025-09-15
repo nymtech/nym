@@ -42,7 +42,7 @@ pub async fn query_balance(
         .address
         .unwrap_or_else(|| address_from_mnemonic.expect("please provide a mnemonic"));
 
-    info!("Getting balance for {}...", address);
+    info!("Getting balance for {address}...");
 
     match client.get_all_balances(&address).await {
         Ok(coins) => {

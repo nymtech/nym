@@ -1,8 +1,9 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::ecash::traits::EcashManager;
+use async_trait::async_trait;
 use bandwidth_storage_manager::BandwidthStorageManager;
-use ecash::EcashManager;
 use nym_credentials::ecash::utils::{cred_exp_date, ecash_today, EcashTime};
 use nym_credentials_interface::{Bandwidth, ClientTicket, TicketType};
 use nym_gateway_requests::models::CredentialSpendingRequest;
@@ -20,14 +21,14 @@ pub mod error;
 
 pub struct CredentialVerifier {
     credential: CredentialSpendingRequest,
-    ecash_verifier: Arc<EcashManager>,
+    ecash_verifier: Arc<dyn EcashManager + Send + Sync>,
     bandwidth_storage_manager: BandwidthStorageManager,
 }
 
 impl CredentialVerifier {
     pub fn new(
         credential: CredentialSpendingRequest,
-        ecash_verifier: Arc<EcashManager>,
+        ecash_verifier: Arc<dyn EcashManager + Send + Sync>,
         bandwidth_storage_manager: BandwidthStorageManager,
     ) -> Self {
         CredentialVerifier {
@@ -137,5 +138,20 @@ impl CredentialVerifier {
             .client_bandwidth
             .available()
             .await)
+    }
+}
+
+#[async_trait]
+pub trait TicketVerifier {
+    /// Verify that the ticket is valid and cryptographically correct.
+    /// If the verification succeeds, also increase the bandwidth with the ticket's
+    /// amount and return the latest available bandwidth
+    async fn verify(&mut self) -> Result<i64>;
+}
+
+#[async_trait]
+impl TicketVerifier for CredentialVerifier {
+    async fn verify(&mut self) -> Result<i64> {
+        self.verify().await
     }
 }

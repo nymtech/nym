@@ -150,9 +150,7 @@ impl GlobalStatsUpdater {
         info!("wrote global stats to {}", global.display());
 
         for (sender_id, records) in self.records.iter() {
-            let output = self
-                .output_directory
-                .join(format!("sender{}.csv", sender_id));
+            let output = self.output_directory.join(format!("sender{sender_id}.csv"));
             let mut writer = csv::Writer::from_path(&output)?;
             for record in records {
                 writer.serialize(record)?;

@@ -33,7 +33,7 @@ pub async fn get_selected_nyxd_url(
 ) -> Result<Option<String>, BackendError> {
     let state = state.read().await;
     let url = state.get_selected_nyxd_url(&network).map(String::from);
-    log::info!("Selected nyxd url for {network}: {:?}", url);
+    log::info!("Selected nyxd url for {network}: {url:?}");
     Ok(url)
 }
 
@@ -44,7 +44,7 @@ pub async fn get_default_nyxd_url(
 ) -> Result<String, BackendError> {
     let state = state.read().await;
     let url = state.get_default_nyxd_url(&network).map(String::from);
-    log::info!("Default nyxd url for {network}: {:?}", url);
+    log::info!("Default nyxd url for {network}: {url:?}");
     url.ok_or_else(|| BackendError::WalletNoDefaultValidator)
 }
 

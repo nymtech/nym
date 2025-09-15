@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::support::cli::{init, run};
-use std::net::SocketAddr;
+use std::{net::SocketAddr, time::Duration};
 
 // Configuration that can be overridden.
 pub(crate) struct OverrideConfig {
@@ -32,6 +32,9 @@ pub(crate) struct OverrideConfig {
     /// default: `127.0.0.1:8080` in `debug` builds and `0.0.0.0:8080` in `release`
     pub(crate) bind_address: Option<SocketAddr>,
 
+    pub(crate) address_cache_ttl: Option<Duration>,
+    pub(crate) address_cache_capacity: Option<u64>,
+
     pub(crate) allow_illegal_ips: bool,
 }
 
@@ -46,6 +49,9 @@ impl From<init::Args> for OverrideConfig {
             announce_address: args.announce_address,
             monitor_credentials_mode: Some(args.monitor_credentials_mode),
             bind_address: args.bind_address,
+            // irrelevant for --init command because we set the value in --run
+            address_cache_ttl: None,
+            address_cache_capacity: None,
             allow_illegal_ips: args.allow_illegal_ips,
         }
     }
@@ -62,6 +68,8 @@ impl From<run::Args> for OverrideConfig {
             announce_address: args.announce_address,
             monitor_credentials_mode: args.monitor_credentials_mode,
             bind_address: args.bind_address,
+            address_cache_ttl: args.address_cache_ttl_seconds.map(Duration::from_secs),
+            address_cache_capacity: args.address_cache_capacity,
             allow_illegal_ips: args.allow_illegal_ips,
         }
     }

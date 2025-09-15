@@ -31,11 +31,11 @@ const NodeDelegationsCard = ({ paramId }: Props) => {
 
   if (paramId.length > 10) {
     nodeInfo = nsApiNodes.find(
-      (node: NS_NODE) => node.identity_key === paramId
+      (node: NS_NODE) => node.identity_key === paramId,
     );
   } else {
     nodeInfo = nsApiNodes.find(
-      (node: NS_NODE) => node.node_id === Number(paramId)
+      (node: NS_NODE) => node.node_id === Number(paramId),
     );
   }
 

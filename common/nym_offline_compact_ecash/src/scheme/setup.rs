@@ -26,7 +26,7 @@ impl GroupParameters {
     pub fn new(attributes: usize) -> GroupParameters {
         assert!(attributes > 0);
         let gammas = (1..=attributes)
-            .map(|i| hash_g1(format!("gamma{}", i)))
+            .map(|i| hash_g1(format!("gamma{i}")))
             .collect();
 
         let delta = hash_g1("delta");

@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Box, Typography, Button, IconButton, Stack } from "@mui/material";
-import { Close, Launch } from "@mui/icons-material";
-import { Link } from "../muiLink";
-import { Wrapper } from "../wrapper";
 import { getBanner } from "@/app/features/banner/api/getBanner";
 import type { components } from "@/app/lib/strapi";
+import { Close, Launch } from "@mui/icons-material";
+import { Box, Button, IconButton, Stack, Typography } from "@mui/material";
+import { useEffect, useState } from "react";
+import { Link } from "../muiLink";
+import { Wrapper } from "../wrapper";
 
 type BannerData = {
   id?: number;

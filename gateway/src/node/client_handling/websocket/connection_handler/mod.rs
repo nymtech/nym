@@ -31,7 +31,7 @@ const INITIAL_MESSAGE_TIMEOUT: Duration = Duration::from_millis(10_000);
 
 pub(crate) enum SocketStream<S> {
     RawTcp(S),
-    UpgradedWebSocket(WebSocketStream<S>),
+    UpgradedWebSocket(Box<WebSocketStream<S>>),
     Invalid,
 }
 

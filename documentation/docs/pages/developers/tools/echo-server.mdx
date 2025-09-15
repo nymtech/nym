@@ -10,11 +10,15 @@ This server was initially built for the `TcpProxy` tests, but can be useful for 
 Run `cargo build --release` from `nym/tools/echo-server`. The binary will be in the main workspace `target/release` dir.
 
 ## Run
-All the server requires is a port to connect the TCP listener to. If no `<PATH_TO_ENV>` is supplied then the server defaults to using mainnet.
-
 ```sh
-echo-server <PORT> <PATH_TO_ENV_FILE>
-# e.g.  ../../target/release/echo-server 9000 ../../envs/canary.env
+Usage: echo-server [OPTIONS]
+
+Options:
+  -g, --gateway <GATEWAY>          Optional gateway to use
+  -c, --config-path <CONFIG_PATH>  Optional config path to specify
+  -e, --env <ENV>                  Optional env file - defaults to Mainnet if None
+  -l, --listen-port <LISTEN_PORT>  Listen port [default: 8080]
+  -h, --help                       Print help
 ```
 
 ## Logging

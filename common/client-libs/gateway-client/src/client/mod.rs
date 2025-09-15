@@ -21,8 +21,8 @@ use nym_crypto::asymmetric::ed25519;
 use nym_gateway_requests::registration::handshake::client_handshake;
 use nym_gateway_requests::{
     BinaryRequest, ClientControlRequest, ClientRequest, GatewayProtocolVersionExt,
-    SensitiveServerResponse, ServerResponse, SharedGatewayKey, SharedSymmetricKey,
-    CREDENTIAL_UPDATE_V2_PROTOCOL_VERSION, CURRENT_PROTOCOL_VERSION,
+    GatewayRequestsError, SensitiveServerResponse, ServerResponse, SharedGatewayKey,
+    SharedSymmetricKey, CREDENTIAL_UPDATE_V2_PROTOCOL_VERSION, CURRENT_PROTOCOL_VERSION,
 };
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_statistics_common::clients::connection::ConnectionStatsEvent;
@@ -201,7 +201,7 @@ impl<C, St> GatewayClient<C, St> {
     #[cfg(not(target_arch = "wasm32"))]
     pub async fn establish_connection(&mut self) -> Result<(), GatewayClientError> {
         debug!(
-            "Attemting to establish connection to gateway at: {}",
+            "Attempting to establish connection to gateway at: {}",
             self.gateway_address
         );
         let (ws_stream, _) = connect_async(
@@ -272,7 +272,7 @@ impl<C, St> GatewayClient<C, St> {
     ) -> Result<(), GatewayClientError> {
         if let Some(shared_key) = self.shared_key() {
             let encrypted = message.encrypt(&*shared_key)?;
-            Box::pin(self.send_websocket_message(encrypted)).await?;
+            Box::pin(self.send_websocket_message_without_response(encrypted)).await?;
             Ok(())
         } else {
             Err(GatewayClientError::ConnectionInInvalidState)
@@ -330,9 +330,80 @@ impl<C, St> GatewayClient<C, St> {
         }
     }
 
+    /// Attempt to send a websocket message to the gateway without waiting for any response
+    async fn send_websocket_message_without_response(
+        &mut self,
+        msg: impl Into<Message>,
+    ) -> Result<(), GatewayClientError> {
+        match self.connection {
+            SocketState::Available(ref mut conn) => Ok(conn.send(msg.into()).await?),
+            SocketState::PartiallyDelegated(ref mut partially_delegated) => {
+                if let Err(err) = partially_delegated.send_without_response(msg.into()).await {
+                    error!("failed to send message without response - {err}...");
+                    // we must ensure we do not leave the task still active
+                    if let Err(err) = self.recover_socket_connection().await {
+                        error!("... and the delegated stream has also errored out - {err}")
+                    }
+                    Err(err)
+                } else {
+                    Ok(())
+                }
+            }
+            SocketState::NotConnected => Err(GatewayClientError::ConnectionNotEstablished),
+            _ => Err(GatewayClientError::ConnectionInInvalidState),
+        }
+    }
+
+    // A very nasty hack due to lack of id tags on messages - send a non-sphinx packet websocket
+    // message and wait until first non 'Send' response within timeout
+    pub async fn send_websocket_message_with_non_send_response(
+        &mut self,
+        msg: impl Into<Message>,
+    ) -> Result<ServerResponse, GatewayClientError> {
+        let should_restart_mixnet_listener = if self.connection.is_partially_delegated() {
+            self.recover_socket_connection().await?;
+            true
+        } else {
+            false
+        };
+
+        let conn = match self.connection {
+            SocketState::Available(ref mut conn) => conn,
+            SocketState::NotConnected => return Err(GatewayClientError::ConnectionNotEstablished),
+            _ => return Err(GatewayClientError::ConnectionInInvalidState),
+        };
+        conn.send(msg.into()).await?;
+
+        let timeout = sleep(self.cfg.connection.response_timeout_duration);
+        tokio::pin!(timeout);
+
+        let response = loop {
+            tokio::select! {
+                _ = &mut timeout => {
+                    break Err(GatewayClientError::Timeout);
+                }
+                // note: the below will also listen for shutdown signals
+                msg = self.read_control_response() => {
+                    match msg {
+                        Ok(res) => if !res.is_send() {
+                            break Ok(res);
+                        },
+                        Err(err) => break Err(err),
+                    }
+                }
+            }
+        };
+
+        if should_restart_mixnet_listener {
+            self.start_listening_for_mixnet_messages()?;
+        }
+        response
+    }
+
+    /// Attempt to send a websocket message to the gateway and wait until we receive a response.
     // If we want to send a message (with response), we need to have a full control over the socket,
     // as we need to be able to write the request and read the subsequent response
-    pub async fn send_websocket_message(
+    pub async fn send_websocket_message_with_response(
         &mut self,
         msg: impl Into<Message>,
     ) -> Result<ServerResponse, GatewayClientError> {
@@ -373,29 +444,6 @@ impl<C, St> GatewayClient<C, St> {
                     .await
                 {
                     error!("failed to batch send messages - {err}...");
-                    // we must ensure we do not leave the task still active
-                    if let Err(err) = self.recover_socket_connection().await {
-                        error!("... and the delegated stream has also errored out - {err}")
-                    }
-                    Err(err)
-                } else {
-                    Ok(())
-                }
-            }
-            SocketState::NotConnected => Err(GatewayClientError::ConnectionNotEstablished),
-            _ => Err(GatewayClientError::ConnectionInInvalidState),
-        }
-    }
-
-    async fn send_websocket_message_without_response(
-        &mut self,
-        msg: Message,
-    ) -> Result<(), GatewayClientError> {
-        match self.connection {
-            SocketState::Available(ref mut conn) => Ok(conn.send(msg).await?),
-            SocketState::PartiallyDelegated(ref mut partially_delegated) => {
-                if let Err(err) = partially_delegated.send_without_response(msg).await {
-                    error!("failed to send message without response - {err}...");
                     // we must ensure we do not leave the task still active
                     if let Err(err) = self.recover_socket_connection().await {
                         error!("... and the delegated stream has also errored out - {err}")
@@ -535,7 +583,10 @@ impl<C, St> GatewayClient<C, St> {
         .encrypt(legacy_key)?;
 
         info!("sending upgrade request and awaiting the acknowledgement back");
-        let (ciphertext, nonce) = match self.send_websocket_message(upgrade_request).await? {
+        let (ciphertext, nonce) = match self
+            .send_websocket_message_with_response(upgrade_request)
+            .await?
+        {
             ServerResponse::EncryptedResponse { ciphertext, nonce } => (ciphertext, nonce),
             ServerResponse::Error { message } => {
                 return Err(GatewayClientError::GatewayError(message))
@@ -567,7 +618,7 @@ impl<C, St> GatewayClient<C, St> {
         &mut self,
         msg: ClientControlRequest,
     ) -> Result<(), GatewayClientError> {
-        match self.send_websocket_message(msg).await? {
+        match self.send_websocket_message_with_response(msg).await? {
             ServerResponse::Authenticate {
                 protocol_version,
                 status,
@@ -662,12 +713,16 @@ impl<C, St> GatewayClient<C, St> {
 
         let supports_aes_gcm_siv = gw_protocol.supports_aes256_gcm_siv();
         let supports_auth_v2 = gw_protocol.supports_authenticate_v2();
+        let supports_key_rotation_info = gw_protocol.supports_key_rotation_packet();
 
         if !supports_aes_gcm_siv {
             warn!("this gateway is on an old version that doesn't support AES256-GCM-SIV");
         }
         if !supports_auth_v2 {
             warn!("this gateway is on an old version that doesn't support authentication v2")
+        }
+        if !supports_key_rotation_info {
+            warn!("this gateway is on an old version that doesn't support key rotation packets")
         }
 
         if self.authenticated {
@@ -713,13 +768,16 @@ impl<C, St> GatewayClient<C, St> {
         }
     }
 
+    /// Attempt to retrieve the currently supported gateway protocol version of the remote.
     pub async fn get_gateway_protocol(&mut self) -> Result<u8, GatewayClientError> {
         if !self.connection.is_established() {
             return Err(GatewayClientError::ConnectionNotEstablished);
         }
 
         match self
-            .send_websocket_message(ClientControlRequest::SupportedProtocol {})
+            .send_websocket_message_with_non_send_response(
+                ClientControlRequest::SupportedProtocol {},
+            )
             .await?
         {
             ServerResponse::SupportedProtocol { version } => Ok(version),
@@ -736,7 +794,10 @@ impl<C, St> GatewayClient<C, St> {
             credential,
             self.shared_key.as_ref().unwrap(),
         )?;
-        let bandwidth_remaining = match self.send_websocket_message(msg).await? {
+        let bandwidth_remaining = match self
+            .send_websocket_message_with_non_send_response(msg)
+            .await?
+        {
             ServerResponse::Bandwidth { available_total } => Ok(available_total),
             ServerResponse::Error { message } => Err(GatewayClientError::GatewayError(message)),
             ServerResponse::TypedError { error } => {
@@ -754,7 +815,10 @@ impl<C, St> GatewayClient<C, St> {
 
     async fn try_claim_testnet_bandwidth(&mut self) -> Result<(), GatewayClientError> {
         let msg = ClientControlRequest::ClaimFreeTestnetBandwidth;
-        let bandwidth_remaining = match self.send_websocket_message(msg).await? {
+        let bandwidth_remaining = match self
+            .send_websocket_message_with_non_send_response(msg)
+            .await?
+        {
             ServerResponse::Bandwidth { available_total } => Ok(available_total),
             ServerResponse::Error { message } => Err(GatewayClientError::GatewayError(message)),
             other => Err(GatewayClientError::UnexpectedResponse { name: other.name() }),
@@ -849,6 +913,22 @@ impl<C, St> GatewayClient<C, St> {
         }
     }
 
+    fn mix_packet_to_ws_message(&self, packet: MixPacket) -> Result<Message, GatewayRequestsError> {
+        // note: into_ws_message encrypts the requests and adds a MAC on it. Perhaps it should
+        // be more explicit in the naming?
+        let req = if self.negotiated_protocol.supports_key_rotation_packet() {
+            BinaryRequest::ForwardSphinxV2 { packet }
+        } else {
+            BinaryRequest::ForwardSphinx { packet }
+        };
+
+        req.into_ws_message(
+            self.shared_key
+                .as_ref()
+                .expect("no shared key present even though we're authenticated!"),
+        )
+    }
+
     pub async fn batch_send_mix_packets(
         &mut self,
         packets: Vec<MixPacket>,
@@ -877,13 +957,7 @@ impl<C, St> GatewayClient<C, St> {
 
         let messages: Result<Vec<_>, _> = packets
             .into_iter()
-            .map(|mix_packet| {
-                BinaryRequest::ForwardSphinx { packet: mix_packet }.into_ws_message(
-                    self.shared_key
-                        .as_ref()
-                        .expect("no shared key present even though we're authenticated!"),
-                )
-            })
+            .map(|mix_packet| self.mix_packet_to_ws_message(mix_packet))
             .collect();
 
         if let Err(err) = self
@@ -949,13 +1023,8 @@ impl<C, St> GatewayClient<C, St> {
         if !self.connection.is_established() {
             return Err(GatewayClientError::ConnectionNotEstablished);
         }
-        // note: into_ws_message encrypts the requests and adds a MAC on it. Perhaps it should
-        // be more explicit in the naming?
-        let msg = BinaryRequest::ForwardSphinx { packet: mix_packet }.into_ws_message(
-            self.shared_key
-                .as_ref()
-                .expect("no shared key present even though we're authenticated!"),
-        )?;
+
+        let msg = self.mix_packet_to_ws_message(mix_packet)?;
         self.send_with_reconnection_on_failure(msg).await
     }
 

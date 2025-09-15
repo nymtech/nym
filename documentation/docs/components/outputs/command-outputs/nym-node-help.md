@@ -2,13 +2,14 @@
 Usage: nym-node [OPTIONS] <COMMAND>
 
 Commands:
-  build-info           Show build information of this binary
-  bonding-information  Show bonding information of this node depending on its currently selected mode
-  node-details         Show details of this node
-  migrate              Attempt to migrate an existing mixnode or gateway into a nym-node
-  run                  Start this nym-node
-  sign                 Use identity key of this node to sign provided message
-  help                 Print this message or the help of the given subcommand(s)
+  build-info                Show build information of this binary
+  bonding-information       Show bonding information of this node depending on its currently selected mode
+  node-details              Show details of this node
+  migrate                   Attempt to migrate an existing mixnode or gateway into a nym-node
+  run                       Start this nym-node
+  sign                      Use identity key of this node to sign provided message
+  unsafe-reset-sphinx-keys  UNSAFE: reset existing sphinx keys and attempt to generate fresh one for the current network state
+  help                      Print this message or the help of the given subcommand(s)
 
 Options:
   -c, --config-env-file <CONFIG_ENV_FILE>

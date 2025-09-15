@@ -20,5 +20,5 @@ pub async fn vesting_claim_operator_reward(client: SigningClient) {
         .await
         .expect("failed to claim vesting operator reward");
 
-    info!("Claiming vesting operator reward: {:?}", res)
+    info!("Claiming vesting operator reward: {res:?}")
 }

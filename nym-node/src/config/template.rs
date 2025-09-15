@@ -84,11 +84,11 @@ private_ed25519_identity_key_file = '{{ storage_paths.keys.private_ed25519_ident
 # Path to file containing ed25519 identity public key.
 public_ed25519_identity_key_file = '{{ storage_paths.keys.public_ed25519_identity_key_file }}'
 
-# Path to file containing x25519 sphinx private key.
-private_x25519_sphinx_key_file = '{{ storage_paths.keys.private_x25519_sphinx_key_file }}'
+# Path to file containing the primary x25519 sphinx private key.
+primary_x25519_sphinx_key_file = '{{ storage_paths.keys.primary_x25519_sphinx_key_file }}'
 
-# Path to file containing x25519 sphinx public key.
-public_x25519_sphinx_key_file = '{{ storage_paths.keys.public_x25519_sphinx_key_file }}'
+# Path to file containing the secondary x25519 sphinx private key.
+secondary_x25519_sphinx_key_file = '{{ storage_paths.keys.secondary_x25519_sphinx_key_file }}'
 
 # Path to file containing x25519 noise private key.
 private_x25519_noise_key_file = '{{ storage_paths.keys.private_x25519_noise_key_file }}'
@@ -145,7 +145,11 @@ private_ipv6 = '{{ wireguard.private_ipv6 }}'
 
 # Port announced to external clients wishing to connect to the wireguard interface.
 # Useful in the instances where the node is behind a proxy.
-announced_port = {{ wireguard.announced_port }}
+announced_tunnel_port = {{ wireguard.announced_tunnel_port }}
+
+# Port announced to external clients wishing to connect to the metadata service.
+# Useful in the instances where the node is behind a proxy.
+announced_metadata_port = {{ wireguard.announced_metadata_port }}
 
 # The prefix denoting the maximum number of the clients that can be connected via Wireguard using IPv4.
 # The maximum value for IPv4 is 32

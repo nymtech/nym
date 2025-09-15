@@ -77,7 +77,7 @@ async fn get_all_sessions(
     };
 
     Ok(Json(PagedResult::paginate(
-        Pagination { size, page },
+        Pagination::new(size, page),
         day_and_node_filtered,
     )))
 }

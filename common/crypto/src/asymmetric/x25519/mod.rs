@@ -1,6 +1,7 @@
 // Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use base64::Engine;
 use nym_pemstore::traits::{PemStorableKey, PemStorableKeyPair};
 use std::fmt::{self, Debug, Display, Formatter};
 use std::str::FromStr;
@@ -158,6 +159,15 @@ impl PublicKey {
             .map_err(|source| KeyRecoveryError::MalformedPublicKeyString { source })?;
         Self::from_bytes(&bytes)
     }
+
+    pub fn from_base64(s: &str) -> Option<Self> {
+        let bytes = base64::engine::general_purpose::STANDARD.decode(s).ok()?;
+        Self::from_bytes(&bytes).ok()
+    }
+
+    pub fn to_base64(&self) -> String {
+        base64::engine::general_purpose::STANDARD.encode(self.as_bytes())
+    }
 }
 
 impl FromStr for PublicKey {
@@ -218,6 +228,12 @@ impl From<PublicKey> for x25519_dalek::PublicKey {
     }
 }
 
+impl AsRef<[u8]> for PublicKey {
+    fn as_ref(&self) -> &[u8] {
+        self.0.as_ref()
+    }
+}
+
 #[derive(Zeroize, ZeroizeOnDrop)]
 pub struct PrivateKey(x25519_dalek::StaticSecret);
 
@@ -248,12 +264,20 @@ impl PrivateKey {
         PrivateKey(x25519_secret)
     }
 
+    pub fn inner(&self) -> &x25519_dalek::StaticSecret {
+        &self.0
+    }
+
     pub fn public_key(&self) -> PublicKey {
         self.into()
     }
 
     pub fn to_bytes(&self) -> [u8; PRIVATE_KEY_SIZE] {
         self.0.to_bytes()
+    }
+
+    pub fn as_bytes(&self) -> &[u8; PRIVATE_KEY_SIZE] {
+        self.0.as_bytes()
     }
 
     pub fn from_bytes(b: &[u8]) -> Result<Self, KeyRecoveryError> {
@@ -332,6 +356,12 @@ impl From<x25519_dalek::StaticSecret> for PrivateKey {
 impl AsRef<x25519_dalek::StaticSecret> for PrivateKey {
     fn as_ref(&self) -> &x25519_dalek::StaticSecret {
         &self.0
+    }
+}
+
+impl AsRef<[u8]> for PrivateKey {
+    fn as_ref(&self) -> &[u8] {
+        self.0.as_ref()
     }
 }
 

@@ -1,13 +1,14 @@
 use crate::utils::{base_url, test_client, validate_json_response};
 
 #[tokio::test]
+#[test_with::env(NYM_API)]
 async fn test_get_chain_status() -> Result<(), String> {
     let url = format!("{}/v1/network/chain-status", base_url()?);
     let res = test_client()
         .get(&url)
         .send()
         .await
-        .map_err(|err| format!("Failed to send request to {}: {}", url, err))?;
+        .map_err(|err| format!("Failed to send request to {url}: {err}"))?;
     let json = validate_json_response(res).await?;
 
     let block_header = json
@@ -29,13 +30,14 @@ async fn test_get_chain_status() -> Result<(), String> {
 }
 
 #[tokio::test]
+#[test_with::env(NYM_API)]
 async fn test_get_network_details() -> Result<(), String> {
     let url = format!("{}/v1/network/details", base_url()?);
     let res = test_client()
         .get(&url)
         .send()
         .await
-        .map_err(|err| format!("Failed to send request to {}: {}", url, err))?;
+        .map_err(|err| format!("Failed to send request to {url}: {err}"))?;
     let json = validate_json_response(res).await?;
 
     assert!(
@@ -54,13 +56,14 @@ async fn test_get_network_details() -> Result<(), String> {
 }
 
 #[tokio::test]
+#[test_with::env(NYM_API)]
 async fn test_get_nym_contracts() -> Result<(), String> {
     let url = format!("{}/v1/network/nym-contracts", base_url()?);
     let res = test_client()
         .get(&url)
         .send()
         .await
-        .map_err(|err| format!("Failed to send request to {}: {}", url, err))?;
+        .map_err(|err| format!("Failed to send request to {url}: {err}"))?;
     let json = validate_json_response(res).await?;
 
     assert!(
@@ -75,13 +78,14 @@ async fn test_get_nym_contracts() -> Result<(), String> {
 }
 
 #[tokio::test]
+#[test_with::env(NYM_API)]
 async fn test_get_nym_contracts_detailed() -> Result<(), String> {
     let url = format!("{}/v1/network/nym-contracts-detailed", base_url()?);
     let res = test_client()
         .get(&url)
         .send()
         .await
-        .map_err(|err| format!("Failed to send request to {}: {}", url, err))?;
+        .map_err(|err| format!("Failed to send request to {url}: {err}"))?;
     let json = validate_json_response(res).await?;
 
     let mixnet_contract = json

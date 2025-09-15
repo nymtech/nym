@@ -37,6 +37,7 @@ use sqlx::{
     sqlite::{SqliteAutoVacuum, SqliteSynchronous},
     ConnectOptions,
 };
+use sqlx_pool_guard::SqlitePoolGuard;
 use std::path::Path;
 use zeroize::Zeroizing;
 
@@ -54,8 +55,8 @@ impl PersistentStorage {
     /// * `database_path`: path to the database.
     pub async fn init<P: AsRef<Path>>(database_path: P) -> Result<Self, StorageError> {
         debug!(
-            "Attempting to connect to database {:?}",
-            database_path.as_ref().as_os_str()
+            "Attempting to connect to database {}",
+            database_path.as_ref().display()
         );
 
         let opts = sqlx::sqlite::SqliteConnectOptions::new()
@@ -74,13 +75,16 @@ impl PersistentStorage {
             }
         };
 
-        if let Err(err) = sqlx::migrate!("./migrations").run(&connection_pool).await {
+        let connection_pool = SqlitePoolGuard::new(connection_pool);
+
+        if let Err(err) = sqlx::migrate!("./migrations").run(&*connection_pool).await {
             error!("Failed to perform migration on the SQLx database: {err}");
+            connection_pool.close().await;
             return Err(err.into());
         }
 
         Ok(PersistentStorage {
-            storage_manager: SqliteEcashTicketbookManager::new(connection_pool.clone()),
+            storage_manager: SqliteEcashTicketbookManager::new(connection_pool),
         })
     }
 }
@@ -321,10 +325,11 @@ impl Storage for PersistentStorage {
     async fn get_expiration_date_signatures(
         &self,
         expiration_date: Date,
+        epoch_id: u64,
     ) -> Result<Option<Vec<AnnotatedExpirationDateSignature>>, Self::StorageError> {
         let Some(raw) = self
             .storage_manager
-            .get_expiration_date_signatures(expiration_date)
+            .get_expiration_date_signatures(expiration_date, epoch_id as i64)
             .await?
         else {
             return Ok(None);

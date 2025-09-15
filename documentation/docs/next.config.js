@@ -361,6 +361,12 @@ const config = {
         basePath: false,
       },
       {
+        source: "/developers/tutorials/rust-sdk.html",
+        destination: "/docs/developers/rust/mixnet/examples",
+        permanent: true,
+        basePath: false,
+      },
+      {
         source: "/developers/integrations/integration-options.html",
         destination: "/docs/developers/integrations",
         permanent: true,
@@ -562,6 +568,12 @@ const config = {
       },
       {
         source: "/docs/sdk/rust/rust.html",
+        destination: "/docs/developers/rust",
+        permanent: true,
+        basePath: false,
+      },
+      {
+        source: "/docs/sdk/rust.html",
         destination: "/docs/developers/rust",
         permanent: true,
         basePath: false,

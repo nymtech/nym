@@ -29,7 +29,7 @@ pub async fn query(args: Args, client: QueryClient, address_from_mnemonic: Optio
         .address
         .unwrap_or_else(|| address_from_mnemonic.expect("please provide a mnemonic"));
 
-    info!("Checking account {} for a vesting schedule...", account_id);
+    info!("Checking account {account_id} for a vesting schedule...");
 
     let vesting_address = account_id.to_string();
     let denom = client.current_chain_details().mix_denom.base.as_str();

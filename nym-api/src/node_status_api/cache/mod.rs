@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use self::data::NodeStatusCacheData;
+use crate::node_performance::provider::PerformanceRetrievalFailure;
+use crate::support::caching::cache::UninitialisedCache;
 use crate::support::caching::Cache;
 use nym_api_requests::models::{GatewayBondAnnotated, MixNodeBondAnnotated, NodeAnnotation};
 use nym_contracts_common::IdentityKey;
@@ -15,21 +17,27 @@ use tracing::error;
 
 const CACHE_TIMEOUT_MS: u64 = 100;
 
+mod config_score;
 pub mod data;
 mod inclusion_probabilities;
-mod node_sets;
 pub mod refresher;
 
 #[derive(Debug, Error)]
 enum NodeStatusCacheError {
-    #[error("failed to simulate selection probabilities for mixnodes, not updating cache")]
-    SimulationFailed,
-
     #[error("the current interval information is not available at the moment")]
     SourceDataMissing,
 
     #[error("the self-described cache data is not available")]
     UnavailableDescribedCache,
+
+    #[error(transparent)]
+    PerformanceRetrievalFailure(#[from] PerformanceRetrievalFailure),
+}
+
+impl From<UninitialisedCache> for NodeStatusCacheError {
+    fn from(_: UninitialisedCache) -> Self {
+        NodeStatusCacheError::SourceDataMissing
+    }
 }
 
 /// A node status cache suitable for caching values computed in one sweep, such as active set
@@ -104,7 +112,7 @@ impl NodeStatusCache {
 
     pub(crate) async fn node_annotations(
         &self,
-    ) -> Option<RwLockReadGuard<Cache<HashMap<NodeId, NodeAnnotation>>>> {
+    ) -> Option<RwLockReadGuard<'_, Cache<HashMap<NodeId, NodeAnnotation>>>> {
         self.get(|c| &c.node_annotations).await
     }
 
@@ -119,7 +127,7 @@ impl NodeStatusCache {
 
     pub(crate) async fn annotated_legacy_mixnodes(
         &self,
-    ) -> Option<RwLockReadGuard<Cache<HashMap<NodeId, MixNodeBondAnnotated>>>> {
+    ) -> Option<RwLockReadGuard<'_, Cache<HashMap<NodeId, MixNodeBondAnnotated>>>> {
         self.get(|c| &c.mixnodes_annotated).await
     }
 
@@ -142,7 +150,7 @@ impl NodeStatusCache {
 
     pub(crate) async fn annotated_legacy_gateways(
         &self,
-    ) -> Option<RwLockReadGuard<Cache<HashMap<NodeId, GatewayBondAnnotated>>>> {
+    ) -> Option<RwLockReadGuard<'_, Cache<HashMap<NodeId, GatewayBondAnnotated>>>> {
         self.get(|c| &c.gateways_annotated).await
     }
 

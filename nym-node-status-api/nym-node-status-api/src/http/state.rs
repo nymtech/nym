@@ -1,20 +1,33 @@
-use std::{collections::HashMap, sync::Arc, time::Duration};
-
 use cosmwasm_std::Decimal;
+use itertools::Itertools;
 use moka::{future::Cache, Entry};
+use nym_bin_common::bin_info_owned;
 use nym_contracts_common::NaiveFloat;
 use nym_crypto::asymmetric::ed25519::PublicKey;
-use nym_validator_client::{models::DescribedNodeType, nym_api::SkimmedNode};
+use nym_mixnet_contract_common::NodeId;
+use nym_node_status_client::auth::VerifiableRequest;
+use nym_validator_client::nym_api::SkimmedNode;
+use semver::Version;
+use serde::{Deserialize, Serialize};
+use std::{collections::HashMap, sync::Arc, time::Duration};
+use time::UtcDateTime;
 use tokio::sync::RwLock;
-use tracing::instrument;
-
-use crate::{
-    db::{queries, DbPool},
-    http::models::{DailyStats, ExtendedNymNode, Gateway, Mixnode, NodeGeoData, SummaryHistory},
-    monitor::NodeGeoCache,
-};
+use tracing::{error, instrument, warn};
+use utoipa::ToSchema;
 
 use super::models::SessionStats;
+use crate::{
+    db::{queries, DbPool},
+    http::{
+        error::{HttpError, HttpResult},
+        models::{
+            DVpnGateway, DailyStats, ExtendedNymNode, Gateway, Mixnode, NodeGeoData, SummaryHistory,
+        },
+    },
+    monitor::{DelegationsCache, NodeGeoCache},
+};
+
+pub(crate) use nym_validator_client::models::BinaryBuildInformationOwned;
 
 #[derive(Debug, Clone)]
 pub(crate) struct AppState {
@@ -22,7 +35,10 @@ pub(crate) struct AppState {
     cache: HttpCache,
     agent_key_list: Vec<PublicKey>,
     agent_max_count: i64,
+    agent_request_freshness_requirement: time::Duration,
     node_geocache: NodeGeoCache,
+    node_delegations: Arc<RwLock<DelegationsCache>>,
+    bin_info: BinaryInfo,
 }
 
 impl AppState {
@@ -31,14 +47,19 @@ impl AppState {
         cache_ttl: u64,
         agent_key_list: Vec<PublicKey>,
         agent_max_count: i64,
+        agent_request_freshness_requirement: time::Duration,
         node_geocache: NodeGeoCache,
+        node_delegations: Arc<RwLock<DelegationsCache>>,
     ) -> Self {
         Self {
             db_pool,
             cache: HttpCache::new(cache_ttl).await,
             agent_key_list,
             agent_max_count,
+            agent_request_freshness_requirement,
             node_geocache,
+            node_delegations,
+            bin_info: BinaryInfo::new(),
         }
     }
 
@@ -61,9 +82,67 @@ impl AppState {
     pub(crate) fn node_geocache(&self) -> NodeGeoCache {
         self.node_geocache.clone()
     }
+
+    pub(crate) async fn node_delegations(
+        &self,
+        node_id: NodeId,
+    ) -> Option<Vec<super::models::NodeDelegation>> {
+        self.node_delegations
+            .read()
+            .await
+            .delegations_owned(node_id)
+    }
+
+    pub(crate) fn health(&self) -> HealthInfo {
+        let uptime = (UtcDateTime::now() - self.bin_info.startup_time).whole_seconds();
+        HealthInfo { uptime }
+    }
+
+    pub(crate) fn build_information(&self) -> &BinaryBuildInformationOwned {
+        &self.bin_info.build_info
+    }
+
+    #[tracing::instrument(level = "debug", skip_all)]
+    pub(crate) fn authenticate_agent_submission(
+        &self,
+        request: &impl VerifiableRequest,
+    ) -> HttpResult<()> {
+        if !self.is_registered(request.public_key()) {
+            tracing::warn!("Public key not registered with NS API, rejecting");
+            return Err(HttpError::unauthorized());
+        };
+
+        request.verify_signature().map_err(|_| {
+            tracing::warn!("Signature verification failed, rejecting");
+            HttpError::unauthorized()
+        })?;
+
+        Ok(())
+    }
+
+    pub(crate) fn is_fresh(&self, request_time: &i64) -> HttpResult<()> {
+        // if a request took longer than N minutes to reach NS API, something is very wrong
+        let request_time = time::UtcDateTime::from_unix_timestamp(*request_time).map_err(|e| {
+            warn!("Failed to parse request time: {e}");
+            HttpError::unauthorized()
+        })?;
+
+        let cutoff_timestamp = crate::utils::now_utc() - self.agent_request_freshness_requirement;
+        if request_time < cutoff_timestamp {
+            warn!(
+                "Request time {} is older than cutoff {} ({}s ago), rejecting",
+                request_time,
+                cutoff_timestamp,
+                self.agent_request_freshness_requirement.whole_seconds()
+            );
+            return Err(HttpError::unauthorized());
+        }
+        Ok(())
+    }
 }
 
 static GATEWAYS_LIST_KEY: &str = "gateways";
+static DVPN_GATEWAYS_LIST_KEY: &str = "dvpn_gateways";
 static MIXNODES_LIST_KEY: &str = "mixnodes";
 static NYM_NODES_LIST_KEY: &str = "nym_nodes";
 static MIXSTATS_LIST_KEY: &str = "mixstats";
@@ -75,6 +154,7 @@ const MIXNODE_STATS_HISTORY_DAYS: usize = 30;
 #[derive(Debug, Clone)]
 pub(crate) struct HttpCache {
     gateways: Cache<String, Arc<RwLock<Vec<Gateway>>>>,
+    dvpn_gateways: Cache<String, Arc<RwLock<Vec<DVpnGateway>>>>,
     mixnodes: Cache<String, Arc<RwLock<Vec<Mixnode>>>>,
     nym_nodes: Cache<String, Arc<RwLock<Vec<ExtendedNymNode>>>>,
     mixstats: Cache<String, Arc<RwLock<Vec<DailyStats>>>>,
@@ -87,6 +167,10 @@ impl HttpCache {
         HttpCache {
             gateways: Cache::builder()
                 .max_capacity(2)
+                .time_to_live(Duration::from_secs(ttl_seconds))
+                .build(),
+            dvpn_gateways: Cache::builder()
+                .max_capacity(6)
                 .time_to_live(Duration::from_secs(ttl_seconds))
                 .build(),
             mixnodes: Cache::builder()
@@ -142,18 +226,204 @@ impl HttpCache {
                 // the key is missing so populate it
                 tracing::trace!("No gateways in cache, refreshing cache from DB...");
 
-                let gateways = crate::db::queries::get_all_gateways(db)
-                    .await
-                    .unwrap_or_default();
-                self.upsert_gateway_list(gateways.clone()).await;
+                let gateways = match crate::db::queries::get_all_gateways(db).await {
+                    Ok(gws) => {
+                        tracing::info!("Successfully fetched {} gateways from database", gws.len());
+                        if !gws.is_empty() {
+                            self.upsert_gateway_list(gws.clone()).await;
+                        }
+                        gws
+                    }
+                    Err(err) => {
+                        tracing::error!("CRITICAL: Failed to fetch gateways from database: {err}");
+                        panic!(
+                            "Cannot read gateways table - this should never happen! Error: {err}"
+                        );
+                    }
+                };
 
                 if gateways.is_empty() {
-                    tracing::warn!("Database contains 0 gateways");
+                    tracing::warn!("Database: gateway list is empty");
                 }
 
                 gateways
             }
         }
+    }
+
+    pub async fn upsert_dvpn_gateway_list(
+        &self,
+        new_gateway_list: Vec<DVpnGateway>,
+    ) -> Entry<String, Arc<RwLock<Vec<DVpnGateway>>>> {
+        self.dvpn_gateways
+            .entry_by_ref(DVPN_GATEWAYS_LIST_KEY)
+            .and_upsert_with(|maybe_entry| async {
+                if let Some(entry) = maybe_entry {
+                    let v = entry.into_value();
+                    let mut guard = v.write().await;
+                    *guard = new_gateway_list;
+                    v.clone()
+                } else {
+                    Arc::new(RwLock::new(new_gateway_list))
+                }
+            })
+            .await
+    }
+
+    pub async fn get_dvpn_gateway_list(
+        &self,
+        db: &DbPool,
+        min_node_version: &Version,
+    ) -> Vec<DVpnGateway> {
+        match self.dvpn_gateways.get(DVPN_GATEWAYS_LIST_KEY).await {
+            Some(guard) => {
+                tracing::trace!("Fetching from cache...");
+                let read_lock = guard.read().await;
+                read_lock.clone()
+            }
+            None => {
+                tracing::info!("No gateways (dVPN) in cache, refreshing from DB...");
+
+                let gateways = self.get_gateway_list(db).await;
+                tracing::info!("Found {} gateways in database", gateways.len());
+
+                let started_with = gateways.len();
+                let skimmed_nodes = match crate::db::queries::get_described_bonded_nym_nodes(db)
+                    .await
+                {
+                    Ok(records) => {
+                        let mut nodes = HashMap::new();
+                        for dto in records {
+                            match SkimmedNode::try_from(dto) {
+                                Ok(skimmed_node) => {
+                                    let key =
+                                        skimmed_node.ed25519_identity_pubkey.to_base58_string();
+                                    nodes.insert(key, skimmed_node);
+                                }
+                                Err(err) => {
+                                    error!("CRITICAL: Failed to convert NymNodeDto to SkimmedNode: {err}");
+                                    panic!("Cannot convert database record to SkimmedNode - this should never happen! Error: {err}");
+                                }
+                            }
+                        }
+                        nodes
+                    }
+                    Err(err) => {
+                        error!("CRITICAL: Failed to query nym_nodes from database: {err}");
+                        panic!(
+                            "Cannot read nym_nodes table - database connection issue? Error: {err}"
+                        );
+                    }
+                };
+
+                let res_gws = gateways
+                    .iter()
+                    .filter(|gw| gw.bonded)
+                    .filter_map(|gw| match skimmed_nodes.get(&gw.gateway_identity_key) {
+                        Some(skimmed_node) => Some((gw, skimmed_node)),
+                        None => {
+                            error!(
+                                "CRITICAL: Gateway {} exists in gateways table but not in nym_nodes table! This should not happen.",
+                                gw.gateway_identity_key
+                            );
+                            None
+                        }
+                    })
+                    .filter_map(
+                        |(gw, skimmed_node)| match DVpnGateway::new(gw.clone(), skimmed_node) {
+                            Ok(gw) => Some(gw),
+                            Err(err) => {
+                                error!(
+                                    "CRITICAL: Failed to create DVpnGateway for node_id={}, identity_key={}: {}",
+                                    skimmed_node.node_id,
+                                    skimmed_node.ed25519_identity_pubkey.to_base58_string(),
+                                    err
+                                );
+                                // Don't panic here as this might be due to missing fields, but log it loudly
+                                None
+                            }
+                        },
+                    )
+                    .filter(|gw| {
+                        let gw_version = &gw.build_information.build_version;
+                        if let Ok(gw_version) = Version::parse(gw_version) {
+                            &gw_version >= min_node_version
+                        } else {
+                            warn!("Failed to parse GW version {}", gw_version);
+                            false
+                        }
+                    })
+                    .filter(|gw| {
+                        // gateways must have a country
+                        if gw.location.two_letter_iso_country_code.len() == 2 {
+                            true
+                        } else {
+                            warn!(
+                                "Invalid country code: {}",
+                                gw.location.two_letter_iso_country_code
+                            );
+                            false
+                        }
+                    })
+                    // sort by country, then by identity key
+                    .sorted_by_key(|item| {
+                        (
+                            item.location.two_letter_iso_country_code.clone(),
+                            item.identity_key.clone(),
+                        )
+                    })
+                    .collect::<Vec<_>>();
+
+                let bonded_count = gateways.iter().filter(|gw| gw.bonded).count();
+                tracing::info!(
+                    "DVpn gateway filtering: {} total gateways, {} bonded, {} nym_nodes, {} final DVpn gateways",
+                    started_with,
+                    bonded_count,
+                    skimmed_nodes.len(),
+                    res_gws.len()
+                );
+
+                if res_gws.is_empty() && started_with > 0 {
+                    tracing::error!(
+                        "CRITICAL: Started with {} gateways but got 0 DVpn gateways! Min version: {}",
+                        started_with,
+                        min_node_version
+                    );
+                } else {
+                    tracing::info!(
+                        "Successfully loaded {} DVpn gateways into cache",
+                        res_gws.len()
+                    );
+                    self.upsert_dvpn_gateway_list(res_gws.clone()).await;
+                }
+
+                res_gws
+            }
+        }
+    }
+
+    pub async fn get_entry_dvpn_gateways(
+        &self,
+        db: &DbPool,
+        min_node_version: &Version,
+    ) -> Vec<DVpnGateway> {
+        self.get_dvpn_gateway_list(db, min_node_version)
+            .await
+            .into_iter()
+            .filter(DVpnGateway::can_route_entry)
+            .collect()
+    }
+
+    pub async fn get_exit_dvpn_gateways(
+        &self,
+        db: &DbPool,
+        min_node_version: &Version,
+    ) -> Vec<DVpnGateway> {
+        self.get_dvpn_gateway_list(db, min_node_version)
+            .await
+            .into_iter()
+            .filter(DVpnGateway::can_route_exit)
+            .collect()
     }
 
     pub async fn upsert_mixnode_list(
@@ -188,10 +458,11 @@ impl HttpCache {
                 let mixnodes = crate::db::queries::get_all_mixnodes(db)
                     .await
                     .unwrap_or_default();
-                self.upsert_mixnode_list(mixnodes.clone()).await;
 
                 if mixnodes.is_empty() {
                     tracing::warn!("Database contains 0 mixnodes");
+                } else {
+                    self.upsert_mixnode_list(mixnodes.clone()).await;
                 }
 
                 mixnodes
@@ -232,14 +503,13 @@ impl HttpCache {
             None => {
                 tracing::trace!("No nym nodes in cache, refreshing cache from DB...");
 
-                let nym_nodes = aggregate_node_info_from_db(db, node_geocache)
-                    .await
-                    .inspect(|nym_nodes| {
-                        if nym_nodes.is_empty() {
-                            tracing::warn!("Database contains 0 nym nodes");
-                        }
-                    })?;
-                self.upsert_nym_node_list(nym_nodes.clone()).await;
+                let nym_nodes = aggregate_node_info_from_db(db, node_geocache).await?;
+
+                if nym_nodes.is_empty() {
+                    tracing::warn!("Database contains 0 nym nodes");
+                } else {
+                    self.upsert_nym_node_list(nym_nodes.clone()).await;
+                }
 
                 Ok(nym_nodes)
             }
@@ -401,11 +671,7 @@ async fn aggregate_node_info_from_db(
             .get(&node_id)
             .map(|node| node.performance.naive_to_f64())
             .unwrap_or(0.0);
-        let node_type = match described_node.contract_node_type {
-            DescribedNodeType::NymNode => "nym_node".to_string(),
-            DescribedNodeType::LegacyMixnode => "legacy_mixnode".to_string(),
-            DescribedNodeType::LegacyGateway => "legacy_gateway".to_string(),
-        };
+        let node_type = described_node.contract_node_type;
         let ip_address = described_node
             .description
             .host_information
@@ -417,11 +683,10 @@ async fn aggregate_node_info_from_db(
             .description
             .auxiliary_details
             .accepted_operator_terms_and_conditions;
-        let description = described_node.description;
+        let self_described = described_node.description;
 
-        let bonding_address = bond_details
-            .map(|details| details.bond_information.owner.to_string())
-            .unwrap_or_default();
+        let bonding_address =
+            bond_details.map(|details| details.bond_information.owner.to_string());
 
         let node_description = node_descriptions.get(&node_id).cloned().unwrap_or_default();
         let geoip = {
@@ -449,12 +714,32 @@ async fn aggregate_node_info_from_db(
             bonded,
             node_type,
             accepted_tnc,
-            self_description: serde_json::to_value(description).unwrap_or_default(),
-            rewarding_details: serde_json::to_value(rewarding_details).unwrap_or_default(),
+            self_description: self_described,
+            rewarding_details: rewarding_details.to_owned(),
             description: node_description,
             geoip,
         });
     }
 
     Ok(parsed_nym_nodes)
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct BinaryInfo {
+    startup_time: UtcDateTime,
+    build_info: BinaryBuildInformationOwned,
+}
+
+impl BinaryInfo {
+    fn new() -> Self {
+        Self {
+            startup_time: UtcDateTime::now(),
+            build_info: bin_info_owned!(),
+        }
+    }
+}
+
+#[derive(Serialize, ToSchema, Deserialize)]
+pub(crate) struct HealthInfo {
+    pub(crate) uptime: i64,
 }

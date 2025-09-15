@@ -11,6 +11,7 @@ use crate::{
 use nym_credentials_interface::CredentialSpendingData;
 use nym_crypto::asymmetric::ed25519;
 use nym_sphinx::DestinationAddressBytes;
+use nym_statistics_common::types::SessionType;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use tungstenite::Message;
@@ -28,6 +29,9 @@ pub enum ClientRequest {
     ForgetMe {
         client: bool,
         stats: bool,
+    },
+    RememberMe {
+        session_type: SessionType,
     },
 }
 

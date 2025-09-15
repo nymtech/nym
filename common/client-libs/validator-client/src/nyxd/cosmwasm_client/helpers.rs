@@ -12,6 +12,8 @@ use tendermint_rpc::endpoint::broadcast;
 use tracing::error;
 
 pub use cosmrs::abci::MsgResponse;
+use cosmwasm_std::from_json;
+use serde::de::DeserializeOwned;
 
 pub fn parse_singleton_u32_from_contract_response(b: Vec<u8>) -> Result<u32, NyxdError> {
     if b.len() != 4 {
@@ -73,6 +75,11 @@ pub fn parse_msg_responses(data: Bytes) -> Vec<MsgResponse> {
 
 // requires there's a single response message
 pub trait ContractResponseData: Sized {
+    fn parse_singleton_json_contract_response<T: DeserializeOwned>(&self) -> Result<T, NyxdError> {
+        let b = self.to_singleton_contract_data()?;
+        from_json(&b).map_err(|err| err.into())
+    }
+
     fn parse_singleton_u32_contract_data(&self) -> Result<u32, NyxdError> {
         let b = self.to_singleton_contract_data()?;
         parse_singleton_u32_from_contract_response(b)

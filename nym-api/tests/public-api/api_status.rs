@@ -1,6 +1,7 @@
 use crate::utils::{base_url, make_request, validate_json_response};
 
 #[tokio::test]
+#[test_with::env(NYM_API)]
 async fn test_health() -> Result<(), String> {
     let url = format!("{}/v1/api-status/health", base_url()?);
     let res = make_request(&url).await?;
@@ -11,6 +12,7 @@ async fn test_health() -> Result<(), String> {
 }
 
 #[tokio::test]
+#[test_with::env(NYM_API)]
 async fn test_build_information() -> Result<(), String> {
     let url = format!("{}/v1/api-status/build-information", base_url()?);
     let res = make_request(&url).await?;

@@ -11,8 +11,11 @@ import { StakersNumberCardWrapper } from "../components/landingPageComponents/St
 import { TokenomicsCardWrapper } from "../components/landingPageComponents/TokenomicsCardWrapper";
 import NodeTable from "../components/nodeTable/NodeTableWithAction";
 import NodeAndAddressSearch from "../components/search/NodeAndAddressSearch";
+import { RECOMMENDED_NODES } from "./constants";
 
 export default async function Home() {
+  const recommendedIds = await RECOMMENDED_NODES;
+
   return (
     <ContentLayout>
       <Stack gap={5}>
@@ -42,7 +45,7 @@ export default async function Home() {
           <SectionHeading title="Nym Servers" />
         </Grid>
         <Grid size={12}>
-          <NodeTable />
+          <NodeTable recommendedIds={recommendedIds} />
         </Grid>
       </Grid>
       <Grid container columnSpacing={5} rowSpacing={5}>

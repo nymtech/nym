@@ -6,7 +6,9 @@
 // #![warn(clippy::expect_used)]
 // #![warn(clippy::unwrap_used)]
 
-use defguard_wireguard_rs::WGApi;
+use defguard_wireguard_rs::{host::Peer, key::Key, net::IpAddrMask, WGApi, WireguardInterfaceApi};
+#[cfg(target_os = "linux")]
+use nym_credential_verification::ecash::EcashManager;
 use nym_crypto::asymmetric::x25519::KeyPair;
 use nym_wireguard_types::Config;
 use peer_controller::PeerControlRequest;
@@ -14,18 +16,92 @@ use std::sync::Arc;
 use tokio::sync::mpsc::{self, Receiver, Sender};
 
 #[cfg(target_os = "linux")]
-use defguard_wireguard_rs::{host::Peer, key::Key, net::IpAddrMask};
-
-#[cfg(target_os = "linux")]
 use nym_network_defaults::constants::WG_TUN_BASE_NAME;
 
-pub(crate) mod error;
+pub mod error;
 pub mod peer_controller;
 pub mod peer_handle;
 pub mod peer_storage_manager;
 
+pub const CONTROL_CHANNEL_SIZE: usize = 256;
+
 pub struct WgApiWrapper {
     inner: WGApi,
+}
+
+impl WireguardInterfaceApi for WgApiWrapper {
+    fn create_interface(
+        &self,
+    ) -> Result<(), defguard_wireguard_rs::error::WireguardInterfaceError> {
+        self.inner.create_interface()
+    }
+
+    fn assign_address(
+        &self,
+        address: &IpAddrMask,
+    ) -> Result<(), defguard_wireguard_rs::error::WireguardInterfaceError> {
+        self.inner.assign_address(address)
+    }
+
+    fn configure_peer_routing(
+        &self,
+        peers: &[Peer],
+    ) -> Result<(), defguard_wireguard_rs::error::WireguardInterfaceError> {
+        self.inner.configure_peer_routing(peers)
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    fn configure_interface(
+        &self,
+        config: &defguard_wireguard_rs::InterfaceConfiguration,
+    ) -> Result<(), defguard_wireguard_rs::error::WireguardInterfaceError> {
+        self.inner.configure_interface(config)
+    }
+
+    #[cfg(target_os = "windows")]
+    fn configure_interface(
+        &self,
+        config: &defguard_wireguard_rs::InterfaceConfiguration,
+        dns: &[std::net::IpAddr],
+    ) -> Result<(), defguard_wireguard_rs::error::WireguardInterfaceError> {
+        self.inner.configure_interface(config, dns)
+    }
+
+    fn remove_interface(
+        &self,
+    ) -> Result<(), defguard_wireguard_rs::error::WireguardInterfaceError> {
+        self.inner.remove_interface()
+    }
+
+    fn configure_peer(
+        &self,
+        peer: &Peer,
+    ) -> Result<(), defguard_wireguard_rs::error::WireguardInterfaceError> {
+        self.inner.configure_peer(peer)
+    }
+
+    fn remove_peer(
+        &self,
+        peer_pubkey: &Key,
+    ) -> Result<(), defguard_wireguard_rs::error::WireguardInterfaceError> {
+        self.inner.remove_peer(peer_pubkey)
+    }
+
+    fn read_interface_data(
+        &self,
+    ) -> Result<
+        defguard_wireguard_rs::host::Host,
+        defguard_wireguard_rs::error::WireguardInterfaceError,
+    > {
+        self.inner.read_interface_data()
+    }
+
+    fn configure_dns(
+        &self,
+        dns: &[std::net::IpAddr],
+    ) -> Result<(), defguard_wireguard_rs::error::WireguardInterfaceError> {
+        self.inner.configure_dns(dns)
+    }
 }
 
 impl WgApiWrapper {
@@ -38,7 +114,7 @@ impl Drop for WgApiWrapper {
     fn drop(&mut self) {
         if let Err(e) = defguard_wireguard_rs::WireguardInterfaceApi::remove_interface(&self.inner)
         {
-            log::error!("Could not remove the wireguard interface: {:?}", e);
+            log::error!("Could not remove the wireguard interface: {e:?}");
         }
     }
 }
@@ -52,7 +128,7 @@ pub struct WireguardGatewayData {
 
 impl WireguardGatewayData {
     pub fn new(config: Config, keypair: Arc<KeyPair>) -> (Self, Receiver<PeerControlRequest>) {
-        let (peer_tx, peer_rx) = mpsc::channel(1);
+        let (peer_tx, peer_rx) = mpsc::channel(CONTROL_CHANNEL_SIZE);
         (
             WireguardGatewayData {
                 config,
@@ -84,15 +160,16 @@ pub struct WireguardData {
 /// Start wireguard device
 #[cfg(target_os = "linux")]
 pub async fn start_wireguard(
-    storage: nym_gateway_storage::GatewayStorage,
+    ecash_manager: Arc<EcashManager>,
     metrics: nym_node_metrics::NymNodeMetrics,
-    all_peers: Vec<nym_gateway_storage::models::WireguardPeer>,
+    peers: Vec<Peer>,
     task_client: nym_task::TaskClient,
     wireguard_data: WireguardData,
 ) -> Result<std::sync::Arc<WgApiWrapper>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     use base64::{prelude::BASE64_STANDARD, Engine};
     use defguard_wireguard_rs::{InterfaceConfiguration, WireguardInterfaceApi};
     use ip_network::IpNetwork;
+    use nym_credential_verification::ecash::traits::EcashManager;
     use peer_controller::PeerController;
     use std::collections::HashMap;
     use tokio::sync::RwLock;
@@ -100,29 +177,19 @@ pub async fn start_wireguard(
 
     let ifname = String::from(WG_TUN_BASE_NAME);
     let wg_api = defguard_wireguard_rs::WGApi::new(ifname.clone(), false)?;
-    let mut peer_bandwidth_managers = HashMap::with_capacity(all_peers.len());
-    let peers = all_peers
-        .into_iter()
-        .map(Peer::try_from)
-        .collect::<Result<Vec<_>, _>>()?
-        .into_iter()
-        .map(|mut peer| {
-            // since WGApi doesn't set those values on init, let's set them to 0
-            peer.rx_bytes = 0;
-            peer.tx_bytes = 0;
-            peer
-        })
-        .collect::<Vec<_>>();
+    let mut peer_bandwidth_managers = HashMap::with_capacity(peers.len());
+
     for peer in peers.iter() {
-        let bandwidth_manager =
-            PeerController::generate_bandwidth_manager(storage.clone(), &peer.public_key)
-                .await?
-                .map(|bw_m| Arc::new(RwLock::new(bw_m)));
-        // Update storage with *x_bytes set to 0, as in kernel peers we can't set those values
-        // so we need to restart counting. Hopefully the bandwidth was counted in available_bandwidth
-        storage
-            .insert_wireguard_peer(peer, bandwidth_manager.is_some())
-            .await?;
+        let bandwidth_manager = peer_handle::SharedBandwidthStorageManager::new(
+            Arc::new(RwLock::new(
+                PeerController::generate_bandwidth_manager(
+                    ecash_manager.storage(),
+                    &peer.public_key,
+                )
+                .await?,
+            )),
+            peer.allowed_ips.clone(),
+        );
         peer_bandwidth_managers.insert(peer.public_key.clone(), (bandwidth_manager, peer.clone()));
     }
 
@@ -131,7 +198,7 @@ pub async fn start_wireguard(
         name: ifname.clone(),
         prvkey: BASE64_STANDARD.encode(wireguard_data.inner.keypair().private_key().to_bytes()),
         address: wireguard_data.inner.config().private_ipv4.to_string(),
-        port: wireguard_data.inner.config().announced_port as u32,
+        port: wireguard_data.inner.config().announced_tunnel_port as u32,
         peers,
         mtu: None,
     };
@@ -174,8 +241,9 @@ pub async fn start_wireguard(
 
     let host = wg_api.read_interface_data()?;
     let wg_api = std::sync::Arc::new(WgApiWrapper::new(wg_api));
+
     let mut controller = PeerController::new(
-        storage,
+        ecash_manager,
         metrics,
         wg_api.clone(),
         host,

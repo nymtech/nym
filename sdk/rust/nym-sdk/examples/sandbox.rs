@@ -6,7 +6,7 @@ use nym_sdk::mixnet::MixnetMessageSender;
 // An example of creating a client relying on a testnet, in this case Sandbox.
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    nym_bin_common::logging::setup_logging();
+    nym_bin_common::logging::setup_tracing_logger();
     // relative root is `sdk/rust/nym-sdk/` for fallback file path
     let env_path =
         std::env::var("NYM_ENV_PATH").unwrap_or_else(|_| "../../../envs/sandbox.env".to_string());

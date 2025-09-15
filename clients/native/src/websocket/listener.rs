@@ -68,9 +68,9 @@ impl Listener {
                 new_conn = tcp_listener.accept() => {
                     match new_conn {
                         Ok((mut socket, remote_addr)) => {
-                            debug!("Received connection from {:?}", remote_addr);
+                            debug!("Received connection from {remote_addr:?}");
                             if self.state.is_connected() {
-                                warn!("Tried to open a duplicate websocket connection. The request came from {}", remote_addr);
+                                warn!("Tried to open a duplicate websocket connection. The request came from {remote_addr}");
                                 // if we've already got a connection, don't allow another one
                                 // while we only ever want to accept a single connection, we don't want
                                 // to leave clients hanging (and also allow for reconnection if it somehow

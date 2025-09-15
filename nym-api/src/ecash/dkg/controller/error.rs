@@ -16,7 +16,7 @@ pub enum DkgError {
     StatePersistenceFailure {
         path: PathBuf,
         #[source]
-        source: EcashError,
+        source: Box<EcashError>,
     },
 
     #[error("failed to query for the current DKG epoch state: {source}")]

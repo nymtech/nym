@@ -34,7 +34,7 @@ pub(crate) async fn build_http_api(
     );
     let router = router_builder.with_state(state);
 
-    let bind_addr = format!("0.0.0.0:{}", http_port);
+    let bind_addr = format!("0.0.0.0:{http_port}");
     let server = router.build_server(bind_addr).await?;
     Ok(server)
 }

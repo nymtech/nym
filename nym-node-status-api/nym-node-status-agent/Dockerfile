@@ -16,7 +16,7 @@ WORKDIR /usr/src/nym-vpn-client/nym-vpn-core
 RUN cargo build --release --package nym-gateway-probe
 
 COPY ./ /usr/src/nym
-WORKDIR /usr/src/nym/nym-node-status-agent
+WORKDIR /usr/src/nym/nym-node-status-api/nym-node-status-agent
 RUN cargo build --release
 
 #-------------------------------------------------------------------

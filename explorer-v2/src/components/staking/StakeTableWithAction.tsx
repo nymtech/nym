@@ -11,7 +11,7 @@ import StakeTable from "./StakeTable";
 // Utility function to calculate node saturation point
 function getNodeSaturationPoint(
   totalStake: number,
-  stakeSaturationPoint: string
+  stakeSaturationPoint: string,
 ): number {
   const saturation = Number.parseFloat(stakeSaturationPoint);
 
@@ -26,18 +26,18 @@ function getNodeSaturationPoint(
 // Map nodes with rewards data
 const mappedNSApiNodes = (
   nodes: NS_NODE[],
-  epochRewardsData: ExplorerData["currentEpochRewardsData"]
+  epochRewardsData: ExplorerData["currentEpochRewardsData"],
 ) =>
   nodes
     .map((node) => {
       const nodeSaturationPoint = getNodeSaturationPoint(
         +node.total_stake,
-        epochRewardsData.interval.stake_saturation_point
+        epochRewardsData.interval.stake_saturation_point,
       );
 
       const cleanMoniker = DOMPurify.sanitize(node.description.moniker).replace(
         /&amp;/g,
-        "&"
+        "&",
       );
 
       return {

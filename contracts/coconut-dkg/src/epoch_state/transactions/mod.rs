@@ -1,7 +1,7 @@
 // Copyright 2022-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::epoch_state::storage::{CURRENT_EPOCH, THRESHOLD};
+use crate::epoch_state::storage::{load_current_epoch, save_epoch, THRESHOLD};
 use crate::error::ContractError;
 use crate::state::storage::DKG_ADMIN;
 use cosmwasm_std::{DepsMut, Env, MessageInfo, Response, Storage};
@@ -29,7 +29,7 @@ pub(crate) fn try_initiate_dkg(
     // only the admin is allowed to kick start the process
     DKG_ADMIN.assert_admin(deps.as_ref(), &info.sender)?;
 
-    let epoch = CURRENT_EPOCH.load(deps.storage)?;
+    let epoch = load_current_epoch(deps.storage)?;
     if !matches!(epoch.state, EpochState::WaitingInitialisation) {
         return Err(ContractError::AlreadyInitialised);
     }
@@ -37,7 +37,7 @@ pub(crate) fn try_initiate_dkg(
     // the first exchange won't involve resharing
     let initial_state = EpochState::PublicKeySubmission { resharing: false };
     let initial_epoch = Epoch::new(initial_state, 0, epoch.time_configuration, env.block.time);
-    CURRENT_EPOCH.save(deps.storage, &initial_epoch)?;
+    save_epoch(deps.storage, env.block.height, &initial_epoch)?;
 
     Ok(Response::default())
 }
@@ -49,7 +49,7 @@ pub(crate) fn try_trigger_reset(
 ) -> Result<Response, ContractError> {
     // only the admin is allowed to trigger DKG reset
     DKG_ADMIN.assert_admin(deps.as_ref(), &info.sender)?;
-    let current_epoch = CURRENT_EPOCH.load(deps.storage)?;
+    let current_epoch = load_current_epoch(deps.storage)?;
 
     // only allow reset when the DKG exchange isn't in progress
     if !current_epoch.state.is_in_progress() {
@@ -57,7 +57,7 @@ pub(crate) fn try_trigger_reset(
     }
 
     let next_epoch = current_epoch.next_reset(env.block.time);
-    CURRENT_EPOCH.save(deps.storage, &next_epoch)?;
+    save_epoch(deps.storage, env.block.height, &next_epoch)?;
 
     reset_dkg_state(deps.storage)?;
 
@@ -71,7 +71,7 @@ pub(crate) fn try_trigger_resharing(
 ) -> Result<Response, ContractError> {
     // only the admin is allowed to trigger DKG resharing
     DKG_ADMIN.assert_admin(deps.as_ref(), &info.sender)?;
-    let current_epoch = CURRENT_EPOCH.load(deps.storage)?;
+    let current_epoch = load_current_epoch(deps.storage)?;
 
     // only allow resharing when the DKG exchange isn't in progress
     if !current_epoch.state.is_in_progress() {
@@ -79,7 +79,7 @@ pub(crate) fn try_trigger_resharing(
     }
 
     let next_epoch = current_epoch.next_resharing(env.block.time);
-    CURRENT_EPOCH.save(deps.storage, &next_epoch)?;
+    save_epoch(deps.storage, env.block.height, &next_epoch)?;
 
     reset_dkg_state(deps.storage)?;
 
@@ -89,6 +89,7 @@ pub(crate) fn try_trigger_resharing(
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
+    use crate::epoch_state::storage::load_current_epoch;
     use crate::support::tests::helpers::{init_contract, ADMIN_ADDRESS};
     use cosmwasm_std::testing::{message_info, mock_env};
     use cosmwasm_std::Addr;
@@ -99,7 +100,7 @@ pub(crate) mod tests {
         let mut deps = init_contract();
         let env = mock_env();
 
-        let initial_epoch_info = CURRENT_EPOCH.load(&deps.storage).unwrap();
+        let initial_epoch_info = load_current_epoch(&deps.storage).unwrap();
         assert!(initial_epoch_info.deadline.is_none());
 
         let not_admin = deps.api.addr_make("not an admin");
@@ -125,7 +126,7 @@ pub(crate) mod tests {
         assert_eq!(ContractError::AlreadyInitialised, res);
 
         // sets the correct epoch data
-        let epoch = CURRENT_EPOCH.load(&deps.storage).unwrap();
+        let epoch = load_current_epoch(&deps.storage).unwrap();
         assert_eq!(epoch.epoch_id, 0);
         assert_eq!(
             epoch.state,

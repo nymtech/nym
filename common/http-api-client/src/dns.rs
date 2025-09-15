@@ -6,9 +6,9 @@
 //! The resolver itself is the set combination of the google, cloudflare, and quad9 endpoints
 //! supporting DoH and DoT.
 //!
-//! This resolver implements a fallback mechanism where, should the DNS-over-TLS resolution fail, a
+//! This resolver supports a fallback mechanism where, should the DNS-over-TLS resolution fail, a
 //! followup resolution will be done using the hosts configured default (e.g. `/etc/resolve.conf` on
-//! linux).
+//! linux). This is disabled by default and can be enabled using [`enable_system_fallback`].
 //!
 //! Requires the `dns-over-https-rustls`, `webpki-roots` feature for the
 //! `hickory-resolver` crate
@@ -35,10 +35,10 @@ use std::{
 };
 
 use hickory_resolver::{
-    config::{LookupIpStrategy, NameServerConfigGroup, ResolverConfig, ResolverOpts},
-    error::{ResolveError, ResolveErrorKind},
+    config::{LookupIpStrategy, NameServerConfigGroup, ResolverConfig, ServerOrderingStrategy},
     lookup_ip::{LookupIp, LookupIpIntoIter},
-    TokioAsyncResolver,
+    name_server::TokioConnectionProvider,
+    ResolveError, TokioResolver,
 };
 use once_cell::sync::OnceCell;
 use reqwest::dns::{Addrs, Name, Resolve, Resolving};
@@ -92,15 +92,15 @@ pub struct HickoryDnsResolver {
     // Since we might not have been called in the context of a
     // Tokio Runtime in initialization, so we must delay the actual
     // construction of the resolver.
-    state: Arc<OnceCell<TokioAsyncResolver>>,
-    fallback: Arc<OnceCell<TokioAsyncResolver>>,
+    state: Arc<OnceCell<TokioResolver>>,
+    fallback: Option<Arc<OnceCell<TokioResolver>>>,
     dont_use_shared: bool,
 }
 
 impl Resolve for HickoryDnsResolver {
     fn resolve(&self, name: Name) -> Resolving {
         let resolver = self.state.clone();
-        let fallback = self.fallback.clone();
+        let maybe_fallback = self.fallback.clone();
         let independent = self.dont_use_shared;
         Box::pin(async move {
             let resolver = resolver.get_or_try_init(|| {
@@ -117,26 +117,30 @@ impl Resolve for HickoryDnsResolver {
             let lookup = match resolver.lookup_ip(name.as_str()).await {
                 Ok(res) => res,
                 Err(e) => {
-                    // on failure use the fall back system configured DNS resolver
-                    match e.kind() {
-                        ResolveErrorKind::NoRecordsFound { .. } => {}
-                        _ => {
+                    if let Some(ref fallback) = maybe_fallback {
+                        // on failure use the fall back system configured DNS resolver
+                        if !e.is_no_records_found() {
                             warn!("primary DNS failed w/ error {e}: using system fallback");
                         }
+                        let resolver = fallback.get_or_try_init(|| {
+                            // using a closure here is slightly gross, but this makes sure that if the
+                            // lazy-init returns an error it can be handled by the client
+                            if independent {
+                                new_resolver_system()
+                            } else {
+                                Ok(SHARED_RESOLVER
+                                    .fallback
+                                    .as_ref()
+                                    .ok_or(e)? // if the shared resolver has no fallback return the original error
+                                    .get_or_try_init(new_resolver_system)?
+                                    .clone())
+                            }
+                        })?;
+
+                        resolver.lookup_ip(name.as_str()).await?
+                    } else {
+                        return Err(e.into());
                     }
-                    let resolver = fallback.get_or_try_init(|| {
-                        // using a closure here is slightly gross, but this makes sure that if the
-                        // lazy-init returns an error it can be handled by the client
-                        if independent {
-                            new_resolver_system()
-                        } else {
-                            Ok(SHARED_RESOLVER
-                                .fallback
-                                .get_or_try_init(new_resolver_system)?
-                                .clone())
-                        }
-                    })?;
-                    resolver.lookup_ip(name.as_str()).await?
                 }
             };
 
@@ -165,17 +169,17 @@ impl HickoryDnsResolver {
         let lookup = match resolver.lookup_ip(name).await {
             Ok(res) => res,
             Err(e) => {
-                // on failure use the fall back system configured DNS resolver
-                match e.kind() {
-                    ResolveErrorKind::NoRecordsFound { .. } => {}
-                    _ => {
+                if let Some(ref fallback) = self.fallback {
+                    // on failure use the fall back system configured DNS resolver
+                    if !e.is_no_records_found() {
                         warn!("primary DNS failed w/ error {e}: using system fallback");
                     }
+
+                    let resolver = fallback.get_or_try_init(|| self.new_resolver_system())?;
+                    resolver.lookup_ip(name).await?
+                } else {
+                    return Err(e.into());
                 }
-                let resolver = self
-                    .fallback
-                    .get_or_try_init(|| self.new_resolver_system())?;
-                resolver.lookup_ip(name).await?
             }
         };
 
@@ -190,7 +194,7 @@ impl HickoryDnsResolver {
         }
     }
 
-    fn new_resolver(&self) -> Result<TokioAsyncResolver, HickoryDnsError> {
+    fn new_resolver(&self) -> Result<TokioResolver, HickoryDnsError> {
         if self.dont_use_shared {
             new_resolver()
         } else {
@@ -198,43 +202,63 @@ impl HickoryDnsResolver {
         }
     }
 
-    fn new_resolver_system(&self) -> Result<TokioAsyncResolver, HickoryDnsError> {
-        if self.dont_use_shared {
+    fn new_resolver_system(&self) -> Result<TokioResolver, HickoryDnsError> {
+        if self.dont_use_shared || SHARED_RESOLVER.fallback.is_none() {
             new_resolver_system()
         } else {
             Ok(SHARED_RESOLVER
                 .fallback
+                .as_ref()
+                .unwrap()
                 .get_or_try_init(new_resolver_system)?
                 .clone())
         }
+    }
+
+    /// Enable fallback to the system default resolver if the primary (DoX) resolver fails
+    pub fn enable_system_fallback(&mut self) -> Result<(), HickoryDnsError> {
+        self.fallback = Some(Default::default());
+        let _ = self
+            .fallback
+            .as_ref()
+            .unwrap()
+            .get_or_try_init(new_resolver_system)?;
+        Ok(())
+    }
+
+    /// Disable fallback resolution. If the primary resolver fails the error is
+    /// returned immediately
+    pub fn disable_system_fallback(&mut self) {
+        self.fallback = None;
     }
 }
 
 /// Create a new resolver with a custom DoT based configuration. The options are overridden to look
 /// up for both IPv4 and IPv6 addresses to work with "happy eyeballs" algorithm.
-fn new_resolver() -> Result<TokioAsyncResolver, HickoryDnsError> {
+fn new_resolver() -> Result<TokioResolver, HickoryDnsError> {
     let mut name_servers = NameServerConfigGroup::quad9_tls();
     name_servers.merge(NameServerConfigGroup::quad9_https());
     name_servers.merge(NameServerConfigGroup::cloudflare_tls());
     name_servers.merge(NameServerConfigGroup::cloudflare_https());
 
     let config = ResolverConfig::from_parts(None, Vec::new(), name_servers);
+    let mut resolver_builder =
+        TokioResolver::builder_with_config(config, TokioConnectionProvider::default());
 
-    let mut opts = ResolverOpts::default();
-    opts.ip_strategy = LookupIpStrategy::Ipv4AndIpv6;
-    // Would like to enable this when 0.25 stabilizes
-    // opts.server_ordering_strategy = ServerOrderingStrategy::RoundRobin;
+    resolver_builder.options_mut().ip_strategy = LookupIpStrategy::Ipv4AndIpv6;
+    resolver_builder.options_mut().server_ordering_strategy = ServerOrderingStrategy::RoundRobin;
 
-    Ok(TokioAsyncResolver::tokio(config, opts))
+    Ok(resolver_builder.build())
 }
 
 /// Create a new resolver with the default configuration, which reads from the system DNS config
 /// (i.e. `/etc/resolve.conf` in unix). The options are overridden to look up for both IPv4 and IPv6
 /// addresses to work with "happy eyeballs" algorithm.
-fn new_resolver_system() -> Result<TokioAsyncResolver, HickoryDnsError> {
-    let (config, mut opts) = hickory_resolver::system_conf::read_system_conf()?;
-    opts.ip_strategy = LookupIpStrategy::Ipv4AndIpv6;
-    Ok(TokioAsyncResolver::tokio(config, opts))
+fn new_resolver_system() -> Result<TokioResolver, HickoryDnsError> {
+    let mut resolver_builder = TokioResolver::builder_tokio()?;
+    resolver_builder.options_mut().ip_strategy = LookupIpStrategy::Ipv4AndIpv6;
+
+    Ok(resolver_builder.build())
 }
 
 #[cfg(test)]

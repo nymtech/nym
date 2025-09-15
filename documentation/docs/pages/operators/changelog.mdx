@@ -39,6 +39,8 @@ export const LoadEndpointInfo = () => (
   </div>
 );
 
+{/*
+
 # Changelog
 
 This page displays a full list of all the changes during our release cycle from `v2024.3-eclipse` onward. Operators can find here the newest updates together with links to relevant documentation. The list is sorted so that the newest changes appear first.
@@ -46,6 +48,567 @@ This page displays a full list of all the changes during our release cycle from 
 **Note:** Any information published on this page was up to date at the time of writing. We do *not* maintain changelog retrospectively.
 
 <VarInfo />
+
+## `v2025.15-gruyere`
+
+- [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.15-gruyere)
+- [`nym-node`](nodes/nym-node.mdx) version `1.17.0`
+
+```sh
+nym-node
+Binary Name:        nym-node
+Build Timestamp:    2025-08-20T10:37:05.965300480Z
+Build Version:      1.17.0
+Commit SHA:         40e1cbc7a9f518eafbb5649c383626b096dd167d
+Commit Date:        2025-08-20T12:34:04.000000000+02:00
+Commit Branch:      HEAD
+rustc Version:      1.86.0
+rustc Channel:      stable
+cargo Profile:      release
+```
+
+### Operators Updates & Tools
+
+- [**NIP-3: Nym Exit Policy Update**](https://forum.nym.com/t/nip-3-nym-exit-policy-update/1462/2) resulted by operators [governance](https://governator.nym.com/proposal/prop-d0c0d398-43bd-4a6f-b008-1921b64ae4ed) is implemented.
+
+- If you operate a node routing wireguard, please re-run [these steps](nodes/nym-node/configuration#wireguard-exit-policy-configuration) to update your wireguard exit policy through IP tables rules.
+
+- [**NIP-2: Changing stake saturation**](https://governator.nym.com/proposal/prop-8dfa4a28-55b1-45a5-968f-f2897c2670df) will be implemented soon, with that we are going to adjust rules of Delegation Program. **Join [Community call ](https://www.youtube.com/watch?v=KaO6-WLWzMo) on Thursday August 21st, 14:00UTC** to find out more info.
+
+### Features
+
+- [Remove old free credential handle](https://github.com/nymtech/nym/pull/5864): And create some traits for unit testing purposes.
+
+- [Ecash liveness check](https://github.com/nymtech/nym/pull/5890)
+
+- [Basic zulip client for sending messages](https://github.com/nymtech/nym/pull/5913): In order to be able to send zulip notifications about *emergency* upgrade mode being activated, we need some sort of client. Unfortunately there isn't any rust library that's maintained (the only one had last commit 4 years ago). This simple thing now currently only supports message sending 
+
+- [`nym-node` debug command to reset providers db](https://github.com/nymtech/nym/pull/5914)
+
+- [Make DNS Resolver fallback optional](https://github.com/nymtech/nym/pull/5920): Default to no dns system fallback, but keep support in the custom hickory dns resolver used for resolving internal domains.
+
+- [WG exit policy scripts update](https://github.com/nymtech/nym/pull/5921): This PR modifies the scripts `wireguard-exit-policy-manager.sh` and `exit-policy-tests.sh` supporting operators to easily configure and test their IP tables rules in order to have same exit policy for WG as the one for NR, adding the ports decided to be enabled in [NIP-3](https://governator.nym.com/proposal/prop-d0c0d398-43bd-4a6f-b008-1921b64ae4ed) protocol upgrade.
+
+### Refactors & Maintenance
+
+- [Allow compatibility with 'CDLA-Permissive-2.0'](https://github.com/nymtech/nym/pull/5910): This license is present in the included `webpki-roots` 
+
+- [Migrate strum to `0.27.2`](https://github.com/nymtech/nym/pull/5960): This PR migrates strum to the latest. Notably all macros' were moved into `strum_macros`. The rest stays the same.
+
+*/}
+
+## `v2025.14-feta`
+
+- [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.14-feta)
+- [`nym-node`](nodes/nym-node.mdx) version `1.16.0`
+
+```sh
+nym-node
+Binary Name:        nym-node
+Build Timestamp:    2025-08-05T09:14:30.322593213Z
+Build Version:      1.16.0
+Commit SHA:         7f97f13799342f864e1b106e8cafc9f6d6c24c0f
+Commit Date:        2025-07-24T11:00:58.000000000+01:00
+Commit Branch:      HEAD
+rustc Version:      1.86.0
+rustc Channel:      stable
+cargo Profile:      release
+```
+
+### Operators Updates & Tools
+
+-  Stark Industries is on a sanction list by EU. IP addresses managed by Stark Ind. and their subsidies (ASN 44477 / ASN 33993) had been put on [spamhaus.org](http://spamhaus.org/) [list](https://www.spamhaus.org/drop/asndrop.json). The effect on NymVPN user experience is that Exit Gateways IPs hosted on Stark Ind. are seen as a spam proxies by many online services.  
+
+- We ask operators - especially Exit Gateways - to consider moving to another ISP. Visit an updated [ISP list](community-counsel/isp-list) and feel free to add more providers, following [these steps](community-counsel/add-content). 
+
+### Features
+
+- [Allow PG database backend](https://github.com/nymtech/nym/pull/5880):
+    - Added PostgreSQL database support alongside existing SQLite through Cargo feature flags
+    - Implemented runtime query conversion from SQLite `?` placeholders to PostgreSQL `$1`, `$2`, ... format
+    - Single codebase now supports both databases without query duplication
+
+- [Support mnemonic in the NS agent](https://github.com/nymtech/nym/pull/5883)
+
+- [`sqlx-pool-guard`: allocate more memory on windows](https://github.com/nymtech/nym/pull/5896):
+    - Allocate 1.5x more memory than reported by the system to provide a safety margin
+    - Increase number of retry attempts to 5
+    
+
+- [dkg epoch dealers query](https://github.com/nymtech/nym/pull/5899)
+
+- [dkg snapshot epoch](https://github.com/nymtech/nym/pull/5900): In order to determine if signer quorum has been down at particular height, we need to know with certainty the dkg epoch id corresponding to given block height. This PR makes it possible. Every time epoch state is changed (due to DKG progress), snapshot is saved and can be queried. This doesn't work for past data, but given mainnet has only had a single DKG instance, that's not an issue.
+
+- [`sqlx-pool-guard`: obtain filename from connect options](https://github.com/nymtech/nym/pull/5905): 
+
+### Refactors & Maintenance
+
+- [Nym node tokio console](https://github.com/nymtech/nym/pull/5909)
+
+## `v2025.13-emmental`
+
+- [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.13-emmental)
+- [`nym-node`](nodes/nym-node.mdx) version `1.15.0`
+
+```sh
+nym-node
+Binary Name:        nym-node
+Build Timestamp:    2025-07-22T09:24:35.790560275Z
+Build Version:      1.15.0
+Commit SHA:         578c9b0567656d86812aa21eb0b4c93b5a7235bd
+Commit Date:        2025-07-22T11:09:35.000000000+02:00
+Commit Branch:      HEAD
+rustc Version:      1.86.0
+rustc Channel:      stable
+cargo Profile:      release
+```
+
+### Operators Updates & Tools
+
+- [**NIP-3: Nym Exit Policy Update**](https://forum.nym.com/t/nip-3-nym-exit-policy-update/1462/2) is out - **VOTE [HERE](https://governator.nym.com/proposal/prop-d0c0d398-43bd-4a6f-b008-1921b64ae4ed)!**
+
+- `nym-node` can only run one `--mode` at a time. Multiple mode nodes will fail to start.
+
+### Features
+
+- [Initial performance contract](https://github.com/nymtech/nym/pull/5833): Introduces the foundational structure of the performance contract. Not yet integrated into any system.
+
+- [Basic performance contract integration within Nym API](https://github.com/nymtech/nym/pull/5871): Integrates the performance contract into `nym-api`, enabling node score source selection from the contract (disabled by default).
+
+- [Forbid running `mixnode` + `entry-gateway` on the same node](https://github.com/nymtech/nym/pull/5878): Prevents configuration of `mixnode` and `entry-gateway` node on the same host.
+
+- [HTTP Discovery objects & network defaults](https://github.com/nymtech/nym/pull/5814): Adds config options for expanded API URLs via discovery environment objects.
+
+- [Add build info endpoints](https://github.com/nymtech/nym/pull/5857)
+
+- [Batch SQL writes for packet stats](https://github.com/nymtech/nym/pull/5874)
+
+- [Update push-node-status-agent.yaml](https://github.com/nymtech/nym/pull/5882): Adds input for setting release tag and prefixes image tag with `golden-`.
+
+- [Make Mix hops optional for Mixnet Client SURBs](https://github.com/nymtech/nym/pull/5861): Allows SURBs to be configured to only use gateways in the mixnet return path.
+
+- [Check gateway supported versions](https://github.com/nymtech/nym/pull/5860)
+
+- [Clear out screaming logs](https://github.com/nymtech/nym/pull/5856): Removes unnecessary alarming log messages.
+
+- [Use display when printing paths](https://github.com/nymtech/nym/pull/5853): Uses Rust’s `display()` method for better path output.
+
+- [Remove old explorer references](https://github.com/nymtech/nym/pull/5846)
+
+- [Listen for shutdown signals during nym-node startup](https://github.com/nymtech/nym/pull/5879): This is to avoid situation where the process can't be killed without 'kill -9' because the logic to listen to shutdown signals hasn't been hit yet 
+
+### Bugfixes
+
+- [Don't allow mixnode running in exit mode](https://github.com/nymtech/nym/pull/5898)
+
+- [Fix contract build process in Makefile](https://github.com/nymtech/nym/pull/5892)
+
+- [Ignore 'Send' responses when claiming bandwidth](https://github.com/nymtech/nym/pull/5884)
+
+- [Fix the broken link](https://github.com/nymtech/nym/pull/5873)
+
+- [Scraper bugfix: ignore precommits from missing validators](https://github.com/nymtech/nym/pull/5867)
+
+- [Fix removal of qa env](https://github.com/nymtech/nym/pull/5855)
+
+- [Return true remaining](https://github.com/nymtech/nym/pull/5866)
+
+### Refactors & Maintenance
+
+- [chore: 1.88 clippy](https://github.com/nymtech/nym/pull/5877): Applies clippy fixes based on recent compiler version update.
+
+- [Security patches for the `dkg` crate](https://github.com/nymtech/nym/pull/5828): Addresses overflows, unsafe RNGs, and integrity checks as per Cryspen audit.
+
+
+## `v2025.12-dolcelatte`
+
+- [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.12-dolcelatte)
+- [`nym-node`](nodes/nym-node.mdx) version `1.14.0`
+
+```sh
+nym-node
+Binary Name:        nym-node
+Build Timestamp:    2025-07-09T12:50:32.123212812Z
+Build Version:      1.14.0
+Commit SHA:         089c47cce70ef8ea5ecfe3d00b52e510d006e120
+Commit Date:        2025-07-07T15:44:15.000000000+02:00
+Commit Branch:      HEAD
+rustc Version:      1.86.0
+rustc Channel:      stable
+cargo Profile:      release
+```
+
+### Operators Updates & Tools
+
+- **[Nym Governator](https://governator.nym.com) is out!** Make sure to check out this new operators governance tool and vote on:
+    - [**NIP-1:** Proposing NIP as process to propose and log changes to the Nym network](https://governator.nym.com/proposal/prop-9719838a-e86d-4227-8141-dfd5c651ed92)
+    - [**NIP-2:** Change stake saturation and active set to improve network decentralisation and efficiency](https://governator.nym.com/proposal/prop-8dfa4a28-55b1-45a5-968f-f2897c2670df)
+
+### Features
+
+- [Nympool contract](https://github.com/nymtech/nym/pull/5464): This is the first iteration of the nympool contract. It's currently **not yet** integrated with the mixnet contract.
+
+- [Noise XKpsk3 integration (2025 version)](https://github.com/nymtech/nym/pull/5692)
+
+- [Key rotation](https://github.com/nymtech/nym/pull/5777)
+
+- [HTTP Client Retries, Fallbacks, and Redirects](https://github.com/nymtech/nym/pull/5789)
+
+- [Close sqlite pool before moving or reopening databases](https://github.com/nymtech/nym/pull/5796): Our sqlite db recovery and backup strategies don't work on Windows because the OS prevents moving the already open file. This PR attempts to address this and in principle it attempts to close all connections to the database and ensure that sqlx relinquishes the access to db file(s). Short summary of what this PR introduces:
+
+  1. Close sqlx connection pools in order to close/release the db file
+  2. Poll until there are no more db file descriptors left open.
+
+- [Replace chrono with time in NS API](https://github.com/nymtech/nym/pull/5811)
+
+- [Use the same client bandwidth for top up](https://github.com/nymtech/nym/pull/5813)
+
+- [ Node status dvpn directory](https://github.com/nymtech/nym/pull/5829)
+
+- [Removing test-net faucet](https://github.com/nymtech/nym/pull/5840)
+
+- [Amended the buy section](https://github.com/nymtech/nym/pull/5841): Change the wallet to include the buy options for NYM
+
+- [Remove bity dir](https://github.com/nymtech/nym/pull/5844)
+
+- [Remove not used old `mock-api`](https://github.com/nymtech/nym/pull/5845)
+
+- [Remove qa env](https://github.com/nymtech/nym/pull/5847)
+
+- [Remove/old env references](https://github.com/nymtech/nym/pull/5848)
+
+- [Updated browser extension piece removal](https://github.com/nymtech/nym/pull/5849): Keep all the `internal-dev wasm` pieces as future examples
+  - everything previously was going to be removed
+  - shows functioning `wasm` interaction with the `js`
+
+### Bugfix
+
+- [Fixed typo in API endpoint parameter](https://github.com/nymtech/nym/pull/5449)
+
+- [Adjust heuristic for wireguard peer activity](https://github.com/nymtech/nym/pull/5818)
+
+- [Url scheme warning log](https://github.com/nymtech/nym/pull/5819): Fix conditions for logging about url scheme. Warns only if the provided urls are not HTTP or HTTPS, as intended.
+
+- [Bug Fix for Wallet build](https://github.com/nymtech/nym/pull/5820): Revert url used for `connection-tester` to default `url::Url`.
+
+- [Fix swapped total and circulating supplies](https://github.com/nymtech/nym/pull/5822)
+
+- [Fixed client route for obtaining v2 list of gateways](https://github.com/nymtech/nym/pull/5859)
+
+- [Allow gateways to permit authentication from v4 clients](https://github.com/nymtech/nym/pull/5862)
+
+- [Backwards compat](https://github.com/nymtech/nym/pull/5865)
+
+## `v2025.11-cheddar`
+
+- [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.11-cheddar)
+- [`nym-node`](nodes/nym-node.mdx) version `1.13.0`
+
+```sh
+nym-node
+Binary Name:        nym-node
+Build Timestamp:    2025-06-10T09:41:31.291089877Z
+Build Version:      1.13.0
+Commit SHA:         ef220882d4bcf0a8a703ea62f9273e017c9ebb51
+Commit Date:        2025-06-10T11:39:20.000000000+02:00
+Commit Branch:      HEAD
+rustc Version:      1.86.0
+rustc Channel:      stable
+cargo Profile:      release
+```
+### Operators Updates & Tools
+
+- **Nym Improvement Proposals**: NIPs are being introduced, allowing us to propose changes to the Nym network and ecosystem, and decentralise governance
+- **NIP1** will outline the governance process: Its draft will be published soon for discussion
+- **NIP2** will be about reducing the stake saturation point variable, which would make reward distribution across the network more equitable
+- **Join the Operator AMA next Tuesday** for an in-depth overview of what this all means (feat Nym Chief Scientist Claudia Diaz)
+- Keep an eye on our channels for information about how to participate in the upcoming voting (no need for forum registration, we are building something new!)
+
+### Features
+
+- [Track wireguard credential retries](https://github.com/nymtech/nym/pull/5783)
+
+- [Swap a decode into a `fromrow` to please future `postgres` feature](https://github.com/nymtech/nym/pull/5785): This PR change a sqlx derive from `Decode` to `FromRow` because a future PR will bring the `postgres` feature and it doesn't like that `Decode` there
+
+- [Fix contains ticketbook function that always returned true](https://github.com/nymtech/nym/pull/5787)
+
+- [QoL: `RequestPath` trait for `http-api-client`](https://github.com/nymtech/nym/pull/5788): Those `PathSegments` in `ApiClient` weren't very user-friendly. Instead we've defined a `RequestPath` trait that allows you to also pass a good old `&str` or `String` and internally it does exactly the same sanitization as before. `PathSegments` are also fully supported to not break any existing compatibility.
+
+- [Nym Statistics API](https://github.com/nymtech/nym/pull/5800):
+    - Types for `nym-vpn-client`: It introduces `VpnClientStatsReport` which will be used by nym vpn clients to report statistics. Those types are in the monorepo because they're used by the `num-statistics-API`
+    - Nym Statistics API: Basically a `REST API` with a `postgres` backend. In this first iteration, it only accepts `VpnClientStatsReport` and stores them in its database. It optionally connects to the Nym API to confirm reports are coming from the network and attach country code to them if it's the case (exit node country code).
+
+- [Resolve 1.87 clippy warnings](https://github.com/nymtech/nym/pull/5802)
+
+- [Adjusted wallet storybook mocks to fix the build](https://github.com/nymtech/nym/pull/5804)
+
+- [Set cached storage counters to 0](https://github.com/nymtech/nym/pull/5812)
+
+- [No autoremoval of peers](https://github.com/nymtech/nym/pull/5831)
+
+## `v2025.10-brie`
+
+- [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.10-brie)
+- [`nym-node`](nodes/nym-node.mdx) version `1.12.0`
+
+```sh
+nym-node
+Binary Name:        nym-node
+Build Timestamp:    2025-05-27T10:13:18.511075453Z
+Build Version:      1.12.0
+Commit SHA:         1c6db86259d08d80e8bcfbc4fcc71ccb147fcfd0
+Commit Date:        2025-05-27T12:11:13.000000000+02:00
+Commit Branch:      HEAD
+rustc Version:      1.86.0
+rustc Channel:      stable
+cargo Profile:      release
+```
+
+### Operators Updates & Tools
+
+- [**Reward calculator**](tokenomics/mixnet-rewards#rewards-logic--calculation): A quick app to calculate rewards for any node included in the Mixnet active set
+- **Backup your nodes: Stark Industries Solutions and its subsidy PQ.Hosting were added to EU's sanction list**. Everyone running a node on PQ or Stark in Europe should get additional service free of charge and back up their node there.
+- **We recommend operators using Stark Industries Solutions and PQ.Hosting to start looking for alternatives.** Here are some useful pages:
+  - [Backup a node](nodes/maintenance#backup-a-node)
+  - [Backup proxy conf](nodes/maintenance#backup-proxy-configuration)
+  - [Restore a node](nodes/maintenance#restoring-a-node)
+  - [Restore proxy conf](nodes/maintenance#restoring-proxy-configuration)
+  - [Move a node](nodes/maintenance#moving-a-node)
+
+-  **Nym Squad League (NSL) now supports monthly payments.** Report your monthly contributions before the end of the week (May 30, Friday) to get your tokens next week. Alternatively, you can report everything all at once at the end Spring Season (Deadline: Wednesday, June 18). Read more about NSL at [forum.nym.com](https://forum.nym.com/).
+
+### Features
+
+- [`RememberMe` is the new don't `ForgetMe`](https://github.com/nymtech/nym/pull/5742): Sessions stats collected from gateway proved themselves to be incredibly noisy. In an effort to reduce the noise, `ForgetMe` was introduced at the end of sessions to prompt gateways to forget a specific session. This flag helped reduce the amount of noise, but alone it's not enough (e.g. `ForgetMe` can't be sent by non-sdk client). Therefore we're turning the whole thing and around and introducing a `RememberMe` flag, to prompt the gateways to actually remember said session. Read more in the [dev description of the PR](https://github.com/nymtech/nym/pull/5742).
+
+- [Remove old test directory - Update validator docker](https://github.com/nymtech/nym/pull/5743): The docker directory was extremely old - replaced it with a validator start up with docker compose
+
+- [`nym-api` `bincode` and `yaml` support](https://github.com/nymtech/nym/pull/5745): Support for `nym-api` to return responses as either `bincode` or `yaml` (on top of existing, default, `json`). Furthermore, initial client support for nodes-related queries is introduced. further endpoints can be enhanced by simply pushing `("output", "bincode")` params. Here is the sample response size difference when using `json` vs `bincode` (with and without `gzip` enabled on top of it):
+
+| Endpoint                                            | `json`    | `json` + `gzip` | `bincode` | `bincode` + `gzip` |
+| --------------------------------------------------- | ------- | ----------- | ------- | -------------- |
+| `/v1/nym-nodes/described`                           | 882,684 | 204,265     | 437,204 | 192,752        |
+| `/v1/unstable/nym-nodes/skimmed/entry-gateways/all` | 116,268 | 27,991      | 39,755  | 25,589         |
+| `/v1/unstable/nym-nodes/skimmed/mixnodes/active`    | 44,646  | 11,371      | 14,021  | 10,235         |
+| `/v1/ecash/aggregated-coin-indices-signatures`      | 11,669  | 6,037       | 4,952   | 4,980          |
+| `/v1/network/chain-status`                          | 1,523   | 828         | 1,004   | 585            |
+| `/v1/nym-nodes/rewarded-set`                        | 1,221   | 616         | 679     | 529            |
+
+- [Decrease default average packet delay to 15 ms](https://github.com/nymtech/nym/pull/5754)
+
+- [Expires header for `/active` `nym-api` responses](https://github.com/nymtech/nym/pull/5755)
+
+- [Raw route submissions](https://github.com/nymtech/nym/pull/5756)
+
+- [Add `node_bonded` field to delegations](https://github.com/nymtech/nym/pull/5759): Clarifies whether the delegation is to a bonded or un-bonded node and include delegations to unbonded nodes in the returned list
+
+- [Instrument `create_request`](https://github.com/nymtech/nym/pull/5760): In the `vpn-api` client we create requests directly, so let's instrument them as well as the currently instrumented top-level function `get_json` doesn't capture that
+
+- [Use bincode by default in NymApiClient + remove feature-lock](https://github.com/nymtech/nym/pull/5761)
+
+- [Fetch the topology from the `nym-api` concurrently](https://github.com/nymtech/nym/pull/5767): When fetching the topology from the `nym-api`, multiple `GET` are done. We can do these concurrently as a simple way to speed things up. Some basic testing locally shows about 30% less time for the mixnet client to connect.
+
+- [Skip refreshing the topology on startup as we already have an initial set](https://github.com/nymtech/nym/pull/5768)
+
+- [Teach `HttpClientError` how to report its status code and timeout](https://github.com/nymtech/nym/pull/5770): Provide two delegated methods so that we don't have to use `reqwest` in the vpn client repo to access this information
+
+- [Expanded `Accept Encoding` for `reqwest`](https://github.com/nymtech/nym/pull/5779): The accept encoding that we are sending has a logic fallacy in that it is supposed to prefer `gzip`, and fall back to plaintext. What it actually requests is `gzip`, but if that isn't available, anything else is fine. This is an issue because some cloud cached API endpoints are optimistic about support for `br` and the `reqwest` client isn't  actually configured to handle decompressing that so it returns the still encoded value to the calling application instead of the expected json. Enable support for more content encoding types through `reqwest`. This gives the server side more flexibility, which it seems to want, and we now only request the specific `content-encodings` that we will definitely be able to parse. Applications using the api client should no longer receive data still encoded as `reqwest` should manage decompressing it for us.
+
+### Bugfix
+
+- [Fix parallel feature in ecash crate with `Send + Sync`](https://github.com/nymtech/nym/pull/5744): In the current state, the `nym-compact-ecash` crate doesn't compile with the feature flag `par_verify` and `par_signing` because generic type `B` is not `Send + Sync` and so `par_iter` can't be called on it.
+
+- [Downgrade deranged crate to `0.4.0`](https://github.com/nymtech/nym/pull/5746): Downgrade the crate `deranged` from `0.4.1` to `0.4.0`, as `0.4.1` was yanked
+ and is flagged by `cargo audit`
+
+- [Upgrade prometheus crate to fix security warning](https://github.com/nymtech/nym/pull/5747): Upgrade the `prometheus` crate to bump the version of the `protobuf`
+ crate, which is flagged by `cargo audit` as having a security issue:
+
+```bash
+ Crate:     protobuf
+ Version:   2.28.0
+ Title:     Crash due to uncontrolled recursion in protobuf crate
+ Date:      2024-12-12
+ ID:        RUSTSEC-2024-0437
+ URL:       https://rustsec.org/advisories/RUSTSEC-2024-0437
+ Solution:  Upgrade to >=3.7.2
+ Dependency tree:
+ protobuf 2.28.0
+ └── prometheus 0.13.4
+```
+- [Update `pretty_env_logger` to latest to not depend on unmaintained crate atty](https://github.com/nymtech/nym/pull/5748): The crate `atty` is flagged to be unmaintained and also having some security issues.
+
+- [Remove `pretty_env_logger` and switch remaining crates to use tracing](https://github.com/nymtech/nym/pull/5749)
+
+## `v2025.9-appenzeller`
+
+- [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.9-appenzeller)
+- [`nym-node`](nodes/nym-node.mdx) version `1.11.0`
+
+```shell
+nym-node
+Binary Name:        nym-node
+Build Timestamp:    2025-05-13T14:48:01.050934949Z
+Build Version:      1.11.0
+Commit SHA:         3f6acbfd6658cb8ada8db218ba037c3c2b744b9d
+Commit Date:        2025-05-13T11:42:50.000000000+02:00
+Commit Branch:      HEAD
+rustc Version:      1.86.0
+rustc Channel:      stable
+cargo Profile:      release
+```
+
+### Operators Updates & Tools
+
+- [Reward page updated](tokenomics/mixnet-rewards#rewards-logic--calculation) with [detailed explanation of rewards calculation](tokenomics/mixnet-rewards#rewards-calculation)
+- [Nym Explorer v2 upgraded](https://nym.com/explorer) with new search, interactive map and advanced filters
+
+### Features
+
+- [Add contains ticketbook data db query](https://github.com/nymtech/nym/pull/5670)
+- [Add `/account/{address}`](https://github.com/nymtech/nym/pull/5673): Meant to replace `https://explorer.nymtech.net/api/v1/tmp/unstable/account/{address}` for Explorer v2
+
+### Bugfix
+
+- [Use node saturation instead of its stake for selection weight](https://github.com/nymtech/nym/pull/5717)
+
+## `v2025.8-tourist`
+
+- [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.8-tourist)
+- [`nym-node`](nodes/nym-node.mdx) version `1.10.0`
+
+```shell
+nym-node
+Binary Name:        nym-node
+Build Timestamp:    2025-04-29T11:36:50.614557168Z
+Build Version:      1.10.0
+Commit SHA:         e594630314d4676cbe9bba9ab07bd405a9cf679a
+Commit Date:        2025-04-29T12:19:54.000000000+02:00
+Commit Branch:      HEAD
+rustc Version:      1.86.0
+rustc Channel:      stable
+cargo Profile:      release
+```
+### Operators Updates & Tools
+
+- [New Nym wallet](https://github.com/nymtech/nym/releases/tag/nym-wallet-v1.2.18) is out: Release version `1.2.18`
+
+**Documentation Updates**
+
+- [Tokenomics page](tokenomics.mdx) updated
+- [Node operators rewards page](tokenomics/mixnet-rewards.mdx) updated with new parts added:
+    - [Node performance calculation](tokenomics/mixnet-rewards#node-performance-calculation)
+    - [Stake saturation calculation](tokenomics/mixnet-rewards#stake-saturation)
+    - [Rewards calculation](tokenomics/mixnet-rewards#rewards-calculation)
+    - [Rewards distribution](tokenomics/mixnet-rewards#rewards-distribution)
+
+### Features
+
+- [Adding fresh nym-api tests and workflow](https://github.com/nymtech/nym/pull/5659)
+
+- [Replay protection](https://github.com/nymtech/nym/pull/5682): Introduces replay detection into a `nym-node`. Currently it uses a bloomfilter that's reset every 25h. In the future this will be controlled by the key rotation. The bloomfilter is also periodically flushed to disk in order to be able to recover from a crash/shutdown.
+
+- [Tauri V2 - Wallet Migration](https://github.com/nymtech/nym/pull/5687):
+  - The core of the lifting was done via the migrate command
+  - A lot of API's changed
+  - Improved styling
+  - Pipelines are fixed for all platforms
+
+- [Make mix hops optional for Mixnet Client](https://github.com/nymtech/nym/pull/5696): As is the route selection for packets, reply SURBs, and acknowledgements are selected deep withing the `MixnetClient` machinery. This makes custom route selection (i.e. for authenticating / registering wiregaurd mode vpn clients) is not supported. This PR adds configuration toggle that allows `MixnetClient` to be built where packets are sent direct through entry to Exit Gateway nodes -- no mix hops.
+
+- [Bump the `nym-vpn deb` metapackage to `1.0`](https://github.com/nymtech/nym/pull/5697)
+
+- [Updated sphinx payload keys](https://github.com/nymtech/nym/pull/5698): This PR uses the new version of the `sphinx-packet` that allows us to derive payload encryption keys from the seed rather than having to attach the keys themselves. In practice each reply surb is now ~60% smaller. However, currently all of those functionalities are **DISABLED** by default. It is because it required nodes to actually understand the new scheme. it shouldn't be enabled until sufficient number of nodes, particularly mixnodes, had upgraded.
+
+- [Allow copy and paste on logins fields for the wallet](https://github.com/nymtech/nym/pull/5699): Allow shell open for url links (some platforms it's not working as expected)
+
+- [Removed old explorer-api](https://github.com/nymtech/nym/pull/5701)
+
+- [Peer handle should die more gracefully](https://github.com/nymtech/nym/pull/5704)
+
+- [Update `hickory` DNS `0.24.4` to `0.25`](https://github.com/nymtech/nym/pull/5709): Update the dependency on `hickory` DNS to the latest minor version
+
+- [Remove inactive peers](https://github.com/nymtech/nym/pull/5721)
+
+- [Add reserved byte to reply surb serialisation](https://github.com/nymtech/nym/pull/5731)
+
+
+## `v2025.7-tex`
+
+- [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.7-tex)
+- [`nym-node`](nodes/nym-node.mdx) version `1.9.0`
+
+```shell
+nym-node
+Binary Name:        nym-node
+Build Timestamp:    2025-04-15T14:36:52.729991996Z
+Build Version:      1.9.0
+Commit SHA:         08b6be93c49e8c225e74ffabb5529493bd4b13b6
+Commit Date:        2025-04-15T15:29:46.000000000+02:00
+Commit Branch:      HEAD
+rustc Version:      1.86.0
+rustc Channel:      stable
+cargo Profile:      release
+```
+
+### Operators Updates & Tools
+
+- **[Nym release binaries](https://github.com/nymtech/nym/releases) no longer work on distributions Debian bullseye/sid (11) / Ubuntu 20.04 LTS and older! Please upgrade your sever to Debian bookworm (Debian 12) / Ubuntu 22.04 (and newer)!** Alternatively compile the binaries from source.
+
+- The Nym Squad League Winter Season has concluded. Changes are coming to NSL, including the new NSL council, monthly payments for contributions, revamped reports, and more. Details available in the [Winter Season report](https://forum.nym.com/t/nym-squad-league-winter-season-report/1265).
+
+- [New scripts to inititialise and configure multiple VMs](nodes/preliminary-steps/vps-setup/advanced#setting-up-virtual-machines): KVM setup for virtualising nodes proved to be a good approach for admins orchestrating multiple nodes on a dedicated or bare metal machines. Now there is an option of running bash scripts speeding up the process of VM initialisation and configuration, while leaving some flexibility via interactive prompts.
+
+### Features
+
+- [Move all workflows on ubuntu-20 to ubuntu-22](https://github.com/nymtech/nym/pull/5455): Ubuntu 20.04 runners are scheduled to be removed from set of github hosted runners. Now is as good a time as any to finally take the plunge to switch away from ubuntu-20.04 to the shiny oh so modern ubuntu-22.04 runners
+
+- [Bump `elliptic` from `6.5.5` to `6.6.1`](https://github.com/nymtech/nym/pull/5483): Bumps [`elliptic`](https://github.com/indutny/elliptic)
+
+- [Bump `blake3` from `1.6.1` to `1.7.0`](https://github.com/nymtech/nym/pull/5658): Bumps [`blake3`](https://github.com/BLAKE3-team/BLAKE3)
+
+- [Mix throughput tester](https://github.com/nymtech/nym/pull/5661): A utility to measure mixing throughput of a node. Especially since there are some design choices with non-obvious performance penalties. For example 1 bloomfilter per connection vs 1 global bloomfilter with additional locking for replay protection.
+
+- [Update log crate](https://github.com/nymtech/nym/pull/5667): Update `log crate` to latest, fix `format_in_format_args`, fix `to_string_in_format_args`
+
+- [Bump the patch-updates group across 1 directory with 7 updates](https://github.com/nymtech/nym/pull/5668):
+
+| Package | From | To |
+| --- | --- | --- |
+| [`clap`](https://github.com/clap-rs/clap) | `4.5.32` | `4.5.34` |
+| [`clap_complete`](https://github.com/clap-rs/clap) | `4.5.46` | `4.5.47` |
+| [`once_cell`](https://github.com/matklad/once_cell) | `1.21.1` | `1.21.3` |
+| [`reqwest`](https://github.com/seanmonstar/reqwest) | `0.12.4` | `0.12.15` |
+| [`tempfile`](https://github.com/Stebalien/tempfile) | `3.19.0` | `3.19.1` |
+| [`time`](https://github.com/time-rs/time) | `0.3.39` | `0.3.41` |
+| [`uniffi`](https://github.com/mozilla/uniffi-rs) | `0.29.0` | `0.29.1` |
+
+- [Improve explorer caching](https://github.com/nymtech/nym/pull/5669): Fix:
+    - `tanstack` caching
+    - graphs data bug
+    - "auto" gas fee for redeem rewards
+
+- [Update node versions in CI](https://github.com/nymtech/nym/pull/5677)
+
+- [Bash scripts to init and configure VMs conveniently and update docs](https://github.com/nymtech/nym/pull/5681): KVM setup for virtualising nodes proved to be a good approach for admins orchestrating multiple nodes on a dedicated/bare machines. This PR adds an option of running bash scripts speeding up the process of VM initialisation and configuration, while leaving some flexibility to the users via interactive prompts.
+    - Script to initialise new VM on host machine and prompting user for needed vars
+    - Script to config the VM from within and prompting user for needed vars
+    - Documentation of the above
+    - Lift headers so the main chapters come out in the side menu for easier navigation
+
+- [`clippy` for `1.86`](https://github.com/nymtech/nym/pull/5685)
+
+- [Expand `/v3/nym-nodes` with geodata](https://github.com/nymtech/nym/pull/5686): Includes node description and geodata.
+
+### Bugfix
+
+- [Minor fixes involving key cloning and hashing](https://github.com/nymtech/nym/pull/5664): Adds fixes for several minor key related issues:
+    - Copying a private keys to perform a DH
+    - Perform DH against the reference to the static key to prevent memory copy of secret key material
+    - Hashing an `x25519` public key without first converting to a canonical representation
+    - Use derived `Hash` implementation which internally [converts to a canonical representation](https://github.com/dalek-cryptography/curve25519-dalek/blob/fbf1fb5339b22eaf9925e520c90f1821f79ef5db/curve25519-dalek/src/montgomery.rs#L103) before hashing
+
+- [Fix the mac build of the wallet](https://github.com/nymtech/nym/pull/5684)
 
 ## `v2025.6-chuckles`
 
@@ -71,11 +634,11 @@ cargo Profile:      release
 
 - [**Nym Explorer v2.1.0**](https://nym.com/explorer) is out as a beta release
 
-- Since last release [**Wireguard exit policy is out!**](nodes/nym-node/configuration#wireguard-exit-policy-configuration). Make sure to apply it on the servers hosting `nym-node` in `exit-gateway` mode. 
+- Since last release [**Wireguard exit policy is out!**](nodes/nym-node/configuration#wireguard-exit-policy-configuration). Make sure to apply it on the servers hosting `nym-node` in `exit-gateway` mode.
 
 #### Community Tools
 
-Nym operators are coming with diverse backgrounds. While for some running a `nym-node` is an introduction to sys-administration, others are well seasoned builders and hackers. It's amazing to see the effort people put in order to lift each other by day-to-day mutual problem solving support in [Matrix channel](https://matrix.to/#/#operators:nymtech.chat). More and more people take it further and build tools to improve network monitoring and node administration. 
+Nym operators are coming with diverse backgrounds. While for some running a `nym-node` is an introduction to sys-administration, others are well seasoned builders and hackers. It's amazing to see the effort people put in order to lift each other by day-to-day mutual problem solving support in [Matrix channel](https://matrix.to/#/#operators:nymtech.chat). More and more people take it further and build tools to improve network monitoring and node administration.
 
 While we are planning to make a page aggregating these tools together, here are some tools released lately by the technical community:
 
@@ -99,7 +662,7 @@ While we are planning to make a page aggregating these tools together, here are 
 
 - [Bump `nanoid` from `3.3.7` to `3.3.8` in `/documentation/docs`](https://github.com/nymtech/nym/pull/5335): Bumps [`nanoid`](https://github.com/ai/nanoid)
 
-- [Bump `store2` from `2.14.3` to `2.14.4`](https://github.com/nymtech/nym/pull/5391): Bumps [`store2`](https://github.com/nbubna/store) 
+- [Bump `store2` from `2.14.3` to `2.14.4`](https://github.com/nymtech/nym/pull/5391): Bumps [`store2`](https://github.com/nbubna/store)
 
 - [Bump `@octokit/plugin-paginate-rest` and `@actions/github` in `/.github/actions/nym-hash-releases/src`](https://github.com/nymtech/nym/pull/5488): Bumps [`@octokit/plugin-paginate-rest`](https://github.com/octokit/plugin-paginate-rest.js)
 
@@ -124,16 +687,16 @@ While we are planning to make a page aggregating these tools together, here are 
   - `/issued-ticketbooks-on-count/:issuance_date`
   - `/issued-ticketbooks-challenge-commitment`
   - `/issued-ticketbooks-data`
- 
+
 - removed:
   - `/issued-ticketbooks-challenge`
 </AccordionTemplate>
 
 <AccordionTemplate name={<TestingSteps/>}>
 Testing Steps Performed:
-New issue ticketbook related endpoints work -  tickets are issued and consumed as before. 
+New issue ticketbook related endpoints work -  tickets are issued and consumed as before.
 Redeeming tickets is happening as normal on the gateway side.
- 
+
 Notes (if any):
 Chuckles will not require the rewarder binary to be updated; as there will be additional changes to rewarding, this will be extensively tested in the future.
 </AccordionTemplate>
@@ -168,15 +731,15 @@ Chuckles will not require the rewarder binary to be updated; as there will be ad
 - [Bump `tempfile` from `3.18.0` to `3.19.0`](https://github.com/nymtech/nym/pull/5631): Bumps [`tempfile`](https://github.com/Stebalien/tempfile)
 
 - [Rework IPR codec to extract out timer and implement AsyncWrite](https://github.com/nymtech/nym/pull/5632): The goal is to be able to handle back pressure in the vpn client. For that we need to extract out the timer from the codec since we want to move control over that to the mixnet processor. Once the timer is removed we can reformulate the mixnet sender as a `Sink` wrapped in a `FramedWrite`
- 
+
   - Extract out timer from IPR codec
   - Implement AsyncWrite on mixnet client sender
   - Add functions to wait for lanes to clear on `LaneQueueLenghts`
-  
+
 - [Remove `explorer-api` from the main workspace](https://github.com/nymtech/nym/pull/5635)
 
 - [Bump `dtolnay/rust-toolchain` from `1.90.0` to `1.100.0`](https://github.com/nymtech/nym/pull/5638): Bumps [`dtolnay/rust-toolchain`](https://github.com/dtolnay/rust-toolchain)
- 
+
 - [Bump `zip` from `2.2.2` to `2.4.1`](https://github.com/nymtech/nym/pull/5639): Bumps [`zip`](https://github.com/zip-rs/zip2)
 
 - [Add `max_retransmissions` flag on each message](https://github.com/nymtech/nym/pull/5642): Add an optional `max_retransmissions` field on `InputMessage`, to be able to selectively disable or turn down the number of `retransmissions` done for specific packets
@@ -192,7 +755,7 @@ Chuckles will not require the rewarder binary to be updated; as there will be ad
 - [Update wallet to include Interval Operator Cost and Profit Margin](https://github.com/nymtech/nym/pull/5652): Created a new modal for Interval Operator Cost and Profit Margin changes
   - Uses existing update node operating cost functionality for old mixnodes (If it works it works)
   - Prompts a warning that a user "Can send the request as many times as they want but it will only update the last message when the interval changes"
- 
+
 - [Wallet-revamp to be in line with new nym-theming](https://github.com/nymtech/nym/pull/5653): Updating colour palette to match the [nym.com](https://nym.com) sites:
   - Used the same font too
   - Updated icons
@@ -201,7 +764,7 @@ Chuckles will not require the rewarder binary to be updated; as there will be ad
 
 - [Revert using `AsyncWrite` sink in IPR](https://github.com/nymtech/nym/pull/5656): Revert the use of the `AsyncWrite` sink in the IPR until it's fully ready.
 
-- [Remove Google public DNS](https://github.com/nymtech/nym/pull/5660): We had a lot of complaints about Google, so we're removing this in VPN client, Nym should follow to avoid issues with firewall. 
+- [Remove Google public DNS](https://github.com/nymtech/nym/pull/5660): We had a lot of complaints about Google, so we're removing this in VPN client, Nym should follow to avoid issues with firewall.
 
 ### Bugfix
 
@@ -232,14 +795,14 @@ cargo Profile:      release
 2. Security Fixes in Dependencies: Address known security vulnerabilities, making updating highly recommended
 
 3. Authorisation & Timestamp Changes: Modifies how timestamps are validated in Auth v2 - this is going to be what the clients use. For example: the clients will start to use v2 variants of everything (prepping the network for the breaking change to come on April 1st which will force clients to only use v2).
-    
+
 4. Wireguard exit policy [scripts](https://github.com/nymtech/nym/tree/develop/scripts/wireguard-exit-policy)
 
 ### Operators Updates & Tools
 
 - [**Wireguard exit policy is out!**](nodes/nym-node/configuration#wireguard-exit-policy-configuration) Operators can use a new guide with our scripts to setup wireguard exit policy using IP tables rules.
 
-- [Setup commands for `nym-node` simplified](nodes/nym-node/setup#setup--run): `config.toml` defaults to correct binding addresses and ports, no need to specify unless operators want to change those values. 
+- [Setup commands for `nym-node` simplified](nodes/nym-node/setup#setup--run): `config.toml` defaults to correct binding addresses and ports, no need to specify unless operators want to change those values.
 
 - [Virtualising dedicated server with KVM now includes IPv6 setup](nodes/preliminary-steps/vps-setup/advanced#installing-kvm-on-a-server-with-ubuntu-2204): Thanks to [LunarDAO](https://lunardao.net) squad we caught a missing IPv6 configuration in KVM installation guide. Operators can now run a bare metal or dedicated server and virtualise it into VMs each with a fully functional node, having all specs fully under control.
 
@@ -308,17 +871,17 @@ cargo Profile:      release
   - Add `bond_info` & `self_described` to DB `nym_nodes`
   - Update mixnode & gateway bond status on data refresh
   - Add `active` column to DB `nym_nodes`
-  - Use only active & bonded nodes in scraping/testrun tasks 
+  - Use only active & bonded nodes in scraping/testrun tasks
 
 - [Rust SDK SURB example: change hardcoded file to tempdir](https://github.com/nymtech/nym/pull/5576): Change hardcoded filepath for client to tempdir
 
-- [Server Side internal DoT/DoH opt out](https://github.com/nymtech/nym/pull/5577): Allow server side (nodes and nym-api) to use nym-http-api-client without  DoH/DoT resolver. 
+- [Server Side internal DoT/DoH opt out](https://github.com/nymtech/nym/pull/5577): Allow server side (nodes and nym-api) to use nym-http-api-client without  DoH/DoT resolver.
 
 - [Delete double memo field in send modal](https://github.com/nymtech/nym/pull/5578)
 
 - [Bump ring from `0.17.3` to `0.17.13` in /nym-wallet](https://github.com/nymtech/nym/pull/5582): Bumps [ring](https://github.com/briansmith/ring)
 
-- [Bump the patch-updates group with 8 updates](https://github.com/nymtech/nym/pull/5585): 
+- [Bump the patch-updates group with 8 updates](https://github.com/nymtech/nym/pull/5585):
 
 | Package | From | To |
 | --- | --- | --- |
@@ -385,7 +948,7 @@ cargo Profile:      release
 
 ## `v2025.4-dorina-patched`
 
-Patched version of `dorina` with a few fixes and tweaks to the release. We would like to ask `nym-node` operators to upgrade to this version as quickly as possible to implement the fixes across the network and improve general quality before NymVPN launch. 
+Patched version of `dorina` with a few fixes and tweaks to the release. We would like to ask `nym-node` operators to upgrade to this version as quickly as possible to implement the fixes across the network and improve general quality before NymVPN launch.
 
 - [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.4-dorina-patched)
 - [`nym-node`](nodes/nym-node.mdx) version `1.6.2`

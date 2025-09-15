@@ -52,7 +52,7 @@ pub fn sign(args: Args, prefix: &str, mnemonic: Option<bip39::Mnemonic>) {
                         println!("{}", json!(output));
                     }
                     Err(e) => {
-                        error!("Failed to sign message. {}", e);
+                        error!("Failed to sign message. {e}");
                     }
                 }
             }
@@ -61,7 +61,7 @@ pub fn sign(args: Args, prefix: &str, mnemonic: Option<bip39::Mnemonic>) {
             }
         },
         Err(e) => {
-            error!("Failed to derive accounts. {}", e);
+            error!("Failed to derive accounts. {e}");
         }
     }
 }

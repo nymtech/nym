@@ -1,5 +1,4 @@
 "use client";
-import React from "react";
 import {
   Box,
   Button,
@@ -9,13 +8,13 @@ import {
   useTheme,
 } from "@mui/material";
 import Grid from "@mui/material/Grid2";
+import React from "react";
 
-import FilterAltIcon from "@mui/icons-material/FilterAlt";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
-import PieChartIcon from "@mui/icons-material/PieChart";
+import FilterAltIcon from "@mui/icons-material/FilterAlt";
 import PercentIcon from "@mui/icons-material/Percent";
+import PieChartIcon from "@mui/icons-material/PieChart";
 import NodeFilterButtonGroup from "../toggleButton/NodeFilterButtonGroup";
-import { RECOMMENDED_NODES } from "@/app/constants";
 
 type AdvancedFiltersProps = {
   uptime: [number, number];
@@ -29,13 +28,15 @@ type AdvancedFiltersProps = {
   maxSaturation?: number;
   activeFilter: "all" | "mixnodes" | "gateways" | "recommended";
   setActiveFilter: (
-    filter: "all" | "mixnodes" | "gateways" | "recommended"
+    filter: "all" | "mixnodes" | "gateways" | "recommended",
   ) => void;
   nodeCounts: {
     all: number;
     mixnodes: number;
     gateways: number;
   };
+  /** Count of recommended nodes (passed from server) */
+  recommendedCount: number;
 };
 
 export default function AdvancedFilters({
@@ -51,6 +52,7 @@ export default function AdvancedFilters({
   activeFilter,
   setActiveFilter,
   nodeCounts,
+  recommendedCount,
 }: AdvancedFiltersProps) {
   const theme = useTheme();
   const green = "#14e76f"; // from theme colours
@@ -263,7 +265,7 @@ export default function AdvancedFilters({
             size="medium"
             options={[
               {
-                label: `Recommended servers (${RECOMMENDED_NODES.length})`,
+                label: `Recommended servers (${recommendedCount})`,
                 isSelected: activeFilter === "recommended",
                 value: "recommended",
               },
@@ -300,7 +302,7 @@ export default function AdvancedFilters({
               }}
             />
           }
-          onClick={() => setOpen && setOpen(!open)}
+          onClick={() => setOpen?.(!open)}
           sx={{
             borderRadius: 3,
             px: 4,

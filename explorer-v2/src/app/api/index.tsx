@@ -191,7 +191,6 @@ export const fetchAccountBalance = async (
   return data;
 };
 
-
 // 🔹 Fetch NYM Price
 export const fetchNymPrice = async (): Promise<NymTokenomics> => {
   const res = await fetch(NYM_PRICES_API, {
@@ -226,7 +225,7 @@ export const fetchNSApiNodes = async (): Promise<NS_NODE[]> => {
           Accept: "application/json",
           "Content-Type": "application/json; charset=utf-8",
         },
-      }
+      },
     );
 
     if (!response.ok) {

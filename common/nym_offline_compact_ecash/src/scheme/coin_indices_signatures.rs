@@ -179,7 +179,7 @@ fn _aggregate_indices_signatures<B>(
     validate_shares: bool,
 ) -> Result<Vec<CoinIndexSignature>>
 where
-    B: Borrow<PartialCoinIndexSignature>,
+    B: Borrow<PartialCoinIndexSignature> + Send + Sync,
 {
     // Check if all indices are unique
     if signatures_shares
@@ -271,7 +271,7 @@ pub fn aggregate_indices_signatures<B>(
     signatures_shares: &[CoinIndexSignatureShare<B>],
 ) -> Result<Vec<CoinIndexSignature>>
 where
-    B: Borrow<PartialCoinIndexSignature>,
+    B: Borrow<PartialCoinIndexSignature> + Send + Sync,
 {
     _aggregate_indices_signatures(params, vk, signatures_shares, true)
 }

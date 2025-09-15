@@ -28,8 +28,6 @@ pub type HmacSha256 = Hmac<Sha256>;
 pub type Nonce = u64;
 pub type Taken = Option<SystemTime>;
 
-pub const BANDWIDTH_CAP_PER_DAY: u64 = 250 * 1024 * 1024 * 1024; // 250 GB
-
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct IpPair {
     pub ipv4: Ipv4Addr,
@@ -169,7 +167,7 @@ impl GatewayClient {
     #[cfg(feature = "verify")]
     pub fn verify(&self, gateway_key: &PrivateKey, nonce: u64) -> Result<(), Error> {
         // use gateways key as a ref to an x25519_dalek key
-        let dh = (gateway_key.as_ref()).diffie_hellman(&self.pub_key);
+        let dh = gateway_key.inner().diffie_hellman(&self.pub_key);
 
         // TODO: change that to use our nym_crypto::hmac module instead
         #[allow(clippy::expect_used)]

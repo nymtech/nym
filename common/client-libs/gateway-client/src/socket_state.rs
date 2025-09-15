@@ -10,7 +10,7 @@ use futures::channel::oneshot;
 use futures::stream::{SplitSink, SplitStream};
 use futures::{SinkExt, StreamExt};
 use nym_gateway_requests::shared_key::SharedGatewayKey;
-use nym_gateway_requests::{ServerResponse, SimpleGatewayRequestsError};
+use nym_gateway_requests::{SensitiveServerResponse, ServerResponse, SimpleGatewayRequestsError};
 use nym_task::TaskClient;
 use si_scale::helpers::bibytes2;
 use std::os::raw::c_int as RawFd;
@@ -188,6 +188,34 @@ impl PartiallyDelegatedRouter {
                     }
                 }
             }
+            ServerResponse::EncryptedResponse { ciphertext, nonce } => {
+                match SensitiveServerResponse::decrypt(
+                    &ciphertext,
+                    &nonce,
+                    self.shared_key.as_ref(),
+                ) {
+                    Ok(response) => match response {
+                        SensitiveServerResponse::ForgetMeAck {} => {
+                            info!("received forget me acknowledgement");
+                        }
+                        SensitiveServerResponse::RememberMeAck {} => {
+                            info!("received remember me acknowledgement");
+                        }
+                        SensitiveServerResponse::KeyUpgradeAck {} => {
+                            warn!(
+                                    "received illegal key upgrade acknowledgement in an authenticated client"
+                                );
+                        }
+                        _ => {
+                            warn!("received unknown SensitiveServerResponse");
+                        }
+                    },
+                    Err(e) => {
+                        error!("failed to handle encrypted response: {e}");
+                    }
+                }
+                Ok(())
+            }
             other => {
                 let name = other.name();
                 warn!("received illegal message of type '{name}' in an authenticated client");
@@ -309,7 +337,7 @@ impl PartiallyDelegatedHandle {
         // check if the split stream didn't error out
         let receive_res = stream_receiver
             .try_recv()
-            .expect("stream sender was somehow dropped without sending anything!");
+            .map_err(|_| GatewayClientError::ConnectionAbruptlyClosed)?;
 
         if let Some(res) = receive_res {
             let _res = res?;

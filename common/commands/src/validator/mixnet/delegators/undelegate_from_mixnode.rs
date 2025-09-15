@@ -40,5 +40,5 @@ pub async fn undelegate_from_mixnode(args: Args, client: SigningClient) {
         .await
         .expect("failed to remove stake from mixnode!");
 
-    info!("removing stake from mixnode: {:?}", res)
+    info!("removing stake from mixnode: {res:?}")
 }

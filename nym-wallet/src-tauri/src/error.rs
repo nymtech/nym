@@ -32,7 +32,7 @@ pub enum BackendError {
     NyxdError {
         pretty_error: String,
         #[source]
-        source: NyxdError,
+        source: Box<NyxdError>,
     },
     #[error(transparent)]
     CosmwasmStd {
@@ -192,18 +192,18 @@ impl From<NyxdError> for BackendError {
                 if let Some(pretty_log) = pretty_log {
                     Self::NyxdError {
                         pretty_error: pretty_log.to_string(),
-                        source,
+                        source: Box::new(source),
                     }
                 } else {
                     Self::NyxdError {
                         pretty_error: source.to_string(),
-                        source,
+                        source: Box::new(source),
                     }
                 }
             }
             nyxd_error => Self::NyxdError {
                 pretty_error: nyxd_error.to_string(),
-                source: nyxd_error,
+                source: Box::new(nyxd_error),
             },
         }
     }

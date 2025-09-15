@@ -30,8 +30,7 @@ impl TryFrom<VersionedResponse> for IpPacketResponseV8 {
             match response.response {
                 Response::StaticConnect { .. } => {
                     return Err(IpPacketRouterError::UnsupportedResponse(format!(
-                        "Static connect response is not supported in version {}",
-                        version
+                        "Static connect response is not supported in version {version}"
                     )))
                 }
                 Response::DynamicConnect { request_id, reply } => IpPacketResponseDataV8::Control(

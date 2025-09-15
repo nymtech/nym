@@ -9,8 +9,8 @@ import {
 } from "../../app/api";
 import type {
   LastProbeResult,
-  NodeDescription,
   NS_NODE,
+  NodeDescription,
 } from "../../app/api/types";
 import ExplorerCard from "../cards/ExplorerCard";
 import ExplorerListItem from "../list/ListItem";
@@ -32,7 +32,7 @@ const roleMapping: Record<DeclaredRoleKey, RoleString> = {
 };
 
 const getNodeRoles = (
-  declaredRoles: NodeDescriptionNotNull["declared_role"]
+  declaredRoles: NodeDescriptionNotNull["declared_role"],
 ): RoleString[] => {
   return Object.entries(declaredRoles)
     .filter(([, isActive]) => isActive)
@@ -81,7 +81,7 @@ function calculateConfigScoreStars(probeResult: LastProbeResult): number {
 
   if (as_entry) {
     const entryScore = [as_entry.can_connect, as_entry.can_route].filter(
-      Boolean
+      Boolean,
     ).length;
 
     return entryScore === 2 ? 4 : entryScore === 1 ? 2 : 1;
@@ -190,7 +190,7 @@ export const NodeRoleCard = ({ paramId }: Props) => {
 
   // Define whether to fetch gateway status
   const shouldFetchGatewayStatus = nodeRoles.some((role) =>
-    ["Entry Node", "Exit IPR Node", "Exit NR Node"].includes(role)
+    ["Entry Node", "Exit IPR Node", "Exit NR Node"].includes(role),
   );
   // Fetch gateway status only if `shouldFetchGatewayStatus` is true
   const { data: gatewayStatus } = useQuery({
@@ -226,7 +226,6 @@ export const NodeRoleCard = ({ paramId }: Props) => {
   }
   if (!nodeInfo) return null;
 
-
   const NodeRoles = nodeRoles.map((role) => (
     <Stack key={role} direction="row" gap={1}>
       <Chip key={role} label={role} size="small" />
@@ -253,7 +252,7 @@ export const NodeRoleCard = ({ paramId }: Props) => {
   // Function to calculate active set probability
   const getActiveSetProbability = (
     nodeTotalStake: string,
-    stakeSaturationPoint: string
+    stakeSaturationPoint: string,
   ): string => {
     const totalStake = Number.parseFloat(nodeTotalStake);
     const saturation = Number.parseFloat(stakeSaturationPoint);
@@ -274,7 +273,7 @@ export const NodeRoleCard = ({ paramId }: Props) => {
   };
   const activeSetProb = getActiveSetProbability(
     nodeInfo.total_stake,
-    epochRewardsData.interval.stake_saturation_point
+    epochRewardsData.interval.stake_saturation_point,
   );
 
   return (

@@ -140,6 +140,7 @@ def get_nested_value(response, args):
 
 def _return_percent_annotation(value):
     value = float(value) * 100
+    value = round(value, 2)
     value = f"{value}%"
     return value
 

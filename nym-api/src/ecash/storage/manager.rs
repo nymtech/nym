@@ -128,6 +128,7 @@ pub trait EcashStorageManagerExt {
     async fn get_partial_expiration_date_signatures(
         &self,
         expiration_date: Date,
+        epoch_id: i64,
     ) -> Result<Option<RawExpirationDateSignatures>, sqlx::Error>;
     async fn insert_partial_expiration_date_signatures(
         &self,
@@ -139,6 +140,7 @@ pub trait EcashStorageManagerExt {
     async fn get_master_expiration_date_signatures(
         &self,
         expiration_date: Date,
+        epoch_id: i64,
     ) -> Result<Option<RawExpirationDateSignatures>, sqlx::Error>;
     async fn insert_master_expiration_date_signatures(
         &self,
@@ -501,15 +503,17 @@ impl EcashStorageManagerExt for StorageManager {
     async fn get_partial_expiration_date_signatures(
         &self,
         expiration_date: Date,
+        epoch_id: i64,
     ) -> Result<Option<RawExpirationDateSignatures>, sqlx::Error> {
         sqlx::query_as!(
             RawExpirationDateSignatures,
             r#"
                 SELECT epoch_id as "epoch_id: u32", serialised_signatures
                 FROM partial_expiration_date_signatures
-                WHERE expiration_date = ?
+                WHERE expiration_date = ? AND epoch_id = ?
             "#,
-            expiration_date
+            expiration_date,
+            epoch_id
         )
         .fetch_optional(&self.connection_pool)
         .await
@@ -535,15 +539,17 @@ impl EcashStorageManagerExt for StorageManager {
     async fn get_master_expiration_date_signatures(
         &self,
         expiration_date: Date,
+        epoch_id: i64,
     ) -> Result<Option<RawExpirationDateSignatures>, sqlx::Error> {
         sqlx::query_as!(
             RawExpirationDateSignatures,
             r#"
                 SELECT epoch_id as "epoch_id: u32", serialised_signatures
                 FROM global_expiration_date_signatures
-                WHERE expiration_date = ?
+                WHERE expiration_date = ? AND epoch_id = ?
             "#,
-            expiration_date
+            expiration_date,
+            epoch_id
         )
         .fetch_optional(&self.connection_pool)
         .await

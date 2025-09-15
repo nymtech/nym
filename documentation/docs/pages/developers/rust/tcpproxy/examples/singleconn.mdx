@@ -1,5 +1,13 @@
 # Single Connection Example
+import { Callout } from 'nextra/components'
 
+<Callout type="warning">
+  There will be a breaking SDK upgrade in the coming months. This upgrade will make the SDK a lot easier to build with.
+
+This upgrade will affect the interface of the SDK dramatically, and will be coupled with a protocol change - stay tuned for information on early access to the new protocol testnet.
+
+It will also be coupled with the documentation of the SDK on [crates.io](https://crates.io/).
+</Callout>
 This is a basic example which opens a single TCP connection and writes a bunch of messages between a client and some 'echo server' logic, so only uses a single session under the hood and doesn't really show off the message ordering capabilities; this is mainly just a quick introductory illustration on how:
 - the mixnet does message ordering
 - the NymProxyClient and NymProxyServer can be hooked into and used to communicate between two otherwise pretty vanilla TcpStreams

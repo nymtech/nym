@@ -7,6 +7,7 @@ homepage.workspace = true
 documentation.workspace = true
 edition.workspace = true
 license.workspace = true
+rust-version.workspace = true
 
 [dependencies]
 sqlx = { workspace = true, features = [
@@ -22,12 +23,12 @@ thiserror = { workspace = true }
 tracing = { workspace = true }
 
 nym-sphinx = { path = "../nymsphinx" }
-nym-credentials-interface = { path = "../credentials-interface" }
 nym-node-metrics = { path = "../../nym-node/nym-node-metrics" }
 nym-statistics-common = { path = "../statistics" }
 
 
 [build-dependencies]
+anyhow = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
 sqlx = { workspace = true, features = [
     "runtime-tokio-rustls",

@@ -196,7 +196,7 @@ pub async fn delegate_to_multiple_mixnodes(args: Args, client: SigningClient) {
     let records = match InputFileReader::new(&args.input) {
         Ok(records) => records,
         Err(e) => {
-            println!("Error reading input file: {}", e);
+            println!("Error reading input file: {e}");
             return;
         }
     };
@@ -241,7 +241,7 @@ pub async fn delegate_to_multiple_mixnodes(args: Args, client: SigningClient) {
                 let node_id = row.node_id.clone().parse::<u32>().unwrap();
                 let coins: Vec<Coin> = vec![];
                 undelegation_msgs.push((ExecuteMsg::Undelegate { node_id }, coins));
-                undelegation_table.add_row(&[row.node_id.clone()]);
+                undelegation_table.add_row(std::slice::from_ref(&row.node_id));
 
                 if row.amount.amount > 0 {
                     delegation_msgs
@@ -262,11 +262,11 @@ pub async fn delegate_to_multiple_mixnodes(args: Args, client: SigningClient) {
     }
 
     if !undelegation_msgs.is_empty() {
-        println!("Undelegation records : \n{}\n\n", undelegation_table);
+        println!("Undelegation records : \n{undelegation_table}\n\n");
     }
 
     if !delegation_msgs.is_empty() {
-        println!("Delegation records : \n{}\n\n", delegation_table);
+        println!("Delegation records : \n{delegation_table}\n\n");
     }
 
     let ans = inquire::Confirm::new("Do you want to continue with the shown operations?")
@@ -275,7 +275,7 @@ pub async fn delegate_to_multiple_mixnodes(args: Args, client: SigningClient) {
         .prompt();
 
     if let Err(e) = ans {
-        info!("Aborting, {}...", e);
+        info!("Aborting, {e}...");
         return;
     }
 
@@ -348,7 +348,7 @@ pub async fn delegate_to_multiple_mixnodes(args: Args, client: SigningClient) {
 
     if args.output.is_some() {
         if let Err(e) = write_to_csv(output_details, args.output) {
-            info!("Failed to write to CSV, {}", e);
+            info!("Failed to write to CSV, {e}");
         }
     }
 }

@@ -4,10 +4,10 @@ import {
   Box,
   Button,
   Stack,
+  Tooltip,
   Typography,
   useMediaQuery,
   useTheme,
-  Tooltip,
 } from "@mui/material";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLocalStorage } from "@uidotdev/usehooks";
@@ -19,8 +19,10 @@ import {
 import { useRouter } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
 
+import { colours } from "@/theme/colours";
 import { COSMOS_KIT_USE_CHAIN } from "../../config";
 import { useNymClient } from "../../hooks/useNymClient";
+import CopyToClipboard from "../copyToClipboard/CopyToClipboard";
 import CountryFlag from "../countryFlag/CountryFlag";
 import { Favorite } from "../favorite/Favorite";
 import Loading from "../loading";
@@ -30,8 +32,6 @@ import StakeModal from "../staking/StakeModal";
 import { fee } from "../staking/schemas";
 import ConnectWallet from "../wallet/ConnectWallet";
 import type { MappedNymNode, MappedNymNodes } from "./NodeTableWithAction";
-import CopyToClipboard from "../copyToClipboard/CopyToClipboard";
-import { colours } from "@/theme/colours";
 
 const ColumnHeading = ({
   children,
@@ -103,7 +103,7 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
           { nodeId },
           fee,
           "Delegation from Nym Explorer V2",
-          uNymFunds
+          uNymFunds,
         );
         setSelectedNodeForStaking(undefined);
         setInfoModalProps({
@@ -132,7 +132,7 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
       }
       setIsLoading(false);
     },
-    [nymClient, handleRefetch]
+    [nymClient, handleRefetch],
   );
 
   const handleOnSelectStake = useCallback(
@@ -161,7 +161,7 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         identityKey: node.identity_key,
       });
     },
-    [isWalletConnected]
+    [isWalletConnected],
   );
 
   const columns: MRT_ColumnDef<MappedNymNode>[] = useMemo(
@@ -399,7 +399,7 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         enableSorting: false,
       },
     ],
-    [isWalletConnected, handleOnSelectStake, favorites, isDarkMode]
+    [isWalletConnected, handleOnSelectStake, favorites, isDarkMode],
   );
   const table = useMaterialReactTable({
     columns,

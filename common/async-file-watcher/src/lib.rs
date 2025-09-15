@@ -137,7 +137,7 @@ impl AsyncFileWatcher {
                             log::error!("the file watcher receiver has been dropped!");
                         }
                     } else {
-                        log::debug!("will not propagate information about {:?}", event);
+                        log::debug!("will not propagate information about {event:?}");
                     }
                 }
                 Err(err) => {

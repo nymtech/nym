@@ -3,8 +3,9 @@
 
 use error::StatsStorageError;
 use models::StoredFinishedSession;
-use nym_node_metrics::entry::{ActiveSession, FinishedSession, SessionType};
+use nym_node_metrics::entry::{ActiveSession, FinishedSession};
 use nym_sphinx::DestinationAddressBytes;
+use nym_statistics_common::types::SessionType;
 use sessions::SessionManager;
 use sqlx::{
     sqlite::{SqliteAutoVacuum, SqliteSynchronous},
@@ -32,8 +33,8 @@ impl PersistentStatsStorage {
     /// * `database_path`: path to the database.
     pub async fn init<P: AsRef<Path> + Send>(database_path: P) -> Result<Self, StatsStorageError> {
         debug!(
-            "Attempting to connect to database {:?}",
-            database_path.as_ref().as_os_str()
+            "Attempting to connect to database {}",
+            database_path.as_ref().display()
         );
 
         // TODO: we can inject here more stuff based on our gateway global config
@@ -147,6 +148,16 @@ impl PersistentStatsStorage {
             .await?)
     }
 
+    pub async fn remember_active_session(
+        &self,
+        client_address: DestinationAddressBytes,
+    ) -> Result<(), StatsStorageError> {
+        Ok(self
+            .session_manager
+            .remember_active_session(client_address.as_base58_string())
+            .await?)
+    }
+
     pub async fn update_active_session_type(
         &self,
         client_address: DestinationAddressBytes,
@@ -182,7 +193,7 @@ impl PersistentStatsStorage {
     pub async fn get_started_sessions_count(
         &self,
         start_date: Date,
-    ) -> Result<i32, StatsStorageError> {
+    ) -> Result<i64, StatsStorageError> {
         Ok(self
             .session_manager
             .get_started_sessions_count(start_date)

@@ -57,7 +57,7 @@ pub trait NodeBond {
 
     fn is_unbonding(&self) -> bool;
 
-    fn identity(&self) -> IdentityKeyRef;
+    fn identity(&self) -> IdentityKeyRef<'_>;
 
     fn original_pledge(&self) -> &Coin;
 
@@ -125,7 +125,7 @@ impl NodeBond for MixNodeBond {
         self.is_unbonding
     }
 
-    fn identity(&self) -> IdentityKeyRef {
+    fn identity(&self) -> IdentityKeyRef<'_> {
         self.identity()
     }
 
@@ -178,7 +178,7 @@ impl NodeBond for NymNodeBond {
         self.is_unbonding
     }
 
-    fn identity(&self) -> IdentityKeyRef {
+    fn identity(&self) -> IdentityKeyRef<'_> {
         self.identity()
     }
 

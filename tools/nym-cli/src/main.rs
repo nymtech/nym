@@ -3,7 +3,7 @@
 
 use clap::{CommandFactory, Parser, Subcommand};
 use log::{error, warn};
-use nym_bin_common::logging::setup_logging;
+use nym_bin_common::logging::setup_tracing_logger;
 use nym_cli_commands::context::{get_network_details, ClientArgs};
 use nym_validator_client::nyxd::AccountId;
 
@@ -138,10 +138,7 @@ async fn execute(cli: Cli) -> anyhow::Result<()> {
 
 async fn wait_for_interrupt() {
     if let Err(e) = tokio::signal::ctrl_c().await {
-        error!(
-            "There was an error while capturing SIGINT - {:?}. We will terminate regardless",
-            e
-        );
+        error!("There was an error while capturing SIGINT - {e:?}. We will terminate regardless",);
     }
     println!(
         "Received SIGINT - the process will terminate now (threads are not yet nicely stopped, if you see stack traces that's alright)."
@@ -150,7 +147,7 @@ async fn wait_for_interrupt() {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    setup_logging();
+    setup_tracing_logger();
 
     let cli = Cli::parse();
 

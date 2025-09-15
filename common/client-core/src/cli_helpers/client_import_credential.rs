@@ -64,6 +64,7 @@ where
         Some(data) => data,
         None => {
             // SAFETY: one of those arguments must have been set
+            #[allow(clippy::unwrap_used)]
             fs::read(common_args.credential_path.unwrap())?
         }
     };

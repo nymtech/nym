@@ -10,6 +10,9 @@ use thiserror::Error;
 /// Custom errors for contract failure conditions.
 #[derive(Error, Debug, PartialEq)]
 pub enum ContractError {
+    #[error("could not perform contract migration: {comment}")]
+    FailedMigration { comment: String },
+
     #[error(transparent)]
     Std(#[from] StdError),
 

@@ -63,11 +63,11 @@ export const NodeProfileCard = ({ paramId }: Props) => {
 
   if (paramId.length > 10) {
     nodeInfo = nsApiNodes.find(
-      (node: NS_NODE) => node.identity_key === paramId
+      (node: NS_NODE) => node.identity_key === paramId,
     );
   } else {
     nodeInfo = nsApiNodes.find(
-      (node: NS_NODE) => node.node_id === Number(paramId)
+      (node: NS_NODE) => node.node_id === Number(paramId),
     );
   }
 
@@ -141,7 +141,7 @@ export const NodeProfileCard = ({ paramId }: Props) => {
         { nodeId },
         fee,
         "Delegation from Nym Explorer V2",
-        uNymFunds
+        uNymFunds,
       );
       setSelectedNodeForStaking(undefined);
       setInfoModalProps({
@@ -170,11 +170,11 @@ export const NodeProfileCard = ({ paramId }: Props) => {
 
   const cleanMoniker = DOMPurify.sanitize(nodeInfo.description.moniker).replace(
     /&amp;/g,
-    "&"
+    "&",
   );
 
   const cleanDescription = DOMPurify.sanitize(
-    nodeInfo.description.details
+    nodeInfo.description.details,
   ).replace(/&amp;/g, "&");
 
   // get full country name

@@ -9,11 +9,15 @@ use bls12_381::{G1Projective, G2Projective, Scalar};
 use ff::Field;
 use group::GroupEncoding;
 use nym_pemstore::traits::{PemStorableKey, PemStorableKeyPair};
+use rand::CryptoRng;
 use rand_core::RngCore;
 use zeroize::Zeroize;
 
 // produces public key and a decryption key for the root of the tree
-pub fn keygen(params: &Params, mut rng: impl RngCore) -> (DecryptionKey, PublicKeyWithProof) {
+pub fn keygen(
+    params: &Params,
+    mut rng: impl RngCore + CryptoRng,
+) -> (DecryptionKey, PublicKeyWithProof) {
     let g1 = G1Projective::generator();
     let g2 = G2Projective::generator();
 
@@ -244,7 +248,7 @@ pub struct KeyPair {
 }
 
 impl KeyPair {
-    pub fn new(params: &Params, rng: impl RngCore) -> Self {
+    pub fn new(params: &Params, rng: impl RngCore + CryptoRng) -> Self {
         let (dk, pk) = keygen(params, rng);
         Self {
             private_key: dk,

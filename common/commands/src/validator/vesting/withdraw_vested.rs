@@ -76,7 +76,7 @@ pub async fn execute(args: Args, client: SigningClient) {
                         &res.transaction_hash
                     );
                     println!(
-                        "Mintscan: https://www.mintscan.io/nyx/txs/{}",
+                        "Mintscan: https://ping.pub/nyx/tx/{}",
                         &res.transaction_hash
                     );
                     println!("Transaction hash: {}", &res.transaction_hash);

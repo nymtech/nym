@@ -8,14 +8,41 @@ use nym_crypto::asymmetric::x25519::serde_helpers::bs58_x25519_pubkey;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_mixnet_contract_common::nym_node::Role;
 use nym_mixnet_contract_common::reward_params::Performance;
-use nym_mixnet_contract_common::{Interval, NodeId};
+use nym_mixnet_contract_common::{EpochId, Interval, NodeId};
+use nym_noise_keys::VersionedNoiseKey;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::net::IpAddr;
 use time::OffsetDateTime;
 use utoipa::ToSchema;
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, schemars::JsonSchema, utoipa::ToSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, utoipa::ToSchema)]
+pub struct SkimmedNodesWithMetadata {
+    pub nodes: Vec<SkimmedNode>,
+    pub metadata: NodesResponseMetadata,
+}
+
+impl SkimmedNodesWithMetadata {
+    pub fn new(nodes: Vec<SkimmedNode>, metadata: NodesResponseMetadata) -> Self {
+        SkimmedNodesWithMetadata { nodes, metadata }
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, utoipa::ToSchema)]
+pub struct SemiSkimmedNodesWithMetadata {
+    pub nodes: Vec<SemiSkimmedNode>,
+    pub metadata: NodesResponseMetadata,
+}
+
+impl SemiSkimmedNodesWithMetadata {
+    pub fn new(nodes: Vec<SemiSkimmedNode>, metadata: NodesResponseMetadata) -> Self {
+        SemiSkimmedNodesWithMetadata { nodes, metadata }
+    }
+}
+
+#[derive(
+    Clone, Copy, Debug, Serialize, Deserialize, schemars::JsonSchema, utoipa::ToSchema, PartialEq,
+)]
 #[serde(rename_all = "kebab-case")]
 pub enum TopologyRequestStatus {
     NoUpdates,
@@ -43,20 +70,60 @@ impl<T: ToSchema> CachedNodesResponse<T> {
     }
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, utoipa::ToSchema)]
+pub struct NodesResponseMetadata {
+    pub status: Option<TopologyRequestStatus>,
+    #[schema(value_type = u32)]
+    pub absolute_epoch_id: EpochId,
+    pub rotation_id: u32,
+    pub refreshed_at: OffsetDateTimeJsonSchemaWrapper,
+}
+
+impl NodesResponseMetadata {
+    pub fn consistency_check(&self, other: &NodesResponseMetadata) -> bool {
+        self.status == other.status
+            && self.absolute_epoch_id == other.absolute_epoch_id
+            && self.rotation_id == other.rotation_id
+    }
+
+    pub fn refreshed_at(&self) -> OffsetDateTime {
+        self.refreshed_at.into()
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
-pub struct PaginatedCachedNodesResponse<T> {
+// can't add any new fields here, even with #[serde(default)] and whatnot,
+// because it will break all clients using bincode : (
+pub struct PaginatedCachedNodesResponseV1<T> {
     pub status: Option<TopologyRequestStatus>,
     pub refreshed_at: OffsetDateTimeJsonSchemaWrapper,
     pub nodes: PaginatedResponse<T>,
 }
 
-impl<T> PaginatedCachedNodesResponse<T> {
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+pub struct PaginatedCachedNodesResponseV2<T> {
+    pub metadata: NodesResponseMetadata,
+    pub nodes: PaginatedResponse<T>,
+}
+
+impl<T> From<PaginatedCachedNodesResponseV2<T>> for PaginatedCachedNodesResponseV1<T> {
+    fn from(res: PaginatedCachedNodesResponseV2<T>) -> Self {
+        PaginatedCachedNodesResponseV1 {
+            status: res.metadata.status,
+            refreshed_at: res.metadata.refreshed_at,
+            nodes: res.nodes,
+        }
+    }
+}
+
+impl<T> PaginatedCachedNodesResponseV2<T> {
     pub fn new_full(
+        absolute_epoch_id: EpochId,
+        rotation_id: u32,
         refreshed_at: impl Into<OffsetDateTimeJsonSchemaWrapper>,
         nodes: Vec<T>,
     ) -> Self {
-        PaginatedCachedNodesResponse {
-            refreshed_at: refreshed_at.into(),
+        PaginatedCachedNodesResponseV2 {
             nodes: PaginatedResponse {
                 pagination: Pagination {
                     total: nodes.len(),
@@ -65,19 +132,22 @@ impl<T> PaginatedCachedNodesResponse<T> {
                 },
                 data: nodes,
             },
-            status: None,
+            metadata: NodesResponseMetadata {
+                refreshed_at: refreshed_at.into(),
+                status: None,
+                absolute_epoch_id,
+                rotation_id,
+            },
         }
     }
 
-    pub fn fresh(mut self, interval: Option<Interval>) -> Self {
-        let iv = interval.map(TopologyRequestStatus::Fresh);
-        self.status = iv;
+    pub fn fresh(mut self, interval: Interval) -> Self {
+        self.metadata.status = Some(TopologyRequestStatus::Fresh(interval));
         self
     }
 
-    pub fn no_updates() -> Self {
-        PaginatedCachedNodesResponse {
-            refreshed_at: OffsetDateTime::now_utc().into(),
+    pub fn no_updates(absolute_epoch_id: EpochId, rotation_id: u32) -> Self {
+        PaginatedCachedNodesResponseV2 {
             nodes: PaginatedResponse {
                 pagination: Pagination {
                     total: 0,
@@ -86,7 +156,12 @@ impl<T> PaginatedCachedNodesResponse<T> {
                 },
                 data: Vec::new(),
             },
-            status: Some(TopologyRequestStatus::NoUpdates),
+            metadata: NodesResponseMetadata {
+                refreshed_at: OffsetDateTime::now_utc().into(),
+                status: Some(TopologyRequestStatus::NoUpdates),
+                absolute_epoch_id,
+                rotation_id,
+            },
         }
     }
 }
@@ -202,7 +277,8 @@ impl SkimmedNode {
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
 pub struct SemiSkimmedNode {
     pub basic: SkimmedNode,
-    pub x25519_noise_pubkey: String,
+
+    pub x25519_noise_versioned_key: Option<VersionedNoiseKey>,
     // pub location:
 }
 

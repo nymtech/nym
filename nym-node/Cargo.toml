@@ -3,7 +3,7 @@
 
 [package]
 name = "nym-node"
-version = "1.9.0"
+version = "1.17.0"
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
@@ -20,8 +20,10 @@ arc-swap = { workspace = true }
 bip39 = { workspace = true, features = ["zeroize"] }
 bs58.workspace = true
 bloomfilter = { workspace = true }
-celes = { workspace = true }                                  # country codes
+celes = { workspace = true }
+cfg-if = { workspace = true }# country codes
 colored = { workspace = true }
+console-subscriber = { workspace = true, optional = true }
 csv = { workspace = true }
 clap = { workspace = true, features = ["cargo", "env"] }
 futures = { workspace = true }
@@ -50,11 +52,15 @@ nym-bin-common = { path = "../common/bin-common", features = [
     "basic_tracing",
     "output_format",
 ] }
-nym-client-core-config-types = { path = "../common/client-core/config-types" }
+nym-client-core-config-types = { path = "../common/client-core/config-types", features = [
+    "disk-persistence",
+] }
 nym-config = { path = "../common/config" }
 nym-crypto = { path = "../common/crypto", features = ["asymmetric", "rand"] }
 nym-nonexhaustive-delayqueue = { path = "../common/nonexhaustive-delayqueue" }
 nym-mixnet-client = { path = "../common/client-libs/mixnet-client" }
+nym-noise = { path = "../common/nymnoise" }
+nym-noise-keys = { path = "../common/nymnoise/keys" }
 nym-pemstore = { path = "../common/pemstore" }
 nym-sphinx-acknowledgements = { path = "../common/nymsphinx/acknowledgements" }
 nym-sphinx-addressing = { path = "../common/nymsphinx/addressing" }
@@ -63,6 +69,7 @@ nym-sphinx-types = { path = "../common/nymsphinx/types" }
 nym-sphinx-forwarding = { path = "../common/nymsphinx/forwarding" }
 nym-sphinx-routing = { path = "../common/nymsphinx/routing" }
 nym-sphinx-params = { path = "../common/nymsphinx/params" }
+nym-statistics-common = { path = "../common/statistics" }
 nym-task = { path = "../common/task" }
 nym-types = { path = "../common/types" }
 nym-validator-client = { path = "../common/client-libs/validator-client" }
@@ -83,13 +90,18 @@ tower-http = { workspace = true, features = ["fs"] }
 utoipa = { workspace = true, features = ["axum_extras", "time"] }
 utoipa-swagger-ui = { workspace = true, features = ["axum"] }
 
-nym-http-api-common = { path = "../common/http-api-common", features = ["utoipa"] }
-nym-node-requests = { path = "nym-node-requests", default-features = false, features = ["openapi"] }
+nym-http-api-common = { path = "../common/http-api-common", features = [
+    "utoipa",
+    "output",
+    "middleware",
+] }
+nym-node-requests = { path = "nym-node-requests", default-features = false, features = [
+    "openapi",
+] }
 nym-node-metrics = { path = "nym-node-metrics" }
 
 # nodes:
 nym-gateway = { path = "../gateway" }
-nym-authenticator = { path = "../service-providers/authenticator" }
 nym-network-requester = { path = "../service-providers/network-requester" }
 nym-ip-packet-router = { path = "../service-providers/ip-packet-router" }
 
@@ -97,7 +109,7 @@ nym-ip-packet-router = { path = "../service-providers/ip-packet-router" }
 # throughput tester to recreate lioness
 # we don't care about particular versions - just pull whatever is used by sphinx
 lioness = "*"
-chacha = "*"
+chacha = "0.3.0"
 arrayref = "*"
 blake2 = "=0.8.1"
 sha2 = { workspace = true }
@@ -114,7 +126,10 @@ cargo_metadata = { workspace = true }
 
 [dev-dependencies]
 criterion = { workspace = true, features = ["async_tokio"] }
+rand_chacha = { workspace = true }
 
+[features]
+tokio-console = ["console-subscriber"]
 
 [lints]
 workspace = true

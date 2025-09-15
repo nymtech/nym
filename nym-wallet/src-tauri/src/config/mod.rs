@@ -142,11 +142,11 @@ impl Config {
             let location = Self::config_file_path(None);
 
             match toml::to_string_pretty(&global)
-                .map_err(|toml_err| io::Error::new(io::ErrorKind::Other, toml_err))
+                .map_err(io::Error::other)
                 .map(|toml| fs::write(location.clone(), toml))
             {
-                Ok(_) => log::debug!("Writing to: {:#?}", location),
-                Err(err) => log::warn!("Failed to write to {:#?}: {err}", location),
+                Ok(_) => log::debug!("Writing to: {location:#?}"),
+                Err(err) => log::warn!("Failed to write to {location:#?}: {err}"),
             }
         }
 
@@ -162,11 +162,11 @@ impl Config {
 
             let location = Self::config_file_path(Some(network));
             match toml::to_string_pretty(config)
-                .map_err(|toml_err| io::Error::new(io::ErrorKind::Other, toml_err))
+                .map_err(io::Error::other)
                 .map(|toml| fs::write(location.clone(), toml))
             {
-                Ok(_) => log::debug!("Writing to: {:#?}", location),
-                Err(err) => log::warn!("Failed to write to {:#?}: {err}", location),
+                Ok(_) => log::debug!("Writing to: {location:#?}"),
+                Err(err) => log::warn!("Failed to write to {location:#?}: {err}"),
             }
         }
         Ok(())
@@ -178,11 +178,11 @@ impl Config {
             let file = Self::config_file_path(None);
             match load_from_file::<GlobalConfig>(file.clone()) {
                 Ok(global) => {
-                    log::debug!("Loaded from file {:#?}", file);
+                    log::debug!("Loaded from file {file:#?}");
                     Some(global)
                 }
                 Err(err) => {
-                    log::trace!("Not loading {:#?}: {err}", file);
+                    log::trace!("Not loading {file:#?}: {err}");
                     None
                 }
             }
@@ -194,10 +194,10 @@ impl Config {
             let file = Self::config_file_path(Some(network));
             match load_from_file::<NetworkConfig>(file.clone()) {
                 Ok(config) => {
-                    log::trace!("Loaded from file {:#?}", file);
+                    log::trace!("Loaded from file {file:#?}");
                     networks.insert(network.as_key(), config);
                 }
-                Err(err) => log::trace!("Not loading {:#?}: {err}", file),
+                Err(err) => log::trace!("Not loading {file:#?}: {err}"),
             };
         }
 
@@ -367,10 +367,8 @@ fn load_from_file<T>(file: PathBuf) -> Result<T, io::Error>
 where
     T: DeserializeOwned,
 {
-    fs::read_to_string(file).and_then(|contents| {
-        toml::from_str::<T>(&contents)
-            .map_err(|toml_err| io::Error::new(io::ErrorKind::Other, toml_err))
-    })
+    fs::read_to_string(file)
+        .and_then(|contents| toml::from_str::<T>(&contents).map_err(io::Error::other))
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
@@ -443,7 +441,6 @@ impl OptionalValidators {
         match network {
             WalletNetwork::MAINNET => self.mainnet.as_ref(),
             WalletNetwork::SANDBOX => self.sandbox.as_ref(),
-            WalletNetwork::QA => self.qa.as_ref(),
         }
         .into_iter()
         .flatten()
@@ -462,12 +459,7 @@ impl fmt::Display for OptionalValidators {
             .as_ref()
             .map(|validators| format!(",\nsandbox: [\n{}\n]", validators.iter().format("\n")))
             .unwrap_or_default();
-        let s3 = self
-            .qa
-            .as_ref()
-            .map(|validators| format!(",\nqa: [\n{}\n]", validators.iter().format("\n")))
-            .unwrap_or_default();
-        write!(f, "{s1}{s2}{s3}")
+        write!(f, "{s1}{s2}")
     }
 }
 

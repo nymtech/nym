@@ -1,11 +1,12 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::error::NymRewarderError;
-use crate::rewarder::helpers::{consensus_pubkey_to_address, operator_account_to_owner_account};
+use crate::{
+    error::NymRewarderError,
+    rewarder::helpers::{consensus_pubkey_to_address, operator_account_to_owner_account},
+};
 use cosmwasm_std::{Decimal, Uint128};
-use nym_validator_client::nyxd::module_traits::staking;
-use nym_validator_client::nyxd::{AccountId, Coin};
+use nym_validator_client::nyxd::{module_traits::staking, AccountId, Coin};
 use nyxd_scraper::models;
 use std::collections::HashMap;
 use tracing::info;
@@ -20,7 +21,7 @@ pub struct ValidatorSigning {
     pub voting_power_at_epoch_start: i64,
     pub voting_power_ratio: Decimal,
 
-    pub signed_blocks: i32,
+    pub signed_blocks: i64,
     pub ratio_signed: Decimal,
 }
 
@@ -55,13 +56,13 @@ pub struct EpochSigningResults {
 
 #[derive(Debug)]
 pub struct RawValidatorResult {
-    pub signed_blocks: i32,
+    pub signed_blocks: i64,
     pub voting_power: i64,
     pub whitelisted: bool,
 }
 
 impl RawValidatorResult {
-    pub fn new(signed_blocks: i32, voting_power: i64, whitelisted: bool) -> Self {
+    pub fn new(signed_blocks: i64, voting_power: i64, whitelisted: bool) -> Self {
         Self {
             signed_blocks,
             voting_power,

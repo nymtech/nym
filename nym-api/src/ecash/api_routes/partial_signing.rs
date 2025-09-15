@@ -13,7 +13,9 @@ use nym_api_requests::ecash::{
     BlindSignRequestBody, BlindedSignatureResponse, PartialCoinIndicesSignatureResponse,
     PartialExpirationDateSignatureResponse,
 };
+use nym_coconut_dkg_common::types::EpochId;
 use nym_ecash_time::{cred_exp_date, EcashTime};
+use nym_http_api_common::{FormattedResponse, Output, OutputParams};
 use nym_validator_client::nym_api::rfc_3339_date;
 use serde::Deserialize;
 use std::ops::Deref;
@@ -41,16 +43,22 @@ pub(crate) fn partial_signing_routes() -> Router<AppState> {
     request_body = BlindSignRequestBody,
     path = "/v1/ecash/blind-sign",
     responses(
-        (status = 200, body = BlindedSignatureResponse),
+         (status = 200, content(
+            (BlindedSignatureResponse = "application/json"),
+            (BlindedSignatureResponse = "application/yaml"),
+            (BlindedSignatureResponse = "application/bincode")
+        )),
         (status = 400, body = String, description = "this nym-api is not an ecash signer in the current epoch"),
-
-    )
+    ),
+    params(OutputParams)
 )]
 async fn post_blind_sign(
+    Query(output): Query<OutputParams>,
     State(state): State<Arc<EcashState>>,
     Json(blind_sign_request_body): Json<BlindSignRequestBody>,
-) -> AxumResult<Json<BlindedSignatureResponse>> {
+) -> AxumResult<FormattedResponse<BlindedSignatureResponse>> {
     state.ensure_signer().await?;
+    let output = output.output.unwrap_or_default();
 
     debug!("Received blind sign request");
     trace!("body: {:?}", blind_sign_request_body);
@@ -73,7 +81,7 @@ async fn post_blind_sign(
         "checking if we have already issued credential for this deposit (deposit_id: {deposit_id})",
     );
     if let Some(blinded_signature) = state.already_issued(deposit_id).await? {
-        return Ok(Json(BlindedSignatureResponse { blinded_signature }));
+        return Ok(output.to_response(BlindedSignatureResponse { blinded_signature }));
     }
 
     //check if account was blacklisted
@@ -101,12 +109,14 @@ async fn post_blind_sign(
         .await?;
 
     // finally return the credential to the client
-    Ok(Json(BlindedSignatureResponse { blinded_signature }))
+    Ok(output.to_response(BlindedSignatureResponse { blinded_signature }))
 }
 
 #[derive(Deserialize, IntoParams)]
 struct ExpirationDateParam {
     expiration_date: Option<String>,
+    epoch_id: Option<EpochId>,
+    output: Option<Output>,
 }
 
 #[utoipa::path(
@@ -117,15 +127,24 @@ struct ExpirationDateParam {
     ),
     path = "/v1/ecash/partial-expiration-date-signatures",
     responses(
-        (status = 200, body = PartialExpirationDateSignatureResponse),
+        (status = 200, content(
+            (PartialExpirationDateSignatureResponse = "application/json"),
+            (PartialExpirationDateSignatureResponse = "application/yaml"),
+            (PartialExpirationDateSignatureResponse = "application/bincode")
+        )),
         (status = 400, body = String, description = "this nym-api is not an ecash signer in the current epoch"),
     )
 )]
 async fn partial_expiration_date_signatures(
     State(state): State<Arc<EcashState>>,
-    Query(ExpirationDateParam { expiration_date }): Query<ExpirationDateParam>,
-) -> AxumResult<Json<PartialExpirationDateSignatureResponse>> {
+    Query(ExpirationDateParam {
+        expiration_date,
+        epoch_id,
+        output,
+    }): Query<ExpirationDateParam>,
+) -> AxumResult<FormattedResponse<PartialExpirationDateSignatureResponse>> {
     state.ensure_signer().await?;
+    let output = output.unwrap_or_default();
 
     let expiration_date = match expiration_date {
         None => cred_exp_date().ecash_date(),
@@ -136,11 +155,16 @@ async fn partial_expiration_date_signatures(
     // see if we're not in the middle of new dkg
     state.ensure_dkg_not_in_progress().await?;
 
+    let epoch_id = match epoch_id {
+        Some(epoch_id) => epoch_id,
+        None => state.current_dkg_epoch().await?,
+    };
+
     let expiration_date_signatures = state
-        .partial_expiration_date_signatures(expiration_date)
+        .partial_expiration_date_signatures(expiration_date, epoch_id)
         .await?;
 
-    Ok(Json(PartialExpirationDateSignatureResponse {
+    Ok(output.to_response(PartialExpirationDateSignatureResponse {
         epoch_id: expiration_date_signatures.epoch_id,
         expiration_date,
         signatures: expiration_date_signatures.signatures.clone(),
@@ -155,14 +179,18 @@ async fn partial_expiration_date_signatures(
     ),
     path = "/v1/ecash/partial-coin-indices-signatures",
     responses(
-        (status = 200, body = PartialExpirationDateSignatureResponse),
+        (status = 200, content(
+            (PartialCoinIndicesSignatureResponse = "application/json"),
+            (PartialCoinIndicesSignatureResponse = "application/yaml"),
+            (PartialCoinIndicesSignatureResponse = "application/bincode")
+        )),
         (status = 400, body = String, description = "this nym-api is not an ecash signer in the current epoch"),
     )
 )]
 async fn partial_coin_indices_signatures(
     State(state): State<Arc<EcashState>>,
-    Query(EpochIdParam { epoch_id }): Query<EpochIdParam>,
-) -> AxumResult<Json<PartialCoinIndicesSignatureResponse>> {
+    Query(EpochIdParam { epoch_id, output }): Query<EpochIdParam>,
+) -> AxumResult<FormattedResponse<PartialCoinIndicesSignatureResponse>> {
     state.ensure_signer().await?;
 
     // see if we're not in the middle of new dkg
@@ -170,8 +198,10 @@ async fn partial_coin_indices_signatures(
 
     let coin_indices_signatures = state.partial_coin_index_signatures(epoch_id).await?;
 
-    Ok(Json(PartialCoinIndicesSignatureResponse {
-        epoch_id: coin_indices_signatures.epoch_id,
-        signatures: coin_indices_signatures.signatures.clone(),
-    }))
+    Ok(output
+        .unwrap_or_default()
+        .to_response(PartialCoinIndicesSignatureResponse {
+            epoch_id: coin_indices_signatures.epoch_id,
+            signatures: coin_indices_signatures.signatures.clone(),
+        }))
 }

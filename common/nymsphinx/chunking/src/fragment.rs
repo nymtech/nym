@@ -72,11 +72,7 @@ pub struct FragmentIdentifier {
 
 impl fmt::Display for FragmentIdentifier {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "Fragment Identifier: id: {} position: {}",
-            self.set_id, self.fragment_position
-        )
+        write!(f, "{} @ {}", self.set_id, self.fragment_position)
     }
 }
 
@@ -270,6 +266,10 @@ impl Fragment {
     /// `Fragment`.
     pub(crate) fn extract_payload(self) -> Vec<u8> {
         self.payload
+    }
+
+    pub fn payload(&self) -> &[u8] {
+        &self.payload
     }
 
     /// Tries to recover `Fragment` from slice of bytes extracted from received sphinx packet.

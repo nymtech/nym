@@ -7,7 +7,12 @@ import { Wrapper } from "@/components/wrapper";
 import { Box, Stack } from "@mui/material";
 // import Grid from "@mui/material/Grid2";
 
-export default function ExplorerPage() {
+import { RECOMMENDED_NODES } from "@/app/constants"; // ⬅ dynamic Promise<number[]>
+
+export default async function ExplorerPage() {
+  // Resolve once on the server and pass IDs to client components
+  const recommendedIds = await RECOMMENDED_NODES;
+
   return (
     <ContentLayout>
       <Wrapper>
@@ -16,7 +21,7 @@ export default function ExplorerPage() {
           <NodeAndAddressSearch />
         </Stack>
         <Box sx={{ mt: 5 }}>
-          <NodeTableWithAction />
+          <NodeTableWithAction recommendedIds={recommendedIds} />
         </Box>
         {/* <Grid container columnSpacing={5} rowSpacing={5} mt={10}>
           <Grid size={12}>

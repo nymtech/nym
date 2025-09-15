@@ -55,6 +55,6 @@ pub async fn execute(args: Args, client: SigningClient) {
         .await
     {
         Ok(res) => info!("SUCCESS ✅\n{}", json!(res)),
-        Err(e) => error!("FAILURE ❌\n{}", e),
+        Err(e) => error!("FAILURE ❌\n{e}"),
     }
 }

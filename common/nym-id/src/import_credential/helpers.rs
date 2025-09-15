@@ -99,7 +99,7 @@ where
 
     // in order to import the ticketbook we MUST have the appropriate signatures in the storage already
     if credentials_store
-        .get_expiration_date_signatures(ticketbook.expiration_date())
+        .get_expiration_date_signatures(ticketbook.expiration_date(), ticketbook.epoch_id())
         .await
         .map_err(|source| NymIdError::StorageError {
             source: Box::new(source),
@@ -108,6 +108,7 @@ where
     {
         return Err(NymIdError::MissingExpirationDateSignatures {
             date: ticketbook.expiration_date(),
+            epoch_id: ticketbook.epoch_id(),
         });
     }
 

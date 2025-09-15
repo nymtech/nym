@@ -1,8 +1,8 @@
 "use client";
 import { fetchNoise } from "@/app/api";
 import { useQuery } from "@tanstack/react-query";
-import { NoiseCard } from "./NoiseCard";
 import { ConditionalCardWrapper } from "./ConditionalCardWrapper";
+import { NoiseCard } from "./NoiseCard";
 
 export const NoiseCardWrapper = () => {
   const { data, isLoading, isError } = useQuery({

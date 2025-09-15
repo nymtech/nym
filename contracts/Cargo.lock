@@ -31,9 +31,9 @@ checksum = "683d7910e743518b0e34f1186f92494becacb047c7b6bf616c96772180fef923"
 
 [[package]]
 name = "anyhow"
-version = "1.0.97"
+version = "1.0.98"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dcfed56ad506cb2c684a14971b8861fdc3baaaae314b9e5f9bb532cbe3ba7a4f"
+checksum = "e16d2d3311acee920a9eb8d33b8cbc1787ce4a264e85f964c2404b969bdcd487"
 
 [[package]]
 name = "ark-bls12-381"
@@ -264,6 +264,20 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror 1.0.64",
+]
+
+[[package]]
+name = "cargo_metadata"
+version = "0.19.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dd5eb614ed4c27c5d706420e4320fbe3216ab31fa1c33cd8246ac36dae4479ba"
+dependencies = [
+ "camino",
+ "cargo-platform",
+ "semver",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.12",
 ]
 
 [[package]]
@@ -730,7 +744,7 @@ version = "0.1.0"
 dependencies = [
  "cosmwasm-std",
  "quote",
- "syn 1.0.109",
+ "syn 2.0.98",
 ]
 
 [[package]]
@@ -1077,6 +1091,7 @@ dependencies = [
 name = "nym-coconut-dkg"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "cosmwasm-schema",
  "cosmwasm-std",
  "cw-controllers",
@@ -1117,6 +1132,19 @@ dependencies = [
  "serde",
  "thiserror 2.0.12",
  "vergen",
+]
+
+[[package]]
+name = "nym-contracts-common-testing"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "cosmwasm-std",
+ "cw-multi-test",
+ "cw-storage-plus",
+ "rand",
+ "rand_chacha",
+ "serde",
 ]
 
 [[package]]
@@ -1193,7 +1221,6 @@ version = "1.5.1"
 dependencies = [
  "anyhow",
  "bs58",
- "cosmwasm-derive",
  "cosmwasm-schema",
  "cosmwasm-std",
  "cw-controllers",
@@ -1201,15 +1228,15 @@ dependencies = [
  "cw2",
  "easy-addr",
  "nym-contracts-common",
+ "nym-contracts-common-testing",
  "nym-crypto",
+ "nym-mixnet-contract",
  "nym-mixnet-contract-common",
  "nym-vesting-contract-common",
  "rand",
  "rand_chacha",
  "semver",
  "serde",
- "thiserror 2.0.12",
- "time",
 ]
 
 [[package]]
@@ -1227,7 +1254,6 @@ dependencies = [
  "schemars",
  "semver",
  "serde",
- "serde-json-wasm",
  "serde_repr",
  "thiserror 2.0.12",
  "time",
@@ -1252,7 +1278,7 @@ dependencies = [
 name = "nym-network-defaults"
 version = "0.1.0"
 dependencies = [
- "cargo_metadata",
+ "cargo_metadata 0.19.2",
  "regex",
 ]
 
@@ -1262,6 +1288,66 @@ version = "0.3.0"
 dependencies = [
  "pem",
  "tracing",
+ "zeroize",
+]
+
+[[package]]
+name = "nym-performance-contract"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-controllers",
+ "cw-storage-plus",
+ "cw2",
+ "nym-contracts-common",
+ "nym-contracts-common-testing",
+ "nym-crypto",
+ "nym-mixnet-contract",
+ "nym-mixnet-contract-common",
+ "nym-performance-contract-common",
+ "serde",
+]
+
+[[package]]
+name = "nym-performance-contract-common"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-controllers",
+ "nym-contracts-common",
+ "schemars",
+ "serde",
+ "thiserror 2.0.12",
+]
+
+[[package]]
+name = "nym-pool-contract"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-controllers",
+ "cw-storage-plus",
+ "cw2",
+ "nym-contracts-common",
+ "nym-contracts-common-testing",
+ "nym-pool-contract-common",
+]
+
+[[package]]
+name = "nym-pool-contract-common"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-controllers",
+ "schemars",
+ "serde",
+ "thiserror 2.0.12",
 ]
 
 [[package]]
@@ -1991,7 +2077,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e27d6bdd219887a9eadd19e1c34f32e47fa332301184935c6d9bca26f3cca525"
 dependencies = [
  "anyhow",
- "cargo_metadata",
+ "cargo_metadata 0.18.1",
  "cfg-if",
  "regex",
  "rustc_version",

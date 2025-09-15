@@ -12,8 +12,8 @@ use cosmwasm_schema::cw_serde;
 #[cfg(feature = "schema")]
 use crate::{
     dealer::{
-        DealerDetailsResponse, PagedDealerIndexResponse, PagedDealerResponse,
-        RegisteredDealerDetails,
+        DealerDetailsResponse, PagedDealerAddressesResponse, PagedDealerIndexResponse,
+        PagedDealerResponse, RegisteredDealerDetails,
     },
     dealing::{
         DealerDealingsStatusResponse, DealingChunkResponse, DealingChunkStatusResponse,
@@ -84,6 +84,9 @@ pub enum QueryMsg {
     #[cfg_attr(feature = "schema", returns(Epoch))]
     GetCurrentEpochState {},
 
+    #[cfg_attr(feature = "schema", returns(Option<Epoch>))]
+    GetEpochStateAtHeight { height: u64 },
+
     #[cfg_attr(feature = "schema", returns(u64))]
     GetCurrentEpochThreshold {},
 
@@ -101,6 +104,20 @@ pub enum QueryMsg {
 
     #[cfg_attr(feature = "schema", returns(DealerDetailsResponse))]
     GetDealerDetails { dealer_address: String },
+
+    #[cfg_attr(feature = "schema", returns(PagedDealerAddressesResponse))]
+    GetEpochDealersAddresses {
+        epoch_id: EpochId,
+        limit: Option<u32>,
+        start_after: Option<String>,
+    },
+
+    #[cfg_attr(feature = "schema", returns(PagedDealerResponse))]
+    GetEpochDealers {
+        epoch_id: EpochId,
+        limit: Option<u32>,
+        start_after: Option<String>,
+    },
 
     #[cfg_attr(feature = "schema", returns(PagedDealerResponse))]
     GetCurrentDealers {

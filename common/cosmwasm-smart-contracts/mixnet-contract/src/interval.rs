@@ -358,7 +358,7 @@ impl Interval {
         self.total_elapsed_epochs
     }
 
-    pub const fn current_epoch_absolute_id(&self) -> u32 {
+    pub const fn current_epoch_absolute_id(&self) -> EpochId {
         // since we count epochs starting from 0, if n epochs have elapsed, the current one has absolute id of n
         self.total_elapsed_epochs
     }

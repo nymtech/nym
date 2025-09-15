@@ -12,17 +12,17 @@
 // 3. Eventually this whole procedure is going to get expanded to allow for distribution of rewarded set generation
 //    and hence this might be a good place for it.
 
-use crate::node_describe_cache::DescribedNodes;
+use crate::mixnet_contract_cache::cache::MixnetContractCache;
+use crate::node_describe_cache::cache::DescribedNodes;
 use crate::node_status_api::{NodeStatusCache, ONE_DAY};
-use crate::nym_contract_cache::cache::NymContractCache;
 use crate::support::caching::cache::SharedCache;
+use crate::support::caching::refresher::RefreshRequester;
 use crate::support::nyxd::Client;
 use crate::support::storage::NymApiStorage;
 use error::RewardingError;
 pub(crate) use helpers::RewardedNodeWithParams;
 use nym_mixnet_contract_common::{CurrentIntervalResponse, Interval};
-use nym_task::{TaskClient, TaskManager};
-use std::collections::HashSet;
+use nym_task::{ShutdownManager, ShutdownToken};
 use std::time::Duration;
 use tokio::time::sleep;
 use tracing::{error, info, trace, warn};
@@ -38,7 +38,8 @@ mod transition_beginning;
 // this is struct responsible for advancing an epoch
 pub struct EpochAdvancer {
     nyxd_client: Client,
-    nym_contract_cache: NymContractCache,
+    mixnet_contract_cache: MixnetContractCache,
+    mixnet_contract_cache_refresh_requester: RefreshRequester,
     described_cache: SharedCache<DescribedNodes>,
     status_cache: NodeStatusCache,
     storage: NymApiStorage,
@@ -53,14 +54,16 @@ impl EpochAdvancer {
 
     pub(crate) fn new(
         nyxd_client: Client,
-        nym_contract_cache: NymContractCache,
+        mixnet_contract_cache: MixnetContractCache,
+        mixnet_contract_cache_refresh_requester: RefreshRequester,
         status_cache: NodeStatusCache,
         described_cache: SharedCache<DescribedNodes>,
         storage: NymApiStorage,
     ) -> Self {
         EpochAdvancer {
             nyxd_client,
-            nym_contract_cache,
+            mixnet_contract_cache,
+            mixnet_contract_cache_refresh_requester,
             described_cache,
             status_cache,
             storage,
@@ -120,7 +123,7 @@ impl EpochAdvancer {
 
         let epoch_end = interval.current_epoch_end();
 
-        let nym_nodes = self.nym_contract_cache.nym_nodes().await;
+        let nym_nodes = self.mixnet_contract_cache.nym_nodes().await;
 
         if nym_nodes.is_empty() {
             // that's a bit weird, but ok
@@ -162,62 +165,15 @@ impl EpochAdvancer {
         let cutoff = (epoch_end - 2 * ONE_DAY).unix_timestamp();
         self.storage.purge_old_statuses(cutoff).await?;
 
-        Ok(())
-    }
-
-    // this purposely does not deal with nym-nodes as they don't have a concept of a blacklist.
-    // instead clients are meant to be filtering out them themselves based on the provided scores.
-    async fn update_legacy_node_blacklist(
-        &mut self,
-        interval: &Interval,
-    ) -> Result<(), RewardingError> {
-        info!("Updating blacklists");
-
-        let mut mix_blacklist_add = HashSet::new();
-        let mut mix_blacklist_remove = HashSet::new();
-        let mut gate_blacklist_add = HashSet::new();
-        let mut gate_blacklist_remove = HashSet::new();
-
-        let mixnodes = self
-            .storage
-            .get_all_avg_mix_reliability_in_last_24hr(interval.current_epoch_end_unix_timestamp())
-            .await?;
-        let gateways = self
-            .storage
-            .get_all_avg_gateway_reliability_in_last_24hr(
-                interval.current_epoch_end_unix_timestamp(),
-            )
-            .await?;
-
-        // TODO: Make thresholds configurable
-        for mix in mixnodes {
-            if mix.value() <= 50.0 {
-                mix_blacklist_add.insert(mix.mix_id());
-            } else {
-                mix_blacklist_remove.insert(mix.mix_id());
-            }
-        }
-
-        self.nym_contract_cache
-            .update_mixnodes_blacklist(mix_blacklist_add, mix_blacklist_remove)
-            .await;
-
-        for gateway in gateways {
-            if gateway.value() <= 50.0 {
-                gate_blacklist_add.insert(gateway.node_id());
-            } else {
-                gate_blacklist_remove.insert(gateway.node_id());
-            }
-        }
-
-        self.nym_contract_cache
-            .update_gateways_blacklist(gate_blacklist_add, gate_blacklist_remove)
-            .await;
+        // after all epoch progression has finished - force refresh the mixnet contract cache,
+        // so we'd know about new rewarded set (that's easier than manually overwriting the data)
+        self.mixnet_contract_cache_refresh_requester
+            .request_cache_refresh();
 
         Ok(())
     }
 
-    async fn wait_until_epoch_end(&mut self, shutdown: &mut TaskClient) -> Option<Interval> {
+    async fn wait_until_epoch_end(&mut self, shutdown_token: &ShutdownToken) -> Option<Interval> {
         const POLL_INTERVAL: Duration = Duration::from_secs(120);
 
         loop {
@@ -228,7 +184,7 @@ impl EpochAdvancer {
                         _ = sleep(POLL_INTERVAL) => {
                             continue
                         },
-                        _ = shutdown.recv() => {
+                        _ = shutdown_token.cancelled() => {
                             trace!("wait_until_epoch_end: Received shutdown");
                             break None
                         }
@@ -256,7 +212,7 @@ impl EpochAdvancer {
                     _ = sleep(wait_time) => {
 
                     },
-                    _ = shutdown.recv() => {
+                    _ = shutdown_token.cancelled() => {
                         trace!("wait_until_epoch_end: Received shutdown");
                         break None
                     }
@@ -265,23 +221,25 @@ impl EpochAdvancer {
         }
     }
 
-    pub(crate) async fn run(&mut self, mut shutdown: TaskClient) -> Result<(), RewardingError> {
+    pub(crate) async fn run(
+        &mut self,
+        shutdown_token: ShutdownToken,
+    ) -> Result<(), RewardingError> {
         info!("waiting for initial contract cache values before we can start rewarding");
-        self.nym_contract_cache.wait_for_initial_values().await;
+        self.mixnet_contract_cache
+            .naive_wait_for_initial_values()
+            .await;
 
         info!("waiting for initial self-described cache values before we can start rewarding");
         self.described_cache.naive_wait_for_initial_values().await;
 
-        while !shutdown.is_shutdown() {
-            let interval_details = match self.wait_until_epoch_end(&mut shutdown).await {
+        while !shutdown_token.is_cancelled() {
+            let interval_details = match self.wait_until_epoch_end(&shutdown_token).await {
                 // received a shutdown
                 None => return Ok(()),
                 Some(interval) => interval,
             };
-            if let Err(err) = self.update_legacy_node_blacklist(&interval_details).await {
-                error!("failed to update the node blacklist - {err}");
-                continue;
-            }
+
             if let Err(err) = self.perform_epoch_operations(interval_details).await {
                 error!("failed to perform epoch operations - {err}");
                 sleep(Duration::from_secs(30)).await;
@@ -293,21 +251,23 @@ impl EpochAdvancer {
 
     pub(crate) fn start(
         nyxd_client: Client,
-        nym_contract_cache: &NymContractCache,
+        nym_contract_cache: &MixnetContractCache,
+        mixnet_contract_cache_refresh_requester: RefreshRequester,
         status_cache: &NodeStatusCache,
         described_cache: SharedCache<DescribedNodes>,
         storage: &NymApiStorage,
-        shutdown: &TaskManager,
+        shutdown_manager: &ShutdownManager,
     ) {
-        let mut rewarded_set_updater = EpochAdvancer::new(
+        let mut epoch_advancer = EpochAdvancer::new(
             nyxd_client,
             nym_contract_cache.to_owned(),
+            mixnet_contract_cache_refresh_requester,
             status_cache.to_owned(),
             described_cache,
             storage.to_owned(),
         );
-        let shutdown_listener = shutdown.subscribe();
-        tokio::spawn(async move { rewarded_set_updater.run(shutdown_listener).await });
+        let shutdown_listener = shutdown_manager.clone_token("epoch-advancer");
+        tokio::spawn(async move { epoch_advancer.run(shutdown_listener).await });
     }
 }
 

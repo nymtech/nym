@@ -6,6 +6,14 @@ use crate::manager::contract::{Account, LoadedContract};
 use sqlx::FromRow;
 use time::OffsetDateTime;
 
+#[allow(dead_code)]
+#[derive(FromRow)]
+pub(crate) struct RawAuthorisedNetworkMonitor {
+    pub(crate) id: i64,
+    pub(crate) network_id: i64,
+    pub(crate) address: String,
+}
+
 #[derive(FromRow)]
 pub(crate) struct RawAccount {
     pub(crate) address: String,
@@ -70,6 +78,7 @@ pub(crate) struct RawNetwork {
     pub(crate) cw3_multisig_contract_id: i64,
     pub(crate) cw4_group_contract_id: i64,
     pub(crate) dkg_contract_id: i64,
+    pub(crate) performance_contract_id: i64,
 
     pub(crate) rewarder_address: String,
     pub(crate) ecash_holding_account_address: String,

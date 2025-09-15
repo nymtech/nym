@@ -10,7 +10,7 @@ use human_repr::HumanCount;
 use nym_bin_common::logging::LoggingSettings;
 use nym_config::defaults::{
     mainnet, var_names, DEFAULT_MIX_LISTENING_PORT, DEFAULT_NYM_NODE_HTTP_PORT,
-    DEFAULT_VERLOC_LISTENING_PORT, WG_PORT, WG_TUN_DEVICE_IP_ADDRESS_V4,
+    DEFAULT_VERLOC_LISTENING_PORT, WG_METADATA_PORT, WG_TUNNEL_PORT, WG_TUN_DEVICE_IP_ADDRESS_V4,
     WG_TUN_DEVICE_IP_ADDRESS_V6,
 };
 use nym_config::defaults::{WG_TUN_DEVICE_NETMASK_V4, WG_TUN_DEVICE_NETMASK_V6};
@@ -21,6 +21,7 @@ use nym_config::{
     must_get_home, parse_urls, read_config_from_toml_file, save_formatted_config_to_file,
     NymConfigTemplate, DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, DEFAULT_DATA_DIR, NYM_DIR,
 };
+use nym_gateway::nym_authenticator;
 use serde::{Deserialize, Serialize};
 use std::env;
 use std::fmt::{Display, Formatter};
@@ -426,6 +427,21 @@ impl Config {
     pub fn validate(&self) -> Result<(), NymNodeError> {
         self.mixnet.validate()?;
 
+        // it's not allowed to run mixnode mode alongside entry mode
+        if self.modes.mixnode && self.modes.entry {
+            return Err(NymNodeError::config_validation_failure(
+                "illegal modes configuration - node cannot run as a mixnode and an entry gateway",
+            ));
+        }
+
+        // nor it's allowed to run mixnode mode alongside exit mode
+        // (use two separate checks for better error messages)
+        if self.modes.mixnode && self.modes.exit {
+            return Err(NymNodeError::config_validation_failure(
+                "illegal modes configuration - node cannot run as a mixnode and an exit gateway",
+            ));
+        }
+
         Ok(())
     }
 }
@@ -530,6 +546,9 @@ pub struct Mixnet {
     pub replay_protection: ReplayProtection,
 
     #[serde(default)]
+    pub key_rotation: KeyRotation,
+
+    #[serde(default)]
     pub debug: MixnetDebug,
 }
 
@@ -576,6 +595,13 @@ pub struct MixnetDebug {
 
     /// Maximum number of packets that can be stored waiting to get sent to a particular connection.
     pub maximum_connection_buffer_size: usize,
+
+    /// Specify whether any framed packets between nodes should use the legacy format (v7)
+    /// as opposed to the current (v8) one.
+    /// The legacy format has to be used until sufficient number of nodes on the network has upgraded and understand the new variant.
+    /// This will allow for optimisations to indicate which [sphinx] key is meant to be used when
+    /// processing received packets.
+    pub use_legacy_packet_encoding: bool,
 
     /// Specifies whether this node should **NOT** use noise protocol in the connections (currently not implemented)
     pub unsafe_disable_noise: bool,
@@ -639,12 +665,6 @@ pub struct ReplayProtectionDebug {
     /// It's performed in case the traffic rates increase before the next bloomfilter update.
     pub bloomfilter_size_multiplier: f64,
 
-    // NOTE: this field is temporary until replay detection bloomfilter rotation is tied
-    // to key rotation
-    /// Specifies how often the bloomfilter is cleared
-    #[serde(with = "humantime_serde")]
-    pub bloomfilter_reset_rate: Duration,
-
     /// Specifies how often the bloomfilter is flushed to disk for recovery in case of a crash
     #[serde(with = "humantime_serde")]
     pub bloomfilter_disk_flushing_rate: Duration,
@@ -660,9 +680,6 @@ impl ReplayProtectionDebug {
 
     // 10^-5
     pub const DEFAULT_REPLAY_DETECTION_FALSE_POSITIVE_RATE: f64 = 1e-5;
-
-    // 25h (key rotation will be happening every 24h + 1h of overlap)
-    pub const DEFAULT_REPLAY_DETECTION_BF_RESET_RATE: Duration = Duration::from_secs(25 * 60 * 60);
 
     // we must have some reasonable balance between losing values and trashing the disk.
     // since on average HDD it would take ~30s to save a 2GB bloomfilter
@@ -680,8 +697,12 @@ impl ReplayProtectionDebug {
             ));
         }
 
+        // ideally we would have pulled the exact information from the network,
+        // but making async calls really doesn't play around with this method
+        // so we do second best: assume 24h rotation with 1h overlap (which realistically won't ever change)
+
         let items_in_filter = items_in_bloomfilter(
-            self.bloomfilter_reset_rate,
+            Duration::from_secs(25 * 60 * 60),
             self.initial_expected_packets_per_second,
         );
         let bitmap_size = bitmap_size(self.false_positive_rate, items_in_filter);
@@ -717,8 +738,33 @@ impl Default for ReplayProtectionDebug {
             bloomfilter_minimum_packets_per_second_size:
                 Self::DEFAULT_BLOOMFILTER_MINIMUM_PACKETS_PER_SECOND_SIZE,
             bloomfilter_size_multiplier: Self::DEFAULT_BLOOMFILTER_SIZE_MULTIPLIER,
-            bloomfilter_reset_rate: Self::DEFAULT_REPLAY_DETECTION_BF_RESET_RATE,
             bloomfilter_disk_flushing_rate: Self::DEFAULT_BF_DISK_FLUSHING_RATE,
+        }
+    }
+}
+
+#[derive(Debug, Default, Copy, Clone, Deserialize, PartialEq, Serialize)]
+#[serde(default)]
+pub struct KeyRotation {
+    pub debug: KeyRotationDebug,
+}
+
+#[derive(Debug, Copy, Clone, Deserialize, PartialEq, Serialize)]
+#[serde(default)]
+pub struct KeyRotationDebug {
+    /// Specifies how often the node should poll for any changes in the key rotation global state.
+    #[serde(with = "humantime_serde")]
+    pub rotation_state_poling_interval: Duration,
+}
+
+impl KeyRotationDebug {
+    pub const DEFAULT_ROTATION_STATE_POLLING_INTERVAL: Duration = Duration::from_secs(4 * 60 * 60);
+}
+
+impl Default for KeyRotationDebug {
+    fn default() -> Self {
+        KeyRotationDebug {
+            rotation_state_poling_interval: Self::DEFAULT_ROTATION_STATE_POLLING_INTERVAL,
         }
     }
 }
@@ -742,8 +788,9 @@ impl Default for MixnetDebug {
             packet_forwarding_maximum_backoff: Self::DEFAULT_PACKET_FORWARDING_MAXIMUM_BACKOFF,
             initial_connection_timeout: Self::DEFAULT_INITIAL_CONNECTION_TIMEOUT,
             maximum_connection_buffer_size: Self::DEFAULT_MAXIMUM_CONNECTION_BUFFER_SIZE,
-            // to be changed by @SW once the implementation is there
-            unsafe_disable_noise: true,
+            // TODO: update this in few releases...
+            use_legacy_packet_encoding: true,
+            unsafe_disable_noise: false,
         }
     }
 }
@@ -773,6 +820,7 @@ impl Mixnet {
             nym_api_urls,
             nyxd_urls,
             replay_protection: ReplayProtection::new_default(data_dir),
+            key_rotation: Default::default(),
             debug: Default::default(),
         }
     }
@@ -883,9 +931,13 @@ pub struct Wireguard {
     /// default: `fc01::1`
     pub private_ipv6: Ipv6Addr,
 
-    /// Port announced to external clients wishing to connect to the wireguard interface.
+    /// Tunnel port announced to external clients wishing to connect to the wireguard interface.
     /// Useful in the instances where the node is behind a proxy.
-    pub announced_port: u16,
+    pub announced_tunnel_port: u16,
+
+    /// Metadata port announced to external clients wishing to connect to the metadata endpoint.
+    /// Useful in the instances where the node is behind a proxy.
+    pub announced_metadata_port: u16,
 
     /// The prefix denoting the maximum number of the clients that can be connected via Wireguard using IPv4.
     /// The maximum value for IPv4 is 32
@@ -903,10 +955,11 @@ impl Wireguard {
     pub fn new_default<P: AsRef<Path>>(data_dir: P) -> Self {
         Wireguard {
             enabled: false,
-            bind_address: SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), WG_PORT),
+            bind_address: SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), WG_TUNNEL_PORT),
             private_ipv4: WG_TUN_DEVICE_IP_ADDRESS_V4,
             private_ipv6: WG_TUN_DEVICE_IP_ADDRESS_V6,
-            announced_port: WG_PORT,
+            announced_tunnel_port: WG_TUNNEL_PORT,
+            announced_metadata_port: WG_METADATA_PORT,
             private_network_prefix_v4: WG_TUN_DEVICE_NETMASK_V4,
             private_network_prefix_v6: WG_TUN_DEVICE_NETMASK_V6,
             storage_paths: persistence::WireguardPaths::new(data_dir),
@@ -920,7 +973,8 @@ impl From<Wireguard> for nym_wireguard_types::Config {
             bind_address: value.bind_address,
             private_ipv4: value.private_ipv4,
             private_ipv6: value.private_ipv6,
-            announced_port: value.announced_port,
+            announced_tunnel_port: value.announced_tunnel_port,
+            announced_metadata_port: value.announced_metadata_port,
             private_network_prefix_v4: value.private_network_prefix_v4,
             private_network_prefix_v6: value.private_network_prefix_v6,
         }
@@ -933,7 +987,7 @@ impl From<Wireguard> for nym_authenticator::config::Authenticator {
             bind_address: value.bind_address,
             private_ipv4: value.private_ipv4,
             private_ipv6: value.private_ipv6,
-            announced_port: value.announced_port,
+            tunnel_announced_port: value.announced_tunnel_port,
             private_network_prefix_v4: value.private_network_prefix_v4,
             private_network_prefix_v6: value.private_network_prefix_v6,
         }

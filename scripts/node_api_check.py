@@ -45,7 +45,7 @@ class MainFunctions:
         print("\n\nNODE RESULTS FROM UNFILTERED QUERY\n")
 
         if args.markdown:
-            node_markdown = self._dataframe_to_markdown(node_df, ["RESULT"], ["API EDNPOINT"])
+            node_markdown = self._dataframe_to_markdown(node_df, ["RESULT"], ["API ENDPOINT"])
             print(node_markdown, "\n")
         else:
             self.print_neat_dict(node_dict)

@@ -1,11 +1,11 @@
 "use client";
 
+import CheckIcon from "@mui/icons-material/Check";
 import { IconButton, Typography, useTheme } from "@mui/material";
 import { useCopyToClipboard } from "@uidotdev/usehooks";
 import { useEffect } from "react";
 import CopyFile from "../icons/CopyFile";
 import CopyFileDark from "../icons/CopyFileDark";
-import CheckIcon from "@mui/icons-material/Check";
 
 const CLEAR_AFTER_MS = 10_000;
 

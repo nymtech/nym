@@ -310,7 +310,7 @@ impl MixnetListener {
 
         // Check if the client is connected
         if !self.connected_clients.is_client_connected(&client_id) {
-            log::info!("Client {} is not connected, cannot disconnect", client_id);
+            log::info!("Client {client_id} is not connected, cannot disconnect");
             return Ok(Some(VersionedResponse {
                 version,
                 reply_to: client_id,
@@ -322,7 +322,7 @@ impl MixnetListener {
         }
 
         // Disconnect the client
-        log::info!("Disconnecting client {}", client_id);
+        log::info!("Disconnecting client {client_id}");
         self.connected_clients.disconnect_client(&client_id);
 
         Ok(Some(VersionedResponse {
@@ -435,10 +435,11 @@ impl MixnetListener {
         let input_message =
             crate::util::create_message::create_input_message(&send_to, response_bytes);
 
-        self.mixnet_client
-            .send(input_message)
-            .await
-            .map_err(|err| IpPacketRouterError::FailedToSendPacketToMixnet { source: err })
+        self.mixnet_client.send(input_message).await.map_err(|err| {
+            IpPacketRouterError::FailedToSendPacketToMixnet {
+                source: Box::new(err),
+            }
+        })
     }
 
     // A single incoming request can trigger multiple responses, such as when data requests contain

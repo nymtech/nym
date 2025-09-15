@@ -1,7 +1,7 @@
 "use client";
 import { useEpochContext } from "@/providers/EpochProvider";
-import { CurrentEpochCard } from "./CurrentEpochCard";
 import { ConditionalCardWrapper } from "./ConditionalCardWrapper";
+import { CurrentEpochCard } from "./CurrentEpochCard";
 
 export const CurrentEpochCardWrapper = () => {
   const { data, isError, isLoading, epochStatus } = useEpochContext();

@@ -1,8 +1,8 @@
 "use client";
 import { fetchNSApiNodes } from "@/app/api";
 import { useQuery } from "@tanstack/react-query";
-import { StakersNumberCard } from "./StakersNumberCard";
 import { ConditionalCardWrapper } from "./ConditionalCardWrapper";
+import { StakersNumberCard } from "./StakersNumberCard";
 
 export const StakersNumberCardWrapper = () => {
   const { data, isLoading, isError } = useQuery({

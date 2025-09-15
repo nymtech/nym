@@ -5,9 +5,10 @@
 #![allow(clippy::drop_non_drop)]
 
 use crate::error::WasmCoreError;
-use nym_client_core::config::ForgetMe;
+use nym_client_core::config::{ForgetMe, RememberMe};
 use nym_config::helpers::OptionalSet;
 use nym_sphinx::params::{PacketSize, PacketType};
+use nym_statistics_common::types::SessionType;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use wasm_bindgen::prelude::*;
@@ -113,6 +114,8 @@ pub struct DebugWasm {
     pub stats_reporting: StatsReportingWasm,
 
     pub forget_me: ForgetMeWasm,
+
+    pub remember_me: RememberMeWasm,
 }
 
 impl Default for DebugWasm {
@@ -132,6 +135,7 @@ impl From<DebugWasm> for ConfigDebug {
             reply_surbs: debug.reply_surbs.into(),
             stats_reporting: debug.stats_reporting.into(),
             forget_me: debug.forget_me.into(),
+            remember_me: debug.remember_me.into(),
         }
     }
 }
@@ -147,6 +151,7 @@ impl From<ConfigDebug> for DebugWasm {
             reply_surbs: debug.reply_surbs.into(),
             stats_reporting: debug.stats_reporting.into(),
             forget_me: ForgetMeWasm::from(debug.forget_me),
+            remember_me: RememberMeWasm::from(debug.remember_me),
         }
     }
 }
@@ -191,6 +196,15 @@ pub struct TrafficWasm {
 
     /// Controls whether the sent packets should use outfox as opposed to the default sphinx.
     pub use_outfox: bool,
+
+    /// Indicates whether to mix hops or not. If mix hops are enabled, traffic
+    /// will be routed as usual, to the entry gateway, through three mix nodes, egressing
+    /// through the exit gateway. If mix hops are disabled, traffic will be routed directly
+    /// from the entry gateway to the exit gateway, bypassing the mix nodes.
+    ///
+    /// This overrides the `use_legacy_sphinx_format` setting as reduced/disabeld mix hops
+    /// requires use of the updated SURB packet format.
+    pub disable_mix_hops: bool,
 }
 
 impl Default for TrafficWasm {
@@ -224,6 +238,7 @@ impl From<TrafficWasm> for ConfigTraffic {
             secondary_packet_size: use_extended_packet_size,
             use_legacy_sphinx_format: traffic.use_legacy_sphinx_format,
             packet_type,
+            disable_mix_hops: traffic.disable_mix_hops,
         }
     }
 }
@@ -241,6 +256,7 @@ impl From<ConfigTraffic> for TrafficWasm {
             use_legacy_sphinx_format: traffic.use_legacy_sphinx_format,
             use_extended_packet_size: traffic.secondary_packet_size.is_some(),
             use_outfox: traffic.packet_type == PacketType::Outfox,
+            disable_mix_hops: traffic.disable_mix_hops,
         }
     }
 }
@@ -492,9 +508,9 @@ pub struct ReplySurbsWasm {
     /// deciding it's never going to get them and would drop all pending messages
     pub maximum_reply_surb_drop_waiting_period_ms: u32,
 
-    /// Defines maximum amount of time given reply surb is going to be valid for.
-    /// This is going to be superseded by key rotation once implemented.
-    pub maximum_reply_surb_age_ms: u32,
+    /// Defines maximum number of times the client is going to re-request reply surbs
+    /// for clearing pending messages before giving up after making no progress.
+    pub maximum_reply_surbs_rerequests: usize,
 
     /// Defines maximum amount of time given reply key is going to be valid for.
     /// This is going to be superseded by key rotation once implemented.
@@ -503,9 +519,6 @@ pub struct ReplySurbsWasm {
     /// Defines how many mix nodes the reply surb should go through.
     /// If not set, the default value is going to be used.
     pub surb_mix_hops: Option<u8>,
-
-    /// Specifies if we should reset all the sender tags on startup
-    pub fresh_sender_tags: bool,
 }
 
 impl Default for ReplySurbsWasm {
@@ -530,14 +543,11 @@ impl From<ReplySurbsWasm> for ConfigReplySurbs {
             maximum_reply_surb_drop_waiting_period: Duration::from_millis(
                 reply_surbs.maximum_reply_surb_drop_waiting_period_ms as u64,
             ),
-            maximum_reply_surb_age: Duration::from_millis(
-                reply_surbs.maximum_reply_surb_age_ms as u64,
-            ),
+            maximum_reply_surbs_rerequests: reply_surbs.maximum_reply_surbs_rerequests,
             maximum_reply_key_age: Duration::from_millis(
                 reply_surbs.maximum_reply_key_age_ms as u64,
             ),
             surb_mix_hops: reply_surbs.surb_mix_hops,
-            fresh_sender_tags: reply_surbs.fresh_sender_tags,
         }
     }
 }
@@ -558,10 +568,9 @@ impl From<ConfigReplySurbs> for ReplySurbsWasm {
             maximum_reply_surb_drop_waiting_period_ms: reply_surbs
                 .maximum_reply_surb_drop_waiting_period
                 .as_millis() as u32,
-            maximum_reply_surb_age_ms: reply_surbs.maximum_reply_surb_age.as_millis() as u32,
+            maximum_reply_surbs_rerequests: reply_surbs.maximum_reply_surbs_rerequests,
             maximum_reply_key_age_ms: reply_surbs.maximum_reply_key_age.as_millis() as u32,
             surb_mix_hops: reply_surbs.surb_mix_hops,
-            fresh_sender_tags: reply_surbs.fresh_sender_tags,
         }
     }
 }
@@ -584,6 +593,27 @@ impl From<ForgetMe> for ForgetMeWasm {
     fn from(value: ForgetMe) -> Self {
         Self {
             client: value.client(),
+            stats: value.stats(),
+        }
+    }
+}
+
+#[wasm_bindgen(inspectable)]
+#[derive(Debug, Copy, Clone, Deserialize, PartialEq, Serialize, Default)]
+#[serde(deny_unknown_fields)]
+pub struct RememberMeWasm {
+    pub stats: bool,
+}
+
+impl From<RememberMeWasm> for RememberMe {
+    fn from(value: RememberMeWasm) -> Self {
+        RememberMe::new(value.stats, SessionType::Wasm)
+    }
+}
+
+impl From<RememberMe> for RememberMeWasm {
+    fn from(value: RememberMe) -> Self {
+        Self {
             stats: value.stats(),
         }
     }

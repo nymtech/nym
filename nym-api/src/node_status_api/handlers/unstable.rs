@@ -8,12 +8,12 @@ use crate::support::http::state::AppState;
 use crate::support::storage::NymApiStorage;
 use anyhow::bail;
 use axum::extract::{Path, Query, State};
-use axum::Json;
 use nym_api_requests::models::{
     GatewayTestResultResponse, MixnodeTestResultResponse, NetworkMonitorRunDetailsResponse,
     PartialTestResult, TestNode, TestRoute,
 };
 use nym_api_requests::pagination::Pagination;
+use nym_http_api_common::{FormattedResponse, OutputParams};
 use nym_mixnet_contract_common::NodeId;
 use std::cmp::min;
 use std::collections::{BTreeMap, HashMap};
@@ -173,14 +173,18 @@ async fn _mixnode_test_results(
     ),
     path = "/v1/status/mixnodes/unstable/{mix_id}/test-results",
     responses(
-        (status = 200, body = MixnodeTestResultResponse)
-    )
+        (status = 200, content(
+            (MixnodeTestResultResponse = "application/json"),
+            (MixnodeTestResultResponse = "application/yaml"),
+            (MixnodeTestResultResponse = "application/bincode")
+        ))
+    ),
 )]
 pub async fn mixnode_test_results(
     Path(mix_id): Path<NodeId>,
     Query(pagination): Query<PaginationRequest>,
     State(state): State<AppState>,
-) -> AxumResult<Json<MixnodeTestResultResponse>> {
+) -> AxumResult<FormattedResponse<MixnodeTestResultResponse>> {
     let page = pagination.page.unwrap_or_default();
     let per_page = min(
         pagination
@@ -188,6 +192,7 @@ pub async fn mixnode_test_results(
             .unwrap_or(DEFAULT_TEST_RESULTS_PAGE_SIZE),
         MAX_TEST_RESULTS_PAGE_SIZE,
     );
+    let output = pagination.output.unwrap_or_default();
 
     match _mixnode_test_results(
         mix_id,
@@ -198,7 +203,7 @@ pub async fn mixnode_test_results(
     )
     .await
     {
-        Ok(res) => Ok(Json(res)),
+        Ok(res) => Ok(output.to_response(res)),
         Err(err) => Err(AxumErrorResponse::internal_msg(format!(
             "failed to retrieve mixnode test results for node {mix_id}: {err}"
         ))),
@@ -272,14 +277,18 @@ async fn _gateway_test_results(
     ),
     path = "/v1/status/gateways/unstable/{identity}/test-results",
     responses(
-        (status = 200, body = GatewayTestResultResponse)
-    )
+        (status = 200, content(
+            (GatewayTestResultResponse = "application/json"),
+            (GatewayTestResultResponse = "application/yaml"),
+            (GatewayTestResultResponse = "application/bincode")
+        ))
+    ),
 )]
 pub async fn gateway_test_results(
     Path(gateway_identity): Path<String>,
     Query(pagination): Query<PaginationRequest>,
     State(state): State<AppState>,
-) -> AxumResult<Json<GatewayTestResultResponse>> {
+) -> AxumResult<FormattedResponse<GatewayTestResultResponse>> {
     let page = pagination.page.unwrap_or_default();
     let per_page = min(
         pagination
@@ -287,6 +296,7 @@ pub async fn gateway_test_results(
             .unwrap_or(DEFAULT_TEST_RESULTS_PAGE_SIZE),
         MAX_TEST_RESULTS_PAGE_SIZE,
     );
+    let output = pagination.output.unwrap_or_default();
 
     match _gateway_test_results(
         &gateway_identity,
@@ -297,7 +307,7 @@ pub async fn gateway_test_results(
     )
     .await
     {
-        Ok(res) => Ok(Json(res)),
+        Ok(res) => Ok(output.to_response(res)),
         Err(err) => Err(AxumErrorResponse::internal_msg(format!(
             "failed to retrieve mixnode test results for gateway {gateway_identity}: {err}"
         ))),
@@ -349,15 +359,23 @@ async fn _latest_monitor_run_report(
     get,
     path = "/v1/status/network-monitor/unstable/run/{monitor_run_id}/details",
     responses(
-        (status = 200, body = NetworkMonitorRunDetailsResponse)
-    )
+        (status = 200, content(
+            (NetworkMonitorRunDetailsResponse = "application/json"),
+            (NetworkMonitorRunDetailsResponse = "application/yaml"),
+            (NetworkMonitorRunDetailsResponse = "application/bincode")
+        ))
+    ),
+    params(OutputParams)
 )]
 pub async fn monitor_run_report(
     Path(monitor_run_id): Path<i64>,
+    Query(output): Query<OutputParams>,
     State(state): State<AppState>,
-) -> AxumResult<Json<NetworkMonitorRunDetailsResponse>> {
+) -> AxumResult<FormattedResponse<NetworkMonitorRunDetailsResponse>> {
+    let output = output.output.unwrap_or_default();
+
     match _monitor_run_report(monitor_run_id, state.storage()).await {
-        Ok(res) => Ok(Json(res)),
+        Ok(res) => Ok(output.to_response(res)),
         Err(err) => Err(AxumErrorResponse::internal_msg(format!(
             "failed to retrieve monitor run report for run {monitor_run_id}: {err}"
         ))),
@@ -369,14 +387,22 @@ pub async fn monitor_run_report(
     get,
     path = "/v1/status/network-monitor/unstable/run/latest/details",
     responses(
-        (status = 200, body = NetworkMonitorRunDetailsResponse)
-    )
+        (status = 200, content(
+            (NetworkMonitorRunDetailsResponse = "application/json"),
+            (NetworkMonitorRunDetailsResponse = "application/yaml"),
+            (NetworkMonitorRunDetailsResponse = "application/bincode")
+        ))
+    ),
+    params(OutputParams)
 )]
 pub async fn latest_monitor_run_report(
+    Query(output): Query<OutputParams>,
     State(state): State<AppState>,
-) -> AxumResult<Json<NetworkMonitorRunDetailsResponse>> {
+) -> AxumResult<FormattedResponse<NetworkMonitorRunDetailsResponse>> {
+    let output = output.output.unwrap_or_default();
+
     match _latest_monitor_run_report(state.storage()).await {
-        Ok(res) => Ok(Json(res)),
+        Ok(res) => Ok(output.to_response(res)),
         Err(err) => Err(AxumErrorResponse::internal_msg(format!(
             "failed to retrieve the latest monitor run report: {err}"
         ))),

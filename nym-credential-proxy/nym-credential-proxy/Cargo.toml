@@ -1,25 +1,23 @@
 [package]
 name = "nym-credential-proxy"
-version = "0.1.7"
+version = "0.1.8"
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true
 edition.workspace = true
 license.workspace = true
+rust-version.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-async-trait.workspace = true
 axum.workspace = true
 anyhow.workspace = true
 bip39 = { workspace = true, features = ["zeroize"] }
 bs58.workspace = true
 cfg-if = { workspace = true }
-colored.workspace = true
 clap = { workspace = true, features = ["derive", "env"] }
-dotenvy.workspace = true
 futures.workspace = true
 humantime.workspace = true
 rand.workspace = true
@@ -33,7 +31,6 @@ time.workspace = true
 thiserror.workspace = true
 tokio = { workspace = true, features = ["rt-multi-thread", "macros", "signal"] }
 tokio-util = { workspace = true, features = ["rt"] }
-tower.workspace = true
 tower-http = { workspace = true, features = ["cors"], optional = true }
 tracing.workspace = true
 url.workspace = true
@@ -49,19 +46,26 @@ nym-crypto = { path = "../../common/crypto", features = ["asymmetric", "rand", "
 nym-credentials = { path = "../../common/credentials" }
 nym-credentials-interface = { path = "../../common/credentials-interface" }
 nym-ecash-contract-common = { path = "../../common/cosmwasm-smart-contracts/ecash-contract" }
-nym-http-api-common = { path = "../../common/http-api-common", features = ["utoipa"] }
+nym-http-api-common = { path = "../../common/http-api-common", features = ["utoipa", "middleware"] }
 nym-validator-client = { path = "../../common/client-libs/validator-client" }
 nym-network-defaults = { path = "../../common/network-defaults" }
 
 nym-credential-proxy-requests = { path = "../nym-credential-proxy-requests", features = ["openapi"] }
+nym-ecash-signer-check = { path = "../../common/ecash-signer-check" }
+
+nym-credential-proxy-lib = { path = "../../common/credential-proxy" }
 
 [dev-dependencies]
 tempfile = { workspace = true }
 
 [build-dependencies]
+anyhow = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
 sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"] }
 
 [features]
 default = ["cors"]
 cors = ["tower-http"]
+
+[lints]
+workspace = true

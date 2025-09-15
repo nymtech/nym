@@ -7,10 +7,11 @@ use crate::models::{
 };
 use nym_ecash_time::Date;
 use sqlx::{Executor, Sqlite, Transaction};
+use sqlx_pool_guard::SqlitePoolGuard;
 
 #[derive(Clone)]
 pub struct SqliteEcashTicketbookManager {
-    connection_pool: sqlx::SqlitePool,
+    connection_pool: SqlitePoolGuard,
 }
 
 impl SqliteEcashTicketbookManager {
@@ -19,7 +20,7 @@ impl SqliteEcashTicketbookManager {
     /// # Arguments
     ///
     /// * `connection_pool`: database connection pool to use.
-    pub fn new(connection_pool: sqlx::SqlitePool) -> Self {
+    pub fn new(connection_pool: SqlitePoolGuard) -> Self {
         SqliteEcashTicketbookManager { connection_pool }
     }
 
@@ -33,12 +34,12 @@ impl SqliteEcashTicketbookManager {
             "DELETE FROM ecash_ticketbook WHERE expiration_date <= ?",
             deadline
         )
-        .execute(&self.connection_pool)
+        .execute(&*self.connection_pool)
         .await?;
         Ok(())
     }
 
-    pub(crate) async fn begin_storage_tx(&self) -> Result<Transaction<Sqlite>, sqlx::Error> {
+    pub(crate) async fn begin_storage_tx(&self) -> Result<Transaction<'_, Sqlite>, sqlx::Error> {
         self.connection_pool.begin().await
     }
 
@@ -60,7 +61,7 @@ impl SqliteEcashTicketbookManager {
             data,
             expiration_date,
         )
-        .execute(&self.connection_pool)
+        .execute(&*self.connection_pool)
         .await?;
 
         Ok(())
@@ -90,7 +91,7 @@ impl SqliteEcashTicketbookManager {
             epoch_id,
             total_tickets,
             used_tickets,
-        ).execute(&self.connection_pool).await?;
+        ).execute(&*self.connection_pool).await?;
 
         Ok(())
     }
@@ -98,15 +99,14 @@ impl SqliteEcashTicketbookManager {
     pub(crate) async fn contains_ticketbook_data(&self, data: &[u8]) -> Result<bool, sqlx::Error> {
         let exists = sqlx::query(
             r#"
-                SELECT EXISTS (
-                    SELECT 1
-                    FROM ecash_ticketbook
-                    WHERE ticketbook_data = ?
-                )
+                SELECT 1
+                FROM ecash_ticketbook
+                WHERE ticketbook_data = ?
+
             "#,
         )
         .bind(data)
-        .fetch_optional(&self.connection_pool)
+        .fetch_optional(&*self.connection_pool)
         .await?
         .is_some();
 
@@ -122,7 +122,7 @@ impl SqliteEcashTicketbookManager {
                     FROM ecash_ticketbook
                 "#,
         )
-        .fetch_all(&self.connection_pool)
+        .fetch_all(&*self.connection_pool)
         .await
     }
 
@@ -144,7 +144,7 @@ impl SqliteEcashTicketbookManager {
             ticketbook_id,
             expected_current_total_spent
         )
-        .execute(&self.connection_pool)
+        .execute(&*self.connection_pool)
         .await?
         .rows_affected();
         Ok(affected > 0)
@@ -154,7 +154,7 @@ impl SqliteEcashTicketbookManager {
         &self,
     ) -> Result<Vec<StoredPendingTicketbook>, sqlx::Error> {
         sqlx::query_as("SELECT * FROM pending_issuance")
-            .fetch_all(&self.connection_pool)
+            .fetch_all(&*self.connection_pool)
             .await
     }
 
@@ -166,7 +166,7 @@ impl SqliteEcashTicketbookManager {
             "DELETE FROM pending_issuance WHERE deposit_id = ?",
             pending_id
         )
-        .execute(&self.connection_pool)
+        .execute(&*self.connection_pool)
         .await?;
         Ok(())
     }
@@ -183,7 +183,7 @@ impl SqliteEcashTicketbookManager {
             "#,
             epoch_id
         )
-        .fetch_optional(&self.connection_pool)
+        .fetch_optional(&*self.connection_pool)
         .await
     }
 
@@ -209,7 +209,7 @@ impl SqliteEcashTicketbookManager {
             serialisation_revision,
             epoch_id
         )
-        .execute(&self.connection_pool)
+        .execute(&*self.connection_pool)
         .await?;
         Ok(())
     }
@@ -226,7 +226,7 @@ impl SqliteEcashTicketbookManager {
             "#,
             epoch_id
         )
-        .fetch_optional(&self.connection_pool)
+        .fetch_optional(&*self.connection_pool)
         .await
     }
 
@@ -252,7 +252,7 @@ impl SqliteEcashTicketbookManager {
             serialisation_revision,
             epoch_id,
         )
-        .execute(&self.connection_pool)
+        .execute(&*self.connection_pool)
         .await?;
         Ok(())
     }
@@ -260,17 +260,19 @@ impl SqliteEcashTicketbookManager {
     pub(crate) async fn get_expiration_date_signatures(
         &self,
         expiration_date: Date,
+        epoch_id: i64,
     ) -> Result<Option<RawExpirationDateSignatures>, sqlx::Error> {
         sqlx::query_as!(
             RawExpirationDateSignatures,
             r#"
-                SELECT epoch_id as "epoch_id: u32", serialised_signatures, serialization_revision as "serialization_revision: u8"
+                SELECT serialised_signatures, serialization_revision as "serialization_revision: u8"
                 FROM expiration_date_signatures
-                WHERE expiration_date = ?
+                WHERE expiration_date = ? AND epoch_id = ?
             "#,
-            expiration_date
+            expiration_date,
+            epoch_id
         )
-        .fetch_optional(&self.connection_pool)
+        .fetch_optional(&*self.connection_pool)
         .await
     }
 
@@ -299,7 +301,7 @@ impl SqliteEcashTicketbookManager {
             serialisation_revision,
             expiration_date
         )
-            .execute(&self.connection_pool)
+            .execute(&*self.connection_pool)
             .await?;
         Ok(())
     }

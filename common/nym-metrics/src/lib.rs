@@ -344,9 +344,9 @@ impl fmt::Display for MetricsController {
         let metrics = self.gather();
         let output = match String::from_utf8(metrics) {
             Ok(output) => output,
-            Err(e) => return write!(f, "Error decoding metrics to String: {}", e),
+            Err(e) => return write!(f, "Error decoding metrics to String: {e}"),
         };
-        write!(f, "{}", output)
+        write!(f, "{output}")
     }
 }
 
@@ -597,7 +597,7 @@ mod tests {
         assert_eq!(literal, "nym_metrics_foo");
 
         let bar = "bar";
-        let format = format!("foomp_{}", bar);
+        let format = format!("foomp_{bar}");
         let formatted = prepend_package_name!(format);
         assert_eq!(formatted, "nym_metrics_foomp_bar");
     }

@@ -15,4 +15,11 @@ impl ApiPaths {
     pub(super) fn submit_results(&self, testrun_id: impl Display) -> String {
         format!("{}/internal/testruns/{}", self.server_address, testrun_id)
     }
+
+    pub(super) fn submit_results_v2(&self, testrun_id: impl Display) -> String {
+        format!(
+            "{}/internal/testruns/{}/v2",
+            self.server_address, testrun_id
+        )
+    }
 }

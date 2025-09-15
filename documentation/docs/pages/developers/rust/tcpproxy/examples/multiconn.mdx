@@ -1,5 +1,13 @@
 # Multi Connection Example
+import { Callout } from 'nextra/components'
 
+<Callout type="warning">
+  There will be a breaking SDK upgrade in the coming months. This upgrade will make the SDK a lot easier to build with.
+
+This upgrade will affect the interface of the SDK dramatically, and will be coupled with a protocol change - stay tuned for information on early access to the new protocol testnet.
+
+It will also be coupled with the documentation of the SDK on [crates.io](https://crates.io/).
+</Callout>
 This example starts off several Tcp connections on a loop to a remote endpoint: in this case the `TcpListener` behind the `NymProxyServer` instance on the echo server found in
 [`nym/tools/echo-server/`](https://github.com/nymtech/nym/tree/develop/tools/echo-server). It pipes a few messages to it, logs the replies, and keeps track of the number of replies received per connection.
 

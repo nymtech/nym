@@ -6,6 +6,7 @@ use crate::constants::{
     NYM_NODE_DETAILS_DEFAULT_RETRIEVAL_LIMIT, NYM_NODE_DETAILS_MAX_RETRIEVAL_LIMIT,
     UNBONDED_NYM_NODES_DEFAULT_RETRIEVAL_LIMIT, UNBONDED_NYM_NODES_MAX_RETRIEVAL_LIMIT,
 };
+use crate::interval::storage as interval_storage;
 use crate::nodes::helpers::{
     attach_nym_node_details, get_node_details_by_id, get_node_details_by_identity,
     get_node_details_by_owner,
@@ -21,7 +22,9 @@ use mixnet_contract_common::nym_node::{
     PagedNymNodeDetailsResponse, PagedUnbondedNymNodesResponse, Role, RolesMetadataResponse,
     StakeSaturationResponse, UnbondedNodeResponse,
 };
-use mixnet_contract_common::{NodeId, NymNodeBond, NymNodeDetails};
+use mixnet_contract_common::{
+    KeyRotationIdResponse, KeyRotationState, NodeId, NymNodeBond, NymNodeDetails,
+};
 use nym_contracts_common::IdentityKey;
 
 pub(crate) fn query_nymnode_bonds_paged(
@@ -256,4 +259,15 @@ pub fn query_stake_saturation(
         current_saturation: Some(node_rewarding.bond_saturation(&rewarding_params)),
         uncapped_saturation: Some(node_rewarding.uncapped_bond_saturation(&rewarding_params)),
     })
+}
+
+pub fn query_key_rotation_state(deps: Deps<'_>) -> StdResult<KeyRotationState> {
+    storage::KEY_ROTATION_STATE.load(deps.storage)
+}
+
+pub fn query_key_rotation_id(deps: Deps<'_>) -> StdResult<KeyRotationIdResponse> {
+    let interval = interval_storage::current_interval(deps.storage)?;
+    let rotation_state = storage::KEY_ROTATION_STATE.load(deps.storage)?;
+    let rotation_id = rotation_state.key_rotation_id(interval.current_epoch_absolute_id());
+    Ok(KeyRotationIdResponse { rotation_id })
 }

@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use nym_sphinx::addressing::clients::Recipient;
-use nym_topology::{NymRouteProvider, NymTopology, NymTopologyError};
+use nym_topology::{NymRouteProvider, NymTopology, NymTopologyError, NymTopologyMetadata};
+use nym_validator_client::models::KeyRotationId;
 use std::ops::Deref;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -125,13 +126,28 @@ impl TopologyAccessor {
             .map(|p| p.topology.clone())
     }
 
-    pub async fn current_route_provider(&self) -> Option<RwLockReadGuard<NymRouteProvider>> {
+    pub async fn current_route_provider(&self) -> Option<RwLockReadGuard<'_, NymRouteProvider>> {
         let provider = self.inner.topology.read().await;
         if provider.topology.is_empty() {
             None
         } else {
             Some(provider)
         }
+    }
+
+    pub async fn current_mixnet_epoch_id(&self) -> Option<u32> {
+        let route_provider = self.current_route_provider().await?;
+        Some(route_provider.absolute_epoch_id())
+    }
+
+    pub async fn current_key_rotation_id(&self) -> Option<KeyRotationId> {
+        let route_provider = self.current_route_provider().await?;
+        Some(route_provider.current_key_rotation())
+    }
+
+    pub async fn current_metadata(&self) -> Option<NymTopologyMetadata> {
+        let route_provider = self.current_route_provider().await?;
+        Some(route_provider.metadata())
     }
 
     pub async fn manually_change_topology(&self, new_topology: NymTopology) {

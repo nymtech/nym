@@ -5,21 +5,21 @@ use crate::config::Config;
 use crate::error::GatewayError;
 use crate::node::client_handling::websocket;
 use crate::node::internal_service_providers::{
-    ExitServiceProviders, ServiceProviderBeingBuilt, SpMessageRouterBuilder,
+    authenticator, ExitServiceProviders, ServiceProviderBeingBuilt, SpMessageRouterBuilder,
 };
+use crate::node::stale_data_cleaner::StaleMessagesCleaner;
 use futures::channel::oneshot;
-use nym_authenticator::Authenticator;
 use nym_credential_verification::ecash::{
     credential_sender::CredentialHandlerConfig, EcashManager,
 };
 use nym_crypto::asymmetric::ed25519;
-use nym_gateway_storage::models::WireguardPeer;
 use nym_ip_packet_router::IpPacketRouter;
 use nym_mixnet_client::forwarder::MixForwardingSender;
 use nym_network_defaults::NymNetworkDetails;
 use nym_network_requester::NRServiceProviderBuilder;
 use nym_node_metrics::events::MetricEventsSender;
-use nym_task::TaskClient;
+use nym_node_metrics::NymNodeMetrics;
+use nym_task::{ShutdownToken, TaskClient};
 use nym_topology::TopologyProvider;
 use nym_validator_client::nyxd::{Coin, CosmWasmClient};
 use nym_validator_client::{nyxd, DirectSigningHttpRpcNyxdClient};
@@ -32,14 +32,17 @@ use tracing::*;
 use zeroize::Zeroizing;
 
 pub(crate) mod client_handling;
-mod internal_service_providers;
+pub(crate) mod internal_service_providers;
 mod stale_data_cleaner;
 
-use crate::node::stale_data_cleaner::StaleMessagesCleaner;
+use crate::node::internal_service_providers::authenticator::Authenticator;
 pub use client_handling::active_clients::ActiveClientsStore;
 pub use nym_gateway_stats_storage::PersistentStatsStorage;
-pub use nym_gateway_storage::{error::GatewayStorageError, GatewayStorage};
-use nym_node_metrics::NymNodeMetrics;
+pub use nym_gateway_storage::{
+    error::GatewayStorageError,
+    traits::{BandwidthGatewayStorage, InboxGatewayStorage},
+    GatewayStorage,
+};
 pub use nym_sdk::{NymApiTopologyProvider, NymApiTopologyProviderConfig, UserAgent};
 
 #[derive(Debug, Clone)]
@@ -58,7 +61,7 @@ pub struct LocalIpPacketRouterOpts {
 
 #[derive(Debug, Clone)]
 pub struct LocalAuthenticatorOpts {
-    pub config: nym_authenticator::Config,
+    pub config: authenticator::Config,
 
     pub custom_mixnet_path: Option<PathBuf>,
 }
@@ -88,12 +91,14 @@ pub struct GatewayTasksBuilder {
 
     mnemonic: Arc<Zeroizing<bip39::Mnemonic>>,
 
-    shutdown: TaskClient,
+    legacy_task_client: TaskClient,
+
+    shutdown_token: ShutdownToken,
 
     // populated and cached as necessary
     ecash_manager: Option<Arc<EcashManager>>,
 
-    wireguard_peers: Option<Vec<WireguardPeer>>,
+    wireguard_peers: Option<Vec<defguard_wireguard_rs::host::Peer>>,
 
     wireguard_networks: Option<Vec<IpAddr>>,
 }
@@ -102,7 +107,7 @@ impl Drop for GatewayTasksBuilder {
     fn drop(&mut self) {
         // disarm the shutdown as it was already used to construct relevant tasks and we don't want the builder
         // to cause shutdown
-        self.shutdown.disarm();
+        self.legacy_task_client.disarm();
     }
 }
 
@@ -116,7 +121,8 @@ impl GatewayTasksBuilder {
         metrics_sender: MetricEventsSender,
         metrics: NymNodeMetrics,
         mnemonic: Arc<Zeroizing<bip39::Mnemonic>>,
-        shutdown: TaskClient,
+        legacy_task_client: TaskClient,
+        shutdown_token: ShutdownToken,
     ) -> GatewayTasksBuilder {
         GatewayTasksBuilder {
             config,
@@ -130,7 +136,8 @@ impl GatewayTasksBuilder {
             metrics_sender,
             metrics,
             mnemonic,
-            shutdown,
+            legacy_task_client,
+            shutdown_token,
             ecash_manager: None,
             wireguard_peers: None,
             wireguard_networks: None,
@@ -225,7 +232,7 @@ impl GatewayTasksBuilder {
                 handler_config,
                 nyxd_client,
                 self.identity_keypair.public_key().to_bytes(),
-                self.shutdown.fork("ecash_manager"),
+                self.legacy_task_client.fork("ecash_manager"),
                 self.storage.clone(),
             )
             .await?,
@@ -267,7 +274,7 @@ impl GatewayTasksBuilder {
             self.config.gateway.websocket_bind_address,
             self.config.debug.maximum_open_connections,
             shared_state,
-            self.shutdown.fork("websocket"),
+            self.legacy_task_client.fork("websocket"),
         ))
     }
 
@@ -283,13 +290,14 @@ impl GatewayTasksBuilder {
         let mut message_router_builder = SpMessageRouterBuilder::new(
             *self.identity_keypair.public_key(),
             self.mix_packet_sender.clone(),
-            self.shutdown.fork("network_requester_message_router"),
+            self.legacy_task_client
+                .fork("network_requester_message_router"),
         );
         let transceiver = message_router_builder.gateway_transceiver();
 
         let (on_start_tx, on_start_rx) = oneshot::channel();
         let mut nr_builder = NRServiceProviderBuilder::new(nr_opts.config.clone())
-            .with_shutdown(self.shutdown.fork("network_requester_sp"))
+            .with_shutdown(self.legacy_task_client.fork("network_requester_sp"))
             .with_custom_gateway_transceiver(transceiver)
             .with_wait_for_gateway(true)
             .with_minimum_gateway_performance(0)
@@ -318,13 +326,13 @@ impl GatewayTasksBuilder {
         let mut message_router_builder = SpMessageRouterBuilder::new(
             *self.identity_keypair.public_key(),
             self.mix_packet_sender.clone(),
-            self.shutdown.fork("ipr_message_router"),
+            self.legacy_task_client.fork("ipr_message_router"),
         );
         let transceiver = message_router_builder.gateway_transceiver();
 
         let (on_start_tx, on_start_rx) = oneshot::channel();
         let mut ip_packet_router = IpPacketRouter::new(ip_opts.config.clone())
-            .with_shutdown(self.shutdown.fork("ipr_sp"))
+            .with_shutdown(self.legacy_task_client.fork("ipr_sp"))
             .with_custom_gateway_transceiver(Box::new(transceiver))
             .with_wait_for_gateway(true)
             .with_minimum_gateway_performance(0)
@@ -357,12 +365,12 @@ impl GatewayTasksBuilder {
 
     async fn build_wireguard_peers_and_networks(
         &self,
-    ) -> Result<(Vec<WireguardPeer>, Vec<IpAddr>), GatewayError> {
+    ) -> Result<(Vec<defguard_wireguard_rs::host::Peer>, Vec<IpAddr>), GatewayError> {
         let mut used_private_network_ips = vec![];
         let mut all_peers = vec![];
         for wireguard_peer in self.storage.get_all_wireguard_peers().await?.into_iter() {
             let mut peer = defguard_wireguard_rs::host::Peer::try_from(wireguard_peer.clone())?;
-            let Some(peer) = peer.allowed_ips.pop() else {
+            let Some(allowed_ip) = peer.allowed_ips.pop() else {
                 let peer_identity = &peer.public_key;
                 warn!("Peer {peer_identity} has empty allowed ips. It will be removed",);
                 self.storage
@@ -370,8 +378,8 @@ impl GatewayTasksBuilder {
                     .await?;
                 continue;
             };
-            used_private_network_ips.push(peer.ip);
-            all_peers.push(wireguard_peer);
+            used_private_network_ips.push(allowed_ip.ip);
+            all_peers.push(peer);
         }
 
         Ok((all_peers, used_private_network_ips))
@@ -379,7 +387,9 @@ impl GatewayTasksBuilder {
 
     // only used under linux
     #[allow(dead_code)]
-    async fn get_wireguard_peers(&mut self) -> Result<Vec<WireguardPeer>, GatewayError> {
+    async fn get_wireguard_peers(
+        &mut self,
+    ) -> Result<Vec<defguard_wireguard_rs::host::Peer>, GatewayError> {
         if let Some(cached) = self.wireguard_peers.take() {
             return Ok(cached);
         }
@@ -422,7 +432,7 @@ impl GatewayTasksBuilder {
         let mut message_router_builder = SpMessageRouterBuilder::new(
             *self.identity_keypair.public_key(),
             self.mix_packet_sender.clone(),
-            self.shutdown.fork("authenticator_message_router"),
+            self.legacy_task_client.fork("authenticator_message_router"),
         );
         let transceiver = message_router_builder.gateway_transceiver();
 
@@ -432,10 +442,10 @@ impl GatewayTasksBuilder {
             opts.config.clone(),
             wireguard_data.inner.clone(),
             used_private_network_ips,
+            ecash_manager,
         )
-        .with_ecash_verifier(ecash_manager)
         .with_custom_gateway_transceiver(transceiver)
-        .with_shutdown(self.shutdown.fork("authenticator_sp"))
+        .with_shutdown(self.legacy_task_client.fork("authenticator_sp"))
         .with_wait_for_gateway(true)
         .with_minimum_gateway_performance(0)
         .with_custom_topology_provider(topology_provider)
@@ -455,7 +465,7 @@ impl GatewayTasksBuilder {
     pub fn build_stale_messages_cleaner(&self) -> StaleMessagesCleaner {
         StaleMessagesCleaner::new(
             &self.storage,
-            self.shutdown.fork("stale_messages_cleaner"),
+            self.legacy_task_client.fork("stale_messages_cleaner"),
             self.config.debug.stale_messages_max_age,
             self.config.debug.stale_messages_cleaner_run_interval,
         )
@@ -466,13 +476,17 @@ impl GatewayTasksBuilder {
         &mut self,
     ) -> Result<Arc<nym_wireguard::WgApiWrapper>, Box<dyn std::error::Error + Send + Sync>> {
         let _ = self.metrics.clone();
+        let _ = self.shutdown_token.clone();
         unimplemented!("wireguard is not supported on this platform")
     }
 
     #[cfg(target_os = "linux")]
     pub async fn try_start_wireguard(
         &mut self,
-    ) -> Result<Arc<nym_wireguard::WgApiWrapper>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<
+        nym_wireguard_private_metadata_server::ShutdownHandles,
+        Box<dyn std::error::Error + Send + Sync>,
+    > {
         let all_peers = self.get_wireguard_peers().await?;
 
         let Some(wireguard_data) = self.wireguard_data.take() else {
@@ -481,14 +495,49 @@ impl GatewayTasksBuilder {
             );
         };
 
+        let Some(ecash_manager) = self.ecash_manager.clone() else {
+            return Err(
+                GatewayError::InternalWireguardError("ecash manager not set".to_string()).into(),
+            );
+        };
+
+        let router = nym_wireguard_private_metadata_server::RouterBuilder::with_default_routes();
+        let router = router.with_state(nym_wireguard_private_metadata_server::AppState::new(
+            nym_wireguard_private_metadata_server::PeerControllerTransceiver::new(
+                wireguard_data.inner.peer_tx().clone(),
+            ),
+        ));
+
+        let bind_address = std::net::SocketAddr::new(
+            wireguard_data.inner.config().private_ipv4.into(),
+            wireguard_data.inner.config().announced_metadata_port,
+        );
+
         let wg_handle = nym_wireguard::start_wireguard(
-            self.storage.clone(),
+            ecash_manager,
             self.metrics.clone(),
             all_peers,
-            self.shutdown.fork("wireguard"),
+            self.legacy_task_client.fork("wireguard"),
             wireguard_data,
         )
         .await?;
-        Ok(wg_handle)
+
+        let server = router.build_server(&bind_address).await?;
+        let cancel_token: tokio_util::sync::CancellationToken = (*self.shutdown_token).clone();
+        let axum_shutdown_receiver = cancel_token.clone().cancelled_owned();
+        let server_handle = tokio::spawn(async move {
+            {
+                info!("Started Wireguard Axum HTTP V2 server on {bind_address}");
+                server.run(axum_shutdown_receiver).await
+            }
+        });
+
+        let shutdown_handles = nym_wireguard_private_metadata_server::ShutdownHandles::new(
+            server_handle,
+            wg_handle,
+            cancel_token,
+        );
+
+        Ok(shutdown_handles)
     }
 }

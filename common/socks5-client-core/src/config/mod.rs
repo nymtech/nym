@@ -13,6 +13,7 @@ use std::str::FromStr;
 pub mod old_config_v1_1_20_2;
 pub mod old_config_v1_1_30;
 pub mod old_config_v1_1_33;
+pub mod old_config_v1_1_54;
 
 pub use nym_service_providers_common::interface::ProviderInterfaceVersion;
 pub use nym_socks5_requests::Socks5ProtocolVersion;

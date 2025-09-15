@@ -23,7 +23,6 @@ semver = { workspace = true, features = ["serde"] }
 schemars = { workspace = true }
 thiserror = { workspace = true }
 contracts-common = { path = "../contracts-common", package = "nym-contracts-common", version = "0.5.0" }
-serde-json-wasm = { workspace = true }
 humantime-serde = { workspace = true }
 utoipa = { workspace = true, optional = true }
 
@@ -40,3 +39,6 @@ contract-testing = []
 utoipa = ["dep:utoipa"]
 schema = ["cw2"]
 generate-ts = ['ts-rs']
+
+[lints]
+workspace = true

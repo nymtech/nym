@@ -56,6 +56,14 @@ impl DealerDetailsResponse {
 }
 
 #[cw_serde]
+pub struct PagedDealerAddressesResponse {
+    pub dealers: Vec<Addr>,
+
+    /// Field indicating paging information for the following queries if the caller wishes to get further entries.
+    pub start_next_after: Option<Addr>,
+}
+
+#[cw_serde]
 pub struct PagedDealerResponse {
     pub dealers: Vec<DealerDetails>,
     pub per_page: usize,

@@ -9,11 +9,11 @@ use crate::client::real_messages_control::{AckActionSender, Action};
 use crate::client::replies::reply_controller::MaxRetransmissions;
 use crate::client::replies::reply_storage::{ReceivedReplySurbsMap, SentReplyKeys, UsedSenderTags};
 use crate::client::topology_control::{TopologyAccessor, TopologyReadPermit};
-use log::{debug, error, info, trace, warn};
+use nym_client_core_surb_storage::RetrievedReplySurb;
 use nym_sphinx::acknowledgements::AckKey;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::anonymous_replies::requests::{AnonymousSenderTag, RepliableMessage, ReplyMessage};
-use nym_sphinx::anonymous_replies::{ReplySurb, SurbEncryptionKey};
+use nym_sphinx::anonymous_replies::ReplySurbWithKeyRotation;
 use nym_sphinx::chunking::fragment::{Fragment, FragmentIdentifier};
 use nym_sphinx::message::NymMessage;
 use nym_sphinx::params::{PacketSize, PacketType};
@@ -27,12 +27,16 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 use thiserror::Error;
+use tracing::{debug, error, info, trace, warn};
 
 // TODO: move that error elsewhere since it seems to be contaminating different files
 #[derive(Debug, Error)]
 pub enum PreparationError {
     #[error(transparent)]
     NymTopologyError(#[from] NymTopologyError),
+
+    #[error("message wasn't split into any fragments!")]
+    EmptyFragments,
 
     #[error("message too long for a single SURB, splitting into {fragments} fragments.")]
     MessageTooLongForSingleSurb { fragments: usize },
@@ -44,7 +48,7 @@ pub enum PreparationError {
 }
 
 impl PreparationError {
-    fn return_surbs(self, returned_surbs: Vec<ReplySurb>) -> SurbWrappedPreparationError {
+    fn return_surbs(self, returned_surbs: Vec<RetrievedReplySurb>) -> SurbWrappedPreparationError {
         SurbWrappedPreparationError {
             source: self,
             returned_surbs: Some(returned_surbs),
@@ -58,7 +62,7 @@ pub struct SurbWrappedPreparationError {
     #[source]
     source: PreparationError,
 
-    returned_surbs: Option<Vec<ReplySurb>>,
+    returned_surbs: Option<Vec<RetrievedReplySurb>>,
 }
 
 impl<T> From<T> for SurbWrappedPreparationError
@@ -80,7 +84,7 @@ impl SurbWrappedPreparationError {
         target: &AnonymousSenderTag,
     ) -> PreparationError {
         if let Some(reply_surbs) = self.returned_surbs {
-            surb_storage.insert_surbs(target, reply_surbs)
+            surb_storage.re_insert_reply_surbs(target, reply_surbs)
         }
         self.source
     }
@@ -97,6 +101,15 @@ pub(crate) struct Config {
 
     /// Specify whether route selection should be determined by the packet header.
     deterministic_route_selection: bool,
+
+    /// Indicates whether to mix hops or not. If mix hops are enabled, traffic
+    /// will be routed as usual, to the entry gateway, through three mix nodes, egressing
+    /// through the exit gateway. If mix hops are disabled, traffic will be routed directly
+    /// from the entry gateway to the exit gateway, bypassing the mix nodes.
+    ///
+    /// This overrides the `use_legacy_sphinx_format` setting as reduced mix hops
+    /// requires use of the updated SURB packet format.
+    disable_mix_hops: bool,
 
     /// Average delay a data packet is going to get delay at a single mixnode.
     average_packet_delay: Duration,
@@ -133,6 +146,7 @@ impl Config {
             primary_packet_size: PacketSize::default(),
             secondary_packet_size: None,
             use_legacy_sphinx_format: use_legacy_reply_surb_format,
+            disable_mix_hops: false,
         }
     }
 
@@ -145,6 +159,16 @@ impl Config {
     /// Allows setting non-default size of the sphinx packets sent out.
     pub fn with_custom_secondary_packet_size(mut self, packet_size: Option<PacketSize>) -> Self {
         self.secondary_packet_size = packet_size;
+        self
+    }
+
+    /// Configure whether messages senders using this config should use mix hops or not when sending messages.
+    ///
+    /// This overrides the `use_legacy_sphinx_format` setting as disabled mix hops
+    /// requires use of the updated SURB packet format.
+    pub fn disable_mix_hops(mut self, disable_mix_hops: bool) -> Self {
+        self.disable_mix_hops = disable_mix_hops;
+        self.use_legacy_sphinx_format = false;
         self
     }
 }
@@ -193,6 +217,7 @@ where
             config.average_packet_delay,
             config.average_ack_delay,
             config.use_legacy_sphinx_format,
+            config.disable_mix_hops,
         );
         MessageHandler {
             config,
@@ -205,6 +230,10 @@ where
             tag_storage,
             task_client,
         }
+    }
+
+    pub(crate) fn topology_access_handle(&self) -> &TopologyAccessor {
+        &self.topology_access
     }
 
     fn get_or_create_sender_tag(&mut self, recipient: &Recipient) -> AnonymousSenderTag {
@@ -254,10 +283,10 @@ where
         }
     }
 
-    async fn generate_reply_surbs_with_keys(
+    async fn generate_reply_surbs(
         &mut self,
         amount: usize,
-    ) -> Result<(Vec<ReplySurb>, Vec<SurbEncryptionKey>), PreparationError> {
+    ) -> Result<Vec<ReplySurbWithKeyRotation>, PreparationError> {
         let topology_permit = self.topology_access.get_read_permit().await;
         let topology = self.get_topology(&topology_permit)?;
 
@@ -267,24 +296,19 @@ where
             topology,
         )?;
 
-        let reply_keys = reply_surbs
-            .iter()
-            .map(|s| *s.encryption_key())
-            .collect::<Vec<_>>();
-
-        Ok((reply_surbs, reply_keys))
+        Ok(reply_surbs)
     }
 
     pub(crate) async fn try_send_single_surb_message(
         &mut self,
         target: AnonymousSenderTag,
         message: ReplyMessage,
-        reply_surb: ReplySurb,
+        reply_surb: RetrievedReplySurb,
         is_extra_surb_request: bool,
     ) -> Result<(), SurbWrappedPreparationError> {
         let msg = NymMessage::new_reply(message);
         let packet_size = self.optimal_packet_size(&msg);
-        debug!("Using {packet_size} packets for {msg}");
+        trace!("Using {packet_size} packets for {msg}");
 
         let mut fragment = self
             .message_preparer
@@ -299,6 +323,16 @@ where
             });
         }
 
+        if fragment.is_empty() {
+            error!("CRITICAL FAILURE: our split message didn't result in any sendable fragments");
+            return Err(SurbWrappedPreparationError {
+                source: PreparationError::EmptyFragments,
+                returned_surbs: Some(vec![reply_surb]),
+            });
+        }
+
+        // SAFETY: we just checked we have one fragment
+        #[allow(clippy::unwrap_used)]
         let chunk = fragment.pop().unwrap();
         let chunk_clone = chunk.clone();
         let prepared_fragment = self
@@ -310,7 +344,10 @@ where
             Some(chunk.fragment_identifier()),
         );
         let delay = prepared_fragment.total_delay;
-        let max_retransmissions = None;
+
+        // we have to set a maximum number of retransmissions in case we fail to retrieve
+        // surbs for a long period of time; we don't want to be stuck constantly resending the data
+        let max_retransmissions = Some(10);
         let pending_ack = PendingAcknowledgement::new_anonymous(
             chunk,
             delay,
@@ -333,7 +370,7 @@ where
     pub(crate) async fn try_request_additional_reply_surbs(
         &mut self,
         from: AnonymousSenderTag,
-        reply_surb: ReplySurb,
+        reply_surb: RetrievedReplySurb,
         amount: u32,
     ) -> Result<(), SurbWrappedPreparationError> {
         debug!("requesting {amount} reply SURBs from {from}");
@@ -348,7 +385,7 @@ where
     pub(crate) fn split_reply_message(&mut self, message: Vec<u8>) -> Vec<Fragment> {
         let msg = NymMessage::new_reply(ReplyMessage::new_data_message(message));
         let packet_size = self.optimal_packet_size(&msg);
-        debug!("Using {packet_size} packets for {msg}");
+        trace!("Using {packet_size} packets for {msg}");
 
         self.message_preparer
             .pad_and_split_message(msg, packet_size)
@@ -373,11 +410,9 @@ where
         &mut self,
         target: AnonymousSenderTag,
         fragments: Vec<FragmentWithMaxRetransmissions>,
-        reply_surbs: Vec<ReplySurb>,
+        reply_surbs: impl IntoIterator<Item = RetrievedReplySurb>,
         lane: TransmissionLane,
     ) -> Result<(), SurbWrappedPreparationError> {
-        // TODO: technically this is performing an unnecessary cloning, but in the grand scheme of things
-        // is it really that bad?
         self.try_send_reply_chunks(
             target,
             fragments.into_iter().map(|f| (lane, f)).collect(),
@@ -390,7 +425,7 @@ where
         &mut self,
         target: AnonymousSenderTag,
         fragments: Vec<(TransmissionLane, FragmentWithMaxRetransmissions)>,
-        reply_surbs: Vec<ReplySurb>,
+        reply_surbs: impl IntoIterator<Item = RetrievedReplySurb>,
     ) -> Result<(), SurbWrappedPreparationError> {
         let prepared_fragments = self
             .prepare_reply_chunks_for_sending(
@@ -481,7 +516,7 @@ where
         } else {
             self.optimal_packet_size(&message)
         };
-        debug!("Using {packet_size} packets for {message}");
+        trace!("Using {packet_size} packets for {message}");
         let fragments = self
             .message_preparer
             .pad_and_split_message(message, packet_size);
@@ -513,6 +548,7 @@ where
             pending_acks.push(pending_ack);
         }
 
+        drop(topology_permit);
         self.insert_pending_acks(pending_acks);
         self.forward_messages(real_messages, lane).await;
 
@@ -527,8 +563,12 @@ where
     ) -> Result<(), PreparationError> {
         debug!("Sending additional reply SURBs with packet type {packet_type}");
         let sender_tag = self.get_or_create_sender_tag(&recipient);
-        let (reply_surbs, reply_keys) =
-            self.generate_reply_surbs_with_keys(amount as usize).await?;
+        let reply_surbs = self.generate_reply_surbs(amount as usize).await?;
+
+        let reply_keys = reply_surbs
+            .iter()
+            .map(|s| *s.encryption_key())
+            .collect::<Vec<_>>();
 
         let message = NymMessage::new_repliable(RepliableMessage::new_additional_surbs(
             self.config.use_legacy_sphinx_format,
@@ -548,7 +588,7 @@ where
         )
         .await?;
 
-        log::trace!("storing {} reply keys", reply_keys.len());
+        tracing::trace!("storing {} reply keys", reply_keys.len());
         self.reply_key_storage.insert_multiple(reply_keys);
 
         Ok(())
@@ -565,9 +605,12 @@ where
     ) -> Result<(), SurbWrappedPreparationError> {
         debug!("Sending message with reply SURBs with packet type {packet_type}");
         let sender_tag = self.get_or_create_sender_tag(&recipient);
-        let (reply_surbs, reply_keys) = self
-            .generate_reply_surbs_with_keys(num_reply_surbs as usize)
-            .await?;
+        let reply_surbs = self.generate_reply_surbs(num_reply_surbs as usize).await?;
+
+        let reply_keys = reply_surbs
+            .iter()
+            .map(|s| *s.encryption_key())
+            .collect::<Vec<_>>();
 
         let message = NymMessage::new_repliable(RepliableMessage::new_data(
             self.config.use_legacy_sphinx_format,
@@ -585,7 +628,7 @@ where
         )
         .await?;
 
-        log::trace!("storing {} reply keys", reply_keys.len());
+        tracing::trace!("storing {} reply keys", reply_keys.len());
         self.reply_key_storage.insert_multiple(reply_keys);
 
         Ok(())
@@ -615,20 +658,12 @@ where
     pub(crate) async fn prepare_reply_chunks_for_sending(
         &mut self,
         fragments: Vec<Fragment>,
-        reply_surbs: Vec<ReplySurb>,
+        reply_surbs: impl IntoIterator<Item = RetrievedReplySurb>,
     ) -> Result<Vec<PreparedFragment>, SurbWrappedPreparationError> {
-        debug_assert_eq!(
-            fragments.len(),
-            reply_surbs.len(),
-            "attempted to send {} fragments with {} reply surbs",
-            fragments.len(),
-            reply_surbs.len()
-        );
-
         let topology_permit = self.topology_access.get_read_permit().await;
         let topology = match self.get_topology(&topology_permit) {
             Ok(topology) => topology,
-            Err(err) => return Err(err.return_surbs(reply_surbs)),
+            Err(err) => return Err(err.return_surbs(reply_surbs.into_iter().collect())),
         };
 
         Ok(fragments
@@ -636,12 +671,13 @@ where
             .zip(reply_surbs.into_iter())
             .map(|(fragment, reply_surb)| {
                 // unwrap here is fine as we know we have a valid topology
+                #[allow(clippy::unwrap_used)]
                 self.message_preparer
                     .prepare_reply_chunk_for_sending(
                         fragment,
                         topology,
                         &self.config.ack_key,
-                        reply_surb,
+                        reply_surb.into(),
                         PacketType::Mix,
                     )
                     .unwrap()
@@ -651,7 +687,7 @@ where
 
     pub(crate) async fn try_prepare_single_reply_chunk_for_sending(
         &mut self,
-        reply_surb: ReplySurb,
+        reply_surb: RetrievedReplySurb,
         chunk: Fragment,
     ) -> Result<PreparedFragment, SurbWrappedPreparationError> {
         let topology_permit = self.topology_access.get_read_permit().await;
@@ -664,7 +700,7 @@ where
             chunk,
             topology,
             &self.config.ack_key,
-            reply_surb,
+            reply_surb.into(),
             PacketType::Mix,
         )?;
 
@@ -695,17 +731,21 @@ where
 
     // tells real message sender (with the poisson timer) to send this to the mix network
     pub(crate) async fn forward_messages(
-        &self,
+        &mut self,
         messages: Vec<RealMessage>,
         transmission_lane: TransmissionLane,
     ) {
-        if let Err(err) = self
-            .real_message_sender
-            .send((messages, transmission_lane))
-            .await
-        {
-            if !self.task_client.is_shutdown_poll() {
-                error!("Failed to forward messages to the real message sender: {err}");
+        tokio::select! {
+            biased;
+            _ = self.task_client.recv() => {
+                trace!("received shutdown while attempting to forward mixnet messages");
+            }
+            sending_res = self.real_message_sender.send((messages, transmission_lane)) => {
+                if sending_res.is_err() {
+                    error!(
+                        "failed to forward mixnet messages due to closed channel (outside of shutdown!)"
+                    );
+                }
             }
         }
     }

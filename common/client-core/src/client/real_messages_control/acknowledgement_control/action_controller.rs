@@ -5,7 +5,6 @@ use super::PendingAcknowledgement;
 use crate::client::real_messages_control::acknowledgement_control::RetransmissionRequestSender;
 use futures::channel::mpsc;
 use futures::StreamExt;
-use log::*;
 use nym_nonexhaustive_delayqueue::{Expired, NonExhaustiveDelayQueue, QueueKey};
 use nym_sphinx::chunking::fragment::FragmentIdentifier;
 use nym_sphinx::Delay as SphinxDelay;
@@ -13,6 +12,7 @@ use nym_task::TaskClient;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
+use tracing::*;
 
 pub(crate) type AckActionSender = mpsc::UnboundedSender<Action>;
 pub(crate) type AckActionReceiver = mpsc::UnboundedReceiver<Action>;
@@ -126,7 +126,7 @@ impl ActionController {
     fn handle_insert(&mut self, pending_acks: Vec<PendingAcknowledgement>) {
         for pending_ack in pending_acks {
             let frag_id = pending_ack.message_chunk.fragment_identifier();
-            trace!("{} is inserted", frag_id);
+            trace!("{frag_id} is inserted");
 
             if self
                 .pending_acks_data
@@ -161,22 +161,16 @@ impl ActionController {
             let new_queue_key = self.pending_acks_timers.insert(frag_id, timeout);
             *queue_key = Some(new_queue_key)
         } else {
-            debug!(
-                "Tried to START TIMER on pending ack that is already gone! - {}",
-                frag_id
-            );
+            debug!("Tried to START TIMER on pending ack that is already gone! - {frag_id}");
         }
     }
 
     fn handle_remove(&mut self, frag_id: FragmentIdentifier) {
-        trace!("{} is getting removed", frag_id);
+        trace!("{frag_id} is getting removed");
 
         match self.pending_acks_data.remove(&frag_id) {
             None => {
-                debug!(
-                    "Tried to REMOVE pending ack that is already gone! - {}",
-                    frag_id
-                );
+                debug!("Tried to REMOVE pending ack that is already gone! - {frag_id}");
             }
             Some((_, queue_key)) => {
                 if let Some(queue_key) = queue_key {
@@ -188,10 +182,7 @@ impl ActionController {
                 } else {
                     // I'm not 100% sure if having a `None` key is even possible here
                     // (REMOVE would have to be called before START TIMER),
-                    debug!(
-                        "Tried to REMOVE pending ack without TIMER active - {}",
-                        frag_id
-                    );
+                    debug!("Tried to REMOVE pending ack without TIMER active - {frag_id}");
                 }
             }
         }
@@ -200,27 +191,26 @@ impl ActionController {
     // initiated basically as a first step of retransmission. At first data has its delay updated
     // (as new sphinx packet was created with new expected delivery time)
     fn handle_update_pending_ack(&mut self, frag_id: FragmentIdentifier, delay: SphinxDelay) {
-        trace!("{} is updating its delay", frag_id);
+        trace!("{frag_id} is updating its delay");
         // TODO: is it possible to solve this without either locking or temporarily removing the value?
         if let Some((pending_ack_data, queue_key)) = self.pending_acks_data.remove(&frag_id) {
-            // this Action is triggered by `RetransmissionRequestListener` (for 'normal' packets)
+            // SAFETY: this Action is triggered by `RetransmissionRequestListener` (for 'normal' packets)
             // or `ReplyController` (for 'reply' packets) which held the other potential
             // reference to this Arc. HOWEVER, before the Action was pushed onto the queue, the reference
             // was dropped hence this unwrap is safe.
+            #[allow(clippy::unwrap_used)]
             let mut inner_data = Arc::try_unwrap(pending_ack_data).unwrap();
             inner_data.update_retransmitted(delay);
 
             self.pending_acks_data
                 .insert(frag_id, (Arc::new(inner_data), queue_key));
         } else {
-            debug!(
-                "Tried to UPDATE TIMER on pending ack that is already gone! - {}",
-                frag_id
-            );
+            debug!("Tried to UPDATE TIMER on pending ack that is already gone! - {frag_id}");
         }
     }
 
     // note: when the entry expires it's automatically removed from pending_acks_timers
+    #[allow(clippy::panic)]
     fn handle_expired_ack_timer(&mut self, expired_ack: Expired<FragmentIdentifier>) {
         let frag_id = expired_ack.into_inner();
 
@@ -241,7 +231,7 @@ impl ActionController {
                 .unbounded_send(Arc::downgrade(pending_ack_data))
             {
                 if !self.task_client.is_shutdown_poll() {
-                    log::error!("Failed to send pending ack for retransmission: {err}");
+                    tracing::error!("Failed to send pending ack for retransmission: {err}");
                 }
             }
         } else {
@@ -269,7 +259,7 @@ impl ActionController {
                 action = self.incoming_actions.next() => match action {
                     Some(action) => self.process_action(action),
                     None => {
-                        log::trace!(
+                        tracing::trace!(
                             "ActionController: Stopping since incoming actions channel closed"
                         );
                         break;
@@ -278,17 +268,17 @@ impl ActionController {
                 expired_ack = self.pending_acks_timers.next() => match expired_ack {
                     Some(expired_ack) => self.handle_expired_ack_timer(expired_ack),
                     None => {
-                        log::trace!("ActionController: Stopping since ack channel closed");
+                        tracing::trace!("ActionController: Stopping since ack channel closed");
                         break;
                     }
                 },
                 _ = self.task_client.recv() => {
-                    log::trace!("ActionController: Received shutdown");
+                    tracing::trace!("ActionController: Received shutdown");
                     break;
                 }
             }
         }
         self.task_client.recv_timeout().await;
-        log::debug!("ActionController: Exiting");
+        tracing::debug!("ActionController: Exiting");
     }
 }

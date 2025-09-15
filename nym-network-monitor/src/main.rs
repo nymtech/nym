@@ -2,7 +2,7 @@ use crate::http::HttpServer;
 use accounting::submit_metrics;
 use anyhow::Result;
 use clap::Parser;
-use log::{error, info, warn};
+use log::{info, warn};
 use nym_bin_common::bin_info;
 use nym_client_core::config::ForgetMe;
 use nym_crypto::asymmetric::ed25519::PrivateKey;
@@ -10,6 +10,7 @@ use nym_network_defaults::setup_env;
 use nym_network_defaults::var_names::NYM_API;
 use nym_sdk::mixnet::{self, MixnetClient};
 use nym_sphinx::chunking::monitoring;
+use nym_topology::provider_trait::ToTopologyMetadata;
 use nym_topology::{HardcodedTopologyProvider, NymTopology};
 use std::fs::File;
 use std::io::Write;
@@ -23,11 +24,10 @@ use std::{
 };
 use tokio::sync::OnceCell;
 use tokio::{signal::ctrl_c, sync::RwLock};
-use tokio_postgres::NoTls;
 use tokio_util::sync::CancellationToken;
 
 static NYM_API_URL: LazyLock<String> = LazyLock::new(|| {
-    std::env::var(NYM_API).unwrap_or_else(|_| panic!("{} env var not set", NYM_API))
+    std::env::var(NYM_API).unwrap_or_else(|_| panic!("{NYM_API} env var not set"))
 });
 
 static MIXNET_TIMEOUT: OnceCell<u64> = OnceCell::const_new();
@@ -49,10 +49,10 @@ async fn make_clients(
 ) {
     loop {
         let spawned_clients = clients.read().await.len();
-        info!("Currently spawned clients: {}", spawned_clients);
+        info!("Currently spawned clients: {spawned_clients}");
         // If we have enough clients, sleep for a minute and remove the oldest one
         if spawned_clients >= n_clients {
-            info!("New client will be spawned in {} seconds", lifetime);
+            info!("New client will be spawned in {lifetime} seconds");
             tokio::time::sleep(tokio::time::Duration::from_secs(lifetime)).await;
             info!("Removing oldest client");
             if let Some(dropped_client) = clients.write().await.pop_front() {
@@ -75,7 +75,7 @@ async fn make_clients(
         let client = match make_client(topology.clone()).await {
             Ok(client) => client,
             Err(err) => {
-                warn!("{}, moving on", err);
+                warn!("{err}, moving on");
                 continue;
             }
         };
@@ -168,17 +168,19 @@ async fn nym_topology_from_env() -> anyhow::Result<NymTopology> {
     let rewarded_set = client.get_current_rewarded_set().await?;
 
     // just get all nodes to make our lives easier because it's just one query for the whole duration of the monitor (?)
-    let nodes = client.get_all_basic_nodes().await?;
+    let nodes_response = client.get_all_basic_nodes_with_metadata().await?;
+    let nodes = nodes_response.nodes;
+    let metadata = nodes_response.metadata;
 
-    let mut topology = NymTopology::new_empty(rewarded_set);
-    topology.add_skimmed_nodes(&nodes);
-
-    Ok(topology)
+    Ok(
+        NymTopology::new(metadata.to_topology_metadata(), rewarded_set, Vec::new())
+            .with_skimmed_nodes(&nodes),
+    )
 }
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    nym_bin_common::logging::setup_logging();
+    nym_bin_common::logging::setup_tracing_logger();
 
     let args = Args::parse();
 
@@ -229,31 +231,16 @@ async fn main() -> Result<()> {
 
     info!("Waiting for message (ctrl-c to exit)");
 
-    let client = if let Some(database_url) = args.database_url {
-        let (client, connection) = tokio_postgres::connect(&database_url, NoTls).await?;
-
-        tokio::spawn(async move {
-            if let Err(e) = connection.await {
-                error!("Postgres connection error: {}", e);
-            }
-        });
-
-        Some(Arc::new(client))
-    } else {
-        None
-    };
-
     loop {
-        let client = client.as_ref().map(Arc::clone);
         match tokio::time::timeout(Duration::from_secs(600), ctrl_c()).await {
             Ok(_) => {
                 info!("Received kill signal, shutting down, submitting final batch of metrics");
-                submit_metrics(client).await?;
+                submit_metrics(args.database_url.as_ref()).await?;
                 break;
             }
             Err(_) => {
                 info!("Submitting metrics, cleaning metric buffers");
-                submit_metrics(client).await?;
+                submit_metrics(args.database_url.as_ref()).await?;
             }
         };
     }

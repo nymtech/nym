@@ -9,7 +9,7 @@
 
 use super::{
     AcknowledgementsWasm, CoverTrafficWasm, DebugWasm, ForgetMeWasm, GatewayConnectionWasm,
-    ReplySurbsWasm, StatsReportingWasm, TopologyWasm, TrafficWasm,
+    RememberMeWasm, ReplySurbsWasm, StatsReportingWasm, TopologyWasm, TrafficWasm,
 };
 use crate::config::ConfigDebug;
 use serde::{Deserialize, Serialize};
@@ -50,6 +50,9 @@ pub struct DebugWasmOverride {
 
     #[tsify(optional)]
     pub forget_me: Option<ForgetMeWasmOverride>,
+
+    #[tsify(optional)]
+    pub remember_me: Option<RememberMeWasmOverride>,
 }
 
 impl From<DebugWasmOverride> for DebugWasm {
@@ -63,6 +66,7 @@ impl From<DebugWasmOverride> for DebugWasm {
             reply_surbs: value.reply_surbs.map(Into::into).unwrap_or_default(),
             stats_reporting: value.stats_reporting.map(Into::into).unwrap_or_default(),
             forget_me: value.forget_me.map(Into::into).unwrap_or_default(),
+            remember_me: value.remember_me.map(Into::into).unwrap_or_default(),
         }
     }
 }
@@ -148,6 +152,7 @@ impl From<TrafficWasmOverride> for TrafficWasm {
                 .use_extended_packet_size
                 .unwrap_or(def.use_extended_packet_size),
             use_outfox: value.use_outfox.unwrap_or(def.use_outfox),
+            disable_mix_hops: false, // not configured from js config override yet
         }
     }
 }
@@ -378,15 +383,15 @@ pub struct ReplySurbsWasmOverride {
     #[tsify(optional)]
     pub maximum_reply_surb_drop_waiting_period_ms: Option<u32>,
 
-    /// Defines maximum amount of time given reply surb is going to be valid for.
-    /// This is going to be superseded by key rotation once implemented.
-    #[tsify(optional)]
-    pub maximum_reply_surb_age_ms: Option<u32>,
-
     /// Defines maximum amount of time given reply key is going to be valid for.
     /// This is going to be superseded by key rotation once implemented.
     #[tsify(optional)]
     pub maximum_reply_key_age_ms: Option<u32>,
+
+    /// Defines maximum number of times the client is going to re-request reply surbs
+    /// for clearing pending messages before giving up after making no progress.
+    #[tsify(optional)]
+    pub maximum_reply_surbs_rerequests: Option<usize>,
 
     #[tsify(optional)]
     pub surb_mix_hops: Option<u8>,
@@ -424,14 +429,13 @@ impl From<ReplySurbsWasmOverride> for ReplySurbsWasm {
             maximum_reply_surb_drop_waiting_period_ms: value
                 .maximum_reply_surb_drop_waiting_period_ms
                 .unwrap_or(def.maximum_reply_surb_drop_waiting_period_ms),
-            maximum_reply_surb_age_ms: value
-                .maximum_reply_surb_age_ms
-                .unwrap_or(def.maximum_reply_surb_age_ms),
             maximum_reply_key_age_ms: value
                 .maximum_reply_key_age_ms
                 .unwrap_or(def.maximum_reply_key_age_ms),
             surb_mix_hops: value.surb_mix_hops,
-            fresh_sender_tags: value.fresh_sender_tags,
+            maximum_reply_surbs_rerequests: value
+                .maximum_reply_surbs_rerequests
+                .unwrap_or(def.maximum_reply_surbs_rerequests),
         }
     }
 }
@@ -451,6 +455,22 @@ impl From<ForgetMeWasmOverride> for ForgetMeWasm {
     fn from(value: ForgetMeWasmOverride) -> Self {
         ForgetMeWasm {
             client: value.client.unwrap_or_default(),
+            stats: value.stats.unwrap_or_default(),
+        }
+    }
+}
+
+#[derive(Tsify, Debug, Clone, Serialize, Deserialize)]
+#[tsify(into_wasm_abi, from_wasm_abi)]
+#[serde(rename_all = "camelCase")]
+pub struct RememberMeWasmOverride {
+    #[tsify(optional)]
+    pub stats: Option<bool>,
+}
+
+impl From<RememberMeWasmOverride> for RememberMeWasm {
+    fn from(value: RememberMeWasmOverride) -> Self {
+        RememberMeWasm {
             stats: value.stats.unwrap_or_default(),
         }
     }

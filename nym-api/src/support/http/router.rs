@@ -3,23 +3,24 @@
 
 use crate::circulating_supply_api::handlers::circulating_supply_routes;
 use crate::ecash::api_routes::handlers::ecash_routes;
+use crate::mixnet_contract_cache::handlers::nym_contract_cache_routes;
 use crate::network::handlers::nym_network_routes;
 use crate::node_status_api::handlers::status_routes;
-use crate::nym_contract_cache::handlers::nym_contract_cache_routes;
 use crate::nym_nodes::handlers::legacy::legacy_nym_node_routes;
 use crate::nym_nodes::handlers::nym_node_routes;
 use crate::status;
 use crate::support::http::openapi::ApiDoc;
 use crate::support::http::state::AppState;
-use crate::support::http::unstable_routes::unstable_routes;
+use crate::unstable_routes::v1::unstable_routes_v1;
+use crate::unstable_routes::v2::unstable_routes_v2;
 use anyhow::anyhow;
 use axum::response::Redirect;
 use axum::routing::get;
 use axum::Router;
 use core::net::SocketAddr;
-use nym_http_api_common::middleware::logging::logger;
+use nym_http_api_common::middleware::logging::log_request_info;
+use nym_task::ShutdownToken;
 use tokio::net::TcpListener;
-use tokio_util::sync::WaitForCancellationFutureOwned;
 use tower_http::cors::CorsLayer;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
@@ -64,8 +65,9 @@ impl RouterBuilder {
                     .nest("/api-status", status::handlers::api_status_routes())
                     .nest("/nym-nodes", nym_node_routes())
                     .nest("/ecash", ecash_routes())
-                    .nest("/unstable", unstable_routes()), // CORS layer needs to be "outside" of routes
-            );
+                    .nest("/unstable", unstable_routes_v1()), // CORS layer needs to be "outside" of routes
+            )
+            .nest("/v2", Router::new().nest("/unstable", unstable_routes_v2()));
 
         Self {
             unfinished_router: default_routes,
@@ -91,7 +93,7 @@ impl RouterBuilder {
     fn finalize_routes(self) -> Router<AppState> {
         self.unfinished_router
             .layer(setup_cors())
-            .layer(axum::middleware::from_fn(logger))
+            .layer(axum::middleware::from_fn(log_request_info))
     }
 }
 
@@ -129,14 +131,13 @@ pub(crate) struct ApiHttpServer {
 }
 
 impl ApiHttpServer {
-    pub async fn run(self, receiver: WaitForCancellationFutureOwned) -> Result<(), std::io::Error> {
-        // into_make_service_with_connect_info allows us to see client ip address
+    pub async fn run(self, shutdown_token: ShutdownToken) -> Result<(), std::io::Error> {
         axum::serve(
             self.listener,
             self.router
                 .into_make_service_with_connect_info::<SocketAddr>(),
         )
-        .with_graceful_shutdown(receiver)
+        .with_graceful_shutdown(async move { shutdown_token.cancelled().await })
         .await
     }
 }

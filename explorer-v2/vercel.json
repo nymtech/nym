@@ -6,8 +6,5 @@
     "env": {
       "NODE_VERSION": "20"
     }
-  },
-  "engines": {
-    "node": "20.x"
   }
 }

@@ -11,7 +11,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: [ arc-linux-latest ]
+        platform: [ ubuntu-22.04 ]
 
     runs-on: ${{ matrix.platform }}
     env:
@@ -28,16 +28,8 @@ jobs:
           mkdir -p $OUTPUT_DIR
           echo $OUTPUT_DIR
 
-      - name: Install Rust stable
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: wasm32-unknown-unknown
-
-      - name: Install cosmwasm-check
-        run: cargo install cosmwasm-check
-
       - name: Build release contracts
-        run: make publish-contracts
+        run: docker run --rm -v ${{ github.workspace }}:/code --workdir /code cosmwasm/workspace-optimizer:0.14.1
 
       - name: Prepare build output
         shell: bash

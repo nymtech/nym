@@ -217,7 +217,10 @@ where
         client_store: S,
         dkg_query_client: Option<C>,
     ) -> BaseClientBuilder<C, S> {
-        console_log!("Starting BaseClientBuilder with NONE connection_fd_callback");
+        #[cfg(target_arch = "wasm32")]
+        {
+            console_log!("Starting BaseClientBuilder with NONE connection_fd_callback");
+        }
         BaseClientBuilder {
             config: base_config,
             client_store,
@@ -851,7 +854,11 @@ where
         <S::GatewaysDetailsStore as GatewaysDetailsStore>::StorageError: Sync + Send,
     {
         info!("Starting nym client");
-        console_log!("Starting base Nym Client");
+
+        #[cfg(target_arch = "wasm32")]
+        {
+            console_log!("Starting base Nym Client");
+        }
 
         // derive (or load) client keys and gateway configuration
         let init_res = Self::initialise_keys_and_gateway(
@@ -1035,8 +1042,12 @@ where
 
         debug!("Core client startup finished!");
         debug!("The address of this client is: {self_address}");
-        console_log!("Core client startup finished!");
-        console_log!("Rust::start_base: the address of this client is: {self_address}");
+
+        #[cfg(target_arch = "wasm32")]
+        {
+            console_log!("Core client startup finished!");
+            console_log!("Rust::start_base: the address of this client is: {self_address}");
+        }
 
         Ok(BaseClient {
             address: self_address,

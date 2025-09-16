@@ -154,7 +154,7 @@ CONTRACTS_OUT_DIR = contracts/artifacts
 #
 COSMWASM_OPTIMIZER_IMAGE ?= cosmwasm/optimizer:0.17.0
 COSMWASM_OPTIMIZER_PLATFORM ?= linux/amd64
-COSMWASM_CHECK_IMAGE=rust:1.88
+COSMWASM_CHECK_IMAGE ?= rust:1.88
 
 # Ensure clean build environment and run the optimizer
 optimize-contracts:

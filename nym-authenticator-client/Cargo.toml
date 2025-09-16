@@ -14,6 +14,7 @@ workspace = true
 [dependencies]
 bincode.workspace = true
 futures.workspace = true
+rand.workspace = true
 semver.workspace = true
 thiserror.workspace = true
 tokio-util.workspace = true
@@ -21,8 +22,12 @@ tokio.workspace = true
 tracing.workspace = true
 
 nym-authenticator-requests = { path = "../common/authenticator-requests" }
+nym-bandwidth-controller = { path = "../common/bandwidth-controller" }
 nym-credentials-interface = { path = "../common/credentials-interface" }
 nym-crypto = { path = "../common/crypto" }
+nym-node-requests = { path = "../nym-node/nym-node-requests" }
+nym-pemstore = { path = "../common/pemstore" }
 nym-sdk = { path = "../sdk/rust/nym-sdk" }
 nym-service-provider-requests-common = { path = "../common/service-provider-requests-common" }
+nym-validator-client = { path = "../common/client-libs/validator-client" }
 nym-wireguard-types = { path = "../common/wireguard-types" }

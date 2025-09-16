@@ -76,6 +76,7 @@ pub struct Cli {
     )]
     pub(crate) deposits_buffer_size: usize,
 
+    /// Specify interval at which the nym credential proxy should check if signing quorum is available
     #[clap(
         long,
         env = "NYM_CREDENTIAL_PROXY_QUORUM_CHECK_INTERVAL",

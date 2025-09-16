@@ -6431,6 +6431,7 @@ dependencies = [
  "axum",
  "axum-test",
  "bip39",
+ "bs58",
  "celes",
  "clap",
  "cosmwasm-std",

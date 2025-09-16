@@ -234,6 +234,7 @@ impl MixFetchClient {
 
         console_log!("sending shutdown signal");
         let shutdown_guard = self._shutdown_manager.lock().await;
+        shutdown_guard.clone_shutdown_token().cancel();
         shutdown_guard.close_tracker();
         console_log!("waiting for shutdown to complete");
         shutdown_guard.wait_for_tracker().await;

@@ -83,11 +83,6 @@ impl Socks5MixnetClient {
     /// Disconnect from the mixnet. Currently it is not supported to reconnect a disconnected
     /// client.
     pub async fn disconnect(self) {
-        // Trigger cancellation for all child tasks
-        self.task_handle.clone_shutdown_token().cancel();
-
-        // Close the tracker to prevent new tasks and wait for existing ones
-        self.task_handle.close_tracker();
-        self.task_handle.wait_for_tracker().await;
+        self.task_handle.shutdown().await;
     }
 }

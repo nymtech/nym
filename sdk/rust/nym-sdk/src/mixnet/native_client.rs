@@ -239,12 +239,7 @@ impl MixnetClient {
         }
 
         if let Some(tracker) = self.shutdown_handle {
-            // Trigger cancellation for all child tasks
-            tracker.clone_shutdown_token().cancel();
-
-            // Close the tracker to prevent new tasks and wait for existing ones
-            tracker.close_tracker();
-            tracker.wait_for_tracker().await;
+            tracker.shutdown().await;
         }
     }
 

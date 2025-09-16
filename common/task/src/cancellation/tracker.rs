@@ -334,4 +334,20 @@ impl ShutdownTracker {
             tracker: child_task_tracker,
         }
     }
+
+    /// Convenience method to perform a complete shutdown sequence.
+    /// This method:
+    /// 1. Signals cancellation to all tasks
+    /// 2. Closes the tracker to prevent new tasks
+    /// 3. Waits for all existing tasks to complete
+    pub async fn shutdown(self) {
+        // Signal cancellation to all tasks
+        self.root_cancellation_token.cancel();
+
+        // Close the tracker to prevent new tasks from being spawned
+        self.tracker.close();
+
+        // Wait for all existing tasks to complete
+        self.tracker.wait().await;
+    }
 }

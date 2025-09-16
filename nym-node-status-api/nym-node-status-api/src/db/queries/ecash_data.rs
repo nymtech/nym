@@ -9,6 +9,73 @@ use time::Date;
 use tracing::error;
 
 impl Storage {
+    pub(crate) async fn available_tickets_of_type(&self, typ: &str) -> Result<i64, sqlx::Error> {
+        let count = sqlx::query!(
+            r#"
+                SELECT SUM(total_tickets - used_tickets) AS available_tickets
+                FROM ecash_ticketbook
+                WHERE ticketbook_type = $1;
+            "#,
+            typ
+        )
+        .fetch_one(&self.pool)
+        .await?;
+        Ok(count.available_tickets.unwrap_or_default())
+    }
+
+    pub(crate) async fn insert_pending_ticketbook(
+        &self,
+        serialisation_revision: i16,
+        deposit_id: i32,
+        data: &[u8],
+        expiration_date: Date,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query!(
+            r#"
+                INSERT INTO pending_issuance
+                (deposit_id, serialization_revision, pending_ticketbook_data, expiration_date)
+                VALUES ($1, $2, $3, $4)
+            "#,
+            deposit_id,
+            serialisation_revision,
+            data,
+            expiration_date,
+        )
+        .execute(&self.pool)
+        .await?;
+
+        Ok(())
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) async fn insert_new_ticketbook(
+        &self,
+        serialisation_revision: i16,
+        data: &[u8],
+        expiration_date: Date,
+        typ: &str,
+        epoch_id: i32,
+        total_tickets: i32,
+        used_tickets: i32,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query!(
+            r#"
+                INSERT INTO ecash_ticketbook
+                (serialization_revision, ticketbook_data, expiration_date, ticketbook_type, epoch_id, total_tickets, used_tickets)
+                VALUES ($1, $2, $3, $4, $5, $6, $7)
+            "#,
+            serialisation_revision,
+            data,
+            expiration_date,
+            typ,
+            epoch_id,
+            total_tickets,
+            used_tickets,
+        ).execute(&self.pool).await?;
+
+        Ok(())
+    }
+
     pub(crate) async fn get_master_verification_key(
         &self,
         epoch_id: i32,

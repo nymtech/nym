@@ -10,6 +10,7 @@ use nym_credential_proxy_lib::storage::traits::{
 };
 use nym_validator_client::nym_api::EpochId;
 use nym_validator_client::nyxd::contract_traits::dkg_query_client::Epoch;
+use nym_validator_client::nyxd::Coin;
 use nym_validator_client::EcashApiClient;
 use std::sync::Arc;
 use time::Date;
@@ -33,6 +34,13 @@ impl TicketbookManagerState {
 
     pub fn storage(&self) -> &TicketbookManagerStorage {
         &self.storage
+    }
+
+    pub async fn deposit_amount(&self) -> Result<Coin, CredentialProxyError> {
+        self.ecash_state
+            .required_deposit_cache
+            .get_or_update(&self.client)
+            .await
     }
 
     pub async fn ensure_credentials_issuable(&self) -> Result<(), CredentialProxyError> {

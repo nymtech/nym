@@ -2,17 +2,75 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::db::Storage;
+use anyhow::Context;
 use nym_credential_proxy_lib::error::CredentialProxyError;
+use nym_credential_proxy_lib::shared_state::ecash_state::{
+    IssuanceTicketBook, IssuedTicketBook, TicketType,
+};
 use nym_credential_proxy_lib::storage::traits::{
     AggregatedCoinIndicesSignatures, AggregatedExpirationDateSignatures, EpochVerificationKey,
     GlobalEcashDataCache, VersionedSerialise,
 };
+use nym_crypto::aes::cipher::zeroize::Zeroizing;
 use nym_validator_client::nym_api::EpochId;
 use time::Date;
 
 #[derive(Clone)]
 pub(crate) struct TicketbookManagerStorage {
     storage: Storage,
+}
+
+impl TicketbookManagerStorage {
+    pub(crate) async fn available_tickets_of_type(&self, typ: TicketType) -> anyhow::Result<usize> {
+        self.storage
+            .available_tickets_of_type(&typ.to_string())
+            .await?
+            .try_into()
+            .context("failed to convert ticket count from i64 to usize")
+    }
+
+    pub(crate) async fn insert_pending_ticketbook(
+        &self,
+        ticketbook: &IssuanceTicketBook,
+    ) -> anyhow::Result<()> {
+        let ser = ticketbook.pack();
+        let data = Zeroizing::new(ser.data);
+        let serialisation_revision = ser.revision;
+
+        self.storage
+            .insert_pending_ticketbook(
+                serialisation_revision as i16,
+                ticketbook.deposit_id() as i32,
+                &data,
+                ticketbook.expiration_date(),
+            )
+            .await?;
+
+        Ok(())
+    }
+
+    pub(crate) async fn insert_issued_ticketbook(
+        &self,
+        ticketbook: &IssuedTicketBook,
+    ) -> anyhow::Result<()> {
+        let ser = ticketbook.pack();
+        let data = Zeroizing::new(ser.data);
+        let serialisation_revision = ser.revision;
+
+        self.storage
+            .insert_new_ticketbook(
+                serialisation_revision as i16,
+                &data,
+                ticketbook.expiration_date(),
+                &ticketbook.ticketbook_type().to_string(),
+                ticketbook.epoch_id() as i32,
+                ticketbook.params_total_tickets() as i32,
+                ticketbook.spent_tickets() as i32,
+            )
+            .await?;
+
+        Ok(())
+    }
 }
 
 impl GlobalEcashDataCache for TicketbookManagerStorage {

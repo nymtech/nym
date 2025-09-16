@@ -93,10 +93,10 @@ async fn main() -> anyhow::Result<()> {
         tracing::info!("Started metrics scraper task");
     });
 
-    let ticketbook_manager = TicketbookManager::new(storage.clone());
     let shutdown_token = shutdown_manager.clone_shutdown_token();
+    let ticketbook_manager = TicketbookManager::new(storage.clone()).await?;
     shutdown_manager.spawn_with_shutdown(async move {
-        ticketbook_manager.run(shutdown_token).await;
+        ticketbook_manager.run().await;
     });
 
     let shutdown_tracker = shutdown_manager.shutdown_tracker();

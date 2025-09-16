@@ -25,11 +25,13 @@ use nym_validator_client::EcashApiClient;
 use time::{Date, OffsetDateTime};
 use tokio::sync::{RwLock, RwLockReadGuard};
 use tracing::info;
+use nym_validator_client::client::NymApiClientExt;
 
 pub use nym_compact_ecash::scheme::coin_indices_signatures::CoinIndexSignatureShare;
 pub use nym_compact_ecash::scheme::expiration_date_signatures::ExpirationDateSignatureShare;
 pub use nym_compact_ecash::VerificationKeyAuth;
-use nym_validator_client::client::NymApiClientExt;
+pub use nym_credentials::{IssuanceTicketBook, IssuedTicketBook};
+pub use nym_credentials_interface::{TicketType, TicketTypeRepr};
 
 pub struct EcashState {
     pub required_deposit_cache: RequiredDepositCache,

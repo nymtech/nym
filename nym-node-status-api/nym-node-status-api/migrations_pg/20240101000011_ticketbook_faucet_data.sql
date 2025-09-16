@@ -45,22 +45,24 @@ CREATE TABLE ticketbook_deposit
 );
 
 
--- CREATE TABLE pending_issuance
--- (
---     deposit_id              INTEGER NOT NULL PRIMARY KEY,
---
---     -- introduce a way for us to introduce breaking changes in serialization of data
---     serialization_revision  INTEGER NOT NULL,
---
---     pending_ticketbook_data BYTEA    NOT NULL UNIQUE,
---
---     -- for each ticketbook we MUST have corresponding expiration date signatures
---     expiration_date         DATE    NOT NULL,
---     epoch_id                INTEGER NOT NULL,
---
---     -- for each ticketbook we MUST have corresponding expiration date signatures
---     FOREIGN KEY (epoch_id, expiration_date) REFERENCES global_expiration_date_signatures (epoch_id, expiration_date)
--- );
+CREATE TABLE pending_issuance
+(
+    deposit_id              INTEGER  NOT NULL PRIMARY KEY,
+
+    failure_message         TEXT     NOT NULL,
+
+    -- introduce a way for us to introduce breaking changes in serialization of data
+    serialization_revision  SMALLINT NOT NULL,
+
+    pending_ticketbook_data BYTEA    NOT NULL UNIQUE,
+
+    -- for each ticketbook we MUST have corresponding expiration date signatures
+    expiration_date         DATE     NOT NULL,
+    epoch_id                INTEGER  NOT NULL,
+
+    -- for each ticketbook we MUST have corresponding expiration date signatures
+    FOREIGN KEY (epoch_id, expiration_date) REFERENCES global_expiration_date_signatures (epoch_id, expiration_date)
+);
 
 CREATE TABLE ecash_ticketbook
 (
@@ -95,4 +97,17 @@ CREATE TABLE ecash_ticketbook
 
     -- for each ticketbook we MUST have corresponding expiration date signatures
     FOREIGN KEY (expiration_date, epoch_id) REFERENCES global_expiration_date_signatures (expiration_date, epoch_id)
+);
+
+CREATE TABLE distributed_partial_ticketbook
+(
+    testrun_id     INTEGER NOT NULL,
+    ticketbook_id  INTEGER NOT NULL,
+
+    -- index of the ticket from the underlying ticketbook given to the runner
+    assigned_index INTEGER NOT NULL,
+
+    -- FOREIGN KEYS:
+    FOREIGN KEY (testrun_id) REFERENCES testruns (id),
+    FOREIGN KEY (ticketbook_id) REFERENCES ecash_ticketbook (id)
 );

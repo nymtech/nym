@@ -1,0 +1,20 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n                INSERT INTO ecash_ticketbook\n                (serialization_revision, ticketbook_data, expiration_date, ticketbook_type, epoch_id, total_tickets, used_tickets)\n                VALUES ($1, $2, $3, $4, $5, $6, $7)\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int2",
+        "Bytea",
+        "Date",
+        "Text",
+        "Int4",
+        "Int4",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "2bd12767753de51209a0599bdc65af76e8b7337f070151ddd6470c3ee6849dcf"
+}

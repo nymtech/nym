@@ -6,7 +6,6 @@ use crate::error::CredentialProxyError;
 use crate::shared_state::ecash_state::EcashState;
 use crate::shared_state::nyxd_client::ChainClient;
 use crate::storage::CredentialProxyStorage;
-
 use nym_compact_ecash::{Base58, PublicKeyUser, VerificationKeyAuth};
 use nym_credential_proxy_requests::api::v1::ticketbook::models::{
     AggregatedCoinIndicesSignaturesResponse, AggregatedExpirationDateSignaturesResponse,

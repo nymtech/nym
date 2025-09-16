@@ -1,7 +1,6 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use nym_network_defaults::TicketTypeRepr;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -29,6 +28,7 @@ pub use nym_compact_ecash::{
     PartialWallet, PayInfo, PublicKeyUser, SecretKeyUser, VerificationKeyAuth, WithdrawalRequest,
 };
 pub use nym_ecash_time::{ecash_today, EcashTime};
+pub use nym_network_defaults::TicketTypeRepr;
 
 #[derive(Debug, Clone)]
 pub struct CredentialSigningData {

@@ -3,7 +3,6 @@ use crate::db::models::ScraperNodeInfo;
 use crate::db::queries::get_nodes_for_scraping;
 use crate::db::DbPool;
 use anyhow::Result;
-use nym_task::ShutdownToken;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;

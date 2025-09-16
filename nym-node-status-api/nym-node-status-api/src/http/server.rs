@@ -1,3 +1,4 @@
+use crate::ticketbook_manager::state::TicketbookManagerState;
 use crate::{
     db::DbPool,
     http::{api::RouterBuilder, state::AppState},
@@ -22,6 +23,7 @@ pub(crate) async fn start_http_api(
     agent_request_freshness_requirement: time::Duration,
     node_geocache: NodeGeoCache,
     node_delegations: Arc<RwLock<DelegationsCache>>,
+    ticketbook_manager_state: TicketbookManagerState,
     shutdown_tracker: &ShutdownTracker,
 ) -> anyhow::Result<()> {
     let router_builder = RouterBuilder::with_default_routes();
@@ -34,6 +36,7 @@ pub(crate) async fn start_http_api(
         agent_request_freshness_requirement,
         node_geocache,
         node_delegations,
+        ticketbook_manager_state,
     )
     .await;
     let router = router_builder.with_state(state);

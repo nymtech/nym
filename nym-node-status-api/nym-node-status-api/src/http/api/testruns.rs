@@ -6,7 +6,6 @@ use crate::{
     db,
     http::{
         error::{HttpError, HttpResult},
-        models::TestrunAssignment,
         state::AppState,
     },
 };
@@ -16,9 +15,11 @@ use axum::{
     extract::{Path, State},
     Router,
 };
-use nym_node_status_client::models::{get_testrun, submit_results, submit_results_v2};
+use nym_node_status_client::models::{
+    get_testrun, submit_results, submit_results_v2, TestrunAssignmentWithTickets,
+};
 use reqwest::StatusCode;
-
+use tracing::error;
 // TODO dz consider adding endpoint to trigger testrun scan for a given gateway_id
 // like in H< src/http/testruns.rs
 
@@ -34,7 +35,7 @@ pub(crate) fn routes() -> Router<AppState> {
 async fn request_testrun(
     State(state): State<AppState>,
     Json(request): Json<get_testrun::GetTestrunRequest>,
-) -> HttpResult<Json<TestrunAssignment>> {
+) -> HttpResult<Json<TestrunAssignmentWithTickets>> {
     // TODO dz log agent's network probe version
     state.authenticate_agent_submission(&request)?;
     state.is_fresh(&request.payload.timestamp)?;
@@ -64,14 +65,23 @@ async fn request_testrun(
                 return Err(HttpError::no_testruns_available());
             };
 
-            todo!("retrieve ticket and global data");
-
             tracing::info!(
                 "🏃‍ Assigned testrun row_id {} gateway {} to agent",
                 &assignment.testrun_id,
                 assignment.gateway_identity_key,
             );
-            Ok(Json(assignment))
+
+            match state
+                .ticketbook_manager_state()
+                .attempt_assign_ticket_materials(assignment.testrun_id)
+                .await
+            {
+                Ok(materials) => Ok(Json(assignment.with_ticket_materials(materials))),
+                Err(err) => {
+                    error!("failed to get ticket materials for runner {}: {err} - they will have to attempt to get the tickets themselves", assignment.testrun_id);
+                    Ok(Json(assignment.with_no_ticket_materials()))
+                }
+            }
         }
         Err(err) => Err(HttpError::internal_with_logging(err)),
     }

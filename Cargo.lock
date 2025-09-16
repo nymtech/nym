@@ -6479,6 +6479,7 @@ dependencies = [
  "utoipa",
  "utoipa-swagger-ui",
  "utoipauto",
+ "zeroize",
 ]
 
 [[package]]

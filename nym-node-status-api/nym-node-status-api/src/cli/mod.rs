@@ -155,7 +155,16 @@ pub(crate) struct TicketbookArgs {
 
     /// Identifier used for deriving keys embedded in the issued ticketbooks.
     /// It can be a random string, but make sure it has sufficient entropy
+    #[clap(
+        long,
+        env = "NYM_NODE_STATUS_API_ECASH_CLIENT_IDENTIFIER_BS58",
+        value_parser = parse_client_identifier
+    )]
     pub(crate) ecash_client_identifier_bs58: Vec<u8>,
+}
+
+fn parse_client_identifier(raw: &str) -> bs58::decode::Result<Vec<u8>> {
+    bs58::decode(raw).into_vec()
 }
 
 impl TicketbookArgs {

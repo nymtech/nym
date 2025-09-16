@@ -1,8 +1,12 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::db::queries::ecash_data::{
+    get_next_unspent_ticketbook, increase_used_ticketbook_tickets, set_distributed_ticketbook,
+};
 use crate::db::Storage;
-use anyhow::Context;
+use crate::ticketbook_manager::storage::auxiliary_models::RetrievedTicketbook;
+use anyhow::{anyhow, Context};
 use nym_credential_proxy_lib::error::CredentialProxyError;
 use nym_credential_proxy_lib::shared_state::ecash_state::{
     IssuanceTicketBook, IssuedTicketBook, TicketType,
@@ -12,8 +16,11 @@ use nym_credential_proxy_lib::storage::traits::{
     GlobalEcashDataCache, VersionedSerialise,
 };
 use nym_crypto::aes::cipher::zeroize::Zeroizing;
+use nym_ecash_time::{ecash_today, EcashTime};
 use nym_validator_client::nym_api::EpochId;
 use time::Date;
+
+pub(crate) mod auxiliary_models;
 
 #[derive(Clone)]
 pub(crate) struct TicketbookManagerStorage {
@@ -76,6 +83,49 @@ impl TicketbookManagerStorage {
             .await?;
 
         Ok(())
+    }
+
+    /// Tries to retrieve one of the stored ticketbook that has not yet expired
+    /// it immediately updated the on-disk number of used tickets so that another task
+    /// could obtain their own tickets at the same time
+    pub(crate) async fn next_ticket(
+        &self,
+        ticket_type: TicketType,
+        testrun_id: i32,
+    ) -> anyhow::Result<Option<RetrievedTicketbook>> {
+        let deadline = ecash_today().ecash_date();
+        let mut tx = self.storage.begin_storage_tx().await?;
+
+        // we don't want ticketbooks with expiration in the past
+        let Some(raw) =
+            get_next_unspent_ticketbook(&mut tx, ticket_type.to_string(), deadline).await?
+        else {
+            // make sure to finish our tx
+            tx.commit().await?;
+            return Ok(None);
+        };
+
+        let mut deserialised = IssuedTicketBook::try_unpack(
+            &raw.ticketbook_data,
+            u8::try_from(raw.serialization_revision)
+                .context("failed to convert i16 serialization_revision into u8")?,
+        )
+        .map_err(|err| anyhow!("failed to deserialise stored ticketbook: {err}"))?;
+
+        set_distributed_ticketbook(&mut tx, testrun_id, raw.id, raw.used_tickets).await?;
+        increase_used_ticketbook_tickets(&mut tx, raw.id).await?;
+        tx.commit().await?;
+
+        deserialised.update_spent_tickets(raw.used_tickets as u64);
+        Ok(Some(RetrievedTicketbook {
+            ticketbook_id: raw.id,
+            total_tickets: raw
+                .total_tickets
+                .try_into()
+                .context("failed to convert i32 total tickets into u32")?,
+            spent_tickets: deserialised.spent_tickets() as u32,
+            ticketbook: deserialised,
+        }))
     }
 }
 

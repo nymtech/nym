@@ -1,18 +1,15 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::db::Storage;
 use crate::ticketbook_manager::helpers::build_sha_short;
 use crate::ticketbook_manager::state::TicketbookManagerState;
 use futures_util::StreamExt;
 use nym_credential_proxy_lib::deposits_buffer::{
     make_deposits_request, split_deposits, BufferedDeposit, PerformedDeposits,
 };
-use nym_credential_proxy_lib::quorum_checker::QuorumState;
 use nym_credential_proxy_lib::shared_state::ecash_state::{
-    EcashState, IssuanceTicketBook, IssuedTicketBook, TicketType,
+    IssuanceTicketBook, IssuedTicketBook, TicketType,
 };
-use nym_credential_proxy_lib::shared_state::required_deposit_cache::RequiredDepositCache;
 use nym_credentials::obtain_aggregate_wallet;
 use nym_ecash_time::ecash_default_expiration_date;
 use nym_task::ShutdownToken;
@@ -65,23 +62,19 @@ pub struct TicketbookManager {
 }
 
 impl TicketbookManager {
-    pub(crate) async fn new(
+    pub(crate) fn new(
         config: TicketbookManagerConfig,
         state: TicketbookManagerState,
         ecash_key_identifier: Vec<u8>,
         shutdown_token: ShutdownToken,
-    ) -> anyhow::Result<Self> {
-        let ecash_state = EcashState::new(RequiredDepositCache::default(), quorum_state);
-        let state = TicketbookManagerState::new(storage, client);
-        // state.build_initial_cache().await?;
-        //
-        // Ok(TicketbookManager {
-        //     config,
-        //     short_sha: build_sha_short(),
-        //     ecash_key_identifier,
-        //     shutdown_token,
-        //     state,
-        // })
+    ) -> Self {
+        TicketbookManager {
+            config,
+            short_sha: build_sha_short(),
+            ecash_key_identifier,
+            shutdown_token,
+            state,
+        }
     }
 
     async fn get_ticketbooks_from_deposits(

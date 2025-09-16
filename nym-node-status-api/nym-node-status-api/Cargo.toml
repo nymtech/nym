@@ -66,6 +66,7 @@ tower-http = { workspace = true, features = ["cors", "trace"] }
 utoipa = { workspace = true, features = ["axum_extras", "time"] }
 utoipa-swagger-ui = { workspace = true, features = ["axum"] }
 utoipauto = { workspace = true }
+zeroize = { workspace = true }
 
 nym-node-metrics = { path = "../../nym-node/nym-node-metrics" }
 

@@ -96,8 +96,14 @@ impl TicketbookManager {
             .state
             .master_coin_index_signatures(Some(epoch_id))
             .await?;
+        let _ = self.state.master_verification_key(Some(epoch_id)).await?;
 
-        for deposit in deposits.deposits_data {
+        let total = deposits.deposits_data.len();
+        for (i, deposit) in deposits.deposits_data.into_iter().enumerate() {
+            info!(
+                "getting ticketbook {} / {total} from this deposit batch",
+                i + 1
+            );
             let issuance_data =
                 self.deposit_to_issuance_ticketbook(deposit, ticket_type, expiration_date);
             let aggregated_wallet = match obtain_aggregate_wallet(
@@ -130,6 +136,7 @@ impl TicketbookManager {
     }
 
     async fn make_deposits(&self, amount: usize) -> anyhow::Result<PerformedDeposits> {
+        info!("performing {amount} deposits");
         let deposit_amount = self.state.deposit_amount().await?;
 
         let memo = format!(

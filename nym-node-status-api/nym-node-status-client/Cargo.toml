@@ -15,6 +15,7 @@ readme.workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
+bs58 = { workspace = true }
 bincode = { workspace = true }
 nym-crypto = { path = "../../common/crypto", features = ["asymmetric", "serde", ] }
 nym-credentials = { path = "../../common/credentials" }

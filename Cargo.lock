@@ -6488,6 +6488,7 @@ version = "0.2.0"
 dependencies = [
  "anyhow",
  "bincode",
+ "bs58",
  "nym-credentials",
  "nym-crypto",
  "reqwest 0.12.22",

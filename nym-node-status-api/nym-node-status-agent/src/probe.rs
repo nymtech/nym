@@ -1,4 +1,4 @@
-use nym_node_status_client::models::AttachedTicketMaterials;
+use nym_node_status_client::models::{AttachedTicketMaterials, VersionedSerialise};
 use tracing::{debug, error, info};
 
 pub(crate) struct GwProbe {
@@ -94,6 +94,16 @@ impl GwProbe {
             tracing::info!("{} {}", name, value);
 
             command.arg(format!("--{name}")).arg(value);
+        }
+
+        if let Some(ticket_materials) = ticket_materials {
+            info!("attaching ticket materials to the probe");
+            let serialised = ticket_materials.to_serialised_string();
+            command.arg("--ticket-materials").arg(serialised);
+            command.arg("--ticket-materials-revision").arg(
+                <AttachedTicketMaterials as VersionedSerialise>::CURRENT_SERIALISATION_REVISION
+                    .to_string(),
+            );
         }
 
         match command.spawn() {

@@ -28,11 +28,15 @@ jobs:
           mkdir -p $OUTPUT_DIR
           echo $OUTPUT_DIR
 
-      - name: Install cosmwasm-check
-        run: cargo install cosmwasm-check --locked
+      - name: Build contracts
+        run: make optimize-contracts
 
-      - name: Build release contracts
-        run: make publish-contracts
+      - name: Check optimized contracts
+        run: |
+          docker run --rm --platform linux/amd64 \
+            -v ${{ github.workspace }}:/code --workdir /code \
+            cosmwasm/optimizer:0.17.0 /bin/sh -lc \
+            "cargo install cosmwasm-check && cosmwasm-check contracts/artifacts/*.wasm"
 
       - name: Prepare build output
         shell: bash

@@ -24,11 +24,11 @@ use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::Duration;
 use tracing::*;
-use wasm_utils::{check_promise_result, console_error, console_log};
 
 // We need a wasm-friendly way of grabbing the time for the metrics in a browser env
 #[cfg(not(target_arch = "wasm32"))]
 use std::time::Instant;
+use wasm_utils::{check_promise_result, console_error, console_log};
 #[cfg(target_arch = "wasm32")]
 use wasmtimer::std::Instant;
 

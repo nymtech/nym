@@ -14,8 +14,8 @@ mod helpers;
 #[cfg(target_arch = "wasm32")]
 mod response_pusher;
 
-// #[cfg(target_arch = "wasm32")]
-// pub use wasm_client_core::set_panic_hook;
+#[cfg(target_arch = "wasm32")]
+pub use wasm_client_core::set_panic_hook;
 
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
@@ -23,26 +23,14 @@ use wasm_bindgen::prelude::*;
 #[wasm_bindgen(start)]
 #[cfg(target_arch = "wasm32")]
 pub fn main() {
-    // use wasm_utils::set_panic_hook;
+    use wasm_utils::set_panic_hook;
 
     wasm_utils::console_log!("[rust main]: setting panic hook");
-    // wasm_utils::set_panic_hook();
+    wasm_utils::set_panic_hook();
     set_panic_hook();
     wasm_utils::console_log!("[rust main]: rust module loaded");
     wasm_utils::console_log!(
         "wasm client version used: {}",
         nym_bin_common::bin_info_owned!()
     );
-}
-
-// MAX TODO SET THIS AS SET_DEBUG_PANIC_HOOK and have hanging about for future debugging
-use std::panic;
-use web_sys;
-
-#[cfg(target_arch = "wasm32")]
-pub fn set_panic_hook() {
-    panic::set_hook(Box::new(|info| {
-        let msg = format!("PANIC: {}", info);
-        web_sys::console::error_1(&msg.into());
-    }));
 }

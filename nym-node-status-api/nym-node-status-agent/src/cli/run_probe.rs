@@ -45,9 +45,9 @@ pub(crate) async fn run_probe(
         }
     };
 
-    let testrun_id = testrun.testrun_id;
-    let testrun_assigned_at = testrun.assigned_at_utc;
-    let gateway_identity_key = testrun.gateway_identity_key;
+    let testrun_id = testrun.assignment.testrun_id;
+    let testrun_assigned_at = testrun.assignment.assigned_at_utc;
+    let gateway_identity_key = testrun.assignment.gateway_identity_key;
 
     tracing::info!("Received testrun {testrun_id} for gateway {gateway_identity_key} from primary",);
 

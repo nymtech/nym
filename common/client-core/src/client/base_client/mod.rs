@@ -217,10 +217,6 @@ where
         client_store: S,
         dkg_query_client: Option<C>,
     ) -> BaseClientBuilder<C, S> {
-        #[cfg(target_arch = "wasm32")]
-        {
-            console_log!("Starting BaseClientBuilder with NONE connection_fd_callback");
-        }
         BaseClientBuilder {
             config: base_config,
             client_store,

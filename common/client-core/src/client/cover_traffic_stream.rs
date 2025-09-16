@@ -22,7 +22,7 @@ use tracing::*;
 #[cfg(not(target_arch = "wasm32"))]
 use tokio::time::{sleep, Sleep};
 
-use wasm_utils::console_log;
+// use wasm_utils::console_log;
 #[cfg(target_arch = "wasm32")]
 use wasmtimer::tokio::{sleep, Sleep};
 pub struct LoopCoverTrafficStream<R>

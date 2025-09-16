@@ -36,7 +36,7 @@
 //!     timeout = std::time::Duration::from_secs(60),
 //!     default_headers {
 //!         "X-Custom-Header" => "value",
-//!         "Authorization" => auth_token
+//!         "Authorization" => "auth_token"
 //!     }
 //! );
 //!
@@ -217,11 +217,13 @@ fn to_stmts(items: Items, core: &TokenStream2) -> TokenStream2 {
 /// # Example
 ///
 /// ```ignore
+/// use nym_http_api_client_macro::client_cfg;
+///
 /// let config = client_cfg!(
-///     timeout = Duration::from_secs(30),
+///     timeout = std::time::Duration::from_secs(30),
 ///     gzip = true
 /// );
-/// let client = config(reqwest::ClientBuilder::new()).build()?;
+/// let client = config(reqwest::ClientBuilder::new()).build().unwrap();
 /// ```
 #[proc_macro]
 pub fn client_cfg(input: TokenStream) -> TokenStream {
@@ -271,9 +273,11 @@ impl Parse for MaybePrioritized {
 /// # Example
 ///
 /// ```ignore
+/// use nym_http_api_client_macro::client_defaults;
+///
 /// client_defaults!(
 ///     priority = -50;  // Run early in the configuration chain
-///     connect_timeout = Duration::from_secs(10),
+///     connect_timeout = std::time::Duration::from_secs(10),
 ///     pool_max_idle_per_host = 32,
 ///     default_headers {
 ///         "User-Agent" => "MyApp/1.0",

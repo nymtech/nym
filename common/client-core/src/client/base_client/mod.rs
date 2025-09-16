@@ -1012,8 +1012,6 @@ where
             shutdown.tracker(),
         );
 
-        // MAX TODO DEBUG
-        // console_log!("base_client::start_cover_traffic_stream = {self.cover_traffic}");
         if !self
             .config
             .debug

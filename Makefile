@@ -184,7 +184,7 @@ docker-check-contracts:
 	@docker run --rm --platform $(COSMWASM_OPTIMIZER_PLATFORM) \
 	  -v $(CURDIR):/code --workdir /code \
 	  --entrypoint /bin/sh \
-	  $(COSMWASM_OPTIMIZER_IMAGE) -lc '. "$$HOME/.cargo/env" && cargo install cosmwasm-check && cosmwasm-check contracts/artifacts/*.wasm'
+	  $(COSMWASM_OPTIMIZER_IMAGE) -lc 'export PATH="$$PATH:$$HOME/.cargo/bin:/usr/local/cargo/bin" && cargo install cosmwasm-check --locked && cosmwasm-check contracts/artifacts/*.wasm'
 
 wasm-opt-contracts:
 	@for WASM in $(WASM_CONTRACT_DIR)/*.wasm; do \

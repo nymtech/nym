@@ -46,6 +46,9 @@ pub enum Error {
     FailedToCreateConnectRequest {
         source: nym_ip_packet_requests::sign::SignatureError,
     },
+
+    #[error(transparent)]
+    Bincode(#[from] bincode::Error),
 }
 
 // Result type based on our error type

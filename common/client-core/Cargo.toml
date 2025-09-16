@@ -59,6 +59,7 @@ tokio_with_wasm = { version = "0.8.7", features = ["full"] }
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies]
 nym-mixnet-client = { path = "../client-libs/mixnet-client", default-features = false }
+wasm-utils = { path = "../wasm/utils" }
 
 ### For serving prometheus metrics
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.hyper]

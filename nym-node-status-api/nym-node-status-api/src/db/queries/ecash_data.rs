@@ -2,13 +2,20 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::db::Storage;
+use crate::ticketbook_manager::storage::auxiliary_models::StoredIssuedTicketbook;
 use nym_credential_proxy_lib::storage::models::{
     RawCoinIndexSignatures, RawExpirationDateSignatures, RawVerificationKey,
 };
+use sqlx::{Postgres, Transaction};
+use std::ops::DerefMut;
 use time::Date;
 use tracing::error;
 
 impl Storage {
+    pub(crate) async fn begin_storage_tx(&self) -> Result<Transaction<'_, Postgres>, sqlx::Error> {
+        self.pool.begin().await
+    }
+
     pub(crate) async fn available_tickets_of_type(&self, typ: &str) -> Result<i64, sqlx::Error> {
         let count = sqlx::query!(
             r#"
@@ -212,4 +219,60 @@ impl Storage {
             .await?;
         Ok(())
     }
+}
+
+pub(crate) async fn get_next_unspent_ticketbook(
+    tx: &mut Transaction<'_, Postgres>,
+    ticket_type: String,
+    deadline: Date,
+) -> Result<Option<StoredIssuedTicketbook>, sqlx::Error> {
+    sqlx::query_as(
+        r#"
+                SELECT *
+                FROM ecash_ticketbook
+                WHERE used_tickets + 1 <= total_tickets
+                AND expiration_date >= $2
+                AND ticketbook_type = $3
+                ORDER BY expiration_date ASC
+                LIMIT 1
+            "#,
+    )
+    .bind(deadline)
+    .bind(ticket_type)
+    .fetch_optional(tx.deref_mut())
+    .await
+}
+
+pub(crate) async fn increase_used_ticketbook_tickets(
+    tx: &mut Transaction<'_, Postgres>,
+    ticketbook_id: i32,
+) -> Result<(), sqlx::Error> {
+    sqlx::query!(
+        "UPDATE ecash_ticketbook SET used_tickets = used_tickets + 1 WHERE id = $1",
+        ticketbook_id
+    )
+    .execute(tx.deref_mut())
+    .await?;
+    Ok(())
+}
+
+pub(crate) async fn set_distributed_ticketbook(
+    tx: &mut Transaction<'_, Postgres>,
+    testrun_id: i32,
+    ticketbook_id: i32,
+    assigned_index: i32,
+) -> Result<(), sqlx::Error> {
+    sqlx::query!(
+        r#"
+            INSERT INTO distributed_partial_ticketbook
+                (testrun_id, ticketbook_id, assigned_index)
+            VALUES ($1, $2, $3)
+        "#,
+        testrun_id,
+        ticketbook_id,
+        assigned_index
+    )
+    .execute(tx.deref_mut())
+    .await?;
+    Ok(())
 }

@@ -5,31 +5,43 @@ use crate::db::Storage;
 use crate::ticketbook_manager::storage::TicketbookManagerStorage;
 use nym_credential_proxy_lib::error::CredentialProxyError;
 use nym_credential_proxy_lib::quorum_checker::QuorumState;
-use nym_credential_proxy_lib::shared_state::ecash_state::{EcashState, VerificationKeyAuth};
+use nym_credential_proxy_lib::shared_state::ecash_state::{
+    EcashState, TicketType, VerificationKeyAuth,
+};
 use nym_credential_proxy_lib::shared_state::nyxd_client::ChainClient;
 use nym_credential_proxy_lib::shared_state::required_deposit_cache::RequiredDepositCache;
 use nym_credential_proxy_lib::storage::traits::{
     AggregatedCoinIndicesSignatures, AggregatedExpirationDateSignatures,
 };
-use nym_ecash_time::{ecash_default_expiration_date, ecash_today};
+use nym_credentials::ecash::bandwidth::serialiser::VersionedSerialise;
+use nym_credentials::EpochVerificationKey;
+use nym_ecash_time::ecash_default_expiration_date;
+use nym_node_status_client::models::AttachedTicketMaterials;
 use nym_validator_client::nym_api::EpochId;
-use nym_validator_client::nyxd::contract_traits::dkg_query_client::Epoch;
 use nym_validator_client::nyxd::Coin;
 use nym_validator_client::EcashApiClient;
+use std::collections::HashMap;
 use std::sync::Arc;
 use time::Date;
 use tokio::sync::RwLockReadGuard;
 
 #[derive(Clone)]
 pub(crate) struct TicketbookManagerState {
+    buffered_ticket_types: Vec<TicketType>,
     storage: TicketbookManagerStorage,
     client: ChainClient,
     ecash_state: Arc<EcashState>,
 }
 
 impl TicketbookManagerState {
-    pub fn new(storage: Storage, quorum_state: QuorumState, client: ChainClient) -> Self {
+    pub fn new(
+        buffered_ticket_types: Vec<TicketType>,
+        storage: Storage,
+        quorum_state: QuorumState,
+        client: ChainClient,
+    ) -> Self {
         let state = TicketbookManagerState {
+            buffered_ticket_types,
             storage: storage.into(),
             client,
             ecash_state: Arc::new(EcashState::new(
@@ -38,6 +50,69 @@ impl TicketbookManagerState {
             )),
         };
         state
+    }
+
+    pub async fn attempt_assign_ticket_materials(
+        &self,
+        testrun_id: i32,
+    ) -> anyhow::Result<AttachedTicketMaterials> {
+        let mut attached_tickets = Vec::with_capacity(self.buffered_ticket_types.len());
+
+        // make sure all epochs and expirations are covered in case we retrieved tickets from
+        // different periods
+        let mut coin_indices_signatures = HashMap::new();
+        let mut expiration_date_signatures = HashMap::new();
+        let mut master_verification_keys = HashMap::new();
+
+        for typ in &self.buffered_ticket_types {
+            if let Some(ticket) = self.storage.next_ticket(*typ, testrun_id).await? {
+                let epoch_id = ticket.ticketbook.epoch_id();
+                let expiration_date = ticket.ticketbook.expiration_date();
+
+                if !master_verification_keys.contains_key(&epoch_id) {
+                    master_verification_keys.insert(
+                        epoch_id,
+                        self.master_verification_key(Some(epoch_id)).await?.clone(),
+                    );
+                }
+
+                if !coin_indices_signatures.contains_key(&epoch_id) {
+                    coin_indices_signatures.insert(
+                        epoch_id,
+                        self.master_coin_index_signatures(Some(epoch_id))
+                            .await?
+                            .clone(),
+                    );
+                }
+
+                if !expiration_date_signatures.contains_key(&(epoch_id, expiration_date)) {
+                    expiration_date_signatures.insert(
+                        (epoch_id, expiration_date),
+                        self.master_expiration_date_signatures(epoch_id, expiration_date)
+                            .await?
+                            .clone(),
+                    );
+                }
+
+                attached_tickets.push(ticket.into())
+            }
+        }
+
+        Ok(AttachedTicketMaterials {
+            coin_indices_signatures: coin_indices_signatures
+                .into_values()
+                .map(|s| s.pack())
+                .collect(),
+            expiration_date_signatures: expiration_date_signatures
+                .into_values()
+                .map(|s| s.pack())
+                .collect(),
+            master_verification_keys: master_verification_keys
+                .into_iter()
+                .map(|(epoch_id, key)| EpochVerificationKey { epoch_id, key }.pack())
+                .collect(),
+            attached_tickets,
+        })
     }
 
     pub fn ecash_state(&self) -> &EcashState {
@@ -83,10 +158,6 @@ impl TicketbookManagerState {
 
     pub async fn current_epoch_id(&self) -> Result<EpochId, CredentialProxyError> {
         self.ecash_state().current_epoch_id(self.client()).await
-    }
-
-    pub async fn current_epoch(&self) -> Result<Epoch, CredentialProxyError> {
-        self.ecash_state().current_epoch(self.client()).await
     }
 
     pub async fn master_verification_key(

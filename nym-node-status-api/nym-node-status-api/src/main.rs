@@ -110,15 +110,26 @@ async fn main() -> anyhow::Result<()> {
     .await?;
     let quorum_state = quorum_state_checker.quorum_state_ref();
 
-    let ticketbook_manager_state =
-        TicketbookManagerState::new(storage.clone(), quorum_state, chain_client);
+    let ticketbook_manager_state = TicketbookManagerState::new(
+        config.buffered_ticket_types.clone(),
+        storage.clone(),
+        quorum_state,
+        chain_client,
+    );
+    // ensure initial caches are built up
+    ticketbook_manager_state.build_initial_cache().await?;
 
     shutdown_manager.spawn(async move {
         quorum_state_checker.run_forever().await;
     });
 
     let shutdown_token = shutdown_manager.clone_shutdown_token();
-    let ticketbook_manager = TicketbookManager::new(config, ticketbook_manager_state).await?;
+    let ticketbook_manager = TicketbookManager::new(
+        config,
+        ticketbook_manager_state.clone(),
+        args.ticketbook.ecash_client_identifier_bs58,
+        shutdown_token,
+    );
     shutdown_manager.spawn(async move {
         ticketbook_manager.run().await;
     });
@@ -135,6 +146,7 @@ async fn main() -> anyhow::Result<()> {
         args.agent_request_freshness,
         geocache,
         delegations_cache,
+        ticketbook_manager_state,
         shutdown_tracker,
     )
     .await

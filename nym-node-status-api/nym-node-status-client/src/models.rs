@@ -48,11 +48,11 @@ pub struct AttachedTicket {
 
 #[derive(Deserialize, Serialize)]
 pub struct AttachedTicketMaterials {
-    pub coin_indices_signatures: Option<VersionSerialised<AggregatedCoinIndicesSignatures>>,
+    pub coin_indices_signatures: Vec<VersionSerialised<AggregatedCoinIndicesSignatures>>,
 
-    pub expiration_date_signatures: Option<VersionSerialised<AggregatedExpirationDateSignatures>>,
+    pub expiration_date_signatures: Vec<VersionSerialised<AggregatedExpirationDateSignatures>>,
 
-    pub master_verification_key: Option<VersionSerialised<EpochVerificationKey>>,
+    pub master_verification_keys: Vec<VersionSerialised<EpochVerificationKey>>,
 
     // we need one ticket per type
     pub attached_tickets: Vec<AttachedTicket>,
@@ -63,6 +63,25 @@ pub struct TestrunAssignment {
     pub testrun_id: i32,
     pub assigned_at_utc: i64,
     pub gateway_identity_key: String,
+}
+
+impl TestrunAssignment {
+    pub fn with_ticket_materials(
+        self,
+        materials: AttachedTicketMaterials,
+    ) -> TestrunAssignmentWithTickets {
+        TestrunAssignmentWithTickets {
+            assignment: self,
+            ticket_materials: Some(materials),
+        }
+    }
+
+    pub fn with_no_ticket_materials(self) -> TestrunAssignmentWithTickets {
+        TestrunAssignmentWithTickets {
+            assignment: self,
+            ticket_materials: None,
+        }
+    }
 }
 
 #[derive(Deserialize, Serialize)]

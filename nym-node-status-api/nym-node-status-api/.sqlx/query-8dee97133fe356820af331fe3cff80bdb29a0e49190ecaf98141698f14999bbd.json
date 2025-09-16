@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO distributed_partial_ticketbook\n                (testrun_id, ticketbook_id, assigned_index)\n            VALUES ($1, $2, $3)\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Int4",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "8dee97133fe356820af331fe3cff80bdb29a0e49190ecaf98141698f14999bbd"
+}

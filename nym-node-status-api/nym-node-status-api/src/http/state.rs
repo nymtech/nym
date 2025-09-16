@@ -25,9 +25,10 @@ use crate::{
     monitor::{DelegationsCache, NodeGeoCache},
 };
 
+use crate::ticketbook_manager::state::TicketbookManagerState;
 pub(crate) use nym_validator_client::models::BinaryBuildInformationOwned;
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub(crate) struct AppState {
     db_pool: DbPool,
     cache: HttpCache,
@@ -37,6 +38,7 @@ pub(crate) struct AppState {
     node_geocache: NodeGeoCache,
     node_delegations: Arc<RwLock<DelegationsCache>>,
     bin_info: BinaryInfo,
+    ticketbook_manager_state: TicketbookManagerState,
 }
 
 impl AppState {
@@ -48,6 +50,7 @@ impl AppState {
         agent_request_freshness_requirement: time::Duration,
         node_geocache: NodeGeoCache,
         node_delegations: Arc<RwLock<DelegationsCache>>,
+        ticketbook_manager_state: TicketbookManagerState,
     ) -> Self {
         Self {
             db_pool,
@@ -58,6 +61,7 @@ impl AppState {
             node_geocache,
             node_delegations,
             bin_info: BinaryInfo::new(),
+            ticketbook_manager_state,
         }
     }
 
@@ -98,6 +102,10 @@ impl AppState {
 
     pub(crate) fn build_information(&self) -> &BinaryBuildInformationOwned {
         &self.bin_info.build_info
+    }
+
+    pub(crate) fn ticketbook_manager_state(&self) -> &TicketbookManagerState {
+        &self.ticketbook_manager_state
     }
 
     #[tracing::instrument(level = "debug", skip_all)]

@@ -68,16 +68,14 @@ pub struct ChainWritePermit<'a> {
 }
 
 impl ChainWritePermit<'_> {
-    #[instrument(skip(self, short_sha, info), err(Display))]
+    #[instrument(skip(self, memo, info), err(Display))]
     pub async fn make_deposits(
         self,
-        short_sha: &'static str,
+        memo: String,
         info: Vec<(String, Coin)>,
     ) -> Result<ExecuteResult, CredentialProxyError> {
         let address = self.inner.address();
         let starting_sequence = self.inner.get_sequence(&address).await?.sequence;
-
-        let deposits = info.len();
 
         let ecash_contract = self
             .inner
@@ -95,12 +93,7 @@ impl ChainWritePermit<'_> {
 
         let res = self
             .inner
-            .execute_multiple(
-                ecash_contract,
-                deposit_messages,
-                None,
-                format!("cp-{short_sha}: performing {deposits} deposits"),
-            )
+            .execute_multiple(ecash_contract, deposit_messages, None, memo)
             .await?;
 
         loop {

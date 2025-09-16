@@ -25,7 +25,7 @@ humantime = { workspace = true }
 itertools = { workspace = true }
 moka = { workspace = true, features = ["future"] }
 
-nym-cache = { path = "../../common/nym-cache" }
+nym-credentials = { path = "../../common/credentials" }
 nym-credential-proxy-lib = { path = "../../common/credential-proxy" }
 nym-contracts-common = { path = "../../common/cosmwasm-smart-contracts/contracts-common" }
 nym-mixnet-contract-common = { path = "../../common/cosmwasm-smart-contracts/mixnet-contract", features = ["utoipa"] }
@@ -40,6 +40,7 @@ nym-statistics-common = { path = "../../common/statistics" }
 nym-validator-client = { path = "../../common/client-libs/validator-client" }
 nym-task = { path = "../../common/task" }
 nym-node-requests = { path = "../../nym-node/nym-node-requests", features = ["openapi"] }
+nym-ecash-time = { path = "../../common/ecash-time", features = ["expiration"] }
 
 rand = { workspace = true }
 rand_chacha = { workspace = true }
@@ -56,6 +57,7 @@ thiserror = { workspace = true }
 time = { workspace = true, features = ["formatting"] }
 tokio = { workspace = true, features = ["rt-multi-thread"] }
 tokio-util = { workspace = true }
+tokio-stream = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
 tracing-log = { workspace = true }
@@ -77,5 +79,5 @@ sqlx = { workspace = true, features = [
 ] }
 
 [dev-dependencies]
-axum-test = "17.3.0"
+axum-test = { workspace = true }
 time = { workspace = true, features = ["macros"] }

@@ -3,8 +3,6 @@
 
 use crate::models::{BasicTicketbookInformation, RetrievedPendingTicketbook, RetrievedTicketbook};
 use async_trait::async_trait;
-use nym_compact_ecash::scheme::coin_indices_signatures::AnnotatedCoinIndexSignature;
-use nym_compact_ecash::scheme::expiration_date_signatures::AnnotatedExpirationDateSignature;
 use nym_compact_ecash::VerificationKeyAuth;
 use nym_credentials::ecash::bandwidth::serialiser::keys::EpochVerificationKey;
 use nym_credentials::ecash::bandwidth::serialiser::signatures::{
@@ -13,6 +11,9 @@ use nym_credentials::ecash::bandwidth::serialiser::signatures::{
 use nym_credentials::{IssuanceTicketBook, IssuedTicketBook};
 use nym_ecash_time::Date;
 use std::error::Error;
+
+pub use nym_compact_ecash::scheme::coin_indices_signatures::AnnotatedCoinIndexSignature;
+pub use nym_compact_ecash::scheme::expiration_date_signatures::AnnotatedExpirationDateSignature;
 
 // for future reference, if you want to make a query for "how much bandwidth do we have left"
 // do something along the lines of

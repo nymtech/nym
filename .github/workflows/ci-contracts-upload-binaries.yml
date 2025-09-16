@@ -11,7 +11,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: [ arc-ubuntu-22.04 ]
+        platform: [ arc-linux-latest-dind ]
 
     runs-on: ${{ matrix.platform }}
     env:

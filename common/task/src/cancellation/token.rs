@@ -33,6 +33,13 @@ impl ShutdownToken {
         }
     }
 
+    /// Creates a new ShutdownToken given a tokio `CancellationToken`.
+    pub fn new_from_tokio_token(cancellation_token: CancellationToken) -> Self {
+        ShutdownToken {
+            inner: cancellation_token,
+        }
+    }
+
     /// Gets reference to the underlying [CancellationToken](tokio_util::sync::CancellationToken).
     pub fn inner(&self) -> &CancellationToken {
         &self.inner

@@ -20,6 +20,12 @@ pub(crate) struct TicketbookManagerStorage {
     storage: Storage,
 }
 
+impl From<Storage> for TicketbookManagerStorage {
+    fn from(storage: Storage) -> Self {
+        TicketbookManagerStorage { storage }
+    }
+}
+
 impl TicketbookManagerStorage {
     pub(crate) async fn available_tickets_of_type(&self, typ: TicketType) -> anyhow::Result<usize> {
         self.storage

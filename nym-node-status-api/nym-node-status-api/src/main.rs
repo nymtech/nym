@@ -1,6 +1,9 @@
 use crate::monitor::DelegationsCache;
+use crate::ticketbook_manager::state::TicketbookManagerState;
 use crate::ticketbook_manager::TicketbookManager;
 use clap::Parser;
+use nym_credential_proxy_lib::quorum_checker::QuorumStateChecker;
+use nym_credential_proxy_lib::shared_state::nyxd_client::ChainClient;
 use nym_crypto::asymmetric::ed25519::PublicKey;
 use nym_task::ShutdownManager;
 use nym_validator_client::nyxd::NyxdClient;
@@ -58,7 +61,6 @@ async fn main() -> anyhow::Result<()> {
     let delegations_cache = DelegationsCache::new();
 
     // Start the monitor
-    let args_clone = args.clone();
     let geocache_clone = geocache.clone();
     let delegations_cache_clone = Arc::clone(&delegations_cache);
     let config = nym_validator_client::nyxd::Config::try_from_nym_network_details(
@@ -70,10 +72,10 @@ async fn main() -> anyhow::Result<()> {
     shutdown_manager.spawn_with_shutdown(async move {
         monitor::run_in_background(
             db_pool,
-            args_clone.nym_api_client_timeout,
+            args.nym_api_client_timeout,
             nyxd_client,
-            args_clone.monitor_refresh_interval,
-            args_clone.ipinfo_api_token,
+            args.monitor_refresh_interval,
+            args.ipinfo_api_token,
             geocache_clone,
             delegations_cache_clone,
         )
@@ -88,16 +90,40 @@ async fn main() -> anyhow::Result<()> {
 
     let db_pool_scraper = storage.pool_owned();
     shutdown_manager.spawn_with_shutdown(async move {
-        metrics_scraper::run_in_background(db_pool_scraper, args_clone.nym_api_client_timeout)
-            .await;
+        metrics_scraper::run_in_background(db_pool_scraper, args.nym_api_client_timeout).await;
         tracing::info!("Started metrics scraper task");
     });
 
+    // >>> TICKETBOOK TASKS SETUP START
+    let config = args.ticketbook.to_manager_config();
+
+    // client for sending chain transactions
+    let chain_client = ChainClient::new(args.ticketbook.mnemonic)?;
+
+    // background task for checking for signing quorum
+    let cancellation_token = shutdown_manager.clone_shutdown_token().inner().clone();
+    let quorum_state_checker = QuorumStateChecker::new(
+        chain_client.clone(),
+        args.ticketbook.quorum_check_interval,
+        cancellation_token,
+    )
+    .await?;
+    let quorum_state = quorum_state_checker.quorum_state_ref();
+
+    let ticketbook_manager_state =
+        TicketbookManagerState::new(storage.clone(), quorum_state, chain_client);
+
+    shutdown_manager.spawn(async move {
+        quorum_state_checker.run_forever().await;
+    });
+
     let shutdown_token = shutdown_manager.clone_shutdown_token();
-    let ticketbook_manager = TicketbookManager::new(storage.clone()).await?;
-    shutdown_manager.spawn_with_shutdown(async move {
+    let ticketbook_manager = TicketbookManager::new(config, ticketbook_manager_state).await?;
+    shutdown_manager.spawn(async move {
         ticketbook_manager.run().await;
     });
+
+    // >>> TICKETBOOK TASKS SETUP END
 
     let shutdown_tracker = shutdown_manager.shutdown_tracker();
     http::server::start_http_api(

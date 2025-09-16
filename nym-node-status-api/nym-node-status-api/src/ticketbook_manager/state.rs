@@ -1,13 +1,17 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::db::Storage;
 use crate::ticketbook_manager::storage::TicketbookManagerStorage;
 use nym_credential_proxy_lib::error::CredentialProxyError;
+use nym_credential_proxy_lib::quorum_checker::QuorumState;
 use nym_credential_proxy_lib::shared_state::ecash_state::{EcashState, VerificationKeyAuth};
 use nym_credential_proxy_lib::shared_state::nyxd_client::ChainClient;
+use nym_credential_proxy_lib::shared_state::required_deposit_cache::RequiredDepositCache;
 use nym_credential_proxy_lib::storage::traits::{
     AggregatedCoinIndicesSignatures, AggregatedExpirationDateSignatures,
 };
+use nym_ecash_time::{ecash_default_expiration_date, ecash_today};
 use nym_validator_client::nym_api::EpochId;
 use nym_validator_client::nyxd::contract_traits::dkg_query_client::Epoch;
 use nym_validator_client::nyxd::Coin;
@@ -24,6 +28,18 @@ pub(crate) struct TicketbookManagerState {
 }
 
 impl TicketbookManagerState {
+    pub fn new(storage: Storage, quorum_state: QuorumState, client: ChainClient) -> Self {
+        let state = TicketbookManagerState {
+            storage: storage.into(),
+            client,
+            ecash_state: Arc::new(EcashState::new(
+                RequiredDepositCache::default(),
+                quorum_state,
+            )),
+        };
+        state
+    }
+
     pub fn ecash_state(&self) -> &EcashState {
         &self.ecash_state
     }
@@ -34,6 +50,22 @@ impl TicketbookManagerState {
 
     pub fn storage(&self) -> &TicketbookManagerStorage {
         &self.storage
+    }
+
+    pub async fn build_initial_cache(&self) -> Result<(), CredentialProxyError> {
+        let default_expiration = ecash_default_expiration_date();
+
+        let epoch_id = self.current_epoch_id().await?;
+        let _ = self.deposit_amount().await?;
+        let _ = self.master_verification_key(Some(epoch_id)).await?;
+        let _ = self.ecash_threshold(epoch_id).await?;
+        let _ = self.ecash_clients(epoch_id).await?;
+        let _ = self.master_coin_index_signatures(Some(epoch_id)).await?;
+        let _ = self
+            .master_expiration_date_signatures(epoch_id, default_expiration)
+            .await?;
+
+        Ok(())
     }
 
     pub async fn deposit_amount(&self) -> Result<Coin, CredentialProxyError> {

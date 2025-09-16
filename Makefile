@@ -154,6 +154,7 @@ CONTRACTS_OUT_DIR = contracts/artifacts
 #
 COSMWASM_OPTIMIZER_IMAGE ?= cosmwasm/optimizer:0.17.0
 COSMWASM_OPTIMIZER_PLATFORM ?= linux/amd64
+COSMWASM_CHECK_IMAGE=rust:1.88
 
 # Ensure clean build environment and run the optimizer
 optimize-contracts:
@@ -184,7 +185,7 @@ docker-check-contracts:
 	@docker run --rm --platform $(COSMWASM_OPTIMIZER_PLATFORM) \
 	  -v $(CURDIR):/code --workdir /code \
 	  --entrypoint /bin/sh \
-	  $(COSMWASM_OPTIMIZER_IMAGE) -lc 'export PATH="$$PATH:$$HOME/.cargo/bin:/usr/local/cargo/bin" && cargo install cosmwasm-check --locked && cosmwasm-check contracts/artifacts/*.wasm'
+	  $(COSMWASM_CHECK_IMAGE) -lc 'apt-get update && apt-get install -y --no-install-recommends llvm-dev libclang-dev pkg-config && cargo install cosmwasm-check && cosmwasm-check contracts/artifacts/*.wasm'
 
 wasm-opt-contracts:
 	@for WASM in $(WASM_CONTRACT_DIR)/*.wasm; do \

@@ -32,11 +32,7 @@ jobs:
         run: make optimize-contracts
 
       - name: Check optimized contracts
-        run: |
-          docker run --rm --platform linux/amd64 \
-            -v ${{ github.workspace }}:/code --workdir /code \
-            cosmwasm/optimizer:0.17.0 /bin/sh -lc \
-            "cargo install cosmwasm-check && cosmwasm-check contracts/artifacts/*.wasm"
+        run: make docker-check-contracts
 
       - name: Prepare build output
         shell: bash

@@ -179,6 +179,13 @@ optimize-contracts:
 	# Cleanup temporary artefacts directory
 	@rm -rf artifacts 2>/dev/null || true
 
+# Check artifacts with cosmwasm-check inside the optimizer image
+docker-check-contracts:
+	@docker run --rm --platform $(COSMWASM_OPTIMIZER_PLATFORM) \
+	  -v $(CURDIR):/code --workdir /code \
+	  --entrypoint /bin/sh \
+	  $(COSMWASM_OPTIMIZER_IMAGE) -lc "cargo install cosmwasm-check && cosmwasm-check contracts/artifacts/*.wasm"
+
 wasm-opt-contracts:
 	@for WASM in $(WASM_CONTRACT_DIR)/*.wasm; do \
 	  echo "Running wasm-opt on $$WASM"; \

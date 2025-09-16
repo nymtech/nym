@@ -63,5 +63,3 @@ nym-api/redocly/formatted-openapi.json
 
 **/settings.sql
 **/enter_db.sh
-
-wasm-debug-notes.md

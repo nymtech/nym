@@ -96,6 +96,9 @@ pub enum Error {
 
     #[error(transparent)]
     Bincode(#[from] bincode::Error),
+
+    #[error("Failed to get shutdown tracker from the task runtime registry: {0}")]
+    RegistryAccess(#[from] nym_task::RegistryAccessError),
 }
 
 impl Error {

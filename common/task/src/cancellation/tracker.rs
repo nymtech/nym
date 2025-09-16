@@ -314,4 +314,24 @@ impl ShutdownTracker {
     pub fn clone_shutdown_token(&self) -> ShutdownToken {
         self.root_cancellation_token.clone()
     }
+
+    /// Create a child ShutdownTracker that inherits cancellation from this tracker
+    /// but has its own TaskTracker for managing sub-tasks.
+    ///
+    /// This enables hierarchical task management where:
+    /// - Parent cancellation flows to all children
+    /// - Each level tracks its own tasks independently
+    /// - Components can wait for their specific sub-tasks to complete
+    pub fn child_tracker(&self) -> ShutdownTracker {
+        // Child token inherits cancellation from parent
+        let child_token = self.root_cancellation_token.child_token();
+
+        // New TaskTracker for this level's tasks
+        let child_task_tracker = TaskTracker::new();
+
+        ShutdownTracker {
+            root_cancellation_token: child_token,
+            tracker: child_task_tracker,
+        }
+    }
 }

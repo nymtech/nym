@@ -697,7 +697,7 @@ where
             Some(custom) => custom,
             None => {
                 // Auto-create from registry for SDK use
-                nym_task::get_sdk_shutdown_tracker().await
+                nym_task::get_sdk_shutdown_tracker()?
             }
         };
         base_builder = base_builder.with_shutdown(shutdown_tracker);
@@ -752,7 +752,7 @@ where
         let (mut started_client, nym_address) = self.connect_to_mixnet_common().await?;
 
         // TODO: more graceful handling here, surely both variants should work... I think?
-        let Some(task_manager) = started_client.shutdown_handle else {
+        let Some(tracker) = started_client.shutdown_handle else {
             return Err(Error::new_unsupported(
                 "connecting with socks5 is currently unsupported with custom shutdown",
             ));
@@ -769,14 +769,14 @@ where
             client_output,
             client_state.clone(),
             nym_address,
-            task_manager.shutdown_tracker_owned(),
+            tracker.child_tracker(),
             packet_type,
         );
 
         Ok(Socks5MixnetClient {
             nym_address,
             client_state,
-            task_handle: task_manager,
+            task_handle: tracker,
             socks5_config,
         })
     }

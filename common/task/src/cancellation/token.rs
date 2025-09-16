@@ -17,6 +17,12 @@ pub struct ShutdownToken {
     inner: CancellationToken,
 }
 
+impl From<CancellationToken> for ShutdownToken {
+    fn from(inner: CancellationToken) -> Self {
+        ShutdownToken { inner }
+    }
+}
+
 impl ShutdownToken {
     /// A drop in no-op replacement for `send_status_msg` for easier migration from [TaskClient](crate::TaskClient).
     #[deprecated]
@@ -43,6 +49,13 @@ impl ShutdownToken {
     /// Gets reference to the underlying [CancellationToken](tokio_util::sync::CancellationToken).
     pub fn inner(&self) -> &CancellationToken {
         &self.inner
+    }
+
+    /// Get an owned [CancellationToken](tokio_util::sync::CancellationToken) for public API use.
+    /// This is useful when you need to expose cancellation to SDK users without
+    /// exposing the internal ShutdownToken type.
+    pub fn to_cancellation_token(&self) -> CancellationToken {
+        self.inner.clone()
     }
 
     /// Creates a `ShutdownToken` which will get cancelled whenever the

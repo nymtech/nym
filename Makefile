@@ -185,7 +185,7 @@ docker-check-contracts:
 	@docker run --rm --platform $(COSMWASM_OPTIMIZER_PLATFORM) \
 	  -v $(CURDIR):/code --workdir /code \
 	  --entrypoint /bin/sh \
-	  $(COSMWASM_CHECK_IMAGE) -lc 'apt-get update && apt-get install -y --no-install-recommends llvm-dev libclang-dev pkg-config && export PATH="/usr/local/cargo/bin:/usr/local/rustup/bin:$$PATH" && cargo install cosmwasm-check --locked --no-default-features --features singlepass && WASMER_ENGINE=universal WASMER_COMPILER=singlepass cosmwasm-check contracts/artifacts/*.wasm'
+	  $(COSMWASM_CHECK_IMAGE) -lc 'apt-get update && apt-get install -y --no-install-recommends llvm-dev libclang-dev pkg-config && export PATH="/usr/local/cargo/bin:/usr/local/rustup/bin:$$PATH" && cargo install cosmwasm-check --locked && WASMER_ENGINE=universal WASMER_COMPILER=singlepass cosmwasm-check contracts/artifacts/*.wasm'
 
 wasm-opt-contracts:
 	@for WASM in $(WASM_CONTRACT_DIR)/*.wasm; do \

@@ -4,7 +4,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
-## [2025.15-halloumi] (2025-09-16)
+## [2025.16-halloumi] (2025-09-16)
 
 - Backport metadata endpoint ([#6010])
 - bugfix: make sure tables are removed in correct order to not trigger FK constraint issue ([#5987])

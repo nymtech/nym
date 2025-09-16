@@ -3,7 +3,6 @@
 
 use crate::node_describe_cache::query_helpers::query_for_described_data;
 use crate::node_describe_cache::NodeDescribeCacheError;
-use nym_api_requests::legacy::{LegacyGatewayBondWithId, LegacyMixNodeDetailsWithLayer};
 use nym_api_requests::models::{DescribedNodeType, NymNodeDescription};
 use nym_bin_common::bin_info;
 use nym_config::defaults::DEFAULT_NYM_NODE_HTTP_PORT;
@@ -22,34 +21,6 @@ pub(crate) struct RefreshData {
     node_type: DescribedNodeType,
 
     port: Option<u16>,
-}
-
-impl<'a> TryFrom<&'a LegacyMixNodeDetailsWithLayer> for RefreshData {
-    type Error = ed25519::Ed25519RecoveryError;
-
-    fn try_from(node: &'a LegacyMixNodeDetailsWithLayer) -> Result<Self, Self::Error> {
-        Ok(RefreshData::new(
-            &node.bond_information.mix_node.host,
-            node.bond_information.identity().parse()?,
-            DescribedNodeType::LegacyMixnode,
-            node.mix_id(),
-            Some(node.bond_information.mix_node.http_api_port),
-        ))
-    }
-}
-
-impl<'a> TryFrom<&'a LegacyGatewayBondWithId> for RefreshData {
-    type Error = ed25519::Ed25519RecoveryError;
-
-    fn try_from(node: &'a LegacyGatewayBondWithId) -> Result<Self, Self::Error> {
-        Ok(RefreshData::new(
-            &node.bond.gateway.host,
-            node.bond.identity().parse()?,
-            DescribedNodeType::LegacyGateway,
-            node.node_id,
-            None,
-        ))
-    }
 }
 
 impl<'a> TryFrom<&'a NymNodeDetails> for RefreshData {

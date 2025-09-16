@@ -16,9 +16,8 @@ use nym_api_requests::ecash::models::{
 use nym_api_requests::ecash::VerificationKeyResponse;
 use nym_api_requests::models::{
     AnnotationResponse, ApiHealthResponse, BinaryBuildInformationOwned, ChainBlocksStatusResponse,
-    ChainStatusResponse, KeyRotationInfoResponse, LegacyDescribedMixNode, NodePerformanceResponse,
-    NodeRefreshBody, NymNodeDescription, PerformanceHistoryResponse, RewardedSetResponse,
-    SignerInformationResponse,
+    ChainStatusResponse, KeyRotationInfoResponse, NodePerformanceResponse, NodeRefreshBody,
+    NymNodeDescription, PerformanceHistoryResponse, RewardedSetResponse, SignerInformationResponse,
 };
 use nym_api_requests::nym_nodes::{
     NodesByAddressesRequestBody, NodesByAddressesResponse, PaginatedCachedNodesResponseV1,
@@ -32,19 +31,15 @@ pub use nym_api_requests::{
         VerifyEcashCredentialBody,
     },
     models::{
-        ComputeRewardEstParam, GatewayBondAnnotated, GatewayCoreStatusResponse,
-        GatewayStatusReportResponse, GatewayUptimeHistoryResponse, LegacyDescribedGateway,
-        MixNodeBondAnnotated, MixnodeCoreStatusResponse, MixnodeStatusReportResponse,
-        MixnodeStatusResponse, MixnodeUptimeHistoryResponse, RewardEstimationResponse,
-        StakeSaturationResponse, UptimeResponse,
+        GatewayCoreStatusResponse, GatewayStatusReportResponse, GatewayUptimeHistoryResponse,
+        MixnodeCoreStatusResponse, MixnodeStatusReportResponse, MixnodeStatusResponse,
+        MixnodeUptimeHistoryResponse, StakeSaturationResponse, UptimeResponse,
     },
     nym_nodes::{CachedNodesResponse, SemiSkimmedNode, SemiSkimmedNodesWithMetadata, SkimmedNode},
     NymNetworkDetailsResponse,
 };
-use nym_contracts_common::IdentityKey;
 use nym_http_api_client::{ApiClient, NO_PARAMS};
-use nym_mixnet_contract_common::mixnode::MixNodeDetails;
-use nym_mixnet_contract_common::{GatewayBond, IdentityKeyRef, NodeId, NymNodeDetails};
+use nym_mixnet_contract_common::{IdentityKeyRef, NodeId, NymNodeDetails};
 use std::net::IpAddr;
 use time::format_description::BorrowedFormatItem;
 use time::Date;
@@ -86,104 +81,6 @@ pub trait NymApiClientExt: ApiClient {
                 routes::API_STATUS_ROUTES,
                 routes::BUILD_INFORMATION,
             ],
-            NO_PARAMS,
-        )
-        .await
-    }
-
-    #[deprecated]
-    #[instrument(level = "debug", skip(self))]
-    async fn get_mixnodes(&self) -> Result<Vec<MixNodeDetails>, NymAPIError> {
-        self.get_json(&[routes::V1_API_VERSION, routes::MIXNODES], NO_PARAMS)
-            .await
-    }
-
-    #[deprecated]
-    #[instrument(level = "debug", skip(self))]
-    async fn get_mixnodes_detailed(&self) -> Result<Vec<MixNodeBondAnnotated>, NymAPIError> {
-        self.get_json(
-            &[
-                routes::V1_API_VERSION,
-                routes::STATUS,
-                routes::MIXNODES,
-                routes::DETAILED,
-            ],
-            NO_PARAMS,
-        )
-        .await
-    }
-
-    #[deprecated]
-    #[instrument(level = "debug", skip(self))]
-    async fn get_gateways_detailed(&self) -> Result<Vec<GatewayBondAnnotated>, NymAPIError> {
-        self.get_json(
-            &[
-                routes::V1_API_VERSION,
-                routes::STATUS,
-                routes::GATEWAYS,
-                routes::DETAILED,
-            ],
-            NO_PARAMS,
-        )
-        .await
-    }
-
-    #[deprecated]
-    #[instrument(level = "debug", skip(self))]
-    async fn get_gateways_detailed_unfiltered(
-        &self,
-    ) -> Result<Vec<GatewayBondAnnotated>, NymAPIError> {
-        self.get_json(
-            &[
-                routes::V1_API_VERSION,
-                routes::STATUS,
-                routes::GATEWAYS,
-                routes::DETAILED_UNFILTERED,
-            ],
-            NO_PARAMS,
-        )
-        .await
-    }
-
-    #[deprecated]
-    #[instrument(level = "debug", skip(self))]
-    async fn get_mixnodes_detailed_unfiltered(
-        &self,
-    ) -> Result<Vec<MixNodeBondAnnotated>, NymAPIError> {
-        self.get_json(
-            &[
-                routes::V1_API_VERSION,
-                routes::STATUS,
-                routes::MIXNODES,
-                routes::DETAILED_UNFILTERED,
-            ],
-            NO_PARAMS,
-        )
-        .await
-    }
-
-    #[deprecated]
-    #[instrument(level = "debug", skip(self))]
-    async fn get_gateways(&self) -> Result<Vec<GatewayBond>, NymAPIError> {
-        self.get_json(&[routes::V1_API_VERSION, routes::GATEWAYS], NO_PARAMS)
-            .await
-    }
-
-    #[deprecated]
-    #[instrument(level = "debug", skip(self))]
-    async fn get_gateways_described(&self) -> Result<Vec<LegacyDescribedGateway>, NymAPIError> {
-        self.get_json(
-            &[routes::V1_API_VERSION, routes::GATEWAYS, routes::DESCRIBED],
-            NO_PARAMS,
-        )
-        .await
-    }
-
-    #[deprecated]
-    #[instrument(level = "debug", skip(self))]
-    async fn get_mixnodes_described(&self) -> Result<Vec<LegacyDescribedMixNode>, NymAPIError> {
-        self.get_json(
-            &[routes::V1_API_VERSION, routes::MIXNODES, routes::DESCRIBED],
             NO_PARAMS,
         )
         .await
@@ -852,42 +749,6 @@ pub trait NymApiClientExt: ApiClient {
 
     #[deprecated]
     #[instrument(level = "debug", skip(self))]
-    async fn get_active_mixnodes(&self) -> Result<Vec<MixNodeDetails>, NymAPIError> {
-        self.get_json(
-            &[routes::V1_API_VERSION, routes::MIXNODES, routes::ACTIVE],
-            NO_PARAMS,
-        )
-        .await
-    }
-
-    #[deprecated]
-    #[instrument(level = "debug", skip(self))]
-    async fn get_active_mixnodes_detailed(&self) -> Result<Vec<MixNodeBondAnnotated>, NymAPIError> {
-        self.get_json(
-            &[
-                routes::V1_API_VERSION,
-                routes::STATUS,
-                routes::MIXNODES,
-                routes::ACTIVE,
-                routes::DETAILED,
-            ],
-            NO_PARAMS,
-        )
-        .await
-    }
-
-    #[deprecated]
-    #[instrument(level = "debug", skip(self))]
-    async fn get_rewarded_mixnodes(&self) -> Result<Vec<MixNodeDetails>, NymAPIError> {
-        self.get_json(
-            &[routes::V1_API_VERSION, routes::MIXNODES, routes::REWARDED],
-            NO_PARAMS,
-        )
-        .await
-    }
-
-    #[deprecated]
-    #[instrument(level = "debug", skip(self))]
     async fn get_mixnode_report(
         &self,
         mix_id: NodeId,
@@ -964,24 +825,6 @@ pub trait NymApiClientExt: ApiClient {
 
     #[deprecated]
     #[instrument(level = "debug", skip(self))]
-    async fn get_rewarded_mixnodes_detailed(
-        &self,
-    ) -> Result<Vec<MixNodeBondAnnotated>, NymAPIError> {
-        self.get_json(
-            &[
-                routes::V1_API_VERSION,
-                routes::STATUS,
-                routes::MIXNODES,
-                routes::REWARDED,
-                routes::DETAILED,
-            ],
-            NO_PARAMS,
-        )
-        .await
-    }
-
-    #[deprecated]
-    #[instrument(level = "debug", skip(self))]
     async fn get_gateway_core_status_count(
         &self,
         identity: IdentityKeyRef<'_>,
@@ -1047,104 +890,6 @@ pub trait NymApiClientExt: ApiClient {
         }
     }
 
-    #[deprecated]
-    #[instrument(level = "debug", skip(self))]
-    async fn get_mixnode_status(
-        &self,
-        mix_id: NodeId,
-    ) -> Result<MixnodeStatusResponse, NymAPIError> {
-        self.get_json(
-            &[
-                routes::V1_API_VERSION,
-                routes::STATUS_ROUTES,
-                routes::MIXNODE,
-                &mix_id.to_string(),
-                routes::STATUS,
-            ],
-            NO_PARAMS,
-        )
-        .await
-    }
-
-    #[deprecated]
-    #[instrument(level = "debug", skip(self))]
-    async fn get_mixnode_reward_estimation(
-        &self,
-        mix_id: NodeId,
-    ) -> Result<RewardEstimationResponse, NymAPIError> {
-        self.get_json(
-            &[
-                routes::V1_API_VERSION,
-                routes::STATUS_ROUTES,
-                routes::MIXNODE,
-                &mix_id.to_string(),
-                routes::REWARD_ESTIMATION,
-            ],
-            NO_PARAMS,
-        )
-        .await
-    }
-
-    #[deprecated]
-    #[instrument(level = "debug", skip(self))]
-    async fn compute_mixnode_reward_estimation(
-        &self,
-        mix_id: NodeId,
-        request_body: &ComputeRewardEstParam,
-    ) -> Result<RewardEstimationResponse, NymAPIError> {
-        self.post_json(
-            &[
-                routes::V1_API_VERSION,
-                routes::STATUS_ROUTES,
-                routes::MIXNODE,
-                &mix_id.to_string(),
-                routes::COMPUTE_REWARD_ESTIMATION,
-            ],
-            NO_PARAMS,
-            request_body,
-        )
-        .await
-    }
-
-    #[deprecated]
-    #[instrument(level = "debug", skip(self))]
-    async fn get_mixnode_stake_saturation(
-        &self,
-        mix_id: NodeId,
-    ) -> Result<StakeSaturationResponse, NymAPIError> {
-        self.get_json(
-            &[
-                routes::V1_API_VERSION,
-                routes::STATUS_ROUTES,
-                routes::MIXNODE,
-                &mix_id.to_string(),
-                routes::STAKE_SATURATION,
-            ],
-            NO_PARAMS,
-        )
-        .await
-    }
-
-    #[deprecated]
-    #[allow(deprecated)]
-    #[instrument(level = "debug", skip(self))]
-    async fn get_mixnode_inclusion_probability(
-        &self,
-        mix_id: NodeId,
-    ) -> Result<nym_api_requests::models::InclusionProbabilityResponse, NymAPIError> {
-        self.get_json(
-            &[
-                routes::V1_API_VERSION,
-                routes::STATUS_ROUTES,
-                routes::MIXNODE,
-                &mix_id.to_string(),
-                routes::INCLUSION_CHANCE,
-            ],
-            NO_PARAMS,
-        )
-        .await
-    }
-
     #[instrument(level = "debug", skip(self))]
     async fn get_current_node_performance(
         &self,
@@ -1187,34 +932,6 @@ pub trait NymApiClientExt: ApiClient {
                 routes::MIXNODE,
                 &mix_id.to_string(),
                 routes::AVG_UPTIME,
-            ],
-            NO_PARAMS,
-        )
-        .await
-    }
-
-    #[deprecated]
-    #[instrument(level = "debug", skip(self))]
-    async fn get_mixnodes_blacklisted(&self) -> Result<Vec<NodeId>, NymAPIError> {
-        self.get_json(
-            &[
-                routes::V1_API_VERSION,
-                routes::MIXNODES,
-                routes::BLACKLISTED,
-            ],
-            NO_PARAMS,
-        )
-        .await
-    }
-
-    #[deprecated]
-    #[instrument(level = "debug", skip(self))]
-    async fn get_gateways_blacklisted(&self) -> Result<Vec<IdentityKey>, NymAPIError> {
-        self.get_json(
-            &[
-                routes::V1_API_VERSION,
-                routes::GATEWAYS,
-                routes::BLACKLISTED,
             ],
             NO_PARAMS,
         )

@@ -340,14 +340,12 @@ pub struct OldHistoricalUptimeResponse {
 pub struct MixnodeUptimeHistoryResponse {
     pub mix_id: NodeId,
     pub identity: String,
-    pub owner: String,
     pub history: Vec<OldHistoricalUptimeResponse>,
 }
 
 #[derive(Clone, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
 pub struct GatewayUptimeHistoryResponse {
     pub identity: String,
-    pub owner: String,
     pub history: Vec<OldHistoricalUptimeResponse>,
 }
 

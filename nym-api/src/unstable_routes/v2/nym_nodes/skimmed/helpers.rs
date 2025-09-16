@@ -1,11 +1,8 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::node_describe_cache::cache::DescribedNodes;
-use crate::node_status_api::models::AxumErrorResponse;
-use crate::support::caching::Cache;
 use crate::support::http::state::AppState;
-use crate::unstable_routes::helpers::{refreshed_at, LegacyAnnotation};
+use crate::unstable_routes::helpers::refreshed_at;
 use crate::unstable_routes::v2::nym_nodes::helpers::NodesParams;
 use crate::unstable_routes::v2::nym_nodes::skimmed::PaginatedSkimmedNodes;
 use axum::extract::{Query, State};
@@ -17,10 +14,7 @@ use nym_http_api_common::Output;
 use nym_mixnet_contract_common::{Interval, NodeId};
 use nym_topology::CachedEpochRewardedSet;
 use std::collections::HashMap;
-use std::future::Future;
 use std::time::Duration;
-use tokio::sync::RwLockReadGuard;
-use tracing::trace;
 
 /// Given all relevant caches, build part of response for JUST Nym Nodes
 fn build_nym_nodes_response<'a, NI>(
@@ -57,41 +51,6 @@ where
     nodes
 }
 
-/// Given all relevant caches, add appropriate legacy nodes to the part of the response
-fn add_legacy<LN>(
-    nodes: &mut Vec<SkimmedNode>,
-    rewarded_set: &CachedEpochRewardedSet,
-    describe_cache: &DescribedNodes,
-    annotated_legacy_nodes: &HashMap<NodeId, LN>,
-    current_key_rotation: u32,
-    active_only: bool,
-) where
-    LN: LegacyAnnotation,
-{
-    for (node_id, legacy) in annotated_legacy_nodes.iter() {
-        let role: NodeRole = rewarded_set.role(*node_id).into();
-
-        // if the role is inactive, see if our filter allows it
-        if active_only && role.is_inactive() {
-            continue;
-        }
-
-        // if we have self-described info, prefer it over contract data
-        if let Some(described) = describe_cache.get_node(node_id) {
-            // legacy nodes don't support key rotation
-            nodes.push(described.to_skimmed_node(current_key_rotation, role, legacy.performance()))
-        } else {
-            match legacy.try_to_skimmed_node(role) {
-                Ok(node) => nodes.push(node),
-                Err(err) => {
-                    let id = legacy.identity();
-                    trace!("node {id} is malformed: {err}")
-                }
-            }
-        }
-    }
-}
-
 fn maybe_add_expires_header(
     output: Output,
     interval: Interval,
@@ -123,25 +82,16 @@ fn maybe_add_expires_header(
 
 // hehe, what an abomination, but it's used in multiple different places and I hate copy-pasting code,
 // especially if it has multiple loops, etc
-pub(crate) async fn build_skimmed_nodes_response<'a, NI, LG, Fut, LN>(
+pub(crate) async fn build_skimmed_nodes_response<'a, NI>(
     state: &'a AppState,
     Query(query_params): Query<NodesParams>,
     nym_nodes_subset: NI,
-    annotated_legacy_nodes_getter: LG,
     active_only: bool,
     output: Output,
 ) -> PaginatedSkimmedNodes
 where
     // iterator returning relevant subset of nym-nodes (like mixing nym-nodes, entries, etc.)
     NI: Iterator<Item = &'a NymNodeDescription> + 'a,
-
-    // async function that returns cache of appropriate legacy nodes (mixnodes or gateways)
-    LG: Fn(&'a AppState) -> Fut,
-    Fut:
-        Future<Output = Result<RwLockReadGuard<'a, Cache<HashMap<NodeId, LN>>>, AxumErrorResponse>>,
-
-    // the legacy node (MixNodeBondAnnotated or GatewayBondAnnotated)
-    LN: LegacyAnnotation + 'a,
 {
     // TODO: implement it
     let _ = query_params.per_page;
@@ -175,7 +125,7 @@ where
     }
 
     // 4. start building the response
-    let mut nodes = build_nym_nodes_response(
+    let nodes = build_nym_nodes_response(
         &rewarded_set,
         nym_nodes_subset,
         &annotations,
@@ -202,24 +152,11 @@ where
         );
     }
 
-    // 6. grab relevant legacy nodes
-    // (due to the existence of the legacy endpoints, we already have fully annotated data on them)
-    let annotated_legacy_nodes = annotated_legacy_nodes_getter(state).await?;
-    add_legacy(
-        &mut nodes,
-        &rewarded_set,
-        &describe_cache,
-        &annotated_legacy_nodes,
-        current_key_rotation,
-        active_only,
-    );
-
     // min of all caches
     let refreshed_at = refreshed_at([
         rewarded_set.timestamp(),
         annotations.timestamp(),
         describe_cache.timestamp(),
-        annotated_legacy_nodes.timestamp(),
     ]);
 
     maybe_add_expires_header(
@@ -247,36 +184,14 @@ pub(crate) async fn nodes_basic(
     let describe_cache = state.describe_nodes_cache_data().await?;
     let all_nym_nodes = describe_cache.all_nym_nodes();
     let annotations = state.node_annotations().await?;
-    let legacy_mixnodes = state.legacy_mixnode_annotations().await?;
-    let legacy_gateways = state.legacy_gateways_annotations().await?;
 
     let interval = state.nym_contract_cache().current_interval().await?;
     let current_key_rotation = state.nym_contract_cache().current_key_rotation_id().await?;
 
-    let mut nodes = build_nym_nodes_response(
+    let nodes = build_nym_nodes_response(
         &rewarded_set,
         all_nym_nodes,
         &annotations,
-        current_key_rotation,
-        active_only,
-    );
-
-    // add legacy gateways to the response
-    add_legacy(
-        &mut nodes,
-        &rewarded_set,
-        &describe_cache,
-        &legacy_gateways,
-        current_key_rotation,
-        active_only,
-    );
-
-    // add legacy mixnodes to the response
-    add_legacy(
-        &mut nodes,
-        &rewarded_set,
-        &describe_cache,
-        &legacy_mixnodes,
         current_key_rotation,
         active_only,
     );
@@ -286,8 +201,6 @@ pub(crate) async fn nodes_basic(
         rewarded_set.timestamp(),
         annotations.timestamp(),
         describe_cache.timestamp(),
-        legacy_mixnodes.timestamp(),
-        legacy_gateways.timestamp(),
     ]);
 
     Ok(output.to_response(PaginatedCachedNodesResponseV2::new_full(
@@ -313,7 +226,6 @@ pub(crate) async fn mixnodes_basic(
         &state.0,
         query_params,
         mixing_nym_nodes,
-        |state| state.legacy_mixnode_annotations(),
         active_only,
         output,
     )
@@ -335,7 +247,6 @@ pub(crate) async fn entry_gateways_basic(
         &state.0,
         query_params,
         mixing_nym_nodes,
-        |state| state.legacy_gateways_annotations(),
         active_only,
         output,
     )
@@ -357,7 +268,6 @@ pub(crate) async fn exit_gateways_basic(
         &state.0,
         query_params,
         mixing_nym_nodes,
-        |state| state.legacy_gateways_annotations(),
         active_only,
         output,
     )

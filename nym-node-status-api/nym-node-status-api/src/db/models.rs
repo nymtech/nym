@@ -111,19 +111,6 @@ impl TryFrom<GatewayDto> for http::models::Gateway {
     }
 }
 
-pub(crate) struct MixnodeRecord {
-    pub(crate) mix_id: u32,
-    pub(crate) identity_key: String,
-    pub(crate) bonded: bool,
-    pub(crate) total_stake: i64,
-    pub(crate) host: String,
-    pub(crate) http_port: u16,
-    pub(crate) full_details: String,
-    pub(crate) self_described: Option<String>,
-    pub(crate) last_updated_utc: i64,
-    pub(crate) is_dp_delegatee: bool,
-}
-
 #[derive(Debug, Clone, FromRow)]
 pub(crate) struct MixnodeDto {
     pub(crate) mix_id: i64,
@@ -215,7 +202,6 @@ impl TryFrom<SummaryHistoryDto> for SummaryHistory {
     }
 }
 
-pub(crate) const MIXNODES_LEGACY_COUNT: &str = "mixnodes.legacy.count";
 pub(crate) const NYMNODES_DESCRIBED_COUNT: &str = "nymnode.described.count";
 
 pub(crate) const NYMNODE_COUNT: &str = "nymnode.total.count";
@@ -260,7 +246,6 @@ pub(crate) mod mixnode {
     pub(crate) struct MixingNodesSummary {
         pub(crate) count: i32,
         pub(crate) self_described: i32,
-        pub(crate) legacy: i32,
         pub(crate) last_updated_utc: String,
     }
 
@@ -374,7 +359,6 @@ impl TryFrom<GatewaySessionsRecord> for http::models::SessionStats {
 
 #[derive(strum_macros::Display, Clone)]
 pub(crate) enum ScrapeNodeKind {
-    LegacyMixnode { mix_id: i64 },
     MixingNymNode { node_id: i64 },
     EntryExitNymNode { node_id: i64, identity_key: String },
 }
@@ -382,7 +366,6 @@ pub(crate) enum ScrapeNodeKind {
 impl ScrapeNodeKind {
     pub(crate) fn node_id(&self) -> &i64 {
         match self {
-            ScrapeNodeKind::LegacyMixnode { mix_id } => mix_id,
             ScrapeNodeKind::MixingNymNode { node_id } => node_id,
             ScrapeNodeKind::EntryExitNymNode { node_id, .. } => node_id,
         }

@@ -10,45 +10,7 @@ use tokio::sync::mpsc;
 use tracing::*;
 use transceiver::ErasedGatewayError;
 
-#[cfg(target_arch = "wasm32")]
-use wasm_utils::console_log;
-
-#[derive(Debug)]
-pub struct CountedSender<T>(pub Arc<mpsc::Sender<T>>);
-
-impl<T> Clone for CountedSender<T> {
-    fn clone(&self) -> Self {
-        let cnt = Arc::strong_count(&self.0);
-        console_log!("Sender cloned (was {})", cnt);
-        CountedSender(Arc::clone(&self.0))
-    }
-}
-impl<T> Drop for CountedSender<T> {
-    fn drop(&mut self) {
-        let left = Arc::strong_count(&self.0).saturating_sub(1);
-        console_log!("Sender dropped, {} left", left);
-    }
-}
-
-impl<T> CountedSender<T> {
-    pub fn send(
-        &self,
-        value: T,
-    ) -> impl std::future::Future<Output = Result<(), mpsc::error::SendError<T>>> + '_ {
-        self.0.send(value)
-    }
-    pub fn try_send(&self, value: T) -> Result<(), mpsc::error::TrySendError<T>> {
-        self.0.try_send(value)
-    }
-    pub fn capacity(&self) -> usize {
-        self.0.capacity()
-    }
-    pub fn max_capacity(&self) -> usize {
-        self.0.max_capacity()
-    }
-}
-
-pub type BatchMixMessageSender = CountedSender<Vec<MixPacket>>;
+pub type BatchMixMessageSender = tokio::sync::mpsc::Sender<Vec<MixPacket>>;
 pub type BatchMixMessageReceiver = tokio::sync::mpsc::Receiver<Vec<MixPacket>>;
 pub type ClientRequestReceiver = tokio::sync::mpsc::Receiver<ClientRequest>;
 pub type ClientRequestSender = tokio::sync::mpsc::Sender<ClientRequest>;
@@ -87,15 +49,10 @@ impl MixTrafficController {
     where
         T: GatewayTransceiver + Send + 'static,
     {
-        console_log!("MixTrafficController::new called");
-        console_log!(
-            "MixTrafficController: task_client.is_dummy() = {}",
-            task_client.is_dummy()
-        );
+        let (message_sender, message_receiver) =
+            tokio::sync::mpsc::channel(MIX_MESSAGE_RECEIVER_BUFFER_SIZE);
 
-        let (raw_tx, mix_rx) = mpsc::channel(MIX_MESSAGE_RECEIVER_BUFFER_SIZE);
-        let mix_tx = CountedSender(Arc::new(raw_tx));
-        let (client_tx, client_rx) = tokio::sync::mpsc::channel(8);
+        let (client_sender, client_receiver) = tokio::sync::mpsc::channel(8);
 
         let controller = MixTrafficController {
             gateway_transceiver: Box::new(gateway_transceiver),
@@ -126,13 +83,8 @@ impl MixTrafficController {
         BatchMixMessageSender,
         ClientRequestSender,
     ) {
-        console_log!("MixTrafficController::new_dynamic called");
-        console_log!(
-            "MixTrafficController::new_dynamic: task_client.is_dummy() = {}",
-            task_client.is_dummy()
-        );
-        let (raw_tx, message_receiver) = mpsc::channel(MIX_MESSAGE_RECEIVER_BUFFER_SIZE);
-        let message_sender = CountedSender(Arc::new(raw_tx));
+        let (message_sender, message_receiver) =
+            tokio::sync::mpsc::channel(MIX_MESSAGE_RECEIVER_BUFFER_SIZE);
         let (client_sender, client_receiver) = tokio::sync::mpsc::channel(8);
         (
             MixTrafficController {

@@ -1,7 +1,8 @@
 use nym_client_core::client::base_client::ClientState;
 use nym_socks5_client_core::config::Socks5;
 use nym_sphinx::addressing::clients::Recipient;
-use nym_task::{connections::LaneQueueLengths, ShutdownManager};
+use nym_task::connections::LaneQueueLengths;
+use nym_task::ShutdownTracker;
 
 use nym_topology::NymTopology;
 
@@ -18,7 +19,7 @@ pub struct Socks5MixnetClient {
     pub(crate) client_state: ClientState,
 
     /// The task manager that controls all the spawned tasks that the clients uses to do it's job.
-    pub(crate) task_handle: ShutdownManager,
+    pub(crate) task_handle: ShutdownTracker,
 
     /// SOCKS5 configuration parameters.
     pub(crate) socks5_config: Socks5,
@@ -81,7 +82,7 @@ impl Socks5MixnetClient {
 
     /// Disconnect from the mixnet. Currently it is not supported to reconnect a disconnected
     /// client.
-    pub async fn disconnect(mut self) {
-        self.task_handle.run_until_shutdown().await;
+    pub async fn disconnect(self) {
+        self.task_handle.shutdown().await;
     }
 }

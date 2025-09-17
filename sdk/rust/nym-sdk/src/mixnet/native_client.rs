@@ -17,10 +17,8 @@ use nym_gateway_requests::ClientRequest;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::{params::PacketType, receiver::ReconstructedMessage};
 use nym_statistics_common::clients::{ClientStatsEvents, ClientStatsSender};
-use nym_task::{
-    connections::{ConnectionCommandSender, LaneQueueLengths},
-    ShutdownManager,
-};
+use nym_task::connections::{ConnectionCommandSender, LaneQueueLengths};
+use nym_task::ShutdownTracker;
 use nym_topology::{NymRouteProvider, NymTopology};
 use std::pin::Pin;
 use std::sync::Arc;
@@ -54,7 +52,7 @@ pub struct MixnetClient {
     pub(crate) stats_events_reporter: ClientStatsSender,
 
     /// The task manager that controls all the spawned tasks that the clients uses to do it's job.
-    pub(crate) shutdown_handle: Option<ShutdownManager>,
+    pub(crate) shutdown_handle: Option<ShutdownTracker>,
     pub(crate) packet_type: Option<PacketType>,
 
     // internal state used for the `Stream` implementation
@@ -74,7 +72,7 @@ impl MixnetClient {
         client_state: ClientState,
         reconstructed_receiver: ReconstructedMessagesReceiver,
         stats_events_reporter: ClientStatsSender,
-        task_handle: Option<ShutdownManager>,
+        task_handle: Option<ShutdownTracker>,
         packet_type: Option<PacketType>,
         client_request_sender: ClientRequestSender,
         forget_me: ForgetMe,
@@ -240,8 +238,8 @@ impl MixnetClient {
             tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
         }
 
-        if let Some(mut task_manager) = self.shutdown_handle {
-            task_manager.perform_shutdown().await;
+        if let Some(tracker) = self.shutdown_handle {
+            tracker.shutdown().await;
         }
     }
 

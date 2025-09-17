@@ -37,6 +37,7 @@ use std::path::Path;
 use std::path::PathBuf;
 #[cfg(unix)]
 use std::sync::Arc;
+use tokio_util::sync::CancellationToken;
 use url::Url;
 use zeroize::Zeroizing;
 
@@ -118,6 +119,11 @@ where
     <S::KeyStore as KeyStore>::StorageError: Send + Sync,
     <S::GatewaysDetailsStore as GatewaysDetailsStore>::StorageError: Send + Sync,
 {
+    pub fn with_shutdown_token(self, token: CancellationToken) -> Self {
+        let shutdown_tracker = ShutdownTracker::new_from_external_shutdown_token(token.into());
+        self.custom_shutdown(shutdown_tracker)
+    }
+
     /// Creates a client builder with the provided client storage implementation.
     #[must_use]
     pub fn new_with_storage(storage: S) -> MixnetClientBuilder<S> {
@@ -686,9 +692,15 @@ where
             base_builder = base_builder.with_topology_provider(topology_provider);
         }
 
-        if let Some(custom_shutdown) = self.custom_shutdown {
-            base_builder = base_builder.with_shutdown(custom_shutdown)
-        }
+        // Use custom shutdown if provided, otherwise get from registry
+        let shutdown_tracker = match self.custom_shutdown {
+            Some(custom) => custom,
+            None => {
+                // Auto-create from registry for SDK use
+                nym_task::get_sdk_shutdown_tracker()?
+            }
+        };
+        base_builder = base_builder.with_shutdown(shutdown_tracker);
 
         if let Some(gateway_transceiver) = self.custom_gateway_transceiver {
             base_builder = base_builder.with_gateway_transceiver(gateway_transceiver);
@@ -740,7 +752,7 @@ where
         let (mut started_client, nym_address) = self.connect_to_mixnet_common().await?;
 
         // TODO: more graceful handling here, surely both variants should work... I think?
-        let Some(task_manager) = started_client.shutdown_handle else {
+        let Some(tracker) = started_client.shutdown_handle else {
             return Err(Error::new_unsupported(
                 "connecting with socks5 is currently unsupported with custom shutdown",
             ));
@@ -757,14 +769,14 @@ where
             client_output,
             client_state.clone(),
             nym_address,
-            task_manager.shutdown_tracker_owned(),
+            tracker.child_tracker(),
             packet_type,
         );
 
         Ok(Socks5MixnetClient {
             nym_address,
             client_state,
-            task_handle: task_manager,
+            task_handle: tracker,
             socks5_config,
         })
     }

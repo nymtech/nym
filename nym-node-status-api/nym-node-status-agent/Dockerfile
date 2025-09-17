@@ -39,5 +39,6 @@ COPY --from=builder /usr/src/nym-vpn-client/nym-vpn-core/target/release/nym-gate
 COPY entrypoint.sh ./
 RUN chmod +x /nym/entrypoint.sh
 
+ENV SLEEP_TIME=5
 ENV NODE_STATUS_AGENT_PROBE_PATH=/nym/nym-gateway-probe
 ENTRYPOINT [ "/nym/entrypoint.sh" ]

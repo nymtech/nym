@@ -93,26 +93,30 @@ pub(crate) async fn assign_oldest_testrun(
 ) -> anyhow::Result<Option<TestrunAssignment>> {
     let now = now_utc().unix_timestamp();
     // find & mark as "In progress" in the same transaction to avoid race conditions
+    // lock the row to avoid two threads reading the same value
     let returning = sqlx::query!(
-        r#"UPDATE testruns
-            SET
-                status = $1,
-                last_assigned_utc = $2
-            WHERE id =
-        (
+        r#"
+        WITH oldest_queued AS (
             SELECT id
             FROM testruns
-            WHERE status = $3
+            WHERE status = $1
             ORDER BY created_utc asc
             LIMIT 1
+            FOR UPDATE SKIP LOCKED
         )
+        UPDATE testruns
+            SET
+                status = $3,
+                last_assigned_utc = $2
+            FROM oldest_queued
+            WHERE testruns.id = oldest_queued.id
         RETURNING
-            id as "id!",
-            gateway_id
+            testruns.id,
+            testruns.gateway_id
             "#,
-        TestRunStatus::InProgress as i32,
-        now,
         TestRunStatus::Queued as i32,
+        now,
+        TestRunStatus::InProgress as i32,
     )
     .fetch_optional(conn.as_mut())
     .await?;

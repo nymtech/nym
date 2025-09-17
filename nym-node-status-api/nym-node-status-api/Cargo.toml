@@ -71,6 +71,7 @@ sqlx = { workspace = true, features = [
     "runtime-tokio-rustls",
     "macros",
     "migrate",
+    "postgres",
 ] }
 
 [dev-dependencies]

@@ -22,7 +22,7 @@ function run_bare() {
     echo "RUST_LOG=${RUST_LOG}"
 
     # --conection-url is provided in build.rs
-    cargo run --package nym-node-status-api --features pg
+    cargo run --package nym-node-status-api
 }
 
 function run_docker() {

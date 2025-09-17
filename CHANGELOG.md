@@ -4,6 +4,48 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [2025.16-halloumi] (2025-09-16)
+
+- Backport metadata endpoint ([#6010])
+- bugfix: make sure tables are removed in correct order to not trigger FK constraint issue ([#5987])
+- chore: move authenticator into gateway crate ([#5982])
+- Fix the ns api ci workflow ([#5981])
+- Remove freshness check on testrun submit ([#5977])
+- Update sysinfo to the latest ([#5976])
+- bugfix: manually calculate per node work on rewarded set changes ([#5972])
+- fixing the ci for ns agent ([#5965])
+- Feature/testing utils ([#5963])
+- bugfix: fix ci-build for linux (and use updated runner) ([#5958])
+- chore: updated refs to cheddar rev of nym repo ([#5955])
+- http api client adjustment ([#5953])
+- chore: fix rust 1.89 clippy issues ([#5944])
+- Wireguard metadata client library ([#5943])
+- chore: remove unused import ([#5942])
+- feat: introduce additional checks when attempting to send to bounded channels ([#5941])
+- Move credential verifier in peer controller ([#5938])
+- change PK/FK on expiration date signatures tables ([#5934])
+- Wireguard private metadata ([#5915])
+
+[#6010]: https://github.com/nymtech/nym/pull/6010
+[#5987]: https://github.com/nymtech/nym/pull/5987
+[#5982]: https://github.com/nymtech/nym/pull/5982
+[#5981]: https://github.com/nymtech/nym/pull/5981
+[#5977]: https://github.com/nymtech/nym/pull/5977
+[#5976]: https://github.com/nymtech/nym/pull/5976
+[#5972]: https://github.com/nymtech/nym/pull/5972
+[#5965]: https://github.com/nymtech/nym/pull/5965
+[#5963]: https://github.com/nymtech/nym/pull/5963
+[#5958]: https://github.com/nymtech/nym/pull/5958
+[#5955]: https://github.com/nymtech/nym/pull/5955
+[#5953]: https://github.com/nymtech/nym/pull/5953
+[#5944]: https://github.com/nymtech/nym/pull/5944
+[#5943]: https://github.com/nymtech/nym/pull/5943
+[#5942]: https://github.com/nymtech/nym/pull/5942
+[#5941]: https://github.com/nymtech/nym/pull/5941
+[#5938]: https://github.com/nymtech/nym/pull/5938
+[#5934]: https://github.com/nymtech/nym/pull/5934
+[#5915]: https://github.com/nymtech/nym/pull/5915
+
 ## [2025.15-gruyere] (2025-08-20)
 
 - Migrate strum to 0.27.2 ([#5960])

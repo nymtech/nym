@@ -89,7 +89,7 @@ pub(crate) async fn update_testruns_assigned_before(
 }
 
 pub(crate) async fn assign_oldest_testrun(
-    conn: &mut DbConnection,
+    pool: &DbPool,
 ) -> anyhow::Result<Option<TestrunAssignment>> {
     let now = now_utc().unix_timestamp();
     // find & mark as "In progress" in the same transaction to avoid race conditions
@@ -130,6 +130,10 @@ pub(crate) async fn assign_oldest_testrun(
         )
         .fetch_one(conn.as_mut())
         .await?;
+
+        tx.commit()
+            .await
+            .context("Failed to commit testrun changes")?;
 
         Ok(Some(TestrunAssignment {
             testrun_id: testrun.id,

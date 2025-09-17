@@ -367,6 +367,7 @@ impl NymClient {
         }
     }
 
+    #[allow(clippy::new_ret_no_self)]
     #[wasm_bindgen(constructor)]
     pub fn new(on_message: js_sys::Function, opts: Option<ClientOpts>) -> Promise {
         let opts = opts.unwrap_or_default();

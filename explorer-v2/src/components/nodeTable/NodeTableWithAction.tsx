@@ -14,10 +14,7 @@ import { countryName } from "../../utils/countryName";
 import AdvancedFilters from "./AdvancedFilters";
 import NodeTable from "./NodeTable";
 
-type Props = {
-  /** Recommended node IDs provided by the server page */
-  recommendedIds: number[];
-};
+
 
 function getNodeSaturationPoint(
   totalStake: number,

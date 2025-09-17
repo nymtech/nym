@@ -16,10 +16,10 @@ import type {
 import {
   CURRENT_EPOCH,
   CURRENT_EPOCH_REWARDS,
-  DATA_OBSERVATORY_BALANCES_URL,
+  SPECTREDAO_BALANCES_URL,
   NS_API_NODES,
   NYM_ACCOUNT_ADDRESS,
-  NYM_PRICES_API,
+  SPECTREDAO_NYM_PRICES_API,
   OBSERVATORY_GATEWAYS_URL,
 } from "./urls";
 
@@ -44,7 +44,7 @@ export const fetchEpochRewards = async (): Promise<
 
 // Fetch gateway status based on identity key
 export const fetchGatewayStatus = async (
-  identityKey: string,
+  identityKey: string
 ): Promise<GatewayStatus | null> => {
   const response = await fetch(`${OBSERVATORY_GATEWAYS_URL}/${identityKey}`);
 
@@ -56,7 +56,7 @@ export const fetchGatewayStatus = async (
 };
 
 export const fetchNodeDelegations = async (
-  id: number,
+  id: number
 ): Promise<NodeRewardDetails[]> => {
   const response = await fetch(`${NS_API_NODES}/${id}/delegations`, {
     headers: {
@@ -88,7 +88,7 @@ export const fetchCurrentEpoch = async () => {
   const data: CurrentEpochData = await response.json();
   const epochEndTime = addSeconds(
     new Date(data.current_epoch_start),
-    data.epoch_length.secs,
+    data.epoch_length.secs
   ).toISOString();
 
   return { ...data, current_epoch_end: epochEndTime };
@@ -96,7 +96,7 @@ export const fetchCurrentEpoch = async () => {
 
 // Fetch balances based on the address
 export const fetchBalances = async (address: string): Promise<number> => {
-  const response = await fetch(`${DATA_OBSERVATORY_BALANCES_URL}/${address}`, {
+  const response = await fetch(`${SPECTREDAO_BALANCES_URL}/${address}`, {
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json; charset=utf-8",
@@ -117,10 +117,8 @@ export const fetchBalances = async (address: string): Promise<number> => {
 };
 
 // Fetch function to get total staker rewards
-export const fetchTotalStakerRewards = async (
-  address: string,
-): Promise<number> => {
-  const response = await fetch(`${DATA_OBSERVATORY_BALANCES_URL}/${address}`, {
+export const fetchTotalStakerRewards = async (address: string): Promise<number> => {
+  const response = await fetch(`${SPECTREDAO_BALANCES_URL}/${address}`, {
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json; charset=utf-8",
@@ -139,7 +137,7 @@ export const fetchTotalStakerRewards = async (
 
 // Fetch function to get the original stake
 export const fetchOriginalStake = async (address: string): Promise<number> => {
-  const response = await fetch(`${DATA_OBSERVATORY_BALANCES_URL}/${address}`, {
+  const response = await fetch(`${SPECTREDAO_BALANCES_URL}/${address}`, {
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json; charset=utf-8",
@@ -159,7 +157,7 @@ export const fetchOriginalStake = async (address: string): Promise<number> => {
 export const fetchNoise = async (): Promise<IPacketsAndStakingData[]> => {
   if (!process.env.NEXT_PUBLIC_NS_API_MIXNODES_STATS) {
     throw new Error(
-      "NEXT_PUBLIC_NS_API_MIXNODES_STATS environment variable is not defined",
+      "NEXT_PUBLIC_NS_API_MIXNODES_STATS environment variable is not defined"
     );
   }
   const response = await fetch(process.env.NEXT_PUBLIC_NS_API_MIXNODES_STATS, {
@@ -175,7 +173,7 @@ export const fetchNoise = async (): Promise<IPacketsAndStakingData[]> => {
 
 // Fetch Account Balance
 export const fetchAccountBalance = async (
-  address: string,
+  address: string
 ): Promise<IAccountBalancesInfo> => {
   const res = await fetch(`${NYM_ACCOUNT_ADDRESS}/${address}`, {
     headers: {
@@ -193,7 +191,7 @@ export const fetchAccountBalance = async (
 
 // 🔹 Fetch NYM Price
 export const fetchNymPrice = async (): Promise<NymTokenomics> => {
-  const res = await fetch(NYM_PRICES_API, {
+  const res = await fetch(SPECTREDAO_NYM_PRICES_API, {
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json; charset=utf-8",

@@ -306,3 +306,89 @@ export const fetchWorldMapCountries = async (): Promise<{
     totalServers: nodes.length,
   };
 };
+
+export const getRecommendedNodes = (nodes: NS_NODE[]): number[] => {
+  function toNumber(x: unknown, fallback = 0): number {
+    const n =
+      typeof x === "string" || typeof x === "number" ? Number(x) : Number.NaN;
+    return Number.isFinite(n) ? n : fallback;
+  }
+
+  const MIN_STAKE = 50_000_000_000; // 50k NYM (uNYM)
+  const MAX_STAKE = 150_000_000_000; // 150k NYM (uNYM)
+  const MAX_PM = 0.2; // ≤ 20%
+  const MIN_UPTIME = 0.95; // ≥ 95%
+
+  // require gateway roles: entry + exit_ipr + exit_nr; NOT a mixnode
+  function hasRequiredRoles(n: NS_NODE): boolean {
+    const r = n.self_description?.declared_role;
+    if (!r) return false;
+    const mixnodeFalse = r.mixnode === false || r.mixnode === undefined;
+    return mixnodeFalse && !!r.entry && !!r.exit_ipr && !!r.exit_nr;
+  }
+
+  function hasGoodPM(n: NS_NODE): boolean {
+    const pm = toNumber(
+      n.rewarding_details?.cost_params?.profit_margin_percent,
+      Number.NaN
+    );
+    return !Number.isNaN(pm) && pm <= MAX_PM;
+  }
+
+  function stakeInRange(n: NS_NODE): boolean {
+    const s = toNumber(n.total_stake, 0);
+    return s > MIN_STAKE && s < MAX_STAKE;
+  }
+
+  function meetsUptime(n: NS_NODE): boolean {
+    const u = toNumber(n.uptime, -1);
+    return u >= MIN_UPTIME;
+  }
+
+  function wireguardOn(n: NS_NODE): boolean {
+    return n.self_description?.wireguard != null;
+  }
+
+  function sortByUptimeDescStakeAsc(a: NS_NODE, b: NS_NODE): number {
+    const ua = toNumber(a.uptime, 0);
+    const ub = toNumber(b.uptime, 0);
+    if (ub !== ua) return ub - ua; // higher uptime first
+    const sa = toNumber(a.total_stake, 0);
+    const sb = toNumber(b.total_stake, 0);
+    return sa - sb; // then lower stake first
+  }
+  const baseFilter = (n: NS_NODE) =>
+    (n.bonded === true || n.bonded === undefined) &&
+    hasRequiredRoles(n) &&
+    hasGoodPM(n) &&
+    stakeInRange(n) &&
+    meetsUptime(n); // uptime hard floor
+
+  // prefer wg-enabled nodes first
+  const wgCandidates = nodes
+    .filter((n) => baseFilter(n) && wireguardOn(n))
+    .sort(sortByUptimeDescStakeAsc);
+
+  let picked = wgCandidates.slice(0, 10);
+
+  // if fewer than 10, drop wg pref but keep base filter
+  if (picked.length < 10) {
+    const relaxed = nodes.filter(baseFilter).sort(sortByUptimeDescStakeAsc);
+    const have = new Set(picked.map((n) => n.node_id));
+    for (const n of relaxed) {
+      if (have.size >= 10) break;
+      const id =
+        typeof n.node_id === "number" ? n.node_id : toNumber(n.node_id, 0);
+      if (!have.has(id)) {
+        picked = [...picked, n];
+        have.add(id);
+      }
+    }
+  }
+
+  return picked
+    .map((n) =>
+      typeof n.node_id === "number" ? n.node_id : toNumber(n.node_id, 0)
+    )
+    .filter((id) => Number.isFinite(id) && id > 0);
+};

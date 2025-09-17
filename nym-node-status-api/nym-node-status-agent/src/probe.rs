@@ -74,9 +74,8 @@ impl GwProbe {
     pub(crate) fn run_and_get_log(
         &self,
         gateway_key: &Option<String>,
-        mnemonic: &str,
         probe_extra_args: &Vec<String>,
-        ticket_materials: Option<AttachedTicketMaterials>,
+        ticket_materials: AttachedTicketMaterials,
     ) -> String {
         let mut command = std::process::Command::new(&self.path);
         command.stdout(std::process::Stdio::piped());
@@ -84,7 +83,6 @@ impl GwProbe {
         if let Some(gateway_id) = gateway_key {
             command.arg("--gateway").arg(gateway_id);
         }
-        command.arg("--mnemonic").arg(mnemonic);
 
         tracing::info!("Extra args for the probe:");
         for arg in probe_extra_args {
@@ -96,15 +94,13 @@ impl GwProbe {
             command.arg(format!("--{name}")).arg(value);
         }
 
-        if let Some(ticket_materials) = ticket_materials {
-            info!("attaching ticket materials to the probe");
-            let serialised = ticket_materials.to_serialised_string();
-            command.arg("--ticket-materials").arg(serialised);
-            command.arg("--ticket-materials-revision").arg(
-                <AttachedTicketMaterials as VersionedSerialise>::CURRENT_SERIALISATION_REVISION
-                    .to_string(),
-            );
-        }
+        info!("attaching ticket materials to the probe");
+        let serialised = ticket_materials.to_serialised_string();
+        command.arg("--ticket-materials").arg(serialised);
+        command.arg("--ticket-materials-revision").arg(
+            <AttachedTicketMaterials as VersionedSerialise>::CURRENT_SERIALISATION_REVISION
+                .to_string(),
+        );
 
         match command.spawn() {
             Ok(child) => {

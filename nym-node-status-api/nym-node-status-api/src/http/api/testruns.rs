@@ -71,17 +71,20 @@ async fn request_testrun(
                 assignment.gateway_identity_key,
             );
 
-            match state
+            let materials = state
                 .ticketbook_manager_state()
                 .attempt_assign_ticket_materials(assignment.testrun_id)
                 .await
-            {
-                Ok(materials) => Ok(Json(assignment.with_ticket_materials(materials))),
-                Err(err) => {
-                    error!("failed to get ticket materials for runner {}: {err} - they will have to attempt to get the tickets themselves", assignment.testrun_id);
-                    Ok(Json(assignment.with_no_ticket_materials()))
-                }
-            }
+                .map_err(|err| {
+                    error!(
+                        "failed to get ticket materials for runner {}: {err}",
+                        assignment.testrun_id
+                    );
+                    HttpError::internal_with_logging(format!(
+                        "could not retrieve needed tickets: {err}"
+                    ))
+                })?;
+            Ok(Json(assignment.with_ticket_materials(materials)))
         }
         Err(err) => Err(HttpError::internal_with_logging(err)),
     }

@@ -109,14 +109,7 @@ impl TestrunAssignment {
     ) -> TestrunAssignmentWithTickets {
         TestrunAssignmentWithTickets {
             assignment: self,
-            ticket_materials: Some(materials),
-        }
-    }
-
-    pub fn with_no_ticket_materials(self) -> TestrunAssignmentWithTickets {
-        TestrunAssignmentWithTickets {
-            assignment: self,
-            ticket_materials: None,
+            ticket_materials: materials,
         }
     }
 }
@@ -126,31 +119,15 @@ pub struct TestrunAssignmentWithTickets {
     #[serde(flatten)]
     pub assignment: TestrunAssignment,
 
-    #[serde(default)]
-    pub ticket_materials: Option<AttachedTicketMaterials>,
+    pub ticket_materials: AttachedTicketMaterials,
 }
 
 impl Debug for TestrunAssignmentWithTickets {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        trait Attached {
-            fn attached(&self) -> String;
-        }
-
-        impl<T> Attached for Option<T> {
-            fn attached(&self) -> String {
-                if self.is_some() {
-                    "attached"
-                } else {
-                    "not attached"
-                }
-                .to_string()
-            }
-        }
-
         // no need to include full binary data behind the ticketbook data
         f.debug_struct("TestrunAssignmentWithTickets")
             .field("assignment", &self.assignment)
-            .field("ticket_materials", &self.ticket_materials.attached())
+            .field("ticket_materials", &"attached")
             .finish()
     }
 }

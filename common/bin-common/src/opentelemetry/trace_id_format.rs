@@ -2,6 +2,7 @@ use chrono::Utc;
 use opentelemetry::trace::TraceContextExt;
 use opentelemetry::{SpanId, TraceId};
 use serde::ser::{SerializeMap, Serializer as _};
+use serde_json;
 use std::io;
 use tracing::{Event, Subscriber};
 use tracing_opentelemetry::OpenTelemetrySpanExt;

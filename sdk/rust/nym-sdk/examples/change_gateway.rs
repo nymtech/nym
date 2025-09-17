@@ -3,7 +3,8 @@
 
 #[tokio::main]
 async fn main() {
-    nym_bin_common::logging::setup_tracing_logger();
+    nym_bin_common::logging::setup_no_otel_logger()
+        .expect("failed to setup logging - this is a fatal error");
 
     todo!()
 }

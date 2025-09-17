@@ -18,6 +18,6 @@ tracing = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "signal", "macros"] }
 
 nym-network-defaults = { path = "../../../common/network-defaults" }
-nym-bin-common = { path = "../../../common/bin-common", features = ["basic_tracing", "output_format"] }
+nym-bin-common = { path = "../../../common/bin-common", features = ["output_format"] }
 nym-crypto = { path = "../../../common/crypto", features = ["asymmetric"] }
 nym-sdk = { path = "../../../sdk/rust/nym-sdk" }

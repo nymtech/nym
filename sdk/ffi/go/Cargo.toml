@@ -14,7 +14,7 @@ uniffi = { workspace = true, features = ["cli"] }
 # Nym clients, addressing, packet format, common tools (logging), ffi shared
 nym-sdk = { path = "../../rust/nym-sdk/" }
 nym-crypto = { path = "../../../common/crypto" }
-nym-bin-common = { path = "../../../common/bin-common", features = ["basic_tracing"] }
+nym-bin-common = { path = "../../../common/bin-common" }
 nym-sphinx-anonymous-replies = { path = "../../../common/nymsphinx/anonymous-replies" }
 nym-ffi-shared = { path = "../shared" }
 # Async runtime

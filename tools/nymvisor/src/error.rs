@@ -36,6 +36,9 @@ pub(crate) enum NymvisorError {
         source: io::Error,
     },
 
+    #[error("failed to setup the logger: {0}")]
+    LoggerSetupFailure(#[from] nym_bin_common::logging::error::TracingError),
+
     #[error(
     "failed to load upgrade info using path '{}'. detailed message: {source}", path.display()
     )]

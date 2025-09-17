@@ -1,15 +1,15 @@
 pub mod context;
-pub mod error;
 mod trace_id_format;
 
 use tracing::{info, Level};
-use tracing_subscriber::filter::Directive;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::fmt;
-
-use crate::logging::{default_tracing_env_filter, default_tracing_fmt_layer};
-use crate::opentelemetry::error::TracingError;
+use crate::logging::{
+    default_tracing_fmt_layer, 
+    error::TracingError,
+    granual_filtered_env,
+}; 
 use opentelemetry::trace::TracerProvider;
 use opentelemetry::{global, KeyValue};
 use opentelemetry_otlp::tonic_types::metadata::MetadataMap;
@@ -23,26 +23,14 @@ use opentelemetry_semantic_conventions::SCHEMA_URL;
 use tracing_opentelemetry::{MetricsLayer, OpenTelemetryLayer};
 use tracing_subscriber::fmt::format::FmtSpan;
 
-pub(crate) fn granual_filtered_env() -> Result<tracing_subscriber::filter::EnvFilter, TracingError>
-{
-    fn directive_checked(directive: impl Into<String>) -> Result<Directive, TracingError> {
-        directive.into().parse().map_err(From::from)
-    }
-
-    let mut filter = default_tracing_env_filter();
-
-    // these crates are more granularly filtered
-    let filter_crates = ["defguard_wireguard_rs"];
-    for crate_name in filter_crates {
-        filter = filter.add_directive(directive_checked(format!("{crate_name}=warn"))?);
-    }
-    Ok(filter)
-}
-
+/// Sets up a tracing subscriber with an OpenTelemetry layer and a metrics layer.
+/// The OpenTelemetry exporter is configured to send data to the endpoint specified in the
+/// `SIGNOZ_ENDPOINT` environment variable, using the ingestion key specified in the
+/// `SIGNOZ_INGESTION_KEY` environment variable.
 pub fn setup_tracing_logger(service_name: String) -> Result<(), TracingError> {
     if tracing::dispatcher::has_been_set() {
         // It shouldn't be - this is really checking that it is torn down between async command executions
-        return Err(error::TracingError::TracingLoggerAlreadyInitialised);
+        return Err(TracingError::TracingLoggerAlreadyInitialised);
     }
 
     let key =
@@ -91,6 +79,9 @@ pub fn setup_tracing_logger(service_name: String) -> Result<(), TracingError> {
     Ok(())
 }
 
+/// Sets up a tracing subscriber without an OpenTelemetry layer.
+/// Since Opentelemetry should remain optional, this function provides a local logger setup
+/// that can be used when OTEL is not desired.
 pub fn setup_no_otel_logger() -> Result<(), TracingError> {
     // Only set up if not already initialized
     if tracing::dispatcher::has_been_set() {
@@ -112,6 +103,8 @@ pub fn setup_no_otel_logger() -> Result<(), TracingError> {
     Ok(())
 }
 
+/// Creates a resource with the given service name and additional attributes.
+/// The resource includes the service name, service version, and deployment environment.
 fn resource(service_name: String) -> Resource {
     Resource::builder()
         .with_service_name(service_name)
@@ -125,6 +118,9 @@ fn resource(service_name: String) -> Resource {
         .build()
 }
 
+/// Initializes and returns a tracer provider configured to export spans to the endpoint
+/// specified in the `SIGNOZ_ENDPOINT` environment variable. The tracer provider is set as
+/// the global tracer provider.
 fn init_tracer_provider(metadata: MetadataMap, service_name: String) -> Result<SdkTracerProvider, TracingError> {
     let endpoint = std::env::var("SIGNOZ_ENDPOINT".to_string()).expect("SIGNOZ_ENDPOINT not set");
     info!("SIGNOZ_ENDPOINT = {}", endpoint);
@@ -154,6 +150,9 @@ fn init_tracer_provider(metadata: MetadataMap, service_name: String) -> Result<S
     Ok(tracer)
 }
 
+/// Initializes and returns a meter provider configured to export metrics to the endpoint
+/// specified in the `SIGNOZ_ENDPOINT` environment variable. The meter provider is set as
+/// the global meter provider.
 fn init_meter_provider(metadata: MetadataMap, service_name: String) -> Result<SdkMeterProvider, TracingError> {
     let endpoint = std::env::var("SIGNOZ_ENDPOINT".to_string()).expect("SIGNOZ_ENDPOINT not set");
 

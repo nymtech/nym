@@ -3,7 +3,7 @@
 
 use crate::commands::Cli;
 use clap::Parser;
-use nym_bin_common::logging::setup_tracing_logger;
+use nym_bin_common::logging::setup_no_otel_logger;
 use nym_network_defaults::setup_env;
 
 pub mod commands;
@@ -15,6 +15,7 @@ async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
     setup_env(cli.config_env_file.as_ref());
 
-    setup_tracing_logger();
+    setup_no_otel_logger()
+        .map_err(|e| anyhow::anyhow!("failed to setup logging: {e}"))?;
     cli.execute().await
 }

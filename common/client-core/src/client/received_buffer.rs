@@ -25,11 +25,6 @@ use std::sync::Arc;
 use std::time::Duration;
 use tracing::*;
 
-// #[cfg(not(target_arch = "wasm32"))]
-// use std::time::Instant;
-#[cfg(target_arch = "wasm32")]
-use wasmtimer::std::Instant;
-
 // The interval at which we check for stale buffers
 const STALE_BUFFER_CHECK_INTERVAL: Duration = Duration::from_secs(10);
 

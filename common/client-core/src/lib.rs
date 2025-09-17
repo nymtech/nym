@@ -13,8 +13,8 @@ pub mod config;
 pub mod error;
 pub mod init;
 
-#[cfg(target_arch = "wasm32")]
-use wasm_utils::console_log;
+// #[cfg(target_arch = "wasm32")]
+// use wasm_utils::console_log;
 
 pub use nym_topology::{
     HardcodedTopologyProvider, NymRouteProvider, NymTopology, NymTopologyError, TopologyProvider,

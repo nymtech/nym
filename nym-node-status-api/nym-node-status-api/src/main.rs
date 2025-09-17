@@ -5,6 +5,7 @@ use clap::Parser;
 use nym_credential_proxy_lib::quorum_checker::QuorumStateChecker;
 use nym_credential_proxy_lib::shared_state::nyxd_client::ChainClient;
 use nym_crypto::asymmetric::ed25519::PublicKey;
+use nym_network_defaults::setup_env;
 use nym_task::ShutdownManager;
 use nym_validator_client::nyxd::NyxdClient;
 use std::sync::Arc;
@@ -25,6 +26,9 @@ async fn main() -> anyhow::Result<()> {
     logging::setup_tracing_logger()?;
 
     let args = cli::Cli::parse();
+    if let Some(env_file) = &args.config_env_file {
+        setup_env(Some(env_file));
+    }
 
     let mut shutdown_manager = ShutdownManager::build_new_default()?;
 
@@ -63,10 +67,10 @@ async fn main() -> anyhow::Result<()> {
     // Start the monitor
     let geocache_clone = geocache.clone();
     let delegations_cache_clone = Arc::clone(&delegations_cache);
-    let config = nym_validator_client::nyxd::Config::try_from_nym_network_details(
+    let client_config = nym_validator_client::nyxd::Config::try_from_nym_network_details(
         &nym_network_defaults::NymNetworkDetails::new_from_env(),
     )?;
-    let nyxd_client = NyxdClient::connect(config, args.nyxd_addr.as_str())
+    let nyxd_client = NyxdClient::connect(client_config.clone(), args.nyxd_addr.as_str())
         .map_err(|err| anyhow::anyhow!("Couldn't connect: {}", err))?;
 
     shutdown_manager.spawn_with_shutdown(async move {
@@ -98,7 +102,11 @@ async fn main() -> anyhow::Result<()> {
     let config = args.ticketbook.to_manager_config();
 
     // client for sending chain transactions
-    let chain_client = ChainClient::new(args.ticketbook.mnemonic)?;
+    let chain_client = ChainClient::new_with_config(
+        client_config,
+        args.nyxd_addr.as_str(),
+        args.ticketbook.mnemonic,
+    )?;
 
     // background task for checking for signing quorum
     let cancellation_token = shutdown_manager.clone_shutdown_token().inner().clone();
@@ -127,7 +135,7 @@ async fn main() -> anyhow::Result<()> {
     let ticketbook_manager = TicketbookManager::new(
         config,
         ticketbook_manager_state.clone(),
-        args.ticketbook.ecash_client_identifier_bs58,
+        args.ticketbook.ecash_client_identifier_bs58.0,
         shutdown_token,
     );
     shutdown_manager.spawn(async move {

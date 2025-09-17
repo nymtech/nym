@@ -6,7 +6,7 @@ use crate::helpers::LockTimer;
 use nym_ecash_contract_common::msg::ExecuteMsg;
 use nym_validator_client::nyxd::contract_traits::NymContractsProvider;
 use nym_validator_client::nyxd::cosmwasm_client::types::ExecuteResult;
-use nym_validator_client::nyxd::{Coin, CosmWasmClient, NyxdClient};
+use nym_validator_client::nyxd::{Coin, Config, CosmWasmClient, NyxdClient};
 use nym_validator_client::{nyxd, DirectSigningHttpRpcNyxdClient};
 use std::ops::Deref;
 use std::sync::Arc;
@@ -29,6 +29,14 @@ impl ChainClient {
             .nyxd_url
             .as_str();
 
+        Self::new_with_config(client_config, nyxd_url, mnemonic)
+    }
+
+    pub fn new_with_config(
+        client_config: Config,
+        nyxd_url: &str,
+        mnemonic: bip39::Mnemonic,
+    ) -> Result<Self, CredentialProxyError> {
         let client = NyxdClient::connect_with_mnemonic(client_config, nyxd_url, mnemonic)?;
 
         if client.ecash_contract_address().is_none() {

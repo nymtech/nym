@@ -3,6 +3,7 @@ use clap::Parser;
 use nym_bin_common::bin_info;
 use nym_credential_proxy_lib::shared_state::ecash_state::TicketType;
 use reqwest::Url;
+use std::str::FromStr;
 use std::{sync::OnceLock, time::Duration};
 
 // Helper for passing LONG_VERSION to clap
@@ -14,6 +15,11 @@ fn pretty_build_info_static() -> &'static str {
 #[derive(Debug, Parser)]
 #[clap(author = "Nymtech", version, long_version = pretty_build_info_static(), about)]
 pub(crate) struct Cli {
+    /// Path pointing to an env file that configures the binary.
+    /// Useful in local testing setups against networks different from mainnet
+    #[clap(short, long)]
+    pub(crate) config_env_file: Option<std::path::PathBuf>,
+
     /// Network name for the network to which we're connecting.
     #[clap(long, env = "NETWORK_NAME")]
     pub(crate) network_name: String,
@@ -158,13 +164,20 @@ pub(crate) struct TicketbookArgs {
     #[clap(
         long,
         env = "NYM_NODE_STATUS_API_ECASH_CLIENT_IDENTIFIER_BS58",
-        value_parser = parse_client_identifier
+        required = true
     )]
-    pub(crate) ecash_client_identifier_bs58: Vec<u8>,
+    pub(crate) ecash_client_identifier_bs58: ClientIdentifier,
 }
 
-fn parse_client_identifier(raw: &str) -> bs58::decode::Result<Vec<u8>> {
-    bs58::decode(raw).into_vec()
+#[derive(Debug, Clone)]
+pub(crate) struct ClientIdentifier(pub(crate) Vec<u8>);
+
+impl FromStr for ClientIdentifier {
+    type Err = bs58::decode::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        bs58::decode(s).into_vec().map(ClientIdentifier)
+    }
 }
 
 impl TicketbookArgs {

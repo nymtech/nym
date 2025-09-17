@@ -13,7 +13,6 @@ use nym_credential_proxy_requests::api::v1::ticketbook::models::{
 };
 use nym_credentials::{AggregatedCoinIndicesSignatures, AggregatedExpirationDateSignatures};
 use nym_ecash_contract_common::deposit::DepositId;
-use nym_validator_client::client::NymApiClientExt;
 use nym_validator_client::nym_api::EpochId;
 use nym_validator_client::nyxd::contract_traits::dkg_query_client::Epoch;
 use nym_validator_client::nyxd::Coin;

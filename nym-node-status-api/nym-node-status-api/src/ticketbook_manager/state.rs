@@ -24,6 +24,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use time::Date;
 use tokio::sync::RwLockReadGuard;
+use tracing::{debug, warn};
 
 #[derive(Clone)]
 pub(crate) struct TicketbookManagerState {
@@ -65,10 +66,14 @@ impl TicketbookManagerState {
         let mut master_verification_keys = HashMap::new();
 
         for typ in &self.buffered_ticket_types {
+            debug!("attempting to get materials for ticket of type {typ}");
             if let Some(ticket) = self.storage.next_ticket(*typ, testrun_id).await? {
                 let epoch_id = ticket.ticketbook.epoch_id();
                 let expiration_date = ticket.ticketbook.expiration_date();
 
+                debug!("retrieved ticket corresponds to epoch {epoch_id} and expiration date {expiration_date}");
+
+                debug!("attempting to attach master verification key...");
                 if !master_verification_keys.contains_key(&epoch_id) {
                     master_verification_keys.insert(
                         epoch_id,
@@ -76,6 +81,7 @@ impl TicketbookManagerState {
                     );
                 }
 
+                debug!("attempting to attach coin index signatures...");
                 if !coin_indices_signatures.contains_key(&epoch_id) {
                     coin_indices_signatures.insert(
                         epoch_id,
@@ -85,6 +91,7 @@ impl TicketbookManagerState {
                     );
                 }
 
+                debug!("attempting to attach expiration date signatures...");
                 if !expiration_date_signatures.contains_key(&(epoch_id, expiration_date)) {
                     expiration_date_signatures.insert(
                         (epoch_id, expiration_date),
@@ -95,6 +102,8 @@ impl TicketbookManagerState {
                 }
 
                 attached_tickets.push(ticket.into())
+            } else {
+                warn!("no tickets of type {typ} available in storage")
             }
         }
 

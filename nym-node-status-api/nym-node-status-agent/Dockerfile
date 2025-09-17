@@ -36,6 +36,8 @@ WORKDIR /nym
 
 COPY --from=builder /usr/src/nym/target/release/nym-node-status-agent ./
 COPY --from=builder /usr/src/nym-vpn-client/nym-vpn-core/target/release/nym-gateway-probe ./
+COPY entrypoint.sh ./
+RUN chmod +x /nym/entrypoint.sh
 
 ENV NODE_STATUS_AGENT_PROBE_PATH=/nym/nym-gateway-probe
-ENTRYPOINT [ "/nym/nym-node-status-agent", "run-probe" ]
+ENTRYPOINT [ "/nym/entrypoint.sh" ]

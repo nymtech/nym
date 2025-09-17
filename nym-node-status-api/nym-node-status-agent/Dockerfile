@@ -36,7 +36,7 @@ WORKDIR /nym
 
 COPY --from=builder /usr/src/nym/target/release/nym-node-status-agent ./
 COPY --from=builder /usr/src/nym-vpn-client/nym-vpn-core/target/release/nym-gateway-probe ./
-COPY entrypoint.sh ./
+COPY --from=builder /usr/src/nym/nym-node-status-api/nym-node-status-agent/entrypoint.sh ./
 RUN chmod +x /nym/entrypoint.sh
 
 ENV SLEEP_TIME=5

@@ -4,7 +4,7 @@
 use crate::ecash::bandwidth::issued::CURRENT_SERIALIZATION_REVISION;
 use nym_credentials_interface::CompactEcashError;
 use nym_crypto::asymmetric::x25519::KeyRecoveryError;
-use nym_validator_client::ValidatorClientError;
+use nym_validator_client::{nym_api::error::NymAPIError, ValidatorClientError};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -37,6 +37,9 @@ pub enum Error {
     #[error("Ran into a validator client error - {0}")]
     ValidatorClientError(#[from] ValidatorClientError),
 
+    #[error("Nym API request failed - {0}")]
+    NymAPIError(Box<NymAPIError>),
+
     #[error("Bandwidth operation overflowed. {0}")]
     BandwidthOverflow(String),
 
@@ -60,4 +63,10 @@ pub enum Error {
 
     #[error("failed to create a secp256k1 signature")]
     Secp256k1SignFailure,
+}
+
+impl From<NymAPIError> for Error {
+    fn from(e: NymAPIError) -> Self {
+        Error::NymAPIError(Box::new(e))
+    }
 }

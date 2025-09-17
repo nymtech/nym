@@ -25,7 +25,7 @@ use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_sphinx::acknowledgements::AckKey;
 use nym_sphinx::params::PacketType;
 use nym_sphinx::receiver::MessageReceiver;
-use nym_task::TaskManager;
+use nym_task::{ShutdownManager, ShutdownToken};
 use std::sync::Arc;
 use tracing::info;
 
@@ -84,6 +84,7 @@ impl<'a> NetworkMonitorBuilder<'a> {
 
     pub(crate) async fn build<R: MessageReceiver + Send + Sync + 'static>(
         self,
+        shutdown_token: ShutdownToken,
     ) -> NetworkMonitorRunnables<R> {
         // TODO: those keys change constant throughout the whole execution of the monitor.
         // and on top of that, they are used with ALL the gateways -> presumably this should change
@@ -127,6 +128,7 @@ impl<'a> NetworkMonitorBuilder<'a> {
             gateway_status_update_sender,
             Arc::clone(&identity_keypair),
             bandwidth_controller,
+            shutdown_token,
         );
 
         let received_processor = new_received_processor(
@@ -167,12 +169,12 @@ impl<R: MessageReceiver + Send + Sync + 'static> NetworkMonitorRunnables<R> {
     // TODO: note, that is not exactly doing what we want, because when
     // `ReceivedProcessor` is constructed, it already spawns a future
     // this needs to be refactored!
-    pub(crate) fn spawn_tasks(self, shutdown: &TaskManager) {
+    pub(crate) fn spawn_tasks(self, shutdown: &ShutdownManager) {
         let mut packet_receiver = self.packet_receiver;
         let mut monitor = self.monitor;
-        let shutdown_listener = shutdown.subscribe();
+        let shutdown_listener = shutdown.clone_shutdown_token();
         tokio::spawn(async move { packet_receiver.run(shutdown_listener).await });
-        let shutdown_listener = shutdown.subscribe();
+        let shutdown_listener = shutdown.clone_shutdown_token();
         tokio::spawn(async move { monitor.run(shutdown_listener).await });
     }
 }
@@ -202,12 +204,14 @@ fn new_packet_sender(
     gateways_status_updater: GatewayClientUpdateSender,
     local_identity: Arc<ed25519::KeyPair>,
     bandwidth_controller: BandwidthController<nyxd::Client, PersistentStorage>,
+    shutdown_token: ShutdownToken,
 ) -> PacketSender {
     PacketSender::new(
         config,
         gateways_status_updater,
         local_identity,
         bandwidth_controller,
+        shutdown_token,
     )
 }
 
@@ -241,7 +245,7 @@ pub(crate) async fn start<R: MessageReceiver + Send + Sync + 'static>(
     node_status_cache: NodeStatusCache,
     storage: &NymApiStorage,
     nyxd_client: nyxd::Client,
-    shutdown: &TaskManager,
+    shutdown: &ShutdownManager,
 ) {
     let monitor_builder = setup(
         config,
@@ -252,6 +256,7 @@ pub(crate) async fn start<R: MessageReceiver + Send + Sync + 'static>(
         nyxd_client,
     );
     info!("Starting network monitor...");
-    let runnables: NetworkMonitorRunnables<R> = monitor_builder.build().await;
+    let runnables: NetworkMonitorRunnables<R> =
+        monitor_builder.build(shutdown.clone_shutdown_token()).await;
     runnables.spawn_tasks(shutdown);
 }

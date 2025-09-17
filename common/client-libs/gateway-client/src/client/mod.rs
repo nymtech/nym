@@ -12,7 +12,7 @@ use crate::socket_state::{ws_fd, PartiallyDelegatedHandle, SocketState};
 use crate::traits::GatewayPacketRouter;
 use crate::{cleanup_socket_message, try_decrypt_binary_message};
 use futures::{SinkExt, StreamExt};
-use nym_bandwidth_controller::{BandwidthController, BandwidthStatusMessage};
+use nym_bandwidth_controller::BandwidthController;
 use nym_credential_storage::ephemeral_storage::EphemeralStorage as EphemeralCredentialStorage;
 use nym_credential_storage::storage::Storage as CredentialStorage;
 use nym_credentials::CredentialSpendingData;
@@ -27,7 +27,7 @@ use nym_gateway_requests::{
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_statistics_common::clients::connection::ConnectionStatsEvent;
 use nym_statistics_common::clients::ClientStatsSender;
-use nym_task::TaskClient;
+use nym_task::ShutdownToken;
 use nym_validator_client::nyxd::contract_traits::DkgQueryClient;
 use rand::rngs::OsRng;
 use std::sync::Arc;
@@ -109,7 +109,7 @@ pub struct GatewayClient<C, St = EphemeralCredentialStorage> {
     connection_fd_callback: Option<Arc<dyn Fn(RawFd) + Send + Sync>>,
 
     /// Listen to shutdown messages and send notifications back to the task manager
-    task_client: TaskClient,
+    shutdown_token: ShutdownToken,
 }
 
 impl<C, St> GatewayClient<C, St> {
@@ -124,7 +124,7 @@ impl<C, St> GatewayClient<C, St> {
         bandwidth_controller: Option<BandwidthController<C, St>>,
         stats_reporter: ClientStatsSender,
         #[cfg(unix)] connection_fd_callback: Option<Arc<dyn Fn(RawFd) + Send + Sync>>,
-        task_client: TaskClient,
+        shutdown_token: ShutdownToken,
     ) -> Self {
         GatewayClient {
             cfg,
@@ -141,7 +141,7 @@ impl<C, St> GatewayClient<C, St> {
             negotiated_protocol: None,
             #[cfg(unix)]
             connection_fd_callback,
-            task_client,
+            shutdown_token,
         }
     }
 
@@ -293,7 +293,7 @@ impl<C, St> GatewayClient<C, St> {
 
         loop {
             tokio::select! {
-                _ = self.task_client.recv() => {
+                _ = self.shutdown_token.cancelled() => {
                     log::trace!("GatewayClient control response: Received shutdown");
                     log::debug!("GatewayClient control response: Exiting");
                     break Err(GatewayClientError::ConnectionClosedGatewayShutdown);
@@ -514,7 +514,7 @@ impl<C, St> GatewayClient<C, St> {
                 self.cfg.bandwidth.require_tickets,
                 derive_aes256_gcm_siv_key,
                 #[cfg(not(target_arch = "wasm32"))]
-                self.task_client.clone(),
+                self.shutdown_token.clone(),
             )
             .await
             .map_err(GatewayClientError::RegistrationFailure),
@@ -631,9 +631,6 @@ impl<C, St> GatewayClient<C, St> {
                 self.negotiated_protocol = protocol_version;
                 log::debug!("authenticated: {status}, bandwidth remaining: {bandwidth_remaining}");
 
-                self.task_client.send_status_msg(Box::new(
-                    BandwidthStatusMessage::RemainingBandwidth(bandwidth_remaining),
-                ));
                 Ok(())
             }
             ServerResponse::Error { message } => Err(GatewayClientError::GatewayError(message)),
@@ -1069,7 +1066,7 @@ impl<C, St> GatewayClient<C, St> {
                                 .expect("no shared key present even though we're authenticated!"),
                         ),
                         self.bandwidth.clone(),
-                        self.task_client.clone(),
+                        self.shutdown_token.clone(),
                     )
                 }
                 _ => unreachable!(),
@@ -1143,8 +1140,8 @@ impl GatewayClient<InitOnly, EphemeralCredentialStorage> {
         // perfectly fine here, because it's not meant to be used
         let (ack_tx, _) = mpsc::unbounded();
         let (mix_tx, _) = mpsc::unbounded();
-        let task_client = TaskClient::dummy();
-        let packet_router = PacketRouter::new(ack_tx, mix_tx, task_client.clone());
+        let shutdown_token = ShutdownToken::default();
+        let packet_router = PacketRouter::new(ack_tx, mix_tx, shutdown_token.clone());
 
         GatewayClient {
             cfg: GatewayClientConfig::default().with_disabled_credentials_mode(true),
@@ -1157,11 +1154,11 @@ impl GatewayClient<InitOnly, EphemeralCredentialStorage> {
             connection: SocketState::NotConnected,
             packet_router,
             bandwidth_controller: None,
-            stats_reporter: ClientStatsSender::new(None, task_client.clone()),
+            stats_reporter: ClientStatsSender::new(None, shutdown_token.clone()),
             negotiated_protocol: None,
             #[cfg(unix)]
             connection_fd_callback,
-            task_client,
+            shutdown_token,
         }
     }
 
@@ -1170,7 +1167,7 @@ impl GatewayClient<InitOnly, EphemeralCredentialStorage> {
         packet_router: PacketRouter,
         bandwidth_controller: Option<BandwidthController<C, St>>,
         stats_reporter: ClientStatsSender,
-        task_client: TaskClient,
+        shutdown_token: ShutdownToken,
     ) -> GatewayClient<C, St> {
         // invariants that can't be broken
         // (unless somebody decided to expose some field that wasn't meant to be exposed)
@@ -1193,7 +1190,7 @@ impl GatewayClient<InitOnly, EphemeralCredentialStorage> {
             negotiated_protocol: self.negotiated_protocol,
             #[cfg(unix)]
             connection_fd_callback: self.connection_fd_callback,
-            task_client,
+            shutdown_token,
         }
     }
 }

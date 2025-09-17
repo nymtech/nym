@@ -3,7 +3,7 @@
 
 use crate::client::mix_traffic::BatchMixMessageSender;
 use crate::client::topology_control::TopologyAccessor;
-use crate::{config, spawn_future};
+use crate::config;
 use futures::task::{Context, Poll};
 use futures::{Future, Stream, StreamExt};
 use nym_sphinx::acknowledgements::AckKey;
@@ -12,7 +12,6 @@ use nym_sphinx::cover::generate_loop_cover_packet;
 use nym_sphinx::params::{PacketSize, PacketType};
 use nym_sphinx::utils::sample_poisson_duration;
 use nym_statistics_common::clients::{packet_statistics::PacketStatisticsEvent, ClientStatsSender};
-use nym_task::TaskClient;
 use rand::{rngs::OsRng, CryptoRng, Rng};
 use std::pin::Pin;
 use std::sync::Arc;
@@ -69,8 +68,6 @@ where
     packet_type: PacketType,
 
     stats_tx: ClientStatsSender,
-
-    task_client: TaskClient,
 }
 
 impl<R> Stream for LoopCoverTrafficStream<R>
@@ -117,7 +114,6 @@ impl LoopCoverTrafficStream<OsRng> {
         traffic_config: config::Traffic,
         cover_config: config::CoverTraffic,
         stats_tx: ClientStatsSender,
-        task_client: TaskClient,
     ) -> Self {
         let rng = OsRng;
 
@@ -137,7 +133,6 @@ impl LoopCoverTrafficStream<OsRng> {
             use_legacy_sphinx_format: traffic_config.use_legacy_sphinx_format,
             packet_type: traffic_config.packet_type,
             stats_tx,
-            task_client,
         }
     }
 
@@ -235,12 +230,13 @@ impl LoopCoverTrafficStream<OsRng> {
         tokio::task::yield_now().await;
     }
 
+    // it's fine if cover traffic stream task gets killed whilst processing next message
     #[allow(clippy::panic)]
-    pub fn start(mut self) {
+    pub async fn run(&mut self) {
         if self.cover_traffic.disable_loop_cover_traffic_stream {
             // we should have never got here in the first place - the task should have never been created to begin with
             // so panic and review the code that lead to this branch
-            panic!("attempted to start LoopCoverTrafficStream while config explicitly disabled it.")
+            panic!("attempted to run LoopCoverTrafficStream while config explicitly disabled it.")
         }
 
         // we should set initial delay only when we actually start the stream
@@ -250,32 +246,11 @@ impl LoopCoverTrafficStream<OsRng> {
         );
         self.set_next_delay(sampled);
 
-        let mut shutdown = self.task_client.fork("select");
+        while self.next().await.is_some() {
+            self.on_new_message().await;
+        }
 
-        spawn_future!(
-            async move {
-                debug!("Started LoopCoverTrafficStream with graceful shutdown support");
-
-                while !shutdown.is_shutdown() {
-                    tokio::select! {
-                        biased;
-                        _ = shutdown.recv() => {
-                            tracing::trace!("LoopCoverTrafficStream: Received shutdown");
-                        }
-                        next = self.next() => {
-                            if next.is_some() {
-                                self.on_new_message().await;
-                            } else {
-                                tracing::trace!("LoopCoverTrafficStream: Stopping since channel closed");
-                                break;
-                            }
-                        }
-                    }
-                }
-                shutdown.recv_timeout().await;
-                tracing::debug!("LoopCoverTrafficStream: Exiting");
-            },
-            "LoopCoverTrafficStream"
-        )
+        // this should never get triggered
+        error!("cover traffic stream has been exhausted!")
     }
 }

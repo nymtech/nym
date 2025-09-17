@@ -59,7 +59,7 @@ use nym_crypto::asymmetric::ed25519;
 use nym_dkg::{NodeIndex, Threshold};
 use nym_ecash_contract_common::blacklist::{BlacklistedAccountResponse, Blacklisting};
 use nym_ecash_contract_common::deposit::{Deposit, DepositId, DepositResponse};
-use nym_task::TaskClient;
+use nym_task::ShutdownManager;
 use nym_validator_client::nym_api::routes::{
     ECASH_BLIND_SIGN, ECASH_ISSUED_TICKETBOOKS_CHALLENGE_COMMITMENT, ECASH_ISSUED_TICKETBOOKS_FOR,
     ECASH_ROUTES, V1_API_VERSION,
@@ -67,7 +67,7 @@ use nym_validator_client::nym_api::routes::{
 use nym_validator_client::nyxd::cosmwasm_client::logs::Log;
 use nym_validator_client::nyxd::cosmwasm_client::types::ExecuteResult;
 use nym_validator_client::nyxd::{AccountId, ExecTxResult, Fee, Hash, TxResponse};
-use nym_validator_client::{EcashApiClient, NymApiClient};
+use nym_validator_client::EcashApiClient;
 use rand::rngs::OsRng;
 use rand::RngCore;
 use std::collections::{BTreeMap, HashMap};
@@ -1148,7 +1148,10 @@ impl DummyCommunicationChannel {
         cosmos_address: AccountId,
     ) -> Self {
         let client = EcashApiClient {
-            api_client: NymApiClient::new("http://localhost:1234".parse().unwrap()),
+            api_client: nym_http_api_client::Client::new(
+                "http://localhost:1234".parse().unwrap(),
+                None,
+            ),
             verification_key: aggregated_verification_key,
             node_id: 1,
             cosmos_address,
@@ -1348,7 +1351,7 @@ impl TestFixture {
             staged_key_pair,
             comm_channel,
             storage.clone(),
-            TaskClient::dummy(),
+            &ShutdownManager::empty_mock(),
         );
 
         // ideally this would have been generic, but that's way too much work
@@ -1489,7 +1492,6 @@ mod credential_tests {
     use super::*;
     use crate::ecash::storage::EcashStorageExt;
     use axum::http::StatusCode;
-    use nym_task::TaskClient;
     use nym_ticketbooks_merkle::MerkleLeaf;
 
     #[tokio::test]
@@ -1580,7 +1582,7 @@ mod credential_tests {
             staged_key_pair,
             comm_channel,
             storage.clone(),
-            TaskClient::dummy(),
+            &ShutdownManager::empty_mock(),
         );
 
         let deposit_id = 42;

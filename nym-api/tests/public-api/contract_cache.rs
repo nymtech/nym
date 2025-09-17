@@ -1,6 +1,7 @@
 use crate::utils::{base_url, make_request, validate_json_response};
 
 #[tokio::test]
+#[test_with::env(NYM_API)]
 async fn test_get_current_epoch() -> Result<(), String> {
     let url = format!("{}/v1/epoch/current", base_url()?);
     let res = make_request(&url).await?;
@@ -19,6 +20,7 @@ async fn test_get_current_epoch() -> Result<(), String> {
 }
 
 #[tokio::test]
+#[test_with::env(NYM_API)]
 async fn test_get_reward_params() -> Result<(), String> {
     let url = format!("{}/v1/epoch/reward_params", base_url()?);
     let res = make_request(&url).await?;

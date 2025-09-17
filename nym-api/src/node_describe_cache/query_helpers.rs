@@ -41,7 +41,10 @@ pub(crate) async fn query_for_described_data(
     client: &Client,
     node_id: NodeId,
 ) -> Result<UnwrappedResolvedNodeDescribedInfo, NodeDescribeCacheError> {
-    let map_query_err = |source| NodeDescribeCacheError::ApiFailure { node_id, source };
+    let map_query_err = |source| NodeDescribeCacheError::ApiFailure {
+        node_id,
+        source: Box::new(source),
+    };
 
     // all of those should be happening concurrently.
     NodeDescribedInfoMegaFuture::new(

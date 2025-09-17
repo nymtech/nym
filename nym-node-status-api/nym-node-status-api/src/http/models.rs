@@ -6,9 +6,7 @@ use nym_mixnet_contract_common::CoinSchema;
 use nym_node_requests::api::v1::node::models::NodeDescription;
 use nym_validator_client::{
     client::NodeId,
-    models::{
-        AuthenticatorDetails, BinaryBuildInformationOwned, IpPacketRouterDetails, NymNodeData,
-    },
+    models::{AuthenticatorDetails, BinaryBuildInformationOwned, IpPacketRouterDetails},
     nym_api::SkimmedNode,
     nym_nodes::{BasicEntryInformation, NodeRole},
 };
@@ -16,6 +14,7 @@ use serde::{Deserialize, Serialize};
 use tracing::{error, instrument};
 use utoipa::ToSchema;
 
+use crate::db::models::NymNodeDataDeHelper;
 pub(crate) use nym_node_status_client::models::TestrunAssignment;
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
@@ -188,10 +187,12 @@ impl DVpnGateway {
             })
             .map(|bond| bond.location)?;
 
-        let self_described = gateway
+        let self_described: NymNodeDataDeHelper = gateway
             .self_described
             .ok_or_else(|| anyhow::anyhow!("Missing self_described"))
-            .and_then(|value| serde_json::from_value::<NymNodeData>(value).map_err(From::from))?;
+            .and_then(|value| {
+                serde_json::from_value::<NymNodeDataDeHelper>(value).map_err(From::from)
+            })?;
 
         let last_probe_result = match gateway.last_probe_result {
             Some(value) => {

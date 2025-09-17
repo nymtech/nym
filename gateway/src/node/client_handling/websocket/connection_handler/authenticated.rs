@@ -29,7 +29,6 @@ use nym_gateway_storage::traits::SharedKeyGatewayStorage;
 use nym_node_metrics::events::MetricsEvent;
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_statistics_common::{gateways::GatewaySessionEvent, types::SessionType};
-use nym_task::TaskClient;
 use nym_validator_client::coconut::EcashApiError;
 use rand::{random, CryptoRng, Rng};
 use std::{process, time::Duration};
@@ -583,7 +582,7 @@ impl<R, S> AuthenticatedHandler<R, S> {
     /// Simultaneously listens for incoming client requests, which realistically should only be
     /// binary requests to forward sphinx packets or increase bandwidth
     /// and for sphinx packets received from the mix network that should be sent back to the client.
-    pub(crate) async fn listen_for_requests(mut self, mut shutdown: TaskClient)
+    pub(crate) async fn listen_for_requests(mut self)
     where
         R: Rng + CryptoRng,
         S: AsyncRead + AsyncWrite + Unpin,
@@ -593,11 +592,8 @@ impl<R, S> AuthenticatedHandler<R, S> {
         // Ping timeout future used to check if the client responded to our ping request
         let mut ping_timeout: OptionFuture<_> = None.into();
 
-        while !shutdown.is_shutdown() {
+        loop {
             tokio::select! {
-                _ = shutdown.recv() => {
-                    trace!("client_handling::AuthenticatedHandler: received shutdown");
-                },
                 // Received a request to ping the client to check if it's still active
                 tx = self.is_active_request_receiver.next() => {
                     match tx {

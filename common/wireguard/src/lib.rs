@@ -18,10 +18,12 @@ use tokio::sync::mpsc::{self, Receiver, Sender};
 #[cfg(target_os = "linux")]
 use nym_network_defaults::constants::WG_TUN_BASE_NAME;
 
-pub(crate) mod error;
+pub mod error;
 pub mod peer_controller;
 pub mod peer_handle;
 pub mod peer_storage_manager;
+
+pub const CONTROL_CHANNEL_SIZE: usize = 256;
 
 pub struct WgApiWrapper {
     inner: WGApi,
@@ -126,7 +128,7 @@ pub struct WireguardGatewayData {
 
 impl WireguardGatewayData {
     pub fn new(config: Config, keypair: Arc<KeyPair>) -> (Self, Receiver<PeerControlRequest>) {
-        let (peer_tx, peer_rx) = mpsc::channel(1);
+        let (peer_tx, peer_rx) = mpsc::channel(CONTROL_CHANNEL_SIZE);
         (
             WireguardGatewayData {
                 config,
@@ -161,7 +163,7 @@ pub async fn start_wireguard(
     ecash_manager: Arc<EcashManager>,
     metrics: nym_node_metrics::NymNodeMetrics,
     peers: Vec<Peer>,
-    task_client: nym_task::TaskClient,
+    shutdown_token: nym_task::ShutdownToken,
     wireguard_data: WireguardData,
 ) -> Result<std::sync::Arc<WgApiWrapper>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     use base64::{prelude::BASE64_STANDARD, Engine};
@@ -178,10 +180,16 @@ pub async fn start_wireguard(
     let mut peer_bandwidth_managers = HashMap::with_capacity(peers.len());
 
     for peer in peers.iter() {
-        let bandwidth_manager = Arc::new(RwLock::new(
-            PeerController::generate_bandwidth_manager(ecash_manager.storage(), &peer.public_key)
+        let bandwidth_manager = peer_handle::SharedBandwidthStorageManager::new(
+            Arc::new(RwLock::new(
+                PeerController::generate_bandwidth_manager(
+                    ecash_manager.storage(),
+                    &peer.public_key,
+                )
                 .await?,
-        ));
+            )),
+            peer.allowed_ips.clone(),
+        );
         peer_bandwidth_managers.insert(peer.public_key.clone(), (bandwidth_manager, peer.clone()));
     }
 
@@ -190,7 +198,7 @@ pub async fn start_wireguard(
         name: ifname.clone(),
         prvkey: BASE64_STANDARD.encode(wireguard_data.inner.keypair().private_key().to_bytes()),
         address: wireguard_data.inner.config().private_ipv4.to_string(),
-        port: wireguard_data.inner.config().announced_port as u32,
+        port: wireguard_data.inner.config().announced_tunnel_port as u32,
         peers,
         mtu: None,
     };
@@ -233,6 +241,7 @@ pub async fn start_wireguard(
 
     let host = wg_api.read_interface_data()?;
     let wg_api = std::sync::Arc::new(WgApiWrapper::new(wg_api));
+
     let mut controller = PeerController::new(
         ecash_manager,
         metrics,
@@ -241,7 +250,7 @@ pub async fn start_wireguard(
         peer_bandwidth_managers,
         wireguard_data.inner.peer_tx.clone(),
         wireguard_data.peer_rx,
-        task_client,
+        shutdown_token,
     );
     tokio::spawn(async move { controller.run().await });
 

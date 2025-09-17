@@ -3,7 +3,7 @@
 
 use crate::report::client::{ClientStatsReport, OsInformation};
 
-use nym_task::TaskClient;
+use nym_task::ShutdownToken;
 use time::{OffsetDateTime, Time};
 use tokio::sync::mpsc::UnboundedSender;
 
@@ -25,18 +25,18 @@ pub type ClientStatsReceiver = tokio::sync::mpsc::UnboundedReceiver<ClientStatsE
 #[derive(Clone)]
 pub struct ClientStatsSender {
     stats_tx: Option<UnboundedSender<ClientStatsEvents>>,
-    task_client: TaskClient,
+    shutdown_token: ShutdownToken,
 }
 
 impl ClientStatsSender {
     /// Create a new statistics Sender
     pub fn new(
         stats_tx: Option<UnboundedSender<ClientStatsEvents>>,
-        task_client: TaskClient,
+        shutdown_token: ShutdownToken,
     ) -> Self {
         ClientStatsSender {
             stats_tx,
-            task_client,
+            shutdown_token,
         }
     }
 
@@ -44,7 +44,7 @@ impl ClientStatsSender {
     pub fn report(&self, event: ClientStatsEvents) {
         if let Some(tx) = &self.stats_tx {
             if let Err(err) = tx.send(event) {
-                if !self.task_client.is_shutdown_poll() {
+                if !self.shutdown_token.is_cancelled() {
                     log::error!("Failed to send stats event: {err}");
                 }
             }
@@ -137,8 +137,8 @@ impl ClientStatsController {
         self.packet_stats.snapshot();
     }
 
-    pub fn local_report(&mut self, task_client: &mut TaskClient) {
-        self.packet_stats.local_report(task_client);
+    pub fn local_report(&mut self) {
+        self.packet_stats.local_report();
         self.gateway_conn_stats.local_report();
         self.nym_api_stats.local_report();
     }

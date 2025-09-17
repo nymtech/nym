@@ -12,7 +12,6 @@ use std::any::TypeId;
 use std::collections::HashMap;
 use std::ops::DerefMut;
 use std::time::Duration;
-use tokio::task::JoinHandle;
 use tokio::time::{interval_at, Instant};
 use tracing::{debug, error, trace, warn};
 
@@ -25,11 +24,10 @@ pub(crate) struct MetricsAggregator {
     // registered_handlers: HashMap<TypeId, Box<dyn Any + Send + Sync + 'static>>,
     event_sender: MetricEventsSender,
     event_receiver: MetricEventsReceiver,
-    shutdown: ShutdownToken,
 }
 
 impl MetricsAggregator {
-    pub fn new(handlers_update_interval: Duration, shutdown: ShutdownToken) -> Self {
+    pub fn new(handlers_update_interval: Duration) -> Self {
         let (event_sender, event_receiver) = events_channels();
 
         MetricsAggregator {
@@ -37,7 +35,6 @@ impl MetricsAggregator {
             registered_handlers: Default::default(),
             event_sender,
             event_receiver,
-            shutdown,
         }
     }
 
@@ -106,7 +103,7 @@ impl MetricsAggregator {
         }
     }
 
-    pub async fn run(&mut self) {
+    pub async fn run(&mut self, shutdown_token: ShutdownToken) {
         self.on_start().await;
 
         let start = Instant::now() + self.handlers_update_interval;
@@ -117,7 +114,7 @@ impl MetricsAggregator {
         loop {
             tokio::select! {
                 biased;
-                _ = self.shutdown.cancelled() => {
+                _ = shutdown_token.cancelled() => {
                     debug!("MetricsAggregator: Received shutdown");
                     break;
                 }
@@ -143,9 +140,5 @@ impl MetricsAggregator {
             }
         }
         trace!("MetricsAggregator: Exiting");
-    }
-
-    pub fn start(mut self) -> JoinHandle<()> {
-        tokio::spawn(async move { self.run().await })
     }
 }

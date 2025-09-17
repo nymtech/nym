@@ -5,7 +5,7 @@ use crate::connection_controller::ConnectionReceiver;
 use crate::ordered_sender::OrderedMessageSender;
 use nym_socks5_requests::{ConnectionId, SocketData};
 use nym_task::connections::LaneQueueLengths;
-use nym_task::TaskClient;
+use nym_task::ShutdownTracker;
 use std::fmt::Debug;
 use std::{sync::Arc, time::Duration};
 use tokio::{net::TcpStream, sync::Notify};
@@ -57,7 +57,8 @@ pub struct ProxyRunner<S> {
     available_plaintext_per_mix_packet: usize,
 
     // Listens to shutdown commands from higher up
-    shutdown_listener: TaskClient,
+    // and spawn new tracked tasks
+    shutdown_tracker: ShutdownTracker,
 }
 
 impl<S> ProxyRunner<S>
@@ -74,7 +75,7 @@ where
         available_plaintext_per_mix_packet: usize,
         connection_id: ConnectionId,
         lane_queue_lengths: Option<LaneQueueLengths>,
-        shutdown_listener: TaskClient,
+        shutdown_tracker: ShutdownTracker,
     ) -> Self {
         ProxyRunner {
             mix_receiver: Some(mix_receiver),
@@ -85,7 +86,7 @@ where
             connection_id,
             lane_queue_lengths,
             available_plaintext_per_mix_packet,
-            shutdown_listener,
+            shutdown_tracker,
         }
     }
 
@@ -113,7 +114,7 @@ where
             self.available_plaintext_per_mix_packet,
             Arc::clone(&shutdown_notify),
             self.lane_queue_lengths.clone(),
-            self.shutdown_listener.clone(),
+            self.shutdown_tracker.clone_shutdown_token(),
         );
 
         let outbound_future = outbound::run_outbound(
@@ -123,14 +124,26 @@ where
             self.mix_receiver.take().unwrap(),
             self.connection_id,
             shutdown_notify,
-            self.shutdown_listener.clone(),
+            self.shutdown_tracker.clone_shutdown_token(),
         );
 
         // TODO: this shouldn't really have to spawn tasks inside "library" code, but
         // if we used join directly, stuff would have been executed on the same thread
         // (it's not bad, but an unnecessary slowdown)
-        let handle_inbound = tokio::spawn(inbound_future);
-        let handle_outbound = tokio::spawn(outbound_future);
+        let handle_inbound = self.shutdown_tracker.try_spawn_named(
+            inbound_future,
+            &format!(
+                "Socks5Inbound::{}::{}",
+                self.remote_source_address, self.connection_id
+            ),
+        );
+        let handle_outbound = self.shutdown_tracker.try_spawn_named(
+            outbound_future,
+            &format!(
+                "Socks5Outbound::{}::{}",
+                self.remote_source_address, self.connection_id
+            ),
+        );
 
         let (inbound_result, outbound_result) =
             futures::future::join(handle_inbound, handle_outbound).await;
@@ -148,7 +161,6 @@ where
     }
 
     pub fn into_inner(mut self) -> (TcpStream, ConnectionReceiver) {
-        self.shutdown_listener.disarm();
         (
             self.socket.take().unwrap(),
             self.mix_receiver.take().unwrap(),

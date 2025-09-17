@@ -9,10 +9,11 @@ pub mod manager;
 pub mod signal;
 pub mod spawn;
 
-pub use cancellation::{ShutdownDropGuard, ShutdownManager, ShutdownToken};
+pub use cancellation::{ShutdownDropGuard, ShutdownManager, ShutdownToken, ShutdownTracker};
 pub use event::{StatusReceiver, StatusSender, TaskStatus, TaskStatusEvent};
-pub use manager::{TaskClient, TaskHandle, TaskManager};
-pub use spawn::{spawn, spawn_with_report_error};
+#[allow(deprecated)]
+pub use manager::{TaskClient, TaskManager};
+pub use spawn::spawn_future;
 pub use tokio_util::task::TaskTracker;
 
 #[cfg(not(target_arch = "wasm32"))]

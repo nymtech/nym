@@ -7,6 +7,7 @@ homepage.workspace = true
 documentation.workspace = true
 edition.workspace = true
 license.workspace = true
+rust-version.workspace = true
 
 [dependencies]
 async-trait = { workspace = true }
@@ -31,6 +32,7 @@ nym-gateway-requests = { path = "../gateway-requests" }
 nym-sphinx = { path = "../nymsphinx" }
 
 [build-dependencies]
+anyhow = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
 sqlx = { workspace = true, features = [
     "runtime-tokio-rustls",

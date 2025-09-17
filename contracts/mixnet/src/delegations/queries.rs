@@ -139,9 +139,9 @@ mod tests {
 
     fn add_dummy_mixes_with_delegations(test: &mut TestSetup, delegators: usize, mixes: usize) {
         for i in 0..mixes {
-            let mix_id = test.add_legacy_mixnode(&test.make_addr(format!("mix-owner{}", i)), None);
+            let mix_id = test.add_legacy_mixnode(&test.make_addr(format!("mix-owner{i}")), None);
             for delegator in 0..delegators {
-                let name = &test.make_addr(format!("delegator{}", delegator));
+                let name = &test.make_addr(format!("delegator{delegator}"));
                 test.add_immediate_delegation(name, 100_000_000u32, mix_id)
             }
         }

@@ -8,7 +8,7 @@ use futures::StreamExt;
 use nym_nonexhaustive_delayqueue::{Expired, NonExhaustiveDelayQueue, QueueKey};
 use nym_sphinx::chunking::fragment::FragmentIdentifier;
 use nym_sphinx::Delay as SphinxDelay;
-use nym_task::TaskClient;
+use nym_task::ShutdownToken;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
@@ -82,7 +82,7 @@ impl Config {
     }
 }
 
-pub(super) struct ActionController {
+pub(crate) struct ActionController {
     /// Configurable parameters of the `ActionController`
     config: Config,
 
@@ -102,8 +102,6 @@ pub(super) struct ActionController {
 
     /// Channel for notifying `RetransmissionRequestListener` about expired acknowledgements.
     retransmission_sender: RetransmissionRequestSender,
-
-    task_client: TaskClient,
 }
 
 impl ActionController {
@@ -111,7 +109,6 @@ impl ActionController {
         config: Config,
         retransmission_sender: RetransmissionRequestSender,
         incoming_actions: AckActionReceiver,
-        task_client: TaskClient,
     ) -> Self {
         ActionController {
             config,
@@ -119,7 +116,6 @@ impl ActionController {
             pending_acks_timers: NonExhaustiveDelayQueue::new(),
             incoming_actions,
             retransmission_sender,
-            task_client,
         }
     }
 
@@ -226,14 +222,9 @@ impl ActionController {
             // downgrading an arc and then upgrading vs cloning is difference of 30ns vs 15ns
             // so it's literally a NO difference while it might prevent us from unnecessarily
             // resending data (in maybe 1 in 1 million cases, but it's something)
-            if let Err(err) = self
+            let _ = self
                 .retransmission_sender
-                .unbounded_send(Arc::downgrade(pending_ack_data))
-            {
-                if !self.task_client.is_shutdown_poll() {
-                    tracing::error!("Failed to send pending ack for retransmission: {err}");
-                }
-            }
+                .unbounded_send(Arc::downgrade(pending_ack_data));
         } else {
             // this shouldn't cause any issues but shouldn't have happened to begin with!
             error!("An already removed pending ack has expired")
@@ -251,11 +242,16 @@ impl ActionController {
         }
     }
 
-    pub(super) async fn run(&mut self) {
+    pub(crate) async fn run(&mut self, shutdown_token: ShutdownToken) {
         debug!("Started ActionController with graceful shutdown support");
 
-        while !self.task_client.is_shutdown() {
+        loop {
             tokio::select! {
+                biased;
+                _ = shutdown_token.cancelled() => {
+                    tracing::trace!("ActionController: Received shutdown");
+                    break;
+                }
                 action = self.incoming_actions.next() => match action {
                     Some(action) => self.process_action(action),
                     None => {
@@ -272,13 +268,8 @@ impl ActionController {
                         break;
                     }
                 },
-                _ = self.task_client.recv() => {
-                    tracing::trace!("ActionController: Received shutdown");
-                    break;
-                }
             }
         }
-        self.task_client.recv_timeout().await;
         tracing::debug!("ActionController: Exiting");
     }
 }

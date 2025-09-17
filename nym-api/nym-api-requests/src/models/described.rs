@@ -8,7 +8,9 @@ use nym_crypto::asymmetric::x25519::serde_helpers::bs58_x25519_pubkey;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_mixnet_contract_common::reward_params::Performance;
 use nym_mixnet_contract_common::NodeId;
-use nym_network_defaults::{DEFAULT_MIX_LISTENING_PORT, DEFAULT_VERLOC_LISTENING_PORT};
+use nym_network_defaults::{
+    DEFAULT_MIX_LISTENING_PORT, DEFAULT_VERLOC_LISTENING_PORT, WG_METADATA_PORT, WG_TUNNEL_PORT,
+};
 use nym_node_requests::api::v1::authenticator::models::Authenticator;
 use nym_node_requests::api::v1::gateway::models::Wireguard;
 use nym_node_requests::api::v1::ip_packet_router::models::IpPacketRouter;
@@ -311,8 +313,20 @@ impl From<Authenticator> for AuthenticatorDetails {
 }
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
 pub struct WireguardDetails {
+    // NOTE: the port field is deprecated in favour of tunnel_port
     pub port: u16,
+    #[serde(default = "default_tunnel_port")]
+    pub tunnel_port: u16,
+    #[serde(default = "default_metadata_port")]
+    pub metadata_port: u16,
     pub public_key: String,
+}
+
+fn default_tunnel_port() -> u16 {
+    WG_TUNNEL_PORT
+}
+fn default_metadata_port() -> u16 {
+    WG_METADATA_PORT
 }
 
 // works for current simple case.
@@ -320,6 +334,8 @@ impl From<Wireguard> for WireguardDetails {
     fn from(value: Wireguard) -> Self {
         WireguardDetails {
             port: value.port,
+            tunnel_port: value.tunnel_port,
+            metadata_port: value.metadata_port,
             public_key: value.public_key,
         }
     }

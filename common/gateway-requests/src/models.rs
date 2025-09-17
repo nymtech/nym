@@ -89,7 +89,7 @@ mod tests {
         .unwrap();
         let blind_sig = issue(
             keypair.secret_key(),
-            sig_req.ecash_pub_key.clone(),
+            sig_req.ecash_pub_key,
             &sig_req.withdrawal_request,
             expiration_date.ecash_unix_timestamp(),
             issuance.ticketbook_type().encode(),

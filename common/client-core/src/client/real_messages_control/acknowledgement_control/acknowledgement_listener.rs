@@ -10,18 +10,17 @@ use nym_sphinx::{
     acknowledgements::{identifier::recover_identifier, AckKey},
     chunking::fragment::{FragmentIdentifier, COVER_FRAG_ID},
 };
-use nym_task::TaskClient;
+use nym_task::ShutdownToken;
 use std::sync::Arc;
 use tracing::*;
 
 /// Module responsible for listening for any data resembling acknowledgements from the network
 /// and firing actions to remove them from the 'Pending' state.
-pub(super) struct AcknowledgementListener {
+pub(crate) struct AcknowledgementListener {
     ack_key: Arc<AckKey>,
     ack_receiver: AcknowledgementReceiver,
     action_sender: AckActionSender,
     stats_tx: ClientStatsSender,
-    task_client: TaskClient,
 }
 
 impl AcknowledgementListener {
@@ -30,14 +29,12 @@ impl AcknowledgementListener {
         ack_receiver: AcknowledgementReceiver,
         action_sender: AckActionSender,
         stats_tx: ClientStatsSender,
-        task_client: TaskClient,
     ) -> Self {
         AcknowledgementListener {
             ack_key,
             ack_receiver,
             action_sender,
             stats_tx,
-            task_client,
         }
     }
 
@@ -68,14 +65,9 @@ impl AcknowledgementListener {
         trace!("Received {frag_id} from the mix network");
         self.stats_tx
             .report(PacketStatisticsEvent::RealAckReceived(ack_content.len()).into());
-        if let Err(err) = self
+        let _ = self
             .action_sender
-            .unbounded_send(Action::new_remove(frag_id))
-        {
-            if !self.task_client.is_shutdown_poll() {
-                error!("Failed to send remove action to action controller: {err}");
-            }
-        }
+            .unbounded_send(Action::new_remove(frag_id));
     }
 
     async fn handle_ack_receiver_item(&mut self, item: Vec<Vec<u8>>) {
@@ -85,11 +77,16 @@ impl AcknowledgementListener {
         }
     }
 
-    pub(super) async fn run(&mut self) {
+    pub(crate) async fn run(&mut self, shutdown_token: ShutdownToken) {
         debug!("Started AcknowledgementListener with graceful shutdown support");
 
-        while !self.task_client.is_shutdown() {
+        loop {
             tokio::select! {
+                biased;
+                _ = shutdown_token.cancelled() => {
+                    tracing::trace!("AcknowledgementListener: Received shutdown");
+                    break;
+                }
                 acks = self.ack_receiver.next() => match acks {
                     Some(acks) => self.handle_ack_receiver_item(acks).await,
                     None => {
@@ -97,12 +94,9 @@ impl AcknowledgementListener {
                         break;
                     }
                 },
-                _ = self.task_client.recv() => {
-                    tracing::trace!("AcknowledgementListener: Received shutdown");
-                }
+
             }
         }
-        self.task_client.recv_timeout().await;
         tracing::debug!("AcknowledgementListener: Exiting");
     }
 }

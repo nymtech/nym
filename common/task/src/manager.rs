@@ -44,6 +44,7 @@ enum TaskError {
 
 /// Listens to status and error messages from tasks, as well as notifying them to gracefully
 /// shutdown. Keeps track of if task stop unexpectedly, such as in a panic.
+#[deprecated(note = "use ShutdownManager instead")]
 #[derive(Debug)]
 pub struct TaskManager {
     // optional name assigned to the task manager that all subscribed task clients will inherit
@@ -72,6 +73,7 @@ pub struct TaskManager {
     task_status_rx: Option<StatusReceiver>,
 }
 
+#[allow(deprecated)]
 impl Default for TaskManager {
     fn default() -> Self {
         let (notify_tx, notify_rx) = watch::channel(());
@@ -95,6 +97,8 @@ impl Default for TaskManager {
     }
 }
 
+#[allow(deprecated)]
+#[allow(clippy::expect_used)]
 impl TaskManager {
     pub fn new(shutdown_timer_secs: u64) -> Self {
         Self {
@@ -168,7 +172,7 @@ impl TaskManager {
 
         if let Some(mut task_status_rx) = self.task_status_rx.take() {
             log::info!("Starting status message listener");
-            crate::spawn::spawn(async move {
+            crate::spawn::spawn_future(async move {
                 loop {
                     if let Some(msg) = task_status_rx.next().await {
                         log::trace!("Got msg: {msg}");
@@ -186,12 +190,14 @@ impl TaskManager {
     }
 
     // used for compatibility with the ShutdownManager
+    #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn task_return_error_rx(&mut self) -> ErrorReceiver {
         self.task_return_error_rx
             .take()
             .expect("unable to get error channel: attempt to wait twice?")
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn task_drop_rx(&mut self) -> ErrorReceiver {
         self.task_drop_rx
             .take()
@@ -259,6 +265,7 @@ impl TaskManager {
 /// Listen for shutdown notifications, and can send error and status messages back to the
 /// `TaskManager`
 #[derive(Debug)]
+#[deprecated(note = "use ShutdownToken instead")]
 pub struct TaskClient {
     // optional name assigned to the shutdown handle
     name: Option<String>,
@@ -286,6 +293,7 @@ pub struct TaskClient {
     mode: ClientOperatingMode,
 }
 
+#[allow(deprecated)]
 impl Clone for TaskClient {
     fn clone(&self) -> Self {
         // make sure to not accidentally overflow the stack if we keep cloning the handle
@@ -313,6 +321,7 @@ impl Clone for TaskClient {
     }
 }
 
+#[allow(deprecated)]
 impl TaskClient {
     const MAX_NAME_LENGTH: usize = 128;
     const OVERFLOW_NAME: &'static str = "reached maximum TaskClient children name depth";
@@ -433,6 +442,8 @@ impl TaskClient {
             .await
     }
 
+    // legacy code
+    #[allow(clippy::panic)]
     pub async fn recv_timeout(&mut self) {
         if self.mode.is_dummy() {
             return pending().await;
@@ -505,6 +516,7 @@ impl TaskClient {
     }
 }
 
+#[allow(deprecated)]
 impl Drop for TaskClient {
     fn drop(&mut self) {
         if !self.mode.should_signal_on_drop() {
@@ -572,6 +584,8 @@ impl ClientOperatingMode {
     }
 }
 
+#[deprecated]
+#[allow(deprecated)]
 #[derive(Debug)]
 pub enum TaskHandle {
     /// Full [`TaskManager`] that was created by the underlying task.
@@ -581,24 +595,28 @@ pub enum TaskHandle {
     External(TaskClient),
 }
 
+#[allow(deprecated)]
 impl From<TaskManager> for TaskHandle {
     fn from(value: TaskManager) -> Self {
         TaskHandle::Internal(value)
     }
 }
 
+#[allow(deprecated)]
 impl From<TaskClient> for TaskHandle {
     fn from(value: TaskClient) -> Self {
         TaskHandle::External(value)
     }
 }
 
+#[allow(deprecated)]
 impl Default for TaskHandle {
     fn default() -> Self {
         TaskHandle::Internal(TaskManager::default())
     }
 }
 
+#[allow(deprecated)]
 impl TaskHandle {
     #[must_use]
     pub fn name_if_unnamed<S: Into<String>>(self, name: S) -> Self {
@@ -666,6 +684,7 @@ mod tests {
     use super::*;
 
     #[tokio::test]
+    #[allow(deprecated)]
     async fn signal_shutdown() {
         let shutdown = TaskManager::default();
         let mut listener = shutdown.subscribe();

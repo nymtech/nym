@@ -6,12 +6,15 @@ use log::{info, warn};
 use nym_bin_common::bin_info;
 use nym_client_core::config::ForgetMe;
 use nym_crypto::asymmetric::ed25519::PrivateKey;
+use nym_mixnet_contract_common::EpochRewardedSet;
 use nym_network_defaults::setup_env;
 use nym_network_defaults::var_names::NYM_API;
 use nym_sdk::mixnet::{self, MixnetClient};
 use nym_sphinx::chunking::monitoring;
 use nym_topology::provider_trait::ToTopologyMetadata;
 use nym_topology::{HardcodedTopologyProvider, NymTopology};
+use nym_validator_client::nym_api::NymApiClientExt;
+use nym_validator_client::UserAgent;
 use std::fs::File;
 use std::io::Write;
 use std::sync::LazyLock;
@@ -160,10 +163,9 @@ async fn nym_topology_from_env() -> anyhow::Result<NymTopology> {
     let api_url = std::env::var(NYM_API)?;
 
     info!("Generating topology from {api_url}");
-    let client = nym_validator_client::client::NymApiClient::new_with_user_agent(
-        api_url.parse()?,
-        bin_info!(),
-    );
+    let client = nym_http_api_client::Client::builder(api_url)?
+        .with_user_agent(UserAgent::from(bin_info!()))
+        .build()?;
 
     let rewarded_set = client.get_current_rewarded_set().await?;
 
@@ -172,10 +174,15 @@ async fn nym_topology_from_env() -> anyhow::Result<NymTopology> {
     let nodes = nodes_response.nodes;
     let metadata = nodes_response.metadata;
 
-    Ok(
-        NymTopology::new(metadata.to_topology_metadata(), rewarded_set, Vec::new())
-            .with_skimmed_nodes(&nodes),
+    // Convert RewardedSetResponse to EpochRewardedSet which can then be converted to CachedEpochRewardedSet
+    let epoch_rewarded_set: EpochRewardedSet = rewarded_set.into();
+
+    Ok(NymTopology::new(
+        metadata.to_topology_metadata(),
+        epoch_rewarded_set,
+        Vec::new(),
     )
+    .with_skimmed_nodes(&nodes))
 }
 
 #[tokio::main]

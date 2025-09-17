@@ -16,7 +16,8 @@ async fn try_upgrade_config(path: &Path) -> Result<(), NymNodeError> {
     let cfg = try_upgrade_config_v6(path, cfg).await.ok();
     let cfg = try_upgrade_config_v7(path, cfg).await.ok();
     let cfg = try_upgrade_config_v8(path, cfg).await.ok();
-    match try_upgrade_config_v9(path, cfg).await {
+    let cfg = try_upgrade_config_v9(path, cfg).await.ok();
+    match try_upgrade_config_v10(path, cfg).await {
         Ok(cfg) => cfg.save(),
         Err(e) => {
             tracing::error!("Failed to finish upgrade: {e}");

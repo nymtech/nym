@@ -10,15 +10,18 @@ use futures::channel::oneshot;
 use log::info;
 use nym_credential_verification::{
     bandwidth_storage_manager::BandwidthStorageManager, ecash::traits::EcashManager,
-    BandwidthFlushingBehaviourConfig, ClientBandwidth, CredentialVerifier,
+    BandwidthFlushingBehaviourConfig, ClientBandwidth, CredentialVerifier, TicketVerifier,
 };
 use nym_credentials_interface::CredentialSpendingData;
 use nym_gateway_requests::models::CredentialSpendingRequest;
 use nym_gateway_storage::traits::BandwidthGatewayStorage;
 use nym_node_metrics::NymNodeMetrics;
 use nym_wireguard_types::DEFAULT_PEER_TIMEOUT_CHECK;
-use std::time::{Duration, SystemTime};
 use std::{collections::HashMap, sync::Arc};
+use std::{
+    net::IpAddr,
+    time::{Duration, SystemTime},
+};
 use tokio::sync::{mpsc, RwLock};
 use tokio_stream::{wrappers::IntervalStream, StreamExt};
 
@@ -41,12 +44,21 @@ pub enum PeerControlRequest {
         key: Key,
         response_tx: oneshot::Sender<QueryPeerControlResponse>,
     },
-    GetClientBandwidth {
+    GetClientBandwidthByKey {
         key: Key,
         response_tx: oneshot::Sender<GetClientBandwidthControlResponse>,
     },
-    GetVerifier {
+    GetClientBandwidthByIp {
+        ip: IpAddr,
+        response_tx: oneshot::Sender<GetClientBandwidthControlResponse>,
+    },
+    GetVerifierByKey {
         key: Key,
+        credential: Box<CredentialSpendingData>,
+        response_tx: oneshot::Sender<QueryVerifierControlResponse>,
+    },
+    GetVerifierByIp {
+        ip: IpAddr,
         credential: Box<CredentialSpendingData>,
         response_tx: oneshot::Sender<QueryVerifierControlResponse>,
     },
@@ -56,7 +68,7 @@ pub type AddPeerControlResponse = Result<()>;
 pub type RemovePeerControlResponse = Result<()>;
 pub type QueryPeerControlResponse = Result<Option<Peer>>;
 pub type GetClientBandwidthControlResponse = Result<ClientBandwidth>;
-pub type QueryVerifierControlResponse = Result<CredentialVerifier>;
+pub type QueryVerifierControlResponse = Result<Box<dyn TicketVerifier + Send + Sync>>;
 
 pub struct PeerController {
     ecash_verifier: Arc<dyn EcashManager + Send + Sync>,
@@ -72,12 +84,12 @@ pub struct PeerController {
     host_information: Arc<RwLock<Host>>,
     bw_storage_managers: HashMap<Key, SharedBandwidthStorageManager>,
     timeout_check_interval: IntervalStream,
-    task_client: nym_task::TaskClient,
+    shutdown_token: nym_task::ShutdownToken,
 }
 
 impl PeerController {
     #[allow(clippy::too_many_arguments)]
-    pub fn new(
+    pub(crate) fn new(
         ecash_verifier: Arc<dyn EcashManager + Send + Sync>,
         metrics: NymNodeMetrics,
         wg_api: Arc<dyn WireguardInterfaceApi + Send + Sync>,
@@ -85,11 +97,10 @@ impl PeerController {
         bw_storage_managers: HashMap<Key, (SharedBandwidthStorageManager, Peer)>,
         request_tx: mpsc::Sender<PeerControlRequest>,
         request_rx: mpsc::Receiver<PeerControlRequest>,
-        task_client: nym_task::TaskClient,
+        shutdown_token: nym_task::ShutdownToken,
     ) -> Self {
-        let timeout_check_interval = tokio_stream::wrappers::IntervalStream::new(
-            tokio::time::interval(DEFAULT_PEER_TIMEOUT_CHECK),
-        );
+        let timeout_check_interval =
+            IntervalStream::new(tokio::time::interval(DEFAULT_PEER_TIMEOUT_CHECK));
         let host_information = Arc::new(RwLock::new(initial_host_information));
         for (public_key, (bandwidth_storage_manager, peer)) in bw_storage_managers.iter() {
             let cached_peer_manager = CachedPeerManager::new(peer);
@@ -99,7 +110,7 @@ impl PeerController {
                 cached_peer_manager,
                 bandwidth_storage_manager.clone(),
                 request_tx.clone(),
-                &task_client,
+                &shutdown_token,
             );
             let public_key = public_key.clone();
             tokio::spawn(async move {
@@ -120,7 +131,7 @@ impl PeerController {
             request_tx,
             request_rx,
             timeout_check_interval,
-            task_client,
+            shutdown_token,
             metrics,
         }
     }
@@ -165,10 +176,13 @@ impl PeerController {
 
     async fn handle_add_request(&mut self, peer: &Peer) -> Result<()> {
         self.wg_api.configure_peer(peer)?;
-        let bandwidth_storage_manager = Arc::new(RwLock::new(
-            Self::generate_bandwidth_manager(self.ecash_verifier.storage(), &peer.public_key)
-                .await?,
-        ));
+        let bandwidth_storage_manager = SharedBandwidthStorageManager::new(
+            Arc::new(RwLock::new(
+                Self::generate_bandwidth_manager(self.ecash_verifier.storage(), &peer.public_key)
+                    .await?,
+            )),
+            peer.allowed_ips.clone(),
+        );
         let cached_peer_manager = CachedPeerManager::new(peer);
         let mut handle = PeerHandle::new(
             peer.public_key.clone(),
@@ -176,7 +190,7 @@ impl PeerController {
             cached_peer_manager,
             bandwidth_storage_manager.clone(),
             self.request_tx.clone(),
-            &self.task_client,
+            &self.shutdown_token,
         );
         self.bw_storage_managers
             .insert(peer.public_key.clone(), bandwidth_storage_manager);
@@ -192,7 +206,20 @@ impl PeerController {
         Ok(())
     }
 
-    async fn handle_query_peer(&self, key: &Key) -> Result<Option<Peer>> {
+    async fn ip_to_key(&self, ip: IpAddr) -> Result<Option<Key>> {
+        Ok(self
+            .bw_storage_managers
+            .iter()
+            .find_map(|(key, bw_manager)| {
+                bw_manager
+                    .allowed_ips()
+                    .iter()
+                    .find(|ip_mask| ip_mask.ip == ip)
+                    .and(Some(key.clone()))
+            }))
+    }
+
+    async fn handle_query_peer_by_key(&self, key: &Key) -> Result<Option<Peer>> {
         Ok(self
             .ecash_verifier
             .storage()
@@ -202,20 +229,32 @@ impl PeerController {
             .transpose()?)
     }
 
-    async fn handle_get_client_bandwidth(&self, key: &Key) -> Result<ClientBandwidth> {
+    async fn handle_get_client_bandwidth_by_key(&self, key: &Key) -> Result<ClientBandwidth> {
         let bandwidth_storage_manager = self
             .bw_storage_managers
             .get(key)
             .ok_or(Error::MissingClientBandwidthEntry)?;
 
-        Ok(bandwidth_storage_manager.read().await.client_bandwidth())
+        Ok(bandwidth_storage_manager
+            .inner()
+            .read()
+            .await
+            .client_bandwidth())
     }
 
-    async fn handle_query_verifier(
+    async fn handle_get_client_bandwidth_by_ip(&self, ip: IpAddr) -> Result<ClientBandwidth> {
+        let Some(key) = self.ip_to_key(ip).await? else {
+            return Err(Error::MissingClientKernelEntry(ip.to_string()));
+        };
+
+        self.handle_get_client_bandwidth_by_key(&key).await
+    }
+
+    async fn handle_query_verifier_by_key(
         &self,
         key: &Key,
         credential: CredentialSpendingData,
-    ) -> Result<CredentialVerifier> {
+    ) -> Result<Box<dyn TicketVerifier + Send + Sync>> {
         let storage = self.ecash_verifier.storage();
         let client_id = storage
             .get_wireguard_peer(&key.to_string())
@@ -225,7 +264,11 @@ impl PeerController {
         let Some(bandwidth_storage_manager) = self.bw_storage_managers.get(key) else {
             return Err(Error::MissingClientBandwidthEntry);
         };
-        let client_bandwidth = bandwidth_storage_manager.read().await.client_bandwidth();
+        let client_bandwidth = bandwidth_storage_manager
+            .inner()
+            .read()
+            .await
+            .client_bandwidth();
         let verifier = CredentialVerifier::new(
             CredentialSpendingRequest::new(credential),
             self.ecash_verifier.clone(),
@@ -237,7 +280,19 @@ impl PeerController {
                 true,
             ),
         );
-        Ok(verifier)
+        Ok(Box::new(verifier))
+    }
+
+    async fn handle_query_verifier_by_ip(
+        &self,
+        ip: IpAddr,
+        credential: CredentialSpendingData,
+    ) -> Result<Box<dyn TicketVerifier + Send + Sync>> {
+        let Some(key) = self.ip_to_key(ip).await? else {
+            return Err(Error::MissingClientKernelEntry(ip.to_string()));
+        };
+
+        self.handle_query_verifier_by_key(&key, credential).await
     }
 
     async fn update_metrics(&self, new_host: &Host) {
@@ -327,7 +382,7 @@ impl PeerController {
 
                     *self.host_information.write().await = host;
                 }
-                _ = self.task_client.recv() => {
+                _ = self.shutdown_token.cancelled() => {
                     log::trace!("PeerController handler: Received shutdown");
                     break;
                 }
@@ -340,18 +395,23 @@ impl PeerController {
                             response_tx.send(self.remove_peer(&key).await).ok();
                         }
                         Some(PeerControlRequest::QueryPeer { key, response_tx }) => {
-                            response_tx.send(self.handle_query_peer(&key).await).ok();
+                            response_tx.send(self.handle_query_peer_by_key(&key).await).ok();
                         }
-                        Some(PeerControlRequest::GetClientBandwidth { key, response_tx }) => {
-                            response_tx.send(self.handle_get_client_bandwidth(&key).await).ok();
+                        Some(PeerControlRequest::GetClientBandwidthByKey { key, response_tx }) => {
+                            response_tx.send(self.handle_get_client_bandwidth_by_key(&key).await).ok();
                         }
-                        Some(PeerControlRequest::GetVerifier { key, credential, response_tx }) => {
-                            response_tx.send(self.handle_query_verifier(&key, *credential).await).ok();
+                        Some(PeerControlRequest::GetClientBandwidthByIp { ip, response_tx }) => {
+                            response_tx.send(self.handle_get_client_bandwidth_by_ip(ip).await).ok();
+                        }
+                        Some(PeerControlRequest::GetVerifierByKey { key, credential, response_tx }) => {
+                            response_tx.send(self.handle_query_verifier_by_key(&key, *credential).await).ok();
+                        }
+                        Some(PeerControlRequest::GetVerifierByIp { ip, credential, response_tx }) => {
+                            response_tx.send(self.handle_query_verifier_by_ip(ip, *credential).await).ok();
                         }
                         None => {
                             log::trace!("PeerController [main loop]: stopping since channel closed");
                             break;
-
                         }
                     }
                 }
@@ -452,7 +512,7 @@ pub fn start_controller(
     request_rx: mpsc::Receiver<PeerControlRequest>,
 ) -> (
     Arc<RwLock<nym_gateway_storage::traits::mock::MockGatewayStorage>>,
-    nym_task::TaskManager,
+    nym_task::ShutdownManager,
 ) {
     use std::sync::Arc;
 
@@ -463,7 +523,7 @@ pub fn start_controller(
         Box::new(storage.clone()),
     ));
     let wg_api = Arc::new(MockWgApi::default());
-    let task_manager = nym_task::TaskManager::default();
+    let shutdown_manager = nym_task::ShutdownManager::empty_mock();
     let mut peer_controller = PeerController::new(
         ecash_manager,
         Default::default(),
@@ -472,17 +532,17 @@ pub fn start_controller(
         Default::default(),
         request_tx,
         request_rx,
-        task_manager.subscribe(),
+        shutdown_manager.child_shutdown_token(),
     );
     tokio::spawn(async move { peer_controller.run().await });
 
-    (storage, task_manager)
+    (storage, shutdown_manager)
 }
 
 #[cfg(feature = "mock")]
-pub async fn stop_controller(mut task_manager: nym_task::TaskManager) {
-    task_manager.signal_shutdown().unwrap();
-    task_manager.wait_for_shutdown().await;
+pub async fn stop_controller(mut shutdown_manager: nym_task::ShutdownManager) {
+    shutdown_manager.send_cancellation();
+    shutdown_manager.run_until_shutdown().await;
 }
 
 #[cfg(test)]
@@ -492,7 +552,7 @@ mod tests {
     #[tokio::test]
     async fn start_and_stop() {
         let (request_tx, request_rx) = mpsc::channel(1);
-        let (_, task_manager) = start_controller(request_tx.clone(), request_rx);
-        stop_controller(task_manager).await;
+        let (_, shutdown_manager) = start_controller(request_tx.clone(), request_rx);
+        stop_controller(shutdown_manager).await;
     }
 }

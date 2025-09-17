@@ -8,6 +8,7 @@ use crate::{
 };
 use clap::Args;
 use nym_client_core::cli_helpers::client_run::CommonClientRunArgs;
+use nym_task::ShutdownManager;
 
 #[allow(clippy::struct_excessive_bools)]
 #[derive(Args, Clone)]
@@ -58,10 +59,17 @@ pub(crate) async fn execute(args: &Run) -> Result<(), NetworkRequesterError> {
     }
 
     log::info!("Starting socks5 service provider");
-    let mut server = crate::core::NRServiceProviderBuilder::new(config);
+    let mut shutdown_manager = ShutdownManager::build_new_default()?;
+    let mut server = crate::core::NRServiceProviderBuilder::new(
+        config,
+        shutdown_manager.shutdown_tracker_owned(),
+    );
     if let Some(custom_mixnet) = &args.common_args.custom_mixnet {
         server = server.with_stored_topology(custom_mixnet)?
     }
 
-    server.run_service_provider().await
+    tokio::spawn(server.run_service_provider());
+
+    shutdown_manager.run_until_shutdown().await;
+    Ok(())
 }

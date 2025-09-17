@@ -16,7 +16,7 @@ use wasm_client_core::config::{new_base_client_config, BaseClientConfig, ConfigD
 pub const DEFAULT_CLIENT_ID: &str = "nym-mixnet-client";
 
 #[wasm_bindgen]
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct ClientConfig {
     pub(crate) base: BaseClientConfig,

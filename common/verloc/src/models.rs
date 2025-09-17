@@ -130,12 +130,7 @@ impl VerlocMeasurement {
         let variance_micros = data
             .iter()
             .map(|&value| {
-                // make sure we don't underflow
-                let diff = if mean > value {
-                    mean - value
-                } else {
-                    value - mean
-                };
+                let diff = mean.abs_diff(value);
                 // we don't need nanos precision
                 let diff_micros = diff.as_micros();
                 diff_micros * diff_micros

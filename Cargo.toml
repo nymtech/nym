@@ -43,6 +43,7 @@ members = [
     "common/cosmwasm-smart-contracts/nym-performance-contract",
     "common/cosmwasm-smart-contracts/nym-pool-contract",
     "common/cosmwasm-smart-contracts/vesting-contract",
+    "common/credential-proxy",
     "common/credential-storage",
     "common/credential-utils",
     "common/credential-verification",
@@ -53,12 +54,11 @@ members = [
     "common/ecash-signer-check",
     "common/ecash-signer-check-types",
     "common/ecash-time",
-    "common/execute",
     "common/exit-policy",
     "common/gateway-requests",
     "common/gateway-stats-storage",
     "common/gateway-storage",
-    "common/http-api-client",
+    "common/http-api-client", "common/http-api-client-macro",
     "common/http-api-common",
     "common/inclusion-probability",
     "common/ip-packet-requests",
@@ -96,22 +96,28 @@ members = [
     "common/ticketbooks-merkle",
     "common/topology",
     "common/tun",
-    "common/types",
+    "common/types", "common/upgrade-mode-check",
     "common/verloc",
     "common/wasm/client-core",
     "common/wasm/storage",
     "common/wasm/utils",
     "common/wireguard",
+    "common/wireguard-private-metadata/client",
+    "common/wireguard-private-metadata/server",
+    "common/wireguard-private-metadata/shared",
+    "common/wireguard-private-metadata/tests",
     "common/wireguard-types",
     "common/zulip-client",
     "documentation/autodoc",
     "gateway",
     "nym-api",
     "nym-api/nym-api-requests",
+    "nym-authenticator-client",
     "nym-browser-extension/storage",
     "nym-credential-proxy/nym-credential-proxy",
     "nym-credential-proxy/nym-credential-proxy-requests",
     "nym-credential-proxy/vpn-api-lib-wasm",
+    "nym-ip-packet-client",
     "nym-network-monitor",
     "nym-node",
     "nym-node-status-api/nym-node-status-agent",
@@ -119,9 +125,10 @@ members = [
     "nym-node-status-api/nym-node-status-client",
     "nym-node/nym-node-metrics",
     "nym-node/nym-node-requests",
-    "nym-outfox",
+    "nym-outfox", "nym-signers-monitor",
     "nym-statistics-api",
     "nym-validator-rewarder",
+    "nym-wg-gateway-client",
     "nyx-chain-watcher",
     "sdk/ffi/cpp",
     "sdk/ffi/go",
@@ -178,7 +185,7 @@ homepage = "https://nymtech.net"
 documentation = "https://nymtech.net"
 edition = "2021"
 license = "Apache-2.0"
-rust-version = "1.80"
+rust-version = "1.81"
 readme = "README.md"
 
 [workspace.dependencies]
@@ -219,7 +226,7 @@ clap_complete = "4.5"
 clap_complete_fig = "4.5"
 colored = "2.2"
 comfy-table = "7.1.4"
-console = "0.15.11"
+console = "0.16.0"
 console-subscriber = "0.4.1"
 console_error_panic_hook = "0.1"
 const-str = "0.5.6"
@@ -266,11 +273,13 @@ humantime = "2.2.0"
 humantime-serde = "1.1.1"
 hyper = "1.6.0"
 hyper-util = "0.1"
-indicatif = "0.17.11"
+indicatif = "0.18.0"
 inquire = "0.6.2"
+inventory = "0.3.21"
 ip_network = "0.4.1"
 ipnetwork = "0.20"
 itertools = "0.14.0"
+jwt-simple = { version = "0.12.12", default-features = false, features = ["pure-rust"] }
 k256 = "0.13"
 lazy_static = "1.5.0"
 ledger-transport = "0.10.0"
@@ -314,6 +323,7 @@ serde_json_path = "0.7.2"
 serde_repr = "0.1"
 serde_with = "3.9.0"
 serde_yaml = "0.9.25"
+serde_plain = "1.0.2"
 sha2 = "0.10.9"
 si-scale = "0.2.3"
 snow = "0.9.6"
@@ -322,14 +332,15 @@ sqlx = "0.8.6"
 strum = "0.27.2"
 strum_macros = "0.27.2"
 subtle-encoding = "0.5"
-syn = "1"
+syn = "2"
 sysinfo = "0.37.0"
 tap = "1.0.1"
 tar = "0.4.44"
+test-with = { version = "0.15.4", default-features = false }
 tempfile = "3.20"
 thiserror = "2.0"
 time = "0.3.41"
-tokio = "1.45"
+tokio = "1.47"
 tokio-postgres = "0.7"
 tokio-stream = "0.1.17"
 tokio-test = "0.4.4"

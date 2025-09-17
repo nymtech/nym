@@ -7,7 +7,7 @@ use log::*;
 use nym_ordered_buffer::{OrderedMessageBuffer, ReadContiguousData};
 use nym_socks5_requests::{ConnectionId, SocketData};
 use nym_task::connections::{ConnectionCommand, ConnectionCommandSender};
-use nym_task::TaskClient;
+use nym_task::ShutdownToken;
 use std::collections::{HashMap, HashSet};
 
 /// A generic message produced after reading from a socket/connection.
@@ -101,13 +101,13 @@ pub struct Controller {
     // un-order messages. Note we don't ever expect to have more than 1-2 messages per connection here
     pending_messages: HashMap<ConnectionId, Vec<SocketData>>,
 
-    shutdown: TaskClient,
+    shutdown: ShutdownToken,
 }
 
 impl Controller {
     pub fn new(
         client_connection_tx: ConnectionCommandSender,
-        shutdown: TaskClient,
+        shutdown: ShutdownToken,
     ) -> (Self, ControllerSender) {
         let (sender, receiver) = mpsc::unbounded();
         (
@@ -155,7 +155,7 @@ impl Controller {
             .client_connection_tx
             .unbounded_send(ConnectionCommand::Close(conn_id))
         {
-            if self.shutdown.is_shutdown_poll() {
+            if self.shutdown.is_cancelled() {
                 log::debug!("Failed to send: {err}");
             } else {
                 log::error!("Failed to send: {err}");
@@ -230,7 +230,6 @@ impl Controller {
                 },
             }
         }
-        self.shutdown.recv_timeout().await;
         log::debug!("SOCKS5 Controller: Exiting");
     }
 }

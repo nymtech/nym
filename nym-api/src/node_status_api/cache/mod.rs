@@ -112,7 +112,7 @@ impl NodeStatusCache {
 
     pub(crate) async fn node_annotations(
         &self,
-    ) -> Option<RwLockReadGuard<Cache<HashMap<NodeId, NodeAnnotation>>>> {
+    ) -> Option<RwLockReadGuard<'_, Cache<HashMap<NodeId, NodeAnnotation>>>> {
         self.get(|c| &c.node_annotations).await
     }
 
@@ -127,7 +127,7 @@ impl NodeStatusCache {
 
     pub(crate) async fn annotated_legacy_mixnodes(
         &self,
-    ) -> Option<RwLockReadGuard<Cache<HashMap<NodeId, MixNodeBondAnnotated>>>> {
+    ) -> Option<RwLockReadGuard<'_, Cache<HashMap<NodeId, MixNodeBondAnnotated>>>> {
         self.get(|c| &c.mixnodes_annotated).await
     }
 
@@ -150,7 +150,7 @@ impl NodeStatusCache {
 
     pub(crate) async fn annotated_legacy_gateways(
         &self,
-    ) -> Option<RwLockReadGuard<Cache<HashMap<NodeId, GatewayBondAnnotated>>>> {
+    ) -> Option<RwLockReadGuard<'_, Cache<HashMap<NodeId, GatewayBondAnnotated>>>> {
         self.get(|c| &c.gateways_annotated).await
     }
 

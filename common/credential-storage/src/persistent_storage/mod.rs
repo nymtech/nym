@@ -325,10 +325,11 @@ impl Storage for PersistentStorage {
     async fn get_expiration_date_signatures(
         &self,
         expiration_date: Date,
+        epoch_id: u64,
     ) -> Result<Option<Vec<AnnotatedExpirationDateSignature>>, Self::StorageError> {
         let Some(raw) = self
             .storage_manager
-            .get_expiration_date_signatures(expiration_date)
+            .get_expiration_date_signatures(expiration_date, epoch_id as i64)
             .await?
         else {
             return Ok(None);

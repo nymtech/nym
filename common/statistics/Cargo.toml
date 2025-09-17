@@ -21,6 +21,7 @@ time = { workspace = true }
 tokio = { workspace = true }
 si-scale = { workspace = true }
 strum = { workspace = true }
+strum_macros = { workspace = true }
 
 nym-crypto = { path = "../crypto" }
 nym-sphinx = { path = "../nymsphinx" }

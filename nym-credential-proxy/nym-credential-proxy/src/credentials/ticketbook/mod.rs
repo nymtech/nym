@@ -83,7 +83,7 @@ pub(crate) async fn try_obtain_wallet_shares(
     let _ = state.master_verification_key(Some(epoch)).await?;
     let _ = state.master_coin_index_signatures(Some(epoch)).await?;
     let _ = state
-        .master_expiration_date_signatures(expiration_date)
+        .master_expiration_date_signatures(epoch, expiration_date)
         .await?;
     let ecash_api_clients = state.ecash_clients(epoch).await?.clone();
 

@@ -16,12 +16,17 @@ set -a
 source "${monorepo_root}/envs/${ENVIRONMENT}.env"
 set +a
 
+if [ -z "$NYM_NODE_MNEMONICS" ]; then
+  echo "NYM_NODE_MNEMONICS is required to run an agent"
+  exit 1
+fi
+
 export RUST_LOG="info"
-export NODE_STATUS_AGENT_SERVER_ADDRESS="http://127.0.0.1"
-export NODE_STATUS_AGENT_SERVER_PORT="8000"
-export NODE_STATUS_AGENT_PROBE_PATH="$crate_root/nym-gateway-probe"
+NODE_STATUS_AGENT_SERVER_ADDRESS="http://127.0.0.1"
+NODE_STATUS_AGENT_SERVER_PORT="8000"
+SERVER="${NODE_STATUS_AGENT_SERVER_ADDRESS}|${NODE_STATUS_AGENT_SERVER_PORT}"
 export NODE_STATUS_AGENT_AUTH_KEY="BjyC9SsHAZUzPRkQR4sPTvVrp4GgaquTh5YfSJksvvWT"
-export NODE_STATUS_AGENT_PROBE_MNEMONIC="$MNEMONIC"
+export NODE_STATUS_AGENT_PROBE_PATH="$crate_root/nym-gateway-probe"
 export NODE_STATUS_AGENT_PROBE_EXTRA_ARGS="netstack-download-timeout-sec=30,netstack-num-ping=2,netstack-send-timeout-sec=1,netstack-recv-timeout-sec=1"
 
 workers=${1:-1}
@@ -48,7 +53,7 @@ function swarm() {
     local workers=$1
 
     for ((i = 1; i <= workers; i++)); do
-        ${monorepo_root}/target/release/nym-node-status-agent run-probe &
+        ${monorepo_root}/target/release/nym-node-status-agent run-probe --server ${SERVER} &
     done
 
     wait

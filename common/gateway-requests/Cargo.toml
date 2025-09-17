@@ -47,4 +47,7 @@ workspace = true
 default-features = false
 
 [dev-dependencies]
+anyhow = { workspace = true }
 nym-compact-ecash = { path = "../nym_offline_compact_ecash" } # we need specific imports in tests
+nym-test-utils = { path = "../test-utils" }
+tokio = { workspace = true, features = ["full"] }

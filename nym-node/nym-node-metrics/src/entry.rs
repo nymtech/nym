@@ -16,7 +16,7 @@ impl EntryStats {
         *self.sessions.write().await = new
     }
 
-    pub async fn client_sessions(&self) -> RwLockReadGuard<ClientSessions> {
+    pub async fn client_sessions(&self) -> RwLockReadGuard<'_, ClientSessions> {
         self.sessions.read().await
     }
 }

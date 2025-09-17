@@ -331,10 +331,11 @@ impl VpnApiStorage {
     pub(crate) async fn get_master_expiration_date_signatures(
         &self,
         expiration_date: Date,
+        epoch_id: EpochId,
     ) -> Result<Option<AggregatedExpirationDateSignatures>, VpnApiError> {
         let Some(raw) = self
             .storage_manager
-            .get_master_expiration_date_signatures(expiration_date)
+            .get_master_expiration_date_signatures(expiration_date, epoch_id as i64)
             .await?
         else {
             return Ok(None);

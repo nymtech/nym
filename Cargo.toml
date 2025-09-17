@@ -92,7 +92,7 @@ members = [
     "common/socks5/requests",
     "common/statistics",
     "common/store-cipher",
-    "common/task",
+    "common/task", "common/test-utils",
     "common/ticketbooks-merkle",
     "common/topology",
     "common/tun",
@@ -102,7 +102,12 @@ members = [
     "common/wasm/storage",
     "common/wasm/utils",
     "common/wireguard",
-    "common/wireguard-types", "common/zulip-client",
+    "common/wireguard-private-metadata/client",
+    "common/wireguard-private-metadata/server",
+    "common/wireguard-private-metadata/shared",
+    "common/wireguard-private-metadata/tests",
+    "common/wireguard-types",
+    "common/zulip-client",
     "documentation/autodoc",
     "gateway",
     "nym-api",
@@ -126,7 +131,6 @@ members = [
     "sdk/ffi/go",
     "sdk/ffi/shared",
     "sdk/rust/nym-sdk",
-    "service-providers/authenticator",
     "service-providers/common",
     "service-providers/ip-packet-router",
     "service-providers/network-requester",
@@ -164,7 +168,6 @@ default-members = [
     "nym-statistics-api",
     "nym-validator-rewarder",
     "nyx-chain-watcher",
-    "service-providers/authenticator",
     "service-providers/ip-packet-router",
     "service-providers/network-requester",
     "tools/nymvisor",
@@ -320,11 +323,11 @@ si-scale = "0.2.3"
 snow = "0.9.6"
 sphinx-packet = "=0.6.0"
 sqlx = "0.8.6"
-strum = "0.26"
-strum_macros = "0.26"
+strum = "0.27.2"
+strum_macros = "0.27.2"
 subtle-encoding = "0.5"
 syn = "1"
-sysinfo = "0.33.0"
+sysinfo = "0.37.0"
 tap = "1.0.1"
 tar = "0.4.44"
 tempfile = "3.20"
@@ -450,4 +453,3 @@ exit = "deny"
 panic = "deny"
 unimplemented = "deny"
 unreachable = "deny"
-

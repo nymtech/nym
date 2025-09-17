@@ -188,7 +188,7 @@ impl<C> ContractTesterBuilder<C> {
         *self.app.api()
     }
 
-    pub fn querier(&self) -> QuerierWrapper {
+    pub fn querier(&self) -> QuerierWrapper<'_> {
         self.app.wrap()
     }
 }

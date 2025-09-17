@@ -120,7 +120,7 @@ async fn issue_to_file(args: Args, client: SigningClient) -> anyhow::Result<()> 
 
     if args.include_expiration_date_signatures {
         let signatures = credentials_store
-            .get_expiration_date_signatures(expiration_date)
+            .get_expiration_date_signatures(expiration_date, epoch_id)
             .await?
             .ok_or(anyhow!("missing expiration date signatures!"))?;
 

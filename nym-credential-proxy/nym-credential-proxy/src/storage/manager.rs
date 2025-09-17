@@ -332,18 +332,20 @@ impl SqliteStorageManager {
     pub(crate) async fn get_master_expiration_date_signatures(
         &self,
         expiration_date: Date,
+        epoch_id: i64,
     ) -> Result<Option<RawExpirationDateSignatures>, sqlx::Error> {
         sqlx::query_as!(
             RawExpirationDateSignatures,
             r#"
-                SELECT epoch_id as "epoch_id: u32", serialised_signatures, serialization_revision as "serialization_revision: u8"
+                SELECT serialised_signatures, serialization_revision as "serialization_revision: u8"
                 FROM global_expiration_date_signatures
-                WHERE expiration_date = ?
+                WHERE expiration_date = ? AND epoch_id = ?
             "#,
-            expiration_date
+            expiration_date,
+            epoch_id
         )
-            .fetch_optional(&self.connection_pool)
-            .await
+        .fetch_optional(&self.connection_pool)
+        .await
     }
 
     pub(crate) async fn insert_master_expiration_date_signatures(

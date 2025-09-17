@@ -86,6 +86,25 @@ impl IntervalRewardParams {
     pub fn to_inline_json(&self) -> String {
         to_json_string(self).unwrap_or_else(|_| "serialisation failure".into())
     }
+
+    pub fn active_node_work(&self, standby_node_work: Decimal) -> WorkFactor {
+        self.active_set_work_factor * standby_node_work
+    }
+
+    pub fn standby_node_work(
+        &self,
+        rewarded_set_size: Decimal,
+        standby_set_size: Decimal,
+    ) -> WorkFactor {
+        let f = self.active_set_work_factor;
+        let k = rewarded_set_size;
+        let one = Decimal::one();
+
+        // nodes in reserve
+        let k_r = standby_set_size;
+
+        one / (f * k - (f - one) * k_r)
+    }
 }
 
 /// Parameters used for reward calculation.
@@ -109,18 +128,15 @@ pub struct RewardingParams {
 
 impl RewardingParams {
     pub fn active_node_work(&self) -> WorkFactor {
-        self.interval.active_set_work_factor * self.standby_node_work()
+        let standby_work = self.standby_node_work();
+        self.interval.active_node_work(standby_work)
     }
 
     pub fn standby_node_work(&self) -> WorkFactor {
-        let f = self.interval.active_set_work_factor;
-        let k = self.dec_rewarded_set_size();
-        let one = Decimal::one();
-
-        // nodes in reserve
-        let k_r = self.dec_standby_set_size();
-
-        one / (f * k - (f - one) * k_r)
+        let rewarded_set_size = self.dec_rewarded_set_size();
+        let standby_set_size = self.dec_standby_set_size();
+        self.interval
+            .standby_node_work(rewarded_set_size, standby_set_size)
     }
 
     pub fn rewarded_set_size(&self) -> u32 {

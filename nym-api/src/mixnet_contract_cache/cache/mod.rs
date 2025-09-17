@@ -66,7 +66,7 @@ impl MixnetContractCache {
 
     pub async fn all_cached_legacy_mixnodes(
         &self,
-    ) -> Option<RwLockReadGuard<Vec<LegacyMixNodeDetailsWithLayer>>> {
+    ) -> Option<RwLockReadGuard<'_, Vec<LegacyMixNodeDetailsWithLayer>>> {
         self.get(|c| &c.legacy_mixnodes).await.ok()
     }
 
@@ -84,11 +84,11 @@ impl MixnetContractCache {
 
     pub async fn all_cached_legacy_gateways(
         &self,
-    ) -> Option<RwLockReadGuard<Vec<LegacyGatewayBondWithId>>> {
+    ) -> Option<RwLockReadGuard<'_, Vec<LegacyGatewayBondWithId>>> {
         self.get(|c| &c.legacy_gateways).await.ok()
     }
 
-    pub async fn all_cached_nym_nodes(&self) -> Option<RwLockReadGuard<Vec<NymNodeDetails>>> {
+    pub async fn all_cached_nym_nodes(&self) -> Option<RwLockReadGuard<'_, Vec<NymNodeDetails>>> {
         self.get(|c| &c.nym_nodes).await.ok()
     }
 
@@ -125,7 +125,7 @@ impl MixnetContractCache {
         Ok(Cache::as_mapped(&cache, |c| c.rewarded_set.clone()))
     }
 
-    pub async fn rewarded_set(&self) -> Option<RwLockReadGuard<CachedEpochRewardedSet>> {
+    pub async fn rewarded_set(&self) -> Option<RwLockReadGuard<'_, CachedEpochRewardedSet>> {
         self.get(|c| &c.rewarded_set).await.ok()
     }
 

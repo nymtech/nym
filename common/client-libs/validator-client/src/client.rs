@@ -719,10 +719,11 @@ impl NymApiClient {
     pub async fn partial_expiration_date_signatures(
         &self,
         expiration_date: Option<Date>,
+        epoch_id: Option<EpochId>,
     ) -> Result<PartialExpirationDateSignatureResponse, ValidatorClientError> {
         Ok(self
             .nym_api
-            .partial_expiration_date_signatures(expiration_date)
+            .partial_expiration_date_signatures(expiration_date, epoch_id)
             .await?)
     }
 
@@ -739,10 +740,11 @@ impl NymApiClient {
     pub async fn global_expiration_date_signatures(
         &self,
         expiration_date: Option<Date>,
+        epoch_id: Option<EpochId>,
     ) -> Result<AggregatedExpirationDateSignatureResponse, ValidatorClientError> {
         Ok(self
             .nym_api
-            .global_expiration_date_signatures(expiration_date)
+            .global_expiration_date_signatures(expiration_date, epoch_id)
             .await?)
     }
 

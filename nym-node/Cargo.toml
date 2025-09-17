@@ -3,7 +3,7 @@
 
 [package]
 name = "nym-node"
-version = "1.17.0"
+version = "1.18.0"
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
@@ -102,7 +102,6 @@ nym-node-metrics = { path = "nym-node-metrics" }
 
 # nodes:
 nym-gateway = { path = "../gateway" }
-nym-authenticator = { path = "../service-providers/authenticator" }
 nym-network-requester = { path = "../service-providers/network-requester" }
 nym-ip-packet-router = { path = "../service-providers/ip-packet-router" }
 

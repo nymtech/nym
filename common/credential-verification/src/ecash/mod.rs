@@ -39,7 +39,7 @@ impl traits::EcashManager for EcashManager {
     async fn verification_key(
         &self,
         epoch_id: EpochId,
-    ) -> Result<RwLockReadGuard<VerificationKeyAuth>, EcashTicketError> {
+    ) -> Result<RwLockReadGuard<'_, VerificationKeyAuth>, EcashTicketError> {
         self.shared_state.verification_key(epoch_id).await
     }
 
@@ -231,7 +231,7 @@ impl traits::EcashManager for MockEcashManager {
     async fn verification_key(
         &self,
         _epoch_id: EpochId,
-    ) -> Result<RwLockReadGuard<VerificationKeyAuth>, EcashTicketError> {
+    ) -> Result<RwLockReadGuard<'_, VerificationKeyAuth>, EcashTicketError> {
         Ok(self.verfication_key.read().await)
     }
 

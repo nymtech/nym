@@ -241,7 +241,7 @@ pub async fn delegate_to_multiple_mixnodes(args: Args, client: SigningClient) {
                 let node_id = row.node_id.clone().parse::<u32>().unwrap();
                 let coins: Vec<Coin> = vec![];
                 undelegation_msgs.push((ExecuteMsg::Undelegate { node_id }, coins));
-                undelegation_table.add_row(&[row.node_id.clone()]);
+                undelegation_table.add_row(std::slice::from_ref(&row.node_id));
 
                 if row.amount.amount > 0 {
                     delegation_msgs

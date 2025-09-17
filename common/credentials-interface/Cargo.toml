@@ -15,6 +15,7 @@ bls12_381 = { workspace = true, default-features = false }
 serde = { workspace = true, features = ["derive"] }
 thiserror = { workspace = true }
 strum = { workspace = true, features = ["derive"] }
+strum_macros = { workspace = true }
 time = { workspace = true, features = ["serde"] }
 utoipa = { workspace = true }
 rand = { workspace = true }

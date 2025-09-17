@@ -58,8 +58,8 @@ Options:
           Specifies whether the wireguard service is enabled on this node [env: NYMNODE_WG_ENABLED=] [possible values: true, false]
       --wireguard-bind-address <WIREGUARD_BIND_ADDRESS>
           Socket address this node will use for binding its wireguard interface. default: `[::]:51822` [env: NYMNODE_WG_BIND_ADDRESS=]
-      --wireguard-announced-port <WIREGUARD_ANNOUNCED_PORT>
-          Port announced to external clients wishing to connect to the wireguard interface. Useful in the instances where the node is behind a proxy [env: NYMNODE_WG_ANNOUNCED_PORT=]
+      --wireguard-tunnel-announced-port <WIREGUARD_TUNNEL_ANNOUNCED_PORT>
+          Tunnel port announced to external clients wishing to connect to the wireguard interface. Useful in the instances where the node is behind a proxy [env: NYMNODE_WG_ANNOUNCED_PORT=]
       --wireguard-private-network-prefix <WIREGUARD_PRIVATE_NETWORK_PREFIX>
           The prefix denoting the maximum number of the clients that can be connected via Wireguard. The maximum value for IPv4 is 32 and for IPv6 is 128 [env: NYMNODE_WG_PRIVATE_NETWORK_PREFIX=]
       --verloc-bind-address <VERLOC_BIND_ADDRESS>

@@ -17,15 +17,10 @@ readme.workspace = true
 anyhow = { workspace = true }
 clap = { workspace = true, features = ["derive", "env"] }
 futures = { workspace = true }
-# nym-bin-common = { path = "../../common/bin-common", features = ["models"] }
-nym-bin-common = { git = "https://github.com/nymtech/nym.git", branch = "release/2025.11-cheddar", features = [
-    "models",
-] }
+nym-bin-common = { path = "../../common/bin-common", features = ["models"] }
+nym-crypto = { path = "../../common/crypto", features = ["asymmetric", "rand"] }
+
 nym-node-status-client = { path = "../nym-node-status-client" }
-nym-crypto = { git = "https://github.com/nymtech/nym.git", branch = "release/2025.11-cheddar", features = [
-    "asymmetric",
-    "rand",
-] }
 rand = { workspace = true }
 tokio = { workspace = true, features = [
     "macros",

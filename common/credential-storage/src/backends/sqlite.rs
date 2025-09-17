@@ -39,7 +39,7 @@ impl SqliteEcashTicketbookManager {
         Ok(())
     }
 
-    pub(crate) async fn begin_storage_tx(&self) -> Result<Transaction<Sqlite>, sqlx::Error> {
+    pub(crate) async fn begin_storage_tx(&self) -> Result<Transaction<'_, Sqlite>, sqlx::Error> {
         self.connection_pool.begin().await
     }
 
@@ -260,15 +260,17 @@ impl SqliteEcashTicketbookManager {
     pub(crate) async fn get_expiration_date_signatures(
         &self,
         expiration_date: Date,
+        epoch_id: i64,
     ) -> Result<Option<RawExpirationDateSignatures>, sqlx::Error> {
         sqlx::query_as!(
             RawExpirationDateSignatures,
             r#"
-                SELECT epoch_id as "epoch_id: u32", serialised_signatures, serialization_revision as "serialization_revision: u8"
+                SELECT serialised_signatures, serialization_revision as "serialization_revision: u8"
                 FROM expiration_date_signatures
-                WHERE expiration_date = ?
+                WHERE expiration_date = ? AND epoch_id = ?
             "#,
-            expiration_date
+            expiration_date,
+            epoch_id
         )
         .fetch_optional(&*self.connection_pool)
         .await

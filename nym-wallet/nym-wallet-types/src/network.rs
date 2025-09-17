@@ -5,7 +5,7 @@ use nym_config::defaults::{mainnet, DenomDetails, NymNetworkDetails};
 use nym_types::{currency::DecCoin, error::TypesError};
 use serde::{Deserialize, Serialize};
 use std::{fmt, ops::Not, str::FromStr};
-use strum::EnumIter;
+use strum_macros::EnumIter;
 
 mod sandbox;
 

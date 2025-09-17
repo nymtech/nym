@@ -97,7 +97,9 @@ impl ApiState {
         let _ = self.ecash_threshold(epoch_id).await?;
         let _ = self.ecash_clients(epoch_id).await?;
         let _ = self.master_coin_index_signatures(Some(epoch_id)).await?;
-        let _ = self.master_expiration_date_signatures(today).await?;
+        let _ = self
+            .master_expiration_date_signatures(epoch_id, today)
+            .await?;
 
         Ok(())
     }
@@ -143,7 +145,7 @@ impl ApiState {
                 availability: finish_dt,
             })
         } else if epoch.state.is_waiting_initialisation() {
-            return Err(VpnApiError::UninitialisedDkg);
+            Err(VpnApiError::UninitialisedDkg)
         } else {
             Err(VpnApiError::UnknownEcashFailure)
         }
@@ -203,7 +205,7 @@ impl ApiState {
         Ok(epoch.epoch_id)
     }
 
-    pub(crate) async fn query_chain(&self) -> RwLockReadGuard<DirectSigningHttpRpcNyxdClient> {
+    pub(crate) async fn query_chain(&self) -> RwLockReadGuard<'_, DirectSigningHttpRpcNyxdClient> {
         self.inner.client.query_chain().await
     }
 
@@ -253,7 +255,7 @@ impl ApiState {
         let aggregated_expiration_date_signatures = if include_expiration_date_signatures {
             debug!("including expiration date signatures in the response");
             Some(
-                self.master_expiration_date_signatures(expiration_date)
+                self.master_expiration_date_signatures(epoch_id, expiration_date)
                     .await
                     .map(|signatures| AggregatedExpirationDateSignaturesResponse {
                         signatures: signatures.clone(),
@@ -336,7 +338,7 @@ impl ApiState {
     pub(crate) async fn ecash_clients(
         &self,
         epoch_id: EpochId,
-    ) -> Result<RwLockReadGuard<Vec<EcashApiClient>>, VpnApiError> {
+    ) -> Result<RwLockReadGuard<'_, Vec<EcashApiClient>>, VpnApiError> {
         self.inner
             .ecash_state
             .epoch_clients
@@ -386,7 +388,7 @@ impl ApiState {
     pub(crate) async fn master_verification_key(
         &self,
         epoch_id: Option<EpochId>,
-    ) -> Result<RwLockReadGuard<VerificationKeyAuth>, VpnApiError> {
+    ) -> Result<RwLockReadGuard<'_, VerificationKeyAuth>, VpnApiError> {
         let epoch_id = match epoch_id {
             Some(id) => id,
             None => self.current_epoch_id().await?,
@@ -440,7 +442,7 @@ impl ApiState {
     pub(crate) async fn master_coin_index_signatures(
         &self,
         epoch_id: Option<EpochId>,
-    ) -> Result<RwLockReadGuard<AggregatedCoinIndicesSignatures>, VpnApiError> {
+    ) -> Result<RwLockReadGuard<'_, AggregatedCoinIndicesSignatures>, VpnApiError> {
         let epoch_id = match epoch_id {
             Some(id) => id,
             None => self.current_epoch_id().await?,
@@ -515,12 +517,13 @@ impl ApiState {
 
     pub(crate) async fn master_expiration_date_signatures(
         &self,
+        epoch_id: EpochId,
         expiration_date: Date,
-    ) -> Result<RwLockReadGuard<AggregatedExpirationDateSignatures>, VpnApiError> {
+    ) -> Result<RwLockReadGuard<'_, AggregatedExpirationDateSignatures>, VpnApiError> {
         self.inner
             .ecash_state
             .expiration_date_signatures
-            .get_or_init(expiration_date, || async {
+            .get_or_init((epoch_id, expiration_date), || async {
                 // 1. sanity check to see if the expiration_date is not nonsense
                 ensure_sane_expiration_date(expiration_date)?;
 
@@ -528,7 +531,7 @@ impl ApiState {
                 if let Some(master_sigs) = self
                     .inner
                     .storage
-                    .get_master_expiration_date_signatures(expiration_date)
+                    .get_master_expiration_date_signatures(expiration_date, epoch_id)
                     .await?
                 {
                     return Ok(master_sigs);
@@ -536,7 +539,7 @@ impl ApiState {
 
 
                 info!(
-                    "attempting to establish master expiration date signatures for {expiration_date}..."
+                    "attempting to establish master expiration date signatures for {expiration_date} and epoch {epoch_id}..."
                 );
 
                 // 3. go around APIs and attempt to aggregate the data
@@ -553,7 +556,7 @@ impl ApiState {
 
                     let partial = api
                         .api_client
-                        .partial_expiration_date_signatures(Some(expiration_date))
+                        .partial_expiration_date_signatures(Some(expiration_date), Some(epoch_id))
                         .await?
                         .signatures;
                     Ok(ExpirationDateSignatureShare {
@@ -619,12 +622,12 @@ impl ChainClient {
         Ok(ChainClient(Arc::new(RwLock::new(client))))
     }
 
-    pub(crate) async fn query_chain(&self) -> ChainReadPermit {
+    pub(crate) async fn query_chain(&self) -> ChainReadPermit<'_> {
         let _acquire_timer = LockTimer::new("acquire chain query permit");
         self.0.read().await
     }
 
-    pub(crate) async fn start_chain_tx(&self) -> ChainWritePermit {
+    pub(crate) async fn start_chain_tx(&self) -> ChainWritePermit<'_> {
         let _acquire_timer = LockTimer::new("acquire exclusive chain write permit");
 
         ChainWritePermit {
@@ -697,7 +700,7 @@ pub(crate) struct EcashState {
     pub(crate) coin_index_signatures: CachedImmutableEpochItem<AggregatedCoinIndicesSignatures>,
 
     pub(crate) expiration_date_signatures:
-        CachedImmutableItems<Date, AggregatedExpirationDateSignatures>,
+        CachedImmutableItems<(EpochId, Date), AggregatedExpirationDateSignatures>,
 }
 
 pub(crate) type ChainReadPermit<'a> = RwLockReadGuard<'a, DirectSigningHttpRpcNyxdClient>;

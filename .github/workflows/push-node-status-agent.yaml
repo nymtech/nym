@@ -40,7 +40,8 @@ jobs:
       - name: Get version from cargo.toml
         id: get_version
         run: |
-          yq -oy '.package.version' ${{ env.WORKING_DIRECTORY }}/Cargo.toml
+          VERSION=$(yq -oy '.package.version' ${{ env.WORKING_DIRECTORY }}/Cargo.toml)
+          echo "result=$VERSION" >> $GITHUB_OUTPUT
 
       - name: cleanup-gateway-probe-ref
         id: cleanup_gateway_probe_ref
@@ -52,13 +53,16 @@ jobs:
       - name: Set GIT_TAG variable
         run: echo "GIT_TAG=${{ env.WORKING_DIRECTORY }}-${{ steps.get_version.outputs.result }}-${{ steps.cleanup_gateway_probe_ref.outputs.git_ref }}" >> $GITHUB_ENV
 
-      - name: Set RELEASE_TAG variable
+      - name: Initialize RELEASE_TAG
+        run: echo "RELEASE_TAG=" >> $GITHUB_ENV
+      
+      - name: Set RELEASE_TAG for release
         if: github.event.inputs.release_image == 'true'
         run: echo "RELEASE_TAG=golden-" >> $GITHUB_ENV
-
+      
       - name: Set IMAGE_NAME_AND_TAGS variable
         run: echo "IMAGE_NAME_AND_TAGS=${{ env.CONTAINER_NAME }}:${{ env.RELEASE_TAG }}${{ steps.get_version.outputs.result }}-${{ steps.cleanup_gateway_probe_ref.outputs.git_ref }}" >> $GITHUB_ENV
-
+        
       - name: New env vars
         run: echo "RELEASE_TAG='$RELEASE_TAG' GIT_TAG='$GIT_TAG' IMAGE_NAME_AND_TAGS='$IMAGE_NAME_AND_TAGS'"        
 

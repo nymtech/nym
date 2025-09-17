@@ -136,6 +136,7 @@
 //! ```
 #![warn(missing_docs)]
 
+pub use reqwest::ClientBuilder as ReqwestClientBuilder;
 pub use reqwest::StatusCode;
 
 use crate::path::RequestPath;
@@ -172,6 +173,10 @@ mod path;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub use dns::{HickoryDnsError, HickoryDnsResolver};
+
+// helper for generating user agent based on binary information
+#[doc(hidden)]
+pub use nym_bin_common::bin_info;
 
 /// Default HTTP request connection timeout.
 ///
@@ -608,6 +613,7 @@ impl Client {
             current_idx: Arc::new(Default::default()),
             reqwest_client: self.reqwest_client.clone(),
 
+            #[cfg(feature = "tunneling")]
             front: self.front.clone(),
             retry_limit: self.retry_limit,
 

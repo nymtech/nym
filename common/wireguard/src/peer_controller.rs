@@ -9,18 +9,26 @@ use defguard_wireguard_rs::{
 use futures::channel::oneshot;
 use log::info;
 use nym_credential_verification::{
-    bandwidth_storage_manager::BandwidthStorageManager, BandwidthFlushingBehaviourConfig,
-    ClientBandwidth,
+    bandwidth_storage_manager::BandwidthStorageManager, ecash::traits::EcashManager,
+    BandwidthFlushingBehaviourConfig, ClientBandwidth, CredentialVerifier, TicketVerifier,
 };
+use nym_credentials_interface::CredentialSpendingData;
+use nym_gateway_requests::models::CredentialSpendingRequest;
 use nym_gateway_storage::traits::BandwidthGatewayStorage;
 use nym_node_metrics::NymNodeMetrics;
 use nym_wireguard_types::DEFAULT_PEER_TIMEOUT_CHECK;
-use std::time::{Duration, SystemTime};
 use std::{collections::HashMap, sync::Arc};
+use std::{
+    net::IpAddr,
+    time::{Duration, SystemTime},
+};
 use tokio::sync::{mpsc, RwLock};
 use tokio_stream::{wrappers::IntervalStream, StreamExt};
 
-use crate::{error::Error, peer_handle::SharedBandwidthStorageManager};
+use crate::{
+    error::{Error, Result},
+    peer_handle::SharedBandwidthStorageManager,
+};
 use crate::{peer_handle::PeerHandle, peer_storage_manager::CachedPeerManager};
 
 pub enum PeerControlRequest {
@@ -36,31 +44,34 @@ pub enum PeerControlRequest {
         key: Key,
         response_tx: oneshot::Sender<QueryPeerControlResponse>,
     },
-    GetClientBandwidth {
+    GetClientBandwidthByKey {
         key: Key,
         response_tx: oneshot::Sender<GetClientBandwidthControlResponse>,
     },
+    GetClientBandwidthByIp {
+        ip: IpAddr,
+        response_tx: oneshot::Sender<GetClientBandwidthControlResponse>,
+    },
+    GetVerifierByKey {
+        key: Key,
+        credential: Box<CredentialSpendingData>,
+        response_tx: oneshot::Sender<QueryVerifierControlResponse>,
+    },
+    GetVerifierByIp {
+        ip: IpAddr,
+        credential: Box<CredentialSpendingData>,
+        response_tx: oneshot::Sender<QueryVerifierControlResponse>,
+    },
 }
 
-pub struct AddPeerControlResponse {
-    pub success: bool,
-}
-
-pub struct RemovePeerControlResponse {
-    pub success: bool,
-}
-
-pub struct QueryPeerControlResponse {
-    pub success: bool,
-    pub peer: Option<Peer>,
-}
-
-pub struct GetClientBandwidthControlResponse {
-    pub client_bandwidth: Option<ClientBandwidth>,
-}
+pub type AddPeerControlResponse = Result<()>;
+pub type RemovePeerControlResponse = Result<()>;
+pub type QueryPeerControlResponse = Result<Option<Peer>>;
+pub type GetClientBandwidthControlResponse = Result<ClientBandwidth>;
+pub type QueryVerifierControlResponse = Result<Box<dyn TicketVerifier + Send + Sync>>;
 
 pub struct PeerController {
-    storage: Box<dyn BandwidthGatewayStorage + Send + Sync>,
+    ecash_verifier: Arc<dyn EcashManager + Send + Sync>,
 
     // we have "all" metrics of a node, but they're behind a single Arc pointer,
     // so the overhead is minimal
@@ -78,8 +89,8 @@ pub struct PeerController {
 
 impl PeerController {
     #[allow(clippy::too_many_arguments)]
-    pub fn new(
-        storage: Box<dyn BandwidthGatewayStorage + Send + Sync>,
+    pub(crate) fn new(
+        ecash_verifier: Arc<dyn EcashManager + Send + Sync>,
         metrics: NymNodeMetrics,
         wg_api: Arc<dyn WireguardInterfaceApi + Send + Sync>,
         initial_host_information: Host,
@@ -114,7 +125,7 @@ impl PeerController {
             .collect();
 
         PeerController {
-            storage,
+            ecash_verifier,
             wg_api,
             host_information,
             bw_storage_managers,
@@ -127,8 +138,11 @@ impl PeerController {
     }
 
     // Function that should be used for peer removal, to handle both storage and kernel interaction
-    pub async fn remove_peer(&mut self, key: &Key) -> Result<(), Error> {
-        self.storage.remove_wireguard_peer(&key.to_string()).await?;
+    pub async fn remove_peer(&mut self, key: &Key) -> Result<()> {
+        self.ecash_verifier
+            .storage()
+            .remove_wireguard_peer(&key.to_string())
+            .await?;
         self.bw_storage_managers.remove(key);
         let ret = self.wg_api.remove_peer(key);
         if ret.is_err() {
@@ -140,7 +154,7 @@ impl PeerController {
     pub async fn generate_bandwidth_manager(
         storage: Box<dyn BandwidthGatewayStorage + Send + Sync>,
         public_key: &Key,
-    ) -> Result<BandwidthStorageManager, Error> {
+    ) -> Result<BandwidthStorageManager> {
         let client_id = storage
             .get_wireguard_peer(&public_key.to_string())
             .await?
@@ -161,15 +175,15 @@ impl PeerController {
         ))
     }
 
-    async fn handle_add_request(&mut self, peer: &Peer) -> Result<(), Error> {
+    async fn handle_add_request(&mut self, peer: &Peer) -> Result<()> {
         self.wg_api.configure_peer(peer)?;
-        let bandwidth_storage_manager = Arc::new(RwLock::new(
-            Self::generate_bandwidth_manager(
-                dyn_clone::clone_box(&*self.storage),
-                &peer.public_key,
-            )
-            .await?,
-        ));
+        let bandwidth_storage_manager = SharedBandwidthStorageManager::new(
+            Arc::new(RwLock::new(
+                Self::generate_bandwidth_manager(self.ecash_verifier.storage(), &peer.public_key)
+                    .await?,
+            )),
+            peer.allowed_ips.clone(),
+        );
         let cached_peer_manager = CachedPeerManager::new(peer);
         let mut handle = PeerHandle::new(
             peer.public_key.clone(),
@@ -193,21 +207,93 @@ impl PeerController {
         Ok(())
     }
 
-    async fn handle_query_peer(&self, key: &Key) -> Result<Option<Peer>, Error> {
+    async fn ip_to_key(&self, ip: IpAddr) -> Result<Option<Key>> {
         Ok(self
-            .storage
+            .bw_storage_managers
+            .iter()
+            .find_map(|(key, bw_manager)| {
+                bw_manager
+                    .allowed_ips()
+                    .iter()
+                    .find(|ip_mask| ip_mask.ip == ip)
+                    .and(Some(key.clone()))
+            }))
+    }
+
+    async fn handle_query_peer_by_key(&self, key: &Key) -> Result<Option<Peer>> {
+        Ok(self
+            .ecash_verifier
+            .storage()
             .get_wireguard_peer(&key.to_string())
             .await?
             .map(Peer::try_from)
             .transpose()?)
     }
 
-    async fn handle_get_client_bandwidth(&self, key: &Key) -> Option<ClientBandwidth> {
-        if let Some(bandwidth_storage_manager) = self.bw_storage_managers.get(key) {
-            Some(bandwidth_storage_manager.read().await.client_bandwidth())
-        } else {
-            None
-        }
+    async fn handle_get_client_bandwidth_by_key(&self, key: &Key) -> Result<ClientBandwidth> {
+        let bandwidth_storage_manager = self
+            .bw_storage_managers
+            .get(key)
+            .ok_or(Error::MissingClientBandwidthEntry)?;
+
+        Ok(bandwidth_storage_manager
+            .inner()
+            .read()
+            .await
+            .client_bandwidth())
+    }
+
+    async fn handle_get_client_bandwidth_by_ip(&self, ip: IpAddr) -> Result<ClientBandwidth> {
+        let Some(key) = self.ip_to_key(ip).await? else {
+            return Err(Error::MissingClientKernelEntry(ip.to_string()));
+        };
+
+        self.handle_get_client_bandwidth_by_key(&key).await
+    }
+
+    async fn handle_query_verifier_by_key(
+        &self,
+        key: &Key,
+        credential: CredentialSpendingData,
+    ) -> Result<Box<dyn TicketVerifier + Send + Sync>> {
+        let storage = self.ecash_verifier.storage();
+        let client_id = storage
+            .get_wireguard_peer(&key.to_string())
+            .await?
+            .ok_or(Error::MissingClientBandwidthEntry)?
+            .client_id;
+        let Some(bandwidth_storage_manager) = self.bw_storage_managers.get(key) else {
+            return Err(Error::MissingClientBandwidthEntry);
+        };
+        let client_bandwidth = bandwidth_storage_manager
+            .inner()
+            .read()
+            .await
+            .client_bandwidth();
+        let verifier = CredentialVerifier::new(
+            CredentialSpendingRequest::new(credential),
+            self.ecash_verifier.clone(),
+            BandwidthStorageManager::new(
+                storage,
+                client_bandwidth,
+                client_id,
+                BandwidthFlushingBehaviourConfig::default(),
+                true,
+            ),
+        );
+        Ok(Box::new(verifier))
+    }
+
+    async fn handle_query_verifier_by_ip(
+        &self,
+        ip: IpAddr,
+        credential: CredentialSpendingData,
+    ) -> Result<Box<dyn TicketVerifier + Send + Sync>> {
+        let Some(key) = self.ip_to_key(ip).await? else {
+            return Err(Error::MissingClientKernelEntry(ip.to_string()));
+        };
+
+        self.handle_query_verifier_by_key(&key, credential).await
     }
 
     async fn update_metrics(&self, new_host: &Host) {
@@ -304,33 +390,29 @@ impl PeerController {
                 msg = self.request_rx.recv() => {
                     match msg {
                         Some(PeerControlRequest::AddPeer { peer, response_tx }) => {
-                            let ret = self.handle_add_request(&peer).await;
-                            if ret.is_ok() {
-                                response_tx.send(AddPeerControlResponse { success: true }).ok();
-                            } else {
-                                response_tx.send(AddPeerControlResponse { success: false }).ok();
-                            }
+                            response_tx.send(self.handle_add_request(&peer).await).ok();
                         }
                         Some(PeerControlRequest::RemovePeer { key, response_tx }) => {
-                            let success = self.remove_peer(&key).await.is_ok();
-                            response_tx.send(RemovePeerControlResponse { success }).ok();
+                            response_tx.send(self.remove_peer(&key).await).ok();
                         }
                         Some(PeerControlRequest::QueryPeer { key, response_tx }) => {
-                            let ret = self.handle_query_peer(&key).await;
-                            if let Ok(peer) = ret {
-                                response_tx.send(QueryPeerControlResponse { success: true, peer }).ok();
-                            } else {
-                                response_tx.send(QueryPeerControlResponse { success: false, peer: None }).ok();
-                            }
+                            response_tx.send(self.handle_query_peer_by_key(&key).await).ok();
                         }
-                        Some(PeerControlRequest::GetClientBandwidth { key, response_tx }) => {
-                            let client_bandwidth = self.handle_get_client_bandwidth(&key).await;
-                            response_tx.send(GetClientBandwidthControlResponse { client_bandwidth }).ok();
+                        Some(PeerControlRequest::GetClientBandwidthByKey { key, response_tx }) => {
+                            response_tx.send(self.handle_get_client_bandwidth_by_key(&key).await).ok();
+                        }
+                        Some(PeerControlRequest::GetClientBandwidthByIp { ip, response_tx }) => {
+                            response_tx.send(self.handle_get_client_bandwidth_by_ip(ip).await).ok();
+                        }
+                        Some(PeerControlRequest::GetVerifierByKey { key, credential, response_tx }) => {
+                            response_tx.send(self.handle_query_verifier_by_key(&key, *credential).await).ok();
+                        }
+                        Some(PeerControlRequest::GetVerifierByIp { ip, credential, response_tx }) => {
+                            response_tx.send(self.handle_query_verifier_by_ip(ip, *credential).await).ok();
                         }
                         None => {
                             log::trace!("PeerController [main loop]: stopping since channel closed");
                             break;
-
                         }
                     }
                 }
@@ -349,21 +431,21 @@ struct MockWgApi {
 impl WireguardInterfaceApi for MockWgApi {
     fn create_interface(
         &self,
-    ) -> Result<(), defguard_wireguard_rs::error::WireguardInterfaceError> {
+    ) -> std::result::Result<(), defguard_wireguard_rs::error::WireguardInterfaceError> {
         todo!()
     }
 
     fn assign_address(
         &self,
         _address: &defguard_wireguard_rs::net::IpAddrMask,
-    ) -> Result<(), defguard_wireguard_rs::error::WireguardInterfaceError> {
+    ) -> std::result::Result<(), defguard_wireguard_rs::error::WireguardInterfaceError> {
         todo!()
     }
 
     fn configure_peer_routing(
         &self,
         _peers: &[Peer],
-    ) -> Result<(), defguard_wireguard_rs::error::WireguardInterfaceError> {
+    ) -> std::result::Result<(), defguard_wireguard_rs::error::WireguardInterfaceError> {
         todo!()
     }
 
@@ -371,7 +453,7 @@ impl WireguardInterfaceApi for MockWgApi {
     fn configure_interface(
         &self,
         _config: &defguard_wireguard_rs::InterfaceConfiguration,
-    ) -> Result<(), defguard_wireguard_rs::error::WireguardInterfaceError> {
+    ) -> std::result::Result<(), defguard_wireguard_rs::error::WireguardInterfaceError> {
         todo!()
     }
 
@@ -380,20 +462,20 @@ impl WireguardInterfaceApi for MockWgApi {
         &self,
         _config: &defguard_wireguard_rs::InterfaceConfiguration,
         _dns: &[std::net::IpAddr],
-    ) -> Result<(), defguard_wireguard_rs::error::WireguardInterfaceError> {
+    ) -> std::result::Result<(), defguard_wireguard_rs::error::WireguardInterfaceError> {
         todo!()
     }
 
     fn remove_interface(
         &self,
-    ) -> Result<(), defguard_wireguard_rs::error::WireguardInterfaceError> {
+    ) -> std::result::Result<(), defguard_wireguard_rs::error::WireguardInterfaceError> {
         todo!()
     }
 
     fn configure_peer(
         &self,
         peer: &Peer,
-    ) -> Result<(), defguard_wireguard_rs::error::WireguardInterfaceError> {
+    ) -> std::result::Result<(), defguard_wireguard_rs::error::WireguardInterfaceError> {
         self.peers
             .write()
             .unwrap()
@@ -404,14 +486,14 @@ impl WireguardInterfaceApi for MockWgApi {
     fn remove_peer(
         &self,
         peer_pubkey: &Key,
-    ) -> Result<(), defguard_wireguard_rs::error::WireguardInterfaceError> {
+    ) -> std::result::Result<(), defguard_wireguard_rs::error::WireguardInterfaceError> {
         self.peers.write().unwrap().remove(peer_pubkey);
         Ok(())
     }
 
     fn read_interface_data(
         &self,
-    ) -> Result<Host, defguard_wireguard_rs::error::WireguardInterfaceError> {
+    ) -> std::result::Result<Host, defguard_wireguard_rs::error::WireguardInterfaceError> {
         let mut host = Host::default();
         host.peers = self.peers.read().unwrap().clone();
         Ok(host)
@@ -420,7 +502,7 @@ impl WireguardInterfaceApi for MockWgApi {
     fn configure_dns(
         &self,
         _dns: &[std::net::IpAddr],
-    ) -> Result<(), defguard_wireguard_rs::error::WireguardInterfaceError> {
+    ) -> std::result::Result<(), defguard_wireguard_rs::error::WireguardInterfaceError> {
         todo!()
     }
 }
@@ -433,13 +515,18 @@ pub fn start_controller(
     Arc<RwLock<nym_gateway_storage::traits::mock::MockGatewayStorage>>,
     nym_task::TaskManager,
 ) {
+    use std::sync::Arc;
+
     let storage = Arc::new(RwLock::new(
         nym_gateway_storage::traits::mock::MockGatewayStorage::default(),
+    ));
+    let ecash_manager = Arc::new(nym_credential_verification::ecash::MockEcashManager::new(
+        Box::new(storage.clone()),
     ));
     let wg_api = Arc::new(MockWgApi::default());
     let task_manager = nym_task::TaskManager::default();
     let mut peer_controller = PeerController::new(
-        Box::new(storage.clone()),
+        ecash_manager,
         Default::default(),
         wg_api,
         Default::default(),

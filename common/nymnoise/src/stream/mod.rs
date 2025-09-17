@@ -411,122 +411,21 @@ where
 mod tests {
     use super::*;
     use nym_crypto::asymmetric::x25519;
-    use rand_chacha::rand_core::SeedableRng;
-    use std::io::Error;
-    use std::mem;
+    use nym_test_utils::helpers::deterministic_rng;
+    use nym_test_utils::mocks::async_read_write::mock_io_streams;
+    use nym_test_utils::traits::{Timeboxed, TimeboxedSpawnable};
     use std::sync::Arc;
-    use std::task::{Context, Waker};
-    use std::time::Duration;
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
     use tokio::join;
-    use tokio::sync::Mutex;
-    use tokio::time::timeout;
-
-    fn mock_streams() -> (MockStream, MockStream) {
-        let ch1 = Arc::new(Mutex::new(Default::default()));
-        let ch2 = Arc::new(Mutex::new(Default::default()));
-
-        (
-            MockStream {
-                inner: MockStreamInner {
-                    tx: ch1.clone(),
-                    rx: ch2.clone(),
-                },
-            },
-            MockStream {
-                inner: MockStreamInner { tx: ch2, rx: ch1 },
-            },
-        )
-    }
-
-    struct MockStream {
-        inner: MockStreamInner,
-    }
-
-    #[allow(dead_code)]
-    impl MockStream {
-        fn unchecked_tx_data(&self) -> Vec<u8> {
-            self.inner.tx.try_lock().unwrap().data.clone()
-        }
-
-        fn unchecked_rx_data(&self) -> Vec<u8> {
-            self.inner.rx.try_lock().unwrap().data.clone()
-        }
-    }
-
-    struct MockStreamInner {
-        tx: Arc<Mutex<DataWrapper>>,
-        rx: Arc<Mutex<DataWrapper>>,
-    }
-
-    #[derive(Default)]
-    struct DataWrapper {
-        data: Vec<u8>,
-        waker: Option<Waker>,
-    }
-
-    impl AsyncRead for MockStream {
-        fn poll_read(
-            self: Pin<&mut Self>,
-            cx: &mut Context<'_>,
-            buf: &mut ReadBuf<'_>,
-        ) -> Poll<io::Result<()>> {
-            let mut inner = self.inner.rx.try_lock().unwrap();
-            let data = mem::take(&mut inner.data);
-            if data.is_empty() {
-                inner.waker = Some(cx.waker().clone());
-                return Poll::Pending;
-            }
-
-            if let Some(waker) = inner.waker.take() {
-                waker.wake();
-            }
-
-            buf.put_slice(&data);
-            Poll::Ready(Ok(()))
-        }
-    }
-
-    impl AsyncWrite for MockStream {
-        fn poll_write(
-            self: Pin<&mut Self>,
-            cx: &mut Context<'_>,
-            buf: &[u8],
-        ) -> Poll<Result<usize, Error>> {
-            let mut inner = self.inner.tx.try_lock().unwrap();
-            let len = buf.len();
-
-            if !inner.data.is_empty() {
-                assert!(inner.waker.is_none());
-                inner.waker = Some(cx.waker().clone());
-                return Poll::Pending;
-            }
-
-            inner.data.extend_from_slice(buf);
-            if let Some(waker) = inner.waker.take() {
-                waker.wake();
-            }
-            Poll::Ready(Ok(len))
-        }
-
-        fn poll_flush(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Result<(), Error>> {
-            Poll::Ready(Ok(()))
-        }
-
-        fn poll_shutdown(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Result<(), Error>> {
-            Poll::Ready(Ok(()))
-        }
-    }
 
     #[tokio::test]
     async fn noise_handshake() -> anyhow::Result<()> {
-        let dummy_seed = [42u8; 32];
-        let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
+        let mut rng = deterministic_rng();
 
         let initiator_keys = Arc::new(x25519::KeyPair::new(&mut rng));
         let responder_keys = Arc::new(x25519::KeyPair::new(&mut rng));
 
-        let (initiator_stream, responder_stream) = mock_streams();
+        let (initiator_stream, responder_stream) = mock_io_streams();
 
         let psk = generate_psk(*responder_keys.public_key(), NoiseVersion::V1)?;
         let pattern = NoisePattern::default();
@@ -547,14 +446,8 @@ mod tests {
                 *responder_keys.public_key(),
             );
 
-        let initiator_fut =
-            tokio::spawn(
-                async move { timeout(Duration::from_millis(200), stream_initiator).await },
-            );
-        let responder_fut =
-            tokio::spawn(
-                async move { timeout(Duration::from_millis(200), stream_responder).await },
-            );
+        let initiator_fut = stream_initiator.spawn_timeboxed();
+        let responder_fut = stream_responder.spawn_timeboxed();
 
         let (initiator, responder) = join!(initiator_fut, responder_fut);
 
@@ -563,14 +456,13 @@ mod tests {
 
         let msg = b"hello there";
         // if noise was successful we should be able to write a proper message across
-        timeout(Duration::from_millis(200), initiator.write_all(msg)).await??;
-
+        initiator.write_all(msg).timeboxed().await??;
         initiator.inner_stream.flush().await?;
 
         let inner_buf = initiator.inner_stream.get_ref().unchecked_tx_data();
 
         let mut buf = [0u8; 11];
-        timeout(Duration::from_millis(200), responder.read(&mut buf)).await??;
+        responder.read(&mut buf).timeboxed().await??;
 
         assert_eq!(&buf[..], msg);
 

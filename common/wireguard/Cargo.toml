@@ -32,9 +32,11 @@ time = { workspace = true }
 tracing = { workspace = true }
 
 nym-authenticator-requests = { path = "../authenticator-requests" }
+nym-credentials-interface = { path = "../credentials-interface" }
 nym-credential-verification = { path = "../credential-verification" }
 nym-crypto = { path = "../crypto", features = ["asymmetric"] }
 nym-gateway-storage = { path = "../gateway-storage" }
+nym-gateway-requests = { path = "../gateway-requests" }
 nym-network-defaults = { path = "../network-defaults" }
 nym-task = { path = "../task" }
 nym-wireguard-types = { path = "../wireguard-types" }
@@ -46,4 +48,3 @@ nym-gateway-storage = { path = "../gateway-storage", features = ["mock"] }
 [features]
 default = []
 mock = ["nym-gateway-storage/mock"]
-

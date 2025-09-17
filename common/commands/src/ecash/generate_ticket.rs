@@ -86,7 +86,7 @@ pub async fn execute(args: Args) -> anyhow::Result<()> {
             anyhow!("ticketbook got incorrectly imported - the master verification key is missing")
         })?;
     let expiration_signatures = persistent_storage
-        .get_expiration_date_signatures(expiration_date)
+        .get_expiration_date_signatures(expiration_date, epoch_id)
         .await?
         .ok_or_else(|| {
             anyhow!(

@@ -5758,8 +5758,6 @@ dependencies = [
  "nym-wireguard",
  "nym-wireguard-private-metadata-server",
  "nym-wireguard-types",
- "opentelemetry",
- "opentelemetry_sdk",
  "rand 0.8.5",
  "serde",
  "sha2 0.10.9",
@@ -5770,7 +5768,6 @@ dependencies = [
  "tokio-tungstenite",
  "tokio-util",
  "tracing",
- "tracing-opentelemetry",
  "url",
  "zeroize",
 ]
@@ -6786,6 +6783,7 @@ dependencies = [
 name = "nym-socks5-client"
 version = "1.1.62"
 dependencies = [
+ "anyhow",
  "bs58",
  "clap",
  "log",

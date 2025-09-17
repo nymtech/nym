@@ -6,13 +6,14 @@
 
 use crate::commands::Cli;
 use clap::Parser;
-use nym_bin_common::logging::setup_tracing_logger;
+use nym_bin_common::logging::setup_no_otel_logger;
 
 mod commands;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    setup_tracing_logger();
+    setup_no_otel_logger()
+        .expect("failed to setup logging - this is a fatal error");
     let cli = Cli::parse();
 
     cli.execute().await

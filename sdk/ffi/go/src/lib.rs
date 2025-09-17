@@ -36,7 +36,8 @@ enum GoWrapError {
 
 #[no_mangle]
 fn init_logging() {
-    nym_bin_common::logging::setup_tracing_logger();
+    nym_bin_common::logging::setup_no_otel_logger()
+        .expect("failed to setup logging - this is a fatal error");
 }
 
 #[no_mangle]

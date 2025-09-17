@@ -3,7 +3,8 @@ use nym_sdk::mixnet::MixnetMessageSender;
 
 #[tokio::main]
 async fn main() {
-    nym_bin_common::logging::setup_tracing_logger();
+    nym_bin_common::logging::setup_no_otel_logger()
+        .expect("failed to setup logging - this is a fatal error");
 
     // Create client builder, including ephemeral keys. The builder can be usable in the context
     // where you don't want to connect just yet.

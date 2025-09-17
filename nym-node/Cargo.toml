@@ -50,7 +50,6 @@ cupid = { workspace = true }
 sysinfo = { workspace = true }
 
 nym-bin-common = { path = "../common/bin-common", features = [
-    "basic_tracing",
     "output_format",
 ] }
 nym-client-core-config-types = { path = "../common/client-core/config-types", features = [
@@ -130,11 +129,10 @@ criterion = { workspace = true, features = ["async_tokio"] }
 rand_chacha = { workspace = true }
 
 [features]
-default = ["otel"] # 🚨🚨🚨 TODO: remove otel as a default feature 🚨🚨🚨
+default = []
 tokio-console = ["console-subscriber"]
-otel = [
+otel = ["nym-bin-common/otel"]
 
-]
 
 
 [lints]

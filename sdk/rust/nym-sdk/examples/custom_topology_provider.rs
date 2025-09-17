@@ -72,7 +72,8 @@ impl TopologyProvider for MyTopologyProvider {
 
 #[tokio::main]
 async fn main() {
-    nym_bin_common::logging::setup_tracing_logger();
+    nym_bin_common::logging::setup_no_otel_logger()
+        .expect("failed to setup logging - this is a fatal error");
 
     let nym_api = "https://validator.nymtech.net/api/".parse().unwrap();
     let my_topology_provider = MyTopologyProvider::new(nym_api);

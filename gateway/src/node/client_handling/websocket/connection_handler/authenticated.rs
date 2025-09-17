@@ -14,12 +14,13 @@ use futures::{
     future::{FusedFuture, OptionFuture},
     FutureExt, StreamExt,
 };
+#[cfg(feature = "otel")]
 use nym_bin_common::opentelemetry::context::{new_span_context_with_id, ManualSpanContextExt};
 use nym_credential_verification::CredentialVerifier;
 use nym_credential_verification::{
     bandwidth_storage_manager::BandwidthStorageManager, ClientBandwidth,
 };
-use nym_crypto::shared_key::new_ephemeral_shared_key;
+// use nym_crypto::shared_key::new_ephemeral_shared_key;
 use nym_gateway_requests::{
     types::{BinaryRequest, ServerResponse},
     ClientControlRequest, ClientRequest, GatewayRequestsError, SensitiveServerResponse,
@@ -33,6 +34,7 @@ use nym_sphinx::forwarding::packet::MixPacket;
 use nym_statistics_common::{gateways::GatewaySessionEvent, types::SessionType};
 use nym_validator_client::coconut::EcashApiError;
 use rand::{random, CryptoRng, Rng};
+#[cfg(feature = "otel")]
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 use std::{process, time::Duration};
 use thiserror::Error;
@@ -227,6 +229,8 @@ impl<R, S> AuthenticatedHandler<R, S> {
         self.inner.send_metrics(event)
     }
 
+    /// If the client provided an OpenTelemetry context during authentication, returns the trace id
+    #[cfg(feature = "otel")]
     pub fn get_trace_id(&self) -> Option<opentelemetry::trace::TraceId> {
         self.client.get_extracted_trace_id()
     }
@@ -618,41 +622,46 @@ impl<R, S> AuthenticatedHandler<R, S> {
         S: AsyncRead + AsyncWrite + Unpin,
     {
         trace!("Started listening for ALL incoming requests...");
-        let context_ext: ManualSpanContextExt = match &self.client.otel_context {
-            Some(otel_context) => {
-                let context_ext = ManualSpanContextExt::new()
-                    .with_context_carrier(&otel_context.context_carrier);
-                let span = if let Some(trace_id) = self.client.get_extracted_trace_id() {
-                    let cx = new_span_context_with_id(trace_id);
-                    let _context_guard = cx.clone().attach();
+        #[cfg(feature = "otel")]
+        {
+            let context_ext: ManualSpanContextExt = match &self.client.otel_context {
+                Some(otel_context) => {
+                    let context_ext = ManualSpanContextExt::new()
+                        .with_context_carrier(&otel_context.context_carrier);
+                    let span = if let Some(trace_id) = self.client.get_extracted_trace_id() {
+                        let cx = new_span_context_with_id(trace_id);
+                        let _context_guard = cx.clone().attach();
 
-                    let span = info_span!("client handling with otel", %trace_id);
-                    span.set_parent(cx.clone());
-                    span
-                } else {
-                    info_span!("client handling without otel context")
-                };
-                let context_ext = context_ext.set_root_span(span);
-                context_ext
-            }
-            None => {
-                warn!("No otel context associated with the client - this should never happen if otel has been set up!");
-                ManualSpanContextExt::new()
-            }
-        };
+                        let span = info_span!("client handling with otel", %trace_id);
+                        span.set_parent(cx.clone());
+                        span
+                    } else {
+                        info_span!("client handling without otel context")
+                    };
+                    let context_ext = context_ext.set_root_span(span);
+                    context_ext
+                }
+                None => {
+                    warn!("No otel context associated with the client - this should never happen if otel has been set up!");
+                    ManualSpanContextExt::new()
+                }
+            };
 
-        let _guard = context_ext.root_span.enter();
-        let handling_span = info_span!(parent: &context_ext.root_span, "client_handling_loop");
-
+            let _guard = context_ext.root_span.enter();
+            let handling_span = info_span!(parent: &context_ext.root_span, "client_handling_loop");
+        }
         // Ping timeout future used to check if the client responded to our ping request
         let mut ping_timeout: OptionFuture<_> = None.into();
 
         while !shutdown.is_shutdown() {
             tokio::select! {
                 _ = shutdown.recv() => {
-                    let span = info_span!(parent: &handling_span, "shutdown_received");
-                    let _enter = span.enter();
-                    trace!("client_handling::AuthenticatedHandler: received shutdown");
+                    #[cfg(feature = "otel")]
+                    {
+                        let span = info_span!(parent: &handling_span, "shutdown_received");
+                        let _enter = span.enter();
+                    }
+                        trace!("client_handling::AuthenticatedHandler: received shutdown");
                 },
                 // Received a request to ping the client to check if it's still active
                 tx = self.is_active_request_receiver.next() => {
@@ -673,8 +682,13 @@ impl<R, S> AuthenticatedHandler<R, S> {
                     self.handle_ping_timeout().await;
                 },
                 socket_msg = self.inner.read_websocket_message() => {
-                    let span = info_span!(parent: &handling_span, "client_message_received");
-                    let _enter = span.enter();
+                    {
+                        #[cfg(feature = "otel")]
+                        {
+                            let span = info_span!(parent: &handling_span, "client_message_received");
+                            let _enter = span.enter();
+                        }
+                    }
                     let socket_msg = match socket_msg {
                         None => break,
                         Some(Ok(socket_msg)) => socket_msg,
@@ -698,8 +712,11 @@ impl<R, S> AuthenticatedHandler<R, S> {
                     }
                 },
                 mix_messages = self.mix_receiver.next() => {
-                    let span = info_span!(parent: &handling_span, "mix_message_received");
-                    let _enter = span.enter();
+                    #[cfg(feature = "otel")]
+                    {
+                        let span = info_span!(parent: &handling_span, "mix_message_received");
+                        let _enter = span.enter();
+                    }
                     let mix_messages = match mix_messages {
                         None => {
                             debug!("mix receiver was closed! Assuming the connection is dead.");

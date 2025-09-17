@@ -88,33 +88,36 @@ pub(crate) async fn update_testruns_assigned_before(
 }
 
 pub(crate) async fn assign_oldest_testrun(
-    pool: &DbPool,
+    conn: &mut DbConnection,
 ) -> anyhow::Result<Option<TestrunAssignment>> {
     let now = now_utc().unix_timestamp();
     // find & mark as "In progress" in the same transaction to avoid race conditions
-    let mut tx = pool.begin().await?;
+    // lock the row to avoid two threads reading the same value
     let returning = crate::db::query(
-        r#"UPDATE testruns
-            SET
-                status = ?,
-                last_assigned_utc = ?
-            WHERE id =
-        (
+        r#"
+        WITH oldest_queued AS (
             SELECT id
             FROM testruns
             WHERE status = ?
             ORDER BY created_utc asc
             LIMIT 1
+            FOR UPDATE SKIP LOCKED
         )
+        UPDATE testruns
+            SET
+                status = ?,
+                last_assigned_utc = ?
+            FROM oldest_queued
+            WHERE testruns.id = oldest_queued.id
         RETURNING
-            id,
-            gateway_id
+            testruns.id,
+            testruns.gateway_id
             "#,
     )
+    .bind(TestRunStatus::Queued as i32)
     .bind(TestRunStatus::InProgress as i32)
     .bind(now)
-    .bind(TestRunStatus::Queued as i32)
-    .fetch_optional(tx.as_mut())
+    .fetch_optional(conn.as_mut())
     .await?;
 
     if let Some(testrun) = returning {
@@ -128,12 +131,8 @@ pub(crate) async fn assign_oldest_testrun(
                 LIMIT 1"#,
         )
         .bind(testrun.try_get::<i32, _>("gateway_id")?)
-        .fetch_one(tx.as_mut())
+        .fetch_one(conn.as_mut())
         .await?;
-
-        tx.commit()
-            .await
-            .context("Failed to commit testrun changes")?;
 
         Ok(Some(TestrunAssignment {
             testrun_id: testrun.try_get("id")?,

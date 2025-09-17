@@ -42,6 +42,7 @@ pub(crate) struct AppState {
 }
 
 impl AppState {
+    #[allow(clippy::too_many_arguments)]
     pub(crate) async fn new(
         db_pool: DbPool,
         cache_ttl: u64,

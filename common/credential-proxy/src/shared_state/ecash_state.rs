@@ -16,6 +16,7 @@ use nym_credentials::ecash::utils::EcashTime;
 use nym_credentials::{
     AggregatedCoinIndicesSignatures, AggregatedExpirationDateSignatures, EpochVerificationKey,
 };
+use nym_validator_client::client::NymApiClientExt;
 use nym_validator_client::coconut::EcashApiError;
 use nym_validator_client::nym_api::EpochId;
 use nym_validator_client::nyxd::contract_traits::dkg_query_client::Epoch;
@@ -25,7 +26,6 @@ use nym_validator_client::EcashApiClient;
 use time::{Date, OffsetDateTime};
 use tokio::sync::{RwLock, RwLockReadGuard};
 use tracing::info;
-use nym_validator_client::client::NymApiClientExt;
 
 pub use nym_compact_ecash::scheme::coin_indices_signatures::CoinIndexSignatureShare;
 pub use nym_compact_ecash::scheme::expiration_date_signatures::ExpirationDateSignatureShare;

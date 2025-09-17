@@ -20,6 +20,7 @@ use nym_node_status_client::models::AttachedTicketMaterials;
 use nym_validator_client::nym_api::EpochId;
 use nym_validator_client::nyxd::Coin;
 use nym_validator_client::EcashApiClient;
+use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::sync::Arc;
 use time::Date;
@@ -41,7 +42,7 @@ impl TicketbookManagerState {
         quorum_state: QuorumState,
         client: ChainClient,
     ) -> Self {
-        let state = TicketbookManagerState {
+        TicketbookManagerState {
             buffered_ticket_types,
             storage: storage.into(),
             client,
@@ -49,8 +50,7 @@ impl TicketbookManagerState {
                 RequiredDepositCache::default(),
                 quorum_state,
             )),
-        };
-        state
+        }
     }
 
     pub async fn attempt_assign_ticket_materials(
@@ -74,17 +74,13 @@ impl TicketbookManagerState {
                 debug!("retrieved ticket corresponds to epoch {epoch_id} and expiration date {expiration_date}");
 
                 debug!("attempting to attach master verification key...");
-                if !master_verification_keys.contains_key(&epoch_id) {
-                    master_verification_keys.insert(
-                        epoch_id,
-                        self.master_verification_key(Some(epoch_id)).await?.clone(),
-                    );
+                if let Entry::Vacant(e) = master_verification_keys.entry(epoch_id) {
+                    e.insert(self.master_verification_key(Some(epoch_id)).await?.clone());
                 }
 
                 debug!("attempting to attach coin index signatures...");
-                if !coin_indices_signatures.contains_key(&epoch_id) {
-                    coin_indices_signatures.insert(
-                        epoch_id,
+                if let Entry::Vacant(e) = coin_indices_signatures.entry(epoch_id) {
+                    e.insert(
                         self.master_coin_index_signatures(Some(epoch_id))
                             .await?
                             .clone(),
@@ -92,9 +88,10 @@ impl TicketbookManagerState {
                 }
 
                 debug!("attempting to attach expiration date signatures...");
-                if !expiration_date_signatures.contains_key(&(epoch_id, expiration_date)) {
-                    expiration_date_signatures.insert(
-                        (epoch_id, expiration_date),
+                if let Entry::Vacant(e) =
+                    expiration_date_signatures.entry((epoch_id, expiration_date))
+                {
+                    e.insert(
                         self.master_expiration_date_signatures(epoch_id, expiration_date)
                             .await?
                             .clone(),

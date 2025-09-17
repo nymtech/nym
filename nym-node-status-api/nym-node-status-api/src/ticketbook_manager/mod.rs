@@ -192,8 +192,7 @@ impl TicketbookManager {
         let tickets_per_ticketbook = IssuedTicketBook::global_total_tickets() as usize;
 
         // use ceil division, so that if for example we need 9 tickets, we'd still get the whole ticketbook (10 tickets)
-        let needed_ticketbooks =
-            (needed_tickets + tickets_per_ticketbook - 1) / tickets_per_ticketbook;
+        let needed_ticketbooks = needed_tickets.div_ceil(tickets_per_ticketbook);
 
         for request_chunk in split_deposits(needed_ticketbooks, self.config.max_concurrent_deposits)
         {

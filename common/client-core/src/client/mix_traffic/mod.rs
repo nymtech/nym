@@ -5,8 +5,6 @@ use crate::client::mix_traffic::transceiver::GatewayTransceiver;
 use nym_gateway_requests::ClientRequest;
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_task::ShutdownToken;
-use std::sync::Arc;
-use tokio::sync::mpsc;
 use tracing::*;
 use transceiver::ErasedGatewayError;
 

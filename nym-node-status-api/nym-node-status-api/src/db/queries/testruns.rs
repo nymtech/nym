@@ -3,6 +3,7 @@ use crate::db::DbConnection;
 use crate::db::DbPool;
 use crate::http::models::TestrunAssignment;
 use crate::utils::now_utc;
+use anyhow::Context;
 use sqlx::Row;
 use time::Duration;
 
@@ -87,10 +88,11 @@ pub(crate) async fn update_testruns_assigned_before(
 }
 
 pub(crate) async fn assign_oldest_testrun(
-    conn: &mut DbConnection,
+    pool: &DbPool,
 ) -> anyhow::Result<Option<TestrunAssignment>> {
     let now = now_utc().unix_timestamp();
     // find & mark as "In progress" in the same transaction to avoid race conditions
+    let mut tx = pool.begin().await?;
     let returning = crate::db::query(
         r#"UPDATE testruns
             SET
@@ -112,7 +114,7 @@ pub(crate) async fn assign_oldest_testrun(
     .bind(TestRunStatus::InProgress as i32)
     .bind(now)
     .bind(TestRunStatus::Queued as i32)
-    .fetch_optional(conn.as_mut())
+    .fetch_optional(tx.as_mut())
     .await?;
 
     if let Some(testrun) = returning {
@@ -126,8 +128,12 @@ pub(crate) async fn assign_oldest_testrun(
                 LIMIT 1"#,
         )
         .bind(testrun.try_get::<i32, _>("gateway_id")?)
-        .fetch_one(conn.as_mut())
+        .fetch_one(tx.as_mut())
         .await?;
+
+        tx.commit()
+            .await
+            .context("Failed to commit testrun changes")?;
 
         Ok(Some(TestrunAssignment {
             testrun_id: testrun.try_get("id")?,
@@ -241,12 +247,12 @@ pub(crate) async fn insert_external_testrun(
 
     crate::db::query(
         r#"INSERT INTO testruns (
-            id, 
-            gateway_id, 
-            status, 
-            created_utc, 
-            last_assigned_utc, 
-            ip_address, 
+            id,
+            gateway_id,
+            status,
+            created_utc,
+            last_assigned_utc,
+            ip_address,
             log
         ) VALUES (?, ?, ?, ?, ?, ?, ?)"#,
     )

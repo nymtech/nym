@@ -59,7 +59,7 @@ async fn request_testrun(
         return Err(HttpError::no_testruns_available());
     }
 
-    return match db::queries::testruns::assign_oldest_testrun(&mut conn).await {
+    return match db::queries::testruns::assign_oldest_testrun(db).await {
         Ok(res) => {
             if let Some(testrun) = res {
                 tracing::info!(

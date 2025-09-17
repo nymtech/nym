@@ -54,14 +54,6 @@ impl MixTrafficController {
 
         let (client_sender, client_receiver) = tokio::sync::mpsc::channel(8);
 
-        let controller = MixTrafficController {
-            gateway_transceiver: Box::new(gateway_transceiver),
-            mix_rx,
-            client_rx,
-            consecutive_gateway_failure_count: 0,
-            task_client,
-        };
-
         (
             MixTrafficController {
                 gateway_transceiver: Box::new(gateway_transceiver),

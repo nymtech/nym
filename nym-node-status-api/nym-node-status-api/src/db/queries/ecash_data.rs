@@ -230,8 +230,8 @@ impl<'a> StorageTransaction<'a> {
                 SELECT *
                 FROM ecash_ticketbook
                 WHERE used_tickets + 1 <= total_tickets
-                AND expiration_date >= $2
-                AND ticketbook_type = $3
+                AND expiration_date >= $1
+                AND ticketbook_type = $2
                 ORDER BY expiration_date ASC
                 LIMIT 1
             "#,

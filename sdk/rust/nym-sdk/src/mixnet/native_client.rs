@@ -52,7 +52,7 @@ pub struct MixnetClient {
     pub(crate) stats_events_reporter: ClientStatsSender,
 
     /// The task manager that controls all the spawned tasks that the clients uses to do it's job.
-    pub(crate) shutdown_handle: Option<ShutdownTracker>,
+    pub(crate) shutdown_handle: ShutdownTracker,
     pub(crate) packet_type: Option<PacketType>,
 
     // internal state used for the `Stream` implementation
@@ -72,7 +72,7 @@ impl MixnetClient {
         client_state: ClientState,
         reconstructed_receiver: ReconstructedMessagesReceiver,
         stats_events_reporter: ClientStatsSender,
-        task_handle: Option<ShutdownTracker>,
+        task_handle: ShutdownTracker,
         packet_type: Option<PacketType>,
         client_request_sender: ClientRequestSender,
         forget_me: ForgetMe,
@@ -238,9 +238,7 @@ impl MixnetClient {
             tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
         }
 
-        if let Some(tracker) = self.shutdown_handle {
-            tracker.shutdown().await;
-        }
+        self.shutdown_handle.shutdown().await
     }
 
     pub async fn send_forget_me(&self) -> Result<()> {

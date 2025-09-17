@@ -605,8 +605,7 @@ impl NymNode {
         metrics_sender: MetricEventsSender,
         active_clients_store: ActiveClientsStore,
         mix_packet_sender: MixForwardingSender,
-        legacy_task_client: TaskClient,
-        shutdown_token: ShutdownToken,
+        task_client: TaskClient,
     ) -> Result<(), NymNodeError> {
         let config = gateway_tasks_config(&self.config);
 
@@ -624,8 +623,7 @@ impl NymNode {
             metrics_sender,
             self.metrics.clone(),
             self.entry_gateway.mnemonic.clone(),
-            legacy_task_client,
-            shutdown_token,
+            task_client,
         );
 
         // if we're running in entry mode, start the websocket
@@ -718,11 +716,8 @@ impl NymNode {
 
         // entry gateway info
         let wireguard = if self.config.wireguard.enabled {
-            #[allow(deprecated)]
             Some(api_requests::v1::gateway::models::Wireguard {
-                port: self.config.wireguard.announced_tunnel_port,
-                tunnel_port: self.config.wireguard.announced_tunnel_port,
-                metadata_port: self.config.wireguard.announced_metadata_port,
+                port: self.config.wireguard.announced_port,
                 public_key: self.x25519_wireguard_key()?.to_string(),
             })
         } else {
@@ -1188,7 +1183,6 @@ impl NymNode {
             active_clients_store,
             mix_packet_sender,
             self.shutdown_manager.subscribe_legacy("gateway-tasks"),
-            self.shutdown_manager.child_token("gateway-tasks"),
         )
         .await?;
 

@@ -4,7 +4,7 @@
 use crate::error::Error;
 use crate::peer_controller::PeerControlRequest;
 use crate::peer_storage_manager::{CachedPeerManager, PeerInformation};
-use defguard_wireguard_rs::{host::Host, key::Key, net::IpAddrMask};
+use defguard_wireguard_rs::{host::Host, key::Key};
 use futures::channel::oneshot;
 use nym_credential_verification::bandwidth_storage_manager::BandwidthStorageManager;
 use nym_task::TaskClient;
@@ -13,28 +13,7 @@ use std::sync::Arc;
 use tokio::sync::{mpsc, RwLock};
 use tokio_stream::{wrappers::IntervalStream, StreamExt};
 
-#[derive(Clone)]
-pub(crate) struct SharedBandwidthStorageManager {
-    inner: Arc<RwLock<BandwidthStorageManager>>,
-    allowed_ips: Vec<IpAddrMask>,
-}
-
-impl SharedBandwidthStorageManager {
-    pub(crate) fn new(
-        inner: Arc<RwLock<BandwidthStorageManager>>,
-        allowed_ips: Vec<IpAddrMask>,
-    ) -> Self {
-        Self { inner, allowed_ips }
-    }
-
-    pub(crate) fn inner(&self) -> &RwLock<BandwidthStorageManager> {
-        &self.inner
-    }
-
-    pub(crate) fn allowed_ips(&self) -> &[IpAddrMask] {
-        &self.allowed_ips
-    }
-}
+pub(crate) type SharedBandwidthStorageManager = Arc<RwLock<BandwidthStorageManager>>;
 
 pub struct PeerHandle {
     public_key: Key,
@@ -47,7 +26,7 @@ pub struct PeerHandle {
 }
 
 impl PeerHandle {
-    pub(crate) fn new(
+    pub fn new(
         public_key: Key,
         host_information: Arc<RwLock<Host>>,
         cached_peer: CachedPeerManager,
@@ -141,7 +120,6 @@ impl PeerHandle {
         if spent_bandwidth > 0
             && self
                 .bandwidth_storage_manager
-                .inner()
                 .write()
                 .await
                 .try_use_bandwidth(spent_bandwidth)
@@ -204,7 +182,7 @@ impl PeerHandle {
 
                 _ = self.task_client.recv() => {
                     log::trace!("PeerHandle: Received shutdown");
-                    if let Err(e) = self.bandwidth_storage_manager.inner().write().await.sync_storage_bandwidth().await {
+                    if let Err(e) = self.bandwidth_storage_manager.write().await.sync_storage_bandwidth().await {
                         log::error!("Storage sync failed - {e}, unaccounted bandwidth might have been consumed");
                     }
 

@@ -1,19 +1,17 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::db::Storage;
+use crate::db::{Storage, StorageTransaction};
 use crate::ticketbook_manager::storage::auxiliary_models::StoredIssuedTicketbook;
 use nym_credential_proxy_lib::storage::models::{
     RawCoinIndexSignatures, RawExpirationDateSignatures, RawVerificationKey,
 };
-use sqlx::{Postgres, Transaction};
-use std::ops::DerefMut;
 use time::Date;
 use tracing::error;
 
 impl Storage {
-    pub(crate) async fn begin_storage_tx(&self) -> Result<Transaction<'_, Postgres>, sqlx::Error> {
-        self.pool.begin().await
+    pub(crate) async fn begin_storage_tx(&self) -> Result<StorageTransaction<'_>, sqlx::Error> {
+        self.pool.begin().await.map(Into::into)
     }
 
     pub(crate) async fn available_tickets_of_type(&self, typ: &str) -> Result<i64, sqlx::Error> {
@@ -221,13 +219,14 @@ impl Storage {
     }
 }
 
-pub(crate) async fn get_next_unspent_ticketbook(
-    tx: &mut Transaction<'_, Postgres>,
-    ticket_type: String,
-    deadline: Date,
-) -> Result<Option<StoredIssuedTicketbook>, sqlx::Error> {
-    sqlx::query_as(
-        r#"
+impl<'a> StorageTransaction<'a> {
+    pub(crate) async fn get_next_unspent_ticketbook(
+        &mut self,
+        ticket_type: String,
+        deadline: Date,
+    ) -> Result<Option<StoredIssuedTicketbook>, sqlx::Error> {
+        sqlx::query_as(
+            r#"
                 SELECT *
                 FROM ecash_ticketbook
                 WHERE used_tickets + 1 <= total_tickets
@@ -236,43 +235,44 @@ pub(crate) async fn get_next_unspent_ticketbook(
                 ORDER BY expiration_date ASC
                 LIMIT 1
             "#,
-    )
-    .bind(deadline)
-    .bind(ticket_type)
-    .fetch_optional(tx.deref_mut())
-    .await
-}
+        )
+        .bind(deadline)
+        .bind(ticket_type)
+        .fetch_optional(&mut ***self)
+        .await
+    }
 
-pub(crate) async fn increase_used_ticketbook_tickets(
-    tx: &mut Transaction<'_, Postgres>,
-    ticketbook_id: i32,
-) -> Result<(), sqlx::Error> {
-    sqlx::query!(
-        "UPDATE ecash_ticketbook SET used_tickets = used_tickets + 1 WHERE id = $1",
-        ticketbook_id
-    )
-    .execute(tx.deref_mut())
-    .await?;
-    Ok(())
-}
+    pub(crate) async fn increase_used_ticketbook_tickets(
+        &mut self,
+        ticketbook_id: i32,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query!(
+            "UPDATE ecash_ticketbook SET used_tickets = used_tickets + 1 WHERE id = $1",
+            ticketbook_id
+        )
+        .execute(&mut ***self)
+        .await?;
+        Ok(())
+    }
 
-pub(crate) async fn set_distributed_ticketbook(
-    tx: &mut Transaction<'_, Postgres>,
-    testrun_id: i32,
-    ticketbook_id: i32,
-    assigned_index: i32,
-) -> Result<(), sqlx::Error> {
-    sqlx::query!(
-        r#"
+    pub(crate) async fn set_distributed_ticketbook(
+        &mut self,
+        testrun_id: i32,
+        ticketbook_id: i32,
+        assigned_index: i32,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query!(
+            r#"
             INSERT INTO distributed_partial_ticketbook
                 (testrun_id, ticketbook_id, assigned_index)
             VALUES ($1, $2, $3)
         "#,
-        testrun_id,
-        ticketbook_id,
-        assigned_index
-    )
-    .execute(tx.deref_mut())
-    .await?;
-    Ok(())
+            testrun_id,
+            ticketbook_id,
+            assigned_index
+        )
+        .execute(&mut ***self)
+        .await?;
+        Ok(())
+    }
 }

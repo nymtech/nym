@@ -1,9 +1,6 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::db::queries::ecash_data::{
-    get_next_unspent_ticketbook, increase_used_ticketbook_tickets, set_distributed_ticketbook,
-};
 use crate::db::Storage;
 use crate::ticketbook_manager::storage::auxiliary_models::RetrievedTicketbook;
 use anyhow::{anyhow, Context};
@@ -97,8 +94,9 @@ impl TicketbookManagerStorage {
         let mut tx = self.storage.begin_storage_tx().await?;
 
         // we don't want ticketbooks with expiration in the past
-        let Some(raw) =
-            get_next_unspent_ticketbook(&mut tx, ticket_type.to_string(), deadline).await?
+        let Some(raw) = tx
+            .get_next_unspent_ticketbook(ticket_type.to_string(), deadline)
+            .await?
         else {
             // make sure to finish our tx
             tx.commit().await?;
@@ -112,8 +110,9 @@ impl TicketbookManagerStorage {
         )
         .map_err(|err| anyhow!("failed to deserialise stored ticketbook: {err}"))?;
 
-        set_distributed_ticketbook(&mut tx, testrun_id, raw.id, raw.used_tickets).await?;
-        increase_used_ticketbook_tickets(&mut tx, raw.id).await?;
+        tx.set_distributed_ticketbook(testrun_id, raw.id, raw.used_tickets)
+            .await?;
+        tx.increase_used_ticketbook_tickets(raw.id).await?;
         tx.commit().await?;
 
         deserialised.update_spent_tickets(raw.used_tickets as u64);

@@ -205,6 +205,10 @@ pub mod wg_outcome_versions {
     #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
     pub struct ProbeOutcomeV1 {
         pub can_register: bool,
+        pub can_handshake: Option<bool>,
+        pub can_resolve_dns: Option<bool>,
+        pub ping_hosts_performance: Option<f32>,
+        pub ping_ips_performance: Option<f32>,
 
         pub can_handshake_v4: bool,
         pub can_resolve_dns_v4: bool,
@@ -254,11 +258,27 @@ impl DVpnGateway {
 
         let (last_probe_result, performance_v2) = match gateway.last_probe_result {
             Some(ref value) => {
-                let parsed = serde_json::from_value::<LastProbeResult>(value.clone()).inspect_err(
-                    |err| {
+                let mut parsed = serde_json::from_value::<LastProbeResult>(value.clone())
+                    .inspect_err(|err| {
                         error!("Failed to deserialize probe result: {err}");
-                    },
-                )?;
+                    })?;
+
+                parsed.outcome.wg = parsed.outcome.wg.clone().map(|mut wg| {
+                    if wg.can_handshake.is_none() {
+                        wg.can_handshake = Some(wg.can_handshake_v4);
+                    }
+                    if wg.can_resolve_dns.is_none() {
+                        wg.can_resolve_dns = Some(wg.can_resolve_dns_v4);
+                    }
+                    if wg.ping_hosts_performance.is_none() {
+                        wg.ping_hosts_performance = Some(wg.ping_hosts_performance_v4);
+                    }
+                    if wg.ping_ips_performance.is_none() {
+                        wg.ping_ips_performance = Some(wg.ping_ips_performance_v4);
+                    }
+                    wg
+                });
+
                 tracing::info!("🌈 gateway probe parsed: {:?}", parsed);
                 let performance_v2 = DVpnGatewayPerformance {
                     last_updated_utc: last_updated_utc.to_string(),

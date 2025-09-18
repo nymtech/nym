@@ -62,6 +62,8 @@ pub trait ContractOpts {
         coins: &[Coin],
         message: Self::ExecuteMsg,
     ) -> Result<Response, Self::ContractError>;
+
+    fn unchecked_contract_address<D: TestableNymContract>(&self) -> Addr;
 }
 
 impl<C> ContractOpts for ContractTester<C>
@@ -129,6 +131,10 @@ where
         let info = message_info(&sender, coins);
 
         C::execute()(self.deps_mut(), env, info, message)
+    }
+
+    fn unchecked_contract_address<D: TestableNymContract>(&self) -> Addr {
+        self.unchecked_contract_address::<D>()
     }
 }
 

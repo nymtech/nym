@@ -114,6 +114,10 @@ impl<C> ContractTesterBuilder<C> {
         }
     }
 
+    pub fn master_address(&self) -> Addr {
+        self.master_address.clone()
+    }
+
     pub fn instantiate<D: TestableNymContract>(
         mut self,
         custom_init_msg: Option<D::InitMsg>,

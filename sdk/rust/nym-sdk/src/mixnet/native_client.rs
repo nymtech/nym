@@ -24,6 +24,7 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
 use tokio::sync::RwLockReadGuard;
+use tokio_util::sync::WaitForCancellationFutureOwned;
 
 /// Client connected to the Nym mixnet.
 pub struct MixnetClient {
@@ -266,6 +267,12 @@ impl MixnetClient {
                 Err(Error::MessageSendingFailure)
             }
         }
+    }
+
+    pub fn cancelled(&self) -> WaitForCancellationFutureOwned {
+        self.shutdown_handle
+            .clone_shutdown_token()
+            .cancelled_owned()
     }
 }
 

@@ -74,6 +74,7 @@ pub fn add_fixture_dealer(deps: DepsMut<'_>) {
     );
 }
 
+#[allow(clippy::panic)]
 fn querier_handler(query: &WasmQuery) -> QuerierResult {
     let bin = match query {
         WasmQuery::Smart { contract_addr, msg } => {

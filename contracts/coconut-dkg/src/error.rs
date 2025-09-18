@@ -139,4 +139,7 @@ pub enum ContractError {
 
     #[error("retrieved the maximum allowed number of cw4 members. for more the contracts have to be refactored")]
     PossiblyIncompleteGroupMembersQuery,
+
+    #[error("this method has been called outside transaction context")]
+    ExecutedOutsideTransaction,
 }

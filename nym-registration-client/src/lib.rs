@@ -8,6 +8,7 @@ use nym_authenticator_client::{
 use nym_bandwidth_controller::BandwidthTicketProvider;
 use nym_credentials_interface::TicketType;
 use nym_sdk::mixnet::{MixnetClient, Recipient};
+use nym_sdk::ShutdownManager;
 use tokio_util::sync::CancellationToken;
 
 use nym_ip_packet_client::IprClientConnect;
@@ -33,9 +34,10 @@ pub use nym_authenticator_client::{
 pub struct RegistrationClient {
     mixnet_client: MixnetClient,
     config: RegistrationClientConfig,
-    cancel_token: CancellationToken,
     mixnet_client_address: Recipient,
     bandwidth_controller: Box<dyn BandwidthTicketProvider>,
+    mixnet_shutdown_manager: ShutdownManager,
+    cancel_token: CancellationToken,
 }
 
 impl RegistrationClient {
@@ -59,6 +61,7 @@ impl RegistrationClient {
         Ok(RegistrationResult::Mixnet(Box::new(
             MixnetRegistrationResult {
                 mixnet_client: ipr_client.into_mixnet_client(),
+                mixnet_shutdown_manager: self.mixnet_shutdown_manager,
                 assigned_addresses: AssignedAddresses {
                     interface_addresses,
                     exit_mix_address: ipr_address,
@@ -90,8 +93,12 @@ impl RegistrationClient {
 
         // Start the auth client mixnet listener, which will listen for incoming messages from the
         // mixnet and rebroadcast them to the auth clients.
-        let mixnet_listener =
-            AuthClientMixnetListener::new(self.mixnet_client, self.cancel_token.clone()).start();
+        let mixnet_listener = AuthClientMixnetListener::new(
+            self.mixnet_client,
+            self.cancel_token.clone(),
+            self.mixnet_shutdown_manager,
+        )
+        .start();
 
         let mut entry_auth_client = AuthenticatorClient::new_entry(
             &self.config.data_path,
@@ -166,6 +173,7 @@ pub struct AssignedAddresses {
 pub struct MixnetRegistrationResult {
     pub assigned_addresses: AssignedAddresses,
     pub mixnet_client: nym_sdk::mixnet::MixnetClient,
+    pub mixnet_shutdown_manager: nym_sdk::ShutdownManager,
 }
 
 pub struct WireguardRegistrationResult {

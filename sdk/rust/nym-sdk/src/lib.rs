@@ -26,5 +26,5 @@ pub use nym_network_defaults::{
     ChainDetails, DenomDetails, DenomDetailsOwned, NymContracts, NymNetworkDetails,
     ValidatorDetails,
 };
-pub use nym_task::{ShutdownToken, ShutdownTracker};
+pub use nym_task::{ShutdownManager, ShutdownToken, ShutdownTracker};
 pub use nym_validator_client::UserAgent;

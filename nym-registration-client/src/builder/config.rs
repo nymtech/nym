@@ -7,8 +7,7 @@ use nym_sdk::{
         CredentialStorage, GatewaysDetailsStore, KeyStore, MixnetClient, MixnetClientBuilder,
         MixnetClientStorage, OnDiskPersistent, ReplyStorageBackend, StoragePaths,
     },
-    DebugConfig, NymNetworkDetails, RememberMe, ShutdownToken, ShutdownTracker, TopologyProvider,
-    UserAgent,
+    DebugConfig, NymNetworkDetails, RememberMe, TopologyProvider, UserAgent,
 };
 
 #[cfg(unix)]
@@ -104,16 +103,11 @@ impl BuilderConfig {
             RememberMe::new_mixnet()
         };
 
-        let shutdown_tracker = ShutdownTracker::new_from_external_shutdown_token(
-            ShutdownToken::new_from_tokio_token(self.cancel_token),
-        );
-
         let builder = builder
             .with_user_agent(self.user_agent)
             .request_gateway(self.entry_node.identity.to_string())
             .network_details(self.network_env)
             .debug_config(debug_config)
-            .custom_shutdown(shutdown_tracker)
             .credentials_mode(self.enable_credentials_mode)
             .with_remember_me(remember_me)
             .custom_topology_provider(self.custom_topology_provider);
@@ -151,57 +145,64 @@ fn two_hop_debug_config(mixnet_client_config: &MixnetClientConfig) -> DebugConfi
             MOBILE_LOOP_COVER_STREAM_AVERAGE_DELAY;
     }
 
-    apply_mixnet_client_config(mixnet_client_config, debug_config)
+    if let Some(min_mixnode_performance) = mixnet_client_config.min_mixnode_performance {
+        debug_config.topology.minimum_mixnode_performance = min_mixnode_performance;
+    }
+
+    if let Some(min_gateway_performance) = mixnet_client_config.min_gateway_performance {
+        debug_config.topology.minimum_gateway_performance = min_gateway_performance;
+    }
+
+    log_mixnet_client_config(&debug_config);
+    debug_config
 }
 
 fn mixnet_debug_config(mixnet_client_config: &MixnetClientConfig) -> DebugConfig {
     let mut debug_config = DebugConfig::default();
     debug_config.traffic.average_packet_delay = VPN_AVERAGE_PACKET_DELAY;
-    apply_mixnet_client_config(mixnet_client_config, debug_config)
-}
 
-fn apply_mixnet_client_config(
-    mixnet_client_config: &MixnetClientConfig,
-    mut debug_config: DebugConfig,
-) -> DebugConfig {
-    let MixnetClientConfig {
-        disable_poisson_rate,
-        disable_background_cover_traffic,
-        min_mixnode_performance,
-        min_gateway_performance,
-    } = mixnet_client_config;
-
-    tracing::info!(
-        "mixnet client poisson rate limiting: {}",
-        true_to_disabled(*disable_poisson_rate)
-    );
     debug_config
         .traffic
-        .disable_main_poisson_packet_distribution = *disable_poisson_rate;
+        .disable_main_poisson_packet_distribution = mixnet_client_config.disable_poisson_rate;
+
+    debug_config.cover_traffic.disable_loop_cover_traffic_stream =
+        mixnet_client_config.disable_background_cover_traffic;
+
+    if let Some(min_mixnode_performance) = mixnet_client_config.min_mixnode_performance {
+        debug_config.topology.minimum_mixnode_performance = min_mixnode_performance;
+    }
+
+    if let Some(min_gateway_performance) = mixnet_client_config.min_gateway_performance {
+        debug_config.topology.minimum_gateway_performance = min_gateway_performance;
+    }
+    log_mixnet_client_config(&debug_config);
+    debug_config
+}
+
+fn log_mixnet_client_config(debug_config: &DebugConfig) {
+    tracing::info!(
+        "mixnet client poisson rate limiting: {}",
+        true_to_disabled(
+            debug_config
+                .traffic
+                .disable_main_poisson_packet_distribution
+        )
+    );
 
     tracing::info!(
         "mixnet client background loop cover traffic stream: {}",
-        true_to_disabled(*disable_background_cover_traffic)
+        true_to_disabled(debug_config.cover_traffic.disable_loop_cover_traffic_stream)
     );
-    debug_config.cover_traffic.disable_loop_cover_traffic_stream =
-        *disable_background_cover_traffic;
 
-    if let Some(min_mixnode_performance) = min_mixnode_performance {
-        debug_config.topology.minimum_mixnode_performance = *min_mixnode_performance;
-    }
     tracing::info!(
         "mixnet client minimum mixnode performance: {}",
         debug_config.topology.minimum_mixnode_performance,
     );
 
-    if let Some(min_gateway_performance) = min_gateway_performance {
-        debug_config.topology.minimum_gateway_performance = *min_gateway_performance;
-    }
     tracing::info!(
         "mixnet client minimum gateway performance: {}",
         debug_config.topology.minimum_gateway_performance,
     );
-    debug_config
 }
 
 fn true_to_disabled(val: bool) -> &'static str {

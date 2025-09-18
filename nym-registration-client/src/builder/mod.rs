@@ -5,7 +5,7 @@ use nym_bandwidth_controller::{BandwidthController, BandwidthTicketProvider};
 use nym_credential_storage::ephemeral_storage::EphemeralCredentialStorage;
 use nym_sdk::{
     mixnet::{MixnetClient, MixnetClientBuilder},
-    NymNetworkDetails,
+    NymNetworkDetails, ShutdownManager,
 };
 use nym_validator_client::{
     nyxd::{Config as NyxdClientConfig, NyxdClient},
@@ -38,6 +38,7 @@ impl RegistrationClientBuilder {
             data_path: self.config.data_path.clone(),
         };
         let cancel_token = self.config.cancel_token.clone();
+        let mixnet_shutdown_manager = ShutdownManager::build_new_default()?;
 
         let nyxd_client = get_nyxd_client(&self.config.network_env)?;
 
@@ -45,7 +46,8 @@ impl RegistrationClientBuilder {
             MixnetClient,
             Box<dyn BandwidthTicketProvider>,
         ) = if let Some((mixnet_client_storage, credential_storage)) = storage {
-            let builder = MixnetClientBuilder::new_with_storage(mixnet_client_storage);
+            let builder = MixnetClientBuilder::new_with_storage(mixnet_client_storage)
+                .custom_shutdown(mixnet_shutdown_manager.shutdown_tracker().clone());
             let mixnet_client = tokio::time::timeout(
                 MIXNET_CLIENT_STARTUP_TIMEOUT,
                 self.config.build_and_connect_mixnet_client(builder),
@@ -55,7 +57,8 @@ impl RegistrationClientBuilder {
                 Box::new(BandwidthController::new(credential_storage, nyxd_client));
             (mixnet_client, bandwidth_controller)
         } else {
-            let builder = MixnetClientBuilder::new_ephemeral();
+            let builder = MixnetClientBuilder::new_ephemeral()
+                .custom_shutdown(mixnet_shutdown_manager.shutdown_tracker().clone());
             let mixnet_client = tokio::time::timeout(
                 MIXNET_CLIENT_STARTUP_TIMEOUT,
                 self.config.build_and_connect_mixnet_client(builder),
@@ -73,6 +76,7 @@ impl RegistrationClientBuilder {
             mixnet_client,
             config,
             cancel_token,
+            mixnet_shutdown_manager,
             mixnet_client_address,
             bandwidth_controller,
         })

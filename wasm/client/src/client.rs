@@ -250,9 +250,7 @@ impl NymClientBuilder {
             client_state: Arc::new(started_client.client_state),
             _full_topology: None,
             // this cannot fail as we haven't passed an external task manager
-            _task_manager: started_client
-                .shutdown_handle
-                .expect("shutdown manager missing"),
+            _task_manager: started_client.shutdown_handle,
             packet_type,
         })
     }

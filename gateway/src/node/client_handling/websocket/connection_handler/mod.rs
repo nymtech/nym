@@ -78,9 +78,23 @@ impl ClientDetails {
             otel_context,
         }
     }
+
     #[cfg(feature = "otel")]
     pub(crate) fn get_extracted_trace_id(&self) -> Option<TraceId> {
-        self.otel_context.as_ref().and_then(|ctx| ctx.trace_id)
+        if let Some(ctx) = &self.otel_context {
+           self.otel_context.as_ref().and_then(|ctx| ctx.trace_id)
+        } else {
+            None
+        }
+    }
+
+    #[cfg(feature = "otel")]
+    pub(crate) fn get_extracted_root_span(&self) -> Option<&tracing::Span> {
+        if let Some(ctx) = &self.otel_context {
+           self.otel_context.as_ref().and_then(|ctx| ctx.root_span.as_ref())
+        } else {
+            None
+        }
     }
 }
 

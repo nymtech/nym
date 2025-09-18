@@ -208,6 +208,9 @@ impl<R, S> AuthenticatedHandler<R, S> {
             mix_receiver,
             is_active_request_receiver,
             is_active_ping_pending_reply: None,
+            #[cfg(feature = "otel")]
+            root_span: self.client.get_extracted_root_span(),
+            #[cfg(not(feature = "otel"))]
             root_span: None,
         };
         handler.send_metrics(GatewaySessionEvent::new_session_start(
@@ -242,7 +245,7 @@ impl<R, S> AuthenticatedHandler<R, S> {
     /// * `mix_packet`: packet received from the client that should get forwarded into the network.
     #[instrument(skip_all)]
     fn forward_packet(&self, mix_packet: MixPacket) {
-        let herited_span = self.root_span.as_ref().cloned().unwrap_or_else(|| tracing::Span::none());
+        let herited_span = self.root_span.as_ref().cloned().unwrap_or_else(|| tracing::Span::current());
         let span = info_span!(parent: &herited_span, "forwarding_packet");
         let _enter = span.enter();
 
@@ -305,7 +308,7 @@ impl<R, S> AuthenticatedHandler<R, S> {
         &mut self,
         mix_packet: MixPacket,
     ) -> Result<ServerResponse, RequestHandlingError> {
-        let herited_span = self.root_span.as_ref().cloned().unwrap_or_else(|| tracing::Span::none());
+        let herited_span = self.root_span.as_ref().cloned().unwrap_or_else(|| tracing::Span::current());
         let span = info_span!(parent: &herited_span, "forwarding_sphinx_packet");
         let _enter = span.enter();
 
@@ -330,7 +333,7 @@ impl<R, S> AuthenticatedHandler<R, S> {
     #[instrument(skip_all)]
     async fn handle_binary(&mut self, bin_msg: Vec<u8>) -> Message {
         trace!("binary request");
-        let herited_span = self.root_span.as_ref().cloned().unwrap_or_else(|| tracing::Span::none());
+        let herited_span = self.root_span.as_ref().cloned().unwrap_or_else(|| tracing::Span::current());
         let span = info_span!(parent: &herited_span, "handling_binary");
         let _enter = span.enter();
 

@@ -80,7 +80,7 @@ pub enum ClientControlRequest {
         address: String,
         enc_address: String,
         iv: String,
-        /// this is a trace id that is used in testing and performance verification
+        /// this variable is set to none unless the client is running with otel feature on.
         /// in mainnet, this will always be set to None
         #[serde(default)]
         otel_context: Option<HashMap<String, String>>,

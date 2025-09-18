@@ -492,6 +492,8 @@ impl HttpCache {
             None => {
                 let new_node_stats = crate::db::queries::get_daily_stats(db)
                     .await
+                    .inspect_err(|err| tracing::error!("{err}"))
+                    // still need to return some data on API in case of internal error
                     .unwrap_or_default()
                     .into_iter()
                     .rev()

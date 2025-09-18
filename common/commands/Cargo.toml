@@ -38,6 +38,7 @@ cosmrs = { workspace = true }
 cosmwasm-std = { workspace = true }
 
 nym-validator-client = { path = "../client-libs/validator-client" }
+nym-http-api-client = { path = "../http-api-client" }
 nym-bin-common = { path = "../../common/bin-common", features = ["output_format"] }
 nym-crypto = { path = "../../common/crypto", features = ["asymmetric"] }
 nym-network-defaults = { path = "../network-defaults" }

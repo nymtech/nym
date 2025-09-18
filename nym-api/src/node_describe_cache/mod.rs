@@ -30,7 +30,7 @@ pub enum NodeDescribeCacheError {
         node_id: NodeId,
 
         #[source]
-        source: NymNodeApiClientError,
+        source: Box<NymNodeApiClientError>,
     },
 
     #[error("node {node_id} with host '{host}' doesn't seem to expose its declared http port nor any of the standard API ports, i.e.: 80, 443 or {}", DEFAULT_NYM_NODE_HTTP_PORT)]
@@ -41,7 +41,7 @@ pub enum NodeDescribeCacheError {
         node_id: NodeId,
 
         #[source]
-        source: NymNodeApiClientError,
+        source: Box<NymNodeApiClientError>,
     },
 
     // TODO: perhaps include more details here like whether key/signature/payload was malformed

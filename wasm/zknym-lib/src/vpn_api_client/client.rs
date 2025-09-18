@@ -1,14 +1,14 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
-
-use super::NymVpnApiClientError;
 use crate::error::ZkNymError;
 use crate::vpn_api_client::types::{
     AttributesResponse, MasterVerificationKeyResponse, PartialVerificationKeysResponse,
 };
 use async_trait::async_trait;
 pub use nym_http_api_client::Client;
-use nym_http_api_client::{parse_response, ApiClient, IntoUrl, PathSegments, NO_PARAMS};
+use nym_http_api_client::{
+    parse_response, ApiClient, HttpClientError, IntoUrl, PathSegments, NO_PARAMS,
+};
 use serde::de::DeserializeOwned;
 
 #[allow(dead_code)]
@@ -23,9 +23,11 @@ pub fn new_client(
     bearer_token: impl Into<String>,
 ) -> Result<VpnApiClient, ZkNymError> {
     Ok(VpnApiClient {
-        inner: Client::builder(base_url)?
+        inner: Client::builder(base_url)
+            .map_err(Box::new)?
             .with_user_agent(format!("nym-wasm-znym-lib/{}", env!("CARGO_PKG_VERSION")))
-            .build()?,
+            .build()
+            .map_err(Box::new)?,
         bearer_token: bearer_token.into(),
     })
 }
@@ -34,13 +36,11 @@ pub fn new_client(
 #[allow(dead_code)]
 #[async_trait(?Send)]
 pub trait NymVpnApiClient {
-    async fn simple_get<T>(&self, path: PathSegments<'_>) -> Result<T, NymVpnApiClientError>
+    async fn simple_get<T>(&self, path: PathSegments<'_>) -> Result<T, HttpClientError>
     where
         T: DeserializeOwned;
 
-    async fn get_prehashed_public_attributes(
-        &self,
-    ) -> Result<AttributesResponse, NymVpnApiClientError> {
+    async fn get_prehashed_public_attributes(&self) -> Result<AttributesResponse, HttpClientError> {
         self.simple_get(&[
             "/api",
             "/v1",
@@ -52,7 +52,7 @@ pub trait NymVpnApiClient {
 
     async fn get_partial_verification_keys(
         &self,
-    ) -> Result<PartialVerificationKeysResponse, NymVpnApiClientError> {
+    ) -> Result<PartialVerificationKeysResponse, HttpClientError> {
         self.simple_get(&[
             "/api",
             "/v1",
@@ -64,7 +64,7 @@ pub trait NymVpnApiClient {
 
     async fn get_master_verification_key(
         &self,
-    ) -> Result<MasterVerificationKeyResponse, NymVpnApiClientError> {
+    ) -> Result<MasterVerificationKeyResponse, HttpClientError> {
         self.simple_get(&[
             "/api",
             "/v1",
@@ -77,13 +77,13 @@ pub trait NymVpnApiClient {
 
 #[async_trait(?Send)]
 impl NymVpnApiClient for VpnApiClient {
-    async fn simple_get<T>(&self, path: PathSegments<'_>) -> Result<T, NymVpnApiClientError>
+    async fn simple_get<T>(&self, path: PathSegments<'_>) -> Result<T, HttpClientError>
     where
         T: DeserializeOwned,
     {
         let req = self
             .inner
-            .create_get_request(path, NO_PARAMS)
+            .create_get_request(path, NO_PARAMS)?
             .bearer_auth(&self.bearer_token)
             .send();
 

@@ -3,7 +3,7 @@
 
 use nym_client_core::{config::disk_persistence::CommonClientPaths, TopologyProvider};
 use nym_sdk::{GatewayTransceiver, NymNetworkDetails};
-use nym_task::TaskClient;
+use nym_task::ShutdownTracker;
 
 use crate::{config::BaseClientConfig, error::IpPacketRouterError};
 
@@ -13,7 +13,7 @@ use crate::{config::BaseClientConfig, error::IpPacketRouterError};
 // TODO: refactor this function and its arguments
 pub(crate) async fn create_mixnet_client(
     config: &BaseClientConfig,
-    shutdown: TaskClient,
+    shutdown: ShutdownTracker,
     custom_transceiver: Option<Box<dyn GatewayTransceiver + Send + Sync>>,
     custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
     wait_for_gateway: bool,

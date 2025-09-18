@@ -4,6 +4,7 @@
 use crate::client::mix_traffic::transceiver::ErasedGatewayError;
 use nym_crypto::asymmetric::ed25519::Ed25519RecoveryError;
 use nym_gateway_client::error::GatewayClientError;
+use nym_task::RegistryAccessError;
 use nym_topology::node::RoutingNodeError;
 use nym_topology::{NodeId, NymTopologyError};
 use nym_validator_client::nym_api::error::NymAPIError;
@@ -56,10 +57,7 @@ pub enum ClientCoreError {
     ListOfNymApisIsEmpty,
 
     #[error("failed to resolve a query to nym API: {source}")]
-    NymApiQueryFailure {
-        #[from]
-        source: NymAPIError,
-    },
+    NymApiQueryFailure { source: Box<NymAPIError> },
 
     #[error(
         "the current network topology seem to be insufficient to route any packets through:\n\t{0}"
@@ -245,11 +243,22 @@ pub enum ClientCoreError {
 
     #[error("failed to select valid gateway due to incomputable latency")]
     GatewaySelectionFailure { source: WeightedError },
+
+    #[error("Could not access task registry, {0}")]
+    RegistryAccess(#[from] RegistryAccessError),
 }
 
 impl From<tungstenite::Error> for ClientCoreError {
     fn from(err: tungstenite::Error) -> ClientCoreError {
         ClientCoreError::GatewayConnectionFailure {
+            source: Box::new(err),
+        }
+    }
+}
+
+impl From<NymAPIError> for ClientCoreError {
+    fn from(err: NymAPIError) -> ClientCoreError {
+        ClientCoreError::NymApiQueryFailure {
             source: Box::new(err),
         }
     }

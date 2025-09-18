@@ -1,25 +1,24 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-// it's fine if compilation fails
-#[allow(clippy::unwrap_used)]
-#[allow(clippy::expect_used)]
+use anyhow::Context;
+
 #[tokio::main]
-async fn main() {
+async fn main() -> anyhow::Result<()> {
     use sqlx::{Connection, SqliteConnection};
     use std::env;
 
-    let out_dir = env::var("OUT_DIR").unwrap();
+    let out_dir = env::var("OUT_DIR")?;
     let database_path = format!("{out_dir}/scraper-example.sqlite");
 
     let mut conn = SqliteConnection::connect(&format!("sqlite://{database_path}?mode=rwc"))
         .await
-        .expect("Failed to create SQLx database connection");
+        .context("Failed to create SQLx database connection")?;
 
     sqlx::migrate!("./migrations")
         .run(&mut conn)
         .await
-        .expect("Failed to perform SQLx migrations");
+        .context("Failed to perform SQLx migrations")?;
 
     #[cfg(target_family = "unix")]
     println!("cargo:rustc-env=DATABASE_URL=sqlite://{}", &database_path);
@@ -28,4 +27,6 @@ async fn main() {
     // for some strange reason we need to add a leading `/` to the windows path even though it's
     // not a valid windows path... but hey, it works...
     println!("cargo:rustc-env=DATABASE_URL=sqlite:///{}", &database_path);
+
+    Ok(())
 }

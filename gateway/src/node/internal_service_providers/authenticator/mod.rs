@@ -7,7 +7,7 @@ use ipnetwork::IpNetwork;
 use nym_client_core::{HardcodedTopologyProvider, TopologyProvider};
 use nym_credential_verification::ecash::EcashManager;
 use nym_sdk::{mixnet::Recipient, GatewayTransceiver};
-use nym_task::{TaskClient, TaskHandle};
+use nym_task::ShutdownTracker;
 use nym_wireguard::WireguardGatewayData;
 use std::{net::IpAddr, path::Path, sync::Arc, time::SystemTime};
 
@@ -40,7 +40,7 @@ pub struct Authenticator {
     wireguard_gateway_data: WireguardGatewayData,
     ecash_verifier: Arc<EcashManager>,
     used_private_network_ips: Vec<IpAddr>,
-    shutdown: Option<TaskClient>,
+    shutdown: ShutdownTracker,
     on_start: Option<oneshot::Sender<OnStartData>>,
 }
 
@@ -50,6 +50,7 @@ impl Authenticator {
         wireguard_gateway_data: WireguardGatewayData,
         used_private_network_ips: Vec<IpAddr>,
         ecash_verifier: Arc<EcashManager>,
+        shutdown: ShutdownTracker,
     ) -> Self {
         Self {
             config,
@@ -59,16 +60,9 @@ impl Authenticator {
             ecash_verifier,
             wireguard_gateway_data,
             used_private_network_ips,
-            shutdown: None,
+            shutdown,
             on_start: None,
         }
-    }
-
-    #[must_use]
-    #[allow(unused)]
-    pub fn with_shutdown(mut self, shutdown: TaskClient) -> Self {
-        self.shutdown = Some(shutdown);
-        self
     }
 
     #[must_use]
@@ -123,14 +117,10 @@ impl Authenticator {
     pub async fn run_service_provider(self) -> Result<(), AuthenticatorError> {
         // Used to notify tasks to shutdown. Not all tasks fully supports this (yet).
 
-        let task_handle: TaskHandle = self.shutdown.map(Into::into).unwrap_or_default();
-
         // Connect to the mixnet
         let mixnet_client = crate::node::internal_service_providers::authenticator::mixnet_client::create_mixnet_client(
             &self.config.base,
-            task_handle
-                .get_handle()
-                .named("nym_sdk::MixnetClient[AUTH]"),
+            self.shutdown.clone(),
             self.custom_gateway_transceiver,
             self.custom_topology_provider,
             self.wait_for_gateway,
@@ -162,7 +152,6 @@ impl Authenticator {
             free_private_network_ips,
             self.wireguard_gateway_data,
             mixnet_client,
-            task_handle,
             self.ecash_verifier,
         );
 
@@ -176,6 +165,8 @@ impl Authenticator {
             }
         }
 
-        mixnet_listener.run().await
+        mixnet_listener
+            .run(self.shutdown.clone_shutdown_token())
+            .await
     }
 }

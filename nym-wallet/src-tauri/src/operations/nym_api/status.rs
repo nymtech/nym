@@ -4,15 +4,57 @@
 use crate::api_client;
 use crate::error::BackendError;
 use crate::state::WalletState;
+use cosmwasm_std::testing::mock_env;
+use log::error;
+use nym_mixnet_contract_common::reward_params::RewardedSetParams;
+use nym_mixnet_contract_common::rewarding::RewardEstimate;
 use nym_mixnet_contract_common::{
-    reward_params::Performance, Coin, IdentityKeyRef, NodeId, Percent,
+    reward_params::Performance, Coin, IdentityKeyRef, Interval, IntervalRewardParams, NodeId,
+    Percent, RewardingParams,
 };
 use nym_validator_client::client::NymApiClientExt;
 use nym_validator_client::models::{
-    AnnotationResponse, ComputeRewardEstParam, DisplayRole, GatewayCoreStatusResponse,
-    GatewayStatusReportResponse, MixnodeCoreStatusResponse, MixnodeStatusResponse,
-    RewardEstimationResponse, StakeSaturationResponse,
+    AnnotationResponse, DisplayRole, GatewayCoreStatusResponse, GatewayStatusReportResponse,
+    MixnodeCoreStatusResponse, MixnodeStatusResponse, StakeSaturationResponse,
 };
+use serde::{Deserialize, Serialize};
+use std::time::Duration;
+
+#[derive(Serialize, Deserialize)]
+pub struct LegacyRewardEstimationResponse {
+    estimation: RewardEstimate,
+    reward_params: RewardingParams,
+    epoch: Interval,
+    as_at: i64,
+}
+
+impl LegacyRewardEstimationResponse {
+    fn empty() -> LegacyRewardEstimationResponse {
+        LegacyRewardEstimationResponse {
+            estimation: Default::default(),
+            reward_params: RewardingParams {
+                interval: IntervalRewardParams {
+                    reward_pool: Default::default(),
+                    staking_supply: Default::default(),
+                    staking_supply_scale_factor: Default::default(),
+                    epoch_reward_budget: Default::default(),
+                    stake_saturation_point: Default::default(),
+                    sybil_resistance: Default::default(),
+                    active_set_work_factor: Default::default(),
+                    interval_pool_emission: Default::default(),
+                },
+                rewarded_set: RewardedSetParams {
+                    entry_gateways: 0,
+                    exit_gateways: 0,
+                    mixnodes: 0,
+                    standby: 0,
+                },
+            },
+            epoch: Interval::init_interval(720, Duration::from_secs(60), &mock_env()),
+            as_at: 0,
+        }
+    }
+}
 
 // TODO: fix later (yeah...)
 #[allow(deprecated)]
@@ -45,68 +87,71 @@ pub async fn gateway_core_node_status(
 #[tauri::command]
 pub async fn gateway_report(
     identity: IdentityKeyRef<'_>,
-    state: tauri::State<'_, WalletState>,
+    _: tauri::State<'_, WalletState>,
 ) -> Result<GatewayStatusReportResponse, BackendError> {
-    Ok(api_client!(state).get_gateway_report(identity).await?)
+    error!("‼️‼️‼️ using legacy and no longer supported gateway report query! returning a default response");
+    Ok(GatewayStatusReportResponse {
+        identity: identity.to_string(),
+        owner: "".to_string(),
+        most_recent: 0,
+        last_hour: 0,
+        last_day: 0,
+    })
 }
 
 // TODO: fix later (yeah...)
 #[allow(deprecated)]
 #[tauri::command]
 pub async fn mixnode_status(
-    mix_id: NodeId,
-    state: tauri::State<'_, WalletState>,
+    _: NodeId,
+    _: tauri::State<'_, WalletState>,
 ) -> Result<MixnodeStatusResponse, BackendError> {
-    Ok(api_client!(state).get_mixnode_status(mix_id).await?)
+    error!("‼️‼️‼️ using legacy and no longer supported mixnode status query! returning a default response");
+    Ok(MixnodeStatusResponse {
+        status: Default::default(),
+    })
 }
 
 // TODO: fix later (yeah...)
 #[allow(deprecated)]
 #[tauri::command]
 pub async fn mixnode_reward_estimation(
-    mix_id: NodeId,
-    state: tauri::State<'_, WalletState>,
-) -> Result<RewardEstimationResponse, BackendError> {
-    Ok(api_client!(state)
-        .get_mixnode_reward_estimation(mix_id)
-        .await?)
+    _: NodeId,
+    _: tauri::State<'_, WalletState>,
+) -> Result<LegacyRewardEstimationResponse, BackendError> {
+    error!("‼️‼️‼️ using legacy and no longer supported mixnode reward estimation! returning a default response");
+    Ok(LegacyRewardEstimationResponse::empty())
 }
 
 // TODO: fix later (yeah...)
 #[allow(deprecated)]
 #[tauri::command]
 pub async fn compute_mixnode_reward_estimation(
-    mix_id: u32,
-    performance: Option<Performance>,
-    pledge_amount: Option<u64>,
-    total_delegation: Option<u64>,
-    interval_operating_cost: Option<Coin>,
-    profit_margin_percent: Option<Percent>,
-    state: tauri::State<'_, WalletState>,
-) -> Result<RewardEstimationResponse, BackendError> {
-    let request_body = ComputeRewardEstParam {
-        performance,
-        active_in_rewarded_set: Some(true),
-        pledge_amount,
-        total_delegation,
-        interval_operating_cost,
-        profit_margin_percent,
-    };
-    Ok(api_client!(state)
-        .compute_mixnode_reward_estimation(mix_id, &request_body)
-        .await?)
+    _: u32,
+    _: Option<Performance>,
+    _: Option<u64>,
+    _: Option<u64>,
+    _: Option<Coin>,
+    _: Option<Percent>,
+    _: tauri::State<'_, WalletState>,
+) -> Result<LegacyRewardEstimationResponse, BackendError> {
+    error!("‼️‼️‼️ using legacy and no longer supported mixnode reward estimation! returning a default response");
+    Ok(LegacyRewardEstimationResponse::empty())
 }
 
 // TODO: fix later (yeah...)
 #[allow(deprecated)]
 #[tauri::command]
 pub async fn mixnode_stake_saturation(
-    mix_id: NodeId,
-    state: tauri::State<'_, WalletState>,
+    _: NodeId,
+    _: tauri::State<'_, WalletState>,
 ) -> Result<StakeSaturationResponse, BackendError> {
-    Ok(api_client!(state)
-        .get_mixnode_stake_saturation(mix_id)
-        .await?)
+    error!("‼️‼️‼️ using legacy and no longer supported mixnode stake saturation! returning a default response");
+    Ok(StakeSaturationResponse {
+        saturation: Default::default(),
+        uncapped_saturation: Default::default(),
+        as_at: 0,
+    })
 }
 
 #[tauri::command]

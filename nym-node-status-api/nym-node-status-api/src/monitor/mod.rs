@@ -1,31 +1,24 @@
 #![allow(deprecated)]
 
 use crate::db::models::{
-    gateway, mixnode, GatewayInsertRecord, MixnodeRecord, NetworkSummary, NymNodeInsertRecord,
+    gateway, mixnode, GatewayInsertRecord, NetworkSummary, NymNodeInsertRecord,
     ASSIGNED_ENTRY_COUNT, ASSIGNED_EXIT_COUNT, ASSIGNED_MIXING_COUNT, GATEWAYS_BONDED_COUNT,
-    GATEWAYS_HISTORICAL_COUNT, MIXNODES_HISTORICAL_COUNT, MIXNODES_LEGACY_COUNT,
-    NYMNODES_DESCRIBED_COUNT, NYMNODE_COUNT,
+    GATEWAYS_HISTORICAL_COUNT, MIXNODES_HISTORICAL_COUNT, NYMNODES_DESCRIBED_COUNT, NYMNODE_COUNT,
 };
 use crate::db::{queries, DbPool};
 use crate::utils::now_utc;
-use crate::utils::{decimal_to_i64, LogError, NumericalCheckedCast};
-use anyhow::anyhow;
+use crate::utils::{LogError, NumericalCheckedCast};
 use moka::future::Cache;
 use nym_network_defaults::NymNetworkDetails;
 use nym_validator_client::{
     client::{NodeId, NymApiClientExt, NymNodeDetails},
-    models::{LegacyDescribedMixNode, MixNodeBondAnnotated, NymNodeDescription},
+    models::NymNodeDescription,
 };
 use nym_validator_client::{
     nym_nodes::{NodeRole, SkimmedNode},
-    nyxd::{contract_traits::PagedMixnetQueryClient, AccountId},
-    NymApiClient, QueryHttpRpcNyxdClient,
+    QueryHttpRpcNyxdClient,
 };
-use std::{
-    collections::{HashMap, HashSet},
-    str::FromStr,
-    sync::Arc,
-};
+use std::{collections::HashMap, sync::Arc};
 use tokio::{sync::RwLock, time::Duration};
 use tracing::instrument;
 
@@ -36,7 +29,6 @@ mod geodata;
 mod node_delegations;
 
 const MONITOR_FAILURE_RETRY_DELAY: Duration = Duration::from_secs(60);
-static DELEGATION_PROGRAM_WALLET: &str = "n1rnxpdpx3kldygsklfft0gech7fhfcux4zst5lw";
 pub(crate) type NodeGeoCache = Cache<NodeId, Location>;
 
 struct Monitor {
@@ -109,11 +101,9 @@ impl Monitor {
             nym_http_api_client::ClientBuilder::new_with_urls(vec![default_api_url.into()])
                 .no_hickory_dns()
                 .with_timeout(self.nym_api_client_timeout)
-                .build::<&str>()?;
+                .build()?;
 
-        let api_client = NymApiClient::from(nym_api);
-
-        let described_nodes = api_client
+        let described_nodes = nym_api
             .get_all_described_nodes()
             .await
             .log_error("get_all_described_nodes")?
@@ -135,7 +125,7 @@ impl Monitor {
 
         tracing::info!("🟣 🚪 gateway nodes: {}", gateways.len());
 
-        let bonded_nym_nodes = api_client
+        let bonded_nym_nodes = nym_api
             .get_all_bonded_nym_nodes()
             .await?
             .into_iter()
@@ -146,10 +136,11 @@ impl Monitor {
         tracing::info!("🟣 bonded_nodes: {}", bonded_nym_nodes.len());
 
         // returns only bonded nodes
-        let nym_nodes = api_client
-            .get_all_basic_nodes()
+        let nym_nodes = nym_api
+            .get_all_basic_nodes_with_metadata()
             .await
-            .log_error("get_all_basic_nodes")?;
+            .log_error("get_all_basic_nodes")?
+            .nodes;
 
         let nym_node_count = nym_nodes.len();
         tracing::info!("🟣 get_all_basic_nodes: {}", nym_node_count);
@@ -167,45 +158,12 @@ impl Monitor {
             self.location_cached(node_description).await;
         }
 
-        let mixnodes_detailed = api_client
-            .nym_api
-            .get_mixnodes_detailed_unfiltered()
-            .await
-            .log_error("get_mixnodes_detailed_unfiltered")?;
-
-        tracing::info!(
-            "🟣 mixnodes_detailed_unfiltered: {}",
-            mixnodes_detailed.len()
-        );
-
-        let mixnodes_detailed_set = mixnodes_detailed
-            .iter()
-            .map(|elem| elem.identity_key().to_owned())
-            .collect::<HashSet<_>>();
-
-        let mixnodes_legacy = nym_nodes
-            .iter()
-            .filter(|node| {
-                mixnodes_detailed_set.contains(&node.ed25519_identity_pubkey.to_base58_string())
-            })
-            .collect::<Vec<_>>();
-
-        let mixnodes_described = api_client
-            .nym_api
-            .get_mixnodes_described()
-            .await
-            .log_error("get_mixnodes_described")?;
-
-        tracing::info!("🟣 mixnodes_described: {}", mixnodes_described.len());
-        let mixing_assigned_nodes = api_client
-            .nym_api
+        let mixing_assigned_nodes = nym_api
             .get_basic_active_mixing_assigned_nodes(false, None, None, false)
             .await
             .log_error("get_basic_active_mixing_assigned_nodes")?
             .nodes
             .data;
-
-        let delegation_program_members = self.get_delegation_program_details().await?;
 
         // keep stats for later
         let assigned_entry_count = nym_nodes
@@ -218,7 +176,6 @@ impl Monitor {
             .count();
         let count_bonded_gateways = gateways.len();
         let assigned_mixing_count = mixing_assigned_nodes.len();
-        let count_legacy_mixnodes = mixnodes_legacy.len();
 
         let gateway_records = self
             .prepare_gateway_data(&gateways, &nym_nodes, &bonded_nym_nodes)
@@ -232,18 +189,6 @@ impl Monitor {
                 tracing::debug!("{} gateway records written to DB!", gateways_count);
             })?;
 
-        let mixnode_records = self.prepare_mixnode_data(
-            &mixnodes_detailed,
-            mixnodes_described,
-            delegation_program_members,
-        )?;
-        let mixnodes_count = mixnode_records.len();
-        queries::update_mixnodes(&pool, mixnode_records)
-            .await
-            .map(|_| {
-                tracing::debug!("{} mixnode info written to DB!", mixnodes_count);
-            })?;
-
         self.refresh_node_delegations(&bonded_nym_nodes).await;
 
         let (all_historical_gateways, all_historical_mixnodes) = historical_count(&pool).await?;
@@ -255,7 +200,6 @@ impl Monitor {
         let nodes_summary = vec![
             (NYMNODE_COUNT.to_string(), nym_node_count),
             (ASSIGNED_MIXING_COUNT.to_string(), assigned_mixing_count),
-            (MIXNODES_LEGACY_COUNT.to_string(), count_legacy_mixnodes),
             (NYMNODES_DESCRIBED_COUNT.to_string(), described_nodes.len()),
             (GATEWAYS_BONDED_COUNT.to_string(), count_bonded_gateways),
             (ASSIGNED_ENTRY_COUNT.to_string(), assigned_entry_count),
@@ -280,7 +224,6 @@ impl Monitor {
                 bonded: mixnode::MixingNodesSummary {
                     count: assigned_mixing_count.cast_checked()?,
                     self_described: described_nodes.len().cast_checked()?,
-                    legacy: count_legacy_mixnodes.cast_checked()?,
                     last_updated_utc: last_updated_utc.clone(),
                 },
                 historical: mixnode::MixnodeSummaryHistorical {
@@ -420,49 +363,6 @@ impl Monitor {
         Ok(gateway_records)
     }
 
-    fn prepare_mixnode_data(
-        &self,
-        mixnodes: &[MixNodeBondAnnotated],
-        mixnodes_described: Vec<LegacyDescribedMixNode>,
-        delegation_program_members: Vec<u32>,
-    ) -> anyhow::Result<Vec<MixnodeRecord>> {
-        let mut mixnode_records = Vec::new();
-
-        for mixnode in mixnodes {
-            let mix_id = mixnode.mix_id();
-            let identity_key = mixnode.identity_key();
-            // only bonded nodes are given to this function
-            let bonded = true;
-            let total_stake = decimal_to_i64(mixnode.mixnode_details.total_stake());
-            let node_info = mixnode.mix_node();
-            let host = node_info.host.clone();
-            let http_port = node_info.http_api_port;
-            // Contains all the information including what's above
-            let full_details = serde_json::to_string(&mixnode)?;
-
-            let mixnode_described = mixnodes_described.iter().find(|m| m.bond.mix_id == mix_id);
-            let self_described = mixnode_described.and_then(|v| serde_json::to_string(v).ok());
-            let is_dp_delegatee = delegation_program_members.contains(&mix_id);
-
-            let last_updated_utc = now_utc().unix_timestamp();
-
-            mixnode_records.push(MixnodeRecord {
-                mix_id,
-                identity_key: identity_key.to_owned(),
-                bonded,
-                total_stake,
-                host,
-                http_port,
-                full_details,
-                self_described,
-                last_updated_utc,
-                is_dp_delegatee,
-            });
-        }
-
-        Ok(mixnode_records)
-    }
-
     async fn check_ipinfo_bandwidth(&self) {
         match self.ipinfo.check_remaining_bandwidth().await {
             Ok(bandwidth) => {
@@ -480,23 +380,6 @@ impl Monitor {
 
         // update after refreshing all to avoid holding write lock for too long
         *self.node_delegations.write().await = delegations_per_node;
-    }
-
-    async fn get_delegation_program_details(&self) -> anyhow::Result<Vec<NodeId>> {
-        let account_id = AccountId::from_str(DELEGATION_PROGRAM_WALLET)
-            .map_err(|e| anyhow!("Invalid bech32 address: {}", e))?;
-
-        let delegations = self
-            .nyxd_client
-            .get_all_delegator_delegations(&account_id)
-            .await?;
-
-        let mix_ids: Vec<NodeId> = delegations
-            .iter()
-            .map(|delegation| delegation.node_id)
-            .collect();
-
-        Ok(mix_ids)
     }
 }
 

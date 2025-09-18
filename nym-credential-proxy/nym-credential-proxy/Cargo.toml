@@ -7,6 +7,7 @@ homepage.workspace = true
 documentation.workspace = true
 edition.workspace = true
 license.workspace = true
+rust-version.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -23,7 +24,13 @@ rand.workspace = true
 reqwest = { workspace = true, features = ["rustls-tls"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
-sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate", "time"] }
+sqlx = { workspace = true, features = [
+    "runtime-tokio-rustls",
+    "sqlite",
+    "macros",
+    "migrate",
+    "time",
+] }
 strum = { workspace = true, features = ["derive"] }
 strum_macros.workspace = true
 time.workspace = true
@@ -38,26 +45,49 @@ utoipa = { workspace = true, features = ["axum_extras", "time"] }
 utoipa-swagger-ui = { workspace = true, features = ["axum"] }
 zeroize.workspace = true
 
-nym-bin-common = { path = "../../common/bin-common", features = ["basic_tracing"] }
+nym-bin-common = { path = "../../common/bin-common", features = [
+    "basic_tracing",
+] }
 nym-compact-ecash = { path = "../../common/nym_offline_compact_ecash" }
 nym-config = { path = "../../common/config" }
-nym-crypto = { path = "../../common/crypto", features = ["asymmetric", "rand", "serde"] }
+nym-crypto = { path = "../../common/crypto", features = [
+    "asymmetric",
+    "rand",
+    "serde",
+] }
 nym-credentials = { path = "../../common/credentials" }
 nym-credentials-interface = { path = "../../common/credentials-interface" }
 nym-ecash-contract-common = { path = "../../common/cosmwasm-smart-contracts/ecash-contract" }
-nym-http-api-common = { path = "../../common/http-api-common", features = ["utoipa", "middleware"] }
+nym-http-api-common = { path = "../../common/http-api-common", features = [
+    "utoipa",
+    "middleware",
+] }
 nym-validator-client = { path = "../../common/client-libs/validator-client" }
 nym-network-defaults = { path = "../../common/network-defaults" }
 
-nym-credential-proxy-requests = { path = "../nym-credential-proxy-requests", features = ["openapi"] }
+nym-credential-proxy-requests = { path = "../nym-credential-proxy-requests", features = [
+    "openapi",
+] }
+nym-ecash-signer-check = { path = "../../common/ecash-signer-check" }
+
+nym-credential-proxy-lib = { path = "../../common/credential-proxy" }
 
 [dev-dependencies]
 tempfile = { workspace = true }
 
 [build-dependencies]
+anyhow = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
-sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"] }
+sqlx = { workspace = true, features = [
+    "runtime-tokio-rustls",
+    "sqlite",
+    "macros",
+    "migrate",
+] }
 
 [features]
 default = ["cors"]
 cors = ["tower-http"]
+
+[lints]
+workspace = true

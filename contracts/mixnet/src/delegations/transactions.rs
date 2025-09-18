@@ -300,7 +300,7 @@ mod tests {
 
             let amount1 = coin(100_000_000, TEST_COIN_DENOM);
 
-            let sender1 = message_info(owner, &[amount1.clone()]);
+            let sender1 = message_info(owner, std::slice::from_ref(&amount1));
 
             try_delegate_to_node(test.deps_mut(), env.clone(), sender1, mix_id).unwrap();
 

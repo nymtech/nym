@@ -54,10 +54,14 @@ impl Front {
 
 #[derive(Debug, Default, PartialEq, Clone)]
 #[cfg(feature = "tunneling")]
+/// Policy for when to use domain fronting for HTTP requests.
 pub enum FrontPolicy {
+    /// Always use domain fronting for all requests.
     Always,
+    /// Only use domain fronting when retrying failed requests.
     OnRetry,
     #[default]
+    /// Never use domain fronting.
     Off,
 }
 
@@ -96,14 +100,14 @@ mod tests {
         //     Some(vec!["https://cdn77.com"]),
         // ).unwrap(); // cdn77
 
-        let client = ClientBuilder::new::<_, &str>(url1)
+        let client = ClientBuilder::new(url1)
             .expect("bad url")
             .with_fronting(FrontPolicy::Always)
-            .build::<&str>()
+            .build()
             .expect("failed to build client");
 
         let response = client
-            .send_request::<_, (), &str, &str, &str>(
+            .send_request::<_, (), &str, &str>(
                 reqwest::Method::GET,
                 &["api", "v1", "network", "details"],
                 NO_PARAMS,

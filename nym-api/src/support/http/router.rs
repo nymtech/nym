@@ -3,10 +3,9 @@
 
 use crate::circulating_supply_api::handlers::circulating_supply_routes;
 use crate::ecash::api_routes::handlers::ecash_routes;
-use crate::mixnet_contract_cache::handlers::nym_contract_cache_routes;
+use crate::mixnet_contract_cache::handlers::{epoch_routes, legacy_nodes_routes};
 use crate::network::handlers::nym_network_routes;
 use crate::node_status_api::handlers::status_routes;
-use crate::nym_nodes::handlers::legacy::legacy_nym_node_routes;
 use crate::nym_nodes::handlers::nym_node_routes;
 use crate::status;
 use crate::support::http::openapi::ApiDoc;
@@ -19,8 +18,8 @@ use axum::routing::get;
 use axum::Router;
 use core::net::SocketAddr;
 use nym_http_api_common::middleware::logging::log_request_info;
+use nym_task::ShutdownToken;
 use tokio::net::TcpListener;
-use tokio_util::sync::WaitForCancellationFutureOwned;
 use tower_http::cors::CorsLayer;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
@@ -57,15 +56,15 @@ impl RouterBuilder {
                 "/v1",
                 Router::new()
                     // unfortunately some routes didn't use correct prefix and were attached to the root
-                    .merge(nym_contract_cache_routes())
-                    .merge(legacy_nym_node_routes())
+                    .nest("/epoch", epoch_routes())
                     .nest("/circulating-supply", circulating_supply_routes())
                     .nest("/status", status_routes(network_monitor))
                     .nest("/network", nym_network_routes())
                     .nest("/api-status", status::handlers::api_status_routes())
                     .nest("/nym-nodes", nym_node_routes())
                     .nest("/ecash", ecash_routes())
-                    .nest("/unstable", unstable_routes_v1()), // CORS layer needs to be "outside" of routes
+                    .nest("/unstable", unstable_routes_v1())
+                    .nest("/legacy", legacy_nodes_routes()), // CORS layer needs to be "outside" of routes
             )
             .nest("/v2", Router::new().nest("/unstable", unstable_routes_v2()));
 
@@ -131,14 +130,13 @@ pub(crate) struct ApiHttpServer {
 }
 
 impl ApiHttpServer {
-    pub async fn run(self, receiver: WaitForCancellationFutureOwned) -> Result<(), std::io::Error> {
-        // into_make_service_with_connect_info allows us to see client ip address
+    pub async fn run(self, shutdown_token: ShutdownToken) -> Result<(), std::io::Error> {
         axum::serve(
             self.listener,
             self.router
                 .into_make_service_with_connect_info::<SocketAddr>(),
         )
-        .with_graceful_shutdown(receiver)
+        .with_graceful_shutdown(async move { shutdown_token.cancelled().await })
         .await
     }
 }

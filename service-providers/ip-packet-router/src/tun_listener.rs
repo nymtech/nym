@@ -4,14 +4,13 @@
 use std::collections::HashMap;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
+use crate::clients::{ConnectEvent, ConnectedClientEvent, DisconnectEvent};
+use crate::{error::Result, util::parse_ip::parse_dst_addr};
 use nym_ip_packet_requests::IpPair;
-use nym_task::TaskClient;
+use nym_task::ShutdownToken;
 #[cfg(target_os = "linux")]
 use tokio::io::AsyncReadExt;
 use tokio::sync::mpsc;
-
-use crate::clients::{ConnectEvent, ConnectedClientEvent, DisconnectEvent};
-use crate::{error::Result, util::parse_ip::parse_dst_addr};
 
 // The TUN listener keeps a local map of the connected clients that has its state updated by the
 // mixnet listener. Basically it's just so that we don't have to have mutexes around shared state.
@@ -79,7 +78,7 @@ impl ConnectedClientsListener {
 #[cfg(target_os = "linux")]
 pub(crate) struct TunListener {
     pub(crate) tun_reader: tokio::io::ReadHalf<tokio_tun::Tun>,
-    pub(crate) task_client: TaskClient,
+    pub(crate) shutdown_token: ShutdownToken,
     pub(crate) connected_clients: ConnectedClientsListener,
 }
 
@@ -113,10 +112,12 @@ impl TunListener {
 
     async fn run(mut self) -> Result<()> {
         let mut buf = [0u8; 65535];
-        while !self.task_client.is_shutdown() {
+        loop {
             tokio::select! {
-                _ = self.task_client.recv() => {
+                biased;
+                _ = self.shutdown_token.cancelled() => {
                     log::trace!("TunListener: received shutdown");
+                    break;
                 },
                 // TODO: ConnectedClientsListener::update should poll the channel instead
                 event = self.connected_clients.connected_client_rx.recv() => match event {

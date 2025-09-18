@@ -17,9 +17,9 @@ use nym_network_requester::error::NetworkRequesterError;
 use nym_network_requester::NRServiceProviderBuilder;
 use nym_sdk::mixnet::Recipient;
 use nym_sdk::{GatewayTransceiver, LocalGateway, PacketRouter};
-use nym_task::TaskClient;
+use nym_task::ShutdownTracker;
 use std::fmt::Display;
-use tokio::task::JoinHandle;
+use std::marker::PhantomData;
 use tracing::error;
 
 pub mod authenticator;
@@ -91,12 +91,11 @@ impl RunnableServiceProvider for Authenticator {
 pub struct ServiceProviderBeingBuilt<T: RunnableServiceProvider> {
     on_start_rx: oneshot::Receiver<T::OnStartData>,
     sp_builder: T,
-    sp_message_router_builder: SpMessageRouterBuilder,
+    sp_message_router_builder: SpMessageRouterBuilder<T>,
+    shutdown_tracker: ShutdownTracker,
 }
 
 pub struct StartedServiceProvider<T: RunnableServiceProvider> {
-    pub sp_join_handle: JoinHandle<()>,
-    pub message_router_join_handle: JoinHandle<()>,
     pub on_start_data: T::OnStartData,
     pub handle: LocalEmbeddedClientHandle,
 }
@@ -109,26 +108,31 @@ where
     pub(crate) fn new(
         on_start_rx: oneshot::Receiver<T::OnStartData>,
         sp_builder: T,
-        sp_message_router_builder: SpMessageRouterBuilder,
+        sp_message_router_builder: SpMessageRouterBuilder<T>,
+        shutdown_tracker: ShutdownTracker,
     ) -> Self {
         ServiceProviderBeingBuilt {
             on_start_rx,
             sp_builder,
             sp_message_router_builder,
+            shutdown_tracker,
         }
     }
 
     pub async fn start_service_provider(
         mut self,
     ) -> Result<StartedServiceProvider<T>, GatewayError> {
-        let sp_join_handle = tokio::task::spawn(async move {
-            if let Err(err) = self.sp_builder.run_service_provider().await {
-                error!(
-                    "the {} service provider encountered an error: {err}",
-                    T::NAME
-                )
-            }
-        });
+        self.shutdown_tracker.try_spawn_named(
+            async move {
+                if let Err(err) = self.sp_builder.run_service_provider().await {
+                    error!(
+                        "the {} service provider encountered an error: {err}",
+                        T::NAME
+                    )
+                }
+            },
+            &format!("{}::Provider", T::NAME),
+        );
 
         // TODO: if something is blocking during SP startup, the below will wait forever
         // we need to introduce additional timeouts here.
@@ -145,13 +149,10 @@ where
         };
 
         let mix_sender = self.sp_message_router_builder.mix_sender();
-        let message_router_join_handle = self
-            .sp_message_router_builder
-            .start_message_router(packet_router);
+        self.sp_message_router_builder
+            .start_message_router(packet_router, &self.shutdown_tracker);
 
         Ok(StartedServiceProvider {
-            sp_join_handle,
-            message_router_join_handle,
             handle: LocalEmbeddedClientHandle::new(on_start_data.address(), mix_sender),
             on_start_data,
         })
@@ -180,19 +181,19 @@ impl ExitServiceProviders {
     }
 }
 
-pub struct SpMessageRouterBuilder {
+pub struct SpMessageRouterBuilder<T> {
     mix_sender: Option<MixMessageSender>,
     mix_receiver: MixMessageReceiver,
     router_receiver: oneshot::Receiver<PacketRouter>,
     gateway_transceiver: Option<LocalGateway>,
-    shutdown: TaskClient,
+
+    _typ: PhantomData<T>,
 }
 
-impl SpMessageRouterBuilder {
+impl<T> SpMessageRouterBuilder<T> {
     pub(crate) fn new(
         node_identity: ed25519::PublicKey,
         forwarding_channel: MixForwardingSender,
-        shutdown: TaskClient,
     ) -> Self {
         let (mix_sender, mix_receiver) = mpsc::unbounded();
         let (router_tx, router_rx) = oneshot::channel();
@@ -204,7 +205,7 @@ impl SpMessageRouterBuilder {
             mix_receiver,
             router_receiver: router_rx,
             gateway_transceiver: Some(transceiver),
-            shutdown,
+            _typ: Default::default(),
         }
     }
 
@@ -224,7 +225,17 @@ impl SpMessageRouterBuilder {
             .expect("attempting to use the same mix sender twice")
     }
 
-    fn start_message_router(self, packet_router: PacketRouter) -> JoinHandle<()> {
-        MessageRouter::new(self.mix_receiver, packet_router).start_with_shutdown(self.shutdown)
+    fn start_message_router(self, packet_router: PacketRouter, shutdown_tracker: &ShutdownTracker)
+    where
+        T: RunnableServiceProvider,
+    {
+        let shutdown_token = shutdown_tracker.clone_shutdown_token();
+        let message_router = MessageRouter::new(self.mix_receiver, packet_router);
+        shutdown_tracker.try_spawn_named(
+            async move {
+                message_router.run_with_shutdown(shutdown_token).await;
+            },
+            &format!("{}::MessageRouter", T::NAME),
+        );
     }
 }

@@ -14,12 +14,11 @@ use futures::future::{FusedFuture, OptionFuture};
 use futures::FutureExt;
 use nym_crypto::asymmetric::ed25519;
 use nym_ecash_time::{ecash_today, ecash_today_date, EcashTime};
-use nym_task::TaskManager;
+use nym_task::ShutdownManager;
 use nym_validator_client::nyxd::{AccountId, Coin, Hash};
 use nyxd_scraper::NyxdScraper;
 use std::sync::Arc;
 use time::Date;
-use tokio::pin;
 use tracing::{error, info, instrument, warn};
 
 pub(crate) mod block_signing;
@@ -540,7 +539,7 @@ impl Rewarder {
 
     async fn main_loop(
         mut self,
-        mut task_manager: TaskManager,
+        mut shutdown_manager: ShutdownManager,
         mut scraper_cancellation: impl FusedFuture + Unpin,
     ) {
         let mut block_signing_epoch_ticker = self
@@ -550,17 +549,13 @@ impl Rewarder {
         // runs daily
         let mut ticketbook_issuance_ticker = end_of_day_ticker();
 
-        let shutdown_future = task_manager.catch_interrupt();
-        pin!(shutdown_future);
+        let mut shutdown_signals = shutdown_manager.detach_shutdown_signals();
 
         loop {
             tokio::select! {
                 biased;
-                interrupt_res = &mut shutdown_future => {
+                _ = shutdown_signals.wait_for_signal() => {
                     info!("received interrupt");
-                    if let Err(err) = interrupt_res {
-                        error!("runtime interrupt failure: {err}")
-                    }
                     break;
                 }
                 _ = &mut scraper_cancellation, if !scraper_cancellation.is_terminated() => {
@@ -575,13 +570,19 @@ impl Rewarder {
         if let Some(epoch_signing) = self.epoch_signing {
             epoch_signing.nyxd_scraper.stop().await;
         }
+
+        // in case we received cancellation from the scraper, kill other tasks (currently none)
+        if !shutdown_manager.is_cancelled() {
+            shutdown_manager.send_cancellation();
+        }
+        shutdown_manager.run_until_shutdown().await
     }
 
     pub async fn run(mut self) -> Result<(), NymRewarderError> {
         info!("Starting nym validators rewarder");
 
         // setup shutdowns
-        let task_manager = TaskManager::new(5);
+        let shutdown_manager = ShutdownManager::build_new_default()?;
         let scraper_cancellation = self.setup_tasks().await?;
 
         if let Err(err) = self.startup_resync().await {
@@ -598,7 +599,7 @@ impl Rewarder {
             return Err(err);
         }
 
-        self.main_loop(task_manager, scraper_cancellation).await;
+        self.main_loop(shutdown_manager, scraper_cancellation).await;
 
         Ok(())
     }

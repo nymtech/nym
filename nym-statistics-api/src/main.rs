@@ -27,19 +27,17 @@ async fn main() -> anyhow::Result<()> {
     .await?;
     tracing::info!("Connection to database successful");
 
-    let shutdown_manager = ShutdownManager::new("nym-statistics-api");
+    let mut shutdown_manager = ShutdownManager::build_new_default()?;
 
-    let network_refresher = NetworkRefresher::initialise_new(
-        args.nym_api_url,
-        shutdown_manager.child_token("network-refresher"),
-    )
-    .await;
+    let network_refresher =
+        NetworkRefresher::initialise_new(args.nym_api_url, shutdown_manager.child_shutdown_token())
+            .await;
 
     let http_server =
         http::server::build_http_api(storage, network_refresher.network_view(), args.http_port)
             .await
             .expect("Failed to build http server");
-    let server_shutdown = shutdown_manager.clone_token("http-api-server");
+    let server_shutdown = shutdown_manager.clone_shutdown_token();
 
     // Starting tasks
     shutdown_manager.spawn(async move { http_server.run(server_shutdown).await });
@@ -47,7 +45,7 @@ async fn main() -> anyhow::Result<()> {
 
     tracing::info!("Started HTTP server on port {}", args.http_port);
 
-    shutdown_manager.close();
+    shutdown_manager.close_tracker();
     shutdown_manager.run_until_shutdown().await;
 
     Ok(())

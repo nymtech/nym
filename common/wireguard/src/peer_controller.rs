@@ -84,7 +84,7 @@ pub struct PeerController {
     host_information: Arc<RwLock<Host>>,
     bw_storage_managers: HashMap<Key, SharedBandwidthStorageManager>,
     timeout_check_interval: IntervalStream,
-    task_client: nym_task::TaskClient,
+    shutdown_token: nym_task::ShutdownToken,
 }
 
 impl PeerController {
@@ -97,11 +97,10 @@ impl PeerController {
         bw_storage_managers: HashMap<Key, (SharedBandwidthStorageManager, Peer)>,
         request_tx: mpsc::Sender<PeerControlRequest>,
         request_rx: mpsc::Receiver<PeerControlRequest>,
-        task_client: nym_task::TaskClient,
+        shutdown_token: nym_task::ShutdownToken,
     ) -> Self {
-        let timeout_check_interval = tokio_stream::wrappers::IntervalStream::new(
-            tokio::time::interval(DEFAULT_PEER_TIMEOUT_CHECK),
-        );
+        let timeout_check_interval =
+            IntervalStream::new(tokio::time::interval(DEFAULT_PEER_TIMEOUT_CHECK));
         let host_information = Arc::new(RwLock::new(initial_host_information));
         for (public_key, (bandwidth_storage_manager, peer)) in bw_storage_managers.iter() {
             let cached_peer_manager = CachedPeerManager::new(peer);
@@ -111,7 +110,7 @@ impl PeerController {
                 cached_peer_manager,
                 bandwidth_storage_manager.clone(),
                 request_tx.clone(),
-                &task_client,
+                &shutdown_token,
             );
             let public_key = public_key.clone();
             tokio::spawn(async move {
@@ -132,7 +131,7 @@ impl PeerController {
             request_tx,
             request_rx,
             timeout_check_interval,
-            task_client,
+            shutdown_token,
             metrics,
         }
     }
@@ -191,7 +190,7 @@ impl PeerController {
             cached_peer_manager,
             bandwidth_storage_manager.clone(),
             self.request_tx.clone(),
-            &self.task_client,
+            &self.shutdown_token,
         );
         self.bw_storage_managers
             .insert(peer.public_key.clone(), bandwidth_storage_manager);
@@ -383,7 +382,7 @@ impl PeerController {
 
                     *self.host_information.write().await = host;
                 }
-                _ = self.task_client.recv() => {
+                _ = self.shutdown_token.cancelled() => {
                     log::trace!("PeerController handler: Received shutdown");
                     break;
                 }
@@ -513,7 +512,7 @@ pub fn start_controller(
     request_rx: mpsc::Receiver<PeerControlRequest>,
 ) -> (
     Arc<RwLock<nym_gateway_storage::traits::mock::MockGatewayStorage>>,
-    nym_task::TaskManager,
+    nym_task::ShutdownManager,
 ) {
     use std::sync::Arc;
 
@@ -524,7 +523,7 @@ pub fn start_controller(
         Box::new(storage.clone()),
     ));
     let wg_api = Arc::new(MockWgApi::default());
-    let task_manager = nym_task::TaskManager::default();
+    let shutdown_manager = nym_task::ShutdownManager::empty_mock();
     let mut peer_controller = PeerController::new(
         ecash_manager,
         Default::default(),
@@ -533,17 +532,17 @@ pub fn start_controller(
         Default::default(),
         request_tx,
         request_rx,
-        task_manager.subscribe(),
+        shutdown_manager.child_shutdown_token(),
     );
     tokio::spawn(async move { peer_controller.run().await });
 
-    (storage, task_manager)
+    (storage, shutdown_manager)
 }
 
 #[cfg(feature = "mock")]
-pub async fn stop_controller(mut task_manager: nym_task::TaskManager) {
-    task_manager.signal_shutdown().unwrap();
-    task_manager.wait_for_shutdown().await;
+pub async fn stop_controller(mut shutdown_manager: nym_task::ShutdownManager) {
+    shutdown_manager.send_cancellation();
+    shutdown_manager.run_until_shutdown().await;
 }
 
 #[cfg(test)]
@@ -553,7 +552,7 @@ mod tests {
     #[tokio::test]
     async fn start_and_stop() {
         let (request_tx, request_rx) = mpsc::channel(1);
-        let (_, task_manager) = start_controller(request_tx.clone(), request_rx);
-        stop_controller(task_manager).await;
+        let (_, shutdown_manager) = start_controller(request_tx.clone(), request_rx);
+        stop_controller(shutdown_manager).await;
     }
 }

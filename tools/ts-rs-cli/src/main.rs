@@ -2,10 +2,10 @@
 
 use nym_api_requests::models::{
     AnnotationResponse, DeclaredRoles, DescribedNodeType, GatewayCoreStatusResponse,
-    HistoricalPerformanceResponse, HistoricalUptimeResponse, InclusionProbabilityResponse,
-    MixnodeCoreStatusResponse, MixnodeStatus, MixnodeStatusResponse, NodeAnnotation,
-    NodeDatePerformanceResponse, NodePerformanceResponse, PerformanceHistoryResponse,
-    RewardEstimationResponse, SelectionChance, StakeSaturationResponse, UptimeHistoryResponse,
+    HistoricalPerformanceResponse, HistoricalUptimeResponse, MixnodeCoreStatusResponse,
+    MixnodeStatus, MixnodeStatusResponse, NodeAnnotation, NodeDatePerformanceResponse,
+    NodePerformanceResponse, PerformanceHistoryResponse, StakeSaturationResponse,
+    UptimeHistoryResponse,
 };
 use nym_api_requests::pagination::{PaginatedResponse, Pagination};
 use nym_mixnet_contract_common::nym_node::{NodeConfigUpdate, Role};
@@ -141,12 +141,9 @@ fn main() -> anyhow::Result<()> {
     // nym-api-requests
     do_export!(MixnodeCoreStatusResponse);
     do_export!(GatewayCoreStatusResponse);
-    do_export!(InclusionProbabilityResponse);
     do_export!(MixnodeStatus);
     do_export!(MixnodeStatusResponse);
-    do_export!(SelectionChance);
     do_export!(StakeSaturationResponse);
-    do_export!(RewardEstimationResponse);
     do_export!(NodeAnnotation);
     do_export!(AnnotationResponse);
     do_export!(NodePerformanceResponse);

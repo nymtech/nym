@@ -20,7 +20,7 @@ use crate::support::storage;
 use crate::unstable_routes::v1::account::cache::AddressInfoCache;
 use crate::unstable_routes::v1::account::models::NyxAccountDetails;
 use axum::extract::FromRef;
-use nym_api_requests::models::{GatewayBondAnnotated, MixNodeBondAnnotated, NodeAnnotation};
+use nym_api_requests::models::NodeAnnotation;
 use nym_crypto::asymmetric::ed25519;
 use nym_mixnet_contract_common::NodeId;
 use nym_topology::CachedEpochRewardedSet;
@@ -164,26 +164,6 @@ impl AppState {
     {
         self.node_status_cache()
             .node_annotations()
-            .await
-            .ok_or_else(AxumErrorResponse::internal)
-    }
-
-    pub(crate) async fn legacy_mixnode_annotations(
-        &self,
-    ) -> Result<RwLockReadGuard<'_, Cache<HashMap<NodeId, MixNodeBondAnnotated>>>, AxumErrorResponse>
-    {
-        self.node_status_cache()
-            .annotated_legacy_mixnodes()
-            .await
-            .ok_or_else(AxumErrorResponse::internal)
-    }
-
-    pub(crate) async fn legacy_gateways_annotations(
-        &self,
-    ) -> Result<RwLockReadGuard<'_, Cache<HashMap<NodeId, GatewayBondAnnotated>>>, AxumErrorResponse>
-    {
-        self.node_status_cache()
-            .annotated_legacy_gateways()
             .await
             .ok_or_else(AxumErrorResponse::internal)
     }

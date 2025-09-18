@@ -3,6 +3,7 @@ name = "nym-credential-storage"
 version = "0.1.0"
 edition = "2021"
 license.workspace = true
+rust-version.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -33,6 +34,7 @@ features = ["rt-multi-thread", "net", "signal", "fs"]
 
 
 [build-dependencies]
+anyhow = { workspace = true }
 sqlx = { workspace = true, features = [
     "runtime-tokio-rustls",
     "sqlite",

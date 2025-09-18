@@ -39,7 +39,6 @@ export const LoadEndpointInfo = () => (
   </div>
 );
 
-{/*
 
 # Changelog
 
@@ -49,23 +48,81 @@ This page displays a full list of all the changes during our release cycle from 
 
 <VarInfo />
 
+## `v2025.16-halloumi`
+
+- **[`nym-node`](nodes/nym-node.mdx) is not part of the release, the latest stays on version `1.16.0`**
+- [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.16-halloumi)
+
+### Operators Updates & Tools
+
+<Callout type="info" emoji="ℹ️">
+Nodes receiving stake as a part of [**Nym Delegation Program**](https://nym.com/network/DP) are updated weekly based on the [rules](https://forms.nym.com/form/#/2/form/view/BRh8QroXFinjOF4D3FHgYiX76zbiRvUV2Sy+czaoKFQ) without prior notification given to the operators. 
+
+[**Nym Delegation account**](https://explorer.nym.spectredao.net/account/n1rnxpdpx3kldygsklfft0gech7fhfcux4zst5lw) `n1rnxpdpx3kldygsklfft0gech7fhfcux4zst5lw` is a single source of truth. If you expect your node to have Nym team stake and it doesn't, please reach out in in the [**Node Operators Matrix channel**](https://matrix.to/#/#operators:nymtech.chat).
+</Callout>
+
+- New [Delegation Program page is out](https://nym.com/network/DP)
+- Complete rules and application form are [here](https://forms.nym.com/form/#/2/form/view/BRh8QroXFinjOF4D3FHgYiX76zbiRvUV2Sy+czaoKFQ)
+
+### Features
+
+- [Wireguard private metadata](https://github.com/nymtech/nym/pull/5915)
+
+- [Change PK/FK on expiration date signatures tables](https://github.com/nymtech/nym/pull/5934)
+
+- [Introduce additional checks when attempting to send to bounded channels](https://github.com/nymtech/nym/pull/5941)
+
+- [Wireguard metadata client library](https://github.com/nymtech/nym/pull/5943): Tested end to end using [\#3316](https://github.com/nymtech/nym-vpn-client/pull/3316) in canary, with a pair of gateways that has the changes deployed:
+```
+nym-vpnc connect --enable-two-hop  --entry-gateway-id 7CWjY3QFoA9dgE535u9bQiXCfzgMZvSpJu842GA1Wn42 --exit-gateway-id 7fp3cmzCvgeRgbB1ycTnK6RokjH
+```
+
+- [Feature/testing utils](https://github.com/nymtech/nym/pull/5963): This PR introduces a couple of general helpers, in particular some mocks for sending across values using Stream/Sink and AsyncRead/AsyncWrite without actual underlying networking. Example implementation are with NymNoise (which was the original inspiration) and gateway handshake.
+
+- [Backport metadata endpoint](https://github.com/nymtech/nym/pull/6010) 
+
+### Bugfix
+
+- [Fix rust `1.89` `clippy` issues](https://github.com/nymtech/nym/pull/5944)
+
+- [`http api` client adjustment](https://github.com/nymtech/nym/pull/5953): It fixes missing `feature-lock` when cloning the client and adds helper macro for user agent creation  
+
+- [Fix `ci-build` for linux (and use updated runner)](https://github.com/nymtech/nym/pull/5958): This PR fixes our build pipeline by using correct (updated) linux runner and updates all the conditional steps that were behind `ubuntu` runners (which no longer exist)
+
+- [Fixing the ci for ns agent](https://github.com/nymtech/nym/pull/5965) 
+
+- [Manually calculate per node work on rewarded set changes](https://github.com/nymtech/nym/pull/5972): This PR fixes:
+    1. Nym rewarded set was set to X, for argument sake say 200 
+    2. We sent transaction to update it to Y, say 100
+    3. This internally updated the interval rewarding parameters inside the mixnet contract including the default active and standby node work factors. Note that the rewarded set itself stayed the same, as it only changes after epoch rolls over and new one is assigned (by the `nym-api`)
+   4. Epoch has finished and `nym-api` wanted to do the rewarding. It grabbed the **current** rewarded set (of X, 200) and started calculating the total work in the system. But since the contract already had new parameters (adjusted for size of Y, 100), the result was greater than 1 thus `nym-api` was preventably blowing up.
+    To fix it we introduce additional checks, so that if the current rewarded set does not match the specification defined in the contract rewarding parameters, `nym-api` will attempt to do its best to manually calculate work factors for this epoch.
+
+- [Fix the ns api ci workflow](https://github.com/nymtech/nym/pull/5981) 
+
+- [Make sure tables are removed in correct order to not trigger FK constraint issue](https://github.com/nymtech/nym/pull/5987) 
+
+### Refactors & Maintenance
+
+- [Move credential verifier in peer controller](https://github.com/nymtech/nym/pull/5938): This PR is to not duplicate the verifier code (minus the actual verification operation, which is harder to unit test because of expiration checks) 
+
+- [Remove unused import](https://github.com/nymtech/nym/pull/5942)
+
+- [Updated refs to cheddar rev of nym repo](https://github.com/nymtech/nym/pull/5955)
+
+- [Update `sysinfo` to the latest](https://github.com/nymtech/nym/pull/5976): Shakes out `windows@0.57` from the tree
+
+- [Remove freshness check on testrun submit](https://github.com/nymtech/nym/pull/5977):
+    - Freshness is enforced by a background task that marks test runs as stale after a configured amount of time
+    - Make existing freshness period configurable to avoid code changes in the future
+    - Added `humantime` for parsing  
+
+- [Move authenticator into gateway crate](https://github.com/nymtech/nym/pull/5982)
+
 ## `v2025.15-gruyere`
 
+- **[`nym-node`](nodes/nym-node.mdx) is not part of the release, the latest stays on version `1.16.0`**
 - [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.15-gruyere)
-- [`nym-node`](nodes/nym-node.mdx) version `1.17.0`
-
-```sh
-nym-node
-Binary Name:        nym-node
-Build Timestamp:    2025-08-20T10:37:05.965300480Z
-Build Version:      1.17.0
-Commit SHA:         40e1cbc7a9f518eafbb5649c383626b096dd167d
-Commit Date:        2025-08-20T12:34:04.000000000+02:00
-Commit Branch:      HEAD
-rustc Version:      1.86.0
-rustc Channel:      stable
-cargo Profile:      release
-```
 
 ### Operators Updates & Tools
 
@@ -95,7 +152,6 @@ cargo Profile:      release
 
 - [Migrate strum to `0.27.2`](https://github.com/nymtech/nym/pull/5960): This PR migrates strum to the latest. Notably all macros' were moved into `strum_macros`. The rest stays the same.
 
-*/}
 
 ## `v2025.14-feta`
 

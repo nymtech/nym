@@ -131,7 +131,7 @@ impl PreInitContract {
         }
     }
 
-    pub(crate) fn deps(&self) -> Deps {
+    pub(crate) fn deps(&self) -> Deps<'_> {
         Deps {
             storage: &self.storage,
             api: &self.api,
@@ -139,7 +139,7 @@ impl PreInitContract {
         }
     }
 
-    pub(crate) fn deps_mut(&mut self) -> DepsMut {
+    pub(crate) fn deps_mut(&mut self) -> DepsMut<'_> {
         DepsMut {
             storage: &mut self.storage,
             api: &self.api,
@@ -147,7 +147,7 @@ impl PreInitContract {
         }
     }
 
-    pub(crate) fn querier(&self) -> QuerierWrapper {
+    pub(crate) fn querier(&self) -> QuerierWrapper<'_> {
         self.tester_builder.querier()
     }
 

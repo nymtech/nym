@@ -5,15 +5,25 @@ pub mod cancellation;
 pub mod connections;
 pub mod event;
 pub mod manager;
+pub(crate) mod runtime_registry;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod signal;
 pub mod spawn;
 
-pub use cancellation::{ShutdownDropGuard, ShutdownManager, ShutdownToken};
+pub use cancellation::{ShutdownDropGuard, ShutdownManager, ShutdownToken, ShutdownTracker};
 pub use event::{StatusReceiver, StatusSender, TaskStatus, TaskStatusEvent};
-pub use manager::{TaskClient, TaskHandle, TaskManager};
-pub use spawn::{spawn, spawn_with_report_error};
+#[allow(deprecated)]
+pub use manager::{TaskClient, TaskManager};
+pub use spawn::spawn_future;
 pub use tokio_util::task::TaskTracker;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub use signal::{wait_for_signal, wait_for_signal_and_error};
+
+pub use crate::runtime_registry::RegistryAccessError;
+
+/// Get or create a ShutdownTracker for SDK use.
+/// This provides automatic task management without requiring manual setup.
+pub fn get_sdk_shutdown_tracker() -> Result<ShutdownTracker, RegistryAccessError> {
+    Ok(runtime_registry::RuntimeRegistry::get_or_create_sdk()?.shutdown_tracker_owned())
+}

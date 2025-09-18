@@ -27,8 +27,13 @@ pub enum NymNodeHttpError {
     },
 
     #[error("error building or using HTTP client: {source}")]
-    ClientError {
-        #[from]
-        source: HttpClientError,
-    },
+    ClientError { source: Box<HttpClientError> },
+}
+
+impl From<HttpClientError> for NymNodeHttpError {
+    fn from(source: HttpClientError) -> Self {
+        NymNodeHttpError::ClientError {
+            source: Box::new(source),
+        }
+    }
 }

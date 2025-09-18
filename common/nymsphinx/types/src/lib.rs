@@ -180,6 +180,7 @@ impl NymPacket {
     }
 
     #[cfg(feature = "sphinx")]
+    #[allow(unreachable_patterns)]
     pub fn sphinx_packet_ref(&self) -> Option<&SphinxPacket> {
         match self {
             NymPacket::Sphinx(packet) => Some(packet),
@@ -188,6 +189,7 @@ impl NymPacket {
     }
 
     #[cfg(feature = "sphinx")]
+    #[allow(unreachable_patterns)]
     pub fn to_sphinx_packet(self) -> Option<SphinxPacket> {
         match self {
             NymPacket::Sphinx(packet) => Some(packet),

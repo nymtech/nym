@@ -1,6 +1,7 @@
 // Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use base64::Engine;
 use nym_pemstore::traits::{PemStorableKey, PemStorableKeyPair};
 use std::fmt::{self, Debug, Display, Formatter};
 use std::str::FromStr;
@@ -157,6 +158,15 @@ impl PublicKey {
             .into_vec()
             .map_err(|source| KeyRecoveryError::MalformedPublicKeyString { source })?;
         Self::from_bytes(&bytes)
+    }
+
+    pub fn from_base64(s: &str) -> Option<Self> {
+        let bytes = base64::engine::general_purpose::STANDARD.decode(s).ok()?;
+        Self::from_bytes(&bytes).ok()
+    }
+
+    pub fn to_base64(&self) -> String {
+        base64::engine::general_purpose::STANDARD.encode(self.as_bytes())
     }
 }
 

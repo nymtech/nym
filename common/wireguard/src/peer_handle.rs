@@ -7,7 +7,7 @@ use crate::peer_storage_manager::{CachedPeerManager, PeerInformation};
 use defguard_wireguard_rs::{host::Host, key::Key, net::IpAddrMask};
 use futures::channel::oneshot;
 use nym_credential_verification::bandwidth_storage_manager::BandwidthStorageManager;
-use nym_task::TaskClient;
+use nym_task::ShutdownToken;
 use nym_wireguard_types::DEFAULT_PEER_TIMEOUT_CHECK;
 use std::sync::Arc;
 use tokio::sync::{mpsc, RwLock};
@@ -43,7 +43,7 @@ pub struct PeerHandle {
     bandwidth_storage_manager: SharedBandwidthStorageManager,
     request_tx: mpsc::Sender<PeerControlRequest>,
     timeout_check_interval: IntervalStream,
-    task_client: TaskClient,
+    shutdown_token: ShutdownToken,
 }
 
 impl PeerHandle {
@@ -53,13 +53,12 @@ impl PeerHandle {
         cached_peer: CachedPeerManager,
         bandwidth_storage_manager: SharedBandwidthStorageManager,
         request_tx: mpsc::Sender<PeerControlRequest>,
-        task_client: &TaskClient,
+        shutdown_token: &ShutdownToken,
     ) -> Self {
         let timeout_check_interval = tokio_stream::wrappers::IntervalStream::new(
             tokio::time::interval(DEFAULT_PEER_TIMEOUT_CHECK),
         );
-        let mut task_client = task_client.fork(format!("peer_{public_key}"));
-        task_client.disarm();
+        let shutdown_token = shutdown_token.clone();
         PeerHandle {
             public_key,
             host_information,
@@ -67,7 +66,7 @@ impl PeerHandle {
             bandwidth_storage_manager,
             request_tx,
             timeout_check_interval,
-            task_client,
+            shutdown_token,
         }
     }
 
@@ -181,8 +180,18 @@ impl PeerHandle {
     }
 
     pub async fn run(&mut self) {
-        while !self.task_client.is_shutdown() {
+        loop {
             tokio::select! {
+                biased;
+                _ = self.shutdown_token.cancelled() => {
+                    log::trace!("PeerHandle: Received shutdown");
+                    if let Err(e) = self.bandwidth_storage_manager.inner().write().await.sync_storage_bandwidth().await {
+                        log::error!("Storage sync failed - {e}, unaccounted bandwidth might have been consumed");
+                    }
+
+                    log::trace!("PeerHandle: Finished shutdown");
+                    break;
+                }
                 _ = self.timeout_check_interval.next() => {
                     match self.continue_checking().await {
                         Ok(true) => continue,
@@ -200,15 +209,6 @@ impl PeerHandle {
                             }
                         },
                     }
-                }
-
-                _ = self.task_client.recv() => {
-                    log::trace!("PeerHandle: Received shutdown");
-                    if let Err(e) = self.bandwidth_storage_manager.inner().write().await.sync_storage_bandwidth().await {
-                        log::error!("Storage sync failed - {e}, unaccounted bandwidth might have been consumed");
-                    }
-
-                    log::trace!("PeerHandle: Finished shutdown");
                 }
             }
         }

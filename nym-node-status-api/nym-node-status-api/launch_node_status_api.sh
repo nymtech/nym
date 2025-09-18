@@ -23,7 +23,7 @@ function run_bare() {
     echo "RUST_LOG=${RUST_LOG}"
 
     # --conection-url is provided in build.rs
-    cargo run --package nym-node-status-api --no-default-features --features sqlite 
+    cargo run --package nym-node-status-api --features pg --no-default-features
 }
 
 function run_docker() {

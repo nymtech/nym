@@ -63,21 +63,64 @@ cert_ok() {
   [[ -s "/etc/letsencrypt/live/${HOSTNAME}/fullchain.pem" && -s "/etc/letsencrypt/live/${HOSTNAME}/privkey.pem" ]]
 }
 
-fetch_landing() {
+fetch_landing_html() {
   local url="https://raw.githubusercontent.com/nymtech/nym/refs/heads/feature/node-setup-cli/scripts/nym-node-setup/landing-page.html"
+  mkdir -p "${WEBROOT}"
+
   if command -v curl >/dev/null 2>&1; then
     curl -fsSL "$url" -o "${WEBROOT}/index.html" || true
   else
     wget -qO "${WEBROOT}/index.html" "$url" || true
   fi
+
   if [[ ! -s "${WEBROOT}/index.html" ]]; then
     cat > "${WEBROOT}/index.html" <<'HTML'
-<!doctype html><html><head><meta charset="utf-8"><title>Nym Node</title></head>
-<body style="font-family:sans-serif;margin:2rem">
-<h1>Nym node landing</h1>
-<p>This is a placeholder page served by nginx.</p>
-</body></html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nym Exit Gateway</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            text-align: center;
+            padding: 2em;
+            background-color: #111;
+            color: #0ff;
+        }
+        h1 {
+            margin-bottom: 0.5em;
+        }
+    </style>
+</head>
+<body>
+    <h1>Nym Exit Gateway</h1>
+    <p>This is a Nym Exit Gateway. The operator of this router has no access to any of the data routing through that due to encryption design.</p>
+</body>
+</html>
 HTML
+
+HTML
+  fi
+}
+
+inject_email() {
+  if [[ -n "${EMAIL:-}" ]]; then
+    sed -i "s|<meta name=\"contact:email\" content=\"[^\"]*\"|<meta name=\"contact:email\" content=\"${EMAIL}\"|" \
+      "${WEBROOT}/index.html"
+  fi
+}
+
+fetch_logo() {
+  local logo_url=" https://raw.githubusercontent.com/nymtech/websites/refs/heads/main/www/nym.com/public/images/Nym_meta_Image.png?token=GHSAT0AAAAAACEERII7URYRTFACZ4F2OWZ42GMCPBQ"
+  mkdir -p "${WEBROOT}/images"
+  if [[ ! -s "${WEBROOT}/images/nym_logo.png" ]]; then
+    if command -v curl >/dev/null 2>&1; then
+      curl -fsSL "$logo_url" -o "${WEBROOT}/images/nym_logo.png" || true
+    else
+      wget -qO "${WEBROOT}/images/nym_logo.png" "$logo_url" || true
+    fi
   fi
 }
 
@@ -85,6 +128,8 @@ reload_nginx() { nginx -t && systemctl reload nginx; }
 
 # landing page (idempotent)
 fetch_landing
+inject_email
+fetch_logo
 echo "Landing page at ${WEBROOT}/index.html"
 
 # disable default and stale SSL configs

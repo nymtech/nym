@@ -16,10 +16,10 @@ import type {
 import {
   CURRENT_EPOCH,
   CURRENT_EPOCH_REWARDS,
-  DATA_OBSERVATORY_BALANCES_URL,
+  SPECTREDAO_BALANCES_URL,
   NS_API_NODES,
   NYM_ACCOUNT_ADDRESS,
-  NYM_PRICES_API,
+  SPECTREDAO_NYM_PRICES_API,
   OBSERVATORY_GATEWAYS_URL,
 } from "./urls";
 
@@ -44,7 +44,7 @@ export const fetchEpochRewards = async (): Promise<
 
 // Fetch gateway status based on identity key
 export const fetchGatewayStatus = async (
-  identityKey: string,
+  identityKey: string
 ): Promise<GatewayStatus | null> => {
   const response = await fetch(`${OBSERVATORY_GATEWAYS_URL}/${identityKey}`);
 
@@ -56,7 +56,7 @@ export const fetchGatewayStatus = async (
 };
 
 export const fetchNodeDelegations = async (
-  id: number,
+  id: number
 ): Promise<NodeRewardDetails[]> => {
   const response = await fetch(`${NS_API_NODES}/${id}/delegations`, {
     headers: {
@@ -88,7 +88,7 @@ export const fetchCurrentEpoch = async () => {
   const data: CurrentEpochData = await response.json();
   const epochEndTime = addSeconds(
     new Date(data.current_epoch_start),
-    data.epoch_length.secs,
+    data.epoch_length.secs
   ).toISOString();
 
   return { ...data, current_epoch_end: epochEndTime };
@@ -96,7 +96,7 @@ export const fetchCurrentEpoch = async () => {
 
 // Fetch balances based on the address
 export const fetchBalances = async (address: string): Promise<number> => {
-  const response = await fetch(`${DATA_OBSERVATORY_BALANCES_URL}/${address}`, {
+  const response = await fetch(`${SPECTREDAO_BALANCES_URL}/${address}`, {
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json; charset=utf-8",
@@ -117,10 +117,8 @@ export const fetchBalances = async (address: string): Promise<number> => {
 };
 
 // Fetch function to get total staker rewards
-export const fetchTotalStakerRewards = async (
-  address: string,
-): Promise<number> => {
-  const response = await fetch(`${DATA_OBSERVATORY_BALANCES_URL}/${address}`, {
+export const fetchTotalStakerRewards = async (address: string): Promise<number> => {
+  const response = await fetch(`${SPECTREDAO_BALANCES_URL}/${address}`, {
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json; charset=utf-8",
@@ -139,7 +137,7 @@ export const fetchTotalStakerRewards = async (
 
 // Fetch function to get the original stake
 export const fetchOriginalStake = async (address: string): Promise<number> => {
-  const response = await fetch(`${DATA_OBSERVATORY_BALANCES_URL}/${address}`, {
+  const response = await fetch(`${SPECTREDAO_BALANCES_URL}/${address}`, {
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json; charset=utf-8",
@@ -159,7 +157,7 @@ export const fetchOriginalStake = async (address: string): Promise<number> => {
 export const fetchNoise = async (): Promise<IPacketsAndStakingData[]> => {
   if (!process.env.NEXT_PUBLIC_NS_API_MIXNODES_STATS) {
     throw new Error(
-      "NEXT_PUBLIC_NS_API_MIXNODES_STATS environment variable is not defined",
+      "NEXT_PUBLIC_NS_API_MIXNODES_STATS environment variable is not defined"
     );
   }
   const response = await fetch(process.env.NEXT_PUBLIC_NS_API_MIXNODES_STATS, {
@@ -175,7 +173,7 @@ export const fetchNoise = async (): Promise<IPacketsAndStakingData[]> => {
 
 // Fetch Account Balance
 export const fetchAccountBalance = async (
-  address: string,
+  address: string
 ): Promise<IAccountBalancesInfo> => {
   const res = await fetch(`${NYM_ACCOUNT_ADDRESS}/${address}`, {
     headers: {
@@ -193,7 +191,7 @@ export const fetchAccountBalance = async (
 
 // 🔹 Fetch NYM Price
 export const fetchNymPrice = async (): Promise<NymTokenomics> => {
-  const res = await fetch(NYM_PRICES_API, {
+  const res = await fetch(SPECTREDAO_NYM_PRICES_API, {
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json; charset=utf-8",
@@ -305,4 +303,90 @@ export const fetchWorldMapCountries = async (): Promise<{
     uniqueLocations: uniqueCities.size,
     totalServers: nodes.length,
   };
+};
+
+export const getRecommendedNodes = (nodes: NS_NODE[]): number[] => {
+  function toNumber(x: unknown, fallback = 0): number {
+    const n =
+      typeof x === "string" || typeof x === "number" ? Number(x) : Number.NaN;
+    return Number.isFinite(n) ? n : fallback;
+  }
+
+  const MIN_STAKE = 50_000_000_000; // 50k NYM (uNYM)
+  const MAX_STAKE = 150_000_000_000; // 150k NYM (uNYM)
+  const MAX_PM = 0.2; // ≤ 20%
+  const MIN_UPTIME = 0.95; // ≥ 95%
+
+  // require gateway roles: entry + exit_ipr + exit_nr; NOT a mixnode
+  function hasRequiredRoles(n: NS_NODE): boolean {
+    const r = n.self_description?.declared_role;
+    if (!r) return false;
+    const mixnodeFalse = r.mixnode === false || r.mixnode === undefined;
+    return mixnodeFalse && !!r.entry && !!r.exit_ipr && !!r.exit_nr;
+  }
+
+  function hasGoodPM(n: NS_NODE): boolean {
+    const pm = toNumber(
+      n.rewarding_details?.cost_params?.profit_margin_percent,
+      Number.NaN
+    );
+    return !Number.isNaN(pm) && pm <= MAX_PM;
+  }
+
+  function stakeInRange(n: NS_NODE): boolean {
+    const s = toNumber(n.total_stake, 0);
+    return s > MIN_STAKE && s < MAX_STAKE;
+  }
+
+  function meetsUptime(n: NS_NODE): boolean {
+    const u = toNumber(n.uptime, -1);
+    return u >= MIN_UPTIME;
+  }
+
+  function wireguardOn(n: NS_NODE): boolean {
+    return n.self_description?.wireguard != null;
+  }
+
+  function sortByUptimeDescStakeAsc(a: NS_NODE, b: NS_NODE): number {
+    const ua = toNumber(a.uptime, 0);
+    const ub = toNumber(b.uptime, 0);
+    if (ub !== ua) return ub - ua; // higher uptime first
+    const sa = toNumber(a.total_stake, 0);
+    const sb = toNumber(b.total_stake, 0);
+    return sa - sb; // then lower stake first
+  }
+  const baseFilter = (n: NS_NODE) =>
+    (n.bonded === true || n.bonded === undefined) &&
+    hasRequiredRoles(n) &&
+    hasGoodPM(n) &&
+    stakeInRange(n) &&
+    meetsUptime(n); // uptime hard floor
+
+  // prefer wg-enabled nodes first
+  const wgCandidates = nodes
+    .filter((n) => baseFilter(n) && wireguardOn(n))
+    .sort(sortByUptimeDescStakeAsc);
+
+  let picked = wgCandidates.slice(0, 10);
+
+  // if fewer than 10, drop wg pref but keep base filter
+  if (picked.length < 10) {
+    const relaxed = nodes.filter(baseFilter).sort(sortByUptimeDescStakeAsc);
+    const have = new Set(picked.map((n) => n.node_id));
+    for (const n of relaxed) {
+      if (have.size >= 10) break;
+      const id =
+        typeof n.node_id === "number" ? n.node_id : toNumber(n.node_id, 0);
+      if (!have.has(id)) {
+        picked = [...picked, n];
+        have.add(id);
+      }
+    }
+  }
+
+  return picked
+    .map((n) =>
+      typeof n.node_id === "number" ? n.node_id : toNumber(n.node_id, 0)
+    )
+    .filter((id) => Number.isFinite(id) && id > 0);
 };

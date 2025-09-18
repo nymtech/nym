@@ -4,16 +4,17 @@ import { Card, CardContent, Skeleton, Stack, Typography } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import DOMPurify from "isomorphic-dompurify";
 import { useEffect, useState } from "react";
-import { fetchEpochRewards, fetchNSApiNodes } from "../../app/api";
+import {
+  fetchEpochRewards,
+  fetchNSApiNodes,
+  getRecommendedNodes,
+} from "../../app/api";
 import type { ExplorerData, NS_NODE } from "../../app/api/types";
 import { countryName } from "../../utils/countryName";
 import AdvancedFilters from "./AdvancedFilters";
 import NodeTable from "./NodeTable";
 
-type Props = {
-  /** Recommended node IDs provided by the server page */
-  recommendedIds: number[];
-};
+
 
 function getNodeSaturationPoint(
   totalStake: number,
@@ -84,7 +85,7 @@ const mappedNSApiNodes = (
 export type MappedNymNodes = ReturnType<typeof mappedNSApiNodes>;
 export type MappedNymNode = MappedNymNodes[0];
 
-const NodeTableWithAction = ({ recommendedIds }: Props) => {
+const NodeTableWithAction = () => {
   // All hooks at the top!
   const [activeFilter, setActiveFilter] = useState<
     "all" | "mixnodes" | "gateways" | "recommended"
@@ -111,7 +112,7 @@ const NodeTableWithAction = ({ recommendedIds }: Props) => {
 
   // Wrapper functions to handle filter changes and sessionStorage
   const handleActiveFilterChange = (
-    newFilter: "all" | "mixnodes" | "gateways" | "recommended",
+    newFilter: "all" | "mixnodes" | "gateways" | "recommended"
   ) => {
     setActiveFilter(newFilter);
     sessionStorage.setItem("nodeTableActiveFilter", newFilter);
@@ -126,7 +127,7 @@ const NodeTableWithAction = ({ recommendedIds }: Props) => {
     setSaturation(newSaturation);
     sessionStorage.setItem(
       "nodeTableSaturation",
-      JSON.stringify(newSaturation),
+      JSON.stringify(newSaturation)
     );
   };
 
@@ -134,7 +135,7 @@ const NodeTableWithAction = ({ recommendedIds }: Props) => {
     setProfitMargin(newProfitMargin);
     sessionStorage.setItem(
       "nodeTableProfitMargin",
-      JSON.stringify(newProfitMargin),
+      JSON.stringify(newProfitMargin)
     );
   };
 
@@ -142,7 +143,7 @@ const NodeTableWithAction = ({ recommendedIds }: Props) => {
     setAdvancedOpen(newAdvancedOpen);
     sessionStorage.setItem(
       "nodeTableAdvancedOpen",
-      JSON.stringify(newAdvancedOpen),
+      JSON.stringify(newAdvancedOpen)
     );
   };
 
@@ -174,6 +175,8 @@ const NodeTableWithAction = ({ recommendedIds }: Props) => {
     refetchOnMount: false,
   });
 
+  const recommendedIds = getRecommendedNodes(nsApiNodes);
+
   // Map nodes with rewards data
   const nsApiNodesData = epochRewardsData
     ? mappedNSApiNodes(nsApiNodes || [], epochRewardsData)
@@ -182,7 +185,7 @@ const NodeTableWithAction = ({ recommendedIds }: Props) => {
   // Calculate max saturation from all nodes
   const maxSaturation = Math.max(
     100,
-    ...nsApiNodesData.map((n) => n.stakeSaturation || 0),
+    ...nsApiNodesData.map((n) => n.stakeSaturation || 0)
   );
 
   // Initialize saturation from sessionStorage or set to maxSaturation when data is loaded

@@ -2,15 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::dealers::storage::{
-    get_or_assign_index, is_dealer, save_dealer_details_if_not_a_dealer,
+    ensure_dealer, get_or_assign_index, is_dealer, save_dealer_details_if_not_a_dealer,
+    DEALERS_INDICES, EPOCH_DEALERS_MAP, OWNERSHIP_TRANSFER_LOG,
 };
 use crate::epoch_state::storage::{load_current_epoch, save_epoch};
 use crate::epoch_state::utils::check_epoch_state;
 use crate::error::ContractError;
 use crate::state::storage::STATE;
 use crate::Dealer;
-use cosmwasm_std::{Deps, DepsMut, Env, MessageInfo, Response};
-use nym_coconut_dkg_common::dealer::DealerRegistrationDetails;
+use cosmwasm_std::{Deps, DepsMut, Env, Event, MessageInfo, Response};
+use nym_coconut_dkg_common::dealer::{DealerRegistrationDetails, OwnershipTransfer};
 use nym_coconut_dkg_common::types::{EncodedBTEPublicKeyWithProof, EpochState};
 
 fn ensure_group_member(deps: Deps, dealer: Dealer) -> Result<(), ContractError> {
@@ -81,6 +82,89 @@ pub fn try_add_dealer(
     }
 
     Ok(Response::new().add_attribute("node_index", node_index.to_string()))
+}
+
+pub fn try_transfer_ownership(
+    deps: DepsMut<'_>,
+    env: Env,
+    info: MessageInfo,
+    transfer_to: String,
+) -> Result<Response, ContractError> {
+    let transfer_to = deps.api.addr_validate(&transfer_to)?;
+
+    let epoch = load_current_epoch(deps.storage)?;
+
+    // make sure we're not mid-exchange
+    check_epoch_state(deps.storage, EpochState::InProgress)?;
+
+    // make sure the requester is actually a dealer for this epoch
+    ensure_dealer(deps.storage, &info.sender, epoch.epoch_id)?;
+
+    // make sure the new target dealer actually belong to the group
+    ensure_group_member(deps.as_ref(), &transfer_to)?;
+
+    // update the index information
+    let current_index = DEALERS_INDICES.load(deps.storage, &info.sender)?;
+    DEALERS_INDICES.save(deps.storage, &transfer_to, &current_index)?;
+
+    // update registration detail for every epoch the current dealer has participated in the protocol
+    // ideally, we'd have only updated the current epoch, but the way the contract is constructed
+    // forbids that otherwise we'd have introduced inconsistency
+    for epoch_id in 0..=epoch.epoch_id {
+        if let Some(details) = EPOCH_DEALERS_MAP.may_load(deps.storage, (epoch_id, &info.sender))? {
+            EPOCH_DEALERS_MAP.remove(deps.storage, (epoch_id, &info.sender));
+            EPOCH_DEALERS_MAP.save(deps.storage, (epoch_id, &transfer_to), &details)?;
+        }
+    }
+
+    let Some(transaction_info) = env.transaction else {
+        return Err(ContractError::ExecutedOutsideTransaction);
+    };
+
+    // save information about the transfer for more convenient history rebuilding
+    OWNERSHIP_TRANSFER_LOG.save(
+        deps.storage,
+        (&info.sender, env.block.height, transaction_info.index),
+        &OwnershipTransfer {
+            node_index: current_index,
+            from: info.sender.clone(),
+            to: transfer_to.clone(),
+        },
+    )?;
+
+    Ok(Response::new().add_event(
+        Event::new("dkg-ownership-transfer")
+            .add_attribute("from", info.sender)
+            .add_attribute("to", transfer_to)
+            .add_attribute("node_index", current_index.to_string()),
+    ))
+}
+
+pub fn try_update_announce_address(
+    deps: DepsMut<'_>,
+    info: MessageInfo,
+    new_address: String,
+) -> Result<Response, ContractError> {
+    let epoch = load_current_epoch(deps.storage)?;
+
+    // make sure we're not mid-exchange
+    check_epoch_state(deps.storage, EpochState::InProgress)?;
+
+    // make sure the requester is actually a dealer for this epoch
+    ensure_dealer(deps.storage, &info.sender, epoch.epoch_id)?;
+
+    let mut details = EPOCH_DEALERS_MAP.load(deps.storage, (epoch.epoch_id, &info.sender))?;
+    let old_address = details.announce_address;
+
+    details.announce_address = new_address.clone();
+    EPOCH_DEALERS_MAP.save(deps.storage, (epoch.epoch_id, &info.sender), &details)?;
+
+    Ok(Response::new().add_event(
+        Event::new("dkg-announce-address-update")
+            .add_attribute("dealer", info.sender)
+            .add_attribute("old_address", old_address)
+            .add_attribute("new_address", new_address),
+    ))
 }
 
 #[cfg(test)]

@@ -6,7 +6,9 @@ use crate::dealers::queries::{
     query_epoch_dealers_addresses_paged, query_epoch_dealers_paged,
     query_registered_dealer_details,
 };
-use crate::dealers::transactions::try_add_dealer;
+use crate::dealers::transactions::{
+    try_add_dealer, try_transfer_ownership, try_update_announce_address,
+};
 use crate::dealings::queries::{
     query_dealer_dealings_status, query_dealing_chunk, query_dealing_chunk_status,
     query_dealing_metadata, query_dealing_status,
@@ -127,6 +129,12 @@ pub fn execute(
         ExecuteMsg::AdvanceEpochState {} => try_advance_epoch_state(deps, env),
         ExecuteMsg::TriggerReset {} => try_trigger_reset(deps, env, info),
         ExecuteMsg::TriggerResharing {} => try_trigger_resharing(deps, env, info),
+        ExecuteMsg::TransferOwnership { transfer_to } => {
+            try_transfer_ownership(deps, env, info, transfer_to)
+        }
+        ExecuteMsg::UpdateAnnounceAddress { new_address } => {
+            try_update_announce_address(deps, info, new_address)
+        }
     }
 }
 

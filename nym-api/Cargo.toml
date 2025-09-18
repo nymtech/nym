@@ -67,6 +67,7 @@ utoipa-swagger-ui = { workspace = true, features = ["axum"] }
 tracing = { workspace = true }
 
 ## internal
+nym-cache = { path = "../common/nym-cache" }
 nym-bandwidth-controller = { path = "../common/bandwidth-controller" }
 nym-ecash-contract-common = { path = "../common/cosmwasm-smart-contracts/ecash-contract" }
 nym-ecash-time = { path = "../common/ecash-time", features = ["expiration"] }

@@ -6,7 +6,7 @@ use crate::helpers::LockTimer;
 use nym_ecash_contract_common::msg::ExecuteMsg;
 use nym_validator_client::nyxd::contract_traits::NymContractsProvider;
 use nym_validator_client::nyxd::cosmwasm_client::types::ExecuteResult;
-use nym_validator_client::nyxd::{Coin, CosmWasmClient, NyxdClient};
+use nym_validator_client::nyxd::{Coin, Config, CosmWasmClient, NyxdClient};
 use nym_validator_client::{nyxd, DirectSigningHttpRpcNyxdClient};
 use std::ops::Deref;
 use std::sync::Arc;
@@ -29,6 +29,14 @@ impl ChainClient {
             .nyxd_url
             .as_str();
 
+        Self::new_with_config(client_config, nyxd_url, mnemonic)
+    }
+
+    pub fn new_with_config(
+        client_config: Config,
+        nyxd_url: &str,
+        mnemonic: bip39::Mnemonic,
+    ) -> Result<Self, CredentialProxyError> {
         let client = NyxdClient::connect_with_mnemonic(client_config, nyxd_url, mnemonic)?;
 
         if client.ecash_contract_address().is_none() {
@@ -68,16 +76,14 @@ pub struct ChainWritePermit<'a> {
 }
 
 impl ChainWritePermit<'_> {
-    #[instrument(skip(self, short_sha, info), err(Display))]
+    #[instrument(skip(self, memo, info), err(Display))]
     pub async fn make_deposits(
         self,
-        short_sha: &'static str,
+        memo: String,
         info: Vec<(String, Coin)>,
     ) -> Result<ExecuteResult, CredentialProxyError> {
         let address = self.inner.address();
         let starting_sequence = self.inner.get_sequence(&address).await?.sequence;
-
-        let deposits = info.len();
 
         let ecash_contract = self
             .inner
@@ -95,12 +101,7 @@ impl ChainWritePermit<'_> {
 
         let res = self
             .inner
-            .execute_multiple(
-                ecash_contract,
-                deposit_messages,
-                None,
-                format!("cp-{short_sha}: performing {deposits} deposits"),
-            )
+            .execute_multiple(ecash_contract, deposit_messages, None, memo)
             .await?;
 
         loop {

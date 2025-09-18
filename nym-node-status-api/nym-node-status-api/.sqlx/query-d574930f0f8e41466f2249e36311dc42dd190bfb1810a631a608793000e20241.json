@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n                SELECT serialised_signatures, serialization_revision as \"serialization_revision: i16\"\n                FROM global_expiration_date_signatures\n                WHERE expiration_date = $1 AND epoch_id = $2\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "serialised_signatures",
+        "type_info": "Bytea"
+      },
+      {
+        "ordinal": 1,
+        "name": "serialization_revision: i16",
+        "type_info": "Int2"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Date",
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "d574930f0f8e41466f2249e36311dc42dd190bfb1810a631a608793000e20241"
+}

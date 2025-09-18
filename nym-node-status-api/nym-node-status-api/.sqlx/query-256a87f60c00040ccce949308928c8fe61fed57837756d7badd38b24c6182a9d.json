@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n                SELECT SUM(total_tickets - used_tickets) AS available_tickets\n                FROM ecash_ticketbook\n                WHERE ticketbook_type = $1;\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "available_tickets",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "256a87f60c00040ccce949308928c8fe61fed57837756d7badd38b24c6182a9d"
+}

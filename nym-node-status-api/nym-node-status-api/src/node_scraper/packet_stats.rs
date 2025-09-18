@@ -30,23 +30,17 @@ impl PacketScraper {
     }
 
     pub async fn start(&self) {
-        self.spawn_packet_scraper().await;
-    }
-
-    async fn spawn_packet_scraper(&self) {
         let pool = self.pool.clone();
         tracing::info!("Starting packet scraper");
         let max_concurrent_tasks = self.max_concurrent_tasks;
 
-        tokio::spawn(async move {
-            loop {
-                if let Err(e) = Self::run_packet_scraper(&pool, max_concurrent_tasks).await {
-                    error!(name: "packet_scraper", "Packet scraper failed: {}", e);
-                }
-                debug!(name: "packet_scraper", "Sleeping for {}s", PACKET_SCRAPE_INTERVAL.as_secs());
-                tokio::time::sleep(PACKET_SCRAPE_INTERVAL).await;
+        loop {
+            if let Err(e) = Self::run_packet_scraper(&pool, max_concurrent_tasks).await {
+                error!(name: "packet_scraper", "Packet scraper failed: {}", e);
             }
-        });
+            debug!(name: "packet_scraper", "Sleeping for {}s", PACKET_SCRAPE_INTERVAL.as_secs());
+            tokio::time::sleep(PACKET_SCRAPE_INTERVAL).await;
+        }
     }
 
     #[instrument(level = "info", name = "packet_scraper", skip_all)]

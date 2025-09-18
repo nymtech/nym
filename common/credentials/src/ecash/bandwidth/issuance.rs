@@ -64,6 +64,22 @@ impl IssuanceTicketBook {
         expiration_date: Date,
     ) -> Self {
         let ecash_keypair = generate_keypair_user_from_seed(identifier);
+        Self::new_with_keypair(
+            deposit_id,
+            ecash_keypair,
+            signing_key,
+            ticketbook_type,
+            expiration_date,
+        )
+    }
+
+    pub fn new_with_keypair(
+        deposit_id: DepositId,
+        ecash_keypair: KeyPairUser,
+        signing_key: ed25519::PrivateKey,
+        ticketbook_type: TicketType,
+        expiration_date: Date,
+    ) -> Self {
         IssuanceTicketBook {
             deposit_id,
             signing_key,

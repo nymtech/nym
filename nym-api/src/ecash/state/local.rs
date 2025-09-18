@@ -3,12 +3,12 @@
 
 use crate::ecash::error::EcashError;
 use crate::ecash::helpers::{
-    CachedImmutableEpochItem, CachedImmutableItems, IssuedCoinIndicesSignatures,
-    IssuedExpirationDateSignatures,
+    CachedImmutableEpochItem, IssuedCoinIndicesSignatures, IssuedExpirationDateSignatures,
 };
 use crate::ecash::keys::KeyPair;
 use crate::ecash::storage::models::IssuedHash;
 use nym_api_requests::ecash::models::{CommitedDeposit, DepositId};
+use nym_cache::CachedImmutableItems;
 use nym_coconut_dkg_common::types::EpochId;
 use nym_crypto::asymmetric::ed25519;
 use nym_ticketbooks_merkle::{

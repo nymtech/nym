@@ -44,7 +44,7 @@ struct Monitor {
 // TODO dz: query many NYM APIs:
 // multiple instances running directory cache, ask sachin
 #[instrument(level = "debug", name = "data_monitor", skip_all)]
-pub(crate) async fn spawn_in_background(
+pub(crate) async fn run_in_background(
     db_pool: DbPool,
     nym_api_client_timeout: Duration,
     nyxd_client: nym_validator_client::QueryHttpRpcNyxdClient,

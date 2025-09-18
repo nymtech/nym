@@ -341,8 +341,14 @@ where
             debug_config.cover_traffic,
             stats_tx,
         );
-        shutdown_tracker
-            .try_spawn_named_with_shutdown(async move { stream.run().await }, "CoverTrafficStream");
+        let drop_guard = shutdown_tracker.clone_shutdown_token().drop_guard();
+        shutdown_tracker.try_spawn_named_with_shutdown(
+            async move {
+                let _ = drop_guard;
+                stream.run().await
+            },
+            "CoverTrafficStream",
+        );
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -419,8 +425,10 @@ where
             "AcknowledgementController::RetransmissionRequestListener",
         );
 
+        let drop_guard = shutdown_tracker.clone_shutdown_token().drop_guard();
         shutdown_tracker.try_spawn_named_with_shutdown(
             async move {
+                let _ = drop_guard;
                 sent_notification_listener.run().await;
             },
             "AcknowledgementController::SentNotificationListener",
@@ -431,8 +439,6 @@ where
             async move { ack_action_controller.run(shutdown_token).await },
             "AcknowledgementController::ActionController",
         );
-
-        // .start(packet_type);
     }
 
     // buffer controlling all messages fetched from provider
@@ -705,8 +711,12 @@ where
             // don't spawn the refresher if we don't want to be refreshing the topology.
             // only use the initial values obtained
             info!("Starting topology refresher...");
+            let drop_guard = shutdown_tracker.clone_shutdown_token().drop_guard();
             shutdown_tracker.try_spawn_named_with_shutdown(
-                async move { topology_refresher.run().await },
+                async move {
+                    let _ = drop_guard;
+                    topology_refresher.run().await
+                },
                 "TopologyRefresher",
             );
         }
@@ -926,7 +936,7 @@ where
             self.user_agent.clone(),
             generate_client_stats_id(*self_address.identity()),
             input_sender.clone(),
-            &shutdown_tracker.clone(),
+            &shutdown_tracker,
         );
 
         // needs to be started as the first thing to block if required waiting for the gateway
@@ -936,7 +946,7 @@ where
             shared_topology_accessor.clone(),
             self_address.gateway(),
             self.wait_for_gateway,
-            &shutdown_tracker.clone(),
+            &shutdown_tracker,
         )
         .await?;
 
@@ -956,7 +966,7 @@ where
             stats_reporter.clone(),
             #[cfg(unix)]
             self.connection_fd_callback,
-            &shutdown_tracker.clone(),
+            &shutdown_tracker,
         )
         .await?;
         let gateway_ws_fd = gateway_transceiver.ws_fd();
@@ -964,7 +974,7 @@ where
         let reply_storage = Self::setup_persistent_reply_storage(
             reply_storage_backend,
             key_rotation_config,
-            &shutdown_tracker.clone(),
+            &shutdown_tracker,
         )
         .await?;
 
@@ -975,7 +985,7 @@ where
             reply_storage.key_storage(),
             reply_controller_sender.clone(),
             stats_reporter.clone(),
-            &shutdown_tracker.clone(),
+            &shutdown_tracker,
         );
 
         // The message_sender is the transmitter for any component generating sphinx packets
@@ -984,7 +994,7 @@ where
         // The MixTrafficController then sends the actual traffic
 
         let (message_sender, client_request_sender) =
-            Self::start_mix_traffic_controller(gateway_transceiver, &shutdown_tracker.clone());
+            Self::start_mix_traffic_controller(gateway_transceiver, &shutdown_tracker);
 
         // Channels that the websocket listener can use to signal downstream to the real traffic
         // controller that connections are closed.
@@ -1013,7 +1023,7 @@ where
             shared_lane_queue_lengths.clone(),
             client_connection_rx,
             stats_reporter.clone(),
-            &shutdown_tracker.clone(),
+            &shutdown_tracker,
         );
 
         if !self
@@ -1029,7 +1039,7 @@ where
                 shared_topology_accessor.clone(),
                 message_sender,
                 stats_reporter.clone(),
-                &shutdown_tracker.clone(),
+                &shutdown_tracker,
             );
         }
 

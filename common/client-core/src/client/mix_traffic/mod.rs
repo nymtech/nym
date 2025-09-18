@@ -138,6 +138,7 @@ impl MixTrafficController {
 
     pub async fn run(&mut self) {
         debug!("Started MixTrafficController with graceful shutdown support");
+        let _drop_guard = self.shutdown_token.clone().drop_guard();
         loop {
             tokio::select! {
                 biased;

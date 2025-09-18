@@ -36,6 +36,7 @@ cw4-group = { path = "../multisig/cw4-group", features = ["testable-cw4-contract
 [dev-dependencies]
 anyhow = { workspace = true }
 easy-addr = { path = "../../common/cosmwasm-smart-contracts/easy_addr" }
+nym-group-contract-common = { path = "../../common/cosmwasm-smart-contracts/group-contract" }
 cw-multi-test = { workspace = true }
 cw4-group = { path = "../multisig/cw4-group" }
 

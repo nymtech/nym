@@ -58,7 +58,8 @@ pub fn try_add_dealer(
     )?;
 
     // check if it's a resharing dealer
-
+    // SAFETY: resharing isn't allowed on 0th epoch
+    #[allow(clippy::expect_used)]
     let is_resharing_dealer = resharing
         && is_dealer(
             deps.storage,

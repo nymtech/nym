@@ -20,5 +20,7 @@ rand_chacha = { workspace = true }
 rand = { workspace = true }
 cw-multi-test = { workspace = true }
 
+nym-contracts-common = { path = "../contracts-common" }
+
 [lints]
 workspace = true

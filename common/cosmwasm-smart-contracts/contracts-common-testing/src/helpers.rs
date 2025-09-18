@@ -3,17 +3,97 @@
 
 use cosmwasm_std::testing::{message_info, MockApi, MockQuerier, MockStorage};
 use cosmwasm_std::{
-    coins, Addr, BankMsg, CosmosMsg, Empty, Env, MemoryStorage, MessageInfo, Order, OwnedDeps,
-    Response, StdResult, Storage,
+    coins, Addr, BankMsg, CosmosMsg, Decimal, Empty, Env, MemoryStorage, MessageInfo, Order,
+    OwnedDeps, Response, StdResult, Storage,
 };
 use cw_storage_plus::{KeyDeserialize, Map, Prefix, PrimaryKey};
+use nym_contracts_common::events::may_find_attribute;
 use rand::{RngCore, SeedableRng};
 use rand_chacha::ChaCha20Rng;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
+use std::fmt::Debug;
+use std::str::FromStr;
 
 pub const TEST_DENOM: &str = "unym";
 pub const TEST_PREFIX: &str = "n";
+
+pub trait FindAttribute {
+    fn attribute<E, S>(&self, event_type: E, attribute: &str) -> String
+    where
+        E: Into<Option<S>>,
+        S: Into<String>;
+
+    fn any_attribute(&self, attribute: &str) -> String {
+        self.attribute::<_, String>(None, attribute)
+    }
+
+    fn any_parsed_attribute<T>(&self, attribute: &str) -> T
+    where
+        T: FromStr,
+        <T as FromStr>::Err: Debug,
+    {
+        self.parsed_attribute::<_, String, T>(None, attribute)
+    }
+
+    fn parsed_attribute<E, S, T>(&self, event_type: E, attribute: &str) -> T
+    where
+        E: Into<Option<S>>,
+        S: Into<String>,
+        T: FromStr,
+        <T as FromStr>::Err: Debug;
+
+    fn decimal<E, S>(&self, event_type: E, attribute: &str) -> Decimal
+    where
+        E: Into<Option<S>>,
+        S: Into<String>,
+    {
+        self.parsed_attribute(event_type, attribute)
+    }
+}
+
+#[track_caller]
+pub fn find_attribute<S: Into<String>>(
+    event_type: Option<S>,
+    attribute: &str,
+    response: &Response,
+) -> String {
+    let event_type = event_type.map(Into::into);
+    for event in &response.events {
+        if let Some(typ) = &event_type {
+            if &event.ty != typ {
+                continue;
+            }
+        }
+        if let Some(attr) = may_find_attribute(event, attribute) {
+            return attr;
+        }
+    }
+    // this is only used in tests so panic here is fine
+    panic!("did not find the attribute")
+}
+
+impl FindAttribute for Response {
+    fn attribute<E, S>(&self, event_type: E, attribute: &str) -> String
+    where
+        E: Into<Option<S>>,
+        S: Into<String>,
+    {
+        find_attribute(event_type.into(), attribute, self)
+    }
+
+    fn parsed_attribute<E, S, T>(&self, event_type: E, attribute: &str) -> T
+    where
+        E: Into<Option<S>>,
+        S: Into<String>,
+        T: FromStr,
+        <T as FromStr>::Err: Debug,
+    {
+        find_attribute(event_type.into(), attribute, self)
+            .parse()
+            .unwrap()
+    }
+}
 
 pub fn mock_api() -> MockApi {
     MockApi::default().with_prefix(TEST_PREFIX)

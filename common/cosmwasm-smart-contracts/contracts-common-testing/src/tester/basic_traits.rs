@@ -4,8 +4,8 @@
 use crate::{ContractTester, TestableNymContract};
 use cosmwasm_std::testing::{message_info, mock_env};
 use cosmwasm_std::{
-    from_json, Addr, Coin, ContractInfo, Deps, DepsMut, Env, MessageInfo, Response, StdResult,
-    Storage, Timestamp,
+    from_json, Addr, BlockInfo, Coin, ContractInfo, Deps, DepsMut, Env, MessageInfo, Response,
+    StdResult, Storage, Timestamp,
 };
 use cw_multi_test::{next_block, AppResponse, Executor};
 use serde::de::DeserializeOwned;
@@ -135,9 +135,38 @@ where
 pub trait ChainOpts: ContractOpts {
     fn set_contract_balance(&mut self, balance: Coin);
 
-    fn next_block(&mut self);
+    fn update_block<F: Fn(&mut BlockInfo)>(&mut self, action: F);
+    fn set_to_epoch(&mut self) {
+        self.set_block_time(Timestamp::from_seconds(0))
+    }
 
-    fn set_block_time(&mut self, time: Timestamp);
+    fn set_to_genesis(&mut self) {
+        self.update_block(|block| {
+            block.height = 1;
+        })
+    }
+
+    fn next_block(&mut self) {
+        self.update_block(next_block)
+    }
+
+    fn advance_day_of_blocks(&mut self) {
+        self.update_block(|block| {
+            block.time = block.time.plus_seconds(24 * 60 * 60);
+            block.height += 17280;
+        })
+    }
+
+    fn advance_time_by(&mut self, delta_secs: u64) {
+        self.update_block(|block| {
+            block.time = block.time.plus_seconds(delta_secs);
+            block.height += 1
+        })
+    }
+
+    fn set_block_time(&mut self, time: Timestamp) {
+        self.update_block(|b| b.time = time)
+    }
 
     fn execute_msg(
         &mut self,
@@ -186,12 +215,9 @@ where
             )
             .unwrap();
     }
-    fn next_block(&mut self) {
-        self.app.update_block(next_block)
-    }
 
-    fn set_block_time(&mut self, time: Timestamp) {
-        self.app.update_block(|b| b.time = time)
+    fn update_block<F: Fn(&mut BlockInfo)>(&mut self, action: F) {
+        self.app.update_block(action)
     }
 
     fn execute_msg(

@@ -20,7 +20,7 @@ tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
 tracing = { workspace = true }
 url = { workspace = true }
 
-nym-bin-common = { path = "../common/bin-common", features = ["output_format", "basic_tracing"] }
+nym-bin-common = { path = "../common/bin-common", features = ["output_format"] }
 nym-ecash-signer-check = { path = "../common/ecash-signer-check" }
 nym-network-defaults = { path = "../common/network-defaults" }
 nym-task = { path = "../common/task" }

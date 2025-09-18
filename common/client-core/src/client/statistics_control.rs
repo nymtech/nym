@@ -119,6 +119,8 @@ impl StatisticsControl {
         let mut snapshot_interval =
             gloo_timers::future::IntervalStream::new(SNAPSHOT_INTERVAL.as_millis() as u32);
 
+        let _drop_guard = shutdown_token.clone().drop_guard();
+
         loop {
             tokio::select! {
                 biased;

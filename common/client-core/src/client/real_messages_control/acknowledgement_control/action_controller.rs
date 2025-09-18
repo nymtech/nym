@@ -245,6 +245,7 @@ impl ActionController {
     pub(crate) async fn run(&mut self, shutdown_token: ShutdownToken) {
         debug!("Started ActionController with graceful shutdown support");
 
+        let _drop_guard = shutdown_token.clone().drop_guard();
         loop {
             tokio::select! {
                 biased;

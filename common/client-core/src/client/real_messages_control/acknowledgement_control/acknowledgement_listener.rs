@@ -80,6 +80,7 @@ impl AcknowledgementListener {
     pub(crate) async fn run(&mut self, shutdown_token: ShutdownToken) {
         debug!("Started AcknowledgementListener with graceful shutdown support");
 
+        let _drop_guard = shutdown_token.clone().drop_guard();
         loop {
             tokio::select! {
                 biased;

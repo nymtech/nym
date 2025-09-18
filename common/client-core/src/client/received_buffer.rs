@@ -497,6 +497,8 @@ impl<R: MessageReceiver> RequestReceiver<R> {
 
     pub(crate) async fn run(&mut self) {
         debug!("Started RequestReceiver with graceful shutdown support");
+
+        let _drop_guard = self.shutdown_token.clone().drop_guard();
         loop {
             tokio::select! {
                 biased;
@@ -540,6 +542,8 @@ impl<R: MessageReceiver> FragmentedMessageReceiver<R> {
 
     pub(crate) async fn run(&mut self) -> Result<(), MessageRecoveryError> {
         debug!("Started FragmentedMessageReceiver with graceful shutdown support");
+
+        let _drop_guard = self.shutdown_token.clone().drop_guard();
         loop {
             tokio::select! {
                 biased;

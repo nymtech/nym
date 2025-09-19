@@ -602,7 +602,7 @@ impl NymNode {
     }
 
     #[instrument(skip_all)]
-    async fn start_gateway_tasks(
+        async fn start_gateway_tasks(
         &mut self,
         cached_network: CachedNetwork,
         metrics_sender: MetricEventsSender,

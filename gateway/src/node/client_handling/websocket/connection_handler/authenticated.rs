@@ -38,7 +38,7 @@ use rand::{random, CryptoRng, Rng};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 use std::{process, time::Duration};
 use thiserror::Error;
-use tokio::{io::{AsyncRead, AsyncWrite}, time::{error::Elapsed, interval}};
+use tokio::{io::{AsyncRead, AsyncWrite}};
 use tokio_tungstenite::tungstenite::{protocol::Message, Error as WsError};
 use tracing::*;
 
@@ -619,7 +619,7 @@ impl<R, S> AuthenticatedHandler<R, S> {
             client = %self.client.address.as_base58_string()
         )
     )]
-    pub(crate) async fn listen_for_requests(mut self, mut shutdown: TaskClient)
+    pub(crate) async fn listen_for_requests(mut self)
     where
         R: Rng + CryptoRng,
         S: AsyncRead + AsyncWrite + Unpin,
@@ -656,16 +656,8 @@ impl<R, S> AuthenticatedHandler<R, S> {
         // Ping timeout future used to check if the client responded to our ping request
         let mut ping_timeout: OptionFuture<_> = None.into();
 
-        while !shutdown.is_shutdown() {
+        loop {
             tokio::select! {
-                _ = shutdown.recv() => {
-                    #[cfg(feature = "otel")]
-                    {
-                        let span = info_span!(parent: &handling_span, "shutdown_received");
-                        let _enter = span.enter();
-                    }
-                        trace!("client_handling::AuthenticatedHandler: received shutdown");
-                },
                 // Received a request to ping the client to check if it's still active
                 tx = self.is_active_request_receiver.next() => {
                     match tx {
@@ -681,16 +673,14 @@ impl<R, S> AuthenticatedHandler<R, S> {
                 },
                 // The ping timeout expired, meaning the client didn't respond to our ping request
                 _ = &mut ping_timeout, if !ping_timeout.is_terminated() => {
-                    ping_timeout = None.into();
-                    self.handle_ping_timeout().await;
+                   ping_timeout = None.into();
+                   self.handle_ping_timeout().await;
                 },
                 socket_msg = self.inner.read_websocket_message() => {
+                    #[cfg(feature = "otel")]
                     {
-                        #[cfg(feature = "otel")]
-                        {
-                            let span = info_span!(parent: &handling_span, "client_message_received");
-                            let _enter = span.enter();
-                        }
+                        let span = info_span!(parent: &handling_span, "client_message_received");
+                        let _enter = span.enter();
                     }
                     let socket_msg = match socket_msg {
                         None => break,
@@ -715,11 +705,6 @@ impl<R, S> AuthenticatedHandler<R, S> {
                     }
                 },
                 mix_messages = self.mix_receiver.next() => {
-                    #[cfg(feature = "otel")]
-                    {
-                        let span = info_span!(parent: &handling_span, "mix_message_received");
-                        let _enter = span.enter();
-                    }
                     let mix_messages = match mix_messages {
                         None => {
                             debug!("mix receiver was closed! Assuming the connection is dead.");
@@ -727,6 +712,11 @@ impl<R, S> AuthenticatedHandler<R, S> {
                         }
                         Some(mix_messages) => mix_messages,
                     };
+                    #[cfg(feature = "otel")]
+                    {
+                        let span = info_span!(parent: &handling_span, "mix_message_received");
+                        let _enter = span.enter();
+                    }
                     if let Err(err) = self.inner.push_packets_to_client(&self.client.shared_keys, mix_messages).await {
                         debug!("failed to send the unwrapped sphinx packets back to the client - {err}, assuming the connection is dead");
                         break;

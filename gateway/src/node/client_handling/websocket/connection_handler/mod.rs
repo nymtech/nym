@@ -149,11 +149,8 @@ where
 
     trace!("managed to perform websocket handshake!");
 
-    let mut shutdown = handle.shutdown.clone();
-
-    
     if let Some(auth_handle) = handle
-        .handle_until_authenticated_or_failure(&mut shutdown)
+        .handle_until_authenticated_or_failure()
         .await
     {
         #[cfg(feature = "otel")]
@@ -171,7 +168,7 @@ where
             let _guard = span.enter();
         }
 
-        auth_handle.listen_for_requests(shutdown).await
+        auth_handle.listen_for_requests().await
     }
 
     trace!("the handler is done!");

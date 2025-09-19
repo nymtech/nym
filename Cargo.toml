@@ -145,7 +145,6 @@ members = [
     # "tools/internal/sdk-version-bump",
     "tools/internal/ssl-inject",
     "tools/internal/testnet-manager",
-    "tools/internal/testnet-manager",
     "tools/internal/testnet-manager/dkg-bypass-contract",
     "tools/internal/validator-status-check",
     "tools/nym-cli",

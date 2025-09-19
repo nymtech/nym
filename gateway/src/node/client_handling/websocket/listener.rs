@@ -86,9 +86,10 @@ impl Listener {
 
                 
                 // 4. spawn the task handling the client connection
-                tokio::spawn(async move {
-                    // TODO: refactor it similarly to the mixnet listener on the nym-node
-                    let metrics_ref = handle.shared_state.metrics.clone();
+                self.shutdown.try_spawn_named(
+                    async move {
+                        // TODO: refactor it similarly to the mixnet listener on the nym-node
+                        let metrics_ref = handle.shared_state.metrics.clone();
 
                         // 4.1. handle all client requests until connection gets terminated
                         handle.start_handling().await;
@@ -106,7 +107,7 @@ impl Listener {
     // TODO: change the signature to pub(crate) async fn run(&self, handler: Handler)
 
     #[instrument(skip_all)]
-    pub(crate) async fn run(&mut self) {
+    pub async fn run(&mut self) {
         info!("Starting websocket listener at {}", self.address);
         let tcp_listener = match tokio::net::TcpListener::bind(self.address).await {
             Ok(listener) => listener,
@@ -129,10 +130,5 @@ impl Listener {
                 }
             }
         }
-    }
-
-    #[instrument(skip_all)]
-    pub fn start(mut self) -> JoinHandle<()> {
-        tokio::spawn(async move { self.run().await })
     }
 }

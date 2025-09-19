@@ -123,7 +123,7 @@ impl<C, F> PacketForwarder<C, F> {
     }
 
     #[instrument(skip_all)]
-    pub async fn run(&mut self)
+    pub async fn run(&mut self, shutdown_token: ShutdownToken)
     where
         C: SendWithoutResponse,
         F: RoutingFilter,

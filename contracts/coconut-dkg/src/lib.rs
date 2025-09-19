@@ -15,3 +15,6 @@ mod queued_migrations;
 mod state;
 mod support;
 mod verification_key_shares;
+
+#[cfg(feature = "testable-dkg-contract")]
+pub mod testable_dkg_contract;

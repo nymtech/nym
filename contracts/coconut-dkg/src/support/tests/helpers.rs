@@ -1,6 +1,7 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use super::fixtures::TEST_MIX_DENOM;
 use crate::contract::instantiate;
 use crate::dealers::storage::{DEALERS_INDICES, EPOCH_DEALERS_MAP};
 use crate::epoch_state::storage::load_current_epoch;
@@ -16,8 +17,6 @@ use nym_coconut_dkg_common::dealing::DEFAULT_DEALINGS;
 use nym_coconut_dkg_common::msg::InstantiateMsg;
 use nym_coconut_dkg_common::types::{DealerDetails, EpochId};
 use std::sync::Mutex;
-
-use super::fixtures::TEST_MIX_DENOM;
 
 pub const ADMIN_ADDRESS: &str = addr!("admin address");
 pub const GROUP_CONTRACT: &str = addr!("group contract address");
@@ -74,6 +73,7 @@ pub fn add_fixture_dealer(deps: DepsMut<'_>) {
     );
 }
 
+#[allow(clippy::panic)]
 fn querier_handler(query: &WasmQuery) -> QuerierResult {
     let bin = match query {
         WasmQuery::Smart { contract_addr, msg } => {

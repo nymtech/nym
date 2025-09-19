@@ -245,8 +245,10 @@ impl<R, S> AuthenticatedHandler<R, S> {
     /// * `mix_packet`: packet received from the client that should get forwarded into the network.
     #[instrument(skip_all)]
     fn forward_packet(&self, mix_packet: MixPacket) {
-        let herited_span = self.root_span.as_ref().cloned().unwrap_or_else(|| tracing::Span::current());
-        let span = info_span!(parent: &herited_span, "forwarding_packet");
+        let span = match &self.root_span {
+            Some(root_span) => info_span!(parent: root_span, "forwarding_mix_packet"),
+            None => info_span!("forwarding_mix_packet"),
+        };
         let _enter = span.enter();
 
         if let Err(err) = self
@@ -308,8 +310,10 @@ impl<R, S> AuthenticatedHandler<R, S> {
         &mut self,
         mix_packet: MixPacket,
     ) -> Result<ServerResponse, RequestHandlingError> {
-        let herited_span = self.root_span.as_ref().cloned().unwrap_or_else(|| tracing::Span::current());
-        let span = info_span!(parent: &herited_span, "forwarding_sphinx_packet");
+        let span = match &self.root_span {
+            Some(root_span) => info_span!(parent: root_span, "handling_forward_sphinx"),
+            None => info_span!("handling_forward_sphinx"),
+        };
         let _enter = span.enter();
 
         let required_bandwidth = mix_packet.packet().len() as i64;
@@ -333,8 +337,10 @@ impl<R, S> AuthenticatedHandler<R, S> {
     #[instrument(skip_all)]
     async fn handle_binary(&mut self, bin_msg: Vec<u8>) -> Message {
         trace!("binary request");
-        let herited_span = self.root_span.as_ref().cloned().unwrap_or_else(|| tracing::Span::current());
-        let span = info_span!(parent: &herited_span, "handling_binary");
+        let span = match &self.root_span {
+            Some(root_span) => info_span!(parent: root_span, "handling_binary"),
+            None => info_span!("handling_binary"),
+        };
         let _enter = span.enter();
 
         // this function decrypts the request and checks the MAC

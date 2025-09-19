@@ -1,0 +1,92 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT\n            gw.gateway_identity_key as \"gateway_identity_key!\",\n            gw.bonded as \"bonded: bool\",\n            gw.performance as \"performance!\",\n            gw.self_described as \"self_described?\",\n            gw.explorer_pretty_bond as \"explorer_pretty_bond?\",\n            gw.last_probe_result as \"last_probe_result?\",\n            gw.last_probe_log as \"last_probe_log?\",\n            gw.last_testrun_utc as \"last_testrun_utc?\",\n            gw.last_updated_utc as \"last_updated_utc!\",\n            COALESCE(gd.moniker, 'NA') as \"moniker!\",\n            COALESCE(gd.website, 'NA') as \"website!\",\n            COALESCE(gd.security_contact, 'NA') as \"security_contact!\",\n            COALESCE(gd.details, 'NA') as \"details!\"\n         FROM gateways gw\n         LEFT JOIN gateway_description gd\n         ON gw.gateway_identity_key = gd.gateway_identity_key\n         ORDER BY gw.gateway_identity_key",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "gateway_identity_key!",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 1,
+        "name": "bonded: bool",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 2,
+        "name": "performance!",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 3,
+        "name": "self_described?",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 4,
+        "name": "explorer_pretty_bond?",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 5,
+        "name": "last_probe_result?",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 6,
+        "name": "last_probe_log?",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 7,
+        "name": "last_testrun_utc?",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 8,
+        "name": "last_updated_utc!",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 9,
+        "name": "moniker!",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 10,
+        "name": "website!",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 11,
+        "name": "security_contact!",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 12,
+        "name": "details!",
+        "type_info": "Varchar"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      false,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "c09be83be9d5a679a08ab528c6305fddae499f26b55c0f8388392b27b179514b"
+}

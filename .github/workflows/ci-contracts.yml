@@ -22,7 +22,7 @@ jobs:
       CARGO_TERM_COLOR: always
       RUSTUP_PERMIT_COPY_RENAME: 1
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Setup rust
         uses: actions-rs/toolchain@v1

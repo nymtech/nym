@@ -96,8 +96,6 @@ impl KeyStore for ClientStorage {
     }
 
     async fn store_keys(&self, keys: &ClientKeys) -> Result<(), Self::StorageError> {
-        console_log!("attempting to store cryptographic keys...");
-
         self.store_identity_keypair(&keys.identity_keypair())
             .await?;
         self.store_encryption_keypair(&keys.encryption_keypair())

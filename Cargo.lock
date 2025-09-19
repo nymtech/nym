@@ -5263,6 +5263,7 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "tokio-tungstenite",
+ "tokio_with_wasm",
  "tracing",
  "tungstenite 0.20.1",
  "url",
@@ -5331,21 +5332,26 @@ version = "1.4.0-rc.0"
 dependencies = [
  "anyhow",
  "futures",
+ "gloo-timers",
  "js-sys",
  "nym-bin-common",
+ "nym-gateway-requests",
  "nym-node-tester-utils",
  "nym-node-tester-wasm",
+ "once_cell",
  "rand 0.8.5",
  "serde",
  "serde-wasm-bindgen 0.6.5",
  "serde_json",
  "thiserror 2.0.12",
+ "tokio_with_wasm",
  "tsify",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "wasm-bindgen-test",
  "wasm-client-core",
  "wasm-utils",
+ "web-sys",
 ]
 
 [[package]]
@@ -7036,6 +7042,7 @@ dependencies = [
  "serde",
  "thiserror 2.0.12",
  "utoipa",
+ "wasmtimer",
 ]
 
 [[package]]
@@ -7419,6 +7426,7 @@ dependencies = [
  "tokio-util",
  "tracing",
  "url",
+ "wasmtimer",
 ]
 
 [[package]]
@@ -10824,6 +10832,30 @@ dependencies = [
  "pin-project-lite",
  "slab",
  "tokio",
+]
+
+[[package]]
+name = "tokio_with_wasm"
+version = "0.8.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4dfba9b946459940fb564dcf576631074cdfb0bfe4c962acd4c31f0dca7897e6"
+dependencies = [
+ "js-sys",
+ "tokio",
+ "tokio_with_wasm_proc",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
+]
+
+[[package]]
+name = "tokio_with_wasm_proc"
+version = "0.8.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "37e04c1865c281139e5ccf633cb9f76ffdaabeebfe53b703984cf82878e2aabb"
+dependencies = [
+ "quote",
+ "syn 2.0.106",
 ]
 
 [[package]]

@@ -31,9 +31,9 @@ use tracing::*;
 #[cfg(not(target_arch = "wasm32"))]
 use tokio::time::{sleep, Sleep};
 
+// use wasm_utils::console_log;
 #[cfg(target_arch = "wasm32")]
 use wasmtimer::tokio::{sleep, Sleep};
-
 mod sending_delay_controller;
 
 /// Configurable parameters of the `OutQueueControl`
@@ -325,9 +325,19 @@ where
         // ready and hence was immediately re-scheduled causing other tasks to be starved;
         // yield makes it go back the scheduling queue regardless of its value availability
 
-        // TODO: temporary and BAD workaround for wasm (we should find a way to yield here in wasm)
         #[cfg(not(target_arch = "wasm32"))]
-        tokio::task::yield_now().await;
+        {
+            // console_log!("Yielding task in real traffic stream (native)");
+            tokio::task::yield_now().await;
+            // console_log!("Task yielded in real traffic stream (native)");
+        }
+
+        #[cfg(target_arch = "wasm32")]
+        {
+            // console_log!("Yielding task in real traffic stream (WASM)");
+            tokio_with_wasm::task::yield_now().await;
+            // console_log!("Task yielded in real traffic stream (WASM)");
+        }
     }
 
     fn on_close_connection(&mut self, connection_id: ConnectionId) {

@@ -24,3 +24,4 @@ nym-metrics = { path = "../../nym-metrics" }
 nym-crypto = { path = "../../crypto", version = "0.4.0", features = [
     "asymmetric",
 ] }
+wasmtimer = { workspace = true }

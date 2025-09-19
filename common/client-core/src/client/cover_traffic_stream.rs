@@ -22,9 +22,9 @@ use tracing::*;
 #[cfg(not(target_arch = "wasm32"))]
 use tokio::time::{sleep, Sleep};
 
+// use wasm_utils::console_log;
 #[cfg(target_arch = "wasm32")]
 use wasmtimer::tokio::{sleep, Sleep};
-
 pub struct LoopCoverTrafficStream<R>
 where
     R: CryptoRng + Rng,
@@ -225,9 +225,19 @@ impl LoopCoverTrafficStream<OsRng> {
         // JS: due to identical logical structure to OutQueueControl::on_message(), this is also
         // presumably required to prevent bugs in the future. Exact reason is still unknown to me.
 
-        // TODO: temporary and BAD workaround for wasm (we should find a way to yield here in wasm)
         #[cfg(not(target_arch = "wasm32"))]
-        tokio::task::yield_now().await;
+        {
+            // console_log!("Yielding task in cover traffic stream (native)");
+            tokio::task::yield_now().await;
+            // console_log!("Task yielded in cover traffic stream (native)");
+        }
+
+        #[cfg(target_arch = "wasm32")]
+        {
+            // console_log!("Yielding task in cover traffic stream(WASM)");
+            tokio_with_wasm::task::yield_now().await;
+            // console_log!("Task yielded in cover traffic stream (WASM)");
+        }
     }
 
     // it's fine if cover traffic stream task gets killed whilst processing next message

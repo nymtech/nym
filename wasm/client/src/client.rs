@@ -13,8 +13,10 @@ use crate::helpers::{InputSender, WasmTopologyExt};
 use crate::response_pusher::ResponsePusher;
 use js_sys::Promise;
 use nym_bin_common::bin_info;
+use nym_gateway_requests::ClientRequest;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use tokio_with_wasm::sync::mpsc;
 use tsify::Tsify;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::future_to_promise;
@@ -47,14 +49,19 @@ use rand::{rngs::OsRng, RngCore};
 #[allow(dead_code)]
 pub(crate) const NODE_TESTER_CLIENT_ID: &str = "_nym-node-tester-client";
 
+pub type ClientRequestSender = mpsc::Sender<ClientRequest>;
+
 #[wasm_bindgen]
 pub struct NymClient {
     self_address: String,
+    #[wasm_bindgen(skip)]
     client_input: Arc<ClientInput>,
+    #[wasm_bindgen(skip)]
     client_state: Arc<ClientState>,
 
     // keep track of the "old" topology for the purposes of node tester
     // so that it could be restored after the check is done
+    #[wasm_bindgen(skip)]
     _full_topology: Option<NymTopology>,
 
     // even though we don't use graceful shutdowns, other components rely on existence of this struct
@@ -62,11 +69,18 @@ pub struct NymClient {
     _task_manager: ShutdownTracker,
 
     packet_type: PacketType,
+
+    // We need this to keep the client_request channel alive and avoid jamming up the
+    // JS runtime when the MixTrafficController then tries to reconnect it if it dies
+    #[wasm_bindgen(skip)]
+    #[allow(dead_code)]
+    pub(crate) client_request_sender: ClientRequestSender,
 }
 
 // TODO: we don't really need a builder anymore,
 // but we might as well leave it for backwards compatibility
 #[wasm_bindgen]
+#[derive(Debug)]
 pub struct NymClientBuilder {
     config: ClientConfig,
     force_tls: bool,
@@ -197,8 +211,6 @@ impl NymClientBuilder {
     }
 
     async fn start_client_async(mut self) -> Result<NymClient, WasmClientError> {
-        console_log!("Starting the wasm client");
-
         // TODO: resolve this properly
         self.config.base.debug.topology.ignore_egress_epoch_role = true;
 
@@ -226,8 +238,12 @@ impl NymClientBuilder {
         let packet_type = self.config.base.debug.traffic.packet_type;
         let storage = Self::initialise_storage(&self.config, client_store);
 
+        // Max: leaving this in here for future debug
+        // console_log!("Config {:?}", self.config);
+
         let base_builder =
             BaseClientBuilder::<QueryReqwestRpcNyxdClient, _>::new(self.config.base, storage, None);
+
         // if let Some(topology_provider) = maybe_topology_provider {
         //     base_builder = base_builder.with_topology_provider(topology_provider);
         // }
@@ -238,6 +254,8 @@ impl NymClientBuilder {
 
         let mut started_client = base_builder.start_base().await?;
         let self_address = started_client.address.to_string();
+
+        let client_request_sender = started_client.client_request_sender.clone();
 
         let client_input = started_client.client_input.register_producer();
         let client_output = started_client.client_output.register_consumer();
@@ -254,6 +272,7 @@ impl NymClientBuilder {
                 .shutdown_handle
                 .expect("shutdown manager missing"),
             packet_type,
+            client_request_sender,
         })
     }
 
@@ -324,27 +343,35 @@ impl NymClient {
         on_message: js_sys::Function,
         opts: Option<ClientOptsSimple>,
     ) -> Result<NymClient, WasmClientError> {
+        // console_log!("_new: Starting client creation");
+
         if let Some(opts) = opts {
             let preferred_gateway = opts.preferred_gateway;
             let storage_passphrase = opts.storage_passphrase;
             let force_tls = opts.force_tls.unwrap_or_default();
-            NymClientBuilder::new(
+            let builder = NymClientBuilder::new(
                 config,
                 on_message,
                 force_tls,
                 preferred_gateway,
                 storage_passphrase,
-            )
+            );
+            let result = builder.start_client_async().await;
+            // console_log!("_new: start_client_async completed: {:?}", result.is_ok());
+            result.inspect_err(|err| console_error!("failed to start the client: {err}"))
         } else {
-            NymClientBuilder::new(config, on_message, false, None, None)
+            let builder = NymClientBuilder::new(config, on_message, false, None, None);
+            let result = builder.start_client_async().await;
+            // console_log!(
+            //     "_new: start_client_async (default) completed: {:?}",
+            //     result.is_ok()
+            // );
+            result.inspect_err(|err| console_error!("failed to start the client: {err}"))
         }
-        .start_client_async()
-        .await
-        .inspect_err(|err| console_error!("failed to start the client: {err}"))
     }
 
-    #[wasm_bindgen(constructor)]
     #[allow(clippy::new_ret_no_self)]
+    #[wasm_bindgen(constructor)]
     pub fn new(on_message: js_sys::Function, opts: Option<ClientOpts>) -> Promise {
         let opts = opts.unwrap_or_default();
         let mut config = check_promise_result!(ClientConfig::new((&opts).into()));
@@ -354,9 +381,18 @@ impl NymClient {
         }
 
         future_to_promise(async move {
-            Self::_new(config, on_message, opts.base)
-                .await
-                .into_promise_result()
+            let result = Self::_new(config, on_message, opts.base).await;
+
+            match result {
+                Ok(client) => {
+                    let js_result = JsValue::from(client);
+                    Ok(js_result)
+                }
+                Err(err) => {
+                    console_error!("future_to_promise: Error occurred: {:?}", err);
+                    Err(JsValue::from(err))
+                }
+            }
         })
     }
 
@@ -367,9 +403,20 @@ impl NymClient {
         opts: ClientOptsSimple,
     ) -> Promise {
         future_to_promise(async move {
-            Self::_new(config, on_message, Some(opts))
-                .await
-                .into_promise_result()
+            let result = Self::_new(config, on_message, Some(opts)).await;
+            match result {
+                Ok(client) => {
+                    let js_result = JsValue::from(client);
+                    Ok(js_result)
+                }
+                Err(err) => {
+                    console_error!(
+                        "new_with_config: future_to_promise: Error occurred: {:?}",
+                        err
+                    );
+                    Err(JsValue::from(err))
+                }
+            }
         })
     }
 

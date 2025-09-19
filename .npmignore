@@ -1,0 +1,58 @@
+# Security and sensitive files
+.env*
+*.key
+*.pem
+*.p12
+*.pfx
+secrets/
+private/
+config/secrets/
+
+# Development files
+node_modules/
+.npm/
+.npmrc
+.nvmrc
+*.log
+*.tmp
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+dist/
+build/
+target/
+*.tgz
+*.tar.gz
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Test files
+test/
+tests/
+__tests__/
+*.test.js
+*.test.ts
+*.spec.js
+*.spec.ts
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# CI/CD files
+.github/
+.gitlab-ci.yml
+.travis.yml
+.circleci/
+azure-pipelines.yml
+
+# Scripts
+scripts/
+!scripts/security-check.sh

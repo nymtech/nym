@@ -17,7 +17,6 @@ nym-contracts-common = { path = "../cosmwasm-smart-contracts/contracts-common", 
 bs58 = { workspace = true }
 
 
-lazy_static = { workspace = true }
 rand = { workspace = true }
 rand_chacha = { workspace = true }
 rand_core = { workspace = true }

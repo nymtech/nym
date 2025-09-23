@@ -27,7 +27,6 @@ pub struct BuilderConfig {
     pub data_path: Option<PathBuf>,
     pub mixnet_client_config: MixnetClientConfig,
     pub two_hops: bool,
-    pub enable_credentials_mode: bool,
     pub user_agent: UserAgent,
     pub custom_topology_provider: Box<dyn TopologyProvider + Send + Sync>,
     pub network_env: NymNetworkDetails,
@@ -109,7 +108,7 @@ impl BuilderConfig {
             .request_gateway(self.entry_node.identity.to_string())
             .network_details(self.network_env)
             .debug_config(debug_config)
-            .credentials_mode(self.enable_credentials_mode)
+            .credentials_mode(true)
             .with_remember_me(remember_me)
             .custom_topology_provider(self.custom_topology_provider);
 

@@ -5021,8 +5021,8 @@ dependencies = [
  "nym-bandwidth-controller",
  "nym-credentials-interface",
  "nym-crypto",
- "nym-node-requests",
  "nym-pemstore",
+ "nym-registration-common",
  "nym-sdk",
  "nym-service-provider-requests-common",
  "nym-validator-client",
@@ -6375,7 +6375,7 @@ dependencies = [
 
 [[package]]
 name = "nym-node"
-version = "1.18.0"
+version = "1.16.0"
 dependencies = [
  "anyhow",
  "arc-swap",
@@ -6749,12 +6749,11 @@ name = "nym-registration-client"
 version = "0.1.0"
 dependencies = [
  "nym-authenticator-client",
- "nym-authenticator-requests",
  "nym-bandwidth-controller",
  "nym-credential-storage",
  "nym-credentials-interface",
  "nym-ip-packet-client",
- "nym-ip-packet-requests",
+ "nym-registration-common",
  "nym-sdk",
  "nym-validator-client",
  "thiserror 2.0.12",
@@ -6762,6 +6761,17 @@ dependencies = [
  "tokio-util",
  "tracing",
  "url",
+]
+
+[[package]]
+name = "nym-registration-common"
+version = "0.1.0"
+dependencies = [
+ "nym-authenticator-requests",
+ "nym-crypto",
+ "nym-ip-packet-requests",
+ "nym-sphinx",
+ "tokio-util",
 ]
 
 [[package]]

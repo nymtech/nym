@@ -16,7 +16,7 @@ export SYSTEMD_COLORS="0"
 DEBIAN_FRONTEND=noninteractive
 
 # sanity check
-if [[ "${HOSTNAME}" == "localhost" || "${HOSTNAME}" == "127.0.0.1" ]]; then
+if [[ "${HOSTNAME}" == "localhost" || "${HOSTNAME}" == "127.0.0.1" || "${HOSTNAME}" == "ubuntu"  ]]; then
   echo "ERROR: HOSTNAME cannot be 'localhost'. Use a public FQDN." >&2
   exit 1
 fi
@@ -64,7 +64,7 @@ cert_ok() {
 }
 
 fetch_landing_html() {
-  local url="https://raw.githubusercontent.com/nymtech/nym/refs/heads/feature/node-setup-cli/scripts/nym-node-setup/landing-page.html"
+  local url="https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/landing-page.html"
   mkdir -p "${WEBROOT}"
 
   if command -v curl >/dev/null 2>&1; then
@@ -127,7 +127,7 @@ fetch_logo() {
 reload_nginx() { nginx -t && systemctl reload nginx; }
 
 # landing page (idempotent)
-fetch_landing
+fetch_landing_html
 inject_email
 fetch_logo
 echo "Landing page at ${WEBROOT}/index.html"

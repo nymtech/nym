@@ -128,7 +128,7 @@ download_nym_node() {
   # if nothing found, prompt the user for a URL
   if [[ -z "$found_url" ]]; then
     echo
-    echo "⚠️  Could not find a 'nym-node' asset for your platform in the latest release:"
+    echo "Could not find a 'nym-node' asset for your platform in the latest release:"
     echo "    $latest_tag_url"
     echo
     echo "HTTP check for first candidate (${base_download_url}/${candidates[0]}): ${http_code:-n/a}"

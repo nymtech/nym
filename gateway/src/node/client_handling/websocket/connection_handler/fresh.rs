@@ -922,15 +922,7 @@ impl<R, S> FreshHandler<R, S> {
         S: AsyncRead + AsyncWrite + Unpin + Send,
         R: CryptoRng + RngCore + Send,
     {
-        let mut loop_iter: usize = 0;
         loop {
-            loop_iter += 1;
-            debug!(
-                remote = %self.peer_address,
-                iteration = loop_iter,
-                "running loop"
-            );
-
             let req = self.wait_for_initial_message().await;
             let initial_request = match req {
                 Ok(req) => req,

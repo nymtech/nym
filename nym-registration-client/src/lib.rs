@@ -110,9 +110,24 @@ impl RegistrationClient {
         let exit_fut = exit_auth_client
             .register_wireguard(&*self.bandwidth_controller, TicketType::V1WireguardExit);
 
-        let (entry, exit) = Box::pin(async { tokio::try_join!(entry_fut, exit_fut) })
-            .await
-            .map_err(Box::new)?;
+        let (entry, exit) = Box::pin(async { tokio::join!(entry_fut, exit_fut) }).await;
+
+        let entry =
+            entry.map_err(
+                |source| RegistrationClientError::EntryGatewayRegisterWireguard {
+                    gateway_id: self.config.entry.identity.to_base58_string(),
+                    authenticator_address: Box::new(entry_auth_address),
+                    source: Box::new(source),
+                },
+            )?;
+        let exit =
+            exit.map_err(
+                |source| RegistrationClientError::ExitGatewayRegisterWireguard {
+                    gateway_id: self.config.exit.identity.to_base58_string(),
+                    authenticator_address: Box::new(exit_auth_address),
+                    source: Box::new(source),
+                },
+            )?;
 
         Ok(RegistrationResult::Wireguard(Box::new(
             WireguardRegistrationResult {

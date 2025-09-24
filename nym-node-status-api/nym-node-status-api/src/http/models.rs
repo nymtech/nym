@@ -85,10 +85,10 @@ pub enum ScoreValue {
 
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
 pub struct DVpnGatewayPerformance {
-    last_updated_utc: String,
-    score: ScoreValue,
-    load: ScoreValue,
-    uptime_percentage_last_24_hours: f32,
+    pub last_updated_utc: String,
+    pub score: ScoreValue,
+    pub load: ScoreValue,
+    pub uptime_percentage_last_24_hours: f32,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]

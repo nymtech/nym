@@ -357,6 +357,10 @@ impl HttpCache {
                             false
                         }
                     })
+                    .filter(|gw| {
+                        // filter out gateways with less than 75% uptime
+                        gw.performance_v2.clone().map(|p| p.uptime_percentage_last_24_hours >= 0.75).unwrap_or(false)
+                    })
                     // sort by country, then by identity key
                     .sorted_by_key(|item| {
                         (

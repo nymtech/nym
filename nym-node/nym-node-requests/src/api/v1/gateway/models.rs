@@ -39,3 +39,9 @@ pub struct WebSockets {
 
     pub wss_port: Option<u16>,
 }
+
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct Bridges {
+    pub client_params_path: String,
+}

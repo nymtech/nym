@@ -1486,6 +1486,7 @@ pub async fn try_upgrade_config_v9<P: AsRef<Path>>(
                 clients_storage: old_cfg.gateway_tasks.storage_paths.clients_storage,
                 stats_storage: old_cfg.gateway_tasks.storage_paths.stats_storage,
                 cosmos_mnemonic: old_cfg.gateway_tasks.storage_paths.cosmos_mnemonic,
+                bridge_client_params: None,
             },
             enforce_zk_nyms: old_cfg.gateway_tasks.enforce_zk_nyms,
             ws_bind_address: old_cfg.gateway_tasks.ws_bind_address,

@@ -20,7 +20,7 @@ env:
 
 jobs:
   build-container:
-    runs-on: arc-ubuntu-22.04-dind
+    runs-on: arc-linux-latest-dind
     steps:
       - name: Login to Harbor
         uses: docker/login-action@v3

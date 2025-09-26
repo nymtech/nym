@@ -4,10 +4,7 @@
 use std::sync::Arc;
 
 use futures::StreamExt;
-use nym_sdk::{
-    mixnet::{InputMessage, MixnetClient, MixnetMessageSender, ReconstructedMessage},
-    ShutdownManager,
-};
+use nym_sdk::mixnet::{InputMessage, MixnetClient, MixnetMessageSender, ReconstructedMessage};
 use tokio::{
     sync::{broadcast, mpsc},
     task::JoinHandle,
@@ -38,17 +35,10 @@ pub struct AuthClientMixnetListener {
 
     // Listen to cancel from the outside world
     shutdown_token: CancellationToken,
-
-    // Listen to MixnetClient shutdown
-    mixnet_shutdown_manager: ShutdownManager,
 }
 
 impl AuthClientMixnetListener {
-    pub fn new(
-        mixnet_client: MixnetClient,
-        shutdown_token: CancellationToken,
-        mixnet_shutdown_manager: ShutdownManager,
-    ) -> Self {
+    pub fn new(mixnet_client: MixnetClient, shutdown_token: CancellationToken) -> Self {
         let (message_broadcast, _) = broadcast::channel(100);
         let (input_message_tx, input_message_rx) = mpsc::channel(100);
         Self {
@@ -57,11 +47,11 @@ impl AuthClientMixnetListener {
             input_message_tx,
             input_message_rx,
             shutdown_token,
-            mixnet_shutdown_manager,
         }
     }
 
     async fn run(mut self) -> Self {
+        let mixnet_cancel_token = self.mixnet_client.cancellation_token();
         loop {
             tokio::select! {
                 biased;
@@ -69,10 +59,11 @@ impl AuthClientMixnetListener {
                     tracing::debug!("AuthClientMixnetListener received shutdown signal");
                     break;
                 }
-                _ = self.mixnet_shutdown_manager.run_until_shutdown() => {
+                _ = mixnet_cancel_token.cancelled() => {
                     tracing::debug!("AuthClientMixnetListener: mixnet client was shutdown");
                     break;
                 }
+
                 // Sending loop
                 input_msg = self.input_message_rx.recv() => {
                     match input_msg {
@@ -110,7 +101,9 @@ impl AuthClientMixnetListener {
 
     // Disconnects the mixnet client and effectively drop itself, since it doesn't work without one, and reconnecting isn't supported
     pub async fn disconnect_mixnet_client(self) {
-        self.mixnet_client.disconnect().await;
+        if !self.mixnet_client.cancellation_token().is_cancelled() {
+            self.mixnet_client.disconnect().await;
+        }
     }
 
     pub fn start(self) -> AuthClientMixnetListenerHandle {
@@ -118,12 +111,14 @@ impl AuthClientMixnetListener {
         let message_sender = self.input_message_tx.clone();
         // Allows stopping only this, e.g. if we don't need it in the new bandwidth controller
         let cancellation_token = self.shutdown_token.clone();
+        let mixnet_cancellation_token = self.mixnet_client.cancellation_token();
         let handle = tokio::spawn(self.run());
 
         AuthClientMixnetListenerHandle {
             message_broadcast,
             message_sender,
             cancellation_token,
+            mixnet_cancellation_token,
             handle,
         }
     }
@@ -133,6 +128,7 @@ pub struct AuthClientMixnetListenerHandle {
     message_broadcast: MixnetMessageBroadcastSender,
     message_sender: MixnetMessageInputSender,
     cancellation_token: CancellationToken,
+    mixnet_cancellation_token: CancellationToken,
     handle: JoinHandle<AuthClientMixnetListener>,
 }
 
@@ -143,6 +139,10 @@ impl AuthClientMixnetListenerHandle {
 
     pub fn subscribe(&self) -> MixnetMessageBroadcastReceiver {
         self.message_broadcast.subscribe()
+    }
+
+    pub fn mixnet_cancel_token(&self) -> CancellationToken {
+        self.mixnet_cancellation_token.clone()
     }
 
     pub async fn stop(self) {

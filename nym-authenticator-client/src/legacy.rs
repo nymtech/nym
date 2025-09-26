@@ -12,9 +12,9 @@ use nym_authenticator_requests::{
 };
 use nym_credentials_interface::CredentialSpendingData;
 use nym_crypto::asymmetric::x25519::{KeyPair, PublicKey};
-use nym_node_requests::api::v1::gateway::client_interfaces::wireguard::models::PeerPublicKey;
 use nym_sdk::mixnet::{IncludedSurbs, Recipient};
 use nym_service_provider_requests_common::{Protocol, ServiceProviderTypeExt};
+use nym_wireguard_types::PeerPublicKey;
 
 impl crate::AuthenticatorClient {
     pub fn into_legacy_and_keypair(self) -> (LegacyAuthenticatorClient, KeyPair) {

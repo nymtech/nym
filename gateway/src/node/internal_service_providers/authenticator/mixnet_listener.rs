@@ -19,11 +19,9 @@ use nym_authenticator_requests::{
 };
 use nym_authenticator_requests::{
     latest::registration::{GatewayClient, PendingRegistrations, PrivateIPs},
-    traits::{
-        AuthenticatorRequest, AuthenticatorVersion, FinalMessage, InitMessage,
-        QueryBandwidthMessage, TopUpMessage,
-    },
-    v1, v2, v3, v4, v5, CURRENT_VERSION,
+    request::AuthenticatorRequest,
+    traits::{FinalMessage, InitMessage, QueryBandwidthMessage, TopUpMessage},
+    v1, v2, v3, v4, v5, AuthenticatorVersion, CURRENT_VERSION,
 };
 use nym_credential_verification::ecash::traits::EcashManager;
 use nym_credential_verification::{
@@ -480,7 +478,7 @@ impl MixnetListener {
         let mut registred_and_free = self.registred_and_free.write().await;
         let registration_data = registred_and_free
             .registration_in_progres
-            .get(&final_message.pub_key())
+            .get(&final_message.gateway_client_pub_key())
             .ok_or(AuthenticatorError::RegistrationNotInProgress)?
             .clone();
 
@@ -491,7 +489,7 @@ impl MixnetListener {
             return Err(AuthenticatorError::MacVerificationFailure);
         }
 
-        let mut peer = Peer::new(Key::new(final_message.pub_key().to_bytes()));
+        let mut peer = Peer::new(Key::new(final_message.gateway_client_pub_key().to_bytes()));
         peer.allowed_ips
             .push(IpAddrMask::new(final_message.private_ips().ipv4.into(), 32));
         peer.allowed_ips.push(IpAddrMask::new(
@@ -532,7 +530,7 @@ impl MixnetListener {
 
         registred_and_free
             .registration_in_progres
-            .remove(&final_message.pub_key());
+            .remove(&final_message.gateway_client_pub_key());
 
         let bytes = match AuthenticatorVersion::from(protocol) {
             AuthenticatorVersion::V1 => v1::response::AuthenticatorResponse::new_registered(

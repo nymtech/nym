@@ -23,10 +23,12 @@ use nym_validator_client::nym_api::EpochId;
 use nym_validator_client::nyxd::contract_traits::DkgQueryClient;
 
 pub use event::BandwidthStatusMessage;
+pub use traits::{BandwidthTicketProvider, DEFAULT_TICKETS_TO_SPEND};
 
 pub mod acquire;
 pub mod error;
 mod event;
+mod traits;
 mod utils;
 
 #[derive(Debug)]

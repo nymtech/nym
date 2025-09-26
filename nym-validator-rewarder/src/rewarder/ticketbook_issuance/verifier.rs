@@ -65,13 +65,6 @@ pub struct MismatchClaim<T> {
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct SignedMismatchClaim<T, R> {
-    claimed: T,
-    actual: T,
-    signed_response: R,
-}
-
-#[derive(Serialize, Deserialize)]
 pub struct GenericError {
     error: String,
 }

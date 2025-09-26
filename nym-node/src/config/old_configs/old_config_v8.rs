@@ -330,10 +330,6 @@ impl Default for HttpV8 {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
-#[serde(deny_unknown_fields)]
-pub struct MixnodePathsV8 {}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct DebugV8 {
@@ -433,17 +429,6 @@ impl Default for VerlocDebugV8 {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct MixnodeConfigV8 {
-    pub storage_paths: MixnodePathsV8,
-
-    pub verloc: VerlocV8,
-
-    #[serde(default)]
-    pub debug: DebugV8,
-}
-
 impl DebugV8 {
     const DEFAULT_NODE_STATS_LOGGING_DELAY: Duration = Duration::from_millis(60_000);
     const DEFAULT_NODE_STATS_UPDATING_DELAY: Duration = Duration::from_millis(30_000);
@@ -456,21 +441,6 @@ impl Default for DebugV8 {
             node_stats_updating_delay: Self::DEFAULT_NODE_STATS_UPDATING_DELAY,
         }
     }
-}
-
-#[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
-#[serde(deny_unknown_fields)]
-pub struct EntryGatewayPathsV8 {
-    /// Path to sqlite database containing all persistent data: messages for offline clients,
-    /// derived shared keys and available client bandwidths.
-    pub clients_storage: PathBuf,
-
-    pub stats_storage: PathBuf,
-
-    /// Path to file containing cosmos account mnemonic used for zk-nym redemption.
-    pub cosmos_mnemonic: PathBuf,
-
-    pub authenticator: AuthenticatorPathsV8,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -537,55 +507,6 @@ impl Default for ZkNymTicketHandlerDebugV8 {
             maximum_time_between_redemption: Self::default_maximum_time_between_redemption(),
         }
     }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct EntryGatewayConfigDebugV8 {
-    /// Number of messages from offline client that can be pulled at once (i.e. with a single SQL query) from the storage.
-    pub message_retrieval_limit: i64,
-    pub zk_nym_tickets: ZkNymTicketHandlerDebugV8,
-}
-
-impl EntryGatewayConfigDebugV8 {
-    const DEFAULT_MESSAGE_RETRIEVAL_LIMIT: i64 = 100;
-}
-
-impl Default for EntryGatewayConfigDebugV8 {
-    fn default() -> Self {
-        EntryGatewayConfigDebugV8 {
-            message_retrieval_limit: Self::DEFAULT_MESSAGE_RETRIEVAL_LIMIT,
-            zk_nym_tickets: Default::default(),
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct EntryGatewayConfigV8 {
-    pub storage_paths: EntryGatewayPathsV8,
-
-    /// Indicates whether this gateway is accepting only coconut credentials for accessing the mixnet
-    /// or if it also accepts non-paying clients
-    pub enforce_zk_nyms: bool,
-
-    /// Socket address this node will use for binding its client websocket API.
-    /// default: `[::]:9000`
-    pub bind_address: SocketAddr,
-
-    /// Custom announced port for listening for websocket client traffic.
-    /// If unspecified, the value from the `bind_address` will be used instead
-    /// default: None
-    #[serde(deserialize_with = "de_maybe_port")]
-    pub announce_ws_port: Option<u16>,
-
-    /// If applicable, announced port for listening for secure websocket client traffic.
-    /// (default: None)
-    #[serde(deserialize_with = "de_maybe_port")]
-    pub announce_wss_port: Option<u16>,
-
-    #[serde(default)]
-    pub debug: EntryGatewayConfigDebugV8,
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
@@ -676,20 +597,6 @@ pub struct AuthenticatorPathsV8 {
     /// Due to how clients are started up, this file has to exist.
     pub gateway_registrations: PathBuf,
     // it's possible we might have to add credential storage here for return tickets
-}
-
-#[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
-#[serde(deny_unknown_fields)]
-pub struct ExitGatewayPathsV8 {
-    pub clients_storage: PathBuf,
-
-    pub stats_storage: PathBuf,
-
-    pub network_requester: NetworkRequesterPathsV8,
-
-    pub ip_packet_router: IpPacketRouterPathsV8,
-
-    pub authenticator: AuthenticatorPathsV8,
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
@@ -818,45 +725,6 @@ impl Default for NetworkRequesterV8 {
             debug: Default::default(),
         }
     }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct ExitGatewayDebugV8 {
-    /// Number of messages from offline client that can be pulled at once (i.e. with a single SQL query) from the storage.
-    pub message_retrieval_limit: i64,
-}
-
-impl ExitGatewayDebugV8 {
-    const DEFAULT_MESSAGE_RETRIEVAL_LIMIT: i64 = 100;
-}
-
-impl Default for ExitGatewayDebugV8 {
-    fn default() -> Self {
-        ExitGatewayDebugV8 {
-            message_retrieval_limit: Self::DEFAULT_MESSAGE_RETRIEVAL_LIMIT,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct ExitGatewayConfigV8 {
-    pub storage_paths: ExitGatewayPathsV8,
-
-    /// specifies whether this exit node should run in 'open-proxy' mode
-    /// and thus would attempt to resolve **ANY** request it receives.
-    pub open_proxy: bool,
-
-    /// Specifies the url for an upstream source of the exit policy used by this node.
-    pub upstream_exit_policy_url: Url,
-
-    pub network_requester: NetworkRequesterV8,
-
-    pub ip_packet_router: IpPacketRouterV8,
-
-    #[serde(default)]
-    pub debug: ExitGatewayDebugV8,
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]

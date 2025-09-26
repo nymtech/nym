@@ -39,7 +39,7 @@ async fn main() -> anyhow::Result<()> {
     tokio::spawn(async move {
         scraper.start().await;
     });
-    let scraper = node_scraper::PacketScraper::new(
+    let scraper = node_scraper::NodeScraper::new(
         storage.pool_owned(),
         args.packet_stats_max_concurrent_tasks,
     );

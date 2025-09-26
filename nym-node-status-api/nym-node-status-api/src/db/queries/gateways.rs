@@ -89,6 +89,7 @@ pub(crate) async fn get_all_gateways(pool: &DbPool) -> anyhow::Result<Vec<Gatewa
             gw.last_probe_log as "last_probe_log?",
             gw.last_testrun_utc as "last_testrun_utc?",
             gw.last_updated_utc as "last_updated_utc!",
+            gw.bridges as "bridges?: serde_json::Value",
             COALESCE(gd.moniker, 'NA') as "moniker!",
             COALESCE(gd.website, 'NA') as "website!",
             COALESCE(gd.security_contact, 'NA') as "security_contact!",

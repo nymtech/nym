@@ -20,7 +20,7 @@ pub use nym_client_core::{
             NymApiTopologyProvider, NymApiTopologyProviderConfig, TopologyProvider,
         },
     },
-    config::DebugConfig,
+    config::{DebugConfig, RememberMe},
 };
 pub use nym_network_defaults::{
     ChainDetails, DenomDetails, DenomDetailsOwned, NymContracts, NymNetworkDetails,

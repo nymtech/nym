@@ -42,6 +42,40 @@ impl TryFrom<u8> for ServiceProviderType {
     }
 }
 
+pub trait ServiceProviderTypeExt {
+    fn is_network_requester(&self) -> bool;
+    fn is_ip_packet_router(&self) -> bool;
+    fn is_authenticator(&self) -> bool;
+}
+
+impl ServiceProviderTypeExt for ServiceProviderType {
+    fn is_network_requester(&self) -> bool {
+        matches!(self, Self::NetworkRequester)
+    }
+
+    fn is_ip_packet_router(&self) -> bool {
+        matches!(self, Self::IpPacketRouter)
+    }
+
+    fn is_authenticator(&self) -> bool {
+        matches!(self, Self::Authenticator)
+    }
+}
+
+impl ServiceProviderTypeExt for u8 {
+    fn is_network_requester(&self) -> bool {
+        ServiceProviderType::NetworkRequester as u8 == *self
+    }
+
+    fn is_ip_packet_router(&self) -> bool {
+        ServiceProviderType::IpPacketRouter as u8 == *self
+    }
+
+    fn is_authenticator(&self) -> bool {
+        ServiceProviderType::Authenticator as u8 == *self
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct Protocol {
     pub version: u8,

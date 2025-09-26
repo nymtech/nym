@@ -18,9 +18,6 @@ pub enum Error {
     )]
     ReceivedResponseWithNewVersion { expected: u8, received: u8 },
 
-    #[error("got reply for connect request, but it appears intended for the wrong address?")]
-    GotReplyIntendedForWrongAddress,
-
     #[error("unexpected connect response")]
     UnexpectedConnectResponse,
 
@@ -42,10 +39,8 @@ pub enum Error {
     #[error("already connected to the mixnet")]
     AlreadyConnected,
 
-    #[error("failed to create connect request")]
-    FailedToCreateConnectRequest {
-        source: nym_ip_packet_requests::sign::SignatureError,
-    },
+    #[error(transparent)]
+    Bincode(#[from] bincode::Error),
 }
 
 // Result type based on our error type

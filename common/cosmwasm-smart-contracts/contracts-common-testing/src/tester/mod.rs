@@ -47,27 +47,11 @@ pub trait TestableNymContract {
     fn query() -> QueryFn<Self::QueryMsg, Self::ContractError>;
     fn migrate() -> PermissionedFn<Self::MigrateMsg, Self::ContractError>;
 
-    fn base_init_msg() -> Self::InitMsg;
-
-    // // for now we don't care about custom queriers
-    // fn contract_wrapper() -> ContractWrapper<
-    //     Self::ExecuteMsg,
-    //     Self::InitMsg,
-    //     Self::QueryMsg,
-    //     Self::ContractError,
-    //     anyhow::Error,
-    //     anyhow::Error,
-    //     Empty,
-    //     Empty,
-    //     Empty,
-    //     Self::ContractError,
-    //     Self::ContractError,
-    //     Self::MigrateMsg,
-    //     Self::ContractError,
-    // > {
-    //     ContractWrapper::new(Self::execute(), Self::instantiate(), Self::query())
-    //         .with_migrate(Self::migrate())
-    // }
+    // not all instances will require default init message, some will always have to provide customised values
+    #[allow(clippy::unimplemented)]
+    fn base_init_msg() -> Self::InitMsg {
+        unimplemented!("attempted to instantiate contract without defining instantiate message")
+    }
 
     fn dyn_contract() -> Box<dyn Contract<Empty>> {
         Box::new(
@@ -92,6 +76,7 @@ pub struct ContractTesterBuilder<C> {
     app: App<BankKeeper, MockApi, StorageWrapper>,
     storage: StorageWrapper,
     pub well_known_contracts: HashMap<&'static str, Addr>,
+    code_ids: HashMap<&'static str, u64>,
 }
 
 impl<C> ContractTesterBuilder<C> {
@@ -125,20 +110,33 @@ impl<C> ContractTesterBuilder<C> {
             app,
             storage,
             well_known_contracts: Default::default(),
+            code_ids: Default::default(),
         }
+    }
+
+    pub fn master_address(&self) -> Addr {
+        self.master_address.clone()
     }
 
     pub fn instantiate<D: TestableNymContract>(
         mut self,
         custom_init_msg: Option<D::InitMsg>,
     ) -> ContractTesterBuilder<C> {
+        self.instantiate_contract::<D>(custom_init_msg);
+        self
+    }
+
+    pub fn instantiate_contract<D: TestableNymContract>(
+        &mut self,
+        custom_init_msg: Option<D::InitMsg>,
+    ) {
         let code_id = self.app.store_code(D::dyn_contract());
         let contract_address = self
             .app
             .instantiate_contract(
                 code_id,
                 self.master_address.clone(),
-                &custom_init_msg.unwrap_or(D::base_init_msg()),
+                &custom_init_msg.unwrap_or_else(|| D::base_init_msg()),
                 &[],
                 D::NAME,
                 Some(self.master_address.to_string()),
@@ -154,8 +152,28 @@ impl<C> ContractTesterBuilder<C> {
             )
             .unwrap();
 
+        self.code_ids.insert(D::NAME, code_id);
         self.well_known_contracts.insert(D::NAME, contract_address);
-        self
+    }
+
+    // uses the SAME code
+    pub fn migrate_contract<D: TestableNymContract>(&mut self, migrate_msg: &D::MigrateMsg) {
+        self.app
+            .migrate_contract(
+                self.master_address.clone(),
+                self.unchecked_contract_address::<D>(),
+                migrate_msg,
+                self.unchecked_contract_code_id::<D>(),
+            )
+            .unwrap();
+    }
+
+    pub fn unchecked_contract_address<D: TestableNymContract>(&self) -> Addr {
+        self.well_known_contracts.get(D::NAME).unwrap().clone()
+    }
+
+    fn unchecked_contract_code_id<D: TestableNymContract>(&self) -> u64 {
+        *self.code_ids.get(D::NAME).unwrap()
     }
 
     pub fn build(self) -> ContractTester<C>
@@ -228,6 +246,10 @@ where
     ) -> Self {
         self.insert_common_storage_key(key, value);
         self
+    }
+
+    pub fn unchecked_contract_address<D: TestableNymContract>(&self) -> Addr {
+        self.well_known_contracts.get(D::NAME).unwrap().clone()
     }
 }
 

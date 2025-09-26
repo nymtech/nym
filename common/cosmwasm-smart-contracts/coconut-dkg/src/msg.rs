@@ -73,6 +73,17 @@ pub enum ExecuteMsg {
     TriggerReset {},
 
     TriggerResharing {},
+
+    /// Transfers ownership of the epoch dealer to another address.
+    /// This assumes off-chain hand-over of keys
+    TransferOwnership {
+        transfer_to: String,
+    },
+
+    /// Update announce address of this signer
+    UpdateAnnounceAddress {
+        new_address: String,
+    },
 }
 
 #[cw_serde]

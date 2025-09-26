@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::Transaction;
 use std::time::Duration;
 use time::UtcDateTime;
-use tracing::trace;
+use tracing::{error, trace};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct NodeDescriptionResponse {
@@ -26,7 +26,8 @@ pub struct NodeDescriptionResponse {
 // Eventhough they are `/api/v1/*`, newer nodes have a redirect to the correct endpoints
 const DESCRIPTION_URL: &str = "/description";
 const PACKET_STATS_URL: &str = "/stats";
-const BRIDGES_URL: &str = "/bridges/client-params";
+
+const BRIDGES_URL: &str = "/api/v1/bridges/client-params";
 
 // We need this as some of the mixnodes respond with float values for the packet statistics (?????)
 pub fn get_packet_value(response: &serde_json::Value, key: &str) -> Option<i32> {
@@ -164,7 +165,7 @@ pub async fn scrape_node(node: &ScraperNodeInfo) -> Result<InsertNodeScraperReco
     let mut stats = None;
     let mut error = None;
     let mut tried_url_list = Vec::new();
-    let mut bridges: Option<BridgeInformation> = None;
+    let mut bridges = None;
 
     for url in urls {
         let url_to_try = format!("{}{}", url.trim_end_matches('/'), PACKET_STATS_URL);
@@ -189,8 +190,16 @@ pub async fn scrape_node(node: &ScraperNodeInfo) -> Result<InsertNodeScraperReco
                 .await
                 .and_then(|res| res.error_for_status())
             {
-                bridges = serde_json::from_value(response.json().await?).ok();
-                trace!("got bridge info from node {}: {bridges:?}", node.node_kind);
+                let json = response.json().await?;
+                bridges = serde_json::from_value::<BridgeInformation>(json)
+                    .inspect_err(|err| {
+                        error!("Failed to deserialize bridge information: {err}");
+                    })
+                    .ok();
+                trace!(
+                    "got bridge info from node id {}: {bridges:?}",
+                    node.node_kind.node_id()
+                );
             }
         }
 

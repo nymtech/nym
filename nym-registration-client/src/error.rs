@@ -35,6 +35,19 @@ pub enum RegistrationClientError {
     #[error("timeout connecting the mixnet client")]
     Timeout(#[from] tokio::time::error::Elapsed),
 
-    #[error(transparent)]
-    AuthenticatorClientError(#[from] Box<nym_authenticator_client::Error>),
+    #[error("failed to register wireguard with the gateway for {gateway_id}")]
+    EntryGatewayRegisterWireguard {
+        gateway_id: String,
+        authenticator_address: Box<nym_sdk::mixnet::Recipient>,
+        #[source]
+        source: Box<nym_authenticator_client::Error>,
+    },
+
+    #[error("failed to register wireguard with the gateway for {gateway_id}")]
+    ExitGatewayRegisterWireguard {
+        gateway_id: String,
+        authenticator_address: Box<nym_sdk::mixnet::Recipient>,
+        #[source]
+        source: Box<nym_authenticator_client::Error>,
+    },
 }

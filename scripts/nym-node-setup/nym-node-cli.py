@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 __default_branch__ = "develop"
 
 import os

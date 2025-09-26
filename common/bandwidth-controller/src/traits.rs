@@ -11,7 +11,8 @@ use crate::{error::BandwidthControllerError, BandwidthController, PreparedCreden
 
 pub const DEFAULT_TICKETS_TO_SPEND: u32 = 1;
 
-#[async_trait]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait BandwidthTicketProvider: Send + Sync {
     async fn get_ecash_ticket(
         &self,
@@ -21,7 +22,8 @@ pub trait BandwidthTicketProvider: Send + Sync {
     ) -> Result<PreparedCredential, BandwidthControllerError>;
 }
 
-#[async_trait]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl<C, St> BandwidthTicketProvider for BandwidthController<C, St>
 where
     C: DkgQueryClient + Sync + Send,

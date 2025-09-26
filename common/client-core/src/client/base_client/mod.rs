@@ -1050,7 +1050,7 @@ where
                 gateway_connection: GatewayConnection { gateway_ws_fd },
             },
             stats_reporter,
-            shutdown_handle: Some(shutdown_tracker), // The primary tracker for this client
+            shutdown_handle: shutdown_tracker, // The primary tracker for this client
             client_request_sender,
             forget_me: self.config.debug.forget_me,
             remember_me: self.config.debug.remember_me,
@@ -1066,7 +1066,7 @@ pub struct BaseClient {
     pub client_state: ClientState,
     pub stats_reporter: ClientStatsSender,
     pub client_request_sender: ClientRequestSender,
-    pub shutdown_handle: Option<ShutdownTracker>,
+    pub shutdown_handle: ShutdownTracker,
     pub forget_me: ForgetMe,
     pub remember_me: RememberMe,
 }

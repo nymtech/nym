@@ -44,7 +44,7 @@ pub const NYM_APIS: &[ApiUrlConst] = &[
         front_hosts: None,
     },
     ApiUrlConst {
-        url: "https://nym-fronntdoor.vercel.app/api/",
+        url: "https://nym-frontdoor.vercel.app/api/",
         front_hosts: Some(&["vercel.app", "vercel.com"]),
     },
     ApiUrlConst {

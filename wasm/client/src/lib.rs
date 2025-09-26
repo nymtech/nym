@@ -23,11 +23,14 @@ use wasm_bindgen::prelude::*;
 #[wasm_bindgen(start)]
 #[cfg(target_arch = "wasm32")]
 pub fn main() {
+    use wasm_utils::set_panic_hook;
+
+    wasm_utils::console_log!("[rust main]: setting panic hook");
+    wasm_utils::set_panic_hook();
+    set_panic_hook();
     wasm_utils::console_log!("[rust main]: rust module loaded");
     wasm_utils::console_log!(
         "wasm client version used: {}",
         nym_bin_common::bin_info_owned!()
     );
-    wasm_utils::console_log!("[rust main]: setting panic hook");
-    wasm_utils::set_panic_hook();
 }

@@ -69,6 +69,9 @@ use tokio::sync::mpsc::Sender;
 use tracing::*;
 use url::Url;
 
+#[cfg(target_arch = "wasm32")]
+use wasm_utils::console_log;
+
 #[cfg(all(
     not(target_arch = "wasm32"),
     feature = "fs-surb-storage",
@@ -848,6 +851,11 @@ where
     {
         info!("Starting nym client");
 
+        #[cfg(target_arch = "wasm32")]
+        {
+            console_log!("Starting base Nym Client");
+        }
+
         // derive (or load) client keys and gateway configuration
         let init_res = Self::initialise_keys_and_gateway(
             self.setup_method,
@@ -1028,6 +1036,12 @@ where
 
         debug!("Core client startup finished!");
         debug!("The address of this client is: {self_address}");
+
+        #[cfg(target_arch = "wasm32")]
+        {
+            console_log!("Core client startup finished!");
+            console_log!("Rust::start_base: the address of this client is: {self_address}");
+        }
 
         Ok(BaseClient {
             address: self_address,

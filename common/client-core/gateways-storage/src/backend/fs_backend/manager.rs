@@ -31,7 +31,6 @@ impl StorageManager {
                 }
             })?;
         }
-
         let opts = sqlx::sqlite::SqliteConnectOptions::new()
             .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal)
             .synchronous(SqliteSynchronous::Normal)

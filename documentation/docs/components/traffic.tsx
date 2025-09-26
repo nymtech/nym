@@ -1,14 +1,18 @@
-import React, { useEffect, useState } from 'react';
-import { createNymMixnetClient, NymMixnetClient, Payload } from '@nymproject/sdk-full-fat';
-import Box from '@mui/material/Box';
-import CircularProgress from '@mui/material/CircularProgress';
-import Paper from '@mui/material/Paper';
-import Typography from '@mui/material/Typography';
-import Stack from '@mui/material/Stack';
-import TextField from '@mui/material/TextField';
-import Button from '@mui/material/Button';
+import React, { useEffect, useState } from "react";
+import {
+  createNymMixnetClient,
+  NymMixnetClient,
+  Payload,
+} from "@nymproject/sdk-full-fat";
+import Box from "@mui/material/Box";
+import CircularProgress from "@mui/material/CircularProgress";
+import Paper from "@mui/material/Paper";
+import Typography from "@mui/material/Typography";
+import Stack from "@mui/material/Stack";
+import TextField from "@mui/material/TextField";
+import Button from "@mui/material/Button";
 
-const nymApiUrl = 'https://validator.nymtech.net/api';
+const nymApiUrl = "https://validator.nymtech.net/api";
 
 export const Traffic = () => {
   const [nym, setNym] = useState<NymMixnetClient>();
@@ -37,7 +41,7 @@ export const Traffic = () => {
 
     // show whether the client is ready or not
     client?.events.subscribeToLoaded((e) => {
-      console.log('Client ready: ', e.args);
+      console.log("Client ready: ", e.args);
     });
 
     // show message payload content when received
@@ -51,7 +55,8 @@ export const Traffic = () => {
     await nym?.client.stop();
   };
 
-  const send = () => payload && recipient && nym?.client.send({ payload, recipient });
+  const send = () =>
+    payload && recipient && nym?.client.send({ payload, recipient });
 
   useEffect(() => {
     init();
@@ -70,7 +75,7 @@ export const Traffic = () => {
 
   if (!nym || !selfAddress) {
     return (
-      <Box sx={{ display: 'flex' }}>
+      <Box sx={{ display: "flex" }}>
         <CircularProgress />
       </Box>
     );
@@ -78,10 +83,10 @@ export const Traffic = () => {
 
   return (
     <Box padding={3}>
-      <Paper style={{ marginTop: '1rem', padding: '2rem' }}>
+      <Paper style={{ marginTop: "1rem", padding: "2rem" }}>
         <Stack spacing={3}>
           <Typography variant="body1">My self address is:</Typography>
-          <Typography variant="body1">{selfAddress || 'loading'}</Typography>
+          <Typography variant="body1">{selfAddress || "loading"}</Typography>
           <Typography variant="h5">Communication through the Mixnet</Typography>
           <TextField
             type="text"
@@ -94,15 +99,22 @@ export const Traffic = () => {
             placeholder="Message to send"
             multiline
             rows={4}
-            onChange={(e) => setPayload({ message: e.target.value, mimeType: 'text/plain' })}
+            onChange={(e) =>
+              setPayload({ message: e.target.value, mimeType: "text/plain" })
+            }
             size="small"
           />
-          <Button variant="outlined" onClick={() => send()} disabled={!buttonEnabled} sx={{ width: 'fit-content' }}>
+          <Button
+            variant="outlined"
+            onClick={() => send()}
+            disabled={!buttonEnabled}
+            sx={{ width: "fit-content" }}
+          >
             Send
           </Button>
         </Stack>
         {receivedMessage && (
-          <Stack spacing={3} style={{ marginTop: '1rem' }}>
+          <Stack spacing={3} style={{ marginTop: "1rem" }}>
             <Typography variant="h5">Message Received!</Typography>
             <Typography fontFamily="monospace">{receivedMessage}</Typography>
           </Stack>

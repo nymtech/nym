@@ -88,9 +88,22 @@ impl NymIprDevice {
     fn poll_rx_queue(&mut self) {
         // Try to receive all available packets without blocking, queue them for smoltcp consumption.
         while let Ok(packet) = self.rx_receiver.try_recv() {
-            trace!("Received packet of {} bytes from bridge", packet.len());
+            info!("Received packet of {} bytes from bridge", packet.len());
             self.rx_queue.push_back(packet);
         }
+    }
+
+    pub fn tx_sender(&self) -> mpsc::UnboundedSender<Vec<u8>> {
+        self.tx_sender.clone()
+    }
+
+    /// Get the receiver for external use
+    pub fn rx_receiver(&self) -> mpsc::UnboundedReceiver<Vec<u8>> {
+        // Create a new channel and return the receiver
+        // This is a bit of a hack but necessary for the current architecture
+        let (_tx, rx) = mpsc::unbounded_channel();
+        // We just need the receiver for testing
+        rx
     }
 }
 
@@ -142,7 +155,7 @@ impl RxToken for NymRxToken {
     where
         F: FnOnce(&[u8]) -> R,
     {
-        debug!("Consuming RX packet of {} bytes", self.buffer.len());
+        info!("Consuming RX packet of {} bytes", self.buffer.len());
         f(&self.buffer)
     }
 }

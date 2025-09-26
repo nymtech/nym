@@ -22,6 +22,8 @@ nym-ip-packet-requests = { path = "../common/ip-packet-requests" }
 thiserror.workspace = true
 reqwest.workspace = true
 dirs.workspace = true
+rustls  = { version = "0.23", default-features = false, features = ["std"] }
+webpki-roots = "1.0.2"
 
 [[example]]
 name = "check"

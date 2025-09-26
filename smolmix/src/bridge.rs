@@ -64,7 +64,7 @@ impl NymIprBridge {
             tokio::select! {
                 // Outgoing packets from smoltcp layer above.
                 Some(packet) = self.tx_receiver.recv() => {
-                    debug!("Bridge sending {} byte packet to mixnet", packet.len());
+                    info!("Bridge sending {} byte packet to mixnet", packet.len());
 
                     // Log packet details for debugging
                     if packet.len() >= 20 {
@@ -72,7 +72,7 @@ impl NymIprBridge {
                         let proto = packet[9];
                         let src_ip = &packet[12..16];
                         let dst_ip = &packet[16..20];
-                        debug!(
+                        info!(
                             "Outgoing IPv{} packet: proto={}, src={}.{}.{}.{}, dst={}.{}.{}.{}",
                             version, proto,
                             src_ip[0], src_ip[1], src_ip[2], src_ip[3],
@@ -86,7 +86,7 @@ impl NymIprBridge {
                         error!("Failed to send packet through mixnet: {}", e);
                     } else {
                         packets_sent += 1;
-                        trace!("Total packets sent: {}", packets_sent);
+                        info!("Total packets sent: {}", packets_sent);
                     }
                 }
 

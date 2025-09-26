@@ -12,6 +12,7 @@ use group::GroupEncoding;
 use rand::CryptoRng;
 use rand_core::RngCore;
 use std::collections::BTreeMap;
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 // Domain tries to follow guidelines specified by:
 // https://datatracker.ietf.org/doc/html/draft-irtf-cfrg-hash-to-curve-11#section-3.1
@@ -77,7 +78,7 @@ impl<'a> Instance<'a> {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Zeroize, ZeroizeOnDrop)]
 pub struct ProofOfSecretSharing {
     ff: G1Projective,
     aa: G2Projective,

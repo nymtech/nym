@@ -12,6 +12,7 @@ use ff::Field;
 use group::{Group, GroupEncoding};
 use rand::{CryptoRng, Rng};
 use rand_core::{RngCore, SeedableRng};
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 const CHUNKING_ORACLE_DOMAIN: &[u8] =
     b"NYM_COCONUT_NIDKG_V01_CS01_SHA-256_CHACHA20_CHUNKING_ORACLE";
@@ -67,7 +68,7 @@ impl<'a> Instance<'a> {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Zeroize, ZeroizeOnDrop)]
 pub struct ProofOfChunking {
     y0: G1Projective,
     bb: Vec<G1Projective>,

@@ -20,7 +20,7 @@
 [RDP](https://rdp.sh),"Netherlands, USA, Poland","Yes, on by default",Yes,"German provider. Exit nodes are allowed, policy is here https://rdp.sh/docs/faq/tor ports 25,465,587 must be closed. Make sure you open a ticket before running an exit node.",07/2024
 [Lowendbox](https://lowendbox.com/category/dedicated-servers), , , ,Just an aggregator with good offers,07/2025
 [Thundervm](https://thundervm.com/en/hosting/dedicated-server),"USA, UK, France, Italy, Switzerland, Netherlands",,Yes, ,07/2025
-[OVH](https://us.ovhcloud.com/bare-metal/rise/rise-3/),"USA, DE, FR, UK, PL, CA", ,No,Not all locations always available,07/2025
+[OVH](https://us.ovhcloud.com/bare-metal/rise/rise-3/),"USA, DE, FR, UK, PL, CA", ,No,"Exit nodes not allowed on VPS offering, see their [Service Specific Terms](https://us.ovhcloud.com/legal/service-specific-terms/). Not all locations always available",09/2025
 [Mebilcom](https://www.melbicom.net/dedicatedserver/),"NL, US, DE, UAE, NG, ESP, IN, IT, FR, LT, SG, BG, LV, PL",,No,,07/2025
 [Servermania](https://www.servermania.com/dedicated-servers-hosting.htm),"USA, Canada",,No,,07/2025
 [Oneprovider](https://oneprovider.com/en/dedicated-servers/ipv6),"PL, FR, NL, UA, US, BG, RO, DK, ESP, NO, CZ, RS, IE, IT, UK, HU, CH, SK, AT, BE, BA, HK, JP, SG, LU, AU, SWE, UAE, BR, CR, MX, GR, CL, MA, AR",Yes,No,,07/2025

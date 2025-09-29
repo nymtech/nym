@@ -243,7 +243,7 @@ mod tests {
         let expiration_date = issuance.expiration_date();
 
         let sig_req = issuance.prepare_for_signing();
-        let exp_date_sigs = generate_expiration_date_signatures(
+        let _exp_date_sigs = generate_expiration_date_signatures(
             sig_req.expiration_date.ecash_unix_timestamp(),
             &[signing_keys.secret_key()],
             &vec![signing_keys.verification_key()],
@@ -293,7 +293,7 @@ mod tests {
             .await?;
         assert!(retrieved2.is_none());
 
-        let another = mock_ticketbook()?;
+        let _another = mock_ticketbook()?;
         let typ = ticketbook.ticketbook_type();
 
         // 3 tickets (4, 5, 6)

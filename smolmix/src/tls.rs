@@ -129,12 +129,24 @@ mod tests {
         time::Instant,
         wire::{HardwareAddress, IpAddress, IpCidr, Ipv4Address},
     };
+    use std::sync::Once;
     use std::time::Duration;
     use tracing::info;
 
+    static INIT: Once = Once::new();
+
+    fn init_logging() {
+        if tracing::dispatcher::has_been_set() {
+            return;
+        }
+        INIT.call_once(|| {
+            nym_bin_common::logging::setup_tracing_logger();
+        });
+    }
+
     #[tokio::test]
     async fn simple_tls_check() -> Result<(), Box<dyn std::error::Error>> {
-        nym_bin_common::logging::setup_tracing_logger();
+        init_logging();
 
         let ipr_stream = IpMixStream::new().await?;
         let (mut device, bridge, allocated_ips) = create_device(ipr_stream).await?;
@@ -261,7 +273,7 @@ mod tests {
 
     #[tokio::test]
     async fn https_req_res() -> Result<(), Box<dyn std::error::Error>> {
-        nym_bin_common::logging::setup_tracing_logger();
+        init_logging();
 
         let ipr_stream = IpMixStream::new().await?;
         let (mut device, bridge, allocated_ips) = create_device(ipr_stream).await?;

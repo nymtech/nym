@@ -25,4 +25,28 @@ pub enum SmolmixError {
 
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
+
+    #[error("HTTP parse failed")]
+    HttpParseFailed,
+
+    #[error("Invalid URL")]
+    InvalidUrl,
+
+    #[error("Mixnet connection failed")]
+    MixnetConnectionFailed,
+
+    #[error("Request timeout")]
+    Timeout,
+
+    #[error("TCP connection failed")]
+    TcpConnectionFailed,
+
+    #[error("Response read failed")]
+    ResponseReadFailed,
+
+    #[error("No response received")]
+    NoResponseReceived,
+
+    #[error("Invalid HTTP response")]
+    InvalidHttpResponse,
 }

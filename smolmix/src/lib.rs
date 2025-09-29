@@ -4,6 +4,7 @@
 mod bridge;
 mod device;
 mod error;
+mod reqwest_client;
 pub mod tls;
 
 pub use bridge::NymIprBridge;

@@ -559,6 +559,9 @@ mod tests {
     static INIT: Once = Once::new();
 
     fn init_logging() {
+        if tracing::dispatcher::has_been_set() {
+            return;
+        }
         INIT.call_once(|| {
             nym_bin_common::logging::setup_tracing_logger();
         });

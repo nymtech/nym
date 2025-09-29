@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::ecash::helpers::{
-    CachedImmutableEpochItem, CachedImmutableItems, IssuedCoinIndicesSignatures,
-    IssuedExpirationDateSignatures,
+    CachedImmutableEpochItem, IssuedCoinIndicesSignatures, IssuedExpirationDateSignatures,
 };
+use nym_cache::CachedImmutableItems;
 use nym_coconut_dkg_common::types::EpochId;
 use nym_compact_ecash::VerificationKeyAuth;
 use nym_validator_client::nyxd::AccountId;

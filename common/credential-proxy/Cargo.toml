@@ -42,6 +42,7 @@ nym-ecash-contract-common = { path = "../cosmwasm-smart-contracts/ecash-contract
 nym-compact-ecash = { path = "../nym_offline_compact_ecash" }
 nym-validator-client = { path = "../client-libs/validator-client" }
 nym-network-defaults = { path = "../network-defaults" }
+nym-cache = { path = "../nym-cache" }
 
 [dev-dependencies]
 tempfile = { workspace = true }

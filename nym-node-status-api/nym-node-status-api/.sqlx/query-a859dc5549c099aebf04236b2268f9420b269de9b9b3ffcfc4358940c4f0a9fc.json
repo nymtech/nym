@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n                INSERT INTO global_expiration_date_signatures(expiration_date, epoch_id, serialised_signatures, serialization_revision)\n                VALUES ($1, $2, $3, $4)\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Date",
+        "Int4",
+        "Bytea",
+        "Int2"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "a859dc5549c099aebf04236b2268f9420b269de9b9b3ffcfc4358940c4f0a9fc"
+}

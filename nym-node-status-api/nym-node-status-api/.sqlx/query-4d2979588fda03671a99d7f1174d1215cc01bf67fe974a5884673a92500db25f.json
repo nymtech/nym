@@ -1,0 +1,34 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n                SELECT epoch_id as \"epoch_id: i32\", serialised_signatures, serialization_revision as \"serialization_revision: i16\"\n                FROM global_coin_index_signatures WHERE epoch_id = $1\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "epoch_id: i32",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "serialised_signatures",
+        "type_info": "Bytea"
+      },
+      {
+        "ordinal": 2,
+        "name": "serialization_revision: i16",
+        "type_info": "Int2"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "4d2979588fda03671a99d7f1174d1215cc01bf67fe974a5884673a92500db25f"
+}

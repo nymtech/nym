@@ -6,7 +6,6 @@ use crate::{
     db,
     http::{
         error::{HttpError, HttpResult},
-        models::TestrunAssignment,
         state::AppState,
     },
 };
@@ -16,9 +15,11 @@ use axum::{
     extract::{Path, State},
     Router,
 };
-use nym_node_status_client::models::{get_testrun, submit_results, submit_results_v2};
+use nym_node_status_client::models::{
+    get_testrun, submit_results, submit_results_v2, TestrunAssignmentWithTickets,
+};
 use reqwest::StatusCode;
-
+use tracing::error;
 // TODO dz consider adding endpoint to trigger testrun scan for a given gateway_id
 // like in H< src/http/testruns.rs
 
@@ -34,7 +35,7 @@ pub(crate) fn routes() -> Router<AppState> {
 async fn request_testrun(
     State(state): State<AppState>,
     Json(request): Json<get_testrun::GetTestrunRequest>,
-) -> HttpResult<Json<TestrunAssignment>> {
+) -> HttpResult<Json<TestrunAssignmentWithTickets>> {
     // TODO dz log agent's network probe version
     state.authenticate_agent_submission(&request)?;
     state.is_fresh(&request.payload.timestamp)?;
@@ -51,31 +52,42 @@ async fn request_testrun(
         .await
         .map_err(HttpError::internal_with_logging)?
         .unwrap_or_default();
-    if active_testruns >= state.agent_max_count() {
-        tracing::warn!(
-            "{}/{} testruns in progress, rejecting",
-            active_testruns,
-            state.agent_max_count()
-        );
+    let max_count = state.agent_max_count();
+    if active_testruns >= max_count {
+        tracing::warn!("{active_testruns}/{max_count} testruns in progress, rejecting",);
         return Err(HttpError::no_testruns_available());
     }
 
-    return match db::queries::testruns::assign_oldest_testrun(&mut conn).await {
+    match db::queries::testruns::assign_oldest_testrun(&mut conn).await {
         Ok(res) => {
-            if let Some(testrun) = res {
-                tracing::info!(
-                    "🏃‍ Assigned testrun row_id {} gateway {} to agent",
-                    &testrun.testrun_id,
-                    testrun.gateway_identity_key,
-                );
-                Ok(Json(testrun))
-            } else {
+            let Some(assignment) = res else {
                 tracing::debug!("No testruns available");
-                Err(HttpError::no_testruns_available())
-            }
+                return Err(HttpError::no_testruns_available());
+            };
+
+            tracing::info!(
+                "🏃‍ Assigned testrun row_id {} gateway {} to agent",
+                &assignment.testrun_id,
+                assignment.gateway_identity_key,
+            );
+
+            let materials = state
+                .ticketbook_manager_state()
+                .attempt_assign_ticket_materials(assignment.testrun_id)
+                .await
+                .map_err(|err| {
+                    error!(
+                        "failed to get ticket materials for runner {}: {err}",
+                        assignment.testrun_id
+                    );
+                    HttpError::internal_with_logging(format!(
+                        "could not retrieve needed tickets: {err}"
+                    ))
+                })?;
+            Ok(Json(assignment.with_ticket_materials(materials)))
         }
         Err(err) => Err(HttpError::internal_with_logging(err)),
-    };
+    }
 }
 
 #[tracing::instrument(level = "debug", skip_all)]

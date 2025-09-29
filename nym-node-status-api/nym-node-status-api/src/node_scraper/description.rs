@@ -1,13 +1,12 @@
 use super::helpers::scrape_and_store_description;
+use crate::db::models::ScraperNodeInfo;
+use crate::db::queries::get_nodes_for_scraping;
 use crate::db::DbPool;
 use anyhow::Result;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tracing::{debug, error, instrument, warn};
-
-use crate::db::models::ScraperNodeInfo;
-use crate::db::queries::get_nodes_for_scraping;
 
 const DESCRIPTION_SCRAPE_INTERVAL: Duration = Duration::from_secs(60 * 60 * 4);
 const QUEUE_CHECK_INTERVAL: Duration = Duration::from_millis(250);
@@ -30,22 +29,17 @@ impl DescriptionScraper {
     }
 
     pub async fn start(&self) {
-        self.spawn_description_scraper().await;
-    }
-
-    async fn spawn_description_scraper(&self) {
         let pool = self.pool.clone();
         let queue = self.description_queue.clone();
         tracing::info!("Starting description scraper");
-        tokio::spawn(async move {
-            loop {
-                if let Err(e) = Self::run_description_scraper(&pool, queue.clone()).await {
-                    error!(name: "description_scraper", "Description scraper failed: {}", e);
-                }
-                debug!(name: "description_scraper", "Sleeping for {}s", DESCRIPTION_SCRAPE_INTERVAL.as_secs());
-                tokio::time::sleep(DESCRIPTION_SCRAPE_INTERVAL).await;
+
+        loop {
+            if let Err(e) = Self::run_description_scraper(&pool, queue.clone()).await {
+                error!(name: "description_scraper", "Description scraper failed: {}", e);
             }
-        });
+            debug!(name: "description_scraper", "Sleeping for {}s", DESCRIPTION_SCRAPE_INTERVAL.as_secs());
+            tokio::time::sleep(DESCRIPTION_SCRAPE_INTERVAL).await;
+        }
     }
 
     #[instrument(level = "info", name = "description_scraper", skip_all)]

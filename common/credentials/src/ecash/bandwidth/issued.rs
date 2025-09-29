@@ -103,8 +103,12 @@ impl IssuedTicketBook {
         self.expiration_date < ecash_today().date()
     }
 
-    pub fn params_total_tickets(&self) -> u64 {
+    pub fn global_total_tickets() -> u64 {
         nym_credentials_interface::ecash_parameters().get_total_coins()
+    }
+
+    pub fn params_total_tickets(&self) -> u64 {
+        Self::global_total_tickets()
     }
 
     pub fn spent_tickets(&self) -> u64 {

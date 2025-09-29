@@ -1,3 +1,4 @@
+pub(crate) mod ecash_data;
 mod gateways;
 mod gateways_stats;
 mod misc;

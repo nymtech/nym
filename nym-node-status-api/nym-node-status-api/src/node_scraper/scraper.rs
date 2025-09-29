@@ -1,4 +1,4 @@
-use super::helpers::scrape_packet_stats;
+use super::helpers::scrape_node;
 use crate::db::DbPool;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
@@ -7,7 +7,7 @@ use tokio::sync::Mutex;
 use tokio::task::JoinSet;
 use tracing::{debug, error, info, instrument, warn};
 
-use crate::db::models::{InsertStatsRecord, ScraperNodeInfo};
+use crate::db::models::{InsertNodeScraperRecords, ScraperNodeInfo};
 use crate::db::queries;
 
 const PACKET_SCRAPE_INTERVAL: Duration = Duration::from_secs(60 * 60);
@@ -16,12 +16,12 @@ const QUEUE_CHECK_INTERVAL: Duration = Duration::from_millis(250);
 static TASK_COUNTER: AtomicUsize = AtomicUsize::new(0);
 static TASK_ID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
-pub struct PacketScraper {
+pub struct NodeScraper {
     pool: DbPool,
     max_concurrent_tasks: usize,
 }
 
-impl PacketScraper {
+impl NodeScraper {
     pub fn new(pool: DbPool, max_concurrent_tasks: usize) -> Self {
         Self {
             pool,
@@ -31,33 +31,33 @@ impl PacketScraper {
 
     pub async fn start(&self) {
         let pool = self.pool.clone();
-        tracing::info!("Starting packet scraper");
+        tracing::info!("Starting node scraper");
         let max_concurrent_tasks = self.max_concurrent_tasks;
 
         loop {
-            if let Err(e) = Self::run_packet_scraper(&pool, max_concurrent_tasks).await {
-                error!(name: "packet_scraper", "Packet scraper failed: {}", e);
+            if let Err(e) = Self::run_node_scraper(&pool, max_concurrent_tasks).await {
+                error!(name: "node_scraper", "Node scraper failed: {}", e);
             }
-            debug!(name: "packet_scraper", "Sleeping for {}s", PACKET_SCRAPE_INTERVAL.as_secs());
+            debug!(name: "node_scraper", "Sleeping for {}s", PACKET_SCRAPE_INTERVAL.as_secs());
             tokio::time::sleep(PACKET_SCRAPE_INTERVAL).await;
         }
     }
 
-    #[instrument(level = "info", name = "packet_scraper", skip_all)]
-    async fn run_packet_scraper(pool: &DbPool, max_concurrent_tasks: usize) -> anyhow::Result<()> {
+    #[instrument(level = "info", name = "node_scraper", skip_all)]
+    async fn run_node_scraper(pool: &DbPool, max_concurrent_tasks: usize) -> anyhow::Result<()> {
         let queue = queries::get_nodes_for_scraping(pool).await?;
         tracing::info!("Adding {} nodes to the queue", queue.len(),);
 
-        let results = Self::process_packet_queue(queue, max_concurrent_tasks).await;
-        queries::batch_store_packet_stats(pool, results)
+        let results = Self::process_node_scraper_queue(queue, max_concurrent_tasks).await;
+        queries::batch_store_node_scraper_results(pool, results)
             .await
             .map_err(|err| anyhow::anyhow!("Failed to store packet stats to DB: {err}"))
     }
 
-    async fn process_packet_queue(
+    async fn process_node_scraper_queue(
         queue: Vec<ScraperNodeInfo>,
         max_concurrent_tasks: usize,
-    ) -> Arc<Mutex<Vec<InsertStatsRecord>>> {
+    ) -> Arc<Mutex<Vec<InsertNodeScraperRecords>>> {
         let mut queue = queue;
         let results = Arc::new(Mutex::new(Vec::new()));
         let mut task_set = JoinSet::new();
@@ -79,7 +79,7 @@ impl PacketScraper {
                 let results_clone = Arc::clone(&results);
 
                 task_set.spawn(async move {
-                    match scrape_packet_stats(&node).await {
+                    match scrape_node(&node).await {
                         Ok(result) => {
                             // each task contributes their result to a shared vec
                             results_clone.lock().await.push(result);

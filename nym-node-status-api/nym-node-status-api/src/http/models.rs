@@ -16,6 +16,7 @@ use tracing::{error, instrument};
 use utoipa::ToSchema;
 
 use crate::db::models::NymNodeDataDeHelper;
+use crate::node_scraper::models::BridgeInformation;
 pub(crate) use nym_node_status_client::models::TestrunAssignment;
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
@@ -32,6 +33,7 @@ pub struct Gateway {
     pub last_updated_utc: String,
     pub routing_score: f32,
     pub config_score: u32,
+    pub bridges: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
@@ -104,6 +106,7 @@ pub struct DVpnGateway {
     pub mix_port: u16,
     pub role: NodeRole,
     pub entry: Option<BasicEntryInformation>,
+    pub bridges: Option<BridgeInformation>,
 
     // The performance data here originates from the nym-api, and is effectively mixnet performance
     // at the time of writing this
@@ -253,6 +256,16 @@ impl DVpnGateway {
         let last_updated_utc = gateway.last_testrun_utc.clone().unwrap_or_default();
         let performance = to_percent(gateway.performance);
         let network_monitor_performance_mixnet_mode = gateway.performance as f32 / 100f32;
+        let bridges = gateway.bridges.clone().and_then(|v| {
+            serde_json::from_value(v)
+                .inspect_err(|err| {
+                    error!(
+                        "Failed to deserialize bridges for gateway identity {}: {err}",
+                        gateway.gateway_identity_key
+                    );
+                })
+                .ok()
+        });
 
         tracing::info!("🌈 gateway probe result: {:?}", gateway.last_probe_result);
 
@@ -332,6 +345,7 @@ impl DVpnGateway {
             mix_port: skimmed_node.mix_port,
             role: skimmed_node.role.clone(),
             entry: skimmed_node.entry.clone(),
+            bridges,
             performance,
             performance_v2,
             build_information: self_described.build_information,

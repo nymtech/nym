@@ -56,6 +56,7 @@ pub(crate) struct GatewayDto {
     pub(crate) security_contact: String,
     pub(crate) details: String,
     pub(crate) website: String,
+    pub(crate) bridges: Option<serde_json::Value>,
 }
 
 impl TryFrom<GatewayDto> for http::models::Gateway {
@@ -94,6 +95,8 @@ impl TryFrom<GatewayDto> for http::models::Gateway {
             details: value.details.clone(),
         };
 
+        let bridges = value.bridges.clone();
+
         Ok(http::models::Gateway {
             gateway_identity_key: value.gateway_identity_key.clone(),
             bonded,
@@ -107,6 +110,7 @@ impl TryFrom<GatewayDto> for http::models::Gateway {
             config_score,
             last_testrun_utc,
             last_updated_utc,
+            bridges,
         })
     }
 }
@@ -216,6 +220,7 @@ pub(crate) const GATEWAYS_HISTORICAL_COUNT: &str = "gateways.historical.count";
 
 // `utoipa` goes crazy if you use module-qualified prefix as field type so we
 //  have to import it
+use crate::node_scraper::models::BridgeInformation;
 use gateway::GatewaySummary;
 use mixnode::MixnodeSummary;
 use nym_bin_common::build_information::BinaryBuildInformationOwned;
@@ -515,11 +520,12 @@ pub struct NodeStats {
     pub packets_dropped: i32,
 }
 
-pub struct InsertStatsRecord {
+pub struct InsertNodeScraperRecords {
     pub node_kind: ScrapeNodeKind,
     pub timestamp_utc: UtcDateTime,
     pub unix_timestamp: i64,
     pub stats: NodeStats,
+    pub bridges: Option<BridgeInformation>,
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug)]

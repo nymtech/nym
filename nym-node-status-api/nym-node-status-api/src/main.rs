@@ -50,7 +50,7 @@ async fn main() -> anyhow::Result<()> {
     shutdown_manager.spawn_with_shutdown(async move {
         scraper.start().await;
     });
-    let scraper = node_scraper::PacketScraper::new(
+    let scraper = node_scraper::NodeScraper::new(
         storage.pool_owned(),
         args.packet_stats_max_concurrent_tasks,
     );

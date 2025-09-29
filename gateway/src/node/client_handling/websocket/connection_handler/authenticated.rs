@@ -14,12 +14,11 @@ use futures::{
     future::{FusedFuture, OptionFuture},
     FutureExt, StreamExt,
 };
-use nym_bin_common::opentelemetry::context::{new_span_context_with_id, ManualSpanContextExt};
+use nym_bin_common::opentelemetry::context::ManualContextPropagator;
 use nym_credential_verification::CredentialVerifier;
 use nym_credential_verification::{
     bandwidth_storage_manager::BandwidthStorageManager, ClientBandwidth,
 };
-use nym_crypto::shared_key::new_ephemeral_shared_key;
 use nym_gateway_requests::{
     types::{BinaryRequest, ServerResponse},
     ClientControlRequest, ClientRequest, GatewayRequestsError, SensitiveServerResponse,
@@ -33,10 +32,9 @@ use nym_sphinx::forwarding::packet::MixPacket;
 use nym_statistics_common::{gateways::GatewaySessionEvent, types::SessionType};
 use nym_validator_client::coconut::EcashApiError;
 use rand::{random, CryptoRng, Rng};
-use tracing_opentelemetry::OpenTelemetrySpanExt;
-use std::{process, time::Duration};
+use std::{collections::HashMap, process, time::Duration};
 use thiserror::Error;
-use tokio::{io::{AsyncRead, AsyncWrite}, time::{error::Elapsed, interval}};
+use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_tungstenite::tungstenite::{protocol::Message, Error as WsError};
 use tracing::*;
 
@@ -150,7 +148,7 @@ pub(crate) struct AuthenticatedHandler<R, S> {
     // senders that are used to return the result of the ping to the handler requesting the ping.
     is_active_request_receiver: IsActiveRequestReceiver,
     is_active_ping_pending_reply: Option<(u64, IsActiveResultSender)>,
-    root_span: Option<tracing::Span>,
+    otel_propagator: Option<ManualContextPropagator>,
 }
 
 // explicitly remove handle from the global store upon being dropped
@@ -193,6 +191,17 @@ impl<R, S> AuthenticatedHandler<R, S> {
                 client_address: client.address.as_base58_string(),
             })?;
 
+        let context = match client.otel_context {
+            Some(ref ctx) => ctx.clone(),
+            None => HashMap::new(),
+        };
+
+        let manual_ctx_propagator = if !context.is_empty() {
+            Some(ManualContextPropagator::new("upgrading_fresh_to_authenticated", context))
+        } else {
+            None
+        };
+
         let handler = AuthenticatedHandler {
             bandwidth_storage_manager: BandwidthStorageManager::new(
                 Box::new(fresh.shared_state.storage.clone()),
@@ -206,7 +215,7 @@ impl<R, S> AuthenticatedHandler<R, S> {
             mix_receiver,
             is_active_request_receiver,
             is_active_ping_pending_reply: None,
-            root_span: None,
+            otel_propagator: manual_ctx_propagator,
         };
         handler.send_metrics(GatewaySessionEvent::new_session_start(
             handler.client.address,
@@ -227,10 +236,6 @@ impl<R, S> AuthenticatedHandler<R, S> {
         self.inner.send_metrics(event)
     }
 
-    pub fn get_trace_id(&self) -> Option<opentelemetry::trace::TraceId> {
-        self.client.get_extracted_trace_id()
-    }
-
     /// Forwards the received mix packet from the client into the mix network.
     ///
     /// # Arguments
@@ -238,8 +243,10 @@ impl<R, S> AuthenticatedHandler<R, S> {
     /// * `mix_packet`: packet received from the client that should get forwarded into the network.
     #[instrument(skip_all)]
     fn forward_packet(&self, mix_packet: MixPacket) {
-        let herited_span = self.root_span.as_ref().cloned().unwrap_or_else(|| tracing::Span::none());
-        let span = info_span!(parent: &herited_span, "forwarding_packet");
+        let span = match &self.otel_propagator {
+            Some(propagator) => info_span!(parent: &propagator.root_span, "forwarding_mix_packet"),
+            None => info_span!("forwarding_mix_packet_no_otel"),
+        };
         let _enter = span.enter();
 
         if let Err(err) = self
@@ -301,8 +308,10 @@ impl<R, S> AuthenticatedHandler<R, S> {
         &mut self,
         mix_packet: MixPacket,
     ) -> Result<ServerResponse, RequestHandlingError> {
-        let herited_span = self.root_span.as_ref().cloned().unwrap_or_else(|| tracing::Span::none());
-        let span = info_span!(parent: &herited_span, "forwarding_sphinx_packet");
+        let span = match &self.otel_propagator {
+            Some(propagator) => info_span!(parent: &propagator.root_span, "handling_forward_sphinx"),
+            None => info_span!("handling_forward_sphinx_no_otel"),
+        };
         let _enter = span.enter();
 
         let required_bandwidth = mix_packet.packet().len() as i64;
@@ -326,8 +335,10 @@ impl<R, S> AuthenticatedHandler<R, S> {
     #[instrument(skip_all)]
     async fn handle_binary(&mut self, bin_msg: Vec<u8>) -> Message {
         trace!("binary request");
-        let herited_span = self.root_span.as_ref().cloned().unwrap_or_else(|| tracing::Span::none());
-        let span = info_span!(parent: &herited_span, "handling_binary");
+        let span = match &self.otel_propagator {
+            Some(propagator) => info_span!(parent: &propagator.root_span, "handling_binary_request"),
+            None => info_span!("handling_binary_request_no_otel"),
+        };
         let _enter = span.enter();
 
         // this function decrypts the request and checks the MAC
@@ -618,32 +629,6 @@ impl<R, S> AuthenticatedHandler<R, S> {
         S: AsyncRead + AsyncWrite + Unpin,
     {
         trace!("Started listening for ALL incoming requests...");
-        let context_ext: ManualSpanContextExt = match &self.client.otel_context {
-            Some(otel_context) => {
-                let context_ext = ManualSpanContextExt::new()
-                    .with_context_carrier(&otel_context.context_carrier);
-                let span = if let Some(trace_id) = self.client.get_extracted_trace_id() {
-                    let cx = new_span_context_with_id(trace_id);
-                    let _context_guard = cx.clone().attach();
-
-                    let span = info_span!("client handling with otel", %trace_id);
-                    span.set_parent(cx.clone());
-                    span
-                } else {
-                    info_span!("client handling without otel context")
-                };
-                let context_ext = context_ext.set_root_span(span);
-                context_ext
-            }
-            None => {
-                warn!("No otel context associated with the client - this should never happen if otel has been set up!");
-                ManualSpanContextExt::new()
-            }
-        };
-
-        let _guard = context_ext.root_span.enter();
-        let handling_span = info_span!(parent: &context_ext.root_span, "client_handling_loop");
-
         // Ping timeout future used to check if the client responded to our ping request
         let mut ping_timeout: OptionFuture<_> = None.into();
 
@@ -668,7 +653,10 @@ impl<R, S> AuthenticatedHandler<R, S> {
                     self.handle_ping_timeout().await;
                 },
                 socket_msg = self.inner.read_websocket_message() => {
-                    let span = info_span!(parent: &handling_span, "client_message_received");
+                    let span = match &self.otel_propagator {
+                        Some(propagator) => info_span!(parent: &propagator.root_span, "client_message_received"),
+                        None => info_span!("client_message_received_no_otel"),
+                    };
                     let _enter = span.enter();
                     let socket_msg = match socket_msg {
                         None => break,
@@ -693,7 +681,10 @@ impl<R, S> AuthenticatedHandler<R, S> {
                     }
                 },
                 mix_messages = self.mix_receiver.next() => {
-                    let span = info_span!(parent: &handling_span, "mix_message_received");
+                    let span = match &self.otel_propagator {
+                        Some(propagator) => info_span!(parent: &propagator.root_span, "mix_message_received"),
+                        None => info_span!("mix_message_received_no_otel"),
+                    };
                     let _enter = span.enter();
                     let mix_messages = match mix_messages {
                         None => {

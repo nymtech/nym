@@ -3,6 +3,7 @@ use opentelemetry::propagation::{Injector, Extractor, TextMapPropagator};
 use opentelemetry::trace::{SpanContext, TraceContextExt, TraceId};
 use opentelemetry_sdk::propagation::TraceContextPropagator;
 use opentelemetry_sdk::trace::IdGenerator;
+use tracing_opentelemetry::OpenTelemetrySpanExt;
 use std::collections::HashMap;
 
 /// Make a Carrier for context propagation
@@ -63,44 +64,31 @@ impl Extractor for ContextCarrier {
     }
 }
 
-pub struct ManualSpanContextExt {
-    pub context_carrier: ContextCarrier,
+pub struct ManualContextPropagator {
     pub root_span: tracing::Span,
-    pub trace_id: Option<TraceId>,
-    pub is_valid: bool,
+    pub trace_id: TraceId,
 }
 
-impl ManualSpanContextExt {
-    pub fn new() -> Self {
-        ManualSpanContextExt {
-            context_carrier: ContextCarrier::new_empty(),
-            root_span: tracing::Span::current(),
-            trace_id: None,
-            is_valid: false,
+impl ManualContextPropagator {
+    pub fn new(name: &str, context: HashMap<String, String>) -> Self {
+        let carrier = ContextCarrier::new_with_data(context);
+        let trace_id = match carrier.extract_trace_id() {
+            Some(id) => id,
+            None => Context::current().span().span_context().trace_id(),
+        };
+
+        let root_span_builder = new_span_context_with_id(trace_id.clone());
+        let _guard = root_span_builder.clone().attach();
+
+        let root_span = tracing::info_span!("trace_root", name = %name, trace_id = %trace_id);
+        root_span.set_parent(root_span_builder);
+
+        ManualContextPropagator {
+            root_span,
+            trace_id,
         }
     }
-
-    pub fn with_context_carrier(mut self, carrier: &ContextCarrier) -> Self {
-        self.context_carrier = ContextCarrier::new_with_data(carrier.data.clone());
-        self.trace_id = self.context_carrier.extract_trace_id();
-        self
-    }
-
-    pub fn with_extracted_context(mut self, external_context: HashMap<String, String> ) -> Self {
-        self.context_carrier = ContextCarrier::new_with_data(external_context);
-        self.trace_id = self.context_carrier.extract_trace_id();
-        self
-    }
-
-    pub fn set_root_span(mut self, span: tracing::Span) -> Self {
-        self.root_span = span;
-        self
-    }
-
-    pub fn is_valid(&self) -> bool {
-        self.is_valid
-    }
- }
+}
 
 pub fn new_span_context_with_id(trace_id: TraceId) -> Context {
     let id_gen = opentelemetry_sdk::trace::RandomIdGenerator::default();

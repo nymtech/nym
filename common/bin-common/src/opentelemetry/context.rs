@@ -1,8 +1,7 @@
 use opentelemetry::{Context, TraceFlags};
 use opentelemetry::propagation::{Injector, Extractor, TextMapPropagator};
 use opentelemetry::trace::{SpanContext, TraceContextExt, TraceId};
-use opentelemetry_sdk::propagation::TraceContextPropagator;
-use opentelemetry_sdk::trace::IdGenerator;
+use opentelemetry_sdk::{propagation::TraceContextPropagator, trace::IdGenerator};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 use std::collections::HashMap;
 
@@ -19,13 +18,22 @@ impl ContextCarrier {
     }
 
     pub fn new_with_data(data: HashMap<String, String>) -> Self {
+        if data.is_empty() {
+            return ContextCarrier::new_empty();
+        }
+        
         ContextCarrier { data }
     }
+
     pub fn new_with_current_context(context: Context) -> Self {
-        let propagator = TraceContextPropagator::new();
         let mut carrier = ContextCarrier::new_empty();
+        let propagator = TraceContextPropagator::new();
         propagator.inject_context(&context, &mut carrier);
         carrier
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = (&String, &String)> {
+        self.data.iter()
     }
 
     pub fn from_map(data: HashMap<String, String>) -> Self {
@@ -45,6 +53,10 @@ impl ContextCarrier {
                 None
             }
         })
+    }
+
+    pub fn extract_traceparent(&self) -> Option<String> {
+        self.get("traceparent").map(|s| s.to_string())
     }
 }
 

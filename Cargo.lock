@@ -5940,6 +5940,8 @@ dependencies = [
  "nym-http-api-common",
  "nym-network-defaults",
  "once_cell",
+ "opentelemetry",
+ "opentelemetry_sdk",
  "reqwest 0.12.24",
  "serde",
  "serde_json",

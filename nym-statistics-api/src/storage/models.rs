@@ -71,7 +71,6 @@ impl ConnectionInfoDto {
 // New structure. The two above will be removed when it is confirmed to work
 #[derive(Debug, Clone, sqlx::FromRow)]
 pub(crate) struct StatsReportV1Dto {
-    pub(crate) day: Date,
     pub(crate) received_at: OffsetDateTime,
     pub(crate) received_from: String,
     pub(crate) stats_id: StatsId,
@@ -96,7 +95,6 @@ impl StatsReportV1Dto {
         maybe_country: Option<Country>,
     ) -> Self {
         let mut report = Self {
-            day: received_at.date(),
             received_at,
             received_from: received_from.to_string(),
             stats_id: stats_report.stats_id.clone(),

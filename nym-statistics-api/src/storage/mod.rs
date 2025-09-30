@@ -128,7 +128,6 @@ impl StatisticsStorage {
     ) -> Result<()> {
         sqlx::query!(
             r#"INSERT INTO report_v1 (
-                day,
                 received_at,
                 source_ip,
                 device_id,
@@ -141,8 +140,7 @@ impl StatisticsStorage {
                 connection_time_ms,
                 two_hop,
                 country_code)
-                VALUES ($1, $2::timestamptz, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)"#,
-            report_v1.day as time::Date,
+                VALUES ($1::timestamptz, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)"#,
             report_v1.received_at as time::OffsetDateTime,
             report_v1.received_from,
             report_v1.stats_id,

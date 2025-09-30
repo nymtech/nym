@@ -1,6 +1,5 @@
 
 CREATE TABLE report_v1 (
-    day                   DATE NOT NULL,
     received_at           TIMESTAMP WITH TIME ZONE  NOT NULL,
     source_ip             TEXT,
     device_id             TEXT NOT NULL,
@@ -15,4 +14,4 @@ CREATE TABLE report_v1 (
     country_code          TEXT
 ); 
 
-CREATE INDEX idx_report_v1_day ON report_v1 (day);
+CREATE INDEX idx_report_v1_received_at ON report_v1 (received_at);

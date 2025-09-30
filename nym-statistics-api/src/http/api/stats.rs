@@ -9,7 +9,7 @@ use crate::{
         error::{HttpError, HttpResult},
         state::AppState,
     },
-    storage::models::{ConnectionInfoDto, DailyActiveDeviceDto},
+    storage::models::{ConnectionInfoDto, DailyActiveDeviceDto, StatsReportV1Dto},
 };
 
 pub(crate) fn routes() -> Router<AppState> {
@@ -49,7 +49,7 @@ async fn submit_stats_report(
         debug!("Received a report from outside of the network");
     }
 
-    let active_device = DailyActiveDeviceDto::new(now, &report, user_agent, from_mixnet);
+    let active_device = DailyActiveDeviceDto::new(now, &report, user_agent.clone(), from_mixnet);
     let maybe_connection_info = ConnectionInfoDto::maybe_new(
         now,
         &report,
@@ -58,9 +58,24 @@ async fn submit_stats_report(
         from_mixnet,
     );
 
+    let stats_report = StatsReportV1Dto::new(
+        now,
+        &report,
+        user_agent,
+        from_mixnet,
+        insecure_ip_addr.0,
+        maybe_location,
+    );
+
     state
         .storage()
-        .store_vpn_client_report(active_device, maybe_connection_info)
+        .store_vpn_client_report(stats_report)
+        .await
+        .map_err(HttpError::internal_with_logging)?;
+
+    state
+        .storage()
+        .store_legacy_vpn_client_report(active_device, maybe_connection_info)
         .await
         .map_err(HttpError::internal_with_logging)?;
 

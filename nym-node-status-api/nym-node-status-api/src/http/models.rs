@@ -78,6 +78,7 @@ pub struct Location {
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema, EnumString)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
+#[derive(PartialEq)]
 pub enum ScoreValue {
     Offline,
     Low,
@@ -293,10 +294,18 @@ impl DVpnGateway {
                 });
 
                 tracing::info!("🌈 gateway probe parsed: {:?}", parsed);
+                let score = calculate_score(&gateway, &parsed);
+                let mut load = calculate_load(&parsed);
+
+                // clamp the load value to offline, when the score is offline
+                if score == ScoreValue::Offline {
+                    load = ScoreValue::Offline;
+                }
+
                 let performance_v2 = DVpnGatewayPerformance {
                     last_updated_utc: last_updated_utc.to_string(),
-                    load: calculate_load(&parsed),
-                    score: calculate_score(&gateway, &parsed),
+                    load,
+                    score,
 
                     // the network monitor's measure is a good proxy for node uptime, it can be improved in the future
                     uptime_percentage_last_24_hours: network_monitor_performance_mixnet_mode,

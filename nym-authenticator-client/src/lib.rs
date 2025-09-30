@@ -2,8 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use nym_bandwidth_controller::{BandwidthTicketProvider, DEFAULT_TICKETS_TO_SPEND};
+use nym_registration_common::{
+    GatewayData, DEFAULT_PRIVATE_ENTRY_WIREGUARD_KEY_FILENAME,
+    DEFAULT_PRIVATE_EXIT_WIREGUARD_KEY_FILENAME, DEFAULT_PUBLIC_ENTRY_WIREGUARD_KEY_FILENAME,
+    DEFAULT_PUBLIC_EXIT_WIREGUARD_KEY_FILENAME,
+};
 use rand::rngs::OsRng;
-use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
+use std::net::{IpAddr, SocketAddr};
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::time::Duration;
@@ -15,11 +20,11 @@ use nym_authenticator_requests::{
     AuthenticatorVersion,
 };
 use nym_credentials_interface::TicketType;
-use nym_crypto::asymmetric::x25519::{KeyPair, PublicKey};
-use nym_node_requests::api::v1::gateway::client_interfaces::wireguard::models::PeerPublicKey;
+use nym_crypto::asymmetric::x25519::KeyPair;
 use nym_pemstore::KeyPairPath;
 use nym_sdk::mixnet::{IncludedSurbs, Recipient};
 use nym_service_provider_requests_common::{Protocol, ServiceProviderTypeExt};
+use nym_wireguard_types::PeerPublicKey;
 
 mod error;
 mod helpers;
@@ -29,20 +34,6 @@ mod mixnet_listener;
 pub use crate::error::{Error, Result};
 pub use crate::legacy::LegacyAuthenticatorClient;
 pub use crate::mixnet_listener::{AuthClientMixnetListener, AuthClientMixnetListenerHandle};
-
-// that should be somewhere else imo
-pub const DEFAULT_PRIVATE_ENTRY_WIREGUARD_KEY_FILENAME: &str = "free_private_entry_wireguard.pem";
-pub const DEFAULT_PUBLIC_ENTRY_WIREGUARD_KEY_FILENAME: &str = "free_public_entry_wireguard.pem";
-pub const DEFAULT_PRIVATE_EXIT_WIREGUARD_KEY_FILENAME: &str = "free_private_exit_wireguard.pem";
-pub const DEFAULT_PUBLIC_EXIT_WIREGUARD_KEY_FILENAME: &str = "free_public_exit_wireguard.pem";
-
-#[derive(Clone, Debug)]
-pub struct GatewayData {
-    pub public_key: PublicKey,
-    pub endpoint: SocketAddr,
-    pub private_ipv4: Ipv4Addr,
-    pub private_ipv6: Ipv6Addr,
-}
 
 pub struct AuthenticatorClient {
     mixnet_listener: MixnetMessageBroadcastReceiver,

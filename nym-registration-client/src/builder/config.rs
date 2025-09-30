@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use nym_credential_storage::persistent_storage::PersistentStorage;
+use nym_registration_common::NymNode;
 use nym_sdk::{
     mixnet::{
         CredentialStorage, GatewaysDetailsStore, KeyStore, MixnetClient, MixnetClientBuilder,
@@ -15,7 +16,7 @@ use std::os::fd::RawFd;
 use std::{path::PathBuf, sync::Arc, time::Duration};
 use tokio_util::sync::CancellationToken;
 
-use crate::{config::NymNode, error::RegistrationClientError};
+use crate::error::RegistrationClientError;
 
 const VPN_AVERAGE_PACKET_DELAY: Duration = Duration::from_millis(15);
 const MOBILE_LOOP_COVER_STREAM_AVERAGE_DELAY: Duration = Duration::from_secs(10);

@@ -1,9 +1,6 @@
 // Copyright 2023-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-// To remove with the Registration Client PR
-#![allow(clippy::unwrap_used)]
-
 use std::time::Duration;
 
 use nym_ip_packet_requests::IpPair;
@@ -137,10 +134,17 @@ impl IprClientConnect {
         let timeout = sleep(IPR_CONNECT_TIMEOUT);
         tokio::pin!(timeout);
 
+        let mixnet_cancel_token = self.mixnet_client.cancellation_token();
+
         loop {
             tokio::select! {
                 _ = self.cancel_token.cancelled() => {
                     error!("Cancelled while waiting for reply to connect request");
+                    return Err(Error::Cancelled);
+                },
+
+                _ = mixnet_cancel_token.cancelled() => {
+                    error!("Mixnet client stopped while waiting for reply to connect request");
                     return Err(Error::Cancelled);
                 },
                 _ = &mut timeout => {

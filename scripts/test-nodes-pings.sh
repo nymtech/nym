@@ -4,6 +4,8 @@ set -euo pipefail
 API_URL="${API_URL:-https://validator.nymtech.net/api/v1/gateways/described}"
 CONCURRENCY="${CONCURRENCY:-64}"     # how many pings in flight
 PING_TIMEOUT="${PING_TIMEOUT:-7}"    # seconds to wait for a single echo reply
+PING_RETRIES="${PING_RETRIES:-1}"    # additional attempts after the first failure
+RETRY_DELAY="${RETRY_DELAY:-1}"      # seconds to wait between attempts
 
 OK_CSV="ping_works.csv"
 BAD_CSV="ping_not_working.csv"
@@ -58,33 +60,39 @@ num_list="$(mktemp)"
 nl -ba "$ip_list" > "$num_list"
 
 # probe function executed in parallel via xargs
-export PING_TIMEOUT OK_CSV BAD_CSV TOTAL
+export PING_TIMEOUT OK_CSV BAD_CSV TOTAL PING_RETRIES RETRY_DELAY
 
 probe_one() {
   IFS=',' read -r idx ip <<< "$1"
-  # Choose ping flavor; -6 for IPv6
-  if [[ "$ip" == *:* ]]; then
-    if ping -6 -c 1 -W "$PING_TIMEOUT" "$ip" >/dev/null 2>&1; then
-      printf "%s\n" "$ip" >> "$OK_CSV"
-      printf "[%s/%s] ping ok %s\n" "$idx" "$TOTAL" "$ip"
-    else
-      printf "%s\n" "$ip" >> "$BAD_CSV"
-      printf "[%s/%s] ping failed %s\n" "$idx" "$TOTAL" "$ip"
-    fi
+
+  # returns 0 = success, 1 = failure after retries
+  do_ping_with_retry() {
+    local ip="$1"
+    local attempts=$((1 + PING_RETRIES))
+    local i
+    for ((i=1; i<=attempts; i++)); do
+      if [[ "$ip" == *:* ]]; then
+        ping -6 -c 1 -W "$PING_TIMEOUT" "$ip" >/dev/null 2>&1 && return 0
+      else
+        ping    -c 1 -W "$PING_TIMEOUT" "$ip" >/dev/null 2>&1 && return 0
+      fi
+      # wait before next try if not the last attempt
+      (( i < attempts )) && sleep "$RETRY_DELAY"
+    done
+    return 1
+  }
+
+  if do_ping_with_retry "$ip"; then
+    printf "%s\n" "$ip" >> "$OK_CSV"
+    printf "[%s/%s] ping ok %s\n" "$idx" "$TOTAL" "$ip"
   else
-    if ping -c 1 -W "$PING_TIMEOUT" "$ip" >/dev/null 2>&1; then
-      printf "%s\n" "$ip" >> "$OK_CSV"
-      printf "[%s/%s] ping ok %s\n" "$idx" "$TOTAL" "$ip"
-    else
-      printf "%s\n" "$ip" >> "$BAD_CSV"
-      printf "[%s/%s] ping failed %s\n" "$idx" "$TOTAL" "$ip"
-    fi
+    printf "%s\n" "$ip" >> "$BAD_CSV"
+    printf "[%s/%s] ping failed %s\n" "$idx" "$TOTAL" "$ip"
   fi
 }
 
 export -f probe_one
 
-# Feed "idx,ip" lines to xargs with bounded parallelism
 awk '{printf "%s,%s\n",$1,$2}' "$num_list" \
 | xargs -P "$CONCURRENCY" -n 1 -I{} bash -c 'probe_one "$@"' _ {}
 

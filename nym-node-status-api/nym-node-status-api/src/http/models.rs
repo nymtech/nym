@@ -90,6 +90,7 @@ pub enum ScoreValue {
 pub struct DVpnGatewayPerformance {
     last_updated_utc: String,
     score: ScoreValue,
+    mixnet_score: ScoreValue,
     load: ScoreValue,
     uptime_percentage_last_24_hours: f32,
 }
@@ -294,6 +295,7 @@ impl DVpnGateway {
                 });
 
                 tracing::info!("🌈 gateway probe parsed: {:?}", parsed);
+                let mixnet_score = calculate_mixnet_score(&gateway);
                 let score = calculate_score(&gateway, &parsed);
                 let mut load = calculate_load(&parsed);
 
@@ -306,6 +308,7 @@ impl DVpnGateway {
                     last_updated_utc: last_updated_utc.to_string(),
                     load,
                     score,
+                    mixnet_score,
 
                     // the network monitor's measure is a good proxy for node uptime, it can be improved in the future
                     uptime_percentage_last_24_hours: network_monitor_performance_mixnet_mode,
@@ -359,6 +362,21 @@ impl DVpnGateway {
             performance_v2,
             build_information: self_described.build_information,
         })
+    }
+}
+
+/// calculates the gateway probe score for mixnet mode
+fn calculate_mixnet_score(gateway: &Gateway) -> ScoreValue {
+    let mixnet_performance = gateway.performance as f64 / 100.0;
+
+    if mixnet_performance > 0.8 {
+        ScoreValue::High
+    } else if mixnet_performance > 0.6 {
+        ScoreValue::Medium
+    } else if mixnet_performance > 0.1 {
+        ScoreValue::Low
+    } else {
+        ScoreValue::Offline
     }
 }
 

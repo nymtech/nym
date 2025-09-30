@@ -569,7 +569,7 @@ mod tests {
 
     #[tokio::test]
     async fn connect_to_ipr() -> Result<(), Box<dyn std::error::Error>> {
-        // init_logging();
+        init_logging();
 
         let mut stream = IpMixStream::new().await?;
         let ip_pair = stream.connect_tunnel().await?;
@@ -593,7 +593,7 @@ mod tests {
 
     #[tokio::test]
     async fn dns_ping_checks() -> Result<(), Box<dyn std::error::Error>> {
-        // init_logging();
+        init_logging();
 
         let mut stream = IpMixStream::new().await?;
         let ip_pair = stream.connect_tunnel().await?;
@@ -705,7 +705,7 @@ mod tests {
 
     #[tokio::test]
     async fn split_dns_ping_checks() -> Result<(), Box<dyn std::error::Error>> {
-        // init_logging();
+        init_logging();
 
         let mut stream = IpMixStream::new().await?;
         let ip_pair = stream.connect_tunnel().await?;

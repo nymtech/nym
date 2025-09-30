@@ -12,8 +12,8 @@ use nym_sdk::{
 };
 
 #[cfg(unix)]
-use std::os::fd::RawFd;
-use std::{path::PathBuf, sync::Arc, time::Duration};
+use std::{os::fd::RawFd, sync::Arc};
+use std::{path::PathBuf, time::Duration};
 use tokio_util::sync::CancellationToken;
 
 use crate::error::RegistrationClientError;

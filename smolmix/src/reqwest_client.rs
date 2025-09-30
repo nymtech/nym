@@ -1,5 +1,4 @@
-use crate::{create_device, IpMixStream, SmolmixError};
-use bytes::Bytes;
+use crate::{create_device, IpMixStream, NymIprDevice, SmolmixError};
 use reqwest::StatusCode;
 use rustls::{pki_types::ServerName, ClientConfig, ClientConnection};
 use smoltcp::{
@@ -75,29 +74,15 @@ impl TlsOverTcp {
     }
 }
 
-/// Minimal reqwest-compatible client - just GET
-pub struct SmolmixReqwestClient;
+/// Reqwest-ish client right now, just GET
+pub struct SmolmixReqwestClient {
+    device: Arc<tokio::sync::Mutex<(smoltcp::iface::Interface, NymIprDevice)>>,
+    bridge: tokio::task::JoinHandle<()>,
+    allocated_ip: Ipv4Address,
+}
 
 impl SmolmixReqwestClient {
     pub async fn new() -> Result<Self, SmolmixError> {
-        // TODO need to move the creation of the device + running of bridge into here, instead of on request
-        Ok(Self)
-    }
-
-    pub async fn get(&self, url: &str) -> Result<SmolmixResponse, SmolmixError> {
-        let parsed_url = reqwest::Url::parse(url).map_err(|_| SmolmixError::InvalidUrl)?;
-        let host = parsed_url.host_str().ok_or(SmolmixError::InvalidUrl)?;
-        let path = parsed_url.path();
-
-        // Get raw response and parse with reqwest helpers
-        let response_bytes = self.simple_get_request(host, path).await?;
-        let (status, body) = self.parse_simple_response(&response_bytes)?;
-
-        Ok(SmolmixResponse { status, body })
-    }
-
-    /// Simple GET request - logic copied from tls.rs
-    async fn simple_get_request(&self, domain: &str, path: &str) -> Result<Vec<u8>, SmolmixError> {
         let ipr_stream = IpMixStream::new()
             .await
             .map_err(|_| SmolmixError::MixnetConnectionFailed)?;
@@ -105,7 +90,7 @@ impl SmolmixReqwestClient {
         let (mut device, bridge, allocated_ips) = create_device(ipr_stream).await?;
         info!("Allocated IP: {}", allocated_ips.ipv4);
 
-        tokio::spawn(async move {
+        let bridge_handle = tokio::spawn(async move {
             if let Err(e) = bridge.run().await {
                 tracing::error!("Bridge error: {}", e);
             }
@@ -123,6 +108,27 @@ impl SmolmixReqwestClient {
             .add_default_ipv4_route(Ipv4Address::UNSPECIFIED)
             .unwrap();
 
+        let device = Arc::new(tokio::sync::Mutex::new((iface, device)));
+
+        Ok(Self {
+            device,
+            bridge: bridge_handle,
+            allocated_ip: allocated_ips.ipv4,
+        })
+    }
+
+    pub async fn get(&self, url: &str) -> Result<SmolmixResponse, SmolmixError> {
+        let parsed_url = reqwest::Url::parse(url).map_err(|_| SmolmixError::InvalidUrl)?;
+        let host = parsed_url.host_str().ok_or(SmolmixError::InvalidUrl)?;
+        let path = parsed_url.path();
+
+        let response_bytes = self.simple_get_request(host, path).await?;
+        let (status, body) = self.parse_simple_response(&response_bytes)?;
+
+        Ok(SmolmixResponse { status, body })
+    }
+
+    async fn simple_get_request(&self, domain: &str, path: &str) -> Result<Vec<u8>, SmolmixError> {
         let tcp_rx_buffer = tcp::SocketBuffer::new(vec![0; 16384]);
         let tcp_tx_buffer = tcp::SocketBuffer::new(vec![0; 4096]);
         let tcp_socket = tcp::Socket::new(tcp_rx_buffer, tcp_tx_buffer);
@@ -140,12 +146,15 @@ impl SmolmixReqwestClient {
         let mut request_sent = false;
         let mut response_data = Vec::new();
 
+        let mut device_guard = self.device.lock().await;
+        let (ref mut iface, ref mut device) = &mut *device_guard;
+
         loop {
             if start.elapsed() > Duration::from_secs(60) {
                 return Err(SmolmixError::Timeout);
             }
 
-            iface.poll(timestamp, &mut device, &mut sockets);
+            iface.poll(timestamp, device, &mut sockets);
             timestamp += smoltcp::time::Duration::from_millis(1);
             let socket = sockets.get_mut::<tcp::Socket>(tcp_handle);
 
@@ -210,7 +219,7 @@ impl SmolmixReqwestClient {
                             info!("Read error: {}", e);
                             return Err(SmolmixError::ResponseReadFailed);
                         }
-                        Ok(1_usize..) => todo!(),
+                        Ok(_) => continue,
                     }
                 }
             }
@@ -220,10 +229,10 @@ impl SmolmixReqwestClient {
         Err(SmolmixError::NoResponseReceived)
     }
 
+    /// Simple response - just extract status and body
     fn parse_simple_response(&self, response_bytes: &[u8]) -> Result<(u16, String), SmolmixError> {
         let response_str = String::from_utf8_lossy(response_bytes);
 
-        // Extract status code
         let status_line = response_str
             .lines()
             .next()
@@ -235,7 +244,6 @@ impl SmolmixReqwestClient {
             .and_then(|s| s.parse().ok())
             .unwrap_or(200);
 
-        // Find body (after headers)
         if let Some(body_start) = response_str.find("\r\n\r\n") {
             let body = response_str[body_start + 4..].to_string();
             Ok((status, body))
@@ -263,6 +271,7 @@ impl SmolmixResponse {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json;
     use std::sync::Once;
 
     static INIT: Once = Once::new();
@@ -275,14 +284,12 @@ mod tests {
             nym_bin_common::logging::setup_tracing_logger();
         });
     }
-
     #[tokio::test]
     async fn mixnet_vs_plain_reqwest() -> Result<(), Box<dyn std::error::Error>> {
         init_logging();
 
         let test_url = "https://cloudflare.com/cdn-cgi/trace";
 
-        // Plain reqwest - direct connection
         info!("Fetching with plain reqwest...");
         let start = tokio::time::Instant::now();
         let plain_response = reqwest::get(test_url).await?;
@@ -290,32 +297,22 @@ mod tests {
         let plain_text = plain_response.text().await?;
         let plain_duration = start.elapsed();
 
-        // info!(
-        //     "Plain reqwest - Status: {}, Time: {:?}",
-        //     plain_status, plain_duration
-        // );
-        info!("Plain response: {} chars", plain_text.len());
         info!(
-            "Plain first 200 chars: {}",
-            &plain_text[..plain_text.len().min(200)]
+            "Plain reqwest - Status: {}, Time: {:?}",
+            plain_status, plain_duration
         );
 
-        info!("\nFetching through mixnet...");
-        let start = tokio::time::Instant::now();
+        info!("Setting up mixnet client...");
         let client = SmolmixReqwestClient::new().await?;
+        let start = tokio::time::Instant::now();
         let mixnet_response = client.get(test_url).await?;
         let mixnet_status = mixnet_response.status();
         let mixnet_text = mixnet_response.text().await?;
         let mixnet_duration = start.elapsed();
 
-        // info!(
-        //     "Mixnet reqwest - Status: {}, Time: {:?}",
-        //     mixnet_status, mixnet_duration
-        // );
-        info!("Mixnet response: {} chars", mixnet_text.len());
         info!(
-            "Mixnet first 200 chars: {}",
-            &mixnet_text[..mixnet_text.len().min(200)]
+            "Mixnet reqwest - Status: {}, Time: {:?}",
+            mixnet_status, mixnet_duration
         );
 
         info!("Status codes match: {}", plain_status == mixnet_status);
@@ -324,7 +321,6 @@ mod tests {
             plain_text.len() == mixnet_text.len()
         );
 
-        // Both should contain the same key fields
         let key_fields = ["fl=", "ip=", "ts=", "visit_scheme="];
         for field in key_fields {
             let plain_has = plain_text.contains(field);
@@ -336,11 +332,31 @@ mod tests {
             assert_eq!(plain_has, mixnet_has, "Field '{}' mismatch", field);
         }
 
-        // Performance comparison - TODO introduce this when we're not init-ing a mixnet client on each req
-        // info!("Plain reqwest time: {:?}", plain_duration);
-        // info!("Mixnet reqwest time: {:?}", mixnet_duration);
-        // let slowdown = mixnet_duration.as_millis() as f64 / plain_duration.as_millis() as f64;
-        // info!("Mixnet slowdown: {:.1}x", slowdown);
+        info!("Plain reqwest time: {:?}", plain_duration);
+        info!("Mixnet reqwest time: {:?}", mixnet_duration);
+        let slowdown = mixnet_duration.as_millis() as f64 / plain_duration.as_millis() as f64;
+        info!("Mixnet slowdown: {:.1}x", slowdown);
+        info!("Both responses match");
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn compare_exit_ip() -> Result<(), Box<dyn std::error::Error>> {
+        init_logging();
+        let plain: serde_json::Value = reqwest::get("https://api.ipify.org?format=json")
+            .await?
+            .json()
+            .await?;
+        let plain_ip = plain["ip"].as_str().expect("no ip field");
+        let client = SmolmixReqwestClient::new().await?;
+        // MAX: this returns 403, looks like they detect we're some sort of proxy
+        // let resp = client.get("https://api.ipify.org?format=json").await?;
+        // info!("{:?}", client.allocated_ip);
+        assert_ne!(
+            plain_ip,
+            client.allocated_ip.to_string(),
+            "IPs should not be the same"
+        );
         Ok(())
     }
 }

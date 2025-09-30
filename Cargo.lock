@@ -10192,6 +10192,7 @@ dependencies = [
  "nym-sdk",
  "reqwest 0.12.22",
  "rustls 0.23.29",
+ "serde_json",
  "smoltcp",
  "thiserror 2.0.12",
  "tokio",

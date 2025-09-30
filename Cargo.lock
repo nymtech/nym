@@ -4923,11 +4923,16 @@ dependencies = [
  "bincode",
  "futures",
  "nym-authenticator-requests",
+ "nym-bandwidth-controller",
  "nym-credentials-interface",
  "nym-crypto",
+ "nym-node-requests",
+ "nym-pemstore",
  "nym-sdk",
  "nym-service-provider-requests-common",
+ "nym-validator-client",
  "nym-wireguard-types",
+ "rand 0.8.5",
  "semver 1.0.26",
  "thiserror 2.0.12",
  "tokio",
@@ -4949,8 +4954,10 @@ dependencies = [
  "nym-sphinx",
  "nym-wireguard-types",
  "rand 0.8.5",
+ "semver 1.0.26",
  "serde",
  "sha2 0.10.9",
+ "strum_macros",
  "thiserror 2.0.12",
  "x25519-dalek",
 ]
@@ -4959,6 +4966,7 @@ dependencies = [
 name = "nym-bandwidth-controller"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "bip39",
  "log",
  "nym-credential-storage",
@@ -6007,6 +6015,7 @@ dependencies = [
 name = "nym-ip-packet-client"
 version = "0.1.0"
 dependencies = [
+ "bincode",
  "bytes",
  "futures",
  "nym-ip-packet-requests",
@@ -6657,6 +6666,26 @@ dependencies = [
  "serde",
  "thiserror 2.0.12",
  "time",
+]
+
+[[package]]
+name = "nym-registration-client"
+version = "0.1.0"
+dependencies = [
+ "nym-authenticator-client",
+ "nym-authenticator-requests",
+ "nym-bandwidth-controller",
+ "nym-credential-storage",
+ "nym-credentials-interface",
+ "nym-ip-packet-client",
+ "nym-ip-packet-requests",
+ "nym-sdk",
+ "nym-validator-client",
+ "thiserror 2.0.12",
+ "tokio",
+ "tokio-util",
+ "tracing",
+ "url",
 ]
 
 [[package]]
@@ -7402,26 +7431,6 @@ dependencies = [
  "strum",
  "strum_macros",
  "ts-rs",
-]
-
-[[package]]
-name = "nym-wg-gateway-client"
-version = "0.1.0"
-dependencies = [
- "nym-authenticator-client",
- "nym-authenticator-requests",
- "nym-bandwidth-controller",
- "nym-credentials-interface",
- "nym-crypto",
- "nym-node-requests",
- "nym-pemstore",
- "nym-sdk",
- "nym-statistics-common",
- "nym-validator-client",
- "rand 0.8.5",
- "thiserror 2.0.12",
- "tracing",
- "url",
 ]
 
 [[package]]

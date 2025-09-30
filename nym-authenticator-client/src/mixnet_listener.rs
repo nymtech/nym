@@ -52,49 +52,48 @@ impl AuthClientMixnetListener {
 
     async fn run(mut self) -> Self {
         let mixnet_cancel_token = self.mixnet_client.cancellation_token();
-        loop {
-            tokio::select! {
-                biased;
-                _ = self.shutdown_token.cancelled() => {
-                    tracing::debug!("AuthClientMixnetListener received shutdown signal");
-                    break;
-                }
-                _ = mixnet_cancel_token.cancelled() => {
-                    tracing::debug!("AuthClientMixnetListener: mixnet client was shutdown");
-                    break;
-                }
-
-                // Sending loop
-                input_msg = self.input_message_rx.recv() => {
-                    match input_msg {
-                        None => {
-                            tracing::error!("All senders were dropped. It shouldn't happen as we're holding one");
-                            break;
-                        },
-                        Some(mix_msg) => {
-                            if let Err(err) = self.mixnet_client.send(mix_msg).await {
-                                tracing::error!("Failed to send mixnet message: {err}");
-                            }
-                        },
+        self.shutdown_token.run_until_cancelled(async {
+            loop {
+                tokio::select! {
+                    biased;
+                    _ = mixnet_cancel_token.cancelled() => {
+                        tracing::debug!("AuthClientMixnetListener: mixnet client was shutdown");
+                        break;
                     }
-                }
-                // Receiving loop
-                msg = self.mixnet_client.next() => {
-                    match msg {
-                        None => {
-                            tracing::error!("Mixnet client stream ended unexpectedly");
-                            break;
-                        },
-                        Some(event) => {
-                            if let Err(err) = self.message_broadcast.send(Arc::new(event)) {
-                                tracing::error!("Failed to broadcast mixnet message: {err}");
-                            }
-                        },
 
+                    // Sending loop
+                    input_msg = self.input_message_rx.recv() => {
+                        match input_msg {
+                            None => {
+                                tracing::error!("All senders were dropped. It shouldn't happen as we're holding one");
+                                break;
+                            },
+                            Some(mix_msg) => {
+                                if let Err(err) = self.mixnet_client.send(mix_msg).await {
+                                    tracing::error!("Failed to send mixnet message: {err}");
+                                }
+                            },
+                        }
+                    }
+                    // Receiving loop
+                    msg = self.mixnet_client.next() => {
+                        match msg {
+                            None => {
+                                tracing::error!("Mixnet client stream ended unexpectedly");
+                                break;
+                            },
+                            Some(event) => {
+                                if let Err(err) = self.message_broadcast.send(Arc::new(event)) {
+                                    tracing::error!("Failed to broadcast mixnet message: {err}");
+                                }
+                            },
+
+                        }
                     }
                 }
             }
-        }
+            tracing::debug!("AuthClientMixnetListener is shutting down");
+        }).await;
 
         self
     }

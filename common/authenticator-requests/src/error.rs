@@ -23,9 +23,11 @@ pub enum Error {
     #[error("conversion: {0}")]
     Conversion(String),
 
+    // TODO add version number for debugging
     #[error("unknown version number")]
     UnknownVersion,
 
+    // TODO add version number for debugging
     #[error("unsupported request version")]
     UnsupportedVersion,
 

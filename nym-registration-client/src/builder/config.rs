@@ -19,7 +19,6 @@ use tokio_util::sync::CancellationToken;
 use crate::error::RegistrationClientError;
 
 const VPN_AVERAGE_PACKET_DELAY: Duration = Duration::from_millis(15);
-const MOBILE_LOOP_COVER_STREAM_AVERAGE_DELAY: Duration = Duration::from_secs(10);
 
 pub struct BuilderConfig {
     pub entry_node: NymNode,
@@ -137,13 +136,6 @@ fn two_hop_debug_config(mixnet_client_config: &MixnetClientConfig) -> DebugConfi
         .disable_main_poisson_packet_distribution = true;
     // Always disable background cover traffic in wireguard.
     debug_config.cover_traffic.disable_loop_cover_traffic_stream = true;
-
-    // for mobile platforms, in two hop mode, we do less frequent cover traffic, to preserve
-    // battery
-    if cfg!(any(target_os = "android", target_os = "ios")) {
-        debug_config.cover_traffic.loop_cover_traffic_average_delay =
-            MOBILE_LOOP_COVER_STREAM_AVERAGE_DELAY;
-    }
 
     if let Some(min_mixnode_performance) = mixnet_client_config.min_mixnode_performance {
         debug_config.topology.minimum_mixnode_performance = min_mixnode_performance;

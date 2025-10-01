@@ -11,24 +11,21 @@ use nym_authenticator_requests::{
     AuthenticatorVersion,
 };
 use nym_credentials_interface::CredentialSpendingData;
-use nym_crypto::asymmetric::x25519::{KeyPair, PublicKey};
+use nym_crypto::asymmetric::x25519::PublicKey;
 use nym_sdk::mixnet::{IncludedSurbs, Recipient};
 use nym_service_provider_requests_common::{Protocol, ServiceProviderTypeExt};
 use nym_wireguard_types::PeerPublicKey;
 
 impl crate::AuthenticatorClient {
-    pub fn into_legacy_and_keypair(self) -> (LegacyAuthenticatorClient, KeyPair) {
-        (
-            LegacyAuthenticatorClient {
-                public_key: *self.keypair.public_key(),
-                mixnet_listener: self.mixnet_listener,
-                mixnet_sender: self.mixnet_sender,
-                our_nym_address: self.our_nym_address,
-                auth_recipient: self.auth_recipient,
-                auth_version: self.auth_version,
-            },
-            self.keypair,
-        )
+    pub fn into_legacy(self) -> LegacyAuthenticatorClient {
+        LegacyAuthenticatorClient {
+            public_key: *self.keypair.public_key(),
+            mixnet_listener: self.mixnet_listener,
+            mixnet_sender: self.mixnet_sender,
+            our_nym_address: self.our_nym_address,
+            auth_recipient: self.auth_recipient,
+            auth_version: self.auth_version,
+        }
     }
 }
 

@@ -1,24 +1,23 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
+use std::{
+    net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr},
+    sync::Arc,
+};
 
 use nym_authenticator_requests::AuthenticatorVersion;
-use nym_crypto::asymmetric::x25519::PublicKey;
+use nym_crypto::asymmetric::x25519::{KeyPair, PublicKey};
 use nym_ip_packet_requests::IpPair;
 use nym_sphinx::addressing::{NodeIdentity, Recipient};
 
-pub const DEFAULT_PRIVATE_ENTRY_WIREGUARD_KEY_FILENAME: &str = "free_private_entry_wireguard.pem";
-pub const DEFAULT_PUBLIC_ENTRY_WIREGUARD_KEY_FILENAME: &str = "free_public_entry_wireguard.pem";
-pub const DEFAULT_PRIVATE_EXIT_WIREGUARD_KEY_FILENAME: &str = "free_private_exit_wireguard.pem";
-pub const DEFAULT_PUBLIC_EXIT_WIREGUARD_KEY_FILENAME: &str = "free_public_exit_wireguard.pem";
-
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Clone)]
 pub struct NymNode {
     pub identity: NodeIdentity,
     pub ip_address: IpAddr,
     pub ipr_address: Option<Recipient>,
     pub authenticator_address: Option<Recipient>,
+    pub keypair: Arc<KeyPair>,
     pub version: AuthenticatorVersion,
 }
 

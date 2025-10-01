@@ -2,15 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use nym_bandwidth_controller::{BandwidthTicketProvider, DEFAULT_TICKETS_TO_SPEND};
-use nym_registration_common::{
-    GatewayData, DEFAULT_PRIVATE_ENTRY_WIREGUARD_KEY_FILENAME,
-    DEFAULT_PRIVATE_EXIT_WIREGUARD_KEY_FILENAME, DEFAULT_PUBLIC_ENTRY_WIREGUARD_KEY_FILENAME,
-    DEFAULT_PUBLIC_EXIT_WIREGUARD_KEY_FILENAME,
-};
-use rand::rngs::OsRng;
+use nym_crypto::asymmetric::x25519::KeyPair;
+use nym_registration_common::GatewayData;
 use std::net::{IpAddr, SocketAddr};
-use std::path::PathBuf;
 use std::str::FromStr;
+use std::sync::Arc;
 use std::time::Duration;
 use tracing::{debug, error, trace};
 
@@ -20,8 +16,6 @@ use nym_authenticator_requests::{
     AuthenticatorVersion,
 };
 use nym_credentials_interface::TicketType;
-use nym_crypto::asymmetric::x25519::KeyPair;
-use nym_pemstore::KeyPairPath;
 use nym_sdk::mixnet::{IncludedSurbs, Recipient};
 use nym_service_provider_requests_common::{Protocol, ServiceProviderTypeExt};
 use nym_wireguard_types::PeerPublicKey;
@@ -42,34 +36,21 @@ pub struct AuthenticatorClient {
     pub auth_recipient: Recipient,
     auth_version: AuthenticatorVersion,
 
-    keypair: KeyPair,
+    keypair: Arc<KeyPair>,
     ip_addr: IpAddr,
 }
 
 impl AuthenticatorClient {
     #[allow(clippy::too_many_arguments)]
-    fn new_type(
-        data_path: &Option<PathBuf>,
+    pub fn new(
         mixnet_listener: MixnetMessageBroadcastReceiver,
         mixnet_sender: MixnetMessageInputSender,
         our_nym_address: Recipient,
         auth_recipient: Recipient,
         auth_version: AuthenticatorVersion,
-        private_file_name: &str,
-        public_file_name: &str,
+        keypair: Arc<KeyPair>,
         ip_addr: IpAddr,
     ) -> Self {
-        let mut rng = OsRng;
-
-        let keypair = if let Some(data_path) = data_path {
-            let paths = KeyPairPath::new(
-                data_path.join(private_file_name),
-                data_path.join(public_file_name),
-            );
-            helpers::load_or_generate_keypair(&mut rng, paths)
-        } else {
-            KeyPair::new(&mut rng)
-        };
         Self {
             mixnet_listener,
             mixnet_sender,
@@ -79,50 +60,6 @@ impl AuthenticatorClient {
             keypair,
             ip_addr,
         }
-    }
-
-    pub fn new_entry(
-        data_path: &Option<PathBuf>,
-        mixnet_listener: MixnetMessageBroadcastReceiver,
-        mixnet_sender: MixnetMessageInputSender,
-        our_nym_address: Recipient,
-        auth_recipient: Recipient,
-        auth_version: AuthenticatorVersion,
-        ip_addr: IpAddr,
-    ) -> Self {
-        Self::new_type(
-            data_path,
-            mixnet_listener,
-            mixnet_sender,
-            our_nym_address,
-            auth_recipient,
-            auth_version,
-            DEFAULT_PRIVATE_ENTRY_WIREGUARD_KEY_FILENAME,
-            DEFAULT_PUBLIC_ENTRY_WIREGUARD_KEY_FILENAME,
-            ip_addr,
-        )
-    }
-
-    pub fn new_exit(
-        data_path: &Option<PathBuf>,
-        mixnet_listener: MixnetMessageBroadcastReceiver,
-        mixnet_sender: MixnetMessageInputSender,
-        our_nym_address: Recipient,
-        auth_recipient: Recipient,
-        auth_version: AuthenticatorVersion,
-        ip_addr: IpAddr,
-    ) -> Self {
-        Self::new_type(
-            data_path,
-            mixnet_listener,
-            mixnet_sender,
-            our_nym_address,
-            auth_recipient,
-            auth_version,
-            DEFAULT_PRIVATE_EXIT_WIREGUARD_KEY_FILENAME,
-            DEFAULT_PUBLIC_EXIT_WIREGUARD_KEY_FILENAME,
-            ip_addr,
-        )
     }
 
     pub async fn send_and_wait_for_response(

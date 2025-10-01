@@ -85,23 +85,23 @@ impl RegistrationClient {
         let mixnet_listener =
             AuthClientMixnetListener::new(self.mixnet_client, self.cancel_token.clone()).start();
 
-        let mut entry_auth_client = AuthenticatorClient::new_entry(
-            &self.config.data_path,
+        let mut entry_auth_client = AuthenticatorClient::new(
             mixnet_listener.subscribe(),
             mixnet_listener.mixnet_sender(),
             self.mixnet_client_address,
             entry_auth_address,
             entry_version,
+            self.config.entry.keypair,
             self.config.entry.ip_address,
         );
 
-        let mut exit_auth_client = AuthenticatorClient::new_exit(
-            &self.config.data_path,
+        let mut exit_auth_client = AuthenticatorClient::new(
             mixnet_listener.subscribe(),
             mixnet_listener.mixnet_sender(),
             self.mixnet_client_address,
             exit_auth_address,
             exit_version,
+            self.config.exit.keypair,
             self.config.exit.ip_address,
         );
 

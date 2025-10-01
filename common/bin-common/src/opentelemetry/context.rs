@@ -4,6 +4,7 @@ use opentelemetry::trace::{SpanContext, TraceContextExt, TraceId};
 use opentelemetry_sdk::{propagation::TraceContextPropagator, trace::IdGenerator};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 use std::collections::HashMap;
+use std::fmt::Display;
 
 /// Make a Carrier for context propagation
 pub struct ContextCarrier {
@@ -73,6 +74,12 @@ impl Extractor for ContextCarrier {
 
     fn keys(&self) -> Vec<&str> {
         self.data.keys().map(|k| k.as_str()).collect()
+    }
+}
+
+impl Display for ContextCarrier {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self.data)
     }
 }
 

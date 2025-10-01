@@ -979,14 +979,10 @@ impl ApiClientCore for Client {
         // if opentelemetry is activated add the current trace context to the request
         // TODO featurize opentelemetry
         use opentelemetry::Context;
-        use opentelemetry::propagation::TextMapPropagator;
-        use opentelemetry_sdk::propagation::TraceContextPropagator;
         use nym_bin_common::opentelemetry::context::ContextCarrier;
 
-        let context = Context::current();
-        let propagator = TraceContextPropagator::new();
-        let mut carrier = ContextCarrier::new_empty();
-        propagator.inject_context(&context, &mut carrier);
+        let carrier = ContextCarrier::new_with_current_context(Context::current());
+
         if let Some(traceparent) = carrier.extract_traceparent() {
             if let Ok(header_value) = HeaderValue::from_str(&traceparent) {
                 req.headers_mut()

@@ -10,6 +10,7 @@ pub mod events;
 pub mod signing;
 pub mod types;
 
+pub mod contract_querier;
 pub mod helpers;
 
 pub use types::*;

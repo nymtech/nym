@@ -5,6 +5,7 @@ use crate::error::ContractError;
 use crate::Dealer;
 use cosmwasm_std::{StdResult, Storage};
 use cw_storage_plus::{Item, Map};
+use nym_coconut_dkg_common::dealer::{BlockHeight, OwnershipTransfer, TransactionIndex};
 use nym_coconut_dkg_common::types::{DealerDetails, DealerRegistrationDetails, EpochId, NodeIndex};
 
 pub(crate) const DEALER_INDICES_PAGE_MAX_LIMIT: u32 = 80;
@@ -22,6 +23,9 @@ pub(crate) const DEALERS_INDICES: Map<Dealer, NodeIndex> = Map::new("dealer_inde
 
 pub(crate) const EPOCH_DEALERS_MAP: Map<(EpochId, Dealer), DealerRegistrationDetails> =
     Map::new("epoch_dealers");
+
+pub const OWNERSHIP_TRANSFER_LOG: Map<(Dealer, BlockHeight, TransactionIndex), OwnershipTransfer> =
+    Map::new("transfer_log");
 
 /// Attempts to retrieve a pre-assign node index associated with given dealer.
 /// If one doesn't exist, a new one is assigned.

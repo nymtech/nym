@@ -5351,6 +5351,7 @@ dependencies = [
  "cosmwasm-std",
  "cw-multi-test",
  "cw-storage-plus",
+ "nym-contracts-common",
  "rand 0.8.5",
  "rand_chacha 0.3.1",
  "serde",

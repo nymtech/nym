@@ -5,24 +5,31 @@ use nym_credential_storage::persistent_storage::PersistentStorage;
 use nym_registration_common::NymNode;
 use nym_sdk::{
     mixnet::{
-        CredentialStorage, GatewaysDetailsStore, KeyStore, MixnetClient, MixnetClientBuilder,
-        MixnetClientStorage, OnDiskPersistent, ReplyStorageBackend, StoragePaths,
+        x25519::KeyPair, CredentialStorage, GatewaysDetailsStore, KeyStore, MixnetClient,
+        MixnetClientBuilder, MixnetClientStorage, OnDiskPersistent, ReplyStorageBackend,
+        StoragePaths,
     },
     DebugConfig, NymNetworkDetails, RememberMe, TopologyProvider, UserAgent,
 };
 
 #[cfg(unix)]
-use std::{os::fd::RawFd, sync::Arc};
-use std::{path::PathBuf, time::Duration};
+use std::os::fd::RawFd;
+use std::{path::PathBuf, sync::Arc, time::Duration};
 use tokio_util::sync::CancellationToken;
 
 use crate::error::RegistrationClientError;
 
 const VPN_AVERAGE_PACKET_DELAY: Duration = Duration::from_millis(15);
 
+#[derive(Clone)]
+pub struct NymNodeWithKeys {
+    pub node: NymNode,
+    pub keys: Arc<KeyPair>,
+}
+
 pub struct BuilderConfig {
-    pub entry_node: NymNode,
-    pub exit_node: NymNode,
+    pub entry_node: NymNodeWithKeys,
+    pub exit_node: NymNodeWithKeys,
     pub data_path: Option<PathBuf>,
     pub mixnet_client_config: MixnetClientConfig,
     pub two_hops: bool,
@@ -104,7 +111,7 @@ impl BuilderConfig {
 
         let builder = builder
             .with_user_agent(self.user_agent)
-            .request_gateway(self.entry_node.identity.to_string())
+            .request_gateway(self.entry_node.node.identity.to_string())
             .network_details(self.network_env)
             .debug_config(debug_config)
             .credentials_mode(true)

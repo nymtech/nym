@@ -5,8 +5,7 @@ set -e
 user_rust_log_preference=$RUST_LOG
 export ENVIRONMENT=${ENVIRONMENT:-"mainnet"}
 export NYM_API_CLIENT_TIMEOUT=60
-export NODE_STATUS_API_TESTRUN_REFRESH_INTERVAL=120
-
+export DATABASE_URL="postgres://testuser:testpass@localhost:5433/nym_node_status_api_test"
 # public counterpart of the agent's private key.
 # For TESTING only. NOT used in any other environment
 export NODE_STATUS_API_AGENT_KEY_LIST="H4z8kx5Kkf5JMQHhxaW1MwYndjKCDHC7HsVhHTFfBZ4J"
@@ -23,7 +22,7 @@ function run_bare() {
     echo "RUST_LOG=${RUST_LOG}"
 
     # --conection-url is provided in build.rs
-    cargo run --package nym-node-status-api --features pg --no-default-features
+    cargo run --package nym-node-status-api
 }
 
 function run_docker() {

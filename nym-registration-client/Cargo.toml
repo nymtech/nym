@@ -1,0 +1,28 @@
+[package]
+name = "nym-registration-client"
+version = "0.1.0"
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+thiserror.workspace = true
+tokio.workspace = true
+tokio-util.workspace = true
+tracing.workspace = true
+url.workspace = true
+
+nym-authenticator-client = { path = "../nym-authenticator-client" }
+nym-bandwidth-controller = { path = "../common/bandwidth-controller" }
+nym-credential-storage = { path = "../common/credential-storage" }
+nym-credentials-interface = { path = "../common/credentials-interface" }
+nym-ip-packet-client = { path = "../nym-ip-packet-client" }
+nym-registration-common = { path = "../common/registration" }
+nym-sdk = { path = "../sdk/rust/nym-sdk" }
+nym-validator-client = { path = "../common/client-libs/validator-client" }

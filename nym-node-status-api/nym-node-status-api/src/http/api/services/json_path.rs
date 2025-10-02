@@ -83,6 +83,7 @@ mod tests {
             last_updated_utc: "2025-01-01T12:00:00Z".to_string(),
             routing_score: 1.0,
             config_score: 100,
+            bridges: None,
         }
     }
 

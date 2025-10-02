@@ -4,7 +4,7 @@ set -euo pipefail
 echo -e "\n* * * Ensuring ~/nym-binaries exists * * *"
 mkdir -p "$HOME/nym-binaries"
 
-# Load env.sh via absolute path if provided, else try ./env.sh
+# load env.sh via absolute path if provided, else try ./env.sh
 if [[ -n "${ENV_FILE:-}" && -f "${ENV_FILE}" ]]; then
   set -a
   # shellcheck disable=SC1090
@@ -55,6 +55,121 @@ check_existing_config() {
 # run the check before any initialization
 check_existing_config
 
+# downloader for nym-node: probes platform-specific assets; if none exist,
+# asks user for a direct downloadable URL and validates it.
+download_nym_node() {
+  local latest_tag_url="$1"          # e.g. "https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.13-emmental"
+  local dest_path="$2"               # e.g. "$HOME/nym-binaries/nym-node"
+  local base_download_url
+  local os arch exe_ext=""
+  local candidates=()
+  local found_url=""
+  local http_code=""
+
+  if [[ -z "$latest_tag_url" || "$latest_tag_url" != *"/releases/tag/"* ]]; then
+    echo "ERROR: Invalid latest tag URL: $latest_tag_url" >&2
+    return 1
+  fi
+
+  base_download_url="${latest_tag_url/tag/download}"
+
+  # detect OS / ARCH
+  case "$(uname -s | tr '[:upper:]' '[:lower:]')" in
+    linux*)  os="linux" ;;
+    darwin*) os="darwin" ;;
+    msys*|cygwin*|mingw*) os="windows"; exe_ext=".exe" ;;
+    *) echo "WARNING: Unknown OS; defaulting to linux." ; os="linux" ;;
+  esac
+
+  case "$(uname -m)" in
+    x86_64|amd64) arch="x86_64" ;;
+    aarch64|arm64) arch="aarch64" ;;
+    armv7*|armv6*|armv5*) arch="arm" ;;
+    *) arch="$(uname -m)";;
+  esac
+
+  # candidate asset names to probe (no assumptions about compression)
+  if [[ "$os" == "linux" ]]; then
+    candidates+=(
+      "nym-node"
+      "nym-node-${arch}-unknown-linux-gnu"
+      "nym-node-${arch}-unknown-linux-musl"
+    )
+  elif [[ "$os" == "darwin" ]]; then
+    candidates+=(
+      "nym-node-${arch}-apple-darwin"
+      "nym-node"
+    )
+  elif [[ "$os" == "windows" ]]; then
+    candidates+=(
+      "nym-node-${arch}-pc-windows-msvc${exe_ext}"
+      "nym-node${exe_ext}"
+    )
+  fi
+
+  # return 0 if URL exists (HTTP 200)
+  url_exists() {
+    local url="$1"
+    http_code="$(curl -sI -L -o /dev/null -w '%{http_code}' "$url")"
+    [[ "$http_code" == "200" ]]
+  }
+
+  echo -e "\n* * * Probing release assets for your platform ($os/$arch) * * *"
+
+  # try candidate assets in order
+  for name in "${candidates[@]}"; do
+    local try_url="${base_download_url}/${name}"
+    if url_exists "$try_url"; then
+      found_url="$try_url"
+      break
+    fi
+  done
+
+  # if nothing found, prompt the user for a URL
+  if [[ -z "$found_url" ]]; then
+    echo
+    echo "Could not find a 'nym-node' asset for your platform in the latest release:"
+    echo "    $latest_tag_url"
+    echo
+    echo "HTTP check for first candidate (${base_download_url}/${candidates[0]}): ${http_code:-n/a}"
+    echo
+    echo "Please paste a direct, downloadable URL for the 'nym-node' binary for your platform."
+    echo "Tip: Open the GitHub release page, right-click the correct asset, and copy link address."
+    read -r -p "Custom download URL: " user_url
+
+    if [[ -z "${user_url// }" ]]; then
+      echo "ERROR: No URL provided. Aborting."
+      return 1
+    fi
+    if ! url_exists "$user_url"; then
+      echo "ERROR: The provided URL does not appear downloadable (HTTP $http_code). Aborting."
+      return 1
+    fi
+    found_url="$user_url"
+  fi
+
+  echo -e "\n* * * Downloading nym-node from: $found_url * * *"
+  mkdir -p "$(dirname "$dest_path")"
+
+  # remove any existing file to avoid 'text file busy'
+  if [[ -e "$dest_path" ]]; then
+    echo "Removing existing binary at $dest_path ..."
+    rm -f "$dest_path"
+  fi
+
+  if ! curl -fL "$found_url" -o "$dest_path"; then
+    echo "ERROR: Download failed from $found_url" >&2
+    return 1
+  fi
+
+  chmod +x "$dest_path" 2>/dev/null || true
+
+  echo "---------------------------------------------------"
+  echo "Nym node binary downloaded to: $dest_path"
+  "$dest_path" --version || true
+  echo "---------------------------------------------------"
+}
+
 echo -e "\n* * * Resolving latest release tag URL * * *"
 LATEST_TAG_URL="$(curl -sI -L -o /dev/null -w '%{url_effective}' https://github.com/nymtech/nym/releases/latest)"
 # expected example: https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.13-emmental
@@ -64,7 +179,6 @@ if [[ -z "${LATEST_TAG_URL}" || "${LATEST_TAG_URL}" != *"/releases/tag/"* ]]; th
   exit 1
 fi
 
-DOWNLOAD_URL="${LATEST_TAG_URL/tag/download}/nym-node"
 NYM_NODE="$HOME/nym-binaries/nym-node"
 
 # if binary already exists, ask to overwrite; if yes, remove first
@@ -80,12 +194,7 @@ if [[ -e "${NYM_NODE}" ]]; then
   fi
 fi
 
-echo -e "\n* * * Downloading nym-node from:"
-echo "    ${DOWNLOAD_URL}"
-# only download if file is missing (or we just removed it)
-if [[ ! -e "${NYM_NODE}" ]]; then
-  curl -fL "${DOWNLOAD_URL}" -o "${NYM_NODE}"
-fi
+download_nym_node "$LATEST_TAG_URL" "$NYM_NODE"
 
 echo -e "\n * * * Making binary executable * * *"
 chmod +x "${NYM_NODE}"
@@ -95,7 +204,7 @@ echo "Nym node binary downloaded:"
 "${NYM_NODE}" --version || true
 echo "---------------------------------------------------"
 
-# check that MODE is set (after sourcing env.sh)
+# check that MODE is set (after sourcing env.sh or other scripts)
 if [[ -z "${MODE:-}" ]]; then
   echo "ERROR: Environment variable MODE is not set."
   echo "Please export MODE as one of: mixnode, entry-gateway, exit-gateway"

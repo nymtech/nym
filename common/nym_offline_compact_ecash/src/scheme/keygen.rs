@@ -47,7 +47,7 @@ impl TryFrom<&[u8]> for SecretKeyAuth {
 
     fn try_from(bytes: &[u8]) -> Result<SecretKeyAuth> {
         // There should be x and at least one y
-        if bytes.len() < 32 * 2 + 8 || (bytes.len() - 8) % 32 != 0 {
+        if bytes.len() < 32 * 2 + 8 || !(bytes.len() - 8).is_multiple_of(32) {
             return Err(CompactEcashError::DeserializationInvalidLength {
                 actual: bytes.len(),
                 modulus_target: bytes.len() - 8,
@@ -152,7 +152,7 @@ impl TryFrom<&[u8]> for VerificationKeyAuth {
 
     fn try_from(bytes: &[u8]) -> Result<VerificationKeyAuth> {
         // There should be at least alpha, one betaG1 and one betaG2 and their length
-        if bytes.len() < 96 * 2 + 48 + 8 || (bytes.len() - 8 - 96) % (96 + 48) != 0 {
+        if bytes.len() < 96 * 2 + 48 + 8 || !(bytes.len() - 8 - 96).is_multiple_of(96 + 48) {
             return Err(CompactEcashError::DeserializationInvalidLength {
                 actual: bytes.len(),
                 modulus_target: bytes.len() - 8 - 96,

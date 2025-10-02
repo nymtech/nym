@@ -16,7 +16,7 @@ export SYSTEMD_COLORS="0"
 DEBIAN_FRONTEND=noninteractive
 
 # sanity check
-if [[ "${HOSTNAME}" == "localhost" || "${HOSTNAME}" == "127.0.0.1" ]]; then
+if [[ "${HOSTNAME}" == "localhost" || "${HOSTNAME}" == "127.0.0.1" || "${HOSTNAME}" == "ubuntu"  ]]; then
   echo "ERROR: HOSTNAME cannot be 'localhost'. Use a public FQDN." >&2
   exit 1
 fi
@@ -63,28 +63,97 @@ cert_ok() {
   [[ -s "/etc/letsencrypt/live/${HOSTNAME}/fullchain.pem" && -s "/etc/letsencrypt/live/${HOSTNAME}/privkey.pem" ]]
 }
 
-fetch_landing() {
-  local url="https://raw.githubusercontent.com/nymtech/nym/refs/heads/feature/node-setup-cli/scripts/nym-node-setup/landing-page.html"
+fetch_landing_html() {
+  local url="https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/landing-page.html"
+  mkdir -p "${WEBROOT}"
+
   if command -v curl >/dev/null 2>&1; then
     curl -fsSL "$url" -o "${WEBROOT}/index.html" || true
   else
     wget -qO "${WEBROOT}/index.html" "$url" || true
   fi
+
   if [[ ! -s "${WEBROOT}/index.html" ]]; then
     cat > "${WEBROOT}/index.html" <<'HTML'
-<!doctype html><html><head><meta charset="utf-8"><title>Nym Node</title></head>
-<body style="font-family:sans-serif;margin:2rem">
-<h1>Nym node landing</h1>
-<p>This is a placeholder page served by nginx.</p>
-</body></html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nym Exit Gateway</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            text-align: center;
+            padding: 2em;
+            background-color: #111;
+            color: #0ff;
+        }
+        h1 {
+            margin-bottom: 0.5em;
+        }
+    </style>
+</head>
+<body>
+    <h1>Nym Exit Gateway</h1>
+    <p>This is a Nym Exit Gateway. The operator of this router has no access to any of the data routing through that due to encryption design.</p>
+</body>
+</html>
 HTML
+  fi
+}
+
+inject_email() {
+  local file="${WEBROOT}/index.html"
+  [[ -n "${EMAIL:-}" && -s "$file" ]] || return 0
+
+  # Escape characters that would break sed replacement
+  local esc_email
+  esc_email="$(printf '%s' "$EMAIL" | sed -e 's/[&/\]/\\&/g')"
+
+  # try to update existing meta (case-insensitive on the name attr)
+  if grep -qiE '<meta[^>]+name=["'"'"']contact:email["'"'"']' "$file"; then
+    sed -i -E \
+      "s|(<meta[^>]+name=[\"']contact:email[\"'][^>]*content=\")[^\"]*(\"[^>]*>)|\1${esc_email}\2|I" \
+      "$file" || true
+    return 0
+  fi
+
+  # insert before </head> if present (case-insensitive)
+  if grep -qi '</head>' "$file"; then
+    awk -v email="$EMAIL" '
+      BEGIN{IGNORECASE=1}
+      /<\/head>/ && !done {
+        print "    <meta name=\"contact:email\" content=\"" email "\">"
+        done=1
+      }
+      { print }
+    ' "$file" > "${file}.tmp" && mv "${file}.tmp" "$file"
+    return 0
+  fi
+
+  # fallback: append at end
+  printf '\n<meta name="contact:email" content="%s">\n' "$EMAIL" >> "$file" || true
+}
+
+fetch_logo() {
+  local logo_url="https://raw.githubusercontent.com/nymtech/websites/refs/heads/main/www/nym.com/public/images/Nym_meta_Image.png?token=GHSAT0AAAAAACEERII7URYRTFACZ4F2OWZ42GMCPBQ"
+  mkdir -p "${WEBROOT}/images"
+  if [[ ! -s "${WEBROOT}/images/nym_logo.png" ]]; then
+    if command -v curl >/dev/null 2>&1; then
+      curl -fsSL "$logo_url" -o "${WEBROOT}/images/nym_logo.png" || true
+    else
+      wget -qO "${WEBROOT}/images/nym_logo.png" "$logo_url" || true
+    fi
   fi
 }
 
 reload_nginx() { nginx -t && systemctl reload nginx; }
 
 # landing page (idempotent)
-fetch_landing
+fetch_landing_html
+inject_email
+fetch_logo
 echo "Landing page at ${WEBROOT}/index.html"
 
 # disable default and stale SSL configs

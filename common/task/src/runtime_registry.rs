@@ -39,7 +39,9 @@ impl RuntimeRegistry {
             .write()
             .map_err(|_| RegistryAccessError::Poisoned)?;
         Ok(guard
-            .get_or_insert_with(|| Arc::new(ShutdownManager::new_without_signals()))
+            .get_or_insert_with(|| {
+                Arc::new(ShutdownManager::new_without_signals().with_cancel_on_panic())
+            })
             .clone())
     }
 

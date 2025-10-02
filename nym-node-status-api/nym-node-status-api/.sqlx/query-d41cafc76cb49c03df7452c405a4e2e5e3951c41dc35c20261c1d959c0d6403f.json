@@ -1,0 +1,59 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT\n            id as \"id!\",\n            gateway_id as \"gateway_id!\",\n            status as \"status!\",\n            created_utc as \"created_utc!\",\n            ip_address as \"ip_address!\",\n            log as \"log!\",\n            last_assigned_utc\n         FROM testruns\n         WHERE\n            id = $1\n         AND\n            status = $2\n         ORDER BY created_utc\n         LIMIT 1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "gateway_id!",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 2,
+        "name": "status!",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 3,
+        "name": "created_utc!",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 4,
+        "name": "ip_address!",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 5,
+        "name": "log!",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 6,
+        "name": "last_assigned_utc",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "d41cafc76cb49c03df7452c405a4e2e5e3951c41dc35c20261c1d959c0d6403f"
+}

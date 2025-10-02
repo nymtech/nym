@@ -1,6 +1,7 @@
 pub(crate) mod description;
 pub(crate) mod helpers;
-pub(crate) mod packet_stats;
+pub(crate) mod models;
+pub(crate) mod scraper;
 
 pub(crate) use description::DescriptionScraper;
-pub(crate) use packet_stats::PacketScraper;
+pub(crate) use scraper::NodeScraper;

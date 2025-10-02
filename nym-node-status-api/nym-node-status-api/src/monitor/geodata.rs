@@ -82,6 +82,7 @@ pub(crate) struct Location {
     pub(crate) org: String,
     pub(crate) postal: String,
     pub(crate) timezone: String,
+    pub(crate) asn: Option<Asn>,
 }
 
 impl From<LocationResponse> for Location {
@@ -95,15 +96,16 @@ impl From<LocationResponse> for Location {
             org: value.org,
             postal: value.postal,
             timezone: value.timezone,
+            asn: value.asn,
         }
     }
 }
 
 #[derive(Debug, Clone, Deserialize)]
 pub(crate) struct LocationResponse {
-    #[serde(rename = "country")]
+    #[serde(rename = "country", default = "String::default")]
     pub(crate) two_letter_iso_country_code: String,
-    #[serde(deserialize_with = "deserialize_loc")]
+    #[serde(deserialize_with = "deserialize_loc", default = "Coordinates::default")]
     pub(crate) loc: Coordinates,
     #[serde(default = "String::default")]
     pub(crate) ip: String,
@@ -117,6 +119,8 @@ pub(crate) struct LocationResponse {
     pub(crate) postal: String,
     #[serde(default = "String::default")]
     pub(crate) timezone: String,
+
+    pub(crate) asn: Option<Asn>,
 }
 
 fn deserialize_loc<'de, D>(deserializer: D) -> Result<Coordinates, D::Error>
@@ -137,6 +141,24 @@ where
 pub(crate) struct Coordinates {
     pub(crate) latitude: f64,
     pub(crate) longitude: f64,
+}
+
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+pub(crate) struct Asn {
+    #[serde(default = "String::default")]
+    pub(crate) asn: String,
+
+    #[serde(default = "String::default")]
+    pub(crate) name: String,
+
+    #[serde(default = "String::default")]
+    pub(crate) domain: String,
+
+    #[serde(default = "String::default")]
+    pub(crate) route: String,
+
+    #[serde(rename = "type", default = "String::default")]
+    pub(crate) kind: String,
 }
 
 impl Location {

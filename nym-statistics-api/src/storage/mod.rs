@@ -7,6 +7,8 @@ use sqlx::{
 };
 use std::{path::PathBuf, str::FromStr};
 
+use crate::storage::models::StatsReportV1Dto;
+
 pub(crate) mod models;
 
 pub(crate) type DbPool = sqlx::PgPool;
@@ -60,7 +62,7 @@ impl StatisticsStorage {
         })
     }
 
-    pub(crate) async fn store_vpn_client_report(
+    pub(crate) async fn store_legacy_vpn_client_report(
         &mut self,
         active_device: DailyActiveDeviceDto,
         connection_info: Option<ConnectionInfoDto>,
@@ -114,6 +116,43 @@ impl StatisticsStorage {
             connection_info.received_from,
             connection_info.country_code,
             connection_info.from_mixnet
+        )
+        .execute(&self.connection_pool)
+        .await?;
+        Ok(())
+    }
+
+    pub(crate) async fn store_vpn_client_report(
+        &mut self,
+        report_v1: StatsReportV1Dto,
+    ) -> Result<()> {
+        sqlx::query!(
+            r#"INSERT INTO report_v1 (
+                received_at,
+                source_ip,
+                device_id,
+                from_mixnet,
+                os_type,
+                os_version,
+                architecture,
+                app_version,
+                user_agent,
+                connection_time_ms,
+                two_hop,
+                country_code)
+                VALUES ($1::timestamptz, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)"#,
+            report_v1.received_at as time::OffsetDateTime,
+            report_v1.received_from,
+            report_v1.stats_id,
+            report_v1.from_mixnet,
+            report_v1.os_type,
+            report_v1.os_version,
+            report_v1.os_arch,
+            report_v1.app_version,
+            report_v1.user_agent,
+            report_v1.connection_time_ms,
+            report_v1.two_hop,
+            report_v1.country_code
         )
         .execute(&self.connection_pool)
         .await?;

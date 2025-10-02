@@ -128,6 +128,10 @@ impl DirectSecp256k1HdWallet {
         Ok(accounts)
     }
 
+    pub fn secret(&self) -> &bip39::Mnemonic {
+        &self.secret
+    }
+
     pub fn mnemonic(&self) -> String {
         self.secret.to_string()
     }

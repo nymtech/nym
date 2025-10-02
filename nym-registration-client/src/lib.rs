@@ -17,7 +17,10 @@ mod config;
 mod error;
 mod types;
 
-pub use builder::config::{BuilderConfig as RegistrationClientBuilderConfig, MixnetClientConfig};
+pub use builder::config::{
+    BuilderConfig as RegistrationClientBuilderConfig, MixnetClientConfig,
+    NymNodeWithKeys as RegistrationNymNode,
+};
 pub use builder::RegistrationClientBuilder;
 pub use error::RegistrationClientError;
 pub use types::{MixnetRegistrationResult, RegistrationResult, WireguardRegistrationResult};
@@ -32,13 +35,13 @@ pub struct RegistrationClient {
 
 impl RegistrationClient {
     async fn register_mix_exit(self) -> Result<RegistrationResult, RegistrationClientError> {
-        let entry_mixnet_gateway_ip = self.config.entry.ip_address;
+        let entry_mixnet_gateway_ip = self.config.entry.node.ip_address;
 
-        let exit_mixnet_gateway_ip = self.config.exit.ip_address;
+        let exit_mixnet_gateway_ip = self.config.exit.node.ip_address;
 
-        let ipr_address = self.config.exit.ipr_address.ok_or(
+        let ipr_address = self.config.exit.node.ipr_address.ok_or(
             RegistrationClientError::NoIpPacketRouterAddress {
-                node_id: self.config.exit.identity.to_base58_string(),
+                node_id: self.config.exit.node.identity.to_base58_string(),
             },
         )?;
         let mut ipr_client =
@@ -63,21 +66,21 @@ impl RegistrationClient {
     }
 
     async fn register_wg(self) -> Result<RegistrationResult, RegistrationClientError> {
-        let entry_auth_address = self.config.entry.authenticator_address.ok_or(
+        let entry_auth_address = self.config.entry.node.authenticator_address.ok_or(
             RegistrationClientError::AuthenticationNotPossible {
-                node_id: self.config.entry.identity.to_base58_string(),
+                node_id: self.config.entry.node.identity.to_base58_string(),
             },
         )?;
 
-        let exit_auth_address = self.config.exit.authenticator_address.ok_or(
+        let exit_auth_address = self.config.exit.node.authenticator_address.ok_or(
             RegistrationClientError::AuthenticationNotPossible {
-                node_id: self.config.exit.identity.to_base58_string(),
+                node_id: self.config.exit.node.identity.to_base58_string(),
             },
         )?;
 
-        let entry_version = self.config.entry.version;
+        let entry_version = self.config.entry.node.version;
         tracing::debug!("Entry gateway version: {entry_version}");
-        let exit_version = self.config.exit.version;
+        let exit_version = self.config.exit.node.version;
         tracing::debug!("Exit gateway version: {exit_version}");
 
         // Start the auth client mixnet listener, which will listen for incoming messages from the
@@ -85,24 +88,24 @@ impl RegistrationClient {
         let mixnet_listener =
             AuthClientMixnetListener::new(self.mixnet_client, self.cancel_token.clone()).start();
 
-        let mut entry_auth_client = AuthenticatorClient::new_entry(
-            &self.config.data_path,
+        let mut entry_auth_client = AuthenticatorClient::new(
             mixnet_listener.subscribe(),
             mixnet_listener.mixnet_sender(),
             self.mixnet_client_address,
             entry_auth_address,
             entry_version,
-            self.config.entry.ip_address,
+            self.config.entry.keys,
+            self.config.entry.node.ip_address,
         );
 
-        let mut exit_auth_client = AuthenticatorClient::new_exit(
-            &self.config.data_path,
+        let mut exit_auth_client = AuthenticatorClient::new(
             mixnet_listener.subscribe(),
             mixnet_listener.mixnet_sender(),
             self.mixnet_client_address,
             exit_auth_address,
             exit_version,
-            self.config.exit.ip_address,
+            self.config.exit.keys,
+            self.config.exit.node.ip_address,
         );
 
         let entry_fut = entry_auth_client
@@ -115,7 +118,7 @@ impl RegistrationClient {
         let entry =
             entry.map_err(
                 |source| RegistrationClientError::EntryGatewayRegisterWireguard {
-                    gateway_id: self.config.entry.identity.to_base58_string(),
+                    gateway_id: self.config.entry.node.identity.to_base58_string(),
                     authenticator_address: Box::new(entry_auth_address),
                     source: Box::new(source),
                 },
@@ -123,7 +126,7 @@ impl RegistrationClient {
         let exit =
             exit.map_err(
                 |source| RegistrationClientError::ExitGatewayRegisterWireguard {
-                    gateway_id: self.config.exit.identity.to_base58_string(),
+                    gateway_id: self.config.exit.node.identity.to_base58_string(),
                     authenticator_address: Box::new(exit_auth_address),
                     source: Box::new(source),
                 },

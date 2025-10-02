@@ -8,11 +8,6 @@ use nym_crypto::asymmetric::x25519::PublicKey;
 use nym_ip_packet_requests::IpPair;
 use nym_sphinx::addressing::{NodeIdentity, Recipient};
 
-pub const DEFAULT_PRIVATE_ENTRY_WIREGUARD_KEY_FILENAME: &str = "free_private_entry_wireguard.pem";
-pub const DEFAULT_PUBLIC_ENTRY_WIREGUARD_KEY_FILENAME: &str = "free_public_entry_wireguard.pem";
-pub const DEFAULT_PRIVATE_EXIT_WIREGUARD_KEY_FILENAME: &str = "free_private_exit_wireguard.pem";
-pub const DEFAULT_PUBLIC_EXIT_WIREGUARD_KEY_FILENAME: &str = "free_public_exit_wireguard.pem";
-
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct NymNode {
     pub identity: NodeIdentity,

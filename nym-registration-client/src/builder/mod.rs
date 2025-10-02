@@ -32,10 +32,9 @@ impl RegistrationClientBuilder {
     pub async fn build(self) -> Result<RegistrationClient, RegistrationClientError> {
         let storage = self.config.setup_storage().await?;
         let config = RegistrationClientConfig {
-            entry: self.config.entry_node,
-            exit: self.config.exit_node,
+            entry: self.config.entry_node.clone(),
+            exit: self.config.exit_node.clone(),
             two_hops: self.config.two_hops,
-            data_path: self.config.data_path.clone(),
         };
         let cancel_token = self.config.cancel_token.clone();
 

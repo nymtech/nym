@@ -50,7 +50,7 @@ This page displays a full list of all the changes during our release cycle from 
 
 ## `v2025.17-isabirra`
 
-{\*
+{/*
 TODO
 Get version print
 document new tools
@@ -62,17 +62,87 @@ change wg msg
 add new ufw command
 parse changelog
 copy edit changelog
-*\}
+*/}
 
 - [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.17-isabirra)
-- [`nym-node`](nodes/nym-node.mdx) version `1.16.0`
+- [`nym-node`](nodes/nym-node.mdx) version `1.18.0`
 
 ```sh
-
+foo
 ```
 
 ### Operators Updates & Tools
 
+
+- New program for `nym-node` automated installation: 
+
+- New Gateway landing page [template](https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/landing-page.html) and simplified [documentation for reverse proxy configuration](nodes/nym-node/configuration/proxy-configuration#html-file-customization)
+
+
+### API Changes
+
+Please read carefully below to follow up with API removal and changes to ensure that your development is up to date.
+
+#### Nym API Removed Routes
+
+All of the routes removed had already been deprecated over a year ago. This is mostly due to the fact that either they were returning only data on legacy nodes (that could never be used anyway) or required some non-sense conversions. Open the dropdown below to see removed routes
+<br/>
+<AccordionTemplate name="Removed API routes">
+
+### Legacy mixnodes related:
+ 
+- `/v1/mixnodes`
+- `/v1/mixnodes/active`
+- `/v1/mixnodes/active/detailed`
+- `/v1/mixnodes/described`
+- `/v1/mixnodes/rewarded`
+- `/v1/mixnodes/rewarded/detailed`
+- `/v1/mixnodes/detailed`
+- `/v1/mixnodes/blacklisted`
+- `/v1/status/mixnodes/active/detailed`
+- `/v1/status/mixnodes/rewarded/detailed`
+- `/v1/status/mixnodes/detailed`
+- `/v1/status/mixnodes/inclusion-probability`
+- `/v1/status/mixnodes/inclusion-probability`
+- `/v1/status/mixnode/{mix_id}/inclusion-probability`
+- `/v1/status/mixnode/{mix_id}/stake-saturation`
+- `/v1/status/mixnode/{mix_id}/status`
+- `/v1/status/mixnode/{mix_id}/reward-estimation`
+- `/v1/status/mixnode/{mix_id}/compute-reward-estimation`
+- `/v1/status/mixnodes/detailed-unfiltered`
+- `/v1/status/mixnode/{mix_id}/report`
+- `/v1/status/mixnode/{mix_id}/avg_uptime`
+ 
+### Legacy gateways related:
+ 
+- `/v1/gateways`
+- `/v1/gateways/described`
+- `/v1/gateways/blacklisted`
+- `/v1/status/gateways/detailed`
+- `/v1/status/gateways/detailed-unfiltered`
+- `/v1/status/gateway/{identity}/report`
+- `/v1/status/gateway/{identity}/avg_uptime`
+
+</AccordionTemplate>
+
+#### Structs changes:
+ 
+- `MixnodeUptimeHistoryResponse` no longer has `owner` field
+- `GatewayUptimeHistoryResponse` no longer has `owner` field
+ 
+ 
+#### New Routes Added
+
+- `/v1/nym-nodes/stake-saturation/{node_id}` - as a better replacement for `/v1/status/mixnode/{mix_id}/stake-saturation` as this information might be potentially useful and can be applied to any nym-node, not just a legacy mixnode.
+- `/v1/legacy/mixnodes` - returns a list of bonded legacy mixnodes that haven't migrated to nym-nodes
+- `/v1/legacy/gateways` - returns a list of bonded legacy gateways that haven't migrated to nym-nodes
+ 
+#### Node Status API
+ 
+Furthermore the changes remove all scraping of legacy mixnodes from NS and the following routes are removed:
+ 
+- `/v2/mixnodes/{mix_id}`
+- `/v2/mixnodes`
 
 ### Features
 

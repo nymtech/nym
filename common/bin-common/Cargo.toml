@@ -20,6 +20,7 @@ opentelemetry-otlp = { workspace = true,features=["metrics", "grpc-tonic", "tls"
 opentelemetry-semantic-conventions = { workspace = true, features = ["semconv_experimental"], optional = true }
 opentelemetry-stdout = { workspace = true, features = ["trace", "metrics"], optional = true }
 opentelemetry_sdk = { workspace = true, optional = true }
+rand = { workspace = true, optional = true }
 schemars = { workspace = true, features = ["preserve_order"], optional = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, optional = true }
@@ -53,12 +54,13 @@ tracing = [
     "tracing-tree",
 ]
 otel = [
-    "tracing",
     "opentelemetry",
     "opentelemetry-otlp",
     "opentelemetry-semantic-conventions",
     "opentelemetry-stdout",
     "opentelemetry_sdk",
+    "rand",
+    "tracing",
 ]
 clap = ["dep:clap", "dep:clap_complete", "dep:clap_complete_fig"]
 models = []

@@ -1,5 +1,6 @@
 pub mod context;
 pub mod error;
+mod compact_id_generator;
 mod trace_id_format;
 
 use tracing::{info, Level};
@@ -10,13 +11,14 @@ use tracing_subscriber::fmt;
 
 use crate::logging::{default_tracing_env_filter, default_tracing_fmt_layer};
 use crate::opentelemetry::error::TracingError;
+use crate::opentelemetry::compact_id_generator::Compact13BytesIdGenerator;
 use opentelemetry::trace::TracerProvider;
 use opentelemetry::{global, KeyValue};
 use opentelemetry_otlp::tonic_types::metadata::MetadataMap;
 use opentelemetry_otlp::tonic_types::transport::ClientTlsConfig;
 use opentelemetry_otlp::{WithExportConfig, WithTonicConfig};
 use opentelemetry_sdk::metrics::{MeterProviderBuilder, PeriodicReader, SdkMeterProvider};
-use opentelemetry_sdk::trace::{RandomIdGenerator, SdkTracerProvider};
+use opentelemetry_sdk::trace::SdkTracerProvider;
 use opentelemetry_sdk::{trace::Sampler, Resource};
 use opentelemetry_semantic_conventions::resource::{DEPLOYMENT_ENVIRONMENT_NAME, SERVICE_VERSION};
 use opentelemetry_semantic_conventions::SCHEMA_URL;
@@ -145,7 +147,7 @@ fn init_tracer_provider(metadata: MetadataMap, service_name: String) -> Result<S
         .with_sampler(Sampler::ParentBased(Box::new(Sampler::TraceIdRatioBased(
             1.0,
         ))))
-        .with_id_generator(RandomIdGenerator::default())
+        .with_id_generator(Compact13BytesIdGenerator)
         .with_resource(resource(service_name))
         .with_batch_exporter(exporter)
         .build();

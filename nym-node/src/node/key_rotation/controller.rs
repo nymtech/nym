@@ -349,7 +349,7 @@ impl KeyRotationController {
         let state_update_future = sleep(next_action.until_deadline());
         pin_mut!(state_update_future);
 
-        while !self.shutdown_token.is_cancelled() {
+        loop {
             tokio::select! {
                 biased;
                 _ = self.shutdown_token.cancelled() => {

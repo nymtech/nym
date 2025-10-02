@@ -14,7 +14,7 @@ use std::task::{Context, Poll};
 use tungstenite::{Error as WsError, Message as WsMessage};
 
 #[cfg(not(target_arch = "wasm32"))]
-use nym_task::TaskClient;
+use nym_task::ShutdownToken;
 
 pub(crate) type WsItem = Result<WsMessage, WsError>;
 
@@ -52,7 +52,7 @@ pub fn client_handshake<'a, S, R>(
     gateway_pubkey: ed25519::PublicKey,
     expects_credential_usage: bool,
     derive_aes256_gcm_siv_key: bool,
-    #[cfg(not(target_arch = "wasm32"))] shutdown: TaskClient,
+    #[cfg(not(target_arch = "wasm32"))] shutdown_token: ShutdownToken,
 ) -> GatewayHandshake<'a>
 where
     S: Stream<Item = WsItem> + Sink<WsMessage> + Unpin + Send + 'a,
@@ -64,7 +64,7 @@ where
         identity,
         Some(gateway_pubkey),
         #[cfg(not(target_arch = "wasm32"))]
-        shutdown,
+        shutdown_token,
     )
     .with_credential_usage(expects_credential_usage)
     .with_aes256_gcm_siv_key(derive_aes256_gcm_siv_key);
@@ -80,13 +80,13 @@ pub fn gateway_handshake<'a, S, R>(
     ws_stream: &'a mut S,
     identity: &'a ed25519::KeyPair,
     received_init_payload: Vec<u8>,
-    shutdown: TaskClient,
+    shutdown_token: ShutdownToken,
 ) -> GatewayHandshake<'a>
 where
     S: Stream<Item = WsItem> + Sink<WsMessage> + Unpin + Send + 'a,
     R: CryptoRng + RngCore + Send,
 {
-    let state = State::new(rng, ws_stream, identity, None, shutdown);
+    let state = State::new(rng, ws_stream, identity, None, shutdown_token);
     GatewayHandshake {
         handshake_future: Box::pin(state.perform_gateway_handshake(received_init_payload)),
     }
@@ -149,7 +149,7 @@ mod tests {
             *gateway_keys.public_key(),
             false,
             true,
-            TaskClient::dummy(),
+            ShutdownToken::default(),
         );
 
         let client_fut = handshake_client.spawn_timeboxed();
@@ -176,7 +176,7 @@ mod tests {
             gateway_ws,
             gateway_keys,
             init_msg,
-            TaskClient::dummy(),
+            ShutdownToken::default(),
         );
 
         let gateway_fut = handshake_gateway.spawn_timeboxed();

@@ -1,7 +1,7 @@
 use nym_client_core::client::base_client::ClientState;
 use nym_socks5_client_core::config::Socks5;
 use nym_sphinx::addressing::clients::Recipient;
-use nym_task::{connections::LaneQueueLengths, TaskHandle};
+use nym_task::{connections::LaneQueueLengths, ShutdownManager};
 
 use nym_topology::NymTopology;
 
@@ -18,7 +18,7 @@ pub struct Socks5MixnetClient {
     pub(crate) client_state: ClientState,
 
     /// The task manager that controls all the spawned tasks that the clients uses to do it's job.
-    pub(crate) task_handle: TaskHandle,
+    pub(crate) task_handle: ShutdownManager,
 
     /// SOCKS5 configuration parameters.
     pub(crate) socks5_config: Socks5,
@@ -82,12 +82,6 @@ impl Socks5MixnetClient {
     /// Disconnect from the mixnet. Currently it is not supported to reconnect a disconnected
     /// client.
     pub async fn disconnect(mut self) {
-        if let TaskHandle::Internal(task_manager) = &mut self.task_handle {
-            task_manager.signal_shutdown().ok();
-            task_manager.wait_for_shutdown().await;
-        }
-
-        // note: it's important to take ownership of the struct as if the shutdown is `TaskHandle::External`,
-        // it must be dropped to finalize the shutdown
+        self.task_handle.run_until_shutdown().await;
     }
 }

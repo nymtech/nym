@@ -4,6 +4,7 @@
 use super::mix_traffic::ClientRequestSender;
 use super::received_buffer::ReceivedBufferMessage;
 use super::statistics_control::StatisticsControl;
+use crate::client::base_client::helpers::ShutdownHelper;
 use crate::client::base_client::storage::helpers::store_client_keys;
 use crate::client::base_client::storage::MixnetClientStorage;
 use crate::client::cover_traffic_stream::LoopCoverTrafficStream;
@@ -27,13 +28,13 @@ use crate::client::topology_control::nym_api_provider::NymApiTopologyProvider;
 use crate::client::topology_control::{
     TopologyAccessor, TopologyRefresher, TopologyRefresherConfig,
 };
+use crate::config;
 use crate::config::{Config, DebugConfig};
 use crate::error::ClientCoreError;
 use crate::init::{
     setup_gateway,
     types::{GatewaySetup, InitialisationResult},
 };
-use crate::{config, spawn_future};
 use futures::channel::mpsc;
 use nym_bandwidth_controller::BandwidthController;
 use nym_client_core_config_types::{ForgetMe, RememberMe};
@@ -48,16 +49,15 @@ use nym_gateway_client::{
 use nym_sphinx::acknowledgements::AckKey;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::addressing::nodes::NodeIdentity;
-use nym_sphinx::params::PacketType;
 use nym_sphinx::receiver::{ReconstructedMessage, SphinxMessageReceiver};
 use nym_statistics_common::clients::ClientStatsSender;
 use nym_statistics_common::generate_client_stats_id;
 use nym_task::connections::{ConnectionCommandReceiver, ConnectionCommandSender, LaneQueueLengths};
-use nym_task::{TaskClient, TaskHandle};
+use nym_task::{ShutdownManager, ShutdownTracker};
 use nym_topology::provider_trait::TopologyProvider;
 use nym_topology::HardcodedTopologyProvider;
 use nym_validator_client::nym_api::NymApiClientExt;
-use nym_validator_client::{nyxd::contract_traits::DkgQueryClient, NymApiClient, UserAgent};
+use nym_validator_client::{nyxd::contract_traits::DkgQueryClient, UserAgent};
 use rand::prelude::SliceRandom;
 use rand::rngs::OsRng;
 use rand::thread_rng;
@@ -95,7 +95,6 @@ impl ClientInput {
     }
 }
 
-#[derive(Clone)]
 pub struct ClientOutput {
     pub received_buffer_request_sender: ReceivedBufferRequestSender,
 }
@@ -195,7 +194,7 @@ pub struct BaseClientBuilder<C, S: MixnetClientStorage> {
     wait_for_gateway: bool,
     custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
     custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send>>,
-    shutdown: Option<TaskClient>,
+    shutdown: Option<ShutdownTracker>,
     user_agent: Option<UserAgent>,
 
     setup_method: GatewaySetup,
@@ -281,7 +280,7 @@ where
     }
 
     #[must_use]
-    pub fn with_shutdown(mut self, shutdown: TaskClient) -> Self {
+    pub fn with_shutdown(mut self, shutdown: ShutdownTracker) -> Self {
         self.shutdown = Some(shutdown);
         self
     }
@@ -325,11 +324,11 @@ where
         topology_accessor: TopologyAccessor,
         mix_tx: BatchMixMessageSender,
         stats_tx: ClientStatsSender,
-        task_client: TaskClient,
+        shutdown_tracker: &ShutdownTracker,
     ) {
         info!("Starting loop cover traffic stream...");
 
-        let stream = LoopCoverTrafficStream::new(
+        let mut stream = LoopCoverTrafficStream::new(
             ack_key,
             debug_config.acknowledgements.average_ack_delay,
             mix_tx,
@@ -338,10 +337,9 @@ where
             debug_config.traffic,
             debug_config.cover_traffic,
             stats_tx,
-            task_client,
         );
-
-        stream.start();
+        shutdown_tracker
+            .try_spawn_named_with_shutdown(async move { stream.run().await }, "CoverTrafficStream");
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -357,13 +355,12 @@ where
         reply_controller_receiver: ReplyControllerReceiver,
         lane_queue_lengths: LaneQueueLengths,
         client_connection_rx: ConnectionCommandReceiver,
-        task_client: TaskClient,
-        packet_type: PacketType,
         stats_tx: ClientStatsSender,
+        shutdown_tracker: &ShutdownTracker,
     ) {
         info!("Starting real traffic stream...");
 
-        RealMessagesController::new(
+        let real_messages_controller = RealMessagesController::new(
             controller_config,
             key_rotation_config,
             ack_receiver,
@@ -376,9 +373,63 @@ where
             lane_queue_lengths,
             client_connection_rx,
             stats_tx,
-            task_client,
-        )
-        .start(packet_type);
+            shutdown_tracker.clone_shutdown_token(),
+        );
+
+        // break out all the subtasks
+        let (mut out_queue_control, mut reply_controller, ack_controller) =
+            real_messages_controller.into_tasks();
+        let (
+            mut ack_listener,
+            mut input_listener,
+            mut retransmission_listener,
+            mut sent_notification_listener,
+            mut ack_action_controller,
+        ) = ack_controller.into_tasks();
+
+        shutdown_tracker.try_spawn_named(
+            async move { out_queue_control.run().await },
+            "RealMessagesController::OutQueueControl",
+        );
+
+        let shutdown_token = shutdown_tracker.clone_shutdown_token();
+        shutdown_tracker.try_spawn_named(
+            async move { reply_controller.run(shutdown_token).await },
+            "RealMessagesController::ReplyController",
+        );
+
+        let shutdown_token = shutdown_tracker.clone_shutdown_token();
+        shutdown_tracker.try_spawn_named(
+            async move { ack_listener.run(shutdown_token).await },
+            "AcknowledgementController::AcknowledgementListener",
+        );
+
+        let shutdown_token = shutdown_tracker.clone_shutdown_token();
+        shutdown_tracker.try_spawn_named(
+            async move { input_listener.run(shutdown_token).await },
+            "AcknowledgementController::InputMessageListener",
+        );
+
+        let shutdown_token = shutdown_tracker.clone_shutdown_token();
+        shutdown_tracker.try_spawn_named(
+            async move { retransmission_listener.run(shutdown_token).await },
+            "AcknowledgementController::RetransmissionRequestListener",
+        );
+
+        shutdown_tracker.try_spawn_named_with_shutdown(
+            async move {
+                sent_notification_listener.run().await;
+            },
+            "AcknowledgementController::SentNotificationListener",
+        );
+
+        let shutdown_token = shutdown_tracker.clone_shutdown_token();
+        shutdown_tracker.try_spawn_named(
+            async move { ack_action_controller.run(shutdown_token).await },
+            "AcknowledgementController::ActionController",
+        );
+
+        // .start(packet_type);
     }
 
     // buffer controlling all messages fetched from provider
@@ -389,21 +440,29 @@ where
         mixnet_receiver: MixnetMessageReceiver,
         reply_key_storage: SentReplyKeys,
         reply_controller_sender: ReplyControllerSender,
-        shutdown: TaskClient,
         metrics_reporter: ClientStatsSender,
+        shutdown_tracker: &ShutdownTracker,
     ) {
         info!("Starting received messages buffer controller...");
-        let controller: ReceivedMessagesBufferController<SphinxMessageReceiver> =
-            ReceivedMessagesBufferController::new(
-                local_encryption_keypair,
-                query_receiver,
-                mixnet_receiver,
-                reply_key_storage,
-                reply_controller_sender,
-                metrics_reporter,
-                shutdown,
-            );
-        controller.start()
+        let controller = ReceivedMessagesBufferController::<SphinxMessageReceiver>::new(
+            local_encryption_keypair,
+            query_receiver,
+            mixnet_receiver,
+            reply_key_storage,
+            reply_controller_sender,
+            metrics_reporter,
+            shutdown_tracker.clone_shutdown_token(),
+        );
+        let (mut msg_receiver, mut req_receiver) = controller.into_tasks();
+
+        shutdown_tracker.try_spawn_named(
+            async move { msg_receiver.run().await },
+            "ReceivedMessagesBufferController::FragmentedMessageReceiver",
+        );
+        shutdown_tracker.try_spawn_named(
+            async move { req_receiver.run().await },
+            "ReceivedMessagesBufferController::RequestReceiver",
+        );
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -415,7 +474,7 @@ where
         packet_router: PacketRouter,
         stats_reporter: ClientStatsSender,
         #[cfg(unix)] connection_fd_callback: Option<Arc<dyn Fn(RawFd) + Send + Sync>>,
-        shutdown: TaskClient,
+        shutdown_tracker: &ShutdownTracker,
     ) -> Result<GatewayClient<C, S::CredentialStore>, ClientCoreError>
     where
         <S::KeyStore as KeyStore>::StorageError: Send + Sync + 'static,
@@ -434,7 +493,7 @@ where
                     packet_router,
                     bandwidth_controller,
                     stats_reporter,
-                    shutdown,
+                    shutdown_tracker.clone_shutdown_token(),
                 )
             } else {
                 let cfg = GatewayConfig::new(
@@ -459,7 +518,7 @@ where
                     stats_reporter,
                     #[cfg(unix)]
                     connection_fd_callback,
-                    shutdown,
+                    shutdown_tracker.clone_shutdown_token(),
                 )
             };
 
@@ -522,7 +581,7 @@ where
         packet_router: PacketRouter,
         stats_reporter: ClientStatsSender,
         #[cfg(unix)] connection_fd_callback: Option<Arc<dyn Fn(RawFd) + Send + Sync>>,
-        mut shutdown: TaskClient,
+        shutdown_tracker: &ShutdownTracker,
     ) -> Result<Box<dyn GatewayTransceiver + Send>, ClientCoreError>
     where
         <S::KeyStore as KeyStore>::StorageError: Send + Sync + 'static,
@@ -539,7 +598,6 @@ where
                 Err(ClientCoreError::CustomGatewaySelectionExpected)
             } else {
                 // and make sure to invalidate the task client, so we wouldn't cause premature shutdown
-                shutdown.disarm();
                 custom_gateway_transceiver.set_packet_router(packet_router)?;
                 Ok(custom_gateway_transceiver)
             };
@@ -555,7 +613,7 @@ where
             stats_reporter,
             #[cfg(unix)]
             connection_fd_callback,
-            shutdown,
+            shutdown_tracker,
         )
         .await?;
 
@@ -566,7 +624,7 @@ where
         custom_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
         config_topology: config::Topology,
         nym_api_urls: Vec<Url>,
-        nym_api_client: NymApiClient,
+        nym_api_client: nym_http_api_client::Client,
     ) -> Box<dyn TopologyProvider + Send + Sync> {
         // if no custom provider was ... provided ..., create one using nym-api
         custom_provider.unwrap_or_else(|| {
@@ -586,22 +644,20 @@ where
         topology_accessor: TopologyAccessor,
         local_gateway: NodeIdentity,
         wait_for_gateway: bool,
-        mut task_client: TaskClient,
+        shutdown_tracker: &ShutdownTracker,
     ) -> Result<(), ClientCoreError> {
         let topology_refresher_config =
             TopologyRefresherConfig::new(topology_config.topology_refresh_rate);
 
         if topology_config.disable_refreshing {
             // if we're not spawning the refresher, don't cause shutdown immediately
-            info!("The background topology refesher is not going to be started");
-            task_client.disarm();
+            info!("The background topology refresher is not going to be started");
         }
 
         let mut topology_refresher = TopologyRefresher::new(
             topology_refresher_config,
             topology_accessor,
             topology_provider,
-            task_client,
         );
         // before returning, block entire runtime to refresh the current network view so that any
         // components depending on topology would see a non-empty view
@@ -646,7 +702,10 @@ where
             // don't spawn the refresher if we don't want to be refreshing the topology.
             // only use the initial values obtained
             info!("Starting topology refresher...");
-            topology_refresher.start();
+            shutdown_tracker.try_spawn_named_with_shutdown(
+                async move { topology_refresher.run().await },
+                "TopologyRefresher",
+            );
         }
 
         Ok(())
@@ -657,7 +716,7 @@ where
         user_agent: Option<UserAgent>,
         client_stats_id: String,
         input_sender: Sender<InputMessage>,
-        task_client: TaskClient,
+        shutdown_tracker: &ShutdownTracker,
     ) -> ClientStatsSender {
         info!("Starting statistics control...");
         StatisticsControl::create_and_start(
@@ -667,18 +726,23 @@ where
                 .unwrap_or("unknown".to_string()),
             client_stats_id,
             input_sender.clone(),
-            task_client,
+            shutdown_tracker,
         )
     }
 
     fn start_mix_traffic_controller(
         gateway_transceiver: Box<dyn GatewayTransceiver + Send>,
-        shutdown: TaskClient,
+        shutdown_tracker: &ShutdownTracker,
     ) -> (BatchMixMessageSender, ClientRequestSender) {
         info!("Starting mix traffic controller...");
-        let (mix_traffic_controller, mix_tx, client_tx) =
-            MixTrafficController::new(gateway_transceiver, shutdown);
-        mix_traffic_controller.start();
+        let (mut mix_traffic_controller, mix_tx, client_tx) =
+            MixTrafficController::new(gateway_transceiver, shutdown_tracker.clone_shutdown_token());
+
+        shutdown_tracker.try_spawn_named(
+            async move { mix_traffic_controller.run().await },
+            "MixTrafficController",
+        );
+
         (mix_tx, client_tx)
     }
 
@@ -686,7 +750,7 @@ where
     async fn setup_persistent_reply_storage(
         backend: S::ReplyStore,
         key_rotation_config: KeyRotationConfig,
-        shutdown: TaskClient,
+        shutdown_tracker: &ShutdownTracker,
     ) -> Result<CombinedReplyStorage, ClientCoreError>
     where
         <S::ReplyStore as ReplyStorageBackend>::StorageError: Sync + Send,
@@ -711,13 +775,14 @@ where
             })?;
 
         let store_clone = mem_store.clone();
-        spawn_future!(
+        let shutdown_token = shutdown_tracker.clone_shutdown_token();
+        shutdown_tracker.try_spawn_named(
             async move {
                 persistent_storage
-                    .flush_on_shutdown(store_clone, shutdown)
+                    .flush_on_shutdown(store_clone, shutdown_token)
                     .await
             },
-            "PersistentReplyStorage::flush_on_shutdown"
+            "PersistentReplyStorage::flush_on_shutdown",
         );
 
         Ok(mem_store)
@@ -749,21 +814,29 @@ where
         setup_gateway(setup_method, key_store, details_store).await
     }
 
-    fn construct_nym_api_client(config: &Config, user_agent: Option<UserAgent>) -> NymApiClient {
+    fn construct_nym_api_client(
+        config: &Config,
+        user_agent: Option<UserAgent>,
+    ) -> Result<nym_http_api_client::Client, ClientCoreError> {
         let mut nym_api_urls = config.get_nym_api_endpoints();
         nym_api_urls.shuffle(&mut thread_rng());
 
+        let mut builder = nym_http_api_client::Client::builder(nym_api_urls[0].clone())
+            .map_err(ClientCoreError::from)?;
+
         if let Some(user_agent) = user_agent {
-            NymApiClient::new_with_user_agent(nym_api_urls[0].clone(), user_agent)
-        } else {
-            NymApiClient::new(nym_api_urls[0].clone())
+            builder = builder.with_user_agent(user_agent);
         }
+
+        builder = builder.with_bincode();
+
+        builder.build().map_err(ClientCoreError::from)
     }
 
     async fn determine_key_rotation_state(
-        client: &NymApiClient,
+        client: &nym_http_api_client::Client,
     ) -> Result<KeyRotationConfig, ClientCoreError> {
-        Ok(client.nym_api.get_key_rotation_info().await?.into())
+        Ok(client.get_key_rotation_info().await?.into())
     }
 
     pub async fn start_base(mut self) -> Result<BaseClient, ClientCoreError>
@@ -809,11 +882,7 @@ where
             TopologyAccessor::new(self.config.debug.topology.ignore_egress_epoch_role);
 
         // Shutdown notifier for signalling tasks to stop
-        let shutdown = self
-            .shutdown
-            .map(Into::<TaskHandle>::into)
-            .unwrap_or_default()
-            .name_if_unnamed("BaseNymClient");
+        let shutdown = ShutdownHelper::new(self.shutdown)?;
 
         // channels responsible for dealing with reply-related fun
         let (reply_controller_sender, reply_controller_receiver) =
@@ -830,7 +899,7 @@ where
             .dkg_query_client
             .map(|client| BandwidthController::new(credential_store, client));
 
-        let nym_api_client = Self::construct_nym_api_client(&self.config, self.user_agent.clone());
+        let nym_api_client = Self::construct_nym_api_client(&self.config, self.user_agent.clone())?;
         let key_rotation_config = Self::determine_key_rotation_state(&nym_api_client).await?;
 
         let topology_provider = Self::setup_topology_provider(
@@ -845,7 +914,7 @@ where
             self.user_agent.clone(),
             generate_client_stats_id(*self_address.identity()),
             input_sender.clone(),
-            shutdown.fork("statistics_control"),
+            shutdown.tracker(),
         );
 
         // needs to be started as the first thing to block if required waiting for the gateway
@@ -855,14 +924,14 @@ where
             shared_topology_accessor.clone(),
             self_address.gateway(),
             self.wait_for_gateway,
-            shutdown.fork("topology_refresher"),
+            shutdown.tracker(),
         )
         .await?;
 
         let gateway_packet_router = PacketRouter::new(
             ack_sender,
             mixnet_messages_sender,
-            shutdown.get_handle().named("gateway-packet-router"),
+            shutdown.shutdown_token(),
         );
 
         let gateway_transceiver = Self::setup_gateway_transceiver(
@@ -875,7 +944,7 @@ where
             stats_reporter.clone(),
             #[cfg(unix)]
             self.connection_fd_callback,
-            shutdown.fork("gateway_transceiver"),
+            shutdown.tracker(),
         )
         .await?;
         let gateway_ws_fd = gateway_transceiver.ws_fd();
@@ -883,7 +952,7 @@ where
         let reply_storage = Self::setup_persistent_reply_storage(
             reply_storage_backend,
             key_rotation_config,
-            shutdown.fork("persistent_reply_storage"),
+            shutdown.tracker(),
         )
         .await?;
 
@@ -893,8 +962,8 @@ where
             mixnet_messages_receiver,
             reply_storage.key_storage(),
             reply_controller_sender.clone(),
-            shutdown.fork("received_messages_buffer"),
             stats_reporter.clone(),
+            shutdown.tracker(),
         );
 
         // The message_sender is the transmitter for any component generating sphinx packets
@@ -902,10 +971,8 @@ where
         // traffic stream.
         // The MixTrafficController then sends the actual traffic
 
-        let (message_sender, client_request_sender) = Self::start_mix_traffic_controller(
-            gateway_transceiver,
-            shutdown.fork("mix_traffic_controller"),
-        );
+        let (message_sender, client_request_sender) =
+            Self::start_mix_traffic_controller(gateway_transceiver, shutdown.tracker());
 
         // Channels that the websocket listener can use to signal downstream to the real traffic
         // controller that connections are closed.
@@ -933,9 +1000,8 @@ where
             reply_controller_receiver,
             shared_lane_queue_lengths.clone(),
             client_connection_rx,
-            shutdown.fork("real_traffic_controller"),
-            self.config.debug.traffic.packet_type,
             stats_reporter.clone(),
+            shutdown.tracker(),
         );
 
         if !self
@@ -951,7 +1017,7 @@ where
                 shared_topology_accessor.clone(),
                 message_sender,
                 stats_reporter.clone(),
-                shutdown.fork("cover_traffic_stream"),
+                shutdown.tracker(),
             );
         }
 
@@ -979,7 +1045,7 @@ where
                 gateway_connection: GatewayConnection { gateway_ws_fd },
             },
             stats_reporter,
-            task_handle: shutdown,
+            shutdown_handle: shutdown.into_internal(),
             client_request_sender,
             forget_me: self.config.debug.forget_me,
             remember_me: self.config.debug.remember_me,
@@ -995,7 +1061,7 @@ pub struct BaseClient {
     pub client_state: ClientState,
     pub stats_reporter: ClientStatsSender,
     pub client_request_sender: ClientRequestSender,
-    pub task_handle: TaskHandle,
+    pub shutdown_handle: Option<ShutdownManager>,
     pub forget_me: ForgetMe,
     pub remember_me: RememberMe,
 }

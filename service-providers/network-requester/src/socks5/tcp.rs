@@ -9,7 +9,7 @@ use nym_socks5_proxy_helpers::proxy_runner::{MixProxySender, ProxyRunner};
 use nym_socks5_requests::{ConnectionId, RemoteAddress, Socks5Request};
 use nym_sphinx::params::PacketSize;
 use nym_task::connections::LaneQueueLengths;
-use nym_task::TaskClient;
+use nym_task::ShutdownTracker;
 use std::io;
 use tokio::net::TcpStream;
 
@@ -47,7 +47,7 @@ impl Connection {
         mix_receiver: ConnectionReceiver,
         mix_sender: MixProxySender<MixnetMessage>,
         lane_queue_lengths: LaneQueueLengths,
-        shutdown: TaskClient,
+        shutdown: ShutdownTracker,
     ) {
         let stream = self.conn.take().unwrap();
         let remote_source_address = "???".to_string(); // we don't know ip address of requester

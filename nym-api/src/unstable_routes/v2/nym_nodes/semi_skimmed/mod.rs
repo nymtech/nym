@@ -1,10 +1,9 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::node_describe_cache::cache::DescribedNodes;
 use crate::node_status_api::models::AxumResult;
 use crate::support::http::state::AppState;
-use crate::unstable_routes::helpers::{refreshed_at, LegacyAnnotation};
+use crate::unstable_routes::helpers::refreshed_at;
 use crate::unstable_routes::v2::nym_nodes::helpers::NodesParamsWithRole;
 use axum::extract::{Query, State};
 use nym_api_requests::models::{
@@ -16,7 +15,6 @@ use nym_http_api_common::FormattedResponse;
 use nym_mixnet_contract_common::NodeId;
 use nym_topology::CachedEpochRewardedSet;
 use std::collections::HashMap;
-use tracing::trace;
 use utoipa::ToSchema;
 
 pub type PaginatedSemiSkimmedNodes =
@@ -57,39 +55,6 @@ where
     nodes
 }
 
-//SW TODO : this is copied from skimmed nodes, surely we can do better than that
-/// Given all relevant caches, add appropriate legacy nodes to the part of the response
-fn add_legacy<LN>(
-    nodes: &mut Vec<SemiSkimmedNode>,
-    rewarded_set: &CachedEpochRewardedSet,
-    describe_cache: &DescribedNodes,
-    annotated_legacy_nodes: &HashMap<NodeId, LN>,
-    current_key_rotation: u32,
-) where
-    LN: LegacyAnnotation,
-{
-    for (node_id, legacy) in annotated_legacy_nodes.iter() {
-        let role: NodeRole = rewarded_set.role(*node_id).into();
-
-        // if we have self-described info, prefer it over contract data
-        if let Some(described) = describe_cache.get_node(node_id) {
-            nodes.push(described.to_semi_skimmed_node(
-                current_key_rotation,
-                role,
-                legacy.performance(),
-            ))
-        } else {
-            match legacy.try_to_semi_skimmed_node(role) {
-                Ok(node) => nodes.push(node),
-                Err(err) => {
-                    let id = legacy.identity();
-                    trace!("node {id} is malformed: {err}")
-                }
-            }
-        }
-    }
-}
-
 #[allow(dead_code)] // not dead, used in OpenAPI docs
 #[derive(ToSchema)]
 #[schema(title = "PaginatedCachedNodesExpandedResponseSchema")]
@@ -102,7 +67,8 @@ pub struct PaginatedCachedNodesExpandedResponseSchema {
 /// Return all Nym Nodes and optionally legacy mixnodes/gateways (if `no-legacy` flag is not used)
 /// that are currently bonded.
 #[utoipa::path(
-    tag = "Unstable Nym Nodes",
+    operation_id = "v2_nodes_expanded",
+    tag = "Unstable Nym Nodes v2",
     get,
     params(NodesParamsWithRole),
     path = "",
@@ -125,14 +91,12 @@ pub(super) async fn nodes_expanded(
     let describe_cache = state.describe_nodes_cache_data().await?;
     let all_nym_nodes = describe_cache.all_nym_nodes();
     let annotations = state.node_annotations().await?;
-    let legacy_mixnodes = state.legacy_mixnode_annotations().await?;
-    let legacy_gateways = state.legacy_gateways_annotations().await?;
 
     let contract_cache = state.nym_contract_cache();
     let current_key_rotation = contract_cache.current_key_rotation_id().await?;
     let interval = contract_cache.current_interval().await?;
 
-    let mut nodes = build_nym_nodes_response(
+    let nodes = build_nym_nodes_response(
         &rewarded_set,
         all_nym_nodes,
         &annotations,
@@ -140,31 +104,11 @@ pub(super) async fn nodes_expanded(
         false,
     );
 
-    // add legacy gateways to the response
-    add_legacy(
-        &mut nodes,
-        &rewarded_set,
-        &describe_cache,
-        &legacy_gateways,
-        current_key_rotation,
-    );
-
-    // add legacy mixnodes to the response
-    add_legacy(
-        &mut nodes,
-        &rewarded_set,
-        &describe_cache,
-        &legacy_mixnodes,
-        current_key_rotation,
-    );
-
     // min of all caches
     let refreshed_at = refreshed_at([
         rewarded_set.timestamp(),
         annotations.timestamp(),
         describe_cache.timestamp(),
-        legacy_mixnodes.timestamp(),
-        legacy_gateways.timestamp(),
     ]);
 
     let output = query_params.output.unwrap_or_default();

@@ -12,7 +12,7 @@ use crate::support::config;
 use nym_mixnet_contract_common::NodeId;
 use nym_sphinx::params::PacketType;
 use nym_sphinx::receiver::MessageReceiver;
-use nym_task::TaskClient;
+use nym_task::ShutdownToken;
 use std::collections::{HashMap, HashSet};
 use tokio::time::{sleep, Duration, Instant};
 use tracing::{debug, error, info, trace};
@@ -291,8 +291,6 @@ impl<R: MessageReceiver + Send + Sync> Monitor<R> {
             prepared_packets.mixnodes_under_test,
             prepared_packets.gateways_under_test,
             received,
-            prepared_packets.invalid_mixnodes,
-            prepared_packets.invalid_gateways,
             routes,
         );
 
@@ -325,7 +323,7 @@ impl<R: MessageReceiver + Send + Sync> Monitor<R> {
         self.test_nonce += 1;
     }
 
-    pub(crate) async fn run(&mut self, mut shutdown: TaskClient) {
+    pub(crate) async fn run(&mut self, shutdown_token: ShutdownToken) {
         self.received_processor.start_receiving();
 
         // wait for validator cache to be ready
@@ -334,20 +332,24 @@ impl<R: MessageReceiver + Send + Sync> Monitor<R> {
             .await;
 
         let mut run_interval = tokio::time::interval(self.run_interval);
-        while !shutdown.is_shutdown() {
+        loop {
             tokio::select! {
+                biased;
+                _ = shutdown_token.cancelled() => {
+                    trace!("UpdateHandler: Received shutdown");
+                    break;
+                }
                 _  = run_interval.tick() => {
                     tokio::select! {
                         biased;
-                        _ = shutdown.recv() => {
+                        _ = shutdown_token.cancelled() => {
                             trace!("UpdateHandler: Received shutdown");
+                            break;
                         }
                         _ = self.test_run() => (),
                     }
                 }
-                _ = shutdown.recv() => {
-                    trace!("UpdateHandler: Received shutdown");
-                }
+
             }
         }
     }

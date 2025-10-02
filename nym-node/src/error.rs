@@ -302,6 +302,6 @@ pub enum ServiceProvidersError {
 
 impl From<HttpClientError> for NymNodeError {
     fn from(value: HttpClientError) -> Self {
-        Self::HttpFailure(NymNodeHttpError::ClientError { source: value })
+        Self::HttpFailure(NymNodeHttpError::from(value))
     }
 }

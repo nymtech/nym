@@ -1,59 +1,12 @@
 // Copyright 2024 Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::{cli::Cli, http::HttpServer};
 use nym_bin_common::bin_info;
-use time::OffsetDateTime;
-use tokio_util::sync::CancellationToken;
-use tracing::{debug, error, info, warn};
-
-use crate::{
-    cli::Cli,
-    deposit_maker::DepositMaker,
-    error::VpnApiError,
-    http::{
-        state::{ApiState, ChainClient},
-        HttpServer,
-    },
-    storage::VpnApiStorage,
-    tasks::StoragePruner,
-};
-
-pub struct LockTimer {
-    created: OffsetDateTime,
-    message: String,
-}
-
-impl LockTimer {
-    pub fn new<S: Into<String>>(message: S) -> Self {
-        LockTimer {
-            message: message.into(),
-            ..Default::default()
-        }
-    }
-}
-
-impl Drop for LockTimer {
-    fn drop(&mut self) {
-        let time_taken = OffsetDateTime::now_utc() - self.created;
-        let time_taken_formatted = humantime::format_duration(time_taken.unsigned_abs());
-        if time_taken > time::Duration::SECOND * 10 {
-            warn!(time_taken = %time_taken_formatted, "{}", self.message)
-        } else if time_taken > time::Duration::SECOND * 5 {
-            info!(time_taken = %time_taken_formatted, "{}", self.message)
-        } else {
-            debug!(time_taken = %time_taken_formatted, "{}", self.message)
-        };
-    }
-}
-
-impl Default for LockTimer {
-    fn default() -> Self {
-        LockTimer {
-            created: OffsetDateTime::now_utc(),
-            message: "released the lock".to_string(),
-        }
-    }
-}
+use nym_credential_proxy_lib::error::CredentialProxyError;
+use nym_credential_proxy_lib::storage::CredentialProxyStorage;
+use nym_credential_proxy_lib::ticketbook_manager::TicketbookManager;
+use tracing::{error, info};
 
 pub async fn wait_for_signal() {
     use tokio::signal::unix::{signal, SignalKind};
@@ -77,6 +30,7 @@ pub async fn wait_for_signal() {
     }
 }
 
+#[allow(clippy::panic)]
 fn build_sha_short() -> &'static str {
     let bin_info = bin_info!();
     if bin_info.commit_sha.len() < 7 {
@@ -91,51 +45,34 @@ fn build_sha_short() -> &'static str {
     &bin_info.commit_sha[..7]
 }
 
-pub(crate) async fn run_api(cli: Cli) -> Result<(), VpnApiError> {
-    // create the tasks
+pub(crate) async fn run_api(cli: Cli) -> Result<(), CredentialProxyError> {
     let bind_address = cli.bind_address();
-
-    let storage = VpnApiStorage::init(cli.persistent_storage_path()).await?;
+    let storage = CredentialProxyStorage::init(cli.persistent_storage_path()).await?;
     let mnemonic = cli.mnemonic;
     let auth_token = cli.http_auth_token;
     let webhook_cfg = cli.webhook;
-    let chain_client = ChainClient::new(mnemonic)?;
-    let cancellation_token = CancellationToken::new();
 
-    let deposit_maker = DepositMaker::new(
+    let ticketbook_manager = TicketbookManager::new(
         build_sha_short(),
-        chain_client.clone(),
+        cli.quorum_check_interval,
+        cli.deposits_buffer_size,
         cli.max_concurrent_deposits,
-        cancellation_token.clone(),
-    );
-
-    let deposit_request_sender = deposit_maker.deposit_request_sender();
-    let api_state = ApiState::new(
-        storage.clone(),
-        webhook_cfg,
-        chain_client,
-        deposit_request_sender,
-        cancellation_token.clone(),
+        storage,
+        mnemonic,
+        webhook_cfg.try_into()?,
     )
     .await?;
-    let http_server = HttpServer::new(
-        bind_address,
-        api_state.clone(),
-        auth_token,
-        cancellation_token.clone(),
-    );
-    let storage_pruner = StoragePruner::new(cancellation_token, storage);
 
-    // spawn all the tasks
-    api_state.try_spawn(http_server.run_forever());
-    api_state.try_spawn(storage_pruner.run_forever());
-    api_state.try_spawn(deposit_maker.run_forever());
+    let http_server = HttpServer::new(bind_address, ticketbook_manager.clone(), auth_token);
+
+    // spawn the http server as a separate task / thread(-ish)
+    http_server.spawn_as_task();
 
     // wait for cancel signal (SIGINT, SIGTERM or SIGQUIT)
     wait_for_signal().await;
 
     // cancel all the tasks and wait for all task to terminate
-    api_state.cancel_and_wait().await;
+    ticketbook_manager.cancel_and_wait().await;
 
     Ok(())
 }

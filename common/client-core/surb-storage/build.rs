@@ -2,23 +2,24 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #[tokio::main]
-async fn main() {
+async fn main() -> anyhow::Result<()> {
     #[cfg(feature = "fs-surb-storage")]
     {
+        use anyhow::Context;
         use sqlx::{Connection, SqliteConnection};
         use std::env;
 
-        let out_dir = env::var("OUT_DIR").unwrap();
+        let out_dir = env::var("OUT_DIR")?;
         let database_path = format!("{out_dir}/fs-surbs-example.sqlite");
 
         let mut conn = SqliteConnection::connect(&format!("sqlite://{database_path}?mode=rwc"))
             .await
-            .expect("Failed to create SQLx database connection");
+            .context("Failed to create SQLx database connection")?;
 
         sqlx::migrate!("./fs_surbs_migrations")
             .run(&mut conn)
             .await
-            .expect("Failed to perform SQLx migrations");
+            .context("Failed to perform SQLx migrations")?;
 
         #[cfg(target_family = "unix")]
         println!("cargo:rustc-env=DATABASE_URL=sqlite://{}", &database_path);
@@ -28,4 +29,6 @@ async fn main() {
         // not a valid windows path... but hey, it works...
         println!("cargo:rustc-env=DATABASE_URL=sqlite:///{}", &database_path);
     }
+
+    Ok(())
 }

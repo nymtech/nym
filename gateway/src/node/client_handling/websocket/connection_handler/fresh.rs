@@ -32,7 +32,7 @@ use nym_gateway_storage::traits::InboxGatewayStorage;
 use nym_gateway_storage::traits::SharedKeyGatewayStorage;
 use nym_node_metrics::events::MetricsEvent;
 use nym_sphinx::DestinationAddressBytes;
-use nym_task::TaskClient;
+use nym_task::ShutdownToken;
 use rand::CryptoRng;
 use std::net::SocketAddr;
 use std::time::Duration;
@@ -127,7 +127,7 @@ pub(crate) struct FreshHandler<R, S> {
     pub(crate) shared_state: CommonHandlerState,
     pub(crate) socket_connection: SocketStream<S>,
     pub(crate) peer_address: SocketAddr,
-    pub(crate) shutdown: TaskClient,
+    pub(crate) shutdown: ShutdownToken,
 
     // currently unused (but populated)
     pub(crate) negotiated_protocol: Option<u8>,
@@ -145,7 +145,7 @@ impl<R, S> FreshHandler<R, S> {
         conn: S,
         shared_state: CommonHandlerState,
         peer_address: SocketAddr,
-        shutdown: TaskClient,
+        shutdown: ShutdownToken,
     ) -> Self {
         FreshHandler {
             rng,
@@ -917,21 +917,13 @@ impl<R, S> FreshHandler<R, S> {
 
     pub(crate) async fn handle_until_authenticated_or_failure(
         mut self,
-        shutdown: &mut TaskClient,
     ) -> Option<AuthenticatedHandler<R, S>>
     where
         S: AsyncRead + AsyncWrite + Unpin + Send,
         R: CryptoRng + RngCore + Send,
     {
-        while !shutdown.is_shutdown() {
-            let req = tokio::select! {
-                biased;
-                _ = shutdown.recv() => {
-                    return None
-                },
-                req = self.wait_for_initial_message() => req,
-            };
-
+        loop {
+            let req = self.wait_for_initial_message().await;
             let initial_request = match req {
                 Ok(req) => req,
                 Err(err) => {
@@ -972,8 +964,6 @@ impl<R, S> FreshHandler<R, S> {
                 .ok();
             }
         }
-
-        None
     }
 
     pub(crate) async fn wait_for_initial_message(
@@ -1031,6 +1021,15 @@ impl<R, S> FreshHandler<R, S> {
         S: AsyncRead + AsyncWrite + Unpin + Send,
         R: CryptoRng + RngCore + Send,
     {
-        super::handle_connection(self).await
+        let remote = self.peer_address;
+        let shutdown = self.shutdown.clone();
+        tokio::select! {
+            _ = shutdown.cancelled() => {
+                trace!("received cancellation")
+            }
+            _ = super::handle_connection(self) => {
+                debug!("finished connection handler for {remote}")
+            }
+        }
     }
 }

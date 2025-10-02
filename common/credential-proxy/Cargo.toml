@@ -1,0 +1,55 @@
+[package]
+name = "nym-credential-proxy-lib"
+version = "0.1.0"
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+readme.workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+axum = { workspace = true }
+bip39 = { workspace = true, features = ["zeroize"] }
+bs58 = { workspace = true }
+futures = { workspace = true }
+humantime = { workspace = true }
+rand = { workspace = true }
+reqwest = { workspace = true, features = ["rustls-tls"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+strum = { workspace = true, features = ["derive"] }
+strum_macros = { workspace = true }
+sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate", "time"] }
+time = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["sync"] }
+tokio-util = { workspace = true, features = ["rt"] }
+tracing = { workspace = true }
+uuid = { workspace = true, features = ["serde"] }
+url = { workspace = true }
+zeroize = { workspace = true }
+
+nym-credentials = { path = "../credentials" }
+nym-crypto = { path = "../crypto", features = ["asymmetric", "rand", "serde"] }
+nym-credentials-interface = { path = "../credentials-interface" }
+nym-credential-proxy-requests = { path = "../../nym-credential-proxy/nym-credential-proxy-requests" }
+nym-ecash-signer-check = { path = "../ecash-signer-check" }
+nym-ecash-contract-common = { path = "../cosmwasm-smart-contracts/ecash-contract" }
+nym-compact-ecash = { path = "../nym_offline_compact_ecash" }
+nym-validator-client = { path = "../client-libs/validator-client" }
+nym-network-defaults = { path = "../network-defaults" }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+
+[build-dependencies]
+anyhow = { workspace = true }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
+sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"] }
+
+[lints]
+workspace = true

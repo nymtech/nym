@@ -28,7 +28,7 @@ use cosmrs::proto::cosmwasm::wasm::v1::{
     QueryRawContractStateResponse, QuerySmartContractStateRequest, QuerySmartContractStateResponse,
 };
 use cosmrs::tendermint::{block, chain, Hash};
-use cosmrs::{AccountId, Coin as CosmosCoin, Tx};
+use cosmrs::{AccountId, Coin as CosmosCoin};
 use prost::Message;
 use serde::{Deserialize, Serialize};
 
@@ -556,23 +556,12 @@ pub trait CosmWasmClient: TendermintRpcClient {
         Ok(serde_json::from_slice(&res.data)?)
     }
 
-    // deprecation warning is due to the fact the protobuf files built were based on cosmos-sdk 0.44,
-    // where they prefer using tx_bytes directly. However, in 0.42, which we are using at the time
-    // of writing this, the option does not work
-    // TODO: we should really stop using the `tx` argument here and use `tx_bytes` exlusively,
-    // however, at the time of writing this update, while our QA and mainnet networks do support it,
-    // sandbox is still running old version of wasmd that lacks support for `tx_bytes`
-    #[allow(deprecated)]
-    async fn query_simulate(
-        &self,
-        tx: Option<Tx>,
-        tx_bytes: Vec<u8>,
-    ) -> Result<SimulateResponse, NyxdError> {
+    async fn query_simulate(&self, tx_bytes: Vec<u8>) -> Result<SimulateResponse, NyxdError> {
         let path = Some("/cosmos.tx.v1beta1.Service/Simulate".to_owned());
 
         let req = SimulateRequest {
-            tx: tx.map(Into::into),
             tx_bytes,
+            ..Default::default()
         };
 
         let res = self

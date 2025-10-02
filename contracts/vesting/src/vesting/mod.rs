@@ -137,7 +137,7 @@ mod tests {
         let response = execute(
             deps.as_mut(),
             env.clone(),
-            message_info(&admin, &[amount.clone()]),
+            message_info(&admin, std::slice::from_ref(&amount)),
             msg,
         );
         assert_eq!(

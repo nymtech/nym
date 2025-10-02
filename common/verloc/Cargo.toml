@@ -25,3 +25,5 @@ url = { workspace = true }
 nym-crypto = { path = "../crypto", features = ["asymmetric"] }
 nym-task = { path = "../task" }
 nym-validator-client = { path = "../client-libs/validator-client" }
+nym-http-api-client = { path = "../http-api-client" }
+nym-api-requests = { path = "../../nym-api/nym-api-requests" }

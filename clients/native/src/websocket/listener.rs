@@ -3,7 +3,7 @@
 
 use super::handler::HandlerBuilder;
 use log::*;
-use nym_task::TaskClient;
+use nym_task::ShutdownToken;
 use std::net::IpAddr;
 use std::{net::SocketAddr, process, sync::Arc};
 use tokio::io::AsyncWriteExt;
@@ -23,15 +23,15 @@ impl State {
 pub(crate) struct Listener {
     address: SocketAddr,
     state: State,
-    task_client: TaskClient,
+    shutdown_token: ShutdownToken,
 }
 
 impl Listener {
-    pub(crate) fn new(host: IpAddr, port: u16, task_client: TaskClient) -> Self {
+    pub(crate) fn new(host: IpAddr, port: u16, shutdown_token: ShutdownToken) -> Self {
         Listener {
             address: SocketAddr::new(host, port),
             state: State::AwaitingConnection,
-            task_client,
+            shutdown_token,
         }
     }
 
@@ -46,11 +46,11 @@ impl Listener {
 
         let notify = Arc::new(Notify::new());
 
-        while !self.task_client.is_shutdown() {
+        while !self.shutdown_token.is_cancelled() {
             tokio::select! {
                 // When the handler finishes we check if shutdown is signalled
                 _ = notify.notified() => {
-                    if self.task_client.is_shutdown() {
+                    if self.shutdown_token.is_cancelled() {
                         log::trace!("Websocket listener: detected shutdown after connection closed");
                         break;
                     }
@@ -59,7 +59,7 @@ impl Listener {
                 }
                 // ... but when there is no connected client at the time of shutdown being
                 // signalled, we handle it here.
-                _ = self.task_client.recv() => {
+                _ = self.shutdown_token.cancelled() => {
                     if !self.state.is_connected() {
                         log::trace!("Not connected: shutting down");
                         break;

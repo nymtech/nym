@@ -5,8 +5,8 @@ use crate::nyxd::{self, NyxdClient};
 use crate::signing::direct_wallet::DirectSecp256k1HdWallet;
 use crate::signing::signer::{NoSigner, OfflineSigner};
 use crate::{
-    nym_api, DirectSigningReqwestRpcValidatorClient, QueryReqwestRpcValidatorClient,
-    ReqwestRpcClient, ValidatorClientError,
+    DirectSigningReqwestRpcValidatorClient, QueryReqwestRpcValidatorClient, ReqwestRpcClient,
+    ValidatorClientError,
 };
 use nym_api_requests::ecash::models::{
     AggregatedCoinIndicesSignatureResponse, AggregatedExpirationDateSignatureResponse,
@@ -20,11 +20,9 @@ use nym_api_requests::ecash::{
     PartialExpirationDateSignatureResponse, VerificationKeyResponse,
 };
 use nym_api_requests::models::{
-    ApiHealthResponse, GatewayBondAnnotated, GatewayCoreStatusResponse,
-    HistoricalPerformanceResponse, MixnodeCoreStatusResponse, MixnodeStatusResponse,
-    NymNodeDescription, RewardEstimationResponse, StakeSaturationResponse,
+    ApiHealthResponse, GatewayCoreStatusResponse, HistoricalPerformanceResponse,
+    MixnodeCoreStatusResponse, NymNodeDescription,
 };
-use nym_api_requests::models::{LegacyDescribedGateway, MixNodeBondAnnotated};
 use nym_api_requests::nym_nodes::{
     NodesByAddressesResponse, SemiSkimmedNodesWithMetadata, SkimmedNode, SkimmedNodesWithMetadata,
 };
@@ -153,7 +151,7 @@ impl Config {
 pub struct Client<C, S = NoSigner> {
     // ideally they would have been read-only, but unfortunately rust doesn't have such features
     // #[deprecated(note = "please use `nym_api_client` instead")]
-    pub nym_api: nym_api::Client,
+    pub nym_api: nym_http_api_client::Client,
     // pub nym_api_client: NymApiClient,
     pub nyxd: NyxdClient<C, S>,
 }
@@ -214,7 +212,7 @@ impl Client<ReqwestRpcClient> {
 
 impl<C> Client<C> {
     pub fn new_with_rpc_client(config: Config, rpc_client: C) -> Self {
-        let nym_api_client = nym_api::Client::new(config.api_url.clone(), None);
+        let nym_api_client = nym_http_api_client::Client::new(config.api_url.clone(), None);
 
         Client {
             nym_api: nym_api_client,
@@ -228,7 +226,7 @@ impl<C, S> Client<C, S> {
     where
         S: OfflineSigner,
     {
-        let nym_api_client = nym_api::Client::new(config.api_url.clone(), None);
+        let nym_api_client = nym_http_api_client::Client::new(config.api_url.clone(), None);
 
         Client {
             nym_api: nym_api_client,
@@ -247,65 +245,6 @@ impl<C, S> Client<C, S> {
 
     pub fn change_nym_api(&mut self, new_endpoint: Url) {
         self.nym_api.change_base_urls(vec![new_endpoint.into()])
-    }
-
-    #[deprecated]
-    pub async fn get_cached_mixnodes(&self) -> Result<Vec<MixNodeDetails>, ValidatorClientError> {
-        Ok(self.nym_api.get_mixnodes().await?)
-    }
-
-    #[deprecated]
-    pub async fn get_cached_mixnodes_detailed(
-        &self,
-    ) -> Result<Vec<MixNodeBondAnnotated>, ValidatorClientError> {
-        Ok(self.nym_api.get_mixnodes_detailed().await?)
-    }
-
-    #[deprecated]
-    pub async fn get_cached_mixnodes_detailed_unfiltered(
-        &self,
-    ) -> Result<Vec<MixNodeBondAnnotated>, ValidatorClientError> {
-        Ok(self.nym_api.get_mixnodes_detailed_unfiltered().await?)
-    }
-
-    #[deprecated]
-    pub async fn get_cached_rewarded_mixnodes(
-        &self,
-    ) -> Result<Vec<MixNodeDetails>, ValidatorClientError> {
-        Ok(self.nym_api.get_rewarded_mixnodes().await?)
-    }
-
-    #[deprecated]
-    pub async fn get_cached_rewarded_mixnodes_detailed(
-        &self,
-    ) -> Result<Vec<MixNodeBondAnnotated>, ValidatorClientError> {
-        Ok(self.nym_api.get_rewarded_mixnodes_detailed().await?)
-    }
-
-    #[deprecated]
-    pub async fn get_cached_active_mixnodes(
-        &self,
-    ) -> Result<Vec<MixNodeDetails>, ValidatorClientError> {
-        Ok(self.nym_api.get_active_mixnodes().await?)
-    }
-
-    #[deprecated]
-    pub async fn get_cached_active_mixnodes_detailed(
-        &self,
-    ) -> Result<Vec<MixNodeBondAnnotated>, ValidatorClientError> {
-        Ok(self.nym_api.get_active_mixnodes_detailed().await?)
-    }
-
-    #[deprecated]
-    pub async fn get_cached_gateways(&self) -> Result<Vec<GatewayBond>, ValidatorClientError> {
-        Ok(self.nym_api.get_gateways().await?)
-    }
-
-    #[deprecated]
-    pub async fn get_cached_gateways_detailed_unfiltered(
-        &self,
-    ) -> Result<Vec<GatewayBondAnnotated>, ValidatorClientError> {
-        Ok(self.nym_api.get_gateways_detailed_unfiltered().await?)
     }
 
     pub async fn get_full_node_performance_history(
@@ -385,38 +324,25 @@ impl<C, S> Client<C, S> {
     }
 }
 
+/// DEPRECATED: Use nym_http_api_client::Client with from_network() or with_bincode() instead
+#[deprecated(
+    since = "1.2.0",
+    note = "Use nym_http_api_client::Client::from_network() or ClientBuilder::with_bincode() instead"
+)]
 #[derive(Clone)]
 pub struct NymApiClient {
     pub use_bincode: bool,
-    pub nym_api: nym_api::Client,
+    pub nym_api: nym_http_api_client::Client,
     // TODO: perhaps if we really need it at some (currently I don't see any reasons for it)
     // we could re-implement the communication with the REST API on port 1317
-}
-
-impl From<nym_api::Client> for NymApiClient {
-    fn from(nym_api: nym_api::Client) -> Self {
-        NymApiClient {
-            use_bincode: false,
-            nym_api,
-        }
-    }
 }
 
 // we have to allow the use of deprecated method here as they're calling the deprecated trait methods
 #[allow(deprecated)]
 impl NymApiClient {
-    pub fn new(api_url: Url) -> Self {
-        let nym_api = nym_api::Client::new(api_url, None);
-
-        NymApiClient {
-            use_bincode: true,
-            nym_api,
-        }
-    }
-
     #[cfg(not(target_arch = "wasm32"))]
     pub fn new_with_timeout(api_url: Url, timeout: std::time::Duration) -> Self {
-        let nym_api = nym_api::Client::new(api_url, Some(timeout));
+        let nym_api = nym_http_api_client::Client::new(api_url, Some(timeout));
 
         NymApiClient {
             use_bincode: true,
@@ -431,10 +357,10 @@ impl NymApiClient {
     }
 
     pub fn new_with_user_agent(api_url: Url, user_agent: impl Into<UserAgent>) -> Self {
-        let nym_api = nym_api::Client::builder::<_, ValidatorClientError>(api_url)
+        let nym_api = nym_http_api_client::Client::builder(api_url)
             .expect("invalid api url")
             .with_user_agent(user_agent.into())
-            .build::<ValidatorClientError>()
+            .build()
             .expect("failed to build nym api client");
 
         NymApiClient {
@@ -571,37 +497,6 @@ impl NymApiClient {
         Ok(self.nym_api.health().await?)
     }
 
-    #[deprecated]
-    pub async fn get_cached_active_mixnodes(
-        &self,
-    ) -> Result<Vec<MixNodeDetails>, ValidatorClientError> {
-        Ok(self.nym_api.get_active_mixnodes().await?)
-    }
-
-    #[deprecated]
-    pub async fn get_cached_rewarded_mixnodes(
-        &self,
-    ) -> Result<Vec<MixNodeDetails>, ValidatorClientError> {
-        Ok(self.nym_api.get_rewarded_mixnodes().await?)
-    }
-
-    #[deprecated]
-    pub async fn get_cached_mixnodes(&self) -> Result<Vec<MixNodeDetails>, ValidatorClientError> {
-        Ok(self.nym_api.get_mixnodes().await?)
-    }
-
-    #[deprecated]
-    pub async fn get_cached_gateways(&self) -> Result<Vec<GatewayBond>, ValidatorClientError> {
-        Ok(self.nym_api.get_gateways().await?)
-    }
-
-    #[deprecated]
-    pub async fn get_cached_described_gateways(
-        &self,
-    ) -> Result<Vec<LegacyDescribedGateway>, ValidatorClientError> {
-        Ok(self.nym_api.get_gateways_described().await?)
-    }
-
     pub async fn get_all_described_nodes(
         &self,
     ) -> Result<Vec<NymNodeDescription>, ValidatorClientError> {
@@ -666,30 +561,6 @@ impl NymApiClient {
             .nym_api
             .get_mixnode_core_status_count(mix_id, since)
             .await?)
-    }
-
-    #[deprecated]
-    pub async fn get_mixnode_status(
-        &self,
-        mix_id: NodeId,
-    ) -> Result<MixnodeStatusResponse, ValidatorClientError> {
-        Ok(self.nym_api.get_mixnode_status(mix_id).await?)
-    }
-
-    #[deprecated]
-    pub async fn get_mixnode_reward_estimation(
-        &self,
-        mix_id: NodeId,
-    ) -> Result<RewardEstimationResponse, ValidatorClientError> {
-        Ok(self.nym_api.get_mixnode_reward_estimation(mix_id).await?)
-    }
-
-    #[deprecated]
-    pub async fn get_mixnode_stake_saturation(
-        &self,
-        mix_id: NodeId,
-    ) -> Result<StakeSaturationResponse, ValidatorClientError> {
-        Ok(self.nym_api.get_mixnode_stake_saturation(mix_id).await?)
     }
 
     pub async fn blind_sign(

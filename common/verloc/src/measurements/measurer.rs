@@ -10,7 +10,7 @@ use futures::StreamExt;
 use nym_crypto::asymmetric::ed25519;
 use nym_task::ShutdownToken;
 use nym_validator_client::models::NymNodeDescription;
-use nym_validator_client::NymApiClient;
+use nym_validator_client::nym_api::NymApiClientExt;
 use rand::prelude::SliceRandom;
 use rand::thread_rng;
 use std::net::SocketAddr;
@@ -40,12 +40,12 @@ impl VerlocMeasurer {
                 config.packet_timeout,
                 config.connection_timeout,
                 config.delay_between_packets,
-                shutdown_token.clone_with_suffix("packet_sender"),
+                shutdown_token.clone(),
             )),
             packet_listener: Arc::new(PacketListener::new(
                 config.listening_address,
                 Arc::clone(&identity),
-                shutdown_token.clone_with_suffix("packet_listener"),
+                shutdown_token.clone(),
             )),
             shutdown_token,
             config,
@@ -92,8 +92,13 @@ impl VerlocMeasurer {
                 .collect::<FuturesUnordered<_>>();
 
             // exhaust the results
-            while !self.shutdown_token.is_cancelled() {
+            loop {
                 tokio::select! {
+                    biased;
+                     _ = self.shutdown_token.cancelled() => {
+                        trace!("Shutdown received while measuring");
+                        return MeasurementOutcome::Shutdown;
+                    }
                     measurement_result = measurement_chunk.next() => {
                         let Some(result) = measurement_result else {
                             // if the stream has finished, it means we got everything we could have gotten
@@ -117,10 +122,6 @@ impl VerlocMeasurer {
                         };
                         chunk_results.push(VerlocNodeResult::new(identity, measurement_result));
                     },
-                    _ = self.shutdown_token.cancelled() => {
-                        trace!("Shutdown received while measuring");
-                        return MeasurementOutcome::Shutdown;
-                    }
                 }
             }
 
@@ -135,10 +136,15 @@ impl VerlocMeasurer {
         let mut api_endpoints = self.config.nym_api_urls.clone();
         api_endpoints.shuffle(&mut thread_rng());
         for api_endpoint in api_endpoints {
-            let client = NymApiClient::new_with_user_agent(
-                api_endpoint.clone(),
-                self.config.user_agent.clone(),
-            );
+            let client = match nym_http_api_client::Client::builder(api_endpoint.clone())
+                .and_then(|b| b.with_user_agent(self.config.user_agent.clone()).build())
+            {
+                Ok(c) => c,
+                Err(err) => {
+                    warn!("failed to create client for {api_endpoint}: {err}");
+                    continue;
+                }
+            };
             match client.get_all_described_nodes().await {
                 Ok(res) => return Some(res),
                 Err(err) => {
@@ -208,6 +214,7 @@ impl VerlocMeasurer {
                 _ = sleep(self.config.testing_interval) => {},
                 _ = self.shutdown_token.cancelled() => {
                     trace!("Shutdown received while sleeping");
+                    break;
                 }
             }
         }

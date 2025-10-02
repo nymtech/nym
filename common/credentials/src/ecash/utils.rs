@@ -10,6 +10,7 @@ use nym_credentials_interface::{
     VerificationKeyAuth, WalletSignatures,
 };
 use nym_validator_client::client::EcashApiClient;
+use nym_validator_client::nym_api::NymApiClientExt;
 
 // so we wouldn't break all the existing imports
 pub use nym_ecash_time::{cred_exp_date, ecash_date_offset, ecash_today, EcashTime};

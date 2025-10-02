@@ -1,0 +1,28 @@
+[package]
+name = "nym-wg-gateway-client"
+version = "0.1.0"
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+nym-authenticator-client = { path = "../nym-authenticator-client" }
+nym-authenticator-requests = { path = "../common/authenticator-requests" }
+nym-bandwidth-controller = { path = "../common/bandwidth-controller" }
+nym-credentials-interface = { path = "../common/credentials-interface" }
+nym-crypto = { path = "../common/crypto" }
+nym-node-requests = { path = "../nym-node/nym-node-requests" }
+nym-pemstore = { path = "../common/pemstore" }
+nym-sdk = { path = "../sdk/rust/nym-sdk" }
+nym-statistics-common = { path = "../common/statistics" }
+nym-validator-client = { path = "../common/client-libs/validator-client" }
+rand.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+url.workspace = true

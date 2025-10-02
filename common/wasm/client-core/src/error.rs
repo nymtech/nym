@@ -37,6 +37,12 @@ pub enum WasmCoreError {
         source: ValidatorClientError,
     },
 
+    #[error("failed to query nym api: {source}")]
+    NymApiQueryError {
+        #[from]
+        source: nym_validator_client::nym_api::error::NymAPIError,
+    },
+
     #[error("The provided wasm topology was invalid: {source}")]
     WasmTopologyError {
         #[from]

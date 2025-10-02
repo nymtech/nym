@@ -20,6 +20,7 @@ use nym_gateway_client::{
     AcknowledgementReceiver, GatewayClient, MixnetMessageReceiver, PacketRouter, SharedGatewayKey,
 };
 use nym_sphinx::forwarding::packet::MixPacket;
+use nym_task::ShutdownToken;
 use pin_project::pin_project;
 use sqlx::__rt::timeout;
 use std::mem;
@@ -91,6 +92,7 @@ impl GatewayPackets {
 struct FreshGatewayClientData {
     gateways_status_updater: GatewayClientUpdateSender,
     local_identity: Arc<ed25519::KeyPair>,
+    shutdown_token: ShutdownToken,
     gateway_response_timeout: Duration,
     bandwidth_controller: BandwidthController<nyxd::Client, PersistentStorage>,
     disabled_credentials_mode: bool,
@@ -127,11 +129,13 @@ impl PacketSender {
         gateways_status_updater: GatewayClientUpdateSender,
         local_identity: Arc<ed25519::KeyPair>,
         bandwidth_controller: BandwidthController<nyxd::Client, PersistentStorage>,
+        shutdown_token: ShutdownToken,
     ) -> Self {
         PacketSender {
             fresh_gateway_client_data: Arc::new(FreshGatewayClientData {
                 gateways_status_updater,
                 local_identity,
+                shutdown_token,
                 gateway_response_timeout: config.network_monitor.debug.gateway_response_timeout,
                 bandwidth_controller,
                 disabled_credentials_mode: config.network_monitor.debug.disabled_credentials_mode,
@@ -154,10 +158,6 @@ impl PacketSender {
         GatewayClientHandle,
         (MixnetMessageReceiver, AcknowledgementReceiver),
     ) {
-        // I think the proper one should be passed around instead...
-        let task_client =
-            nym_task::TaskClient::dummy().named(format!("gateway-{}", config.gateway_identity));
-
         let (message_sender, message_receiver) = mpsc::unbounded();
 
         // currently we do not care about acks at all, but we must keep the channel alive
@@ -167,7 +167,7 @@ impl PacketSender {
         let gateway_packet_router = PacketRouter::new(
             ack_sender,
             message_sender,
-            task_client.fork("packet_router"),
+            fresh_gateway_client_data.shutdown_token.clone(),
         );
 
         let shared_keys = fresh_gateway_client_data
@@ -186,11 +186,11 @@ impl PacketSender {
             Some(fresh_gateway_client_data.bandwidth_controller.clone()),
             nym_statistics_common::clients::ClientStatsSender::new(
                 None,
-                task_client.fork("client_stats_sender"),
+                fresh_gateway_client_data.shutdown_token.clone(),
             ),
             #[cfg(unix)]
             None,
-            task_client,
+            fresh_gateway_client_data.shutdown_token.clone(),
         );
 
         (

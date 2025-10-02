@@ -7,8 +7,8 @@ use nym_network_defaults::NymNetworkDetails;
 
 pub(super) async fn execute(
     global_args: ClientArgs,
-    ecash: nym_cli_commands::internal::ecash::InternalEcash,
     nym_network_details: &NymNetworkDetails,
+    ecash: nym_cli_commands::internal::ecash::InternalEcash,
 ) -> anyhow::Result<()> {
     // I reckon those will be needed later
     let _ = global_args;

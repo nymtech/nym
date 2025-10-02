@@ -53,6 +53,7 @@ nym-client-core-config-types = { path = "./config-types", features = [
 nym-client-core-surb-storage = { path = "./surb-storage" }
 nym-client-core-gateways-storage = { path = "./gateways-storage" }
 nym-ecash-time = { path = "../ecash-time" }
+nym-mixnet-contract-common = { path = "../cosmwasm-smart-contracts/mixnet-contract" }
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies]
 nym-mixnet-client = { path = "../client-libs/mixnet-client", default-features = false }

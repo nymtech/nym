@@ -4,7 +4,7 @@
 [package]
 name = "nym-api"
 license = "GPL-3.0"
-version = "1.1.65"
+version = "1.1.66"
 authors.workspace = true
 edition = "2021"
 rust-version.workspace = true
@@ -93,6 +93,7 @@ nym-task = { path = "../common/task" }
 nym-topology = { path = "../common/topology" }
 nym-api-requests = { path = "nym-api-requests" }
 nym-validator-client = { path = "../common/client-libs/validator-client" }
+nym-http-api-client = { path = "../common/http-api-client" }
 nym-bin-common = { path = "../common/bin-common", features = ["output_format", "openapi", "basic_tracing"] }
 nym-node-tester-utils = { path = "../common/node-tester-utils" }
 nym-node-requests = { path = "../nym-node/nym-node-requests" }
@@ -126,7 +127,8 @@ cw3 = { workspace = true }
 cw-utils = { workspace = true }
 rand_chacha = { workspace = true }
 sha2 = { workspace = true }
-dotenv = "0.15"
+dotenvy = { workspace = true }
+test-with = { workspace = true, default-features = false }
 
 [lints]
 workspace = true

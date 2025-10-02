@@ -50,34 +50,7 @@ impl CacheItemProvider for NodeDescriptionProvider {
     }
 
     async fn try_refresh(&mut self) -> Result<Option<Self::Item>, Self::Error> {
-        // we need to query:
-        // - legacy mixnodes (because they might already be running nym-nodes, but haven't updated contract info)
-        // - legacy gateways (because they might already be running nym-nodes, but haven't updated contract info)
-        // - nym-nodes
-
         let mut nodes_to_query: Vec<RefreshData> = Vec::new();
-
-        match self.contract_cache.all_cached_legacy_mixnodes().await {
-            None => error!("failed to obtain mixnodes information from the cache"),
-            Some(legacy_mixnodes) => {
-                for node in &**legacy_mixnodes {
-                    if let Ok(data) = node.try_into() {
-                        nodes_to_query.push(data);
-                    }
-                }
-            }
-        }
-
-        match self.contract_cache.all_cached_legacy_gateways().await {
-            None => error!("failed to obtain gateways information from the cache"),
-            Some(legacy_gateways) => {
-                for node in &**legacy_gateways {
-                    if let Ok(data) = node.try_into() {
-                        nodes_to_query.push(data);
-                    }
-                }
-            }
-        }
 
         match self.contract_cache.all_cached_nym_nodes().await {
             None => error!("failed to obtain nym-nodes information from the cache"),

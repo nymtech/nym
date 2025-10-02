@@ -23,6 +23,7 @@ use serde_repr::{Deserialize_repr, Serialize_repr};
 
 /// Full details associated with given mixnode.
 #[cw_serde]
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 pub struct MixNodeDetails {
     /// Basic bond information of this mixnode, such as owner address, original pledge, etc.
     pub bond_information: MixNodeBond,
@@ -695,6 +696,7 @@ impl From<LegacyMixLayer> for u8 {
     Copy,
 )]
 #[schemars(crate = "::cosmwasm_schema::schemars")]
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 pub struct PendingMixNodeChanges {
     pub pledge_change: Option<EpochEventId>,
 

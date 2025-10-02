@@ -7,7 +7,7 @@ use futures::FutureExt;
 use futures::StreamExt;
 use log::*;
 use nym_socks5_requests::ConnectionId;
-use nym_task::TaskClient;
+use nym_task::ShutdownToken;
 use std::{sync::Arc, time::Duration};
 use tokio::io::AsyncWriteExt;
 use tokio::select;
@@ -51,7 +51,7 @@ pub(super) async fn run_outbound(
     mut mix_receiver: ConnectionReceiver,
     connection_id: ConnectionId,
     shutdown_notify: Arc<Notify>,
-    mut shutdown_listener: TaskClient,
+    shutdown_listener: ShutdownToken,
 ) -> (OwnedWriteHalf, ConnectionReceiver) {
     let shutdown_future = shutdown_notify.notified().then(|_| sleep(SHUTDOWN_TIMEOUT));
     tokio::pin!(shutdown_future);
@@ -60,6 +60,11 @@ pub(super) async fn run_outbound(
 
     loop {
         select! {
+            biased;
+            _ = shutdown_listener.cancelled() => {
+                log::trace!("ProxyRunner outbound: Received shutdown");
+                break;
+            }
             connection_message = mix_receiver.next() => {
                 if let Some(connection_message) = connection_message {
                     if deal_with_message(connection_message, &mut writer, &local_destination_address, &remote_source_address, connection_id).await {
@@ -80,16 +85,11 @@ pub(super) async fn run_outbound(
                 debug!("closing outbound proxy after inbound was closed {SHUTDOWN_TIMEOUT:?} ago");
                 break;
             }
-            _ = shutdown_listener.recv() => {
-                log::trace!("ProxyRunner outbound: Received shutdown");
-                break;
-            }
         }
     }
 
     trace!("{connection_id} - outbound closed");
     shutdown_notify.notify_one();
 
-    shutdown_listener.disarm();
     (writer, mix_receiver)
 }

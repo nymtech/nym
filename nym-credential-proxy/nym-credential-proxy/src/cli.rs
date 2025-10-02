@@ -2,15 +2,18 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::config::default_database_filepath;
-use crate::webhook::ZkNymWebHookConfig;
 use clap::builder::ArgPredicate;
-use clap::Parser;
+use clap::{Args, Parser};
 use nym_bin_common::bin_info;
+use nym_credential_proxy_lib::error::CredentialProxyError;
+use nym_credential_proxy_lib::webhook::ZkNymWebhook;
 use std::fs::create_dir_all;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::path::PathBuf;
 use std::sync::OnceLock;
+use std::time::Duration;
 use tracing::info;
+use url::Url;
 
 fn pretty_build_info_static() -> &'static str {
     static PRETTY_BUILD_INFORMATION: OnceLock<String> = OnceLock::new();
@@ -64,8 +67,51 @@ pub struct Cli {
     )]
     pub(crate) max_concurrent_deposits: usize,
 
+    /// Specify the size of the deposits buffer the credential proxy should have available at any time
+    /// (default: 256)
+    #[clap(
+        long,
+        env = "NYM_CREDENTIAL_PROXY_DEPOSITS_BUFFER",
+        default_value_t = 256
+    )]
+    pub(crate) deposits_buffer_size: usize,
+
+    #[clap(
+        long,
+        env = "NYM_CREDENTIAL_PROXY_QUORUM_CHECK_INTERVAL",
+        default_value = "5m",
+        value_parser = humantime::parse_duration
+    )]
+    pub(crate) quorum_check_interval: Duration,
+
     #[clap(long, env = "NYM_CREDENTIAL_PROXY_PERSISTENT_STORAGE_STORAGE")]
     pub(crate) persistent_storage_path: Option<PathBuf>,
+}
+
+#[derive(Args, Debug, Clone)]
+pub struct ZkNymWebHookConfig {
+    #[clap(long, env = "WEBHOOK_ZK_NYMS_URL")]
+    pub webhook_url: Url,
+
+    #[clap(long, env = "WEBHOOK_ZK_NYMS_CLIENT_ID")]
+    pub webhook_client_id: String,
+
+    #[clap(long, env = "WEBHOOK_ZK_NYMS_CLIENT_SECRET")]
+    pub webhook_client_secret: String,
+}
+
+impl TryFrom<ZkNymWebHookConfig> for ZkNymWebhook {
+    type Error = CredentialProxyError;
+
+    fn try_from(cfg: ZkNymWebHookConfig) -> Result<Self, Self::Error> {
+        Ok(ZkNymWebhook {
+            webhook_client_url: cfg
+                .webhook_url
+                .join(&cfg.webhook_client_id)
+                .map_err(|_| CredentialProxyError::InvalidWebhookUrl)?,
+            webhook_client_secret: cfg.webhook_client_secret,
+        })
+    }
 }
 
 impl Cli {
@@ -90,10 +136,7 @@ impl Cli {
                 create_dir_all(parent).unwrap();
             }
 
-            info!(
-                "setting the storage path path to {}",
-                default_path.display()
-            );
+            info!("setting the storage path to {}", default_path.display());
 
             default_path
         })

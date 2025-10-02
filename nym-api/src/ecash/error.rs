@@ -13,6 +13,7 @@ use nym_dkg::Threshold;
 use nym_ecash_contract_common::deposit::DepositId;
 use nym_ecash_contract_common::redeem_credential::BATCH_REDEMPTION_PROPOSAL_TITLE;
 use nym_validator_client::coconut::EcashApiError;
+use nym_validator_client::nym_api::error::NymAPIError;
 use nym_validator_client::nyxd::error::NyxdError;
 use nym_validator_client::nyxd::AccountId;
 use thiserror::Error;
@@ -45,6 +46,9 @@ pub enum EcashError {
 
     #[error("coconut api query failure: {0}")]
     CoconutApiError(#[from] EcashApiError),
+
+    #[error("nym api query failure: {0}")]
+    NymApiError(Box<NymAPIError>),
 
     #[error(transparent)]
     SerdeJsonError(#[from] serde_json::Error),
@@ -159,6 +163,12 @@ pub enum EcashError {
 
     #[error("could not generate merkle proof for the provided deposits")]
     MerkleProofGenerationFailure,
+}
+
+impl From<NymAPIError> for EcashError {
+    fn from(e: NymAPIError) -> Self {
+        EcashError::NymApiError(Box::new(e))
+    }
 }
 
 // impl<'r, 'o: 'r> Responder<'r, 'o> for EcashError {

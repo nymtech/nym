@@ -401,7 +401,7 @@ impl Bytable for SecretKeyUser {
 
 impl Base58 for SecretKeyUser {}
 
-#[derive(Debug, Eq, PartialEq, Clone, Serialize, Deserialize)]
+#[derive(Debug, Eq, PartialEq, Clone, Copy, Serialize, Deserialize)]
 pub struct PublicKeyUser {
     pub(crate) pk: G1Projective,
 }
@@ -554,7 +554,7 @@ impl KeyPairUser {
     }
 
     pub fn public_key(&self) -> PublicKeyUser {
-        self.public_key.clone()
+        self.public_key
     }
 
     pub fn to_bytes(&self) -> Vec<u8> {

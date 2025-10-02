@@ -1,0 +1,40 @@
+import { Callout } from 'nextra/components';
+import { Tabs } from 'nextra/components';
+import { MyTab } from 'components/generic-tabs.tsx';
+import { RunTabs } from 'components/operators/nodes/node-run-command-tabs';
+import { VarInfo } from 'components/variable-info.tsx';
+import { AccordionTemplate } from 'components/accordion-template.tsx';
+import { Steps } from 'nextra/components';
+
+
+# Tools
+
+On this page you can find tools to [setup a node automatically](), [explorers]() and other useful dashboards and hacks.
+
+<VarInfo />
+
+## Nym Node CLI
+
+This interactive command-line-based tool takes an operator through a journey of installing, configuring and starting a `nym-node` as a systemd service, doing most of the steps automatically for them.
+
+**Installation & Running**
+
+<Steps>
+
+###### 1. SSH into your server (VPS)
+
+- The installation of `nym-node` using this program requires you to run as `root`
+
+###### 2. Download `nym-node-cli.py` and make executable
+
+```sh
+wget https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/nym-node-cli.py &&
+chmod +x ./nym-node-cli.py
+```
+
+###### 3. Run the program
+```
+./nym-node-cli.py
+```
+- **Read and follow the prompts**
+</ Steps>

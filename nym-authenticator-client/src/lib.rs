@@ -1,6 +1,7 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use nym_authenticator_requests::client_message::QueryMessageImpl;
 use nym_bandwidth_controller::{BandwidthTicketProvider, DEFAULT_TICKETS_TO_SPEND};
 use nym_crypto::asymmetric::x25519::KeyPair;
 use nym_registration_common::GatewayData;
@@ -15,18 +16,16 @@ use nym_authenticator_requests::{
     client_message::ClientMessage, response::AuthenticatorResponse, traits::Id, v2, v3, v4, v5,
     AuthenticatorVersion,
 };
-use nym_credentials_interface::TicketType;
+use nym_credentials_interface::{CredentialSpendingData, TicketType};
 use nym_sdk::mixnet::{IncludedSurbs, Recipient};
 use nym_service_provider_requests_common::{Protocol, ServiceProviderTypeExt};
 use nym_wireguard_types::PeerPublicKey;
 
 mod error;
 mod helpers;
-mod legacy;
 mod mixnet_listener;
 
 pub use crate::error::{Error, Result};
-pub use crate::legacy::LegacyAuthenticatorClient;
 pub use crate::mixnet_listener::{AuthClientMixnetListener, AuthClientMixnetListenerHandle};
 
 pub struct AuthenticatorClient {
@@ -301,5 +300,92 @@ impl AuthenticatorClient {
         };
 
         Ok(gateway_data)
+    }
+
+    pub async fn query_bandwidth(&mut self) -> Result<Option<i64>> {
+        let query_message = match self.auth_version {
+            AuthenticatorVersion::V1 => return Err(Error::UnsupportedAuthenticatorVersion),
+            AuthenticatorVersion::V2 => ClientMessage::Query(Box::new(QueryMessageImpl {
+                pub_key: PeerPublicKey::new(self.keypair.public_key().to_bytes().into()),
+                version: AuthenticatorVersion::V2,
+            })),
+            AuthenticatorVersion::V3 => ClientMessage::Query(Box::new(QueryMessageImpl {
+                pub_key: PeerPublicKey::new(self.keypair.public_key().to_bytes().into()),
+                version: AuthenticatorVersion::V3,
+            })),
+            AuthenticatorVersion::V4 => ClientMessage::Query(Box::new(QueryMessageImpl {
+                pub_key: PeerPublicKey::new(self.keypair.public_key().to_bytes().into()),
+                version: AuthenticatorVersion::V4,
+            })),
+            AuthenticatorVersion::V5 => ClientMessage::Query(Box::new(QueryMessageImpl {
+                pub_key: PeerPublicKey::new(self.keypair.public_key().to_bytes().into()),
+                version: AuthenticatorVersion::V5,
+            })),
+            AuthenticatorVersion::UNKNOWN => return Err(Error::UnsupportedAuthenticatorVersion),
+        };
+        let response = self.send_and_wait_for_response(&query_message).await?;
+
+        let available_bandwidth = match response {
+            AuthenticatorResponse::RemainingBandwidth(remaining_bandwidth_response) => {
+                if let Some(available_bandwidth) =
+                    remaining_bandwidth_response.available_bandwidth()
+                {
+                    available_bandwidth
+                } else {
+                    return Ok(None);
+                }
+            }
+            _ => return Err(Error::InvalidGatewayAuthResponse),
+        };
+
+        let remaining_pretty = if available_bandwidth > 1024 * 1024 {
+            format!("{:.2} MB", available_bandwidth as f64 / 1024.0 / 1024.0)
+        } else {
+            format!("{} KB", available_bandwidth / 1024)
+        };
+        tracing::debug!(
+            "Remaining wireguard bandwidth with gateway {} for today: {}",
+            self.auth_recipient.gateway(),
+            remaining_pretty
+        );
+        if available_bandwidth < 1024 * 1024 {
+            tracing::warn!(
+                            "Remaining bandwidth is under 1 MB. The wireguard mode will get suspended after that until tomorrow, UTC time. The client might shutdown with timeout soon
+            "
+                        );
+        }
+        Ok(Some(available_bandwidth))
+    }
+
+    pub async fn top_up(&mut self, credential: CredentialSpendingData) -> Result<i64> {
+        let top_up_message = match self.auth_version {
+            AuthenticatorVersion::V3 => ClientMessage::TopUp(Box::new(v3::topup::TopUpMessage {
+                pub_key: PeerPublicKey::new(self.keypair.public_key().to_bytes().into()),
+                credential,
+            })),
+            // NOTE: looks like a bug here using v3. But we're leaving it as is since it's working
+            // and V4 is deprecated in favour of V5
+            AuthenticatorVersion::V4 => ClientMessage::TopUp(Box::new(v4::topup::TopUpMessage {
+                pub_key: PeerPublicKey::new(self.keypair.public_key().to_bytes().into()),
+                credential,
+            })),
+            AuthenticatorVersion::V5 => ClientMessage::TopUp(Box::new(v5::topup::TopUpMessage {
+                pub_key: PeerPublicKey::new(self.keypair.public_key().to_bytes().into()),
+                credential,
+            })),
+            AuthenticatorVersion::V1 | AuthenticatorVersion::V2 | AuthenticatorVersion::UNKNOWN => {
+                return Err(Error::UnsupportedAuthenticatorVersion);
+            }
+        };
+        let response = self.send_and_wait_for_response(&top_up_message).await?;
+
+        let remaining_bandwidth = match response {
+            AuthenticatorResponse::TopUpBandwidth(top_up_bandwidth_response) => {
+                top_up_bandwidth_response.available_bandwidth()
+            }
+            _ => return Err(Error::InvalidGatewayAuthResponse),
+        };
+
+        Ok(remaining_bandwidth)
     }
 }

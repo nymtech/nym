@@ -56,6 +56,10 @@ impl ContextCarrier {
         })
     }
 
+    pub fn extract_trace_id_into_bytes(&self) -> Option<[u8; 16]> {
+        self.extract_trace_id().map(|id| id.to_bytes())
+    }
+
     pub fn extract_traceparent(&self) -> Option<String> {
         self.get("traceparent").map(|s| s.to_string())
     }

@@ -10,7 +10,7 @@ jobs:
   build:
     runs-on: custom-linux
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Install rsync
         run: sudo apt-get install rsync

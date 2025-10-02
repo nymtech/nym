@@ -48,6 +48,174 @@ This page displays a full list of all the changes during our release cycle from 
 
 <VarInfo />
 
+## `v2025.17-isabirra`
+
+- [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.17-isabirra)
+- [`nym-node`](nodes/nym-node.mdx) version `1.18.0`
+
+```sh
+nym-node
+Binary Name:        nym-node
+Build Timestamp:    2025-10-01T10:42:58.647419869Z
+Build Version:      1.18.0
+Commit SHA:         bbea2ff9e913f49cb7bf6c7bafa9d9b158c80de5
+Commit Date:        2025-10-01T12:06:07.000000000+02:00
+Commit Branch:      HEAD
+rustc Version:      1.88.0
+rustc Channel:      stable
+cargo Profile:      release
+```
+
+### Operators Updates & Tools
+
+<Callout type="info" emoji="ℹ️">
+**With `nym-node` version `1.18.0` operators need to make `tcp/51830` reachable on the WG interface (for bandwidth queries/topup).**
+
+This is inside the tunnel - no need to expose it publicly unless you want an external test.
+**Run this command to expose it:**
+```
+ufw allow in on nymwg to any port 51830 proto tcp
+```
+</Callout>
+
+With this platform upgrade we are releasing several tools to improve operator experience. Check them out and let us know what you think.
+
+- **New program for `nym-node` automated installation**: [`nym-node-cli.py`](tools#nym-node-cli)
+
+- **New node reward tracker**: [`node_rewards_tracker.py`](tools#cmd-reward-tracker)
+
+- **New server ping testing diagnostic tool**: [`test-nodes-pings.sh`](tools#node-ping-tester)
+
+- **New [Tools page](tools)**
+
+- **New Gateway landing page [template](https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/landing-page.html)** and simplified [documentation for reverse proxy configuration](nodes/nym-node/configuration/proxy-configuration#html-file-customization)
+
+- SpectreDAO Explorer has a new [Delegation Wizzard](https://explorer.nym.spectredao.net/delegate): Allowing for a smart multi-delegation with optimal node selection form Keplr Wallet
+
+### API Changes
+
+Please read carefully below to follow up with API removal and changes to ensure that your development is up to date.
+
+#### Nym API Removed Routes
+
+All of the routes removed had already been deprecated over a year ago. This is mostly due to the fact that either they were returning only data on legacy nodes (that could never be used anyway) or required some non-sense conversions. Open the dropdown below to see removed routes
+<br/>
+<AccordionTemplate name="Removed API routes">
+
+### Legacy mixnodes related:
+ 
+- `/v1/mixnodes`
+- `/v1/mixnodes/active`
+- `/v1/mixnodes/active/detailed`
+- `/v1/mixnodes/described`
+- `/v1/mixnodes/rewarded`
+- `/v1/mixnodes/rewarded/detailed`
+- `/v1/mixnodes/detailed`
+- `/v1/mixnodes/blacklisted`
+- `/v1/status/mixnodes/active/detailed`
+- `/v1/status/mixnodes/rewarded/detailed`
+- `/v1/status/mixnodes/detailed`
+- `/v1/status/mixnodes/inclusion-probability`
+- `/v1/status/mixnodes/inclusion-probability`
+- `/v1/status/mixnode/{mix_id}/inclusion-probability`
+- `/v1/status/mixnode/{mix_id}/stake-saturation`
+- `/v1/status/mixnode/{mix_id}/status`
+- `/v1/status/mixnode/{mix_id}/reward-estimation`
+- `/v1/status/mixnode/{mix_id}/compute-reward-estimation`
+- `/v1/status/mixnodes/detailed-unfiltered`
+- `/v1/status/mixnode/{mix_id}/report`
+- `/v1/status/mixnode/{mix_id}/avg_uptime`
+ 
+### Legacy gateways related:
+ 
+- `/v1/gateways`
+- `/v1/gateways/described`
+- `/v1/gateways/blacklisted`
+- `/v1/status/gateways/detailed`
+- `/v1/status/gateways/detailed-unfiltered`
+- `/v1/status/gateway/{identity}/report`
+- `/v1/status/gateway/{identity}/avg_uptime`
+
+</AccordionTemplate>
+
+#### Structs changes:
+ 
+- `MixnodeUptimeHistoryResponse` no longer has `owner` field
+- `GatewayUptimeHistoryResponse` no longer has `owner` field
+ 
+ 
+#### New Routes Added
+
+- `/v1/nym-nodes/stake-saturation/{node_id}` - as a better replacement for `/v1/status/mixnode/{mix_id}/stake-saturation` as this information might be potentially useful and can be applied to any nym-node, not just a legacy mixnode.
+- `/v1/legacy/mixnodes` - returns a list of bonded legacy mixnodes that haven't migrated to nym-nodes
+- `/v1/legacy/gateways` - returns a list of bonded legacy gateways that haven't migrated to nym-nodes
+ 
+#### Node Status API
+ 
+Furthermore the changes remove all scraping of legacy mixnodes from NS and the following routes are removed:
+ 
+- `/v2/mixnodes/{mix_id}`
+- `/v2/mixnodes`
+
+### Features
+
+- [Refresh mixnet contract on epoch progression](https://github.com/nymtech/nym/pull/6023): Currently when an epoch has advanced, `nym-api` might still be serving data from the previous iteration. This PR makes sure the data is refreshed as soon as possible so new role assignment would be available quickly after.
+
+- [Explorer-v2: Replace recommended servers with automated selection](https://github.com/nymtech/nym/pull/6019): Use params to get 10 nodes, no more manual paste.
+
+- [Credential proxy crate](https://github.com/nymtech/nym/pull/6018): This PR moves 90% of the credential proxy functionalities into a common crate instead.
+
+- [Moving clients crate from vpn-client repo to here](https://github.com/nymtech/nym/pull/6015): As part of the registration-client work, moved `nym-authenticator-client`, `nym-ip-packet-client` and `nym-wg-gateway-client` from the vpn-client repo into this repository.
+
+- [Cancellation migration](https://github.com/nymtech/nym/pull/6014): Migrates shutdown watchers from `TaskManager` into the new `ShutdownManager`, which relies on tokio’s `CancellationToken` and `TaskTracker`.
+
+- [Use `ShutdownToken` for nym-api](https://github.com/nymtech/nym/pull/5997): Makes `nym-api` use `ShutdownToken` (tokio `CancellationToken` inside) for cancellation; groundwork for migrating clients to the same approach.
+
+- [Delegation program stake checker and adjuster](https://github.com/nymtech/nym/pull/5980): Adds a script to generate a CSV for delegation adjustments according to Delegation Program rules, including node/stake/uptime/version and other fields.
+
+- [Domain fronting integration](https://github.com/nymtech/nym/pull/5974): Completes migration to `nym_http_api_client::Client`, enabling domain fronting and unifying HTTP client usage across the monorepo.
+
+- [Shared library for attempting to retrieve update mode attestation](https://github.com/nymtech/nym/pull/5954): Part of NET-341, provides a shared library to attempt retrieving update mode attestation.
+
+- [Credential proxy deposit pool](https://github.com/nymtech/nym/pull/5945): Changes the credential proxy to hold a pool of available deposits and monitor quorum state, reducing wastage and improving reliability.
+
+- [Nym signers monitor](https://github.com/nymtech/nym/pull/5933): Independent tool for checking the status of network signers and sending notifications if “upgrade” mode is detected.
+
+- [Nym node autorun CLI](https://github.com/nymtech/nym/pull/5916): Adds an interactive CLI to install, set up, and configure `nym-node` as a systemd service, improving operator experience.
+
+### Bugfix
+
+- [Fix the registration handshake](https://github.com/nymtech/nym/pull/6062): Resolves issues in the registration handshake process.
+
+- [Return from MixTrafficController if client request channel has closed](https://github.com/nymtech/nym/pull/6002): Ensures the MixTrafficController exits properly when the client request channel closes.
+
+- [Use default value for the ports until api is deployed](https://github.com/nymtech/nym/pull/6007): Fixes VPN querying mainnet for the API and not finding some of the newly added values by using default port values until the API is deployed.
+
+- [Recipient deserialisation for deserialisers missing bytes specialisation](https://github.com/nymtech/nym/pull/5991): Fixes deserialization where formats like TOML/JSON defaulted incorrectly, ignoring bytes-related optimisations.
+
+- [Use WASM compatible time API in client](https://github.com/nymtech/nym/pull/5948): Prevents client crashes in WASM by replacing time APIs unavailable in that environment.
+
+### Refactors & Maintenance
+
+- [Convenience for ShutdownTracker](https://github.com/nymtech/nym/pull/6038): Adds a method to create a `ShutdownToken` from a `CancellationToken`. Exposes `ShutdownTracker` in the SDK.
+
+- [Made http-api-client-macro doctest compile](https://github.com/nymtech/nym/pull/6037): Adjusts doctests in `http-api-client-macro` so they compile.
+
+- [Remove legacy nodes from nym api](https://github.com/nymtech/nym/pull/6021): Removes nearly all references to legacy nodes from `nym-api` and node status API; cleans up deprecated endpoints and adjusts structs.
+
+- [Upgraded syn to 2.0 and removed nym-execute](https://github.com/nymtech/nym/pull/5998): Updates the `syn` dependency and removes `nym-execute`.
+
+- [Use updated version of simulate endpoint](https://github.com/nymtech/nym/pull/5988): Switches to the updated simulate endpoint.
+
+- [Purge temp databases on build](https://github.com/nymtech/nym/pull/5984): Prevents build failures when switching to branches without DB migrations by cleaning temp databases during builds.
+
+- [Internal hidden command to force advance nyx epoch](https://github.com/nymtech/nym/pull/5964): Adds a hidden developer command to advance the Nyx epoch manually.
+
+- [Create an axum_test client for more integrated unit testing](https://github.com/nymtech/nym/pull/5956): Adds an `axum_test` client to support more integrated unit tests.
+
+- [Revert "Create an axum_test client for more integrated unit testing"](https://github.com/nymtech/nym/pull/5999): Reverts PR #5956 due to OpenSSL dependency issues.
+
+
 ## `v2025.16-halloumi`
 
 - **[`nym-node`](nodes/nym-node.mdx) is not part of the release, the latest stays on version `1.16.0`**

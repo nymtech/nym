@@ -73,11 +73,27 @@ foo
 
 ### Operators Updates & Tools
 
+<Callout type="info" emoji="ℹ️">
+**With `nym-node` version `1.18.0` operators need to make `tcp/51830` reachable on the WG interface (for bandwidth queries/topup).**
 
-- New program for `nym-node` automated installation: 
+This is inside the tunnel - no need to expose it publicly unless you want an external test.
+**Run this command to expose it:**
+```
+ufw allow in on nymwg to any port 51830 proto tcp
+```
+</Callout>
 
-- New Gateway landing page [template](https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/landing-page.html) and simplified [documentation for reverse proxy configuration](nodes/nym-node/configuration/proxy-configuration#html-file-customization)
+With this platform upgrade we are releasing several tools to improve operator experience. Check them out and let us know what you think.
 
+- **New program for `nym-node` automated installation**: [`nym-node-cli.py`](tools#nym-node-cli)
+
+- **New node reward tracker**: [`node_rewards_tracker.py`](tools#cmd-reward-tracker)
+
+- **New server ping testing diagnostic tool**: [`test-nodes-pings.sh`](tools#node-ping-tester)
+
+- **New [Tools page](tools)**
+
+- **New Gateway landing page [template](https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/landing-page.html)** and simplified [documentation for reverse proxy configuration](nodes/nym-node/configuration/proxy-configuration#html-file-customization)
 
 ### API Changes
 

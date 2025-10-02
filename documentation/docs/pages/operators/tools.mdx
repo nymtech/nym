@@ -9,9 +9,21 @@ import { Steps } from 'nextra/components';
 
 # Tools
 
-On this page you can find tools to [setup a node automatically](#nym-node-cli), [explorers]() and other useful dashboards and [scripts](#cmd-reward-tracker).
+On this page you can find tools to [setup a node automatically](#nym-node-cli), [explorers](#explorers) and other useful dashboards and [scripts](#cmd-reward-tracker).
 
 <VarInfo />
+
+## Explorers
+
+Nym Network stats can be humanly read on some of the explorers and dashboards.
+
+- **[Nym Explorer v2](https://nym.com/explorer):** Official Nym Explorer
+
+- **[SpectreDAO Explorer](https://explorer.nym.spectredao.net/):** By operators for operators - currently the most used Nym explorer
+
+- **[Nymesis](https://nymesis.vercel.app/):** A slick dashboard by operator community
+
+- **[Nym Harbourmaster](https://harbourmaster.nymtech.net/):** A dashboard showing results of Gateway probes and more (*in development*)
 
 ## Nym Node CLI
 
@@ -28,7 +40,7 @@ This interactive command-line-based tool takes an operator through a journey of 
 ###### 2. Download `nym-node-cli.py` and make executable
 
 ```sh
-wget https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/nym-node-cli.py &&
+wget https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/nym-node-cli.py && \
 chmod +x ./nym-node-cli.py
 ```
 
@@ -36,7 +48,7 @@ chmod +x ./nym-node-cli.py
 ```
 ./nym-node-cli.py
 ```
-- **Read and follow the prompts**
+###### 4. Read and follow the prompts
 </ Steps>
 
 ## CMD Reward Tracker
@@ -137,7 +149,7 @@ chmod +x test-nodes-pings.sh
 ```sh
 PING_RETRIES=10 PING_TIMEOUT=5 CONCURRENCY=16 ./test-nodes-pings.sh
 ```
-< / Steps>
+</Steps>
 
 You can look up the IPs from `ping_not_working.csv`, using some online database, like [ipinfo.io](https://ipinfo.io).
 

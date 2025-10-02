@@ -11,10 +11,12 @@ use nym_validator_client::{
     nym_nodes::{BasicEntryInformation, NodeRole},
 };
 use serde::{Deserialize, Serialize};
+use strum_macros::EnumString;
 use tracing::{error, instrument};
 use utoipa::ToSchema;
 
 use crate::db::models::NymNodeDataDeHelper;
+use crate::node_scraper::models::BridgeInformation;
 pub(crate) use nym_node_status_client::models::TestrunAssignment;
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
@@ -31,6 +33,7 @@ pub struct Gateway {
     pub last_updated_utc: String,
     pub routing_score: f32,
     pub config_score: u32,
+    pub bridges: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
@@ -40,11 +43,54 @@ pub struct BuildInformation {
     pub commit_sha: String,
 }
 
+#[derive(Debug, Clone, Deserialize, Serialize, ToSchema, EnumString)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum AsnKind {
+    Residential,
+    Other,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
+pub struct Asn {
+    pub asn: String,
+    pub name: String,
+    pub domain: String,
+    pub route: String,
+    pub kind: AsnKind,
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
 pub struct Location {
     pub two_letter_iso_country_code: String,
     pub latitude: f64,
     pub longitude: f64,
+
+    pub city: String,
+    pub region: String,
+    pub org: String,
+    pub postal: String,
+    pub timezone: String,
+
+    pub asn: Option<Asn>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, ToSchema, EnumString)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum ScoreValue {
+    Offline,
+    Low,
+    Medium,
+    High,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
+pub struct DVpnGatewayPerformance {
+    last_updated_utc: String,
+    score: ScoreValue,
+    load: ScoreValue,
+    uptime_percentage_last_24_hours: f32,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
@@ -60,9 +106,16 @@ pub struct DVpnGateway {
     pub mix_port: u16,
     pub role: NodeRole,
     pub entry: Option<BasicEntryInformation>,
+    pub bridges: Option<BridgeInformation>,
+
     // The performance data here originates from the nym-api, and is effectively mixnet performance
     // at the time of writing this
     pub performance: String,
+
+    // Node performance information needed by the NymVPN UI / Explorer to show more information
+    // about the node in a user-friendly way
+    pub performance_v2: Option<DVpnGatewayPerformance>,
+
     pub build_information: BinaryBuildInformationOwned,
 }
 
@@ -155,6 +208,10 @@ pub mod wg_outcome_versions {
     #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
     pub struct ProbeOutcomeV1 {
         pub can_register: bool,
+        pub can_handshake: Option<bool>,
+        pub can_resolve_dns: Option<bool>,
+        pub ping_hosts_performance: Option<f32>,
+        pub ping_ips_performance: Option<f32>,
 
         pub can_handshake_v4: bool,
         pub can_resolve_dns_v4: bool,
@@ -181,6 +238,7 @@ impl DVpnGateway {
     pub(crate) fn new(gateway: Gateway, skimmed_node: &SkimmedNode) -> anyhow::Result<Self> {
         let location = gateway
             .explorer_pretty_bond
+            .clone()
             .ok_or_else(|| anyhow::anyhow!("Missing explorer_pretty_bond"))
             .and_then(|value| {
                 serde_json::from_value::<ExplorerPrettyBond>(value).map_err(From::from)
@@ -189,20 +247,63 @@ impl DVpnGateway {
 
         let self_described: NymNodeDataDeHelper = gateway
             .self_described
+            .clone()
             .ok_or_else(|| anyhow::anyhow!("Missing self_described"))
             .and_then(|value| {
                 serde_json::from_value::<NymNodeDataDeHelper>(value).map_err(From::from)
             })?;
 
-        let last_probe_result = match gateway.last_probe_result {
-            Some(value) => {
-                let parsed =
-                    serde_json::from_value::<LastProbeResult>(value).inspect_err(|err| {
+        let last_updated_utc = gateway.last_testrun_utc.clone().unwrap_or_default();
+        let performance = to_percent(gateway.performance);
+        let network_monitor_performance_mixnet_mode = gateway.performance as f32 / 100f32;
+        let bridges = gateway.bridges.clone().and_then(|v| {
+            serde_json::from_value(v)
+                .inspect_err(|err| {
+                    error!(
+                        "Failed to deserialize bridges for gateway identity {}: {err}",
+                        gateway.gateway_identity_key
+                    );
+                })
+                .ok()
+        });
+
+        tracing::info!("🌈 gateway probe result: {:?}", gateway.last_probe_result);
+
+        let (last_probe_result, performance_v2) = match gateway.last_probe_result {
+            Some(ref value) => {
+                let mut parsed = serde_json::from_value::<LastProbeResult>(value.clone())
+                    .inspect_err(|err| {
                         error!("Failed to deserialize probe result: {err}");
                     })?;
-                Some(parsed)
+
+                parsed.outcome.wg = parsed.outcome.wg.clone().map(|mut wg| {
+                    if wg.can_handshake.is_none() {
+                        wg.can_handshake = Some(wg.can_handshake_v4);
+                    }
+                    if wg.can_resolve_dns.is_none() {
+                        wg.can_resolve_dns = Some(wg.can_resolve_dns_v4);
+                    }
+                    if wg.ping_hosts_performance.is_none() {
+                        wg.ping_hosts_performance = Some(wg.ping_hosts_performance_v4);
+                    }
+                    if wg.ping_ips_performance.is_none() {
+                        wg.ping_ips_performance = Some(wg.ping_ips_performance_v4);
+                    }
+                    wg
+                });
+
+                tracing::info!("🌈 gateway probe parsed: {:?}", parsed);
+                let performance_v2 = DVpnGatewayPerformance {
+                    last_updated_utc: last_updated_utc.to_string(),
+                    load: calculate_load(&parsed),
+                    score: calculate_score(&gateway, &parsed),
+
+                    // the network monitor's measure is a good proxy for node uptime, it can be improved in the future
+                    uptime_percentage_last_24_hours: network_monitor_performance_mixnet_mode,
+                };
+                (Some(parsed), Some(performance_v2))
             }
-            None => None,
+            None => (None, None),
         };
 
         Ok(Self {
@@ -214,18 +315,111 @@ impl DVpnGateway {
                 latitude: location.location.latitude,
                 longitude: location.location.longitude,
                 two_letter_iso_country_code: location.two_letter_iso_country_code,
+                org: location.org,
+                city: location.city,
+                region: location.region,
+                postal: location.postal,
+                timezone: location.timezone,
+                asn: location.asn.map(|a| {
+                    let kind = if a.kind.eq_ignore_ascii_case("isp") {
+                        // we consider anything that is "ISP" from ipinfo to be residential
+                        AsnKind::Residential
+                    } else {
+                        // everything else is considered "other"
+                        AsnKind::Other
+                    };
+                    Asn {
+                        asn: a.asn,
+                        domain: a.domain,
+                        kind,
+                        name: a.name,
+                        route: a.route,
+                    }
+                }),
             },
             last_probe: last_probe_result.map(|res| DirectoryGwProbe {
-                last_updated_utc: gateway.last_testrun_utc.unwrap_or_default(),
+                last_updated_utc: last_updated_utc.to_string(),
                 outcome: res.outcome,
             }),
             ip_addresses: skimmed_node.ip_addresses.clone(),
             mix_port: skimmed_node.mix_port,
             role: skimmed_node.role.clone(),
             entry: skimmed_node.entry.clone(),
-            performance: to_percent(gateway.performance),
+            bridges,
+            performance,
+            performance_v2,
             build_information: self_described.build_information,
         })
+    }
+}
+
+/// calculates a visual score for the gateway
+fn calculate_score(gateway: &Gateway, probe_outcome: &LastProbeResult) -> ScoreValue {
+    let mixnet_performance = gateway.performance as f64 / 100.0;
+    let ping_ips_performance = probe_outcome
+        .outcome
+        .wg
+        .clone()
+        .map(|p| {
+            let ping_ips_performance = p.ping_ips_performance_v4 as f64;
+
+            let duration = p.download_duration_sec_v4 as f64;
+            let file_size_mb = if p.downloaded_file_v4.contains("1Mb") {
+                1024.0
+            } else if p.downloaded_file_v4.contains("10Mb") {
+                10240.0
+            } else if p.downloaded_file_v4.contains("100Mb") {
+                102400.0
+            } else {
+                1.0
+            };
+            let speed_mbps = file_size_mb / duration;
+
+            let file_download_score = if speed_mbps > 100.0 {
+                1.0
+            } else if speed_mbps > 50.0 {
+                0.75
+            } else if speed_mbps > 20.0 {
+                0.5
+            } else if speed_mbps > 10.0 {
+                0.25
+            } else {
+                0.1
+            };
+
+            // combine the scores
+            file_download_score * ping_ips_performance
+        })
+        .unwrap_or(0f64);
+
+    let score = mixnet_performance * ping_ips_performance;
+
+    if score > 0.75 {
+        ScoreValue::High
+    } else if score > 0.5 {
+        ScoreValue::Medium
+    } else if score > 0.1 {
+        ScoreValue::Low
+    } else {
+        ScoreValue::Offline
+    }
+}
+
+/// calculates a visual load score for the gateway
+fn calculate_load(probe_outcome: &LastProbeResult) -> ScoreValue {
+    let score = probe_outcome
+        .outcome
+        .wg
+        .clone()
+        .map(|p| p.ping_ips_performance_v4 as f64)
+        .unwrap_or(0f64);
+
+    if score > 0.8 {
+        ScoreValue::Low
+    } else if score > 0.4 {
+        ScoreValue::Medium
+    } else {
+        ScoreValue::High
     }
 }
 
@@ -341,6 +535,12 @@ mod test {
             two_letter_iso_country_code: "US".to_string(),
             latitude: 40.7128,
             longitude: -74.0060,
+            org: "Nym".to_string(),
+            city: "Genève".to_string(),
+            region: "Geneva".to_string(),
+            postal: "1200".to_string(),
+            timezone: "Europe/Zurich".to_string(),
+            asn: None,
         };
 
         assert_eq!(location.two_letter_iso_country_code, "US");
@@ -355,18 +555,36 @@ mod test {
             two_letter_iso_country_code: "XX".to_string(),
             latitude: 90.0,
             longitude: 0.0,
+            org: "Nym".to_string(),
+            city: "Genève".to_string(),
+            region: "Geneva".to_string(),
+            postal: "1200".to_string(),
+            timezone: "Europe/Zurich".to_string(),
+            asn: None,
         };
 
         let south_pole = Location {
             two_letter_iso_country_code: "AQ".to_string(),
             latitude: -90.0,
             longitude: 0.0,
+            org: "Nym".to_string(),
+            city: "Genève".to_string(),
+            region: "Geneva".to_string(),
+            postal: "1200".to_string(),
+            timezone: "Europe/Zurich".to_string(),
+            asn: None,
         };
 
         let date_line = Location {
             two_letter_iso_country_code: "FJ".to_string(),
             latitude: -17.0,
             longitude: 180.0,
+            org: "Nym".to_string(),
+            city: "Genève".to_string(),
+            region: "Geneva".to_string(),
+            postal: "1200".to_string(),
+            timezone: "Europe/Zurich".to_string(),
+            asn: None,
         };
 
         assert_eq!(north_pole.latitude, 90.0);

@@ -1,3 +1,4 @@
+pub(crate) mod ecash_data;
 mod gateways;
 mod gateways_stats;
 mod misc;
@@ -19,7 +20,7 @@ pub(crate) use nym_nodes::{
     update_nym_nodes,
 };
 pub(crate) use packet_stats::{
-    batch_store_packet_stats, get_raw_node_stats, insert_daily_node_stats_uncommitted,
+    batch_store_node_scraper_results, get_raw_node_stats, insert_daily_node_stats_uncommitted,
 };
 pub(crate) use scraper::{get_nodes_for_scraping, insert_scraped_node_description};
 pub(crate) use summary::{get_summary, get_summary_history};

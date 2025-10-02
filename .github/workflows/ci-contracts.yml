@@ -17,7 +17,7 @@ jobs:
   build:
     # since it's going to be compiled into wasm, there's absolutely
     # no point in running CI on different OS-es
-    runs-on: ubuntu-22.04
+    runs-on: arc-linux-latest
     env:
       CARGO_TERM_COLOR: always
       RUSTUP_PERMIT_COPY_RENAME: 1

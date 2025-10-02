@@ -1,15 +1,11 @@
 // Copyright 2023-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-// To remove with the Registration Client PR
-#![allow(clippy::unwrap_used)]
-
-use std::{sync::Arc, time::Duration};
+use std::time::Duration;
 
 use nym_ip_packet_requests::IpPair;
 use nym_sdk::mixnet::{
-    InputMessage, MixnetClient, MixnetClientSender, MixnetMessageSender, Recipient,
-    TransmissionLane,
+    InputMessage, MixnetClient, MixnetMessageSender, Recipient, TransmissionLane,
 };
 use tokio::time::sleep;
 use tokio_util::sync::CancellationToken;
@@ -27,8 +23,6 @@ use crate::{
     helpers::check_ipr_message_version,
 };
 
-pub type SharedMixnetClient = Arc<tokio::sync::Mutex<Option<MixnetClient>>>;
-
 const IPR_CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -43,22 +37,22 @@ enum ConnectionState {
 pub struct IprClientConnect {
     // During connection we need the mixnet client, but once connected we expect to setup a channel
     // from the main mixnet listener at the top-level.
-    // As such, we drop the shared mixnet client once we're connected.
-    mixnet_client: SharedMixnetClient,
-    mixnet_sender: MixnetClientSender,
+    mixnet_client: MixnetClient,
     connected: ConnectionState,
     cancel_token: CancellationToken,
 }
 
 impl IprClientConnect {
-    pub async fn new(mixnet_client: SharedMixnetClient, cancel_token: CancellationToken) -> Self {
-        let mixnet_sender = mixnet_client.lock().await.as_ref().unwrap().split_sender();
+    pub async fn new(mixnet_client: MixnetClient, cancel_token: CancellationToken) -> Self {
         Self {
             mixnet_client,
-            mixnet_sender,
             connected: ConnectionState::Disconnected,
             cancel_token,
         }
+    }
+
+    pub fn into_mixnet_client(self) -> MixnetClient {
+        self.mixnet_client
     }
 
     pub async fn connect(&mut self, ip_packet_router_address: Recipient) -> Result<IpPair> {
@@ -95,12 +89,12 @@ impl IprClientConnect {
         // We use 20 surbs for the connect request because typically the IPR is configured to have
         // a min threshold of 10 surbs that it reserves for itself to request additional surbs.
         let surbs = 20;
-        self.mixnet_sender
+        self.mixnet_client
             .send(create_input_message(
                 ip_packet_router_address,
                 request,
                 surbs,
-            ))
+            )?)
             .await
             .map_err(|err| Error::SdkError(Box::new(err)))?;
 
@@ -133,14 +127,14 @@ impl IprClientConnect {
         }
     }
 
-    async fn listen_for_connect_response(&self, request_id: u64) -> Result<IpPair> {
+    async fn listen_for_connect_response(&mut self, request_id: u64) -> Result<IpPair> {
         // Connecting is basically synchronous from the perspective of the mixnet client, so it's safe
         // to just grab ahold of the mutex and keep it until we get the response.
-        let mut mixnet_client_handle = self.mixnet_client.lock().await;
-        let mixnet_client = mixnet_client_handle.as_mut().unwrap();
 
         let timeout = sleep(IPR_CONNECT_TIMEOUT);
         tokio::pin!(timeout);
+
+        let mixnet_cancel_token = self.mixnet_client.cancellation_token();
 
         loop {
             tokio::select! {
@@ -148,11 +142,16 @@ impl IprClientConnect {
                     error!("Cancelled while waiting for reply to connect request");
                     return Err(Error::Cancelled);
                 },
+
+                _ = mixnet_cancel_token.cancelled() => {
+                    error!("Mixnet client stopped while waiting for reply to connect request");
+                    return Err(Error::Cancelled);
+                },
                 _ = &mut timeout => {
                     error!("Timed out waiting for reply to connect request");
                     return Err(Error::TimeoutWaitingForConnectResponse);
                 },
-                msgs = mixnet_client.wait_for_messages() => match msgs {
+                msgs = self.mixnet_client.wait_for_messages() => match msgs {
                     None => {
                         return Err(Error::NoMixnetMessagesReceived);
                     }
@@ -188,12 +187,12 @@ fn create_input_message(
     recipient: Recipient,
     request: IpPacketRequest,
     surbs: u32,
-) -> InputMessage {
-    InputMessage::new_anonymous(
+) -> Result<InputMessage> {
+    Ok(InputMessage::new_anonymous(
         recipient,
-        request.to_bytes().unwrap(),
+        request.to_bytes()?,
         surbs,
         TransmissionLane::General,
         None,
-    )
+    ))
 }

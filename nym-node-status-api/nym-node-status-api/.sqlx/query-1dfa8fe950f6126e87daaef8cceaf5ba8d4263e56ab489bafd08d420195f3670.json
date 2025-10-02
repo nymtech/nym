@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO global_coin_index_signatures(epoch_id, serialised_signatures, serialization_revision) VALUES ($1, $2, $3)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Bytea",
+        "Int2"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "1dfa8fe950f6126e87daaef8cceaf5ba8d4263e56ab489bafd08d420195f3670"
+}

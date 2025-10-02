@@ -1,6 +1,9 @@
+use crate::ticketbook_manager::TicketbookManagerConfig;
 use clap::Parser;
 use nym_bin_common::bin_info;
+use nym_credential_proxy_lib::shared_state::ecash_state::TicketType;
 use reqwest::Url;
+use std::str::FromStr;
 use std::{sync::OnceLock, time::Duration};
 
 // Helper for passing LONG_VERSION to clap
@@ -9,9 +12,14 @@ fn pretty_build_info_static() -> &'static str {
     PRETTY_BUILD_INFORMATION.get_or_init(|| bin_info!().pretty_print())
 }
 
-#[derive(Clone, Debug, Parser)]
+#[derive(Debug, Parser)]
 #[clap(author = "Nymtech", version, long_version = pretty_build_info_static(), about)]
 pub(crate) struct Cli {
+    /// Path pointing to an env file that configures the binary.
+    /// Useful in local testing setups against networks different from mainnet
+    #[clap(short, long)]
+    pub(crate) config_env_file: Option<std::path::PathBuf>,
+
     /// Network name for the network to which we're connecting.
     #[clap(long, env = "NETWORK_NAME")]
     pub(crate) network_name: String,
@@ -94,6 +102,93 @@ pub(crate) struct Cli {
         env = "NYM_NODE_STATUS_API_MAX_AGENT_COUNT"
     )]
     pub(crate) max_agent_count: i64,
+
+    #[clap(flatten)]
+    pub(crate) ticketbook: TicketbookArgs,
+}
+
+#[derive(Debug, Parser)]
+pub(crate) struct TicketbookArgs {
+    /// Specifies the mnemonic authorised for making deposits for the ticketbooks
+    #[clap(long, env = "NYM_NODE_STATUS_API_MNEMONIC")]
+    pub mnemonic: bip39::Mnemonic,
+
+    /// Specify the maximum number of deposits the node status api can make in a single transaction.
+    /// Note that each deposit batch is followed by the same number of sequential signing requests
+    /// (default: 5)
+    #[clap(
+        long,
+        env = "NYM_NODE_STATUS_API_MAX_CONCURRENT_DEPOSITS",
+        default_value_t = 5
+    )]
+    pub(crate) max_concurrent_deposits: usize,
+
+    /// Specify the size of the tickets buffer the node status api should have available at any time
+    /// for each ticket type.
+    /// (default: 50)
+    #[clap(long, env = "NYM_NODE_STATUS_API_TICKETS_BUFFER", default_value_t = 50)]
+    pub(crate) tickets_buffer_size: usize,
+
+    /// Specify interval at which the node status api should check if it has sufficient number of tickets buffered.
+    /// (default: 1 minute)
+    #[clap(
+        long,
+        env = "NYM_NODE_STATUS_API_TICKETS_CHECK_INTERVAL",
+        default_value = "1m",
+        value_parser = humantime::parse_duration
+    )]
+    pub(crate) tickets_buffer_check_interval: Duration,
+
+    /// Specify interval at which the node status api should check if signing quorum is available
+    /// (default: 5 minutes)
+    #[clap(
+        long,
+        env = "NYM_NODE_STATUS_API_QUORUM_CHECK_INTERVAL",
+        default_value = "5m",
+        value_parser = humantime::parse_duration
+    )]
+    pub(crate) quorum_check_interval: Duration,
+
+    /// Specify types of tickets to buffer
+    /// (default: V1MixnetEntry, V1WireguardEntry, V1WireguardExit)
+    #[clap(
+        long,
+        env = "NYM_NODE_STATUS_BUFFERED_TICKET_TYPES",
+        default_values_t = [TicketType::V1MixnetEntry, TicketType::V1WireguardEntry, TicketType::V1WireguardExit]
+    )]
+    #[arg(value_delimiter = ',')]
+    pub(crate) buffered_ticket_types: Vec<TicketType>,
+
+    /// Identifier used for deriving keys embedded in the issued ticketbooks.
+    /// It can be a random string, but make sure it has sufficient entropy
+    #[clap(
+        long,
+        env = "NYM_NODE_STATUS_API_ECASH_CLIENT_IDENTIFIER_BS58",
+        required = true
+    )]
+    pub(crate) ecash_client_identifier_bs58: ClientIdentifier,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct ClientIdentifier(pub(crate) Vec<u8>);
+
+impl FromStr for ClientIdentifier {
+    type Err = bs58::decode::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        bs58::decode(s).into_vec().map(ClientIdentifier)
+    }
+}
+
+impl TicketbookArgs {
+    pub(crate) fn to_manager_config(&self) -> TicketbookManagerConfig {
+        TicketbookManagerConfig {
+            check_interval: self.tickets_buffer_check_interval,
+            tickets_buffer_size: self.tickets_buffer_size,
+            max_concurrent_deposits: self.max_concurrent_deposits,
+            buffered_ticket_types: self.buffered_ticket_types.clone(),
+        }
+    }
 }
 
 fn parse_duration_humantime(arg: &str) -> Result<time::Duration, anyhow::Error> {

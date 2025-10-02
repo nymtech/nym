@@ -4,6 +4,84 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [2025.17-isabirra] (2025-09-29)
+
+- Bugfix | Fix the registration handshake ([#6062])
+- Convenience for ShutdownTracker ([#6038])
+- chore: made http-api-client-macro doctest compile ([#6037])
+- feat: refresh mixnet contract on epoch progression ([#6023])
+- chore: remove legacy nodes from nym api [and kinda-ish from node status api] ([#6021])
+- Feature/credential proxy crate ([#6018])
+- Moving clients crate from vpn-client repo to here ([#6015])
+- Feature/cancellation migration ([#6014])
+- Use default value for the ports until api is deployed ([#6007])
+- bugfix: return from MixTrafficController if client request channel has closed ([#6002])
+- Revert "Create an axum_test client for more integrated unit testing (… ([#5999])
+- chore: upgraded syn to 2.0 and removed nym-execute ([#5998])
+- feat: use `ShutdownToken` (`CancellationToken` inside) for nym-api ([#5997])
+- bugfix: Recipient deserialisation for deserialisers missing bytes specialisation ([#5991])
+- chore: use updated version of simulate endpoint ([#5988])
+- chore: purge temp databases on build ([#5984])
+- Bump sha.js from 2.4.11 to 2.4.12 ([#5983])
+- Feature: Delegation program stake checker and adjuster ([#5980])
+- build(deps): bump actions/setup-java from 4 to 5 ([#5975])
+- Domain fronting integration ([#5974])
+- chore: internal hidden command to force advance nyx epoch ([#5964])
+- Create an axum_test client for more integrated unit testing ([#5956])
+- feat: shared library for attempting to retrieve update mode attestation ([#5954])
+- Bump slab from 0.4.10 to 0.4.11 ([#5952])
+- build(deps): bump actions/first-interaction from 1 to 3 ([#5950])
+- fix: use WASM compatible time API in client ([#5948])
+- feat: credential proxy deposit pool ([#5945])
+- build(deps): bump actions/download-artifact from 4 to 5 ([#5939])
+- feat: nym signers monitor ([#5933])
+- Bump console from 0.15.11 to 0.16.0 ([#5931])
+- Bump mock_instant from 0.5.3 to 0.6.0 ([#5930])
+- Bump tokio from 1.46.1 to 1.47.1 ([#5929])
+- Bump defguard_wireguard_rs from v0.4.7 to v0.7.5 ([#5928])
+- Bump indicatif from 0.17.11 to 0.18.0 ([#5924])
+- Feature: Nym node autorun CLI ([#5916])
+- build(deps): bump mikefarah/yq from 4.45.4 to 4.47.1 ([#5911])
+- build(deps): bump pbkdf2 from 3.1.2 to 3.1.3 ([#5869])
+
+[#6062]: https://github.com/nymtech/nym/pull/6062
+[#6038]: https://github.com/nymtech/nym/pull/6038
+[#6037]: https://github.com/nymtech/nym/pull/6037
+[#6023]: https://github.com/nymtech/nym/pull/6023
+[#6021]: https://github.com/nymtech/nym/pull/6021
+[#6018]: https://github.com/nymtech/nym/pull/6018
+[#6015]: https://github.com/nymtech/nym/pull/6015
+[#6014]: https://github.com/nymtech/nym/pull/6014
+[#6007]: https://github.com/nymtech/nym/pull/6007
+[#6002]: https://github.com/nymtech/nym/pull/6002
+[#5999]: https://github.com/nymtech/nym/pull/5999
+[#5998]: https://github.com/nymtech/nym/pull/5998
+[#5997]: https://github.com/nymtech/nym/pull/5997
+[#5991]: https://github.com/nymtech/nym/pull/5991
+[#5988]: https://github.com/nymtech/nym/pull/5988
+[#5984]: https://github.com/nymtech/nym/pull/5984
+[#5983]: https://github.com/nymtech/nym/pull/5983
+[#5980]: https://github.com/nymtech/nym/pull/5980
+[#5975]: https://github.com/nymtech/nym/pull/5975
+[#5974]: https://github.com/nymtech/nym/pull/5974
+[#5964]: https://github.com/nymtech/nym/pull/5964
+[#5956]: https://github.com/nymtech/nym/pull/5956
+[#5954]: https://github.com/nymtech/nym/pull/5954
+[#5952]: https://github.com/nymtech/nym/pull/5952
+[#5950]: https://github.com/nymtech/nym/pull/5950
+[#5948]: https://github.com/nymtech/nym/pull/5948
+[#5945]: https://github.com/nymtech/nym/pull/5945
+[#5939]: https://github.com/nymtech/nym/pull/5939
+[#5933]: https://github.com/nymtech/nym/pull/5933
+[#5931]: https://github.com/nymtech/nym/pull/5931
+[#5930]: https://github.com/nymtech/nym/pull/5930
+[#5929]: https://github.com/nymtech/nym/pull/5929
+[#5928]: https://github.com/nymtech/nym/pull/5928
+[#5924]: https://github.com/nymtech/nym/pull/5924
+[#5916]: https://github.com/nymtech/nym/pull/5916
+[#5911]: https://github.com/nymtech/nym/pull/5911
+[#5869]: https://github.com/nymtech/nym/pull/5869
+
 ## [2025.16-halloumi] (2025-09-16)
 
 - Backport metadata endpoint ([#6010])

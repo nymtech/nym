@@ -170,7 +170,8 @@ impl MixTrafficController {
                     },
                     None => {
                         trace!("MixTrafficController, client request channel closed");
-                    break}
+                        break
+                    }
                 },
             }
         }

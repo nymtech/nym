@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE\n            testruns\n        SET\n            status = $1\n        WHERE\n            status = $2\n        AND\n            last_assigned_utc < $3\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Int4",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "82bf46daa4f64c93a90e3c7ee505e4d9eb9d0a4fe272663628fafada8e97213e"
+}

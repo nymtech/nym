@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                INSERT INTO ecash_deposit_usage (deposit_id, ticketbooks_requested_on, client_pubkey, request_uuid)\n                VALUES (?, ?, ?, ?)\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": []
+  },
+  "hash": "1fc72f8ba24039548047e1766c9105614dea7fd301f0ec38bfe85bfe546dad40"
+}

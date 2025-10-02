@@ -176,7 +176,7 @@ impl EcashState {
             .active_signer
             .get_or_init(epoch_id, || async {
                 let Ok(address) = self.aux.client.address().await else {
-                    return Ok(false);
+                    return Ok::<_, EcashError>(false);
                 };
                 let ecash_signers = self.aux.comm_channel.ecash_clients(epoch_id).await?;
 

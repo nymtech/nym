@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE\n            gateways\n        SET\n            bonded = false\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "f7e3fa31d68c028bf39cc95389f29f8758ec922dd2e7ea064a1e537e580c9ee5"
+}

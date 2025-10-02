@@ -67,8 +67,8 @@ pub(crate) async fn get_nodes_for_scraping(pool: &DbPool) -> Result<Vec<ScraperN
 
 pub(crate) async fn insert_scraped_node_description(
     pool: &DbPool,
-    node_kind: ScrapeNodeKind,
-    description: NodeDescriptionResponse,
+    node_kind: &ScrapeNodeKind,
+    description: &NodeDescriptionResponse,
 ) -> Result<()> {
     let timestamp = now_utc().unix_timestamp();
     let mut conn = pool.acquire().await?;
@@ -81,7 +81,7 @@ pub(crate) async fn insert_scraped_node_description(
             node_id,
             identity_key,
         } => {
-            insert_nym_node_description(&mut conn, node_id, description.clone(), timestamp).await?;
+            insert_nym_node_description(&mut conn, node_id, description, timestamp).await?;
             // for historic reasons (/gateways API), store this info into gateways table as well
             insert_gateway_description(&mut conn, identity_key, description, timestamp).await?;
         }

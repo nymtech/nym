@@ -14,19 +14,20 @@ pub(crate) async fn try_queue_testrun(
     let timestamp = now.unix_timestamp();
     let timestamp_pretty = now.to_string();
 
-    let items = crate::db::query_as::<GatewayInfoDto>(
+    let items = sqlx::query_as!(
+        GatewayInfoDto,
         r#"SELECT
             id,
             gateway_identity_key,
             self_described,
             explorer_pretty_bond
          FROM gateways
-         WHERE gateway_identity_key = ?
+         WHERE gateway_identity_key = $1
          AND bonded = true
          ORDER BY gateway_identity_key
          LIMIT 1"#,
+        identity_key.clone()
     )
-    .bind(identity_key.clone())
     // TODO dz should call .fetch_one
     // TODO dz replace this in other queries as well
     .fetch(conn.as_mut())
@@ -46,7 +47,8 @@ pub(crate) async fn try_queue_testrun(
     //
     // check if there is already a test run for this gateway
     //
-    let items = crate::db::query_as::<TestRunDto>(
+    let items = sqlx::query_as!(
+        TestRunDto,
         r#"SELECT
             id,
             gateway_id,
@@ -56,11 +58,11 @@ pub(crate) async fn try_queue_testrun(
             log,
             last_assigned_utc
          FROM testruns
-         WHERE gateway_id = ? AND status != 2
+         WHERE gateway_id = $1 AND status != 2
          ORDER BY id DESC
          LIMIT 1"#,
+        gateway_id
     )
-    .bind(gateway_id)
     .fetch(conn.as_mut())
     .try_collect::<Vec<_>>()
     .await?;
@@ -84,20 +86,6 @@ pub(crate) async fn try_queue_testrun(
     let status = TestRunStatus::Queued as i32;
     let log = format!("Test for {identity_key} requested at {timestamp_pretty} UTC\n\n");
 
-    #[cfg(feature = "sqlite")]
-    let id = sqlx::query!(
-        "INSERT INTO testruns (gateway_id, status, ip_address, created_utc, log) VALUES (?, ?, ?, ?, ?)",
-        gateway_id,
-        status,
-        ip_address,
-        timestamp,
-        log,
-    )
-    .execute(conn.as_mut())
-    .await?
-    .last_insert_rowid();
-
-    #[cfg(feature = "pg")]
     let id = {
         let record = sqlx::query!(
             "INSERT INTO testruns (gateway_id, status, ip_address, created_utc, log) VALUES ($1, $2, $3, $4, $5) RETURNING id",

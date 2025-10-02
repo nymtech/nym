@@ -15,7 +15,8 @@ use nym_api_requests::nym_nodes::NodeRoleQueryParam;
 /// Return all Nym Nodes and optionally legacy mixnodes/gateways (if `no-legacy` flag is not used)
 /// that are currently bonded.
 #[utoipa::path(
-    tag = "Unstable Nym Nodes",
+    operation_id = "v2_nodes_basic_all",
+    tag = "Unstable Nym Nodes v2",
     get,
     params(NodesParamsWithRole),
     path = "",
@@ -52,7 +53,8 @@ pub(crate) async fn nodes_basic_all(
 /// Returns Nym Nodes and optionally legacy mixnodes (if `no-legacy` flag is not used)
 /// that are currently bonded and support mixing role.
 #[utoipa::path(
-    tag = "Unstable Nym Nodes",
+    operation_id = "v2_mixnodes_basic_all",
+    tag = "Unstable Nym Nodes v2",
     get,
     params(NodesParams),
     path = "/mixnodes/all",
@@ -75,7 +77,8 @@ pub(crate) async fn mixnodes_basic_all(
 /// Returns Nym Nodes and optionally legacy mixnodes (if `no-legacy` flag is not used)
 /// that are currently bonded and are in the active set with one of the mixing roles.
 #[utoipa::path(
-    tag = "Unstable Nym Nodes",
+    operation_id = "v2_mixnodes_basic_active",
+    tag = "Unstable Nym Nodes v2",
     get,
     params(NodesParams),
     path = "/mixnodes/active",
@@ -98,7 +101,8 @@ pub(crate) async fn mixnodes_basic_active(
 /// Returns Nym Nodes and optionally legacy gateways (if `no-legacy` flag is not used)
 /// that are currently bonded and support entry gateway role.
 #[utoipa::path(
-    tag = "Unstable Nym Nodes",
+    operation_id = "v2_entry_gateways_basic_all",
+    tag = "Unstable Nym Nodes v2",
     get,
     params(NodesParams),
     path = "/entry-gateways",
@@ -121,7 +125,8 @@ pub(crate) async fn entry_gateways_basic_all(
 /// Returns Nym Nodes and optionally legacy gateways (if `no-legacy` flag is not used)
 /// that are currently bonded and support exit gateway role.
 #[utoipa::path(
-    tag = "Unstable Nym Nodes",
+    operation_id = "v2_exit_gateways_basic_all",
+    tag = "Unstable Nym Nodes v2",
     get,
     params(NodesParams),
     path = "/exit-gateways",

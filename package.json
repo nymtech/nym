@@ -28,7 +28,7 @@
     "build:packages:react": "lerna run --scope @nymproject/react build",
     "build:playground": "lerna run --scope @nymproject/react storybook:build --stream",
     "build:ci:storybook": "yarn build && yarn dev:on && run-p build:playground && yarn build:ci:storybook:collect-artifacts ",
-    "build:ci:storybook:collect-artifacts": "mkdir -p ts-packages/dist && mv sdk/typescript/packages/react-components/storybook-static ts-packages/dist/storybook && mv sdk/typescript/examples/react/mui-theme/dist ts-packages/dist/example",
+    "build:ci:storybook:collect-artifacts": "mkdir -p ts-packages/dist && mv sdk/typescript/packages/react-components/storybook-static ts-packages/dist/storybook ",
     "prebuild:ci": "yarn dev:on && yarn",
     "build:ci": "run-s build:types build:packages build:wasm build:ci:sdk",
     "postbuild:ci": "yarn dev:off",

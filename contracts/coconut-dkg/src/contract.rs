@@ -23,7 +23,6 @@ use crate::epoch_state::transactions::{
     try_advance_epoch_state, try_initiate_dkg, try_trigger_reset, try_trigger_resharing,
 };
 use crate::error::ContractError;
-use crate::queued_migrations::introduce_historical_epochs;
 use crate::state::queries::query_state;
 use crate::state::storage::{DKG_ADMIN, MULTISIG, STATE};
 use crate::verification_key_shares::queries::{query_vk_share, query_vk_shares_paged};
@@ -256,11 +255,9 @@ pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, C
 }
 
 #[entry_point]
-pub fn migrate(deps: DepsMut<'_>, env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+pub fn migrate(deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
     set_build_information!(deps.storage)?;
     cw2::ensure_from_older_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
-
-    introduce_historical_epochs(deps, env)?;
 
     Ok(Response::new())
 }

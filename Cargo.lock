@@ -7416,7 +7416,6 @@ dependencies = [
  "tokio-util",
  "tracing",
  "url",
- "wasmtimer",
 ]
 
 [[package]]

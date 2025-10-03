@@ -223,6 +223,24 @@ configure_dns_and_icmp_wg() {
     echo "dns and icmp configuration completed."
 }
 
+allow_tcp_51830_on_nymwg() {
+    echo "allowing inbound TCP on port 51830 on interface nymwg (IPv4 and IPv6)..."
+
+    # IPv4
+    sudo iptables -A INPUT -i "$wg_tunnel_interface" -p tcp --dport 51830 -j ACCEPT
+    sudo iptables -A OUTPUT -o "$wg_tunnel_interface" -p tcp --dport 51830 -j ACCEPT
+
+    # IPv6
+    sudo ip6tables -A INPUT -i "$wg_tunnel_interface" -p tcp --dport 51830 -j ACCEPT
+    sudo ip6tables -A OUTPUT -o "$wg_tunnel_interface" -p tcp --dport 51830 -j ACCEPT
+
+    echo "saving iptables rules..."
+    sudo iptables-save | sudo tee /etc/iptables/rules.v4
+    sudo ip6tables-save | sudo tee /etc/iptables/rules.v6
+
+    echo "allow rule for TCP/51830 on nymwg applied."
+}
+
 case "$1" in
 fetch_ipv6_address_nym_tun)
     fetch_ipv6_address "$tunnel_interface"
@@ -260,6 +278,9 @@ joke_through_wg_tunnel)
 configure_dns_and_icmp_wg)
     configure_dns_and_icmp_wg
     ;;
+allow_tcp_51830_on_nymwg)
+    allow_tcp_51830_on_nymwg
+    ;;
 adjust_ip_forwarding)
     adjust_ip_forwarding
     ;;
@@ -281,6 +302,7 @@ remove_duplicate_rules)
     echo "  joke_through_the_mixnet         - Fetch a joke via nymtun0."
     echo "  joke_through_wg_tunnel          - Fetch a joke via nymwg."
     echo "  configure_dns_and_icmp_wg       - Allows icmp ping tests for probes alongside configuring dns"
+    echo "  allow_tcp_51830_on_nymwg        - Allow inbound TCP 51830 on nymwg (IPv4/IPv6)"
     echo "  adjust_ip_forwarding            - Enable IPV6 and IPV4 forwarding"
     echo "  remove_duplicate_rules <interface> - Remove duplicate iptables rules. Valid interfaces: nymwg, nymtun0"
     exit 1

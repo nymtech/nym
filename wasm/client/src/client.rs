@@ -54,14 +54,11 @@ pub type ClientRequestSender = mpsc::Sender<ClientRequest>;
 #[wasm_bindgen]
 pub struct NymClient {
     self_address: String,
-    #[wasm_bindgen(skip)]
     client_input: Arc<ClientInput>,
-    #[wasm_bindgen(skip)]
     client_state: Arc<ClientState>,
 
     // keep track of the "old" topology for the purposes of node tester
     // so that it could be restored after the check is done
-    #[wasm_bindgen(skip)]
     _full_topology: Option<NymTopology>,
 
     // even though we don't use graceful shutdowns, other components rely on existence of this struct
@@ -72,7 +69,6 @@ pub struct NymClient {
 
     // We need this to keep the client_request channel alive and avoid jamming up the
     // JS runtime when the MixTrafficController then tries to reconnect it if it dies
-    #[wasm_bindgen(skip)]
     #[allow(dead_code)]
     pub(crate) client_request_sender: ClientRequestSender,
 }
@@ -378,18 +374,12 @@ impl NymClient {
         }
 
         future_to_promise(async move {
-            let result = Self::_new(config, on_message, opts.base).await;
-
-            match result {
-                Ok(client) => {
-                    let js_result = JsValue::from(client);
-                    Ok(js_result)
-                }
-                Err(err) => {
-                    console_error!("future_to_promise: Error occurred: {:?}", err);
-                    Err(JsValue::from(err))
-                }
-            }
+            let base = opts.base;
+            Self::_new(config, on_message, base)
+                .await
+                .inspect_err(|e| console_error!("future_to_promise: Error occurred: {:?}", e))
+                .map(JsValue::from)
+                .map_err(JsValue::from)
         })
     }
 
@@ -400,20 +390,12 @@ impl NymClient {
         opts: ClientOptsSimple,
     ) -> Promise {
         future_to_promise(async move {
-            let result = Self::_new(config, on_message, Some(opts)).await;
-            match result {
-                Ok(client) => {
-                    let js_result = JsValue::from(client);
-                    Ok(js_result)
-                }
-                Err(err) => {
-                    console_error!(
-                        "new_with_config: future_to_promise: Error occurred: {:?}",
-                        err
-                    );
-                    Err(JsValue::from(err))
-                }
-            }
+            let base = Some(opts);
+            Self::_new(config, on_message, base)
+                .await
+                .inspect_err(|e| console_error!("future_to_promise: Error occurred: {:?}", e))
+                .map(JsValue::from)
+                .map_err(JsValue::from)
         })
     }
 

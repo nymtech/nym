@@ -15,11 +15,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tracing::{debug, trace};
 
-#[cfg(not(target_arch = "wasm32"))]
 use tokio::time::{sleep, Instant};
-
-#[cfg(target_arch = "wasm32")]
-use wasmtimer::tokio::{sleep, Instant};
 
 #[derive(Copy, Clone)]
 pub(crate) struct TestedNode {

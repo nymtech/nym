@@ -28,7 +28,6 @@ url = { workspace = true, features = ["serde"] }
 time = { workspace = true }
 tokio = { workspace = true, features = ["sync", "macros"] }
 tracing = { workspace = true }
-wasmtimer = { workspace = true }
 zeroize = { workspace = true }
 
 # internal
@@ -55,11 +54,9 @@ nym-client-core-surb-storage = { path = "./surb-storage" }
 nym-client-core-gateways-storage = { path = "./gateways-storage" }
 nym-ecash-time = { path = "../ecash-time" }
 nym-mixnet-contract-common = { path = "../cosmwasm-smart-contracts/mixnet-contract" }
-tokio_with_wasm = { version = "0.8.7", features = ["full"] }
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies]
 nym-mixnet-client = { path = "../client-libs/mixnet-client", default-features = false }
-wasm-utils = { path = "../wasm/utils" }
 
 ### For serving prometheus metrics
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.hyper]
@@ -72,7 +69,6 @@ workspace = true
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.hyper-util]
 workspace = true
 features = ["tokio"]
-###
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio-stream]
 workspace = true
@@ -106,7 +102,7 @@ workspace = true
 features = ["tokio"]
 
 [target."cfg(target_arch = \"wasm32\")".dependencies.gloo-timers]
-version = "0.3.0"
+workspace = true
 features = ["futures"]
 
 [target."cfg(target_arch = \"wasm32\")".dependencies.wasm-utils]
@@ -116,6 +112,10 @@ features = ["websocket"]
 [target."cfg(target_arch = \"wasm32\")".dependencies.time]
 workspace = true
 features = ["wasm-bindgen"]
+
+[target."cfg(target_arch = \"wasm32\")".dependencies.tokio_with_wasm]
+workspace = true
+features = ["full"]
 
 [dev-dependencies]
 tempfile = { workspace = true }

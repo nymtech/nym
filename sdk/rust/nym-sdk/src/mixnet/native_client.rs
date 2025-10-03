@@ -335,7 +335,7 @@ impl MixnetClient {
             Poll::Ready(Ok(()))
         } else {
             let written = buf.capacity();
-            buf.put_slice(&self._read.buffer.split_off(written));
+            buf.put_slice(&self._read.buffer[..written]);
             self._read.buffer.advance(written);
             cx.waker().wake_by_ref();
             Poll::Ready(Ok(()))

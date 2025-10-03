@@ -850,7 +850,7 @@ where
         <S::GatewaysDetailsStore as GatewaysDetailsStore>::StorageError: Sync + Send,
     {
         info!("Starting nym client");
-
+        #[cfg(debug_assertions)]
         #[cfg(target_arch = "wasm32")]
         {
             console_log!("Starting base Nym Client");
@@ -1037,6 +1037,7 @@ where
         debug!("Core client startup finished!");
         debug!("The address of this client is: {self_address}");
 
+        #[cfg(debug_assertions)]
         #[cfg(target_arch = "wasm32")]
         {
             console_log!("Core client startup finished!");

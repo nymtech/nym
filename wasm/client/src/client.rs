@@ -234,8 +234,8 @@ impl NymClientBuilder {
         let packet_type = self.config.base.debug.traffic.packet_type;
         let storage = Self::initialise_storage(&self.config, client_store);
 
-        // Max: leaving this in here for future debug
-        // console_log!("Config {:?}", self.config);
+        #[cfg(debug_assertions)]
+        console_log!("Config {:?}", self.config);
 
         let base_builder =
             BaseClientBuilder::<QueryReqwestRpcNyxdClient, _>::new(self.config.base, storage, None);
@@ -336,7 +336,8 @@ impl NymClient {
         on_message: js_sys::Function,
         opts: Option<ClientOptsSimple>,
     ) -> Result<NymClient, WasmClientError> {
-        // console_log!("_new: Starting client creation");
+        #[cfg(debug_assertions)]
+        console_log!("_new: Starting client creation");
 
         if let Some(opts) = opts {
             let preferred_gateway = opts.preferred_gateway;
@@ -350,15 +351,17 @@ impl NymClient {
                 storage_passphrase,
             );
             let result = builder.start_client_async().await;
-            // console_log!("_new: start_client_async completed: {:?}", result.is_ok());
+            #[cfg(debug_assertions)]
+            console_log!("_new: start_client_async completed: {:?}", result.is_ok());
             result.inspect_err(|err| console_error!("failed to start the client: {err}"))
         } else {
             let builder = NymClientBuilder::new(config, on_message, false, None, None);
             let result = builder.start_client_async().await;
-            // console_log!(
-            //     "_new: start_client_async (default) completed: {:?}",
-            //     result.is_ok()
-            // );
+            #[cfg(debug_assertions)]
+            console_log!(
+                "_new: start_client_async (default) completed: {:?}",
+                result.is_ok()
+            );
             result.inspect_err(|err| console_error!("failed to start the client: {err}"))
         }
     }

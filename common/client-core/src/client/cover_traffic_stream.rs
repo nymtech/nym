@@ -22,9 +22,9 @@ use tracing::*;
 #[cfg(not(target_arch = "wasm32"))]
 use tokio::time::{sleep, Sleep};
 
-// use wasm_utils::console_log;
 #[cfg(target_arch = "wasm32")]
 use wasmtimer::tokio::{sleep, Sleep};
+
 pub struct LoopCoverTrafficStream<R>
 where
     R: CryptoRng + Rng,
@@ -227,16 +227,12 @@ impl LoopCoverTrafficStream<OsRng> {
 
         #[cfg(not(target_arch = "wasm32"))]
         {
-            // console_log!("Yielding task in cover traffic stream (native)");
             tokio::task::yield_now().await;
-            // console_log!("Task yielded in cover traffic stream (native)");
         }
 
         #[cfg(target_arch = "wasm32")]
         {
-            // console_log!("Yielding task in cover traffic stream(WASM)");
             tokio_with_wasm::task::yield_now().await;
-            // console_log!("Task yielded in cover traffic stream (WASM)");
         }
     }
 

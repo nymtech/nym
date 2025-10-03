@@ -327,16 +327,12 @@ where
 
         #[cfg(not(target_arch = "wasm32"))]
         {
-            // console_log!("Yielding task in real traffic stream (native)");
             tokio::task::yield_now().await;
-            // console_log!("Task yielded in real traffic stream (native)");
         }
 
         #[cfg(target_arch = "wasm32")]
         {
-            // console_log!("Yielding task in real traffic stream (WASM)");
             tokio_with_wasm::task::yield_now().await;
-            // console_log!("Task yielded in real traffic stream (WASM)");
         }
     }
 

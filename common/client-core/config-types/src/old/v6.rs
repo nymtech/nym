@@ -543,10 +543,8 @@ pub struct DebugConfigV6 {
 
     /// Defines all configuration options related to reply SURBs.
     pub reply_surbs: ReplySurbsV6,
-
     /// Defines all configuration options related to stats reporting.
     pub stats_reporting: StatsReportingV6,
-
     /// Defines all configuration options related to the forget me flag.
     pub forget_me: ForgetMeV6,
 

@@ -107,16 +107,16 @@ sdk-wasm-build:
 	$(MAKE) -C nym-browser-extension/storage wasm-pack
 	$(MAKE) -C wasm/client
 	$(MAKE) -C wasm/node-tester
-	$(MAKE) -C wasm/mix-fetch
+	# $(MAKE) -C wasm/mix-fetch
 	$(MAKE) -C wasm/zknym-lib
-	#$(MAKE) -C wasm/full-nym-wasm
+	# $(MAKE) -C wasm/full-nym-wasm
 
 # run this from npm/yarn to ensure tools are in the path, e.g. yarn build:sdk from root of repo
 sdk-typescript-build:
 	npx lerna run --scope @nymproject/sdk build --stream
-	npx lerna run --scope @nymproject/mix-fetch build --stream
-	npx lerna run --scope @nymproject/node-tester build --stream
-	yarn --cwd sdk/typescript/codegen/contract-clients build
+	# npx lerna run --scope @nymproject/mix-fetch build --stream
+	# npx lerna run --scope @nymproject/node-tester build --stream
+	# yarn --cwd sdk/typescript/codegen/contract-clients build
 
 # NOTE: These targets are part of the main workspace (but not as wasm32-unknown-unknown)
 WASM_CRATES = extension-storage nym-client-wasm nym-node-tester-wasm zknym-lib

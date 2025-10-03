@@ -30,6 +30,9 @@
     "test": "node --experimental-vm-modules --no-warnings node_modules/jest/bin/jest.js -c=jest.config.mjs --no-cache",
     "tsc": "tsc --noEmit true"
   },
+  "typeRoots": [
+    "./node_modules/@types/*"
+  ],
   "dependencies": {
     "@nymproject/nym-client-wasm": ">=1.2.4-rc.2 || ^1",
     "comlink": "^4.3.1"

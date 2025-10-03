@@ -20,7 +20,22 @@
     "baseUrl": ".",
     "paths": {
       "@assets/*": ["../assets/*"]
-    }
+    },
+    /*
+Fix for:
+> @nymproject/types:build
+
+@nymproject/types: $ tsc --noEmit false
+@nymproject/types: error TS2688: Cannot find type definition file for 'minimatch'.
+@nymproject/types:   The file is in the program because:
+@nymproject/types:     Entry point for implicit type library 'minimatch'
+error Command failed with exit code 2.
+
+from https://github.com/strapi/strapi/issues/23859#issuecomment-3047080365
+
+Max: need to look into proper fix / if this breaks something else
+  */
+    "typeRoots": ["./node_modules/@types/*"]
   },
   "exclude": [
     "jest.config.js",

@@ -235,7 +235,7 @@ impl NymClientBuilder {
         let storage = Self::initialise_storage(&self.config, client_store);
 
         #[cfg(debug_assertions)]
-        console_log!("Config: {}", self.config);
+        console_log!("Config: {:#?}", self.config);
 
         let base_builder =
             BaseClientBuilder::<QueryReqwestRpcNyxdClient, _>::new(self.config.base, storage, None);

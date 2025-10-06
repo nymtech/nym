@@ -32,59 +32,6 @@ const {
 
 let client = null;
 
-// function dummyTopology() {
-//   const l1Mixnode = {
-//     mixId: 1,
-//     owner: "n1lftjhnl35cjsfd533zhgrwrspx6qmumd8vjgp9",
-//     host: "80.85.86.75",
-//     mixPort: 1789,
-//     identityKey: "91mNjhJSBkJ9Lb6f1iuYMDQPLiX3kAv6paSUCWjGRwQz",
-//     sphinxKey: "DmfN1mL1T95nPXvLK44AQKCpW1pStHNQCi6Fgpz5dxDV",
-//     layer: 1,
-//     version: "1.1.20",
-//   };
-//   const l2Mixnode = {
-//     mixId: 2,
-//     owner: "n18ztkyh20gwzrel0e5m4sahd358fq9p4skwa7d3",
-//     host: "139.162.199.75",
-//     mixPort: 1789,
-//     identityKey: "BkLhuKQNyPS19sHZ3HHKCTKwK7hCU6XiFLndyZZHiB7s",
-//     sphinxKey: "7KGC97tJRhJZKhDqFcsp4Vu715VVxizuD7BktnzuSmZC",
-//     layer: 2,
-//     version: "1.1.20",
-//   };
-//   const l3Mixnode = {
-//     mixId: 3,
-//     owner: "n1njq8h4nndp7ngays5el2rdp22hq67lwqcaq3ph",
-//     host: "139.162.244.139",
-//     identityKey: "EPja9Kv8JtPHsFbzPdBQierMu5GmQy5roE5njyD6dmND",
-//     sphinxKey: "HWpsZChDrtEH8XNscW3qJMRzdCfUD8N8DmMcKqFv7tcf",
-//     layer: 3,
-//   };
-
-//   const gateway = {
-//     owner: "n1d9lclqnfddgg57xe5p0fw4ng54m9f95hal5tlq",
-//     host: "85.159.211.99",
-//     mixPort: 1789,
-//     clientsPort: 9000,
-//     identityKey: "6pXQcG1Jt9hxBzMgTbQL5Y58z6mu4KXVRbA1idmibwsw",
-//     sphinxKey: "GSdqV7GFSwHWQrVV13pNLMeafTLDVFKBKVPxuhdGrpR3",
-//     version: "1.1.19",
-//   };
-
-//   const mixnodes = new Map();
-//   mixnodes.set(1, [l1Mixnode]);
-//   mixnodes.set(2, [l2Mixnode]);
-//   mixnodes.set(3, [l3Mixnode]);
-
-//   const gateways = [gateway];
-
-//   return {
-//     mixnodes,
-//     gateways,
-//   };
-// }
-
 function printAndDisplayTestResult(result) {
   result.log_details();
 
@@ -215,7 +162,6 @@ async function normalNymClientUsage() {
   let localClient;
   try {
     localClient = await NymClient.newWithConfig(config, onMessageHandler, {});
-    console.log(">>>>>>>> POST PROMISE");
   } catch (e) {
     console.log("local client creation error: ", e);
     throw e;

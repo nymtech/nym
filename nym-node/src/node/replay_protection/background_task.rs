@@ -2,9 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::config::Config;
-use crate::config::persistence::{
-    DEFAULT_RD_BLOOMFILTER_FILE_EXT, DEFAULT_RD_BLOOMFILTER_FLUSH_FILE_EXT,
-};
+use crate::config::persistence::DEFAULT_RD_BLOOMFILTER_FLUSH_FILE_EXT;
 use crate::error::NymNodeError;
 use crate::node::replay_protection::bloomfilter::RotationFilter;
 use crate::node::replay_protection::helpers::parse_rotation_id_from_filename;
@@ -24,7 +22,6 @@ use tracing::{debug, error, info, trace, warn};
 
 // background task responsible for periodically flushing the bloomfilters to disk
 pub struct ReplayProtectionDiskFlush {
-    bloomfilters_directory: PathBuf,
     disk_flushing_rate: Duration,
 
     filters_manager: ReplayProtectionBloomfiltersManager,
@@ -124,8 +121,25 @@ impl ReplayProtectionDiskFlush {
                 None
             };
 
+        // if we have any other stored bloomfilters that are neither primary nor secondary,
+        // remove them - they are an artifact from an old version that had a bug in purging code
+        for (rotation_id, path) in filter_files {
+            if rotation_id == primary_key_rotation_id {
+                continue;
+            }
+            if let Some(secondary_key_rotation_id) = secondary_key_rotation_id
+                && secondary_key_rotation_id == rotation_id
+            {
+                continue;
+            }
+            info!(
+                "stale bloomfilter for rotation {rotation_id} found at: {path:?}. it is going to get removed"
+            );
+            fs::remove_file(&path)
+                .map_err(|source| NymNodeError::BloomfilterIoFailure { source, path })?;
+        }
+
         Ok(ReplayProtectionDiskFlush {
-            bloomfilters_directory,
             disk_flushing_rate: config
                 .mixnet
                 .replay_protection
@@ -142,15 +156,12 @@ impl ReplayProtectionDiskFlush {
     }
 
     fn bloomfilter_filepath(&self, rotation_id: u32) -> PathBuf {
-        self.bloomfilters_directory
-            .join(format!("rot-{rotation_id}"))
-            .with_extension(DEFAULT_RD_BLOOMFILTER_FILE_EXT)
+        self.filters_manager.bloomfilter_filepath(rotation_id)
     }
 
     fn current_bloomfilter_being_flushed_filepath(&self, rotation_id: u32) -> PathBuf {
-        self.bloomfilters_directory
-            .join(format!("rot-{rotation_id}"))
-            .with_extension(DEFAULT_RD_BLOOMFILTER_FLUSH_FILE_EXT)
+        self.filters_manager
+            .current_bloomfilter_being_flushed_filepath(rotation_id)
     }
 
     pub(crate) fn bloomfilters_manager(&self) -> ReplayProtectionBloomfiltersManager {
@@ -213,7 +224,7 @@ impl ReplayProtectionDiskFlush {
     }
 
     async fn flush_filters_to_disk(&self) -> Result<(), NymNodeError> {
-        if let Some(parent) = self.bloomfilters_directory.parent() {
+        if let Some(parent) = self.filters_manager.bloomfilters_directory().parent() {
             fs::create_dir_all(parent).map_err(|source| NymNodeError::BloomfilterIoFailure {
                 source,
                 path: parent.to_path_buf(),

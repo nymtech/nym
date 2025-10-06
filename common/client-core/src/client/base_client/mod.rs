@@ -70,6 +70,7 @@ use tracing::*;
 use url::Url;
 
 #[cfg(target_arch = "wasm32")]
+#[cfg(debug_assertions)]
 use wasm_utils::console_log;
 
 #[cfg(all(

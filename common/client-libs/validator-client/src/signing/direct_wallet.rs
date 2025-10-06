@@ -10,7 +10,7 @@ use cosmrs::tx;
 use cosmrs::tx::SignDoc;
 use nym_config::defaults;
 use thiserror::Error;
-use zeroize::{Zeroize, ZeroizeOnDrop};
+use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 
 type Secp256k1Keypair = (SigningKey, PublicKey);
 
@@ -132,8 +132,15 @@ impl DirectSecp256k1HdWallet {
         &self.secret
     }
 
+    #[deprecated(
+        note = "use either .secret() for obtaining &bip39::Mnemonic or .mnemonic_string() for Zeroizing wrapper around the String"
+    )]
     pub fn mnemonic(&self) -> String {
         self.secret.to_string()
+    }
+
+    pub fn mnemonic_string(&self) -> Zeroizing<String> {
+        Zeroizing::new(self.secret.to_string())
     }
 }
 

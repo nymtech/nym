@@ -2,9 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::config::Config;
-use crate::config::persistence::{
-};
-    DEFAULT_RD_BLOOMFILTER_FILE_EXT, DEFAULT_RD_BLOOMFILTER_FLUSH_FILE_EXT,
+use crate::config::persistence::DEFAULT_RD_BLOOMFILTER_FLUSH_FILE_EXT;
 use crate::error::NymNodeError;
 use crate::node::replay_protection::bloomfilter::RotationFilter;
 use crate::node::replay_protection::helpers::parse_rotation_id_from_filename;
@@ -129,12 +127,14 @@ impl ReplayProtectionDiskFlush {
             if rotation_id == primary_key_rotation_id {
                 continue;
             }
-            if let Some(secondary_key_rotation_id) = secondary_key_rotation_id {
-                if secondary_key_rotation_id == rotation_id {
-                    continue;
-                }
+            if let Some(secondary_key_rotation_id) = secondary_key_rotation_id
+                && secondary_key_rotation_id == rotation_id
+            {
+                continue;
             }
-            info!("stale bloomfilter for rotation {rotation_id} found at: {path:?}. it is going to get removed");
+            info!(
+                "stale bloomfilter for rotation {rotation_id} found at: {path:?}. it is going to get removed"
+            );
             fs::remove_file(&path)
                 .map_err(|source| NymNodeError::BloomfilterIoFailure { source, path })?;
         }

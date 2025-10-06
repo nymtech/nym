@@ -235,7 +235,7 @@ impl NymClientBuilder {
         let storage = Self::initialise_storage(&self.config, client_store);
 
         #[cfg(debug_assertions)]
-        console_log!("Config {:?}", self.config);
+        console_log!("Config: {}", self.config);
 
         let base_builder =
             BaseClientBuilder::<QueryReqwestRpcNyxdClient, _>::new(self.config.base, storage, None);
@@ -251,8 +251,6 @@ impl NymClientBuilder {
         let mut started_client = base_builder.start_base().await?;
         let self_address = started_client.address.to_string();
 
-        let client_request_sender = started_client.client_request_sender.clone();
-
         let client_input = started_client.client_input.register_producer();
         let client_output = started_client.client_output.register_consumer();
 
@@ -265,7 +263,7 @@ impl NymClientBuilder {
             _full_topology: None,
             _task_manager: started_client.shutdown_handle,
             packet_type,
-            client_request_sender,
+            client_request_sender: started_client.client_request_sender,
         })
     }
 

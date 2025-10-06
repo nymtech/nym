@@ -1,10 +1,10 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::config::Config;
 use crate::config::persistence::{
     DEFAULT_RD_BLOOMFILTER_FILE_EXT, DEFAULT_RD_BLOOMFILTER_FLUSH_FILE_EXT,
 };
-use crate::config::Config;
 use crate::error::NymNodeError;
 use crate::node::replay_protection::bloomfilter::{ReplayProtectionBloomfilters, RotationFilter};
 use crate::node::replay_protection::items_in_bloomfilter;

@@ -9,7 +9,6 @@ use nym_coconut_dkg_common::types::{EpochId, EpochState};
 use nym_dkg::bte::keys::KeyPair as DkgKeyPair;
 use rand::{CryptoRng, RngCore};
 use std::path::Path;
-use thiserror::__private::AsDisplay;
 use tracing::{debug, warn};
 
 pub(crate) fn init_bte_keypair<R: RngCore + CryptoRng>(
@@ -91,7 +90,7 @@ pub(crate) fn archive_coconut_keypair<P: AsRef<Path>>(
 ) -> anyhow::Result<()> {
     let store_path = store_path.as_ref();
     if !store_path.exists() {
-        bail!("coconut key does not exist at {}", store_path.as_display())
+        bail!("coconut key does not exist at {}", store_path.display())
     }
 
     let dir = store_path

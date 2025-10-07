@@ -24,7 +24,9 @@ pub fn spawn_future<F>(future: F)
 where
     F: Future<Output = ()> + 'static,
 {
-    wasm_bindgen_futures::spawn_local(future);
+    wasm_bindgen_futures::spawn_local(async move {
+        future.await;
+    });
 }
 
 #[deprecated(note = "use spawn_future from nym_task crate instead")]

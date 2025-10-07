@@ -707,13 +707,10 @@ pub struct DebugConfig {
 
     /// Defines all configuration options related to reply SURBs.
     pub reply_surbs: ReplySurbs,
-
     /// Defines all configuration options related to stats reporting.
     pub stats_reporting: StatsReporting,
-
     /// Defines all configuration options related to the forget me flag.
     pub forget_me: ForgetMe,
-
     /// Defines all configuration options related to the remember me flag.
     pub remember_me: RememberMe,
 }

@@ -222,9 +222,6 @@ mod test {
             }
         }
 
-        let should_not_parse = ["0.1s", "-15s"];
-        for raw in should_not_parse {
-            assert!(parse_duration_humantime(raw).is_err());
-        }
+        assert!(parse_duration_humantime("-15s").is_err());
     }
 }

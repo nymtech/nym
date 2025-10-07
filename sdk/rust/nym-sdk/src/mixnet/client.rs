@@ -389,7 +389,6 @@ where
     forget_me: ForgetMe,
 
     remember_me: RememberMe,
-
     /// The derivation material to use for the client keys, its up to the caller to save this for rederivation later
     derivation_material: Option<DerivationMaterial>,
 }

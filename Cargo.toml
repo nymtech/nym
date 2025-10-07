@@ -127,7 +127,7 @@ members = [
     "nym-node-status-api/nym-node-status-client",
     "nym-node/nym-node-metrics",
     "nym-node/nym-node-requests",
-    "nym-outfox", 
+    "nym-outfox",
     "nym-registration-client",
     "nym-signers-monitor",
     "nym-statistics-api",
@@ -407,17 +407,18 @@ prost = { version = "0.13", default-features = false }
 # wasm-related dependencies
 gloo-utils = "0.2.0"
 gloo-net = "0.6.0"
+gloo-timers = "0.3.0"
 
 indexed_db_futures = "0.6.4"
 js-sys = "0.3.76"
 serde-wasm-bindgen = "0.6.5"
 tsify = "0.4.5"
+tokio_with_wasm = { version = "0.8.7" }
 wasm-bindgen = "0.2.99"
 wasm-bindgen-futures = "0.4.49"
 wasm-bindgen-test = "0.3.49"
 wasmtimer = "0.4.1"
 web-sys = "0.3.76"
-
 
 # for local development:
 #[patch.crates-io]

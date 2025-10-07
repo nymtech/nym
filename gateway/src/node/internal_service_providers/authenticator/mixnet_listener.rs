@@ -977,6 +977,7 @@ fn create_input_message(
             response_packet,
             lane,
             packet_type,
+            None,
         ))
     } else {
         tracing::error!("No nym-address or sender tag provided");

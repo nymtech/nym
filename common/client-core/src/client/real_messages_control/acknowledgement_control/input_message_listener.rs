@@ -77,10 +77,11 @@ where
         lane: TransmissionLane,
         packet_type: PacketType,
         max_retransmissions: Option<u32>,
+        trace_id: Option<[u8; 12]>,
     ) {
         if let Err(err) = self
             .message_handler
-            .try_send_plain_message(recipient, content, lane, packet_type, max_retransmissions)
+            .try_send_plain_message(recipient, content, lane, packet_type, max_retransmissions, trace_id)
             .await
         {
             warn!("failed to send a plain message - {err}")
@@ -114,12 +115,15 @@ where
 
     #[allow(clippy::panic)]
     async fn on_input_message(&mut self, msg: InputMessage) {
+        let trace_id = msg.trace_id();
+
         match msg {
             InputMessage::Regular {
                 recipient,
                 data,
                 lane,
                 max_retransmissions,
+                ..
             } => {
                 self.handle_plain_message(
                     recipient,
@@ -127,6 +131,7 @@ where
                     lane,
                     PacketType::Mix,
                     max_retransmissions,
+                    trace_id
                 )
                 .await
             }
@@ -136,6 +141,7 @@ where
                 reply_surbs,
                 lane,
                 max_retransmissions,
+                ..
             } => {
                 self.handle_repliable_message(
                     recipient,
@@ -166,6 +172,7 @@ where
                     data,
                     lane,
                     max_retransmissions,
+                    ..
                 } => {
                     self.handle_plain_message(
                         recipient,
@@ -173,6 +180,7 @@ where
                         lane,
                         packet_type,
                         max_retransmissions,
+                        trace_id
                     )
                     .await
                 }
@@ -182,6 +190,7 @@ where
                     reply_surbs,
                     lane,
                     max_retransmissions,
+                    ..
                 } => {
                     self.handle_repliable_message(
                         recipient,

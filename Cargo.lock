@@ -6934,6 +6934,7 @@ dependencies = [
 name = "nym-sphinx"
 version = "0.1.0"
 dependencies = [
+ "nym-bin-common",
  "nym-crypto",
  "nym-metrics",
  "nym-mixnet-contract-common",
@@ -6951,6 +6952,7 @@ dependencies = [
  "rand 0.8.5",
  "rand_chacha 0.3.1",
  "rand_distr",
+ "sphinx-packet",
  "thiserror 2.0.17",
  "tokio",
  "tracing",
@@ -7056,6 +7058,7 @@ name = "nym-sphinx-framing"
 version = "0.1.0"
 dependencies = [
  "bytes",
+ "nym-bin-common",
  "nym-sphinx-acknowledgements",
  "nym-sphinx-addressing",
  "nym-sphinx-forwarding",
@@ -7090,6 +7093,7 @@ dependencies = [
 name = "nym-sphinx-types"
 version = "0.2.0"
 dependencies = [
+ "nym-bin-common",
  "nym-outfox",
  "sphinx-packet",
  "thiserror 2.0.17",
@@ -7256,6 +7260,7 @@ dependencies = [
  "hmac",
  "itertools 0.14.0",
  "log",
+ "nym-bin-common",
  "nym-config",
  "nym-crypto",
  "nym-mixnet-contract-common",

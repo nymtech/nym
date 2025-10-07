@@ -11,7 +11,8 @@ use nym_sphinx_addressing::clients::Recipient;
 use nym_sphinx_addressing::nodes::NymNodeRoutingAddress;
 use nym_sphinx_anonymous_replies::reply_surb::ReplySurb;
 use nym_sphinx_chunking::fragment::{Fragment, FragmentIdentifier};
-use nym_sphinx_forwarding::packet::MixPacket;
+use nym_sphinx_forwarding::packet::{self, MixPacket};
+use sphinx_packet::route::Destination;
 use nym_sphinx_params::packet_sizes::PacketSize;
 use nym_sphinx_params::{PacketType, ReplySurbKeyDigestAlgorithm, SphinxKeyRotation};
 use nym_sphinx_types::{Delay, NymPacket};
@@ -163,19 +164,6 @@ pub trait FragmentPreparer {
         })
     }
 
-    /// Tries to convert this [`Fragment`] into a [`SphinxPacket`] that can be sent through the Nym mix-network,
-    /// such that it contains required SURB-ACK and public component of the ephemeral key used to
-    /// derive the shared key.
-    /// Also all the data, apart from the said public component, is encrypted with an ephemeral shared key.
-    /// This method can fail if the provided network topology is invalid.
-    /// It returns total expected delay as well as the [`SphinxPacket`] (including first hop address)
-    /// to be sent through the network.
-    ///
-    /// The procedure is as follows:
-    /// For each fragment:
-    /// - compute SURB_ACK
-    /// - generate (x, g^x)
-    /// - compute k = KDF(remote encryption key ^ x) this is equivalent to KDF( dh(remote, x) )
     /// - compute v_b = AES-128-CTR(k, serialized_fragment)
     /// - compute vk_b = g^x || v_b
     /// - compute sphinx_plaintext = SURB_ACK || g^x || v_b
@@ -189,6 +177,7 @@ pub trait FragmentPreparer {
         packet_sender: &Recipient,
         packet_recipient: &Recipient,
         packet_type: PacketType,
+        trace_id: Option<[u8; 12]>,
     ) -> Result<PreparedFragment, NymTopologyError> {
         debug!("Preparing chunk for sending");
         // each plain or repliable packet (i.e. not a reply) attaches an ephemeral public key so that the recipient
@@ -249,7 +238,8 @@ pub trait FragmentPreparer {
             topology.random_route_to_egress(&mut rng, destination)?
         };
 
-        let destination = packet_recipient.as_sphinx_destination();
+        let mut destination = packet_recipient.as_sphinx_destination();
+        add_trace_id_to_destination(&mut destination, trace_id);
 
         // including set of delays
         let delays =
@@ -274,9 +264,21 @@ pub trait FragmentPreparer {
             )?,
         };
 
-        // from the previously constructed route extract the first hop
-        let first_hop_address =
-            NymNodeRoutingAddress::try_from(route.first().unwrap().address).unwrap();
+    /// If a trace id is provided, add it to the first 12 bytes of the destination identifier.
+    /// The remaining 4 bytes of the identifier are left unchanged.
+    fn add_trace_id_to_destination(
+        destination: &mut Destination,
+        trace_id: Option<[u8; 12]>,
+    ) {
+        if let Some(trace_id) = trace_id {
+            destination.identifier[0..12].copy_from_slice(&trace_id);
+        }
+    }
+
+    /// - compute k = KDF(remote encryption key ^ x) this is equivalent to KDF( dh(remote, x) )
+    /// from the previously constructed route extract the first hop
+    let first_hop_address =
+        NymNodeRoutingAddress::try_from(route.first().unwrap().address).unwrap();
 
         Ok(PreparedFragment {
             // the round-trip delay is the sum of delays of all hops on the forward route as
@@ -428,6 +430,7 @@ where
         ack_key: &AckKey,
         packet_recipient: &Recipient,
         packet_type: PacketType,
+        trace_id: Option<[u8; 12]>,
     ) -> Result<PreparedFragment, NymTopologyError> {
         let sender = self.sender_address;
 
@@ -439,6 +442,7 @@ where
             &sender,
             packet_recipient,
             packet_type,
+            trace_id,
         )
     }
 

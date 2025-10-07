@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::packet::FramedNymPacket;
+use nym_bin_common::opentelemetry::compact_id_generator::decompress_trace_id;
 use nym_sphinx_acknowledgements::surb_ack::{SurbAck, SurbAckRecoveryError};
 use nym_sphinx_addressing::nodes::{NymNodeRoutingAddress, NymNodeRoutingAddressError};
 use nym_sphinx_forwarding::packet::MixPacket;
@@ -258,15 +259,28 @@ fn wrap_processed_sphinx_packet(
         // sphinx all together?
         ProcessedPacketData::FinalHop {
             destination,
-            identifier: _,
+            identifier,
             payload,
-        } => process_final_hop(
-            destination,
-            payload.recover_plaintext()?,
-            packet_size,
-            packet_type,
-            key_rotation,
-        ),
+        } => {
+            // if we have a trace id in the destination, we log it for easier correlation later on
+            // TODO add feature for otel
+            {
+                let trace_bytes: [u8; 12] = identifier[0..12].try_into().unwrap();
+                if !trace_bytes.iter().all(|b| *b == 0) {
+                    let full_trace_id = decompress_trace_id(&trace_bytes);
+                    tracing::Span::current().record("trace_id", &full_trace_id.to_string().as_str());
+                    info!("Processing final hop with trace_id: {full_trace_id:?}");
+                }
+            }
+
+            process_final_hop(
+                destination,
+                payload.recover_plaintext()?,
+                packet_size,
+                packet_type,
+                key_rotation,
+            )
+        }
     }?;
 
     Ok(MixProcessingResult {

@@ -5,8 +5,11 @@ use crate::mixnet::{AnonymousSenderTag, IncludedSurbs, Recipient};
 use crate::Result;
 use async_trait::async_trait;
 use nym_client_core::client::inbound_messages::InputMessage;
+use nym_bin_common::opentelemetry::compact_id_generator::compress_trace_id;
 use nym_sphinx::params::PacketType;
 use nym_task::connections::TransmissionLane;
+use opentelemetry::trace::TraceContextExt;
+use opentelemetry::Context;
 use tracing::instrument;
 
 // defined to guarantee common interface regardless of whether you're using the full client
@@ -72,6 +75,12 @@ pub trait MixnetMessageSender {
     where
         M: AsRef<[u8]> + Send,
     {
+        // In case of surb opentelemetry tracing, we extract the context and trace_id
+        // in the 12 bytes format
+        let context = Context::current();
+        let trace_id = context.span().span_context().trace_id();
+        let trace_id = compress_trace_id(&trace_id);
+
         let lane = TransmissionLane::General;
         let input_msg = match surbs {
             IncludedSurbs::Amount(surbs) => InputMessage::new_anonymous(
@@ -80,12 +89,14 @@ pub trait MixnetMessageSender {
                 surbs,
                 lane,
                 self.packet_type(),
+                Some(trace_id)
             ),
             IncludedSurbs::ExposeSelfAddress => InputMessage::new_regular(
                 address,
                 message.as_ref().to_vec(),
                 lane,
                 self.packet_type(),
+                Some(trace_id)
             ),
         };
         self.send(input_msg).await

@@ -13,6 +13,7 @@ tokio-util = { workspace = true, features = ["codec"] }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 
+nym-bin-common = { path = "../../bin-common" }
 nym-sphinx-types = { path = "../types", features = ["sphinx", "outfox"] }
 nym-sphinx-params = { path = "../params", features = ["sphinx", "outfox"] }
 nym-sphinx-forwarding = { path = "../forwarding" }

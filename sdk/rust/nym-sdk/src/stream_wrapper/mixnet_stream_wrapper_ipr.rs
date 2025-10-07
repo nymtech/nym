@@ -143,9 +143,7 @@ impl IpMixStream {
 
     pub async fn connect_tunnel(&mut self) -> Result<IpPair, Error> {
         if self.connection_state != ConnectionState::Disconnected {
-            return Err(Error::new_unsupported(
-                "Already connected or connecting".to_string(),
-            ));
+            return Err(Error::IprStreamClientAlreadyConnectedOrConnecting);
         }
 
         self.connection_state = ConnectionState::Connecting;
@@ -186,17 +184,15 @@ impl IpMixStream {
         loop {
             tokio::select! {
                 _ = &mut timeout => {
-                    return Err(Error::new_unsupported(
-                        "Timeout waiting for connect response".to_string(),
-                    ));
+                    return Err(Error::IPRConnectResponseTimeout);
                 }
                 frame = framed.next() => {
                     match frame {
                         None => {
-                            return Err(Error::new_unsupported("Stream closed".to_string()));
+                            return Err(Error::IPRClientStreamClosed);
                         }
                         Some(Err(e)) => {
-                            return Err(Error::new_unsupported(format!("Read error: {}", e)));
+                            return Err(Error::MessageRecovery(e));
                         }
                         Some(Ok(reconstructed)) => {
                             if let Err(e) = check_ipr_message_version(&reconstructed) {
@@ -217,33 +213,25 @@ impl IpMixStream {
 
     async fn handle_connect_response(&self, response: IpPacketResponse) -> Result<IpPair, Error> {
         let control_response = match response.data {
-            IpPacketResponseData::Control(control) => control,
-            _ => {
-                return Err(Error::new_unsupported(
-                    "Expected control response".to_string(),
-                ))
-            }
+            IpPacketResponseData::Control(c) => c,
+            other => return Err(Error::UnexpectedResponseType(other)),
         };
 
         match *control_response {
             ControlResponse::Connect(connect_resp) => match connect_resp.reply {
                 ConnectResponseReply::Success(success) => Ok(success.ips),
-                ConnectResponseReply::Failure(reason) => Err(Error::new_unsupported(format!(
-                    "Connect denied: {:?}",
-                    reason
-                ))),
+                ConnectResponseReply::Failure(reason) => Err(Error::ConnectDenied(reason)),
             },
-            _ => Err(Error::new_unsupported(
-                "Unexpected control response type".to_string(),
+            _ => Err(Error::UnexpectedResponseType(
+                IpPacketResponseData::Control(control_response.clone()),
             )),
         }
     }
 
     pub async fn send_ip_packet(&mut self, packet: &[u8]) -> Result<(), Error> {
         if self.connection_state != ConnectionState::Connected {
-            return Err(Error::new_unsupported("Not connected".to_string()));
+            return Err(Error::IprStreamClientNotConnected);
         }
-
         let request = IpPacketRequest::new_data_request(packet.to_vec().into());
         self.send_ipr_request(request).await
     }
@@ -480,7 +468,7 @@ impl IpMixStreamWriter {
         }
 
         if self.connection_state != ConnectionState::Connected {
-            return Err(Error::new_unsupported("Not connected".to_string()));
+            return Err(Error::IprStreamClientNotConnected);
         }
 
         let request = IpPacketRequest::new_data_request(packet.to_vec().into());

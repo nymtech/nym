@@ -13,8 +13,9 @@ use std::time::Duration;
 use std::{fmt, io};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
-use tokio::time::sleep;
 use tracing::{debug, trace};
+
+use tokio::time::{sleep, Instant};
 
 #[derive(Copy, Clone)]
 pub(crate) struct TestedNode {
@@ -111,7 +112,7 @@ impl PacketSender {
         let mut seq = self.random_sequence_number();
         for _ in 0..self.packets_per_node {
             let packet = EchoPacket::new(seq, &self.identity);
-            let start = tokio::time::Instant::now();
+            let start = Instant::now();
             // TODO: should we get the start time after or before actually sending the data?
             // there's going to definitely some scheduler and network stack bias here
             let packet_bytes = packet.to_bytes();
@@ -202,7 +203,7 @@ impl PacketSender {
                 return Err(VerlocError::UnexpectedReplySequence);
             }
 
-            let time_taken = tokio::time::Instant::now().duration_since(start);
+            let time_taken = Instant::now().duration_since(start);
             results.push(time_taken);
 
             seq += 1;

@@ -225,9 +225,15 @@ impl LoopCoverTrafficStream<OsRng> {
         // JS: due to identical logical structure to OutQueueControl::on_message(), this is also
         // presumably required to prevent bugs in the future. Exact reason is still unknown to me.
 
-        // TODO: temporary and BAD workaround for wasm (we should find a way to yield here in wasm)
         #[cfg(not(target_arch = "wasm32"))]
-        tokio::task::yield_now().await;
+        {
+            tokio::task::yield_now().await;
+        }
+
+        #[cfg(target_arch = "wasm32")]
+        {
+            tokio_with_wasm::task::yield_now().await;
+        }
     }
 
     // it's fine if cover traffic stream task gets killed whilst processing next message

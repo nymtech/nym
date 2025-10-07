@@ -80,6 +80,7 @@ impl StatisticsControl {
             stats_report.into(),
             TransmissionLane::General,
             None,
+            None,
         );
         if let Err(err) = self.report_tx.send(report_message).await {
             tracing::error!("Failed to report client stats: {err:?}");

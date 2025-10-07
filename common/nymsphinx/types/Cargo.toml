@@ -10,6 +10,8 @@ repository = { workspace = true }
 [dependencies]
 sphinx-packet = { workspace = true, optional = true }
 nym-outfox = { path = "../../../nym-outfox", optional = true }
+# TODO add optional
+nym-bin-common = { path = "../../../common/bin-common" }
 thiserror = { workspace = true }
 
 [features]

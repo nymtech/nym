@@ -59,6 +59,7 @@ impl MixnetMessageSinkTranslator for DefaultMixnetMessageSinkTranslator {
                     bytes,
                     self.lane,
                     self.packet_type,
+                    None
                 )),
                 IncludedSurbs::Amount(surbs) => Ok(InputMessage::new_anonymous(
                     **recipient,
@@ -66,6 +67,7 @@ impl MixnetMessageSinkTranslator for DefaultMixnetMessageSinkTranslator {
                     *surbs,
                     self.lane,
                     self.packet_type,
+                    None
                 )),
             },
             SinkDestination::Reply(tag) => Ok(InputMessage::new_reply(

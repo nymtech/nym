@@ -8,12 +8,14 @@ license = { workspace = true }
 repository = { workspace = true }
 
 [dependencies]
+sphinx-packet = { workspace = true }
 tracing = { workspace = true }
 rand = { workspace = true }
 rand_distr = { workspace = true }
 rand_chacha = { workspace = true }
 thiserror = { workspace = true }
 
+nym-bin-common = { path = "../bin-common" }
 nym-sphinx-acknowledgements = { path = "acknowledgements" }
 nym-sphinx-addressing = { path = "addressing" }
 nym-sphinx-anonymous-replies = { path = "anonymous-replies" }

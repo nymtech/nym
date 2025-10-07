@@ -1,6 +1,6 @@
 pub mod context;
 pub mod error;
-mod compact_id_generator;
+pub mod compact_id_generator;
 mod trace_id_format;
 
 use tracing::{info, Level};

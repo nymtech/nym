@@ -483,6 +483,7 @@ where
         lane: TransmissionLane,
         packet_type: PacketType,
         max_retransmissions: Option<u32>,
+        trace_id: Option<[u8; 12]>,
     ) -> Result<(), PreparationError> {
         let message = NymMessage::new_plain(message);
         self.try_split_and_send_non_reply_message(
@@ -491,6 +492,7 @@ where
             lane,
             packet_type,
             max_retransmissions,
+            trace_id,
         )
         .await
     }
@@ -502,6 +504,7 @@ where
         lane: TransmissionLane,
         packet_type: PacketType,
         max_retransmissions: Option<u32>,
+        trace_id: Option<[u8; 12]>,
     ) -> Result<(), PreparationError> {
         debug!("Sending non-reply message with packet type {packet_type}");
         // TODO: I really dislike existence of this assertion, it implies code has to be re-organised
@@ -534,6 +537,7 @@ where
                 &self.config.ack_key,
                 &recipient,
                 packet_type,
+                trace_id
             )?;
 
             let real_message = RealMessage::new(
@@ -585,6 +589,7 @@ where
             TransmissionLane::AdditionalReplySurbs,
             packet_type,
             max_retransmissions,
+            None,
         )
         .await?;
 
@@ -625,6 +630,7 @@ where
             lane,
             packet_type,
             max_retransmissions,
+            None,
         )
         .await?;
 
@@ -639,6 +645,7 @@ where
         recipient: Recipient,
         chunk: Fragment,
         packet_type: PacketType,
+        trace_id: Option<[u8; 12]>,
     ) -> Result<PreparedFragment, PreparationError> {
         debug!("Sending single chunk with packet type {packet_type}");
         let topology_permit = self.topology_access.get_read_permit().await;
@@ -650,6 +657,7 @@ where
             &self.config.ack_key,
             &recipient,
             packet_type,
+            trace_id,
         )?;
 
         Ok(prepared_fragment)

@@ -1221,12 +1221,14 @@ fn create_input_message(
             surbs,
             TransmissionLane::General,
             None,
+            None
         ),
         IncludedSurbs::ExposeSelfAddress => nym_sdk::mixnet::InputMessage::new_regular(
             recipient,
             data,
             TransmissionLane::General,
             None,
+            None
         ),
     }
 }

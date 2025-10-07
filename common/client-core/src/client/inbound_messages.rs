@@ -29,6 +29,8 @@ pub enum InputMessage {
         data: Vec<u8>,
         lane: TransmissionLane,
         max_retransmissions: Option<u32>,
+        // add trace_id for optional tracing of individual messages in debug mode
+        trace_id: Option<[u8; 12]>,
     },
 
     /// Creates a message used for a duplex anonymous communication where the recipient
@@ -45,6 +47,7 @@ pub enum InputMessage {
         reply_surbs: u32,
         lane: TransmissionLane,
         max_retransmissions: Option<u32>,
+        trace_id: Option<[u8; 12]>,
     },
 
     /// Attempt to use our internally received and stored `ReplySurb` to send the message back
@@ -90,12 +93,14 @@ impl InputMessage {
         data: Vec<u8>,
         lane: TransmissionLane,
         packet_type: Option<PacketType>,
+        trace_id: Option<[u8; 12]>,
     ) -> Self {
         let message = InputMessage::Regular {
             recipient,
             data,
             lane,
             max_retransmissions: None,
+            trace_id,
         };
         if let Some(packet_type) = packet_type {
             InputMessage::new_wrapper(message, packet_type)
@@ -110,6 +115,7 @@ impl InputMessage {
         reply_surbs: u32,
         lane: TransmissionLane,
         packet_type: Option<PacketType>,
+        trace_id: Option<[u8; 12]>,
     ) -> Self {
         let message = InputMessage::Anonymous {
             recipient,
@@ -117,6 +123,7 @@ impl InputMessage {
             reply_surbs,
             lane,
             max_retransmissions: None,
+            trace_id,
         };
         if let Some(packet_type) = packet_type {
             InputMessage::new_wrapper(message, packet_type)
@@ -184,5 +191,14 @@ impl InputMessage {
     pub fn with_max_retransmissions(mut self, max_retransmissions: u32) -> Self {
         self.set_max_retransmissions(max_retransmissions);
         self
+    }
+
+    pub fn trace_id(&self) -> Option<[u8; 12]> {
+        match self {
+            InputMessage::Regular { trace_id, .. } => *trace_id,
+            InputMessage::Anonymous { trace_id, .. } => *trace_id,
+            InputMessage::Premade { .. } | InputMessage::Reply { .. } => None,
+            InputMessage::MessageWrapper { message, .. } => message.trace_id(),
+        }
     }
 }

@@ -337,6 +337,9 @@ mod tests {
     static INIT: Once = Once::new();
 
     fn init_logging() {
+        if tracing::dispatcher::has_been_set() {
+            return;
+        }
         INIT.call_once(|| {
             nym_bin_common::logging::setup_tracing_logger();
         });
@@ -344,7 +347,7 @@ mod tests {
 
     #[tokio::test]
     async fn simple_surb_reply_stream() -> Result<(), Box<dyn std::error::Error>> {
-        // init_logging();
+        init_logging();
 
         let receiver_socket = MixSocket::new_test().await?;
         let receiver_address = receiver_socket.nym_address().clone();
@@ -397,7 +400,7 @@ mod tests {
 
     #[tokio::test]
     async fn concurrent_surb_reply_split() -> Result<(), Box<dyn std::error::Error>> {
-        // init_logging();
+        init_logging();
 
         let sender_socket = MixSocket::new_test().await?;
         let sender_address = sender_socket.nym_address().clone();

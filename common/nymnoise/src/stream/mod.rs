@@ -58,7 +58,7 @@ impl<C> NoiseStreamBuilder<C> {
             .remote_public_key(remote_pub_key.as_ref())
             .build_initiator()?;
 
-        let payload = match version {
+        let payload: Vec<u8> = match version {
             NoiseVersion::V1 => {
                 handshake.set_psk(
                     pattern.psk_position() as usize,
@@ -81,9 +81,25 @@ impl<C> NoiseStreamBuilder<C> {
                     )?;
                     payload
                 }
-                _ => panic!("no keypair in v2"),
+                (None, None) => {
+                    return Err(NoiseError::MissingField {
+                        info: format!("Missing Local Signing Key and Local Verification Key"),
+                    })
+                }
+                (None, _) => {
+                    return Err(NoiseError::MissingField {
+                        info: format!("Local Signing Key"),
+                    })
+                }
+                (_, None) => {
+                    return Err(NoiseError::MissingField {
+                        info: format!("Local Verification Key"),
+                    })
+                }
             },
-            NoiseVersion::Unknown(_) => todo!(),
+            NoiseVersion::Unknown(version) => {
+                return Err(NoiseError::UnknownVersion { encoded: version })
+            }
         };
 
         self.perform_handshake(handshake, payload, version, pattern)
@@ -166,27 +182,30 @@ impl<C> NoiseStreamBuilder<C> {
                 )?;
                 vec![]
             }
-            NoiseVersion::V2 => {
-                match initiator_verification_key {
-                    Some(verif_key) => {
-                        let (psk, message) = psq_respond_x25519(
-                            &local_private_key,
-                            &local_public_key,
-                            &verif_key,
-                            &mut buf,
-                            NOISE_PSQ_DEFAULT_CONTEXT,
-                            Duration::from_secs(NOISE_PSQ_DEFAULT_DURATION_SECS),
-                            &[1; PSK_HANDLE_LEN],
-                        )?;
-                        handshake.set_psk(pattern.psk_position() as usize, psk.as_slice())?;
+            NoiseVersion::V2 => match initiator_verification_key {
+                Some(verif_key) => {
+                    let (psk, message) = psq_respond_x25519(
+                        &local_private_key,
+                        &local_public_key,
+                        &verif_key,
+                        &mut buf,
+                        NOISE_PSQ_DEFAULT_CONTEXT,
+                        Duration::from_secs(NOISE_PSQ_DEFAULT_DURATION_SECS),
+                        &[1; PSK_HANDLE_LEN],
+                    )?;
+                    handshake.set_psk(pattern.psk_position() as usize, psk.as_slice())?;
 
-                        message
-                    }
-                    // error could be replaced by something else
-                    None => return Err(NoiseError::IncorrectStateError),
+                    message
                 }
+                None => {
+                    return Err(NoiseError::MissingField {
+                        info: format!("Initiator Verification Key"),
+                    })
+                }
+            },
+            NoiseVersion::Unknown(version) => {
+                return Err(NoiseError::UnknownVersion { encoded: version })
             }
-            NoiseVersion::Unknown(_) => todo!(),
         };
 
         // 3. run handshake to completion

@@ -33,7 +33,7 @@ mod psk_gen {
     use crate::{error::NoiseError, stream::Psk, NOISE_PSK_PREFIX};
     use libcrux_ed25519::VerificationKey;
     use libcrux_kem::{PrivateKey, PublicKey};
-    use libcrux_psq::impls::X25519;
+    use libcrux_psq::impls::{MlKem768, XWingKemDraft06, X25519};
     use nym_crypto::asymmetric::ed25519;
 
     use nympsq::{
@@ -48,6 +48,19 @@ mod psk_gen {
         hasher.update(NOISE_PSK_PREFIX);
         hasher.update(responder_pub_key);
         hasher.finalize().into()
+    }
+
+    pub(crate) fn psq_initiate_x25519(
+        initiator: &mut PSQInitiator<X25519>,
+        responder_pub_key: impl AsRef<[u8]>,
+        context: &[u8; CONTEXT_LEN],
+        psq_ttl: Duration,
+    ) -> Result<Vec<u8>, NoiseError> {
+        let pub_key =
+            PublicKey::decode(libcrux_kem::Algorithm::X25519, responder_pub_key.as_ref())?;
+        let message =
+            initiator.compute_initiator_message(&mut rand::rng(), &pub_key, context, psq_ttl)?;
+        Ok(message)
     }
 
     pub(crate) fn psq_respond_x25519(
@@ -81,17 +94,51 @@ mod psk_gen {
         Ok(res)
     }
 
-    pub(crate) fn psq_initiate_x25519(
-        initiator: &mut PSQInitiator<X25519>,
+    pub(crate) fn psq_initiate_xwing(
+        initiator: &mut PSQInitiator<XWingKemDraft06>,
         responder_pub_key: impl AsRef<[u8]>,
         context: &[u8; CONTEXT_LEN],
         psq_ttl: Duration,
     ) -> Result<Vec<u8>, NoiseError> {
-        let pub_key =
-            PublicKey::decode(libcrux_kem::Algorithm::X25519, responder_pub_key.as_ref())?;
+        let pub_key = PublicKey::decode(
+            libcrux_kem::Algorithm::XWingKemDraft06,
+            responder_pub_key.as_ref(),
+        )?;
         let message =
             initiator.compute_initiator_message(&mut rand::rng(), &pub_key, context, psq_ttl)?;
         Ok(message)
+    }
+
+    pub(crate) fn psq_respond_xwing(
+        responder_private_key: impl AsRef<[u8]>,
+        responder_public_key: impl AsRef<[u8]>,
+        initiator_verification_key: &ed25519::PublicKey,
+        initiator_message: &mut [u8],
+        context: &[u8; CONTEXT_LEN],
+        psq_ttl: Duration,
+        psk_handle: &[u8; PSK_HANDLE_LEN],
+    ) -> Result<(Psk, Vec<u8>), PSQError> {
+        let kem_private_key = PrivateKey::decode(
+            libcrux_kem::Algorithm::XWingKemDraft06,
+            responder_private_key.as_ref(),
+        )?;
+        let kem_public_key = PublicKey::decode(
+            libcrux_kem::Algorithm::XWingKemDraft06,
+            responder_public_key.as_ref(),
+        )?;
+
+        let responder: PSQResponder<XWingKemDraft06> =
+            PSQResponder::init(&kem_private_key, &kem_public_key);
+
+        let res = responder.compute_responder_message(
+            &VerificationKey::from_bytes(initiator_verification_key.to_bytes()),
+            initiator_message,
+            context,
+            psq_ttl,
+            psk_handle,
+        )?;
+
+        Ok(res)
     }
 }
 

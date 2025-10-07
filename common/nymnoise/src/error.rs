@@ -72,6 +72,9 @@ pub enum NoiseError {
     #[error("Handshake timeout")]
     HandshakeTimeout(#[from] tokio::time::error::Elapsed),
 
+    #[error("Missing Field")]
+    MissingField { info: String },
+
     #[error("PSQ Error")]
     PSQError(PSQError),
 }

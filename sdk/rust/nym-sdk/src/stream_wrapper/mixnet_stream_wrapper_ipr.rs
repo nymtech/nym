@@ -22,13 +22,14 @@ use nym_ip_packet_requests::{
 };
 use nym_sphinx::receiver::ReconstructedMessageCodec;
 
+use futures::StreamExt;
 use std::io;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 use std::time::Duration;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, ReadBuf};
 use tokio::sync::oneshot;
-use tokio_util::codec::{Decoder /*, FramedRead */}; // TODO will need FramedRead later when u switch from bytebuffers
+use tokio_util::codec::{Decoder, FramedRead};
 use tracing::{debug, error, info};
 
 const IPR_CONNECT_TIMEOUT: Duration = Duration::from_secs(60);
@@ -180,41 +181,33 @@ impl IpMixStream {
         let timeout = tokio::time::sleep(IPR_CONNECT_TIMEOUT);
         tokio::pin!(timeout);
 
-        // TODO framing
-        let mut buffer = vec![0u8; 65536];
+        let mut framed = FramedRead::new(&mut self.stream, ReconstructedMessageCodec {});
 
         loop {
             tokio::select! {
                 _ = &mut timeout => {
-                    return Err(Error::new_unsupported("Timeout waiting for connect response".to_string()));
+                    return Err(Error::new_unsupported(
+                        "Timeout waiting for connect response".to_string(),
+                    ));
                 }
-                result = self.stream.read(&mut buffer) => {
-                    match result {
-                        Ok(0) => {
-                            debug!("Stream closed");
+                frame = framed.next() => {
+                    match frame {
+                        None => {
                             return Err(Error::new_unsupported("Stream closed".to_string()));
                         }
-                        Ok(n) => {
-                            debug!("Received {} bytes", n);
-
-                            let mut codec = ReconstructedMessageCodec {};
-                            let mut buf = BytesMut::from(&buffer[..n]);
-
-                            if let Ok(Some(reconstructed)) = codec.decode(&mut buf) {
-                                if let Err(e) = check_ipr_message_version(&reconstructed) {
-                                    debug!("Version check failed: {}", e);
-                                    continue;
-                                }
-                                if let Ok(response) = IpPacketResponse::from_reconstructed_message(&reconstructed) {
-                                    if response.id() == Some(request_id) {
-                                        return self.handle_connect_response(response).await;
-                                    }
+                        Some(Err(e)) => {
+                            return Err(Error::new_unsupported(format!("Read error: {}", e)));
+                        }
+                        Some(Ok(reconstructed)) => {
+                            if let Err(e) = check_ipr_message_version(&reconstructed) {
+                                error!("Version check failed: {}", e);
+                                continue;
+                            }
+                            if let Ok(response) = IpPacketResponse::from_reconstructed_message(&reconstructed) {
+                                if response.id() == Some(request_id) {
+                                    return self.handle_connect_response(response).await;
                                 }
                             }
-                        }
-                        Err(e) => {
-                            error!("Read error: {}", e);
-                            return Err(Error::new_unsupported(format!("Read error: {}", e)));
                         }
                     }
                 }
@@ -256,44 +249,34 @@ impl IpMixStream {
     }
 
     pub async fn handle_incoming(&mut self) -> Result<Vec<Bytes>, Error> {
-        // TODO framing
-        let mut buffer = vec![0u8; 65536];
+        let mut framed = FramedRead::new(&mut self.stream, ReconstructedMessageCodec {});
 
-        match tokio::time::timeout(Duration::from_secs(10), self.stream.read(&mut buffer)).await {
-            Ok(Ok(n)) if n > 0 => {
-                debug!("Read {} bytes", n);
-
-                let mut codec = ReconstructedMessageCodec {};
-                let mut buf = BytesMut::from(&buffer[..n]);
-
-                if let Ok(Some(reconstructed)) = codec.decode(&mut buf) {
-                    match self
-                        .listener
-                        .handle_reconstructed_message(reconstructed)
-                        .await
-                    {
-                        Ok(Some(MixnetMessageOutcome::IpPackets(packets))) => {
-                            info!("Extracted {} IP packets", packets.len());
-                            Ok(packets)
-                        }
-                        Ok(Some(MixnetMessageOutcome::Disconnect)) => {
-                            info!("Received disconnect");
-                            self.connection_state = ConnectionState::Disconnected;
-                            self.allocated_ips = None;
-                            Ok(Vec::new())
-                        }
-                        Ok(Some(MixnetMessageOutcome::MixnetSelfPing)) => {
-                            debug!("Received mixnet self ping");
-                            Ok(Vec::new())
-                        }
-                        Ok(None) => Ok(Vec::new()),
-                        Err(e) => {
-                            debug!("Failed to handle message: {}", e);
-                            Ok(Vec::new())
-                        }
+        match tokio::time::timeout(Duration::from_secs(10), framed.next()).await {
+            Ok(Some(reconstructed)) => {
+                match self
+                    .listener
+                    .handle_reconstructed_message(reconstructed?)
+                    .await
+                {
+                    Ok(Some(MixnetMessageOutcome::IpPackets(packets))) => {
+                        info!("Extracted {} IP packets", packets.len());
+                        Ok(packets)
                     }
-                } else {
-                    Ok(Vec::new())
+                    Ok(Some(MixnetMessageOutcome::Disconnect)) => {
+                        info!("Received disconnect");
+                        self.connection_state = ConnectionState::Disconnected;
+                        self.allocated_ips = None;
+                        Ok(Vec::new())
+                    }
+                    Ok(Some(MixnetMessageOutcome::MixnetSelfPing)) => {
+                        debug!("Received mixnet self ping");
+                        Ok(Vec::new())
+                    }
+                    Ok(None) => Ok(Vec::new()),
+                    Err(e) => {
+                        error!("Failed to handle message: {}", e);
+                        Ok(Vec::new())
+                    }
                 }
             }
             _ => Ok(Vec::new()),
@@ -398,56 +381,41 @@ impl IpMixStreamReader {
     }
 
     pub async fn handle_incoming(&mut self) -> Result<Vec<Bytes>, Error> {
-        // TODO framing
-        let mut buffer = vec![0u8; 65536];
+        let mut framed = FramedRead::new(&mut self.stream_reader, ReconstructedMessageCodec {});
 
-        match tokio::time::timeout(
-            Duration::from_secs(10),
-            self.stream_reader.read(&mut buffer),
-        )
-        .await
-        {
-            Ok(Ok(n)) if n > 0 => {
-                debug!("Read {} bytes", n);
-
-                let mut codec = ReconstructedMessageCodec {};
-                let mut buf = BytesMut::from(&buffer[..n]);
-
-                if let Ok(Some(reconstructed)) = codec.decode(&mut buf) {
-                    match self
-                        .listener
-                        .handle_reconstructed_message(reconstructed)
-                        .await
-                    {
-                        Ok(Some(MixnetMessageOutcome::IpPackets(packets))) => {
-                            info!("Extracted {} IP packets", packets.len());
-                            Ok(packets)
-                        }
-                        Ok(Some(MixnetMessageOutcome::Disconnect)) => {
-                            info!("Received disconnect");
-                            self.connection_state = ConnectionState::Disconnected;
-                            self.allocated_ips = None;
-                            // Send state update to writer
-                            if let Some(tx) = self.state_tx.take() {
-                                let _ = tx.send(ConnectionState::Disconnected);
-                            }
-                            if let Some(tx) = self.ips_tx.take() {
-                                let _ = tx.send(None);
-                            }
-                            Ok(Vec::new())
-                        }
-                        Ok(Some(MixnetMessageOutcome::MixnetSelfPing)) => {
-                            debug!("Received mixnet self ping");
-                            Ok(Vec::new())
-                        }
-                        Ok(None) => Ok(Vec::new()),
-                        Err(e) => {
-                            debug!("Failed to handle message: {}", e);
-                            Ok(Vec::new())
-                        }
+        match tokio::time::timeout(Duration::from_secs(10), framed.next()).await {
+            Ok(Some(reconstructed)) => {
+                match self
+                    .listener
+                    .handle_reconstructed_message(reconstructed?)
+                    .await
+                {
+                    Ok(Some(MixnetMessageOutcome::IpPackets(packets))) => {
+                        info!("Extracted {} IP packets", packets.len());
+                        Ok(packets)
                     }
-                } else {
-                    Ok(Vec::new())
+                    Ok(Some(MixnetMessageOutcome::Disconnect)) => {
+                        info!("Received disconnect");
+                        self.connection_state = ConnectionState::Disconnected;
+                        self.allocated_ips = None;
+                        // Send state update to writer
+                        if let Some(tx) = self.state_tx.take() {
+                            let _ = tx.send(ConnectionState::Disconnected);
+                        }
+                        if let Some(tx) = self.ips_tx.take() {
+                            let _ = tx.send(None);
+                        }
+                        Ok(Vec::new())
+                    }
+                    Ok(Some(MixnetMessageOutcome::MixnetSelfPing)) => {
+                        debug!("Received mixnet self ping");
+                        Ok(Vec::new())
+                    }
+                    Ok(None) => Ok(Vec::new()),
+                    Err(e) => {
+                        error!("Failed to handle message: {}", e);
+                        Ok(Vec::new())
+                    }
                 }
             }
             _ => Ok(Vec::new()),

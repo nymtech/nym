@@ -58,7 +58,6 @@ impl PersistentStorage {
             "Attempting to connect to database {}",
             database_path.as_ref().display()
         );
-
         let opts = sqlx::sqlite::SqliteConnectOptions::new()
             .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal)
             .synchronous(SqliteSynchronous::Normal)

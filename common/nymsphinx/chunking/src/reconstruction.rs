@@ -4,7 +4,13 @@ use crate::fragment::Fragment;
 use crate::{monitoring, ChunkingError};
 use log::*;
 use std::collections::HashMap;
-use std::time::{Duration, Instant};
+use std::time::Duration;
+
+#[cfg(not(target_arch = "wasm32"))]
+use std::time::Instant;
+
+#[cfg(target_arch = "wasm32")]
+use wasmtimer::std::Instant;
 
 // TODO: perhaps a more sophisticated approach with writing to disk periodically in case
 // we're receiving fast & furious in uncompressed 4K - we don't want to keep that in memory;

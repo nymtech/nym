@@ -108,13 +108,10 @@ pub struct DebugWasm {
 
     /// Defines all configuration options related to reply SURBs.
     pub reply_surbs: ReplySurbsWasm,
-
     /// Defines all configuration options related to stats reporting.
     #[wasm_bindgen(getter_with_clone)]
     pub stats_reporting: StatsReportingWasm,
-
     pub forget_me: ForgetMeWasm,
-
     pub remember_me: RememberMeWasm,
 }
 

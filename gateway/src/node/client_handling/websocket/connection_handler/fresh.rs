@@ -872,6 +872,7 @@ impl<R, S> FreshHandler<R, S> {
         // extract and set up opentelemetry context if provided
         let (context_propagator, otel_ctx) = if let ClientControlRequest::AuthenticateV2(ref auth_req) = request {
             if let Some(otel_context) = &auth_req.otel_context {
+                warn!("OpenTelemetry context provided in the request: {otel_context:?}");
                 (Some(ManualContextPropagator::new("handling_initial_client_request_with_otel", otel_context.clone())), Some(otel_context.clone()))
             } else {
                 warn!("No OpenTelemetry context provided in the request");

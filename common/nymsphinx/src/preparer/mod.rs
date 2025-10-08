@@ -11,8 +11,7 @@ use nym_sphinx_addressing::clients::Recipient;
 use nym_sphinx_addressing::nodes::NymNodeRoutingAddress;
 use nym_sphinx_anonymous_replies::reply_surb::ReplySurb;
 use nym_sphinx_chunking::fragment::{Fragment, FragmentIdentifier};
-use nym_sphinx_forwarding::packet::{self, MixPacket};
-use sphinx_packet::route::Destination;
+use nym_sphinx_forwarding::packet::MixPacket;
 use nym_sphinx_params::packet_sizes::PacketSize;
 use nym_sphinx_params::{PacketType, ReplySurbKeyDigestAlgorithm, SphinxKeyRotation};
 use nym_sphinx_types::{Delay, NymPacket};
@@ -169,6 +168,7 @@ pub trait FragmentPreparer {
     /// - compute sphinx_plaintext = SURB_ACK || g^x || v_b
     /// - compute sphinx_packet = Sphinx(recipient, sphinx_plaintext)
     #[allow(clippy::too_many_arguments)]
+    #[instrument(skip_all)]
     fn prepare_chunk_for_sending(
         &mut self,
         fragment: Fragment,
@@ -238,8 +238,8 @@ pub trait FragmentPreparer {
             topology.random_route_to_egress(&mut rng, destination)?
         };
 
-        let mut destination = packet_recipient.as_sphinx_destination();
-        add_trace_id_to_destination(&mut destination, trace_id);
+        let destination = packet_recipient.as_sphinx_destination(trace_id);
+        tracing::warn!("Packet destination with trace id: {:?}", &destination.identifier);
 
         // including set of delays
         let delays =
@@ -263,17 +263,6 @@ pub trait FragmentPreparer {
                 &delays,
             )?,
         };
-
-    /// If a trace id is provided, add it to the first 12 bytes of the destination identifier.
-    /// The remaining 4 bytes of the identifier are left unchanged.
-    fn add_trace_id_to_destination(
-        destination: &mut Destination,
-        trace_id: Option<[u8; 12]>,
-    ) {
-        if let Some(trace_id) = trace_id {
-            destination.identifier[0..12].copy_from_slice(&trace_id);
-        }
-    }
 
     /// - compute k = KDF(remote encryption key ^ x) this is equivalent to KDF( dh(remote, x) )
     /// from the previously constructed route extract the first hop

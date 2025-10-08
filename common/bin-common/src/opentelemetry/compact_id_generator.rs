@@ -39,9 +39,9 @@ pub fn compress_trace_id(trace_id: &TraceId) -> [u8; 12] {
     compressed
 }
 
-pub fn decompress_trace_id(compressed: &[u8; 12]) -> TraceId {
+pub fn decompress_trace_id(compressed: &[u8; 12]) -> [u8; 16] {
     let mut bytes = [0u8; 16];
     bytes[0..12].copy_from_slice(compressed);
-
-    TraceId::from_bytes(bytes)
+    bytes[12..].copy_from_slice(&[0u8; 4]);
+    bytes
 }

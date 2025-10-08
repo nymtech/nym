@@ -31,6 +31,7 @@ use nym_crypto::hkdf::DerivationMaterial;
 use nym_socks5_client_core::config::Socks5;
 use nym_task::ShutdownTracker;
 use nym_topology::provider_trait::TopologyProvider;
+use nym_topology::RoutingNode;
 use nym_validator_client::{nyxd, QueryHttpRpcNyxdClient, UserAgent};
 use rand::rngs::OsRng;
 use std::path::Path;
@@ -538,27 +539,37 @@ where
         }
     }
 
-    async fn new_gateway_setup(&self) -> Result<GatewaySetup, ClientCoreError> {
+    /// Attempt to retrieve list of all gateways available for registration
+    async fn available_gateways(&mut self) -> Result<Vec<RoutingNode>, ClientCoreError> {
+        if let Some(ref mut custom_provider) = self.custom_topology_provider {
+            if let Some(topology) = custom_provider.get_new_topology().await {
+                return Ok(topology.entry_gateways().cloned().collect());
+            }
+        }
+
         let nym_api_endpoints = self.get_api_endpoints();
-
-        let selection_spec = GatewaySelectionSpecification::new(
-            self.config.user_chosen_gateway.clone(),
-            None,
-            self.force_tls,
-        );
-
-        let user_agent = self.user_agent.clone();
-
         let topology_cfg = &self.config.debug_config.topology;
+        let user_agent = self.user_agent.clone();
         let mut rng = OsRng;
-        let available_gateways = gateways_for_init(
+
+        gateways_for_init(
             &mut rng,
             &nym_api_endpoints,
             user_agent,
             topology_cfg.minimum_gateway_performance,
             topology_cfg.ignore_ingress_epoch_role,
         )
-        .await?;
+        .await
+    }
+
+    async fn new_gateway_setup(&mut self) -> Result<GatewaySetup, ClientCoreError> {
+        let selection_spec = GatewaySelectionSpecification::new(
+            self.config.user_chosen_gateway.clone(),
+            None,
+            self.force_tls,
+        );
+
+        let available_gateways = self.available_gateways().await?;
 
         Ok(GatewaySetup::New {
             specification: selection_spec,

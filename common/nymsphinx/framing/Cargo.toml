@@ -11,6 +11,7 @@ repository = { workspace = true }
 bytes = { workspace = true }
 tokio-util = { workspace = true, features = ["codec"] }
 thiserror = { workspace = true }
+opentelemetry = { workspace = true }
 tracing = { workspace = true }
 
 nym-bin-common = { path = "../../bin-common" }

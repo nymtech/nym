@@ -15,7 +15,7 @@ use nym_sphinx_types::{
 };
 use std::fmt::Display;
 use thiserror::Error;
-use tracing::{debug, error, info, trace};
+use tracing::{debug, error, info, warn, trace, instrument};
 
 #[derive(Debug)]
 pub enum MixProcessingResultData {
@@ -237,6 +237,7 @@ fn perform_framed_packet_processing(
     })
 }
 
+#[instrument(skip_all)]
 fn wrap_processed_sphinx_packet(
     packet: nym_sphinx_types::ProcessedPacket,
     packet_size: PacketSize,
@@ -267,9 +268,13 @@ fn wrap_processed_sphinx_packet(
             {
                 let trace_bytes: [u8; 12] = identifier[0..12].try_into().unwrap();
                 if !trace_bytes.iter().all(|b| *b == 0) {
-                    let full_trace_id = decompress_trace_id(&trace_bytes);
+                    let full_trace_id_bytes = decompress_trace_id(&trace_bytes);
+                    let full_trace_id = opentelemetry::trace::TraceId::from_bytes(full_trace_id_bytes);
                     tracing::Span::current().record("trace_id", &full_trace_id.to_string().as_str());
-                    info!("Processing final hop with trace_id: {full_trace_id:?}");
+                    warn!("Processing final hop with trace_id: {full_trace_id:?}");
+                }
+                else {
+                    warn!("Received final hop with empty trace_id");
                 }
             }
 

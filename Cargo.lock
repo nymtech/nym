@@ -6898,6 +6898,7 @@ name = "nym-sphinx-addressing"
 version = "0.1.0"
 dependencies = [
  "bincode",
+ "nym-bin-common",
  "nym-crypto",
  "nym-sphinx-types",
  "rand 0.8.5",
@@ -6980,6 +6981,7 @@ dependencies = [
  "nym-sphinx-forwarding",
  "nym-sphinx-params",
  "nym-sphinx-types",
+ "opentelemetry",
  "thiserror 2.0.16",
  "tokio",
  "tokio-util",

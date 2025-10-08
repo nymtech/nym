@@ -3,17 +3,17 @@
 
 use crate::error::NetworkManagerError;
 use crate::helpers::{ProgressCtx, ProgressTracker, RunCommands};
+use crate::manager::NetworkManager;
 use crate::manager::network::LoadedNetwork;
 use crate::manager::node::NymNode;
-use crate::manager::NetworkManager;
 use console::style;
 use nym_crypto::asymmetric::ed25519;
-use nym_mixnet_contract_common::nym_node::Role;
 use nym_mixnet_contract_common::RoleAssignment;
+use nym_mixnet_contract_common::nym_node::Role;
+use nym_validator_client::DirectSigningHttpRpcNyxdClient;
 use nym_validator_client::nyxd::contract_traits::{
     MixnetQueryClient, MixnetSigningClient, PagedMixnetQueryClient,
 };
-use nym_validator_client::DirectSigningHttpRpcNyxdClient;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::ops::Deref;

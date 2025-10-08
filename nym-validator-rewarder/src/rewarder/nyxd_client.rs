@@ -3,7 +3,7 @@
 
 use crate::config::Config;
 use crate::error::NymRewarderError;
-use crate::rewarder::ticketbook_issuance::types::{addr_to_account_id, CredentialIssuer};
+use crate::rewarder::ticketbook_issuance::types::{CredentialIssuer, addr_to_account_id};
 use nym_coconut_dkg_common::types::Epoch;
 use nym_compact_ecash::{Base58, VerificationKeyAuth};
 use nym_crypto::asymmetric::ed25519;
@@ -15,7 +15,7 @@ use nym_validator_client::nyxd::module_traits::staking::{
 use nym_validator_client::nyxd::{
     AccountId, Coin, CosmWasmClient, Hash, PageRequest, StakingQueryClient,
 };
-use nym_validator_client::{nyxd, DirectSigningHttpRpcNyxdClient};
+use nym_validator_client::{DirectSigningHttpRpcNyxdClient, nyxd};
 use std::collections::HashMap;
 use std::ops::Deref;
 use std::sync::Arc;

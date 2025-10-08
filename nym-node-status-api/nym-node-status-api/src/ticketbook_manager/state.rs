@@ -13,15 +13,15 @@ use nym_credential_proxy_lib::shared_state::required_deposit_cache::RequiredDepo
 use nym_credential_proxy_lib::storage::traits::{
     AggregatedCoinIndicesSignatures, AggregatedExpirationDateSignatures,
 };
-use nym_credentials::ecash::bandwidth::serialiser::VersionedSerialise;
 use nym_credentials::EpochVerificationKey;
+use nym_credentials::ecash::bandwidth::serialiser::VersionedSerialise;
 use nym_ecash_time::ecash_default_expiration_date;
 use nym_node_status_client::models::AttachedTicketMaterials;
+use nym_validator_client::EcashApiClient;
 use nym_validator_client::nym_api::EpochId;
 use nym_validator_client::nyxd::Coin;
-use nym_validator_client::EcashApiClient;
-use std::collections::hash_map::Entry;
 use std::collections::HashMap;
+use std::collections::hash_map::Entry;
 use std::sync::Arc;
 use time::Date;
 use tokio::sync::RwLockReadGuard;
@@ -71,7 +71,9 @@ impl TicketbookManagerState {
                 let epoch_id = ticket.ticketbook.epoch_id();
                 let expiration_date = ticket.ticketbook.expiration_date();
 
-                debug!("retrieved ticket corresponds to epoch {epoch_id} and expiration date {expiration_date}");
+                debug!(
+                    "retrieved ticket corresponds to epoch {epoch_id} and expiration date {expiration_date}"
+                );
 
                 debug!("attempting to attach master verification key...");
                 if let Entry::Vacant(e) = master_verification_keys.entry(epoch_id) {

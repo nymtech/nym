@@ -9,7 +9,7 @@ use nym_credential_proxy_lib::ticketbook_manager::TicketbookManager;
 use tracing::{error, info};
 
 pub async fn wait_for_signal() {
-    use tokio::signal::unix::{signal, SignalKind};
+    use tokio::signal::unix::{SignalKind, signal};
 
     // if we fail to setup the signals, we should just blow up
     #[allow(clippy::expect_used)]

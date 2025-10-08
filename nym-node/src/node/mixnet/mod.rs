@@ -7,4 +7,4 @@ pub(crate) mod packet_forwarding;
 pub(crate) mod shared;
 
 pub(crate) use listener::Listener;
-pub(crate) use shared::{final_hop::SharedFinalHopData, SharedData};
+pub(crate) use shared::{SharedData, final_hop::SharedFinalHopData};

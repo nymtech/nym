@@ -54,14 +54,14 @@
 //! routing data for the layer, and the remaining Header; separately the master key is used to lion encrypt
 //! the payload. The process is repeated for each layer (from last to first) to construct the full message.
 
-use crate::constants::groupelementbytes;
-use crate::constants::tagbytes;
 use crate::constants::DEFAULT_HOPS;
 use crate::constants::DEFAULT_ROUTING_INFO_SIZE;
 use crate::constants::GROUPELEMENTBYTES;
 use crate::constants::MIX_PARAMS_LEN;
 use crate::constants::ROUTING_INFORMATION_LENGTH_BY_STAGE;
 use crate::constants::TAGBYTES;
+use crate::constants::groupelementbytes;
+use crate::constants::tagbytes;
 use crate::error::OutfoxError;
 use crate::lion::*;
 use chacha20poly1305::AeadInPlace;

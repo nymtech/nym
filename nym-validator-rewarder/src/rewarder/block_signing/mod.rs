@@ -150,7 +150,9 @@ impl EpochSigning {
                 .get_voting_power(&validator.consensus_address, vp_range.clone())
                 .await?
             else {
-                error!("failed to obtain voting power for validator {addr} for any block between heights {vp_range:?} - there were no stored pre-commits for that validator.");
+                error!(
+                    "failed to obtain voting power for validator {addr} for any block between heights {vp_range:?} - there were no stored pre-commits for that validator."
+                );
                 continue;
             };
 

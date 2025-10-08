@@ -5,7 +5,7 @@ use crate::cli::CliNetworkRequesterClient;
 use crate::error::NetworkRequesterError;
 use nym_bin_common::output_format::OutputFormat;
 use nym_client_core::cli_helpers::client_list_gateways::{
-    list_gateways, CommonClientListGatewaysArgs,
+    CommonClientListGatewaysArgs, list_gateways,
 };
 
 #[derive(clap::Args)]

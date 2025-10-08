@@ -5,8 +5,8 @@ use crate::error::CredentialProxyError;
 use crate::shared_state::nyxd_client::ChainClient;
 use nym_ecash_signer_check::{check_known_dealers, dkg_details_with_client};
 use std::ops::Deref;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 use tokio_util::sync::CancellationToken;
 use tracing::{error, info, warn};
@@ -67,7 +67,9 @@ impl QuorumStateChecker {
         let res = check_known_dealers(dkg_details).await?;
 
         let Some(signing_threshold) = res.threshold else {
-            warn!("signing threshold is currently unavailable and we have not yet implemented credential issuance during DKG transition");
+            warn!(
+                "signing threshold is currently unavailable and we have not yet implemented credential issuance during DKG transition"
+            );
             return Ok(false);
         };
 

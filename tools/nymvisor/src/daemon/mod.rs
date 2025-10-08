@@ -18,7 +18,7 @@ use std::sync::Arc;
 use std::task::{Context, Poll};
 use std::time::Duration;
 use tokio::sync::Notify;
-use tokio::time::{sleep, Sleep};
+use tokio::time::{Sleep, sleep};
 use tracing::{debug, info, instrument, warn};
 
 pub(crate) struct InterruptHandle(Arc<Notify>);
@@ -208,12 +208,14 @@ impl Future for ExecutingDaemon {
         }
 
         // 2. check if we reached the timeout to kill the child
-        if let Some(ref mut kill_timeout) = &mut self.kill_timeout {
-            if kill_timeout.as_mut().poll(cx).is_ready() {
-                warn!("reached the graceful shutdown timeout. the daemon still hasn't finished. sending SIGKILL");
-                self.signal_child(Signal::SIGKILL)?;
-                self.kill_timeout = None;
-            }
+        if let Some(kill_timeout) = &mut self.kill_timeout
+            && kill_timeout.as_mut().poll(cx).is_ready()
+        {
+            warn!(
+                "reached the graceful shutdown timeout. the daemon still hasn't finished. sending SIGKILL"
+            );
+            self.signal_child(Signal::SIGKILL)?;
+            self.kill_timeout = None;
         }
 
         // 3. check if we received a signal to interrupt the child

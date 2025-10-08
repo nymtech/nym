@@ -1,7 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use nym_config::{must_get_home, DEFAULT_DATA_DIR, NYM_DIR};
+use nym_config::{DEFAULT_DATA_DIR, NYM_DIR, must_get_home};
 use std::path::PathBuf;
 
 pub const DEFAULT_NYM_CREDENTIAL_PROXY_DIR: &str = "nym-credential-proxy";

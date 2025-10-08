@@ -15,7 +15,7 @@ use nym_sdk::mixnet::{
 };
 use tokio::{
     sync::{mpsc, oneshot},
-    time::{interval, Interval},
+    time::{Interval, interval},
 };
 use tokio_util::codec::Encoder;
 

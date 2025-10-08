@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: GPL-3.0-only
 use crate::error::NetworkManagerError;
 use nym_mixnet_contract_common::ContractBuildInformation;
+use nym_validator_client::DirectSecp256k1HdWallet;
 use nym_validator_client::nyxd::cosmwasm_client::types::{
     ContractCodeId, InstantiateResult, MigrateResult, UploadResult,
 };
 use nym_validator_client::nyxd::{AccountId, Hash};
-use nym_validator_client::DirectSecp256k1HdWallet;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 

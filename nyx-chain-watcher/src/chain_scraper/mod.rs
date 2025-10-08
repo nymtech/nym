@@ -7,8 +7,8 @@ use crate::http::state::BankScraperModuleState;
 use async_trait::async_trait;
 use nym_validator_client::nyxd::{Any, Coin, CosmosCoin, Hash, Msg, MsgSend, Name};
 use nyxd_scraper::{
-    error::ScraperError, storage::StorageTransaction, MsgModule, NyxdScraper,
-    ParsedTransactionResponse, PruningOptions,
+    MsgModule, NyxdScraper, ParsedTransactionResponse, PruningOptions, error::ScraperError,
+    storage::StorageTransaction,
 };
 use sqlx::SqlitePool;
 use std::fs;

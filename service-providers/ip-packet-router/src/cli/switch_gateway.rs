@@ -3,7 +3,7 @@
 
 use crate::cli::CliIpPacketRouterClient;
 use nym_client_core::cli_helpers::client_switch_gateway::{
-    switch_gateway, CommonClientSwitchGatewaysArgs,
+    CommonClientSwitchGatewaysArgs, switch_gateway,
 };
 use nym_ip_packet_router::error::IpPacketRouterError;
 

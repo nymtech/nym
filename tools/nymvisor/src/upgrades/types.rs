@@ -110,7 +110,10 @@ impl UpgradePlan {
             if planned.version == upgrade.version {
                 if planned.name != upgrade.name {
                     // TODO: should we maybe return a hard error here instead?
-                    error!("we have already a planned upgrade for version {} under name '{}' which differs from provided '{}'", planned.version, planned.name, upgrade.name);
+                    error!(
+                        "we have already a planned upgrade for version {} under name '{}' which differs from provided '{}'",
+                        planned.version, planned.name, upgrade.name
+                    );
                 }
                 return true;
             }
@@ -307,13 +310,13 @@ impl UpgradeInfo {
             });
         }
 
-        if let Some(bin_info) = &self.binary_details {
-            if bin_info != &current_info.binary_details {
-                return Err(NymvisorError::UnexpectedCurrentVersionInfo {
-                    current_info: Box::new(self.clone()),
-                    current_version_info: Box::new(current_info.clone()),
-                });
-            }
+        if let Some(bin_info) = &self.binary_details
+            && bin_info != &current_info.binary_details
+        {
+            return Err(NymvisorError::UnexpectedCurrentVersionInfo {
+                current_info: Box::new(self.clone()),
+                current_version_info: Box::new(current_info.clone()),
+            });
         }
 
         Ok(())
@@ -323,13 +326,13 @@ impl UpgradeInfo {
         &self,
         info: &BinaryBuildInformationOwned,
     ) -> Result<(), NymvisorError> {
-        if let Some(self_info) = &self.binary_details {
-            if self_info != info {
-                return Err(NymvisorError::UnexpectedDaemonBuild {
-                    daemon_info: Box::new(info.clone()),
-                    stored_info: Box::new(self_info.clone()),
-                });
-            }
+        if let Some(self_info) = &self.binary_details
+            && self_info != info
+        {
+            return Err(NymvisorError::UnexpectedDaemonBuild {
+                daemon_info: Box::new(info.clone()),
+                stored_info: Box::new(self_info.clone()),
+            });
         }
         if self.version != info.build_version {
             return Err(NymvisorError::UnexpectedUpgradeDaemonVersion {

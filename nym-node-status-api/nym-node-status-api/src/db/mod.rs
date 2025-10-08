@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use std::ops::{Deref, DerefMut};
 use std::{str::FromStr, time::Duration};
 
@@ -9,7 +9,7 @@ pub(crate) mod queries;
 mod tests;
 
 use sqlx::{
-    migrate::Migrator, postgres::PgConnectOptions, ConnectOptions, PgPool, Postgres, Transaction,
+    ConnectOptions, PgPool, Postgres, Transaction, migrate::Migrator, postgres::PgConnectOptions,
 };
 
 static MIGRATOR: Migrator = sqlx::migrate!("./migrations_pg");

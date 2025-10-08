@@ -1,8 +1,8 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use futures::channel::mpsc;
 use futures::StreamExt;
+use futures::channel::mpsc;
 use notify::event::{DataChange, MetadataKind, ModifyKind};
 use notify::{Config, Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use std::collections::HashMap;
@@ -96,10 +96,10 @@ impl AsyncFileWatcher {
         // when testing I was consistently getting two `Modify(Data(Any))` events in quick succession
         // (probably to modify content and metadata).
         // we really only want to propagate one of them
-        if let Some(previous) = self.last_received.get(&event.kind) {
-            if now.duration_since(*previous) < self.tick_duration {
-                return false;
-            }
+        if let Some(previous) = self.last_received.get(&event.kind)
+            && now.duration_since(*previous) < self.tick_duration
+        {
+            return false;
         }
 
         let Some(filters) = &self.filters else {

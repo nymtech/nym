@@ -168,6 +168,10 @@ impl PublicKey {
     pub fn to_base64(&self) -> String {
         base64::engine::general_purpose::STANDARD.encode(self.as_bytes())
     }
+
+    pub fn inner(&self) -> x25519_dalek::PublicKey {
+        self.0
+    }
 }
 
 impl FromStr for PublicKey {

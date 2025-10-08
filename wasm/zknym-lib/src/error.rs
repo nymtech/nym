@@ -27,7 +27,9 @@ pub enum ZkNymError {
     #[error("global parameters have already been set before")]
     GlobalParamsAlreadySet,
 
-    #[error("no parameters were provided - they need to be provided either explicitly or a global ones need to be set")]
+    #[error(
+        "no parameters were provided - they need to be provided either explicitly or a global ones need to be set"
+    )]
     NoParametersProvided,
 
     #[error("failed to recover ed25519 private key from its base58 representation: {0}")]

@@ -8,8 +8,8 @@ use crate::node::http::api::v1::node::hardware::host_system;
 use crate::node::http::api::v1::node::host_information::host_information;
 use crate::node::http::api::v1::node::roles::roles;
 use crate::node::http::state::AppState;
-use axum::routing::get;
 use axum::Router;
+use axum::routing::get;
 use nym_node_requests::api::v1::node::models;
 use nym_node_requests::routes::api::v1;
 

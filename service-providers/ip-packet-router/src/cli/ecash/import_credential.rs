@@ -3,7 +3,7 @@
 
 use crate::cli::CliIpPacketRouterClient;
 use nym_client_core::cli_helpers::client_import_credential::{
-    import_credential, CommonClientImportTicketBookArgs,
+    CommonClientImportTicketBookArgs, import_credential,
 };
 use nym_ip_packet_router::error::IpPacketRouterError;
 

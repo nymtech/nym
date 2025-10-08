@@ -17,7 +17,7 @@ use tokio_util::sync::CancellationToken;
 use tracing::{debug, info, instrument, warn};
 use uuid::Uuid;
 
-pub use helpers::{make_deposits_request, split_deposits, BufferedDeposit, PerformedDeposits};
+pub use helpers::{BufferedDeposit, PerformedDeposits, make_deposits_request, split_deposits};
 
 pub(crate) mod helpers;
 mod refill_task;
@@ -219,7 +219,9 @@ impl DepositsBuffer {
 
         match maybe_deposit {
             None => {
-                warn!("we currently don't have any usable deposits! are we using them up faster than we request them?");
+                warn!(
+                    "we currently don't have any usable deposits! are we using them up faster than we request them?"
+                );
 
                 // we have to wait until refill task has completed (either initiated by this or another fn call)
                 self.wait_for_deposit(request_uuid, requested_on, client_pubkey)
@@ -242,7 +244,9 @@ impl DepositsBuffer {
         let task_handle = self.inner.deposits_refill_task.take_task_join_handle();
         if let Some(task_handle) = task_handle {
             if !task_handle.is_finished() {
-                info!("the deposit refill task is currently in progress - waiting for the current transaction to finish before concluding shutdown");
+                info!(
+                    "the deposit refill task is currently in progress - waiting for the current transaction to finish before concluding shutdown"
+                );
                 let _ = task_handle.await;
             }
         }

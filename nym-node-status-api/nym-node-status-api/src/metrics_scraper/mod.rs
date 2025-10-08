@@ -1,6 +1,6 @@
-use crate::db::{models::GatewaySessionsRecord, queries, DbPool};
+use crate::db::{DbPool, models::GatewaySessionsRecord, queries};
 use error::NodeScraperError;
-use nym_network_defaults::{NymNetworkDetails, DEFAULT_NYM_NODE_HTTP_PORT};
+use nym_network_defaults::{DEFAULT_NYM_NODE_HTTP_PORT, NymNetworkDetails};
 use nym_node_requests::api::{client::NymNodeApiClientExt, v1::metrics::models::SessionStats};
 use nym_validator_client::{
     client::{NodeId, NymNodeDetails},

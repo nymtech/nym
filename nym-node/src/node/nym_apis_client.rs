@@ -3,7 +3,7 @@
 
 use crate::error::NymNodeError;
 use crate::node::NymNode;
-use futures::{stream, StreamExt};
+use futures::{StreamExt, stream};
 use nym_crypto::asymmetric::ed25519;
 use nym_http_api_client::Client;
 use nym_task::ShutdownToken;

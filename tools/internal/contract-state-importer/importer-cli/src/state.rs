@@ -3,7 +3,7 @@
 
 use nym_validator_client::nyxd::AccountId;
 use serde::{Deserialize, Serialize};
-use std::fs::{create_dir_all, File};
+use std::fs::{File, create_dir_all};
 use std::path::PathBuf;
 use tracing::info;
 

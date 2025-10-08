@@ -3,7 +3,7 @@
 
 use crate::cli::helpers::{copy_binary, daemon_home, use_logs};
 use crate::config::{
-    default_config_filepath, Config, BIN_DIR, CURRENT_VERSION_FILENAME, GENESIS_DIR,
+    BIN_DIR, CURRENT_VERSION_FILENAME, Config, GENESIS_DIR, default_config_filepath,
 };
 use crate::daemon::Daemon;
 use crate::env::Env;
@@ -260,7 +260,9 @@ fn setup_genesis(
                 provided_genesis: Box::new(daemon_info.clone()),
             })
         } else {
-            debug!("there was already a genesis daemon binary present, but it was the same as the one provided");
+            debug!(
+                "there was already a genesis daemon binary present, but it was the same as the one provided"
+            );
             Ok(())
         };
     }

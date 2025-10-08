@@ -2,16 +2,16 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::commands::initialise_mixnet_vesting_with_states::{
-    execute_initialise_mixnet_vesting_with_states, InitialiseMixnetVestingWithStatesArgs,
+    InitialiseMixnetVestingWithStatesArgs, execute_initialise_mixnet_vesting_with_states,
 };
-use crate::commands::initialise_with_state::{initialise_with_state, InitialiseWithStateArgs};
-use crate::commands::prepare::{execute_prepare_contract, PrepareArgs};
-use crate::commands::set_state::{execute_set_state, SetStateArgs};
-use crate::commands::swap_contract::{execute_swap_contract, SwapContractArgs};
+use crate::commands::initialise_with_state::{InitialiseWithStateArgs, initialise_with_state};
+use crate::commands::prepare::{PrepareArgs, execute_prepare_contract};
+use crate::commands::set_state::{SetStateArgs, execute_set_state};
+use crate::commands::swap_contract::{SwapContractArgs, execute_swap_contract};
 use clap::{Parser, Subcommand};
 use nym_bin_common::bin_info;
 use nym_network_defaults::NymNetworkDetails;
-use nym_validator_client::{nyxd, DirectSigningHttpRpcNyxdClient};
+use nym_validator_client::{DirectSigningHttpRpcNyxdClient, nyxd};
 use std::path::PathBuf;
 use std::sync::OnceLock;
 

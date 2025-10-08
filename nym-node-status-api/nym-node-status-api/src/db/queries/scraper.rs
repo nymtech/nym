@@ -1,10 +1,10 @@
 use crate::{
     db::{
+        DbPool,
         models::{ScrapeNodeKind, ScraperNodeInfo},
         queries::{
             self, gateways::insert_gateway_description, nym_nodes::insert_nym_node_description,
         },
-        DbPool,
     },
     node_scraper::helpers::NodeDescriptionResponse,
     utils::now_utc,

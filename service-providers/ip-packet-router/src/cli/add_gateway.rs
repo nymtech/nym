@@ -3,7 +3,7 @@
 
 use crate::cli::CliIpPacketRouterClient;
 use nym_bin_common::output_format::OutputFormat;
-use nym_client_core::cli_helpers::client_add_gateway::{add_gateway, CommonClientAddGatewayArgs};
+use nym_client_core::cli_helpers::client_add_gateway::{CommonClientAddGatewayArgs, add_gateway};
 use nym_ip_packet_router::error::IpPacketRouterError;
 
 #[derive(clap::Args)]

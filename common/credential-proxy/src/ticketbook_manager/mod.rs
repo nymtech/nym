@@ -4,12 +4,12 @@
 use crate::deposits_buffer::DepositsBuffer;
 use crate::error::CredentialProxyError;
 use crate::quorum_checker::QuorumStateChecker;
+use crate::shared_state::CredentialProxyState;
 use crate::shared_state::ecash_state::EcashState;
 use crate::shared_state::nyxd_client::ChainClient;
 use crate::shared_state::required_deposit_cache::RequiredDepositCache;
-use crate::shared_state::CredentialProxyState;
-use crate::storage::pruner::StoragePruner;
 use crate::storage::CredentialProxyStorage;
+use crate::storage::pruner::StoragePruner;
 use crate::webhook::ZkNymWebhook;
 use nym_credentials::ecash::utils::ecash_default_expiration_date;
 use nym_validator_client::nym_api::EpochId;

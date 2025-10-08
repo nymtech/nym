@@ -65,6 +65,8 @@ impl MetricsHandler for LegacyMixingStatsUpdater {
     // SAFETY: `LegacyMixingStatsUpdater` doesn't have any associated events
     #[allow(clippy::panic)]
     async fn handle_event(&mut self, _event: Self::Events) {
-        panic!("this should have never been called! MetricsHandler has been incorrectly called on LegacyMixingStatsUpdater")
+        panic!(
+            "this should have never been called! MetricsHandler has been incorrectly called on LegacyMixingStatsUpdater"
+        )
     }
 }

@@ -4,8 +4,8 @@
 use crate::asymmetric::x25519;
 use crate::hkdf;
 use cipher::{Key, KeyIvInit, StreamCipher};
-use digest::crypto_common::BlockSizeUser;
 use digest::Digest;
+use digest::crypto_common::BlockSizeUser;
 
 #[cfg(feature = "rand")]
 use rand::{CryptoRng, RngCore};

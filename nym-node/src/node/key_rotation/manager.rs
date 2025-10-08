@@ -154,21 +154,25 @@ impl SphinxKeyManager {
         let secondary_id = secondary.as_ref().map(|k| k.rotation_id());
 
         // 1. check for failed (or missed) rotation, i.e. secondary > primary AND current_rotation > primary
-        if let Some(secondary_id) = secondary_id {
-            if secondary_id > primary_id && current_rotation_id > primary_id {
-                Self::swap_key_files(primary_key_path.as_ref(), secondary_key_path.as_ref())?;
-                // SAFETY: we just checked secondary exists
-                #[allow(clippy::unwrap_used)]
-                let tmp = secondary.take().unwrap();
-                secondary = Some(primary);
-                primary = tmp;
-            }
+        if let Some(secondary_id) = secondary_id
+            && secondary_id > primary_id
+            && current_rotation_id > primary_id
+        {
+            Self::swap_key_files(primary_key_path.as_ref(), secondary_key_path.as_ref())?;
+            // SAFETY: we just checked secondary exists
+            #[allow(clippy::unwrap_used)]
+            let tmp = secondary.take().unwrap();
+            secondary = Some(primary);
+            primary = tmp;
         }
 
         // if upon loading it turns out that the node has been inactive for a long time,
         // immediately rotate keys (but leave 1h grace period for current primary, i.e. set it as secondary)
         if primary.rotation_id() != current_rotation_id {
-            warn!("this node has been inactive for more than a key rotation duration. the current primary key was generated for rotation {} while the current rotation is {current_rotation_id}. new key will be generated now.", primary.rotation_id());
+            warn!(
+                "this node has been inactive for more than a key rotation duration. the current primary key was generated for rotation {} while the current rotation is {current_rotation_id}. new key will be generated now.",
+                primary.rotation_id()
+            );
             let this = SphinxKeyManager {
                 keys: ActiveSphinxKeys::new_loaded(primary, None),
                 primary_key_path: primary_key_path.as_ref().to_path_buf(),

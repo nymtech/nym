@@ -6,7 +6,7 @@ use crate::daemon::Daemon;
 use crate::error::NymvisorError;
 use crate::tasks::launcher::backup::BackupBuilder;
 use crate::upgrades::types::{CurrentVersionInfo, UpgradeInfo};
-use crate::upgrades::{perform_upgrade, types::UpgradePlan, UpgradeResult};
+use crate::upgrades::{UpgradeResult, perform_upgrade, types::UpgradePlan};
 use futures::future::{FusedFuture, OptionFuture};
 use futures::{FutureExt, StreamExt};
 use nym_async_file_watcher::FileWatcherEventReceiver;
@@ -47,13 +47,17 @@ impl DaemonLauncher {
             match res {
                 Ok(upgrade_result) => {
                     if upgrade_result.requires_manual_intervention {
-                        info!("this upgrade requires manual intervention. Please read the release notes carefully and follow the provided instructions before starting nymvisor again");
+                        info!(
+                            "this upgrade requires manual intervention. Please read the release notes carefully and follow the provided instructions before starting nymvisor again"
+                        );
                         return Ok(());
                     }
 
                     if upgrade_result.binary_swapped {
                         if !self.config.daemon.debug.restart_after_upgrade {
-                            info!("upgrade detected, DAEMON_RESTART_AFTER_UPGRADE is off. Verify new upgrade and start nymvisor again");
+                            info!(
+                                "upgrade detected, DAEMON_RESTART_AFTER_UPGRADE is off. Verify new upgrade and start nymvisor again"
+                            );
                             return Ok(());
                         }
                         // else - binary has been swapped and restarting is enabled: do restart

@@ -18,7 +18,10 @@ impl Display for BondingInformation {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "Identity Key: {}", self.identity_key)?;
         writeln!(f, "Host: {}", self.host)?;
-        writeln!(f, "Custom HTTP Port: you might want to set it if your node won't be accessible on any of the ports: 80/443/8080")?;
+        writeln!(
+            f,
+            "Custom HTTP Port: you might want to set it if your node won't be accessible on any of the ports: 80/443/8080"
+        )?;
 
         Ok(())
     }

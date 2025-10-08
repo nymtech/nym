@@ -118,7 +118,9 @@ pub async fn make_deposits_request(
             // that one is tricky. deposits technically got made, but we somehow failed to parse response,
             // in this case terminate the proxy with 0 exit code so it wouldn't get automatically restarted
             // because it requires some serious MANUAL intervention
-            error!("CRITICAL FAILURE: failed to parse out deposit information from the contract transaction. either the chain got upgraded and the schema changed or the ecash contract got changed! terminating the process. it has to be inspected manually. error was: {err}");
+            error!(
+                "CRITICAL FAILURE: failed to parse out deposit information from the contract transaction. either the chain got upgraded and the schema changed or the ecash contract got changed! terminating the process. it has to be inspected manually. error was: {err}"
+            );
             cancellation_on_critical_failure.cancel();
             return Err(CredentialProxyError::DepositFailure);
         }
@@ -126,7 +128,10 @@ pub async fn make_deposits_request(
 
     if contract_data.len() != amount {
         // another critical failure, that one should be quite impossible and thus has to be manually inspected
-        error!("CRITICAL FAILURE: failed to parse out all deposit information from the contract transaction. got {} responses while we sent {amount} deposits! either the chain got upgraded and the schema changed or the ecash contract got changed! terminating the process. it has to be inspected manually", contract_data.len());
+        error!(
+            "CRITICAL FAILURE: failed to parse out all deposit information from the contract transaction. got {} responses while we sent {amount} deposits! either the chain got upgraded and the schema changed or the ecash contract got changed! terminating the process. it has to be inspected manually",
+            contract_data.len()
+        );
         cancellation_on_critical_failure.cancel();
         return Err(CredentialProxyError::DepositFailure);
     }
@@ -138,7 +143,9 @@ pub async fn make_deposits_request(
             Ok(deposit_id) => deposit_id,
             Err(err) => {
                 // another impossibility
-                error!("CRITICAL FAILURE: failed to parse out deposit id out of the response at index {response_index}: {err}. either the chain got upgraded and the schema changed or the ecash contract got changed! terminating the process. it has to be inspected manually");
+                error!(
+                    "CRITICAL FAILURE: failed to parse out deposit id out of the response at index {response_index}: {err}. either the chain got upgraded and the schema changed or the ecash contract got changed! terminating the process. it has to be inspected manually"
+                );
                 cancellation_on_critical_failure.cancel();
                 return Err(CredentialProxyError::DepositFailure);
             }

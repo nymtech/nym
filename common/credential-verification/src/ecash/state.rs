@@ -1,19 +1,19 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::ecash::error::EcashTicketError;
 use crate::Error;
-use cosmwasm_std::{from_json, CosmosMsg, WasmMsg};
+use crate::ecash::error::EcashTicketError;
+use cosmwasm_std::{CosmosMsg, WasmMsg, from_json};
 use nym_credentials_interface::VerificationKeyAuth;
 use nym_ecash_contract_common::msg::ExecuteMsg;
 use nym_gateway_storage::traits::BandwidthGatewayStorage;
 use nym_validator_client::coconut::all_ecash_api_clients;
 use nym_validator_client::nym_api::EpochId;
+use nym_validator_client::nyxd::AccountId;
 use nym_validator_client::nyxd::contract_traits::{
     DkgQueryClient, MultisigQueryClient, NymContractsProvider,
 };
 use nym_validator_client::nyxd::cw3::ProposalResponse;
-use nym_validator_client::nyxd::AccountId;
 use nym_validator_client::{DirectSigningHttpRpcNyxdClient, EcashApiClient};
 use std::collections::BTreeMap;
 use std::ops::Deref;
@@ -53,7 +53,9 @@ impl SharedState {
         }
 
         let Ok(current_epoch) = nyxd_client.get_current_epoch().await else {
-            error!("the specified DKG contract address is invalid - no coconut credentials will be redeemable");
+            error!(
+                "the specified DKG contract address is invalid - no coconut credentials will be redeemable"
+            );
             // if we require coconut credentials, we MUST have DKG contract available
             return Err(EcashTicketError::UnavailableDkgContract.into());
         };

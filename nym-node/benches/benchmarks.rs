@@ -5,9 +5,9 @@
 #![allow(clippy::unwrap_used)]
 
 use bloomfilter::Bloom;
-use criterion::{black_box, criterion_group, criterion_main, BatchSize, Criterion};
+use criterion::{BatchSize, Criterion, black_box, criterion_group, criterion_main};
 use nym_sphinx_types::REPLAY_TAG_SIZE;
-use rand::{thread_rng, Rng};
+use rand::{Rng, thread_rng};
 use std::sync::Mutex;
 
 pub fn uncontested_bloomfilter_check(c: &mut Criterion) {

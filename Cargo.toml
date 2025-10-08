@@ -31,6 +31,7 @@ members = [
     "common/client-libs/mixnet-client",
     "common/client-libs/validator-client",
     "common/commands",
+    "common/nym-common",
     "common/config",
     "common/cosmwasm-smart-contracts/coconut-dkg",
     "common/cosmwasm-smart-contracts/contracts-common",
@@ -58,7 +59,8 @@ members = [
     "common/gateway-requests",
     "common/gateway-stats-storage",
     "common/gateway-storage",
-    "common/http-api-client", "common/http-api-client-macro",
+    "common/http-api-client",
+    "common/http-api-client-macro",
     "common/http-api-common",
     "common/inclusion-probability",
     "common/ip-packet-requests",
@@ -66,7 +68,9 @@ members = [
     "common/mixnode-common",
     "common/network-defaults",
     "common/node-tester-utils",
-    "common/nonexhaustive-delayqueue", "common/nym-cache",
+    "common/nonexhaustive-delayqueue",
+    "common/nym-cache",
+    "common/nym-connection-monitor",
     "common/nym-id",
     "common/nym-metrics",
     "common/nym_offline_compact_ecash",
@@ -98,7 +102,8 @@ members = [
     "common/ticketbooks-merkle",
     "common/topology",
     "common/tun",
-    "common/types", "common/upgrade-mode-check",
+    "common/types",
+    "common/upgrade-mode-check",
     "common/verloc",
     "common/wasm/client-core",
     "common/wasm/storage",
@@ -160,6 +165,7 @@ members = [
     "wasm/mix-fetch",
     "wasm/node-tester",
     "wasm/zknym-lib",
+    "nym-gateway-probe"
 ]
 
 default-members = [
@@ -178,16 +184,16 @@ default-members = [
     "tools/nymvisor",
 ]
 
-exclude = ["explorer", "contracts", "nym-wallet", "cpu-cycles"]
+exclude = ["contracts", "nym-wallet", "cpu-cycles"]
 
 [workspace.package]
 authors = ["Nym Technologies SA"]
 repository = "https://github.com/nymtech/nym"
 homepage = "https://nymtech.net"
 documentation = "https://nymtech.net"
-edition = "2021"
+edition = "2024"
 license = "Apache-2.0"
-rust-version = "1.81"
+rust-version = "1.85"
 readme = "README.md"
 
 [workspace.dependencies]
@@ -300,6 +306,7 @@ parking_lot = "0.12.3"
 pem = "0.8"
 petgraph = "0.6.5"
 pin-project = "1.1"
+pnet_packet = "0.35.0"
 pin-project-lite = "0.2.16"
 publicsuffix = "2.3.0"
 proc_pidinfo = "0.1.3"
@@ -358,6 +365,7 @@ tracing-opentelemetry = "0.19.0"
 tracing-subscriber = "0.3.19"
 tracing-tree = "0.2.2"
 tracing-indicatif = "0.3.9"
+tracing-test = "0.2.5"
 ts-rs = "10.1.0"
 tungstenite = { version = "0.20.1", default-features = false }
 uniffi = "0.29.2"
@@ -368,6 +376,7 @@ utoipa-swagger-ui = "8.1"
 utoipauto = "0.2"
 uuid = "*"
 vergen = { version = "=8.3.1", default-features = false }
+vergen-gitcl = { version = "1.0.8", default-features = false }
 walkdir = "2"
 x25519-dalek = "2.0.0"
 zeroize = "1.7.0"

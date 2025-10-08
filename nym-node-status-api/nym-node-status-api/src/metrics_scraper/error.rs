@@ -13,7 +13,10 @@ pub enum NodeScraperError {
         source: Box<NymNodeApiClientError>,
     },
 
-    #[error("node {node_id} with host '{host}' doesn't seem to expose its declared http port nor any of the standard API ports, i.e.: 80, 443 or {}", DEFAULT_NYM_NODE_HTTP_PORT)]
+    #[error(
+        "node {node_id} with host '{host}' doesn't seem to expose its declared http port nor any of the standard API ports, i.e.: 80, 443 or {}",
+        DEFAULT_NYM_NODE_HTTP_PORT
+    )]
     NoHttpPortsAvailable { host: String, node_id: NodeId },
 }
 

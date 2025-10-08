@@ -4,7 +4,7 @@
 use crate::cli::CliNetworkRequesterClient;
 use crate::error::NetworkRequesterError;
 use nym_client_core::cli_helpers::client_switch_gateway::{
-    switch_gateway, CommonClientSwitchGatewaysArgs,
+    CommonClientSwitchGatewaysArgs, switch_gateway,
 };
 
 #[derive(clap::Args, Clone, Debug)]

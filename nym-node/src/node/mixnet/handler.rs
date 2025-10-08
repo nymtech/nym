@@ -9,8 +9,8 @@ use nym_sphinx_forwarding::packet::MixPacket;
 use nym_sphinx_framing::codec::NymCodec;
 use nym_sphinx_framing::packet::FramedNymPacket;
 use nym_sphinx_framing::processing::{
-    process_framed_packet, MixProcessingResult, MixProcessingResultData, PacketProcessingError,
-    PartiallyUnwrappedPacket, PartialyUnwrappedPacketWithKeyRotation, ProcessedFinalHop,
+    MixProcessingResult, MixProcessingResultData, PacketProcessingError, PartiallyUnwrappedPacket,
+    PartialyUnwrappedPacketWithKeyRotation, ProcessedFinalHop, process_framed_packet,
 };
 use nym_sphinx_params::SphinxKeyRotation;
 use nym_sphinx_types::{Delay, REPLAY_TAG_SIZE};

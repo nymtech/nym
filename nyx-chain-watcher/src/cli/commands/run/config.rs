@@ -1,7 +1,7 @@
-use crate::cli::commands::run::args::Args;
 use crate::cli::DEFAULT_NYX_CHAIN_WATCHER_ID;
+use crate::cli::commands::run::args::Args;
 use crate::config::payments_watcher::{HttpAuthenticationOptions, PaymentWatcherConfig};
-use crate::config::{default_config_filepath, Config, ConfigBuilder, PaymentWatchersConfig};
+use crate::config::{Config, ConfigBuilder, PaymentWatchersConfig, default_config_filepath};
 use crate::error::NyxChainWatcherError;
 use tracing::{info, warn};
 

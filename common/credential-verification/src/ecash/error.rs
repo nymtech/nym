@@ -72,7 +72,9 @@ pub enum EcashTicketError {
     #[error("the DKG contract is unavailable")]
     UnavailableDkgContract,
 
-    #[error("the DKG threshold value for epoch {epoch_id} is currently unavailable. we're probably mid-epoch transition")]
+    #[error(
+        "the DKG threshold value for epoch {epoch_id} is currently unavailable. we're probably mid-epoch transition"
+    )]
     DKGThresholdUnavailable { epoch_id: EpochId },
 
     #[error("could not create redemption proposal as we have tickets pending full verification")]

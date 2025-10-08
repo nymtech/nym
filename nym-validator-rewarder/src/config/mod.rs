@@ -1,20 +1,20 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::config::persistence::paths::ValidatorRewarderPaths;
 use crate::config::r#override::ConfigOverride;
+use crate::config::persistence::paths::ValidatorRewarderPaths;
 use crate::config::template::CONFIG_TEMPLATE;
 use crate::error::NymRewarderError;
 use crate::rewarder::ticketbook_issuance;
 use cosmwasm_std::{Decimal, Uint128};
 use nym_config::{
-    must_get_home, read_config_from_toml_file, save_formatted_config_to_file, NymConfigTemplate,
-    DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, DEFAULT_DATA_DIR, NYM_DIR,
+    DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, DEFAULT_DATA_DIR, NYM_DIR, NymConfigTemplate,
+    must_get_home, read_config_from_toml_file, save_formatted_config_to_file,
 };
 use nym_validator_client::nyxd::{AccountId, Coin};
 use nyxd_scraper::{PruningOptions, StartingBlockOpts};
 use serde::{Deserialize, Serialize};
-use serde_with::{serde_as, DisplayFromStr};
+use serde_with::{DisplayFromStr, serde_as};
 use std::io;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -236,7 +236,9 @@ impl Config {
         let per_operator = Coin::new(amount.u128(), &ticketbook_total_budget.denom);
 
         let total_budget = &self.rewarding.daily_budget;
-        info!("ISSUANCE BUDGET: with the total daily budget of {total_budget} ({ticketbook_total_budget} for ticketbook issuance) and with whitelist size of {whitelist_size}, the per operator budget is set to {per_operator}");
+        info!(
+            "ISSUANCE BUDGET: with the total daily budget of {total_budget} ({ticketbook_total_budget} for ticketbook issuance) and with whitelist size of {whitelist_size}, the per operator budget is set to {per_operator}"
+        );
 
         per_operator
     }

@@ -56,7 +56,10 @@ impl ClientUnderTest {
                 true
             }
             Ok(Err(err)) => {
-                warn!("{}: failed to retrieve build information: {err}. the signer is most likely down", self.api_client.current_url());
+                warn!(
+                    "{}: failed to retrieve build information: {err}. the signer is most likely down",
+                    self.api_client.current_url()
+                );
                 false
             }
             Err(_timeout) => {

@@ -3,7 +3,7 @@
 
 use crate::error::CredentialProxyError;
 use crate::nym_api_helpers::{
-    ensure_sane_expiration_date, query_all_threshold_apis, CachedEpoch, CachedImmutableEpochItem,
+    CachedEpoch, CachedImmutableEpochItem, ensure_sane_expiration_date, query_all_threshold_apis,
 };
 use crate::quorum_checker::QuorumState;
 use crate::shared_state::nyxd_client::ChainClient;
@@ -16,20 +16,20 @@ use nym_credentials::ecash::utils::EcashTime;
 use nym_credentials::{
     AggregatedCoinIndicesSignatures, AggregatedExpirationDateSignatures, EpochVerificationKey,
 };
+use nym_validator_client::EcashApiClient;
 use nym_validator_client::client::NymApiClientExt;
 use nym_validator_client::coconut::EcashApiError;
 use nym_validator_client::nym_api::EpochId;
+use nym_validator_client::nyxd::Coin;
 use nym_validator_client::nyxd::contract_traits::dkg_query_client::Epoch;
 use nym_validator_client::nyxd::contract_traits::{DkgQueryClient, PagedDkgQueryClient};
-use nym_validator_client::nyxd::Coin;
-use nym_validator_client::EcashApiClient;
 use time::{Date, OffsetDateTime};
 use tokio::sync::{RwLock, RwLockReadGuard};
 use tracing::info;
 
+pub use nym_compact_ecash::VerificationKeyAuth;
 pub use nym_compact_ecash::scheme::coin_indices_signatures::CoinIndexSignatureShare;
 pub use nym_compact_ecash::scheme::expiration_date_signatures::ExpirationDateSignatureShare;
-pub use nym_compact_ecash::VerificationKeyAuth;
 pub use nym_credentials::{IssuanceTicketBook, IssuedTicketBook};
 pub use nym_credentials_interface::{TicketType, TicketTypeRepr};
 

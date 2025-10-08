@@ -6,7 +6,7 @@ use crate::measurements::packet::{EchoPacket, ReplyPacket};
 use crate::models::VerlocMeasurement;
 use nym_crypto::asymmetric::ed25519;
 use nym_task::ShutdownToken;
-use rand::{thread_rng, Rng};
+use rand::{Rng, thread_rng};
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
@@ -15,7 +15,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tracing::{debug, trace};
 
-use tokio::time::{sleep, Instant};
+use tokio::time::{Instant, sleep};
 
 #[derive(Copy, Clone)]
 pub(crate) struct TestedNode {
@@ -71,7 +71,7 @@ impl PacketSender {
     fn random_sequence_number(&self) -> u64 {
         let mut rng = thread_rng();
         loop {
-            let r: u64 = rng.gen();
+            let r: u64 = rng.r#gen();
             // make sure we can actually increment it packets_per_node times
             if r < (u64::MAX - self.packets_per_node as u64) {
                 return r;
@@ -95,14 +95,14 @@ impl PacketSender {
                     identity: tested_node.identity.to_string(),
                     err: io::ErrorKind::TimedOut.into(),
                     address: tested_node.address,
-                })
+                });
             }
             Ok(Err(err)) => {
                 return Err(VerlocError::UnreachableNode {
                     identity: tested_node.identity.to_string(),
                     err,
                     address: tested_node.address,
-                })
+                });
             }
             Ok(Ok(conn)) => conn,
         };
@@ -199,7 +199,11 @@ impl PacketSender {
             // note that we cannot receive packets not in order as we are not sending a next packet until
             // we have received the previous one
             if reply_packet.base_sequence_number() != seq {
-                debug!("Received reply packet with invalid sequence number! Got {} expected {}. Stopping the test", reply_packet.base_sequence_number(), seq);
+                debug!(
+                    "Received reply packet with invalid sequence number! Got {} expected {}. Stopping the test",
+                    reply_packet.base_sequence_number(),
+                    seq
+                );
                 return Err(VerlocError::UnexpectedReplySequence);
             }
 

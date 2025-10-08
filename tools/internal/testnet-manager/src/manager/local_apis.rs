@@ -3,13 +3,13 @@
 
 use crate::error::NetworkManagerError;
 use crate::helpers::{ProgressCtx, ProgressTracker, RunCommands};
+use crate::manager::NetworkManager;
 use crate::manager::dkg_skip::EcashSignerWithPaths;
 use crate::manager::env::Env;
 use crate::manager::network::LoadedNetwork;
-use crate::manager::NetworkManager;
 use console::style;
 use nym_config::{
-    must_get_home, DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, DEFAULT_NYM_APIS_DIR, NYM_DIR,
+    DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, DEFAULT_NYM_APIS_DIR, NYM_DIR, must_get_home,
 };
 use std::fs;
 use std::path::{Path, PathBuf};

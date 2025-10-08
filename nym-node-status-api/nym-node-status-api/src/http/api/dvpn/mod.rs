@@ -1,8 +1,8 @@
 use crate::http::state::AppState;
 use axum::Router;
 use axum::{
-    extract::{Query, State},
     Json,
+    extract::{Query, State},
 };
 use semver::Version;
 use serde::Deserialize;

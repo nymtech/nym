@@ -1,16 +1,16 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{mock_api, test_rng, TEST_DENOM};
+use crate::{TEST_DENOM, mock_api, test_rng};
 use cosmwasm_std::testing::MockApi;
 use cosmwasm_std::{
-    coin, coins, Addr, Binary, Deps, DepsMut, Empty, Env, MessageInfo, Order, QuerierWrapper,
-    Record, Response, Storage,
+    Addr, Binary, Deps, DepsMut, Empty, Env, MessageInfo, Order, QuerierWrapper, Record, Response,
+    Storage, coin, coins,
 };
 use cw_multi_test::{App, AppBuilder, BankKeeper, Contract, ContractWrapper, Executor};
 use rand_chacha::ChaCha20Rng;
-use serde::de::DeserializeOwned;
 use serde::Serialize;
+use serde::de::DeserializeOwned;
 use std::collections::HashMap;
 use std::fmt::{Debug, Display};
 use std::marker::PhantomData;

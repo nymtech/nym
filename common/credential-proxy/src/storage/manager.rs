@@ -380,8 +380,9 @@ impl SqliteStorageManager {
             return Ok(());
         }
 
-        let mut query_builder =
-            sqlx::QueryBuilder::new("INSERT INTO ecash_deposit (deposit_id, deposit_tx_hash, requested_on, deposit_amount, ed25519_deposit_private_key) ");
+        let mut query_builder = sqlx::QueryBuilder::new(
+            "INSERT INTO ecash_deposit (deposit_id, deposit_tx_hash, requested_on, deposit_amount, ed25519_deposit_private_key) ",
+        );
 
         query_builder.push_values(&deposits, |mut b, deposit| {
             b.push_bind(deposit.deposit_id)

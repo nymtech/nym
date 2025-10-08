@@ -8,8 +8,8 @@ use std::path::Path;
 
 use futures::channel::oneshot;
 use nym_client_core::{
-    client::mix_traffic::transceiver::GatewayTransceiver, HardcodedTopologyProvider,
-    TopologyProvider,
+    HardcodedTopologyProvider, TopologyProvider,
+    client::mix_traffic::transceiver::GatewayTransceiver,
 };
 use nym_sdk::mixnet::Recipient;
 use nym_task::ShutdownTracker;
@@ -175,14 +175,13 @@ impl IpPacketRouter {
         log::info!("The address of this client is: {self_address}");
         log::info!("All systems go. Press CTRL-C to stop the server.");
 
-        if let Some(on_start) = self.on_start {
-            if on_start
+        if let Some(on_start) = self.on_start
+            && on_start
                 .send(OnStartData::new(self_address, request_filter))
                 .is_err()
-            {
-                // the parent has dropped the channel before receiving the response
-                return Err(IpPacketRouterError::DisconnectedParent);
-            }
+        {
+            // the parent has dropped the channel before receiving the response
+            return Err(IpPacketRouterError::DisconnectedParent);
         }
 
         mixnet_listener.run().await

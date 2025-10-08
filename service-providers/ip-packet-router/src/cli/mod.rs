@@ -2,7 +2,7 @@ use crate::cli::ecash::Ecash;
 use clap::{CommandFactory, Parser, Subcommand};
 use log::error;
 use nym_bin_common::bin_info;
-use nym_bin_common::completions::{fig_generate, ArgShell};
+use nym_bin_common::completions::{ArgShell, fig_generate};
 use nym_client_core::cli_helpers::CliClient;
 use nym_ip_packet_router::config::helpers::{try_upgrade_config, try_upgrade_config_by_id};
 use nym_ip_packet_router::config::{BaseClientConfig, Config};
@@ -156,7 +156,9 @@ async fn try_load_current_config(id: &str) -> Result<Config, IpPacketRouterError
     let config = match Config::read_from_default_path(id) {
         Ok(cfg) => cfg,
         Err(err) => {
-            error!("Failed to load config for {id}. Are you sure you have run `init` before? (Error was: {err})");
+            error!(
+                "Failed to load config for {id}. Are you sure you have run `init` before? (Error was: {err})"
+            );
             return Err(IpPacketRouterError::FailedToLoadConfig(id.to_string()));
         }
     };

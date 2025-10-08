@@ -1,7 +1,7 @@
 use cosmwasm_std::Decimal;
 use itertools::Itertools;
-use rand::prelude::SliceRandom;
 use rand::SeedableRng;
+use rand::prelude::SliceRandom;
 use tracing::error;
 
 // pub(crate) fn generate_node_name(identity: ed25519::PublicKey) -> String {
@@ -30,8 +30,8 @@ mod test {
     fn generate_node_name_should_be_deterministic() {
         let mut rng = rand::thread_rng();
 
-        let node_id: i64 = rng.gen();
-        let different_node_id: i64 = rng.gen();
+        let node_id: i64 = rng.r#gen();
+        let different_node_id: i64 = rng.r#gen();
 
         let node_name = generate_node_name(node_id);
         let node_name_different = generate_node_name(different_node_id);

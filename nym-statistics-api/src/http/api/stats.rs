@@ -1,6 +1,6 @@
-use axum::{extract::State, Json, Router};
+use axum::{Json, Router, extract::State};
 use axum_client_ip::InsecureClientIp;
-use axum_extra::{headers::UserAgent, TypedHeader};
+use axum_extra::{TypedHeader, headers::UserAgent};
 use nym_statistics_common::report::vpn_client::VpnClientStatsReport;
 use tracing::debug;
 

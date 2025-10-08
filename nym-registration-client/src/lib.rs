@@ -17,11 +17,11 @@ mod config;
 mod error;
 mod types;
 
+pub use builder::RegistrationClientBuilder;
 pub use builder::config::{
     BuilderConfig as RegistrationClientBuilderConfig, MixnetClientConfig,
     NymNodeWithKeys as RegistrationNymNode,
 };
-pub use builder::RegistrationClientBuilder;
 pub use error::RegistrationClientError;
 pub use types::{MixnetRegistrationResult, RegistrationResult, WireguardRegistrationResult};
 

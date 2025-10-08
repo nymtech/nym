@@ -9,14 +9,14 @@ pub(crate) mod test {
         tests::{MockVerifier, VERIFIER_AVAILABLE_BANDWIDTH},
         v0::interface::{RequestData, ResponseData},
     };
-    use axum::{extract::Query, Json, Router};
+    use axum::{Json, Router, extract::Query};
     use nym_credential_verification::ClientBandwidth;
     use nym_http_api_client::Client;
     use nym_http_api_common::{FormattedResponse, OutputParams};
-    use nym_wireguard::{peer_controller::PeerControlRequest, CONTROL_CHANNEL_SIZE};
+    use nym_wireguard::{CONTROL_CHANNEL_SIZE, peer_controller::PeerControlRequest};
     use nym_wireguard_private_metadata_server::PeerControllerTransceiver;
     use nym_wireguard_private_metadata_shared::{
-        v0 as latest, AxumErrorResponse, AxumResult, Construct, Extract, Request, Response,
+        AxumErrorResponse, AxumResult, Construct, Extract, Request, Response, v0 as latest,
     };
     use tokio::{net::TcpListener, sync::mpsc};
     use tower_http::compression::CompressionLayer;

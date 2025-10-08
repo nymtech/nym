@@ -1,8 +1,8 @@
 use crate::node_scraper::models::BridgeInformation;
 use crate::{
     db::{
-        models::{InsertNodeScraperRecords, NodeStats, ScrapeNodeKind},
         DbPool,
+        models::{InsertNodeScraperRecords, NodeStats, ScrapeNodeKind},
     },
     node_scraper::helpers::update_daily_stats_uncommitted,
     utils::now_utc,

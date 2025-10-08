@@ -3,13 +3,13 @@
 
 use crate::config::Config;
 use crate::node::key_rotation::active_keys::ActiveSphinxKeys;
-use crate::node::mixnet::handler::ConnectionHandler;
 use crate::node::mixnet::SharedFinalHopData;
+use crate::node::mixnet::handler::ConnectionHandler;
 use crate::node::replay_protection::bloomfilter::ReplayProtectionBloomfilters;
 use nym_gateway::node::GatewayStorageError;
 use nym_mixnet_client::forwarder::{MixForwardingSender, PacketToForward};
-use nym_node_metrics::mixnet::PacketKind;
 use nym_node_metrics::NymNodeMetrics;
+use nym_node_metrics::mixnet::PacketKind;
 use nym_noise::config::NoiseConfig;
 use nym_sphinx_forwarding::packet::MixPacket;
 use nym_sphinx_framing::processing::{
@@ -150,10 +150,10 @@ impl SharedData {
                     .ingress_received_forward_packet(source, packet_version);
 
                 // check if the delay wasn't excessive
-                if let Some(delay) = delay {
-                    if delay.to_duration() > self.processing_config.maximum_packet_delay {
-                        self.metrics.mixnet.ingress_excessive_delay_packet()
-                    }
+                if let Some(delay) = delay
+                    && delay.to_duration() > self.processing_config.maximum_packet_delay
+                {
+                    self.metrics.mixnet.ingress_excessive_delay_packet()
                 }
             }
             MixProcessingResultData::FinalHop { .. } => {
@@ -191,7 +191,9 @@ impl SharedData {
             .is_err()
             && !self.shutdown_token.is_cancelled()
         {
-            error!("failed to forward sphinx packet on the channel while the process is not going through the shutdown!");
+            error!(
+                "failed to forward sphinx packet on the channel while the process is not going through the shutdown!"
+            );
             self.shutdown_token.cancel();
         }
     }

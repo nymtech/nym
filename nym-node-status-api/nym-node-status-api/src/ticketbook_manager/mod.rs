@@ -5,7 +5,7 @@ use crate::ticketbook_manager::helpers::build_sha_short;
 use crate::ticketbook_manager::state::TicketbookManagerState;
 use futures_util::StreamExt;
 use nym_credential_proxy_lib::deposits_buffer::{
-    make_deposits_request, split_deposits, BufferedDeposit, PerformedDeposits,
+    BufferedDeposit, PerformedDeposits, make_deposits_request, split_deposits,
 };
 use nym_credential_proxy_lib::shared_state::ecash_state::{
     IssuanceTicketBook, IssuedTicketBook, TicketType,

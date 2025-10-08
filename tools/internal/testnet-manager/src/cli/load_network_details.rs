@@ -3,8 +3,8 @@
 
 use crate::error::NetworkManagerError;
 use crate::helpers::default_db_file;
-use crate::manager::env::Env;
 use crate::manager::NetworkManager;
+use crate::manager::env::Env;
 use nym_bin_common::output_format::OutputFormat;
 use std::path::PathBuf;
 

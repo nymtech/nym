@@ -11,8 +11,8 @@ use crate::{
     },
 };
 use sqlx::{
-    sqlite::{SqliteAutoVacuum, SqliteSynchronous},
     ConnectOptions,
+    sqlite::{SqliteAutoVacuum, SqliteSynchronous},
 };
 use std::fs;
 use std::path::Path;

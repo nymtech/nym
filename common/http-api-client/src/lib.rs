@@ -147,8 +147,8 @@ pub mod registry;
 use crate::path::RequestPath;
 use async_trait::async_trait;
 use bytes::Bytes;
-use http::header::{ACCEPT, CONTENT_TYPE};
 use http::HeaderMap;
+use http::header::{ACCEPT, CONTENT_TYPE};
 use itertools::Itertools;
 use mime::Mime;
 use reqwest::header::HeaderValue;
@@ -267,10 +267,10 @@ impl Display for ReqwestErrorWrapper {
         if self.0.is_timeout() {
             write!(f, "timed out: ")?;
         }
-        if self.0.is_redirect() {
-            if let Some(final_stop) = self.0.url() {
-                write!(f, "redirect loop at {final_stop}: ")?;
-            }
+        if self.0.is_redirect()
+            && let Some(final_stop) = self.0.url()
+        {
+            write!(f, "redirect loop at {final_stop}: ")?;
         }
 
         self.0.fmt(f)?;
@@ -358,7 +358,9 @@ pub enum HttpClientError {
     // #[error("request failed with error message: {0}")]
     // GenericRequestFailure(String),
     //
-    #[error("the request for {url} failed with status '{status}'. no additional error message provided. response headers: {headers:?}")]
+    #[error(
+        "the request for {url} failed with status '{status}'. no additional error message provided. response headers: {headers:?}"
+    )]
     RequestFailure {
         url: reqwest::Url,
         status: StatusCode,
@@ -374,7 +376,9 @@ pub enum HttpClientError {
         headers: Box<HeaderMap>,
     },
 
-    #[error("failed to resolve request for {url}. status: '{status}'. response headers: {headers:?}. additional error message: {error}")]
+    #[error(
+        "failed to resolve request for {url}. status: '{status}'. response headers: {headers:?}. additional error message: {error}"
+    )]
     EndpointFailure {
         url: reqwest::Url,
         status: StatusCode,
@@ -571,7 +575,9 @@ impl ClientBuilder {
         // a naive check: if the provided URL does not start with http(s), add that scheme
         if !str_url.starts_with("http") {
             let alt = format!("http://{str_url}");
-            warn!("the provided url ('{str_url}') does not contain scheme information. Changing it to '{alt}' ...");
+            warn!(
+                "the provided url ('{str_url}') does not contain scheme information. Changing it to '{alt}' ..."
+            );
             // TODO: or should we maybe default to https?
             Self::new(alt)
         } else {
@@ -864,17 +870,17 @@ impl Client {
     /// If multiple base urls are available rotate to next (e.g. when the current one resulted in an error)
     fn update_host(&self) {
         #[cfg(feature = "tunneling")]
-        if let Some(ref front) = self.front {
-            if front.is_enabled() {
-                // if we are using fronting, try updating to the next front
-                let url = self.current_url();
+        if let Some(ref front) = self.front
+            && front.is_enabled()
+        {
+            // if we are using fronting, try updating to the next front
+            let url = self.current_url();
 
-                // try to update the current host to use a next front, if one is available, otherwise
-                // we move on and try the next base url (if one is available)
-                if url.has_front() && !url.update() {
-                    // we swapped to the next front for the current host
-                    return;
-                }
+            // try to update the current host to use a next front, if one is available, otherwise
+            // we move on and try the next base url (if one is available)
+            if url.has_front() && !url.update() {
+                // we swapped to the next front for the current host
+                return;
             }
         }
 
@@ -884,16 +890,16 @@ impl Client {
 
             // if fronting is enabled we want to update to a host that has fronts configured
             #[cfg(feature = "tunneling")]
-            if let Some(ref front) = self.front {
-                if front.is_enabled() {
-                    while next != orig {
-                        if self.base_urls[next].has_front() {
-                            // we have a front for the next host, so we can use it
-                            break;
-                        }
-
-                        next = (next + 1) % self.base_urls.len();
+            if let Some(ref front) = self.front
+                && front.is_enabled()
+            {
+                while next != orig {
+                    if self.base_urls[next].has_front() {
+                        // we have a front for the next host, so we can use it
+                        break;
                     }
+
+                    next = (next + 1) % self.base_urls.len();
                 }
             }
 
@@ -918,34 +924,38 @@ impl Client {
         r.url_mut().set_host(url.host_str()).unwrap();
 
         #[cfg(feature = "tunneling")]
-        if let Some(ref front) = self.front {
-            if front.is_enabled() {
-                if let Some(front_host) = url.front_str() {
-                    if let Some(actual_host) = url.host_str() {
-                        tracing::debug!(
-                            "Domain fronting enabled: routing via CDN {} to actual host {}",
-                            front_host,
-                            actual_host
-                        );
+        if let Some(ref front) = self.front
+            && front.is_enabled()
+        {
+            if let Some(front_host) = url.front_str() {
+                if let Some(actual_host) = url.host_str() {
+                    tracing::debug!(
+                        "Domain fronting enabled: routing via CDN {} to actual host {}",
+                        front_host,
+                        actual_host
+                    );
 
-                        // this should never fail as we are transplanting the host from one url to another
-                        r.url_mut().set_host(Some(front_host)).unwrap();
+                    // this should never fail as we are transplanting the host from one url to another
+                    r.url_mut().set_host(Some(front_host)).unwrap();
 
-                        let actual_host_header: HeaderValue =
-                            actual_host.parse().unwrap_or(HeaderValue::from_static(""));
-                        // If the map did have this key present, the new value is associated with the key
-                        // and all previous values are removed. (reqwest HeaderMap docs)
-                        _ = r
-                            .headers_mut()
-                            .insert(reqwest::header::HOST, actual_host_header);
+                    let actual_host_header: HeaderValue =
+                        actual_host.parse().unwrap_or(HeaderValue::from_static(""));
+                    // If the map did have this key present, the new value is associated with the key
+                    // and all previous values are removed. (reqwest HeaderMap docs)
+                    _ = r
+                        .headers_mut()
+                        .insert(reqwest::header::HOST, actual_host_header);
 
-                        return (url.as_str(), url.front_str());
-                    } else {
-                        warn!("Domain fronting is enabled, but no host_url is defined! Domain fronting WILL NOT WORK")
-                    }
+                    return (url.as_str(), url.front_str());
                 } else {
-                    warn!("Domain fronting is enabled, but no front_url is defined! Domain fronting WILL NOT WORK")
+                    warn!(
+                        "Domain fronting is enabled, but no host_url is defined! Domain fronting WILL NOT WORK"
+                    )
                 }
+            } else {
+                warn!(
+                    "Domain fronting is enabled, but no front_url is defined! Domain fronting WILL NOT WORK"
+                )
             }
         }
         (url.as_str(), None)
@@ -1430,14 +1440,12 @@ where
     tracing::trace!("status: {status} (success: {})", status.is_success());
     tracing::trace!("headers: {headers:?}");
 
-    if !allow_empty {
-        if let Some(0) = res.content_length() {
-            return Err(HttpClientError::EmptyResponse {
-                url,
-                status,
-                headers: Box::new(headers),
-            });
-        }
+    if !allow_empty && let Some(0) = res.content_length() {
+        return Err(HttpClientError::EmptyResponse {
+            url,
+            status,
+            headers: Box::new(headers),
+        });
     }
 
     if res.status().is_success() {

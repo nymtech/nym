@@ -4,15 +4,14 @@ use tracing::error;
 
 use crate::{
     db::{
+        DbPool,
         models::{
+            ASSIGNED_ENTRY_COUNT, ASSIGNED_EXIT_COUNT, ASSIGNED_MIXING_COUNT,
+            GATEWAYS_BONDED_COUNT, GATEWAYS_HISTORICAL_COUNT, MIXNODES_HISTORICAL_COUNT,
+            NYMNODE_COUNT, NYMNODES_DESCRIBED_COUNT, NetworkSummary, SummaryDto, SummaryHistoryDto,
             gateway::{GatewaySummary, GatewaySummaryBonded, GatewaySummaryHistorical},
             mixnode::{MixingNodesSummary, MixnodeSummary, MixnodeSummaryHistorical},
-            NetworkSummary, SummaryDto, SummaryHistoryDto, ASSIGNED_ENTRY_COUNT,
-            ASSIGNED_EXIT_COUNT, ASSIGNED_MIXING_COUNT, GATEWAYS_BONDED_COUNT,
-            GATEWAYS_HISTORICAL_COUNT, MIXNODES_HISTORICAL_COUNT, NYMNODES_DESCRIBED_COUNT,
-            NYMNODE_COUNT,
         },
-        DbPool,
     },
     http::{
         error::{HttpError, HttpResult},

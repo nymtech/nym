@@ -5,12 +5,12 @@
 // it should have been therefore extracted to a common crate instead and imported as dependency
 
 use crate::error::CredentialProxyError;
-use futures::{stream, StreamExt};
+use futures::{StreamExt, stream};
 use nym_cache::CachedImmutableItems;
-use nym_credentials::ecash::utils::{cred_exp_date, ecash_today, EcashTime};
+use nym_credentials::ecash::utils::{EcashTime, cred_exp_date, ecash_today};
+use nym_validator_client::EcashApiClient;
 use nym_validator_client::nym_api::EpochId;
 use nym_validator_client::nyxd::contract_traits::dkg_query_client::Epoch;
-use nym_validator_client::EcashApiClient;
 use std::cmp::min;
 use std::future::Future;
 use time::{Date, OffsetDateTime};

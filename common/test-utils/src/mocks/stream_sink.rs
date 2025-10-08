@@ -3,7 +3,7 @@
 
 use crate::mocks::shared::{ContentWrapper, InnerWrapper};
 use anyhow::{anyhow, bail};
-use futures::{ready, Sink, Stream};
+use futures::{Sink, Stream, ready};
 use std::collections::VecDeque;
 use std::pin::Pin;
 use std::sync::Arc;

@@ -1,6 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::config::Config;
 use crate::config::default_config_filepath;
 use crate::config::old::v6::ConfigV6;
 use crate::config::old_config_v1_1_13::OldConfigV1;
@@ -8,7 +9,6 @@ use crate::config::old_config_v1_1_20::ConfigV2;
 use crate::config::old_config_v1_1_20_2::ConfigV3;
 use crate::config::old_config_v1_1_33::ConfigV4;
 use crate::config::old_config_v1_1_54::ConfigV5;
-use crate::config::Config;
 use crate::error::NetworkRequesterError;
 use log::{info, trace};
 use nym_client_core::cli_helpers::CliClientConfig;

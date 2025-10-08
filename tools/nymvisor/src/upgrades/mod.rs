@@ -6,7 +6,7 @@ use crate::daemon::Daemon;
 use crate::error::NymvisorError;
 use crate::upgrades::download::download_upgrade_binary;
 use crate::upgrades::types::{CurrentVersionInfo, UpgradeHistory, UpgradePlan};
-use nix::fcntl::{flock, FlockArg};
+use nix::fcntl::{FlockArg, flock};
 use std::fs;
 use std::fs::File;
 use std::os::fd::AsRawFd;

@@ -11,7 +11,7 @@ use std::collections::HashMap;
 use std::net::SocketAddr;
 use thiserror::Error;
 use tsify::Tsify;
-use wasm_bindgen::{prelude::wasm_bindgen, JsValue};
+use wasm_bindgen::{JsValue, prelude::wasm_bindgen};
 use wasm_utils::error::simple_js_error;
 
 #[derive(Debug, Error)]

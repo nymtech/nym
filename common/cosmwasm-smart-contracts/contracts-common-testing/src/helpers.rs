@@ -1,17 +1,17 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use cosmwasm_std::testing::{message_info, MockApi, MockQuerier, MockStorage};
+use cosmwasm_std::testing::{MockApi, MockQuerier, MockStorage, message_info};
 use cosmwasm_std::{
-    coins, Addr, BankMsg, CosmosMsg, Decimal, Empty, Env, MemoryStorage, MessageInfo, Order,
-    OwnedDeps, Response, StdResult, Storage,
+    Addr, BankMsg, CosmosMsg, Decimal, Empty, Env, MemoryStorage, MessageInfo, Order, OwnedDeps,
+    Response, StdResult, Storage, coins,
 };
 use cw_storage_plus::{KeyDeserialize, Map, Prefix, PrimaryKey};
 use nym_contracts_common::events::may_find_attribute;
 use rand::{RngCore, SeedableRng};
 use rand_chacha::ChaCha20Rng;
-use serde::de::DeserializeOwned;
 use serde::Serialize;
+use serde::de::DeserializeOwned;
 use std::fmt::Debug;
 use std::str::FromStr;
 

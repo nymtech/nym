@@ -7,7 +7,7 @@ use nym_ecash_contract_common::msg::ExecuteMsg;
 use nym_validator_client::nyxd::contract_traits::NymContractsProvider;
 use nym_validator_client::nyxd::cosmwasm_client::types::ExecuteResult;
 use nym_validator_client::nyxd::{Coin, Config, CosmWasmClient, NyxdClient};
-use nym_validator_client::{nyxd, DirectSigningHttpRpcNyxdClient};
+use nym_validator_client::{DirectSigningHttpRpcNyxdClient, nyxd};
 use std::ops::Deref;
 use std::sync::Arc;
 use std::time::Duration;

@@ -6,7 +6,7 @@ use nym_config::read_config_from_toml_file;
 use serde::{Deserialize, Serialize};
 
 use crate::config::{
-    default_config_filepath, Config, Debug, NetworkRequester, NetworkRequesterPaths,
+    Config, Debug, NetworkRequester, NetworkRequesterPaths, default_config_filepath,
 };
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]

@@ -8,8 +8,8 @@ use nym_sphinx::DestinationAddressBytes;
 use nym_statistics_common::types::SessionType;
 use sessions::SessionManager;
 use sqlx::{
-    sqlite::{SqliteAutoVacuum, SqliteSynchronous},
     ConnectOptions,
+    sqlite::{SqliteAutoVacuum, SqliteSynchronous},
 };
 use std::path::Path;
 use time::Date;

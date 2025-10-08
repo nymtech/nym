@@ -5,8 +5,8 @@ use crate::node::metrics::handler::{
     MetricsHandler, OnStartMetricsHandler, OnUpdateMetricsHandler,
 };
 use async_trait::async_trait;
-use nym_node_metrics::mixnet::{EgressRecipientStats, IngressRecipientStats};
 use nym_node_metrics::NymNodeMetrics;
+use nym_node_metrics::mixnet::{EgressRecipientStats, IngressRecipientStats};
 use std::collections::HashMap;
 use std::net::{IpAddr, SocketAddr};
 
@@ -43,10 +43,10 @@ impl OnUpdateMetricsHandler for MixnetMetricsCleaner {
         let mut recipients_to_remove = Vec::new();
 
         for sender_entry in self.metrics.mixnet.ingress.senders().iter() {
-            if let Some(last_seen) = self.last_seen.ingress_senders.get(sender_entry.key()) {
-                if sender_entry.value() == last_seen {
-                    senders_to_remove.push(*sender_entry.key());
-                }
+            if let Some(last_seen) = self.last_seen.ingress_senders.get(sender_entry.key())
+                && sender_entry.value() == last_seen
+            {
+                senders_to_remove.push(*sender_entry.key());
             }
         }
 
@@ -55,10 +55,9 @@ impl OnUpdateMetricsHandler for MixnetMetricsCleaner {
                 .last_seen
                 .egress_forward_recipients
                 .get(recipient_entry.key())
+                && recipient_entry.value() == last_seen
             {
-                if recipient_entry.value() == last_seen {
-                    recipients_to_remove.push(*recipient_entry.key());
-                }
+                recipients_to_remove.push(*recipient_entry.key());
             }
         }
 
@@ -104,6 +103,8 @@ impl MetricsHandler for MixnetMetricsCleaner {
     // SAFETY: `MixnetMetricsCleaner` doesn't have any associated events
     #[allow(clippy::panic)]
     async fn handle_event(&mut self, _event: Self::Events) {
-        panic!("this should have never been called! MetricsHandler has been incorrectly called on MixnetMetricsCleaner")
+        panic!(
+            "this should have never been called! MetricsHandler has been incorrectly called on MixnetMetricsCleaner"
+        )
     }
 }

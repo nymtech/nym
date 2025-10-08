@@ -1,5 +1,5 @@
-use crate::db::models::{GatewayInfoDto, TestRunDto, TestRunStatus};
 use crate::db::DbConnection;
+use crate::db::models::{GatewayInfoDto, TestRunDto, TestRunStatus};
 use crate::testruns::models::TestRun;
 use crate::utils::now_utc;
 use anyhow::anyhow;

@@ -4,7 +4,7 @@
 use crate::cli::CliNetworkRequesterClient;
 use crate::error::NetworkRequesterError;
 use nym_client_core::cli_helpers::client_import_master_verification_key::{
-    import_master_verification_key, CommonClientImportMasterVerificationKeyArgs,
+    CommonClientImportMasterVerificationKeyArgs, import_master_verification_key,
 };
 
 pub(crate) async fn execute(

@@ -5,7 +5,7 @@ use crate::node::http::api::api_requests;
 use crate::node::http::state::AppState;
 use axum::extract::{Query, State};
 use nym_http_api_common::{FormattedResponse, OutputParams};
-use nym_node_requests::api::{v1::node::models::SignedHostInformation, SignedDataHostInfo};
+use nym_node_requests::api::{SignedDataHostInfo, v1::node::models::SignedHostInformation};
 
 /// Returns host information of this node.
 #[utoipa::path(

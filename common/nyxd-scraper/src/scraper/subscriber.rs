@@ -98,7 +98,9 @@ impl ChainSubscriber {
     /// Returns whether the method exited due to the cancellation
     async fn run_chain_subscription(&mut self) -> Result<bool, ScraperError> {
         let Some(ws_driver) = self.websocket_driver.take() else {
-            error!("the websocket driver hasn't been created - we probably failed to establish the connection");
+            error!(
+                "the websocket driver hasn't been created - we probably failed to establish the connection"
+            );
             return Ok(false);
         };
 
@@ -206,7 +208,9 @@ impl ChainSubscriber {
                 }
             }
 
-            warn!("current socket failure count: {socket_failures}. the last failure was at {last_failure}");
+            warn!(
+                "current socket failure count: {socket_failures}. the last failure was at {last_failure}"
+            );
 
             let now = OffsetDateTime::now_utc();
 

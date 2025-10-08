@@ -4,7 +4,7 @@
 use crate::cli::CliNetworkRequesterClient;
 use crate::error::NetworkRequesterError;
 use nym_client_core::cli_helpers::client_import_coin_index_signatures::{
-    import_coin_index_signatures, CommonClientImportCoinIndexSignaturesArgs,
+    CommonClientImportCoinIndexSignaturesArgs, import_coin_index_signatures,
 };
 
 pub(crate) async fn execute(

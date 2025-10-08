@@ -3,7 +3,7 @@ use crate::manager::SentError;
 #[cfg(unix)]
 #[allow(clippy::expect_used)]
 pub async fn wait_for_signal() {
-    use tokio::signal::unix::{signal, SignalKind};
+    use tokio::signal::unix::{SignalKind, signal};
     let mut sigterm = signal(SignalKind::terminate()).expect("Failed to setup SIGTERM channel");
     let mut sigquit = signal(SignalKind::quit()).expect("Failed to setup SIGQUIT channel");
 
@@ -33,7 +33,7 @@ pub async fn wait_for_signal() {
 #[cfg(unix)]
 #[allow(clippy::expect_used)]
 pub async fn wait_for_signal_and_error(shutdown: &mut crate::TaskManager) -> Result<(), SentError> {
-    use tokio::signal::unix::{signal, SignalKind};
+    use tokio::signal::unix::{SignalKind, signal};
 
     let mut sigterm = signal(SignalKind::terminate()).expect("Failed to setup SIGTERM channel");
     let mut sigquit = signal(SignalKind::quit()).expect("Failed to setup SIGQUIT channel");

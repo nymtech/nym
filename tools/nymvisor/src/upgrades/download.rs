@@ -75,11 +75,11 @@ async fn chunk_download(
             }
         })?;
 
-        if let Some(length) = maybe_length {
-            if last_logged.elapsed() > LOGGING_RATE {
-                log_progress_bar(downloaded, length);
-                last_logged = tokio::time::Instant::now();
-            }
+        if let Some(length) = maybe_length
+            && last_logged.elapsed() > LOGGING_RATE
+        {
+            log_progress_bar(downloaded, length);
+            last_logged = tokio::time::Instant::now();
         }
     }
     if let Some(length) = maybe_length {

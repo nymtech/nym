@@ -4,7 +4,7 @@
 use crate::cli::CliNetworkRequesterClient;
 use crate::error::NetworkRequesterError;
 use nym_client_core::cli_helpers::client_import_credential::{
-    import_credential, CommonClientImportTicketBookArgs,
+    CommonClientImportTicketBookArgs, import_credential,
 };
 
 pub async fn execute(args: CommonClientImportTicketBookArgs) -> Result<(), NetworkRequesterError> {

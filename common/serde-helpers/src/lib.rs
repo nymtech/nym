@@ -3,7 +3,7 @@
 
 #[cfg(feature = "base64")]
 pub mod base64 {
-    use base64::{engine::general_purpose::STANDARD, Engine as _};
+    use base64::{Engine as _, engine::general_purpose::STANDARD};
     use serde::{Deserialize, Deserializer, Serializer};
 
     pub fn serialize<S: Serializer>(bytes: &[u8], serializer: S) -> Result<S::Ok, S::Error> {
@@ -49,9 +49,9 @@ pub mod hex {
 #[cfg(feature = "date")]
 pub mod date {
     use serde::ser::Error;
-    use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
-    use time::format_description::{modifier, BorrowedFormatItem, Component};
+    use serde::{Deserialize, Deserializer, Serialize, Serializer, de};
     use time::Date;
+    use time::format_description::{BorrowedFormatItem, Component, modifier};
 
     // simple YYYY-MM-DD
     pub const DATE_FORMAT: &[BorrowedFormatItem<'_>] = &[

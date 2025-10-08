@@ -6,7 +6,7 @@ use nym_client_core::config::old_config_v1_1_54::ConfigV1_1_54 as BaseConfigV1_1
 use nym_config::read_config_from_toml_file;
 use serde::{Deserialize, Serialize};
 
-use super::{default_config_filepath, IpPacketRouter, IpPacketRouterPaths};
+use super::{IpPacketRouter, IpPacketRouterPaths, default_config_filepath};
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]

@@ -10,8 +10,8 @@ use nym_credential_verification::bandwidth_storage_manager::BandwidthStorageMana
 use nym_task::ShutdownToken;
 use nym_wireguard_types::DEFAULT_PEER_TIMEOUT_CHECK;
 use std::sync::Arc;
-use tokio::sync::{mpsc, RwLock};
-use tokio_stream::{wrappers::IntervalStream, StreamExt};
+use tokio::sync::{RwLock, mpsc};
+use tokio_stream::{StreamExt, wrappers::IntervalStream};
 
 #[derive(Clone)]
 pub(crate) struct SharedBandwidthStorageManager {

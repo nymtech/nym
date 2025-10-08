@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::traits::Timeboxed;
-use rand_chacha::rand_core::SeedableRng;
 use rand_chacha::ChaCha20Rng;
+use rand_chacha::rand_core::SeedableRng;
 use std::future::Future;
 use tokio::task::JoinHandle;
 use tokio::time::error::Elapsed;

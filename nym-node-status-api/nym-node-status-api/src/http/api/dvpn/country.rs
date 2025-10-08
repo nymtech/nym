@@ -1,6 +1,6 @@
 use axum::{
-    extract::{Path, State},
     Json, Router,
+    extract::{Path, State},
 };
 use itertools::Itertools;
 use serde::Deserialize;

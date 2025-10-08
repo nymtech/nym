@@ -3,7 +3,7 @@
 
 use crate::error::ScraperError;
 use crate::helpers;
-use tendermint::{abci, block, tx, Block, Hash};
+use tendermint::{Block, Hash, abci, block, tx};
 use tendermint_rpc::endpoint::{block as block_endpoint, block_results, validators};
 use tendermint_rpc::event::{Event, EventData};
 
@@ -90,13 +90,13 @@ impl TryFrom<Event> for BlockToProcess {
                 return Err(ScraperError::InvalidSubscriptionEvent {
                     query,
                     kind: "Tx".to_string(),
-                })
+                });
             }
             EventData::GenericJsonEvent(_) => {
                 return Err(ScraperError::InvalidSubscriptionEvent {
                     query,
                     kind: "GenericJsonEvent".to_string(),
-                })
+                });
             }
         };
 

@@ -1,7 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::cli::{try_load_current_config, ConfigOverridableArgs};
+use crate::cli::{ConfigOverridableArgs, try_load_current_config};
 use crate::error::NymRewarderError;
 use nyxd_scraper::NyxdScraper;
 use std::path::PathBuf;
@@ -27,11 +27,11 @@ pub struct Args {
 }
 
 pub(crate) async fn execute(args: Args) -> Result<(), NymRewarderError> {
-    if let (Some(start), Some(end)) = (args.start_height, args.stop_height) {
-        if start > end {
-            eprintln!("the start height can't be larger than the stop height!");
-            return Ok(());
-        }
+    if let (Some(start), Some(end)) = (args.start_height, args.stop_height)
+        && start > end
+    {
+        eprintln!("the start height can't be larger than the stop height!");
+        return Ok(());
     }
 
     let config =

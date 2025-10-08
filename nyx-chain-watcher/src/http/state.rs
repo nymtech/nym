@@ -1,5 +1,5 @@
-use crate::db::models::CoingeckoPriceResponse;
 use crate::db::DbPool;
+use crate::db::models::CoingeckoPriceResponse;
 use crate::helpers::RingBuffer;
 use crate::http::models::status::PaymentWatcher;
 use crate::models::WebhookPayload;

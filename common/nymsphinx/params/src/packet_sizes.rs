@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::PacketType;
-#[cfg(feature = "sphinx")]
-use nym_sphinx_types::{header::HEADER_SIZE, PAYLOAD_OVERHEAD_SIZE};
 #[cfg(feature = "outfox")]
 use nym_sphinx_types::{MIN_PACKET_SIZE, MIX_PARAMS_LEN, OUTFOX_PACKET_OVERHEAD};
+#[cfg(feature = "sphinx")]
+use nym_sphinx_types::{PAYLOAD_OVERHEAD_SIZE, header::HEADER_SIZE};
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 

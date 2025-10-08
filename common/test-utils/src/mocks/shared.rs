@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use futures::future::BoxFuture;
-use futures::{ready, FutureExt};
+use futures::{FutureExt, ready};
 use std::mem;
 use std::pin::Pin;
 use std::sync::Arc;

@@ -3,8 +3,8 @@ use std::fmt;
 use tracing::{debug, error, warn};
 
 use prometheus::{
-    core::Collector, Encoder as _, Gauge, Histogram, HistogramOpts, IntCounter, IntGauge, Registry,
-    TextEncoder,
+    Encoder as _, Gauge, Histogram, HistogramOpts, IntCounter, IntGauge, Registry, TextEncoder,
+    core::Collector,
 };
 
 pub use prometheus::HistogramTimer;
@@ -274,7 +274,10 @@ impl Metric {
             Metric::IntCounter(c) => c.inc_by(value as u64),
             Metric::IntGauge(g) => g.add(value),
             Metric::FloatGauge(g) => {
-                warn!("attempted to increment a float gauge ('{}') by an integer - this is most likely a bug", self.fq_name());
+                warn!(
+                    "attempted to increment a float gauge ('{}') by an integer - this is most likely a bug",
+                    self.fq_name()
+                );
                 g.add(value as f64)
             }
             Metric::Histogram(_) => {
@@ -291,7 +294,10 @@ impl Metric {
             }
             Metric::IntGauge(g) => g.set(value),
             Metric::FloatGauge(g) => {
-                warn!("attempted to set a float gauge ('{}') to an integer value - this is most likely a bug", self.fq_name());
+                warn!(
+                    "attempted to set a float gauge ('{}') to an integer value - this is most likely a bug",
+                    self.fq_name()
+                );
                 g.set(value as f64)
             }
             Metric::Histogram(_) => {
@@ -307,7 +313,10 @@ impl Metric {
                 warn!("Cannot set value for counter {:?}", self.fq_name());
             }
             Metric::IntGauge(g) => {
-                warn!("attempted to set a integer gauge ('{}') to a float value - this is most likely a bug", self.fq_name());
+                warn!(
+                    "attempted to set a integer gauge ('{}') to a float value - this is most likely a bug",
+                    self.fq_name()
+                );
                 g.set(value as i64)
             }
             Metric::FloatGauge(g) => g.set(value),

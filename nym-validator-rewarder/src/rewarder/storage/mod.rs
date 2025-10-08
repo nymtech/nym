@@ -1,14 +1,14 @@
 // Copyright 2023-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::rewarder::{extract_rewarding_results, BlockSigningDetails, TicketbookIssuanceDetails};
+use crate::rewarder::{BlockSigningDetails, TicketbookIssuanceDetails, extract_rewarding_results};
 use crate::{
     error::NymRewarderError,
-    rewarder::{epoch::Epoch, storage::manager::StorageManager, RewardingResult},
+    rewarder::{RewardingResult, epoch::Epoch, storage::manager::StorageManager},
 };
 use nym_contracts_common::types::NaiveFloat;
-use sqlx::sqlite::{SqliteAutoVacuum, SqliteSynchronous};
 use sqlx::ConnectOptions;
+use sqlx::sqlite::{SqliteAutoVacuum, SqliteSynchronous};
 use std::{fmt::Debug, path::Path};
 use time::{Date, OffsetDateTime};
 use tracing::{error, info, instrument};

@@ -1,11 +1,11 @@
-use crate::cli::{override_config, CliIpPacketRouterClient, OverrideConfig};
+use crate::cli::{CliIpPacketRouterClient, OverrideConfig, override_config};
 use clap::Args;
 use nym_bin_common::output_format::OutputFormat;
 use nym_client_core::cli_helpers::client_init::{
-    initialise_client, CommonClientInitArgs, InitResultsWithConfig, InitialisableClient,
+    CommonClientInitArgs, InitResultsWithConfig, InitialisableClient, initialise_client,
 };
 use nym_ip_packet_router::{
-    config::{default_config_directory, default_config_filepath, default_data_directory, Config},
+    config::{Config, default_config_directory, default_config_filepath, default_data_directory},
     error::IpPacketRouterError,
 };
 use serde::Serialize;

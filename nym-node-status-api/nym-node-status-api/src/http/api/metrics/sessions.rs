@@ -1,15 +1,15 @@
 use axum::{
-    extract::{Query, State},
     Json, Router,
+    extract::{Query, State},
 };
 use time::Date;
 use tracing::instrument;
 
 use crate::http::{
+    PagedResult, Pagination,
     error::{HttpError, HttpResult},
     models::SessionStats,
     state::AppState,
-    PagedResult, Pagination,
 };
 
 pub(crate) fn routes() -> Router<AppState> {

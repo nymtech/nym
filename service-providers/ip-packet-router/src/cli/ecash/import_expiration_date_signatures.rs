@@ -3,7 +3,7 @@
 
 use crate::cli::CliIpPacketRouterClient;
 use nym_client_core::cli_helpers::client_import_expiration_date_signatures::{
-    import_expiration_date_signatures, CommonClientImportExpirationDateSignaturesArgs,
+    CommonClientImportExpirationDateSignaturesArgs, import_expiration_date_signatures,
 };
 use nym_ip_packet_router::error::IpPacketRouterError;
 

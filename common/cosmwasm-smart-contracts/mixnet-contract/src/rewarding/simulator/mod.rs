@@ -4,8 +4,8 @@
 use crate::error::MixnetContractError;
 use crate::helpers::IntoBaseDecimal;
 use crate::reward_params::{NodeRewardingParameters, WorkFactor};
-use crate::rewarding::simulator::simulated_node::SimulatedNode;
 use crate::rewarding::RewardDistribution;
+use crate::rewarding::simulator::simulated_node::SimulatedNode;
 use crate::{Delegation, Interval, IntervalRewardParams, NodeCostParams, NodeId, RewardingParams};
 use cosmwasm_std::{Coin, Decimal};
 use std::collections::BTreeMap;
@@ -226,9 +226,9 @@ impl Simulator {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::Percent;
     use crate::helpers::compare_decimals;
     use crate::reward_params::RewardedSetParams;
-    use crate::Percent;
     use cosmwasm_std::testing::mock_env;
     use std::time::Duration;
 

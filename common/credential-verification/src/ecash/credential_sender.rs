@@ -1,10 +1,10 @@
 // Copyright 2022-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::Error;
 use crate::ecash::error::EcashTicketError;
 use crate::ecash::helpers::for_each_api_concurrent;
 use crate::ecash::state::SharedState;
-use crate::Error;
 use cosmwasm_std::Fraction;
 use cw_utils::ThresholdResponse;
 use futures::channel::mpsc::UnboundedReceiver;
@@ -13,22 +13,22 @@ use nym_api_requests::constants::MIN_BATCH_REDEMPTION_DELAY;
 use nym_api_requests::ecash::models::{BatchRedeemTicketsBody, VerifyEcashTicketBody};
 use nym_credentials_interface::Bandwidth;
 use nym_credentials_interface::{ClientTicket, TicketType};
+use nym_validator_client::EcashApiClient;
 use nym_validator_client::coconut::EcashApiError;
 use nym_validator_client::nym_api::{EpochId, NymApiClientExt};
+use nym_validator_client::nyxd::AccountId;
 use nym_validator_client::nyxd::contract_traits::{
     EcashSigningClient, MultisigQueryClient, MultisigSigningClient, PagedMultisigQueryClient,
 };
 use nym_validator_client::nyxd::cosmwasm_client::ContractResponseData;
 use nym_validator_client::nyxd::cw3::Status;
-use nym_validator_client::nyxd::AccountId;
-use nym_validator_client::EcashApiClient;
 use si_scale::helpers::bibytes2;
 use std::collections::{HashMap, HashSet};
 use std::ops::Deref;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use time::OffsetDateTime;
 use tokio::sync::{Mutex, RwLockReadGuard};
-use tokio::time::{interval_at, Duration, Instant};
+use tokio::time::{Duration, Instant, interval_at};
 use tracing::{debug, error, info, instrument, trace, warn};
 
 enum ProposalResult {
@@ -352,7 +352,9 @@ impl CredentialHandler {
                 Ok(accepted)
             }
             Err(err) => {
-                error!("failed to send ticket {ticket_id} for verification to ecash signer '{client}': {err}. if we don't reach quorum, we'll retry later");
+                error!(
+                    "failed to send ticket {ticket_id} for verification to ecash signer '{client}': {err}. if we don't reach quorum, we'll retry later"
+                );
                 Err(EcashTicketError::ApiFailure(EcashApiError::NymApi {
                     source: nym_validator_client::ValidatorClientError::from(err),
                 }))
@@ -443,7 +445,9 @@ impl CredentialHandler {
         let rejected_ratio = rejected as f32 / total as f32;
         let rejected_perc = rejected_ratio * 100.;
         if rejected_ratio >= (1. - self.config.minimum_api_quorum) {
-            error!("{rejected_perc:.2}% of signers rejected ticket {ticket_id}. we won't be able to redeem it");
+            error!(
+                "{rejected_perc:.2}% of signers rejected ticket {ticket_id}. we won't be able to redeem it"
+            );
 
             self.shared_state
                 .storage
@@ -456,12 +460,19 @@ impl CredentialHandler {
         let accepted_ratio = (total - rejected - num_failures) as f32 / total as f32;
         let accepted_perc = accepted_ratio * 100.;
         match accepted_ratio {
-            n if n < self.multisig_threshold => error!("less than 2/3 of signers ({accepted_perc:.2}%) accepted ticket {ticket_id}. we won't be able to spend it"),
-            n if n < self.config.minimum_api_quorum => warn!("less than 80%, but more than 67% of signers ({accepted_perc:.2}%) accepted ticket {ticket_id}. technically we could redeem it, but we'll wait for the bigger quorum"),
+            n if n < self.multisig_threshold => error!(
+                "less than 2/3 of signers ({accepted_perc:.2}%) accepted ticket {ticket_id}. we won't be able to spend it"
+            ),
+            n if n < self.config.minimum_api_quorum => warn!(
+                "less than 80%, but more than 67% of signers ({accepted_perc:.2}%) accepted ticket {ticket_id}. technically we could redeem it, but we'll wait for the bigger quorum"
+            ),
             _ => {
                 trace!("{accepted_perc:.2}% of signers accepted ticket {ticket_id}");
-                self.shared_state.storage.update_verified_ticket(pending.ticket.ticket_id).await?;
-                return Ok(true)
+                self.shared_state
+                    .storage
+                    .update_verified_ticket(pending.ticket.ticket_id)
+                    .await?;
+                return Ok(true);
             }
         }
 
@@ -484,7 +495,10 @@ impl CredentialHandler {
             .send_pending_ticket_for_verification(&mut pending, Some(api_clients))
             .await?;
         if !got_quorum {
-            debug!("failed to reach quorum for ticket {}. apis: {:?} haven't responded. we'll retry later", pending.ticket.ticket_id, pending.pending);
+            debug!(
+                "failed to reach quorum for ticket {}. apis: {:?} haven't responded. we'll retry later",
+                pending.ticket.ticket_id, pending.pending
+            );
             self.pending_tickets.push(pending);
         } else {
             // since we reached the quorum we no longer need to hold the ticket's binary data
@@ -513,7 +527,10 @@ impl CredentialHandler {
             match self.try_resolve_pending_proposal(&mut pending, None).await {
                 Ok(resolution) => {
                     if resolution.is_pending() {
-                        warn!("still failed to reach quorum for proposal {}. apis: {:?} haven't responded. we'll retry later", pending.proposal_id, pending.pending);
+                        warn!(
+                            "still failed to reach quorum for proposal {}. apis: {:?} haven't responded. we'll retry later",
+                            pending.proposal_id, pending.pending
+                        );
                         still_failing.push(pending);
                     } else {
                         self.shared_state
@@ -527,7 +544,9 @@ impl CredentialHandler {
                     }
                 }
                 Err(err) => {
-                    error!("experienced internal error when attempting to resolve pending proposal: {err}");
+                    error!(
+                        "experienced internal error when attempting to resolve pending proposal: {err}"
+                    );
                     // make sure to update internal state to not lose any data
                     self.pending_redemptions.push(pending);
                     self.pending_redemptions.append(&mut still_failing);
@@ -547,7 +566,10 @@ impl CredentialHandler {
             {
                 Ok(got_quorum) => {
                     if !got_quorum {
-                        warn!("still failed to reach quorum for ticket {}. apis: {:?} haven't responded. we'll retry later", pending.ticket.ticket_id, pending.pending);
+                        warn!(
+                            "still failed to reach quorum for ticket {}. apis: {:?} haven't responded. we'll retry later",
+                            pending.ticket.ticket_id, pending.pending
+                        );
                         still_failing.push(pending);
                     } else {
                         // since we reached the quorum we no longer need to hold the ticket's binary data
@@ -558,7 +580,9 @@ impl CredentialHandler {
                     }
                 }
                 Err(err) => {
-                    error!("experienced internal error when attempting to resolve pending ticket: {err}");
+                    error!(
+                        "experienced internal error when attempting to resolve pending ticket: {err}"
+                    );
                     // make sure to update internal state to not lose any data
                     self.pending_tickets.push(pending);
                     self.pending_tickets.append(&mut still_failing);
@@ -591,7 +615,9 @@ impl CredentialHandler {
                 Ok(accepted)
             }
             Err(err) => {
-                error!("failed to send proposal {proposal_id} for redemption vote to ecash signer '{client}': {err}. if we don't reach quorum, we'll retry later");
+                error!(
+                    "failed to send proposal {proposal_id} for redemption vote to ecash signer '{client}': {err}. if we don't reach quorum, we'll retry later"
+                );
                 Ok(false)
             }
         }
@@ -713,7 +739,9 @@ impl CredentialHandler {
         let rejected_ratio = rejected as f32 / total as f32;
         let rejected_perc = rejected_ratio * 100.;
         if rejected_ratio >= (1. - self.multisig_threshold) {
-            error!("{rejected_perc:.2}% of signers rejected proposal {proposal_id}. we won't be able to execute it");
+            error!(
+                "{rejected_perc:.2}% of signers rejected proposal {proposal_id}. we won't be able to execute it"
+            );
             // no need to query the chain as with so many rejections it's impossible it has passed.
             return Ok(ProposalResult::Rejected);
         }
@@ -722,11 +750,15 @@ impl CredentialHandler {
         let accepted_perc = accepted_ratio * 100.;
         match accepted_ratio {
             n if n < self.multisig_threshold => {
-                error!("less than 2/3 of signers ({accepted_perc:.2}%) accepted proposal {proposal_id}. we're not yet be able to execute it to get funds out");
+                error!(
+                    "less than 2/3 of signers ({accepted_perc:.2}%) accepted proposal {proposal_id}. we're not yet be able to execute it to get funds out"
+                );
                 return Ok(ProposalResult::Pending);
             }
             n if n < self.config.minimum_api_quorum => {
-                warn!("the system seems to be a bit unstable: less than 80%, but more than 67% of signers ({accepted_perc:.2}%) accepted proposal {proposal_id}");
+                warn!(
+                    "the system seems to be a bit unstable: less than 80%, but more than 67% of signers ({accepted_perc:.2}%) accepted proposal {proposal_id}"
+                );
             }
             _ => {
                 trace!("{accepted_perc:.2}% of signers accepted proposal {proposal_id}");
@@ -784,7 +816,9 @@ impl CredentialHandler {
                 None
             }
             (_, Some(on_chain)) => {
-                warn!("we seem to have crashed after creating proposal, but before persisting it onto disk!");
+                warn!(
+                    "we seem to have crashed after creating proposal, but before persisting it onto disk!"
+                );
 
                 Some(on_chain)
             }
@@ -805,12 +839,20 @@ impl CredentialHandler {
                 if latest_stored.created_at + self.config.maximum_time_between_redemption < now {
                     {}
                 } else {
-                    debug!("we only have {} verified tickets. there's no point in creating a redemption request yet. (we need at least {} (configurable))", verified_tickets.len(), self.config.minimum_redemption_tickets);
+                    debug!(
+                        "we only have {} verified tickets. there's no point in creating a redemption request yet. (we need at least {} (configurable))",
+                        verified_tickets.len(),
+                        self.config.minimum_redemption_tickets
+                    );
                     return Ok(());
                 }
             } else {
                 // first proposal
-                debug!("we only have {} verified tickets. there's no point in creating a redemption request yet. (we need at least {} (configurable))", verified_tickets.len(), self.config.minimum_redemption_tickets);
+                debug!(
+                    "we only have {} verified tickets. there's no point in creating a redemption request yet. (we need at least {} (configurable))",
+                    verified_tickets.len(),
+                    self.config.minimum_redemption_tickets
+                );
                 return Ok(());
             }
         }
@@ -879,7 +921,10 @@ impl CredentialHandler {
             .try_resolve_pending_proposal(&mut pending, Some(api_clients))
             .await?;
         if resolution.is_pending() {
-            warn!("failed to reach quorum for proposal {proposal_id}. apis: {:?} haven't responded. we'll retry later", pending.pending);
+            warn!(
+                "failed to reach quorum for proposal {proposal_id}. apis: {:?} haven't responded. we'll retry later",
+                pending.pending
+            );
             self.pending_redemptions.push(pending);
         } else {
             self.shared_state
@@ -896,7 +941,9 @@ impl CredentialHandler {
     }
 
     async fn periodic_operations(&mut self) -> Result<(), EcashTicketError> {
-        trace!("attempting to resolve all pending operations -> tickets that are waiting for verification and possibly redemption");
+        trace!(
+            "attempting to resolve all pending operations -> tickets that are waiting for verification and possibly redemption"
+        );
 
         // 1. retry all operations that have failed in the past: verification requests and pending redemption
         self.resolve_pending().await?;

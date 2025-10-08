@@ -13,8 +13,8 @@ use tracing::{debug, error, trace};
 
 use crate::mixnet_listener::{MixnetMessageBroadcastReceiver, MixnetMessageInputSender};
 use nym_authenticator_requests::{
-    client_message::ClientMessage, response::AuthenticatorResponse, traits::Id, v2, v3, v4, v5,
-    AuthenticatorVersion,
+    AuthenticatorVersion, client_message::ClientMessage, response::AuthenticatorResponse,
+    traits::Id, v2, v3, v4, v5,
 };
 use nym_credentials_interface::{CredentialSpendingData, TicketType};
 use nym_sdk::mixnet::{IncludedSurbs, Recipient};
@@ -196,8 +196,7 @@ impl AuthenticatorClient {
 
                 trace!(
                     "received \"pending-registration\" msg from {}: {:?}",
-                    &self.ip_addr,
-                    &pending_registration_response
+                    &self.ip_addr, &pending_registration_response
                 );
 
                 let credential = Some(
@@ -267,8 +266,7 @@ impl AuthenticatorClient {
                 };
                 trace!(
                     "sending final msg to {}: {:?}",
-                    &self.ip_addr,
-                    &finalized_message
+                    &self.ip_addr, &finalized_message
                 );
 
                 let response = self.send_and_wait_for_response(&finalized_message).await?;
@@ -283,8 +281,7 @@ impl AuthenticatorClient {
 
         trace!(
             "received \"registered\" msg from {}: {:?}",
-            &self.ip_addr,
-            &registered_data
+            &self.ip_addr, &registered_data
         );
 
         let gateway_data = GatewayData {

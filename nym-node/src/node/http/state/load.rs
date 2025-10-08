@@ -3,8 +3,8 @@
 
 use arc_swap::ArcSwap;
 use nym_node_requests::api::v1::node_load::models::{Load, NodeLoad};
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 use sysinfo::{CpuRefreshKind, MemoryRefreshKind, Networks, System};
 use time::OffsetDateTime;

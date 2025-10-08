@@ -1,7 +1,7 @@
 use super::helpers::scrape_node;
 use crate::db::DbPool;
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 use tokio::sync::Mutex;
 use tokio::task::JoinSet;

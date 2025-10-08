@@ -5,8 +5,8 @@ use crate::error::VpnApiLibError;
 use nym_compact_ecash::scheme::keygen::KeyPairUser;
 use nym_compact_ecash::scheme::withdrawal::RequestInfo;
 use nym_compact_ecash::{
-    aggregate_wallets, issue_verify, withdrawal_request, Base58, BlindedSignature,
-    VerificationKeyAuth, WithdrawalRequest,
+    Base58, BlindedSignature, VerificationKeyAuth, WithdrawalRequest, aggregate_wallets,
+    issue_verify, withdrawal_request,
 };
 use nym_credential_proxy_requests::api::v1::ticketbook::models::{
     MasterVerificationKeyResponse, PartialVerificationKeysResponse, TicketbookRequest,
@@ -18,7 +18,7 @@ use nym_credentials::{
 };
 use nym_credentials_interface::TicketType;
 use nym_crypto::asymmetric::ed25519;
-use nym_ecash_time::{ecash_default_expiration_date, EcashTime};
+use nym_ecash_time::{EcashTime, ecash_default_expiration_date};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use time::Date;
@@ -177,7 +177,10 @@ impl NymIssuanceTicketbook {
         for share in shares.shares {
             let blinded_sig = BlindedSignature::try_from_bs58(share.bs58_encoded_share)?;
             let Some(vk) = decoded_keys.get(&share.node_index) else {
-                console_error!("received a share from issuer {} but did not receive a corresponding verification key!", share.node_index);
+                console_error!(
+                    "received a share from issuer {} but did not receive a corresponding verification key!",
+                    share.node_index
+                );
                 continue;
             };
 

@@ -3,7 +3,7 @@
 
 use reqwest::header::AUTHORIZATION;
 use serde::Serialize;
-use tracing::{debug, error, instrument, span, Instrument, Level};
+use tracing::{Instrument, Level, debug, error, instrument, span};
 use url::Url;
 use uuid::Uuid;
 

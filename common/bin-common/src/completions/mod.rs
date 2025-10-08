@@ -1,8 +1,8 @@
+use clap::Args;
 use clap::builder::Command;
 use clap::clap_derive::ValueEnum;
-use clap::Args;
-use clap_complete::generator::generate;
 use clap_complete::Shell as ClapShell;
+use clap_complete::generator::generate;
 use std::io;
 
 pub fn fig_generate(command: &mut Command, name: &str) {

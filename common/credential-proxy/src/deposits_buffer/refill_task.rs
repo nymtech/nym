@@ -42,7 +42,9 @@ impl RefillTask {
 
         if let Some(existing_handle) = guard.as_ref() {
             if !existing_handle.is_finished() {
-                error!("CRITICAL BUG: there was already a deposit refill task spawned that hasn't yet finished")
+                error!(
+                    "CRITICAL BUG: there was already a deposit refill task spawned that hasn't yet finished"
+                )
             }
         }
 

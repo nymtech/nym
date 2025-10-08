@@ -5,14 +5,18 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum Error {
-    #[error("the provided base64-encoded client x25519 public key ('{pub_key}') was malformed: {source}")]
+    #[error(
+        "the provided base64-encoded client x25519 public key ('{pub_key}') was malformed: {source}"
+    )]
     MalformedPeerPublicKeyEncoding {
         pub_key: String,
         #[source]
         source: base64::DecodeError,
     },
 
-    #[error("the provided base64-encoded client x25519 public key ('{pub_key}') has invalid length: {decoded_length}. expected 32 bytes")]
+    #[error(
+        "the provided base64-encoded client x25519 public key ('{pub_key}') has invalid length: {decoded_length}. expected 32 bytes"
+    )]
     InvalidPeerPublicKeyLength {
         pub_key: String,
         decoded_length: usize,

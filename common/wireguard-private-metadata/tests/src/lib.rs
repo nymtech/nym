@@ -8,7 +8,7 @@ mod tests {
     use nym_credential_verification::{ClientBandwidth, TicketVerifier};
     use nym_credentials_interface::CredentialSpendingData;
     use nym_http_api_client::Client;
-    use nym_wireguard::{peer_controller::PeerControlRequest, CONTROL_CHANNEL_SIZE};
+    use nym_wireguard::{CONTROL_CHANNEL_SIZE, peer_controller::PeerControlRequest};
     use nym_wireguard_private_metadata_client::WireguardMetadataApiClient;
     use nym_wireguard_private_metadata_server::{
         AppState, PeerControllerTransceiver, RouterBuilder,

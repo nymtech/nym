@@ -1,4 +1,4 @@
-use crate::models::{get_testrun, submit_results, submit_results_v2, TestrunAssignmentWithTickets};
+use crate::models::{TestrunAssignmentWithTickets, get_testrun, submit_results, submit_results_v2};
 use anyhow::bail;
 use api::ApiPaths;
 use nym_crypto::asymmetric::ed25519::{PrivateKey, Signature};

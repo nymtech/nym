@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 pub use ed25519_dalek::SignatureError;
-pub use ed25519_dalek::{Verifier, PUBLIC_KEY_LENGTH, SECRET_KEY_LENGTH, SIGNATURE_LENGTH};
+pub use ed25519_dalek::{PUBLIC_KEY_LENGTH, SECRET_KEY_LENGTH, SIGNATURE_LENGTH, Verifier};
 
 use ed25519_dalek::Signer;
 use nym_pemstore::traits::{PemStorableKey, PemStorableKeyPair};
@@ -18,7 +18,7 @@ pub mod serde_helpers;
 pub use serde_helpers::*;
 
 #[cfg(feature = "sphinx")]
-use nym_sphinx_types::{DestinationAddressBytes, DESTINATION_ADDRESS_LENGTH};
+use nym_sphinx_types::{DESTINATION_ADDRESS_LENGTH, DestinationAddressBytes};
 
 #[cfg(feature = "rand")]
 use rand::{CryptoRng, Rng, RngCore};
@@ -75,7 +75,7 @@ pub struct KeyPair {
 impl KeyPair {
     #[cfg(feature = "rand")]
     pub fn new<R: RngCore + CryptoRng>(rng: &mut R) -> Self {
-        let index = rng.gen();
+        let index = rng.r#gen();
         let ed25519_signing_key = ed25519_dalek::SigningKey::generate(rng);
 
         KeyPair {
@@ -504,10 +504,12 @@ mod tests {
             jwt_simple::algorithms::Edwards25519KeyPair::from_bytes(&jwt_keys.to_bytes()).unwrap();
 
         let compact_ed25519 = jwt_keys_inner.as_ref();
-        assert!(compact_ed25519
-            .sk
-            .validate_public_key(&compact_ed25519.pk)
-            .is_ok());
+        assert!(
+            compact_ed25519
+                .sk
+                .validate_public_key(&compact_ed25519.pk)
+                .is_ok()
+        );
 
         let dummy_message = "hello world";
         let sig1 = keys.private_key.sign(dummy_message).to_bytes();

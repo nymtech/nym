@@ -74,10 +74,8 @@ impl RoutingNode {
             return Some(format!("ws://{hostname}:{}", entry.clients_ws_port));
         }
 
-        if prefer_ipv6 {
-            if let Some(ipv6) = entry.ip_addresses.iter().find(|ip| ip.is_ipv6()) {
-                return Some(format!("ws://{ipv6}:{}", entry.clients_ws_port));
-            }
+        if prefer_ipv6 && let Some(ipv6) = entry.ip_addresses.iter().find(|ip| ip.is_ipv6()) {
+            return Some(format!("ws://{ipv6}:{}", entry.clients_ws_port));
         }
 
         let any_ip = entry.ip_addresses.first()?;

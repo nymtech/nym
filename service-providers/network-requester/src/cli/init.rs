@@ -4,14 +4,14 @@
 use crate::cli::CliNetworkRequesterClient;
 use crate::config::{default_config_directory, default_config_filepath, default_data_directory};
 use crate::{
-    cli::{override_config, OverrideConfig},
+    cli::{OverrideConfig, override_config},
     config::Config,
     error::NetworkRequesterError,
 };
 use clap::Args;
 use nym_bin_common::output_format::OutputFormat;
 use nym_client_core::cli_helpers::client_init::{
-    initialise_client, CommonClientInitArgs, InitResultsWithConfig, InitialisableClient,
+    CommonClientInitArgs, InitResultsWithConfig, InitialisableClient, initialise_client,
 };
 use serde::Serialize;
 use std::fmt::Display;

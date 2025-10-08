@@ -5,7 +5,7 @@ use nym_credentials_interface::CredentialSpendingData;
 
 #[cfg(feature = "testing")]
 use crate::models::v0;
-use crate::models::{v1, Construct, Extract, Request, Response, Version};
+use crate::models::{Construct, Extract, Request, Response, Version, v1};
 
 pub enum RequestData {
     AvailableBandwidth(()),

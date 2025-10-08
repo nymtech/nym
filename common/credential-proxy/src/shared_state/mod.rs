@@ -13,10 +13,10 @@ use nym_credential_proxy_requests::api::v1::ticketbook::models::{
 };
 use nym_credentials::{AggregatedCoinIndicesSignatures, AggregatedExpirationDateSignatures};
 use nym_ecash_contract_common::deposit::DepositId;
-use nym_validator_client::nym_api::EpochId;
-use nym_validator_client::nyxd::contract_traits::dkg_query_client::Epoch;
-use nym_validator_client::nyxd::Coin;
 use nym_validator_client::EcashApiClient;
+use nym_validator_client::nym_api::EpochId;
+use nym_validator_client::nyxd::Coin;
+use nym_validator_client::nyxd::contract_traits::dkg_query_client::Epoch;
 use std::sync::Arc;
 use std::time::Duration;
 use time::{Date, OffsetDateTime};
@@ -92,7 +92,9 @@ impl CredentialProxyState {
         let time_taken = start.elapsed();
         let formatted = humantime::format_duration(time_taken);
         if time_taken > Duration::from_secs(10) {
-            warn!("attempting to get buffered deposit took {formatted}. perhaps the buffer is too small or the process/chain is overloaded?")
+            warn!(
+                "attempting to get buffered deposit took {formatted}. perhaps the buffer is too small or the process/chain is overloaded?"
+            )
         } else {
             debug!("attempting to get buffered deposit took {formatted}")
         };
@@ -106,7 +108,9 @@ impl CredentialProxyState {
             .insert_deposit_usage_error(deposit_id, error)
             .await
         {
-            error!("failed to insert information about deposit (id: {deposit_id}) usage failure: {err}")
+            error!(
+                "failed to insert information about deposit (id: {deposit_id}) usage failure: {err}"
+            )
         }
     }
 

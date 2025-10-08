@@ -28,7 +28,7 @@ use crate::error::ZulipClientError;
 use crate::message::{DirectMessage, SendMessageResponse, SendableMessage, StreamMessage};
 use nym_bin_common::bin_info;
 use nym_http_api_client::UserAgent;
-use reqwest::{header, Method, RequestBuilder};
+use reqwest::{Method, RequestBuilder, header};
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use tracing::trace;

@@ -70,7 +70,10 @@ impl UpstreamPoller {
             // note: first tick happens immediately
             interval.tick().await;
             if let Err(err) = self.check_upstream().await {
-                warn!("failed to check the upstream for new upgrade information: {err}. we will try to poll it again in {}", humantime::format_duration(interval.period()));
+                warn!(
+                    "failed to check the upstream for new upgrade information: {err}. we will try to poll it again in {}",
+                    humantime::format_duration(interval.period())
+                );
             }
         }
     }

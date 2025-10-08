@@ -639,27 +639,41 @@ mod test {
         policy.push(AddressPolicyAction::Accept, "*:0".parse()?);
 
         let policy = policy; // drop mut
-        assert!(policy
-            .allows_sockaddr(&"[::6]:443".parse().unwrap())
-            .unwrap());
-        assert!(policy
-            .allows_sockaddr(&"127.0.0.1:443".parse().unwrap())
-            .unwrap());
-        assert!(policy
-            .allows_sockaddr(&"[::1]:80".parse().unwrap())
-            .unwrap());
-        assert!(!policy
-            .allows_sockaddr(&"[::2]:80".parse().unwrap())
-            .unwrap());
-        assert!(!policy
-            .allows_sockaddr(&"127.0.0.1:80".parse().unwrap())
-            .unwrap());
-        assert!(policy
-            .allows_sockaddr(&"127.0.0.1:66".parse().unwrap())
-            .is_none());
-        assert!(policy
-            .allows_sockaddr(&"127.0.0.1:0".parse().unwrap())
-            .unwrap());
+        assert!(
+            policy
+                .allows_sockaddr(&"[::6]:443".parse().unwrap())
+                .unwrap()
+        );
+        assert!(
+            policy
+                .allows_sockaddr(&"127.0.0.1:443".parse().unwrap())
+                .unwrap()
+        );
+        assert!(
+            policy
+                .allows_sockaddr(&"[::1]:80".parse().unwrap())
+                .unwrap()
+        );
+        assert!(
+            !policy
+                .allows_sockaddr(&"[::2]:80".parse().unwrap())
+                .unwrap()
+        );
+        assert!(
+            !policy
+                .allows_sockaddr(&"127.0.0.1:80".parse().unwrap())
+                .unwrap()
+        );
+        assert!(
+            policy
+                .allows_sockaddr(&"127.0.0.1:66".parse().unwrap())
+                .is_none()
+        );
+        assert!(
+            policy
+                .allows_sockaddr(&"127.0.0.1:0".parse().unwrap())
+                .unwrap()
+        );
         Ok(())
     }
 

@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use anyhow::anyhow;
+use axum::Router;
 use axum::response::Redirect;
 use axum::routing::get;
-use axum::Router;
 use core::net::SocketAddr;
 use nym_http_api_common::middleware::logging::log_request_info;
 use std::future::Future;

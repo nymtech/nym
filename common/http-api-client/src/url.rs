@@ -4,12 +4,12 @@
 //! functionality for handling front domains, which are used for reverse proxying.
 
 use std::fmt::Display;
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use itertools::Itertools;
-use url::form_urlencoded;
 pub use url::ParseError;
+use url::form_urlencoded;
 
 /// A trait to try to convert some type into a `Url`.
 pub trait IntoUrl {
@@ -215,13 +215,13 @@ impl Url {
 
     /// Returns true if updating the front wraps back to the first front, or if no fronts are set
     pub fn update(&self) -> bool {
-        if let Some(fronts) = &self.fronts {
-            if fronts.len() > 1 {
-                let current = self.current_front.load(Ordering::Relaxed);
-                let next = (current + 1) % fronts.len();
-                self.current_front.store(next, Ordering::Relaxed);
-                return next == 0;
-            }
+        if let Some(fronts) = &self.fronts
+            && fronts.len() > 1
+        {
+            let current = self.current_front.load(Ordering::Relaxed);
+            let next = (current + 1) % fronts.len();
+            self.current_front.store(next, Ordering::Relaxed);
+            return next == 0;
         }
         true
     }

@@ -61,7 +61,9 @@ pub enum VestingContractError {
     #[error("VESTING ({l}): No bond found for account {0}", l = line!())]
     NoBondFound(String),
 
-    #[error("VESTING: Attempted to reduce mixnode bond pledge below zero! The current pledge is {current} and we attempted to reduce it by {decrease_by}.")]
+    #[error(
+        "VESTING: Attempted to reduce mixnode bond pledge below zero! The current pledge is {current} and we attempted to reduce it by {decrease_by}."
+    )]
     InvalidBondPledgeReduction { current: Coin, decrease_by: Coin },
 
     #[error("VESTING ({l}): Action can only be executed by account owner -> {0}", l = line!())]
@@ -85,13 +87,17 @@ pub enum VestingContractError {
     #[error("VESTING: ({l}: Account owned by {owner} has unpopulated vesting periods!", l = line!())]
     UnpopulatedVestingPeriods { owner: Addr },
 
-    #[error("VESTING: Vesting account associated with {0} already exists, only addresses with not existing vesting accounts can be added as staking addresses")]
+    #[error(
+        "VESTING: Vesting account associated with {0} already exists, only addresses with not existing vesting accounts can be added as staking addresses"
+    )]
     StakingAccountExists(String),
 
     #[error("VESTING: {address} is not permitted to perform staking on behalf of {for_account}")]
     InvalidStakingAccount { address: Addr, for_account: Addr },
 
-    #[error("VESTING: {address} ({acc_id} has already performed {num} individual delegations towards {mix_id}. No further delegations are allowed. Please consider consolidating those delegations instead. The current cap is {cap}.")]
+    #[error(
+        "VESTING: {address} ({acc_id} has already performed {num} individual delegations towards {mix_id}. No further delegations are allowed. Please consider consolidating those delegations instead. The current cap is {cap}."
+    )]
     TooManyDelegations {
         address: Addr,
         acc_id: VestingAccountStorageKey,

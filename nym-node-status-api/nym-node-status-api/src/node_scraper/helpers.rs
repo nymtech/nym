@@ -1,14 +1,14 @@
 use crate::node_scraper::models::BridgeInformation;
 use crate::{
     db::{
+        DbPool,
         models::{InsertNodeScraperRecords, NodeStats, ScrapeNodeKind, ScraperNodeInfo},
         queries::insert_scraped_node_description,
-        DbPool,
     },
     utils::{generate_node_name, now_utc},
 };
 use ammonia::Builder;
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use serde::{Deserialize, Serialize};
 use sqlx::Transaction;
 use std::time::Duration;

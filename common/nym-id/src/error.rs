@@ -25,13 +25,19 @@ pub enum NymIdError {
     #[error("attempted to import an expired credential (it expired on {expiration})")]
     ExpiredCredentialImport { expiration: Date },
 
-    #[error("could not import ticketbook expiring at {date} for epoch {epoch_id} since we do not have corresponding expiration date signatures")]
+    #[error(
+        "could not import ticketbook expiring at {date} for epoch {epoch_id} since we do not have corresponding expiration date signatures"
+    )]
     MissingExpirationDateSignatures { date: Date, epoch_id: u64 },
 
-    #[error("could not import ticketbook for epoch {epoch_id} since we do not have corresponding coin index signatures")]
+    #[error(
+        "could not import ticketbook for epoch {epoch_id} since we do not have corresponding coin index signatures"
+    )]
     MissingCoinIndexSignatures { epoch_id: u64 },
 
-    #[error("could not import ticketbook for epoch {epoch_id} since we do not have corresponding master verification key")]
+    #[error(
+        "could not import ticketbook for epoch {epoch_id} since we do not have corresponding master verification key"
+    )]
     MissingMasterVerificationKey { epoch_id: u64 },
 
     #[error("failed to store credential in the provided store: {source}")]

@@ -1,6 +1,6 @@
 use axum::{
-    extract::{Query, State},
     Json, Router,
+    extract::{Query, State},
 };
 use serde::Deserialize;
 use tracing::instrument;

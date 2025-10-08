@@ -3,9 +3,9 @@
 
 use crate::helpers::IntoBaseDecimal;
 use crate::nym_node::Role;
-use crate::{error::MixnetContractError, Percent};
+use crate::{Percent, error::MixnetContractError};
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{to_json_string, Decimal};
+use cosmwasm_std::{Decimal, to_json_string};
 
 pub type Performance = Percent;
 pub type WorkFactor = Decimal;

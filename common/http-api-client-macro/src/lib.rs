@@ -60,15 +60,15 @@
 //! - Positive priorities: Late configuration (e.g., 100 for overrides)
 
 use proc_macro::TokenStream;
+use proc_macro_crate::{FoundCrate, crate_name};
 use proc_macro2::{Span, TokenStream as TokenStream2};
-use proc_macro_crate::{crate_name, FoundCrate};
 use quote::{format_ident, quote};
 use syn::{
-    braced,
+    Expr, Ident, LitInt, Result, Token, braced,
     parse::{Parse, ParseStream},
     parse_macro_input,
     punctuated::Punctuated,
-    token, Expr, Ident, LitInt, Result, Token,
+    token,
 };
 
 // ------------------ core crate path resolution ------------------

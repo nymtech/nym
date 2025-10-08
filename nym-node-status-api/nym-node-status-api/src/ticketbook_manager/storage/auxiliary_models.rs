@@ -1,8 +1,8 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use nym_credentials::ecash::bandwidth::serialiser::VersionedSerialise;
 use nym_credentials::IssuedTicketBook;
+use nym_credentials::ecash::bandwidth::serialiser::VersionedSerialise;
 use nym_node_status_client::models::AttachedTicket;
 use sqlx::FromRow;
 use time::Date;

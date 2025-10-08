@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use hkdf::{
-    hmac::{
-        digest::{crypto_common::BlockSizeUser, Digest},
-        SimpleHmac,
-    },
     Hkdf,
+    hmac::{
+        SimpleHmac,
+        digest::{Digest, crypto_common::BlockSizeUser},
+    },
 };
 use sha2::{Sha256, Sha512};
 

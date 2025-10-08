@@ -3,7 +3,7 @@ use crate::db::queries::price::{get_average_price, get_latest_price};
 use crate::http::error::Error;
 use crate::http::error::HttpResult;
 use crate::http::state::AppState;
-use axum::{extract::State, Json, Router};
+use axum::{Json, Router, extract::State};
 
 pub(crate) fn routes() -> Router<AppState> {
     Router::new()

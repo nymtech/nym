@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::{
+    QueryType, VERSION, VersionedRequest, VersionedResponse,
     available_bandwidth::{
         request::InnerAvailableBandwidthRequest, response::InnerAvailableBandwidthResponse,
     },
     topup_bandwidth::{request::InnerTopUpRequest, response::InnerTopUpResponse},
-    QueryType, VersionedRequest, VersionedResponse, VERSION,
 };
-use crate::models::{error::Error, Construct, Extract, Version};
+use crate::models::{Construct, Extract, Version, error::Error};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum RequestData {

@@ -9,7 +9,7 @@ use nym_crypto::asymmetric::x25519::PrivateKey;
 use nym_wireguard_types::PeerPublicKey;
 
 use crate::latest::registration::IpPair;
-use crate::{v1, v2, v3, v4, v5, AuthenticatorVersion, Error};
+use crate::{AuthenticatorVersion, Error, v1, v2, v3, v4, v5};
 
 pub trait Versionable {
     fn version(&self) -> AuthenticatorVersion;

@@ -14,7 +14,6 @@ readme.workspace = true
 anyhow = { workspace = true }
 cosmwasm-std = { workspace = true }
 cw-storage-plus = { workspace = true }
-
 serde = { workspace = true }
 rand_chacha = { workspace = true }
 rand = { workspace = true }

@@ -20,6 +20,7 @@ pub const VESTING_CONTRACT_ADDRESS: &str =
 
 // \/ TODO: this has to be updated once the contract is deployed
 pub const PERFORMANCE_CONTRACT_ADDRESS: &str = "";
+pub const OFFLINE_SIGNERS_CONTRACT_ADDRESS: &str = "";
 // /\ TODO: this has to be updated once the contract is deployed
 
 pub const ECASH_CONTRACT_ADDRESS: &str =

@@ -1,0 +1,64 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ExecuteMsg",
+  "oneOf": [
+    {
+      "description": "Change the admin",
+      "type": "object",
+      "required": [
+        "update_admin"
+      ],
+      "properties": {
+        "update_admin": {
+          "type": "object",
+          "required": [
+            "admin"
+          ],
+          "properties": {
+            "admin": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Propose or cast vote on particular DKG signer being offline",
+      "type": "object",
+      "required": [
+        "propose_or_vote"
+      ],
+      "properties": {
+        "propose_or_vote": {
+          "type": "object",
+          "required": [
+            "signer"
+          ],
+          "properties": {
+            "signer": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Attempt to reset own offline status",
+      "type": "object",
+      "required": [
+        "reset_offline_status"
+      ],
+      "properties": {
+        "reset_offline_status": {
+          "type": "object",
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  ]
+}

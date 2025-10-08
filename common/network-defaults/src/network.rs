@@ -26,6 +26,9 @@ pub struct NymContracts {
     pub group_contract_address: Option<String>,
     pub multisig_contract_address: Option<String>,
     pub coconut_dkg_contract_address: Option<String>,
+
+    #[serde(default)]
+    pub offline_signers_contract_address: Option<String>,
 }
 
 // I wanted to use the simpler `NetworkDetails` name, but there's a clash
@@ -186,6 +189,9 @@ impl NymNetworkDetails {
                 multisig_contract_address: parse_optional_str(mainnet::MULTISIG_CONTRACT_ADDRESS),
                 coconut_dkg_contract_address: parse_optional_str(
                     mainnet::COCONUT_DKG_CONTRACT_ADDRESS,
+                ),
+                offline_signers_contract_address: parse_optional_str(
+                    mainnet::OFFLINE_SIGNERS_CONTRACT_ADDRESS,
                 ),
             },
             nym_vpn_api_url: parse_optional_str(mainnet::NYM_VPN_API),

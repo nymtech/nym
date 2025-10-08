@@ -142,6 +142,7 @@ pub trait ChainOpts: ContractOpts {
     fn set_contract_balance(&mut self, balance: Coin);
 
     fn update_block<F: Fn(&mut BlockInfo)>(&mut self, action: F);
+
     fn set_to_epoch(&mut self) {
         self.set_block_time(Timestamp::from_seconds(0))
     }

@@ -1,0 +1,1621 @@
+{
+  "contract_name": "nym-offline-signers-contract",
+  "contract_version": "0.1.0",
+  "idl_version": "1.0.0",
+  "instantiate": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "InstantiateMsg",
+    "type": "object",
+    "required": [
+      "dkg_contract_address"
+    ],
+    "properties": {
+      "config": {
+        "default": {
+          "maximum_proposal_lifetime_secs": 14400,
+          "required_quorum": "0.5",
+          "status_change_cooldown_secs": 300
+        },
+        "allOf": [
+          {
+            "$ref": "#/definitions/Config"
+          }
+        ]
+      },
+      "dkg_contract_address": {
+        "description": "Address of the DKG contract that's used as the base of the signer information",
+        "type": "string"
+      }
+    },
+    "additionalProperties": false,
+    "definitions": {
+      "Config": {
+        "type": "object",
+        "properties": {
+          "maximum_proposal_lifetime_secs": {
+            "default": 14400,
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          },
+          "required_quorum": {
+            "default": "0.5",
+            "allOf": [
+              {
+                "$ref": "#/definitions/Decimal"
+              }
+            ]
+          },
+          "status_change_cooldown_secs": {
+            "default": 300,
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          }
+        },
+        "additionalProperties": false
+      },
+      "Decimal": {
+        "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
+        "type": "string"
+      }
+    }
+  },
+  "execute": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "ExecuteMsg",
+    "oneOf": [
+      {
+        "description": "Change the admin",
+        "type": "object",
+        "required": [
+          "update_admin"
+        ],
+        "properties": {
+          "update_admin": {
+            "type": "object",
+            "required": [
+              "admin"
+            ],
+            "properties": {
+              "admin": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Propose or cast vote on particular DKG signer being offline",
+        "type": "object",
+        "required": [
+          "propose_or_vote"
+        ],
+        "properties": {
+          "propose_or_vote": {
+            "type": "object",
+            "required": [
+              "signer"
+            ],
+            "properties": {
+              "signer": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Attempt to reset own offline status",
+        "type": "object",
+        "required": [
+          "reset_offline_status"
+        ],
+        "properties": {
+          "reset_offline_status": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      }
+    ]
+  },
+  "query": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "QueryMsg",
+    "oneOf": [
+      {
+        "type": "object",
+        "required": [
+          "admin"
+        ],
+        "properties": {
+          "admin": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Returns current config values of the contract",
+        "type": "object",
+        "required": [
+          "get_config"
+        ],
+        "properties": {
+          "get_config": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Returns information of the current active proposal against specific signer",
+        "type": "object",
+        "required": [
+          "get_active_proposal"
+        ],
+        "properties": {
+          "get_active_proposal": {
+            "type": "object",
+            "required": [
+              "signer"
+            ],
+            "properties": {
+              "signer": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Returns information about proposal with the specified id",
+        "type": "object",
+        "required": [
+          "get_proposal"
+        ],
+        "properties": {
+          "get_proposal": {
+            "type": "object",
+            "required": [
+              "proposal_id"
+            ],
+            "properties": {
+              "proposal_id": {
+                "type": "integer",
+                "format": "uint64",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Returns information on the vote from the provided voter for the specified proposal",
+        "type": "object",
+        "required": [
+          "get_vote_information"
+        ],
+        "properties": {
+          "get_vote_information": {
+            "type": "object",
+            "required": [
+              "proposal",
+              "voter"
+            ],
+            "properties": {
+              "proposal": {
+                "type": "integer",
+                "format": "uint64",
+                "minimum": 0.0
+              },
+              "voter": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Returns offline signer information for the provided signer",
+        "type": "object",
+        "required": [
+          "get_offline_signer_information"
+        ],
+        "properties": {
+          "get_offline_signer_information": {
+            "type": "object",
+            "required": [
+              "signer"
+            ],
+            "properties": {
+              "signer": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Returns list of addresses of all signers marked as offline at provided height. If no height is given, the current value is returned instead",
+        "type": "object",
+        "required": [
+          "get_offline_signers_addresses_at_height"
+        ],
+        "properties": {
+          "get_offline_signers_addresses_at_height": {
+            "type": "object",
+            "properties": {
+              "height": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "uint64",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Returns information on the last status reset of the provided signer",
+        "type": "object",
+        "required": [
+          "get_last_status_reset"
+        ],
+        "properties": {
+          "get_last_status_reset": {
+            "type": "object",
+            "required": [
+              "signer"
+            ],
+            "properties": {
+              "signer": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Returns all (paged) active proposals",
+        "type": "object",
+        "required": [
+          "get_active_proposals_paged"
+        ],
+        "properties": {
+          "get_active_proposals_paged": {
+            "type": "object",
+            "properties": {
+              "limit": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "uint32",
+                "minimum": 0.0
+              },
+              "start_after": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Returns all (paged) proposals",
+        "type": "object",
+        "required": [
+          "get_proposals_paged"
+        ],
+        "properties": {
+          "get_proposals_paged": {
+            "type": "object",
+            "properties": {
+              "limit": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "uint32",
+                "minimum": 0.0
+              },
+              "start_after": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "uint64",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Returns all (paged) votes for the specified proposal",
+        "type": "object",
+        "required": [
+          "get_votes_paged"
+        ],
+        "properties": {
+          "get_votes_paged": {
+            "type": "object",
+            "required": [
+              "proposal"
+            ],
+            "properties": {
+              "limit": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "uint32",
+                "minimum": 0.0
+              },
+              "proposal": {
+                "type": "integer",
+                "format": "uint64",
+                "minimum": 0.0
+              },
+              "start_after": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Returns all (paged) offline signers",
+        "type": "object",
+        "required": [
+          "get_offline_signers_paged"
+        ],
+        "properties": {
+          "get_offline_signers_paged": {
+            "type": "object",
+            "properties": {
+              "limit": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "uint32",
+                "minimum": 0.0
+              },
+              "start_after": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Returns all (paged) status resets",
+        "type": "object",
+        "required": [
+          "get_last_status_reset_paged"
+        ],
+        "properties": {
+          "get_last_status_reset_paged": {
+            "type": "object",
+            "properties": {
+              "limit": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "uint32",
+                "minimum": 0.0
+              },
+              "start_after": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Returns the current signing status, i.e. whether credential issuance is still possible",
+        "type": "object",
+        "required": [
+          "current_signing_status"
+        ],
+        "properties": {
+          "current_signing_status": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Returns the signing status at provided block height, i.e. whether credential issuance was possible at that point",
+        "type": "object",
+        "required": [
+          "signing_status_at_height"
+        ],
+        "properties": {
+          "signing_status_at_height": {
+            "type": "object",
+            "required": [
+              "block_height"
+            ],
+            "properties": {
+              "block_height": {
+                "type": "integer",
+                "format": "uint64",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      }
+    ]
+  },
+  "migrate": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "MigrateMsg",
+    "type": "object",
+    "additionalProperties": false
+  },
+  "sudo": null,
+  "responses": {
+    "admin": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "AdminResponse",
+      "description": "Returned from Admin.query_admin()",
+      "type": "object",
+      "properties": {
+        "admin": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "current_signing_status": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "SigningStatusResponse",
+      "type": "object",
+      "required": [
+        "current_registered_dealers",
+        "dkg_epoch_id",
+        "offline_signers",
+        "signing_threshold",
+        "threshold_available",
+        "total_group_members"
+      ],
+      "properties": {
+        "current_registered_dealers": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "dkg_epoch_id": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        },
+        "offline_signers": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "signing_threshold": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        },
+        "threshold_available": {
+          "type": "boolean"
+        },
+        "total_group_members": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        }
+      },
+      "additionalProperties": false
+    },
+    "get_active_proposal": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "ActiveProposalResponse",
+      "type": "object",
+      "properties": {
+        "proposal": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ProposalWithResolution"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "Addr": {
+          "description": "A human readable address.\n\nIn Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.\n\nThis type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.\n\nThis type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.",
+          "type": "string"
+        },
+        "BlockInfo": {
+          "type": "object",
+          "required": [
+            "chain_id",
+            "height",
+            "time"
+          ],
+          "properties": {
+            "chain_id": {
+              "type": "string"
+            },
+            "height": {
+              "description": "The height of a block is the number of blocks preceding it in the blockchain.",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "time": {
+              "description": "Absolute time of the block creation in seconds since the UNIX epoch (00:00:00 on 1970-01-01 UTC).\n\nThe source of this is the [BFT Time in Tendermint](https://github.com/tendermint/tendermint/blob/58dc1726/spec/consensus/bft-time.md), which has the same nanosecond precision as the `Timestamp` type.\n\n# Examples\n\nUsing chrono:\n\n``` # use cosmwasm_std::{Addr, BlockInfo, ContractInfo, Env, MessageInfo, Timestamp, TransactionInfo}; # let env = Env { #     block: BlockInfo { #         height: 12_345, #         time: Timestamp::from_nanos(1_571_797_419_879_305_533), #         chain_id: \"cosmos-testnet-14002\".to_string(), #     }, #     transaction: Some(TransactionInfo { index: 3 }), #     contract: ContractInfo { #         address: Addr::unchecked(\"contract\"), #     }, # }; # extern crate chrono; use chrono::NaiveDateTime; let seconds = env.block.time.seconds(); let nsecs = env.block.time.subsec_nanos(); let dt = NaiveDateTime::from_timestamp(seconds as i64, nsecs as u32); ```\n\nCreating a simple millisecond-precision timestamp (as used in JavaScript):\n\n``` # use cosmwasm_std::{Addr, BlockInfo, ContractInfo, Env, MessageInfo, Timestamp, TransactionInfo}; # let env = Env { #     block: BlockInfo { #         height: 12_345, #         time: Timestamp::from_nanos(1_571_797_419_879_305_533), #         chain_id: \"cosmos-testnet-14002\".to_string(), #     }, #     transaction: Some(TransactionInfo { index: 3 }), #     contract: ContractInfo { #         address: Addr::unchecked(\"contract\"), #     }, # }; let millis = env.block.time.nanos() / 1_000_000; ```",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Timestamp"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "Proposal": {
+          "type": "object",
+          "required": [
+            "created_at",
+            "id",
+            "proposed_offline_signer",
+            "proposer"
+          ],
+          "properties": {
+            "created_at": {
+              "$ref": "#/definitions/BlockInfo"
+            },
+            "id": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "proposed_offline_signer": {
+              "$ref": "#/definitions/Addr"
+            },
+            "proposer": {
+              "$ref": "#/definitions/Addr"
+            }
+          },
+          "additionalProperties": false
+        },
+        "ProposalWithResolution": {
+          "type": "object",
+          "required": [
+            "passed",
+            "proposal",
+            "voting_finished"
+          ],
+          "properties": {
+            "passed": {
+              "type": "boolean"
+            },
+            "proposal": {
+              "$ref": "#/definitions/Proposal"
+            },
+            "voting_finished": {
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
+        },
+        "Timestamp": {
+          "description": "A point in time in nanosecond precision.\n\nThis type can represent times from 1970-01-01T00:00:00Z to 2554-07-21T23:34:33Z.\n\n## Examples\n\n``` # use cosmwasm_std::Timestamp; let ts = Timestamp::from_nanos(1_000_000_202); assert_eq!(ts.nanos(), 1_000_000_202); assert_eq!(ts.seconds(), 1); assert_eq!(ts.subsec_nanos(), 202);\n\nlet ts = ts.plus_seconds(2); assert_eq!(ts.nanos(), 3_000_000_202); assert_eq!(ts.seconds(), 3); assert_eq!(ts.subsec_nanos(), 202); ```",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Uint64"
+            }
+          ]
+        },
+        "Uint64": {
+          "description": "A thin wrapper around u64 that is using strings for JSON encoding/decoding, such that the full u64 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u64` to get the value out:\n\n``` # use cosmwasm_std::Uint64; let a = Uint64::from(42u64); assert_eq!(a.u64(), 42);\n\nlet b = Uint64::from(70u32); assert_eq!(b.u64(), 70); ```",
+          "type": "string"
+        }
+      }
+    },
+    "get_active_proposals_paged": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "ActiveProposalsPagedResponse",
+      "type": "object",
+      "required": [
+        "active_proposals"
+      ],
+      "properties": {
+        "active_proposals": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ProposalWithResolution"
+          }
+        },
+        "start_next_after": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "Addr": {
+          "description": "A human readable address.\n\nIn Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.\n\nThis type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.\n\nThis type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.",
+          "type": "string"
+        },
+        "BlockInfo": {
+          "type": "object",
+          "required": [
+            "chain_id",
+            "height",
+            "time"
+          ],
+          "properties": {
+            "chain_id": {
+              "type": "string"
+            },
+            "height": {
+              "description": "The height of a block is the number of blocks preceding it in the blockchain.",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "time": {
+              "description": "Absolute time of the block creation in seconds since the UNIX epoch (00:00:00 on 1970-01-01 UTC).\n\nThe source of this is the [BFT Time in Tendermint](https://github.com/tendermint/tendermint/blob/58dc1726/spec/consensus/bft-time.md), which has the same nanosecond precision as the `Timestamp` type.\n\n# Examples\n\nUsing chrono:\n\n``` # use cosmwasm_std::{Addr, BlockInfo, ContractInfo, Env, MessageInfo, Timestamp, TransactionInfo}; # let env = Env { #     block: BlockInfo { #         height: 12_345, #         time: Timestamp::from_nanos(1_571_797_419_879_305_533), #         chain_id: \"cosmos-testnet-14002\".to_string(), #     }, #     transaction: Some(TransactionInfo { index: 3 }), #     contract: ContractInfo { #         address: Addr::unchecked(\"contract\"), #     }, # }; # extern crate chrono; use chrono::NaiveDateTime; let seconds = env.block.time.seconds(); let nsecs = env.block.time.subsec_nanos(); let dt = NaiveDateTime::from_timestamp(seconds as i64, nsecs as u32); ```\n\nCreating a simple millisecond-precision timestamp (as used in JavaScript):\n\n``` # use cosmwasm_std::{Addr, BlockInfo, ContractInfo, Env, MessageInfo, Timestamp, TransactionInfo}; # let env = Env { #     block: BlockInfo { #         height: 12_345, #         time: Timestamp::from_nanos(1_571_797_419_879_305_533), #         chain_id: \"cosmos-testnet-14002\".to_string(), #     }, #     transaction: Some(TransactionInfo { index: 3 }), #     contract: ContractInfo { #         address: Addr::unchecked(\"contract\"), #     }, # }; let millis = env.block.time.nanos() / 1_000_000; ```",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Timestamp"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "Proposal": {
+          "type": "object",
+          "required": [
+            "created_at",
+            "id",
+            "proposed_offline_signer",
+            "proposer"
+          ],
+          "properties": {
+            "created_at": {
+              "$ref": "#/definitions/BlockInfo"
+            },
+            "id": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "proposed_offline_signer": {
+              "$ref": "#/definitions/Addr"
+            },
+            "proposer": {
+              "$ref": "#/definitions/Addr"
+            }
+          },
+          "additionalProperties": false
+        },
+        "ProposalWithResolution": {
+          "type": "object",
+          "required": [
+            "passed",
+            "proposal",
+            "voting_finished"
+          ],
+          "properties": {
+            "passed": {
+              "type": "boolean"
+            },
+            "proposal": {
+              "$ref": "#/definitions/Proposal"
+            },
+            "voting_finished": {
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
+        },
+        "Timestamp": {
+          "description": "A point in time in nanosecond precision.\n\nThis type can represent times from 1970-01-01T00:00:00Z to 2554-07-21T23:34:33Z.\n\n## Examples\n\n``` # use cosmwasm_std::Timestamp; let ts = Timestamp::from_nanos(1_000_000_202); assert_eq!(ts.nanos(), 1_000_000_202); assert_eq!(ts.seconds(), 1); assert_eq!(ts.subsec_nanos(), 202);\n\nlet ts = ts.plus_seconds(2); assert_eq!(ts.nanos(), 3_000_000_202); assert_eq!(ts.seconds(), 3); assert_eq!(ts.subsec_nanos(), 202); ```",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Uint64"
+            }
+          ]
+        },
+        "Uint64": {
+          "description": "A thin wrapper around u64 that is using strings for JSON encoding/decoding, such that the full u64 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u64` to get the value out:\n\n``` # use cosmwasm_std::Uint64; let a = Uint64::from(42u64); assert_eq!(a.u64(), 42);\n\nlet b = Uint64::from(70u32); assert_eq!(b.u64(), 70); ```",
+          "type": "string"
+        }
+      }
+    },
+    "get_config": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Config",
+      "type": "object",
+      "properties": {
+        "maximum_proposal_lifetime_secs": {
+          "default": 14400,
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        },
+        "required_quorum": {
+          "default": "0.5",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Decimal"
+            }
+          ]
+        },
+        "status_change_cooldown_secs": {
+          "default": 300,
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "Decimal": {
+          "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
+          "type": "string"
+        }
+      }
+    },
+    "get_last_status_reset": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "LastStatusResetResponse",
+      "type": "object",
+      "properties": {
+        "information": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/StatusResetInformation"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "BlockInfo": {
+          "type": "object",
+          "required": [
+            "chain_id",
+            "height",
+            "time"
+          ],
+          "properties": {
+            "chain_id": {
+              "type": "string"
+            },
+            "height": {
+              "description": "The height of a block is the number of blocks preceding it in the blockchain.",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "time": {
+              "description": "Absolute time of the block creation in seconds since the UNIX epoch (00:00:00 on 1970-01-01 UTC).\n\nThe source of this is the [BFT Time in Tendermint](https://github.com/tendermint/tendermint/blob/58dc1726/spec/consensus/bft-time.md), which has the same nanosecond precision as the `Timestamp` type.\n\n# Examples\n\nUsing chrono:\n\n``` # use cosmwasm_std::{Addr, BlockInfo, ContractInfo, Env, MessageInfo, Timestamp, TransactionInfo}; # let env = Env { #     block: BlockInfo { #         height: 12_345, #         time: Timestamp::from_nanos(1_571_797_419_879_305_533), #         chain_id: \"cosmos-testnet-14002\".to_string(), #     }, #     transaction: Some(TransactionInfo { index: 3 }), #     contract: ContractInfo { #         address: Addr::unchecked(\"contract\"), #     }, # }; # extern crate chrono; use chrono::NaiveDateTime; let seconds = env.block.time.seconds(); let nsecs = env.block.time.subsec_nanos(); let dt = NaiveDateTime::from_timestamp(seconds as i64, nsecs as u32); ```\n\nCreating a simple millisecond-precision timestamp (as used in JavaScript):\n\n``` # use cosmwasm_std::{Addr, BlockInfo, ContractInfo, Env, MessageInfo, Timestamp, TransactionInfo}; # let env = Env { #     block: BlockInfo { #         height: 12_345, #         time: Timestamp::from_nanos(1_571_797_419_879_305_533), #         chain_id: \"cosmos-testnet-14002\".to_string(), #     }, #     transaction: Some(TransactionInfo { index: 3 }), #     contract: ContractInfo { #         address: Addr::unchecked(\"contract\"), #     }, # }; let millis = env.block.time.nanos() / 1_000_000; ```",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Timestamp"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "StatusResetInformation": {
+          "type": "object",
+          "required": [
+            "status_reset_at"
+          ],
+          "properties": {
+            "status_reset_at": {
+              "$ref": "#/definitions/BlockInfo"
+            }
+          },
+          "additionalProperties": false
+        },
+        "Timestamp": {
+          "description": "A point in time in nanosecond precision.\n\nThis type can represent times from 1970-01-01T00:00:00Z to 2554-07-21T23:34:33Z.\n\n## Examples\n\n``` # use cosmwasm_std::Timestamp; let ts = Timestamp::from_nanos(1_000_000_202); assert_eq!(ts.nanos(), 1_000_000_202); assert_eq!(ts.seconds(), 1); assert_eq!(ts.subsec_nanos(), 202);\n\nlet ts = ts.plus_seconds(2); assert_eq!(ts.nanos(), 3_000_000_202); assert_eq!(ts.seconds(), 3); assert_eq!(ts.subsec_nanos(), 202); ```",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Uint64"
+            }
+          ]
+        },
+        "Uint64": {
+          "description": "A thin wrapper around u64 that is using strings for JSON encoding/decoding, such that the full u64 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u64` to get the value out:\n\n``` # use cosmwasm_std::Uint64; let a = Uint64::from(42u64); assert_eq!(a.u64(), 42);\n\nlet b = Uint64::from(70u32); assert_eq!(b.u64(), 70); ```",
+          "type": "string"
+        }
+      }
+    },
+    "get_last_status_reset_paged": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "LastStatusResetPagedResponse",
+      "type": "object",
+      "required": [
+        "status_resets"
+      ],
+      "properties": {
+        "start_next_after": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "status_resets": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/LastStatusResetDetails"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "Addr": {
+          "description": "A human readable address.\n\nIn Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.\n\nThis type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.\n\nThis type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.",
+          "type": "string"
+        },
+        "BlockInfo": {
+          "type": "object",
+          "required": [
+            "chain_id",
+            "height",
+            "time"
+          ],
+          "properties": {
+            "chain_id": {
+              "type": "string"
+            },
+            "height": {
+              "description": "The height of a block is the number of blocks preceding it in the blockchain.",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "time": {
+              "description": "Absolute time of the block creation in seconds since the UNIX epoch (00:00:00 on 1970-01-01 UTC).\n\nThe source of this is the [BFT Time in Tendermint](https://github.com/tendermint/tendermint/blob/58dc1726/spec/consensus/bft-time.md), which has the same nanosecond precision as the `Timestamp` type.\n\n# Examples\n\nUsing chrono:\n\n``` # use cosmwasm_std::{Addr, BlockInfo, ContractInfo, Env, MessageInfo, Timestamp, TransactionInfo}; # let env = Env { #     block: BlockInfo { #         height: 12_345, #         time: Timestamp::from_nanos(1_571_797_419_879_305_533), #         chain_id: \"cosmos-testnet-14002\".to_string(), #     }, #     transaction: Some(TransactionInfo { index: 3 }), #     contract: ContractInfo { #         address: Addr::unchecked(\"contract\"), #     }, # }; # extern crate chrono; use chrono::NaiveDateTime; let seconds = env.block.time.seconds(); let nsecs = env.block.time.subsec_nanos(); let dt = NaiveDateTime::from_timestamp(seconds as i64, nsecs as u32); ```\n\nCreating a simple millisecond-precision timestamp (as used in JavaScript):\n\n``` # use cosmwasm_std::{Addr, BlockInfo, ContractInfo, Env, MessageInfo, Timestamp, TransactionInfo}; # let env = Env { #     block: BlockInfo { #         height: 12_345, #         time: Timestamp::from_nanos(1_571_797_419_879_305_533), #         chain_id: \"cosmos-testnet-14002\".to_string(), #     }, #     transaction: Some(TransactionInfo { index: 3 }), #     contract: ContractInfo { #         address: Addr::unchecked(\"contract\"), #     }, # }; let millis = env.block.time.nanos() / 1_000_000; ```",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Timestamp"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "LastStatusResetDetails": {
+          "type": "object",
+          "required": [
+            "information",
+            "signer"
+          ],
+          "properties": {
+            "information": {
+              "$ref": "#/definitions/StatusResetInformation"
+            },
+            "signer": {
+              "$ref": "#/definitions/Addr"
+            }
+          },
+          "additionalProperties": false
+        },
+        "StatusResetInformation": {
+          "type": "object",
+          "required": [
+            "status_reset_at"
+          ],
+          "properties": {
+            "status_reset_at": {
+              "$ref": "#/definitions/BlockInfo"
+            }
+          },
+          "additionalProperties": false
+        },
+        "Timestamp": {
+          "description": "A point in time in nanosecond precision.\n\nThis type can represent times from 1970-01-01T00:00:00Z to 2554-07-21T23:34:33Z.\n\n## Examples\n\n``` # use cosmwasm_std::Timestamp; let ts = Timestamp::from_nanos(1_000_000_202); assert_eq!(ts.nanos(), 1_000_000_202); assert_eq!(ts.seconds(), 1); assert_eq!(ts.subsec_nanos(), 202);\n\nlet ts = ts.plus_seconds(2); assert_eq!(ts.nanos(), 3_000_000_202); assert_eq!(ts.seconds(), 3); assert_eq!(ts.subsec_nanos(), 202); ```",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Uint64"
+            }
+          ]
+        },
+        "Uint64": {
+          "description": "A thin wrapper around u64 that is using strings for JSON encoding/decoding, such that the full u64 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u64` to get the value out:\n\n``` # use cosmwasm_std::Uint64; let a = Uint64::from(42u64); assert_eq!(a.u64(), 42);\n\nlet b = Uint64::from(70u32); assert_eq!(b.u64(), 70); ```",
+          "type": "string"
+        }
+      }
+    },
+    "get_offline_signer_information": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "OfflineSignerResponse",
+      "type": "object",
+      "properties": {
+        "information": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/OfflineSignerInformation"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "BlockInfo": {
+          "type": "object",
+          "required": [
+            "chain_id",
+            "height",
+            "time"
+          ],
+          "properties": {
+            "chain_id": {
+              "type": "string"
+            },
+            "height": {
+              "description": "The height of a block is the number of blocks preceding it in the blockchain.",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "time": {
+              "description": "Absolute time of the block creation in seconds since the UNIX epoch (00:00:00 on 1970-01-01 UTC).\n\nThe source of this is the [BFT Time in Tendermint](https://github.com/tendermint/tendermint/blob/58dc1726/spec/consensus/bft-time.md), which has the same nanosecond precision as the `Timestamp` type.\n\n# Examples\n\nUsing chrono:\n\n``` # use cosmwasm_std::{Addr, BlockInfo, ContractInfo, Env, MessageInfo, Timestamp, TransactionInfo}; # let env = Env { #     block: BlockInfo { #         height: 12_345, #         time: Timestamp::from_nanos(1_571_797_419_879_305_533), #         chain_id: \"cosmos-testnet-14002\".to_string(), #     }, #     transaction: Some(TransactionInfo { index: 3 }), #     contract: ContractInfo { #         address: Addr::unchecked(\"contract\"), #     }, # }; # extern crate chrono; use chrono::NaiveDateTime; let seconds = env.block.time.seconds(); let nsecs = env.block.time.subsec_nanos(); let dt = NaiveDateTime::from_timestamp(seconds as i64, nsecs as u32); ```\n\nCreating a simple millisecond-precision timestamp (as used in JavaScript):\n\n``` # use cosmwasm_std::{Addr, BlockInfo, ContractInfo, Env, MessageInfo, Timestamp, TransactionInfo}; # let env = Env { #     block: BlockInfo { #         height: 12_345, #         time: Timestamp::from_nanos(1_571_797_419_879_305_533), #         chain_id: \"cosmos-testnet-14002\".to_string(), #     }, #     transaction: Some(TransactionInfo { index: 3 }), #     contract: ContractInfo { #         address: Addr::unchecked(\"contract\"), #     }, # }; let millis = env.block.time.nanos() / 1_000_000; ```",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Timestamp"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "OfflineSignerInformation": {
+          "type": "object",
+          "required": [
+            "associated_proposal",
+            "marked_offline_at"
+          ],
+          "properties": {
+            "associated_proposal": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "marked_offline_at": {
+              "$ref": "#/definitions/BlockInfo"
+            }
+          },
+          "additionalProperties": false
+        },
+        "Timestamp": {
+          "description": "A point in time in nanosecond precision.\n\nThis type can represent times from 1970-01-01T00:00:00Z to 2554-07-21T23:34:33Z.\n\n## Examples\n\n``` # use cosmwasm_std::Timestamp; let ts = Timestamp::from_nanos(1_000_000_202); assert_eq!(ts.nanos(), 1_000_000_202); assert_eq!(ts.seconds(), 1); assert_eq!(ts.subsec_nanos(), 202);\n\nlet ts = ts.plus_seconds(2); assert_eq!(ts.nanos(), 3_000_000_202); assert_eq!(ts.seconds(), 3); assert_eq!(ts.subsec_nanos(), 202); ```",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Uint64"
+            }
+          ]
+        },
+        "Uint64": {
+          "description": "A thin wrapper around u64 that is using strings for JSON encoding/decoding, such that the full u64 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u64` to get the value out:\n\n``` # use cosmwasm_std::Uint64; let a = Uint64::from(42u64); assert_eq!(a.u64(), 42);\n\nlet b = Uint64::from(70u32); assert_eq!(b.u64(), 70); ```",
+          "type": "string"
+        }
+      }
+    },
+    "get_offline_signers_addresses_at_height": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "OfflineSignersAddressesResponse",
+      "type": "object",
+      "required": [
+        "addresses"
+      ],
+      "properties": {
+        "addresses": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Addr"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "Addr": {
+          "description": "A human readable address.\n\nIn Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.\n\nThis type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.\n\nThis type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.",
+          "type": "string"
+        }
+      }
+    },
+    "get_offline_signers_paged": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "OfflineSignersPagedResponse",
+      "type": "object",
+      "required": [
+        "offline_signers"
+      ],
+      "properties": {
+        "offline_signers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/OfflineSignerDetails"
+          }
+        },
+        "start_next_after": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "Addr": {
+          "description": "A human readable address.\n\nIn Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.\n\nThis type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.\n\nThis type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.",
+          "type": "string"
+        },
+        "BlockInfo": {
+          "type": "object",
+          "required": [
+            "chain_id",
+            "height",
+            "time"
+          ],
+          "properties": {
+            "chain_id": {
+              "type": "string"
+            },
+            "height": {
+              "description": "The height of a block is the number of blocks preceding it in the blockchain.",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "time": {
+              "description": "Absolute time of the block creation in seconds since the UNIX epoch (00:00:00 on 1970-01-01 UTC).\n\nThe source of this is the [BFT Time in Tendermint](https://github.com/tendermint/tendermint/blob/58dc1726/spec/consensus/bft-time.md), which has the same nanosecond precision as the `Timestamp` type.\n\n# Examples\n\nUsing chrono:\n\n``` # use cosmwasm_std::{Addr, BlockInfo, ContractInfo, Env, MessageInfo, Timestamp, TransactionInfo}; # let env = Env { #     block: BlockInfo { #         height: 12_345, #         time: Timestamp::from_nanos(1_571_797_419_879_305_533), #         chain_id: \"cosmos-testnet-14002\".to_string(), #     }, #     transaction: Some(TransactionInfo { index: 3 }), #     contract: ContractInfo { #         address: Addr::unchecked(\"contract\"), #     }, # }; # extern crate chrono; use chrono::NaiveDateTime; let seconds = env.block.time.seconds(); let nsecs = env.block.time.subsec_nanos(); let dt = NaiveDateTime::from_timestamp(seconds as i64, nsecs as u32); ```\n\nCreating a simple millisecond-precision timestamp (as used in JavaScript):\n\n``` # use cosmwasm_std::{Addr, BlockInfo, ContractInfo, Env, MessageInfo, Timestamp, TransactionInfo}; # let env = Env { #     block: BlockInfo { #         height: 12_345, #         time: Timestamp::from_nanos(1_571_797_419_879_305_533), #         chain_id: \"cosmos-testnet-14002\".to_string(), #     }, #     transaction: Some(TransactionInfo { index: 3 }), #     contract: ContractInfo { #         address: Addr::unchecked(\"contract\"), #     }, # }; let millis = env.block.time.nanos() / 1_000_000; ```",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Timestamp"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "OfflineSignerDetails": {
+          "type": "object",
+          "required": [
+            "information",
+            "signer"
+          ],
+          "properties": {
+            "information": {
+              "$ref": "#/definitions/OfflineSignerInformation"
+            },
+            "signer": {
+              "$ref": "#/definitions/Addr"
+            }
+          },
+          "additionalProperties": false
+        },
+        "OfflineSignerInformation": {
+          "type": "object",
+          "required": [
+            "associated_proposal",
+            "marked_offline_at"
+          ],
+          "properties": {
+            "associated_proposal": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "marked_offline_at": {
+              "$ref": "#/definitions/BlockInfo"
+            }
+          },
+          "additionalProperties": false
+        },
+        "Timestamp": {
+          "description": "A point in time in nanosecond precision.\n\nThis type can represent times from 1970-01-01T00:00:00Z to 2554-07-21T23:34:33Z.\n\n## Examples\n\n``` # use cosmwasm_std::Timestamp; let ts = Timestamp::from_nanos(1_000_000_202); assert_eq!(ts.nanos(), 1_000_000_202); assert_eq!(ts.seconds(), 1); assert_eq!(ts.subsec_nanos(), 202);\n\nlet ts = ts.plus_seconds(2); assert_eq!(ts.nanos(), 3_000_000_202); assert_eq!(ts.seconds(), 3); assert_eq!(ts.subsec_nanos(), 202); ```",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Uint64"
+            }
+          ]
+        },
+        "Uint64": {
+          "description": "A thin wrapper around u64 that is using strings for JSON encoding/decoding, such that the full u64 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u64` to get the value out:\n\n``` # use cosmwasm_std::Uint64; let a = Uint64::from(42u64); assert_eq!(a.u64(), 42);\n\nlet b = Uint64::from(70u32); assert_eq!(b.u64(), 70); ```",
+          "type": "string"
+        }
+      }
+    },
+    "get_proposal": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "ProposalResponse",
+      "type": "object",
+      "properties": {
+        "proposal": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ProposalWithResolution"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "Addr": {
+          "description": "A human readable address.\n\nIn Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.\n\nThis type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.\n\nThis type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.",
+          "type": "string"
+        },
+        "BlockInfo": {
+          "type": "object",
+          "required": [
+            "chain_id",
+            "height",
+            "time"
+          ],
+          "properties": {
+            "chain_id": {
+              "type": "string"
+            },
+            "height": {
+              "description": "The height of a block is the number of blocks preceding it in the blockchain.",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "time": {
+              "description": "Absolute time of the block creation in seconds since the UNIX epoch (00:00:00 on 1970-01-01 UTC).\n\nThe source of this is the [BFT Time in Tendermint](https://github.com/tendermint/tendermint/blob/58dc1726/spec/consensus/bft-time.md), which has the same nanosecond precision as the `Timestamp` type.\n\n# Examples\n\nUsing chrono:\n\n``` # use cosmwasm_std::{Addr, BlockInfo, ContractInfo, Env, MessageInfo, Timestamp, TransactionInfo}; # let env = Env { #     block: BlockInfo { #         height: 12_345, #         time: Timestamp::from_nanos(1_571_797_419_879_305_533), #         chain_id: \"cosmos-testnet-14002\".to_string(), #     }, #     transaction: Some(TransactionInfo { index: 3 }), #     contract: ContractInfo { #         address: Addr::unchecked(\"contract\"), #     }, # }; # extern crate chrono; use chrono::NaiveDateTime; let seconds = env.block.time.seconds(); let nsecs = env.block.time.subsec_nanos(); let dt = NaiveDateTime::from_timestamp(seconds as i64, nsecs as u32); ```\n\nCreating a simple millisecond-precision timestamp (as used in JavaScript):\n\n``` # use cosmwasm_std::{Addr, BlockInfo, ContractInfo, Env, MessageInfo, Timestamp, TransactionInfo}; # let env = Env { #     block: BlockInfo { #         height: 12_345, #         time: Timestamp::from_nanos(1_571_797_419_879_305_533), #         chain_id: \"cosmos-testnet-14002\".to_string(), #     }, #     transaction: Some(TransactionInfo { index: 3 }), #     contract: ContractInfo { #         address: Addr::unchecked(\"contract\"), #     }, # }; let millis = env.block.time.nanos() / 1_000_000; ```",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Timestamp"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "Proposal": {
+          "type": "object",
+          "required": [
+            "created_at",
+            "id",
+            "proposed_offline_signer",
+            "proposer"
+          ],
+          "properties": {
+            "created_at": {
+              "$ref": "#/definitions/BlockInfo"
+            },
+            "id": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "proposed_offline_signer": {
+              "$ref": "#/definitions/Addr"
+            },
+            "proposer": {
+              "$ref": "#/definitions/Addr"
+            }
+          },
+          "additionalProperties": false
+        },
+        "ProposalWithResolution": {
+          "type": "object",
+          "required": [
+            "passed",
+            "proposal",
+            "voting_finished"
+          ],
+          "properties": {
+            "passed": {
+              "type": "boolean"
+            },
+            "proposal": {
+              "$ref": "#/definitions/Proposal"
+            },
+            "voting_finished": {
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
+        },
+        "Timestamp": {
+          "description": "A point in time in nanosecond precision.\n\nThis type can represent times from 1970-01-01T00:00:00Z to 2554-07-21T23:34:33Z.\n\n## Examples\n\n``` # use cosmwasm_std::Timestamp; let ts = Timestamp::from_nanos(1_000_000_202); assert_eq!(ts.nanos(), 1_000_000_202); assert_eq!(ts.seconds(), 1); assert_eq!(ts.subsec_nanos(), 202);\n\nlet ts = ts.plus_seconds(2); assert_eq!(ts.nanos(), 3_000_000_202); assert_eq!(ts.seconds(), 3); assert_eq!(ts.subsec_nanos(), 202); ```",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Uint64"
+            }
+          ]
+        },
+        "Uint64": {
+          "description": "A thin wrapper around u64 that is using strings for JSON encoding/decoding, such that the full u64 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u64` to get the value out:\n\n``` # use cosmwasm_std::Uint64; let a = Uint64::from(42u64); assert_eq!(a.u64(), 42);\n\nlet b = Uint64::from(70u32); assert_eq!(b.u64(), 70); ```",
+          "type": "string"
+        }
+      }
+    },
+    "get_proposals_paged": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "ProposalsPagedResponse",
+      "type": "object",
+      "required": [
+        "proposals"
+      ],
+      "properties": {
+        "proposals": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Proposal"
+          }
+        },
+        "start_next_after": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0.0
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "Addr": {
+          "description": "A human readable address.\n\nIn Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.\n\nThis type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.\n\nThis type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.",
+          "type": "string"
+        },
+        "BlockInfo": {
+          "type": "object",
+          "required": [
+            "chain_id",
+            "height",
+            "time"
+          ],
+          "properties": {
+            "chain_id": {
+              "type": "string"
+            },
+            "height": {
+              "description": "The height of a block is the number of blocks preceding it in the blockchain.",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "time": {
+              "description": "Absolute time of the block creation in seconds since the UNIX epoch (00:00:00 on 1970-01-01 UTC).\n\nThe source of this is the [BFT Time in Tendermint](https://github.com/tendermint/tendermint/blob/58dc1726/spec/consensus/bft-time.md), which has the same nanosecond precision as the `Timestamp` type.\n\n# Examples\n\nUsing chrono:\n\n``` # use cosmwasm_std::{Addr, BlockInfo, ContractInfo, Env, MessageInfo, Timestamp, TransactionInfo}; # let env = Env { #     block: BlockInfo { #         height: 12_345, #         time: Timestamp::from_nanos(1_571_797_419_879_305_533), #         chain_id: \"cosmos-testnet-14002\".to_string(), #     }, #     transaction: Some(TransactionInfo { index: 3 }), #     contract: ContractInfo { #         address: Addr::unchecked(\"contract\"), #     }, # }; # extern crate chrono; use chrono::NaiveDateTime; let seconds = env.block.time.seconds(); let nsecs = env.block.time.subsec_nanos(); let dt = NaiveDateTime::from_timestamp(seconds as i64, nsecs as u32); ```\n\nCreating a simple millisecond-precision timestamp (as used in JavaScript):\n\n``` # use cosmwasm_std::{Addr, BlockInfo, ContractInfo, Env, MessageInfo, Timestamp, TransactionInfo}; # let env = Env { #     block: BlockInfo { #         height: 12_345, #         time: Timestamp::from_nanos(1_571_797_419_879_305_533), #         chain_id: \"cosmos-testnet-14002\".to_string(), #     }, #     transaction: Some(TransactionInfo { index: 3 }), #     contract: ContractInfo { #         address: Addr::unchecked(\"contract\"), #     }, # }; let millis = env.block.time.nanos() / 1_000_000; ```",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Timestamp"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "Proposal": {
+          "type": "object",
+          "required": [
+            "created_at",
+            "id",
+            "proposed_offline_signer",
+            "proposer"
+          ],
+          "properties": {
+            "created_at": {
+              "$ref": "#/definitions/BlockInfo"
+            },
+            "id": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "proposed_offline_signer": {
+              "$ref": "#/definitions/Addr"
+            },
+            "proposer": {
+              "$ref": "#/definitions/Addr"
+            }
+          },
+          "additionalProperties": false
+        },
+        "Timestamp": {
+          "description": "A point in time in nanosecond precision.\n\nThis type can represent times from 1970-01-01T00:00:00Z to 2554-07-21T23:34:33Z.\n\n## Examples\n\n``` # use cosmwasm_std::Timestamp; let ts = Timestamp::from_nanos(1_000_000_202); assert_eq!(ts.nanos(), 1_000_000_202); assert_eq!(ts.seconds(), 1); assert_eq!(ts.subsec_nanos(), 202);\n\nlet ts = ts.plus_seconds(2); assert_eq!(ts.nanos(), 3_000_000_202); assert_eq!(ts.seconds(), 3); assert_eq!(ts.subsec_nanos(), 202); ```",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Uint64"
+            }
+          ]
+        },
+        "Uint64": {
+          "description": "A thin wrapper around u64 that is using strings for JSON encoding/decoding, such that the full u64 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u64` to get the value out:\n\n``` # use cosmwasm_std::Uint64; let a = Uint64::from(42u64); assert_eq!(a.u64(), 42);\n\nlet b = Uint64::from(70u32); assert_eq!(b.u64(), 70); ```",
+          "type": "string"
+        }
+      }
+    },
+    "get_vote_information": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "VoteResponse",
+      "type": "object",
+      "properties": {
+        "vote": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/VoteInformation"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "BlockInfo": {
+          "type": "object",
+          "required": [
+            "chain_id",
+            "height",
+            "time"
+          ],
+          "properties": {
+            "chain_id": {
+              "type": "string"
+            },
+            "height": {
+              "description": "The height of a block is the number of blocks preceding it in the blockchain.",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "time": {
+              "description": "Absolute time of the block creation in seconds since the UNIX epoch (00:00:00 on 1970-01-01 UTC).\n\nThe source of this is the [BFT Time in Tendermint](https://github.com/tendermint/tendermint/blob/58dc1726/spec/consensus/bft-time.md), which has the same nanosecond precision as the `Timestamp` type.\n\n# Examples\n\nUsing chrono:\n\n``` # use cosmwasm_std::{Addr, BlockInfo, ContractInfo, Env, MessageInfo, Timestamp, TransactionInfo}; # let env = Env { #     block: BlockInfo { #         height: 12_345, #         time: Timestamp::from_nanos(1_571_797_419_879_305_533), #         chain_id: \"cosmos-testnet-14002\".to_string(), #     }, #     transaction: Some(TransactionInfo { index: 3 }), #     contract: ContractInfo { #         address: Addr::unchecked(\"contract\"), #     }, # }; # extern crate chrono; use chrono::NaiveDateTime; let seconds = env.block.time.seconds(); let nsecs = env.block.time.subsec_nanos(); let dt = NaiveDateTime::from_timestamp(seconds as i64, nsecs as u32); ```\n\nCreating a simple millisecond-precision timestamp (as used in JavaScript):\n\n``` # use cosmwasm_std::{Addr, BlockInfo, ContractInfo, Env, MessageInfo, Timestamp, TransactionInfo}; # let env = Env { #     block: BlockInfo { #         height: 12_345, #         time: Timestamp::from_nanos(1_571_797_419_879_305_533), #         chain_id: \"cosmos-testnet-14002\".to_string(), #     }, #     transaction: Some(TransactionInfo { index: 3 }), #     contract: ContractInfo { #         address: Addr::unchecked(\"contract\"), #     }, # }; let millis = env.block.time.nanos() / 1_000_000; ```",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Timestamp"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "Timestamp": {
+          "description": "A point in time in nanosecond precision.\n\nThis type can represent times from 1970-01-01T00:00:00Z to 2554-07-21T23:34:33Z.\n\n## Examples\n\n``` # use cosmwasm_std::Timestamp; let ts = Timestamp::from_nanos(1_000_000_202); assert_eq!(ts.nanos(), 1_000_000_202); assert_eq!(ts.seconds(), 1); assert_eq!(ts.subsec_nanos(), 202);\n\nlet ts = ts.plus_seconds(2); assert_eq!(ts.nanos(), 3_000_000_202); assert_eq!(ts.seconds(), 3); assert_eq!(ts.subsec_nanos(), 202); ```",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Uint64"
+            }
+          ]
+        },
+        "Uint64": {
+          "description": "A thin wrapper around u64 that is using strings for JSON encoding/decoding, such that the full u64 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u64` to get the value out:\n\n``` # use cosmwasm_std::Uint64; let a = Uint64::from(42u64); assert_eq!(a.u64(), 42);\n\nlet b = Uint64::from(70u32); assert_eq!(b.u64(), 70); ```",
+          "type": "string"
+        },
+        "VoteInformation": {
+          "type": "object",
+          "required": [
+            "voted_at"
+          ],
+          "properties": {
+            "voted_at": {
+              "$ref": "#/definitions/BlockInfo"
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    },
+    "get_votes_paged": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "VotesPagedResponse",
+      "type": "object",
+      "required": [
+        "votes"
+      ],
+      "properties": {
+        "start_next_after": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "votes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/VoteDetails"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "Addr": {
+          "description": "A human readable address.\n\nIn Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.\n\nThis type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.\n\nThis type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.",
+          "type": "string"
+        },
+        "BlockInfo": {
+          "type": "object",
+          "required": [
+            "chain_id",
+            "height",
+            "time"
+          ],
+          "properties": {
+            "chain_id": {
+              "type": "string"
+            },
+            "height": {
+              "description": "The height of a block is the number of blocks preceding it in the blockchain.",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "time": {
+              "description": "Absolute time of the block creation in seconds since the UNIX epoch (00:00:00 on 1970-01-01 UTC).\n\nThe source of this is the [BFT Time in Tendermint](https://github.com/tendermint/tendermint/blob/58dc1726/spec/consensus/bft-time.md), which has the same nanosecond precision as the `Timestamp` type.\n\n# Examples\n\nUsing chrono:\n\n``` # use cosmwasm_std::{Addr, BlockInfo, ContractInfo, Env, MessageInfo, Timestamp, TransactionInfo}; # let env = Env { #     block: BlockInfo { #         height: 12_345, #         time: Timestamp::from_nanos(1_571_797_419_879_305_533), #         chain_id: \"cosmos-testnet-14002\".to_string(), #     }, #     transaction: Some(TransactionInfo { index: 3 }), #     contract: ContractInfo { #         address: Addr::unchecked(\"contract\"), #     }, # }; # extern crate chrono; use chrono::NaiveDateTime; let seconds = env.block.time.seconds(); let nsecs = env.block.time.subsec_nanos(); let dt = NaiveDateTime::from_timestamp(seconds as i64, nsecs as u32); ```\n\nCreating a simple millisecond-precision timestamp (as used in JavaScript):\n\n``` # use cosmwasm_std::{Addr, BlockInfo, ContractInfo, Env, MessageInfo, Timestamp, TransactionInfo}; # let env = Env { #     block: BlockInfo { #         height: 12_345, #         time: Timestamp::from_nanos(1_571_797_419_879_305_533), #         chain_id: \"cosmos-testnet-14002\".to_string(), #     }, #     transaction: Some(TransactionInfo { index: 3 }), #     contract: ContractInfo { #         address: Addr::unchecked(\"contract\"), #     }, # }; let millis = env.block.time.nanos() / 1_000_000; ```",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Timestamp"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "Timestamp": {
+          "description": "A point in time in nanosecond precision.\n\nThis type can represent times from 1970-01-01T00:00:00Z to 2554-07-21T23:34:33Z.\n\n## Examples\n\n``` # use cosmwasm_std::Timestamp; let ts = Timestamp::from_nanos(1_000_000_202); assert_eq!(ts.nanos(), 1_000_000_202); assert_eq!(ts.seconds(), 1); assert_eq!(ts.subsec_nanos(), 202);\n\nlet ts = ts.plus_seconds(2); assert_eq!(ts.nanos(), 3_000_000_202); assert_eq!(ts.seconds(), 3); assert_eq!(ts.subsec_nanos(), 202); ```",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Uint64"
+            }
+          ]
+        },
+        "Uint64": {
+          "description": "A thin wrapper around u64 that is using strings for JSON encoding/decoding, such that the full u64 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u64` to get the value out:\n\n``` # use cosmwasm_std::Uint64; let a = Uint64::from(42u64); assert_eq!(a.u64(), 42);\n\nlet b = Uint64::from(70u32); assert_eq!(b.u64(), 70); ```",
+          "type": "string"
+        },
+        "VoteDetails": {
+          "type": "object",
+          "required": [
+            "information",
+            "voter"
+          ],
+          "properties": {
+            "information": {
+              "$ref": "#/definitions/VoteInformation"
+            },
+            "voter": {
+              "$ref": "#/definitions/Addr"
+            }
+          },
+          "additionalProperties": false
+        },
+        "VoteInformation": {
+          "type": "object",
+          "required": [
+            "voted_at"
+          ],
+          "properties": {
+            "voted_at": {
+              "$ref": "#/definitions/BlockInfo"
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    },
+    "signing_status_at_height": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "SigningStatusAtHeightResponse",
+      "type": "object",
+      "required": [
+        "block_height",
+        "current_registered_dealers",
+        "dkg_epoch_id",
+        "offline_signers",
+        "signing_threshold",
+        "threshold_available"
+      ],
+      "properties": {
+        "block_height": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        },
+        "current_registered_dealers": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "dkg_epoch_id": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        },
+        "offline_signers": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "signing_threshold": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        },
+        "threshold_available": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

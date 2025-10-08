@@ -1,0 +1,44 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "SigningStatusResponse",
+  "type": "object",
+  "required": [
+    "current_registered_dealers",
+    "dkg_epoch_id",
+    "offline_signers",
+    "signing_threshold",
+    "threshold_available",
+    "total_group_members"
+  ],
+  "properties": {
+    "current_registered_dealers": {
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0.0
+    },
+    "dkg_epoch_id": {
+      "type": "integer",
+      "format": "uint64",
+      "minimum": 0.0
+    },
+    "offline_signers": {
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0.0
+    },
+    "signing_threshold": {
+      "type": "integer",
+      "format": "uint64",
+      "minimum": 0.0
+    },
+    "threshold_available": {
+      "type": "boolean"
+    },
+    "total_group_members": {
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0.0
+    }
+  },
+  "additionalProperties": false
+}

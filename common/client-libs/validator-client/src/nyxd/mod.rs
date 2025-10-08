@@ -305,6 +305,13 @@ impl<C, S> NymContractsProvider for NyxdClient<C, S> {
     fn multisig_contract_address(&self) -> Option<&AccountId> {
         self.config.contracts.multisig_contract_address.as_ref()
     }
+
+    fn offline_signers_contract_address(&self) -> Option<&AccountId> {
+        self.config
+            .contracts
+            .offline_signers_contract_address
+            .as_ref()
+    }
 }
 
 // queries

@@ -215,6 +215,7 @@ pub mod wg_outcome_versions {
         pub ping_hosts_performance: Option<f32>,
         pub ping_ips_performance: Option<f32>,
 
+        pub can_query_metadata_v4: Option<bool>,
         pub can_handshake_v4: bool,
         pub can_resolve_dns_v4: bool,
         pub ping_hosts_performance_v4: f32,
@@ -226,10 +227,14 @@ pub mod wg_outcome_versions {
         pub ping_ips_performance_v6: f32,
 
         pub download_duration_sec_v4: u64,
+        pub download_duration_milliseconds_v4: Option<u64>,
+        pub downloaded_file_size_bytes_v4: Option<u64>,
         pub downloaded_file_v4: String,
         pub download_error_v4: String,
 
         pub download_duration_sec_v6: u64,
+        pub download_duration_milliseconds_v6: Option<u64>,
+        pub downloaded_file_size_bytes_v6: Option<u64>,
         pub downloaded_file_v6: String,
         pub download_error_v6: String,
     }

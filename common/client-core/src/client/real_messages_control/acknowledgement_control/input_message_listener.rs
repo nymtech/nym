@@ -96,6 +96,7 @@ where
         lane: TransmissionLane,
         packet_type: PacketType,
         max_retransmissions: Option<u32>,
+        trace_id: Option<[u8; 12]>,
     ) {
         if let Err(err) = self
             .message_handler
@@ -106,6 +107,7 @@ where
                 lane,
                 packet_type,
                 max_retransmissions,
+                trace_id,
             )
             .await
         {
@@ -114,8 +116,12 @@ where
     }
 
     #[allow(clippy::panic)]
+    #[instrument(skip_all)]
     async fn on_input_message(&mut self, msg: InputMessage) {
         let trace_id = msg.trace_id();
+        if let Some(tid) = trace_id {
+            tracing::warn!("Processing input message with trace_id: {:?}", tid);
+        }
 
         match msg {
             InputMessage::Regular {
@@ -125,6 +131,7 @@ where
                 max_retransmissions,
                 ..
             } => {
+                warn!("Handling regular input message with trace_id: {:?}", trace_id);
                 self.handle_plain_message(
                     recipient,
                     data,
@@ -143,6 +150,7 @@ where
                 max_retransmissions,
                 ..
             } => {
+                warn!("Handling anonymous input message with trace_id: {:?}", trace_id);
                 self.handle_repliable_message(
                     recipient,
                     data,
@@ -150,6 +158,7 @@ where
                     lane,
                     PacketType::Mix,
                     max_retransmissions,
+                    trace_id
                 )
                 .await
             }
@@ -159,6 +168,7 @@ where
                 lane,
                 max_retransmissions,
             } => {
+                warn!("Handling reply input message with trace_id: {:?}", trace_id);
                 self.handle_reply(recipient_tag, data, lane, max_retransmissions)
                     .await;
             }
@@ -174,6 +184,7 @@ where
                     max_retransmissions,
                     ..
                 } => {
+                    tracing::warn!("Handling regular input message with trace_id: {:?}", trace_id);
                     self.handle_plain_message(
                         recipient,
                         data,
@@ -199,6 +210,7 @@ where
                         lane,
                         packet_type,
                         max_retransmissions,
+                        trace_id
                     )
                     .await
                 }

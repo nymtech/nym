@@ -607,6 +607,7 @@ where
         lane: TransmissionLane,
         packet_type: PacketType,
         max_retransmissions: Option<u32>,
+        trace_id: Option<[u8; 12]>,
     ) -> Result<(), SurbWrappedPreparationError> {
         debug!("Sending message with reply SURBs with packet type {packet_type}");
         let sender_tag = self.get_or_create_sender_tag(&recipient);
@@ -630,7 +631,7 @@ where
             lane,
             packet_type,
             max_retransmissions,
-            None,
+            trace_id,
         )
         .await?;
 

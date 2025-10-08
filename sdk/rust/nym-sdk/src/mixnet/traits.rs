@@ -79,6 +79,7 @@ pub trait MixnetMessageSender {
         // in the 12 bytes format
         let context = Context::current();
         let trace_id = context.span().span_context().trace_id();
+        tracing::warn!("Extracted trace_id from surb context: {:?}", trace_id);
         let trace_id = compress_trace_id(&trace_id);
 
         let lane = TransmissionLane::General;

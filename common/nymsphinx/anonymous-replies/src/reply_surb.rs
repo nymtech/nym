@@ -82,7 +82,7 @@ impl ReplySurb {
             topology.random_route_to_egress(rng, recipient.gateway())?
         };
         let delays = nym_sphinx_routing::generate_hop_delays(average_delay, route.len());
-        let destination = recipient.as_sphinx_destination();
+        let destination = recipient.as_sphinx_destination(None);
 
         let mut surb_material = SURBMaterial::new(route, delays, destination);
         if use_legacy_surb_format && !disable_mix_hops {

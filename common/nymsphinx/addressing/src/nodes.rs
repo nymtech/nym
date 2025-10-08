@@ -9,7 +9,7 @@
 //!  for as long as it's going to fit in the field.
 
 use nym_crypto::asymmetric::ed25519;
-use nym_sphinx_types::{NodeAddressBytes, NODE_ADDRESS_LENGTH};
+use nym_sphinx_types::{NODE_ADDRESS_LENGTH, NodeAddressBytes};
 
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 use thiserror::Error;
@@ -28,17 +28,23 @@ pub enum NymNodeRoutingAddressError {
     #[error("Attempted to deserialize NymNodeRoutingAddress without providing any bytes")]
     NoBytesProvided,
 
-    #[error("Provided insufficient amount of few bytes to deserialize a valid NymNodeRoutingAddress for IPv{protocol_version} variant. Received {received} and required {required}")]
+    #[error(
+        "Provided insufficient amount of few bytes to deserialize a valid NymNodeRoutingAddress for IPv{protocol_version} variant. Received {received} and required {required}"
+    )]
     TooFewBytesProvided {
         protocol_version: u8,
         received: usize,
         required: usize,
     },
 
-    #[error("{received} is not a valid version of the Internet Protocol (IP). Expected either '4' or '6'")]
+    #[error(
+        "{received} is not a valid version of the Internet Protocol (IP). Expected either '4' or '6'"
+    )]
     InvalidIpVersion { received: u8 },
 
-    #[error("Could not serialize NymNodeRoutingAddress into NodeAddressBytes as that requires using at least {required} bytes and only {NODE_ADDRESS_LENGTH} are available")]
+    #[error(
+        "Could not serialize NymNodeRoutingAddress into NodeAddressBytes as that requires using at least {required} bytes and only {NODE_ADDRESS_LENGTH} are available"
+    )]
     TooSmallBytesRepresentation { required: usize },
 }
 

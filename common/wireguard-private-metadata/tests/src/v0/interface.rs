@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use nym_wireguard_private_metadata_shared::{
-    v0 as latest, Construct, Extract, Request, Response, Version,
+    Construct, Extract, Request, Response, Version, v0 as latest,
 };
 
 pub enum RequestData {

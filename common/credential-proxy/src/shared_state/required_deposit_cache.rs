@@ -3,8 +3,8 @@
 
 use crate::error::CredentialProxyError;
 use crate::shared_state::nyxd_client::ChainClient;
-use nym_validator_client::nyxd::contract_traits::EcashQueryClient;
 use nym_validator_client::nyxd::Coin;
+use nym_validator_client::nyxd::contract_traits::EcashQueryClient;
 use std::sync::Arc;
 use time::OffsetDateTime;
 use tokio::sync::RwLock;

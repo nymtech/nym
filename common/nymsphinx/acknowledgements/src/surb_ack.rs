@@ -1,16 +1,16 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::identifier::prepare_identifier;
 use crate::AckKey;
+use crate::identifier::prepare_identifier;
 use nym_sphinx_addressing::clients::Recipient;
 use nym_sphinx_addressing::nodes::{
-    NymNodeRoutingAddress, NymNodeRoutingAddressError, MAX_NODE_ADDRESS_UNPADDED_LEN,
+    MAX_NODE_ADDRESS_UNPADDED_LEN, NymNodeRoutingAddress, NymNodeRoutingAddressError,
 };
-use nym_sphinx_params::packet_sizes::PacketSize;
 use nym_sphinx_params::PacketType;
+use nym_sphinx_params::packet_sizes::PacketSize;
 use nym_sphinx_types::delays::Delay;
-use nym_sphinx_types::{NymPacket, NymPacketError, MIN_PACKET_SIZE};
+use nym_sphinx_types::{MIN_PACKET_SIZE, NymPacket, NymPacketError};
 use nym_topology::{NymRouteProvider, NymTopologyError};
 use rand::{CryptoRng, RngCore};
 
@@ -26,7 +26,9 @@ pub struct SurbAck {
 
 #[derive(Debug, Error)]
 pub enum SurbAckRecoveryError {
-    #[error("received an invalid number of bytes to deserialize the SURB-Ack. Got {received}, expected {expected}")]
+    #[error(
+        "received an invalid number of bytes to deserialize the SURB-Ack. Got {received}, expected {expected}"
+    )]
     InvalidPacketSize { received: usize, expected: usize },
 
     #[error("could not extract first hop address information - {0}")]

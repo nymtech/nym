@@ -1,9 +1,9 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::config::persistence::old::v3::NetworkRequesterPathsV3;
 use crate::config::persistence::NetworkRequesterPaths;
-use crate::config::{default_config_filepath, Debug, NetworkRequester};
+use crate::config::persistence::old::v3::NetworkRequesterPathsV3;
+use crate::config::{Debug, NetworkRequester, default_config_filepath};
 use nym_bin_common::logging::LoggingSettings;
 use nym_client_core::config::old_config_v1_1_54::ConfigV1_1_54 as BaseConfigV1_1_54;
 use nym_config::read_config_from_toml_file;

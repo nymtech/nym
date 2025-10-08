@@ -7,11 +7,11 @@ use nym_crypto::asymmetric::x25519;
 use nym_crypto::shared_key::recompute_shared_key;
 use nym_crypto::symmetric::stream_cipher;
 use nym_crypto::symmetric::stream_cipher::CipherKey;
-use nym_sphinx_anonymous_replies::requests::AnonymousSenderTag;
 use nym_sphinx_anonymous_replies::SurbEncryptionKey;
+use nym_sphinx_anonymous_replies::requests::AnonymousSenderTag;
+use nym_sphinx_chunking::ChunkingError;
 use nym_sphinx_chunking::fragment::Fragment;
 use nym_sphinx_chunking::reconstruction::MessageReconstructor;
-use nym_sphinx_chunking::ChunkingError;
 use nym_sphinx_params::{
     PacketEncryptionAlgorithm, PacketHkdfAlgorithm, ReplySurbEncryptionAlgorithm,
 };
@@ -58,7 +58,9 @@ impl From<PlainMessage> for ReconstructedMessage {
 
 #[derive(Debug, Error)]
 pub enum MessageRecoveryError {
-    #[error("The received message did not contain enough bytes to recover the ephemeral public key. Got {provided}. required: {required}")]
+    #[error(
+        "The received message did not contain enough bytes to recover the ephemeral public key. Got {provided}. required: {required}"
+    )]
     NotEnoughBytesForEphemeralKey { provided: usize, required: usize },
 
     #[error("Recovered remote x25519 public key is invalid - {0}")]

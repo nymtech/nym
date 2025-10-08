@@ -3,7 +3,7 @@
 
 use crate::db::Storage;
 use crate::ticketbook_manager::storage::auxiliary_models::RetrievedTicketbook;
-use anyhow::{anyhow, Context};
+use anyhow::{Context, anyhow};
 use nym_credential_proxy_lib::error::CredentialProxyError;
 use nym_credential_proxy_lib::shared_state::ecash_state::{
     IssuanceTicketBook, IssuedTicketBook, TicketType,
@@ -13,7 +13,7 @@ use nym_credential_proxy_lib::storage::traits::{
     GlobalEcashDataCache, VersionedSerialise,
 };
 use nym_crypto::aes::cipher::zeroize::Zeroizing;
-use nym_ecash_time::{ecash_today, EcashTime};
+use nym_ecash_time::{EcashTime, ecash_today};
 use nym_validator_client::nym_api::EpochId;
 use time::Date;
 

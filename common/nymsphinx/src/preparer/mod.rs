@@ -1,12 +1,12 @@
 // Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::message::{NymMessage, ACK_OVERHEAD, OUTFOX_ACK_OVERHEAD};
 use crate::NymPayloadBuilder;
-use nym_crypto::asymmetric::x25519;
+use crate::message::{ACK_OVERHEAD, NymMessage, OUTFOX_ACK_OVERHEAD};
 use nym_crypto::Digest;
-use nym_sphinx_acknowledgements::surb_ack::SurbAck;
+use nym_crypto::asymmetric::x25519;
 use nym_sphinx_acknowledgements::AckKey;
+use nym_sphinx_acknowledgements::surb_ack::SurbAck;
 use nym_sphinx_addressing::clients::Recipient;
 use nym_sphinx_addressing::nodes::NymNodeRoutingAddress;
 use nym_sphinx_anonymous_replies::reply_surb::ReplySurb;
@@ -355,7 +355,7 @@ where
         disable_mix_hops: bool,
     ) -> Self {
         let mut rng = rng;
-        let nonce = rng.gen();
+        let nonce = rng.r#gen();
         MessagePreparer {
             rng,
             deterministic_route_selection,

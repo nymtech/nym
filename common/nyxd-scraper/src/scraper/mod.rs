@@ -1,6 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::PruningOptions;
 use crate::block_processor::types::BlockToProcess;
 use crate::block_processor::{BlockProcessor, BlockProcessorConfig};
 use crate::block_requester::{BlockRequest, BlockRequester};
@@ -9,14 +10,13 @@ use crate::modules::{BlockModule, MsgModule, TxModule};
 use crate::rpc_client::RpcClient;
 use crate::scraper::subscriber::ChainSubscriber;
 use crate::storage::ScraperStorage;
-use crate::PruningOptions;
 use futures::future::join_all;
 use std::path::PathBuf;
 use std::sync::Arc;
-use tokio::sync::mpsc::{
-    channel, unbounded_channel, Receiver, Sender, UnboundedReceiver, UnboundedSender,
-};
 use tokio::sync::Notify;
+use tokio::sync::mpsc::{
+    Receiver, Sender, UnboundedReceiver, UnboundedSender, channel, unbounded_channel,
+};
 use tokio_util::sync::CancellationToken;
 use tokio_util::task::TaskTracker;
 use tracing::{error, info};

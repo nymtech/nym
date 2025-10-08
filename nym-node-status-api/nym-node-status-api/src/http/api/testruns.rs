@@ -1,6 +1,6 @@
+use crate::db::DbConnection;
 use crate::db::models::{TestRunDto, TestRunStatus};
 use crate::db::queries;
-use crate::db::DbConnection;
 use crate::utils::{now_utc, unix_timestamp_to_utc_rfc3339};
 use crate::{
     db,
@@ -9,14 +9,14 @@ use crate::{
         state::AppState,
     },
 };
-use axum::extract::DefaultBodyLimit;
 use axum::Json;
+use axum::extract::DefaultBodyLimit;
 use axum::{
-    extract::{Path, State},
     Router,
+    extract::{Path, State},
 };
 use nym_node_status_client::models::{
-    get_testrun, submit_results, submit_results_v2, TestrunAssignmentWithTickets,
+    TestrunAssignmentWithTickets, get_testrun, submit_results, submit_results_v2,
 };
 use reqwest::StatusCode;
 use tracing::error;

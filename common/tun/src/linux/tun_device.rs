@@ -12,8 +12,8 @@ use tokio::{
 };
 
 use crate::tun_task_channel::{
-    tun_task_channel, tun_task_response_channel, TunTaskPayload, TunTaskResponseRx,
-    TunTaskResponseSendError, TunTaskResponseTx, TunTaskRx, TunTaskTx,
+    TunTaskPayload, TunTaskResponseRx, TunTaskResponseSendError, TunTaskResponseTx, TunTaskRx,
+    TunTaskTx, tun_task_channel, tun_task_response_channel,
 };
 
 const TUN_WRITE_TIMEOUT_MS: u64 = 1000;

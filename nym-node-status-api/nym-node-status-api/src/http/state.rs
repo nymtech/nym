@@ -1,6 +1,6 @@
 use cosmwasm_std::Decimal;
 use itertools::Itertools;
-use moka::{future::Cache, Entry};
+use moka::{Entry, future::Cache};
 use nym_bin_common::bin_info_owned;
 use nym_contracts_common::NaiveFloat;
 use nym_crypto::asymmetric::ed25519::PublicKey;
@@ -17,7 +17,7 @@ use utoipa::ToSchema;
 
 use super::models::SessionStats;
 use crate::{
-    db::{queries, DbPool},
+    db::{DbPool, queries},
     http::{
         error::{HttpError, HttpResult},
         models::{DVpnGateway, DailyStats, ExtendedNymNode, Gateway, NodeGeoData, SummaryHistory},
@@ -302,8 +302,12 @@ impl HttpCache {
                                     nodes.insert(key, skimmed_node);
                                 }
                                 Err(err) => {
-                                    error!("CRITICAL: Failed to convert NymNodeDto to SkimmedNode: {err}");
-                                    panic!("Cannot convert database record to SkimmedNode - this should never happen! Error: {err}");
+                                    error!(
+                                        "CRITICAL: Failed to convert NymNodeDto to SkimmedNode: {err}"
+                                    );
+                                    panic!(
+                                        "Cannot convert database record to SkimmedNode - this should never happen! Error: {err}"
+                                    );
                                 }
                             }
                         }

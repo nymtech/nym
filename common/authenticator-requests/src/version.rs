@@ -129,7 +129,11 @@ impl From<semver::Version> for AuthenticatorVersion {
         // if provided version is higher (or equal) to release version of V5,
         // we return the latest (i.e. v5)
 
-        debug_assert_eq!(Self::V5, Self::LATEST, "a new AuthenticatorVersion variant has been introduced without adjusting the `From<semver::Version>` trait");
+        debug_assert_eq!(
+            Self::V5,
+            Self::LATEST,
+            "a new AuthenticatorVersion variant has been introduced without adjusting the `From<semver::Version>` trait"
+        );
         Self::LATEST
     }
 }

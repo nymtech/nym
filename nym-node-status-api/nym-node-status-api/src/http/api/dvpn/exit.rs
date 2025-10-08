@@ -1,11 +1,11 @@
 use crate::http::{
-    api::dvpn::{country::TwoLetterCountryCodeParam, MIN_SUPPORTED_VERSION},
+    api::dvpn::{MIN_SUPPORTED_VERSION, country::TwoLetterCountryCodeParam},
     models::DVpnGateway,
 };
 use crate::http::{error::HttpResult, state::AppState};
 use axum::{
-    extract::{Path, State},
     Json, Router,
+    extract::{Path, State},
 };
 use itertools::Itertools;
 use tracing::instrument;

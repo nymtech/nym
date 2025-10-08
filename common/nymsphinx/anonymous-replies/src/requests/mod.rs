@@ -492,12 +492,12 @@ mod tests {
         use nym_sphinx_addressing::clients::Recipient;
         use nym_sphinx_params::SphinxKeyRotation;
         use nym_sphinx_types::{
-            Delay, Destination, DestinationAddressBytes, Node, NodeAddressBytes, PrivateKey,
-            SURBMaterial, NODE_ADDRESS_LENGTH, X25519_WITH_EXPLICIT_PAYLOAD_KEYS_VERSION,
+            Delay, Destination, DestinationAddressBytes, NODE_ADDRESS_LENGTH, Node,
+            NodeAddressBytes, PrivateKey, SURBMaterial, X25519_WITH_EXPLICIT_PAYLOAD_KEYS_VERSION,
         };
         use rand::{Rng, RngCore};
-        use rand_chacha::rand_core::SeedableRng;
         use rand_chacha::ChaCha20Rng;
+        use rand_chacha::rand_core::SeedableRng;
 
         pub(crate) const LEGACY_HOPS: u8 = 4;
 
@@ -509,7 +509,7 @@ mod tests {
         pub(super) fn random_vec_u8(rng: &mut ChaCha20Rng, n: usize) -> Vec<u8> {
             let mut vec = Vec::with_capacity(n);
             for _ in 0..n {
-                vec.push(rng.gen())
+                vec.push(rng.r#gen())
             }
             vec
         }

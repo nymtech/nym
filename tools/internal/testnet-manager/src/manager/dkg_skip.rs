@@ -3,23 +3,23 @@
 
 use crate::error::NetworkManagerError;
 use crate::helpers::{ProgressCtx, ProgressTracker};
+use crate::manager::NetworkManager;
 use crate::manager::contract::Account;
 use crate::manager::network::LoadedNetwork;
-use crate::manager::NetworkManager;
 use console::style;
 use dkg_bypass_contract::msg::FakeDealerData;
-use nym_compact_ecash::{ttp_keygen, Base58, KeyPairAuth};
+use nym_compact_ecash::{Base58, KeyPairAuth, ttp_keygen};
 use nym_crypto::asymmetric::ed25519;
 use nym_mixnet_contract_common::Addr;
 use nym_pemstore::traits::PemStorableKey;
-use nym_pemstore::{store_key, store_keypair, KeyPairPath};
+use nym_pemstore::{KeyPairPath, store_key, store_keypair};
+use nym_validator_client::DirectSigningHttpRpcNyxdClient;
 use nym_validator_client::nyxd::contract_traits::{
     DkgQueryClient, GroupSigningClient, PagedGroupQueryClient,
 };
 use nym_validator_client::nyxd::cosmwasm::ContractCodeId;
 use nym_validator_client::nyxd::cw4::Member;
 use nym_validator_client::nyxd::{AccountId, CosmWasmClient};
-use nym_validator_client::DirectSigningHttpRpcNyxdClient;
 use rand::rngs::OsRng;
 use std::fs;
 use std::ops::Deref;

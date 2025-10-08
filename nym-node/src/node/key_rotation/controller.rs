@@ -10,7 +10,7 @@ use nym_task::ShutdownToken;
 use nym_validator_client::models::{KeyRotationDetails, KeyRotationInfoResponse, KeyRotationState};
 use std::time::Duration;
 use time::OffsetDateTime;
-use tokio::time::{interval, sleep, Instant};
+use tokio::time::{Instant, interval, sleep};
 use tracing::{debug, error, info, trace, warn};
 
 pub(crate) struct RotationConfig {
@@ -154,7 +154,9 @@ impl KeyRotationController {
         let expected_current_rotation_id = key_rotation_info.expected_current_rotation_id();
 
         if current_rotation_id != expected_current_rotation_id {
-            warn!("the current rotation is {current_rotation_id} whilst we expected {expected_current_rotation_id}");
+            warn!(
+                "the current rotation is {current_rotation_id} whilst we expected {expected_current_rotation_id}"
+            );
             // if we got here, it means epoch is most likely NOT stuck (we're within the threshold)
             // so probably we prematurely called this method before nym-api(s) got to advancing
             // the epoch and thus the rotation, so wait a bit instead.
@@ -200,7 +202,9 @@ impl KeyRotationController {
             // pre-announce new key for the following rotation
 
             if primary_key_rotation_id != current_rotation_id {
-                warn!("current primary key does not correspond to the current rotation - immediately pre-announcing new key (rotates next epoch: {rotates_next_epoch}");
+                warn!(
+                    "current primary key does not correspond to the current rotation - immediately pre-announcing new key (rotates next epoch: {rotates_next_epoch}"
+                );
                 // we don't have a secondary key and our current key is already outdated -
                 // preannounce a key for either this or the next rotation
                 // (and next time this method is called, it will be promoted to primary)
@@ -267,7 +271,9 @@ impl KeyRotationController {
 
     async fn try_get_key_rotation_info(&self) -> Option<KeyRotationDetails> {
         let Ok(rotation_info) = self.client.get_key_rotation_info().await else {
-            warn!("failed to retrieve key rotation information from ANY nym-api - we might miss configuration changes");
+            warn!(
+                "failed to retrieve key rotation information from ANY nym-api - we might miss configuration changes"
+            );
             return None;
         };
 

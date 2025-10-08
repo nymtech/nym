@@ -6,8 +6,8 @@ use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
 
 use crate::{
-    sign::{SignatureError, SignedRequest},
     IpPair,
+    sign::{SignatureError, SignedRequest},
 };
 
 use super::VERSION;

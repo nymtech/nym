@@ -3,12 +3,12 @@
 
 use crate::error::NetworkManagerError;
 use crate::helpers::{ProgressCtx, ProgressTracker};
-use crate::manager::network::LoadedNetwork;
 use crate::manager::NetworkManager;
+use crate::manager::network::LoadedNetwork;
 use console::style;
-use nym_config::{must_get_home, DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, NYM_DIR};
+use nym_config::{DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, NYM_DIR, must_get_home};
 use nym_validator_client::nym_api::NymApiClientExt;
-use rand::{thread_rng, RngCore};
+use rand::{RngCore, thread_rng};
 use std::fs;
 use std::fs::OpenOptions;
 use std::io::prelude::*;

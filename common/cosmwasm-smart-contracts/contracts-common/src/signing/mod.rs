@@ -1,10 +1,10 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use cosmwasm_std::{from_json, to_json_vec, Addr, Coin, MessageInfo, StdResult};
+use cosmwasm_std::{Addr, Coin, MessageInfo, StdResult, from_json, to_json_vec};
 use schemars::JsonSchema;
 use serde::de::DeserializeOwned;
-use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
+use serde::{Deserialize, Deserializer, Serialize, Serializer, de};
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 pub use verifier::Verifier;

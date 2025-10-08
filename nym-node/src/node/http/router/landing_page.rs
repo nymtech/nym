@@ -1,9 +1,9 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use axum::Router;
 use axum::response::Html;
 use axum::routing::get;
-use axum::Router;
 use std::path::PathBuf;
 use tower_http::services::ServeDir;
 

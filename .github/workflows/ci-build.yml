@@ -81,11 +81,20 @@ jobs:
           command: fmt
           args: --all -- --check
 
-      - name: Clippy
+      - name: Clippy (macos)
+        if: contains(matrix.os, 'mac')
+        uses: actions-rs/cargo@v1
+        with:
+          command: clippy
+          args: --workspace --all-targets --exclude nym-gateway-probe -- -D warnings
+
+      - name: Clippy (non-macos)
+        if: contains(matrix.os, 'linux') || contains(matrix.os, 'windows')
         uses: actions-rs/cargo@v1
         with:
           command: clippy
           args: --workspace --all-targets -- -D warnings
+
 
       - name: Build all binaries
         uses: actions-rs/cargo@v1

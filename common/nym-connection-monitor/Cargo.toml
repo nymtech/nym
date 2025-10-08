@@ -1,0 +1,26 @@
+[package]
+name = "nym-connection-monitor"
+version = "1.18.0"
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+bincode.workspace = true
+bytes.workspace = true
+futures.workspace = true
+nym-config = { path = "../config" }
+nym-common = { path = "../nym-common" }
+nym-ip-packet-requests = { path = "../ip-packet-requests" }
+nym-sdk = { path = "../../sdk/rust/nym-sdk" }
+pnet_packet.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tokio-util.workspace = true
+tracing.workspace = true

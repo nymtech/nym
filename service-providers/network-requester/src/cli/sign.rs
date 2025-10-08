@@ -33,7 +33,9 @@ fn print_signed_contract_msg(
     eprintln!(">>> attempting to sign {trimmed}");
 
     let Ok(decoded) = bs58::decode(trimmed).into_vec() else {
-        println!("it seems you have incorrectly copied the message to sign. Make sure you didn't accidentally skip any characters");
+        println!(
+            "it seems you have incorrectly copied the message to sign. Make sure you didn't accidentally skip any characters"
+        );
         return;
     };
 
@@ -42,7 +44,9 @@ fn print_signed_contract_msg(
     // we don't really care about what particular information is embedded inside of it,
     // we just want to know if user correctly copied the string, i.e. whether it's a valid bs58 encoded json
     if serde_json::from_slice::<serde_json::Value>(&decoded).is_err() {
-        println!("it seems you have incorrectly copied the message to sign. Make sure you didn't accidentally skip any characters");
+        println!(
+            "it seems you have incorrectly copied the message to sign. Make sure you didn't accidentally skip any characters"
+        );
         return;
     };
 

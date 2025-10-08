@@ -12,7 +12,7 @@ use nym_credential_proxy_requests::api::v1::ticketbook::models::{
     TicketbookWalletSharesResponse,
 };
 use time::OffsetDateTime;
-use tracing::{error, info, span, warn, Instrument, Level};
+use tracing::{Instrument, Level, error, info, span, warn};
 use uuid::Uuid;
 
 impl TicketbookManager {

@@ -1,10 +1,10 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::config::Config;
 use crate::config::persistence::{
     DEFAULT_RD_BLOOMFILTER_FILE_EXT, DEFAULT_RD_BLOOMFILTER_FLUSH_FILE_EXT,
 };
-use crate::config::Config;
 use crate::error::NymNodeError;
 use crate::node::replay_protection::bloomfilter::RotationFilter;
 use crate::node::replay_protection::helpers::parse_rotation_id_from_filename;
@@ -19,7 +19,7 @@ use std::path::PathBuf;
 use std::time::Duration;
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
-use tokio::time::{interval, Instant};
+use tokio::time::{Instant, interval};
 use tracing::{debug, error, info, trace, warn};
 
 // background task responsible for periodically flushing the bloomfilters to disk
@@ -73,15 +73,15 @@ impl ReplayProtectionDiskFlush {
             };
 
             // if any bloomfilter has the temp extension, we can't trust its data as it hasn't completed the flush
-            if let Some(ext) = entry.path().extension() {
-                if ext == DEFAULT_RD_BLOOMFILTER_FLUSH_FILE_EXT {
-                    error!(
-                        "bloomfilter {rotation} didn't get successfully flushed to disk and its data got corrupted"
-                    );
-                    fs::remove_file(&path)
-                        .map_err(|source| NymNodeError::BloomfilterIoFailure { source, path })?;
-                    continue;
-                }
+            if let Some(ext) = entry.path().extension()
+                && ext == DEFAULT_RD_BLOOMFILTER_FLUSH_FILE_EXT
+            {
+                error!(
+                    "bloomfilter {rotation} didn't get successfully flushed to disk and its data got corrupted"
+                );
+                fs::remove_file(&path)
+                    .map_err(|source| NymNodeError::BloomfilterIoFailure { source, path })?;
+                continue;
             }
 
             filter_files.insert(rotation, path);
@@ -245,7 +245,9 @@ impl ReplayProtectionDiskFlush {
             }
         }
 
-        info!("SHUTDOWN: flushing replay detection bloomfilter to disk. this might take a while. DO NOT INTERRUPT THIS PROCESS");
+        info!(
+            "SHUTDOWN: flushing replay detection bloomfilter to disk. this might take a while. DO NOT INTERRUPT THIS PROCESS"
+        );
         if let Err(err) = self.flush_filters_to_disk().await {
             warn!("failed to flush replay detection bloom filters on shutdown: {err}");
         }

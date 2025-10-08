@@ -1,6 +1,6 @@
 use time::UtcDateTime;
 
-use crate::db::{models::NetworkSummary, DbPool};
+use crate::db::{DbPool, models::NetworkSummary};
 
 /// take `last_updated` instead of calculating it so that `summary` matches
 /// `daily_summary`

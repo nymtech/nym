@@ -4,10 +4,10 @@
 use crate::models::SignerStatus;
 use anyhow::bail;
 use nym_network_defaults::NymNetworkDetails;
-use nym_validator_client::nyxd::contract_traits::dkg_query_client::DealerDetails;
-use nym_validator_client::nyxd::contract_traits::PagedDkgQueryClient;
-use nym_validator_client::nyxd::Config;
 use nym_validator_client::QueryHttpRpcNyxdClient;
+use nym_validator_client::nyxd::Config;
+use nym_validator_client::nyxd::contract_traits::PagedDkgQueryClient;
+use nym_validator_client::nyxd::contract_traits::dkg_query_client::DealerDetails;
 use tracing::info;
 
 async fn get_query_client() -> anyhow::Result<QueryHttpRpcNyxdClient> {

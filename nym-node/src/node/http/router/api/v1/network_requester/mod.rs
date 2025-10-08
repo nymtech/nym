@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::node::http::api::v1::network_requester::exit_policy::node_exit_policy;
-use axum::routing::get;
 use axum::Router;
+use axum::routing::get;
 use nym_node_requests::api::v1::network_requester::exit_policy::models::UsedExitPolicy;
 use nym_node_requests::api::v1::network_requester::models;
 use nym_node_requests::routes::api::v1::network_requester;

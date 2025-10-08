@@ -4,7 +4,7 @@
 use crate::ecash::traits::EcashManager;
 use async_trait::async_trait;
 use bandwidth_storage_manager::BandwidthStorageManager;
-use nym_credentials::ecash::utils::{cred_exp_date, ecash_today, EcashTime};
+use nym_credentials::ecash::utils::{EcashTime, cred_exp_date, ecash_today};
 use nym_credentials_interface::{Bandwidth, ClientTicket, TicketType};
 use nym_gateway_requests::models::CredentialSpendingRequest;
 use std::sync::Arc;

@@ -8,7 +8,7 @@ use nym_bin_common::{bin_info, bin_info_owned};
 use nym_crypto::asymmetric::ed25519;
 use nym_network_defaults::setup_env;
 use nym_sdk::mixnet::MixnetMessageSender;
-use nym_sdk::{mixnet, DebugConfig};
+use nym_sdk::{DebugConfig, mixnet};
 use std::sync::OnceLock;
 use std::time::Duration;
 use tokio::time::timeout;

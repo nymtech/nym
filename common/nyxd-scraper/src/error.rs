@@ -92,7 +92,9 @@ pub enum ScraperError {
         source: cosmrs::ErrorReport,
     },
 
-    #[error("received an invalid chain subscription event of kind {kind} while we were waiting for new block data (query: '{query}')")]
+    #[error(
+        "received an invalid chain subscription event of kind {kind} while we were waiting for new block data (query: '{query}')"
+    )]
     InvalidSubscriptionEvent { query: String, kind: String },
 
     #[error("received block data was empty (query: '{query}')")]
@@ -138,13 +140,21 @@ pub enum ScraperError {
     )]
     MissingValidatorInfoCommitted { address: String },
 
-    #[error("pruning.interval must not be set to 0. If you want to disable pruning, select pruning.strategy = \"nothing\"")]
+    #[error(
+        "pruning.interval must not be set to 0. If you want to disable pruning, select pruning.strategy = \"nothing\""
+    )]
     ZeroPruningInterval,
 
-    #[error("pruning.interval must not be smaller than {}. got: {interval}. for most aggressive pruning, select pruning.strategy = \"everything\"", EVERYTHING_PRUNING_INTERVAL)]
+    #[error(
+        "pruning.interval must not be smaller than {}. got: {interval}. for most aggressive pruning, select pruning.strategy = \"everything\"",
+        EVERYTHING_PRUNING_INTERVAL
+    )]
     TooSmallPruningInterval { interval: u32 },
 
-    #[error("pruning.keep_recent must not be smaller than {}. got: {keep_recent}. for most aggressive pruning, select pruning.strategy = \"everything\"", EVERYTHING_PRUNING_KEEP_RECENT)]
+    #[error(
+        "pruning.keep_recent must not be smaller than {}. got: {keep_recent}. for most aggressive pruning, select pruning.strategy = \"everything\"",
+        EVERYTHING_PRUNING_KEEP_RECENT
+    )]
     TooSmallKeepRecent { keep_recent: u32 },
 }
 

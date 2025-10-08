@@ -1,5 +1,5 @@
 use tracing::level_filters::LevelFilter;
-use tracing_subscriber::{filter::Directive, EnvFilter};
+use tracing_subscriber::{EnvFilter, filter::Directive};
 
 pub(crate) fn setup_tracing_logger() {
     fn directive_checked(directive: String) -> Directive {

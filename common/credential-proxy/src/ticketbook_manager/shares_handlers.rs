@@ -8,7 +8,7 @@ use nym_credential_proxy_requests::api::v1::ticketbook::models::{
     GlobalDataParams, TicketbookWalletSharesResponse,
 };
 use nym_validator_client::nym_api::EpochId;
-use tracing::{debug, span, Instrument, Level};
+use tracing::{Instrument, Level, debug, span};
 use uuid::Uuid;
 
 impl TicketbookManager {

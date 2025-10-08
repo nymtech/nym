@@ -12,8 +12,8 @@ use crate::db::DbConnection;
 use crate::http::models::DailyStats;
 use crate::{
     db::{
-        models::{NymNodeDto, NymNodeInsertRecord},
         DbPool,
+        models::{NymNodeDto, NymNodeInsertRecord},
     },
     node_scraper::helpers::NodeDescriptionResponse,
 };

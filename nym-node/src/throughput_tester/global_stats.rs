@@ -13,8 +13,8 @@ use std::time::Duration;
 use sysinfo::System;
 use time::OffsetDateTime;
 use tokio::select;
-use tokio::time::{interval, Instant};
-use tracing::{error, info, Span};
+use tokio::time::{Instant, interval};
+use tracing::{Span, error, info};
 use tracing_indicatif::span_ext::IndicatifSpanExt;
 
 #[derive(Default, Serialize, Deserialize)]

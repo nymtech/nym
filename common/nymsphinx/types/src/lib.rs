@@ -19,21 +19,21 @@ pub use nym_outfox::{
 
 #[cfg(feature = "sphinx")]
 pub use sphinx_packet::{
+    Error as SphinxError, ProcessedPacket, ProcessedPacketData,
     constants::{
         self, DESTINATION_ADDRESS_LENGTH, IDENTIFIER_LENGTH, MAX_PATH_LENGTH, NODE_ADDRESS_LENGTH,
         PAYLOAD_KEY_SIZE, REPLAY_TAG_SIZE,
     },
     crypto::{self, PrivateKey, PublicKey},
-    header::{self, delays, delays::Delay, ProcessedHeader, SphinxHeader, HEADER_SIZE},
+    header::{self, HEADER_SIZE, ProcessedHeader, SphinxHeader, delays, delays::Delay},
     packet::builder::DEFAULT_PAYLOAD_SIZE,
     payload::{
+        PAYLOAD_OVERHEAD_SIZE, Payload,
         key::{PayloadKey, PayloadKeySeed},
-        Payload, PAYLOAD_OVERHEAD_SIZE,
     },
     route::{Destination, DestinationAddressBytes, Node, NodeAddressBytes, SURBIdentifier},
-    surb::{SURBMaterial, SURB},
+    surb::{SURB, SURBMaterial},
     version::*,
-    Error as SphinxError, ProcessedPacket, ProcessedPacketData,
 };
 
 #[derive(Error, Debug)]

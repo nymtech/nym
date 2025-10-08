@@ -1,9 +1,9 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use axum::Json;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
-use axum::Json;
 pub use nym_node_requests::api::ErrorResponse;
 
 #[derive(Debug, Clone)]

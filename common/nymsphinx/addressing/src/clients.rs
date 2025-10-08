@@ -4,7 +4,7 @@
 // of a helper/utils structure, because before it reaches the gateway
 // it's already destructed).
 
-use crate::nodes::{NodeIdentity, NODE_IDENTITY_SIZE};
+use crate::nodes::{NODE_IDENTITY_SIZE, NodeIdentity};
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_sphinx_types::Destination;
 use serde::de::{Error as SerdeError, SeqAccess, Unexpected, Visitor};
@@ -68,7 +68,10 @@ impl<'de> Deserialize<'de> for Recipient {
             type Value = Recipient;
 
             fn expecting(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
-                write!(formatter, "A recipient is 96-byte sequence containing two ed25519 public keys and one x25519 public key all in compressed forms.")
+                write!(
+                    formatter,
+                    "A recipient is 96-byte sequence containing two ed25519 public keys and one x25519 public key all in compressed forms."
+                )
             }
 
             fn visit_bytes<E>(self, bytes: &[u8]) -> Result<Self::Value, E>
@@ -97,10 +100,10 @@ impl<'de> Deserialize<'de> for Recipient {
             {
                 // if we know the size hint, check if it matches expectation,
                 // otherwise return an error
-                if let Some(size_hint) = seq.size_hint() {
-                    if size_hint != Recipient::LEN {
-                        return Err(SerdeError::invalid_length(size_hint, &self));
-                    }
+                if let Some(size_hint) = seq.size_hint()
+                    && size_hint != Recipient::LEN
+                {
+                    return Err(SerdeError::invalid_length(size_hint, &self));
                 }
 
                 let mut recipient_bytes = [0u8; Recipient::LEN];

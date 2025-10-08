@@ -1,5 +1,5 @@
 use nym_http_api_client::registry;
-use nym_http_api_client::{inventory, ReqwestClientBuilder};
+use nym_http_api_client::{ReqwestClientBuilder, inventory};
 use nym_http_api_client_macro::client_defaults;
 use std::time::{Duration, Instant};
 
@@ -87,7 +87,9 @@ async fn main() {
             if e.is_timeout() {
                 println!("✓ Request timed out after {:?}", elapsed);
                 if elapsed < Duration::from_secs(290) {
-                    println!("  Note: Timeout occurred faster than 300s, might be connection timeout not total timeout");
+                    println!(
+                        "  Note: Timeout occurred faster than 300s, might be connection timeout not total timeout"
+                    );
                 }
             } else if e.is_connect() {
                 println!("✓ Connection failed after {:?} (connect timeout)", elapsed);

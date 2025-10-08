@@ -1,19 +1,19 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::cli::{try_load_current_config, ConfigOverridableArgs};
+use crate::cli::{ConfigOverridableArgs, try_load_current_config};
+use crate::rewarder::Rewarder;
 use crate::rewarder::nyxd_client::NyxdClient;
 use crate::rewarder::storage::RewarderStorage;
 use crate::rewarder::ticketbook_issuance::types::CredentialIssuer;
 use crate::rewarder::ticketbook_issuance::verifier::TicketbookIssuanceVerifier;
-use crate::rewarder::Rewarder;
 use anyhow::bail;
 use nym_ecash_time::ecash_default_expiration_date;
 use nym_validator_client::nym_api::NymApiClientExt;
 use std::collections::HashSet;
 use std::path::PathBuf;
-use time::macros::format_description;
 use time::Date;
+use time::macros::format_description;
 use tracing::info;
 
 fn parse_date(raw: &str) -> Result<Date, time::error::Parse> {

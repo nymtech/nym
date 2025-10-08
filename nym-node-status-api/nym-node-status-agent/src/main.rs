@@ -1,7 +1,7 @@
 use crate::cli::Args;
 use clap::Parser;
 use tracing::level_filters::LevelFilter;
-use tracing_subscriber::{filter::Directive, EnvFilter};
+use tracing_subscriber::{EnvFilter, filter::Directive};
 
 mod cli;
 mod probe;

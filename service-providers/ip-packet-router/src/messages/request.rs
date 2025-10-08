@@ -6,9 +6,9 @@ mod v7;
 mod v8;
 
 use nym_ip_packet_requests::{
-    v6::request::IpPacketRequest as IpPacketRequestV6,
+    IpPair, v6::request::IpPacketRequest as IpPacketRequestV6,
     v7::request::IpPacketRequest as IpPacketRequestV7,
-    v8::request::IpPacketRequest as IpPacketRequestV8, IpPair,
+    v8::request::IpPacketRequest as IpPacketRequestV8,
 };
 use nym_sdk::mixnet::ReconstructedMessage;
 use nym_service_provider_requests_common::{Protocol, ServiceProviderType};

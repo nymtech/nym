@@ -1,10 +1,10 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use axum::Router;
 use axum::extract::Query;
 use axum::http::StatusCode;
 use axum::routing::get;
-use axum::Router;
 use nym_http_api_common::{FormattedResponse, OutputParams};
 use nym_node_requests::api::v1::gateway::models::{ClientInterfaces, WebSockets, Wireguard};
 use nym_node_requests::routes::api::v1::gateway::client_interfaces;

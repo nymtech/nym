@@ -139,7 +139,9 @@ While the stored info point to:\n{stored_info:#?}"
         stored_info: Box<BinaryBuildInformationOwned>,
     },
 
-    #[error("the daemon for upgrade '{upgrade_name}' has version {daemon_version} while {expected} was expected instead")]
+    #[error(
+        "the daemon for upgrade '{upgrade_name}' has version {daemon_version} while {expected} was expected instead"
+    )]
     UnexpectedUpgradeDaemonVersion {
         upgrade_name: String,
         daemon_version: String,
@@ -226,13 +228,19 @@ While the stored info point to:\n{stored_info:#?}"
         source: dotenvy::Error,
     },
 
-    #[error("the value provided for environmental variable '{variable}' was not valid unicode: {value:?}")]
+    #[error(
+        "the value provided for environmental variable '{variable}' was not valid unicode: {value:?}"
+    )]
     MalformedEnvVariable { variable: String, value: OsString },
 
-    #[error("the value provided for environmental boolean variable '{variable}': '{value}' is not a valid boolean")]
+    #[error(
+        "the value provided for environmental boolean variable '{variable}': '{value}' is not a valid boolean"
+    )]
     MalformedBoolEnvVariable { variable: String, value: String },
 
-    #[error("the value provided for environmental duration variable '{variable}': '{value}' is not a valid duration: {source}")]
+    #[error(
+        "the value provided for environmental duration variable '{variable}': '{value}' is not a valid duration: {source}"
+    )]
     MalformedDurationEnvVariable {
         variable: String,
         value: String,
@@ -240,7 +248,9 @@ While the stored info point to:\n{stored_info:#?}"
         source: humantime::DurationError,
     },
 
-    #[error("the value provided for environmental numerical variable '{variable}': '{value}' is not a valid number: {source}")]
+    #[error(
+        "the value provided for environmental numerical variable '{variable}': '{value}' is not a valid number: {source}"
+    )]
     MalformedNumberEnvVariable {
         variable: String,
         value: String,
@@ -248,7 +258,9 @@ While the stored info point to:\n{stored_info:#?}"
         source: ParseIntError,
     },
 
-    #[error("the value provided for environmental Url '{variable}': '{value}' is not a valid number: {source}")]
+    #[error(
+        "the value provided for environmental Url '{variable}': '{value}' is not a valid number: {source}"
+    )]
     MalformedUrlEnvVariable {
         variable: String,
         value: String,
@@ -279,7 +291,9 @@ While the stored info point to:\n{stored_info:#?}"
         source: io::Error,
     },
 
-    #[error("the value of daemon home has to be provided by either `--daemon-home` flag or `$DAEMON_HOME` environmental variable")]
+    #[error(
+        "the value of daemon home has to be provided by either `--daemon-home` flag or `$DAEMON_HOME` environmental variable"
+    )]
     DaemonHomeUnavailable,
 
     #[error("failed to obtain build information from the daemon executable ('{}'): {source}", binary_path.display())]
@@ -295,7 +309,9 @@ While the stored info point to:\n{stored_info:#?}"
         source: serde_json::Error,
     },
 
-    #[error("the daemon execution has failed with the following exit code: {exit_code:?}. the associated signal code: {signal_code:?}. the core was dumped: {core_dumped}")]
+    #[error(
+        "the daemon execution has failed with the following exit code: {exit_code:?}. the associated signal code: {signal_code:?}. the core was dumped: {core_dumped}"
+    )]
     DaemonExecutionFailure {
         // exit code of the process, if any
         exit_code: Option<i32>,
@@ -311,7 +327,9 @@ While the stored info point to:\n{stored_info:#?}"
         source: io::Error,
     },
 
-    #[error("there was already a genesis binary present for {daemon_name} which was different that the one provided.\nProvided:\n{provided_genesis:#?}\nExisting:\n{existing_info:#?}")]
+    #[error(
+        "there was already a genesis binary present for {daemon_name} which was different that the one provided.\nProvided:\n{provided_genesis:#?}\nExisting:\n{existing_info:#?}"
+    )]
     DuplicateDaemonGenesisBinary {
         daemon_name: String,
         existing_info: Box<BinaryBuildInformationOwned>,
@@ -324,7 +342,9 @@ While the stored info point to:\n{stored_info:#?}"
     #[error("there already exist upgrade information for '{name}' at: {}. if you want to overwrite its content, use --force flag", path.display())]
     ExistingUpgradeInfo { name: String, path: PathBuf },
 
-    #[error("the current upgrade-plan.json has planned upgrade for '{name}', but no corresponding upgrade-info.json file could be found")]
+    #[error(
+        "the current upgrade-plan.json has planned upgrade for '{name}', but no corresponding upgrade-info.json file could be found"
+    )]
     UpgradePlanWithNoInfo { name: String },
 
     #[error("there was already a symlink for the 'current' binary of {daemon_name}. it's pointing to {} while we needed to create one to {}", link.display(), expected_link.display())]
@@ -362,7 +382,9 @@ While the stored info point to:\n{stored_info:#?}"
     #[error("could not find the upgrade binary at {} while the binary download is disabled", path.display())]
     NoUpgradeBinaryWithDisabledDownload { path: PathBuf },
 
-    #[error("upgrade '{upgrade_name}' does not have any valid download URLs for the current arch '{arch}'. The available arches are: {available:?}")]
+    #[error(
+        "upgrade '{upgrade_name}' does not have any valid download URLs for the current arch '{arch}'. The available arches are: {available:?}"
+    )]
     NoDownloadUrls {
         upgrade_name: String,
         arch: String,
@@ -376,7 +398,9 @@ While the stored info point to:\n{stored_info:#?}"
         source: reqwest::Error,
     },
 
-    #[error("failed to verify checksum for upgrade '{upgrade_name}' using {algorithm}. Got '{encoded_checksum}' while expected '{expected_checksum}'")]
+    #[error(
+        "failed to verify checksum for upgrade '{upgrade_name}' using {algorithm}. Got '{encoded_checksum}' while expected '{expected_checksum}'"
+    )]
     DownloadChecksumFailure {
         upgrade_name: String,
         encoded_checksum: String,
@@ -414,7 +438,9 @@ While the stored info point to:\n{stored_info:#?}"
         source: io::Error,
     },
 
-    #[error("could not load the default config file as there isn't a single nymvisor instance initiated (there are {instances}). please specify either $NYMVISOR_CONFIG_PATH or $NYMVISOR_ID")]
+    #[error(
+        "could not load the default config file as there isn't a single nymvisor instance initiated (there are {instances}). please specify either $NYMVISOR_CONFIG_PATH or $NYMVISOR_ID"
+    )]
     NotSingleton { instances: usize },
 
     #[error("failed to crate tokio's runtime: {source}")]

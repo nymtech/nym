@@ -1,6 +1,6 @@
 use crate::{
     http::{self, models::SummaryHistory},
-    utils::{decimal_to_i64, unix_timestamp_to_utc_rfc3339, NumericalCheckedCast},
+    utils::{NumericalCheckedCast, decimal_to_i64, unix_timestamp_to_utc_rfc3339},
 };
 use anyhow::Context;
 use nym_contracts_common::Percent;

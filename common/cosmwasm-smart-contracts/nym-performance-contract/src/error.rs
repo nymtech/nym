@@ -23,7 +23,9 @@ pub enum NymPerformanceContractError {
     #[error("{address} is not an authorised network monitor")]
     NotAuthorised { address: Addr },
 
-    #[error("attempted to submit performance data for epoch {epoch_id} and node {node_id} whilst last submitted was {last_epoch_id} for node {last_node_id}")]
+    #[error(
+        "attempted to submit performance data for epoch {epoch_id} and node {node_id} whilst last submitted was {last_epoch_id} for node {last_node_id}"
+    )]
     StalePerformanceSubmission {
         epoch_id: EpochId,
         node_id: NodeId,

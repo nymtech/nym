@@ -84,8 +84,10 @@ const DEFAULT_SUFFIX: &str = "_MAINNET_DEFAULT";
 
 #[cfg(all(feature = "env", feature = "network"))]
 fn set_var_to_default(var: &str, value: &str) {
-    std::env::set_var(var, value);
-    std::env::set_var(format!("{var}{DEFAULT_SUFFIX}"), "1")
+    unsafe {
+        std::env::set_var(var, value);
+        std::env::set_var(format!("{var}{DEFAULT_SUFFIX}"), "1")
+    }
 }
 
 #[cfg(all(feature = "env", feature = "network"))]

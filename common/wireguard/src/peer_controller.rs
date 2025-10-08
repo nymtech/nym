@@ -2,15 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use defguard_wireguard_rs::{
+    WireguardInterfaceApi,
     host::{Host, Peer},
     key::Key,
-    WireguardInterfaceApi,
 };
 use futures::channel::oneshot;
 use log::info;
 use nym_credential_verification::{
-    bandwidth_storage_manager::BandwidthStorageManager, ecash::traits::EcashManager,
     BandwidthFlushingBehaviourConfig, ClientBandwidth, CredentialVerifier, TicketVerifier,
+    bandwidth_storage_manager::BandwidthStorageManager, ecash::traits::EcashManager,
 };
 use nym_credentials_interface::CredentialSpendingData;
 use nym_gateway_requests::models::CredentialSpendingRequest;
@@ -22,8 +22,8 @@ use std::{
     net::IpAddr,
     time::{Duration, SystemTime},
 };
-use tokio::sync::{mpsc, RwLock};
-use tokio_stream::{wrappers::IntervalStream, StreamExt};
+use tokio::sync::{RwLock, mpsc};
+use tokio_stream::{StreamExt, wrappers::IntervalStream};
 
 use crate::{
     error::{Error, Result},
@@ -145,7 +145,9 @@ impl PeerController {
         self.bw_storage_managers.remove(key);
         let ret = self.wg_api.remove_peer(key);
         if ret.is_err() {
-            log::error!("Wireguard peer could not be removed from wireguard kernel module. Process should be restarted so that the interface is reset.");
+            log::error!(
+                "Wireguard peer could not be removed from wireguard kernel module. Process should be restarted so that the interface is reset."
+            );
         }
         Ok(ret?)
     }

@@ -35,10 +35,10 @@ fn v2_reply_surbs_serialised_len(surbs: &[ReplySurbWithKeyRotation]) -> usize {
     let num_hops = reply_surbs_hops(surbs);
 
     // sanity checks; this should probably be removed later on
-    if let Some(reply_surb) = surbs.first() {
-        if !reply_surb.inner.surb.uses_key_seeds() {
-            error!("using v2 surbs encoding with legacy structure - the surbs will be unusable")
-        }
+    if let Some(reply_surb) = surbs.first()
+        && !reply_surb.inner.surb.uses_key_seeds()
+    {
+        error!("using v2 surbs encoding with legacy structure - the surbs will be unusable")
     }
 
     // when serialising surbs are always prepended with:

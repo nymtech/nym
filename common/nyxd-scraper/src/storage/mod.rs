@@ -6,22 +6,22 @@ use crate::{
     error::ScraperError,
     storage::{
         manager::{
-            insert_block, insert_message, insert_precommit, insert_transaction, insert_validator,
-            prune_blocks, prune_messages, prune_pre_commits, prune_transactions,
-            update_last_processed, update_last_pruned, StorageManager,
+            StorageManager, insert_block, insert_message, insert_precommit, insert_transaction,
+            insert_validator, prune_blocks, prune_messages, prune_pre_commits, prune_transactions,
+            update_last_processed, update_last_pruned,
         },
         models::{CommitSignature, Validator},
     },
 };
 use sqlx::{
+    ConnectOptions, Sqlite, Transaction,
     sqlite::{SqliteAutoVacuum, SqliteSynchronous},
     types::time::OffsetDateTime,
-    ConnectOptions, Sqlite, Transaction,
 };
 use std::{fmt::Debug, path::Path};
 use tendermint::{
-    block::{Commit, CommitSig},
     Block,
+    block::{Commit, CommitSig},
 };
 use tendermint_rpc::endpoint::validators;
 use tokio::time::Instant;

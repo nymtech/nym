@@ -3,11 +3,11 @@
 
 use crate::NymIdError;
 use nym_credential_storage::storage::Storage;
+use nym_credentials::ecash::bandwidth::serialiser::VersionedSerialise;
 use nym_credentials::ecash::bandwidth::serialiser::keys::EpochVerificationKey;
 use nym_credentials::ecash::bandwidth::serialiser::signatures::{
     AggregatedCoinIndicesSignatures, AggregatedExpirationDateSignatures,
 };
-use nym_credentials::ecash::bandwidth::serialiser::VersionedSerialise;
 use nym_credentials::ecash::utils::EcashTime;
 use nym_credentials::{ImportableTicketBook, IssuedTicketBook};
 use time::OffsetDateTime;

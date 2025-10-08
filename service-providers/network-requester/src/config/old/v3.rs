@@ -3,7 +3,7 @@
 
 use super::v4::{ConfigV4, DebugV4, NetworkRequesterV4};
 use crate::config::persistence::old::v1::NetworkRequesterPathsV1;
-use crate::config::persistence::old::v2::{NetworkRequesterPathsV2, DEFAULT_DESCRIPTION_FILENAME};
+use crate::config::persistence::old::v2::{DEFAULT_DESCRIPTION_FILENAME, NetworkRequesterPathsV2};
 use crate::{config::default_config_filepath, error::NetworkRequesterError};
 use log::trace;
 use nym_bin_common::logging::LoggingSettings;

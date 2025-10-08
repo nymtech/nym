@@ -1,7 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use nym_sphinx_types::{delays, Delay};
+use nym_sphinx_types::{Delay, delays};
 use std::time::Duration;
 use thiserror::Error;
 

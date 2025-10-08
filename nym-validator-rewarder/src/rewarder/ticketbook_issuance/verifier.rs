@@ -6,7 +6,7 @@ use crate::rewarder::ticketbook_issuance::types::{
 };
 use cosmwasm_std::Decimal;
 use nym_compact_ecash::scheme::withdrawal::verify_partial_blind_signature;
-use nym_compact_ecash::{date_scalar, type_scalar, CompactEcashError};
+use nym_compact_ecash::{CompactEcashError, date_scalar, type_scalar};
 use nym_crypto::asymmetric::ed25519;
 use nym_ecash_time::EcashTime;
 use nym_network_defaults::MINIMUM_TICKETBOOK_DATA_REQUEST_SIZE;
@@ -338,7 +338,10 @@ impl IssuerUnderTest {
         {
             Ok(res) => res,
             Err(err) => {
-                warn!("⚠️ failed to obtain issued ticketbooks information from {}. it might be running an outdated api. the error was: {err}", self.details);
+                warn!(
+                    "⚠️ failed to obtain issued ticketbooks information from {}. it might be running an outdated api. the error was: {err}",
+                    self.details
+                );
                 return;
             }
         };
@@ -511,7 +514,7 @@ impl IssuerUnderTest {
                 Err(err) => {
                     return Err(
                         PartialTicketbookVerificationFailure::MalformedBlindedSignature(err),
-                    )
+                    );
                 }
             };
 
@@ -525,7 +528,7 @@ impl IssuerUnderTest {
                         PartialTicketbookVerificationFailure::MalformedPrivateAttributesCommitments(
                             err,
                         ),
-                    )
+                    );
                 }
             };
 
@@ -793,7 +796,10 @@ impl<'a> TicketbookIssuanceVerifier<'a> {
         // and see if it's running a recent enough version to support subsequent queries
         let issued_count = tested_issuer.get_issued_count(self.expiration_date).await;
         if issued_count == 0 {
-            info!("{} hasn't issued any ticketbooks with expiration on {} (or is running an outdated api). it will not undergo any further testing", tested_issuer.details, self.expiration_date);
+            info!(
+                "{} hasn't issued any ticketbooks with expiration on {} (or is running an outdated api). it will not undergo any further testing",
+                tested_issuer.details, self.expiration_date
+            );
             return None;
         }
 
@@ -844,11 +850,12 @@ impl<'a> TicketbookIssuanceVerifier<'a> {
         tested_issuer.verify_challenge_response(self.expiration_date);
 
         // if issuer produced valid results, try to update global deposit ids
-        if !tested_issuer.caught_cheating() && tested_issuer.claimed_issued() > 0 {
-            if let Some(commitment) = &tested_issuer.issued_commitment {
-                for deposit in &commitment.body.deposits {
-                    self.made_deposits.insert(deposit.deposit_id);
-                }
+        if !tested_issuer.caught_cheating()
+            && tested_issuer.claimed_issued() > 0
+            && let Some(commitment) = &tested_issuer.issued_commitment
+        {
+            for deposit in &commitment.body.deposits {
+                self.made_deposits.insert(deposit.deposit_id);
             }
         }
 

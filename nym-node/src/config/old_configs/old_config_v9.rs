@@ -15,7 +15,7 @@ use crate::config::old_configs::old_config_v10::{
 use crate::config::persistence::{
     DEFAULT_PRIMARY_X25519_SPHINX_KEY_FILENAME, DEFAULT_SECONDARY_X25519_SPHINX_KEY_FILENAME,
 };
-use crate::config::{NodeModes, DEFAULT_HTTP_PORT};
+use crate::config::{DEFAULT_HTTP_PORT, NodeModes};
 use crate::error::{KeyIOFailure, NymNodeError};
 use crate::node::helpers::{get_current_rotation_id, load_key, store_key};
 use crate::node::key_rotation::key::SphinxPrivateKey;

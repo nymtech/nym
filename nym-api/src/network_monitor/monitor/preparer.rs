@@ -308,7 +308,7 @@ impl PacketPreparer {
             let gateway = rand_gateways[i].clone();
 
             routes.push(TestRoute::new(
-                rng.gen(),
+                rng.r#gen(),
                 current_rotation_id,
                 node_1,
                 node_2,

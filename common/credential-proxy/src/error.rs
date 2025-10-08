@@ -3,7 +3,7 @@
 
 use nym_ecash_signer_check::SignerCheckError;
 use nym_validator_client::coconut::EcashApiError;
-use nym_validator_client::nym_api::{error::NymAPIError, EpochId};
+use nym_validator_client::nym_api::{EpochId, error::NymAPIError};
 use nym_validator_client::nyxd::error::NyxdError;
 use std::io;
 use std::net::SocketAddr;
@@ -33,7 +33,9 @@ pub enum CredentialProxyError {
     #[error("the provided expiration date is too early")]
     ExpirationDateTooEarly,
 
-    #[error("failed to bind to {address}: {source}. Are you sure nothing else is running on the specified port and your user has sufficient permission to bind to the requested address?")]
+    #[error(
+        "failed to bind to {address}: {source}. Are you sure nothing else is running on the specified port and your user has sufficient permission to bind to the requested address?"
+    )]
     SocketBindFailure {
         address: SocketAddr,
         source: io::Error,
@@ -89,7 +91,7 @@ pub enum CredentialProxyError {
     InsufficientNumberOfSigners { available: usize, threshold: u64 },
 
     #[error(
-    "we have only managed to obtain {available} partial credentials while the minimum threshold is {threshold}"
+        "we have only managed to obtain {available} partial credentials while the minimum threshold is {threshold}"
     )]
     InsufficientNumberOfCredentials { available: usize, threshold: u64 },
 
@@ -102,7 +104,9 @@ pub enum CredentialProxyError {
     #[error("the DKG has not yet been initialised in the system")]
     UninitialisedDkg,
 
-    #[error("credentials can't yet be issued in the system. approximate expected availability: {availability}")]
+    #[error(
+        "credentials can't yet be issued in the system. approximate expected availability: {availability}"
+    )]
     CredentialsNotYetIssuable { availability: OffsetDateTime },
 
     #[error("reached seemingly impossible ecash failure")]
@@ -140,7 +144,9 @@ pub enum CredentialProxyError {
     #[error("failed to obtain wallet shares with id {id}: {message}")]
     ShareByIdLoadError { message: String, id: i64 },
 
-    #[error("failed to obtain wallet shares with device_id {device_id} and credential_id: {credential_id}: {message}")]
+    #[error(
+        "failed to obtain wallet shares with device_id {device_id} and credential_id: {credential_id}: {message}"
+    )]
     ShareByDeviceLoadError {
         message: String,
         device_id: String,

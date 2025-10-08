@@ -13,9 +13,9 @@ use crate::config::service_providers::{
     IpPacketRouter, IpPacketRouterDebug, NetworkRequester, NetworkRequesterDebug,
 };
 use crate::config::{
-    gateway_tasks, service_providers, Config, GatewayTasksConfig, Host, Http, KeyRotation,
-    KeyRotationDebug, Mixnet, MixnetDebug, NodeModes, ReplayProtection, ReplayProtectionDebug,
-    ServiceProvidersConfig, Verloc, VerlocDebug, Wireguard, DEFAULT_HTTP_PORT,
+    Config, DEFAULT_HTTP_PORT, GatewayTasksConfig, Host, Http, KeyRotation, KeyRotationDebug,
+    Mixnet, MixnetDebug, NodeModes, ReplayProtection, ReplayProtectionDebug,
+    ServiceProvidersConfig, Verloc, VerlocDebug, Wireguard, gateway_tasks, service_providers,
 };
 use crate::error::NymNodeError;
 use celes::Country;

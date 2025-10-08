@@ -1,6 +1,6 @@
-use crate::db::models::{TestRunDto, TestRunStatus};
 use crate::db::DbConnection;
 use crate::db::DbPool;
+use crate::db::models::{TestRunDto, TestRunStatus};
 use crate::http::models::TestrunAssignment;
 use crate::utils::now_utc;
 use time::Duration;

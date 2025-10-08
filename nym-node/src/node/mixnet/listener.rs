@@ -25,7 +25,10 @@ impl Listener {
         let tcp_listener = match tokio::net::TcpListener::bind(self.bind_address).await {
             Ok(listener) => listener,
             Err(err) => {
-                error!("Failed to bind to {}: {err}. Are you sure nothing else is running on the specified port and your user has sufficient permission to bind to the requested address?", self.bind_address);
+                error!(
+                    "Failed to bind to {}: {err}. Are you sure nothing else is running on the specified port and your user has sufficient permission to bind to the requested address?",
+                    self.bind_address
+                );
                 shutdown.cancel();
                 return;
             }

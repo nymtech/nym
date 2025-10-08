@@ -4,8 +4,8 @@
 use crate::client_check::check_client;
 use futures::stream::{FuturesUnordered, StreamExt};
 use nym_network_defaults::NymNetworkDetails;
-use nym_validator_client::nyxd::contract_traits::{DkgQueryClient, PagedDkgQueryClient};
 use nym_validator_client::QueryHttpRpcNyxdClient;
+use nym_validator_client::nyxd::contract_traits::{DkgQueryClient, PagedDkgQueryClient};
 use std::collections::HashMap;
 use url::Url;
 

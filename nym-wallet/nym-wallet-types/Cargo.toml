@@ -2,7 +2,7 @@
 name = "nym-wallet-types"
 version = "1.0.0"
 edition = "2021"
-rust-version = "1.58"
+rust-version = "1.85"
 license = "Apache-2.0"
 
 [dependencies]

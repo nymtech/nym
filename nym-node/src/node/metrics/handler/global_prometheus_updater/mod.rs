@@ -6,10 +6,10 @@ use crate::node::metrics::handler::{
     MetricsHandler, OnStartMetricsHandler, OnUpdateMetricsHandler,
 };
 use async_trait::async_trait;
-use nym_node_metrics::prometheus_wrapper::{
-    NymNodePrometheusMetrics, PrometheusMetric, PROMETHEUS_METRICS,
-};
 use nym_node_metrics::NymNodeMetrics;
+use nym_node_metrics::prometheus_wrapper::{
+    NymNodePrometheusMetrics, PROMETHEUS_METRICS, PrometheusMetric,
+};
 
 mod at_last_update;
 
@@ -233,6 +233,8 @@ impl MetricsHandler for PrometheusGlobalNodeMetricsRegistryUpdater {
     // SAFETY: `PrometheusNodeMetricsRegistryUpdater` doesn't have any associated events
     #[allow(clippy::panic)]
     async fn handle_event(&mut self, _event: Self::Events) {
-        panic!("this should have never been called! MetricsHandler has been incorrectly called on PrometheusNodeMetricsRegistryUpdater")
+        panic!(
+            "this should have never been called! MetricsHandler has been incorrectly called on PrometheusNodeMetricsRegistryUpdater"
+        )
     }
 }

@@ -406,13 +406,13 @@ fn calculate_score(gateway: &Gateway, probe_outcome: &LastProbeResult) -> ScoreV
                 / 1024f64;
             let speed_mbps = file_size_mb / duration_sec;
 
-            let file_download_score = if speed_mbps > 100.0 {
+            let file_download_score = if speed_mbps > 10.0 {
                 1.0
-            } else if speed_mbps > 50.0 {
+            } else if speed_mbps > 5.0 {
                 0.75
-            } else if speed_mbps > 20.0 {
+            } else if speed_mbps > 2.0 {
                 0.5
-            } else if speed_mbps > 10.0 {
+            } else if speed_mbps > 1.0 {
                 0.25
             } else {
                 0.1

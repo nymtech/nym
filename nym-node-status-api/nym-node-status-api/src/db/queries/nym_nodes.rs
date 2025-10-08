@@ -35,7 +35,8 @@ pub(crate) async fn get_all_nym_nodes(pool: &DbPool) -> anyhow::Result<Vec<NymNo
             entry as "entry: serde_json::Value",
             performance,
             self_described as "self_described: serde_json::Value",
-            bond_info as "bond_info: serde_json::Value"
+            bond_info as "bond_info: serde_json::Value",
+            http_api_port
         FROM
             nym_nodes
         ORDER BY
@@ -72,7 +73,8 @@ pub(crate) async fn get_described_bonded_nym_nodes(
             entry as "entry: serde_json::Value",
             performance,
             self_described as "self_described: serde_json::Value",
-            bond_info as "bond_info: serde_json::Value"
+            bond_info as "bond_info: serde_json::Value",
+            http_api_port
         FROM
             nym_nodes
         WHERE

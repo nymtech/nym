@@ -5,8 +5,8 @@ use crate::nym_node::Role;
 use crate::{
     EpochEventId, EpochState, IntervalEventId, NodeId, OperatingCostRange, ProfitMarginRange,
 };
-use contracts_common::signing::verifier::ApiVerifierError;
 use contracts_common::Percent;
+use contracts_common::signing::verifier::ApiVerifierError;
 use cosmwasm_std::{Addr, Coin, Decimal, Uint128};
 use cw_controllers::AdminError;
 use thiserror::Error;
@@ -47,7 +47,9 @@ pub enum MixnetContractError {
     )]
     InvalidPubKey,
 
-    #[error("Attempted to reduce node pledge ({current}{denom} - {decrease_by}{denom}) below the minimum amount: {minimum}{denom}")]
+    #[error(
+        "Attempted to reduce node pledge ({current}{denom} - {decrease_by}{denom}) below the minimum amount: {minimum}{denom}"
+    )]
     InvalidPledgeReduction {
         current: Uint128,
         decrease_by: Uint128,
@@ -123,7 +125,9 @@ pub enum MixnetContractError {
     #[error("Provided ed25519 signature did not verify correctly")]
     InvalidEd25519Signature,
 
-    #[error("Can't perform the specified action as the current epoch is still progress. It started at {epoch_start} and finishes at {epoch_end}, while the current block time is {current_block_time}")]
+    #[error(
+        "Can't perform the specified action as the current epoch is still progress. It started at {epoch_start} and finishes at {epoch_end}, while the current block time is {current_block_time}"
+    )]
     EpochInProgress {
         current_block_time: u64,
         epoch_start: i64,
@@ -133,7 +137,9 @@ pub enum MixnetContractError {
     #[error("attempted to reward a gateway node - this has not been fully integrated yet")]
     GatewayRewarding,
 
-    #[error("node {node_id} has already been rewarded during the current rewarding epoch ({absolute_epoch_id})")]
+    #[error(
+        "node {node_id} has already been rewarded during the current rewarding epoch ({absolute_epoch_id})"
+    )]
     NodeAlreadyRewarded {
         node_id: NodeId,
         absolute_epoch_id: u32,
@@ -172,7 +178,9 @@ pub enum MixnetContractError {
     #[error("one of the roles in the new active set is empty")]
     EmptyRoleAssignment,
 
-    #[error("the number of mixnodes in the rewarded set is not divisible by the number of mix-layers (3)")]
+    #[error(
+        "the number of mixnodes in the rewarded set is not divisible by the number of mix-layers (3)"
+    )]
     UnevenLayerAssignment,
 
     #[error("provided active set is bigger than the rewarded set")]
@@ -196,25 +204,35 @@ pub enum MixnetContractError {
     #[error("key rotation validity below minimum value")]
     TooShortRotationInterval,
 
-    #[error("this validator ({current_validator}) is not the one responsible for advancing this epoch. It's responsibility of {chosen_validator}.")]
+    #[error(
+        "this validator ({current_validator}) is not the one responsible for advancing this epoch. It's responsibility of {chosen_validator}."
+    )]
     RewardingValidatorMismatch {
         current_validator: Addr,
         chosen_validator: Addr,
     },
 
-    #[error("the epoch is currently in the process of being advanced. (the state is {current_state}) Please try sending your transaction again once this has finished")]
+    #[error(
+        "the epoch is currently in the process of being advanced. (the state is {current_state}) Please try sending your transaction again once this has finished"
+    )]
     EpochAdvancementInProgress { current_state: EpochState },
 
-    #[error("the epoch is in an unexpected state. expected 'mix rewarding' state, but we're in {current_state} instead.")]
+    #[error(
+        "the epoch is in an unexpected state. expected 'mix rewarding' state, but we're in {current_state} instead."
+    )]
     UnexpectedNonRewardingEpochState { current_state: EpochState },
 
-    #[error("attempted to reward mixnode out of order. Attempted to reward {attempted_to_reward} while last rewarded was {last_rewarded}.")]
+    #[error(
+        "attempted to reward mixnode out of order. Attempted to reward {attempted_to_reward} while last rewarded was {last_rewarded}."
+    )]
     RewardingOutOfOrder {
         last_rewarded: NodeId,
         attempted_to_reward: NodeId,
     },
 
-    #[error("the epoch is currently not in the 'event reconciliation' state. (the state is {current_state})")]
+    #[error(
+        "the epoch is currently not in the 'event reconciliation' state. (the state is {current_state})"
+    )]
     EpochNotInEventReconciliationState { current_state: EpochState },
 
     #[error(
@@ -225,14 +243,18 @@ pub enum MixnetContractError {
     #[error("unexpected role assignment. got: {got} while expected: {expected}")]
     UnexpectedRoleAssignment { expected: Role, got: Role },
 
-    #[error("attempted to assign an invalid number of nodes for a role of {role}. got {assigned}, but the maximum allowed is {allowed}")]
+    #[error(
+        "attempted to assign an invalid number of nodes for a role of {role}. got {assigned}, but the maximum allowed is {allowed}"
+    )]
     IllegalRoleCount {
         role: Role,
         assigned: u32,
         allowed: u32,
     },
 
-    #[error("the epoch is currently not in the 'epoch advancement' state. (the state is {current_state})")]
+    #[error(
+        "the epoch is currently not in the 'epoch advancement' state. (the state is {current_state})"
+    )]
     EpochNotInAdvancementState { current_state: EpochState },
 
     #[error("failed to verify message signature: {source}")]
@@ -241,7 +263,9 @@ pub enum MixnetContractError {
         source: ApiVerifierError,
     },
 
-    #[error("this operation is no longer allowed to be performed with vesting tokens. please move them to your liquid balance and try again")]
+    #[error(
+        "this operation is no longer allowed to be performed with vesting tokens. please move them to your liquid balance and try again"
+    )]
     DisabledVestingOperation,
 
     #[error(
@@ -249,7 +273,9 @@ pub enum MixnetContractError {
     )]
     NotAVestingMixnode,
 
-    #[error("this delegation has not been performed with the vesting tokens or has already been migrated")]
+    #[error(
+        "this delegation has not been performed with the vesting tokens or has already been migrated"
+    )]
     NotAVestingDelegation,
 
     #[error("the provided profit margin ({provided}) is outside the allowed range: {range}")]
@@ -258,7 +284,9 @@ pub enum MixnetContractError {
         range: ProfitMarginRange,
     },
 
-    #[error("the provided interval operating cost ({provided}{denom}) is outside the allowed range: {range}")]
+    #[error(
+        "the provided interval operating cost ({provided}{denom}) is outside the allowed range: {range}"
+    )]
     OperatingCostOutsideRange {
         denom: String,
         provided: Uint128,
@@ -279,7 +307,9 @@ pub enum MixnetContractError {
     #[error("the provided nym-node version is not a valid semver. got: {provided}")]
     InvalidNymNodeSemver { provided: String },
 
-    #[error("the provided nym-node version is not greater than the current one. got: {provided}. current: {current}")]
+    #[error(
+        "the provided nym-node version is not greater than the current one. got: {provided}. current: {current}"
+    )]
     NonIncreasingSemver { provided: String, current: String },
 }
 

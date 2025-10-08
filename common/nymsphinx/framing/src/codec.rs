@@ -3,11 +3,11 @@
 
 use crate::packet::{FramedNymPacket, Header};
 use bytes::{Buf, BufMut, BytesMut};
+use nym_sphinx_params::PacketType;
 use nym_sphinx_params::key_rotation::InvalidSphinxKeyRotation;
 use nym_sphinx_params::packet_sizes::{InvalidPacketSize, PacketSize};
 use nym_sphinx_params::packet_types::InvalidPacketType;
 use nym_sphinx_params::packet_version::{InvalidPacketVersion, PacketVersion};
-use nym_sphinx_params::PacketType;
 use nym_sphinx_types::{NymPacket, NymPacketError};
 use std::io;
 use thiserror::Error;
@@ -143,13 +143,13 @@ impl Decoder for NymCodec {
 #[cfg(test)]
 mod packet_encoding {
     use super::*;
+    use nym_sphinx_params::PacketType;
     use nym_sphinx_params::packet_version::{
         CURRENT_PACKET_VERSION, INITIAL_PACKET_VERSION_NUMBER,
     };
-    use nym_sphinx_params::PacketType;
     use nym_sphinx_types::{
-        Delay as SphinxDelay, Destination, DestinationAddressBytes, Node, NodeAddressBytes,
-        NymPacket, PrivateKey, DESTINATION_ADDRESS_LENGTH, IDENTIFIER_LENGTH, NODE_ADDRESS_LENGTH,
+        DESTINATION_ADDRESS_LENGTH, Delay as SphinxDelay, Destination, DestinationAddressBytes,
+        IDENTIFIER_LENGTH, NODE_ADDRESS_LENGTH, Node, NodeAddressBytes, NymPacket, PrivateKey,
     };
 
     fn dummy_header() -> Header {

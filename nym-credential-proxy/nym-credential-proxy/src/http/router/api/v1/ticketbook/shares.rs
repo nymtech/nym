@@ -3,9 +3,9 @@
 
 use crate::http::router::api::v1::ticketbook::FormattedTicketbookWalletSharesResponse;
 use crate::http::state::ApiState;
+use axum::Router;
 use axum::extract::{Path, Query, State};
 use axum::routing::get;
-use axum::Router;
 use nym_credential_proxy_lib::helpers::random_uuid;
 use nym_credential_proxy_lib::http_helpers::RequestError;
 use nym_credential_proxy_requests::api::v1::ticketbook::models::{

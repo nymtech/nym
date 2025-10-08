@@ -10,7 +10,7 @@ use crate::{
 use clap::{CommandFactory, Parser, Subcommand};
 use log::error;
 use nym_bin_common::bin_info;
-use nym_bin_common::completions::{fig_generate, ArgShell};
+use nym_bin_common::completions::{ArgShell, fig_generate};
 use nym_client_core::cli_helpers::CliClient;
 use nym_config::OptionalSet;
 use std::sync::OnceLock;
@@ -174,7 +174,9 @@ async fn try_load_current_config(id: &str) -> Result<Config, NetworkRequesterErr
     let config = match Config::read_from_default_path(id) {
         Ok(cfg) => cfg,
         Err(err) => {
-            error!("Failed to load config for {id}. Are you sure you have run `init` before? (Error was: {err})");
+            error!(
+                "Failed to load config for {id}. Are you sure you have run `init` before? (Error was: {err})"
+            );
             return Err(NetworkRequesterError::FailedToLoadConfig(id.to_string()));
         }
     };

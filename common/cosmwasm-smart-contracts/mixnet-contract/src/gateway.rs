@@ -3,7 +3,7 @@
 
 use crate::{IdentityKey, NodeId, SphinxKey};
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{to_json_string, Addr, Coin};
+use cosmwasm_std::{Addr, Coin, to_json_string};
 use std::cmp::Ordering;
 use std::fmt::Display;
 

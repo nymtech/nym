@@ -70,10 +70,6 @@ where
 
 #[macro_export]
 macro_rules! spawn_future {
-    ($future:expr) => {{
-        $crate::spawn_future($future)
-    }};
-    ($future:expr, $name:expr) => {{
-        $crate::spawn_named_future($future, $name)
-    }};
+    ($future:expr) => {{ $crate::spawn_future($future) }};
+    ($future:expr, $name:expr) => {{ $crate::spawn_named_future($future, $name) }};
 }

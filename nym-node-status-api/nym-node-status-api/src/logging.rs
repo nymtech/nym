@@ -1,5 +1,5 @@
 use tracing::level_filters::LevelFilter;
-use tracing_subscriber::{filter::Directive, EnvFilter};
+use tracing_subscriber::{EnvFilter, filter::Directive};
 
 // TODO dz you can get the tracing-subscriber via basic-tracing feature on nym-bin-common
 pub(crate) fn setup_tracing_logger() -> anyhow::Result<()> {

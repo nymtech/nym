@@ -1,5 +1,5 @@
 use crate::cli::try_load_current_config;
-use crate::cli::{override_config, OverrideConfig};
+use crate::cli::{OverrideConfig, override_config};
 use clap::Args;
 use nym_client_core::cli_helpers::client_run::CommonClientRunArgs;
 use nym_ip_packet_router::error::IpPacketRouterError;

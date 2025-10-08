@@ -30,10 +30,10 @@
 //! a key schedule that is symmetric (such as [1, 2, 1]) to build a transform T(k,m) that has the
 //! property m = T(k, T(k, m)).
 
-use chacha20::cipher::{KeyIvInit, StreamCipher};
 use chacha20::Key;
 use chacha20::XChaCha20;
 use chacha20::XNonce;
+use chacha20::cipher::{KeyIvInit, StreamCipher};
 use zeroize::Zeroize;
 
 use crate::constants::{CONTEXT, MIN_MESSAGE_LEN, TAG_LEN};

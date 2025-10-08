@@ -2,8 +2,8 @@ use std::collections::HashSet;
 
 use crate::{
     db::{
-        models::{GatewayDto, GatewayInsertRecord},
         DbConnection, DbPool,
+        models::{GatewayDto, GatewayInsertRecord},
     },
     http::models::Gateway,
     node_scraper::helpers::NodeDescriptionResponse,

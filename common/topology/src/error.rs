@@ -10,13 +10,17 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum NymTopologyError {
-    #[error("the provided network topology is empty - there are no valid nodes on it - the network request(s) probably failed")]
+    #[error(
+        "the provided network topology is empty - there are no valid nodes on it - the network request(s) probably failed"
+    )]
     EmptyNetworkTopology,
 
     #[error("no node with identity {node_identity} is known")]
     NonExistentNode { node_identity: Box<NodeIdentity> },
 
-    #[error("could not use node with identity {node_identity} as egress since it didn't get assigned valid role in the current epoch")]
+    #[error(
+        "could not use node with identity {node_identity} as egress since it didn't get assigned valid role in the current epoch"
+    )]
     InvalidEgressRole { node_identity: Box<NodeIdentity> },
 
     #[error("one (or more) of mixing layers does not have any valid nodes available")]
@@ -34,13 +38,17 @@ pub enum NymTopologyError {
     #[error("timed out while waiting for gateway '{identity_key}' to come online")]
     TimedOutWaitingForGateway { identity_key: String },
 
-    #[error("Wanted to create a mix route with {requested} hops, while only {available} layers are available")]
+    #[error(
+        "Wanted to create a mix route with {requested} hops, while only {available} layers are available"
+    )]
     InvalidNumberOfHopsError { available: usize, requested: usize },
 
     #[error("No mixnodes available on layer {layer}")]
     EmptyMixLayer { layer: MixLayer },
 
-    #[error("Uneven layer distribution. Layer {layer} has {nodes} on it, while we expected a value between {lower_bound} and {upper_bound} as we have {total_nodes} nodes in total. Full breakdown: {layer_distribution:?}")]
+    #[error(
+        "Uneven layer distribution. Layer {layer} has {nodes} on it, while we expected a value between {lower_bound} and {upper_bound} as we have {total_nodes} nodes in total. Full breakdown: {layer_distribution:?}"
+    )]
     UnevenLayerDistribution {
         layer: MixLayer,
         nodes: usize,

@@ -57,6 +57,8 @@ impl MetricsHandler for PendingEgressPacketsUpdater {
     // SAFETY: `PendingEgressPacketsUpdater` doesn't have any associated events
     #[allow(clippy::panic)]
     async fn handle_event(&mut self, _event: Self::Events) {
-        panic!("this should have never been called! MetricsHandler has been incorrectly called on PendingEgressPacketsUpdater")
+        panic!(
+            "this should have never been called! MetricsHandler has been incorrectly called on PendingEgressPacketsUpdater"
+        )
     }
 }

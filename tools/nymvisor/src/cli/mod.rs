@@ -1,8 +1,8 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::config::{default_config_filepath, default_instances_directory, Config};
-use crate::env::{setup_env, Env};
+use crate::config::{Config, default_config_filepath, default_instances_directory};
+use crate::env::{Env, setup_env};
 use crate::error::NymvisorError;
 use clap::{Parser, Subcommand};
 use nym_bin_common::bin_info;
@@ -98,7 +98,10 @@ fn open_config_file(env: &Env) -> Result<Config, NymvisorError> {
     match Config::read_from_toml_file(&config_load_location) {
         Ok(cfg) => Ok(cfg),
         Err(source) => {
-            error!("Failed to load config from {}. Are you sure you have run `init` before? (Error was: {source})", config_load_location.display());
+            error!(
+                "Failed to load config from {}. Are you sure you have run `init` before? (Error was: {source})",
+                config_load_location.display()
+            );
             Err(NymvisorError::ConfigLoadFailure {
                 id: env.nymvisor_id.clone().unwrap_or("UNKNOWN".to_string()),
                 path: config_load_location,

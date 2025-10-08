@@ -35,7 +35,9 @@ pub enum Error {
     #[error("This gateway is only accepting coconut credentials for bandwidth")]
     OnlyCoconutCredentials,
 
-    #[error("insufficient bandwidth available to process the request. required: {required}B, available: {available}B")]
+    #[error(
+        "insufficient bandwidth available to process the request. required: {required}B, available: {available}B"
+    )]
     OutOfBandwidth { required: i64, available: i64 },
 
     #[error("Internal gateway storage error")]

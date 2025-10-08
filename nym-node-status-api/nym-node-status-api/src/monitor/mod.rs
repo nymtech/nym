@@ -1,22 +1,22 @@
 #![allow(deprecated)]
 
 use crate::db::models::{
-    gateway, mixnode, GatewayInsertRecord, NetworkSummary, NymNodeInsertRecord,
     ASSIGNED_ENTRY_COUNT, ASSIGNED_EXIT_COUNT, ASSIGNED_MIXING_COUNT, GATEWAYS_BONDED_COUNT,
-    GATEWAYS_HISTORICAL_COUNT, MIXNODES_HISTORICAL_COUNT, NYMNODES_DESCRIBED_COUNT, NYMNODE_COUNT,
+    GATEWAYS_HISTORICAL_COUNT, GatewayInsertRecord, MIXNODES_HISTORICAL_COUNT, NYMNODE_COUNT,
+    NYMNODES_DESCRIBED_COUNT, NetworkSummary, NymNodeInsertRecord, gateway, mixnode,
 };
-use crate::db::{queries, DbPool};
+use crate::db::{DbPool, queries};
 use crate::utils::now_utc;
 use crate::utils::{LogError, NumericalCheckedCast};
 use moka::future::Cache;
 use nym_network_defaults::NymNetworkDetails;
 use nym_validator_client::{
-    client::{NodeId, NymApiClientExt, NymNodeDetails},
-    models::NymNodeDescription,
+    QueryHttpRpcNyxdClient,
+    nym_nodes::{NodeRole, SkimmedNode},
 };
 use nym_validator_client::{
-    nym_nodes::{NodeRole, SkimmedNode},
-    QueryHttpRpcNyxdClient,
+    client::{NodeId, NymApiClientExt, NymNodeDetails},
+    models::NymNodeDescription,
 };
 use std::{collections::HashMap, sync::Arc};
 use tokio::{sync::RwLock, time::Duration};

@@ -1,8 +1,8 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use sqlx::types::time::OffsetDateTime;
 use sqlx::FromRow;
+use sqlx::types::time::OffsetDateTime;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash, FromRow)]
 pub struct Validator {

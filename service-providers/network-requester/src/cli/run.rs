@@ -3,7 +3,7 @@
 
 use crate::cli::try_load_current_config;
 use crate::{
-    cli::{override_config, OverrideConfig},
+    cli::{OverrideConfig, override_config},
     error::NetworkRequesterError,
 };
 use clap::Args;

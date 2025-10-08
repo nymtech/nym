@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::node::http::state::AppState;
-use axum::routing::get;
 use axum::Router;
+use axum::routing::get;
 use nym_node_requests::routes::api::v1;
 
 pub mod authenticator;

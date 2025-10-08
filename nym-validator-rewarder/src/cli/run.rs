@@ -1,7 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::cli::{try_load_current_config, ConfigOverridableArgs};
+use crate::cli::{ConfigOverridableArgs, try_load_current_config};
 use crate::error::NymRewarderError;
 use crate::rewarder::Rewarder;
 use std::path::PathBuf;

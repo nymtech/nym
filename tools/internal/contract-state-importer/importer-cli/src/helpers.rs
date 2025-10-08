@@ -3,10 +3,10 @@
 
 use crate::state::CachedState;
 use anyhow::bail;
-use nym_validator_client::nyxd::cosmwasm_client::types::Model;
 use nym_validator_client::nyxd::AccountId;
-use serde::de::DeserializeOwned;
+use nym_validator_client::nyxd::cosmwasm_client::types::Model;
 use serde::Serialize;
+use serde::de::DeserializeOwned;
 use std::env::current_dir;
 use std::fs;
 use std::path::PathBuf;

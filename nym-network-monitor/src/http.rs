@@ -1,11 +1,11 @@
 use crate::accounting::{NetworkAccount, NetworkAccountStats, NodeStats};
 use crate::handlers::{
-    accounting_handler, all_nodes_stats_handler, graph_handler, mermaid_handler, mix_dot_handler,
-    node_stats_handler, recv_handler, send_handler, sent_handler, stats_handler, FragmentsReceived,
-    FragmentsSent,
+    FragmentsReceived, FragmentsSent, accounting_handler, all_nodes_stats_handler, graph_handler,
+    mermaid_handler, mix_dot_handler, node_stats_handler, recv_handler, send_handler, sent_handler,
+    stats_handler,
 };
-use axum::routing::{get, post};
 use axum::Router;
+use axum::routing::{get, post};
 use log::info;
 use nym_sphinx::chunking::fragment::FragmentHeader;
 use nym_sphinx::chunking::{ReceivedFragment, SentFragment};
@@ -83,9 +83,15 @@ impl HttpServer {
         let server_future =
             axum::serve(listener, app).with_graceful_shutdown(self.cancel.cancelled_owned());
 
-        info!("##########################################################################################");
-        info!("######################### HTTP server running, with {n_clients} clients ############################################");
-        info!("##########################################################################################");
+        info!(
+            "##########################################################################################"
+        );
+        info!(
+            "######################### HTTP server running, with {n_clients} clients ############################################"
+        );
+        info!(
+            "##########################################################################################"
+        );
 
         server_future.await?;
 

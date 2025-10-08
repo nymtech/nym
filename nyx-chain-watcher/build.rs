@@ -1,5 +1,5 @@
 use anyhow::Result;
-use sqlx::{sqlite::SqliteConnectOptions, Connection, SqliteConnection};
+use sqlx::{Connection, SqliteConnection, sqlite::SqliteConnectOptions};
 use std::env::var;
 use std::io::Write;
 use std::{collections::HashMap, fs::File, path::PathBuf, str::FromStr};

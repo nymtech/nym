@@ -218,7 +218,7 @@ fn max_diff(v1: &[f64], v2: &[f64]) -> Result<f64, Error> {
 
 #[cfg(test)]
 mod tests {
-    use rand::{rngs::StdRng, SeedableRng};
+    use rand::{SeedableRng, rngs::StdRng};
 
     use super::*;
 

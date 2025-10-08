@@ -7,7 +7,7 @@
 #![warn(clippy::dbg_macro)]
 
 use crate::cli::Cli;
-use clap::{crate_name, crate_version, Parser};
+use clap::{Parser, crate_name, crate_version};
 use nym_bin_common::logging::{maybe_print_banner, setup_tracing_logger};
 use nym_network_defaults::setup_env;
 

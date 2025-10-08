@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::NetworkManagerError;
-use crate::helpers::{async_with_progress, ProgressCtx, ProgressTracker};
+use crate::helpers::{ProgressCtx, ProgressTracker, async_with_progress};
+use crate::manager::NetworkManager;
 use crate::manager::contract::Account;
 use crate::manager::network::Network;
-use crate::manager::NetworkManager;
 use console::style;
 use cw_utils::Threshold;
 use indicatif::HumanDuration;
@@ -13,14 +13,14 @@ use nym_coconut_dkg_common::types::TimeConfiguration;
 use nym_config::defaults::NymNetworkDetails;
 use nym_mixnet_contract_common::reward_params::RewardedSetParams;
 use nym_mixnet_contract_common::{Decimal, InitialRewardingParams, Percent};
-use nym_validator_client::nyxd::cosmwasm_client::types::InstantiateOptions;
-use nym_validator_client::nyxd::Config;
 use nym_validator_client::DirectSigningHttpRpcNyxdClient;
+use nym_validator_client::nyxd::Config;
+use nym_validator_client::nyxd::cosmwasm_client::types::InstantiateOptions;
 use std::ops::Deref;
 use std::path::Path;
 use std::time::Duration;
-use time::format_description::well_known::Rfc3339;
 use time::OffsetDateTime;
+use time::format_description::well_known::Rfc3339;
 use url::Url;
 
 struct InitCtx {

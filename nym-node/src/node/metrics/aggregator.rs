@@ -4,7 +4,7 @@
 use crate::node::metrics::handler::{HandlerWrapper, MetricsHandler, RegistrableHandler};
 use futures::StreamExt;
 use nym_node_metrics::events::{
-    events_channels, MetricEventsReceiver, MetricEventsSender, MetricsEvent,
+    MetricEventsReceiver, MetricEventsSender, MetricsEvent, events_channels,
 };
 use nym_task::ShutdownToken;
 use std::any;
@@ -12,7 +12,7 @@ use std::any::TypeId;
 use std::collections::HashMap;
 use std::ops::DerefMut;
 use std::time::Duration;
-use tokio::time::{interval_at, Instant};
+use tokio::time::{Instant, interval_at};
 use tracing::{debug, error, trace, warn};
 
 pub(crate) struct MetricsAggregator {

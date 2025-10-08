@@ -49,7 +49,9 @@ pub enum NetworkRequesterError {
         source: std::io::Error,
     },
 
-    #[error("the provided address: '{remote}' was somehow resolved to an empty list of socket addresses")]
+    #[error(
+        "the provided address: '{remote}' was somehow resolved to an empty list of socket addresses"
+    )]
     EmptyResolvedAddresses { remote: RemoteAddress },
 
     #[error("failed to apply the exit policy: {source}")]

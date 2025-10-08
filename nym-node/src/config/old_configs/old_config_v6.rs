@@ -8,8 +8,8 @@ use crate::error::NymNodeError;
 use celes::Country;
 use clap::ValueEnum;
 use nym_client_core_config_types::{
-    disk_persistence::{ClientKeysPaths, CommonClientPaths},
     DebugConfig as ClientDebugConfig,
+    disk_persistence::{ClientKeysPaths, CommonClientPaths},
 };
 use nym_config::defaults::{mainnet, var_names};
 use nym_config::helpers::inaddr_any;

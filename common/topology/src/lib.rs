@@ -492,14 +492,13 @@ impl NymTopology {
         };
 
         // a 'valid' egress is one that is currently **not** acting as a mixnode
-        if !ignore_epoch_roles {
-            if let Some(role) = self.rewarded_set.role(node.node_id) {
-                if role.is_mixnode() {
-                    return Err(NymTopologyError::InvalidEgressRole {
-                        node_identity: Box::new(node_identity),
-                    });
-                }
-            }
+        if !ignore_epoch_roles
+            && let Some(role) = self.rewarded_set.role(node.node_id)
+            && role.is_mixnode()
+        {
+            return Err(NymTopologyError::InvalidEgressRole {
+                node_identity: Box::new(node_identity),
+            });
         }
 
         Ok(node)
@@ -603,7 +602,9 @@ impl NymTopology {
             Role::Layer3 => self.rewarded_set.layer3 = init_set(node_id),
             Role::ExitGateway => self.rewarded_set.exit_gateways = init_set(node_id),
             Role::Standby => {
-                warn!("attempting to test node in 'standby' mode - are you sure that's what you meant to do?");
+                warn!(
+                    "attempting to test node in 'standby' mode - are you sure that's what you meant to do?"
+                );
                 self.rewarded_set.standby = init_set(node_id)
             }
         }

@@ -42,12 +42,11 @@ impl ClientStatsSender {
 
     /// Report a statistics event using the sender.
     pub fn report(&self, event: ClientStatsEvents) {
-        if let Some(tx) = &self.stats_tx {
-            if let Err(err) = tx.send(event) {
-                if !self.shutdown_token.is_cancelled() {
-                    log::error!("Failed to send stats event: {err}");
-                }
-            }
+        if let Some(tx) = &self.stats_tx
+            && let Err(err) = tx.send(event)
+            && !self.shutdown_token.is_cancelled()
+        {
+            log::error!("Failed to send stats event: {err}");
         }
     }
 }

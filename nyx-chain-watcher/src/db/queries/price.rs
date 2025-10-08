@@ -1,5 +1,5 @@
-use crate::db::models::{PriceHistory, PriceRecord};
 use crate::db::DbPool;
+use crate::db::models::{PriceHistory, PriceRecord};
 use chrono::Local;
 use std::ops::Sub;
 

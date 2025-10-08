@@ -13,8 +13,8 @@ use nym_gateway_requests::shared_key::SharedGatewayKey;
 use nym_sphinx::DestinationAddressBytes;
 use shared_keys::SharedKeysManager;
 use sqlx::{
-    sqlite::{SqliteAutoVacuum, SqliteSynchronous},
     ConnectOptions,
+    sqlite::{SqliteAutoVacuum, SqliteSynchronous},
 };
 use std::{path::Path, time::Duration};
 use tickets::TicketStorageManager;

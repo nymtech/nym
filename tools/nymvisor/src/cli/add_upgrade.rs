@@ -11,8 +11,8 @@ use crate::upgrades::types::{UpgradeInfo, UpgradePlan};
 use nym_bin_common::output_format::OutputFormat;
 use std::path::PathBuf;
 use std::time::Duration;
-use time::format_description::well_known::Rfc3339;
 use time::OffsetDateTime;
+use time::format_description::well_known::Rfc3339;
 
 const DEFAULT_UPGRADE_DELAY: Duration = Duration::from_secs(15 * 60);
 

@@ -4,7 +4,7 @@
 use crate::error::CredentialProxyError;
 use crate::storage::models::BlindedShares;
 use crate::ticketbook_manager::TicketbookManager;
-use futures::{stream, StreamExt};
+use futures::{StreamExt, stream};
 use nym_compact_ecash::Base58;
 use nym_credential_proxy_requests::api::v1::ticketbook::models::{
     TicketbookAsyncRequest, TicketbookObtainParams, TicketbookRequest,

@@ -6,9 +6,9 @@ use contracts_common::signing::MessageSignature;
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Coin, Timestamp};
 use mixnet_contract_common::{
+    Gateway, MixNode, NodeId,
     gateway::GatewayConfigUpdate,
     mixnode::{MixNodeConfigUpdate, NodeCostParams},
-    Gateway, MixNode, NodeId,
 };
 
 #[cfg(feature = "schema")]
@@ -18,10 +18,10 @@ use cosmwasm_schema::QueryResponses;
 
 #[cfg(feature = "schema")]
 use crate::{
-    account::Account,
-    types::{Period, PledgeData, VestingDelegation},
     AccountsResponse, AllDelegationsResponse, DelegationTimesResponse, OriginalVestingResponse,
     VestingCoinsResponse,
+    account::Account,
+    types::{Period, PledgeData, VestingDelegation},
 };
 
 #[cw_serde]

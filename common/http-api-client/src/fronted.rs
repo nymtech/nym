@@ -73,7 +73,9 @@ impl ClientBuilder {
 
         // Check if any of the supplied urls even support fronting
         if !self.urls.iter().any(|url| url.has_front()) {
-            warn!("fronting is enabled, but none of the supplied urls have configured fronting domains");
+            warn!(
+                "fronting is enabled, but none of the supplied urls have configured fronting domains"
+            );
         }
 
         self.front = Some(front);
@@ -85,7 +87,7 @@ impl ClientBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{ApiClientCore, Url, NO_PARAMS};
+    use crate::{ApiClientCore, NO_PARAMS, Url};
 
     #[tokio::test]
     async fn nym_api_works() {

@@ -2,7 +2,7 @@
 name = "nym-mixnet-contract-common"
 version = "0.6.0"
 description = "Common library for the Nym mixnet contract"
-rust-version = "1.62"
+rust-version = "1.85"
 edition = { workspace = true }
 authors = { workspace = true }
 license = { workspace = true }

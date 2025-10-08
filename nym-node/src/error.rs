@@ -5,8 +5,8 @@ use crate::node::http::error::NymNodeHttpError;
 use crate::wireguard::error::WireguardError;
 use nym_http_api_client::HttpClientError;
 use nym_ip_packet_router::error::ClientCoreError;
-use nym_validator_client::nyxd::error::NyxdError;
 use nym_validator_client::ValidatorClientError;
+use nym_validator_client::nyxd::error::NyxdError;
 use std::io;
 use std::net::IpAddr;
 use std::path::PathBuf;
@@ -142,7 +142,9 @@ pub enum NymNodeError {
         source: io::Error,
     },
 
-    #[error("this node hasn't set any valid public addresses to announce. Please modify [host.public_ips] section of your config")]
+    #[error(
+        "this node hasn't set any valid public addresses to announce. Please modify [host.public_ips] section of your config"
+    )]
     NoPublicIps,
 
     #[error("there are no available nym api endpoints")]
@@ -162,7 +164,9 @@ pub enum NymNodeError {
     #[error("failed to resolve chain query: {0}")]
     NyxdFailure(#[from] NyxdError),
 
-    #[error("this node attempted to announce an invalid public address: {address}. Please modify [host.public_ips] section of your config. Alternatively, if you wanted to use it in the local setting, run the node with the '--local' flag.")]
+    #[error(
+        "this node attempted to announce an invalid public address: {address}. Please modify [host.public_ips] section of your config. Alternatively, if you wanted to use it in the local setting, run the node with the '--local' flag."
+    )]
     InvalidPublicIp { address: IpAddr },
 
     #[error(transparent)]
@@ -184,7 +188,9 @@ pub enum NymNodeError {
     #[error(transparent)]
     KeyFailure(#[from] KeyIOFailure),
 
-    #[error("could not initialise nym-node as '--{name}' has not been specified which is required for a first time setup. (config section: {section})")]
+    #[error(
+        "could not initialise nym-node as '--{name}' has not been specified which is required for a first time setup. (config section: {section})"
+    )]
     MissingInitArg { section: String, name: String },
 
     #[error("there was an issue with wireguard IP network: {source}")]

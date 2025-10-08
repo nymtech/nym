@@ -1,9 +1,9 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::response::{error_response, ResponseWrapper};
+use crate::response::{ResponseWrapper, error_response};
 use axum::http::header::IntoHeaderName;
-use axum::http::{header, HeaderValue};
+use axum::http::{HeaderValue, header};
 use axum::response::{IntoResponse, Response};
 use bytes::{BufMut, BytesMut};
 use serde::Serialize;

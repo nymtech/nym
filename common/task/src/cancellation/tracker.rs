@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::cancellation::token::ShutdownToken;
-use crate::spawn::{spawn_named_future, JoinHandle};
+use crate::spawn::{JoinHandle, spawn_named_future};
 use crate::spawn_future;
 use std::future::Future;
 use thiserror::Error;

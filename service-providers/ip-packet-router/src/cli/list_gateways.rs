@@ -4,7 +4,7 @@
 use crate::cli::CliIpPacketRouterClient;
 use nym_bin_common::output_format::OutputFormat;
 use nym_client_core::cli_helpers::client_list_gateways::{
-    list_gateways, CommonClientListGatewaysArgs,
+    CommonClientListGatewaysArgs, list_gateways,
 };
 use nym_ip_packet_router::error::IpPacketRouterError;
 

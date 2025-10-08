@@ -241,9 +241,9 @@ impl IssuedTicketbooksFullMerkleProof {
 }
 
 mod inner_proof_base64_serde {
+    use rs_merkle::MerkleProof;
     use rs_merkle::algorithms::Sha256;
     use rs_merkle::proof_serializers::DirectHashesOrder;
-    use rs_merkle::MerkleProof;
     use serde::{Deserializer, Serializer};
 
     pub fn serialize<S: Serializer>(

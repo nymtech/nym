@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::CredentialProxyError;
+use axum::Json;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
-use axum::Json;
 use nym_credential_proxy_requests::api::v1::ErrorResponse;
 use tracing::warn;
 use uuid::Uuid;

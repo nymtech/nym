@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::fragment::{
-    linked_fragment_payload_max_len, unlinked_fragment_payload_max_len, Fragment,
-    LINKED_FRAGMENTED_HEADER_LEN, UNLINKED_FRAGMENTED_HEADER_LEN,
+    Fragment, LINKED_FRAGMENTED_HEADER_LEN, UNLINKED_FRAGMENTED_HEADER_LEN,
+    linked_fragment_payload_max_len, unlinked_fragment_payload_max_len,
 };
 use rand::Rng;
 
@@ -70,7 +70,7 @@ pub(crate) type FragmentSet = Vec<Fragment>;
 /// `Fragment`s thus allowing for some additional optimizations by letting it skip
 /// certain procedures when reconstructing.
 pub(crate) fn generate_set_id<R: Rng>(rng: &mut R) -> i32 {
-    let potential_id = rng.gen::<i32>();
+    let potential_id = rng.r#gen::<i32>();
     // make sure id is always non-zero, as we do not want to accidentally have weird
     // reconstruction cases where unfragmented payload overwrites some part of set with id0
     // furthermore, make sure it's not i32::MIN (-2147483648) as due to 2-complement encoding,
@@ -399,7 +399,7 @@ mod tests {
     mod preparing_unlinked_set {
         // remember this this is only called for a sole set with <= 255 fragments
         use super::*;
-        use rand::{thread_rng, RngCore};
+        use rand::{RngCore, thread_rng};
 
         #[test]
         fn makes_set_with_correctly_split_payload() {
@@ -464,7 +464,7 @@ mod tests {
     #[cfg(test)]
     mod preparing_linked_set {
         use super::*;
-        use rand::{thread_rng, RngCore};
+        use rand::{RngCore, thread_rng};
 
         #[test]
         fn makes_set_with_correctly_split_payload_for_pre_linked_set() {
@@ -644,7 +644,7 @@ mod tests {
     #[cfg(test)]
     mod splitting_into_sets {
         use super::*;
-        use rand::{thread_rng, RngCore};
+        use rand::{RngCore, thread_rng};
 
         #[test]
         fn correctly_creates_single_fragmented_set_when_expected() {
@@ -661,8 +661,8 @@ mod tests {
         // a very specific test case that would have saved a lot of headache if was introduced
         // earlier...
         #[test]
-        fn correctly_creates_two_singly_linked_sets_with_second_set_containing_data_fitting_in_unfragmented_payload(
-        ) {
+        fn correctly_creates_two_singly_linked_sets_with_second_set_containing_data_fitting_in_unfragmented_payload()
+         {
             let mut rng = thread_rng();
             let mut message =
                 vec![0u8; max_one_way_linked_set_payload_length(max_plaintext_size()) + 123];

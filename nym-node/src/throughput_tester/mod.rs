@@ -2,15 +2,15 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::config::upgrade_helpers::try_load_current_config;
-use crate::node::key_rotation::active_keys::ActiveSphinxKeys;
 use crate::node::NymNode;
+use crate::node::key_rotation::active_keys::ActiveSphinxKeys;
 use crate::throughput_tester::client::ThroughputTestingClient;
 use crate::throughput_tester::global_stats::GlobalStatsUpdater;
 use crate::throughput_tester::stats::ClientStats;
 use futures::future::join_all;
 use human_repr::HumanDuration;
 use nym_task::ShutdownToken;
-use rand::{thread_rng, Rng};
+use rand::{Rng, thread_rng};
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::path::PathBuf;
 use std::time::Duration;

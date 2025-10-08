@@ -97,7 +97,9 @@ impl TunListener {
         {
             let packet = buf[..len].to_vec();
             if forward_from_tun_tx.send(packet).is_err() {
-                log::warn!("Failed to forward packet to connected client {dst_addr}: disconnecting it from tun listener");
+                log::warn!(
+                    "Failed to forward packet to connected client {dst_addr}: disconnecting it from tun listener"
+                );
                 self.connected_clients
                     .update(ConnectedClientEvent::Disconnect(DisconnectEvent(*ips)));
             }

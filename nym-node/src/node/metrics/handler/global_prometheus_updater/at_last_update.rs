@@ -1,9 +1,9 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use nym_node_metrics::NymNodeMetrics;
 use nym_node_metrics::mixnet::{EgressMixingStats, IngressMixingStats, MixingStats};
 use nym_node_metrics::wireguard::WireguardStats;
-use nym_node_metrics::NymNodeMetrics;
 use time::OffsetDateTime;
 
 // used to calculate traffic rates

@@ -4,8 +4,8 @@
 use crate::config::template::CONFIG_TEMPLATE;
 use nym_config::serde_helpers::de_maybe_stringified;
 use nym_config::{
-    must_get_home, read_config_from_toml_file, save_formatted_config_to_file, NymConfigTemplate,
-    DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, DEFAULT_DATA_DIR, NYM_DIR,
+    DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, DEFAULT_DATA_DIR, NYM_DIR, NymConfigTemplate,
+    must_get_home, read_config_from_toml_file, save_formatted_config_to_file,
 };
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};

@@ -88,10 +88,10 @@ pub mod grants {
 
         pub fn basic_mut(&mut self) -> &mut BasicAllowance {
             match self {
-                Allowance::Basic(ref mut allowance) => allowance,
-                Allowance::ClassicPeriodic(ref mut allowance) => &mut allowance.basic,
-                Allowance::CumulativePeriodic(ref mut allowance) => &mut allowance.basic,
-                Allowance::Delayed(ref mut allowance) => &mut allowance.basic,
+                Allowance::Basic(allowance) => allowance,
+                Allowance::ClassicPeriodic(allowance) => &mut allowance.basic,
+                Allowance::CumulativePeriodic(allowance) => &mut allowance.basic,
+                Allowance::Delayed(allowance) => &mut allowance.basic,
             }
         }
 
@@ -752,7 +752,7 @@ pub mod query_responses {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use cosmwasm_std::{coin, Uint128};
+    use cosmwasm_std::{Uint128, coin};
 
     const TEST_DENOM: &str = "unym";
 
@@ -873,8 +873,8 @@ mod tests {
         #[cfg(test)]
         mod basic_allowance {
             use super::*;
-            use cosmwasm_std::testing::mock_env;
             use cosmwasm_std::Timestamp;
+            use cosmwasm_std::testing::mock_env;
 
             #[test]
             fn doesnt_allow_expirations_in_the_past() {
@@ -1158,8 +1158,8 @@ mod tests {
         #[cfg(test)]
         mod delayed_allowance {
             use super::*;
-            use cosmwasm_std::testing::mock_env;
             use cosmwasm_std::Timestamp;
+            use cosmwasm_std::testing::mock_env;
 
             #[test]
             fn doesnt_allow_availability_in_the_past() {

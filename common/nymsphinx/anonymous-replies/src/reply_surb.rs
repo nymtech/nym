@@ -2,15 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::encryption_key::{SurbEncryptionKey, SurbEncryptionKeyError, SurbEncryptionKeySize};
-use nym_crypto::{generic_array::typenum::Unsigned, Digest};
+use nym_crypto::{Digest, generic_array::typenum::Unsigned};
 use nym_sphinx_addressing::clients::Recipient;
 use nym_sphinx_addressing::nodes::{
-    NymNodeRoutingAddress, NymNodeRoutingAddressError, MAX_NODE_ADDRESS_UNPADDED_LEN,
+    MAX_NODE_ADDRESS_UNPADDED_LEN, NymNodeRoutingAddress, NymNodeRoutingAddressError,
 };
 use nym_sphinx_params::packet_sizes::PacketSize;
 use nym_sphinx_params::{PacketType, ReplySurbKeyDigestAlgorithm, SphinxKeyRotation};
 use nym_sphinx_types::{
-    NymPacket, SURBMaterial, SphinxError, HEADER_SIZE, NODE_ADDRESS_LENGTH, SURB,
+    HEADER_SIZE, NODE_ADDRESS_LENGTH, NymPacket, SURB, SURBMaterial, SphinxError,
     X25519_WITH_EXPLICIT_PAYLOAD_KEYS_VERSION,
 };
 use nym_topology::{NymRouteProvider, NymTopologyError};

@@ -3,17 +3,17 @@
 
 use crate::config::Config;
 use crate::error::{InsufficientBalance, NymRewarderError};
-use crate::rewarder::block_signing::types::EpochSigningResults;
 use crate::rewarder::block_signing::EpochSigning;
+use crate::rewarder::block_signing::types::EpochSigningResults;
 use crate::rewarder::nyxd_client::NyxdClient;
 use crate::rewarder::storage::RewarderStorage;
+use crate::rewarder::ticketbook_issuance::TicketbookIssuance;
 use crate::rewarder::ticketbook_issuance::helpers::end_of_day_ticker;
 use crate::rewarder::ticketbook_issuance::types::TicketbookIssuanceResults;
-use crate::rewarder::ticketbook_issuance::TicketbookIssuance;
-use futures::future::{FusedFuture, OptionFuture};
 use futures::FutureExt;
+use futures::future::{FusedFuture, OptionFuture};
 use nym_crypto::asymmetric::ed25519;
-use nym_ecash_time::{ecash_today, ecash_today_date, EcashTime};
+use nym_ecash_time::{EcashTime, ecash_today, ecash_today_date};
 use nym_task::ShutdownManager;
 use nym_validator_client::nyxd::{AccountId, Coin, Hash};
 use nyxd_scraper::NyxdScraper;
@@ -523,7 +523,7 @@ impl Rewarder {
         Ok(())
     }
 
-    async fn setup_tasks(&self) -> Result<impl FusedFuture, NymRewarderError> {
+    async fn setup_tasks(&self) -> Result<impl FusedFuture + use<>, NymRewarderError> {
         let scraper_cancellation: OptionFuture<_> =
             if let Some(epoch_signing) = &self.epoch_signing {
                 let cancellation_token = epoch_signing.nyxd_scraper.cancel_token();
@@ -587,13 +587,21 @@ impl Rewarder {
 
         if let Err(err) = self.startup_resync().await {
             error!("failed to perform startup sync: {err}");
-            error!("if the failure was due to insufficient number of blocks, your course of action is as follows:");
-            error!("(ideally it would have been automatically resolved in this very method, but that'd require some serious refactoring)");
+            error!(
+                "if the failure was due to insufficient number of blocks, your course of action is as follows:"
+            );
+            error!(
+                "(ideally it would have been automatically resolved in this very method, but that'd require some serious refactoring)"
+            );
             error!(
                 "1. determine height of the first block of the epoch (doesn't have to be exact)"
             );
-            error!("2. run the following subcommand of the rewarder: `nym-validator-rewarder process-until --start-height=$STARTING_BLOCK");
-            error!("3. !!IMPORTANT!! go to config.toml and temporarily disable block pruning, i.e. `pruning.strategy=nothing`");
+            error!(
+                "2. run the following subcommand of the rewarder: `nym-validator-rewarder process-until --start-height=$STARTING_BLOCK"
+            );
+            error!(
+                "3. !!IMPORTANT!! go to config.toml and temporarily disable block pruning, i.e. `pruning.strategy=nothing`"
+            );
             error!("4. restart nym-validator-rewarder as normal until it sends missing rewards");
             error!("5. re-enable pruning and restart the nym-validator rewarder");
             return Err(err);

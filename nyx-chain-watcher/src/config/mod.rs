@@ -4,8 +4,8 @@
 use crate::config::template::CONFIG_TEMPLATE;
 use nym_bin_common::logging::LoggingSettings;
 use nym_config::{
-    must_get_home, read_config_from_toml_file, save_unformatted_config_to_file, NymConfigTemplate,
-    DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, DEFAULT_DATA_DIR, NYM_DIR,
+    DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, DEFAULT_DATA_DIR, NYM_DIR, NymConfigTemplate,
+    must_get_home, read_config_from_toml_file, save_unformatted_config_to_file,
 };
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
@@ -182,7 +182,8 @@ impl Config {
         if config_dir_name != DEFAULT_CONFIG_DIR {
             error!(
                 "the parent directory of '{}' ({}) is not {DEFAULT_CONFIG_DIR}. currently this is not supported",
-                config_path.display(), config_dir_name.to_str().unwrap_or("UNKNOWN")
+                config_path.display(),
+                config_dir_name.to_str().unwrap_or("UNKNOWN")
             );
             return Err(NyxChainWatcherError::DataDirDerivationFailure);
         }

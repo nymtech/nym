@@ -1,7 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{mainnet, GAS_PRICE_AMOUNT};
+use crate::{GAS_PRICE_AMOUNT, mainnet};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::ops::Not;
@@ -107,7 +107,7 @@ impl NymNetworkDetails {
     #[cfg(feature = "env")]
     pub fn new_from_env() -> Self {
         use crate::var_names;
-        use std::env::{var, VarError};
+        use std::env::{VarError, var};
         use std::ffi::OsStr;
 
         fn get_optional_env<K: AsRef<OsStr>>(env: K) -> Option<String> {
@@ -208,35 +208,38 @@ impl NymNetworkDetails {
 
         fn set_optional_var(var_name: &str, value: Option<String>) {
             if let Some(value) = value {
-                set_var(var_name, value);
+                unsafe {set_var(var_name, value)}
             }
         }
+        unsafe {
+            set_var(var_names::NETWORK_NAME, self.network_name);
+            set_var(var_names::BECH32_PREFIX, self.chain_details.bech32_account_prefix);
 
-        set_var(var_names::NETWORK_NAME, self.network_name);
-        set_var(var_names::BECH32_PREFIX, self.chain_details.bech32_account_prefix);
+            set_var(var_names::MIX_DENOM, self.chain_details.mix_denom.base);
+            set_var(var_names::MIX_DENOM_DISPLAY, self.chain_details.mix_denom.display);
 
-        set_var(var_names::MIX_DENOM, self.chain_details.mix_denom.base);
-        set_var(var_names::MIX_DENOM_DISPLAY, self.chain_details.mix_denom.display);
+            set_var(var_names::STAKE_DENOM, self.chain_details.stake_denom.base);
+            set_var(var_names::STAKE_DENOM_DISPLAY, self.chain_details.stake_denom.display);
 
-        set_var(var_names::STAKE_DENOM, self.chain_details.stake_denom.base);
-        set_var(var_names::STAKE_DENOM_DISPLAY, self.chain_details.stake_denom.display);
+            set_var(var_names::DENOMS_EXPONENT, self.chain_details.mix_denom.display_exponent.to_string());
 
-        set_var(var_names::DENOMS_EXPONENT, self.chain_details.mix_denom.display_exponent.to_string());
+            if let Some(e) = self.endpoints.first() {
+                set_var(var_names::NYXD, e.nyxd_url.clone());
+                set_optional_var(var_names::NYM_API, e.api_url.clone());
+                set_optional_var(var_names::NYXD_WEBSOCKET, e.websocket_url.clone());
+            }
 
-        if let Some(e) = self.endpoints.first() {
-            set_var(var_names::NYXD, e.nyxd_url.clone());
-            set_optional_var(var_names::NYM_API, e.api_url.clone());
-            set_optional_var(var_names::NYXD_WEBSOCKET, e.websocket_url.clone());
+            set_optional_var(var_names::MIXNET_CONTRACT_ADDRESS, self.contracts.mixnet_contract_address);
+            set_optional_var(var_names::VESTING_CONTRACT_ADDRESS, self.contracts.vesting_contract_address);
+            set_optional_var(var_names::ECASH_CONTRACT_ADDRESS, self.contracts.ecash_contract_address);
+            set_optional_var(var_names::GROUP_CONTRACT_ADDRESS, self.contracts.group_contract_address);
+            set_optional_var(var_names::MULTISIG_CONTRACT_ADDRESS, self.contracts.multisig_contract_address);
+            set_optional_var(var_names::COCONUT_DKG_CONTRACT_ADDRESS, self.contracts.coconut_dkg_contract_address);
+
+            set_optional_var(var_names::NYM_VPN_API, self.nym_vpn_api_url);
         }
 
-        set_optional_var(var_names::MIXNET_CONTRACT_ADDRESS, self.contracts.mixnet_contract_address);
-        set_optional_var(var_names::VESTING_CONTRACT_ADDRESS, self.contracts.vesting_contract_address);
-        set_optional_var(var_names::ECASH_CONTRACT_ADDRESS, self.contracts.ecash_contract_address);
-        set_optional_var(var_names::GROUP_CONTRACT_ADDRESS, self.contracts.group_contract_address);
-        set_optional_var(var_names::MULTISIG_CONTRACT_ADDRESS, self.contracts.multisig_contract_address);
-        set_optional_var(var_names::COCONUT_DKG_CONTRACT_ADDRESS, self.contracts.coconut_dkg_contract_address);
 
-        set_optional_var(var_names::NYM_VPN_API, self.nym_vpn_api_url);
     }
 
     pub fn default_gas_price_amount(&self) -> f64 {

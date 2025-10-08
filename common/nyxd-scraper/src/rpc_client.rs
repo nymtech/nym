@@ -6,8 +6,8 @@ use crate::block_processor::types::{
 };
 use crate::error::ScraperError;
 use crate::helpers::tx_hash;
-use futures::future::join3;
 use futures::StreamExt;
+use futures::future::join3;
 use std::collections::BTreeMap;
 use std::sync::Arc;
 use tendermint::Hash;

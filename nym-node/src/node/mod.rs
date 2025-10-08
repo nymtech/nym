@@ -4,14 +4,14 @@
 use self::helpers::load_x25519_wireguard_keypair;
 use crate::config::helpers::gateway_tasks_config;
 use crate::config::{
-    Config, GatewayTasksConfig, NodeModes, ServiceProvidersConfig, Wireguard, DEFAULT_MIXNET_PORT,
+    Config, DEFAULT_MIXNET_PORT, GatewayTasksConfig, NodeModes, ServiceProvidersConfig, Wireguard,
 };
 use crate::error::{EntryGatewayError, NymNodeError, ServiceProvidersError};
 use crate::node::description::{load_node_description, save_node_description};
 use crate::node::helpers::{
-    get_current_rotation_id, load_ed25519_identity_keypair, load_key, load_x25519_noise_keypair,
-    store_ed25519_identity_keypair, store_key, store_keypair, store_x25519_noise_keypair,
-    DisplayDetails,
+    DisplayDetails, get_current_rotation_id, load_ed25519_identity_keypair, load_key,
+    load_x25519_noise_keypair, store_ed25519_identity_keypair, store_key, store_keypair,
+    store_x25519_noise_keypair,
 };
 use crate::node::http::api::api_requests;
 use crate::node::http::helpers::system_info::get_system_info;
@@ -27,9 +27,9 @@ use crate::node::metrics::handler::global_prometheus_updater::PrometheusGlobalNo
 use crate::node::metrics::handler::legacy_packet_data::LegacyMixingStatsUpdater;
 use crate::node::metrics::handler::mixnet_data_cleaner::MixnetMetricsCleaner;
 use crate::node::metrics::handler::pending_egress_packets_updater::PendingEgressPacketsUpdater;
+use crate::node::mixnet::SharedFinalHopData;
 use crate::node::mixnet::packet_forwarding::PacketForwarder;
 use crate::node::mixnet::shared::ProcessingConfig;
-use crate::node::mixnet::SharedFinalHopData;
 use crate::node::nym_apis_client::NymApisClient;
 use crate::node::replay_protection::background_task::ReplayProtectionDiskFlush;
 use crate::node::replay_protection::bloomfilter::ReplayProtectionBloomfilters;
@@ -44,11 +44,11 @@ use nym_gateway::node::{ActiveClientsStore, GatewayTasksBuilder};
 use nym_mixnet_client::client::ActiveConnections;
 use nym_mixnet_client::forwarder::MixForwardingSender;
 use nym_network_requester::{
-    set_active_gateway, setup_fs_gateways_storage, store_gateway_details, CustomGatewayDetails,
-    GatewayDetails, GatewayRegistration,
+    CustomGatewayDetails, GatewayDetails, GatewayRegistration, set_active_gateway,
+    setup_fs_gateways_storage, store_gateway_details,
 };
-use nym_node_metrics::events::MetricEventsSender;
 use nym_node_metrics::NymNodeMetrics;
+use nym_node_metrics::events::MetricEventsSender;
 use nym_node_requests::api::v1::node::models::{AnnouncePorts, NodeDescription};
 use nym_noise::config::{NoiseConfig, NoiseNetworkView};
 use nym_noise_keys::VersionedNoiseKey;
@@ -58,7 +58,7 @@ use nym_task::{ShutdownManager, ShutdownToken, ShutdownTracker};
 use nym_validator_client::UserAgent;
 use nym_verloc::measurements::SharedVerlocStats;
 use nym_verloc::{self, measurements::VerlocMeasurer};
-use nym_wireguard::{peer_controller::PeerControlRequest, WireguardGatewayData};
+use nym_wireguard::{WireguardGatewayData, peer_controller::PeerControlRequest};
 use rand::rngs::OsRng;
 use rand::{CryptoRng, RngCore};
 use std::net::SocketAddr;
@@ -660,13 +660,17 @@ impl NymNode {
             info!("started NR at: {}", started_nr.on_start_data.address);
             info!("started IPR at: {}", started_ipr.on_start_data.address);
         } else {
-            info!("node not running in exit mode: the exit service providers (NR + IPR) will remain unavailable");
+            info!(
+                "node not running in exit mode: the exit service providers (NR + IPR) will remain unavailable"
+            );
         }
 
         // if we're running wireguard, start the authenticator
         // and the actual wireguard listener
         if self.config.wireguard.enabled {
-            info!("starting the wireguard tasks: authenticator service provider + wireguard peer controller");
+            info!(
+                "starting the wireguard tasks: authenticator service provider + wireguard peer controller"
+            );
 
             gateway_tasks_builder.set_authenticator_opts(config.auth_opts);
 
@@ -693,7 +697,9 @@ impl NymNode {
                 .await
                 .map_err(NymNodeError::GatewayTasksStartupFailure)?;
         } else {
-            info!("node not running with wireguard: authenticator service provider and wireguard will remain unavailable");
+            info!(
+                "node not running with wireguard: authenticator service provider and wireguard will remain unavailable"
+            );
         }
 
         // start task for removing stale and un-retrieved client messages
@@ -1147,7 +1153,8 @@ impl NymNode {
     }
 
     async fn start_nym_node_tasks(mut self) -> Result<ShutdownManager, NymNodeError> {
-        info!("starting Nym Node {} with the following modes: mixnode: {}, entry: {}, exit: {}, wireguard: {}",
+        info!(
+            "starting Nym Node {} with the following modes: mixnode: {}, entry: {}, exit: {}, wireguard: {}",
             self.ed25519_identity_key(),
             self.config.modes.mixnode,
             self.config.modes.entry,

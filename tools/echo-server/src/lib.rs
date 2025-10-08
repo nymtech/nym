@@ -7,14 +7,14 @@ use nym_sdk::{mixnet::Recipient, tcp_proxy, tcp_proxy::NymProxyServer};
 use std::{
     fmt::Debug,
     sync::{
-        atomic::{AtomicU64, Ordering},
         Arc,
+        atomic::{AtomicU64, Ordering},
     },
 };
 use tokio::{
     io::AsyncWriteExt,
     net::{TcpListener, TcpStream},
-    sync::{broadcast, Mutex},
+    sync::{Mutex, broadcast},
     task,
 };
 use tokio_stream::StreamExt;

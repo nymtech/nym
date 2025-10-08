@@ -4,7 +4,7 @@
 use crate::cli::CliNetworkRequesterClient;
 use crate::error::NetworkRequesterError;
 use nym_bin_common::output_format::OutputFormat;
-use nym_client_core::cli_helpers::client_add_gateway::{add_gateway, CommonClientAddGatewayArgs};
+use nym_client_core::cli_helpers::client_add_gateway::{CommonClientAddGatewayArgs, add_gateway};
 
 #[derive(clap::Args)]
 pub(crate) struct Args {

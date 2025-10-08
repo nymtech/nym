@@ -4,12 +4,11 @@
 use nym_credential_storage::persistent_storage::PersistentStorage;
 use nym_registration_common::NymNode;
 use nym_sdk::{
-    mixnet::{
-        x25519::KeyPair, CredentialStorage, GatewaysDetailsStore, KeyStore, MixnetClient,
-        MixnetClientBuilder, MixnetClientStorage, OnDiskPersistent, ReplyStorageBackend,
-        StoragePaths,
-    },
     DebugConfig, NymNetworkDetails, RememberMe, TopologyProvider, UserAgent,
+    mixnet::{
+        CredentialStorage, GatewaysDetailsStore, KeyStore, MixnetClient, MixnetClientBuilder,
+        MixnetClientStorage, OnDiskPersistent, ReplyStorageBackend, StoragePaths, x25519::KeyPair,
+    },
 };
 
 #[cfg(unix)]
@@ -205,9 +204,5 @@ fn log_mixnet_client_config(debug_config: &DebugConfig) {
 }
 
 fn true_to_disabled(val: bool) -> &'static str {
-    if val {
-        "disabled"
-    } else {
-        "enabled"
-    }
+    if val { "disabled" } else { "enabled" }
 }

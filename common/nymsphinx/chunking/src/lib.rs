@@ -31,8 +31,8 @@ pub mod monitoring {
     use crate::{ReceivedFragment, SentFragment};
     use dashmap::DashMap;
     use nym_crypto::asymmetric::ed25519::PublicKey;
-    use std::sync::atomic::{AtomicBool, Ordering};
     use std::sync::LazyLock;
+    use std::sync::atomic::{AtomicBool, Ordering};
 
     pub static ENABLED: AtomicBool = AtomicBool::new(false);
 
@@ -192,7 +192,9 @@ pub enum ChunkingError {
     #[error("Provided header was malformed or contained self-contradicting fields")]
     MalformedHeaderError,
 
-    #[error("Received too few bytes to deserialize fragment header. Got {received}, expected {expected}")]
+    #[error(
+        "Received too few bytes to deserialize fragment header. Got {received}, expected {expected}"
+    )]
     TooShortFragmentHeader { received: usize, expected: usize },
 
     #[error("Received fragment identifier ({received}) is not a valid value!")]

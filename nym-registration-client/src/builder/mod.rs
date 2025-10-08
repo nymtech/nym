@@ -4,16 +4,16 @@
 use nym_bandwidth_controller::{BandwidthController, BandwidthTicketProvider};
 use nym_credential_storage::ephemeral_storage::EphemeralCredentialStorage;
 use nym_sdk::{
-    mixnet::{MixnetClient, MixnetClientBuilder},
     NymNetworkDetails,
+    mixnet::{MixnetClient, MixnetClientBuilder},
 };
 use nym_validator_client::{
-    nyxd::{Config as NyxdClientConfig, NyxdClient},
     QueryHttpRpcNyxdClient,
+    nyxd::{Config as NyxdClientConfig, NyxdClient},
 };
 use std::time::Duration;
 
-use crate::{config::RegistrationClientConfig, error::RegistrationClientError, RegistrationClient};
+use crate::{RegistrationClient, config::RegistrationClientConfig, error::RegistrationClientError};
 use config::BuilderConfig;
 
 pub(crate) mod config;

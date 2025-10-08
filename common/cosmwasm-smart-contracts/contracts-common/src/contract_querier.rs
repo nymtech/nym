@@ -1,9 +1,9 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use cosmwasm_std::{from_json, Binary, CustomQuery, QuerierWrapper, StdResult};
-use serde::de::DeserializeOwned;
+use cosmwasm_std::{Binary, CustomQuery, QuerierWrapper, StdResult, from_json};
 use serde::Serialize;
+use serde::de::DeserializeOwned;
 
 // re-expose methods from QuerierWrapper as traits so that we could more easily define extension traits
 pub trait ContractQuerier {

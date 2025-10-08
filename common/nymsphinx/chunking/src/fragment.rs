@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::ChunkingError;
-use nym_sphinx_params::{SerializedFragmentIdentifier, FRAG_ID_LEN};
+use nym_sphinx_params::{FRAG_ID_LEN, SerializedFragmentIdentifier};
 use serde::Serialize;
 use utoipa::ToSchema;
 
@@ -381,15 +381,15 @@ impl FragmentHeader {
         if current_fragment == 0 {
             return Err(ChunkingError::MalformedHeaderError);
         }
-        if let Some(pfid) = previous_fragments_set_id {
-            if pfid <= 0 || current_fragment != 1 || pfid == id {
-                return Err(ChunkingError::MalformedHeaderError);
-            }
+        if let Some(pfid) = previous_fragments_set_id
+            && (pfid <= 0 || current_fragment != 1 || pfid == id)
+        {
+            return Err(ChunkingError::MalformedHeaderError);
         }
-        if let Some(nfid) = next_fragments_set_id {
-            if nfid <= 0 || current_fragment != total_fragments || nfid == id {
-                return Err(ChunkingError::MalformedHeaderError);
-            }
+        if let Some(nfid) = next_fragments_set_id
+            && (nfid <= 0 || current_fragment != total_fragments || nfid == id)
+        {
+            return Err(ChunkingError::MalformedHeaderError);
         }
 
         Ok(FragmentHeader {
@@ -504,7 +504,7 @@ impl FragmentHeader {
 mod fragment_tests {
     use super::*;
     use nym_sphinx_params::packet_sizes::PacketSize;
-    use rand::{thread_rng, RngCore};
+    use rand::{RngCore, thread_rng};
 
     fn max_plaintext_size() -> usize {
         PacketSize::default().plaintext_size() - PacketSize::AckPacket.size()
@@ -663,47 +663,55 @@ mod fragment_tests {
             Fragment::try_new(&full_payload, id, 1, 1, None, None, max_plaintext_size()).is_ok()
         );
 
-        assert!(Fragment::try_new(
-            &non_full_payload,
-            id,
-            10,
-            10,
-            None,
-            None,
-            max_plaintext_size(),
-        )
-        .is_ok());
-        assert!(Fragment::try_new(
-            &non_full_payload,
-            id,
-            1,
-            1,
-            None,
-            None,
-            max_plaintext_size(),
-        )
-        .is_ok());
+        assert!(
+            Fragment::try_new(
+                &non_full_payload,
+                id,
+                10,
+                10,
+                None,
+                None,
+                max_plaintext_size(),
+            )
+            .is_ok()
+        );
+        assert!(
+            Fragment::try_new(
+                &non_full_payload,
+                id,
+                1,
+                1,
+                None,
+                None,
+                max_plaintext_size(),
+            )
+            .is_ok()
+        );
 
-        assert!(Fragment::try_new(
-            &non_full_payload2,
-            id,
-            10,
-            10,
-            None,
-            None,
-            max_plaintext_size(),
-        )
-        .is_ok());
-        assert!(Fragment::try_new(
-            &non_full_payload2,
-            id,
-            1,
-            1,
-            None,
-            None,
-            max_plaintext_size(),
-        )
-        .is_ok());
+        assert!(
+            Fragment::try_new(
+                &non_full_payload2,
+                id,
+                10,
+                10,
+                None,
+                None,
+                max_plaintext_size(),
+            )
+            .is_ok()
+        );
+        assert!(
+            Fragment::try_new(
+                &non_full_payload2,
+                id,
+                1,
+                1,
+                None,
+                None,
+                max_plaintext_size(),
+            )
+            .is_ok()
+        );
     }
 
     #[test]
@@ -716,78 +724,92 @@ mod fragment_tests {
         let too_much_payload =
             vec![1u8; unlinked_fragment_payload_max_len(max_plaintext_size()) + 1];
 
-        assert!(Fragment::try_new(
-            &non_full_payload,
-            id,
-            10,
-            1,
-            None,
-            None,
-            max_plaintext_size(),
-        )
-        .is_err());
-        assert!(Fragment::try_new(
-            &non_full_payload,
-            id,
-            10,
-            5,
-            None,
-            None,
-            max_plaintext_size(),
-        )
-        .is_err());
+        assert!(
+            Fragment::try_new(
+                &non_full_payload,
+                id,
+                10,
+                1,
+                None,
+                None,
+                max_plaintext_size(),
+            )
+            .is_err()
+        );
+        assert!(
+            Fragment::try_new(
+                &non_full_payload,
+                id,
+                10,
+                5,
+                None,
+                None,
+                max_plaintext_size(),
+            )
+            .is_err()
+        );
 
-        assert!(Fragment::try_new(
-            &too_much_payload,
-            id,
-            10,
-            1,
-            None,
-            None,
-            max_plaintext_size(),
-        )
-        .is_err());
-        assert!(Fragment::try_new(
-            &too_much_payload,
-            id,
-            10,
-            5,
-            None,
-            None,
-            max_plaintext_size(),
-        )
-        .is_err());
-        assert!(Fragment::try_new(
-            &too_much_payload,
-            id,
-            1,
-            1,
-            None,
-            None,
-            max_plaintext_size(),
-        )
-        .is_err());
+        assert!(
+            Fragment::try_new(
+                &too_much_payload,
+                id,
+                10,
+                1,
+                None,
+                None,
+                max_plaintext_size(),
+            )
+            .is_err()
+        );
+        assert!(
+            Fragment::try_new(
+                &too_much_payload,
+                id,
+                10,
+                5,
+                None,
+                None,
+                max_plaintext_size(),
+            )
+            .is_err()
+        );
+        assert!(
+            Fragment::try_new(
+                &too_much_payload,
+                id,
+                1,
+                1,
+                None,
+                None,
+                max_plaintext_size(),
+            )
+            .is_err()
+        );
 
-        assert!(Fragment::try_new(
-            &non_full_payload2,
-            id,
-            10,
-            1,
-            None,
-            None,
-            max_plaintext_size(),
-        )
-        .is_err());
-        assert!(Fragment::try_new(
-            &non_full_payload2,
-            id,
-            10,
-            5,
-            None,
-            None,
-            max_plaintext_size(),
-        )
-        .is_err());
+        assert!(
+            Fragment::try_new(
+                &non_full_payload2,
+                id,
+                10,
+                1,
+                None,
+                None,
+                max_plaintext_size(),
+            )
+            .is_err()
+        );
+        assert!(
+            Fragment::try_new(
+                &non_full_payload2,
+                id,
+                10,
+                5,
+                None,
+                None,
+                max_plaintext_size(),
+            )
+            .is_err()
+        );
     }
 
     #[test]
@@ -799,57 +821,67 @@ mod fragment_tests {
         let non_full_payload2 =
             vec![1u8; linked_fragment_payload_max_len(max_plaintext_size()) - 20];
 
-        assert!(Fragment::try_new(
-            &full_payload,
-            id,
-            10,
-            1,
-            Some(link_id),
-            None,
-            max_plaintext_size(),
-        )
-        .is_ok());
-        assert!(Fragment::try_new(
-            &full_payload,
-            id,
-            1,
-            1,
-            Some(link_id),
-            None,
-            max_plaintext_size(),
-        )
-        .is_ok());
-        assert!(Fragment::try_new(
-            &non_full_payload,
-            id,
-            1,
-            1,
-            Some(link_id),
-            None,
-            max_plaintext_size(),
-        )
-        .is_ok());
-        assert!(Fragment::try_new(
-            &non_full_payload2,
-            id,
-            1,
-            1,
-            Some(link_id),
-            None,
-            max_plaintext_size(),
-        )
-        .is_ok());
+        assert!(
+            Fragment::try_new(
+                &full_payload,
+                id,
+                10,
+                1,
+                Some(link_id),
+                None,
+                max_plaintext_size(),
+            )
+            .is_ok()
+        );
+        assert!(
+            Fragment::try_new(
+                &full_payload,
+                id,
+                1,
+                1,
+                Some(link_id),
+                None,
+                max_plaintext_size(),
+            )
+            .is_ok()
+        );
+        assert!(
+            Fragment::try_new(
+                &non_full_payload,
+                id,
+                1,
+                1,
+                Some(link_id),
+                None,
+                max_plaintext_size(),
+            )
+            .is_ok()
+        );
+        assert!(
+            Fragment::try_new(
+                &non_full_payload2,
+                id,
+                1,
+                1,
+                Some(link_id),
+                None,
+                max_plaintext_size(),
+            )
+            .is_ok()
+        );
 
-        assert!(Fragment::try_new(
-            &full_payload,
-            id,
-            u8::MAX,
-            u8::MAX,
-            None,
-            Some(link_id),
-            max_plaintext_size(),
-        )
-        .is_ok());
+        assert!(
+            Fragment::try_new(
+                &full_payload,
+                id,
+                u8::MAX,
+                u8::MAX,
+                None,
+                Some(link_id),
+                max_plaintext_size(),
+            )
+            .is_ok()
+        );
     }
 
     #[test]
@@ -861,78 +893,92 @@ mod fragment_tests {
             vec![1u8; linked_fragment_payload_max_len(max_plaintext_size()) - 20];
         let too_much_payload = vec![1u8; linked_fragment_payload_max_len(max_plaintext_size()) + 1];
 
-        assert!(Fragment::try_new(
-            &non_full_payload,
-            id,
-            10,
-            1,
-            Some(link_id),
-            None,
-            max_plaintext_size(),
-        )
-        .is_err());
-        assert!(Fragment::try_new(
-            &non_full_payload2,
-            id,
-            10,
-            1,
-            Some(link_id),
-            None,
-            max_plaintext_size(),
-        )
-        .is_err());
-        assert!(Fragment::try_new(
-            &too_much_payload,
-            id,
-            10,
-            1,
-            Some(link_id),
-            None,
-            max_plaintext_size(),
-        )
-        .is_err());
-        assert!(Fragment::try_new(
-            &too_much_payload,
-            id,
-            1,
-            1,
-            Some(link_id),
-            None,
-            max_plaintext_size(),
-        )
-        .is_err());
+        assert!(
+            Fragment::try_new(
+                &non_full_payload,
+                id,
+                10,
+                1,
+                Some(link_id),
+                None,
+                max_plaintext_size(),
+            )
+            .is_err()
+        );
+        assert!(
+            Fragment::try_new(
+                &non_full_payload2,
+                id,
+                10,
+                1,
+                Some(link_id),
+                None,
+                max_plaintext_size(),
+            )
+            .is_err()
+        );
+        assert!(
+            Fragment::try_new(
+                &too_much_payload,
+                id,
+                10,
+                1,
+                Some(link_id),
+                None,
+                max_plaintext_size(),
+            )
+            .is_err()
+        );
+        assert!(
+            Fragment::try_new(
+                &too_much_payload,
+                id,
+                1,
+                1,
+                Some(link_id),
+                None,
+                max_plaintext_size(),
+            )
+            .is_err()
+        );
 
-        assert!(Fragment::try_new(
-            &non_full_payload,
-            id,
-            u8::MAX,
-            u8::MAX,
-            None,
-            Some(link_id),
-            max_plaintext_size(),
-        )
-        .is_err());
-        assert!(Fragment::try_new(
-            &non_full_payload2,
-            id,
-            u8::MAX,
-            u8::MAX,
-            None,
-            Some(link_id),
-            max_plaintext_size(),
-        )
-        .is_err());
+        assert!(
+            Fragment::try_new(
+                &non_full_payload,
+                id,
+                u8::MAX,
+                u8::MAX,
+                None,
+                Some(link_id),
+                max_plaintext_size(),
+            )
+            .is_err()
+        );
+        assert!(
+            Fragment::try_new(
+                &non_full_payload2,
+                id,
+                u8::MAX,
+                u8::MAX,
+                None,
+                Some(link_id),
+                max_plaintext_size(),
+            )
+            .is_err()
+        );
 
-        assert!(Fragment::try_new(
-            &too_much_payload,
-            id,
-            u8::MAX,
-            u8::MAX,
-            None,
-            Some(link_id),
-            max_plaintext_size(),
-        )
-        .is_err());
+        assert!(
+            Fragment::try_new(
+                &too_much_payload,
+                id,
+                u8::MAX,
+                u8::MAX,
+                None,
+                Some(link_id),
+                max_plaintext_size(),
+            )
+            .is_err()
+        );
     }
 }
 

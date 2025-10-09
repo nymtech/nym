@@ -2,22 +2,22 @@ import { Steps } from 'nextra/components';
 import { Callout } from 'nextra/components';
 import { AccordionTemplate } from 'components/accordion-template.tsx';
 
+<Callout type="info" emoji="ℹ️">
+**QUICK bridge is a requirement for all nodes which enable Wireguard functionality. Note that it this feature is compatible with nodes from `v1.18.0` (platform release [`v2025.17-isabirra`](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.17-isabirra)) and newer!**
+</ Callout>
+
 Nym Network uses various [transport bridges](https://github.com/nymtech/nym-bridges/blob/main/README.md) for routing the packets. Right now operators need to configure [our implementation](https://github.com/nymtech/nym-bridges/tree/main/nym-bridge) of general-purpose transport layer network protocol called [QUICK](https://en.wikipedia.org/wiki/QUIC). 
 
 Operators can use [Nym Bridge Configuration Tool](https://github.com/nymtech/nym-bridges/tree/main/bridge-cfg) and compile the [Bridge Runner binary](https://github.com/nymtech/nym-bridges/tree/main/nym-bridge) themselves.
 
 **We recommend a more convenient QUICK bridge deployment using a script [`quick_bridge_deployment.sh`](https://github.com/nymtech/nym/blob/develop/scripts/nym-node-setup/quick_bridge_deployment.sh), following the steps below.**
 
-<Callout type="info" emoji="ℹ️">
-**QUICK bridge is a requirement for all nodes which enable Wireguard functionality. Note that it this feature is compatible with nodes from `v1.18.0` (platform release [`v2025.17-isabirra`](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.17-isabirra)) and newer!**
-</ Callout>
-
 <Steps>
 ###### 1. Download [`quick_bridge_deployment.sh`](https://github.com/nymtech/nym/blob/develop/scripts/nym-node-setup/quick_bridge_deployment.sh) script
 - SSH to your server
 - Download the script and make executable 
 ```sh
-https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/quick_bridge_deployment.sh && \
+wget https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/quick_bridge_deployment.sh && \
 chmod +x quick_bridge_deployment.sh
 ```
 
@@ -31,8 +31,8 @@ chmod +x quick_bridge_deployment.sh
 
 ###### 3. Follow the interactive prompts
 - When you are asked for bridge binary URL, look here for one to match your system: [builds.ci.nymte.ch/QUIC](https://builds.ci.nymte.ch/QUIC/)
-- When you are asked to enter forward address, it's your IPv4 used for bonding the node, alongside port `:51822` (an example can be: `172.232.238.161:51822`)
-- To find out your IP address you can always run 
+- When you are asked to enter forward address, it's your IPv4 used for bonding the node, alongside port `:51822` (an example: `172.232.238.161:51822`)
+- To find out your IP address you can always run:
     - IPv4: `curl -4 https://ifconfig.co/ip`
     - IPv6: `curl -6 https://ifconfig.co/ip`
 - **For all prompts with default options, we highly recommend to stick to default (press enter)**   
@@ -44,12 +44,13 @@ service nym-node restart && journalctl -u nym-node.service -f --all
 ```
 </Steps>
 
-Congratulation, you setup QUIC transport bridge! The script offers a standalone tweaks and checks, you can always run it without any argument to see all the options:
+Congratulation, you deployed QUIC transport bridge! The script offers a standalone tweaks and checks, you can always run it without any argument to see all the options:
 ```sh
 ./quick_bridge_deployment.sh
 ```
 <br/>
 <AccordionTemplate name="Command output">
+```shell
 root@localhost:~# ./quick_bridge_deployment.sh
 iptables-persistent is already installed.
 Usage: ./quick_bridge_deployment.sh [command] [options]
@@ -96,4 +97,5 @@ Quick Start:
   1. Run 'verify_bridge_prerequisites' to check prerequisites
   2. Run 'check_bridge_installation' to verify installation
   3. Run 'test_bridge_connectivity' to test connectivity
+```
 </AccordionTemplate>

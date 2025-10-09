@@ -66,11 +66,6 @@ pub struct NymClient {
     _task_manager: ShutdownTracker,
 
     packet_type: PacketType,
-
-    // We need this to keep the client_request channel alive and avoid jamming up the
-    // JS runtime when the MixTrafficController then tries to reconnect it if it dies
-    #[allow(dead_code)]
-    pub(crate) client_request_sender: ClientRequestSender,
 }
 
 // TODO: we don't really need a builder anymore,
@@ -263,7 +258,6 @@ impl NymClientBuilder {
             _full_topology: None,
             _task_manager: started_client.shutdown_handle,
             packet_type,
-            client_request_sender: started_client.client_request_sender,
         })
     }
 

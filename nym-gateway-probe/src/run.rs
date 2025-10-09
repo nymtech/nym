@@ -7,6 +7,7 @@ use nym_config::defaults::setup_env;
 use nym_gateway_probe::nodes::NymApiDirectory;
 use nym_gateway_probe::{CredentialArgs, NetstackArgs, ProbeResult, TestedNode};
 use nym_sdk::mixnet::NodeIdentity;
+use std::path::Path;
 use std::{path::PathBuf, sync::OnceLock};
 use tracing::*;
 
@@ -69,6 +70,8 @@ struct CliArgs {
     credential_args: CredentialArgs,
 }
 
+const DEFAULT_CONFIG_DIR: &str = "/tmp/nym-gateway-probe/config/";
+
 #[derive(Subcommand, Debug)]
 enum Commands {
     /// Run the probe locally
@@ -77,8 +80,8 @@ enum Commands {
         #[arg(long)]
         mnemonic: String,
 
-        #[arg(long, default_value = "/tmp/nym-gateway-probe/config/")]
-        config_dir: PathBuf,
+        #[arg(long)]
+        config_dir: Option<PathBuf>,
     },
 }
 
@@ -144,8 +147,17 @@ pub(crate) async fn run() -> anyhow::Result<ProbeResult> {
             mnemonic,
             config_dir,
         }) => {
+            let config_dir = config_dir
+                .clone()
+                .unwrap_or_else(|| Path::new(DEFAULT_CONFIG_DIR).join(&network.network_name));
+
+            info!(
+                "using the following directory for the probe config: {}",
+                config_dir.display()
+            );
+
             Box::pin(trial.probe_run_locally(
-                config_dir,
+                &config_dir,
                 mnemonic,
                 directory,
                 nyxd_url,

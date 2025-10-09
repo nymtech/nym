@@ -21,6 +21,7 @@ use std::path::Path;
 use std::time::Duration;
 use time::OffsetDateTime;
 use time::format_description::well_known::Rfc3339;
+use tracing::error;
 use url::Url;
 
 struct InitCtx {
@@ -682,9 +683,14 @@ impl NetworkManager {
                 })?;
 
             let now = OffsetDateTime::now_utc();
-            // SAFETY: all the information saved in our contracts should be well-formed
             let commit_timestamp = OffsetDateTime::parse(&build_info.commit_timestamp, &Rfc3339)
-                .expect("malformed commit timestamp");
+                .inspect_err(|err| {
+                    error!(
+                        "failed to parse contract build information: {err}. set timestamp was: {}",
+                        build_info.commit_timestamp
+                    )
+                })
+                .unwrap_or(OffsetDateTime::UNIX_EPOCH);
 
             let age = now - commit_timestamp;
 

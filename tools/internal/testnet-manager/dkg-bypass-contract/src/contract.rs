@@ -4,8 +4,8 @@
 use crate::msg::MigrateMsg;
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{
-    entry_point, Addr, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response, StdError,
-    StdResult, Storage,
+    Addr, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response, StdError, StdResult, Storage,
+    entry_point,
 };
 use cw_storage_plus::{Index, IndexList, IndexedMap, Item, Map, MultiIndex};
 use nym_coconut_dkg_common::dealer::DealerRegistrationDetails;

@@ -8,6 +8,7 @@ import ExitPolicyStatusOutput from 'components/operators/snippets/wg-exit-policy
 import ExitPolicyTestOutput from 'components/operators/snippets/wg-exit-policy-test-output.mdx';
 import ExitPolicyTestServer from 'components/operators/snippets/wg-exit-policy-testing-from-server.mdx';
 import ExitPolicyTestOutside from 'components/operators/snippets/wg-exit-policy-testing-from-outside.mdx';
+import QuickDeploymentSteps from 'components/operators/templates/quick-bridge-deployment-script-setup.mdx';
 
 
 export const ManagerIPOutput = () => (
@@ -534,6 +535,9 @@ You can validate the application of the IP tables routes on your `nym-node` by c
 
 Your node has successfully implemented wireguard exit policy with the same routing permissions like [Nym exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt) used on 5-hop (Mixnet).
 
+## QUIC Transport Bridge Deployment
+
+<QuickDeploymentSteps />
 
 ## Running `nym-node` as a non-root
 

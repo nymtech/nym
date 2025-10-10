@@ -163,7 +163,13 @@ pub async fn scrape_and_store_description(pool: &DbPool, node: ScraperNodeInfo) 
         anyhow::anyhow!("Failed to fetch description from any URL: {}", err_msg)
     })?;
 
-    let sanitized_description = sanitize_description(description, *node.node_id());
+    let sanitized_description = sanitize_description(description.clone(), *node.node_id());
+
+    trace!("tried_url_list = {tried_url_list:?}");
+    trace!("ndoe_id = {}", node.node_id());
+    trace!("description = {:?}", description);
+    trace!("sanitized_description = {:?}", sanitized_description);
+
     insert_scraped_node_description(pool, &node.node_kind, &sanitized_description).await?;
 
     Ok(())

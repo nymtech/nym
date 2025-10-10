@@ -120,6 +120,9 @@ importers:
         specifier: ^9.0.0
         version: 9.0.1
     devDependencies:
+      '@next/swc-linux-x64-gnu':
+        specifier: 15.5.0
+        version: 15.5.0
       '@types/node':
         specifier: 18.11.10
         version: 18.11.10
@@ -8171,8 +8174,7 @@ snapshots:
   '@next/swc-linux-arm64-musl@15.5.0':
     optional: true
 
-  '@next/swc-linux-x64-gnu@15.5.0':
-    optional: true
+  '@next/swc-linux-x64-gnu@15.5.0': {}
 
   '@next/swc-linux-x64-musl@15.5.0':
     optional: true

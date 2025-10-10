@@ -68,7 +68,7 @@ pub(crate) async fn run_in_background(
     loop {
         tracing::info!("Refreshing node info...");
 
-        if let Err(e) = monitor.run().await {
+        if let Err(e) = monitor.run(false).await {
             tracing::error!(
                 "Monitor run failed: {e}, retrying in {}s...",
                 MONITOR_FAILURE_RETRY_DELAY.as_secs()
@@ -84,8 +84,33 @@ pub(crate) async fn run_in_background(
     }
 }
 
+#[instrument(level = "debug", name = "data_monitor", skip_all)]
+pub(crate) async fn run_once(
+    db_pool: DbPool,
+    nym_api_client_timeout: Duration,
+    nyxd_client: nym_validator_client::QueryHttpRpcNyxdClient,
+    ipinfo_api_token: String,
+    geocache: NodeGeoCache,
+    node_delegations: Arc<RwLock<DelegationsCache>>,
+) -> anyhow::Result<()> {
+    let ipinfo = IpInfoClient::new(ipinfo_api_token.clone());
+
+    let mut monitor = Monitor {
+        db_pool,
+        network_details: nym_network_defaults::NymNetworkDetails::new_from_env(),
+        nym_api_client_timeout,
+        nyxd_client,
+        ipinfo,
+        geocache,
+        node_delegations,
+    };
+
+    tracing::info!("Refreshing node info...");
+    Ok(monitor.run(true).await?)
+}
+
 impl Monitor {
-    async fn run(&mut self) -> anyhow::Result<()> {
+    async fn run(&mut self, exit_early: bool) -> anyhow::Result<()> {
         self.check_ipinfo_bandwidth().await;
 
         let default_api_url = self
@@ -152,6 +177,11 @@ impl Monitor {
             .map(|inserted| {
                 tracing::debug!("{} nym nodes written to DB!", inserted);
             })?;
+
+        // stop here if running once
+        if exit_early {
+            return Ok(());
+        }
 
         // refresh geodata for all nodes
         for node_description in described_nodes.values() {

@@ -13,9 +13,9 @@ use rand::CryptoRng;
 use rand_core::RngCore;
 use std::collections::HashMap;
 use std::ops::Neg;
-use zeroize::Zeroize;
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Zeroize, ZeroizeOnDrop)]
 pub struct Ciphertexts {
     pub rr: [G1Projective; NUM_CHUNKS],
     pub ss: [G1Projective; NUM_CHUNKS],
@@ -164,8 +164,7 @@ impl Ciphertexts {
     }
 }
 
-#[derive(Zeroize)]
-#[zeroize(drop)]
+#[derive(Zeroize, ZeroizeOnDrop)]
 /// Randomness generated during ciphertext generation that is required for proofs of knowledge.
 ///
 /// It must be handled with extreme care as its misuse might help malicious parties to recover
@@ -399,7 +398,7 @@ pub fn baby_step_giant_step(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::bte::{keygen, setup, DEFAULT_BSGS_TABLE};
+    use crate::bte::{keygen, setup, BSGS_TABLE};
     use rand_core::SeedableRng;
 
     fn verify_hazmat_rand(ciphertext: &Ciphertexts, randomness: &HazmatRandomness) {
@@ -457,8 +456,6 @@ mod tests {
         let (decryption_key1, public_key1) = keygen(&params, &mut rng);
         let (decryption_key2, public_key2) = keygen(&params, &mut rng);
 
-        let lookup_table = &DEFAULT_BSGS_TABLE;
-
         for _ in 0..10 {
             let m1 = Share::random(&mut rng);
             let m2 = Share::random(&mut rng);
@@ -467,22 +464,12 @@ mod tests {
             let (ciphertext, hazmat) = encrypt_shares(shares, &params, &mut rng);
             verify_hazmat_rand(&ciphertext, &hazmat);
 
-            let recovered1 = decrypt_share(
-                &params,
-                &decryption_key1,
-                0,
-                &ciphertext,
-                Some(lookup_table),
-            )
-            .unwrap();
-            let recovered2 = decrypt_share(
-                &params,
-                &decryption_key2,
-                1,
-                &ciphertext,
-                Some(lookup_table),
-            )
-            .unwrap();
+            let recovered1 =
+                decrypt_share(&params, &decryption_key1, 0, &ciphertext, Some(&BSGS_TABLE))
+                    .unwrap();
+            let recovered2 =
+                decrypt_share(&params, &decryption_key2, 1, &ciphertext, Some(&BSGS_TABLE))
+                    .unwrap();
             assert_eq!(m1, recovered1);
             assert_eq!(m2, recovered2);
         }
@@ -498,8 +485,6 @@ mod tests {
         let (decryption_key1, public_key1) = keygen(&params, &mut rng);
         let (decryption_key2, public_key2) = keygen(&params, &mut rng);
 
-        let lookup_table = &DEFAULT_BSGS_TABLE;
-
         for _ in 0..10 {
             let m1 = Share::random(&mut rng);
             let m2 = Share::random(&mut rng);
@@ -508,22 +493,12 @@ mod tests {
             let (ciphertext, hazmat) = encrypt_shares(shares, &params, &mut rng);
             verify_hazmat_rand(&ciphertext, &hazmat);
 
-            let recovered1 = decrypt_share(
-                &params,
-                &decryption_key1,
-                0,
-                &ciphertext,
-                Some(lookup_table),
-            )
-            .unwrap();
-            let recovered2 = decrypt_share(
-                &params,
-                &decryption_key2,
-                1,
-                &ciphertext,
-                Some(lookup_table),
-            )
-            .unwrap();
+            let recovered1 =
+                decrypt_share(&params, &decryption_key1, 0, &ciphertext, Some(&BSGS_TABLE))
+                    .unwrap();
+            let recovered2 =
+                decrypt_share(&params, &decryption_key2, 1, &ciphertext, Some(&BSGS_TABLE))
+                    .unwrap();
             assert_eq!(m1, recovered1);
             assert_eq!(m2, recovered2);
         }

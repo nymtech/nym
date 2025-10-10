@@ -106,7 +106,7 @@ pub(crate) async fn run_once(
     };
 
     tracing::info!("Refreshing node info...");
-    Ok(monitor.run(true).await?)
+    monitor.run(true).await
 }
 
 impl Monitor {

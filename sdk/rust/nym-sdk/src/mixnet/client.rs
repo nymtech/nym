@@ -815,7 +815,6 @@ where
             stats_events_reporter,
             started_client.shutdown_handle,
             None,
-            started_client.client_request_sender,
             started_client.forget_me,
             started_client.remember_me,
         ))

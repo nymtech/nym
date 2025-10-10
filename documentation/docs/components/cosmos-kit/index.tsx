@@ -40,14 +40,15 @@ const CosmosKitSetup: FC<{ children: React.ReactNode }> = ({ children }) => {
     return chains;
   }, [chains]);
 
+
+  // components/cosmos-kit/index.tsx
+
   return (
     <ChainProvider
       chains={chainsFixedUp}
       assetLists={assetsFixedUp}
       wallets={[...ledger, ...keplr]}
-      signerOptions={{
-        preferredSignType: () => 'amino',
-      }}
+      throwErrors={false}
     >
       {children}
     </ChainProvider>

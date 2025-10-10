@@ -1,0 +1,101 @@
+import { Steps } from 'nextra/components';
+import { Callout } from 'nextra/components';
+import { AccordionTemplate } from 'components/accordion-template.tsx';
+
+<Callout type="info" emoji="ℹ️">
+**QUIC bridge is a requirement for all nodes which enable Wireguard functionality. Note that it this feature is compatible with nodes from `v1.18.0` (platform release [`v2025.17-isabirra`](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.17-isabirra)) and newer!**
+</ Callout>
+
+Nym Network uses various [transport bridges](https://github.com/nymtech/nym-bridges/blob/main/README.md) for routing the packets. Right now operators need to configure [our implementation](https://github.com/nymtech/nym-bridges/tree/main/nym-bridge) of general-purpose transport layer network protocol called [QUIC](https://en.wikipedia.org/wiki/QUIC). 
+
+Operators can use [Nym Bridge Configuration Tool](https://github.com/nymtech/nym-bridges/tree/main/bridge-cfg) and compile the [Bridge Runner binary](https://github.com/nymtech/nym-bridges/tree/main/nym-bridge) themselves.
+
+**We recommend a more convenient QUIC bridge deployment using a script [`quic_bridge_deployment.sh`](https://github.com/nymtech/nym/blob/develop/scripts/nym-node-setup/quic_bridge_deployment.sh), following the steps below.**
+
+<Steps>
+###### 1. Download [`quic_bridge_deployment.sh`](https://github.com/nymtech/nym/blob/develop/scripts/nym-node-setup/quic_bridge_deployment.sh) script
+- SSH to your server
+- Download the script and make executable 
+```sh
+wget https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/quic_bridge_deployment.sh && \
+chmod +x quic_bridge_deployment.sh
+```
+
+
+###### 2. Run the script with `full_bridge_setup` command
+- Optional: open `tmux` in case you will need to run another commands on the VPS
+- Run the script with a command `full_bridge_setup`
+```sh
+./nym-node-setup/quic_bridge_deployment.sh full_bridge_setup
+```
+
+###### 3. Follow the interactive prompts
+- When you are asked for bridge binary URL, look here for one to match your system: [builds.ci.nymte.ch/QUIC](https://builds.ci.nymte.ch/QUIC/)
+- When you are asked to enter forward address, it's your IPv4 used for bonding the node, alongside port `:51822` (an example: `172.232.238.161:51822`)
+- To find out your IP address you can always run:
+    - IPv4: `curl -4 https://ifconfig.co/ip`
+    - IPv6: `curl -6 https://ifconfig.co/ip`
+- **For all prompts with default options, we highly recommend to stick to default (press enter)**   
+
+###### 4. Restart the node service
+- When done with the deployment, please restart your node systemd service
+```sh
+service nym-node restart && journalctl -u nym-node.service -f --all
+```
+</Steps>
+
+Congratulation, you deployed QUIC transport bridge! The script offers a standalone tweaks and checks, you can always run it without any argument to see all the options:
+```sh
+./quic_bridge_deployment.sh
+```
+<br/>
+<AccordionTemplate name="Command output">
+```shell
+root@localhost:~# ./quic_bridge_deployment.sh
+iptables-persistent is already installed.
+Usage: ./quic_bridge_deployment.sh [command] [options]
+
+Nym QUIC Bridge Deployment Helper Script
+
+Bridge Installation & Configuration:
+  check_bridge_installation       - Check bridge installation status
+  show_bridge_config              - Display bridge configuration files
+  show_bridge_keys                - Display bridge key information
+  show_bridge_info                - Show comprehensive bridge information
+  verify_bridge_prerequisites     - Verify all prerequisites are met
+
+Bridge Setup Commands:
+  install_bridge_binary           - Download and install nym-bridge binary
+  generate_bridge_keys            - Generate ED25519 bridge identity keys
+  create_client_params            - Create client_bridge_params.json
+  create_bridge_config            - Create bridges.toml configuration
+  create_bridge_service           - Create systemd service file
+  full_bridge_setup               - Interactive full bridge setup wizard
+
+Network Configuration Commands:
+  adjust_ip_forwarding            - Enable IPv4 and IPv6 forwarding
+  apply_bridge_iptables_rules     - Apply iptables rules for QUIC bridge (nymwg)
+  configure_dns_and_icmp          - Allow ICMP ping tests and configure DNS
+  remove_duplicate_bridge_rules   - Remove duplicate iptables rules for nymwg
+
+Network Inspection Commands:
+  fetch_and_display_ipv6          - Show IPv6 on default network device
+  fetch_wg_ipv6_address           - Fetch IPv6 for nymwg interface
+  check_bridge_iptables           - Check iptables rules for nymwg
+  check_ipv6_ipv4_forwarding      - Check IPv4 and IPv6 forwarding status
+  check_ip_routing                - Display IP routing tables
+
+Testing Commands:
+  perform_pings                   - Test IPv4 and IPv6 connectivity
+  test_bridge_connectivity        - Comprehensive bridge connectivity test
+
+Service Management Commands:
+  check_bridge_service_status     - Check nym-bridge and nym-node service status
+  show_bridge_logs [lines]        - Show recent nym-bridge logs (default: 50 lines)
+
+Quick Start:
+  1. Run 'verify_bridge_prerequisites' to check prerequisites
+  2. Run 'check_bridge_installation' to verify installation
+  3. Run 'test_bridge_connectivity' to test connectivity
+```
+</AccordionTemplate>

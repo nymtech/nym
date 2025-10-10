@@ -403,7 +403,7 @@ fn calculate_score(gateway: &Gateway, probe_outcome: &LastProbeResult) -> ScoreV
                     / 1000f64;
 
             // get the file size downloaded in bytes and convert to MB, or default to 1MB
-            let file_size_mb = p.downloaded_file_size_bytes_v4.unwrap_or_else(|| 1048576) as f64
+            let file_size_mb = p.downloaded_file_size_bytes_v4.unwrap_or(1048576) as f64
                 / 1024f64
                 / 1024f64;
             let speed_mbps = file_size_mb / duration_sec;

@@ -11,6 +11,7 @@ import { Alert, AlertTitle } from '@mui/material';
 import { Wallet } from '@cosmos-kit/core';
 import { CosmosKitLedger } from './ledger';
 import { CosmosKitSign } from './sign';
+import type { SignerOptions } from '@cosmos-kit/core';
 
 const CosmosKitSetup: FC<{ children: React.ReactNode }> = ({ children }) => {
   const assetsFixedUp = React.useMemo(() => {
@@ -40,14 +41,16 @@ const CosmosKitSetup: FC<{ children: React.ReactNode }> = ({ children }) => {
     return chains;
   }, [chains]);
 
+
+  // components/cosmos-kit/index.tsx
+
   return (
     <ChainProvider
       chains={chainsFixedUp}
       assetLists={assetsFixedUp}
       wallets={[...ledger, ...keplr]}
-      signerOptions={{
-        preferredSignType: () => 'amino',
-      }}
+      signerOptions={{ preferredSignType: () => 'amino' }}
+      throwErrors={false}
     >
       {children}
     </ChainProvider>

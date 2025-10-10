@@ -99,6 +99,7 @@ pub struct DVpnGatewayPerformance {
 pub struct DVpnGateway {
     pub identity_key: String,
     pub name: String,
+    pub description: Option<String>,
     pub ip_packet_router: Option<IpPacketRouterDetails>,
     pub authenticator: Option<AuthenticatorDetails>,
     pub location: Location,
@@ -326,6 +327,7 @@ impl DVpnGateway {
         Ok(Self {
             identity_key: gateway.gateway_identity_key,
             name: gateway.description.moniker,
+            description: Some(gateway.description.details),
             ip_packet_router: self_described.ip_packet_router,
             authenticator: self_described.authenticator,
             location: Location {
@@ -395,20 +397,23 @@ fn calculate_score(gateway: &Gateway, probe_outcome: &LastProbeResult) -> ScoreV
         .map(|p| {
             let ping_ips_performance = p.ping_ips_performance_v4 as f64;
 
-            let duration = p.download_duration_sec_v4 as f64;
+            let duration_sec =
+                p.download_duration_milliseconds_v4
+                    .unwrap_or_else(|| p.download_duration_sec_v4 * 1000) as f64
+                    / 1000f64;
 
             // get the file size downloaded in bytes and convert to MB, or default to 1MB
             let file_size_mb =
                 p.downloaded_file_size_bytes_v4.unwrap_or(1048576) as f64 / 1024f64 / 1024f64;
-            let speed_mbps = file_size_mb / duration;
+            let speed_mbps = file_size_mb / duration_sec;
 
-            let file_download_score = if speed_mbps > 100.0 {
+            let file_download_score = if speed_mbps > 5.0 {
                 1.0
-            } else if speed_mbps > 50.0 {
+            } else if speed_mbps > 2.0 {
                 0.75
-            } else if speed_mbps > 20.0 {
+            } else if speed_mbps > 1.0 {
                 0.5
-            } else if speed_mbps > 10.0 {
+            } else if speed_mbps > 0.5 {
                 0.25
             } else {
                 0.1

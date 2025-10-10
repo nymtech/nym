@@ -118,6 +118,17 @@ pub fn sanitize_description(
     }
 }
 
+pub async fn scrape_and_store_description_by_node_id(pool: &DbPool, node_id: i64) -> Result<()> {
+    let nodes = crate::db::queries::get_nodes_for_scraping(pool).await?;
+    match nodes.iter().find(|n| *n.node_kind.node_id() == node_id) {
+        Some(node) => Ok(scrape_and_store_description(pool, node.clone()).await?),
+        None => {
+            error!("Could not find node with id {node_id}");
+            Err(anyhow!("Could not find node with id {node_id}"))
+        }
+    }
+}
+
 pub async fn scrape_and_store_description(pool: &DbPool, node: ScraperNodeInfo) -> Result<()> {
     let client = build_client()?;
     let urls = node.contact_addresses();

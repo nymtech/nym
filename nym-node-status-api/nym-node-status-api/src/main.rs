@@ -1,4 +1,6 @@
+use crate::cli::Commands;
 use crate::monitor::DelegationsCache;
+use crate::node_scraper::helpers::scrape_and_store_description_by_node_id;
 use crate::ticketbook_manager::TicketbookManager;
 use crate::ticketbook_manager::state::TicketbookManagerState;
 use clap::Parser;
@@ -44,6 +46,17 @@ async fn main() -> anyhow::Result<()> {
 
     let storage = db::Storage::init(connection_url, args.sqlx_busy_timeout_s).await?;
     let db_pool = storage.pool_owned();
+
+    match args.command {
+        Some(Commands::ScrapeNode { node_id }) => {
+            tracing::info!("Scraping node with id {node_id}...");
+            scrape_and_store_description_by_node_id(&db_pool, node_id).await?;
+            return Ok(());
+        }
+        None => {
+            // default behaviour
+        }
+    }
 
     // Start the node scraper
     let scraper = node_scraper::DescriptionScraper::new(storage.pool_owned());

@@ -99,6 +99,7 @@ pub struct DVpnGatewayPerformance {
 pub struct DVpnGateway {
     pub identity_key: String,
     pub name: String,
+    pub description: Option<String>,
     pub ip_packet_router: Option<IpPacketRouterDetails>,
     pub authenticator: Option<AuthenticatorDetails>,
     pub location: Location,
@@ -326,6 +327,7 @@ impl DVpnGateway {
         Ok(Self {
             identity_key: gateway.gateway_identity_key,
             name: gateway.description.moniker,
+            description: Some(gateway.description.details),
             ip_packet_router: self_described.ip_packet_router,
             authenticator: self_described.authenticator,
             location: Location {

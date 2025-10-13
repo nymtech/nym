@@ -1408,7 +1408,6 @@ pub async fn try_upgrade_config_v9<P: AsRef<Path>>(
                         .zk_nym_tickets
                         .maximum_time_between_redemption,
                 },
-                ..Default::default()
             },
         },
         service_providers: ServiceProvidersConfigV10 {

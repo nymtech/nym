@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n                UPDATE ecash_ticketbook\n                SET used_tickets = used_tickets + 1\n                WHERE id = (\n                    SELECT id\n                    FROM ecash_ticketbook\n                    WHERE used_tickets + 1 <= total_tickets\n                        AND expiration_date >= $1\n                        AND ticketbook_type = $2\n                    ORDER BY expiration_date ASC\n                    LIMIT 1\n                    FOR UPDATE SKIP LOCKED\n                )\n                RETURNING *\n            ",
+  "query": "\n                UPDATE ecash_ticketbook\n                SET used_tickets = used_tickets + 1\n                WHERE id = (\n                    SELECT id\n                    FROM ecash_ticketbook\n                    WHERE used_tickets < total_tickets\n                        AND expiration_date >= $1\n                        AND ticketbook_type = $2\n                    ORDER BY expiration_date ASC\n                    LIMIT 1\n                    FOR UPDATE\n                )\n                RETURNING *\n            ",
   "describe": {
     "columns": [
       {
@@ -61,5 +61,5 @@
       false
     ]
   },
-  "hash": "a4cdf23e15ea1a3f9df757287bcda81db841e855bb7ca14fb6dd869fa2311816"
+  "hash": "af5c78ef980e38d81f58f72f21c9cd410f83b8750196e0cf5fa5af23883e76df"
 }

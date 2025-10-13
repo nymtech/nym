@@ -227,12 +227,12 @@ impl Storage {
                 WHERE id = (
                     SELECT id
                     FROM ecash_ticketbook
-                    WHERE used_tickets + 1 <= total_tickets
+                    WHERE used_tickets < total_tickets
                         AND expiration_date >= $1
                         AND ticketbook_type = $2
                     ORDER BY expiration_date ASC
                     LIMIT 1
-                    FOR UPDATE SKIP LOCKED
+                    FOR UPDATE
                 )
                 RETURNING *
             "#,

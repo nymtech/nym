@@ -1018,7 +1018,7 @@ fn deserialize_request(
     match version {
         AuthenticatorVersion::V1 => {
             // this branch should be unreachable as v1 has already been handled independently
-            return Err(AuthenticatorError::UnknownVersion);
+            Err(AuthenticatorError::UnknownVersion)
         }
         AuthenticatorVersion::V2 => {
             v2::request::AuthenticatorRequest::from_reconstructed_message(reconstructed)

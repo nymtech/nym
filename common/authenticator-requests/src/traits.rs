@@ -4,16 +4,15 @@
 use std::fmt;
 use std::net::{Ipv4Addr, Ipv6Addr};
 
+use crate::latest::registration::IpPair;
+use crate::{AuthenticatorVersion, Error, v1, v2, v3, v4, v5, v6};
 use nym_credentials_interface::{
     BandwidthCredential, CredentialSpendingData, TicketType, UnknownTicketType,
 };
-use nym_crypto::asymmetric::x25519::PrivateKey;
+use nym_crypto::asymmetric::x25519;
 use nym_wireguard_types::PeerPublicKey;
 use serde::{Deserialize, Serialize};
 use tracing::error;
-
-use crate::latest::registration::IpPair;
-use crate::{AuthenticatorVersion, Error, v1, v2, v3, v4, v5, v6};
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct BandwidthClaim {
@@ -179,7 +178,7 @@ impl InitMessage for v6::registration::InitMessage {
 
 pub trait FinalMessage: Versionable + fmt::Debug {
     fn gateway_client_pub_key(&self) -> PeerPublicKey;
-    fn verify(&self, private_key: &PrivateKey, nonce: u64) -> Result<(), Error>;
+    fn verify(&self, private_key: &x25519::PrivateKey, nonce: u64) -> Result<(), Error>;
     fn private_ips(&self) -> IpPair;
     fn gateway_client_ipv4(&self) -> Option<Ipv4Addr>;
     fn gateway_client_ipv6(&self) -> Option<Ipv6Addr>;
@@ -192,7 +191,7 @@ impl FinalMessage for v1::GatewayClient {
         self.pub_key
     }
 
-    fn verify(&self, private_key: &PrivateKey, nonce: u64) -> Result<(), Error> {
+    fn verify(&self, private_key: &x25519::PrivateKey, nonce: u64) -> Result<(), Error> {
         self.verify(private_key, nonce)
     }
 
@@ -225,7 +224,7 @@ impl FinalMessage for v2::registration::FinalMessage {
         self.gateway_client.pub_key
     }
 
-    fn verify(&self, private_key: &PrivateKey, nonce: u64) -> Result<(), Error> {
+    fn verify(&self, private_key: &x25519::PrivateKey, nonce: u64) -> Result<(), Error> {
         self.gateway_client.verify(private_key, nonce)
     }
 
@@ -262,7 +261,7 @@ impl FinalMessage for v3::registration::FinalMessage {
         self.gateway_client.pub_key
     }
 
-    fn verify(&self, private_key: &PrivateKey, nonce: u64) -> Result<(), Error> {
+    fn verify(&self, private_key: &x25519::PrivateKey, nonce: u64) -> Result<(), Error> {
         self.gateway_client.verify(private_key, nonce)
     }
 
@@ -299,7 +298,7 @@ impl FinalMessage for v4::registration::FinalMessage {
         self.gateway_client.pub_key
     }
 
-    fn verify(&self, private_key: &PrivateKey, nonce: u64) -> Result<(), Error> {
+    fn verify(&self, private_key: &x25519::PrivateKey, nonce: u64) -> Result<(), Error> {
         self.gateway_client.verify(private_key, nonce)
     }
 
@@ -334,7 +333,7 @@ impl FinalMessage for v5::registration::FinalMessage {
         self.gateway_client.pub_key
     }
 
-    fn verify(&self, private_key: &PrivateKey, nonce: u64) -> Result<(), Error> {
+    fn verify(&self, private_key: &x25519::PrivateKey, nonce: u64) -> Result<(), Error> {
         self.gateway_client.verify(private_key, nonce)
     }
 
@@ -368,7 +367,7 @@ impl FinalMessage for v6::registration::FinalMessage {
         self.gateway_client.pub_key
     }
 
-    fn verify(&self, private_key: &PrivateKey, nonce: u64) -> Result<(), Error> {
+    fn verify(&self, private_key: &x25519::PrivateKey, nonce: u64) -> Result<(), Error> {
         self.gateway_client.verify(private_key, nonce)
     }
 
@@ -568,9 +567,14 @@ impl Id for v6::response::TopUpBandwidthResponse {
 
 pub trait PendingRegistrationResponse: Id + fmt::Debug {
     fn nonce(&self) -> u64;
-    fn verify(&self, gateway_key: &PrivateKey) -> Result<(), Error>;
+    fn verify(&self, gateway_key: &x25519::PrivateKey) -> Result<(), Error>;
     fn pub_key(&self) -> PeerPublicKey;
     fn private_ips(&self) -> IpPair;
+    fn finalise_registration(
+        &self,
+        private_key: &x25519::PrivateKey,
+        credential: Option<BandwidthClaim>,
+    ) -> Box<dyn FinalMessage + Send + Sync>;
 }
 
 impl PendingRegistrationResponse for v2::response::PendingRegistrationResponse {
@@ -578,7 +582,7 @@ impl PendingRegistrationResponse for v2::response::PendingRegistrationResponse {
         self.reply.nonce
     }
 
-    fn verify(&self, gateway_key: &PrivateKey) -> Result<(), Error> {
+    fn verify(&self, gateway_key: &x25519::PrivateKey) -> Result<(), Error> {
         self.reply.gateway_data.verify(gateway_key, self.nonce())
     }
 
@@ -588,6 +592,22 @@ impl PendingRegistrationResponse for v2::response::PendingRegistrationResponse {
 
     fn private_ips(&self) -> IpPair {
         self.reply.gateway_data.private_ip.into()
+    }
+
+    fn finalise_registration(
+        &self,
+        private_key: &x25519::PrivateKey,
+        credential: Option<BandwidthClaim>,
+    ) -> Box<dyn FinalMessage + Send + Sync> {
+        Box::new(v2::registration::FinalMessage {
+            gateway_client: v2::registration::GatewayClient::new(
+                private_key,
+                self.pub_key().inner(),
+                self.private_ips().ipv4.into(),
+                self.nonce(),
+            ),
+            credential: credential.and_then(|b| b.credential.into_zk_nym().map(|c| *c)),
+        })
     }
 }
 
@@ -596,7 +616,7 @@ impl PendingRegistrationResponse for v3::response::PendingRegistrationResponse {
         self.reply.nonce
     }
 
-    fn verify(&self, gateway_key: &PrivateKey) -> Result<(), Error> {
+    fn verify(&self, gateway_key: &x25519::PrivateKey) -> Result<(), Error> {
         self.reply.gateway_data.verify(gateway_key, self.nonce())
     }
 
@@ -607,6 +627,22 @@ impl PendingRegistrationResponse for v3::response::PendingRegistrationResponse {
     fn private_ips(&self) -> IpPair {
         self.reply.gateway_data.private_ip.into()
     }
+
+    fn finalise_registration(
+        &self,
+        private_key: &x25519::PrivateKey,
+        credential: Option<BandwidthClaim>,
+    ) -> Box<dyn FinalMessage + Send + Sync> {
+        Box::new(v3::registration::FinalMessage {
+            gateway_client: v3::registration::GatewayClient::new(
+                private_key,
+                self.pub_key().inner(),
+                self.private_ips().ipv4.into(),
+                self.nonce(),
+            ),
+            credential: credential.and_then(|b| b.credential.into_zk_nym().map(|c| *c)),
+        })
+    }
 }
 
 impl PendingRegistrationResponse for v4::response::PendingRegistrationResponse {
@@ -614,7 +650,7 @@ impl PendingRegistrationResponse for v4::response::PendingRegistrationResponse {
         self.reply.nonce
     }
 
-    fn verify(&self, gateway_key: &PrivateKey) -> Result<(), Error> {
+    fn verify(&self, gateway_key: &x25519::PrivateKey) -> Result<(), Error> {
         self.reply.gateway_data.verify(gateway_key, self.nonce())
     }
 
@@ -626,6 +662,22 @@ impl PendingRegistrationResponse for v4::response::PendingRegistrationResponse {
         // v4 -> v5 -> v6
         v5::registration::IpPair::from(self.reply.gateway_data.private_ips).into()
     }
+
+    fn finalise_registration(
+        &self,
+        private_key: &x25519::PrivateKey,
+        credential: Option<BandwidthClaim>,
+    ) -> Box<dyn FinalMessage + Send + Sync> {
+        Box::new(v4::registration::FinalMessage {
+            gateway_client: v4::registration::GatewayClient::new(
+                private_key,
+                self.pub_key().inner(),
+                self.reply.gateway_data.private_ips,
+                self.nonce(),
+            ),
+            credential: credential.and_then(|b| b.credential.into_zk_nym().map(|c| *c)),
+        })
+    }
 }
 
 impl PendingRegistrationResponse for v5::response::PendingRegistrationResponse {
@@ -633,7 +685,7 @@ impl PendingRegistrationResponse for v5::response::PendingRegistrationResponse {
         self.reply.nonce
     }
 
-    fn verify(&self, gateway_key: &PrivateKey) -> Result<(), Error> {
+    fn verify(&self, gateway_key: &x25519::PrivateKey) -> Result<(), Error> {
         self.reply.gateway_data.verify(gateway_key, self.nonce())
     }
 
@@ -643,6 +695,22 @@ impl PendingRegistrationResponse for v5::response::PendingRegistrationResponse {
 
     fn private_ips(&self) -> IpPair {
         self.reply.gateway_data.private_ips.into()
+    }
+
+    fn finalise_registration(
+        &self,
+        private_key: &x25519::PrivateKey,
+        credential: Option<BandwidthClaim>,
+    ) -> Box<dyn FinalMessage + Send + Sync> {
+        Box::new(v5::registration::FinalMessage {
+            gateway_client: v5::registration::GatewayClient::new(
+                private_key,
+                self.pub_key().inner(),
+                self.reply.gateway_data.private_ips,
+                self.nonce(),
+            ),
+            credential: credential.and_then(|b| b.credential.into_zk_nym().map(|c| *c)),
+        })
     }
 }
 
@@ -651,7 +719,7 @@ impl PendingRegistrationResponse for v6::response::PendingRegistrationResponse {
         self.reply.nonce
     }
 
-    fn verify(&self, gateway_key: &PrivateKey) -> Result<(), Error> {
+    fn verify(&self, gateway_key: &x25519::PrivateKey) -> Result<(), Error> {
         self.reply.gateway_data.verify(gateway_key, self.nonce())
     }
 
@@ -660,7 +728,23 @@ impl PendingRegistrationResponse for v6::response::PendingRegistrationResponse {
     }
 
     fn private_ips(&self) -> IpPair {
-        self.reply.gateway_data.private_ips.into()
+        self.reply.gateway_data.private_ips
+    }
+
+    fn finalise_registration(
+        &self,
+        private_key: &x25519::PrivateKey,
+        credential: Option<BandwidthClaim>,
+    ) -> Box<dyn FinalMessage + Send + Sync> {
+        Box::new(v6::registration::FinalMessage {
+            gateway_client: v6::registration::GatewayClient::new(
+                private_key,
+                self.pub_key().inner(),
+                self.reply.gateway_data.private_ips,
+                self.nonce(),
+            ),
+            credential,
+        })
     }
 }
 
@@ -728,7 +812,7 @@ impl RegisteredResponse for v5::response::RegisteredResponse {
 
 impl RegisteredResponse for v6::response::RegisteredResponse {
     fn private_ips(&self) -> IpPair {
-        self.reply.private_ips.into()
+        self.reply.private_ips
     }
 
     fn pub_key(&self) -> PeerPublicKey {

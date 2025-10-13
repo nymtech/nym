@@ -18,6 +18,6 @@ pub fn create_account(args: Args, prefix: &str) {
     let wallet = DirectSecp256k1HdWallet::from_mnemonic(prefix, mnemonic);
 
     // Output address and mnemonics into separate lines for easier parsing
-    println!("{}", wallet.mnemonic());
+    println!("{}", wallet.mnemonic_string().as_str());
     println!("{}", wallet.try_derive_accounts().unwrap()[0].address());
 }

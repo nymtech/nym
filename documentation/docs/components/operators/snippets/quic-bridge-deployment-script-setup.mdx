@@ -6,7 +6,7 @@ import { AccordionTemplate } from 'components/accordion-template.tsx';
 **QUIC bridge is a requirement for all nodes which enable Wireguard functionality. Note that it this feature is compatible with nodes from `v1.18.0` (platform release [`v2025.17-isabirra`](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.17-isabirra)) and newer!**
 </ Callout>
 
-Nym Network uses various [transport bridges](https://github.com/nymtech/nym-bridges/blob/main/README.md) for routing the packets. Right now operators need to configure [our implementation](https://github.com/nymtech/nym-bridges/tree/main/nym-bridge) of general-purpose transport layer network protocol called [QUIC](https://en.wikipedia.org/wiki/QUIC). 
+Nym Network uses various [transport bridges](https://github.com/nymtech/nym-bridges/blob/main/README.md) for routing the packets. Right now operators need to configure [our implementation](https://github.com/nymtech/nym-bridges/tree/main/nym-bridge) of general-purpose transport layer network protocol called [QUIC](https://en.wikipedia.org/wiki/QUIC).
 
 Operators can use [Nym Bridge Configuration Tool](https://github.com/nymtech/nym-bridges/tree/main/bridge-cfg) and compile the [Bridge Runner binary](https://github.com/nymtech/nym-bridges/tree/main/nym-bridge) themselves.
 
@@ -15,7 +15,7 @@ Operators can use [Nym Bridge Configuration Tool](https://github.com/nymtech/nym
 <Steps>
 ###### 1. Download [`quic_bridge_deployment.sh`](https://github.com/nymtech/nym/blob/develop/scripts/nym-node-setup/quic_bridge_deployment.sh) script
 - SSH to your server
-- Download the script and make executable 
+- Download the script and make executable
 ```sh
 wget https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/quic_bridge_deployment.sh && \
 chmod +x quic_bridge_deployment.sh
@@ -35,7 +35,7 @@ chmod +x quic_bridge_deployment.sh
 - To find out your IP address you can always run:
     - IPv4: `curl -4 https://ifconfig.co/ip`
     - IPv6: `curl -6 https://ifconfig.co/ip`
-- **For all prompts with default options, we highly recommend to stick to default (press enter)**   
+- **For all prompts with default options, we highly recommend to stick to default (press enter)**
 
 ###### 4. Restart the node service
 - When done with the deployment, please restart your node systemd service
@@ -99,3 +99,43 @@ Quick Start:
   3. Run 'test_bridge_connectivity' to test connectivity
 ```
 </AccordionTemplate>
+
+### Fixing Metadata Port Showing Not Open in Probe Results
+If you have followed the steps outlined above, but the metadata port is not shown as open in either the Node Status API's probe results or an explorer that gets its data from the API, see below:
+
+<Steps>
+###### 1.
+Ensure that in your `config.toml` file, this value is set to the default one - any other value here will cause the metadata endpoint to fail:
+
+```
+# Private IP address of the wireguard gateway.
+# default: '10.1.0.1'
+private_ipv4 = '10.1.0.1'
+```
+
+Then restart your node.
+
+###### 2.
+Run this command if not already done:
+```
+ufw allow in on nymwg to any port 51830 proto tcp
+```
+
+Check if the port is open with:
+```
+iptables -S | grep 51830
+```
+
+Then ensure the metadata endpoint is listening from the correct address with:
+```
+netstat -an | egrep LISTEN | egrep "51830"
+```
+
+###### 3.
+Once the Node Status API has run a probe on your node, the probe results will reflect this - `can_query_metadata_v4` will have `true` as a value.
+
+The quickest way to check this is by using the [NymVPN API](https://nymvpn.com/api/public/v1/directory/gateways?show_vpn_only=true) and checking the same field:
+
+![](/images/operators/wg-metadata-port-api.png)
+
+</Steps>

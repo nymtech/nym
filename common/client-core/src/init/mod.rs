@@ -23,6 +23,7 @@ use nym_topology::node::RoutingNode;
 use rand::rngs::OsRng;
 use rand::{CryptoRng, RngCore};
 use serde::Serialize;
+use std::time::Duration;
 #[cfg(unix)]
 use std::{os::fd::RawFd, sync::Arc};
 
@@ -56,6 +57,7 @@ async fn setup_new_gateway<K, D>(
     selection_specification: GatewaySelectionSpecification,
     available_gateways: Vec<RoutingNode>,
     #[cfg(unix)] connection_fd_callback: Option<Arc<dyn Fn(RawFd) + Send + Sync>>,
+    connect_timeout: Option<Duration>,
 ) -> Result<InitialisationResult, ClientCoreError>
 where
     K: KeyStore,
@@ -117,6 +119,7 @@ where
                 our_identity,
                 #[cfg(unix)]
                 connection_fd_callback,
+                connect_timeout,
             )
             .await?;
             (
@@ -213,6 +216,7 @@ where
             available_gateways,
             #[cfg(unix)]
             connection_fd_callback,
+            connect_timeout,
         } => {
             tracing::debug!("GatewaySetup::New with spec: {specification:?}");
             setup_new_gateway(
@@ -222,6 +226,7 @@ where
                 available_gateways,
                 #[cfg(unix)]
                 connection_fd_callback,
+                connect_timeout,
             )
             .await
         }

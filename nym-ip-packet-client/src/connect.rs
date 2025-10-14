@@ -133,8 +133,7 @@ impl IprClientConnect {
 
         let timeout = sleep(IPR_CONNECT_TIMEOUT);
         tokio::pin!(timeout);
-
-        let mixnet_cancel_token = self.mixnet_client.cancellation_token();
+        let shutdown_event = self.mixnet_client.shutdown_event();
 
         loop {
             tokio::select! {
@@ -142,14 +141,13 @@ impl IprClientConnect {
                     error!("Cancelled while waiting for reply to connect request");
                     return Err(Error::Cancelled);
                 },
-
-                _ = mixnet_cancel_token.cancelled() => {
-                    error!("Mixnet client stopped while waiting for reply to connect request");
-                    return Err(Error::Cancelled);
-                },
                 _ = &mut timeout => {
                     error!("Timed out waiting for reply to connect request");
                     return Err(Error::TimeoutWaitingForConnectResponse);
+                },
+                _ = shutdown_event.wait() => {
+                    error!("Mixnet client stopped while waiting for reply to connect request");
+                    return Err(Error::Cancelled);
                 },
                 msgs = self.mixnet_client.wait_for_messages() => match msgs {
                     None => {

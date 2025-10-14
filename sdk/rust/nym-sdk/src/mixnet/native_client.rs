@@ -24,7 +24,6 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
 use tokio::sync::RwLockReadGuard;
-use tokio_util::sync::CancellationToken;
 
 /// Client connected to the Nym mixnet.
 pub struct MixnetClient {
@@ -124,9 +123,9 @@ impl MixnetClient {
     }
 
     /// Get a child token of the root, to monitor unexpected shutdown, without causing one
-    pub fn cancellation_token(&self) -> CancellationToken {
-        self.shutdown_handle.child_shutdown_token().inner().clone()
-    }
+    // pub fn cancellation_token(&self) -> CancellationToken {
+    //     self.shutdown_handle.child_shutdown_token().inner().clone()
+    // }
 
     pub fn client_request_sender(&self) -> ClientRequestSender {
         self.client_request_sender.clone()
@@ -197,6 +196,13 @@ impl MixnetClient {
     /// Restore default topology refreshing behaviour of this client.
     pub fn restore_automatic_topology_refreshing(&self) {
         self.client_state.topology_accessor.release_manual_control()
+    }
+
+    /// Returns a shutdown event handle that can be used for waiting for the client to shutdown.
+    pub fn shutdown_event(&self) -> ShutdownEventHandle {
+        ShutdownEventHandle {
+            shutdown_handle: self.shutdown_handle.clone(),
+        }
     }
 
     /// Wait for messages from the mixnet
@@ -338,5 +344,18 @@ impl MixnetMessageSender for MixnetClientSender {
             .send(message)
             .await
             .map_err(|_| Error::MessageSendingFailure)
+    }
+}
+
+/// Handle for waiting on the shutdown event of the mixnet client.
+pub struct ShutdownEventHandle {
+    shutdown_handle: ShutdownTracker,
+}
+
+impl ShutdownEventHandle {
+    /// Returns once mixnet client has been shut down.
+    /// If mixnet client is already shut down, returns immediately.
+    pub async fn wait(&self) {
+        self.shutdown_handle.wait_for_tracker().await
     }
 }

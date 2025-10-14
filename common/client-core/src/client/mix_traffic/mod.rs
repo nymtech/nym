@@ -155,6 +155,7 @@ impl MixTrafficController {
                                 error!("Failed to send sphinx packet to the gateway {MAX_FAILURE_COUNT} times in a row - assuming the gateway is dead");
                                 // Do we need to handle the embedded mixnet client case
                                 // separately?
+                                self.shutdown_token.cancel();
                                 break;
                             }
                         }

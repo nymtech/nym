@@ -3,6 +3,7 @@
 
 use crate::packet::FramedNymPacket;
 use nym_bin_common::opentelemetry::compact_id_generator::decompress_trace_id;
+use nym_bin_common::opentelemetry::context::ManualContextPropagator;
 use nym_sphinx_acknowledgements::surb_ack::{SurbAck, SurbAckRecoveryError};
 use nym_sphinx_addressing::nodes::{NymNodeRoutingAddress, NymNodeRoutingAddressError};
 use nym_sphinx_forwarding::packet::MixPacket;
@@ -15,7 +16,7 @@ use nym_sphinx_types::{
 };
 use std::fmt::Display;
 use thiserror::Error;
-use tracing::{debug, error, info, warn, trace, instrument};
+use tracing::{debug, error, info, instrument, trace, warn, warn_span};
 
 #[derive(Debug)]
 pub enum MixProcessingResultData {
@@ -270,11 +271,9 @@ fn wrap_processed_sphinx_packet(
                 if !trace_bytes.iter().all(|b| *b == 0) {
                     let full_trace_id_bytes = decompress_trace_id(&trace_bytes);
                     let full_trace_id = opentelemetry::trace::TraceId::from_bytes(full_trace_id_bytes);
-                    tracing::Span::current().record("trace_id", &full_trace_id.to_string().as_str());
-                    warn!("Processing final hop with trace_id: {full_trace_id:?}");
-                }
-                else {
-                    warn!("Received final hop with empty trace_id");
+                    let context_propagator = ManualContextPropagator::new_from_tid("final_hop", full_trace_id);
+                    let span = warn_span!(parent: &context_propagator.root_span, "final_hop_processing", trace_id=%full_trace_id);
+                    let _enter = span.enter();
                 }
             }
 

@@ -111,6 +111,20 @@ impl ManualContextPropagator {
             trace_id,
         }
     }
+
+    pub fn new_from_tid(name: &str, trace_id: TraceId) -> Self {
+        let root_span_builder = new_span_context_with_id(trace_id.clone());
+        let _guard = root_span_builder.clone().attach();
+
+        let root_span = tracing::info_span!("trace_root", name = %name, trace_id = %trace_id);
+        root_span.set_parent(root_span_builder);
+
+        ManualContextPropagator {
+            root_span,
+            trace_id,
+        }
+    }
+
 }
 
 pub fn new_span_context_with_id(trace_id: TraceId) -> Context {

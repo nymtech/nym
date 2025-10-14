@@ -1,6 +1,7 @@
 use nym_sdk::mixnet::{
     AnonymousSenderTag, MixnetClientBuilder, MixnetMessageSender, ReconstructedMessage,
 };
+use nym_sdk::DebugConfig;
 use opentelemetry::trace::{TraceContextExt, Tracer};
 use opentelemetry::{global, Context};
 use tracing::warn;
@@ -9,7 +10,7 @@ use tracing::instrument;
 #[tokio::main]
 #[instrument(name = "sdk-example-surb-reply", skip_all)]
 async fn main() {
-    nym_bin_common::opentelemetry::setup_tracing_logger("sdk-example-surb-reply".to_string()).unwrap();
+    let _guard = nym_bin_common::opentelemetry::setup_tracing_logger("sdk-example-surb-reply".to_string()).unwrap();
 
     let tracer = global::tracer("sdk-example-surb-reply");
     let span = tracer.start("client-root-span");
@@ -19,17 +20,24 @@ async fn main() {
     let trace_id = cx.span().span_context().trace_id();
     warn!("Main TRACE_ID: {:?}", trace_id);
 
-    // let span = info_span!(
-    //     "surb_reply_example_session",
-    //     trace_id = %trace_id.to_string()
-    // );
-    // let _enter = span.enter();
-   
-    // Create a mixnet client which connect to a specific node
+    let context = Context::current();
+    println!("Current OTEL context: {:?}", context);
 
+    // Ignore performance requirements for the sake of the example
+        let mut debug_config = DebugConfig::default();
+        debug_config.cover_traffic.disable_loop_cover_traffic_stream = true;
+        debug_config
+            .traffic
+            .disable_main_poisson_packet_distribution = true;
+
+        debug_config.topology.minimum_mixnode_performance = 0;
+        debug_config.topology.minimum_gateway_performance = 0;
+
+    // Create a mixnet client which connect to a specific node
     let client_builder  = MixnetClientBuilder::new_ephemeral();
     let mixnet_client = client_builder
-        .request_gateway("BAF2aYpzcK9KbSS3Y7EdLisxiogkTr88FXkdL8EDNigH".to_string())
+        .debug_config(debug_config)
+        .request_gateway("FtR9Mb9y9EViYU3at6Qf7MzNHaMw8gofMicwqoscMBMP".to_string())
         .build()
         .unwrap();
 

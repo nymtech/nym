@@ -25,6 +25,19 @@ use opentelemetry_semantic_conventions::SCHEMA_URL;
 use tracing_opentelemetry::{MetricsLayer, OpenTelemetryLayer};
 use tracing_subscriber::fmt::format::FmtSpan;
 
+pub struct TracerProviderGuard(Option<SdkTracerProvider>);
+
+impl Drop for TracerProviderGuard {
+    fn drop(&mut self) {
+        if let Some(tracer_provider) = self.0.take() {
+            // Ensure all spans are flushed before exit
+            if let Err(e) = tracer_provider.shutdown() {
+                eprintln!("Error shutting down tracer provider: {:?}", e);
+            }
+        }
+    }
+}
+
 pub(crate) fn granual_filtered_env() -> Result<tracing_subscriber::filter::EnvFilter, TracingError>
 {
     fn directive_checked(directive: impl Into<String>) -> Result<Directive, TracingError> {
@@ -41,7 +54,7 @@ pub(crate) fn granual_filtered_env() -> Result<tracing_subscriber::filter::EnvFi
     Ok(filter)
 }
 
-pub fn setup_tracing_logger(service_name: String) -> Result<(), TracingError> {
+pub fn setup_tracing_logger(service_name: String) -> Result<TracerProviderGuard, TracingError> {
     if tracing::dispatcher::has_been_set() {
         // It shouldn't be - this is really checking that it is torn down between async command executions
         return Err(error::TracingError::TracingLoggerAlreadyInitialised);
@@ -74,7 +87,7 @@ pub fn setup_tracing_logger(service_name: String) -> Result<(), TracingError> {
             .with(console_layer)
             .with(fmt_layer)
             .with(granual_filtered_env()?)
-            .with(tracing_subscriber::filter::LevelFilter::from_level(Level::WARN))
+            .with(tracing_subscriber::filter::LevelFilter::from_level(Level::INFO))
             .with(MetricsLayer::new(meter_provider))
             .with(OpenTelemetryLayer::new(tracer))
             .try_init()
@@ -83,14 +96,16 @@ pub fn setup_tracing_logger(service_name: String) -> Result<(), TracingError> {
         tracing_subscriber::registry()
             .with(fmt_layer)
             .with(granual_filtered_env()?)
-            .with(tracing_subscriber::filter::LevelFilter::from_level(Level::WARN))
+            .with(tracing_subscriber::filter::LevelFilter::from_level(Level::INFO))
             .with(MetricsLayer::new(meter_provider))
             .with(OpenTelemetryLayer::new(tracer))
             .try_init()
             .map_err(|e| TracingError::TracingTryInitError(e))?;
     }}
+
+    let guard = TracerProviderGuard(Some(tracer_provider));
     
-    Ok(())
+    Ok(guard)
 }
 
 pub fn setup_no_otel_logger() -> Result<(), TracingError> {

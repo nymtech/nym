@@ -6322,6 +6322,7 @@ dependencies = [
  "nym-verloc",
  "nym-wireguard",
  "nym-wireguard-types",
+ "opentelemetry",
  "rand 0.8.5",
  "rand_chacha 0.3.1",
  "serde",

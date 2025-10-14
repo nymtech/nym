@@ -31,6 +31,7 @@ humantime-serde = { workspace = true }
 human-repr = { workspace = true }
 ipnetwork = { workspace = true }
 indicatif = { workspace = true }
+opentelemetry = { workspace = true } # make it optional later
 rand = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true

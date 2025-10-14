@@ -10,8 +10,12 @@ use crate::env::vars::{NYMNODE_CONFIG_ENV_FILE_ARG, NYMNODE_NO_BANNER_ARG};
 use clap::{Args, Parser, Subcommand};
 use nym_bin_common::{
     bin_info,
-    opentelemetry::{setup_no_otel_logger, setup_tracing_logger, error::TracingError},
+    opentelemetry::{
+        setup_no_otel_logger,
+        setup_tracing_logger,
+        error::TracingError},
 };
+use opentelemetry::{Context, global, trace::{TraceContextExt, Tracer}};
 use std::future::Future;
 use std::sync::OnceLock;
 use tracing::instrument;
@@ -85,27 +89,33 @@ impl Cli {
             },
             // SigNoz/OTEL run in async context
             Commands::BondingInformation(args) => Self::execute_async(async move {
-                setup_tracing_logger("nym-node".to_string())?;
+                let _guard = setup_tracing_logger("nym-node".to_string())
+                    .map_err(TracingError::from)?;
+
                 bonding_information::execute(args).await?;
                 Ok::<(), anyhow::Error>(())
             })??,
             Commands::NodeDetails(args) => Self::execute_async(async move {
-                setup_tracing_logger("nym-node".to_string()).map_err(TracingError::from)?;
+                let _guard = setup_tracing_logger("nym-node".to_string())
+                    .map_err(TracingError::from)?;
                 node_details::execute(args).await?;
                 Ok::<(), anyhow::Error>(())
             })??,
             Commands::Run(args) => Self::execute_async(async move {
-                setup_tracing_logger("nym-node".to_string()).map_err(TracingError::from)?;
+                let _guard = setup_tracing_logger("nym-node".to_string())
+                    .map_err(TracingError::from)?;
                 run::execute(*args).await?;
                 Ok::<(), anyhow::Error>(())
             })??,
             Commands::Sign(args) => Self::execute_async(async move {
-                setup_tracing_logger("nym-node".to_string()).map_err(TracingError::from)?;
+                let _guard = setup_tracing_logger("nym-node".to_string())
+                    .map_err(TracingError::from)?;
                 sign::execute(args).await?;
                 Ok::<(), anyhow::Error>(())
             })??,
             Commands::UnsafeResetSphinxKeys(args) => Self::execute_async(async move {
-                setup_tracing_logger("nym-node".to_string()).map_err(TracingError::from)?;
+                let _guard = setup_tracing_logger("nym-node".to_string())
+                    .map_err(TracingError::from)?;
                 reset_sphinx_keys::execute(args).await?;
                 Ok::<(), anyhow::Error>(())
             })??,

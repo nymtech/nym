@@ -23,6 +23,7 @@ use nym_topology::{EpochRewardedSet, NymTopology, RoutingNode};
 use nym_validator_client::client::IdentityKey;
 use nym_validator_client::{nym_api::NymApiClientExt, UserAgent};
 use rand::thread_rng;
+use std::time::Duration;
 use url::Url;
 use wasm_bindgen::prelude::wasm_bindgen;
 use wasm_bindgen_futures::future_to_promise;
@@ -127,6 +128,7 @@ pub async fn setup_gateway_wasm(
     force_tls: bool,
     chosen_gateway: Option<IdentityKey>,
     gateways: Vec<RoutingNode>,
+    connect_timeout: Option<Duration>,
 ) -> Result<InitialisationResult, WasmCoreError> {
     // TODO: so much optimization and extra features could be added here, but that's for the future
 
@@ -144,6 +146,7 @@ pub async fn setup_gateway_wasm(
         GatewaySetup::New {
             specification: selection_spec,
             available_gateways: gateways,
+            connect_timeout,
         }
     };
 
@@ -159,6 +162,7 @@ pub async fn setup_gateway_from_api(
     nym_apis: &[Url],
     minimum_performance: u8,
     ignore_epoch_roles: bool,
+    connect_timeout: Option<Duration>,
 ) -> Result<InitialisationResult, WasmCoreError> {
     let gateways = gateways_for_init(
         nym_apis,
@@ -168,7 +172,14 @@ pub async fn setup_gateway_from_api(
         None,
     )
     .await?;
-    setup_gateway_wasm(client_store, force_tls, chosen_gateway, gateways).await
+    setup_gateway_wasm(
+        client_store,
+        force_tls,
+        chosen_gateway,
+        gateways,
+        connect_timeout,
+    )
+    .await
 }
 
 pub async fn current_gateways_wasm(
@@ -192,9 +203,17 @@ pub async fn setup_from_topology(
     force_tls: bool,
     topology: &NymTopology,
     client_store: &ClientStorage,
+    connect_timeout: Option<Duration>,
 ) -> Result<InitialisationResult, WasmCoreError> {
     let gateways = topology.entry_capable_nodes().cloned().collect::<Vec<_>>();
-    setup_gateway_wasm(client_store, force_tls, explicit_gateway, gateways).await
+    setup_gateway_wasm(
+        client_store,
+        force_tls,
+        explicit_gateway,
+        gateways,
+        connect_timeout,
+    )
+    .await
 }
 
 pub async fn generate_new_client_keys(store: &ClientStorage) -> Result<(), WasmCoreError> {
@@ -213,6 +232,7 @@ pub async fn add_gateway(
     min_performance: u8,
     ignore_epoch_roles: bool,
     storage: &ClientStorage,
+    connect_timeout: Option<Duration>,
 ) -> Result<(), WasmCoreError> {
     let selection_spec = GatewaySelectionSpecification::new(
         preferred_gateway.clone(),
@@ -267,6 +287,7 @@ pub async fn add_gateway(
     let gateway_setup = GatewaySetup::New {
         specification: selection_spec,
         available_gateways,
+        connect_timeout,
     };
 
     let init_details = setup_gateway(gateway_setup, storage, storage).await?;

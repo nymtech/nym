@@ -21,6 +21,7 @@ use std::fmt::{Debug, Display};
 #[cfg(unix)]
 use std::os::fd::RawFd;
 use std::sync::Arc;
+use std::time::Duration;
 use time::OffsetDateTime;
 use url::Url;
 
@@ -214,6 +215,9 @@ pub enum GatewaySetup {
         /// Callback useful for allowing initial connection to gateway
         #[cfg(unix)]
         connection_fd_callback: Option<Arc<dyn Fn(RawFd) + Send + Sync>>,
+
+        /// Timeout for establishing connection
+        connect_timeout: Option<Duration>,
     },
 
     ReuseConnection {
@@ -239,6 +243,7 @@ impl Debug for GatewaySetup {
                 available_gateways,
                 #[cfg(unix)]
                     connection_fd_callback: _,
+                connect_timeout: _,
             } => f
                 .debug_struct("GatewaySetup::New")
                 .field("specification", specification)
@@ -280,6 +285,7 @@ impl GatewaySetup {
             available_gateways: vec![],
             #[cfg(unix)]
             connection_fd_callback: None,
+            connect_timeout: None,
         }
     }
 

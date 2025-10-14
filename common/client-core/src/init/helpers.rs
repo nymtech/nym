@@ -382,6 +382,7 @@ pub(super) async fn register_with_gateway(
     gateway_listener: Url,
     our_identity: Arc<ed25519::KeyPair>,
     #[cfg(unix)] connection_fd_callback: Option<Arc<dyn Fn(RawFd) + Send + Sync>>,
+    connect_timeout: Option<Duration>,
 ) -> Result<RegistrationResult, ClientCoreError> {
     let mut gateway_client = GatewayClient::new_init(
         gateway_listener,
@@ -389,6 +390,7 @@ pub(super) async fn register_with_gateway(
         our_identity.clone(),
         #[cfg(unix)]
         connection_fd_callback,
+        connect_timeout,
     );
 
     gateway_client.establish_connection().await.map_err(|err| {

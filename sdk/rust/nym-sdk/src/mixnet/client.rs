@@ -38,6 +38,7 @@ use std::path::Path;
 use std::path::PathBuf;
 #[cfg(unix)]
 use std::sync::Arc;
+use std::time::Duration;
 use url::Url;
 use zeroize::Zeroizing;
 
@@ -405,6 +406,9 @@ where
     #[cfg(unix)]
     connection_fd_callback: Option<Arc<dyn Fn(std::os::fd::RawFd) + Send + Sync>>,
 
+    /// Timeout for establishing a connection
+    connect_timeout: Option<Duration>,
+
     forget_me: ForgetMe,
 
     remember_me: RememberMe,
@@ -466,6 +470,7 @@ where
             user_agent: None,
             #[cfg(unix)]
             connection_fd_callback: None,
+            connect_timeout: None,
             forget_me,
             remember_me,
             derivation_material: None,
@@ -589,6 +594,7 @@ where
             available_gateways,
             #[cfg(unix)]
             connection_fd_callback: self.connection_fd_callback.clone(),
+            connect_timeout: self.connect_timeout,
         })
     }
 

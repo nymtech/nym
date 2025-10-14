@@ -153,6 +153,7 @@ impl NymNodeTesterBuilder {
                 false,
                 &self.base_topology,
                 client_store,
+                None,
             )
             .await?)
         }
@@ -211,6 +212,7 @@ impl NymNodeTesterBuilder {
                     packet_router,
                     self.bandwidth_controller.take(),
                     ClientStatsSender::new(None, stats_sender_task),
+                    None,
                     gateway_task,
                 )
             };

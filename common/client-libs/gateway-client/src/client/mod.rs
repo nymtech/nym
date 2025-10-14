@@ -38,6 +38,7 @@ use url::Url;
 
 #[cfg(unix)]
 use std::os::fd::RawFd;
+use std::time::Duration;
 #[cfg(not(target_arch = "wasm32"))]
 use tokio::time::sleep;
 
@@ -104,9 +105,12 @@ pub struct GatewayClient<C, St = EphemeralCredentialStorage> {
     // currently unused (but populated)
     negotiated_protocol: Option<u8>,
 
-    // Callback on the fd as soon as the connection has been established
+    /// Callback on the fd as soon as the connection has been established
     #[cfg(unix)]
     connection_fd_callback: Option<Arc<dyn Fn(RawFd) + Send + Sync>>,
+
+    /// Maximum duration to wait for a connection to be established when set
+    connect_timeout: Option<Duration>,
 
     /// Listen to shutdown messages and send notifications back to the task manager
     shutdown_token: ShutdownToken,
@@ -124,6 +128,7 @@ impl<C, St> GatewayClient<C, St> {
         bandwidth_controller: Option<BandwidthController<C, St>>,
         stats_reporter: ClientStatsSender,
         #[cfg(unix)] connection_fd_callback: Option<Arc<dyn Fn(RawFd) + Send + Sync>>,
+        connect_timeout: Option<Duration>,
         shutdown_token: ShutdownToken,
     ) -> Self {
         GatewayClient {
@@ -141,6 +146,7 @@ impl<C, St> GatewayClient<C, St> {
             negotiated_protocol: None,
             #[cfg(unix)]
             connection_fd_callback,
+            connect_timeout,
             shutdown_token,
         }
     }
@@ -208,6 +214,7 @@ impl<C, St> GatewayClient<C, St> {
             &self.gateway_address,
             #[cfg(unix)]
             self.connection_fd_callback.clone(),
+            self.connect_timeout,
         )
         .await?;
 
@@ -1132,6 +1139,7 @@ impl GatewayClient<InitOnly, EphemeralCredentialStorage> {
         gateway_identity: ed25519::PublicKey,
         local_identity: Arc<ed25519::KeyPair>,
         #[cfg(unix)] connection_fd_callback: Option<Arc<dyn Fn(RawFd) + Send + Sync>>,
+        connect_timeout: Option<Duration>,
     ) -> Self {
         log::trace!("Initialising gateway client");
         use futures::channel::mpsc;
@@ -1158,6 +1166,7 @@ impl GatewayClient<InitOnly, EphemeralCredentialStorage> {
             negotiated_protocol: None,
             #[cfg(unix)]
             connection_fd_callback,
+            connect_timeout,
             shutdown_token,
         }
     }
@@ -1190,6 +1199,7 @@ impl GatewayClient<InitOnly, EphemeralCredentialStorage> {
             negotiated_protocol: self.negotiated_protocol,
             #[cfg(unix)]
             connection_fd_callback: self.connection_fd_callback,
+            connect_timeout: self.connect_timeout,
             shutdown_token,
         }
     }

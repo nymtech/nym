@@ -4,6 +4,50 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [2025.18-jarlsberg] (2025-10-14)
+
+- ns-api: add descriptions to dVPN gateway responses ([#6102])
+- NS API: use new probe download filesize and milliseconds field ([#6097])
+- ns-api: use download files size from probes instead of parsing filenames ([#6095])
+- ns-api: add new fields for probe output for query_metadata and download file size and duration in ms ([#6091])
+- Bugfix/bloomfilters purge ([#6089])
+- Hotfix: Update API source in node ping tester script ([#6082])
+- Get wireguard keypair as arg instead of reading it from disk ([#6078])
+- Feature: Ping probe all nodes /described nodes from a server ([#6074])
+- Node Status API: add bridge information to dVPN endpoint ([#6069])
+- frontdoor typo fix ([#6067])
+- Feature: Node rewards tracker ([#6064])
+- [chore] Clippy fix ([#6060])
+- Registration Client ([#6059])
+- Bugfix: Nym node CLI download nym-node exception ([#6058])
+- Feature: Nym node html landing page ([#6053])
+- feat: DKG contract method for updating announce address ([#6050])
+- feat: NS ticket faucet ([#6047])
+- Bridge proto client params in Self-Described ([#6035])
+- Node Status API: remove sqlite support ([#6004])
+- Benny/ci contract fix ([#5962])
+
+[#6102]: https://github.com/nymtech/nym/pull/6102
+[#6097]: https://github.com/nymtech/nym/pull/6097
+[#6095]: https://github.com/nymtech/nym/pull/6095
+[#6091]: https://github.com/nymtech/nym/pull/6091
+[#6089]: https://github.com/nymtech/nym/pull/6089
+[#6082]: https://github.com/nymtech/nym/pull/6082
+[#6078]: https://github.com/nymtech/nym/pull/6078
+[#6074]: https://github.com/nymtech/nym/pull/6074
+[#6069]: https://github.com/nymtech/nym/pull/6069
+[#6067]: https://github.com/nymtech/nym/pull/6067
+[#6064]: https://github.com/nymtech/nym/pull/6064
+[#6060]: https://github.com/nymtech/nym/pull/6060
+[#6059]: https://github.com/nymtech/nym/pull/6059
+[#6058]: https://github.com/nymtech/nym/pull/6058
+[#6053]: https://github.com/nymtech/nym/pull/6053
+[#6050]: https://github.com/nymtech/nym/pull/6050
+[#6047]: https://github.com/nymtech/nym/pull/6047
+[#6035]: https://github.com/nymtech/nym/pull/6035
+[#6004]: https://github.com/nymtech/nym/pull/6004
+[#5962]: https://github.com/nymtech/nym/pull/5962
+
 ## [2025.17-isabirra] (2025-09-29)
 
 - Bugfix | Fix the registration handshake ([#6062])

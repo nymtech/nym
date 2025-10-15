@@ -1,5 +1,4 @@
 use anyhow::{Result, anyhow};
-use std::ops::{Deref, DerefMut};
 use std::{str::FromStr, time::Duration};
 
 pub(crate) mod models;
@@ -8,44 +7,13 @@ pub(crate) mod queries;
 #[cfg(test)]
 mod tests;
 
-use sqlx::{
-    ConnectOptions, PgPool, Postgres, Transaction, migrate::Migrator, postgres::PgConnectOptions,
-};
+use sqlx::{ConnectOptions, PgPool, Postgres, migrate::Migrator, postgres::PgConnectOptions};
 
 static MIGRATOR: Migrator = sqlx::migrate!("./migrations_pg");
 
 pub(crate) type DbPool = PgPool;
 
 pub(crate) type DbConnection = sqlx::pool::PoolConnection<Postgres>;
-
-pub(crate) struct StorageTransaction<'a> {
-    inner: Transaction<'a, Postgres>,
-}
-
-impl<'a> StorageTransaction<'a> {
-    pub(crate) async fn commit(self) -> Result<(), sqlx::Error> {
-        self.inner.commit().await
-    }
-}
-
-impl<'a> From<Transaction<'a, Postgres>> for StorageTransaction<'a> {
-    fn from(inner: Transaction<'a, Postgres>) -> Self {
-        Self { inner }
-    }
-}
-
-impl<'a> Deref for StorageTransaction<'a> {
-    type Target = Transaction<'a, Postgres>;
-    fn deref(&self) -> &Self::Target {
-        &self.inner
-    }
-}
-
-impl<'a> DerefMut for StorageTransaction<'a> {
-    fn deref_mut(&mut self) -> &mut Transaction<'a, Postgres> {
-        &mut self.inner
-    }
-}
 
 #[derive(Clone)]
 pub(crate) struct Storage {

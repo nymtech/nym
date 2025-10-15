@@ -6,9 +6,8 @@ use nym_registration_common::NymNode;
 use nym_sdk::{
     DebugConfig, NymNetworkDetails, RememberMe, TopologyProvider, UserAgent,
     mixnet::{
-        CredentialStorage,  GatewaysDetailsStore, KeyStore, MixnetClient,
-        MixnetClientBuilder, MixnetClientStorage, OnDiskPersistent, ReplyStorageBackend,
-        StoragePaths, x25519::KeyPair,
+        CredentialStorage, GatewaysDetailsStore, KeyStore, MixnetClient, MixnetClientBuilder,
+        MixnetClientStorage, OnDiskPersistent, ReplyStorageBackend, StoragePaths, x25519::KeyPair,
     },
 };
 

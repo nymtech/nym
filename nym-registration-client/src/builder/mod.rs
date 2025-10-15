@@ -46,7 +46,8 @@ impl RegistrationClientBuilder {
             MixnetClient,
             Box<dyn BandwidthTicketProvider>,
         ) = if let Some((mixnet_client_storage, credential_storage)) = storage {
-            let builder = MixnetClientBuilder::new_with_storage(mixnet_client_storage).event_tx(event_tx);
+            let builder =
+                MixnetClientBuilder::new_with_storage(mixnet_client_storage).event_tx(event_tx);
             let mixnet_client = tokio::time::timeout(
                 MIXNET_CLIENT_STARTUP_TIMEOUT,
                 self.config.build_and_connect_mixnet_client(builder),

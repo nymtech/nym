@@ -4,8 +4,7 @@
 use nym_credential_storage::persistent_storage::PersistentStorage;
 use nym_registration_common::NymNode;
 use nym_sdk::{
-    DebugConfig, NymNetworkDetails, RememberMe, ShutdownToken, ShutdownTracker, TopologyProvider,
-    UserAgent,
+    DebugConfig, NymNetworkDetails, RememberMe, TopologyProvider, UserAgent,
     mixnet::{
         CredentialStorage, GatewaysDetailsStore, KeyStore, MixnetClient, MixnetClientBuilder,
         MixnetClientStorage, OnDiskPersistent, ReplyStorageBackend, StoragePaths, x25519::KeyPair,
@@ -116,10 +115,7 @@ impl BuilderConfig {
             .debug_config(debug_config)
             .credentials_mode(true)
             .with_remember_me(remember_me)
-            .custom_topology_provider(self.custom_topology_provider)
-            .custom_shutdown(ShutdownTracker::new_from_external_shutdown_token(
-                ShutdownToken::from(self.cancel_token),
-            ));
+            .custom_topology_provider(self.custom_topology_provider);
 
         #[cfg(unix)]
         let builder = builder.with_connection_fd_callback(self.connection_fd_callback);

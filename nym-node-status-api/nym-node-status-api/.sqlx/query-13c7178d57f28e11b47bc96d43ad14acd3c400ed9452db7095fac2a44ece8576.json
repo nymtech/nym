@@ -1,0 +1,19 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n                INSERT INTO nym_node_daily_mixing_stats (\n                    node_id, date_utc,\n                    total_stake, packets_received,\n                    packets_sent, packets_dropped\n                ) VALUES ($1, $2, $3, $4, $5, $6)\n                ON CONFLICT(node_id, date_utc) DO UPDATE SET\n                    total_stake = excluded.total_stake,\n                    packets_received = nym_node_daily_mixing_stats.packets_received + excluded.packets_received,\n                    packets_sent = nym_node_daily_mixing_stats.packets_sent + excluded.packets_sent,\n                    packets_dropped = nym_node_daily_mixing_stats.packets_dropped + excluded.packets_dropped\n                ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Varchar",
+        "Int8",
+        "Int4",
+        "Int4",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "13c7178d57f28e11b47bc96d43ad14acd3c400ed9452db7095fac2a44ece8576"
+}

@@ -23,6 +23,17 @@ pub enum Error {
     #[error("conversion: {0}")]
     Conversion(String),
 
-    #[error("failed to serialize response packet: {source}")]
-    FailedToSerializeResponsePacket { source: Box<bincode::ErrorKind> },
+    // TODO add version number for debugging
+    #[error("unknown version number")]
+    UnknownVersion,
+
+    // TODO add version number for debugging
+    #[error("unsupported request version")]
+    UnsupportedVersion,
+
+    #[error("gateway doesn't support this type of message")]
+    UnsupportedMessage,
+
+    #[error(transparent)]
+    Bincode(#[from] bincode::Error),
 }

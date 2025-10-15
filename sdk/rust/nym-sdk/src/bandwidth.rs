@@ -41,5 +41,7 @@
 //! ```
 
 mod client;
+mod importer;
 
 pub use client::BandwidthAcquireClient;
+pub use importer::BandwidthImporter;

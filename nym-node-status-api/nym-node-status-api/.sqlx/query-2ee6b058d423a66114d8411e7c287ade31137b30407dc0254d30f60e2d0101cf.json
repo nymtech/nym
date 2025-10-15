@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n                INSERT INTO pending_issuance\n                (deposit_id, serialization_revision, pending_ticketbook_data, expiration_date)\n                VALUES ($1, $2, $3, $4)\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Int2",
+        "Bytea",
+        "Date"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "2ee6b058d423a66114d8411e7c287ade31137b30407dc0254d30f60e2d0101cf"
+}

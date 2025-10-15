@@ -17,6 +17,7 @@ mod db_tests {
             security_contact: "contact".to_string(),
             details: "details".to_string(),
             website: "website".to_string(),
+            bridges: None,
         };
 
         let http_gateway: crate::http::models::Gateway = gateway_dto.try_into().unwrap();
@@ -271,6 +272,7 @@ fn test_gateway_dto_with_null_values() {
         security_contact: "".to_string(),
         details: "".to_string(),
         website: "".to_string(),
+        bridges: None,
     };
 
     let http_gateway: crate::http::models::Gateway = gateway_dto.try_into().unwrap();

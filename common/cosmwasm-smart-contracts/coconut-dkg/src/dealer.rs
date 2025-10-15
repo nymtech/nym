@@ -5,6 +5,16 @@ use crate::types::{EncodedBTEPublicKeyWithProof, NodeIndex};
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::Addr;
 
+pub type BlockHeight = u64;
+pub type TransactionIndex = u32;
+
+#[cw_serde]
+pub struct OwnershipTransfer {
+    pub node_index: NodeIndex,
+    pub from: Addr,
+    pub to: Addr,
+}
+
 #[cw_serde]
 pub struct DealerDetails {
     pub address: Addr,

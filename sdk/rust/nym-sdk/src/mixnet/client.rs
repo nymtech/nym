@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::{connection_state::BuilderState, Config, StoragePaths};
-use crate::bandwidth::BandwidthAcquireClient;
+use crate::bandwidth::{BandwidthAcquireClient, BandwidthImporter};
 use crate::mixnet::socks5_client::Socks5MixnetClient;
 use crate::mixnet::{CredentialStorage, MixnetClient, Recipient};
 use crate::GatewayTransceiver;
@@ -659,6 +659,10 @@ where
         )
     }
 
+    pub fn begin_bandwidth_import(&self) -> BandwidthImporter<'_, S::CredentialStore> {
+        BandwidthImporter::new(self.storage.credential_store())
+    }
+
     async fn connect_to_mixnet_common(mut self) -> Result<(BaseClient, Recipient)> {
         self.setup_client_keys().await?;
         self.setup_gateway().await?;
@@ -686,9 +690,15 @@ where
             base_builder = base_builder.with_topology_provider(topology_provider);
         }
 
-        if let Some(custom_shutdown) = self.custom_shutdown {
-            base_builder = base_builder.with_shutdown(custom_shutdown)
-        }
+        // Use custom shutdown if provided, otherwise get from registry
+        let shutdown_tracker = match self.custom_shutdown {
+            Some(custom) => custom,
+            None => {
+                // Auto-create from registry for SDK use
+                nym_task::get_sdk_shutdown_tracker()?
+            }
+        };
+        base_builder = base_builder.with_shutdown(shutdown_tracker);
 
         if let Some(gateway_transceiver) = self.custom_gateway_transceiver {
             base_builder = base_builder.with_gateway_transceiver(gateway_transceiver);
@@ -739,13 +749,6 @@ where
         let packet_type = self.config.debug_config.traffic.packet_type;
         let (mut started_client, nym_address) = self.connect_to_mixnet_common().await?;
 
-        // TODO: more graceful handling here, surely both variants should work... I think?
-        let Some(task_manager) = started_client.shutdown_handle else {
-            return Err(Error::new_unsupported(
-                "connecting with socks5 is currently unsupported with custom shutdown",
-            ));
-        };
-
         let client_input = started_client.client_input.register_producer();
         let client_output = started_client.client_output.register_consumer();
         let client_state = started_client.client_state;
@@ -757,14 +760,14 @@ where
             client_output,
             client_state.clone(),
             nym_address,
-            task_manager.shutdown_tracker_owned(),
+            started_client.shutdown_handle.child_tracker(),
             packet_type,
         );
 
         Ok(Socks5MixnetClient {
             nym_address,
             client_state,
-            task_handle: task_manager,
+            task_handle: started_client.shutdown_handle,
             socks5_config,
         })
     }

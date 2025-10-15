@@ -1,6 +1,7 @@
+use crate::node_scraper::models::BridgeInformation;
 use crate::{
     db::{
-        models::{InsertStatsRecord, NodeStats, ScrapeNodeKind, ScraperNodeInfo},
+        models::{InsertNodeScraperRecords, NodeStats, ScrapeNodeKind, ScraperNodeInfo},
         queries::insert_scraped_node_description,
         DbPool,
     },
@@ -12,6 +13,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::Transaction;
 use std::time::Duration;
 use time::UtcDateTime;
+use tracing::{error, trace};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct NodeDescriptionResponse {
@@ -24,6 +26,8 @@ pub struct NodeDescriptionResponse {
 // Eventhough they are `/api/v1/*`, newer nodes have a redirect to the correct endpoints
 const DESCRIPTION_URL: &str = "/description";
 const PACKET_STATS_URL: &str = "/stats";
+
+const BRIDGES_URL: &str = "/api/v1/bridges/client-params";
 
 // We need this as some of the mixnodes respond with float values for the packet statistics (?????)
 pub fn get_packet_value(response: &serde_json::Value, key: &str) -> Option<i32> {
@@ -149,31 +153,59 @@ pub async fn scrape_and_store_description(pool: &DbPool, node: ScraperNodeInfo) 
     })?;
 
     let sanitized_description = sanitize_description(description, *node.node_id());
-    insert_scraped_node_description(pool, node.node_kind.clone(), sanitized_description).await?;
+    insert_scraped_node_description(pool, &node.node_kind, &sanitized_description).await?;
 
     Ok(())
 }
 
-pub async fn scrape_packet_stats(node: &ScraperNodeInfo) -> Result<InsertStatsRecord> {
+pub async fn scrape_node(node: &ScraperNodeInfo) -> Result<InsertNodeScraperRecords> {
     let client = build_client()?;
     let urls = node.contact_addresses();
 
     let mut stats = None;
     let mut error = None;
     let mut tried_url_list = Vec::new();
+    let mut bridges = None;
 
-    for mut url in urls {
-        url = format!("{}{}", url.trim_end_matches('/'), PACKET_STATS_URL);
-        tried_url_list.push(url.clone());
+    for url in urls {
+        let url_to_try = format!("{}{}", url.trim_end_matches('/'), PACKET_STATS_URL);
+        tried_url_list.push(url_to_try.clone());
 
-        match client.get(&url).send().await {
+        // try to get stats
+        match client.get(&url_to_try).send().await {
             Ok(response) => {
                 if let Some(node_stats) = parse_mixnet_stats(response.json().await?) {
                     stats = Some(node_stats);
-                    break;
                 }
             }
             Err(e) => error = Some(anyhow!("{:?} ({})", tried_url_list, e)),
+        }
+
+        // this url worked, so scrape some other endpoints
+        if stats.is_some() {
+            let url_bridges = format!("{}{}", url.trim_end_matches('/'), BRIDGES_URL);
+            if let Ok(response) = client
+                .get(&url_bridges)
+                .send()
+                .await
+                .and_then(|res| res.error_for_status())
+            {
+                let json = response.json().await?;
+                bridges = serde_json::from_value::<BridgeInformation>(json)
+                    .inspect_err(|err| {
+                        error!("Failed to deserialize bridge information: {err}");
+                    })
+                    .ok();
+                trace!(
+                    "got bridge info from node id {}: {bridges:?}",
+                    node.node_kind.node_id()
+                );
+            }
+        }
+
+        // if we have valid stats, we can stop trying other URLs
+        if stats.is_some() {
+            break;
         }
     }
 
@@ -184,61 +216,17 @@ pub async fn scrape_packet_stats(node: &ScraperNodeInfo) -> Result<InsertStatsRe
 
     let timestamp_utc = now_utc();
     let unix_timestamp = timestamp_utc.unix_timestamp();
-    let result = InsertStatsRecord {
+    let result = InsertNodeScraperRecords {
         node_kind: node.node_kind.to_owned(),
         timestamp_utc,
         unix_timestamp,
         stats,
+        bridges,
     };
 
     Ok(result)
 }
 
-#[cfg(feature = "sqlite")]
-pub async fn update_daily_stats_uncommitted(
-    tx: &mut Transaction<'static, sqlx::Sqlite>,
-    node_kind: &ScrapeNodeKind,
-    timestamp: UtcDateTime,
-    current_stats: &NodeStats,
-) -> Result<()> {
-    use crate::db::queries::{get_raw_node_stats, insert_daily_node_stats_uncommitted};
-
-    let date_utc = format!(
-        "{:04}-{:02}-{:02}",
-        timestamp.year(),
-        timestamp.month() as u8,
-        timestamp.day()
-    );
-
-    // Get previous stats
-    let previous_stats = get_raw_node_stats(tx, node_kind).await?;
-
-    let (diff_received, diff_sent, diff_dropped) = if let Some(prev) = previous_stats {
-        (
-            calculate_packet_difference(current_stats.packets_received, prev.packets_received),
-            calculate_packet_difference(current_stats.packets_sent, prev.packets_sent),
-            calculate_packet_difference(current_stats.packets_dropped, prev.packets_dropped),
-        )
-    } else {
-        (0, 0, 0) // No previous stats available
-    };
-
-    insert_daily_node_stats_uncommitted(
-        tx,
-        node_kind,
-        &date_utc,
-        NodeStats {
-            packets_received: diff_received,
-            packets_sent: diff_sent,
-            packets_dropped: diff_dropped,
-        },
-    )
-    .await?;
-
-    Ok(())
-}
-
-#[cfg(feature = "pg")]
 pub async fn update_daily_stats_uncommitted(
     tx: &mut Transaction<'static, sqlx::Postgres>,
     node_kind: &ScrapeNodeKind,

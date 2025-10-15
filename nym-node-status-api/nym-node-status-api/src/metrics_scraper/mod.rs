@@ -21,7 +21,7 @@ const REFRESH_INTERVAL: Duration = Duration::from_secs(60 * 60 * 6);
 const STALE_DURATION: Duration = Duration::from_secs(86400 * 365); //one year
 
 #[instrument(level = "info", name = "metrics_scraper", skip_all)]
-pub(crate) async fn spawn_in_background(db_pool: DbPool, nym_api_client_timeout: Duration) {
+pub(crate) async fn run_in_background(db_pool: DbPool, nym_api_client_timeout: Duration) {
     let network_defaults = nym_network_defaults::NymNetworkDetails::new_from_env();
 
     loop {

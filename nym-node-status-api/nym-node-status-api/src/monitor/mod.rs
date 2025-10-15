@@ -44,7 +44,7 @@ struct Monitor {
 // TODO dz: query many NYM APIs:
 // multiple instances running directory cache, ask sachin
 #[instrument(level = "debug", name = "data_monitor", skip_all)]
-pub(crate) async fn spawn_in_background(
+pub(crate) async fn run_in_background(
     db_pool: DbPool,
     nym_api_client_timeout: Duration,
     nyxd_client: nym_validator_client::QueryHttpRpcNyxdClient,
@@ -198,22 +198,16 @@ impl Monitor {
         //
 
         let nodes_summary = vec![
-            (NYMNODE_COUNT.to_string(), nym_node_count),
-            (ASSIGNED_MIXING_COUNT.to_string(), assigned_mixing_count),
-            (NYMNODES_DESCRIBED_COUNT.to_string(), described_nodes.len()),
-            (GATEWAYS_BONDED_COUNT.to_string(), count_bonded_gateways),
-            (ASSIGNED_ENTRY_COUNT.to_string(), assigned_entry_count),
-            (ASSIGNED_EXIT_COUNT.to_string(), assigned_exit_count),
+            (NYMNODE_COUNT, nym_node_count),
+            (ASSIGNED_MIXING_COUNT, assigned_mixing_count),
+            (NYMNODES_DESCRIBED_COUNT, described_nodes.len()),
+            (GATEWAYS_BONDED_COUNT, count_bonded_gateways),
+            (ASSIGNED_ENTRY_COUNT, assigned_entry_count),
+            (ASSIGNED_EXIT_COUNT, assigned_exit_count),
             // TODO dz doesn't make sense, could make sense with historical Nym
             // Nodes if we really need this data
-            (
-                MIXNODES_HISTORICAL_COUNT.to_string(),
-                all_historical_mixnodes,
-            ),
-            (
-                GATEWAYS_HISTORICAL_COUNT.to_string(),
-                all_historical_gateways,
-            ),
+            (MIXNODES_HISTORICAL_COUNT, all_historical_mixnodes),
+            (GATEWAYS_HISTORICAL_COUNT, all_historical_gateways),
         ];
 
         let last_updated = now_utc();
@@ -245,8 +239,7 @@ impl Monitor {
             },
         };
 
-        queries::insert_summaries(&pool, nodes_summary.clone(), network_summary, last_updated)
-            .await?;
+        queries::insert_summaries(&pool, &nodes_summary, &network_summary, last_updated).await?;
 
         let mut log_lines: Vec<String> = vec![];
         for (key, value) in nodes_summary.iter() {
@@ -386,26 +379,12 @@ impl Monitor {
 async fn historical_count(pool: &DbPool) -> anyhow::Result<(usize, usize)> {
     let mut conn = pool.acquire().await?;
 
-    #[cfg(feature = "sqlite")]
-    let all_historical_gateways = sqlx::query_scalar!(r#"SELECT count(id) FROM gateways"#)
-        .fetch_one(&mut *conn)
-        .await?
-        .cast_checked()?;
-
-    #[cfg(feature = "pg")]
     let all_historical_gateways = sqlx::query_scalar!(r#"SELECT count(id) FROM gateways"#)
         .fetch_one(&mut *conn)
         .await?
         .unwrap_or(0)
         .cast_checked()?;
 
-    #[cfg(feature = "sqlite")]
-    let all_historical_mixnodes = sqlx::query_scalar!(r#"SELECT count(id) FROM mixnodes"#)
-        .fetch_one(&mut *conn)
-        .await?
-        .cast_checked()?;
-
-    #[cfg(feature = "pg")]
     let all_historical_mixnodes = sqlx::query_scalar!(r#"SELECT count(id) FROM mixnodes"#)
         .fetch_one(&mut *conn)
         .await?

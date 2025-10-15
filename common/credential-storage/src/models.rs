@@ -7,6 +7,7 @@ use zeroize::{Zeroize, ZeroizeOnDrop};
 
 pub struct RetrievedTicketbook {
     pub ticketbook_id: i64,
+    pub total_tickets: u32,
     pub ticketbook: IssuedTicketBook,
 }
 

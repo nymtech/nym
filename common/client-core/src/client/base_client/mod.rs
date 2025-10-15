@@ -4,7 +4,6 @@
 use super::mix_traffic::ClientRequestSender;
 use super::received_buffer::ReceivedBufferMessage;
 use super::statistics_control::StatisticsControl;
-use crate::client::base_client::helpers::ShutdownHelper;
 use crate::client::base_client::storage::helpers::store_client_keys;
 use crate::client::base_client::storage::MixnetClientStorage;
 use crate::client::cover_traffic_stream::LoopCoverTrafficStream;
@@ -53,7 +52,7 @@ use nym_sphinx::receiver::{ReconstructedMessage, SphinxMessageReceiver};
 use nym_statistics_common::clients::ClientStatsSender;
 use nym_statistics_common::generate_client_stats_id;
 use nym_task::connections::{ConnectionCommandReceiver, ConnectionCommandSender, LaneQueueLengths};
-use nym_task::{ShutdownManager, ShutdownTracker};
+use nym_task::ShutdownTracker;
 use nym_topology::provider_trait::TopologyProvider;
 use nym_topology::HardcodedTopologyProvider;
 use nym_validator_client::nym_api::NymApiClientExt;
@@ -881,8 +880,12 @@ where
         let shared_topology_accessor =
             TopologyAccessor::new(self.config.debug.topology.ignore_egress_epoch_role);
 
-        // Shutdown notifier for signalling tasks to stop
-        let shutdown = ShutdownHelper::new(self.shutdown)?;
+        // Create a shutdown tracker for this client - either as a child of provided tracker
+        // or get one from the registry
+        let shutdown_tracker = match self.shutdown {
+            Some(parent_tracker) => parent_tracker.child_tracker(),
+            None => nym_task::get_sdk_shutdown_tracker()?,
+        };
 
         // channels responsible for dealing with reply-related fun
         let (reply_controller_sender, reply_controller_receiver) =
@@ -914,7 +917,7 @@ where
             self.user_agent.clone(),
             generate_client_stats_id(*self_address.identity()),
             input_sender.clone(),
-            shutdown.tracker(),
+            &shutdown_tracker.child_tracker(),
         );
 
         // needs to be started as the first thing to block if required waiting for the gateway
@@ -924,14 +927,14 @@ where
             shared_topology_accessor.clone(),
             self_address.gateway(),
             self.wait_for_gateway,
-            shutdown.tracker(),
+            &shutdown_tracker.child_tracker(),
         )
         .await?;
 
         let gateway_packet_router = PacketRouter::new(
             ack_sender,
             mixnet_messages_sender,
-            shutdown.shutdown_token(),
+            shutdown_tracker.clone_shutdown_token(),
         );
 
         let gateway_transceiver = Self::setup_gateway_transceiver(
@@ -944,7 +947,7 @@ where
             stats_reporter.clone(),
             #[cfg(unix)]
             self.connection_fd_callback,
-            shutdown.tracker(),
+            &shutdown_tracker.child_tracker(),
         )
         .await?;
         let gateway_ws_fd = gateway_transceiver.ws_fd();
@@ -952,7 +955,7 @@ where
         let reply_storage = Self::setup_persistent_reply_storage(
             reply_storage_backend,
             key_rotation_config,
-            shutdown.tracker(),
+            &shutdown_tracker.child_tracker(),
         )
         .await?;
 
@@ -963,7 +966,7 @@ where
             reply_storage.key_storage(),
             reply_controller_sender.clone(),
             stats_reporter.clone(),
-            shutdown.tracker(),
+            &shutdown_tracker.child_tracker(),
         );
 
         // The message_sender is the transmitter for any component generating sphinx packets
@@ -971,8 +974,10 @@ where
         // traffic stream.
         // The MixTrafficController then sends the actual traffic
 
-        let (message_sender, client_request_sender) =
-            Self::start_mix_traffic_controller(gateway_transceiver, shutdown.tracker());
+        let (message_sender, client_request_sender) = Self::start_mix_traffic_controller(
+            gateway_transceiver,
+            &shutdown_tracker.child_tracker(),
+        );
 
         // Channels that the websocket listener can use to signal downstream to the real traffic
         // controller that connections are closed.
@@ -1001,7 +1006,7 @@ where
             shared_lane_queue_lengths.clone(),
             client_connection_rx,
             stats_reporter.clone(),
-            shutdown.tracker(),
+            &shutdown_tracker.child_tracker(),
         );
 
         if !self
@@ -1017,7 +1022,7 @@ where
                 shared_topology_accessor.clone(),
                 message_sender,
                 stats_reporter.clone(),
-                shutdown.tracker(),
+                &shutdown_tracker.child_tracker(),
             );
         }
 
@@ -1045,7 +1050,7 @@ where
                 gateway_connection: GatewayConnection { gateway_ws_fd },
             },
             stats_reporter,
-            shutdown_handle: shutdown.into_internal(),
+            shutdown_handle: shutdown_tracker, // The primary tracker for this client
             client_request_sender,
             forget_me: self.config.debug.forget_me,
             remember_me: self.config.debug.remember_me,
@@ -1061,7 +1066,7 @@ pub struct BaseClient {
     pub client_state: ClientState,
     pub stats_reporter: ClientStatsSender,
     pub client_request_sender: ClientRequestSender,
-    pub shutdown_handle: Option<ShutdownManager>,
+    pub shutdown_handle: ShutdownTracker,
     pub forget_me: ForgetMe,
     pub remember_me: RememberMe,
 }

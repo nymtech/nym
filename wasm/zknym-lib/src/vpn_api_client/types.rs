@@ -11,6 +11,7 @@ use uuid::Uuid;
 #[derive(Tsify, Serialize, Deserialize, Clone, Default, Debug, PartialEq, Eq)]
 #[tsify(into_wasm_abi, from_wasm_abi)]
 #[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
 pub struct PartialVerificationKeysResponse {
     pub epoch_id: u64,
     pub keys: Vec<PartialVerificationKey>,
@@ -19,6 +20,7 @@ pub struct PartialVerificationKeysResponse {
 #[derive(Tsify, Serialize, Deserialize, Clone, Default, Debug, PartialEq, Eq)]
 #[tsify(into_wasm_abi, from_wasm_abi)]
 #[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
 pub struct CurrentEpochResponse {
     pub epoch_id: u64,
 }
@@ -26,6 +28,7 @@ pub struct CurrentEpochResponse {
 #[derive(Tsify, Serialize, Deserialize, Clone, Default, Debug, PartialEq, Eq)]
 #[tsify(into_wasm_abi, from_wasm_abi)]
 #[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
 pub struct CredentialShare {
     pub node_index: u64,
     pub bs58_encoded_share: String,
@@ -34,6 +37,7 @@ pub struct CredentialShare {
 #[derive(Tsify, Serialize, Deserialize, Clone, Default, Debug, PartialEq, Eq)]
 #[tsify(into_wasm_abi, from_wasm_abi)]
 #[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
 pub struct PartialVerificationKey {
     pub node_index: u64,
     pub bs58_encoded_key: String,
@@ -42,6 +46,7 @@ pub struct PartialVerificationKey {
 #[derive(Tsify, Serialize, Deserialize, Clone, Default, Debug, PartialEq, Eq)]
 #[tsify(into_wasm_abi, from_wasm_abi)]
 #[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
 pub struct MasterVerificationKeyResponse {
     pub epoch_id: u64,
     pub bs58_encoded_key: String,
@@ -50,6 +55,7 @@ pub struct MasterVerificationKeyResponse {
 #[derive(Tsify, Serialize, Deserialize, Clone, Default, Debug, PartialEq, Eq)]
 #[tsify(into_wasm_abi, from_wasm_abi)]
 #[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
 pub struct DepositResponse {
     pub current_deposit_amount: u128,
     pub current_deposit_denom: String,
@@ -58,6 +64,7 @@ pub struct DepositResponse {
 #[derive(Tsify, Serialize, Deserialize, Clone, Default, Debug, PartialEq, Eq)]
 #[tsify(into_wasm_abi, from_wasm_abi)]
 #[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
 pub struct AttributesResponse {
     pub credential_type_string: String,
     pub credential_amount_string: String,
@@ -70,6 +77,7 @@ pub struct AttributesResponse {
 #[derive(Tsify, Serialize, Deserialize, Clone, Default, Debug, PartialEq, Eq)]
 #[tsify(into_wasm_abi, from_wasm_abi)]
 #[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
 pub struct ErrorResponse {
     pub uuid: Option<Uuid>,
     pub message: String,

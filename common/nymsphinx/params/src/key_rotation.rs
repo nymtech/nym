@@ -44,7 +44,7 @@ impl From<u32> for SphinxKeyRotation {
     fn from(value: u32) -> Self {
         if value == 0 || value == u32::MAX {
             SphinxKeyRotation::Unknown
-        } else if value % 2 == 0 {
+        } else if value.is_multiple_of(2) {
             SphinxKeyRotation::EvenRotation
         } else {
             SphinxKeyRotation::OddRotation

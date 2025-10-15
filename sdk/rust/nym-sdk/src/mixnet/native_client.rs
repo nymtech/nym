@@ -17,15 +17,14 @@ use nym_gateway_requests::ClientRequest;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::{params::PacketType, receiver::ReconstructedMessage};
 use nym_statistics_common::clients::{ClientStatsEvents, ClientStatsSender};
-use nym_task::{
-    connections::{ConnectionCommandSender, LaneQueueLengths},
-    ShutdownManager,
-};
+use nym_task::connections::{ConnectionCommandSender, LaneQueueLengths};
+use nym_task::ShutdownTracker;
 use nym_topology::{NymRouteProvider, NymTopology};
 use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
 use tokio::sync::RwLockReadGuard;
+use tokio_util::sync::CancellationToken;
 
 /// Client connected to the Nym mixnet.
 pub struct MixnetClient {
@@ -54,7 +53,7 @@ pub struct MixnetClient {
     pub(crate) stats_events_reporter: ClientStatsSender,
 
     /// The task manager that controls all the spawned tasks that the clients uses to do it's job.
-    pub(crate) shutdown_handle: Option<ShutdownManager>,
+    pub(crate) shutdown_handle: ShutdownTracker,
     pub(crate) packet_type: Option<PacketType>,
 
     // internal state used for the `Stream` implementation
@@ -74,7 +73,7 @@ impl MixnetClient {
         client_state: ClientState,
         reconstructed_receiver: ReconstructedMessagesReceiver,
         stats_events_reporter: ClientStatsSender,
-        task_handle: Option<ShutdownManager>,
+        task_handle: ShutdownTracker,
         packet_type: Option<PacketType>,
         client_request_sender: ClientRequestSender,
         forget_me: ForgetMe,
@@ -122,6 +121,11 @@ impl MixnetClient {
     /// client identity, the client encryption key, and the gateway identity.
     pub fn nym_address(&self) -> &Recipient {
         &self.nym_address
+    }
+
+    /// Get a child token of the root, to monitor unexpected shutdown, without causing one
+    pub fn cancellation_token(&self) -> CancellationToken {
+        self.shutdown_handle.child_shutdown_token().inner().clone()
     }
 
     pub fn client_request_sender(&self) -> ClientRequestSender {
@@ -240,9 +244,7 @@ impl MixnetClient {
             tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
         }
 
-        if let Some(mut task_manager) = self.shutdown_handle {
-            task_manager.perform_shutdown().await;
-        }
+        self.shutdown_handle.shutdown().await;
     }
 
     pub async fn send_forget_me(&self) -> Result<()> {

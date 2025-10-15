@@ -168,7 +168,7 @@ impl BlindSignRequestBody {
     pub fn try_decode_joined_commitments(
         joined: &[u8],
     ) -> Result<Vec<G1Projective>, CompactEcashError> {
-        if joined.len() % 48 != 0 {
+        if !joined.len().is_multiple_of(48) {
             // that's not the most ideal error variant, but creating dedicated error type would have been an overkill
             return Err(CompactEcashError::DeserializationLengthMismatch {
                 type_name: "joined commitments".to_string(),

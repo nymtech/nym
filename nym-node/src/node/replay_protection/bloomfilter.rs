@@ -4,6 +4,7 @@
 use crate::error::NymNodeError;
 use bloomfilter::Bloom;
 use nym_sphinx_types::REPLAY_TAG_SIZE;
+use nym_validator_client::models::KeyRotationId;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::Read;
@@ -12,7 +13,6 @@ use std::path::Path;
 use std::sync::{Arc, Mutex, PoisonError, TryLockError};
 use time::OffsetDateTime;
 use tracing::{error, info, warn};
-
 // auxiliary data associated with the bloomfilter to get some statistics from the time of its creation
 // this is needed in order to more accurately resize it upon reset
 
@@ -178,15 +178,16 @@ impl ReplayProtectionBloomfilters {
         Ok(())
     }
 
-    pub(crate) fn purge_secondary(&self) -> Result<(), NymNodeError> {
+    pub(crate) fn purge_secondary(&self) -> Result<Option<KeyRotationId>, NymNodeError> {
         let mut guard = self
             .inner
             .lock()
             .map_err(|_| NymNodeError::BloomfilterFailure {
                 message: "mutex got poisoned",
             })?;
-        guard.overlap = None;
-        Ok(())
+
+        let id = guard.overlap.take().map(|f| f.metadata.rotation_id);
+        Ok(id)
     }
 
     pub(crate) fn primary_metadata(

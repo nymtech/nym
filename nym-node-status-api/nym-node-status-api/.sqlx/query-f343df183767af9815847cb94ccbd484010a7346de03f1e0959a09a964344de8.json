@@ -1,0 +1,58 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT\n            id,\n            gateway_id,\n            status,\n            created_utc,\n            ip_address,\n            log,\n            last_assigned_utc\n         FROM testruns\n         WHERE gateway_id = $1 AND status != 2\n         ORDER BY id DESC\n         LIMIT 1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "gateway_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 2,
+        "name": "status",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 3,
+        "name": "created_utc",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 4,
+        "name": "ip_address",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 5,
+        "name": "log",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 6,
+        "name": "last_assigned_utc",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "f343df183767af9815847cb94ccbd484010a7346de03f1e0959a09a964344de8"
+}

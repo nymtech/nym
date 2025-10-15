@@ -17,7 +17,6 @@ pub struct VersionSerialised<T: ?Sized> {
     pub data: Vec<u8>,
     pub revision: u8,
 
-    // still wondering if there's any point in having the phantom in here
     #[zeroize(skip)]
     #[serde(skip)]
     _phantom: PhantomData<T>,

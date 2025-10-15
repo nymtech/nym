@@ -49,6 +49,319 @@ This page displays a full list of all the changes during our release cycle from 
 
 <VarInfo />
 
+## `v2025.18-jarlsberg`
+
+- [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.18-jarlsberg)
+- [`nym-node`](nodes/nym-node.mdx) version `1.19.0`
+
+```sh
+nym-node
+Binary Name:        nym-node
+Build Timestamp:    2025-10-15T09:04:32.043934599Z
+Build Version:      1.19.0
+Commit SHA:         2235a6e1477bea7368ee5443a298f544deb63504
+Commit Date:        2025-10-15T10:22:16.000000000+02:00
+Commit Branch:      master
+rustc Version:      1.92.0-nightly
+rustc Channel:      nightly
+cargo Profile:      release
+```
+
+### API Changes
+There have been a few updates to the Node Status API (used by the NymVPN API) to do with Nodes' metadata endpoints, which are used to determine if they are running a QUIC bridge.
+
+- [Node Status API: add bridge information to dVPN endpoint](https://github.com/nymtech/nym/pull/6069)
+Scrape the `/api/v1/bridges/client-params` endpoint from nodes to get bridge information and add to the dVPN output:
+
+ ```
+ {
+ 	"identity_key": "3wqfp9ebaajgV8HRKYHeZuZCNXgitnW8BbytxyBH65xZ",
+ 	"name": "middle winner wing",
+ 	"authenticator": {
+ 		"address": "6CQMtm9DqUj7mPVkSD9YarjUuPh7mJaZQnnHWxNpgByh.AGXiTivVieBULeDhL9tuyMKgRydoT67sFCjeoERDN84k@3wqfp9ebaajgV8HRKYHeZuZCNXgitnW8BbytxyBH65xZ"
+ 	},
+ 	"ip_packet_router": {
+ 		"address": "GA47h8294m7f6ciyFuDkjk3mmqrvALqboL2o22jkqFhi.22SdTGBWKFrrBM31hMgzjmgduSH1nosnbE9dgNcY2CXz@3wqfp9ebaajgV8HRKYHeZuZCNXgitnW8BbytxyBH65xZ"
+ 	},
+ 	"location": {
+ 		"two_letter_iso_country_code": "GB",
+ 		"latitude": 51.5085,
+ 		"longitude": -0.1257
+ 	},
+ 	"last_probe": {
+ 		"last_updated_utc": "2025-09-02T18:19:10Z",
+ 		"outcome": {
+ 		"as_entry": {
+ 			"can_connect": true,
+ 			"can_route": true
+ 		},
+ 		"as_exit": {
+ 			"can_connect": true,
+ 			"can_route_ip_external_v4": true,
+ 			"can_route_ip_external_v6": true,
+ 			"can_route_ip_v4": true,
+ 			"can_route_ip_v6": true
+ 		},
+ 		"wg": {
+ 			"can_handshake_v4": true,
+ 			"can_handshake_v6": true,
+ 			"can_register": true,
+ 			"can_resolve_dns_v4": true,
+ 			"can_resolve_dns_v6": true,
+ 			"download_duration_sec_v4": 0,
+ 			"download_duration_sec_v6": 5,
+ 			"download_error_v4": "",
+ 			"download_error_v6": "",
+ 			"downloaded_file_v4": "https://proof.ovh.net/files/1Mb.dat",
+ 			"downloaded_file_v6": "https://proof.ovh.net/files/10Mb.dat",
+ 			"ping_hosts_performance_v4": 1,
+ 			"ping_hosts_performance_v6": 1,
+ 			"ping_ips_performance_v4": 1,
+ 			"ping_ips_performance_v6": 0.6666667,
+ 			"can_handshake": true,
+ 			"can_resolve_dns": true,
+ 			"ping_hosts_performance": 1,
+ 			"ping_ips_performance": 1
+ 		}
+ 		}
+ 	},
+ 	"ip_addresses": [
+ 		"178.79.168.250",
+ 		"2a01:7e00::f03c:95ff:fef8:77f"
+ 	],
+ 	"mix_port": 1789,
+ 	"role": "EntryGateway",
+ 	"entry": {
+ 		"hostname": "nym-circ.anonym.tech",
+ 		"ws_port": 9000,
+ 		"wss_port": 9443
+ 	},
+ + 	"bridges":{
+ + 		"version": 0,
+ + 		"transports": [
+ + 			{
+ + 				"transport_type": "quic_plain",
+ + 				"args": {
+ + 					"addresses":  ["[2a01:7e00::f03c:95ff:fef8:77f]:4443", "178.79.168.250:4443"],
+ + 					"id_pubkey": "gyKl6DN9hgdPGhEzdf9gY4Ha2GzrOwSzLCguxeTVTJU=",
+ + 					"host": "netdna.bootstrapcdn.com"
+ + 				}
+ + 			}
+ + 		]
+ + 	}
+ 	"performance": "1",
+ 	"build_information": {
+ 		"build_version": "1.16.0",
+ 		"commit_branch": "build",
+ 		"commit_sha": "7f97f13799342f864e1b106e8cafc9f6d6c24c0f"
+ 	}
+ }
+ ```
+
+- [ns-api: add new fields for probe output for query_metadata and download file size and duration in ms](https://github.com/nymtech/nym/pull/6091)
+
+This PR adds new fields to the Node Status API:
+
+ ```json
+ {
+   "node": "ByxGq9hpDQu6Wc8augEh22w7CRWJHPNfDshB1b8nfWkh",
+   "used_entry": "ByxGq9hpDQu6Wc8augEh22w7CRWJHPNfDshB1b8nfWkh",
+   "outcome": {
+     "as_entry": {
+       "can_connect": true,
+       "can_route": true
+     },
+     "as_exit": {
+       "can_connect": true,
+       "can_route_ip_v4": true,
+       "can_route_ip_external_v4": true,
+       "can_route_ip_v6": true,
+       "can_route_ip_external_v6": true
+     },
+     "wg": {
+       "can_register": true,
+       "can_query_metadata_v4": true, // <--------------------------------
+       "can_handshake_v4": true,
+       "can_resolve_dns_v4": true,
+       "ping_hosts_performance_v4": 1.0,
+       "ping_ips_performance_v4": 1.0,
+       "can_handshake_v6": true,
+       "can_resolve_dns_v6": true,
+       "ping_hosts_performance_v6": 1.0,
+       "ping_ips_performance_v6": 0.93333334,
+       "download_duration_sec_v4": 2,
+       "download_duration_milliseconds_v4": 2034, // <--------------------------------
+       "downloaded_file_size_bytes_v4": 1048576, // <--------------------------------
+       "downloaded_file_v4": "https://nym-bandwidth-monitoring.ops-d86.workers.dev/1mb.dat",
+       "download_error_v4": "",
+       "download_duration_sec_v6": 5,
+       "downloaded_file_size_bytes_v6": 1048576,
+       "download_duration_milliseconds_v6": 5501,
+       "downloaded_file_v6": "https://proof.ovh.net/files/1Mb.dat",
+       "download_error_v6": ""
+     }
+   }
+ }
+ ```
+
+- [ns-api: add descriptions to dVPN gateway responses](https://github.com/nymtech/nym/pull/6102)
+This PR adds the `description` field to dVPN gateways in `/dvpn/v1/directory/gateways`.
+
+- [NS API: use new probe download filesize and milliseconds field](https://github.com/nymtech/nym/pull/6097)
+This PR uses the new fields in mainnet to calculate the probe download score.
+
+- [ns-api: use download files size from probes instead of parsing filenames](https://github.com/nymtech/nym/pull/6095) This PR uses the new field in the probe results that says how many bytes were downloaded to calculate the speed of download. It only uses downloads on ipv4 and ignores ipv6 for now. This might change in the future.
+
+- [Node Status API: remove sqlite support](https://github.com/nymtech/nym/pull/6004)
+This PR removes sqlite support, requiring pgsql to run the NS API.
+
+ It also fixes the following issues:
+
+ - deserialisation of `NodeDescription`
+ - defaults for `WireguardDetails` for deserialisation
+
+ It also bumps the version to v4.0.0.
+
+### Operators Updates & Tools
+
+- [Node rewards tracker](https://github.com/nymtech/nym/pull/6064)
+This PR introduces a script fetching operators rewards based on provided Nyx account addresses provided in `data/wallet-addresses.csv`.
+
+<AccordionTemplate name="Info">
+ **Output is:**
+     1. Printed table in terminal
+     3. Sheet with complete info stored in `data/node-balances.csv`
+     4. Historical data yaml file stored in `data/data.yaml` - this file should not be changed manually, as
+     all values older than 30 days get auto-removed
+
+ **RUN**
+
+ Before you start fill first column of `data/wallet-addresses.csv` called `addresses` with your Nyx account addresses and (optionally) second column called `tag` with an entity, for example *"mysquad"* and *"personal"* to get sorted output per entity.
+
+ - Csv example with `tag`s:
+ ```
+ n1foofoofoo, personal
+ n1barbarbar, personal
+ n1bazbazbaz, mysquad
+ n1lollollol, mysquad
+ ```
+ - For operators having all nodes under one entity, the tag field will be left empty. Example:
+ ```csv
+ n1foofoofoo
+ n1barbarbar
+ n1bazbazbaz
+ ```
+
+Documentation coming soon.
+</AccordionTemplate>
+
+- [Bugfix/bloomfilters purge](https://github.com/nymtech/nym/pull/6089)
+This PR fixes bug where old replay protection bloomfilters were never getting removed.
+
+
+### Features
+- [Get wireguard keypair as arg instead of reading it from disk](https://github.com/nymtech/nym/pull/6078)
+
+- [Registration Client](https://github.com/nymtech/nym/pull/6059)
+ This PR introduces the `RegistrationClient` whose eventual job will be to handle registration with gateway and bandwidth control. This is step 1, where it only handles registration and then hands back the control channel to the vpn-client.
+
+<AccordionTemplate name="Info">
+
+ **nym-wg-gateway-client**
+ This crate has been smooshed with the nym-authenticator-client as they were doing the same thing : talking with the Authenticator.
+
+ **nym-authenticator-client**
+ The job of the `AuthenticatorClient` is to talk to the `Authenticator`s via the mixnet. They both make use of a `AuthClientMixnetListener` that handles interaction with the mixnet client. No more `SharedMixnetClient`, only clear owners. That component could be turned into an actual multiplexer, but that's out of scope.
+
+ It is designed to be able to shut down, since it won't be necessary for bandwidth top up in the future.
+
+ Lots of types and traits were copied in both repos, some of them are sadly still there. Further work could be done to improve messaging ( `ClientMessage` and `AuthenticatorRequests` for example)
+
+ **nym-ip-packet-client**
+ This crate has minor changes, focused on getting rid of the `SharedMixnetClient`. It still talks to the `IpPacketRouter` but it owns the `MixnetClient`
+
+ **Nym-registration-client**
+ Brand new crates, whose current job is to run a `MixnetClient` with the given options,  register with the component related to the tunnel type, and hand back the necessary component for running the tunnel.
+
+ **authenticator-requests**
+ Mostly refactoring, lots of code was duplicated in the vpn-client repo
+
+ **misc**
+ The rest are qol changes that might not be needed right away but that is preparing the future improvements coming soon™
+ </AccordionTemplate>
+
+- [Feature: Ping probe all nodes /described nodes from a server](https://github.com/nymtech/nym/pull/6074)
+This script should be ran from a node hosting server. It pings all IPs listed in /described endpoint and returns a file with unreachable IPs. Such list gives operator an idea on IPs potentially blocking their IP.
+
+- [Feature: Nym node html landing page](https://github.com/nymtech/nym/pull/6053)
+This PR introduces a new landing page which contains:
+  - no more deprecated tornul
+  - new nym theme
+  - bold text about DMCA
+  - hook for nym-node-cli to use it and add $EMAIL prompted to the operator
+
+- [feat: DKG contract method for updating announce address](https://github.com/nymtech/nym/pull/6050)
+
+- [feat: NS ticket faucet](https://github.com/nymtech/nym/pull/6047)
+Overview: modifies the Node Status API so that it keeps a buffer of tickets inside its storage that it gives out when new test runs get requested. it also slightly adjusts the ticketbook API in a bit hacky way to allow importing ticketbooks with specific index ranges. However, those changes also involve modifying cli arguments passed to both NS API and gateway probes. The associated vpn-client repo branch is `feature/ticket-faucet-probe` which for the same reason is not yet ready
+
+<AccordionTemplate name="Info">
+**Node Status API**
+**Added**
+ - `--config-env-file` / `-c` (optional) - helper allowing testing locally on non-mainnet networks without passing everything through env variables
+ - `--mnemonic` (env: `NYM_NODE_STATUS_API_MNEMONIC`) - account used for obtaining ticketbooks
+ - `--max-concurrent-deposits` (env: `NYM_NODE_STATUS_API_MAX_CONCURRENT_DEPOSITS`) (optional; default: 5) - Specifies the maximum number of deposits the node status api can make in a single transaction. Note that each deposit batch is followed by the same number of sequential signing requests
+ - `--tickets-buffer-size` (env: `NYM_NODE_STATUS_API_TICKETS_BUFFER`) (optional; default: 50) - Specifies the size of the tickets buffer the node status api should have available at any time for each ticket type.
+ - `--tickets-buffer-check-interval` (env: `NYM_NODE_STATUS_API_TICKETS_CHECK_INTERVAL`) (optional; default: 1min) - Specifies interval at which the node status api should check if it has sufficient number of tickets buffered
+ - `--quorum-check-interval` (env: `NYM_NODE_STATUS_API_QUORUM_CHECK_INTERVAL`) (optional; default: 5min) - Specifies interval at which the node status api should check if signing quorum is available
+ - `--buffered-ticket-types` (env: `NYM_NODE_STATUS_BUFFERED_TICKET_TYPES`) (optional; default: `[V1MixnetEntry, V1WireguardEntry, V1WireguardExit]`) - Specifies types of tickets to buffer
+ - `--ecash-client-identifier-bs58` (env: `NYM_NODE_STATUS_API_ECASH_CLIENT_IDENTIFIER_BS58`) - Identifier used for deriving keys embedded in the issued ticketbooks (i.e. seed for the client identity). It can be a random string, but make sure it has sufficient entropy. it has to be base58 encoded.
+
+**Node Status Agent**
+**Removed**
+ - `--mnemonic` - no longer needed as tickets are obtained throught the faucet
+
+**Gateway Probe (vpn-client repo)**
+**Added**
+ - `--ticket-materials` - all the encoded generated tickets (and global data) needed by the probe
+ - `--ticket-materials-revision` - revision of the serialisation to help with decoding (not strictly needed, but it was already available)
+**Removed**
+ - `--mnemonic` - no longer needed as tickets are obtained throught the faucet
+</AccordionTemplate>
+
+- [Bridge proto client params in Self-Described](https://github.com/nymtech/nym/pull/6035)
+This PR gives the nym-node a way to expose information about the bridge protocols that the node supports, and the parameters that are necessary to connect using those protocols.
+
+<AccordionTemplate name="Info">
+ This is meant to be usable by the node status API to be be included into node descriptors that are compiled for the vpn client.
+
+ - Adds a new field to the nym-node config `gateway_tasks.storage_paths.bridge_client_params`
+   - IF the new config field is present a new self-described endpoint is available at `/v1/bridges/client-params`
+   - IF the new config field is NOT present the endpoint is not exposed.
+
+ I arbitrarily chose config v8 as the oldest nym-node configuration version that supports the option. This can probably be propogated further backwards if necessary.
+
+ NOTE: The new `/bridges/client-params` endpoint does not have swagger / utopia docs associated. This interface will likely change in several upcoming iterations and serving from file (for now) means that the types are not defined internally.
+
+ tested as working on node `3wqfp9eb` both when file is provided in config (sucessful response) and when file is not specified in config (path gives 404).
+
+ </AccordionTemplate>
+
+### Refactors & Maintenance
+- [[chore] Clippy fix](https://github.com/nymtech/nym/pull/6060)
+
+- [Bugfix: Nym node CLI download nym-node exception](https://github.com/nymtech/nym/pull/6058)
+This PR fixes a case when the "Latest" platform release doesn't include `nym-node` by prompting user to insert binary URL instead of failing. Additionally it fixes fetching new landing page script in the CLI.
+
+- [Benny/ci contract fix](https://github.com/nymtech/nym/pull/5962)
+
+- [frontdoor typo fix](https://github.com/nymtech/nym/pull/6067)
+
+- [Hotfix: Update API source in node ping tester script](https://github.com/nymtech/nym/pull/6082)
+This PR fixes initial development bug where a wrong API endpoint was used.
+ `https://validator.nymtech.net/api/v1/nym-nodes/described` gets all nym nodes, not just gateways.
+ Code is simplified accordingly.
+
 ## QUIC Transport Bridge Deployment
 
 <QuicDeploymentSteps />
@@ -108,7 +421,7 @@ All of the routes removed had already been deprecated over a year ago. This is m
 <AccordionTemplate name="Removed API routes">
 
 ### Legacy mixnodes related:
- 
+
 - `/v1/mixnodes`
 - `/v1/mixnodes/active`
 - `/v1/mixnodes/active/detailed`
@@ -130,9 +443,9 @@ All of the routes removed had already been deprecated over a year ago. This is m
 - `/v1/status/mixnodes/detailed-unfiltered`
 - `/v1/status/mixnode/{mix_id}/report`
 - `/v1/status/mixnode/{mix_id}/avg_uptime`
- 
+
 ### Legacy gateways related:
- 
+
 - `/v1/gateways`
 - `/v1/gateways/described`
 - `/v1/gateways/blacklisted`
@@ -144,21 +457,21 @@ All of the routes removed had already been deprecated over a year ago. This is m
 </AccordionTemplate>
 
 #### Structs changes:
- 
+
 - `MixnodeUptimeHistoryResponse` no longer has `owner` field
 - `GatewayUptimeHistoryResponse` no longer has `owner` field
- 
- 
+
+
 #### New Routes Added
 
 - `/v1/nym-nodes/stake-saturation/{node_id}` - as a better replacement for `/v1/status/mixnode/{mix_id}/stake-saturation` as this information might be potentially useful and can be applied to any nym-node, not just a legacy mixnode.
 - `/v1/legacy/mixnodes` - returns a list of bonded legacy mixnodes that haven't migrated to nym-nodes
 - `/v1/legacy/gateways` - returns a list of bonded legacy gateways that haven't migrated to nym-nodes
- 
+
 #### Node Status API
- 
+
 Furthermore the changes remove all scraping of legacy mixnodes from NS and the following routes are removed:
- 
+
 - `/v2/mixnodes/{mix_id}`
 - `/v2/mixnodes`
 
@@ -229,7 +542,7 @@ Furthermore the changes remove all scraping of legacy mixnodes from NS and the f
 ### Operators Updates & Tools
 
 <Callout type="info" emoji="ℹ️">
-Nodes receiving stake as a part of [**Nym Delegation Program**](https://nym.com/network/DP) are updated weekly based on the [rules](https://forms.nym.com/form/#/2/form/view/BRh8QroXFinjOF4D3FHgYiX76zbiRvUV2Sy+czaoKFQ) without prior notification given to the operators. 
+Nodes receiving stake as a part of [**Nym Delegation Program**](https://nym.com/network/DP) are updated weekly based on the [rules](https://forms.nym.com/form/#/2/form/view/BRh8QroXFinjOF4D3FHgYiX76zbiRvUV2Sy+czaoKFQ) without prior notification given to the operators.
 
 [**Nym Delegation account**](https://explorer.nym.spectredao.net/account/n1rnxpdpx3kldygsklfft0gech7fhfcux4zst5lw) `n1rnxpdpx3kldygsklfft0gech7fhfcux4zst5lw` is a single source of truth. If you expect your node to have Nym team stake and it doesn't, please reach out in in the [**Node Operators Matrix channel**](https://matrix.to/#/#operators:nymtech.chat).
 </Callout>
@@ -252,32 +565,32 @@ nym-vpnc connect --enable-two-hop  --entry-gateway-id 7CWjY3QFoA9dgE535u9bQiXCfz
 
 - [Feature/testing utils](https://github.com/nymtech/nym/pull/5963): This PR introduces a couple of general helpers, in particular some mocks for sending across values using Stream/Sink and AsyncRead/AsyncWrite without actual underlying networking. Example implementation are with NymNoise (which was the original inspiration) and gateway handshake.
 
-- [Backport metadata endpoint](https://github.com/nymtech/nym/pull/6010) 
+- [Backport metadata endpoint](https://github.com/nymtech/nym/pull/6010)
 
 ### Bugfix
 
 - [Fix rust `1.89` `clippy` issues](https://github.com/nymtech/nym/pull/5944)
 
-- [`http api` client adjustment](https://github.com/nymtech/nym/pull/5953): It fixes missing `feature-lock` when cloning the client and adds helper macro for user agent creation  
+- [`http api` client adjustment](https://github.com/nymtech/nym/pull/5953): It fixes missing `feature-lock` when cloning the client and adds helper macro for user agent creation
 
 - [Fix `ci-build` for linux (and use updated runner)](https://github.com/nymtech/nym/pull/5958): This PR fixes our build pipeline by using correct (updated) linux runner and updates all the conditional steps that were behind `ubuntu` runners (which no longer exist)
 
-- [Fixing the ci for ns agent](https://github.com/nymtech/nym/pull/5965) 
+- [Fixing the ci for ns agent](https://github.com/nymtech/nym/pull/5965)
 
 - [Manually calculate per node work on rewarded set changes](https://github.com/nymtech/nym/pull/5972): This PR fixes:
-    1. Nym rewarded set was set to X, for argument sake say 200 
+    1. Nym rewarded set was set to X, for argument sake say 200
     2. We sent transaction to update it to Y, say 100
     3. This internally updated the interval rewarding parameters inside the mixnet contract including the default active and standby node work factors. Note that the rewarded set itself stayed the same, as it only changes after epoch rolls over and new one is assigned (by the `nym-api`)
    4. Epoch has finished and `nym-api` wanted to do the rewarding. It grabbed the **current** rewarded set (of X, 200) and started calculating the total work in the system. But since the contract already had new parameters (adjusted for size of Y, 100), the result was greater than 1 thus `nym-api` was preventably blowing up.
     To fix it we introduce additional checks, so that if the current rewarded set does not match the specification defined in the contract rewarding parameters, `nym-api` will attempt to do its best to manually calculate work factors for this epoch.
 
-- [Fix the ns api ci workflow](https://github.com/nymtech/nym/pull/5981) 
+- [Fix the ns api ci workflow](https://github.com/nymtech/nym/pull/5981)
 
-- [Make sure tables are removed in correct order to not trigger FK constraint issue](https://github.com/nymtech/nym/pull/5987) 
+- [Make sure tables are removed in correct order to not trigger FK constraint issue](https://github.com/nymtech/nym/pull/5987)
 
 ### Refactors & Maintenance
 
-- [Move credential verifier in peer controller](https://github.com/nymtech/nym/pull/5938): This PR is to not duplicate the verifier code (minus the actual verification operation, which is harder to unit test because of expiration checks) 
+- [Move credential verifier in peer controller](https://github.com/nymtech/nym/pull/5938): This PR is to not duplicate the verifier code (minus the actual verification operation, which is harder to unit test because of expiration checks)
 
 - [Remove unused import](https://github.com/nymtech/nym/pull/5942)
 
@@ -288,7 +601,7 @@ nym-vpnc connect --enable-two-hop  --entry-gateway-id 7CWjY3QFoA9dgE535u9bQiXCfz
 - [Remove freshness check on testrun submit](https://github.com/nymtech/nym/pull/5977):
     - Freshness is enforced by a background task that marks test runs as stale after a configured amount of time
     - Make existing freshness period configurable to avoid code changes in the future
-    - Added `humantime` for parsing  
+    - Added `humantime` for parsing
 
 - [Move authenticator into gateway crate](https://github.com/nymtech/nym/pull/5982)
 
@@ -311,7 +624,7 @@ nym-vpnc connect --enable-two-hop  --entry-gateway-id 7CWjY3QFoA9dgE535u9bQiXCfz
 
 - [Ecash liveness check](https://github.com/nymtech/nym/pull/5890)
 
-- [Basic zulip client for sending messages](https://github.com/nymtech/nym/pull/5913): In order to be able to send zulip notifications about *emergency* upgrade mode being activated, we need some sort of client. Unfortunately there isn't any rust library that's maintained (the only one had last commit 4 years ago). This simple thing now currently only supports message sending 
+- [Basic zulip client for sending messages](https://github.com/nymtech/nym/pull/5913): In order to be able to send zulip notifications about *emergency* upgrade mode being activated, we need some sort of client. Unfortunately there isn't any rust library that's maintained (the only one had last commit 4 years ago). This simple thing now currently only supports message sending
 
 - [`nym-node` debug command to reset providers db](https://github.com/nymtech/nym/pull/5914)
 
@@ -321,7 +634,7 @@ nym-vpnc connect --enable-two-hop  --entry-gateway-id 7CWjY3QFoA9dgE535u9bQiXCfz
 
 ### Refactors & Maintenance
 
-- [Allow compatibility with 'CDLA-Permissive-2.0'](https://github.com/nymtech/nym/pull/5910): This license is present in the included `webpki-roots` 
+- [Allow compatibility with 'CDLA-Permissive-2.0'](https://github.com/nymtech/nym/pull/5910): This license is present in the included `webpki-roots`
 
 - [Migrate strum to `0.27.2`](https://github.com/nymtech/nym/pull/5960): This PR migrates strum to the latest. Notably all macros' were moved into `strum_macros`. The rest stays the same.
 
@@ -346,9 +659,9 @@ cargo Profile:      release
 
 ### Operators Updates & Tools
 
--  Stark Industries is on a sanction list by EU. IP addresses managed by Stark Ind. and their subsidies (ASN 44477 / ASN 33993) had been put on [spamhaus.org](http://spamhaus.org/) [list](https://www.spamhaus.org/drop/asndrop.json). The effect on NymVPN user experience is that Exit Gateways IPs hosted on Stark Ind. are seen as a spam proxies by many online services.  
+-  Stark Industries is on a sanction list by EU. IP addresses managed by Stark Ind. and their subsidies (ASN 44477 / ASN 33993) had been put on [spamhaus.org](http://spamhaus.org/) [list](https://www.spamhaus.org/drop/asndrop.json). The effect on NymVPN user experience is that Exit Gateways IPs hosted on Stark Ind. are seen as a spam proxies by many online services.
 
-- We ask operators - especially Exit Gateways - to consider moving to another ISP. Visit an updated [ISP list](community-counsel/isp-list) and feel free to add more providers, following [these steps](community-counsel/add-content). 
+- We ask operators - especially Exit Gateways - to consider moving to another ISP. Visit an updated [ISP list](community-counsel/isp-list) and feel free to add more providers, following [these steps](community-counsel/add-content).
 
 ### Features
 
@@ -362,13 +675,13 @@ cargo Profile:      release
 - [`sqlx-pool-guard`: allocate more memory on windows](https://github.com/nymtech/nym/pull/5896):
     - Allocate 1.5x more memory than reported by the system to provide a safety margin
     - Increase number of retry attempts to 5
-    
+
 
 - [dkg epoch dealers query](https://github.com/nymtech/nym/pull/5899)
 
 - [dkg snapshot epoch](https://github.com/nymtech/nym/pull/5900): In order to determine if signer quorum has been down at particular height, we need to know with certainty the dkg epoch id corresponding to given block height. This PR makes it possible. Every time epoch state is changed (due to DKG progress), snapshot is saved and can be queried. This doesn't work for past data, but given mainnet has only had a single DKG instance, that's not an issue.
 
-- [`sqlx-pool-guard`: obtain filename from connect options](https://github.com/nymtech/nym/pull/5905): 
+- [`sqlx-pool-guard`: obtain filename from connect options](https://github.com/nymtech/nym/pull/5905):
 
 ### Refactors & Maintenance
 
@@ -424,7 +737,7 @@ cargo Profile:      release
 
 - [Remove old explorer references](https://github.com/nymtech/nym/pull/5846)
 
-- [Listen for shutdown signals during nym-node startup](https://github.com/nymtech/nym/pull/5879): This is to avoid situation where the process can't be killed without 'kill -9' because the logic to listen to shutdown signals hasn't been hit yet 
+- [Listen for shutdown signals during nym-node startup](https://github.com/nymtech/nym/pull/5879): This is to avoid situation where the process can't be killed without 'kill -9' because the logic to listen to shutdown signals hasn't been hit yet
 
 ### Bugfixes
 

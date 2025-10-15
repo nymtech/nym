@@ -1,7 +1,11 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::client::mix_traffic::transceiver::GatewayTransceiver;
+use crate::client::{
+    base_client::{Event, EventSender},
+    mix_traffic::transceiver::GatewayTransceiver,
+};
+use futures::SinkExt;
 use nym_gateway_requests::ClientRequest;
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_task::ShutdownToken;
@@ -33,12 +37,14 @@ pub struct MixTrafficController {
     consecutive_gateway_failure_count: usize,
 
     shutdown_token: ShutdownToken,
+    event_tx: Option<EventSender>,
 }
 
 impl MixTrafficController {
     pub fn new<T>(
         gateway_transceiver: T,
         shutdown_token: ShutdownToken,
+        event_tx: Option<EventSender>,
     ) -> (
         MixTrafficController,
         BatchMixMessageSender,
@@ -59,6 +65,7 @@ impl MixTrafficController {
                 client_rx: client_receiver,
                 consecutive_gateway_failure_count: 0,
                 shutdown_token,
+                event_tx,
             },
             message_sender,
             client_sender,
@@ -68,6 +75,7 @@ impl MixTrafficController {
     pub fn new_dynamic(
         gateway_transceiver: Box<dyn GatewayTransceiver + Send>,
         shutdown_token: ShutdownToken,
+        event_tx: Option<EventSender>,
     ) -> (
         MixTrafficController,
         BatchMixMessageSender,
@@ -83,6 +91,7 @@ impl MixTrafficController {
                 client_rx: client_receiver,
                 consecutive_gateway_failure_count: 0,
                 shutdown_token,
+                event_tx,
             },
             message_sender,
             client_sender,
@@ -155,6 +164,9 @@ impl MixTrafficController {
                                 error!("Failed to send sphinx packet to the gateway {MAX_FAILURE_COUNT} times in a row - assuming the gateway is dead");
                                 // Do we need to handle the embedded mixnet client case
                                 // separately?
+                                if let Some(event_tx) = self.event_tx.as_mut() {
+                                    event_tx.send(Event::FailedSendingSphinx).await.ok();
+                                }
                                 break;
                             }
                         }

@@ -83,6 +83,13 @@ pub mod non_wasm_helpers;
 pub mod helpers;
 pub mod storage;
 
+pub enum Event {
+    FailedSendingSphinx,
+}
+
+pub type EventSender = mpsc::UnboundedSender<Event>;
+pub type EventReceiver = mpsc::UnboundedReceiver<Event>;
+
 #[derive(Clone)]
 pub struct ClientInput {
     pub connection_command_sender: ConnectionCommandSender,
@@ -198,6 +205,7 @@ pub struct BaseClientBuilder<C, S: MixnetClientStorage> {
     custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
     custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send>>,
     shutdown: Option<ShutdownTracker>,
+    event_tx: Option<EventSender>,
     user_agent: Option<UserAgent>,
 
     setup_method: GatewaySetup,
@@ -226,6 +234,7 @@ where
             custom_topology_provider: None,
             custom_gateway_transceiver: None,
             shutdown: None,
+            event_tx: None,
             user_agent: None,
             setup_method: GatewaySetup::MustLoad { gateway_id: None },
             #[cfg(unix)]
@@ -285,6 +294,12 @@ where
     #[must_use]
     pub fn with_shutdown(mut self, shutdown: ShutdownTracker) -> Self {
         self.shutdown = Some(shutdown);
+        self
+    }
+
+    #[must_use]
+    pub fn with_event_tx(mut self, event_tx: EventSender) -> Self {
+        self.event_tx = Some(event_tx);
         self
     }
 
@@ -736,10 +751,14 @@ where
     fn start_mix_traffic_controller(
         gateway_transceiver: Box<dyn GatewayTransceiver + Send>,
         shutdown_tracker: &ShutdownTracker,
+        event_tx: Option<EventSender>,
     ) -> (BatchMixMessageSender, ClientRequestSender) {
         info!("Starting mix traffic controller...");
-        let (mut mix_traffic_controller, mix_tx, client_tx) =
-            MixTrafficController::new(gateway_transceiver, shutdown_tracker.clone_shutdown_token());
+        let (mut mix_traffic_controller, mix_tx, client_tx) = MixTrafficController::new(
+            gateway_transceiver,
+            shutdown_tracker.clone_shutdown_token(),
+            event_tx,
+        );
 
         shutdown_tracker.try_spawn_named(
             async move { mix_traffic_controller.run().await },
@@ -986,6 +1005,7 @@ where
         let (message_sender, client_request_sender) = Self::start_mix_traffic_controller(
             gateway_transceiver,
             &shutdown_tracker.child_tracker(),
+            self.event_tx.clone(),
         );
 
         // Channels that the websocket listener can use to signal downstream to the real traffic

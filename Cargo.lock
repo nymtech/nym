@@ -5746,7 +5746,6 @@ dependencies = [
  "criterion",
  "ff",
  "group",
- "lazy_static",
  "nym-contracts-common",
  "nym-pemstore",
  "rand 0.8.5",
@@ -6837,6 +6836,7 @@ dependencies = [
 name = "nym-registration-client"
 version = "0.1.0"
 dependencies = [
+ "futures",
  "nym-authenticator-client",
  "nym-bandwidth-controller",
  "nym-credential-storage",

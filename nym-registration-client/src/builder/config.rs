@@ -6,8 +6,9 @@ use nym_registration_common::NymNode;
 use nym_sdk::{
     DebugConfig, NymNetworkDetails, RememberMe, TopologyProvider, UserAgent,
     mixnet::{
-        CredentialStorage, GatewaysDetailsStore, KeyStore, MixnetClient, MixnetClientBuilder,
-        MixnetClientStorage, OnDiskPersistent, ReplyStorageBackend, StoragePaths, x25519::KeyPair,
+        CredentialStorage,  GatewaysDetailsStore, KeyStore, MixnetClient,
+        MixnetClientBuilder, MixnetClientStorage, OnDiskPersistent, ReplyStorageBackend,
+        StoragePaths, x25519::KeyPair,
     },
 };
 
@@ -116,7 +117,6 @@ impl BuilderConfig {
             .credentials_mode(true)
             .with_remember_me(remember_me)
             .custom_topology_provider(self.custom_topology_provider);
-
         #[cfg(unix)]
         let builder = builder.with_connection_fd_callback(self.connection_fd_callback);
 

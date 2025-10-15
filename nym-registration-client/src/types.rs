@@ -24,5 +24,6 @@ pub struct WireguardRegistrationResult {
     pub entry_gateway_data: GatewayData,
     pub exit_gateway_data: GatewayData,
     pub authenticator_listener_handle: AuthClientMixnetListenerHandle,
+    pub mixnet_listener_join_handle: tokio::task::JoinHandle<()>,
     pub bw_controller: Box<dyn BandwidthTicketProvider>,
 }

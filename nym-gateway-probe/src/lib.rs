@@ -401,7 +401,7 @@ impl Probe {
         {
             // Start the mixnet listener that the auth clients use to receive messages.
             let mixnet_listener_cancel_token = CancellationToken::new();
-            let mixnet_listener_task =
+            let (mixnet_listener_join_handle, mixnet_listener_task) =
                 mixnet_listener::spawn(mixnet_client, mixnet_listener_cancel_token.child_token());
 
             let auth_client = AuthenticatorClient::new(
@@ -443,7 +443,9 @@ impl Probe {
             .unwrap_or_default();
 
             mixnet_listener_cancel_token.cancel();
-            mixnet_listener_task.join().await;
+            if let Err(e) = mixnet_listener_join_handle.await {
+                tracing::error!("Failed to join on mixnet listener: {e}");
+            }
 
             outcome
         } else {

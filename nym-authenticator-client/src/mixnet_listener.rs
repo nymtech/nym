@@ -25,7 +25,7 @@ pub type MixnetMessageInputReceiver = mpsc::Receiver<InputMessage>; // This coul
 pub fn spawn(
     mut mixnet_client: MixnetClient,
     shutdown_token: CancellationToken,
-) -> AuthClientMixnetListenerHandle {
+) -> (JoinHandle<()>, AuthClientMixnetListenerHandle) {
     // Broadcast channel for the messages that we re-broadcast to the AuthClients
     let (message_broadcast, _) = broadcast::channel(100);
     // Channel for message to send to the mixnet
@@ -80,17 +80,19 @@ pub fn spawn(
         tracing::debug!("AuthClientMixnetListener is shutting down");
     });
 
-    AuthClientMixnetListenerHandle {
-        message_broadcast: cloned_message_broadcast,
-        message_sender: cloned_message_sender,
+    (
         join_handle,
-    }
+        AuthClientMixnetListenerHandle {
+            message_broadcast: cloned_message_broadcast,
+            message_sender: cloned_message_sender,
+        },
+    )
 }
 
+/// Handle that enables the consumer to subscribe or submit messages to the mixnet.
 pub struct AuthClientMixnetListenerHandle {
     message_broadcast: MixnetMessageBroadcastSender,
     message_sender: MixnetMessageInputSender,
-    join_handle: JoinHandle<()>,
 }
 
 impl AuthClientMixnetListenerHandle {
@@ -100,14 +102,5 @@ impl AuthClientMixnetListenerHandle {
 
     pub fn subscribe(&self) -> MixnetMessageBroadcastReceiver {
         self.message_broadcast.subscribe()
-    }
-
-    /// Join on listener handle to wait until it stops
-    ///
-    /// Important: Use cancellation token to initiate the shutdown
-    pub async fn join(self) {
-        if let Err(e) = self.join_handle.await {
-            tracing::error!("Error waiting for auth clients mixnet listener to stop: {e}");
-        }
     }
 }

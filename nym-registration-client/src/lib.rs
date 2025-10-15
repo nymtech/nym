@@ -85,7 +85,7 @@ impl RegistrationClient {
 
         // Start the auth client mixnet listener, which will listen for incoming messages from the
         // mixnet and rebroadcast them to the auth clients.
-        let mixnet_listener = mixnet_listener::spawn(
+        let (mixnet_listener_join_handle, mixnet_listener) = mixnet_listener::spawn(
             self.mixnet_client,
             // todo: are we sure we want to clone the cancel token here?
             self.cancel_token.clone(),
@@ -142,6 +142,7 @@ impl RegistrationClient {
                 entry_gateway_data: entry,
                 exit_gateway_data: exit,
                 authenticator_listener_handle: mixnet_listener,
+                mixnet_listener_join_handle,
                 bw_controller: self.bandwidth_controller,
             },
         )))

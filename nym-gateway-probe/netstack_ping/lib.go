@@ -35,15 +35,13 @@ import (
 )
 
 var fileUrls = []string{
-	"https://proof.ovh.net/files/1Mb.dat",
-	"https://nym-bandwidth-monitoring.ops-d86.workers.dev/1mb.dat",
+	"https://proof.ovh.net/files/10Mb.dat",
 	"https://nym-bandwidth-monitoring.ops-d86.workers.dev/10mb.dat",
 	// "https://nym-bandwidth-monitoring.ops-d86.workers.dev/100mb.dat", to be introduced later
 }
 
 var fileUrlsV6 = []string{
-	"https://proof.ovh.net/files/1Mb.dat",
-	"https://nym-bandwidth-monitoring.ops-d86.workers.dev/1mb.dat",
+	"https://proof.ovh.net/files/10Mb.dat",
 	"https://nym-bandwidth-monitoring.ops-d86.workers.dev/10mb.dat",
 	// "https://nym-bandwidth-monitoring.ops-d86.workers.dev/100mb.dat", to be introduced later
 }

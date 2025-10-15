@@ -23,10 +23,9 @@ use nym_wireguard_types::PeerPublicKey;
 
 mod error;
 mod helpers;
-mod mixnet_listener;
+pub mod mixnet_listener;
 
 pub use crate::error::{Error, Result};
-pub use crate::mixnet_listener::{AuthClientMixnetListener, AuthClientMixnetListenerHandle};
 
 pub struct AuthenticatorClient {
     mixnet_listener: MixnetMessageBroadcastReceiver,

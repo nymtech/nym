@@ -16,119 +16,81 @@ pub type MixnetMessageBroadcastReceiver = broadcast::Receiver<Arc<ReconstructedM
 pub type MixnetMessageInputSender = mpsc::Sender<InputMessage>;
 pub type MixnetMessageInputReceiver = mpsc::Receiver<InputMessage>; // This could be another type, to abstract the mixnet message creation to here
 
-// The AuthClientsMixnetListener listens to mixnet messages and rebroadcasts them to the
+// Spawn a task that listens to mixnet messages and rebroadcasts them to the
 // AuthClients, or whoever else is interested.
 // It also manages the message input for the mixnet so it can keep the sole ownership of the MixnetClient
 //
 // NOTE: this is potentially bit wasteful. Ideally we should have proper channels where the
 // recipient only gets messages they're interested in.
-pub struct AuthClientMixnetListener {
-    // The mixnet client that we're listening to
-    mixnet_client: MixnetClient,
-
-    // Broadcast channel for the messages that we re-broadcast to the AuthClients
-    message_broadcast: MixnetMessageBroadcastSender,
-
-    // Channel for message to send to the mixnet
-    input_message_tx: MixnetMessageInputSender, // we keep on to make sure it's open
-    input_message_rx: MixnetMessageInputReceiver,
-
-    // Listen to cancel from the outside world
+pub fn spawn(
+    mut mixnet_client: MixnetClient,
     shutdown_token: CancellationToken,
-}
+) -> AuthClientMixnetListenerHandle {
+    // Broadcast channel for the messages that we re-broadcast to the AuthClients
+    let (message_broadcast, _) = broadcast::channel(100);
+    // Channel for message to send to the mixnet
+    let (input_message_tx, mut input_message_rx) = mpsc::channel(100);
 
-impl AuthClientMixnetListener {
-    pub fn new(mixnet_client: MixnetClient, shutdown_token: CancellationToken) -> Self {
-        let (message_broadcast, _) = broadcast::channel(100);
-        let (input_message_tx, input_message_rx) = mpsc::channel(100);
-        Self {
-            mixnet_client,
-            message_broadcast,
-            input_message_tx,
-            input_message_rx,
-            shutdown_token,
-        }
-    }
+    let cloned_message_broadcast = message_broadcast.clone();
+    let cloned_message_sender = input_message_tx.clone();
+    let child_shutdown_token = shutdown_token.child_token();
 
-    async fn run(mut self) -> Self {
-        let mixnet_cancel_token = self.mixnet_client.cancellation_token();
-        self.shutdown_token.run_until_cancelled(async {
-            loop {
-                tokio::select! {
-                    biased;
-                    _ = mixnet_cancel_token.cancelled() => {
-                        tracing::debug!("AuthClientMixnetListener: mixnet client was shutdown");
-                        break;
+    let join_handle = tokio::spawn(async move {
+        loop {
+            tokio::select! {
+                biased;
+                _ = child_shutdown_token.cancelled() => {
+                    tracing::debug!("AuthClientMixnetListener: received shutdown");
+                    // Disconnect mixnet which should send forget_me or remember_me if needed.
+                    mixnet_client.disconnect().await;
+                    break;
+                }
+
+                // Sending loop
+                input_msg = input_message_rx.recv() => {
+                    match input_msg {
+                        None => {
+                            tracing::error!("All senders were dropped. It shouldn't happen as we're holding one");
+                            break;
+                        },
+                        Some(mix_msg) => {
+                            if let Err(err) = mixnet_client.send(mix_msg).await {
+                                tracing::error!("Failed to send mixnet message: {err}");
+                            }
+                        },
                     }
+                }
+                // Receiving loop
+                msg = mixnet_client.next() => {
+                    match msg {
+                        None => {
+                            tracing::error!("Mixnet client stream ended unexpectedly");
+                            break;
+                        },
+                        Some(event) => {
+                            if let Err(err) = message_broadcast.send(Arc::new(event)) {
+                                tracing::error!("Failed to broadcast mixnet message: {err}");
+                            }
+                        },
 
-                    // Sending loop
-                    input_msg = self.input_message_rx.recv() => {
-                        match input_msg {
-                            None => {
-                                tracing::error!("All senders were dropped. It shouldn't happen as we're holding one");
-                                break;
-                            },
-                            Some(mix_msg) => {
-                                if let Err(err) = self.mixnet_client.send(mix_msg).await {
-                                    tracing::error!("Failed to send mixnet message: {err}");
-                                }
-                            },
-                        }
-                    }
-                    // Receiving loop
-                    msg = self.mixnet_client.next() => {
-                        match msg {
-                            None => {
-                                tracing::error!("Mixnet client stream ended unexpectedly");
-                                break;
-                            },
-                            Some(event) => {
-                                if let Err(err) = self.message_broadcast.send(Arc::new(event)) {
-                                    tracing::error!("Failed to broadcast mixnet message: {err}");
-                                }
-                            },
-
-                        }
                     }
                 }
             }
-            tracing::debug!("AuthClientMixnetListener is shutting down");
-        }).await;
-
-        self
-    }
-
-    // Disconnects the mixnet client and effectively drop itself, since it doesn't work without one, and reconnecting isn't supported
-    pub async fn disconnect_mixnet_client(self) {
-        if !self.mixnet_client.cancellation_token().is_cancelled() {
-            self.mixnet_client.disconnect().await;
         }
-    }
+        tracing::debug!("AuthClientMixnetListener is shutting down");
+    });
 
-    pub fn start(self) -> AuthClientMixnetListenerHandle {
-        let message_broadcast = self.message_broadcast.clone();
-        let message_sender = self.input_message_tx.clone();
-        // Allows stopping only this, e.g. if we don't need it in the new bandwidth controller
-        let cancellation_token = self.shutdown_token.clone();
-        let mixnet_cancellation_token = self.mixnet_client.cancellation_token();
-        let handle = tokio::spawn(self.run());
-
-        AuthClientMixnetListenerHandle {
-            message_broadcast,
-            message_sender,
-            cancellation_token,
-            mixnet_cancellation_token,
-            handle,
-        }
+    AuthClientMixnetListenerHandle {
+        message_broadcast: cloned_message_broadcast,
+        message_sender: cloned_message_sender,
+        join_handle,
     }
 }
 
 pub struct AuthClientMixnetListenerHandle {
     message_broadcast: MixnetMessageBroadcastSender,
     message_sender: MixnetMessageInputSender,
-    cancellation_token: CancellationToken,
-    mixnet_cancellation_token: CancellationToken,
-    handle: JoinHandle<AuthClientMixnetListener>,
+    join_handle: JoinHandle<()>,
 }
 
 impl AuthClientMixnetListenerHandle {
@@ -140,21 +102,12 @@ impl AuthClientMixnetListenerHandle {
         self.message_broadcast.subscribe()
     }
 
-    pub fn mixnet_cancel_token(&self) -> CancellationToken {
-        self.mixnet_cancellation_token.clone()
-    }
-
-    pub async fn stop(self) {
-        // If shutdown was externally called, that call is a no-op
-        // If we're only stopping this, it is very much needed
-        self.cancellation_token.cancel();
-        match self.handle.await {
-            Ok(auth_client_mixnet_listener) => {
-                auth_client_mixnet_listener.disconnect_mixnet_client().await;
-            }
-            Err(e) => {
-                tracing::error!("Error waiting for auth clients mixnet listener to stop: {e}");
-            }
+    /// Join on listener handle to wait until it stops
+    ///
+    /// Important: Use cancellation token to initiate the shutdown
+    pub async fn join(self) {
+        if let Err(e) = self.join_handle.await {
+            tracing::error!("Error waiting for auth clients mixnet listener to stop: {e}");
         }
     }
 }

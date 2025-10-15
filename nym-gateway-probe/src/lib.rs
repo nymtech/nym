@@ -13,7 +13,7 @@ use base64::{Engine as _, engine::general_purpose};
 use bytes::BytesMut;
 use clap::Args;
 use futures::StreamExt;
-use nym_authenticator_client::{AuthClientMixnetListener, AuthenticatorClient};
+use nym_authenticator_client::{AuthenticatorClient, mixnet_listener};
 use nym_authenticator_requests::{
     AuthenticatorVersion, client_message::ClientMessage, response::AuthenticatorResponse, v2, v3,
     v4, v5,
@@ -400,8 +400,9 @@ impl Probe {
             (node_info.authenticator_address, node_info.ip_address)
         {
             // Start the mixnet listener that the auth clients use to receive messages.
+            let mixnet_listener_cancel_token = CancellationToken::new();
             let mixnet_listener_task =
-                AuthClientMixnetListener::new(mixnet_client, CancellationToken::new()).start();
+                mixnet_listener::spawn(mixnet_client, mixnet_listener_cancel_token.child_token());
 
             let auth_client = AuthenticatorClient::new(
                 mixnet_listener_task.subscribe(),
@@ -441,7 +442,8 @@ impl Probe {
             .await
             .unwrap_or_default();
 
-            mixnet_listener_task.stop().await;
+            mixnet_listener_cancel_token.cancel();
+            mixnet_listener_task.join().await;
 
             outcome
         } else {

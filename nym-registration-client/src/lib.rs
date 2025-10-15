@@ -3,7 +3,7 @@
 
 use tokio_util::sync::CancellationToken;
 
-use nym_authenticator_client::{AuthClientMixnetListener, AuthenticatorClient};
+use nym_authenticator_client::{AuthenticatorClient, mixnet_listener};
 use nym_bandwidth_controller::BandwidthTicketProvider;
 use nym_credentials_interface::TicketType;
 use nym_ip_packet_client::IprClientConnect;
@@ -85,8 +85,11 @@ impl RegistrationClient {
 
         // Start the auth client mixnet listener, which will listen for incoming messages from the
         // mixnet and rebroadcast them to the auth clients.
-        let mixnet_listener =
-            AuthClientMixnetListener::new(self.mixnet_client, self.cancel_token.clone()).start();
+        let mixnet_listener = mixnet_listener::spawn(
+            self.mixnet_client,
+            // todo: are we sure we want to clone the cancel token here?
+            self.cancel_token.clone(),
+        );
 
         let mut entry_auth_client = AuthenticatorClient::new(
             mixnet_listener.subscribe(),

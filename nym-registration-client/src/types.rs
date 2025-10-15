@@ -1,7 +1,9 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use nym_authenticator_client::{AuthClientMixnetListenerHandle, AuthenticatorClient};
+use nym_authenticator_client::{
+    AuthenticatorClient, mixnet_listener::AuthClientMixnetListenerHandle,
+};
 use nym_bandwidth_controller::BandwidthTicketProvider;
 use nym_registration_common::{AssignedAddresses, GatewayData};
 use nym_sdk::mixnet::MixnetClient;

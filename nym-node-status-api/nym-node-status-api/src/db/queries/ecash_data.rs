@@ -1,7 +1,7 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::db::{Storage, StorageTransaction};
+use crate::db::Storage;
 use crate::ticketbook_manager::storage::auxiliary_models::StoredIssuedTicketbook;
 use nym_credential_proxy_lib::storage::models::{
     RawCoinIndexSignatures, RawExpirationDateSignatures, RawVerificationKey,
@@ -10,10 +10,6 @@ use time::Date;
 use tracing::error;
 
 impl Storage {
-    pub(crate) async fn begin_storage_tx(&self) -> Result<StorageTransaction<'_>, sqlx::Error> {
-        self.pool.begin().await.map(Into::into)
-    }
-
     pub(crate) async fn available_tickets_of_type(&self, typ: &str) -> Result<i64, sqlx::Error> {
         let count = sqlx::query!(
             r#"
@@ -217,46 +213,38 @@ impl Storage {
             .await?;
         Ok(())
     }
-}
 
-impl<'a> StorageTransaction<'a> {
     pub(crate) async fn get_next_unspent_ticketbook(
-        &mut self,
+        &self,
         ticket_type: String,
         deadline: Date,
     ) -> Result<Option<StoredIssuedTicketbook>, sqlx::Error> {
-        sqlx::query_as(
+        sqlx::query_as!(
+            StoredIssuedTicketbook,
             r#"
-                SELECT *
-                FROM ecash_ticketbook
-                WHERE used_tickets + 1 <= total_tickets
-                AND expiration_date >= $1
-                AND ticketbook_type = $2
-                ORDER BY expiration_date ASC
-                LIMIT 1
+                UPDATE ecash_ticketbook
+                SET used_tickets = used_tickets + 1
+                WHERE id = (
+                    SELECT id
+                    FROM ecash_ticketbook
+                    WHERE used_tickets < total_tickets
+                        AND expiration_date >= $1
+                        AND ticketbook_type = $2
+                    ORDER BY expiration_date ASC
+                    LIMIT 1
+                    FOR UPDATE
+                )
+                RETURNING *
             "#,
+            deadline,
+            ticket_type
         )
-        .bind(deadline)
-        .bind(ticket_type)
-        .fetch_optional(&mut ***self)
+        .fetch_optional(&self.pool)
         .await
     }
 
-    pub(crate) async fn increase_used_ticketbook_tickets(
-        &mut self,
-        ticketbook_id: i32,
-    ) -> Result<(), sqlx::Error> {
-        sqlx::query!(
-            "UPDATE ecash_ticketbook SET used_tickets = used_tickets + 1 WHERE id = $1",
-            ticketbook_id
-        )
-        .execute(&mut ***self)
-        .await?;
-        Ok(())
-    }
-
     pub(crate) async fn set_distributed_ticketbook(
-        &mut self,
+        &self,
         testrun_id: i32,
         ticketbook_id: i32,
         assigned_index: i32,
@@ -271,7 +259,7 @@ impl<'a> StorageTransaction<'a> {
             ticketbook_id,
             assigned_index
         )
-        .execute(&mut ***self)
+        .execute(&self.pool)
         .await?;
         Ok(())
     }

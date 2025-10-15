@@ -5746,6 +5746,7 @@ dependencies = [
  "criterion",
  "ff",
  "group",
+ "lazy_static",
  "nym-contracts-common",
  "nym-pemstore",
  "rand 0.8.5",

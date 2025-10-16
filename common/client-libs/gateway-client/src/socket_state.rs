@@ -89,6 +89,8 @@ impl PartiallyDelegatedRouter {
 
     async fn run(mut self, mut split_stream: SplitStream<WsConn>, shutdown_token: ShutdownToken) {
         let mut chunked_stream = (&mut split_stream).ready_chunks(8);
+
+        let drop_guard = shutdown_token.clone().drop_guard();
         let ret: Result<_, GatewayClientError> = loop {
             tokio::select! {
                 biased;
@@ -101,6 +103,7 @@ impl PartiallyDelegatedRouter {
                 // received request to stop the task and return the stream
                 _ = &mut self.stream_return_requester => {
                     log::debug!("received request to return the split ws stream");
+                    drop_guard.disarm();
                     break Ok(())
                 }
                 socket_msgs = chunked_stream.next() => {

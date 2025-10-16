@@ -152,6 +152,7 @@ where
         let polling_rate = self.config.key_rotation.epoch_duration / 8;
         let mut invalidation_inspection = new_interval_stream(polling_rate);
 
+        let _drop_guard = shutdown_token.clone().drop_guard();
         loop {
             tokio::select! {
                 biased;

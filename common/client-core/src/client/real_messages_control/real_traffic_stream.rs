@@ -585,6 +585,7 @@ where
 
         // avoid borrow on self
         let shutdown_token = self.shutdown_token.clone();
+        let _drop_guard = shutdown_token.clone().drop_guard();
         #[cfg(not(target_arch = "wasm32"))]
         {
             let mut status_timer = tokio::time::interval(Duration::from_secs(5));

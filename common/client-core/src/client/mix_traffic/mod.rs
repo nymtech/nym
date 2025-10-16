@@ -25,8 +25,10 @@ pub struct Empty;
 pub struct MixTrafficController {
     gateway_transceiver: Box<dyn GatewayTransceiver + Send>,
 
+    mix_tx: BatchMixMessageSender,
     mix_rx: BatchMixMessageReceiver,
     client_rx: ClientRequestReceiver,
+    client_tx: ClientRequestSender,
 
     // TODO: this is temporary work-around.
     // in long run `gateway_client` will be moved away from `MixTrafficController` anyway.
@@ -36,14 +38,7 @@ pub struct MixTrafficController {
 }
 
 impl MixTrafficController {
-    pub fn new<T>(
-        gateway_transceiver: T,
-        shutdown_token: ShutdownToken,
-    ) -> (
-        MixTrafficController,
-        BatchMixMessageSender,
-        ClientRequestSender,
-    )
+    pub fn new<T>(gateway_transceiver: T, shutdown_token: ShutdownToken) -> MixTrafficController
     where
         T: GatewayTransceiver + Send + 'static,
     {
@@ -52,41 +47,30 @@ impl MixTrafficController {
 
         let (client_sender, client_receiver) = tokio::sync::mpsc::channel(8);
 
-        (
-            MixTrafficController {
-                gateway_transceiver: Box::new(gateway_transceiver),
-                mix_rx: message_receiver,
-                client_rx: client_receiver,
-                consecutive_gateway_failure_count: 0,
-                shutdown_token,
-            },
-            message_sender,
-            client_sender,
-        )
+        MixTrafficController {
+            gateway_transceiver: Box::new(gateway_transceiver),
+            mix_tx: message_sender,
+            mix_rx: message_receiver,
+            client_rx: client_receiver,
+            client_tx: client_sender,
+            consecutive_gateway_failure_count: 0,
+            shutdown_token,
+        }
     }
 
     pub fn new_dynamic(
         gateway_transceiver: Box<dyn GatewayTransceiver + Send>,
         shutdown_token: ShutdownToken,
-    ) -> (
-        MixTrafficController,
-        BatchMixMessageSender,
-        ClientRequestSender,
-    ) {
-        let (message_sender, message_receiver) =
-            tokio::sync::mpsc::channel(MIX_MESSAGE_RECEIVER_BUFFER_SIZE);
-        let (client_sender, client_receiver) = tokio::sync::mpsc::channel(8);
-        (
-            MixTrafficController {
-                gateway_transceiver,
-                mix_rx: message_receiver,
-                client_rx: client_receiver,
-                consecutive_gateway_failure_count: 0,
-                shutdown_token,
-            },
-            message_sender,
-            client_sender,
-        )
+    ) -> MixTrafficController {
+        Self::new(gateway_transceiver, shutdown_token)
+    }
+
+    pub fn client_tx(&self) -> ClientRequestSender {
+        self.client_tx.clone()
+    }
+
+    pub fn mix_rx(&self) -> BatchMixMessageSender {
+        self.mix_tx.clone()
     }
 
     async fn on_messages(
@@ -145,34 +129,26 @@ impl MixTrafficController {
                     trace!("MixTrafficController: Received shutdown");
                     break;
                 }
-                mix_packets = self.mix_rx.recv() => match mix_packets {
-                    Some(mix_packets) => {
-                        if let Err(err) = self.on_messages(mix_packets).await {
-                            error!("Failed to send sphinx packet(s) to the gateway: {err}");
-                            if self.consecutive_gateway_failure_count == MAX_FAILURE_COUNT {
-                                // Disconnect from the gateway. If we should try to re-connect
-                                // is handled at a higher layer.
-                                error!("Failed to send sphinx packet to the gateway {MAX_FAILURE_COUNT} times in a row - assuming the gateway is dead");
-                                // Do we need to handle the embedded mixnet client case
-                                // separately?
-                                break;
-                            }
+                // mix_rx should never error out as we're holding one instance of the sender
+
+                Some(mix_packets) = self.mix_rx.recv() =>  {
+                    if let Err(err) = self.on_messages(mix_packets).await {
+                        error!("Failed to send sphinx packet(s) to the gateway: {err}");
+                        if self.consecutive_gateway_failure_count == MAX_FAILURE_COUNT {
+                            // Disconnect from the gateway. If we should try to re-connect
+                            // is handled at a higher layer.
+                            error!("Failed to send sphinx packet to the gateway {MAX_FAILURE_COUNT} times in a row - assuming the gateway is dead");
+                            // Do we need to handle the embedded mixnet client case
+                            // separately?
+                            self.shutdown_token.cancel();
+                            break;
                         }
-                    },
-                    None => {
-                        trace!("MixTrafficController: Stopping since channel closed");
-                        break;
                     }
                 },
-                client_request = self.client_rx.recv() => match client_request {
-                    Some(client_request) => {
-                        self.on_client_request(client_request).await;
-                    },
-                    None => {
-                        trace!("MixTrafficController, client request channel closed");
-                        break
-                    }
-                },
+                // client_rx should never error out as we're holding one instance of the sender
+                Some(client_request) = self.client_rx.recv() => {
+                    self.on_client_request(client_request).await;
+                }
             }
         }
         debug!("MixTrafficController: Exiting");

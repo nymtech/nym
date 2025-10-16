@@ -60,6 +60,7 @@ impl SocketClient {
         let ClientInput {
             connection_command_sender,
             input_sender,
+            ..
         } = client_input;
 
         let ClientOutput {

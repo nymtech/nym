@@ -74,7 +74,7 @@ impl AttestationWatcher {
     pub async fn run_forever(self, cancellation_token: CancellationToken) {
         info!("starting the attestation watcher task");
 
-        let check_wait = tokio::time::sleep(self.regular_polling_interval);
+        let check_wait = tokio::time::sleep(Duration::new(0, 0));
         tokio::pin!(check_wait);
 
         loop {

@@ -7,11 +7,12 @@ use super::statistics_control::StatisticsControl;
 use crate::client::base_client::storage::helpers::store_client_keys;
 use crate::client::base_client::storage::MixnetClientStorage;
 use crate::client::cover_traffic_stream::LoopCoverTrafficStream;
+use crate::client::event_control::EventControl;
 use crate::client::inbound_messages::{InputMessage, InputMessageReceiver, InputMessageSender};
 use crate::client::key_manager::persistence::KeyStore;
 use crate::client::key_manager::ClientKeys;
 use crate::client::mix_traffic::transceiver::{GatewayReceiver, GatewayTransceiver, RemoteGateway};
-use crate::client::mix_traffic::{BatchMixMessageSender, MixTrafficController};
+use crate::client::mix_traffic::{BatchMixMessageSender, MixTrafficController, MixTrafficEvent};
 use crate::client::real_messages_control;
 use crate::client::real_messages_control::RealMessagesController;
 use crate::client::received_buffer::{
@@ -82,8 +83,9 @@ pub mod non_wasm_helpers;
 pub mod helpers;
 pub mod storage;
 
+#[derive(Clone, Copy, Debug)]
 pub enum MixnetClientEvent {
-    FailedSendingSphinx,
+    Traffic(MixTrafficEvent),
 }
 
 pub type EventReceiver = mpsc::UnboundedReceiver<MixnetClientEvent>;
@@ -339,6 +341,18 @@ where
     // because it relies on the crypto keys being already loaded
     fn mix_address(details: &InitialisationResult) -> Recipient {
         details.client_address()
+    }
+
+    fn start_event_control(
+        parent_event_tx: Option<EventSender>,
+        children_event_rx: EventReceiver,
+        shutdown_tracker: &ShutdownTracker,
+    ) {
+        let event_control = EventControl::new(parent_event_tx, children_event_rx);
+        shutdown_tracker.try_spawn_named_with_shutdown(
+            async move { event_control.run().await },
+            "EventControl",
+        );
     }
 
     // future constantly pumping loop cover traffic at some specified average rate
@@ -759,7 +773,7 @@ where
     fn start_mix_traffic_controller(
         gateway_transceiver: Box<dyn GatewayTransceiver + Send>,
         shutdown_tracker: &ShutdownTracker,
-        event_tx: Option<EventSender>,
+        event_tx: EventSender,
     ) -> (BatchMixMessageSender, ClientRequestSender) {
         tracing::info!("Starting mix traffic controller...");
         let (mut mix_traffic_controller, mix_tx, client_tx) = MixTrafficController::new(
@@ -911,6 +925,9 @@ where
         // channels responsible for controlling real messages
         let (input_sender, input_receiver) = tokio::sync::mpsc::channel::<InputMessage>(1);
 
+        // channels responsible for event management
+        let (event_sender, event_receiver) = mpsc::unbounded();
+
         // channels responsible for controlling ack messages
         let (ack_sender, ack_receiver) = mpsc::unbounded();
         let shared_topology_accessor =
@@ -922,6 +939,8 @@ where
             Some(parent_tracker) => parent_tracker.child_tracker(),
             None => nym_task::get_sdk_shutdown_tracker()?,
         };
+
+        Self::start_event_control(self.event_tx, event_receiver, &shutdown_tracker);
 
         // channels responsible for dealing with reply-related fun
         let (reply_controller_sender, reply_controller_receiver) =
@@ -1013,7 +1032,7 @@ where
         let (message_sender, client_request_sender) = Self::start_mix_traffic_controller(
             gateway_transceiver,
             &shutdown_tracker.child_tracker(),
-            self.event_tx.clone(),
+            EventSender(event_sender),
         );
 
         // Channels that the websocket listener can use to signal downstream to the real traffic

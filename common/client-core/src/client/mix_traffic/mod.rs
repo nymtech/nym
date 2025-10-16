@@ -25,6 +25,11 @@ const MAX_FAILURE_COUNT: usize = 100;
 // that's also disgusting.
 pub struct Empty;
 
+#[derive(Clone, Copy, Debug)]
+pub enum MixTrafficEvent {
+    FailedSendingSphinx,
+}
+
 pub struct MixTrafficController {
     gateway_transceiver: Box<dyn GatewayTransceiver + Send>,
 
@@ -36,14 +41,14 @@ pub struct MixTrafficController {
     consecutive_gateway_failure_count: usize,
 
     shutdown_token: ShutdownToken,
-    event_tx: Option<EventSender>,
+    event_tx: EventSender,
 }
 
 impl MixTrafficController {
     pub fn new<T>(
         gateway_transceiver: T,
         shutdown_token: ShutdownToken,
-        event_tx: Option<EventSender>,
+        event_tx: EventSender,
     ) -> (
         MixTrafficController,
         BatchMixMessageSender,
@@ -74,7 +79,7 @@ impl MixTrafficController {
     pub fn new_dynamic(
         gateway_transceiver: Box<dyn GatewayTransceiver + Send>,
         shutdown_token: ShutdownToken,
-        event_tx: Option<EventSender>,
+        event_tx: EventSender,
     ) -> (
         MixTrafficController,
         BatchMixMessageSender,
@@ -163,9 +168,7 @@ impl MixTrafficController {
                                 error!("Failed to send sphinx packet to the gateway {MAX_FAILURE_COUNT} times in a row - assuming the gateway is dead");
                                 // Do we need to handle the embedded mixnet client case
                                 // separately?
-                                if let Some(event_tx) = &self.event_tx {
-                                    event_tx.send(MixnetClientEvent::FailedSendingSphinx);
-                                }
+                                self.event_tx.send(MixnetClientEvent::Traffic(MixTrafficEvent::FailedSendingSphinx));
                                 break;
                             }
                         }

@@ -83,12 +83,12 @@ pub mod non_wasm_helpers;
 pub mod helpers;
 pub mod storage;
 
-pub enum Event {
+pub enum MixnetClientEvent {
     FailedSendingSphinx,
 }
 
-pub type EventSender = mpsc::UnboundedSender<Event>;
-pub type EventReceiver = mpsc::UnboundedReceiver<Event>;
+pub type EventSender = mpsc::UnboundedSender<MixnetClientEvent>;
+pub type EventReceiver = mpsc::UnboundedReceiver<MixnetClientEvent>;
 
 #[derive(Clone)]
 pub struct ClientInput {

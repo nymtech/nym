@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::client::{
-    base_client::{Event, EventSender},
+    base_client::{EventSender, MixnetClientEvent},
     mix_traffic::transceiver::GatewayTransceiver,
 };
 use futures::SinkExt;
@@ -165,7 +165,7 @@ impl MixTrafficController {
                                 // Do we need to handle the embedded mixnet client case
                                 // separately?
                                 if let Some(event_tx) = self.event_tx.as_mut() {
-                                    event_tx.send(Event::FailedSendingSphinx).await.ok();
+                                    event_tx.send(MixnetClientEvent::FailedSendingSphinx).await.ok();
                                 }
                                 break;
                             }

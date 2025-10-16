@@ -52,7 +52,7 @@ pub use nym_client_core::client::{
             },
             Ephemeral, MixnetClientStorage, OnDiskPersistent,
         },
-        EventReceiver, EventSender,
+        EventReceiver, EventSender, MixnetClientEvent,
     },
     inbound_messages::InputMessage,
     key_manager::{

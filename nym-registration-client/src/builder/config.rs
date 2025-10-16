@@ -116,7 +116,6 @@ impl BuilderConfig {
             .credentials_mode(true)
             .with_remember_me(remember_me)
             .custom_topology_provider(self.custom_topology_provider);
-
         #[cfg(unix)]
         let builder = builder.with_connection_fd_callback(self.connection_fd_callback);
 

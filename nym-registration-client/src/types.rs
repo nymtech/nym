@@ -4,7 +4,7 @@
 use nym_authenticator_client::{AuthClientMixnetListenerHandle, AuthenticatorClient};
 use nym_bandwidth_controller::BandwidthTicketProvider;
 use nym_registration_common::{AssignedAddresses, GatewayData};
-use nym_sdk::mixnet::MixnetClient;
+use nym_sdk::mixnet::{EventReceiver, MixnetClient};
 
 pub enum RegistrationResult {
     Mixnet(Box<MixnetRegistrationResult>),
@@ -14,6 +14,7 @@ pub enum RegistrationResult {
 pub struct MixnetRegistrationResult {
     pub assigned_addresses: AssignedAddresses,
     pub mixnet_client: MixnetClient,
+    pub event_rx: EventReceiver,
 }
 
 pub struct WireguardRegistrationResult {

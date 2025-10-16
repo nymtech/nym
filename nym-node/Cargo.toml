@@ -31,7 +31,7 @@ humantime-serde = { workspace = true }
 human-repr = { workspace = true }
 ipnetwork = { workspace = true }
 indicatif = { workspace = true }
-opentelemetry = { workspace = true } # make it optional later
+opentelemetry = { workspace = true, optional = true } # make it optional later
 rand = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
@@ -51,7 +51,6 @@ cupid = { workspace = true }
 sysinfo = { workspace = true }
 
 nym-bin-common = { path = "../common/bin-common", features = [
-    "basic_tracing",
     "output_format",
 ] }
 nym-client-core-config-types = { path = "../common/client-core/config-types", features = [
@@ -131,10 +130,15 @@ criterion = { workspace = true, features = ["async_tokio"] }
 rand_chacha = { workspace = true }
 
 [features]
-default = ["otel"] # 🚨🚨🚨 TODO: remove otel as a default feature 🚨🚨🚨
+default = []
 tokio-console = ["console-subscriber"]
 otel = [
-
+    "nym-bin-common/otel",
+    "nym-gateway/otel",
+    "nym-http-api-common/otel",
+    "nym-sphinx-framing/otel",
+    "nym-sphinx-addressing/otel",
+    "opentelemetry",
 ]
 
 

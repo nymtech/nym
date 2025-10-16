@@ -8,6 +8,7 @@ use crate::{
     AUTHENTICATE_V2_PROTOCOL_VERSION, CREDENTIAL_UPDATE_V2_PROTOCOL_VERSION,
     INITIAL_PROTOCOL_VERSION,
 };
+#[cfg(feature = "otel")]
 use nym_bin_common::opentelemetry::context::ContextCarrier;
 use nym_credentials_interface::CredentialSpendingData;
 use nym_crypto::asymmetric::ed25519;
@@ -135,15 +136,21 @@ impl ClientControlRequest {
         let nonce = shared_key.random_nonce_or_iv();
         let ciphertext = shared_key.encrypt_naive(address.as_bytes_ref(), Some(&nonce))?;
 
-        let context = opentelemetry::Context::current();
-        let context_carrier = ContextCarrier::new_with_current_context(context).into_map();
+        #[cfg(feature = "otel")]
+        let context_carrier = {
+            let context = opentelemetry::Context::current();
+            ContextCarrier::new_with_current_context(context).into_map()
+        };
 
         Ok(ClientControlRequest::Authenticate {
             protocol_version,
             address: address.as_base58_string(),
             enc_address: bs58::encode(&ciphertext).into_string(),
             iv: bs58::encode(&nonce).into_string(),
+            #[cfg(feature = "otel")]
             otel_context: Some(context_carrier),
+            #[cfg(not(feature = "otel"))]
+            otel_context: None,
         })
     }
 
@@ -155,8 +162,13 @@ impl ClientControlRequest {
         // if we're using v2 authentication, we must announce at least that protocol version
         let protocol_version = AUTHENTICATE_V2_PROTOCOL_VERSION;
 
-        let otel_context = opentelemetry::Context::current();
-        let context_carrier = ContextCarrier::new_with_current_context(otel_context).into_map();
+        #[cfg(feature = "otel")]
+        let context_carrier = {
+            let otel_context = opentelemetry::Context::current();
+            ContextCarrier::new_with_current_context(otel_context).into_map()
+        };
+        #[cfg(not(feature = "otel"))]
+        let context_carrier = None;
 
         Ok(ClientControlRequest::AuthenticateV2(Box::new(
             AuthenticateRequest::new(

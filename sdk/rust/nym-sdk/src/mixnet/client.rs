@@ -74,6 +74,7 @@ pub struct MixnetClientBuilder<S: MixnetClientStorage = Ephemeral> {
 impl MixnetClientBuilder<Ephemeral> {
     /// Creates a client builder with ephemeral storage.
     #[must_use]
+    #[instrument(name = "MixnetClientBuilder::new_ephemeral", skip_all)]
     pub fn new_ephemeral() -> Self {
         MixnetClientBuilder {
             ..Default::default()
@@ -82,6 +83,7 @@ impl MixnetClientBuilder<Ephemeral> {
 
     /// Create a client builder with default values.
     #[must_use]
+    #[instrument(name = "MixnetClientBuilder::new", skip_all)]
     pub fn new() -> Self {
         Self::new_ephemeral()
     }

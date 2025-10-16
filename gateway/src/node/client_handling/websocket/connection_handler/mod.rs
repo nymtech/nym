@@ -7,6 +7,7 @@ use nym_gateway_requests::shared_key::SharedGatewayKey;
 use nym_gateway_requests::ServerResponse;
 use nym_sphinx::DestinationAddressBytes;
 use rand::{CryptoRng, Rng};
+#[cfg(feature = "otel")]
 use std::collections::HashMap;
 use std::time::Duration;
 use time::OffsetDateTime;
@@ -49,6 +50,7 @@ pub(crate) struct ClientDetails {
     // note, this does **NOT ALWAYS** indicate timestamp of when client connected
     // it is (for v2 auth) timestamp the client **signed** when it created the request
     pub(crate) session_request_timestamp: OffsetDateTime,
+    #[cfg(feature = "otel")]
     pub(crate) otel_context: Option<HashMap<String, String>>,
 }
 
@@ -58,6 +60,7 @@ impl ClientDetails {
         address: DestinationAddressBytes,
         shared_keys: SharedGatewayKey,
         session_request_timestamp: OffsetDateTime,
+        #[cfg(feature = "otel")]
         otel_context: Option<HashMap<String, String>>,
     ) -> Self {
         ClientDetails {
@@ -65,6 +68,7 @@ impl ClientDetails {
             id,
             shared_keys,
             session_request_timestamp,
+            #[cfg(feature = "otel")]
             otel_context,
         }
     }

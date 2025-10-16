@@ -35,8 +35,8 @@ nym-credentials = { path = "../credentials" }
 nym-credentials-interface = { path = "../credentials-interface" }
 
 opentelemetry = { workspace = true, features = ["trace"], optional = true }
-opentelemetry_sdk = { workspace = true }
-tracing = { workspace = true, features = ["std", "attributes", "tracing-attributes"], optional = true }
+opentelemetry_sdk = { workspace = true, optional = true }
+tracing = { workspace = true, features = ["std", "attributes", "tracing-attributes"] }
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio]
 workspace = true
@@ -57,8 +57,9 @@ nym-test-utils = { path = "../test-utils" }
 tokio = { workspace = true, features = ["full"] }
 
 [features]
-default = ["otel"] # 🚨🚨🚨 TODO: remove otel as a default feature 🚨🚨🚨
+default = []
 otel = [
+    "nym-bin-common/otel",
     "opentelemetry",
-    "tracing"
+    "opentelemetry_sdk",
 ]

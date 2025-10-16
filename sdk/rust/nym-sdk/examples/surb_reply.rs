@@ -2,7 +2,9 @@ use nym_sdk::mixnet::{
     AnonymousSenderTag, MixnetClientBuilder, MixnetMessageSender, ReconstructedMessage,
 };
 use nym_sdk::DebugConfig;
+#[cfg(feature = "otel")]
 use opentelemetry::trace::{TraceContextExt, Tracer};
+#[cfg(feature = "otel")]
 use opentelemetry::{global, Context};
 use tracing::warn;
 use tracing::instrument;
@@ -10,18 +12,26 @@ use tracing::instrument;
 #[tokio::main]
 #[instrument(name = "sdk-example-surb-reply", skip_all)]
 async fn main() {
-    let _guard = nym_bin_common::opentelemetry::setup_tracing_logger("sdk-example-surb-reply".to_string()).unwrap();
+    // Setup OpenTelemetry tracing
+    #[cfg(feature = "otel")]
+    let _guard = {
+        nym_bin_common::opentelemetry::setup_tracing_logger("sdk-example-surb-reply".to_string()).unwrap();
 
-    let tracer = global::tracer("sdk-example-surb-reply");
-    let span = tracer.start("client-root-span");
-    let cx = Context::current_with_span(span);
-    let _guard = cx.clone().attach();
+        let tracer = global::tracer("sdk-example-surb-reply");
+        let span = tracer.start("client-root-span");
+        let cx = Context::current_with_span(span);
+        let _guard = cx.clone().attach();
 
-    let trace_id = cx.span().span_context().trace_id();
-    warn!("Main TRACE_ID: {:?}", trace_id);
+        let trace_id = cx.span().span_context().trace_id();
+        warn!("Main TRACE_ID: {:?}", trace_id);
 
-    let context = Context::current();
-    println!("Current OTEL context: {:?}", context);
+        let context = Context::current();
+        println!("Current OTEL context: {:?}", context);
+        
+        _guard
+    };
+    #[cfg(not(feature = "otel"))]
+    nym_bin_common::logging::setup_no_otel_logger().expect("failed to initialize logging");
 
     // Ignore performance requirements for the sake of the example
         let mut debug_config = DebugConfig::default();

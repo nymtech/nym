@@ -12,8 +12,7 @@ license.workspace = true
 
 [features]
 # TODO: Remove otel from default before release
-# Opentelemetry should remain an opt-in for debug purposes only
-default=["tunneling", "otel"]
+default=["tunneling"]
 tunneling=[]
 network-defaults = ["dep:nym-network-defaults"]
 otel = ["nym-bin-common/otel", "opentelemetry", "opentelemetry_sdk"]
@@ -58,4 +57,3 @@ features = ["tokio"]
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["rt", "macros"] }
-

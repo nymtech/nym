@@ -10,11 +10,13 @@ use crate::env::vars::{NYMNODE_CONFIG_ENV_FILE_ARG, NYMNODE_NO_BANNER_ARG};
 use clap::{Args, Parser, Subcommand};
 use nym_bin_common::{
     bin_info,
-    opentelemetry::{
-        setup_no_otel_logger,
-        setup_tracing_logger,
-        error::TracingError},
+    logging::setup_no_otel_logger,
 };
+#[cfg(feature = "otel")]
+use nym_bin_common::logging::error::TracingError;
+#[cfg(feature = "otel")]
+use nym_bin_common::opentelemetry::setup_tracing_logger;
+#[cfg(feature = "otel")]
 use opentelemetry::{Context, global, trace::{TraceContextExt, Tracer}};
 use std::future::Future;
 use std::sync::OnceLock;
@@ -89,33 +91,47 @@ impl Cli {
             },
             // SigNoz/OTEL run in async context
             Commands::BondingInformation(args) => Self::execute_async(async move {
-                let _guard = setup_tracing_logger("nym-node".to_string())
+                #[cfg(feature = "otel")]
+                setup_tracing_logger("nym-node".to_string())
                     .map_err(TracingError::from)?;
-
+                #[cfg(not(feature = "otel"))]
+                setup_no_otel_logger().expect("failed to initialize logging");
                 bonding_information::execute(args).await?;
                 Ok::<(), anyhow::Error>(())
             })??,
             Commands::NodeDetails(args) => Self::execute_async(async move {
-                let _guard = setup_tracing_logger("nym-node".to_string())
+                #[cfg(feature = "otel")]
+                setup_tracing_logger("nym-node".to_string())
                     .map_err(TracingError::from)?;
+                #[cfg(not(feature = "otel"))]
+                setup_no_otel_logger().expect("failed to initialize logging");
                 node_details::execute(args).await?;
                 Ok::<(), anyhow::Error>(())
             })??,
             Commands::Run(args) => Self::execute_async(async move {
-                let _guard = setup_tracing_logger("nym-node".to_string())
+                #[cfg(feature = "otel")]
+                setup_tracing_logger("nym-node".to_string())
                     .map_err(TracingError::from)?;
+                #[cfg(not(feature = "otel"))]
+                setup_no_otel_logger().expect("failed to initialize logging");
                 run::execute(*args).await?;
                 Ok::<(), anyhow::Error>(())
             })??,
             Commands::Sign(args) => Self::execute_async(async move {
-                let _guard = setup_tracing_logger("nym-node".to_string())
+                #[cfg(feature = "otel")]
+                setup_tracing_logger("nym-node".to_string())
                     .map_err(TracingError::from)?;
+                #[cfg(not(feature = "otel"))]
+                setup_no_otel_logger().expect("failed to initialize logging");
                 sign::execute(args).await?;
                 Ok::<(), anyhow::Error>(())
             })??,
             Commands::UnsafeResetSphinxKeys(args) => Self::execute_async(async move {
-                let _guard = setup_tracing_logger("nym-node".to_string())
+                #[cfg(feature = "otel")]
+                setup_tracing_logger("nym-node".to_string())
                     .map_err(TracingError::from)?;
+                #[cfg(not(feature = "otel"))]
+                setup_no_otel_logger().expect("failed to initialize logging");
                 reset_sphinx_keys::execute(args).await?;
                 Ok::<(), anyhow::Error>(())
             })??,

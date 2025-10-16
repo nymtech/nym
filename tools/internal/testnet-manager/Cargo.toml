@@ -32,7 +32,7 @@ url.workspace = true
 zeroize = { workspace = true, features = ["zeroize_derive"] }
 
 
-nym-bin-common = { path = "../../../common/bin-common", features = ["output_format", "basic_tracing"] }
+nym-bin-common = { path = "../../../common/bin-common", features = ["output_format"] }
 nym-crypto = { path = "../../../common/crypto", features = ["asymmetric", "rand", "serde"] }
 nym-config = { path = "../../../common/config" }
 nym-validator-client = { path = "../../../common/client-libs/validator-client" }

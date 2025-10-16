@@ -23,3 +23,7 @@ nym-sphinx-acknowledgements = { path = "../acknowledgements" }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["full"] }
+
+[features]
+default = []
+otel = ["nym-bin-common/otel"]

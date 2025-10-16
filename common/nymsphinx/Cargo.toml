@@ -57,3 +57,7 @@ outfox = [
     "nym-sphinx-params/outfox",
     "nym-sphinx-types/outfox",
 ]
+
+otel = [
+    "nym-bin-common/otel",
+] 

@@ -43,9 +43,7 @@ nym-socks5-requests = { path = "../../../common/socks5/requests" }
 nym-ordered-buffer = { path = "../../../common/socks5/ordered-buffer" }
 nym-service-providers-common = { path = "../../../service-providers/common" }
 nym-sphinx-addressing = { path = "../../../common/nymsphinx/addressing" }
-nym-bin-common = { path = "../../../common/bin-common", features = [
-    "basic_tracing",
-] }
+nym-bin-common = { path = "../../../common/bin-common" }
 bytecodec = { workspace = true }
 httpcodec = { workspace = true }
 bytes = { workspace = true }
@@ -75,15 +73,15 @@ serde = { workspace = true, features = ["derive"] }
 # tracing-subscriber = { workspace = true, features = ["env-filter"] }
 dirs.workspace = true
 
-opentelemetry = { workspace = true }
-opentelemetry_sdk = { workspace = true }
+opentelemetry = { workspace = true, optional = true}
+opentelemetry_sdk = { workspace = true, optional = true }
 
 tracing = { workspace = true, features = ["std"] }
 tracing-subscriber = { workspace = true, features = ["registry", "std"] }
 tracing-core = { workspace = true }
-tracing-opentelemetry = { workspace = true }
-opentelemetry-otlp.workspace = true
-opentelemetry-semantic-conventions.workspace = true
+tracing-opentelemetry = { workspace = true, optional = true }
+opentelemetry-otlp = { workspace = true, optional = true }
+opentelemetry-semantic-conventions = { workspace = true, optional = true }
 
 [dev-dependencies]
 anyhow = { workspace = true }
@@ -92,7 +90,7 @@ reqwest = { workspace = true, features = ["json", "socks"] }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 time = { workspace = true }
-nym-bin-common = { path = "../../../common/bin-common", features = ["basic_tracing"] }
+nym-bin-common = { path = "../../../common/bin-common" }
 
 # extra dependencies for libp2p examples
 #libp2p = { git = "https://github.com/ChainSafe/rust-libp2p.git", rev = "e3440d25681df380c9f0f8cfdcfd5ecc0a4f2fb6", features = [ "identify", "macros", "ping", "tokio", "tcp", "dns", "websocket", "noise", "mplex", "yamux", "gossipsub" ]}
@@ -103,3 +101,12 @@ hex = { workspace = true }
 
 [features]
 libp2p-vanilla = []
+otel = [
+    "nym-bin-common/otel",
+    "nym-gateway-requests/otel",
+    "opentelemetry",
+    "opentelemetry_sdk",
+    "opentelemetry-otlp",
+    "opentelemetry-semantic-conventions",
+    "tracing-opentelemetry",
+]

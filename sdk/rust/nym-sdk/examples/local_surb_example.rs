@@ -2,7 +2,9 @@ use nym_sdk::mixnet::{
     AnonymousSenderTag, MixnetClientBuilder, MixnetMessageSender, ReconstructedMessage,
 };
 use nym_topology::{CachedEpochRewardedSet, EntryDetails, HardcodedTopologyProvider, NymTopology, NymTopologyMetadata, RoutingNode, SupportedRoles};
+#[cfg(feature = "otel")]
 use opentelemetry::trace::{TraceContextExt, Tracer};
+#[cfg(feature = "otel")]
 use opentelemetry::{global, Context};
 use time::OffsetDateTime;
 use tracing::warn;
@@ -11,15 +13,20 @@ use tracing::instrument;
 #[tokio::main]
 #[instrument(name = "sdk-example-surb-reply", skip_all)]
 async fn main() {
-    nym_bin_common::opentelemetry::setup_tracing_logger("local-sdk-example-surb-reply".to_string()).unwrap();
+    #[cfg(feature = "otel")]
+    {
+        nym_bin_common::opentelemetry::setup_tracing_logger("local-sdk-example-surb-reply".to_string()).unwrap();
 
-    let tracer = global::tracer("local-sdk-example-surb-reply");
-    let span = tracer.start("client-root-span");
-    let cx = Context::current_with_span(span);
-    let _guard = cx.clone().attach();
+        let tracer = global::tracer("local-sdk-example-surb-reply");
+        let span = tracer.start("client-root-span");
+        let cx = Context::current_with_span(span);
+        let _guard = cx.clone().attach();
 
-    let trace_id = cx.span().span_context().trace_id();
-    warn!("Main TRACE_ID: {:?}", trace_id);
+        let trace_id = cx.span().span_context().trace_id();
+        warn!("Main TRACE_ID: {:?}", trace_id);
+    }
+    #[cfg(not(feature = "otel"))]
+    nym_bin_common::logging::setup_no_otel_logger().expect("failed to initialize logging");
    
     // Create a mixnet client which connect to a local node
     let topology_metadata = NymTopologyMetadata::new(0, 0, OffsetDateTime::now_utc());
@@ -38,10 +45,10 @@ async fn main() {
             hostname: None,
             clients_wss_port: None,
         }),
-            identity_key: "Put Your Identity Key Here"
+            identity_key: "put here identity_key"
             .parse()
             .unwrap(),
-        sphinx_key: "Put Your Sphinx Key Here"
+        sphinx_key: "put here sphinx_key"
             .parse()
             .unwrap(),
         supported_roles: SupportedRoles {

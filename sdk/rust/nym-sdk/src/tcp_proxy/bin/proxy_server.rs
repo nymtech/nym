@@ -23,7 +23,7 @@ struct Args {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    nym_bin_common::logging::setup_tracing_logger();
+    nym_bin_common::logging::setup_no_otel_logger().expect("failed to setup logging");
 
     let args = Args::parse();
 

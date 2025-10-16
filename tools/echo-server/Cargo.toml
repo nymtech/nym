@@ -31,7 +31,6 @@ bytes.workspace = true
 dirs.workspace = true
 clap.workspace = true
 nym-bin-common = { path = "../../common/bin-common", features = [
-    "basic_tracing",
     "output_format",
 ] }
 nym-crypto = { path = "../../common/crypto", features = ["asymmetric"] }

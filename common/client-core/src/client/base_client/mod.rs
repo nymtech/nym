@@ -121,6 +121,7 @@ pub struct ClientOutput {
 }
 
 impl ClientOutput {
+    #[instrument(name = "ClientOutput::register_receiver", skip_all)]
     pub fn register_receiver(
         &mut self,
     ) -> Result<mpsc::UnboundedReceiver<Vec<ReconstructedMessage>>, ClientCoreError> {

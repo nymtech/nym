@@ -987,16 +987,18 @@ impl ApiClientCore for Client {
         self.apply_hosts_to_req(&mut req);
 
         // if opentelemetry is activated add the current trace context to the request
-        // TODO featurize opentelemetry
-        use opentelemetry::Context;
-        use nym_bin_common::opentelemetry::context::ContextCarrier;
+        #[cfg(feature = "otel")]
+        {
+            use opentelemetry::Context;
+            use nym_bin_common::opentelemetry::context::ContextCarrier;
 
-        let carrier = ContextCarrier::new_with_current_context(Context::current());
+            let carrier = ContextCarrier::new_with_current_context(Context::current());
 
-        if let Some(traceparent) = carrier.extract_traceparent() {
-            if let Ok(header_value) = HeaderValue::from_str(&traceparent) {
-                req.headers_mut()
-                    .insert("traceparent", header_value);
+            if let Some(traceparent) = carrier.extract_traceparent() {
+                if let Ok(header_value) = HeaderValue::from_str(&traceparent) {
+                    req.headers_mut()
+                        .insert("traceparent", header_value);
+                }
             }
         }
 

@@ -13,6 +13,7 @@ use futures::{
     channel::{mpsc, oneshot},
     SinkExt, StreamExt,
 };
+#[cfg(feature = "otel")]
 use nym_bin_common::opentelemetry::context::ManualContextPropagator;
 use nym_credentials_interface::AvailableBandwidth;
 use nym_crypto::aes::cipher::crypto_common::rand_core::RngCore;
@@ -35,6 +36,7 @@ use nym_node_metrics::events::MetricsEvent;
 use nym_sphinx::DestinationAddressBytes;
 use nym_task::ShutdownToken;
 use rand::CryptoRng;
+#[cfg(feature = "otel")]
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::time::Duration;
@@ -43,7 +45,9 @@ use time::OffsetDateTime;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::time::timeout;
 use tokio_tungstenite::tungstenite::{protocol::Message, Error as WsError};
-use tracing::{debug, error, info, info_span, instrument, warn};
+#[cfg(feature = "otel")]
+use tracing::info_span;
+use tracing::{debug, error, info, instrument, warn};
 
 
 
@@ -639,6 +643,7 @@ impl<R, S> FreshHandler<R, S> {
                 address,
                 shared_keys.key,
                 session_request_start,
+                #[cfg(feature = "otel")]
                 None,
             )),
             ServerResponse::Authenticate {
@@ -655,6 +660,7 @@ impl<R, S> FreshHandler<R, S> {
     async fn handle_authenticate_v2(
         &mut self,
         request: Box<AuthenticateRequest>,
+        #[cfg(feature = "otel")]
         otel_context: Option<HashMap<String, String>>,
     ) -> Result<InitialAuthResult, InitialAuthenticationError>
     where
@@ -730,6 +736,7 @@ impl<R, S> FreshHandler<R, S> {
                 address,
                 shared_key.key,
                 session_request_start,
+                #[cfg(feature = "otel")]
                 otel_context,
             )),
             ServerResponse::Authenticate {
@@ -829,6 +836,7 @@ impl<R, S> FreshHandler<R, S> {
             remote_address,
             shared_keys,
             OffsetDateTime::now_utc(),
+            #[cfg(feature = "otel")]
             None
         );
 
@@ -869,7 +877,12 @@ impl<R, S> FreshHandler<R, S> {
         S: AsyncRead + AsyncWrite + Unpin + Send,
         R: CryptoRng + RngCore + Send,
     {
+        #[cfg(not(feature = "otel"))]
+        info!("[DEBUG] received initial client request no otel");
+        #[cfg(feature = "otel")]
+        info!("[DEBUG] received initial client request with otel");
         // extract and set up opentelemetry context if provided
+        #[cfg(feature = "otel")]
         let (context_propagator, otel_ctx) = if let ClientControlRequest::AuthenticateV2(ref auth_req) = request {
             if let Some(otel_context) = &auth_req.otel_context {
                 warn!("OpenTelemetry context provided in the request: {otel_context:?}");
@@ -882,7 +895,7 @@ impl<R, S> FreshHandler<R, S> {
             warn!("No OpenTelemetry context provided in the request");
             (None, None)
         };
-
+        #[cfg(feature = "otel")]
         let child_span = match context_propagator {
             Some(ref propagator) => {
                 let span = info_span!(parent: &propagator.root_span, "=== Handling initial client request with otel context ===");
@@ -890,7 +903,7 @@ impl<R, S> FreshHandler<R, S> {
             }
             None => info_span!("=== Handling initial client request without otel context ==="),
         };
-        
+        #[cfg(feature = "otel")]
         let _enter = child_span.enter();
 
         let auth_result = match request {
@@ -904,7 +917,10 @@ impl<R, S> FreshHandler<R, S> {
                 self.handle_legacy_authenticate(protocol_version, address, enc_address, iv)
                     .await
             }
+            #[cfg(feature = "otel")]
             ClientControlRequest::AuthenticateV2(req) => self.handle_authenticate_v2(req, otel_ctx).await,
+            #[cfg(not(feature = "otel"))]
+            ClientControlRequest::AuthenticateV2(req) => self.handle_authenticate_v2(req).await,
             ClientControlRequest::RegisterHandshakeInitRequest {
                 protocol_version,
                 data,

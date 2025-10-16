@@ -6,7 +6,7 @@ use std::net::{IpAddr, SocketAddr};
 use nym_common::trace_err_chain;
 use nym_http_api_client::HickoryDnsResolver;
 
-use crate::{Config, Error, error::Result, gateway_client::ResolvedConfig};
+use crate::{error::Result, gateway_client::ResolvedConfig, Config, Error};
 
 async fn try_resolve_hostname(hostname: &str) -> Result<Vec<IpAddr>> {
     tracing::debug!("Trying to resolve hostname: {hostname}");

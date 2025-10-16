@@ -87,6 +87,7 @@ pub mod storage;
 pub struct ClientInput {
     pub connection_command_sender: ConnectionCommandSender,
     pub input_sender: InputMessageSender,
+    pub client_request_sender: ClientRequestSender,
 }
 
 impl ClientInput {
@@ -738,8 +739,11 @@ where
         shutdown_tracker: &ShutdownTracker,
     ) -> (BatchMixMessageSender, ClientRequestSender) {
         info!("Starting mix traffic controller...");
-        let (mut mix_traffic_controller, mix_tx, client_tx) =
+        let mut mix_traffic_controller =
             MixTrafficController::new(gateway_transceiver, shutdown_tracker.clone_shutdown_token());
+
+        let mix_tx = mix_traffic_controller.mix_rx();
+        let client_tx = mix_traffic_controller.client_tx();
 
         shutdown_tracker.try_spawn_named(
             async move { mix_traffic_controller.run().await },
@@ -1052,6 +1056,7 @@ where
                 client_input: ClientInput {
                     connection_command_sender: client_connection_tx,
                     input_sender,
+                    client_request_sender,
                 },
             },
             client_output: ClientOutputStatus::AwaitingConsumer {
@@ -1067,7 +1072,6 @@ where
             },
             stats_reporter,
             shutdown_handle: shutdown_tracker, // The primary tracker for this client
-            client_request_sender,
             forget_me: self.config.debug.forget_me,
             remember_me: self.config.debug.remember_me,
         })
@@ -1081,7 +1085,6 @@ pub struct BaseClient {
     pub client_output: ClientOutputStatus,
     pub client_state: ClientState,
     pub stats_reporter: ClientStatsSender,
-    pub client_request_sender: ClientRequestSender,
     pub shutdown_handle: ShutdownTracker,
     pub forget_me: ForgetMe,
     pub remember_me: RememberMe,

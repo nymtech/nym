@@ -163,7 +163,7 @@ impl MixTrafficController {
                                 error!("Failed to send sphinx packet to the gateway {MAX_FAILURE_COUNT} times in a row - assuming the gateway is dead");
                                 // Do we need to handle the embedded mixnet client case
                                 // separately?
-                                if let Some(event_tx) = self.event_tx.as_mut() {
+                                if let Some(event_tx) = &self.event_tx {
                                     event_tx.send(MixnetClientEvent::FailedSendingSphinx);
                                 }
                                 break;

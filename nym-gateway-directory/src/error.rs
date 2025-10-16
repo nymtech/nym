@@ -1,6 +1,9 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use nym_http_api_client::HttpClientError;
+use nym_validator_client::nym_api::error::NymAPIError;
+
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
     #[error("identity not formatted correctly: {identity}")]
@@ -19,7 +22,7 @@ pub enum Error {
     ValidatorClientError(#[from] nym_validator_client::ValidatorClientError),
 
     #[error(transparent)]
-    VpnApiClientError(#[from] nym_vpn_api_client::VpnApiClientError),
+    VpnApiClientError(#[from] nym_vpn_api_client::error::VpnApiClientError),
 
     #[error("failed to resolve gateway hostname: {hostname}")]
     FailedToDnsResolveGateway {
@@ -29,6 +32,9 @@ pub enum Error {
 
     #[error("resolved hostname {0} but no IP address found")]
     ResolvedHostnameButNoIp(String),
+
+    #[error("timed out while attempting to resolve hostname: {hostname}")]
+    HostnameResolutionTimeout { hostname: String },
 
     #[error("failed to lookup described gateways")]
     FailedToLookupDescribedGateways(#[source] nym_validator_client::ValidatorClientError),
@@ -87,6 +93,30 @@ pub enum Error {
 
     #[error("no connectivity")]
     Offline,
+
+    #[error("HTTP client error: {0}")]
+    HttpClient(#[from] Box<HttpClientError>),
+
+    #[error("Nym API error: {source}")]
+    NymApi { source: Box<NymAPIError> },
+
+    #[error("operation cancelled")]
+    Cancelled,
+
+    #[error("invalid score value: {0}. Valid values are: offline, low, medium, high")]
+    InvalidScoreValue(String),
+}
+
+impl Error {
+    /// Returns true when no gateways matching the search criteria could be found, except when the gateway is constrained to identity
+    pub fn is_unmatched_non_specific_gateway(&self) -> bool {
+        matches!(
+            self,
+            Error::NoMatchingEntryGatewayForLocation { .. }
+                | Error::NoMatchingExitGatewayForLocation { .. }
+                | Error::FailedToSelectGatewayRandomly
+        )
+    }
 }
 
 // Result type based on our error type

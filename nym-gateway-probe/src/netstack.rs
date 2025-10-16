@@ -145,7 +145,8 @@ impl NetstackRequestGo {
             private_key: req.private_key.clone(),
             public_key: req.public_key.clone(),
             endpoint: req.endpoint.clone(),
-            metadata_endpoint: req.metadata_endpoint.clone(),
+            // Skip metadata endpoint for IPv6 as it's an IPv4-only address (10.1.0.1)
+            metadata_endpoint: String::new(),
             dns: req.v6_ping_config.dns.clone(),
             ip_version: 6,
             ping_hosts: req.v6_ping_config.ping_hosts.clone(),

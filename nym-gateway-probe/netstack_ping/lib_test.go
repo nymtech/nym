@@ -215,8 +215,8 @@ func TestPingFunction(t *testing.T) {
 	// Create a request with valid IP but will fail due to network setup
 	req := NetstackRequestGo{
 		WgIp:               "10.0.0.1",
-		PrivateKey:         "test-key",
-		PublicKey:          "test-pub-key",
+		PrivateKey:         "0000000000000000000000000000000000000000000000000000000000000000",
+		PublicKey:          "0000000000000000000000000000000000000000000000000000000000000000",
 		Endpoint:           "1.1.1.1:51820",
 		Dns:                "1.1.1.1",
 		IpVersion:          4,
@@ -275,10 +275,11 @@ func TestResultStructs(t *testing.T) {
 // TestConsecutiveFailureExit validates that the ping loop exits cleanly after consecutive failures
 func TestConsecutiveFailureExit(t *testing.T) {
 	// Create a test request that will trigger consecutive failures
+	// Using valid hex-encoded keys (32 bytes = 64 hex chars)
 	req := NetstackRequestGo{
 		WgIp:               "10.0.0.1",
-		PrivateKey:         "test-key",
-		PublicKey:          "test-pub-key",
+		PrivateKey:         "0000000000000000000000000000000000000000000000000000000000000000",
+		PublicKey:          "0000000000000000000000000000000000000000000000000000000000000000",
 		Endpoint:           "1.1.1.1:51820",
 		Dns:                "1.1.1.1",
 		IpVersion:          4,

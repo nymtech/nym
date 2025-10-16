@@ -6,7 +6,7 @@ pub enum Error {
     #[error("identity not formatted correctly: {identity}")]
     NodeIdentityFormattingError {
         identity: String,
-        source: nym_crypto::asymmetric::ed25519::Ed25519RecoveryError
+        source: nym_crypto::asymmetric::ed25519::Ed25519RecoveryError,
     },
 
     #[error("recipient is not formatted correctly: {address}")]

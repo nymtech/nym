@@ -2,18 +2,25 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::config::Config;
+use crate::config::persistence::{
+    DEFAULT_RD_BLOOMFILTER_FILE_EXT, DEFAULT_RD_BLOOMFILTER_FLUSH_FILE_EXT,
+};
 use crate::error::NymNodeError;
 use crate::node::replay_protection::bloomfilter::{ReplayProtectionBloomfilters, RotationFilter};
 use crate::node::replay_protection::items_in_bloomfilter;
 use human_repr::HumanCount;
 use nym_node_metrics::NymNodeMetrics;
 use std::cmp::max;
+use std::fs;
+use std::path::PathBuf;
 use std::time::Duration;
 use time::OffsetDateTime;
 use tracing::info;
 
 #[derive(Clone)]
 pub(crate) struct ReplayProtectionBloomfiltersManager {
+    bloomfilters_directory: PathBuf,
+
     target_fp_p: f64,
     minimum_bloomfilter_packets_per_second: usize,
     bloomfilter_size_multiplier: f64,
@@ -26,6 +33,7 @@ impl ReplayProtectionBloomfiltersManager {
     pub(crate) fn new_disabled(metrics: NymNodeMetrics) -> Self {
         // the exact config values are irrelevant as the filters will never be recreated
         ReplayProtectionBloomfiltersManager {
+            bloomfilters_directory: Default::default(),
             target_fp_p: 0.001,
             minimum_bloomfilter_packets_per_second: 1,
             bloomfilter_size_multiplier: 1.0,
@@ -41,6 +49,12 @@ impl ReplayProtectionBloomfiltersManager {
         metrics: NymNodeMetrics,
     ) -> Self {
         ReplayProtectionBloomfiltersManager {
+            bloomfilters_directory: config
+                .mixnet
+                .replay_protection
+                .storage_paths
+                .current_bloomfilters_directory
+                .clone(),
             target_fp_p: config.mixnet.replay_protection.debug.false_positive_rate,
             minimum_bloomfilter_packets_per_second: config
                 .mixnet
@@ -57,6 +71,22 @@ impl ReplayProtectionBloomfiltersManager {
         }
     }
 
+    pub(crate) fn bloomfilters_directory(&self) -> &PathBuf {
+        &self.bloomfilters_directory
+    }
+
+    pub(crate) fn bloomfilter_filepath(&self, rotation_id: u32) -> PathBuf {
+        self.bloomfilters_directory
+            .join(format!("rot-{rotation_id}"))
+            .with_extension(DEFAULT_RD_BLOOMFILTER_FILE_EXT)
+    }
+
+    pub(crate) fn current_bloomfilter_being_flushed_filepath(&self, rotation_id: u32) -> PathBuf {
+        self.bloomfilters_directory
+            .join(format!("rot-{rotation_id}"))
+            .with_extension(DEFAULT_RD_BLOOMFILTER_FLUSH_FILE_EXT)
+    }
+
     pub(crate) fn bloomfilters(&self) -> ReplayProtectionBloomfilters {
         self.filters.clone()
     }
@@ -70,7 +100,14 @@ impl ReplayProtectionBloomfiltersManager {
     }
 
     pub(crate) fn purge_secondary(&self) -> Result<(), NymNodeError> {
-        self.filters.purge_secondary()
+        // remove data in memory
+        if let Some(secondary_id) = self.filters.purge_secondary()? {
+            // remove data on disk (if applicable)
+            let path = self.bloomfilter_filepath(secondary_id);
+            fs::remove_file(&path)
+                .map_err(|source| NymNodeError::BloomfilterIoFailure { source, path })?;
+        }
+        Ok(())
     }
 
     pub(crate) fn promote_pre_announced(&self) -> Result<(), NymNodeError> {

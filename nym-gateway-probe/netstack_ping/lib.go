@@ -192,14 +192,20 @@ func ping(req NetstackRequestGo) (NetstackResponse, error) {
 
 	response.CanHandshake = true
 
-	version, duration, err := queryMetadata(req.MetadataEndpoint, req.MetadataTimeoutSec, tnet)
-	if err != nil {
-		log.Printf("Failed to query metadata URLs: %v\n", err)
-		response.CanQueryMetadata = false
+	// Skip metadata query if endpoint is empty (e.g., for IPv6 where the IPv4 metadata endpoint is not reachable)
+	if req.MetadataEndpoint != "" {
+		version, duration, err := queryMetadata(req.MetadataEndpoint, req.MetadataTimeoutSec, tnet)
+		if err != nil {
+			log.Printf("Failed to query metadata URLs: %v\n", err)
+			response.CanQueryMetadata = false
+		} else {
+			log.Printf("Queried metadata endpoint with version: %v\n", version)
+			log.Printf("Query duration: %v\n", duration)
+			response.CanQueryMetadata = true
+		}
 	} else {
-		log.Printf("Queried metadata endpoint with version: %v\n", version)
-		log.Printf("Query duration: %v\n", duration)
-		response.CanQueryMetadata = true
+		log.Printf("Skipping metadata query (no endpoint provided)")
+		response.CanQueryMetadata = false
 	}
 
 	for _, host := range req.PingHosts {
@@ -540,25 +546,25 @@ func queryMetadata(url string, timeoutSecs uint64, tnet *netstack.Net) (int, tim
 func main() {
 	// uncomment the lines below to run locally and see README.md for how to get the Wireguard config
 	/*	var _, err = ping(NetstackRequestGo{
-			WgIp:             "10.1.155.153",
-			PrivateKey:       "...",
-			PublicKey:        "...",
-			Endpoint:         "13.245.9.123:51822",
-			MetadataEndpoint: "http://10.1.0.1:51830",
-			Dns:              "1.1.1.1",
-			IpVersion:        4,
-			//PingHosts:          nil,
-			//PingIps:            nil,
-			//NumPing:            0,
-			//SendTimeoutSec:     0,
-			//RecvTimeoutSec:     0,
-			//DownloadTimeoutSec: 0,
-			MetadataTimeoutSec: 5,
-			//AwgArgs:            "",
-		})
+			 WgIp:             "10.1.155.153",
+			 PrivateKey:       "...",
+			 PublicKey:        "...",
+			 Endpoint:         "13.245.9.123:51822",
+			 MetadataEndpoint: "http://10.1.0.1:51830",
+			 Dns:              "1.1.1.1",
+			 IpVersion:        4,
+			 //PingHosts:          nil,
+			 //PingIps:            nil,
+			 //NumPing:            0,
+			 //SendTimeoutSec:     0,
+			 //RecvTimeoutSec:     0,
+			 //DownloadTimeoutSec: 0,
+			 MetadataTimeoutSec: 5,
+			 //AwgArgs:            "",
+		 })
 
-		if err != nil {
-			log.Fatal(err)
-		}
+		 if err != nil {
+			 log.Fatal(err)
+		 }
 	*/
 }

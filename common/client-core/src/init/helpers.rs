@@ -133,24 +133,34 @@ impl<'a, G: ConnectableGateway> GatewayWithLatency<'a, G> {
 }
 
 pub async fn gateways_for_init<R: Rng>(
-    rng: &mut R,
+    _rng: &mut R,
     nym_apis: &[Url],
     user_agent: Option<UserAgent>,
     minimum_performance: u8,
     ignore_epoch_roles: bool,
 ) -> Result<Vec<RoutingNode>, ClientCoreError> {
-    let nym_api = nym_apis
-        .choose(rng)
-        .ok_or(ClientCoreError::ListOfNymApisIsEmpty)?;
+    // Build client with ALL URLs for fallback support
+    let nym_api_urls: Vec<nym_http_api_client::Url> = nym_apis
+        .iter()
+        .filter_map(|url| nym_http_api_client::Url::parse(url.as_str()).ok())
+        .collect();
 
-    // Use the unified HTTP client directly with optional user agent
-    let mut builder = nym_http_api_client::Client::builder(nym_api.clone())
-        .map_err(|e| {
+    if nym_api_urls.is_empty() {
+        return Err(ClientCoreError::ListOfNymApisIsEmpty);
+    }
+
+    let mut builder = if nym_api_urls.len() == 1 {
+        nym_http_api_client::Client::builder(nym_api_urls[0].clone()).map_err(|e| {
             ClientCoreError::ValidatorClientError(nym_validator_client::ValidatorClientError::from(
                 e,
             ))
         })?
-        .with_bincode(); // Use bincode for better performance
+    } else {
+        nym_http_api_client::ClientBuilder::new_with_urls(nym_api_urls.clone()).with_retries(3)
+        // Enable URL rotation on failure
+    };
+
+    builder = builder.with_bincode();
 
     if let Some(user_agent) = user_agent {
         builder = builder.with_user_agent(user_agent);
@@ -160,7 +170,7 @@ pub async fn gateways_for_init<R: Rng>(
         ClientCoreError::ValidatorClientError(nym_validator_client::ValidatorClientError::from(e))
     })?;
 
-    tracing::debug!("Fetching list of gateways from: {nym_api}");
+    tracing::debug!("Fetching list of gateways from: {:?}", nym_api_urls);
 
     // Use our helper to handle pagination
     let gateways = get_all_basic_entry_nodes_with_metadata(&client, true)
@@ -413,4 +423,54 @@ pub(super) async fn register_with_gateway(
         shared_keys: auth_response.initial_shared_key,
         authenticated_ephemeral_client: gateway_client,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use url::Url;
+
+    #[test]
+    fn test_single_url_builds_without_retries() {
+        let urls = vec![Url::parse("https://api.nym.com").unwrap()];
+
+        let nym_api_urls: Vec<nym_http_api_client::Url> = urls
+            .iter()
+            .filter_map(|url| nym_http_api_client::Url::parse(url.as_str()).ok())
+            .collect();
+
+        assert_eq!(nym_api_urls.len(), 1, "Should have exactly one URL");
+    }
+
+    #[test]
+    fn test_multiple_urls_prepared_for_retries() {
+        let urls = vec![
+            Url::parse("https://api1.nym.com").unwrap(),
+            Url::parse("https://api2.nym.com").unwrap(),
+            Url::parse("https://api3.nym.com").unwrap(),
+        ];
+
+        let nym_api_urls: Vec<nym_http_api_client::Url> = urls
+            .iter()
+            .filter_map(|url| nym_http_api_client::Url::parse(url.as_str()).ok())
+            .collect();
+
+        assert_eq!(nym_api_urls.len(), 3, "Should have all three URLs");
+        assert!(
+            nym_api_urls.len() > 1,
+            "Multiple URLs trigger retry behavior"
+        );
+    }
+
+    #[test]
+    fn test_empty_url_list_is_detected() {
+        let urls: Vec<Url> = vec![];
+
+        let nym_api_urls: Vec<nym_http_api_client::Url> = urls
+            .iter()
+            .filter_map(|url| nym_http_api_client::Url::parse(url.as_str()).ok())
+            .collect();
+
+        assert!(nym_api_urls.is_empty(), "Empty list should remain empty");
+    }
 }

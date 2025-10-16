@@ -62,19 +62,7 @@ impl MixTrafficController {
         gateway_transceiver: Box<dyn GatewayTransceiver + Send>,
         shutdown_token: ShutdownToken,
     ) -> MixTrafficController {
-        let (message_sender, message_receiver) =
-            tokio::sync::mpsc::channel(MIX_MESSAGE_RECEIVER_BUFFER_SIZE);
-        let (client_sender, client_receiver) = tokio::sync::mpsc::channel(8);
-
-        MixTrafficController {
-            gateway_transceiver,
-            mix_tx: message_sender,
-            mix_rx: message_receiver,
-            client_rx: client_receiver,
-            client_tx: client_sender.clone(),
-            consecutive_gateway_failure_count: 0,
-            shutdown_token,
-        }
+        Self::new(gateway_transceiver, shutdown_token)
     }
 
     pub fn client_tx(&self) -> ClientRequestSender {

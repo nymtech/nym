@@ -7,7 +7,7 @@ pub(crate) const HIGH_SCORE_THRESHOLD: u8 = 80;
 pub(crate) const MEDIUM_SCORE_THRESHOLD: u8 = 60;
 pub(crate) const LOW_SCORE_THRESHOLD: u8 = 0;
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub enum Score {
     High(u8),
     Medium(u8),

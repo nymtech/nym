@@ -6250,14 +6250,15 @@ dependencies = [
 name = "nym-gateway-directory"
 version = "0.0.0"
 dependencies = [
- "futures",
  "itertools 0.14.0",
  "nym-client-core",
  "nym-common",
  "nym-crypto 0.4.0",
  "nym-http-api-client",
+ "nym-network-defaults 0.1.0",
  "nym-offline-monitor",
  "nym-sphinx",
+ "nym-sphinx-addressing",
  "nym-topology",
  "nym-validator-client 0.1.0",
  "nym-vpn-api-client",
@@ -6266,6 +6267,7 @@ dependencies = [
  "strum",
  "thiserror 2.0.17",
  "tokio",
+ "tokio-util",
  "tracing",
  "url",
 ]

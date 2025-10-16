@@ -3,33 +3,41 @@ name = "nym-gateway-directory"
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
-documentation.workspace = true
-edition.workspace = true
 license.workspace = true
+edition = "2024"
+
+[lints]
+workspace = true
 
 [dependencies]
-futures.workspace = true
 itertools.workspace = true
+# nym-client-core.workspace = true
 nym-client-core = { path = "../common/client-core" }
+# nym-common.workspace = true
 nym-common = { git = "https://github.com/nymtech/nym-vpn-client/", rev = "5ab01ba06057449614dd6a8450d04358c5ec33d1" }
+# nym-http-api-client.workspace = true
 nym-http-api-client = { path = "../common/http-api-client" }
+# nym-offline-monitor.workspace = true
 nym-offline-monitor = { git = "https://github.com/nymtech/nym-vpn-client/", rev = "5ab01ba06057449614dd6a8450d04358c5ec33d1" }
-nym-vpn-api-client = { git = "https://github.com/nymtech/nym-vpn-client/", rev = "5ab01ba06057449614dd6a8450d04358c5ec33d1" }
+# nym-sdk.workspace = true - removing due to circular dep, replaced with below
 nym-sphinx = { path = "../common/nymsphinx" } # replaces the types pulled in from nym-sdk in nym-vpn-client repo
+# nym-topology.workspace = true
 nym-topology = { path = "../common/topology" } # replaces the types pulled in from nym-sdk in nym-vpn-client repo
+# nym-validator-client.workspace = true
 nym-validator-client = { path = "../common/client-libs/validator-client" }
-nym-crypto = { path = "../common/crypto", features = [
-    "rand",
-    "asymmetric",
-    "stream_cipher",
-    "aes",
-    "hashing",
-] } # TODO probably dont need all these features, cut down
+# nym-vpn-api-client = { workspace = true }
+nym-vpn-api-client = { git = "https://github.com/nymtech/nym-vpn-client/", rev = "5ab01ba06057449614dd6a8450d04358c5ec33d1" }
+nym-crypto = { path = "../common/crypto" }
+nym-sphinx-addressing = { path = "../common/nymsphinx/addressing" }
+
+nym-network-defaults = { path = "../common/network-defaults" }
+
 rand.workspace = true
 serde.workspace = true
 strum.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
+tokio-util.workspace = true
 tracing.workspace = true
 url.workspace = true
 

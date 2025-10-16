@@ -24,6 +24,7 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
 use tokio::sync::RwLockReadGuard;
+use tracing::instrument;
 
 /// Client connected to the Nym mixnet.
 pub struct MixnetClient {
@@ -64,6 +65,7 @@ pub struct MixnetClient {
 
 impl MixnetClient {
     #[allow(clippy::too_many_arguments)]
+    #[instrument(name = "MixnetClient::new", skip_all)]
     pub(crate) fn new(
         nym_address: Recipient,
         identity_keys: Arc<ed25519::KeyPair>,

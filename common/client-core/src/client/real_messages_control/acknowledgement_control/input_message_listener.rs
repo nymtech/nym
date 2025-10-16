@@ -70,6 +70,7 @@ where
                 .send_reply(recipient_tag, data, lane, max_retransmissions);
     }
 
+    #[instrument(skip_all)]
     async fn handle_plain_message(
         &mut self,
         recipient: Recipient,
@@ -88,6 +89,7 @@ where
         }
     }
 
+    #[instrument(skip_all)]
     async fn handle_repliable_message(
         &mut self,
         recipient: Recipient,
@@ -234,6 +236,7 @@ where
         };
     }
 
+    #[instrument(skip_all)]
     pub(crate) async fn run(&mut self, shutdown_token: ShutdownToken) {
         debug!("Started InputMessageListener with graceful shutdown support");
 

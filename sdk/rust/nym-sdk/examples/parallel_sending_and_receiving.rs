@@ -7,7 +7,7 @@ use nym_sdk::mixnet::MixnetMessageSender;
 
 #[tokio::main]
 async fn main() {
-    nym_bin_common::logging::setup_tracing_logger();
+    nym_bin_common::logging::setup_no_otel_logger().expect("failed to initialize logging");
 
     // Passing no config makes the client fire up an ephemeral session and figure stuff out on its own
     let mut client = mixnet::MixnetClient::connect_new().await.unwrap();

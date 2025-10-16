@@ -152,7 +152,7 @@ async fn main() -> anyhow::Result<()> {
 
     let args = Cli::parse();
     setup_env(args.config_env_file.as_ref());
-    // setup_tracing_logger();
+    // setup_no_otel_logger().expect("failed to initialize logging");
 
     args.execute().await
 }

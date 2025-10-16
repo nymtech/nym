@@ -3,7 +3,7 @@
 
 use clap::{CommandFactory, Parser, Subcommand};
 use log::{error, warn};
-use nym_bin_common::logging::setup_tracing_logger;
+use nym_bin_common::logging::setup_no_otel_logger;
 use nym_cli_commands::context::{get_network_details, ClientArgs};
 use nym_validator_client::nyxd::AccountId;
 
@@ -147,7 +147,7 @@ async fn wait_for_interrupt() {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    setup_tracing_logger();
+    setup_no_otel_logger().expect("failed to initialize logging");
 
     let cli = Cli::parse();
 

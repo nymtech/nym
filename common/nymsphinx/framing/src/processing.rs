@@ -2,8 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::packet::FramedNymPacket;
-use nym_bin_common::opentelemetry::compact_id_generator::decompress_trace_id;
-use nym_bin_common::opentelemetry::context::ManualContextPropagator;
+#[cfg(feature = "otel")]
+use nym_bin_common::opentelemetry::{
+    compact_id_generator::decompress_trace_id,
+    context::ManualContextPropagator,
+};
+
 use nym_sphinx_acknowledgements::surb_ack::{SurbAck, SurbAckRecoveryError};
 use nym_sphinx_addressing::nodes::{NymNodeRoutingAddress, NymNodeRoutingAddressError};
 use nym_sphinx_forwarding::packet::MixPacket;
@@ -16,7 +20,9 @@ use nym_sphinx_types::{
 };
 use std::fmt::Display;
 use thiserror::Error;
-use tracing::{debug, error, info, instrument, trace, warn, warn_span};
+use tracing::{debug, error, info, instrument, trace, warn};
+#[cfg(feature = "otel")]
+use tracing::warn_span;
 
 #[derive(Debug)]
 pub enum MixProcessingResultData {
@@ -261,21 +267,27 @@ fn wrap_processed_sphinx_packet(
         // sphinx all together?
         ProcessedPacketData::FinalHop {
             destination,
+            #[cfg(feature = "otel")]
             identifier,
+            #[cfg(not(feature = "otel"))]
+            identifier: _,
             payload,
         } => {
             // if we have a trace id in the destination, we log it for easier correlation later on
-            // TODO add feature for otel
-            {
-                let trace_bytes: [u8; 12] = identifier[0..12].try_into().unwrap();
-                if !trace_bytes.iter().all(|b| *b == 0) {
+            #[cfg(feature = "otel")]
+            let span = match identifier[0..12].try_into().map(|b: [u8; 12]| b) {
+                Ok(trace_bytes) if !trace_bytes.iter().all(|b| *b == 0) => {
                     let full_trace_id_bytes = decompress_trace_id(&trace_bytes);
                     let full_trace_id = opentelemetry::trace::TraceId::from_bytes(full_trace_id_bytes);
                     let context_propagator = ManualContextPropagator::new_from_tid("final_hop", full_trace_id);
-                    let span = warn_span!(parent: &context_propagator.root_span, "final_hop_processing", trace_id=%full_trace_id);
-                    let _enter = span.enter();
+                    warn_span!(parent: &context_propagator.root_span, "final_hop_processing", trace_id=%full_trace_id)
                 }
-            }
+                _ => {
+                    warn_span!("final_hop_processing")
+                }
+            };
+            #[cfg(feature = "otel")]
+            let _entered_span = span.enter();
 
             process_final_hop(
                 destination,

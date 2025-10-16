@@ -14,6 +14,7 @@ use futures::{
     future::{FusedFuture, OptionFuture},
     FutureExt, StreamExt,
 };
+#[cfg(feature = "otel")]
 use nym_bin_common::opentelemetry::context::ManualContextPropagator;
 use nym_credential_verification::CredentialVerifier;
 use nym_credential_verification::{
@@ -32,7 +33,9 @@ use nym_sphinx::forwarding::packet::MixPacket;
 use nym_statistics_common::{gateways::GatewaySessionEvent, types::SessionType};
 use nym_validator_client::coconut::EcashApiError;
 use rand::{random, CryptoRng, Rng};
-use std::{collections::HashMap, process, time::Duration};
+#[cfg(feature = "otel")]
+use std::collections::HashMap;
+use std::{process, time::Duration};
 use thiserror::Error;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_tungstenite::tungstenite::{protocol::Message, Error as WsError};
@@ -148,6 +151,7 @@ pub(crate) struct AuthenticatedHandler<R, S> {
     // senders that are used to return the result of the ping to the handler requesting the ping.
     is_active_request_receiver: IsActiveRequestReceiver,
     is_active_ping_pending_reply: Option<(u64, IsActiveResultSender)>,
+    #[cfg(feature = "otel")]
     otel_propagator: Option<ManualContextPropagator>,
 }
 
@@ -191,15 +195,19 @@ impl<R, S> AuthenticatedHandler<R, S> {
                 client_address: client.address.as_base58_string(),
             })?;
 
-        let context = match client.otel_context {
-            Some(ref ctx) => ctx.clone(),
-            None => HashMap::new(),
-        };
+        #[cfg(feature = "otel")]
+        let manual_ctx_propagator = {
+            let context = match client.otel_context {
+                Some(ref ctx) => ctx.clone(),
+                None => HashMap::new(),
+            };
 
-        let manual_ctx_propagator = if !context.is_empty() {
-            Some(ManualContextPropagator::new("upgrading_fresh_to_authenticated", context))
-        } else {
-            None
+            let manual_ctx_propagator = if !context.is_empty() {
+                Some(ManualContextPropagator::new("upgrading_fresh_to_authenticated", context))
+            } else {
+                None
+            };
+            manual_ctx_propagator
         };
 
         let handler = AuthenticatedHandler {
@@ -215,6 +223,7 @@ impl<R, S> AuthenticatedHandler<R, S> {
             mix_receiver,
             is_active_request_receiver,
             is_active_ping_pending_reply: None,
+            #[cfg(feature = "otel")]
             otel_propagator: manual_ctx_propagator,
         };
         handler.send_metrics(GatewaySessionEvent::new_session_start(
@@ -243,11 +252,14 @@ impl<R, S> AuthenticatedHandler<R, S> {
     /// * `mix_packet`: packet received from the client that should get forwarded into the network.
     #[instrument(skip_all)]
     fn forward_packet(&self, mix_packet: MixPacket) {
-        let span = match &self.otel_propagator {
-            Some(propagator) => info_span!(parent: &propagator.root_span, "forwarding_mix_packet"),
-            None => info_span!("forwarding_mix_packet_no_otel"),
-        };
-        let _enter = span.enter();
+        #[cfg(feature = "otel")]
+        {
+            let span = match &self.otel_propagator {
+                Some(propagator) => info_span!(parent: &propagator.root_span, "forwarding_mix_packet"),
+                None => info_span!("forwarding_mix_packet_no_otel"),
+            };
+            let _enter = span.enter();
+        }
 
         if let Err(err) = self
             .inner
@@ -308,10 +320,16 @@ impl<R, S> AuthenticatedHandler<R, S> {
         &mut self,
         mix_packet: MixPacket,
     ) -> Result<ServerResponse, RequestHandlingError> {
-        let span = match &self.otel_propagator {
-            Some(propagator) => info_span!(parent: &propagator.root_span, "handling_forward_sphinx"),
-            None => info_span!("handling_forward_sphinx_no_otel"),
+        trace!("forwarding sphinx packet");
+        #[cfg(feature = "otel")]
+        let span = {
+            let span = match &self.otel_propagator {
+                Some(propagator) => info_span!(parent: &propagator.root_span, "handling_forward_sphinx"),
+                None => info_span!("handling_forward_sphinx_no_otel"),
+            };
+            span
         };
+        #[cfg(feature = "otel")]
         let _enter = span.enter();
 
         let required_bandwidth = mix_packet.packet().len() as i64;
@@ -335,10 +353,15 @@ impl<R, S> AuthenticatedHandler<R, S> {
     #[instrument(skip_all)]
     async fn handle_binary(&mut self, bin_msg: Vec<u8>) -> Message {
         trace!("binary request");
-        let span = match &self.otel_propagator {
-            Some(propagator) => info_span!(parent: &propagator.root_span, "handling_binary_request"),
-            None => info_span!("handling_binary_request_no_otel"),
+        #[cfg(feature = "otel")]
+        let span = {
+            let span = match &self.otel_propagator {
+                Some(propagator) => info_span!(parent: &propagator.root_span, "handling_binary_request"),
+                None => info_span!("handling_binary_request_no_otel"),
+            };
+            span
         };
+        #[cfg(feature = "otel")]
         let _enter = span.enter();
 
         // this function decrypts the request and checks the MAC
@@ -653,11 +676,17 @@ impl<R, S> AuthenticatedHandler<R, S> {
                     self.handle_ping_timeout().await;
                 },
                 socket_msg = self.inner.read_websocket_message() => {
-                    let span = match &self.otel_propagator {
-                        Some(propagator) => info_span!(parent: &propagator.root_span, "client_message_received"),
-                        None => info_span!("client_message_received_no_otel"),
+                    #[cfg(feature = "otel")]
+                    let span = {
+                        let span = match &self.otel_propagator {
+                            Some(propagator) => info_span!(parent: &propagator.root_span, "client_message_received"),
+                            None => info_span!("client_message_received_no_otel"),
+                        };
+                        span
                     };
+                    #[cfg(feature = "otel")]
                     let _enter = span.enter();
+
                     let socket_msg = match socket_msg {
                         None => break,
                         Some(Ok(socket_msg)) => socket_msg,
@@ -681,11 +710,17 @@ impl<R, S> AuthenticatedHandler<R, S> {
                     }
                 },
                 mix_messages = self.mix_receiver.next() => {
-                    let span = match &self.otel_propagator {
-                        Some(propagator) => info_span!(parent: &propagator.root_span, "mix_message_received"),
-                        None => info_span!("mix_message_received_no_otel"),
+                    #[cfg(feature = "otel")]
+                    let span = {
+                        let span = match &self.otel_propagator {
+                            Some(propagator) => info_span!(parent: &propagator.root_span, "mix_message_received"),
+                            None => info_span!("mix_message_received_no_otel"),
+                        };
+                        span
                     };
+                    #[cfg(feature = "otel")]
                     let _enter = span.enter();
+
                     let mix_messages = match mix_messages {
                         None => {
                             debug!("mix receiver was closed! Assuming the connection is dead.");

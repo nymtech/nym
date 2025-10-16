@@ -11,7 +11,7 @@ use crate::error::NymvisorError;
 use crate::helpers::init_path;
 use crate::upgrades::types::{CurrentVersionInfo, UpgradeInfo, UpgradePlan};
 use nym_bin_common::build_information::BinaryBuildInformationOwned;
-use nym_bin_common::logging::setup_tracing_logger;
+use nym_bin_common::logging::setup_no_otel_logger;
 use nym_bin_common::output_format::OutputFormat;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -412,7 +412,7 @@ pub(crate) fn execute(args: Args) -> Result<(), NymvisorError> {
     let env = Env::try_read()?;
 
     if use_logs(args.disable_nymvisor_logs, &env) {
-        setup_tracing_logger();
+        setup_no_otel_logger().expect("failed to initialize logging");
         info!("enabled nymvisor logging");
     }
 

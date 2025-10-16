@@ -5,10 +5,14 @@ use crate::mixnet::{AnonymousSenderTag, IncludedSurbs, Recipient};
 use crate::Result;
 use async_trait::async_trait;
 use nym_client_core::client::inbound_messages::InputMessage;
+#[cfg(feature = "otel"
+)]
 use nym_bin_common::opentelemetry::compact_id_generator::compress_trace_id;
 use nym_sphinx::params::PacketType;
 use nym_task::connections::TransmissionLane;
+#[cfg(feature = "otel")]
 use opentelemetry::trace::TraceContextExt;
+#[cfg(feature = "otel")]
 use opentelemetry::Context;
 use tracing::instrument;
 
@@ -77,10 +81,14 @@ pub trait MixnetMessageSender {
     {
         // In case of surb opentelemetry tracing, we extract the context and trace_id
         // in the 12 bytes format
-        let context = Context::current();
-        let trace_id = context.span().span_context().trace_id();
-        tracing::warn!("Extracted trace_id from surb context: {:?}", trace_id);
-        let trace_id = compress_trace_id(&trace_id);
+        #[cfg(feature = "otel")]
+        let trace_id = {
+            let context = Context::current();
+            let trace_id = context.span().span_context().trace_id();
+            Some(compress_trace_id(&trace_id))
+        };
+        #[cfg(not(feature = "otel"))]
+        let trace_id = None;
 
         let lane = TransmissionLane::General;
         let input_msg = match surbs {
@@ -90,14 +98,14 @@ pub trait MixnetMessageSender {
                 surbs,
                 lane,
                 self.packet_type(),
-                Some(trace_id)
+                trace_id,
             ),
             IncludedSurbs::ExposeSelfAddress => InputMessage::new_regular(
                 address,
                 message.as_ref().to_vec(),
                 lane,
                 self.packet_type(),
-                Some(trace_id)
+                trace_id,
             ),
         };
         self.send(input_msg).await

@@ -4,7 +4,7 @@
 use crate::cli::Cli;
 use clap::Parser;
 use nym_bin_common::bin_info_owned;
-use nym_bin_common::logging::setup_tracing_logger;
+use nym_bin_common::logging::setup_no_otel_logger;
 use tracing::{info, trace};
 
 mod cli;
@@ -13,7 +13,7 @@ pub(crate) mod test_result;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    setup_tracing_logger();
+    setup_no_otel_logger().expect("failed to initialize logging");
     let cli = Cli::parse();
     trace!("args: {cli:#?}");
 

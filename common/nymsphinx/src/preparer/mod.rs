@@ -168,7 +168,6 @@ pub trait FragmentPreparer {
     /// - compute sphinx_plaintext = SURB_ACK || g^x || v_b
     /// - compute sphinx_packet = Sphinx(recipient, sphinx_plaintext)
     #[allow(clippy::too_many_arguments)]
-    #[instrument(skip_all)]
     fn prepare_chunk_for_sending(
         &mut self,
         fragment: Fragment,
@@ -264,8 +263,8 @@ pub trait FragmentPreparer {
             )?,
         };
 
-    /// - compute k = KDF(remote encryption key ^ x) this is equivalent to KDF( dh(remote, x) )
-    /// from the previously constructed route extract the first hop
+    // - compute k = KDF(remote encryption key ^ x) this is equivalent to KDF( dh(remote, x) )
+    // from the previously constructed route extract the first hop
     let first_hop_address =
         NymNodeRoutingAddress::try_from(route.first().unwrap().address).unwrap();
 

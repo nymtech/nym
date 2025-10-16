@@ -27,7 +27,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 use thiserror::Error;
-use tracing::{debug, error, info, trace, warn};
+use tracing::{debug, error, info, instrument, trace, warn};
 
 // TODO: move that error elsewhere since it seems to be contaminating different files
 #[derive(Debug, Error)]
@@ -476,6 +476,7 @@ where
         self.forward_messages(msgs, lane).await;
     }
 
+    #[instrument(skip_all)]
     pub(crate) async fn try_send_plain_message(
         &mut self,
         recipient: Recipient,
@@ -497,6 +498,7 @@ where
         .await
     }
 
+    #[instrument(skip_all)]
     pub(crate) async fn try_split_and_send_non_reply_message(
         &mut self,
         message: NymMessage,

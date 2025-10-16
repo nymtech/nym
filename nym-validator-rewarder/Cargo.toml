@@ -32,8 +32,8 @@ humantime = { workspace = true }
 humantime-serde.workspace = true
 
 # internal
-nym-bin-common = { path = "../common/bin-common", features = ["output_format", "basic_tracing"] }
-nym-config = { path = "../common/config" }
+nym-bin-common = { path = "../common/bin-common", features = ["output_format"] }
+nym-config = { path = "../common/config" } 
 nym-ecash-time = { path = "../common/ecash-time" }
 nym-contracts-common = { path = "../common/cosmwasm-smart-contracts/contracts-common" }
 nym-compact-ecash = { path = "../common/nym_offline_compact_ecash" }

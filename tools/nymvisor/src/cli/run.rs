@@ -7,7 +7,7 @@ use crate::error::NymvisorError;
 use crate::tasks::launcher::DaemonLauncher;
 use crate::tasks::upgrade_plan_watcher::start_upgrade_plan_watcher;
 use crate::tasks::upstream_poller::UpstreamPoller;
-use nym_bin_common::logging::setup_tracing_logger;
+use nym_bin_common::logging::setup_no_otel_logger;
 use std::future::Future;
 use std::time::Duration;
 use tokio::runtime;
@@ -25,7 +25,7 @@ pub(crate) fn execute(args: Args) -> Result<(), NymvisorError> {
     let env = Env::try_read()?;
     let config = try_load_current_config(&env)?;
     if !config.nymvisor.debug.disable_logs {
-        setup_tracing_logger();
+        setup_no_otel_logger().expect("failed to initialize logging");
     }
 
     info!("starting nymvisor for {}", config.daemon.name);

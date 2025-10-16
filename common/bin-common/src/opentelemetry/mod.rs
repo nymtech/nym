@@ -1,5 +1,4 @@
 pub mod context;
-pub mod error;
 pub mod compact_id_generator;
 mod trace_id_format;
 
@@ -9,8 +8,8 @@ use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::fmt;
 
-use crate::logging::{default_tracing_env_filter, default_tracing_fmt_layer};
-use crate::opentelemetry::error::TracingError;
+use crate::logging::default_tracing_env_filter;
+use crate::logging::error::TracingError;
 use crate::opentelemetry::compact_id_generator::Compact13BytesIdGenerator;
 use opentelemetry::trace::TracerProvider;
 use opentelemetry::{global, KeyValue};
@@ -54,10 +53,10 @@ pub(crate) fn granual_filtered_env() -> Result<tracing_subscriber::filter::EnvFi
     Ok(filter)
 }
 
-pub fn setup_tracing_logger(service_name: String) -> Result<TracerProviderGuard, TracingError> {
+pub fn setup_tracing_logger(service_name: String) -> Result<(), TracingError> {
     if tracing::dispatcher::has_been_set() {
         // It shouldn't be - this is really checking that it is torn down between async command executions
-        return Err(error::TracingError::TracingLoggerAlreadyInitialised);
+        return Err(TracingError::TracingLoggerAlreadyInitialised);
     }
 
     let key =
@@ -102,29 +101,6 @@ pub fn setup_tracing_logger(service_name: String) -> Result<TracerProviderGuard,
             .try_init()
             .map_err(|e| TracingError::TracingTryInitError(e))?;
     }}
-
-    let guard = TracerProviderGuard(Some(tracer_provider));
-    
-    Ok(guard)
-}
-
-pub fn setup_no_otel_logger() -> Result<(), TracingError> {
-    // Only set up if not already initialized
-    if tracing::dispatcher::has_been_set() {
-        // It shouldn't be - this is really checking that it is torn down between async command executions
-        return Err(TracingError::TracingLoggerAlreadyInitialised);
-    }
-
-    let registry = tracing_subscriber::registry()
-        .with(default_tracing_fmt_layer(std::io::stderr))
-        .with(granual_filtered_env()?)
-        .with(tracing_subscriber::filter::LevelFilter::from_level(
-            Level::INFO,
-        ));
-
-    registry
-        .try_init()
-        .map_err(|e| TracingError::TracingTryInitError(e))?;
 
     Ok(())
 }

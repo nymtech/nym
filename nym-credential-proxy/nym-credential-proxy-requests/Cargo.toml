@@ -16,6 +16,7 @@ schemars = { workspace = true, features = ["preserve_order", "uuid1"] }
 uuid = { workspace = true, features = ["serde"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
+serde_with = { workspace = true }
 time = { workspace = true, features = ["serde", "formatting", "parsing"] }
 tsify = { workspace = true, optional = true }
 reqwest = { workspace = true, features = ["json", "rustls-tls"] }

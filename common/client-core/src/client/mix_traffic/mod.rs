@@ -5,7 +5,6 @@ use crate::client::{
     base_client::{EventSender, MixnetClientEvent},
     mix_traffic::transceiver::GatewayTransceiver,
 };
-use futures::SinkExt;
 use nym_gateway_requests::ClientRequest;
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_task::ShutdownToken;
@@ -165,7 +164,7 @@ impl MixTrafficController {
                                 // Do we need to handle the embedded mixnet client case
                                 // separately?
                                 if let Some(event_tx) = self.event_tx.as_mut() {
-                                    event_tx.send(MixnetClientEvent::FailedSendingSphinx).await.ok();
+                                    event_tx.send(MixnetClientEvent::FailedSendingSphinx);
                                 }
                                 break;
                             }

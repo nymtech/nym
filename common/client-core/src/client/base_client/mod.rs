@@ -66,7 +66,6 @@ use std::path::Path;
 use std::sync::Arc;
 use time::OffsetDateTime;
 use tokio::sync::mpsc::Sender;
-use tracing::*;
 use url::Url;
 
 #[cfg(target_arch = "wasm32")]
@@ -87,8 +86,17 @@ pub enum MixnetClientEvent {
     FailedSendingSphinx,
 }
 
-pub type EventSender = mpsc::UnboundedSender<MixnetClientEvent>;
 pub type EventReceiver = mpsc::UnboundedReceiver<MixnetClientEvent>;
+#[derive(Clone)]
+pub struct EventSender(pub mpsc::UnboundedSender<MixnetClientEvent>);
+
+impl EventSender {
+    pub fn send(&self, event: MixnetClientEvent) {
+        if let Err(err) = self.0.unbounded_send(event) {
+            tracing::warn!("Failed to send error event. The caller event reader was closed: {err}");
+        }
+    }
+}
 
 #[derive(Clone)]
 pub struct ClientInput {
@@ -344,7 +352,7 @@ where
         stats_tx: ClientStatsSender,
         shutdown_tracker: &ShutdownTracker,
     ) {
-        info!("Starting loop cover traffic stream...");
+        tracing::info!("Starting loop cover traffic stream...");
 
         let mut stream = LoopCoverTrafficStream::new(
             ack_key,
@@ -376,7 +384,7 @@ where
         stats_tx: ClientStatsSender,
         shutdown_tracker: &ShutdownTracker,
     ) {
-        info!("Starting real traffic stream...");
+        tracing::info!("Starting real traffic stream...");
 
         let real_messages_controller = RealMessagesController::new(
             controller_config,
@@ -461,7 +469,7 @@ where
         metrics_reporter: ClientStatsSender,
         shutdown_tracker: &ShutdownTracker,
     ) {
-        info!("Starting received messages buffer controller...");
+        tracing::info!("Starting received messages buffer controller...");
         let controller = ReceivedMessagesBufferController::<SphinxMessageReceiver>::new(
             local_encryption_keypair,
             query_receiver,
@@ -572,7 +580,7 @@ where
             details_store
                 .upgrade_stored_remote_gateway_key(gateway_client.gateway_identity(), &updated_key)
                 .await.map_err(|err| {
-                error!("failed to store upgraded gateway key! this connection might be forever broken now: {err}");
+                tracing::error!("failed to store upgraded gateway key! this connection might be forever broken now: {err}");
                 ClientCoreError::GatewaysDetailsStoreError { source: Box::new(err) }
             })?
         }
@@ -669,7 +677,7 @@ where
 
         if topology_config.disable_refreshing {
             // if we're not spawning the refresher, don't cause shutdown immediately
-            info!("The background topology refresher is not going to be started");
+            tracing::info!("The background topology refresher is not going to be started");
         }
 
         let mut topology_refresher = TopologyRefresher::new(
@@ -679,7 +687,7 @@ where
         );
         // before returning, block entire runtime to refresh the current network view so that any
         // components depending on topology would see a non-empty view
-        info!("Obtaining initial network topology");
+        tracing::info!("Obtaining initial network topology");
         topology_refresher.try_refresh().await;
 
         if let Err(err) = topology_refresher.ensure_topology_is_routable().await {
@@ -705,13 +713,13 @@ where
                     .wait_for_gateway(local_gateway, waiting_timeout)
                     .await
                 {
-                    error!(
+                    tracing::error!(
                         "the gateway did not come back online within the specified timeout: {err}"
                     );
                     return Err(err.into());
                 }
             } else {
-                error!("the gateway we're supposedly connected to does not exist. We'll not be able to send any packets to ourselves: {err}");
+                tracing::error!("the gateway we're supposedly connected to does not exist. We'll not be able to send any packets to ourselves: {err}");
                 return Err(err.into());
             }
         }
@@ -719,7 +727,7 @@ where
         if !topology_config.disable_refreshing {
             // don't spawn the refresher if we don't want to be refreshing the topology.
             // only use the initial values obtained
-            info!("Starting topology refresher...");
+            tracing::info!("Starting topology refresher...");
             shutdown_tracker.try_spawn_named_with_shutdown(
                 async move { topology_refresher.run().await },
                 "TopologyRefresher",
@@ -736,7 +744,7 @@ where
         input_sender: Sender<InputMessage>,
         shutdown_tracker: &ShutdownTracker,
     ) -> ClientStatsSender {
-        info!("Starting statistics control...");
+        tracing::info!("Starting statistics control...");
         StatisticsControl::create_and_start(
             config.debug.stats_reporting,
             user_agent
@@ -753,7 +761,7 @@ where
         shutdown_tracker: &ShutdownTracker,
         event_tx: Option<EventSender>,
     ) -> (BatchMixMessageSender, ClientRequestSender) {
-        info!("Starting mix traffic controller...");
+        tracing::info!("Starting mix traffic controller...");
         let (mut mix_traffic_controller, mix_tx, client_tx) = MixTrafficController::new(
             gateway_transceiver,
             shutdown_tracker.clone_shutdown_token(),
@@ -822,7 +830,7 @@ where
     {
         // if client keys do not exist already, create and persist them
         if key_store.load_keys().await.is_err() {
-            info!("could not find valid client keys - a new set will be generated");
+            tracing::info!("could not find valid client keys - a new set will be generated");
             let mut rng = OsRng;
             let keys = if let Some(derivation_material) = derivation_material {
                 ClientKeys::from_master_key(&mut rng, &derivation_material)
@@ -869,7 +877,7 @@ where
         <S::CredentialStore as CredentialStorage>::StorageError: Send + Sync + 'static,
         <S::GatewaysDetailsStore as GatewaysDetailsStore>::StorageError: Sync + Send,
     {
-        info!("Starting nym client");
+        tracing::info!("Starting nym client");
         #[cfg(debug_assertions)]
         #[cfg(target_arch = "wasm32")]
         {
@@ -1055,8 +1063,8 @@ where
             );
         }
 
-        debug!("Core client startup finished!");
-        debug!("The address of this client is: {self_address}");
+        tracing::debug!("Core client startup finished!");
+        tracing::debug!("The address of this client is: {self_address}");
 
         #[cfg(debug_assertions)]
         #[cfg(target_arch = "wasm32")]

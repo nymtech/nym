@@ -1,23 +1,42 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use std::net::{IpAddr, SocketAddr};
+use std::{
+    net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr},
+    time::Duration,
+};
 
 use nym_common::trace_err_chain;
 use nym_http_api_client::HickoryDnsResolver;
 
-use crate::{error::Result, gateway_client::ResolvedConfig, Config, Error};
+use crate::{Config, Error, error::Result, gateway_client::ResolvedConfig};
+
+// be generous with the resolution timeout
+const HOSTNAME_RESOLUTION_TIMEOUT: Duration = Duration::from_secs(10);
 
 async fn try_resolve_hostname(hostname: &str) -> Result<Vec<IpAddr>> {
     tracing::debug!("Trying to resolve hostname: {hostname}");
     let resolver = HickoryDnsResolver::default();
-    let addrs = resolver.resolve_str(hostname).await.map_err(|err| {
-        trace_err_chain!(err, "Failed to resolve gateway hostname");
-        Error::FailedToDnsResolveGateway {
-            hostname: hostname.to_string(),
-            source: err,
-        }
-    })?;
+
+    let addrs =
+        match tokio::time::timeout(HOSTNAME_RESOLUTION_TIMEOUT, resolver.resolve_str(hostname))
+            .await
+        {
+            Ok(Ok(addrs)) => addrs,
+            Ok(Err(err)) => {
+                trace_err_chain!(err, "Failed to resolve hostname");
+                return Err(Error::FailedToDnsResolveGateway {
+                    hostname: hostname.to_string(),
+                    source: err,
+                });
+            }
+            Err(_timeout) => {
+                return Err(Error::HostnameResolutionTimeout {
+                    hostname: hostname.to_string(),
+                });
+            }
+        };
+
     tracing::debug!("Resolved to: {addrs:?}");
 
     let ips = addrs.iter().collect::<Vec<_>>();
@@ -61,4 +80,15 @@ pub async fn resolve_config(config: &Config) -> Result<ResolvedConfig> {
         api_socket_addrs,
         nym_vpn_api_socket_addrs,
     })
+}
+
+pub fn split_ips(ips: Vec<IpAddr>) -> (Vec<Ipv4Addr>, Vec<Ipv6Addr>) {
+    ips.into_iter()
+        .fold((vec![], vec![]), |(mut v4, mut v6), ip| {
+            match ip {
+                IpAddr::V4(ipv4_addr) => v4.push(ipv4_addr),
+                IpAddr::V6(ipv6_addr) => v6.push(ipv6_addr),
+            }
+            (v4, v6)
+        })
 }

@@ -16,7 +16,7 @@ use nym_client_core::client::base_client::storage::helpers::{
 use nym_client_core::client::base_client::storage::{
     Ephemeral, GatewaysDetailsStore, MixnetClientStorage, OnDiskPersistent,
 };
-use nym_client_core::client::base_client::BaseClient;
+use nym_client_core::client::base_client::{BaseClient, EventSender};
 use nym_client_core::client::key_manager::persistence::KeyStore;
 use nym_client_core::client::{
     base_client::BaseClientBuilder, replies::reply_storage::ReplyStorageBackend,
@@ -53,6 +53,7 @@ pub struct MixnetClientBuilder<S: MixnetClientStorage = Ephemeral> {
     custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
     custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send + Sync>>,
     custom_shutdown: Option<ShutdownTracker>,
+    event_tx: Option<EventSender>,
     force_tls: bool,
     user_agent: Option<UserAgent>,
     #[cfg(unix)]
@@ -96,6 +97,7 @@ impl MixnetClientBuilder<OnDiskPersistent> {
                 .await?,
             gateway_endpoint_config_path: None,
             custom_shutdown: None,
+            event_tx: None,
             custom_gateway_transceiver: None,
             force_tls: false,
             user_agent: None,
@@ -129,6 +131,7 @@ where
             custom_topology_provider: None,
             custom_gateway_transceiver: None,
             custom_shutdown: None,
+            event_tx: None,
             force_tls: false,
             user_agent: None,
             #[cfg(unix)]
@@ -152,6 +155,7 @@ where
             custom_topology_provider: self.custom_topology_provider,
             custom_gateway_transceiver: self.custom_gateway_transceiver,
             custom_shutdown: self.custom_shutdown,
+            event_tx: self.event_tx,
             force_tls: self.force_tls,
             user_agent: self.user_agent,
             #[cfg(unix)]
@@ -269,6 +273,13 @@ where
         self
     }
 
+    /// Use an externally managed shutdown mechanism.
+    #[must_use]
+    pub fn event_tx(mut self, event_tx: EventSender) -> Self {
+        self.event_tx = Some(event_tx);
+        self
+    }
+
     /// Attempt to wait for the selected gateway (if applicable) to come online if its currently not bonded.
     #[must_use]
     pub fn with_wait_for_gateway(mut self, wait_for_gateway: bool) -> Self {
@@ -317,8 +328,12 @@ where
 
     /// Construct a [`DisconnectedMixnetClient`] from the setup specified.
     pub fn build(self) -> Result<DisconnectedMixnetClient<S>> {
-        let mut client =
-            DisconnectedMixnetClient::new(self.config, self.socks5_config, self.storage)?;
+        let mut client = DisconnectedMixnetClient::new(
+            self.config,
+            self.socks5_config,
+            self.storage,
+            self.event_tx,
+        )?;
 
         client.custom_gateway_transceiver = self.custom_gateway_transceiver;
         client.custom_topology_provider = self.custom_topology_provider;
@@ -380,6 +395,9 @@ where
     /// Allows passing an externally controlled shutdown handle.
     custom_shutdown: Option<ShutdownTracker>,
 
+    /// Sender of mixnet client events to the SDK caller
+    event_tx: Option<EventSender>,
+
     user_agent: Option<UserAgent>,
 
     /// Callback on the websocket fd as soon as the connection has been established
@@ -415,6 +433,7 @@ where
         config: Config,
         socks5_config: Option<Socks5>,
         storage: S,
+        event_tx: Option<EventSender>,
     ) -> Result<DisconnectedMixnetClient<S>> {
         // don't create dkg client for the bandwidth controller if credentials are disabled
         let dkg_query_client = if config.enabled_credentials_mode {
@@ -443,6 +462,7 @@ where
             wait_for_gateway: false,
             force_tls: false,
             custom_shutdown: None,
+            event_tx,
             user_agent: None,
             #[cfg(unix)]
             connection_fd_callback: None,
@@ -699,6 +719,9 @@ where
             }
         };
         base_builder = base_builder.with_shutdown(shutdown_tracker);
+        if let Some(event_tx) = self.event_tx {
+            base_builder = base_builder.with_event_tx(event_tx);
+        }
 
         if let Some(gateway_transceiver) = self.custom_gateway_transceiver {
             base_builder = base_builder.with_gateway_transceiver(gateway_transceiver);

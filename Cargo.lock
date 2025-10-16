@@ -6672,6 +6672,7 @@ dependencies = [
 name = "nym-registration-client"
 version = "0.1.0"
 dependencies = [
+ "futures",
  "nym-authenticator-client",
  "nym-bandwidth-controller",
  "nym-credential-storage",

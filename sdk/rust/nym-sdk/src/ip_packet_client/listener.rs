@@ -33,12 +33,11 @@ pub enum IprListenerError {
 impl From<super::error::Error> for IprListenerError {
     fn from(err: super::error::Error) -> Self {
         match err {
-            super::error::Error::SdkError(sdk_err) => {
-                IprListenerError::IprClientError(*sdk_err)
-            }
-            other => IprListenerError::IprClientError(
-                crate::Error::new_unsupported(format!("IP packet error: {}", other))
-            )
+            super::error::Error::SdkError(sdk_err) => IprListenerError::IprClientError(*sdk_err),
+            other => IprListenerError::IprClientError(crate::Error::new_unsupported(format!(
+                "IP packet error: {}",
+                other
+            ))),
         }
     }
 }

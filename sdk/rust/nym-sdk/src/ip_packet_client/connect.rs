@@ -13,6 +13,7 @@ use tokio::time::sleep;
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, error};
 
+use super::error::{Error, Result};
 use crate::{
     ip_packet_client::current::{
         request::IpPacketRequest,
@@ -23,8 +24,6 @@ use crate::{
     },
     ip_packet_client::helpers::check_ipr_message_version,
 };
-use super::error::{Error, Result};
-
 
 pub type SharedMixnetClient = Arc<tokio::sync::Mutex<Option<MixnetClient>>>;
 

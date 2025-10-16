@@ -49,7 +49,7 @@ nym-bin-common = { path = "../../../common/bin-common", features = [
 ] }
 
 nym-gateway-directory = { path = "../../../nym-gateway-directory" }
-nym-vpn-api-client = { git = "https://github.com/nymtech/nym-vpn-client/", rev = "c7e38aae038748f7d577a8b1ae02931fff97e868" } # nym-vpn-core 1.11.0
+nym-vpn-api-client = { git = "https://github.com/nymtech/nym-vpn-client/", rev = "5ab01ba06057449614dd6a8450d04358c5ec33d1" }
 
 bytecodec = { workspace = true }
 httpcodec = { workspace = true }

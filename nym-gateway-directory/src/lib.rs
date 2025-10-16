@@ -1,30 +1,30 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-mod caching_client;
 mod entries;
 mod error;
+pub mod gateway_cache;
 mod gateway_client;
 mod helpers;
-
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::addressing::nodes::NodeIdentity;
-pub use nym_vpn_api_client::types::{GatewayMinPerformance, Percent};
+pub use nym_vpn_api_client::types::{GatewayMinPerformance, NaiveFloat, Percent};
 
 pub use crate::{
-    caching_client::CachingGatewayClient,
     entries::{
-        auth_addresses::{AuthAddress, AuthAddresses},
+        auth_addresses::AuthAddress,
         country::Country,
         entry_point::EntryPoint,
         exit_point::ExitPoint,
         gateway::{
-            Entry, Exit, Gateway, GatewayList, GatewayType, Location, NymNode, Probe, ProbeOutcome,
+            Asn, AsnKind, Entry, Exit, Gateway, GatewayFilter, GatewayFilters, GatewayList,
+            GatewayType, Location, NymNode, Performance, Probe, ProbeOutcome, ScoreValue,
         },
         ipr_addresses::IpPacketRouterAddress,
         score::Score,
     },
     error::Error,
+    gateway_cache::{GatewayCache, GatewayCacheHandle},
     gateway_client::{Config, GatewayClient, ResolvedConfig},
-    helpers::resolve_config,
+    helpers::{resolve_config, split_ips},
 };

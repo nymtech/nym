@@ -30,6 +30,28 @@ pub use nym_compact_ecash::{
 };
 pub use nym_ecash_time::{EcashTime, ecash_today};
 pub use nym_network_defaults::TicketTypeRepr;
+pub use nym_upgrade_mode_check::UpgradeModeAttestation;
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub enum BandwidthCredential {
+    ZkNym(Box<CredentialSpendingData>),
+    UpgradeModeJWT { token: String },
+}
+
+impl BandwidthCredential {
+    pub fn into_zk_nym(self) -> Option<Box<CredentialSpendingData>> {
+        match self {
+            BandwidthCredential::ZkNym(credential) => Some(credential),
+            _ => None,
+        }
+    }
+}
+
+impl From<CredentialSpendingData> for BandwidthCredential {
+    fn from(credential: CredentialSpendingData) -> Self {
+        Self::ZkNym(Box::new(credential))
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct CredentialSigningData {

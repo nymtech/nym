@@ -24,13 +24,6 @@ pub struct Initialisation {
     pub initiator_salt: Option<Vec<u8>>,
 }
 
-impl Initialisation {
-    #[cfg(not(target_arch = "wasm32"))]
-    pub fn is_legacy(&self) -> bool {
-        self.initiator_salt.is_none()
-    }
-}
-
 #[derive(Debug)]
 pub struct MaterialExchange {
     pub signature_ciphertext: Vec<u8>,
@@ -99,8 +92,9 @@ impl HandshakeMessage for Initialisation {
         let identity = ed25519::PublicKey::from_bytes(&bytes[..ed25519::PUBLIC_KEY_LENGTH])
             .map_err(|_| HandshakeError::MalformedRequest)?;
 
-        // this can only fail if the provided bytes have len different from encryption::PUBLIC_KEY_SIZE
+        // SAFETY: this can only fail if the provided bytes have len different from encryption::PUBLIC_KEY_SIZE
         // which is impossible
+        #[allow(clippy::unwrap_used)]
         let ephemeral_dh =
             x25519::PublicKey::from_bytes(&bytes[ed25519::PUBLIC_KEY_LENGTH..legacy_len]).unwrap();
 
@@ -194,6 +188,7 @@ impl HandshakeMessage for GatewayMaterialExchange {
 
         // this can only fail if the provided bytes have len different from PUBLIC_KEY_SIZE
         // which is impossible
+        #[allow(clippy::unwrap_used)]
         let ephemeral_dh =
             x25519::PublicKey::from_bytes(&bytes[..x25519::PUBLIC_KEY_SIZE]).unwrap();
         let materials = MaterialExchange::try_from_bytes(&bytes[x25519::PUBLIC_KEY_SIZE..])?;

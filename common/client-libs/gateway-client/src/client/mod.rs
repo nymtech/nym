@@ -20,9 +20,9 @@ use nym_credentials_interface::TicketType;
 use nym_crypto::asymmetric::ed25519;
 use nym_gateway_requests::registration::handshake::client_handshake;
 use nym_gateway_requests::{
-    BinaryRequest, ClientControlRequest, ClientRequest, GatewayProtocolVersionExt,
-    GatewayRequestsError, SensitiveServerResponse, ServerResponse, SharedGatewayKey,
-    SharedSymmetricKey, CREDENTIAL_UPDATE_V2_PROTOCOL_VERSION, CURRENT_PROTOCOL_VERSION,
+    BandwidthResponse, BinaryRequest, ClientControlRequest, ClientRequest, GatewayProtocolVersion,
+    GatewayProtocolVersionExt, GatewayRequestsError, SensitiveServerResponse, ServerResponse,
+    SharedGatewayKey, SharedSymmetricKey, CREDENTIAL_UPDATE_V2_PROTOCOL_VERSION,
 };
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_statistics_common::clients::connection::ConnectionStatsEvent;
@@ -101,8 +101,7 @@ pub struct GatewayClient<C, St = EphemeralCredentialStorage> {
     bandwidth_controller: Option<BandwidthController<C, St>>,
     stats_reporter: ClientStatsSender,
 
-    // currently unused (but populated)
-    negotiated_protocol: Option<u8>,
+    negotiated_protocol: Option<GatewayProtocolVersion>,
 
     // Callback on the fd as soon as the connection has been established
     #[cfg(unix)]
@@ -166,10 +165,12 @@ impl<C, St> GatewayClient<C, St> {
     }
 
     #[cfg(not(target_arch = "wasm32"))]
+    #[allow(clippy::unreachable)]
     async fn _close_connection(&mut self) -> Result<(), GatewayClientError> {
         match std::mem::replace(&mut self.connection, SocketState::NotConnected) {
             SocketState::Available(mut socket) => Ok((*socket).close(None).await?),
             SocketState::PartiallyDelegated(_) => {
+                // SAFETY: this is only called after the caller has already recovered the connection
                 unreachable!("this branch should have never been reached!")
             }
             _ => Ok(()), // no need to do anything in those cases
@@ -177,6 +178,7 @@ impl<C, St> GatewayClient<C, St> {
     }
 
     #[cfg(target_arch = "wasm32")]
+    #[allow(clippy::unreachable)]
     async fn _close_connection(&mut self) -> Result<(), GatewayClientError> {
         match std::mem::replace(&mut self.connection, SocketState::NotConnected) {
             SocketState::Available(socket) => {
@@ -184,6 +186,7 @@ impl<C, St> GatewayClient<C, St> {
                 Ok(())
             }
             SocketState::PartiallyDelegated(_) => {
+                // SAFETY: this is only called after the caller has already recovered the connection
                 unreachable!("this branch should have never been reached!")
             }
             _ => Ok(()), // no need to do anything in those cases
@@ -458,42 +461,15 @@ impl<C, St> GatewayClient<C, St> {
         }
     }
 
-    fn check_gateway_protocol(
-        &self,
-        gateway_protocol: Option<u8>,
-    ) -> Result<(), GatewayClientError> {
-        debug!("gateway protocol: {gateway_protocol:?}, ours: {CURRENT_PROTOCOL_VERSION}");
-
-        // right now there are no failure cases here, but this might change in the future
-        match gateway_protocol {
-            None => {
-                warn!("the gateway we're connected to has not specified its protocol version. It's probably running version < 1.1.X, but that's still fine for now. It will become a hard error in 1.2.0");
-                // note: in +1.2.0 we will have to return a hard error here
-                Ok(())
-            }
-            Some(v) if v > CURRENT_PROTOCOL_VERSION => {
-                let err = GatewayClientError::IncompatibleProtocol {
-                    gateway: Some(v),
-                    current: CURRENT_PROTOCOL_VERSION,
-                };
-                error!("{err}");
-                Err(err)
-            }
-
-            Some(_) => {
-                debug!("the gateway is using exactly the same (or older) protocol version as we are. We're good to continue!");
-                Ok(())
-            }
-        }
-    }
-
     async fn register(
         &mut self,
-        derive_aes256_gcm_siv_key: bool,
+        supported_gateway_protocol: Option<GatewayProtocolVersion>,
     ) -> Result<(), GatewayClientError> {
         if !self.connection.is_established() {
             return Err(GatewayClientError::ConnectionNotEstablished);
         }
+
+        let derive_aes256_gcm_siv_key = supported_gateway_protocol.supports_aes256_gcm_siv();
 
         debug_assert!(self.connection.is_available());
         log::debug!(
@@ -505,14 +481,13 @@ impl<C, St> GatewayClient<C, St> {
         // and putting it into the GatewayClient struct would be a hassle
         let mut rng = OsRng;
 
-        let shared_key = match &mut self.connection {
+        let handshake_result = match &mut self.connection {
             SocketState::Available(ws_stream) => client_handshake(
                 &mut rng,
                 ws_stream,
                 self.local_identity.as_ref(),
                 self.gateway_identity,
-                self.cfg.bandwidth.require_tickets,
-                derive_aes256_gcm_siv_key,
+                supported_gateway_protocol,
                 #[cfg(not(target_arch = "wasm32"))]
                 self.shutdown_token.clone(),
             )
@@ -521,26 +496,31 @@ impl<C, St> GatewayClient<C, St> {
             _ => return Err(GatewayClientError::ConnectionInInvalidState),
         }?;
 
-        let (authentication_status, gateway_protocol) = match self.read_control_response().await? {
+        let authentication_status = match self.read_control_response().await? {
             ServerResponse::Register {
-                protocol_version,
                 status,
-            } => (status, protocol_version),
+                upgrade_mode,
+                ..
+            } => {
+                if upgrade_mode {
+                    warn!("the system is currently undergoing an upgrade. some of its functionalities might be unstable")
+                }
+                status
+            }
             ServerResponse::Error { message } => {
                 return Err(GatewayClientError::GatewayError(message))
             }
             other => return Err(GatewayClientError::UnexpectedResponse { name: other.name() }),
         };
 
-        self.check_gateway_protocol(gateway_protocol)?;
         self.authenticated = authentication_status;
 
         if self.authenticated {
-            self.shared_key = Some(Arc::new(shared_key));
+            self.shared_key = Some(Arc::new(handshake_result.derived_key));
         }
 
         // populate the negotiated protocol for future uses
-        self.negotiated_protocol = gateway_protocol;
+        self.negotiated_protocol = Some(handshake_result.negotiated_protocol);
 
         Ok(())
     }
@@ -623,13 +603,24 @@ impl<C, St> GatewayClient<C, St> {
                 protocol_version,
                 status,
                 bandwidth_remaining,
+                upgrade_mode,
             } => {
-                self.check_gateway_protocol(protocol_version)?;
+                if protocol_version.is_future_version() {
+                    // SAFETY: future version is always defined
+                    #[allow(clippy::unwrap_used)]
+                    let version = protocol_version.unwrap();
+                    error!("the gateway insists on using v{version} protocol which is not supported by this client");
+                    return Err(GatewayClientError::AuthenticationFailure);
+                }
                 self.authenticated = status;
-                self.bandwidth.update_and_maybe_log(bandwidth_remaining);
+                self.bandwidth
+                    .update_and_maybe_log(bandwidth_remaining, upgrade_mode);
 
                 self.negotiated_protocol = protocol_version;
                 log::debug!("authenticated: {status}, bandwidth remaining: {bandwidth_remaining}");
+                if upgrade_mode {
+                    warn!("the system is currently undergoing an upgrade. some of its functionalities might be unstable")
+                }
 
                 Ok(())
             }
@@ -650,7 +641,7 @@ impl<C, St> GatewayClient<C, St> {
             .public_key()
             .derive_destination_address();
 
-        let msg = ClientControlRequest::new_authenticate(
+        let msg = ClientControlRequest::new_legacy_authenticate(
             self_address,
             shared_key,
             self.cfg.bandwidth.require_tickets,
@@ -659,25 +650,40 @@ impl<C, St> GatewayClient<C, St> {
             .await
     }
 
-    async fn authenticate_v2(&mut self) -> Result<(), GatewayClientError> {
+    async fn authenticate_v2(
+        &mut self,
+        requested_protocol_version: GatewayProtocolVersion,
+    ) -> Result<(), GatewayClientError> {
         debug!("using v2 authentication");
         let Some(shared_key) = self.shared_key.as_ref() else {
             return Err(GatewayClientError::NoSharedKeyAvailable);
         };
 
-        let msg = ClientControlRequest::new_authenticate_v2(shared_key, &self.local_identity)?;
+        let msg = ClientControlRequest::new_authenticate_v2(
+            shared_key,
+            &self.local_identity,
+            requested_protocol_version,
+        )?;
         self.send_authenticate_request_and_handle_response(msg)
             .await
     }
 
-    async fn authenticate(&mut self, use_v2: bool) -> Result<(), GatewayClientError> {
+    async fn authenticate(
+        &mut self,
+        supported_gateway_protocol: Option<GatewayProtocolVersion>,
+    ) -> Result<(), GatewayClientError> {
         if !self.connection.is_established() {
             return Err(GatewayClientError::ConnectionNotEstablished);
         }
         debug!("authenticating with gateway");
 
-        if use_v2 {
-            self.authenticate_v2().await
+        if supported_gateway_protocol.supports_authenticate_v2() {
+            // use the highest possible protocol version the gateway has announced support for
+
+            // SAFETY: if announced protocol supports auth v2, it means it's properly set
+            #[allow(clippy::unwrap_used)]
+            self.authenticate_v2(supported_gateway_protocol.unwrap())
+                .await
         } else {
             self.authenticate_v1().await
         }
@@ -708,9 +714,12 @@ impl<C, St> GatewayClient<C, St> {
             }
         };
 
+        debug!("supported gateway protocol: {gw_protocol:?}");
+
         let supports_aes_gcm_siv = gw_protocol.supports_aes256_gcm_siv();
         let supports_auth_v2 = gw_protocol.supports_authenticate_v2();
         let supports_key_rotation_info = gw_protocol.supports_key_rotation_packet();
+        let supports_upgrade_mode = gw_protocol.supports_upgrade_mode();
 
         if !supports_aes_gcm_siv {
             warn!("this gateway is on an old version that doesn't support AES256-GCM-SIV");
@@ -721,6 +730,16 @@ impl<C, St> GatewayClient<C, St> {
         if !supports_key_rotation_info {
             warn!("this gateway is on an old version that doesn't support key rotation packets")
         }
+        if !supports_upgrade_mode {
+            warn!("this gateway is on an old version that doesn't support upgrade mode")
+        }
+
+        let gw_protocol = if gw_protocol.is_future_version() {
+            warn!("we're running outdated software as gateway is announcing protocol {gw_protocol:?} whilst we're using {}. we're going to attempt to downgrade", GatewayProtocolVersion::CURRENT);
+            Some(GatewayProtocolVersion::CURRENT)
+        } else {
+            gw_protocol
+        };
 
         if self.authenticated {
             debug!("Already authenticated");
@@ -735,10 +754,11 @@ impl<C, St> GatewayClient<C, St> {
         }
 
         if self.shared_key.is_some() {
-            self.authenticate(supports_auth_v2).await?;
+            self.authenticate(gw_protocol).await?;
 
             if self.authenticated {
                 // if we are authenticated it means we MUST have an associated shared_key
+                #[allow(clippy::unwrap_used)]
                 let shared_key = self.shared_key.as_ref().unwrap();
 
                 let requires_key_upgrade = shared_key.is_legacy() && supports_aes_gcm_siv;
@@ -751,9 +771,10 @@ impl<C, St> GatewayClient<C, St> {
                 Err(GatewayClientError::AuthenticationFailure)
             }
         } else {
-            self.register(supports_aes_gcm_siv).await?;
+            self.register(gw_protocol).await?;
 
             // if registration didn't return an error, we MUST have an associated shared key
+            #[allow(clippy::unwrap_used)]
             let shared_key = self.shared_key.as_ref().unwrap();
 
             // we're always registering with the highest supported protocol,
@@ -783,51 +804,81 @@ impl<C, St> GatewayClient<C, St> {
         }
     }
 
-    async fn claim_ecash_bandwidth(
+    async fn wait_for_bandwidth_response(
         &mut self,
-        credential: CredentialSpendingData,
-    ) -> Result<(), GatewayClientError> {
-        let msg = ClientControlRequest::new_enc_ecash_credential(
-            credential,
-            self.shared_key.as_ref().unwrap(),
-        )?;
-        let bandwidth_remaining = match self
+        msg: ClientControlRequest,
+    ) -> Result<BandwidthResponse, GatewayClientError> {
+        let response = match self
             .send_websocket_message_with_non_send_response(msg)
             .await?
         {
-            ServerResponse::Bandwidth { available_total } => Ok(available_total),
+            ServerResponse::Bandwidth(response) => {
+                if response.upgrade_mode {
+                    info!("the system is currently undergoing an upgrade. our bandwidth shouldn't have been metered")
+                }
+                Ok(response)
+            }
             ServerResponse::Error { message } => Err(GatewayClientError::GatewayError(message)),
             ServerResponse::TypedError { error } => {
                 Err(GatewayClientError::TypedGatewayError(error))
             }
             other => Err(GatewayClientError::UnexpectedResponse { name: other.name() }),
         }?;
+        Ok(response)
+    }
+
+    async fn claim_ecash_bandwidth(
+        &mut self,
+        credential: CredentialSpendingData,
+    ) -> Result<(), GatewayClientError> {
+        // SAFETY: claiming ecash bandwidth is called as part of `claim_bandwidth` which
+        // ensures the shared key is defined
+        #[allow(clippy::unwrap_used)]
+        let msg = ClientControlRequest::new_enc_ecash_credential(
+            credential,
+            self.shared_key.as_ref().unwrap(),
+        )?;
+        let response = self.wait_for_bandwidth_response(msg).await?;
 
         // TODO: create tracing span
         info!("managed to claim ecash bandwidth");
-        self.bandwidth.update_and_log(bandwidth_remaining);
+        self.bandwidth
+            .update_and_log(response.available_total, response.upgrade_mode);
+
+        Ok(())
+    }
+
+    pub async fn send_upgrade_mode_jwt(&mut self, token: String) -> Result<(), GatewayClientError> {
+        let msg = ClientControlRequest::new_upgrade_mode_jwt(token);
+        let response = self.wait_for_bandwidth_response(msg).await?;
+
+        // if gateway rejected our jwt, we would have returned an error
+        info!("gateway has accepted our jwt");
+        if !response.upgrade_mode {
+            error!("but we're not in upgrade mode - something is wrong!");
+            return Err(GatewayClientError::UnexpectedUpgradeModeState);
+        }
+
+        self.bandwidth
+            .update_and_log(response.available_total, response.upgrade_mode);
 
         Ok(())
     }
 
     async fn try_claim_testnet_bandwidth(&mut self) -> Result<(), GatewayClientError> {
         let msg = ClientControlRequest::ClaimFreeTestnetBandwidth;
-        let bandwidth_remaining = match self
-            .send_websocket_message_with_non_send_response(msg)
-            .await?
-        {
-            ServerResponse::Bandwidth { available_total } => Ok(available_total),
-            ServerResponse::Error { message } => Err(GatewayClientError::GatewayError(message)),
-            other => Err(GatewayClientError::UnexpectedResponse { name: other.name() }),
-        }?;
+        let response = self.wait_for_bandwidth_response(msg).await?;
 
         info!("managed to claim testnet bandwidth");
-        self.bandwidth.update_and_log(bandwidth_remaining);
+        self.bandwidth
+            .update_and_log(response.available_total, response.upgrade_mode);
 
         Ok(())
     }
 
     fn unchecked_bandwidth_controller(&self) -> &BandwidthController<C, St> {
+        // this is an unchecked method
+        #[allow(clippy::unwrap_used)]
         self.bandwidth_controller.as_ref().unwrap()
     }
 
@@ -919,6 +970,7 @@ impl<C, St> GatewayClient<C, St> {
             BinaryRequest::ForwardSphinx { packet }
         };
 
+        #[allow(clippy::expect_used)]
         req.into_ws_message(
             self.shared_key
                 .as_ref()
@@ -1025,6 +1077,8 @@ impl<C, St> GatewayClient<C, St> {
         self.send_with_reconnection_on_failure(msg).await
     }
 
+    // SAFETY: this method is only called when the connection is in `PartiallyDelegated` state
+    #[allow(clippy::unreachable)]
     async fn recover_socket_connection(&mut self) -> Result<(), GatewayClientError> {
         if self.connection.is_available() {
             return Ok(());
@@ -1054,6 +1108,7 @@ impl<C, St> GatewayClient<C, St> {
             return Err(GatewayClientError::ConnectionInInvalidState);
         }
 
+        #[allow(clippy::expect_used)]
         let partially_delegated =
             match std::mem::replace(&mut self.connection, SocketState::Invalid) {
                 SocketState::Available(conn) => {
@@ -1069,7 +1124,13 @@ impl<C, St> GatewayClient<C, St> {
                         self.shutdown_token.clone(),
                     )
                 }
-                _ => unreachable!(),
+                other => {
+                    error!(
+                        "attempted to start mixnet listener whilst the connection is in {} state!",
+                        other.name()
+                    );
+                    return Err(GatewayClientError::ConnectionInInvalidState);
+                }
             };
 
         self.connection = SocketState::PartiallyDelegated(partially_delegated);
@@ -1082,8 +1143,7 @@ impl<C, St> GatewayClient<C, St> {
         }
 
         // if we're reconnecting, because we lost connection, we need to re-authenticate the connection
-        self.authenticate(self.negotiated_protocol.supports_authenticate_v2())
-            .await?;
+        self.authenticate(self.negotiated_protocol).await?;
 
         // this call is NON-blocking
         self.start_listening_for_mixnet_messages()?;

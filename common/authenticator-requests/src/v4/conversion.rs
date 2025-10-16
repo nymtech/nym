@@ -262,8 +262,8 @@ impl From<v4::response::TopUpBandwidthResponse> for v3::response::TopUpBandwidth
     }
 }
 
-impl From<v3::registration::RegistredData> for v4::registration::RegistredData {
-    fn from(value: v3::registration::RegistredData) -> Self {
+impl From<v3::registration::RegisteredData> for v4::registration::RegisteredData {
+    fn from(value: v3::registration::RegisteredData) -> Self {
         Self {
             pub_key: value.pub_key,
             private_ips: value.private_ip.into(),
@@ -272,8 +272,8 @@ impl From<v3::registration::RegistredData> for v4::registration::RegistredData {
     }
 }
 
-impl From<v4::registration::RegistredData> for v3::registration::RegistredData {
-    fn from(value: v4::registration::RegistredData) -> Self {
+impl From<v4::registration::RegisteredData> for v3::registration::RegisteredData {
+    fn from(value: v4::registration::RegisteredData) -> Self {
         Self {
             pub_key: value.pub_key,
             private_ip: value.private_ips.ipv4.into(),
@@ -565,7 +565,7 @@ mod tests {
         let private_ips =
             v4::registration::IpPair::new(ipv4, Ipv6Addr::from_str("fc01::a0a").unwrap());
         let wg_port = 51822;
-        let registred_data = v3::registration::RegistredData {
+        let registred_data = v3::registration::RegisteredData {
             pub_key,
             private_ip: ipv4.into(),
             wg_port,
@@ -592,7 +592,7 @@ mod tests {
             v4::response::AuthenticatorResponseData::Registered(v4::response::RegisteredResponse {
                 request_id,
                 reply_to,
-                reply: v4::registration::RegistredData {
+                reply: v4::registration::RegisteredData {
                     wg_port,
                     pub_key,
                     private_ips
@@ -608,7 +608,7 @@ mod tests {
         let private_ips =
             v4::registration::IpPair::new(ipv4, Ipv6Addr::from_str("fc01::10").unwrap());
         let wg_port = 51822;
-        let registred_data = v4::registration::RegistredData {
+        let registred_data = v4::registration::RegisteredData {
             pub_key,
             private_ips,
             wg_port,
@@ -635,7 +635,7 @@ mod tests {
             v3::response::AuthenticatorResponseData::Registered(v3::response::RegisteredResponse {
                 request_id,
                 reply_to,
-                reply: v3::registration::RegistredData {
+                reply: v3::registration::RegisteredData {
                     wg_port,
                     pub_key,
                     private_ip: ipv4.into()

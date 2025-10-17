@@ -54,7 +54,6 @@ pub struct MixnetClientBuilder<S: MixnetClientStorage = Ephemeral> {
     custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
     custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send + Sync>>,
     custom_shutdown: Option<ShutdownTracker>,
-    custom_nym_api_client: Option<nym_http_api_client::Client>,
     event_tx: Option<EventSender>,
     force_tls: bool,
     user_agent: Option<UserAgent>,
@@ -94,7 +93,6 @@ impl MixnetClientBuilder<OnDiskPersistent> {
             socks5_config: None,
             wait_for_gateway: false,
             custom_topology_provider: None,
-            custom_nym_api_client: None,
             storage: storage_paths
                 .initialise_default_persistent_storage()
                 .await?,
@@ -133,7 +131,6 @@ where
             wait_for_gateway: false,
             custom_topology_provider: None,
             custom_gateway_transceiver: None,
-            custom_nym_api_client: None,
             custom_shutdown: None,
             event_tx: None,
             force_tls: false,
@@ -158,7 +155,6 @@ where
             wait_for_gateway: self.wait_for_gateway,
             custom_topology_provider: self.custom_topology_provider,
             custom_gateway_transceiver: self.custom_gateway_transceiver,
-            custom_nym_api_client: self.custom_nym_api_client,
             custom_shutdown: self.custom_shutdown,
             event_tx: self.event_tx,
             force_tls: self.force_tls,
@@ -299,12 +295,6 @@ where
     }
 
     #[must_use]
-    pub fn with_nym_api_client(mut self, client: nym_http_api_client::Client) -> Self {
-        self.custom_nym_api_client = Some(client);
-        self
-    }
-
-    #[must_use]
     pub fn with_statistics_reporting(mut self, config: StatsReporting) -> Self {
         self.config.debug_config.stats_reporting = config;
         self
@@ -348,7 +338,6 @@ where
 
         client.custom_gateway_transceiver = self.custom_gateway_transceiver;
         client.custom_topology_provider = self.custom_topology_provider;
-        client.custom_nym_api_client = self.custom_nym_api_client;
         client.custom_shutdown = self.custom_shutdown;
         client.wait_for_gateway = self.wait_for_gateway;
         client.force_tls = self.force_tls;
@@ -397,9 +386,6 @@ where
 
     /// advanced usage of custom gateways
     custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send + Sync>>,
-
-    /// Custom nym-api HTTP client (for domain fronting support)
-    custom_nym_api_client: Option<nym_http_api_client::Client>,
 
     /// Attempt to wait for the selected gateway (if applicable) to come online if its currently not bonded.
     wait_for_gateway: bool,
@@ -473,7 +459,6 @@ where
             storage,
             custom_topology_provider: None,
             custom_gateway_transceiver: None,
-            custom_nym_api_client: None,
             wait_for_gateway: false,
             force_tls: false,
             custom_shutdown: None,
@@ -729,11 +714,6 @@ where
 
         if let Some(user_agent) = self.user_agent {
             base_builder = base_builder.with_user_agent(user_agent);
-        }
-
-        if let Some(nym_api_client) = self.custom_nym_api_client {
-            tracing::debug!("Using custom nym-api HTTP client");
-            base_builder = base_builder.with_nym_api_client(nym_api_client);
         }
 
         if let Some(topology_provider) = self.custom_topology_provider {

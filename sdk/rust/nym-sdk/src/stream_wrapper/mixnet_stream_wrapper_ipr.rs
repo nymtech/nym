@@ -87,7 +87,7 @@ async fn get_ipr_addr(client: GatewayClient) -> Result<IpPacketRouterAddress, Er
 
     let selected_gateway = exit_gateways
         .into_iter()
-        .filter(|gw| gw.has_ipr_address())
+        .filter(|gw| gw.ipr_address.is_some())
         .max_by_key(|gw| {
             gw.mixnet_performance
                 .map(|p| p.round_to_integer())

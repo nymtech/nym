@@ -165,11 +165,18 @@ impl GatewayClient {
             .build()
             .map_err(Box::new)?;
 
+        // Gets around diff version imports compiler issue for the moment
+        let network_details_compat = {
+            let json = serde_json::to_string(network_details)
+                .expect("Failed to serialize network details");
+            serde_json::from_str(&json).expect("Failed to deserialize network details")
+        };
+
         // Use domain fronting with resolver overrides for VPN API client
         let nym_vpn_api_client = if config.nym_vpn_api_url.is_some() {
             Some(
                 nym_vpn_api_client::VpnApiClient::from_network_with_resolver_overrides(
-                    network_details,
+                    &network_details_compat,
                     user_agent.clone(),
                     static_nym_api_ip_addresses,
                 )?,

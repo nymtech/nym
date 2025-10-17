@@ -21,26 +21,6 @@ use tokio::sync::mpsc;
 /// - Retrieves allocated IP addresses
 /// - Creates communication channels
 /// - Constructs the device and bridge components
-///
-/// # Component Interaction
-///
-/// ```
-///                          create_device()
-///                                |
-///                 +--------------+---------------+
-///                 |              |               |
-///                 v              v               v
-///           NymIprDevice   NymIprBridge      IpPair
-///                 |              |            (10.0.x.x)
-///                 |              |
-///                 +-- channels --+
-///                                |
-///                                v
-///                           IpMixStream
-///                                |
-///                                v
-///                             Mixnet
-/// ```
 pub async fn create_device(
     mut ipr_stream: IpMixStream,
 ) -> Result<(NymIprDevice, NymIprBridge, IpPair), SmolmixError> {

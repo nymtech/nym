@@ -13,33 +13,10 @@ use tracing::{info, warn};
 /// We need something to bridge the async / sync weirdness (Device trait fns are sync, IpMixStream fns are
 /// async) in a way that allows for the `NymIprDevice` to look and act like any other device.
 ///
-/// cf smoltcp's loopback.rs:
-/// ```
-/// pub struct Loopback {
-///     queue: VecDeque<Vec<u8>>,
-/// }
-///
-/// impl Device for Loopback {
-///     type RxToken<'a> = RxToken;
-///     type TxToken<'a> = TxToken<'a>;
-///
-///     fn receive(&mut self, _timestamp: Instant) -> Option<(Self::RxToken<'_>, Self::TxToken<'_>)> {
-///         self.queue.pop_front().map(move |buffer| {
-///             let rx = RxToken { buffer };
-///             let tx = TxToken {
-///                 queue: &mut self.queue,
-///             };
-///             (rx, tx)
-///         })
-///     }
-/// }
-/// ```
-///
 /// We need to be polling the queue to/from the NymIprBridge, hence the addition of the
 /// mpsc channels in the Device struct and the extra fns.
 ///
 /// # Architecture
-///
 /// smoltcp (sync) <-> NymIprDevice <-> channels <-> NymIprBridge <-> Mixnet (async)
 ///
 /// The device maintains a receive queue for packets coming from the mixnet and

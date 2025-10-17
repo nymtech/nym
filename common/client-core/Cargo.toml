@@ -36,7 +36,7 @@ nym-bandwidth-controller = { path = "../bandwidth-controller" }
 nym-crypto = { path = "../crypto" }
 nym-gateway-client = { path = "../client-libs/gateway-client" }
 nym-gateway-requests = { path = "../gateway-requests" }
-nym-http-api-client = { path = "../http-api-client" }
+nym-http-api-client = { path = "../http-api-client", features = ["network-defaults"] }
 nym-nonexhaustive-delayqueue = { path = "../nonexhaustive-delayqueue" }
 nym-sphinx = { path = "../nymsphinx" }
 nym-statistics-common = { path = "../statistics" }

@@ -46,6 +46,7 @@ use nym_gateway_client::client::config::GatewayClientConfig;
 use nym_gateway_client::{
     AcknowledgementReceiver, GatewayClient, GatewayConfig, MixnetMessageReceiver, PacketRouter,
 };
+use nym_network_defaults::NymNetworkDetails;
 use nym_sphinx::acknowledgements::AckKey;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::addressing::nodes::NodeIdentity;
@@ -212,13 +213,15 @@ pub struct BaseClientBuilder<C, S: MixnetClientStorage> {
     client_store: S,
     dkg_query_client: Option<C>,
 
+    // Optional network details for domain fronting support
+    network_details: Option<NymNetworkDetails>,
+
     wait_for_gateway: bool,
     custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
     custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send>>,
     shutdown: Option<ShutdownTracker>,
     event_tx: Option<EventSender>,
     user_agent: Option<UserAgent>,
-    custom_nym_api_client: Option<nym_http_api_client::Client>,
 
     setup_method: GatewaySetup,
 
@@ -242,13 +245,13 @@ where
             config: base_config,
             client_store,
             dkg_query_client,
+            network_details: None,
             wait_for_gateway: false,
             custom_topology_provider: None,
             custom_gateway_transceiver: None,
             shutdown: None,
             event_tx: None,
             user_agent: None,
-            custom_nym_api_client: None,
             setup_method: GatewaySetup::MustLoad { gateway_id: None },
             #[cfg(unix)]
             connection_fd_callback: None,
@@ -256,9 +259,13 @@ where
         }
     }
 
+    /// Provide network details for domain fronting support
+    ///
+    /// When provided, the SDK will use `from_network()` to build the nym-api client,
+    /// which automatically handles domain fronting if configured in the network details.
     #[must_use]
-    pub fn with_nym_api_client(mut self, client: nym_http_api_client::Client) -> Self {
-        self.custom_nym_api_client = Some(client);
+    pub fn with_network_details(mut self, network_details: NymNetworkDetails) -> Self {
+        self.network_details = Some(network_details);
         self
     }
 
@@ -871,19 +878,29 @@ where
     }
 
     fn construct_nym_api_client(
+        network_details: Option<&NymNetworkDetails>,
         config: &Config,
         user_agent: Option<UserAgent>,
-        custom_client: Option<nym_http_api_client::Client>,
     ) -> Result<nym_http_api_client::Client, ClientCoreError> {
-        // If a custom client was provided (e.g., with domain fronting support), use it
-        if let Some(client) = custom_client {
-            tracing::debug!("Using custom nym-api HTTP client");
-            return Ok(client);
+        // If network details are provided, use from_network() which handles domain fronting
+        if let Some(network_details) = network_details {
+            tracing::debug!(
+                "Building nym-api client from network details (with domain fronting support)"
+            );
+
+            let mut builder = nym_http_api_client::ClientBuilder::from_network(network_details)
+                .map_err(ClientCoreError::from)?;
+
+            if let Some(user_agent) = user_agent {
+                builder = builder.with_user_agent(user_agent);
+            }
+
+            return builder.build().map_err(ClientCoreError::from);
         }
 
-        tracing::debug!("Creating default nym-api HTTP client from config");
+        // Fallback to basic client for backwards compatibility
+        tracing::debug!("Building basic nym-api HTTP client from config endpoints");
 
-        // Otherwise, create a basic client
         let mut nym_api_urls = config.get_nym_api_endpoints();
         nym_api_urls.shuffle(&mut thread_rng());
 
@@ -980,9 +997,9 @@ where
             .map(|client| BandwidthController::new(credential_store, client));
 
         let nym_api_client = Self::construct_nym_api_client(
+            self.network_details.as_ref(),
             &self.config,
             self.user_agent.clone(),
-            self.custom_nym_api_client,
         )?;
         let key_rotation_config = Self::determine_key_rotation_state(&nym_api_client).await?;
 

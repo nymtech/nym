@@ -41,6 +41,7 @@ pub enum ConnectionState {
 }
 
 fn create_gateway_client() -> Result<GatewayClient, Error> {
+    // TODO do something proper with this
     let user_agent = UserAgent {
         application: "nym-ipr-streamer".to_string(),
         version: "0.0.1".to_string(),
@@ -52,17 +53,19 @@ fn create_gateway_client() -> Result<GatewayClient, Error> {
     let api_url = mainnet_network_defaults
         .endpoints
         .first()
-        .unwrap()
+        .ok_or_else(|| Error::NoValidatorDetailsAvailable)?
         .api_url()
-        .unwrap();
+        .ok_or_else(|| Error::NoValidatorAPIUrl)?;
 
     let nyxd_url = mainnet_network_defaults
         .endpoints
         .first()
-        .unwrap()
+        .ok_or_else(|| Error::NoValidatorDetailsAvailable)?
         .nyxd_url();
 
-    let nym_vpn_api_url = mainnet_network_defaults.nym_vpn_api_url().unwrap();
+    let nym_vpn_api_url = mainnet_network_defaults
+        .nym_vpn_api_url()
+        .ok_or_else(|| Error::NoNymAPIUrl)?;
 
     let config = GatewayConfig {
         nyxd_url,
@@ -73,14 +76,11 @@ fn create_gateway_client() -> Result<GatewayClient, Error> {
         wg_score_thresholds: None,
     };
 
-    Ok(GatewayClient::new(config, user_agent).unwrap())
+    Ok(GatewayClient::new(config, user_agent)?)
 }
 
 async fn get_ipr_addr(client: GatewayClient) -> Result<IpPacketRouterAddress, Error> {
-    let exit_gateways = client
-        .lookup_gateways(GatewayType::MixnetExit)
-        .await
-        .unwrap();
+    let exit_gateways = client.lookup_gateways(GatewayType::MixnetExit).await?;
 
     info!("Found {} Exit Gateways", exit_gateways.len());
 
@@ -92,9 +92,11 @@ async fn get_ipr_addr(client: GatewayClient) -> Result<IpPacketRouterAddress, Er
                 .map(|p| p.round_to_integer())
                 .unwrap_or(0)
         })
-        .unwrap();
+        .ok_or_else(|| Error::NoGatewayAvailable)?;
 
-    let ipr_address = selected_gateway.ipr_address.unwrap();
+    let ipr_address = selected_gateway
+        .ipr_address
+        .ok_or_else(|| Error::NoIPRAvailable)?;
 
     info!(
         "Using IPR: {} (Gateway: {}, Performance: {:?})",
@@ -507,7 +509,6 @@ mod tests {
     use crate::ip_packet_client::helpers::{
         icmp_identifier, is_icmp_echo_reply, is_icmp_v6_echo_reply, send_ping_v4, send_ping_v6,
     };
-    // use nym_config::defaults::mixnet_vpn::{NYM_TUN_DEVICE_ADDRESS_V4, NYM_TUN_DEVICE_ADDRESS_V6}; // TODO should probably test these as well ? reminder to sefl
     use std::net::{Ipv4Addr, Ipv6Addr};
     use std::sync::Once;
 

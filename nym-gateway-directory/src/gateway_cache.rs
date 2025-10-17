@@ -8,8 +8,6 @@ use std::{
 };
 
 use nym_offline_monitor::ConnectivityHandle;
-// use nym_sdk::mixnet::NodeIdentity;
-use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::addressing::nodes::NodeIdentity;
 use strum::IntoEnumIterator;
 use tokio::task::JoinHandle;

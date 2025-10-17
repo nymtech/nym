@@ -28,7 +28,7 @@ use std::sync::Arc;
 use std::task::{Context, Poll};
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio::sync::RwLockReadGuard;
-use tokio_util::codec::{Encoder, FramedRead, FramedWrite};
+use tokio_util::codec::{Encoder, FramedRead};
 use tokio_util::sync::CancellationToken;
 
 /// Client connected to the Nym mixnet.

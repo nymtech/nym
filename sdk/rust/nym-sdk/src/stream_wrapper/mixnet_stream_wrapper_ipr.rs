@@ -9,7 +9,6 @@ use crate::UserAgent;
 use crate::{mixnet::Recipient, Error};
 
 use bytes::Bytes;
-use bytes::BytesMut;
 use nym_gateway_directory::{
     Config as GatewayConfig, GatewayClient, GatewayType, IpPacketRouterAddress,
 };
@@ -27,9 +26,9 @@ use std::io;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 use std::time::Duration;
-use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, ReadBuf};
+use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio::sync::oneshot;
-use tokio_util::codec::{Decoder, FramedRead};
+use tokio_util::codec::FramedRead;
 use tracing::{debug, error, info};
 
 const IPR_CONNECT_TIMEOUT: Duration = Duration::from_secs(60);

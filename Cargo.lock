@@ -6790,7 +6790,6 @@ dependencies = [
  "nym-bandwidth-controller",
  "nym-credential-storage",
  "nym-credentials-interface",
- "nym-http-api-client",
  "nym-ip-packet-client",
  "nym-registration-common",
  "nym-sdk",

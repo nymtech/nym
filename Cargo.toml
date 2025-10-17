@@ -142,7 +142,7 @@ members = [
     "sdk/ffi/go",
     "sdk/ffi/shared",
     "sdk/rust/nym-sdk",
-    "smolmix",
+    "mixtcp",
     # "service-providers/authenticator",
     "service-providers/common",
     "service-providers/ip-packet-router",

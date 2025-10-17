@@ -300,7 +300,6 @@ impl IpMixStream {
         (
             IpMixStreamReader {
                 stream_reader,
-                // ipr_address: self.ipr_address,
                 listener: self.listener,
                 allocated_ips: self.allocated_ips.clone(),
                 connection_state: self.connection_state.clone(),
@@ -309,7 +308,6 @@ impl IpMixStream {
             },
             IpMixStreamWriter {
                 stream_writer,
-                // ipr_address: self.ipr_address,
                 local_addr,
                 allocated_ips: self.allocated_ips,
                 connection_state: self.connection_state,
@@ -356,7 +354,6 @@ impl AsyncWrite for IpMixStream {
 
 pub struct IpMixStreamReader {
     stream_reader: MixStreamReader,
-    // ipr_address: IpPacketRouterAddress,
     listener: IprListener,
     allocated_ips: Option<IpPair>,
     connection_state: ConnectionState,
@@ -432,7 +429,6 @@ impl AsyncRead for IpMixStreamReader {
 
 pub struct IpMixStreamWriter {
     stream_writer: MixStreamWriter,
-    // ipr_address: IpPacketRouterAddress,
     local_addr: Recipient,
     allocated_ips: Option<IpPair>,
     connection_state: ConnectionState,

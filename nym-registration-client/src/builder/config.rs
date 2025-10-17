@@ -56,6 +56,34 @@ pub struct MixnetClientConfig {
 }
 
 impl BuilderConfig {
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        entry_node: NymNodeWithKeys,
+        exit_node: NymNodeWithKeys,
+        data_path: Option<PathBuf>,
+        mixnet_client_config: MixnetClientConfig,
+        two_hops: bool,
+        user_agent: UserAgent,
+        custom_topology_provider: Box<dyn TopologyProvider + Send + Sync>,
+        network_env: NymNetworkDetails,
+        cancel_token: CancellationToken,
+        #[cfg(unix)] connection_fd_callback: Arc<dyn Fn(RawFd) + Send + Sync>,
+    ) -> Self {
+        Self {
+            entry_node,
+            exit_node,
+            data_path,
+            mixnet_client_config,
+            two_hops,
+            user_agent,
+            custom_topology_provider,
+            network_env,
+            cancel_token,
+            #[cfg(unix)]
+            connection_fd_callback,
+        }
+    }
+
     pub fn mixnet_client_debug_config(&self) -> DebugConfig {
         if self.two_hops {
             two_hop_debug_config(&self.mixnet_client_config)
@@ -116,6 +144,7 @@ impl BuilderConfig {
             .credentials_mode(true)
             .with_remember_me(remember_me)
             .custom_topology_provider(self.custom_topology_provider);
+
         #[cfg(unix)]
         let builder = builder.with_connection_fd_callback(self.connection_fd_callback);
 
@@ -204,4 +233,18 @@ fn log_mixnet_client_config(debug_config: &DebugConfig) {
 
 fn true_to_disabled(val: bool) -> &'static str {
     if val { "disabled" } else { "enabled" }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_mixnet_client_config_default_values() {
+        let config = MixnetClientConfig::default();
+        assert!(!config.disable_poisson_rate);
+        assert!(!config.disable_background_cover_traffic);
+        assert_eq!(config.min_mixnode_performance, None);
+        assert_eq!(config.min_gateway_performance, None);
+    }
 }

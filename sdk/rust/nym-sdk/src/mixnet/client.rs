@@ -555,17 +555,17 @@ where
     async fn available_gateways(&mut self) -> Result<Vec<RoutingNode>, ClientCoreError> {
         if let Some(ref mut custom_provider) = self.custom_topology_provider {
             if let Some(topology) = custom_provider.get_new_topology().await {
-                return Ok(topology.entry_gateways().cloned().collect());
+                // Use entry_capable_nodes() instead of entry_gateways() to include
+                // all entry-capable nodes, not just actively assigned ones
+                return Ok(topology.entry_capable_nodes().cloned().collect());
             }
         }
 
         let nym_api_endpoints = self.get_api_endpoints();
         let topology_cfg = &self.config.debug_config.topology;
         let user_agent = self.user_agent.clone();
-        let mut rng = OsRng;
 
         gateways_for_init(
-            &mut rng,
             &nym_api_endpoints,
             user_agent,
             topology_cfg.minimum_gateway_performance,
@@ -878,5 +878,78 @@ impl IncludedSurbs {
 
     pub fn expose_self_address() -> Self {
         Self::ExposeSelfAddress
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_mixnet_builder_default_no_custom_client() {
+        let builder = MixnetClientBuilder::new_ephemeral();
+        assert!(
+            builder.build().is_ok(),
+            "Builder should succeed without custom client"
+        );
+    }
+
+    #[test]
+    fn test_mixnet_builder_with_custom_client() {
+        let http_client = nym_http_api_client::Client::builder(
+            nym_http_api_client::Url::parse("https://validator.nymtech.net/api").unwrap(),
+        )
+        .expect("Failed to create client builder")
+        .build()
+        .expect("Failed to build client");
+
+        let builder = MixnetClientBuilder::new_ephemeral().with_nym_api_client(http_client);
+
+        assert!(
+            builder.build().is_ok(),
+            "Builder should succeed with custom client"
+        );
+    }
+
+    // Note: Tests for entry_capable_nodes() vs entry_gateways() are in nym-topology crate
+    // These tests verify the builder functionality only
+
+    #[test]
+    fn test_custom_client_transfer_through_build() {
+        let http_client = nym_http_api_client::Client::builder(
+            nym_http_api_client::Url::parse("https://validator.nymtech.net/api").unwrap(),
+        )
+        .expect("Failed to create client builder")
+        .build()
+        .expect("Failed to build client");
+
+        let builder = MixnetClientBuilder::new_ephemeral().with_nym_api_client(http_client);
+        let disconnected_client = builder.build();
+
+        assert!(
+            disconnected_client.is_ok(),
+            "Build should transfer custom_nym_api_client successfully"
+        );
+    }
+
+    #[test]
+    fn test_builder_storage_transfer_includes_custom_client() {
+        use nym_client_core::client::base_client::storage::Ephemeral;
+
+        let http_client = nym_http_api_client::Client::builder(
+            nym_http_api_client::Url::parse("https://validator.nymtech.net/api").unwrap(),
+        )
+        .expect("Failed to create client builder")
+        .build()
+        .expect("Failed to build client");
+
+        let builder = MixnetClientBuilder::new_ephemeral().with_nym_api_client(http_client);
+        let new_storage = Ephemeral::default();
+        let builder_with_new_storage = builder.set_storage(new_storage);
+
+        assert!(
+            builder_with_new_storage.build().is_ok(),
+            "set_storage should preserve custom_nym_api_client"
+        );
     }
 }

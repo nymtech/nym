@@ -15,7 +15,6 @@ workspace = true
 bincode.workspace = true
 bytes.workspace = true
 futures.workspace = true
-# nym-gateway-directory = { path = "../nym-gateway-directory" }
 nym-ip-packet-requests = { path = "../common/ip-packet-requests" }
 nym-sdk = {path = "../sdk/rust/nym-sdk" }
 thiserror.workspace = true

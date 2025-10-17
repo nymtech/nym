@@ -121,6 +121,24 @@ pub enum Error {
 
     #[error("connect denied: {0:?}")]
     ConnectDenied(ConnectFailureReason),
+
+    #[error("gateway directory error: {0}")]
+    GatewayDirectoryError(#[from] nym_gateway_directory::Error),
+
+    #[error("did not receive Validator endpoint details")]
+    NoValidatorDetailsAvailable,
+
+    #[error("did not receive URL")]
+    NoValidatorAPIUrl,
+
+    #[error("did not receive NymVPN API URL")]
+    NoNymAPIUrl,
+
+    #[error("no available gateway")]
+    NoGatewayAvailable,
+
+    #[error("no IPR address on selected gateway")]
+    NoIPRAvailable,
 }
 
 impl Error {

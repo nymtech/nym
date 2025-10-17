@@ -5,7 +5,7 @@ use crate::error::SmolmixError;
 use nym_ip_packet_requests::codec::MultiIpPacketCodec;
 use nym_sdk::stream_wrapper::IpMixStream;
 use tokio::sync::mpsc;
-use tracing::{debug, error, info, trace};
+use tracing::{error, info};
 
 /// Asynchronous bridge between smoltcp device and Mixnet.
 ///

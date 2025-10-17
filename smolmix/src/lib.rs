@@ -4,13 +4,10 @@
 mod bridge;
 mod device;
 mod error;
-mod reqwest_client;
-pub mod tls;
 
 pub use bridge::NymIprBridge;
 pub use device::NymIprDevice;
 pub use error::SmolmixError;
-pub use tls::TlsOverTcp;
 
 use nym_ip_packet_requests::IpPair;
 use nym_sdk::stream_wrapper::IpMixStream;

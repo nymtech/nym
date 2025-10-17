@@ -22,6 +22,7 @@ nym-authenticator-client = { path = "../nym-authenticator-client" }
 nym-bandwidth-controller = { path = "../common/bandwidth-controller" }
 nym-credential-storage = { path = "../common/credential-storage" }
 nym-credentials-interface = { path = "../common/credentials-interface" }
+nym-http-api-client = { path = "../common/http-api-client" }
 nym-ip-packet-client = { path = "../nym-ip-packet-client" }
 nym-registration-common = { path = "../common/registration" }
 nym-sdk = { path = "../sdk/rust/nym-sdk" }

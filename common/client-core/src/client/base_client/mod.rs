@@ -199,6 +199,7 @@ pub struct BaseClientBuilder<C, S: MixnetClientStorage> {
     custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send>>,
     shutdown: Option<ShutdownTracker>,
     user_agent: Option<UserAgent>,
+    custom_nym_api_client: Option<nym_http_api_client::Client>,
 
     setup_method: GatewaySetup,
 
@@ -227,11 +228,18 @@ where
             custom_gateway_transceiver: None,
             shutdown: None,
             user_agent: None,
+            custom_nym_api_client: None,
             setup_method: GatewaySetup::MustLoad { gateway_id: None },
             #[cfg(unix)]
             connection_fd_callback: None,
             derivation_material: None,
         }
+    }
+
+    #[must_use]
+    pub fn with_nym_api_client(mut self, client: nym_http_api_client::Client) -> Self {
+        self.custom_nym_api_client = Some(client);
+        self
     }
 
     #[must_use]
@@ -820,7 +828,17 @@ where
     fn construct_nym_api_client(
         config: &Config,
         user_agent: Option<UserAgent>,
+        custom_client: Option<nym_http_api_client::Client>,
     ) -> Result<nym_http_api_client::Client, ClientCoreError> {
+        // If a custom client was provided (e.g., with domain fronting support), use it
+        if let Some(client) = custom_client {
+            tracing::info!("Using CUSTOM nym-api HTTP client (with domain fronting support)");
+            return Ok(client);
+        }
+
+        tracing::warn!("No custom HTTP client provided - creating DEFAULT client from config");
+
+        // Otherwise, create a basic client
         let mut nym_api_urls = config.get_nym_api_endpoints();
         nym_api_urls.shuffle(&mut thread_rng());
 
@@ -911,7 +929,11 @@ where
             .dkg_query_client
             .map(|client| BandwidthController::new(credential_store, client));
 
-        let nym_api_client = Self::construct_nym_api_client(&self.config, self.user_agent.clone())?;
+        let nym_api_client = Self::construct_nym_api_client(
+            &self.config,
+            self.user_agent.clone(),
+            self.custom_nym_api_client,
+        )?;
         let key_rotation_config = Self::determine_key_rotation_state(&nym_api_client).await?;
 
         let topology_provider = Self::setup_topology_provider(

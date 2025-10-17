@@ -89,16 +89,22 @@ async fn get_all_basic_entry_nodes_with_metadata(
     client: &nym_http_api_client::Client,
     use_bincode: bool,
 ) -> Result<SkimmedNodesWithMetadata, ClientCoreError> {
-    // Get first page to obtain metadata
+    // Get ALL nodes (not just entry-assigned) because in some environments (like sandbox),
+    // nodes may be capable of entry gateway role but not currently assigned to it
     let mut page = 0;
     let res = client
-        .get_basic_entry_assigned_nodes_v2(false, Some(page), None, use_bincode)
+        .get_basic_nodes_v2(false, Some(page), None, use_bincode)
         .await?;
     let mut nodes = res.nodes.data;
     let metadata = res.metadata;
 
     if res.nodes.pagination.total == nodes.len() {
-        return Ok(SkimmedNodesWithMetadata::new(nodes, metadata));
+        // Filter for entry-capable nodes (nodes with supported_roles.entry == true)
+        let entry_nodes: Vec<_> = nodes
+            .into_iter()
+            .filter(|n| n.supported_roles.entry)
+            .collect();
+        return Ok(SkimmedNodesWithMetadata::new(entry_nodes, metadata));
     }
 
     page += 1;
@@ -106,7 +112,7 @@ async fn get_all_basic_entry_nodes_with_metadata(
     // Collect remaining pages
     loop {
         let mut res = client
-            .get_basic_entry_assigned_nodes_v2(false, Some(page), None, use_bincode)
+            .get_basic_nodes_v2(false, Some(page), None, use_bincode)
             .await?;
 
         if !metadata.consistency_check(&res.metadata) {
@@ -123,7 +129,13 @@ async fn get_all_basic_entry_nodes_with_metadata(
         }
     }
 
-    Ok(SkimmedNodesWithMetadata::new(nodes, metadata))
+    // Filter for entry-capable nodes (nodes with supported_roles.entry == true)
+    let entry_nodes: Vec<_> = nodes
+        .into_iter()
+        .filter(|n| n.supported_roles.entry)
+        .collect();
+
+    Ok(SkimmedNodesWithMetadata::new(entry_nodes, metadata))
 }
 
 impl<'a, G: ConnectableGateway> GatewayWithLatency<'a, G> {
@@ -182,19 +194,55 @@ pub async fn gateways_for_init<R: Rng>(
 
     // filter out gateways below minimum performance and ones that could operate as a mixnode
     // (we don't want instability)
-    let valid_gateways = gateways
+    let total_fetched = gateways.len();
+
+    let after_role_filter_count = gateways
+        .iter()
+        .filter(|g| ignore_epoch_roles || !g.supported_roles.mixnode)
+        .count();
+    tracing::debug!(
+        "After role filter: {} (removed {} mixnode-capable)",
+        after_role_filter_count,
+        total_fetched - after_role_filter_count
+    );
+
+    let after_performance_filter_count = gateways
+        .iter()
+        .filter(|g| ignore_epoch_roles || !g.supported_roles.mixnode)
+        .filter(|g| g.performance.round_to_integer() >= minimum_performance)
+        .count();
+    tracing::debug!(
+        "After performance filter (>= {}%): {} (removed {} low-performance)",
+        minimum_performance,
+        after_performance_filter_count,
+        after_role_filter_count - after_performance_filter_count
+    );
+
+    let valid_gateways: Vec<RoutingNode> = gateways
         .iter()
         .filter(|g| ignore_epoch_roles || !g.supported_roles.mixnode)
         .filter(|g| g.performance.round_to_integer() >= minimum_performance)
         .filter_map(|gateway| gateway.try_into().ok())
-        .collect::<Vec<_>>();
-    tracing::debug!("After checking validity: {}", valid_gateways.len());
+        .collect();
+    tracing::debug!(
+        "After conversion to RoutingNode: {} (removed {} invalid)",
+        valid_gateways.len(),
+        after_performance_filter_count - valid_gateways.len()
+    );
     tracing::trace!("Valid gateways: {valid_gateways:#?}");
 
     tracing::info!(
         "and {} after validity and performance filtering",
         valid_gateways.len()
     );
+
+    for gw in &valid_gateways {
+        tracing::debug!(
+            "Available gateway: {} (node_id: {})",
+            gw.identity_key.to_base58_string(),
+            gw.node_id
+        );
+    }
 
     Ok(valid_gateways)
 }
@@ -355,13 +403,25 @@ pub(super) fn get_specified_gateway(
     must_use_tls: bool,
 ) -> Result<RoutingNode, ClientCoreError> {
     tracing::debug!("Requesting specified gateway: {gateway_identity}");
+    tracing::debug!("Searching in {} available gateways", gateways.len());
+    for gw in gateways {
+        tracing::debug!(
+            "Gateway in list: {} (node_id: {})",
+            gw.identity_key.to_base58_string(),
+            gw.node_id
+        );
+    }
+
     let user_gateway = ed25519::PublicKey::from_base58_string(gateway_identity)
         .map_err(ClientCoreError::UnableToCreatePublicKeyFromGatewayId)?;
 
     let gateway = gateways
         .iter()
         .find(|gateway| gateway.identity_key == user_gateway)
-        .ok_or_else(|| ClientCoreError::NoGatewayWithId(gateway_identity.to_string()))?;
+        .ok_or_else(|| {
+            tracing::error!("Gateway {gateway_identity} NOT FOUND in available gateways list!");
+            ClientCoreError::NoGatewayWithId(gateway_identity.to_string())
+        })?;
 
     let Some(entry_details) = gateway.entry.as_ref() else {
         return Err(ClientCoreError::UnsupportedEntry {
@@ -427,7 +487,6 @@ pub(super) async fn register_with_gateway(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use url::Url;
 
     #[test]
@@ -472,5 +531,114 @@ mod tests {
             .collect();
 
         assert!(nym_api_urls.is_empty(), "Empty list should remain empty");
+    }
+
+    #[test]
+    fn test_gateway_filtering_logic() {
+        // NOTE: This test validates the filtering logic in isolation.
+        // It does NOT test the actual implementation in get_all_basic_entry_nodes_with_metadata
+        // or gateways_for_init (which would require mocking the HTTP client).
+        // The real proof is building and running the daemon.
+        //
+        // Test the core filtering logic used in gateways_for_init:
+        // 1. Filter by supported_roles.entry (not by epoch role assignment)
+        // 2. Filter by performance
+        //
+        // This test verifies the fix where nodes have role=Inactive
+        // but supported_roles.entry=true
+
+        #[derive(Debug)]
+        struct TestNode {
+            id: u32,
+            entry_capable: bool,   // supported_roles.entry
+            mixnode_capable: bool, // supported_roles.mixnode
+            performance: u8,       // 0-100
+        }
+
+        let nodes = vec![
+            // Node 53: entry-capable, good performance
+            TestNode {
+                id: 53,
+                entry_capable: true,
+                mixnode_capable: false,
+                performance: 100,
+            },
+            // Node 97: entry-capable (but role=Inactive in sandbox), good performance
+            TestNode {
+                id: 97,
+                entry_capable: true,
+                mixnode_capable: false,
+                performance: 100,
+            },
+            // Node 75: NOT entry-capable (mixnode only)
+            TestNode {
+                id: 75,
+                entry_capable: false,
+                mixnode_capable: true,
+                performance: 100,
+            },
+            // Node 99: entry-capable but low performance
+            TestNode {
+                id: 99,
+                entry_capable: true,
+                mixnode_capable: false,
+                performance: 0,
+            },
+        ];
+
+        let minimum_performance = 50;
+        let ignore_epoch_roles = true;
+
+        // Step 1: Filter by supported_roles.entry (this is what the fix enables)
+        let entry_capable: Vec<_> = nodes.iter().filter(|n| n.entry_capable).collect();
+
+        assert_eq!(
+            entry_capable.len(),
+            3,
+            "Should have 3 entry-capable nodes (53, 97, 99) - this includes Inactive nodes!"
+        );
+
+        // Step 2: Filter by role (exclude mixnode-capable if not ignoring epoch roles)
+        let after_role_filter: Vec<_> = entry_capable
+            .iter()
+            .filter(|g| ignore_epoch_roles || !g.mixnode_capable)
+            .collect();
+
+        assert_eq!(
+            after_role_filter.len(),
+            3,
+            "All entry-capable nodes pass role filter with ignore_epoch_roles=true"
+        );
+
+        // Step 3: Filter by performance
+        let after_performance_filter: Vec<_> = after_role_filter
+            .iter()
+            .filter(|g| g.performance >= minimum_performance)
+            .collect();
+
+        assert_eq!(
+            after_performance_filter.len(),
+            2,
+            "Should have 2 nodes after performance filter (53 and 97, excluding 99 with 0%)"
+        );
+
+        // Verify the correct nodes made it through
+        let node_ids: Vec<u32> = after_performance_filter.iter().map(|n| n.id).collect();
+        assert!(
+            node_ids.contains(&53),
+            "Node 53 (actively assigned entry gateway) should be included"
+        );
+        assert!(
+            node_ids.contains(&97),
+            "Node 97 (Inactive but entry-capable) should be included - THIS IS THE FIX!"
+        );
+        assert!(
+            !node_ids.contains(&75),
+            "Node 75 (mixnode-only, not entry-capable) should be excluded"
+        );
+        assert!(
+            !node_ids.contains(&99),
+            "Node 99 (low performance) should be excluded"
+        );
     }
 }

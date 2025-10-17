@@ -1,5 +1,5 @@
+use mixtcp::{create_device, MixtcpError};
 use rustls::{pki_types::ServerName, ClientConfig, ClientConnection};
-use smolmix::{create_device, SmolmixError};
 use std::{
     io::{self, Read, Write},
     sync::Arc,
@@ -23,7 +23,7 @@ pub struct TlsOverTcp {
 }
 
 impl TlsOverTcp {
-    pub fn new(domain: &str) -> Result<Self, SmolmixError> {
+    pub fn new(domain: &str) -> Result<Self, MixtcpError> {
         let mut root_store = rustls::RootCertStore::empty();
         root_store.extend(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
 
@@ -32,24 +32,24 @@ impl TlsOverTcp {
             .with_no_client_auth();
 
         let server_name = ServerName::try_from(domain)
-            .map_err(|_| SmolmixError::InvalidDnsName)?
+            .map_err(|_| MixtcpError::InvalidDnsName)?
             .to_owned();
 
         let conn = ClientConnection::new(Arc::new(config), server_name)
-            .map_err(|_| SmolmixError::TlsHandshakeFailed)?;
+            .map_err(|_| MixtcpError::TlsHandshakeFailed)?;
 
         Ok(Self { conn })
     }
 
     /// Move data from TLS connection to TCP socket
-    pub fn write_tls(&mut self, socket: &mut tcp::Socket) -> Result<(), SmolmixError> {
+    pub fn write_tls(&mut self, socket: &mut tcp::Socket) -> Result<(), MixtcpError> {
         let mut buf = [0u8; 4096];
         while self.conn.wants_write() {
             match self.conn.write_tls(&mut buf.as_mut_slice()) {
                 Ok(n) if n > 0 => {
                     socket
                         .send_slice(&buf[..n])
-                        .map_err(|_| SmolmixError::TlsHandshakeFailed)?;
+                        .map_err(|_| MixtcpError::TlsHandshakeFailed)?;
                 }
                 _ => break,
             }
@@ -58,7 +58,7 @@ impl TlsOverTcp {
     }
 
     /// Move data from TCP socket to TLS connection
-    pub fn read_tls(&mut self, socket: &mut tcp::Socket) -> Result<(), SmolmixError> {
+    pub fn read_tls(&mut self, socket: &mut tcp::Socket) -> Result<(), MixtcpError> {
         if socket.can_recv() {
             let _ = socket.recv(|chunk| {
                 if !chunk.is_empty() {
@@ -72,15 +72,15 @@ impl TlsOverTcp {
         Ok(())
     }
 
-    pub fn send(&mut self, data: &[u8], socket: &mut tcp::Socket) -> Result<(), SmolmixError> {
+    pub fn send(&mut self, data: &[u8], socket: &mut tcp::Socket) -> Result<(), MixtcpError> {
         self.conn
             .writer()
             .write_all(data)
-            .map_err(|_| SmolmixError::TlsHandshakeFailed)?;
+            .map_err(|_| MixtcpError::TlsHandshakeFailed)?;
         self.write_tls(socket)
     }
 
-    pub fn recv(&mut self, socket: &mut tcp::Socket) -> Result<Vec<u8>, SmolmixError> {
+    pub fn recv(&mut self, socket: &mut tcp::Socket) -> Result<Vec<u8>, MixtcpError> {
         self.read_tls(socket)?;
         let mut result = Vec::new();
         let mut buf = vec![0u8; 4096];
@@ -166,19 +166,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut sockets = SocketSet::new(vec![]);
     let tcp_handle = sockets.add(tcp_socket);
 
-    let target_ip = Ipv4Address::new(1, 1, 1, 1); // Pinging Cloudflare
+    let target_ip = Ipv4Address::new(1, 1, 1, 1);
     let target_port = 443;
-    info!("Connecting to {}:{} through mixnet", target_ip, target_port);
 
     let mut timestamp = Instant::from_millis(0);
     let start = tokio::time::Instant::now();
     let mut connected = false;
     let mut tls = None;
     let mut handshake_completed = false;
+    let mut request_sent = false;
 
     loop {
-        if start.elapsed() > Duration::from_secs(120) {
-            info!("Test timeout after 120 seconds");
+        if start.elapsed() > Duration::from_secs(60) {
+            info!("Test timeout after 60 seconds");
             break;
         }
 
@@ -186,6 +186,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         timestamp += smoltcp::time::Duration::from_millis(1);
         let socket = sockets.get_mut::<tcp::Socket>(tcp_handle);
 
+        // TCP connection setup
         if !connected && !socket.is_open() {
             match socket.connect(iface.context(), (target_ip, target_port), 49152) {
                 Ok(_) => {
@@ -199,16 +200,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
 
-        if start.elapsed().as_secs() % 5 == 0 && start.elapsed().as_millis() % 1000 < 100 {
-            info!(
-                "State: TCP={:?}, established={}, can_send={}, can_recv={}",
-                socket.state(),
-                socket.state() == tcp::State::Established,
-                socket.may_send(),
-                socket.can_recv()
-            );
-        }
-
+        // TLS setup after TCP established
         if socket.state() == tcp::State::Established && tls.is_none() {
             info!("TCP established - creating TLS connection");
             match TlsOverTcp::new("cloudflare.com") {
@@ -220,45 +212,72 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
 
+        // TLS handshake and request
         if let Some(ref mut tls_conn) = tls {
             let _ = tls_conn.read_tls(socket);
             let _ = tls_conn.write_tls(socket);
 
-            if start.elapsed().as_secs() % 10 == 0 && start.elapsed().as_millis() % 1000 < 100 {
-                info!(
-                    "TLS state: handshaking={}, wants_read={}, wants_write={}",
-                    tls_conn.conn.is_handshaking(),
-                    tls_conn.conn.wants_read(),
-                    tls_conn.conn.wants_write()
-                );
-            }
-
+            // Complete handshake
             if !tls_conn.conn.is_handshaking() && !handshake_completed {
-                info!("TLS handshake complete");
-                info!(
-                    "TLS verification: handshake_complete=true, wants_read={}, wants_write={}",
-                    tls_conn.conn.wants_read(),
-                    tls_conn.conn.wants_write()
-                );
+                handshake_completed = true;
+                info!("TLS handshake completed - ready for HTTPS");
 
-                match tls_conn.recv(socket) {
-                    Ok(data) if data.is_empty() => {
-                        info!("No unexpected application data waiting to be read");
-                    }
-                    Ok(data) => {
-                        info!("Unexpected application data received: {} bytes", data.len());
+                // Send simple HTTP request
+                let request = b"GET /cdn-cgi/trace HTTP/1.1\r\nHost: cloudflare.com\r\nUser-Agent: mixtcp-test/1.0\r\nAccept: */*\r\nConnection: close\r\n\r\n";
+                match tls_conn.send(request, socket) {
+                    Ok(_) => {
+                        info!("HTTPS request sent");
+                        request_sent = true;
                     }
                     Err(e) => {
-                        info!("TLS recv check failed: {}", e);
+                        info!("HTTPS send failed: {}", e);
+                        break;
                     }
                 }
-                info!("TLS handshake successful with cloudflare");
-                break;
+            }
+
+            // Read response after request sent
+            if request_sent {
+                let mut response_data = Vec::new();
+                let mut buf = vec![0u8; 4096];
+
+                match tls_conn.conn.reader().read(&mut buf) {
+                    Ok(0) => {
+                        info!("Response complete - connection closed");
+                        break;
+                    }
+                    Ok(n) if n > 0 => {
+                        response_data.extend_from_slice(&buf[..n]);
+                        info!("Received {} bytes", n);
+
+                        if let Ok(response_str) = std::str::from_utf8(&response_data) {
+                            if response_str.contains("\r\n\r\n") {
+                                info!("HTTPS response received!");
+
+                                if let Some(status_end) = response_str.find("\r\n") {
+                                    info!("HTTP Status: {}", &response_str[..status_end]);
+                                }
+
+                                info!("Full response: {}", response_str);
+                                return Ok(());
+                            }
+                        }
+                    }
+                    Ok(1_usize..) => {
+                        todo!()
+                    }
+                    Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                        // Keep polling
+                    }
+                    Err(e) => {
+                        info!("Read error: {}", e);
+                        break;
+                    }
+                }
             }
         }
-        tokio::time::sleep(Duration::from_millis(1)).await;
+        tokio::time::sleep(Duration::from_millis(10)).await;
     }
 
-    info!("Test completed");
-    Ok(())
+    Err("No HTTP response received".into())
 }

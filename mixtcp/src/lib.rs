@@ -7,7 +7,7 @@ mod error;
 
 pub use bridge::NymIprBridge;
 pub use device::NymIprDevice;
-pub use error::SmolmixError;
+pub use error::MixtcpError;
 
 use nym_ip_packet_requests::IpPair;
 use nym_sdk::stream_wrapper::IpMixStream;
@@ -23,7 +23,7 @@ use tokio::sync::mpsc;
 /// - Constructs the device and bridge components
 pub async fn create_device(
     mut ipr_stream: IpMixStream,
-) -> Result<(NymIprDevice, NymIprBridge, IpPair), SmolmixError> {
+) -> Result<(NymIprDevice, NymIprBridge, IpPair), MixtcpError> {
     // Ensure the stream is connected
     if !ipr_stream.is_connected() {
         ipr_stream.connect_tunnel().await?;
@@ -33,7 +33,7 @@ pub async fn create_device(
     // further 'up' the flow in the code calling this fn (see examples/tcp_connect.rs).
     let allocated_ips = ipr_stream
         .allocated_ips()
-        .ok_or(SmolmixError::NotConnected)?
+        .ok_or(MixtcpError::NotConnected)?
         .clone();
 
     // Create channels for device <-> bridge communication

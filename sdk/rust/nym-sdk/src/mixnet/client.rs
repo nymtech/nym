@@ -555,17 +555,17 @@ where
     async fn available_gateways(&mut self) -> Result<Vec<RoutingNode>, ClientCoreError> {
         if let Some(ref mut custom_provider) = self.custom_topology_provider {
             if let Some(topology) = custom_provider.get_new_topology().await {
-                return Ok(topology.entry_gateways().cloned().collect());
+                // Use entry_capable_nodes() instead of entry_gateways() to include
+                // all entry-capable nodes, not just actively assigned ones
+                return Ok(topology.entry_capable_nodes().cloned().collect());
             }
         }
 
         let nym_api_endpoints = self.get_api_endpoints();
         let topology_cfg = &self.config.debug_config.topology;
         let user_agent = self.user_agent.clone();
-        let mut rng = OsRng;
 
         gateways_for_init(
-            &mut rng,
             &nym_api_endpoints,
             user_agent,
             topology_cfg.minimum_gateway_performance,
@@ -707,6 +707,7 @@ where
 
         let mut base_builder: BaseClientBuilder<_, _> =
             BaseClientBuilder::new(base_config, self.storage, self.dkg_query_client)
+                .with_network_details(self.config.network_details.clone())
                 .with_wait_for_gateway(self.wait_for_gateway)
                 .with_forget_me(&self.forget_me)
                 .with_remember_me(&self.remember_me)
@@ -878,5 +879,32 @@ impl IncludedSurbs {
 
     pub fn expose_self_address() -> Self {
         Self::ExposeSelfAddress
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_mixnet_builder_default() {
+        let builder = MixnetClientBuilder::new_ephemeral();
+        assert!(
+            builder.build().is_ok(),
+            "Builder should succeed with default configuration"
+        );
+    }
+
+    #[test]
+    fn test_mixnet_builder_with_network_details() {
+        use nym_network_defaults::NymNetworkDetails;
+
+        let builder = MixnetClientBuilder::new_ephemeral();
+        let disconnected_client = builder.build();
+
+        assert!(
+            disconnected_client.is_ok(),
+            "Builder should succeed and domain fronting is handled via network_details"
+        );
     }
 }

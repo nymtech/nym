@@ -12,7 +12,7 @@ import { SendInputModal } from './SendInputModal';
 import { SendSuccessModal } from './SendSuccessModal';
 import { TTransactionDetails } from './types';
 
-export const SendModal = ({ onClose, hasStorybookStyles }: { onClose: () => void; hasStorybookStyles?: {} }) => {
+export const SendModal = ({ onClose }: { onClose: () => void }) => {
   const [toAddress, setToAddress] = useState<string>('');
   const [amount, setAmount] = useState<DecCoin>();
   const [modal, setModal] = useState<'send' | 'send details'>('send');
@@ -108,7 +108,6 @@ export const SendModal = ({ onClose, hasStorybookStyles }: { onClose: () => void
         onSend={handleSend}
         denom={clientDetails?.display_mix_denom || 'nym'}
         memo={memo}
-        {...hasStorybookStyles}
       />
     );
 
@@ -130,7 +129,6 @@ export const SendModal = ({ onClose, hasStorybookStyles }: { onClose: () => void
       onUserFeesChange={(value) => setUserFees(value)}
       onMemoChange={(value) => setMemo(value)}
       setShowMore={setShowMoreOptions}
-      {...hasStorybookStyles}
     />
   );
 };

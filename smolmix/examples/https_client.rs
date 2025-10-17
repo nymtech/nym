@@ -1,18 +1,22 @@
-use crate::{create_device, IpMixStream, NymIprDevice, SmolmixError};
+use nym_sdk::stream_wrapper::IpMixStream;
 use reqwest::StatusCode;
 use rustls::{pki_types::ServerName, ClientConfig, ClientConnection};
+use smolmix::{create_device, NymIprDevice, SmolmixError};
 use smoltcp::{
     iface::{Config, Interface, SocketSet},
     socket::tcp,
     time::Instant,
     wire::{HardwareAddress, IpAddress, IpCidr, Ipv4Address},
 };
+use std::sync::Once;
 use std::{
     io::{self, Read, Write},
     sync::Arc,
     time::Duration,
 };
 use tracing::info;
+
+static INIT: Once = Once::new();
 
 pub struct TlsOverTcp {
     pub conn: ClientConnection,
@@ -74,11 +78,11 @@ impl TlsOverTcp {
     }
 }
 
-/// Reqwest-ish client right now, just GET
+/// Reqwest-ish client right now, just a handrolled GET request for the example
 pub struct SmolmixReqwestClient {
     device: Arc<tokio::sync::Mutex<(smoltcp::iface::Interface, NymIprDevice)>>,
-    bridge: tokio::task::JoinHandle<()>,
-    allocated_ip: Ipv4Address,
+    _bridge: tokio::task::JoinHandle<()>,
+    _allocated_ip: Ipv4Address,
 }
 
 impl SmolmixReqwestClient {
@@ -112,8 +116,8 @@ impl SmolmixReqwestClient {
 
         Ok(Self {
             device,
-            bridge: bridge_handle,
-            allocated_ip: allocated_ips.ipv4,
+            _bridge: bridge_handle,
+            _allocated_ip: allocated_ips.ipv4,
         })
     }
 
@@ -268,95 +272,67 @@ impl SmolmixResponse {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use serde_json;
-    use std::sync::Once;
-
-    static INIT: Once = Once::new();
-
-    fn init_logging() {
-        if tracing::dispatcher::has_been_set() {
-            return;
-        }
-        INIT.call_once(|| {
-            nym_bin_common::logging::setup_tracing_logger();
-        });
+fn init_logging() {
+    if tracing::dispatcher::has_been_set() {
+        return;
     }
-    #[tokio::test]
-    async fn mixnet_vs_plain_reqwest() -> Result<(), Box<dyn std::error::Error>> {
-        init_logging();
+    INIT.call_once(|| {
+        nym_bin_common::logging::setup_tracing_logger();
+    });
+}
 
-        let test_url = "https://cloudflare.com/cdn-cgi/trace";
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    init_logging();
 
-        info!("Fetching with plain reqwest...");
-        let start = tokio::time::Instant::now();
-        let plain_response = reqwest::get(test_url).await?;
-        let plain_status = plain_response.status();
-        let plain_text = plain_response.text().await?;
-        let plain_duration = start.elapsed();
+    let test_url = "https://cloudflare.com/cdn-cgi/trace";
 
+    info!("Fetching with plain reqwest...");
+    let start = tokio::time::Instant::now();
+    let plain_response = reqwest::get(test_url).await?;
+    let plain_status = plain_response.status();
+    let plain_text = plain_response.text().await?;
+    let plain_duration = start.elapsed();
+
+    info!(
+        "Plain reqwest - Status: {}, Time: {:?}",
+        plain_status, plain_duration
+    );
+
+    info!("Setting up mixnet client...");
+    let client = SmolmixReqwestClient::new().await?;
+    let start = tokio::time::Instant::now();
+    let mixnet_response = client.get(test_url).await?;
+    let mixnet_status = mixnet_response.status();
+    let mixnet_text = mixnet_response.text().await?;
+    let mixnet_duration = start.elapsed();
+
+    info!(
+        "Mixnet reqwest - Status: {}, Time: {:?}",
+        mixnet_status, mixnet_duration
+    );
+
+    info!("Status codes match: {}", plain_status == mixnet_status);
+    info!(
+        "Response lengths match: {}",
+        plain_text.len() == mixnet_text.len()
+    );
+
+    let key_fields = ["fl=", "ip=", "ts=", "visit_scheme="];
+    for field in key_fields {
+        let plain_has = plain_text.contains(field);
+        let mixnet_has = mixnet_text.contains(field);
         info!(
-            "Plain reqwest - Status: {}, Time: {:?}",
-            plain_status, plain_duration
+            "Field '{}' - Plain: {}, Mixnet: {}",
+            field, plain_has, mixnet_has
         );
-
-        info!("Setting up mixnet client...");
-        let client = SmolmixReqwestClient::new().await?;
-        let start = tokio::time::Instant::now();
-        let mixnet_response = client.get(test_url).await?;
-        let mixnet_status = mixnet_response.status();
-        let mixnet_text = mixnet_response.text().await?;
-        let mixnet_duration = start.elapsed();
-
-        info!(
-            "Mixnet reqwest - Status: {}, Time: {:?}",
-            mixnet_status, mixnet_duration
-        );
-
-        info!("Status codes match: {}", plain_status == mixnet_status);
-        info!(
-            "Response lengths match: {}",
-            plain_text.len() == mixnet_text.len()
-        );
-
-        let key_fields = ["fl=", "ip=", "ts=", "visit_scheme="];
-        for field in key_fields {
-            let plain_has = plain_text.contains(field);
-            let mixnet_has = mixnet_text.contains(field);
-            info!(
-                "Field '{}' - Plain: {}, Mixnet: {}",
-                field, plain_has, mixnet_has
-            );
-            assert_eq!(plain_has, mixnet_has, "Field '{}' mismatch", field);
-        }
-
-        info!("Plain reqwest time: {:?}", plain_duration);
-        info!("Mixnet reqwest time: {:?}", mixnet_duration);
-        let slowdown = mixnet_duration.as_millis() as f64 / plain_duration.as_millis() as f64;
-        info!("Mixnet slowdown: {:.1}x", slowdown);
-        info!("Both responses match");
-        Ok(())
+        assert_eq!(plain_has, mixnet_has, "Field '{}' mismatch", field);
     }
 
-    #[tokio::test]
-    async fn compare_exit_ip() -> Result<(), Box<dyn std::error::Error>> {
-        init_logging();
-        let plain: serde_json::Value = reqwest::get("https://api.ipify.org?format=json")
-            .await?
-            .json()
-            .await?;
-        let plain_ip = plain["ip"].as_str().expect("no ip field");
-        let client = SmolmixReqwestClient::new().await?;
-        // MAX: this returns 403, looks like they detect we're some sort of proxy
-        // let resp = client.get("https://api.ipify.org?format=json").await?;
-        // info!("{:?}", client.allocated_ip);
-        assert_ne!(
-            plain_ip,
-            client.allocated_ip.to_string(),
-            "IPs should not be the same"
-        );
-        Ok(())
-    }
+    info!("Plain reqwest time: {:?}", plain_duration);
+    info!("Mixnet reqwest time: {:?}", mixnet_duration);
+    let slowdown = mixnet_duration.as_millis() as f64 / plain_duration.as_millis() as f64;
+    info!("Mixnet slowdown: {:.1}x", slowdown);
+    info!("Both responses match");
+    Ok(())
 }

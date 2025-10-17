@@ -1,0 +1,27 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO nym_nodes\n                (node_id, ed25519_identity_pubkey,\n                    total_stake,\n                    ip_addresses, mix_port,\n                    x25519_sphinx_pubkey, node_role,\n                    supported_roles, entry,\n                    self_described,\n                    bond_info,\n                    performance, last_updated_utc, http_api_port\n                )\n                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)\n                ON CONFLICT(node_id) DO UPDATE SET\n                ed25519_identity_pubkey=excluded.ed25519_identity_pubkey,\n                ip_addresses=excluded.ip_addresses,\n                mix_port=excluded.mix_port,\n                x25519_sphinx_pubkey=excluded.x25519_sphinx_pubkey,\n                node_role=excluded.node_role,\n                supported_roles=excluded.supported_roles,\n                entry=excluded.entry,\n                self_described=excluded.self_described,\n                bond_info=excluded.bond_info,\n                performance=excluded.performance,\n                last_updated_utc=excluded.last_updated_utc,\n                http_api_port=excluded.http_api_port\n                ;",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Varchar",
+        "Int8",
+        "Jsonb",
+        "Int4",
+        "Varchar",
+        "Jsonb",
+        "Jsonb",
+        "Jsonb",
+        "Jsonb",
+        "Jsonb",
+        "Varchar",
+        "Int4",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "dde9aff827c34086077927bbe33fa3d5c939e7122ba7c88b78a353f00b271ec2"
+}

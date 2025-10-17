@@ -36,7 +36,6 @@ use crate::init::{
 };
 use futures::channel::mpsc;
 use futures::SinkExt;
-// use log::*;
 use nym_bandwidth_controller::BandwidthController;
 use nym_client_core_config_types::{ForgetMe, RememberMe};
 use nym_client_core_gateways_storage::{GatewayDetails, GatewaysDetailsStore};
@@ -67,9 +66,7 @@ use std::os::raw::c_int as RawFd;
 use std::path::Path;
 use std::sync::Arc;
 use time::OffsetDateTime;
-use tokio::sync::mpsc::Sender;
 use tokio_util::sync::{PollSendError, PollSender};
-// use tracing::*;
 use tracing::{debug, error, info};
 use url::Url;
 

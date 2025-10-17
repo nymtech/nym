@@ -6,8 +6,6 @@ mod error;
 pub mod gateway_cache;
 mod gateway_client;
 mod helpers;
-use nym_sphinx::addressing::clients::Recipient;
-use nym_sphinx::addressing::nodes::NodeIdentity;
 pub use nym_vpn_api_client::types::{GatewayMinPerformance, NaiveFloat, Percent};
 
 pub use crate::{

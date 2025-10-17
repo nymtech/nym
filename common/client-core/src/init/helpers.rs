@@ -144,8 +144,7 @@ impl<'a, G: ConnectableGateway> GatewayWithLatency<'a, G> {
     }
 }
 
-pub async fn gateways_for_init<R: Rng>(
-    _rng: &mut R,
+pub async fn gateways_for_init(
     nym_apis: &[Url],
     user_agent: Option<UserAgent>,
     minimum_performance: u8,
@@ -161,18 +160,9 @@ pub async fn gateways_for_init<R: Rng>(
         return Err(ClientCoreError::ListOfNymApisIsEmpty);
     }
 
-    let mut builder = if nym_api_urls.len() == 1 {
-        nym_http_api_client::Client::builder(nym_api_urls[0].clone()).map_err(|e| {
-            ClientCoreError::ValidatorClientError(nym_validator_client::ValidatorClientError::from(
-                e,
-            ))
-        })?
-    } else {
-        nym_http_api_client::ClientBuilder::new_with_urls(nym_api_urls.clone()).with_retries(3)
-        // Enable URL rotation on failure
-    };
-
-    builder = builder.with_bincode();
+    let mut builder = nym_http_api_client::ClientBuilder::new_with_urls(nym_api_urls.clone())
+        .with_retries(3)
+        .with_bincode();
 
     if let Some(user_agent) = user_agent {
         builder = builder.with_user_agent(user_agent);
@@ -194,55 +184,17 @@ pub async fn gateways_for_init<R: Rng>(
 
     // filter out gateways below minimum performance and ones that could operate as a mixnode
     // (we don't want instability)
-    let total_fetched = gateways.len();
-
-    let after_role_filter_count = gateways
-        .iter()
-        .filter(|g| ignore_epoch_roles || !g.supported_roles.mixnode)
-        .count();
-    tracing::debug!(
-        "After role filter: {} (removed {} mixnode-capable)",
-        after_role_filter_count,
-        total_fetched - after_role_filter_count
-    );
-
-    let after_performance_filter_count = gateways
-        .iter()
-        .filter(|g| ignore_epoch_roles || !g.supported_roles.mixnode)
-        .filter(|g| g.performance.round_to_integer() >= minimum_performance)
-        .count();
-    tracing::debug!(
-        "After performance filter (>= {}%): {} (removed {} low-performance)",
-        minimum_performance,
-        after_performance_filter_count,
-        after_role_filter_count - after_performance_filter_count
-    );
-
     let valid_gateways: Vec<RoutingNode> = gateways
         .iter()
         .filter(|g| ignore_epoch_roles || !g.supported_roles.mixnode)
         .filter(|g| g.performance.round_to_integer() >= minimum_performance)
         .filter_map(|gateway| gateway.try_into().ok())
         .collect();
-    tracing::debug!(
-        "After conversion to RoutingNode: {} (removed {} invalid)",
-        valid_gateways.len(),
-        after_performance_filter_count - valid_gateways.len()
-    );
-    tracing::trace!("Valid gateways: {valid_gateways:#?}");
 
     tracing::info!(
-        "and {} after validity and performance filtering",
+        "Found {} valid gateways after filtering",
         valid_gateways.len()
     );
-
-    for gw in &valid_gateways {
-        tracing::debug!(
-            "Available gateway: {} (node_id: {})",
-            gw.identity_key.to_base58_string(),
-            gw.node_id
-        );
-    }
 
     Ok(valid_gateways)
 }
@@ -403,14 +355,6 @@ pub(super) fn get_specified_gateway(
     must_use_tls: bool,
 ) -> Result<RoutingNode, ClientCoreError> {
     tracing::debug!("Requesting specified gateway: {gateway_identity}");
-    tracing::debug!("Searching in {} available gateways", gateways.len());
-    for gw in gateways {
-        tracing::debug!(
-            "Gateway in list: {} (node_id: {})",
-            gw.identity_key.to_base58_string(),
-            gw.node_id
-        );
-    }
 
     let user_gateway = ed25519::PublicKey::from_base58_string(gateway_identity)
         .map_err(ClientCoreError::UnableToCreatePublicKeyFromGatewayId)?;
@@ -419,7 +363,10 @@ pub(super) fn get_specified_gateway(
         .iter()
         .find(|gateway| gateway.identity_key == user_gateway)
         .ok_or_else(|| {
-            tracing::error!("Gateway {gateway_identity} NOT FOUND in available gateways list!");
+            tracing::debug!(
+                "Gateway {gateway_identity} not found in {} available gateways",
+                gateways.len()
+            );
             ClientCoreError::NoGatewayWithId(gateway_identity.to_string())
         })?;
 

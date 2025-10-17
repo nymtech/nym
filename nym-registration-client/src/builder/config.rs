@@ -157,10 +157,8 @@ impl BuilderConfig {
             .custom_topology_provider(self.custom_topology_provider);
 
         if let Some(nym_api_client) = self.custom_nym_api_client {
-            tracing::info!("Registration client: Passing custom nym-api HTTP client to SDK");
+            tracing::debug!("Using custom nym-api HTTP client");
             builder = builder.with_nym_api_client(nym_api_client);
-        } else {
-            tracing::warn!("Registration client: No custom nym-api HTTP client provided");
         }
 
         #[cfg(unix)]

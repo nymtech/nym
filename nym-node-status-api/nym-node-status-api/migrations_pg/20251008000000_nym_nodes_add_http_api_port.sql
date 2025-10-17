@@ -1,2 +1,2 @@
 ALTER TABLE nym_nodes
-    ADD COLUMN http_api_port INTEGER;
+    ADD COLUMN IF NOT EXISTS http_api_port INTEGER;

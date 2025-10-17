@@ -1,7 +1,7 @@
+use mixtcp::{create_device, MixtcpError, NymIprDevice};
 use nym_sdk::stream_wrapper::IpMixStream;
 use reqwest::StatusCode;
 use rustls::{pki_types::ServerName, ClientConfig, ClientConnection};
-use smolmix::{create_device, NymIprDevice, SmolmixError};
 use smoltcp::{
     iface::{Config, Interface, SocketSet},
     socket::tcp,
@@ -23,7 +23,7 @@ pub struct TlsOverTcp {
 }
 
 impl TlsOverTcp {
-    pub fn new(domain: &str) -> Result<Self, SmolmixError> {
+    pub fn new(domain: &str) -> Result<Self, MixtcpError> {
         let mut root_store = rustls::RootCertStore::empty();
         root_store.extend(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
 
@@ -32,23 +32,23 @@ impl TlsOverTcp {
             .with_no_client_auth();
 
         let server_name = ServerName::try_from(domain)
-            .map_err(|_| SmolmixError::InvalidDnsName)?
+            .map_err(|_| MixtcpError::InvalidDnsName)?
             .to_owned();
 
         let conn = ClientConnection::new(Arc::new(config), server_name)
-            .map_err(|_| SmolmixError::TlsHandshakeFailed)?;
+            .map_err(|_| MixtcpError::TlsHandshakeFailed)?;
 
         Ok(Self { conn })
     }
 
-    pub fn write_tls(&mut self, socket: &mut tcp::Socket) -> Result<(), SmolmixError> {
+    pub fn write_tls(&mut self, socket: &mut tcp::Socket) -> Result<(), MixtcpError> {
         let mut buf = [0u8; 4096];
         while self.conn.wants_write() {
             match self.conn.write_tls(&mut buf.as_mut_slice()) {
                 Ok(n) if n > 0 => {
                     socket
                         .send_slice(&buf[..n])
-                        .map_err(|_| SmolmixError::TlsHandshakeFailed)?;
+                        .map_err(|_| MixtcpError::TlsHandshakeFailed)?;
                 }
                 _ => break,
             }
@@ -56,7 +56,7 @@ impl TlsOverTcp {
         Ok(())
     }
 
-    pub fn read_tls(&mut self, socket: &mut tcp::Socket) -> Result<(), SmolmixError> {
+    pub fn read_tls(&mut self, socket: &mut tcp::Socket) -> Result<(), MixtcpError> {
         if socket.can_recv() {
             let _ = socket.recv(|chunk| {
                 if !chunk.is_empty() {
@@ -69,27 +69,27 @@ impl TlsOverTcp {
         Ok(())
     }
 
-    pub fn send(&mut self, data: &[u8], socket: &mut tcp::Socket) -> Result<(), SmolmixError> {
+    pub fn send(&mut self, data: &[u8], socket: &mut tcp::Socket) -> Result<(), MixtcpError> {
         self.conn
             .writer()
             .write_all(data)
-            .map_err(|_| SmolmixError::TlsHandshakeFailed)?;
+            .map_err(|_| MixtcpError::TlsHandshakeFailed)?;
         self.write_tls(socket)
     }
 }
 
 /// Reqwest-ish client right now, just a handrolled GET request for the example
-pub struct SmolmixReqwestClient {
+pub struct MixtcpReqwestClient {
     device: Arc<tokio::sync::Mutex<(smoltcp::iface::Interface, NymIprDevice)>>,
     _bridge: tokio::task::JoinHandle<()>,
     _allocated_ip: Ipv4Address,
 }
 
-impl SmolmixReqwestClient {
-    pub async fn new() -> Result<Self, SmolmixError> {
+impl MixtcpReqwestClient {
+    pub async fn new() -> Result<Self, MixtcpError> {
         let ipr_stream = IpMixStream::new()
             .await
-            .map_err(|_| SmolmixError::MixnetConnectionFailed)?;
+            .map_err(|_| MixtcpError::MixnetConnectionFailed)?;
 
         let (mut device, bridge, allocated_ips) = create_device(ipr_stream).await?;
         info!("Allocated IP: {}", allocated_ips.ipv4);
@@ -121,18 +121,18 @@ impl SmolmixReqwestClient {
         })
     }
 
-    pub async fn get(&self, url: &str) -> Result<SmolmixResponse, SmolmixError> {
-        let parsed_url = reqwest::Url::parse(url).map_err(|_| SmolmixError::InvalidUrl)?;
-        let host = parsed_url.host_str().ok_or(SmolmixError::InvalidUrl)?;
+    pub async fn get(&self, url: &str) -> Result<MixtcpResponse, MixtcpError> {
+        let parsed_url = reqwest::Url::parse(url).map_err(|_| MixtcpError::InvalidUrl)?;
+        let host = parsed_url.host_str().ok_or(MixtcpError::InvalidUrl)?;
         let path = parsed_url.path();
 
         let response_bytes = self.simple_get_request(host, path).await?;
         let (status, body) = self.parse_simple_response(&response_bytes)?;
 
-        Ok(SmolmixResponse { status, body })
+        Ok(MixtcpResponse { status, body })
     }
 
-    async fn simple_get_request(&self, domain: &str, path: &str) -> Result<Vec<u8>, SmolmixError> {
+    async fn simple_get_request(&self, domain: &str, path: &str) -> Result<Vec<u8>, MixtcpError> {
         let tcp_rx_buffer = tcp::SocketBuffer::new(vec![0; 16384]);
         let tcp_tx_buffer = tcp::SocketBuffer::new(vec![0; 4096]);
         let tcp_socket = tcp::Socket::new(tcp_rx_buffer, tcp_tx_buffer);
@@ -155,7 +155,7 @@ impl SmolmixReqwestClient {
 
         loop {
             if start.elapsed() > Duration::from_secs(60) {
-                return Err(SmolmixError::Timeout);
+                return Err(MixtcpError::Timeout);
             }
 
             iface.poll(timestamp, device, &mut sockets);
@@ -170,7 +170,7 @@ impl SmolmixReqwestClient {
                     }
                     Err(e) => {
                         info!("TCP connect failed: {}", e);
-                        return Err(SmolmixError::TcpConnectionFailed);
+                        return Err(MixtcpError::TcpConnectionFailed);
                     }
                 }
             }
@@ -181,7 +181,7 @@ impl SmolmixReqwestClient {
                     Ok(t) => tls = Some(t),
                     Err(e) => {
                         info!("TLS create failed: {}", e);
-                        return Err(SmolmixError::TlsHandshakeFailed);
+                        return Err(MixtcpError::TlsHandshakeFailed);
                     }
                 }
             }
@@ -195,7 +195,7 @@ impl SmolmixReqwestClient {
                     info!("TLS handshake completed - ready for HTTPS");
 
                     let request = format!(
-                        "GET {} HTTP/1.1\r\nHost: {}\r\nUser-Agent: smolmix/1.0\r\nAccept: */*\r\nConnection: close\r\n\r\n",
+                        "GET {} HTTP/1.1\r\nHost: {}\r\nUser-Agent: mixtcp/1.0\r\nAccept: */*\r\nConnection: close\r\n\r\n",
                         path, domain
                     );
                     tls_conn.send(request.as_bytes(), socket)?;
@@ -221,7 +221,7 @@ impl SmolmixReqwestClient {
                         Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {}
                         Err(e) => {
                             info!("Read error: {}", e);
-                            return Err(SmolmixError::ResponseReadFailed);
+                            return Err(MixtcpError::ResponseReadFailed);
                         }
                         Ok(_) => continue,
                     }
@@ -230,17 +230,17 @@ impl SmolmixReqwestClient {
             tokio::time::sleep(Duration::from_millis(10)).await;
         }
 
-        Err(SmolmixError::NoResponseReceived)
+        Err(MixtcpError::NoResponseReceived)
     }
 
     /// Simple response - just extract status and body
-    fn parse_simple_response(&self, response_bytes: &[u8]) -> Result<(u16, String), SmolmixError> {
+    fn parse_simple_response(&self, response_bytes: &[u8]) -> Result<(u16, String), MixtcpError> {
         let response_str = String::from_utf8_lossy(response_bytes);
 
         let status_line = response_str
             .lines()
             .next()
-            .ok_or(SmolmixError::InvalidHttpResponse)?;
+            .ok_or(MixtcpError::InvalidHttpResponse)?;
 
         let status: u16 = status_line
             .split_whitespace()
@@ -252,17 +252,17 @@ impl SmolmixReqwestClient {
             let body = response_str[body_start + 4..].to_string();
             Ok((status, body))
         } else {
-            Err(SmolmixError::InvalidHttpResponse)
+            Err(MixtcpError::InvalidHttpResponse)
         }
     }
 }
 
-pub struct SmolmixResponse {
+pub struct MixtcpResponse {
     status: u16,
     body: String,
 }
 
-impl SmolmixResponse {
+impl MixtcpResponse {
     pub fn status(&self) -> StatusCode {
         StatusCode::from_u16(self.status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR)
     }
@@ -300,7 +300,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
 
     info!("Setting up mixnet client...");
-    let client = SmolmixReqwestClient::new().await?;
+    let client = MixtcpReqwestClient::new().await?;
     let start = tokio::time::Instant::now();
     let mixnet_response = client.get(test_url).await?;
     let mixnet_status = mixnet_response.status();

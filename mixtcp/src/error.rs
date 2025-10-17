@@ -4,7 +4,7 @@
 use thiserror::Error;
 
 #[derive(Error, Debug)]
-pub enum SmolmixError {
+pub enum MixtcpError {
     #[error("Channel closed")]
     ChannelClosed,
 

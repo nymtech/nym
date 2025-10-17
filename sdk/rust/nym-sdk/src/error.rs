@@ -1,8 +1,6 @@
 use nym_validator_client::nyxd::error::NyxdError;
 use std::path::PathBuf;
 
-use crate::error;
-
 use nym_ip_packet_requests::v8::response::{ConnectFailureReason, IpPacketResponseData};
 
 /// Top-level Error enum for the mixnet client and its relevant types.

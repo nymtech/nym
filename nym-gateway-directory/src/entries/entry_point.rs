@@ -1,10 +1,9 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::addressing::nodes::NodeIdentity;
 use std::fmt::{Display, Formatter};
-// use nym_sdk::mixnet::NodeIdentity;
+
 use serde::{Deserialize, Serialize};
 use tracing::debug;
 

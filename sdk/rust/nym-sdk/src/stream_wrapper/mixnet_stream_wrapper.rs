@@ -284,7 +284,7 @@ impl MixStreamWriter {
         let mut codec = InputMessageCodec {};
         let mut serialized_bytes = BytesMut::new();
         codec.encode(input_message, &mut serialized_bytes)?;
-        info!("Serialized bytes: {:?}", serialized_bytes);
+        debug!("Serialized bytes: {:?}", serialized_bytes);
 
         self.write_all(&serialized_bytes).await?;
         info!("Wrote serialized bytes");

@@ -3,10 +3,7 @@
 
 use futures::channel::mpsc;
 use serde::{Deserialize, Serialize};
-use std::{
-    collections::HashMap,
-    time::{Duration, Instant},
-};
+use std::collections::HashMap;
 
 // const LANE_CONSIDERED_CLEAR: usize = 10;
 

@@ -877,11 +877,11 @@ where
     ) -> Result<nym_http_api_client::Client, ClientCoreError> {
         // If a custom client was provided (e.g., with domain fronting support), use it
         if let Some(client) = custom_client {
-            tracing::info!("Using CUSTOM nym-api HTTP client (with domain fronting support)");
+            tracing::debug!("Using custom nym-api HTTP client");
             return Ok(client);
         }
 
-        tracing::warn!("No custom HTTP client provided - creating DEFAULT client from config");
+        tracing::debug!("Creating default nym-api HTTP client from config");
 
         // Otherwise, create a basic client
         let mut nym_api_urls = config.get_nym_api_endpoints();

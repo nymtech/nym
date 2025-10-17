@@ -579,10 +579,8 @@ where
         let nym_api_endpoints = self.get_api_endpoints();
         let topology_cfg = &self.config.debug_config.topology;
         let user_agent = self.user_agent.clone();
-        let mut rng = OsRng;
 
         gateways_for_init(
-            &mut rng,
             &nym_api_endpoints,
             user_agent,
             topology_cfg.minimum_gateway_performance,
@@ -734,10 +732,8 @@ where
         }
 
         if let Some(nym_api_client) = self.custom_nym_api_client {
-            tracing::info!("SDK: Passing custom nym-api HTTP client to BaseClientBuilder");
+            tracing::debug!("Using custom nym-api HTTP client");
             base_builder = base_builder.with_nym_api_client(nym_api_client);
-        } else {
-            tracing::warn!("SDK: No custom nym-api HTTP client configured");
         }
 
         if let Some(topology_provider) = self.custom_topology_provider {

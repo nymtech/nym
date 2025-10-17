@@ -164,11 +164,18 @@ impl ClientControlRequest {
 
         #[cfg(feature = "otel")]
         let context_carrier = {
-            let otel_context = opentelemetry::Context::current();
+            use nym_bin_common::opentelemetry::context::extract_trace_id_from_tracing_cx;
+            let trace_id = extract_trace_id_from_tracing_cx();
+            tracing::info!("[DEBUG] Trace id in new_authenticate_v2: {:?}", trace_id);
+
+            use tracing_opentelemetry::OpenTelemetrySpanExt;
+
+            let current_span = tracing::Span::current();
+            let otel_context = current_span.context();
             ContextCarrier::new_with_current_context(otel_context).into_map()
         };
         #[cfg(not(feature = "otel"))]
-        let context_carrier = None;
+        let context_carrier: HashMap<String, String> = HashMap::new();
 
         Ok(ClientControlRequest::AuthenticateV2(Box::new(
             AuthenticateRequest::new(

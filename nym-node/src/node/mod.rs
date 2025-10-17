@@ -66,7 +66,7 @@ use std::ops::Deref;
 use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::mpsc;
-use tracing::{debug, info, instrument, trace};
+use tracing::{debug, info, instrument, Instrument, trace};
 use zeroize::Zeroizing;
 
 pub mod bonding_information;
@@ -638,7 +638,7 @@ impl NymNode {
                 .build_websocket_listener(active_clients_store.clone())
                 .await?;
             self.shutdown_tracker()
-                .try_spawn_named(async move { websocket.run().await }, "EntryWebsocket");
+                .try_spawn_named(async move { websocket.run().in_current_span().await }, "EntryWebsocket");
         } else {
             info!("node not running in entry mode: the websocket will remain closed");
         }
@@ -681,7 +681,9 @@ impl NymNode {
             let authenticator = gateway_tasks_builder
                 .build_wireguard_authenticator(topology_provider)
                 .await?;
-            let started_authenticator = authenticator.start_service_provider().await?;
+            let started_authenticator = authenticator.start_service_provider()
+                .in_current_span()
+                .await?;
             active_clients_store.insert_embedded(started_authenticator.handle);
 
             info!(
@@ -691,6 +693,7 @@ impl NymNode {
 
             gateway_tasks_builder
                 .try_start_wireguard()
+                .in_current_span()
                 .await
                 .map_err(NymNodeError::GatewayTasksStartupFailure)?;
         } else {
@@ -1119,7 +1122,7 @@ impl NymNode {
 
         let shutdown_token = self.shutdown_token();
         self.shutdown_tracker().try_spawn_named(
-            async move { mixnet_listener.run(shutdown_token).await },
+            async move { mixnet_listener.run(shutdown_token).in_current_span().await },
             "MixnetListener",
         );
 
@@ -1159,7 +1162,7 @@ impl NymNode {
         );
         debug!("config: {:#?}", self.config);
 
-        let http_server = self.build_http_server().await?;
+        let http_server = self.build_http_server().in_current_span().await?;
         let bind_address = self.config.http.bind_address;
         let server_shutdown = self.shutdown_manager.clone_shutdown_token();
 
@@ -1198,6 +1201,7 @@ impl NymNode {
                 network_refresher.routing_filter(),
                 noise_config,
             )
+            .in_current_span()
             .await?;
 
         let metrics_sender = self.setup_metrics_backend(
@@ -1211,6 +1215,7 @@ impl NymNode {
             active_clients_store,
             mix_packet_sender,
         )
+        .in_current_span()
         .await?;
 
         self.setup_key_rotation(nym_apis_client, bloomfilters_manager)

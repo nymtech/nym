@@ -5,6 +5,7 @@ use opentelemetry_sdk::{propagation::TraceContextPropagator, trace::IdGenerator}
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 use std::collections::HashMap;
 use std::fmt::Display;
+use tracing::instrument;
 
 /// Make a Carrier for context propagation
 pub struct ContextCarrier {
@@ -93,6 +94,7 @@ pub struct ManualContextPropagator {
 }
 
 impl ManualContextPropagator {
+    #[instrument(skip_all, level = "debug")]
     pub fn new(name: &str, context: HashMap<String, String>) -> Self {
         let carrier = ContextCarrier::new_with_data(context);
         let trace_id = match carrier.extract_trace_id() {
@@ -101,7 +103,6 @@ impl ManualContextPropagator {
         };
 
         let root_span_builder = new_span_context_with_id(trace_id.clone());
-        let _guard = root_span_builder.clone().attach();
 
         let root_span = tracing::info_span!("trace_root", name = %name, trace_id = %trace_id);
         root_span.set_parent(root_span_builder);
@@ -112,9 +113,9 @@ impl ManualContextPropagator {
         }
     }
 
+    #[instrument(skip_all, level = "debug")]
     pub fn new_from_tid(name: &str, trace_id: TraceId) -> Self {
         let root_span_builder = new_span_context_with_id(trace_id.clone());
-        let _guard = root_span_builder.clone().attach();
 
         let root_span = tracing::info_span!("trace_root", name = %name, trace_id = %trace_id);
         root_span.set_parent(root_span_builder);
@@ -123,10 +124,15 @@ impl ManualContextPropagator {
             root_span,
             trace_id,
         }
+    }
+
+    pub fn root_span(&self) -> &tracing::Span {
+        &self.root_span
     }
 
 }
 
+#[instrument(skip_all, level = "debug")]
 pub fn new_span_context_with_id(trace_id: TraceId) -> Context {
     let id_gen = opentelemetry_sdk::trace::RandomIdGenerator::default();
     let span_id = id_gen.new_span_id();
@@ -139,4 +145,12 @@ pub fn new_span_context_with_id(trace_id: TraceId) -> Context {
     );
 
     Context::current().with_remote_span_context(span_context)
+}
+
+#[instrument(skip_all, level = "debug")]
+pub fn extract_trace_id_from_tracing_cx() -> TraceId {
+    let cx = tracing::Span::current().context();
+    let binding = cx.span();
+    let trace_id = binding.span_context().trace_id();
+    trace_id
 }

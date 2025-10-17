@@ -36,6 +36,7 @@ nym-credentials-interface = { path = "../credentials-interface" }
 
 opentelemetry = { workspace = true, features = ["trace"], optional = true }
 opentelemetry_sdk = { workspace = true, optional = true }
+tracing-opentelemetry = { workspace = true, optional = true }
 tracing = { workspace = true, features = ["std", "attributes", "tracing-attributes"] }
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio]
@@ -62,4 +63,5 @@ otel = [
     "nym-bin-common/otel",
     "opentelemetry",
     "opentelemetry_sdk",
+    "tracing-opentelemetry",
 ]

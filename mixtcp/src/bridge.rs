@@ -1,7 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-2.0-only
 
-use crate::error::SmolmixError;
+use crate::error::MixtcpError;
 use nym_ip_packet_requests::codec::MultiIpPacketCodec;
 use nym_sdk::stream_wrapper::IpMixStream;
 use tokio::sync::mpsc;
@@ -55,7 +55,7 @@ impl NymIprBridge {
     /// - Maintains packet statistics
     ///
     /// The loop exits when channels are closed or an error occurs.
-    pub async fn run(mut self) -> Result<(), SmolmixError> {
+    pub async fn run(mut self) -> Result<(), MixtcpError> {
         info!("Starting Nym IPR bridge");
         let mut packets_sent = 0;
         let mut packets_received = 0;
@@ -100,7 +100,7 @@ impl NymIprBridge {
                             // Forward to device via channel
                             if let Err(_) = self.rx_sender.send(packet.to_vec()) {
                                 error!("Failed to send packet to device - receiver dropped");
-                                return Err(SmolmixError::ChannelClosed);
+                                return Err(MixtcpError::ChannelClosed);
                             }
                             packets_received += 1;
                             info!("Total packets received: {}", packets_received);

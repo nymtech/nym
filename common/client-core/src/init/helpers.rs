@@ -491,7 +491,7 @@ mod tests {
 
     #[test]
     fn test_single_url_builds_without_retries() {
-        let urls = vec![Url::parse("https://api.nym.com").unwrap()];
+        let urls = [Url::parse("https://api.nym.com").unwrap()];
 
         let nym_api_urls: Vec<nym_http_api_client::Url> = urls
             .iter()
@@ -555,7 +555,7 @@ mod tests {
             performance: u8,       // 0-100
         }
 
-        let nodes = vec![
+        let nodes = [
             // Node 53: entry-capable, good performance
             TestNode {
                 id: 53,

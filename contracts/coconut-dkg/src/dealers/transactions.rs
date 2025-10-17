@@ -9,6 +9,7 @@ use crate::epoch_state::storage::{load_current_epoch, save_epoch};
 use crate::epoch_state::utils::check_epoch_state;
 use crate::error::ContractError;
 use crate::state::storage::STATE;
+use crate::verification_key_shares::storage::vk_shares;
 use crate::Dealer;
 use cosmwasm_std::{Deps, DepsMut, Env, Event, MessageInfo, Response};
 use nym_coconut_dkg_common::dealer::{DealerRegistrationDetails, OwnershipTransfer};
@@ -161,6 +162,14 @@ pub fn try_update_announce_address(
     details.announce_address = new_address.clone();
     EPOCH_DEALERS_MAP.save(deps.storage, (epoch.epoch_id, &info.sender), &details)?;
 
+    let mut contract_share = vk_shares().load(deps.storage, (&info.sender, epoch.epoch_id))?;
+    contract_share.announce_address = new_address.clone();
+    vk_shares().save(
+        deps.storage,
+        (&info.sender, epoch.epoch_id),
+        &contract_share,
+    )?;
+
     Ok(Response::new().add_event(
         Event::new("dkg-announce-address-update")
             .add_attribute("dealer", info.sender)
@@ -228,9 +237,14 @@ pub(crate) mod tests {
 #[cfg(feature = "testable-dkg-contract")]
 mod tests_with_mock {
     use super::*;
-    use crate::testable_dkg_contract::{init_contract_tester, DkgContractTesterExt};
+    use crate::testable_dkg_contract::{
+        init_contract_tester, init_contract_tester_with_group_members, DkgContractTesterExt,
+    };
+    use anyhow::Context;
     use cosmwasm_std::testing::message_info;
-    use nym_contracts_common_testing::ContractOpts;
+    use nym_coconut_dkg_common::msg::QueryMsg;
+    use nym_coconut_dkg_common::verification_key::PagedVKSharesResponse;
+    use nym_contracts_common_testing::{ChainOpts, ContractOpts};
 
     #[test]
     fn transferring_ownership() -> anyhow::Result<()> {
@@ -436,8 +450,90 @@ mod tests_with_mock {
         assert_eq!(old_details1, new_details1);
         assert_eq!(old_details2, new_details2);
 
-        // most  recent entry is updated
+        // most recent entry is updated
         assert_eq!(new_details3.announce_address, new_address);
+
+        Ok(())
+    }
+
+    #[test]
+    fn updating_announce_address_updates_vk_shares() -> anyhow::Result<()> {
+        let mut contract = init_contract_tester_with_group_members(3);
+        let group_member = contract.random_group_member();
+
+        contract.run_initial_dummy_dkg(); // => epoch 0
+        contract.run_reset_dkg(); // => epoch 1
+
+        // LEAVE DKG MEMBERSHIP
+        contract.remove_group_member(group_member.clone());
+        contract.run_reset_dkg(); // => epoch 2
+
+        // COME BACK
+        contract.add_group_member(group_member.clone());
+        contract.run_reset_dkg(); // => epoch 3
+
+        let old_address = EPOCH_DEALERS_MAP
+            .load(&contract, (3, &group_member))?
+            .announce_address;
+
+        let old_share0 = vk_shares().load(&contract, (&group_member, 0))?;
+        let old_share1 = vk_shares().load(&contract, (&group_member, 1))?;
+        let old_share2 = vk_shares().may_load(&contract, (&group_member, 2))?;
+        assert!(old_share2.is_none());
+        let old_share3 = vk_shares().may_load(&contract, (&group_member, 3))?;
+        assert!(old_share3.is_some());
+
+        let new_address = "https://new-address.com".to_string();
+        try_update_announce_address(
+            contract.deps_mut(),
+            message_info(&group_member, &[]),
+            new_address.clone(),
+        )?;
+
+        let new_share0 = vk_shares().load(&contract, (&group_member, 0))?;
+        let new_share1 = vk_shares().load(&contract, (&group_member, 1))?;
+        let new_share2 = vk_shares().may_load(&contract, (&group_member, 2))?;
+        assert!(new_share2.is_none());
+        let new_share3 = vk_shares().load(&contract, (&group_member, 3))?;
+
+        // old epoch data is unchanged
+        assert_eq!(old_share0, new_share0);
+        assert_eq!(old_share1, new_share1);
+        assert_eq!(old_share2, new_share2);
+
+        // most recent entry is updated
+        assert_eq!(new_share3.announce_address, new_address);
+
+        // finally an integration check against query endpoint
+        let epoch0_shares: PagedVKSharesResponse =
+            contract.query(&QueryMsg::GetVerificationKeys {
+                epoch_id: 0,
+                limit: None,
+                start_after: None,
+            })?;
+        assert_eq!(epoch0_shares.shares.len(), 3);
+
+        let member_share = epoch0_shares
+            .shares
+            .iter()
+            .find(|s| s.owner == group_member)
+            .context("failed to find member's share")?;
+        assert_eq!(member_share.announce_address, old_address);
+
+        let epoch0_shares: PagedVKSharesResponse =
+            contract.query(&QueryMsg::GetVerificationKeys {
+                epoch_id: 3,
+                limit: None,
+                start_after: None,
+            })?;
+        assert_eq!(epoch0_shares.shares.len(), 3);
+
+        let member_share = epoch0_shares
+            .shares
+            .iter()
+            .find(|s| s.owner == group_member)
+            .context("failed to find member's share")?;
+        assert_eq!(member_share.announce_address, new_address);
 
         Ok(())
     }

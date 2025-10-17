@@ -54,7 +54,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --lib --manifest-path contracts/Cargo.toml
+          args: --lib --manifest-path contracts/Cargo.toml --all-features
 
       - name: Check formatting
         uses: actions-rs/cargo@v1

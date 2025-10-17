@@ -2262,7 +2262,7 @@ dependencies = [
  "libc",
  "option-ext",
  "redox_users",
- "windows-sys 0.61.1",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -4824,7 +4824,7 @@ dependencies = [
 
 [[package]]
 name = "nym-api"
-version = "1.1.66"
+version = "1.1.67"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5050,7 +5050,7 @@ dependencies = [
 
 [[package]]
 name = "nym-cli"
-version = "1.1.63"
+version = "1.1.64"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -5133,7 +5133,7 @@ dependencies = [
 
 [[package]]
 name = "nym-client"
-version = "1.1.63"
+version = "1.1.64"
 dependencies = [
  "bs58",
  "clap",
@@ -6354,7 +6354,7 @@ dependencies = [
 
 [[package]]
 name = "nym-network-requester"
-version = "1.1.64"
+version = "1.1.65"
 dependencies = [
  "addr",
  "anyhow",
@@ -6404,7 +6404,7 @@ dependencies = [
 
 [[package]]
 name = "nym-node"
-version = "1.16.0"
+version = "1.19.0"
 dependencies = [
  "anyhow",
  "arc-swap",
@@ -6785,10 +6785,12 @@ dependencies = [
 name = "nym-registration-client"
 version = "0.1.0"
 dependencies = [
+ "futures",
  "nym-authenticator-client",
  "nym-bandwidth-controller",
  "nym-credential-storage",
  "nym-credentials-interface",
+ "nym-http-api-client",
  "nym-ip-packet-client",
  "nym-registration-common",
  "nym-sdk",
@@ -6929,7 +6931,7 @@ dependencies = [
 
 [[package]]
 name = "nym-socks5-client"
-version = "1.1.63"
+version = "1.1.64"
 dependencies = [
  "bs58",
  "clap",
@@ -7668,7 +7670,7 @@ dependencies = [
 
 [[package]]
 name = "nymvisor"
-version = "0.1.28"
+version = "0.1.29"
 dependencies = [
  "anyhow",
  "bytes",
@@ -8777,7 +8779,7 @@ checksum = "a4e608c6638b9c18977b00b475ac1f28d14e84b27d8d42f70e0bf1e3dec127ac"
 dependencies = [
  "getrandom 0.2.16",
  "libredox",
- "thiserror 2.0.17",
+ "thiserror 2.0.12",
 ]
 
 [[package]]

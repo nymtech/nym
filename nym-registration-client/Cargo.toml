@@ -12,6 +12,7 @@ license.workspace = true
 workspace = true
 
 [dependencies]
+futures.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
 tokio-util.workspace = true

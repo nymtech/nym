@@ -124,6 +124,7 @@ pub struct Config {
     pub node_status_api: NodeStatusAPI,
 
     #[serde(alias = "topology_cacher")]
+    #[serde(default)]
     pub describe_cache: DescribeCache,
 
     #[serde(default)]

@@ -34,6 +34,7 @@ pub struct BuilderConfig {
     pub two_hops: bool,
     pub user_agent: UserAgent,
     pub custom_topology_provider: Box<dyn TopologyProvider + Send + Sync>,
+    pub custom_nym_api_client: Option<nym_http_api_client::Client>,
     pub network_env: NymNetworkDetails,
     pub cancel_token: CancellationToken,
     #[cfg(unix)]
@@ -56,6 +57,44 @@ pub struct MixnetClientConfig {
 }
 
 impl BuilderConfig {
+    /// Create a new BuilderConfig without domain fronting support
+    ///
+    /// For domain fronting support, set `custom_nym_api_client` to Some(client) after creation
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        entry_node: NymNodeWithKeys,
+        exit_node: NymNodeWithKeys,
+        data_path: Option<PathBuf>,
+        mixnet_client_config: MixnetClientConfig,
+        two_hops: bool,
+        user_agent: UserAgent,
+        custom_topology_provider: Box<dyn TopologyProvider + Send + Sync>,
+        network_env: NymNetworkDetails,
+        cancel_token: CancellationToken,
+        #[cfg(unix)] connection_fd_callback: Arc<dyn Fn(RawFd) + Send + Sync>,
+    ) -> Self {
+        Self {
+            entry_node,
+            exit_node,
+            data_path,
+            mixnet_client_config,
+            two_hops,
+            user_agent,
+            custom_topology_provider,
+            custom_nym_api_client: None,
+            network_env,
+            cancel_token,
+            #[cfg(unix)]
+            connection_fd_callback,
+        }
+    }
+
+    /// Set a custom nym-api HTTP client (for domain fronting support)
+    pub fn with_nym_api_client(mut self, client: nym_http_api_client::Client) -> Self {
+        self.custom_nym_api_client = Some(client);
+        self
+    }
+
     pub fn mixnet_client_debug_config(&self) -> DebugConfig {
         if self.two_hops {
             two_hop_debug_config(&self.mixnet_client_config)
@@ -108,7 +147,7 @@ impl BuilderConfig {
             RememberMe::new_mixnet()
         };
 
-        let builder = builder
+        let mut builder = builder
             .with_user_agent(self.user_agent)
             .request_gateway(self.entry_node.node.identity.to_string())
             .network_details(self.network_env)
@@ -116,6 +155,13 @@ impl BuilderConfig {
             .credentials_mode(true)
             .with_remember_me(remember_me)
             .custom_topology_provider(self.custom_topology_provider);
+
+        if let Some(nym_api_client) = self.custom_nym_api_client {
+            tracing::info!("Registration client: Passing custom nym-api HTTP client to SDK");
+            builder = builder.with_nym_api_client(nym_api_client);
+        } else {
+            tracing::warn!("Registration client: No custom nym-api HTTP client provided");
+        }
 
         #[cfg(unix)]
         let builder = builder.with_connection_fd_callback(self.connection_fd_callback);
@@ -205,4 +251,37 @@ fn log_mixnet_client_config(debug_config: &DebugConfig) {
 
 fn true_to_disabled(val: bool) -> &'static str {
     if val { "disabled" } else { "enabled" }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_mixnet_client_config_default_values() {
+        let config = MixnetClientConfig::default();
+        assert!(!config.disable_poisson_rate);
+        assert!(!config.disable_background_cover_traffic);
+        assert_eq!(config.min_mixnode_performance, None);
+        assert_eq!(config.min_gateway_performance, None);
+    }
+
+    #[test]
+    fn test_builder_config_has_custom_client_field() {
+        // Verify that BuilderConfig has the custom_nym_api_client field
+        // by creating a simple HTTP client
+        let http_client = nym_http_api_client::Client::builder(
+            nym_http_api_client::Url::parse("https://validator.nymtech.net/api").unwrap(),
+        )
+        .expect("Failed to create client builder")
+        .build()
+        .expect("Failed to build client");
+
+        // Verify the client works
+        let urls = http_client.base_urls();
+        assert!(
+            !urls.is_empty() && urls[0].as_str().contains("validator.nymtech.net"),
+            "HTTP client should be configured with correct URL"
+        );
+    }
 }

@@ -38,7 +38,7 @@ jobs:
         uses: microsoft/setup-msbuild@v2
 
       - name: Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 21
 

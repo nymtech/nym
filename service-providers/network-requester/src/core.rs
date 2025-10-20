@@ -16,7 +16,7 @@ use nym_client_core::HardcodedTopologyProvider;
 use nym_client_core::client::mix_traffic::transceiver::GatewayTransceiver;
 use nym_client_core::config::disk_persistence::CommonClientPaths;
 use nym_network_defaults::NymNetworkDetails;
-use nym_sdk::mixnet::{MixnetMessageSender, TopologyProvider};
+use nym_sdk::mixnet::TopologyProvider;
 use nym_service_providers_common::ServiceProvider;
 use nym_service_providers_common::interface::{
     BinaryInformation, ProviderInterfaceVersion, Request, RequestVersion,

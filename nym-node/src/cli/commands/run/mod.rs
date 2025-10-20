@@ -8,7 +8,7 @@ use crate::node::mixnet::packet_forwarding::global::is_global_ip;
 use crate::node::NymNode;
 use std::fs;
 use std::net::IpAddr;
-use tracing::{debug, info, instrument, Instrument, trace, warn};
+use tracing::{debug, info, instrument, trace, warn};
 
 mod args;
 
@@ -125,5 +125,5 @@ pub(crate) async fn execute(mut args: Args) -> Result<(), NymNodeError> {
         return Ok(());
     }
 
-    nym_node.run().in_current_span().await
+    nym_node.run().await
 }

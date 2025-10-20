@@ -337,7 +337,6 @@ impl<R, S> AuthenticatedHandler<R, S> {
         let remaining_bandwidth = self
             .bandwidth_storage_manager
             .try_use_bandwidth(required_bandwidth)
-            .in_current_span()
             .await?;
         self.forward_packet(mix_packet);
 
@@ -375,7 +374,7 @@ impl<R, S> AuthenticatedHandler<R, S> {
                 // currently only a single type exists
                 BinaryRequest::ForwardSphinx { packet }
                 | BinaryRequest::ForwardSphinxV2 { packet } => {
-                    self.handle_forward_sphinx(packet).in_current_span().await.into_ws_message()
+                    self.handle_forward_sphinx(packet).await.into_ws_message()
                 }
                 _ => RequestHandlingError::UnknownBinaryRequest.into_error_message(),
             },
@@ -392,7 +391,6 @@ impl<R, S> AuthenticatedHandler<R, S> {
                 .shared_state()
                 .storage()
                 .handle_forget_me(self.client.address)
-                .in_current_span()
                 .await?;
         }
         Ok(SensitiveServerResponse::ForgetMeAck {}.encrypt(&self.client.shared_keys)?)
@@ -453,9 +451,9 @@ impl<R, S> AuthenticatedHandler<R, S> {
                 hkdf_salt,
                 derived_key_digest,
             } => self.handle_key_upgrade(hkdf_salt, derived_key_digest).await,
-            ClientRequest::ForgetMe { client, stats } => self.handle_forget_me(client, stats).in_current_span().await,
+            ClientRequest::ForgetMe { client, stats } => self.handle_forget_me(client, stats).await,
             ClientRequest::RememberMe { session_type } => {
-                self.handle_remember_me(session_type).in_current_span().await
+                self.handle_remember_me(session_type).await
             }
             _ => Err(RequestHandlingError::UnknownEncryptedTextRequest),
         }
@@ -488,10 +486,10 @@ impl<R, S> AuthenticatedHandler<R, S> {
 
         match request {
             ClientControlRequest::EncryptedRequest { ciphertext, nonce } => {
-                self.handle_encrypted_text_request(ciphertext, nonce).in_current_span().await
+                self.handle_encrypted_text_request(ciphertext, nonce).await
             }
             ClientControlRequest::EcashCredential { enc_credential, iv } => {
-                self.handle_ecash_bandwidth(enc_credential, iv).in_current_span().await
+                self.handle_ecash_bandwidth(enc_credential, iv).await
             }
             ClientControlRequest::BandwidthCredential { .. } => {
                 Err(RequestHandlingError::IllegalRequest {
@@ -580,10 +578,10 @@ impl<R, S> AuthenticatedHandler<R, S> {
         // them and let's test that claim. If that's not the case, just copy code from
         // desktop nym-client websocket as I've manually handled everything there
         match raw_request {
-            Message::Binary(bin_msg) => Some(self.handle_binary(bin_msg).in_current_span().await),
-            Message::Text(text_msg) => Some(self.handle_text(text_msg).in_current_span().await),
+            Message::Binary(bin_msg) => Some(self.handle_binary(bin_msg).await),
+            Message::Text(text_msg) => Some(self.handle_text(text_msg).await),
             Message::Pong(msg) => {
-                self.handle_pong(msg).in_current_span().await;
+                self.handle_pong(msg).await;
                 None
             }
             _ => None,
@@ -657,6 +655,17 @@ impl<R, S> AuthenticatedHandler<R, S> {
         // Ping timeout future used to check if the client responded to our ping request
         let mut ping_timeout: OptionFuture<_> = None.into();
 
+        #[cfg(feature = "otel")]
+        let from_client_span = {
+            let span = match &self.otel_propagator {
+                Some(propagator) => info_span!(parent: &propagator.root_span, "authenticated_client_handler_listen"),
+                None => info_span!("authenticated_client_handler_listen_no_otel"),
+            };
+            span
+        };
+        #[cfg(feature = "otel")]
+        let _enter = from_client_span.enter();
+        
         loop {
             tokio::select! {
                 // Received a request to ping the client to check if it's still active
@@ -678,17 +687,6 @@ impl<R, S> AuthenticatedHandler<R, S> {
                     self.handle_ping_timeout().await;
                 },
                 socket_msg = self.inner.read_websocket_message().in_current_span() => {
-                    #[cfg(feature = "otel")]
-                    let span = {
-                        let span = match &self.otel_propagator {
-                            Some(propagator) => info_span!(parent: &propagator.root_span, "client_message_received"),
-                            None => info_span!("client_message_received_no_otel"),
-                        };
-                        span
-                    };
-                    #[cfg(feature = "otel")]
-                    let _enter = span.enter();
-
                     let socket_msg = match socket_msg {
                         None => break,
                         Some(Ok(socket_msg)) => socket_msg,
@@ -702,7 +700,7 @@ impl<R, S> AuthenticatedHandler<R, S> {
                         break;
                     }
 
-                    if let Some(response) = self.handle_request(socket_msg).in_current_span().await {
+                    if let Some(response) = self.handle_request(socket_msg).await {
                         if let Err(err) = self.inner.send_websocket_message(response).await {
                             debug!(
                                 "Failed to send message over websocket: {err}. Assuming the connection is dead.",
@@ -712,17 +710,6 @@ impl<R, S> AuthenticatedHandler<R, S> {
                     }
                 },
                 mix_messages = self.mix_receiver.next().in_current_span() => {
-                    #[cfg(feature = "otel")]
-                    let span = {
-                        let span = match &self.otel_propagator {
-                            Some(propagator) => info_span!(parent: &propagator.root_span, "mix_message_received"),
-                            None => info_span!("mix_message_received_no_otel"),
-                        };
-                        span
-                    };
-                    #[cfg(feature = "otel")]
-                    let _enter = span.enter();
-
                     let mix_messages = match mix_messages {
                         None => {
                             debug!("mix receiver was closed! Assuming the connection is dead.");

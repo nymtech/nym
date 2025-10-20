@@ -1,6 +1,9 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+// MAX: temp ignore deprecated, can be dealt with in its own PR (TODO)
+#![allow(deprecated)]
+
 //! Nym HTTP API Client
 //!
 //! Centralizes and implements the core API client functionality. This crate provides custom,

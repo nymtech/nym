@@ -214,7 +214,7 @@ impl Encoder<&[u8]> for AdressedInputMessageCodec {
 
     fn encode(&mut self, item: &[u8], buf: &mut BytesMut) -> Result<(), Self::Error> {
         let mut codec = InputMessageCodec;
-        let input_message = InputMessage::simple(item, self.0.clone());
+        let input_message = InputMessage::simple(item, self.0);
         codec.encode(input_message, buf)?;
         Ok(())
     }

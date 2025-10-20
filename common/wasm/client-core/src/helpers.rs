@@ -160,8 +160,14 @@ pub async fn setup_gateway_from_api(
     minimum_performance: u8,
     ignore_epoch_roles: bool,
 ) -> Result<InitialisationResult, WasmCoreError> {
-    let gateways =
-        gateways_for_init(nym_apis, None, minimum_performance, ignore_epoch_roles).await?;
+    let gateways = gateways_for_init(
+        nym_apis,
+        None,
+        minimum_performance,
+        ignore_epoch_roles,
+        None,
+    )
+    .await?;
     setup_gateway_wasm(client_store, force_tls, chosen_gateway, gateways).await
 }
 
@@ -176,6 +182,7 @@ pub async fn current_gateways_wasm(
         user_agent,
         minimum_performance,
         ignore_epoch_roles,
+        None,
     )
     .await
 }

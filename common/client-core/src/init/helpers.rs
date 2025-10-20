@@ -137,19 +137,21 @@ pub async fn gateways_for_init(
     user_agent: Option<UserAgent>,
     minimum_performance: u8,
     ignore_epoch_roles: bool,
+    retry_count: Option<usize>,
 ) -> Result<Vec<RoutingNode>, ClientCoreError> {
     // Build client with ALL URLs for fallback support
     let nym_api_urls: Vec<nym_http_api_client::Url> = nym_apis
         .iter()
-        .filter_map(|url| nym_http_api_client::Url::parse(url.as_str()).ok())
+        .map(|url| nym_http_api_client::Url::from(url.clone()))
         .collect();
 
     if nym_api_urls.is_empty() {
         return Err(ClientCoreError::ListOfNymApisIsEmpty);
     }
 
+    let retry_count = retry_count.unwrap_or(3);
     let mut builder = nym_http_api_client::ClientBuilder::new_with_urls(nym_api_urls.clone())
-        .with_retries(3)
+        .with_retries(retry_count)
         .with_bincode();
 
     if let Some(user_agent) = user_agent {
@@ -430,7 +432,7 @@ mod tests {
 
         let nym_api_urls: Vec<nym_http_api_client::Url> = urls
             .iter()
-            .filter_map(|url| nym_http_api_client::Url::parse(url.as_str()).ok())
+            .map(|url| nym_http_api_client::Url::from(url.clone()))
             .collect();
 
         assert_eq!(nym_api_urls.len(), 1, "Should have exactly one URL");
@@ -446,7 +448,7 @@ mod tests {
 
         let nym_api_urls: Vec<nym_http_api_client::Url> = urls
             .iter()
-            .filter_map(|url| nym_http_api_client::Url::parse(url.as_str()).ok())
+            .map(|url| nym_http_api_client::Url::from(url.clone()))
             .collect();
 
         assert_eq!(nym_api_urls.len(), 3, "Should have all three URLs");
@@ -462,7 +464,7 @@ mod tests {
 
         let nym_api_urls: Vec<nym_http_api_client::Url> = urls
             .iter()
-            .filter_map(|url| nym_http_api_client::Url::parse(url.as_str()).ok())
+            .map(|url| nym_http_api_client::Url::from(url.clone()))
             .collect();
 
         assert!(nym_api_urls.is_empty(), "Empty list should remain empty");

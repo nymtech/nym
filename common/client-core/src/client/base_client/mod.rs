@@ -68,7 +68,6 @@ use std::path::Path;
 use std::sync::Arc;
 use time::OffsetDateTime;
 use tokio_util::sync::{PollSendError, PollSender};
-use tracing::{debug, error, info};
 use url::Url;
 
 #[cfg(target_arch = "wasm32")]

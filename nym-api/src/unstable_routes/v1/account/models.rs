@@ -4,7 +4,6 @@
 use cosmwasm_std::{Addr, Coin};
 use nym_topology::NodeId;
 use serde::{Deserialize, Serialize};
-use utoipa::schema;
 
 #[derive(Clone, Debug, Serialize, Deserialize, utoipa::ToSchema, utoipa::ToResponse)]
 #[schema(title = "Coin")]

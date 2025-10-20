@@ -1,6 +1,8 @@
 // Copyright 2022-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+#![allow(clippy::derivable_impls)]
+// MAX: surpressing warning for the moment, will be dealt with in a different PR (TODO)
 use cosmwasm_schema::cw_serde;
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;

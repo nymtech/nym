@@ -1,6 +1,7 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+#![allow(deprecated)]
 pub use backend::*;
 pub use combined::CombinedReplyStorage;
 pub use key_storage::SentReplyKeys;

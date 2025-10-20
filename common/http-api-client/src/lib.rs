@@ -591,14 +591,15 @@ impl ClientBuilder {
     pub fn from_network(
         network: &nym_network_defaults::NymNetworkDetails,
     ) -> Result<Self, HttpClientError> {
-        let urls = network
-            .nym_api_urls
-            .as_ref()
-            .ok_or_else(|| {
-                HttpClientError::GenericRequestFailure(
-                    "No API URLs configured in network details".to_string(),
-                )
-            })?
+        let api_urls =
+            network
+                .nym_api_urls
+                .as_ref()
+                .ok_or_else(|| HttpClientError::UrlParseFailure {
+                    source: url::ParseError::EmptyHost,
+                })?;
+
+        let urls = api_urls
             .iter()
             .map(|api_url| {
                 // Convert ApiUrl to our Url type with fronting support
@@ -611,8 +612,12 @@ impl ClientBuilder {
                         .iter()
                         .map(|host| format!("https://{}", host))
                         .collect();
-                    url = Url::new(api_url.url.clone(), Some(fronts))
-                        .map_err(|e| HttpClientError::GenericRequestFailure(e.to_string()))?;
+                    url = Url::new(api_url.url.clone(), Some(fronts)).map_err(|source| {
+                        HttpClientError::MalformedUrl {
+                            raw: api_url.url.clone(),
+                            source,
+                        }
+                    })?;
                 }
 
                 Ok(url)

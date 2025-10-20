@@ -11,7 +11,6 @@ use nym_wasm_client_core::NymTopology;
 use nym_wasm_utils::error::simple_js_error;
 use nym_wasm_utils::{check_promise_result, console_log};
 use std::sync::Arc;
-use tokio::sync::RwLock;
 use wasm_bindgen::JsValue;
 use wasm_bindgen_futures::future_to_promise;
 

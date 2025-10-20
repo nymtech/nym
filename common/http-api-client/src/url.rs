@@ -191,6 +191,16 @@ impl Url {
         false
     }
 
+    /// Returns the inner `url::Url` reference
+    pub fn inner_url(&self) -> &url::Url {
+        &self.url
+    }
+
+    /// Returns the front URLs if configured
+    pub fn fronts(&self) -> Option<&Vec<url::Url>> {
+        self.fronts.as_ref()
+    }
+
     /// Return the string representation of the current front host (domain or IP address) for this
     /// URL, if any.
     pub fn front_str(&self) -> Option<&str> {

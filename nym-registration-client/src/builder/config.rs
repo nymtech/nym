@@ -256,7 +256,7 @@ fn true_to_disabled(val: bool) -> &'static str {
 
 /// Builder for `BuilderConfig`
 ///
-/// This provides a more convinient way to construct a `BuilderConfig` compared to the
+/// This provides a more convenient way to construct a `BuilderConfig` compared to the
 /// `new()` constructor with many arguments.
 #[derive(Default)]
 pub struct BuilderConfigBuilder {

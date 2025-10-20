@@ -20,7 +20,7 @@ pub fn icmp_identifier() -> u16 {
 }
 
 pub async fn send_ping_v4(
-    mixnet_client: &MixnetClient,
+    mixnet_client: &mut MixnetClient,
     our_ips: IpPair,
     sequence_number: u16,
     destination: Ipv4Addr,
@@ -42,7 +42,7 @@ pub async fn send_ping_v4(
 }
 
 pub async fn send_ping_v6(
-    mixnet_client: &MixnetClient,
+    mixnet_client: &mut MixnetClient,
     our_ips: IpPair,
     sequence_number: u16,
     destination: Ipv6Addr,

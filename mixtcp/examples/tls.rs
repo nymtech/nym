@@ -174,7 +174,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let start = tokio::time::Instant::now();
     let mut connected = false;
     let mut tls = None;
-    let mut handshake_completed = false;
+    let handshake_completed = false;
 
     loop {
         if start.elapsed() > Duration::from_secs(120) {

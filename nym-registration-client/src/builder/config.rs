@@ -254,6 +254,28 @@ fn true_to_disabled(val: bool) -> &'static str {
     if val { "disabled" } else { "enabled" }
 }
 
+/// Error type for BuilderConfig validation
+#[derive(Debug, Clone, thiserror::Error)]
+pub enum BuilderConfigError {
+    #[error("entry_node is required")]
+    MissingEntryNode,
+    #[error("exit_node is required")]
+    MissingExitNode,
+    #[error("mixnet_client_config is required")]
+    MissingMixnetClientConfig,
+    #[error("user_agent is required")]
+    MissingUserAgent,
+    #[error("custom_topology_provider is required")]
+    MissingTopologyProvider,
+    #[error("network_env is required")]
+    MissingNetworkEnv,
+    #[error("cancel_token is required")]
+    MissingCancelToken,
+    #[cfg(unix)]
+    #[error("connection_fd_callback is required")]
+    MissingConnectionFdCallback,
+}
+
 /// Builder for `BuilderConfig`
 ///
 /// This provides a more convenient way to construct a `BuilderConfig` compared to the
@@ -338,25 +360,33 @@ impl BuilderConfigBuilder {
     /// Builds the `BuilderConfig`.
     ///
     /// Returns an error if any required field is missing.
-    pub fn build(self) -> Result<BuilderConfig, String> {
+    pub fn build(self) -> Result<BuilderConfig, BuilderConfigError> {
         Ok(BuilderConfig {
-            entry_node: self.entry_node.ok_or("entry_node is required")?,
-            exit_node: self.exit_node.ok_or("exit_node is required")?,
+            entry_node: self
+                .entry_node
+                .ok_or(BuilderConfigError::MissingEntryNode)?,
+            exit_node: self.exit_node.ok_or(BuilderConfigError::MissingExitNode)?,
             data_path: self.data_path,
             mixnet_client_config: self
                 .mixnet_client_config
-                .ok_or("mixnet_client_config is required")?,
+                .ok_or(BuilderConfigError::MissingMixnetClientConfig)?,
             two_hops: self.two_hops,
-            user_agent: self.user_agent.ok_or("user_agent is required")?,
+            user_agent: self
+                .user_agent
+                .ok_or(BuilderConfigError::MissingUserAgent)?,
             custom_topology_provider: self
                 .custom_topology_provider
-                .ok_or("custom_topology_provider is required")?,
-            network_env: self.network_env.ok_or("network_env is required")?,
-            cancel_token: self.cancel_token.ok_or("cancel_token is required")?,
+                .ok_or(BuilderConfigError::MissingTopologyProvider)?,
+            network_env: self
+                .network_env
+                .ok_or(BuilderConfigError::MissingNetworkEnv)?,
+            cancel_token: self
+                .cancel_token
+                .ok_or(BuilderConfigError::MissingCancelToken)?,
             #[cfg(unix)]
             connection_fd_callback: self
                 .connection_fd_callback
-                .ok_or("connection_fd_callback is required")?,
+                .ok_or(BuilderConfigError::MissingConnectionFdCallback)?,
         })
     }
 }
@@ -376,31 +406,33 @@ mod tests {
 
     #[test]
     fn test_builder_config_builder_fails_without_required_fields() {
-        // Building without any fields should fail
+        // Building without any fields should fail with specific error
         let result = BuilderConfig::builder().build();
         assert!(result.is_err());
-        if let Err(err) = result {
-            assert!(err.contains("entry_node is required"));
+        match result {
+            Err(BuilderConfigError::MissingEntryNode) => (), // Expected
+            Err(e) => panic!("Expected MissingEntryNode, got: {}", e),
+            Ok(_) => panic!("Expected error, got Ok"),
         }
     }
 
     #[test]
-    fn test_builder_config_builder_fails_missing_individual_fields() {
+    fn test_builder_config_builder_validates_all_required_fields() {
         // Test that each required field is validated
         let result = BuilderConfig::builder().build();
         assert!(result.is_err());
 
-        // We can only test the first error message since build() short-circuits
-        if let Err(err) = result {
-            assert!(
-                err.contains("entry_node")
-                    || err.contains("exit_node")
-                    || err.contains("mixnet_client_config")
-                    || err.contains("user_agent")
-                    || err.contains("custom_topology_provider")
-                    || err.contains("network_env")
-                    || err.contains("cancel_token")
-            );
+        // Short-circuits at first missing field, so we just verify it's one of the expected errors
+        match result {
+            Err(BuilderConfigError::MissingEntryNode)
+            | Err(BuilderConfigError::MissingExitNode)
+            | Err(BuilderConfigError::MissingMixnetClientConfig)
+            | Err(BuilderConfigError::MissingUserAgent)
+            | Err(BuilderConfigError::MissingTopologyProvider)
+            | Err(BuilderConfigError::MissingNetworkEnv)
+            | Err(BuilderConfigError::MissingCancelToken) => (), // Expected
+            Err(e) => panic!("Unexpected error: {}", e),
+            Ok(_) => panic!("Expected validation error, got Ok"),
         }
     }
 

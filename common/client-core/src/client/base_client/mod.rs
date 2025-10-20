@@ -1185,3 +1185,53 @@ pub struct BaseClient {
     pub forget_me: ForgetMe,
     pub remember_me: RememberMe,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use nym_network_defaults::{ApiUrl, NymNetworkDetails};
+
+    #[test]
+    fn test_network_details_with_multiple_urls() {
+        // Verify that network details can be configured with multiple API URLs
+        let mut network_details = NymNetworkDetails::new_empty();
+        network_details.nym_api_urls = Some(vec![
+            ApiUrl {
+                url: "https://validator.nymtech.net/api/".to_string(),
+                front_hosts: None,
+            },
+            ApiUrl {
+                url: "https://nym-frontdoor.vercel.app/api/".to_string(),
+                front_hosts: Some(vec!["vercel.app".to_string(), "vercel.com".to_string()]),
+            },
+        ]);
+
+        assert_eq!(network_details.nym_api_urls.as_ref().unwrap().len(), 2);
+        assert!(network_details.nym_api_urls.as_ref().unwrap()[1]
+            .front_hosts
+            .is_some());
+    }
+
+    #[test]
+    fn test_network_details_with_front_hosts() {
+        // Verify that ApiUrl can store domain fronting configuration
+        let api_url = ApiUrl {
+            url: "https://nym-frontdoor.vercel.app/api/".to_string(),
+            front_hosts: Some(vec!["vercel.app".to_string(), "vercel.com".to_string()]),
+        };
+
+        assert_eq!(api_url.url, "https://nym-frontdoor.vercel.app/api/");
+        assert_eq!(api_url.front_hosts.as_ref().unwrap().len(), 2);
+        assert!(api_url
+            .front_hosts
+            .as_ref()
+            .unwrap()
+            .contains(&"vercel.app".to_string()));
+    }
+
+    #[test]
+    fn test_default_nym_api_retries_constant() {
+        // Verify the retry constant is set correctly
+        assert_eq!(DEFAULT_NYM_API_RETRIES, 3);
+    }
+}

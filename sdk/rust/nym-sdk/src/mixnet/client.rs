@@ -570,6 +570,7 @@ where
             user_agent,
             topology_cfg.minimum_gateway_performance,
             topology_cfg.ignore_ingress_epoch_role,
+            None,
         )
         .await
     }

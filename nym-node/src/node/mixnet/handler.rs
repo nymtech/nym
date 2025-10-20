@@ -20,7 +20,7 @@ use std::net::SocketAddr;
 use tokio::net::TcpStream;
 use tokio::time::Instant;
 use tokio_util::codec::Framed;
-use tracing::{debug, error, instrument, trace, warn, Instrument};
+use tracing::{debug, error, instrument, trace, warn};
 
 struct PendingReplayCheckPackets {
     // map of rotation id used for packet creation to the packets
@@ -446,7 +446,6 @@ impl ConnectionHandler {
         // if it's a sphinx packet attempt to do pre-processing and replay detection
         if packet.is_sphinx() && !self.shared.replay_protection_filter.disabled() {
             self.handle_received_packet_with_replay_detection(now, packet)
-                .in_current_span()
                 .await;
         } else {
             // otherwise just skip that whole procedure and go straight to payload unwrapping
@@ -464,7 +463,7 @@ impl ConnectionHandler {
         )
     )]
     pub(crate) async fn handle_connection(&mut self, socket: TcpStream) {
-        let noise_stream = match upgrade_noise_responder(socket, &self.shared.noise_config).in_current_span().await {
+        let noise_stream = match upgrade_noise_responder(socket, &self.shared.noise_config).await {
             Ok(noise_stream) => noise_stream,
             Err(err) => {
                 error!(
@@ -479,7 +478,6 @@ impl ConnectionHandler {
             self.remote_address
         );
         self.handle_stream(Framed::new(noise_stream, NymCodec))
-            .in_current_span()
             .await
     }
 
@@ -497,7 +495,7 @@ impl ConnectionHandler {
                 }
                 maybe_framed_nym_packet = mixnet_connection.next() => {
                     match maybe_framed_nym_packet {
-                        Some(Ok(packet)) => self.handle_received_nym_packet(packet).in_current_span().await,
+                        Some(Ok(packet)) => self.handle_received_nym_packet(packet).await,
                         Some(Err(err)) => {
                             debug!("connection got corrupted with: {err}");
                             return

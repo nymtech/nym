@@ -181,7 +181,7 @@ impl<R, S> FreshHandler<R, S> {
                 SocketStream::RawTcp(conn) => {
                     // TODO: perhaps in the future, rather than panic here (and uncleanly shut tcp stream)
                     // return a result with an error?
-                    let ws_stream = Box::new(tokio_tungstenite::accept_async(conn).in_current_span().await?);
+                    let ws_stream = Box::new(tokio_tungstenite::accept_async(conn).await?);
                     SocketStream::UpgradedWebSocket(ws_stream)
                 }
                 other => other,
@@ -214,7 +214,6 @@ impl<R, S> FreshHandler<R, S> {
                     init_msg,
                     self.shutdown.clone(),
                 )
-                .in_current_span()
                 .await
             }
             _ => unreachable!(),
@@ -228,7 +227,7 @@ impl<R, S> FreshHandler<R, S> {
         S: AsyncRead + AsyncWrite + Unpin,
     {
         match self.socket_connection {
-            SocketStream::UpgradedWebSocket(ref mut ws_stream) => ws_stream.next().in_current_span().await,
+            SocketStream::UpgradedWebSocket(ref mut ws_stream) => ws_stream.next().await,
             _ => panic!("impossible state - websocket handshake was somehow reverted"),
         }
     }
@@ -250,7 +249,7 @@ impl<R, S> FreshHandler<R, S> {
             // TODO: more closely investigate difference between `Sink::send` and `Sink::send_all`
             // it got something to do with batching and flushing - it might be important if it
             // turns out somehow we've got a bottleneck here
-            SocketStream::UpgradedWebSocket(ref mut ws_stream) => ws_stream.send(msg.into()).in_current_span().await,
+            SocketStream::UpgradedWebSocket(ref mut ws_stream) => ws_stream.send(msg.into()).await,
             _ => panic!("impossible state - websocket handshake was somehow reverted"),
         }
     }
@@ -264,7 +263,6 @@ impl<R, S> FreshHandler<R, S> {
         S: AsyncRead + AsyncWrite + Unpin + Send,
     {
         self.send_websocket_message(ServerResponse::new_error(err.to_string()))
-            .in_current_span()
             .await
     }
 
@@ -717,20 +715,18 @@ impl<R, S> FreshHandler<R, S> {
         self.shared_state
             .storage
             .update_last_used_authentication_timestamp(client_id, session_request_start)
-            .in_current_span()
             .await?;
 
         // push any old stored messages to the client
         // (this will be removed soon)
         self.push_stored_messages_to_client(address, &shared_key.key)
-            .in_current_span()
             .await?;
 
         // finally check and retrieve client's bandwidth
         let available_bandwidth = self.get_registered_available_bandwidth(client_id).await?;
 
         let bandwidth_remaining = if available_bandwidth.expired() {
-            self.shared_state.storage.reset_bandwidth(client_id).in_current_span().await?;
+            self.shared_state.storage.reset_bandwidth(client_id).await?;
             0
         } else {
             available_bandwidth.bytes
@@ -832,8 +828,8 @@ impl<R, S> FreshHandler<R, S> {
             return Err(InitialAuthenticationError::DuplicateConnection);
         }
 
-        let shared_keys = self.perform_registration_handshake(init_data).in_current_span().await?;
-        let client_id = self.register_client(remote_address, &shared_keys).in_current_span().await?;
+        let shared_keys = self.perform_registration_handshake(init_data).await?;
+        let client_id = self.register_client(remote_address, &shared_keys).await?;
 
         debug!(client_id = %client_id, "managed to finalize client registration");
 
@@ -917,19 +913,18 @@ impl<R, S> FreshHandler<R, S> {
                 otel_context: _,
             } => {
                 self.handle_legacy_authenticate(protocol_version, address, enc_address, iv)
-                    .in_current_span()
                     .await
             }
             #[cfg(feature = "otel")]
-            ClientControlRequest::AuthenticateV2(req) => self.handle_authenticate_v2(req, otel_ctx).in_current_span().await,
+            ClientControlRequest::AuthenticateV2(req) => self.handle_authenticate_v2(req, otel_ctx).await,
             #[cfg(not(feature = "otel"))]
-            ClientControlRequest::AuthenticateV2(req) => self.handle_authenticate_v2(req).in_current_span().await,
+            ClientControlRequest::AuthenticateV2(req) => self.handle_authenticate_v2(req).await,
             ClientControlRequest::RegisterHandshakeInitRequest {
                 protocol_version,
                 data,
-            } => self.handle_register(protocol_version, data).in_current_span().await,
+            } => self.handle_register(protocol_version, data).await,
             ClientControlRequest::SupportedProtocol { .. } => {
-                self.handle_reply_supported_protocol_request().in_current_span().await;
+                self.handle_reply_supported_protocol_request().await;
                 return Ok(None);
             }
             _ => {
@@ -947,7 +942,7 @@ impl<R, S> FreshHandler<R, S> {
                     }
                     other => debug!("authentication failure: {other}"),
                 }
-                self.send_and_forget_error_response(&err).in_current_span().await;
+                self.send_and_forget_error_response(&err).await;
                 return Err(err);
             }
         };
@@ -982,21 +977,21 @@ impl<R, S> FreshHandler<R, S> {
         R: CryptoRng + RngCore + Send,
     {
         loop {
-            let req = self.wait_for_initial_message().in_current_span().await;
+            let req = self.wait_for_initial_message().await;
             let initial_request = match req {
                 Ok(req) => req,
                 Err(err) => {
-                    self.send_and_forget_error_response(err).in_current_span().await;
+                    self.send_and_forget_error_response(err).await;
                     return None;
                 }
             };
 
             // see if we managed to register the client through this request
-            let maybe_auth_res = match self.handle_initial_client_request(initial_request).in_current_span().await {
+            let maybe_auth_res = match self.handle_initial_client_request(initial_request).await {
                 Ok(maybe_auth_res) => maybe_auth_res,
                 Err(err) => {
                     debug!("initial client request handling error: {err}");
-                    self.send_and_forget_error_response(err).in_current_span().await;
+                    self.send_and_forget_error_response(err).await;
                     return None;
                 }
             };
@@ -1018,7 +1013,6 @@ impl<R, S> FreshHandler<R, S> {
                     mix_receiver,
                     is_active_request_receiver,
                 )
-                .in_current_span()
                 .await
                 .inspect_err(|err| error!("failed to upgrade client handler: {err}"))
                 .ok();
@@ -1034,7 +1028,7 @@ impl<R, S> FreshHandler<R, S> {
     where
         S: AsyncRead + AsyncWrite + Unpin + Send,
     {
-        let msg = match timeout(INITIAL_MESSAGE_TIMEOUT, self.read_websocket_message()).in_current_span().await {
+        let msg = match timeout(INITIAL_MESSAGE_TIMEOUT, self.read_websocket_message()).await {
             Ok(Some(Ok(msg))) => msg,
             Ok(Some(Err(source))) => {
                 debug!("failed to obtain message from websocket stream! stopping connection handler: {source}");

@@ -13,7 +13,9 @@ use std::time::Duration;
 use time::OffsetDateTime;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_tungstenite::WebSocketStream;
-use tracing::{debug, instrument, Instrument, trace, warn};
+use tracing::{debug, instrument, trace, warn};
+#[cfg(feature = "otel")]
+use tracing::Instrument;
 
 pub(crate) use self::authenticated::AuthenticatedHandler;
 pub(crate) use self::fresh::FreshHandler;
@@ -108,7 +110,7 @@ where
 {
     match tokio::time::timeout(
         WEBSOCKET_HANDSHAKE_TIMEOUT,
-        handle.perform_websocket_handshake().in_current_span(),
+        handle.perform_websocket_handshake(),
     )
     .await
     {
@@ -125,7 +127,7 @@ where
 
     trace!("managed to perform websocket handshake!");
 
-    if let Some(auth_handle) = handle.handle_until_authenticated_or_failure().in_current_span().await {
+    if let Some(auth_handle) = handle.handle_until_authenticated_or_failure().await {
         #[cfg(feature = "otel")]
         {
             let from_client_span = { 

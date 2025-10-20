@@ -686,7 +686,6 @@ impl NymNode {
                 .build_wireguard_authenticator(topology_provider)
                 .await?;
             let started_authenticator = authenticator.start_service_provider()
-                .in_current_span()
                 .await?;
             active_clients_store.insert_embedded(started_authenticator.handle);
 
@@ -697,7 +696,6 @@ impl NymNode {
 
             gateway_tasks_builder
                 .try_start_wireguard()
-                .in_current_span()
                 .await
                 .map_err(NymNodeError::GatewayTasksStartupFailure)?;
         } else {
@@ -1169,7 +1167,7 @@ impl NymNode {
         );
         debug!("config: {:#?}", self.config);
 
-        let http_server = self.build_http_server().in_current_span().await?;
+        let http_server = self.build_http_server().await?;
         let bind_address = self.config.http.bind_address;
         let server_shutdown = self.shutdown_manager.clone_shutdown_token();
 
@@ -1208,7 +1206,6 @@ impl NymNode {
                 network_refresher.routing_filter(),
                 noise_config,
             )
-            .in_current_span()
             .await?;
 
         let metrics_sender = self.setup_metrics_backend(
@@ -1222,7 +1219,6 @@ impl NymNode {
             active_clients_store,
             mix_packet_sender,
         )
-        .in_current_span()
         .await?;
 
         self.setup_key_rotation(nym_apis_client, bloomfilters_manager)

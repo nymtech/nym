@@ -3,9 +3,7 @@ use nym_sdk::mixnet::{
 };
 use nym_sdk::DebugConfig;
 #[cfg(feature = "otel")]
-use opentelemetry::trace::{TraceContextExt, Tracer};
-#[cfg(feature = "otel")]
-use opentelemetry::{global, Context};
+use opentelemetry::trace::TraceContextExt;
 #[cfg(feature = "otel")]
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 use tracing::warn;

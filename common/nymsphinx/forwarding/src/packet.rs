@@ -5,8 +5,8 @@ use nym_sphinx_addressing::nodes::{NymNodeRoutingAddress, NymNodeRoutingAddressE
 use nym_sphinx_params::{PacketSize, PacketType, SphinxKeyRotation};
 use nym_sphinx_types::{NymPacket, NymPacketError};
 use serde::{
-    de::{self, Visitor},
     Deserialize, Deserializer, Serialize, Serializer,
+    de::{self, Visitor},
 };
 use std::fmt;
 

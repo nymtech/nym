@@ -4,7 +4,6 @@
 use futures::SinkExt;
 use js_sys::Promise;
 use std::sync::Arc;
-use tokio::sync::RwLock;
 use wasm_bindgen::JsValue;
 use wasm_bindgen_futures::future_to_promise;
 use wasm_client_core::client::base_client::{ClientInput, ClientState};

@@ -45,6 +45,7 @@ type WsConn = JSWebsocket;
 
 const CONCURRENT_GATEWAYS_MEASURED: usize = 20;
 const MEASUREMENTS: usize = 3;
+const DEFAULT_NYM_API_RETRIES: usize = 3;
 
 #[cfg(not(target_arch = "wasm32"))]
 const CONN_TIMEOUT: Duration = Duration::from_millis(1500);
@@ -149,7 +150,7 @@ pub async fn gateways_for_init(
         return Err(ClientCoreError::ListOfNymApisIsEmpty);
     }
 
-    let retry_count = retry_count.unwrap_or(3);
+    let retry_count = retry_count.unwrap_or(DEFAULT_NYM_API_RETRIES);
     let mut builder = nym_http_api_client::ClientBuilder::new_with_urls(nym_api_urls.clone())
         .with_retries(retry_count)
         .with_bincode();

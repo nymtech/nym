@@ -74,6 +74,10 @@ use url::Url;
 #[cfg(debug_assertions)]
 use wasm_utils::console_log;
 
+/// Default number of retries for Nym API requests when using network details with domain fronting.
+/// This allows the client to try alternative URLs if the primary endpoint is unavailable.
+const DEFAULT_NYM_API_RETRIES: usize = 3;
+
 #[cfg(all(
     not(target_arch = "wasm32"),
     feature = "fs-surb-storage",
@@ -882,14 +886,20 @@ where
         config: &Config,
         user_agent: Option<UserAgent>,
     ) -> Result<nym_http_api_client::Client, ClientCoreError> {
+        tracing::debug!(
+            "construct_nym_api_client called with network_details: {}",
+            network_details.is_some()
+        );
+
         // If network details are provided, use from_network() which handles domain fronting
         if let Some(network_details) = network_details {
-            tracing::debug!(
+            tracing::info!(
                 "Building nym-api client from network details (with domain fronting support)"
             );
 
             let mut builder = nym_http_api_client::ClientBuilder::from_network(network_details)
-                .map_err(ClientCoreError::from)?;
+                .map_err(ClientCoreError::from)?
+                .with_retries(DEFAULT_NYM_API_RETRIES);
 
             if let Some(user_agent) = user_agent {
                 builder = builder.with_user_agent(user_agent);

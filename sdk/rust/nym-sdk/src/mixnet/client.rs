@@ -706,6 +706,16 @@ where
             .config
             .as_base_client_config(nyxd_endpoints, nym_api_endpoints.clone());
 
+        tracing::debug!(
+            "SDK: Passing network_details to BaseClientBuilder (has {} nym_api_urls)",
+            self.config
+                .network_details
+                .nym_api_urls
+                .as_ref()
+                .map(|urls| urls.len())
+                .unwrap_or(0)
+        );
+
         let mut base_builder: BaseClientBuilder<_, _> =
             BaseClientBuilder::new(base_config, self.storage, self.dkg_query_client)
                 .with_network_details(self.config.network_details.clone())

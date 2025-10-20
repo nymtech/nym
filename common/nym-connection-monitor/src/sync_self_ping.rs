@@ -22,23 +22,22 @@ pub async fn self_ping_and_wait(
     wait_for_self_ping_return(mixnet_client, &request_ids).await
 }
 
-async fn send_self_pings(our_address: Recipient, mixnet_client: &MixnetClient) -> Result<Vec<u64>> {
-    // Send pings
-    let request_ids = futures::stream::iter(1..=3)
-        .then(|_| async {
-            let (input_message, request_id) = create_self_ping(our_address);
-            mixnet_client
-                .send(input_message)
-                .await
-                .map_err(|err| Error::NymSdkError(Box::new(err)))?;
-            Ok::<u64, Error>(request_id)
-        })
-        .collect::<Vec<_>>()
-        .await;
+async fn send_self_pings(
+    our_address: Recipient,
+    mixnet_client: &mut MixnetClient,
+) -> Result<Vec<u64>> {
+    let mut request_ids = Vec::with_capacity(3);
 
-    // Check the vec of results and return the first error, if any. If there are not errors, unwrap
-    // all the results into a vec of u64s.
-    request_ids.into_iter().collect::<Result<Vec<_>>>()
+    for _ in 1..=3 {
+        let (input_message, request_id) = create_self_ping(our_address);
+        mixnet_client
+            .send(input_message)
+            .await
+            .map_err(|err| Error::NymSdkError(Box::new(err)))?;
+        request_ids.push(request_id);
+    }
+
+    Ok(request_ids)
 }
 
 async fn wait_for_self_ping_return(

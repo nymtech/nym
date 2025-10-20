@@ -708,6 +708,7 @@ where
 
         let mut base_builder: BaseClientBuilder<_, _> =
             BaseClientBuilder::new(base_config, self.storage, self.dkg_query_client)
+                .with_network_details(self.config.network_details.clone())
                 .with_wait_for_gateway(self.wait_for_gateway)
                 .with_forget_me(&self.forget_me)
                 .with_remember_me(&self.remember_me)

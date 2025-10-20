@@ -46,6 +46,7 @@ use nym_gateway_client::client::config::GatewayClientConfig;
 use nym_gateway_client::{
     AcknowledgementReceiver, GatewayClient, GatewayConfig, MixnetMessageReceiver, PacketRouter,
 };
+use nym_network_defaults::NymNetworkDetails;
 use nym_sphinx::acknowledgements::AckKey;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::addressing::nodes::NodeIdentity;
@@ -212,6 +213,9 @@ pub struct BaseClientBuilder<C, S: MixnetClientStorage> {
     client_store: S,
     dkg_query_client: Option<C>,
 
+    // Optional network details for domain fronting support
+    network_details: Option<NymNetworkDetails>,
+
     wait_for_gateway: bool,
     custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
     custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send>>,
@@ -241,6 +245,7 @@ where
             config: base_config,
             client_store,
             dkg_query_client,
+            network_details: None,
             wait_for_gateway: false,
             custom_topology_provider: None,
             custom_gateway_transceiver: None,
@@ -260,6 +265,16 @@ where
         derivation_material: Option<DerivationMaterial>,
     ) -> Self {
         self.derivation_material = derivation_material;
+        self
+    }
+
+    /// Set network details for domain fronting support.
+    ///
+    /// When provided, the client will use network details (which include front_hosts)
+    /// to construct HTTP clients with domain fronting enabled.
+    #[must_use]
+    pub fn with_network_details(mut self, network_details: NymNetworkDetails) -> Self {
+        self.network_details = Some(network_details);
         self
     }
 
@@ -863,9 +878,29 @@ where
     }
 
     fn construct_nym_api_client(
+        network_details: Option<&NymNetworkDetails>,
         config: &Config,
         user_agent: Option<UserAgent>,
     ) -> Result<nym_http_api_client::Client, ClientCoreError> {
+        // If network details are provided, use from_network() which handles domain fronting
+        if let Some(network_details) = network_details {
+            tracing::debug!(
+                "Building nym-api client from network details (with domain fronting support)"
+            );
+
+            let mut builder = nym_http_api_client::ClientBuilder::from_network(network_details)
+                .map_err(ClientCoreError::from)?;
+
+            if let Some(user_agent) = user_agent {
+                builder = builder.with_user_agent(user_agent);
+            }
+
+            return builder.build().map_err(ClientCoreError::from);
+        }
+
+        // Fallback to basic client for backwards compatibility
+        tracing::debug!("Building basic nym-api HTTP client from config endpoints");
+
         let mut nym_api_urls = config.get_nym_api_endpoints();
         nym_api_urls.shuffle(&mut thread_rng());
 
@@ -961,7 +996,11 @@ where
             .dkg_query_client
             .map(|client| BandwidthController::new(credential_store, client));
 
-        let nym_api_client = Self::construct_nym_api_client(&self.config, self.user_agent.clone())?;
+        let nym_api_client = Self::construct_nym_api_client(
+            self.network_details.as_ref(),
+            &self.config,
+            self.user_agent.clone(),
+        )?;
         let key_rotation_config = Self::determine_key_rotation_state(&nym_api_client).await?;
 
         let topology_provider = Self::setup_topology_provider(

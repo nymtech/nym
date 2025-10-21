@@ -256,6 +256,7 @@ fn true_to_disabled(val: bool) -> &'static str {
 
 /// Error type for BuilderConfig validation
 #[derive(Debug, Clone, thiserror::Error)]
+#[allow(clippy::enum_variant_names)]
 pub enum BuilderConfigError {
     #[error("entry_node is required")]
     MissingEntryNode,

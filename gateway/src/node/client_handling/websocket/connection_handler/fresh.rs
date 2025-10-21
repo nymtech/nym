@@ -282,6 +282,7 @@ impl<R, S> FreshHandler<R, S> {
     ///
     /// * `shared_keys`: keys derived between the client and gateway.
     /// * `packets`: unwrapped packets that are to be pushed back to the client.
+    #[instrument(skip_all)]
     pub(crate) async fn push_packets_to_client(
         &mut self,
         shared_keys: &SharedGatewayKey,
@@ -883,14 +884,14 @@ impl<R, S> FreshHandler<R, S> {
         #[cfg(feature = "otel")]
         let (context_propagator, otel_ctx) = if let ClientControlRequest::AuthenticateV2(ref auth_req) = request {
             if let Some(otel_context) = &auth_req.otel_context {
-                warn!("=== OpenTelemetry context provided in the request: {otel_context:?} ===");
+                info!("=== OpenTelemetry context provided in the request: {otel_context:?} ===");
                 (Some(ManualContextPropagator::new("handling_initial_client_request_with_otel", otel_context.clone())), Some(otel_context.clone()))
             } else {
-                warn!("No OpenTelemetry context provided in the request");
+                debug!("No OpenTelemetry context provided in the request");
                 (None, None)
             }
         } else {
-            warn!("No OpenTelemetry context provided in the request");
+            debug!("No OpenTelemetry context provided in the request");
             (None, None)
         };
         #[cfg(feature = "otel")]
@@ -899,7 +900,7 @@ impl<R, S> FreshHandler<R, S> {
                 let span = info_span!(parent: &propagator.root_span, "=== Handling initial client request with otel context ===");
                 span
             }
-            None => info_span!("=== Handling initial client request without otel context ==="),
+            None => tracing::debug_span!("=== Handling initial client request without otel context ==="),
         };
         #[cfg(feature = "otel")]
         let _enter = child_span.enter();

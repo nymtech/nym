@@ -97,7 +97,9 @@ time = { workspace = true }
 default = []
 otel = [
     "nym-bin-common/otel",
+    "nym-client-core/otel",
     "nym-gateway-requests/otel",
+    "nym-sphinx/otel",
     "opentelemetry",
     "opentelemetry_sdk",
     "tracing-opentelemetry",

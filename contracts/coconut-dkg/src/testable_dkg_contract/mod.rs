@@ -62,12 +62,18 @@ impl TestableNymContract for DkgContract {
     where
         Self: Sized,
     {
-        init_contract_tester_with_group_members(DEFAULT_GROUP_MEMBERS)
+        init_contract_tester()
     }
 }
 
 pub fn init_contract_tester() -> ContractTester<DkgContract> {
-    DkgContract::init().with_common_storage_key(CommonStorageKeys::Admin, "dkg-admin")
+    init_contract_tester_with_group_members(DEFAULT_GROUP_MEMBERS)
+}
+
+pub fn init_contract_tester_with_group_members(members: usize) -> ContractTester<DkgContract> {
+    prepare_contract_tester_builder_with_group_members(members)
+        .build()
+        .with_common_storage_key(CommonStorageKeys::Admin, "dkg-admin")
 }
 
 pub fn prepare_contract_tester_builder_with_group_members<C>(
@@ -135,12 +141,6 @@ where
     };
     builder.migrate_contract::<MultisigContract>(&multisig_migrate_msg);
     builder
-}
-
-pub fn init_contract_tester_with_group_members(members: usize) -> ContractTester<DkgContract> {
-    prepare_contract_tester_builder_with_group_members(members)
-        .build()
-        .with_common_storage_key(CommonStorageKeys::Admin, "dkg-admin")
 }
 
 pub trait DkgContractTesterExt:

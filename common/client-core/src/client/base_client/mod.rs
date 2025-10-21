@@ -217,8 +217,8 @@ pub struct BaseClientBuilder<C, S: MixnetClientStorage> {
     client_store: S,
     dkg_query_client: Option<C>,
 
-    // Optional network details for domain fronting support
-    network_details: Option<NymNetworkDetails>,
+    // Optional API URLs for domain fronting support
+    nym_api_urls: Option<Vec<nym_network_defaults::ApiUrl>>,
 
     wait_for_gateway: bool,
     custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
@@ -249,7 +249,7 @@ where
             config: base_config,
             client_store,
             dkg_query_client,
-            network_details: None,
+            nym_api_urls: None,
             wait_for_gateway: false,
             custom_topology_provider: None,
             custom_gateway_transceiver: None,
@@ -272,14 +272,24 @@ where
         self
     }
 
-    /// Set network details for domain fronting support.
+    /// Set Nym API URLs for domain fronting support.
     ///
-    /// When provided, the client will use network details (which include front_hosts)
+    /// When provided, the client will use these API URLs (which include front_hosts)
     /// to construct HTTP clients with domain fronting enabled.
     #[must_use]
-    pub fn with_network_details(mut self, network_details: NymNetworkDetails) -> Self {
-        self.network_details = Some(network_details);
+    pub fn with_nym_api_urls(mut self, nym_api_urls: Vec<nym_network_defaults::ApiUrl>) -> Self {
+        self.nym_api_urls = Some(nym_api_urls);
         self
+    }
+
+    /// Set network details for domain fronting support (deprecated).
+    ///
+    /// Use `with_nym_api_urls()` instead to explicitly pass the API URLs.
+    #[must_use]
+    #[deprecated(note = "use explicit Self::with_nym_api_urls instead")]
+    pub fn with_network_details(self, network_details: NymNetworkDetails) -> Self {
+        let nym_api_urls = network_details.nym_api_urls.unwrap_or_default();
+        self.with_nym_api_urls(nym_api_urls)
     }
 
     #[must_use]
@@ -882,25 +892,25 @@ where
     }
 
     fn construct_nym_api_client(
-        network_details: Option<&NymNetworkDetails>,
+        nym_api_urls: Option<&Vec<nym_network_defaults::ApiUrl>>,
         config: &Config,
         user_agent: Option<UserAgent>,
     ) -> Result<nym_http_api_client::Client, ClientCoreError> {
         tracing::debug!(
-            "construct_nym_api_client called with network_details: {}",
-            network_details.is_some()
+            "construct_nym_api_client called with nym_api_urls: {}",
+            nym_api_urls.is_some()
         );
 
-        // If network details are provided, use new_with_fronted_urls() which handles domain fronting
-        if let Some(network_details) = network_details {
+        // If API URLs are provided, use new_with_fronted_urls() which handles domain fronting
+        if let Some(nym_api_urls) = nym_api_urls {
             tracing::info!(
-                "Building nym-api client from network details (with domain fronting support)"
+                "Building nym-api client from provided URLs (with domain fronting support)"
             );
 
-            let urls = network_details.nym_api_urls.clone().unwrap_or_default();
-            let mut builder = nym_http_api_client::ClientBuilder::new_with_fronted_urls(urls)
-                .map_err(ClientCoreError::from)?
-                .with_retries(DEFAULT_NYM_API_RETRIES);
+            let mut builder =
+                nym_http_api_client::ClientBuilder::new_with_fronted_urls(nym_api_urls.clone())
+                    .map_err(ClientCoreError::from)?
+                    .with_retries(DEFAULT_NYM_API_RETRIES);
 
             if let Some(user_agent) = user_agent {
                 builder = builder.with_user_agent(user_agent);
@@ -1008,7 +1018,7 @@ where
             .map(|client| BandwidthController::new(credential_store, client));
 
         let nym_api_client = Self::construct_nym_api_client(
-            self.network_details.as_ref(),
+            self.nym_api_urls.as_ref(),
             &self.config,
             self.user_agent.clone(),
         )?;

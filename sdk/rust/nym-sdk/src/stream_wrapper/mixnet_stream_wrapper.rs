@@ -322,7 +322,7 @@ impl AsyncWrite for MixStreamWriter {
 mod tests {
     use super::*;
     use nym_sphinx::receiver::ReconstructedMessageCodec;
-    use std::sync::Once;
+    // use std::sync::Once;
     use tokio::io::AsyncReadExt;
     use tokio_util::codec::Decoder;
 
@@ -334,16 +334,16 @@ mod tests {
         }
     }
 
-    static INIT: Once = Once::new();
+    // static INIT: Once = Once::new();
 
-    fn init_logging() {
-        if tracing::dispatcher::has_been_set() {
-            return;
-        }
-        INIT.call_once(|| {
-            nym_bin_common::logging::setup_tracing_logger();
-        });
-    }
+    // fn init_logging() {
+    //     if tracing::dispatcher::has_been_set() {
+    //         return;
+    //     }
+    //     INIT.call_once(|| {
+    //         nym_bin_common::logging::setup_tracing_logger();
+    //     });
+    // }
 
     #[tokio::test]
     async fn simple_surb_reply_stream() -> Result<(), Box<dyn std::error::Error>> {

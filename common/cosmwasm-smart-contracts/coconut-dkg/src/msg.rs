@@ -84,6 +84,10 @@ pub enum ExecuteMsg {
     UpdateAnnounceAddress {
         new_address: String,
     },
+
+    FixOldShare {
+        old_owner: String,
+    },
 }
 
 #[cw_serde]

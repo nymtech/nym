@@ -6,6 +6,7 @@ use crate::dealers::queries::{
     query_epoch_dealers_addresses_paged, query_epoch_dealers_paged,
     query_registered_dealer_details,
 };
+use crate::dealers::storage::{ensure_dealer, EPOCH_DEALERS_MAP};
 use crate::dealers::transactions::{
     try_add_dealer, try_transfer_ownership, try_update_announce_address,
 };
@@ -18,14 +19,16 @@ use crate::epoch_state::queries::{
     query_can_advance_state, query_current_epoch, query_current_epoch_threshold,
     query_epoch_at_height, query_epoch_threshold,
 };
-use crate::epoch_state::storage::save_epoch;
+use crate::epoch_state::storage::{load_current_epoch, save_epoch};
 use crate::epoch_state::transactions::{
     try_advance_epoch_state, try_initiate_dkg, try_trigger_reset, try_trigger_resharing,
 };
+use crate::epoch_state::utils::check_epoch_state;
 use crate::error::ContractError;
 use crate::state::queries::query_state;
 use crate::state::storage::{DKG_ADMIN, MULTISIG, STATE};
 use crate::verification_key_shares::queries::{query_vk_share, query_vk_shares_paged};
+use crate::verification_key_shares::storage::vk_shares;
 use crate::verification_key_shares::transactions::try_commit_verification_key_share;
 use crate::verification_key_shares::transactions::try_verify_verification_key_share;
 use cosmwasm_std::{
@@ -133,6 +136,28 @@ pub fn execute(
         }
         ExecuteMsg::UpdateAnnounceAddress { new_address } => {
             try_update_announce_address(deps, info, new_address)
+        }
+        ExecuteMsg::FixOldShare { old_owner } => {
+            let old_owner = deps.api.addr_validate(&old_owner)?;
+
+            let epoch = load_current_epoch(deps.storage)?;
+
+            // make sure we're not mid-exchange
+            check_epoch_state(deps.storage, EpochState::InProgress)?;
+
+            // make sure the requester is actually a dealer for this epoch
+            ensure_dealer(deps.storage, &info.sender, epoch.epoch_id)?;
+
+            for epoch_id in 0..=epoch.epoch_id {
+                if let Some(vk_share) =
+                    vk_shares().may_load(deps.storage, (&old_owner, epoch_id))?
+                {
+                    vk_shares().remove(deps.storage, (&old_owner, epoch_id))?;
+                    vk_shares().save(deps.storage, (&info.sender, epoch_id), &vk_share)?;
+                }
+            }
+
+            Ok(Response::new())
         }
     }
 }

@@ -280,10 +280,10 @@ fn wrap_processed_sphinx_packet(
                     let full_trace_id_bytes = decompress_trace_id(&trace_bytes);
                     let full_trace_id = opentelemetry::trace::TraceId::from_bytes(full_trace_id_bytes);
                     let context_propagator = ManualContextPropagator::new_from_tid("final_hop", full_trace_id);
-                    warn_span!(parent: &context_propagator.root_span, "final_hop_processing", trace_id=%full_trace_id)
+                    info_span!(parent: &context_propagator.root_span, "final_hop_processing", trace_id=%full_trace_id)
                 }
                 _ => {
-                    warn_span!("final_hop_processing")
+                    debug_span!("final_hop_processing")
                 }
             };
             #[cfg(feature = "otel")]

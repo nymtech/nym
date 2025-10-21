@@ -67,6 +67,7 @@ use std::path::Path;
 use std::sync::Arc;
 use time::OffsetDateTime;
 use tokio::sync::mpsc::Sender;
+use tracing::instrument;
 use url::Url;
 
 #[cfg(target_arch = "wasm32")]

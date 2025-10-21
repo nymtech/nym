@@ -342,7 +342,7 @@ mod tests {
         let mut client = MixnetClient::connect_new().await?;
 
         println!("sending client addr {}", client.nym_address());
-        let sender = client.split_sender();
+        let mut sender = client.split_sender();
 
         let receiving_task_handle = tokio::spawn(async move {
             println!("in handle");

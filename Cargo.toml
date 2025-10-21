@@ -115,7 +115,6 @@ members = [
     "common/wireguard-private-metadata/tests",
     "common/wireguard-types",
     "common/zulip-client",
-    # "documentation/autodoc",
     "gateway",
     "nym-api",
     "nym-api/nym-api-requests",

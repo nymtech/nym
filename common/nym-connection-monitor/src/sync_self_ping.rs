@@ -3,7 +3,6 @@
 
 use std::time::Duration;
 
-use futures::StreamExt;
 use nym_sdk::mixnet::{MixnetClient, MixnetMessageSender, Recipient};
 use tracing::{debug, error};
 

@@ -1,3 +1,4 @@
+#![allow(clippy::result_large_err)]
 use mixtcp::{create_device, MixtcpError};
 use rustls::{pki_types::ServerName, ClientConfig, ClientConnection};
 use std::{
@@ -97,7 +98,7 @@ fn inspect_tls_packet(data: &[u8]) {
         return;
     }
     let content_type = data[0];
-    if content_type < 0x14 || content_type > 0x17 {
+    if !(0x14..=0x17).contains(&content_type) {
         return;
     }
     let version = u16::from_be_bytes([data[1], data[2]]);
@@ -199,7 +200,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
 
-        if start.elapsed().as_secs() % 5 == 0 && start.elapsed().as_millis() % 1000 < 100 {
+        if start.elapsed().as_secs().is_multiple_of(5) && start.elapsed().as_millis() % 1000 < 100 {
             info!(
                 "State: TCP={:?}, established={}, can_send={}, can_recv={}",
                 socket.state(),
@@ -224,7 +225,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let _ = tls_conn.read_tls(socket);
             let _ = tls_conn.write_tls(socket);
 
-            if start.elapsed().as_secs() % 10 == 0 && start.elapsed().as_millis() % 1000 < 100 {
+            if start.elapsed().as_secs().is_multiple_of(10)
+                && start.elapsed().as_millis() % 1000 < 100
+            {
                 info!(
                     "TLS state: handshaking={}, wants_read={}, wants_write={}",
                     tls_conn.conn.is_handshaking(),

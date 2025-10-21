@@ -152,7 +152,7 @@ impl IpMixStream {
 
         match self.connect_inner().await {
             Ok(ip_pair) => {
-                self.allocated_ips = Some(ip_pair.clone());
+                self.allocated_ips = Some(ip_pair);
                 self.connection_state = ConnectionState::Connected;
                 info!(
                     "Connected to IPv4: {}, IPv6: {}",
@@ -290,7 +290,7 @@ impl IpMixStream {
     /// Split for concurrent read/write (like TcpStream::Split) into IpMixnetStreamReader and IpMixnetStreamWriter.
     pub fn split(self) -> (IpMixStreamReader, IpMixStreamWriter) {
         debug!("Splitting IpMixStream");
-        let local_addr = self.stream.client.nym_address().clone();
+        let local_addr = *self.stream.client.nym_address();
         let (stream_reader, stream_writer) = self.stream.split();
         debug!("Split IpMixStream into Reader and Writer");
 
@@ -301,7 +301,7 @@ impl IpMixStream {
             IpMixStreamReader {
                 stream_reader,
                 listener: self.listener,
-                allocated_ips: self.allocated_ips.clone(),
+                allocated_ips: self.allocated_ips,
                 connection_state: self.connection_state.clone(),
                 state_tx: Some(state_tx),
                 ips_tx: Some(ips_tx),

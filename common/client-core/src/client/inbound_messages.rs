@@ -199,7 +199,7 @@ impl InputMessage {
         self.set_max_retransmissions(max_retransmissions);
         self
     }
-
+    #[allow(clippy::expect_used)]
     pub fn serialized_size(&self) -> u64 {
         bincode::serialized_size(self).expect("failed to get serialized InputMessage size")
             + LENGHT_ENCODING_PREFIX_SIZE as u64
@@ -226,6 +226,7 @@ impl Encoder<InputMessage> for InputMessageCodec {
     type Error = ClientCoreError;
 
     fn encode(&mut self, item: InputMessage, buf: &mut BytesMut) -> Result<(), Self::Error> {
+        #[allow(clippy::expect_used)]
         let encoded = bincode::serialize(&item).expect("failed to serialize InputMessage");
         let encoded_len = encoded.len() as u32;
         let mut encoded_with_len = encoded_len.to_le_bytes().to_vec();
@@ -244,7 +245,7 @@ impl Decoder for InputMessageCodec {
         if buf.len() < LENGHT_ENCODING_PREFIX_SIZE {
             return Ok(None);
         }
-
+        #[allow(clippy::expect_used)]
         let len = u32::from_le_bytes(
             buf[0..LENGHT_ENCODING_PREFIX_SIZE]
                 .try_into()

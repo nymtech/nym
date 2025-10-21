@@ -98,7 +98,7 @@ impl NymIprBridge {
                             info!("Incoming packet: {} bytes", packet.len());
 
                             // Forward to device via channel
-                            if let Err(_) = self.rx_sender.send(packet.to_vec()) {
+                            if self.rx_sender.send(packet.to_vec()).is_err() {
                                 error!("Failed to send packet to device - receiver dropped");
                                 return Err(MixtcpError::ChannelClosed);
                             }

@@ -891,13 +891,14 @@ where
             network_details.is_some()
         );
 
-        // If network details are provided, use from_network() which handles domain fronting
+        // If network details are provided, use new_with_fronted_urls() which handles domain fronting
         if let Some(network_details) = network_details {
             tracing::info!(
                 "Building nym-api client from network details (with domain fronting support)"
             );
 
-            let mut builder = nym_http_api_client::ClientBuilder::from_network(network_details)
+            let urls = network_details.nym_api_urls.clone().unwrap_or_default();
+            let mut builder = nym_http_api_client::ClientBuilder::new_with_fronted_urls(urls)
                 .map_err(ClientCoreError::from)?
                 .with_retries(DEFAULT_NYM_API_RETRIES);
 

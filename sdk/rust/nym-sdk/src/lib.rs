@@ -12,9 +12,6 @@ pub mod client_pool;
 pub mod ip_packet_client;
 pub mod mixnet;
 pub mod stream_wrapper;
-#[deprecated(
-    note = "Functionality from this module is mostly superceded by the stream_wrapper::MixSocket and stream_wrapper::MixStreamIPR exports. This module is no longer maintained and will be removed in a future release."
-)]
 pub mod tcp_proxy;
 
 pub use error::{Error, Result};

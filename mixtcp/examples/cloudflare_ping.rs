@@ -1,3 +1,4 @@
+#![allow(clippy::result_large_err)]
 use mixtcp::{create_device, MixtcpError};
 use rustls::{pki_types::ServerName, ClientConfig, ClientConnection};
 use std::{
@@ -97,7 +98,7 @@ fn inspect_tls_packet(data: &[u8]) {
         return;
     }
     let content_type = data[0];
-    if content_type < 0x14 || content_type > 0x17 {
+    if !(0x14..=0x17).contains(&content_type) {
         return;
     }
     let version = u16::from_be_bytes([data[1], data[2]]);

@@ -166,6 +166,7 @@ impl GatewayClient {
             .map_err(Box::new)?;
 
         // Gets around diff version imports compiler issue for the moment
+        #[allow(clippy::expect_used)]
         let network_details_compat = {
             let json = serde_json::to_string(network_details)
                 .expect("Failed to serialize network details");
@@ -292,12 +293,13 @@ impl GatewayClient {
         debug!("found the following ips for {gateway_identity}: {ips:?}");
         if ips.len() == 1 {
             // SAFETY: the vector is not empty, so unwrap is fine
+            #[allow(clippy::unwrap_used)]
             Ok(ips.pop().unwrap())
         } else {
             // chose a random one if there's more than one
             // SAFETY: the vector is not empty, so unwrap is fine
             let mut rng = thread_rng();
-            let ip = ips.choose(&mut rng).unwrap();
+            let ip = ips.choose(&mut rng).ok_or_else(|| Error::NoIpsAvailable)?;
             Ok(*ip)
         }
     }

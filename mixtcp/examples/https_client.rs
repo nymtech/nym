@@ -1,3 +1,4 @@
+#![allow(clippy::result_large_err)]
 use mixtcp::{create_device, MixtcpError, NymIprDevice};
 use nym_sdk::stream_wrapper::IpMixStream;
 use reqwest::StatusCode;

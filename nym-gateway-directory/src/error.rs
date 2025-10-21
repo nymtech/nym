@@ -105,6 +105,9 @@ pub enum Error {
 
     #[error("invalid score value: {0}. Valid values are: offline, low, medium, high")]
     InvalidScoreValue(String),
+
+    #[error("ips vec empty")]
+    NoIpsAvailable,
 }
 
 impl Error {

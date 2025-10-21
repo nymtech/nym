@@ -85,7 +85,7 @@ impl MixStream {
     /// Nym address of Stream's peer (Nym Client it will communicate with).
     pub fn peer_addr(&self) -> Recipient {
         let peer = &self.peer.expect("No Peer set");
-        peer.clone()
+        *peer
     }
 
     /// Our Nym address.
@@ -211,7 +211,7 @@ impl MixStreamReader {
     /// Nym address of Stream's peer (Nym Client it will communicate with).
     pub fn peer_addr(&self) -> Recipient {
         let peer = &self.peer.expect("No Peer set");
-        peer.clone()
+        *peer
     }
 
     /// Our Nym address.
@@ -350,12 +350,11 @@ mod tests {
         init_logging();
 
         let receiver_socket = MixSocket::new_test().await?;
-        let receiver_address = receiver_socket.nym_address().clone();
+        let receiver_address = *receiver_socket.nym_address();
         let sender_socket = MixSocket::new_test().await?;
-        let sender_address = sender_socket.nym_address().clone();
-        let mut receiver_stream =
-            MixStream::new(Some(receiver_socket), sender_address.clone()).await;
-        let mut sender_stream = MixStream::new(Some(sender_socket), receiver_address.clone()).await;
+        let sender_address = *sender_socket.nym_address();
+        let mut receiver_stream = MixStream::new(Some(receiver_socket), sender_address).await;
+        let mut sender_stream = MixStream::new(Some(sender_socket), receiver_address).await;
 
         sender_stream.write_bytes(b"Hello, Mixnet Split!").await?;
 
@@ -403,11 +402,11 @@ mod tests {
         init_logging();
 
         let sender_socket = MixSocket::new_test().await?;
-        let sender_address = sender_socket.nym_address().clone();
+        let sender_address = *sender_socket.nym_address();
         let receiver_socket = MixSocket::new_test().await?;
-        let receiver_address = receiver_socket.nym_address().clone();
-        let sender_stream = MixStream::new(Some(sender_socket), receiver_address.clone()).await;
-        let receiver_stream = MixStream::new(Some(receiver_socket), sender_address.clone()).await;
+        let receiver_address = *receiver_socket.nym_address();
+        let sender_stream = MixStream::new(Some(sender_socket), receiver_address).await;
+        let receiver_stream = MixStream::new(Some(receiver_socket), sender_address).await;
 
         let (mut sender_reader, mut sender_writer) = sender_stream.split();
         let (mut receiver_reader, mut receiver_writer) = receiver_stream.split();

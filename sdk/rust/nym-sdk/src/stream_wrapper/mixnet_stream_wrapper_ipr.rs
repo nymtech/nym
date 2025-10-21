@@ -506,18 +506,18 @@ mod tests {
         icmp_identifier, is_icmp_echo_reply, is_icmp_v6_echo_reply, send_ping_v4, send_ping_v6,
     };
     use std::net::{Ipv4Addr, Ipv6Addr};
-    use std::sync::Once;
+    // use std::sync::Once;
 
-    static INIT: Once = Once::new();
+    // static INIT: Once = Once::new();
 
-    fn init_logging() {
-        if tracing::dispatcher::has_been_set() {
-            return;
-        }
-        INIT.call_once(|| {
-            nym_bin_common::logging::setup_tracing_logger();
-        });
-    }
+    // fn init_logging() {
+    //     if tracing::dispatcher::has_been_set() {
+    //         return;
+    //     }
+    //     INIT.call_once(|| {
+    //         nym_bin_common::logging::setup_tracing_logger();
+    //     });
+    // }
 
     #[tokio::test]
     async fn connect_to_ipr() -> Result<(), Box<dyn std::error::Error>> {

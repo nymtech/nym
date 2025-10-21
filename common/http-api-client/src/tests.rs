@@ -93,7 +93,7 @@ async fn api_client_retry() -> Result<(), Box<dyn std::error::Error>> {
     let client = ClientBuilder::new_with_urls(vec![
         "http://broken.nym.badurl".parse()?,
         "http://example.com/".parse()?,
-    ])
+    ])?
     .with_retries(3)
     .build()?;
 

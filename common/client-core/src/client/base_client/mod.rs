@@ -46,7 +46,6 @@ use nym_gateway_client::client::config::GatewayClientConfig;
 use nym_gateway_client::{
     AcknowledgementReceiver, GatewayClient, GatewayConfig, MixnetMessageReceiver, PacketRouter,
 };
-use nym_network_defaults::NymNetworkDetails;
 use nym_sphinx::acknowledgements::AckKey;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::addressing::nodes::NodeIdentity;
@@ -280,16 +279,6 @@ where
     pub fn with_nym_api_urls(mut self, nym_api_urls: Vec<nym_network_defaults::ApiUrl>) -> Self {
         self.nym_api_urls = Some(nym_api_urls);
         self
-    }
-
-    /// Set network details for domain fronting support (deprecated).
-    ///
-    /// Use `with_nym_api_urls()` instead to explicitly pass the API URLs.
-    #[must_use]
-    #[deprecated(note = "use explicit Self::with_nym_api_urls instead")]
-    pub fn with_network_details(self, network_details: NymNetworkDetails) -> Self {
-        let nym_api_urls = network_details.nym_api_urls.unwrap_or_default();
-        self.with_nym_api_urls(nym_api_urls)
     }
 
     #[must_use]
@@ -903,36 +892,55 @@ where
 
         // If API URLs are provided, use new_with_fronted_urls() which handles domain fronting
         if let Some(nym_api_urls) = nym_api_urls {
-            tracing::info!(
-                "Building nym-api client from provided URLs (with domain fronting support)"
-            );
+            if nym_api_urls.is_empty() {
+                tracing::warn!("Provided nym_api_urls is empty, falling back to config endpoints");
+            } else {
+                tracing::info!(
+                    "Building nym-api client from provided URLs (with domain fronting support): {} URLs",
+                    nym_api_urls.len()
+                );
 
-            let mut builder =
-                nym_http_api_client::ClientBuilder::new_with_fronted_urls(nym_api_urls.clone())
-                    .map_err(ClientCoreError::from)?
-                    .with_retries(DEFAULT_NYM_API_RETRIES);
+                let mut builder =
+                    nym_http_api_client::ClientBuilder::new_with_fronted_urls(nym_api_urls.clone())
+                        .map_err(ClientCoreError::from)?
+                        .with_retries(DEFAULT_NYM_API_RETRIES);
 
-            if let Some(user_agent) = user_agent {
-                builder = builder.with_user_agent(user_agent);
+                if let Some(user_agent) = user_agent {
+                    builder = builder.with_user_agent(user_agent);
+                }
+
+                return builder.build().map_err(ClientCoreError::from);
             }
-
-            return builder.build().map_err(ClientCoreError::from);
         }
 
         // Fallback to basic client for backwards compatibility
         tracing::debug!("Building basic nym-api HTTP client from config endpoints");
 
         let mut nym_api_urls = config.get_nym_api_endpoints();
+        if nym_api_urls.is_empty() {
+            tracing::warn!("No API endpoints configured in config, this may cause issues");
+        }
         nym_api_urls.shuffle(&mut thread_rng());
 
-        let mut builder = nym_http_api_client::Client::builder(nym_api_urls[0].clone())
-            .map_err(ClientCoreError::from)?;
+        // Convert config URLs to ApiUrl format for consistency
+        let api_urls: Vec<nym_network_defaults::ApiUrl> = nym_api_urls
+            .into_iter()
+            .map(|url| nym_network_defaults::ApiUrl {
+                url: url.to_string(),
+                front_hosts: None,
+            })
+            .collect();
+
+        tracing::debug!("Using {} config API endpoints", api_urls.len());
+
+        let mut builder = nym_http_api_client::ClientBuilder::new_with_fronted_urls(api_urls)
+            .map_err(ClientCoreError::from)?
+            .with_retries(DEFAULT_NYM_API_RETRIES)
+            .with_bincode();
 
         if let Some(user_agent) = user_agent {
             builder = builder.with_user_agent(user_agent);
         }
-
-        builder = builder.with_bincode();
 
         builder.build().map_err(ClientCoreError::from)
     }

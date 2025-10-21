@@ -296,6 +296,9 @@ impl std::error::Error for ReqwestErrorWrapper {}
 #[derive(Debug, Error)]
 #[allow(missing_docs)]
 pub enum HttpClientError {
+    #[error("did not provide any valid client URLs")]
+    NoUrlsProvided,
+
     #[error("failed to construct inner reqwest client: {source}")]
     ReqwestBuildError {
         #[source]
@@ -582,25 +585,29 @@ impl ClientBuilder {
             Self::new(alt)
         } else {
             let url = url.to_url()?;
-            Ok(Self::new_with_urls(vec![url]))
+            Self::new_with_urls(vec![url])
         }
     }
 
     /// Create a client builder from network details with sensible defaults
     #[cfg(feature = "network-defaults")]
+    // deprecating function since it's not clear from its signature whether the client
+    // would be constructed using `nym_api_urls` or `nym_vpn_api_urls`
+    #[deprecated(note = "use explicit Self::new_with_fronted_urls instead")]
     pub fn from_network(
         network: &nym_network_defaults::NymNetworkDetails,
     ) -> Result<Self, HttpClientError> {
-        let api_urls =
-            network
-                .nym_api_urls
-                .as_ref()
-                .ok_or_else(|| HttpClientError::UrlParseFailure {
-                    source: url::ParseError::EmptyHost,
-                })?;
+        let urls = network.nym_api_urls.as_ref().cloned().unwrap_or_default();
+        Self::new_with_fronted_urls(urls.clone())
+    }
 
-        let urls = api_urls
-            .iter()
+    /// Create a client builder using the provided set of domain-fronted URLs
+    #[cfg(feature = "network-defaults")]
+    pub fn new_with_fronted_urls(
+        urls: Vec<nym_network_defaults::ApiUrl>,
+    ) -> Result<Self, HttpClientError> {
+        let urls = urls
+            .into_iter()
             .map(|api_url| {
                 // Convert ApiUrl to our Url type with fronting support
                 let mut url = Url::parse(&api_url.url)?;
@@ -624,7 +631,7 @@ impl ClientBuilder {
             })
             .collect::<Result<Vec<_>, HttpClientError>>()?;
 
-        let mut builder = Self::new_with_urls(urls);
+        let mut builder = Self::new_with_urls(urls)?;
 
         // Enable domain fronting by default (on retry)
         #[cfg(feature = "tunneling")]
@@ -636,7 +643,11 @@ impl ClientBuilder {
     }
 
     /// Constructs a new http `ClientBuilder` from a valid url.
-    pub fn new_with_urls(urls: Vec<Url>) -> Self {
+    pub fn new_with_urls(urls: Vec<Url>) -> Result<Self, HttpClientError> {
+        if urls.is_empty() {
+            return Err(HttpClientError::NoUrlsProvided);
+        }
+
         let urls = Self::check_urls(urls);
 
         #[cfg(target_arch = "wasm32")]
@@ -645,7 +656,7 @@ impl ClientBuilder {
         #[cfg(not(target_arch = "wasm32"))]
         let reqwest_client_builder = default_builder();
 
-        ClientBuilder {
+        Ok(ClientBuilder {
             urls,
             timeout: None,
             custom_user_agent: false,
@@ -656,7 +667,7 @@ impl ClientBuilder {
 
             retry_limit: 0,
             serialization: SerializationFormat::Json,
-        }
+        })
     }
 
     /// Add an additional URL to the set usable by this constructed `Client`

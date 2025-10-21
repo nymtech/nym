@@ -31,10 +31,9 @@ pub async fn create_device(
 
     // Get the allocated IPs before moving the stream - need these for proper packet creation
     // further 'up' the flow in the code calling this fn (see examples/tcp_connect.rs).
-    let allocated_ips = ipr_stream
+    let allocated_ips = *ipr_stream
         .allocated_ips()
-        .ok_or(MixtcpError::NotConnected)?
-        .clone();
+        .ok_or(MixtcpError::NotConnected)?;
 
     // Create channels for device <-> bridge communication
     let (tx_to_bridge, tx_from_device) = mpsc::unbounded_channel();

@@ -151,7 +151,7 @@ pub async fn gateways_for_init(
     }
 
     let retry_count = retry_count.unwrap_or(DEFAULT_NYM_API_RETRIES);
-    let mut builder = nym_http_api_client::ClientBuilder::new_with_urls(nym_api_urls.clone())
+    let mut builder = nym_http_api_client::ClientBuilder::new_with_urls(nym_api_urls.clone())?
         .with_retries(retry_count)
         .with_bincode();
 

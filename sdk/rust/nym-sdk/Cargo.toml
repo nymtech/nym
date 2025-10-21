@@ -47,9 +47,7 @@ nym-sphinx-addressing = { path = "../../../common/nymsphinx/addressing" }
 nym-bin-common = { path = "../../../common/bin-common", features = [
   "basic_tracing",
 ] }
-
 nym-gateway-directory = { path = "../../../nym-gateway-directory" }
-nym-vpn-api-client = { git = "https://github.com/nymtech/nym-vpn-client/", rev = "5ab01ba06057449614dd6a8450d04358c5ec33d1" }
 
 bytecodec = { workspace = true }
 httpcodec = { workspace = true }

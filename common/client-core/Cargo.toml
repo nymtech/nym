@@ -123,6 +123,7 @@ cli = ["clap", "comfy-table"]
 fs-credentials-storage = ["nym-credential-storage/persistent-storage"]
 fs-surb-storage = ["nym-client-core-surb-storage/fs-surb-storage"]
 fs-gateways-storage = ["nym-client-core-gateways-storage/fs-gateways-storage"]
+otel = ["nym-sphinx/otel"]
 wasm = ["nym-gateway-client/wasm"]
 metrics-server = []
 

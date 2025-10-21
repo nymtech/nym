@@ -325,7 +325,7 @@ impl<R, S> AuthenticatedHandler<R, S> {
         let span = {
             let span = match &self.otel_propagator {
                 Some(propagator) => info_span!(parent: &propagator.root_span, "handling_forward_sphinx"),
-                None => info_span!("handling_forward_sphinx_no_otel"),
+                None => debug_span!("handling_forward_sphinx_no_otel"),
             };
             span
         };
@@ -611,6 +611,7 @@ impl<R, S> AuthenticatedHandler<R, S> {
         }
     }
 
+    #[instrument(skip_all)]
     async fn handle_is_active_request(
         &mut self,
         reply_tx: IsActiveResultSender,
@@ -659,7 +660,7 @@ impl<R, S> AuthenticatedHandler<R, S> {
         let from_client_span = {
             let span = match &self.otel_propagator {
                 Some(propagator) => info_span!(parent: &propagator.root_span, "authenticated_client_handler_listen"),
-                None => info_span!("authenticated_client_handler_listen_no_otel"),
+                None => tracing::debug_span!("authenticated_client_handler_listen_no_otel"),
             };
             span
         };
@@ -701,7 +702,7 @@ impl<R, S> AuthenticatedHandler<R, S> {
                     }
 
                     if let Some(response) = self.handle_request(socket_msg).await {
-                        if let Err(err) = self.inner.send_websocket_message(response).await {
+                        if let Err(err) = self.inner.send_websocket_message(response).in_current_span().await {
                             debug!(
                                 "Failed to send message over websocket: {err}. Assuming the connection is dead.",
                             );

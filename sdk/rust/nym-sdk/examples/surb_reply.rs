@@ -25,7 +25,7 @@ async fn main() {
             let cx = tracing::Span::current().context();
             let sc = cx.span();
             let spcx = sc.span_context();
-            tracing::info!("Current OTEL context: {:?}, trace_id: {:?}", cx, spcx.trace_id());
+            tracing::debug!("Current OTEL context: {:?}, trace_id: {:?}", cx, spcx.trace_id());
 
             // Ignore performance requirements for the sake of the example
                 let mut debug_config = DebugConfig::default();

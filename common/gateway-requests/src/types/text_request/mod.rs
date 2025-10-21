@@ -166,7 +166,6 @@ impl ClientControlRequest {
         let context_carrier = {
             use nym_bin_common::opentelemetry::context::extract_trace_id_from_tracing_cx;
             let trace_id = extract_trace_id_from_tracing_cx();
-            tracing::info!("[DEBUG] Trace id in new_authenticate_v2: {:?}", trace_id);
 
             use tracing_opentelemetry::OpenTelemetrySpanExt;
 

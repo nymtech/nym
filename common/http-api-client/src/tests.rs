@@ -243,10 +243,12 @@ fn from_network_configures_multiple_urls_and_retries() {
     ]);
 
     // Build client from network details
-    let client = ClientBuilder::from_network(&network_details)
-        .expect("Failed to create client from network")
-        .build()
-        .expect("Failed to build client");
+    let client = ClientBuilder::new_with_fronted_urls(
+        network_details.nym_api_urls.clone().unwrap_or_default(),
+    )
+    .expect("Failed to create client from network")
+    .build()
+    .expect("Failed to build client");
 
     // Verify all URLs were configured
     assert_eq!(

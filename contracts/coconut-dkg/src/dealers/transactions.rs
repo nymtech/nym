@@ -110,13 +110,17 @@ pub fn try_transfer_ownership(
     DEALERS_INDICES.save(deps.storage, &transfer_to, &current_index)?;
     DEALERS_INDICES.remove(deps.storage, &info.sender);
 
-    // update registration detail for every epoch the current dealer has participated in the protocol
+    // update registration detail and share information for every epoch the current dealer has participated in the protocol
     // ideally, we'd have only updated the current epoch, but the way the contract is constructed
     // forbids that otherwise we'd have introduced inconsistency
     for epoch_id in 0..=epoch.epoch_id {
         if let Some(details) = EPOCH_DEALERS_MAP.may_load(deps.storage, (epoch_id, &info.sender))? {
             EPOCH_DEALERS_MAP.remove(deps.storage, (epoch_id, &info.sender));
             EPOCH_DEALERS_MAP.save(deps.storage, (epoch_id, &transfer_to), &details)?;
+        }
+        if let Some(vk_share) = vk_shares().may_load(deps.storage, (&info.sender, epoch_id))? {
+            vk_shares().remove(deps.storage, (&info.sender, epoch_id))?;
+            vk_shares().save(deps.storage, (&transfer_to, epoch_id), &vk_share)?;
         }
     }
 
@@ -262,6 +266,7 @@ mod tests_with_mock {
         contract.run_initial_dummy_dkg();
         let old_index = DEALERS_INDICES.load(&contract, &group_member)?;
         let old_details = EPOCH_DEALERS_MAP.load(&contract, (0, &group_member))?;
+        let old_share = vk_shares().load(&contract, (&group_member, 0))?;
 
         let not_group_member = contract.addr_make("not_group_member");
         let (deps, env) = contract.deps_mut_env();
@@ -291,13 +296,18 @@ mod tests_with_mock {
         assert!(EPOCH_DEALERS_MAP
             .may_load(&contract, (0, &group_member))?
             .is_none());
+        assert!(vk_shares()
+            .may_load(&contract, (&group_member, 0))?
+            .is_none());
 
         let new_index = DEALERS_INDICES.load(&contract, &new_group_member)?;
         let new_details = EPOCH_DEALERS_MAP.load(&contract, (0, &new_group_member))?;
+        let new_share = vk_shares().load(&contract, (&new_group_member, 0))?;
 
         // the underlying info hasn't changed
         assert_eq!(old_index, new_index);
         assert_eq!(old_details, new_details);
+        assert_eq!(old_share, new_share);
 
         assert_eq!(
             OWNERSHIP_TRANSFER_LOG.load(

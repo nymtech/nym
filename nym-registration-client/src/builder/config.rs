@@ -424,6 +424,7 @@ mod tests {
         assert!(result.is_err());
 
         // Short-circuits at first missing field, so we just verify it's one of the expected errors
+        #[allow(unreachable_patterns)] // All variants are covered, but keeping catch-all for safety
         match result {
             Err(BuilderConfigError::MissingEntryNode)
             | Err(BuilderConfigError::MissingExitNode)
@@ -431,7 +432,9 @@ mod tests {
             | Err(BuilderConfigError::MissingUserAgent)
             | Err(BuilderConfigError::MissingTopologyProvider)
             | Err(BuilderConfigError::MissingNetworkEnv)
-            | Err(BuilderConfigError::MissingCancelToken) => (), // Expected
+            | Err(BuilderConfigError::MissingCancelToken) => (),
+            #[cfg(unix)]
+            Err(BuilderConfigError::MissingConnectionFdCallback) => (),
             Err(e) => panic!("Unexpected error: {}", e),
             Ok(_) => panic!("Expected validation error, got Ok"),
         }

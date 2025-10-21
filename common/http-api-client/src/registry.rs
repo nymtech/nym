@@ -21,6 +21,10 @@ inventory::collect!(ConfigRecord);
 /// Returns the default builder with all registered configurations applied.
 pub fn default_builder() -> ReqwestClientBuilder {
     let mut b = ReqwestClientBuilder::new();
+
+    #[cfg(feature = "debug-inventory")]
+    let mut test_client = ReqwestClientBuilder::new();
+
     let mut records: Vec<&'static ConfigRecord> =
         inventory::iter::<ConfigRecord>.into_iter().collect();
     records.sort_by_key(|r| r.priority); // lower runs first
@@ -35,6 +39,10 @@ pub fn default_builder() -> ReqwestClientBuilder {
 
     for r in records {
         b = (r.apply)(b);
+        #[cfg(feature = "debug-inventory")]
+        {
+            test_client = (r.apply)(test_client);
+        }
     }
 
     #[cfg(feature = "debug-inventory")]
@@ -47,7 +55,7 @@ pub fn default_builder() -> ReqwestClientBuilder {
         eprintln!("[HTTP-INVENTORY] Building test client to verify configuration...");
 
         // Try to build a client to see if it works
-        match b.try_clone().unwrap().build() {
+        match test_client.build() {
             Ok(client) => {
                 eprintln!("[HTTP-INVENTORY] ✓ Client built successfully");
                 eprintln!("[HTTP-INVENTORY] Client debug info: {:#?}", client);

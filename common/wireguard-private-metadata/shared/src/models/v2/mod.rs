@@ -7,6 +7,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
+use super::error::Error;
 use crate::{
     impl_default_bincode_request_conversions, impl_default_bincode_response_conversions,
     models::Version,
@@ -24,7 +25,7 @@ pub(crate) mod available_bandwidth;
 pub mod interface;
 pub(crate) mod topup_bandwidth;
 
-pub const VERSION: Version = Version::V1;
+pub const VERSION: Version = Version::V2;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema, ToSchema)]
 pub enum QueryType {
@@ -64,23 +65,23 @@ impl_default_bincode_response_conversions!(VersionedResponse, VERSION);
 
 #[cfg(test)]
 mod tests {
+
     use self::{
         available_bandwidth::{
             request::InnerAvailableBandwidthRequest, response::InnerAvailableBandwidthResponse,
         },
         topup_bandwidth::{request::InnerTopUpRequest, response::InnerTopUpResponse},
     };
-    use crate::models::error::Error;
     use crate::models::tests::CREDENTIAL_BYTES;
     use crate::{Request, Response, make_bincode_serializer};
     use bincode::Options;
-    use nym_credentials_interface::CredentialSpendingData;
+    use nym_credentials_interface::{BandwidthCredential, CredentialSpendingData};
 
     use super::*;
 
     #[test]
     fn mismatched_request_version() {
-        let version = Version::V2;
+        let version = Version::V1;
         let future_bw = Request {
             version,
             inner: vec![],
@@ -99,7 +100,7 @@ mod tests {
 
     #[test]
     fn mismatched_response_version() {
-        let version = Version::V2;
+        let version = Version::V1;
         let future_bw = Response {
             version,
             inner: vec![],
@@ -123,6 +124,7 @@ mod tests {
             inner: make_bincode_serializer()
                 .serialize(&InnerAvailableBandwidthResponse {
                     available_bandwidth: 42,
+                    upgrade_mode: true,
                 })
                 .unwrap(),
         };
@@ -154,7 +156,9 @@ mod tests {
             query_type: QueryType::TopUpBandwidth,
             inner: make_bincode_serializer()
                 .serialize(&InnerTopUpRequest {
-                    credential: CredentialSpendingData::try_from_bytes(&CREDENTIAL_BYTES).unwrap(),
+                    credential: BandwidthCredential::from(
+                        CredentialSpendingData::try_from_bytes(&CREDENTIAL_BYTES).unwrap(),
+                    ),
                 })
                 .unwrap(),
         };

@@ -764,6 +764,10 @@ where
             base_builder = base_builder.with_connection_fd_callback(connection_fd_callback);
         }
 
+        if let Some(connect_timeout) = self.connect_timeout {
+            base_builder = base_builder.with_connect_timeout(connect_timeout);
+        }
+
         let started_client = base_builder.start_base().await?;
         self.state = BuilderState::Registered {};
         let nym_address = started_client.address;

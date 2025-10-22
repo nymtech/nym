@@ -38,6 +38,7 @@ pub struct BuilderConfig {
     pub cancel_token: CancellationToken,
     #[cfg(unix)]
     pub connection_fd_callback: Arc<dyn Fn(RawFd) + Send + Sync>,
+    pub connect_timeout: Option<Duration>,
 }
 
 #[derive(Clone, Default, Debug, Eq, PartialEq)]
@@ -71,6 +72,7 @@ impl BuilderConfig {
         network_env: NymNetworkDetails,
         cancel_token: CancellationToken,
         #[cfg(unix)] connection_fd_callback: Arc<dyn Fn(RawFd) + Send + Sync>,
+        connect_timeout: Option<Duration>,
     ) -> Self {
         Self {
             entry_node,
@@ -84,6 +86,7 @@ impl BuilderConfig {
             cancel_token,
             #[cfg(unix)]
             connection_fd_callback,
+            connect_timeout,
         }
     }
 
@@ -294,6 +297,7 @@ pub struct BuilderConfigBuilder {
     cancel_token: Option<CancellationToken>,
     #[cfg(unix)]
     connection_fd_callback: Option<Arc<dyn Fn(RawFd) + Send + Sync>>,
+    connect_timeout: Option<Duration>,
 }
 
 impl BuilderConfigBuilder {
@@ -358,6 +362,11 @@ impl BuilderConfigBuilder {
         self
     }
 
+    pub fn with_connect_timeout(mut self, connect_timeout: Duration) -> Self {
+        self.connect_timeout = Some(connect_timeout);
+        self
+    }
+
     /// Builds the `BuilderConfig`.
     ///
     /// Returns an error if any required field is missing.
@@ -388,6 +397,7 @@ impl BuilderConfigBuilder {
             connection_fd_callback: self
                 .connection_fd_callback
                 .ok_or(BuilderConfigError::MissingConnectionFdCallback)?,
+            connect_timeout: self.connect_timeout,
         })
     }
 }

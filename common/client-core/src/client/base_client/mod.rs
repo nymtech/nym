@@ -359,6 +359,11 @@ where
         self
     }
 
+    pub fn with_connect_timeout(mut self, timeout: Duration) -> Self {
+        self.connect_timeout = Some(timeout);
+        self
+    }
+
     // note: do **NOT** make this method public as its only valid usage is from within `start_base`
     // because it relies on the crypto keys being already loaded
     fn mix_address(details: &InitialisationResult) -> Recipient {

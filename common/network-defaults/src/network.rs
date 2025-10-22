@@ -124,6 +124,8 @@ impl NymNetworkDetails {
             }
         }
 
+        let nym_api = var(var_names::NYM_API).expect("nym api not set");
+
         NymNetworkDetails::new_empty()
             .with_network_name(var(var_names::NETWORK_NAME).expect("network name not set"))
             .with_bech32_account_prefix(
@@ -149,7 +151,7 @@ impl NymNetworkDetails {
             })
             .with_additional_validator_endpoint(ValidatorDetails::new(
                 var(var_names::NYXD).expect("nyxd validator not set"),
-                Some(var(var_names::NYM_API).expect("nym api not set")),
+                Some(nym_api.clone()),
                 get_optional_env(var_names::NYXD_WEBSOCKET),
             ))
             .with_mixnet_contract(get_optional_env(var_names::MIXNET_CONTRACT_ADDRESS))
@@ -159,6 +161,10 @@ impl NymNetworkDetails {
             .with_multisig_contract(get_optional_env(var_names::MULTISIG_CONTRACT_ADDRESS))
             .with_coconut_dkg_contract(get_optional_env(var_names::COCONUT_DKG_CONTRACT_ADDRESS))
             .with_nym_vpn_api_url(get_optional_env(var_names::NYM_VPN_API))
+            .with_nym_api_urls(Some(vec![ApiUrl {
+                url: nym_api,
+                front_hosts: None,
+            }]))
     }
 
     pub fn new_mainnet() -> Self {
@@ -345,6 +351,12 @@ impl NymNetworkDetails {
     #[must_use]
     pub fn with_nym_vpn_api_url<S: Into<String>>(mut self, endpoint: Option<S>) -> Self {
         self.nym_vpn_api_url = endpoint.map(Into::into);
+        self
+    }
+
+    #[must_use]
+    pub fn with_nym_api_urls(mut self, urls: Option<Vec<ApiUrl>>) -> Self {
+        self.nym_api_urls = urls;
         self
     }
 

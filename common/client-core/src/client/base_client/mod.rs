@@ -73,6 +73,10 @@ use url::Url;
 #[cfg(debug_assertions)]
 use wasm_utils::console_log;
 
+/// Default number of retries for Nym API requests when using network details with domain fronting.
+/// This allows the client to try alternative URLs if the primary endpoint is unavailable.
+const DEFAULT_NYM_API_RETRIES: usize = 3;
+
 #[cfg(all(
     not(target_arch = "wasm32"),
     feature = "fs-surb-storage",
@@ -212,6 +216,9 @@ pub struct BaseClientBuilder<C, S: MixnetClientStorage> {
     client_store: S,
     dkg_query_client: Option<C>,
 
+    // Optional API URLs for domain fronting support
+    nym_api_urls: Option<Vec<nym_network_defaults::ApiUrl>>,
+
     wait_for_gateway: bool,
     custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
     custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send>>,
@@ -241,6 +248,7 @@ where
             config: base_config,
             client_store,
             dkg_query_client,
+            nym_api_urls: None,
             wait_for_gateway: false,
             custom_topology_provider: None,
             custom_gateway_transceiver: None,
@@ -260,6 +268,16 @@ where
         derivation_material: Option<DerivationMaterial>,
     ) -> Self {
         self.derivation_material = derivation_material;
+        self
+    }
+
+    /// Set Nym API URLs for domain fronting support.
+    ///
+    /// When provided, the client will use these API URLs (which include front_hosts)
+    /// to construct HTTP clients with domain fronting enabled.
+    #[must_use]
+    pub fn with_nym_api_urls(mut self, nym_api_urls: Vec<nym_network_defaults::ApiUrl>) -> Self {
+        self.nym_api_urls = Some(nym_api_urls);
         self
     }
 
@@ -863,20 +881,66 @@ where
     }
 
     fn construct_nym_api_client(
+        nym_api_urls: Option<&Vec<nym_network_defaults::ApiUrl>>,
         config: &Config,
         user_agent: Option<UserAgent>,
     ) -> Result<nym_http_api_client::Client, ClientCoreError> {
+        tracing::debug!(
+            "construct_nym_api_client called with nym_api_urls: {}",
+            nym_api_urls.is_some()
+        );
+
+        // If API URLs are provided, use new_with_fronted_urls() which handles domain fronting
+        if let Some(nym_api_urls) = nym_api_urls {
+            if nym_api_urls.is_empty() {
+                tracing::warn!("Provided nym_api_urls is empty, falling back to config endpoints");
+            } else {
+                tracing::info!(
+                    "Building nym-api client from provided URLs (with domain fronting support): {} URLs",
+                    nym_api_urls.len()
+                );
+
+                let mut builder =
+                    nym_http_api_client::ClientBuilder::new_with_fronted_urls(nym_api_urls.clone())
+                        .map_err(ClientCoreError::from)?
+                        .with_retries(DEFAULT_NYM_API_RETRIES);
+
+                if let Some(user_agent) = user_agent {
+                    builder = builder.with_user_agent(user_agent);
+                }
+
+                return builder.build().map_err(ClientCoreError::from);
+            }
+        }
+
+        // Fallback to basic client for backwards compatibility
+        tracing::debug!("Building basic nym-api HTTP client from config endpoints");
+
         let mut nym_api_urls = config.get_nym_api_endpoints();
+        if nym_api_urls.is_empty() {
+            tracing::warn!("No API endpoints configured in config, this may cause issues");
+        }
         nym_api_urls.shuffle(&mut thread_rng());
 
-        let mut builder = nym_http_api_client::Client::builder(nym_api_urls[0].clone())
-            .map_err(ClientCoreError::from)?;
+        // Convert config URLs to ApiUrl format for consistency
+        let api_urls: Vec<nym_network_defaults::ApiUrl> = nym_api_urls
+            .into_iter()
+            .map(|url| nym_network_defaults::ApiUrl {
+                url: url.to_string(),
+                front_hosts: None,
+            })
+            .collect();
+
+        tracing::debug!("Using {} config API endpoints", api_urls.len());
+
+        let mut builder = nym_http_api_client::ClientBuilder::new_with_fronted_urls(api_urls)
+            .map_err(ClientCoreError::from)?
+            .with_retries(DEFAULT_NYM_API_RETRIES)
+            .with_bincode();
 
         if let Some(user_agent) = user_agent {
             builder = builder.with_user_agent(user_agent);
         }
-
-        builder = builder.with_bincode();
 
         builder.build().map_err(ClientCoreError::from)
     }
@@ -961,7 +1025,11 @@ where
             .dkg_query_client
             .map(|client| BandwidthController::new(credential_store, client));
 
-        let nym_api_client = Self::construct_nym_api_client(&self.config, self.user_agent.clone())?;
+        let nym_api_client = Self::construct_nym_api_client(
+            self.nym_api_urls.as_ref(),
+            &self.config,
+            self.user_agent.clone(),
+        )?;
         let key_rotation_config = Self::determine_key_rotation_state(&nym_api_client).await?;
 
         let topology_provider = Self::setup_topology_provider(
@@ -1135,4 +1203,54 @@ pub struct BaseClient {
     pub shutdown_handle: ShutdownTracker,
     pub forget_me: ForgetMe,
     pub remember_me: RememberMe,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use nym_network_defaults::{ApiUrl, NymNetworkDetails};
+
+    #[test]
+    fn test_network_details_with_multiple_urls() {
+        // Verify that network details can be configured with multiple API URLs
+        let mut network_details = NymNetworkDetails::new_empty();
+        network_details.nym_api_urls = Some(vec![
+            ApiUrl {
+                url: "https://validator.nymtech.net/api/".to_string(),
+                front_hosts: None,
+            },
+            ApiUrl {
+                url: "https://nym-frontdoor.vercel.app/api/".to_string(),
+                front_hosts: Some(vec!["vercel.app".to_string(), "vercel.com".to_string()]),
+            },
+        ]);
+
+        assert_eq!(network_details.nym_api_urls.as_ref().unwrap().len(), 2);
+        assert!(network_details.nym_api_urls.as_ref().unwrap()[1]
+            .front_hosts
+            .is_some());
+    }
+
+    #[test]
+    fn test_network_details_with_front_hosts() {
+        // Verify that ApiUrl can store domain fronting configuration
+        let api_url = ApiUrl {
+            url: "https://nym-frontdoor.vercel.app/api/".to_string(),
+            front_hosts: Some(vec!["vercel.app".to_string(), "vercel.com".to_string()]),
+        };
+
+        assert_eq!(api_url.url, "https://nym-frontdoor.vercel.app/api/");
+        assert_eq!(api_url.front_hosts.as_ref().unwrap().len(), 2);
+        assert!(api_url
+            .front_hosts
+            .as_ref()
+            .unwrap()
+            .contains(&"vercel.app".to_string()));
+    }
+
+    #[test]
+    fn test_default_nym_api_retries_constant() {
+        // Verify the retry constant is set correctly
+        assert_eq!(DEFAULT_NYM_API_RETRIES, 3);
+    }
 }

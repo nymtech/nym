@@ -964,13 +964,13 @@ impl Client {
 
                     return (url.as_str(), url.front_str());
                 } else {
-                    warn!(
-                        "Domain fronting is enabled, but no host_url is defined! Domain fronting WILL NOT WORK"
+                    tracing::debug!(
+                        "Domain fronting is enabled, but no host_url is defined for current URL"
                     )
                 }
             } else {
-                warn!(
-                    "Domain fronting is enabled, but no front_url is defined! Domain fronting WILL NOT WORK"
+                tracing::debug!(
+                    "Domain fronting is enabled, but current URL has no front_hosts configured"
                 )
             }
         }

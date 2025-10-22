@@ -24,7 +24,7 @@ use crate::{
     helpers,
 };
 
-pub type NymNode = Gateway;
+// pub type NymNode = Gateway;
 
 pub const COUNTRY_WITH_REGION_SELECTOR: &str = "US";
 
@@ -604,7 +604,7 @@ impl GatewayList {
             .collect()
     }
 
-    pub fn node_with_identity(&self, identity: &NodeIdentity) -> Option<&NymNode> {
+    pub fn node_with_identity(&self, identity: &NodeIdentity) -> Option<&Gateway> {
         // Not using self.filter() here as find() will stop at the first match
         self.gateways
             .iter()
@@ -732,11 +732,11 @@ pub enum GatewayFilter {
     Vpn,                  // Has an authenticator address
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct GatewayFilters {
-    pub gw_type: GatewayType,
-    pub filters: Vec<GatewayFilter>,
-}
+// #[derive(Debug, Clone, PartialEq)]
+// pub struct GatewayFilters {
+//     pub gw_type: GatewayType,
+//     pub filters: Vec<GatewayFilter>,
+// }
 
 #[cfg(test)]
 mod tests {

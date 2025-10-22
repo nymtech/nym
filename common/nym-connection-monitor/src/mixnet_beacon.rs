@@ -85,6 +85,7 @@ pub fn create_self_ping(our_address: Recipient) -> (InputMessage, u64) {
             request.to_bytes().unwrap(),
             TransmissionLane::General,
             None,
+            None,
         ),
         request_id,
     )

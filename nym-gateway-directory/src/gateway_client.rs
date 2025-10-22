@@ -16,7 +16,7 @@ use tracing::{debug, error, warn};
 use url::Url;
 
 use crate::{
-    Error, NymNode,
+    Error,
     entries::gateway::{Gateway, GatewayList, GatewayType, NymNodeList},
     error::Result,
 };
@@ -84,25 +84,6 @@ impl Config {
     ) -> Self {
         self.min_gateway_performance = Some(min_gateway_performance);
         self
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct ResolvedConfig {
-    pub nyxd_socket_addrs: Vec<SocketAddr>,
-    pub api_socket_addrs: Vec<SocketAddr>,
-    pub nym_vpn_api_socket_addrs: Option<Vec<SocketAddr>>,
-}
-
-impl ResolvedConfig {
-    pub fn all_socket_addrs(&self) -> Vec<SocketAddr> {
-        let mut socket_addrs = vec![];
-        socket_addrs.extend(self.nyxd_socket_addrs.iter());
-        socket_addrs.extend(self.api_socket_addrs.iter());
-        if let Some(vpn_api_socket_addrs) = &self.nym_vpn_api_socket_addrs {
-            socket_addrs.extend(vpn_api_socket_addrs.iter());
-        }
-        socket_addrs
     }
 }
 
@@ -333,7 +314,7 @@ impl GatewayClient {
             .await?
             .into_iter()
             .filter_map(|gw| {
-                NymNode::try_from_node_description(gw, key_rotation_id)
+                Gateway::try_from_node_description(gw, key_rotation_id)
                     .inspect_err(|err| error!("Failed to parse node: {err}"))
                     .ok()
             })

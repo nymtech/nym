@@ -24,7 +24,6 @@ use url::Url;
 pub struct Config {
     pub nyxd_url: Url,
     pub api_url: Url,
-    pub nym_vpn_api_url: Option<Url>,
     pub min_gateway_performance: Option<GatewayMinPerformance>,
     pub mix_score_thresholds: Option<ScoreThresholds>,
     pub wg_score_thresholds: Option<ScoreThresholds>,
@@ -39,13 +38,7 @@ fn to_string<T: fmt::Display>(value: &Option<T>) -> String {
 
 impl fmt::Display for Config {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "nyxd_url: {}, api_url: {}, nym_vpn_api_url: {}",
-            self.nyxd_url,
-            self.api_url,
-            to_string(&self.nym_vpn_api_url),
-        )
+        write!(f, "nyxd_url: {}, api_url: {}", self.nyxd_url, self.api_url,)
     }
 }
 
@@ -68,15 +61,6 @@ impl Config {
         self
     }
 
-    pub fn nym_vpn_api_url(&self) -> Option<&Url> {
-        self.nym_vpn_api_url.as_ref()
-    }
-
-    pub fn with_custom_nym_vpn_api_url(mut self, nym_vpn_api_url: Url) -> Self {
-        self.nym_vpn_api_url = Some(nym_vpn_api_url);
-        self
-    }
-
     pub fn with_min_gateway_performance(
         mut self,
         min_gateway_performance: GatewayMinPerformance,
@@ -89,7 +73,6 @@ impl Config {
 #[derive(Clone)]
 pub struct GatewayClient {
     api_client: nym_http_api_client::Client,
-    nym_vpn_api_client: Option<nym_vpn_api_client::VpnApiClient>,
     nyxd_url: Url,
     min_gateway_performance: Option<GatewayMinPerformance>,
     mix_score_thresholds: Option<ScoreThresholds>,
@@ -104,27 +87,16 @@ impl GatewayClient {
     pub fn new_with_resolver_overrides(
         config: Config,
         user_agent: UserAgent,
-        static_nym_api_ip_addresses: Option<&[SocketAddr]>,
+        _static_nym_api_ip_addresses: Option<&[SocketAddr]>,
     ) -> Result<Self> {
         let api_client = nym_http_api_client::Client::builder(config.api_url.clone())
             .map_err(|e| Error::FailedToLookupDescribedGateways(e.into()))?
             .with_user_agent(user_agent.clone())
             .build()
             .map_err(|e| Error::FailedToLookupDescribedGateways(e.into()))?;
-        let nym_vpn_api_client = config
-            .nym_vpn_api_url
-            .map(|url| {
-                nym_vpn_api_client::VpnApiClient::new_with_resolver_overrides(
-                    url,
-                    user_agent.clone(),
-                    static_nym_api_ip_addresses,
-                )
-            })
-            .transpose()?;
 
         Ok(GatewayClient {
             api_client,
-            nym_vpn_api_client,
             nyxd_url: config.nyxd_url,
             min_gateway_performance: config.min_gateway_performance,
             mix_score_thresholds: config.mix_score_thresholds,
@@ -136,39 +108,16 @@ impl GatewayClient {
         config: Config,
         network_details: &nym_network_defaults::NymNetworkDetails,
         user_agent: UserAgent,
-        static_nym_api_ip_addresses: Option<&[SocketAddr]>,
+        _static_nym_api_ip_addresses: Option<&[SocketAddr]>,
     ) -> Result<Self> {
-        // Use the new unified HTTP client with domain fronting for the main API client
         let api_client = nym_http_api_client::ClientBuilder::from_network(network_details)
             .map_err(Box::new)?
             .with_user_agent(user_agent.clone())
             .build()
             .map_err(Box::new)?;
 
-        // Gets around diff version imports compiler issue for the moment
-        #[allow(clippy::expect_used)]
-        let network_details_compat = {
-            let json = serde_json::to_string(network_details)
-                .expect("Failed to serialize network details");
-            serde_json::from_str(&json).expect("Failed to deserialize network details")
-        };
-
-        // Use domain fronting with resolver overrides for VPN API client
-        let nym_vpn_api_client = if config.nym_vpn_api_url.is_some() {
-            Some(
-                nym_vpn_api_client::VpnApiClient::from_network_with_resolver_overrides(
-                    &network_details_compat,
-                    user_agent.clone(),
-                    static_nym_api_ip_addresses,
-                )?,
-            )
-        } else {
-            None
-        };
-
         Ok(GatewayClient {
             api_client,
-            nym_vpn_api_client,
             nyxd_url: config.nyxd_url,
             min_gateway_performance: config.min_gateway_performance,
             mix_score_thresholds: config.mix_score_thresholds,
@@ -180,10 +129,6 @@ impl GatewayClient {
     pub fn get_config(&self) -> Config {
         Config {
             api_url: self.api_client.api_url().clone(),
-            nym_vpn_api_url: self
-                .nym_vpn_api_client
-                .as_ref()
-                .map(|client| client.current_url().clone()),
             nyxd_url: self.nyxd_url.clone(),
             min_gateway_performance: self.min_gateway_performance,
             mix_score_thresholds: self.mix_score_thresholds,
@@ -301,6 +246,7 @@ impl GatewayClient {
             .collect::<Vec<_>>();
         append_performance(&mut gateways, skimmed_gateways.nodes);
         filter_on_mixnet_min_performance(&mut gateways, &self.min_gateway_performance);
+        update_thresholds(&mut gateways, self.mix_score_thresholds);
         Ok(GatewayList::new(None, gateways))
     }
 
@@ -320,6 +266,7 @@ impl GatewayClient {
             .collect::<Vec<_>>();
         append_performance(&mut nodes, skimmed_nodes.nodes);
         filter_on_mixnet_min_performance(&mut nodes, &self.min_gateway_performance);
+        update_thresholds(&mut nodes, self.mix_score_thresholds);
         Ok(GatewayList::new(None, nodes))
     }
 
@@ -331,7 +278,6 @@ impl GatewayClient {
         }
     }
 
-    // This is currently the same as the set of all gateways, but it doesn't have to be.
     async fn lookup_entry_gateways_from_nym_api(&self) -> Result<GatewayList> {
         self.lookup_all_gateways_from_nym_api().await
     }
@@ -349,82 +295,18 @@ impl GatewayClient {
     }
 
     pub async fn lookup_gateway_ip(&self, gateway_identity: &str) -> Result<IpAddr> {
-        if let Some(nym_vpn_api_client) = &self.nym_vpn_api_client {
-            debug!("Fetching gateway ip from nym-vpn-api...");
-            let gateway = nym_vpn_api_client
-                .get_gateways(None)
-                .await?
-                .into_iter()
-                .find_map(|gw| {
-                    if gw.identity_key != gateway_identity {
-                        None
-                    } else {
-                        Gateway::try_from(gw)
-                            .inspect_err(|err| error!("Failed to parse gateway: {err}"))
-                            .ok()
-                    }
-                })
-                .ok_or_else(|| Error::RequestedGatewayIdNotFound(gateway_identity.to_string()))?;
-            gateway
-                .lookup_ip()
-                .ok_or(Error::FailedToLookupIp(gateway_identity.to_string()))
-        } else {
-            warn!("OPERATING IN FALLBACK MODE WITHOUT NYM-VPN-API!");
-            self.lookup_gateway_ip_from_nym_api(gateway_identity).await
-        }
+        self.lookup_gateway_ip_from_nym_api(gateway_identity).await
     }
 
     pub async fn lookup_all_gateways(&self) -> Result<GatewayList> {
-        if let Some(nym_vpn_api_client) = &self.nym_vpn_api_client {
-            debug!("Fetching all gateways from nym-vpn-api...");
-            let gateways: Vec<_> = nym_vpn_api_client
-                .get_gateways(self.min_gateway_performance)
-                .await?
-                .into_iter()
-                .filter_map(|gw| {
-                    Gateway::try_from(gw)
-                        .inspect_err(|err| error!("Failed to parse gateway: {err}"))
-                        .ok()
-                        .map(|mut gw| {
-                            gw.update_to_new_thresholds(self.mix_score_thresholds);
-                            gw
-                        })
-                })
-                .collect();
-            Ok(GatewayList::new(None, gateways))
-        } else {
-            warn!("OPERATING IN FALLBACK MODE WITHOUT NYM-VPN-API!");
-            self.lookup_all_gateways_from_nym_api().await
-        }
+        self.lookup_all_gateways_from_nym_api().await
     }
 
     pub async fn lookup_gateways(&self, gw_type: GatewayType) -> Result<GatewayList> {
-        if let Some(nym_vpn_api_client) = &self.nym_vpn_api_client {
-            debug!("Fetching {gw_type} gateways from nym-vpn-api...");
-            let gateways: Vec<_> = nym_vpn_api_client
-                .get_gateways_by_type(gw_type.into(), self.min_gateway_performance)
-                .await?
-                .into_iter()
-                .filter_map(|gw| {
-                    Gateway::try_from(gw)
-                        .inspect_err(|err| error!("Failed to parse gateway: {err}"))
-                        .ok()
-                        .map(|mut gw| {
-                            gw.update_to_new_thresholds(self.mix_score_thresholds);
-                            gw
-                        })
-                })
-                .collect();
-            Ok(GatewayList::new(Some(gw_type), gateways))
-        } else {
-            warn!("OPERATING IN FALLBACK MODE WITHOUT NYM-VPN-API!");
-            self.lookup_gateways_from_nym_api(gw_type).await
-        }
+        self.lookup_gateways_from_nym_api(gw_type).await
     }
 }
 
-// Append the performance to the gateways. This is a temporary hack until the nymvpn.com endpoints
-// are updated to also include this field.
 fn append_performance(
     gateways: &mut [Gateway],
     basic_gw: Vec<nym_validator_client::nym_nodes::SkimmedNode>,
@@ -459,5 +341,11 @@ fn filter_on_mixnet_min_performance(
         gateways.retain(|gateway| {
             gateway.mixnet_performance.unwrap_or_default() >= mixnet_min_performance
         });
+    }
+}
+
+fn update_thresholds(gateways: &mut [Gateway], mix_score_thresholds: Option<ScoreThresholds>) {
+    for gateway in gateways.iter_mut() {
+        gateway.update_to_new_thresholds(mix_score_thresholds);
     }
 }

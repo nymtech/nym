@@ -84,6 +84,7 @@ fn create_input_message(
         surbs,
         lane,
         packet_type,
+        None
     ))
 }
 

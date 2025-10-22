@@ -46,7 +46,7 @@ impl Extract<RequestData> for VersionedRequest {
                 let _req = InnerAvailableBandwidthRequest::try_from(self.clone())?;
                 Ok((RequestData::AvailableBandwidth(()), VERSION))
             }
-            QueryType::TopupBandwidth => {
+            QueryType::TopUpBandwidth => {
                 let req = InnerTopUpRequest::try_from(self.clone())?;
                 Ok((
                     RequestData::TopUpBandwidth(Box::new(req.credential)),
@@ -84,7 +84,7 @@ impl Extract<ResponseData> for VersionedResponse {
                     VERSION,
                 ))
             }
-            QueryType::TopupBandwidth => {
+            QueryType::TopUpBandwidth => {
                 let resp = InnerTopUpResponse::try_from(self.clone())?;
                 Ok((
                     ResponseData::TopUpBandwidth(resp.available_bandwidth),
@@ -98,7 +98,7 @@ impl Extract<ResponseData> for VersionedResponse {
 // this should be with #[cfg(feature = "testing")] only coming from v0, don't copy this for future versions
 #[cfg(feature = "testing")]
 impl TryFrom<previous::interface::RequestData> for RequestData {
-    type Error = super::Error;
+    type Error = crate::models::error::Error;
 
     fn try_from(value: previous::interface::RequestData) -> Result<Self, Self::Error> {
         match value {
@@ -106,7 +106,7 @@ impl TryFrom<previous::interface::RequestData> for RequestData {
                 Ok(Self::AvailableBandwidth(inner))
             }
             previous::interface::RequestData::TopUpBandwidth(_) => {
-                Err(super::Error::UpdateNotPossible {
+                Err(crate::models::Error::UpdateNotPossible {
                     from: previous::VERSION,
                     to: VERSION,
                 })
@@ -118,7 +118,7 @@ impl TryFrom<previous::interface::RequestData> for RequestData {
 // this should be with #[cfg(feature = "testing")] only coming from v0, don't copy this for future versions
 #[cfg(feature = "testing")]
 impl TryFrom<RequestData> for previous::interface::RequestData {
-    type Error = super::Error;
+    type Error = crate::models::error::Error;
 
     fn try_from(value: RequestData) -> Result<Self, Self::Error> {
         match value {
@@ -131,18 +131,18 @@ impl TryFrom<RequestData> for previous::interface::RequestData {
 // this should be with #[cfg(feature = "testing")] only coming from v0, don't copy this for future versions
 #[cfg(feature = "testing")]
 impl TryFrom<previous::interface::ResponseData> for ResponseData {
-    type Error = super::Error;
+    type Error = crate::models::error::Error;
 
     fn try_from(value: previous::interface::ResponseData) -> Result<Self, Self::Error> {
         match value {
             previous::interface::ResponseData::AvailableBandwidth(_) => {
-                Err(super::Error::UpdateNotPossible {
+                Err(crate::models::error::Error::UpdateNotPossible {
                     from: previous::VERSION,
                     to: VERSION,
                 })
             }
             previous::interface::ResponseData::TopUpBandwidth(_) => {
-                Err(super::Error::UpdateNotPossible {
+                Err(crate::models::error::Error::UpdateNotPossible {
                     from: previous::VERSION,
                     to: VERSION,
                 })
@@ -154,7 +154,7 @@ impl TryFrom<previous::interface::ResponseData> for ResponseData {
 // this should be with #[cfg(feature = "testing")] only coming from v0, don't copy this for future versions
 #[cfg(feature = "testing")]
 impl TryFrom<ResponseData> for previous::interface::ResponseData {
-    type Error = super::Error;
+    type Error = crate::models::error::Error;
 
     fn try_from(value: ResponseData) -> Result<Self, Self::Error> {
         match value {
@@ -166,11 +166,13 @@ impl TryFrom<ResponseData> for previous::interface::ResponseData {
 
 #[cfg(test)]
 mod test {
+    #[cfg(feature = "testing")]
+    use super::*;
+    #[cfg(feature = "testing")]
     use crate::models::tests::CREDENTIAL_BYTES;
 
-    use super::*;
-
     #[test]
+    #[cfg(feature = "testing")]
     fn request_upgrade() {
         assert_eq!(
             RequestData::try_from(previous::interface::RequestData::AvailableBandwidth(()))
@@ -183,6 +185,7 @@ mod test {
     }
 
     #[test]
+    #[cfg(feature = "testing")]
     fn response_upgrade() {
         assert!(
             ResponseData::try_from(previous::interface::ResponseData::AvailableBandwidth(()))
@@ -194,6 +197,7 @@ mod test {
     }
 
     #[test]
+    #[cfg(feature = "testing")]
     fn request_downgrade() {
         assert_eq!(
             previous::interface::RequestData::try_from(RequestData::AvailableBandwidth(()))
@@ -210,6 +214,7 @@ mod test {
     }
 
     #[test]
+    #[cfg(feature = "testing")]
     fn response_downgrade() {
         assert_eq!(
             previous::interface::ResponseData::try_from(ResponseData::AvailableBandwidth(42))

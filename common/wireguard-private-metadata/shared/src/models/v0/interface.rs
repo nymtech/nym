@@ -35,11 +35,11 @@ impl Extract<RequestData> for VersionedRequest {
     fn extract(&self) -> Result<(RequestData, Version), Error> {
         match self.query_type {
             QueryType::AvailableBandwidth => {
-                let _req = InnerAvailableBandwidthRequest::try_from(self.clone())?;
+                let _req = InnerAvailableBandwidthRequest::try_from(self)?;
                 Ok((RequestData::AvailableBandwidth(()), VERSION))
             }
-            QueryType::TopupBandwidth => {
-                let _req = InnerTopUpRequest::try_from(self.clone())?;
+            QueryType::TopUpBandwidth => {
+                let _req = InnerTopUpRequest::try_from(self)?;
                 Ok((RequestData::TopUpBandwidth(()), VERSION))
             }
         }
@@ -61,11 +61,11 @@ impl Extract<ResponseData> for VersionedResponse {
     fn extract(&self) -> Result<(ResponseData, Version), Error> {
         match self.query_type {
             QueryType::AvailableBandwidth => {
-                let _resp = InnerAvailableBandwidthResponse::try_from(self.clone())?;
+                let _resp = InnerAvailableBandwidthResponse::try_from(self)?;
                 Ok((ResponseData::AvailableBandwidth(()), VERSION))
             }
-            QueryType::TopupBandwidth => {
-                let _resp = InnerTopUpResponse::try_from(self.clone())?;
+            QueryType::TopUpBandwidth => {
+                let _resp = InnerTopUpResponse::try_from(self)?;
                 Ok((ResponseData::TopUpBandwidth(()), VERSION))
             }
         }

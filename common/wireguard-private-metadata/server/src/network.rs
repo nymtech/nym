@@ -59,22 +59,23 @@ async fn available_bandwidth(
 ) -> AxumResult<FormattedResponse<Response>> {
     let output = output.output.unwrap_or_default();
 
-    let (RequestData::AvailableBandwidth(_), version) =
-        request.extract().map_err(AxumErrorResponse::bad_request)?
-    else {
-        return Err(AxumErrorResponse::bad_request("incorrect request type"));
-    };
-    let available_bandwidth = state
-        .available_bandwidth(addr.ip())
-        .await
-        .map_err(AxumErrorResponse::bad_request)?;
-    let response = Response::construct(
-        ResponseData::AvailableBandwidth(available_bandwidth),
-        version,
-    )
-    .map_err(AxumErrorResponse::bad_request)?;
-
-    Ok(output.to_response(response))
+    todo!()
+    // let (RequestData::AvailableBandwidth(_), version) =
+    //     request.extract().map_err(AxumErrorResponse::bad_request)?
+    // else {
+    //     return Err(AxumErrorResponse::bad_request("incorrect request type"));
+    // };
+    // let available_bandwidth = state
+    //     .available_bandwidth(addr.ip())
+    //     .await
+    //     .map_err(AxumErrorResponse::bad_request)?;
+    // let response = Response::construct(
+    //     ResponseData::AvailableBandwidth(available_bandwidth),
+    //     version,
+    // )
+    // .map_err(AxumErrorResponse::bad_request)?;
+    //
+    // Ok(output.to_response(response))
 }
 
 #[utoipa::path(
@@ -96,17 +97,18 @@ async fn topup_bandwidth(
 ) -> AxumResult<FormattedResponse<Response>> {
     let output = output.output.unwrap_or_default();
 
-    let (RequestData::TopUpBandwidth(credential), version) =
-        request.extract().map_err(AxumErrorResponse::bad_request)?
-    else {
-        return Err(AxumErrorResponse::bad_request("incorrect request type"));
-    };
-    let available_bandwidth = state
-        .topup_bandwidth(addr.ip(), *credential)
-        .await
-        .map_err(AxumErrorResponse::bad_request)?;
-    let response = Response::construct(ResponseData::TopUpBandwidth(available_bandwidth), version)
-        .map_err(AxumErrorResponse::bad_request)?;
-
-    Ok(output.to_response(response))
+    todo!()
+    // let (RequestData::TopUpBandwidth(credential), version) =
+    //     request.extract().map_err(AxumErrorResponse::bad_request)?
+    // else {
+    //     return Err(AxumErrorResponse::bad_request("incorrect request type"));
+    // };
+    // let available_bandwidth = state
+    //     .topup_bandwidth(addr.ip(), *credential)
+    //     .await
+    //     .map_err(AxumErrorResponse::bad_request)?;
+    // let response = Response::construct(ResponseData::TopUpBandwidth(available_bandwidth), version)
+    //     .map_err(AxumErrorResponse::bad_request)?;
+    //
+    // Ok(output.to_response(response))
 }

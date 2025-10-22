@@ -19,7 +19,7 @@ jobs:
     env:
       RUSTUP_PERMIT_COPY_RENAME: 1
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: rlespinasse/github-slug-action@v3.x
 
       - uses: actions/setup-node@v4

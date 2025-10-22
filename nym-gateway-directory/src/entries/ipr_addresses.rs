@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::addressing::nodes::NodeIdentity;
-// use nym_sdk::mixnet::{NodeIdentity, Recipient};
 use nym_validator_client::models::NymNodeData;
 
 use crate::{Error, error::Result};

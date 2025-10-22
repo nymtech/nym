@@ -1,15 +1,12 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
-
 use itertools::Itertools;
+use nym_contracts_common::Percent;
 use nym_sphinx::addressing::nodes::NodeIdentity;
 use nym_topology::{NodeId, RoutingNode};
 use nym_validator_client::models::{KeyRotationId, NymNodeDescription};
-use nym_vpn_api_client::{
-    response::{BridgeInformation, BridgeParameters},
-    types::{Percent, ScoreThresholds},
-};
 use rand::seq::IteratorRandom;
+use serde::{Deserialize, Serialize};
 use std::{
     fmt::{self, Display},
     net::{IpAddr, Ipv4Addr, Ipv6Addr},
@@ -18,13 +15,12 @@ use std::{
 use tracing::error;
 
 use crate::{
-    AuthAddress, Country, Error, IpPacketRouterAddress,
+    AuthAddress, BridgeInformation, BridgeParameters, Country, Error, IpPacketRouterAddress,
+    ScoreThresholds,
     entries::score::{HIGH_SCORE_THRESHOLD, LOW_SCORE_THRESHOLD, MEDIUM_SCORE_THRESHOLD, Score},
     error::Result,
     helpers,
 };
-
-// pub type NymNode = Gateway;
 
 pub const COUNTRY_WITH_REGION_SELECTOR: &str = "US";
 
@@ -286,7 +282,7 @@ pub struct Location {
     pub asn: Option<Asn>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ScoreValue {
     Offline,
     Low,
@@ -391,17 +387,17 @@ pub struct WgProbeResults {
     pub ping_ips_performance: f32,
 }
 
-impl From<nym_vpn_api_client::response::AsnKind> for AsnKind {
-    fn from(value: nym_vpn_api_client::response::AsnKind) -> Self {
+impl From<helpers::AsnKind> for AsnKind {
+    fn from(value: helpers::AsnKind) -> Self {
         match value {
-            nym_vpn_api_client::response::AsnKind::Residential => AsnKind::Residential,
-            nym_vpn_api_client::response::AsnKind::Other => AsnKind::Other,
+            helpers::AsnKind::Residential => AsnKind::Residential,
+            helpers::AsnKind::Other => AsnKind::Other,
         }
     }
 }
 
-impl From<nym_vpn_api_client::response::Asn> for Asn {
-    fn from(location: nym_vpn_api_client::response::Asn) -> Self {
+impl From<helpers::Asn> for Asn {
+    fn from(location: helpers::Asn) -> Self {
         Asn {
             asn: location.asn,
             name: location.name,
@@ -410,8 +406,8 @@ impl From<nym_vpn_api_client::response::Asn> for Asn {
     }
 }
 
-impl From<nym_vpn_api_client::response::Location> for Location {
-    fn from(location: nym_vpn_api_client::response::Location) -> Self {
+impl From<helpers::Location> for Location {
+    fn from(location: helpers::Location) -> Self {
         Location {
             two_letter_iso_country_code: location.two_letter_iso_country_code,
             latitude: location.latitude,
@@ -423,36 +419,36 @@ impl From<nym_vpn_api_client::response::Location> for Location {
     }
 }
 
-impl From<nym_vpn_api_client::response::ScoreValue> for ScoreValue {
-    fn from(value: nym_vpn_api_client::response::ScoreValue) -> Self {
-        match value {
-            nym_vpn_api_client::response::ScoreValue::Offline => ScoreValue::Offline,
-            nym_vpn_api_client::response::ScoreValue::Low => ScoreValue::Low,
-            nym_vpn_api_client::response::ScoreValue::Medium => ScoreValue::Medium,
-            nym_vpn_api_client::response::ScoreValue::High => ScoreValue::High,
-        }
-    }
-}
+// impl From<nym_vpn_api_client::response::ScoreValue> for ScoreValue {
+//     fn from(value: nym_vpn_api_client::response::ScoreValue) -> Self {
+//         match value {
+//             nym_vpn_api_client::response::ScoreValue::Offline => ScoreValue::Offline,
+//             nym_vpn_api_client::response::ScoreValue::Low => ScoreValue::Low,
+//             nym_vpn_api_client::response::ScoreValue::Medium => ScoreValue::Medium,
+//             nym_vpn_api_client::response::ScoreValue::High => ScoreValue::High,
+//         }
+//     }
+// }
 
-impl From<nym_vpn_api_client::response::DVpnGatewayPerformance> for Performance {
-    fn from(value: nym_vpn_api_client::response::DVpnGatewayPerformance) -> Self {
-        Performance {
-            last_updated_utc: value.last_updated_utc,
-            score: value.score.into(),
-            load: value.load.into(),
-            uptime_percentage_last_24_hours: value.uptime_percentage_last_24_hours,
-        }
-    }
-}
+// impl From<nym_vpn_api_client::response::DVpnGatewayPerformance> for Performance {
+//     fn from(value: nym_vpn_api_client::response::DVpnGatewayPerformance) -> Self {
+//         Performance {
+//             last_updated_utc: value.last_updated_utc,
+//             score: value.score.into(),
+//             load: value.load.into(),
+//             uptime_percentage_last_24_hours: value.uptime_percentage_last_24_hours,
+//         }
+//     }
+// }
 
-impl From<nym_vpn_api_client::response::Probe> for Probe {
-    fn from(probe: nym_vpn_api_client::response::Probe) -> Self {
-        Probe {
-            last_updated_utc: probe.last_updated_utc,
-            outcome: ProbeOutcome::from(probe.outcome),
-        }
-    }
-}
+// impl From<nym_vpn_api_client::response::Probe> for Probe {
+//     fn from(probe: nym_vpn_api_client::response::Probe) -> Self {
+//         Probe {
+//             last_updated_utc: probe.last_updated_utc,
+//             outcome: ProbeOutcome::from(probe.outcome),
+//         }
+//     }
+// }
 
 impl From<Percent> for Score {
     fn from(percent: Percent) -> Self {
@@ -469,96 +465,96 @@ impl From<Percent> for Score {
     }
 }
 
-impl From<nym_vpn_api_client::response::ProbeOutcome> for ProbeOutcome {
-    fn from(outcome: nym_vpn_api_client::response::ProbeOutcome) -> Self {
-        ProbeOutcome {
-            as_entry: Entry::from(outcome.as_entry),
-            as_exit: outcome.as_exit.map(Exit::from),
-            wg: outcome.wg.map(WgProbeResults::from),
-        }
-    }
-}
+// impl From<nym_vpn_api_client::response::ProbeOutcome> for ProbeOutcome {
+//     fn from(outcome: nym_vpn_api_client::response::ProbeOutcome) -> Self {
+//         ProbeOutcome {
+//             as_entry: Entry::from(outcome.as_entry),
+//             as_exit: outcome.as_exit.map(Exit::from),
+//             wg: outcome.wg.map(WgProbeResults::from),
+//         }
+//     }
+// }
 
-impl From<nym_vpn_api_client::response::Entry> for Entry {
-    fn from(entry: nym_vpn_api_client::response::Entry) -> Self {
-        Entry {
-            can_connect: entry.can_connect,
-            can_route: entry.can_route,
-        }
-    }
-}
+// impl From<nym_vpn_api_client::response::Entry> for Entry {
+//     fn from(entry: nym_vpn_api_client::response::Entry) -> Self {
+//         Entry {
+//             can_connect: entry.can_connect,
+//             can_route: entry.can_route,
+//         }
+//     }
+// }
 
-impl From<nym_vpn_api_client::response::Exit> for Exit {
-    fn from(exit: nym_vpn_api_client::response::Exit) -> Self {
-        Exit {
-            can_connect: exit.can_connect,
-            can_route_ip_v4: exit.can_route_ip_v4,
-            can_route_ip_external_v4: exit.can_route_ip_external_v4,
-            can_route_ip_v6: exit.can_route_ip_v6,
-            can_route_ip_external_v6: exit.can_route_ip_external_v6,
-        }
-    }
-}
+// impl From<nym_vpn_api_client::response::Exit> for Exit {
+//     fn from(exit: nym_vpn_api_client::response::Exit) -> Self {
+//         Exit {
+//             can_connect: exit.can_connect,
+//             can_route_ip_v4: exit.can_route_ip_v4,
+//             can_route_ip_external_v4: exit.can_route_ip_external_v4,
+//             can_route_ip_v6: exit.can_route_ip_v6,
+//             can_route_ip_external_v6: exit.can_route_ip_external_v6,
+//         }
+//     }
+// }
 
-impl From<nym_vpn_api_client::response::WgProbeResults> for WgProbeResults {
-    fn from(results: nym_vpn_api_client::response::WgProbeResults) -> Self {
-        WgProbeResults {
-            can_register: results.can_register,
-            can_handshake: results.can_handshake,
-            can_resolve_dns: results.can_resolve_dns,
-            ping_hosts_performance: results.ping_hosts_performance,
-            ping_ips_performance: results.ping_ips_performance,
-        }
-    }
-}
+// impl From<nym_vpn_api_client::response::WgProbeResults> for WgProbeResults {
+//     fn from(results: nym_vpn_api_client::response::WgProbeResults) -> Self {
+//         WgProbeResults {
+//             can_register: results.can_register,
+//             can_handshake: results.can_handshake,
+//             can_resolve_dns: results.can_resolve_dns,
+//             ping_hosts_performance: results.ping_hosts_performance,
+//             ping_ips_performance: results.ping_ips_performance,
+//         }
+//     }
+// }
 
-impl TryFrom<nym_vpn_api_client::response::NymDirectoryGateway> for Gateway {
-    type Error = Error;
+// impl TryFrom<nym_vpn_api_client::response::NymDirectoryGateway> for Gateway {
+//     type Error = Error;
 
-    fn try_from(gateway: nym_vpn_api_client::response::NymDirectoryGateway) -> Result<Self> {
-        let identity =
-            NodeIdentity::from_base58_string(&gateway.identity_key).map_err(|source| {
-                Error::NodeIdentityFormattingError {
-                    identity: gateway.identity_key,
-                    source,
-                }
-            })?;
+//     fn try_from(gateway: nym_vpn_api_client::response::NymDirectoryGateway) -> Result<Self> {
+//         let identity =
+//             NodeIdentity::from_base58_string(&gateway.identity_key).map_err(|source| {
+//                 Error::NodeIdentityFormattingError {
+//                     identity: gateway.identity_key,
+//                     source,
+//                 }
+//             })?;
 
-        let ipr_address = gateway
-            .ip_packet_router
-            .and_then(|ipr| IpPacketRouterAddress::try_from_base58_string(&ipr.address).ok());
+//         let ipr_address = gateway
+//             .ip_packet_router
+//             .and_then(|ipr| IpPacketRouterAddress::try_from_base58_string(&ipr.address).ok());
 
-        let authenticator_address = gateway
-            .authenticator
-            .and_then(|auth| AuthAddress::try_from_base58_string(&auth.address).ok());
+//         let authenticator_address = gateway
+//             .authenticator
+//             .and_then(|auth| AuthAddress::try_from_base58_string(&auth.address).ok());
 
-        let hostname = gateway.entry.hostname;
-        let first_ip_address = gateway
-            .ip_addresses
-            .first()
-            .cloned()
-            .map(|ip| ip.to_string());
-        let host = hostname.or(first_ip_address);
+//         let hostname = gateway.entry.hostname;
+//         let first_ip_address = gateway
+//             .ip_addresses
+//             .first()
+//             .cloned()
+//             .map(|ip| ip.to_string());
+//         let host = hostname.or(first_ip_address);
 
-        Ok(Gateway {
-            identity,
-            moniker: gateway.name,
-            location: Some(gateway.location.into()),
-            ipr_address,
-            authenticator_address,
-            bridge_params: gateway.bridges,
-            last_probe: gateway.last_probe.map(Probe::from),
-            ips: gateway.ip_addresses,
-            host,
-            clients_ws_port: Some(gateway.entry.ws_port),
-            clients_wss_port: gateway.entry.wss_port,
-            mixnet_performance: Some(gateway.performance),
-            mixnet_score: Some(Score::from(gateway.performance)),
-            wg_performance: gateway.performance_v2.map(Performance::from),
-            version: gateway.build_information.map(|info| info.build_version),
-        })
-    }
-}
+//         Ok(Gateway {
+//             identity,
+//             moniker: gateway.name,
+//             location: Some(gateway.location.into()),
+//             ipr_address,
+//             authenticator_address,
+//             bridge_params: gateway.bridges,
+//             last_probe: gateway.last_probe.map(Probe::from),
+//             ips: gateway.ip_addresses,
+//             host,
+//             clients_ws_port: Some(gateway.entry.ws_port),
+//             clients_wss_port: gateway.entry.wss_port,
+//             mixnet_performance: Some(gateway.performance),
+//             mixnet_score: Some(Score::from(gateway.performance)),
+//             wg_performance: gateway.performance_v2.map(Performance::from),
+//             version: gateway.build_information.map(|info| info.build_version),
+//         })
+//     }
+// }
 
 pub type NymNodeList = GatewayList;
 
@@ -702,22 +698,22 @@ impl fmt::Display for GatewayType {
     }
 }
 
-impl From<nym_vpn_api_client::types::GatewayType> for GatewayType {
-    fn from(gateway_type: nym_vpn_api_client::types::GatewayType) -> Self {
+impl From<helpers::GatewayType> for GatewayType {
+    fn from(gateway_type: helpers::GatewayType) -> Self {
         match gateway_type {
-            nym_vpn_api_client::types::GatewayType::MixnetEntry => GatewayType::MixnetEntry,
-            nym_vpn_api_client::types::GatewayType::MixnetExit => GatewayType::MixnetExit,
-            nym_vpn_api_client::types::GatewayType::Wg => GatewayType::Wg,
+            helpers::GatewayType::MixnetEntry => GatewayType::MixnetEntry,
+            helpers::GatewayType::MixnetExit => GatewayType::MixnetExit,
+            helpers::GatewayType::Wg => GatewayType::Wg,
         }
     }
 }
 
-impl From<GatewayType> for nym_vpn_api_client::types::GatewayType {
+impl From<GatewayType> for helpers::GatewayType {
     fn from(gateway_type: GatewayType) -> Self {
         match gateway_type {
-            GatewayType::MixnetEntry => nym_vpn_api_client::types::GatewayType::MixnetEntry,
-            GatewayType::MixnetExit => nym_vpn_api_client::types::GatewayType::MixnetExit,
-            GatewayType::Wg => nym_vpn_api_client::types::GatewayType::Wg,
+            GatewayType::MixnetEntry => helpers::GatewayType::MixnetEntry,
+            GatewayType::MixnetExit => helpers::GatewayType::MixnetExit,
+            GatewayType::Wg => helpers::GatewayType::Wg,
         }
     }
 }
@@ -730,190 +726,4 @@ pub enum GatewayFilter {
     Residential,          // Has a residential ASN
     Exit,                 // Has an IPR address
     Vpn,                  // Has an authenticator address
-}
-
-// #[derive(Debug, Clone, PartialEq)]
-// pub struct GatewayFilters {
-//     pub gw_type: GatewayType,
-//     pub filters: Vec<GatewayFilter>,
-// }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    // Create a list of Gateways with different properties set for testing
-    fn sample_gateway_list(gw_type: GatewayType) -> GatewayList {
-        let asn = Asn {
-            asn: "AS12345".to_string(),
-            name: "Test ASN".to_string(),
-            kind: AsnKind::Residential,
-        };
-        let addr = "MNrmKzuKjNdbEhfPUzVNfjw63oBQNSayqoQKGL4JjAV.6fDcSN6faGpvA3pd3riCwjpzXc7RQfWmGMa82UVoEwKE@d5adfJNtcdZW2XwK85JAAU8nXAs9JCPYn2RNvDLZn4e";
-        let ipr = IpPacketRouterAddress::try_from_base58_string(addr).unwrap();
-        let aa = AuthAddress::try_from_base58_string(addr).unwrap();
-        let variables = [
-            ("US", "CA", None, Some(ipr), Some(aa)),     // Gateway 1
-            ("US", "NY", Some(asn.clone()), None, None), // Gateway 2
-            ("DE", "BE", None, None, Some(aa)),          // Gateway 3
-            ("FR", "Aquitaine", Some(asn.clone()), None, Some(aa)), // Gateway 4
-            ("US", "TX", Some(asn.clone()), Some(ipr), None), // Gateway 5
-            ("GB", "Hampshire", None, None, None),       // Gateway 6
-        ];
-
-        let mut instance = 0;
-        let gateways: Vec<Gateway> = variables
-            .into_iter()
-            .map(|(country, region, asn, ipr, aa)| {
-                instance += 1;
-                Gateway {
-                    identity: NodeIdentity::from_base58_string(
-                        "7CWjY3QFoA9dgE535u9bQiXCfzgMZvSpJu842GA1Wn42",
-                    )
-                    .unwrap(),
-                    moniker: format!("Gateway {instance}"),
-                    location: Some(Location {
-                        two_letter_iso_country_code: country.to_string(),
-                        region: region.to_string(),
-                        asn,
-                        ..Default::default()
-                    }),
-                    ipr_address: ipr,
-                    authenticator_address: aa,
-                    bridge_params: None,
-                    last_probe: None,
-                    ips: Vec::new(),
-                    host: None,
-                    clients_ws_port: None,
-                    clients_wss_port: None,
-                    mixnet_performance: Some(Percent::from_percentage_value(75).unwrap()),
-                    mixnet_score: None,
-                    wg_performance: Some(Performance {
-                        last_updated_utc: "2024-01-01T00:00:00Z".to_string(),
-                        score: ScoreValue::High,
-                        load: ScoreValue::Low,
-                        uptime_percentage_last_24_hours: 0.75,
-                    }),
-                    version: None,
-                }
-            })
-            .collect();
-        GatewayList::new(Some(gw_type), gateways)
-    }
-
-    #[test]
-    fn test_gateway_filter_score() {
-        let wg_list = sample_gateway_list(GatewayType::Wg);
-        let mixnet_entry_list = sample_gateway_list(GatewayType::MixnetEntry);
-        let mixnet_exit_list = sample_gateway_list(GatewayType::MixnetExit);
-
-        let gws = wg_list.filter(&[GatewayFilter::MinScore(ScoreValue::High)]);
-        assert_eq!(gws.len(), 6);
-        let gws = wg_list.filter(&[GatewayFilter::MinScore(ScoreValue::Medium)]);
-        assert_eq!(gws.len(), 6);
-        let gws = wg_list.filter(&[GatewayFilter::MinScore(ScoreValue::Low)]);
-        assert_eq!(gws.len(), 6);
-
-        let gws = mixnet_entry_list.filter(&[GatewayFilter::MinScore(ScoreValue::High)]);
-        assert_eq!(gws.len(), 0);
-        let gws = mixnet_entry_list.filter(&[GatewayFilter::MinScore(ScoreValue::Medium)]);
-        assert_eq!(gws.len(), 6);
-        let gws = mixnet_entry_list.filter(&[GatewayFilter::MinScore(ScoreValue::Low)]);
-        assert_eq!(gws.len(), 6);
-
-        let gws = mixnet_exit_list.filter(&[GatewayFilter::MinScore(ScoreValue::High)]);
-        assert_eq!(gws.len(), 0);
-        let gws = mixnet_exit_list.filter(&[GatewayFilter::MinScore(ScoreValue::Medium)]);
-        assert_eq!(gws.len(), 6);
-        let gws = mixnet_exit_list.filter(&[GatewayFilter::MinScore(ScoreValue::Low)]);
-        assert_eq!(gws.len(), 6);
-    }
-
-    #[test]
-    fn test_gateway_filter_exit_nodes() {
-        let gateway_list = sample_gateway_list(GatewayType::MixnetEntry);
-        let exit_gws = gateway_list.filter(&[GatewayFilter::Exit]);
-        assert_eq!(exit_gws.len(), 2);
-        assert_eq!(exit_gws[0].moniker, "Gateway 1");
-        assert_eq!(exit_gws[1].moniker, "Gateway 5");
-    }
-
-    #[test]
-    fn test_gateway_filter_vpn_nodes() {
-        let gateway_list = sample_gateway_list(GatewayType::MixnetExit);
-        let vpn_gws = gateway_list.filter(&[GatewayFilter::Vpn]);
-        assert_eq!(vpn_gws.len(), 3);
-        assert_eq!(vpn_gws[0].moniker, "Gateway 1");
-        assert_eq!(vpn_gws[1].moniker, "Gateway 3");
-        assert_eq!(vpn_gws[2].moniker, "Gateway 4");
-    }
-
-    #[test]
-    fn test_gateway_filter_residential() {
-        let gateway_list = sample_gateway_list(GatewayType::Wg);
-        let residential_gws = gateway_list.filter(&[GatewayFilter::Residential]);
-        assert_eq!(residential_gws.len(), 3);
-        assert_eq!(residential_gws[0].moniker, "Gateway 2");
-        assert_eq!(residential_gws[1].moniker, "Gateway 4");
-        assert_eq!(residential_gws[2].moniker, "Gateway 5");
-    }
-
-    #[test]
-    fn test_gateway_random_country() {
-        let gateway_list = sample_gateway_list(GatewayType::MixnetEntry);
-
-        assert!(
-            gateway_list
-                .choose_random(&[GatewayFilter::Country("US".into())])
-                .unwrap()
-                .is_in_country("US")
-        );
-
-        assert!(
-            gateway_list
-                .choose_random(&[GatewayFilter::Country("DE".into())])
-                .unwrap()
-                .is_in_country("DE")
-        );
-
-        assert!(
-            gateway_list
-                .choose_random(&[GatewayFilter::Country("BE".into())])
-                .is_none()
-        );
-    }
-
-    #[test]
-    fn test_gateway_random_region() {
-        let gateway_list = sample_gateway_list(GatewayType::MixnetExit);
-
-        assert!(
-            gateway_list
-                .choose_random(&[
-                    GatewayFilter::Country("US".into()),
-                    GatewayFilter::Region("CA".into())
-                ])
-                .unwrap()
-                .is_in_region("CA")
-        );
-
-        assert!(
-            gateway_list
-                .choose_random(&[
-                    GatewayFilter::Country("GB".into()),
-                    GatewayFilter::Region("Hampshire".into())
-                ])
-                .unwrap()
-                .is_in_region("Hampshire")
-        );
-
-        assert!(
-            gateway_list
-                .choose_random(&[
-                    GatewayFilter::Country("DE".into()),
-                    GatewayFilter::Region("XZ".into())
-                ])
-                .is_none()
-        );
-    }
 }

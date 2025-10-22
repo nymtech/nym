@@ -63,14 +63,9 @@ fn create_gateway_client() -> Result<GatewayClient, Error> {
         .ok_or_else(|| Error::NoValidatorDetailsAvailable)?
         .nyxd_url();
 
-    let nym_vpn_api_url = mainnet_network_defaults
-        .nym_vpn_api_url()
-        .ok_or_else(|| Error::NoNymAPIUrl)?;
-
     let config = GatewayConfig {
         nyxd_url,
         api_url,
-        nym_vpn_api_url: Some(nym_vpn_api_url),
         min_gateway_performance: None,
         mix_score_thresholds: None,
         wg_score_thresholds: None,

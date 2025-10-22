@@ -37,6 +37,9 @@ pub struct GatewayTasksConfig {
     pub announce_wss_port: Option<u16>,
 
     #[serde(default)]
+    pub lp: nym_gateway::node::lp_listener::LpConfig,
+
+    #[serde(default)]
     pub debug: Debug,
 }
 

@@ -11,7 +11,6 @@ use defguard_wireguard_rs::{WGApi, WireguardInterfaceApi, host::Peer, key::Key, 
 use nym_credential_verification::ecash::EcashManager;
 use nym_crypto::asymmetric::x25519::KeyPair;
 use nym_wireguard_types::Config;
-use peer_controller::PeerControlRequest;
 use std::sync::Arc;
 use tokio::sync::mpsc::{self, Receiver, Sender};
 
@@ -22,6 +21,8 @@ pub mod error;
 pub mod peer_controller;
 pub mod peer_handle;
 pub mod peer_storage_manager;
+
+pub use peer_controller::PeerControlRequest;
 
 pub const CONTROL_CHANNEL_SIZE: usize = 256;
 

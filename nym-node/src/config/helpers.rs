@@ -24,6 +24,7 @@ fn ephemeral_gateway_config(config: &Config) -> nym_gateway::config::Config {
         nym_gateway::config::IpPacketRouter {
             enabled: config.service_providers.network_requester.debug.enabled,
         },
+        config.gateway_tasks.lp.clone(),
         nym_gateway::config::Debug {
             client_bandwidth_max_flushing_rate: config
                 .gateway_tasks

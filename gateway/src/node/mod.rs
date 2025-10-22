@@ -32,6 +32,7 @@ use zeroize::Zeroizing;
 
 pub(crate) mod client_handling;
 pub(crate) mod internal_service_providers;
+pub(crate) mod lp_listener;
 mod stale_data_cleaner;
 
 use crate::config::Config;
@@ -267,6 +268,43 @@ impl GatewayTasksBuilder {
             self.config.gateway.websocket_bind_address,
             self.config.debug.maximum_open_connections,
             shared_state,
+            self.shutdown_tracker.clone(),
+        ))
+    }
+
+    pub async fn build_lp_listener(
+        &mut self,
+        active_clients_store: ActiveClientsStore,
+    ) -> Result<lp_listener::LpListener, GatewayError> {
+        // Get WireGuard peer controller if available
+        let wg_peer_controller = if let Some(wg_data) = &self.wireguard_data {
+            Some(wg_data.inner.peer_tx().clone())
+        } else {
+            None
+        };
+
+        let handler_state = lp_listener::LpHandlerState {
+            ecash_verifier: self.ecash_manager().await?,
+            storage: self.storage.clone(),
+            local_identity: Arc::clone(&self.identity_keypair),
+            metrics: self.metrics.clone(),
+            active_clients_store,
+            wg_peer_controller,
+            wireguard_data: self.wireguard_data.as_ref().map(|wd| wd.inner.clone()),
+        };
+
+        // Parse bind address from config
+        let bind_addr = format!("{}:{}",
+            self.config.lp.bind_address,
+            self.config.lp.control_port
+        ).parse()
+            .map_err(|e| GatewayError::InternalError(format!("Invalid LP bind address: {}", e)))?;
+
+        Ok(lp_listener::LpListener::new(
+            bind_addr,
+            self.config.lp.data_port,
+            handler_state,
+            self.config.lp.max_connections,
             self.shutdown_tracker.clone(),
         ))
     }

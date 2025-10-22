@@ -6,20 +6,19 @@ use std::{
     net::{IpAddr, SocketAddr},
 };
 
+use crate::{
+    Error, GatewayMinPerformance, ScoreThresholds,
+    entries::gateway::{Gateway, GatewayList, GatewayType, NymNodeList},
+    error::Result,
+};
+use nym_contracts_common::Percent;
 use nym_http_api_client::UserAgent;
 use nym_validator_client::{
     models::NymNodeDescription, nym_api::NymApiClientExt, nym_nodes::SkimmedNodesWithMetadata,
 };
-use nym_vpn_api_client::types::{GatewayMinPerformance, Percent, ScoreThresholds};
 use rand::{prelude::SliceRandom, thread_rng};
 use tracing::{debug, error, warn};
 use url::Url;
-
-use crate::{
-    Error,
-    entries::gateway::{Gateway, GatewayList, GatewayType, NymNodeList},
-    error::Result,
-};
 
 #[derive(Clone, Debug)]
 pub struct Config {

@@ -80,6 +80,11 @@ nym-client-core = { path = "../common/client-core", features = ["cli"] }
 nym-id = { path = "../common/nym-id" }
 nym-service-provider-requests-common = { path = "../common/service-provider-requests-common" }
 
+# LP dependencies
+nym-lp = { path = "../common/nym-lp" }
+nym-kcp = { path = "../common/nym-kcp" }
+nym-registration-common = { path = "../common/registration" }
+bytes = { workspace = true }
 
 defguard_wireguard_rs = { workspace = true }
 

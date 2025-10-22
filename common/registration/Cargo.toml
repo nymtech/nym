@@ -12,6 +12,7 @@ license.workspace = true
 workspace = true
 
 [dependencies]
+serde = { workspace = true, features = ["derive"] }
 tokio-util.workspace = true
 
 nym-authenticator-requests = { path = "../authenticator-requests" }

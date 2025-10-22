@@ -149,10 +149,18 @@ pub fn execute(
             ensure_dealer(deps.storage, &info.sender, epoch.epoch_id)?;
 
             for epoch_id in 0..=epoch.epoch_id {
-                if let Some(vk_share) =
+                if let Some(mut vk_share) =
                     vk_shares().may_load(deps.storage, (&old_owner, epoch_id))?
                 {
+                    vk_share.owner = info.sender.clone();
                     vk_shares().remove(deps.storage, (&old_owner, epoch_id))?;
+                    vk_shares().save(deps.storage, (&info.sender, epoch_id), &vk_share)?;
+                }
+
+                if let Some(mut vk_share) =
+                    vk_shares().may_load(deps.storage, (&info.sender, epoch_id))?
+                {
+                    vk_share.owner = info.sender.clone();
                     vk_shares().save(deps.storage, (&info.sender, epoch_id), &vk_share)?;
                 }
             }

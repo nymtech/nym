@@ -3,9 +3,8 @@
 
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::addressing::nodes::NodeIdentity;
-use std::fmt::{Display, Formatter};
-// use nym_sdk::mixnet::{NodeIdentity, Recipient};
 use serde::{Deserialize, Serialize};
+use std::fmt::{Display, Formatter};
 
 use crate::{
     Error, IpPacketRouterAddress, ScoreValue,

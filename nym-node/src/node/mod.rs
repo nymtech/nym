@@ -665,6 +665,23 @@ impl NymNode {
                 .await?;
             self.shutdown_tracker()
                 .try_spawn_named(async move { websocket.run().await }, "EntryWebsocket");
+
+            // Start LP listener if enabled
+            if self.config.gateway_tasks.lp.enabled {
+                info!(
+                    "starting the LP listener on {}:{} (data port: {})",
+                    self.config.gateway_tasks.lp.bind_address,
+                    self.config.gateway_tasks.lp.control_port,
+                    self.config.gateway_tasks.lp.data_port
+                );
+                let mut lp_listener = gateway_tasks_builder
+                    .build_lp_listener(active_clients_store.clone())
+                    .await?;
+                self.shutdown_tracker()
+                    .try_spawn_named(async move { lp_listener.run().await }, "LpListener");
+            } else {
+                info!("LP listener is disabled");
+            }
         } else {
             info!("node not running in entry mode: the websocket will remain closed");
         }

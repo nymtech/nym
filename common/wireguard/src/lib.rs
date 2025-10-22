@@ -9,7 +9,6 @@
 use defguard_wireguard_rs::{WGApi, WireguardInterfaceApi, host::Peer, key::Key, net::IpAddrMask};
 use nym_crypto::asymmetric::x25519::KeyPair;
 use nym_wireguard_types::Config;
-use peer_controller::PeerControlRequest;
 use std::sync::Arc;
 use tokio::sync::mpsc::{self, Receiver, Sender};
 use tracing::error;
@@ -26,6 +25,7 @@ pub mod peer_handle;
 pub mod peer_storage_manager;
 
 pub use error::Error;
+pub use peer_controller::PeerControlRequest;
 
 pub const CONTROL_CHANNEL_SIZE: usize = 256;
 

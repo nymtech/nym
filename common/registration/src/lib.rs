@@ -7,6 +7,7 @@ use nym_authenticator_requests::AuthenticatorVersion;
 use nym_crypto::asymmetric::x25519::PublicKey;
 use nym_ip_packet_requests::IpPair;
 use nym_sphinx::addressing::{NodeIdentity, Recipient};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct NymNode {
@@ -17,7 +18,7 @@ pub struct NymNode {
     pub version: AuthenticatorVersion,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct GatewayData {
     pub public_key: PublicKey,
     pub endpoint: SocketAddr,

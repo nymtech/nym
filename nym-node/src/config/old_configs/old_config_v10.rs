@@ -1353,6 +1353,7 @@ pub async fn try_upgrade_config_v10<P: AsRef<Path>>(
                     )
                 })
                 .unwrap_or(UpgradeModeWatcher::new_mainnet()),
+            lp: Default::default(),
             debug: gateway_tasks::Debug {
                 message_retrieval_limit: old_cfg.gateway_tasks.debug.message_retrieval_limit,
                 maximum_open_connections: old_cfg.gateway_tasks.debug.maximum_open_connections,

@@ -15,6 +15,8 @@ pub struct NetworkStats {
     // designed with metrics in mind and this single counter has been woven through
     // the call stack
     active_egress_mixnet_connections: Arc<AtomicUsize>,
+
+    active_lp_connections: AtomicUsize,
 }
 
 impl NetworkStats {
@@ -54,6 +56,21 @@ impl NetworkStats {
 
     pub fn active_egress_mixnet_connections_count(&self) -> usize {
         self.active_egress_mixnet_connections
+            .load(Ordering::Relaxed)
+    }
+
+    pub fn new_lp_connection(&self) {
+        self.active_lp_connections
+            .fetch_add(1, Ordering::Relaxed);
+    }
+
+    pub fn lp_connection_closed(&self) {
+        self.active_lp_connections
+            .fetch_sub(1, Ordering::Relaxed);
+    }
+
+    pub fn active_lp_connections_count(&self) -> usize {
+        self.active_lp_connections
             .load(Ordering::Relaxed)
     }
 }

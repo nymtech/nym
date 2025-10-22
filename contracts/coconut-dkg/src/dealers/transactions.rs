@@ -118,8 +118,9 @@ pub fn try_transfer_ownership(
             EPOCH_DEALERS_MAP.remove(deps.storage, (epoch_id, &info.sender));
             EPOCH_DEALERS_MAP.save(deps.storage, (epoch_id, &transfer_to), &details)?;
         }
-        if let Some(vk_share) = vk_shares().may_load(deps.storage, (&info.sender, epoch_id))? {
+        if let Some(mut vk_share) = vk_shares().may_load(deps.storage, (&info.sender, epoch_id))? {
             vk_shares().remove(deps.storage, (&info.sender, epoch_id))?;
+            vk_share.owner = transfer_to.clone();
             vk_shares().save(deps.storage, (&transfer_to, epoch_id), &vk_share)?;
         }
     }
@@ -307,7 +308,9 @@ mod tests_with_mock {
         // the underlying info hasn't changed
         assert_eq!(old_index, new_index);
         assert_eq!(old_details, new_details);
-        assert_eq!(old_share, new_share);
+        assert_ne!(old_share, new_share);
+        assert_eq!(old_share.owner, group_member);
+        assert_eq!(new_share.owner, new_group_member);
 
         assert_eq!(
             OWNERSHIP_TRANSFER_LOG.load(

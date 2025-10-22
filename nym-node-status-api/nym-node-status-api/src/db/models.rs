@@ -381,7 +381,7 @@ impl ScrapeNodeKind {
 pub(crate) struct ScraperNodeInfo {
     pub node_kind: ScrapeNodeKind,
     pub hosts: Vec<String>,
-    pub http_api_port: i64,
+    pub http_api_port: Option<u16>,
 }
 
 impl ScraperNodeInfo {
@@ -395,8 +395,21 @@ impl ScraperNodeInfo {
                 format!("http://{}", host),
             ]);
 
-            if self.http_api_port != DEFAULT_NYM_NODE_HTTP_PORT as i64 {
-                urls.insert(0, format!("http://{}:{}", host, self.http_api_port));
+            if let Some(custom_http_api_port) = self.http_api_port {
+                urls = Vec::new();
+                for host in &self.hosts {
+                    urls.append(&mut vec![format!(
+                        "http://{}:{}",
+                        host, custom_http_api_port
+                    )]);
+                }
+
+                // do not fall back to default ports, if the operator sets a custom http api port
+                // in their bond, use it and error out if it's not available
+                // this will correctly handle cases where some operators run multiple nodes
+                // on a single IP address and assign different custom http port apis at bond time
+
+                // urls.insert(0, format!("http://{}:{}", host, custom_http_api_port));
             }
         }
 
@@ -423,6 +436,7 @@ pub(crate) struct NymNodeDto {
     pub performance: String,
     pub self_described: Option<serde_json::Value>,
     pub bond_info: Option<serde_json::Value>,
+    pub http_api_port: Option<i32>,
 }
 
 #[allow(dead_code)] // it's not dead code but clippy doesn't detect usage in sqlx macros
@@ -440,6 +454,7 @@ pub(crate) struct NymNodeInsertRecord {
     pub entry: Option<serde_json::Value>,
     pub self_described: Option<serde_json::Value>,
     pub bond_info: Option<serde_json::Value>,
+    pub http_api_port: Option<i32>,
     pub last_updated_utc: i64,
 }
 
@@ -456,6 +471,12 @@ impl NymNodeInsertRecord {
             .map(|info| decimal_to_i64(info.total_stake()))
             .unwrap_or(0);
         let entry = serialize_opt_to_value!(skimmed_node.entry)?;
+        let http_api_port = bond_info.and_then(|bond| {
+            bond.bond_information
+                .node
+                .custom_http_port
+                .map(|port| port as i32)
+        });
         let bond_info = serialize_opt_to_value!(bond_info)?;
         let self_described = serialize_opt_to_value!(self_described)?;
 
@@ -472,6 +493,7 @@ impl NymNodeInsertRecord {
             entry,
             self_described,
             bond_info,
+            http_api_port,
             last_updated_utc: now,
         };
 

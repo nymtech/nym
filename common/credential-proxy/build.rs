@@ -8,7 +8,7 @@ async fn main() -> anyhow::Result<()> {
     use sqlx::{Connection, SqliteConnection};
     use std::env;
 
-    let out_dir = env::var("OUT_DIR")?;
+    let out_dir = env::var("OUT_DIR").context("missing OUT_DIR env variable")?;
     let database_path = format!("{out_dir}/nym-credential-proxy-example.sqlite");
 
     // remove the db file if it already existed from previous build

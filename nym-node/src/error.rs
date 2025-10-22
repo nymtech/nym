@@ -78,7 +78,6 @@ pub enum KeyIOFailure {
 pub enum NymNodeError {
     // #[error("Failed to setup tracing logger")]
     // TracingSetupFailure(#[source] anyhow::Error),
-
     #[error("this binary version no longer supports migration from legacy mixnodes and gateways")]
     UnsupportedMigration,
 

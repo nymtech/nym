@@ -8,18 +8,15 @@ use crate::cli::commands::{
 use crate::env::vars::{NYMNODE_CONFIG_ENV_FILE_ARG, NYMNODE_NO_BANNER_ARG};
 // use crate::error::NymNodeError;
 use clap::{Args, Parser, Subcommand};
-use nym_bin_common::{
-    bin_info,
-    logging::setup_no_otel_logger,
-};
 #[cfg(feature = "otel")]
 use nym_bin_common::logging::error::TracingError;
 #[cfg(feature = "otel")]
 use nym_bin_common::opentelemetry::setup_tracing_logger;
-#[cfg(feature = "otel")]
-use tracing::Instrument;
+use nym_bin_common::{bin_info, logging::setup_no_otel_logger};
 use std::future::Future;
 use std::sync::OnceLock;
+#[cfg(feature = "otel")]
+use tracing::Instrument;
 use tracing::instrument;
 
 pub(crate) mod commands;
@@ -75,11 +72,11 @@ impl Cli {
             Commands::BuildInfo(args) => {
                 setup_no_otel_logger()?;
                 build_info::execute(args)?
-            },
+            }
             Commands::Migrate(args) => {
                 setup_no_otel_logger()?;
                 migrate::execute(*args)?
-            },
+            }
             Commands::Debug(debug) => match debug.command {
                 DebugCommands::ResetProvidersGatewayDbs(args) => {
                     let _ = Self::execute_async(debug::reset_providers_dbs::execute(args))?;
@@ -88,13 +85,13 @@ impl Cli {
             Commands::TestThroughput(args) => {
                 // Has its own logging setup
                 test_throughput::execute(args)?
-            },
+            }
             // SigNoz/OTEL run in async context
             Commands::BondingInformation(args) => Self::execute_async(async move {
                 #[cfg(feature = "otel")]
                 {
-                    let _guard = setup_tracing_logger("nym-node".to_string())
-                        .map_err(TracingError::from)?;
+                    let _guard =
+                        setup_tracing_logger("nym-node".to_string()).map_err(TracingError::from)?;
                     let main_span = tracing::info_span!("startup", service = "nym-node");
                     async {
                         bonding_information::execute(args).await?;
@@ -113,8 +110,8 @@ impl Cli {
             Commands::NodeDetails(args) => Self::execute_async(async move {
                 #[cfg(feature = "otel")]
                 {
-                    let _guard = setup_tracing_logger("nym-node".to_string())
-                        .map_err(TracingError::from)?;
+                    let _guard =
+                        setup_tracing_logger("nym-node".to_string()).map_err(TracingError::from)?;
                     let main_span = tracing::info_span!("startup", service = "nym-node");
                     async {
                         node_details::execute(args).await?;
@@ -133,8 +130,8 @@ impl Cli {
             Commands::Run(args) => Self::execute_async(async move {
                 #[cfg(feature = "otel")]
                 {
-                    let _guard = setup_tracing_logger("nym-node".to_string())
-                        .map_err(TracingError::from)?;
+                    let _guard =
+                        setup_tracing_logger("nym-node".to_string()).map_err(TracingError::from)?;
                     tracing::warn!("OpenTelemetry is enabled for this nym-node instance.");
                     let main_span = tracing::info_span!("startup", service = "nym-node");
                     async {
@@ -154,8 +151,8 @@ impl Cli {
             Commands::Sign(args) => Self::execute_async(async move {
                 #[cfg(feature = "otel")]
                 {
-                    let _guard = setup_tracing_logger("nym-node".to_string())
-                        .map_err(TracingError::from)?;
+                    let _guard =
+                        setup_tracing_logger("nym-node".to_string()).map_err(TracingError::from)?;
                     let main_span = tracing::info_span!("startup", service = "nym-node");
                     async {
                         sign::execute(args).await?;
@@ -174,8 +171,8 @@ impl Cli {
             Commands::UnsafeResetSphinxKeys(args) => Self::execute_async(async move {
                 #[cfg(feature = "otel")]
                 {
-                    let _guard = setup_tracing_logger("nym-node".to_string())
-                        .map_err(TracingError::from)?;
+                    let _guard =
+                        setup_tracing_logger("nym-node".to_string()).map_err(TracingError::from)?;
                     let main_span = tracing::info_span!("startup", service = "nym-node");
                     async {
                         reset_sphinx_keys::execute(args).await?;

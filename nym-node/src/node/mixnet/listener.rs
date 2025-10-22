@@ -4,7 +4,7 @@
 use crate::node::mixnet::SharedData;
 use nym_task::ShutdownToken;
 use std::net::SocketAddr;
-use tracing::{debug, error, info, instrument, Instrument, trace};
+use tracing::{Instrument, debug, error, info, instrument, trace};
 
 pub(crate) struct Listener {
     bind_address: SocketAddr,

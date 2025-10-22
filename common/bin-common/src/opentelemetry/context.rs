@@ -1,11 +1,11 @@
-use opentelemetry::{Context, TraceFlags};
-use opentelemetry::propagation::{Injector, Extractor, TextMapPropagator};
+use opentelemetry::propagation::{Extractor, Injector, TextMapPropagator};
 use opentelemetry::trace::{SpanContext, TraceContextExt, TraceId};
+use opentelemetry::{Context, TraceFlags};
 use opentelemetry_sdk::{propagation::TraceContextPropagator, trace::IdGenerator};
-use tracing_opentelemetry::OpenTelemetrySpanExt;
 use std::collections::HashMap;
 use std::fmt::Display;
 use tracing::instrument;
+use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 /// Make a Carrier for context propagation
 pub struct ContextCarrier {
@@ -23,7 +23,7 @@ impl ContextCarrier {
         if data.is_empty() {
             return ContextCarrier::new_empty();
         }
-        
+
         ContextCarrier { data }
     }
 
@@ -129,7 +129,6 @@ impl ManualContextPropagator {
     pub fn root_span(&self) -> &tracing::Span {
         &self.root_span
     }
-
 }
 
 #[instrument(skip_all, level = "debug")]

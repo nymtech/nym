@@ -216,8 +216,14 @@ impl Handler {
             TransmissionLane::ConnectionId(id)
         });
 
-        let input_msg =
-            InputMessage::new_anonymous(recipient, message, reply_surbs, lane, self.packet_type, None);
+        let input_msg = InputMessage::new_anonymous(
+            recipient,
+            message,
+            reply_surbs,
+            lane,
+            self.packet_type,
+            None,
+        );
         if let Err(err) = self.msg_input.send(input_msg).await {
             if !self.shutdown_token.is_cancelled() {
                 error!("Failed to send anonymous message to the input buffer: {err}");

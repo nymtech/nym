@@ -539,7 +539,7 @@ where
                 &self.config.ack_key,
                 &recipient,
                 packet_type,
-                trace_id
+                trace_id,
             )?;
 
             let real_message = RealMessage::new(

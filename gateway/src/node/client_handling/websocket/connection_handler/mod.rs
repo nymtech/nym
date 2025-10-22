@@ -13,9 +13,9 @@ use std::time::Duration;
 use time::OffsetDateTime;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_tungstenite::WebSocketStream;
-use tracing::{debug, instrument, trace, warn};
 #[cfg(feature = "otel")]
 use tracing::Instrument;
+use tracing::{debug, instrument, trace, warn};
 
 pub(crate) use self::authenticated::AuthenticatedHandler;
 pub(crate) use self::fresh::FreshHandler;
@@ -62,8 +62,7 @@ impl ClientDetails {
         address: DestinationAddressBytes,
         shared_keys: SharedGatewayKey,
         session_request_timestamp: OffsetDateTime,
-        #[cfg(feature = "otel")]
-        otel_context: Option<HashMap<String, String>>,
+        #[cfg(feature = "otel")] otel_context: Option<HashMap<String, String>>,
     ) -> Self {
         ClientDetails {
             address,
@@ -130,14 +129,15 @@ where
     if let Some(auth_handle) = handle.handle_until_authenticated_or_failure().await {
         #[cfg(feature = "otel")]
         {
-            let from_client_span = { 
+            let from_client_span = {
                 let parent = match auth_handle.otel_propagator.as_ref() {
                     Some(propagator) => propagator.root_span(),
                     None => &tracing::Span::current(), // fallback to current span if no propagator
                 };
                 tracing::info_span!(parent: parent, "listening for requests")
             };
-            auth_handle.listen_for_requests()
+            auth_handle
+                .listen_for_requests()
                 .instrument(from_client_span)
                 .await
         }

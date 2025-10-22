@@ -238,7 +238,10 @@ pub trait FragmentPreparer {
         };
 
         let destination = packet_recipient.as_sphinx_destination(trace_id);
-        tracing::warn!("Packet destination with trace id: {:?}", &destination.identifier);
+        tracing::warn!(
+            "Packet destination with trace id: {:?}",
+            &destination.identifier
+        );
 
         // including set of delays
         let delays =
@@ -263,10 +266,10 @@ pub trait FragmentPreparer {
             )?,
         };
 
-    // - compute k = KDF(remote encryption key ^ x) this is equivalent to KDF( dh(remote, x) )
-    // from the previously constructed route extract the first hop
-    let first_hop_address =
-        NymNodeRoutingAddress::try_from(route.first().unwrap().address).unwrap();
+        // - compute k = KDF(remote encryption key ^ x) this is equivalent to KDF( dh(remote, x) )
+        // from the previously constructed route extract the first hop
+        let first_hop_address =
+            NymNodeRoutingAddress::try_from(route.first().unwrap().address).unwrap();
 
         Ok(PreparedFragment {
             // the round-trip delay is the sum of delays of all hops on the forward route as

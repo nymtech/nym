@@ -1,26 +1,26 @@
-pub mod context;
 pub mod compact_id_generator;
+pub mod context;
 mod trace_id_format;
 
-use tracing::{info, Level};
+use tracing::{Level, info};
 use tracing_subscriber::filter::Directive;
+use tracing_subscriber::fmt;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
-use tracing_subscriber::fmt;
 
 use crate::logging::default_tracing_env_filter;
 use crate::logging::error::TracingError;
 use crate::opentelemetry::compact_id_generator::Compact13BytesIdGenerator;
 use opentelemetry::trace::TracerProvider;
-use opentelemetry::{global, KeyValue};
+use opentelemetry::{KeyValue, global};
 use opentelemetry_otlp::tonic_types::metadata::MetadataMap;
 use opentelemetry_otlp::tonic_types::transport::ClientTlsConfig;
 use opentelemetry_otlp::{WithExportConfig, WithTonicConfig};
 use opentelemetry_sdk::metrics::{MeterProviderBuilder, PeriodicReader, SdkMeterProvider};
 use opentelemetry_sdk::trace::SdkTracerProvider;
-use opentelemetry_sdk::{trace::Sampler, Resource};
-use opentelemetry_semantic_conventions::resource::{DEPLOYMENT_ENVIRONMENT_NAME, SERVICE_VERSION};
+use opentelemetry_sdk::{Resource, trace::Sampler};
 use opentelemetry_semantic_conventions::SCHEMA_URL;
+use opentelemetry_semantic_conventions::resource::{DEPLOYMENT_ENVIRONMENT_NAME, SERVICE_VERSION};
 use tracing_opentelemetry::{MetricsLayer, OpenTelemetryLayer};
 use tracing_subscriber::fmt::format::FmtSpan;
 
@@ -88,11 +88,15 @@ pub fn setup_tracing_logger(service_name: String) -> Result<TracerProviderGuard,
     let registry = tracing_subscriber::registry()
         .with(fmt_layer)
         .with(granual_filtered_env()?)
-        .with(tracing_subscriber::filter::LevelFilter::from_level(Level::INFO))
+        .with(tracing_subscriber::filter::LevelFilter::from_level(
+            Level::INFO,
+        ))
         .with(MetricsLayer::new(meter_provider.clone()))
         .with(OpenTelemetryLayer::new(tracer));
 
-    registry.try_init().map_err(TracingError::TracingTryInitError)?;
+    registry
+        .try_init()
+        .map_err(TracingError::TracingTryInitError)?;
 
     global::set_tracer_provider(tracer_provider.clone());
     global::set_meter_provider(meter_provider.clone());
@@ -157,7 +161,8 @@ fn init_meter_provider(
         .with_temporality(opentelemetry_sdk::metrics::Temporality::default());
 
     if endpoint.starts_with("https://") {
-        exporter_builder = exporter_builder.with_tls_config(ClientTlsConfig::new().with_enabled_roots());
+        exporter_builder =
+            exporter_builder.with_tls_config(ClientTlsConfig::new().with_enabled_roots());
     }
 
     let exporter = exporter_builder.build()?;

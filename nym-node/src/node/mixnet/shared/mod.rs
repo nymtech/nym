@@ -23,7 +23,7 @@ use std::time::Duration;
 use tokio::net::TcpStream;
 use tokio::task::JoinHandle;
 use tokio::time::Instant;
-use tracing::{debug, error, instrument, Instrument};
+use tracing::{Instrument, debug, error, instrument};
 
 pub(crate) mod final_hop;
 
@@ -173,8 +173,9 @@ impl SharedData {
             Ok((socket, remote_addr)) => {
                 debug!("accepted incoming mixnet connection from: {remote_addr}");
                 let mut handler = ConnectionHandler::new(self, remote_addr);
-                let join_handle =
-                    tokio::spawn(async move { handler.handle_connection(socket).in_current_span().await });
+                let join_handle = tokio::spawn(async move {
+                    handler.handle_connection(socket).in_current_span().await
+                });
                 self.log_connected_clients();
                 Some(join_handle)
             }

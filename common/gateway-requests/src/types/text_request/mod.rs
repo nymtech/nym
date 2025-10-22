@@ -86,7 +86,6 @@ pub enum ClientControlRequest {
         otel_context: Option<HashMap<String, String>>,
     },
 
-
     AuthenticateV2(Box<AuthenticateRequest>),
 
     #[serde(alias = "handshakePayload")]
@@ -181,7 +180,7 @@ impl ClientControlRequest {
                 protocol_version,
                 shared_key,
                 identity_keys,
-                Some(context_carrier)
+                Some(context_carrier),
             )?,
         )))
     }

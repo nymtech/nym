@@ -84,7 +84,6 @@ impl Listener {
                     .network
                     .new_ingress_websocket_client();
 
-                
                 // 4. spawn the task handling the client connection
                 self.shutdown.try_spawn_named(
                     async move {

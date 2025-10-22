@@ -4,8 +4,7 @@
 use crate::packet::FramedNymPacket;
 #[cfg(feature = "otel")]
 use nym_bin_common::opentelemetry::{
-    compact_id_generator::decompress_trace_id,
-    context::ManualContextPropagator,
+    compact_id_generator::decompress_trace_id, context::ManualContextPropagator,
 };
 
 use nym_sphinx_acknowledgements::surb_ack::{SurbAck, SurbAckRecoveryError};
@@ -20,9 +19,9 @@ use nym_sphinx_types::{
 };
 use std::fmt::Display;
 use thiserror::Error;
-use tracing::{debug, error, info, instrument, trace, warn};
 #[cfg(feature = "otel")]
 use tracing::warn_span;
+use tracing::{debug, error, info, instrument, trace, warn};
 
 #[derive(Debug)]
 pub enum MixProcessingResultData {
@@ -270,7 +269,7 @@ fn wrap_processed_sphinx_packet(
             #[cfg(feature = "otel")]
             identifier,
             #[cfg(not(feature = "otel"))]
-            identifier: _,
+                identifier: _,
             payload,
         } => {
             // if we have a trace id in the destination, we log it for easier correlation later on
@@ -278,8 +277,10 @@ fn wrap_processed_sphinx_packet(
             let span = match identifier[0..12].try_into().map(|b: [u8; 12]| b) {
                 Ok(trace_bytes) if !trace_bytes.iter().all(|b| *b == 0) => {
                     let full_trace_id_bytes = decompress_trace_id(&trace_bytes);
-                    let full_trace_id = opentelemetry::trace::TraceId::from_bytes(full_trace_id_bytes);
-                    let context_propagator = ManualContextPropagator::new_from_tid("final_hop", full_trace_id);
+                    let full_trace_id =
+                        opentelemetry::trace::TraceId::from_bytes(full_trace_id_bytes);
+                    let context_propagator =
+                        ManualContextPropagator::new_from_tid("final_hop", full_trace_id);
                     info_span!(parent: &context_propagator.root_span, "final_hop_processing", trace_id=%full_trace_id)
                 }
                 _ => {

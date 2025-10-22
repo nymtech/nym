@@ -4,12 +4,11 @@
 use crate::mixnet::{AnonymousSenderTag, IncludedSurbs, Recipient};
 use crate::Result;
 use async_trait::async_trait;
-use nym_client_core::client::inbound_messages::InputMessage;
 #[cfg(feature = "otel")]
 use nym_bin_common::opentelemetry::{
-    compact_id_generator::compress_trace_id,
-    context::extract_trace_id_from_tracing_cx,
+    compact_id_generator::compress_trace_id, context::extract_trace_id_from_tracing_cx,
 };
+use nym_client_core::client::inbound_messages::InputMessage;
 use nym_sphinx::params::PacketType;
 use nym_task::connections::TransmissionLane;
 use tracing::instrument;

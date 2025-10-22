@@ -82,7 +82,14 @@ where
     ) {
         if let Err(err) = self
             .message_handler
-            .try_send_plain_message(recipient, content, lane, packet_type, max_retransmissions, trace_id)
+            .try_send_plain_message(
+                recipient,
+                content,
+                lane,
+                packet_type,
+                max_retransmissions,
+                trace_id,
+            )
             .await
         {
             warn!("failed to send a plain message - {err}")
@@ -133,14 +140,17 @@ where
                 max_retransmissions,
                 ..
             } => {
-                warn!("Handling regular input message with trace_id: {:?}", trace_id);
+                warn!(
+                    "Handling regular input message with trace_id: {:?}",
+                    trace_id
+                );
                 self.handle_plain_message(
                     recipient,
                     data,
                     lane,
                     PacketType::Mix,
                     max_retransmissions,
-                    trace_id
+                    trace_id,
                 )
                 .await
             }
@@ -152,7 +162,10 @@ where
                 max_retransmissions,
                 ..
             } => {
-                warn!("Handling anonymous input message with trace_id: {:?}", trace_id);
+                warn!(
+                    "Handling anonymous input message with trace_id: {:?}",
+                    trace_id
+                );
                 self.handle_repliable_message(
                     recipient,
                     data,
@@ -160,7 +173,7 @@ where
                     lane,
                     PacketType::Mix,
                     max_retransmissions,
-                    trace_id
+                    trace_id,
                 )
                 .await
             }
@@ -186,14 +199,17 @@ where
                     max_retransmissions,
                     ..
                 } => {
-                    tracing::warn!("Handling regular input message with trace_id: {:?}", trace_id);
+                    tracing::warn!(
+                        "Handling regular input message with trace_id: {:?}",
+                        trace_id
+                    );
                     self.handle_plain_message(
                         recipient,
                         data,
                         lane,
                         packet_type,
                         max_retransmissions,
-                        trace_id
+                        trace_id,
                     )
                     .await
                 }
@@ -212,7 +228,7 @@ where
                         lane,
                         packet_type,
                         max_retransmissions,
-                        trace_id
+                        trace_id,
                     )
                     .await
                 }

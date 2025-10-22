@@ -1,5 +1,5 @@
+use opentelemetry::trace::{SpanId, TraceId};
 use opentelemetry_sdk::trace::IdGenerator;
-use opentelemetry::trace::{TraceId, SpanId};
 use rand::RngCore;
 
 #[derive(Clone, Debug)]
@@ -25,7 +25,7 @@ impl IdGenerator for Compact13BytesIdGenerator {
         let mut rng = rand::thread_rng();
         let mut bytes = [0u8; 8];
         rng.fill_bytes(&mut bytes);
-        
+
         SpanId::from_bytes(bytes)
     }
 }

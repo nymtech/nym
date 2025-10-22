@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use futures::StreamExt;
+use nym_sdk::mixnet;
 use nym_sdk::mixnet::MixnetMessageSender;
-use nym_sdk::{mixnet};
 use nym_topology::{
     CachedEpochRewardedSet, EntryDetails, HardcodedTopologyProvider, NymTopology,
     NymTopologyMetadata, RoutingNode, SupportedRoles,
@@ -35,12 +35,8 @@ async fn main() {
             hostname: None,
             clients_wss_port: None,
         }),
-        identity_key: "PUT IDENTITY KEY HERE"
-            .parse()
-            .unwrap(),
-        sphinx_key: "PUT SPHINX KEY HERE"
-            .parse()
-            .unwrap(),
+        identity_key: "PUT IDENTITY KEY HERE".parse().unwrap(),
+        sphinx_key: "PUT SPHINX KEY HERE".parse().unwrap(),
         supported_roles: SupportedRoles {
             mixnode: true,
             mixnet_entry: true,

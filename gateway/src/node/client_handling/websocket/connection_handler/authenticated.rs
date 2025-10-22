@@ -203,7 +203,10 @@ impl<R, S> AuthenticatedHandler<R, S> {
             };
 
             let manual_ctx_propagator = if !context.is_empty() {
-                Some(ManualContextPropagator::new("upgrading_fresh_to_authenticated", context))
+                Some(ManualContextPropagator::new(
+                    "upgrading_fresh_to_authenticated",
+                    context,
+                ))
             } else {
                 None
             };
@@ -255,7 +258,9 @@ impl<R, S> AuthenticatedHandler<R, S> {
         #[cfg(feature = "otel")]
         {
             let span = match &self.otel_propagator {
-                Some(propagator) => info_span!(parent: &propagator.root_span, "forwarding_mix_packet"),
+                Some(propagator) => {
+                    info_span!(parent: &propagator.root_span, "forwarding_mix_packet")
+                }
                 None => info_span!("forwarding_mix_packet_no_otel"),
             };
             let _enter = span.enter();
@@ -324,7 +329,9 @@ impl<R, S> AuthenticatedHandler<R, S> {
         #[cfg(feature = "otel")]
         let span = {
             let span = match &self.otel_propagator {
-                Some(propagator) => info_span!(parent: &propagator.root_span, "handling_forward_sphinx"),
+                Some(propagator) => {
+                    info_span!(parent: &propagator.root_span, "handling_forward_sphinx")
+                }
                 None => debug_span!("handling_forward_sphinx_no_otel"),
             };
             span
@@ -356,7 +363,9 @@ impl<R, S> AuthenticatedHandler<R, S> {
         #[cfg(feature = "otel")]
         let span = {
             let span = match &self.otel_propagator {
-                Some(propagator) => info_span!(parent: &propagator.root_span, "handling_binary_request"),
+                Some(propagator) => {
+                    info_span!(parent: &propagator.root_span, "handling_binary_request")
+                }
                 None => info_span!("handling_binary_request_no_otel"),
             };
             span
@@ -659,14 +668,16 @@ impl<R, S> AuthenticatedHandler<R, S> {
         #[cfg(feature = "otel")]
         let from_client_span = {
             let span = match &self.otel_propagator {
-                Some(propagator) => info_span!(parent: &propagator.root_span, "authenticated_client_handler_listen"),
+                Some(propagator) => {
+                    info_span!(parent: &propagator.root_span, "authenticated_client_handler_listen")
+                }
                 None => tracing::debug_span!("authenticated_client_handler_listen_no_otel"),
             };
             span
         };
         #[cfg(feature = "otel")]
         let _enter = from_client_span.enter();
-        
+
         loop {
             tokio::select! {
                 // Received a request to ping the client to check if it's still active

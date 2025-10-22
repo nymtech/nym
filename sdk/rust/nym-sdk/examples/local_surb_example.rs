@@ -1,21 +1,27 @@
 use nym_sdk::mixnet::{
     AnonymousSenderTag, MixnetClientBuilder, MixnetMessageSender, ReconstructedMessage,
 };
-use nym_topology::{CachedEpochRewardedSet, EntryDetails, HardcodedTopologyProvider, NymTopology, NymTopologyMetadata, RoutingNode, SupportedRoles};
+use nym_topology::{
+    CachedEpochRewardedSet, EntryDetails, HardcodedTopologyProvider, NymTopology,
+    NymTopologyMetadata, RoutingNode, SupportedRoles,
+};
 #[cfg(feature = "otel")]
 use opentelemetry::trace::{TraceContextExt, Tracer};
 #[cfg(feature = "otel")]
 use opentelemetry::{global, Context};
 use time::OffsetDateTime;
-use tracing::warn;
 use tracing::instrument;
+use tracing::warn;
 
 #[tokio::main]
 #[instrument(name = "sdk-example-surb-reply", skip_all)]
 async fn main() {
     #[cfg(feature = "otel")]
     {
-        nym_bin_common::opentelemetry::setup_tracing_logger("local-sdk-example-surb-reply".to_string()).unwrap();
+        nym_bin_common::opentelemetry::setup_tracing_logger(
+            "local-sdk-example-surb-reply".to_string(),
+        )
+        .unwrap();
 
         let tracer = global::tracer("local-sdk-example-surb-reply");
         let span = tracer.start("client-root-span");
@@ -27,7 +33,7 @@ async fn main() {
     }
     #[cfg(not(feature = "otel"))]
     nym_bin_common::logging::setup_no_otel_logger().expect("failed to initialize logging");
-   
+
     // Create a mixnet client which connect to a local node
     let topology_metadata = NymTopologyMetadata::new(0, 0, OffsetDateTime::now_utc());
     let mut rewarded_set = CachedEpochRewardedSet::default();
@@ -45,12 +51,8 @@ async fn main() {
             hostname: None,
             clients_wss_port: None,
         }),
-            identity_key: "put here identity_key"
-            .parse()
-            .unwrap(),
-        sphinx_key: "put here sphinx_key"
-            .parse()
-            .unwrap(),
+        identity_key: "put here identity_key".parse().unwrap(),
+        sphinx_key: "put here sphinx_key".parse().unwrap(),
         supported_roles: SupportedRoles {
             mixnode: true,
             mixnet_entry: true,
@@ -63,7 +65,8 @@ async fn main() {
 
     let mut client = MixnetClientBuilder::new_ephemeral()
         .custom_topology_provider(Box::new(topology_provider))
-        .build().unwrap()
+        .build()
+        .unwrap()
         .connect_to_mixnet()
         .await
         .unwrap();
@@ -76,7 +79,7 @@ async fn main() {
         .send_plain_message(*our_address, "hello there")
         .await
         .unwrap();
-    
+
     // we're going to parse the sender_tag (AnonymousSenderTag) from the incoming message and use it to 'reply' to ourselves instead of our Nym address.
     // we know there will be a sender_tag since the sdk sends SURBs along with messages by default.
     println!("Waiting for message\n");

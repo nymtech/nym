@@ -47,9 +47,7 @@ use tokio::time::timeout;
 use tokio_tungstenite::tungstenite::{protocol::Message, Error as WsError};
 #[cfg(feature = "otel")]
 use tracing::info_span;
-use tracing::{debug, error, info, instrument, Instrument, warn};
-
-
+use tracing::{debug, error, info, instrument, warn, Instrument};
 
 #[derive(Debug, Error)]
 pub(crate) enum InitialAuthenticationError {
@@ -663,8 +661,7 @@ impl<R, S> FreshHandler<R, S> {
     async fn handle_authenticate_v2(
         &mut self,
         request: Box<AuthenticateRequest>,
-        #[cfg(feature = "otel")]
-        otel_context: Option<HashMap<String, String>>,
+        #[cfg(feature = "otel")] otel_context: Option<HashMap<String, String>>,
     ) -> Result<InitialAuthResult, InitialAuthenticationError>
     where
         S: AsyncRead + AsyncWrite + Unpin,
@@ -840,7 +837,7 @@ impl<R, S> FreshHandler<R, S> {
             shared_keys,
             OffsetDateTime::now_utc(),
             #[cfg(feature = "otel")]
-            None
+            None,
         );
 
         Ok(InitialAuthResult::new(
@@ -882,25 +879,36 @@ impl<R, S> FreshHandler<R, S> {
     {
         // extract and set up opentelemetry context if provided
         #[cfg(feature = "otel")]
-        let (context_propagator, otel_ctx) = if let ClientControlRequest::AuthenticateV2(ref auth_req) = request {
-            if let Some(otel_context) = &auth_req.otel_context {
-                info!("=== OpenTelemetry context provided in the request: {otel_context:?} ===");
-                (Some(ManualContextPropagator::new("handling_initial_client_request_with_otel", otel_context.clone())), Some(otel_context.clone()))
+        let (context_propagator, otel_ctx) =
+            if let ClientControlRequest::AuthenticateV2(ref auth_req) = request {
+                if let Some(otel_context) = &auth_req.otel_context {
+                    info!(
+                        "=== OpenTelemetry context provided in the request: {otel_context:?} ==="
+                    );
+                    (
+                        Some(ManualContextPropagator::new(
+                            "handling_initial_client_request_with_otel",
+                            otel_context.clone(),
+                        )),
+                        Some(otel_context.clone()),
+                    )
+                } else {
+                    debug!("No OpenTelemetry context provided in the request");
+                    (None, None)
+                }
             } else {
                 debug!("No OpenTelemetry context provided in the request");
                 (None, None)
-            }
-        } else {
-            debug!("No OpenTelemetry context provided in the request");
-            (None, None)
-        };
+            };
         #[cfg(feature = "otel")]
         let child_span = match context_propagator {
             Some(ref propagator) => {
                 let span = info_span!(parent: &propagator.root_span, "=== Handling initial client request with otel context ===");
                 span
             }
-            None => tracing::debug_span!("=== Handling initial client request without otel context ==="),
+            None => {
+                tracing::debug_span!("=== Handling initial client request without otel context ===")
+            }
         };
         #[cfg(feature = "otel")]
         let _enter = child_span.enter();
@@ -917,7 +925,9 @@ impl<R, S> FreshHandler<R, S> {
                     .await
             }
             #[cfg(feature = "otel")]
-            ClientControlRequest::AuthenticateV2(req) => self.handle_authenticate_v2(req, otel_ctx).await,
+            ClientControlRequest::AuthenticateV2(req) => {
+                self.handle_authenticate_v2(req, otel_ctx).await
+            }
             #[cfg(not(feature = "otel"))]
             ClientControlRequest::AuthenticateV2(req) => self.handle_authenticate_v2(req).await,
             ClientControlRequest::RegisterHandshakeInitRequest {
@@ -948,7 +958,7 @@ impl<R, S> FreshHandler<R, S> {
             }
         };
 
-                // try to send auth response back to the client
+        // try to send auth response back to the client
         if let Err(source) = self
             .send_websocket_message(auth_result.server_response)
             .await

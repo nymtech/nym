@@ -350,7 +350,7 @@ impl SocksClient {
             self.config.connection_start_surbs,
             TransmissionLane::ConnectionId(self.connection_id),
             self.packet_type,
-            None
+            None,
         );
         self.input_sender
             .send(input_message)
@@ -374,7 +374,7 @@ impl SocksClient {
             msg.into_bytes(),
             TransmissionLane::ConnectionId(self.connection_id),
             self.packet_type,
-            None
+            None,
         );
         self.input_sender
             .send(input_message)
@@ -441,7 +441,7 @@ impl SocksClient {
                     per_request_surbs,
                     lane,
                     packet_type,
-                    None
+                    None,
                 )
             } else {
                 InputMessage::new_regular(
@@ -449,7 +449,7 @@ impl SocksClient {
                     provider_message.into_bytes(),
                     lane,
                     packet_type,
-                    None
+                    None,
                 )
             }
         })

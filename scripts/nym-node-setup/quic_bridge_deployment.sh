@@ -155,7 +155,7 @@ check_ip_routing() {
 
 perform_pings() {
     echo "Performing IPv4 ping to google.com..."
-    ping -c 4 google.com
+    ping -4 -c 4 google.com
     echo "---------------------------------------"
     echo "Performing IPv6 ping to google.com..."
     ping6 -c 4 google.com
@@ -189,7 +189,7 @@ test_bridge_connectivity() {
         echo -e "Testing IPv4 connectivity..."
         echo 
 
-        if ping -c 1 -I "$ipv4_address" google.com >/dev/null 2>&1; then
+        if ping -4 -c 1 -I "$ipv4_address" google.com >/dev/null 2>&1; then
             echo -e "${green}IPv4 connectivity is working. Fetching test data...${reset}"
             joke=$(curl -s -H "Accept: application/json" --interface "$ipv4_address" https://icanhazdadjoke.com/ | jq -r .joke)
             [[ -n "$joke" && "$joke" != "null" ]] && echo -e "${green}IPv4 test joke: $joke${reset}" || echo -e "${red}Failed to fetch test data via IPv4.${reset}"
@@ -277,7 +277,7 @@ check_bridge_installation() {
     # Check keys directory
     if [[ -d "$BRIDGE_KEYS_DIR" ]]; then
         echo -e "${green}✓ Keys directory exists: $BRIDGE_KEYS_DIR${reset}"
-        key_count=$(ls -1 "$BRIDGE_KEYS_DIR"/*.pem 2>/dev/null | wc -l)
+        key_count=$(sudo bash -c "ls -1 \"$BRIDGE_KEYS_DIR\"/*.pem" 2>/dev/null | wc -l)
         echo "  Keys found: $key_count"
     else
         echo -e "${red}✗ Keys directory not found: $BRIDGE_KEYS_DIR${reset}"
@@ -494,7 +494,7 @@ generate_bridge_keys() {
     # Generate ED25519 private key
     local key_file="$BRIDGE_KEYS_DIR/ed25519_bridge_identity.pem"
     
-    if [[ -f "$key_file" ]]; then
+    if sudo test -f "$key_file"; then
         echo -e "${yellow}Warning: Key file already exists at $key_file${reset}"
         read -p "Overwrite existing key? (yes/no): " confirm
         if [[ "$confirm" != "yes" ]]; then
@@ -532,14 +532,14 @@ create_client_params() {
 
     # Check if key exists
     local key_file="$BRIDGE_KEYS_DIR/ed25519_bridge_identity.pem"
-    if [[ ! -f "$key_file" ]]; then
+    if ! sudo test -f "$key_file"; then
         echo -e "${red}Error: Bridge key not found at $key_file${reset}"
         echo "Run 'nym-bridge-helper generate_bridge_keys' first"
         return 1
     fi
 
     # Get forward address
-    read -p "Enter forward address (e.g., <IPv4>:51822, can be found by running 'curl -6 https://ifconfig.co/ip'): " forward_addr
+    read -p "Enter forward address (e.g., <IPv4>:51822, can be found by running 'curl -4 https://ifconfig.co/ip'): " forward_addr
     if [[ -z "$forward_addr" ]]; then
         echo -e "${red}Error: Forward address is required${reset}"
         return 1
@@ -722,24 +722,28 @@ install_bridge_binary() {
     local red="\033[0;31m"
     local yellow="\033[0;33m"
 
+    local deb_arch="amd64"
+    local sys_arch=$(dpkg --print-architecture)
+
+    if [[ "$deb_arch" != "$sys_arch" ]]; then
+	echo -e "${red}Error: aborting .deb package installation as this system's arch is not amd64.${reset}"
+	echo "  Refer to https://github.com/nymtech/nym-bridges for build instructions."
+        exit 1
+    fi
+
     echo -e "${yellow}=== Installing nym-bridge Binary ===${reset}"
     echo ""
 
-    read -p "Enter bridge binary URL for your system from here https://builds.ci.nymte.ch/QUIC/: " binary_url
-    if [[ -z "$binary_url" ]]; then
-        echo -e "${red}Error: Binary URL is required${reset}"
-        return 1
-    fi
+    echo "Retrieving URL to latest release..."
+    local binary_url=$(
+        curl -s "https://api.github.com/repos/nymtech/nym-bridges/releases/latest" |
+	grep "browser_download_url.*amd64.deb" |
+        grep -o 'https://[^"]*'
+    )
 
-    echo "Downloading nym-bridge binary..."
-    if sudo curl -L "$binary_url" -o "$BRIDGE_BINARY"; then
-        sudo chmod 755 "$BRIDGE_BINARY"
-        echo -e "${green}✓ Bridge binary installed at $BRIDGE_BINARY${reset}"
-        
-        # Show version
-        echo ""
-        echo "Binary version:"
-        $BRIDGE_BINARY --version || echo "Unable to determine version"
+    echo "Downloading $binary_url ..."
+    if curl -L -o "/tmp/$(basename "$binary_url")" "$binary_url"; then
+	    sudo dpkg -i "/tmp/$(basename "$binary_url")"
     else
         echo -e "${red}✗ Failed to download bridge binary${reset}"
         return 1

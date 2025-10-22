@@ -1,7 +1,7 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use nym_vpn_api_client::types::ScoreThresholds;
+use crate::helpers::ScoreThresholds;
 
 pub(crate) const HIGH_SCORE_THRESHOLD: u8 = 80;
 pub(crate) const MEDIUM_SCORE_THRESHOLD: u8 = 60;

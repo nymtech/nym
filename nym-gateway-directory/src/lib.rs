@@ -5,7 +5,6 @@ mod entries;
 mod error;
 mod gateway_client;
 mod helpers;
-pub use nym_vpn_api_client::types::{GatewayMinPerformance, NaiveFloat, Percent};
 
 pub use crate::{
     entries::{
@@ -22,5 +21,8 @@ pub use crate::{
     },
     error::Error,
     gateway_client::{Config, GatewayClient},
-    helpers::split_ips,
+    helpers::{
+        BridgeInformation, BridgeParameters, GatewayMinPerformance, NymDirectoryCountry,
+        QuicClientOptions, ScoreThresholds, split_ips,
+    },
 };

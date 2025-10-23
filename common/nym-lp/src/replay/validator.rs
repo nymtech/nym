@@ -728,7 +728,7 @@ mod tests {
 
         // Check final state of the validator
         let final_state = validator.lock().unwrap();
-        let (next, receive_cnt) = final_state.current_packet_cnt();
+        let (_next, receive_cnt) = final_state.current_packet_cnt();
 
         // Verify that the received count matches our successful operations
         assert_eq!(receive_cnt, total_successes as u64);
@@ -786,7 +786,7 @@ mod tests {
         }
 
         // Create a copy for comparison
-        let original_bitmap = validator.bitmap;
+        let _original_bitmap = validator.bitmap;
 
         // Simulate SIMD clear (4 words at a time)
         #[cfg(target_feature = "avx2")]

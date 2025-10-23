@@ -110,22 +110,6 @@ mod tests {
     use crate::LpError;
     use bytes::BytesMut;
 
-    // Helper function to create a test packet's BytesMut representation directly
-    fn create_test_packet_bytes(counter: u64, message: LpMessage, trailer_fill: u8) -> BytesMut {
-        let packet = LpPacket {
-            header: LpHeader {
-                protocol_version: 1,
-                session_id: 42,
-                counter,
-            },
-            message,
-            trailer: [trailer_fill; TRAILER_LEN],
-        };
-        let mut buf = BytesMut::new();
-        serialize_lp_packet(&packet, &mut buf).unwrap();
-        buf
-    }
-
     // === Updated Encode/Decode Tests ===
 
     #[test]

@@ -11,11 +11,11 @@ use crate::node::client_handling::{
     },
     DEFAULT_MIXNET_CLIENT_BANDWIDTH_THRESHOLD,
 };
-use crate::node::upgrade_mode::UpgradeModeEnableError;
 use futures::{
     future::{FusedFuture, OptionFuture},
     FutureExt, StreamExt,
 };
+use nym_credential_verification::upgrade_mode::UpgradeModeEnableError;
 use nym_credential_verification::CredentialVerifier;
 use nym_credential_verification::{
     bandwidth_storage_manager::BandwidthStorageManager, ClientBandwidth,

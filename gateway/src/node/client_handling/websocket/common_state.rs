@@ -1,8 +1,8 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::node::upgrade_mode::common_state::UpgradeModeCommon;
 use crate::node::ActiveClientsStore;
+use nym_credential_verification::upgrade_mode::UpgradeModeDetails;
 use nym_credential_verification::{ecash::EcashManager, BandwidthFlushingBehaviourConfig};
 use nym_crypto::asymmetric::ed25519;
 use nym_gateway_storage::GatewayStorage;
@@ -30,7 +30,7 @@ pub(crate) struct CommonHandlerState {
     pub(crate) metrics_sender: MetricEventsSender,
     pub(crate) outbound_mix_sender: MixForwardingSender,
     pub(crate) active_clients_store: ActiveClientsStore,
-    pub(crate) upgrade_mode: UpgradeModeCommon,
+    pub(crate) upgrade_mode: UpgradeModeDetails,
 }
 
 impl CommonHandlerState {

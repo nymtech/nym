@@ -5,7 +5,6 @@ use crate::node::internal_service_providers::authenticator::{
     config::Config, error::AuthenticatorError, peer_manager::PeerManager,
     seen_credential_cache::SeenCredentialCache,
 };
-use crate::node::upgrade_mode::common_state::UpgradeModeCommon;
 use defguard_wireguard_rs::net::IpAddrMask;
 use defguard_wireguard_rs::{host::Peer, key::Key};
 use futures::StreamExt;
@@ -18,6 +17,7 @@ use nym_authenticator_requests::{
     v1, v2, v3, v4, v5, v6, AuthenticatorVersion, CURRENT_VERSION,
 };
 use nym_credential_verification::ecash::traits::EcashManager;
+use nym_credential_verification::upgrade_mode::UpgradeModeDetails;
 use nym_credential_verification::{
     bandwidth_storage_manager::BandwidthStorageManager, BandwidthFlushingBehaviourConfig,
     ClientBandwidth, CredentialVerifier,
@@ -77,7 +77,7 @@ pub(crate) struct MixnetListener {
 
     pub(crate) peer_manager: PeerManager,
 
-    pub(crate) upgrade_mode: UpgradeModeCommon,
+    pub(crate) upgrade_mode: UpgradeModeDetails,
 
     pub(crate) ecash_verifier: Arc<dyn EcashManager + Send + Sync>,
 
@@ -92,7 +92,7 @@ impl MixnetListener {
         free_private_network_ips: PrivateIPs,
         wireguard_gateway_data: WireguardGatewayData,
         mixnet_client: nym_sdk::mixnet::MixnetClient,
-        upgrade_mode: UpgradeModeCommon,
+        upgrade_mode: UpgradeModeDetails,
         ecash_verifier: Arc<dyn EcashManager + Send + Sync>,
     ) -> Self {
         let timeout_check_interval =

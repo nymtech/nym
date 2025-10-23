@@ -4,6 +4,7 @@
 use nym_gateway_requests::registration::handshake::error::HandshakeError;
 use nym_gateway_requests::{GatewayRequestsError, SimpleGatewayRequestsError};
 use std::io;
+use std::time::Duration;
 use thiserror::Error;
 use tungstenite::Error as WsError;
 
@@ -45,6 +46,9 @@ pub enum GatewayClientError {
         address: String,
         source: Box<WsError>,
     },
+
+    #[error("timeout when establishing connection: {address}, timeout: {timeout:?}")]
+    NetworkConnectionTimeout { address: String, timeout: Duration },
 
     #[error("no socket address for endpoint: {address}")]
     NoEndpointForConnection { address: String },

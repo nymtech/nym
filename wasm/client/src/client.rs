@@ -222,6 +222,7 @@ impl NymClientBuilder {
                 self.config.base.debug.topology.minimum_gateway_performance,
                 self.config.base.debug.topology.ignore_ingress_epoch_role,
                 &client_store,
+                None,
             )
             .await?;
         }

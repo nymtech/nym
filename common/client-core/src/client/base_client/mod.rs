@@ -65,6 +65,7 @@ use std::fmt::Debug;
 use std::os::raw::c_int as RawFd;
 use std::path::Path;
 use std::sync::Arc;
+use std::time::Duration;
 use time::OffsetDateTime;
 use tokio::sync::mpsc::Sender;
 use url::Url;
@@ -230,6 +231,7 @@ pub struct BaseClientBuilder<C, S: MixnetClientStorage> {
 
     #[cfg(unix)]
     connection_fd_callback: Option<Arc<dyn Fn(RawFd) + Send + Sync>>,
+    connect_timeout: Option<Duration>,
 
     derivation_material: Option<DerivationMaterial>,
 }
@@ -258,6 +260,7 @@ where
             setup_method: GatewaySetup::MustLoad { gateway_id: None },
             #[cfg(unix)]
             connection_fd_callback: None,
+            connect_timeout: None,
             derivation_material: None,
         }
     }
@@ -353,6 +356,11 @@ where
         callback: Arc<dyn Fn(RawFd) + Send + Sync>,
     ) -> Self {
         self.connection_fd_callback = Some(callback);
+        self
+    }
+
+    pub fn with_connect_timeout(mut self, timeout: Duration) -> Self {
+        self.connect_timeout = Some(timeout);
         self
     }
 
@@ -533,6 +541,7 @@ where
         packet_router: PacketRouter,
         stats_reporter: ClientStatsSender,
         #[cfg(unix)] connection_fd_callback: Option<Arc<dyn Fn(RawFd) + Send + Sync>>,
+        connect_timeout: Option<Duration>,
         shutdown_tracker: &ShutdownTracker,
     ) -> Result<GatewayClient<C, S::CredentialStore>, ClientCoreError>
     where
@@ -577,6 +586,7 @@ where
                     stats_reporter,
                     #[cfg(unix)]
                     connection_fd_callback,
+                    connect_timeout,
                     shutdown_tracker.clone_shutdown_token(),
                 )
             };
@@ -640,6 +650,7 @@ where
         packet_router: PacketRouter,
         stats_reporter: ClientStatsSender,
         #[cfg(unix)] connection_fd_callback: Option<Arc<dyn Fn(RawFd) + Send + Sync>>,
+        connect_timeout: Option<Duration>,
         shutdown_tracker: &ShutdownTracker,
     ) -> Result<Box<dyn GatewayTransceiver + Send>, ClientCoreError>
     where
@@ -672,6 +683,7 @@ where
             stats_reporter,
             #[cfg(unix)]
             connection_fd_callback,
+            connect_timeout,
             shutdown_tracker,
         )
         .await?;
@@ -1074,6 +1086,7 @@ where
             stats_reporter.clone(),
             #[cfg(unix)]
             self.connection_fd_callback,
+            self.connect_timeout,
             &shutdown_tracker.child_tracker(),
         )
         .await?;

@@ -188,6 +188,7 @@ where
         available_gateways,
         #[cfg(unix)]
         connection_fd_callback: None,
+        connect_timeout: None,
     };
 
     let init_details =

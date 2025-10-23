@@ -1,6 +1,7 @@
 use crate::error::GatewayClientError;
 
 use nym_http_api_client::HickoryDnsResolver;
+use std::time::Duration;
 #[cfg(unix)]
 use std::{
     os::fd::{AsRawFd, RawFd},
@@ -17,6 +18,7 @@ use std::net::SocketAddr;
 pub(crate) async fn connect_async(
     endpoint: &str,
     #[cfg(unix)] connection_fd_callback: Option<Arc<dyn Fn(RawFd) + Send + Sync>>,
+    connect_timeout: Option<Duration>,
 ) -> Result<(WebSocketStream<MaybeTlsStream<TcpStream>>, Response), GatewayClientError> {
     use tokio::net::TcpSocket;
 
@@ -64,7 +66,22 @@ pub(crate) async fn connect_async(
             callback.as_ref()(socket.as_raw_fd());
         }
 
-        match socket.connect(sock_addr).await {
+        let connect_res = if let Some(connect_timeout) = connect_timeout {
+            match tokio::time::timeout(connect_timeout, socket.connect(sock_addr)).await {
+                Ok(res) => res,
+                Err(_elapsed) => {
+                    stream = Err(GatewayClientError::NetworkConnectionTimeout {
+                        address: endpoint.to_owned(),
+                        timeout: connect_timeout,
+                    });
+                    continue;
+                }
+            }
+        } else {
+            socket.connect(sock_addr).await
+        };
+
+        match connect_res {
             Ok(s) => {
                 stream = Ok(s);
                 break;

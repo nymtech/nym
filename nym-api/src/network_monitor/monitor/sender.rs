@@ -190,6 +190,7 @@ impl PacketSender {
             ),
             #[cfg(unix)]
             None,
+            None,
             fresh_gateway_client_data.shutdown_token.clone(),
         );
 

@@ -25,6 +25,7 @@ nym-credential-verification = { path = "../credential-verification" }
 nym-crypto = { path = "../crypto", features = ["asymmetric"] }
 nym-gateway-storage = { path = "../gateway-storage" }
 nym-gateway-requests = { path = "../gateway-requests" }
+nym-metrics = { path = "../nym-metrics" }
 nym-network-defaults = { path = "../network-defaults" }
 nym-task = { path = "../task" }
 nym-wireguard-types = { path = "../wireguard-types" }

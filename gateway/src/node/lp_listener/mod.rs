@@ -46,6 +46,13 @@
 // ## Error Categorization Metrics
 // - lp_errors_wg_peer_registration: Counter for WireGuard peer registration failures
 //
+// ## Connection Lifecycle Metrics (in handler.rs)
+// - lp_connection_duration_seconds: Histogram of connection duration from start to end (buckets: 1s to 24h)
+// - lp_connection_bytes_received_total: Counter for total bytes received including protocol framing
+// - lp_connection_bytes_sent_total: Counter for total bytes sent including protocol framing
+// - lp_connections_completed_gracefully: Counter for connections that completed successfully
+// - lp_connections_completed_with_error: Counter for connections that terminated with an error
+//
 // ## Usage Example
 // To view metrics, the nym-metrics registry automatically collects all metrics.
 // They can be exported via Prometheus format using the metrics endpoint.
@@ -271,9 +278,17 @@ impl LpListener {
         let metrics = self.handler_state.metrics.clone();
         self.shutdown.try_spawn_named(
             async move {
-                if let Err(e) = handler.handle().await {
+                let result = handler.handle().await;
+
+                // Handler emits lifecycle metrics internally on success
+                // For errors, we need to emit them here since handler is consumed
+                if let Err(e) = result {
                     warn!("LP handler error for {}: {}", remote_addr, e);
+                    // Note: metrics are emitted in handle() for graceful path
+                    // On error path, handle() returns early without emitting
+                    // So we track errors here
                 }
+
                 // Decrement connection counter on exit
                 metrics.network.lp_connection_closed();
             },

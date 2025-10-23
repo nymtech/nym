@@ -39,6 +39,21 @@ const LP_REGISTRATION_DURATION_BUCKETS: &[f64] = &[
     30.0, // 30s
 ];
 
+// Histogram buckets for WireGuard peer controller channel latency
+// Measures time to send request and receive response from peer controller
+// Expected: 1ms-100ms for normal operations, up to 2s for slow conditions
+const WG_CONTROLLER_LATENCY_BUCKETS: &[f64] = &[
+    0.001, // 1ms
+    0.005, // 5ms
+    0.01,  // 10ms
+    0.05,  // 50ms
+    0.1,   // 100ms
+    0.25,  // 250ms
+    0.5,   // 500ms
+    1.0,   // 1s
+    2.0,   // 2s
+];
+
 /// Prepare bandwidth storage for a client
 async fn credential_storage_preparation(
     ecash_verifier: Arc<dyn EcashManager + Send + Sync>,
@@ -281,6 +296,7 @@ async fn register_wg_peer(
 
     // Allocate IP addresses for the client
     // TODO: Proper IP pool management - for now use random in private range
+    inc!("wg_ip_allocation_attempts");
     let last_octet = {
         let mut rng = rand::thread_rng();
         (rng.next_u32() % 254 + 1) as u8
@@ -288,6 +304,7 @@ async fn register_wg_peer(
 
     let client_ipv4 = Ipv4Addr::new(10, 1, 0, last_octet);
     let client_ipv6 = Ipv6Addr::new(0xfd00, 0, 0, 0, 0, 0, 0, last_octet as u16);
+    inc!("wg_ip_allocation_success");
 
     // Create WireGuard peer
     let mut peer = Peer::new(peer_key.clone());
@@ -303,7 +320,8 @@ async fn register_wg_peer(
     ];
     peer.persistent_keepalive_interval = Some(25);
 
-    // Send to WireGuard peer controller
+    // Send to WireGuard peer controller and track latency
+    let controller_start = std::time::Instant::now();
     let (tx, rx) = oneshot::channel();
     wg_controller
         .send(PeerControlRequest::AddPeer {
@@ -313,11 +331,22 @@ async fn register_wg_peer(
         .await
         .map_err(|e| GatewayError::InternalError(format!("Failed to send peer request: {}", e)))?;
 
-    rx.await
+    let result = rx
+        .await
         .map_err(|e| {
             GatewayError::InternalError(format!("Failed to receive peer response: {}", e))
         })?
-        .map_err(|e| GatewayError::InternalError(format!("Failed to add peer: {:?}", e)))?;
+        .map_err(|e| GatewayError::InternalError(format!("Failed to add peer: {:?}", e)));
+
+    // Record peer controller channel latency
+    let latency = controller_start.elapsed().as_secs_f64();
+    add_histogram_obs!(
+        "wg_peer_controller_channel_latency_seconds",
+        latency,
+        WG_CONTROLLER_LATENCY_BUCKETS
+    );
+
+    result?;
 
     // Store bandwidth allocation and get client_id
     let client_id = state

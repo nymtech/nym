@@ -37,13 +37,13 @@ pub fn sessions_for_tests() -> (LpSession, LpSession) {
 
     let keypair_1 = Keypair::default();
     let keypair_2 = Keypair::default();
-    let id = make_lp_id(&keypair_1.public_key(), &keypair_2.public_key());
+    let id = make_lp_id(keypair_1.public_key(), keypair_2.public_key());
 
     // Use consistent salt for deterministic tests
     let salt = [1u8; 32];
 
     // Initiator derives PSK from their perspective
-    let initiator_psk = derive_psk(keypair_1.private_key(), &keypair_2.public_key(), &salt);
+    let initiator_psk = derive_psk(keypair_1.private_key(), keypair_2.public_key(), &salt);
 
     let initiator_session = LpSession::new(
         id,
@@ -55,7 +55,7 @@ pub fn sessions_for_tests() -> (LpSession, LpSession) {
     .expect("Test session creation failed");
 
     // Responder derives same PSK from their perspective
-    let responder_psk = derive_psk(keypair_2.private_key(), &keypair_1.public_key(), &salt);
+    let responder_psk = derive_psk(keypair_2.private_key(), keypair_1.public_key(), &salt);
 
     let responder_session = LpSession::new(
         id,
@@ -67,6 +67,40 @@ pub fn sessions_for_tests() -> (LpSession, LpSession) {
     .expect("Test session creation failed");
 
     (initiator_session, responder_session)
+}
+
+/// Generates a deterministic u32 session ID for the Lewes Protocol
+/// based on two public keys. The order of the keys does not matter.
+///
+/// Uses a different internal delimiter than `make_conv_id` to avoid
+/// potential collisions if the same key pairs were used in both contexts.
+fn make_id(key1_bytes: &[u8], key2_bytes: &[u8], sep: u8) -> u32 {
+    let mut hasher = DefaultHasher::new();
+
+    // Ensure consistent order for hashing to make the ID order-independent.
+    // This guarantees make_lp_id(a, b) == make_lp_id(b, a).
+    if key1_bytes < key2_bytes {
+        hasher.write(key1_bytes);
+        // Use a delimiter specific to Lewes Protocol ID generation
+        // (0xCC chosen arbitrarily, could be any value different from 0xFF)
+        hasher.write_u8(sep);
+        hasher.write(key2_bytes);
+    } else {
+        hasher.write(key2_bytes);
+        hasher.write_u8(sep);
+        hasher.write(key1_bytes);
+    }
+
+    // Truncate the u64 hash result to u32
+    (hasher.finish() & 0xFFFF_FFFF) as u32
+}
+
+pub fn make_lp_id(key1_bytes: &PublicKey, key2_bytes: &PublicKey) -> u32 {
+    make_id(key1_bytes.as_bytes(), key2_bytes.as_bytes(), 0xCC)
+}
+
+pub fn make_conv_id(src: &[u8], dst: &[u8]) -> u32 {
+    make_id(src, dst, 0xFF)
 }
 
 #[cfg(test)]
@@ -184,12 +218,12 @@ mod tests {
         let remote_manager = SessionManager::new();
         let local_keypair = Keypair::default();
         let remote_keypair = Keypair::default();
-        let lp_id = make_lp_id(&local_keypair.public_key(), &remote_keypair.public_key());
+        let lp_id = make_lp_id(local_keypair.public_key(), remote_keypair.public_key());
         // Create a session via manager
         let _ = local_manager
             .create_session_state_machine(
                 &local_keypair,
-                &remote_keypair.public_key(),
+                remote_keypair.public_key(),
                 true,
                 &[2u8; 32],
             )
@@ -198,7 +232,7 @@ mod tests {
         let _ = remote_manager
             .create_session_state_machine(
                 &remote_keypair,
-                &local_keypair.public_key(),
+                local_keypair.public_key(),
                 false,
                 &[2u8; 32],
             )
@@ -292,38 +326,4 @@ mod tests {
         }
         // Do not mark received
     }
-}
-
-/// Generates a deterministic u32 session ID for the Lewes Protocol
-/// based on two public keys. The order of the keys does not matter.
-///
-/// Uses a different internal delimiter than `make_conv_id` to avoid
-/// potential collisions if the same key pairs were used in both contexts.
-fn make_id(key1_bytes: &[u8], key2_bytes: &[u8], sep: u8) -> u32 {
-    let mut hasher = DefaultHasher::new();
-
-    // Ensure consistent order for hashing to make the ID order-independent.
-    // This guarantees make_lp_id(a, b) == make_lp_id(b, a).
-    if key1_bytes < key2_bytes {
-        hasher.write(key1_bytes);
-        // Use a delimiter specific to Lewes Protocol ID generation
-        // (0xCC chosen arbitrarily, could be any value different from 0xFF)
-        hasher.write_u8(sep);
-        hasher.write(key2_bytes);
-    } else {
-        hasher.write(key2_bytes);
-        hasher.write_u8(sep);
-        hasher.write(key1_bytes);
-    }
-
-    // Truncate the u64 hash result to u32
-    (hasher.finish() & 0xFFFF_FFFF) as u32
-}
-
-pub fn make_lp_id(key1_bytes: &PublicKey, key2_bytes: &PublicKey) -> u32 {
-    make_id(key1_bytes.as_bytes(), key2_bytes.as_bytes(), 0xCC)
-}
-
-pub fn make_conv_id(src: &[u8], dst: &[u8]) -> u32 {
-    make_id(src, dst, 0xFF)
 }

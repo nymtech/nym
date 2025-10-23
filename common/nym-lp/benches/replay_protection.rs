@@ -10,7 +10,7 @@ fn bench_sequential_counters(c: &mut Criterion) {
     group.sample_size(1000);
 
     for size in [100, 1000, 10000] {
-        group.throughput(Throughput::Elements(size as u64));
+        group.throughput(Throughput::Elements(size));
 
         group.bench_with_input(
             BenchmarkId::new("sequential_counters", size),
@@ -69,7 +69,7 @@ fn bench_thread_safety(c: &mut Criterion) {
     group.sample_size(1000);
 
     for size in [100, 1000, 10000] {
-        group.throughput(Throughput::Elements(size as u64));
+        group.throughput(Throughput::Elements(size));
 
         group.bench_with_input(
             BenchmarkId::new("thread_safe_validator", size),
@@ -103,7 +103,7 @@ fn bench_window_sliding(c: &mut Criterion) {
     group.sample_size(100);
 
     for window_size in [128, 512, 1024] {
-        group.throughput(Throughput::Elements(window_size as u64));
+        group.throughput(Throughput::Elements(window_size));
 
         group.bench_with_input(
             BenchmarkId::new("window_sliding", window_size),
@@ -138,7 +138,7 @@ fn bench_core_operations(c: &mut Criterion) {
     group.sample_size(1000);
 
     // Create validators with different states
-    let mut empty_validator = ReceivingKeyCounterValidator::default();
+    let empty_validator = ReceivingKeyCounterValidator::default();
     let mut half_full_validator = ReceivingKeyCounterValidator::default();
     let mut full_validator = ReceivingKeyCounterValidator::default();
 
@@ -156,7 +156,8 @@ fn bench_core_operations(c: &mut Criterion) {
         b.iter(|| {
             let mut validator = empty_validator.clone();
             // Force window sliding that will clear bitmap
-            black_box(validator.mark_did_receive_branchless(2000).unwrap());
+            let _: () = validator.mark_did_receive_branchless(2000).unwrap();
+            black_box(());
         })
     });
 
@@ -164,7 +165,8 @@ fn bench_core_operations(c: &mut Criterion) {
         b.iter(|| {
             let mut validator = half_full_validator.clone();
             // Force window sliding that will clear bitmap
-            black_box(validator.mark_did_receive_branchless(2000).unwrap());
+            let _: () = validator.mark_did_receive_branchless(2000).unwrap();
+            black_box(());
         })
     });
 
@@ -172,7 +174,8 @@ fn bench_core_operations(c: &mut Criterion) {
         b.iter(|| {
             let mut validator = full_validator.clone();
             // Force window sliding that will clear bitmap
-            black_box(validator.mark_did_receive_branchless(2000).unwrap());
+            let _: () = validator.mark_did_receive_branchless(2000).unwrap();
+            black_box(());
         })
     });
 

@@ -260,17 +260,3 @@ async fn register_wg_peer(
         client_id,
     ))
 }
-
-// Helper function to convert bandwidth to ClientBandwidth if needed
-// This would integrate with the actual bandwidth controller
-#[allow(dead_code)]
-async fn store_client_bandwidth(
-    client_id: String,
-    bandwidth: i64,
-    _storage: &nym_gateway_storage::GatewayStorage,
-) -> Result<(), GatewayError> {
-    // This would integrate with the actual bandwidth storage
-    // For now, just log it
-    info!("Storing bandwidth {} for client {}", bandwidth, client_id);
-    Ok(())
-}

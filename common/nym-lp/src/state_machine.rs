@@ -462,7 +462,7 @@ mod tests {
         let psk = vec![0u8; 32];
         let remote_pub_key = resp_key.public_key();
 
-        let initiator_sm = LpStateMachine::new(true, &init_key, &remote_pub_key, &psk);
+        let initiator_sm = LpStateMachine::new(true, &init_key, remote_pub_key, &psk);
         assert!(initiator_sm.is_ok());
         let initiator_sm = initiator_sm.unwrap();
         assert!(matches!(
@@ -472,7 +472,7 @@ mod tests {
         let init_session = initiator_sm.session().unwrap();
         assert!(init_session.is_initiator());
 
-        let responder_sm = LpStateMachine::new(false, &resp_key, &init_key.public_key(), &psk);
+        let responder_sm = LpStateMachine::new(false, &resp_key, init_key.public_key(), &psk);
         assert!(responder_sm.is_ok());
         let responder_sm = responder_sm.unwrap();
         assert!(matches!(
@@ -483,7 +483,7 @@ mod tests {
         assert!(!resp_session.is_initiator());
 
         // Check lp_id is the same
-        let expected_lp_id = make_lp_id(&init_key.public_key(), remote_pub_key);
+        let expected_lp_id = make_lp_id(init_key.public_key(), remote_pub_key);
         assert_eq!(init_session.id(), expected_lp_id);
         assert_eq!(resp_session.id(), expected_lp_id);
     }
@@ -499,7 +499,7 @@ mod tests {
         let mut initiator = LpStateMachine::new(
             true, // is_initiator
             &init_key,
-            &resp_key.public_key(),
+            resp_key.public_key(),
             &psk.clone(),
         )
         .unwrap();
@@ -507,7 +507,7 @@ mod tests {
         let mut responder = LpStateMachine::new(
             false, // is_initiator
             &resp_key,
-            &init_key.public_key(),
+            init_key.public_key(),
             &psk,
         )
         .unwrap();

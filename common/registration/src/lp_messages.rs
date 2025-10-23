@@ -79,9 +79,10 @@ impl LpRegistrationRequest {
             ticket_type,
             mode: RegistrationMode::Dvpn,
             client_ip,
+            #[allow(clippy::expect_used)]
             timestamp: std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
+                .expect("System time before UNIX epoch")
                 .as_secs(),
         }
     }
@@ -139,7 +140,7 @@ mod tests {
             public_key: nym_crypto::asymmetric::x25519::PublicKey::from(nym_sphinx::PublicKey::from([1u8; 32])),
             private_ipv4: Ipv4Addr::new(10, 0, 0, 1),
             private_ipv6: Ipv6Addr::new(0xfc00, 0, 0, 0, 0, 0, 0, 1),
-            endpoint: "192.168.1.1:8080".parse().unwrap(),
+            endpoint: "192.168.1.1:8080".parse().expect("Valid test endpoint"),
         }
     }
 
@@ -162,7 +163,7 @@ mod tests {
         assert_eq!(response.allocated_bandwidth, allocated_bandwidth);
         assert_eq!(response.session_id, session_id);
 
-        let returned_gw_data = response.gateway_data.unwrap();
+        let returned_gw_data = response.gateway_data.expect("Gateway data should be present in success response");
         assert_eq!(returned_gw_data.public_key, gateway_data.public_key);
         assert_eq!(returned_gw_data.private_ipv4, gateway_data.private_ipv4);
         assert_eq!(returned_gw_data.private_ipv6, gateway_data.private_ipv6);

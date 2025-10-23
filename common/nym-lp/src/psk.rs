@@ -71,12 +71,12 @@ mod tests {
         // Derive PSK twice with same inputs
         let psk1 = derive_psk(
             keypair_1.private_key(),
-            &keypair_2.public_key(),
+            keypair_2.public_key(),
             &salt,
         );
         let psk2 = derive_psk(
             keypair_1.private_key(),
-            &keypair_2.public_key(),
+            keypair_2.public_key(),
             &salt,
         );
 
@@ -92,14 +92,14 @@ mod tests {
         // Client derives PSK
         let client_psk = derive_psk(
             keypair_1.private_key(),
-            &keypair_2.public_key(),
+            keypair_2.public_key(),
             &salt,
         );
 
         // Gateway derives PSK from their perspective
         let gateway_psk = derive_psk(
             keypair_2.private_key(),
-            &keypair_1.public_key(),
+            keypair_1.public_key(),
             &salt,
         );
 
@@ -117,8 +117,8 @@ mod tests {
         let salt1 = [1u8; 32];
         let salt2 = [2u8; 32];
 
-        let psk1 = derive_psk(keypair_1.private_key(), &keypair_2.public_key(), &salt1);
-        let psk2 = derive_psk(keypair_1.private_key(), &keypair_2.public_key(), &salt2);
+        let psk1 = derive_psk(keypair_1.private_key(), keypair_2.public_key(), &salt1);
+        let psk2 = derive_psk(keypair_1.private_key(), keypair_2.public_key(), &salt2);
 
         assert_ne!(psk1, psk2, "Different salts should produce different PSKs");
     }
@@ -130,8 +130,8 @@ mod tests {
         let keypair_3 = Keypair::default();
         let salt = [3u8; 32];
 
-        let psk1 = derive_psk(keypair_1.private_key(), &keypair_2.public_key(), &salt);
-        let psk2 = derive_psk(keypair_1.private_key(), &keypair_3.public_key(), &salt);
+        let psk1 = derive_psk(keypair_1.private_key(), keypair_2.public_key(), &salt);
+        let psk2 = derive_psk(keypair_1.private_key(), keypair_3.public_key(), &salt);
 
         assert_ne!(
             psk1, psk2,
@@ -145,7 +145,7 @@ mod tests {
         let keypair_2 = Keypair::default();
         let salt = [4u8; 32];
 
-        let psk = derive_psk(keypair_1.private_key(), &keypair_2.public_key(), &salt);
+        let psk = derive_psk(keypair_1.private_key(), keypair_2.public_key(), &salt);
 
         assert_eq!(psk.len(), 32, "PSK should be exactly 32 bytes");
     }

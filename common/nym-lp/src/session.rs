@@ -450,13 +450,12 @@ mod tests {
         let responder_session =
             create_handshake_test_session(false, &responder_keys, &initiator_keys.public, &psk);
 
-        let mut initiator_to_responder_msg = None;
         let mut responder_to_initiator_msg = None;
         let mut rounds = 0;
         const MAX_ROUNDS: usize = 10; // Safety break for the loop
 
         // Start by priming the initiator message
-        initiator_to_responder_msg = initiator_session.prepare_handshake_message().unwrap().ok();
+        let mut initiator_to_responder_msg = initiator_session.prepare_handshake_message().unwrap().ok();
         assert!(
             initiator_to_responder_msg.is_some(),
             "Initiator did not produce initial message"

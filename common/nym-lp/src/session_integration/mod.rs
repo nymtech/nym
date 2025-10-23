@@ -50,16 +50,16 @@ mod tests {
         // 2. Generate keys and PSK
         let peer_a_keys = Keypair::default();
         let peer_b_keys = Keypair::default();
-        let lp_id = make_lp_id(&peer_a_keys.public_key(), &peer_b_keys.public_key());
+        let lp_id = make_lp_id(peer_a_keys.public_key(), peer_b_keys.public_key());
         let psk = [1u8; 32]; // Define a pre-shared key for the test
 
         // 4. Create sessions using the pre-built Noise states
         let peer_a_sm = session_manager_1
-            .create_session_state_machine(&peer_a_keys, &peer_b_keys.public_key(), true, &psk)
+            .create_session_state_machine(&peer_a_keys, peer_b_keys.public_key(), true, &psk)
             .expect("Failed to create session A");
 
         let peer_b_sm = session_manager_2
-            .create_session_state_machine(&peer_b_keys, &peer_a_keys.public_key(), false, &psk)
+            .create_session_state_machine(&peer_b_keys, peer_a_keys.public_key(), false, &psk)
             .expect("Failed to create session B");
 
         // Verify session count
@@ -452,14 +452,14 @@ mod tests {
         // 2. Setup sessions and complete handshake (similar to test_full_session_flow)
         let peer_a_keys = Keypair::default();
         let peer_b_keys = Keypair::default();
-        let lp_id = make_lp_id(&peer_a_keys.public_key(), &peer_b_keys.public_key());
+        let lp_id = make_lp_id(peer_a_keys.public_key(), peer_b_keys.public_key());
         let psk = [2u8; 32];
 
         let peer_a_sm = session_manager_1
-            .create_session_state_machine(&peer_a_keys, &peer_b_keys.public_key(), true, &psk)
+            .create_session_state_machine(&peer_a_keys, peer_b_keys.public_key(), true, &psk)
             .unwrap();
         let peer_b_sm = session_manager_2
-            .create_session_state_machine(&peer_b_keys, &peer_a_keys.public_key(), false, &psk)
+            .create_session_state_machine(&peer_b_keys, peer_a_keys.public_key(), false, &psk)
             .unwrap();
 
         // Drive handshake to completion (simplified)
@@ -618,11 +618,11 @@ mod tests {
         let keys = Keypair::default();
         let psk = [3u8; 32];
 
-        let lp_id = make_lp_id(&keys.public_key(), &keys.public_key());
+        let lp_id = make_lp_id(keys.public_key(), keys.public_key());
 
         // 2. Create a session (using real noise state)
         let _session = session_manager
-            .create_session_state_machine(&keys, &keys.public_key(), true, &psk)
+            .create_session_state_machine(&keys, keys.public_key(), true, &psk)
             .expect("Failed to create session");
 
         // 3. Try to get a non-existent session
@@ -638,7 +638,7 @@ mod tests {
 
         // 5. Create and immediately remove a session
         let _temp_session = session_manager
-            .create_session_state_machine(&keys, &keys.public_key(), true, &psk)
+            .create_session_state_machine(&keys, keys.public_key(), true, &psk)
             .expect("Failed to create temp session");
 
         assert!(
@@ -717,15 +717,15 @@ mod tests {
         // 2. Generate keys and PSK
         let peer_a_keys = Keypair::default();
         let peer_b_keys = Keypair::default();
-        let lp_id = make_lp_id(&peer_a_keys.public_key(), &peer_b_keys.public_key());
+        let lp_id = make_lp_id(peer_a_keys.public_key(), peer_b_keys.public_key());
         let psk = [1u8; 32];
 
         // 3. Create sessions state machines
         assert!(session_manager_1
-            .create_session_state_machine(&peer_a_keys, &peer_b_keys.public_key(), true, &psk) // Initiator
+            .create_session_state_machine(&peer_a_keys, peer_b_keys.public_key(), true, &psk) // Initiator
             .is_ok());
         assert!(session_manager_2
-            .create_session_state_machine(&peer_b_keys, &peer_a_keys.public_key(), false, &psk) // Responder
+            .create_session_state_machine(&peer_b_keys, peer_a_keys.public_key(), false, &psk) // Responder
             .is_ok());
 
         assert_eq!(session_manager_1.session_count(), 1);

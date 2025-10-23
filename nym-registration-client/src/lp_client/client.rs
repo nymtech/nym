@@ -10,10 +10,10 @@ use bytes::BytesMut;
 use nym_bandwidth_controller::{BandwidthTicketProvider, DEFAULT_TICKETS_TO_SPEND};
 use nym_credentials_interface::TicketType;
 use nym_crypto::asymmetric::{ed25519, x25519};
+use nym_lp::LpPacket;
 use nym_lp::codec::{parse_lp_packet, serialize_lp_packet};
 use nym_lp::keypair::{Keypair, PublicKey};
 use nym_lp::state_machine::{LpAction, LpInput, LpStateMachine};
-use nym_lp::LpPacket;
 use nym_registration_common::{GatewayData, LpRegistrationRequest, LpRegistrationResponse};
 use nym_wireguard_types::PeerPublicKey;
 use std::net::{IpAddr, SocketAddr};
@@ -141,10 +141,7 @@ impl LpRegistrationClient {
             address: self.gateway_lp_address.to_string(),
             source: std::io::Error::new(
                 std::io::ErrorKind::TimedOut,
-                format!(
-                    "Connection timeout after {:?}",
-                    self.config.connect_timeout
-                ),
+                format!("Connection timeout after {:?}", self.config.connect_timeout),
             ),
         })?
         .map_err(|source| LpClientError::TcpConnection {
@@ -214,14 +211,17 @@ impl LpRegistrationClient {
     /// Timeout applied in nym-102.
     pub async fn perform_handshake(&mut self) -> Result<()> {
         // Apply handshake timeout (nym-102)
-        tokio::time::timeout(self.config.handshake_timeout, self.perform_handshake_inner())
-            .await
-            .map_err(|_| {
-                LpClientError::Transport(format!(
-                    "Handshake timeout after {:?}",
-                    self.config.handshake_timeout
-                ))
-            })?
+        tokio::time::timeout(
+            self.config.handshake_timeout,
+            self.perform_handshake_inner(),
+        )
+        .await
+        .map_err(|_| {
+            LpClientError::Transport(format!(
+                "Handshake timeout after {:?}",
+                self.config.handshake_timeout
+            ))
+        })?
     }
 
     /// Internal handshake implementation without timeout.
@@ -239,7 +239,10 @@ impl LpRegistrationClient {
         );
         let salt = client_hello_data.salt;
 
-        tracing::trace!("Generated ClientHello with timestamp: {}", client_hello_data.extract_timestamp());
+        tracing::trace!(
+            "Generated ClientHello with timestamp: {}",
+            client_hello_data.extract_timestamp()
+        );
 
         // Step 2: Send ClientHello as first packet (before Noise handshake)
         let client_hello_header = nym_lp::packet::LpHeader::new(
@@ -328,10 +331,9 @@ impl LpRegistrationClient {
 
         // Send 4-byte length prefix (u32 big-endian)
         let len = packet_buf.len() as u32;
-        stream
-            .write_all(&len.to_be_bytes())
-            .await
-            .map_err(|e| LpClientError::Transport(format!("Failed to send packet length: {}", e)))?;
+        stream.write_all(&len.to_be_bytes()).await.map_err(|e| {
+            LpClientError::Transport(format!("Failed to send packet length: {}", e))
+        })?;
 
         // Send the actual packet data
         stream
@@ -345,7 +347,10 @@ impl LpRegistrationClient {
             .await
             .map_err(|e| LpClientError::Transport(format!("Failed to flush stream: {}", e)))?;
 
-        tracing::trace!("Sent LP packet ({} bytes + 4 byte header)", packet_buf.len());
+        tracing::trace!(
+            "Sent LP packet ({} bytes + 4 byte header)",
+            packet_buf.len()
+        );
         Ok(())
     }
 
@@ -361,10 +366,9 @@ impl LpRegistrationClient {
     async fn receive_packet(stream: &mut TcpStream) -> Result<LpPacket> {
         // Read 4-byte length prefix (u32 big-endian)
         let mut len_buf = [0u8; 4];
-        stream
-            .read_exact(&mut len_buf)
-            .await
-            .map_err(|e| LpClientError::Transport(format!("Failed to read packet length: {}", e)))?;
+        stream.read_exact(&mut len_buf).await.map_err(|e| {
+            LpClientError::Transport(format!("Failed to read packet length: {}", e))
+        })?;
 
         let packet_len = u32::from_be_bytes(len_buf) as usize;
 
@@ -388,10 +392,7 @@ impl LpRegistrationClient {
         let packet = parse_lp_packet(&packet_buf)
             .map_err(|e| LpClientError::Transport(format!("Failed to parse packet: {}", e)))?;
 
-        tracing::trace!(
-            "Received LP packet ({} bytes + 4 byte header)",
-            packet_len
-        );
+        tracing::trace!("Received LP packet ({} bytes + 4 byte header)", packet_len);
         Ok(packet)
     }
 
@@ -457,12 +458,8 @@ impl LpRegistrationClient {
 
         // 2. Build registration request
         let wg_public_key = PeerPublicKey::new(wg_keypair.public_key().to_bytes().into());
-        let request = LpRegistrationRequest::new_dvpn(
-            wg_public_key,
-            credential,
-            ticket_type,
-            self.client_ip,
-        );
+        let request =
+            LpRegistrationRequest::new_dvpn(wg_public_key, credential, ticket_type, self.client_ip);
 
         tracing::trace!("Built registration request: {:?}", request);
 
@@ -592,19 +589,18 @@ impl LpRegistrationClient {
                 return Err(LpClientError::Transport(format!(
                     "Unexpected action when receiving registration response: {:?}",
                     other
-                )))
+                )));
             }
         };
 
         // 4. Deserialize the response
-        let response: LpRegistrationResponse = bincode::deserialize(&response_data).map_err(
-            |e| {
+        let response: LpRegistrationResponse =
+            bincode::deserialize(&response_data).map_err(|e| {
                 LpClientError::ReceiveRegistrationResponse(format!(
                     "Failed to deserialize registration response: {}",
                     e
                 ))
-            },
-        )?;
+            })?;
 
         tracing::debug!(
             "Received registration response: success={}, session_id={}",
@@ -618,9 +614,7 @@ impl LpRegistrationClient {
                 .error
                 .unwrap_or_else(|| "Unknown error".to_string());
             tracing::warn!("Gateway rejected registration: {}", error_msg);
-            return Err(LpClientError::RegistrationRejected {
-                reason: error_msg,
-            });
+            return Err(LpClientError::RegistrationRejected { reason: error_msg });
         }
 
         // Extract gateway_data
@@ -676,9 +670,7 @@ impl LpRegistrationClient {
 
         // Ensure handshake completed
         let state_machine = self.state_machine.ok_or_else(|| {
-            LpClientError::Transport(
-                "Cannot create transport: handshake not completed".to_string(),
-            )
+            LpClientError::Transport("Cannot create transport: handshake not completed".to_string())
         })?;
 
         // Create and return transport (validates state is Transport)

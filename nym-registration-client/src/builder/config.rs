@@ -366,7 +366,10 @@ impl BuilderConfigBuilder {
 
     /// Legacy method for backward compatibility
     /// Use `wireguard_mode()` or `mixnet_mode()` instead
-    #[deprecated(since = "0.1.0", note = "Use `mode()`, `wireguard_mode()`, or `mixnet_mode()` instead")]
+    #[deprecated(
+        since = "0.1.0",
+        note = "Use `mode()`, `wireguard_mode()`, or `mixnet_mode()` instead"
+    )]
     pub fn two_hops(self, two_hops: bool) -> Self {
         if two_hops {
             self.wireguard_mode()

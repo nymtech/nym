@@ -69,16 +69,8 @@ mod tests {
         let salt = [1u8; 32];
 
         // Derive PSK twice with same inputs
-        let psk1 = derive_psk(
-            keypair_1.private_key(),
-            keypair_2.public_key(),
-            &salt,
-        );
-        let psk2 = derive_psk(
-            keypair_1.private_key(),
-            keypair_2.public_key(),
-            &salt,
-        );
+        let psk1 = derive_psk(keypair_1.private_key(), keypair_2.public_key(), &salt);
+        let psk2 = derive_psk(keypair_1.private_key(), keypair_2.public_key(), &salt);
 
         assert_eq!(psk1, psk2, "Same inputs should produce same PSK");
     }
@@ -90,18 +82,10 @@ mod tests {
         let salt = [2u8; 32];
 
         // Client derives PSK
-        let client_psk = derive_psk(
-            keypair_1.private_key(),
-            keypair_2.public_key(),
-            &salt,
-        );
+        let client_psk = derive_psk(keypair_1.private_key(), keypair_2.public_key(), &salt);
 
         // Gateway derives PSK from their perspective
-        let gateway_psk = derive_psk(
-            keypair_2.private_key(),
-            keypair_1.public_key(),
-            &salt,
-        );
+        let gateway_psk = derive_psk(keypair_2.private_key(), keypair_1.public_key(), &salt);
 
         assert_eq!(
             client_psk, gateway_psk,

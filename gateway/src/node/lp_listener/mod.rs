@@ -1,6 +1,55 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+// LP (Lewes Protocol) Metrics Documentation
+//
+// This module implements comprehensive metrics collection for LP operations using nym-metrics macros.
+// All metrics are automatically prefixed with the package name (nym_gateway) when registered.
+//
+// ## Connection Metrics (via NetworkStats in nym-node-metrics)
+// - active_lp_connections: Gauge tracking current active LP connections (incremented on accept, decremented on close)
+//
+// ## Handler Metrics (in handler.rs)
+// - lp_connections_total: Counter for total LP connections handled
+// - lp_client_hello_failed: Counter for ClientHello failures (timestamp validation, protocol errors)
+// - lp_handshakes_success: Counter for successful handshake completions
+// - lp_handshakes_failed: Counter for failed handshakes
+// - lp_handshake_duration_seconds: Histogram of handshake durations (buckets: 10ms to 10s)
+// - lp_timestamp_validation_accepted: Counter for timestamp validations that passed
+// - lp_timestamp_validation_rejected: Counter for timestamp validations that failed
+// - lp_errors_handshake: Counter for handshake errors
+// - lp_errors_send_response: Counter for errors sending registration responses
+// - lp_errors_timestamp_too_old: Counter for ClientHello timestamps that are too old
+// - lp_errors_timestamp_too_far_future: Counter for ClientHello timestamps that are too far in the future
+//
+// ## Registration Metrics (in registration.rs)
+// - lp_registration_attempts_total: Counter for all registration attempts
+// - lp_registration_success_total: Counter for successful registrations (any mode)
+// - lp_registration_failed_total: Counter for failed registrations (any mode)
+// - lp_registration_failed_timestamp: Counter for registrations rejected due to invalid timestamp
+// - lp_registration_duration_seconds: Histogram of registration durations (buckets: 100ms to 30s)
+//
+// ## Mode-Specific Registration Metrics (in registration.rs)
+// - lp_registration_dvpn_attempts: Counter for dVPN mode registration attempts
+// - lp_registration_dvpn_success: Counter for successful dVPN registrations
+// - lp_registration_dvpn_failed: Counter for failed dVPN registrations
+// - lp_registration_mixnet_attempts: Counter for Mixnet mode registration attempts
+// - lp_registration_mixnet_success: Counter for successful Mixnet registrations
+// - lp_registration_mixnet_failed: Counter for failed Mixnet registrations
+//
+// ## Credential Verification Metrics (in registration.rs)
+// - lp_credential_verification_attempts: Counter for credential verification attempts
+// - lp_credential_verification_success: Counter for successful credential verifications
+// - lp_credential_verification_failed: Counter for failed credential verifications
+// - lp_bandwidth_allocated_bytes_total: Counter for total bandwidth allocated (in bytes)
+//
+// ## Error Categorization Metrics
+// - lp_errors_wg_peer_registration: Counter for WireGuard peer registration failures
+//
+// ## Usage Example
+// To view metrics, the nym-metrics registry automatically collects all metrics.
+// They can be exported via Prometheus format using the metrics endpoint.
+
 use crate::error::GatewayError;
 use crate::node::ActiveClientsStore;
 use nym_crypto::asymmetric::ed25519;
@@ -91,7 +140,8 @@ fn default_timestamp_tolerance_secs() -> u64 {
 #[derive(Clone)]
 pub struct LpHandlerState {
     /// Ecash verifier for bandwidth credentials
-    pub ecash_verifier: Arc<dyn nym_credential_verification::ecash::traits::EcashManager + Send + Sync>,
+    pub ecash_verifier:
+        Arc<dyn nym_credential_verification::ecash::traits::EcashManager + Send + Sync>,
 
     /// Storage backend for persistence
     pub storage: GatewayStorage,
@@ -151,18 +201,21 @@ impl LpListener {
     }
 
     pub async fn run(&mut self) -> Result<(), GatewayError> {
-        let listener = TcpListener::bind(self.control_address)
-            .await
-            .map_err(|e| {
-                error!("Failed to bind LP listener to {}: {}", self.control_address, e);
-                GatewayError::ListenerBindFailure {
-                    address: self.control_address.to_string(),
-                    source: Box::new(e),
-                }
-            })?;
+        let listener = TcpListener::bind(self.control_address).await.map_err(|e| {
+            error!(
+                "Failed to bind LP listener to {}: {}",
+                self.control_address, e
+            );
+            GatewayError::ListenerBindFailure {
+                address: self.control_address.to_string(),
+                source: Box::new(e),
+            }
+        })?;
 
-        info!("LP listener started on {} (data port reserved: {})",
-              self.control_address, self.data_port);
+        info!(
+            "LP listener started on {} (data port reserved: {})",
+            self.control_address, self.data_port
+        );
 
         let shutdown_token = self.shutdown.clone_shutdown_token();
 
@@ -203,18 +256,17 @@ impl LpListener {
             return;
         }
 
-        debug!("Accepting LP connection from {} ({} active connections)",
-               remote_addr, active_connections);
+        debug!(
+            "Accepting LP connection from {} ({} active connections)",
+            remote_addr, active_connections
+        );
 
         // Increment connection counter
         self.handler_state.metrics.network.new_lp_connection();
 
         // Spawn handler task
-        let handler = handler::LpConnectionHandler::new(
-            stream,
-            remote_addr,
-            self.handler_state.clone(),
-        );
+        let handler =
+            handler::LpConnectionHandler::new(stream, remote_addr, self.handler_state.clone());
 
         let metrics = self.handler_state.metrics.clone();
         self.shutdown.try_spawn_named(
@@ -230,6 +282,9 @@ impl LpListener {
     }
 
     fn active_lp_connections(&self) -> usize {
-        self.handler_state.metrics.network.active_lp_connections_count()
+        self.handler_state
+            .metrics
+            .network
+            .active_lp_connections_count()
     }
 }

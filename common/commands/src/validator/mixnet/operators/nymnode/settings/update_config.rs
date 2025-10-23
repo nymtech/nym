@@ -20,7 +20,10 @@ pub struct Args {
     #[clap(long)]
     pub restore_default_http_port: bool,
 
-    #[clap(long, help = "LP (Lewes Protocol) listener address (format: host:port)")]
+    #[clap(
+        long,
+        help = "LP (Lewes Protocol) listener address (format: host:port)"
+    )]
     pub lp_address: Option<String>,
 
     // equivalent to setting `lp_address` to `None`

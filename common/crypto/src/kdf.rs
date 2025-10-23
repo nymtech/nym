@@ -52,7 +52,10 @@ mod tests {
         let key1 = derive_key_blake3("context1", key_material, salt);
         let key2 = derive_key_blake3("context2", key_material, salt);
 
-        assert_ne!(key1, key2, "Different contexts should produce different keys");
+        assert_ne!(
+            key1, key2,
+            "Different contexts should produce different keys"
+        );
     }
 
     #[test]
@@ -74,7 +77,10 @@ mod tests {
         let key1 = derive_key_blake3(context, b"secret1", salt);
         let key2 = derive_key_blake3(context, b"secret2", salt);
 
-        assert_ne!(key1, key2, "Different key material should produce different keys");
+        assert_ne!(
+            key1, key2,
+            "Different key material should produce different keys"
+        );
     }
 
     #[test]

@@ -5840,6 +5840,7 @@ dependencies = [
  "nym-ip-packet-router",
  "nym-kcp",
  "nym-lp",
+ "nym-metrics",
  "nym-mixnet-client",
  "nym-network-defaults",
  "nym-network-requester",

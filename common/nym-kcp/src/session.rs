@@ -169,7 +169,7 @@ impl KcpSession {
             let size = std::cmp::min(self.mtu, data.len());
             let chunk = &data[..size];
 
-            // AIDEV-NOTE: KCP fragment numbering is REVERSED - last fragment has frg=0,
+            // KCP fragment numbering is REVERSED - last fragment has frg=0,
             // first has frg=count-1. This allows receiver to know total count from first packet.
             // In KCP, `frg` is set to the remaining fragments in reverse order.
             // i.e., the last fragment has frg=0, the first has frg=count-1.

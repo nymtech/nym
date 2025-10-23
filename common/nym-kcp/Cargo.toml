@@ -21,7 +21,7 @@ byte_string = "1.0"
 bytes = { workspace = true }
 thiserror = { workspace = true }
 log = { workspace = true }
-ansi_term = "0.12"
+ansi_term = { workspace = true }
 
 [dev-dependencies]
 env_logger = "0.11"

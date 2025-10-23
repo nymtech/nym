@@ -211,6 +211,7 @@ impl GatewayTasksConfig {
             ws_bind_address: SocketAddr::new(in6addr_any_init(), DEFAULT_WS_PORT),
             announce_ws_port: None,
             announce_wss_port: None,
+            lp: Default::default(),
             debug: Default::default(),
         }
     }

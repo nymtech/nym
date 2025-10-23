@@ -32,7 +32,7 @@ use zeroize::Zeroizing;
 
 pub(crate) mod client_handling;
 pub(crate) mod internal_service_providers;
-pub(crate) mod lp_listener;
+pub mod lp_listener;
 mod stale_data_cleaner;
 
 use crate::config::Config;

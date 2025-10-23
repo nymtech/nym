@@ -19,6 +19,13 @@ pub struct Args {
     // equivalent to setting `custom_http_port` to `None`
     #[clap(long)]
     pub restore_default_http_port: bool,
+
+    #[clap(long, help = "LP (Lewes Protocol) listener address (format: host:port)")]
+    pub lp_address: Option<String>,
+
+    // equivalent to setting `lp_address` to `None`
+    #[clap(long)]
+    pub restore_default_lp_address: bool,
 }
 
 pub async fn update_config(args: Args, client: SigningClient) {
@@ -39,6 +46,8 @@ pub async fn update_config(args: Args, client: SigningClient) {
         host: args.host,
         custom_http_port: args.custom_http_port,
         restore_default_http_port: args.restore_default_http_port,
+        lp_address: args.lp_address,
+        restore_default_lp_address: args.restore_default_lp_address,
     };
 
     let res = client

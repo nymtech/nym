@@ -2,51 +2,18 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::node::UserAgent;
-use futures::channel::mpsc::{unbounded, UnboundedReceiver, UnboundedSender};
+use futures::channel::mpsc::unbounded;
 use futures::StreamExt;
-use nym_credential_verification::upgrade_mode::UpgradeModeState;
+use nym_credential_verification::upgrade_mode::{
+    CheckRequest, UpgradeModeCheckRequestReceiver, UpgradeModeCheckRequestSender, UpgradeModeState,
+};
 use nym_task::ShutdownToken;
 use nym_upgrade_mode_check::attempt_retrieve_attestation;
-use std::sync::Arc;
 use std::time::Duration;
-use tokio::sync::Notify;
 use tokio::task::JoinHandle;
 use tokio::time::Instant;
 use tracing::{debug, error, info, trace};
 use url::Url;
-
-// the idea behind this is as follows:
-// it's been relatively a long time since the watcher last performed its checks (since it's in 'regular' mode)
-// and some client has just sent a JWT. we have to retrieve most recent information in case upgrade mode
-// has just been enabled, and we haven't learned about it yet
-#[derive(Clone)]
-pub struct UpgradeModeCheckRequestSender(Option<UnboundedSender<CheckRequest>>);
-
-impl UpgradeModeCheckRequestSender {
-    pub fn new_empty() -> Self {
-        Self(None)
-    }
-
-    pub(crate) fn send_request(&self, on_done: Arc<Notify>) {
-        let Some(ref inner) = self.0 else {
-            // make sure the caller gets notified so it doesn't wait forever
-            on_done.notify_waiters();
-            return;
-        };
-
-        if let Err(not_sent) = inner.unbounded_send(CheckRequest { on_done }) {
-            debug!("failed to send upgrade mode check request - {not_sent}");
-            // make sure the caller gets notified so it doesn't wait forever
-            not_sent.into_inner().on_done.notify_waiters();
-        }
-    }
-}
-
-pub(crate) type UpgradeModeCheckRequestReceiver = UnboundedReceiver<CheckRequest>;
-
-pub(crate) struct CheckRequest {
-    on_done: Arc<Notify>,
-}
 
 pub struct UpgradeModeWatcher {
     // default polling interval
@@ -86,7 +53,7 @@ impl UpgradeModeWatcher {
             expedited_poll_interval,
             min_staleness_recheck,
             attestation_url,
-            check_request_sender: UpgradeModeCheckRequestSender(Some(tx)),
+            check_request_sender: UpgradeModeCheckRequestSender::new(tx),
             check_request_receiver: rx,
             upgrade_mode_state,
             user_agent,
@@ -133,7 +100,7 @@ impl UpgradeModeWatcher {
         }
 
         for request in requests {
-            request.on_done.notify_waiters();
+            request.finalize()
         }
     }
 

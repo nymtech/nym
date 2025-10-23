@@ -11,8 +11,8 @@ use nym_task::ShutdownTracker;
 use nym_wireguard::WireguardGatewayData;
 use std::{net::IpAddr, path::Path, sync::Arc, time::SystemTime};
 
-use crate::node::upgrade_mode::common_state::UpgradeModeCommon;
 pub use config::Config;
+use nym_credential_verification::upgrade_mode::UpgradeModeDetails;
 
 pub mod config;
 pub mod error;
@@ -35,7 +35,7 @@ impl OnStartData {
 pub struct Authenticator {
     #[allow(unused)]
     config: Config,
-    upgrade_mode_state: UpgradeModeCommon,
+    upgrade_mode_state: UpgradeModeDetails,
     wait_for_gateway: bool,
     custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
     custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send + Sync>>,
@@ -49,7 +49,7 @@ pub struct Authenticator {
 impl Authenticator {
     pub fn new(
         config: Config,
-        upgrade_mode_state: UpgradeModeCommon,
+        upgrade_mode_state: UpgradeModeDetails,
         wireguard_gateway_data: WireguardGatewayData,
         used_private_network_ips: Vec<IpAddr>,
         ecash_verifier: Arc<EcashManager>,

@@ -20,7 +20,10 @@ pub mod transceiver;
 
 // We remind ourselves that 32 x 32kb = 1024kb, a reasonable size for a network buffer.
 pub const MIX_MESSAGE_RECEIVER_BUFFER_SIZE: usize = 32;
-const MAX_FAILURE_COUNT: usize = 100;
+
+/// Reduced from 100 to 20 to fail fast (~1-2 seconds instead of ~6 seconds).
+/// If we can't send 20 packets in a row, the gateway is unreachable.
+const MAX_FAILURE_COUNT: usize = 20;
 
 // that's also disgusting.
 pub struct Empty;

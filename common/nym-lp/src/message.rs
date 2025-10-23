@@ -12,6 +12,54 @@ pub struct ClientHelloData {
     pub client_lp_public_key: [u8; 32],
     /// Protocol version for future compatibility
     pub protocol_version: u8,
+    /// Salt for PSK derivation (32 bytes: 8-byte timestamp + 24-byte nonce)
+    pub salt: [u8; 32],
+}
+
+impl ClientHelloData {
+    /// Generates a new ClientHelloData with fresh salt.
+    ///
+    /// Salt format: 8 bytes timestamp (u64 LE) + 24 bytes random nonce
+    ///
+    /// # Arguments
+    /// * `client_lp_public_key` - Client's x25519 public key
+    /// * `protocol_version` - Protocol version number
+    pub fn new_with_fresh_salt(
+        client_lp_public_key: [u8; 32],
+        protocol_version: u8,
+    ) -> Self {
+        use std::time::{SystemTime, UNIX_EPOCH};
+
+        // Generate salt: timestamp + nonce
+        let mut salt = [0u8; 32];
+
+        // First 8 bytes: current timestamp as u64 little-endian
+        let timestamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("System time before UNIX epoch")
+            .as_secs();
+        salt[..8].copy_from_slice(&timestamp.to_le_bytes());
+
+        // Last 24 bytes: random nonce
+        use rand::RngCore;
+        rand::thread_rng().fill_bytes(&mut salt[8..]);
+
+        Self {
+            client_lp_public_key,
+            protocol_version,
+            salt,
+        }
+    }
+
+    /// Extracts the timestamp from the salt.
+    ///
+    /// # Returns
+    /// Unix timestamp in seconds
+    pub fn extract_timestamp(&self) -> u64 {
+        let mut timestamp_bytes = [0u8; 8];
+        timestamp_bytes.copy_from_slice(&self.salt[..8]);
+        u64::from_le_bytes(timestamp_bytes)
+    }
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -87,7 +135,7 @@ impl LpMessage {
             LpMessage::Busy => 0,
             LpMessage::Handshake(payload) => payload.len(),
             LpMessage::EncryptedData(payload) => payload.len(),
-            LpMessage::ClientHello(_) => 33, // 32 bytes key + 1 byte version
+            LpMessage::ClientHello(_) => 65, // 32 bytes key + 1 byte version + 32 bytes salt
         }
     }
 
@@ -154,5 +202,48 @@ mod tests {
             }
             _ => panic!("Wrong message type"),
         }
+    }
+
+    #[test]
+    fn test_client_hello_salt_generation() {
+        let client_key = [1u8; 32];
+        let hello1 = ClientHelloData::new_with_fresh_salt(client_key, 1);
+        let hello2 = ClientHelloData::new_with_fresh_salt(client_key, 1);
+
+        // Different salts should be generated
+        assert_ne!(hello1.salt, hello2.salt);
+
+        // But timestamps should be very close (within 1 second)
+        let ts1 = hello1.extract_timestamp();
+        let ts2 = hello2.extract_timestamp();
+        assert!((ts1 as i64 - ts2 as i64).abs() <= 1);
+    }
+
+    #[test]
+    fn test_client_hello_timestamp_extraction() {
+        let client_key = [2u8; 32];
+        let hello = ClientHelloData::new_with_fresh_salt(client_key, 1);
+
+        let timestamp = hello.extract_timestamp();
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+
+        // Timestamp should be within 1 second of now
+        assert!((timestamp as i64 - now as i64).abs() <= 1);
+    }
+
+    #[test]
+    fn test_client_hello_salt_format() {
+        let client_key = [3u8; 32];
+        let hello = ClientHelloData::new_with_fresh_salt(client_key, 1);
+
+        // First 8 bytes should be non-zero timestamp
+        let timestamp_bytes = &hello.salt[..8];
+        assert_ne!(timestamp_bytes, &[0u8; 8]);
+
+        // Salt should be 32 bytes total
+        assert_eq!(hello.salt.len(), 32);
     }
 }

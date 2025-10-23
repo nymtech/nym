@@ -392,4 +392,185 @@ mod tests {
     // Test multiple packets simulation isn't relevant for datagram parsing
     // #[test]
     // fn test_multiple_packets_in_buffer() { ... }
+
+    // === ClientHello Serialization Tests ===
+
+    #[test]
+    fn test_serialize_parse_client_hello() {
+        use crate::message::ClientHelloData;
+
+        let mut dst = BytesMut::new();
+
+        // Create ClientHelloData
+        let client_key = [42u8; 32];
+        let protocol_version = 1u8;
+        let salt = [99u8; 32];
+        let hello_data = ClientHelloData {
+            client_lp_public_key: client_key,
+            protocol_version,
+            salt,
+        };
+
+        // Create a ClientHello message packet
+        let packet = LpPacket {
+            header: LpHeader {
+                protocol_version: 1,
+                session_id: 42,
+                counter: 123,
+            },
+            message: LpMessage::ClientHello(hello_data.clone()),
+            trailer: [0; TRAILER_LEN],
+        };
+
+        // Serialize the packet
+        serialize_lp_packet(&packet, &mut dst).unwrap();
+
+        // Parse the packet
+        let decoded = parse_lp_packet(&dst).unwrap();
+
+        // Verify the packet fields
+        assert_eq!(decoded.header.protocol_version, 1);
+        assert_eq!(decoded.header.session_id, 42);
+        assert_eq!(decoded.header.counter, 123);
+
+        // Verify message type and data
+        match decoded.message {
+            LpMessage::ClientHello(decoded_data) => {
+                assert_eq!(decoded_data.client_lp_public_key, client_key);
+                assert_eq!(decoded_data.protocol_version, protocol_version);
+                assert_eq!(decoded_data.salt, salt);
+            }
+            _ => panic!("Expected ClientHello message"),
+        }
+        assert_eq!(decoded.trailer, [0; TRAILER_LEN]);
+    }
+
+    #[test]
+    fn test_serialize_parse_client_hello_with_fresh_salt() {
+        use crate::message::ClientHelloData;
+
+        let mut dst = BytesMut::new();
+
+        // Create ClientHelloData with fresh salt
+        let client_key = [7u8; 32];
+        let hello_data = ClientHelloData::new_with_fresh_salt(client_key, 1);
+
+        // Create a ClientHello message packet
+        let packet = LpPacket {
+            header: LpHeader {
+                protocol_version: 1,
+                session_id: 100,
+                counter: 200,
+            },
+            message: LpMessage::ClientHello(hello_data.clone()),
+            trailer: [55; TRAILER_LEN],
+        };
+
+        // Serialize the packet
+        serialize_lp_packet(&packet, &mut dst).unwrap();
+
+        // Parse the packet
+        let decoded = parse_lp_packet(&dst).unwrap();
+
+        // Verify message type and data
+        match decoded.message {
+            LpMessage::ClientHello(decoded_data) => {
+                assert_eq!(decoded_data.client_lp_public_key, client_key);
+                assert_eq!(decoded_data.protocol_version, 1);
+                assert_eq!(decoded_data.salt, hello_data.salt);
+
+                // Verify timestamp can be extracted
+                let timestamp = decoded_data.extract_timestamp();
+                let now = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap()
+                    .as_secs();
+                // Timestamp should be within 2 seconds of now
+                assert!((timestamp as i64 - now as i64).abs() <= 2);
+            }
+            _ => panic!("Expected ClientHello message"),
+        }
+    }
+
+    #[test]
+    fn test_parse_client_hello_malformed_bincode() {
+        // Create a buffer with ClientHello message type but invalid bincode data
+        let mut buf = BytesMut::new();
+        buf.extend_from_slice(&[1, 0, 0, 0]); // Version + reserved
+        buf.extend_from_slice(&42u32.to_le_bytes()); // Sender index
+        buf.extend_from_slice(&123u64.to_le_bytes()); // Counter
+        buf.extend_from_slice(&MessageType::ClientHello.to_u16().to_le_bytes()); // ClientHello type
+
+        // Add malformed bincode data (random bytes that won't deserialize to ClientHelloData)
+        buf.extend_from_slice(&[0xFF; 50]); // Invalid bincode data
+        buf.extend_from_slice(&[0; TRAILER_LEN]); // Trailer
+
+        // Attempt to parse
+        let result = parse_lp_packet(&buf);
+        assert!(result.is_err());
+        match result {
+            Err(LpError::DeserializationError(_)) => {} // Expected error
+            Err(e) => panic!("Expected DeserializationError, got {:?}", e),
+            Ok(_) => panic!("Expected error, but got Ok"),
+        }
+    }
+
+    #[test]
+    fn test_parse_client_hello_incomplete_bincode() {
+        // Create a buffer with ClientHello but truncated bincode data
+        let mut buf = BytesMut::new();
+        buf.extend_from_slice(&[1, 0, 0, 0]); // Version + reserved
+        buf.extend_from_slice(&42u32.to_le_bytes()); // Sender index
+        buf.extend_from_slice(&123u64.to_le_bytes()); // Counter
+        buf.extend_from_slice(&MessageType::ClientHello.to_u16().to_le_bytes()); // ClientHello type
+
+        // Add incomplete bincode data (only partial ClientHelloData)
+        buf.extend_from_slice(&[0; 20]); // Too few bytes for full ClientHelloData
+        buf.extend_from_slice(&[0; TRAILER_LEN]); // Trailer
+
+        // Attempt to parse
+        let result = parse_lp_packet(&buf);
+        assert!(result.is_err());
+        match result {
+            Err(LpError::DeserializationError(_)) => {} // Expected error
+            Err(e) => panic!("Expected DeserializationError, got {:?}", e),
+            Ok(_) => panic!("Expected error, but got Ok"),
+        }
+    }
+
+    #[test]
+    fn test_client_hello_different_protocol_versions() {
+        use crate::message::ClientHelloData;
+
+        for version in [0u8, 1, 2, 255] {
+            let mut dst = BytesMut::new();
+
+            let hello_data = ClientHelloData {
+                client_lp_public_key: [version; 32],
+                protocol_version: version,
+                salt: [version.wrapping_add(1); 32],
+            };
+
+            let packet = LpPacket {
+                header: LpHeader {
+                    protocol_version: 1,
+                    session_id: version as u32,
+                    counter: version as u64,
+                },
+                message: LpMessage::ClientHello(hello_data.clone()),
+                trailer: [version; TRAILER_LEN],
+            };
+
+            serialize_lp_packet(&packet, &mut dst).unwrap();
+            let decoded = parse_lp_packet(&dst).unwrap();
+
+            match decoded.message {
+                LpMessage::ClientHello(decoded_data) => {
+                    assert_eq!(decoded_data.protocol_version, version);
+                    assert_eq!(decoded_data.client_lp_public_key, [version; 32]);
+                }
+                _ => panic!("Expected ClientHello message for version {}", version),
+            }
+        }
+    }
 }

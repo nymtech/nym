@@ -234,13 +234,13 @@ impl GatewayTasksBuilder {
         Ok(Arc::new(ecash_manager))
     }
 
-    async fn ecash_manager(&mut self) -> Result<Arc<EcashManager>, GatewayError> {
+    async fn ecash_manager(&mut self) -> Result<Arc<dyn nym_credential_verification::ecash::traits::EcashManager + Send + Sync>, GatewayError> {
         match self.ecash_manager.clone() {
-            Some(cached) => Ok(cached),
+            Some(cached) => Ok(cached as Arc<dyn nym_credential_verification::ecash::traits::EcashManager + Send + Sync>),
             None => {
                 let manager = self.build_ecash_manager().await?;
                 self.ecash_manager = Some(manager.clone());
-                Ok(manager)
+                Ok(manager as Arc<dyn nym_credential_verification::ecash::traits::EcashManager + Send + Sync>)
             }
         }
     }
@@ -291,6 +291,7 @@ impl GatewayTasksBuilder {
             active_clients_store,
             wg_peer_controller,
             wireguard_data: self.wireguard_data.as_ref().map(|wd| wd.inner.clone()),
+            lp_config: self.config.lp.clone(),
         };
 
         // Parse bind address from config

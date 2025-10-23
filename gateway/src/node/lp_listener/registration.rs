@@ -267,7 +267,7 @@ async fn register_wg_peer(
 async fn store_client_bandwidth(
     client_id: String,
     bandwidth: i64,
-    storage: &nym_gateway_storage::GatewayStorage,
+    _storage: &nym_gateway_storage::GatewayStorage,
 ) -> Result<(), GatewayError> {
     // This would integrate with the actual bandwidth storage
     // For now, just log it

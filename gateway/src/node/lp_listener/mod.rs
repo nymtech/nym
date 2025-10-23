@@ -3,7 +3,6 @@
 
 use crate::error::GatewayError;
 use crate::node::ActiveClientsStore;
-use nym_credential_verification::ecash::EcashManager;
 use nym_crypto::asymmetric::ed25519;
 use nym_gateway_storage::GatewayStorage;
 use nym_node_metrics::NymNodeMetrics;
@@ -42,6 +41,17 @@ pub struct LpConfig {
     /// Maximum concurrent connections
     #[serde(default = "default_max_connections")]
     pub max_connections: usize,
+
+    /// Maximum acceptable age of ClientHello timestamp in seconds (default: 30)
+    ///
+    /// ClientHello messages with timestamps older than this will be rejected
+    /// to prevent replay attacks. Value should be:
+    /// - Large enough to account for clock skew and network latency
+    /// - Small enough to limit replay attack window
+    ///
+    /// Recommended: 30-60 seconds
+    #[serde(default = "default_timestamp_tolerance_secs")]
+    pub timestamp_tolerance_secs: u64,
 }
 
 impl Default for LpConfig {
@@ -52,6 +62,7 @@ impl Default for LpConfig {
             control_port: default_control_port(),
             data_port: default_data_port(),
             max_connections: default_max_connections(),
+            timestamp_tolerance_secs: default_timestamp_tolerance_secs(),
         }
     }
 }
@@ -72,11 +83,15 @@ fn default_max_connections() -> usize {
     10000
 }
 
+fn default_timestamp_tolerance_secs() -> u64 {
+    30 // 30 seconds - balances security vs clock skew tolerance
+}
+
 /// Shared state for LP connection handlers
 #[derive(Clone)]
 pub struct LpHandlerState {
     /// Ecash verifier for bandwidth credentials
-    pub ecash_verifier: Arc<EcashManager>,
+    pub ecash_verifier: Arc<dyn nym_credential_verification::ecash::traits::EcashManager + Send + Sync>,
 
     /// Storage backend for persistence
     pub storage: GatewayStorage,
@@ -95,6 +110,9 @@ pub struct LpHandlerState {
 
     /// WireGuard gateway data (contains keypair and config)
     pub wireguard_data: Option<WireguardGatewayData>,
+
+    /// LP configuration (for timestamp validation, etc.)
+    pub lp_config: LpConfig,
 }
 
 /// LP listener that accepts TCP connections on port 41264

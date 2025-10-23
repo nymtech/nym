@@ -2069,20 +2069,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "dashmap"
-version = "6.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5041cc499144891f3790297212f32a74fb938e5136a14943f338ef9e0ae276cf"
-dependencies = [
- "cfg-if",
- "crossbeam-utils",
- "hashbrown 0.14.5",
- "lock_api",
- "once_cell",
- "parking_lot_core",
-]
-
-[[package]]
 name = "data-encoding"
 version = "2.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2382,7 +2368,7 @@ dependencies = [
  "bytecodec",
  "bytes",
  "clap",
- "dashmap 5.5.3",
+ "dashmap",
  "dirs",
  "futures",
  "nym-bin-common",
@@ -4870,7 +4856,7 @@ dependencies = [
  "cw2",
  "cw3",
  "cw4",
- "dashmap 5.5.3",
+ "dashmap",
  "dotenvy",
  "futures",
  "humantime-serde",
@@ -5298,7 +5284,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
- "dashmap 5.5.3",
+ "dashmap",
  "nym-crypto",
  "nym-sphinx",
  "nym-task",
@@ -5695,6 +5681,7 @@ dependencies = [
  "bs58",
  "cipher",
  "ctr",
+ "curve25519-dalek",
  "digest 0.10.7",
  "ed25519-dalek",
  "generic-array 0.14.7",
@@ -5827,7 +5814,7 @@ dependencies = [
  "bip39",
  "bs58",
  "bytes",
- "dashmap 5.5.3",
+ "dashmap",
  "defguard_wireguard_rs",
  "fastrand 2.3.0",
  "futures",
@@ -6266,7 +6253,8 @@ dependencies = [
  "bs58",
  "bytes",
  "criterion",
- "dashmap 6.1.0",
+ "dashmap",
+ "nym-crypto",
  "nym-lp-common",
  "nym-sphinx",
  "parking_lot",
@@ -6287,7 +6275,7 @@ version = "0.1.0"
 name = "nym-metrics"
 version = "0.1.0"
 dependencies = [
- "dashmap 5.5.3",
+ "dashmap",
  "lazy_static",
  "prometheus",
  "tracing",
@@ -6297,7 +6285,7 @@ dependencies = [
 name = "nym-mixnet-client"
 version = "0.1.0"
 dependencies = [
- "dashmap 5.5.3",
+ "dashmap",
  "futures",
  "nym-crypto",
  "nym-noise",
@@ -6396,7 +6384,7 @@ dependencies = [
  "anyhow",
  "axum",
  "clap",
- "dashmap 5.5.3",
+ "dashmap",
  "futures",
  "log",
  "nym-bin-common",
@@ -6563,7 +6551,7 @@ dependencies = [
 name = "nym-node-metrics"
 version = "0.1.0"
 dependencies = [
- "dashmap 5.5.3",
+ "dashmap",
  "futures",
  "nym-metrics",
  "nym-statistics-common",
@@ -6883,6 +6871,7 @@ dependencies = [
 name = "nym-registration-common"
 version = "0.1.0"
 dependencies = [
+ "bincode",
  "nym-authenticator-requests",
  "nym-credentials-interface",
  "nym-crypto",
@@ -6890,6 +6879,7 @@ dependencies = [
  "nym-sphinx",
  "nym-wireguard-types",
  "serde",
+ "time",
  "tokio-util",
 ]
 
@@ -6904,7 +6894,7 @@ dependencies = [
  "bytecodec",
  "bytes",
  "clap",
- "dashmap 5.5.3",
+ "dashmap",
  "dirs",
  "dotenvy",
  "futures",
@@ -7183,7 +7173,7 @@ dependencies = [
 name = "nym-sphinx-chunking"
 version = "0.1.0"
 dependencies = [
- "dashmap 5.5.3",
+ "dashmap",
  "log",
  "nym-crypto",
  "nym-metrics",
@@ -7647,7 +7637,7 @@ dependencies = [
  "base64 0.22.1",
  "bincode",
  "chrono",
- "dashmap 5.5.3",
+ "dashmap",
  "defguard_wireguard_rs",
  "dyn-clone",
  "futures",
@@ -7990,7 +7980,7 @@ checksum = "8b3a2a91fdbfdd4d212c0dcc2ab540de2c2bcbbd90be17de7a7daf8822d010c1"
 dependencies = [
  "async-trait",
  "crossbeam-channel",
- "dashmap 5.5.3",
+ "dashmap",
  "fnv",
  "futures-channel",
  "futures-executor",

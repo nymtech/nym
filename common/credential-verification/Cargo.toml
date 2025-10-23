@@ -30,5 +30,6 @@ nym-credentials-interface = { path = "../credentials-interface" }
 nym-ecash-contract-common = { path = "../cosmwasm-smart-contracts/ecash-contract" }
 nym-gateway-requests = { path = "../gateway-requests" }
 nym-gateway-storage = { path = "../gateway-storage" }
+nym-metrics = { path = "../nym-metrics" }
 nym-task = { path = "../task" }
 nym-validator-client = { path = "../client-libs/validator-client" }

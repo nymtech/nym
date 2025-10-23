@@ -33,10 +33,59 @@ const LP_DURATION_BUCKETS: &[f64] = &[
     10.0, // 10s
 ];
 
+// Histogram buckets for LP connection lifecycle duration
+// LP connections can be very short (registration only: ~1s) or very long (dVPN sessions: hours/days)
+// Covers full range from seconds to 24 hours
+const LP_CONNECTION_DURATION_BUCKETS: &[f64] = &[
+    1.0,     // 1 second
+    5.0,     // 5 seconds
+    10.0,    // 10 seconds
+    30.0,    // 30 seconds
+    60.0,    // 1 minute
+    300.0,   // 5 minutes
+    600.0,   // 10 minutes
+    1800.0,  // 30 minutes
+    3600.0,  // 1 hour
+    7200.0,  // 2 hours
+    14400.0, // 4 hours
+    28800.0, // 8 hours
+    43200.0, // 12 hours
+    86400.0, // 24 hours
+];
+
+/// Connection lifecycle statistics tracking
+struct ConnectionStats {
+    /// When the connection started
+    start_time: std::time::Instant,
+    /// Total bytes received (including protocol framing)
+    bytes_received: u64,
+    /// Total bytes sent (including protocol framing)
+    bytes_sent: u64,
+}
+
+impl ConnectionStats {
+    fn new() -> Self {
+        Self {
+            start_time: std::time::Instant::now(),
+            bytes_received: 0,
+            bytes_sent: 0,
+        }
+    }
+
+    fn record_bytes_received(&mut self, bytes: usize) {
+        self.bytes_received += bytes as u64;
+    }
+
+    fn record_bytes_sent(&mut self, bytes: usize) {
+        self.bytes_sent += bytes as u64;
+    }
+}
+
 pub struct LpConnectionHandler {
     stream: TcpStream,
     remote_addr: SocketAddr,
     state: LpHandlerState,
+    stats: ConnectionStats,
 }
 
 impl LpConnectionHandler {
@@ -45,6 +94,7 @@ impl LpConnectionHandler {
             stream,
             remote_addr,
             state,
+            stats: ConnectionStats::new(),
         }
     }
 
@@ -71,6 +121,8 @@ impl LpConnectionHandler {
             Err(e) => {
                 // Track ClientHello failures (timestamp validation, protocol errors, etc.)
                 inc!("lp_client_hello_failed");
+                // Emit lifecycle metrics before returning
+                self.emit_lifecycle_metrics(false);
                 return Err(e);
             }
         };
@@ -99,6 +151,8 @@ impl LpConnectionHandler {
             Err(e) => {
                 inc!("lp_handshakes_failed");
                 inc!("lp_errors_handshake");
+                // Emit lifecycle metrics before returning
+                self.emit_lifecycle_metrics(false);
                 return Err(e);
             }
         };
@@ -127,6 +181,8 @@ impl LpConnectionHandler {
         {
             warn!("Failed to send LP response to {}: {}", self.remote_addr, e);
             inc!("lp_errors_send_response");
+            // Emit lifecycle metrics before returning
+            self.emit_lifecycle_metrics(false);
             return Err(e);
         }
 
@@ -141,6 +197,9 @@ impl LpConnectionHandler {
                 self.remote_addr, response.error
             );
         }
+
+        // Emit lifecycle metrics on graceful completion
+        self.emit_lifecycle_metrics(true);
 
         Ok(())
     }
@@ -339,6 +398,9 @@ impl LpConnectionHandler {
             GatewayError::LpConnectionError(format!("Failed to read packet data: {}", e))
         })?;
 
+        // Track bytes received (4 byte header + packet data)
+        self.stats.record_bytes_received(4 + packet_len);
+
         parse_lp_packet(&packet_buf)
             .map_err(|e| GatewayError::LpProtocolError(format!("Failed to parse LP packet: {}", e)))
     }
@@ -372,7 +434,37 @@ impl LpConnectionHandler {
             GatewayError::LpConnectionError(format!("Failed to flush stream: {}", e))
         })?;
 
+        // Track bytes sent (4 byte header + packet data)
+        self.stats.record_bytes_sent(4 + packet_buf.len());
+
         Ok(())
+    }
+
+    /// Emit connection lifecycle metrics
+    fn emit_lifecycle_metrics(&self, graceful: bool) {
+        use nym_metrics::inc_by;
+
+        // Track connection duration
+        let duration = self.stats.start_time.elapsed().as_secs_f64();
+        add_histogram_obs!(
+            "lp_connection_duration_seconds",
+            duration,
+            LP_CONNECTION_DURATION_BUCKETS
+        );
+
+        // Track bytes transferred
+        inc_by!(
+            "lp_connection_bytes_received_total",
+            self.stats.bytes_received as i64
+        );
+        inc_by!("lp_connection_bytes_sent_total", self.stats.bytes_sent as i64);
+
+        // Track completion type
+        if graceful {
+            inc!("lp_connections_completed_gracefully");
+        } else {
+            inc!("lp_connections_completed_with_error");
+        }
     }
 }
 

@@ -29,13 +29,6 @@ pub struct Config {
     pub wg_score_thresholds: Option<ScoreThresholds>,
 }
 
-fn to_string<T: fmt::Display>(value: &Option<T>) -> String {
-    match value {
-        Some(value) => value.to_string(),
-        None => "unset".to_string(),
-    }
-}
-
 impl fmt::Display for Config {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "nyxd_url: {}, api_url: {}", self.nyxd_url, self.api_url,)
@@ -110,6 +103,7 @@ impl GatewayClient {
         user_agent: UserAgent,
         _static_nym_api_ip_addresses: Option<&[SocketAddr]>,
     ) -> Result<Self> {
+        #[allow(deprecated)]
         let api_client = nym_http_api_client::ClientBuilder::from_network(network_details)
             .map_err(Box::new)?
             .with_user_agent(user_agent.clone())

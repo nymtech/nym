@@ -120,6 +120,9 @@ where
     stats_tx: ClientStatsSender,
 
     shutdown_token: ShutdownToken,
+
+    /// Flag to indicate that the mix_tx channel is closed and we should stop processing
+    mix_tx_closed: bool,
 }
 
 #[derive(Debug)]
@@ -195,6 +198,7 @@ where
             lane_queue_lengths,
             stats_tx,
             shutdown_token,
+            mix_tx_closed: false,
         }
     }
 
@@ -297,7 +301,12 @@ where
                     tracing::error!(
                         "failed to send mixnet packet due to closed channel (outside of shutdown!)"
                     );
+                    // This prevents an infinite loop where we keep trying to send
+                    // packets through a closed channel
+                    self.mix_tx_closed = true;
                 }
+                // Early return to avoid further processing when channel is closed
+                return;
             }
             Ok(_) => {
                 let event = if fragment_id.is_some() {
@@ -601,6 +610,12 @@ where
                     }
                     next_message = self.next() => if let Some(next_message) = next_message {
                         self.on_message(next_message).await;
+                        // Check if mix_tx channel was closed during on_message
+                        // and break immediately to prevent infinite loop
+                        if self.mix_tx_closed {
+                            tracing::error!("OutQueueControl: mix_tx channel closed, stopping traffic stream");
+                            break;
+                        }
                     } else {
                         tracing::trace!("OutQueueControl: Stopping since channel closed");
                         break;
@@ -620,6 +635,12 @@ where
                     }
                     next_message = self.next() => if let Some(next_message) = next_message {
                         self.on_message(next_message).await;
+                        // Check if mix_tx channel was closed during on_message
+                        // and break immediately to prevent infinite loop
+                        if self.mix_tx_closed {
+                            tracing::error!("OutQueueControl: mix_tx channel closed, stopping traffic stream");
+                            break;
+                        }
                     } else {
                         tracing::trace!("OutQueueControl: Stopping since channel closed");
                         break;

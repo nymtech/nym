@@ -54,10 +54,6 @@ pub struct LpRegistrationClient {
     /// Created during handshake initiation (nym-79).
     state_machine: Option<LpStateMachine>,
 
-    /// Pre-shared key for Noise protocol (PSK).
-    /// Generated randomly per registration for ephemeral LP sessions.
-    psk: [u8; 32],
-
     /// Client's IP address for registration metadata.
     client_ip: IpAddr,
 
@@ -72,18 +68,17 @@ impl LpRegistrationClient {
     /// * `local_keypair` - Client's LP keypair for Noise protocol
     /// * `gateway_public_key` - Gateway's public key
     /// * `gateway_lp_address` - Gateway's LP listener socket address
-    /// * `psk` - Pre-shared key (use `new_with_default_psk()` for random generation)
     /// * `client_ip` - Client IP address for registration
     /// * `config` - Configuration for timeouts and TCP parameters (use `LpConfig::default()`)
     ///
     /// # Note
     /// This creates the client but does not establish the connection.
     /// Call `connect()` to establish the TCP connection.
+    /// PSK is derived automatically during handshake using ECDH + Blake3 KDF (nym-109).
     pub fn new(
         local_keypair: Arc<Keypair>,
         gateway_public_key: PublicKey,
         gateway_lp_address: SocketAddr,
-        psk: [u8; 32],
         client_ip: IpAddr,
         config: LpConfig,
     ) -> Self {
@@ -93,13 +88,12 @@ impl LpRegistrationClient {
             gateway_public_key,
             gateway_lp_address,
             state_machine: None,
-            psk,
             client_ip,
             config,
         }
     }
 
-    /// Creates a new LP registration client with a randomly generated PSK.
+    /// Creates a new LP registration client with default configuration.
     ///
     /// # Arguments
     /// * `local_keypair` - Client's LP keypair for Noise protocol
@@ -107,26 +101,19 @@ impl LpRegistrationClient {
     /// * `gateway_lp_address` - Gateway's LP listener socket address
     /// * `client_ip` - Client IP address for registration
     ///
-    /// Generates a fresh random 32-byte PSK for each registration.
-    /// Since LP is registration-only, PSKs are ephemeral and don't need persistence.
     /// Uses default config (LpConfig::default()) with sane timeout and TCP parameters.
-    /// For testing with a specific PSK or custom config, use `new()` directly.
+    /// PSK is derived automatically during handshake using ECDH + Blake3 KDF (nym-109).
+    /// For custom config, use `new()` directly.
     pub fn new_with_default_psk(
         local_keypair: Arc<Keypair>,
         gateway_public_key: PublicKey,
         gateway_lp_address: SocketAddr,
         client_ip: IpAddr,
     ) -> Self {
-        // Generate random PSK for this registration
-        use rand::Rng;
-        let mut psk = [0u8; 32];
-        rand::thread_rng().fill(&mut psk);
-
         Self::new(
             local_keypair,
             gateway_public_key,
             gateway_lp_address,
-            psk,
             client_ip,
             LpConfig::default(),
         )
@@ -245,12 +232,41 @@ impl LpRegistrationClient {
 
         tracing::debug!("Starting LP handshake as initiator");
 
-        // Create state machine as initiator
+        // Step 1: Generate ClientHelloData with fresh salt (timestamp + nonce)
+        let client_hello_data = nym_lp::ClientHelloData::new_with_fresh_salt(
+            self.local_keypair.public_key().to_bytes(),
+            1, // protocol_version
+        );
+        let salt = client_hello_data.salt;
+
+        tracing::trace!("Generated ClientHello with timestamp: {}", client_hello_data.extract_timestamp());
+
+        // Step 2: Send ClientHello as first packet (before Noise handshake)
+        let client_hello_header = nym_lp::packet::LpHeader::new(
+            0, // session_id not yet established
+            0, // counter starts at 0
+        );
+        let client_hello_packet = nym_lp::LpPacket::new(
+            client_hello_header,
+            nym_lp::LpMessage::ClientHello(client_hello_data),
+        );
+        Self::send_packet(stream, &client_hello_packet).await?;
+        tracing::debug!("Sent ClientHello packet");
+
+        // Step 3: Derive PSK using ECDH + Blake3 KDF
+        let psk = nym_lp::derive_psk(
+            self.local_keypair.private_key(),
+            &self.gateway_public_key,
+            &salt,
+        );
+        tracing::trace!("Derived PSK from identity keys and salt");
+
+        // Step 4: Create state machine as initiator with derived PSK
         let mut state_machine = LpStateMachine::new(
             true, // is_initiator
             &*self.local_keypair,
             &self.gateway_public_key,
-            &self.psk,
+            &psk,
         )?;
 
         // Start handshake - client (initiator) sends first

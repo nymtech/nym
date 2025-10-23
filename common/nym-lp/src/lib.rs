@@ -7,6 +7,7 @@ pub mod keypair;
 pub mod message;
 pub mod noise_protocol;
 pub mod packet;
+pub mod psk;
 pub mod replay;
 pub mod session;
 mod session_integration;
@@ -18,6 +19,7 @@ pub use error::LpError;
 use keypair::PublicKey;
 pub use message::{ClientHelloData, LpMessage};
 pub use packet::LpPacket;
+pub use psk::derive_psk;
 pub use replay::{ReceivingKeyCounterValidator, ReplayError};
 pub use session::LpSession;
 pub use session_manager::SessionManager;
@@ -37,21 +39,30 @@ pub fn sessions_for_tests() -> (LpSession, LpSession) {
     let keypair_2 = Keypair::default();
     let id = make_lp_id(&keypair_1.public_key(), &keypair_2.public_key());
 
+    // Use consistent salt for deterministic tests
+    let salt = [1u8; 32];
+
+    // Initiator derives PSK from their perspective
+    let initiator_psk = derive_psk(keypair_1.private_key(), &keypair_2.public_key(), &salt);
+
     let initiator_session = LpSession::new(
         id,
         true,
         &keypair_1.private_key().to_bytes(),
         &keypair_2.public_key().to_bytes(),
-        &[0u8; 32],
+        &initiator_psk,
     )
     .expect("Test session creation failed");
+
+    // Responder derives same PSK from their perspective
+    let responder_psk = derive_psk(keypair_2.private_key(), &keypair_1.public_key(), &salt);
 
     let responder_session = LpSession::new(
         id,
         false,
         &keypair_2.private_key().to_bytes(),
         &keypair_1.public_key().to_bytes(),
-        &[0u8; 32],
+        &responder_psk,
     )
     .expect("Test session creation failed");
 

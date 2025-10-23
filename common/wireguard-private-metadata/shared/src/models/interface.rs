@@ -46,8 +46,10 @@ impl From<super::latest::interface::ResponseData> for ResponseData {
             },
             super::latest::interface::ResponseData::TopUpBandwidth {
                 available_bandwidth,
+                upgrade_mode,
             } => Self::TopUpBandwidth {
                 available_bandwidth,
+                upgrade_mode,
             },
         }
     }
@@ -65,8 +67,10 @@ impl From<ResponseData> for super::latest::interface::ResponseData {
             },
             ResponseData::TopUpBandwidth {
                 available_bandwidth,
+                upgrade_mode,
             } => Self::TopUpBandwidth {
                 available_bandwidth,
+                upgrade_mode,
             },
         }
     }
@@ -137,8 +141,14 @@ impl Extract<RequestData> for Request {
 }
 
 pub enum ResponseData {
-    AvailableBandwidth { amount: i64, upgrade_mode: bool },
-    TopUpBandwidth { available_bandwidth: i64 },
+    AvailableBandwidth {
+        amount: i64,
+        upgrade_mode: bool,
+    },
+    TopUpBandwidth {
+        available_bandwidth: i64,
+        upgrade_mode: bool,
+    },
 }
 
 impl Construct<ResponseData> for Response {

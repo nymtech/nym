@@ -24,8 +24,14 @@ pub enum RequestData {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ResponseData {
-    AvailableBandwidth { amount: i64, upgrade_mode: bool },
-    TopUpBandwidth { available_bandwidth: i64 },
+    AvailableBandwidth {
+        amount: i64,
+        upgrade_mode: bool,
+    },
+    TopUpBandwidth {
+        available_bandwidth: i64,
+        upgrade_mode: bool,
+    },
 }
 
 impl Construct<RequestData> for VersionedRequest {
@@ -73,8 +79,10 @@ impl Construct<ResponseData> for VersionedResponse {
             .try_into()?),
             ResponseData::TopUpBandwidth {
                 available_bandwidth,
+                upgrade_mode,
             } => Ok(InnerTopUpResponse {
                 available_bandwidth,
+                upgrade_mode,
             }
             .try_into()?),
         }
@@ -99,6 +107,7 @@ impl Extract<ResponseData> for VersionedResponse {
                 Ok((
                     ResponseData::TopUpBandwidth {
                         available_bandwidth: resp.available_bandwidth,
+                        upgrade_mode: resp.upgrade_mode,
                     },
                     VERSION,
                 ))
@@ -153,9 +162,10 @@ impl TryFrom<previous::interface::ResponseData> for ResponseData {
                     to: VERSION,
                 })
             }
-            previous::interface::ResponseData::TopUpBandwidth(amount) => {
-                Ok(ResponseData::TopUpBandwidth {
-                    available_bandwidth: amount,
+            previous::interface::ResponseData::TopUpBandwidth(_) => {
+                Err(super::Error::UpdateNotPossible {
+                    from: previous::VERSION,
+                    to: VERSION,
                 })
             }
         }
@@ -170,6 +180,7 @@ impl TryFrom<ResponseData> for previous::interface::ResponseData {
             ResponseData::AvailableBandwidth { amount, .. } => Ok(Self::AvailableBandwidth(amount)),
             ResponseData::TopUpBandwidth {
                 available_bandwidth,
+                ..
             } => Ok(Self::TopUpBandwidth(available_bandwidth)),
         }
     }
@@ -203,11 +214,8 @@ mod test {
             ResponseData::try_from(previous::interface::ResponseData::AvailableBandwidth(42))
                 .is_err()
         );
-        assert_eq!(
-            ResponseData::try_from(previous::interface::ResponseData::TopUpBandwidth(42)).unwrap(),
-            ResponseData::TopUpBandwidth {
-                available_bandwidth: 42
-            }
+        assert!(
+            ResponseData::try_from(previous::interface::ResponseData::TopUpBandwidth(42)).is_err()
         );
     }
 
@@ -242,7 +250,8 @@ mod test {
         );
         assert_eq!(
             previous::interface::ResponseData::try_from(ResponseData::TopUpBandwidth {
-                available_bandwidth: 42
+                available_bandwidth: 42,
+                upgrade_mode: true,
             })
             .unwrap(),
             previous::interface::ResponseData::TopUpBandwidth(42)

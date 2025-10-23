@@ -10,6 +10,7 @@ use super::super::{QueryType, VersionedResponse};
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct InnerTopUpResponse {
     pub available_bandwidth: i64,
+    pub upgrade_mode: bool,
 }
 
 // Implements:
@@ -36,6 +37,7 @@ mod tests {
     fn serde() {
         let resp = InnerTopUpResponse {
             available_bandwidth: 42,
+            upgrade_mode: true,
         };
         let ser = VersionedResponse::try_from(resp.clone()).unwrap();
         assert_eq!(QueryType::TopUpBandwidth, ser.query_type);

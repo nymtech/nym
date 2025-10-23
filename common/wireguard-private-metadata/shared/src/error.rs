@@ -17,6 +17,9 @@ pub enum MetadataError {
 
     #[error("Credential verification error: {message}")]
     CredentialVerification { message: String },
+
+    #[error("Upgrade Mode JWT verification error: {message}")]
+    JWTVerification { message: String },
 }
 
 impl From<crate::models::error::Error> for MetadataError {

@@ -1,9 +1,9 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::node::upgrade_mode::UpgradeModeEnableError;
 use ipnetwork::IpNetworkError;
 use nym_client_core::error::ClientCoreError;
+use nym_credential_verification::upgrade_mode::UpgradeModeEnableError;
 use nym_id::NymIdError;
 use nym_service_provider_requests_common::ProtocolError;
 

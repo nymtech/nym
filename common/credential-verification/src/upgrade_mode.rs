@@ -1,19 +1,173 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use nym_upgrade_mode_check::UpgradeModeAttestation;
+use futures::channel::mpsc::{UnboundedReceiver, UnboundedSender};
+use nym_upgrade_mode_check::{
+    CREDENTIAL_PROXY_JWT_ISSUER, UpgradeModeAttestation, validate_upgrade_mode_jwt,
+};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicI64, Ordering};
 use std::time::Duration;
+use thiserror::Error;
 use time::OffsetDateTime;
-use tokio::sync::RwLock;
-use tracing::error;
+use tokio::sync::{Notify, RwLock};
+use tracing::{debug, error};
 
+#[derive(Debug, Error)]
+pub enum UpgradeModeEnableError {
+    #[error("too soon to perform another upgrade mode attestation check")]
+    TooManyRecheckRequests,
+
+    #[error("provided upgrade mode JWT is invalid: {0}")]
+    InvalidUpgradeModeJWT(#[from] nym_upgrade_mode_check::UpgradeModeCheckError),
+
+    #[error("the upgrade mode attestation does not appear to have been published")]
+    AttestationNotPublished,
+
+    #[error("the provided upgrade mode attestation is different from the published one")]
+    MismatchedUpgradeModeAttestation,
+}
+
+// the idea behind this is as follows:
+// it's been relatively a long time since the watcher last performed its checks (since it's in 'regular' mode)
+// and some client has just sent a JWT. we have to retrieve most recent information in case upgrade mode
+// has just been enabled, and we haven't learned about it yet
+#[derive(Clone)]
+pub struct UpgradeModeCheckRequestSender(Option<UnboundedSender<CheckRequest>>);
+
+impl UpgradeModeCheckRequestSender {
+    pub fn new(sender: UnboundedSender<CheckRequest>) -> Self {
+        UpgradeModeCheckRequestSender(Some(sender))
+    }
+
+    pub fn new_empty() -> Self {
+        Self(None)
+    }
+
+    pub(crate) fn send_request(&self, on_done: Arc<Notify>) {
+        let Some(ref inner) = self.0 else {
+            // make sure the caller gets notified so it doesn't wait forever
+            on_done.notify_waiters();
+            return;
+        };
+
+        if let Err(not_sent) = inner.unbounded_send(CheckRequest { on_done }) {
+            debug!("failed to send upgrade mode check request - {not_sent}");
+            // make sure the caller gets notified so it doesn't wait forever
+            not_sent.into_inner().on_done.notify_waiters();
+        }
+    }
+}
+
+pub type UpgradeModeCheckRequestReceiver = UnboundedReceiver<CheckRequest>;
+
+pub struct CheckRequest {
+    on_done: Arc<Notify>,
+}
+
+impl CheckRequest {
+    pub fn finalize(self) {
+        self.on_done.notify_waiters();
+    }
+}
+
+#[derive(Clone, Copy)]
+pub struct UpgradeModeCheckConfig {
+    /// The minimum duration since the last explicit check to allow creation of separate request.
+    pub min_staleness_recheck: Duration,
+}
+
+/// Full upgrade mode information, that apart from boolean flag indicating the state
+/// and the attestation information, includes channel connection to relevant
+/// attestation watcher to request state rechecks
+#[derive(Clone)]
+pub struct UpgradeModeDetails {
+    pub(crate) config: UpgradeModeCheckConfig,
+    pub(crate) request_checker: UpgradeModeCheckRequestSender,
+    pub(crate) state: UpgradeModeState,
+}
+
+impl UpgradeModeDetails {
+    pub fn new(
+        config: UpgradeModeCheckConfig,
+        request_checker: UpgradeModeCheckRequestSender,
+        state: UpgradeModeState,
+    ) -> Self {
+        UpgradeModeDetails {
+            config,
+            request_checker,
+            state,
+        }
+    }
+
+    pub fn enabled(&self) -> bool {
+        self.state.upgrade_mode_enabled()
+    }
+
+    fn since_last_query(&self) -> Duration {
+        self.state.since_last_query()
+    }
+
+    pub fn can_request_recheck(&self) -> bool {
+        self.since_last_query() > self.config.min_staleness_recheck
+    }
+
+    // explicitly request state update. this is only called when upgrade mode is NOT enabled,
+    // and client has sent a JWT instead of ticket
+    async fn request_recheck(&self) -> bool {
+        // send request
+        let on_done = Arc::new(Notify::new());
+        self.request_checker.send_request(on_done.clone());
+
+        // wait for response - note, if we fail to send, notification will be sent regardless,
+        // so that we wouldn't get stuck in here
+        on_done.notified().await;
+
+        // check the state again
+        self.enabled()
+    }
+
+    pub async fn try_enable_via_received_jwt(
+        &self,
+        token: String,
+    ) -> Result<(), UpgradeModeEnableError> {
+        // see if it's viable to perform another expedited check
+        if !self.can_request_recheck() {
+            return Err(UpgradeModeEnableError::TooManyRecheckRequests);
+        }
+
+        // first validate whether the received JWT is even valid
+        // note: we expect the token has been signed by our credential proxy
+        // (in the future, we won't care about it, and we'll have proper key discovery endpoint. 2026™️)
+        let attestation = validate_upgrade_mode_jwt(&token, Some(CREDENTIAL_PROXY_JWT_ISSUER))?;
+
+        // send request to revalidate internal state
+        self.request_recheck().await;
+
+        // not strictly necessary, but check if provided attestation actually matches the one retrieved
+        // (if any)
+        let Some(retrieved_attestation) = self.state.attestation().await else {
+            return Err(UpgradeModeEnableError::AttestationNotPublished);
+        };
+        if retrieved_attestation != attestation {
+            return Err(UpgradeModeEnableError::MismatchedUpgradeModeAttestation);
+        }
+
+        // note: if attestation has been returned, it means we're definitely in upgrade mode
+        // (otherwise it wouldn't have existed in the state)
+
+        Ok(())
+    }
+}
+
+/// Detailed upgrade mode information, that apart from boolean flag,
+/// also includes, if applicable, the associated attestation
 #[derive(Clone)]
 pub struct UpgradeModeState {
     inner: Arc<UpgradeModeStateInner>,
 }
 
+/// Just a shareable flag to indicate whether upgrade mode is enabled or disabled
 #[derive(Clone, Default)]
 pub struct UpgradeModeStatus(Arc<AtomicBool>);
 

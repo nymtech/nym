@@ -1,7 +1,6 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::ScoreValue;
 use nym_contracts_common::Percent;
 use serde::{Deserialize, Serialize};
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
@@ -98,21 +97,6 @@ pub struct Asn {
     pub kind: AsnKind,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Entry {
-    pub can_connect: bool,
-    pub can_route: bool,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Exit {
-    pub can_connect: bool,
-    pub can_route_ip_v4: bool,
-    pub can_route_ip_external_v4: bool,
-    pub can_route_ip_v6: bool,
-    pub can_route_ip_external_v6: bool,
-}
-
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Location {
     pub two_letter_iso_country_code: String,
@@ -123,12 +107,4 @@ pub struct Location {
     pub region: String,
 
     pub asn: Option<Asn>,
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct DVpnGatewayPerformance {
-    pub last_updated_utc: String,
-    pub score: ScoreValue,
-    pub load: ScoreValue,
-    pub uptime_percentage_last_24_hours: f32,
 }

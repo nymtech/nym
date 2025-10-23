@@ -228,20 +228,21 @@ impl PublicKey {
 
         // Decompress the Ed25519 point
         let compressed = CompressedEdwardsY((*self).to_bytes());
-        let edwards_point = compressed
-            .decompress()
-            .ok_or_else(|| Ed25519RecoveryError::MalformedBytes(
-                SignatureError::from_source("Failed to decompress Ed25519 point".to_string())
-            ))?;
+        let edwards_point = compressed.decompress().ok_or_else(|| {
+            Ed25519RecoveryError::MalformedBytes(SignatureError::from_source(
+                "Failed to decompress Ed25519 point".to_string(),
+            ))
+        })?;
 
         // Convert to Montgomery form
         let montgomery = edwards_point.to_montgomery();
 
         // Create X25519 public key
-        crate::asymmetric::x25519::PublicKey::from_bytes(montgomery.as_bytes())
-            .map_err(|_| Ed25519RecoveryError::MalformedBytes(
-                SignatureError::from_source("Failed to convert to X25519".to_string())
+        crate::asymmetric::x25519::PublicKey::from_bytes(montgomery.as_bytes()).map_err(|_| {
+            Ed25519RecoveryError::MalformedBytes(SignatureError::from_source(
+                "Failed to convert to X25519".to_string(),
             ))
+        })
     }
 }
 
@@ -373,7 +374,7 @@ impl PrivateKey {
     /// # Returns
     /// The converted X25519 private key
     pub fn to_x25519(&self) -> crate::asymmetric::x25519::PrivateKey {
-        use sha2::{Sha512, Digest};
+        use sha2::{Digest, Sha512};
 
         // Hash the Ed25519 secret key with SHA-512
         let hash = Sha512::digest(self.0);

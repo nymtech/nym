@@ -70,6 +70,7 @@ nym-types = { path = "../common/types" }
 nym-validator-client = { path = "../common/client-libs/validator-client" }
 nym-ip-packet-router = { path = "../service-providers/ip-packet-router" }
 nym-node-metrics = { path = "../nym-node/nym-node-metrics" }
+nym-metrics = { path = "../common/nym-metrics" }
 
 nym-wireguard = { path = "../common/wireguard" }
 nym-wireguard-private-metadata-server = { path = "../common/wireguard-private-metadata/server" }

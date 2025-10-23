@@ -60,9 +60,7 @@ pub async fn bond_nymnode(args: Args, client: SigningClient) {
         return;
     }
 
-    let lp_address = args.lp_port.map(|port| {
-        format!("{}:{}", args.host, port)
-    });
+    let lp_address = args.lp_port.map(|port| format!("{}:{}", args.host, port));
 
     let nymnode = nym_mixnet_contract_common::NymNode {
         host: args.host,

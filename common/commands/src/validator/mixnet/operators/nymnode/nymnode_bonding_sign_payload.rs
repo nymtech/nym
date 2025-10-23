@@ -50,9 +50,7 @@ pub struct Args {
 pub async fn create_payload(args: Args, client: SigningClient) {
     let denom = client.current_chain_details().mix_denom.base.as_str();
 
-    let lp_address = args.lp_port.map(|port| {
-        format!("{}:{}", args.host, port)
-    });
+    let lp_address = args.lp_port.map(|port| format!("{}:{}", args.host, port));
 
     let mixnode = nym_mixnet_contract_common::NymNode {
         host: args.host,

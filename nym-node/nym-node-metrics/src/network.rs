@@ -60,17 +60,14 @@ impl NetworkStats {
     }
 
     pub fn new_lp_connection(&self) {
-        self.active_lp_connections
-            .fetch_add(1, Ordering::Relaxed);
+        self.active_lp_connections.fetch_add(1, Ordering::Relaxed);
     }
 
     pub fn lp_connection_closed(&self) {
-        self.active_lp_connections
-            .fetch_sub(1, Ordering::Relaxed);
+        self.active_lp_connections.fetch_sub(1, Ordering::Relaxed);
     }
 
     pub fn active_lp_connections_count(&self) -> usize {
-        self.active_lp_connections
-            .load(Ordering::Relaxed)
+        self.active_lp_connections.load(Ordering::Relaxed)
     }
 }

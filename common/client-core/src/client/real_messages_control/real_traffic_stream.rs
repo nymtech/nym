@@ -301,8 +301,7 @@ where
                     tracing::error!(
                         "failed to send mixnet packet due to closed channel (outside of shutdown!)"
                     );
-                    // This prevents an infinite loop where we keep trying to send
-                    // packets through a closed channel
+                    // This prevents a loop where we keep trying to send packets through a closed channel
                     self.mix_tx_closed = true;
                 }
                 // Early return to avoid further processing when channel is closed
@@ -611,7 +610,7 @@ where
                     next_message = self.next() => if let Some(next_message) = next_message {
                         self.on_message(next_message).await;
                         // Check if mix_tx channel was closed during on_message
-                        // and break immediately to prevent infinite loop
+                        // and break immediately to prevent loop
                         if self.mix_tx_closed {
                             tracing::error!("OutQueueControl: mix_tx channel closed, stopping traffic stream");
                             break;
@@ -636,7 +635,7 @@ where
                     next_message = self.next() => if let Some(next_message) = next_message {
                         self.on_message(next_message).await;
                         // Check if mix_tx channel was closed during on_message
-                        // and break immediately to prevent infinite loop
+                        // and break immediately to prevent loop
                         if self.mix_tx_closed {
                             tracing::error!("OutQueueControl: mix_tx channel closed, stopping traffic stream");
                             break;

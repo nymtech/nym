@@ -30,8 +30,7 @@ pub use config::RegistrationMode;
 pub use error::RegistrationClientError;
 pub use lp_client::LpConfig;
 pub use types::{
-    LpRegistrationResult, MixnetRegistrationResult, RegistrationResult,
-    WireguardRegistrationResult,
+    LpRegistrationResult, MixnetRegistrationResult, RegistrationResult, WireguardRegistrationResult,
 };
 
 pub struct RegistrationClient {
@@ -175,24 +174,26 @@ impl RegistrationClient {
         // For now, use gateway identities as LP public keys
         // TODO(nym-87): Implement proper key derivation
         let entry_gateway_lp_key =
-            LpPublicKey::from_bytes(&self.config.entry.node.identity.to_bytes())
-                .map_err(|e| RegistrationClientError::LpRegistrationNotPossible {
+            LpPublicKey::from_bytes(&self.config.entry.node.identity.to_bytes()).map_err(|e| {
+                RegistrationClientError::LpRegistrationNotPossible {
                     node_id: format!(
                         "{}: invalid LP key: {}",
                         self.config.entry.node.identity.to_base58_string(),
                         e
                     ),
-                })?;
+                }
+            })?;
 
         let exit_gateway_lp_key =
-            LpPublicKey::from_bytes(&self.config.exit.node.identity.to_bytes())
-                .map_err(|e| RegistrationClientError::LpRegistrationNotPossible {
+            LpPublicKey::from_bytes(&self.config.exit.node.identity.to_bytes()).map_err(|e| {
+                RegistrationClientError::LpRegistrationNotPossible {
                     node_id: format!(
                         "{}: invalid LP key: {}",
                         self.config.exit.node.identity.to_base58_string(),
                         e
                     ),
-                })?;
+                }
+            })?;
 
         // Generate LP keypairs for this connection
         let client_lp_keypair = Arc::new(LpKeypair::default());
@@ -287,23 +288,21 @@ impl RegistrationClient {
 
         // Handle entry gateway result
         // Note: entry_transport is dropped here, closing the LP connection
-        let (_entry_transport, entry_gateway_data) = entry_result.map_err(|source| {
-            RegistrationClientError::EntryGatewayRegisterLp {
+        let (_entry_transport, entry_gateway_data) =
+            entry_result.map_err(|source| RegistrationClientError::EntryGatewayRegisterLp {
                 gateway_id: self.config.entry.node.identity.to_base58_string(),
                 lp_address: entry_lp_address,
                 source: Box::new(source),
-            }
-        })?;
+            })?;
 
         // Handle exit gateway result
         // Note: exit_transport is dropped here, closing the LP connection
-        let (_exit_transport, exit_gateway_data) = exit_result.map_err(|source| {
-            RegistrationClientError::ExitGatewayRegisterLp {
+        let (_exit_transport, exit_gateway_data) =
+            exit_result.map_err(|source| RegistrationClientError::ExitGatewayRegisterLp {
                 gateway_id: self.config.exit.node.identity.to_base58_string(),
                 lp_address: exit_lp_address,
                 source: Box::new(source),
-            }
-        })?;
+            })?;
 
         tracing::info!(
             "LP registration successful for both gateways (LP connections will be closed)"

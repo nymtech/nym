@@ -8,9 +8,9 @@
 
 use super::error::{LpClientError, Result};
 use bytes::BytesMut;
+use nym_lp::LpPacket;
 use nym_lp::codec::{parse_lp_packet, serialize_lp_packet};
 use nym_lp::state_machine::{LpAction, LpInput, LpStateBare, LpStateMachine};
-use nym_lp::LpPacket;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 
@@ -88,7 +88,9 @@ impl LpTransport {
             .state_machine
             .process_input(LpInput::SendData(data.to_vec()))
             .ok_or_else(|| {
-                LpClientError::Transport("State machine returned no action for SendData".to_string())
+                LpClientError::Transport(
+                    "State machine returned no action for SendData".to_string(),
+                )
             })?
             .map_err(|e| LpClientError::Transport(format!("Failed to encrypt data: {}", e)))?;
 
@@ -166,10 +168,7 @@ impl LpTransport {
                     tracing::debug!("LP connection closed by state machine");
                 }
                 Ok(other) => {
-                    tracing::warn!(
-                        "Unexpected action when closing connection: {:?}",
-                        other
-                    );
+                    tracing::warn!("Unexpected action when closing connection: {:?}", other);
                 }
                 Err(e) => {
                     tracing::warn!("Error closing LP connection: {}", e);
@@ -207,7 +206,9 @@ impl LpTransport {
         self.stream
             .write_all(&len.to_be_bytes())
             .await
-            .map_err(|e| LpClientError::Transport(format!("Failed to send packet length: {}", e)))?;
+            .map_err(|e| {
+                LpClientError::Transport(format!("Failed to send packet length: {}", e))
+            })?;
 
         // Send the actual packet data
         self.stream
@@ -221,7 +222,10 @@ impl LpTransport {
             .await
             .map_err(|e| LpClientError::Transport(format!("Failed to flush stream: {}", e)))?;
 
-        tracing::trace!("Sent LP packet ({} bytes + 4 byte header)", packet_buf.len());
+        tracing::trace!(
+            "Sent LP packet ({} bytes + 4 byte header)",
+            packet_buf.len()
+        );
         Ok(())
     }
 
@@ -231,10 +235,9 @@ impl LpTransport {
     async fn receive_packet(&mut self) -> Result<LpPacket> {
         // Read 4-byte length prefix (u32 big-endian)
         let mut len_buf = [0u8; 4];
-        self.stream
-            .read_exact(&mut len_buf)
-            .await
-            .map_err(|e| LpClientError::Transport(format!("Failed to read packet length: {}", e)))?;
+        self.stream.read_exact(&mut len_buf).await.map_err(|e| {
+            LpClientError::Transport(format!("Failed to read packet length: {}", e))
+        })?;
 
         let packet_len = u32::from_be_bytes(len_buf) as usize;
 
@@ -258,10 +261,7 @@ impl LpTransport {
         let packet = parse_lp_packet(&packet_buf)
             .map_err(|e| LpClientError::Transport(format!("Failed to parse packet: {}", e)))?;
 
-        tracing::trace!(
-            "Received LP packet ({} bytes + 4 byte header)",
-            packet_len
-        );
+        tracing::trace!("Received LP packet ({} bytes + 4 byte header)", packet_len);
         Ok(packet)
     }
 }

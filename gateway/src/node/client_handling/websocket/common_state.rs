@@ -22,7 +22,8 @@ pub(crate) struct Config {
 #[derive(Clone)]
 pub(crate) struct CommonHandlerState {
     pub(crate) cfg: Config,
-    pub(crate) ecash_verifier: Arc<dyn nym_credential_verification::ecash::traits::EcashManager + Send + Sync>,
+    pub(crate) ecash_verifier:
+        Arc<dyn nym_credential_verification::ecash::traits::EcashManager + Send + Sync>,
     pub(crate) storage: GatewayStorage,
     pub(crate) local_identity: Arc<ed25519::KeyPair>,
     pub(crate) metrics: NymNodeMetrics,

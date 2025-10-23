@@ -24,10 +24,7 @@ impl ClientHelloData {
     /// # Arguments
     /// * `client_lp_public_key` - Client's x25519 public key
     /// * `protocol_version` - Protocol version number
-    pub fn new_with_fresh_salt(
-        client_lp_public_key: [u8; 32],
-        protocol_version: u8,
-    ) -> Self {
+    pub fn new_with_fresh_salt(client_lp_public_key: [u8; 32], protocol_version: u8) -> Self {
         use std::time::{SystemTime, UNIX_EPOCH};
 
         // Generate salt: timestamp + nonce
@@ -159,8 +156,8 @@ impl LpMessage {
             }
             LpMessage::ClientHello(data) => {
                 // Serialize ClientHelloData using bincode
-                let serialized = bincode::serialize(data)
-                    .expect("Failed to serialize ClientHelloData");
+                let serialized =
+                    bincode::serialize(data).expect("Failed to serialize ClientHelloData");
                 dst.put_slice(&serialized);
             }
         }

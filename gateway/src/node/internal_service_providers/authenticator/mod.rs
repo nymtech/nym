@@ -48,7 +48,9 @@ impl Authenticator {
         config: crate::node::internal_service_providers::authenticator::Config,
         wireguard_gateway_data: WireguardGatewayData,
         used_private_network_ips: Vec<IpAddr>,
-        ecash_verifier: Arc<dyn nym_credential_verification::ecash::traits::EcashManager + Send + Sync>,
+        ecash_verifier: Arc<
+            dyn nym_credential_verification::ecash::traits::EcashManager + Send + Sync,
+        >,
         shutdown: ShutdownTracker,
     ) -> Self {
         Self {

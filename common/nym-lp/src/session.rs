@@ -68,7 +68,7 @@ impl LpSession {
         remote_public_key: &[u8],
         psk: &[u8],
     ) -> Result<Self, LpError> {
-        // AIDEV-NOTE: XKpsk3 pattern requires remote static key known upfront (XK)
+        // XKpsk3 pattern requires remote static key known upfront (XK)
         // and PSK mixed at position 3. This provides forward secrecy with PSK authentication.
         let pattern_name = "Noise_XKpsk3_25519_ChaChaPoly_SHA256";
         let psk_index = 3;
@@ -125,7 +125,7 @@ impl LpSession {
     /// * `Ok(())` if the counter is likely valid
     /// * `Err(LpError::Replay)` if the counter is invalid or a potential replay
     pub fn receiving_counter_quick_check(&self, counter: u64) -> Result<(), LpError> {
-        // AIDEV-NOTE: Branchless implementation uses SIMD when available for constant-time
+        // Branchless implementation uses SIMD when available for constant-time
         // operations, preventing timing attacks. Check before crypto to save CPU cycles.
         let counter_validator = self.receiving_counter.lock();
         counter_validator
@@ -455,7 +455,8 @@ mod tests {
         const MAX_ROUNDS: usize = 10; // Safety break for the loop
 
         // Start by priming the initiator message
-        let mut initiator_to_responder_msg = initiator_session.prepare_handshake_message().unwrap().ok();
+        let mut initiator_to_responder_msg =
+            initiator_session.prepare_handshake_message().unwrap().ok();
         assert!(
             initiator_to_responder_msg.is_some(),
             "Initiator did not produce initial message"

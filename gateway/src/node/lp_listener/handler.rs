@@ -10,10 +10,28 @@ use nym_lp::{
     keypair::{Keypair, PublicKey},
     LpMessage, LpPacket, LpSession,
 };
+use nym_metrics::{add_histogram_obs, inc};
 use std::net::SocketAddr;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tracing::*;
+
+// Histogram buckets for LP operation duration tracking
+// Covers typical LP operations from 10ms to 10 seconds
+// - Most handshakes should complete in < 100ms
+// - Registration with credential verification typically 100ms - 1s
+// - Slow operations (network issues, DB contention) up to 10s
+const LP_DURATION_BUCKETS: &[f64] = &[
+    0.01, // 10ms
+    0.05, // 50ms
+    0.1,  // 100ms
+    0.25, // 250ms
+    0.5,  // 500ms
+    1.0,  // 1s
+    2.5,  // 2.5s
+    5.0,  // 5s
+    10.0, // 10s
+];
 
 pub struct LpConnectionHandler {
     stream: TcpStream,
@@ -33,6 +51,9 @@ impl LpConnectionHandler {
     pub async fn handle(mut self) -> Result<(), GatewayError> {
         debug!("Handling LP connection from {}", self.remote_addr);
 
+        // Track total LP connections handled
+        inc!("lp_connections_total");
+
         // For LP, we need:
         // 1. Gateway's keypair (from local_identity)
         // 2. Client's public key (will be received during handshake)
@@ -45,51 +66,80 @@ impl LpConnectionHandler {
 
         // Receive client's public key and salt via ClientHello message
         // The client initiates by sending ClientHello as first packet
-        let (client_pubkey, salt) = self.receive_client_hello().await?;
+        let (client_pubkey, salt) = match self.receive_client_hello().await {
+            Ok(result) => result,
+            Err(e) => {
+                // Track ClientHello failures (timestamp validation, protocol errors, etc.)
+                inc!("lp_client_hello_failed");
+                return Err(e);
+            }
+        };
 
         // Derive PSK using ECDH + Blake3 KDF (nym-109)
         // Both client and gateway derive the same PSK from their respective keys
-        let psk = nym_lp::derive_psk(
-            gateway_keypair.private_key(),
-            &client_pubkey,
-            &salt,
-        );
+        let psk = nym_lp::derive_psk(gateway_keypair.private_key(), &client_pubkey, &salt);
         tracing::trace!("Derived PSK from LP keys and ClientHello salt");
 
         // Create LP handshake as responder
-        let handshake = LpGatewayHandshake::new_responder(
-            &gateway_keypair,
-            &client_pubkey,
-            &psk,
-        )?;
+        let handshake = LpGatewayHandshake::new_responder(&gateway_keypair, &client_pubkey, &psk)?;
 
-        // Complete the LP handshake
-        let session = handshake.complete(&mut self.stream).await?;
+        // Complete the LP handshake with duration tracking
+        let handshake_start = std::time::Instant::now();
+        let session = match handshake.complete(&mut self.stream).await {
+            Ok(s) => {
+                let duration = handshake_start.elapsed().as_secs_f64();
+                add_histogram_obs!(
+                    "lp_handshake_duration_seconds",
+                    duration,
+                    LP_DURATION_BUCKETS
+                );
+                inc!("lp_handshakes_success");
+                s
+            }
+            Err(e) => {
+                inc!("lp_handshakes_failed");
+                inc!("lp_errors_handshake");
+                return Err(e);
+            }
+        };
 
-        info!("LP handshake completed for {} (session {})",
-              self.remote_addr, session.id());
+        info!(
+            "LP handshake completed for {} (session {})",
+            self.remote_addr,
+            session.id()
+        );
 
         // After handshake, receive registration request
         let request = self.receive_registration_request(&session).await?;
 
-        debug!("LP registration request from {}: mode={:?}",
-               self.remote_addr, request.mode);
+        debug!(
+            "LP registration request from {}: mode={:?}",
+            self.remote_addr, request.mode
+        );
 
         // Process registration (verify credentials, add peer, etc.)
         let response = process_registration(request, &self.state).await;
 
         // Send response
-        if let Err(e) = self.send_registration_response(&session, response.clone()).await {
+        if let Err(e) = self
+            .send_registration_response(&session, response.clone())
+            .await
+        {
             warn!("Failed to send LP response to {}: {}", self.remote_addr, e);
+            inc!("lp_errors_send_response");
             return Err(e);
         }
 
         if response.success {
-            info!("LP registration successful for {} (session {})",
-                  self.remote_addr, response.session_id);
+            info!(
+                "LP registration successful for {} (session {})",
+                self.remote_addr, response.session_id
+            );
         } else {
-            warn!("LP registration failed for {}: {:?}",
-                  self.remote_addr, response.error);
+            warn!(
+                "LP registration failed for {}: {:?}",
+                self.remote_addr, response.error
+            );
         }
 
         Ok(())
@@ -131,12 +181,23 @@ impl LpConnectionHandler {
             } else {
                 "future"
             };
+
+            // Track timestamp validation failures
+            inc!("lp_timestamp_validation_rejected");
+            if now >= client_timestamp {
+                inc!("lp_errors_timestamp_too_old");
+            } else {
+                inc!("lp_errors_timestamp_too_far_future");
+            }
+
             return Err(GatewayError::LpProtocolError(format!(
                 "ClientHello timestamp is too {} (age: {}s, tolerance: {}s)",
                 direction, age, tolerance_secs
             )));
         }
 
+        // Track successful timestamp validation
+        inc!("lp_timestamp_validation_accepted");
         Ok(())
     }
 
@@ -150,9 +211,10 @@ impl LpConnectionHandler {
             LpMessage::ClientHello(hello_data) => {
                 // Validate protocol version (currently only v1)
                 if hello_data.protocol_version != 1 {
-                    return Err(GatewayError::LpProtocolError(
-                        format!("Unsupported protocol version: {}", hello_data.protocol_version)
-                    ));
+                    return Err(GatewayError::LpProtocolError(format!(
+                        "Unsupported protocol version: {}",
+                        hello_data.protocol_version
+                    )));
                 }
 
                 // Extract and validate timestamp (nym-110: replay protection)
@@ -179,20 +241,19 @@ impl LpConnectionHandler {
 
                 // Convert bytes to PublicKey
                 let client_pubkey = PublicKey::from_bytes(&hello_data.client_lp_public_key)
-                    .map_err(|e| GatewayError::LpProtocolError(
-                        format!("Invalid client public key: {}", e)
-                    ))?;
+                    .map_err(|e| {
+                        GatewayError::LpProtocolError(format!("Invalid client public key: {}", e))
+                    })?;
 
                 // Extract salt for PSK derivation
                 let salt = hello_data.salt;
 
                 Ok((client_pubkey, salt))
             }
-            other => {
-                Err(GatewayError::LpProtocolError(
-                    format!("Expected ClientHello, got {}", other)
-                ))
-            }
+            other => Err(GatewayError::LpProtocolError(format!(
+                "Expected ClientHello, got {}",
+                other
+            ))),
         }
     }
 
@@ -206,26 +267,28 @@ impl LpConnectionHandler {
 
         // Verify it's from the correct session
         if packet.header().session_id != session.id() {
-            return Err(GatewayError::LpProtocolError(
-                format!("Session ID mismatch: expected {}, got {}",
-                        session.id(), packet.header().session_id)
-            ));
+            return Err(GatewayError::LpProtocolError(format!(
+                "Session ID mismatch: expected {}, got {}",
+                session.id(),
+                packet.header().session_id
+            )));
         }
 
         // Extract registration request from LP message
         match packet.message() {
             LpMessage::EncryptedData(data) => {
                 // Deserialize registration request
-                bincode::deserialize(&data)
-                    .map_err(|e| GatewayError::LpProtocolError(
-                        format!("Failed to deserialize registration request: {}", e)
+                bincode::deserialize(&data).map_err(|e| {
+                    GatewayError::LpProtocolError(format!(
+                        "Failed to deserialize registration request: {}",
+                        e
                     ))
+                })
             }
-            other => {
-                Err(GatewayError::LpProtocolError(
-                    format!("Expected EncryptedData message, got {:?}", other)
-                ))
-            }
+            other => Err(GatewayError::LpProtocolError(format!(
+                "Expected EncryptedData message, got {:?}",
+                other
+            ))),
         }
     }
 
@@ -236,16 +299,14 @@ impl LpConnectionHandler {
         response: LpRegistrationResponse,
     ) -> Result<(), GatewayError> {
         // Serialize response
-        let data = bincode::serialize(&response)
-            .map_err(|e| GatewayError::LpProtocolError(
-                format!("Failed to serialize response: {}", e)
-            ))?;
+        let data = bincode::serialize(&response).map_err(|e| {
+            GatewayError::LpProtocolError(format!("Failed to serialize response: {}", e))
+        })?;
 
         // Create LP packet with response
-        let packet = session.create_data_packet(data)
-            .map_err(|e| GatewayError::LpProtocolError(
-                format!("Failed to create data packet: {}", e)
-            ))?;
+        let packet = session.create_data_packet(data).map_err(|e| {
+            GatewayError::LpProtocolError(format!("Failed to create data packet: {}", e))
+        })?;
 
         // Send the packet
         self.send_lp_packet(&packet).await
@@ -257,63 +318,59 @@ impl LpConnectionHandler {
 
         // Read 4-byte length prefix (u32 big-endian)
         let mut len_buf = [0u8; 4];
-        self.stream.read_exact(&mut len_buf).await
-            .map_err(|e| GatewayError::LpConnectionError(
-                format!("Failed to read packet length: {}", e)
-            ))?;
+        self.stream.read_exact(&mut len_buf).await.map_err(|e| {
+            GatewayError::LpConnectionError(format!("Failed to read packet length: {}", e))
+        })?;
 
         let packet_len = u32::from_be_bytes(len_buf) as usize;
 
         // Sanity check to prevent huge allocations
         const MAX_PACKET_SIZE: usize = 65536; // 64KB max
         if packet_len > MAX_PACKET_SIZE {
-            return Err(GatewayError::LpProtocolError(
-                format!("Packet size {} exceeds maximum {}", packet_len, MAX_PACKET_SIZE)
-            ));
+            return Err(GatewayError::LpProtocolError(format!(
+                "Packet size {} exceeds maximum {}",
+                packet_len, MAX_PACKET_SIZE
+            )));
         }
 
         // Read the actual packet data
         let mut packet_buf = vec![0u8; packet_len];
-        self.stream.read_exact(&mut packet_buf).await
-            .map_err(|e| GatewayError::LpConnectionError(
-                format!("Failed to read packet data: {}", e)
-            ))?;
+        self.stream.read_exact(&mut packet_buf).await.map_err(|e| {
+            GatewayError::LpConnectionError(format!("Failed to read packet data: {}", e))
+        })?;
 
         parse_lp_packet(&packet_buf)
-            .map_err(|e| GatewayError::LpProtocolError(
-                format!("Failed to parse LP packet: {}", e)
-            ))
+            .map_err(|e| GatewayError::LpProtocolError(format!("Failed to parse LP packet: {}", e)))
     }
 
     /// Send an LP packet over the stream with proper length-prefixed framing
     async fn send_lp_packet(&mut self, packet: &LpPacket) -> Result<(), GatewayError> {
-        use nym_lp::codec::serialize_lp_packet;
         use bytes::BytesMut;
+        use nym_lp::codec::serialize_lp_packet;
 
         // Serialize the packet first
         let mut packet_buf = BytesMut::new();
-        serialize_lp_packet(packet, &mut packet_buf)
-            .map_err(|e| GatewayError::LpProtocolError(
-                format!("Failed to serialize packet: {}", e)
-            ))?;
+        serialize_lp_packet(packet, &mut packet_buf).map_err(|e| {
+            GatewayError::LpProtocolError(format!("Failed to serialize packet: {}", e))
+        })?;
 
         // Send 4-byte length prefix (u32 big-endian)
         let len = packet_buf.len() as u32;
-        self.stream.write_all(&len.to_be_bytes()).await
-            .map_err(|e| GatewayError::LpConnectionError(
-                format!("Failed to send packet length: {}", e)
-            ))?;
+        self.stream
+            .write_all(&len.to_be_bytes())
+            .await
+            .map_err(|e| {
+                GatewayError::LpConnectionError(format!("Failed to send packet length: {}", e))
+            })?;
 
         // Send the actual packet data
-        self.stream.write_all(&packet_buf).await
-            .map_err(|e| GatewayError::LpConnectionError(
-                format!("Failed to send packet data: {}", e)
-            ))?;
+        self.stream.write_all(&packet_buf).await.map_err(|e| {
+            GatewayError::LpConnectionError(format!("Failed to send packet data: {}", e))
+        })?;
 
-        self.stream.flush().await
-            .map_err(|e| GatewayError::LpConnectionError(
-                format!("Failed to flush stream: {}", e)
-            ))?;
+        self.stream.flush().await.map_err(|e| {
+            GatewayError::LpConnectionError(format!("Failed to flush stream: {}", e))
+        })?;
 
         Ok(())
     }
@@ -344,15 +401,15 @@ impl LpSessionExt for LpSession {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::node::lp_listener::LpConfig;
+    use crate::node::ActiveClientsStore;
     use bytes::BytesMut;
+    use nym_lp::codec::{parse_lp_packet, serialize_lp_packet};
     use nym_lp::keypair::Keypair;
     use nym_lp::message::{ClientHelloData, LpMessage};
     use nym_lp::packet::{LpHeader, LpPacket};
-    use nym_lp::codec::{serialize_lp_packet, parse_lp_packet};
     use std::sync::Arc;
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
-    use crate::node::ActiveClientsStore;
-    use crate::node::lp_listener::LpConfig;
 
     // ==================== Test Helpers ====================
 
@@ -367,9 +424,8 @@ mod tests {
             .expect("Failed to create test storage");
 
         // Create mock ecash manager for testing
-        let ecash_verifier = nym_credential_verification::ecash::MockEcashManager::new(
-            Box::new(storage.clone())
-        );
+        let ecash_verifier =
+            nym_credential_verification::ecash::MockEcashManager::new(Box::new(storage.clone()));
 
         LpHandlerState {
             lp_config: LpConfig {
@@ -377,7 +433,8 @@ mod tests {
                 timestamp_tolerance_secs: 30,
                 ..Default::default()
             },
-            ecash_verifier: Arc::new(ecash_verifier) as Arc<dyn nym_credential_verification::ecash::traits::EcashManager + Send + Sync>,
+            ecash_verifier: Arc::new(ecash_verifier)
+                as Arc<dyn nym_credential_verification::ecash::traits::EcashManager + Send + Sync>,
             storage,
             local_identity: Arc::new(ed25519::KeyPair::new(&mut OsRng)),
             metrics: nym_node_metrics::NymNodeMetrics::default(),
@@ -538,7 +595,9 @@ mod tests {
             },
             LpMessage::Busy,
         );
-        write_lp_packet_to_stream(&mut client_stream, &packet).await.unwrap();
+        write_lp_packet_to_stream(&mut client_stream, &packet)
+            .await
+            .unwrap();
 
         // Handler should receive and parse it correctly
         let received = server_task.await.unwrap().unwrap();
@@ -565,7 +624,10 @@ mod tests {
 
         // Send a packet size that exceeds MAX_PACKET_SIZE (64KB)
         let oversized_len: u32 = 70000; // > 65536
-        client_stream.write_all(&oversized_len.to_be_bytes()).await.unwrap();
+        client_stream
+            .write_all(&oversized_len.to_be_bytes())
+            .await
+            .unwrap();
         client_stream.flush().await.unwrap();
 
         // Handler should reject it
@@ -604,7 +666,9 @@ mod tests {
         server_task.await.unwrap().unwrap();
 
         // Client should receive it correctly
-        let received = read_lp_packet_from_stream(&mut client_stream).await.unwrap();
+        let received = read_lp_packet_from_stream(&mut client_stream)
+            .await
+            .unwrap();
         assert_eq!(received.header().session_id, 99);
         assert_eq!(received.header().counter, 5);
     }
@@ -638,7 +702,9 @@ mod tests {
         let mut client_stream = TcpStream::connect(addr).await.unwrap();
         server_task.await.unwrap().unwrap();
 
-        let received = read_lp_packet_from_stream(&mut client_stream).await.unwrap();
+        let received = read_lp_packet_from_stream(&mut client_stream)
+            .await
+            .unwrap();
         assert_eq!(received.header().session_id, 100);
         assert_eq!(received.header().counter, 10);
         match received.message() {
@@ -676,7 +742,9 @@ mod tests {
         let mut client_stream = TcpStream::connect(addr).await.unwrap();
         server_task.await.unwrap().unwrap();
 
-        let received = read_lp_packet_from_stream(&mut client_stream).await.unwrap();
+        let received = read_lp_packet_from_stream(&mut client_stream)
+            .await
+            .unwrap();
         assert_eq!(received.header().session_id, 200);
         assert_eq!(received.header().counter, 20);
         match received.message() {
@@ -687,8 +755,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_send_receive_client_hello_message() {
-        use tokio::net::{TcpListener, TcpStream};
         use nym_lp::message::ClientHelloData;
+        use tokio::net::{TcpListener, TcpStream};
 
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let addr = listener.local_addr().unwrap();
@@ -716,7 +784,9 @@ mod tests {
         let mut client_stream = TcpStream::connect(addr).await.unwrap();
         server_task.await.unwrap().unwrap();
 
-        let received = read_lp_packet_from_stream(&mut client_stream).await.unwrap();
+        let received = read_lp_packet_from_stream(&mut client_stream)
+            .await
+            .unwrap();
         assert_eq!(received.header().session_id, 300);
         assert_eq!(received.header().counter, 30);
         match received.message() {
@@ -761,7 +831,9 @@ mod tests {
             },
             LpMessage::ClientHello(hello_data.clone()),
         );
-        write_lp_packet_to_stream(&mut client_stream, &packet).await.unwrap();
+        write_lp_packet_to_stream(&mut client_stream, &packet)
+            .await
+            .unwrap();
 
         // Handler should receive and parse it
         let result = server_task.await.unwrap();
@@ -774,8 +846,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_receive_client_hello_timestamp_too_old() {
-        use tokio::net::{TcpListener, TcpStream};
         use std::time::{SystemTime, UNIX_EPOCH};
+        use tokio::net::{TcpListener, TcpStream};
 
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let addr = listener.local_addr().unwrap();
@@ -791,16 +863,15 @@ mod tests {
 
         // Create ClientHello with old timestamp
         let client_keypair = Keypair::default();
-        let mut hello_data = ClientHelloData::new_with_fresh_salt(
-            client_keypair.public_key().to_bytes(),
-            1,
-        );
+        let mut hello_data =
+            ClientHelloData::new_with_fresh_salt(client_keypair.public_key().to_bytes(), 1);
 
         // Manually set timestamp to be very old (100 seconds ago)
         let old_timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
-            .as_secs() - 100;
+            .as_secs()
+            - 100;
         hello_data.salt[..8].copy_from_slice(&old_timestamp.to_le_bytes());
 
         let packet = LpPacket::new(
@@ -811,7 +882,9 @@ mod tests {
             },
             LpMessage::ClientHello(hello_data),
         );
-        write_lp_packet_to_stream(&mut client_stream, &packet).await.unwrap();
+        write_lp_packet_to_stream(&mut client_stream, &packet)
+            .await
+            .unwrap();
 
         // Should fail with timestamp error
         let result = server_task.await.unwrap();
@@ -821,7 +894,11 @@ mod tests {
         match result {
             Err(e) => {
                 let err_msg = format!("{}", e);
-                assert!(err_msg.contains("too old"), "Expected 'too old' in error, got: {}", err_msg);
+                assert!(
+                    err_msg.contains("too old"),
+                    "Expected 'too old' in error, got: {}",
+                    err_msg
+                );
             }
             Ok(_) => panic!("Expected error but got success"),
         }

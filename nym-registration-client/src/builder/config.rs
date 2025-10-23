@@ -16,6 +16,7 @@ use std::os::fd::RawFd;
 use std::{path::PathBuf, sync::Arc, time::Duration};
 use tokio_util::sync::CancellationToken;
 
+use crate::config::RegistrationMode;
 use crate::error::RegistrationClientError;
 
 const VPN_AVERAGE_PACKET_DELAY: Duration = Duration::from_millis(15);
@@ -31,7 +32,7 @@ pub struct BuilderConfig {
     pub exit_node: NymNodeWithKeys,
     pub data_path: Option<PathBuf>,
     pub mixnet_client_config: MixnetClientConfig,
-    pub two_hops: bool,
+    pub mode: RegistrationMode,
     pub user_agent: UserAgent,
     pub custom_topology_provider: Box<dyn TopologyProvider + Send + Sync>,
     pub network_env: NymNetworkDetails,
@@ -65,7 +66,7 @@ impl BuilderConfig {
         exit_node: NymNodeWithKeys,
         data_path: Option<PathBuf>,
         mixnet_client_config: MixnetClientConfig,
-        two_hops: bool,
+        mode: RegistrationMode,
         user_agent: UserAgent,
         custom_topology_provider: Box<dyn TopologyProvider + Send + Sync>,
         network_env: NymNetworkDetails,
@@ -77,7 +78,7 @@ impl BuilderConfig {
             exit_node,
             data_path,
             mixnet_client_config,
-            two_hops,
+            mode,
             user_agent,
             custom_topology_provider,
             network_env,
@@ -104,10 +105,13 @@ impl BuilderConfig {
     }
 
     pub fn mixnet_client_debug_config(&self) -> DebugConfig {
-        if self.two_hops {
-            two_hop_debug_config(&self.mixnet_client_config)
-        } else {
-            mixnet_debug_config(&self.mixnet_client_config)
+        match self.mode {
+            // Mixnet mode uses 5-hop configuration
+            RegistrationMode::Mixnet => mixnet_debug_config(&self.mixnet_client_config),
+            // Wireguard and LP both use 2-hop configuration
+            RegistrationMode::Wireguard | RegistrationMode::Lp => {
+                two_hop_debug_config(&self.mixnet_client_config)
+            }
         }
     }
 
@@ -149,10 +153,9 @@ impl BuilderConfig {
         <S::GatewaysDetailsStore as GatewaysDetailsStore>::StorageError: Send + Sync,
     {
         let debug_config = self.mixnet_client_debug_config();
-        let remember_me = if self.two_hops {
-            RememberMe::new_vpn()
-        } else {
-            RememberMe::new_mixnet()
+        let remember_me = match self.mode {
+            RegistrationMode::Mixnet => RememberMe::new_mixnet(),
+            RegistrationMode::Wireguard | RegistrationMode::Lp => RememberMe::new_vpn(),
         };
 
         let builder = builder
@@ -264,6 +267,8 @@ pub enum BuilderConfigError {
     MissingExitNode,
     #[error("mixnet_client_config is required")]
     MissingMixnetClientConfig,
+    #[error("mode is required (use mode(), wireguard_mode(), lp_mode(), or mixnet_mode())")]
+    MissingMode,
     #[error("user_agent is required")]
     MissingUserAgent,
     #[error("custom_topology_provider is required")]
@@ -281,19 +286,36 @@ pub enum BuilderConfigError {
 ///
 /// This provides a more convenient way to construct a `BuilderConfig` compared to the
 /// `new()` constructor with many arguments.
-#[derive(Default)]
 pub struct BuilderConfigBuilder {
     entry_node: Option<NymNodeWithKeys>,
     exit_node: Option<NymNodeWithKeys>,
     data_path: Option<PathBuf>,
     mixnet_client_config: Option<MixnetClientConfig>,
-    two_hops: bool,
+    mode: Option<RegistrationMode>,
     user_agent: Option<UserAgent>,
     custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
     network_env: Option<NymNetworkDetails>,
     cancel_token: Option<CancellationToken>,
     #[cfg(unix)]
     connection_fd_callback: Option<Arc<dyn Fn(RawFd) + Send + Sync>>,
+}
+
+impl Default for BuilderConfigBuilder {
+    fn default() -> Self {
+        Self {
+            entry_node: None,
+            exit_node: None,
+            data_path: None,
+            mixnet_client_config: None,
+            mode: None,
+            user_agent: None,
+            custom_topology_provider: None,
+            network_env: None,
+            cancel_token: None,
+            #[cfg(unix)]
+            connection_fd_callback: None,
+        }
+    }
 }
 
 impl BuilderConfigBuilder {
@@ -321,9 +343,36 @@ impl BuilderConfigBuilder {
         self
     }
 
-    pub fn two_hops(mut self, two_hops: bool) -> Self {
-        self.two_hops = two_hops;
+    /// Set the registration mode
+    pub fn mode(mut self, mode: RegistrationMode) -> Self {
+        self.mode = Some(mode);
         self
+    }
+
+    /// Convenience method to set Mixnet mode (5-hop with IPR)
+    pub fn mixnet_mode(self) -> Self {
+        self.mode(RegistrationMode::Mixnet)
+    }
+
+    /// Convenience method to set Wireguard mode (2-hop with authenticator)
+    pub fn wireguard_mode(self) -> Self {
+        self.mode(RegistrationMode::Wireguard)
+    }
+
+    /// Convenience method to set LP mode (2-hop with Lewes Protocol)
+    pub fn lp_mode(self) -> Self {
+        self.mode(RegistrationMode::Lp)
+    }
+
+    /// Legacy method for backward compatibility
+    /// Use `wireguard_mode()` or `mixnet_mode()` instead
+    #[deprecated(since = "0.1.0", note = "Use `mode()`, `wireguard_mode()`, or `mixnet_mode()` instead")]
+    pub fn two_hops(self, two_hops: bool) -> Self {
+        if two_hops {
+            self.wireguard_mode()
+        } else {
+            self.mixnet_mode()
+        }
     }
 
     pub fn user_agent(mut self, user_agent: UserAgent) -> Self {
@@ -371,7 +420,7 @@ impl BuilderConfigBuilder {
             mixnet_client_config: self
                 .mixnet_client_config
                 .ok_or(BuilderConfigError::MissingMixnetClientConfig)?,
-            two_hops: self.two_hops,
+            mode: self.mode.ok_or(BuilderConfigError::MissingMode)?,
             user_agent: self
                 .user_agent
                 .ok_or(BuilderConfigError::MissingUserAgent)?,

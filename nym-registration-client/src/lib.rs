@@ -7,14 +7,18 @@ use nym_authenticator_client::{AuthClientMixnetListener, AuthenticatorClient};
 use nym_bandwidth_controller::BandwidthTicketProvider;
 use nym_credentials_interface::TicketType;
 use nym_ip_packet_client::IprClientConnect;
+use nym_lp::keypair::{Keypair as LpKeypair, PublicKey as LpPublicKey};
 use nym_registration_common::AssignedAddresses;
 use nym_sdk::mixnet::{EventReceiver, MixnetClient, Recipient};
+use std::sync::Arc;
 
 use crate::config::RegistrationClientConfig;
+use crate::lp_client::{LpClientError, LpRegistrationClient, LpTransport};
 
 mod builder;
 mod config;
 mod error;
+mod lp_client;
 mod types;
 
 pub use builder::RegistrationClientBuilder;
@@ -22,8 +26,13 @@ pub use builder::config::{
     BuilderConfig as RegistrationClientBuilderConfig, MixnetClientConfig,
     NymNodeWithKeys as RegistrationNymNode,
 };
+pub use config::RegistrationMode;
 pub use error::RegistrationClientError;
-pub use types::{MixnetRegistrationResult, RegistrationResult, WireguardRegistrationResult};
+pub use lp_client::LpConfig;
+pub use types::{
+    LpRegistrationResult, MixnetRegistrationResult, RegistrationResult,
+    WireguardRegistrationResult,
+};
 
 pub struct RegistrationClient {
     mixnet_client: MixnetClient,
@@ -146,14 +155,177 @@ impl RegistrationClient {
         )))
     }
 
+    async fn register_lp(self) -> Result<RegistrationResult, RegistrationClientError> {
+        // Extract and validate LP addresses
+        let entry_lp_address = self.config.entry.node.lp_address.ok_or(
+            RegistrationClientError::LpRegistrationNotPossible {
+                node_id: self.config.entry.node.identity.to_base58_string(),
+            },
+        )?;
+
+        let exit_lp_address = self.config.exit.node.lp_address.ok_or(
+            RegistrationClientError::LpRegistrationNotPossible {
+                node_id: self.config.exit.node.identity.to_base58_string(),
+            },
+        )?;
+
+        tracing::debug!("Entry gateway LP address: {}", entry_lp_address);
+        tracing::debug!("Exit gateway LP address: {}", exit_lp_address);
+
+        // For now, use gateway identities as LP public keys
+        // TODO(nym-87): Implement proper key derivation
+        let entry_gateway_lp_key =
+            LpPublicKey::from_bytes(&self.config.entry.node.identity.to_bytes())
+                .map_err(|e| RegistrationClientError::LpRegistrationNotPossible {
+                    node_id: format!(
+                        "{}: invalid LP key: {}",
+                        self.config.entry.node.identity.to_base58_string(),
+                        e
+                    ),
+                })?;
+
+        let exit_gateway_lp_key =
+            LpPublicKey::from_bytes(&self.config.exit.node.identity.to_bytes())
+                .map_err(|e| RegistrationClientError::LpRegistrationNotPossible {
+                    node_id: format!(
+                        "{}: invalid LP key: {}",
+                        self.config.exit.node.identity.to_base58_string(),
+                        e
+                    ),
+                })?;
+
+        // Generate LP keypairs for this connection
+        let client_lp_keypair = Arc::new(LpKeypair::default());
+
+        // Register entry gateway via LP
+        let entry_fut = {
+            let bandwidth_controller = &self.bandwidth_controller;
+            let entry_keys = self.config.entry.keys.clone();
+            let entry_identity = self.config.entry.node.identity;
+            let entry_ip = self.config.entry.node.ip_address;
+            let lp_keypair = client_lp_keypair.clone();
+
+            async move {
+                let mut client = LpRegistrationClient::new_with_default_psk(
+                    lp_keypair,
+                    entry_gateway_lp_key,
+                    entry_lp_address,
+                    entry_ip,
+                );
+
+                // Connect
+                client.connect().await?;
+
+                // Perform handshake
+                client.perform_handshake().await?;
+
+                // Send registration request
+                client
+                    .send_registration_request(
+                        &entry_keys,
+                        &entry_identity,
+                        &**bandwidth_controller,
+                        TicketType::V1WireguardEntry,
+                    )
+                    .await?;
+
+                // Receive registration response
+                let gateway_data = client.receive_registration_response().await?;
+
+                // Convert to transport for ongoing communication
+                let transport = client.into_transport()?;
+
+                Ok::<(LpTransport, _), LpClientError>((transport, gateway_data))
+            }
+        };
+
+        // Register exit gateway via LP
+        let exit_fut = {
+            let bandwidth_controller = &self.bandwidth_controller;
+            let exit_keys = self.config.exit.keys.clone();
+            let exit_identity = self.config.exit.node.identity;
+            let exit_ip = self.config.exit.node.ip_address;
+            let lp_keypair = client_lp_keypair;
+
+            async move {
+                let mut client = LpRegistrationClient::new_with_default_psk(
+                    lp_keypair,
+                    exit_gateway_lp_key,
+                    exit_lp_address,
+                    exit_ip,
+                );
+
+                // Connect
+                client.connect().await?;
+
+                // Perform handshake
+                client.perform_handshake().await?;
+
+                // Send registration request
+                client
+                    .send_registration_request(
+                        &exit_keys,
+                        &exit_identity,
+                        &**bandwidth_controller,
+                        TicketType::V1WireguardExit,
+                    )
+                    .await?;
+
+                // Receive registration response
+                let gateway_data = client.receive_registration_response().await?;
+
+                // Convert to transport for ongoing communication
+                let transport = client.into_transport()?;
+
+                Ok::<(LpTransport, _), LpClientError>((transport, gateway_data))
+            }
+        };
+
+        // Execute registrations in parallel
+        let (entry_result, exit_result) =
+            Box::pin(async { tokio::join!(entry_fut, exit_fut) }).await;
+
+        // Handle entry gateway result
+        // Note: entry_transport is dropped here, closing the LP connection
+        let (_entry_transport, entry_gateway_data) = entry_result.map_err(|source| {
+            RegistrationClientError::EntryGatewayRegisterLp {
+                gateway_id: self.config.entry.node.identity.to_base58_string(),
+                lp_address: entry_lp_address,
+                source: Box::new(source),
+            }
+        })?;
+
+        // Handle exit gateway result
+        // Note: exit_transport is dropped here, closing the LP connection
+        let (_exit_transport, exit_gateway_data) = exit_result.map_err(|source| {
+            RegistrationClientError::ExitGatewayRegisterLp {
+                gateway_id: self.config.exit.node.identity.to_base58_string(),
+                lp_address: exit_lp_address,
+                source: Box::new(source),
+            }
+        })?;
+
+        tracing::info!(
+            "LP registration successful for both gateways (LP connections will be closed)"
+        );
+
+        // LP is registration-only. All data flows through WireGuard after this point.
+        // The LP transports have been dropped, automatically closing TCP connections.
+        Ok(RegistrationResult::Lp(Box::new(LpRegistrationResult {
+            entry_gateway_data,
+            exit_gateway_data,
+            bw_controller: self.bandwidth_controller,
+        })))
+    }
+
     pub async fn register(self) -> Result<RegistrationResult, RegistrationClientError> {
         self.cancel_token
             .clone()
             .run_until_cancelled(async {
-                if self.config.two_hops {
-                    self.register_wg().await
-                } else {
-                    self.register_mix_exit().await
+                match self.config.mode {
+                    RegistrationMode::Mixnet => self.register_mix_exit().await,
+                    RegistrationMode::Wireguard => self.register_wg().await,
+                    RegistrationMode::Lp => self.register_lp().await,
                 }
             })
             .await

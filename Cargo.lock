@@ -6857,15 +6857,21 @@ dependencies = [
 name = "nym-registration-client"
 version = "0.1.0"
 dependencies = [
+ "bincode",
+ "bytes",
  "futures",
  "nym-authenticator-client",
  "nym-bandwidth-controller",
  "nym-credential-storage",
  "nym-credentials-interface",
+ "nym-crypto",
  "nym-ip-packet-client",
+ "nym-lp",
  "nym-registration-common",
  "nym-sdk",
  "nym-validator-client",
+ "nym-wireguard-types",
+ "rand 0.8.5",
  "thiserror 2.0.12",
  "tokio",
  "tokio-util",
@@ -6878,9 +6884,11 @@ name = "nym-registration-common"
 version = "0.1.0"
 dependencies = [
  "nym-authenticator-requests",
+ "nym-credentials-interface",
  "nym-crypto",
  "nym-ip-packet-requests",
  "nym-sphinx",
+ "nym-wireguard-types",
  "serde",
  "tokio-util",
 ]

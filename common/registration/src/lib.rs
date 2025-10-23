@@ -1,6 +1,10 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+mod lp_messages;
+
+pub use lp_messages::{LpRegistrationRequest, LpRegistrationResponse, RegistrationMode};
+
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 
 use nym_authenticator_requests::AuthenticatorVersion;
@@ -15,6 +19,7 @@ pub struct NymNode {
     pub ip_address: IpAddr,
     pub ipr_address: Option<Recipient>,
     pub authenticator_address: Option<Recipient>,
+    pub lp_address: Option<SocketAddr>,
     pub version: AuthenticatorVersion,
 }
 

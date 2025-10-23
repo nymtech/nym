@@ -50,4 +50,23 @@ pub enum RegistrationClientError {
         #[source]
         source: Box<nym_authenticator_client::Error>,
     },
+
+    #[error("LP registration not possible for gateway {node_id}: no LP address available")]
+    LpRegistrationNotPossible { node_id: String },
+
+    #[error("failed to register LP with entry gateway {gateway_id} at {lp_address}: {source}")]
+    EntryGatewayRegisterLp {
+        gateway_id: String,
+        lp_address: std::net::SocketAddr,
+        #[source]
+        source: Box<crate::lp_client::LpClientError>,
+    },
+
+    #[error("failed to register LP with exit gateway {gateway_id} at {lp_address}: {source}")]
+    ExitGatewayRegisterLp {
+        gateway_id: String,
+        lp_address: std::net::SocketAddr,
+        #[source]
+        source: Box<crate::lp_client::LpClientError>,
+    },
 }

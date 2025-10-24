@@ -1395,6 +1395,7 @@ pub async fn try_upgrade_config_v10<P: AsRef<Path>>(
                         .maximum_time_between_redemption,
                 },
             },
+            lp: Default::default(),
         },
         service_providers: ServiceProvidersConfig {
             storage_paths: ServiceProvidersPaths {

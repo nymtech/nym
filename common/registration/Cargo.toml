@@ -12,9 +12,16 @@ license.workspace = true
 workspace = true
 
 [dependencies]
+serde = { workspace = true, features = ["derive"] }
 tokio-util.workspace = true
 
 nym-authenticator-requests = { path = "../authenticator-requests" }
+nym-credentials-interface = { path = "../credentials-interface" }
 nym-crypto = { path = "../crypto" }
 nym-ip-packet-requests = { path = "../ip-packet-requests" }
 nym-sphinx = { path = "../nymsphinx" }
+nym-wireguard-types = { path = "../wireguard-types" }
+
+[dev-dependencies]
+bincode.workspace = true
+time.workspace = true

@@ -15,6 +15,7 @@ base64.workspace = true
 bs58 = { workspace = true }
 blake3 = { workspace = true, features = ["traits-preview"], optional = true }
 ctr = { workspace = true, optional = true }
+curve25519-dalek = { workspace = true, optional = true }
 digest = { workspace = true, optional = true }
 generic-array = { workspace = true, optional = true }
 hkdf = { workspace = true, optional = true }
@@ -43,7 +44,7 @@ default = []
 aead = ["dep:aead", "aead/std", "aes-gcm-siv", "generic-array"]
 naive_jwt = ["asymmetric", "jwt-simple"]
 serde = ["dep:serde", "serde_bytes", "ed25519-dalek/serde", "x25519-dalek/serde"]
-asymmetric = ["x25519-dalek", "ed25519-dalek", "zeroize"]
+asymmetric = ["x25519-dalek", "ed25519-dalek", "curve25519-dalek", "sha2", "zeroize"]
 hashing = ["blake3", "digest", "hkdf", "hmac", "generic-array", "sha2"]
 stream_cipher = ["aes", "ctr", "cipher", "generic-array"]
 sphinx = ["nym-sphinx-types/sphinx"]

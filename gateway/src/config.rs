@@ -13,6 +13,8 @@ pub struct Config {
 
     pub ip_packet_router: IpPacketRouter,
 
+    pub lp: crate::node::lp_listener::LpConfig,
+
     pub debug: Debug,
 }
 
@@ -21,12 +23,14 @@ impl Config {
         gateway: impl Into<Gateway>,
         network_requester: impl Into<NetworkRequester>,
         ip_packet_router: impl Into<IpPacketRouter>,
+        lp: impl Into<crate::node::lp_listener::LpConfig>,
         debug: impl Into<Debug>,
     ) -> Self {
         Config {
             gateway: gateway.into(),
             network_requester: network_requester.into(),
             ip_packet_router: ip_packet_router.into(),
+            lp: lp.into(),
             debug: debug.into(),
         }
     }

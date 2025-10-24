@@ -1,0 +1,31 @@
+[package]
+name = "nym-lp"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bincode = { workspace = true }
+thiserror = { workspace = true }
+parking_lot = { workspace = true }
+snow = { workspace = true }
+bs58 = { workspace = true }
+serde = { workspace = true }
+bytes = { workspace = true }
+dashmap = { workspace = true }
+sha2 = { workspace = true }
+ansi_term = { workspace = true }
+utoipa = { workspace = true, features = ["macros", "non_strict_integers"] }
+rand = { workspace = true }
+
+nym-crypto = { path = "../crypto", features = ["hashing", "asymmetric"] }
+nym-lp-common = { path = "../nym-lp-common" }
+nym-sphinx = { path = "../nymsphinx" }
+
+[dev-dependencies]
+criterion = { version = "0.5", features = ["html_reports"] }
+rand_chacha = "0.3"
+
+
+[[bench]]
+name = "replay_protection"
+harness = false

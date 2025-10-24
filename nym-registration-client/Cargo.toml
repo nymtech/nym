@@ -12,7 +12,10 @@ license.workspace = true
 workspace = true
 
 [dependencies]
+bincode.workspace = true
+bytes.workspace = true
 futures.workspace = true
+rand.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
 tokio-util.workspace = true
@@ -23,7 +26,10 @@ nym-authenticator-client = { path = "../nym-authenticator-client" }
 nym-bandwidth-controller = { path = "../common/bandwidth-controller" }
 nym-credential-storage = { path = "../common/credential-storage" }
 nym-credentials-interface = { path = "../common/credentials-interface" }
+nym-crypto = { path = "../common/crypto" }
 nym-ip-packet-client = { path = "../nym-ip-packet-client" }
+nym-lp = { path = "../common/nym-lp" }
 nym-registration-common = { path = "../common/registration" }
 nym-sdk = { path = "../sdk/rust/nym-sdk" }
 nym-validator-client = { path = "../common/client-libs/validator-client" }
+nym-wireguard-types = { path = "../common/wireguard-types" }

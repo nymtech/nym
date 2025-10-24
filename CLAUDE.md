@@ -12,6 +12,16 @@ Nym is a privacy platform that uses mixnet technology to protect against metadat
 - Validators for network consensus
 - Various service providers and integrations
 
+## Navigation Aids
+
+This repository includes comprehensive navigation documents for efficient code exploration:
+
+- **[CODEMAP.md](./CODEMAP.md)**: Structural overview of the entire repository with directory hierarchy, package descriptions, and navigation hints. Use this to quickly understand the codebase layout and find specific components.
+
+- **[FUNCTION_LEXICON.md](./FUNCTION_LEXICON.md)**: Comprehensive catalog of key functions, signatures, and API patterns across all major modules. Use this to quickly find available functions and understand their usage patterns.
+
+When working with this codebase, start by consulting these documents to understand the structure and available APIs before diving into specific files.
+
 ## Build Commands
 
 ### Rust Components
@@ -150,7 +160,7 @@ dotenv -f envs/sandbox.env -- cargo run -p nym-api
 
 ## Architecture
 
-The Nym platform consists of various components organized as a monorepo:
+The Nym platform consists of various components organized as a monorepo. For a detailed structural overview with directory hierarchy and navigation hints, see [CODEMAP.md](./CODEMAP.md).
 
 1. **Core Mixnet Infrastructure**:
    - `nym-node`: Core binary supporting mixnode and gateway modes
@@ -422,6 +432,8 @@ The system uses SQLite databases with tables like:
 
 ## Development Workflows
 
+**Note**: Before diving into specific workflows, consult [CODEMAP.md](./CODEMAP.md) to understand the repository structure and [FUNCTION_LEXICON.md](./FUNCTION_LEXICON.md) to discover available APIs and functions.
+
 ### Running a Node
 
 To run the mixnode or gateway:
@@ -449,6 +461,8 @@ To monitor the health of your node:
 - Check the explorer for public node statistics
 
 ## Common Libraries
+
+For a comprehensive catalog of functions and APIs available in these libraries, see [FUNCTION_LEXICON.md](./FUNCTION_LEXICON.md).
 
 - `common/types`: Shared data types across all components
 - `common/crypto`: Cryptographic primitives and wrappers

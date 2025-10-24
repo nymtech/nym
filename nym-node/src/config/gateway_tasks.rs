@@ -37,6 +37,9 @@ pub struct GatewayTasksConfig {
     pub announce_wss_port: Option<u16>,
 
     #[serde(default)]
+    pub lp: nym_gateway::node::lp_listener::LpConfig,
+
+    #[serde(default)]
     pub debug: Debug,
 }
 
@@ -208,6 +211,7 @@ impl GatewayTasksConfig {
             ws_bind_address: SocketAddr::new(in6addr_any_init(), DEFAULT_WS_PORT),
             announce_ws_port: None,
             announce_wss_port: None,
+            lp: Default::default(),
             debug: Default::default(),
         }
     }

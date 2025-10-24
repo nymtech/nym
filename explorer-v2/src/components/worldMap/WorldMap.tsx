@@ -389,7 +389,7 @@ export const WorldMap = (): JSX.Element => {
             {totalCountries}
           </Typography>
         </ExplorerCard>
-        <ExplorerCard label="Nym Server Locations">
+        <ExplorerCard label="Cities with Nym servers">
           <Typography
             variant="h4"
             sx={{

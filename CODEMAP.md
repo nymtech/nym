@@ -450,7 +450,3 @@ clients/native
 2. Use existing contracts as templates
 3. Build with `make contracts`
 4. Test with `cw-multi-test`
-
----
-
-<!-- AIDEV-NOTE: This codemap is optimized for LLM navigation. Use Ctrl+F to quickly find components -->

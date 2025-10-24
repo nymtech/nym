@@ -1005,7 +1005,7 @@ where
         // or get one from the registry
         let shutdown_tracker = match self.shutdown {
             Some(parent_tracker) => parent_tracker.clone(),
-            None => nym_task::get_sdk_shutdown_tracker()?,
+            None => nym_task::create_sdk_shutdown_tracker()?,
         };
 
         Self::start_event_control(self.event_tx, event_receiver, &shutdown_tracker);

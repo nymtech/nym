@@ -387,13 +387,14 @@ fn calculate_mixnet_score(gateway: &Gateway) -> ScoreValue {
     }
 }
 
-/// calculates a visual score for the gateway
+/// calculates a visual score for the gateway using weighted metrics
 fn calculate_score(gateway: &Gateway, probe_outcome: &LastProbeResult) -> ScoreValue {
     let mixnet_performance = gateway.performance as f64 / 100.0;
-    let ping_ips_performance = probe_outcome
+
+    let (download_speed_score, ping_ips_performance) = probe_outcome
         .outcome
         .wg
-        .clone()
+        .as_ref()
         .map(|p| {
             let ping_ips_performance = p.ping_ips_performance_v4 as f64;
 
@@ -419,18 +420,19 @@ fn calculate_score(gateway: &Gateway, probe_outcome: &LastProbeResult) -> ScoreV
                 0.1
             };
 
-            // combine the scores
-            file_download_score * ping_ips_performance
+            (file_download_score, ping_ips_performance)
         })
-        .unwrap_or(0f64);
+        .unwrap_or((0.0, 0.0));
 
-    let score = mixnet_performance * ping_ips_performance;
+    // Weighted scoring: mixnet performance (40%), download speed (30%), ping performance (30%)
+    let weighted_score =
+        (mixnet_performance * 0.4) + (download_speed_score * 0.3) + (ping_ips_performance * 0.3);
 
-    if score > 0.75 {
+    if weighted_score > 0.75 {
         ScoreValue::High
-    } else if score > 0.5 {
+    } else if weighted_score > 0.5 {
         ScoreValue::Medium
-    } else if score > 0.1 {
+    } else if weighted_score > 0.1 {
         ScoreValue::Low
     } else {
         ScoreValue::Offline
@@ -732,6 +734,130 @@ mod test {
         assert!(service.hostname.is_none());
         assert!(service.mixnet_websockets.is_none());
         assert!(service.last_successful_ping_utc.is_none());
+    }
+
+    #[test]
+    fn test_weighted_score_calculation() {
+        use crate::http::models::directory_gw_probe_outcome::EntryTestResult;
+        use crate::http::models::wg_outcome_versions::ProbeOutcomeV1;
+
+        // Helper function to create a test gateway
+        fn create_test_gateway(performance: u8) -> Gateway {
+            Gateway {
+                gateway_identity_key: "test_key".to_string(),
+                bonded: true,
+                performance,
+                self_described: None,
+                explorer_pretty_bond: None,
+                description: nym_node_requests::api::v1::node::models::NodeDescription {
+                    moniker: "test".to_string(),
+                    details: "test".to_string(),
+                    security_contact: "test@example.com".to_string(),
+                    website: "https://example.com".to_string(),
+                },
+                last_probe_result: None,
+                last_probe_log: None,
+                last_testrun_utc: None,
+                last_updated_utc: "2025-10-10T00:00:00Z".to_string(),
+                routing_score: 0.0,
+                config_score: 0,
+                bridges: None,
+            }
+        }
+
+        // Helper function to create a test probe outcome
+        fn create_test_probe_outcome(
+            download_speed_mbps: f64,
+            ping_ips_performance: f32,
+        ) -> LastProbeResult {
+            let duration_sec = 1.0;
+            let file_size_mb = download_speed_mbps;
+
+            LastProbeResult {
+                node: "test_node".to_string(),
+                used_entry: "test_entry".to_string(),
+                outcome: ProbeOutcome {
+                    as_entry: directory_gw_probe_outcome::Entry::Tested(EntryTestResult {
+                        can_connect: true,
+                        can_route: true,
+                    }),
+                    as_exit: None,
+                    wg: Some(ProbeOutcomeV1 {
+                        can_register: true,
+                        can_handshake: Some(true),
+                        can_resolve_dns: Some(true),
+                        ping_hosts_performance: Some(ping_ips_performance),
+                        ping_ips_performance: Some(ping_ips_performance),
+                        can_query_metadata_v4: Some(true),
+                        can_handshake_v4: true,
+                        can_resolve_dns_v4: true,
+                        ping_hosts_performance_v4: ping_ips_performance,
+                        ping_ips_performance_v4: ping_ips_performance,
+                        can_handshake_v6: true,
+                        can_resolve_dns_v6: true,
+                        ping_hosts_performance_v6: ping_ips_performance,
+                        ping_ips_performance_v6: ping_ips_performance,
+                        download_duration_sec_v4: (duration_sec * 1000.0) as u64,
+                        download_duration_milliseconds_v4: Some((duration_sec * 1000.0) as u64),
+                        downloaded_file_size_bytes_v4: Some(
+                            (file_size_mb * 1024.0 * 1024.0) as u64,
+                        ),
+                        downloaded_file_v4: "test".to_string(),
+                        download_error_v4: "".to_string(),
+                        download_duration_sec_v6: 0,
+                        download_duration_milliseconds_v6: Some(0),
+                        downloaded_file_size_bytes_v6: Some(0),
+                        downloaded_file_v6: "".to_string(),
+                        download_error_v6: "".to_string(),
+                    }),
+                },
+            }
+        }
+
+        // Test case 1: Excellent node (should be High)
+        let gateway = create_test_gateway(90); // 90% mixnet performance
+        let probe = create_test_probe_outcome(6.0, 1.0); // 6 Mbps, 100% ping
+        let score = calculate_score(&gateway, &probe);
+        assert_eq!(score, ScoreValue::High, "Excellent node should be High");
+
+        // Test case 2: Good node (should be High with weighted scoring)
+        let gateway = create_test_gateway(90); // 90% mixnet performance
+        let probe = create_test_probe_outcome(3.0, 0.9); // 3 Mbps (0.75 score), 90% ping
+        let score = calculate_score(&gateway, &probe);
+        assert_eq!(
+            score,
+            ScoreValue::High,
+            "Good node should be High with weighted scoring"
+        );
+
+        // Test case 3: Medium node
+        let gateway = create_test_gateway(80); // 80% mixnet performance
+        let probe = create_test_probe_outcome(1.5, 0.8); // 1.5 Mbps (0.5 score), 80% ping
+        let score = calculate_score(&gateway, &probe);
+        assert_eq!(score, ScoreValue::Medium, "Medium node should be Medium");
+
+        // Test case 4: Poor node
+        let gateway = create_test_gateway(60); // 60% mixnet performance
+        let probe = create_test_probe_outcome(0.3, 0.3); // 0.3 Mbps (0.1 score), 30% ping
+        let score = calculate_score(&gateway, &probe);
+        assert_eq!(score, ScoreValue::Low, "Poor node should be Low");
+
+        // Test case 5: Failed node
+        let gateway = create_test_gateway(10); // 10% mixnet performance
+        let probe = create_test_probe_outcome(0.1, 0.0); // 0.1 Mbps (0.1 score), 0% ping
+        let score = calculate_score(&gateway, &probe);
+        assert_eq!(score, ScoreValue::Offline, "Failed node should be Offline");
+
+        // Test case 6: Edge case - just above threshold
+        let gateway = create_test_gateway(76); // 76% mixnet performance
+        let probe = create_test_probe_outcome(2.1, 0.75); // 2.1 Mbps (0.75 score), 75% ping
+        let score = calculate_score(&gateway, &probe);
+        // Weighted: (0.76 * 0.4) + (0.75 * 0.3) + (0.75 * 0.3) = 0.304 + 0.225 + 0.225 = 0.754
+        assert_eq!(
+            score,
+            ScoreValue::High,
+            "Edge case just above 0.75 threshold should be High"
+        );
     }
 }
 

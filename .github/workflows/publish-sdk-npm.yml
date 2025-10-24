@@ -29,9 +29,9 @@ jobs:
         run: cargo install wasm-opt
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
-          go-version: "1.23.7"
+          go-version: "1.24.6"
 
       - name: Install dependencies
         run: yarn

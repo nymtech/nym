@@ -38,8 +38,7 @@ use std::path::Path;
 use std::path::PathBuf;
 #[cfg(unix)]
 use std::sync::Arc;
-use tokio_util::sync::CancellationToken;
-use tracing::instrument;
+use tracing::{instrument, Instrument};
 use url::Url;
 use zeroize::Zeroizing;
 
@@ -476,6 +475,7 @@ where
         })
     }
 
+    #[instrument(skip_all)]
     fn get_api_endpoints(&self) -> Vec<Url> {
         self.config
             .network_details
@@ -486,6 +486,7 @@ where
             .collect()
     }
 
+    #[instrument(skip_all)]
     fn get_nyxd_endpoints(&self) -> Vec<Url> {
         self.config
             .network_details
@@ -496,6 +497,7 @@ where
             .collect()
     }
 
+    #[instrument(skip_all)]
     async fn setup_client_keys(&self) -> Result<()> {
         let mut rng = OsRng;
         let key_store = self.storage.key_store();
@@ -836,7 +838,7 @@ where
         if self.socks5_config.is_some() {
             return Err(Error::Socks5Config { set: true });
         }
-        let (mut started_client, nym_address) = self.connect_to_mixnet_common().await?;
+        let (mut started_client, nym_address) = self.connect_to_mixnet_common().in_current_span().await?;
         let client_input = started_client.client_input.register_producer();
         let mut client_output = started_client.client_output.register_consumer();
         let client_state: nym_client_core::client::base_client::ClientState =

@@ -153,7 +153,11 @@ impl Recipient {
     // TODO: Currently the `DestinationAddress` is equivalent to `ClientIdentity`, but perhaps
     // it shouldn't be? Maybe it should be (for example) H(`ClientIdentity || ClientEncryptionKey`)
     // instead? That is an open question.
-    pub fn as_sphinx_destination(&self, trace_id: Option<[u8; 12]>) -> Destination {
+    pub fn as_sphinx_destination(
+        &self,
+        #[cfg(feature = "otel")]
+        trace_id: Option<[u8; 12]>
+    ) -> Destination {
         #[cfg(feature = "otel")]
         use nym_bin_common::opentelemetry::compact_id_generator::decompress_trace_id;
         #[cfg(feature = "otel")]
@@ -162,17 +166,15 @@ impl Recipient {
         } else {
             decompress_trace_id(&[0u8; 12])
         };
-        #[cfg(not(feature = "otel"))]
-        let trace_id_16 = {
-            _ = trace_id;
-            [0u8; 16]
-        };
 
         // since the nym mix network differs slightly in design from loopix, we do not care
         // about "surb_id" field at all and just use the default value.
         Destination::new(
             self.client_identity.derive_destination_address(),
-            trace_id_16,
+            #[cfg(not(feature = "otel"))]
+            [0u8; 16],
+            #[cfg(feature = "otel")]
+            trace_id_16
         )
     }
 

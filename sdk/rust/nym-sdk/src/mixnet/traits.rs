@@ -84,8 +84,6 @@ pub trait MixnetMessageSender {
             tracing::info!("[DEBUG] Trace id in send_message: {:?}", trace_id);
             Some(compress_trace_id(&trace_id))
         };
-        #[cfg(not(feature = "otel"))]
-        let trace_id = None;
 
         let lane = TransmissionLane::General;
         let input_msg = match surbs {
@@ -95,6 +93,7 @@ pub trait MixnetMessageSender {
                 surbs,
                 lane,
                 self.packet_type(),
+                #[cfg(feature = "otel")]
                 trace_id,
             ),
             IncludedSurbs::ExposeSelfAddress => InputMessage::new_regular(
@@ -102,6 +101,7 @@ pub trait MixnetMessageSender {
                 message.as_ref().to_vec(),
                 lane,
                 self.packet_type(),
+                #[cfg(feature = "otel")]
                 trace_id,
             ),
         };

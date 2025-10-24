@@ -344,6 +344,7 @@ impl<R, S> AuthenticatedHandler<R, S> {
         let remaining_bandwidth = self
             .bandwidth_storage_manager
             .try_use_bandwidth(required_bandwidth)
+            .in_current_span()
             .await?;
         self.forward_packet(mix_packet);
 
@@ -383,7 +384,7 @@ impl<R, S> AuthenticatedHandler<R, S> {
                 // currently only a single type exists
                 BinaryRequest::ForwardSphinx { packet }
                 | BinaryRequest::ForwardSphinxV2 { packet } => {
-                    self.handle_forward_sphinx(packet).await.into_ws_message()
+                    self.handle_forward_sphinx(packet).in_current_span().await.into_ws_message()
                 }
                 _ => RequestHandlingError::UnknownBinaryRequest.into_error_message(),
             },

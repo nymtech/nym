@@ -64,3 +64,12 @@ nym-id = { path = "../../common/nym-id" }
 
 [dev-dependencies]
 tempfile = { workspace = true }
+
+[features]
+default = []
+otel = [
+    "nym-client-core/otel",
+    "nym-sphinx/otel", 
+    "nym-bin-common/otel", 
+    "nym-sdk/otel"
+]

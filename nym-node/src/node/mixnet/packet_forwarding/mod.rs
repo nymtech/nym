@@ -13,7 +13,7 @@ use nym_sphinx_forwarding::packet::MixPacket;
 use nym_task::ShutdownToken;
 use std::io;
 use tokio::time::Instant;
-use tracing::{debug, error, instrument, trace, warn};
+use tracing::{debug, error, instrument, Instrument, trace, warn};
 
 pub(crate) mod global;
 
@@ -133,16 +133,16 @@ impl<C, F> PacketForwarder<C, F> {
         loop {
             tokio::select! {
                 biased;
-                _ = shutdown_token.cancelled() => {
+                _ = shutdown_token.cancelled().in_current_span() => {
                     debug!("PacketForwarder: Received shutdown");
                     break;
                 }
-                delayed = self.delay_queue.next() => {
+                delayed = self.delay_queue.next().in_current_span() => {
                     // SAFETY: `stream` implementation of `NonExhaustiveDelayQueue` never returns `None`
                     #[allow(clippy::unwrap_used)]
                     self.handle_done_delaying(delayed.unwrap());
                 }
-                new_packet = self.packet_receiver.next() => {
+                new_packet = self.packet_receiver.next().in_current_span() => {
                     // this one is impossible to ever panic - the struct itself contains a sender
                     // and hence it can't happen that ALL senders are dropped
                     #[allow(clippy::unwrap_used)]

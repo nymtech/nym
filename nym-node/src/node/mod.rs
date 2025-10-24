@@ -1103,7 +1103,7 @@ impl NymNode {
         let shutdown_token = self.shutdown_token();
 
         self.shutdown_tracker().try_spawn_named(
-            async move { packet_forwarder.run(shutdown_token).await },
+            async move { packet_forwarder.run(shutdown_token).in_current_span().await },
             "PacketForwarder",
         );
 
@@ -1242,7 +1242,7 @@ impl NymNode {
                 // ideally we'd also do some cleanup here, but currently there's no easy way to access the handles
                 return Ok(())
             }
-            startup_result = self.start_nym_node_tasks() => {
+            startup_result = self.start_nym_node_tasks().in_current_span() => {
                 let mut shutdown_manager = startup_result?;
                 shutdown_manager.replace_shutdown_signals(shutdown_signals);
                 shutdown_manager.run_until_shutdown().await;

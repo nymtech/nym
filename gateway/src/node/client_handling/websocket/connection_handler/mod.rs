@@ -13,7 +13,6 @@ use std::time::Duration;
 use time::OffsetDateTime;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_tungstenite::WebSocketStream;
-#[cfg(feature = "otel")]
 use tracing::Instrument;
 use tracing::{debug, instrument, trace, warn};
 
@@ -126,7 +125,7 @@ where
 
     trace!("managed to perform websocket handshake!");
 
-    if let Some(auth_handle) = handle.handle_until_authenticated_or_failure().await {
+    if let Some(auth_handle) = handle.handle_until_authenticated_or_failure().in_current_span().await {
         #[cfg(feature = "otel")]
         {
             let from_client_span = {

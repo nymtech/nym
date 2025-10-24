@@ -338,6 +338,7 @@ impl<R, S> FreshHandler<R, S> {
     ///
     /// * `client_address`: address of the client that is going to receive the messages.
     /// * `shared_keys`: shared keys derived between the client and the gateway used to encrypt and tag the messages.
+    #[instrument(skip_all)]
     async fn push_stored_messages_to_client(
         &mut self,
         client_address: DestinationAddressBytes,

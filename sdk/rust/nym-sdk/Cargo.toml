@@ -104,6 +104,7 @@ libp2p-vanilla = []
 otel = [
     "nym-bin-common/otel",
     "nym-gateway-requests/otel",
+    "nym-socks5-client-core/otel",
     "opentelemetry",
     "opentelemetry_sdk",
     "opentelemetry-otlp",

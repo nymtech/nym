@@ -153,7 +153,7 @@ impl ClientControlRequest {
         })
     }
 
-    #[instrument]
+    #[instrument(skip_all)]
     pub fn new_authenticate_v2(
         shared_key: &SharedGatewayKey,
         identity_keys: &ed25519::KeyPair,
@@ -164,8 +164,6 @@ impl ClientControlRequest {
         #[cfg(feature = "otel")]
         let context_carrier = {
             use nym_bin_common::opentelemetry::context::extract_trace_id_from_tracing_cx;
-            let trace_id = extract_trace_id_from_tracing_cx();
-
             use tracing_opentelemetry::OpenTelemetrySpanExt;
 
             let current_span = tracing::Span::current();

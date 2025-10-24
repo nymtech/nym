@@ -60,4 +60,8 @@ outfox = [
 
 otel = [
     "nym-bin-common/otel",
+    "nym-sphinx-acknowledgements/otel",
+    "nym-sphinx-addressing/otel",
+    "nym-sphinx-cover/otel",
+    "nym-sphinx-anonymous-replies/otel",
 ] 

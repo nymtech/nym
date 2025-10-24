@@ -29,7 +29,7 @@ pub enum InputMessage {
         data: Vec<u8>,
         lane: TransmissionLane,
         max_retransmissions: Option<u32>,
-        // add trace_id for optional tracing of individual messages in debug mode
+        #[cfg(feature = "otel")]
         trace_id: Option<[u8; 12]>,
     },
 
@@ -47,6 +47,7 @@ pub enum InputMessage {
         reply_surbs: u32,
         lane: TransmissionLane,
         max_retransmissions: Option<u32>,
+        #[cfg(feature = "otel")]
         trace_id: Option<[u8; 12]>,
     },
 
@@ -93,6 +94,7 @@ impl InputMessage {
         data: Vec<u8>,
         lane: TransmissionLane,
         packet_type: Option<PacketType>,
+        #[cfg(feature = "otel")]
         trace_id: Option<[u8; 12]>,
     ) -> Self {
         let message = InputMessage::Regular {
@@ -100,6 +102,7 @@ impl InputMessage {
             data,
             lane,
             max_retransmissions: None,
+            #[cfg(feature = "otel")]
             trace_id,
         };
         if let Some(packet_type) = packet_type {
@@ -115,6 +118,7 @@ impl InputMessage {
         reply_surbs: u32,
         lane: TransmissionLane,
         packet_type: Option<PacketType>,
+        #[cfg(feature = "otel")]
         trace_id: Option<[u8; 12]>,
     ) -> Self {
         let message = InputMessage::Anonymous {
@@ -123,6 +127,7 @@ impl InputMessage {
             reply_surbs,
             lane,
             max_retransmissions: None,
+            #[cfg(feature = "otel")]
             trace_id,
         };
         if let Some(packet_type) = packet_type {
@@ -193,6 +198,7 @@ impl InputMessage {
         self
     }
 
+    #[cfg(feature = "otel")]
     pub fn trace_id(&self) -> Option<[u8; 12]> {
         match self {
             InputMessage::Regular { trace_id, .. } => *trace_id,

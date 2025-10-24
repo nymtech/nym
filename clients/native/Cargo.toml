@@ -70,3 +70,11 @@ nym-client-websocket-requests = { path = "websocket-requests" }
 nym-id = { path = "../../common/nym-id" }
 
 [dev-dependencies]
+
+[features]
+default = []
+otel = [
+    "nym-client-core/otel",
+    "nym-bin-common/otel",
+    "nym-gateway-requests/otel",
+]

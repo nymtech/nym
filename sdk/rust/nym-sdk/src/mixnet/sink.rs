@@ -59,6 +59,7 @@ impl MixnetMessageSinkTranslator for DefaultMixnetMessageSinkTranslator {
                     bytes,
                     self.lane,
                     self.packet_type,
+                    #[cfg(feature = "otel")]
                     None,
                 )),
                 IncludedSurbs::Amount(surbs) => Ok(InputMessage::new_anonymous(
@@ -67,6 +68,7 @@ impl MixnetMessageSinkTranslator for DefaultMixnetMessageSinkTranslator {
                     *surbs,
                     self.lane,
                     self.packet_type,
+                    #[cfg(feature = "otel")]
                     None,
                 )),
             },

@@ -161,6 +161,7 @@ impl PartiallyUnwrappedPacket {
         })
     }
 
+    #[instrument(skip_all)]
     pub fn finalise_unwrapping(self) -> Result<MixProcessingResult, PacketProcessingError> {
         let packet_size = self.received_data.packet_size();
         let packet_type = self.received_data.packet_type();
@@ -281,10 +282,10 @@ fn wrap_processed_sphinx_packet(
                         opentelemetry::trace::TraceId::from_bytes(full_trace_id_bytes);
                     let context_propagator =
                         ManualContextPropagator::new_from_tid("final_hop", full_trace_id);
-                    info_span!(parent: &context_propagator.root_span, "final_hop_processing", trace_id=%full_trace_id)
+                    tracing::info_span!(parent: &context_propagator.root_span, "final_hop_processing", trace_id=%full_trace_id)
                 }
                 _ => {
-                    debug_span!("final_hop_processing")
+                    tracing::debug_span!("final_hop_processing")
                 }
             };
             #[cfg(feature = "otel")]
@@ -343,6 +344,7 @@ fn wrap_processed_outfox_packet(
     }
 }
 
+#[instrument(skip_all)]
 fn perform_final_processing(
     packet: NymProcessedPacket,
     packet_size: PacketSize,

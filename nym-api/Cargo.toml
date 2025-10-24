@@ -110,6 +110,10 @@ nym-ecash-signer-check = { path = "../common/ecash-signer-check" }
 no-reward = []
 v2-performance = []
 generate-ts = ["ts-rs"]
+otel = [
+    "nym-bin-common/otel",
+    "nym-node-tester-utils/otel",
+]
 
 [build-dependencies]
 anyhow = { workspace = true }

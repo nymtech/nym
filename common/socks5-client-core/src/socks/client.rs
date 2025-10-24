@@ -350,6 +350,7 @@ impl SocksClient {
             self.config.connection_start_surbs,
             TransmissionLane::ConnectionId(self.connection_id),
             self.packet_type,
+            #[cfg(feature = "otel")]
             None,
         );
         self.input_sender
@@ -374,6 +375,7 @@ impl SocksClient {
             msg.into_bytes(),
             TransmissionLane::ConnectionId(self.connection_id),
             self.packet_type,
+            #[cfg(feature = "otel")]
             None,
         );
         self.input_sender
@@ -441,6 +443,7 @@ impl SocksClient {
                     per_request_surbs,
                     lane,
                     packet_type,
+                    #[cfg(feature = "otel")]
                     None,
                 )
             } else {
@@ -449,6 +452,7 @@ impl SocksClient {
                     provider_message.into_bytes(),
                     lane,
                     packet_type,
+                    #[cfg(feature = "otel")]
                     None,
                 )
             }

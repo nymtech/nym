@@ -192,6 +192,7 @@ impl MixnetAddress {
                     data: message,
                     lane: TransmissionLane::ConnectionId(connection_id),
                     max_retransmissions: None,
+                    #[cfg(feature = "otel")]
                     trace_id: None,
                 }),
                 packet_type,

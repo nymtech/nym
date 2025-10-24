@@ -176,6 +176,7 @@ pub trait FragmentPreparer {
         packet_sender: &Recipient,
         packet_recipient: &Recipient,
         packet_type: PacketType,
+        #[cfg(feature = "otel")]
         trace_id: Option<[u8; 12]>,
     ) -> Result<PreparedFragment, NymTopologyError> {
         debug!("Preparing chunk for sending");
@@ -237,11 +238,17 @@ pub trait FragmentPreparer {
             topology.random_route_to_egress(&mut rng, destination)?
         };
 
+        #[cfg(feature = "otel")]
         let destination = packet_recipient.as_sphinx_destination(trace_id);
-        tracing::warn!(
+
+        #[cfg(feature = "otel")]
+        tracing::info!(
             "Packet destination with trace id: {:?}",
             &destination.identifier
         );
+        
+        #[cfg(not(feature = "otel"))]
+        let destination = packet_recipient.as_sphinx_destination();
 
         // including set of delays
         let delays =
@@ -421,6 +428,7 @@ where
         ack_key: &AckKey,
         packet_recipient: &Recipient,
         packet_type: PacketType,
+        #[cfg(feature = "otel")]
         trace_id: Option<[u8; 12]>,
     ) -> Result<PreparedFragment, NymTopologyError> {
         let sender = self.sender_address;
@@ -433,6 +441,7 @@ where
             &sender,
             packet_recipient,
             packet_type,
+            #[cfg(feature = "otel")]
             trace_id,
         )
     }

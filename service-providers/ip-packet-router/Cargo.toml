@@ -50,3 +50,7 @@ tokio-tun.workspace = true
 
 [dev-dependencies]
 async-trait.workspace = true
+
+[features]
+default = []
+otel = ["nym-client-core/otel"]

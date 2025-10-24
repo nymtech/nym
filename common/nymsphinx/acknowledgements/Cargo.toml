@@ -24,3 +24,4 @@ nym-topology = { path = "../../topology" }
 
 [features]
 serde = ["dep:serde", "generic-array"]
+otel = ["nym-sphinx-addressing/otel"]

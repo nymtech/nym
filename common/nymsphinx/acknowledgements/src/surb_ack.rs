@@ -61,6 +61,9 @@ impl SurbAck {
         };
 
         let delays = nym_sphinx_routing::generate_hop_delays(average_delay, route.len());
+        #[cfg(not(feature = "otel"))]
+        let destination = recipient.as_sphinx_destination();
+        #[cfg(feature = "otel")]
         let destination = recipient.as_sphinx_destination(None);
 
         let surb_ack_payload = prepare_identifier(rng, ack_key, marshaled_fragment_id);

@@ -186,6 +186,7 @@ impl SharedData {
         }
     }
 
+    #[instrument(skip_all)]
     pub(super) fn forward_mix_packet(&self, packet: MixPacket, delay_until: Option<Instant>) {
         if self
             .mixnet_forwarder

@@ -386,6 +386,7 @@ where
     }
 
     #[allow(clippy::too_many_arguments)]
+    #[instrument(skip_all)]
     fn start_real_traffic_controller(
         controller_config: real_messages_control::Config,
         key_rotation_config: KeyRotationConfig,

@@ -8,12 +8,16 @@ use crate::{
     AUTHENTICATE_V2_PROTOCOL_VERSION, CREDENTIAL_UPDATE_V2_PROTOCOL_VERSION,
     INITIAL_PROTOCOL_VERSION,
 };
+#[cfg(feature = "otel")]
+use nym_bin_common::opentelemetry::context::ContextCarrier;
 use nym_credentials_interface::CredentialSpendingData;
 use nym_crypto::asymmetric::ed25519;
 use nym_sphinx::DestinationAddressBytes;
 use nym_statistics_common::types::SessionType;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::str::FromStr;
+use tracing::{instrument, warn};
 use tungstenite::Message;
 
 pub mod authenticate;
@@ -76,6 +80,10 @@ pub enum ClientControlRequest {
         address: String,
         enc_address: String,
         iv: String,
+        /// this is a trace id that is used in testing and performance verification
+        /// in mainnet, this will always be set to None
+        #[serde(default)]
+        otel_context: Option<HashMap<String, String>>,
     },
 
     AuthenticateV2(Box<AuthenticateRequest>),
@@ -127,14 +135,25 @@ impl ClientControlRequest {
         let nonce = shared_key.random_nonce_or_iv();
         let ciphertext = shared_key.encrypt_naive(address.as_bytes_ref(), Some(&nonce))?;
 
+        #[cfg(feature = "otel")]
+        let context_carrier = {
+            let context = opentelemetry::Context::current();
+            ContextCarrier::new_with_current_context(context).into_map()
+        };
+
         Ok(ClientControlRequest::Authenticate {
             protocol_version,
             address: address.as_base58_string(),
             enc_address: bs58::encode(&ciphertext).into_string(),
             iv: bs58::encode(&nonce).into_string(),
+            #[cfg(feature = "otel")]
+            otel_context: Some(context_carrier),
+            #[cfg(not(feature = "otel"))]
+            otel_context: None,
         })
     }
 
+    #[instrument(skip_all)]
     pub fn new_authenticate_v2(
         shared_key: &SharedGatewayKey,
         identity_keys: &ed25519::KeyPair,
@@ -142,8 +161,25 @@ impl ClientControlRequest {
         // if we're using v2 authentication, we must announce at least that protocol version
         let protocol_version = AUTHENTICATE_V2_PROTOCOL_VERSION;
 
+        #[cfg(feature = "otel")]
+        let context_carrier = {
+            use nym_bin_common::opentelemetry::context::extract_trace_id_from_tracing_cx;
+            use tracing_opentelemetry::OpenTelemetrySpanExt;
+
+            let current_span = tracing::Span::current();
+            let otel_context = current_span.context();
+            ContextCarrier::new_with_current_context(otel_context).into_map()
+        };
+        #[cfg(not(feature = "otel"))]
+        let context_carrier: HashMap<String, String> = HashMap::new();
+
         Ok(ClientControlRequest::AuthenticateV2(Box::new(
-            AuthenticateRequest::new(protocol_version, shared_key, identity_keys)?,
+            AuthenticateRequest::new(
+                protocol_version,
+                shared_key,
+                identity_keys,
+                Some(context_carrier),
+            )?,
         )))
     }
 

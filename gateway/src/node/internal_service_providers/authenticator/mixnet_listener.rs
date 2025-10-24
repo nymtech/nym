@@ -977,6 +977,8 @@ fn create_input_message(
             response_packet,
             lane,
             packet_type,
+            #[cfg(feature = "otel")]
+            None,
         ))
     } else {
         tracing::error!("No nym-address or sender tag provided");

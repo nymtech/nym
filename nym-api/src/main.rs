@@ -31,7 +31,7 @@ async fn main() -> Result<(), anyhow::Error> {
         // instrument tokio console subscriber needs RUSTFLAGS="--cfg tokio_unstable" at build time
         console_subscriber::init();
     } else {
-        nym_bin_common::logging::setup_tracing_logger();
+        nym_bin_common::logging::setup_no_otel_logger().expect("failed to initialize logging");
     }}
 
     info!("Starting nym api...");

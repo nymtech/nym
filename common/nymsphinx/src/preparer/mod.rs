@@ -163,19 +163,6 @@ pub trait FragmentPreparer {
         })
     }
 
-    /// Tries to convert this [`Fragment`] into a [`SphinxPacket`] that can be sent through the Nym mix-network,
-    /// such that it contains required SURB-ACK and public component of the ephemeral key used to
-    /// derive the shared key.
-    /// Also all the data, apart from the said public component, is encrypted with an ephemeral shared key.
-    /// This method can fail if the provided network topology is invalid.
-    /// It returns total expected delay as well as the [`SphinxPacket`] (including first hop address)
-    /// to be sent through the network.
-    ///
-    /// The procedure is as follows:
-    /// For each fragment:
-    /// - compute SURB_ACK
-    /// - generate (x, g^x)
-    /// - compute k = KDF(remote encryption key ^ x) this is equivalent to KDF( dh(remote, x) )
     /// - compute v_b = AES-128-CTR(k, serialized_fragment)
     /// - compute vk_b = g^x || v_b
     /// - compute sphinx_plaintext = SURB_ACK || g^x || v_b
@@ -189,6 +176,8 @@ pub trait FragmentPreparer {
         packet_sender: &Recipient,
         packet_recipient: &Recipient,
         packet_type: PacketType,
+        #[cfg(feature = "otel")]
+        trace_id: Option<[u8; 12]>,
     ) -> Result<PreparedFragment, NymTopologyError> {
         debug!("Preparing chunk for sending");
         // each plain or repliable packet (i.e. not a reply) attaches an ephemeral public key so that the recipient
@@ -249,6 +238,16 @@ pub trait FragmentPreparer {
             topology.random_route_to_egress(&mut rng, destination)?
         };
 
+        #[cfg(feature = "otel")]
+        let destination = packet_recipient.as_sphinx_destination(trace_id);
+
+        #[cfg(feature = "otel")]
+        tracing::info!(
+            "Packet destination with trace id: {:?}",
+            &destination.identifier
+        );
+        
+        #[cfg(not(feature = "otel"))]
         let destination = packet_recipient.as_sphinx_destination();
 
         // including set of delays
@@ -274,6 +273,7 @@ pub trait FragmentPreparer {
             )?,
         };
 
+        // - compute k = KDF(remote encryption key ^ x) this is equivalent to KDF( dh(remote, x) )
         // from the previously constructed route extract the first hop
         let first_hop_address =
             NymNodeRoutingAddress::try_from(route.first().unwrap().address).unwrap();
@@ -428,6 +428,8 @@ where
         ack_key: &AckKey,
         packet_recipient: &Recipient,
         packet_type: PacketType,
+        #[cfg(feature = "otel")]
+        trace_id: Option<[u8; 12]>,
     ) -> Result<PreparedFragment, NymTopologyError> {
         let sender = self.sender_address;
 
@@ -439,6 +441,8 @@ where
             &sender,
             packet_recipient,
             packet_type,
+            #[cfg(feature = "otel")]
+            trace_id,
         )
     }
 

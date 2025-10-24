@@ -231,6 +231,8 @@ where
             &address,
             &address,
             PacketType::Mix,
+            #[cfg(feature = "otel")]
+            None,
         )?)
     }
 

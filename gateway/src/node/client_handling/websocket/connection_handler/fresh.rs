@@ -13,6 +13,8 @@ use futures::{
     channel::{mpsc, oneshot},
     SinkExt, StreamExt,
 };
+#[cfg(feature = "otel")]
+use nym_bin_common::opentelemetry::context::ManualContextPropagator;
 use nym_credentials_interface::AvailableBandwidth;
 use nym_crypto::aes::cipher::crypto_common::rand_core::RngCore;
 use nym_crypto::asymmetric::ed25519;
@@ -34,6 +36,8 @@ use nym_node_metrics::events::MetricsEvent;
 use nym_sphinx::DestinationAddressBytes;
 use nym_task::ShutdownToken;
 use rand::CryptoRng;
+#[cfg(feature = "otel")]
+use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::time::Duration;
 use thiserror::Error;
@@ -41,7 +45,9 @@ use time::OffsetDateTime;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::time::timeout;
 use tokio_tungstenite::tungstenite::{protocol::Message, Error as WsError};
-use tracing::*;
+#[cfg(feature = "otel")]
+use tracing::info_span;
+use tracing::{debug, error, info, instrument, warn, Instrument};
 
 #[derive(Debug, Error)]
 pub(crate) enum InitialAuthenticationError {
@@ -163,6 +169,7 @@ impl<R, S> FreshHandler<R, S> {
 
     /// Attempts to perform websocket handshake with the remote and upgrades the raw TCP socket
     /// to the framed WebSocket.
+    #[instrument(skip_all)]
     pub(crate) async fn perform_websocket_handshake(&mut self) -> Result<(), WsError>
     where
         S: AsyncRead + AsyncWrite + Unpin,
@@ -186,6 +193,7 @@ impl<R, S> FreshHandler<R, S> {
     /// # Arguments
     ///
     /// * `init_msg`: a client handshake init message which should contain its identity public key as well as an ephemeral key.
+    #[instrument(skip_all)]
     async fn perform_registration_handshake(
         &mut self,
         init_msg: Vec<u8>,
@@ -211,6 +219,7 @@ impl<R, S> FreshHandler<R, S> {
     }
 
     /// Attempts to read websocket message from the associated socket.
+    #[instrument(skip_all)]
     pub(crate) async fn read_websocket_message(&mut self) -> Option<Result<Message, WsError>>
     where
         S: AsyncRead + AsyncWrite + Unpin,
@@ -226,6 +235,7 @@ impl<R, S> FreshHandler<R, S> {
     /// # Arguments
     ///
     /// * `msg`: WebSocket message to write back to the client.
+    #[instrument(skip_all)]
     pub(crate) async fn send_websocket_message(
         &mut self,
         msg: impl Into<Message>,
@@ -242,6 +252,7 @@ impl<R, S> FreshHandler<R, S> {
         }
     }
 
+    #[instrument(skip_all)]
     pub(crate) async fn send_error_response(
         &mut self,
         err: impl std::error::Error,
@@ -269,6 +280,7 @@ impl<R, S> FreshHandler<R, S> {
     ///
     /// * `shared_keys`: keys derived between the client and gateway.
     /// * `packets`: unwrapped packets that are to be pushed back to the client.
+    #[instrument(skip_all)]
     pub(crate) async fn push_packets_to_client(
         &mut self,
         shared_keys: &SharedGatewayKey,
@@ -326,6 +338,7 @@ impl<R, S> FreshHandler<R, S> {
     ///
     /// * `client_address`: address of the client that is going to receive the messages.
     /// * `shared_keys`: shared keys derived between the client and the gateway used to encrypt and tag the messages.
+    #[instrument(skip_all)]
     async fn push_stored_messages_to_client(
         &mut self,
         client_address: DestinationAddressBytes,
@@ -632,6 +645,8 @@ impl<R, S> FreshHandler<R, S> {
                 address,
                 shared_keys.key,
                 session_request_start,
+                #[cfg(feature = "otel")]
+                None,
             )),
             ServerResponse::Authenticate {
                 protocol_version: Some(negotiated_protocol),
@@ -641,9 +656,13 @@ impl<R, S> FreshHandler<R, S> {
         ))
     }
 
+    #[instrument(skip_all, fields(
+        address = %request.content.client_identity.derive_destination_address(),
+    ))]
     async fn handle_authenticate_v2(
         &mut self,
         request: Box<AuthenticateRequest>,
+        #[cfg(feature = "otel")] otel_context: Option<HashMap<String, String>>,
     ) -> Result<InitialAuthResult, InitialAuthenticationError>
     where
         S: AsyncRead + AsyncWrite + Unpin,
@@ -718,6 +737,8 @@ impl<R, S> FreshHandler<R, S> {
                 address,
                 shared_key.key,
                 session_request_start,
+                #[cfg(feature = "otel")]
+                otel_context,
             )),
             ServerResponse::Authenticate {
                 protocol_version: Some(negotiated_protocol),
@@ -816,6 +837,8 @@ impl<R, S> FreshHandler<R, S> {
             remote_address,
             shared_keys,
             OffsetDateTime::now_utc(),
+            #[cfg(feature = "otel")]
+            None,
         );
 
         Ok(InitialAuthResult::new(
@@ -846,6 +869,7 @@ impl<R, S> FreshHandler<R, S> {
         }
     }
 
+    #[instrument(skip_all)]
     pub(crate) async fn handle_initial_client_request(
         &mut self,
         request: ClientControlRequest,
@@ -854,17 +878,58 @@ impl<R, S> FreshHandler<R, S> {
         S: AsyncRead + AsyncWrite + Unpin + Send,
         R: CryptoRng + RngCore + Send,
     {
-        // we can handle stateless client requests without prior authentication, like `ClientControlRequest::SupportedProtocol`
+        // extract and set up opentelemetry context if provided
+        #[cfg(feature = "otel")]
+        let (context_propagator, otel_ctx) =
+            if let ClientControlRequest::AuthenticateV2(ref auth_req) = request {
+                if let Some(otel_context) = &auth_req.otel_context {
+                    info!(
+                        "=== OpenTelemetry context provided in the request: {otel_context:?} ==="
+                    );
+                    (
+                        Some(ManualContextPropagator::new(
+                            "handling_initial_client_request_with_otel",
+                            otel_context.clone(),
+                        )),
+                        Some(otel_context.clone()),
+                    )
+                } else {
+                    debug!("No OpenTelemetry context provided in the request");
+                    (None, None)
+                }
+            } else {
+                debug!("No OpenTelemetry context provided in the request");
+                (None, None)
+            };
+        #[cfg(feature = "otel")]
+        let child_span = match context_propagator {
+            Some(ref propagator) => {
+                let span = info_span!(parent: &propagator.root_span, "=== Handling initial client request with otel context ===");
+                span
+            }
+            None => {
+                tracing::debug_span!("=== Handling initial client request without otel context ===")
+            }
+        };
+        #[cfg(feature = "otel")]
+        let _enter = child_span.enter();
+
         let auth_result = match request {
             ClientControlRequest::Authenticate {
                 protocol_version,
                 address,
                 enc_address,
                 iv,
+                otel_context: _,
             } => {
                 self.handle_legacy_authenticate(protocol_version, address, enc_address, iv)
                     .await
             }
+            #[cfg(feature = "otel")]
+            ClientControlRequest::AuthenticateV2(req) => {
+                self.handle_authenticate_v2(req, otel_ctx).await
+            }
+            #[cfg(not(feature = "otel"))]
             ClientControlRequest::AuthenticateV2(req) => self.handle_authenticate_v2(req).await,
             ClientControlRequest::RegisterHandshakeInitRequest {
                 protocol_version,
@@ -889,7 +954,6 @@ impl<R, S> FreshHandler<R, S> {
                     }
                     other => debug!("authentication failure: {other}"),
                 }
-
                 self.send_and_forget_error_response(&err).await;
                 return Err(err);
             }
@@ -912,9 +976,11 @@ impl<R, S> FreshHandler<R, S> {
             warn!("could not establish client details");
             return Err(InitialAuthenticationError::EmptyClientDetails);
         };
+
         Ok(Some(client_details))
     }
 
+    #[instrument(skip_all)]
     pub(crate) async fn handle_until_authenticated_or_failure(
         mut self,
     ) -> Option<AuthenticatedHandler<R, S>>
@@ -953,7 +1019,7 @@ impl<R, S> FreshHandler<R, S> {
                     registration_details.session_request_timestamp,
                 );
 
-                return AuthenticatedHandler::upgrade(
+                let auth_handle = AuthenticatedHandler::upgrade(
                     self,
                     registration_details,
                     mix_receiver,
@@ -962,10 +1028,12 @@ impl<R, S> FreshHandler<R, S> {
                 .await
                 .inspect_err(|err| error!("failed to upgrade client handler: {err}"))
                 .ok();
+                return auth_handle;
             }
         }
     }
 
+    #[instrument(skip_all)]
     pub(crate) async fn wait_for_initial_message(
         &mut self,
     ) -> Result<ClientControlRequest, InitialAuthenticationError>
@@ -1016,6 +1084,7 @@ impl<R, S> FreshHandler<R, S> {
             .map_err(|_| InitialAuthenticationError::InvalidRequest)
     }
 
+    #[instrument(skip_all)]
     pub(crate) async fn start_handling(self)
     where
         S: AsyncRead + AsyncWrite + Unpin + Send,
@@ -1025,10 +1094,10 @@ impl<R, S> FreshHandler<R, S> {
         let shutdown = self.shutdown.clone();
         tokio::select! {
             _ = shutdown.cancelled() => {
-                trace!("received cancellation")
+                tracing::trace!("received cancellation")
             }
-            _ = super::handle_connection(self) => {
-                debug!("finished connection handler for {remote}")
+            _ = super::handle_connection(self).instrument(tracing::debug_span!("connection_handler", remote = %remote)) => {
+                tracing::debug!("finished connection handler for {remote}")
             }
         }
     }

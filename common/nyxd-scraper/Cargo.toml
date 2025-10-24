@@ -32,8 +32,6 @@ tracing.workspace = true
 url.workspace = true
 
 
-# TEMP
-#nym-bin-common = { path = "../bin-common", features = ["basic_tracing"]}
 
 
 [build-dependencies]

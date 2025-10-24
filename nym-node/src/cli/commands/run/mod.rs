@@ -8,7 +8,7 @@ use crate::node::bonding_information::BondingInformation;
 use crate::node::mixnet::packet_forwarding::global::is_global_ip;
 use std::fs;
 use std::net::IpAddr;
-use tracing::{debug, info, trace, warn};
+use tracing::{debug, info, instrument, trace, warn};
 
 mod args;
 
@@ -39,6 +39,7 @@ fn check_public_ips(ips: &[IpAddr], local: bool) -> Result<(), NymNodeError> {
     Ok(())
 }
 
+#[instrument(skip_all)]
 pub(crate) async fn execute(mut args: Args) -> Result<(), NymNodeError> {
     trace!("passed arguments: {args:#?}");
 

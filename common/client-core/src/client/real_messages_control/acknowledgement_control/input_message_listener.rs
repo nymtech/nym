@@ -70,6 +70,7 @@ where
                 .send_reply(recipient_tag, data, lane, max_retransmissions);
     }
 
+    #[instrument(skip_all)]
     async fn handle_plain_message(
         &mut self,
         recipient: Recipient,
@@ -77,16 +78,27 @@ where
         lane: TransmissionLane,
         packet_type: PacketType,
         max_retransmissions: Option<u32>,
+        #[cfg(feature = "otel")]
+        trace_id: Option<[u8; 12]>,
     ) {
         if let Err(err) = self
             .message_handler
-            .try_send_plain_message(recipient, content, lane, packet_type, max_retransmissions)
+            .try_send_plain_message(
+                recipient,
+                content,
+                lane,
+                packet_type,
+                max_retransmissions,
+                #[cfg(feature = "otel")]
+                trace_id,
+            )
             .await
         {
             warn!("failed to send a plain message - {err}")
         }
     }
 
+    #[instrument(skip_all)]
     async fn handle_repliable_message(
         &mut self,
         recipient: Recipient,
@@ -95,6 +107,8 @@ where
         lane: TransmissionLane,
         packet_type: PacketType,
         max_retransmissions: Option<u32>,
+        #[cfg(feature = "otel")]
+        trace_id: Option<[u8; 12]>,
     ) {
         if let Err(err) = self
             .message_handler
@@ -105,6 +119,8 @@ where
                 lane,
                 packet_type,
                 max_retransmissions,
+                #[cfg(feature = "otel")]
+                trace_id,
             )
             .await
         {
@@ -113,20 +129,36 @@ where
     }
 
     #[allow(clippy::panic)]
+    #[instrument(skip_all)]
     async fn on_input_message(&mut self, msg: InputMessage) {
+        #[cfg(feature = "otel")]
+        let trace_id = msg.trace_id();
+        #[cfg(feature = "otel")]
+        if let Some(tid) = trace_id {
+            tracing::info!("Processing input message with trace_id: {:?}", tid);
+        }
+
         match msg {
             InputMessage::Regular {
                 recipient,
                 data,
                 lane,
                 max_retransmissions,
+                ..
             } => {
+                #[cfg(feature = "otel")]
+                info!(
+                    "Handling regular input message with trace_id: {:?}",
+                    trace_id
+                );
                 self.handle_plain_message(
                     recipient,
                     data,
                     lane,
                     PacketType::Mix,
                     max_retransmissions,
+                    #[cfg(feature = "otel")]
+                    trace_id,
                 )
                 .await
             }
@@ -136,7 +168,13 @@ where
                 reply_surbs,
                 lane,
                 max_retransmissions,
+                ..
             } => {
+                #[cfg(feature = "otel")]
+                tracing::info!(
+                    "Handling anonymous input message with trace_id: {:?}",
+                    trace_id
+                );
                 self.handle_repliable_message(
                     recipient,
                     data,
@@ -144,6 +182,8 @@ where
                     lane,
                     PacketType::Mix,
                     max_retransmissions,
+                    #[cfg(feature = "otel")]
+                    trace_id,
                 )
                 .await
             }
@@ -153,6 +193,8 @@ where
                 lane,
                 max_retransmissions,
             } => {
+                #[cfg(feature = "otel")]
+                info!("Handling reply input message with trace_id: {:?}", trace_id);
                 self.handle_reply(recipient_tag, data, lane, max_retransmissions)
                     .await;
             }
@@ -166,13 +208,21 @@ where
                     data,
                     lane,
                     max_retransmissions,
+                    ..
                 } => {
+                    #[cfg(feature = "otel")]
+                    tracing::info!(
+                        "Handling regular input message with trace_id: {:?}",
+                        trace_id
+                    );
                     self.handle_plain_message(
                         recipient,
                         data,
                         lane,
                         packet_type,
                         max_retransmissions,
+                        #[cfg(feature = "otel")]
+                        trace_id,
                     )
                     .await
                 }
@@ -182,6 +232,7 @@ where
                     reply_surbs,
                     lane,
                     max_retransmissions,
+                    ..
                 } => {
                     self.handle_repliable_message(
                         recipient,
@@ -190,6 +241,8 @@ where
                         lane,
                         packet_type,
                         max_retransmissions,
+                        #[cfg(feature = "otel")]
+                        trace_id,
                     )
                     .await
                 }
@@ -213,6 +266,7 @@ where
         };
     }
 
+    #[instrument(skip_all)]
     pub(crate) async fn run(&mut self, shutdown_token: ShutdownToken) {
         debug!("Started InputMessageListener with graceful shutdown support");
 

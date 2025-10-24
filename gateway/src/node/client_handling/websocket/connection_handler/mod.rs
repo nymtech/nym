@@ -7,10 +7,13 @@ use nym_gateway_requests::shared_key::SharedGatewayKey;
 use nym_gateway_requests::ServerResponse;
 use nym_sphinx::DestinationAddressBytes;
 use rand::{CryptoRng, Rng};
+#[cfg(feature = "otel")]
+use std::collections::HashMap;
 use std::time::Duration;
 use time::OffsetDateTime;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_tungstenite::WebSocketStream;
+use tracing::Instrument;
 use tracing::{debug, instrument, trace, warn};
 
 pub(crate) use self::authenticated::AuthenticatedHandler;
@@ -48,6 +51,8 @@ pub(crate) struct ClientDetails {
     // note, this does **NOT ALWAYS** indicate timestamp of when client connected
     // it is (for v2 auth) timestamp the client **signed** when it created the request
     pub(crate) session_request_timestamp: OffsetDateTime,
+    #[cfg(feature = "otel")]
+    pub(crate) otel_context: Option<HashMap<String, String>>,
 }
 
 impl ClientDetails {
@@ -56,12 +61,15 @@ impl ClientDetails {
         address: DestinationAddressBytes,
         shared_keys: SharedGatewayKey,
         session_request_timestamp: OffsetDateTime,
+        #[cfg(feature = "otel")] otel_context: Option<HashMap<String, String>>,
     ) -> Self {
         ClientDetails {
             address,
             id,
             shared_keys,
             session_request_timestamp,
+            #[cfg(feature = "otel")]
+            otel_context,
         }
     }
 }
@@ -92,7 +100,7 @@ impl InitialAuthResult {
 }
 
 // imo there's no point in including the peer address in anything higher than debug
-#[instrument(level = "debug", skip_all, fields(peer = %handle.peer_address))]
+#[instrument(skip_all)]
 pub(crate) async fn handle_connection<R, S>(mut handle: FreshHandler<R, S>)
 where
     R: Rng + CryptoRng + Send,
@@ -117,8 +125,25 @@ where
 
     trace!("managed to perform websocket handshake!");
 
-    if let Some(auth_handle) = handle.handle_until_authenticated_or_failure().await {
-        auth_handle.listen_for_requests().await
+    if let Some(auth_handle) = handle.handle_until_authenticated_or_failure().in_current_span().await {
+        #[cfg(feature = "otel")]
+        {
+            let from_client_span = {
+                let parent = match auth_handle.otel_propagator.as_ref() {
+                    Some(propagator) => propagator.root_span(),
+                    None => &tracing::Span::current(), // fallback to current span if no propagator
+                };
+                tracing::info_span!(parent: parent, "listening for requests")
+            };
+            auth_handle
+                .listen_for_requests()
+                .instrument(from_client_span)
+                .await
+        }
+        #[cfg(not(feature = "otel"))]
+        {
+            auth_handle.listen_for_requests().await;
+        }
     }
 
     trace!("the handler is done!");

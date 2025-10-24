@@ -267,6 +267,7 @@ impl Client {
 }
 
 impl SendWithoutResponse for Client {
+    #[instrument(skip(self, packet))]
     fn send_without_response(&self, packet: MixPacket) -> io::Result<()> {
         let address = packet.next_hop_address();
         trace!("Sending packet to {address}");

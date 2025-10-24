@@ -11,10 +11,22 @@ pub(crate) fn create_input_message(
     let packet_type = None;
     match recipient {
         ConnectedClientId::NymAddress(recipient) => {
-            InputMessage::new_regular(**recipient, response_packet, lane, packet_type)
+            InputMessage::new_regular(
+                **recipient,
+                response_packet,
+                lane,
+                packet_type,
+                #[cfg(feature = "otel")]
+                None,
+            )
         }
         ConnectedClientId::AnonymousSenderTag(tag) => {
-            InputMessage::new_reply(*tag, response_packet, lane, packet_type)
+            InputMessage::new_reply(
+                *tag,
+                response_packet,
+                lane,
+                packet_type,
+            )
         }
     }
 }

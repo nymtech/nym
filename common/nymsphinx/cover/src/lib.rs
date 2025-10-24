@@ -125,7 +125,10 @@ where
 
     let route = topology.random_route_to_egress(rng, full_address.gateway())?;
     let delays = nym_sphinx_routing::generate_hop_delays(average_packet_delay, route.len());
+    #[cfg(not(feature = "otel"))]
     let destination = full_address.as_sphinx_destination();
+    #[cfg(feature = "otel")]
+    let destination = full_address.as_sphinx_destination(None);
 
     let rotation_id = topology.current_key_rotation();
     let sphinx_key_rotation = SphinxKeyRotation::from(rotation_id);

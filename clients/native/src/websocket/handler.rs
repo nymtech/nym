@@ -184,7 +184,14 @@ impl Handler {
         });
 
         // the ack control is now responsible for chunking, etc.
-        let input_msg = InputMessage::new_regular(recipient, message, lane, self.packet_type);
+        let input_msg = InputMessage::new_regular(
+            recipient,
+            message,
+            lane,
+            self.packet_type,
+            #[cfg(feature = "otel")]
+            None,
+        );
         if let Err(err) = self.msg_input.send(input_msg).await {
             if !self.shutdown_token.is_cancelled() {
                 error!("Failed to send message to the input buffer: {err}");
@@ -216,8 +223,15 @@ impl Handler {
             TransmissionLane::ConnectionId(id)
         });
 
-        let input_msg =
-            InputMessage::new_anonymous(recipient, message, reply_surbs, lane, self.packet_type);
+        let input_msg = InputMessage::new_anonymous(
+            recipient,
+            message,
+            reply_surbs,
+            lane,
+            self.packet_type,
+            #[cfg(feature = "otel")]
+            None,
+        );
         if let Err(err) = self.msg_input.send(input_msg).await {
             if !self.shutdown_token.is_cancelled() {
                 error!("Failed to send anonymous message to the input buffer: {err}");

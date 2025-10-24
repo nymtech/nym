@@ -4,7 +4,7 @@
 use crate::node::mixnet::SharedData;
 use nym_task::ShutdownToken;
 use std::net::SocketAddr;
-use tracing::{debug, error, info, trace};
+use tracing::{Instrument, debug, error, info, instrument, trace};
 
 pub(crate) struct Listener {
     bind_address: SocketAddr,
@@ -18,7 +18,7 @@ impl Listener {
             shared_data,
         }
     }
-
+    #[instrument(skip_all, level = "debug")]
     pub(crate) async fn run(&mut self, shutdown: ShutdownToken) {
         info!("attempting to run mixnet listener on {}", self.bind_address);
 
@@ -41,7 +41,7 @@ impl Listener {
                     trace!("mixnet listener: received shutdown");
                     break
                 }
-                connection = tcp_listener.accept() => {
+                connection = tcp_listener.accept().in_current_span() => {
                     self.shared_data.try_handle_connection(connection);
                 }
             }

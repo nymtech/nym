@@ -30,3 +30,7 @@ workspace = true
 ## wasm-only dependencies
 [target."cfg(target_arch = \"wasm32\")".dependencies.wasm-utils]
 path = "../wasm/utils"
+
+[ features ]
+default = []
+otel = ["nym-sphinx/otel"]

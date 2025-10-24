@@ -1,19 +1,12 @@
 // Copyright 2022-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+pub mod error;
+
+use error::TracingError;
 use serde::{Deserialize, Serialize};
 use std::io::IsTerminal;
-
-#[cfg(feature = "tracing")]
-pub use opentelemetry;
-#[cfg(feature = "tracing")]
-pub use opentelemetry_jaeger;
-#[cfg(feature = "tracing")]
-pub use tracing_opentelemetry;
-#[cfg(feature = "tracing")]
-pub use tracing_subscriber;
-#[cfg(feature = "tracing")]
-pub use tracing_tree;
+use tracing_subscriber::{filter::Directive, layer::SubscriberExt, util::SubscriberInitExt};
 
 #[derive(Debug, Default, Copy, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -22,7 +15,6 @@ pub struct LoggingSettings {
 }
 
 // don't call init so that we could attach additional layers
-#[cfg(feature = "basic_tracing")]
 pub fn build_tracing_logger() -> impl tracing_subscriber::layer::SubscriberExt {
     use tracing_subscriber::prelude::*;
 
@@ -31,7 +23,6 @@ pub fn build_tracing_logger() -> impl tracing_subscriber::layer::SubscriberExt {
         .with(default_tracing_env_filter())
 }
 
-#[cfg(feature = "basic_tracing")]
 pub fn default_tracing_env_filter() -> tracing_subscriber::filter::EnvFilter {
     if ::std::env::var("RUST_LOG").is_ok() {
         tracing_subscriber::filter::EnvFilter::from_default_env()
@@ -43,7 +34,6 @@ pub fn default_tracing_env_filter() -> tracing_subscriber::filter::EnvFilter {
     }
 }
 
-#[cfg(feature = "basic_tracing")]
 pub fn default_tracing_fmt_layer<S, W>(
     writer: W,
 ) -> impl tracing_subscriber::Layer<S> + Sync + Send + 'static
@@ -63,45 +53,47 @@ where
         .with_target(false)
 }
 
-#[cfg(feature = "basic_tracing")]
-pub fn setup_tracing_logger() {
-    use tracing_subscriber::util::SubscriberInitExt;
-    build_tracing_logger().init()
+/// Creates a tracing filter that sets more granular log levels for specific crates.
+/// This allows for finer control over logging verbosity.
+pub(crate) fn granual_filtered_env() -> Result<tracing_subscriber::filter::EnvFilter, TracingError>
+{
+    fn directive_checked(directive: impl Into<String>) -> Result<Directive, TracingError> {
+        directive.into().parse().map_err(From::from)
+    }
+
+    let mut filter = default_tracing_env_filter();
+
+    // these crates are more granularly filtered
+    let filter_crates = ["defguard_wireguard_rs"];
+    for crate_name in filter_crates {
+        filter = filter.add_directive(directive_checked(format!("{crate_name}=warn"))?);
+    }
+    Ok(filter)
+}
+
+pub fn setup_no_otel_logger() -> Result<(), TracingError> {
+    // Only set up if not already initialized
+    if tracing::dispatcher::has_been_set() {
+        // It shouldn't be - this is really checking that it is torn down between async command executions
+        return Err(TracingError::TracingLoggerAlreadyInitialised);
+    }
+
+    let registry = tracing_subscriber::registry()
+        .with(default_tracing_fmt_layer(std::io::stderr))
+        .with(granual_filtered_env()?);
+
+    registry
+        .try_init()
+        .map_err(|e| TracingError::TracingTryInitError(e))?;
+
+    Ok(())
 }
 
 // TODO: This has to be a macro, running it as a function does not work for the file_appender for some reason
-#[cfg(feature = "tracing")]
 #[macro_export]
 macro_rules! setup_tracing {
     ($service_name: expr) => {
-        use nym_bin_common::logging::tracing_subscriber::layer::SubscriberExt;
-        use nym_bin_common::logging::tracing_subscriber::util::SubscriberInitExt;
-
-        let registry = nym_bin_common::logging::tracing_subscriber::Registry::default()
-            .with(nym_bin_common::logging::tracing_subscriber::EnvFilter::from_default_env())
-            .with(
-                nym_bin_common::logging::tracing_tree::HierarchicalLayer::new(4)
-                    .with_targets(true)
-                    .with_bracketed_fields(true),
-            );
-
-        let tracer = nym_bin_common::logging::opentelemetry_jaeger::new_collector_pipeline()
-            .with_endpoint("http://44.199.230.10:14268/api/traces")
-            .with_service_name($service_name)
-            .with_isahc()
-            .with_trace_config(
-                nym_bin_common::logging::opentelemetry::sdk::trace::config().with_sampler(
-                    nym_bin_common::logging::opentelemetry::sdk::trace::Sampler::TraceIdRatioBased(
-                        0.1,
-                    ),
-                ),
-            )
-            .install_batch(nym_bin_common::logging::opentelemetry::runtime::Tokio)
-            .expect("Could not init tracer");
-
-        let telemetry = nym_bin_common::logging::tracing_opentelemetry::layer().with_tracer(tracer);
-
-        registry.with(telemetry).init();
+        setup_no_otel_logger()
     };
 }
 

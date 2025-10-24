@@ -45,9 +45,7 @@ utoipa = { workspace = true, features = ["axum_extras", "time"] }
 utoipa-swagger-ui = { workspace = true, features = ["axum"] }
 zeroize.workspace = true
 
-nym-bin-common = { path = "../../common/bin-common", features = [
-    "basic_tracing",
-] }
+nym-bin-common = { path = "../../common/bin-common" }
 nym-compact-ecash = { path = "../../common/nym_offline_compact_ecash" }
 nym-config = { path = "../../common/config" }
 nym-crypto = { path = "../../common/crypto", features = [

@@ -2,6 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::packet::FramedNymPacket;
+#[cfg(feature = "otel")]
+use nym_bin_common::opentelemetry::{
+    compact_id_generator::decompress_trace_id, context::ManualContextPropagator,
+};
+
 use nym_sphinx_acknowledgements::surb_ack::{SurbAck, SurbAckRecoveryError};
 use nym_sphinx_addressing::nodes::{NymNodeRoutingAddress, NymNodeRoutingAddressError};
 use nym_sphinx_forwarding::packet::MixPacket;
@@ -14,7 +19,9 @@ use nym_sphinx_types::{
 };
 use std::fmt::Display;
 use thiserror::Error;
-use tracing::{debug, error, info, trace};
+#[cfg(feature = "otel")]
+use tracing::warn_span;
+use tracing::{debug, error, info, instrument, trace, warn};
 
 #[derive(Debug)]
 pub enum MixProcessingResultData {
@@ -154,6 +161,7 @@ impl PartiallyUnwrappedPacket {
         })
     }
 
+    #[instrument(skip_all)]
     pub fn finalise_unwrapping(self) -> Result<MixProcessingResult, PacketProcessingError> {
         let packet_size = self.received_data.packet_size();
         let packet_type = self.received_data.packet_type();
@@ -236,6 +244,7 @@ fn perform_framed_packet_processing(
     })
 }
 
+#[instrument(skip_all)]
 fn wrap_processed_sphinx_packet(
     packet: nym_sphinx_types::ProcessedPacket,
     packet_size: PacketSize,
@@ -258,15 +267,38 @@ fn wrap_processed_sphinx_packet(
         // sphinx all together?
         ProcessedPacketData::FinalHop {
             destination,
-            identifier: _,
+            #[cfg(feature = "otel")]
+            identifier,
+            #[cfg(not(feature = "otel"))]
+                identifier: _,
             payload,
-        } => process_final_hop(
-            destination,
-            payload.recover_plaintext()?,
-            packet_size,
-            packet_type,
-            key_rotation,
-        ),
+        } => {
+            // if we have a trace id in the destination, we log it for easier correlation later on
+            #[cfg(feature = "otel")]
+            let span = match identifier[0..12].try_into().map(|b: [u8; 12]| b) {
+                Ok(trace_bytes) if !trace_bytes.iter().all(|b| *b == 0) => {
+                    let full_trace_id_bytes = decompress_trace_id(&trace_bytes);
+                    let full_trace_id =
+                        opentelemetry::trace::TraceId::from_bytes(full_trace_id_bytes);
+                    let context_propagator =
+                        ManualContextPropagator::new_from_tid("final_hop", full_trace_id);
+                    tracing::info_span!(parent: &context_propagator.root_span, "final_hop_processing", trace_id=%full_trace_id)
+                }
+                _ => {
+                    tracing::debug_span!("final_hop_processing")
+                }
+            };
+            #[cfg(feature = "otel")]
+            let _entered_span = span.enter();
+
+            process_final_hop(
+                destination,
+                payload.recover_plaintext()?,
+                packet_size,
+                packet_type,
+                key_rotation,
+            )
+        }
     }?;
 
     Ok(MixProcessingResult {
@@ -312,6 +344,7 @@ fn wrap_processed_outfox_packet(
     }
 }
 
+#[instrument(skip_all)]
 fn perform_final_processing(
     packet: NymProcessedPacket,
     packet_size: PacketSize,

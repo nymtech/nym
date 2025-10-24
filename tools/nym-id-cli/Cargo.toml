@@ -17,6 +17,6 @@ clap = { workspace = true, features = ["derive"] }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
 tracing.workspace = true
 
-nym-bin-common = { path = "../../common/bin-common", features = ["output_format", "basic_tracing"] }
+nym-bin-common = { path = "../../common/bin-common", features = ["output_format"] }
 nym-credential-storage = { path = "../../common/credential-storage" }
 nym-id = { path = "../../common/nym-id" }

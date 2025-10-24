@@ -4,6 +4,7 @@
 use crate::{AuthenticationFailure, GatewayRequestsError, SharedGatewayKey};
 use nym_crypto::asymmetric::ed25519;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::iter;
 use std::time::Duration;
 use subtle::ConstantTimeEq;
@@ -16,6 +17,9 @@ pub struct AuthenticateRequest {
     pub content: AuthenticateRequestContent,
 
     pub request_signature: ed25519::Signature,
+
+    #[serde(default)]
+    pub otel_context: Option<HashMap<String, String>>,
 }
 
 impl AuthenticateRequest {
@@ -23,6 +27,7 @@ impl AuthenticateRequest {
         protocol_version: u8,
         shared_key: &SharedGatewayKey,
         identity_keys: &ed25519::KeyPair,
+        otel_context: Option<HashMap<String, String>>,
     ) -> Result<AuthenticateRequest, GatewayRequestsError> {
         let content = AuthenticateRequestContent::new(
             protocol_version,
@@ -35,6 +40,7 @@ impl AuthenticateRequest {
         Ok(AuthenticateRequest {
             content,
             request_signature,
+            otel_context,
         })
     }
 

@@ -8,7 +8,7 @@
 
 use crate::cli::Cli;
 use clap::{Parser, crate_name, crate_version};
-use nym_bin_common::logging::{maybe_print_banner, setup_tracing_logger};
+use nym_bin_common::logging::{maybe_print_banner, setup_no_otel_logger};
 use nym_network_defaults::setup_env;
 
 pub mod cli;
@@ -25,7 +25,7 @@ async fn main() -> anyhow::Result<()> {
 
     let args = Cli::parse();
     setup_env(args.config_env_file.as_ref());
-    setup_tracing_logger();
+    setup_no_otel_logger().expect("failed to initialize logging");
 
     if !args.no_banner {
         maybe_print_banner(crate_name!(), crate_version!());

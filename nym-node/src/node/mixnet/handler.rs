@@ -130,6 +130,7 @@ impl ConnectionHandler {
         Some(now + delay)
     }
 
+    #[instrument(skip_all, level = "debug")]
     fn handle_forward_packet(&self, now: Instant, mix_packet: MixPacket, delay: Option<Delay>) {
         if !self.shared.processing_config.forward_hop_processing_enabled {
             trace!("this nym-node does not support forward hop packets");
@@ -141,6 +142,7 @@ impl ConnectionHandler {
         self.shared.forward_mix_packet(mix_packet, forward_instant);
     }
 
+    #[instrument(skip_all, level = "debug")]
     async fn handle_final_hop(&self, final_hop_data: ProcessedFinalHop) {
         if !self.shared.processing_config.final_hop_processing_enabled {
             trace!("this nym-node does not support final hop packets");
@@ -269,6 +271,7 @@ impl ConnectionHandler {
         }
     }
 
+    #[instrument(skip_all, level = "debug")]
     async fn handle_received_packet_with_replay_detection(
         &mut self,
         now: Instant,
@@ -379,6 +382,7 @@ impl ConnectionHandler {
         true
     }
 
+    #[instrument(skip_all)]
     async fn handle_pending_packets_batch(&mut self, now: Instant) {
         let batch = self.pending_packets.reset(now);
         let replay_tags = self.pending_packets.replay_tags();
@@ -481,6 +485,7 @@ impl ConnectionHandler {
             .await
     }
 
+    #[instrument(skip_all)]
     pub(crate) async fn handle_stream(
         &mut self,
         mut mixnet_connection: Framed<Connection<TcpStream>, NymCodec>,

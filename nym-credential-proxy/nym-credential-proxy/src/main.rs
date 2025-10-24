@@ -6,7 +6,7 @@ cfg_if::cfg_if! {
         use crate::cli::Cli;
         use clap::Parser;
         use nym_bin_common::bin_info_owned;
-        use nym_bin_common::logging::setup_tracing_logger;
+        use nym_bin_common::logging::setup_no_otel_logger;
         use nym_network_defaults::setup_env;
         use tracing::{info, trace};
 
@@ -29,7 +29,7 @@ async fn main() -> anyhow::Result<()> {
     trace!("args: {cli:#?}");
 
     setup_env(cli.config_env_file.as_ref());
-    setup_tracing_logger();
+    setup_no_otel_logger().expect("failed to initialize logging");
 
     let bin_info = bin_info_owned!();
     info!("using the following version: {bin_info}");

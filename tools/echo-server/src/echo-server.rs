@@ -28,7 +28,7 @@ struct Args {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    nym_bin_common::logging::setup_tracing_logger();
+    nym_bin_common::logging::setup_no_otel_logger().expect("failed to initialize logging");
     let args = Args::parse();
     let mut echo_server = NymEchoServer::new(
         args.gateway,

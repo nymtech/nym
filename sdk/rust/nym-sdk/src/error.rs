@@ -2,6 +2,7 @@ use nym_validator_client::nyxd::error::NyxdError;
 use std::path::PathBuf;
 
 use nym_ip_packet_requests::v8::response::{ConnectFailureReason, IpPacketResponseData};
+use nym_validator_client::nym_api::error::NymAPIError;
 
 /// Top-level Error enum for the mixnet client and its relevant types.
 #[derive(Debug, thiserror::Error)]
@@ -122,8 +123,8 @@ pub enum Error {
     #[error("connect denied: {0:?}")]
     ConnectDenied(ConnectFailureReason),
 
-    #[error("gateway directory error: {0}")]
-    GatewayDirectoryError(#[from] nym_gateway_directory::Error),
+    #[error("api directory error: {0}")]
+    GatewayDirectoryError(#[from] NymAPIError),
 
     #[error("did not receive Validator endpoint details")]
     NoValidatorDetailsAvailable,

@@ -273,6 +273,49 @@ pub trait NymApiClientExt: ApiClient {
         Ok(SkimmedNodesWithMetadata::new(nodes, metadata))
     }
 
+    async fn get_all_basic_exit_assigned_nodes_with_metadata(
+        &self,
+    ) -> Result<SkimmedNodesWithMetadata, NymAPIError> {
+        // Get all nodes that can act as exit gateways
+        let mut page = 0;
+        let res = self
+            .get_basic_exit_assigned_nodes_v2(false, Some(page), None, false)
+            .await?;
+
+        let metadata = res.metadata;
+        let mut nodes = res.nodes.data;
+
+        if res.nodes.pagination.total == nodes.len() {
+            return Ok(SkimmedNodesWithMetadata::new(nodes, metadata));
+        }
+
+        page += 1;
+
+        loop {
+            let res = self
+                .get_basic_exit_assigned_nodes_v2(false, Some(page), None, false)
+                .await?;
+
+            if !metadata.consistency_check(&res.metadata) {
+                return Err(NymAPIError::InternalResponseInconsistency {
+                    url: self.api_url().clone(),
+                    details: "Inconsistent paged metadata".to_string(),
+                });
+            }
+
+            nodes.append(&mut res.nodes.data.clone());
+
+            // Check if we've got all nodes
+            if nodes.len() >= res.nodes.pagination.total {
+                break;
+            } else {
+                page += 1;
+            }
+        }
+
+        Ok(SkimmedNodesWithMetadata::new(nodes, metadata))
+    }
+
     async fn get_all_described_nodes(&self) -> Result<Vec<NymNodeDescription>, NymAPIError> {
         // TODO: deal with paging in macro or some helper function or something, because it's the same pattern everywhere
         let mut page = 0;
@@ -461,6 +504,47 @@ pub trait NymApiClientExt: ApiClient {
                 routes::NYM_NODES_ROUTES,
                 "skimmed",
                 "entry-gateways",
+            ],
+            &params,
+        )
+        .await
+    }
+
+    /// retrieve basic information for nodes are capable of operating as an exit gateway
+    /// this includes legacy gateways and nym-nodes
+    #[instrument(level = "debug", skip(self))]
+    async fn get_basic_exit_assigned_nodes_v2(
+        &self,
+        no_legacy: bool,
+        page: Option<u32>,
+        per_page: Option<u32>,
+        use_bincode: bool,
+    ) -> Result<PaginatedCachedNodesResponseV2<SkimmedNode>, NymAPIError> {
+        let mut params = Vec::new();
+
+        if no_legacy {
+            params.push(("no_legacy", "true".to_string()))
+        }
+
+        if let Some(page) = page {
+            params.push(("page", page.to_string()))
+        }
+
+        if let Some(per_page) = per_page {
+            params.push(("per_page", per_page.to_string()))
+        }
+
+        if use_bincode {
+            params.push(("output", "bincode".to_string()))
+        }
+
+        self.get_response(
+            &[
+                routes::V2_API_VERSION,
+                "unstable",
+                routes::NYM_NODES_ROUTES,
+                "skimmed",
+                "exit-gateways",
             ],
             &params,
         )

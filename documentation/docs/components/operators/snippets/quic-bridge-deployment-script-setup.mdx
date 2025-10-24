@@ -15,6 +15,7 @@ Operators can use [Nym Bridge Configuration Tool](https://github.com/nymtech/nym
 <Steps>
 ###### 1. Download [`quic_bridge_deployment.sh`](https://github.com/nymtech/nym/blob/develop/scripts/nym-node-setup/quic_bridge_deployment.sh) script
 - SSH to your server
+- **Run as root**
 - Download the script and make executable
 ```sh
 wget https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/quic_bridge_deployment.sh && \
@@ -26,7 +27,7 @@ chmod +x quic_bridge_deployment.sh
 - Optional: open `tmux` in case you will need to run another commands on the VPS
 - Run the script with a command `full_bridge_setup`
 ```sh
-./nym-node-setup/quic_bridge_deployment.sh full_bridge_setup
+./quic_bridge_deployment.sh full_bridge_setup
 ```
 
 ###### 3. Follow the interactive prompts

@@ -809,7 +809,7 @@ where
             client_output,
             client_state.clone(),
             nym_address,
-            started_client.shutdown_handle.child_tracker(),
+            started_client.shutdown_handle.clone(),
             packet_type,
         );
 

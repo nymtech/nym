@@ -84,12 +84,12 @@ pub fn send_message_internal(
     message: &str,
     // TODO add Option<surb_amount>, if Some(surb_amount) call send_message() instead with specified #, else send_plain_message as this uses the default
 ) -> Result<(), Error> {
-    let client = NYM_CLIENT.lock().expect("could not lock NYM_CLIENT");
+    let mut client = NYM_CLIENT.lock().expect("could not lock NYM_CLIENT");
     if client.is_none() {
         bail!("Client is not yet initialised");
     }
     let nym_client = client
-        .as_ref()
+        .as_mut()
         .ok_or_else(|| anyhow!("could not get client as_ref()"))?;
 
     RUNTIME.block_on(async move {
@@ -102,12 +102,12 @@ pub fn send_message_internal(
 // TODO send_raw_message_internal
 
 pub fn reply_internal(recipient: AnonymousSenderTag, message: &str) -> Result<(), Error> {
-    let client = NYM_CLIENT.lock().expect("could not lock NYM_CLIENT");
+    let mut client = NYM_CLIENT.lock().expect("could not lock NYM_CLIENT");
     if client.is_none() {
         bail!("Client is not yet initialised");
     }
     let nym_client = client
-        .as_ref()
+        .as_mut()
         .ok_or_else(|| anyhow!("could not get client as_ref()"))?;
 
     RUNTIME.block_on(async move {

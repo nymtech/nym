@@ -1,7 +1,10 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use std::io;
+
 use crate::message::{NymMessage, NymMessageError, PaddedMessage, PlainMessage};
+use log::debug;
 use nym_crypto::aes::cipher::{KeyIvInit, StreamCipher};
 use nym_crypto::asymmetric::x25519;
 use nym_crypto::shared_key::recompute_shared_key;
@@ -15,10 +18,13 @@ use nym_sphinx_chunking::reconstruction::MessageReconstructor;
 use nym_sphinx_params::{
     PacketEncryptionAlgorithm, PacketHkdfAlgorithm, ReplySurbEncryptionAlgorithm,
 };
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
+use tokio_util::bytes::{Buf, BytesMut};
+use tokio_util::codec::{Decoder, Encoder};
 
 // TODO: should this live in this file?
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ReconstructedMessage {
     /// The actual plaintext message that was received.
     pub message: Vec<u8>,
@@ -56,6 +62,62 @@ impl From<PlainMessage> for ReconstructedMessage {
     }
 }
 
+pub struct ReconstructedMessageCodec;
+const LENGHT_ENCODING_PREFIX_SIZE: usize = 4;
+
+impl Encoder<ReconstructedMessage> for ReconstructedMessageCodec {
+    type Error = MessageRecoveryError;
+
+    fn encode(
+        &mut self,
+        item: ReconstructedMessage,
+        buf: &mut BytesMut,
+    ) -> Result<(), Self::Error> {
+        let encoded = bincode::serialize(&item).expect("failed to serialize ReconstructedMessage");
+        let encoded_len = encoded.len() as u32;
+        let mut encoded_with_len = encoded_len.to_le_bytes().to_vec();
+        encoded_with_len.extend(encoded);
+        buf.reserve(encoded_with_len.len());
+        buf.extend_from_slice(&encoded_with_len);
+        Ok(())
+    }
+}
+
+impl Decoder for ReconstructedMessageCodec {
+    type Item = ReconstructedMessage;
+    type Error = MessageRecoveryError;
+
+    fn decode(&mut self, buf: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
+        if buf.len() < LENGHT_ENCODING_PREFIX_SIZE {
+            return Ok(None);
+        }
+
+        let len = u32::from_le_bytes(
+            buf[0..LENGHT_ENCODING_PREFIX_SIZE]
+                .try_into()
+                .expect("We know that we have at least LENGHT_ENCODING_PREFIX_SIZE bytes in there"),
+        ) as usize;
+
+        if buf.len() < len + LENGHT_ENCODING_PREFIX_SIZE {
+            return Ok(None);
+        }
+
+        let decoded = match bincode::deserialize(
+            &buf[LENGHT_ENCODING_PREFIX_SIZE..len + LENGHT_ENCODING_PREFIX_SIZE],
+        ) {
+            Ok(decoded) => decoded,
+            Err(e) => {
+                debug!("Failed to decode the message - {:?}", e);
+                return Ok(None);
+            }
+        };
+
+        buf.advance(len + LENGHT_ENCODING_PREFIX_SIZE);
+
+        Ok(Some(decoded))
+    }
+}
+
 #[derive(Debug, Error)]
 pub enum MessageRecoveryError {
     #[error(
@@ -75,6 +137,9 @@ pub enum MessageRecoveryError {
 
     #[error("Failed to recover message fragment - {0}")]
     FragmentRecoveryError(#[from] ChunkingError),
+
+    #[error("Failed to recover message fragment - {0}")]
+    MessageRecoveryError(#[from] io::Error),
 }
 
 pub trait MessageReceiver {

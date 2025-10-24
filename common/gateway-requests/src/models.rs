@@ -82,7 +82,7 @@ mod tests {
         let exp_date_sigs = generate_expiration_date_signatures(
             sig_req.expiration_date.ecash_unix_timestamp(),
             &[keypair.secret_key()],
-            &vec![keypair.verification_key()],
+            &[keypair.verification_key()],
             &keypair.verification_key(),
             &[keypair.index.unwrap()],
         )
@@ -106,14 +106,14 @@ mod tests {
             .unwrap();
 
         let wallet = issuance
-            .aggregate_signature_shares(&keypair.verification_key(), &vec![partial_wallet], sig_req)
+            .aggregate_signature_shares(&keypair.verification_key(), &[partial_wallet], sig_req)
             .unwrap();
 
         let mut issued = issuance.into_issued_ticketbook(wallet, 1);
         let coin_indices_signatures = generate_coin_indices_signatures(
             nym_credentials_interface::ecash_parameters(),
             &[keypair.secret_key()],
-            &vec![keypair.verification_key()],
+            &[keypair.verification_key()],
             &keypair.verification_key(),
             &[keypair.index.unwrap()],
         )

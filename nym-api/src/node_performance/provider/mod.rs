@@ -8,7 +8,7 @@ use nym_api_requests::models::RoutingScore;
 use nym_mixnet_contract_common::{EpochId, NodeId};
 use std::collections::HashMap;
 use thiserror::Error;
-use tracing::{debug, error};
+use tracing::debug;
 
 pub(crate) mod contract_provider;
 pub(crate) mod legacy_storage_provider;

@@ -3,7 +3,6 @@
 
 use std::num::ParseIntError;
 use thiserror::Error;
-use tracing::error;
 
 #[derive(Debug, Error)]
 pub enum BandwidthError {

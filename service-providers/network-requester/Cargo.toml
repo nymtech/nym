@@ -37,14 +37,23 @@ tap = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["net", "rt-multi-thread", "macros"] }
 tokio-tungstenite = { workspace = true }
+tokio-util = { workspace = true }
 url = { workspace = true }
 time = { workspace = true }
 zeroize = { workspace = true }
 
 # internal
+
+
 nym-async-file-watcher = { path = "../../common/async-file-watcher" }
-nym-bin-common = { path = "../../common/bin-common", features = ["output_format", "clap", "basic_tracing"] }
-nym-client-core = { path = "../../common/client-core", features = ["cli", "fs-gateways-storage", "fs-surb-storage"] }
+nym-client-core = { path = "../../common/client-core", features = [
+    "cli",
+    "fs-gateways-storage",
+    "fs-surb-storage",
+] }
+nym-bin-common = { path = "../../common/bin-common", features = [
+    "output_format",
+] }
 nym-client-websocket-requests = { path = "../../clients/native/websocket-requests" }
 nym-config = { path = "../../common/config" }
 nym-credentials = { path = "../../common/credentials" }

@@ -1,3 +1,4 @@
+#![allow(deprecated)]
 use std::future::Future;
 
 #[cfg(all(

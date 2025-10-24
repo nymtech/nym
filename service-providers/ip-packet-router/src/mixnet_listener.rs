@@ -430,7 +430,7 @@ impl MixnetListener {
 
     // When an incoming mixnet message triggers a response that we send back, such as during
     // connect handshake.
-    async fn handle_response(&self, response: VersionedResponse) -> Result<()> {
+    async fn handle_response(&mut self, response: VersionedResponse) -> Result<()> {
         let send_to = response.reply_to.clone();
         let response_bytes = response.try_into_bytes()?;
         let input_message =
@@ -445,7 +445,7 @@ impl MixnetListener {
 
     // A single incoming request can trigger multiple responses, such as when data requests contain
     // multiple IP packets.
-    async fn handle_responses(&self, responses: Vec<PacketHandleResult>) {
+    async fn handle_responses(&mut self, responses: Vec<PacketHandleResult>) {
         for response in responses {
             match response {
                 Ok(Some(response)) => {

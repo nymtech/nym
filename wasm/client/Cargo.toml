@@ -31,6 +31,7 @@ once_cell = { workspace = true }
 thiserror = { workspace = true }
 tsify = { workspace = true, features = ["js"] }
 web-sys = { workspace = true }
+tokio = { workspace = true, default-features = false, features = ["sync"] }
 
 nym-bin-common = { path = "../../common/bin-common" }
 wasm-client-core = { path = "../../common/wasm/client-core" }

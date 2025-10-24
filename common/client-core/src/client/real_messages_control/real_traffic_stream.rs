@@ -120,9 +120,6 @@ where
     stats_tx: ClientStatsSender,
 
     shutdown_token: ShutdownToken,
-
-    /// Flag to indicate that the mix_tx channel is closed and we should stop processing
-    mix_tx_closed: bool,
 }
 
 #[derive(Debug)]
@@ -198,7 +195,6 @@ where
             lane_queue_lengths,
             stats_tx,
             shutdown_token,
-            mix_tx_closed: false,
         }
     }
 
@@ -301,8 +297,6 @@ where
                     tracing::error!(
                         "failed to send mixnet packet due to closed channel (outside of shutdown!)"
                     );
-                    // This prevents a loop where we keep trying to send packets through a closed channel
-                    self.mix_tx_closed = true;
                 }
                 // Early return to avoid further processing when channel is closed
                 return;
@@ -604,21 +598,20 @@ where
                         tracing::trace!("OutQueueControl: Received shutdown");
                         break;
                     }
-                    _ = status_timer.tick() => {
-                        self.log_status();
-                    }
-                    next_message = self.next() => if let Some(next_message) = next_message {
-                        self.on_message(next_message).await;
-                        // Check if mix_tx channel was closed during on_message
-                        // and break immediately to prevent loop
-                        if self.mix_tx_closed {
-                            tracing::error!("OutQueueControl: mix_tx channel closed, stopping traffic stream");
-                            break;
-                        }
-                    } else {
-                        tracing::trace!("OutQueueControl: Stopping since channel closed");
+                _ = status_timer.tick() => {
+                    self.log_status();
+                }
+                next_message = self.next() => if let Some(next_message) = next_message {
+                    // Check if mix_tx channel is closed BEFORE processing message
+                    if self.mix_tx.is_closed() {
+                        tracing::error!("OutQueueControl: mix_tx channel closed, stopping traffic stream");
                         break;
                     }
+                    self.on_message(next_message).await;
+                } else {
+                    tracing::trace!("OutQueueControl: Stopping since channel closed");
+                    break;
+                }
                 }
             }
         }
@@ -627,19 +620,18 @@ where
         {
             loop {
                 tokio::select! {
-                    biased;
+                        biased;
                     _ = shutdown_token.cancelled() => {
                         tracing::trace!("OutQueueControl: Received shutdown");
                         break;
                     }
                     next_message = self.next() => if let Some(next_message) = next_message {
-                        self.on_message(next_message).await;
-                        // Check if mix_tx channel was closed during on_message
-                        // and break immediately to prevent loop
-                        if self.mix_tx_closed {
+                        // Check if mix_tx channel is closed BEFORE processing message
+                        if self.mix_tx.is_closed() {
                             tracing::error!("OutQueueControl: mix_tx channel closed, stopping traffic stream");
                             break;
                         }
+                        self.on_message(next_message).await;
                     } else {
                         tracing::trace!("OutQueueControl: Stopping since channel closed");
                         break;

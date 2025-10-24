@@ -122,12 +122,9 @@ impl TryFrom<previous::interface::RequestData> for RequestData {
     fn try_from(value: previous::interface::RequestData) -> Result<Self, Self::Error> {
         match value {
             previous::interface::RequestData::AvailableBandwidth(_) => Ok(Self::AvailableBandwidth),
-            previous::interface::RequestData::TopUpBandwidth(_) => {
-                Err(super::Error::UpdateNotPossible {
-                    from: previous::VERSION,
-                    to: VERSION,
-                })
-            }
+            previous::interface::RequestData::TopUpBandwidth(zk_nym) => Ok(Self::TopUpBandwidth {
+                credential: Box::new((*zk_nym).into()),
+            }),
         }
     }
 }

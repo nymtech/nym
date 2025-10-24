@@ -25,6 +25,8 @@ pub mod peer_controller;
 pub mod peer_handle;
 pub mod peer_storage_manager;
 
+pub use error::Error;
+
 pub const CONTROL_CHANNEL_SIZE: usize = 256;
 
 pub struct WgApiWrapper {

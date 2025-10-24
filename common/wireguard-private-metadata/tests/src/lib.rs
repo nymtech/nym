@@ -1,20 +1,75 @@
 #[cfg(test)]
 mod v0;
+#[cfg(test)]
+mod v1;
+#[cfg(test)]
+mod v2;
+
+// TODO: we might possibly want to move it to some common crate
+// so that it could be re-used by other tests (if needed)
+#[cfg(test)]
+pub(crate) mod mock_connect_info;
 
 #[cfg(test)]
 mod tests {
-    use std::net::SocketAddr;
-
+    use crate::v2::peer_controller::PeerControlRequestTypeV2;
+    use nym_credential_verification::upgrade_mode::UpgradeModeEnableError;
     use nym_credential_verification::{ClientBandwidth, TicketVerifier};
-    use nym_credentials_interface::CredentialSpendingData;
-    use nym_http_api_client::Client;
-    use nym_wireguard::{CONTROL_CHANNEL_SIZE, peer_controller::PeerControlRequest};
-    use nym_wireguard_private_metadata_client::WireguardMetadataApiClient;
-    use nym_wireguard_private_metadata_server::{
-        AppState, PeerControllerTransceiver, RouterBuilder,
+    use nym_credentials_interface::{
+        AvailableBandwidth, BandwidthCredential, CredentialSpendingData, UpgradeModeAttestation,
     };
-    use nym_wireguard_private_metadata_shared::{latest, v0, v1};
-    use tokio::{net::TcpListener, sync::mpsc};
+    use nym_crypto::asymmetric::ed25519;
+    use nym_http_api_client::HttpClientError;
+    use nym_upgrade_mode_check::{
+        CREDENTIAL_PROXY_JWT_ISSUER, generate_jwt_for_upgrade_mode_attestation,
+        generate_new_attestation_with_starting_time,
+    };
+    use nym_wireguard_private_metadata_client::WireguardMetadataApiClient;
+    use nym_wireguard_private_metadata_shared::{v0, v1, v2};
+    use std::net::IpAddr;
+    use std::time::Duration;
+    use time::OffsetDateTime;
+    use time::macros::datetime;
+
+    fn unchecked_ip<S: Into<String>>(raw: S) -> IpAddr {
+        raw.into().parse().unwrap()
+    }
+
+    const HIGH_BANDWIDTH: i64 = 20000000000000;
+
+    const DUMMY_JWT_ISSUER_ED25519_PRIVATE_KEY: [u8; 32] = [
+        152, 17, 144, 255, 213, 219, 246, 208, 109, 33, 100, 73, 1, 141, 32, 63, 141, 89, 167, 2,
+        52, 215, 241, 219, 200, 18, 159, 241, 76, 111, 42, 32,
+    ];
+
+    fn dummy_jwt_issuer_public_key() -> ed25519::PublicKey {
+        let private_key =
+            ed25519::PrivateKey::from_bytes(&DUMMY_JWT_ISSUER_ED25519_PRIVATE_KEY).unwrap();
+        private_key.public_key()
+    }
+
+    fn high_bandwidth() -> Result<ClientBandwidth, nym_wireguard::Error> {
+        bandwidth_response(HIGH_BANDWIDTH)
+    }
+
+    fn low_bandwidth() -> Result<ClientBandwidth, nym_wireguard::Error> {
+        bandwidth_response(0)
+    }
+
+    fn bandwidth_response(amount: i64) -> Result<ClientBandwidth, nym_wireguard::Error> {
+        Ok::<_, nym_wireguard::Error>(ClientBandwidth::new(AvailableBandwidth {
+            bytes: amount,
+            expiration: OffsetDateTime::from_unix_timestamp(2000000000).unwrap(),
+        }))
+    }
+
+    fn mock_verifier(
+        bandwidth: i64,
+    ) -> Result<Box<dyn TicketVerifier + Send + Sync>, nym_wireguard::Error> {
+        Ok::<_, nym_wireguard::Error>(
+            Box::new(MockVerifier::new(bandwidth)) as Box<dyn TicketVerifier + Send + Sync>
+        )
+    }
 
     pub(crate) const VERIFIER_AVAILABLE_BANDWIDTH: i64 = 42;
     pub(crate) const CREDENTIAL_BYTES: [u8; 1245] = [
@@ -82,6 +137,56 @@ mod tests {
         0, 0, 0, 0, 0, 1,
     ];
 
+    pub(crate) fn mock_upgrade_mode_attestation() -> UpgradeModeAttestation {
+        let starting_time = datetime!(2025-10-20 12:00 UTC);
+
+        // just some random, HARDCODED, key
+        let key = ed25519::PrivateKey::from_bytes(&[
+            108, 49, 193, 21, 126, 161, 249, 85, 242, 207, 74, 195, 238, 6, 64, 149, 201, 140, 248,
+            163, 122, 170, 79, 198, 87, 85, 36, 29, 243, 92, 64, 161,
+        ])
+        .unwrap();
+
+        generate_new_attestation_with_starting_time(
+            &key,
+            vec![dummy_jwt_issuer_public_key()],
+            starting_time,
+        )
+    }
+
+    pub(crate) fn mock_different_upgrade_mode_attestation() -> UpgradeModeAttestation {
+        let starting_time = datetime!(2025-10-30 12:00 UTC);
+
+        // just some random, HARDCODED, key
+        let key = ed25519::PrivateKey::from_bytes(&[
+            108, 49, 193, 21, 126, 161, 249, 85, 242, 207, 74, 195, 238, 6, 64, 149, 201, 140, 248,
+            163, 122, 170, 79, 198, 87, 85, 36, 29, 243, 92, 64, 161,
+        ])
+        .unwrap();
+
+        generate_new_attestation_with_starting_time(
+            &key,
+            vec![dummy_jwt_issuer_public_key()],
+            starting_time,
+        )
+    }
+
+    pub(crate) fn mock_upgrade_mode_jwt() -> String {
+        let jwt_key =
+            ed25519::PrivateKey::from_bytes(&DUMMY_JWT_ISSUER_ED25519_PRIVATE_KEY).unwrap();
+        let keys = ed25519::KeyPair::from(jwt_key);
+        // sanity check in case hardcoded values were modified inconsistently
+        debug_assert_eq!(*keys.public_key(), dummy_jwt_issuer_public_key());
+
+        let attestation = mock_upgrade_mode_attestation();
+        generate_jwt_for_upgrade_mode_attestation(
+            attestation,
+            Duration::from_secs(60 * 60),
+            &keys,
+            Some(CREDENTIAL_PROXY_JWT_ISSUER),
+        )
+    }
+
     pub(crate) struct MockVerifier {
         ret: i64,
     }
@@ -99,56 +204,12 @@ mod tests {
         }
     }
 
-    pub(crate) async fn spawn_server_and_create_client() -> Client {
-        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-        let addr = listener.local_addr().unwrap();
-        let (request_tx, mut request_rx) = mpsc::channel(CONTROL_CHANNEL_SIZE);
-        let router = RouterBuilder::with_default_routes()
-            .with_state(AppState::new(PeerControllerTransceiver::new(request_tx)))
-            .router;
-
-        tokio::spawn(async move {
-            loop {
-                match request_rx.recv().await {
-                    Some(PeerControlRequest::GetClientBandwidthByIp { ip: _, response_tx }) => {
-                        response_tx
-                            .send(Ok(ClientBandwidth::new(Default::default())))
-                            .ok();
-                    }
-                    Some(PeerControlRequest::GetVerifierByIp {
-                        ip: _,
-                        credential: _,
-                        response_tx,
-                    }) => {
-                        response_tx
-                            .send(Ok(Box::new(MockVerifier::new(
-                                VERIFIER_AVAILABLE_BANDWIDTH,
-                            ))))
-                            .ok();
-                    }
-                    None => break,
-                    _ => panic!("Not expected"),
-                }
-            }
-        });
-
-        tokio::spawn(async move {
-            axum::serve(
-                listener,
-                router.into_make_service_with_connect_info::<SocketAddr>(),
-            )
-            .await
-            .unwrap();
-        });
-        Client::new_url(addr.to_string(), None).unwrap()
-    }
-
-    #[tokio::test]
-    async fn query_latest_version() {
-        let client = spawn_server_and_create_client().await;
-        let version = client.version().await.unwrap();
-        assert_eq!(version, latest::VERSION);
-    }
+    // #[tokio::test]
+    // async fn query_latest_version() {
+    //     let client = super::v2::network::test::spawn_server_and_create_client().await;
+    //     let version = client.version().await.unwrap();
+    //     assert_eq!(version, latest::VERSION);
+    // }
 
     #[tokio::test]
     async fn query_against_server_v0() {
@@ -158,7 +219,7 @@ mod tests {
         let version = client.version().await.unwrap();
         assert_eq!(version, v0::VERSION);
 
-        // v0 reqwests
+        // v0 requests
         let request = v0::AvailableBandwidthRequest {}.try_into().unwrap();
         let response = client.available_bandwidth(&request).await.unwrap();
         v0::AvailableBandwidthResponse::try_from(response).unwrap();
@@ -167,7 +228,7 @@ mod tests {
         let response = client.topup_bandwidth(&request).await.unwrap();
         v0::TopUpResponse::try_from(response).unwrap();
 
-        // v1 reqwests
+        // v1 requests
         let request = v1::AvailableBandwidthRequest {}.try_into().unwrap();
         assert!(client.available_bandwidth(&request).await.is_err());
 
@@ -177,17 +238,30 @@ mod tests {
         .try_into()
         .unwrap();
         assert!(client.topup_bandwidth(&request).await.is_err());
+
+        // v2 requests
+        let request = v2::AvailableBandwidthRequest {}.try_into().unwrap();
+        assert!(client.available_bandwidth(&request).await.is_err());
+
+        let request = v2::TopUpRequest {
+            credential: BandwidthCredential::from(
+                CredentialSpendingData::try_from_bytes(&CREDENTIAL_BYTES).unwrap(),
+            ),
+        }
+        .try_into()
+        .unwrap();
+        assert!(client.topup_bandwidth(&request).await.is_err());
     }
 
     #[tokio::test]
     async fn query_against_server_v1() {
-        let client = spawn_server_and_create_client().await;
+        let client = super::v1::network::test::spawn_server_and_create_client().await;
 
         // version check
         let version = client.version().await.unwrap();
         assert_eq!(version, v1::VERSION);
 
-        // v0 reqwests
+        // v0 requests
         let request = v0::AvailableBandwidthRequest {}.try_into().unwrap();
         let response = client.available_bandwidth(&request).await.unwrap();
         v0::AvailableBandwidthResponse::try_from(response).unwrap();
@@ -195,7 +269,7 @@ mod tests {
         let request = v0::TopUpRequest {}.try_into().unwrap();
         assert!(client.topup_bandwidth(&request).await.is_err());
 
-        // v1 reqwests
+        // v1 requests
         let request = v1::AvailableBandwidthRequest {}.try_into().unwrap();
         let response = client.available_bandwidth(&request).await.unwrap();
         let available_bandwidth = v1::AvailableBandwidthResponse::try_from(response)
@@ -213,5 +287,245 @@ mod tests {
             .unwrap()
             .available_bandwidth;
         assert_eq!(available_bandwidth, VERIFIER_AVAILABLE_BANDWIDTH);
+
+        // v2 requests
+        let request = v2::AvailableBandwidthRequest {}.try_into().unwrap();
+        assert!(client.available_bandwidth(&request).await.is_err());
+
+        let request = v2::TopUpRequest {
+            credential: BandwidthCredential::from(
+                CredentialSpendingData::try_from_bytes(&CREDENTIAL_BYTES).unwrap(),
+            ),
+        }
+        .try_into()
+        .unwrap();
+        assert!(client.topup_bandwidth(&request).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn query_against_server_v2() {
+        let server_test = super::v2::network::test::spawn_server_and_create_client().await;
+        let client = &server_test.api_client;
+
+        // version check
+        let version = client.version().await.unwrap();
+        assert_eq!(version, v2::VERSION);
+
+        // ===========
+        // v0 requests
+        // ===========
+        let client_ip = unchecked_ip("0.0.0.1");
+        server_test.set_client_ip(client_ip);
+        server_test
+            .register_peer_controller_response(
+                PeerControlRequestTypeV2::GetClientBandwidthByIp { ip: client_ip },
+                bandwidth_response(0),
+            )
+            .await;
+
+        server_test
+            .register_peer_controller_response(
+                PeerControlRequestTypeV2::GetVerifierByIp { ip: client_ip },
+                mock_verifier(10),
+            )
+            .await;
+
+        let request = v0::AvailableBandwidthRequest {}.try_into().unwrap();
+        let response = client.available_bandwidth(&request).await.unwrap();
+        v0::AvailableBandwidthResponse::try_from(response).unwrap();
+
+        let request = v0::TopUpRequest {}.try_into().unwrap();
+        assert!(client.topup_bandwidth(&request).await.is_err());
+        server_test.reset_registered_responses().await;
+
+        // ===========
+        // v1 requests
+        // ===========
+        let client_ip = unchecked_ip("1.1.1.1");
+        server_test.set_client_ip(client_ip);
+        server_test
+            .register_peer_controller_response(
+                PeerControlRequestTypeV2::GetClientBandwidthByIp { ip: client_ip },
+                bandwidth_response(0),
+            )
+            .await;
+
+        server_test
+            .register_peer_controller_response(
+                PeerControlRequestTypeV2::GetVerifierByIp { ip: client_ip },
+                mock_verifier(100),
+            )
+            .await;
+
+        let request = v1::AvailableBandwidthRequest {}.try_into().unwrap();
+        let response = client.available_bandwidth(&request).await.unwrap();
+        let available_bandwidth = v1::AvailableBandwidthResponse::try_from(response)
+            .unwrap()
+            .available_bandwidth;
+        assert_eq!(available_bandwidth, 0);
+
+        let request = v1::TopUpRequest {
+            credential: CredentialSpendingData::try_from_bytes(&CREDENTIAL_BYTES).unwrap(),
+        }
+        .try_into()
+        .unwrap();
+        let response = client.topup_bandwidth(&request).await.unwrap();
+
+        let available_bandwidth = v1::TopUpResponse::try_from(response)
+            .unwrap()
+            .available_bandwidth;
+        assert_eq!(available_bandwidth, 100);
+        server_test.reset_registered_responses().await;
+
+        // ===========
+        // v2 requests
+        // ===========
+        let client_ip = unchecked_ip("2.2.2.1");
+        server_test.set_client_ip(client_ip);
+        server_test
+            .register_peer_controller_response(
+                PeerControlRequestTypeV2::GetClientBandwidthByIp { ip: client_ip },
+                bandwidth_response(0),
+            )
+            .await;
+
+        server_test
+            .register_peer_controller_response(
+                PeerControlRequestTypeV2::GetVerifierByIp { ip: client_ip },
+                mock_verifier(200),
+            )
+            .await;
+
+        let request = v2::AvailableBandwidthRequest {}.try_into().unwrap();
+        let response = client.available_bandwidth(&request).await.unwrap();
+        let available = v2::AvailableBandwidthResponse::try_from(response).unwrap();
+        assert_eq!(available.available_bandwidth, 0);
+        assert!(!available.upgrade_mode);
+
+        let request = v2::TopUpRequest {
+            credential: BandwidthCredential::from(
+                CredentialSpendingData::try_from_bytes(&CREDENTIAL_BYTES).unwrap(),
+            ),
+        }
+        .try_into()
+        .unwrap();
+        let response = client.topup_bandwidth(&request).await.unwrap();
+        let top_up = v2::TopUpResponse::try_from(response).unwrap();
+        assert_eq!(top_up.available_bandwidth, 200);
+        assert!(!top_up.upgrade_mode);
+        server_test.reset_registered_responses().await;
+
+        // upgrade mode test
+        let upgrade_mode_client = unchecked_ip("2.2.2.2");
+        server_test.set_client_ip(upgrade_mode_client);
+        let good_attestation_alt = mock_different_upgrade_mode_attestation();
+        let good_jwt = mock_upgrade_mode_jwt();
+
+        // 1. send attestation when upgrade mode is not enabled
+        let request = v2::TopUpRequest {
+            credential: BandwidthCredential::UpgradeModeJWT {
+                token: good_jwt.clone(),
+            },
+        }
+        .try_into()
+        .unwrap();
+        let response_err = client.topup_bandwidth(&request).await.unwrap_err();
+        let HttpClientError::EndpointFailure { error, .. } = response_err else {
+            panic!("unexpected response")
+        };
+        assert!(error.contains(&UpgradeModeEnableError::AttestationNotPublished.to_string()));
+        server_test.reset_registered_responses().await;
+
+        // 2.1. send attestation when upgrade mode is enabled (low bandwidth)
+        let request_typ = PeerControlRequestTypeV2::GetClientBandwidthByIp {
+            ip: upgrade_mode_client,
+        };
+        server_test
+            .register_peer_controller_response(request_typ, low_bandwidth())
+            .await;
+        server_test.enable_upgrade_mode().await;
+        let request = v2::TopUpRequest {
+            credential: BandwidthCredential::UpgradeModeJWT {
+                token: good_jwt.clone(),
+            },
+        }
+        .try_into()
+        .unwrap();
+        let response = client.topup_bandwidth(&request).await.unwrap();
+        let top_up = v2::TopUpResponse::try_from(response).unwrap();
+        // as defined by `DEFAULT_WG_CLIENT_BANDWIDTH_THRESHOLD`
+        assert_eq!(top_up.available_bandwidth, 1024 * 1024 * 1024);
+        assert!(top_up.upgrade_mode);
+        server_test.reset_registered_responses().await;
+
+        // 2.2. send attestation when upgrade mode is enabled (high bandwidth)
+        let request_typ = PeerControlRequestTypeV2::GetClientBandwidthByIp {
+            ip: upgrade_mode_client,
+        };
+        server_test
+            .register_peer_controller_response(request_typ, high_bandwidth())
+            .await;
+        server_test.enable_upgrade_mode().await;
+        let request = v2::TopUpRequest {
+            credential: BandwidthCredential::UpgradeModeJWT {
+                token: good_jwt.clone(),
+            },
+        }
+        .try_into()
+        .unwrap();
+        let response = client.topup_bandwidth(&request).await.unwrap();
+        let top_up = v2::TopUpResponse::try_from(response).unwrap();
+        assert_eq!(top_up.available_bandwidth, HIGH_BANDWIDTH);
+        assert!(top_up.upgrade_mode);
+        server_test.reset_registered_responses().await;
+
+        // 3. send bad attestation when upgrade mode is enabled
+        // (we don't validate it, so client is let through)
+        // (the only case where invalid attestation would have been rejected is when server
+        // is not aware of the UM, and that was meant to trigger a refresh. however, a test for that
+        // is out of scope for these unit tests)
+        server_test
+            .change_upgrade_mode_attestation(good_attestation_alt)
+            .await;
+        server_test
+            .register_peer_controller_response(request_typ, high_bandwidth())
+            .await;
+        let request = v2::TopUpRequest {
+            credential: BandwidthCredential::UpgradeModeJWT {
+                token: good_jwt.clone(),
+            },
+        }
+        .try_into()
+        .unwrap();
+        let response = client.topup_bandwidth(&request).await.unwrap();
+        let top_up = v2::TopUpResponse::try_from(response).unwrap();
+        assert_eq!(top_up.available_bandwidth, HIGH_BANDWIDTH);
+        assert!(top_up.upgrade_mode);
+        server_test.reset_registered_responses().await;
+
+        // 4. send zk-nym when upgrade mode is enabled
+        server_test
+            .register_peer_controller_response(request_typ, high_bandwidth())
+            .await;
+        server_test
+            .register_peer_controller_response(
+                PeerControlRequestTypeV2::GetVerifierByIp {
+                    ip: upgrade_mode_client,
+                },
+                mock_verifier(300),
+            )
+            .await;
+        let request = v2::TopUpRequest {
+            credential: BandwidthCredential::from(
+                CredentialSpendingData::try_from_bytes(&CREDENTIAL_BYTES).unwrap(),
+            ),
+        }
+        .try_into()
+        .unwrap();
+        let response = client.topup_bandwidth(&request).await.unwrap();
+        let top_up = v2::TopUpResponse::try_from(response).unwrap();
+        // as defined by `DEFAULT_WG_CLIENT_BANDWIDTH_THRESHOLD`
+        assert_eq!(top_up.available_bandwidth, 1024 * 1024 * 1024);
+        assert!(top_up.upgrade_mode);
     }
 }

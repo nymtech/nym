@@ -176,6 +176,7 @@ mod tests {
             inner: make_bincode_serializer()
                 .serialize(&InnerTopUpResponse {
                     available_bandwidth: 42,
+                    upgrade_mode: true,
                 })
                 .unwrap(),
         };

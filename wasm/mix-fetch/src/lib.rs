@@ -14,8 +14,6 @@ mod fetch;
 #[cfg(target_arch = "wasm32")]
 mod go_bridge;
 #[cfg(target_arch = "wasm32")]
-mod harbourmaster;
-#[cfg(target_arch = "wasm32")]
 mod helpers;
 #[cfg(target_arch = "wasm32")]
 mod request_writer;

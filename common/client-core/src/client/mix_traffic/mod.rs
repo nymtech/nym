@@ -87,7 +87,7 @@ impl MixTrafficController {
         self.client_tx.clone()
     }
 
-    pub fn mix_rx(&self) -> BatchMixMessageSender {
+    pub fn mix_tx(&self) -> BatchMixMessageSender {
         self.mix_tx.clone()
     }
 
@@ -159,6 +159,11 @@ impl MixTrafficController {
                             // Do we need to handle the embedded mixnet client case
                             // separately?
                             self.event_tx.send(MixnetClientEvent::Traffic(MixTrafficEvent::FailedSendingSphinx));
+                            // IMO it shouldn't be signalled from there but it is how it is
+                            // TODO : report the failure upwards and shutdown from upwards
+                            // Gateway is dead, we have to shut down currently
+                            error!("Signalling shutdown from the MixTrafficController");
+                            self.shutdown_token.cancel();
                             break;
                         }
                     }

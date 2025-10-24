@@ -598,20 +598,15 @@ where
                         tracing::trace!("OutQueueControl: Received shutdown");
                         break;
                     }
-                _ = status_timer.tick() => {
-                    self.log_status();
-                }
-                next_message = self.next() => if let Some(next_message) = next_message {
-                    // Check if mix_tx channel is closed BEFORE processing message
-                    if self.mix_tx.is_closed() {
-                        tracing::error!("OutQueueControl: mix_tx channel closed, stopping traffic stream");
+                    _ = status_timer.tick() => {
+                        self.log_status();
+                    }
+                    next_message = self.next() => if let Some(next_message) = next_message {
+                        self.on_message(next_message).await;
+                    } else {
+                        tracing::trace!("OutQueueControl: Stopping since channel closed");
                         break;
                     }
-                    self.on_message(next_message).await;
-                } else {
-                    tracing::trace!("OutQueueControl: Stopping since channel closed");
-                    break;
-                }
                 }
             }
         }
@@ -626,11 +621,6 @@ where
                         break;
                     }
                     next_message = self.next() => if let Some(next_message) = next_message {
-                        // Check if mix_tx channel is closed BEFORE processing message
-                        if self.mix_tx.is_closed() {
-                            tracing::error!("OutQueueControl: mix_tx channel closed, stopping traffic stream");
-                            break;
-                        }
                         self.on_message(next_message).await;
                     } else {
                         tracing::trace!("OutQueueControl: Stopping since channel closed");

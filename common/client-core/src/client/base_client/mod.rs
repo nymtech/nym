@@ -801,7 +801,7 @@ where
             event_tx,
         );
 
-        let mix_tx = mix_traffic_controller.mix_rx();
+        let mix_tx = mix_traffic_controller.mix_tx();
         let client_tx = mix_traffic_controller.client_tx();
 
         shutdown_tracker.try_spawn_named(

@@ -7,11 +7,9 @@ use crate::ip_packet_client::{
 };
 use crate::UserAgent;
 use crate::{mixnet::Recipient, Error};
+use std::collections::HashMap;
 
 use bytes::Bytes;
-use nym_gateway_directory::{
-    Config as GatewayConfig, GatewayClient, GatewayType, IpPacketRouterAddress,
-};
 use nym_ip_packet_requests::{
     v8::{
         request::IpPacketRequest,
@@ -22,6 +20,9 @@ use nym_ip_packet_requests::{
 use nym_sphinx::receiver::ReconstructedMessageCodec;
 
 use futures::StreamExt;
+use nym_crypto::asymmetric::ed25519;
+use nym_network_defaults::ApiUrl;
+use nym_validator_client::nym_api::NymApiClientExt;
 use std::io;
 use std::pin::Pin;
 use std::task::{Context, Poll};
@@ -33,6 +34,13 @@ use tracing::{debug, error, info};
 
 const IPR_CONNECT_TIMEOUT: Duration = Duration::from_secs(60);
 
+#[derive(Clone)]
+pub struct IprWithPerformance {
+    pub(crate) address: Recipient,
+    pub(crate) identity: ed25519::PublicKey,
+    pub(crate) performance: u8,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum ConnectionState {
     Disconnected,
@@ -40,7 +48,7 @@ pub enum ConnectionState {
     Connected,
 }
 
-fn create_gateway_client() -> Result<GatewayClient, Error> {
+fn create_nym_api_client(nym_api_urls: Vec<ApiUrl>) -> Result<nym_http_api_client::Client, Error> {
     // TODO do something proper with this
     let user_agent = UserAgent {
         application: "nym-ipr-streamer".to_string(),
@@ -49,55 +57,81 @@ fn create_gateway_client() -> Result<GatewayClient, Error> {
         git_commit: "max/sdk-streamer".to_string(),
     };
 
-    let mainnet_network_defaults = crate::NymNetworkDetails::default();
-    let api_url = mainnet_network_defaults
-        .endpoints
-        .first()
-        .ok_or_else(|| Error::NoValidatorDetailsAvailable)?
-        .api_url()
-        .ok_or_else(|| Error::NoValidatorAPIUrl)?;
+    let urls = nym_api_urls
+        .into_iter()
+        .map(|url| url.url.parse())
+        .collect::<Result<Vec<nym_http_api_client::Url>, _>>()
+        .map_err(|err| {
+            error!("malformed nym-api url: {err}");
+            Error::NoNymAPIUrl
+        })?;
 
-    let nyxd_url = mainnet_network_defaults
-        .endpoints
-        .first()
-        .ok_or_else(|| Error::NoValidatorDetailsAvailable)?
-        .nyxd_url();
+    if urls.is_empty() {
+        return Err(Error::NoNymAPIUrl);
+    }
 
-    let config = GatewayConfig {
-        nyxd_url,
-        api_url,
-        min_gateway_performance: None,
-        mix_score_thresholds: None,
-        wg_score_thresholds: None,
-    };
+    let client = nym_http_api_client::ClientBuilder::new_with_urls(urls)
+        .with_user_agent(user_agent)
+        .build()?;
 
-    Ok(GatewayClient::new(config, user_agent)?)
+    Ok(client)
 }
 
-async fn get_ipr_addr(client: GatewayClient) -> Result<IpPacketRouterAddress, Error> {
-    let exit_gateways = client.lookup_gateways(GatewayType::MixnetExit).await?;
-
-    info!("Found {} Exit Gateways", exit_gateways.len());
-
-    let selected_gateway = exit_gateways
+async fn retrieve_exit_nodes_with_performance(
+    client: nym_http_api_client::Client,
+) -> Result<Vec<IprWithPerformance>, Error> {
+    // retrieve all nym-nodes on the network
+    let all_nodes = client
+        .get_all_described_nodes()
+        .await?
         .into_iter()
-        .filter(|gw| gw.ipr_address.is_some())
-        .max_by_key(|gw| {
-            gw.mixnet_performance
-                .map(|p| p.round_to_integer())
-                .unwrap_or(0)
-        })
+        .map(|described| (described.ed25519_identity_key(), described))
+        .collect::<HashMap<_, _>>();
+
+    // annoyingly there's no convenient way of doing this in a single query
+    // retrieve performance scores of all exit gateways
+    let exit_gateways = client
+        .get_all_basic_exit_assigned_nodes_with_metadata()
+        .await?
+        .nodes;
+
+    let mut described = Vec::new();
+
+    for exit in exit_gateways {
+        if let Some(ipr_info) = all_nodes
+            .get(&exit.ed25519_identity_pubkey)
+            .and_then(|n| n.description.ip_packet_router.clone())
+        {
+            if let Ok(parsed_address) = ipr_info.address.parse() {
+                described.push(IprWithPerformance {
+                    address: parsed_address,
+                    identity: exit.ed25519_identity_pubkey,
+                    performance: exit.performance.round_to_integer(),
+                })
+            }
+        }
+    }
+
+    Ok(described)
+}
+
+async fn get_random_ipr(client: nym_http_api_client::Client) -> Result<Recipient, Error> {
+    let nodes = retrieve_exit_nodes_with_performance(client).await?;
+    info!("Found {} Exit Gateways", nodes.len());
+
+    // JS: I'm leaving the old behaviour here of choosing node with the highest performance,
+    // but I think you should reconsider making a pseudorandom selection weighted by some scaled performance
+    // otherwise all clients might end up choosing exactly the same node (I will leave this as PR comment when I get here : D)
+    let selected_gateway = nodes
+        .into_iter()
+        .max_by_key(|gw| gw.performance)
         .ok_or_else(|| Error::NoGatewayAvailable)?;
 
-    let ipr_address = selected_gateway
-        .ipr_address
-        .ok_or_else(|| Error::NoIPRAvailable)?;
+    let ipr_address = selected_gateway.address;
 
     info!(
         "Using IPR: {} (Gateway: {}, Performance: {:?})",
-        ipr_address,
-        selected_gateway.identity(),
-        selected_gateway.mixnet_performance
+        ipr_address, selected_gateway.identity, selected_gateway.performance
     );
 
     Ok(ipr_address)
@@ -106,7 +140,7 @@ async fn get_ipr_addr(client: GatewayClient) -> Result<IpPacketRouterAddress, Er
 /// Unlike the non-IPR MixStream, we do not start with a Socket and then 'connect' to a Stream; seemed too many layers of abstraction for little trade off.
 pub struct IpMixStream {
     stream: MixStream,
-    ipr_address: IpPacketRouterAddress,
+    ipr_address: Recipient,
     listener: IprListener,
     allocated_ips: Option<IpPair>,
     connection_state: ConnectionState,
@@ -115,8 +149,14 @@ pub struct IpMixStream {
 impl IpMixStream {
     // TODO be able to pass in DisconnectedMixnetClient to use as MixStream inner client.
     pub async fn new() -> Result<Self, Error> {
-        let gw_client = create_gateway_client()?;
-        let ipr_address = get_ipr_addr(gw_client).await?;
+        // JS: I think you need some bootstrapping here, something would need to be passed to `new()`
+        // to indicate what endpoints to use
+        // again, for now I'm default to mainnet as you did before
+        let mainnet_network_defaults = crate::NymNetworkDetails::new_mainnet();
+
+        let api_client =
+            create_nym_api_client(mainnet_network_defaults.nym_api_urls.unwrap_or_default())?;
+        let ipr_address = get_random_ipr(api_client).await?;
         let stream = MixStream::new(None, Recipient::from(ipr_address)).await;
 
         Ok(Self {

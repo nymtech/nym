@@ -123,7 +123,6 @@ members = [
     "nym-credential-proxy/nym-credential-proxy",
     "nym-credential-proxy/nym-credential-proxy-requests",
     "nym-credential-proxy/vpn-api-lib-wasm",
-    "nym-gateway-directory",
     "nym-network-monitor",
     "nym-node",
     "nym-node-status-api/nym-node-status-agent",

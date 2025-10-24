@@ -205,7 +205,7 @@ impl LoopCoverTrafficStream<OsRng> {
                 TrySendError::Full(_) => {
                     // This isn't a problem, if the channel is full means we're already sending the
                     // max amount of messages downstream can handle.
-                    tracing::debug!("Failed to send cover message - channel full");
+                    tracing::trace!("Failed to send cover message - channel full");
                 }
                 TrySendError::Closed(_) => {
                     tracing::warn!("Failed to send cover message - channel closed");

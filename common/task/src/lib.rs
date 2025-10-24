@@ -24,6 +24,6 @@ pub use crate::runtime_registry::RegistryAccessError;
 
 /// Get or create a ShutdownTracker for SDK use.
 /// This provides automatic task management without requiring manual setup.
-pub fn get_sdk_shutdown_tracker() -> Result<ShutdownTracker, RegistryAccessError> {
-    Ok(runtime_registry::RuntimeRegistry::get_or_create_sdk()?.shutdown_tracker_owned())
+pub fn create_sdk_shutdown_tracker() -> Result<ShutdownTracker, RegistryAccessError> {
+    Ok(runtime_registry::RuntimeRegistry::create_sdk()?.shutdown_tracker_owned())
 }

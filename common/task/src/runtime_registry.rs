@@ -19,30 +19,45 @@ pub(crate) struct RuntimeRegistry {
 pub enum RegistryAccessError {
     #[error("the runtime registry is poisoned")]
     Poisoned,
+
+    #[error("The SDK ShutdownManager already exists")]
+    ExistingShutdownManager,
+
+    #[error("No existing SDK ShutdownManager")]
+    MissingShutdownManager,
 }
 
 impl RuntimeRegistry {
-    /// Get or create a ShutdownManager for SDK use.
+    /// Create a ShutdownManager for SDK use.
     /// This manager doesn't listen to OS signals, making it suitable for library use.
-    pub(crate) fn get_or_create_sdk() -> Result<Arc<ShutdownManager>, RegistryAccessError> {
+    /// This function overwrite any existing manager!
+    pub(crate) fn create_sdk() -> Result<Arc<ShutdownManager>, RegistryAccessError> {
+        let mut guard = REGISTRY
+            .sdk_manager
+            .write()
+            .map_err(|_| RegistryAccessError::Poisoned)?;
+
+        Ok(guard
+            .insert(Arc::new(
+                ShutdownManager::new_without_signals().with_cancel_on_panic(),
+            ))
+            .clone())
+    }
+
+    /// Get the  ShutdownManager for SDK use.
+    /// This manager doesn't listen to OS signals, making it suitable for library use.
+    /// Not yet used, but maybe in the future
+    #[allow(dead_code)]
+    pub(crate) fn get_sdk() -> Result<Arc<ShutdownManager>, RegistryAccessError> {
         let guard = REGISTRY
             .sdk_manager
             .read()
             .map_err(|_| RegistryAccessError::Poisoned)?;
         if let Some(manager) = guard.as_ref() {
-            return Ok(manager.clone());
+            Ok(manager.clone())
+        } else {
+            Err(RegistryAccessError::MissingShutdownManager)
         }
-        drop(guard);
-
-        let mut guard = REGISTRY
-            .sdk_manager
-            .write()
-            .map_err(|_| RegistryAccessError::Poisoned)?;
-        Ok(guard
-            .get_or_insert_with(|| {
-                Arc::new(ShutdownManager::new_without_signals().with_cancel_on_panic())
-            })
-            .clone())
     }
 
     /// Check if an SDK manager has been created.
@@ -85,10 +100,13 @@ mod tests {
 
         assert!(!RuntimeRegistry::has_sdk_manager().unwrap());
 
-        let manager1 = RuntimeRegistry::get_or_create_sdk().unwrap();
+        // Error if nothing was created
+        assert!(RuntimeRegistry::get_sdk().is_err());
+
+        let manager1 = RuntimeRegistry::create_sdk().unwrap();
         assert!(RuntimeRegistry::has_sdk_manager().unwrap());
 
-        let manager2 = RuntimeRegistry::get_or_create_sdk().unwrap();
+        let manager2 = RuntimeRegistry::get_sdk().unwrap();
         // Should return the same instance
         assert!(Arc::ptr_eq(&manager1, &manager2));
 

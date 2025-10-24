@@ -615,7 +615,7 @@ where
         {
             loop {
                 tokio::select! {
-                        biased;
+                    biased;
                     _ = shutdown_token.cancelled() => {
                         tracing::trace!("OutQueueControl: Received shutdown");
                         break;

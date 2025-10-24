@@ -9,6 +9,7 @@ use super::{
     topup_bandwidth::{request::InnerTopUpRequest, response::InnerTopUpResponse},
 };
 use crate::models::{Construct, Extract, Version, error::Error};
+use crate::{Request, Response};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum RequestData {
@@ -68,6 +69,39 @@ impl Extract<ResponseData> for VersionedResponse {
                 let _resp = InnerTopUpResponse::try_from(self)?;
                 Ok((ResponseData::TopUpBandwidth(()), VERSION))
             }
+        }
+    }
+}
+
+#[cfg(feature = "testing")]
+impl Extract<RequestData> for Request {
+    fn extract(&self) -> Result<(RequestData, Version), Error> {
+        match self.version {
+            Version::V0 => {
+                let versioned_request = VersionedRequest::try_from(self)?;
+                versioned_request.extract()
+            }
+            _ => Err(Error::UpdateNotPossible {
+                from: self.version,
+                to: VERSION,
+            }),
+        }
+    }
+}
+
+#[cfg(feature = "testing")]
+impl Construct<ResponseData> for Response {
+    fn construct(info: ResponseData, version: Version) -> Result<Self, Error> {
+        match version {
+            Version::V0 => {
+                let translate_response = info;
+                let versioned_response = VersionedResponse::construct(translate_response, version)?;
+                Ok(versioned_response.try_into()?)
+            }
+            _ => Err(Error::DowngradeNotPossible {
+                from: version,
+                to: VERSION,
+            }),
         }
     }
 }

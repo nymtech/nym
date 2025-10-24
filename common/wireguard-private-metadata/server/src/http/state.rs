@@ -64,9 +64,19 @@ impl AppState {
             BandwidthCredential::ZkNym(zk_nym) => {
                 // if we got zk-nym, we just try to verify it
                 let available_bandwidth = self.transceiver.topup_bandwidth(ip, zk_nym).await?;
-                Ok(ResponseData::AvailableBandwidth {
-                    amount: available_bandwidth,
-                    upgrade_mode: self.upgrade_mode.enabled(),
+
+                // however, we still follow the same upgrade-mode logic,
+                // so that the client would not attempt to needlessly send more credentials
+                let upgrade_mode = self.upgrade_mode.enabled();
+                let available_bandwidth = if upgrade_mode {
+                    self.upgrade_mode_bandwidth(available_bandwidth)
+                } else {
+                    available_bandwidth
+                };
+
+                Ok(ResponseData::TopUpBandwidth {
+                    available_bandwidth,
+                    upgrade_mode,
                 })
             }
             BandwidthCredential::UpgradeModeJWT { token } => {

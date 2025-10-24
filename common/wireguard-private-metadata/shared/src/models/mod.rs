@@ -69,7 +69,7 @@ impl Request {
     }
 }
 
-#[derive(Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
 pub struct Response {
     pub version: Version,
     pub(crate) inner: Vec<u8>,

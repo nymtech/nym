@@ -14,6 +14,7 @@ use super::{
     topup_bandwidth::{request::InnerTopUpRequest, response::InnerTopUpResponse},
 };
 use crate::models::{Construct, Extract, Version, error::Error};
+use crate::{Request, Response, v0};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum RequestData {
@@ -160,6 +161,55 @@ impl TryFrom<ResponseData> for previous::interface::ResponseData {
         match value {
             ResponseData::AvailableBandwidth(_) => Ok(Self::AvailableBandwidth(())),
             ResponseData::TopUpBandwidth(_) => Ok(Self::TopUpBandwidth(())),
+        }
+    }
+}
+
+#[cfg(feature = "testing")]
+impl Extract<RequestData> for Request {
+    fn extract(&self) -> Result<(RequestData, Version), Error> {
+        match self.version {
+            Version::V0 => {
+                let versioned_request = v0::VersionedRequest::try_from(self)?;
+                let (extracted_v0_info, version) = versioned_request.extract()?;
+
+                let v1_info = RequestData::try_from(extracted_v0_info)?;
+                Ok((v1_info, version))
+            }
+            Version::V1 => {
+                let versioned_request = VersionedRequest::try_from(self)?;
+                versioned_request.extract()
+            }
+            // a v1 server does not have any code for downgrading v2 into v1
+            _ => Err(Error::DowngradeNotPossible {
+                from: self.version,
+                to: VERSION,
+            }),
+        }
+    }
+}
+
+#[cfg(feature = "testing")]
+impl Construct<ResponseData> for Response {
+    fn construct(info: ResponseData, version: Version) -> Result<Self, Error> {
+        match version {
+            Version::V0 => {
+                let v1_info = info;
+                let v0_info = v0::interface::ResponseData::try_from(v1_info)?;
+
+                let versioned_response = v0::VersionedResponse::construct(v0_info, version)?;
+                Ok(versioned_response.try_into()?)
+            }
+            Version::V1 => {
+                let translate_response = info;
+                let versioned_response = VersionedResponse::construct(translate_response, version)?;
+                Ok(versioned_response.try_into()?)
+            }
+            // a v1 server does not have any code for downgrading v2 into v1
+            _ => Err(Error::DowngradeNotPossible {
+                from: version,
+                to: VERSION,
+            }),
         }
     }
 }

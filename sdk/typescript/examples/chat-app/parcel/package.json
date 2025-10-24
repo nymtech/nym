@@ -1,6 +1,6 @@
 {
   "name": "@nymproject/sdk-example-plain-html-parcel",
-  "version": "1.0.4-rc.2",
+  "version": "1.0.5",
   "description": "An example project that uses WASM and plain HTML bundled with Parcel v2",
   "license": "Apache-2.0",
   "scripts": {
@@ -15,7 +15,7 @@
     "tsc:watch": "tsc --watch"
   },
   "dependencies": {
-    "@nymproject/sdk": ">=1.2.2-rc.0 || ^1"
+    "@nymproject/sdk": ">=1.2.3-rc.0 || ^1"
   },
   "devDependencies": {
     "@types/jest": "^27.0.1",

@@ -94,10 +94,12 @@ pub fn setup_mix_fetch(opts: MixFetchOpts) -> Promise {
     }
 
     future_to_promise(async move {
-        let network_requester_address =
-            get_network_requester(opts.base.preferred_network_requester.clone())
-                .await
-                .map_promise_err()?;
+        let network_requester_address = get_network_requester(
+            opts.nym_api_url.clone(),
+            opts.base.preferred_network_requester.clone(),
+        )
+        .await
+        .map_promise_err()?;
 
         console_log!("going to use {network_requester_address} network requester");
 

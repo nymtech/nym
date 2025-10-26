@@ -124,6 +124,7 @@ where
         .collect();
 
     let route = topology.random_route_to_egress(rng, full_address.gateway())?;
+    println!("Average packet delays in cover/src/lib.rs {:?}",average_packet_delay);
     let delays = nym_sphinx_routing::generate_hop_delays(average_packet_delay, route.len());
     let destination = full_address.as_sphinx_destination();
 

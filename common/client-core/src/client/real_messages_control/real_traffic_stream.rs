@@ -248,7 +248,7 @@ where
                         return;
                     }
                 };
-
+                println!("real_traffic_stream on message average delay {:?}",self.config.traffic.average_packet_delay);
                 // SAFETY: our topology must be valid at this point
                 #[allow(clippy::expect_used)]
                 (
@@ -437,7 +437,7 @@ where
             // we know it's time to send a message, so let's prepare delay for the next one
             // Get the `now` by looking at the current `delay` deadline
             let next_poisson_delay = sample_poisson_duration(&mut self.rng, avg_delay);
-
+            println!("Sample poisson average delay: {:?} and sampled {:?}",avg_delay,next_poisson_delay);
             // The next interval value is `next_poisson_delay` after the one that just
             // yielded.
             let now = next_delay.deadline();
@@ -468,6 +468,7 @@ where
                     if let Some(real_next) = self.pop_next_message() {
                         Poll::Ready(Some(StreamMessage::Real(Box::new(real_next))))
                     } else {
+                       // println!("Sending cover traffic");
                         // otherwise construct a dummy one
                         Poll::Ready(Some(StreamMessage::Cover))
                     }
@@ -529,8 +530,10 @@ where
         cx: &mut Context<'_>,
     ) -> Poll<Option<StreamMessage>> {
         if self.config.traffic.disable_main_poisson_packet_distribution {
+            println!("Real traffic stream polls without poisson rate");
             self.poll_immediate(cx)
         } else {
+            println!("Real traffic stream polls with poisson rate");
             self.poll_poisson(cx)
         }
     }

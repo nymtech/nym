@@ -205,7 +205,7 @@ impl RealMessagesController<OsRng> {
             stats_tx,
             shutdown_token.clone(),
         );
-
+println!("average packet delay {:?} message sending delay {:?}",config.traffic.average_packet_delay,config.traffic.message_sending_average_delay);
         RealMessagesController {
             out_queue_control,
             ack_control,

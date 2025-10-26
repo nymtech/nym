@@ -250,7 +250,7 @@ pub trait FragmentPreparer {
         };
 
         let destination = packet_recipient.as_sphinx_destination();
-
+        println!("src/peparer/mod.rs average delay {:?}",self.average_packet_delay());
         // including set of delays
         let delays =
             nym_sphinx_routing::generate_hop_delays(self.average_packet_delay(), route.len());

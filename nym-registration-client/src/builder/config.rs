@@ -41,7 +41,7 @@ pub struct BuilderConfig {
     pub connection_fd_callback: Arc<dyn Fn(RawFd) + Send + Sync>,
 }
 
-#[derive(Clone, Default, Debug, Eq, PartialEq)]
+#[derive(Clone, Default, Debug, PartialEq)]
 pub struct MixnetClientConfig {
     /// Disable Poission process rate limiting of outbound traffic.
     pub disable_poisson_rate: bool,
@@ -54,6 +54,13 @@ pub struct MixnetClientConfig {
 
     /// The minimum performance of gateways to use.
     pub min_gateway_performance: Option<u8>,
+    ///Setting optionally the poisson rate for cover traffic stream
+    pub poisson_rate: Option<f32>,
+    /// Average packet delay in milliseconds.
+    pub average_packet_delay: Option<f32>,
+
+    /// Average message sending delay in milliseconds.
+    pub message_sending_average_delay: Option<f32>,
 }
 
 impl BuilderConfig {
@@ -151,7 +158,15 @@ fn two_hop_debug_config(mixnet_client_config: &MixnetClientConfig) -> DebugConfi
     if let Some(min_gateway_performance) = mixnet_client_config.min_gateway_performance {
         debug_config.topology.minimum_gateway_performance = min_gateway_performance;
     }
+    if let Some(avg_packet_ms) = mixnet_client_config.average_packet_delay {
+        debug_config.traffic.average_packet_delay = Duration::from_millis(avg_packet_ms as u64);
+        debug_config.acknowledgements.average_ack_delay = Duration::from_millis(avg_packet_ms as u64);
 
+    }
+
+    if let Some(msg_delay_ms) = mixnet_client_config.message_sending_average_delay {
+        debug_config.traffic.message_sending_average_delay = Duration::from_millis(msg_delay_ms as u64);
+    }
     log_mixnet_client_config(&debug_config);
     debug_config
 }
@@ -166,13 +181,26 @@ fn mixnet_debug_config(mixnet_client_config: &MixnetClientConfig) -> DebugConfig
 
     debug_config.cover_traffic.disable_loop_cover_traffic_stream =
         mixnet_client_config.disable_background_cover_traffic;
+    if let Some(poisson_rate) = mixnet_client_config.poisson_rate {
+            let duration = std::time::Duration::from_millis((poisson_rate as f64).round() as u64);
+        debug_config.cover_traffic.loop_cover_traffic_average_delay = duration;
 
+        println!("Debug config has {:?} duration:",duration);
+    }
     if let Some(min_mixnode_performance) = mixnet_client_config.min_mixnode_performance {
         debug_config.topology.minimum_mixnode_performance = min_mixnode_performance;
     }
 
     if let Some(min_gateway_performance) = mixnet_client_config.min_gateway_performance {
         debug_config.topology.minimum_gateway_performance = min_gateway_performance;
+    }
+    if let Some(avg_packet_ms) = mixnet_client_config.average_packet_delay {
+        debug_config.traffic.average_packet_delay = Duration::from_millis(avg_packet_ms as u64);
+    debug_config.acknowledgements.average_ack_delay=Duration::from_millis(avg_packet_ms as u64);
+    }
+
+    if let Some(msg_delay_ms) = mixnet_client_config.message_sending_average_delay {
+        debug_config.traffic.message_sending_average_delay = Duration::from_millis(msg_delay_ms as u64);
     }
     log_mixnet_client_config(&debug_config);
     debug_config

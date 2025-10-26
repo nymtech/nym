@@ -81,6 +81,7 @@ impl ReplySurb {
         } else {
             topology.random_route_to_egress(rng, recipient.gateway())?
         };
+        println!("reply_surbs.rs average delay: {:?}",average_delay);
         let delays = nym_sphinx_routing::generate_hop_delays(average_delay, route.len());
         let destination = recipient.as_sphinx_destination();
 

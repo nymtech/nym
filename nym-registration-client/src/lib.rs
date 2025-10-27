@@ -19,8 +19,7 @@ mod types;
 
 pub use builder::RegistrationClientBuilder;
 pub use builder::config::{
-    BuilderConfig as RegistrationClientBuilderConfig,
-    BuilderConfigBuilder as RegistrationClientBuilderConfigBuilder, MixnetClientConfig,
+    BuilderConfig as RegistrationClientBuilderConfig, MixnetClientConfig,
     NymNodeWithKeys as RegistrationNymNode,
 };
 pub use error::RegistrationClientError;

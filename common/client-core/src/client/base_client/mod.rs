@@ -801,7 +801,7 @@ where
             event_tx,
         );
 
-        let mix_tx = mix_traffic_controller.mix_rx();
+        let mix_tx = mix_traffic_controller.mix_tx();
         let client_tx = mix_traffic_controller.client_tx();
 
         shutdown_tracker.try_spawn_named(
@@ -1004,8 +1004,8 @@ where
         // Create a shutdown tracker for this client - either as a child of provided tracker
         // or get one from the registry
         let shutdown_tracker = match self.shutdown {
-            Some(parent_tracker) => parent_tracker.child_tracker(),
-            None => nym_task::get_sdk_shutdown_tracker()?,
+            Some(parent_tracker) => parent_tracker.clone(),
+            None => nym_task::create_sdk_shutdown_tracker()?,
         };
 
         Self::start_event_control(self.event_tx, event_receiver, &shutdown_tracker);
@@ -1044,7 +1044,7 @@ where
             self.user_agent.clone(),
             generate_client_stats_id(*self_address.identity()),
             input_sender.clone(),
-            &shutdown_tracker.child_tracker(),
+            &shutdown_tracker.clone(),
         );
 
         // needs to be started as the first thing to block if required waiting for the gateway
@@ -1054,7 +1054,7 @@ where
             shared_topology_accessor.clone(),
             self_address.gateway(),
             self.wait_for_gateway,
-            &shutdown_tracker.child_tracker(),
+            &shutdown_tracker.clone(),
         )
         .await?;
 
@@ -1074,7 +1074,7 @@ where
             stats_reporter.clone(),
             #[cfg(unix)]
             self.connection_fd_callback,
-            &shutdown_tracker.child_tracker(),
+            &shutdown_tracker.clone(),
         )
         .await?;
         let gateway_ws_fd = gateway_transceiver.ws_fd();
@@ -1082,7 +1082,7 @@ where
         let reply_storage = Self::setup_persistent_reply_storage(
             reply_storage_backend,
             key_rotation_config,
-            &shutdown_tracker.child_tracker(),
+            &shutdown_tracker.clone(),
         )
         .await?;
 
@@ -1093,7 +1093,7 @@ where
             reply_storage.key_storage(),
             reply_controller_sender.clone(),
             stats_reporter.clone(),
-            &shutdown_tracker.child_tracker(),
+            &shutdown_tracker.clone(),
         );
 
         // The message_sender is the transmitter for any component generating sphinx packets
@@ -1103,7 +1103,7 @@ where
 
         let (message_sender, client_request_sender) = Self::start_mix_traffic_controller(
             gateway_transceiver,
-            &shutdown_tracker.child_tracker(),
+            &shutdown_tracker.clone(),
             EventSender(event_sender),
         );
 
@@ -1134,7 +1134,7 @@ where
             shared_lane_queue_lengths.clone(),
             client_connection_rx,
             stats_reporter.clone(),
-            &shutdown_tracker.child_tracker(),
+            &shutdown_tracker.clone(),
         );
 
         if !self
@@ -1150,7 +1150,7 @@ where
                 shared_topology_accessor.clone(),
                 message_sender,
                 stats_reporter.clone(),
-                &shutdown_tracker.child_tracker(),
+                &shutdown_tracker.clone(),
             );
         }
 

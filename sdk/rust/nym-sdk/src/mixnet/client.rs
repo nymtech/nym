@@ -720,15 +720,11 @@ where
             base_builder = base_builder.with_topology_provider(topology_provider);
         }
 
-        // Use custom shutdown if provided, otherwise get from registry
-        let shutdown_tracker = match self.custom_shutdown {
-            Some(custom) => custom,
-            None => {
-                // Auto-create from registry for SDK use
-                nym_task::get_sdk_shutdown_tracker()?
-            }
-        };
-        base_builder = base_builder.with_shutdown(shutdown_tracker);
+        // Use custom shutdown if provided, otherwise the sdk one will be used later down the line
+        if let Some(shutdown_tracker) = self.custom_shutdown {
+            base_builder = base_builder.with_shutdown(shutdown_tracker);
+        }
+
         if let Some(event_tx) = self.event_tx {
             base_builder = base_builder.with_event_tx(event_tx);
         }
@@ -793,7 +789,7 @@ where
             client_output,
             client_state.clone(),
             nym_address,
-            started_client.shutdown_handle.child_tracker(),
+            started_client.shutdown_handle.clone(),
             packet_type,
         );
 

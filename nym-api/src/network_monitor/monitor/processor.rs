@@ -17,7 +17,7 @@ use std::ops::Deref;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use thiserror::Error;
-use tracing::{error, trace, warn};
+use tracing::{trace, warn};
 
 pub(crate) type ReceivedProcessorSender = mpsc::UnboundedSender<GatewayMessages>;
 pub(crate) type ReceivedProcessorReceiver = mpsc::UnboundedReceiver<GatewayMessages>;

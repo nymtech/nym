@@ -246,7 +246,7 @@ mod tests {
         let _exp_date_sigs = generate_expiration_date_signatures(
             sig_req.expiration_date.ecash_unix_timestamp(),
             &[signing_keys.secret_key()],
-            &vec![signing_keys.verification_key()],
+            &[signing_keys.verification_key()],
             &signing_keys.verification_key(),
             &[1],
         )?;
@@ -263,7 +263,7 @@ mod tests {
 
         let wallet = issuance.aggregate_signature_shares(
             &signing_keys.verification_key(),
-            &vec![partial_wallet],
+            &[partial_wallet],
             sig_req,
         )?;
 

@@ -1,6 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+#![allow(deprecated)]
 use aes_gcm::aead::{Aead, Nonce};
 use aes_gcm::{AeadCore, AeadInPlace, KeyInit};
 use rand::{thread_rng, CryptoRng, Fill, RngCore};

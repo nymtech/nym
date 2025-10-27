@@ -1,16 +1,26 @@
 // Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
-
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_sphinx::params::PacketType;
 use nym_task::connections::TransmissionLane;
+use serde::{Deserialize, Serialize};
+use std::convert::TryInto;
+use tokio_util::{
+    bytes::Buf,
+    bytes::BytesMut,
+    codec::{Decoder, Encoder},
+};
 
-pub type InputMessageSender = tokio::sync::mpsc::Sender<InputMessage>;
+use crate::error::ClientCoreError;
+
+pub type InputMessageSender = tokio_util::sync::PollSender<InputMessage>;
 pub type InputMessageReceiver = tokio::sync::mpsc::Receiver<InputMessage>;
 
-#[derive(Debug)]
+const LENGHT_ENCODING_PREFIX_SIZE: usize = 4;
+
+#[derive(Serialize, Deserialize, Debug)]
 pub enum InputMessage {
     /// Fire an already prepared mix packets into the network.
     /// No guarantees are made about it. For example no retransmssion
@@ -65,6 +75,10 @@ pub enum InputMessage {
 }
 
 impl InputMessage {
+    pub fn simple(data: &[u8], recipient: Recipient) -> Self {
+        InputMessage::new_regular(recipient, data.to_vec(), TransmissionLane::General, None)
+    }
+
     pub fn new_premade(
         msgs: Vec<MixPacket>,
         lane: TransmissionLane,
@@ -184,5 +198,72 @@ impl InputMessage {
     pub fn with_max_retransmissions(mut self, max_retransmissions: u32) -> Self {
         self.set_max_retransmissions(max_retransmissions);
         self
+    }
+    #[allow(clippy::expect_used)]
+    pub fn serialized_size(&self) -> u64 {
+        bincode::serialized_size(self).expect("failed to get serialized InputMessage size")
+            + LENGHT_ENCODING_PREFIX_SIZE as u64
+    }
+}
+
+// TODO: Tests
+pub struct AdressedInputMessageCodec(pub Recipient);
+
+impl Encoder<&[u8]> for AdressedInputMessageCodec {
+    type Error = ClientCoreError;
+
+    fn encode(&mut self, item: &[u8], buf: &mut BytesMut) -> Result<(), Self::Error> {
+        let mut codec = InputMessageCodec;
+        let input_message = InputMessage::simple(item, self.0);
+        codec.encode(input_message, buf)?;
+        Ok(())
+    }
+}
+
+pub struct InputMessageCodec;
+
+impl Encoder<InputMessage> for InputMessageCodec {
+    type Error = ClientCoreError;
+
+    fn encode(&mut self, item: InputMessage, buf: &mut BytesMut) -> Result<(), Self::Error> {
+        #[allow(clippy::expect_used)]
+        let encoded = bincode::serialize(&item).expect("failed to serialize InputMessage");
+        let encoded_len = encoded.len() as u32;
+        let mut encoded_with_len = encoded_len.to_le_bytes().to_vec();
+        encoded_with_len.extend(encoded);
+        buf.reserve(encoded_with_len.len());
+        buf.extend_from_slice(&encoded_with_len);
+        Ok(())
+    }
+}
+
+impl Decoder for InputMessageCodec {
+    type Item = InputMessage;
+    type Error = ClientCoreError;
+
+    fn decode(&mut self, buf: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
+        if buf.len() < LENGHT_ENCODING_PREFIX_SIZE {
+            return Ok(None);
+        }
+        #[allow(clippy::expect_used)]
+        let len = u32::from_le_bytes(
+            buf[0..LENGHT_ENCODING_PREFIX_SIZE]
+                .try_into()
+                .expect("Could not coarce to array"),
+        ) as usize;
+        if buf.len() < len + LENGHT_ENCODING_PREFIX_SIZE {
+            return Ok(None);
+        }
+
+        let decoded = match bincode::deserialize(
+            &buf[LENGHT_ENCODING_PREFIX_SIZE..len + LENGHT_ENCODING_PREFIX_SIZE],
+        ) {
+            Ok(decoded) => decoded,
+            Err(_) => return Ok(None),
+        };
+
+        buf.advance(len + LENGHT_ENCODING_PREFIX_SIZE);
+
+        Ok(Some(decoded))
     }
 }

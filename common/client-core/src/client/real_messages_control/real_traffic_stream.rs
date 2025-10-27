@@ -298,6 +298,8 @@ where
                         "failed to send mixnet packet due to closed channel (outside of shutdown!)"
                     );
                 }
+                // Early return to avoid further processing when channel is closed
+                return;
             }
             Ok(_) => {
                 let event = if fragment_id.is_some() {

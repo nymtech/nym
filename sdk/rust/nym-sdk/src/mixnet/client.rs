@@ -38,6 +38,7 @@ use std::path::Path;
 use std::path::PathBuf;
 #[cfg(unix)]
 use std::sync::Arc;
+use tracing::{instrument, Instrument};
 use url::Url;
 use zeroize::Zeroizing;
 
@@ -72,6 +73,7 @@ pub struct MixnetClientBuilder<S: MixnetClientStorage = Ephemeral> {
 impl MixnetClientBuilder<Ephemeral> {
     /// Creates a client builder with ephemeral storage.
     #[must_use]
+    #[instrument(name = "MixnetClientBuilder::new_ephemeral", skip_all)]
     pub fn new_ephemeral() -> Self {
         MixnetClientBuilder {
             ..Default::default()
@@ -80,6 +82,7 @@ impl MixnetClientBuilder<Ephemeral> {
 
     /// Create a client builder with default values.
     #[must_use]
+    #[instrument(name = "MixnetClientBuilder::new", skip_all)]
     pub fn new() -> Self {
         Self::new_ephemeral()
     }
@@ -472,6 +475,7 @@ where
         })
     }
 
+    #[instrument(skip_all)]
     fn get_api_endpoints(&self) -> Vec<Url> {
         self.config
             .network_details
@@ -482,6 +486,7 @@ where
             .collect()
     }
 
+    #[instrument(skip_all)]
     fn get_nyxd_endpoints(&self) -> Vec<Url> {
         self.config
             .network_details
@@ -492,6 +497,7 @@ where
             .collect()
     }
 
+    #[instrument(skip_all)]
     async fn setup_client_keys(&self) -> Result<()> {
         let mut rng = OsRng;
         let key_store = self.storage.key_store();
@@ -694,6 +700,7 @@ where
         BandwidthImporter::new(self.storage.credential_store())
     }
 
+    #[instrument(skip_all)]
     async fn connect_to_mixnet_common(mut self) -> Result<(BaseClient, Recipient)> {
         self.setup_client_keys().await?;
         self.setup_gateway().await?;
@@ -841,11 +848,12 @@ where
     ///     let client = client.connect_to_mixnet().await.unwrap();
     /// }
     /// ```
+    #[instrument(skip_all)]
     pub async fn connect_to_mixnet(self) -> Result<MixnetClient> {
         if self.socks5_config.is_some() {
             return Err(Error::Socks5Config { set: true });
         }
-        let (mut started_client, nym_address) = self.connect_to_mixnet_common().await?;
+        let (mut started_client, nym_address) = self.connect_to_mixnet_common().in_current_span().await?;
         let client_input = started_client.client_input.register_producer();
         let mut client_output = started_client.client_output.register_consumer();
         let client_state: nym_client_core::client::base_client::ClientState =

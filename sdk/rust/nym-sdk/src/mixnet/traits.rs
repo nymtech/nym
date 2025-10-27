@@ -4,9 +4,14 @@
 use crate::mixnet::{AnonymousSenderTag, IncludedSurbs, Recipient};
 use crate::Result;
 use async_trait::async_trait;
+#[cfg(feature = "otel")]
+use nym_bin_common::opentelemetry::{
+    compact_id_generator::compress_trace_id, context::extract_trace_id_from_tracing_cx,
+};
 use nym_client_core::client::inbound_messages::InputMessage;
 use nym_sphinx::params::PacketType;
 use nym_task::connections::TransmissionLane;
+use tracing::instrument;
 
 // defined to guarantee common interface regardless of whether you're using the full client
 // or just the sending handler
@@ -35,6 +40,7 @@ pub trait MixnetMessageSender {
     ///     client.send_plain_message(recipient, "hi").await.unwrap();
     /// }
     /// ```
+    #[instrument(skip_all)]
     async fn send_plain_message<M>(&self, address: Recipient, message: M) -> Result<()>
     where
         M: AsRef<[u8]> + Send,
@@ -60,6 +66,7 @@ pub trait MixnetMessageSender {
     ///     client.send_message(recipient, "hi".to_owned().into_bytes(), surbs).await.unwrap();
     /// }
     /// ```
+    #[instrument(skip_all)]
     async fn send_message<M>(
         &self,
         address: Recipient,
@@ -69,6 +76,15 @@ pub trait MixnetMessageSender {
     where
         M: AsRef<[u8]> + Send,
     {
+        // In case of surb opentelemetry tracing, we extract the context and trace_id
+        // in the 12 bytes format
+        #[cfg(feature = "otel")]
+        let trace_id = {
+            let trace_id = extract_trace_id_from_tracing_cx();
+            tracing::info!("[DEBUG] Trace id in send_message: {:?}", trace_id);
+            Some(compress_trace_id(&trace_id))
+        };
+
         let lane = TransmissionLane::General;
         let input_msg = match surbs {
             IncludedSurbs::Amount(surbs) => InputMessage::new_anonymous(
@@ -77,12 +93,16 @@ pub trait MixnetMessageSender {
                 surbs,
                 lane,
                 self.packet_type(),
+                #[cfg(feature = "otel")]
+                trace_id,
             ),
             IncludedSurbs::ExposeSelfAddress => InputMessage::new_regular(
                 address,
                 message.as_ref().to_vec(),
                 lane,
                 self.packet_type(),
+                #[cfg(feature = "otel")]
+                trace_id,
             ),
         };
         self.send(input_msg).await
@@ -103,6 +123,7 @@ pub trait MixnetMessageSender {
     ///     client.send_reply(tag, b"hi").await.unwrap();
     /// }
     /// ```
+    #[instrument(skip_all)]
     async fn send_reply<M>(&self, recipient_tag: AnonymousSenderTag, message: M) -> Result<()>
     where
         M: AsRef<[u8]> + Send,

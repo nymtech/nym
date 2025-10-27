@@ -37,3 +37,4 @@ nym-validator-client = { path = "../client-libs/validator-client" }
 
 [features]
 default = []
+otel = ["nym-sphinx/otel"]

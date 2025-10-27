@@ -11,8 +11,10 @@ repository = { workspace = true }
 bytes = { workspace = true }
 tokio-util = { workspace = true, features = ["codec"] }
 thiserror = { workspace = true }
+opentelemetry = { workspace = true }
 tracing = { workspace = true }
 
+nym-bin-common = { path = "../../bin-common" }
 nym-sphinx-types = { path = "../types", features = ["sphinx", "outfox"] }
 nym-sphinx-params = { path = "../params", features = ["sphinx", "outfox"] }
 nym-sphinx-forwarding = { path = "../forwarding" }
@@ -21,3 +23,7 @@ nym-sphinx-acknowledgements = { path = "../acknowledgements" }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["full"] }
+
+[features]
+default = []
+otel = ["nym-bin-common/otel"]

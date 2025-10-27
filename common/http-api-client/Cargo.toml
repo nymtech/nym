@@ -11,9 +11,11 @@ license.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
+# TODO: Remove otel from default before release
 default=["tunneling"]
 tunneling=[]
 network-defaults = ["dep:nym-network-defaults"]
+otel = ["nym-bin-common/otel", "opentelemetry", "opentelemetry_sdk"]
 debug-inventory = ["nym-http-api-client-macro/debug-inventory"]
 
 [dependencies]
@@ -24,6 +26,8 @@ reqwest = { workspace = true, features = ["json", "gzip", "deflate", "brotli", "
 http.workspace = true
 url = { workspace = true }
 once_cell = { workspace = true }
+opentelemetry = { workspace = true, optional = true }
+opentelemetry_sdk = { workspace = true, optional = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 serde_yaml = { workspace = true}
@@ -53,4 +57,3 @@ features = ["tokio"]
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["rt", "macros"] }
-

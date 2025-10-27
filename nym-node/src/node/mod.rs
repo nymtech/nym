@@ -66,7 +66,7 @@ use std::ops::Deref;
 use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::mpsc;
-use tracing::{debug, info, trace};
+use tracing::{Instrument, debug, info, instrument, trace};
 use zeroize::Zeroizing;
 
 pub mod bonding_information;
@@ -601,6 +601,7 @@ impl NymNode {
         })
     }
 
+    #[instrument(skip_all)]
     async fn start_gateway_tasks(
         &mut self,
         cached_network: CachedNetwork,
@@ -636,8 +637,10 @@ impl NymNode {
             let mut websocket = gateway_tasks_builder
                 .build_websocket_listener(active_clients_store.clone())
                 .await?;
-            self.shutdown_tracker()
-                .try_spawn_named(async move { websocket.run().await }, "EntryWebsocket");
+            self.shutdown_tracker().try_spawn_named(
+                async move { websocket.run().in_current_span().await },
+                "EntryWebsocket",
+            );
         } else {
             info!("node not running in entry mode: the websocket will remain closed");
         }
@@ -1056,6 +1059,7 @@ impl NymNode {
         Ok(())
     }
 
+    #[instrument(skip_all)]
     pub(crate) async fn start_mixnet_listener<F>(
         &self,
         active_clients_store: &ActiveClientsStore,
@@ -1099,7 +1103,7 @@ impl NymNode {
         let shutdown_token = self.shutdown_token();
 
         self.shutdown_tracker().try_spawn_named(
-            async move { packet_forwarder.run(shutdown_token).await },
+            async move { packet_forwarder.run(shutdown_token).in_current_span().await },
             "PacketForwarder",
         );
 
@@ -1123,7 +1127,7 @@ impl NymNode {
 
         let shutdown_token = self.shutdown_token();
         self.shutdown_tracker().try_spawn_named(
-            async move { mixnet_listener.run(shutdown_token).await },
+            async move { mixnet_listener.run(shutdown_token).in_current_span().await },
             "MixnetListener",
         );
 
@@ -1152,6 +1156,7 @@ impl NymNode {
         Ok(())
     }
 
+    #[instrument(skip_all)]
     async fn start_nym_node_tasks(mut self) -> Result<ShutdownManager, NymNodeError> {
         info!(
             "starting Nym Node {} with the following modes: mixnode: {}, entry: {}, exit: {}, wireguard: {}",
@@ -1226,6 +1231,7 @@ impl NymNode {
         Ok(self.shutdown_manager)
     }
 
+    #[instrument(skip_all)]
     pub(crate) async fn run(mut self) -> Result<(), NymNodeError> {
         let mut shutdown_signals = self.shutdown_manager.detach_shutdown_signals();
 
@@ -1236,7 +1242,7 @@ impl NymNode {
                 // ideally we'd also do some cleanup here, but currently there's no easy way to access the handles
                 return Ok(())
             }
-            startup_result = self.start_nym_node_tasks() => {
+            startup_result = self.start_nym_node_tasks().in_current_span() => {
                 let mut shutdown_manager = startup_result?;
                 shutdown_manager.replace_shutdown_signals(shutdown_signals);
                 shutdown_manager.run_until_shutdown().await;

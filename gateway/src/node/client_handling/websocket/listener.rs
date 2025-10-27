@@ -53,6 +53,7 @@ impl Listener {
         )
     }
 
+    #[instrument(skip_all)]
     fn try_handle_accepted_connection(&self, accepted: io::Result<(TcpStream, SocketAddr)>) {
         match accepted {
             Ok((socket, remote_address)) => {
@@ -90,7 +91,7 @@ impl Listener {
                         let metrics_ref = handle.shared_state.metrics.clone();
 
                         // 4.1. handle all client requests until connection gets terminated
-                        handle.start_handling().await;
+                        handle.start_handling().in_current_span().await;
 
                         // 4.2. decrement the connection counter
                         metrics_ref.network.disconnected_ingress_websocket_client();
@@ -104,6 +105,7 @@ impl Listener {
 
     // TODO: change the signature to pub(crate) async fn run(&self, handler: Handler)
 
+    #[instrument(skip_all)]
     pub async fn run(&mut self) {
         info!("Starting websocket listener at {}", self.address);
         let tcp_listener = match tokio::net::TcpListener::bind(self.address).await {
@@ -122,7 +124,7 @@ impl Listener {
                     trace!("client_handling::Listener: received shutdown");
                     break
                 }
-                connection = tcp_listener.accept() => {
+                connection = tcp_listener.accept().in_current_span() => {
                     self.try_handle_accepted_connection(connection)
                 }
             }

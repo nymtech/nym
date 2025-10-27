@@ -29,6 +29,7 @@ x25519-dalek = { workspace = true, features = ["static_secrets"] }
 cosmwasm-std = { workspace = true }
 cosmrs = { workspace = true }
 
+nym-bin-common = { path = "../../common/bin-common" }
 nym-validator-client = { path = "../../common/client-libs/validator-client" }
 nym-mixnet-contract-common = { path = "../../common/cosmwasm-smart-contracts/mixnet-contract" }
 nym-vesting-contract-common = { path = "../../common/cosmwasm-smart-contracts/vesting-contract" }

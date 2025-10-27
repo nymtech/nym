@@ -25,3 +25,7 @@ workspace = true
 
 [dev-dependencies]
 rand_chacha = { workspace = true }
+
+[ features ]
+default = []
+otel = ["nym-sphinx-addressing/otel"]

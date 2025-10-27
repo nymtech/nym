@@ -46,7 +46,6 @@ nym-bandwidth-controller = { path = "../../common/bandwidth-controller" }
 nym-bin-common = { path = "../../common/bin-common", features = [
     "output_format",
     "clap",
-    "basic_tracing",
 ] }
 nym-client-core = { path = "../../common/client-core", features = [
     "fs-credentials-storage",
@@ -71,3 +70,11 @@ nym-client-websocket-requests = { path = "websocket-requests" }
 nym-id = { path = "../../common/nym-id" }
 
 [dev-dependencies]
+
+[features]
+default = []
+otel = [
+    "nym-client-core/otel",
+    "nym-bin-common/otel",
+    "nym-gateway-requests/otel",
+]

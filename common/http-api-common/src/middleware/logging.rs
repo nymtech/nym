@@ -56,6 +56,16 @@ async fn log_request(
 
     let host = header_map(request.headers().get(HOST), "Unknown Host".to_string());
 
+    // Extract traceparent from headers if it exists
+    #[cfg(feature = "otel")]
+    let traceparent = request
+        .headers()
+        .get("traceparent")
+        .and_then(|h| h.to_str().ok())
+        .map(|s| s.to_string());
+    #[cfg(not(feature = "otel"))]
+    let traceparent: Option<String> = None;
+
     let start = Instant::now();
     // run request through all middleware, incl. extractors
     let res = next.run(request).await;
@@ -82,10 +92,10 @@ async fn log_request(
 
     match level {
         LogLevel::Debug => debug!(
-            "[{addr} -> {host}] {method} '{uri}': {print_status} {time_taken} {agent_str}: {agent}"
+            "[{addr} -> {host}] {method} '{uri}': {print_status} {time_taken} {agent_str}: {agent} traceparent: {traceparent:?}",
         ),
         LogLevel::Info => info!(
-            "[{addr} -> {host}] {method} '{uri}': {print_status} {time_taken} {agent_str}: {agent}"
+            "[{addr} -> {host}] {method} '{uri}': {print_status} {time_taken} {agent_str}: {agent} traceparent: {traceparent:?}"
         ),
     }
 

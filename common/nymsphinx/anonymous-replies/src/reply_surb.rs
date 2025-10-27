@@ -82,6 +82,9 @@ impl ReplySurb {
             topology.random_route_to_egress(rng, recipient.gateway())?
         };
         let delays = nym_sphinx_routing::generate_hop_delays(average_delay, route.len());
+        #[cfg(feature = "otel")]
+        let destination = recipient.as_sphinx_destination(None);
+        #[cfg(not(feature = "otel"))]
         let destination = recipient.as_sphinx_destination();
 
         let mut surb_material = SURBMaterial::new(route, delays, destination);

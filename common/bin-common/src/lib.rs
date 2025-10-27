@@ -4,6 +4,9 @@
 pub mod build_information;
 pub mod logging;
 
+#[cfg(feature = "otel")]
+pub mod opentelemetry;
+
 #[cfg(feature = "clap")]
 pub mod completions;
 

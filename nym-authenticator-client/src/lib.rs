@@ -12,6 +12,7 @@ use std::time::Duration;
 use tracing::{debug, error, trace};
 
 use crate::mixnet_listener::{MixnetMessageBroadcastReceiver, MixnetMessageInputSender};
+use nym_authenticator_requests::traits::UpgradeModeStatus;
 use nym_authenticator_requests::{
     AuthenticatorVersion, client_message::ClientMessage, response::AuthenticatorResponse,
     traits::Id, v2, v3, v4, v5, v6,
@@ -24,9 +25,11 @@ use nym_wireguard_types::PeerPublicKey;
 mod error;
 mod helpers;
 mod mixnet_listener;
+pub mod types;
 
 pub use crate::error::{Error, Result};
 pub use crate::mixnet_listener::{AuthClientMixnetListener, AuthClientMixnetListenerHandle};
+use crate::types::{AvailableBandwidthClientResponse, TopUpClientResponse};
 
 pub struct AuthenticatorClient {
     mixnet_listener: MixnetMessageBroadcastReceiver,
@@ -299,7 +302,7 @@ impl AuthenticatorClient {
         Ok(gateway_data)
     }
 
-    pub async fn query_bandwidth(&mut self) -> Result<Option<i64>> {
+    pub async fn query_bandwidth(&mut self) -> Result<AvailableBandwidthClientResponse> {
         let pub_key = self.peer_public_key();
         let version = self.auth_version;
 
@@ -316,6 +319,7 @@ impl AuthenticatorClient {
             }
         };
         let response = self.send_and_wait_for_response(&query_message).await?;
+        let current_upgrade_mode_status = response.upgrade_mode_status();
 
         let available_bandwidth = match response {
             AuthenticatorResponse::RemainingBandwidth(remaining_bandwidth_response) => {
@@ -324,7 +328,10 @@ impl AuthenticatorClient {
                 {
                     available_bandwidth
                 } else {
-                    return Ok(None);
+                    return Ok(AvailableBandwidthClientResponse {
+                        available_bandwidth_bytes: None,
+                        current_upgrade_mode_status,
+                    });
                 }
             }
             _ => return Err(Error::InvalidGatewayAuthResponse),
@@ -345,10 +352,16 @@ impl AuthenticatorClient {
                 "Remaining bandwidth is under 1 MB. The wireguard mode will get suspended after that until tomorrow, UTC time. The client might shutdown with timeout soon"
             );
         }
-        Ok(Some(available_bandwidth))
+        Ok(AvailableBandwidthClientResponse {
+            available_bandwidth_bytes: None,
+            current_upgrade_mode_status,
+        })
     }
 
-    pub async fn top_up(&mut self, credential: CredentialSpendingData) -> Result<i64> {
+    pub async fn top_up(
+        &mut self,
+        credential: CredentialSpendingData,
+    ) -> Result<TopUpClientResponse> {
         let pub_key = self.peer_public_key();
 
         let top_up_message = match self.auth_version {
@@ -375,14 +388,18 @@ impl AuthenticatorClient {
             }
         };
         let response = self.send_and_wait_for_response(&top_up_message).await?;
+        let current_upgrade_mode_status = response.upgrade_mode_status();
 
-        let remaining_bandwidth = match response {
+        let remaining_bandwidth_bytes = match response {
             AuthenticatorResponse::TopUpBandwidth(top_up_bandwidth_response) => {
                 top_up_bandwidth_response.available_bandwidth()
             }
             _ => return Err(Error::InvalidGatewayAuthResponse),
         };
 
-        Ok(remaining_bandwidth)
+        Ok(TopUpClientResponse {
+            remaining_bandwidth_bytes,
+            current_upgrade_mode_status,
+        })
     }
 }

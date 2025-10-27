@@ -12,14 +12,11 @@ use nym_validator_client::{
     QueryHttpRpcNyxdClient,
     nyxd::{Config as NyxdClientConfig, NyxdClient},
 };
-use std::time::Duration;
 
 use crate::{RegistrationClient, config::RegistrationClientConfig, error::RegistrationClientError};
 use config::BuilderConfig;
 
 pub(crate) mod config;
-
-pub(crate) const MIXNET_CLIENT_STARTUP_TIMEOUT: Duration = Duration::from_secs(30);
 
 pub struct RegistrationClientBuilder {
     pub config: BuilderConfig,
@@ -49,7 +46,7 @@ impl RegistrationClientBuilder {
             let builder = MixnetClientBuilder::new_with_storage(mixnet_client_storage)
                 .event_tx(EventSender(event_tx));
             let mixnet_client = tokio::time::timeout(
-                MIXNET_CLIENT_STARTUP_TIMEOUT,
+                self.config.mixnet_client_startup_timeout,
                 self.config.build_and_connect_mixnet_client(builder),
             )
             .await??;
@@ -59,7 +56,7 @@ impl RegistrationClientBuilder {
         } else {
             let builder = MixnetClientBuilder::new_ephemeral().event_tx(EventSender(event_tx));
             let mixnet_client = tokio::time::timeout(
-                MIXNET_CLIENT_STARTUP_TIMEOUT,
+                self.config.mixnet_client_startup_timeout,
                 self.config.build_and_connect_mixnet_client(builder),
             )
             .await??;

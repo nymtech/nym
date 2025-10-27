@@ -19,6 +19,7 @@ use tokio_util::sync::CancellationToken;
 use crate::error::RegistrationClientError;
 
 const VPN_AVERAGE_PACKET_DELAY: Duration = Duration::from_millis(15);
+const MIXNET_CLIENT_STARTUP_TIMEOUT: Duration = Duration::from_secs(30);
 
 #[derive(Clone)]
 pub struct NymNodeWithKeys {
@@ -31,6 +32,7 @@ pub struct BuilderConfig {
     pub exit_node: NymNodeWithKeys,
     pub data_path: Option<PathBuf>,
     pub mixnet_client_config: MixnetClientConfig,
+    pub mixnet_client_startup_timeout: Duration,
     pub two_hops: bool,
     pub user_agent: UserAgent,
     pub custom_topology_provider: Box<dyn TopologyProvider + Send + Sync>,
@@ -56,37 +58,6 @@ pub struct MixnetClientConfig {
 }
 
 impl BuilderConfig {
-    /// Creates a new BuilderConfig with all required parameters.
-    ///
-    /// However, consider using `BuilderConfig::builder()` instead.
-    #[allow(clippy::too_many_arguments)]
-    pub fn new(
-        entry_node: NymNodeWithKeys,
-        exit_node: NymNodeWithKeys,
-        data_path: Option<PathBuf>,
-        mixnet_client_config: MixnetClientConfig,
-        two_hops: bool,
-        user_agent: UserAgent,
-        custom_topology_provider: Box<dyn TopologyProvider + Send + Sync>,
-        network_env: NymNetworkDetails,
-        cancel_token: CancellationToken,
-        #[cfg(unix)] connection_fd_callback: Arc<dyn Fn(RawFd) + Send + Sync>,
-    ) -> Self {
-        Self {
-            entry_node,
-            exit_node,
-            data_path,
-            mixnet_client_config,
-            two_hops,
-            user_agent,
-            custom_topology_provider,
-            network_env,
-            cancel_token,
-            #[cfg(unix)]
-            connection_fd_callback,
-        }
-    }
-
     /// Creates a builder for BuilderConfig
     ///
     /// This is the preferred way to construct a BuilderConfig.
@@ -287,6 +258,7 @@ pub struct BuilderConfigBuilder {
     exit_node: Option<NymNodeWithKeys>,
     data_path: Option<PathBuf>,
     mixnet_client_config: Option<MixnetClientConfig>,
+    mixnet_client_startup_timeout: Duration,
     two_hops: bool,
     user_agent: Option<UserAgent>,
     custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
@@ -298,39 +270,58 @@ pub struct BuilderConfigBuilder {
 
 impl BuilderConfigBuilder {
     pub fn new() -> Self {
-        Self::default()
+        Self {
+            mixnet_client_startup_timeout: MIXNET_CLIENT_STARTUP_TIMEOUT,
+            ..Default::default()
+        }
     }
 
+    #[must_use]
     pub fn entry_node(mut self, entry_node: NymNodeWithKeys) -> Self {
         self.entry_node = Some(entry_node);
         self
     }
 
+    #[must_use]
     pub fn exit_node(mut self, exit_node: NymNodeWithKeys) -> Self {
         self.exit_node = Some(exit_node);
         self
     }
 
+    #[must_use]
     pub fn data_path(mut self, data_path: Option<PathBuf>) -> Self {
         self.data_path = data_path;
         self
     }
 
+    #[must_use]
     pub fn mixnet_client_config(mut self, mixnet_client_config: MixnetClientConfig) -> Self {
         self.mixnet_client_config = Some(mixnet_client_config);
         self
     }
 
+    #[must_use]
+    pub fn mixnet_client_startup_timeout(
+        mut self,
+        mixnet_client_startup_timeout: Duration,
+    ) -> Self {
+        self.mixnet_client_startup_timeout = mixnet_client_startup_timeout;
+        self
+    }
+
+    #[must_use]
     pub fn two_hops(mut self, two_hops: bool) -> Self {
         self.two_hops = two_hops;
         self
     }
 
+    #[must_use]
     pub fn user_agent(mut self, user_agent: UserAgent) -> Self {
         self.user_agent = Some(user_agent);
         self
     }
 
+    #[must_use]
     pub fn custom_topology_provider(
         mut self,
         custom_topology_provider: Box<dyn TopologyProvider + Send + Sync>,
@@ -339,11 +330,13 @@ impl BuilderConfigBuilder {
         self
     }
 
+    #[must_use]
     pub fn network_env(mut self, network_env: NymNetworkDetails) -> Self {
         self.network_env = Some(network_env);
         self
     }
 
+    #[must_use]
     pub fn cancel_token(mut self, cancel_token: CancellationToken) -> Self {
         self.cancel_token = Some(cancel_token);
         self
@@ -371,6 +364,7 @@ impl BuilderConfigBuilder {
             mixnet_client_config: self
                 .mixnet_client_config
                 .ok_or(BuilderConfigError::MissingMixnetClientConfig)?,
+            mixnet_client_startup_timeout: self.mixnet_client_startup_timeout,
             two_hops: self.two_hops,
             user_agent: self
                 .user_agent

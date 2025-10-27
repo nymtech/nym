@@ -343,6 +343,7 @@ impl BuilderConfigBuilder {
     }
 
     #[cfg(unix)]
+    #[must_use]
     pub fn connection_fd_callback(
         mut self,
         connection_fd_callback: Arc<dyn Fn(RawFd) + Send + Sync>,

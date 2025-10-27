@@ -14,6 +14,24 @@ use nym_wireguard_types::PeerPublicKey;
 use serde::{Deserialize, Serialize};
 use tracing::error;
 
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
+pub enum CurrentUpgradeModeStatus {
+    Enabled,
+    Disabled,
+    // everything pre-v6
+    Unknown,
+}
+
+impl From<bool> for CurrentUpgradeModeStatus {
+    fn from(value: bool) -> Self {
+        if value {
+            CurrentUpgradeModeStatus::Enabled
+        } else {
+            CurrentUpgradeModeStatus::Disabled
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct BandwidthClaim {
     pub credential: BandwidthCredential,
@@ -133,6 +151,141 @@ impl Versionable for v5::topup::TopUpMessage {
 impl Versionable for v6::topup::TopUpMessage {
     fn version(&self) -> AuthenticatorVersion {
         AuthenticatorVersion::V6
+    }
+}
+
+pub trait UpgradeModeStatus {
+    fn upgrade_mode_status(&self) -> CurrentUpgradeModeStatus;
+}
+
+impl UpgradeModeStatus for v1::response::PendingRegistrationResponse {
+    fn upgrade_mode_status(&self) -> CurrentUpgradeModeStatus {
+        CurrentUpgradeModeStatus::Unknown
+    }
+}
+
+impl UpgradeModeStatus for v1::response::RegisteredResponse {
+    fn upgrade_mode_status(&self) -> CurrentUpgradeModeStatus {
+        CurrentUpgradeModeStatus::Unknown
+    }
+}
+
+impl UpgradeModeStatus for v1::response::RemainingBandwidthResponse {
+    fn upgrade_mode_status(&self) -> CurrentUpgradeModeStatus {
+        CurrentUpgradeModeStatus::Unknown
+    }
+}
+
+impl UpgradeModeStatus for v2::response::PendingRegistrationResponse {
+    fn upgrade_mode_status(&self) -> CurrentUpgradeModeStatus {
+        CurrentUpgradeModeStatus::Unknown
+    }
+}
+
+impl UpgradeModeStatus for v2::response::RegisteredResponse {
+    fn upgrade_mode_status(&self) -> CurrentUpgradeModeStatus {
+        CurrentUpgradeModeStatus::Unknown
+    }
+}
+
+impl UpgradeModeStatus for v2::response::RemainingBandwidthResponse {
+    fn upgrade_mode_status(&self) -> CurrentUpgradeModeStatus {
+        CurrentUpgradeModeStatus::Unknown
+    }
+}
+impl UpgradeModeStatus for v3::response::PendingRegistrationResponse {
+    fn upgrade_mode_status(&self) -> CurrentUpgradeModeStatus {
+        CurrentUpgradeModeStatus::Unknown
+    }
+}
+
+impl UpgradeModeStatus for v3::response::RegisteredResponse {
+    fn upgrade_mode_status(&self) -> CurrentUpgradeModeStatus {
+        CurrentUpgradeModeStatus::Unknown
+    }
+}
+
+impl UpgradeModeStatus for v3::response::RemainingBandwidthResponse {
+    fn upgrade_mode_status(&self) -> CurrentUpgradeModeStatus {
+        CurrentUpgradeModeStatus::Unknown
+    }
+}
+
+impl UpgradeModeStatus for v3::response::TopUpBandwidthResponse {
+    fn upgrade_mode_status(&self) -> CurrentUpgradeModeStatus {
+        CurrentUpgradeModeStatus::Unknown
+    }
+}
+
+impl UpgradeModeStatus for v4::response::PendingRegistrationResponse {
+    fn upgrade_mode_status(&self) -> CurrentUpgradeModeStatus {
+        CurrentUpgradeModeStatus::Unknown
+    }
+}
+
+impl UpgradeModeStatus for v4::response::RegisteredResponse {
+    fn upgrade_mode_status(&self) -> CurrentUpgradeModeStatus {
+        CurrentUpgradeModeStatus::Unknown
+    }
+}
+
+impl UpgradeModeStatus for v4::response::RemainingBandwidthResponse {
+    fn upgrade_mode_status(&self) -> CurrentUpgradeModeStatus {
+        CurrentUpgradeModeStatus::Unknown
+    }
+}
+
+impl UpgradeModeStatus for v4::response::TopUpBandwidthResponse {
+    fn upgrade_mode_status(&self) -> CurrentUpgradeModeStatus {
+        CurrentUpgradeModeStatus::Unknown
+    }
+}
+
+impl UpgradeModeStatus for v5::response::PendingRegistrationResponse {
+    fn upgrade_mode_status(&self) -> CurrentUpgradeModeStatus {
+        CurrentUpgradeModeStatus::Unknown
+    }
+}
+
+impl UpgradeModeStatus for v5::response::RegisteredResponse {
+    fn upgrade_mode_status(&self) -> CurrentUpgradeModeStatus {
+        CurrentUpgradeModeStatus::Unknown
+    }
+}
+
+impl UpgradeModeStatus for v5::response::RemainingBandwidthResponse {
+    fn upgrade_mode_status(&self) -> CurrentUpgradeModeStatus {
+        CurrentUpgradeModeStatus::Unknown
+    }
+}
+
+impl UpgradeModeStatus for v5::response::TopUpBandwidthResponse {
+    fn upgrade_mode_status(&self) -> CurrentUpgradeModeStatus {
+        CurrentUpgradeModeStatus::Unknown
+    }
+}
+
+impl UpgradeModeStatus for v6::response::PendingRegistrationResponse {
+    fn upgrade_mode_status(&self) -> CurrentUpgradeModeStatus {
+        self.upgrade_mode_enabled.into()
+    }
+}
+
+impl UpgradeModeStatus for v6::response::RegisteredResponse {
+    fn upgrade_mode_status(&self) -> CurrentUpgradeModeStatus {
+        self.upgrade_mode_enabled.into()
+    }
+}
+
+impl UpgradeModeStatus for v6::response::RemainingBandwidthResponse {
+    fn upgrade_mode_status(&self) -> CurrentUpgradeModeStatus {
+        self.upgrade_mode_enabled.into()
+    }
+}
+
+impl UpgradeModeStatus for v6::response::TopUpBandwidthResponse {
+    fn upgrade_mode_status(&self) -> CurrentUpgradeModeStatus {
+        self.upgrade_mode_enabled.into()
     }
 }
 
@@ -565,7 +718,7 @@ impl Id for v6::response::TopUpBandwidthResponse {
     }
 }
 
-pub trait PendingRegistrationResponse: Id + fmt::Debug {
+pub trait PendingRegistrationResponse: Id + UpgradeModeStatus + fmt::Debug {
     fn nonce(&self) -> u64;
     fn verify(&self, gateway_key: &x25519::PrivateKey) -> Result<(), Error>;
     fn pub_key(&self) -> PeerPublicKey;
@@ -748,7 +901,7 @@ impl PendingRegistrationResponse for v6::response::PendingRegistrationResponse {
     }
 }
 
-pub trait RegisteredResponse: Id + fmt::Debug {
+pub trait RegisteredResponse: Id + UpgradeModeStatus + fmt::Debug {
     fn private_ips(&self) -> IpPair;
     fn pub_key(&self) -> PeerPublicKey;
     fn wg_port(&self) -> u16;
@@ -824,7 +977,7 @@ impl RegisteredResponse for v6::response::RegisteredResponse {
     }
 }
 
-pub trait RemainingBandwidthResponse: Id + fmt::Debug {
+pub trait RemainingBandwidthResponse: Id + UpgradeModeStatus + fmt::Debug {
     fn available_bandwidth(&self) -> Option<i64>;
 }
 
@@ -858,7 +1011,7 @@ impl RemainingBandwidthResponse for v6::response::RemainingBandwidthResponse {
     }
 }
 
-pub trait TopUpBandwidthResponse: Id + fmt::Debug {
+pub trait TopUpBandwidthResponse: Id + UpgradeModeStatus + fmt::Debug {
     fn available_bandwidth(&self) -> i64;
 }
 

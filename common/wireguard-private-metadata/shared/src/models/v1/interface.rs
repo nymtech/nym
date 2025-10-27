@@ -5,6 +5,8 @@ use nym_credentials_interface::CredentialSpendingData;
 
 #[cfg(feature = "testing")]
 use super::super::v0 as previous;
+#[cfg(feature = "testing")]
+use crate::{Request, Response, v0};
 
 use super::{
     QueryType, VERSION, VersionedRequest, VersionedResponse,
@@ -14,7 +16,6 @@ use super::{
     topup_bandwidth::{request::InnerTopUpRequest, response::InnerTopUpResponse},
 };
 use crate::models::{Construct, Extract, Version, error::Error};
-use crate::{Request, Response, v0};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum RequestData {

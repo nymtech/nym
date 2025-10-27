@@ -22,7 +22,7 @@ pub enum AuthenticatorVersion {
     /// introduced in dorina-patched release (1.6.1)
     V5,
 
-    /// introduced in yet to be named release, currently aiming for Kase (1.21.0)
+    /// introduced in yet to be named release, currently aiming for Leerdammer (1.22.0)
     V6,
 
     /// an unknown, future, variant that can be present if running outdated software
@@ -42,7 +42,7 @@ impl AuthenticatorVersion {
             AuthenticatorVersion::V3 => semver::Version::new(1, 1, 10),
             AuthenticatorVersion::V4 => semver::Version::new(1, 2, 0),
             AuthenticatorVersion::V5 => semver::Version::new(1, 6, 1),
-            AuthenticatorVersion::V6 => semver::Version::new(1, 21, 0),
+            AuthenticatorVersion::V6 => semver::Version::new(1, 22, 0),
             AuthenticatorVersion::UNKNOWN => semver::Version::new(0, 0, 0),
         }
     }

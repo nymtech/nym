@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::traits::{
-    Id, PendingRegistrationResponse, RegisteredResponse, RemainingBandwidthResponse,
-    TopUpBandwidthResponse,
+    CurrentUpgradeModeStatus, Id, PendingRegistrationResponse, RegisteredResponse,
+    RemainingBandwidthResponse, TopUpBandwidthResponse, UpgradeModeStatus,
 };
 use crate::{v2, v3, v4, v5, v6};
 
@@ -13,6 +13,25 @@ pub enum AuthenticatorResponse {
     Registered(Box<dyn RegisteredResponse + Send + Sync + 'static>),
     RemainingBandwidth(Box<dyn RemainingBandwidthResponse + Send + Sync + 'static>),
     TopUpBandwidth(Box<dyn TopUpBandwidthResponse + Send + Sync + 'static>),
+}
+
+impl UpgradeModeStatus for AuthenticatorResponse {
+    fn upgrade_mode_status(&self) -> CurrentUpgradeModeStatus {
+        match self {
+            AuthenticatorResponse::PendingRegistration(pending_registration_response) => {
+                pending_registration_response.upgrade_mode_status()
+            }
+            AuthenticatorResponse::Registered(registered_response) => {
+                registered_response.upgrade_mode_status()
+            }
+            AuthenticatorResponse::RemainingBandwidth(remaining_bandwidth_response) => {
+                remaining_bandwidth_response.upgrade_mode_status()
+            }
+            AuthenticatorResponse::TopUpBandwidth(top_up_bandwidth_response) => {
+                top_up_bandwidth_response.upgrade_mode_status()
+            }
+        }
+    }
 }
 
 impl Id for AuthenticatorResponse {

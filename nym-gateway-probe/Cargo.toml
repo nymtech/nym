@@ -73,3 +73,7 @@ vergen-gitcl = { workspace = true, default-features = false, features = [
 
 [package.metadata.cargo-machete]
 ignored = ["vergen", "nym-http-api-client"]
+
+[features]
+default = []
+otel = ["nym-sdk/otel", "nym-http-api-client/otel", "nym-bin-common/otel"]

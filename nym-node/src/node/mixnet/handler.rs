@@ -20,7 +20,7 @@ use std::net::SocketAddr;
 use tokio::net::TcpStream;
 use tokio::time::Instant;
 use tokio_util::codec::Framed;
-use tracing::{debug, error, instrument, trace, warn};
+use tracing::{debug, error, instrument, Instrument, trace, warn};
 
 struct PendingReplayCheckPackets {
     // map of rotation id used for packet creation to the packets
@@ -497,9 +497,9 @@ impl ConnectionHandler {
                     trace!("connection handler: received shutdown");
                     break
                 }
-                maybe_framed_nym_packet = mixnet_connection.next() => {
+                maybe_framed_nym_packet = mixnet_connection.next().in_current_span() => {
                     match maybe_framed_nym_packet {
-                        Some(Ok(packet)) => self.handle_received_nym_packet(packet).await,
+                        Some(Ok(packet)) => self.handle_received_nym_packet(packet).in_current_span().await,
                         Some(Err(err)) => {
                             debug!("connection got corrupted with: {err}");
                             return

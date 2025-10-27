@@ -105,6 +105,7 @@ otel = [
     "nym-bin-common/otel",
     "nym-gateway-requests/otel",
     "nym-socks5-client-core/otel",
+    "nym-client-core/otel",
     "opentelemetry",
     "opentelemetry_sdk",
     "opentelemetry-otlp",

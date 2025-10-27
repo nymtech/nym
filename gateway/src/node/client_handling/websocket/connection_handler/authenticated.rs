@@ -383,9 +383,11 @@ impl<R, S> AuthenticatedHandler<R, S> {
             Ok(request) => match request {
                 // currently only a single type exists
                 BinaryRequest::ForwardSphinx { packet }
-                | BinaryRequest::ForwardSphinxV2 { packet } => {
-                    self.handle_forward_sphinx(packet).in_current_span().await.into_ws_message()
-                }
+                | BinaryRequest::ForwardSphinxV2 { packet } => self
+                    .handle_forward_sphinx(packet)
+                    .in_current_span()
+                    .await
+                    .into_ws_message(),
                 _ => RequestHandlingError::UnknownBinaryRequest.into_error_message(),
             },
         }
@@ -682,7 +684,7 @@ impl<R, S> AuthenticatedHandler<R, S> {
         loop {
             tokio::select! {
                 // Received a request to ping the client to check if it's still active
-                tx = self.is_active_request_receiver.next() => {
+                tx = self.is_active_request_receiver.next().in_current_span() => {
                     match tx {
                         None => break,
                         Some(reply_tx) => {

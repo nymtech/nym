@@ -20,7 +20,10 @@ pub mod transceiver;
 
 // We remind ourselves that 32 x 32kb = 1024kb, a reasonable size for a network buffer.
 pub const MIX_MESSAGE_RECEIVER_BUFFER_SIZE: usize = 32;
-const MAX_FAILURE_COUNT: usize = 100;
+
+/// Reduced from 100 to 20 to fail fast (~1-2 seconds instead of ~6 seconds).
+/// If we can't send 20 packets in a row, the gateway is unreachable.
+const MAX_FAILURE_COUNT: usize = 20;
 
 // that's also disgusting.
 pub struct Empty;
@@ -84,7 +87,7 @@ impl MixTrafficController {
         self.client_tx.clone()
     }
 
-    pub fn mix_rx(&self) -> BatchMixMessageSender {
+    pub fn mix_tx(&self) -> BatchMixMessageSender {
         self.mix_tx.clone()
     }
 
@@ -156,6 +159,11 @@ impl MixTrafficController {
                             // Do we need to handle the embedded mixnet client case
                             // separately?
                             self.event_tx.send(MixnetClientEvent::Traffic(MixTrafficEvent::FailedSendingSphinx));
+                            // IMO it shouldn't be signalled from there but it is how it is
+                            // TODO : report the failure upwards and shutdown from upwards
+                            // Gateway is dead, we have to shut down currently
+                            error!("Signalling shutdown from the MixTrafficController");
+                            self.shutdown_token.cancel();
                             break;
                         }
                     }

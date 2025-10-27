@@ -15,6 +15,7 @@ use nym_sdk::{
 use std::os::fd::RawFd;
 use std::{path::PathBuf, sync::Arc, time::Duration};
 use tokio_util::sync::CancellationToken;
+use typed_builder::TypedBuilder;
 
 use crate::error::RegistrationClientError;
 
@@ -27,11 +28,13 @@ pub struct NymNodeWithKeys {
     pub keys: Arc<KeyPair>,
 }
 
+#[derive(TypedBuilder)]
 pub struct BuilderConfig {
     pub entry_node: NymNodeWithKeys,
     pub exit_node: NymNodeWithKeys,
     pub data_path: Option<PathBuf>,
     pub mixnet_client_config: MixnetClientConfig,
+    #[builder(default = MIXNET_CLIENT_STARTUP_TIMEOUT)]
     pub mixnet_client_startup_timeout: Duration,
     pub two_hops: bool,
     pub user_agent: UserAgent,
@@ -58,22 +61,6 @@ pub struct MixnetClientConfig {
 }
 
 impl BuilderConfig {
-    /// Creates a builder for BuilderConfig
-    ///
-    /// This is the preferred way to construct a BuilderConfig.
-    ///
-    /// # Example
-    /// ```ignore
-    /// let config = BuilderConfig::builder()
-    ///     .entry_node(entry)
-    ///     .exit_node(exit)
-    ///     .user_agent(agent)
-    ///     .build()?;
-    /// ```
-    pub fn builder() -> BuilderConfigBuilder {
-        BuilderConfigBuilder::default()
-    }
-
     pub fn mixnet_client_debug_config(&self) -> DebugConfig {
         if self.two_hops {
             two_hop_debug_config(&self.mixnet_client_config)
@@ -225,168 +212,6 @@ fn true_to_disabled(val: bool) -> &'static str {
     if val { "disabled" } else { "enabled" }
 }
 
-/// Error type for BuilderConfig validation
-#[derive(Debug, Clone, thiserror::Error)]
-#[allow(clippy::enum_variant_names)]
-pub enum BuilderConfigError {
-    #[error("entry_node is required")]
-    MissingEntryNode,
-    #[error("exit_node is required")]
-    MissingExitNode,
-    #[error("mixnet_client_config is required")]
-    MissingMixnetClientConfig,
-    #[error("user_agent is required")]
-    MissingUserAgent,
-    #[error("custom_topology_provider is required")]
-    MissingTopologyProvider,
-    #[error("network_env is required")]
-    MissingNetworkEnv,
-    #[error("cancel_token is required")]
-    MissingCancelToken,
-    #[cfg(unix)]
-    #[error("connection_fd_callback is required")]
-    MissingConnectionFdCallback,
-}
-
-/// Builder for `BuilderConfig`
-///
-/// This provides a more convenient way to construct a `BuilderConfig` compared to the
-/// `new()` constructor with many arguments.
-#[derive(Default)]
-pub struct BuilderConfigBuilder {
-    entry_node: Option<NymNodeWithKeys>,
-    exit_node: Option<NymNodeWithKeys>,
-    data_path: Option<PathBuf>,
-    mixnet_client_config: Option<MixnetClientConfig>,
-    mixnet_client_startup_timeout: Duration,
-    two_hops: bool,
-    user_agent: Option<UserAgent>,
-    custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
-    network_env: Option<NymNetworkDetails>,
-    cancel_token: Option<CancellationToken>,
-    #[cfg(unix)]
-    connection_fd_callback: Option<Arc<dyn Fn(RawFd) + Send + Sync>>,
-}
-
-impl BuilderConfigBuilder {
-    pub fn new() -> Self {
-        Self {
-            mixnet_client_startup_timeout: MIXNET_CLIENT_STARTUP_TIMEOUT,
-            ..Default::default()
-        }
-    }
-
-    #[must_use]
-    pub fn entry_node(mut self, entry_node: NymNodeWithKeys) -> Self {
-        self.entry_node = Some(entry_node);
-        self
-    }
-
-    #[must_use]
-    pub fn exit_node(mut self, exit_node: NymNodeWithKeys) -> Self {
-        self.exit_node = Some(exit_node);
-        self
-    }
-
-    #[must_use]
-    pub fn data_path(mut self, data_path: Option<PathBuf>) -> Self {
-        self.data_path = data_path;
-        self
-    }
-
-    #[must_use]
-    pub fn mixnet_client_config(mut self, mixnet_client_config: MixnetClientConfig) -> Self {
-        self.mixnet_client_config = Some(mixnet_client_config);
-        self
-    }
-
-    #[must_use]
-    pub fn mixnet_client_startup_timeout(
-        mut self,
-        mixnet_client_startup_timeout: Duration,
-    ) -> Self {
-        self.mixnet_client_startup_timeout = mixnet_client_startup_timeout;
-        self
-    }
-
-    #[must_use]
-    pub fn two_hops(mut self, two_hops: bool) -> Self {
-        self.two_hops = two_hops;
-        self
-    }
-
-    #[must_use]
-    pub fn user_agent(mut self, user_agent: UserAgent) -> Self {
-        self.user_agent = Some(user_agent);
-        self
-    }
-
-    #[must_use]
-    pub fn custom_topology_provider(
-        mut self,
-        custom_topology_provider: Box<dyn TopologyProvider + Send + Sync>,
-    ) -> Self {
-        self.custom_topology_provider = Some(custom_topology_provider);
-        self
-    }
-
-    #[must_use]
-    pub fn network_env(mut self, network_env: NymNetworkDetails) -> Self {
-        self.network_env = Some(network_env);
-        self
-    }
-
-    #[must_use]
-    pub fn cancel_token(mut self, cancel_token: CancellationToken) -> Self {
-        self.cancel_token = Some(cancel_token);
-        self
-    }
-
-    #[cfg(unix)]
-    #[must_use]
-    pub fn connection_fd_callback(
-        mut self,
-        connection_fd_callback: Arc<dyn Fn(RawFd) + Send + Sync>,
-    ) -> Self {
-        self.connection_fd_callback = Some(connection_fd_callback);
-        self
-    }
-
-    /// Builds the `BuilderConfig`.
-    ///
-    /// Returns an error if any required field is missing.
-    pub fn build(self) -> Result<BuilderConfig, BuilderConfigError> {
-        Ok(BuilderConfig {
-            entry_node: self
-                .entry_node
-                .ok_or(BuilderConfigError::MissingEntryNode)?,
-            exit_node: self.exit_node.ok_or(BuilderConfigError::MissingExitNode)?,
-            data_path: self.data_path,
-            mixnet_client_config: self
-                .mixnet_client_config
-                .ok_or(BuilderConfigError::MissingMixnetClientConfig)?,
-            mixnet_client_startup_timeout: self.mixnet_client_startup_timeout,
-            two_hops: self.two_hops,
-            user_agent: self
-                .user_agent
-                .ok_or(BuilderConfigError::MissingUserAgent)?,
-            custom_topology_provider: self
-                .custom_topology_provider
-                .ok_or(BuilderConfigError::MissingTopologyProvider)?,
-            network_env: self
-                .network_env
-                .ok_or(BuilderConfigError::MissingNetworkEnv)?,
-            cancel_token: self
-                .cancel_token
-                .ok_or(BuilderConfigError::MissingCancelToken)?,
-            #[cfg(unix)]
-            connection_fd_callback: self
-                .connection_fd_callback
-                .ok_or(BuilderConfigError::MissingConnectionFdCallback)?,
-        })
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -398,55 +223,5 @@ mod tests {
         assert!(!config.disable_background_cover_traffic);
         assert_eq!(config.min_mixnode_performance, None);
         assert_eq!(config.min_gateway_performance, None);
-    }
-
-    #[test]
-    fn test_builder_config_builder_fails_without_required_fields() {
-        // Building without any fields should fail with specific error
-        let result = BuilderConfig::builder().build();
-        assert!(result.is_err());
-        match result {
-            Err(BuilderConfigError::MissingEntryNode) => (), // Expected
-            Err(e) => panic!("Expected MissingEntryNode, got: {}", e),
-            Ok(_) => panic!("Expected error, got Ok"),
-        }
-    }
-
-    #[test]
-    fn test_builder_config_builder_validates_all_required_fields() {
-        // Test that each required field is validated
-        let result = BuilderConfig::builder().build();
-        assert!(result.is_err());
-
-        // Short-circuits at first missing field, so we just verify it's one of the expected errors
-        #[allow(unreachable_patterns)] // All variants are covered, but keeping catch-all for safety
-        match result {
-            Err(BuilderConfigError::MissingEntryNode)
-            | Err(BuilderConfigError::MissingExitNode)
-            | Err(BuilderConfigError::MissingMixnetClientConfig)
-            | Err(BuilderConfigError::MissingUserAgent)
-            | Err(BuilderConfigError::MissingTopologyProvider)
-            | Err(BuilderConfigError::MissingNetworkEnv)
-            | Err(BuilderConfigError::MissingCancelToken) => (),
-            #[cfg(unix)]
-            Err(BuilderConfigError::MissingConnectionFdCallback) => (),
-            Err(e) => panic!("Unexpected error: {}", e),
-            Ok(_) => panic!("Expected validation error, got Ok"),
-        }
-    }
-
-    #[test]
-    fn test_builder_config_builder_method_chaining() {
-        // Test that builder methods chain properly and return Self
-        let builder = BuilderConfig::builder();
-
-        // Verify the builder returns itself for chaining
-        let builder = builder.two_hops(true);
-        let builder = builder.two_hops(false);
-        let builder = builder.data_path(None);
-
-        // Builder should still fail because required fields are missing
-        let result = builder.build();
-        assert!(result.is_err());
     }
 }

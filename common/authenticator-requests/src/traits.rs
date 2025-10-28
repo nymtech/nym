@@ -32,6 +32,16 @@ impl From<bool> for CurrentUpgradeModeStatus {
     }
 }
 
+impl From<CurrentUpgradeModeStatus> for Option<bool> {
+    fn from(value: CurrentUpgradeModeStatus) -> Self {
+        match value {
+            CurrentUpgradeModeStatus::Enabled => Some(true),
+            CurrentUpgradeModeStatus::Disabled => Some(false),
+            CurrentUpgradeModeStatus::Unknown => None,
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct BandwidthClaim {
     pub credential: BandwidthCredential,

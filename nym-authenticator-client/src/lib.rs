@@ -353,7 +353,7 @@ impl AuthenticatorClient {
             );
         }
         Ok(AvailableBandwidthClientResponse {
-            available_bandwidth_bytes: None,
+            available_bandwidth_bytes: Some(available_bandwidth),
             current_upgrade_mode_status,
         })
     }

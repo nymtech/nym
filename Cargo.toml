@@ -66,6 +66,7 @@ members = [
     "common/nym-id",
     "common/nym-metrics",
     "common/nym_offline_compact_ecash",
+    "common/nymkkt",
     "common/nymnoise",
     "common/nymnoise/keys",
     "common/nympsq",

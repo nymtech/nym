@@ -64,7 +64,7 @@ impl MixSocket {
 pub struct MixStream {
     pub client: MixnetClient,
     peer: Option<Recipient>, // We might be accepting incoming messages and replying, so might not have a Nym addr to talk to..
-    peer_surbs: Option<AnonymousSenderTag>, // ..since we might just be using SURBs instead
+    peer_surb_tag: Option<AnonymousSenderTag>, // ..since we might just be using SURBs instead
 }
 
 impl MixStream {
@@ -78,29 +78,28 @@ impl MixStream {
         Self {
             client,
             peer: Some(peer),
-            peer_surbs: None,
+            peer_surb_tag: None,
         }
     }
 
     /// Nym address of Stream's peer (Nym Client it will communicate with).
-    pub fn peer_addr(&self) -> Recipient {
-        let peer = &self.peer.expect("No Peer set");
-        *peer
+    pub fn peer_addr(self) -> Option<Recipient> {
+        self.peer
     }
 
     /// Our Nym address.
-    pub fn local_addr(&self) -> &Recipient {
-        self.client.nym_address()
+    pub fn local_addr(self) -> Recipient {
+        *self.client.nym_address()
     }
 
-    /// Store SURBs in own field.
-    pub fn store_surbs(&mut self, surbs: AnonymousSenderTag) {
-        self.peer_surbs = Some(surbs);
+    /// Store SURB tag in own field to use for Anonymous Replies.
+    pub fn store_surb_tag(&mut self, surbs: AnonymousSenderTag) {
+        self.peer_surb_tag = Some(surbs);
     }
 
-    /// Get SURBs (if any).
+    /// Get SURB tag (if any).
     pub fn surbs(&self) -> Option<AnonymousSenderTag> {
-        self.peer_surbs
+        self.peer_surb_tag
     }
 
     /// Split for concurrent read/write (like TcpStream::Split) into MixnetStreamReader and MixnetStreamWriter.
@@ -113,13 +112,13 @@ impl MixStream {
             MixStreamReader {
                 client: self.client,
                 peer: self.peer,
-                peer_surbs: self.peer_surbs,
+                peer_surb_tag: self.peer_surb_tag,
                 surb_tx: Some(surb_tx),
             },
             MixStreamWriter {
                 sender,
                 peer: self.peer.expect("No Peer set"),
-                peer_surbs: self.peer_surbs,
+                peer_surb_tag: self.peer_surb_tag,
                 surb_rx: Some(surb_rx),
             },
         )
@@ -127,18 +126,18 @@ impl MixStream {
 
     /// Convenience method for just piping bytes into the Mixnet.
     pub async fn write_bytes(&mut self, data: &[u8]) -> Result<(), Error> {
-        let input_message = if self.peer_surbs.is_some() {
+        let input_message = if self.peer_surb_tag.is_some() {
             info!("Writing {} bytes, sending with SURBs", data.len());
             InputMessage::Reply {
-                recipient_tag: (self.peer_surbs.expect("No Peer SURBs set")),
-                data: (data.to_owned()),
-                lane: (nym_task::connections::TransmissionLane::General),
-                max_retransmissions: (Some(5)), // TODO check with Drazen - guessing here
+                recipient_tag: self.peer_surb_tag.ok_or(Error::MixStreamSurbTagNotSet)?,
+                data: data.to_owned(),
+                lane: nym_task::connections::TransmissionLane::General,
+                max_retransmissions: Some(5), // TODO check with Drazen - guessing here
             }
         } else {
             info!("Writing {} bytes", data.len());
             InputMessage::Anonymous {
-                recipient: (self.peer.expect("No Peer set")),
+                recipient: self.peer.ok_or(Error::MixStreamRecipientNotSet)?,
                 data: (data.to_owned()),
                 reply_surbs: (10),
                 lane: (nym_task::connections::TransmissionLane::General),
@@ -149,8 +148,6 @@ impl MixStream {
         let mut codec = InputMessageCodec {};
         let mut serialized_bytes = BytesMut::new();
         codec.encode(input_message, &mut serialized_bytes)?;
-        debug!("Serialized bytes: {:?}", serialized_bytes);
-
         self.write_all(&serialized_bytes).await?;
         debug!("Wrote serialized bytes");
         self.flush().await?;
@@ -203,25 +200,24 @@ impl AsyncWrite for MixStream {
 pub struct MixStreamReader {
     client: MixnetClient,
     peer: Option<Recipient>, // We might be accepting incoming messages and replying, so might not have a Nym addr to talk to..
-    peer_surbs: Option<AnonymousSenderTag>, // ..since we might just be using SURBs instead
+    peer_surb_tag: Option<AnonymousSenderTag>, // ..since we might just be using SURBs instead
     surb_tx: Option<oneshot::Sender<AnonymousSenderTag>>,
 }
 
 impl MixStreamReader {
     /// Nym address of Stream's peer (Nym Client it will communicate with).
-    pub fn peer_addr(&self) -> Recipient {
-        let peer = &self.peer.expect("No Peer set");
-        *peer
+    pub fn peer_addr(self) -> Option<Recipient> {
+        self.peer
     }
 
     /// Our Nym address.
-    pub fn local_addr(&self) -> &Recipient {
-        self.client.nym_address()
+    pub fn local_addr(self) -> Recipient {
+        *self.client.nym_address()
     }
 
-    /// Store SURBs in self + send to the other side of the split so they can be used for the connection.
-    pub fn store_surbs(&mut self, surbs: AnonymousSenderTag) {
-        self.peer_surbs = Some(surbs);
+    /// Store SURB tag in self + send to the other side of the split so it can be used for the connection.
+    pub fn store_surb_tag(&mut self, surbs: AnonymousSenderTag) {
+        self.peer_surb_tag = Some(surbs);
         if let Some(tx) = self.surb_tx.take() {
             match tx.send(surbs) {
                 Ok(()) => debug!("Sent SURBs to MixStreamWriter"),
@@ -232,7 +228,7 @@ impl MixStreamReader {
 
     /// Stored SURBs (if any).
     pub fn surbs(&self) -> Option<AnonymousSenderTag> {
-        self.peer_surbs
+        self.peer_surb_tag
     }
 }
 
@@ -249,24 +245,24 @@ impl AsyncRead for MixStreamReader {
 pub struct MixStreamWriter {
     sender: MixnetClientSender,
     peer: Recipient,
-    peer_surbs: Option<AnonymousSenderTag>,
+    peer_surb_tag: Option<AnonymousSenderTag>,
     surb_rx: Option<oneshot::Receiver<AnonymousSenderTag>>,
 }
 
 impl MixStreamWriter {
     /// Convenience method for just piping bytes into the Mixnet.
     pub async fn write_bytes(&mut self, data: &[u8]) -> Result<(), Error> {
-        if self.peer_surbs.is_none() {
+        if self.peer_surb_tag.is_none() {
             if let Some(mut rx) = self.surb_rx.take() {
                 if let Ok(surbs) = rx.try_recv() {
-                    self.peer_surbs = Some(surbs);
+                    self.peer_surb_tag = Some(surbs);
                 }
             }
         }
 
-        let input_message = if self.peer_surbs.is_some() {
+        let input_message = if self.peer_surb_tag.is_some() {
             InputMessage::Reply {
-                recipient_tag: (self.peer_surbs.expect("No Peer SURBs set")),
+                recipient_tag: (self.peer_surb_tag.expect("No Peer SURBs set")),
                 data: (data.to_owned()),
                 lane: (nym_task::connections::TransmissionLane::General),
                 max_retransmissions: (Some(5)), // TODO check with Drazen - guessing here
@@ -367,7 +363,7 @@ mod tests {
                 if let Ok(Some(decoded_message)) = codec.decode(&mut buf) {
                     let payload_surbs = decoded_message.sender_tag;
                     assert!(payload_surbs.is_some());
-                    receiver_stream.store_surbs(payload_surbs.unwrap());
+                    receiver_stream.store_surb_tag(payload_surbs.unwrap());
                     receiver_stream.write_bytes(b"Hello, Mixnet reply!").await?;
                 }
             }
@@ -443,7 +439,7 @@ mod tests {
                             );
 
                             if received_count == 0 && decoded_message.sender_tag.is_some() {
-                                receiver_reader.store_surbs(decoded_message.sender_tag.unwrap());
+                                receiver_reader.store_surb_tag(decoded_message.sender_tag.unwrap());
                                 info!("Stored SURBs");
                             }
 

@@ -5930,31 +5930,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "nym-gateway-directory"
-version = "0.0.0"
-dependencies = [
- "itertools 0.14.0",
- "nym-client-core",
- "nym-contracts-common",
- "nym-crypto",
- "nym-http-api-client",
- "nym-network-defaults",
- "nym-sphinx",
- "nym-sphinx-addressing",
- "nym-topology",
- "nym-validator-client",
- "rand 0.8.5",
- "serde",
- "serde_json",
- "strum",
- "thiserror 2.0.17",
- "tokio",
- "tokio-util",
- "tracing",
- "url",
-]
-
-[[package]]
 name = "nym-gateway-probe"
 version = "1.18.0"
 dependencies = [
@@ -6912,7 +6887,6 @@ dependencies = [
  "nym-credentials",
  "nym-credentials-interface",
  "nym-crypto",
- "nym-gateway-directory",
  "nym-gateway-requests",
  "nym-http-api-client",
  "nym-ip-packet-requests",

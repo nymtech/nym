@@ -7,7 +7,6 @@ pub use crate::mixnet::{
     InputMessage, MixnetClient, MixnetClientSender, MixnetMessageSender, Recipient,
     TransmissionLane,
 };
-use nym_gateway_directory::IpPacketRouterAddress;
 use nym_ip_packet_requests::IpPair;
 use tokio::time::sleep;
 use tokio_util::sync::CancellationToken;
@@ -59,10 +58,7 @@ impl IprClientConnect {
         }
     }
 
-    pub async fn connect(
-        &mut self,
-        ip_packet_router_address: IpPacketRouterAddress,
-    ) -> Result<IpPair> {
+    pub async fn connect(&mut self, ip_packet_router_address: Recipient) -> Result<IpPair> {
         if self.connected != ConnectionState::Disconnected {
             return Err(Error::AlreadyConnected);
         }
@@ -83,20 +79,14 @@ impl IprClientConnect {
         }
     }
 
-    async fn connect_inner(
-        &mut self,
-        ip_packet_router_address: IpPacketRouterAddress,
-    ) -> Result<IpPair> {
+    async fn connect_inner(&mut self, ip_packet_router_address: Recipient) -> Result<IpPair> {
         let request_id = self.send_connect_request(ip_packet_router_address).await?;
 
         debug!("Waiting for reply...");
         self.listen_for_connect_response(request_id).await
     }
 
-    async fn send_connect_request(
-        &mut self,
-        ip_packet_router_address: IpPacketRouterAddress,
-    ) -> Result<u64> {
+    async fn send_connect_request(&mut self, ip_packet_router_address: Recipient) -> Result<u64> {
         let (request, request_id) = IpPacketRequest::new_connect_request(None);
 
         // We use 20 surbs for the connect request because typically the IPR is configured to have

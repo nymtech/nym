@@ -1,4 +1,4 @@
-#![allow(deprecated)]
+#![allow(deprecated)] // silences clippy warning: use of deprecated associated function `nym_crypto::generic_array::GenericArray::<T, N>::clone_from_slice`: please upgrade to generic-array 1.x - TODO
 use std::future::Future;
 
 #[cfg(all(

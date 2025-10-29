@@ -1,8 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-// MAX: temp ignore deprecated, can be dealt with in its own PR (TODO)
-#![allow(deprecated)]
+#![allow(deprecated)] // silences clippy warning: deprecated associated function `generic_array::GenericArray::<T, N>::from_exact_iter`: please upgrade to generic-array 1.x - TODO
 
 #[cfg(feature = "asymmetric")]
 pub mod asymmetric;

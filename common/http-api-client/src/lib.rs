@@ -1,8 +1,8 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-// MAX: temp ignore deprecated, can be dealt with in its own PR (TODO)
 #![allow(deprecated)]
+// silences clippy warning: use of deprecated tuple variant `HttpClientError::GenericRequestFailure`: use another more strongly typed variant - this variant is only left for compatibility reasons - TODO
 
 //! Nym HTTP API Client
 //!

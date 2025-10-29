@@ -1,6 +1,6 @@
 // Copyright 2020-2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
-#![allow(deprecated)]
+#![allow(deprecated)] // silences clippy warning: deprecated associated function `nym_crypto::generic_array::GenericArray::<T, N>::clone_from_slice`: please upgrade to generic-array 1.x - TODO
 
 pub use nym_crypto::generic_array;
 use nym_crypto::OutputSizeUser;

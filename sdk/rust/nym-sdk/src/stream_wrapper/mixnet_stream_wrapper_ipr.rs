@@ -397,7 +397,7 @@ pub struct IpMixStreamReader {
 }
 
 impl IpMixStreamReader {
-    pub fn nym_address(&self) -> &Recipient {
+    pub fn nym_address(self) -> Recipient {
         self.stream_reader.local_addr()
     }
 

@@ -111,6 +111,12 @@ pub enum Error {
     #[error("client already connected or connecting")]
     IprStreamClientAlreadyConnectedOrConnecting,
 
+    #[error("trying to send an anonymous reply but peer surb tag is not set")]
+    MixStreamSurbTagNotSet,
+
+    #[error("trying to send an outgoing message but receipient address is not set")]
+    MixStreamRecipientNotSet,
+
     #[error("listening for connection response timed out")]
     IPRConnectResponseTimeout,
 

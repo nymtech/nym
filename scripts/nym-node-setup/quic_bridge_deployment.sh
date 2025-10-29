@@ -36,7 +36,6 @@ add_log_redirection() {
 }
 add_log_redirection
 
-
 # Constants / Paths
 REQUIRED_CMDS=(ip jq curl openssl wg dpkg)
 BRIDGE_BIN="/usr/local/bin/nym-bridge"
@@ -50,7 +49,6 @@ SERVICE_FILE="/etc/systemd/system/nym-bridge.service"
 
 NET_DEV="$(ip route show default 2>/dev/null | awk '/default/ {print $5}' || true)"
 WG_IFACE="nymwg"
-
 
 # Root check
 if [[ "$(id -u)" -ne 0 ]]; then
@@ -66,6 +64,102 @@ warn() { echo -e "${YELLOW}$1${RESET}"; }
 err() { echo -e "${RED}$1${RESET}"; }
 info() { echo -e "${CYAN}$1${RESET}"; }
 press_enter() { read -r -p "$1"; }
+
+# ------------------------------------------------------------
+# Helper: detect dpkg dependency failure for libc6>=2.34
+# ------------------------------------------------------------
+deb_depends_libc_too_old() {
+  # Grep dpkg -i output in log or run a dry call to dpkg -i with --unpack to observe code
+  # Simpler heuristic: check installed libc6 version
+  local v
+  v="$(dpkg-query -W -f='${Version}\n' libc6 2>/dev/null || true)"
+  # If no libc6, say "too old" to trigger source build
+  if [[ -z "$v" ]]; then return 0; fi
+  # Compare minimalistically: 2.34 vs current (2.31 typical on Debian 11)
+  dpkg --compare-versions "$v" ge "2.34" && return 1 || return 0
+}
+
+# ------------------------------------------------------------
+# Helper: ensure rust toolchain (for local build fallback)
+# ------------------------------------------------------------
+ensure_rustup() {
+  if ! command -v cargo >/dev/null 2>&1; then
+    info "Installing Rust toolchain (rustup)..."
+    apt-get update -y
+    DEBIAN_FRONTEND=noninteractive apt-get install -y ca-certificates curl build-essential pkg-config libssl-dev git
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+    export PATH="$HOME/.cargo/bin:$PATH"
+  else
+    export PATH="$HOME/.cargo/bin:$PATH"
+  fi
+}
+
+# ------------------------------------------------------------
+# Helper: clone and build from source at latest release tag
+# ------------------------------------------------------------
+build_from_source_latest() {
+  local repo_url="https://github.com/nymtech/nym-bridges.git"
+  local workdir="/tmp/nym-bridges"
+  local tag
+  info "Determining latest release tag from GitHub..."
+  tag="$(curl -fsSL https://api.github.com/repos/nymtech/nym-bridges/releases/latest | jq -r .tag_name 2>/dev/null || true)"
+  if [[ -z "$tag" || "$tag" == "null" ]]; then
+    warn "Could not detect tag automatically. Falling back to 'main'."
+    tag="main"
+  fi
+
+  info "Cloning $repo_url (tag/branch: $tag) into $workdir ..."
+  rm -rf "$workdir"
+  git clone --depth 1 --branch "$tag" "$repo_url" "$workdir"
+  (cd "$workdir" && cargo fetch)
+
+  info "Building from source (release)..."
+  (
+    cd "$workdir"
+    cargo build --release -p nym-bridge
+    cargo build --release -p bridge-cfg
+  )
+
+  # After build, binaries are typically in workspace target dir:
+  #   /tmp/nym-bridges/target/release/nym-bridge
+  #   /tmp/nym-bridges/target/release/bridge-cfg
+  # But some setups place them differently in nested crates. We'll search robustly.
+}
+
+# ------------------------------------------------------------
+# Helper: robustly locate and install a built binary from /tmp/nym-bridges
+# ------------------------------------------------------------
+install_built_binary() {
+  local name="$1"             # e.g., bridge-cfg or nym-bridge
+  local preferred="/tmp/nym-bridges/target/release/$name"
+
+  # Prefer the common workspace path first:
+  if [[ -x "$preferred" ]]; then
+    install -m 0755 "$preferred" "/usr/local/bin/$name"
+    ok "Installed $name from $preferred to /usr/local/bin/$name"
+    return 0
+  fi
+
+  # Try expected crate subpaths:
+  local alt1="/tmp/nym-bridges/$name/target/release/$name"
+  if [[ -x "$alt1" ]]; then
+    install -m 0755 "$alt1" "/usr/local/bin/$name"
+    ok "Installed $name from $alt1 to /usr/local/bin/$name"
+    return 0
+  fi
+
+  # Broader search within 8 levels:
+  local found
+  found="$(find /tmp/nym-bridges -maxdepth 8 -type f -name "$name" -perm -111 2>/dev/null | head -n1 || true)"
+  if [[ -n "$found" ]]; then
+    install -m 0755 "$found" "/usr/local/bin/$name"
+    ok "Installed $name from $found to /usr/local/bin/$name"
+    return 0
+  fi
+
+  err "Built $name not found under /tmp/nym-bridges after build."
+  return 1
+}
 
 # Prerequisites
 verify_bridge_prerequisites() {
@@ -120,16 +214,43 @@ install_bridge_binary() {
   fi
 
   info "Downloading from: $deb_url"
-  curl -fL -o /tmp/nym-bridge.deb "$deb_url"
-  dpkg -i /tmp/nym-bridge.deb || true
-  ok "nym-bridge installed."
+  curl -fL -o /tmp/nym-bridge.deb "$deb_url" || true
+
+  if [[ -s /tmp/nym-bridge.deb ]]; then
+    set +e
+    dpkg -i /tmp/nym-bridge.deb
+    local dpkg_rc=$?
+    set -e
+    if [[ $dpkg_rc -ne 0 ]]; then
+      warn "dpkg reported errors; checking for libc6>=2.34 requirement..."
+      if deb_depends_libc_too_old; then
+        warn "System libc6 appears older than 2.34. Building nym-bridge from source."
+        ensure_rustup
+        build_from_source_latest
+        install_built_binary "nym-bridge"
+      else
+        err "Failed to install nym-bridge .deb for non-libc reason; attempting source build."
+        ensure_rustup
+        build_from_source_latest
+        install_built_binary "nym-bridge"
+      fi
+    else
+      ok "nym-bridge installed via .deb."
+      # If the .deb already provided a service, do not overwrite. We'll respect postinst.
+    fi
+  else
+    warn "Download failed or empty. Building nym-bridge from source."
+    ensure_rustup
+    build_from_source_latest
+    install_built_binary "nym-bridge"
+  fi
 }
 
 # Install bridge-cfg
 install_bridge_cfg_tool() {
   title "Installing bridge-cfg Tool"
 
-  info "Fetching latest bridge-cfg from GitHub..."
+  info "Attempting to fetch latest bridge-cfg from GitHub..."
   local cfg_url
   cfg_url="$(curl -fsSL https://api.github.com/repos/nymtech/nym-bridges/releases/latest \
      | grep -Eo 'https://[^"]*/bridge-cfg' | head -n1 || true)"
@@ -140,9 +261,22 @@ install_bridge_cfg_tool() {
   fi
 
   info "Downloading: $cfg_url"
-  curl -fL -o "$BRIDGE_CFG_BIN" "$cfg_url"
-  chmod +x "$BRIDGE_CFG_BIN"
-  ok "bridge-cfg installed at $BRIDGE_CFG_BIN"
+  if curl -fL -o "$BRIDGE_CFG_BIN" "$cfg_url"; then
+    chmod +x "$BRIDGE_CFG_BIN"
+    if "$BRIDGE_CFG_BIN" --help >/dev/null 2>&1; then
+      ok "bridge-cfg installed at $BRIDGE_CFG_BIN"
+      return 0
+    else
+      warn "Prebuilt bridge-cfg is incompatible (likely GLIBC too old). Building locally..."
+    fi
+  else
+    warn "Failed to download bridge-cfg; building locally..."
+  fi
+
+  # Build from source and install robustly
+  ensure_rustup
+  build_from_source_latest
+  install_built_binary "bridge-cfg"
 }
 
 # Generate config via bridge-cfg (with backup)
@@ -175,8 +309,23 @@ run_bridge_cfg_generate() {
   cp "$NODE_CFG" "$BACKUP_FILE"
   ok "Backup created: $BACKUP_FILE"
 
+  # Ensure directories exist before running bridge-cfg to prevent "os error 2"
+  mkdir -p "$NYM_ETC_DIR" "$NYM_ETC_KEYS_DIR"
+  mkdir -p "$(dirname "$NYM_ETC_CLIENT_PARAMS_DEFAULT")"
+  chmod 700 "$NYM_ETC_DIR" "$NYM_ETC_KEYS_DIR"
+  touch "$NYM_ETC_CLIENT_PARAMS_DEFAULT" || true
+
   info "Running: bridge-cfg --gen -n \"$NODE_CFG\" -d \"$NYM_ETC_DIR\" -o \"$NYM_ETC_BRIDGES\""
+  set +e
   "$BRIDGE_CFG_BIN" --gen -n "$NODE_CFG" -d "$NYM_ETC_DIR" -o "$NYM_ETC_BRIDGES"
+
+
+  local rc=$?
+  set -e
+  if [[ $rc -ne 0 ]]; then
+    err "bridge-cfg failed to generate config. Aborting."
+    exit 1
+  fi
 
   chmod 600 "$NYM_ETC_BRIDGES"
   mkdir -p "$NYM_ETC_KEYS_DIR" && chmod 700 "$NYM_ETC_KEYS_DIR"
@@ -195,11 +344,21 @@ run_bridge_cfg_generate() {
 create_bridge_service() {
   title "Creating nym-bridge systemd Service"
 
-  SERVICE_FILE="/etc/systemd/system/nym-bridge.service"
-  mkdir -p /etc/systemd/system
+  # Respect a service provided by .deb postinst if present
+  if systemctl list-unit-files | grep -q '^nym-bridge\.service'; then
+    warn "Detected existing nym-bridge service (likely from .deb). Not overwriting."
+    systemctl daemon-reload || true
+    # If .deb created config, we won't touch it; otherwise we just start it.
+    systemctl enable nym-bridge >/dev/null || true
+    systemctl restart nym-bridge || true
+    ok "nym-bridge service managed by package; restarted."
+    return 0
+  fi
 
   if [[ ! -x "$BRIDGE_BIN" ]]; then err "Missing $BRIDGE_BIN"; exit 1; fi
   if [[ ! -f "$NYM_ETC_BRIDGES" ]]; then err "Missing $NYM_ETC_BRIDGES"; exit 1; fi
+
+  mkdir -p /etc/systemd/system
 
   cat > "$SERVICE_FILE" <<EOF
 [Unit]
@@ -302,7 +461,7 @@ full_bridge_setup() {
 
   echo ""
   echo -e "${YELLOW}------------------------------------------${RESET}"
-  echo -e "${GREEN}All done! You can safely close this session.${RESET}"
+  echo -e "All done! You can safely close this session."
   echo -e "${YELLOW}------------------------------------------${RESET}"
   echo ""
   echo "Logs saved locally at: $LOG_FILE"
@@ -374,10 +533,10 @@ case "${1:-}" in
     echo -e "\nUsage: $0 [command]\n"
     echo "Commands:"
     echo "  full_bridge_setup            - Run full setup"
-    echo "  install_bridge_binary        - Install nym-bridge"
-    echo "  install_bridge_cfg_tool      - Install bridge-cfg"
+    echo "  install_bridge_binary        - Install nym-bridge (.deb; falls back to source build if libc too old)"
+    echo "  install_bridge_cfg_tool      - Install bridge-cfg (prebuilt; falls back to source build if libc too old)"
     echo "  run_bridge_cfg_generate      - Generate bridges.toml"
-    echo "  create_bridge_service        - Setup systemd service"
+    echo "  create_bridge_service        - Setup systemd service (respects .deb-provided service)"
     echo "  adjust_ip_forwarding         - Enable forwarding"
     echo "  apply_bridge_iptables_rules  - NAT rules"
     echo "  configure_dns_and_icmp       - Allow ICMP/DNS"

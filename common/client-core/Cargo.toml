@@ -11,7 +11,7 @@ license.workspace = true
 [dependencies]
 async-trait = { workspace = true }
 bincode = { workspace = true }
-base64 = "0.21.2"
+base64 = { workspace = true }
 bs58 = { workspace = true }
 clap = { workspace = true, optional = true }
 cfg-if = { workspace = true }

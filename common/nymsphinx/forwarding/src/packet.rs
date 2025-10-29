@@ -179,30 +179,19 @@ impl MixPacket {
         })
     }
 
-    pub fn into_v2_bytes(&self) -> Result<Vec<u8>, MixPacketFormattingError> {
+    pub fn to_v2_bytes(&self) -> Result<Vec<u8>, MixPacketFormattingError> {
         Ok(std::iter::once(self.packet_type as u8)
             .chain(std::iter::once(self.key_rotation as u8))
             .chain(self.next_hop.as_bytes())
             .chain(self.packet.to_bytes()?)
             .collect())
     }
-
-    /*
-    * =======
-        pub fn to_bytes(&self) -> Result<Vec<u8>, MixPacketFormattingError> {
-            Ok(std::iter::once(self.packet_type as u8)
-    >>>>>>> 1926e2950 (InputMessageCodec, Serde for MixPacket)
-                .chain(self.next_hop.as_bytes())
-                .chain(self.packet.to_bytes()?)
-                .collect())
-    */
 }
 
-// MAX TODO implement for v1 as well for back compat - this was added in the original asyncread/write work when we only had one v
+// MAX TODO implement for v1 as well for back compat? - this was added in the original asyncread/write work when we only had one v
 impl Serialize for MixPacket {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        serializer.serialize_bytes(&self.into_v2_bytes().map_err(serde::ser::Error::custom)?)
-        // serializer.serialize_bytes(&self.to_bytes().map_err(serde::ser::Error::custom)?)
+        serializer.serialize_bytes(&self.to_v2_bytes().map_err(serde::ser::Error::custom)?)
     }
 }
 

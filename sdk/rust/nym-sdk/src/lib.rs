@@ -2,8 +2,8 @@
 //!
 //! The main component currently is [`mixnet`].
 //! [`client_pool`] is a configurable client pool.
-//!
-//! TODO OTHER MODULES
+//! [`tcp_proxy`] is a soon to be deprecated wrapper around the mixnet client which exposes a localhost port.
+//! [`stream_wrapper`] is the v2 of the tcp_proxy, exposing a socket-like abstraction around the mixnet client.
 
 mod error;
 

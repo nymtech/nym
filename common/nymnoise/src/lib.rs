@@ -20,7 +20,7 @@ use crate::{
 
 const NOISE_PSK_PREFIX: &[u8] = b"NYMTECH_NOISE_dQw4w9WgXcQ";
 
-pub(crate) const NOISE_PSQ_DEFAULT_CONTEXT: &'static [u8; CONTEXT_LEN] = b"Exsl88AD2ccS99kk";
+pub(crate) const NOISE_PSQ_DEFAULT_CONTEXT: &[u8; CONTEXT_LEN] = b"Exsl88AD2ccS99kk";
 pub(crate) const NOISE_PSQ_DEFAULT_DURATION_SECS: u64 = 1000;
 
 pub const LATEST_NOISE_VERSION: NoiseVersion = NoiseVersion::V2;

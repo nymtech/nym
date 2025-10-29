@@ -29,7 +29,7 @@ pub struct PSQInitiator<T: PSQ> {
     _t: PhantomData<T>,
 }
 
-impl<'a, T: PSQ> PSQInitiator<T> {
+impl<T: PSQ> PSQInitiator<T> {
     pub fn init(signing_key: impl AsRef<[u8]>, verification_key: impl AsRef<[u8]>) -> Self {
         let mut sig_key: [u8; 32] = [0u8; 32];
         sig_key.clone_from_slice(signing_key.as_ref());
@@ -143,7 +143,7 @@ where
             context,
             self.kem_public_key,
             self.kem_private_key,
-            &initiator_verification_key,
+            initiator_verification_key,
             &deserialized_initiator_message,
         )?;
 

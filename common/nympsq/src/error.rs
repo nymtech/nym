@@ -35,7 +35,7 @@ impl From<libcrux_kem::Error> for PSQError {
     fn from(err: libcrux_kem::Error) -> Self {
         match err {
             // Error::Decrypt => PSQError::DecryptionError,
-            err => PSQError::KEMError,
+            _err => PSQError::KEMError,
         }
     }
 }
@@ -44,7 +44,7 @@ impl From<libcrux_psq::Error> for PSQError {
     fn from(err: libcrux_psq::Error) -> Self {
         match err {
             // Error::Decrypt => PSQError::DecryptionError,
-            err => PSQError::PSQError,
+            _err => PSQError::PSQError,
         }
     }
 }
@@ -52,7 +52,7 @@ impl From<libcrux_psq::Error> for PSQError {
 impl From<tls_codec::Error> for PSQError {
     fn from(err: tls_codec::Error) -> Self {
         match err {
-            err => PSQError::SerializationError,
+            _err => PSQError::SerializationError,
         }
     }
 }

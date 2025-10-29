@@ -23,6 +23,7 @@ mod codec;
 mod framing;
 
 const TAGLEN: usize = 16;
+// This needs to be increased when using psq
 const HANDSHAKE_MAX_LEN: usize = 1024; // using this constant to limit the handshake's buffer size
 
 pub(crate) type Psk = [u8; 32];
@@ -77,23 +78,24 @@ impl<C> NoiseStreamBuilder<C> {
                     )?;
                     handshake.set_psk(
                         pattern.psk_position() as usize,
+                        //
                         &psq_initiator.get_psk().unwrap(),
                     )?;
                     payload
                 }
                 (None, None) => {
                     return Err(NoiseError::MissingField {
-                        info: format!("Missing Local Signing Key and Local Verification Key"),
+                        info: "Missing Local Signing Key and Local Verification Key",
                     })
                 }
                 (None, _) => {
                     return Err(NoiseError::MissingField {
-                        info: format!("Local Signing Key"),
+                        info: "Local Signing Key",
                     })
                 }
                 (_, None) => {
                     return Err(NoiseError::MissingField {
-                        info: format!("Local Verification Key"),
+                        info: "Local Verification Key",
                     })
                 }
             },
@@ -199,7 +201,7 @@ impl<C> NoiseStreamBuilder<C> {
                 }
                 None => {
                     return Err(NoiseError::MissingField {
-                        info: format!("Initiator Verification Key"),
+                        info: "Initiator Verification Key",
                     })
                 }
             },

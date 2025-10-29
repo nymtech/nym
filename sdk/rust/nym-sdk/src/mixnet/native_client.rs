@@ -304,24 +304,6 @@ impl MixnetClient {
             }
         }
     }
-    // fn read_buffer_to_slice(
-    //     &mut self,
-    //     buf: &mut [u8],
-    //     cx: &mut Context<'_>,
-    // ) -> Poll<std::result::Result<usize, std::io::Error>> {
-    //     if self._read.buffer.len() < buf.len() {
-    //         let written = self._read.buffer.len();
-    //         buf[..written].copy_from_slice(&self._read.buffer);
-    //         self._read.clear();
-    //         Poll::Ready(Ok(written))
-    //     } else {
-    //         let written = buf.len();
-    //         buf.copy_from_slice(&self._read.buffer[..written]);
-    //         self._read.buffer = self._read.buffer[written..].to_vec();
-    //         cx.waker().wake_by_ref();
-    //         Poll::Ready(Ok(written))
-    //     }
-    // }
 
     fn read_buffer_to_slice(
         &mut self,

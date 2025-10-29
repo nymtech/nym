@@ -105,9 +105,7 @@ pub fn kkt_benchmark(c: &mut Criterion) {
                         kem, hash_function
                     ),
                     |b| {
-                        b.iter(|| {
-                            anonymous_initiator_process(&mut rng, ciphersuite).unwrap();
-                        });
+                        b.iter(|| anonymous_initiator_process(&mut rng, ciphersuite).unwrap());
                     },
                 );
 
@@ -119,11 +117,7 @@ pub fn kkt_benchmark(c: &mut Criterion) {
                         "{}, {} | Anonymous Initiator: Encode Frame - Request",
                         kem, hash_function
                     ),
-                    |b| {
-                        b.iter(|| {
-                            i_frame.to_bytes();
-                        });
-                    },
+                    |b| b.iter(|| i_frame.to_bytes()),
                 );
 
                 let i_frame_bytes = i_frame.to_bytes();
@@ -133,11 +127,7 @@ pub fn kkt_benchmark(c: &mut Criterion) {
                         "{}, {} | Anonymous Initiator: Decode Frame - Request",
                         kem, hash_function
                     ),
-                    |b| {
-                        b.iter(|| {
-                            KKTFrame::from_bytes(&i_frame_bytes).unwrap();
-                        });
-                    },
+                    |b| b.iter(|| KKTFrame::from_bytes(&i_frame_bytes).unwrap()),
                 );
 
                 let (i_frame_r, r_context) = KKTFrame::from_bytes(&i_frame_bytes).unwrap();
@@ -149,7 +139,7 @@ pub fn kkt_benchmark(c: &mut Criterion) {
                     ),
                     |b| {
                         b.iter(|| {
-                            responder_ingest_message(&r_context, None, None, &i_frame_r).unwrap();
+                            responder_ingest_message(&r_context, None, None, &i_frame_r).unwrap()
                         });
                     },
                 );
@@ -170,7 +160,7 @@ pub fn kkt_benchmark(c: &mut Criterion) {
                                 responder_ed25519_keypair.private_key(),
                                 &responder_kem_public_key,
                             )
-                            .unwrap();
+                            .unwrap()
                         });
                     },
                 );
@@ -187,11 +177,7 @@ pub fn kkt_benchmark(c: &mut Criterion) {
                         "{}, {} | Anonymous Initiator: Responder Encode Frame",
                         kem, hash_function
                     ),
-                    |b| {
-                        b.iter(|| {
-                            r_frame.to_bytes();
-                        });
-                    },
+                    |b| b.iter(|| r_frame.to_bytes()),
                 );
 
                 let r_bytes = r_frame.to_bytes();
@@ -209,7 +195,7 @@ pub fn kkt_benchmark(c: &mut Criterion) {
                                 &r_dir_hash,
                                 &r_bytes,
                             )
-                            .unwrap();
+                            .unwrap()
                         });
                     },
                 );
@@ -237,7 +223,7 @@ pub fn kkt_benchmark(c: &mut Criterion) {
 
                 c.bench_function(
                     &format!(
-                        "{}, {} | Initiator Mutual: Generate Request",
+                        "{}, {} | Initiator OneWay: Generate Request",
                         kem, hash_function
                     ),
                     |b| {
@@ -249,7 +235,7 @@ pub fn kkt_benchmark(c: &mut Criterion) {
                                 initiator_ed25519_keypair.private_key(),
                                 None,
                             )
-                            .unwrap();
+                            .unwrap()
                         });
                     },
                 );
@@ -259,11 +245,7 @@ pub fn kkt_benchmark(c: &mut Criterion) {
                         "{}, {} | Initiator OneWay: Encode Frame - Request",
                         kem, hash_function
                     ),
-                    |b| {
-                        b.iter(|| {
-                            i_frame.to_bytes();
-                        });
-                    },
+                    |b| b.iter(|| i_frame.to_bytes()),
                 );
 
                 let i_frame_bytes = i_frame.to_bytes();
@@ -273,11 +255,7 @@ pub fn kkt_benchmark(c: &mut Criterion) {
                         "{}, {} | Initiator OneWay: Decode Frame - Request",
                         kem, hash_function
                     ),
-                    |b| {
-                        b.iter(|| {
-                            KKTFrame::from_bytes(&i_frame_bytes).unwrap();
-                        });
-                    },
+                    |b| b.iter(|| KKTFrame::from_bytes(&i_frame_bytes).unwrap()),
                 );
 
                 let (i_frame_r, r_context) = KKTFrame::from_bytes(&i_frame_bytes).unwrap();
@@ -295,7 +273,7 @@ pub fn kkt_benchmark(c: &mut Criterion) {
                                 None,
                                 &i_frame_r,
                             )
-                            .unwrap();
+                            .unwrap()
                         });
                     },
                 );
@@ -323,7 +301,7 @@ pub fn kkt_benchmark(c: &mut Criterion) {
                                 responder_ed25519_keypair.private_key(),
                                 &responder_kem_public_key,
                             )
-                            .unwrap();
+                            .unwrap()
                         });
                     },
                 );
@@ -342,9 +320,7 @@ pub fn kkt_benchmark(c: &mut Criterion) {
                         kem, hash_function
                     ),
                     |b| {
-                        b.iter(|| {
-                            r_frame.to_bytes();
-                        });
+                        b.iter(|| r_frame.to_bytes());
                     },
                 );
 
@@ -363,7 +339,7 @@ pub fn kkt_benchmark(c: &mut Criterion) {
                                 &r_dir_hash,
                                 &r_bytes,
                             )
-                            .unwrap();
+                            .unwrap()
                         });
                     },
                 );
@@ -395,7 +371,7 @@ pub fn kkt_benchmark(c: &mut Criterion) {
                                 initiator_ed25519_keypair.private_key(),
                                 Some(&initiator_kem_public_key),
                             )
-                            .unwrap();
+                            .unwrap()
                         });
                     },
                 );
@@ -415,9 +391,7 @@ pub fn kkt_benchmark(c: &mut Criterion) {
                         kem, hash_function
                     ),
                     |b| {
-                        b.iter(|| {
-                            i_frame.to_bytes();
-                        });
+                        b.iter(|| i_frame.to_bytes());
                     },
                 );
 
@@ -429,9 +403,7 @@ pub fn kkt_benchmark(c: &mut Criterion) {
                         kem, hash_function
                     ),
                     |b| {
-                        b.iter(|| {
-                            KKTFrame::from_bytes(&i_frame_bytes).unwrap();
-                        });
+                        b.iter(|| KKTFrame::from_bytes(&i_frame_bytes).unwrap());
                     },
                 );
 
@@ -450,7 +422,7 @@ pub fn kkt_benchmark(c: &mut Criterion) {
                                 Some(&i_dir_hash),
                                 &i_frame_r,
                             )
-                            .unwrap();
+                            .unwrap()
                         });
                     },
                 );
@@ -478,7 +450,7 @@ pub fn kkt_benchmark(c: &mut Criterion) {
                                 responder_ed25519_keypair.private_key(),
                                 &responder_kem_public_key,
                             )
-                            .unwrap();
+                            .unwrap()
                         });
                     },
                 );
@@ -518,7 +490,7 @@ pub fn kkt_benchmark(c: &mut Criterion) {
                                 &r_dir_hash,
                                 &r_bytes,
                             )
-                            .unwrap();
+                            .unwrap()
                         });
                     },
                 );

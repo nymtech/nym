@@ -315,6 +315,7 @@ rand_distr = "0.4"
 rayon = "1.5.1"
 regex = "1.10.6"
 reqwest = { version = "0.12.15", default-features = false }
+rustls = { version = "0.23", default-features = false, features = ["std", "ring"] }
 rs_merkle = "1.5.0"
 schemars = "0.8.22"
 semver = "1.0.26"
@@ -329,6 +330,7 @@ serde_yaml = "0.9.25"
 serde_plain = "1.0.2"
 sha2 = "0.10.9"
 si-scale = "0.2.3"
+smoltcp = "0.12"
 snow = "0.9.6"
 sphinx-packet = "=0.6.0"
 sqlx = "0.8.6"
@@ -373,6 +375,7 @@ uuid = "*"
 vergen = { version = "=8.3.1", default-features = false }
 vergen-gitcl = { version = "1.0.8", default-features = false }
 walkdir = "2"
+webpki-roots = "1.0.2"
 x25519-dalek = "2.0.0"
 zeroize = "1.7.0"
 

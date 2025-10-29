@@ -5,7 +5,7 @@ edition = "2021"
 license.workspace = true
 
 [dependencies]
-smoltcp = { version = "0.12", default-features = false, features = [
+smoltcp = { workspace = true, default-features = false, features = [
     "std",
     "medium-ip",
     "proto-ipv4",
@@ -21,8 +21,10 @@ nym-bin-common = { path = "../common/bin-common", features = ["basic_tracing"] }
 nym-sdk = { path = "../sdk/rust/nym-sdk" }
 nym-ip-packet-requests = { path = "../common/ip-packet-requests" }
 thiserror.workspace = true
+rustls  = { workspace = true }
+
+[dev-dependencies]
 reqwest.workspace = true
 dirs.workspace = true
-rustls  = { version = "0.23", default-features = false, features = ["std"] }
-webpki-roots = "1.0.2"
+webpki-roots.workspace = true
 serde_json.workspace = true

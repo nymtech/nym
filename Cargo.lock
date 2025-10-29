@@ -5216,7 +5216,7 @@ name = "nym-client-core"
 version = "1.1.15"
 dependencies = [
  "async-trait",
- "base64 0.21.7",
+ "base64 0.22.1",
  "bincode",
  "bs58",
  "cfg-if",

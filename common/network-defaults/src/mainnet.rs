@@ -158,7 +158,6 @@ pub fn export_to_env() {
     set_var_to_default(var_names::NYM_API, NYM_API);
     set_var_to_default(var_names::NYXD_WEBSOCKET, NYXD_WS);
     set_var_to_default(var_names::EXIT_POLICY_URL, EXIT_POLICY_URL);
-    set_var_to_default(var_names::NYM_VPN_API, NYM_VPN_API);
 }
 
 #[cfg(all(feature = "env", feature = "network"))]

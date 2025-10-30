@@ -23,7 +23,6 @@ pub const NYXD: &str = "NYXD";
 pub const NYM_API: &str = "NYM_API";
 pub const NYXD_WEBSOCKET: &str = "NYXD_WS";
 pub const EXIT_POLICY_URL: &str = "EXIT_POLICY";
-pub const NYM_VPN_API: &str = "NYM_VPN_API";
 pub const CLIENT_STATS_COLLECTION_PROVIDER: &str = "CLIENT_STATS_COLLECTION_PROVIDER";
 
 pub const DKG_TIME_CONFIGURATION: &str = "DKG_TIME_CONFIGURATION";

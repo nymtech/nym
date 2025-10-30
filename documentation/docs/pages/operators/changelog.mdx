@@ -49,6 +49,90 @@ This page displays a full list of all the changes during our release cycle from 
 
 <VarInfo />
 
+## `v2025.19-kase`
+
+- [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.19-kase)
+- [`nym-node`](nodes/nym-node.mdx) version `1.20.0`
+
+```sh
+nym-node
+Binary Name:        nym-node
+Build Timestamp:    2025-10-30T12:43:37.933354749Z
+Build Version:      1.20.0
+Commit SHA:         75a6d3426bd18dca600ad1cfa39b0a3c4f319c69
+Commit Date:        2025-10-30T11:59:32.000000000+01:00
+Commit Branch:      HEAD
+rustc Version:      1.88.0
+rustc Channel:      stable
+cargo Profile:      release
+```
+
+### Operators Updates & Tools
+
+<Callout type="info" emoji="ℹ️">
+**When this platform release becomes latest, we would like to ask operators ruuning any Gateway mode of `nym-node`, to use new version of [QUIC brige deployment tool](https://github.com/nymtech/nym/blob/develop/scripts/nym-node-setup/quic_bridge_deployment.sh)and install QUIC `nym-bridge` on their server, following [these steps](#quic-transport-bridge-deployment).**
+</Callout>
+
+Alongside this platform release we are happy to introduce several improvements and new tools for node operators.
+
+- [Updated version of QUIC brige deployment tool](https://github.com/nymtech/nym/blob/develop/scripts/nym-node-setup/quic_bridge_deployment.sh), **if you run in any Gateway mode, please install QUICK on your server, following [these steps](#quic-transport-bridge-deployment)**
+
+- [New **Nym Node Status Dashboard**](https://node-status.nym.com)
+
+- [New **Harbourmaster** aka ***Nym Node Status Observatory***](https://harbourmaster.nymtech.net)
+
+
+
+### Features
+
+- [Propagate cancel token to mixnet client](https://github.com/nymtech/nym/pull/6105): Ensures cancellation token propagation to mixnet client
+
+- [[DOCs/operators] QUIC deployment script & docs](https://github.com/nymtech/nym/pull/6098): Script and documentation for QUIC deployment, referencing `nym-bridges` repository  
+
+- [Move gateway probe to monorepo (Rust edition 2024)](https://github.com/nymtech/nym/pull/6094): Moves `nym-gateway-probe` and related packages into monorepo, updates to Rust 2024 edition
+
+- [Expose reference to Mnemonic from `DirectSecp256k1HdWallet`](https://github.com/nymtech/nym/pull/6083): Adds safer accessors for mnemonic references and deprecates unsafe cloning
+
+### Bugfix
+
+- [Cherry pick - request #6143 from nymtech/bugfix/mix-tx-closed-v2](https://github.com/nymtech/nym/pull/6153): Add circuit breaker  
+<AccordionTemplate name={<TestingSteps/>}>
+ **Summary:**
+- Network-requester started successfully  
+- SOCKS5 client started successfully  
+- Traffic was proxied through the mixnet  
+- Shutdown was clean  
+- No 'channel closed (outside of shutdown!)' errors  
+</AccordionTemplate>
+
+- [`nym-credential-proxy` query params parsing regression](https://github.com/nymtech/nym/pull/6121): Fix query deserialization issue with `serde_urlencoded` breaking compatibility with VPN API
+
+- [Revert some dep updates introduced in #6043](https://github.com/nymtech/nym/pull/6120): Revert dependency updates that broke ANSI escape characters within tracing output
+
+- [Skip IPv6 metadata endpoint request](https://github.com/nymtech/nym/pull/6118): Skip querying IPv4-only metadata endpoints during IPv6 probing tests
+
+- [Revert "Propagate cancel token to mixnet client"](https://github.com/nymtech/nym/pull/6115): Reverts earlier change due to premature mixnet exit issues
+
+- [Retrieve and update ticketbook in the same query](https://github.com/nymtech/nym/pull/6101): Fix concurrency issue with multiple agents retrieving ticketbooks simultaneously
+
+- [Include network name in default gateway probe config path](https://github.com/nymtech/nym/pull/6100): Prevents reuse of credentials across different networks
+
+- [Incompatibility fixes](https://github.com/nymtech/nym/pull/6099): Fixes several incompatibilities, including initialization and build mismatches
+
+- [Testnet manager `02sql` migration](https://github.com/nymtech/nym/pull/6096): Fix invalid FK constraint blocking SQL migration
+
+- [Use custom topology provider for list of init gateways](https://github.com/nymtech/nym/pull/6092): Fixes SDK bug where clients ignored custom topology provider on registration
+
+- [Fix `WASM` client + build commands](https://github.com/nymtech/nym/pull/6043): Fixes WASM client hang and runtime time-related issues; improves internal dev testing stability
+
+### Refactors & Maintenance
+
+- [Update to no longer use 1mb files](https://github.com/nymtech/nym/pull/6117)
+
+- [Restore pending DKG contract state migration](https://github.com/nymtech/nym/pull/6116)
+
+- [Update `dirs` to `6.0`](https://github.com/nymtech/nym/pull/6109): Minor dependency update, safe for compatibility
+
 ## `v2025.18-jarlsberg`
 
 - [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.18-jarlsberg)

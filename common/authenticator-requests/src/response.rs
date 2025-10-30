@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::traits::{
-    Id, PendingRegistrationResponse, RegisteredResponse, RemainingBandwidthResponse,
-    TopUpBandwidthResponse,
+    CurrentUpgradeModeStatus, Id, PendingRegistrationResponse, RegisteredResponse,
+    RemainingBandwidthResponse, TopUpBandwidthResponse, UpgradeModeStatus,
 };
-use crate::{v2, v3, v4, v5};
+use crate::{v2, v3, v4, v5, v6};
 
 #[derive(Debug)]
 pub enum AuthenticatorResponse {
@@ -13,6 +13,25 @@ pub enum AuthenticatorResponse {
     Registered(Box<dyn RegisteredResponse + Send + Sync + 'static>),
     RemainingBandwidth(Box<dyn RemainingBandwidthResponse + Send + Sync + 'static>),
     TopUpBandwidth(Box<dyn TopUpBandwidthResponse + Send + Sync + 'static>),
+}
+
+impl UpgradeModeStatus for AuthenticatorResponse {
+    fn upgrade_mode_status(&self) -> CurrentUpgradeModeStatus {
+        match self {
+            AuthenticatorResponse::PendingRegistration(pending_registration_response) => {
+                pending_registration_response.upgrade_mode_status()
+            }
+            AuthenticatorResponse::Registered(registered_response) => {
+                registered_response.upgrade_mode_status()
+            }
+            AuthenticatorResponse::RemainingBandwidth(remaining_bandwidth_response) => {
+                remaining_bandwidth_response.upgrade_mode_status()
+            }
+            AuthenticatorResponse::TopUpBandwidth(top_up_bandwidth_response) => {
+                top_up_bandwidth_response.upgrade_mode_status()
+            }
+        }
+    }
 }
 
 impl Id for AuthenticatorResponse {
@@ -99,6 +118,25 @@ impl From<v5::response::AuthenticatorResponse> for AuthenticatorResponse {
                 remaining_bandwidth_response,
             ) => Self::RemainingBandwidth(Box::new(remaining_bandwidth_response)),
             v5::response::AuthenticatorResponseData::TopUpBandwidth(top_up_bandwidth_response) => {
+                Self::TopUpBandwidth(Box::new(top_up_bandwidth_response))
+            }
+        }
+    }
+}
+
+impl From<v6::response::AuthenticatorResponse> for AuthenticatorResponse {
+    fn from(value: v6::response::AuthenticatorResponse) -> Self {
+        match value.data {
+            v6::response::AuthenticatorResponseData::PendingRegistration(
+                pending_registration_response,
+            ) => Self::PendingRegistration(Box::new(pending_registration_response)),
+            v6::response::AuthenticatorResponseData::Registered(registered_response) => {
+                Self::Registered(Box::new(registered_response))
+            }
+            v6::response::AuthenticatorResponseData::RemainingBandwidth(
+                remaining_bandwidth_response,
+            ) => Self::RemainingBandwidth(Box::new(remaining_bandwidth_response)),
+            v6::response::AuthenticatorResponseData::TopUpBandwidth(top_up_bandwidth_response) => {
                 Self::TopUpBandwidth(Box::new(top_up_bandwidth_response))
             }
         }

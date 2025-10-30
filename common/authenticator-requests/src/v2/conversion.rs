@@ -154,8 +154,8 @@ impl From<v2::registration::RegistrationData> for v1::registration::Registration
     }
 }
 
-impl From<v2::registration::RegistredData> for v1::registration::RegistredData {
-    fn from(value: v2::registration::RegistredData) -> Self {
+impl From<v2::registration::RegisteredData> for v1::registration::RegisteredData {
+    fn from(value: v2::registration::RegisteredData) -> Self {
         Self {
             pub_key: value.pub_key,
             private_ip: value.private_ip,

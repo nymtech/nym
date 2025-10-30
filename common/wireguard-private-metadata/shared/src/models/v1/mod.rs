@@ -3,15 +3,13 @@
 
 use std::fmt::Display;
 
-use bincode::Options;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-use super::error::Error;
 use crate::{
-    make_bincode_serializer,
-    models::{Request, Response, Version},
+    impl_default_bincode_request_conversions, impl_default_bincode_response_conversions,
+    models::Version,
 };
 
 pub use available_bandwidth::{
@@ -31,7 +29,7 @@ pub const VERSION: Version = Version::V1;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema, ToSchema)]
 pub enum QueryType {
     AvailableBandwidth,
-    TopupBandwidth,
+    TopUpBandwidth,
 }
 
 impl Display for QueryType {
@@ -45,82 +43,44 @@ pub struct VersionedRequest {
     query_type: QueryType,
     inner: Vec<u8>,
 }
-
-impl TryFrom<VersionedRequest> for Request {
-    type Error = Error;
-
-    fn try_from(value: VersionedRequest) -> Result<Self, Self::Error> {
-        Ok(Request {
-            version: VERSION,
-            inner: make_bincode_serializer().serialize(&value)?,
-        })
-    }
-}
-
-impl TryFrom<Request> for VersionedRequest {
-    type Error = Error;
-
-    fn try_from(value: Request) -> Result<Self, Self::Error> {
-        if value.version != VERSION {
-            return Err(Error::InvalidVersion {
-                source_version: value.version,
-                target_version: VERSION,
-            });
-        }
-        Ok(make_bincode_serializer().deserialize(&value.inner)?)
-    }
-}
+// Implements:
+// - TryFrom<&VersionedRequest> for Request
+// - TryFrom<VersionedRequest> for Request
+// - TryFrom<&Request> for VersionedRequest
+// - TryFrom<Request> for VersionedRequest
+impl_default_bincode_request_conversions!(VersionedRequest, VERSION);
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema, ToSchema)]
 pub struct VersionedResponse {
     query_type: QueryType,
     inner: Vec<u8>,
 }
-
-impl TryFrom<VersionedResponse> for Response {
-    type Error = Error;
-
-    fn try_from(value: VersionedResponse) -> Result<Self, Self::Error> {
-        Ok(Response {
-            version: VERSION,
-            inner: make_bincode_serializer().serialize(&value)?,
-        })
-    }
-}
-
-impl TryFrom<Response> for VersionedResponse {
-    type Error = Error;
-
-    fn try_from(value: Response) -> Result<Self, Self::Error> {
-        if value.version != VERSION {
-            return Err(Error::InvalidVersion {
-                source_version: value.version,
-                target_version: VERSION,
-            });
-        }
-        Ok(make_bincode_serializer().deserialize(&value.inner)?)
-    }
-}
+// Implements:
+// - TryFrom<&VersionedResponse> for Response
+// - TryFrom<VersionedResponse> for Response
+// - TryFrom<&Response> for VersionedResponse
+// - TryFrom<Response> for VersionedResponse
+impl_default_bincode_response_conversions!(VersionedResponse, VERSION);
 
 #[cfg(test)]
 mod tests {
-
-    use nym_credentials_interface::CredentialSpendingData;
-
-    use crate::models::tests::CREDENTIAL_BYTES;
-
     use self::{
         available_bandwidth::{
             request::InnerAvailableBandwidthRequest, response::InnerAvailableBandwidthResponse,
         },
         topup_bandwidth::{request::InnerTopUpRequest, response::InnerTopUpResponse},
     };
+    use crate::models::error::Error;
+    use crate::models::tests::CREDENTIAL_BYTES;
+    use crate::{Request, Response, make_bincode_serializer};
+    use bincode::Options;
+    use nym_credentials_interface::CredentialSpendingData;
 
     use super::*;
 
     #[test]
     fn mismatched_request_version() {
-        let version = Version::V0;
+        let version = Version::V2;
         let future_bw = Request {
             version,
             inner: vec![],
@@ -139,7 +99,7 @@ mod tests {
 
     #[test]
     fn mismatched_response_version() {
-        let version = Version::V0;
+        let version = Version::V2;
         let future_bw = Response {
             version,
             inner: vec![],
@@ -191,7 +151,7 @@ mod tests {
     #[test]
     fn serde_request_topup() {
         let req = VersionedRequest {
-            query_type: QueryType::TopupBandwidth,
+            query_type: QueryType::TopUpBandwidth,
             inner: make_bincode_serializer()
                 .serialize(&InnerTopUpRequest {
                     credential: CredentialSpendingData::try_from_bytes(&CREDENTIAL_BYTES).unwrap(),
@@ -208,7 +168,7 @@ mod tests {
     #[test]
     fn serde_response_topup() {
         let resp = VersionedResponse {
-            query_type: QueryType::TopupBandwidth,
+            query_type: QueryType::TopUpBandwidth,
             inner: make_bincode_serializer()
                 .serialize(&InnerTopUpResponse {
                     available_bandwidth: 42,

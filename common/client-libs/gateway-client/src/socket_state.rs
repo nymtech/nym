@@ -10,7 +10,9 @@ use futures::channel::oneshot;
 use futures::stream::{SplitSink, SplitStream};
 use futures::{SinkExt, StreamExt};
 use nym_gateway_requests::shared_key::SharedGatewayKey;
-use nym_gateway_requests::{SensitiveServerResponse, ServerResponse, SimpleGatewayRequestsError};
+use nym_gateway_requests::{
+    SendResponse, SensitiveServerResponse, ServerResponse, SimpleGatewayRequestsError,
+};
 use nym_task::ShutdownToken;
 use si_scale::helpers::bibytes2;
 use std::os::raw::c_int as RawFd;
@@ -154,11 +156,12 @@ impl PartiallyDelegatedRouter {
     fn handle_text_message(&self, text: String) -> Result<(), GatewayClientError> {
         // if we fail to deserialise the response, return a hard error. we can't handle garbage
         match ServerResponse::try_from(text).map_err(|_| GatewayClientError::MalformedResponse)? {
-            ServerResponse::Send {
+            ServerResponse::Send(SendResponse {
                 remaining_bandwidth,
-            } => {
+                upgrade_mode,
+            }) => {
                 self.client_bandwidth
-                    .update_and_maybe_log(remaining_bandwidth);
+                    .update_and_maybe_log(remaining_bandwidth, upgrade_mode);
                 Ok(())
             }
             ServerResponse::Error { message } => {
@@ -174,7 +177,7 @@ impl PartiallyDelegatedRouter {
                         let available_bi2 = bibytes2(available as f64);
                         let required_bi2 = bibytes2(required as f64);
                         warn!("run out of bandwidth when attempting to send the message! we got {available_bi2} available, but needed at least {required_bi2} to send the previous message");
-                        self.client_bandwidth.update_and_log(available);
+                        self.client_bandwidth.update_and_log(available, None);
                         // UNIMPLEMENTED: we should stop sending messages until we recover bandwidth
                         Ok(())
                     }
@@ -327,6 +330,7 @@ impl PartiallyDelegatedHandle {
         Ok(self.sink_half.send_all(&mut send_stream).await?)
     }
 
+    #[allow(clippy::panic)]
     pub(crate) async fn merge(self) -> Result<WsConn, GatewayClientError> {
         let (mut stream_receiver, notify) = self.delegated_stream;
 
@@ -355,8 +359,10 @@ impl PartiallyDelegatedHandle {
             // in receive_res
             .map_err(|_| GatewayClientError::ConnectionAbruptlyClosed)?;
         let stream = stream_results?;
+
         // the error is thrown when trying to reunite sink and stream that did not originate
         // from the same split which is impossible to happen here
+        #[allow(clippy::unwrap_used)]
         Ok(self.sink_half.reunite(stream).unwrap())
     }
 }
@@ -386,5 +392,14 @@ impl SocketState {
             self,
             SocketState::Available(_) | SocketState::PartiallyDelegated(_)
         )
+    }
+
+    pub(crate) fn name(&self) -> &'static str {
+        match self {
+            SocketState::Available(_) => "available",
+            SocketState::PartiallyDelegated(_) => "partially delegated",
+            SocketState::NotConnected => "not connected",
+            SocketState::Invalid => "invalid",
+        }
     }
 }

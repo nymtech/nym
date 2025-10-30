@@ -9,8 +9,7 @@ use axum::{
 };
 use nym_http_api_common::{FormattedResponse, OutputParams};
 use nym_wireguard_private_metadata_shared::{
-    AxumErrorResponse, AxumResult, Construct, Extract, Request, Response,
-    interface::{RequestData, ResponseData},
+    AxumErrorResponse, AxumResult, Construct, Extract, Request, Response, interface::RequestData,
     latest,
 };
 use tower_http::compression::CompressionLayer;
@@ -59,20 +58,17 @@ async fn available_bandwidth(
 ) -> AxumResult<FormattedResponse<Response>> {
     let output = output.output.unwrap_or_default();
 
-    let (RequestData::AvailableBandwidth(_), version) =
+    let (RequestData::AvailableBandwidth, version) =
         request.extract().map_err(AxumErrorResponse::bad_request)?
     else {
         return Err(AxumErrorResponse::bad_request("incorrect request type"));
     };
-    let available_bandwidth = state
+    let available_bandwidth_response = state
         .available_bandwidth(addr.ip())
         .await
         .map_err(AxumErrorResponse::bad_request)?;
-    let response = Response::construct(
-        ResponseData::AvailableBandwidth(available_bandwidth),
-        version,
-    )
-    .map_err(AxumErrorResponse::bad_request)?;
+    let response = Response::construct(available_bandwidth_response, version)
+        .map_err(AxumErrorResponse::bad_request)?;
 
     Ok(output.to_response(response))
 }
@@ -96,16 +92,16 @@ async fn topup_bandwidth(
 ) -> AxumResult<FormattedResponse<Response>> {
     let output = output.output.unwrap_or_default();
 
-    let (RequestData::TopUpBandwidth(credential), version) =
+    let (RequestData::TopUpBandwidth { credential }, version) =
         request.extract().map_err(AxumErrorResponse::bad_request)?
     else {
         return Err(AxumErrorResponse::bad_request("incorrect request type"));
     };
-    let available_bandwidth = state
-        .topup_bandwidth(addr.ip(), *credential)
+    let top_up_bandwidth_response = state
+        .topup_bandwidth(addr.ip(), credential)
         .await
         .map_err(AxumErrorResponse::bad_request)?;
-    let response = Response::construct(ResponseData::TopUpBandwidth(available_bandwidth), version)
+    let response = Response::construct(top_up_bandwidth_response, version)
         .map_err(AxumErrorResponse::bad_request)?;
 
     Ok(output.to_response(response))

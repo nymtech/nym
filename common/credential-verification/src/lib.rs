@@ -18,6 +18,7 @@ pub mod bandwidth_storage_manager;
 mod client_bandwidth;
 pub mod ecash;
 pub mod error;
+pub mod upgrade_mode;
 
 pub struct CredentialVerifier {
     credential: CredentialSpendingRequest,

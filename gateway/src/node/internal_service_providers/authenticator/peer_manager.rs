@@ -19,7 +19,7 @@ impl PeerManager {
             wireguard_gateway_data,
         }
     }
-    pub async fn add_peer(&mut self, peer: Peer) -> Result<(), AuthenticatorError> {
+    pub async fn add_peer(&self, peer: Peer) -> Result<(), AuthenticatorError> {
         let (response_tx, response_rx) = oneshot::channel();
         let msg = PeerControlRequest::AddPeer { peer, response_tx };
         self.wireguard_gateway_data
@@ -38,7 +38,7 @@ impl PeerManager {
             })
     }
 
-    pub async fn _remove_peer(&mut self, pub_key: PeerPublicKey) -> Result<(), AuthenticatorError> {
+    pub async fn _remove_peer(&self, pub_key: PeerPublicKey) -> Result<(), AuthenticatorError> {
         let key = Key::new(pub_key.to_bytes());
         let (response_tx, response_rx) = oneshot::channel();
         let msg = PeerControlRequest::RemovePeer { key, response_tx };
@@ -61,7 +61,7 @@ impl PeerManager {
     }
 
     pub async fn query_peer(
-        &mut self,
+        &self,
         public_key: PeerPublicKey,
     ) -> Result<Option<Peer>, AuthenticatorError> {
         let key = Key::new(public_key.to_bytes());
@@ -86,7 +86,7 @@ impl PeerManager {
     }
 
     pub async fn query_bandwidth(
-        &mut self,
+        &self,
         public_key: PeerPublicKey,
     ) -> Result<i64, AuthenticatorError> {
         let client_bandwidth = self.query_client_bandwidth(public_key).await?;
@@ -94,7 +94,7 @@ impl PeerManager {
     }
 
     pub async fn query_client_bandwidth(
-        &mut self,
+        &self,
         key: PeerPublicKey,
     ) -> Result<ClientBandwidth, AuthenticatorError> {
         let key = Key::new(key.to_bytes());
@@ -121,7 +121,7 @@ impl PeerManager {
     }
 
     pub async fn query_verifier_by_key(
-        &mut self,
+        &self,
         key: PeerPublicKey,
         credential: CredentialSpendingData,
     ) -> Result<Box<dyn TicketVerifier + Send + Sync>, AuthenticatorError> {
@@ -243,7 +243,7 @@ mod tests {
             Authenticator::default().into(),
             Arc::new(KeyPair::new(&mut OsRng)),
         );
-        let mut peer_manager = PeerManager::new(wireguard_data);
+        let peer_manager = PeerManager::new(wireguard_data);
         let (storage, task_manager) = start_controller(
             peer_manager.wireguard_gateway_data.peer_tx().clone(),
             request_rx,

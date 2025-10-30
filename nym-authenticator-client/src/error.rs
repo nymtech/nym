@@ -40,11 +40,20 @@ pub enum Error {
         source: nym_bandwidth_controller::error::BandwidthControllerError,
     },
 
+    #[error("failed to retrieve upgrade mode token")]
+    UpgradeModeToken {
+        #[source]
+        source: nym_bandwidth_controller::error::BandwidthControllerError,
+    },
+
     #[error("unknown authenticator version number")]
     UnsupportedAuthenticatorVersion,
 
     #[error("failed to wait on AuthenticatorClientListener")]
     FailedToJoinOnTask(#[from] tokio::task::JoinError),
+
+    #[error("encountered an internal error")]
+    InternalError,
 }
 
 // Result type based on our error type

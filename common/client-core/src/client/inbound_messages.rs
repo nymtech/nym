@@ -1,5 +1,8 @@
 // Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
+use crate::error::ClientCoreError;
+use crate::make_bincode_serializer;
+use bincode::Options;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nym_sphinx::forwarding::packet::MixPacket;
@@ -12,8 +15,6 @@ use tokio_util::{
     bytes::BytesMut,
     codec::{Decoder, Encoder},
 };
-
-use crate::error::ClientCoreError;
 
 pub type InputMessageSender = tokio_util::sync::PollSender<InputMessage>;
 pub type InputMessageReceiver = tokio::sync::mpsc::Receiver<InputMessage>;
@@ -201,7 +202,9 @@ impl InputMessage {
     }
     #[allow(clippy::expect_used)]
     pub fn serialized_size(&self) -> u64 {
-        bincode::serialized_size(self).expect("failed to get serialized InputMessage size")
+        make_bincode_serializer()
+            .serialized_size(self)
+            .expect("failed to get serialized InputMessage size")
             + LENGHT_ENCODING_PREFIX_SIZE as u64
     }
 }
@@ -227,7 +230,9 @@ impl Encoder<InputMessage> for InputMessageCodec {
 
     fn encode(&mut self, item: InputMessage, buf: &mut BytesMut) -> Result<(), Self::Error> {
         #[allow(clippy::expect_used)]
-        let encoded = bincode::serialize(&item).expect("failed to serialize InputMessage");
+        let encoded = make_bincode_serializer()
+            .serialize(&item)
+            .expect("failed to serialize InputMessage");
         let encoded_len = encoded.len() as u32;
         let mut encoded_with_len = encoded_len.to_le_bytes().to_vec();
         encoded_with_len.extend(encoded);
@@ -255,9 +260,9 @@ impl Decoder for InputMessageCodec {
             return Ok(None);
         }
 
-        let decoded = match bincode::deserialize(
-            &buf[LENGHT_ENCODING_PREFIX_SIZE..len + LENGHT_ENCODING_PREFIX_SIZE],
-        ) {
+        let decoded = match make_bincode_serializer()
+            .deserialize(&buf[LENGHT_ENCODING_PREFIX_SIZE..len + LENGHT_ENCODING_PREFIX_SIZE])
+        {
             Ok(decoded) => decoded,
             Err(_) => return Ok(None),
         };

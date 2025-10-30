@@ -40,3 +40,10 @@ where
 {
     tokio::spawn(future);
 }
+
+fn make_bincode_serializer() -> impl bincode::Options {
+    use bincode::Options;
+    bincode::DefaultOptions::new()
+        .with_big_endian()
+        .with_varint_encoding()
+}

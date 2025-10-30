@@ -765,7 +765,7 @@ async fn connect_exit(
     );
     // The IPR supports cancellation, but it's unused in the gateway probe
     let cancel_token = CancellationToken::new();
-    let mut ipr_client = IprClientConnect::new(mixnet_client, cancel_token).await;
+    let mut ipr_client = IprClientConnect::new(mixnet_client, cancel_token);
 
     let maybe_ip_pair = ipr_client.connect(exit_router_address).await;
     let mixnet_client = ipr_client.into_mixnet_client();

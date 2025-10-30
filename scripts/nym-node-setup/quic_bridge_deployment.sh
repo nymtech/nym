@@ -65,9 +65,7 @@ err() { echo -e "${RED}$1${RESET}"; }
 info() { echo -e "${CYAN}$1${RESET}"; }
 press_enter() { read -r -p "$1"; }
 
-# ------------------------------------------------------------
 # Helper: detect dpkg dependency failure for libc6>=2.34
-# ------------------------------------------------------------
 deb_depends_libc_too_old() {
   # Grep dpkg -i output in log or run a dry call to dpkg -i with --unpack to observe code
   # Simpler heuristic: check installed libc6 version
@@ -79,9 +77,7 @@ deb_depends_libc_too_old() {
   dpkg --compare-versions "$v" ge "2.34" && return 1 || return 0
 }
 
-# ------------------------------------------------------------
 # Helper: ensure rust toolchain (for local build fallback)
-# ------------------------------------------------------------
 ensure_rustup() {
   if ! command -v cargo >/dev/null 2>&1; then
     info "Installing Rust toolchain (rustup)..."
@@ -94,9 +90,7 @@ ensure_rustup() {
   fi
 }
 
-# ------------------------------------------------------------
 # Helper: clone and build from source at latest release tag
-# ------------------------------------------------------------
 build_from_source_latest() {
   local repo_url="https://github.com/nymtech/nym-bridges.git"
   local workdir="/tmp/nym-bridges"
@@ -123,12 +117,9 @@ build_from_source_latest() {
   # After build, binaries are typically in workspace target dir:
   #   /tmp/nym-bridges/target/release/nym-bridge
   #   /tmp/nym-bridges/target/release/bridge-cfg
-  # But some setups place them differently in nested crates. We'll search robustly.
 }
 
-# ------------------------------------------------------------
 # Helper: robustly locate and install a built binary from /tmp/nym-bridges
-# ------------------------------------------------------------
 install_built_binary() {
   local name="$1"             # e.g., bridge-cfg or nym-bridge
   local preferred="/tmp/nym-bridges/target/release/$name"
@@ -236,7 +227,6 @@ install_bridge_binary() {
       fi
     else
       ok "nym-bridge installed via .deb."
-      # If the .deb already provided a service, do not overwrite. We'll respect postinst.
     fi
   else
     warn "Download failed or empty. Building nym-bridge from source."
@@ -348,7 +338,6 @@ create_bridge_service() {
   if systemctl list-unit-files | grep -q '^nym-bridge\.service'; then
     warn "Detected existing nym-bridge service (likely from .deb). Not overwriting."
     systemctl daemon-reload || true
-    # If .deb created config, we won't touch it; otherwise we just start it.
     systemctl enable nym-bridge >/dev/null || true
     systemctl restart nym-bridge || true
     ok "nym-bridge service managed by package; restarted."
@@ -546,4 +535,3 @@ case "${1:-}" in
 esac
 
 echo "Operation '${1:-help}' completed."
-

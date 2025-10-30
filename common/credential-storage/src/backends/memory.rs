@@ -1,7 +1,10 @@
 // Copyright 2023-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::models::{BasicTicketbookInformation, RetrievedPendingTicketbook, RetrievedTicketbook};
+use crate::models::{
+    BasicTicketbookInformation, EmergencyCredential, RetrievedPendingTicketbook,
+    RetrievedTicketbook,
+};
 use nym_compact_ecash::scheme::coin_indices_signatures::AnnotatedCoinIndexSignature;
 use nym_compact_ecash::scheme::expiration_date_signatures::AnnotatedExpirationDateSignature;
 use nym_compact_ecash::VerificationKeyAuth;
@@ -29,6 +32,7 @@ struct EcashCredentialManagerInner {
     master_vk: HashMap<u64, VerificationKeyAuth>,
     coin_indices_sigs: HashMap<u64, Vec<AnnotatedCoinIndexSignature>>,
     expiration_date_sigs: HashMap<(u64, Date), Vec<AnnotatedExpirationDateSignature>>,
+    emergency_credentials: HashMap<String, Vec<EmergencyCredential>>,
     _next_id: i64,
 }
 
@@ -276,5 +280,21 @@ impl MemoryEcachTicketbookManager {
             (sigs.epoch_id, sigs.expiration_date),
             sigs.signatures.clone(),
         );
+    }
+
+    pub(crate) async fn get_emergency_credential(&self, typ: &str) -> Option<EmergencyCredential> {
+        let guard = self.inner.read().await;
+
+        guard.emergency_credentials.get(typ)?.first().cloned()
+    }
+
+    pub(crate) async fn insert_emergency_credential(&self, credential: &EmergencyCredential) {
+        let mut guard = self.inner.write().await;
+
+        guard
+            .emergency_credentials
+            .entry(credential.typ.clone())
+            .or_default()
+            .push(credential.clone());
     }
 }

@@ -232,12 +232,15 @@ impl IpMixStream {
                         }
                         Some(Ok(reconstructed)) => {
                             if let Err(e) = check_ipr_message_version(&reconstructed) {
-                                error!("Version check failed: {}", e);
-                                continue;
+                                return Err(Error::IPRMessageVersionCheckFailed(e.to_string()));
+
                             }
                             if let Ok(response) = IpPacketResponse::from_reconstructed_message(&reconstructed) {
                                 if response.id() == Some(request_id) {
                                     return self.handle_connect_response(response).await;
+                                }
+                                else {
+                                    return Err(Error::IPRNoId)
                                 }
                             }
                         }

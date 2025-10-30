@@ -1,7 +1,10 @@
 // Copyright 2022-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::models::{BasicTicketbookInformation, RetrievedPendingTicketbook, RetrievedTicketbook};
+use crate::models::{
+    BasicTicketbookInformation, EmergencyCredential, RetrievedPendingTicketbook,
+    RetrievedTicketbook,
+};
 use async_trait::async_trait;
 use nym_compact_ecash::VerificationKeyAuth;
 use nym_credentials::ecash::bandwidth::serialiser::keys::EpochVerificationKey;
@@ -107,5 +110,15 @@ pub trait Storage: Clone + Send + Sync {
     async fn insert_expiration_date_signatures(
         &self,
         signatures: &AggregatedExpirationDateSignatures,
+    ) -> Result<(), Self::StorageError>;
+
+    async fn get_emergency_credential(
+        &self,
+        typ: &str,
+    ) -> Result<Option<EmergencyCredential>, Self::StorageError>;
+
+    async fn insert_emergency_credential(
+        &self,
+        credential: &EmergencyCredential,
     ) -> Result<(), Self::StorageError>;
 }

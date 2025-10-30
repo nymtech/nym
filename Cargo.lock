@@ -5005,21 +5005,16 @@ name = "nym-bandwidth-controller"
 version = "0.1.0"
 dependencies = [
  "async-trait",
- "bip39",
  "log",
  "nym-credential-storage",
  "nym-credentials",
  "nym-credentials-interface",
  "nym-crypto",
- "nym-ecash-contract-common",
  "nym-ecash-time",
- "nym-network-defaults",
  "nym-task",
  "nym-validator-client",
  "rand 0.8.5",
  "thiserror 2.0.12",
- "url",
- "zeroize",
 ]
 
 [[package]]

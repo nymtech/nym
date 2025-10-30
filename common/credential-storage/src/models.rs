@@ -3,6 +3,7 @@
 
 use nym_credentials::{IssuanceTicketBook, IssuedTicketBook};
 use nym_ecash_time::Date;
+use sqlx::types::time::OffsetDateTime;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 pub struct RetrievedTicketbook {
@@ -77,4 +78,13 @@ pub struct RawVerificationKey {
     pub epoch_id: u32,
     pub serialised_key: Vec<u8>,
     pub serialization_revision: u8,
+}
+
+#[derive(Clone, Debug)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(sqlx::FromRow))]
+pub struct EmergencyCredential {
+    #[cfg_attr(not(target_arch = "wasm32"), sqlx(rename = "type"))]
+    pub typ: String,
+    pub content: Vec<u8>,
+    pub expiration: Option<OffsetDateTime>,
 }

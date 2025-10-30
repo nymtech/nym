@@ -11,6 +11,9 @@ use crate::{error::BandwidthControllerError, BandwidthController, PreparedCreden
 
 pub const DEFAULT_TICKETS_TO_SPEND: u32 = 1;
 
+// TODO: this does not really belong here
+pub const UPGRADE_MODE_JWT_TYPE: &str = "UPGRADE_MODE_JWT";
+
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait BandwidthTicketProvider: Send + Sync {
@@ -43,7 +46,17 @@ where
     }
 
     async fn get_upgrade_mode_token(&self) -> Result<Option<String>, BandwidthControllerError> {
-        // TODO: placeholder, implement by threading the actual data through
-        Ok(None)
+        let Some(emergency_credential) =
+            self.get_emergency_credential(UPGRADE_MODE_JWT_TYPE).await?
+        else {
+            return Ok(None);
+        };
+        // upgrade mode credential is just a simple stringified JWT
+        let token = String::from_utf8(emergency_credential.content).map_err(|err| {
+            BandwidthControllerError::CredentialStorageError(Box::new(format!(
+                "malformed upgrade mode token: {err}"
+            )))
+        })?;
+        Ok(Some(token))
     }
 }

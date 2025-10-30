@@ -146,6 +146,12 @@ pub enum Error {
 
     #[error("no IPR address on selected gateway")]
     NoIPRAvailable,
+
+    #[error("message version check failed: {0}")]
+    IPRMessageVersionCheckFailed(String),
+
+    #[error("no response id found in connect response")]
+    IPRNoId,
 }
 
 impl Error {

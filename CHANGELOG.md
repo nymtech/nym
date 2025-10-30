@@ -4,6 +4,46 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [2025.19-kase] (2025-10-30)
+
+- update ns agent workflow ([#6154])
+- Cherry pick - request #6143 from nymtech/bugfix/mix-tx-closed-v2 ([#6153])
+- bugfix: nym-credential-proxy query params parsing regression ([#6121])
+- bugfix: revert some dep updates introduced in #6043 ([#6120])
+- Skip ipv6 metadata endpoint request ([#6118])
+- update to no longer use 1mb files ([#6117])
+- chore: restore pending dkg contract state migration ([#6116])
+- Revert "Propagate cancel token to mixnet client" ([#6115])
+- Update dirs to 6.0 ([#6109])
+- Propagate cancel token to mixnet client ([#6105])
+- bugfix: retrieve and update ticketbook in the same query ([#6101])
+- bugfix: include network name in the default gateway probe config path ([#6100])
+- Bugfix/incompatibility fixes ([#6099])
+- [DOCs/operators] QUIC deployment script & docs ([#6098])
+- bugfix: testnet manager 02sql migration ([#6096])
+- feat: move gateway probe to monorepo (and update to rust edition 2024) ([#6094])
+- bugfix: use custom topology provider for list of init gateways ([#6092])
+- Max/fix wasm client + build commands ([#6043])
+
+[#6154]: https://github.com/nymtech/nym/pull/6154
+[#6153]: https://github.com/nymtech/nym/pull/6153
+[#6121]: https://github.com/nymtech/nym/pull/6121
+[#6120]: https://github.com/nymtech/nym/pull/6120
+[#6118]: https://github.com/nymtech/nym/pull/6118
+[#6117]: https://github.com/nymtech/nym/pull/6117
+[#6116]: https://github.com/nymtech/nym/pull/6116
+[#6115]: https://github.com/nymtech/nym/pull/6115
+[#6109]: https://github.com/nymtech/nym/pull/6109
+[#6105]: https://github.com/nymtech/nym/pull/6105
+[#6101]: https://github.com/nymtech/nym/pull/6101
+[#6100]: https://github.com/nymtech/nym/pull/6100
+[#6099]: https://github.com/nymtech/nym/pull/6099
+[#6098]: https://github.com/nymtech/nym/pull/6098
+[#6096]: https://github.com/nymtech/nym/pull/6096
+[#6094]: https://github.com/nymtech/nym/pull/6094
+[#6092]: https://github.com/nymtech/nym/pull/6092
+[#6043]: https://github.com/nymtech/nym/pull/6043
+
 ## [2025.18-jarlsberg] (2025-10-14)
 
 - ns-api: add descriptions to dVPN gateway responses ([#6102])

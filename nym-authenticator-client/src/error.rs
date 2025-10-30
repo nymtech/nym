@@ -40,6 +40,12 @@ pub enum AuthenticationClientError {
         source: nym_bandwidth_controller::error::BandwidthControllerError,
     },
 
+    #[error("failed to retrieve upgrade mode token")]
+    UpgradeModeToken {
+        #[source]
+        source: nym_bandwidth_controller::error::BandwidthControllerError,
+    },
+
     #[error("unknown authenticator version number")]
     UnsupportedAuthenticatorVersion,
 

@@ -22,6 +22,12 @@ pub enum CurrentUpgradeModeStatus {
     Unknown,
 }
 
+impl CurrentUpgradeModeStatus {
+    pub fn is_enabled(&self) -> bool {
+        matches!(self, CurrentUpgradeModeStatus::Enabled)
+    }
+}
+
 impl From<bool> for CurrentUpgradeModeStatus {
     fn from(value: bool) -> Self {
         if value {

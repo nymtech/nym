@@ -20,6 +20,8 @@ pub trait BandwidthTicketProvider: Send + Sync {
         gateway_id: ed25519::PublicKey,
         tickets_to_spend: u32,
     ) -> Result<PreparedCredential, BandwidthControllerError>;
+
+    async fn get_upgrade_mode_token(&self) -> Result<Option<String>, BandwidthControllerError>;
 }
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
@@ -38,5 +40,10 @@ where
     ) -> Result<PreparedCredential, BandwidthControllerError> {
         self.prepare_ecash_ticket(ticket_type, gateway_id.to_bytes(), tickets_to_spend)
             .await
+    }
+
+    async fn get_upgrade_mode_token(&self) -> Result<Option<String>, BandwidthControllerError> {
+        // TODO: placeholder, implement by threading the actual data through
+        Ok(None)
     }
 }

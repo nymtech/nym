@@ -273,11 +273,14 @@ install_bridge_cfg_tool() {
 run_bridge_cfg_generate() {
   title "Generating Bridge Configuration with bridge-cfg"
 
-  mkdir -p "$NYM_ETC_DIR"
-  local candidate1="/etc/nym/default-nym-node/config/config.toml"
-  local candidate2="$HOME/.nym/nym-nodes/default-nym-node/config/config.toml"
-  local NODE_CFG="${candidate1}"
-  [[ -f "$candidate2" ]] && NODE_CFG="$candidate2"
+  # Detect a likely nym-node configuration path
+  local HOME_DIR="${HOME:-/root}"
+  local NODE_CFG
+  NODE_CFG="$(find "$HOME_DIR/.nym/nym-nodes" -type f -name config.toml 2>/dev/null | head -n1 || true)"
+
+  if [[ -z "$NODE_CFG" ]]; then
+    NODE_CFG="$HOME_DIR/.nym/nym-nodes/default-nym-node/config/config.toml"
+  fi
 
   echo -n "Path to your nym-node config.toml [default: $NODE_CFG]: "
   read -r input

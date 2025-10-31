@@ -441,7 +441,7 @@ mod tests {
 
     #[test]
     fn test_multiple_urls_prepared_for_retries() {
-        let urls = vec![
+        let urls = [
             Url::parse("https://api1.nym.com").unwrap(),
             Url::parse("https://api2.nym.com").unwrap(),
             Url::parse("https://api3.nym.com").unwrap(),

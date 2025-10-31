@@ -1,5 +1,5 @@
-use anyhow::{anyhow, Result};
-use sqlx::{postgres::PgConnectOptions, Postgres};
+use anyhow::{Result, anyhow};
+use sqlx::{Postgres, postgres::PgConnectOptions};
 use std::str::FromStr;
 
 pub(crate) mod models;

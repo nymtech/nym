@@ -1,5 +1,5 @@
-use crate::db::models::CoingeckoPriceResponse;
 use crate::db::DbPool;
+use crate::db::models::CoingeckoPriceResponse;
 use crate::http::models::status::Webhook;
 use axum::extract::FromRef;
 use nym_bin_common::bin_info;

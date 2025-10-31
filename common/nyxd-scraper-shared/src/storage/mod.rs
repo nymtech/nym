@@ -6,10 +6,10 @@ use async_trait::async_trait;
 use thiserror::Error;
 use tracing::warn;
 
-pub use crate::block_processor::types::FullBlockInformation;
 pub use crate::ParsedTransactionResponse;
-pub use tendermint::block::{Commit, CommitSig};
+pub use crate::block_processor::types::FullBlockInformation;
 pub use tendermint::Block;
+pub use tendermint::block::{Commit, CommitSig};
 pub use tendermint_rpc::endpoint::validators;
 
 pub mod helpers;

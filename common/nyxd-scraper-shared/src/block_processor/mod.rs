@@ -8,7 +8,7 @@ use crate::block_requester::BlockRequest;
 use crate::error::ScraperError;
 use crate::modules::{BlockModule, MsgModule, TxModule};
 use crate::rpc_client::RpcClient;
-use crate::storage::{persist_block, NyxdScraperStorage, NyxdScraperTransaction};
+use crate::storage::{NyxdScraperStorage, NyxdScraperTransaction, persist_block};
 use futures::StreamExt;
 use std::cmp::max;
 use std::collections::{BTreeMap, HashSet, VecDeque};

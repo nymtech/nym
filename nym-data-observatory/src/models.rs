@@ -1,7 +1,7 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use utoipa::gen::serde_json;
 use utoipa::ToSchema;
+use utoipa::r#gen::serde_json;
 
 #[derive(Serialize, Deserialize, Clone, JsonSchema, ToSchema)]
 pub struct WebhookPayload {

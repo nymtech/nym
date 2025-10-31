@@ -11,7 +11,7 @@ use nyxd_scraper_psql::{
 };
 use reqwest::{Client, Url};
 use tracing::{error, info};
-use utoipa::gen::serde_json;
+use utoipa::r#gen::serde_json;
 
 pub struct WebhookModule {
     webhooks: Vec<Webhook>,

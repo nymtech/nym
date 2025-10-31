@@ -1,11 +1,11 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::cosmos_module::message_registry::{default_proto_to_json, MessageRegistry};
 use crate::cosmos_module::CosmosModule;
+use crate::cosmos_module::message_registry::{MessageRegistry, default_proto_to_json};
 use crate::error::ScraperError;
-use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
+use base64::engine::general_purpose::STANDARD;
 use cosmos_sdk_proto::cosmwasm::wasm::v1::{
     MsgAddCodeUploadParamsAddresses, MsgClearAdmin, MsgExecuteContract, MsgIbcCloseChannel,
     MsgIbcSend, MsgInstantiateContract, MsgInstantiateContract2, MsgMigrateContract, MsgPinCodes,

@@ -23,6 +23,7 @@ nyxd-scraper-shared = { path = "../nyxd-scraper-shared" }
 [build-dependencies]
 sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"] }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
+anyhow.workspace = true
 
 [lints]
 workspace = true

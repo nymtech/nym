@@ -5,8 +5,8 @@ use crate::block_processor::types::ParsedTransactionResponse;
 use crate::constants::{BECH32_CONESNSUS_PUBKEY_PREFIX, BECH32_CONSENSUS_ADDRESS_PREFIX};
 use cosmrs::AccountId;
 use sha2::{Digest, Sha256};
-use tendermint::{account, PublicKey};
-use tendermint::{validator, Hash};
+use tendermint::{Hash, validator};
+use tendermint::{PublicKey, account};
 use tendermint_rpc::endpoint::validators;
 use thiserror::Error;
 

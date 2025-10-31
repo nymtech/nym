@@ -1,6 +1,6 @@
 {
   "name": "@nymproject/mix-fetch",
-  "version": "1.4.1",
+  "version": "1.4.1-rc0",
   "description": "This package is a drop-in replacement for `fetch` to send HTTP requests over the Nym Mixnet.",
   "license": "Apache-2.0",
   "author": "Nym Technologies SA",

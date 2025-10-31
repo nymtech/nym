@@ -9,8 +9,8 @@ use nym_credential_proxy_lib::helpers::random_uuid;
 use nym_credential_proxy_lib::http_helpers::RequestError;
 use nym_credential_proxy_requests::api::v1::ticketbook::models::{
     CurrentEpochResponse, DepositResponse, MasterVerificationKeyResponse,
-    PartialVerificationKeysResponse, TicketbookAsyncRequest, TicketbookObtainQueryParams,
-    TicketbookRequest, TicketbookWalletSharesAsyncResponse, TicketbookWalletSharesResponse,
+    ObtainTicketBookSharesAsyncResponse, PartialVerificationKeysResponse, TicketbookAsyncRequest,
+    TicketbookObtainQueryParams, TicketbookRequest, TicketbookWalletSharesResponse,
 };
 use nym_credential_proxy_requests::routes::api::v1::ticketbook;
 use nym_http_api_common::{FormattedResponse, OutputParams};
@@ -25,7 +25,7 @@ pub type FormattedPartialVerificationKeysResponse =
 pub type FormattedTicketbookWalletSharesResponse =
     FormattedResponse<TicketbookWalletSharesResponse>;
 pub type FormattedTicketbookWalletSharesAsyncResponse =
-    FormattedResponse<TicketbookWalletSharesAsyncResponse>;
+    FormattedResponse<ObtainTicketBookSharesAsyncResponse>;
 
 /// Attempt to obtain blinded shares of an ecash ticketbook wallet
 #[utoipa::path(
@@ -63,7 +63,7 @@ pub(crate) async fn obtain_ticketbook_shares(
     let output = params.output.unwrap_or_default();
 
     let response = state
-        .inner_state()
+        .ticketbooks()
         .obtain_ticketbook_shares(uuid, payload, params.obtain_params.global)
         .await
         .map_err(|err| RequestError::new_server_error(err, uuid))?;
@@ -84,8 +84,8 @@ pub(crate) async fn obtain_ticketbook_shares(
     ),
     responses(
         (status = 200, content(
-            (TicketbookWalletSharesAsyncResponse = "application/json"),
-            (TicketbookWalletSharesAsyncResponse = "application/yaml"),
+            (ObtainTicketBookSharesAsyncResponse = "application/json"),
+            (ObtainTicketBookSharesAsyncResponse = "application/yaml"),
         )),
         (status = 400, description = "the provided request hasn't been created against correct attributes"),
         (status = 401, description = "authentication token is missing or is invalid"),
@@ -107,8 +107,13 @@ pub(crate) async fn obtain_ticketbook_shares_async(
     let uuid = random_uuid();
     let output = params.output.unwrap_or_default();
 
+    // 0. check if we're in 'upgrade-mode' - if so, just return the attestation and associated jwt
+    if let Some(upgrade_mode_response) = state.upgrade_mode_response().await {
+        return Ok(output.to_response(upgrade_mode_response.into()));
+    }
+
     let response = state
-        .inner_state()
+        .ticketbooks()
         .obtain_ticketbook_shares_async(uuid, payload, params.obtain_params)
         .await
         .map_err(|err| RequestError::new_server_error(err, uuid))?;
@@ -142,7 +147,7 @@ pub(crate) async fn current_deposit(
     let output = output.output.unwrap_or_default();
 
     let response = state
-        .inner_state()
+        .ticketbooks()
         .current_deposit()
         .await
         .map_err(RequestError::new_plain_error)?;
@@ -177,7 +182,7 @@ pub(crate) async fn partial_verification_keys(
     let output = output.output.unwrap_or_default();
 
     let response = state
-        .inner_state()
+        .ticketbooks()
         .partial_verification_keys()
         .await
         .map_err(RequestError::new_plain_error)?;
@@ -212,7 +217,7 @@ pub(crate) async fn master_verification_key(
     let output = output.output.unwrap_or_default();
 
     let response = state
-        .inner_state()
+        .ticketbooks()
         .master_verification_key()
         .await
         .map_err(RequestError::new_plain_error)?;
@@ -248,7 +253,7 @@ pub(crate) async fn current_epoch(
     let output = output.output.unwrap_or_default();
 
     let response = state
-        .inner_state()
+        .ticketbooks()
         .current_epoch()
         .await
         .map_err(RequestError::new_plain_error)?;

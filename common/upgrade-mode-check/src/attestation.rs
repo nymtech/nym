@@ -1,30 +1,32 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::UpgradeModeCheckError;
 use nym_crypto::asymmetric::ed25519;
-use nym_http_api_client::generate_user_agent;
 use serde::{Deserialize, Serialize};
-use std::time::Duration;
 use time::OffsetDateTime;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Copy)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct UpgradeModeAttestation {
     #[serde(flatten)]
     pub content: UpgradeModeAttestationContent,
 
     #[serde(with = "ed25519::bs58_ed25519_signature")]
+    #[cfg_attr(feature = "openapi", schema(value_type = String))]
     pub signature: ed25519::Signature,
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Copy)]
 #[serde(tag = "type")]
 #[serde(rename = "upgrade_mode")]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct UpgradeModeAttestationContent {
     #[serde(with = "time::serde::timestamp")]
+    #[cfg_attr(feature = "openapi", schema(value_type = i64))]
     pub starting_time: OffsetDateTime,
 
     #[serde(with = "ed25519::bs58_ed25519_pubkey")]
+    #[cfg_attr(feature = "openapi", schema(value_type = String))]
     pub attester_public_key: ed25519::PublicKey,
 }
 
@@ -63,17 +65,19 @@ pub fn generate_new_attestation_with_starting_time(
     }
 }
 
-pub async fn attempt_retrieve(
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn attempt_retrieve_attestation(
     url: &str,
-) -> Result<Option<UpgradeModeAttestation>, UpgradeModeCheckError> {
-    let retrieval_failure = |source| UpgradeModeCheckError::AttestationRetrievalFailure {
+    user_agent: Option<nym_http_api_client::UserAgent>,
+) -> Result<Option<UpgradeModeAttestation>, crate::UpgradeModeCheckError> {
+    let retrieval_failure = |source| crate::UpgradeModeCheckError::AttestationRetrievalFailure {
         url: url.to_string(),
         source,
     };
 
     let attestation = reqwest::ClientBuilder::new()
-        .user_agent(generate_user_agent!())
-        .timeout(Duration::from_secs(5))
+        .user_agent(user_agent.unwrap_or_else(|| nym_http_api_client::generate_user_agent!()))
+        .timeout(std::time::Duration::from_secs(5))
         .build()
         .map_err(retrieval_failure)?
         .get(url)

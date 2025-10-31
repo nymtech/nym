@@ -18,7 +18,7 @@ fn swagger_redirect<S: Clone + Send + Sync + 'static>() -> MethodRouter<S> {
     get(|| async { Redirect::to("/api/v1/swagger/") })
 }
 
-pub fn build_router(state: impl Into<ApiState>, auth_token: String) -> Router {
+pub fn build_router(state: ApiState, auth_token: String) -> Router {
     // let auth_layer = from_extractor::<RequireAuth>();
     let auth_middleware = AuthLayer::new(Arc::new(Zeroizing::new(auth_token)));
 
@@ -32,7 +32,7 @@ pub fn build_router(state: impl Into<ApiState>, auth_token: String) -> Router {
         // we don't have to be using middleware, but we already had that code
         // we might want something like: https://github.com/tokio-rs/axum/blob/main/examples/tracing-aka-logging/src/main.rs#L44 instead
         .layer(axum::middleware::from_fn(logging::log_request_info))
-        .with_state(state.into());
+        .with_state(state);
 
     cfg_if::cfg_if! {
         if #[cfg(feature = "cors")] {

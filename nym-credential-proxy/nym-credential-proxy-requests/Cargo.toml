@@ -30,6 +30,7 @@ nym-credentials-interface = { path = "../../common/credentials-interface" }
 nym-http-api-common = { path = "../../common/http-api-common", optional = true }
 nym-http-api-client = { path = "../../common/http-api-client" }
 nym-serde-helpers = { path = "../../common/serde-helpers", features = ["bs58"] }
+nym-upgrade-mode-check = { path = "../../common/upgrade-mode-check" }
 
 [target."cfg(target_arch = \"wasm32\")".dependencies.wasmtimer]
 workspace = true
@@ -38,5 +39,8 @@ features = ["tokio"]
 [features]
 default = ["query-types"]
 query-types = ["nym-http-api-common", "nym-http-api-common/output"]
-openapi = ["utoipa", "nym-http-api-common/utoipa"]
+openapi = ["utoipa", "nym-http-api-common/utoipa", "nym-upgrade-mode-check/openapi"]
 tsify = ["dep:tsify", "wasm-bindgen"]
+
+[lints]
+workspace = true

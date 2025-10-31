@@ -43,7 +43,7 @@ pub(crate) async fn query_for_shares_by_id(
     let output = params.output.unwrap_or_default();
 
     let response = state
-        .inner_state()
+        .ticketbooks()
         .query_for_shares_by_id(uuid, params.global, share_id)
         .await
         .map_err(|err| RequestError::new_server_error(err, uuid))?;
@@ -80,7 +80,7 @@ pub(crate) async fn query_for_shares_by_device_id_and_credential_id(
     let output = params.output.unwrap_or_default();
 
     let response = state
-        .inner_state()
+        .ticketbooks()
         .query_for_shares_by_device_id_and_credential_id(
             uuid,
             params.global,

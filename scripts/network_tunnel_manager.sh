@@ -85,26 +85,41 @@ apply_iptables_rules() {
     echo "applying IPtables rules for $interface..."
     sleep 2
 
+    # INPUT rules - allow incoming connections TO the gateway from tunnel clients
+    # This is CRITICAL for mobile clients to reach the bandwidth controller at 10.1.0.1:51830
+    sudo iptables -I INPUT -i "$interface" -j ACCEPT
+    sudo ip6tables -I INPUT -i "$interface" -j ACCEPT
+
+    # NAT rules - for outbound traffic masquerading
     sudo iptables -t nat -A POSTROUTING -o "$network_device" -j MASQUERADE
+    sudo ip6tables -t nat -A POSTROUTING -o "$network_device" -j MASQUERADE
+
+    # FORWARD rules - allow traffic through the gateway
     sudo iptables -A FORWARD -i "$interface" -o "$network_device" -j ACCEPT
     sudo iptables -A FORWARD -i "$network_device" -o "$interface" -m state --state RELATED,ESTABLISHED -j ACCEPT
-
-    sudo ip6tables -t nat -A POSTROUTING -o "$network_device" -j MASQUERADE
     sudo ip6tables -A FORWARD -i "$interface" -o "$network_device" -j ACCEPT
     sudo ip6tables -A FORWARD -i "$network_device" -o "$interface" -m state --state RELATED,ESTABLISHED -j ACCEPT
 
     sudo iptables-save | sudo tee /etc/iptables/rules.v4
     sudo ip6tables-save | sudo tee /etc/iptables/rules.v6
+    
+    echo "IPtables rules applied successfully for $interface (including INPUT rules for bandwidth controller)."
 }
 
 check_tunnel_iptables() {
     local interface=$1
     echo "inspecting IPtables rules for $interface..."
     echo "---------------------------------------"
-    echo "IPv4 rules:"
+    echo "IPv4 INPUT rules (for bandwidth controller):"
+    iptables -L INPUT -v -n | grep -E "$interface|Chain INPUT" | head -20
+    echo "---------------------------------------"
+    echo "IPv4 FORWARD rules:"
     iptables -L FORWARD -v -n | awk -v dev="$interface" '/^Chain FORWARD/ || $0 ~ dev || $0 ~ "ufw-reject-forward"'
     echo "---------------------------------------"
-    echo "IPv6 rules:"
+    echo "IPv6 INPUT rules (for bandwidth controller):"
+    ip6tables -L INPUT -v -n | grep -E "$interface|Chain INPUT" | head -20
+    echo "---------------------------------------"
+    echo "IPv6 FORWARD rules:"
     ip6tables -L FORWARD -v -n | awk -v dev="$interface" '/^Chain FORWARD/ || $0 ~ dev || $0 ~ "ufw6-reject-forward"'
 }
 

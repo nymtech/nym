@@ -3,7 +3,7 @@ import { Callout } from 'nextra/components';
 import { AccordionTemplate } from 'components/accordion-template.tsx';
 
 <Callout type="info" emoji="ℹ️">
-**QUIC bridge is a requirement for all nodes which enable Wireguard functionality. Note that it this feature is compatible with nodes from `v1.18.0` (platform release [`v2025.17-isabirra`](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.17-isabirra)) and newer!**
+**QUIC bridge is a requirement for all nodes which enable Wireguard functionality. Note that it this feature is compatible with nodes from `v1.19.0` (platform release [`v2025.18-jarlsberg`](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.17-isabirra)) and newer!**
 </ Callout>
 
 Nym Network uses various [transport bridges](https://github.com/nymtech/nym-bridges/blob/main/README.md) for routing the packets. Right now operators need to configure [our implementation](https://github.com/nymtech/nym-bridges/tree/main/nym-bridge) of general-purpose transport layer network protocol called [QUIC](https://en.wikipedia.org/wiki/QUIC).
@@ -31,18 +31,21 @@ chmod +x quic_bridge_deployment.sh
 ```
 
 ###### 3. Follow the interactive prompts
-- When you are asked for bridge binary URL, look here for one to match your system: [builds.ci.nymte.ch/QUIC](https://builds.ci.nymte.ch/QUIC/)
-- When you are asked to enter forward address, it's your IPv4 used for bonding the node, alongside port `:51822` (an example: `172.232.238.161:51822`)
-- To find out your IP address you can always run:
-    - IPv4: `curl -4 https://ifconfig.co/ip`
-    - IPv6: `curl -6 https://ifconfig.co/ip`
-- **For all prompts with default options, we highly recommend to stick to default (press enter)**
+- Make sure you don't just press enter to insert default values if your setup is different, for example in case of path to the config file
 
-###### 4. Restart the node service
+###### 4. Validate
+
+- After running the script, ensure that the bridges are running correctly:
+```sh
+systemctl status nym-bridge.service
+```
+
+###### 5. Restart `nym-node` service
 - When done with the deployment, please restart your node systemd service
 ```sh
 service nym-node restart && journalctl -u nym-node.service -f --all
 ```
+
 </Steps>
 
 Congratulation, you deployed QUIC transport bridge! The script offers a standalone tweaks and checks, you can always run it without any argument to see all the options:
@@ -53,51 +56,27 @@ Congratulation, you deployed QUIC transport bridge! The script offers a standalo
 <AccordionTemplate name="Command output">
 ```shell
 root@localhost:~# ./quic_bridge_deployment.sh
-iptables-persistent is already installed.
-Usage: ./quic_bridge_deployment.sh [command] [options]
+Logs are being saved locally to: /var/log/nym-bridge-helper.log
+These logs never leave your machine.
 
-Nym QUIC Bridge Deployment Helper Script
 
-Bridge Installation & Configuration:
-  check_bridge_installation       - Check bridge installation status
-  show_bridge_config              - Display bridge configuration files
-  show_bridge_keys                - Display bridge key information
-  show_bridge_info                - Show comprehensive bridge information
-  verify_bridge_prerequisites     - Verify all prerequisites are met
+Usage: ./quic_bridge_deployment.sh [command]
 
-Bridge Setup Commands:
-  install_bridge_binary           - Download and install nym-bridge binary
-  generate_bridge_keys            - Generate ED25519 bridge identity keys
-  create_client_params            - Create client_bridge_params.json
-  create_bridge_config            - Create bridges.toml configuration
-  create_bridge_service           - Create systemd service file
-  full_bridge_setup               - Interactive full bridge setup wizard
+Commands:
+  full_bridge_setup            - Run full setup
+  install_bridge_binary        - Install nym-bridge (.deb; falls back to source build if libc too old)
+  install_bridge_cfg_tool      - Install bridge-cfg (prebuilt; falls back to source build if libc too old)
+  run_bridge_cfg_generate      - Generate bridges.toml
+  create_bridge_service        - Setup systemd service (respects .deb-provided service)
+  adjust_ip_forwarding         - Enable forwarding
+  apply_bridge_iptables_rules  - NAT rules
+  configure_dns_and_icmp       - Allow ICMP/DNS
 
-Network Configuration Commands:
-  adjust_ip_forwarding            - Enable IPv4 and IPv6 forwarding
-  apply_bridge_iptables_rules     - Apply iptables rules for QUIC bridge (nymwg)
-  configure_dns_and_icmp          - Allow ICMP ping tests and configure DNS
-  remove_duplicate_bridge_rules   - Remove duplicate iptables rules for nymwg
 
-Network Inspection Commands:
-  fetch_and_display_ipv6          - Show IPv6 on default network device
-  fetch_wg_ipv6_address           - Fetch IPv6 for nymwg interface
-  check_bridge_iptables           - Check iptables rules for nymwg
-  check_ipv6_ipv4_forwarding      - Check IPv4 and IPv6 forwarding status
-  check_ip_routing                - Display IP routing tables
-
-Testing Commands:
-  perform_pings                   - Test IPv4 and IPv6 connectivity
-  test_bridge_connectivity        - Comprehensive bridge connectivity test
-
-Service Management Commands:
-  check_bridge_service_status     - Check nym-bridge and nym-node service status
-  show_bridge_logs [lines]        - Show recent nym-bridge logs (default: 50 lines)
-
-Quick Start:
-  1. Run 'verify_bridge_prerequisites' to check prerequisites
-  2. Run 'check_bridge_installation' to verify installation
-  3. Run 'test_bridge_connectivity' to test connectivity
+------------------------------------------
+Script exited with errors (code: 1).
+Check the log at: /var/log/nym-bridge-helper.log
+------------------------------------------
 ```
 </AccordionTemplate>
 
@@ -105,7 +84,9 @@ Quick Start:
 If you have followed the steps outlined above, but the metadata port is not shown as open in either the Node Status API's probe results or an explorer that gets its data from the API, see below:
 
 <Steps>
-###### 1.
+**Run as root**
+
+###### 1. Confirm correct `config.toml` private IPv4 address
 Ensure that in your `config.toml` file, this value is set to the default one - any other value here will cause the metadata endpoint to fail:
 
 ```
@@ -116,7 +97,7 @@ private_ipv4 = '10.1.0.1'
 
 Then restart your node.
 
-###### 2.
+###### 2. Open the needed port
 Run this command if not already done:
 ```
 ufw allow in on nymwg to any port 51830 proto tcp
@@ -132,7 +113,7 @@ Then ensure the metadata endpoint is listening from the correct address with:
 netstat -an | egrep LISTEN | egrep "51830"
 ```
 
-###### 3.
+###### 3. Validate the setup
 Once the Node Status API has run a probe on your node, the probe results will reflect this - `can_query_metadata_v4` will have `true` as a value.
 
 The quickest way to check this is by using the [NymVPN API](https://nymvpn.com/api/public/v1/directory/gateways?show_vpn_only=true) and checking the same field:

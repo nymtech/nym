@@ -1,6 +1,6 @@
 {
   "name": "@nymproject/mix-fetch-example-parcel",
-  "version": "1.0.4-rc.2",
+  "version": "1.0.5",
   "license": "Apache-2.0",
   "scripts": {
     "build": "parcel build --no-cache --no-content-hash",
@@ -8,7 +8,7 @@
     "start": "parcel --no-cache"
   },
   "dependencies": {
-    "@nymproject/mix-fetch": ">=1.2.2-rc.0 || ^1",
+    "@nymproject/mix-fetch": ">=1.2.3-rc.0 || ^1",
     "parcel": "^2.9.3"
   },
   "private": false,

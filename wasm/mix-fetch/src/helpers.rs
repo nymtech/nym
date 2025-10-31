@@ -2,36 +2,48 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::MixFetchError;
-use crate::harbourmaster;
-use crate::harbourmaster::HarbourMasterApiClientExt;
+use crate::error::MixFetchError::NoNetworkRequesters;
+use nym_http_api_client::Client;
+use nym_validator_client::nym_api::NymApiClientExt;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use wasm_utils::console_log;
 
 // since this client is temporary (and will be properly integrated into nym-api eventually),
 // we're using hardcoded URL for mainnet
-const HARBOUR_MASTER: &str = "https://harbourmaster.nymtech.net";
+const NYM_API_URL: &str = "https://validator.nymtech.net/api/";
 
 pub(crate) async fn get_network_requester(
+    nym_api_url: Option<String>,
     preferred: Option<String>,
 ) -> Result<String, MixFetchError> {
     if let Some(sp) = preferred {
         return Ok(sp);
     }
 
-    let client = harbourmaster::Client::new_url(HARBOUR_MASTER, None)?;
-    let providers = client.get_services_new().await?;
+    let client = Client::new(
+        url::Url::parse(&nym_api_url.unwrap_or(NYM_API_URL.to_string()))?,
+        None,
+    );
+    let nodes = client.get_all_described_nodes().await?;
+    let providers: Vec<_> = nodes
+        .iter()
+        .filter_map(|node| {
+            node.description
+                .network_requester
+                .clone()
+                .map(|n| n.address)
+        })
+        .collect();
     console_log!(
         "obtained list of {} service providers on the network",
-        providers.items.len()
+        providers.len()
     );
 
     // this will only return a `None` if the list is empty
     let mut rng = thread_rng();
     providers
-        .items
         .choose(&mut rng)
-        .map(|service| &service.service_provider_client_id)
+        .ok_or(NoNetworkRequesters)
         .cloned()
-        .ok_or(MixFetchError::NoNetworkRequesters)
 }

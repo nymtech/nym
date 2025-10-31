@@ -1,7 +1,5 @@
 const { mergeWithRules } = require('webpack-merge');
 const webpack = require('webpack');
-const ReactRefreshWebpackPlugin = require('@pmmmwh/react-refresh-webpack-plugin');
-const ReactRefreshTypeScript = require('react-refresh-typescript');
 const commonConfig = require('./webpack.common');
 
 module.exports = mergeWithRules({
@@ -22,7 +20,7 @@ module.exports = mergeWithRules({
         exclude: /node_modules/,
         options: {
           getCustomTransformers: () => ({
-            before: [ReactRefreshTypeScript()],
+            before: [],
           }),
           // `ts-loader` does not work with HMR unless `transpileOnly` is used.
           // If you need type checking, `ForkTsCheckerWebpackPlugin` is an alternative.
@@ -36,8 +34,6 @@ module.exports = mergeWithRules({
     ],
   },
   plugins: [
-    new ReactRefreshWebpackPlugin(),
-
     // this can be included automatically by the dev server, however build mode fails if missing
     new webpack.HotModuleReplacementPlugin(),
   ],

@@ -1,6 +1,6 @@
 {
   "name": "@nymproject/sdk",
-  "version": "1.4.0-rc.0",
+  "version": "1.4.1",
   "license": "Apache-2.0",
   "author": "Nym Technologies SA",
   "files": [
@@ -30,11 +30,8 @@
     "test": "node --experimental-vm-modules --no-warnings node_modules/jest/bin/jest.js -c=jest.config.mjs --no-cache",
     "tsc": "tsc --noEmit true"
   },
-  "typeRoots": [
-    "./node_modules/@types/*"
-  ],
   "dependencies": {
-    "@nymproject/nym-client-wasm": ">=1.2.4-rc.2 || ^1",
+    "@nymproject/nym-client-wasm": ">=1.2.5-rc.0 || ^1",
     "comlink": "^4.3.1"
   },
   "devDependencies": {
@@ -83,5 +80,8 @@
   },
   "private": false,
   "type": "module",
+  "typeRoots": [
+    "./node_modules/@types/*"
+  ],
   "types": "./dist/esm/index.d.ts"
 }

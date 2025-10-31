@@ -21,6 +21,7 @@ async function main() {
 
   // const addr =
   //   'EVdJ66jqpoVzmktVecy5UJxsTCEWo5gMn5zDZR7Hm8jy.GXNpoX7RcYcxKvBkV3dSHqC78WaPuWieweRPWzYqNhh5@GAjhJcrd6f1edaqUkfWCff6zdHoqo756qYrc2TfPuCXJ';
+  // const addr = '7Y9eyF1p1JmzHnd7TVZufnQHkh93ASc9sRBCFY57ZGr8.F8KPyVMVqFQ5yJC3LqeP2ZC7fukzj9a1T426rjo432yT@q2A2cbooyC16YJzvdYaSMH9X3cSiieZNtfBr8cE8Fi1';
   const addr = undefined;
 
   appendOutput('About to set up mixFetch...');
@@ -54,12 +55,12 @@ async function main() {
   appendOutput(JSON.stringify(resp, null, 2));
   appendOutput(JSON.stringify({ text }, null, 2));
 
-  console.log('disconnecting');
-  await disconnectMixFetch();
-  console.log('disconnected! all further usages should fail');
+  // console.log('disconnecting');
+  // await disconnectMixFetch();
+  // console.log('disconnected! all further usages should fail');
 
   // get an image
-  url = 'https://nymtech.net/favicon.svg';
+  url = 'https://matrix.org/assets/frontpage/github-mark.svg';
   resp = await mixFetch(url, args);
   console.log({ resp });
   const buffer = await resp.arrayBuffer();

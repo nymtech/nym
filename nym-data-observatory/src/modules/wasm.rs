@@ -1,8 +1,8 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::db::queries::wasm::insert_wasm_execute;
 use crate::db::DbPool;
+use crate::db::queries::wasm::insert_wasm_execute;
 use async_trait::async_trait;
 use cosmrs::proto::cosmwasm::wasm::v1::MsgExecuteContract;
 use cosmrs::proto::prost::Message;
@@ -14,7 +14,7 @@ use nyxd_scraper_psql::{
 use serde_json::Value;
 use time::{OffsetDateTime, PrimitiveDateTime};
 use tracing::{error, trace};
-use utoipa::gen::serde_json;
+use utoipa::r#gen::serde_json;
 
 pub struct WasmModule {
     connection_pool: DbPool,

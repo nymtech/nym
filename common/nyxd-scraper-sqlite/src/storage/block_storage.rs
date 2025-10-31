@@ -4,16 +4,16 @@
 use crate::error::SqliteScraperError;
 use crate::models::{CommitSignature, Validator};
 use crate::storage::manager::{
-    prune_blocks, prune_messages, prune_pre_commits, prune_transactions, update_last_pruned,
-    StorageManager,
+    StorageManager, prune_blocks, prune_messages, prune_pre_commits, prune_transactions,
+    update_last_pruned,
 };
 use crate::storage::transaction::SqliteStorageTransaction;
 use async_trait::async_trait;
 use nyxd_scraper_shared::storage::helpers::log_db_operation_time;
 use nyxd_scraper_shared::storage::{NyxdScraperStorage, NyxdScraperStorageError};
+use sqlx::ConnectOptions;
 use sqlx::sqlite::{SqliteAutoVacuum, SqliteSynchronous};
 use sqlx::types::time::OffsetDateTime;
-use sqlx::ConnectOptions;
 use std::fmt::Debug;
 use std::path::Path;
 use tokio::time::Instant;

@@ -7,14 +7,14 @@ use crate::storage::manager::{
     update_last_processed,
 };
 use async_trait::async_trait;
+use nyxd_scraper_shared::ParsedTransactionResponse;
 use nyxd_scraper_shared::helpers::{
     validator_consensus_address, validator_info, validator_pubkey_to_bech32,
 };
 use nyxd_scraper_shared::storage::validators::Response;
 use nyxd_scraper_shared::storage::{
-    validators, Block, Commit, CommitSig, NyxdScraperStorageError, NyxdScraperTransaction,
+    Block, Commit, CommitSig, NyxdScraperStorageError, NyxdScraperTransaction, validators,
 };
-use nyxd_scraper_shared::ParsedTransactionResponse;
 use sqlx::{Sqlite, Transaction};
 use std::ops::{Deref, DerefMut};
 use tracing::{debug, trace, warn};

@@ -4,8 +4,8 @@
 use crate::error::PostgresScraperError;
 use crate::models::{CommitSignature, Validator};
 use crate::storage::manager::{
-    prune_blocks, prune_messages, prune_pre_commits, prune_transactions, update_last_pruned,
-    StorageManager,
+    StorageManager, prune_blocks, prune_messages, prune_pre_commits, prune_transactions,
+    update_last_pruned,
 };
 use crate::storage::transaction::PostgresStorageTransaction;
 use async_trait::async_trait;

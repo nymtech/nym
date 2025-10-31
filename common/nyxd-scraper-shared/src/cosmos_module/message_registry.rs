@@ -1,6 +1,7 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::cosmos_module::CosmosModule;
 use crate::cosmos_module::modules::auth::Auth;
 use crate::cosmos_module::modules::authz::Authz;
 use crate::cosmos_module::modules::bank::Bank;
@@ -26,11 +27,10 @@ use crate::cosmos_module::modules::staking::Staking;
 use crate::cosmos_module::modules::upgrade::Upgrade;
 use crate::cosmos_module::modules::vesting::Vesting;
 use crate::cosmos_module::modules::wasm::Wasm;
-use crate::cosmos_module::CosmosModule;
 use crate::error::ScraperError;
+use cosmrs::Any;
 use cosmrs::proto::prost::Name;
 use cosmrs::proto::traits::Message;
-use cosmrs::Any;
 use serde::Serialize;
 use std::collections::HashMap;
 

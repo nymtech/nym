@@ -1,7 +1,7 @@
-use crate::cli::commands::run::args::Args;
 use crate::cli::DEFAULT_NYM_DATA_OBSERVATORY_ID;
+use crate::cli::commands::run::args::Args;
 use crate::config::data_observatory::{HttpAuthenticationOptions, WebhookConfig};
-use crate::config::{default_config_filepath, Config, ConfigBuilder, DataObservatoryConfig};
+use crate::config::{Config, ConfigBuilder, DataObservatoryConfig, default_config_filepath};
 use crate::error::NymDataObservatoryError;
 use tracing::{info, warn};
 

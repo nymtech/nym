@@ -20,7 +20,9 @@ pub enum NymDataObservatoryError {
     #[error("could not derive path to data directory of this nyx chain watcher")]
     DataDirDerivationFailure,
 
-    #[error("please provide a database connection string as an env var, cli argument or in a config file")]
+    #[error(
+        "please provide a database connection string as an env var, cli argument or in a config file"
+    )]
     DbConnectionStringMissing,
 
     // #[error("could not derive path to config directory of this nyx chain watcher")]

@@ -1,8 +1,8 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::cosmos_module::message_registry::MessageRegistry;
 use crate::cosmos_module::CosmosModule;
+use crate::cosmos_module::message_registry::MessageRegistry;
 use cosmos_sdk_proto::cosmos::staking::v1beta1::{
     MsgBeginRedelegate, MsgCancelUnbondingDelegation, MsgCreateValidator, MsgDelegate,
     MsgEditValidator, MsgUndelegate, MsgUpdateParams,

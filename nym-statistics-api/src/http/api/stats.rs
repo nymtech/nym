@@ -11,7 +11,11 @@ use crate::{
     },
     storage::models::{ConnectionInfoDto, DailyActiveDeviceDto, SessionInfoDto, StatsReportV1Dto},
 };
-pub(crate) fn routes() -> Router<AppState> {}
+
+pub(crate) fn routes() -> Router<AppState> {
+    Router::new().route("/report", axum::routing::post(submit_stats_report))
+}
+
 #[utoipa::path(
     post,
     request_body = VpnClientStatsReport,

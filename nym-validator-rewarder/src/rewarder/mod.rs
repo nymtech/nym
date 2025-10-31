@@ -16,7 +16,7 @@ use nym_crypto::asymmetric::ed25519;
 use nym_ecash_time::{EcashTime, ecash_today, ecash_today_date};
 use nym_task::ShutdownManager;
 use nym_validator_client::nyxd::{AccountId, Coin, Hash};
-use nyxd_scraper::NyxdScraper;
+use nyxd_scraper_sqlite::SqliteNyxdScraper;
 use std::sync::Arc;
 use time::Date;
 use tracing::{error, info, instrument, warn};
@@ -187,7 +187,7 @@ impl Rewarder {
                 info!("the block signing rewarding is running in monitor only mode");
             }
 
-            let nyxd_scraper = NyxdScraper::new(config.scraper_config()).await?;
+            let nyxd_scraper = SqliteNyxdScraper::new(config.scraper_config()).await?;
 
             Some(EpochSigning {
                 nyxd_scraper,

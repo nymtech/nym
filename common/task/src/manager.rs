@@ -7,8 +7,8 @@ use std::{
     time::Duration,
 };
 
-use futures::{future::pending, FutureExt, SinkExt, StreamExt};
-use log::{log, Level};
+use futures::{FutureExt, SinkExt, StreamExt, future::pending};
+use log::{Level, log};
 use tokio::sync::{
     mpsc,
     watch::{self, error::SendError},

@@ -9,7 +9,7 @@ use std::{
 };
 
 use nym_ip_packet_requests::IpPair;
-use tokio::sync::{mpsc, oneshot, RwLock};
+use tokio::sync::{RwLock, mpsc, oneshot};
 
 use crate::{
     constants::CLIENT_MIXNET_INACTIVITY_TIMEOUT,

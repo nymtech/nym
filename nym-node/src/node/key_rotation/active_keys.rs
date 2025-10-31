@@ -92,7 +92,9 @@ impl ActiveSphinxKeys {
     // and the current primary as the secondary (for the overlap epoch)
     pub(crate) fn rotate(&self, expected_new_rotation: u32) -> bool {
         let Some(pre_announced) = self.inner.secondary_key.load_full() else {
-            error!("sphinx key inconsistency - attempted to perform key rotation without having pre-announced new key");
+            error!(
+                "sphinx key inconsistency - attempted to perform key rotation without having pre-announced new key"
+            );
             return false;
         };
 

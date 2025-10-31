@@ -1,7 +1,7 @@
 use nym_sphinx::addressing::clients::Recipient;
 use serde::{Deserialize, Serialize};
 
-use crate::{make_bincode_serializer, IpPair};
+use crate::{IpPair, make_bincode_serializer};
 
 use super::VERSION;
 

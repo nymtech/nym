@@ -1,9 +1,9 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use models::{ConnectionInfoDto, DailyActiveDeviceDto};
 use sqlx::{
+    Executor,
     migrate::Migrator,
     postgres::{PgConnectOptions, PgPoolOptions},
-    Executor,
 };
 use std::{path::PathBuf, str::FromStr};
 

@@ -132,7 +132,9 @@ pub enum NymRewarderError {
     #[error("failed to resolve nym-api query: {0}")]
     ApiQueryFailure(Box<NymAPIError>),
 
-    #[error("operator {runner_account} didn't return all requested credentials! requested {requested} but got only {received}")]
+    #[error(
+        "operator {runner_account} didn't return all requested credentials! requested {requested} but got only {received}"
+    )]
     IncompleteRequest {
         runner_account: AccountId,
         requested: usize,
@@ -158,7 +160,9 @@ pub enum NymRewarderError {
     #[error("could not verify the blinded credential")]
     BlindVerificationFailure,
 
-    #[error("the same deposit ({deposit_id}) has been used for multiple issued credentials! {first} and {other}")]
+    #[error(
+        "the same deposit ({deposit_id}) has been used for multiple issued credentials! {first} and {other}"
+    )]
     DuplicateDepositId {
         deposit_id: u32,
         first: i64,
@@ -168,14 +172,18 @@ pub enum NymRewarderError {
     #[error("could not find the deposit details for deposit id {deposit_id}")]
     DepositNotFound { deposit_id: u32 },
 
-    #[error("the provided deposit value of deposit {deposit_id} is inconsistent. got '{request:?}' while the value on chain is '{on_chain}'")]
+    #[error(
+        "the provided deposit value of deposit {deposit_id} is inconsistent. got '{request:?}' while the value on chain is '{on_chain}'"
+    )]
     InconsistentDepositValue {
         deposit_id: u32,
         request: Option<String>,
         on_chain: String,
     },
 
-    #[error("the provided deposit info of deposit {deposit_id}  is inconsistent. got '{request:?}' while the value on chain is '{on_chain}'")]
+    #[error(
+        "the provided deposit info of deposit {deposit_id}  is inconsistent. got '{request:?}' while the value on chain is '{on_chain}'"
+    )]
     InconsistentDepositInfo {
         deposit_id: u32,
         request: Option<String>,
@@ -203,7 +211,9 @@ pub enum NymRewarderError {
     #[error("attempted to send an empty rewarding coin")]
     EmptyRewardingCoin,
 
-    #[error("the current pruning strategy is set to 'everything' - we won't have any block data for rewarding")]
+    #[error(
+        "the current pruning strategy is set to 'everything' - we won't have any block data for rewarding"
+    )]
     EverythingPruningStrategy,
 
     #[error("pruning.keep_recent must not be smaller than {min_to_keep}. got: {keep_recent}")]

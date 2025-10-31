@@ -1,5 +1,5 @@
 use nym_mixnet_contract_common::{NodeId, NymNodeDetails};
-use nym_validator_client::{nyxd::contract_traits::PagedMixnetQueryClient, QueryHttpRpcNyxdClient};
+use nym_validator_client::{QueryHttpRpcNyxdClient, nyxd::contract_traits::PagedMixnetQueryClient};
 use std::{collections::HashMap, sync::Arc};
 use tokio::{sync::RwLock, time::Instant};
 use tracing::{info, warn};

@@ -13,7 +13,6 @@ mod old_config_v8;
 mod old_config_v9;
 
 pub use old_config_v1::try_upgrade_config_v1;
-pub use old_config_v10::try_upgrade_config_v10;
 pub use old_config_v2::try_upgrade_config_v2;
 pub use old_config_v3::try_upgrade_config_v3;
 pub use old_config_v4::try_upgrade_config_v4;
@@ -22,3 +21,4 @@ pub use old_config_v6::try_upgrade_config_v6;
 pub use old_config_v7::try_upgrade_config_v7;
 pub use old_config_v8::try_upgrade_config_v8;
 pub use old_config_v9::try_upgrade_config_v9;
+pub use old_config_v10::try_upgrade_config_v10;

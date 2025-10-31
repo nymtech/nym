@@ -7,11 +7,12 @@ use super::statistics_control::StatisticsControl;
 use crate::client::base_client::storage::helpers::store_client_keys;
 use crate::client::base_client::storage::MixnetClientStorage;
 use crate::client::cover_traffic_stream::LoopCoverTrafficStream;
+use crate::client::event_control::EventControl;
 use crate::client::inbound_messages::{InputMessage, InputMessageReceiver, InputMessageSender};
 use crate::client::key_manager::persistence::KeyStore;
 use crate::client::key_manager::ClientKeys;
 use crate::client::mix_traffic::transceiver::{GatewayReceiver, GatewayTransceiver, RemoteGateway};
-use crate::client::mix_traffic::{BatchMixMessageSender, MixTrafficController};
+use crate::client::mix_traffic::{BatchMixMessageSender, MixTrafficController, MixTrafficEvent};
 use crate::client::real_messages_control;
 use crate::client::real_messages_control::RealMessagesController;
 use crate::client::received_buffer::{
@@ -66,8 +67,11 @@ use std::path::Path;
 use std::sync::Arc;
 use time::OffsetDateTime;
 use tokio::sync::mpsc::Sender;
-use tracing::*;
 use url::Url;
+
+#[cfg(target_arch = "wasm32")]
+#[cfg(debug_assertions)]
+use wasm_utils::console_log;
 
 #[cfg(all(
     not(target_arch = "wasm32"),
@@ -79,10 +83,28 @@ pub mod non_wasm_helpers;
 pub mod helpers;
 pub mod storage;
 
+#[derive(Clone, Copy, Debug)]
+pub enum MixnetClientEvent {
+    Traffic(MixTrafficEvent),
+}
+
+pub type EventReceiver = mpsc::UnboundedReceiver<MixnetClientEvent>;
+#[derive(Clone)]
+pub struct EventSender(pub mpsc::UnboundedSender<MixnetClientEvent>);
+
+impl EventSender {
+    pub fn send(&self, event: MixnetClientEvent) {
+        if let Err(err) = self.0.unbounded_send(event) {
+            tracing::warn!("Failed to send error event. The caller event reader was closed: {err}");
+        }
+    }
+}
+
 #[derive(Clone)]
 pub struct ClientInput {
     pub connection_command_sender: ConnectionCommandSender,
     pub input_sender: InputMessageSender,
+    pub client_request_sender: ClientRequestSender,
 }
 
 impl ClientInput {
@@ -194,6 +216,7 @@ pub struct BaseClientBuilder<C, S: MixnetClientStorage> {
     custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
     custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send>>,
     shutdown: Option<ShutdownTracker>,
+    event_tx: Option<EventSender>,
     user_agent: Option<UserAgent>,
 
     setup_method: GatewaySetup,
@@ -222,6 +245,7 @@ where
             custom_topology_provider: None,
             custom_gateway_transceiver: None,
             shutdown: None,
+            event_tx: None,
             user_agent: None,
             setup_method: GatewaySetup::MustLoad { gateway_id: None },
             #[cfg(unix)]
@@ -285,6 +309,12 @@ where
     }
 
     #[must_use]
+    pub fn with_event_tx(mut self, event_tx: EventSender) -> Self {
+        self.event_tx = Some(event_tx);
+        self
+    }
+
+    #[must_use]
     pub fn with_user_agent(mut self, user_agent: UserAgent) -> Self {
         self.user_agent = Some(user_agent);
         self
@@ -314,6 +344,18 @@ where
         details.client_address()
     }
 
+    fn start_event_control(
+        parent_event_tx: Option<EventSender>,
+        children_event_rx: EventReceiver,
+        shutdown_tracker: &ShutdownTracker,
+    ) {
+        let event_control = EventControl::new(parent_event_tx, children_event_rx);
+        shutdown_tracker.try_spawn_named_with_shutdown(
+            async move { event_control.run().await },
+            "EventControl",
+        );
+    }
+
     // future constantly pumping loop cover traffic at some specified average rate
     // the pumped traffic goes to the MixTrafficController
     fn start_cover_traffic_stream(
@@ -325,7 +367,7 @@ where
         stats_tx: ClientStatsSender,
         shutdown_tracker: &ShutdownTracker,
     ) {
-        info!("Starting loop cover traffic stream...");
+        tracing::info!("Starting loop cover traffic stream...");
 
         let mut stream = LoopCoverTrafficStream::new(
             ack_key,
@@ -357,7 +399,7 @@ where
         stats_tx: ClientStatsSender,
         shutdown_tracker: &ShutdownTracker,
     ) {
-        info!("Starting real traffic stream...");
+        tracing::info!("Starting real traffic stream...");
 
         let real_messages_controller = RealMessagesController::new(
             controller_config,
@@ -442,7 +484,7 @@ where
         metrics_reporter: ClientStatsSender,
         shutdown_tracker: &ShutdownTracker,
     ) {
-        info!("Starting received messages buffer controller...");
+        tracing::info!("Starting received messages buffer controller...");
         let controller = ReceivedMessagesBufferController::<SphinxMessageReceiver>::new(
             local_encryption_keypair,
             query_receiver,
@@ -553,7 +595,7 @@ where
             details_store
                 .upgrade_stored_remote_gateway_key(gateway_client.gateway_identity(), &updated_key)
                 .await.map_err(|err| {
-                error!("failed to store upgraded gateway key! this connection might be forever broken now: {err}");
+                tracing::error!("failed to store upgraded gateway key! this connection might be forever broken now: {err}");
                 ClientCoreError::GatewaysDetailsStoreError { source: Box::new(err) }
             })?
         }
@@ -650,7 +692,7 @@ where
 
         if topology_config.disable_refreshing {
             // if we're not spawning the refresher, don't cause shutdown immediately
-            info!("The background topology refresher is not going to be started");
+            tracing::info!("The background topology refresher is not going to be started");
         }
 
         let mut topology_refresher = TopologyRefresher::new(
@@ -660,7 +702,7 @@ where
         );
         // before returning, block entire runtime to refresh the current network view so that any
         // components depending on topology would see a non-empty view
-        info!("Obtaining initial network topology");
+        tracing::info!("Obtaining initial network topology");
         topology_refresher.try_refresh().await;
 
         if let Err(err) = topology_refresher.ensure_topology_is_routable().await {
@@ -686,13 +728,13 @@ where
                     .wait_for_gateway(local_gateway, waiting_timeout)
                     .await
                 {
-                    error!(
+                    tracing::error!(
                         "the gateway did not come back online within the specified timeout: {err}"
                     );
                     return Err(err.into());
                 }
             } else {
-                error!("the gateway we're supposedly connected to does not exist. We'll not be able to send any packets to ourselves: {err}");
+                tracing::error!("the gateway we're supposedly connected to does not exist. We'll not be able to send any packets to ourselves: {err}");
                 return Err(err.into());
             }
         }
@@ -700,7 +742,7 @@ where
         if !topology_config.disable_refreshing {
             // don't spawn the refresher if we don't want to be refreshing the topology.
             // only use the initial values obtained
-            info!("Starting topology refresher...");
+            tracing::info!("Starting topology refresher...");
             shutdown_tracker.try_spawn_named_with_shutdown(
                 async move { topology_refresher.run().await },
                 "TopologyRefresher",
@@ -717,7 +759,7 @@ where
         input_sender: Sender<InputMessage>,
         shutdown_tracker: &ShutdownTracker,
     ) -> ClientStatsSender {
-        info!("Starting statistics control...");
+        tracing::info!("Starting statistics control...");
         StatisticsControl::create_and_start(
             config.debug.stats_reporting,
             user_agent
@@ -732,10 +774,17 @@ where
     fn start_mix_traffic_controller(
         gateway_transceiver: Box<dyn GatewayTransceiver + Send>,
         shutdown_tracker: &ShutdownTracker,
+        event_tx: EventSender,
     ) -> (BatchMixMessageSender, ClientRequestSender) {
-        info!("Starting mix traffic controller...");
-        let (mut mix_traffic_controller, mix_tx, client_tx) =
-            MixTrafficController::new(gateway_transceiver, shutdown_tracker.clone_shutdown_token());
+        tracing::info!("Starting mix traffic controller...");
+        let mut mix_traffic_controller = MixTrafficController::new(
+            gateway_transceiver,
+            shutdown_tracker.clone_shutdown_token(),
+            event_tx,
+        );
+
+        let mix_tx = mix_traffic_controller.mix_tx();
+        let client_tx = mix_traffic_controller.client_tx();
 
         shutdown_tracker.try_spawn_named(
             async move { mix_traffic_controller.run().await },
@@ -799,7 +848,7 @@ where
     {
         // if client keys do not exist already, create and persist them
         if key_store.load_keys().await.is_err() {
-            info!("could not find valid client keys - a new set will be generated");
+            tracing::info!("could not find valid client keys - a new set will be generated");
             let mut rng = OsRng;
             let keys = if let Some(derivation_material) = derivation_material {
                 ClientKeys::from_master_key(&mut rng, &derivation_material)
@@ -846,7 +895,12 @@ where
         <S::CredentialStore as CredentialStorage>::StorageError: Send + Sync + 'static,
         <S::GatewaysDetailsStore as GatewaysDetailsStore>::StorageError: Sync + Send,
     {
-        info!("Starting nym client");
+        tracing::info!("Starting nym client");
+        #[cfg(debug_assertions)]
+        #[cfg(target_arch = "wasm32")]
+        {
+            console_log!("Starting base Nym Client");
+        }
 
         // derive (or load) client keys and gateway configuration
         let init_res = Self::initialise_keys_and_gateway(
@@ -875,6 +929,9 @@ where
         // channels responsible for controlling real messages
         let (input_sender, input_receiver) = tokio::sync::mpsc::channel::<InputMessage>(1);
 
+        // channels responsible for event management
+        let (event_sender, event_receiver) = mpsc::unbounded();
+
         // channels responsible for controlling ack messages
         let (ack_sender, ack_receiver) = mpsc::unbounded();
         let shared_topology_accessor =
@@ -883,9 +940,11 @@ where
         // Create a shutdown tracker for this client - either as a child of provided tracker
         // or get one from the registry
         let shutdown_tracker = match self.shutdown {
-            Some(parent_tracker) => parent_tracker.child_tracker(),
-            None => nym_task::get_sdk_shutdown_tracker()?,
+            Some(parent_tracker) => parent_tracker.clone(),
+            None => nym_task::create_sdk_shutdown_tracker()?,
         };
+
+        Self::start_event_control(self.event_tx, event_receiver, &shutdown_tracker);
 
         // channels responsible for dealing with reply-related fun
         let (reply_controller_sender, reply_controller_receiver) =
@@ -917,7 +976,7 @@ where
             self.user_agent.clone(),
             generate_client_stats_id(*self_address.identity()),
             input_sender.clone(),
-            &shutdown_tracker.child_tracker(),
+            &shutdown_tracker.clone(),
         );
 
         // needs to be started as the first thing to block if required waiting for the gateway
@@ -927,7 +986,7 @@ where
             shared_topology_accessor.clone(),
             self_address.gateway(),
             self.wait_for_gateway,
-            &shutdown_tracker.child_tracker(),
+            &shutdown_tracker.clone(),
         )
         .await?;
 
@@ -947,7 +1006,7 @@ where
             stats_reporter.clone(),
             #[cfg(unix)]
             self.connection_fd_callback,
-            &shutdown_tracker.child_tracker(),
+            &shutdown_tracker.clone(),
         )
         .await?;
         let gateway_ws_fd = gateway_transceiver.ws_fd();
@@ -955,7 +1014,7 @@ where
         let reply_storage = Self::setup_persistent_reply_storage(
             reply_storage_backend,
             key_rotation_config,
-            &shutdown_tracker.child_tracker(),
+            &shutdown_tracker.clone(),
         )
         .await?;
 
@@ -966,7 +1025,7 @@ where
             reply_storage.key_storage(),
             reply_controller_sender.clone(),
             stats_reporter.clone(),
-            &shutdown_tracker.child_tracker(),
+            &shutdown_tracker.clone(),
         );
 
         // The message_sender is the transmitter for any component generating sphinx packets
@@ -976,7 +1035,8 @@ where
 
         let (message_sender, client_request_sender) = Self::start_mix_traffic_controller(
             gateway_transceiver,
-            &shutdown_tracker.child_tracker(),
+            &shutdown_tracker.clone(),
+            EventSender(event_sender),
         );
 
         // Channels that the websocket listener can use to signal downstream to the real traffic
@@ -1006,7 +1066,7 @@ where
             shared_lane_queue_lengths.clone(),
             client_connection_rx,
             stats_reporter.clone(),
-            &shutdown_tracker.child_tracker(),
+            &shutdown_tracker.clone(),
         );
 
         if !self
@@ -1022,12 +1082,19 @@ where
                 shared_topology_accessor.clone(),
                 message_sender,
                 stats_reporter.clone(),
-                &shutdown_tracker.child_tracker(),
+                &shutdown_tracker.clone(),
             );
         }
 
-        debug!("Core client startup finished!");
-        debug!("The address of this client is: {self_address}");
+        tracing::debug!("Core client startup finished!");
+        tracing::debug!("The address of this client is: {self_address}");
+
+        #[cfg(debug_assertions)]
+        #[cfg(target_arch = "wasm32")]
+        {
+            console_log!("Core client startup finished!");
+            console_log!("Rust::start_base: the address of this client is: {self_address}");
+        }
 
         Ok(BaseClient {
             address: self_address,
@@ -1036,6 +1103,7 @@ where
                 client_input: ClientInput {
                     connection_command_sender: client_connection_tx,
                     input_sender,
+                    client_request_sender,
                 },
             },
             client_output: ClientOutputStatus::AwaitingConsumer {
@@ -1051,7 +1119,6 @@ where
             },
             stats_reporter,
             shutdown_handle: shutdown_tracker, // The primary tracker for this client
-            client_request_sender,
             forget_me: self.config.debug.forget_me,
             remember_me: self.config.debug.remember_me,
         })
@@ -1065,7 +1132,6 @@ pub struct BaseClient {
     pub client_output: ClientOutputStatus,
     pub client_state: ClientState,
     pub stats_reporter: ClientStatsSender,
-    pub client_request_sender: ClientRequestSender,
     pub shutdown_handle: ShutdownTracker,
     pub forget_me: ForgetMe,
     pub remember_me: RememberMe,

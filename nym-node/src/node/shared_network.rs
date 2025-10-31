@@ -8,7 +8,7 @@ use async_trait::async_trait;
 use nym_crypto::asymmetric::ed25519;
 use nym_gateway::node::UserAgent;
 use nym_http_api_client::Client;
-use nym_node_metrics::prometheus_wrapper::{PrometheusMetric, PROMETHEUS_METRICS};
+use nym_node_metrics::prometheus_wrapper::{PROMETHEUS_METRICS, PrometheusMetric};
 use nym_noise::config::NoiseNetworkView;
 use nym_task::ShutdownToken;
 use nym_topology::node::RoutingNode;
@@ -17,11 +17,11 @@ use nym_topology::{
     EntryDetails, EpochRewardedSet, NodeId, NymTopology, NymTopologyMetadata, Role,
     TopologyProvider,
 };
+use nym_validator_client::ValidatorClientError;
 use nym_validator_client::nym_api::NymApiClientExt;
 use nym_validator_client::nym_nodes::{
     NodesByAddressesResponse, SemiSkimmedNode, SemiSkimmedNodesWithMetadata,
 };
-use nym_validator_client::ValidatorClientError;
 use std::collections::{HashMap, HashSet};
 use std::net::{IpAddr, SocketAddr};
 use std::ops::Deref;
@@ -44,7 +44,9 @@ struct NodesQuerier {
 impl NodesQuerier {
     fn use_next_nym_api(&mut self) {
         if self.nym_api_urls.len() == 1 {
-            warn!("There's only a single nym API available - it won't be possible to use a different one");
+            warn!(
+                "There's only a single nym API available - it won't be possible to use a different one"
+            );
             return;
         }
 

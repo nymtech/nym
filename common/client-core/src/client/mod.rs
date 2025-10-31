@@ -3,6 +3,7 @@
 
 pub mod base_client;
 pub mod cover_traffic_stream;
+pub(crate) mod event_control;
 pub(crate) mod helpers;
 pub mod inbound_messages;
 pub mod key_manager;

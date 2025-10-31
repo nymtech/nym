@@ -3,7 +3,7 @@
 
 use crate::error::NetworkManagerError;
 use indicatif::{HumanDuration, ProgressBar};
-use nym_config::{must_get_home, NYM_DIR};
+use nym_config::{NYM_DIR, must_get_home};
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 use std::fmt::{Display, Formatter};

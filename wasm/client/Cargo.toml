@@ -1,13 +1,16 @@
 [package]
 name = "nym-client-wasm"
-authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>", "Jedrzej Stuczynski <andrew@nymtech.net>"]
+authors = [
+    "Dave Hrycyszyn <futurechimp@users.noreply.github.com>",
+    "Jedrzej Stuczynski <andrew@nymtech.net>",
+]
 version = "1.4.0-rc.0"
 edition = "2021"
 keywords = ["nym", "sphinx", "wasm", "webassembly", "privacy"]
 license = "Apache-2.0"
 repository = "https://github.com/nymtech/nym"
 description = "A webassembly client which can be used to interact with the the Nym privacy platform. Wasm is used for Sphinx packet generation."
-rust-version = "1.76"
+rust-version = "1.85"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
@@ -22,15 +25,22 @@ serde_json = { workspace = true }
 serde-wasm-bindgen = { workspace = true }
 wasm-bindgen = { workspace = true }
 wasm-bindgen-futures = { workspace = true }
+gloo-timers = { workspace = true }
+once_cell = { workspace = true }
+
 thiserror = { workspace = true }
 tsify = { workspace = true, features = ["js"] }
+web-sys = { workspace = true }
 
 nym-bin-common = { path = "../../common/bin-common" }
 wasm-client-core = { path = "../../common/wasm/client-core" }
 wasm-utils = { path = "../../common/wasm/utils" }
+nym-gateway-requests = { path = "../../common/gateway-requests" }
 
 nym-node-tester-utils = { path = "../../common/node-tester-utils", optional = true }
 nym-node-tester-wasm = { path = "../node-tester", optional = true }
+
+tokio_with_wasm = { workspace = true, features = ["full"] }
 
 [dev-dependencies]
 wasm-bindgen-test = { workspace = true }

@@ -1,8 +1,8 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use rand::rngs::OsRng;
 use rand::RngCore;
+use rand::rngs::OsRng;
 use time::OffsetDateTime;
 use tracing::{debug, info, warn};
 use uuid::Uuid;

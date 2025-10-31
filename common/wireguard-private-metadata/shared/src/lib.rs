@@ -8,8 +8,8 @@ pub mod routes;
 #[cfg(feature = "testing")]
 pub use models::v0;
 pub use models::{
-    error::Error as ModelError, interface, latest, v1, AxumErrorResponse, AxumResult, Construct,
-    ErrorResponse, Extract, Request, Response, Version,
+    AxumErrorResponse, AxumResult, Construct, ErrorResponse, Extract, Request, Response, Version,
+    error::Error as ModelError, interface, latest, v1,
 };
 
 fn make_bincode_serializer() -> impl bincode::Options {

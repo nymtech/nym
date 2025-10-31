@@ -3,9 +3,9 @@
 
 use crate::manager::contract::Account;
 use nym_coconut_dkg_common::types::Addr;
-use nym_contracts_common::signing::MessageSignature;
 use nym_contracts_common::Percent;
-use nym_mixnet_contract_common::{construct_nym_node_bonding_sign_payload, NodeCostParams};
+use nym_contracts_common::signing::MessageSignature;
+use nym_mixnet_contract_common::{NodeCostParams, construct_nym_node_bonding_sign_payload};
 use nym_validator_client::nyxd::CosmWasmCoin;
 
 pub(crate) struct NymNode {

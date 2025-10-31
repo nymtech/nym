@@ -4,8 +4,8 @@
 use std::net::SocketAddr;
 
 use crate::error::IpPacketRouterError;
-use nym_exit_policy::client::get_exit_policy;
 use nym_exit_policy::ExitPolicy;
+use nym_exit_policy::client::get_exit_policy;
 use reqwest::IntoUrl;
 use url::Url;
 

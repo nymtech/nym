@@ -1,14 +1,14 @@
 use axum::{
+    Json,
     extract::{Path, State},
     http::StatusCode,
-    Json,
 };
 use futures::StreamExt;
 use log::{debug, error, warn};
 use nym_sdk::mixnet::MixnetMessageSender;
-use nym_sphinx::chunking::{monitoring, ReceivedFragment, SentFragment};
-use petgraph::{dot::Dot, Graph};
-use rand::{distributions::Alphanumeric, seq::SliceRandom, Rng};
+use nym_sphinx::chunking::{ReceivedFragment, SentFragment, monitoring};
+use petgraph::{Graph, dot::Dot};
+use rand::{Rng, distributions::Alphanumeric, seq::SliceRandom};
 use serde::Serialize;
 use std::{
     collections::{HashMap, HashSet},
@@ -19,9 +19,9 @@ use tokio::time::timeout;
 use utoipa::ToSchema;
 
 use crate::{
-    accounting::{all_node_stats, NetworkAccount, NetworkAccountStats, NodeStats},
-    http::AppState,
     MIXNET_TIMEOUT,
+    accounting::{NetworkAccount, NetworkAccountStats, NodeStats, all_node_stats},
+    http::AppState,
 };
 
 #[derive(ToSchema, Serialize)]

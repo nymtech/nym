@@ -8,7 +8,7 @@ use nym_bandwidth_controller::BandwidthTicketProvider;
 use nym_credentials_interface::TicketType;
 use nym_ip_packet_client::IprClientConnect;
 use nym_registration_common::AssignedAddresses;
-use nym_sdk::mixnet::{MixnetClient, Recipient};
+use nym_sdk::mixnet::{EventReceiver, MixnetClient, Recipient};
 
 use crate::config::RegistrationClientConfig;
 
@@ -17,11 +17,11 @@ mod config;
 mod error;
 mod types;
 
+pub use builder::RegistrationClientBuilder;
 pub use builder::config::{
     BuilderConfig as RegistrationClientBuilderConfig, MixnetClientConfig,
     NymNodeWithKeys as RegistrationNymNode,
 };
-pub use builder::RegistrationClientBuilder;
 pub use error::RegistrationClientError;
 pub use types::{MixnetRegistrationResult, RegistrationResult, WireguardRegistrationResult};
 
@@ -31,6 +31,7 @@ pub struct RegistrationClient {
     mixnet_client_address: Recipient,
     bandwidth_controller: Box<dyn BandwidthTicketProvider>,
     cancel_token: CancellationToken,
+    event_rx: EventReceiver,
 }
 
 impl RegistrationClient {
@@ -61,6 +62,7 @@ impl RegistrationClient {
                     entry_mixnet_gateway_ip,
                     exit_mixnet_gateway_ip,
                 },
+                event_rx: self.event_rx,
             },
         )))
     }

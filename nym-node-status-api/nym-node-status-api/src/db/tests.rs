@@ -418,10 +418,12 @@ fn test_nym_node_dto_with_invalid_keys() {
 
     let result: Result<nym_validator_client::nym_api::SkimmedNode, _> = nym_node_dto.try_into();
     assert!(result.is_err());
-    assert!(result
-        .unwrap_err()
-        .to_string()
-        .contains("ed25519_identity_pubkey"));
+    assert!(
+        result
+            .unwrap_err()
+            .to_string()
+            .contains("ed25519_identity_pubkey")
+    );
 }
 
 #[test]
@@ -453,8 +455,10 @@ fn test_nym_node_dto_with_invalid_performance() {
 
     let result: Result<nym_validator_client::nym_api::SkimmedNode, _> = nym_node_dto.try_into();
     assert!(result.is_err());
-    assert!(result
-        .unwrap_err()
-        .to_string()
-        .contains("can't parse Percent"));
+    assert!(
+        result
+            .unwrap_err()
+            .to_string()
+            .contains("can't parse Percent")
+    );
 }

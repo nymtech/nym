@@ -78,6 +78,7 @@ pub struct Location {
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema, EnumString)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
+#[derive(PartialEq)]
 pub enum ScoreValue {
     Offline,
     Low,
@@ -89,6 +90,7 @@ pub enum ScoreValue {
 pub struct DVpnGatewayPerformance {
     last_updated_utc: String,
     score: ScoreValue,
+    mixnet_score: ScoreValue,
     load: ScoreValue,
     uptime_percentage_last_24_hours: f32,
 }
@@ -97,6 +99,7 @@ pub struct DVpnGatewayPerformance {
 pub struct DVpnGateway {
     pub identity_key: String,
     pub name: String,
+    pub description: Option<String>,
     pub ip_packet_router: Option<IpPacketRouterDetails>,
     pub authenticator: Option<AuthenticatorDetails>,
     pub location: Location,
@@ -213,6 +216,7 @@ pub mod wg_outcome_versions {
         pub ping_hosts_performance: Option<f32>,
         pub ping_ips_performance: Option<f32>,
 
+        pub can_query_metadata_v4: Option<bool>,
         pub can_handshake_v4: bool,
         pub can_resolve_dns_v4: bool,
         pub ping_hosts_performance_v4: f32,
@@ -224,10 +228,14 @@ pub mod wg_outcome_versions {
         pub ping_ips_performance_v6: f32,
 
         pub download_duration_sec_v4: u64,
+        pub download_duration_milliseconds_v4: Option<u64>,
+        pub downloaded_file_size_bytes_v4: Option<u64>,
         pub downloaded_file_v4: String,
         pub download_error_v4: String,
 
         pub download_duration_sec_v6: u64,
+        pub download_duration_milliseconds_v6: Option<u64>,
+        pub downloaded_file_size_bytes_v6: Option<u64>,
         pub downloaded_file_v6: String,
         pub download_error_v6: String,
     }
@@ -293,10 +301,20 @@ impl DVpnGateway {
                 });
 
                 tracing::info!("🌈 gateway probe parsed: {:?}", parsed);
+                let mixnet_score = calculate_mixnet_score(&gateway);
+                let score = calculate_score(&gateway, &parsed);
+                let mut load = calculate_load(&parsed);
+
+                // clamp the load value to offline, when the score is offline
+                if score == ScoreValue::Offline {
+                    load = ScoreValue::Offline;
+                }
+
                 let performance_v2 = DVpnGatewayPerformance {
                     last_updated_utc: last_updated_utc.to_string(),
-                    load: calculate_load(&parsed),
-                    score: calculate_score(&gateway, &parsed),
+                    load,
+                    score,
+                    mixnet_score,
 
                     // the network monitor's measure is a good proxy for node uptime, it can be improved in the future
                     uptime_percentage_last_24_hours: network_monitor_performance_mixnet_mode,
@@ -309,6 +327,7 @@ impl DVpnGateway {
         Ok(Self {
             identity_key: gateway.gateway_identity_key,
             name: gateway.description.moniker,
+            description: Some(gateway.description.details),
             ip_packet_router: self_described.ip_packet_router,
             authenticator: self_described.authenticator,
             location: Location {
@@ -353,6 +372,21 @@ impl DVpnGateway {
     }
 }
 
+/// calculates the gateway probe score for mixnet mode
+fn calculate_mixnet_score(gateway: &Gateway) -> ScoreValue {
+    let mixnet_performance = gateway.performance as f64 / 100.0;
+
+    if mixnet_performance > 0.8 {
+        ScoreValue::High
+    } else if mixnet_performance > 0.6 {
+        ScoreValue::Medium
+    } else if mixnet_performance > 0.1 {
+        ScoreValue::Low
+    } else {
+        ScoreValue::Offline
+    }
+}
+
 /// calculates a visual score for the gateway
 fn calculate_score(gateway: &Gateway, probe_outcome: &LastProbeResult) -> ScoreValue {
     let mixnet_performance = gateway.performance as f64 / 100.0;
@@ -363,25 +397,23 @@ fn calculate_score(gateway: &Gateway, probe_outcome: &LastProbeResult) -> ScoreV
         .map(|p| {
             let ping_ips_performance = p.ping_ips_performance_v4 as f64;
 
-            let duration = p.download_duration_sec_v4 as f64;
-            let file_size_mb = if p.downloaded_file_v4.contains("1Mb") {
-                1024.0
-            } else if p.downloaded_file_v4.contains("10Mb") {
-                10240.0
-            } else if p.downloaded_file_v4.contains("100Mb") {
-                102400.0
-            } else {
-                1.0
-            };
-            let speed_mbps = file_size_mb / duration;
+            let duration_sec =
+                p.download_duration_milliseconds_v4
+                    .unwrap_or_else(|| p.download_duration_sec_v4 * 1000) as f64
+                    / 1000f64;
 
-            let file_download_score = if speed_mbps > 100.0 {
+            // get the file size downloaded in bytes and convert to MB, or default to 1MB
+            let file_size_mb =
+                p.downloaded_file_size_bytes_v4.unwrap_or(1048576) as f64 / 1024f64 / 1024f64;
+            let speed_mbps = file_size_mb / duration_sec;
+
+            let file_download_score = if speed_mbps > 5.0 {
                 1.0
-            } else if speed_mbps > 50.0 {
+            } else if speed_mbps > 2.0 {
                 0.75
-            } else if speed_mbps > 20.0 {
+            } else if speed_mbps > 1.0 {
                 0.5
-            } else if speed_mbps > 10.0 {
+            } else if speed_mbps > 0.5 {
                 0.25
             } else {
                 0.1

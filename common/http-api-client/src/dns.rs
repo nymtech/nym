@@ -35,10 +35,10 @@ use std::{
 };
 
 use hickory_resolver::{
+    ResolveError, TokioResolver,
     config::{LookupIpStrategy, NameServerConfigGroup, ResolverConfig, ServerOrderingStrategy},
     lookup_ip::{LookupIp, LookupIpIntoIter},
     name_server::TokioConnectionProvider,
-    ResolveError, TokioResolver,
 };
 use once_cell::sync::OnceCell;
 use reqwest::dns::{Addrs, Name, Resolve, Resolving};

@@ -1,13 +1,13 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::NodeId;
 use crate::error::MixnetContractError;
 use crate::nym_node::Role;
-use crate::NodeId;
 use cosmwasm_schema::cw_serde;
-use cosmwasm_schema::schemars::gen::SchemaGenerator;
-use cosmwasm_schema::schemars::schema::{InstanceType, Schema, SchemaObject};
 use cosmwasm_schema::schemars::JsonSchema;
+use cosmwasm_schema::schemars::r#gen::SchemaGenerator;
+use cosmwasm_schema::schemars::schema::{InstanceType, Schema, SchemaObject};
 use cosmwasm_std::{Addr, Env};
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
@@ -27,8 +27,8 @@ pub(crate) mod string_rfc3339_offset_date_time {
     use serde::ser::Error;
     use serde::{Deserializer, Serialize, Serializer};
     use std::fmt::Formatter;
-    use time::format_description::well_known::Rfc3339;
     use time::OffsetDateTime;
+    use time::format_description::well_known::Rfc3339;
 
     struct Rfc3339OffsetDateTimeVisitor;
 
@@ -91,7 +91,7 @@ impl EpochStatus {
     ) -> Result<bool, MixnetContractError> {
         match &mut self.state {
             EpochState::Rewarding {
-                ref mut last_rewarded,
+                last_rewarded,
                 final_node_id,
             } => {
                 if new_last_rewarded <= *last_rewarded {
@@ -254,7 +254,7 @@ impl JsonSchema for Interval {
         "Interval".to_owned()
     }
 
-    fn json_schema(gen: &mut SchemaGenerator) -> Schema {
+    fn json_schema(r#gen: &mut SchemaGenerator) -> Schema {
         let mut schema_object = SchemaObject {
             instance_type: Some(InstanceType::Object.into()),
             ..SchemaObject::default()
@@ -263,12 +263,13 @@ impl JsonSchema for Interval {
         let object_validation = schema_object.object();
         object_validation
             .properties
-            .insert("id".to_owned(), gen.subschema_for::<IntervalId>());
+            .insert("id".to_owned(), r#gen.subschema_for::<IntervalId>());
         object_validation.required.insert("id".to_owned());
 
-        object_validation
-            .properties
-            .insert("epochs_in_interval".to_owned(), gen.subschema_for::<u32>());
+        object_validation.properties.insert(
+            "epochs_in_interval".to_owned(),
+            r#gen.subschema_for::<u32>(),
+        );
         object_validation
             .required
             .insert("epochs_in_interval".to_owned());
@@ -277,7 +278,7 @@ impl JsonSchema for Interval {
         // serialization to string, so we just specify the schema to be String.
         object_validation.properties.insert(
             "current_epoch_start".to_owned(),
-            gen.subschema_for::<String>(),
+            r#gen.subschema_for::<String>(),
         );
         object_validation
             .required
@@ -285,7 +286,7 @@ impl JsonSchema for Interval {
 
         object_validation.properties.insert(
             "current_epoch_id".to_owned(),
-            gen.subschema_for::<EpochId>(),
+            r#gen.subschema_for::<EpochId>(),
         );
         object_validation
             .required
@@ -293,12 +294,12 @@ impl JsonSchema for Interval {
 
         object_validation
             .properties
-            .insert("epoch_length".to_owned(), gen.subschema_for::<Duration>());
+            .insert("epoch_length".to_owned(), r#gen.subschema_for::<Duration>());
         object_validation.required.insert("epoch_length".to_owned());
 
         object_validation.properties.insert(
             "total_elapsed_epochs".to_owned(),
-            gen.subschema_for::<EpochId>(),
+            r#gen.subschema_for::<EpochId>(),
         );
         object_validation
             .required

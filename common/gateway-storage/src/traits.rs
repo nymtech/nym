@@ -8,12 +8,12 @@ use nym_sphinx::DestinationAddressBytes;
 use time::OffsetDateTime;
 
 use crate::{
+    GatewayStorageError,
     clients::ClientType,
     models::{
         Client, PersistedBandwidth, PersistedSharedKeys, RedemptionProposal, StoredMessage,
         VerifiedTicket, WireguardPeer,
     },
-    GatewayStorageError,
 };
 
 #[async_trait]
@@ -169,7 +169,7 @@ pub trait BandwidthGatewayStorage: dyn_clone::DynClone {
     ///
     /// * `peer_public_key`: wireguard public key of the peer to be removed.
     async fn remove_wireguard_peer(&self, peer_public_key: &str)
-        -> Result<(), GatewayStorageError>;
+    -> Result<(), GatewayStorageError>;
 }
 
 #[cfg(feature = "mock")]

@@ -7,7 +7,7 @@ use tracing::instrument;
 use nym_http_api_client::{ApiClient, Client, HttpClientError, NO_PARAMS};
 
 use nym_wireguard_private_metadata_shared::{
-    routes, Version, {Request, Response},
+    Version, routes, {Request, Response},
 };
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]

@@ -4,9 +4,9 @@ use std::{
 };
 
 use anyhow::Result;
-use futures::{pin_mut, stream::FuturesUnordered, StreamExt};
+use futures::{StreamExt, pin_mut, stream::FuturesUnordered};
 use log::{debug, error, info};
-use nym_sphinx::chunking::{monitoring, SentFragment};
+use nym_sphinx::chunking::{SentFragment, monitoring};
 use nym_topology::{NymRouteProvider, RoutingNode};
 use nym_types::monitoring::{MonitorMessage, NodeResult};
 use nym_validator_client::nym_api::routes::{STATUS, SUBMIT_GATEWAY, SUBMIT_NODE, V1_API_VERSION};
@@ -14,7 +14,7 @@ use rand::SeedableRng;
 use rand_chacha::ChaCha8Rng;
 use serde::{Deserialize, Serialize};
 use tokio::task::JoinHandle;
-use tokio_postgres::{binary_copy::BinaryCopyInWriter, types::Type, Client, NoTls};
+use tokio_postgres::{Client, NoTls, binary_copy::BinaryCopyInWriter, types::Type};
 use utoipa::ToSchema;
 
 use crate::{NYM_API_URL, PRIVATE_KEY, TOPOLOGY};
@@ -247,21 +247,21 @@ impl NetworkAccount {
     fn find_missing_fragments(&mut self) {
         let mut missing_fragments_map = HashMap::new();
         for fragment_set_id in &self.incomplete_fragment_sets {
-            if let Some(fragment_ref) = monitoring::FRAGMENTS_RECEIVED.get(fragment_set_id) {
-                if let Some(ref_fragment) = fragment_ref.value().first() {
-                    let ref_header = ref_fragment.header();
-                    let ref_id_set = (0..ref_header.total_fragments()).collect::<HashSet<u8>>();
-                    let recieved_set = fragment_ref
-                        .value()
-                        .iter()
-                        .map(|f| f.header().current_fragment())
-                        .collect::<HashSet<u8>>();
-                    let missing_fragments = ref_id_set
-                        .difference(&recieved_set)
-                        .cloned()
-                        .collect::<Vec<u8>>();
-                    missing_fragments_map.insert(*fragment_set_id, missing_fragments);
-                }
+            if let Some(fragment_ref) = monitoring::FRAGMENTS_RECEIVED.get(fragment_set_id)
+                && let Some(ref_fragment) = fragment_ref.value().first()
+            {
+                let ref_header = ref_fragment.header();
+                let ref_id_set = (0..ref_header.total_fragments()).collect::<HashSet<u8>>();
+                let recieved_set = fragment_ref
+                    .value()
+                    .iter()
+                    .map(|f| f.header().current_fragment())
+                    .collect::<HashSet<u8>>();
+                let missing_fragments = ref_id_set
+                    .difference(&recieved_set)
+                    .cloned()
+                    .collect::<Vec<u8>>();
+                missing_fragments_map.insert(*fragment_set_id, missing_fragments);
             };
         }
         self.missing_fragments = missing_fragments_map;

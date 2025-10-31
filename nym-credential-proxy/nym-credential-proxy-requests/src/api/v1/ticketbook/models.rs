@@ -5,10 +5,11 @@ use nym_credentials::ecash::bandwidth::serialiser::signatures::{
     AggregatedCoinIndicesSignatures, AggregatedExpirationDateSignatures,
 };
 use nym_credentials_interface::{PublicKeyUser, TicketType, WithdrawalRequest};
-use schemars::gen::SchemaGenerator;
-use schemars::schema::Schema;
 use schemars::JsonSchema;
+use schemars::r#gen::SchemaGenerator;
+use schemars::schema::Schema;
 use serde::{Deserialize, Serialize};
+use serde_with::{DisplayFromStr, serde_as};
 use std::ops::{Deref, DerefMut};
 use time::{Date, OffsetDateTime};
 
@@ -132,9 +133,9 @@ impl JsonSchema for WithdrawalRequestBs58Wrapper {
         "WithdrawalRequestBs58Wrapper".into()
     }
 
-    fn json_schema(gen: &mut SchemaGenerator) -> Schema {
+    fn json_schema(r#gen: &mut SchemaGenerator) -> Schema {
         // during serialisation we just use bs58 representation
-        String::json_schema(gen)
+        String::json_schema(r#gen)
     }
 }
 
@@ -264,12 +265,14 @@ pub struct WebhookTicketbookWalletSharesRequest {
     pub secret: String,
 }
 
+#[serde_as]
 #[derive(Default, Debug, Serialize, Deserialize, Clone)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema, utoipa::IntoParams))]
 #[cfg(feature = "query-types")]
 #[serde(default, rename_all = "kebab-case")]
 pub struct TicketbookObtainParams {
     #[serde(default)]
+    #[serde_as(as = "DisplayFromStr")]
     pub skip_webhook: bool,
 
     #[serde(default)]
@@ -277,15 +280,19 @@ pub struct TicketbookObtainParams {
     pub global: GlobalDataParams,
 }
 
+#[serde_as]
 #[derive(Default, Debug, Serialize, Deserialize, Clone)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema, utoipa::IntoParams))]
 #[cfg(feature = "query-types")]
 #[serde(default, rename_all = "kebab-case")]
 pub struct GlobalDataParams {
+    #[serde_as(as = "DisplayFromStr")]
     pub include_master_verification_key: bool,
 
+    #[serde_as(as = "DisplayFromStr")]
     pub include_coin_index_signatures: bool,
 
+    #[serde_as(as = "DisplayFromStr")]
     pub include_expiration_date_signatures: bool,
 }
 

@@ -1,7 +1,7 @@
 use super::helpers::scrape_and_store_description;
+use crate::db::DbPool;
 use crate::db::models::ScraperNodeInfo;
 use crate::db::queries::get_nodes_for_scraping;
-use crate::db::DbPool;
 use anyhow::Result;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};

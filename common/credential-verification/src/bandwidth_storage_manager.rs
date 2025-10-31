@@ -1,9 +1,9 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::error::*;
 use crate::BandwidthFlushingBehaviourConfig;
 use crate::ClientBandwidth;
+use crate::error::*;
 use nym_credentials::ecash::utils::ecash_today;
 use nym_credentials_interface::Bandwidth;
 use nym_gateway_requests::ServerResponse;

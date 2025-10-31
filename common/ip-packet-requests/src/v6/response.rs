@@ -1,7 +1,7 @@
 use nym_sphinx::addressing::clients::Recipient;
 use serde::{Deserialize, Serialize};
 
-use crate::{make_bincode_serializer, IpPair};
+use crate::{IpPair, make_bincode_serializer};
 
 use super::VERSION;
 
@@ -386,9 +386,7 @@ pub struct InfoResponse {
 pub enum InfoResponseReply {
     #[error("{msg}")]
     Generic { msg: String },
-    #[error(
-        "version mismatch: response is v{request_version} and response is v{response_version}"
-    )]
+    #[error("version mismatch: response is v{request_version} and response is v{response_version}")]
     VersionMismatch {
         request_version: u8,
         response_version: u8,

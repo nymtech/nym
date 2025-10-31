@@ -5,9 +5,10 @@ use nym_sphinx::addressing::Recipient;
 use nym_wireguard_types::PeerPublicKey;
 
 use crate::{
+    AuthenticatorVersion, Error,
     latest::registration::IpPair,
     traits::{FinalMessage, InitMessage, QueryBandwidthMessage, TopUpMessage, Versionable},
-    v2, v3, v4, v5, AuthenticatorVersion, Error,
+    v2, v3, v4, v5,
 };
 
 // This is very redundant with AuthenticatorRequest and I reckon they could be smooshed.

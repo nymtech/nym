@@ -1,5 +1,5 @@
 use anyhow::anyhow;
-use axum::{response::Redirect, Router};
+use axum::{Router, response::Redirect};
 use nym_http_api_common::middleware::logging::log_request_info;
 use tokio::net::ToSocketAddrs;
 use tower_http::cors::CorsLayer;

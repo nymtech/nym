@@ -7,9 +7,12 @@ use thiserror::Error;
 use time::{Date, OffsetDateTime};
 
 pub use nym_compact_ecash::{
+    Base58, BlindedSignature, Bytable, EncodedDate, EncodedTicketType, PartialWallet, PayInfo,
+    PublicKeyUser, SecretKeyUser, VerificationKeyAuth, WithdrawalRequest,
     aggregate_verification_keys, aggregate_wallets, constants, ecash_parameters,
     error::CompactEcashError,
     generate_keypair_user, generate_keypair_user_from_seed, issue_verify,
+    scheme::Payment,
     scheme::coin_indices_signatures::aggregate_indices_signatures,
     scheme::coin_indices_signatures::{
         AnnotatedCoinIndexSignature, CoinIndexSignature, CoinIndexSignatureShare,
@@ -22,12 +25,10 @@ pub use nym_compact_ecash::{
     },
     scheme::keygen::KeyPairUser,
     scheme::withdrawal::RequestInfo,
-    scheme::Payment,
     scheme::{Wallet, WalletSignatures},
-    withdrawal_request, Base58, BlindedSignature, Bytable, EncodedDate, EncodedTicketType,
-    PartialWallet, PayInfo, PublicKeyUser, SecretKeyUser, VerificationKeyAuth, WithdrawalRequest,
+    withdrawal_request,
 };
-pub use nym_ecash_time::{ecash_today, EcashTime};
+pub use nym_ecash_time::{EcashTime, ecash_today};
 pub use nym_network_defaults::TicketTypeRepr;
 
 #[derive(Debug, Clone)]

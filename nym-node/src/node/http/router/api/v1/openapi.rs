@@ -6,7 +6,7 @@ use axum::Router;
 use nym_node_requests::api as api_requests;
 use nym_node_requests::routes::api::{v1, v1_absolute};
 use utoipa::openapi::security::{Http, HttpAuthScheme};
-use utoipa::{openapi::security::SecurityScheme, Modify, OpenApi};
+use utoipa::{Modify, OpenApi, openapi::security::SecurityScheme};
 use utoipa_swagger_ui::SwaggerUi;
 
 #[derive(OpenApi)]

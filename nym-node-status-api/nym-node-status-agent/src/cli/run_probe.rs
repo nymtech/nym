@@ -108,10 +108,14 @@ pub(crate) async fn run_probe(
         };
         match result {
             Ok(()) => {
-                tracing::info!("✅ Successfully submitted {method} to server[{index}] {server_address}:{server_port}");
+                tracing::info!(
+                    "✅ Successfully submitted {method} to server[{index}] {server_address}:{server_port}"
+                );
             }
             Err(e) => {
-                tracing::warn!("❌ Failed to submit {method} to server[{index}] {server_address}:{server_port} - {e}");
+                tracing::warn!(
+                    "❌ Failed to submit {method} to server[{index}] {server_address}:{server_port} - {e}"
+                );
             }
         }
     }

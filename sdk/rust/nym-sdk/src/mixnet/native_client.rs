@@ -58,7 +58,6 @@ pub struct MixnetClient {
 
     // internal state used for the `Stream` implementation
     _buffered: Vec<ReconstructedMessage>,
-    pub(crate) client_request_sender: ClientRequestSender,
     pub(crate) forget_me: ForgetMe,
     pub(crate) remember_me: RememberMe,
 }
@@ -75,7 +74,6 @@ impl MixnetClient {
         stats_events_reporter: ClientStatsSender,
         task_handle: ShutdownTracker,
         packet_type: Option<PacketType>,
-        client_request_sender: ClientRequestSender,
         forget_me: ForgetMe,
         remember_me: RememberMe,
     ) -> Self {
@@ -90,7 +88,6 @@ impl MixnetClient {
             shutdown_handle: task_handle,
             packet_type,
             _buffered: Vec::new(),
-            client_request_sender,
             forget_me,
             remember_me,
         }
@@ -129,7 +126,7 @@ impl MixnetClient {
     }
 
     pub fn client_request_sender(&self) -> ClientRequestSender {
-        self.client_request_sender.clone()
+        self.client_input.client_request_sender.clone()
     }
 
     /// Get the client's identity keys.
@@ -252,7 +249,12 @@ impl MixnetClient {
             client: self.forget_me.client(),
             stats: self.forget_me.stats(),
         };
-        match self.client_request_sender.send(client_request).await {
+        match self
+            .client_input
+            .client_request_sender
+            .send(client_request)
+            .await
+        {
             Ok(_) => Ok(()),
             Err(e) => {
                 error!("Failed to send forget me request: {e}");
@@ -265,7 +267,12 @@ impl MixnetClient {
         let client_request = ClientRequest::RememberMe {
             session_type: self.remember_me.session_type(),
         };
-        match self.client_request_sender.send(client_request).await {
+        match self
+            .client_input
+            .client_request_sender
+            .send(client_request)
+            .await
+        {
             Ok(_) => Ok(()),
             Err(e) => {
                 error!("Failed to send forget me request: {e}");

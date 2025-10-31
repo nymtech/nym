@@ -3,9 +3,9 @@
 
 use crate::AckKey;
 use nym_crypto::symmetric::stream_cipher::{
-    self, encrypt, random_iv, try_iv_from_slice, IvSizeUser,
+    self, IvSizeUser, encrypt, random_iv, try_iv_from_slice,
 };
-use nym_sphinx_params::{AckEncryptionAlgorithm, SerializedFragmentIdentifier, FRAG_ID_LEN};
+use nym_sphinx_params::{AckEncryptionAlgorithm, FRAG_ID_LEN, SerializedFragmentIdentifier};
 use rand::{CryptoRng, RngCore};
 
 // TODO: should those functions even exist in this file?

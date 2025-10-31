@@ -3,7 +3,7 @@
 
 use crate::db::Storage;
 use crate::ticketbook_manager::storage::auxiliary_models::RetrievedTicketbook;
-use anyhow::{anyhow, Context};
+use anyhow::{Context, anyhow};
 use nym_credential_proxy_lib::error::CredentialProxyError;
 use nym_credential_proxy_lib::shared_state::ecash_state::{
     IssuanceTicketBook, IssuedTicketBook, TicketType,
@@ -13,7 +13,7 @@ use nym_credential_proxy_lib::storage::traits::{
     GlobalEcashDataCache, VersionedSerialise,
 };
 use nym_crypto::aes::cipher::zeroize::Zeroizing;
-use nym_ecash_time::{ecash_today, EcashTime};
+use nym_ecash_time::{EcashTime, ecash_today};
 use nym_validator_client::nym_api::EpochId;
 use time::Date;
 
@@ -91,15 +91,14 @@ impl TicketbookManagerStorage {
         testrun_id: i32,
     ) -> anyhow::Result<Option<RetrievedTicketbook>> {
         let deadline = ecash_today().ecash_date();
-        let mut tx = self.storage.begin_storage_tx().await?;
 
         // we don't want ticketbooks with expiration in the past
-        let Some(raw) = tx
+        // note: this query updates the spent tickets atomically
+        let Some(raw) = self
+            .storage
             .get_next_unspent_ticketbook(ticket_type.to_string(), deadline)
             .await?
         else {
-            // make sure to finish our tx
-            tx.commit().await?;
             return Ok(None);
         };
 
@@ -110,10 +109,9 @@ impl TicketbookManagerStorage {
         )
         .map_err(|err| anyhow!("failed to deserialise stored ticketbook: {err}"))?;
 
-        tx.set_distributed_ticketbook(testrun_id, raw.id, raw.used_tickets)
+        self.storage
+            .set_distributed_ticketbook(testrun_id, raw.id, raw.used_tickets)
             .await?;
-        tx.increase_used_ticketbook_tickets(raw.id).await?;
-        tx.commit().await?;
 
         deserialised.update_spent_tickets(raw.used_tickets as u64);
         Ok(Some(RetrievedTicketbook {

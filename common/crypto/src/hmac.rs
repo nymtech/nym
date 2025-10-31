@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use hmac::{
-    digest::{crypto_common::BlockSizeUser, CtOutput, Digest, Output},
     Mac, SimpleHmac,
+    digest::{CtOutput, Digest, Output, crypto_common::BlockSizeUser},
 };
 
 pub use hmac;

@@ -4,13 +4,14 @@
 use std::net::SocketAddr;
 
 use axum::{
-    extract::{ConnectInfo, Query, State},
     Json, Router,
+    extract::{ConnectInfo, Query, State},
 };
 use nym_http_api_common::{FormattedResponse, OutputParams};
 use nym_wireguard_private_metadata_shared::{
+    AxumErrorResponse, AxumResult, Construct, Extract, Request, Response,
     interface::{RequestData, ResponseData},
-    latest, AxumErrorResponse, AxumResult, Construct, Extract, Request, Response,
+    latest,
 };
 use tower_http::compression::CompressionLayer;
 

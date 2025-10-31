@@ -3,8 +3,8 @@
 
 use crate::cli::helpers::ConfigArgs;
 use crate::config::upgrade_helpers::try_load_current_config;
-use crate::node::helpers::load_ed25519_identity_public_key;
 use crate::node::ServiceProvidersData;
+use crate::node::helpers::load_ed25519_identity_public_key;
 use nym_network_requester::{CustomGatewayDetails, GatewayDetails, GatewayRegistration};
 use std::fs;
 

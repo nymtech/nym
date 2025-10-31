@@ -54,7 +54,9 @@ pub enum PolicyError {
     InvalidPort { raw: String },
 
     /// A port range had its starting-point higher than its ending point.
-    #[error("the provided port range ({start}-{end}) was invalid. either the start was 0 or it was greater than the end.")]
+    #[error(
+        "the provided port range ({start}-{end}) was invalid. either the start was 0 or it was greater than the end."
+    )]
     InvalidRange { start: u16, end: u16 },
 
     #[error("could not parse '{raw}' into a valid policy address:port pattern")]

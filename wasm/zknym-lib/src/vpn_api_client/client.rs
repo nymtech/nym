@@ -7,7 +7,7 @@ use crate::vpn_api_client::types::{
 use async_trait::async_trait;
 pub use nym_http_api_client::Client;
 use nym_http_api_client::{
-    parse_response, ApiClient, HttpClientError, IntoUrl, PathSegments, NO_PARAMS,
+    ApiClient, HttpClientError, IntoUrl, NO_PARAMS, PathSegments, parse_response,
 };
 use serde::de::DeserializeOwned;
 

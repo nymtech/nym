@@ -5,7 +5,7 @@ use crate::cli::CliNetworkRequesterClient;
 use crate::error::NetworkRequesterError;
 use nym_bin_common::output_format::OutputFormat;
 use nym_client_core::cli_helpers::client_show_ticketbooks::{
-    show_ticketbooks, CommonShowTicketbooksArgs,
+    CommonShowTicketbooksArgs, show_ticketbooks,
 };
 
 #[derive(clap::Args)]

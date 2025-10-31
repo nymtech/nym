@@ -92,7 +92,9 @@ impl ReplayProtectionBloomfilters {
                 } else if Some(secondary_id) == previous {
                     (Some(secondary_filter), None)
                 } else {
-                    warn!("{secondary_id} is not valid for either pre_announced or overlap bloomfilter given primary rotation of {primary_id}");
+                    warn!(
+                        "{secondary_id} is not valid for either pre_announced or overlap bloomfilter given primary rotation of {primary_id}"
+                    );
                     (None, None)
                 }
             }

@@ -7,7 +7,7 @@ use crate::api::v1::ticketbook::models::{
 };
 use async_trait::async_trait;
 use nym_http_api_client::{
-    parse_response, ApiClient, HttpClientError, Params, PathSegments, NO_PARAMS,
+    ApiClient, HttpClientError, NO_PARAMS, Params, PathSegments, parse_response,
 };
 use reqwest::IntoUrl;
 use serde::de::DeserializeOwned;

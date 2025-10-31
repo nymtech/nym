@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::http::state::ApiState;
-use axum::response::Redirect;
-use axum::routing::{get, MethodRouter};
 use axum::Router;
+use axum::response::Redirect;
+use axum::routing::{MethodRouter, get};
 use nym_credential_proxy_requests::routes;
 use nym_http_api_common::middleware::bearer_auth::AuthLayer;
 use nym_http_api_common::middleware::logging;

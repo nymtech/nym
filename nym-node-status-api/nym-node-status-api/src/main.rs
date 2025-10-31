@@ -1,6 +1,6 @@
 use crate::monitor::DelegationsCache;
-use crate::ticketbook_manager::state::TicketbookManagerState;
 use crate::ticketbook_manager::TicketbookManager;
+use crate::ticketbook_manager::state::TicketbookManagerState;
 use clap::Parser;
 use nym_credential_proxy_lib::quorum_checker::QuorumStateChecker;
 use nym_credential_proxy_lib::shared_state::nyxd_client::ChainClient;

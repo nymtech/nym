@@ -43,7 +43,7 @@ pub struct IprClientConnect {
 }
 
 impl IprClientConnect {
-    pub async fn new(mixnet_client: MixnetClient, cancel_token: CancellationToken) -> Self {
+    pub fn new(mixnet_client: MixnetClient, cancel_token: CancellationToken) -> Self {
         Self {
             mixnet_client,
             connected: ConnectionState::Disconnected,

@@ -50,7 +50,7 @@ impl AuthClientMixnetListener {
         }
     }
 
-    async fn run(mut self) -> Self {
+    async fn run(mut self) {
         let mixnet_cancel_token = self.mixnet_client.cancellation_token();
         self.shutdown_token.run_until_cancelled(async {
             loop {
@@ -95,12 +95,8 @@ impl AuthClientMixnetListener {
             tracing::debug!("AuthClientMixnetListener is shutting down");
         }).await;
 
-        self
-    }
-
-    // Disconnects the mixnet client and effectively drop itself, since it doesn't work without one, and reconnecting isn't supported
-    pub async fn disconnect_mixnet_client(self) {
-        if !self.mixnet_client.cancellation_token().is_cancelled() {
+        tracing::debug!("AuthClientMixnetListener: Disconnect mixnet client");
+        if !mixnet_cancel_token.is_cancelled() {
             self.mixnet_client.disconnect().await;
         }
     }
@@ -128,7 +124,7 @@ pub struct AuthClientMixnetListenerHandle {
     message_sender: MixnetMessageInputSender,
     cancellation_token: CancellationToken,
     mixnet_cancellation_token: CancellationToken,
-    handle: JoinHandle<AuthClientMixnetListener>,
+    handle: JoinHandle<()>,
 }
 
 impl AuthClientMixnetListenerHandle {
@@ -148,13 +144,8 @@ impl AuthClientMixnetListenerHandle {
         // If shutdown was externally called, that call is a no-op
         // If we're only stopping this, it is very much needed
         self.cancellation_token.cancel();
-        match self.handle.await {
-            Ok(auth_client_mixnet_listener) => {
-                auth_client_mixnet_listener.disconnect_mixnet_client().await;
-            }
-            Err(e) => {
-                tracing::error!("Error waiting for auth clients mixnet listener to stop: {e}");
-            }
+        if let Err(e) = self.handle.await {
+            tracing::error!("Error waiting for auth clients mixnet listener to stop: {e}")
         }
     }
 }

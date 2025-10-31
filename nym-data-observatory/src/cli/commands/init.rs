@@ -4,7 +4,7 @@
 use crate::cli::DEFAULT_NYM_DATA_OBSERVATORY_ID;
 use crate::config::data_observatory::HttpAuthenticationOptions::AuthorizationBearerToken;
 use crate::config::data_observatory::WebhookConfig;
-use crate::config::{default_config_filepath, Config, ConfigBuilder, DataObservatoryConfig};
+use crate::config::{Config, ConfigBuilder, DataObservatoryConfig, default_config_filepath};
 use crate::env::vars::*;
 use crate::error::NymDataObservatoryError;
 use nym_config::save_unformatted_config_to_file;

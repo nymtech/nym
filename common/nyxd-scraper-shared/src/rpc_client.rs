@@ -6,7 +6,7 @@ use crate::block_processor::types::{
 };
 use crate::error::ScraperError;
 use crate::helpers::tx_hash;
-use crate::{default_message_registry, Any, MessageRegistry};
+use crate::{Any, MessageRegistry, default_message_registry};
 use futures::StreamExt;
 use futures::future::join3;
 use std::collections::{BTreeMap, HashMap};

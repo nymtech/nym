@@ -241,21 +241,26 @@ impl Epoch {
 //
 // Note: It's important that the variant ordering is not changed otherwise it would mess up the derived `PartialOrd`
 #[cw_serde]
-#[derive(Copy)]
+#[derive(Copy, Default)]
 pub enum EpochState {
+    #[default]
     WaitingInitialisation,
-    PublicKeySubmission { resharing: bool },
-    DealingExchange { resharing: bool },
-    VerificationKeySubmission { resharing: bool },
-    VerificationKeyValidation { resharing: bool },
-    VerificationKeyFinalization { resharing: bool },
+    PublicKeySubmission {
+        resharing: bool,
+    },
+    DealingExchange {
+        resharing: bool,
+    },
+    VerificationKeySubmission {
+        resharing: bool,
+    },
+    VerificationKeyValidation {
+        resharing: bool,
+    },
+    VerificationKeyFinalization {
+        resharing: bool,
+    },
     InProgress,
-}
-
-impl Default for EpochState {
-    fn default() -> Self {
-        Self::WaitingInitialisation
-    }
 }
 
 impl Display for EpochState {

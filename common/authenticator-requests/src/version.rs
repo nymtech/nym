@@ -22,7 +22,7 @@ pub enum AuthenticatorVersion {
     /// introduced in dorina-patched release (1.6.1)
     V5,
 
-    /// introduced in yet to be named release, currently aiming for Leerdammer (1.22.0)
+    /// introduced in mozzarella release (1.22.0)
     V6,
 
     /// an unknown, future, variant that can be present if running outdated software
@@ -32,9 +32,6 @@ pub enum AuthenticatorVersion {
 impl AuthenticatorVersion {
     pub const LATEST: Self = Self::V6;
 
-    #[deprecated(
-        note = "the final version of V6 won't be known until appropriate release is scheduled. after that happens From<semver::Version> trait will have to be adjusted"
-    )]
     pub const fn release_version(&self) -> semver::Version {
         match self {
             AuthenticatorVersion::V1 => semver::Version::new(1, 1, 5),
@@ -206,8 +203,9 @@ mod tests {
         assert_eq!(AuthenticatorVersion::V5, "1.7.0".into());
         assert_eq!(AuthenticatorVersion::V5, "1.16.11".into());
         assert_eq!(AuthenticatorVersion::V5, "1.17.0".into());
-        assert_eq!(AuthenticatorVersion::V5, "1.20.0".into());
-        assert_eq!(AuthenticatorVersion::V6, "1.21.0".into());
+        assert_eq!(AuthenticatorVersion::V5, "1.21.0".into());
         assert_eq!(AuthenticatorVersion::V6, "1.22.0".into());
+        assert_eq!(AuthenticatorVersion::V6, "1.22.1".into());
+        assert_eq!(AuthenticatorVersion::V6, "1.23.0".into());
     }
 }

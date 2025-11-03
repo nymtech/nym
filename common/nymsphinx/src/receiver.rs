@@ -3,7 +3,9 @@
 
 use std::io;
 
+use crate::make_bincode_serializer;
 use crate::message::{NymMessage, NymMessageError, PaddedMessage, PlainMessage};
+use bincode::Options;
 use log::debug;
 use nym_crypto::aes::cipher::{KeyIvInit, StreamCipher};
 use nym_crypto::asymmetric::x25519;
@@ -73,7 +75,9 @@ impl Encoder<ReconstructedMessage> for ReconstructedMessageCodec {
         item: ReconstructedMessage,
         buf: &mut BytesMut,
     ) -> Result<(), Self::Error> {
-        let encoded = bincode::serialize(&item).expect("failed to serialize ReconstructedMessage");
+        let encoded = make_bincode_serializer()
+            .serialize(&item)
+            .expect("failed to serialize ReconstructedMessage");
         let encoded_len = encoded.len() as u32;
         let mut encoded_with_len = encoded_len.to_le_bytes().to_vec();
         encoded_with_len.extend(encoded);
@@ -102,9 +106,9 @@ impl Decoder for ReconstructedMessageCodec {
             return Ok(None);
         }
 
-        let decoded = match bincode::deserialize(
-            &buf[LENGHT_ENCODING_PREFIX_SIZE..len + LENGHT_ENCODING_PREFIX_SIZE],
-        ) {
+        let decoded = match make_bincode_serializer()
+            .deserialize(&buf[LENGHT_ENCODING_PREFIX_SIZE..len + LENGHT_ENCODING_PREFIX_SIZE])
+        {
             Ok(decoded) => decoded,
             Err(e) => {
                 debug!("Failed to decode the message - {:?}", e);

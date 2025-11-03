@@ -26,6 +26,9 @@ nym-crypto = { path = "../crypto", features = ["asymmetric", "serde", "naive_jwt
 [dev-dependencies]
 anyhow = { workspace = true }
 time = { workspace = true, features = ["macros"] }
+nym-test-utils = { path = "../test-utils" }
+nym-crypto = { path = "../crypto", features = ["rand"] }
+
 
 [features]
 openapi = ["utoipa"]

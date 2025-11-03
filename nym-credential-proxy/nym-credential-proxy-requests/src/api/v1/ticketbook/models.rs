@@ -348,5 +348,7 @@ pub struct SharesQueryParams {
 #[serde(rename_all = "camelCase")]
 pub struct UpgradeModeResponse {
     pub upgrade_mode_attestation: UpgradeModeAttestation,
-    pub jwt: String,
+    /// The issued upgrade mode JWT.
+    /// The value is `None` if this credential proxy is not-authorised to be issuing one
+    pub jwt: Option<String>,
 }

@@ -65,6 +65,12 @@ pub fn validate_upgrade_mode_jwt(
         .map_err(|source| UpgradeModeCheckError::JwtVerificationFailure { source })?
         .custom;
 
+    // jwt itself is cryptographically valid,
+    // but let's see if this entity has been permitted to issue the token in the first place
+    if !attestation.authorised_to_issue_jwt(&ed25519_pub_key) {
+        return Err(UpgradeModeCheckError::UnauthorisedIssuer);
+    }
+
     Ok(attestation)
 }
 
@@ -73,6 +79,7 @@ mod tests {
     use super::*;
     use crate::generate_new_attestation;
     use nym_crypto::asymmetric::ed25519;
+    use nym_test_utils::helpers::deterministic_rng;
 
     #[test]
     fn generate_and_validate_jwt() {
@@ -86,15 +93,25 @@ mod tests {
             2, 52, 215, 241, 219, 200, 18, 159, 241, 76, 111, 42, 32,
         ])
         .unwrap();
-        let keys = ed25519::KeyPair::from(jwt_key);
+        let jwt_keys = ed25519::KeyPair::from(jwt_key);
 
-        let attestation = generate_new_attestation(&attestation_key);
+        let mut rng = deterministic_rng();
+        let unauthorised_jwt_keys = ed25519::KeyPair::new(&mut rng);
+
+        let attestation = generate_new_attestation(&attestation_key, vec![*jwt_keys.public_key()]);
         let jwt_issuer = generate_jwt_for_upgrade_mode_attestation(
-            attestation,
+            attestation.clone(),
             Duration::from_secs(60 * 60),
-            &keys,
+            &jwt_keys,
             Some("nym-credential-proxy"),
         );
+        let unauthorised_jwt = generate_jwt_for_upgrade_mode_attestation(
+            attestation.clone(),
+            Duration::from_secs(60 * 60),
+            &unauthorised_jwt_keys,
+            Some("nym-credential-proxy"),
+        );
+
         // we expect 'nym-credential-proxy' issuer
         assert!(validate_upgrade_mode_jwt(&jwt_issuer, Some("nym-credential-proxy")).is_ok());
 
@@ -104,10 +121,15 @@ mod tests {
         // we expect another-issuer
         assert!(validate_upgrade_mode_jwt(&jwt_issuer, Some("another-issuer")).is_err());
 
+        // the key is not in the authorised set inside the attestation
+        assert!(
+            validate_upgrade_mode_jwt(&unauthorised_jwt, Some("nym-credential-proxy")).is_err()
+        );
+
         let jwt_no_issuer = generate_jwt_for_upgrade_mode_attestation(
             attestation,
             Duration::from_secs(60 * 60),
-            &keys,
+            &jwt_keys,
             None,
         );
         // we expect 'nym-credential-proxy' issuer

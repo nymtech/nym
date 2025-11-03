@@ -43,9 +43,21 @@ impl UpgradeModeState {
                 ));
             }
             Some(current_state) => {
-                // update the jwt if either the attestation has changed
-                // or the existing jwt is close to expiry
-                if current_state.attestation != attestation || current_state.jwt.close_to_expiry() {
+                let mut should_refresh = false;
+                // update the jwt if we have issued one and:
+                // - either the attestation has changed
+                // - or the existing jwt is close to expiry
+                if current_state.attestation != attestation {
+                    should_refresh = true;
+                }
+
+                if let Some(issued_jwt) = current_state.jwt.as_ref()
+                    && issued_jwt.close_to_expiry()
+                {
+                    should_refresh = true;
+                }
+
+                if should_refresh {
                     current_state.attestation = attestation;
                     current_state.refresh_jwt(jwt_signing_keys, jwt_validity);
                 }
@@ -53,33 +65,48 @@ impl UpgradeModeState {
         }
     }
 
-    pub(crate) async fn attestation_with_jwt(&self) -> Option<(UpgradeModeAttestation, String)> {
+    pub(crate) async fn attestation_with_jwt(
+        &self,
+    ) -> Option<(UpgradeModeAttestation, Option<String>)> {
         let guard = self.inner.read().await;
         let inner = guard.as_ref()?;
-        Some((inner.attestation, inner.jwt.token.clone()))
+        Some((
+            inner.attestation.clone(),
+            inner.jwt.as_ref().map(|jwt| jwt.token.clone()),
+        ))
     }
 }
 
 #[derive(Debug)]
 pub(crate) struct UpgradeModeStateInner {
     pub(crate) attestation: UpgradeModeAttestation,
-    pub(crate) jwt: Jwt,
+    pub(crate) jwt: Option<Jwt>,
 }
 
 impl UpgradeModeStateInner {
+    fn try_generate_jwt(
+        attestation: &UpgradeModeAttestation,
+        jwt_signing_keys: &ed25519::KeyPair,
+        jwt_validity: Duration,
+    ) -> Option<Jwt> {
+        if attestation.authorised_to_issue_jwt(jwt_signing_keys.public_key()) {
+            Some(Jwt::generate(attestation, jwt_signing_keys, jwt_validity))
+        } else {
+            None
+        }
+    }
+
     fn new_fresh(
         attestation: UpgradeModeAttestation,
         jwt_signing_keys: &ed25519::KeyPair,
         jwt_validity: Duration,
     ) -> Self {
-        UpgradeModeStateInner {
-            attestation,
-            jwt: Jwt::generate(attestation, jwt_signing_keys, jwt_validity),
-        }
+        let jwt = Self::try_generate_jwt(&attestation, jwt_signing_keys, jwt_validity);
+        UpgradeModeStateInner { attestation, jwt }
     }
 
     fn refresh_jwt(&mut self, keys: &ed25519::KeyPair, validity: Duration) {
-        self.jwt = Jwt::generate(self.attestation, keys, validity)
+        self.jwt = Self::try_generate_jwt(&self.attestation, keys, validity);
     }
 }
 
@@ -92,7 +119,7 @@ pub(crate) struct Jwt {
 
 impl Jwt {
     fn generate(
-        upgrade_mode_attestation: UpgradeModeAttestation,
+        upgrade_mode_attestation: &UpgradeModeAttestation,
         keys: &ed25519::KeyPair,
         validity: Duration,
     ) -> Self {
@@ -100,7 +127,7 @@ impl Jwt {
             issued_at: OffsetDateTime::now_utc(),
             issued_for: validity,
             token: generate_jwt_for_upgrade_mode_attestation(
-                upgrade_mode_attestation,
+                upgrade_mode_attestation.clone(),
                 validity,
                 keys,
                 Some(CREDENTIAL_PROXY_JWT_ISSUER),

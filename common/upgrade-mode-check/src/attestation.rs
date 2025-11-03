@@ -21,8 +21,8 @@ pub struct UpgradeModeAttestation {
 #[serde(rename = "upgrade_mode")]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct UpgradeModeAttestationContent {
-    #[serde(with = "time::serde::timestamp")]
-    #[cfg_attr(feature = "openapi", schema(value_type = i64))]
+    #[serde(with = "time::serde::rfc3339")]
+    #[cfg_attr(feature = "openapi", schema(value_type = String))]
     pub starting_time: OffsetDateTime,
 
     #[serde(with = "ed25519::bs58_ed25519_pubkey")]
@@ -110,8 +110,8 @@ mod tests {
         let attestation_json = serde_json::to_string(&attestation)?;
         let attestation_content_json = attestation.content.as_json();
 
-        let expected_attestation = r#"{"type":"upgrade_mode","starting_time":1629720000,"attester_public_key":"3pkFcBXCEmbmXBT2G8CkFMuKisJcH54mbBGvncHaDibt","signature":"5rWUr2ypaDTtrMKegMP3tQkkZGFAuhNTnEVCVe5Azv6QqvLzoGdQiMkFmeyhDd1XSfoXpL9fFM58rsdA1kf4GYMM"}"#;
-        let expected_content = r#"{"type":"upgrade_mode","starting_time":1629720000,"attester_public_key":"3pkFcBXCEmbmXBT2G8CkFMuKisJcH54mbBGvncHaDibt"}"#;
+        let expected_attestation = r#"{"type":"upgrade_mode","starting_time":"2021-08-23T12:00:00Z","attester_public_key":"3pkFcBXCEmbmXBT2G8CkFMuKisJcH54mbBGvncHaDibt","signature":"2tfgScmkdEJpJPEvunyCJUqhtnyUB4kHCnpcDpAhKGKi5D7anpxgPtvVdNxPcPtJoWMHUXCcs7QhtFE8SbyyMgNm"}"#;
+        let expected_content = r#"{"type":"upgrade_mode","starting_time":"2021-08-23T12:00:00Z","attester_public_key":"3pkFcBXCEmbmXBT2G8CkFMuKisJcH54mbBGvncHaDibt"}"#;
 
         assert_eq!(attestation_content_json, expected_content);
         assert_eq!(attestation_json, expected_attestation);

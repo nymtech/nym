@@ -37,6 +37,7 @@ pub struct IpPacketRouter {
     config: Config,
 
     wait_for_gateway: bool,
+    wait_for_topology: bool,
     custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
     custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send + Sync>>,
     shutdown: ShutdownTracker,
@@ -48,6 +49,7 @@ impl IpPacketRouter {
         Self {
             config,
             wait_for_gateway: false,
+            wait_for_topology: false,
             custom_topology_provider: None,
             custom_gateway_transceiver: None,
             shutdown,
@@ -69,6 +71,13 @@ impl IpPacketRouter {
     #[allow(unused)]
     pub fn with_wait_for_gateway(mut self, wait_for_gateway: bool) -> Self {
         self.wait_for_gateway = wait_for_gateway;
+        self
+    }
+
+    #[must_use]
+    #[allow(unused)]
+    pub fn with_wait_for_initial_topology(mut self, wait_for_initial_topology: bool) -> Self {
+        self.wait_for_topology = wait_for_initial_topology;
         self
     }
 
@@ -131,6 +140,7 @@ impl IpPacketRouter {
             self.custom_gateway_transceiver,
             self.custom_topology_provider,
             self.wait_for_gateway,
+            self.wait_for_topology,
             &self.config.storage_paths.common_paths,
         )
         .await?;

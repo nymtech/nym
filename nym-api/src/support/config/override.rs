@@ -15,6 +15,9 @@ pub(crate) struct OverrideConfig {
     /// Endpoint to nyxd instance used for contract information.
     pub(crate) nyxd_validator: Option<url::Url>,
 
+    /// Bearer token for exposing and accessing additional utility routes
+    pub(crate) utility_routes_bearer: Option<String>,
+
     /// Mnemonic of the network monitor used for sending rewarding and zk-nyms transactions
     pub(crate) mnemonic: Option<bip39::Mnemonic>,
 
@@ -33,6 +36,7 @@ pub(crate) struct OverrideConfig {
     pub(crate) bind_address: Option<SocketAddr>,
 
     pub(crate) address_cache_ttl: Option<Duration>,
+
     pub(crate) address_cache_capacity: Option<u64>,
 
     pub(crate) allow_illegal_ips: bool,
@@ -44,6 +48,7 @@ impl From<init::Args> for OverrideConfig {
             enable_monitor: Some(args.enable_monitor),
             enable_rewarding: Some(args.enable_rewarding),
             nyxd_validator: args.nyxd_validator,
+            utility_routes_bearer: args.utility_routes_bearer,
             mnemonic: args.mnemonic,
             enable_zk_nym: Some(args.enable_zk_nym),
             announce_address: args.announce_address,
@@ -63,6 +68,7 @@ impl From<run::Args> for OverrideConfig {
             enable_monitor: args.enable_monitor,
             enable_rewarding: args.enable_rewarding,
             nyxd_validator: args.nyxd_validator,
+            utility_routes_bearer: args.utility_routes_bearer,
             mnemonic: args.mnemonic,
             enable_zk_nym: args.enable_zk_nym,
             announce_address: args.announce_address,

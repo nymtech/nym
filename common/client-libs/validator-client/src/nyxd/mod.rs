@@ -199,6 +199,18 @@ impl NyxdClient<HttpClient, DirectSecp256k1HdWallet> {
         let wallet = DirectSecp256k1HdWallet::checked_from_mnemonic(prefix, mnemonic)?;
         Ok(Self::connect_with_signer(config, client, wallet))
     }
+
+    pub fn connect_with_mnemonic_and_network_details<U>(
+        endpoint: U,
+        network_details: NymNetworkDetails,
+        mnemonic: bip39::Mnemonic,
+    ) -> Result<DirectSigningHttpRpcNyxdClient, NyxdError>
+    where
+        U: TryInto<HttpClientUrl, Error = TendermintRpcError>,
+    {
+        let config = Config::try_from_nym_network_details(&network_details)?;
+        Self::connect_with_mnemonic(config, endpoint, mnemonic)
+    }
 }
 
 #[allow(deprecated)]

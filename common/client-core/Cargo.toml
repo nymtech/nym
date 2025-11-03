@@ -2,7 +2,7 @@
 name = "nym-client-core"
 version.workspace = true
 authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>"]
-edition = "2021"
+edition = "2024"
 rust-version = "1.85"
 license.workspace = true
 description = "Crate containing core client functionality and configs, used by all other Nym client implentations"

@@ -1283,7 +1283,7 @@ impl TestFixture {
             address_info_cache: AddressInfoCache::new(Duration::from_secs(42), 1000),
             forced_refresh: ForcedRefresh::new(true),
             mixnet_contract_cache: SharedCache::new().into(),
-            node_status_cache: SharedCache::new().into(),
+            node_annotations_cache: SharedCache::new().into(),
             storage,
             described_nodes_cache: SharedCache::<DescribedNodes>::new(),
             network_details: NetworkDetails::new(

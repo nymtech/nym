@@ -4,8 +4,8 @@
 use crate::client::real_messages_control::acknowledgement_control::PendingAcknowledgement;
 use futures::channel::{mpsc, oneshot};
 use nym_sphinx::addressing::clients::Recipient;
-use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nym_sphinx::anonymous_replies::ReplySurbWithKeyRotation;
+use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nym_task::connections::{ConnectionId, TransmissionLane};
 use std::sync::Weak;
 

@@ -78,6 +78,10 @@ impl NodeStatusCacheRefresher {
         }
     }
 
+    pub(crate) fn refresh_requester(&self) -> RefreshRequester {
+        self.refresh_requester.clone()
+    }
+
     /// Runs the node status cache refresher task.
     pub async fn run(&mut self, shutdown_token: ShutdownToken) {
         let mut last_update = OffsetDateTime::now_utc();

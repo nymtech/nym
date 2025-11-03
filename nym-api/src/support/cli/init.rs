@@ -1,6 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::support::cli::run::initialise_storage;
 use crate::support::config::default_config_filepath;
 use crate::support::config::helpers::initialise_new;
 use anyhow::bail;
@@ -71,8 +72,10 @@ pub(crate) struct Args {
 
     #[clap(hide = true, long, default_value_t = false)]
     pub(crate) allow_illegal_ips: bool,
-    // #[clap(short, long, default_value_t = OutputFormat::default())]
-    // output: OutputFormat,
+
+    /// Bearer token for exposing and accessing additional utility routes
+    #[clap(long, env = "NYMAPI_UTILITY_ROUTES_BEARER_ARG")]
+    pub(crate) utility_routes_bearer: Option<String>,
 }
 
 pub(crate) async fn execute(args: Args) -> anyhow::Result<()> {
@@ -88,12 +91,15 @@ pub(crate) async fn execute(args: Args) -> anyhow::Result<()> {
         bail!("there already exists a configuration file at '{}'. If you intend to replace it, you need to manually remove it first. Make sure to make backup of any keys and datastores first.", config_path.display())
     }
 
-    let config = initialise_new(&args.id)?;
     // args take precedence over env
-    config
+    let config = initialise_new(&args.id)?
         .override_with_env()
-        .override_with_args(args)
-        .try_save()?;
+        .override_with_args(args);
+
+    config.try_save()?;
+
+    // create the initial database file
+    initialise_storage(&config).await?;
 
     Ok(())
 }

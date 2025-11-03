@@ -9,7 +9,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::time::Instant;
 use tokio_util::sync::CancellationToken;
-use tracing::{error, info};
+use tracing::{debug, info};
 use url::Url;
 
 pub struct AttestationWatcher {
@@ -59,7 +59,10 @@ impl AttestationWatcher {
         )
         .await
         {
-            Err(err) => error!("failed to retrieve attestation information: {err}"),
+            Err(err) => {
+                info!("upgrade mode attestation is not available at this time");
+                debug!("retrieval error: {err}")
+            }
             Ok(attestation) => {
                 self.upgrade_mode_state
                     .update(attestation, &self.jwt_signing_keys, self.jwt_validity)

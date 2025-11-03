@@ -209,7 +209,6 @@ impl InputMessage {
     }
 }
 
-// TODO: Tests
 pub struct AdressedInputMessageCodec(pub Recipient);
 
 impl Encoder<&[u8]> for AdressedInputMessageCodec {
@@ -230,9 +229,7 @@ impl Encoder<InputMessage> for InputMessageCodec {
 
     fn encode(&mut self, item: InputMessage, buf: &mut BytesMut) -> Result<(), Self::Error> {
         #[allow(clippy::expect_used)]
-        let encoded = make_bincode_serializer()
-            .serialize(&item)
-            .expect("failed to serialize InputMessage");
+        let encoded = make_bincode_serializer().serialize(&item)?;
         let encoded_len = encoded.len() as u32;
         let mut encoded_with_len = encoded_len.to_le_bytes().to_vec();
         encoded_with_len.extend(encoded);
@@ -251,24 +248,288 @@ impl Decoder for InputMessageCodec {
             return Ok(None);
         }
         #[allow(clippy::expect_used)]
-        let len = u32::from_le_bytes(
-            buf[0..LENGHT_ENCODING_PREFIX_SIZE]
-                .try_into()
-                .expect("Could not coarce to array"),
-        ) as usize;
+        let len = u32::from_le_bytes(buf[0..LENGHT_ENCODING_PREFIX_SIZE].try_into()?) as usize;
         if buf.len() < len + LENGHT_ENCODING_PREFIX_SIZE {
             return Ok(None);
         }
 
-        let decoded = match make_bincode_serializer()
-            .deserialize(&buf[LENGHT_ENCODING_PREFIX_SIZE..len + LENGHT_ENCODING_PREFIX_SIZE])
-        {
-            Ok(decoded) => decoded,
-            Err(_) => return Ok(None),
-        };
+        let decoded = make_bincode_serializer()
+            .deserialize(&buf[LENGHT_ENCODING_PREFIX_SIZE..len + LENGHT_ENCODING_PREFIX_SIZE])?;
 
         buf.advance(len + LENGHT_ENCODING_PREFIX_SIZE);
 
         Ok(Some(decoded))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use nym_sphinx::addressing::clients::Recipient;
+    use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
+    use nym_sphinx::params::PacketType;
+    use rand::SeedableRng;
+
+    fn test_recipient() -> Recipient {
+        Recipient::try_from_base58_string("CytBseW6yFXUMzz4SGAKdNLGR7q3sJLLYxyBGvutNEQV.4QXYyEVc5fUDjmmi8PrHN9tdUFV4PCvSJE1278cHyvoe@4sBbL1ngf1vtNqykydQKTFh26sQCw888GpUqvPvyNB4f").unwrap()
+    }
+
+    fn test_sender_tag() -> AnonymousSenderTag {
+        let dummy_seed = [42u8; 32];
+        let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
+        AnonymousSenderTag::new_random(&mut rng)
+    }
+
+    #[test]
+    fn encode_decode_all_variants() {
+        let mut codec = InputMessageCodec;
+        {
+            let mut buf = BytesMut::new();
+            let msg = InputMessage::new_anonymous(
+                test_recipient(),
+                vec![1, 2, 3, 4, 5],
+                3,
+                TransmissionLane::General,
+                None,
+            );
+            codec.encode(msg, &mut buf).unwrap();
+            let decoded = codec
+                .decode(&mut buf)
+                .unwrap()
+                .expect("Should decode message");
+
+            match decoded {
+                InputMessage::Anonymous {
+                    data, reply_surbs, ..
+                } => {
+                    assert_eq!(data, vec![1, 2, 3, 4, 5]);
+                    assert_eq!(reply_surbs, 3);
+                }
+                _ => panic!("Expected Anonymous variant"),
+            }
+        }
+
+        {
+            let mut buf = BytesMut::new();
+            let msg = InputMessage::new_reply(
+                test_sender_tag(),
+                vec![6, 7, 8],
+                TransmissionLane::General,
+                None,
+            );
+            codec.encode(msg, &mut buf).unwrap();
+            let decoded = codec
+                .decode(&mut buf)
+                .unwrap()
+                .expect("Should decode message");
+
+            match decoded {
+                InputMessage::Reply { data, .. } => {
+                    assert_eq!(data, vec![6, 7, 8]);
+                }
+                _ => panic!("Expected Reply variant"),
+            }
+        }
+
+        {
+            let mut buf = BytesMut::new();
+            let inner = InputMessage::new_anonymous(
+                test_recipient(),
+                vec![9, 10],
+                2,
+                TransmissionLane::General,
+                None,
+            );
+            let msg = InputMessage::new_wrapper(inner, PacketType::Mix);
+            codec.encode(msg, &mut buf).unwrap();
+            let decoded = codec
+                .decode(&mut buf)
+                .unwrap()
+                .expect("Should decode message");
+
+            match decoded {
+                InputMessage::MessageWrapper {
+                    message,
+                    packet_type,
+                } => {
+                    assert_eq!(packet_type, PacketType::Mix);
+                    match *message {
+                        InputMessage::Anonymous {
+                            data, reply_surbs, ..
+                        } => {
+                            assert_eq!(data, vec![9, 10]);
+                            assert_eq!(reply_surbs, 2);
+                        }
+                        _ => panic!("Expected Anonymous inner message"),
+                    }
+                }
+                _ => panic!("Expected MessageWrapper variant"),
+            }
+        }
+    }
+
+    #[test]
+    fn encode_decode_sequential_messages() {
+        let mut codec = InputMessageCodec;
+        let mut buf = BytesMut::new();
+
+        codec
+            .encode(
+                InputMessage::new_anonymous(
+                    test_recipient(),
+                    vec![1, 2, 3],
+                    1,
+                    TransmissionLane::General,
+                    None,
+                ),
+                &mut buf,
+            )
+            .unwrap();
+
+        codec
+            .encode(
+                InputMessage::new_anonymous(
+                    test_recipient(),
+                    vec![4, 5, 6, 7],
+                    2,
+                    TransmissionLane::General,
+                    None,
+                ),
+                &mut buf,
+            )
+            .unwrap();
+
+        codec
+            .encode(
+                InputMessage::new_anonymous(
+                    test_recipient(),
+                    vec![8, 9],
+                    3,
+                    TransmissionLane::General,
+                    None,
+                ),
+                &mut buf,
+            )
+            .unwrap();
+
+        let decoded1 = codec
+            .decode(&mut buf)
+            .unwrap()
+            .expect("Should decode first message");
+        match decoded1 {
+            InputMessage::Anonymous {
+                data, reply_surbs, ..
+            } => {
+                assert_eq!(data, vec![1, 2, 3]);
+                assert_eq!(reply_surbs, 1);
+            }
+            _ => panic!("Wrong variant"),
+        }
+
+        let decoded2 = codec
+            .decode(&mut buf)
+            .unwrap()
+            .expect("Should decode second message");
+        match decoded2 {
+            InputMessage::Anonymous {
+                data, reply_surbs, ..
+            } => {
+                assert_eq!(data, vec![4, 5, 6, 7]);
+                assert_eq!(reply_surbs, 2);
+            }
+            _ => panic!("Wrong variant"),
+        }
+
+        let decoded3 = codec
+            .decode(&mut buf)
+            .unwrap()
+            .expect("Should decode third message");
+        match decoded3 {
+            InputMessage::Anonymous {
+                data, reply_surbs, ..
+            } => {
+                assert_eq!(data, vec![8, 9]);
+                assert_eq!(reply_surbs, 3);
+            }
+            _ => panic!("Wrong variant"),
+        }
+
+        // Buffer should be empty
+        let decoded4 = codec.decode(&mut buf).unwrap();
+        assert!(decoded4.is_none(), "Should have no more messages");
+        assert_eq!(buf.len(), 0, "Buffer should be empty");
+    }
+
+    #[test]
+    fn partial_message_handling() {
+        let mut codec = InputMessageCodec;
+        let mut buf = BytesMut::new();
+        // Empty @ beginning
+        assert!(codec.decode(&mut buf).unwrap().is_none());
+
+        let mut buf = BytesMut::from(&[0x10, 0x00][..]);
+        assert!(codec.decode(&mut buf).unwrap().is_none());
+        assert_eq!(buf.len(), 2, "Buffer should be unchanged");
+
+        let mut full_buf = BytesMut::new();
+        codec
+            .encode(
+                InputMessage::new_anonymous(
+                    test_recipient(),
+                    vec![1, 2, 3, 4, 5],
+                    2,
+                    TransmissionLane::General,
+                    None,
+                ),
+                &mut full_buf,
+            )
+            .unwrap();
+
+        // Only first half of the message
+        let partial_len = full_buf.len() / 2;
+        let mut partial_buf = full_buf.split_to(partial_len);
+
+        assert!(codec.decode(&mut partial_buf).unwrap().is_none());
+        assert_eq!(partial_buf.len(), partial_len, "Buffer should be unchanged");
+
+        partial_buf.unsplit(full_buf);
+        let decoded = codec.decode(&mut partial_buf).unwrap();
+        assert!(decoded.is_some(), "Should decode complete message");
+        match decoded.unwrap() {
+            InputMessage::Anonymous { data, .. } => {
+                assert_eq!(data, vec![1, 2, 3, 4, 5]);
+            }
+            _ => panic!("Expected Anonymous variant"),
+        }
+    }
+
+    #[test]
+    fn addressed_codec_compatibility() {
+        let recipient = test_recipient();
+        let data = b"test message payload";
+
+        let mut addressed_codec = AdressedInputMessageCodec(recipient);
+        let mut buf = BytesMut::new();
+        addressed_codec.encode(data.as_ref(), &mut buf).unwrap();
+
+        let mut input_codec = InputMessageCodec;
+        let decoded = input_codec
+            .decode(&mut buf)
+            .unwrap()
+            .expect("Should decode");
+
+        match decoded {
+            InputMessage::Regular {
+                data: decoded_data,
+                recipient: decoded_recipient,
+                lane,
+                ..
+            } => {
+                assert_eq!(decoded_data, data, "Data should match");
+                assert_eq!(decoded_recipient, recipient, "Recipient should match");
+                assert_eq!(lane, TransmissionLane::General, "Should use General lane");
+            }
+            _ => panic!("Expected Regular variant"),
+        }
     }
 }

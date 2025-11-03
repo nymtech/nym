@@ -1,6 +1,6 @@
-# Nym Localnet for Apple Container Runtime
+# Nym Localnet for Kata Container Runtimes
 
-A complete Nym mixnet test environment running on Apple's container runtime for macOS.
+A complete Nym mixnet test environment running on Apple's container runtime for macOS (for now).
 
 ## Overview
 

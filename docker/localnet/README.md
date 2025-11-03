@@ -243,7 +243,7 @@ container logs nym-mixnode3 --follow &
 container logs nym-gateway --follow &
 
 # Make a request
-curl -L --socks5 localhost:1080 http://example.com
+curl -L --socks5 localhost:1080 https://nymtech.com
 ```
 
 ## File Structure
@@ -446,27 +446,6 @@ container logs nym-mixnode1 | grep -i error
 ./localnet.sh start
 ```
 
-## Differences from Bash Localnet
-
-The bash localnet (`scripts/localnet_start.sh`) runs everything on localhost:
-
-| Aspect | Bash Localnet | Container Localnet |
-|--------|---------------|-------------------|
-| **Isolation** | Single host, shared ports | Isolated containers |
-| **Networking** | 127.0.0.1 loopback | Bridge network with NAT |
-| **IP Addresses** | Hardcoded 127.0.0.1 | Dynamic container IPs |
-| **Initialization** | All at once, before start | Per-container at runtime |
-| **Topology** | Static 127.0.0.1 addresses | Dynamic container IPs |
-| **Process Management** | tmux sessions | Container lifecycle |
-| **Cleanup** | Manual process killing | `container rm` |
-
-**Key advantages of container approach**:
-- ✅ Complete isolation between components
-- ✅ Closer to production deployment
-- ✅ Easy cleanup (just remove containers)
-- ✅ Reproducible across machines
-- ✅ Can test multiple localnets in parallel (with different ports)
-
 ## Performance Notes
 
 ### Memory Usage
@@ -569,6 +548,19 @@ Apple's container runtime is a native macOS container system:
 - Lightweight VMs for each container
 - Native macOS integration
 - Separate image store from Docker
+- Natively uses [Kata Containers](https://github.com/kata-containers/kata-containers) images
+
+### Initial setup for [Container Runtime](https://github.com/apple/container)
+
+- **MUST** have MacOS Tahoe for inter-container networking
+- `brew install --cask container`
+- Download Kata Containers 3.20, this one can be loaded by `container` and has `CONFIG_TUN=y` kernel flag
+  - `https://github.com/kata-containers/kata-containers/releases/download/3.20.0/kata-static-3.20.0-arm64.tar.xz`
+- Load new kernel
+  - `container system kernel set --tar kata-static-3.20.0-arm64.tar.xz --binary opt/kata/share/kata-containers/vmlinux-6.12.42-162`
+- Validate kernel version once you have container running
+  - `uname -r` should return `6.12.42`
+  - `cat /proc/config.gz | grep CONFIG_TUN` should return `CONFIG_TUN=y`
 
 ### Image Building
 

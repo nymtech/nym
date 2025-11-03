@@ -157,8 +157,8 @@ impl IprClientConnect {
                         for msg in msgs {
                             // Confirm that the version is correct
                             if let Err(err) = check_ipr_message_version(&msg) {
-                                tracing::info!("Mixnet message version mismatch: {err}");
-                                continue;
+                                tracing::error!("Mixnet message version mismatch: {err}");
+                                break;
                             }
 
                             // Then we deserialize the message

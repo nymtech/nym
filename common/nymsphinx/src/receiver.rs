@@ -75,14 +75,11 @@ impl Encoder<ReconstructedMessage> for ReconstructedMessageCodec {
         item: ReconstructedMessage,
         buf: &mut BytesMut,
     ) -> Result<(), Self::Error> {
-        let encoded = make_bincode_serializer()
-            .serialize(&item)
-            .expect("failed to serialize ReconstructedMessage");
+        let encoded = make_bincode_serializer().serialize(&item)?;
         let encoded_len = encoded.len() as u32;
-        let mut encoded_with_len = encoded_len.to_le_bytes().to_vec();
-        encoded_with_len.extend(encoded);
-        buf.reserve(encoded_with_len.len());
-        buf.extend_from_slice(&encoded_with_len);
+        buf.reserve(LENGHT_ENCODING_PREFIX_SIZE + encoded.len());
+        buf.extend_from_slice(&encoded_len.to_le_bytes());
+        buf.extend_from_slice(&encoded);
         Ok(())
     }
 }
@@ -96,25 +93,14 @@ impl Decoder for ReconstructedMessageCodec {
             return Ok(None);
         }
 
-        let len = u32::from_le_bytes(
-            buf[0..LENGHT_ENCODING_PREFIX_SIZE]
-                .try_into()
-                .expect("We know that we have at least LENGHT_ENCODING_PREFIX_SIZE bytes in there"),
-        ) as usize;
+        let len = u32::from_le_bytes(buf[0..LENGHT_ENCODING_PREFIX_SIZE].try_into()?) as usize;
 
         if buf.len() < len + LENGHT_ENCODING_PREFIX_SIZE {
             return Ok(None);
         }
 
-        let decoded = match make_bincode_serializer()
-            .deserialize(&buf[LENGHT_ENCODING_PREFIX_SIZE..len + LENGHT_ENCODING_PREFIX_SIZE])
-        {
-            Ok(decoded) => decoded,
-            Err(e) => {
-                debug!("Failed to decode the message - {:?}", e);
-                return Ok(None);
-            }
-        };
+        let decoded = make_bincode_serializer()
+            .deserialize(&buf[LENGHT_ENCODING_PREFIX_SIZE..len + LENGHT_ENCODING_PREFIX_SIZE])?;
 
         buf.advance(len + LENGHT_ENCODING_PREFIX_SIZE);
 
@@ -144,6 +130,12 @@ pub enum MessageRecoveryError {
 
     #[error("Failed to recover message fragment - {0}")]
     MessageRecoveryError(#[from] io::Error),
+
+    #[error("Failed to serialize/deserialize message")]
+    SerializationError(#[from] Box<bincode::ErrorKind>),
+
+    #[error("Invalid length prefix bytes")]
+    InvalidLengthPrefix(#[from] std::array::TryFromSliceError),
 }
 
 pub trait MessageReceiver {

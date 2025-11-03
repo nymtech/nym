@@ -293,6 +293,14 @@ pub(crate) struct WireguardArgs {
         env = NYMNODE_WG_PRIVATE_NETWORK_PREFIX_ARG
     )]
     pub(crate) wireguard_private_network_prefix: Option<u8>,
+
+    /// Use userspace implementation of WireGuard (wireguard-go) instead of kernel module.
+    /// Useful in containerized environments without kernel WireGuard support.
+    #[clap(
+        long,
+        env = NYMNODE_WG_USERSPACE_ARG
+    )]
+    pub(crate) wireguard_userspace: Option<bool>,
 }
 
 impl WireguardArgs {
@@ -319,6 +327,10 @@ impl WireguardArgs {
 
         if let Some(private_network_prefix) = self.wireguard_private_network_prefix {
             section.private_network_prefix_v4 = private_network_prefix
+        }
+
+        if let Some(userspace) = self.wireguard_userspace {
+            section.use_userspace = userspace
         }
 
         section

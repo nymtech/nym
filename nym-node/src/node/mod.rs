@@ -325,6 +325,7 @@ impl ServiceProvidersData {
 pub struct WireguardData {
     inner: WireguardGatewayData,
     peer_rx: mpsc::Receiver<PeerControlRequest>,
+    use_userspace: bool,
 }
 
 impl WireguardData {
@@ -335,7 +336,11 @@ impl WireguardData {
                 &config.storage_paths.x25519_wireguard_storage_paths(),
             )?),
         );
-        Ok(WireguardData { inner, peer_rx })
+        Ok(WireguardData {
+            inner,
+            peer_rx,
+            use_userspace: config.use_userspace,
+        })
     }
 
     pub(crate) fn initialise(config: &Wireguard) -> Result<(), ServiceProvidersError> {
@@ -357,6 +362,7 @@ impl From<WireguardData> for nym_wireguard::WireguardData {
         nym_wireguard::WireguardData {
             inner: value.inner,
             peer_rx: value.peer_rx,
+            use_userspace: value.use_userspace,
         }
     }
 }

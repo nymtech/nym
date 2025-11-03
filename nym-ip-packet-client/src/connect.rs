@@ -30,8 +30,6 @@ enum ConnectionState {
     Disconnected,
     Connecting,
     Connected,
-    #[allow(unused)]
-    Disconnecting,
 }
 
 pub struct IprClientConnect {

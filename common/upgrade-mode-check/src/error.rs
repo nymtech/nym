@@ -12,6 +12,9 @@ pub enum UpgradeModeCheckError {
     #[error("the jwt metadata didn't contain explicit public key")]
     MissingTokenPublicKey,
 
+    #[error("the jwt signer does not appear in the authorised attestation set")]
+    UnauthorisedIssuer,
+
     #[error("the attached public key was not valid ed25519 public key")]
     MalformedEd25519PublicKey { source: Ed25519RecoveryError },
 

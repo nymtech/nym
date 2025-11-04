@@ -179,7 +179,7 @@ mod dns;
 mod path;
 
 #[cfg(not(target_arch = "wasm32"))]
-pub use dns::{HickoryDnsError, HickoryDnsResolver};
+pub use dns::{HickoryDnsResolver, ResolveError};
 
 // helper for generating user agent based on binary information
 #[cfg(not(target_arch = "wasm32"))]
@@ -557,6 +557,7 @@ pub struct ClientBuilder {
     reqwest_client_builder: reqwest::ClientBuilder,
     #[allow(dead_code)] // not dead code, just unused in wasm
     use_secure_dns: bool,
+    overall_dns_timeout: Duration,
 
     #[cfg(feature = "tunneling")]
     front: Option<fronted::Front>,
@@ -662,6 +663,7 @@ impl ClientBuilder {
             custom_user_agent: false,
             reqwest_client_builder,
             use_secure_dns: true,
+            overall_dns_timeout: Duration::from_secs(10),
             #[cfg(feature = "tunneling")]
             front: None,
 

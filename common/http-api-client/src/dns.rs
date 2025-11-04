@@ -32,17 +32,18 @@ use crate::ClientBuilder;
 use std::{
     net::SocketAddr,
     sync::{Arc, LazyLock},
+    time::Duration,
 };
 
 use hickory_resolver::{
-    ResolveError, TokioResolver,
+    TokioResolver,
     config::{LookupIpStrategy, NameServerConfigGroup, ResolverConfig, ServerOrderingStrategy},
     lookup_ip::{LookupIp, LookupIpIntoIter},
     name_server::TokioConnectionProvider,
 };
 use once_cell::sync::OnceCell;
 use reqwest::dns::{Addrs, Name, Resolve, Resolving};
-use tracing::warn;
+use tracing::{info, warn};
 
 impl ClientBuilder {
     /// Override the DNS resolver implementation used by the underlying http client.
@@ -55,6 +56,14 @@ impl ClientBuilder {
     /// Override the DNS resolver implementation used by the underlying http client.
     pub fn no_hickory_dns(mut self) -> Self {
         self.use_secure_dns = false;
+        self
+    }
+
+    /// Add an overall timeout for dns lookup associated with any individual resolution.
+    /// For example, use of backup resolver, retries etc. ends absolutely if this timeout is
+    /// reached.
+    pub fn with_overall_dns_timeout(mut self, timeout: Duration) -> Self {
+        self.overall_dns_timeout = timeout;
         self
     }
 }
@@ -72,11 +81,13 @@ static SHARED_RESOLVER: LazyLock<HickoryDnsResolver> = LazyLock::new(|| {
 });
 
 #[derive(Debug, thiserror::Error)]
-#[error("hickory-dns resolver error: {hickory_error}")]
+#[allow(missing_docs)]
 /// Error occurring while resolving a hostname into an IP address.
-pub struct HickoryDnsError {
-    #[from]
-    hickory_error: ResolveError,
+pub enum ResolveError {
+    #[error("hickory-dns resolver error: {0}")]
+    HickoryDnsError(#[from] hickory_resolver::ResolveError),
+    #[error("high level lookup timed out")]
+    Timeout,
 }
 
 /// Wrapper around an `AsyncResolver`, which implements the `Resolve` trait.
@@ -95,6 +106,7 @@ pub struct HickoryDnsResolver {
     state: Arc<OnceCell<TokioResolver>>,
     fallback: Option<Arc<OnceCell<TokioResolver>>>,
     dont_use_shared: bool,
+    overall_dns_timeout: Duration,
 }
 
 impl Resolve for HickoryDnsResolver {
@@ -102,6 +114,7 @@ impl Resolve for HickoryDnsResolver {
         let resolver = self.state.clone();
         let maybe_fallback = self.fallback.clone();
         let independent = self.dont_use_shared;
+        let overall_dns_timeout = self.overall_dns_timeout;
         Box::pin(async move {
             let resolver = resolver.get_or_try_init(|| {
                 // using a closure here is slightly gross, but this makes sure that if the
@@ -113,10 +126,14 @@ impl Resolve for HickoryDnsResolver {
                 }
             })?;
 
+            let resolve_fut =
+                tokio::time::timeout(overall_dns_timeout, resolver.lookup_ip(name.as_str()));
+
             // try the primary DNS resolver that we set up (DoH or DoT or whatever)
-            let lookup = match resolver.lookup_ip(name.as_str()).await {
-                Ok(res) => res,
-                Err(e) => {
+            let lookup = match resolve_fut.await {
+                Ok(Ok(res)) => res,
+                Err(_) => return Err(ResolveError::Timeout.into()),
+                Ok(Err(e)) => {
                     if let Some(ref fallback) = maybe_fallback {
                         // on failure use the fall back system configured DNS resolver
                         if !e.is_no_records_found() {
@@ -162,13 +179,15 @@ impl Iterator for SocketAddrs {
 
 impl HickoryDnsResolver {
     /// Attempt to resolve a domain name to a set of ['IpAddr']s
-    pub async fn resolve_str(&self, name: &str) -> Result<LookupIp, HickoryDnsError> {
+    pub async fn resolve_str(&self, name: &str) -> Result<LookupIp, ResolveError> {
         let resolver = self.state.get_or_try_init(|| self.new_resolver())?;
+        let resolve_fut = tokio::time::timeout(self.overall_dns_timeout, resolver.lookup_ip(name));
 
         // try the primary DNS resolver that we set up (DoH or DoT or whatever)
-        let lookup = match resolver.lookup_ip(name).await {
-            Ok(res) => res,
-            Err(e) => {
+        let lookup = match resolve_fut.await {
+            Ok(Ok(res)) => res,
+            Err(_) => return Err(ResolveError::Timeout),
+            Ok(Err(e)) => {
                 if let Some(ref fallback) = self.fallback {
                     // on failure use the fall back system configured DNS resolver
                     if !e.is_no_records_found() {
@@ -194,7 +213,7 @@ impl HickoryDnsResolver {
         }
     }
 
-    fn new_resolver(&self) -> Result<TokioResolver, HickoryDnsError> {
+    fn new_resolver(&self) -> Result<TokioResolver, ResolveError> {
         if self.dont_use_shared {
             new_resolver()
         } else {
@@ -202,7 +221,7 @@ impl HickoryDnsResolver {
         }
     }
 
-    fn new_resolver_system(&self) -> Result<TokioResolver, HickoryDnsError> {
+    fn new_resolver_system(&self) -> Result<TokioResolver, ResolveError> {
         if self.dont_use_shared || SHARED_RESOLVER.fallback.is_none() {
             new_resolver_system()
         } else {
@@ -216,7 +235,7 @@ impl HickoryDnsResolver {
     }
 
     /// Enable fallback to the system default resolver if the primary (DoX) resolver fails
-    pub fn enable_system_fallback(&mut self) -> Result<(), HickoryDnsError> {
+    pub fn enable_system_fallback(&mut self) -> Result<(), ResolveError> {
         self.fallback = Some(Default::default());
         let _ = self
             .fallback
@@ -235,7 +254,15 @@ impl HickoryDnsResolver {
 
 /// Create a new resolver with a custom DoT based configuration. The options are overridden to look
 /// up for both IPv4 and IPv6 addresses to work with "happy eyeballs" algorithm.
-fn new_resolver() -> Result<TokioResolver, HickoryDnsError> {
+///
+/// Timeout Defaults to 5 seconds
+/// Number of retries after lookup failure before giving up Defaults to 2
+///
+/// Caches successfully resolved addresses for 30 minutes to prevent continual use of remote lookup.
+/// This resolver is intended to be used for OUR API endpoints that do not rapidly rotate IPs.
+fn new_resolver() -> Result<TokioResolver, ResolveError> {
+    info!("building new configured resolver");
+
     let mut name_servers = NameServerConfigGroup::quad9_tls();
     name_servers.merge(NameServerConfigGroup::quad9_https());
     name_servers.merge(NameServerConfigGroup::cloudflare_tls());
@@ -247,6 +274,10 @@ fn new_resolver() -> Result<TokioResolver, HickoryDnsError> {
 
     resolver_builder.options_mut().ip_strategy = LookupIpStrategy::Ipv4AndIpv6;
     resolver_builder.options_mut().server_ordering_strategy = ServerOrderingStrategy::RoundRobin;
+    // Cache successful responses for queries received by this resolver for 30 min minimum.
+    resolver_builder.options_mut().positive_min_ttl = Some(Duration::from_secs(1800));
+    resolver_builder.options_mut().timeout = Duration::from_secs(5);
+    resolver_builder.options_mut().attempts = 2;
 
     Ok(resolver_builder.build())
 }
@@ -254,7 +285,7 @@ fn new_resolver() -> Result<TokioResolver, HickoryDnsError> {
 /// Create a new resolver with the default configuration, which reads from the system DNS config
 /// (i.e. `/etc/resolve.conf` in unix). The options are overridden to look up for both IPv4 and IPv6
 /// addresses to work with "happy eyeballs" algorithm.
-fn new_resolver_system() -> Result<TokioResolver, HickoryDnsError> {
+fn new_resolver_system() -> Result<TokioResolver, ResolveError> {
     let mut resolver_builder = TokioResolver::builder_tokio()?;
     resolver_builder.options_mut().ip_strategy = LookupIpStrategy::Ipv4AndIpv6;
 
@@ -286,7 +317,7 @@ mod test {
     }
 
     #[tokio::test]
-    async fn dns_lookup() -> Result<(), HickoryDnsError> {
+    async fn dns_lookup() -> Result<(), ResolveError> {
         let resolver = HickoryDnsResolver::default();
 
         let domain = "ifconfig.me";
@@ -297,3 +328,23 @@ mod test {
         Ok(())
     }
 }
+
+// #[cfg(test)]
+// mod smoke_test {
+//     use super::*;
+
+//     #[tokio::test]
+//     async fn dns_lookup_failures() -> Result<(), ResolveError> {
+//         tracing_subscriber::fmt()
+//             .with_max_level(tracing::Level::DEBUG)
+//             .init();
+
+//         let resolver = HickoryDnsResolver::default();
+//         let domain = "ifconfig.me";
+//         let addrs = resolver.resolve_str(domain).await?;
+
+//         assert!(addrs.into_iter().next().is_some());
+
+//         Ok(())
+//     }
+// }

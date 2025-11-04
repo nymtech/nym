@@ -1,2 +1,4 @@
+# ignore files that are copied in from `../common/nyxd-scraper-psql/sql_migrations/* migrations`
+# and remember to name the migrations to avoid collisions and so they process in the correct string sort order
 0001_metadata.sql
 0002_cosmos.sql

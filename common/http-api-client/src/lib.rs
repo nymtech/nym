@@ -883,6 +883,20 @@ impl Client {
         self.retry_limit = limit;
     }
 
+    fn matches_current_host(&self, url: &Url) -> bool {
+        if cfg!(feature = "tunneling") {
+            if let Some(ref front) = self.front
+                && front.is_enabled()
+            {
+                url.host_str() == self.current_url().front_str()
+            } else {
+                url.host_str() == self.current_url().host_str()
+            }
+        } else {
+            url.host_str() == self.current_url().host_str()
+        }
+    }
+
     /// If multiple base urls are available rotate to next (e.g. when the current one resulted in an error)
     ///
     /// Takes an optional URL argument. If this is none, the current host will be updated automatically.
@@ -890,10 +904,11 @@ impl Client {
     /// triggering a rotation. This is meant to prevent parallel requests that fail from rotating the host
     /// multiple times.
     fn update_host(&self, maybe_url: Option<Url>) {
-        if let Some(err_url) = maybe_url {
-            if &err_url != self.current_url() {
-                return;
-            }
+        // If a causal url is provided and it doesn't match the hostname currently in use, skip update.
+        if let Some(err_url) = maybe_url
+            && !self.matches_current_host(&err_url)
+        {
+            return;
         }
 
         #[cfg(feature = "tunneling")]

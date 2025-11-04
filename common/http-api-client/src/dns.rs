@@ -378,17 +378,18 @@ mod failure_test {
 
     #[tokio::test]
     async fn dns_lookup_failures() -> Result<(), ResolveError> {
-        // tracing_subscriber::fmt()
-        //     .with_max_level(tracing::Level::DEBUG)
-        //     .init();
         let time_start = std::time::Instant::now();
 
+        let r = OnceCell::new();
+        r.set(build_broken_resolver().expect("failed to build resolver"))
+            .expect("broken resolver init error");
+
         // create a new resolver that won't mess with the shared resolver used by other tests
-        let mut resolver = HickoryDnsResolver::default();
-        resolver.dont_use_shared = true;
-        resolver
-            .state
-            .get_or_init(|| build_broken_resolver().expect("failed to build resolver"));
+        let resolver = HickoryDnsResolver {
+            dont_use_shared: true,
+            state: Arc::new(r),
+            ..Default::default()
+        };
         build_broken_resolver()?;
         let domain = "ifconfig.me";
         let result = resolver.resolve_str(domain).await;

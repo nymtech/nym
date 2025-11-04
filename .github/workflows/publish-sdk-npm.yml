@@ -4,7 +4,7 @@ on:
 
 jobs:
   publish:
-    runs-on: arc-linux-latest-dind
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 

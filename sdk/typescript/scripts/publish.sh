@@ -26,10 +26,10 @@ packages=(
 "wasm/client"
 "wasm/mix-fetch"
 "wasm/node-tester"
-"wasm/extension-storage"
+#"wasm/extension-storage"
 
 "node/wasm/client"
-"node/wasm/mix-fetch"
+#"node/wasm/mix-fetch"
 
 "ts/sdk/mix-fetch/cjs"
 "ts/sdk/mix-fetch/cjs-full-fat"
@@ -39,17 +39,17 @@ packages=(
 "ts/sdk/nodejs-client/cjs"
 "ts/sdk/mix-fetch-node/cjs"
 
-"ts/sdk/node-tester/cjs"
-"ts/sdk/node-tester/cjs-full-fat"
-"ts/sdk/node-tester/esm"
-"ts/sdk/node-tester/esm-full-fat"
+#"ts/sdk/node-tester/cjs"
+#"ts/sdk/node-tester/cjs-full-fat"
+#"ts/sdk/node-tester/esm"
+#"ts/sdk/node-tester/esm-full-fat"
 
 "ts/sdk/sdk/cjs"
 "ts/sdk/sdk/cjs-full-fat"
 "ts/sdk/sdk/esm"
 "ts/sdk/sdk/esm-full-fat"
 
-"ts/sdk/contract-clients"
+#"ts/sdk/contract-clients"
 )
 
 pushd () {
@@ -66,7 +66,7 @@ for item in "${packages[@]}"
 do
   pushd "$item"
   jq -r '. | "📦 " + .version + "   " +.name' < package.json
-  popd 
+  popd
 done
 
 echo ""

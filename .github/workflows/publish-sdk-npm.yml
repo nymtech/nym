@@ -17,10 +17,13 @@ jobs:
       - name: Setup yarn
         run: npm install -g yarn
 
-      - name: Install Rust stable
+      - name: Install rust toolchain
         uses: actions-rs/toolchain@v1
         with:
+          profile: minimal
           toolchain: stable
+          override: true
+          components: rustfmt, clippy
 
       - name: Install wasm-pack
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh

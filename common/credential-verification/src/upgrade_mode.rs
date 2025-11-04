@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use futures::channel::mpsc::{UnboundedReceiver, UnboundedSender};
+use nym_crypto::asymmetric::ed25519;
 use nym_upgrade_mode_check::{
     CREDENTIAL_PROXY_JWT_ISSUER, UpgradeModeAttestation, validate_upgrade_mode_jwt,
 };
@@ -137,11 +138,11 @@ impl UpgradeModeDetails {
         }
 
         // first validate whether the received JWT is even valid
-        // note: we expect the token has been signed by our credential proxy
-        // (in the future, we won't care about it, and we'll have proper key discovery endpoint. 2026™️)
         let attestation = validate_upgrade_mode_jwt(&token, Some(CREDENTIAL_PROXY_JWT_ISSUER))?;
 
         // send request to revalidate internal state
+        // this will, among other things, pull fresh attestation from the configured endpoint
+        // and also verify required signatures (and pubkeys)
         self.request_recheck().await;
 
         // not strictly necessary, but check if provided attestation actually matches the one retrieved
@@ -186,9 +187,10 @@ impl UpgradeModeStatus {
 }
 
 impl UpgradeModeState {
-    pub fn new_empty() -> UpgradeModeState {
+    pub fn new(attester_public_key: ed25519::PublicKey) -> UpgradeModeState {
         UpgradeModeState {
             inner: Arc::new(UpgradeModeStateInner {
+                expected_attester_public_key: attester_public_key,
                 expected_attestation: RwLock::new(None),
                 last_queried_ts: AtomicI64::new(OffsetDateTime::UNIX_EPOCH.unix_timestamp()),
                 status: UpgradeModeStatus(Arc::new(AtomicBool::new(false))),
@@ -200,18 +202,26 @@ impl UpgradeModeState {
         self.inner.expected_attestation.read().await.clone()
     }
 
-    pub async fn set_expected_attestation(
+    pub async fn try_set_expected_attestation(
         &self,
         expected_attestation: Option<UpgradeModeAttestation>,
     ) {
-        let mut guard = self.inner.expected_attestation.write().await;
         // make sure to only enable upgrade mode flag AFTER we have written the expected value
         // (or still hold the exclusive lock as in this instance)
-        if expected_attestation.is_some() {
+        let mut guard = self.inner.expected_attestation.write().await;
+
+        // ensure that the attestation had been signed with the expected key
+        if let Some(attestation) = expected_attestation.as_ref() {
+            if attestation.content.attester_public_key != self.inner.expected_attester_public_key {
+                self.update_last_queried(OffsetDateTime::now_utc());
+                return;
+            }
+
             self.enable_upgrade_mode()
         } else {
             self.disable_upgrade_mode()
         }
+
         self.update_last_queried(OffsetDateTime::now_utc());
         *guard = expected_attestation;
     }
@@ -256,6 +266,9 @@ impl UpgradeModeState {
 }
 
 struct UpgradeModeStateInner {
+    /// Expected public key of the entity issuing upgrade mode attestations.
+    expected_attester_public_key: ed25519::PublicKey,
+
     /// Contents of the published upgrade mode attestation, as queried by this node
     expected_attestation: RwLock<Option<UpgradeModeAttestation>>,
 

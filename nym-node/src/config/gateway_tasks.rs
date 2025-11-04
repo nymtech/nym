@@ -1,18 +1,21 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::config::helpers::log_error_and_return;
 use crate::config::persistence::GatewayTasksPaths;
+use crate::error::NymNodeError;
 use nym_config::defaults::{
     DEFAULT_CLIENT_LISTENING_PORT, TICKETBOOK_VALIDITY_DAYS, mainnet, var_names,
 };
 use nym_config::helpers::in6addr_any_init;
 use nym_config::serde_helpers::de_maybe_port;
+use nym_crypto::asymmetric::ed25519::{self, serde_helpers::bs58_ed25519_pubkey};
 use serde::{Deserialize, Serialize};
 use std::env;
 use std::net::SocketAddr;
 use std::path::Path;
 use std::time::Duration;
-use tracing::error;
+use tracing::info;
 use url::Url;
 
 pub const DEFAULT_WS_PORT: u16 = DEFAULT_CLIENT_LISTENING_PORT;
@@ -41,7 +44,7 @@ pub struct GatewayTasksConfig {
     #[serde(deserialize_with = "de_maybe_port")]
     pub announce_wss_port: Option<u16>,
 
-    pub upgrade_mode_watcher: UpgradeModeWatcher,
+    pub upgrade_mode: UpgradeModeWatcher,
 
     #[serde(default)]
     pub debug: Debug,
@@ -214,16 +217,16 @@ impl Default for StaleMessageDebug {
 }
 
 impl GatewayTasksConfig {
-    pub fn new_default<P: AsRef<Path>>(data_dir: P) -> Self {
-        GatewayTasksConfig {
+    pub fn new<P: AsRef<Path>>(data_dir: P) -> Result<Self, NymNodeError> {
+        Ok(GatewayTasksConfig {
             storage_paths: GatewayTasksPaths::new(data_dir),
             enforce_zk_nyms: false,
             ws_bind_address: SocketAddr::new(in6addr_any_init(), DEFAULT_WS_PORT),
             announce_ws_port: None,
             announce_wss_port: None,
-            upgrade_mode_watcher: UpgradeModeWatcher::new_default(),
+            upgrade_mode: UpgradeModeWatcher::new()?,
             debug: Default::default(),
-        }
+        })
     }
 }
 
@@ -234,8 +237,12 @@ pub struct UpgradeModeWatcher {
     pub enabled: bool,
 
     /// Endpoint to query to retrieve current upgrade mode attestation.
-    /// If not provided, it implicitly disables the watcher and upgrade-mode features
-    pub attestation_url: Option<Url>,
+    pub attestation_url: Url,
+
+    /// Expected public key of the attester providing the upgrade mode attestation
+    /// on the specified endpoint
+    #[serde(with = "bs58_ed25519_pubkey")]
+    pub attester_public_key: ed25519::PublicKey,
 
     pub debug: UpgradeModeWatcherDebug,
 }
@@ -254,36 +261,80 @@ impl From<UpgradeModeWatcher> for nym_gateway::config::UpgradeModeWatcher {
 }
 
 impl UpgradeModeWatcher {
-    pub fn new_default() -> UpgradeModeWatcher {
+    pub fn new_mainnet() -> UpgradeModeWatcher {
+        info!("using mainnet configuration for the upgrade mode:");
+        info!("\t- url: {}", mainnet::UPGRADE_MODE_ATTESTATION_URL);
+        info!(
+            "\t- attester public key: {}",
+            mainnet::UPGRADE_MODE_ATTESTER_ED25519_BS58_PUBKEY
+        );
+
         // SAFETY:
         // our hardcoded values should always be valid
         #[allow(clippy::expect_used)]
-        // is if there's anything set in the environment, otherwise fallback to mainnet
-        let attestation_url =
-            if let Ok(env_value) = env::var(var_names::UPGRADE_MOST_ATTESTATION_URL) {
-                match Url::parse(&env_value) {
-                    Ok(url) => Some(url),
-                    Err(err) => {
-                        error!("provided attestation url {env_value} is invalid: {err}!");
-                        None
-                    }
-                }
-            } else if env::var(var_names::CONFIGURED).is_ok() {
-                // we're configured to different env where attestation hasn't been set
-                None
-            } else {
-                Some(
-                    mainnet::UPGRADE_MOST_ATTESTATION_URL
-                        .parse()
-                        .expect("Invalid default upgrade mode attestation URL"),
-                )
-            };
+        let attestation_url = mainnet::UPGRADE_MODE_ATTESTATION_URL
+            .parse()
+            .expect("invalid default upgrade mode attestation URL");
+
+        let attester_public_key = mainnet::UPGRADE_MODE_ATTESTER_ED25519_BS58_PUBKEY
+            .parse()
+            .expect("invalid default upgrade mode attester public key");
 
         UpgradeModeWatcher {
             enabled: true,
             attestation_url,
+            attester_public_key,
             debug: UpgradeModeWatcherDebug::default(),
         }
+    }
+
+    pub fn new() -> Result<UpgradeModeWatcher, NymNodeError> {
+        // if env is configured, extract relevant values from there, otherwise fallback to mainnet
+        if env::var(var_names::CONFIGURED).is_err() {
+            return Ok(Self::new_mainnet());
+        }
+
+        // if env is configured, the relevant values should be set
+        let Ok(env_attestation_url) = env::var(var_names::UPGRADE_MODE_ATTESTATION_URL) else {
+            return log_error_and_return(format!(
+                "'{}' is not set whilst the env is set to be configured",
+                var_names::UPGRADE_MODE_ATTESTATION_URL
+            ));
+        };
+
+        let Ok(env_attester_pubkey) =
+            env::var(var_names::UPGRADE_MODE_ATTESTER_ED25519_BS58_PUBKEY)
+        else {
+            return log_error_and_return(format!(
+                "'{}' is not set whilst the env is set to be configured",
+                var_names::UPGRADE_MODE_ATTESTER_ED25519_BS58_PUBKEY
+            ));
+        };
+
+        let attestation_url = match (&env_attestation_url).parse() {
+            Ok(url) => url,
+            Err(err) => {
+                return log_error_and_return(format!(
+                    "provided attestation url {env_attestation_url} is invalid: {err}!"
+                ));
+            }
+        };
+
+        let attester_public_key = match (&env_attester_pubkey).parse() {
+            Ok(public_key) => public_key,
+            Err(err) => {
+                return log_error_and_return(format!(
+                    "provided attester public key {env_attester_pubkey} is invalid: {err}!"
+                ));
+            }
+        };
+
+        Ok(UpgradeModeWatcher {
+            enabled: true,
+            attestation_url,
+            attester_public_key,
+            debug: UpgradeModeWatcherDebug::default(),
+        })
     }
 }
 

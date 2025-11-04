@@ -5,6 +5,7 @@ use super::DEFAULT_NYMNODE_ID;
 use crate::config;
 use crate::config::default_config_filepath;
 use crate::env::vars::*;
+use crate::error::NymNodeError;
 use celes::Country;
 use clap::Args;
 use clap::builder::ArgPredicate;
@@ -441,8 +442,8 @@ impl EntryGatewayArgs {
     pub(crate) fn build_config_section<P: AsRef<Path>>(
         self,
         data_dir: P,
-    ) -> config::GatewayTasksConfig {
-        self.override_config_section(config::GatewayTasksConfig::new_default(data_dir))
+    ) -> Result<config::GatewayTasksConfig, NymNodeError> {
+        Ok(self.override_config_section(config::GatewayTasksConfig::new(data_dir)?))
     }
 
     pub(crate) fn override_config_section(
@@ -462,7 +463,7 @@ impl EntryGatewayArgs {
             section.enforce_zk_nyms = enforce_zk_nyms
         }
         if let Some(upgrade_mode_attestation_url) = self.upgrade_mode_attestation_url.take() {
-            section.upgrade_mode_watcher.attestation_url = Some(upgrade_mode_attestation_url)
+            section.upgrade_mode.attestation_url = upgrade_mode_attestation_url
         }
 
         section

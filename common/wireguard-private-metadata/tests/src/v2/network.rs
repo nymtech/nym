@@ -77,7 +77,7 @@ pub(crate) mod test {
             let (request_tx, request_rx) = mpsc::channel(CONTROL_CHANNEL_SIZE);
 
             let (um_recheck_tx, um_recheck_rx) = futures::channel::mpsc::unbounded();
-            let upgrade_mode_state = UpgradeModeState::new_empty();
+            let upgrade_mode_state = UpgradeModeState::new();
             let upgrade_mode_details = UpgradeModeDetails::new(
                 UpgradeModeCheckConfig {
                     min_staleness_recheck: Duration::from_secs(30),
@@ -143,13 +143,15 @@ pub(crate) mod test {
             attestation: UpgradeModeAttestation,
         ) {
             self.upgrade_mode_state
-                .set_expected_attestation(Some(attestation))
+                .try_set_expected_attestation(Some(attestation))
                 .await
         }
 
         #[allow(dead_code)]
         pub(crate) async fn disable_upgrade_mode(&self) {
-            self.upgrade_mode_state.set_expected_attestation(None).await;
+            self.upgrade_mode_state
+                .try_set_expected_attestation(None)
+                .await;
         }
 
         pub(crate) fn set_client_ip(&self, ip: IpAddr) {

@@ -69,7 +69,7 @@ pub struct UpgradeModeWatcher {
 
     /// Endpoint to query to retrieve current upgrade mode attestation.
     /// If not provided, it implicitly disables the watcher and upgrade-mode features
-    pub attestation_url: Option<Url>,
+    pub attestation_url: Url,
 
     pub debug: UpgradeModeWatcherDebug,
 }

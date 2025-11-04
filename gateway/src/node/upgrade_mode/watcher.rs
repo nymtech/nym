@@ -72,10 +72,13 @@ impl UpgradeModeWatcher {
         )
         .await
         {
-            Err(err) => error!("failed to retrieve attestation information: {err}"),
+            Err(err) => {
+                info!("upgrade mode attestation is not available at this time");
+                debug!("retrieval error: {err}")
+            }
             Ok(attestation) => {
                 self.upgrade_mode_state
-                    .set_expected_attestation(attestation)
+                    .try_set_expected_attestation(attestation)
                     .await
             }
         }

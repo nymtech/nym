@@ -625,6 +625,7 @@ impl NymNode {
             self.metrics.clone(),
             self.entry_gateway.mnemonic.clone(),
             Self::user_agent(),
+            self.config.gateway_tasks.upgrade_mode.attester_public_key,
             self.shutdown_tracker().clone(),
         );
 

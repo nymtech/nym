@@ -26,6 +26,7 @@ tracing = { workspace = true }
 nym-api-requests = { path = "../../nym-api/nym-api-requests" }
 nym-credentials = { path = "../credentials" }
 nym-credentials-interface = { path = "../credentials-interface" }
+nym-crypto = { path = "../crypto", features = ["asymmetric"] }
 nym-ecash-contract-common = { path = "../cosmwasm-smart-contracts/ecash-contract" }
 nym-gateway-requests = { path = "../gateway-requests" }
 nym-gateway-storage = { path = "../gateway-storage" }

@@ -5606,6 +5606,7 @@ dependencies = [
  "nym-api-requests",
  "nym-credentials",
  "nym-credentials-interface",
+ "nym-crypto",
  "nym-ecash-contract-common",
  "nym-gateway-requests",
  "nym-gateway-storage",

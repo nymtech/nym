@@ -55,7 +55,9 @@ pub const NYM_APIS: &[ApiUrlConst] = &[
 
 pub const NYM_VPN_API: &str = "https://nymvpn.com/api/";
 
-pub const UPGRADE_MOST_ATTESTATION_URL: &str = "https://nym.com/upgrade-mode/attestation.json";
+pub const UPGRADE_MODE_ATTESTATION_URL: &str = "https://nym.com/upgrade-mode/attestation.json";
+pub const UPGRADE_MODE_ATTESTER_ED25519_BS58_PUBKEY: &str =
+    "3bgffBYcfFkTTXc2npNNn9MkddFZ3H2LrPjXDmnJzrqd";
 
 #[cfg(feature = "network")]
 pub const NYM_VPN_APIS: &[ApiUrlConst] = &[
@@ -163,8 +165,12 @@ pub fn export_to_env() {
     set_var_to_default(var_names::EXIT_POLICY_URL, EXIT_POLICY_URL);
     set_var_to_default(var_names::NYM_VPN_API, NYM_VPN_API);
     set_var_to_default(
-        var_names::UPGRADE_MOST_ATTESTATION_URL,
-        UPGRADE_MOST_ATTESTATION_URL,
+        var_names::UPGRADE_MODE_ATTESTATION_URL,
+        UPGRADE_MODE_ATTESTATION_URL,
+    );
+    set_var_to_default(
+        var_names::UPGRADE_MODE_ATTESTER_ED25519_BS58_PUBKEY,
+        UPGRADE_MODE_ATTESTER_ED25519_BS58_PUBKEY,
     );
 }
 
@@ -207,7 +213,11 @@ pub fn export_to_env_if_not_set() {
     set_var_conditionally_to_default(var_names::NYXD_WEBSOCKET, NYXD_WS);
     set_var_conditionally_to_default(var_names::EXIT_POLICY_URL, EXIT_POLICY_URL);
     set_var_conditionally_to_default(
-        var_names::UPGRADE_MOST_ATTESTATION_URL,
-        UPGRADE_MOST_ATTESTATION_URL,
+        var_names::UPGRADE_MODE_ATTESTATION_URL,
+        UPGRADE_MODE_ATTESTATION_URL,
+    );
+    set_var_conditionally_to_default(
+        var_names::UPGRADE_MODE_ATTESTER_ED25519_BS58_PUBKEY,
+        UPGRADE_MODE_ATTESTER_ED25519_BS58_PUBKEY,
     );
 }

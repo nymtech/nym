@@ -122,6 +122,7 @@ impl GatewayTasksBuilder {
         metrics: NymNodeMetrics,
         mnemonic: Arc<Zeroizing<bip39::Mnemonic>>,
         user_agent: UserAgent,
+        upgrade_mode_attester_public_key: ed25519::PublicKey,
         shutdown_tracker: ShutdownTracker,
     ) -> GatewayTasksBuilder {
         GatewayTasksBuilder {
@@ -136,7 +137,7 @@ impl GatewayTasksBuilder {
             mix_packet_sender,
             metrics_sender,
             metrics,
-            upgrade_mode_state: UpgradeModeState::new_empty(),
+            upgrade_mode_state: UpgradeModeState::new(upgrade_mode_attester_public_key),
             mnemonic,
             shutdown_tracker,
             ecash_manager: None,
@@ -493,12 +494,10 @@ impl GatewayTasksBuilder {
     }
 
     pub fn try_build_upgrade_mode_watcher(&self) -> Option<UpgradeModeWatcher> {
-        let Some(upgrade_mode_attestation_url) =
-            self.config.upgrade_mode_watcher.attestation_url.clone()
-        else {
-            error!("upgrade mode attestation URL is not set - this node will not support the upgrade mode!");
+        if !self.config.upgrade_mode_watcher.enabled {
+            warn!("upgrade mode watcher is disabled");
             return None;
-        };
+        }
 
         Some(UpgradeModeWatcher::new(
             self.config
@@ -510,7 +509,7 @@ impl GatewayTasksBuilder {
                 .debug
                 .expedited_poll_interval,
             self.config.debug.upgrade_mode_min_staleness_recheck,
-            upgrade_mode_attestation_url,
+            self.config.upgrade_mode_watcher.attestation_url.clone(),
             self.upgrade_mode_state.clone(),
             self.user_agent.clone(),
             self.shutdown_tracker.clone_shutdown_token(),

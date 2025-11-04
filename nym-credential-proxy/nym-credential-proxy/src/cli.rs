@@ -163,6 +163,10 @@ pub struct UpgradeModeConfig {
     )]
     pub(crate) attestation_check_url: Url,
 
+    /// Base58-encoded expected upgrade mode attestation ed25519 public key.
+    #[clap(long, env = "NYM_CREDENTIAL_PROXY_ATTESTER_PUBKEY")]
+    pub(crate) attester_pubkey: ed25519::PublicKey,
+
     /// Default polling interval of the upgrade mode endpoint.
     #[clap(
         long,

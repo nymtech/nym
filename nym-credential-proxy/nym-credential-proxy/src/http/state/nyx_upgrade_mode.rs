@@ -9,6 +9,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use time::OffsetDateTime;
 use tokio::sync::RwLock;
+use tracing::error;
 
 #[derive(Debug, Clone)]
 pub(crate) struct UpgradeModeState {
@@ -23,6 +24,7 @@ impl UpgradeModeState {
     pub(crate) async fn update(
         &self,
         retrieved_attestation: Option<UpgradeModeAttestation>,
+        expected_attester_public_key: ed25519::PublicKey,
         jwt_signing_keys: &ed25519::KeyPair,
         jwt_validity: Duration,
     ) {
@@ -31,6 +33,14 @@ impl UpgradeModeState {
             *guard = None;
             return;
         };
+
+        if attestation.content.attester_public_key != expected_attester_public_key {
+            error!(
+                "the retrieved attestation has been signed with an unexpected key! expected pubkey: {} actual: {}",
+                expected_attester_public_key, attestation.content.attester_public_key
+            );
+            return;
+        }
 
         match guard.as_mut() {
             None => {

@@ -197,11 +197,16 @@ mod test {
                 .unwrap(),
             RequestData::AvailableBandwidth
         );
-        assert!(
+        assert_eq!(
             RequestData::try_from(previous::interface::RequestData::TopUpBandwidth(Box::new(
                 CredentialSpendingData::try_from_bytes(&CREDENTIAL_BYTES).unwrap()
             )))
-            .is_err(),
+            .unwrap(),
+            RequestData::TopUpBandwidth {
+                credential: Box::new(BandwidthCredential::ZkNym(Box::new(
+                    CredentialSpendingData::try_from_bytes(&CREDENTIAL_BYTES).unwrap()
+                ))),
+            }
         );
     }
 

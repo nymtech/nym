@@ -4,7 +4,7 @@
 #[cfg(test)]
 pub(crate) mod test {
     use crate::mock_connect_info::{DummyConnectInfo, MockConnectInfoLayer};
-    use crate::tests::mock_upgrade_mode_attestation;
+    use crate::tests::{dummy_attester_public_key, mock_upgrade_mode_attestation};
     use crate::v2::app_state::AppStateV2;
     use crate::v2::peer_controller::{
         MockPeerControllerStateV2, MockPeerControllerV2, PeerControlRequestTypeV2,
@@ -77,7 +77,7 @@ pub(crate) mod test {
             let (request_tx, request_rx) = mpsc::channel(CONTROL_CHANNEL_SIZE);
 
             let (um_recheck_tx, um_recheck_rx) = futures::channel::mpsc::unbounded();
-            let upgrade_mode_state = UpgradeModeState::new();
+            let upgrade_mode_state = UpgradeModeState::new(dummy_attester_public_key());
             let upgrade_mode_details = UpgradeModeDetails::new(
                 UpgradeModeCheckConfig {
                     min_staleness_recheck: Duration::from_secs(30),

@@ -42,9 +42,20 @@ mod tests {
         52, 215, 241, 219, 200, 18, 159, 241, 76, 111, 42, 32,
     ];
 
-    fn dummy_jwt_issuer_public_key() -> ed25519::PublicKey {
+    pub(crate) fn dummy_jwt_issuer_public_key() -> ed25519::PublicKey {
         let private_key =
             ed25519::PrivateKey::from_bytes(&DUMMY_JWT_ISSUER_ED25519_PRIVATE_KEY).unwrap();
+        private_key.public_key()
+    }
+
+    const DUMMY_ATTESTER_ED25519_PRIVATE_KEY: [u8; 32] = [
+        108, 49, 193, 21, 126, 161, 249, 85, 242, 207, 74, 195, 238, 6, 64, 149, 201, 140, 248,
+        163, 122, 170, 79, 198, 87, 85, 36, 29, 243, 92, 64, 161,
+    ];
+
+    pub(crate) fn dummy_attester_public_key() -> ed25519::PublicKey {
+        let private_key =
+            ed25519::PrivateKey::from_bytes(&DUMMY_ATTESTER_ED25519_PRIVATE_KEY).unwrap();
         private_key.public_key()
     }
 
@@ -141,11 +152,7 @@ mod tests {
         let starting_time = datetime!(2025-10-20 12:00 UTC);
 
         // just some random, HARDCODED, key
-        let key = ed25519::PrivateKey::from_bytes(&[
-            108, 49, 193, 21, 126, 161, 249, 85, 242, 207, 74, 195, 238, 6, 64, 149, 201, 140, 248,
-            163, 122, 170, 79, 198, 87, 85, 36, 29, 243, 92, 64, 161,
-        ])
-        .unwrap();
+        let key = ed25519::PrivateKey::from_bytes(&DUMMY_ATTESTER_ED25519_PRIVATE_KEY).unwrap();
 
         generate_new_attestation_with_starting_time(
             &key,

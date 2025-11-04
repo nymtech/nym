@@ -276,6 +276,7 @@ impl UpgradeModeWatcher {
             .parse()
             .expect("invalid default upgrade mode attestation URL");
 
+        #[allow(clippy::expect_used)]
         let attester_public_key = mainnet::UPGRADE_MODE_ATTESTER_ED25519_BS58_PUBKEY
             .parse()
             .expect("invalid default upgrade mode attester public key");
@@ -311,7 +312,7 @@ impl UpgradeModeWatcher {
             ));
         };
 
-        let attestation_url = match (&env_attestation_url).parse() {
+        let attestation_url = match env_attestation_url.parse() {
             Ok(url) => url,
             Err(err) => {
                 return log_error_and_return(format!(
@@ -320,7 +321,7 @@ impl UpgradeModeWatcher {
             }
         };
 
-        let attester_public_key = match (&env_attester_pubkey).parse() {
+        let attester_public_key = match env_attester_pubkey.parse() {
             Ok(public_key) => public_key,
             Err(err) => {
                 return log_error_and_return(format!(

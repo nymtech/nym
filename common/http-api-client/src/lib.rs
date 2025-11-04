@@ -557,7 +557,6 @@ pub struct ClientBuilder {
     reqwest_client_builder: reqwest::ClientBuilder,
     #[allow(dead_code)] // not dead code, just unused in wasm
     use_secure_dns: bool,
-    overall_dns_timeout: Duration,
 
     #[cfg(feature = "tunneling")]
     front: Option<fronted::Front>,
@@ -663,7 +662,6 @@ impl ClientBuilder {
             custom_user_agent: false,
             reqwest_client_builder,
             use_secure_dns: true,
-            overall_dns_timeout: Duration::from_secs(10),
             #[cfg(feature = "tunneling")]
             front: None,
 
@@ -886,7 +884,18 @@ impl Client {
     }
 
     /// If multiple base urls are available rotate to next (e.g. when the current one resulted in an error)
-    fn update_host(&self) {
+    ///
+    /// Takes an optional URL argument. If this is none, the current host will be updated automatically.
+    /// If a url is provided first check that the CURRENT host matches the hostname in the URL before
+    /// triggering a rotation. This is meant to prevent parallel requests that fail from rotating the host
+    /// multiple times.
+    fn update_host(&self, maybe_url: Option<Url>) {
+        if let Some(err_url) = maybe_url {
+            if &err_url != self.current_url() {
+                return;
+            }
+        }
+
         #[cfg(feature = "tunneling")]
         if let Some(ref front) = self.front
             && front.is_enabled()
@@ -1069,19 +1078,25 @@ impl ApiClientCore for Client {
             match response {
                 Ok(resp) => return Ok(resp),
                 Err(err) => {
-                    // if we have multiple urls, update to the next
-                    self.update_host();
+                    // only if there was a network issue should we consider updating the host info
+                    //
+                    // note: for now this includes DNS resolution failure, I am not sure how I would go about
+                    // segregating that based on the interface provided by request for errors.
+                    if err.is_timeout() || err.is_connect() {
+                        // if we have multiple urls, update to the next
+                        self.update_host(err.url().map(|u| Url::parse(u.as_str()).unwrap()));
 
-                    #[cfg(feature = "tunneling")]
-                    if let Some(ref front) = self.front {
-                        // If fronting is set to be enabled on error, enable domain fronting as we
-                        // have encountered an error.
-                        let was_enabled = front.is_enabled();
-                        front.retry_enable();
-                        if !was_enabled && front.is_enabled() {
-                            tracing::info!(
-                                "Domain fronting activated after connection failure: {err}",
-                            );
+                        #[cfg(feature = "tunneling")]
+                        if let Some(ref front) = self.front {
+                            // If fronting is set to be enabled on error, enable domain fronting as we
+                            // have encountered an error.
+                            let was_enabled = front.is_enabled();
+                            front.retry_enable();
+                            if !was_enabled && front.is_enabled() {
+                                tracing::info!(
+                                    "Domain fronting activated after connection failure: {err}",
+                                );
+                            }
                         }
                     }
 

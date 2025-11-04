@@ -58,14 +58,6 @@ impl ClientBuilder {
         self.use_secure_dns = false;
         self
     }
-
-    /// Add an overall timeout for dns lookup associated with any individual resolution.
-    /// For example, use of backup resolver, retries etc. ends absolutely if this timeout is
-    /// reached.
-    pub fn with_overall_dns_timeout(mut self, timeout: Duration) -> Self {
-        self.overall_dns_timeout = timeout;
-        self
-    }
 }
 
 struct SocketAddrs {
@@ -98,7 +90,7 @@ pub enum ResolveError {
 /// The default initialization uses a shared underlying `AsyncResolver`. If a thread local resolver
 /// is required use `thread_resolver()` to build a resolver with an independently instantiated
 /// internal `AsyncResolver`.
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Clone)]
 pub struct HickoryDnsResolver {
     // Since we might not have been called in the context of a
     // Tokio Runtime in initialization, so we must delay the actual
@@ -106,7 +98,20 @@ pub struct HickoryDnsResolver {
     state: Arc<OnceCell<TokioResolver>>,
     fallback: Option<Arc<OnceCell<TokioResolver>>>,
     dont_use_shared: bool,
+    /// Overall timeout for dns lookup associated with any individual host resolution. For example,
+    /// use of retries, server_ordering_strategy, etc. ends absolutely if this timeout is reached.
     overall_dns_timeout: Duration,
+}
+
+impl Default for HickoryDnsResolver {
+    fn default() -> Self {
+        Self {
+            state: Default::default(),
+            fallback: Default::default(),
+            dont_use_shared: Default::default(),
+            overall_dns_timeout: Duration::from_secs(10),
+        }
+    }
 }
 
 impl Resolve for HickoryDnsResolver {
@@ -268,6 +273,12 @@ fn new_resolver() -> Result<TokioResolver, ResolveError> {
     name_servers.merge(NameServerConfigGroup::cloudflare_tls());
     name_servers.merge(NameServerConfigGroup::cloudflare_https());
 
+    configure_and_build_resolver(name_servers)
+}
+
+fn configure_and_build_resolver(
+    name_servers: NameServerConfigGroup,
+) -> Result<TokioResolver, ResolveError> {
     let config = ResolverConfig::from_parts(None, Vec::new(), name_servers);
     let mut resolver_builder =
         TokioResolver::builder_with_config(config, TokioConnectionProvider::default());
@@ -276,8 +287,6 @@ fn new_resolver() -> Result<TokioResolver, ResolveError> {
     resolver_builder.options_mut().server_ordering_strategy = ServerOrderingStrategy::RoundRobin;
     // Cache successful responses for queries received by this resolver for 30 min minimum.
     resolver_builder.options_mut().positive_min_ttl = Some(Duration::from_secs(1800));
-    resolver_builder.options_mut().timeout = Duration::from_secs(5);
-    resolver_builder.options_mut().attempts = 2;
 
     Ok(resolver_builder.build())
 }
@@ -297,8 +306,9 @@ mod test {
     use super::*;
 
     #[tokio::test]
-    async fn reqwest_hickory_doh() {
-        let resolver = HickoryDnsResolver::default();
+    async fn reqwest_with_custom_dns() {
+        let var_name = HickoryDnsResolver::default();
+        let resolver = var_name;
         let client = reqwest::ClientBuilder::new()
             .dns_resolver(resolver.into())
             .build()
@@ -329,22 +339,64 @@ mod test {
     }
 }
 
-// #[cfg(test)]
-// mod smoke_test {
-//     use super::*;
+#[cfg(test)]
+mod failure_test {
+    use super::*;
+    use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
-//     #[tokio::test]
-//     async fn dns_lookup_failures() -> Result<(), ResolveError> {
-//         tracing_subscriber::fmt()
-//             .with_max_level(tracing::Level::DEBUG)
-//             .init();
+    /// IP addresses guaranteed to fail attempts to resolve
+    ///
+    /// Addresses drawn from blocks set off by RFC5737 (ipv4) and RFC3849 (ipv6)
+    const GUARANTEED_BROKEN_IPS_1: &[IpAddr] = &[
+        IpAddr::V4(Ipv4Addr::new(192, 0, 2, 1)),
+        IpAddr::V4(Ipv4Addr::new(198, 51, 100, 1)),
+        IpAddr::V6(Ipv6Addr::new(0x2001, 0x0db8, 0, 0, 0, 0, 0, 0x1111)),
+        IpAddr::V6(Ipv6Addr::new(0x2001, 0x0db8, 0, 0, 0, 0, 0, 0x1001)),
+    ];
 
-//         let resolver = HickoryDnsResolver::default();
-//         let domain = "ifconfig.me";
-//         let addrs = resolver.resolve_str(domain).await?;
+    // Create a resolver that behaves the same as the custom configured router, except for the fact
+    // that it is guaranteed to fail.
+    fn build_broken_resolver() -> Result<TokioResolver, ResolveError> {
+        info!("building new faulty resolver");
 
-//         assert!(addrs.into_iter().next().is_some());
+        let mut broken_ns_group = NameServerConfigGroup::from_ips_tls(
+            GUARANTEED_BROKEN_IPS_1,
+            853,
+            "cloudflare-dns.com".to_string(),
+            true,
+        );
+        let broken_ns_https = NameServerConfigGroup::from_ips_https(
+            GUARANTEED_BROKEN_IPS_1,
+            443,
+            "cloudflare-dns.com".to_string(),
+            true,
+        );
+        broken_ns_group.merge(broken_ns_https);
 
-//         Ok(())
-//     }
-// }
+        configure_and_build_resolver(broken_ns_group)
+    }
+
+    #[tokio::test]
+    async fn dns_lookup_failures() -> Result<(), ResolveError> {
+        // tracing_subscriber::fmt()
+        //     .with_max_level(tracing::Level::DEBUG)
+        //     .init();
+        let time_start = std::time::Instant::now();
+
+        // create a new resolver that won't mess with the shared resolver used by other tests
+        let mut resolver = HickoryDnsResolver::default();
+        resolver.dont_use_shared = true;
+        resolver
+            .state
+            .get_or_init(|| build_broken_resolver().expect("failed to build resolver"));
+        build_broken_resolver()?;
+        let domain = "ifconfig.me";
+        let result = resolver.resolve_str(domain).await;
+        assert!(result.is_err_and(|e| matches!(e, ResolveError::Timeout)));
+
+        let duration = time_start.elapsed();
+        assert!(duration < resolver.overall_dns_timeout + Duration::from_secs(1));
+
+        Ok(())
+    }
+}

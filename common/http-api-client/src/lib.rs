@@ -1074,8 +1074,7 @@ impl ApiClientCore for Client {
                 .build()
                 .map_err(HttpClientError::reqwest_client_build_error)?;
             self.apply_hosts_to_req(&mut req);
-            #[cfg(not(target_arch = "wasm32"))]
-            let url = req.url().clone();
+            let url = Url::parse(req.url().as_str()).unwrap();
 
             #[cfg(target_arch = "wasm32")]
             let response: Result<Response, HttpClientError> = {
@@ -1097,9 +1096,14 @@ impl ApiClientCore for Client {
                     //
                     // note: for now this includes DNS resolution failure, I am not sure how I would go about
                     // segregating that based on the interface provided by request for errors.
-                    if err.is_timeout() || err.is_connect() {
+                    #[cfg(target_arch = "wasm32")]
+                    let is_network_err = err.is_timeout();
+                    #[cfg(not(target_arch = "wasm32"))]
+                    let is_network_err = err.is_timeout() || err.is_connect();
+
+                    if is_network_err {
                         // if we have multiple urls, update to the next
-                        self.update_host(err.url().map(|u| Url::parse(u.as_str()).unwrap()));
+                        self.update_host(Some(url.clone()));
 
                         #[cfg(feature = "tunneling")]
                         if let Some(ref front) = self.front {
@@ -1126,7 +1130,7 @@ impl ApiClientCore for Client {
                         if #[cfg(target_arch = "wasm32")] {
                             return Err(err);
                         } else {
-                            return Err(HttpClientError::request_send_error(url, err));
+                            return Err(HttpClientError::request_send_error(url.into(), err));
                         }
                     }
                 }

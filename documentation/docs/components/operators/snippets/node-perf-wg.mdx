@@ -14,7 +14,7 @@ This chapter explains how is Gateway's performance meassured and what's the desi
 
 The main source of truth for NymVPN Gateways is an API endpoint [nymvpn.com/api/public/v1/directory/gateways](https://nymvpn.com/api/public/v1/directory/gateways) storing all stats about available nodes. The sections of this chapter explaiun how are these stats measured and what is their significance.
 
-**Please note that even the most perfectly configured Gateway, running on the strongest machine may not always be listed as a suggested node in the app. If you are interested to learn the details why, check out the [Gateway Probe Details page](https://nym.com/docs/operators/nodes/performance-and-testing/gateway-probe-details).**
+**Please note that even the most perfectly configured Gateway, running on the strongest machine may not always be listed as a suggested node in the app. If you are interested to learn the details why, check out the [Gateway Probe Details page](/operators/nodes/performance-and-testing/gateway-probe-details).**
 
 ### Gateway Roles & Requirements
 
@@ -28,21 +28,21 @@ Here is a basic node configuration break down coming alongside basic [server con
     - Node configured (running with `--mode` argument) as `exit-gateway`, that configuration ensures that:
         - IPR address present
         - NR address present
-    - [IPv6 configured](https://nym.com/docs/operators/nodes/nym-node/configuration#quick-ipv6-check)
+    - [IPv6 configured](/operators/nodes/nym-node/configuration#quick-ipv6-check)
     - NymTun configured - using [NetworkTunnelManager](https://nym.com/docs/operators/nodes/nym-node/configuration#routing-configuration)
 
 - **Entry & Exit Gateway - dVPN (WireGuard mode):**
     - Node configured as Wireguard node: `--wireguard-enabled true`
     - Authenticator address present
-    - NymWG configured - using [NetworkTunnelManager](https://nym.com/docs/operators/nodes/nym-node/configuration#routing-configuration)
-    - [Metadata port open for WG](https://nym.com/docs/operators/nodes/nym-node/configuration#fixing-metadata-port-showing-not-open-in-probe-results)
-    - Wireguard exit policy [configured](https://nym.com/docs/operators/nodes/nym-node/configuration#wireguard-exit-policy-configuration)
-    - [IPv6 configured](https://nym.com/docs/operators/nodes/nym-node/configuration#quick-ipv6-check)
-    - Recommended: [QUIC bridge setup](https://nym.com/docs/operators/nodes/nym-node/configuration#quic-transport-bridge-deployment)
+    - NymWG configured - using [NetworkTunnelManager](/operators/nodes/nym-node/configuration#routing-configuration)
+    - [Metadata port open for WG](/operators/nodes/nym-node/configuration#fixing-metadata-port-showing-not-open-in-probe-results)
+    - Wireguard exit policy [configured](/operators/nodes/nym-node/configuration#wireguard-exit-policy-configuration)
+    - [IPv6 configured](/operators/nodes/nym-node/configuration#quick-ipv6-check)
+    - Recommended: [QUIC bridge setup](/operators/nodes/nym-node/configuration#quic-transport-bridge-deployment)
 
 ### How Probe Works
 
-Nym Gateway probe is perfomance measurement program running tests through various routes following the logic described below. Operators can rown their [local instance of Gateway probe](https://nym.com/docs/operators/nodes/performance-and-testing/gateway-probe) or use visit of our dashboards to conveniently see probe results.
+Nym Gateway probe is perfomance measurement program running tests through various routes following the logic described below. Operators can rown their [local instance of Gateway probe](/operators/nodes/performance-and-testing/gateway-probe) or use visit of our dashboards to conveniently see probe results.
 
 - [Node Status dashboard](https://node-status.nym.com/dvpn): Shows latest probe results on one board
 - [Nym Node Status Observatory](https://harbourmaster.nymtech.net): New version of a good old Nym Harbourmaster, allowing operators preview stats of each node

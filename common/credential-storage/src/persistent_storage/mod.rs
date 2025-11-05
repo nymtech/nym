@@ -3,7 +3,7 @@
 
 mod legacy_helpers;
 
-use crate::models::EmergencyCredential;
+use crate::models::{EmergencyCredential, EmergencyCredentialContent};
 use crate::{
     backends::sqlite::{
         get_next_unspent_ticketbook, increase_used_ticketbook_tickets, SqliteEcashTicketbookManager,
@@ -412,10 +412,25 @@ impl Storage for PersistentStorage {
 
     async fn insert_emergency_credential(
         &self,
-        credential: &EmergencyCredential,
+        credential: &EmergencyCredentialContent,
     ) -> Result<(), Self::StorageError> {
         self.storage_manager
             .insert_emergency_credential(credential)
+            .await?;
+        Ok(())
+    }
+
+    async fn remove_emergency_credential(&self, id: i64) -> Result<(), Self::StorageError> {
+        self.storage_manager.remove_emergency_credential(id).await?;
+        Ok(())
+    }
+
+    async fn remove_emergency_credentials_of_type(
+        &self,
+        typ: &str,
+    ) -> Result<(), Self::StorageError> {
+        self.storage_manager
+            .remove_emergency_credentials_of_type(typ)
             .await?;
         Ok(())
     }

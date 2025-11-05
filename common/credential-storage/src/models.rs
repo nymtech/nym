@@ -83,6 +83,14 @@ pub struct RawVerificationKey {
 #[derive(Clone, Debug)]
 #[cfg_attr(not(target_arch = "wasm32"), derive(sqlx::FromRow))]
 pub struct EmergencyCredential {
+    pub id: i64,
+    #[cfg_attr(not(target_arch = "wasm32"), sqlx(flatten))]
+    pub data: EmergencyCredentialContent,
+}
+
+#[derive(Clone, Debug)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(sqlx::FromRow))]
+pub struct EmergencyCredentialContent {
     #[cfg_attr(not(target_arch = "wasm32"), sqlx(rename = "type"))]
     pub typ: String,
     pub content: Vec<u8>,

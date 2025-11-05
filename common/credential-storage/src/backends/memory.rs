@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::models::{
-    BasicTicketbookInformation, EmergencyCredential, RetrievedPendingTicketbook,
-    RetrievedTicketbook,
+    BasicTicketbookInformation, EmergencyCredential, EmergencyCredentialContent,
+    RetrievedPendingTicketbook, RetrievedTicketbook,
 };
 use nym_compact_ecash::scheme::coin_indices_signatures::AnnotatedCoinIndexSignature;
 use nym_compact_ecash::scheme::expiration_date_signatures::AnnotatedExpirationDateSignature;
@@ -33,13 +33,20 @@ struct EcashCredentialManagerInner {
     coin_indices_sigs: HashMap<u64, Vec<AnnotatedCoinIndexSignature>>,
     expiration_date_sigs: HashMap<(u64, Date), Vec<AnnotatedExpirationDateSignature>>,
     emergency_credentials: HashMap<String, Vec<EmergencyCredential>>,
-    _next_id: i64,
+    _next_ticketbook_id: i64,
+    _next_emergency_credential_id: i64,
 }
 
 impl EcashCredentialManagerInner {
-    fn next_id(&mut self) -> i64 {
-        let next = self._next_id;
-        self._next_id += 1;
+    fn next_ticketbook_id(&mut self) -> i64 {
+        let next = self._next_ticketbook_id;
+        self._next_ticketbook_id += 1;
+        next
+    }
+
+    fn next_emergency_credential_id(&mut self) -> i64 {
+        let next = self._next_emergency_credential_id;
+        self._next_emergency_credential_id += 1;
         next
     }
 }
@@ -174,7 +181,7 @@ impl MemoryEcachTicketbookManager {
         used_tickets: u32,
     ) {
         let mut guard = self.inner.write().await;
-        let id = guard.next_id();
+        let id = guard.next_ticketbook_id();
 
         #[allow(clippy::unwrap_used)]
         let mut nasty_clone = hack_clone_ticketbook(ticketbook);
@@ -288,13 +295,34 @@ impl MemoryEcachTicketbookManager {
         guard.emergency_credentials.get(typ)?.first().cloned()
     }
 
-    pub(crate) async fn insert_emergency_credential(&self, credential: &EmergencyCredential) {
+    pub(crate) async fn insert_emergency_credential(
+        &self,
+        credential: &EmergencyCredentialContent,
+    ) {
         let mut guard = self.inner.write().await;
+        let id = guard.next_emergency_credential_id();
 
         guard
             .emergency_credentials
             .entry(credential.typ.clone())
             .or_default()
-            .push(credential.clone());
+            .push(EmergencyCredential {
+                id,
+                data: credential.clone(),
+            });
+    }
+
+    pub(crate) async fn remove_emergency_credential(&self, id: i64) {
+        let mut guard = self.inner.write().await;
+
+        guard.emergency_credentials.retain(|_, credentials| {
+            credentials.retain(|c| c.id != id);
+            !credentials.is_empty()
+        })
+    }
+
+    pub(crate) async fn remove_emergency_credentials_of_type(&self, typ: &str) {
+        let mut guard = self.inner.write().await;
+        guard.emergency_credentials.remove(typ);
     }
 }

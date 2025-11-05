@@ -4,7 +4,9 @@
 use nym_service_provider_requests_common::{Protocol, ServiceProviderType};
 use nym_sphinx::addressing::Recipient;
 
-use crate::traits::{FinalMessage, InitMessage, QueryBandwidthMessage, TopUpMessage};
+use crate::traits::{
+    FinalMessage, InitMessage, QueryBandwidthMessage, TopUpMessage, UpgradeModeMessage,
+};
 use crate::{v1, v2, v3, v4, v5, v6};
 
 #[derive(Debug)]
@@ -31,6 +33,11 @@ pub enum AuthenticatorRequest {
         msg: Box<dyn TopUpMessage + Send + Sync + 'static>,
         protocol: Protocol,
         reply_to: Option<Recipient>,
+        request_id: u64,
+    },
+    CheckUpgradeMode {
+        msg: Box<dyn UpgradeModeMessage + Send + Sync + 'static>,
+        protocol: Protocol,
         request_id: u64,
     },
 }
@@ -231,6 +238,13 @@ impl From<v6::request::AuthenticatorRequest> for AuthenticatorRequest {
                     msg: top_up_message,
                     protocol: value.protocol,
                     reply_to: None,
+                    request_id: value.request_id,
+                }
+            }
+            v6::request::AuthenticatorRequestData::CheckUpgradeMode(upgrade_mode_check_msg) => {
+                Self::CheckUpgradeMode {
+                    msg: Box::new(upgrade_mode_check_msg),
+                    protocol: value.protocol,
                     request_id: value.request_id,
                 }
             }

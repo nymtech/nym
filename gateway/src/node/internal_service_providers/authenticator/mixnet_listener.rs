@@ -8,7 +8,7 @@ use crate::node::internal_service_providers::authenticator::{
 use defguard_wireguard_rs::net::IpAddrMask;
 use defguard_wireguard_rs::{host::Peer, key::Key};
 use futures::StreamExt;
-use nym_authenticator_requests::traits::BandwidthClaim;
+use nym_authenticator_requests::traits::{BandwidthClaim, UpgradeModeMessage};
 use nym_authenticator_requests::{latest, v4::registration::IpPair};
 use nym_authenticator_requests::{
     latest::registration::{GatewayClient, PendingRegistrations, PrivateIPs},
@@ -824,6 +824,46 @@ impl MixnetListener {
         Ok((bytes, reply_to))
     }
 
+    async fn on_upgrade_mode_check(
+        &mut self,
+        msg: Box<dyn UpgradeModeMessage + Send + Sync + 'static>,
+        protocol: Protocol,
+        request_id: u64,
+    ) -> AuthenticatorHandleResult {
+        // if upgrade mode is already enabled, we don't need to perform any additional checks
+        if !self.upgrade_mode_enabled() {
+            // currently upgrade mode JWT is the only type of emergency credentials supported
+            if let Some(upgrade_mode_jwt) = msg.upgrade_mode_global_attestation_jwt() {
+                self.upgrade_mode
+                    .try_enable_via_received_jwt(upgrade_mode_jwt)
+                    .await?;
+            }
+        }
+
+        let bytes = match AuthenticatorVersion::from(protocol) {
+            AuthenticatorVersion::UNKNOWN
+            | AuthenticatorVersion::V1
+            | AuthenticatorVersion::V2
+            | AuthenticatorVersion::V3
+            | AuthenticatorVersion::V4
+            | AuthenticatorVersion::V5 => {
+                // pre v6 this message hasn't existed
+                return Err(AuthenticatorError::UnknownVersion);
+            }
+            AuthenticatorVersion::V6 => {
+                v6::response::AuthenticatorResponse::new_upgrade_mode_check(
+                    request_id,
+                    self.upgrade_mode_enabled(),
+                )
+                .to_bytes()
+                .map_err(AuthenticatorError::response_serialisation)?
+            }
+        };
+
+        // no need to support reply_to, as this is never set in v6 and older versions do not include this message
+        Ok((bytes, None))
+    }
+
     fn received_retry(&self, msg: &(dyn TopUpMessage + Send + Sync + 'static)) -> bool {
         if let Some(peer_pub_key) = self
             .seen_credential_cache
@@ -884,6 +924,11 @@ impl MixnetListener {
                 self.on_topup_bandwidth_request(msg, protocol, request_id, reply_to)
                     .await
             }
+            AuthenticatorRequest::CheckUpgradeMode {
+                msg,
+                protocol,
+                request_id,
+            } => self.on_upgrade_mode_check(msg, protocol, request_id).await,
         }
     }
 

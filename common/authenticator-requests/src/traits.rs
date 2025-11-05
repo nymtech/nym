@@ -164,7 +164,13 @@ impl Versionable for v6::topup::TopUpMessage {
     }
 }
 
-pub trait UpgradeModeStatus {
+impl Versionable for v6::upgrade_mode_check::UpgradeModeCheckRequest {
+    fn version(&self) -> AuthenticatorVersion {
+        AuthenticatorVersion::V6
+    }
+}
+
+pub trait UpgradeModeStatus: Id + fmt::Debug {
     fn upgrade_mode_status(&self) -> CurrentUpgradeModeStatus;
 }
 
@@ -294,6 +300,12 @@ impl UpgradeModeStatus for v6::response::RemainingBandwidthResponse {
 }
 
 impl UpgradeModeStatus for v6::response::TopUpBandwidthResponse {
+    fn upgrade_mode_status(&self) -> CurrentUpgradeModeStatus {
+        self.upgrade_mode_enabled.into()
+    }
+}
+
+impl UpgradeModeStatus for v6::response::UpgradeModeResponse {
     fn upgrade_mode_status(&self) -> CurrentUpgradeModeStatus {
         self.upgrade_mode_enabled.into()
     }
@@ -610,8 +622,30 @@ impl TopUpMessage for v6::topup::TopUpMessage {
     }
 }
 
+pub trait UpgradeModeMessage: Versionable + fmt::Debug {
+    // the idea is to expose different types of emergency credentials here,
+    // like upgrade mode JWT, emergency threshold credential issued by signers, etc.
+    fn upgrade_mode_global_attestation_jwt(&self) -> Option<String>;
+}
+
+impl UpgradeModeMessage for v6::upgrade_mode_check::UpgradeModeCheckRequest {
+    fn upgrade_mode_global_attestation_jwt(&self) -> Option<String> {
+        use v6::upgrade_mode_check::UpgradeModeCheckRequest;
+
+        match self {
+            UpgradeModeCheckRequest::UpgradeModeJwt { token } => Some(token.clone()),
+        }
+    }
+}
+
 pub trait Id {
     fn id(&self) -> u64;
+}
+
+impl Id for v1::response::PendingRegistrationResponse {
+    fn id(&self) -> u64 {
+        self.request_id
+    }
 }
 
 impl Id for v2::response::PendingRegistrationResponse {
@@ -644,6 +678,12 @@ impl Id for v6::response::PendingRegistrationResponse {
     }
 }
 
+impl Id for v1::response::RegisteredResponse {
+    fn id(&self) -> u64 {
+        self.request_id
+    }
+}
+
 impl Id for v2::response::RegisteredResponse {
     fn id(&self) -> u64 {
         self.request_id
@@ -669,6 +709,12 @@ impl Id for v5::response::RegisteredResponse {
 }
 
 impl Id for v6::response::RegisteredResponse {
+    fn id(&self) -> u64 {
+        self.request_id
+    }
+}
+
+impl Id for v1::response::RemainingBandwidthResponse {
     fn id(&self) -> u64 {
         self.request_id
     }
@@ -723,6 +769,12 @@ impl Id for v5::response::TopUpBandwidthResponse {
 }
 
 impl Id for v6::response::TopUpBandwidthResponse {
+    fn id(&self) -> u64 {
+        self.request_id
+    }
+}
+
+impl Id for v6::response::UpgradeModeResponse {
     fn id(&self) -> u64 {
         self.request_id
     }

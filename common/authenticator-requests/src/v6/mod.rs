@@ -8,6 +8,7 @@ pub mod registration;
 pub mod request;
 pub mod response;
 pub mod topup;
+pub mod upgrade_mode_check;
 
 pub const VERSION: u8 = 6;
 

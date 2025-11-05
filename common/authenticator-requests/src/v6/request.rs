@@ -5,6 +5,7 @@ use super::{
     PROTOCOL,
     registration::{FinalMessage, InitMessage},
     topup::TopUpMessage,
+    upgrade_mode_check::UpgradeModeCheckRequest,
 };
 use nym_service_provider_requests_common::Protocol;
 use nym_wireguard_types::PeerPublicKey;
@@ -81,6 +82,18 @@ impl AuthenticatorRequest {
         )
     }
 
+    pub fn new_upgrade_mode_check_request(message: UpgradeModeCheckRequest) -> (Self, u64) {
+        let request_id = generate_random();
+        (
+            Self {
+                protocol: PROTOCOL,
+                data: AuthenticatorRequestData::CheckUpgradeMode(message),
+                request_id,
+            },
+            request_id,
+        )
+    }
+
     pub fn to_bytes(&self) -> Result<Vec<u8>, bincode::Error> {
         use bincode::Options;
         make_bincode_serializer().serialize(self)
@@ -93,6 +106,7 @@ pub enum AuthenticatorRequestData {
     Final(Box<FinalMessage>),
     QueryBandwidth(PeerPublicKey),
     TopUpBandwidth(Box<TopUpMessage>),
+    CheckUpgradeMode(UpgradeModeCheckRequest),
 }
 
 #[cfg(test)]

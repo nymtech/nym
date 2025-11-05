@@ -76,6 +76,16 @@ impl AuthenticatorResponse {
         }
     }
 
+    pub fn new_upgrade_mode_check(request_id: u64, upgrade_mode_enabled: bool) -> Self {
+        Self {
+            protocol: PROTOCOL,
+            data: AuthenticatorResponseData::UpgradeMode(UpgradeModeResponse {
+                request_id,
+                upgrade_mode_enabled,
+            }),
+        }
+    }
+
     pub fn to_bytes(&self) -> Result<Vec<u8>, bincode::Error> {
         use bincode::Options;
         make_bincode_serializer().serialize(self)
@@ -94,6 +104,7 @@ impl AuthenticatorResponse {
             AuthenticatorResponseData::Registered(response) => Some(response.request_id),
             AuthenticatorResponseData::RemainingBandwidth(response) => Some(response.request_id),
             AuthenticatorResponseData::TopUpBandwidth(response) => Some(response.request_id),
+            AuthenticatorResponseData::UpgradeMode(response) => Some(response.request_id),
         }
     }
 }
@@ -104,6 +115,7 @@ pub enum AuthenticatorResponseData {
     Registered(RegisteredResponse),
     RemainingBandwidth(RemainingBandwidthResponse),
     TopUpBandwidth(TopUpBandwidthResponse),
+    UpgradeMode(UpgradeModeResponse),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -131,5 +143,11 @@ pub struct RemainingBandwidthResponse {
 pub struct TopUpBandwidthResponse {
     pub request_id: u64,
     pub reply: RemainingBandwidthData,
+    pub upgrade_mode_enabled: bool,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct UpgradeModeResponse {
+    pub request_id: u64,
     pub upgrade_mode_enabled: bool,
 }

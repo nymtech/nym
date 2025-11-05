@@ -13,6 +13,7 @@ pub enum AuthenticatorResponse {
     Registered(Box<dyn RegisteredResponse + Send + Sync + 'static>),
     RemainingBandwidth(Box<dyn RemainingBandwidthResponse + Send + Sync + 'static>),
     TopUpBandwidth(Box<dyn TopUpBandwidthResponse + Send + Sync + 'static>),
+    UpgradeMode(Box<dyn UpgradeModeStatus + Send + Sync + 'static>),
 }
 
 impl UpgradeModeStatus for AuthenticatorResponse {
@@ -29,6 +30,9 @@ impl UpgradeModeStatus for AuthenticatorResponse {
             }
             AuthenticatorResponse::TopUpBandwidth(top_up_bandwidth_response) => {
                 top_up_bandwidth_response.upgrade_mode_status()
+            }
+            AuthenticatorResponse::UpgradeMode(upgrade_mode_response) => {
+                upgrade_mode_response.upgrade_mode_status()
             }
         }
     }
@@ -47,6 +51,7 @@ impl Id for AuthenticatorResponse {
             AuthenticatorResponse::TopUpBandwidth(top_up_bandwidth_response) => {
                 top_up_bandwidth_response.id()
             }
+            AuthenticatorResponse::UpgradeMode(upgrade_mode_response) => upgrade_mode_response.id(),
         }
     }
 }
@@ -138,6 +143,9 @@ impl From<v6::response::AuthenticatorResponse> for AuthenticatorResponse {
             ) => Self::RemainingBandwidth(Box::new(remaining_bandwidth_response)),
             v6::response::AuthenticatorResponseData::TopUpBandwidth(top_up_bandwidth_response) => {
                 Self::TopUpBandwidth(Box::new(top_up_bandwidth_response))
+            }
+            v6::response::AuthenticatorResponseData::UpgradeMode(upgrade_mode_check_response) => {
+                Self::UpgradeMode(Box::new(upgrade_mode_check_response))
             }
         }
     }

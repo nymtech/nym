@@ -335,6 +335,7 @@ impl SqliteEcashTicketbookManager {
                 INSERT INTO emergency_credential
                 (type, content, expiration)
                 VALUES (?, ?, ?)
+                ON CONFLICT(type, content) DO NOTHING;
             "#,
             credential.typ,
             credential.content,

@@ -14,3 +14,7 @@ CREATE TABLE emergency_credential
 
     expiration TIMESTAMP WITHOUT TIME ZONE
 );
+
+-- no point in allowing duplicate data
+CREATE UNIQUE INDEX emergency_credential_unique_type_content
+    ON emergency_credential (type, content);

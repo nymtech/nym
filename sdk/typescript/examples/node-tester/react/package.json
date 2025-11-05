@@ -11,7 +11,7 @@
     "@emotion/styled": "^11.11.0",
     "@mui/icons-material": "^5.14.0",
     "@mui/material": "^5.14.0",
-    "@nymproject/sdk": "1.4.1-rc1",
+    "@nymproject/sdk": ">=1.4.1-rc1 || ^1",
     "parcel": "^2.9.3",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"

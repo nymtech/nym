@@ -883,34 +883,8 @@ impl Client {
         self.retry_limit = limit;
     }
 
-    fn matches_current_host(&self, url: &Url) -> bool {
-        if cfg!(feature = "tunneling") {
-            if let Some(ref front) = self.front
-                && front.is_enabled()
-            {
-                url.host_str() == self.current_url().front_str()
-            } else {
-                url.host_str() == self.current_url().host_str()
-            }
-        } else {
-            url.host_str() == self.current_url().host_str()
-        }
-    }
-
     /// If multiple base urls are available rotate to next (e.g. when the current one resulted in an error)
-    ///
-    /// Takes an optional URL argument. If this is none, the current host will be updated automatically.
-    /// If a url is provided first check that the CURRENT host matches the hostname in the URL before
-    /// triggering a rotation. This is meant to prevent parallel requests that fail from rotating the host
-    /// multiple times.
-    fn update_host(&self, maybe_url: Option<Url>) {
-        // If a causal url is provided and it doesn't match the hostname currently in use, skip update.
-        if let Some(err_url) = maybe_url
-            && !self.matches_current_host(&err_url)
-        {
-            return;
-        }
-
+    fn update_host(&self) {
         #[cfg(feature = "tunneling")]
         if let Some(ref front) = self.front
             && front.is_enabled()
@@ -1074,7 +1048,8 @@ impl ApiClientCore for Client {
                 .build()
                 .map_err(HttpClientError::reqwest_client_build_error)?;
             self.apply_hosts_to_req(&mut req);
-            let url = Url::parse(req.url().as_str()).unwrap();
+            #[cfg(not(target_arch = "wasm32"))]
+            let url = req.url().clone();
 
             #[cfg(target_arch = "wasm32")]
             let response: Result<Response, HttpClientError> = {
@@ -1092,30 +1067,19 @@ impl ApiClientCore for Client {
             match response {
                 Ok(resp) => return Ok(resp),
                 Err(err) => {
-                    // only if there was a network issue should we consider updating the host info
-                    //
-                    // note: for now this includes DNS resolution failure, I am not sure how I would go about
-                    // segregating that based on the interface provided by request for errors.
-                    #[cfg(target_arch = "wasm32")]
-                    let is_network_err = err.is_timeout();
-                    #[cfg(not(target_arch = "wasm32"))]
-                    let is_network_err = err.is_timeout() || err.is_connect();
+                    // if we have multiple urls, update to the next
+                    self.update_host();
 
-                    if is_network_err {
-                        // if we have multiple urls, update to the next
-                        self.update_host(Some(url.clone()));
-
-                        #[cfg(feature = "tunneling")]
-                        if let Some(ref front) = self.front {
-                            // If fronting is set to be enabled on error, enable domain fronting as we
-                            // have encountered an error.
-                            let was_enabled = front.is_enabled();
-                            front.retry_enable();
-                            if !was_enabled && front.is_enabled() {
-                                tracing::info!(
-                                    "Domain fronting activated after connection failure: {err}",
-                                );
-                            }
+                    #[cfg(feature = "tunneling")]
+                    if let Some(ref front) = self.front {
+                        // If fronting is set to be enabled on error, enable domain fronting as we
+                        // have encountered an error.
+                        let was_enabled = front.is_enabled();
+                        front.retry_enable();
+                        if !was_enabled && front.is_enabled() {
+                            tracing::info!(
+                                "Domain fronting activated after connection failure: {err}",
+                            );
                         }
                     }
 
@@ -1130,7 +1094,7 @@ impl ApiClientCore for Client {
                         if #[cfg(target_arch = "wasm32")] {
                             return Err(err);
                         } else {
-                            return Err(HttpClientError::request_send_error(url.into(), err));
+                            return Err(HttpClientError::request_send_error(url, err));
                         }
                     }
                 }

@@ -7,7 +7,7 @@ import { Callout } from 'nextra/components';
 <Callout type="info" emoji="ℹ️">
 **Note that there is only one binary `nym-node` for [all network functionalities](/operators/nodes/nym-node/setup#functionality-mode) (defined by a positional argument `--mode`).**
 
-When we say *Exit Gateway* in connection to Wireguard,, we talk about a `nym-node` running in a mode Exit Gateway (`--mode exit-gateway`) with Wireguard enabled. Such node is listed in [NymVPN application](https://nym.com) as an Exit Gateway and an Entry Gateway for both dVPN (2-hop) and Mixnet (5-hop) options. That's because every Exit Gateway can serve as an Entry, not vice versa for Mixnet and every Gateway with Wireguard enabled option (`--wireguard-enabled true`) can always serve as both Entry and Exit for dVPN (provided that they are correctly [configured](https://nym.com/docs/operators/nodes/nym-node/configuration)).
+When we say *Exit Gateway* in connection to Wireguard,, we talk about a `nym-node` running in a mode Exit Gateway (`--mode exit-gateway`) with Wireguard enabled. Such node is listed in [NymVPN application](https://nym.com) as an Exit Gateway and an Entry Gateway for both dVPN (2-hop) and Mixnet (5-hop) options. That's because every Exit Gateway can serve as an Entry, not vice versa for Mixnet and every Gateway with Wireguard enabled option (`--wireguard-enabled true`) can always serve as both Entry and Exit for dVPN (provided that they are correctly [configured](/operators/nodes/nym-node/configuration)).
 </Callout>
 
 This chapter explains how is Gateway's performance meassured and what's the design behind selection of Gateways for NymVPN application. Understanding the logic helps operatorts to triage their server and node configuration.
@@ -29,7 +29,7 @@ Here is a basic node configuration break down coming alongside basic [server con
         - IPR address present
         - NR address present
     - [IPv6 configured](/operators/nodes/nym-node/configuration#quick-ipv6-check)
-    - NymTun configured - using [NetworkTunnelManager](https://nym.com/docs/operators/nodes/nym-node/configuration#routing-configuration)
+    - NymTun configured - using [NetworkTunnelManager](/operators/nodes/nym-node/configuration#routing-configuration)
 
 - **Entry & Exit Gateway - dVPN (WireGuard mode):**
     - Node configured as Wireguard node: `--wireguard-enabled true`

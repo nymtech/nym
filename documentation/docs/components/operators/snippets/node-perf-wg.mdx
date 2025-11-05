@@ -1,0 +1,171 @@
+import { Callout } from 'nextra/components';
+
+## WireGuard: Gateways Performance Calculation
+
+> If you are looking for a page with a guide to run your own `gateway-probe` instance, go [here](/operators/nodes/performance-and-testing/gateway-probe).
+
+<Callout type="info" emoji="ℹ️">
+**Note that there is only one binary `nym-node` for [all network functionalities](/operators/nodes/nym-node/setup#functionality-mode) (defined by a positional argument `--mode`).**
+
+When we say *Exit Gateway* in connection to Wireguard,, we talk about a `nym-node` running in a mode Exit Gateway (`--mode exit-gateway`) with Wireguard enabled. Such node is listed in [NymVPN application](https://nym.com) as an Exit Gateway and an Entry Gateway for both dVPN (2-hop) and Mixnet (5-hop) options. That's because every Exit Gateway can serve as an Entry, not vice versa for Mixnet and every Gateway with Wireguard enabled option (`--wireguard-enabled true`) can always serve as both Entry and Exit for dVPN (provided that they are correctly [configured](https://nym.com/docs/operators/nodes/nym-node/configuration)).
+</Callout>
+
+This chapter explains how is Gateway's performance meassured and what's the design behind selection of Gateways for NymVPN application. Understanding the logic helps operatorts to triage their server and node configuration.
+
+The main source of truth for NymVPN Gateways is an API endpoint [nymvpn.com/api/public/v1/directory/gateways](https://nymvpn.com/api/public/v1/directory/gateways) storing all stats about available nodes. The sections of this chapter explaiun how are these stats measured and what is their significance.
+
+**Please note that even the most perfectly configured Gateway, running on the strongest machine may not always be listed as a suggested node in the app. If you are interested to learn the details why, check out the [Gateway Probe Details page](https://nym.com/docs/operators/nodes/performance-and-testing/gateway-probe-details).**
+
+### Gateway Roles & Requirements
+
+Here is a basic node configuration break down coming alongside basic [server configuration](/operators/nodes/preliminary-steps/vps-setup) required for the nodes to work in the those specific roles:
+
+- **Entry Gateway - Mixnet:**
+    - Node configured (running with `--mode` argument) as `entry-gateway` or `exit-gateway` (as Exit works as Entry too)
+    - `WS/WSS` ports (9000/9001) accessible
+    - [IPv6 configured](/operators/nodes/nym-node/configuration#quick-ipv6-check)
+- **Exit Gateway - Mixnet:**
+    - Node configured (running with `--mode` argument) as `exit-gateway`, that configuration ensures that:
+        - IPR address present
+        - NR address present
+    - [IPv6 configured](https://nym.com/docs/operators/nodes/nym-node/configuration#quick-ipv6-check)
+    - NymTun configured - using [NetworkTunnelManager](https://nym.com/docs/operators/nodes/nym-node/configuration#routing-configuration)
+
+- **Entry & Exit Gateway - dVPN (WireGuard mode):**
+    - Node configured as Wireguard node: `--wireguard-enabled true`
+    - Authenticator address present
+    - NymWG configured - using [NetworkTunnelManager](https://nym.com/docs/operators/nodes/nym-node/configuration#routing-configuration)
+    - [Metadata port open for WG](https://nym.com/docs/operators/nodes/nym-node/configuration#fixing-metadata-port-showing-not-open-in-probe-results)
+    - Wireguard exit policy [configured](https://nym.com/docs/operators/nodes/nym-node/configuration#wireguard-exit-policy-configuration)
+    - [IPv6 configured](https://nym.com/docs/operators/nodes/nym-node/configuration#quick-ipv6-check)
+    - Recommended: [QUIC bridge setup](https://nym.com/docs/operators/nodes/nym-node/configuration#quic-transport-bridge-deployment)
+
+### How Probe Works
+
+Nym Gateway probe is perfomance measurement program running tests through various routes following the logic described below. Operators can rown their [local instance of Gateway probe](https://nym.com/docs/operators/nodes/performance-and-testing/gateway-probe) or use visit of our dashboards to conveniently see probe results.
+
+- [Node Status dashboard](https://node-status.nym.com/dvpn): Shows latest probe results on one board
+- [Nym Node Status Observatory](https://harbourmaster.nymtech.net): New version of a good old Nym Harbourmaster, allowing operators preview stats of each node
+
+#### Entry Gateway - Mixnet (5-hop)
+
+**Tests:**
+
+- `can_connect`: Can connect to client WS/WSS endpoint (ports 9000/9001)
+- `can_route`: Entry gateway correctly forwards packets into the mixnet
+
+**To Pass:**
+
+- Expose correct WS/WSS ports (9000/9001)
+- Ensure DNS A/AAAA records resolve correctly
+- Verify IPv6 is actually reachable (not just in DNS)
+- Keep node online and monitor packet loss
+
+#### Exit Gateway (IPR) - Mixnet (5-hop)
+
+**Tests:**
+
+- `can_connect`: Can connect to IPR
+- `can_route_ip_v4`: IPv4 routing works
+- `can_route_ip_external_v4`: IPv4 routing to external internet works
+- `can_route_ip_v6`: IPv6 routing works
+- `can_route_ip_external_v6`: IPv6 routing to external internet works
+
+**To Pass:**
+
+- Ensure upstream routing and NAT allow both IPv4 and IPv6 traffic to external internet
+- Check system firewall rules (bidirectional)
+- Confirm outbound reachability to common external hosts on both stacks
+- Run node with `mode=exit-gateway` - this by default includes entry-gateway mode.
+
+#### Gateways - WireGuard (dVPN / 2-hop)
+
+**Tests:**
+
+- `can_register`: Authentication flow completes successfully
+- `can_handshake`: WireGuard handshake succeeds
+- `can_resolve_dns`: DNS resolution works
+- `can_query_metadata_v4`: Can query metadata endpoint
+- `ping_hosts_performance` / `ping_ips_performance`: Latency and packet loss metrics
+
+**To Pass:**
+
+- Open WireGuard UDP port `51822` (public)
+- Ensure metadata TCP port `51830` is accessible inside the WireGuard tunnel (at `10.1.0.1:51830`) for bandwidth queries/topup
+- Keep QUIC bridge (`UDP 4443`) healthy if deployed
+- Reduce server latency/jitter (depends on provider and location)
+- Ensure DNS resolvers are reliable
+- Pass the `--wireguard-enabled true` flag in the node config
+
+
+### Performance Score
+
+1. **`mixnet_score`: Mixnet routing performance**
+- **High**: > 80% mixnet packet delivery success
+- **Medium**: > 60% mixnet packet delivery success
+- **Low**: > 10% mixnet packet delivery success
+- **Offline**: ≤ 10% mixnet packet delivery success
+
+2. **`score` (Overall): `mixnet routing * WireGuard performance`**
+- Formula:
+```
+mixnet_performance * (download_speed_score * ping_ips_performance_v4)
+```
+- Download speed scoring:
+```
+> 5 Mbps = 1.0
+> 2 Mbps = 0.75
+> 1 Mbps = 0.5
+> 0.5 Mbps = 0.25
+otherwise = 0.1
+```
+- **High**: > 75%
+- **Medium**: > 50%
+- **Low**: > 10%
+- **Offline**: ≤ 10%
+
+3. **`load`: Node health indicator (based on ping success)**
+- **Low**: > 80% ping success (low load)
+- **Medium**: > 40% ping success
+- **High**: ≤ 40% ping success (node under stress, high load)
+
+### **Probe Freshness**
+
+- Probes run continuously; each node is typically tested every ~2 hours
+- If a probe fails or times out, the gateway will have stale probe data until the next successful probe completes
+- **`last_updated_utc`**: Timestamp indicating when the last successful probe test completed
+
+---
+
+---
+
+## **Complete Setup Checklist**
+
+### **On-Chain & Configuration**
+- [ ] Bonded on-chain with correct role (`exit-gateway`) and correct ports opened/exposed
+- [ ] Self-description endpoint is reachable
+- [ ] T&Cs accepted
+
+### **Network & Ports**
+- [ ] **Mixnet**: Port 1789 (mixnet) accessible; ports 9000 (WS) and 9001 (WSS) accessible with valid TLS for WSS
+- [ ] **QUIC bridge** (if used): UDP 4443 with valid addresses and SNI host
+- [ ] **WireGuard**: UDP 51822 open (public); TCP 51830 accessible inside WireGuard tunnel (10.1.0.1:51830); `--wireguard-enabled true` set in node config
+- [ ] **Exit (IPR)**: IPv4 and IPv6 routing to external internet configured
+- [ ] **DNS**: A/AAAA records correct; IPv6 actually reachable (test, don't just add DNS)
+
+### **Performance Targets**
+- [ ] Achieve ≥60% mixnet performance (Medium)
+- [ ] Aim for ≥80% (High) for optimal visibility
+- [ ] Keep latency and packet loss low (excessive load reduces performance scores)
+- [ ] Keep uptime high (network monitor tracks this)
+
+### **Probe Results (Verify All Pass)**
+- [ ] Entry: `can_connect=true` AND `can_route=true`
+- [ ] Exit: `can_connect=true` AND all v4/v6 routing flags are `true`
+- [ ] WireGuard: `can_register`, `can_handshake`, `can_resolve_dns`, and `can_query_metadata_v4` all pass; ping metrics healthy
+
+### **Recommended**
+- [ ] WSS enabled (connections may fail on clients if only WS is available)
+- [ ] QUIC bridge operational (ensures your node appears when users enable QUIC only filter on the app)
+- [ ] Accurate geo/IP information (country/region/residential filters rely on this)
+- [ ] Stay on most recent supported binary version (old versions are penalised)

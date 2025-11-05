@@ -1,4 +1,8 @@
 import { Callout } from 'nextra/components';
+import { Tabs } from 'nextra/components';
+import { MyTab } from 'components/generic-tabs.tsx';
+import NodePerfWG from 'components/operators/snippets/node-perf-wg.mdx';
+import NodePerfMixnet from 'components/operators/snippets/node-perf-mixnet.mdx';
 
 # Performance Monitoring & Testing
 
@@ -6,7 +10,22 @@ Nym Mixnet has been running on mainnet for quite some time. There is still work 
 
 As developers we need to be constantly improving the software. Operators have as much important role, keep their nodes up to date, monitor their performance and share their feedback with the rest of the community and core developers.
 
-Therefore [monitoring](#monitoring) and [testing](#testing) are essential pieces of our common work. We call out all Nym operators to join the efforts!
+Therefore [monitoring](#monitoring) node performance is an essential pillar of our common work. We call out all Nym operators to join the efforts!
+
+Before you read more about performance measurement, please note that Nym Network is routed either through the Mixnet (5-hop) or through Wireguard (2-hop). In all cases Nym node operators always use only one binary called [`nym-node`](/operators/nodes/nym-node). Through provided arguments (or changes in the config file), `nym-node` can run in different [functionalities](/operators/nodes/nym-node/setup#functionality-mode). However, once it's [registered to Nym Network](/operators/nodes/nym-node/bonding) it's available for Nym Mixnet. Only nodes with Wireguard enabled, are also available for Wireguard routing. This creates a situation where every Wireguard enabled `nym-node` is required to have a solid performance score in Mixnet to begin with, but not every Mixnet routing `nym-node` must have Wireguard enabled. 
+
+Given this complexity, we divided the part below about perfromance calculation logic and node selection into two parallel tabs: Mixnet and Wireguard. 
+
+<div>
+  <Tabs items={[
+    <strong>Mixnet: Nodes Performance Calculation</strong>,
+    <strong>WireGuard: Gateways Performance Calculation</strong>,
+    ]} defaultIndex="0">
+    <MyTab><NodePerfMixnet /></MyTab>
+    <MyTab><NodePerfWG /></MyTab>
+  </Tabs>
+</div>
+
 
 ## Functionality & Performance Check
 
@@ -36,6 +55,8 @@ http://<IPv4_ADDRESS>/api/v1/roles
 https://<HOSTNAME>/api/v1/roles
 ```
 
+
+
 ## Monitoring
 
 There are multiple ways to monitor performance of nodes and the machines on which they run. For the purpose of maximal privacy and decentralisation of the data - preventing Nym Mixnet from any global adversary takeover - we created these pages as a source of mutual empowerment, a place where operators can share and learn new skills to **setup metrics monitors on their own infrastructure**.
@@ -53,7 +74,7 @@ A list of different scripts, templates and guides for easier navigation:
 
 For the purpose of the performance testing Nym core developers plan to run instances of Prometheus and Grafana connected to Node explorer in the house. The network overall key insights we seek from these tests are primarily internal. We're focused on pinpointing bottlenecks, capacity loads, and monitoring cpu usage on the nodes' machines.
 
-
+{/* LEAVING THIS BIT FOR FUTURE F&F CASES:
 ## Testing
 
 <Callout type="info" emoji="ℹ️">
@@ -73,3 +94,4 @@ We do testing in order to **understand and increase the overall quality of the N
 7. Adjust rewarding based on the machine specs and server pricing
 
 Visit [Nym Harbour Master](https://harbourmaster.nymtech.net/) monitoring page to monitor network components (nodes) performance.
+*/}

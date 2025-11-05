@@ -8,7 +8,7 @@ use std::net::IpAddr;
 
 use crate::transceiver::PeerControllerTransceiver;
 use nym_wireguard_private_metadata_shared::error::MetadataError;
-use nym_wireguard_private_metadata_shared::interface::ResponseData;
+use nym_wireguard_private_metadata_shared::interface::{ResponseData, UpgradeModeCheckRequestType};
 
 // we need to be above MINIMUM_REMAINING_BANDWIDTH (500MB) plus we also have to trick the client
 // its depletion is low enough to not require sending new tickets
@@ -108,5 +108,30 @@ impl AppState {
                 })
             }
         }
+    }
+
+    pub async fn upgrade_mode_check(
+        &self,
+        request: UpgradeModeCheckRequestType,
+    ) -> Result<ResponseData, MetadataError> {
+        // if we're already in the upgrade mode - no need to do anything
+        if self.upgrade_mode.enabled() {
+            return Ok(ResponseData::UpgradeMode { upgrade_mode: true });
+        }
+
+        match request {
+            UpgradeModeCheckRequestType::UpgradeModeJwt { token } => {
+                self.upgrade_mode
+                    .try_enable_via_received_jwt(token)
+                    .await
+                    .map_err(|err| MetadataError::JWTVerification {
+                        message: err.to_string(),
+                    })?;
+            }
+        }
+
+        // if we didn't return an error, it means token got accepted
+        // and we have transitioned into the upgrade mode
+        Ok(ResponseData::UpgradeMode { upgrade_mode: true })
     }
 }

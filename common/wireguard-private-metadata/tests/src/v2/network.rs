@@ -13,8 +13,8 @@ pub(crate) mod test {
     use axum::{Extension, Json, Router, extract::Query};
     use futures::StreamExt;
     use nym_credential_verification::upgrade_mode::{
-        UpgradeModeCheckConfig, UpgradeModeCheckRequestReceiver, UpgradeModeCheckRequestSender,
-        UpgradeModeDetails, UpgradeModeState,
+        CheckRequest, UpgradeModeCheckConfig, UpgradeModeCheckRequestReceiver,
+        UpgradeModeCheckRequestSender, UpgradeModeDetails, UpgradeModeState,
     };
     use nym_http_api_client::Client;
     use nym_http_api_common::{FormattedResponse, OutputParams};
@@ -28,26 +28,53 @@ pub(crate) mod test {
     };
     use std::any::Any;
     use std::net::IpAddr;
+    use std::sync::Arc;
     use std::time::Duration;
+    use tokio::sync::Mutex;
     use tokio::task::JoinSet;
     use tokio::{net::TcpListener, sync::mpsc};
     use tower_http::compression::CompressionLayer;
 
     pub struct MockUpgradeModeWatcher {
         check_request_receiver: UpgradeModeCheckRequestReceiver,
+        upgrade_mode_state: UpgradeModeState,
+
+        mock_published_attestation: Arc<Mutex<Option<UpgradeModeAttestation>>>,
     }
 
     impl MockUpgradeModeWatcher {
-        pub fn new(check_request_receiver: UpgradeModeCheckRequestReceiver) -> Self {
+        pub fn new(
+            check_request_receiver: UpgradeModeCheckRequestReceiver,
+            upgrade_mode_state: UpgradeModeState,
+            mock_published_attestation: Arc<Mutex<Option<UpgradeModeAttestation>>>,
+        ) -> Self {
             MockUpgradeModeWatcher {
                 check_request_receiver,
+                upgrade_mode_state,
+                mock_published_attestation,
+            }
+        }
+
+        async fn handle_check_request(&mut self, polled_request: CheckRequest) {
+            let mut requests = vec![polled_request];
+            while let Ok(Some(queued_up)) = self.check_request_receiver.try_next() {
+                requests.push(queued_up);
+            }
+
+            let published = self.mock_published_attestation.lock().await;
+            self.upgrade_mode_state
+                .try_set_expected_attestation(published.clone())
+                .await;
+
+            for request in requests {
+                request.finalize()
             }
         }
 
         pub async fn run(&mut self) {
             // for now don't do anything apart from notifying the caller
-            while let Some(request) = self.check_request_receiver.next().await {
-                request.finalize()
+            while let Some(polled_request) = self.check_request_receiver.next().await {
+                self.handle_check_request(polled_request).await
             }
         }
     }
@@ -56,6 +83,9 @@ pub(crate) mod test {
         // among other things gives you access to the shared state, so you could toggle the flag
         // and thus change server behaviour
         upgrade_mode_state: UpgradeModeState,
+
+        // shared state with the mock attestation watcher to make it think new attestation has been published
+        mock_published_attestation: Arc<Mutex<Option<UpgradeModeAttestation>>>,
 
         connect_info: DummyConnectInfo,
 
@@ -80,7 +110,8 @@ pub(crate) mod test {
             let upgrade_mode_state = UpgradeModeState::new(dummy_attester_public_key());
             let upgrade_mode_details = UpgradeModeDetails::new(
                 UpgradeModeCheckConfig {
-                    min_staleness_recheck: Duration::from_secs(30),
+                    // essentially we never want to trigger this in our tests
+                    min_staleness_recheck: Duration::from_nanos(1),
                 },
                 UpgradeModeCheckRequestSender::new(um_recheck_tx),
                 upgrade_mode_state.clone(),
@@ -102,7 +133,12 @@ pub(crate) mod test {
             let mut peer_controller =
                 MockPeerControllerV2::new(peer_controller_state.clone(), request_rx);
 
-            let mut upgrade_mode_watcher = MockUpgradeModeWatcher::new(um_recheck_rx);
+            let mock_published_attestation = Arc::new(Mutex::new(None));
+            let mut upgrade_mode_watcher = MockUpgradeModeWatcher::new(
+                um_recheck_rx,
+                upgrade_mode_state.clone(),
+                mock_published_attestation.clone(),
+            );
 
             // spawn all the tasks
             server_tasks.spawn(async move {
@@ -126,6 +162,7 @@ pub(crate) mod test {
 
             ServerTest {
                 upgrade_mode_state,
+                mock_published_attestation,
                 connect_info: dummy_connect_info,
                 _server_tasks: server_tasks,
                 peer_controller_state,
@@ -145,6 +182,10 @@ pub(crate) mod test {
             self.upgrade_mode_state
                 .try_set_expected_attestation(Some(attestation))
                 .await
+        }
+
+        pub(crate) async fn publish_upgrade_mode_attestation(&self) {
+            *self.mock_published_attestation.lock().await = Some(mock_upgrade_mode_attestation())
         }
 
         #[allow(dead_code)]
@@ -186,6 +227,10 @@ pub(crate) mod test {
             .route("/version", axum::routing::get(version))
             .route("/available", axum::routing::post(available_bandwidth))
             .route("/topup", axum::routing::post(topup_bandwidth))
+            .route(
+                "/upgrade-mode-check",
+                axum::routing::post(upgrade_mode_check),
+            )
             .layer(CompressionLayer::new())
     }
 
@@ -241,6 +286,28 @@ pub(crate) mod test {
             .await
             .map_err(AxumErrorResponse::bad_request)?;
         let response = Response::construct(top_up_bandwidth_response, version)
+            .map_err(AxumErrorResponse::bad_request)?;
+
+        Ok(output.to_response(response))
+    }
+
+    async fn upgrade_mode_check(
+        Query(output): Query<OutputParams>,
+        State(state): State<AppState>,
+        Json(request): Json<Request>,
+    ) -> AxumResult<FormattedResponse<Response>> {
+        let output = output.output.unwrap_or_default();
+
+        let (RequestData::UpgradeModeCheck { typ }, version) =
+            request.extract().map_err(AxumErrorResponse::bad_request)?
+        else {
+            return Err(AxumErrorResponse::bad_request("incorrect request type"));
+        };
+        let upgrade_mode_check_response = state
+            .upgrade_mode_check(typ)
+            .await
+            .map_err(AxumErrorResponse::bad_request)?;
+        let response = Response::construct(upgrade_mode_check_response, version)
             .map_err(AxumErrorResponse::bad_request)?;
 
         Ok(output.to_response(response))

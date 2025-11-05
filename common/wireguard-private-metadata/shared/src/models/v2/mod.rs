@@ -17,11 +17,18 @@ pub use available_bandwidth::{
     request::InnerAvailableBandwidthRequest as AvailableBandwidthRequest,
     response::InnerAvailableBandwidthResponse as AvailableBandwidthResponse,
 };
+pub use check_upgrade_mode::{
+    request::{
+        InnerUpgradeModeCheckRequest as UpgradeModeCheckRequest, UpgradeModeCheckRequestType,
+    },
+    response::InnerUpgradeModeCheckResponse as UpgradeModeCheckResponse,
+};
 pub use topup_bandwidth::{
     request::InnerTopUpRequest as TopUpRequest, response::InnerTopUpResponse as TopUpResponse,
 };
 
 pub(crate) mod available_bandwidth;
+pub(crate) mod check_upgrade_mode;
 pub mod interface;
 pub(crate) mod topup_bandwidth;
 
@@ -31,6 +38,7 @@ pub const VERSION: Version = Version::V2;
 pub enum QueryType {
     AvailableBandwidth,
     TopUpBandwidth,
+    UpgradeModeCheck,
 }
 
 impl Display for QueryType {

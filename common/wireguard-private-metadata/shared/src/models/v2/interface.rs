@@ -10,6 +10,10 @@ use super::{
     available_bandwidth::{
         request::InnerAvailableBandwidthRequest, response::InnerAvailableBandwidthResponse,
     },
+    check_upgrade_mode::{
+        request::{InnerUpgradeModeCheckRequest, UpgradeModeCheckRequestType},
+        response::InnerUpgradeModeCheckResponse,
+    },
     topup_bandwidth::{request::InnerTopUpRequest, response::InnerTopUpResponse},
 };
 use crate::models::{Construct, Extract, Version, error::Error};
@@ -19,6 +23,9 @@ pub enum RequestData {
     AvailableBandwidth,
     TopUpBandwidth {
         credential: Box<BandwidthCredential>,
+    },
+    UpgradeModeCheck {
+        typ: UpgradeModeCheckRequestType,
     },
 }
 
@@ -32,6 +39,9 @@ pub enum ResponseData {
         available_bandwidth: i64,
         upgrade_mode: bool,
     },
+    UpgradeMode {
+        upgrade_mode: bool,
+    },
 }
 
 impl Construct<RequestData> for VersionedRequest {
@@ -42,6 +52,9 @@ impl Construct<RequestData> for VersionedRequest {
                 credential: *credential,
             }
             .try_into()?),
+            RequestData::UpgradeModeCheck { typ } => {
+                Ok(InnerUpgradeModeCheckRequest { request_type: typ }.try_into()?)
+            }
         }
     }
 }
@@ -58,6 +71,15 @@ impl Extract<RequestData> for VersionedRequest {
                 Ok((
                     RequestData::TopUpBandwidth {
                         credential: Box::new(req.credential),
+                    },
+                    VERSION,
+                ))
+            }
+            QueryType::UpgradeModeCheck => {
+                let req = InnerUpgradeModeCheckRequest::try_from(self)?;
+                Ok((
+                    RequestData::UpgradeModeCheck {
+                        typ: req.request_type,
                     },
                     VERSION,
                 ))
@@ -85,6 +107,9 @@ impl Construct<ResponseData> for VersionedResponse {
                 upgrade_mode,
             }
             .try_into()?),
+            ResponseData::UpgradeMode { upgrade_mode } => {
+                Ok(InnerUpgradeModeCheckResponse { upgrade_mode }.try_into()?)
+            }
         }
     }
 }
@@ -107,6 +132,15 @@ impl Extract<ResponseData> for VersionedResponse {
                 Ok((
                     ResponseData::TopUpBandwidth {
                         available_bandwidth: resp.available_bandwidth,
+                        upgrade_mode: resp.upgrade_mode,
+                    },
+                    VERSION,
+                ))
+            }
+            QueryType::UpgradeModeCheck => {
+                let resp = InnerUpgradeModeCheckResponse::try_from(self)?;
+                Ok((
+                    ResponseData::UpgradeMode {
                         upgrade_mode: resp.upgrade_mode,
                     },
                     VERSION,
@@ -144,6 +178,10 @@ impl TryFrom<RequestData> for previous::interface::RequestData {
                     })
                 }
             },
+            RequestData::UpgradeModeCheck { .. } => Err(super::Error::DowngradeNotPossible {
+                from: VERSION,
+                to: previous::VERSION,
+            }),
         }
     }
 }
@@ -179,6 +217,10 @@ impl TryFrom<ResponseData> for previous::interface::ResponseData {
                 available_bandwidth,
                 ..
             } => Ok(Self::TopUpBandwidth(available_bandwidth)),
+            ResponseData::UpgradeMode { .. } => Err(super::Error::DowngradeNotPossible {
+                from: VERSION,
+                to: previous::VERSION,
+            }),
         }
     }
 }

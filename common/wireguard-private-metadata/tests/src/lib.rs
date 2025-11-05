@@ -534,5 +534,32 @@ mod tests {
         // as defined by `DEFAULT_WG_CLIENT_BANDWIDTH_THRESHOLD`
         assert_eq!(top_up.available_bandwidth, 1024 * 1024 * 1024);
         assert!(top_up.upgrade_mode);
+        server_test.reset_registered_responses().await;
+
+        // attempt to enable UM with a valid token
+        // no global attestation
+        server_test.disable_upgrade_mode().await;
+        let request = v2::UpgradeModeCheckRequest {
+            request_type: v2::UpgradeModeCheckRequestType::UpgradeModeJwt {
+                token: "".to_string(),
+            },
+        }
+        .try_into()
+        .unwrap();
+        let response = client.request_upgrade_mode_check(&request).await;
+        assert!(response.is_err());
+
+        server_test.publish_upgrade_mode_attestation().await;
+        // global attestation
+        let request = v2::UpgradeModeCheckRequest {
+            request_type: v2::UpgradeModeCheckRequestType::UpgradeModeJwt {
+                token: mock_upgrade_mode_jwt(),
+            },
+        }
+        .try_into()
+        .unwrap();
+        let response = client.request_upgrade_mode_check(&request).await.unwrap();
+        let upgrade_mode = v2::UpgradeModeCheckResponse::try_from(response).unwrap();
+        assert!(upgrade_mode.upgrade_mode);
     }
 }

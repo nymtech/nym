@@ -5,57 +5,69 @@ use nym_credentials_interface::BandwidthCredential;
 
 #[cfg(feature = "testing")]
 use crate::models::v0;
-use crate::models::{Construct, Extract, Request, Response, Version, v1, v2};
+use crate::models::{Construct, Extract, Request, Response, Version, latest, v1, v2};
+
+pub use latest::check_upgrade_mode::request::UpgradeModeCheckRequestType;
 
 pub enum RequestData {
     AvailableBandwidth,
     TopUpBandwidth {
         credential: Box<BandwidthCredential>,
     },
+    UpgradeModeCheck {
+        typ: UpgradeModeCheckRequestType,
+    },
 }
 
-impl From<super::latest::interface::RequestData> for RequestData {
-    fn from(value: super::latest::interface::RequestData) -> Self {
+impl From<latest::interface::RequestData> for RequestData {
+    fn from(value: latest::interface::RequestData) -> Self {
         match value {
-            super::latest::interface::RequestData::AvailableBandwidth => Self::AvailableBandwidth,
-            super::latest::interface::RequestData::TopUpBandwidth { credential } => {
+            latest::interface::RequestData::AvailableBandwidth => Self::AvailableBandwidth,
+            latest::interface::RequestData::TopUpBandwidth { credential } => {
                 Self::TopUpBandwidth { credential }
+            }
+            latest::interface::RequestData::UpgradeModeCheck { typ } => {
+                Self::UpgradeModeCheck { typ }
             }
         }
     }
 }
 
-impl From<RequestData> for super::latest::interface::RequestData {
+impl From<RequestData> for latest::interface::RequestData {
     fn from(value: RequestData) -> Self {
         match value {
             RequestData::AvailableBandwidth => Self::AvailableBandwidth,
             RequestData::TopUpBandwidth { credential } => Self::TopUpBandwidth { credential },
+            RequestData::UpgradeModeCheck { typ } => Self::UpgradeModeCheck { typ },
         }
     }
 }
 
-impl From<super::latest::interface::ResponseData> for ResponseData {
-    fn from(value: super::latest::interface::ResponseData) -> Self {
+impl From<latest::interface::ResponseData> for ResponseData {
+    fn from(value: latest::interface::ResponseData) -> Self {
         match value {
-            super::latest::interface::ResponseData::AvailableBandwidth {
+            latest::interface::ResponseData::AvailableBandwidth {
                 amount,
                 upgrade_mode,
             } => Self::AvailableBandwidth {
                 amount,
                 upgrade_mode,
             },
-            super::latest::interface::ResponseData::TopUpBandwidth {
+            latest::interface::ResponseData::TopUpBandwidth {
                 available_bandwidth,
                 upgrade_mode,
             } => Self::TopUpBandwidth {
                 available_bandwidth,
                 upgrade_mode,
             },
+            latest::interface::ResponseData::UpgradeMode { upgrade_mode } => {
+                Self::UpgradeMode { upgrade_mode }
+            }
         }
     }
 }
 
-impl From<ResponseData> for super::latest::interface::ResponseData {
+impl From<ResponseData> for latest::interface::ResponseData {
     fn from(value: ResponseData) -> Self {
         match value {
             ResponseData::AvailableBandwidth {
@@ -72,6 +84,7 @@ impl From<ResponseData> for super::latest::interface::ResponseData {
                 available_bandwidth,
                 upgrade_mode,
             },
+            ResponseData::UpgradeMode { upgrade_mode } => Self::UpgradeMode { upgrade_mode },
         }
     }
 }
@@ -147,6 +160,9 @@ pub enum ResponseData {
     },
     TopUpBandwidth {
         available_bandwidth: i64,
+        upgrade_mode: bool,
+    },
+    UpgradeMode {
         upgrade_mode: bool,
     },
 }

@@ -4478,7 +4478,7 @@ dependencies = [
 
 [[package]]
 name = "mix-fetch-wasm"
-version = "1.4.1-rc0"
+version = "1.4.1-rc1"
 dependencies = [
  "async-trait",
  "futures",
@@ -5284,7 +5284,7 @@ dependencies = [
 
 [[package]]
 name = "nym-client-wasm"
-version = "1.4.1-rc0"
+version = "1.4.1-rc1"
 dependencies = [
  "anyhow",
  "futures",

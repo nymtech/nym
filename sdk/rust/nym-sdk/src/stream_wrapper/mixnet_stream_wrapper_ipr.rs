@@ -48,6 +48,8 @@ pub enum ConnectionState {
     Connected,
 }
 
+// TODO INLINE DOCS
+
 fn create_nym_api_client(nym_api_urls: Vec<ApiUrl>) -> Result<nym_http_api_client::Client, Error> {
     // TODO do something proper with this
     let user_agent = UserAgent {
@@ -157,7 +159,7 @@ impl IpMixStream {
         let api_client =
             create_nym_api_client(mainnet_network_defaults.nym_api_urls.unwrap_or_default())?;
         let ipr_address = get_random_ipr(api_client).await?;
-        let stream = MixStream::new(None, Recipient::from(ipr_address)).await;
+        let stream = MixStream::new(None, Some(Recipient::from(ipr_address))).await;
 
         Ok(Self {
             stream,
@@ -174,7 +176,7 @@ impl IpMixStream {
 
     async fn send_ipr_request(&mut self, request: IpPacketRequest) -> Result<(), Error> {
         let request_bytes = request.to_bytes()?;
-        self.stream.write_bytes(&request_bytes).await
+        self.stream.send(&request_bytes).await
     }
 
     pub async fn connect_tunnel(&mut self) -> Result<IpPair, Error> {
@@ -215,7 +217,7 @@ impl IpMixStream {
         let timeout = tokio::time::sleep(IPR_CONNECT_TIMEOUT);
         tokio::pin!(timeout);
 
-        let mut framed = FramedRead::new(&mut self.stream, ReconstructedMessageCodec {});
+        let mut framed = self.stream.framed_read();
 
         loop {
             tokio::select! {
@@ -276,7 +278,7 @@ impl IpMixStream {
     }
 
     pub async fn handle_incoming(&mut self) -> Result<Vec<Bytes>, Error> {
-        let mut framed = FramedRead::new(&mut self.stream, ReconstructedMessageCodec {});
+        let mut framed = self.stream.framed_read();
 
         match tokio::time::timeout(Duration::from_secs(10), framed.next()).await {
             Ok(Some(reconstructed)) => {
@@ -321,7 +323,7 @@ impl IpMixStream {
     /// Disconnect inner stream client from the Mixnet - note that disconnected clients cannot currently be reconnected.
     pub async fn disconnect_stream(self) {
         debug!("Disconnecting");
-        self.stream.disconnect().await;
+        self.stream.client.disconnect().await;
         debug!("Disconnected");
     }
 
@@ -401,11 +403,11 @@ pub struct IpMixStreamReader {
 
 impl IpMixStreamReader {
     pub fn nym_address(self) -> Recipient {
-        self.stream_reader.local_addr()
+        *self.stream_reader.local_addr()
     }
 
     pub async fn handle_incoming(&mut self) -> Result<Vec<Bytes>, Error> {
-        let mut framed = FramedRead::new(&mut self.stream_reader, ReconstructedMessageCodec {});
+        let mut framed = self.stream_reader.framed();
 
         match tokio::time::timeout(Duration::from_secs(10), framed.next()).await {
             Ok(Some(reconstructed)) => {
@@ -544,22 +546,22 @@ mod tests {
         icmp_identifier, is_icmp_echo_reply, is_icmp_v6_echo_reply, send_ping_v4, send_ping_v6,
     };
     use std::net::{Ipv4Addr, Ipv6Addr};
-    // use std::sync::Once;
+    use std::sync::Once;
 
-    // static INIT: Once = Once::new();
+    static INIT: Once = Once::new();
 
-    // fn init_logging() {
-    //     if tracing::dispatcher::has_been_set() {
-    //         return;
-    //     }
-    //     INIT.call_once(|| {
-    //         nym_bin_common::logging::setup_tracing_logger();
-    //     });
-    // }
+    fn init_logging() {
+        if tracing::dispatcher::has_been_set() {
+            return;
+        }
+        INIT.call_once(|| {
+            nym_bin_common::logging::setup_tracing_logger();
+        });
+    }
 
     #[tokio::test]
     async fn connect_to_ipr() -> Result<(), Box<dyn std::error::Error>> {
-        // init_logging();
+        init_logging();
 
         let mut stream = IpMixStream::new().await?;
         let ip_pair = stream.connect_tunnel().await?;
@@ -583,7 +585,7 @@ mod tests {
 
     #[tokio::test]
     async fn dns_ping_checks() -> Result<(), Box<dyn std::error::Error>> {
-        // init_logging();
+        init_logging();
 
         let mut stream = IpMixStream::new().await?;
         let ip_pair = stream.connect_tunnel().await?;
@@ -695,7 +697,7 @@ mod tests {
 
     #[tokio::test]
     async fn split_dns_ping_checks() -> Result<(), Box<dyn std::error::Error>> {
-        // init_logging();
+        init_logging();
 
         let mut stream = IpMixStream::new().await?;
         let ip_pair = stream.connect_tunnel().await?;

@@ -15,7 +15,7 @@
     "tsc:watch": "tsc --watch"
   },
   "dependencies": {
-    "@nymproject/sdk": ">=1.2.3-rc.0 || ^1"
+    "@nymproject/sdk": "1.4.1-rc1"
   },
   "devDependencies": {
     "@types/jest": "^27.0.1",

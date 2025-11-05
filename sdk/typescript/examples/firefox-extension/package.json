@@ -9,7 +9,7 @@
     "build": "yarn webpack"
   },
   "dependencies": {
-    "@nymproject/sdk": ">=1.2.3-rc.0 || ^1"
+    "@nymproject/sdk": "1.4.1-rc1"
   },
   "devDependencies": {
     "copy-webpack-plugin": "^11.0.0",

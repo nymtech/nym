@@ -6,12 +6,11 @@ use nym_bandwidth_controller::{BandwidthTicketProvider, DEFAULT_TICKETS_TO_SPEND
 use nym_crypto::asymmetric::x25519::KeyPair;
 use nym_registration_common::GatewayData;
 use std::net::{IpAddr, SocketAddr};
-use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
 use tracing::{debug, error, trace};
 
-use crate::error::{Error, InnerError, Result};
+use crate::error::Result;
 use crate::mixnet_listener::{MixnetMessageBroadcastReceiver, MixnetMessageInputSender};
 use nym_authenticator_requests::{
     AuthenticatorVersion, client_message::ClientMessage, response::AuthenticatorResponse,
@@ -26,7 +25,7 @@ mod error;
 mod helpers;
 mod mixnet_listener;
 
-pub use crate::error::{Error as RegistrationError, InnerError as AuthenticationClientError};
+pub use crate::error::{AuthenticationClientError, RegistrationError};
 pub use crate::mixnet_listener::{AuthClientMixnetListener, AuthClientMixnetListenerHandle};
 
 pub struct AuthenticatorClient {
@@ -92,7 +91,7 @@ impl AuthenticatorClient {
         self.mixnet_sender
             .send(input_message)
             .await
-            .map_err(|e| InnerError::SendMixnetMessage(Box::new(e)))?;
+            .map_err(|e| AuthenticationClientError::SendMixnetMessage(Box::new(e)))?;
 
         Ok(request_id)
     }
@@ -105,11 +104,11 @@ impl AuthenticatorClient {
             tokio::select! {
                 _ = &mut timeout => {
                     error!("Timed out waiting for reply to connect request");
-                    return Err(InnerError::TimeoutWaitingForConnectResponse);
+                    return Err(AuthenticationClientError::TimeoutWaitingForConnectResponse);
                 }
                 msg = self.mixnet_listener.recv() => match msg {
                     Err(_) => {
-                        return Err(InnerError::NoMixnetMessagesReceived);
+                        return Err(AuthenticationClientError::NoMixnetMessagesReceived);
                     }
                     Ok(msg) => {
                         let Some(header) = msg.message.first_chunk::<2>() else {
@@ -132,12 +131,12 @@ impl AuthenticatorClient {
                         // Then we deserialize the message
                         debug!("AuthClient: got message while waiting for connect response with version {version:?}");
                         let ret: Result<AuthenticatorResponse> = match version {
-                            AuthenticatorVersion::V1 => Err(InnerError::UnsupportedVersion),
+                            AuthenticatorVersion::V1 => Err(AuthenticationClientError::UnsupportedVersion),
                             AuthenticatorVersion::V2 => v2::response::AuthenticatorResponse::from_reconstructed_message(&msg).map(Into::into).map_err(Into::into),
                             AuthenticatorVersion::V3 => v3::response::AuthenticatorResponse::from_reconstructed_message(&msg).map(Into::into).map_err(Into::into),
                             AuthenticatorVersion::V4 => v4::response::AuthenticatorResponse::from_reconstructed_message(&msg).map(Into::into).map_err(Into::into),
                             AuthenticatorVersion::V5 => v5::response::AuthenticatorResponse::from_reconstructed_message(&msg).map(Into::into).map_err(Into::into),
-                            AuthenticatorVersion::UNKNOWN => Err(InnerError::UnknownVersion),
+                            AuthenticatorVersion::UNKNOWN => Err(AuthenticationClientError::UnknownVersion),
                         };
                         let Ok(response) = ret else {
                             // This is ok, it's likely just one of our self-pings
@@ -159,12 +158,12 @@ impl AuthenticatorClient {
         &mut self,
         controller: &dyn BandwidthTicketProvider,
         ticketbook_type: TicketType,
-    ) -> std::result::Result<GatewayData, Error> {
+    ) -> std::result::Result<GatewayData, RegistrationError> {
         debug!("Registering with the wg gateway...");
         let init_message = match self.auth_version {
             AuthenticatorVersion::V1 | AuthenticatorVersion::UNKNOWN => {
-                return Err(Error::NoCredentialSpent(
-                    InnerError::UnsupportedAuthenticatorVersion,
+                return Err(RegistrationError::NoCredentialSent(
+                    AuthenticationClientError::UnsupportedAuthenticatorVersion,
                 ));
             }
             AuthenticatorVersion::V2 => {
@@ -192,13 +191,15 @@ impl AuthenticatorClient {
         let response = self
             .send_and_wait_for_response(&init_message)
             .await
-            .map_err(Error::NoCredentialSpent)?;
+            .map_err(RegistrationError::NoCredentialSent)?;
         let registered_data = match response {
             AuthenticatorResponse::PendingRegistration(pending_registration_response) => {
                 // Unwrap since we have already checked that we have the keypair.
                 debug!("Verifying data");
                 if let Err(e) = pending_registration_response.verify(self.keypair.private_key()) {
-                    return Err(Error::NoCredentialSpent(InnerError::VerificationFailed(e)));
+                    return Err(RegistrationError::NoCredentialSent(
+                        AuthenticationClientError::VerificationFailed(e),
+                    ));
                 }
 
                 trace!(
@@ -215,8 +216,8 @@ impl AuthenticatorClient {
                             DEFAULT_TICKETS_TO_SPEND,
                         )
                         .await
-                        .map_err(|source| Error::CredentialSpent {
-                            source: InnerError::GetTicket {
+                        .map_err(|source| RegistrationError::CredentialSent {
+                            source: AuthenticationClientError::GetTicket {
                                 ticketbook_type,
                                 source,
                             },
@@ -226,8 +227,8 @@ impl AuthenticatorClient {
 
                 let finalized_message = match self.auth_version {
                     AuthenticatorVersion::V1 | AuthenticatorVersion::UNKNOWN => {
-                        return Err(Error::CredentialSpent {
-                            source: InnerError::UnsupportedAuthenticatorVersion,
+                        return Err(RegistrationError::CredentialSent {
+                            source: AuthenticationClientError::UnsupportedAuthenticatorVersion,
                         });
                     }
                     AuthenticatorVersion::V2 => {
@@ -283,18 +284,18 @@ impl AuthenticatorClient {
                 let response = self
                     .send_and_wait_for_response(&finalized_message)
                     .await
-                    .map_err(|source| Error::CredentialSpent { source })?;
+                    .map_err(|source| RegistrationError::CredentialSent { source })?;
                 let AuthenticatorResponse::Registered(registered_response) = response else {
-                    return Err(Error::CredentialSpent {
-                        source: InnerError::InvalidGatewayAuthResponse,
+                    return Err(RegistrationError::CredentialSent {
+                        source: AuthenticationClientError::InvalidGatewayAuthResponse,
                     });
                 };
                 registered_response
             }
             AuthenticatorResponse::Registered(registered_response) => registered_response,
             _ => {
-                return Err(Error::NoCredentialSpent(
-                    InnerError::InvalidGatewayAuthResponse,
+                return Err(RegistrationError::NoCredentialSent(
+                    AuthenticationClientError::InvalidGatewayAuthResponse,
                 ));
             }
         };
@@ -306,14 +307,7 @@ impl AuthenticatorClient {
 
         let gateway_data = GatewayData {
             public_key: registered_data.pub_key().inner().into(),
-            endpoint: SocketAddr::from_str(&format!(
-                "{}:{}",
-                self.ip_addr,
-                registered_data.wg_port()
-            ))
-            .map_err(|e| Error::CredentialSpent {
-                source: InnerError::FailedToParseEntryGatewaySocketAddr(e),
-            })?,
+            endpoint: SocketAddr::new(self.ip_addr, registered_data.wg_port()),
             private_ipv4: registered_data.private_ips().ipv4,
             private_ipv6: registered_data.private_ips().ipv6,
         };
@@ -324,7 +318,9 @@ impl AuthenticatorClient {
     // This is up to the caller to know nothing is ever spent there
     pub async fn query_bandwidth(&mut self) -> Result<Option<i64>> {
         let query_message = match self.auth_version {
-            AuthenticatorVersion::V1 => return Err(InnerError::UnsupportedAuthenticatorVersion),
+            AuthenticatorVersion::V1 => {
+                return Err(AuthenticationClientError::UnsupportedAuthenticatorVersion);
+            }
             AuthenticatorVersion::V2 => ClientMessage::Query(Box::new(QueryMessageImpl {
                 pub_key: PeerPublicKey::new(self.keypair.public_key().to_bytes().into()),
                 version: AuthenticatorVersion::V2,
@@ -342,7 +338,7 @@ impl AuthenticatorClient {
                 version: AuthenticatorVersion::V5,
             })),
             AuthenticatorVersion::UNKNOWN => {
-                return Err(InnerError::UnsupportedAuthenticatorVersion);
+                return Err(AuthenticationClientError::UnsupportedAuthenticatorVersion);
             }
         };
         let response = self.send_and_wait_for_response(&query_message).await?;
@@ -357,7 +353,7 @@ impl AuthenticatorClient {
                     return Ok(None);
                 }
             }
-            _ => return Err(InnerError::InvalidGatewayAuthResponse),
+            _ => return Err(AuthenticationClientError::InvalidGatewayAuthResponse),
         };
 
         let remaining_pretty = if available_bandwidth > 1024 * 1024 {
@@ -396,7 +392,7 @@ impl AuthenticatorClient {
                 credential,
             })),
             AuthenticatorVersion::V1 | AuthenticatorVersion::V2 | AuthenticatorVersion::UNKNOWN => {
-                return Err(InnerError::UnsupportedAuthenticatorVersion);
+                return Err(AuthenticationClientError::UnsupportedAuthenticatorVersion);
             }
         };
         let response = self.send_and_wait_for_response(&top_up_message).await?;
@@ -405,7 +401,7 @@ impl AuthenticatorClient {
             AuthenticatorResponse::TopUpBandwidth(top_up_bandwidth_response) => {
                 top_up_bandwidth_response.available_bandwidth()
             }
-            _ => return Err(InnerError::InvalidGatewayAuthResponse),
+            _ => return Err(AuthenticationClientError::InvalidGatewayAuthResponse),
         };
 
         Ok(remaining_bandwidth)

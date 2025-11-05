@@ -2,7 +2,7 @@ use nym_credentials_interface::TicketType;
 use nym_sdk::mixnet::InputMessage;
 
 #[derive(thiserror::Error, Debug)]
-pub enum InnerError {
+pub enum AuthenticationClientError {
     #[error("mixnet client stopped returning responses")]
     NoMixnetMessagesReceived,
 
@@ -45,16 +45,16 @@ pub enum InnerError {
 }
 
 #[derive(thiserror::Error, Debug)]
-pub enum Error {
+pub enum RegistrationError {
     #[error(transparent)]
-    NoCredentialSpent(InnerError), // This intentionnally doesn't use `from` to avoid random ? operator to land here when they shouldn't
+    NoCredentialSent(AuthenticationClientError), // This intentionnally doesn't use `from` to avoid random ? operator to land here when they shouldn't
 
-    #[error("an error occured after a credential was spent : {source}")]
-    CredentialSpent {
+    #[error("an error occured after a credential was sent : {source}")]
+    CredentialSent {
         #[source]
-        source: InnerError,
+        source: AuthenticationClientError,
     },
 }
 
 // Result type based on our error type
-pub(crate) type Result<T> = std::result::Result<T, InnerError>;
+pub(crate) type Result<T> = std::result::Result<T, AuthenticationClientError>;

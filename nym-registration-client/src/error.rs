@@ -84,7 +84,7 @@ impl RegistrationClientError {
         entry: bool,
     ) -> Self {
         match error {
-            nym_authenticator_client::RegistrationError::NoCredentialSpent(source) => {
+            nym_authenticator_client::RegistrationError::NoCredentialSent(source) => {
                 if entry {
                     Self::WireguardEntryRegistration {
                         gateway_id,
@@ -99,7 +99,7 @@ impl RegistrationClientError {
                     }
                 }
             }
-            nym_authenticator_client::RegistrationError::CredentialSpent { source } => {
+            nym_authenticator_client::RegistrationError::CredentialSent { source } => {
                 if entry {
                     Self::WireguardEntryRegistrationCredentialSpent {
                         gateway_id,

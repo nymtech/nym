@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::models::{
-    BasicTicketbookInformation, EmergencyCredential, RawCoinIndexSignatures,
-    RawExpirationDateSignatures, RawVerificationKey, StoredIssuedTicketbook,
-    StoredPendingTicketbook,
+    BasicTicketbookInformation, EmergencyCredential, EmergencyCredentialContent,
+    RawCoinIndexSignatures, RawExpirationDateSignatures, RawVerificationKey,
+    StoredIssuedTicketbook, StoredPendingTicketbook,
 };
 use nym_ecash_time::Date;
 use sqlx::{Executor, Sqlite, Transaction};
@@ -328,7 +328,7 @@ impl SqliteEcashTicketbookManager {
 
     pub(crate) async fn insert_emergency_credential(
         &self,
-        credential: &EmergencyCredential,
+        credential: &EmergencyCredentialContent,
     ) -> Result<(), sqlx::Error> {
         sqlx::query!(
             r#"
@@ -339,6 +339,35 @@ impl SqliteEcashTicketbookManager {
             credential.typ,
             credential.content,
             credential.expiration,
+        )
+        .execute(&*self.connection_pool)
+        .await?;
+        Ok(())
+    }
+
+    pub(crate) async fn remove_emergency_credential(&self, id: i64) -> Result<(), sqlx::Error> {
+        sqlx::query!(
+            r#"
+                DELETE FROM emergency_credential
+                WHERE id = ?
+            "#,
+            id
+        )
+        .execute(&*self.connection_pool)
+        .await?;
+        Ok(())
+    }
+
+    pub(crate) async fn remove_emergency_credentials_of_type(
+        &self,
+        typ: &str,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query!(
+            r#"
+                DELETE FROM emergency_credential
+                WHERE type = ?
+            "#,
+            typ
         )
         .execute(&*self.connection_pool)
         .await?;

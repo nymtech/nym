@@ -52,7 +52,7 @@ where
             return Ok(None);
         };
         // upgrade mode credential is just a simple stringified JWT
-        let token = String::from_utf8(emergency_credential.content)
+        let token = String::from_utf8(emergency_credential.data.content)
             .map_err(|_| BandwidthControllerError::MalformedUpgradeModeToken)?;
         Ok(Some(token))
     }

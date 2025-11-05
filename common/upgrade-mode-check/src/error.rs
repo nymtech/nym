@@ -9,6 +9,9 @@ pub enum UpgradeModeCheckError {
     #[error("failed to decode jwt metadata: {source}")]
     TokenMetadataDecodeFailure { source: jwt_simple::Error },
 
+    #[error("the upgrade mode JWT is malformed")]
+    MalformedToken,
+
     #[error("the jwt metadata didn't contain explicit public key")]
     MissingTokenPublicKey,
 

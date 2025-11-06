@@ -146,6 +146,7 @@ pub struct TestedNodeDetails {
     authenticator_address: Option<Recipient>,
     authenticator_version: AuthenticatorVersion,
     ip_address: Option<IpAddr>,
+    lp_address: Option<std::net::SocketAddr>,
 }
 
 pub struct Probe {
@@ -361,6 +362,7 @@ impl Probe {
                         },
                         as_exit: None,
                         wg: None,
+                        lp: None,
                     },
                 });
             }
@@ -383,6 +385,7 @@ impl Probe {
                     },
                     as_exit: None,
                     wg: None,
+                    lp: None,
                 }),
                 mixnet_client,
             )
@@ -449,9 +452,42 @@ impl Probe {
             WgProbeResults::default()
         };
 
+        // Test LP registration if node has LP address
+        let lp_outcome = if let (Some(lp_address), Some(ip_address)) =
+            (node_info.lp_address, node_info.ip_address)
+        {
+            info!("Node has LP address, testing LP registration...");
+
+            // Prepare bandwidth credential for LP registration
+            let config = nym_validator_client::nyxd::Config::try_from_nym_network_details(
+                &NymNetworkDetails::new_from_env(),
+            )?;
+            let client =
+                nym_validator_client::nyxd::NyxdClient::connect(config, nyxd_url.as_str())?;
+            let bw_controller = nym_bandwidth_controller::BandwidthController::new(
+                storage.credential_store().clone(),
+                client,
+            );
+
+            let outcome = lp_registration_probe(
+                node_info.identity,
+                lp_address,
+                ip_address,
+                &bw_controller,
+            )
+            .await
+            .unwrap_or_default();
+
+            Some(outcome)
+        } else {
+            info!("Node does not have LP address, skipping LP registration test");
+            None
+        };
+
         // Disconnect the mixnet client gracefully
         outcome.map(|mut outcome| {
             outcome.wg = Some(wg_outcome);
+            outcome.lp = lp_outcome;
             ProbeResult {
                 node: node_info.identity.to_string(),
                 used_entry: mixnet_entry_gateway_id.to_string(),
@@ -676,6 +712,135 @@ async fn wg_probe(
     Ok(wg_outcome)
 }
 
+async fn lp_registration_probe<St>(
+    gateway_identity: NodeIdentity,
+    gateway_lp_address: std::net::SocketAddr,
+    gateway_ip: IpAddr,
+    bandwidth_controller: &nym_bandwidth_controller::BandwidthController<
+        nym_validator_client::nyxd::NyxdClient<nym_validator_client::HttpRpcClient>,
+        St,
+    >,
+) -> anyhow::Result<types::LpProbeResults>
+where
+    St: nym_sdk::mixnet::CredentialStorage + Clone + Send + Sync + 'static,
+    <St as nym_sdk::mixnet::CredentialStorage>::StorageError: Send + Sync,
+{
+    use nym_lp::keypair::{Keypair as LpKeypair, PublicKey as LpPublicKey};
+    use nym_registration_client::LpRegistrationClient;
+
+    info!("Starting LP registration probe for gateway at {}", gateway_lp_address);
+
+    let mut lp_outcome = types::LpProbeResults::default();
+
+    // Generate LP keypair for this connection
+    let client_lp_keypair = std::sync::Arc::new(LpKeypair::default());
+
+    // Derive gateway LP public key from gateway identity (as done in registration-client)
+    let gateway_lp_key = match LpPublicKey::from_bytes(&gateway_identity.to_bytes()) {
+        Ok(key) => key,
+        Err(e) => {
+            let error_msg = format!("Failed to derive gateway LP key: {}", e);
+            error!("{}", error_msg);
+            lp_outcome.error = Some(error_msg);
+            return Ok(lp_outcome);
+        }
+    };
+
+    // Create LP registration client
+    let mut client = LpRegistrationClient::new_with_default_psk(
+        client_lp_keypair,
+        gateway_lp_key,
+        gateway_lp_address,
+        gateway_ip,
+    );
+
+    // Step 1: Connect to gateway
+    info!("Connecting to LP listener at {}...", gateway_lp_address);
+    match client.connect().await {
+        Ok(_) => {
+            info!("Successfully connected to LP listener");
+            lp_outcome.can_connect = true;
+        }
+        Err(e) => {
+            let error_msg = format!("Failed to connect to LP listener: {}", e);
+            error!("{}", error_msg);
+            lp_outcome.error = Some(error_msg);
+            return Ok(lp_outcome);
+        }
+    }
+
+    // Step 2: Perform handshake
+    info!("Performing LP handshake...");
+    match client.perform_handshake().await {
+        Ok(_) => {
+            info!("LP handshake completed successfully");
+            lp_outcome.can_handshake = true;
+        }
+        Err(e) => {
+            let error_msg = format!("LP handshake failed: {}", e);
+            error!("{}", error_msg);
+            lp_outcome.error = Some(error_msg);
+            return Ok(lp_outcome);
+        }
+    }
+
+    // Step 3: Send registration request
+    info!("Sending LP registration request...");
+
+    // Generate WireGuard keypair for dVPN registration
+    let mut rng = rand::thread_rng();
+    let wg_keypair = nym_crypto::asymmetric::x25519::KeyPair::new(&mut rng);
+
+    // Convert gateway identity to ed25519 public key
+    let gateway_ed25519_pubkey = match nym_crypto::asymmetric::ed25519::PublicKey::from_bytes(&gateway_identity.to_bytes()) {
+        Ok(key) => key,
+        Err(e) => {
+            let error_msg = format!("Failed to convert gateway identity: {}", e);
+            error!("{}", error_msg);
+            lp_outcome.error = Some(error_msg);
+            return Ok(lp_outcome);
+        }
+    };
+
+    match client.send_registration_request(
+        &wg_keypair,
+        &gateway_ed25519_pubkey,
+        bandwidth_controller,
+        TicketType::V1WireguardEntry,
+    ).await {
+        Ok(_) => {
+            info!("LP registration request sent successfully");
+        }
+        Err(e) => {
+            let error_msg = format!("Failed to send LP registration request: {}", e);
+            error!("{}", error_msg);
+            lp_outcome.error = Some(error_msg);
+            return Ok(lp_outcome);
+        }
+    }
+
+    // Step 4: Receive registration response
+    info!("Waiting for LP registration response...");
+    match client.receive_registration_response().await {
+        Ok(gateway_data) => {
+            info!("LP registration successful! Received gateway data:");
+            info!("  - Gateway public key: {:?}", gateway_data.public_key);
+            info!("  - Private IPv4: {}", gateway_data.private_ipv4);
+            info!("  - Private IPv6: {}", gateway_data.private_ipv6);
+            info!("  - Endpoint: {}", gateway_data.endpoint);
+            lp_outcome.can_register = true;
+        }
+        Err(e) => {
+            let error_msg = format!("Failed to receive LP registration response: {}", e);
+            error!("{}", error_msg);
+            lp_outcome.error = Some(error_msg);
+            return Ok(lp_outcome);
+        }
+    }
+
+    Ok(lp_outcome)
+}
+
 fn mixnet_debug_config(
     min_gateway_performance: Option<u8>,
     ignore_egress_epoch_role: bool,
@@ -722,6 +887,7 @@ async fn do_ping(
             as_entry: entry,
             as_exit: exit,
             wg: None,
+            lp: None,
         }),
         mixnet_client,
     )

@@ -13,7 +13,7 @@ use nym_sdk::mixnet::{EventReceiver, MixnetClient, Recipient};
 use std::sync::Arc;
 
 use crate::config::RegistrationClientConfig;
-use crate::lp_client::{LpClientError, LpRegistrationClient, LpTransport};
+use crate::lp_client::{LpClientError, LpTransport};
 
 mod builder;
 mod config;
@@ -28,7 +28,7 @@ pub use builder::config::{
 };
 pub use config::RegistrationMode;
 pub use error::RegistrationClientError;
-pub use lp_client::LpConfig;
+pub use lp_client::{LpConfig, LpRegistrationClient};
 pub use types::{
     LpRegistrationResult, MixnetRegistrationResult, RegistrationResult, WireguardRegistrationResult,
 };

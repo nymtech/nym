@@ -118,12 +118,17 @@ impl DirectoryNode {
             .first()
             .copied();
 
+        // Derive LP address from gateway IP + default LP control port (41264)
+        // TODO: Update this when LP address is exposed in node description API
+        let lp_address = ip_address.map(|ip| std::net::SocketAddr::new(ip, 41264));
+
         Ok(TestedNodeDetails {
             identity: self.identity(),
             exit_router_address,
             authenticator_address,
             authenticator_version,
             ip_address,
+            lp_address,
         })
     }
 }

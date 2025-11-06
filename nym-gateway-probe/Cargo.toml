@@ -59,6 +59,9 @@ nym-credentials = { path = "../common/credentials" }
 nym-http-api-client-macro = { path = "../common/http-api-client-macro" }
 nym-http-api-client = { path = "../common/http-api-client" }
 nym-node-status-client = { path = "../nym-node-status-api/nym-node-status-client" }
+nym-registration-client = { path = "../nym-registration-client" }
+nym-lp = { path = "../common/nym-lp" }
+nym-registration-common = { path = "../common/registration" }
 
 # TEMP: REMOVE BEFORE PR
 nym-topology = { path = "../common/topology" }

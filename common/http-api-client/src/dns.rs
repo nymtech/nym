@@ -157,7 +157,7 @@ async fn resolve(
     // Attempt a lookup using the primary resolver
     let resolve_fut = tokio::time::timeout(overall_dns_timeout, resolver.lookup_ip(name.as_str()));
     let primary_err = match resolve_fut.await {
-        Err(_) => return Err(ResolveError::Timeout.into()),
+        Err(_) => return Err(ResolveError::Timeout),
         Ok(Ok(lookup)) => {
             let addrs: Addrs = Box::new(SocketAddrs {
                 iter: lookup.into_iter(),
@@ -179,7 +179,8 @@ async fn resolve(
         let resolver =
             fallback.get_or_try_init(|| HickoryDnsResolver::new_resolver_system(independent))?;
 
-        if let Ok(lookup) = resolver.lookup_ip(name.as_str()).await {
+        let resolve_fut = tokio::time::timeout(overall_dns_timeout, resolver.lookup_ip(name.as_str()));
+        if let Ok(Ok(lookup)) = resolve_fut.await {
             let addrs: Addrs = Box::new(SocketAddrs {
                 iter: lookup.into_iter(),
             });

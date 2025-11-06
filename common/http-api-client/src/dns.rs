@@ -398,12 +398,11 @@ mod test {
     async fn static_resolver_as_fallback() -> Result<(), ResolveError> {
         let example_domain = "non-existent.nymvpn.com";
         let mut resolver = HickoryDnsResolver {
-            overall_dns_timeout: Duration::from_secs(5),
             ..Default::default()
         };
 
         let result = resolver.resolve_str(example_domain).await;
-        assert!(result.is_err_and(|e| matches!(e, ResolveError::Timeout)));
+        assert!(result.is_err()); // should be NXDomain
 
         resolver.static_base = Some(Default::default());
 

@@ -36,7 +36,7 @@ pub enum RegistrationClientError {
     Timeout(#[from] tokio::time::error::Elapsed),
 
     #[error(
-        "failed to register wireguard with the gateway for {gateway_id}, no credential was spent"
+        "failed to register wireguard with the gateway for {gateway_id}, no credential was sent"
     )]
     WireguardEntryRegistration {
         gateway_id: String,
@@ -46,7 +46,7 @@ pub enum RegistrationClientError {
     },
 
     #[error(
-        "failed to register wireguard with the gateway for {gateway_id}, no credential was spent"
+        "failed to register wireguard with the gateway for {gateway_id}, no credential was sent"
     )]
     WireguardExitRegistration {
         gateway_id: String,
@@ -56,9 +56,9 @@ pub enum RegistrationClientError {
     },
 
     #[error(
-        "failed to register wireguard with the gateway for {gateway_id}, a credential was spent"
+        "failed to register wireguard with the gateway for {gateway_id}, a credential was sent"
     )]
-    WireguardEntryRegistrationCredentialSpent {
+    WireguardEntryRegistrationCredentialSent {
         gateway_id: String,
         authenticator_address: Box<nym_sdk::mixnet::Recipient>,
         #[source]
@@ -66,9 +66,9 @@ pub enum RegistrationClientError {
     },
 
     #[error(
-        "failed to register wireguard with the gateway for {gateway_id}, a credential was spent"
+        "failed to register wireguard with the gateway for {gateway_id}, a credential was sent"
     )]
-    WireguardExitRegistrationCredentialSpent {
+    WireguardExitRegistrationCredentialSent {
         gateway_id: String,
         authenticator_address: Box<nym_sdk::mixnet::Recipient>,
         #[source]
@@ -101,13 +101,13 @@ impl RegistrationClientError {
             }
             nym_authenticator_client::RegistrationError::CredentialSent { source } => {
                 if entry {
-                    Self::WireguardEntryRegistrationCredentialSpent {
+                    Self::WireguardEntryRegistrationCredentialSent {
                         gateway_id,
                         authenticator_address: Box::new(authenticator_address),
                         source: Box::new(source),
                     }
                 } else {
-                    Self::WireguardExitRegistrationCredentialSpent {
+                    Self::WireguardExitRegistrationCredentialSent {
                         gateway_id,
                         authenticator_address: Box::new(authenticator_address),
                         source: Box::new(source),

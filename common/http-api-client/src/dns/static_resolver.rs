@@ -29,6 +29,7 @@ impl StaticResolver {
 
 impl Resolve for StaticResolver {
     fn resolve(&self, name: Name) -> Resolving {
+        debug!("looking up {name:?} in static resolver");
         let addr_map = self.static_addr_map.clone();
         Box::pin(async move {
             let addr_map = addr_map.lock().unwrap();

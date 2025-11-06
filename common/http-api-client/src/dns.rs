@@ -45,7 +45,7 @@ use hickory_resolver::{
 };
 use once_cell::sync::OnceCell;
 use reqwest::dns::{Addrs, Name, Resolve, Resolving};
-use tracing::{info, warn};
+use tracing::*;
 
 mod constants;
 mod static_resolver;
@@ -157,7 +157,7 @@ async fn resolve(
     // Attempt a lookup using the primary resolver
     let resolve_fut = tokio::time::timeout(overall_dns_timeout, resolver.lookup_ip(name.as_str()));
     let primary_err = match resolve_fut.await {
-        Err(_) => return Err(ResolveError::Timeout),
+        Err(_) => ResolveError::Timeout,
         Ok(Ok(lookup)) => {
             let addrs: Addrs = Box::new(SocketAddrs {
                 iter: lookup.into_iter(),
@@ -169,7 +169,7 @@ async fn resolve(
             if !e.is_no_records_found() {
                 warn!("primary DNS failed w/ error: {e}");
             }
-            e
+            e.into()
         }
     };
 
@@ -192,6 +192,7 @@ async fn resolve(
     // If no record has been found and a static map of fallback addresses is configured
     // check the table for our entry
     if let Some(ref static_resolver) = maybe_static {
+        debug!("checking static");
         let resolver =
             static_resolver.get_or_init(|| HickoryDnsResolver::new_static_fallback(independent));
 
@@ -200,7 +201,7 @@ async fn resolve(
         }
     }
 
-    Err(primary_err.into())
+    Err(primary_err)
 }
 
 struct SocketAddrs {
@@ -357,6 +358,7 @@ fn new_default_static_fallback() -> StaticResolver {
 #[cfg(test)]
 mod test {
     use super::*;
+    use itertools::Itertools;
     use std::collections::HashMap;
 
     #[tokio::test]
@@ -393,16 +395,29 @@ mod test {
     }
 
     #[tokio::test]
-    async fn static_resolver_as_fallback() {
-        let mut resolver = HickoryDnsResolver::default();
+    async fn static_resolver_as_fallback() -> Result<(), ResolveError> {
+        let example_domain = "non-existent.nymvpn.com";
+        let mut resolver = HickoryDnsResolver {
+            overall_dns_timeout: Duration::from_secs(5),
+            ..Default::default()
+        };
 
-        let addr_map = HashMap::new();
-        let fallback = StaticResolver::new(addr_map);
+        let result = resolver.resolve_str(example_domain).await;
+        assert!(result.is_err_and(|e| matches!(e, ResolveError::Timeout)));
 
-        let fb = OnceCell::new();
-        fb.set(fallback).expect("infallible assign");
+        resolver.static_base = Some(Default::default());
 
-        resolver.static_base = Some(Arc::new(fb));
+        let mut addr_map = HashMap::new();
+        let example_ip4: IpAddr = "10.10.10.10".parse().unwrap();
+        let example_ip6: IpAddr = "dead::beef".parse().unwrap();
+        addr_map.insert(example_domain.to_string(), vec![example_ip4, example_ip6]);
+
+        resolver.set_static_fallbacks(addr_map);
+
+        let mut addrs = resolver.resolve_str(example_domain).await?;
+        assert!(addrs.contains(&SocketAddr::new(example_ip4, 0)));
+        assert!(addrs.contains(&SocketAddr::new(example_ip6, 0)));
+        Ok(())
     }
 }
 
@@ -455,6 +470,7 @@ mod failure_test {
         let resolver = HickoryDnsResolver {
             dont_use_shared: true,
             state: Arc::new(r),
+            overall_dns_timeout: Duration::from_secs(5),
             ..Default::default()
         };
         build_broken_resolver()?;
@@ -464,6 +480,37 @@ mod failure_test {
 
         let duration = time_start.elapsed();
         assert!(duration < resolver.overall_dns_timeout + Duration::from_secs(1));
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn fallback_to_static() -> Result<(), ResolveError> {
+        let r = OnceCell::new();
+        r.set(build_broken_resolver().expect("failed to build resolver"))
+            .expect("broken resolver init error");
+
+        // create a new resolver that won't mess with the shared resolver used by other tests
+        let resolver = HickoryDnsResolver {
+            dont_use_shared: true,
+            state: Arc::new(r),
+            static_base: Some(Default::default()),
+            overall_dns_timeout: Duration::from_secs(5),
+            ..Default::default()
+        };
+        build_broken_resolver()?;
+
+        // successful lookup using fallback to static resolver
+        let domain = "nymvpn.com";
+        let _ = resolver
+            .resolve_str(domain)
+            .await
+            .expect("failed to resolve address in static lookup");
+
+        // unsuccessful lookup - primary times out, and not in
+        let domain = "non-existent.nymtech.net";
+        let result = resolver.resolve_str(domain).await;
+        assert!(result.is_err_and(|e| matches!(e, ResolveError::Timeout)));
 
         Ok(())
     }

@@ -17,6 +17,7 @@ use nym_ip_packet_requests::{
     },
     IpPair,
 };
+use nym_network_defaults::setup_env;
 use nym_sphinx::receiver::ReconstructedMessageCodec;
 
 use futures::StreamExt;
@@ -49,6 +50,8 @@ pub enum ConnectionState {
 }
 
 // TODO INLINE DOCS
+// TODO MAKE NETWORK CONFIGURABLE
+// TODO USERAGENT
 
 fn create_nym_api_client(nym_api_urls: Vec<ApiUrl>) -> Result<nym_http_api_client::Client, Error> {
     // TODO do something proper with this
@@ -149,7 +152,6 @@ pub struct IpMixStream {
 }
 
 impl IpMixStream {
-    // TODO be able to pass in DisconnectedMixnetClient to use as MixStream inner client.
     pub async fn new() -> Result<Self, Error> {
         // JS: I think you need some bootstrapping here, something would need to be passed to `new()`
         // to indicate what endpoints to use
@@ -159,7 +161,7 @@ impl IpMixStream {
         let api_client =
             create_nym_api_client(mainnet_network_defaults.nym_api_urls.unwrap_or_default())?;
         let ipr_address = get_random_ipr(api_client).await?;
-        let stream = MixStream::new(None, Some(Recipient::from(ipr_address))).await;
+        let stream = MixStream::new(None, Some(Recipient::from(ipr_address)), None).await;
 
         Ok(Self {
             stream,

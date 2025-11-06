@@ -152,6 +152,9 @@ pub enum Error {
 
     #[error("no response id found in connect response")]
     IPRNoId,
+
+    #[error("Could not find peer address or surb tag")]
+    MixStreamNoPeerOrSurb,
 }
 
 impl Error {

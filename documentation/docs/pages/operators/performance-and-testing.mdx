@@ -1,6 +1,7 @@
 import { Callout } from 'nextra/components';
 import { Tabs } from 'nextra/components';
 import { MyTab } from 'components/generic-tabs.tsx';
+import { AccordionTemplate } from 'components/accordion-template.tsx';
 import NodePerfWG from 'components/operators/snippets/node-perf-wg.mdx';
 import NodePerfMixnet from 'components/operators/snippets/node-perf-mixnet.mdx';
 
@@ -27,9 +28,12 @@ Given this complexity, we divided the part below about perfromance calculation l
 
 ## Functionality & Performance Check
 
-If you want to just quickly check your nodes performance, connectivity and much more, visit [harbourmaster.nymtech.net](https://harbourmaster.nymtech.net/).
+If you want to check your nodes performance, connectivity and much more, see some of the dashobards:
 
-For more information about available endpoints and their status, you can refer to:
+- [Node Status dashboard](https://node-status.nym.com/dvpn): Shows latest probe results on one board
+- [Nym Node Status Observatory](https://harbourmaster.nymtech.net): New version of a good old Nym Harbourmaster, allowing operators preview stats of each node
+
+For more information about available endpoints and their status, you can refer to [`nymvpn.com/api/public/v1/directory/gateways`](https://nymvpn.com/api/public/v1/directory/gateways) or see directly self described endpoints of your node:
 ```sh
 # sustitude <IPv4_ADDRESS> or <HOSTNAME> with the one corresponding to your node
 # for http
@@ -40,7 +44,7 @@ http://<IPv4_ADDRESS>/api/v1/swagger/#/
 # for reversed proxy/WSS
 https://<HOSTNAME>/api/v1/swagger/#/
 ```
-
+<AccordionTemplate name="✏️ Example: Accessing self-described endpoints">
 For example to determine which mode your node is running, you can check the `:8080/api/v1/roles` endpoint:
 ```sh
 # sustitude <IPv4_ADDRESS> or <HOSTNAME> with the one corresponding to your node
@@ -52,8 +56,7 @@ http://<IPv4_ADDRESS>/api/v1/roles
 # for reversed proxy/WSS
 https://<HOSTNAME>/api/v1/roles
 ```
-
-
+</AccordionTemplate>
 
 ## Monitoring
 

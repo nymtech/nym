@@ -54,7 +54,7 @@ Calculated by mixnet performance score multiplied by WireGuard performance, this
 - <Green>High</Green>: `> 75%`
 - <Yellow>Medium</Yellow>: `> 50%`
 - <Red>Low</Red>: > `10%`
-- <Gray>Offline</Gray>: ≤ `10%`
+- <Gray>Offline</Gray>: `≤ 10%`
 
 - **Download speed scoring:** 
 <Callout type="info" emoji="📌">
@@ -65,8 +65,7 @@ Calculated by mixnet performance score multiplied by WireGuard performance, this
 > **otherwise = 0.1**
 </Callout>
 
-
-###### 2. Server Load
+###### 2. Server Load:
 
 A load indicator based on ping success
 
@@ -84,16 +83,17 @@ A routing score of Mixnet (5-hop) is indicated this way:
 
 </Steps>
 
-See the [section below](#gateway-roles--requirements) to understand how these stats get measured.
+Note that there are caches in place to keep various dept of details to provide info for different pieces of the software. Their timing differs and it can lead to small discrepancies of outcome in between multiple clients observed by users at the same time.
+
+See the [*Gateway Roles & Requirements*](#gateway-roles--requirements) to understand how these stats get measured.
 
 <Callout>
 You can find more details [directly in the code](https://github.com/nymtech/nym-vpn-client/blob/develop/nym-vpn-app/src/hooks/useScore.ts#L10).
 </Callout>
 
-
 ### Gateway Roles & Requirements
 
-Here is a basic node configuration break down coming alongside basic [server configuration](/operators/nodes/preliminary-steps/vps-setup) required for the nodes to work in the those specific roles:
+A node configuration break down coming alongside basic [server configuration](/operators/nodes/preliminary-steps/vps-setup) required for the nodes in specific roles:
 
 - **Entry Gateway - Mixnet:**
     - Node configured (running with `--mode` argument) as `entry-gateway` or `exit-gateway` (as Exit works as Entry too)
@@ -117,10 +117,12 @@ Here is a basic node configuration break down coming alongside basic [server con
 
 ### How Probe Works
 
-Nym Gateway probe is perfomance measurement program running tests through various routes following the order of events described below. Operators can runn their [local instance of Gateway probe](/operators/nodes/performance-and-testing/gateway-probe) or use visit of our dashboards to conveniently see probe results.
+Nym Gateway probe is perfomance measurement program running tests through various routes. Operators can run their [local instance of Gateway probe](/operators/nodes/performance-and-testing/gateway-probe) or use visit of our dashboards to conveniently see probe results.
 
 - [Node Status dashboard](https://node-status.nym.com/dvpn): Shows latest probe results on one board
 - [Nym Node Status Observatory](https://harbourmaster.nymtech.net): New version of a good old Nym Harbourmaster, allowing operators preview stats of each node
+
+The following sections explain what is measured in order to collect stats to the [API enpoint](https://nymvpn.com/api/public/v1/directory/gateways) and in the section [*Complete Setup Checklist*](#complete-setup-checklist) below you can see the order of measurements.
 
 #### Entry Gateway - Mixnet (5-hop)
 
@@ -131,7 +133,7 @@ Nym Gateway probe is perfomance measurement program running tests through variou
 
 **To Pass:**
 
-- Expose correct WS/WSS ports (9000/9001)
+- Expose correct `WS` and or `WSS` ports (`9000`/ `9001`)
 - Ensure DNS A/AAAA records resolve correctly
 - Verify IPv6 is actually reachable (not just in DNS)
 - Keep node online and monitor packet loss
@@ -172,43 +174,48 @@ Nym Gateway probe is perfomance measurement program running tests through variou
 - Ensure DNS resolvers are reliable
 - Pass the `--wireguard-enabled true` flag in the node config
 
-### **Probe Freshness**
+### Probe Freshness
 
 - Probes run continuously; each node is typically tested every ~2 hours
 - If a probe fails or times out, the gateway will have stale probe data until the next successful probe completes
-- **`last_updated_utc`**: Timestamp indicating when the last successful probe test completed
+- `last_updated_utc`: Timestamp indicating when the last successful probe test completed
 
----
+See [*Complete Setup Checklist*(#complete-setup-checklist) to understand the order of tests.
 
----
+### Complete Setup Checklist
 
-## **Complete Setup Checklist**
+**If one test fails, the following points don't get checked! **
 
-### **On-Chain & Configuration**
-- [ ] Bonded on-chain with correct role (`exit-gateway`) and correct ports opened/exposed
+#### On-Chain & Configuration
+
+- [ ] [Bonded on-chain](/operators/nodes/nym-node/bonding) with [correct role](/operators/nodes/nym-node/setup#functionality-mode) (`exit-gateway`) and correct ports opened exposed
 - [ ] Self-description endpoint is reachable
-- [ ] T&Cs accepted
+- [ ] [T&Cs accepted](/operators/nodes/nym-node/setup#terms--conditions)
 
-### **Network & Ports**
-- [ ] **Mixnet**: Port 1789 (mixnet) accessible; ports 9000 (WS) and 9001 (WSS) accessible with valid TLS for WSS
-- [ ] **QUIC bridge** (if used): UDP 4443 with valid addresses and SNI host
-- [ ] **WireGuard**: UDP 51822 open (public); TCP 51830 accessible inside WireGuard tunnel (10.1.0.1:51830); `--wireguard-enabled true` set in node config
-- [ ] **Exit (IPR)**: IPv4 and IPv6 routing to external internet configured
+#### Network & Ports
+
+- [ ] **Mixnet**: Port `1789` (mixnet) accessible; ports `9000` (`WS`) and `9001` (`WSS`) accessible with valid [TLS for WSS](/operators/nodes/nym-node/configuration/proxy-configuration#reverse-proxy-configuration)
+- [ ] [**QUIC bridge**](/operators/nodes/nym-node/configuration#quic-transport-bridge-deployment) (if used): UDP 4443 with valid addresses and SNI host
+- [ ] [**WireGuard**](/operators/nodes/nym-node/configuration#routing-configuration): `UDP 51822` open (public); `TCP 51830` accessible [inside WireGuard tunnel](/operators/nodes/nym-node/configuration#fixing-metadata-port-showing-not-open-in-probe-results) (`10.1.0.1:51830`); `--wireguard-enabled true` set in node config
+- [ ] **Exit (IPR)**: [IPv4 and IPv6](/operators/nodes/nym-node/configuration#routing-configuration) routing to external internet configured
 - [ ] **DNS**: A/AAAA records correct; IPv6 actually reachable (test, don't just add DNS)
 
-### **Performance Targets**
-- [ ] Achieve ≥60% mixnet performance (Medium)
-- [ ] Aim for ≥80% (High) for optimal visibility
+#### Performance Targets
+
+- [ ] Achieve `≥ 60%` mixnet performance (Medium)
+- [ ] Aim for `≥ 80%` (High) for optimal visibility
 - [ ] Keep latency and packet loss low (excessive load reduces performance scores)
 - [ ] Keep uptime high (network monitor tracks this)
 
-### **Probe Results (Verify All Pass)**
-- [ ] Entry: `can_connect=true` AND `can_route=true`
-- [ ] Exit: `can_connect=true` AND all v4/v6 routing flags are `true`
-- [ ] WireGuard: `can_register`, `can_handshake`, `can_resolve_dns`, and `can_query_metadata_v4` all pass; ping metrics healthy
+#### Probe Results (Verify All Pass)
 
-### **Recommended**
-- [ ] WSS enabled (connections may fail on clients if only WS is available)
-- [ ] QUIC bridge operational (ensures your node appears when users enable QUIC only filter on the app)
+- [ ] Entry: `can_connect=true` and `can_route=true`
+- [ ] Exit: `can_connect=true` and all v4/v6 routing flags are `true`
+- [ ] WireGuard: `can_register`, `can_handshake`, `can_resolve_dns`, and `can_query_metadata_v4` all pass; ping metrics good
+
+#### Recommended
+
+- [ ] [WSS enabled](/operators/nodes/nym-node/configuration/proxy-configuration) (connections may fail on clients if only WS is available)
+- [ ] [QUIC bridge](/operators/nodes/nym-node/configuration#quic-transport-bridge-deployment) operational (ensures your node appears when users enable QUIC only filter on the app)
 - [ ] Accurate geo/IP information (country/region/residential filters rely on this)
-- [ ] Stay on most recent supported binary version (old versions are penalised)
+- [ ] Stay on most recent supported binary version - [old versions are penalised](/operators/nodes/performance-and-testing#versions-behind-calculation)

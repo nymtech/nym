@@ -164,7 +164,7 @@ impl Resolve for HickoryDnsResolver {
                         Ok(SHARED_RESOLVER
                             .fallback
                             .as_ref()
-                            .ok_or(primary_err)? // if the shared resolver has no fallback return the original error
+                            .ok_or(primary_err.clone())? // if the shared resolver has no fallback return the original error
                             .get_or_try_init(new_resolver_system)?
                             .clone())
                     }
@@ -190,7 +190,7 @@ impl Resolve for HickoryDnsResolver {
                 });
 
                 if let Ok(addrs) = resolver.resolve(name).await {
-                    return Ok(addrs.into());
+                    return Ok(addrs);
                 }
             }
 
@@ -285,9 +285,19 @@ impl HickoryDnsResolver {
         self.fallback = None;
     }
 
-    pub fn get_static_fallbacks(&self) -> Option<HashMap<String, Vec<IpAddr>>> {}
+    /// Get the current map of hostname to address in use by the fallback static lookup if one
+    /// exists.
+    pub fn get_static_fallbacks(&self) -> Option<HashMap<String, Vec<IpAddr>>> {
+        Some(self.static_base.as_ref()?.get()?.get_addrs())
+    }
 
-    pub fn set_static_fallbacks(&mut self, addrs: HashMap<String, Vec<IpAddr>>) {}
+    /// Set (or overwrite) the map of addresses used in the fallback static hostname lookup
+    pub fn set_static_fallbacks(&mut self, addrs: HashMap<String, Vec<IpAddr>>) {
+        let cell = OnceCell::new();
+        cell.set(StaticResolver::new(addrs))
+            .expect("infallible assign");
+        self.static_base = Some(Arc::new(cell));
+    }
 }
 
 /// Create a new resolver with a custom DoT based configuration. The options are overridden to look
@@ -335,7 +345,7 @@ fn new_resolver_system() -> Result<TokioResolver, ResolveError> {
 }
 
 fn new_default_static_fallback() -> StaticResolver {
-    StaticResolver::new(constants::DEFAULT_STATIC_ADDRS)
+    StaticResolver::new(constants::default_static_addrs())
 }
 
 #[cfg(test)]
@@ -384,7 +394,7 @@ mod test {
         let fallback = StaticResolver::new(addr_map);
 
         let fb = OnceCell::new();
-        fb.set(fallback);
+        fb.set(fallback).expect("infallible assign");
 
         resolver.static_base = Some(Arc::new(fb));
     }

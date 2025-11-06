@@ -54,7 +54,7 @@ pub enum GatewayClientError {
 
     #[cfg(not(target_arch = "wasm32"))]
     #[error("resolution failed: {0}")]
-    ResolutionFailed(#[from] nym_http_api_client::HickoryDnsError),
+    ResolutionFailed(#[from] nym_http_api_client::ResolveError),
 
     #[error("No shared key was provided or obtained")]
     NoSharedKeyAvailable,

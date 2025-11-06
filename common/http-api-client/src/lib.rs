@@ -179,7 +179,7 @@ mod dns;
 mod path;
 
 #[cfg(not(target_arch = "wasm32"))]
-pub use dns::{HickoryDnsError, HickoryDnsResolver};
+pub use dns::{HickoryDnsResolver, ResolveError};
 
 // helper for generating user agent based on binary information
 #[cfg(not(target_arch = "wasm32"))]

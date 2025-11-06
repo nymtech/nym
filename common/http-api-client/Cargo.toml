@@ -33,7 +33,6 @@ tracing = { workspace = true }
 itertools = { workspace = true }
 inventory = { workspace = true }
 tokio = { workspace = true, features = ["rt", "macros", "time"] }
-
 # used for decoding text responses (they were already implicitly included)
 bytes = { workspace = true }
 encoding_rs = { workspace = true }

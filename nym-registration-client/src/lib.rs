@@ -162,20 +162,22 @@ impl RegistrationClient {
 
         let entry = entry.map_err(|source| RegistrationError {
             mixnet_client: None,
-            source: RegistrationClientError::EntryGatewayRegisterWireguard {
-                gateway_id: self.config.entry.node.identity.to_base58_string(),
-                authenticator_address: Box::new(entry_auth_address),
-                source: Box::new(source),
-            },
+            source: RegistrationClientError::from_authenticator_error(
+                source,
+                self.config.entry.node.identity.to_base58_string(),
+                entry_auth_address,
+                true,
+            ),
         })?;
 
         let exit = exit.map_err(|source| RegistrationError {
             mixnet_client: None,
-            source: RegistrationClientError::EntryGatewayRegisterWireguard {
-                gateway_id: self.config.exit.node.identity.to_base58_string(),
-                authenticator_address: Box::new(exit_auth_address),
-                source: Box::new(source),
-            },
+            source: RegistrationClientError::from_authenticator_error(
+                source,
+                self.config.exit.node.identity.to_base58_string(),
+                exit_auth_address,
+                false,
+            ),
         })?;
 
         Ok(RegistrationResult::Wireguard(Box::new(

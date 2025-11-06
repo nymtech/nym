@@ -6,7 +6,10 @@ use nym_wireguard_types::PeerPublicKey;
 
 use crate::{
     AuthenticatorVersion, Error,
-    traits::{FinalMessage, InitMessage, QueryBandwidthMessage, TopUpMessage, Versionable},
+    traits::{
+        FinalMessage, InitMessage, QueryBandwidthMessage, TopUpMessage, UpgradeModeMessage,
+        Versionable,
+    },
     v2, v3, v4, v5, v6,
 };
 
@@ -18,6 +21,7 @@ pub enum ClientMessage {
     Final(Box<dyn FinalMessage + Send + Sync + 'static>),
     Query(Box<dyn QueryBandwidthMessage + Send + Sync + 'static>),
     TopUp(Box<dyn TopUpMessage + Send + Sync + 'static>),
+    UpgradeModeCheck(Box<dyn UpgradeModeMessage + Send + Sync + 'static>),
 }
 
 pub struct SerialisedRequest {
@@ -131,6 +135,7 @@ impl ClientMessage {
                 );
                 Ok(SerialisedRequest::new(req.to_bytes()?, id))
             }
+            _ => Err(Error::UnsupportedMessage),
         }
     }
 
@@ -189,6 +194,7 @@ impl ClientMessage {
                 );
                 Ok(SerialisedRequest::new(req.to_bytes()?, id))
             }
+            _ => Err(Error::UnsupportedMessage),
         }
     }
 
@@ -237,6 +243,7 @@ impl ClientMessage {
                 });
                 Ok(SerialisedRequest::new(req.to_bytes()?, id))
             }
+            _ => Err(Error::UnsupportedMessage),
         }
     }
 
@@ -245,6 +252,7 @@ impl ClientMessage {
             registration::{ClientMac, FinalMessage, GatewayClient, InitMessage, IpPair},
             request::AuthenticatorRequest,
             topup::TopUpMessage,
+            upgrade_mode_check::UpgradeModeCheckRequest,
         };
         match self {
             ClientMessage::Initial(init_message) => {
@@ -282,6 +290,22 @@ impl ClientMessage {
                 });
                 Ok(SerialisedRequest::new(req.to_bytes()?, id))
             }
+            ClientMessage::UpgradeModeCheck(upgrade_mode_check) => {
+                // currently JWT is the only emergency credential option
+                let Some(upgrade_mode_jwt) =
+                    upgrade_mode_check.upgrade_mode_global_attestation_jwt()
+                else {
+                    return Err(Error::conversion(
+                        "no valid known upgrade mode check variants",
+                    ));
+                };
+                let msg = UpgradeModeCheckRequest::UpgradeModeJwt {
+                    token: upgrade_mode_jwt,
+                };
+
+                let (req, id) = AuthenticatorRequest::new_upgrade_mode_check_request(msg);
+                Ok(SerialisedRequest::new(req.to_bytes()?, id))
+            }
         }
     }
 }
@@ -292,7 +316,7 @@ impl ClientMessage {
         match self {
             Self::Final(msg) => msg.credential().is_some(),
             Self::TopUp(_) => true,
-            Self::Initial(_) | Self::Query(_) => false,
+            Self::Initial(_) | Self::Query(_) | Self::UpgradeModeCheck(_) => false,
         }
     }
 
@@ -302,6 +326,7 @@ impl ClientMessage {
             ClientMessage::Final(msg) => msg.version(),
             ClientMessage::Query(msg) => msg.version(),
             ClientMessage::TopUp(msg) => msg.version(),
+            ClientMessage::UpgradeModeCheck(msg) => msg.version(),
         }
     }
 

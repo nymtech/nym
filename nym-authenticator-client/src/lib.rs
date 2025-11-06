@@ -458,4 +458,32 @@ impl AuthenticatorClient {
             current_upgrade_mode_status,
         })
     }
+
+    pub async fn check_upgrade_mode(&mut self, upgrade_mode_jwt: String) -> Result<bool> {
+        let check_um_message = match self.auth_version {
+            AuthenticatorVersion::V1
+            | AuthenticatorVersion::V2
+            | AuthenticatorVersion::V3
+            | AuthenticatorVersion::V4
+            | AuthenticatorVersion::V5
+            | AuthenticatorVersion::UNKNOWN => {
+                return Err(Error::UnsupportedAuthenticatorVersion);
+            }
+
+            AuthenticatorVersion::V6 => ClientMessage::UpgradeModeCheck(Box::new(
+                v6::upgrade_mode_check::UpgradeModeCheckRequest::UpgradeModeJwt {
+                    token: upgrade_mode_jwt,
+                },
+            )),
+        };
+
+        let response = self.send_and_wait_for_response(&check_um_message).await?;
+        let AuthenticatorResponse::UpgradeMode(upgrade_mode_check_response) = response else {
+            return Err(Error::InvalidGatewayAuthResponse);
+        };
+
+        Ok(upgrade_mode_check_response
+            .upgrade_mode_status()
+            .is_enabled())
+    }
 }

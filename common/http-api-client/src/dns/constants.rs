@@ -1,9 +1,5 @@
 #![allow(missing_docs)]
-#![allow(unused)]
 
-use crate::dns::ResolveError;
-
-use lazy_static::lazy_static;
 use std::collections::HashMap;
 use std::net::{IpAddr, Ipv4Addr};
 
@@ -53,32 +49,6 @@ pub const NYM_COM_IPS: &[IpAddr] = &[IpAddr::V4(Ipv4Addr::new(76, 76, 21, 22))];
 pub const NYM_STATS_API_DOMAIN: &str = "nym-statistics-api.nymtech.cc";
 pub const NYM_STATS_API_IPS: &[IpAddr] = &[IpAddr::V4(Ipv4Addr::new(91, 92, 153, 96))];
 
-
-lazy_static! {
-    pub static ref DEFAULT_STATIC_ADDRS: HashMap<String, Vec<IpAddr>> = {
-        let mut m = HashMap::new();
-        m.insert(NYM_API_DOMAIN.to_string(), NYM_API_IPS.to_vec());
-        m.insert(NYM_VPN_API_DOMAIN.to_string(), NYM_VPN_API_IPS.to_vec());
-        m.insert(
-            NYM_FRONTDOOR_VERCEL_DOMAIN.to_string(),
-            NYM_FRONTDOOR_VERCEL_IPS.to_vec(),
-        );
-        m.insert(
-            NYM_FRONTDOOR_FASTLY_DOMAIN.to_string(),
-            NYM_FRONTDOOR_FASTLY_IPS.to_vec(),
-        );
-        m.insert(
-            NYMVPN_FRONTDOOR_FASTLY_DOMAIN.to_string(),
-            NYMVPN_FRONTDOOR_FASTLY_IPS.to_vec(),
-        );
-        m.insert(VERCEL_APP_DOMAIN.to_string(), VERCEL_APP_IPS.to_vec());
-        m.insert(VERCEL_COM_DOMAIN.to_string(), VERCEL_COM_IPS.to_vec());
-        m.insert(NYM_COM_DOMAIN.to_string(), NYM_COM_IPS.to_vec());
-        m.insert(NYM_STATS_API_DOMAIN.to_string(), NYM_STATS_API_IPS.to_vec());
-        m
-    };
-}
-
 pub fn default_static_addrs() -> HashMap<String, Vec<IpAddr>> {
     let mut m = HashMap::new();
     m.insert(NYM_API_DOMAIN.to_string(), NYM_API_IPS.to_vec());
@@ -98,5 +68,6 @@ pub fn default_static_addrs() -> HashMap<String, Vec<IpAddr>> {
     m.insert(VERCEL_APP_DOMAIN.to_string(), VERCEL_APP_IPS.to_vec());
     m.insert(VERCEL_COM_DOMAIN.to_string(), VERCEL_COM_IPS.to_vec());
     m.insert(NYM_COM_DOMAIN.to_string(), NYM_COM_IPS.to_vec());
+    m.insert(NYM_STATS_API_DOMAIN.to_string(), NYM_STATS_API_IPS.to_vec());
     m
 }

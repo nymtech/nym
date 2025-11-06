@@ -32,13 +32,15 @@ use crate::ClientBuilder;
 use std::{
     collections::HashMap,
     net::{IpAddr, SocketAddr},
+    str::FromStr,
     sync::{Arc, LazyLock},
+    time::Duration,
 };
 
 use hickory_resolver::{
     TokioResolver,
     config::{LookupIpStrategy, NameServerConfigGroup, ResolverConfig, ServerOrderingStrategy},
-    lookup_ip::{LookupIp, LookupIpIntoIter},
+    lookup_ip::LookupIpIntoIter,
     name_server::TokioConnectionProvider,
 };
 use once_cell::sync::OnceCell;
@@ -76,6 +78,8 @@ static SHARED_RESOLVER: LazyLock<HickoryDnsResolver> = LazyLock::new(|| {
 #[allow(missing_docs)]
 /// Error occurring while resolving a hostname into an IP address.
 pub enum ResolveError {
+    #[error("invalid name: {0}")]
+    InvalidNameError(String),
     #[error("hickory-dns resolver error: {0}")]
     ResolveError(#[from] hickory_resolver::ResolveError),
     #[error("high level lookup timed out")]
@@ -111,6 +115,7 @@ impl Default for HickoryDnsResolver {
         Self {
             state: Default::default(),
             fallback: Default::default(),
+            static_base: Default::default(),
             dont_use_shared: Default::default(),
             overall_dns_timeout: Duration::from_secs(10),
         }
@@ -125,78 +130,75 @@ impl Resolve for HickoryDnsResolver {
         let independent = self.dont_use_shared;
         let overall_dns_timeout = self.overall_dns_timeout;
         Box::pin(async move {
-            let resolver = resolver.get_or_try_init(|| {
-                // using a closure here is slightly gross, but this makes sure that if the
-                // lazy-init returns an error it can be handled by the client
-                if independent {
-                    new_resolver()
-                } else {
-                    Ok(SHARED_RESOLVER.state.get_or_try_init(new_resolver)?.clone())
-                }
-            })?;
-
-            let resolve_fut =
-                tokio::time::timeout(overall_dns_timeout, resolver.lookup_ip(name.as_str()));
-            let primary_err = match resolve_fut.await {
-                Err(_) => return Err(ResolveError::Timeout.into()),
-                Ok(Ok(lookup)) => {
-                    let addrs: Addrs = Box::new(SocketAddrs {
-                        iter: lookup.into_iter(),
-                    });
-                    return Ok(addrs);
-                }
-                Ok(Err(e)) => {
-                    // on failure use the fall back system configured DNS resolver
-                    if !e.is_no_records_found() {
-                        warn!("primary DNS failed w/ error: {e}");
-                    }
-                    e
-                }
-            };
-
-            if let Some(ref fallback) = maybe_fallback {
-                let resolver = fallback.get_or_try_init(|| {
-                    // using a closure here is slightly gross, but this makes sure that if the
-                    // lazy-init returns an error it can be handled by the client
-                    if independent {
-                        new_resolver_system()
-                    } else {
-                        Ok(SHARED_RESOLVER
-                            .fallback
-                            .as_ref()
-                            .ok_or(primary_err.clone())? // if the shared resolver has no fallback return the original error
-                            .get_or_try_init(new_resolver_system)?
-                            .clone())
-                    }
-                })?;
-
-                if let Ok(lookup) = resolver.lookup_ip(name.as_str()).await {
-                    let addrs: Addrs = Box::new(SocketAddrs {
-                        iter: lookup.into_iter(),
-                    });
-                    return Ok(addrs);
-                }
-            }
-
-            if let Some(ref static_resolver) = maybe_static {
-                let resolver = static_resolver.get_or_init(|| {
-                    if let Some(ref shared_resolver) = SHARED_RESOLVER.static_base {
-                        shared_resolver
-                            .get_or_init(new_default_static_fallback)
-                            .clone()
-                    } else {
-                        new_default_static_fallback()
-                    }
-                });
-
-                if let Ok(addrs) = resolver.resolve(name).await {
-                    return Ok(addrs);
-                }
-            }
-
-            Err(primary_err.into())
+            resolve(
+                name,
+                resolver,
+                maybe_fallback,
+                maybe_static,
+                independent,
+                overall_dns_timeout,
+            )
+            .await
+            .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)
         })
     }
+}
+
+async fn resolve(
+    name: Name,
+    resolver: Arc<OnceCell<TokioResolver>>,
+    maybe_fallback: Option<Arc<OnceCell<TokioResolver>>>,
+    maybe_static: Option<Arc<OnceCell<StaticResolver>>>,
+    independent: bool,
+    overall_dns_timeout: Duration,
+) -> Result<Addrs, ResolveError> {
+    let resolver = resolver.get_or_try_init(|| HickoryDnsResolver::new_resolver(independent))?;
+
+    // Attempt a lookup using the primary resolver
+    let resolve_fut = tokio::time::timeout(overall_dns_timeout, resolver.lookup_ip(name.as_str()));
+    let primary_err = match resolve_fut.await {
+        Err(_) => return Err(ResolveError::Timeout.into()),
+        Ok(Ok(lookup)) => {
+            let addrs: Addrs = Box::new(SocketAddrs {
+                iter: lookup.into_iter(),
+            });
+            return Ok(addrs);
+        }
+        Ok(Err(e)) => {
+            // on failure use the fall back system configured DNS resolver
+            if !e.is_no_records_found() {
+                warn!("primary DNS failed w/ error: {e}");
+            }
+            e
+        }
+    };
+
+    // If the primary resolver encountered an error, attempt a lookup using the fallback
+    // resolver if one is configured.
+    if let Some(ref fallback) = maybe_fallback {
+        let resolver =
+            fallback.get_or_try_init(|| HickoryDnsResolver::new_resolver_system(independent))?;
+
+        if let Ok(lookup) = resolver.lookup_ip(name.as_str()).await {
+            let addrs: Addrs = Box::new(SocketAddrs {
+                iter: lookup.into_iter(),
+            });
+            return Ok(addrs);
+        }
+    }
+
+    // If no record has been found and a static map of fallback addresses is configured
+    // check the table for our entry
+    if let Some(ref static_resolver) = maybe_static {
+        let resolver =
+            static_resolver.get_or_init(|| HickoryDnsResolver::new_static_fallback(independent));
+
+        if let Ok(addrs) = resolver.resolve(name).await {
+            return Ok(addrs);
+        }
+    }
+
+    Err(primary_err.into())
 }
 
 struct SocketAddrs {
@@ -213,30 +215,18 @@ impl Iterator for SocketAddrs {
 
 impl HickoryDnsResolver {
     /// Attempt to resolve a domain name to a set of ['IpAddr']s
-    pub async fn resolve_str(&self, name: &str) -> Result<LookupIp, ResolveError> {
-        let resolver = self.state.get_or_try_init(|| self.new_resolver())?;
-        let resolve_fut = tokio::time::timeout(self.overall_dns_timeout, resolver.lookup_ip(name));
-
-        // try the primary DNS resolver that we set up (DoH or DoT or whatever)
-        let lookup = match resolve_fut.await {
-            Ok(Ok(res)) => res,
-            Err(_) => return Err(ResolveError::Timeout),
-            Ok(Err(e)) => {
-                if let Some(ref fallback) = self.fallback {
-                    // on failure use the fall back system configured DNS resolver
-                    if !e.is_no_records_found() {
-                        warn!("primary DNS failed w/ error {e}: using system fallback");
-                    }
-
-                    let resolver = fallback.get_or_try_init(|| self.new_resolver_system())?;
-                    resolver.lookup_ip(name).await?
-                } else {
-                    return Err(e.into());
-                }
-            }
-        };
-
-        Ok(lookup)
+    pub async fn resolve_str(&self, name: &str) -> Result<Addrs, ResolveError> {
+        let n =
+            Name::from_str(name).map_err(|_| ResolveError::InvalidNameError(name.to_string()))?;
+        resolve(
+            n,
+            self.state.clone(),
+            self.fallback.clone(),
+            self.static_base.clone(),
+            self.dont_use_shared,
+            self.overall_dns_timeout,
+        )
+        .await
     }
 
     /// Create a (lazy-initialized) resolver that is not shared across threads.
@@ -247,16 +237,20 @@ impl HickoryDnsResolver {
         }
     }
 
-    fn new_resolver(&self) -> Result<TokioResolver, ResolveError> {
-        if self.dont_use_shared {
+    fn new_resolver(dont_use_shared: bool) -> Result<TokioResolver, ResolveError> {
+        // using a closure here is slightly gross, but this makes sure that if the
+        // lazy-init returns an error it can be handled by the client
+        if dont_use_shared {
             new_resolver()
         } else {
             Ok(SHARED_RESOLVER.state.get_or_try_init(new_resolver)?.clone())
         }
     }
 
-    fn new_resolver_system(&self) -> Result<TokioResolver, ResolveError> {
-        if self.dont_use_shared || SHARED_RESOLVER.fallback.is_none() {
+    fn new_resolver_system(dont_use_shared: bool) -> Result<TokioResolver, ResolveError> {
+        // using a closure here is slightly gross, but this makes sure that if the
+        // lazy-init returns an error it can be handled by the client
+        if dont_use_shared || SHARED_RESOLVER.fallback.is_none() {
             new_resolver_system()
         } else {
             Ok(SHARED_RESOLVER
@@ -265,6 +259,16 @@ impl HickoryDnsResolver {
                 .unwrap()
                 .get_or_try_init(new_resolver_system)?
                 .clone())
+        }
+    }
+
+    fn new_static_fallback(dont_use_shared: bool) -> StaticResolver {
+        if !dont_use_shared && let Some(ref shared_resolver) = SHARED_RESOLVER.static_base {
+            shared_resolver
+                .get_or_init(new_default_static_fallback)
+                .clone()
+        } else {
+            new_default_static_fallback()
         }
     }
 

@@ -32,7 +32,7 @@ use crate::ClientBuilder;
 use std::{
     collections::HashMap,
     net::{IpAddr, SocketAddr},
-    sync::{Arc, LazyLock, Mutex},
+    sync::{Arc, LazyLock},
 };
 
 use hickory_resolver::{
@@ -44,6 +44,10 @@ use hickory_resolver::{
 use once_cell::sync::OnceCell;
 use reqwest::dns::{Addrs, Name, Resolve, Resolving};
 use tracing::{info, warn};
+
+mod constants;
+mod static_resolver;
+pub use static_resolver::*;
 
 impl ClientBuilder {
     /// Override the DNS resolver implementation used by the underlying http client.
@@ -58,10 +62,6 @@ impl ClientBuilder {
         self.use_secure_dns = false;
         self
     }
-}
-
-struct SocketAddrs {
-    iter: LookupIpIntoIter,
 }
 
 // n.b. static items do not call [`Drop`] on program termination, so this won't be deallocated.
@@ -99,6 +99,7 @@ pub struct HickoryDnsResolver {
     // construction of the resolver.
     state: Arc<OnceCell<TokioResolver>>,
     fallback: Option<Arc<OnceCell<TokioResolver>>>,
+    static_base: Option<Arc<OnceCell<StaticResolver>>>,
     dont_use_shared: bool,
     /// Overall timeout for dns lookup associated with any individual host resolution. For example,
     /// use of retries, server_ordering_strategy, etc. ends absolutely if this timeout is reached.
@@ -120,6 +121,7 @@ impl Resolve for HickoryDnsResolver {
     fn resolve(&self, name: Name) -> Resolving {
         let resolver = self.state.clone();
         let maybe_fallback = self.fallback.clone();
+        let maybe_static = self.static_base.clone();
         let independent = self.dont_use_shared;
         let overall_dns_timeout = self.overall_dns_timeout;
         Box::pin(async move {
@@ -135,45 +137,70 @@ impl Resolve for HickoryDnsResolver {
 
             let resolve_fut =
                 tokio::time::timeout(overall_dns_timeout, resolver.lookup_ip(name.as_str()));
-
-            // try the primary DNS resolver that we set up (DoH or DoT or whatever)
-            let lookup = match resolve_fut.await {
-                Ok(Ok(res)) => res,
+            let primary_err = match resolve_fut.await {
                 Err(_) => return Err(ResolveError::Timeout.into()),
+                Ok(Ok(lookup)) => {
+                    let addrs: Addrs = Box::new(SocketAddrs {
+                        iter: lookup.into_iter(),
+                    });
+                    return Ok(addrs);
+                }
                 Ok(Err(e)) => {
-                    if let Some(ref fallback) = maybe_fallback {
-                        // on failure use the fall back system configured DNS resolver
-                        if !e.is_no_records_found() {
-                            warn!("primary DNS failed w/ error {e}: using system fallback");
-                        }
-                        let resolver = fallback.get_or_try_init(|| {
-                            // using a closure here is slightly gross, but this makes sure that if the
-                            // lazy-init returns an error it can be handled by the client
-                            if independent {
-                                new_resolver_system()
-                            } else {
-                                Ok(SHARED_RESOLVER
-                                    .fallback
-                                    .as_ref()
-                                    .ok_or(e)? // if the shared resolver has no fallback return the original error
-                                    .get_or_try_init(new_resolver_system)?
-                                    .clone())
-                            }
-                        })?;
-
-                        resolver.lookup_ip(name.as_str()).await?
-                    } else {
-                        return Err(e.into());
+                    // on failure use the fall back system configured DNS resolver
+                    if !e.is_no_records_found() {
+                        warn!("primary DNS failed w/ error: {e}");
                     }
+                    e
                 }
             };
 
-            let addrs: Addrs = Box::new(SocketAddrs {
-                iter: lookup.into_iter(),
-            });
-            Ok(addrs)
+            if let Some(ref fallback) = maybe_fallback {
+                let resolver = fallback.get_or_try_init(|| {
+                    // using a closure here is slightly gross, but this makes sure that if the
+                    // lazy-init returns an error it can be handled by the client
+                    if independent {
+                        new_resolver_system()
+                    } else {
+                        Ok(SHARED_RESOLVER
+                            .fallback
+                            .as_ref()
+                            .ok_or(primary_err)? // if the shared resolver has no fallback return the original error
+                            .get_or_try_init(new_resolver_system)?
+                            .clone())
+                    }
+                })?;
+
+                if let Ok(lookup) = resolver.lookup_ip(name.as_str()).await {
+                    let addrs: Addrs = Box::new(SocketAddrs {
+                        iter: lookup.into_iter(),
+                    });
+                    return Ok(addrs);
+                }
+            }
+
+            if let Some(ref static_resolver) = maybe_static {
+                let resolver = static_resolver.get_or_init(|| {
+                    if let Some(ref shared_resolver) = SHARED_RESOLVER.static_base {
+                        shared_resolver
+                            .get_or_init(new_default_static_fallback)
+                            .clone()
+                    } else {
+                        new_default_static_fallback()
+                    }
+                });
+
+                if let Ok(addrs) = resolver.resolve(name).await {
+                    return Ok(addrs.into());
+                }
+            }
+
+            Err(primary_err.into())
         })
     }
+}
+
+struct SocketAddrs {
+    iter: LookupIpIntoIter,
 }
 
 impl Iterator for SocketAddrs {
@@ -257,6 +284,10 @@ impl HickoryDnsResolver {
     pub fn disable_system_fallback(&mut self) {
         self.fallback = None;
     }
+
+    pub fn get_static_fallbacks(&self) -> Option<HashMap<String, Vec<IpAddr>>> {}
+
+    pub fn set_static_fallbacks(&mut self, addrs: HashMap<String, Vec<IpAddr>>) {}
 }
 
 /// Create a new resolver with a custom DoT based configuration. The options are overridden to look
@@ -303,46 +334,14 @@ fn new_resolver_system() -> Result<TokioResolver, ResolveError> {
     Ok(resolver_builder.build())
 }
 
-struct StaticResolver {
-    static_addr_map: Arc<Mutex<HashMap<String, Vec<IpAddr>>>>,
-}
-
-impl StaticResolver {
-    fn new(static_entries: HashMap<String, Vec<IpAddr>>) -> StaticResolver {
-        Self {
-            static_addr_map: Arc::new(Mutex::new(static_entries)),
-        }
-    }
-}
-
-impl Resolve for StaticResolver {
-    fn resolve(&self, name: Name) -> Resolving {
-        let addr_map = self.static_addr_map.clone();
-        Box::pin(async move {
-            let addr_map = addr_map.lock().unwrap();
-            let lookup = match addr_map.get(name.as_str()) {
-                None => return Err(ResolveError::StaticLookupMiss.into()),
-                Some(addrs) => addrs,
-            };
-            let addrs: Addrs = Box::new(
-                lookup
-                    .clone()
-                    .into_iter()
-                    .map(|ip_addr| SocketAddr::new(ip_addr, 0)),
-            );
-
-            Ok(addrs)
-        })
-    }
+fn new_default_static_fallback() -> StaticResolver {
+    StaticResolver::new(constants::DEFAULT_STATIC_ADDRS)
 }
 
 #[cfg(test)]
 mod test {
-    use itertools::Itertools;
-
     use super::*;
-    use std::error::Error as StdError;
-    use std::str::FromStr;
+    use std::collections::HashMap;
 
     #[tokio::test]
     async fn reqwest_with_custom_dns() {
@@ -378,36 +377,16 @@ mod test {
     }
 
     #[tokio::test]
-    async fn lookup_using_static_resolver() -> Result<(), Box<dyn StdError + Send + Sync>> {
-        let example_domain = String::from("static.nymvpn.com");
+    async fn static_resolver_as_fallback() {
+        let mut resolver = HickoryDnsResolver::default();
 
-        // lookup for domain for which there is no entry
-        let resolver = StaticResolver::new(HashMap::new());
+        let addr_map = HashMap::new();
+        let fallback = StaticResolver::new(addr_map);
 
-        let url = reqwest::dns::Name::from_str(&example_domain).unwrap();
-        let result = resolver.resolve(url.into()).await;
-        assert!(result.is_err());
-        match result {
-            Ok(_) => panic!("lookup with empty map should fail"),
-            Err(e) => assert_eq!(e.to_string(), ResolveError::StaticLookupMiss.to_string()),
-        }
+        let fb = OnceCell::new();
+        fb.set(fallback);
 
-        // Successful lookup
-        let mut addr_map = HashMap::new();
-        let example_ip4: IpAddr = "10.10.10.10".parse().unwrap();
-        let example_ip6: IpAddr = "dead::beef".parse().unwrap();
-        addr_map.insert(
-            example_domain.clone(),
-            vec![example_ip4.clone(), example_ip6.clone()],
-        );
-
-        let url = reqwest::dns::Name::from_str(&example_domain).unwrap();
-        let resolver = StaticResolver::new(addr_map);
-        let mut addrs = resolver.resolve(url.into()).await?;
-        assert!(addrs.contains(&SocketAddr::new(example_ip4, 0)));
-        assert!(addrs.contains(&SocketAddr::new(example_ip6, 0)));
-
-        Ok(())
+        resolver.static_base = Some(Arc::new(fb));
     }
 }
 

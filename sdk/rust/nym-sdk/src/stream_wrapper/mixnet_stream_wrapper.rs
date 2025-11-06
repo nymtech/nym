@@ -7,6 +7,7 @@ use crate::mixnet::{MixnetClient, MixnetClientSender, Recipient};
 use crate::Error;
 use bytes::BytesMut;
 use nym_client_core::client::inbound_messages::InputMessageCodec;
+use nym_network_defaults::setup_env;
 use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nym_sphinx::receiver::{ReconstructedMessage, ReconstructedMessageCodec};
 use std::io;
@@ -26,12 +27,12 @@ impl MixnetClient {
     /// # Arguments
     /// * `recipient` - The Nym address to send to
     /// * `data` - The message payload
-    /// * `reply_surbs` - Number of Single Use Reply Blocks to include for anonymous replies
+    /// * `reply_surbs` - Number of Single Use Reply Blocks to include. If `None` passed defaults to 10.
     pub async fn send_to(
         &mut self,
         recipient: &Recipient,
         data: &[u8],
-        reply_surbs: Option<u32>, // TODO make this option - if None then use default
+        reply_surbs: Option<u32>,
     ) -> Result<(), Error> {
         let msg = InputMessage::Anonymous {
             recipient: *recipient,
@@ -139,17 +140,17 @@ impl MixnetClientSender {
     /// # Arguments
     /// * `recipient` - The Nym address to send to
     /// * `data` - The message payload
-    /// * `reply_surbs` - Number of Single Use Reply Blocks to include
+    /// * `reply_surbs` - Number of Single Use Reply Blocks to include. If `None` passed defaults to 10.
     pub async fn send_to(
         &mut self,
         recipient: &Recipient,
         data: &[u8],
-        reply_surbs: u32, // TODO make this option - if None then use default
+        reply_surbs: Option<u32>,
     ) -> Result<(), Error> {
         let msg = InputMessage::Anonymous {
             recipient: *recipient,
             data: data.to_vec(),
-            reply_surbs,
+            reply_surbs: reply_surbs.unwrap_or(10),
             lane: nym_task::connections::TransmissionLane::General,
             max_retransmissions: Some(5),
         };
@@ -182,22 +183,19 @@ impl MixnetClientSender {
 ///
 /// Provides a high-level interface for creating mixnet connections
 /// without dealing with codecs or low-level message handling.
-///
-/// MixSocket follows the structure of something like `Tokio::net::TcpSocket`
-/// with regards to setup and interface, breakdown from TcpSocket to TcpStream, etc.
-/// However, we can't map this one to one onto the TcpSocket as there isn't really a
-/// concept of binding to a port with the MixnetClient; it connects to its Gateway
-/// and then just accepts incoming messages from the Gw via the Websocket connection.
 pub struct MixSocket {
     pub inner: MixnetClient,
 }
 
 impl MixSocket {
-    // TODO MAKE CONFIGURABLE RE NETWORK - SEE TCPPROXY CONFIG
     /// Create a new socket connected to the mixnet.
     ///
     /// Initializes a new mixnet client and prepares it for connections.
-    pub async fn new() -> Result<Self, Error> {
+    /// # Arguments
+    /// * `env` - The environment to use. Defaults to Mainnet if None.
+    pub async fn new(env: Option<String>) -> Result<Self, Error> {
+        debug!("Loading env file: {:?}", env);
+        setup_env(env);
         let inner = MixnetClient::connect_new().await?;
         Ok(MixSocket { inner })
     }
@@ -278,7 +276,6 @@ pub struct MixStream {
 }
 
 impl MixStream {
-    // TODO MAKE CONFIGURABLE RE NETWORK - see TCPPROXY SETUP
     /// Create a `MixStream` from an optional socket and optional peer.
     ///
     /// If no socket is provided, creates a new one automatically.
@@ -287,10 +284,19 @@ impl MixStream {
     /// # Arguments
     /// * `socket` - Optional existing socket to use
     /// * `peer` - Optional Nym address to connect to (None = listening mode)
-    pub async fn new(socket: Option<MixSocket>, peer: Option<Recipient>) -> Self {
+    /// * `env` - The environment to use. Defaults to Mainnet if `None`. TODO MAKE PATH AND MAKE MORE CLEAR IN DOCS
+    pub async fn new(
+        socket: Option<MixSocket>,
+        peer: Option<Recipient>,
+        env: Option<String>,
+    ) -> Self {
         let client = match socket {
             Some(socket) => socket.into_inner(),
-            None => MixnetClient::connect_new().await.unwrap(),
+            None => {
+                debug!("Loading env file: {:?}", env);
+                setup_env(env);
+                MixnetClient::connect_new().await.unwrap()
+            }
         };
         Self {
             client,
@@ -302,7 +308,10 @@ impl MixStream {
     /// Create a listening stream that receives from anyone.
     ///
     /// This stream has no specific peer and relies on SURBs for replies.
-    /// Perfect for server-like applications that respond to anonymous requests.
+    /// For server-like applications that respond to anonymous requests.
+    ///
+    /// # Arguments
+    /// * `env` - The environment to use. Defaults to Mainnet if `None`. TODO MAKE PATH AND MAKE MORE CLEAR IN DOCS
     ///
     /// # Example
     /// ```no_run
@@ -313,7 +322,9 @@ impl MixStream {
     ///     listener.send(b"Response").await?;
     /// }
     /// ```
-    pub async fn listen() -> Result<Self, Error> {
+    pub async fn listen(env: Option<String>) -> Result<Self, Error> {
+        debug!("Loading env file: {:?}", env);
+        setup_env(env);
         let client = MixnetClient::connect_new().await?;
         Ok(Self {
             client,
@@ -328,8 +339,11 @@ impl MixStream {
     ///
     /// # Arguments
     /// * `peer` - The Nym address to connect to
-    pub async fn connect(peer: Recipient) -> Result<Self, Error> {
-        let socket = MixSocket::new().await?;
+    /// * `env` - The environment to use. Defaults to Mainnet if None
+    pub async fn connect(peer: Recipient, env: Option<String>) -> Result<Self, Error> {
+        debug!("Loading env file: {:?}", env);
+        setup_env(env.clone());
+        let socket = MixSocket::new(env).await?;
         Ok(socket.connect(peer).await?)
     }
 
@@ -731,7 +745,7 @@ impl MixStreamWriter {
             }
             (None, Some(peer)) => {
                 // Have peer - send with SURBs
-                self.sender.send_to(&peer, data, 10).await
+                self.sender.send_to(&peer, data, Some(10)).await
             }
             (None, None) => {
                 // No peer, no SURB tag - can't send
@@ -834,6 +848,7 @@ impl AsyncWrite for MixStreamWriter {
 
 #[cfg(test)]
 mod tests {
+
     use super::*;
     use std::sync::Once;
 
@@ -855,6 +870,18 @@ mod tests {
         }
     }
 
+    // #[tokio::test]
+    // async fn change_network() -> Result<(), Box<dyn std::error::Error>> {
+    //     init_logging();
+    //     let listener_socket = MixSocket::new(Some("../../../envs/canary.env".to_string())).await?;
+    //     let listener_address = *listener_socket.local_addr();
+    //     let mut listener_stream = listener_socket.into_stream();
+
+    //     // TODO run with debug logging, you can see this is still pulling in mainnet endpoint even though setup_env() is being run with canary file. Debug.
+
+    //     Ok(())
+    // }
+
     #[tokio::test]
     async fn simple_send_recv() -> Result<(), Box<dyn std::error::Error>> {
         init_logging();
@@ -865,7 +892,7 @@ mod tests {
         let mut listener_stream = listener_socket.into_stream();
 
         // Create sender connected to listener
-        let mut sender_stream = MixStream::connect(listener_address).await?;
+        let mut sender_stream = MixStream::connect(listener_address, None).await?;
 
         // Sender initiates with SURBs
         sender_stream.send(b"Hello, Mixnet!").await?;
@@ -945,7 +972,7 @@ mod tests {
         let receiver_socket = MixSocket::new_test().await?;
         let receiver_address = *receiver_socket.local_addr();
 
-        let sender_stream = MixStream::new(Some(sender_socket), Some(receiver_address)).await;
+        let sender_stream = MixStream::new(Some(sender_socket), Some(receiver_address), None).await;
         let receiver_stream = receiver_socket.into_stream();
 
         let (mut sender_reader, mut sender_writer) = sender_stream.split();

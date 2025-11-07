@@ -129,11 +129,13 @@ fn inspect_tls_packet(data: &[u8]) {
 }
 
 fn init_logging() {
-    if tracing::dispatcher::has_been_set() {
-        return;
-    }
-    INIT.call_once(|| {
-        nym_bin_common::logging::setup_tracing_logger();
+    INIT.call_once_force(|state| {
+        if state.is_poisoned() {
+            eprintln!("Logger initialization was poisoned, retrying");
+        }
+        if !tracing::dispatcher::has_been_set() {
+            nym_bin_common::logging::setup_tracing_logger();
+        }
     });
 }
 

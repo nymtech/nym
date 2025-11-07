@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use super::mixnet_stream_wrapper::{MixStream, MixStreamReader, MixStreamWriter};
-use super::network_env::{NetworkEnvironment};
+use super::network_env::NetworkEnvironment;
 use crate::ip_packet_client::{
     helpers::check_ipr_message_version, IprListener, MixnetMessageOutcome,
 };
@@ -54,11 +54,7 @@ pub enum ConnectionState {
 /// # Returns
 /// Configured `nym_http_api_client::Client` or an error if URLs are invalid or empty
 fn create_nym_api_client(nym_api_urls: Vec<ApiUrl>) -> Result<nym_http_api_client::Client, Error> {
-
-    let user_agent = format!(
-        "nym-sdk/{}",
-        env!("CARGO_PKG_VERSION")
-    );
+    let user_agent = format!("nym-sdk/{}", env!("CARGO_PKG_VERSION"));
 
     let urls = nym_api_urls
         .into_iter()

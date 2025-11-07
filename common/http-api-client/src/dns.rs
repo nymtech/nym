@@ -218,7 +218,10 @@ impl Iterator for SocketAddrs {
 
 impl HickoryDnsResolver {
     /// Attempt to resolve a domain name to a set of ['IpAddr']s
-    pub async fn resolve_str(&self, name: &str) -> Result<Addrs, ResolveError> {
+    pub async fn resolve_str(
+        &self,
+        name: &str,
+    ) -> Result<impl Iterator<Item = IpAddr> + use<>, ResolveError> {
         let n =
             Name::from_str(name).map_err(|_| ResolveError::InvalidNameError(name.to_string()))?;
         resolve(
@@ -230,6 +233,7 @@ impl HickoryDnsResolver {
             self.overall_dns_timeout,
         )
         .await
+        .map(|addrs| addrs.map(|socket_addr| socket_addr.ip()))
     }
 
     /// Create a (lazy-initialized) resolver that is not shared across threads.
@@ -414,8 +418,8 @@ mod test {
         resolver.set_static_fallbacks(addr_map);
 
         let mut addrs = resolver.resolve_str(example_domain).await?;
-        assert!(addrs.contains(&SocketAddr::new(example_ip4, 0)));
-        assert!(addrs.contains(&SocketAddr::new(example_ip6, 0)));
+        assert!(addrs.contains(&example_ip4));
+        assert!(addrs.contains(&example_ip6));
         Ok(())
     }
 }

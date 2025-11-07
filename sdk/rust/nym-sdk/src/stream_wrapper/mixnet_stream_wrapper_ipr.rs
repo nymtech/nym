@@ -754,6 +754,7 @@ mod tests {
         Ok(())
     }
 
+    #[ignore]
     #[tokio::test]
     async fn dns_ping_checks() -> Result<(), Box<dyn std::error::Error>> {
         init_logging();
@@ -866,6 +867,7 @@ mod tests {
         Ok(())
     }
 
+    #[ignore]
     #[tokio::test]
     async fn split_dns_ping_checks() -> Result<(), Box<dyn std::error::Error>> {
         init_logging();

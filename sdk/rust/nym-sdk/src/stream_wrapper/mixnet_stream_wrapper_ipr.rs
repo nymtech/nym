@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use super::mixnet_stream_wrapper::{MixStream, MixStreamReader, MixStreamWriter};
-use super::network_env::NetworkEnvironment;
+use super::network_env::{NetworkEnvironment};
 use crate::ip_packet_client::{
     helpers::check_ipr_message_version, IprListener, MixnetMessageOutcome,
 };
@@ -21,7 +21,6 @@ use nym_ip_packet_requests::{
     IpPair,
 };
 use nym_network_defaults::ApiUrl;
-use nym_sphinx::receiver::ReconstructedMessageCodec;
 use nym_validator_client::nym_api::NymApiClientExt;
 use std::io;
 use std::pin::Pin;
@@ -29,7 +28,6 @@ use std::task::{Context, Poll};
 use std::time::Duration;
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio::sync::oneshot;
-use tokio_util::codec::FramedRead;
 use tracing::{debug, error, info};
 
 const IPR_CONNECT_TIMEOUT: Duration = Duration::from_secs(60);
@@ -48,9 +46,6 @@ pub enum ConnectionState {
     Connected,
 }
 
-// TODO MAKE NETWORK CONFIGURABLE
-// TODO USERAGENT
-
 /// Create a Nym API client with the provided URLs.
 ///
 /// # Arguments
@@ -59,13 +54,11 @@ pub enum ConnectionState {
 /// # Returns
 /// Configured `nym_http_api_client::Client` or an error if URLs are invalid or empty
 fn create_nym_api_client(nym_api_urls: Vec<ApiUrl>) -> Result<nym_http_api_client::Client, Error> {
-    // TODO do something proper with this
-    let user_agent = UserAgent {
-        application: "nym-ipr-streamer".to_string(),
-        version: "0.0.1".to_string(),
-        platform: "rust".to_string(),
-        git_commit: "max/sdk-streamer".to_string(),
-    };
+
+    let user_agent = format!(
+        "nym-sdk/{}",
+        env!("CARGO_PKG_VERSION")
+    );
 
     let urls = nym_api_urls
         .into_iter()
@@ -80,7 +73,7 @@ fn create_nym_api_client(nym_api_urls: Vec<ApiUrl>) -> Result<nym_http_api_clien
         return Err(Error::NoNymAPIUrl);
     }
 
-    let client = nym_http_api_client::ClientBuilder::new_with_urls(urls)
+    let client = nym_http_api_client::ClientBuilder::new_with_urls(urls)?
         .with_user_agent(user_agent)
         .build()?;
 

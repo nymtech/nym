@@ -4867,7 +4867,7 @@ dependencies = [
 
 [[package]]
 name = "nym-api"
-version = "1.1.67"
+version = "1.1.68"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5093,7 +5093,7 @@ dependencies = [
 
 [[package]]
 name = "nym-cli"
-version = "1.1.64"
+version = "1.1.65"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -5176,7 +5176,7 @@ dependencies = [
 
 [[package]]
 name = "nym-client"
-version = "1.1.64"
+version = "1.1.65"
 dependencies = [
  "bs58",
  "clap",
@@ -5508,8 +5508,11 @@ dependencies = [
  "nym-crypto",
  "nym-ecash-contract-common",
  "nym-ecash-signer-check",
+ "nym-http-api-client",
  "nym-http-api-common",
  "nym-network-defaults",
+ "nym-pemstore",
+ "nym-upgrade-mode-check",
  "nym-validator-client",
  "rand 0.8.5",
  "reqwest 0.12.24",
@@ -5580,6 +5583,7 @@ dependencies = [
  "nym-http-api-client",
  "nym-http-api-common",
  "nym-serde-helpers",
+ "nym-upgrade-mode-check",
  "reqwest 0.12.24",
  "schemars 0.8.22",
  "serde",
@@ -5707,6 +5711,7 @@ dependencies = [
  "aead",
  "aes",
  "aes-gcm-siv",
+ "anyhow",
  "base64 0.22.1",
  "blake3",
  "bs58",
@@ -5720,10 +5725,12 @@ dependencies = [
  "jwt-simple",
  "nym-pemstore",
  "nym-sphinx-types",
+ "nym-test-utils",
  "rand 0.8.5",
  "rand_chacha 0.3.1",
  "serde",
  "serde_bytes",
+ "serde_json",
  "sha2 0.10.9",
  "subtle-encoding",
  "thiserror 2.0.17",
@@ -6400,7 +6407,7 @@ dependencies = [
 
 [[package]]
 name = "nym-network-requester"
-version = "1.1.65"
+version = "1.1.66"
 dependencies = [
  "addr",
  "anyhow",
@@ -6451,7 +6458,7 @@ dependencies = [
 
 [[package]]
 name = "nym-node"
-version = "1.19.0"
+version = "1.20.0"
 dependencies = [
  "anyhow",
  "arc-swap",
@@ -6593,7 +6600,7 @@ dependencies = [
 
 [[package]]
 name = "nym-node-status-api"
-version = "4.0.10"
+version = "4.0.11-rc1"
 dependencies = [
  "ammonia",
  "anyhow",
@@ -6845,6 +6852,7 @@ dependencies = [
  "tokio",
  "tokio-util",
  "tracing",
+ "typed-builder",
  "url",
 ]
 
@@ -6980,7 +6988,7 @@ dependencies = [
 
 [[package]]
 name = "nym-socks5-client"
-version = "1.1.64"
+version = "1.1.65"
 dependencies = [
  "bs58",
  "clap",
@@ -7435,12 +7443,14 @@ dependencies = [
  "jwt-simple",
  "nym-crypto",
  "nym-http-api-client",
+ "nym-test-utils",
  "reqwest 0.12.24",
  "serde",
  "serde_json",
  "thiserror 2.0.17",
  "time",
  "tracing",
+ "utoipa",
 ]
 
 [[package]]
@@ -7727,7 +7737,7 @@ dependencies = [
 
 [[package]]
 name = "nymvisor"
-version = "0.1.29"
+version = "0.1.30"
 dependencies = [
  "anyhow",
  "bytes",
@@ -11462,6 +11472,26 @@ dependencies = [
  "thiserror 1.0.69",
  "url",
  "utf-8",
+]
+
+[[package]]
+name = "typed-builder"
+version = "0.23.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0d0dd654273fc253fde1df4172c31fb6615cf8b041d3a4008a028ef8b1119e66"
+dependencies = [
+ "typed-builder-macro",
+]
+
+[[package]]
+name = "typed-builder-macro"
+version = "0.23.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "016c26257f448222014296978b2c8456e2cad4de308c35bdb1e383acd569ef5b"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.107",
 ]
 
 [[package]]

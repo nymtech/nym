@@ -1,6 +1,8 @@
 import { Callout } from 'nextra/components';
 import { Steps } from 'nextra/components';
 import { Green, Yellow, Red, Gray } from 'components/severity.jsx'
+import { IPR } from 'components/operators/snippets/ipr.js';
+import { ICMP } from 'components/operators/snippets/icmp.js';
 
 ## WireGuard: Gateways Performance Calculation
 
@@ -19,12 +21,12 @@ When we say *Exit Gateway* in connection to Wireguard, we talk about a `nym-node
 A simplified explanation of node performance measuring is that the [Node Status API](https://node-status.nym.com) runs [gateway probes](/operators/nodes/performance-and-testing/gateway-probe) that connect to gateways to:
 
 - Check the configuration of gateways
-  - Checks a list of capabilities (e.g. can route ipv4 traffic in mixnet mode)
-  - Checks a list of configuration (e.g. runs IPR, has exit policy)
+  - Checks a list of capabilities (e.g. can route IPv4 traffic in mixnet mode)
+  - Checks a list of configuration (e.g. runs <abbr title={IPR}>IPR</abbr>, has exit policy)
 - Acts like a user:
   - Registers a mixnet client
   - Registers a wireguard peer and tops up bandwidth with a zk-nym
-  - Sends ICMP ping packets
+  - Sends <abbr title={ICMP}>ICMP</abbr> ping packets
   - Downloads files
 
 The results are collected and stored in the [Node Status API](https://node-status.nym.com) and can be also veiwed per node in [Node Status Observatory](https://harbourmaster.nymtech.net).

@@ -129,6 +129,7 @@ pub enum Error {
     #[error("connect denied: {0:?}")]
     ConnectDenied(ConnectFailureReason),
 
+    #[allow(clippy::result_large_err)]
     #[error("api directory error: {0}")]
     GatewayDirectoryError(#[from] NymAPIError),
 

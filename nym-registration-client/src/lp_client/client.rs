@@ -8,7 +8,7 @@ use super::error::{LpClientError, Result};
 use super::transport::LpTransport;
 use bytes::BytesMut;
 use nym_bandwidth_controller::{BandwidthTicketProvider, DEFAULT_TICKETS_TO_SPEND};
-use nym_credentials_interface::TicketType;
+use nym_credentials_interface::{CredentialSpendingData, TicketType};
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_lp::LpPacket;
 use nym_lp::codec::{parse_lp_packet, serialize_lp_packet};
@@ -267,7 +267,7 @@ impl LpRegistrationClient {
         // Step 4: Create state machine as initiator with derived PSK
         let mut state_machine = LpStateMachine::new(
             true, // is_initiator
-            &*self.local_keypair,
+            &self.local_keypair,
             &self.gateway_public_key,
             &psk,
         )?;
@@ -300,6 +300,13 @@ impl LpRegistrationClient {
                     LpAction::SendPacket(response_packet) => {
                         tracing::trace!("Sending handshake response packet");
                         Self::send_packet(stream, &response_packet).await?;
+
+                        // Check if handshake completed after sending this packet
+                        // (e.g., initiator completes after sending final message)
+                        if state_machine.session()?.is_handshake_complete() {
+                            tracing::info!("LP handshake completed after sending packet");
+                            break;
+                        }
                     }
                     LpAction::HandshakeComplete => {
                         tracing::info!("LP handshake completed successfully");
@@ -487,6 +494,80 @@ impl LpRegistrationClient {
             })?;
 
         // 5. Send the encrypted packet
+        match action {
+            LpAction::SendPacket(packet) => {
+                Self::send_packet(stream, &packet).await?;
+                tracing::info!("Successfully sent registration request to gateway");
+                Ok(())
+            }
+            other => Err(LpClientError::Transport(format!(
+                "Unexpected action when sending registration data: {:?}",
+                other
+            ))),
+        }
+    }
+
+    /// Sends LP registration request with a pre-generated credential.
+    /// This is useful for testing with mock ecash credentials.
+    ///
+    /// This implements the LP registration request sending:
+    /// 1. Uses pre-provided bandwidth credential (skips acquisition)
+    /// 2. Constructs LpRegistrationRequest with dVPN mode
+    /// 3. Serializes request to bytes using bincode
+    /// 4. Encrypts via LP state machine (LpInput::SendData)
+    /// 5. Sends encrypted packet to gateway
+    pub async fn send_registration_request_with_credential(
+        &mut self,
+        wg_keypair: &x25519::KeyPair,
+        _gateway_identity: &ed25519::PublicKey,
+        credential: CredentialSpendingData,
+        ticket_type: TicketType,
+    ) -> Result<()> {
+        // Ensure we have a TCP connection
+        let stream = self.tcp_stream.as_mut().ok_or_else(|| {
+            LpClientError::Transport("Cannot send registration: not connected".to_string())
+        })?;
+
+        // Ensure handshake is complete (state machine exists and is in Transport state)
+        let state_machine = self.state_machine.as_mut().ok_or_else(|| {
+            LpClientError::Transport(
+                "Cannot send registration: handshake not completed".to_string(),
+            )
+        })?;
+
+        tracing::debug!("Using pre-generated credential for registration");
+
+        // Build registration request with pre-generated credential
+        let wg_public_key = PeerPublicKey::new(wg_keypair.public_key().to_bytes().into());
+        let request =
+            LpRegistrationRequest::new_dvpn(wg_public_key, credential, ticket_type, self.client_ip);
+
+        tracing::trace!("Built registration request: {:?}", request);
+
+        // Serialize the request
+        let request_bytes = bincode::serialize(&request).map_err(|e| {
+            LpClientError::SendRegistrationRequest(format!("Failed to serialize request: {}", e))
+        })?;
+
+        tracing::debug!(
+            "Sending registration request ({} bytes)",
+            request_bytes.len()
+        );
+
+        // Encrypt and prepare packet via state machine
+        let action = state_machine
+            .process_input(LpInput::SendData(request_bytes))
+            .ok_or_else(|| {
+                LpClientError::Transport("State machine returned no action".to_string())
+            })?
+            .map_err(|e| {
+                LpClientError::SendRegistrationRequest(format!(
+                    "Failed to encrypt registration request: {}",
+                    e
+                ))
+            })?;
+
+        // Send the encrypted packet
         match action {
             LpAction::SendPacket(packet) => {
                 Self::send_packet(stream, &packet).await?;

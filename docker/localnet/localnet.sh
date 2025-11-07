@@ -230,6 +230,8 @@ start_gateway() {
         -p 10004:10004 \
         -p 20004:20004 \
         -p 30004:30004 \
+        -p 41264:41264 \
+        -p 51264:51264 \
         -v "$VOLUME_PATH:/localnet" \
         -v "$NYM_VOLUME_PATH:/root/.nym" \
         -d \
@@ -250,14 +252,17 @@ start_gateway() {
                 --http-bind-address=0.0.0.0:30004 \
                 --http-access-token=lala \
                 --public-ips $CONTAINER_IP \
+                --enable-lp true \
+                --lp-use-mock-ecash true \
                 --output=json \
+                --wireguard-enabled true \
                 --bonding-information-output="/localnet/gateway.json";
 
             echo "Waiting for network.json...";
             while [ ! -f /localnet/network.json ]; do
                 sleep 2;
             done;
-            echo "Starting gateway...";
+            echo "Starting gateway with LP listener (mock ecash)...";
             exec nym-node run --id gateway-localnet --unsafe-disable-replay-protection --local
         '
 
@@ -429,13 +434,36 @@ show_status() {
 
     echo ""
     log_info "Port status:"
-    for port in 9000 1080 10001 10002 10003 10004; do
+    echo "  Mixnet:"
+    for port in 10001 10002 10003 10004; do
         if nc -z 127.0.0.1 $port 2>/dev/null; then
-            echo -e "  ${GREEN}●${NC} Port $port - listening"
+            echo -e "    ${GREEN}●${NC} Port $port - listening"
         else
-            echo -e "  ${RED}○${NC} Port $port - not listening"
+            echo -e "    ${RED}○${NC} Port $port - not listening"
         fi
     done
+    echo "  Gateway:"
+    for port in 9000 30004; do
+        if nc -z 127.0.0.1 $port 2>/dev/null; then
+            echo -e "    ${GREEN}●${NC} Port $port - listening"
+        else
+            echo -e "    ${RED}○${NC} Port $port - not listening"
+        fi
+    done
+    echo "  LP (Lewes Protocol):"
+    for port in 41264 51264; do
+        if nc -z 127.0.0.1 $port 2>/dev/null; then
+            echo -e "    ${GREEN}●${NC} Port $port - listening"
+        else
+            echo -e "    ${RED}○${NC} Port $port - not listening"
+        fi
+    done
+    echo "  SOCKS5:"
+    if nc -z 127.0.0.1 1080 2>/dev/null; then
+        echo -e "    ${GREEN}●${NC} Port 1080 - listening"
+    else
+        echo -e "    ${RED}○${NC} Port 1080 - not listening"
+    fi
 }
 
 # Build network topology with container IPs

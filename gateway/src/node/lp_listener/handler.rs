@@ -7,7 +7,7 @@ use super::registration::process_registration;
 use super::LpHandlerState;
 use crate::error::GatewayError;
 use nym_lp::{
-    keypair::{Keypair, PublicKey},
+    keypair::{Keypair, PrivateKey as LpPrivateKey, PublicKey},
     LpMessage, LpPacket, LpSession,
 };
 use nym_metrics::{add_histogram_obs, inc};
@@ -109,10 +109,21 @@ impl LpConnectionHandler {
         // 2. Client's public key (will be received during handshake)
         // 3. PSK (pre-shared key) - for now use a placeholder
 
-        // Generate fresh LP keypair (x25519) for this connection
-        // Using Keypair::default() which generates a new random x25519 keypair
-        // This is secure and simple - each connection gets its own keypair
-        let gateway_keypair = Keypair::default();
+        // Derive LP keypair from gateway's ed25519 identity using proper conversion
+        // This creates a valid x25519 keypair for ECDH operations in Noise protocol
+        let x25519_private = self.state.local_identity.private_key().to_x25519();
+        let x25519_public = self.state.local_identity.public_key().to_x25519()
+            .map_err(|e| GatewayError::LpHandshakeError(
+                format!("Failed to convert ed25519 public key to x25519: {}", e)
+            ))?;
+
+        let lp_private = LpPrivateKey::from_bytes(x25519_private.as_bytes());
+        let lp_public = PublicKey::from_bytes(x25519_public.as_bytes())
+            .map_err(|e| GatewayError::LpHandshakeError(
+                format!("Failed to create LP public key: {}", e)
+            ))?;
+
+        let gateway_keypair = Keypair::from_keys(lp_private, lp_public);
 
         // Receive client's public key and salt via ClientHello message
         // The client initiates by sending ClientHello as first packet
@@ -289,11 +300,7 @@ impl LpConnectionHandler {
                             .duration_since(UNIX_EPOCH)
                             .expect("System time before UNIX epoch")
                             .as_secs();
-                        if now >= timestamp {
-                            now - timestamp
-                        } else {
-                            timestamp - now
-                        }
+                        now.abs_diff(timestamp)
                     },
                     self.state.lp_config.timestamp_tolerance_secs
                 );
@@ -333,22 +340,20 @@ impl LpConnectionHandler {
             )));
         }
 
-        // Extract registration request from LP message
-        match packet.message() {
-            LpMessage::EncryptedData(data) => {
-                // Deserialize registration request
-                bincode::deserialize(&data).map_err(|e| {
-                    GatewayError::LpProtocolError(format!(
-                        "Failed to deserialize registration request: {}",
-                        e
-                    ))
-                })
-            }
-            other => Err(GatewayError::LpProtocolError(format!(
-                "Expected EncryptedData message, got {:?}",
-                other
-            ))),
-        }
+        // Decrypt the packet payload using the established session
+        let decrypted_bytes = session
+            .decrypt_data(packet.message())
+            .map_err(|e| {
+                GatewayError::LpProtocolError(format!("Failed to decrypt registration request: {}", e))
+            })?;
+
+        // Deserialize the decrypted bytes into LpRegistrationRequest
+        bincode::deserialize(&decrypted_bytes).map_err(|e| {
+            GatewayError::LpProtocolError(format!(
+                "Failed to deserialize registration request: {}",
+                e
+            ))
+        })
     }
 
     /// Send registration response after processing

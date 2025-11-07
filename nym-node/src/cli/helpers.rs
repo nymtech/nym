@@ -426,6 +426,23 @@ pub(crate) struct EntryGatewayArgs {
         env = NYMNODE_MNEMONIC_ARG
     )]
     pub(crate) mnemonic: Option<bip39::Mnemonic>,
+
+    /// Enable LP (Lewes Protocol) listener for client registration.
+    /// LP provides an alternative registration protocol with improved security features.
+    #[clap(
+        long,
+        env = NYMNODE_ENABLE_LP_ARG
+    )]
+    pub(crate) enable_lp: Option<bool>,
+
+    /// Use mock ecash manager for LP testing.
+    /// WARNING: Only use this for local testing! Never enable in production.
+    /// When enabled, the LP listener will accept any credential without blockchain verification.
+    #[clap(
+        long,
+        env = NYMNODE_LP_USE_MOCK_ECASH_ARG
+    )]
+    pub(crate) lp_use_mock_ecash: Option<bool>,
 }
 
 impl EntryGatewayArgs {
@@ -452,6 +469,12 @@ impl EntryGatewayArgs {
         }
         if let Some(enforce_zk_nyms) = self.enforce_zk_nyms {
             section.enforce_zk_nyms = enforce_zk_nyms
+        }
+        if let Some(enable_lp) = self.enable_lp {
+            section.lp.enabled = enable_lp
+        }
+        if let Some(use_mock_ecash) = self.lp_use_mock_ecash {
+            section.lp.use_mock_ecash = use_mock_ecash
         }
 
         section

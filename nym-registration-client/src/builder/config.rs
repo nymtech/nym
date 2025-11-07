@@ -286,6 +286,7 @@ pub enum BuilderConfigError {
 ///
 /// This provides a more convenient way to construct a `BuilderConfig` compared to the
 /// `new()` constructor with many arguments.
+#[derive(Default)]
 pub struct BuilderConfigBuilder {
     entry_node: Option<NymNodeWithKeys>,
     exit_node: Option<NymNodeWithKeys>,
@@ -298,24 +299,6 @@ pub struct BuilderConfigBuilder {
     cancel_token: Option<CancellationToken>,
     #[cfg(unix)]
     connection_fd_callback: Option<Arc<dyn Fn(RawFd) + Send + Sync>>,
-}
-
-impl Default for BuilderConfigBuilder {
-    fn default() -> Self {
-        Self {
-            entry_node: None,
-            exit_node: None,
-            data_path: None,
-            mixnet_client_config: None,
-            mode: None,
-            user_agent: None,
-            custom_topology_provider: None,
-            network_env: None,
-            cancel_token: None,
-            #[cfg(unix)]
-            connection_fd_callback: None,
-        }
-    }
 }
 
 impl BuilderConfigBuilder {

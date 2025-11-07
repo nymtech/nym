@@ -171,29 +171,46 @@ impl RegistrationClient {
         tracing::debug!("Entry gateway LP address: {}", entry_lp_address);
         tracing::debug!("Exit gateway LP address: {}", exit_lp_address);
 
-        // For now, use gateway identities as LP public keys
-        // TODO(nym-87): Implement proper key derivation
-        let entry_gateway_lp_key =
-            LpPublicKey::from_bytes(&self.config.entry.node.identity.to_bytes()).map_err(|e| {
-                RegistrationClientError::LpRegistrationNotPossible {
-                    node_id: format!(
-                        "{}: invalid LP key: {}",
-                        self.config.entry.node.identity.to_base58_string(),
-                        e
-                    ),
-                }
-            })?;
+        // Convert gateway ed25519 identities to x25519 LP public keys using proper conversion
+        let entry_x25519_pub = self.config.entry.node.identity.to_x25519().map_err(|e| {
+            RegistrationClientError::LpRegistrationNotPossible {
+                node_id: format!(
+                    "{}: failed to convert ed25519 to x25519: {}",
+                    self.config.entry.node.identity.to_base58_string(),
+                    e
+                ),
+            }
+        })?;
 
-        let exit_gateway_lp_key =
-            LpPublicKey::from_bytes(&self.config.exit.node.identity.to_bytes()).map_err(|e| {
-                RegistrationClientError::LpRegistrationNotPossible {
-                    node_id: format!(
-                        "{}: invalid LP key: {}",
-                        self.config.exit.node.identity.to_base58_string(),
-                        e
-                    ),
-                }
-            })?;
+        let entry_gateway_lp_key = LpPublicKey::from_bytes(entry_x25519_pub.as_bytes()).map_err(|e| {
+            RegistrationClientError::LpRegistrationNotPossible {
+                node_id: format!(
+                    "{}: invalid LP key: {}",
+                    self.config.entry.node.identity.to_base58_string(),
+                    e
+                ),
+            }
+        })?;
+
+        let exit_x25519_pub = self.config.exit.node.identity.to_x25519().map_err(|e| {
+            RegistrationClientError::LpRegistrationNotPossible {
+                node_id: format!(
+                    "{}: failed to convert ed25519 to x25519: {}",
+                    self.config.exit.node.identity.to_base58_string(),
+                    e
+                ),
+            }
+        })?;
+
+        let exit_gateway_lp_key = LpPublicKey::from_bytes(exit_x25519_pub.as_bytes()).map_err(|e| {
+            RegistrationClientError::LpRegistrationNotPossible {
+                node_id: format!(
+                    "{}: invalid LP key: {}",
+                    self.config.exit.node.identity.to_base58_string(),
+                    e
+                ),
+            }
+        })?;
 
         // Generate LP keypairs for this connection
         let client_lp_keypair = Arc::new(LpKeypair::default());

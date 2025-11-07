@@ -41,6 +41,7 @@ x25519-dalek = { workspace = true, features = [
     "static_secrets",
 ] }
 
+nym-api-requests = { path = "../nym-api/nym-api-requests" }
 nym-authenticator-requests = { path = "../common/authenticator-requests" }
 nym-bandwidth-controller = { path = "../common/bandwidth-controller" }
 nym-bin-common = { path = "../common/bin-common" }
@@ -59,9 +60,13 @@ nym-credentials = { path = "../common/credentials" }
 nym-http-api-client-macro = { path = "../common/http-api-client-macro", features = ["debug-inventory"] }
 nym-http-api-client = { path = "../common/http-api-client" }
 nym-node-status-client = { path = "../nym-node-status-api/nym-node-status-client" }
+nym-node-requests = { path = "../nym-node/nym-node-requests" }
 nym-registration-client = { path = "../nym-registration-client" }
 nym-lp = { path = "../common/nym-lp" }
+nym-mixnet-contract-common = { path = "../common/cosmwasm-smart-contracts/mixnet-contract" }
+nym-network-defaults = { path = "../common/network-defaults" }
 nym-registration-common = { path = "../common/registration" }
+time = { workspace = true }
 
 # TEMP: REMOVE BEFORE PR
 nym-topology = { path = "../common/topology" }

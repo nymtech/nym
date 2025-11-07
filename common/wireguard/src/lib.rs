@@ -161,7 +161,7 @@ pub struct WireguardData {
 /// Start wireguard device
 #[cfg(target_os = "linux")]
 pub async fn start_wireguard(
-    ecash_manager: Arc<EcashManager>,
+    ecash_manager: Arc<dyn nym_credential_verification::ecash::traits::EcashManager + Send + Sync>,
     metrics: nym_node_metrics::NymNodeMetrics,
     peers: Vec<Peer>,
     shutdown_token: nym_task::ShutdownToken,

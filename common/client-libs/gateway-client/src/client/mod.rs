@@ -984,6 +984,7 @@ impl<C, St> GatewayClient<C, St> {
                 Err(err)
             }
         } else {
+            println!("Message sent");
             Ok(())
         }
     }

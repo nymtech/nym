@@ -111,6 +111,7 @@ impl AuthenticatorClient {
                         return Err(AuthenticationClientError::NoMixnetMessagesReceived);
                     }
                     Ok(msg) => {
+                        println!("AuthClient: We got something");
                         let Some(header) = msg.message.first_chunk::<2>() else {
                             debug!("received too short message that couldn't have been from the authenticator while waiting for connect response");
                             continue;
@@ -148,6 +149,7 @@ impl AuthenticatorClient {
                             debug!("Got response with matching id");
                             return Ok(response);
                         }
+                        println!("Id wasn't matching :(");
                     }
                 }
             }

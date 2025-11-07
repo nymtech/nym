@@ -83,6 +83,7 @@ impl AuthClientMixnetListener {
                                 break;
                             },
                             Some(event) => {
+                                println!("AuthClientListener got a message");
                                 if let Err(err) = self.message_broadcast.send(Arc::new(event)) {
                                     tracing::error!("Failed to broadcast mixnet message: {err}");
                                 }

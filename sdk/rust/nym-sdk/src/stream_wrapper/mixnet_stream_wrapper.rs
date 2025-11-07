@@ -51,7 +51,7 @@ impl MixnetClient {
     /// # Arguments
     /// * `recipient_tag` - The SURB tag from a received message
     /// * `data` - The reply payload
-    pub async fn send_reply(
+    pub async fn send_stream_reply(
         &mut self,
         recipient_tag: AnonymousSenderTag,
         data: &[u8],
@@ -111,11 +111,17 @@ impl MixnetClient {
     /// # Example
     /// ```no_run
     /// use futures::StreamExt;
+    /// use nym_sdk::mixnet::MixnetClient;
     ///
-    /// let mut framed = client.into_framed_read();
-    /// while let Some(msg) = framed.next().await {
-    ///     let msg = msg?;
-    ///     println!("Received: {:?}", msg.message);
+    /// #[tokio::main]
+    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    ///     let mut client = MixnetClient::connect_new().await?;
+    ///     let mut framed = client.into_framed_read();
+    ///     while let Some(msg) = framed.next().await {
+    ///         let msg = msg?;
+    ///         println!("Received: {:?}", msg.message);
+    ///     }
+    ///     Ok(())
     /// }
     /// ```
     pub fn into_framed_read(self) -> FramedRead<Self, ReconstructedMessageCodec> {
@@ -158,12 +164,10 @@ impl MixnetClientSender {
 
     /// Send a reply using a previously received SURB tag.
     ///
-    /// Identical to `MixnetClient::send_reply` but for the split sender.
-    ///
     /// # Arguments
     /// * `recipient_tag` - The SURB tag from a received message
     /// * `data` - The reply payload
-    pub async fn send_reply(
+    pub async fn send_stream_reply(
         &mut self,
         recipient_tag: AnonymousSenderTag,
         data: &[u8],
@@ -221,16 +225,24 @@ impl MixSocket {
     ///
     /// # Example
     /// ```no_run
-    /// let socket = MixSocket::new().await?;
-    /// let mut listener = socket.into_stream();
+    /// use nym_sdk::stream_wrapper::MixSocket;
+    /// use std::path::PathBuf;
     ///
-    /// // Receive from anyone
-    /// let msg = listener.recv().await?;
+    /// #[tokio::main]
+    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    ///     let env = PathBuf::from("path/to/env");
+    ///     let socket = MixSocket::new(env).await?;
+    ///     let mut listener = socket.into_stream();
     ///
-    /// // Reply anonymously using SURB
-    /// if let Some(surb) = msg.sender_tag {
-    ///     listener.store_surb_tag(surb);
-    ///     listener.send(b"Reply").await?;
+    ///     // Receive from anyone
+    ///     let msg = listener.recv().await?;
+    ///
+    ///     // Reply anonymously using SURB
+    ///     if let Some(surb) = msg.sender_tag {
+    ///         listener.store_surb_tag(surb);
+    ///         listener.send(b"Reply").await?;
+    ///     }
+    ///     Ok(())
     /// }
     /// ```
     pub fn into_stream(self) -> MixStream {
@@ -316,11 +328,19 @@ impl MixStream {
     ///
     /// # Example
     /// ```no_run
-    /// let mut listener = MixStream::listen().await?;
-    /// let msg = listener.recv().await?;
-    /// if let Some(surb) = msg.sender_tag {
-    ///     listener.store_surb_tag(surb);
-    ///     listener.send(b"Response").await?;
+    /// use nym_sdk::stream_wrapper::MixStream;
+    /// use std::path::PathBuf;
+    ///
+    /// #[tokio::main]
+    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    ///     let env = PathBuf::from("path/to/env");
+    ///     let mut listener = MixStream::listen(env).await?;
+    ///     let msg = listener.recv().await?;
+    ///     if let Some(surb) = msg.sender_tag {
+    ///         listener.store_surb_tag(surb);
+    ///         listener.send(b"Response").await?;
+    ///     }
+    ///     Ok(())
     /// }
     /// ```
     pub async fn listen(env: PathBuf) -> Result<Self, Error> {
@@ -389,7 +409,7 @@ impl MixStream {
         match (self.peer_surb_tag, self.peer) {
             (Some(tag), _) => {
                 // Have SURB tag - use it for anonymous reply
-                self.client.send_reply(tag, data).await
+                self.client.send_stream_reply(tag, data).await
             }
             (None, Some(peer)) => {
                 // Have peer - send with default # of SURBs
@@ -455,16 +475,22 @@ impl MixStream {
     /// # Example
     /// ```no_run
     /// use futures::{SinkExt, StreamExt};
+    /// use nym_sdk::mixnet::{InputMessage, Recipient};
+    /// use nym_sdk::stream_wrapper::MixStream;
+    /// use std::path::PathBuf;
     ///
-    /// let mut framed = stream.into_framed();
+    /// #[tokio::main]
+    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    ///     let env = PathBuf::from("path/to/env");
+    ///     let peer = Recipient::try_from_base58_string("recipient_address")?;
+    ///     let stream = MixStream::connect(peer, env).await?;
+    ///     let mut framed = stream.into_framed();
     ///
-    /// // Send
-    /// framed.send(InputMessage::Anonymous { ... }).await?;
-    ///
-    /// // Receive
-    /// if let Some(msg) = framed.next().await {
-    ///     let msg = msg?;
-    ///     println!("Received: {:?}", msg.message);
+    ///     if let Some(msg) = framed.next().await {
+    ///         let msg = msg?;
+    ///         println!("Received: {:?}", msg.message);
+    ///     }
+    ///     Ok(())
     /// }
     /// ```
     pub fn into_framed(self) -> Framed<MixnetClient, ReconstructedMessageCodec> {
@@ -681,13 +707,17 @@ impl MixStreamReader {
     /// # Example
     /// ```no_run
     /// use futures::StreamExt;
+    /// use nym_sdk::stream_wrapper::MixStreamReader;
     ///
-    /// let mut framed = reader.into_framed();
-    /// while let Some(msg) = framed.next().await {
-    ///     let msg = msg?;
-    ///     if let Some(surb) = msg.sender_tag {
-    ///         // SURB automatically stored
+    /// async fn example(reader: MixStreamReader) -> Result<(), Box<dyn std::error::Error>> {
+    ///     let mut framed = reader.into_framed();
+    ///     while let Some(msg) = framed.next().await {
+    ///         let msg = msg?;
+    ///         if let Some(_surb) = msg.sender_tag {
+    ///             // SURB automatically stored
+    ///         }
     ///     }
+    ///     Ok(())
     /// }
     /// ```
     pub fn into_framed(self) -> FramedRead<MixnetClient, ReconstructedMessageCodec> {
@@ -742,7 +772,7 @@ impl MixStreamWriter {
         match (self.peer_surb_tag, self.peer) {
             (Some(tag), _) => {
                 // Have SURB tag - use it for anonymous reply
-                self.sender.send_reply(tag, data).await
+                self.sender.send_stream_reply(tag, data).await
             }
             (None, Some(peer)) => {
                 // Have peer - send with SURBs
@@ -805,20 +835,6 @@ impl MixStreamWriter {
     /// Convert into a framed writer for sending messages.
     ///
     /// Returns a `FramedWrite` that automatically encodes `InputMessage`s.
-    ///
-    /// # Example
-    /// ```no_run
-    /// use futures::SinkExt;
-    ///
-    /// let mut framed = writer.into_framed();
-    /// framed.send(InputMessage::Anonymous {
-    ///     recipient,
-    ///     data: b"Hello".to_vec(),
-    ///     reply_surbs: 10,
-    ///     lane: TransmissionLane::General,
-    ///     max_retransmissions: Some(5),
-    /// }).await?;
-    /// ```
     pub fn into_framed(self) -> FramedWrite<MixnetClientSender, InputMessageCodec> {
         FramedWrite::new(self.sender, InputMessageCodec {})
     }

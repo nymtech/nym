@@ -78,11 +78,11 @@ importers:
         specifier: '>=1.2.4-rc.2 || ^1'
         version: 1.4.1
       '@nymproject/mix-fetch-full-fat':
-        specifier: '>=1.2.4-rc.2 || ^1'
-        version: 1.2.3
+        specifier: '>=1.5.1-rc.0 || ^1.4.1'
+        version: 1.4.1
       '@nymproject/sdk-full-fat':
-        specifier: '>=1.2.4-rc.2 || ^1'
-        version: 1.2.3
+        specifier: '>=1.5.1-rc.0 || ^1.4.1'
+        version: 1.4.1
       '@redocly/cli':
         specifier: ^1.25.15
         version: 1.34.5(ajv@8.17.1)
@@ -1679,11 +1679,11 @@ packages:
   '@nymproject/contract-clients@1.4.1':
     resolution: {integrity: sha512-HuJZ4Hv+Rl6ZZEtCHKgurNLJapM+QQRJlGkevFH2a4UdqUqF9omUkUi3AVes4679dPoSFgvA7plyVSDBdbgV6w==}
 
-  '@nymproject/mix-fetch-full-fat@1.2.3':
-    resolution: {integrity: sha512-5yAQhw33LC0cNsyV0Rj+LIa2kvJY+8jsfgOSr1aeKNfQ7dG4fngWkKnGUbPGzhUTJjqgXPTwNVeJSd6hwGim+g==}
+  '@nymproject/mix-fetch-full-fat@1.4.1':
+    resolution: {integrity: sha512-AMa21sEd9FELqAJe1lCyHPqxxbc13ApiJ1P/exAslQjiFPb/de/3Ow0FHqKGNPrwyVRS/T2pSzjQ3l8TddiEBA==}
 
-  '@nymproject/sdk-full-fat@1.2.3':
-    resolution: {integrity: sha512-lheA1Zk020o2t95FPVZfdUR0aSI52aD0aJQs074fjH16QkoNNEMotzhJGAnsnnczVg3bpddKghNpCLyDOWvg9A==}
+  '@nymproject/sdk-full-fat@1.4.1':
+    resolution: {integrity: sha512-dh5bvMUj3m8nEssvO8Nl66WpcJAjwRZrGNwqfczJWLG4nX3Vt95tPLv4v0/Z1W3DQWQFW6WmEPPYHNjl18V/fA==}
 
   '@opentelemetry/api-logs@0.53.0':
     resolution: {integrity: sha512-8HArjKx+RaAI8uEIgcORbZIPklyh1YLjPSBus8hjRmvLi6DeFzgOcdZ7KwPabKj8mXF8dX0hyfAyGfycz0DbFw==}
@@ -9247,9 +9247,9 @@ snapshots:
 
   '@nymproject/contract-clients@1.4.1': {}
 
-  '@nymproject/mix-fetch-full-fat@1.2.3': {}
+  '@nymproject/mix-fetch-full-fat@1.4.1': {}
 
-  '@nymproject/sdk-full-fat@1.2.3': {}
+  '@nymproject/sdk-full-fat@1.4.1': {}
 
   '@opentelemetry/api-logs@0.53.0':
     dependencies:

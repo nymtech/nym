@@ -317,7 +317,7 @@ impl SqliteEcashTicketbookManager {
                 FROM emergency_credential
                 WHERE type = ?
                   AND (expiration IS NULL OR expiration > CURRENT_TIMESTAMP)
-                ORDER BY expiration ASC NULLS LAST
+                ORDER BY expiration DESC NULLS LAST
                 LIMIT 1
             "#,
         )

@@ -1387,10 +1387,10 @@
   resolved "https://registry.yarnpkg.com/@chain-registry/types/-/types-0.50.238.tgz#0d9f5e5e65e1f8ab6ef8a6aea34b3c9a11a961f2"
   integrity sha512-NJL9n5ND3SAro08jR/NjEBs8trVQ9YqBGIpeZZQJV5ACPU11PzzO1n+TWGcv2302VnI8L1BBaEaEaQq4AJKkng==
 
-"@chain-registry/types@^0.50.247":
-  version "0.50.247"
-  resolved "https://registry.yarnpkg.com/@chain-registry/types/-/types-0.50.247.tgz#336fb770d9558b71c0e3221e11ec0f21ef3978ce"
-  integrity sha512-GY47ovI+q1DRd9vdm7sXIx+KwpopGw1T5cjsCG1XiWFKlXPZAhfLSMpNiC3H9jmkdVdCJz1dL0NvdPBqxKu2jg==
+"@chain-registry/types@^0.50.249":
+  version "0.50.249"
+  resolved "https://registry.yarnpkg.com/@chain-registry/types/-/types-0.50.249.tgz#468ff529868968daa298bd86e2d8551035ceb231"
+  integrity sha512-ofQatjHxVSCJpQX0LvVtyNTSyDXFHuAki3KDWUKBDrGvSYR/J2H1ACuy03c1cJYVmP8e8QAh+1OkJrsQrpfqcQ==
 
 "@chain-registry/utils@^1.51.238":
   version "1.51.238"
@@ -1402,11 +1402,11 @@
     sha.js "^2.4.11"
 
 "@chain-registry/utils@^1.51.71":
-  version "1.51.247"
-  resolved "https://registry.yarnpkg.com/@chain-registry/utils/-/utils-1.51.247.tgz#332f55cfa69871179b35985ccd7cf91d6a79c569"
-  integrity sha512-CP/7jafhUjfSU62e7PRLHc6Fi11A9yDwq4d0Oq+TBXgBo6IrMfNFpckZsCWbIryfcE7MPe5ogBtoxdMypln/2A==
+  version "1.51.249"
+  resolved "https://registry.yarnpkg.com/@chain-registry/utils/-/utils-1.51.249.tgz#d3875fa2b930c9987d0cba905b32d4a9b6637bd7"
+  integrity sha512-H8TF/6m/wI20vVVfcgBe35VOzZvdgC80aMcwgCoHxbyJYb5gitTAEFkeGgqt/oowRtQBuDNn0jxzPkVcKKysrA==
   dependencies:
-    "@chain-registry/types" "^0.50.247"
+    "@chain-registry/types" "^0.50.249"
     bignumber.js "9.1.2"
     sha.js "^2.4.11"
 

@@ -166,7 +166,7 @@ async fn get_random_ipr(client: nym_http_api_client::Client) -> Result<Recipient
     Ok(ipr_address)
 }
 
-/// A bidirectional stream for sending and receiving IP packets through the Nym mixnet.
+/// A bidirectional stream for sending and receiving IP packets through the mixnet.
 ///
 /// Manages connection to an IP Packet Router (IPR), handles tunnel establishment,
 /// and maintains allocated IP addresses. Implements `AsyncRead` and `AsyncWrite` for
@@ -174,9 +174,16 @@ async fn get_random_ipr(client: nym_http_api_client::Client) -> Result<Recipient
 ///
 /// # Example
 /// ```no_run
-/// let mut stream = IpMixStream::new().await?;
-/// let ip_pair = stream.connect_tunnel().await?;
-/// stream.send_ip_packet(&amp;packet_data).await?;
+/// use nym_sdk::stream_wrapper::{IpMixStream, NetworkEnvironment};
+///
+/// #[tokio::main]
+/// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+///     let mut stream = IpMixStream::new(NetworkEnvironment::Mainnet).await?;
+///     let ip_pair = stream.connect_tunnel().await?;
+///     let packet_data = vec![0u8; 100];
+///     stream.send_ip_packet(&packet_data).await?;
+///     Ok(())
+/// }
 /// ```
 pub struct IpMixStream {
     stream: MixStream,
@@ -187,7 +194,7 @@ pub struct IpMixStream {
 }
 
 impl IpMixStream {
-    /// Create a new IP packet router stream connected to the Nym mixnet.
+    /// Create a new IP packet router stream connected to the mixnet.
     ///
     /// Initializes connection to mainnet by default and selects an IPR gateway.
     /// Does not establish tunnel connection - call `connect_tunnel()` separately.

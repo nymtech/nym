@@ -868,35 +868,9 @@ mod tests {
     use super::*;
     use crate::stream_wrapper::network_env::NetworkEnvironment;
     use futures::StreamExt;
-    use std::sync::Once;
-
-    static INIT: Once = Once::new();
-
-    fn init_logging() {
-        if tracing::dispatcher::has_been_set() {
-            return;
-        }
-        INIT.call_once(|| {
-            nym_bin_common::logging::setup_tracing_logger();
-        });
-    }
-
-    // #[tokio::test]
-    // async fn change_network() -> Result<(), Box<dyn std::error::Error>> {
-    //     init_logging();
-    //     let listener_socket = MixSocket::new(Some("../../../envs/canary.env".to_string())).await?;
-    //     let listener_address = *listener_socket.local_addr();
-    //     let mut listener_stream = listener_socket.into_stream();
-
-    //     // TODO run with debug logging, you can see this is still pulling in mainnet endpoint even though setup_env() is being run with canary file. Debug.
-
-    //     Ok(())
-    // }
 
     #[tokio::test]
     async fn simple_send_recv() -> Result<(), Box<dyn std::error::Error>> {
-        init_logging();
-
         let env = NetworkEnvironment::Mainnet;
 
         // Create listener (no peer)
@@ -939,8 +913,6 @@ mod tests {
 
     #[tokio::test]
     async fn framed() -> Result<(), Box<dyn std::error::Error>> {
-        init_logging();
-
         let env = NetworkEnvironment::Mainnet;
 
         let receiver_socket = MixSocket::new(env.env_file_path()).await?;
@@ -980,8 +952,6 @@ mod tests {
 
     #[tokio::test]
     async fn split_concurrent() -> Result<(), Box<dyn std::error::Error>> {
-        init_logging();
-
         let env = NetworkEnvironment::Mainnet;
 
         let sender_socket = MixSocket::new(env.env_file_path()).await?;

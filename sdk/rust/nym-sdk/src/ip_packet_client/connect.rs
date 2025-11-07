@@ -94,7 +94,7 @@ impl IprClientConnect {
         let surbs = 20;
         self.mixnet_sender
             .send(create_input_message(
-                Recipient::from(ip_packet_router_address),
+                ip_packet_router_address,
                 request,
                 surbs,
             ))

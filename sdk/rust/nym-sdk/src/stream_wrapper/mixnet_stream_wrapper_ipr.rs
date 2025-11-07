@@ -6,7 +6,6 @@ use super::network_env::NetworkEnvironment;
 use crate::ip_packet_client::{
     helpers::check_ipr_message_version, IprListener, MixnetMessageOutcome,
 };
-use crate::UserAgent;
 use crate::{mixnet::Recipient, Error};
 use std::collections::HashMap;
 

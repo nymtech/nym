@@ -1,7 +1,8 @@
 use std::path::PathBuf;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum NetworkEnvironment {
+    #[default]
     Mainnet,
     // Sandbox,
 }
@@ -21,17 +22,11 @@ impl NetworkEnvironment {
         }
     }
 
-    pub fn from_str(s: &str) -> Result<Self, String> {
+    pub fn parse_network(s: &str) -> Result<Self, String> {
         match s.to_lowercase().as_str() {
             "mainnet" | "main" => Ok(Self::Mainnet),
             // "sandbox" | "sand" => Ok(Self::Sandbox),
             _ => Err(format!("Unknown env: {}", s)),
         }
-    }
-}
-
-impl Default for NetworkEnvironment {
-    fn default() -> Self {
-        Self::Mainnet
     }
 }

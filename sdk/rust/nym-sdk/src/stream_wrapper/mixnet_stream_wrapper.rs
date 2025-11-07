@@ -365,7 +365,7 @@ impl MixStream {
         debug!("Loading env file: {:?}", env);
         setup_env(Some(env.clone()));
         let socket = MixSocket::new(env).await?;
-        Ok(socket.connect(peer).await?)
+        socket.connect(peer).await
     }
 
     /// Get the peer's Nym address (like `TcpStream::peer_addr`).

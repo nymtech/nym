@@ -315,7 +315,7 @@ impl AuthenticatorClient {
                 let bandwidth_claim = self
                     .produce_bandwidth_claim(controller, upgrade_mode_enabled, ticketbook_type)
                     .await
-                    .map_err(RegistrationError::CredentialSent)?;
+                    .map_err(|source| RegistrationError::CredentialSent { source })?;
 
                 let finalized_message = pending_registration_response
                     .finalise_registration(self.keypair.private_key(), Some(bandwidth_claim));
@@ -467,7 +467,7 @@ impl AuthenticatorClient {
             | AuthenticatorVersion::V4
             | AuthenticatorVersion::V5
             | AuthenticatorVersion::UNKNOWN => {
-                return Err(Error::UnsupportedAuthenticatorVersion);
+                return Err(AuthenticationClientError::UnsupportedAuthenticatorVersion);
             }
 
             AuthenticatorVersion::V6 => ClientMessage::UpgradeModeCheck(Box::new(
@@ -479,7 +479,7 @@ impl AuthenticatorClient {
 
         let response = self.send_and_wait_for_response(&check_um_message).await?;
         let AuthenticatorResponse::UpgradeMode(upgrade_mode_check_response) = response else {
-            return Err(Error::InvalidGatewayAuthResponse);
+            return Err(AuthenticationClientError::InvalidGatewayAuthResponse);
         };
 
         Ok(upgrade_mode_check_response

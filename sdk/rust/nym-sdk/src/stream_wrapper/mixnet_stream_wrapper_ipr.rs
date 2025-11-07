@@ -49,10 +49,16 @@ pub enum ConnectionState {
     Connected,
 }
 
-// TODO INLINE DOCS
 // TODO MAKE NETWORK CONFIGURABLE
 // TODO USERAGENT
 
+/// Create a Nym API client with the provided URLs.
+///
+/// # Arguments
+/// * `nym_api_urls` - Vector of API URLs to use for the client
+///
+/// # Returns
+/// Configured `nym_http_api_client::Client` or an error if URLs are invalid or empty
 fn create_nym_api_client(nym_api_urls: Vec<ApiUrl>) -> Result<nym_http_api_client::Client, Error> {
     // TODO do something proper with this
     let user_agent = UserAgent {
@@ -82,6 +88,16 @@ fn create_nym_api_client(nym_api_urls: Vec<ApiUrl>) -> Result<nym_http_api_clien
     Ok(client)
 }
 
+/// Retrieve all exit nodes with their performance scores.
+///
+/// Queries the network for all described nodes and filters for those with IP packet router
+/// capabilities, combining node information with performance metadata.
+///
+/// # Arguments
+/// * `client` - Nym API client to use for queries
+///
+/// # Returns
+/// Vector of `IprWithPerformance` containing exit node addresses, identities, and performance scores
 async fn retrieve_exit_nodes_with_performance(
     client: nym_http_api_client::Client,
 ) -> Result<Vec<IprWithPerformance>, Error> {
@@ -120,6 +136,15 @@ async fn retrieve_exit_nodes_with_performance(
     Ok(described)
 }
 
+/// Select a random IPR (IP Packet Router) from available exit gateways.
+///
+/// Currently selects the gateway with the highest performance score.
+///
+/// # Arguments
+/// * `client` - Nym API client to use for gateway discovery
+///
+/// # Returns
+/// `Recipient` address of the selected IPR
 async fn get_random_ipr(client: nym_http_api_client::Client) -> Result<Recipient, Error> {
     let nodes = retrieve_exit_nodes_with_performance(client).await?;
     info!("Found {} Exit Gateways", nodes.len());
@@ -142,7 +167,18 @@ async fn get_random_ipr(client: nym_http_api_client::Client) -> Result<Recipient
     Ok(ipr_address)
 }
 
-/// Unlike the non-IPR MixStream, we do not start with a Socket and then 'connect' to a Stream; seemed too many layers of abstraction for little trade off.
+/// A bidirectional stream for sending and receiving IP packets through the Nym mixnet.
+///
+/// Manages connection to an IP Packet Router (IPR), handles tunnel establishment,
+/// and maintains allocated IP addresses. Implements `AsyncRead` and `AsyncWrite` for
+/// standard async I/O operations.
+///
+/// # Example
+/// ```no_run
+/// let mut stream = IpMixStream::new().await?;
+/// let ip_pair = stream.connect_tunnel().await?;
+/// stream.send_ip_packet(&amp;packet_data).await?;
+/// ```
 pub struct IpMixStream {
     stream: MixStream,
     ipr_address: Recipient,
@@ -152,15 +188,22 @@ pub struct IpMixStream {
 }
 
 impl IpMixStream {
+    /// Create a new IP packet router stream connected to the Nym mixnet.
+    ///
+    /// Initializes connection to mainnet by default and selects an IPR gateway.
+    /// Does not establish tunnel connection - call `connect_tunnel()` separately.
+    ///
+    /// # Returns
+    /// New `IpMixStream` instance ready to connect
     pub async fn new() -> Result<Self, Error> {
         // JS: I think you need some bootstrapping here, something would need to be passed to `new()`
         // to indicate what endpoints to use
         // again, for now I'm default to mainnet as you did before
         let mainnet_network_defaults = crate::NymNetworkDetails::new_mainnet();
-
         let api_client =
             create_nym_api_client(mainnet_network_defaults.nym_api_urls.unwrap_or_default())?;
         let ipr_address = get_random_ipr(api_client).await?;
+
         let stream = MixStream::new(None, Some(Recipient::from(ipr_address)), None).await;
 
         Ok(Self {
@@ -172,15 +215,33 @@ impl IpMixStream {
         })
     }
 
+    /// Get the Nym network address of this stream.
+    ///
+    /// # Returns
+    /// Reference to the stream's `Recipient` address
     pub fn nym_address(&self) -> &Recipient {
         self.stream.client.nym_address()
     }
 
+    /// Send an IP packet request to the connected IPR.
+    ///
+    /// # Arguments
+    /// * `request` - The `IpPacketRequest` to send
+    ///
+    /// # Returns
+    /// `Ok(())` on success, error otherwise
     async fn send_ipr_request(&mut self, request: IpPacketRequest) -> Result<(), Error> {
         let request_bytes = request.to_bytes()?;
         self.stream.send(&request_bytes).await
     }
 
+    /// Establish tunnel connection with the IPR and allocate IP addresses.
+    ///
+    /// Sends a connect request and waits for IP allocation response.
+    /// Updates connection state and stores allocated IPs on success.
+    ///
+    /// # Returns
+    /// `IpPair` containing allocated IPv4 and IPv6 addresses
     pub async fn connect_tunnel(&mut self) -> Result<IpPair, Error> {
         if self.connection_state != ConnectionState::Disconnected {
             return Err(Error::IprStreamClientAlreadyConnectedOrConnecting);
@@ -207,6 +268,10 @@ impl IpMixStream {
         }
     }
 
+    /// Internal connection logic for establishing the tunnel.
+    ///
+    /// # Returns
+    /// `IpPair` containing allocated IP addresses
     async fn connect_inner(&mut self) -> Result<IpPair, Error> {
         let (request, request_id) = IpPacketRequest::new_connect_request(None);
         debug!("Sending connect request with ID: {}", request_id);
@@ -215,6 +280,15 @@ impl IpMixStream {
         self.listen_for_connect_response(request_id).await
     }
 
+    /// Listen for and process the connect response from the IPR.
+    ///
+    /// Waits up to `IPR_CONNECT_TIMEOUT` for a response matching the request ID.
+    ///
+    /// # Arguments
+    /// * `request_id` - ID of the connect request to match against responses
+    ///
+    /// # Returns
+    /// `IpPair` containing allocated IP addresses
     async fn listen_for_connect_response(&mut self, request_id: u64) -> Result<IpPair, Error> {
         let timeout = tokio::time::sleep(IPR_CONNECT_TIMEOUT);
         tokio::pin!(timeout);
@@ -254,6 +328,15 @@ impl IpMixStream {
         }
     }
 
+    /// Handle the connect response from the IPR.
+    ///
+    /// Extracts IP allocation from successful response or returns error on failure.
+    ///
+    /// # Arguments
+    /// * `response` - The `IpPacketResponse` to process
+    ///
+    /// # Returns
+    /// `IpPair` on successful connection, error otherwise
     async fn handle_connect_response(&self, response: IpPacketResponse) -> Result<IpPair, Error> {
         let control_response = match response.data {
             IpPacketResponseData::Control(c) => c,
@@ -271,6 +354,15 @@ impl IpMixStream {
         }
     }
 
+    /// Send an IP packet through the tunnel.
+    ///
+    /// Requires an active tunnel connection.
+    ///
+    /// # Arguments
+    /// * `packet` - Raw IP packet bytes to send
+    ///
+    /// # Returns
+    /// `Ok(())` on success, error if not connected or send fails
     pub async fn send_ip_packet(&mut self, packet: &[u8]) -> Result<(), Error> {
         if self.connection_state != ConnectionState::Connected {
             return Err(Error::IprStreamClientNotConnected);
@@ -279,6 +371,13 @@ impl IpMixStream {
         self.send_ipr_request(request).await
     }
 
+    /// Handle incoming messages from the mixnet.
+    ///
+    /// Processes reconstructed messages and extracts IP packets, disconnect signals,
+    /// or self-ping messages. Times out after 10 seconds if no message received.
+    ///
+    /// # Returns
+    /// Vector of received IP packet data as `Bytes`, empty vector if no packets or on timeout
     pub async fn handle_incoming(&mut self) -> Result<Vec<Bytes>, Error> {
         let mut framed = self.stream.framed_read();
 
@@ -314,10 +413,18 @@ impl IpMixStream {
         }
     }
 
+    /// Get the allocated IP addresses for this tunnel.
+    ///
+    /// # Returns
+    /// `Some(&IpPair)` if IPs are allocated, `None` otherwise
     pub fn allocated_ips(&self) -> Option<&IpPair> {
         self.allocated_ips.as_ref()
     }
 
+    /// Check if the tunnel is currently connected.
+    ///
+    /// # Returns
+    /// `true` if connected, `false` otherwise
     pub fn is_connected(&self) -> bool {
         self.connection_state == ConnectionState::Connected
     }
@@ -329,7 +436,14 @@ impl IpMixStream {
         debug!("Disconnected");
     }
 
-    /// Split for concurrent read/write (like TcpStream::Split) into IpMixnetStreamReader and IpMixnetStreamWriter.
+    /// Split the stream into separate reader and writer halves.
+    ///
+    /// Enables concurrent read and write operations similar to `TcpStream::split()`.
+    /// State updates (connection status, allocated IPs) are synchronized between halves
+    /// via oneshot channels.
+    ///
+    /// # Returns
+    /// Tuple of `(IpMixStreamReader, IpMixStreamWriter)`
     pub fn split(self) -> (IpMixStreamReader, IpMixStreamWriter) {
         debug!("Splitting IpMixStream");
         let local_addr = *self.stream.client.nym_address();
@@ -394,6 +508,14 @@ impl AsyncWrite for IpMixStream {
     }
 }
 
+/// Read half of a split `IpMixStream`.
+///
+/// Handles incoming messages from the mixnet and processes IP packets, disconnect
+/// signals, and control messages. Synchronizes connection state changes with the
+/// writer half via oneshot channels.
+///
+/// Created by calling `IpMixStream::split()`. Implements `AsyncRead` for standard
+/// async read operations.
 pub struct IpMixStreamReader {
     stream_reader: MixStreamReader,
     listener: IprListener,
@@ -404,10 +526,22 @@ pub struct IpMixStreamReader {
 }
 
 impl IpMixStreamReader {
+    /// Get the Nym network address of this reader.
+    ///
+    /// # Returns
+    /// The reader's `Recipient` address
     pub fn nym_address(self) -> Recipient {
         *self.stream_reader.local_addr()
     }
 
+    /// Handle incoming messages from the mixnet (reader half).
+    ///
+    /// Processes reconstructed messages and extracts IP packets, disconnect signals,
+    /// or self-ping messages. Updates connection state and notifies writer on disconnect.
+    /// Times out after 10 seconds if no message received.
+    ///
+    /// # Returns
+    /// Vector of received IP packet data as `Bytes`, empty vector if no packets or on timeout
     pub async fn handle_incoming(&mut self) -> Result<Vec<Bytes>, Error> {
         let mut framed = self.stream_reader.framed();
 
@@ -450,10 +584,18 @@ impl IpMixStreamReader {
         }
     }
 
+    /// Get the allocated IP addresses (reader half).
+    ///
+    /// # Returns
+    /// `Some(&IpPair)` if IPs are allocated, `None` otherwise
     pub fn allocated_ips(&self) -> Option<&IpPair> {
         self.allocated_ips.as_ref()
     }
 
+    /// Check if the tunnel is currently connected (reader half).
+    ///
+    /// # Returns
+    /// `true` if connected, `false` otherwise
     pub fn is_connected(&self) -> bool {
         self.connection_state == ConnectionState::Connected
     }
@@ -469,6 +611,13 @@ impl AsyncRead for IpMixStreamReader {
     }
 }
 
+/// Write half of a split `IpMixStream`.
+///
+/// Handles outgoing IP packets to the mixnet. Receives connection state updates
+/// from the reader half via oneshot channels to maintain synchronized state.
+///
+/// Created by calling `IpMixStream::split()`. Implements `AsyncWrite` for standard
+/// async write operations.
 pub struct IpMixStreamWriter {
     stream_writer: MixStreamWriter,
     local_addr: Recipient,
@@ -479,15 +628,36 @@ pub struct IpMixStreamWriter {
 }
 
 impl IpMixStreamWriter {
+    /// Get the Nym network address of this writer.
+    ///
+    /// # Returns
+    /// Reference to the writer's `Recipient` address
     pub fn nym_address(&self) -> &Recipient {
         &self.local_addr
     }
 
+    /// Send an IP packet request to the IPR (writer half).
+    ///
+    /// # Arguments
+    /// * `request` - The `IpPacketRequest` to send
+    ///
+    /// # Returns
+    /// `Ok(())` on success, error otherwise
     async fn send_ipr_request(&mut self, request: IpPacketRequest) -> Result<(), Error> {
         let request_bytes = request.to_bytes()?;
         self.stream_writer.write_bytes(&request_bytes).await
     }
 
+    /// Send an IP packet through the tunnel (writer half).
+    ///
+    /// Checks for state updates from reader before sending.
+    /// Requires an active tunnel connection.
+    ///
+    /// # Arguments
+    /// * `packet` - Raw IP packet bytes to send
+    ///
+    /// # Returns
+    /// `Ok(())` on success, error if not connected or send fails
     pub async fn send_ip_packet(&mut self, packet: &[u8]) -> Result<(), Error> {
         // Check for state updates from reader
         if let Some(mut rx) = self.state_rx.take() {
@@ -514,10 +684,18 @@ impl IpMixStreamWriter {
         self.send_ipr_request(request).await
     }
 
+    /// Get the allocated IP addresses (writer half).
+    ///
+    /// # Returns
+    /// `Some(&IpPair)` if IPs are allocated, `None` otherwise
     pub fn allocated_ips(&self) -> Option<&IpPair> {
         self.allocated_ips.as_ref()
     }
 
+    /// Check if the tunnel is connected (writer half).
+    ///
+    /// # Returns
+    /// `true` if connected, `false` otherwise
     pub fn is_connected(&self) -> bool {
         self.connection_state == ConnectionState::Connected
     }

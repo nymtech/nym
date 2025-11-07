@@ -14,7 +14,7 @@ import { ICMP } from 'components/operators/snippets/icmp.js';
 When we say *Exit Gateway* in connection to Wireguard, we talk about a `nym-node` running in a mode Exit Gateway (`--mode exit-gateway`) with Wireguard enabled. Such node is listed in [NymVPN application](https://nym.com) as an Exit Gateway and an Entry Gateway for both dVPN (2-hop) and Mixnet (5-hop) options. That's because every Exit Gateway can serve as an Entry, not vice versa for Mixnet and every Gateway with Wireguard enabled option (`--wireguard-enabled true`) can always serve as both Entry and Exit for dVPN (provided that they are correctly [configured](/operators/nodes/nym-node/configuration)).
 </Callout>
 
-**Please note that even the most perfectly configured Gateway, running on the strongest machine may not always be listed as a suggested node in the app. If you are interested to learn the details why, check out the [Gateway Probe Details page](/operators/nodes/performance-and-testing/gateway-probe-details).**
+**Please note that even the most perfectly configured Gateway, running on the strongest machine may not always be listed as a suggested node in the app. If you are interested to learn the details why, check out the [Gateway Probe Details page](/operators/performance-and-testing/gateway-probe-details).**
 
 ### Summary
 
@@ -119,7 +119,7 @@ A node configuration break down coming alongside basic [server configuration](/o
 
 ### How Probe Works
 
-Nym Gateway probe is perfomance measurement program running tests through various routes. Operators can run their [local instance of Gateway probe](/operators/nodes/performance-and-testing/gateway-probe) or use visit of our dashboards to conveniently see probe results.
+Nym Gateway probe is perfomance measurement program running tests through various routes. Operators can run their [local instance of Gateway probe](/operators/performance-and-testing/gateway-probe) or use visit of our dashboards to conveniently see probe results.
 
 - [Node Status dashboard](https://node-status.nym.com/dvpn): Shows latest probe results on one board
 - [Nym Node Status Observatory](https://harbourmaster.nymtech.net): New version of a good old Nym Harbourmaster, allowing operators preview stats of each node
@@ -182,7 +182,7 @@ The following sections explain what is measured in order to collect stats to the
 - If a probe fails or times out, the gateway will have stale probe data until the next successful probe completes
 - `last_updated_utc`: Timestamp indicating when the last successful probe test completed
 
-See [*Complete Setup Checklist*(#complete-setup-checklist) to understand the order of tests.
+See [*Complete Setup Checklist*](#complete-setup-checklist) to understand the order of tests.
 
 ### Complete Setup Checklist
 
@@ -220,4 +220,4 @@ See [*Complete Setup Checklist*(#complete-setup-checklist) to understand the ord
 - [ ] [WSS enabled](/operators/nodes/nym-node/configuration/proxy-configuration) (connections may fail on clients if only WS is available)
 - [ ] [QUIC bridge](/operators/nodes/nym-node/configuration#quic-transport-bridge-deployment) operational (ensures your node appears when users enable QUIC only filter on the app)
 - [ ] Accurate geo/IP information (country/region/residential filters rely on this)
-- [ ] Stay on most recent supported binary version - [old versions are penalised](/operators/nodes/performance-and-testing#versions-behind-calculation)
+- [ ] Stay on most recent supported binary version - [old versions are penalised](/operators/performance-and-testing#versions-behind-calculation)

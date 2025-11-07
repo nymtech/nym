@@ -3,8 +3,8 @@
 
 use crate::helpers::try_bump_raw_prerelease;
 use crate::json_types::DepsSet;
-use crate::{json_types, ReleasePackage};
-use anyhow::{bail, Context};
+use crate::{ReleasePackage, json_types};
+use anyhow::{Context, bail};
 use semver::{Comparator, Prerelease, Version, VersionReq};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};

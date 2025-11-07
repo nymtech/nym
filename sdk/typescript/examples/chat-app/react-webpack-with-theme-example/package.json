@@ -1,6 +1,6 @@
 {
   "name": "@nymproject/sdk-example-react-webpack-wasm",
-  "version": "1.0.4-rc.2",
+  "version": "1.0.5",
   "description": "An example project that uses WASM, React, Webpack, Typescript and the Nym theme + components library",
   "license": "Apache-2.0",
   "scripts": {
@@ -20,7 +20,7 @@
     "@mui/lab": "^5.0.0-alpha.72",
     "@mui/material": "^5.0.1",
     "@mui/styles": "^5.0.1",
-    "@nymproject/sdk": ">=1.2.2-rc.0 || ^1",
+    "@nymproject/sdk": ">=1.4.1-rc1 || ^1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-dropzone": "^14.2.3",

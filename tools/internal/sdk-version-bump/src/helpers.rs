@@ -1,7 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use anyhow::{bail, Context};
+use anyhow::{Context, bail};
 use semver::{Prerelease, Version};
 use std::collections::HashSet;
 use std::path::Path;
@@ -72,7 +72,9 @@ pub(crate) fn try_bump_raw_prerelease(raw: &str) -> anyhow::Result<Prerelease> {
 impl VersionBumpExt for Version {
     fn try_bump_prerelease(&self) -> anyhow::Result<Self> {
         if self.pre.is_empty() {
-            bail!("the current version ({self}) does not have pre-release data set - are you sure you followed the release process correctly?")
+            bail!(
+                "the current version ({self}) does not have pre-release data set - are you sure you followed the release process correctly?"
+            )
         }
 
         Ok(Version {
@@ -86,7 +88,9 @@ impl VersionBumpExt for Version {
 
     fn try_bump_patch_without_pre(&self) -> anyhow::Result<Self> {
         if !self.pre.is_empty() {
-            bail!("the current version ({self}) has pre-release data set - are you sure you followed the release process correctly?")
+            bail!(
+                "the current version ({self}) has pre-release data set - are you sure you followed the release process correctly?"
+            )
         }
 
         let mut updated = self.clone();
@@ -96,7 +100,9 @@ impl VersionBumpExt for Version {
 
     fn set_initial_release_candidate(&self) -> anyhow::Result<Self> {
         if !self.pre.is_empty() {
-            bail!("the current version ({self}) has pre-release data set - are you sure you followed the release process correctly?")
+            bail!(
+                "the current version ({self}) has pre-release data set - are you sure you followed the release process correctly?"
+            )
         }
         Ok(Version {
             major: self.major,
@@ -109,7 +115,9 @@ impl VersionBumpExt for Version {
 
     fn try_remove_prerelease(&self) -> anyhow::Result<Self> {
         if self.pre.is_empty() {
-            bail!("the current version ({self}) does not have pre-release data set - are you sure you followed the release process correctly?")
+            bail!(
+                "the current version ({self}) does not have pre-release data set - are you sure you followed the release process correctly?"
+            )
         }
         Ok(Version {
             major: self.major,

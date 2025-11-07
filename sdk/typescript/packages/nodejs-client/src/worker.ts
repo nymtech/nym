@@ -67,7 +67,7 @@ class ClientWrapper {
       console.error('Client has not been initialised. Please call `init` first.');
       return undefined;
     }
-    return this.client.self_address();
+    return this.client.selfAddress();
   };
 
   /**

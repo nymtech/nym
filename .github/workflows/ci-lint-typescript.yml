@@ -6,16 +6,14 @@ on:
     paths:
       - "ts-packages/**"
       - "sdk/typescript/**"
-      - "nym-connect/desktop/src/**"
-      - "nym-connect/desktop/package.json"
       - "nym-wallet/src/**"
       - "nym-wallet/package.json"
-      - "explorer/**"
+      - "explorer-v2/**"
       - ".github/workflows/ci-lint-typescript.yml"
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
+    runs-on: arc-linux-latest
     env:
       RUSTUP_PERMIT_COPY_RENAME: 1
     steps:
@@ -25,6 +23,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+          
       - name: Setup yarn
         run: npm install -g yarn
 
@@ -37,14 +36,12 @@ jobs:
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
 
       - name: Install wasm-opt
-        uses: ./.github/actions/install-wasm-opt
-        with:
-          version: '116'
+        run: cargo install wasm-opt
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
-          go-version: "1.23.7"
+          go-version: "1.24.6"
 
       - name: Install
         run: yarn
@@ -52,7 +49,11 @@ jobs:
       - name: Build packages
         run: yarn build:ci
 
+      - name: Install again
+        run: yarn
+
       - name: Lint
         run: yarn lint
+        
       - name: Typecheck with tsc
         run: yarn tsc

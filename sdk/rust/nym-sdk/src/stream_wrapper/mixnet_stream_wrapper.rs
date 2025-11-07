@@ -11,6 +11,7 @@ use nym_network_defaults::setup_env;
 use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nym_sphinx::receiver::{ReconstructedMessage, ReconstructedMessageCodec};
 use std::io;
+use std::path::PathBuf;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt, ReadBuf};
@@ -18,7 +19,6 @@ use tokio::sync::oneshot;
 use tokio_util::codec::{Encoder, Framed, FramedRead, FramedWrite};
 use tracing::{debug, info, warn};
 
-/// High-level methods for MixnetClient
 impl MixnetClient {
     /// Send data to a recipient with reply SURBs.
     ///
@@ -130,7 +130,6 @@ impl MixnetClient {
     }
 }
 
-/// High-level methods for MixnetClientSender
 impl MixnetClientSender {
     /// Send data to a recipient with optional reply SURBs.
     ///
@@ -192,10 +191,10 @@ impl MixSocket {
     ///
     /// Initializes a new mixnet client and prepares it for connections.
     /// # Arguments
-    /// * `env` - The environment to use. Defaults to Mainnet if None.
-    pub async fn new(env: Option<String>) -> Result<Self, Error> {
+    /// * `env` - The environment to use.
+    pub async fn new(env: PathBuf) -> Result<Self, Error> {
         debug!("Loading env file: {:?}", env);
-        setup_env(env);
+        setup_env(Some(env));
         let inner = MixnetClient::connect_new().await?;
         Ok(MixSocket { inner })
     }
@@ -284,25 +283,27 @@ impl MixStream {
     /// # Arguments
     /// * `socket` - Optional existing socket to use
     /// * `peer` - Optional Nym address to connect to (None = listening mode)
-    /// * `env` - The environment to use. Defaults to Mainnet if `None`. TODO MAKE PATH AND MAKE MORE CLEAR IN DOCS
+    /// * `env` - Optional environment to use. Required if not passing in an existing `socket`.
     pub async fn new(
         socket: Option<MixSocket>,
         peer: Option<Recipient>,
-        env: Option<String>,
-    ) -> Self {
+        env: Option<PathBuf>,
+    ) -> Result<Self, Error> {
         let client = match socket {
             Some(socket) => socket.into_inner(),
             None => {
-                debug!("Loading env file: {:?}", env);
+                if env.is_none() {
+                    return Err(Error::MissingStreamConfig);
+                }
                 setup_env(env);
                 MixnetClient::connect_new().await.unwrap()
             }
         };
-        Self {
+        Ok(Self {
             client,
             peer,
             peer_surb_tag: None,
-        }
+        })
     }
 
     /// Create a listening stream that receives from anyone.
@@ -322,9 +323,9 @@ impl MixStream {
     ///     listener.send(b"Response").await?;
     /// }
     /// ```
-    pub async fn listen(env: Option<String>) -> Result<Self, Error> {
+    pub async fn listen(env: PathBuf) -> Result<Self, Error> {
         debug!("Loading env file: {:?}", env);
-        setup_env(env);
+        setup_env(Some(env));
         let client = MixnetClient::connect_new().await?;
         Ok(Self {
             client,
@@ -339,10 +340,10 @@ impl MixStream {
     ///
     /// # Arguments
     /// * `peer` - The Nym address to connect to
-    /// * `env` - The environment to use. Defaults to Mainnet if None
-    pub async fn connect(peer: Recipient, env: Option<String>) -> Result<Self, Error> {
+    /// * `env` - The environment to use.
+    pub async fn connect(peer: Recipient, env: PathBuf) -> Result<Self, Error> {
         debug!("Loading env file: {:?}", env);
-        setup_env(env.clone());
+        setup_env(Some(env.clone()));
         let socket = MixSocket::new(env).await?;
         Ok(socket.connect(peer).await?)
     }
@@ -848,8 +849,9 @@ impl AsyncWrite for MixStreamWriter {
 
 #[cfg(test)]
 mod tests {
-
     use super::*;
+    use crate::stream_wrapper::network_env::NetworkEnvironment;
+    use futures::StreamExt;
     use std::sync::Once;
 
     static INIT: Once = Once::new();
@@ -861,13 +863,6 @@ mod tests {
         INIT.call_once(|| {
             nym_bin_common::logging::setup_tracing_logger();
         });
-    }
-
-    impl MixSocket {
-        pub async fn new_test() -> Result<Self, Error> {
-            let inner = MixnetClient::connect_new().await?;
-            Ok(MixSocket { inner })
-        }
     }
 
     // #[tokio::test]
@@ -886,19 +881,21 @@ mod tests {
     async fn simple_send_recv() -> Result<(), Box<dyn std::error::Error>> {
         init_logging();
 
+        let env = NetworkEnvironment::Mainnet;
+
         // Create listener (no peer)
-        let listener_socket = MixSocket::new_test().await?;
+        let listener_socket = MixSocket::new(env.env_file_path()).await?;
         let listener_address = *listener_socket.local_addr();
         let mut listener_stream = listener_socket.into_stream();
 
         // Create sender connected to listener
-        let mut sender_stream = MixStream::connect(listener_address, None).await?;
+        let mut sender_stream = MixStream::connect(listener_address, env.env_file_path()).await?;
 
-        // Sender initiates with SURBs
+        // Sender initiates
         sender_stream.send(b"Hello, Mixnet!").await?;
         info!("Sent initial message");
 
-        // Listener receives and extracts SURB
+        // Listener receives and extracts SURB tag
         let msg =
             tokio::time::timeout(tokio::time::Duration::from_secs(30), listener_stream.recv())
                 .await??;
@@ -927,13 +924,14 @@ mod tests {
     #[tokio::test]
     async fn framed() -> Result<(), Box<dyn std::error::Error>> {
         init_logging();
-        use futures::StreamExt;
 
-        let receiver_socket = MixSocket::new_test().await?;
+        let env = NetworkEnvironment::Mainnet;
+
+        let receiver_socket = MixSocket::new(env.env_file_path()).await?;
         let receiver_address = *receiver_socket.local_addr();
         let mut receiver_stream = receiver_socket.into_stream();
 
-        let sender_socket = MixSocket::new_test().await?;
+        let sender_socket = MixSocket::new(env.env_file_path()).await?;
         let sender_stream = sender_socket.connect(receiver_address).await?;
 
         let (sender_reader, mut sender_writer) = sender_stream.split();
@@ -968,11 +966,15 @@ mod tests {
     async fn split_concurrent() -> Result<(), Box<dyn std::error::Error>> {
         init_logging();
 
-        let sender_socket = MixSocket::new_test().await?;
-        let receiver_socket = MixSocket::new_test().await?;
+        let env = NetworkEnvironment::Mainnet;
+
+        let sender_socket = MixSocket::new(env.env_file_path()).await?;
+        let receiver_socket = MixSocket::new(env.env_file_path()).await?;
         let receiver_address = *receiver_socket.local_addr();
 
-        let sender_stream = MixStream::new(Some(sender_socket), Some(receiver_address), None).await;
+        // Passing no env var to MixStream since we're passing a socket that is already configured to use Mainnet
+        let sender_stream =
+            MixStream::new(Some(sender_socket), Some(receiver_address), None).await?;
         let receiver_stream = receiver_socket.into_stream();
 
         let (mut sender_reader, mut sender_writer) = sender_stream.split();

@@ -5,6 +5,8 @@
 
 mod mixnet_stream_wrapper;
 mod mixnet_stream_wrapper_ipr;
+mod network_env;
 
 pub use mixnet_stream_wrapper::{MixSocket, MixStream, MixStreamReader, MixStreamWriter};
 pub use mixnet_stream_wrapper_ipr::{IpMixStream, IpMixStreamReader, IpMixStreamWriter};
+pub use network_env::NetworkEnvironment;

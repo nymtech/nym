@@ -194,12 +194,7 @@ impl IpMixStream {
         let api_client = create_nym_api_client(network_defaults.nym_api_urls.unwrap_or_default())?;
         let ipr_address = get_random_ipr(api_client).await?;
 
-        let stream = MixStream::new(
-            None,
-            Some(ipr_address),
-            Some(env.env_file_path()),
-        )
-        .await?;
+        let stream = MixStream::new(None, Some(ipr_address), Some(env.env_file_path())).await?;
 
         Ok(Self {
             stream,

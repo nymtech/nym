@@ -1,6 +1,6 @@
 #![allow(clippy::result_large_err)]
 use mixtcp::{create_device, MixtcpError, NymIprDevice};
-use nym_sdk::stream_wrapper::IpMixStream;
+use nym_sdk::stream_wrapper::{IpMixStream, NetworkEnvironment};
 use reqwest::StatusCode;
 use rustls::{pki_types::ServerName, ClientConfig, ClientConnection};
 use smoltcp::{
@@ -88,7 +88,7 @@ pub struct MixtcpReqwestClient {
 
 impl MixtcpReqwestClient {
     pub async fn new() -> Result<Self, MixtcpError> {
-        let ipr_stream = IpMixStream::new()
+        let ipr_stream = IpMixStream::new(NetworkEnvironment::Mainnet)
             .await
             .map_err(|_| MixtcpError::MixnetConnectionFailed)?;
 

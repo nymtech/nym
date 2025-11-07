@@ -1,0 +1,2 @@
+export const ICMP =
+  "ICMP (Internet Control Message Protocol) is a network layer protocol used for sending error messages and operational information regarding network conditions. It is commonly utilized for diagnostic purposes, such as sending ping requests to check the reachability of a host. ICMP helps in managing and controlling network traffic by providing feedback about issues in the communication environment.";

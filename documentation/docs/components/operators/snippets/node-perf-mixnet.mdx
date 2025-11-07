@@ -1,0 +1,93 @@
+import { Callout } from 'nextra/components';
+
+
+## Mixnet: Node Performance Calculation
+
+Performance is a value between `0` and `1`. The final performance number is a result of multiplying [config score](#config-score-calculation) and [routing score](#routing-score-calculation).
+
+<Callout type="info" emoji="📌">
+> **node_performance = config_score \* routing_score**
+</Callout>
+
+Performance value is an average of last 24h.
+
+<Callout>
+All parameters regarding performance score can be browsed or pull live from:
+
+`https://validator.nymtech.net/api/v1/nym-nodes/annotation/<NODE_ID>`
+
+In case you don't know your nodes `NODE_ID`, it's easy to find as long as your node is bonded. Visit [validator.nymtech.net/api/v1/nym-nodes/bonded](https://validator.nymtech.net/api/v1/nym-nodes/bonded) and search your node using `identity_key` or bonding Nyx account address (denoted as `owner`).
+</Callout>
+
+### Config Score Calculation
+
+Config score is in place to ensure that the node configuration is done properly so the node is eligible for taking part in Nym network. The API looks into these paramteres:
+
+1. If the node binary is `nym-node` (not legacy `nym-mixnode` or `nym-gateway`): `1` if `True`, `0` if `False`
+2. If [Terms & Conditions](/operators/nodes/nym-node/setup.mdx#terms--conditions) are accepted: `1` if `True`, `0` if `False`
+3. If the nodes self described endpoint is available: `1` if `True`, `0` if `False`
+4. Version of `nym-node` binary: decreasing weight for outdated versions, as [explained below](#versions-behind-calculation)
+
+**The `config_score` calculation formula:**
+
+<Callout type="info" emoji="📌">
+> **config_score = is_tc_accepted \* is_nym-node_binary \* self_described_api_available \* ( 0.995 ^ ( ( X * versions_behind) ^ 1.65 ) )**
+</Callout>
+
+First three points have binary values of either `0` or `1`, with a following logic:
+
+| **Run `nym-node` binary** | **T&C's accepted** | **Self described available** | **Value** |
+| :--                       | :--                | :--                          | ---:      |
+| **True**                  | **True**           | **True**                     | **1**     |
+| True                      | False              | False                        | 0         |
+| True                      | True               | False                        | 0         |
+| False                     | True               | True                         | 0         |
+| False                     | False              | True                         | 0         |
+| True                      | False              | True                         | 0         |
+| False                     | False              | False                        | 0         |
+| False                     | True               | False                        | 0         |
+
+**Only if ALL conditions above are `True` the node can have any chance to be selected, as otherwise the probability will always be 0.**
+
+<Callout type="info" emoji="ℹ️">
+Besides these values, the API also checks whether the node is bonded in Mixnet smart contract as a Nym Node or legacy node (Mixnode or Gateway). **Only nodes bonded as Nym Node in Mixnet smart contract can be selected to the Rewrded set. Thus, if you haven't migrated your node yet, please [follow these steps](/nodes/nym-node/bonding#migrate-to-nym-node-in-mixnet-smart-contract)!**
+</ Callout>
+
+#### Versions Behind Calculation
+
+From release `2024.14-crunch` (`nym-node v1.2.0`), the `config_score` parameter takes into account also nodes version (denoted as `versions_behind`). The "current version" is the one marked as `Latest` in the [repository](https://github.com/nymtech/nym/releases/). The parameter `versions_behind` indicates the number of versions between the `Latest` version and the version run by the node, and it is factored into the config score with this formula:
+
+<Callout type="info" emoji="📌">
+> **0.995 ^ ( ( X * versions_behind ) ^ 1.65 )**
+>
+> where: <br />
+> **X = 1;       for patches** <br />
+> **X = 10;      for minor versions** <br />
+> **X = 100;     for major versions**
+</Callout>
+
+> The exact parameters are live accessible on [`/v1/status/config-score-details`](https://validator.nymtech.net/api/swagger/index.html#/Status/config_score_details).
+
+Our versioning convention is: `major_version . minor_version . patch`
+
+For example `nym-node` on version `1.2.0` is on 1st major version, 2nd minor and 0 patches.
+
+Note that the `X` multiplier heavily lowers the `config_score` when nodes are outdated with respect to more significant updates. See the the table and graph below:
+
+| **Version behind**  | **Patches (X = 1)** | **Minor versions (X = 10)** | **Major versions (X = 100)** |
+| :--                 | --:       | --: | --: |
+| 0 (current version) | 1.0 | 1.0 | 1.0 |
+| 1 | 0.995 | 0.7994 | 0.0000 |
+| 2 | 0.9844 | 0.4953 | 0.0000 |
+| 3 | 0.9698 | 0.2536 | 0.0000 |
+| 4 | 0.9518 | 0.1102 | 0.0000 |
+| 5 | 0.9311 | 0.0413 | 0.0000 |
+
+
+![](/images/operators/tokenomics/reward_version_graph.png)
+
+As you can see above, the algorithm is designed to give maximum selection score (`1`) to the latest version, while non-upgraded nodes receive a lower score. The score decreases faster when the node has failed to make a major version upgrade, and slower when the node is behind only with minor updates. This scoring de-prioritizes the selection of outdated nodes, even if their saturation and performance are high. Nodes are selected probabilistically in each epoch (60 min), according to their scores, to be part of the Rewarded set. This scoring mechanism gives priority to the operators running up-to-date nodes, ensuring that the network is as updated as possible.
+
+### Routing Score Calculation
+
+Routing score is measured by Nym Network Monitor which sends thousands of packages through different routes every 15 minutes and measures how many were dropped on the way. Test result represents percentage of packets succesfully returned which are then converted into floats bettween `0` and `1`.

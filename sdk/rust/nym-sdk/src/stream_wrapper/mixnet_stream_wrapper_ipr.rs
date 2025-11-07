@@ -740,9 +740,8 @@ mod tests {
         Ok(())
     }
 
-    #[ignore]
-    // ignoring because sometimes running these from the CI drops for some reason, maybe its throttled or something
     #[tokio::test]
+    #[ignore]
     async fn dns_ping_checks() -> Result<(), Box<dyn std::error::Error>> {
         let mut stream = IpMixStream::new(NetworkEnvironment::Mainnet).await?;
         let ip_pair = stream.connect_tunnel().await?;
@@ -852,9 +851,8 @@ mod tests {
         Ok(())
     }
 
-    #[ignore]
-    // ignoring because sometimes running these from the CI drops for some reason, maybe its throttled or something
     #[tokio::test]
+    #[ignore]
     async fn split_dns_ping_checks() -> Result<(), Box<dyn std::error::Error>> {
         let mut stream = IpMixStream::new(NetworkEnvironment::Mainnet).await?;
         let ip_pair = stream.connect_tunnel().await?;

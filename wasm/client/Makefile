@@ -1,7 +1,9 @@
 all: build build-node
 
 
-build:
+build: test build-wasm
+
+build-wasm:
 	wasm-pack build --scope nymproject --target web --out-dir ../../dist/wasm/client
 	wasm-opt -Oz -o ../../dist/wasm/client/nym_client_wasm_bg.wasm ../../dist/wasm/client/nym_client_wasm_bg.wasm
 
@@ -16,3 +18,6 @@ build-package-json-node:
 	node build-node.mjs
 
 build-node: build-rust-node build-package-json-node
+
+test:
+	wasm-pack test --node

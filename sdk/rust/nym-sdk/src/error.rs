@@ -155,6 +155,9 @@ pub enum Error {
 
     #[error("Could not find peer address or surb tag")]
     MixStreamNoPeerOrSurb,
+
+    #[error("No network env specified on new MixStream")]
+    MissingStreamConfig,
 }
 
 impl Error {

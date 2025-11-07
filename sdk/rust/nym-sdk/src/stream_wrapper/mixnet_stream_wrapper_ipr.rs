@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use super::mixnet_stream_wrapper::{MixStream, MixStreamReader, MixStreamWriter};
+use super::network_env::NetworkEnvironment;
 use crate::ip_packet_client::{
     helpers::check_ipr_message_version, IprListener, MixnetMessageOutcome,
 };
@@ -10,6 +11,8 @@ use crate::{mixnet::Recipient, Error};
 use std::collections::HashMap;
 
 use bytes::Bytes;
+use futures::StreamExt;
+use nym_crypto::asymmetric::ed25519;
 use nym_ip_packet_requests::{
     v8::{
         request::IpPacketRequest,
@@ -17,12 +20,8 @@ use nym_ip_packet_requests::{
     },
     IpPair,
 };
-use nym_network_defaults::setup_env;
-use nym_sphinx::receiver::ReconstructedMessageCodec;
-
-use futures::StreamExt;
-use nym_crypto::asymmetric::ed25519;
 use nym_network_defaults::ApiUrl;
+use nym_sphinx::receiver::ReconstructedMessageCodec;
 use nym_validator_client::nym_api::NymApiClientExt;
 use std::io;
 use std::pin::Pin;
@@ -195,16 +194,17 @@ impl IpMixStream {
     ///
     /// # Returns
     /// New `IpMixStream` instance ready to connect
-    pub async fn new() -> Result<Self, Error> {
-        // JS: I think you need some bootstrapping here, something would need to be passed to `new()`
-        // to indicate what endpoints to use
-        // again, for now I'm default to mainnet as you did before
-        let mainnet_network_defaults = crate::NymNetworkDetails::new_mainnet();
-        let api_client =
-            create_nym_api_client(mainnet_network_defaults.nym_api_urls.unwrap_or_default())?;
+    pub async fn new(env: NetworkEnvironment) -> Result<Self, Error> {
+        let network_defaults = env.network_defaults();
+        let api_client = create_nym_api_client(network_defaults.nym_api_urls.unwrap_or_default())?;
         let ipr_address = get_random_ipr(api_client).await?;
 
-        let stream = MixStream::new(None, Some(Recipient::from(ipr_address)), None).await;
+        let stream = MixStream::new(
+            None,
+            Some(Recipient::from(ipr_address)),
+            Some(env.env_file_path()),
+        )
+        .await?;
 
         Ok(Self {
             stream,
@@ -743,7 +743,7 @@ mod tests {
     async fn connect_to_ipr() -> Result<(), Box<dyn std::error::Error>> {
         init_logging();
 
-        let mut stream = IpMixStream::new().await?;
+        let mut stream = IpMixStream::new(NetworkEnvironment::Mainnet).await?;
         let ip_pair = stream.connect_tunnel().await?;
 
         let ipv4: Ipv4Addr = ip_pair.ipv4;
@@ -767,7 +767,7 @@ mod tests {
     async fn dns_ping_checks() -> Result<(), Box<dyn std::error::Error>> {
         init_logging();
 
-        let mut stream = IpMixStream::new().await?;
+        let mut stream = IpMixStream::new(NetworkEnvironment::Mainnet).await?;
         let ip_pair = stream.connect_tunnel().await?;
 
         info!(
@@ -879,7 +879,7 @@ mod tests {
     async fn split_dns_ping_checks() -> Result<(), Box<dyn std::error::Error>> {
         init_logging();
 
-        let mut stream = IpMixStream::new().await?;
+        let mut stream = IpMixStream::new(NetworkEnvironment::Mainnet).await?;
         let ip_pair = stream.connect_tunnel().await?;
 
         info!(

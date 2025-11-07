@@ -39,7 +39,7 @@
   },
   "devDependencies": {
     "@npmcli/node-gyp": "^3.0.0",
-    "@types/minimatch": "^6.0.0",
+    "@types/minimatch": "5.1.2",
     "lerna": "^7.3.0",
     "node-gyp": "^9.3.1",
     "npm-run-all": "^4.1.5",
@@ -51,7 +51,8 @@
     "@cosmjs/cosmwasm-stargate": "^0.32.4",
     "@cosmjs/proto-signing": "^0.32.4",
     "@cosmjs/stargate": "^0.32.4",
-    "cosmjs-types": "^0.9.0"
+    "cosmjs-types": "^0.9.0",
+    "@types/minimatch": "5.1.2"
   },
   "workspaces": [
     "ts-packages/*",
@@ -59,7 +60,6 @@
     "explorer-nextjs",
     "explorer-v2",
     "types",
-    "clients/validator",
     "sdk/typescript/packages/mix-fetch/internal-dev",
     "sdk/typescript/packages/react-components",
     "sdk/typescript/packages/mui-theme"

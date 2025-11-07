@@ -4191,30 +4191,20 @@
   resolved "https://registry.yarnpkg.com/@nymproject/mix-fetch-node-commonjs/-/mix-fetch-node-commonjs-1.2.3.tgz#9c917cafb6c3d0dcc87a427e1d1c7193a12fb986"
   integrity sha512-3U4XGWExDcG6J1RO57zvdqlWEtN5JO5ZQO2L+cBlJIWLJPo/tbNkgp1yT3Yp25AiVqXMFzyTByn6kMsAPASD0A==
 
-"@nymproject/mix-fetch-wasm-node@>=1.2.5-rc.0 || ^1":
+"@nymproject/mix-fetch-wasm-node@>=1.4.1-rc.3 || ^1":
   version "1.2.3"
   resolved "https://registry.yarnpkg.com/@nymproject/mix-fetch-wasm-node/-/mix-fetch-wasm-node-1.2.3.tgz#f600df714782e6eb691faa14683e44c2507a8e53"
   integrity sha512-J9mj52WSpsGpuCeW65zEj8RWJ3GvWG0VqVWIDD6w1RK4SesXiGb7ghD7F1rChRMlSbl9rP9reYkmAHz63Sb6Cw==
 
-"@nymproject/nym-client-wasm-node@>=1.2.5-rc.0 || ^1":
-  version "1.2.3"
-  resolved "https://registry.yarnpkg.com/@nymproject/nym-client-wasm-node/-/nym-client-wasm-node-1.2.3.tgz#e75e234714494fafffb86115cdee6759dcede366"
-  integrity sha512-fUGld4MJOgnvyqk5/KIpFePIXn8Nsl/7T/jh9a9WdTWntECnnJ/DBqoO+6NzDkyXaLYhByqR7reO8ZApNR0YCw==
-
-"@nymproject/nym-node-tester-wasm@>=1.2.5-rc.0 || ^1":
-  version "1.2.3"
-  resolved "https://registry.yarnpkg.com/@nymproject/nym-node-tester-wasm/-/nym-node-tester-wasm-1.2.3.tgz#c7bfe705afca51bed59de22ed9c411c35e85ea6c"
-  integrity sha512-V6jomTQKEfFOeiht+nD/UzCUVouFrDLGBaYg+zXcISE4JE3Hg7dNKRXOMxImjdsb3gRGSZkPGtPGst6tKBKyHg==
-
 "@nymproject/sdk-react@file:sdk/typescript/packages/sdk-react":
   version "1.4.1"
   dependencies:
-    "@nymproject/sdk" "1.4.1-rc1"
+    "@nymproject/sdk" ">=1.4.1-rc.3 || ^1"
 
 "@nymproject/sdk@file:sdk/typescript/packages/sdk":
-  version "1.4.1-rc1"
+  version "1.4.1"
   dependencies:
-    "@nymproject/nym-client-wasm" "1.4.1-rc1"
+    "@nymproject/nym-client-wasm" ">=1.4.1-rc.3 || ^1"
     comlink "^4.3.1"
 
 "@octokit/auth-token@^3.0.0":
@@ -8419,22 +8409,10 @@
   resolved "https://registry.yarnpkg.com/@types/mime/-/mime-1.3.5.tgz#1ef302e01cf7d2b5a0fa526790c9123bf1d06690"
   integrity sha512-/pyBZWSLD2n0dcHE3hq8s8ZvcETHtEuF+3E7XVt0Ig2nvsVQXdghHVcEkIWjy9A0wKfTn97a/PSDYohKIlnP/w==
 
-"@types/minimatch@*", "@types/minimatch@^6.0.0":
-  version "6.0.0"
-  resolved "https://registry.yarnpkg.com/@types/minimatch/-/minimatch-6.0.0.tgz#4d207b1cc941367bdcd195a3a781a7e4fc3b1e03"
-  integrity sha512-zmPitbQ8+6zNutpwgcQuLcsEpn/Cj54Kbn7L5pX0Os5kdWplB7xPgEh/g+SWOB/qmows2gpuCaPyduq8ZZRnxA==
-  dependencies:
-    minimatch "*"
-
-"@types/minimatch@5.1.2":
+"@types/minimatch@*", "@types/minimatch@5.1.2", "@types/minimatch@^3.0.3":
   version "5.1.2"
   resolved "https://registry.yarnpkg.com/@types/minimatch/-/minimatch-5.1.2.tgz#07508b45797cb81ec3f273011b054cd0755eddca"
   integrity sha512-K0VQKziLUWkVKiRVrx4a40iPaxTUefQmjtkQofBkYRcoaaL/8rhwDWww9qWbrgicNOgnpIsMxyNIUM4+n6dUIA==
-
-"@types/minimatch@^3.0.3":
-  version "3.0.5"
-  resolved "https://registry.yarnpkg.com/@types/minimatch/-/minimatch-3.0.5.tgz#1001cc5e6a3704b83c236027e77f2f58ea010f40"
-  integrity sha512-Klz949h02Gz2uZCMGwDUSDS1YBlTdDDgbWHi+81l29tQALUtvz4rAYi5uoVhE5Lagoq6DeqAUlbrHvW/mXDgdQ==
 
 "@types/minimist@^1.2.0":
   version "1.2.5"
@@ -19609,19 +19587,19 @@ minimalistic-crypto-utils@^1.0.1:
   resolved "https://registry.yarnpkg.com/minimalistic-crypto-utils/-/minimalistic-crypto-utils-1.0.1.tgz#f6c00c1c0b082246e5c4d99dfb8c7c083b2b582a"
   integrity sha512-JIYlbt6g8i5jKfJ3xz7rF0LXmv2TkDxBLUkiBeZ7bAx4GnnNMr8xFpGnOxn6GhTEHx3SjRrZEoU+j04prX1ktg==
 
-minimatch@*, minimatch@^10.0.3:
-  version "10.0.3"
-  resolved "https://registry.yarnpkg.com/minimatch/-/minimatch-10.0.3.tgz#cf7a0314a16c4d9ab73a7730a0e8e3c3502d47aa"
-  integrity sha512-IPZ167aShDZZUMdRk66cyQAW3qr0WzbHkPdMYa8bzZhlHhO3jALbKdxcaak7W9FfT2rZNpQuUu4Od7ILEpXSaw==
-  dependencies:
-    "@isaacs/brace-expansion" "^5.0.0"
-
 minimatch@3.0.5:
   version "3.0.5"
   resolved "https://registry.yarnpkg.com/minimatch/-/minimatch-3.0.5.tgz#4da8f1290ee0f0f8e83d60ca69f8f134068604a3"
   integrity sha512-tUpxzX0VAzJHjLu0xUfFv1gwVp9ba3IOuRAVH2EGuRW8a5emA2FlACLqiT/lDVtS1W+TGNwqz3sWaNyLgDJWuw==
   dependencies:
     brace-expansion "^1.1.7"
+
+minimatch@^10.0.3:
+  version "10.0.3"
+  resolved "https://registry.yarnpkg.com/minimatch/-/minimatch-10.0.3.tgz#cf7a0314a16c4d9ab73a7730a0e8e3c3502d47aa"
+  integrity sha512-IPZ167aShDZZUMdRk66cyQAW3qr0WzbHkPdMYa8bzZhlHhO3jALbKdxcaak7W9FfT2rZNpQuUu4Od7ILEpXSaw==
+  dependencies:
+    "@isaacs/brace-expansion" "^5.0.0"
 
 minimatch@^3.0.2, minimatch@^3.0.4, minimatch@^3.0.5, minimatch@^3.1.1, minimatch@^3.1.2:
   version "3.1.2"

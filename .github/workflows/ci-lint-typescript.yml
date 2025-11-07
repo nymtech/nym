@@ -49,7 +49,11 @@ jobs:
       - name: Build packages
         run: yarn build:ci
 
+      - name: Install again
+        run: yarn
+
       - name: Lint
         run: yarn lint
+        
       - name: Typecheck with tsc
         run: yarn tsc

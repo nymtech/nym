@@ -5,8 +5,6 @@
 >
 > ➡️➡️➡️➡️➡️ **View output:**
 >
-> `storybook`: https://{{ env.NYM_CI_WWW_LOCATION }}.{{ env.NYM_CI_WWW_BASE }}
->
 > `branch` {{ env.GITHUB_SERVER_URL }}/{{ env.GITHUB_REPOSITORY }}/tree/{{ env.GIT_BRANCH_NAME }}
 >
 > `commit` {{ env.GITHUB_SERVER_URL }}/{{ env.GITHUB_REPOSITORY }}/commit/{{ env.GITHUB_SHA }}

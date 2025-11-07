@@ -6,7 +6,6 @@ use std::io;
 use crate::make_bincode_serializer;
 use crate::message::{NymMessage, NymMessageError, PaddedMessage, PlainMessage};
 use bincode::Options;
-use log::debug;
 use nym_crypto::aes::cipher::{KeyIvInit, StreamCipher};
 use nym_crypto::asymmetric::x25519;
 use nym_crypto::shared_key::recompute_shared_key;

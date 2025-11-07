@@ -7,7 +7,8 @@ use std::{
 };
 use tracing::info;
 
-use nym_sdk::stream_wrapper::IpMixStream;
+use nym_sdk::stream_wrapper::{IpMixStream, NetworkEnvironment};
+
 use smoltcp::{
     iface::{Config, Interface, SocketSet},
     socket::tcp,
@@ -141,7 +142,7 @@ fn init_logging() {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     init_logging();
 
-    let ipr_stream = IpMixStream::new().await?;
+    let ipr_stream = IpMixStream::new(NetworkEnvironment::Mainnet).await?;
     let (mut device, bridge, allocated_ips) = create_device(ipr_stream).await?;
     info!("Allocated IP: {}", allocated_ips.ipv4);
 

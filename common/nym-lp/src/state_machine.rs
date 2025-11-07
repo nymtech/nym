@@ -225,37 +225,37 @@ impl LpStateMachine {
                                     //  LpState::Closed { reason }
                                     LpState::Handshaking { session }
                                  } else {
-                                     // 4. Check if handshake is now complete
-                                     if session.is_handshake_complete() {
-                                         result_action = Some(Ok(LpAction::HandshakeComplete));
-                                         LpState::Transport { session } // Transition to Transport
-                                     } else {
-                                         // 5. Check if we need to send the next handshake message
-                                         match session.prepare_handshake_message() {
-                                             Some(Ok(message)) => {
-                                                 match session.next_packet(message) {
-                                                     Ok(response_packet) => {
-                                                         result_action = Some(Ok(LpAction::SendPacket(response_packet)));
-                                                         // Check AGAIN if handshake became complete *after preparing*
-                                                         if session.is_handshake_complete() {
-                                                             LpState::Transport { session } // Transition to Transport
-                                                         } else {
-                                                             LpState::Handshaking { session } // Remain Handshaking
-                                                         }
-                                                     }
-                                                     Err(e) => {
-                                                         let reason = e.to_string();
-                                                         result_action = Some(Err(e));
-                                                         LpState::Closed { reason }
+                                     // 4. First check if we need to send a handshake message (before checking completion)
+                                     match session.prepare_handshake_message() {
+                                         Some(Ok(message)) => {
+                                             match session.next_packet(message) {
+                                                 Ok(response_packet) => {
+                                                     result_action = Some(Ok(LpAction::SendPacket(response_packet)));
+                                                     // Check if handshake became complete after preparing message
+                                                     if session.is_handshake_complete() {
+                                                         LpState::Transport { session } // Transition to Transport
+                                                     } else {
+                                                         LpState::Handshaking { session } // Remain Handshaking
                                                      }
                                                  }
+                                                 Err(e) => {
+                                                     let reason = e.to_string();
+                                                     result_action = Some(Err(e));
+                                                     LpState::Closed { reason }
+                                                 }
                                              }
-                                             Some(Err(e)) => {
-                                                 let reason = e.to_string();
-                                                 result_action = Some(Err(e));
-                                                 LpState::Closed { reason }
-                                             }
-                                             None => {
+                                         }
+                                         Some(Err(e)) => {
+                                             let reason = e.to_string();
+                                             result_action = Some(Err(e));
+                                             LpState::Closed { reason }
+                                         }
+                                         None => {
+                                             // 5. No message to send - check if handshake is complete
+                                             if session.is_handshake_complete() {
+                                                 result_action = Some(Ok(LpAction::HandshakeComplete));
+                                                 LpState::Transport { session } // Transition to Transport
+                                             } else {
                                                  // Handshake stalled unexpectedly
                                                  let err = LpError::NoiseError(NoiseError::Other(
                                                      "Handshake stalled unexpectedly".to_string(),

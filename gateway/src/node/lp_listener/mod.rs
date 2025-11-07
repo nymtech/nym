@@ -108,17 +108,29 @@ pub struct LpConfig {
     /// Recommended: 30-60 seconds
     #[serde(default = "default_timestamp_tolerance_secs")]
     pub timestamp_tolerance_secs: u64,
+
+    /// Use mock ecash manager for testing (default: false)
+    ///
+    /// When enabled, the LP listener will use a mock ecash verifier that
+    /// accepts any credential without blockchain verification. This is
+    /// useful for testing the LP protocol implementation without requiring
+    /// a full blockchain/contract setup.
+    ///
+    /// WARNING: Only use this for local testing! Never enable in production.
+    #[serde(default = "default_use_mock_ecash")]
+    pub use_mock_ecash: bool,
 }
 
 impl Default for LpConfig {
     fn default() -> Self {
         Self {
-            enabled: false,
+            enabled: true,
             bind_address: default_bind_address(),
             control_port: default_control_port(),
             data_port: default_data_port(),
             max_connections: default_max_connections(),
             timestamp_tolerance_secs: default_timestamp_tolerance_secs(),
+            use_mock_ecash: default_use_mock_ecash(),
         }
     }
 }
@@ -141,6 +153,10 @@ fn default_max_connections() -> usize {
 
 fn default_timestamp_tolerance_secs() -> u64 {
     30 // 30 seconds - balances security vs clock skew tolerance
+}
+
+fn default_use_mock_ecash() -> bool {
+    false // Always default to real ecash for security
 }
 
 /// Shared state for LP connection handlers

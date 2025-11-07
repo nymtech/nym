@@ -11,7 +11,7 @@ use crate::node::internal_service_providers::{
 use crate::node::stale_data_cleaner::StaleMessagesCleaner;
 use futures::channel::oneshot;
 use nym_credential_verification::ecash::{
-    credential_sender::CredentialHandlerConfig, EcashManager,
+    credential_sender::CredentialHandlerConfig, EcashManager, MockEcashManager,
 };
 use nym_credential_verification::upgrade_mode::{
     UpgradeModeCheckConfig, UpgradeModeDetails, UpgradeModeState,
@@ -106,7 +106,8 @@ pub struct GatewayTasksBuilder {
     shutdown_tracker: ShutdownTracker,
 
     // populated and cached as necessary
-    ecash_manager: Option<Arc<EcashManager>>,
+    ecash_manager:
+        Option<Arc<dyn nym_credential_verification::ecash::traits::EcashManager + Send + Sync>>,
 
     wireguard_peers: Option<Vec<defguard_wireguard_rs::host::Peer>>,
 
@@ -213,7 +214,21 @@ impl GatewayTasksBuilder {
         Ok(nyxd_client)
     }
 
-    async fn build_ecash_manager(&self) -> Result<Arc<EcashManager>, GatewayError> {
+    async fn build_ecash_manager(
+        &self,
+    ) -> Result<
+        Arc<dyn nym_credential_verification::ecash::traits::EcashManager + Send + Sync>,
+        GatewayError,
+    > {
+        // Check if we should use mock ecash for testing
+        if self.config.lp.use_mock_ecash {
+            info!("Using MockEcashManager for LP testing (credentials NOT verified)");
+            let mock_manager = MockEcashManager::new(Box::new(self.storage.clone()));
+            return Ok(Arc::new(mock_manager)
+                as Arc<dyn nym_credential_verification::ecash::traits::EcashManager + Send + Sync>);
+        }
+
+        // Production path: use real EcashManager with blockchain verification
         let handler_config = CredentialHandlerConfig {
             revocation_bandwidth_penalty: self
                 .config
@@ -246,7 +261,8 @@ impl GatewayTasksBuilder {
             "EcashCredentialHandler",
         );
 
-        Ok(Arc::new(ecash_manager))
+        Ok(Arc::new(ecash_manager)
+            as Arc<dyn nym_credential_verification::ecash::traits::EcashManager + Send + Sync>)
     }
 
     async fn ecash_manager(
@@ -303,11 +319,7 @@ impl GatewayTasksBuilder {
         active_clients_store: ActiveClientsStore,
     ) -> Result<lp_listener::LpListener, GatewayError> {
         // Get WireGuard peer controller if available
-        let wg_peer_controller = if let Some(wg_data) = &self.wireguard_data {
-            Some(wg_data.inner.peer_tx().clone())
-        } else {
-            None
-        };
+        let wg_peer_controller = self.wireguard_data.as_ref().map(|wg_data| wg_data.inner.peer_tx().clone());
 
         let handler_state = lp_listener::LpHandlerState {
             ecash_verifier: self.ecash_manager().await?,

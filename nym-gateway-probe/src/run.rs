@@ -4,7 +4,7 @@
 use clap::{Parser, Subcommand};
 use nym_bin_common::bin_info;
 use nym_config::defaults::setup_env;
-use nym_gateway_probe::nodes::NymApiDirectory;
+use nym_gateway_probe::nodes::{query_gateway_by_ip, NymApiDirectory};
 use nym_gateway_probe::{CredentialArgs, NetstackArgs, ProbeResult, TestedNode};
 use nym_sdk::mixnet::NodeIdentity;
 use std::path::Path;
@@ -37,6 +37,11 @@ struct CliArgs {
     #[arg(long, short = 'g', alias = "gateway", global = true)]
     entry_gateway: Option<String>,
 
+    /// The address of the gateway to probe directly (bypasses directory lookup)
+    /// Supports formats: IP (192.168.66.5), IP:PORT (192.168.66.5:8080), HOST:PORT (localhost:30004)
+    #[arg(long, global = true)]
+    gateway_ip: Option<String>,
+
     /// Identity of the node to test
     #[arg(long, short, value_parser = validate_node_identity, global = true)]
     node: Option<NodeIdentity>,
@@ -49,6 +54,9 @@ struct CliArgs {
     // min_gateway_vpn_performance: Option<u8>,
     #[arg(long, global = true)]
     only_wireguard: bool,
+
+    #[arg(long, global = true)]
+    only_lp_registration: bool,
 
     /// Disable logging during probe
     #[arg(long, global = true)]
@@ -76,12 +84,16 @@ const DEFAULT_CONFIG_DIR: &str = "/tmp/nym-gateway-probe/config/";
 enum Commands {
     /// Run the probe locally
     RunLocal {
-        /// Provide a mnemonic to get credentials
+        /// Provide a mnemonic to get credentials (optional when using --use-mock-ecash)
         #[arg(long)]
-        mnemonic: String,
+        mnemonic: Option<String>,
 
         #[arg(long)]
         config_dir: Option<PathBuf>,
+
+        /// Use mock ecash credentials for testing (requires gateway with --lp-use-mock-ecash)
+        #[arg(long)]
+        use_mock_ecash: bool,
     },
 }
 
@@ -116,18 +128,42 @@ pub(crate) async fn run() -> anyhow::Result<ProbeResult> {
         .first()
         .map(|ep| ep.nyxd_url())
         .ok_or(anyhow::anyhow!("missing nyxd url"))?;
-    let api_url = network
-        .endpoints
-        .first()
-        .and_then(|ep| ep.api_url())
-        .ok_or(anyhow::anyhow!("missing nyxd url"))?;
+    // If gateway IP is provided, query it directly without using the directory
+    let (entry, directory, gateway_node) = if let Some(gateway_ip) = args.gateway_ip {
+        info!("Using direct IP query mode for gateway: {}", gateway_ip);
+        let gateway_node = query_gateway_by_ip(gateway_ip).await?;
+        let identity = gateway_node.identity();
 
-    let directory = NymApiDirectory::new(api_url).await?;
+        // Still create the directory for potential secondary lookups,
+        // but only if API URL is available
+        let directory = if let Some(api_url) = network
+            .endpoints
+            .first()
+            .and_then(|ep| ep.api_url())
+        {
+            Some(NymApiDirectory::new(api_url).await?)
+        } else {
+            None
+        };
 
-    let entry = if let Some(gateway) = &args.entry_gateway {
-        NodeIdentity::from_base58_string(gateway)?
+        (identity, directory, Some(gateway_node))
     } else {
-        directory.random_exit_with_ipr()?
+        // Original behavior: use directory service
+        let api_url = network
+            .endpoints
+            .first()
+            .and_then(|ep| ep.api_url())
+            .ok_or(anyhow::anyhow!("missing api url"))?;
+
+        let directory = NymApiDirectory::new(api_url).await?;
+
+        let entry = if let Some(gateway) = &args.entry_gateway {
+            NodeIdentity::from_base58_string(gateway)?
+        } else {
+            directory.random_exit_with_ipr()?
+        };
+
+        (entry, Some(directory), None)
     };
 
     let test_point = if let Some(node) = args.node {
@@ -136,8 +172,18 @@ pub(crate) async fn run() -> anyhow::Result<ProbeResult> {
         TestedNode::SameAsEntry
     };
 
-    let mut trial =
-        nym_gateway_probe::Probe::new(entry, test_point, args.netstack_args, args.credential_args);
+    let mut trial = if let Some(gw_node) = gateway_node {
+        nym_gateway_probe::Probe::new_with_gateway(
+            entry,
+            test_point,
+            args.netstack_args,
+            args.credential_args,
+            gw_node,
+        )
+    } else {
+        nym_gateway_probe::Probe::new(entry, test_point, args.netstack_args, args.credential_args)
+    };
+
     if let Some(awg_args) = args.amnezia_args {
         trial.with_amnezia(&awg_args);
     }
@@ -146,6 +192,7 @@ pub(crate) async fn run() -> anyhow::Result<ProbeResult> {
         Some(Commands::RunLocal {
             mnemonic,
             config_dir,
+            use_mock_ecash,
         }) => {
             let config_dir = config_dir
                 .clone()
@@ -158,12 +205,14 @@ pub(crate) async fn run() -> anyhow::Result<ProbeResult> {
 
             Box::pin(trial.probe_run_locally(
                 &config_dir,
-                mnemonic,
+                mnemonic.as_deref(),
                 directory,
                 nyxd_url,
                 args.ignore_egress_epoch_role,
                 args.only_wireguard,
+                args.only_lp_registration,
                 args.min_gateway_mixnet_performance,
+                *use_mock_ecash,
             ))
             .await
         }
@@ -173,6 +222,7 @@ pub(crate) async fn run() -> anyhow::Result<ProbeResult> {
                 nyxd_url,
                 args.ignore_egress_epoch_role,
                 args.only_wireguard,
+                args.only_lp_registration,
                 args.min_gateway_mixnet_performance,
             ))
             .await

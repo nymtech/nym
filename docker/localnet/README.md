@@ -81,6 +81,8 @@ Ports published to host:
 - 10001-10004 → Mixnet ports
 - 20001-20004 → Verloc ports
 - 30001-30004 → HTTP APIs
+- 41264 → LP control port (registration)
+- 51264 → LP data port
 
 ### Startup Flow
 
@@ -245,6 +247,41 @@ container logs nym-gateway --follow &
 # Make a request
 curl -L --socks5 localhost:1080 https://nymtech.com
 ```
+
+### LP (Lewes Protocol) Testing
+
+The gateway is configured with LP listener enabled and **mock ecash verification** for testing:
+
+```bash
+# LP listener ports (exposed on host):
+# - 41264: LP control port (TCP registration)
+# - 51264: LP data port
+
+# Check LP ports are listening
+nc -zv localhost 41264
+nc -zv localhost 51264
+
+# Test LP registration with nym-gateway-probe
+cargo run -p nym-gateway-probe run-local \
+  --mnemonic "test mnemonic here" \
+  --gateway-ip 'localhost:41264' \
+  --only-lp-registration
+```
+
+**Mock Ecash Mode**:
+- Gateway uses `--lp.use-mock-ecash true` flag
+- Accepts ANY bandwidth credential without blockchain verification
+- Perfect for testing LP protocol implementation
+- **WARNING**: Never use mock ecash in production!
+
+**Testing without blockchain**:
+The mock ecash manager allows testing the complete LP registration flow without requiring:
+- Running nyxd blockchain
+- Deploying smart contracts
+- Acquiring real bandwidth credentials
+- Setting up coconut signers
+
+This makes localnet perfect for rapid LP protocol development and testing.
 
 ## File Structure
 

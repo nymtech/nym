@@ -39,6 +39,10 @@ impl PrivateKey {
         Ok(PrivateKey(SphinxPrivateKey::from(bytes)))
     }
 
+    pub fn from_bytes(bytes: &[u8; 32]) -> Self {
+        PrivateKey(SphinxPrivateKey::from(*bytes))
+    }
+
     pub fn public_key(&self) -> PublicKey {
         let public_key = SphinxPublicKey::from(&self.0);
         PublicKey(public_key)
@@ -96,6 +100,21 @@ impl Keypair {
     pub fn new() -> Self {
         let private_key = PrivateKey::default();
         let public_key = private_key.public_key();
+        Self {
+            private_key,
+            public_key,
+        }
+    }
+
+    pub fn from_private_key(private_key: PrivateKey) -> Self {
+        let public_key = private_key.public_key();
+        Self {
+            private_key,
+            public_key,
+        }
+    }
+
+    pub fn from_keys(private_key: PrivateKey, public_key: PublicKey) -> Self {
         Self {
             private_key,
             public_key,

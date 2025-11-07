@@ -315,8 +315,8 @@ async fn register_wg_peer(
             .unwrap_or_else(|_| SocketAddr::from_str("0.0.0.0:51820").unwrap()),
     );
     peer.allowed_ips = vec![
-        format!("{}/32", client_ipv4).parse().unwrap(),
-        format!("{}/128", client_ipv6).parse().unwrap(),
+        format!("{client_ipv4}/32").parse().unwrap(),
+        format!("{client_ipv6}/128").parse().unwrap(),
     ];
     peer.persistent_keepalive_interval = Some(25);
 

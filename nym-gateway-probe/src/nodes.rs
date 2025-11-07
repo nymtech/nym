@@ -3,14 +3,25 @@
 
 use crate::TestedNodeDetails;
 use anyhow::{Context, anyhow, bail};
+use nym_api_requests::models::{
+    AuthenticatorDetails, DeclaredRoles, DescribedNodeType, HostInformation,
+    IpPacketRouterDetails, NetworkRequesterDetails, NymNodeData, OffsetDateTimeJsonSchemaWrapper,
+    WebSockets, WireguardDetails,
+};
 use nym_authenticator_requests::AuthenticatorVersion;
+use nym_bin_common::build_information::BinaryBuildInformationOwned;
 use nym_http_api_client::UserAgent;
+use nym_network_defaults::DEFAULT_NYM_NODE_HTTP_PORT;
+use nym_node_requests::api::client::NymNodeApiClientExt;
+use nym_node_requests::api::v1::node::models::AuxiliaryDetails as NodeAuxiliaryDetails;
 use nym_sdk::mixnet::NodeIdentity;
 use nym_validator_client::client::NymApiClientExt;
 use nym_validator_client::models::NymNodeDescription;
 use rand::prelude::IteratorRandom;
 use std::collections::HashMap;
-use tracing::{debug, info};
+use std::time::Duration;
+use time::OffsetDateTime;
+use tracing::{debug, info, warn};
 use url::Url;
 
 // in the old behaviour we were getting all skimmed nodes to retrieve performance
@@ -131,6 +142,172 @@ impl DirectoryNode {
             lp_address,
         })
     }
+}
+
+/// Query a gateway directly by address using its self-described HTTP API endpoints.
+/// This bypasses the need for directory service lookup.
+///
+/// # Arguments
+/// * `address` - The address of the gateway (IP, IP:PORT, or HOST:PORT format)
+///
+/// # Returns
+/// A `DirectoryNode` containing all gateway metadata, or an error if the query fails
+pub async fn query_gateway_by_ip(address: String) -> anyhow::Result<DirectoryNode> {
+    info!("Querying gateway directly at address: {}", address);
+
+    // Parse the address to check if it contains a port
+    let addresses_to_try = if address.contains(':') {
+        // Address already has port specified, use it directly
+        vec![
+            format!("http://{}", address),
+            format!("https://{}", address),
+        ]
+    } else {
+        // No port specified, try multiple ports in order of likelihood
+        vec![
+            format!("http://{}:{}", address, DEFAULT_NYM_NODE_HTTP_PORT), // Standard port 8080
+            format!("https://{}", address),                                // HTTPS proxy (443)
+            format!("http://{}", address),                                 // HTTP proxy (80)
+        ]
+    };
+
+    let user_agent: UserAgent = nym_bin_common::bin_info_local_vergen!().into();
+    let mut last_error = None;
+
+    for address in addresses_to_try {
+        debug!("Trying to connect to gateway at: {}", address);
+
+        // Build client with timeout
+        let client = match nym_node_requests::api::Client::builder(address.clone()) {
+            Ok(builder) => match builder
+                .with_timeout(Duration::from_secs(5))
+                .no_hickory_dns()
+                .with_user_agent(user_agent.clone())
+                .build()
+            {
+                Ok(c) => c,
+                Err(e) => {
+                    warn!("Failed to build client for {}: {}", address, e);
+                    last_error = Some(e.into());
+                    continue;
+                }
+            },
+            Err(e) => {
+                warn!("Failed to create client builder for {}: {}", address, e);
+                last_error = Some(e.into());
+                continue;
+            }
+        };
+
+        // Check if the node is up
+        match client.get_health().await {
+            Ok(health) if health.status.is_up() => {
+                info!("Successfully connected to gateway at {}", address);
+
+                // Query all required metadata concurrently
+                let host_info_result = client.get_host_information().await;
+                let roles_result = client.get_roles().await;
+                let build_info_result = client.get_build_information().await;
+                let aux_details_result = client.get_auxiliary_details().await;
+                let websockets_result = client.get_mixnet_websockets().await;
+
+                // These are optional, so we use ok() to ignore errors
+                let ipr_result = client.get_ip_packet_router().await.ok();
+                let authenticator_result = client.get_authenticator().await.ok();
+                let wireguard_result = client.get_wireguard().await.ok();
+
+                // Check required fields
+                let host_info = host_info_result.context("Failed to get host information")?;
+                let roles = roles_result.context("Failed to get roles")?;
+                let build_info = build_info_result.context("Failed to get build information")?;
+                let aux_details: NodeAuxiliaryDetails = aux_details_result.unwrap_or_default();
+                let websockets = websockets_result.context("Failed to get websocket info")?;
+
+                // Verify node signature
+                if !host_info.verify_host_information() {
+                    bail!("Gateway host information signature verification failed");
+                }
+
+                // Verify it's actually a gateway
+                if !roles.gateway_enabled {
+                    bail!("Node at {} is not configured as an entry gateway", address);
+                }
+
+                // Convert to our internal types
+                let network_requester: Option<NetworkRequesterDetails> = None; // Not needed for LP testing
+                let ip_packet_router: Option<IpPacketRouterDetails> =
+                    ipr_result.map(|ipr| IpPacketRouterDetails {
+                        address: ipr.address,
+                    });
+                let authenticator: Option<AuthenticatorDetails> =
+                    authenticator_result.map(|auth| AuthenticatorDetails {
+                        address: auth.address,
+                    });
+                let wireguard: Option<WireguardDetails> = wireguard_result.map(|wg| WireguardDetails {
+                    port: wg.port,
+                    tunnel_port: wg.tunnel_port,
+                    metadata_port: wg.metadata_port,
+                    public_key: wg.public_key,
+                });
+
+                // Construct NymNodeData
+                let node_data = NymNodeData {
+                    last_polled: OffsetDateTimeJsonSchemaWrapper(OffsetDateTime::now_utc()),
+                    host_information: HostInformation {
+                        ip_address: host_info.data.ip_address,
+                        hostname: host_info.data.hostname,
+                        keys: host_info.data.keys.into(),
+                    },
+                    declared_role: DeclaredRoles {
+                        mixnode: roles.mixnode_enabled,
+                        entry: roles.gateway_enabled,
+                        exit_nr: roles.network_requester_enabled,
+                        exit_ipr: roles.ip_packet_router_enabled,
+                    },
+                    auxiliary_details: aux_details,
+                    build_information: BinaryBuildInformationOwned {
+                        binary_name: build_info.binary_name,
+                        build_timestamp: build_info.build_timestamp,
+                        build_version: build_info.build_version,
+                        commit_sha: build_info.commit_sha,
+                        commit_timestamp: build_info.commit_timestamp,
+                        commit_branch: build_info.commit_branch,
+                        rustc_version: build_info.rustc_version,
+                        rustc_channel: build_info.rustc_channel,
+                        cargo_triple: build_info.cargo_triple,
+                        cargo_profile: build_info.cargo_profile,
+                    },
+                    network_requester,
+                    ip_packet_router,
+                    authenticator,
+                    wireguard,
+                    mixnet_websockets: WebSockets {
+                        ws_port: websockets.ws_port,
+                        wss_port: websockets.wss_port,
+                    },
+                };
+
+                // Create NymNodeDescription
+                let described = NymNodeDescription {
+                    node_id: 0, // We don't have a node_id from direct query
+                    contract_node_type: DescribedNodeType::NymNode, // All new nodes are NymNode type
+                    description: node_data,
+                };
+
+                return Ok(DirectoryNode { described });
+            }
+            Ok(_) => {
+                warn!("Gateway at {} is not healthy", address);
+                last_error = Some(anyhow!("Gateway is not healthy"));
+            }
+            Err(e) => {
+                warn!("Health check failed for {}: {}", address, e);
+                last_error = Some(e.into());
+            }
+        }
+    }
+
+    Err(last_error.unwrap_or_else(|| anyhow!("Failed to connect to gateway at {}", address)))
 }
 
 pub struct NymApiDirectory {

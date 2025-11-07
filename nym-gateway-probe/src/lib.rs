@@ -60,7 +60,7 @@ pub mod nodes;
 mod types;
 
 use crate::bandwidth_helpers::{acquire_bandwidth, import_bandwidth};
-use crate::nodes::NymApiDirectory;
+use crate::nodes::{DirectoryNode, NymApiDirectory};
 use nym_node_status_client::models::AttachedTicketMaterials;
 pub use types::{IpPingReplies, ProbeOutcome, ProbeResult};
 
@@ -155,6 +155,8 @@ pub struct Probe {
     amnezia_args: String,
     netstack_args: NetstackArgs,
     credentials_args: CredentialArgs,
+    /// Pre-queried gateway node (used when --gateway-ip is specified)
+    direct_gateway_node: Option<DirectoryNode>,
 }
 
 impl Probe {
@@ -170,8 +172,28 @@ impl Probe {
             amnezia_args: "".into(),
             netstack_args,
             credentials_args,
+            direct_gateway_node: None,
         }
     }
+
+    /// Create a probe with a pre-queried gateway node (for direct IP mode)
+    pub fn new_with_gateway(
+        entrypoint: NodeIdentity,
+        tested_node: TestedNode,
+        netstack_args: NetstackArgs,
+        credentials_args: CredentialArgs,
+        gateway_node: DirectoryNode,
+    ) -> Self {
+        Self {
+            entrypoint,
+            tested_node,
+            amnezia_args: "".into(),
+            netstack_args,
+            credentials_args,
+            direct_gateway_node: Some(gateway_node),
+        }
+    }
+
     pub fn with_amnezia(&mut self, args: &str) -> &Self {
         self.amnezia_args = args.to_string();
         self
@@ -179,10 +201,11 @@ impl Probe {
 
     pub async fn probe(
         self,
-        directory: NymApiDirectory,
+        directory: Option<NymApiDirectory>,
         nyxd_url: Url,
         ignore_egress_epoch_role: bool,
         only_wireguard: bool,
+        only_lp_registration: bool,
         min_mixnet_performance: Option<u8>,
     ) -> anyhow::Result<ProbeResult> {
         let tickets_materials = self.credentials_args.decode_attached_ticket_materials()?;
@@ -218,6 +241,8 @@ impl Probe {
             nyxd_url,
             tested_entry,
             only_wireguard,
+            only_lp_registration,
+            false, // Not using mock ecash in regular probe mode
         )
         .await
     }
@@ -226,13 +251,23 @@ impl Probe {
     pub async fn probe_run_locally(
         self,
         config_dir: &PathBuf,
-        mnemonic: &str,
-        directory: NymApiDirectory,
+        mnemonic: Option<&str>,
+        directory: Option<NymApiDirectory>,
         nyxd_url: Url,
         ignore_egress_epoch_role: bool,
         only_wireguard: bool,
+        only_lp_registration: bool,
         min_mixnet_performance: Option<u8>,
+        use_mock_ecash: bool,
     ) -> anyhow::Result<ProbeResult> {
+        // If only testing LP registration, use the dedicated LP-only path
+        // This skips mixnet setup entirely and allows testing local gateways
+        if only_lp_registration {
+            return self
+                .probe_lp_only(config_dir, directory, nyxd_url, use_mock_ecash)
+                .await;
+        }
+
         let tested_entry = self.tested_node.is_same_as_entry();
         let (mixnet_entry_gateway_id, node_info) = self.lookup_gateway(&directory).await?;
 
@@ -278,7 +313,11 @@ impl Probe {
 
         info!("Credential store contains {} ticketbooks", ticketbook_count);
 
-        if ticketbook_count < 1 {
+        // Only acquire real bandwidth if not using mock ecash
+        if ticketbook_count < 1 && !use_mock_ecash {
+            let mnemonic = mnemonic.ok_or_else(|| {
+                anyhow::anyhow!("mnemonic is required when not using mock ecash (--use-mock-ecash)")
+            })?;
             for ticketbook_type in [
                 TicketType::V1MixnetEntry,
                 TicketType::V1WireguardEntry,
@@ -286,6 +325,8 @@ impl Probe {
             ] {
                 acquire_bandwidth(mnemonic, &disconnected_mixnet_client, ticketbook_type).await?;
             }
+        } else if use_mock_ecash {
+            info!("Using mock ecash mode - skipping bandwidth acquisition");
         }
 
         let mixnet_client = Box::pin(disconnected_mixnet_client.connect_to_mixnet()).await;
@@ -298,14 +339,113 @@ impl Probe {
             nyxd_url,
             tested_entry,
             only_wireguard,
+            only_lp_registration,
+            use_mock_ecash,
         )
         .await
     }
 
+    /// Probe LP registration only, skipping all mixnet tests
+    /// This is useful for testing local dev gateways that aren't registered in nym-api
+    pub async fn probe_lp_only(
+        self,
+        config_dir: &PathBuf,
+        directory: Option<NymApiDirectory>,
+        nyxd_url: Url,
+        use_mock_ecash: bool,
+    ) -> anyhow::Result<ProbeResult> {
+        let tested_entry = self.tested_node.is_same_as_entry();
+        let (mixnet_entry_gateway_id, node_info) = self.lookup_gateway(&directory).await?;
+
+        if config_dir.is_file() {
+            bail!("provided configuration directory is a file");
+        }
+
+        if !config_dir.exists() {
+            std::fs::create_dir_all(config_dir)?;
+        }
+
+        let storage_paths = StoragePaths::new_from_dir(config_dir)?;
+        let storage = storage_paths
+            .initialise_default_persistent_storage()
+            .await?;
+
+        let key_store = storage.key_store();
+        let mut rng = OsRng;
+
+        // Generate client keys if they don't exist
+        if key_store.load_keys().await.is_err() {
+            tracing::log::debug!("Generating new client keys");
+            nym_client_core::init::generate_new_client_keys(&mut rng, key_store).await?;
+        }
+
+        // Check if node has LP address
+        let (lp_address, ip_address) = match (node_info.lp_address, node_info.ip_address) {
+            (Some(lp_addr), Some(ip_addr)) => (lp_addr, ip_addr),
+            _ => {
+                bail!("Gateway does not have LP address configured");
+            }
+        };
+
+        info!("Testing LP registration for gateway {}", node_info.identity);
+
+        // Create bandwidth controller for credential preparation
+        let config = nym_validator_client::nyxd::Config::try_from_nym_network_details(
+            &NymNetworkDetails::new_from_env(),
+        )?;
+        let client = nym_validator_client::nyxd::NyxdClient::connect(config, nyxd_url.as_str())?;
+        let bw_controller =
+            nym_bandwidth_controller::BandwidthController::new(storage.credential_store().clone(), client);
+
+        // Run LP registration probe
+        let lp_outcome = lp_registration_probe(
+            node_info.identity,
+            lp_address,
+            ip_address,
+            &bw_controller,
+            use_mock_ecash,
+        )
+        .await
+        .unwrap_or_default();
+
+        // Return result with only LP outcome
+        Ok(ProbeResult {
+            node: node_info.identity.to_string(),
+            used_entry: mixnet_entry_gateway_id.to_string(),
+            outcome: types::ProbeOutcome {
+                as_entry: types::Entry::NotTested,
+                as_exit: if tested_entry {
+                    None
+                } else {
+                    Some(types::Exit::fail_to_connect())
+                },
+                wg: None,
+                lp: Some(lp_outcome),
+            },
+        })
+    }
+
     pub async fn lookup_gateway(
         &self,
-        directory: &NymApiDirectory,
+        directory: &Option<NymApiDirectory>,
     ) -> anyhow::Result<(NodeIdentity, TestedNodeDetails)> {
+        // If we have a pre-queried gateway node (direct IP mode), use that
+        if let Some(direct_node) = &self.direct_gateway_node {
+            info!("Using pre-queried gateway node from direct IP query");
+            let node_info = direct_node.to_testable_node()?;
+            info!("connecting to entry gateway: {}", direct_node.identity());
+            debug!(
+                "authenticator version: {:?}",
+                node_info.authenticator_version
+            );
+            return Ok((self.entrypoint, node_info));
+        }
+
+        // Otherwise, use the directory (original behavior)
+        let directory = directory
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Directory is required when not using --gateway-ip"))?;
+
         // Setup the entry gateways
         let entry_gateway = directory.entry_gateway(&self.entrypoint)?;
 
@@ -341,6 +481,8 @@ impl Probe {
         nyxd_url: Url,
         tested_entry: bool,
         only_wireguard: bool,
+        only_lp_registration: bool,
+        use_mock_ecash: bool,
     ) -> anyhow::Result<ProbeResult>
     where
         T: MixnetClientStorage + Clone + 'static,
@@ -375,7 +517,7 @@ impl Probe {
         info!("Our nym address: {nym_address}");
 
         // Now that we have a connected mixnet client, we can start pinging
-        let (outcome, mixnet_client) = if only_wireguard {
+        let (outcome, mixnet_client) = if only_wireguard || only_lp_registration {
             (
                 Ok(ProbeOutcome {
                     as_entry: if tested_entry {
@@ -399,7 +541,10 @@ impl Probe {
             .await
         };
 
-        let wg_outcome = if let (Some(authenticator), Some(ip_address)) =
+        let wg_outcome = if only_lp_registration {
+            // Skip WireGuard test when only testing LP registration
+            WgProbeResults::default()
+        } else if let (Some(authenticator), Some(ip_address)) =
             (node_info.authenticator_address, node_info.ip_address)
         {
             // Start the mixnet listener that the auth clients use to receive messages.
@@ -474,6 +619,7 @@ impl Probe {
                 lp_address,
                 ip_address,
                 &bw_controller,
+                use_mock_ecash,
             )
             .await
             .unwrap_or_default();
@@ -684,6 +830,7 @@ async fn lp_registration_probe<St>(
         nym_validator_client::nyxd::NyxdClient<nym_validator_client::HttpRpcClient>,
         St,
     >,
+    use_mock_ecash: bool,
 ) -> anyhow::Result<types::LpProbeResults>
 where
     St: nym_sdk::mixnet::CredentialStorage + Clone + Send + Sync + 'static,
@@ -699,11 +846,21 @@ where
     // Generate LP keypair for this connection
     let client_lp_keypair = std::sync::Arc::new(LpKeypair::default());
 
-    // Derive gateway LP public key from gateway identity (as done in registration-client)
-    let gateway_lp_key = match LpPublicKey::from_bytes(&gateway_identity.to_bytes()) {
+    // Derive gateway LP public key from gateway identity using proper ed25519→x25519 conversion
+    let gateway_x25519_pub = match gateway_identity.to_x25519() {
         Ok(key) => key,
         Err(e) => {
-            let error_msg = format!("Failed to derive gateway LP key: {}", e);
+            let error_msg = format!("Failed to convert gateway ed25519 key to x25519: {}", e);
+            error!("{}", error_msg);
+            lp_outcome.error = Some(error_msg);
+            return Ok(lp_outcome);
+        }
+    };
+
+    let gateway_lp_key = match LpPublicKey::from_bytes(gateway_x25519_pub.as_bytes()) {
+        Ok(key) => key,
+        Err(e) => {
+            let error_msg = format!("Failed to create LP key from x25519 bytes: {}", e);
             error!("{}", error_msg);
             lp_outcome.error = Some(error_msg);
             return Ok(lp_outcome);
@@ -766,20 +923,48 @@ where
         }
     };
 
-    match client.send_registration_request(
-        &wg_keypair,
-        &gateway_ed25519_pubkey,
-        bandwidth_controller,
-        TicketType::V1WireguardEntry,
-    ).await {
-        Ok(_) => {
-            info!("LP registration request sent successfully");
+    // Generate credential based on mode
+    let ticket_type = TicketType::V1WireguardEntry;
+    if use_mock_ecash {
+        info!("Using mock ecash credential for LP registration");
+        let credential = crate::bandwidth_helpers::create_dummy_credential(
+            &gateway_ed25519_pubkey.to_bytes(),
+            ticket_type,
+        );
+
+        match client.send_registration_request_with_credential(
+            &wg_keypair,
+            &gateway_ed25519_pubkey,
+            credential,
+            ticket_type,
+        ).await {
+            Ok(_) => {
+                info!("LP registration request sent successfully with mock ecash");
+            }
+            Err(e) => {
+                let error_msg = format!("Failed to send LP registration request: {}", e);
+                error!("{}", error_msg);
+                lp_outcome.error = Some(error_msg);
+                return Ok(lp_outcome);
+            }
         }
-        Err(e) => {
-            let error_msg = format!("Failed to send LP registration request: {}", e);
-            error!("{}", error_msg);
-            lp_outcome.error = Some(error_msg);
-            return Ok(lp_outcome);
+    } else {
+        info!("Using real bandwidth controller for LP registration");
+        match client.send_registration_request(
+            &wg_keypair,
+            &gateway_ed25519_pubkey,
+            bandwidth_controller,
+            ticket_type,
+        ).await {
+            Ok(_) => {
+                info!("LP registration request sent successfully with real ecash");
+            }
+            Err(e) => {
+                let error_msg = format!("Failed to send LP registration request: {}", e);
+                error!("{}", error_msg);
+                lp_outcome.error = Some(error_msg);
+                return Ok(lp_outcome);
+            }
         }
     }
 

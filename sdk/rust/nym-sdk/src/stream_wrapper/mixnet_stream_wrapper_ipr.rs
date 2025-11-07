@@ -196,7 +196,7 @@ impl IpMixStream {
 
         let stream = MixStream::new(
             None,
-            Some(Recipient::from(ipr_address)),
+            Some(ipr_address),
             Some(env.env_file_path()),
         )
         .await?;

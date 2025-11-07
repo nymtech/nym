@@ -52,6 +52,7 @@ pub enum ConnectionState {
 ///
 /// # Returns
 /// Configured `nym_http_api_client::Client` or an error if URLs are invalid or empty
+#[allow(clippy::result_large_err)]
 fn create_nym_api_client(nym_api_urls: Vec<ApiUrl>) -> Result<nym_http_api_client::Client, Error> {
     let user_agent = format!("nym-sdk/{}", env!("CARGO_PKG_VERSION"));
 

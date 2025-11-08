@@ -367,9 +367,14 @@ impl LpConnectionHandler {
             GatewayError::LpProtocolError(format!("Failed to serialize response: {}", e))
         })?;
 
-        // Create LP packet with response
-        let packet = session.create_data_packet(data).map_err(|e| {
-            GatewayError::LpProtocolError(format!("Failed to create data packet: {}", e))
+        // Encrypt data first (this increments Noise internal counter)
+        let encrypted_message = session.encrypt_data(&data).map_err(|e| {
+            GatewayError::LpProtocolError(format!("Failed to encrypt data: {}", e))
+        })?;
+
+        // Create LP packet with encrypted message (this increments LP protocol counter)
+        let packet = session.next_packet(encrypted_message).map_err(|e| {
+            GatewayError::LpProtocolError(format!("Failed to create packet: {}", e))
         })?;
 
         // Send the packet
@@ -470,28 +475,6 @@ impl LpConnectionHandler {
         } else {
             inc!("lp_connections_completed_with_error");
         }
-    }
-}
-
-// Extension trait for LpSession to create packets
-// This would ideally be part of nym-lp
-trait LpSessionExt {
-    fn create_data_packet(&self, data: Vec<u8>) -> Result<LpPacket, nym_lp::LpError>;
-}
-
-impl LpSessionExt for LpSession {
-    fn create_data_packet(&self, data: Vec<u8>) -> Result<LpPacket, nym_lp::LpError> {
-        use nym_lp::packet::LpHeader;
-
-        let header = LpHeader {
-            protocol_version: 1,
-            session_id: self.id(),
-            counter: 0, // TODO: Use actual counter from session
-        };
-
-        let message = LpMessage::EncryptedData(data);
-
-        Ok(LpPacket::new(header, message))
     }
 }
 

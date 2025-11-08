@@ -253,4 +253,8 @@ impl traits::EcashManager for MockEcashManager {
     }
 
     fn async_verify(&self, _ticket: ClientTicket) {}
+
+    fn is_mock(&self) -> bool {
+        true
+    }
 }

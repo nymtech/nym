@@ -156,6 +156,7 @@ impl WireguardGatewayData {
 pub struct WireguardData {
     pub inner: WireguardGatewayData,
     pub peer_rx: Receiver<PeerControlRequest>,
+    pub use_userspace: bool,
 }
 
 /// Start wireguard device
@@ -166,6 +167,7 @@ pub async fn start_wireguard(
     peers: Vec<Peer>,
     shutdown_token: nym_task::ShutdownToken,
     wireguard_data: WireguardData,
+    use_userspace: bool,
 ) -> Result<std::sync::Arc<WgApiWrapper>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     use base64::{Engine, prelude::BASE64_STANDARD};
     use defguard_wireguard_rs::{InterfaceConfiguration, WireguardInterfaceApi};
@@ -177,7 +179,8 @@ pub async fn start_wireguard(
     use tracing::info;
 
     let ifname = String::from(WG_TUN_BASE_NAME);
-    let wg_api = defguard_wireguard_rs::WGApi::new(ifname.clone(), false)?;
+    info!("Initializing WireGuard interface '{}' with use_userspace={}", ifname, use_userspace);
+    let wg_api = defguard_wireguard_rs::WGApi::new(ifname.clone(), use_userspace)?;
     let mut peer_bandwidth_managers = HashMap::with_capacity(peers.len());
 
     for peer in peers.iter() {
@@ -208,7 +211,13 @@ pub async fn start_wireguard(
         interface_config.address, interface_config.port
     );
 
-    wg_api.configure_interface(&interface_config)?;
+    info!("Configuring WireGuard interface...");
+    wg_api.configure_interface(&interface_config).map_err(|e| {
+        log::error!("Failed to configure WireGuard interface: {:?}", e);
+        e
+    })?;
+
+    info!("Adding IPv6 address to interface...");
     std::process::Command::new("ip")
         .args([
             "-6",
@@ -222,7 +231,11 @@ pub async fn start_wireguard(
             "dev",
             (&ifname),
         ])
-        .output()?;
+        .output()
+        .map_err(|e| {
+            log::error!("Failed to add IPv6 address: {:?}", e);
+            e
+        })?;
 
     // Use a dummy peer to create routing rule for the entire network space
     let mut catch_all_peer = Peer::new(Key::new([0; 32]));

@@ -11,6 +11,7 @@ use nym_sdk::bandwidth::BandwidthImporter;
 use nym_sdk::mixnet::{DisconnectedMixnetClient, EphemeralCredentialStorage};
 use nym_validator_client::nyxd::error::NyxdError;
 use std::time::Duration;
+use time::OffsetDateTime;
 use tracing::{error, info};
 
 pub(crate) async fn import_bandwidth(
@@ -237,6 +238,11 @@ pub(crate) fn create_dummy_credential(
         0, 0, 0, 0, 0, 1,
     ];
 
-    CredentialSpendingData::try_from_bytes(&CREDENTIAL_BYTES)
-        .expect("Failed to deserialize test credential - this is a bug in the test harness")
+    let mut credential = CredentialSpendingData::try_from_bytes(&CREDENTIAL_BYTES)
+        .expect("Failed to deserialize test credential - this is a bug in the test harness");
+
+    // Update spend_date to today to pass validation
+    credential.spend_date = OffsetDateTime::now_utc().date();
+
+    credential
 }

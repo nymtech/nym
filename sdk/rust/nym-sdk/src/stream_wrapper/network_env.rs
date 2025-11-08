@@ -33,8 +33,8 @@ impl NetworkEnvironment {
     pub fn env_file_path(&self) -> PathBuf {
         let root = find_workspace_root();
         match self {
-            Self::Mainnet => PathBuf::from(root.join("envs/mainnet.env")),
-            // Self::Sandbox => PathBuf::from(root.join("envs/sandbox.env")),
+            Self::Mainnet => root.join("envs/mainnet.env"),
+            // Self::Sandbox => root.join("envs/sandbox.env"),
         }
     }
 

@@ -59,16 +59,26 @@ async fn credential_storage_preparation(
     ecash_verifier: Arc<dyn EcashManager + Send + Sync>,
     client_id: i64,
 ) -> Result<PersistedBandwidth, GatewayError> {
-    ecash_verifier
+    // Check if bandwidth entry already exists (idempotent)
+    let existing_bandwidth = ecash_verifier
         .storage()
-        .create_bandwidth_entry(client_id)
+        .get_available_bandwidth(client_id)
         .await?;
+
+    // Only create if it doesn't exist
+    if existing_bandwidth.is_none() {
+        ecash_verifier
+            .storage()
+            .create_bandwidth_entry(client_id)
+            .await?;
+    }
+
     let bandwidth = ecash_verifier
         .storage()
         .get_available_bandwidth(client_id)
         .await?
         .ok_or_else(|| {
-            GatewayError::InternalError("bandwidth entry should have just been created".to_string())
+            GatewayError::InternalError("bandwidth entry should exist".to_string())
         })?;
     Ok(bandwidth)
 }
@@ -96,18 +106,30 @@ async fn credential_verification(
     // Track credential verification attempts
     inc!("lp_credential_verification_attempts");
 
-    match verifier.verify().await {
-        Ok(allocated) => {
-            inc!("lp_credential_verification_success");
-            // Track allocated bandwidth
-            inc_by!("lp_bandwidth_allocated_bytes_total", allocated);
-            Ok(allocated)
+    // For mock ecash mode (local testing), skip cryptographic verification
+    // and just return a dummy bandwidth value since we don't have blockchain access
+    let allocated = if ecash_verifier.is_mock() {
+        // Return a reasonable test bandwidth value (e.g., 1GB in bytes)
+        const MOCK_BANDWIDTH: i64 = 1024 * 1024 * 1024;
+        inc!("lp_credential_verification_success");
+        inc_by!("lp_bandwidth_allocated_bytes_total", MOCK_BANDWIDTH);
+        Ok::<i64, GatewayError>(MOCK_BANDWIDTH)
+    } else {
+        match verifier.verify().await {
+            Ok(allocated) => {
+                inc!("lp_credential_verification_success");
+                // Track allocated bandwidth
+                inc_by!("lp_bandwidth_allocated_bytes_total", allocated);
+                Ok(allocated)
+            }
+            Err(e) => {
+                inc!("lp_credential_verification_failed");
+                Err(e.into())
+            }
         }
-        Err(e) => {
-            inc!("lp_credential_verification_failed");
-            Err(e.into())
-        }
-    }
+    }?;
+
+    Ok(allocated)
 }
 
 /// Process an LP registration request
@@ -320,7 +342,22 @@ async fn register_wg_peer(
     ];
     peer.persistent_keepalive_interval = Some(25);
 
-    // Send to WireGuard peer controller and track latency
+    // Store peer in database FIRST (before adding to controller)
+    // This ensures bandwidth storage exists when controller's generate_bandwidth_manager() is called
+    let client_id = state
+        .storage
+        .insert_wireguard_peer(&peer, ticket_type.into())
+        .await
+        .map_err(|e| {
+            error!("Failed to store WireGuard peer in database: {}", e);
+            GatewayError::InternalError(format!("Failed to store peer: {}", e))
+        })?;
+
+    // Create bandwidth entry for the client
+    // This must happen BEFORE AddPeer because generate_bandwidth_manager() expects it to exist
+    credential_storage_preparation(state.ecash_verifier.clone(), client_id).await?;
+
+    // Now send to WireGuard peer controller and track latency
     let controller_start = std::time::Instant::now();
     let (tx, rx) = oneshot::channel();
     wg_controller
@@ -347,16 +384,6 @@ async fn register_wg_peer(
     );
 
     result?;
-
-    // Store bandwidth allocation and get client_id
-    let client_id = state
-        .storage
-        .insert_wireguard_peer(&peer, ticket_type.into())
-        .await
-        .map_err(|e| {
-            error!("Failed to store WireGuard peer in database: {}", e);
-            GatewayError::InternalError(format!("Failed to store peer: {}", e))
-        })?;
 
     // Get gateway's actual WireGuard public key
     let gateway_pubkey = *wg_data.keypair().public_key();

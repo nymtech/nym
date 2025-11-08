@@ -624,6 +624,7 @@ impl GatewayTasksBuilder {
             wireguard_data.inner.config().announced_metadata_port,
         );
 
+        let use_userspace = wireguard_data.use_userspace;
         let wg_handle = nym_wireguard::start_wireguard(
             ecash_manager,
             self.metrics.clone(),
@@ -631,6 +632,7 @@ impl GatewayTasksBuilder {
             self.upgrade_mode_state.upgrade_mode_status(),
             self.shutdown_tracker.clone_shutdown_token(),
             wireguard_data,
+            use_userspace,
         )
         .await?;
 

@@ -222,7 +222,7 @@ start_mixnode() {
 start_gateway() {
     log_info "Starting $GATEWAY_CONTAINER..."
 
-    container run \
+        container run \
         --name "$GATEWAY_CONTAINER" \
         -m 2G \
         --network "$NETWORK_NAME" \
@@ -256,6 +256,7 @@ start_gateway() {
                 --lp-use-mock-ecash true \
                 --output=json \
                 --wireguard-enabled true \
+                --wireguard-userspace true \
                 --bonding-information-output="/localnet/gateway.json";
 
             echo "Waiting for network.json...";
@@ -263,7 +264,7 @@ start_gateway() {
                 sleep 2;
             done;
             echo "Starting gateway with LP listener (mock ecash)...";
-            exec nym-node run --id gateway-localnet --unsafe-disable-replay-protection --local
+            exec nym-node run --id gateway-localnet --unsafe-disable-replay-protection --local --wireguard-enabled true --wireguard-userspace true --lp-use-mock-ecash true
         '
 
     log_success "$GATEWAY_CONTAINER started"

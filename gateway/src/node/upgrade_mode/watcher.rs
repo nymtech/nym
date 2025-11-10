@@ -15,6 +15,11 @@ use tokio::time::Instant;
 use tracing::{debug, error, info, trace};
 use url::Url;
 
+/// Specifies the threshold for retrieval failures that will trigger disabling upgrade mode.
+/// This assumes the file has been removed incorrectly and has been replaced by some placeholder 404
+/// page that does not deserialise correctly
+const FAILURE_THRESHOLD: usize = 10;
+
 pub struct UpgradeModeWatcher {
     // default polling interval
     regular_polling_interval: Duration,
@@ -35,6 +40,8 @@ pub struct UpgradeModeWatcher {
     user_agent: UserAgent,
 
     shutdown_token: ShutdownToken,
+
+    consecutive_retrieval_failures: usize,
 }
 
 impl UpgradeModeWatcher {
@@ -58,6 +65,7 @@ impl UpgradeModeWatcher {
             upgrade_mode_state,
             user_agent,
             shutdown_token,
+            consecutive_retrieval_failures: 0,
         }
     }
 
@@ -65,7 +73,7 @@ impl UpgradeModeWatcher {
         self.check_request_sender.clone()
     }
 
-    async fn try_update_state(&self) {
+    async fn try_update_state(&mut self) {
         match attempt_retrieve_attestation(
             self.attestation_url.as_str(),
             Some(self.user_agent.clone()),
@@ -73,10 +81,25 @@ impl UpgradeModeWatcher {
         .await
         {
             Err(err) => {
+                self.consecutive_retrieval_failures += 1;
                 info!("upgrade mode attestation is not available at this time");
-                debug!("retrieval error: {err}")
+                debug!("retrieval error: {err}");
+
+                if self.upgrade_mode_state.upgrade_mode_enabled()
+                    && self.consecutive_retrieval_failures > FAILURE_THRESHOLD
+                {
+                    self.upgrade_mode_state
+                        .try_set_expected_attestation(None)
+                        .await
+                }
             }
             Ok(attestation) => {
+                self.consecutive_retrieval_failures = 0;
+                if attestation.is_some() {
+                    info!("attempting to begin upgrade mode")
+                } else {
+                    info!("attempting to disable upgrade mode")
+                }
                 self.upgrade_mode_state
                     .try_set_expected_attestation(attestation)
                     .await
@@ -110,7 +133,8 @@ impl UpgradeModeWatcher {
     async fn run(&mut self) {
         info!("starting the update mode watcher");
 
-        let check_wait = tokio::time::sleep(self.regular_polling_interval);
+        // make sure the first check happens immediately
+        let check_wait = tokio::time::sleep(Duration::new(0, 0));
         tokio::pin!(check_wait);
 
         loop {

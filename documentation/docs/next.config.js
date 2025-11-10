@@ -1081,9 +1081,8 @@ const config = {
   transpilePackages: ["@nymproject/contract-clients"],
   async headers() {
     const isDev = process.env.NODE_ENV === "development";
-
-    if (isDev) {
-      const devCSP = `
+    const csp = isDev
+      ? `
         default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: *;
         script-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: *;
         font-src 'self' data: blob: *;
@@ -1097,71 +1096,29 @@ const config = {
         connect-src 'self' data: blob: *;
         frame-src 'self' data: blob: *;
         worker-src 'self' blob: *;
+      `
+      : `
+        default-src 'self';
+        script-src 'self' 'unsafe-inline' 'unsafe-eval' https://vercel.live *.nymtech.net *.nymvpn.com *.vercel.app *.nymte.ch *.nyx.network *.nym.com https://nym.com nymvpn.com https://nymvpn.com *.nymtech.cc;
+        font-src 'self' data:;
+        style-src 'self' 'unsafe-inline';
+        img-src 'self';
+        object-src 'none';
+        base-uri 'self';
+        form-action 'self';
+        frame-ancestors 'none';
+        upgrade-insecure-requests;
+        connect-src 'self' wss: https://github.com *.vercel.app *.nymtech.net *.nymvpn.com *.nymte.ch *.nyx.network *.nym.com https://nym.com nymvpn.com https://nymvpn.com *.nymtech.cc;
+        frame-src 'self' https://vercel.live *.vercel.app *.nym.com https://nym.com;
+        worker-src 'self' blob: https://vercel.live *.vercel.app *.nym.com https://nym.com;
       `;
-      return [
-        {
-          source: "/(.*)",
-          headers: [
-            {
-              key: "Content-Security-Policy",
-              value: devCSP.replace(/\s{2,}/g, " ").trim(),
-            },
-          ],
-        },
-      ];
-    }
-
-    // Production CSPs
-    const playgroundCSP = `
-      default-src 'self';
-      script-src 'self' 'unsafe-inline' 'unsafe-eval' https://vercel.live *.nymtech.net *.nymvpn.com *.vercel.app *.nymte.ch *.nyx.network *.nym.com https://nym.com nymvpn.com https://nymvpn.com *.nymtech.cc;
-      font-src 'self' data:;
-      style-src 'self' 'unsafe-inline';
-      img-src 'self';
-      object-src 'none';
-      base-uri 'self';
-      form-action 'self';
-      frame-ancestors 'none';
-      upgrade-insecure-requests;
-      connect-src 'self' wss: ws: https://github.com *.vercel.app *.nymtech.net *.nymvpn.com *.nymte.ch *.nyx.network *.nym.com https://nym.com nymvpn.com https://nymvpn.com *.nymtech.cc;
-      frame-src 'self' https://vercel.live *.vercel.app *.nym.com https://nym.com;
-      worker-src 'self' blob: https://vercel.live *.vercel.app *.nym.com https://nym.com;
-    `;
-
-    const baseCSP = `
-      default-src 'self';
-      script-src 'self' 'unsafe-inline' 'unsafe-eval' https://vercel.live *.nymtech.net *.nymvpn.com *.vercel.app *.nymte.ch *.nyx.network *.nym.com https://nym.com nymvpn.com https://nymvpn.com *.nymtech.cc;
-      font-src 'self' data:;
-      style-src 'self' 'unsafe-inline';
-      img-src 'self';
-      object-src 'none';
-      base-uri 'self';
-      form-action 'self';
-      frame-ancestors 'none';
-      upgrade-insecure-requests;
-      connect-src 'self' https://github.com *.vercel.app *.nymtech.net *.nymvpn.com *.nymte.ch *.nyx.network *.nym.com https://nym.com nymvpn.com https://nymvpn.com *.nymtech.cc;
-      frame-src 'self' https://vercel.live *.vercel.app *.nym.com https://nym.com;
-      worker-src 'self' blob: https://vercel.live *.vercel.app *.nym.com https://nym.com;
-    `;
-
     return [
-      // Specific rule for playground pages (addition of WSS wildcard to allow for connecting to Entry GWs)
-      {
-        source: "/developers/typescript/playground/:path*",
-        headers: [
-          {
-            key: "Content-Security-Policy",
-            value: playgroundCSP.replace(/\s{2,}/g, " ").trim(),
-          },
-        ],
-      },
-      // Default rule for all other pages
       {
         source: "/(.*)",
         headers: [
           {
             key: "Content-Security-Policy",
-            value: baseCSP.replace(/\s{2,}/g, " ").trim(),
+            value: csp.replace(/\s{2,}/g, " ").trim(),
           },
         ],
       },

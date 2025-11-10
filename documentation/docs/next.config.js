@@ -1123,7 +1123,7 @@ const config = {
       form-action 'self';
       frame-ancestors 'none';
       upgrade-insecure-requests;
-      connect-src 'self' wss://* https://github.com *.vercel.app *.nymtech.net *.nymvpn.com *.nymte.ch *.nyx.network *.nym.com https://nym.com nymvpn.com https://nymvpn.com *.nymtech.cc;
+      connect-src 'self' wss: ws: https://github.com *.vercel.app *.nymtech.net *.nymvpn.com *.nymte.ch *.nyx.network *.nym.com https://nym.com nymvpn.com https://nymvpn.com *.nymtech.cc;
       frame-src 'self' https://vercel.live *.vercel.app *.nym.com https://nym.com;
       worker-src 'self' blob: https://vercel.live *.vercel.app *.nym.com https://nym.com;
     `;
@@ -1139,7 +1139,7 @@ const config = {
       form-action 'self';
       frame-ancestors 'none';
       upgrade-insecure-requests;
-      connect-src 'self' wss: ws: https://github.com *.vercel.app *.nymtech.net *.nymvpn.com *.nymte.ch *.nyx.network *.nym.com https://nym.com nymvpn.com https://nymvpn.com *.nymtech.cc;
+      connect-src 'self' https://github.com *.vercel.app *.nymtech.net *.nymvpn.com *.nymte.ch *.nyx.network *.nym.com https://nym.com nymvpn.com https://nymvpn.com *.nymtech.cc;
       frame-src 'self' https://vercel.live *.vercel.app *.nym.com https://nym.com;
       worker-src 'self' blob: https://vercel.live *.vercel.app *.nym.com https://nym.com;
     `;

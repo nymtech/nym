@@ -7,7 +7,7 @@ import NodePerfMixnet from 'components/operators/snippets/node-perf-mixnet.mdx';
 
 # Performance Monitoring & Testing
 
-As Nym developers constantly improve the software, operators have as much important role, keep their nodes up to date, monitor their performance and share feedback with the rest of the community and Nym team. Therefore node performance measurements and [server monitoring](#monitoring) are an essential pillar of our common work. 
+As Nym developers constantly improve the software, the role of Node Operators is to keep their nodes up to date, monitor their performance and share feedback with the rest of the community and Nym team. Node performance measurements and [server monitoring](#monitoring) are an essential pillar of our common work. 
 
 Nym Network is routed either through the Mixnet (5-hop) or through Wireguard (2-hop). In all cases Nym node operators always employ only one binary called [`nym-node`](/operators/nodes/nym-node). Through provided arguments (or changes in the config file), `nym-node` can be utilised for different [functionalities](/operators/nodes/nym-node/setup#functionality-mode). However, once it's [registered to Nym Network](/operators/nodes/nym-node/bonding) it's by default available for Nym Mixnet not for Wireguard routing. Only nodes with Wireguard enabled, are also available for Wireguard routing. This creates a situation where every Wireguard enabled `nym-node` is required to have a solid performance score in Mixnet to begin with, but not every Mixnet routing `nym-node` must have Wireguard enabled. 
 

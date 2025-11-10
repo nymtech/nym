@@ -9,6 +9,7 @@ use crate::node::client_handling::websocket::{
     connection_handler::{AuthenticatedHandler, ClientDetails, InitialAuthResult, SocketStream},
     message_receiver::IsActive,
 };
+use crate::node::client_handling::DEFAULT_MIXNET_CLIENT_BANDWIDTH_THRESHOLD;
 use futures::{
     channel::{mpsc, oneshot},
     SinkExt, StreamExt,
@@ -35,6 +36,7 @@ use nym_node_metrics::events::MetricsEvent;
 use nym_sphinx::DestinationAddressBytes;
 use nym_task::ShutdownToken;
 use rand::CryptoRng;
+use std::cmp::max;
 use std::net::SocketAddr;
 use std::time::Duration;
 use thiserror::Error;
@@ -528,6 +530,35 @@ impl<R, S> FreshHandler<R, S> {
         }
     }
 
+    /// Determine the amount of remaining bandwidth the authenticated client should see.
+    /// This depends on whether the bandwidth stored persistently had already expired (in which case it's set back to 0)
+    /// and whether the upgrade mode is enabled. In that case the minimum constant amount is returned.
+    async fn authenticated_bandwidth_bytes(
+        &self,
+        client_id: i64,
+    ) -> Result<i64, InitialAuthenticationError> {
+        // 1. get the actual registered bandwidth
+        let available_bandwidth = self.get_registered_available_bandwidth(client_id).await?;
+
+        // 2. check if it had already expired
+        let true_remaining_bandwidth = if available_bandwidth.expired() {
+            self.shared_state.storage.reset_bandwidth(client_id).await?;
+            0
+        } else {
+            available_bandwidth.bytes
+        };
+
+        // 3. perform upgrade mode adjustments
+        if self.upgrade_mode_enabled() {
+            Ok(max(
+                true_remaining_bandwidth,
+                DEFAULT_MIXNET_CLIENT_BANDWIDTH_THRESHOLD,
+            ))
+        } else {
+            Ok(true_remaining_bandwidth)
+        }
+    }
+
     /// Tries to handle the received authentication request by checking correctness of the received data.
     ///
     /// # Arguments
@@ -594,14 +625,7 @@ impl<R, S> FreshHandler<R, S> {
             .await?;
 
         // check the bandwidth
-        let available_bandwidth = self.get_registered_available_bandwidth(client_id).await?;
-
-        let bandwidth_remaining = if available_bandwidth.expired() {
-            self.shared_state.storage.reset_bandwidth(client_id).await?;
-            0
-        } else {
-            available_bandwidth.bytes
-        };
+        let bandwidth_remaining = self.authenticated_bandwidth_bytes(client_id).await?;
 
         Ok(InitialAuthResult::new(
             Some(ClientDetails::new(
@@ -681,14 +705,7 @@ impl<R, S> FreshHandler<R, S> {
             .await?;
 
         // finally check and retrieve client's bandwidth
-        let available_bandwidth = self.get_registered_available_bandwidth(client_id).await?;
-
-        let bandwidth_remaining = if available_bandwidth.expired() {
-            self.shared_state.storage.reset_bandwidth(client_id).await?;
-            0
-        } else {
-            available_bandwidth.bytes
-        };
+        let bandwidth_remaining = self.authenticated_bandwidth_bytes(client_id).await?;
 
         Ok(InitialAuthResult::new(
             Some(ClientDetails::new(

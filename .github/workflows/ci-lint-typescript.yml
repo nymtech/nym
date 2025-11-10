@@ -23,7 +23,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          
+
       - name: Setup yarn
         run: npm install -g yarn
 
@@ -43,6 +43,9 @@ jobs:
         with:
           go-version: "1.24.6"
 
+      - name: Install CPU Limit package
+        run: sudo apt-get update && sudo apt-get install -y cpulimit
+
       - name: Install
         run: yarn
 
@@ -53,7 +56,7 @@ jobs:
         run: yarn
 
       - name: Lint
-        run: yarn lint
-        
+        run: cpulimit -l 400 yarn lint
+
       - name: Typecheck with tsc
         run: yarn tsc

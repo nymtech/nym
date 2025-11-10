@@ -6,7 +6,7 @@ import { ICMP } from 'components/operators/snippets/icmp.js';
 
 ## WireGuard: Gateways Performance Calculation
 
-> If you are looking for a page with a guide to run your own `gateway-probe` instance, go [here](/operators/nodes/performance-and-testing/gateway-probe).
+> If you are looking for a page with a guide to run your own `gateway-probe` instance, go [here](/operators/performance-and-testing/gateway-probe).
 
 <Callout type="info" emoji="ℹ️">
 **Note that there is only one binary `nym-node` for [all network functionalities](/operators/nodes/nym-node/setup#functionality-mode) (defined by a positional argument `--mode`).**
@@ -103,7 +103,7 @@ A node configuration break down coming alongside basic [server configuration](/o
     - [IPv6 configured](/operators/nodes/nym-node/configuration#quick-ipv6-check)
 - **Exit Gateway - Mixnet:**
     - Node configured (running with `--mode` argument) as `exit-gateway`, that configuration ensures that:
-        - IPR address present
+        - <abbr title={IPR}>IPR</abbr> address present
         - NR address present
     - [IPv6 configured](/operators/nodes/nym-node/configuration#quick-ipv6-check)
     - NymTun configured - using [NetworkTunnelManager](/operators/nodes/nym-node/configuration#routing-configuration)
@@ -144,7 +144,7 @@ The following sections explain what is measured in order to collect stats to the
 
 **Tests:**
 
-- `can_connect`: Can connect to IPR
+- `can_connect`: Can connect to <abbr title={IPR}>IPR</abbr>
 - `can_route_ip_v4`: IPv4 routing works
 - `can_route_ip_external_v4`: IPv4 routing to external internet works
 - `can_route_ip_v6`: IPv6 routing works
@@ -186,7 +186,7 @@ See [*Complete Setup Checklist*](#complete-setup-checklist) to understand the or
 
 ### Complete Setup Checklist
 
-**If one test fails, the following points don't get checked! **
+**If one test fails, the following points don't get checked!**
 
 #### On-Chain & Configuration
 
@@ -199,7 +199,7 @@ See [*Complete Setup Checklist*](#complete-setup-checklist) to understand the or
 - [ ] **Mixnet**: Port `1789` (mixnet) accessible; ports `9000` (`WS`) and `9001` (`WSS`) accessible with valid [TLS for WSS](/operators/nodes/nym-node/configuration/proxy-configuration#reverse-proxy-configuration)
 - [ ] [**QUIC bridge**](/operators/nodes/nym-node/configuration#quic-transport-bridge-deployment) (if used): UDP 4443 with valid addresses and SNI host
 - [ ] [**WireGuard**](/operators/nodes/nym-node/configuration#routing-configuration): `UDP 51822` open (public); `TCP 51830` accessible [inside WireGuard tunnel](/operators/nodes/nym-node/configuration#fixing-metadata-port-showing-not-open-in-probe-results) (`10.1.0.1:51830`); `--wireguard-enabled true` set in node config
-- [ ] **Exit (IPR)**: [IPv4 and IPv6](/operators/nodes/nym-node/configuration#routing-configuration) routing to external internet configured
+- [ ] **Exit (<abbr title={IPR}>IPR</abbr>)**: [IPv4 and IPv6](/operators/nodes/nym-node/configuration#routing-configuration) routing to external internet configured
 - [ ] **DNS**: A/AAAA records correct; IPv6 actually reachable (test, don't just add DNS)
 
 #### Performance Targets

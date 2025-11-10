@@ -115,7 +115,7 @@ async fn topup_bandwidth(
     tag = "bandwidth",
     post,
     request_body = Request,
-    path = "/v1/bandwidth/topup",
+    path = "/v1/bandwidth/upgrade-mode-check",
     responses(
         (status = 200, content(
             (Response = "application/bincode")

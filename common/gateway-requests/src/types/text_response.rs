@@ -46,8 +46,7 @@ impl SensitiveServerResponse {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-#[serde(tag = "type", rename_all = "camelCase")]
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub struct BandwidthResponse {
     pub available_total: i64,
 
@@ -57,8 +56,7 @@ pub struct BandwidthResponse {
     pub upgrade_mode: bool,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-#[serde(tag = "type", rename_all = "camelCase")]
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub struct SendResponse {
     pub remaining_bandwidth: i64,
 
@@ -68,7 +66,7 @@ pub struct SendResponse {
     pub upgrade_mode: bool,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
 #[serde(tag = "type", rename_all = "camelCase")]
 #[non_exhaustive]
 pub enum ServerResponse {
@@ -164,5 +162,81 @@ impl TryFrom<String> for ServerResponse {
 
     fn try_from(msg: String) -> Result<Self, serde_json::Error> {
         serde_json::from_str(&msg)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn server_response_serde_compat() {
+        // make sure new serialisation is identical and compatible
+        #[derive(Serialize, Deserialize, Debug, PartialEq)]
+        #[serde(tag = "type", rename_all = "camelCase")]
+        #[non_exhaustive]
+        pub enum OldServerResponse {
+            Bandwidth { available_total: i64 },
+            Send { remaining_bandwidth: i64 },
+        }
+
+        // OLD => NEW
+        let old_bandwidth = OldServerResponse::Bandwidth {
+            available_total: 100,
+        };
+        let old_send = OldServerResponse::Send {
+            remaining_bandwidth: 100,
+        };
+
+        let old_bandwidth_str = serde_json::to_string(&old_bandwidth).unwrap();
+        let old_send_str = serde_json::to_string(&old_send).unwrap();
+
+        let recovered_bandwidth = ServerResponse::try_from(old_bandwidth_str).unwrap();
+        assert_eq!(
+            recovered_bandwidth,
+            ServerResponse::Bandwidth(BandwidthResponse {
+                available_total: 100,
+                upgrade_mode: false
+            })
+        );
+
+        let recovered_send = ServerResponse::try_from(old_send_str).unwrap();
+        assert_eq!(
+            recovered_send,
+            ServerResponse::Send(SendResponse {
+                remaining_bandwidth: 100,
+                upgrade_mode: false
+            })
+        );
+
+        // NEW => OLD
+        let new_bandwidth = ServerResponse::Bandwidth(BandwidthResponse {
+            available_total: 100,
+            upgrade_mode: false,
+        });
+        let new_send = ServerResponse::Send(SendResponse {
+            remaining_bandwidth: 100,
+            upgrade_mode: false,
+        });
+
+        let new_bandwidth_str = serde_json::to_string(&new_bandwidth).unwrap();
+        let new_send_str = serde_json::to_string(&new_send).unwrap();
+
+        let recovered_bandwidth: OldServerResponse =
+            serde_json::from_str(&new_bandwidth_str).unwrap();
+        assert_eq!(
+            recovered_bandwidth,
+            OldServerResponse::Bandwidth {
+                available_total: 100
+            }
+        );
+
+        let recovered_send: OldServerResponse = serde_json::from_str(&new_send_str).unwrap();
+        assert_eq!(
+            recovered_send,
+            OldServerResponse::Send {
+                remaining_bandwidth: 100
+            }
+        );
     }
 }

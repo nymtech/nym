@@ -166,7 +166,7 @@ members = [
     "wasm/node-tester",
     "wasm/zknym-lib",
     "nym-gateway-probe"
-]
+, "query-tester"]
 
 default-members = [
     "clients/native",

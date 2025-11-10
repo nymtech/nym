@@ -8602,6 +8602,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "query-tester"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "nym-network-defaults",
+ "nym-validator-client",
+ "serde",
+ "tokio",
+]
+
+[[package]]
 name = "quick-error"
 version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

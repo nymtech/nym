@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use cosmwasm_std::{
-    entry_point, to_json_binary, Addr, Coin, Deps, DepsMut, Env, MessageInfo, QueryResponse,
+    entry_point, to_json_binary, Addr, Coin, Deps, DepsMut, Env, Event, MessageInfo, QueryResponse,
     Response,
 };
 use cw_storage_plus::Item;
@@ -69,7 +69,7 @@ pub fn execute(
                 .map_err(|err| err.to_string())?;
         }
     }
-    Ok(Response::default())
+    Ok(Response::new().add_event(Event::new("my-amazing-event").add_attribute("key1", "value1")))
 }
 
 #[entry_point]

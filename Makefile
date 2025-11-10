@@ -140,7 +140,8 @@ clippy: sdk-wasm-lint
 
 WASM_CONTRACT_DIR := contracts/target/wasm32-unknown-unknown/release
 # Find every direct contract folder that contains a Cargo.toml
-CONTRACT_DIRS := $(shell find contracts -type f -name Cargo.toml \( ! -path "contracts/Cargo.toml" \) | grep -v integration-tests | xargs -n1 dirname | sort -u)
+#CONTRACT_DIRS := $(shell find contracts -type f -name Cargo.toml \( ! -path "contracts/Cargo.toml" \) | grep -v integration-tests | xargs -n1 dirname | sort -u)
+CONTRACT_DIRS := contracts/example-contract
 
 CONTRACTS_OUT_DIR = contracts/artifacts
 

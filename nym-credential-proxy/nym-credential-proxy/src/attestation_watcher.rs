@@ -15,7 +15,7 @@ use url::Url;
 /// Specifies the threshold for retrieval failures that will trigger disabling upgrade mode.
 /// This assumes the file has been removed incorrectly and has been replaced by some placeholder 404
 /// page that does not deserialise correctly
-const FAILURE_THRESHOLD: usize = 10;
+const FAILURE_THRESHOLD: usize = 5;
 
 pub struct AttestationWatcher {
     // default polling interval

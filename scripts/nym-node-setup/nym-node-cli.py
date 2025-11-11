@@ -33,6 +33,7 @@ class NodeSetupCLI:
         self.tunnel_manager_sh = self._check_gwx_mode() and self.fetch_script("network_tunnel_manager.sh")
         self.wg_ip_tables_manager_sh = self._check_gwx_mode() and self.fetch_script("wireguard-exit-policy-manager.sh")
         self.wg_ip_tables_test_sh = self._check_gwx_mode() and self.fetch_script("exit-policy-tests.sh")
+        self.wg_ip_tables_test_sh = self._check_gwx_mode() and self.fetch_script("quic_bridge_deployment.sh")
 
     def print_welcome_message(self):
         """Welcome user, warns for needed pre-reqs and asks for confimation"""
@@ -128,7 +129,9 @@ class NodeSetupCLI:
                 "network_tunnel_manager.sh": f"https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/network_tunnel_manager.sh",
                 "wireguard-exit-policy-manager.sh": f"https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/wireguard-exit-policy/wireguard-exit-policy-manager.sh",
                 "exit-policy-tests.sh": f"https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/wireguard-exit-policy/exit-policy-tests.sh",
+                "quic_bridge_deployment.sh": f"{github_raw_nymtech_nym_scripts_url}nym-node-setup/quic_bridge_deployment.sh"
                 }
+
         return scripts_urls[script_init_name]
 
     def run_script(
@@ -320,6 +323,10 @@ class NodeSetupCLI:
         self.run_script(self.wg_ip_tables_manager_sh,  args=["status"])
         self.run_script(self.wg_ip_tables_test_sh)
 
+    def quic_bridge_deploy(self):
+        """Setup QUIC bridge and configuration using external script"""
+        self.run_script(self.quic_bridge_deployment_sh, args=["full_bridge_setup"], env=run_env)
+        return
 
     def run_nym_node_as_service(self):
         """Starts /etc/systemd/system/nym-node.service based on prompt using external script"""
@@ -521,7 +528,7 @@ class NodeSetupCLI:
             self.run_tunnel_manager_setup()
             if self.check_wg_enabled():
                 self.setup_test_wg_ip_tables()
-                self.setup_test_wg_ip_tables()
+                self.quic_bridge_deploy()
 
 
 

@@ -49,7 +49,7 @@ pub use nym_sdk::{NymApiTopologyProvider, NymApiTopologyProviderConfig, UserAgen
 pub(crate) mod client_handling;
 pub(crate) mod internal_service_providers;
 mod stale_data_cleaner;
-pub(crate) mod upgrade_mode;
+pub mod upgrade_mode;
 
 #[derive(Debug, Clone)]
 pub struct LocalNetworkRequesterOpts {
@@ -122,7 +122,7 @@ impl GatewayTasksBuilder {
         metrics: NymNodeMetrics,
         mnemonic: Arc<Zeroizing<bip39::Mnemonic>>,
         user_agent: UserAgent,
-        upgrade_mode_attester_public_key: ed25519::PublicKey,
+        upgrade_mode_state: UpgradeModeState,
         shutdown_tracker: ShutdownTracker,
     ) -> GatewayTasksBuilder {
         GatewayTasksBuilder {
@@ -137,7 +137,7 @@ impl GatewayTasksBuilder {
             mix_packet_sender,
             metrics_sender,
             metrics,
-            upgrade_mode_state: UpgradeModeState::new(upgrade_mode_attester_public_key),
+            upgrade_mode_state,
             mnemonic,
             shutdown_tracker,
             ecash_manager: None,

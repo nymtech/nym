@@ -10,6 +10,7 @@ use nym_credential_verification::upgrade_mode::{
 use nym_task::ShutdownToken;
 use nym_upgrade_mode_check::attempt_retrieve_attestation;
 use std::time::Duration;
+use time::OffsetDateTime;
 use tokio::task::JoinHandle;
 use tokio::time::Instant;
 use tracing::{debug, error, info, trace};
@@ -91,6 +92,9 @@ impl UpgradeModeWatcher {
                     self.upgrade_mode_state
                         .try_set_expected_attestation(None)
                         .await
+                } else {
+                    self.upgrade_mode_state
+                        .update_last_queried(OffsetDateTime::now_utc());
                 }
             }
             Ok(attestation) => {

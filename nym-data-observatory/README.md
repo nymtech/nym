@@ -61,16 +61,22 @@ GRANT ALL ON DATABASE nym_data_observatory_data TO nym_data_observatory;
 Then run:
 
 ```
-cargo run -- init --db_url postgres://nym_data_observatory:data-data-data@localhost/nym_data_observatory_data
+cargo run -- init --db_url postgres://testuser:testpass@localhost:5433/nym_data_observatory_test
 ```
 
 and then:
 
 ```
-NYM_DATA_OBSERVATORY_DB_URL=postgres://nym_data_observatory:data-data-data@localhost/nym_data_observatory_data \
+NYM_DATA_OBSERVATORY_DB_URL=postgres://testuser:testpass@localhost:5433/nym_data_observatory_test \
 NYM_DATA_OBSERVATORY_WEBHOOK_URL="https://webhook.site" \
 NYM_DATA_OBSERVATORY_WEBHOOK_AUTH=1234 \
-cargo run -- run
+cargo run -- run --websocket-url wss://rpc.nymtech.net/websocket --rpc-url https://rpc.nymtech.net
+```
+
+or just:
+
+```
+NYM_DATA_OBSERVATORY_DB_URL=postgres://testuser:testpass@localhost:5433/nym_data_observatory_test cargo run -- run --websocket-url wss://rpc.nymtech.net/websocket --rpc-url https://rpc.nymtech.net
 ```
 
 ## Troubleshooting

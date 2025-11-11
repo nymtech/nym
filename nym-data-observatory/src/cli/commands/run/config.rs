@@ -6,10 +6,8 @@ use crate::error::NymDataObservatoryError;
 use tracing::{info, warn};
 
 pub(crate) fn get_run_config(args: Args) -> Result<Config, NymDataObservatoryError> {
-    info!("{args:#?}");
-
     let Args {
-        mut watch_for_chain_message_types,
+        watch_for_chain_message_types,
         webhook_auth,
         webhook_url,
         ..
@@ -19,11 +17,6 @@ pub(crate) fn get_run_config(args: Args) -> Result<Config, NymDataObservatoryErr
     if args.db_connection_string.is_none() {
         info!("Loading default config file...");
         return Config::read_from_toml_file_in_default_location();
-    }
-
-    // set default messages
-    if watch_for_chain_message_types.is_empty() {
-        watch_for_chain_message_types = vec!["/cosmos.bank.v1beta1.MsgSend".to_string()];
     }
 
     let config_path = default_config_filepath();

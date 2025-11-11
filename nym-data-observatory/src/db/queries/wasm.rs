@@ -4,6 +4,7 @@ use nyxd_scraper_psql::models::DbCoin;
 use serde_json::Value;
 use time::PrimitiveDateTime;
 
+#[allow(clippy::too_many_arguments)]
 pub async fn insert_wasm_execute(
     pool: &DbPool,
     sender: String,

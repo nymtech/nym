@@ -104,17 +104,26 @@ async fn wait_for_shutdown(
 pub(crate) async fn execute(args: Args, http_port: u16) -> Result<(), NymDataObservatoryError> {
     let start = OffsetDateTime::now_utc();
 
-    info!("passed arguments: {args:#?}");
-
-    let config = config::get_run_config(args)?;
+    let config = config::get_run_config(args.clone())?;
 
     let db_connection_string = config.chain_scraper_connection_string();
 
-    info!("Config is {config:#?}");
+    info!("nyxd wss: {}", args.websocket_url.to_string());
+    info!("nyxd rpc: {}", args.rpc_url.to_string());
+    info!("start_block_height: {:#?}", args.start_block_height);
     info!(
-        "Chain History Database path is {:?}",
-        std::path::Path::new(&config.chain_scraper_connection_string()).canonicalize()
+        "webhooks: {}",
+        config.data_observatory_config.webhooks.len()
     );
+    for w in &config.data_observatory_config.webhooks {
+        info!(
+            "- {}: {} {:?}",
+            &w.id,
+            w.webhook_url.as_str(),
+            w.watch_for_chain_message_types
+        );
+    }
+    info!("nuke_db: {}", args.nuke_db);
 
     let storage = db::Storage::init(db_connection_string).await?;
     let watcher_pool = storage.pool_owned();
@@ -135,7 +144,7 @@ pub(crate) async fn execute(args: Args, http_port: u16) -> Result<(), NymDataObs
         let config = config.clone();
         async move {
             // this only blocks until startup sync is done; it then runs on its own set of tasks
-            let scraper = run_chain_scraper(&config, scraper_pool).await?;
+            let scraper = run_chain_scraper(args, &config, scraper_pool).await?;
             Ok(scraper.cancel_token())
         }
     });

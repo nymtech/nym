@@ -36,7 +36,7 @@ jobs:
           name: report
           path: .github/workflows/support-files/notifications
       - name: install npm
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 20
       - name: Matrix - Node Install

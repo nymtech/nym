@@ -17,7 +17,7 @@ jobs:
       run: sudo apt-get install rsync
       continue-on-error: true
     - uses: rlespinasse/github-slug-action@v3.x
-    - uses: actions/setup-node@v4
+    - uses: actions/setup-node@v6
       with:
         node-version: 20
     - name: Setup yarn

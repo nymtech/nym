@@ -187,7 +187,7 @@ impl Rewarder {
                 info!("the block signing rewarding is running in monitor only mode");
             }
 
-            let nyxd_scraper = SqliteNyxdScraper::new(config.scraper_config()).await?;
+            let nyxd_scraper = SqliteNyxdScraper::new(config.scraper_config()?).await?;
 
             Some(EpochSigning {
                 nyxd_scraper,

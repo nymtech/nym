@@ -120,7 +120,12 @@ pub(crate) mod test {
             let dummy_connect_info = DummyConnectInfo::new();
 
             let router = Router::new()
-                .nest("/v1", Router::new().nest("/bandwidth", bandwidth_routes()))
+                .nest(
+                    "/v1",
+                    Router::new()
+                        .nest("/bandwidth", bandwidth_routes())
+                        .nest("/network", network_routes()),
+                )
                 .with_state(AppStateV2::new(
                     PeerControllerTransceiver::new(request_tx),
                     upgrade_mode_details,
@@ -227,6 +232,11 @@ pub(crate) mod test {
             .route("/version", axum::routing::get(version))
             .route("/available", axum::routing::post(available_bandwidth))
             .route("/topup", axum::routing::post(topup_bandwidth))
+            .layer(CompressionLayer::new())
+    }
+
+    fn network_routes() -> Router<AppState> {
+        Router::new()
             .route(
                 "/upgrade-mode-check",
                 axum::routing::post(upgrade_mode_check),

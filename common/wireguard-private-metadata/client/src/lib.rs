@@ -55,7 +55,7 @@ pub trait WireguardMetadataApiClient: ApiClient {
         self.post_json(
             &[
                 routes::V1_API_VERSION,
-                routes::BANDWIDTH,
+                routes::NETWORK,
                 routes::UPGRADE_MODE_CHECK,
             ],
             NO_PARAMS,

@@ -36,7 +36,7 @@ pub(crate) async fn run_chain_scraper(
         },
     })
     .with_msg_module(crate::modules::wasm::WasmModule::new(connection_pool))
-    .with_msg_module(webhook::WebhookModule::new(config.clone())?);
+    .with_tx_module(webhook::WebhookModule::new(config.clone())?);
 
     let instance = scraper.build_and_start().await?;
 

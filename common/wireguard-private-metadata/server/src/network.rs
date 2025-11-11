@@ -21,6 +21,11 @@ pub(crate) fn bandwidth_routes() -> Router<AppState> {
         .route("/version", axum::routing::get(version))
         .route("/available", axum::routing::post(available_bandwidth))
         .route("/topup", axum::routing::post(topup_bandwidth))
+        .layer(CompressionLayer::new())
+}
+
+pub(crate) fn network_routes() -> Router<AppState> {
+    Router::new()
         .route(
             "/upgrade-mode-check",
             axum::routing::post(upgrade_mode_check),
@@ -112,10 +117,10 @@ async fn topup_bandwidth(
 }
 
 #[utoipa::path(
-    tag = "bandwidth",
+    tag = "network",
     post,
     request_body = Request,
-    path = "/v1/bandwidth/upgrade-mode-check",
+    path = "/v1/network/upgrade-mode-check",
     responses(
         (status = 200, content(
             (Response = "application/bincode")

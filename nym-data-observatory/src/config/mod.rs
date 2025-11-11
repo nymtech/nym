@@ -81,7 +81,7 @@ impl ConfigBuilder {
             save_path: Some(self.config_path),
             data_observatory_config: self.data_observatory_config.unwrap_or_default(),
             data_dir: self.data_dir,
-            chain_scraper_connection_string: self.chain_scraper_connection_string,
+            chain_scraper_connection_string: Some(self.chain_scraper_connection_string),
         }
     }
 }
@@ -96,7 +96,7 @@ pub struct Config {
     #[serde(skip)]
     pub(crate) data_dir: PathBuf,
 
-    pub chain_scraper_connection_string: String,
+    pub chain_scraper_connection_string: Option<String>,
 
     #[serde(default)]
     pub data_observatory_config: DataObservatoryConfig,
@@ -182,7 +182,9 @@ impl Config {
     }
 
     pub fn chain_scraper_connection_string(&self) -> String {
-        self.chain_scraper_connection_string.clone()
+        self.chain_scraper_connection_string
+            .clone()
+            .expect("database connection string not set")
     }
 
     // simple wrapper that reads config file and assigns path location

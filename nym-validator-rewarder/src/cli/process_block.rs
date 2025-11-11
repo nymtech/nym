@@ -24,7 +24,7 @@ pub(crate) async fn execute(args: Args) -> Result<(), NymRewarderError> {
     let config =
         try_load_current_config(&args.custom_config_path)?.with_override(args.config_override);
 
-    SqliteNyxdScraper::new(config.scraper_config())
+    SqliteNyxdScraper::new(config.scraper_config()?)
         .await?
         .unsafe_process_single_block(args.height)
         .await?;

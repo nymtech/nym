@@ -3,6 +3,9 @@
 
 #[allow(unused)]
 pub mod vars {
+    pub const NYXD_WS: &str = "NYXD_WS";
+    pub const NYXD: &str = "NYXD";
+
     pub const NYM_DATA_OBSERVATORY_NO_BANNER_ARG: &str = "NYM_DATA_OBSERVATORY_NO_BANNER";
     pub const NYM_DATA_OBSERVATORY_CONFIG_ENV_FILE_ARG: &str =
         "NYM_DATA_OBSERVATORY_CONFIG_ENV_FILE_ARG";

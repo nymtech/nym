@@ -8,7 +8,7 @@ use clap::{Parser, Subcommand};
 use nym_bin_common::bin_info;
 use std::sync::OnceLock;
 
-mod commands;
+pub(crate) mod commands;
 
 pub const DEFAULT_NYM_DATA_OBSERVATORY_ID: &str = "default-nym-data-observatory";
 

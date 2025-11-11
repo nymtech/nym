@@ -8,6 +8,7 @@ pub mod status {
     use crate::db::models::CoingeckoPriceResponse;
     use serde::{Deserialize, Serialize};
     use time::OffsetDateTime;
+    use url::Url;
     use utoipa::ToSchema;
 
     #[derive(Clone, Copy, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
@@ -31,7 +32,8 @@ pub mod status {
     pub struct Webhook {
         pub id: String,
         pub description: String,
-        pub webhook_url: String,
+        #[schema(value_type = String)]
+        pub webhook_url: Url,
         pub watched_message_types: Vec<String>,
     }
 

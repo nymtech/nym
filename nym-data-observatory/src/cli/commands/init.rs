@@ -28,7 +28,7 @@ pub(crate) async fn execute(args: Args) -> Result<(), NymDataObservatoryError> {
     .with_data_observatory_config(DataObservatoryConfig {
         webhooks: vec![WebhookConfig {
             id: DEFAULT_NYM_DATA_OBSERVATORY_ID.to_string(),
-            webhook_url: "https://webhook.site".to_string(),
+            webhook_url: url::Url::parse("https://webhook.site")?,
             authentication: Some(AuthorizationBearerToken {
                 token: "1234".to_string(),
             }),

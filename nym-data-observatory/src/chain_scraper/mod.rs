@@ -1,8 +1,5 @@
+use crate::cli::commands::run::Args;
 use crate::db::DbPool;
-use crate::env::vars::{
-    NYXD_SCRAPER_START_HEIGHT, NYXD_SCRAPER_UNSAFE_NUKE_DB,
-    NYXD_SCRAPER_USE_BEST_EFFORT_START_HEIGHT,
-};
 use nyxd_scraper_psql::{PostgresNyxdScraper, PruningOptions};
 use std::fs;
 use tracing::{info, warn};
@@ -10,48 +7,31 @@ use tracing::{info, warn};
 pub(crate) mod webhook;
 
 pub(crate) async fn run_chain_scraper(
+    args: Args,
     config: &crate::config::Config,
     connection_pool: DbPool,
 ) -> anyhow::Result<PostgresNyxdScraper> {
-    let websocket_url = std::env::var("NYXD_WS").expect("NYXD_WS not defined");
+    let use_best_effort_start_height = args.start_block_height.is_some();
 
-    let rpc_url = std::env::var("NYXD").expect("NYXD not defined");
-    let websocket_url = reqwest::Url::parse(&websocket_url)?;
-    let rpc_url = reqwest::Url::parse(&rpc_url)?;
-
-    // why are those not part of CLI? : (
-    let start_block_height = match std::env::var(NYXD_SCRAPER_START_HEIGHT).ok() {
-        None => None,
-        // blow up if passed malformed env value
-        Some(raw) => Some(raw.parse()?),
-    };
-
-    let use_best_effort_start_height =
-        match std::env::var(NYXD_SCRAPER_USE_BEST_EFFORT_START_HEIGHT).ok() {
-            None => false,
-            // blow up if passed malformed env value
-            Some(raw) => raw.parse()?,
-        };
-
-    let nuke_db: bool = match std::env::var(NYXD_SCRAPER_UNSAFE_NUKE_DB).ok() {
-        None => false,
-        // blow up if passed malformed env value
-        Some(raw) => raw.parse()?,
-    };
-
-    if nuke_db {
+    if args.nuke_db {
         warn!("☢️☢️☢️ NUKING THE SCRAPER DATABASE");
         fs::remove_file(config.chain_scraper_connection_string())?;
     }
 
+    let database_storage = config
+        .chain_scraper_connection_string
+        .clone()
+        .and(args.db_connection_string)
+        .expect("no database connection string set in config");
+
     let scraper = PostgresNyxdScraper::builder(nyxd_scraper_psql::Config {
-        websocket_url,
-        rpc_url,
-        database_storage: config.chain_scraper_connection_string.clone(),
+        websocket_url: args.websocket_url,
+        rpc_url: args.rpc_url,
+        database_storage,
         pruning_options: PruningOptions::nothing(),
         store_precommits: false,
         start_block: nyxd_scraper_psql::StartingBlockOpts {
-            start_block_height,
+            start_block_height: args.start_block_height,
             use_best_effort_start_height,
         },
     })

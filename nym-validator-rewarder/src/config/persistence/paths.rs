@@ -15,7 +15,7 @@ pub const DEFAULT_ED25519_PUBLIC_IDENTITY_KEY_FILENAME: &str = "ed25519_identity
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ValidatorRewarderPaths {
-    pub nyxd_scraper: String,
+    pub nyxd_scraper: PathBuf,
 
     pub reward_history: PathBuf,
 
@@ -47,9 +47,7 @@ impl Default for ValidatorRewarderPaths {
     fn default() -> Self {
         ValidatorRewarderPaths {
             // validator rewarder uses sqlite
-            nyxd_scraper: (default_data_directory().join(DEFAULT_SCRAPER_DB_FILENAME))
-                .to_string_lossy()
-                .to_string(),
+            nyxd_scraper: default_data_directory().join(DEFAULT_SCRAPER_DB_FILENAME),
             reward_history: default_data_directory().join(DEFAULT_REWARD_HISTORY_DB_FILENAME),
             private_ed25519_identity_key_file: default_data_directory()
                 .join(DEFAULT_ED25519_PRIVATE_IDENTITY_KEY_FILENAME),

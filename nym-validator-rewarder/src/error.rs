@@ -11,7 +11,7 @@ use nym_validator_client::nyxd::tx::ErrorReport;
 use nym_validator_client::nyxd::{AccountId, Coin};
 use nyxd_scraper_sqlite::error::SqliteScraperError;
 use std::io;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use thiserror::Error;
 
 #[derive(Debug, Error)]

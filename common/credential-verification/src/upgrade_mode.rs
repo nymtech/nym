@@ -12,7 +12,7 @@ use std::time::Duration;
 use thiserror::Error;
 use time::OffsetDateTime;
 use tokio::sync::{Notify, RwLock};
-use tracing::{debug, error};
+use tracing::{debug, error, info};
 
 #[derive(Debug, Error)]
 pub enum UpgradeModeEnableError {
@@ -160,6 +160,7 @@ impl UpgradeModeDetails {
 
         // note: if attestation has been returned, it means we're definitely in upgrade mode
         // (otherwise it wouldn't have existed in the state)
+        info!("managed to initialise upgrade mode through received JWT");
 
         Ok(())
     }

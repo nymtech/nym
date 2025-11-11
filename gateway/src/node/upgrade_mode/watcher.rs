@@ -100,7 +100,7 @@ impl UpgradeModeWatcher {
             Ok(attestation) => {
                 self.consecutive_retrieval_failures = 0;
                 if attestation.is_some() {
-                    info!("attempting to begin upgrade mode")
+                    info!("retrieved valid attestation: attempting to begin upgrade mode")
                 } else {
                     info!("attempting to disable upgrade mode")
                 }

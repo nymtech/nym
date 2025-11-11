@@ -11,28 +11,34 @@ You might want to embed Nym Clients in both sides of your app, and have them sen
 
 There are several options available:
 
-### Stream Wrapper Module
+{ /* ### Stream Wrapper Module
 Exposes `MixSocket`/`MixStream` abstractions that can be split a reader/writer halves that consumes bytes, with an interface inspired by `std::net::TcpStream`. For developers who just want to read/write bytes to/from the Mixnet working with something socket-like.
 
 - docs TODO LINK
-- example TODO LINK
+- example TODO LINK */ }
 
 ### Mixnet & Client Pool Modules
 The Mixnet module of the SDK exposes low level connection functionality and the Mixnet Client. The Client Pool is one answer to concurrency, and allows developers to run several Nym Clients at once which can be quickly used.
 
-This approach might be useful if you want to build custom connection logic, but **`MixSocket`/`MixStream` will probably be sufficient for the majority of usecases** where developers just want to send and receive traffic as streams.
+{ /* This approach might be useful if you want to build custom connection logic, but **`MixSocket`/`MixStream` will probably be sufficient for the majority of usecases** where developers just want to send and receive traffic as streams. */ }
 
-- docs TODO LINK
-- examples TODO LINK
+This approach might be useful if you want to build custom connection logic, but the TcpProxy Module will probably be sufficient for the majority of usecases where developers just want to send and receive traffic as streams.
+
+- [docs](./rust/mixnet)
+- [examples](./rust/mixnet/examples)
 
 ### TcpProxy Module
-<Callout type="warning" emoji="⚠️">
+{ /* <Callout type="warning" emoji="⚠️">
     This module has been superceded by the Stream Wrapper module, and will soon be deprecated. **New features will not be added to it.** The main drawback of this (which is fixed with `MixSocket`/`MixStream`) is that TLS is impossible, as it exposes a localhost port for the consuming process to communicate with.
-</Callout>
+</Callout> */ }
 A pair of abstractions built for use in a client-server setup, which both expose a `localhost` TCP Socket which apps can read/write bytes to/from.
 
-- docs TODO LINK
-- examples TODO LINK
+- [docs](./rust/tcpproxy)
+- [examples](./rust/tcpproxy/examples/singleconn)
+
+<Callout type="info" emoji="ℹ️">
+    There is a new abstraction coming soon mirroring the interface and use of a TCP Socket, making it easier for developers to use the Mixnet, and also perform TLS through a Mixnet connection. Stay tuned.
+</Callout>
 
 ## Option 2: Mixnet-As-Proxy
 For developers who are only able to control the client-side code, and/or need to communicate with a 3rd party service, such as a public blockchain RPC or a remote host they do not control.
@@ -51,10 +57,15 @@ For developers who are only able to control the client-side code, and/or need to
 ### SOCKS Client
 Developers with apps that support SOCKS4,4a, or 5 can use the Socks Client exposed by the Mixnet module. This uses the Network Requester service of the chosen Exit Gateway to interact with the remote host via the chosen SOCKS proxy protocol. The Network Requester uses SURBs to anonymously reply to the original sender with whatever response it gets from the remote host.
 
-- docs TODO LINK
-- example TODO LINK
+- [docs](./rust/mixnet/examples/socks)
+- [example](./rust/mixnet/examples/socks)
 
-### `IPMixStream`
+<Callout type="info" emoji="ℹ️">
+    There is a new abstraction coming soon that will allow the SDK to send IP packets, the beginning of a longer project to make a native Rust version of [`mixFetch`](./typescript/start#mixfetch). Stay tuned.
+</Callout>
+
+
+{ /* ### `IPMixStream`
 This is a version of the `MixSocket` that consumes IP packets before wrapping them in Sphinx and forwarding through the Mixnet to the IP Packet Router of the chosen Exit Gateway, where they are unwrapped and treated as normal IP packets. The IPR uses SURBs to anonymously reply to the original sender with whatever response it gets from the remote host.
 
 <Callout type="info" emoji="ℹ️">
@@ -72,7 +83,4 @@ A proof of concept TCP/IP crate containing a [`smoltcp`](https://docs.rs/smoltcp
 </Callout>
 
 - docs TODO LINK
-- example TODO LINK
-
-## FFI
-INSERT FFI TABLE OF SUPPORTED / UNSUPPORTED THINGS
+- example TODO LINK */ }

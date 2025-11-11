@@ -20,6 +20,7 @@
   "chain": "Interacting with Nyx Blockchain",
   "tools": "Tools",
   "nymvpncli": "Nym VPN CLI",
+  "clients": "Standlone Clients",
   "----": {
     "type": "separator"
   },

@@ -39,7 +39,7 @@ use std::{
 
 use hickory_resolver::{
     TokioResolver,
-    config::{LookupIpStrategy, NameServerConfigGroup, ResolverConfig, ServerOrderingStrategy},
+    config::{LookupIpStrategy, NameServerConfigGroup, ResolverConfig},
     lookup_ip::LookupIpIntoIter,
     name_server::TokioConnectionProvider,
 };

@@ -1,7 +1,7 @@
 #![allow(missing_docs)]
 
 use std::collections::HashMap;
-use std::net::{IpAddr, Ipv4Addr};
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
 pub const NYM_API_DOMAIN: &str = "validator.nymtech.net";
 pub const NYM_API_IPS: &[IpAddr] = &[IpAddr::V4(Ipv4Addr::new(212, 71, 233, 232))];
@@ -61,10 +61,10 @@ pub const NYM_RPC_DOMAIN: &str = "rpc.nymtech.net";
 pub const NYM_RPC_IPS: &[IpAddr] = &[
     IpAddr::V4(Ipv4Addr::new(194, 182, 169, 49)),
     IpAddr::V4(Ipv4Addr::new(91, 92, 200, 116)),
-    IpAddr::V4(Ipv6Addr::new(
+    IpAddr::V6(Ipv6Addr::new(
         0x2a04, 0xc43, 0xe00, 0x6f28, 0x400, 0xd8ff, 0xfe00, 0x1483,
     )),
-    IpAddr::V4(Ipv6Addr::new(
+    IpAddr::V6(Ipv6Addr::new(
         0x2a04, 0xc46, 0xe00, 0x6f28, 0x4b3, 0x68ff, 0xfe00, 0x460,
     )),
 ];
@@ -85,10 +85,7 @@ pub fn default_static_addrs() -> HashMap<String, Vec<IpAddr>> {
         NYMVPN_FRONTDOOR_FASTLY_DOMAIN.to_string(),
         NYMVPN_FRONTDOOR_FASTLY_IPS.to_vec(),
     );
-    m.insert(
-        YELP_FRONTDOOR_FASTLY_DOMAIN.to_string(),
-        YELP_FRONTDOOR_FASTLY_IPS.to_vec(),
-    );
+    m.insert(YELP_FASTLY_DOMAIN.to_string(), YELP_FASTLY_IPS.to_vec());
     m.insert(VERCEL_APP_DOMAIN.to_string(), VERCEL_APP_IPS.to_vec());
     m.insert(VERCEL_COM_DOMAIN.to_string(), VERCEL_COM_IPS.to_vec());
     m.insert(NYM_COM_DOMAIN.to_string(), NYM_COM_IPS.to_vec());

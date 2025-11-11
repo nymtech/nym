@@ -22,18 +22,28 @@ class NodeSetupCLI:
     def __init__(self, args):
         self.branch = args.dev
         self.welcome_message = self.print_welcome_message()
-        self.mode = self.prompt_mode()
+        self.mode = self._get_or_prompt_mode(args)
         self.prereqs_install_sh = self.fetch_script("nym-node-prereqs-install.sh")
-        self.env_vars_install_sh = self.fetch_script("setup-env-vars.sh")
+        #self.env_vars_install_sh = self.fetch_script("setup-env-vars.sh")
         self.node_install_sh = self.fetch_script("nym-node-install.sh")
         self.service_config_sh = self.fetch_script("setup-systemd-service-file.sh")
         self.start_node_systemd_service_sh = self.fetch_script("start-node-systemd-service.sh")
-        self.landing_page_html = self._check_gwx_mode() and self.fetch_script("landing-page.html")
-        self.nginx_proxy_wss_sh = self._check_gwx_mode() and self.fetch_script("nginx_proxy_wss_sh")
-        self.tunnel_manager_sh = self._check_gwx_mode() and self.fetch_script("network_tunnel_manager.sh")
-        self.wg_ip_tables_manager_sh = self._check_gwx_mode() and self.fetch_script("wireguard-exit-policy-manager.sh")
-        self.wg_ip_tables_test_sh = self._check_gwx_mode() and self.fetch_script("exit-policy-tests.sh")
-        self.wg_ip_tables_test_sh = self._check_gwx_mode() and self.fetch_script("quic_bridge_deployment.sh")
+        self.is_gwx = self.mode == "exit-gateway"
+        if self.is_gwx:
+            self.landing_page_html = self.fetch_script("landing-page.html")
+            self.nginx_proxy_wss_sh = self.fetch_script("nginx_proxy_wss_sh")
+            self.tunnel_manager_sh = self.fetch_script("network_tunnel_manager.sh")
+            self.wg_ip_tables_manager_sh = self.fetch_script("wireguard-exit-policy-manager.sh")
+            self.wg_ip_tables_test_sh = self.fetch_script("exit-policy-tests.sh")
+            self.quic_bridge_deployment_sh = self.fetch_script("quic_bridge_deployment.sh")
+        else:
+            self.landing_page_html = None
+            self.nginx_proxy_wss_sh = None
+            self.tunnel_manager_sh = None
+            self.wg_ip_tables_manager_sh = None
+            self.wg_ip_tables_test_sh = None
+            self.quic_bridge_deployment_sh = None
+
 
     def print_welcome_message(self):
         """Welcome user, warns for needed pre-reqs and asks for confimation"""
@@ -46,7 +56,7 @@ class NodeSetupCLI:
         self.print_character("=", 41)
         msg = \
             "Before you begin, make sure that:\n"\
-            "1. You run this setup on Debian based Linux (ie Ubuntu)\n"\
+            "1. You run this setup on Debian based Linux (ie Ubuntu 22.04 LTS)\n"\
             "2. You run this installation program from a root shell\n"\
             "3. You meet minimal requirements: https://nym.com/docs/operators/nodes\n"\
             "4. You accept Operators Terms & Conditions: https://nym.com/operators-validators-terms\n"\
@@ -60,42 +70,98 @@ class NodeSetupCLI:
         else:
             print("Without confirming the points above, we cannot continue.")
             exit(1)
+    
+    def ensure_env_values(self, args):
+        """Collect env vars from args or prompt interactively, then save to env.sh."""
+        env_file = Path("env.sh")
+        fields = [
+            ("hostname", "HOSTNAME", "Enter hostname (if you don't use a DNS, press enter): "),
+            ("location", "LOCATION", "Enter node location (country code or name): "),
+            ("email", "EMAIL", "Enter your email: "),
+            ("moniker", "MONIKER", "Enter node public moniker (visible in explorer & NymVPN app): "),
+            ("description", "DESCRIPTION", "Enter short node public description: "),
+        ]
 
-    def prompt_mode(self):
-        """Ask user to insert node functionality and save it in python and bash envs"""
+        existing = self._read_env_file(env_file)
+        updated = {}
+
+        for arg_name, key, prompt in fields:
+            cli_val = getattr(args, arg_name, None)
+            value = cli_val.strip() if cli_val else existing.get(key) or input(prompt).strip()
+            updated[key] = value
+            os.environ[key] = value
+
+        # autodetect PUBLIC_IP if not already set
+        if not os.environ.get("PUBLIC_IP"):
+            try:
+                ip = subprocess.run(["curl", "-fsS4", "https://ifconfig.me"],
+                                    capture_output=True, text=True, timeout=5)
+                if ip.returncode == 0 and ip.stdout.strip():
+                    updated["PUBLIC_IP"] = ip.stdout.strip()
+                    os.environ["PUBLIC_IP"] = ip.stdout.strip()
+            except Exception:
+                pass
+
+        # write all collected variables to env.sh in one go
+        self._upsert_env_vars(updated, env_file)
+
+        print(f"[OK] Updated env.sh with {len(updated)} entries.")
+
+
+
+
+    def _upsert_env_vars(self, updates: dict, env_file: Path = Path("env.sh")):
+        existing = self._read_env_file(env_file)
+        existing.update(updates)
+        with env_file.open("w") as f:
+            for k, v in existing.items():
+                f.write(f'export {k}="{v}"\n')
+        os.environ.update(updates)
+
+    def _read_env_file(self, env_file: Path) -> dict:
+        env = {}
+        if env_file.exists():
+            for line in env_file.read_text().splitlines():
+                if line.startswith("export ") and "=" in line:
+                    k, v = line.replace("export ", "", 1).split("=", 1)
+                    env[k.strip()] = v.strip().strip('"')
+        return env
+    
+    def _get_or_prompt_mode(self, args):
+        """Resolve MODE from --mode, env.sh, os.environ, or prompt; persist to env.sh."""
+
+        env_file = Path("env.sh")
+
+        # CLI arg
+        mode = getattr(args, "mode", None)
+        if mode:
+            mode = mode.strip().lower()
+            self._upsert_env_var("MODE", mode)
+            print(f"Mode set to '{mode}' from CLI argument.")
+            return mode
+
+        # env.sh (replaces manual read)
+        existing = self._read_env_file(env_file)
+        mode = existing.get("MODE")
+        if mode:
+            os.environ["MODE"] = mode
+            return mode
+
+        # process env
+        if os.environ.get("MODE"):
+            return os.environ["MODE"]
+
+        # prompt
         mode = input(
-            "\nEnter the mode you want to run nym-node in: "
-            "\n1. mixnode "
-            "\n2. entry-gateway "
-            "\n3. exit-gateway (works as entry-gateway as well) "
-            "\nPress 1, 2 or 3 and enter:\n"
-        ).strip()
-
-        if mode in ("1", "mixnode"):
-            mode = "mixnode"
-        elif mode in ("2", "entry-gateway"):
-            mode = "entry-gateway"
-        elif mode in ("3", "exit-gateway"):
-            mode = "exit-gateway"
-        else:
-            print("Only numbers 1, 2 or 3 are accepted.")
+            "\nEnter node mode (mixnode / entry-gateway / exit-gateway): "
+        ).strip().lower()
+        if mode not in ("mixnode", "entry-gateway", "exit-gateway"):
+            print("Invalid mode. Must be one of: mixnode, entry-gateway, exit-gateway.")
             raise SystemExit(1)
 
-        # save mode for this Python instance
-        self.mode = mode
-        os.environ["MODE"] = mode
-
-        # persist to env.sh so other scripts can source it
-        env_file = Path("env.sh")
-        with env_file.open("a") as f:
-            f.write(f'export MODE="{mode}"\n')
-
-        # source env.sh so future bash subprocesses see it immediately
-        subprocess.run("source ./env.sh", shell=True, executable="/bin/bash")
-
+        self._upsert_env_var("MODE", mode)
         print(f"Mode set to '{mode}' — stored in env.sh and sourced for immediate use.")
         return mode
-
 
     def fetch_script(self, script_name):
         """Fetches needed scripts according to a defined mode"""
@@ -120,7 +186,7 @@ class NodeSetupCLI:
         github_raw_nymtech_nym_scripts_url = f"https://raw.githubusercontent.com/nymtech/nym/refs/heads/{self.branch}/scripts/"
         scripts_urls = {
                 "nym-node-prereqs-install.sh": f"{github_raw_nymtech_nym_scripts_url}nym-node-setup/nym-node-prereqs-install.sh",
-                "setup-env-vars.sh": f"{github_raw_nymtech_nym_scripts_url}nym-node-setup/setup-env-vars.sh",
+                #"setup-env-vars.sh": f"{github_raw_nymtech_nym_scripts_url}nym-node-setup/setup-env-vars.sh",
                 "nym-node-install.sh": f"{github_raw_nymtech_nym_scripts_url}nym-node-setup/nym-node-install.sh",
                 "setup-systemd-service-file.sh": f"{github_raw_nymtech_nym_scripts_url}nym-node-setup/setup-systemd-service-file.sh",
                 "start-node-systemd-service.sh": f"{github_raw_nymtech_nym_scripts_url}nym-node-setup/start-node-systemd-service.sh",
@@ -208,27 +274,30 @@ class NodeSetupCLI:
         else:
             return False
 
-    def check_wg_enabled(self):
-        """Checks if Wireguard is enabled and if not, prompts user if they want to enable it, stores it to env.sh"""
+    def check_wg_enabled(self, args=None):
+        """Determine if WireGuard is enabled; precedence: CLI > env > env.sh > prompt. Persist normalized value."""
 
+        env_file = os.path.join(os.getcwd(), "env.sh")
 
-        env_file = os.path.abspath(os.path.join(os.getcwd(), "env.sh"))
+        def norm(v):
+            return "true" if str(v).strip().lower() in ("true") else "false"
 
-        def norm(v):  # -> "true" or "false"
-            return "true" if str(v).strip().lower() in ("1", "true", "yes", "y") else "false"
+        val = None
 
-        # precedence: process env → env.sh → prompt
-        val = os.environ.get("WIREGUARD")
+        # CLI argument
+        if args and getattr(args, "wireguard", None) is not None:
+            val = norm(getattr(args, "wireguard"))
+            print(f"[INFO] WireGuard mode provided via CLI: {val}")
 
-        if val is None and os.path.isfile(env_file):
-            try:
-                with open(env_file, "r", encoding="utf-8") as f:
-                    m = re.search(r'^\s*export\s+WIREGUARD\s*=\s*"?([^"\n]+)"?', f.read(), re.M)
-                    if m:
-                        val = m.group(1)
-            except Exception:
-                pass
+        # Environment variable
+        val = val or os.environ.get("WIREGUARD")
 
+        # env.sh file
+        if val is None:
+            envs = self._read_env_file(Path(env_file))
+            val = envs.get("WIREGUARD")
+
+        # Prompt
         if val is None:
             ans = input(
                 "\nWireGuard is not configured.\n"
@@ -240,25 +309,24 @@ class NodeSetupCLI:
         val = norm(val)
         os.environ["WIREGUARD"] = val
 
-        # persist to env.sh (replace or append)
+        # Persist to env.sh
         try:
             text = ""
             if os.path.isfile(env_file):
-                with open(env_file, "r", encoding="utf-8") as f:
+                with open(env_file, encoding="utf-8") as f:
                     text = f.read()
             if re.search(r'^\s*export\s+WIREGUARD\s*=.*$', text, re.M):
                 text = re.sub(r'^\s*export\s+WIREGUARD\s*=.*$', f'export WIREGUARD="{val}"', text, flags=re.M)
             else:
-                if text and not text.endswith("\n"):
-                    text += "\n"
-                text += f'export WIREGUARD="{val}"\n'
+                text = (text.rstrip("\n") + "\n" if text else "") + f'export WIREGUARD="{val}"\n'
             with open(env_file, "w", encoding="utf-8") as f:
                 f.write(text)
             print(f'WIREGUARD={val} saved to {env_file}')
-        except Exception as e:
+        except OSError as e:
             print(f"Warning: could not write {env_file}: {e}")
 
-        return (val == "true")
+        return val == "true"
+
 
     def run_bash_command(self, command, args=None, *, env=None, cwd=None, check=True):
         """
@@ -517,6 +585,7 @@ class NodeSetupCLI:
 
     def run_node_installation(self,args):
         """Main function called by argparser command install running full node install flow"""
+        self.ensure_env_values(args)
         self.run_script(self.prereqs_install_sh)
         self.run_script(self.env_vars_install_sh)
         self.run_script(self.node_install_sh)
@@ -565,6 +634,32 @@ class ArgParser:
             help="Starts nym-node installation setup CLI",
             aliases=["i", "I"], add_help=True
         )
+        install_parser.add_argument(
+            "--mode",
+            choices=["mixnode", "entry-gateway", "exit-gateway"],
+            help="Node mode: 'mixnode', 'entry-gateway', or 'exit-gateway'",
+        )
+        install_parser.add_argument(
+            "--wireguard",
+            choices=["true", "false"],
+            help="WireGuard functionality switch: true / false"
+        )
+        install_parser.add_argument("--hostname", help="Node domain / hostname")
+        install_parser.add_argument("--location", help="Node location (country code or name)")
+        install_parser.add_argument("--email", help="Contact email for the node operator")
+        install_parser.add_argument("--moniker", help="Public moniker displayed in explorer & NymVPN app")
+        install_parser.add_argument("--description", help="Short public description of the node")
+        install_parser.add_argument("--public-ip", help="External IPv4 address (autodetected if omitted)")
+        install_parser.add_argument("--nym-node-binary", help="URL for nym-node binary (autodetected if omitted)")
+        
+        # generic fallback
+        install_parser.add_argument(
+            "--env",
+            action="append",
+            metavar="KEY=VALUE",
+            help="(Optional) Extra ENV VARS, e.g. --env CUSTOM_KEY=value",
+        )
+
 
         args = parser.parse_args()
 

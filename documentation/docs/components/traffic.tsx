@@ -13,6 +13,7 @@ import TextField from "@mui/material/TextField";
 import Button from "@mui/material/Button";
 
 const nymApiUrl = "https://validator.nymtech.net/api";
+const preferredGateway = "q2A2cbooyC16YJzvdYaSMH9X3cSiieZNtfBr8cE8Fi1";
 
 export const Traffic = () => {
   const [nym, setNym] = useState<NymMixnetClient>();
@@ -23,6 +24,7 @@ export const Traffic = () => {
   const [buttonEnabled, setButtonEnabled] = useState<boolean>(false);
 
   const init = async () => {
+    // TODO HOW TO SET PREFERRED GATEWAY? Can't find newWithConfig in import
     const client = await createNymMixnetClient();
     setNym(client);
 
@@ -31,6 +33,7 @@ export const Traffic = () => {
       clientId: crypto.randomUUID(),
       nymApiUrl,
       forceTls: true, // force WSS
+      preferredGateway,
     });
 
     // check when is connected and set the self address

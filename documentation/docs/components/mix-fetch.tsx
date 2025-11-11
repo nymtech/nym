@@ -9,11 +9,12 @@ import Stack from "@mui/material/Stack";
 import Paper from "@mui/material/Paper";
 import type { SetupMixFetchOps } from "@nymproject/mix-fetch-full-fat";
 
-const defaultUrl = "https://nymtech.net/.wellknown/network-requester/exit-policy.txt";
+const defaultUrl =
+  "https://nymtech.net/.wellknown/network-requester/exit-policy.txt";
 const args = { mode: "unsafe-ignore-cors" };
 
 const mixFetchOptions: SetupMixFetchOps = {
-  preferredGateway: "2xU4CBE6QiiYt6EyBXSALwxkNvM7gqJfjHXaMkjiFmYW", // with WSS
+  preferredGateway: "q2A2cbooyC16YJzvdYaSMH9X3cSiieZNtfBr8cE8Fi1", // with WSS
   // preferredNetworkRequester:
   //   "CTDxrcXgrZHWyCWnuCgjpJPghQUcEVz1HkhUr5mGdFnT.3UAww1YWNyVNYNWFQL1LaHYouQtDiXBGK5GiDZgpXkTK@2RFtU5BwxvJJXagAWAEuaPgb5ZVPRoy2542TT93Edw6v",
   mixFetchOverride: {

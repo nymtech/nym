@@ -235,7 +235,6 @@ impl LpRegistrationClient {
         // Step 1: Generate ClientHelloData with fresh salt (timestamp + nonce)
         let client_hello_data = nym_lp::ClientHelloData::new_with_fresh_salt(
             self.local_keypair.public_key().to_bytes(),
-            1, // protocol_version
         );
         let salt = client_hello_data.salt;
 

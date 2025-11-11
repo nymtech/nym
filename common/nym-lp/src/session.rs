@@ -6,6 +6,7 @@
 //! This module implements session management functionality, including replay protection
 //! and Noise protocol state handling.
 
+use crate::message::{EncryptedDataPayload, HandshakeData};
 use crate::noise_protocol::{NoiseError, NoiseProtocol, ReadResult};
 use crate::packet::LpHeader;
 use crate::replay::ReceivingKeyCounterValidator;
@@ -178,7 +179,7 @@ impl LpSession {
         let mut noise_state = self.noise_state.lock();
         if let Some(message) = noise_state.get_bytes_to_send() {
             match message {
-                Ok(message) => Some(Ok(LpMessage::Handshake(message))),
+                Ok(message) => Some(Ok(LpMessage::Handshake(HandshakeData(message)))),
                 Err(e) => Some(Err(LpError::NoiseError(e))),
             }
         } else {
@@ -203,7 +204,7 @@ impl LpSession {
         let mut noise_state = self.noise_state.lock();
 
         match message {
-            LpMessage::Handshake(payload) => {
+            LpMessage::Handshake(HandshakeData(payload)) => {
                 // The sans-io NoiseProtocol::read_message expects only the payload.
                 noise_state.read_message(payload)
             }
@@ -235,7 +236,7 @@ impl LpSession {
             return Err(NoiseError::IncorrectStateError);
         }
         let payload = noise_state.write_message(payload)?;
-        Ok(LpMessage::EncryptedData(payload))
+        Ok(LpMessage::EncryptedData(EncryptedDataPayload(payload)))
     }
 
     /// Decrypts an incoming Noise message containing application data.
@@ -612,7 +613,7 @@ mod tests {
         // Attempt to decrypt before handshake (using dummy ciphertext)
         let dummy_ciphertext = vec![0u8; 32];
         let result_decrypt =
-            initiator_session.decrypt_data(&LpMessage::EncryptedData(dummy_ciphertext));
+            initiator_session.decrypt_data(&LpMessage::EncryptedData(EncryptedDataPayload(dummy_ciphertext)));
         assert!(result_decrypt.is_err());
         match result_decrypt.unwrap_err() {
             NoiseError::IncorrectStateError => {} // Expected error

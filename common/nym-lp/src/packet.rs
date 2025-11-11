@@ -126,7 +126,7 @@ impl LpPacket {
 #[derive(Debug, Clone)]
 pub struct LpHeader {
     pub protocol_version: u8,
-
+    pub reserved: u16,
     pub session_id: u32,
     pub counter: u64,
 }
@@ -139,6 +139,7 @@ impl LpHeader {
     pub fn new(session_id: u32, counter: u64) -> Self {
         Self {
             protocol_version: 1,
+            reserved: 0,
             session_id,
             counter,
         }
@@ -176,6 +177,7 @@ impl LpHeader {
 
         Ok(LpHeader {
             protocol_version,
+            reserved: 0,
             session_id,
             counter,
         })

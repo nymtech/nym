@@ -1,7 +1,7 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::message::{ClientHelloData, LpMessage, MessageType};
+use crate::message::{ClientHelloData, EncryptedDataPayload, HandshakeData, LpMessage, MessageType};
 use crate::packet::{LpHeader, LpPacket, TRAILER_LEN};
 use crate::LpError;
 use bytes::BytesMut;
@@ -43,18 +43,18 @@ pub fn parse_lp_packet(src: &[u8]) -> Result<LpPacket, LpError> {
             if message_size != 0 {
                 return Err(LpError::InvalidPayloadSize {
                     expected: 0,
-                    actual: message_size,
+                    actual: message_size,   
                 });
             }
             LpMessage::Busy
         }
         MessageType::Handshake => {
             // No size validation needed here for Handshake, it's variable
-            LpMessage::Handshake(payload_slice.to_vec())
+            LpMessage::Handshake(HandshakeData(payload_slice.to_vec()))
         }
         MessageType::EncryptedData => {
             // No size validation needed here for EncryptedData, it's variable
-            LpMessage::EncryptedData(payload_slice.to_vec())
+            LpMessage::EncryptedData(EncryptedDataPayload(payload_slice.to_vec()))
         }
         MessageType::ClientHello => {
             // ClientHello has structured data
@@ -105,7 +105,7 @@ mod tests {
     // Import standalone functions
     use super::{parse_lp_packet, serialize_lp_packet};
     // Keep necessary imports
-    use crate::message::{LpMessage, MessageType};
+    use crate::message::{EncryptedDataPayload, HandshakeData, LpMessage, MessageType};
     use crate::packet::{LpHeader, LpPacket, TRAILER_LEN};
     use crate::LpError;
     use bytes::BytesMut;
@@ -120,6 +120,7 @@ mod tests {
         let packet = LpPacket {
             header: LpHeader {
                 protocol_version: 1,
+                reserved: 0,
                 session_id: 42,
                 counter: 123,
             },
@@ -150,10 +151,11 @@ mod tests {
         let packet = LpPacket {
             header: LpHeader {
                 protocol_version: 1,
+                reserved: 0,
                 session_id: 42,
                 counter: 123,
             },
-            message: LpMessage::Handshake(payload.clone()),
+            message: LpMessage::Handshake(HandshakeData(payload.clone())),
             trailer: [0; TRAILER_LEN],
         };
 
@@ -171,7 +173,7 @@ mod tests {
         // Verify message type and data
         match decoded.message {
             LpMessage::Handshake(decoded_payload) => {
-                assert_eq!(decoded_payload, payload);
+                assert_eq!(decoded_payload, HandshakeData(payload));
             }
             _ => panic!("Expected Handshake message"),
         }
@@ -187,10 +189,11 @@ mod tests {
         let packet = LpPacket {
             header: LpHeader {
                 protocol_version: 1,
+                reserved: 0,
                 session_id: 42,
                 counter: 123,
             },
-            message: LpMessage::EncryptedData(payload.clone()),
+            message: LpMessage::EncryptedData(EncryptedDataPayload(payload.clone())),
             trailer: [0; TRAILER_LEN],
         };
 
@@ -208,7 +211,7 @@ mod tests {
         // Verify message type and data
         match decoded.message {
             LpMessage::EncryptedData(decoded_payload) => {
-                assert_eq!(decoded_payload, payload);
+                assert_eq!(decoded_payload, EncryptedDataPayload(payload));
             }
             _ => panic!("Expected EncryptedData message"),
         }
@@ -387,11 +390,9 @@ mod tests {
 
         // Create ClientHelloData
         let client_key = [42u8; 32];
-        let protocol_version = 1u8;
         let salt = [99u8; 32];
         let hello_data = ClientHelloData {
             client_lp_public_key: client_key,
-            protocol_version,
             salt,
         };
 
@@ -399,6 +400,7 @@ mod tests {
         let packet = LpPacket {
             header: LpHeader {
                 protocol_version: 1,
+                reserved: 0,
                 session_id: 42,
                 counter: 123,
             },
@@ -421,7 +423,6 @@ mod tests {
         match decoded.message {
             LpMessage::ClientHello(decoded_data) => {
                 assert_eq!(decoded_data.client_lp_public_key, client_key);
-                assert_eq!(decoded_data.protocol_version, protocol_version);
                 assert_eq!(decoded_data.salt, salt);
             }
             _ => panic!("Expected ClientHello message"),
@@ -437,12 +438,13 @@ mod tests {
 
         // Create ClientHelloData with fresh salt
         let client_key = [7u8; 32];
-        let hello_data = ClientHelloData::new_with_fresh_salt(client_key, 1);
+        let hello_data = ClientHelloData::new_with_fresh_salt(client_key);
 
         // Create a ClientHello message packet
         let packet = LpPacket {
             header: LpHeader {
                 protocol_version: 1,
+                reserved: 0,
                 session_id: 100,
                 counter: 200,
             },
@@ -460,7 +462,6 @@ mod tests {
         match decoded.message {
             LpMessage::ClientHello(decoded_data) => {
                 assert_eq!(decoded_data.client_lp_public_key, client_key);
-                assert_eq!(decoded_data.protocol_version, 1);
                 assert_eq!(decoded_data.salt, hello_data.salt);
 
                 // Verify timestamp can be extracted
@@ -531,13 +532,13 @@ mod tests {
 
             let hello_data = ClientHelloData {
                 client_lp_public_key: [version; 32],
-                protocol_version: version,
                 salt: [version.wrapping_add(1); 32],
             };
 
             let packet = LpPacket {
                 header: LpHeader {
                     protocol_version: 1,
+                    reserved: 0,
                     session_id: version as u32,
                     counter: version as u64,
                 },
@@ -550,7 +551,6 @@ mod tests {
 
             match decoded.message {
                 LpMessage::ClientHello(decoded_data) => {
-                    assert_eq!(decoded_data.protocol_version, version);
                     assert_eq!(decoded_data.client_lp_public_key, [version; 32]);
                 }
                 _ => panic!("Expected ClientHello message for version {}", version),

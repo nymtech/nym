@@ -9,7 +9,7 @@ pub struct DataObservatoryConfig {
 pub struct WebhookConfig {
     pub id: String,
     pub description: Option<String>,
-    pub webhook_url: String,
+    pub webhook_url: url::Url,
     pub watch_for_chain_message_types: Vec<String>,
     pub authentication: Option<HttpAuthenticationOptions>,
 }

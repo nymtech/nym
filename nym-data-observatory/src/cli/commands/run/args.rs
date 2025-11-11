@@ -2,9 +2,22 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::env::vars::*;
+use url::Url;
 
-#[derive(clap::Args, Debug)]
+#[derive(clap::Args, Debug, Clone)]
 pub(crate) struct Args {
+    #[arg(long, env = NYXD_WS, alias = "nyxd_ws")]
+    pub(crate) websocket_url: Url,
+
+    #[arg(long, env = NYXD, alias = "nyxd")]
+    pub(crate) rpc_url: Url,
+
+    #[arg(long, env = NYXD_SCRAPER_START_HEIGHT)]
+    pub(crate) start_block_height: Option<u32>,
+
+    #[arg(long, env = NYXD_SCRAPER_UNSAFE_NUKE_DB, default_value = "false")]
+    pub(crate) nuke_db: bool,
+
     /// (Override) Postgres connection string for chain scraper history
     #[arg(long, env = NYM_DATA_OBSERVATORY_DB_URL, alias = "db_url")]
     pub(crate) db_connection_string: Option<String>,
@@ -22,7 +35,7 @@ pub(crate) struct Args {
         long,
         env = NYM_DATA_OBSERVATORY_WEBHOOK_URL
     )]
-    pub webhook_url: Option<String>,
+    pub webhook_url: Option<Url>,
 
     /// (Override) Optionally, authenticate with the webhook
     #[clap(

@@ -119,18 +119,23 @@ impl Config {
         }
     }
 
-    pub fn scraper_config(&self) -> nyxd_scraper_sqlite::Config {
-        nyxd_scraper_sqlite::Config {
+    pub fn scraper_config(&self) -> Result<nyxd_scraper_sqlite::Config, NymRewarderError> {
+        let database_storage = self.storage_paths.nyxd_scraper.as_path();
+        let database_storage = database_storage
+            .to_str()
+            .ok_or(NymRewarderError::ConfigError)?
+            .to_string();
+        Ok(nyxd_scraper_sqlite::Config {
             websocket_url: self.nyxd_scraper.websocket_url.clone(),
             rpc_url: self.base.upstream_nyxd.clone(),
-            database_storage: self.storage_paths.nyxd_scraper.clone(),
+            database_storage,
             pruning_options: self.nyxd_scraper.pruning,
             store_precommits: self.nyxd_scraper.store_precommits,
             start_block: StartingBlockOpts {
                 start_block_height: None,
                 use_best_effort_start_height: true,
             },
-        }
+        })
     }
 
     pub fn verification_config(&self) -> ticketbook_issuance::VerificationConfig {

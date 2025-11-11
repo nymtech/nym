@@ -42,4 +42,7 @@ pub enum NymDataObservatoryError {
 
     #[error(transparent)]
     NymConfigTomlE(#[from] nym_config::error::NymConfigTomlError),
+
+    #[error(transparent)]
+    UrlParseFailure(#[from] url::ParseError),
 }

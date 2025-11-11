@@ -11,7 +11,7 @@ use nym_validator_client::nyxd::tx::ErrorReport;
 use nym_validator_client::nyxd::{AccountId, Coin};
 use nyxd_scraper_sqlite::error::SqliteScraperError;
 use std::io;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -24,6 +24,9 @@ pub enum NymRewarderError {
 
     #[error("failed to perform startup SQL migration: {0}")]
     StartupMigrationFailure(#[from] sqlx::migrate::MigrateError),
+
+    #[error("config error: database storage path invalid")]
+    ConfigError,
 
     #[error(
     "failed to load config file using path '{}'. detailed message: {source}", path.display()

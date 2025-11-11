@@ -38,6 +38,7 @@ tokio-util = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
 tower-http = { workspace = true, features = ["cors", "trace"] }
+url = { workspace = true }
 utoipa = { workspace = true, features = ["axum_extras", "time"] }
 utoipa-swagger-ui = { workspace = true, features = ["axum"] }
 utoipauto = { workspace = true }

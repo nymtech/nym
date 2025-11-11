@@ -40,6 +40,7 @@ use crate::node::shared_network::{
 };
 use nym_bin_common::bin_info;
 use nym_crypto::asymmetric::{ed25519, x25519};
+use nym_gateway::node::upgrade_mode::UpgradeModeState;
 use nym_gateway::node::{ActiveClientsStore, GatewayTasksBuilder, UpgradeModeCheckRequestSender};
 use nym_mixnet_client::client::ActiveConnections;
 use nym_mixnet_client::forwarder::MixForwardingSender;
@@ -373,6 +374,8 @@ pub(crate) struct NymNode {
 
     entry_gateway: GatewayTasksData,
 
+    upgrade_mode_state: UpgradeModeState,
+
     #[allow(dead_code)]
     service_providers: ServiceProvidersData,
 
@@ -461,6 +464,9 @@ impl NymNode {
             metrics: NymNodeMetrics::new(),
             verloc_stats: Default::default(),
             entry_gateway: GatewayTasksData::new(&config.gateway_tasks).await?,
+            upgrade_mode_state: UpgradeModeState::new(
+                config.gateway_tasks.upgrade_mode.attester_public_key,
+            ),
             service_providers: ServiceProvidersData::new(&config.service_providers)?,
             wireguard: Some(wireguard_data),
             config,
@@ -625,7 +631,7 @@ impl NymNode {
             self.metrics.clone(),
             self.entry_gateway.mnemonic.clone(),
             Self::user_agent(),
-            self.config.gateway_tasks.upgrade_mode.attester_public_key,
+            self.upgrade_mode_state.clone(),
             self.shutdown_tracker().clone(),
         );
 
@@ -861,6 +867,12 @@ impl NymNode {
             self.active_sphinx_keys()?.clone(),
             self.metrics.clone(),
             self.verloc_stats.clone(),
+            self.config
+                .gateway_tasks
+                .upgrade_mode
+                .attestation_url
+                .clone(),
+            self.upgrade_mode_state.clone(),
             self.config.http.node_load_cache_ttl,
         );
 
@@ -1152,7 +1164,7 @@ impl NymNode {
     }
 
     pub(crate) async fn run_minimal_mixnet_processing(mut self) -> Result<(), NymNodeError> {
-        let noise_config = nym_noise::config::NoiseConfig::new(
+        let noise_config = NoiseConfig::new(
             self.x25519_noise_keys.clone(),
             NoiseNetworkView::new_empty(),
             self.config.mixnet.debug.initial_connection_timeout,

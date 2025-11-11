@@ -6508,13 +6508,13 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "celes",
- "humantime",
  "humantime-serde",
  "nym-bin-common",
  "nym-crypto",
  "nym-exit-policy",
  "nym-http-api-client",
  "nym-noise-keys",
+ "nym-upgrade-mode-check",
  "nym-wireguard-types",
  "rand_chacha 0.3.1",
  "schemars 0.8.22",
@@ -6525,6 +6525,7 @@ dependencies = [
  "thiserror 2.0.12",
  "time",
  "tokio",
+ "url",
  "utoipa",
 ]
 

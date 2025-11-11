@@ -101,6 +101,10 @@ impl UpgradeModeDetails {
         }
     }
 
+    pub fn state(&self) -> &UpgradeModeState {
+        &self.state
+    }
+
     pub fn enabled(&self) -> bool {
         self.state.upgrade_mode_enabled()
     }
@@ -196,6 +200,10 @@ impl UpgradeModeState {
                 status: UpgradeModeStatus(Arc::new(AtomicBool::new(false))),
             }),
         }
+    }
+
+    pub fn attester_pubkey(&self) -> ed25519::PublicKey {
+        self.inner.expected_attester_public_key
     }
 
     pub async fn attestation(&self) -> Option<UpgradeModeAttestation> {

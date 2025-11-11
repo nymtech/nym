@@ -36,6 +36,7 @@ pub mod routes {
             pub const AUXILIARY: &str = "/auxiliary-details";
             pub const HEALTH: &str = "/health";
             pub const LOAD: &str = "/load";
+            pub const NETWORK: &str = "/network";
             pub const SWAGGER: &str = "/swagger";
 
             pub const GATEWAY: &str = "/gateway";
@@ -49,6 +50,7 @@ pub mod routes {
             // define helper functions to get absolute routes
             absolute_route!(health_absolute, v1_absolute(), HEALTH);
             absolute_route!(load_absolute, v1_absolute(), LOAD);
+            absolute_route!(network_absolute, v1_absolute(), NETWORK);
             absolute_route!(roles_absolute, v1_absolute(), ROLES);
             absolute_route!(build_info_absolute, v1_absolute(), BUILD_INFO);
             absolute_route!(host_info_absolute, v1_absolute(), HOST_INFO);
@@ -130,6 +132,17 @@ pub mod routes {
 
             pub mod ip_packet_router {
                 // use super::*;
+            }
+
+            pub mod network {
+                use super::*;
+                pub const UPGRADE_MODE_STATUS: &str = "/upgrade-mode-status";
+
+                absolute_route!(
+                    upgrade_mode_status_absolute,
+                    network_absolute(),
+                    UPGRADE_MODE_STATUS
+                );
             }
         }
     }

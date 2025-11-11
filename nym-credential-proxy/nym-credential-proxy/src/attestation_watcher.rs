@@ -76,7 +76,7 @@ impl AttestationWatcher {
                 info!("upgrade mode attestation is not available at this time");
                 debug!("retrieval error: {err}");
 
-                if self.upgrade_mode_state.has_attestation()
+                if self.upgrade_mode_state.has_attestation().await
                     && self.consecutive_retrieval_failures > FAILURE_THRESHOLD
                 {
                     self.upgrade_mode_state

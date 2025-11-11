@@ -1,17 +1,18 @@
 {
+  "--": {
+    "type": "separator",
+    "title": "Mixnet Integrations"
+  },
+  "integrations": "Overview - Start Here!",
+  "native": "Native Apps",
+  "browsers": "Browser Apps",
+  "concepts": "Nym-Specific Concepts for Integrations",
   "-": {
     "type": "separator",
     "title": "SDKs"
   },
   "rust": "Rust SDK",
   "typescript": "Typescript SDK",
-  "--": {
-    "type": "separator",
-    "title": "Mixnet Integrations"
-  },
-  "native": "Native Apps",
-  "browsers": "Browser Apps",
-  "concepts": "Nym-Specific Concepts for Integration",
   "---": {
     "type": "separator",
     "title": "Misc"

@@ -1,0 +1,16 @@
+import { Callout } from 'nextra/components';
+
+# Integrating With Nym
+Any application that wants to integrate with Nym involves sending its application traffic through the Mixnet using one of the available Nym Clients. There is no single solution for this, as different environments offer different access and transport options (e.g. if operating in a web browser, you do not have access to syscalls or sockets, have to deal with content security policies, etc).
+
+As such, we have several solutions available for developers to choose from depending on the **environment** their application is expected to run in: native apps which are running on a desktop, or webapps running in a browser.
+
+<Callout type="info" emoji="ℹ️">
+    The list of current options available to developers to do not cover all environments and setups - we are working on expanding this list and approaching more general solutions, but there is no one-size-fits-all approach when dealing with rerouting network traffic.
+</Callout>
+
+Integration options are then further subdivided by app **architecture**; whether the application interacts with remote hosts on the public internet running independently of the app (e.g. public blockchain RPC endpoints, third-party APIs) or whether app developers have some control over the versions of the software being run on both sides of an interaction (e.g. peer to peer apps running the same software version, or client-server architectures which are running software written by the same team).
+
+<Callout type="info" emoji="ℹ️">
+    This is because of the different security considerations each option offers. These are detailed in the following pages.
+</Callout>

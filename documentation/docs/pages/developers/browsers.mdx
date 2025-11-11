@@ -12,12 +12,12 @@ Both `mixFetch` and the WASM client are delivered to the client bundled into a w
 ## mixFetch
 Drop-in replacement for browser's `fetch` API that makes HTTP(S) requests via Exit Gateways using the SOCKS Network Requester.
 
-Uses an embedded CA certificate store to establish TLS session between `mixFetch` and the remote host, creating an client-host secure channel from the browser to the host over the Mixnet.
+Uses an embedded CA certificate store to establish TLS session between `mixFetch` and the remote host, creating a client-host secure channel from the browser to the host over the Mixnet.
 
 Internally it uses the WASM client.
 
-- docs TODO LINK
-- example TODO LINK
+- [docs](./typescript/start#mixfetch)
+- [example](./typescript/playground/mixfetch)
 
 <Callout type="warning">
 
@@ -36,5 +36,5 @@ Note that the limitations of CSPs and Mixed Content restrictions (i.e HTTPS only
 
 Runs in a web worker to leave UI thread free for the user.
 
-- docs TODO LINK
-- example TODO LINK
+- [docs](./typescript/start#mixnet-client)
+- [example](./typescript/playground/traffic)

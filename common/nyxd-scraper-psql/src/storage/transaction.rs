@@ -156,7 +156,7 @@ impl PostgresStorageTransaction {
             let messages = chain_tx
                 .parsed_messages
                 .values()
-                .map(|v| v.clone())
+                .cloned()
                 .collect::<Vec<_>>();
 
             let signer_infos = chain_tx

@@ -112,16 +112,22 @@ impl LpConnectionHandler {
         // Derive LP keypair from gateway's ed25519 identity using proper conversion
         // This creates a valid x25519 keypair for ECDH operations in Noise protocol
         let x25519_private = self.state.local_identity.private_key().to_x25519();
-        let x25519_public = self.state.local_identity.public_key().to_x25519()
-            .map_err(|e| GatewayError::LpHandshakeError(
-                format!("Failed to convert ed25519 public key to x25519: {}", e)
-            ))?;
+        let x25519_public = self
+            .state
+            .local_identity
+            .public_key()
+            .to_x25519()
+            .map_err(|e| {
+                GatewayError::LpHandshakeError(format!(
+                    "Failed to convert ed25519 public key to x25519: {}",
+                    e
+                ))
+            })?;
 
         let lp_private = LpPrivateKey::from_bytes(x25519_private.as_bytes());
-        let lp_public = PublicKey::from_bytes(x25519_public.as_bytes())
-            .map_err(|e| GatewayError::LpHandshakeError(
-                format!("Failed to create LP public key: {}", e)
-            ))?;
+        let lp_public = PublicKey::from_bytes(x25519_public.as_bytes()).map_err(|e| {
+            GatewayError::LpHandshakeError(format!("Failed to create LP public key: {}", e))
+        })?;
 
         let gateway_keypair = Keypair::from_keys(lp_private, lp_public);
 
@@ -279,14 +285,6 @@ impl LpConnectionHandler {
         // Verify it's a ClientHello message
         match packet.message() {
             LpMessage::ClientHello(hello_data) => {
-                // Validate protocol version (currently only v1)
-                if hello_data.protocol_version != 1 {
-                    return Err(GatewayError::LpProtocolError(format!(
-                        "Unsupported protocol version: {}",
-                        hello_data.protocol_version
-                    )));
-                }
-
                 // Extract and validate timestamp (nym-110: replay protection)
                 let timestamp = hello_data.extract_timestamp();
                 Self::validate_timestamp(timestamp, self.state.lp_config.timestamp_tolerance_secs)?;
@@ -341,11 +339,9 @@ impl LpConnectionHandler {
         }
 
         // Decrypt the packet payload using the established session
-        let decrypted_bytes = session
-            .decrypt_data(packet.message())
-            .map_err(|e| {
-                GatewayError::LpProtocolError(format!("Failed to decrypt registration request: {}", e))
-            })?;
+        let decrypted_bytes = session.decrypt_data(packet.message()).map_err(|e| {
+            GatewayError::LpProtocolError(format!("Failed to decrypt registration request: {}", e))
+        })?;
 
         // Deserialize the decrypted bytes into LpRegistrationRequest
         bincode::deserialize(&decrypted_bytes).map_err(|e| {
@@ -368,9 +364,9 @@ impl LpConnectionHandler {
         })?;
 
         // Encrypt data first (this increments Noise internal counter)
-        let encrypted_message = session.encrypt_data(&data).map_err(|e| {
-            GatewayError::LpProtocolError(format!("Failed to encrypt data: {}", e))
-        })?;
+        let encrypted_message = session
+            .encrypt_data(&data)
+            .map_err(|e| GatewayError::LpProtocolError(format!("Failed to encrypt data: {}", e)))?;
 
         // Create LP packet with encrypted message (this increments LP protocol counter)
         let packet = session.next_packet(encrypted_message).map_err(|e| {
@@ -467,7 +463,10 @@ impl LpConnectionHandler {
             "lp_connection_bytes_received_total",
             self.stats.bytes_received as i64
         );
-        inc_by!("lp_connection_bytes_sent_total", self.stats.bytes_sent as i64);
+        inc_by!(
+            "lp_connection_bytes_sent_total",
+            self.stats.bytes_sent as i64
+        );
 
         // Track completion type
         if graceful {
@@ -486,7 +485,7 @@ mod tests {
     use bytes::BytesMut;
     use nym_lp::codec::{parse_lp_packet, serialize_lp_packet};
     use nym_lp::keypair::Keypair;
-    use nym_lp::message::{ClientHelloData, LpMessage};
+    use nym_lp::message::{ClientHelloData, EncryptedDataPayload, HandshakeData, LpMessage};
     use nym_lp::packet::{LpHeader, LpPacket};
     use std::sync::Arc;
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -670,6 +669,7 @@ mod tests {
         let packet = LpPacket::new(
             LpHeader {
                 protocol_version: 1,
+                reserved: 0,
                 session_id: 42,
                 counter: 0,
             },
@@ -732,6 +732,7 @@ mod tests {
             let packet = LpPacket::new(
                 LpHeader {
                     protocol_version: 1,
+                    reserved: 0,
                     session_id: 99,
                     counter: 5,
                 },
@@ -771,10 +772,11 @@ mod tests {
             let packet = LpPacket::new(
                 LpHeader {
                     protocol_version: 1,
+                    reserved: 0,
                     session_id: 100,
                     counter: 10,
                 },
-                LpMessage::Handshake(handshake_data),
+                LpMessage::Handshake(HandshakeData(handshake_data)),
             );
             handler.send_lp_packet(&packet).await
         });
@@ -788,7 +790,7 @@ mod tests {
         assert_eq!(received.header().session_id, 100);
         assert_eq!(received.header().counter, 10);
         match received.message() {
-            LpMessage::Handshake(data) => assert_eq!(data, &expected_data),
+            LpMessage::Handshake(data) => assert_eq!(data, &HandshakeData(expected_data)),
             _ => panic!("Expected Handshake message"),
         }
     }
@@ -811,10 +813,11 @@ mod tests {
             let packet = LpPacket::new(
                 LpHeader {
                     protocol_version: 1,
+                    reserved: 0,
                     session_id: 200,
                     counter: 20,
                 },
-                LpMessage::EncryptedData(encrypted_payload),
+                LpMessage::EncryptedData(EncryptedDataPayload(encrypted_payload)),
             );
             handler.send_lp_packet(&packet).await
         });
@@ -828,7 +831,7 @@ mod tests {
         assert_eq!(received.header().session_id, 200);
         assert_eq!(received.header().counter, 20);
         match received.message() {
-            LpMessage::EncryptedData(data) => assert_eq!(data, &expected_payload),
+            LpMessage::EncryptedData(data) => assert_eq!(data, &EncryptedDataPayload(expected_payload)),
             _ => panic!("Expected EncryptedData message"),
         }
     }
@@ -842,7 +845,7 @@ mod tests {
         let addr = listener.local_addr().unwrap();
 
         let client_key = [7u8; 32];
-        let hello_data = ClientHelloData::new_with_fresh_salt(client_key, 1);
+        let hello_data = ClientHelloData::new_with_fresh_salt(client_key);
         let expected_salt = hello_data.salt; // Clone salt before moving hello_data
 
         let server_task = tokio::spawn(async move {
@@ -853,6 +856,7 @@ mod tests {
             let packet = LpPacket::new(
                 LpHeader {
                     protocol_version: 1,
+                    reserved: 0,
                     session_id: 300,
                     counter: 30,
                 },
@@ -872,7 +876,6 @@ mod tests {
         match received.message() {
             LpMessage::ClientHello(data) => {
                 assert_eq!(data.client_lp_public_key, client_key);
-                assert_eq!(data.protocol_version, 1);
                 assert_eq!(data.salt, expected_salt);
             }
             _ => panic!("Expected ClientHello message"),
@@ -899,13 +902,12 @@ mod tests {
 
         // Create and send valid ClientHello
         let client_keypair = Keypair::default();
-        let hello_data = ClientHelloData::new_with_fresh_salt(
-            client_keypair.public_key().to_bytes(),
-            1, // protocol version
-        );
+        let hello_data =
+            ClientHelloData::new_with_fresh_salt(client_keypair.public_key().to_bytes());
         let packet = LpPacket::new(
             LpHeader {
                 protocol_version: 1,
+                reserved: 0,
                 session_id: 0,
                 counter: 0,
             },
@@ -944,7 +946,7 @@ mod tests {
         // Create ClientHello with old timestamp
         let client_keypair = Keypair::default();
         let mut hello_data =
-            ClientHelloData::new_with_fresh_salt(client_keypair.public_key().to_bytes(), 1);
+            ClientHelloData::new_with_fresh_salt(client_keypair.public_key().to_bytes());
 
         // Manually set timestamp to be very old (100 seconds ago)
         let old_timestamp = SystemTime::now()
@@ -957,6 +959,7 @@ mod tests {
         let packet = LpPacket::new(
             LpHeader {
                 protocol_version: 1,
+                reserved: 0,
                 session_id: 0,
                 counter: 0,
             },

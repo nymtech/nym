@@ -21,6 +21,7 @@ mod tests {
         // Create the header
         let header = LpHeader {
             protocol_version,
+            reserved: 0u16, // reserved
             session_id,
             counter,
         };
@@ -307,7 +308,7 @@ mod tests {
             1,
             lp_id,
             counter_b,
-            LpMessage::EncryptedData(plaintext_b_to_a.to_vec()), // Using plaintext here, but content doesn't matter for replay check
+            LpMessage::EncryptedData(crate::message::EncryptedDataPayload(plaintext_b_to_a.to_vec())), // Using plaintext here, but content doesn't matter for replay check
         );
         let mut encoded_data_b_to_a_replay = BytesMut::new();
         serialize_lp_packet(&message_b_to_a_replay, &mut encoded_data_b_to_a_replay)

@@ -10,8 +10,6 @@ use serde::{Deserialize, Serialize};
 pub struct ClientHelloData {
     /// Client's LP x25519 public key (32 bytes)
     pub client_lp_public_key: [u8; 32],
-    /// Protocol version for future compatibility
-    pub protocol_version: u8,
     /// Salt for PSK derivation (32 bytes: 8-byte timestamp + 24-byte nonce)
     pub salt: [u8; 32],
 }
@@ -24,7 +22,7 @@ impl ClientHelloData {
     /// # Arguments
     /// * `client_lp_public_key` - Client's x25519 public key
     /// * `protocol_version` - Protocol version number
-    pub fn new_with_fresh_salt(client_lp_public_key: [u8; 32], protocol_version: u8) -> Self {
+    pub fn new_with_fresh_salt(client_lp_public_key: [u8; 32]) -> Self {
         use std::time::{SystemTime, UNIX_EPOCH};
 
         // Generate salt: timestamp + nonce
@@ -43,7 +41,6 @@ impl ClientHelloData {
 
         Self {
             client_lp_public_key,
-            protocol_version,
             salt,
         }
     }
@@ -89,11 +86,17 @@ impl MessageType {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HandshakeData(pub Vec<u8>);
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EncryptedDataPayload(pub Vec<u8>);
+
 #[derive(Debug, Clone)]
 pub enum LpMessage {
     Busy,
-    Handshake(Vec<u8>),
-    EncryptedData(Vec<u8>),
+    Handshake(HandshakeData),
+    EncryptedData(EncryptedDataPayload),
     ClientHello(ClientHelloData),
 }
 
@@ -112,17 +115,17 @@ impl LpMessage {
     pub fn payload(&self) -> &[u8] {
         match self {
             LpMessage::Busy => &[],
-            LpMessage::Handshake(payload) => payload,
-            LpMessage::EncryptedData(payload) => payload,
-            LpMessage::ClientHello(_) => &[], // Structured data, serialized in encode_content
+            LpMessage::Handshake(payload) => payload.0.as_slice(),
+            LpMessage::EncryptedData(payload) => payload.0.as_slice(),
+            LpMessage::ClientHello(_) => unimplemented!(), // Structured data, serialized in encode_content
         }
     }
 
     pub fn is_empty(&self) -> bool {
         match self {
             LpMessage::Busy => true,
-            LpMessage::Handshake(payload) => payload.is_empty(),
-            LpMessage::EncryptedData(payload) => payload.is_empty(),
+            LpMessage::Handshake(payload) => payload.0.is_empty(),
+            LpMessage::EncryptedData(payload) => payload.0.is_empty(),
             LpMessage::ClientHello(_) => false, // Always has data
         }
     }
@@ -130,8 +133,8 @@ impl LpMessage {
     pub fn len(&self) -> usize {
         match self {
             LpMessage::Busy => 0,
-            LpMessage::Handshake(payload) => payload.len(),
-            LpMessage::EncryptedData(payload) => payload.len(),
+            LpMessage::Handshake(payload) => payload.0.len(),
+            LpMessage::EncryptedData(payload) => payload.0.len(),
             LpMessage::ClientHello(_) => 65, // 32 bytes key + 1 byte version + 32 bytes salt
         }
     }
@@ -149,10 +152,10 @@ impl LpMessage {
         match self {
             LpMessage::Busy => { /* No content */ }
             LpMessage::Handshake(payload) => {
-                dst.put_slice(payload);
+                dst.put_slice(&payload.0);
             }
             LpMessage::EncryptedData(payload) => {
-                dst.put_slice(payload);
+                dst.put_slice(&payload.0);
             }
             LpMessage::ClientHello(data) => {
                 // Serialize ClientHelloData using bincode
@@ -172,10 +175,11 @@ mod tests {
 
     #[test]
     fn encoding() {
-        let message = LpMessage::EncryptedData(vec![11u8; 124]);
+        let message = LpMessage::EncryptedData(EncryptedDataPayload(vec![11u8; 124]));
 
         let resp_header = LpHeader {
             protocol_version: 1,
+            reserved: 0,
             session_id: 0,
             counter: 0,
         };
@@ -195,7 +199,7 @@ mod tests {
         // Verify correct data in message
         match &packet.message {
             LpMessage::EncryptedData(data) => {
-                assert_eq!(*data, vec![11u8; 124]);
+                assert_eq!(*data, EncryptedDataPayload(vec![11u8; 124]));
             }
             _ => panic!("Wrong message type"),
         }
@@ -204,8 +208,8 @@ mod tests {
     #[test]
     fn test_client_hello_salt_generation() {
         let client_key = [1u8; 32];
-        let hello1 = ClientHelloData::new_with_fresh_salt(client_key, 1);
-        let hello2 = ClientHelloData::new_with_fresh_salt(client_key, 1);
+        let hello1 = ClientHelloData::new_with_fresh_salt(client_key);
+        let hello2 = ClientHelloData::new_with_fresh_salt(client_key);
 
         // Different salts should be generated
         assert_ne!(hello1.salt, hello2.salt);
@@ -219,7 +223,7 @@ mod tests {
     #[test]
     fn test_client_hello_timestamp_extraction() {
         let client_key = [2u8; 32];
-        let hello = ClientHelloData::new_with_fresh_salt(client_key, 1);
+        let hello = ClientHelloData::new_with_fresh_salt(client_key);
 
         let timestamp = hello.extract_timestamp();
         let now = std::time::SystemTime::now()
@@ -234,7 +238,7 @@ mod tests {
     #[test]
     fn test_client_hello_salt_format() {
         let client_key = [3u8; 32];
-        let hello = ClientHelloData::new_with_fresh_salt(client_key, 1);
+        let hello = ClientHelloData::new_with_fresh_salt(client_key);
 
         // First 8 bytes should be non-zero timestamp
         let timestamp_bytes = &hello.salt[..8];

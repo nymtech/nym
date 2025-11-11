@@ -42,6 +42,7 @@ impl NymNode {
             host: "127.0.0.1".to_string(),
             custom_http_port: Some(self.http_port),
             identity_key: self.identity_key.clone(),
+            lp_address: None,
         }
     }
 

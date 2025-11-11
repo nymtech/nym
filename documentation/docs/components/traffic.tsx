@@ -24,7 +24,6 @@ export const Traffic = () => {
   const [buttonEnabled, setButtonEnabled] = useState<boolean>(false);
 
   const init = async () => {
-    // TODO HOW TO SET PREFERRED GATEWAY? Can't find newWithConfig in import
     const client = await createNymMixnetClient();
     setNym(client);
 

@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        INSERT INTO watcher_execution(start_ts, end_ts, error_message)\n        VALUES ($1, $2, $3)\n    ",
+  "query": "\n        INSERT INTO startup_info(start_ts, end_ts, error_message)\n        VALUES ($1, $2, $3)\n    ",
   "describe": {
     "columns": [],
     "parameters": {
@@ -12,5 +12,5 @@
     },
     "nullable": []
   },
-  "hash": "fbf7dc2d779476fffcefafaa0a1731dfc6affe6c672df121140a5c7141f71c63"
+  "hash": "0f4f26923d4fdf4541deb1fa5e7e3c542713e7443b6f0cd4ddb0c00f7a644060"
 }

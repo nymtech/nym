@@ -10,7 +10,6 @@ use nyxd_scraper_psql::{
 };
 use reqwest::{Client, Url};
 use tracing::{error, info};
-use utoipa::r#gen::serde_json;
 
 pub struct WebhookModule {
     webhooks: Vec<Webhook>,
@@ -36,10 +35,10 @@ impl TxModule for WebhookModule {
         _: &mut dyn NyxdScraperTransaction,
     ) -> Result<(), ScraperError> {
         for (index, msg) in &tx.parsed_messages {
-            if let Some(parsed_message_type_url) = tx.parsed_message_urls.get(&index) {
+            if let Some(parsed_message_type_url) = tx.parsed_message_urls.get(index) {
                 let payload = WebhookPayload {
                     height: tx.height.value(),
-                    message_index: index.clone() as u64,
+                    message_index: *index as u64,
                     transaction_hash: tx.hash.to_string(),
                     message: Some(msg.clone()),
                 };

@@ -73,6 +73,7 @@ impl RpcClient {
         let mut transactions = Vec::with_capacity(raw_transactions.len());
         for raw_tx in raw_transactions {
             let mut parsed_messages = HashMap::new();
+            let mut parsed_message_urls = HashMap::new();
             let tx = cosmrs::Tx::from_bytes(&raw_tx.tx).map_err(|source| {
                 ScraperError::TxParseFailure {
                     hash: raw_tx.hash,
@@ -83,6 +84,7 @@ impl RpcClient {
             for (index, msg) in tx.body.messages.iter().enumerate() {
                 if let Some(value) = self.decode_or_skip(msg) {
                     parsed_messages.insert(index, value);
+                    parsed_message_urls.insert(index, msg.type_url.clone());
                 }
             }
 
@@ -94,6 +96,7 @@ impl RpcClient {
                 tx,
                 proof: raw_tx.proof,
                 parsed_messages,
+                parsed_message_urls,
                 block: block.block.clone(),
             })
         }

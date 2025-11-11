@@ -30,6 +30,8 @@ pub struct ParsedTransactionResponse {
 
     pub parsed_messages: HashMap<usize, serde_json::Value>,
 
+    pub parsed_message_urls: HashMap<usize, String>,
+
     pub block: Block,
 }
 

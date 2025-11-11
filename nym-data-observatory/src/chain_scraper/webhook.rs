@@ -5,9 +5,8 @@ use crate::config::data_observatory::{HttpAuthenticationOptions, WebhookConfig};
 use crate::models::WebhookPayload;
 use anyhow::Context;
 use async_trait::async_trait;
-use nym_validator_client::nyxd::{Any, Msg, MsgSend, Name};
 use nyxd_scraper_psql::{
-    MsgModule, NyxdScraperTransaction, ParsedTransactionResponse, ScraperError,
+    NyxdScraperTransaction, ParsedTransactionResponse, ScraperError, TxModule,
 };
 use reqwest::{Client, Url};
 use tracing::{error, info};
@@ -30,41 +29,50 @@ impl WebhookModule {
 }
 
 #[async_trait]
-impl MsgModule for WebhookModule {
-    fn type_url(&self) -> String {
-        <MsgSend as Msg>::Proto::type_url()
-    }
-
-    async fn handle_msg(
+impl TxModule for WebhookModule {
+    async fn handle_tx(
         &mut self,
-        index: usize,
-        _msg: &Any,
         tx: &ParsedTransactionResponse,
-        _storage_tx: &mut dyn NyxdScraperTransaction,
+        _: &mut dyn NyxdScraperTransaction,
     ) -> Result<(), ScraperError> {
-        let message = serde_json::to_value(tx.parsed_messages.get(&index)).ok();
+        for (index, msg) in &tx.parsed_messages {
+            if let Some(parsed_message_type_url) = tx.parsed_message_urls.get(&index) {
+                let payload = WebhookPayload {
+                    height: tx.height.value(),
+                    message_index: index.clone() as u64,
+                    transaction_hash: tx.hash.to_string(),
+                    message: Some(msg.clone()),
+                };
 
-        let payload = WebhookPayload {
-            height: tx.height.value(),
-            message_index: index as u64,
-            transaction_hash: tx.hash.to_string(),
-            message,
-        };
+                // println!(
+                //     "->>>>>>>>>>>>>>>>>>>>>>>>> {}",
+                //     serde_json::to_string(&payload).unwrap()
+                // );
 
-        println!(
-            "->>>>>>>>>>>>>>>>>>>>>>>>> {}",
-            serde_json::to_string(&payload).unwrap()
-        );
+                for webhook in self.webhooks.clone() {
+                    // if the webhook requires a type and the parsed message type doesn't match, skip
+                    if !webhook.config.watch_for_chain_message_types.is_empty()
+                        && !webhook
+                            .config
+                            .watch_for_chain_message_types
+                            .contains(parsed_message_type_url)
+                    {
+                        continue;
+                    }
 
-        for webhook in self.webhooks.clone() {
-            let payload = payload.clone();
-            tokio::spawn(async move {
-                if let Err(e) = webhook.invoke_webhook(&payload).await {
-                    error!("webhook error: {}", e);
+                    let payload = payload.clone();
+
+                    // TODO: some excellent advice from Andrew, for another day:
+                    //   - pass a cancellation token for shutdown
+                    //   - use TaskManager and limit number of webhooks to spawn at once
+                    tokio::spawn(async move {
+                        if let Err(e) = webhook.invoke_webhook(&payload).await {
+                            error!("webhook error: {}", e);
+                        }
+                    });
                 }
-            });
+            }
         }
-
         Ok(())
     }
 }

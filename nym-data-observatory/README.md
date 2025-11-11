@@ -79,6 +79,14 @@ or just:
 NYM_DATA_OBSERVATORY_DB_URL=postgres://testuser:testpass@localhost:5433/nym_data_observatory_test cargo run -- run --websocket-url wss://rpc.nymtech.net/websocket --rpc-url https://rpc.nymtech.net
 ```
 
+If you want to watch for cosmwasm messages and send to a webhook:
+
+```
+NYM_DATA_OBSERVATORY_WEBHOOK_URL=https://webhook.site \
+NYM_DATA_OBSERVATORY_DB_URL=postgres://testuser:testpass@localhost:5433/nym_data_observatory_test\
+cargo run -- run --websocket-url wss://rpc.nymtech.net/websocket --rpc-url https://rpc.nymtech.net --start-block-height 20966360 --watch-for-chain-message-types "/cosmwasm.wasm.v1.MsgExecuteContract"
+```
+
 ## Troubleshooting
 
 ### SQLx Offline Mode

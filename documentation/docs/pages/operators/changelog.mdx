@@ -97,7 +97,7 @@ cargo Profile:      release
 
 ### Bugfix
 
-- [Add circuit breaker](https://github.com/nymtech/nym/pull/6143): When the mixnet client's `mix_tx` channel closes during network drops, `OutQueueControl` would retry sending packets through the closed channel, flooding logs and hanging the daemon. This affects all clients (VPN, SOCKS5, native clients), not just VPN ..(Read more in the [PR description](https://github.com/nymtech/nym/pull/6143))
+- [Add circuit breaker](https://github.com/nymtech/nym/pull/6143): When the mixnet client's `mix_tx` channel closes during network drops, `OutQueueControl` would retry sending packets through the closed channel, flooding logs and hanging the daemon. This affects all clients (VPN, SOCKS5, native clients), not just VPN .. (Read more in the [PR description](https://github.com/nymtech/nym/pull/6143))
 
 - [Update internal owner address in transferred share](https://github.com/nymtech/nym/pull/6139)
 
@@ -109,7 +109,7 @@ cargo Profile:      release
 
 ### Refactors & Maintenance
 
-- [Re-merge: disconnect mixnet client if registration fails ([\#6158](https://github.com/nymtech/nym/pull/6158))](https://github.com/nymtech/nym/pull/6169)
+- [Re-merge: disconnect mixnet client if registration fails](https://github.com/nymtech/nym/pull/6169) ([\#6158](https://github.com/nymtech/nym/pull/6158))
 
 - [Resolve `clippy 1.91` warnings](https://github.com/nymtech/nym/pull/6168)
 

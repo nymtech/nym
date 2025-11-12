@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::bandwidth::ClientBandwidth;
+use crate::client::config::BandwidthTickets;
 use crate::error::GatewayClientError;
 use crate::packet_router::PacketRouter;
 use crate::traits::GatewayPacketRouter;
@@ -27,7 +28,6 @@ use tokio::net::TcpStream;
 #[cfg(not(target_arch = "wasm32"))]
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 
-use crate::client::config::BandwidthTickets;
 #[cfg(target_arch = "wasm32")]
 use wasm_utils::websocket::JSWebsocket;
 

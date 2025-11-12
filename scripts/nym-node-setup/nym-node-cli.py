@@ -267,10 +267,7 @@ class NodeSetupCLI:
 
     def _check_gwx_mode(self):
         """Helper: Several fns run only for GWx - this fn checks this condition"""
-        if self.mode == "exit-gateway":
-            return True
-        else:
-            return False
+        return self.mode == "exit-gateway"
 
     def check_wg_enabled(self, args=None):
         """Determine if WireGuard is enabled; precedence: CLI > env > env.sh > prompt. Persist normalized value."""
@@ -609,7 +606,7 @@ class ArgParser:
             version=f"nym-node-cli {__version__}"
         )
         parent.add_argument("-d", "--dev", metavar="BRANCH",
-                            help="Define github branch",
+                            help="Define github branch (default: develop)",
                             type=str,
                             default=argparse.SUPPRESS)
         parent.add_argument("-v", "--verbose", action="store_true",
@@ -625,7 +622,7 @@ class ArgParser:
         subparsers = parser.add_subparsers(dest="command", help="subcommands")
         subparsers.required = True
 
-        p_install = subparsers.add_parser(
+        install_parser = subparsers.add_parser(
             "install", parents=[parent],
             help="Starts nym-node installation setup CLI",
             aliases=["i", "I"], add_help=True
@@ -636,7 +633,7 @@ class ArgParser:
             help="Node mode: 'mixnode', 'entry-gateway', or 'exit-gateway'",
         )
         install_parser.add_argument(
-            "--wireguard",
+            "--wireguard-enabled",
             choices=["true", "false"],
             help="WireGuard functionality switch: true / false"
         )

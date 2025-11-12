@@ -30,7 +30,6 @@ pub(crate) async fn connect_async(
             resolver
                 .resolve_str(domain)
                 .await?
-                .into_iter()
                 .map(|a| SocketAddr::new(a, port))
                 .collect()
         }

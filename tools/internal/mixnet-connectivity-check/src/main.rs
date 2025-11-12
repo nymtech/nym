@@ -3,7 +3,6 @@
 
 use clap::{Args, Parser, Subcommand};
 use futures::stream::StreamExt;
-use nym_bin_common::logging::setup_tracing_logger;
 use nym_bin_common::output_format::OutputFormat;
 use nym_bin_common::{bin_info, bin_info_owned};
 use nym_crypto::asymmetric::ed25519;
@@ -70,7 +69,6 @@ fn build_info(args: BuildInfoArgs) {
 }
 
 async fn connectivity_test(args: ConnectivityArgs) -> anyhow::Result<()> {
-    nym_bin_common::setup_tracing_logger();
     let env = mixnet::NymNetworkDetails::new_from_env();
     let mut debug_config = DebugConfig::default();
     debug_config.cover_traffic.disable_loop_cover_traffic_stream = true;

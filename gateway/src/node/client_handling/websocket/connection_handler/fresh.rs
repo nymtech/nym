@@ -9,12 +9,11 @@ use crate::node::client_handling::websocket::{
     connection_handler::{AuthenticatedHandler, ClientDetails, InitialAuthResult, SocketStream},
     message_receiver::IsActive,
 };
-use crate::node::client_handling::DEFAULT_MIXNET_CLIENT_BANDWIDTH_THRESHOLD;
 use futures::{
     channel::{mpsc, oneshot},
     SinkExt, StreamExt,
 };
-use nym_credentials_interface::AvailableBandwidth;
+use nym_credentials_interface::{AvailableBandwidth, DEFAULT_MIXNET_REQUEST_BANDWIDTH_THRESHOLD};
 use nym_crypto::aes::cipher::crypto_common::rand_core::RngCore;
 use nym_crypto::asymmetric::ed25519;
 use nym_gateway_requests::authenticate::AuthenticateRequest;
@@ -552,7 +551,7 @@ impl<R, S> FreshHandler<R, S> {
         if self.upgrade_mode_enabled() {
             Ok(max(
                 true_remaining_bandwidth,
-                DEFAULT_MIXNET_CLIENT_BANDWIDTH_THRESHOLD,
+                DEFAULT_MIXNET_REQUEST_BANDWIDTH_THRESHOLD + 1,
             ))
         } else {
             Ok(true_remaining_bandwidth)

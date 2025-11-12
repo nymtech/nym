@@ -13,7 +13,8 @@ use tracing::{debug, error, trace, warn};
 use crate::error::Result;
 use crate::mixnet_listener::{MixnetMessageBroadcastReceiver, MixnetMessageInputSender};
 use crate::types::{AvailableBandwidthClientResponse, TopUpClientResponse};
-use nym_authenticator_requests::traits::{BandwidthClaim, UpgradeModeStatus};
+use nym_authenticator_requests::models::BandwidthClaim;
+use nym_authenticator_requests::traits::UpgradeModeStatus;
 use nym_authenticator_requests::{
     AuthenticatorVersion, client_message::ClientMessage, response::AuthenticatorResponse,
     traits::Id, v2, v3, v4, v5, v6,

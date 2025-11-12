@@ -26,6 +26,12 @@ pub struct MemoryEcachTicketbookManager {
 }
 
 #[derive(Default)]
+struct InternalIdCounters {
+    next_ticketbook_id: i64,
+    next_emergency_credential_id: i64,
+}
+
+#[derive(Default)]
 struct EcashCredentialManagerInner {
     ticketbooks: HashMap<i64, RetrievedTicketbook>,
     pending: HashMap<i64, RetrievedPendingTicketbook>,
@@ -33,20 +39,21 @@ struct EcashCredentialManagerInner {
     coin_indices_sigs: HashMap<u64, Vec<AnnotatedCoinIndexSignature>>,
     expiration_date_sigs: HashMap<(u64, Date), Vec<AnnotatedExpirationDateSignature>>,
     emergency_credentials: HashMap<String, Vec<EmergencyCredential>>,
-    _next_ticketbook_id: i64,
-    _next_emergency_credential_id: i64,
+
+    // internal counters emulating assignment of an increasing id to new inserted database entries
+    internal_counters: InternalIdCounters,
 }
 
 impl EcashCredentialManagerInner {
     fn next_ticketbook_id(&mut self) -> i64 {
-        let next = self._next_ticketbook_id;
-        self._next_ticketbook_id += 1;
+        let next = self.internal_counters.next_ticketbook_id;
+        self.internal_counters.next_ticketbook_id += 1;
         next
     }
 
     fn next_emergency_credential_id(&mut self) -> i64 {
-        let next = self._next_emergency_credential_id;
-        self._next_emergency_credential_id += 1;
+        let next = self.internal_counters.next_emergency_credential_id;
+        self.internal_counters.next_emergency_credential_id += 1;
         next
     }
 }

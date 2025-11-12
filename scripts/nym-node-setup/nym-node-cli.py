@@ -24,7 +24,6 @@ class NodeSetupCLI:
         self.welcome_message = self.print_welcome_message()
         self.mode = self._get_or_prompt_mode(args)
         self.prereqs_install_sh = self.fetch_script("nym-node-prereqs-install.sh")
-        #self.env_vars_install_sh = self.fetch_script("setup-env-vars.sh")
         self.node_install_sh = self.fetch_script("nym-node-install.sh")
         self.service_config_sh = self.fetch_script("setup-systemd-service-file.sh")
         self.start_node_systemd_service_sh = self.fetch_script("start-node-systemd-service.sh")
@@ -186,7 +185,6 @@ class NodeSetupCLI:
         github_raw_nymtech_nym_scripts_url = f"https://raw.githubusercontent.com/nymtech/nym/refs/heads/{self.branch}/scripts/"
         scripts_urls = {
                 "nym-node-prereqs-install.sh": f"{github_raw_nymtech_nym_scripts_url}nym-node-setup/nym-node-prereqs-install.sh",
-                #"setup-env-vars.sh": f"{github_raw_nymtech_nym_scripts_url}nym-node-setup/setup-env-vars.sh",
                 "nym-node-install.sh": f"{github_raw_nymtech_nym_scripts_url}nym-node-setup/nym-node-install.sh",
                 "setup-systemd-service-file.sh": f"{github_raw_nymtech_nym_scripts_url}nym-node-setup/setup-systemd-service-file.sh",
                 "start-node-systemd-service.sh": f"{github_raw_nymtech_nym_scripts_url}nym-node-setup/start-node-systemd-service.sh",

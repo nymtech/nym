@@ -9,7 +9,6 @@ use crate::node::client_handling::{
             IsActive, IsActiveRequestReceiver, IsActiveResultSender, MixMessageReceiver,
         },
     },
-    DEFAULT_MIXNET_CLIENT_BANDWIDTH_THRESHOLD,
 };
 use futures::{
     future::{FusedFuture, OptionFuture},
@@ -20,6 +19,7 @@ use nym_credential_verification::CredentialVerifier;
 use nym_credential_verification::{
     bandwidth_storage_manager::BandwidthStorageManager, ClientBandwidth,
 };
+use nym_credentials_interface::DEFAULT_MIXNET_REQUEST_BANDWIDTH_THRESHOLD;
 use nym_gateway_requests::{
     types::{BinaryRequest, ServerResponse},
     BandwidthResponse, ClientControlRequest, ClientRequest, GatewayRequestsError, SendResponse,
@@ -295,7 +295,7 @@ impl<R, S> AuthenticatedHandler<R, S> {
         // as they're not aware of its existence
         let available_bandwidth = self.bandwidth_storage_manager.available_bandwidth().await;
         max(
-            DEFAULT_MIXNET_CLIENT_BANDWIDTH_THRESHOLD,
+            DEFAULT_MIXNET_REQUEST_BANDWIDTH_THRESHOLD + 1,
             available_bandwidth,
         )
     }

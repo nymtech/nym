@@ -1,9 +1,10 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::models::CurrentUpgradeModeStatus;
 use crate::traits::{
-    CurrentUpgradeModeStatus, Id, PendingRegistrationResponse, RegisteredResponse,
-    RemainingBandwidthResponse, TopUpBandwidthResponse, UpgradeModeStatus,
+    Id, PendingRegistrationResponse, RegisteredResponse, RemainingBandwidthResponse,
+    TopUpBandwidthResponse, UpgradeModeStatus,
 };
 use crate::{v2, v3, v4, v5, v6};
 

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 pub mod client_message;
+pub mod models;
 pub mod request;
 pub mod response;
 pub mod traits;

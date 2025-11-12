@@ -245,7 +245,7 @@ mod tests {
     use x25519_dalek::PublicKey;
 
     use super::*;
-    use crate::traits::BandwidthClaim;
+    use crate::models::BandwidthClaim;
     use crate::{util::tests::CREDENTIAL_BYTES, v5};
 
     #[test]

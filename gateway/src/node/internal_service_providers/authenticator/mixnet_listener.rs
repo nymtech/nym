@@ -8,7 +8,8 @@ use crate::node::internal_service_providers::authenticator::{
 use defguard_wireguard_rs::net::IpAddrMask;
 use defguard_wireguard_rs::{host::Peer, key::Key};
 use futures::StreamExt;
-use nym_authenticator_requests::traits::{BandwidthClaim, UpgradeModeMessage};
+use nym_authenticator_requests::models::BandwidthClaim;
+use nym_authenticator_requests::traits::UpgradeModeMessage;
 use nym_authenticator_requests::{latest, v4::registration::IpPair};
 use nym_authenticator_requests::{
     latest::registration::{GatewayClient, PendingRegistrations, PrivateIPs},

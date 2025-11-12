@@ -1,7 +1,7 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-pub use nym_authenticator_requests::traits::CurrentUpgradeModeStatus;
+pub use nym_authenticator_requests::models::CurrentUpgradeModeStatus;
 
 #[derive(Debug, Clone, Copy)]
 pub struct TopUpClientResponse {

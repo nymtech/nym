@@ -3,7 +3,6 @@
 
 use crate::error::GatewayClientError;
 use nym_credentials_interface::DEFAULT_MIXNET_REQUEST_BANDWIDTH_THRESHOLD;
-use nym_network_defaults::TicketTypeRepr::V1MixnetEntry;
 use si_scale::helpers::bibytes2;
 use std::time::Duration;
 

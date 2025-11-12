@@ -1,63 +1,15 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use std::fmt;
-use std::net::{Ipv4Addr, Ipv6Addr};
-
 use crate::latest::registration::IpPair;
+use crate::models::{BandwidthClaim, CurrentUpgradeModeStatus};
 use crate::{AuthenticatorVersion, Error, v1, v2, v3, v4, v5, v6};
-use nym_credentials_interface::{
-    BandwidthCredential, CredentialSpendingData, TicketType, UnknownTicketType,
-};
+use nym_credentials_interface::CredentialSpendingData;
 use nym_crypto::asymmetric::x25519;
 use nym_wireguard_types::PeerPublicKey;
-use serde::{Deserialize, Serialize};
+use std::fmt;
+use std::net::{Ipv4Addr, Ipv6Addr};
 use tracing::error;
-
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
-pub enum CurrentUpgradeModeStatus {
-    Enabled,
-    Disabled,
-    // everything pre-v6
-    Unknown,
-}
-
-impl From<bool> for CurrentUpgradeModeStatus {
-    fn from(value: bool) -> Self {
-        if value {
-            CurrentUpgradeModeStatus::Enabled
-        } else {
-            CurrentUpgradeModeStatus::Disabled
-        }
-    }
-}
-
-impl From<CurrentUpgradeModeStatus> for Option<bool> {
-    fn from(value: CurrentUpgradeModeStatus) -> Self {
-        match value {
-            CurrentUpgradeModeStatus::Enabled => Some(true),
-            CurrentUpgradeModeStatus::Disabled => Some(false),
-            CurrentUpgradeModeStatus::Unknown => None,
-        }
-    }
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-pub struct BandwidthClaim {
-    pub credential: BandwidthCredential,
-    pub kind: TicketType,
-}
-
-impl TryFrom<CredentialSpendingData> for BandwidthClaim {
-    type Error = UnknownTicketType;
-
-    fn try_from(credential: CredentialSpendingData) -> Result<Self, Self::Error> {
-        Ok(BandwidthClaim {
-            kind: TicketType::try_from_encoded(credential.payment.t_type)?,
-            credential: BandwidthCredential::from(credential),
-        })
-    }
-}
 
 pub trait Versionable {
     fn version(&self) -> AuthenticatorVersion;

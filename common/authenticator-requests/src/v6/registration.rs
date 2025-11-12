@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::Error;
+use crate::models::BandwidthClaim;
 use base64::{Engine, engine::general_purpose};
 use nym_network_defaults::constants::{WG_TUN_DEVICE_IP_ADDRESS_V4, WG_TUN_DEVICE_IP_ADDRESS_V6};
 use nym_wireguard_types::PeerPublicKey;
@@ -11,7 +12,6 @@ use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use std::time::SystemTime;
 use std::{fmt, ops::Deref, str::FromStr};
 
-use crate::traits::BandwidthClaim;
 #[cfg(feature = "verify")]
 use hmac::{Hmac, Mac};
 #[cfg(feature = "verify")]

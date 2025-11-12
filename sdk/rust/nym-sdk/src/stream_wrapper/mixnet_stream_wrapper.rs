@@ -368,7 +368,7 @@ impl MixStream {
         socket.connect(peer).await
     }
 
-    /// Get the peer's Nym address (like `TcpStream::peer_addr`).
+    /// Get the peer's Nym address.
     ///
     /// Returns `None` if this is a listening stream.
     pub fn peer_addr(&self) -> Option<&Recipient> {

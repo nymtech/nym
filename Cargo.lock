@@ -5708,7 +5708,6 @@ dependencies = [
  "chrono",
  "clap",
  "cosmrs",
- "glob",
  "nym-bin-common",
  "nym-config",
  "nym-network-defaults",

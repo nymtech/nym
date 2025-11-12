@@ -46,6 +46,5 @@ utoipauto = { workspace = true }
 
 [build-dependencies]
 anyhow = { workspace = true }
-glob = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 sqlx = { workspace = true, features = ["runtime-tokio-rustls", "postgres"] }

@@ -135,7 +135,7 @@ class NodeSetupCLI:
         mode = getattr(args, "mode", None)
         if mode:
             mode = mode.strip().lower()
-            self._upsert_env_var("MODE", mode)
+            self._upsert_env_vars("MODE", mode)
             print(f"Mode set to '{mode}' from CLI argument.")
             return mode
 
@@ -158,7 +158,7 @@ class NodeSetupCLI:
             print("Invalid mode. Must be one of: mixnode, entry-gateway, exit-gateway.")
             raise SystemExit(1)
 
-        self._upsert_env_var("MODE", mode)
+        self._upsert_env_vars("MODE", mode)
         print(f"Mode set to '{mode}' — stored in env.sh and sourced for immediate use.")
         return mode
 
@@ -278,7 +278,7 @@ class NodeSetupCLI:
         env_file = os.path.join(os.getcwd(), "env.sh")
 
         def norm(v):
-            return "true" if str(v).strip().lower() in ("true") else "false"
+            return "true" if str(v).strip().lower() == ("true") else "false"
 
         val = None
 
@@ -391,8 +391,7 @@ class NodeSetupCLI:
 
     def quic_bridge_deploy(self):
         """Setup QUIC bridge and configuration using external script"""
-        self.run_script(self.quic_bridge_deployment_sh, args=["full_bridge_setup"], env=run_env)
-        return
+        self.run_script(self.quic_bridge_deployment_sh, args=["full_bridge_setup"])
 
     def run_nym_node_as_service(self):
         """Starts /etc/systemd/system/nym-node.service based on prompt using external script"""

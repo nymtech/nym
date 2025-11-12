@@ -43,9 +43,6 @@ pub enum AuthenticationClientError {
     #[error("unknown authenticator version number")]
     UnsupportedAuthenticatorVersion,
 
-    #[error("failed to wait on AuthenticatorClientListener")]
-    FailedToJoinOnTask(#[from] tokio::task::JoinError),
-
     #[error("encountered an internal error")]
     InternalError,
 }

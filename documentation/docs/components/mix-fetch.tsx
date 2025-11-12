@@ -14,9 +14,7 @@ const defaultUrl =
 const args = { mode: "unsafe-ignore-cors" };
 
 const mixFetchOptions: SetupMixFetchOps = {
-  preferredGateway: "q2A2cbooyC16YJzvdYaSMH9X3cSiieZNtfBr8cE8Fi1", // with WSS
-  // preferredNetworkRequester:
-  //   "CTDxrcXgrZHWyCWnuCgjpJPghQUcEVz1HkhUr5mGdFnT.3UAww1YWNyVNYNWFQL1LaHYouQtDiXBGK5GiDZgpXkTK@2RFtU5BwxvJJXagAWAEuaPgb5ZVPRoy2542TT93Edw6v",
+  preferredGateway: "q2A2cbooyC16YJzvdYaSMH9X3cSiieZNtfBr8cE8Fi1",
   mixFetchOverride: {
     requestTimeoutMs: 60_000,
   },

@@ -584,7 +584,6 @@ class NodeSetupCLI:
         """Main function called by argparser command install running full node install flow"""
         self.ensure_env_values(args)
         self.run_script(self.prereqs_install_sh)
-        self.run_script(self.env_vars_install_sh)
         self.run_script(self.node_install_sh)
         self.run_script(self.service_config_sh)
         self._check_gwx_mode() and self.run_script(self.nginx_proxy_wss_sh)

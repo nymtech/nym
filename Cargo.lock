@@ -5714,6 +5714,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "axum",
+ "blake3",
  "chrono",
  "clap",
  "cosmrs",

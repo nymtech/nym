@@ -2,7 +2,7 @@ use nym_credentials_interface::TicketType;
 use nym_sdk::mixnet::InputMessage;
 
 #[derive(thiserror::Error, Debug)]
-pub enum Error {
+pub enum AuthenticationClientError {
     #[error("mixnet client stopped returning responses")]
     NoMixnetMessagesReceived,
 
@@ -42,10 +42,19 @@ pub enum Error {
 
     #[error("unknown authenticator version number")]
     UnsupportedAuthenticatorVersion,
+}
 
-    #[error("failed to wait on AuthenticatorClientListener")]
-    FailedToJoinOnTask(#[from] tokio::task::JoinError),
+#[derive(thiserror::Error, Debug)]
+pub enum RegistrationError {
+    #[error(transparent)]
+    NoCredentialSent(AuthenticationClientError), // This intentionnally doesn't use `from` to avoid random ? operator to land here when they shouldn't
+
+    #[error("an error occured after a credential was sent : {source}")]
+    CredentialSent {
+        #[source]
+        source: AuthenticationClientError,
+    },
 }
 
 // Result type based on our error type
-pub type Result<T> = std::result::Result<T, Error>;
+pub(crate) type Result<T> = std::result::Result<T, AuthenticationClientError>;

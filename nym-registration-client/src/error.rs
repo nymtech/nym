@@ -35,19 +35,85 @@ pub enum RegistrationClientError {
     #[error("timeout connecting the mixnet client")]
     Timeout(#[from] tokio::time::error::Elapsed),
 
-    #[error("failed to register wireguard with the gateway for {gateway_id}")]
-    EntryGatewayRegisterWireguard {
+    #[error(
+        "failed to register wireguard with the gateway for {gateway_id}, no credential was sent"
+    )]
+    WireguardEntryRegistration {
         gateway_id: String,
         authenticator_address: Box<nym_sdk::mixnet::Recipient>,
         #[source]
-        source: Box<nym_authenticator_client::Error>,
+        source: Box<nym_authenticator_client::AuthenticationClientError>,
     },
 
-    #[error("failed to register wireguard with the gateway for {gateway_id}")]
-    ExitGatewayRegisterWireguard {
+    #[error(
+        "failed to register wireguard with the gateway for {gateway_id}, no credential was sent"
+    )]
+    WireguardExitRegistration {
         gateway_id: String,
         authenticator_address: Box<nym_sdk::mixnet::Recipient>,
         #[source]
-        source: Box<nym_authenticator_client::Error>,
+        source: Box<nym_authenticator_client::AuthenticationClientError>,
     },
+
+    #[error(
+        "failed to register wireguard with the gateway for {gateway_id}, a credential was sent"
+    )]
+    WireguardEntryRegistrationCredentialSent {
+        gateway_id: String,
+        authenticator_address: Box<nym_sdk::mixnet::Recipient>,
+        #[source]
+        source: Box<nym_authenticator_client::AuthenticationClientError>,
+    },
+
+    #[error(
+        "failed to register wireguard with the gateway for {gateway_id}, a credential was sent"
+    )]
+    WireguardExitRegistrationCredentialSent {
+        gateway_id: String,
+        authenticator_address: Box<nym_sdk::mixnet::Recipient>,
+        #[source]
+        source: Box<nym_authenticator_client::AuthenticationClientError>,
+    },
+}
+
+impl RegistrationClientError {
+    pub fn from_authenticator_error(
+        error: nym_authenticator_client::RegistrationError,
+        gateway_id: String,
+        authenticator_address: nym_sdk::mixnet::Recipient,
+        entry: bool,
+    ) -> Self {
+        match error {
+            nym_authenticator_client::RegistrationError::NoCredentialSent(source) => {
+                if entry {
+                    Self::WireguardEntryRegistration {
+                        gateway_id,
+                        authenticator_address: Box::new(authenticator_address),
+                        source: Box::new(source),
+                    }
+                } else {
+                    Self::WireguardExitRegistration {
+                        gateway_id,
+                        authenticator_address: Box::new(authenticator_address),
+                        source: Box::new(source),
+                    }
+                }
+            }
+            nym_authenticator_client::RegistrationError::CredentialSent { source } => {
+                if entry {
+                    Self::WireguardEntryRegistrationCredentialSent {
+                        gateway_id,
+                        authenticator_address: Box::new(authenticator_address),
+                        source: Box::new(source),
+                    }
+                } else {
+                    Self::WireguardExitRegistrationCredentialSent {
+                        gateway_id,
+                        authenticator_address: Box::new(authenticator_address),
+                        source: Box::new(source),
+                    }
+                }
+            }
+        }
+    }
 }

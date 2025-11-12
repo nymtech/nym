@@ -30,7 +30,6 @@ pub use nym_compact_ecash::{
 };
 pub use nym_ecash_time::{EcashTime, ecash_today};
 pub use nym_network_defaults::TicketTypeRepr;
-pub use nym_upgrade_mode_check::UpgradeModeAttestation;
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub enum BandwidthCredential {

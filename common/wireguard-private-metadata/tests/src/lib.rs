@@ -16,13 +16,13 @@ mod tests {
     use nym_credential_verification::upgrade_mode::UpgradeModeEnableError;
     use nym_credential_verification::{ClientBandwidth, TicketVerifier};
     use nym_credentials_interface::{
-        AvailableBandwidth, BandwidthCredential, CredentialSpendingData, UpgradeModeAttestation,
+        AvailableBandwidth, BandwidthCredential, CredentialSpendingData,
     };
     use nym_crypto::asymmetric::ed25519;
     use nym_http_api_client::HttpClientError;
     use nym_upgrade_mode_check::{
-        CREDENTIAL_PROXY_JWT_ISSUER, generate_jwt_for_upgrade_mode_attestation,
-        generate_new_attestation_with_starting_time,
+        CREDENTIAL_PROXY_JWT_ISSUER, UpgradeModeAttestation,
+        generate_jwt_for_upgrade_mode_attestation, generate_new_attestation_with_starting_time,
     };
     use nym_wireguard_private_metadata_client::WireguardMetadataApiClient;
     use nym_wireguard_private_metadata_shared::{v0, v1, v2};

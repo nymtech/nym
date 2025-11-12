@@ -93,10 +93,10 @@ To list all commands and options run the binary with `--help` command:
            Print version
 ```
 
-To run the client, simply add `-n` flag followed by the ID key of the node you wish to test, as well as the mnemonic of a funded Nyx account; this is required to test the ticketbook generation.
+To run the client, simply add `-g` flag followed by the ID key of the node you wish to test, as well as the mnemonic of a funded Nyx account; this is required to test the ticketbook generation. **Note that this accout needs to have NYM tokens; you cannot use an account with a NymVPN subscription**. Make sure to have at least a few NYM tokens in there.
 
 ```sh
-./target/release/nym-gateway-probe run-local -n <GATEWAY_IDENTITY_KEY> --mnemonic <MNEMONIC>
+./target/release/nym-gateway-probe run-local -g <GATEWAY_IDENTITY_KEY> --mnemonic <MNEMONIC>
 ```
 
 For any `nym-node --mode exit-gateway` the aim is to have this outcome:

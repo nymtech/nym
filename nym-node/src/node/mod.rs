@@ -39,8 +39,8 @@ use crate::node::shared_network::{
     CachedNetwork, CachedTopologyProvider, LocalGatewayNode, NetworkRefresher,
 };
 use nym_bin_common::bin_info;
+use nym_credential_verification::UpgradeModeState;
 use nym_crypto::asymmetric::{ed25519, x25519};
-use nym_gateway::node::upgrade_mode::UpgradeModeState;
 use nym_gateway::node::{ActiveClientsStore, GatewayTasksBuilder, UpgradeModeCheckRequestSender};
 use nym_mixnet_client::client::ActiveConnections;
 use nym_mixnet_client::forwarder::MixForwardingSender;

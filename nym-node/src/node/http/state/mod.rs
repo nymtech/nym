@@ -4,8 +4,8 @@
 use crate::node::http::state::load::CachedNodeLoad;
 use crate::node::http::state::metrics::MetricsAppState;
 use crate::node::key_rotation::active_keys::ActiveSphinxKeys;
+use nym_credential_verification::UpgradeModeState;
 use nym_crypto::asymmetric::ed25519;
-use nym_gateway::node::upgrade_mode::UpgradeModeState;
 use nym_node_metrics::NymNodeMetrics;
 use nym_noise_keys::VersionedNoiseKey;
 use nym_verloc::measurements::SharedVerlocStats;

@@ -49,6 +49,57 @@ This page displays a full list of all the changes during our release cycle from 
 
 <VarInfo />
 
+## `v2025.20-leerdammer`
+
+- [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.20-leerdammer)
+- [`nym-node`](nodes/nym-node.mdx) version `1.21.0`
+
+```sh
+
+```
+
+### Operators Updates & Tools
+
+- [New **Performance Measurement** page](/operators/performance-and-testing) explaining the logic behind node selection for NymVPN application
+- [New **Gateway Probe Details** page](/operators/performance-and-testing/gateway-probe-details) explaining complexity and contradictions when measuring network performance
+
+### Features
+
+- [Tweak ts sdk actions](https://github.com/nymtech/nym/pull/6185): Using `taskset` to limit the number of of CPUs used by `wasm-pack` and `wasm-opt` commands used by ts linting CI
+
+- [Configurable mixnet client startup timeout](https://github.com/nymtech/nym/pull/6148)
+
+- [QUIC bridge deployment script v2](https://github.com/nymtech/nym/pull/6145): Script helping operators to install, configure and deploy QUIC bridge as systemd service
+
+- [Expose more explicit `new_with_fronted_urls` builder for http API client](https://github.com/nymtech/nym/pull/6136)
+
+- [Domain fronting](https://github.com/nymtech/nym/pull/6134): Enable URL rotation and retries for mixnet gateway [`init`](https://github.com/nymtech/nym/pull/6126) 
+
+
+### Bugfix
+
+- [Add circuit breaker](https://github.com/nymtech/nym/pull/6143): When the mixnet client's `mix_tx` channel closes during network drops, `OutQueueControl` would retry sending packets through the closed channel, flooding logs and hanging the daemon. This affects all clients (VPN, SOCKS5, native clients), not just VPN ..(Read more in the [PR description](https://github.com/nymtech/nym/pull/6143))
+
+- [Update internal owner address in transferred share](https://github.com/nymtech/nym/pull/6139)
+
+- [Update quic_bridge_deployment.sh for IPv4 and .deb package](https://github.com/nymtech/nym/pull/6138): Updated ping commands to explicitly use IPv4 and adjusted file permission checks with sudo. Changed the forward address prompt to specify IPv4 and modified the binary download process to fetch and install the latest `.deb` release URL automatically
+
+- [Update stored epoch share when changing ownership](https://github.com/nymtech/nym/pull/6135)
+
+- [Update stored epoch share when changing announce address](https://github.com/nymtech/nym/pull/6131)
+
+### Refactors & Maintenance
+
+- [Re-merge: disconnect mixnet client if registration fails ([\#6158](https://github.com/nymtech/nym/pull/6158))](https://github.com/nymtech/nym/pull/6169)
+
+- [Resolve `clippy 1.91` warnings](https://github.com/nymtech/nym/pull/6168)
+
+- [Remove unused dependencies](https://github.com/nymtech/nym/pull/6151): Removing the crates that only shows up on the workspace `Cargo.toml`
+
+- [Use typed-builder for registration client builder config](https://github.com/nymtech/nym/pull/6150)
+
+- [tommy is too quick](https://github.com/nymtech/nym/pull/6149)
+
 ## `v2025.19-kase`
 
 - [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.19-kase)

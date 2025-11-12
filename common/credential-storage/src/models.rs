@@ -3,7 +3,7 @@
 
 use nym_credentials::{IssuanceTicketBook, IssuedTicketBook};
 use nym_ecash_time::Date;
-use sqlx::types::time::OffsetDateTime;
+use time::OffsetDateTime;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 pub struct RetrievedTicketbook {

@@ -24,6 +24,7 @@ ufw allow 8080/tcp  # Nym specific - nym-node-api
 ufw allow 9000/tcp  # Nym Specific - clients port
 ufw allow 9001/tcp  # Nym specific - wss port
 ufw allow 51822/udp # WireGuard
+ufw allow in on nymwg to any port 51830 proto tcp # bandwidth queries/topup - inside the tunnel
 ufw allow 'Nginx Full' && \
 ufw reload && \
 ufw status

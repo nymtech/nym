@@ -32,6 +32,7 @@ log() {
 
 # simple redirection that keeps function scope intact
 add_log_redirection() {
+  exec 3>&1 4>&2
   exec > >(tee -a "$LOG_FILE") 2>&1
 }
 add_log_redirection
@@ -47,7 +48,17 @@ NYM_ETC_BRIDGES="$NYM_ETC_DIR/bridges.toml"
 NYM_ETC_CLIENT_PARAMS_DEFAULT="$NYM_ETC_DIR/client_bridge_params.json"
 SERVICE_FILE="/etc/systemd/system/nym-bridge.service"
 
-NET_DEV="$(ip route show default 2>/dev/null | awk '/default/ {print $5}' || true)"
+NET_DEV="${UPLINK_DEV:-}"
+if [[ -z "$NET_DEV" ]]; then
+  NET_DEV="$(ip -o route show default 2>/dev/null | awk '{print $5}' | head -n1)"
+  [[ -z "$NET_DEV" ]] && NET_DEV="$(ip -o route show default table all 2>/dev/null | awk '{print $5}' | head -n1)"
+fi
+if [[ -z "$NET_DEV" ]]; then
+  echo -e "${RED}Cannot determine uplink interface. Set UPLINK_DEV.${RESET}" | tee -a "$LOG_FILE"
+  exit 1
+fi
+info "Using uplink device: $NET_DEV"
+
 WG_IFACE="nymwg"
 
 # Root check
@@ -64,6 +75,11 @@ warn() { echo -e "${YELLOW}$1${RESET}"; }
 err() { echo -e "${RED}$1${RESET}"; }
 info() { echo -e "${CYAN}$1${RESET}"; }
 press_enter() { read -r -p "$1"; }
+
+# Disable pauses for noninteractive mode
+if [[ "${NONINTERACTIVE:-0}" == "1" ]]; then
+  press_enter() { :; }
+fi
 
 # Helper: detect dpkg dependency failure for libc6>=2.34
 deb_depends_libc_too_old() {
@@ -377,6 +393,11 @@ User=root
 ExecStart=$BRIDGE_BIN --config $NYM_ETC_BRIDGES
 Restart=on-failure
 RestartSec=5
+LimitNOFILE=65535
+ProtectSystem=full
+ProtectHome=yes
+PrivateTmp=yes
+
 
 [Install]
 WantedBy=multi-user.target
@@ -391,12 +412,26 @@ EOF
 # IPTABLES & helpers
 apply_bridge_iptables_rules() {
   title "Applying iptables rules"
-  iptables -I INPUT -i "$WG_IFACE" -j ACCEPT || true
-  ip6tables -I INPUT -i "$WG_IFACE" -j ACCEPT || true
-  iptables -t nat -A POSTROUTING -o "$NET_DEV" -j MASQUERADE || true
-  ip6tables -t nat -A POSTROUTING -o "$NET_DEV" -j MASQUERADE || true
+
+  # Ensure stateful rules exist
+  iptables -C FORWARD -m state --state RELATED,ESTABLISHED -j ACCEPT 2>/dev/null || \
+    iptables -I FORWARD 1 -m state --state RELATED,ESTABLISHED -j ACCEPT
+  ip6tables -C FORWARD -m state --state RELATED,ESTABLISHED -j ACCEPT 2>/dev/null || \
+    ip6tables -I FORWARD 1 -m state --state RELATED,ESTABLISHED -j ACCEPT
+
+  # Allow WG interface input
+  iptables -C INPUT -i "$WG_IFACE" -j ACCEPT 2>/dev/null || iptables -I INPUT -i "$WG_IFACE" -j ACCEPT
+  ip6tables -C INPUT -i "$WG_IFACE" -j ACCEPT 2>/dev/null || ip6tables -I INPUT -i "$WG_IFACE" -j ACCEPT
+
+  # NAT (idempotent)
+  iptables -t nat -C POSTROUTING -o "$NET_DEV" -j MASQUERADE 2>/dev/null || \
+    iptables -t nat -I POSTROUTING 1 -o "$NET_DEV" -j MASQUERADE
+  ip6tables -t nat -C POSTROUTING -o "$NET_DEV" -j MASQUERADE 2>/dev/null || \
+    ip6tables -t nat -I POSTROUTING 1 -o "$NET_DEV" -j MASQUERADE
+
   iptables-save > /etc/iptables/rules.v4
   ip6tables-save > /etc/iptables/rules.v6
+  
   ok "iptables rules applied."
 }
 
@@ -404,6 +439,9 @@ configure_dns_and_icmp() {
   title "Allow ICMP and DNS"
   iptables -A INPUT -p icmp --icmp-type echo-request -j ACCEPT || true
   ip6tables -A INPUT -p ipv6-icmp -j ACCEPT || true
+  iptables -C INPUT -p udp --dport 53 -j ACCEPT 2>/dev/null || iptables -I INPUT -p udp --dport 53 -j ACCEPT
+  ip6tables -C INPUT -p udp --dport 53 -j ACCEPT 2>/dev/null || ip6tables -I INPUT -p udp --dport 53 -j ACCEPT
+
   ok "ICMP and DNS rules applied."
 }
 
@@ -429,6 +467,8 @@ full_bridge_setup() {
   echo ""
   echo "Step 2/6: Installing bridge binary..."
   install_bridge_binary
+  echo "[Bridge Install] $(date '+%F %T') $( $BRIDGE_BIN --version 2>/dev/null || echo 'nym-bridge (unknown)')" \
+    >> /var/log/nym-bridge-version.log
   press_enter "Press Enter to continue..."
 
   echo ""

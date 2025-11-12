@@ -1,18 +1,27 @@
 {
-  "index": "Introduction",
-  "concepts": "Core Concepts",
-  "binaries": "Binaries",
-  "integrations": "Integration Options",
-  "clients": "Clients",
-  "tools": "Tools",
-  "nymvpncli": "Nym VPN CLI",
-  "chain": "Interacting with Nyx",
   "--": {
-    "type": "separator"
+    "type": "separator",
+    "title": "Mixnet Integrations"
+  },
+  "integrations": "Overview - Start Here!",
+  "native": "Native Apps",
+  "browsers": "Browser Apps",
+  "concepts": "Nym-Specific Concepts for Integrations",
+  "-": {
+    "type": "separator",
+    "title": "SDKs"
   },
   "rust": "Rust SDK",
   "typescript": "Typescript SDK",
   "---": {
+    "type": "separator",
+    "title": "Misc"
+  },
+  "chain": "Interacting with Nyx Blockchain",
+  "tools": "Tools",
+  "nymvpncli": "Nym VPN CLI",
+  "clients": "Standlone Clients",
+  "----": {
     "type": "separator"
   },
   "archive": "Archive",

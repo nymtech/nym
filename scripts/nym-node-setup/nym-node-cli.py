@@ -24,7 +24,6 @@ class NodeSetupCLI:
         self.welcome_message = self.print_welcome_message()
         self.mode = self._get_or_prompt_mode(args)
         self.prereqs_install_sh = self.fetch_script("nym-node-prereqs-install.sh")
-        #self.env_vars_install_sh = self.fetch_script("setup-env-vars.sh")
         self.node_install_sh = self.fetch_script("nym-node-install.sh")
         self.service_config_sh = self.fetch_script("setup-systemd-service-file.sh")
         self.start_node_systemd_service_sh = self.fetch_script("start-node-systemd-service.sh")
@@ -136,7 +135,7 @@ class NodeSetupCLI:
         mode = getattr(args, "mode", None)
         if mode:
             mode = mode.strip().lower()
-            self._upsert_env_var("MODE", mode)
+            self._upsert_env_vars("MODE", mode)
             print(f"Mode set to '{mode}' from CLI argument.")
             return mode
 
@@ -159,7 +158,7 @@ class NodeSetupCLI:
             print("Invalid mode. Must be one of: mixnode, entry-gateway, exit-gateway.")
             raise SystemExit(1)
 
-        self._upsert_env_var("MODE", mode)
+        self._upsert_env_vars("MODE", mode)
         print(f"Mode set to '{mode}' — stored in env.sh and sourced for immediate use.")
         return mode
 
@@ -186,7 +185,6 @@ class NodeSetupCLI:
         github_raw_nymtech_nym_scripts_url = f"https://raw.githubusercontent.com/nymtech/nym/refs/heads/{self.branch}/scripts/"
         scripts_urls = {
                 "nym-node-prereqs-install.sh": f"{github_raw_nymtech_nym_scripts_url}nym-node-setup/nym-node-prereqs-install.sh",
-                #"setup-env-vars.sh": f"{github_raw_nymtech_nym_scripts_url}nym-node-setup/setup-env-vars.sh",
                 "nym-node-install.sh": f"{github_raw_nymtech_nym_scripts_url}nym-node-setup/nym-node-install.sh",
                 "setup-systemd-service-file.sh": f"{github_raw_nymtech_nym_scripts_url}nym-node-setup/setup-systemd-service-file.sh",
                 "start-node-systemd-service.sh": f"{github_raw_nymtech_nym_scripts_url}nym-node-setup/start-node-systemd-service.sh",
@@ -269,10 +267,7 @@ class NodeSetupCLI:
 
     def _check_gwx_mode(self):
         """Helper: Several fns run only for GWx - this fn checks this condition"""
-        if self.mode == "exit-gateway":
-            return True
-        else:
-            return False
+        return self.mode == "exit-gateway"
 
     def check_wg_enabled(self, args=None):
         """Determine if WireGuard is enabled; precedence: CLI > env > env.sh > prompt. Persist normalized value."""
@@ -280,7 +275,7 @@ class NodeSetupCLI:
         env_file = os.path.join(os.getcwd(), "env.sh")
 
         def norm(v):
-            return "true" if str(v).strip().lower() in ("true") else "false"
+            return "true" if str(v).strip().lower() == ("true") else "false"
 
         val = None
 
@@ -393,8 +388,7 @@ class NodeSetupCLI:
 
     def quic_bridge_deploy(self):
         """Setup QUIC bridge and configuration using external script"""
-        self.run_script(self.quic_bridge_deployment_sh, args=["full_bridge_setup"], env=run_env)
-        return
+        self.run_script(self.quic_bridge_deployment_sh, args=["full_bridge_setup"])
 
     def run_nym_node_as_service(self):
         """Starts /etc/systemd/system/nym-node.service based on prompt using external script"""
@@ -587,7 +581,6 @@ class NodeSetupCLI:
         """Main function called by argparser command install running full node install flow"""
         self.ensure_env_values(args)
         self.run_script(self.prereqs_install_sh)
-        self.run_script(self.env_vars_install_sh)
         self.run_script(self.node_install_sh)
         self.run_script(self.service_config_sh)
         self._check_gwx_mode() and self.run_script(self.nginx_proxy_wss_sh)
@@ -613,7 +606,7 @@ class ArgParser:
             version=f"nym-node-cli {__version__}"
         )
         parent.add_argument("-d", "--dev", metavar="BRANCH",
-                            help="Define github branch",
+                            help="Define github branch (default: develop)",
                             type=str,
                             default=argparse.SUPPRESS)
         parent.add_argument("-v", "--verbose", action="store_true",
@@ -629,7 +622,7 @@ class ArgParser:
         subparsers = parser.add_subparsers(dest="command", help="subcommands")
         subparsers.required = True
 
-        p_install = subparsers.add_parser(
+        install_parser = subparsers.add_parser(
             "install", parents=[parent],
             help="Starts nym-node installation setup CLI",
             aliases=["i", "I"], add_help=True
@@ -640,7 +633,7 @@ class ArgParser:
             help="Node mode: 'mixnode', 'entry-gateway', or 'exit-gateway'",
         )
         install_parser.add_argument(
-            "--wireguard",
+            "--wireguard-enabled",
             choices=["true", "false"],
             help="WireGuard functionality switch: true / false"
         )
@@ -651,6 +644,7 @@ class ArgParser:
         install_parser.add_argument("--description", help="Short public description of the node")
         install_parser.add_argument("--public-ip", help="External IPv4 address (autodetected if omitted)")
         install_parser.add_argument("--nym-node-binary", help="URL for nym-node binary (autodetected if omitted)")
+        install_parser.add_argument("--uplink-dev", help="Override uplink interface used for NAT/FORWARD (e.g., 'eth0'; autodetected if omitted)")
         
         # generic fallback
         install_parser.add_argument(

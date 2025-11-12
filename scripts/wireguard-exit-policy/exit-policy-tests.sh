@@ -47,7 +47,7 @@ test_port_range_rules() {
         "8087-8088:tcp:Simplify Media"
         "8232-8233:tcp:Zcash"
         "8332-8333:tcp:Bitcoin"
-	"18080-18081:tcp:Monero"
+	    "18080-18081:tcp:Monero"
     )
 
     local total_failures=0
@@ -146,6 +146,71 @@ test_critical_services() {
     return $failures
 }
 
+# Test that the exit policy chain is correctly wired up to FORWARD chain
+test_forward_chain_hook() {
+    echo -e "${YELLOW}Testing FORWARD Chain Hook...${NC}"
+
+    local failures=0
+    NETWORK_DEVICE=$(ip route show default | awk '/default/ {print $5}')
+
+    if [[ -z "$NETWORK_DEVICE" ]]; then
+        echo -e "${RED}✗ Could not determine network device${NC}"
+        return 1
+    fi
+
+    # (incoming from nymwg, outgoing to network device)
+    if iptables -C FORWARD -i "$WG_INTERFACE" -o "$NETWORK_DEVICE" -j "$NYM_CHAIN" 2>/dev/null; then
+        echo -e "${GREEN}✓ IPv4 FORWARD hook exists with correct direction: -i $WG_INTERFACE -o $NETWORK_DEVICE${NC}"
+    else
+        echo -e "${RED}✗ IPv4 FORWARD hook missing or has wrong direction${NC}"
+        echo -e "${YELLOW}  Expected: -i $WG_INTERFACE -o $NETWORK_DEVICE -j $NYM_CHAIN${NC}"
+        
+        # Check if wrong direction exists
+        if iptables -C FORWARD -o "$WG_INTERFACE" -j "$NYM_CHAIN" 2>/dev/null; then
+            echo -e "${RED}✗  WRONG DIRECTION FOUND: -o $WG_INTERFACE (this matches return traffic, not client egress!)${NC}"
+        fi
+        
+        # Show what actually exists - specifically look for jump rules to NYM-EXIT
+        echo -e "${YELLOW}  Current FORWARD rules that jump to $NYM_CHAIN:${NC}"
+        iptables -L FORWARD -n -v --line-numbers | grep -E "$NYM_CHAIN" || echo "    (none found - exit policy chain is not hooked to FORWARD!)"
+        echo -e "${YELLOW}  All FORWARD rules with $WG_INTERFACE (for reference):${NC}"
+        iptables -L FORWARD -n -v --line-numbers | grep -E "$WG_INTERFACE" | head -5 || echo "    (none found)"
+        ((failures++))
+    fi
+
+    # Check IPv6
+    if ip6tables -C FORWARD -i "$WG_INTERFACE" -o "$NETWORK_DEVICE" -j "$NYM_CHAIN" 2>/dev/null; then
+        echo -e "${GREEN}✓ IPv6 FORWARD hook exists with correct direction: -i $WG_INTERFACE -o $NETWORK_DEVICE${NC}"
+    else
+        echo -e "${RED}✗ IPv6 FORWARD hook missing or has wrong direction${NC}"
+        echo -e "${YELLOW}  Expected: -i $WG_INTERFACE -o $NETWORK_DEVICE -j $NYM_CHAIN${NC}"
+        
+        # Check if wrong direction exists
+        if ip6tables -C FORWARD -o "$WG_INTERFACE" -j "$NYM_CHAIN" 2>/dev/null; then
+            echo -e "${RED}✗ WRONG DIRECTION FOUND: -o $WG_INTERFACE (this matches return traffic, not client egress!)${NC}"
+        fi
+        
+        # Show what actually exists - specifically look for jump rules to NYM-EXIT
+        echo -e "${YELLOW}  Current IPv6 FORWARD rules that jump to $NYM_CHAIN:${NC}"
+        ip6tables -L FORWARD -n -v --line-numbers | grep -E "$NYM_CHAIN" || echo "    (none found - exit policy chain is not hooked to FORWARD!)"
+        echo -e "${YELLOW}  All IPv6 FORWARD rules with $WG_INTERFACE (for reference):${NC}"
+        ip6tables -L FORWARD -n -v --line-numbers | grep -E "$WG_INTERFACE" | head -5 || echo "    (none found)"
+        ((failures++))
+    fi
+
+    # Check rule position (should be before UFW rules)
+    local rule_num=$(iptables -L FORWARD -n --line-numbers | grep -E "$NYM_CHAIN.*$WG_INTERFACE.*$NETWORK_DEVICE" | awk '{print $1}' | head -1)
+    if [[ -n "$rule_num" ]]; then
+        if [[ $rule_num -le 5 ]]; then
+            echo -e "${GREEN}✓ Rule is early in FORWARD chain (position #$rule_num) - good for UFW compatibility${NC}"
+        else
+            echo -e "${YELLOW}⚠ Rule is later in FORWARD chain (position #$rule_num) - may conflict with UFW${NC}"
+        fi
+    fi
+
+    return $failures
+}
+
 # Verify default reject rule exists
 test_default_reject_rule() {
     echo -e "${YELLOW}This test takes some time, do not quit the process${NC}"
@@ -197,6 +262,7 @@ run_all_tests() {
     done
 
     local test_functions=(
+        "test_forward_chain_hook"
         "test_port_range_rules"
         "test_critical_services"
     )

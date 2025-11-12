@@ -11,7 +11,7 @@
 # - Groups rules logically for easier management
 # - Integrates with existing Nym node configuration
 #
-# Usage: ./nym-exit-policy.sh [command]
+# Usage: ./wireguard-exit-policy-manager.sh [command]
 
 set -e
 
@@ -117,15 +117,15 @@ create_nym_chain() {
     fi
 
     # Link it to the FORWARD chain if not already linked
-    if ! iptables -C FORWARD -o "$WG_INTERFACE" -j "$NYM_CHAIN" 2>/dev/null; then
+    if ! iptables -C FORWARD -i "$WG_INTERFACE" -o "$NETWORK_DEVICE" -j "$NYM_CHAIN" 2>/dev/null; then
         echo -e "${YELLOW}Linking $NYM_CHAIN to FORWARD chain...${NC}"
-        iptables -A FORWARD -o "$WG_INTERFACE" -j "$NYM_CHAIN"
+        iptables -I FORWARD 1 -i "$WG_INTERFACE" -o "$NETWORK_DEVICE" -j "$NYM_CHAIN"
     fi
 
     # Link IPv6 chain
-    if ! ip6tables -C FORWARD -o "$WG_INTERFACE" -j "$NYM_CHAIN" 2>/dev/null; then
+    if ! ip6tables -C FORWARD -i "$WG_INTERFACE" -o "$NETWORK_DEVICE" -j "$NYM_CHAIN" 2>/dev/null; then
         echo -e "${YELLOW}Linking $NYM_CHAIN to IPv6 FORWARD chain...${NC}"
-        ip6tables -A FORWARD -o "$WG_INTERFACE" -j "$NYM_CHAIN"
+        ip6tables -I FORWARD 1 -i "$WG_INTERFACE" -o "$NETWORK_DEVICE" -j "$NYM_CHAIN"
     fi
 }
 
@@ -313,6 +313,7 @@ apply_port_allowlist() {
         ["IMAPOverTLS"]="993"
         ["POP3OverTLS"]="995"
         ["OpenVPN"]="1194"
+        ["WireGuardPeer"]="51820-51822"
         ["QTServerAdmin"]="1220"
         ["PKTKRB"]="1293"
         ["MSSQL"]="1433"
@@ -418,7 +419,9 @@ clear_rules() {
 
     # Remove the chain from FORWARD if it exists
     iptables -D FORWARD -o "$WG_INTERFACE" -j "$NYM_CHAIN" 2>/dev/null || true
+    iptables -D FORWARD -i "$WG_INTERFACE" -o "$NETWORK_DEVICE" -j "$NYM_CHAIN" 2>/dev/null || true
     ip6tables -D FORWARD -o "$WG_INTERFACE" -j "$NYM_CHAIN" 2>/dev/null || true
+    ip6tables -D FORWARD -i "$WG_INTERFACE" -o "$NETWORK_DEVICE" -j "$NYM_CHAIN" 2>/dev/null || true
 
     # Delete the chains
     iptables -X "$NYM_CHAIN" 2>/dev/null || true

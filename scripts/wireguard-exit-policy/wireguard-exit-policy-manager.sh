@@ -282,6 +282,16 @@ add_default_reject_rule() {
 apply_port_allowlist() {
     echo -e "${YELLOW}Applying allowed ports...${NC}"
 
+    # Insert DNS rules at the very beginning of NYM-EXIT chain, this ensures DNS queries are never blocked by REJECT rules
+    echo -e "${YELLOW}Ensuring DNS is at the beginning of $NYM_CHAIN...${NC}"
+    
+    iptables -I "$NYM_CHAIN" 1 -p udp --dport 53 -j ACCEPT
+    iptables -I "$NYM_CHAIN" 2 -p tcp --dport 53 -j ACCEPT
+    ip6tables -I "$NYM_CHAIN" 1 -p udp --dport 53 -j ACCEPT
+    ip6tables -I "$NYM_CHAIN" 2 -p tcp --dport 53 -j ACCEPT
+    
+    echo -e "${GREEN}✓ DNS rules inserted at beginning of $NYM_CHAIN${NC}"
+
     # Dictionary of services and their ports
     declare -A PORT_MAPPINGS=(
         ["FTP"]="20-21"
@@ -382,8 +392,6 @@ apply_port_allowlist() {
         add_port_rules iptables "$port" "udp"
         add_port_rules ip6tables "$port" "udp"
     done
-
-    add_default_reject_rule
 
     echo -e "${GREEN}Port allowlist applied successfully.${NC}"
 }
@@ -643,8 +651,11 @@ main() {
         create_nym_chain
         setup_nat_rules
         configure_dns_and_icmp
-        apply_spamhaus_blocklist
+        # Apply allowlist first (so DNS and other allowed ports are not blocked)
         apply_port_allowlist
+        # Then apply blocklist (aka the REJECT rules)
+        apply_spamhaus_blocklist
+        add_default_reject_rule
         save_rules
         echo -e "${GREEN}Nym exit policy installed successfully.${NC}"
         ;;

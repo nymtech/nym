@@ -1090,7 +1090,9 @@ impl ApiClientCore for Client {
             if self.using_secure_dns
                 && let Some(hostname) = url.domain()
             {
-                let _ = HickoryDnsResolver::default().resolve_str(hostname).await?;
+                // on failure update host, but don't trigger fronting enable.
+                let _ = HickoryDnsResolver::default().resolve_str(hostname).await
+                    .inspect_err(|_| self.update_host())?;
             }
 
             #[cfg(target_arch = "wasm32")]

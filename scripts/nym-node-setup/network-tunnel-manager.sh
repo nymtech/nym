@@ -42,14 +42,14 @@ NETWORK_DEVICE="${NETWORK_DEVICE:-}"
 if [[ -z "$NETWORK_DEVICE" ]]; then
   NETWORK_DEVICE="$(ip -o route show default 2>/dev/null | awk '{print $5}' | head -n1 || true)"
   # Validate that NETWORK_DEVICE is non-empty and looks like a network interface
-  if [[ -z "$NETWORK_DEVICE" || ! "$NETWORK_DEVICE" =~ ^[a-zA-Z0-9_-]+$ ]]; then
+  if [[ -z "$NETWORK_DEVICE" || ! "$NETWORK_DEVICE" =~ ^[a-zA-Z0-9._-]+$ ]]; then
     NETWORK_DEVICE=""
   fi
 fi
 if [[ -z "$NETWORK_DEVICE" ]]; then
   NETWORK_DEVICE="$(ip -o route show default table all 2>/dev/null | awk '{print $5}' | head -n1 || true)"
   # Validate that NETWORK_DEVICE is non-empty and looks like a network interface
-  if [[ -z "$NETWORK_DEVICE" || ! "$NETWORK_DEVICE" =~ ^[a-zA-Z0-9_-]+$ ]]; then
+  if [[ -z "$NETWORK_DEVICE" || ! "$NETWORK_DEVICE" =~ ^[a-zA-Z0-9._-]+$ ]]; then
     NETWORK_DEVICE=""
   fi
 fi

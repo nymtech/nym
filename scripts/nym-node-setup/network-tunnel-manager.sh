@@ -603,8 +603,9 @@ apply_port_allowlist() {
     ["Metadata"]="51830"
   )
 
+  local port
   for service in "${!PORT_MAPPINGS[@]}"; do
-    local port="${PORT_MAPPINGS[$service]}"
+    port="${PORT_MAPPINGS[$service]}"
     echo "adding rules for $service (ports $port)"
     add_port_rules iptables "$port" "tcp"
     add_port_rules ip6tables "$port" "tcp"

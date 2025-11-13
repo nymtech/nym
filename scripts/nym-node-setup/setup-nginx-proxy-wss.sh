@@ -64,16 +64,16 @@ cert_ok() {
 }
 
 fetch_landing_html() {
-  local url="https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/landing-page.html"
+  local url="https://raw.githubusercontent.com/nymtech/nym/develop/scripts/nym-node-setup/landing-page.html"
+
   mkdir -p "${WEBROOT}"
 
-  if command -v curl >/dev/null 2>&1; then
-    curl -fsSL "$url" -o "${WEBROOT}/index.html" || true
-  else
-    wget -qO "${WEBROOT}/index.html" "$url" || true
-  fi
+  curl -fsSL "$url" -o "${WEBROOT}/index.html" || \
+  wget -qO "${WEBROOT}/index.html" "$url" || true
 
+  # fallback HTML
   if [[ ! -s "${WEBROOT}/index.html" ]]; then
+    echo "landing page not found upstream, using fallback template"
     cat > "${WEBROOT}/index.html" <<'HTML'
 <!DOCTYPE html>
 <html lang="en">
@@ -158,22 +158,35 @@ echo "Landing page at ${WEBROOT}/index.html"
 
 # disable default and stale SSL configs
 [[ -L "${SITES_EN}/default" ]] && unlink "${SITES_EN}/default" || true
+
+# hard-clean: dangling SSL symlink for this hostname
+if [[ -L "${SITES_EN}/${HOSTNAME}-ssl" && ! -f "${SITES_AVAIL}/${HOSTNAME}-ssl" ]]; then
+  echo "Removing stale SSL symlink for ${HOSTNAME}"
+  unlink "${SITES_EN}/${HOSTNAME}-ssl"
+fi
+
+# remove SSL vhosts referencing localhost certs
 for f in "${SITES_EN}"/*; do
   [[ -L "$f" ]] || continue
   if grep -q "/etc/letsencrypt/live/localhost" "$f"; then
-    echo "Disabling vhost referencing localhost cert: $f"; unlink "$f"
+    echo "Disabling vhost with localhost cert: $f"
+    unlink "$f"
   fi
 done
+
+# remove SSL vhosts with missing certs
 for f in "${SITES_EN}"/*; do
   [[ -L "$f" ]] || continue
   if grep -qE 'listen\s+.*443' "$f"; then
     cert=$(awk '/ssl_certificate[ \t]+/ {print $2}' "$f" | tr -d ';' | head -n1)
-    key=$(awk '/ssl_certificate_key[ \t]+/ {print $2}' "$f" | tr -d ';' | head -n1)
-    if [[ -n "${cert:-}" && ! -s "$cert" ]] || [[ -n "${key:-}" && ! -s "$key" ]]; then
-      echo "Disabling SSL vhost with missing cert/key: $f"; unlink "$f"
+    key=$(awk '/ssl_certificate_key[ \t]+/ {print $2}' "$f" | tr -d ';')
+    if [[ ! -s "$cert" || ! -s "$key" ]]; then
+      echo "Disabling SSL vhost with missing cert/key: $f"
+      unlink "$f"
     fi
   fi
 done
+
 
 # HTTP :80 vhost (ACME-safe, proxy to :8080)
 neat_backup "${BASE_HTTP}"

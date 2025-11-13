@@ -5,11 +5,29 @@
 set -euo pipefail
 
 ###############################################################################
-# safety: must run as root
+# safety: must run as root, jq
 ###############################################################################
 if [ "$(id -u)" -ne 0 ]; then
   echo "this script must be run as root"
   exit 1
+fi
+
+echo "checking for jq..."
+
+if command -v jq >/dev/null 2>&1; then
+    echo "jq is already installed"
+    return 0
+fi
+
+echo "jq not found, installing..."
+apt-get update -y
+DEBIAN_FRONTEND=noninteractive apt-get install -y jq
+
+if command -v jq >/dev/null 2>&1; then
+    echo "jq installed successfully"
+else
+    echo "failed to install jq"
+    return 1
 fi
 
 ###############################################################################
@@ -966,6 +984,6 @@ EOF
     echo "run with 'help' for usage"
     exit 1
     ;;
+    echo "operation ${cmd} completed"
+    ;;
 esac
-
-echo "operation ${cmd} completed"

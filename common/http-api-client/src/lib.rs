@@ -395,6 +395,12 @@ pub enum HttpClientError {
     #[error("failed to resolve request to {url} due to data inconsistency: {details}")]
     InternalResponseInconsistency { url: ::url::Url, details: String },
 
+    #[error("encountered dns failure: {inner}")]
+    DnsLookupFailure {
+        #[from]
+        inner: ResolveError,
+    },
+
     #[error("Failed to encode bincode: {0}")]
     Bincode(#[from] bincode::Error),
 
@@ -775,6 +781,7 @@ impl ClientBuilder {
             base_urls: self.urls,
             current_idx: Arc::new(AtomicUsize::new(0)),
             reqwest_client,
+            using_secure_dns: self.use_secure_dns,
 
             #[cfg(feature = "tunneling")]
             front: self.front,
@@ -795,6 +802,7 @@ pub struct Client {
     base_urls: Vec<Url>,
     current_idx: Arc<AtomicUsize>,
     reqwest_client: reqwest::Client,
+    using_secure_dns: bool,
 
     #[cfg(feature = "tunneling")]
     front: Option<fronted::Front>,
@@ -852,6 +860,7 @@ impl Client {
             base_urls: vec![new_url],
             current_idx: Arc::new(Default::default()),
             reqwest_client: self.reqwest_client.clone(),
+            using_secure_dns: self.using_secure_dns,
 
             #[cfg(feature = "tunneling")]
             front: self.front.clone(),
@@ -1075,6 +1084,14 @@ impl ApiClientCore for Client {
                 .map_err(HttpClientError::reqwest_client_build_error)?;
             self.apply_hosts_to_req(&mut req);
             let url = Url::parse(req.url().as_str()).unwrap();
+
+            // try an explicit DNS resolution - if successful then it will be in cache when reqwest
+            // goes to execute the request. If failure then we get to handle the DNS lookup error.
+            if self.using_secure_dns
+                && let Some(hostname) = url.domain()
+            {
+                let _ = HickoryDnsResolver::default().resolve_str(hostname).await?;
+            }
 
             #[cfg(target_arch = "wasm32")]
             let response: Result<Response, HttpClientError> = {

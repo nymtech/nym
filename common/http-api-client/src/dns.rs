@@ -88,6 +88,13 @@ pub enum ResolveError {
     StaticLookupMiss,
 }
 
+impl ResolveError {
+    /// Returns true if the error is a timeout.
+    pub fn is_timeout(&self) -> bool {
+        matches!(self, ResolveError::Timeout)
+    }
+}
+
 /// Wrapper around an `AsyncResolver`, which implements the `Resolve` trait.
 ///
 /// Typical use involves instantiating using the `Default` implementation and then resolving using

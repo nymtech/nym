@@ -19,6 +19,58 @@ use parking_lot::Mutex;
 use snow::Builder;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
+/// KKT (KEM Key Transfer) exchange state.
+///
+/// Tracks the KKT protocol for obtaining the responder's KEM public key
+/// before PSQ can begin. This allows post-quantum KEM algorithms to be
+/// used even when keys are not pre-published.
+///
+/// # State Transitions
+///
+/// **Initiator path:**
+/// ```text
+/// NotStarted → InitiatorWaiting → Completed
+/// ```
+///
+/// **Responder path:**
+/// ```text
+/// NotStarted → ResponderProcessed
+/// ```
+pub enum KKTState {
+    /// KKT exchange not started.
+    NotStarted,
+
+    /// Initiator sent KKT request and is waiting for responder's KEM key.
+    InitiatorWaiting {
+        /// KKT context for verifying the response
+        context: nym_kkt::context::KKTContext,
+    },
+
+    /// KKT exchange completed (initiator received and validated KEM key).
+    Completed {
+        /// Responder's KEM public key for PSQ encapsulation
+        kem_pk: EncapsulationKey<'static>,
+    },
+
+    /// Responder processed a KKT request and sent response.
+    /// Responder uses their own KEM keypair, not the one from KKT.
+    ResponderProcessed,
+}
+
+impl std::fmt::Debug for KKTState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::NotStarted => write!(f, "KKTState::NotStarted"),
+            Self::InitiatorWaiting { context } => f
+                .debug_struct("KKTState::InitiatorWaiting")
+                .field("context", context)
+                .finish(),
+            Self::Completed { .. } => write!(f, "KKTState::Completed {{ kem_pk: <opaque> }}"),
+            Self::ResponderProcessed => write!(f, "KKTState::ResponderProcessed"),
+        }
+    }
+}
+
 /// PSQ (Post-Quantum Secure PSK) handshake state.
 ///
 /// Tracks the PSQ protocol state machine through the session lifecycle.
@@ -76,8 +128,14 @@ pub struct LpSession {
     /// Noise protocol state machine
     noise_state: Mutex<NoiseProtocol>,
 
+    /// KKT (KEM Key Transfer) exchange state
+    kkt_state: Mutex<KKTState>,
+
     /// PSQ (Post-Quantum Secure PSK) handshake state
     psq_state: Mutex<PSQState>,
+
+    /// PSK handle from responder (ctxt_B) for future re-registration
+    psk_handle: Mutex<Option<Vec<u8>>>,
 
     /// Counter for outgoing packets
     sending_counter: AtomicU64,
@@ -109,6 +167,34 @@ pub struct LpSession {
     salt: [u8; 32],
 }
 
+/// Generates a fresh salt for PSK derivation.
+///
+/// Salt format: 8 bytes timestamp (u64 LE) + 24 bytes random nonce
+///
+/// This ensures each session derives a unique PSK, even with the same key pairs.
+/// The timestamp provides temporal uniqueness while the random nonce prevents collisions.
+///
+/// # Returns
+/// A 32-byte array containing fresh salt material
+pub fn generate_fresh_salt() -> [u8; 32] {
+    use rand::RngCore;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    let mut salt = [0u8; 32];
+
+    // First 8 bytes: current timestamp as u64 little-endian
+    let timestamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .expect("System time before UNIX epoch")
+        .as_secs();
+    salt[..8].copy_from_slice(&timestamp.to_le_bytes());
+
+    // Last 24 bytes: random nonce
+    rand::thread_rng().fill_bytes(&mut salt[8..]);
+
+    salt
+}
+
 impl LpSession {
     pub fn id(&self) -> u32 {
         self.id
@@ -121,6 +207,14 @@ impl LpSession {
     /// Returns true if this session was created as the initiator.
     pub fn is_initiator(&self) -> bool {
         self.is_initiator
+    }
+
+    /// Returns the local X25519 public key derived from the private key.
+    ///
+    /// This is used for KKT protocol when the responder needs to send their
+    /// KEM public key in the KKT response.
+    pub fn local_x25519_public(&self) -> PublicKey {
+        self.local_x25519_private.public_key()
     }
 
     /// Creates a new session and initializes the Noise protocol state.
@@ -173,6 +267,9 @@ impl LpSession {
 
         let noise_protocol = NoiseProtocol::new(initial_state);
 
+        // Initialize KKT state - both roles start at NotStarted
+        let kkt_state = KKTState::NotStarted;
+
         // Initialize PSQ state based on role
         let psq_state = if is_initiator {
             PSQState::NotStarted
@@ -184,7 +281,9 @@ impl LpSession {
             id,
             is_initiator,
             noise_state: Mutex::new(noise_protocol),
+            kkt_state: Mutex::new(kkt_state),
             psq_state: Mutex::new(psq_state),
+            psk_handle: Mutex::new(None),
             sending_counter: AtomicU64::new(0),
             receiving_counter: Mutex::new(ReceivingKeyCounterValidator::default()),
             psk_injected: AtomicBool::new(false),
@@ -267,6 +366,199 @@ impl LpSession {
     pub fn current_packet_cnt(&self) -> (u64, u64) {
         let counter_validator = self.receiving_counter.lock();
         counter_validator.current_packet_cnt()
+    }
+
+    /// Returns the stored PSK handle (ctxt_B) if available.
+    ///
+    /// The PSK handle is received from the responder during handshake and can be
+    /// used for future PSK re-registration without running KEM encapsulation again.
+    ///
+    /// # Returns
+    ///
+    /// * `Some(Vec<u8>)` - The encrypted PSK handle from the responder
+    /// * `None` - PSK handle not yet received or session is initiator before handshake completion
+    pub fn get_psk_handle(&self) -> Option<Vec<u8>> {
+        self.psk_handle.lock().clone()
+    }
+
+    /// Prepares a KKT (KEM Key Transfer) request message.
+    ///
+    /// This should be called by the initiator before starting the Noise handshake
+    /// to obtain the responder's KEM public key. The KKT protocol authenticates
+    /// the exchange using Ed25519 signatures.
+    ///
+    /// **Protocol Flow:**
+    /// 1. Initiator creates KKT request with Ed25519 signature
+    /// 2. Responder validates signature and responds with KEM public key + signature
+    /// 3. Initiator validates response and stores KEM key for PSQ
+    ///
+    /// # Returns
+    ///
+    /// * `Some(Ok(LpMessage::KKTRequest))` - KKT request ready to send
+    /// * `Some(Err(LpError))` - Error creating KKT request
+    /// * `None` - KKT not applicable (responder, or already completed)
+    pub fn prepare_kkt_request(&self) -> Option<Result<LpMessage, LpError>> {
+        use nym_kkt::{
+            ciphersuite::{Ciphersuite, HashFunction, SignatureScheme, KEM},
+            kkt::request_kem_key,
+        };
+
+        let mut kkt_state = self.kkt_state.lock();
+
+        // Only initiator creates KKT requests, and only when not started
+        if !self.is_initiator || !matches!(*kkt_state, KKTState::NotStarted) {
+            return None;
+        }
+
+        // Use X25519 as KEM for now (can extend to ML-KEM-768 later)
+        let ciphersuite = match Ciphersuite::resolve_ciphersuite(
+            KEM::X25519,
+            HashFunction::Blake3,
+            SignatureScheme::Ed25519,
+            None,
+        ) {
+            Ok(cs) => cs,
+            Err(e) => return Some(Err(LpError::Internal(format!("KKT ciphersuite error: {:?}", e)))),
+        };
+
+        let mut rng = rand09::thread_rng();
+        match request_kem_key(&mut rng, ciphersuite, &self.local_ed25519_private) {
+            Ok((context, request_frame)) => {
+                // Store context for response validation
+                *kkt_state = KKTState::InitiatorWaiting { context };
+
+                // Serialize KKT frame to bytes
+                let request_bytes = request_frame.to_bytes();
+                Some(Ok(LpMessage::KKTRequest(crate::message::KKTRequestData(request_bytes))))
+            }
+            Err(e) => Some(Err(LpError::Internal(format!("KKT request creation failed: {:?}", e)))),
+        }
+    }
+
+    /// Processes a KKT response from the responder.
+    ///
+    /// Validates the responder's signature and stores the authenticated KEM public key
+    /// for use in PSQ encapsulation.
+    ///
+    /// # Arguments
+    ///
+    /// * `response_bytes` - Raw KKT response message from responder
+    /// * `expected_key_hash` - Optional expected hash of responder's KEM key.
+    ///   - `Some(hash)`: Full KKT validation (signature + hash) - use when directory service available
+    ///   - `None`: Signature-only validation (hash computed from received key) - temporary mode
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(())` - KKT exchange completed, KEM key stored
+    /// * `Err(LpError)` - Signature verification failed, hash mismatch, or invalid state
+    ///
+    /// # Note
+    ///
+    /// AIDEV-NOTE: Hash validation is currently optional to support deployment without directory service.
+    /// When None is passed, the function computes the hash from the received key and validates against
+    /// that (effectively signature-only mode). This allows easy upgrade: just pass Some(directory_hash)
+    /// when directory service becomes available. The full KKT protocol with hash pinning provides
+    /// protection against key substitution attacks.
+    pub fn process_kkt_response(
+        &self,
+        response_bytes: &[u8],
+        expected_key_hash: Option<&[u8]>,
+    ) -> Result<(), LpError> {
+        use nym_kkt::kkt::validate_kem_response;
+        use nym_kkt::key_utils::hash_encapsulation_key;
+
+        let mut kkt_state = self.kkt_state.lock();
+
+        // Extract context from waiting state
+        let mut context = match &*kkt_state {
+            KKTState::InitiatorWaiting { context } => *context,
+            _ => {
+                return Err(LpError::Internal(
+                    "KKT response received in invalid state".to_string(),
+                ))
+            }
+        };
+
+        // Determine hash to validate against
+        let hash_for_validation: Vec<u8>;
+        let hash_ref = match expected_key_hash {
+            Some(hash) => hash,
+            None => {
+                // Signature-only mode: extract key from response and compute its hash
+                // This effectively bypasses hash validation while keeping signature validation
+                use nym_kkt::frame::KKTFrame;
+
+                let (frame, _) = KKTFrame::from_bytes(response_bytes)
+                    .map_err(|e| LpError::Internal(format!("Failed to parse KKT response: {:?}", e)))?;
+
+                hash_for_validation = hash_encapsulation_key(
+                    &context.ciphersuite().hash_function(),
+                    context.ciphersuite().hash_len(),
+                    frame.body_ref(),
+                );
+                &hash_for_validation
+            }
+        };
+
+        // Validate response and extract KEM key
+        let kem_pk = validate_kem_response(
+            &mut context,
+            &self.remote_ed25519_public,
+            hash_ref,
+            response_bytes,
+        )
+        .map_err(|e| LpError::Internal(format!("KKT response validation failed: {:?}", e)))?;
+
+        // Store the authenticated KEM key
+        *kkt_state = KKTState::Completed { kem_pk };
+
+        Ok(())
+    }
+
+    /// Processes a KKT request from the initiator and prepares a signed response.
+    ///
+    /// Validates the initiator's signature and creates a response containing this
+    /// responder's KEM public key, signed with Ed25519.
+    ///
+    /// # Arguments
+    ///
+    /// * `request_bytes` - Raw KKT request message from initiator
+    /// * `responder_kem_pk` - This responder's KEM public key to send
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(LpMessage::KKTResponse)` - Signed KKT response ready to send
+    /// * `Err(LpError)` - Signature verification failed or invalid request
+    pub fn process_kkt_request(
+        &self,
+        request_bytes: &[u8],
+        responder_kem_pk: &EncapsulationKey,
+    ) -> Result<LpMessage, LpError> {
+        use nym_kkt::{frame::KKTFrame, kkt::handle_kem_request};
+
+        let mut kkt_state = self.kkt_state.lock();
+
+        // Deserialize request frame
+        let (request_frame, _) = KKTFrame::from_bytes(request_bytes)
+            .map_err(|e| LpError::Internal(format!("KKT request deserialization failed: {:?}", e)))?;
+
+        // Handle request and create signed response
+        let response_frame = handle_kem_request(
+            &request_frame,
+            Some(&self.remote_ed25519_public), // Verify initiator signature
+            &self.local_ed25519_private,        // Sign response
+            responder_kem_pk,
+        )
+        .map_err(|e| LpError::Internal(format!("KKT request handling failed: {:?}", e)))?;
+
+        // Mark KKT as processed
+        // Responder doesn't store the kem_pk since they already have their own KEM keypair
+        *kkt_state = KKTState::ResponderProcessed;
+
+        // Serialize response frame
+        let response_bytes = response_frame.to_bytes();
+
+        Ok(LpMessage::KKTResponse(crate::message::KKTResponseData(response_bytes)))
     }
 
     /// Prepares the next handshake message to be sent, if any.
@@ -360,7 +652,31 @@ impl LpSession {
 
         if let Some(message) = noise_state.get_bytes_to_send() {
             match message {
-                Ok(message) => Some(Ok(LpMessage::Handshake(HandshakeData(message)))),
+                Ok(noise_msg) => {
+                    // Check if we have a PSK handle (ctxt_B) to embed (responder message 2 only)
+                    // Only the responder should embed the handle, never the initiator
+                    if !self.is_initiator {
+                        let mut psk_handle_guard = self.psk_handle.lock();
+                        if let Some(handle_bytes) = psk_handle_guard.take() {
+                            // Embed PSK handle in message: [u16 handle_len][handle_bytes][noise_msg]
+                            let handle_len = handle_bytes.len() as u16;
+                            let mut combined =
+                                Vec::with_capacity(2 + handle_bytes.len() + noise_msg.len());
+                            combined.extend_from_slice(&handle_len.to_be_bytes());
+                            combined.extend_from_slice(&handle_bytes);
+                            combined.extend_from_slice(&noise_msg);
+
+                            log::debug!(
+                                "Embedding PSK handle ({} bytes) in handshake message 2",
+                                handle_bytes.len()
+                            );
+
+                            return Some(Ok(LpMessage::Handshake(HandshakeData(combined))));
+                        }
+                    }
+                    // No PSK handle to embed, send noise message as-is
+                    Some(Ok(LpMessage::Handshake(HandshakeData(noise_msg))))
+                }
                 Err(e) => Some(Err(LpError::NoiseError(e))),
             }
         } else {
@@ -448,7 +764,7 @@ impl LpSession {
                     // Decapsulate PSK from PSQ payload using X25519 as DHKEM
                     let session_context = self.id.to_le_bytes();
 
-                    let psk = match psq_responder_process_message(
+                    let (psk, responder_msg_bytes) = match psq_responder_process_message(
                         &self.local_x25519_private,
                         &self.remote_x25519_public,
                         (&dec_key, &enc_key),
@@ -457,12 +773,18 @@ impl LpSession {
                         &self.salt,
                         &session_context,
                     ) {
-                        Ok(psk) => psk,
+                        Ok(result) => result,
                         Err(e) => {
                             log::error!("PSQ handshake processing failed, aborting: {:?}", e);
                             return Err(e);
                         }
                     };
+
+                    // Store the PSK handle (ctxt_B) for transmission in next message
+                    {
+                        let mut psk_handle = self.psk_handle.lock();
+                        *psk_handle = Some(responder_msg_bytes);
+                    }
 
                     // Inject PSK into Noise HandshakeState
                     noise_state.set_psk(3, &psk)?;
@@ -477,6 +799,36 @@ impl LpSession {
                     return noise_state
                         .read_message(noise_payload)
                         .map_err(LpError::NoiseError);
+                }
+
+                // Check if initiator should extract PSK handle from message 2
+                if self.is_initiator && matches!(*psq_state, PSQState::InitiatorWaiting { .. }) {
+                    // Extract PSK handle: [u16 handle_len][handle_bytes][noise_msg]
+                    if payload.len() >= 2 {
+                        let handle_len = u16::from_be_bytes([payload[0], payload[1]]) as usize;
+
+                        if handle_len > 0 && payload.len() >= 2 + handle_len {
+                            // Extract and store the PSK handle
+                            let handle_bytes = &payload[2..2 + handle_len];
+                            let noise_payload = &payload[2 + handle_len..];
+
+                            log::debug!("Extracted PSK handle ({} bytes) from message 2", handle_len);
+
+                            {
+                                let mut psk_handle = self.psk_handle.lock();
+                                *psk_handle = Some(handle_bytes.to_vec());
+                            }
+
+                            // Release psq_state lock before processing
+                            drop(psq_state);
+
+                            // Process only the Noise message part
+                            return noise_state
+                                .read_message(noise_payload)
+                                .map_err(LpError::NoiseError);
+                        }
+                    }
+                    // If no valid handle found, fall through to normal processing
                 }
 
                 // Normal flow (no PSQ, or PSQ already completed)

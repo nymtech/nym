@@ -22,7 +22,7 @@ pub use message::{ClientHelloData, LpMessage};
 pub use packet::LpPacket;
 pub use psk::derive_psk;
 pub use replay::{ReceivingKeyCounterValidator, ReplayError};
-pub use session::LpSession;
+pub use session::{generate_fresh_salt, LpSession};
 pub use session_manager::SessionManager;
 
 // Add the new state machine module
@@ -223,26 +223,42 @@ mod tests {
 
     #[test]
     fn test_session_manager_integration() {
+        use nym_crypto::asymmetric::ed25519;
+
         // Create session manager
         let local_manager = SessionManager::new();
         let remote_manager = SessionManager::new();
         let local_keypair = Keypair::default();
         let remote_keypair = Keypair::default();
         let lp_id = make_lp_id(local_keypair.public_key(), remote_keypair.public_key());
+
+        // Ed25519 keypairs for PSQ authentication
+        let ed25519_keypair_local = ed25519::KeyPair::from_secret([8u8; 32], 0);
+        let ed25519_keypair_remote = ed25519::KeyPair::from_secret([9u8; 32], 1);
+
+        // Test salt
+        let salt = [46u8; 32];
+
         // Create a session via manager
         let _ = local_manager
             .create_session_state_machine(
                 &local_keypair,
+                (ed25519_keypair_local.private_key(), ed25519_keypair_local.public_key()),
                 remote_keypair.public_key(),
+                ed25519_keypair_remote.public_key(),
                 true,
+                &salt,
             )
             .unwrap();
 
         let _ = remote_manager
             .create_session_state_machine(
                 &remote_keypair,
+                (ed25519_keypair_remote.private_key(), ed25519_keypair_remote.public_key()),
                 local_keypair.public_key(),
+                ed25519_keypair_local.public_key(),
                 false,
+                &salt,
             )
             .unwrap();
         // === Packet 1 (Counter 0 - Should succeed) ===

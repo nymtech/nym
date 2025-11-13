@@ -371,6 +371,10 @@ pub fn psq_initiator_create_message(
 ///
 /// # Returns
 /// `psk` - Derived PSK for Noise
+/// Processes a PSQ initiator message and generates a PSK with encrypted handle.
+///
+/// Returns a tuple of (derived_psk, responder_msg_bytes) where responder_msg_bytes
+/// contains the encrypted PSK handle (ctxt_B) that should be sent to the initiator.
 pub fn psq_responder_process_message(
     local_x25519_private: &PrivateKey,
     remote_x25519_public: &PublicKey,
@@ -379,7 +383,7 @@ pub fn psq_responder_process_message(
     psq_payload: &[u8],
     salt: &[u8; 32],
     session_context: &[u8],
-) -> Result<[u8; 32], LpError> {
+) -> Result<([u8; 32], Vec<u8>), LpError> {
     // Step 1: Classical ECDH for baseline security
     let ecdh_secret = local_x25519_private.diffie_hellman(remote_x25519_public);
 
@@ -405,9 +409,8 @@ pub fn psq_responder_process_message(
     let initiator_verification_key = Ed25519VerificationKey::from_bytes(initiator_ed25519_pk_bytes);
 
     // Step 5: PSQ v1 responder processing with Ed25519 verification
-    // Note: We use a dummy handle since we don't use the ResponderMsg in this protocol
-    let (registered_psk, _responder_msg) = Responder::send::<Ed25519, PsqX25519>(
-        b"nym-lp-handle",       // PSK storage handle (unused in our protocol)
+    let (registered_psk, responder_msg) = Responder::send::<Ed25519, PsqX25519>(
+        b"nym-lp-handle",       // PSK storage handle
         Duration::from_secs(3600), // 1 hour expiry (must match initiator)
         session_context,        // Must match initiator's session_context
         kem_pk,                 // Responder's public key
@@ -442,7 +445,15 @@ pub fn psq_responder_process_message(
 
     let final_psk = nym_crypto::kdf::derive_key_blake3(PSK_PSQ_CONTEXT, &combined, &[]);
 
-    Ok(final_psk)
+    // Step 7: Serialize ResponderMsg (contains ctxt_B - encrypted PSK handle)
+    use tls_codec::Serialize;
+    let responder_msg_bytes = responder_msg
+        .tls_serialize_detached()
+        .map_err(|e| {
+            LpError::Internal(format!("ResponderMsg serialization failed: {:?}", e))
+        })?;
+
+    Ok((final_psk, responder_msg_bytes))
 }
 
 #[cfg(test)]

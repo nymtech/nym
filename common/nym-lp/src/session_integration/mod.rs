@@ -10,6 +10,7 @@ mod tests {
         LpError,
     };
     use bytes::BytesMut;
+    use nym_crypto::asymmetric::ed25519;
 
     // Function to create a test packet - similar to how it's done in codec.rs tests
     fn create_test_packet(
@@ -54,13 +55,34 @@ mod tests {
         let lp_id = make_lp_id(peer_a_keys.public_key(), peer_b_keys.public_key());
         let psk = [1u8; 32]; // Define a pre-shared key for the test
 
+        // Ed25519 keypairs for PSQ authentication
+        let ed25519_keypair_a = ed25519::KeyPair::from_secret([1u8; 32], 0);
+        let ed25519_keypair_b = ed25519::KeyPair::from_secret([2u8; 32], 1);
+
+        // Test salt
+        let salt = [42u8; 32];
+
         // 4. Create sessions using the pre-built Noise states
         let peer_a_sm = session_manager_1
-            .create_session_state_machine(&peer_a_keys, peer_b_keys.public_key(), true)
+            .create_session_state_machine(
+                &peer_a_keys,
+                (ed25519_keypair_a.private_key(), ed25519_keypair_a.public_key()),
+                peer_b_keys.public_key(),
+                ed25519_keypair_b.public_key(),
+                true,
+                &salt,
+            )
             .expect("Failed to create session A");
 
         let peer_b_sm = session_manager_2
-            .create_session_state_machine(&peer_b_keys, peer_a_keys.public_key(), false)
+            .create_session_state_machine(
+                &peer_b_keys,
+                (ed25519_keypair_b.private_key(), ed25519_keypair_b.public_key()),
+                peer_a_keys.public_key(),
+                ed25519_keypair_a.public_key(),
+                false,
+                &salt,
+            )
             .expect("Failed to create session B");
 
         // Verify session count
@@ -456,11 +478,32 @@ mod tests {
         let lp_id = make_lp_id(peer_a_keys.public_key(), peer_b_keys.public_key());
         let psk = [2u8; 32];
 
+        // Ed25519 keypairs for PSQ authentication
+        let ed25519_keypair_a = ed25519::KeyPair::from_secret([3u8; 32], 0);
+        let ed25519_keypair_b = ed25519::KeyPair::from_secret([4u8; 32], 1);
+
+        // Test salt
+        let salt = [43u8; 32];
+
         let peer_a_sm = session_manager_1
-            .create_session_state_machine(&peer_a_keys, peer_b_keys.public_key(), true)
+            .create_session_state_machine(
+                &peer_a_keys,
+                (ed25519_keypair_a.private_key(), ed25519_keypair_a.public_key()),
+                peer_b_keys.public_key(),
+                ed25519_keypair_b.public_key(),
+                true,
+                &salt,
+            )
             .unwrap();
         let peer_b_sm = session_manager_2
-            .create_session_state_machine(&peer_b_keys, peer_a_keys.public_key(), false)
+            .create_session_state_machine(
+                &peer_b_keys,
+                (ed25519_keypair_b.private_key(), ed25519_keypair_b.public_key()),
+                peer_a_keys.public_key(),
+                ed25519_keypair_a.public_key(),
+                false,
+                &salt,
+            )
             .unwrap();
 
         // Drive handshake to completion (simplified)
@@ -621,9 +664,22 @@ mod tests {
 
         let lp_id = make_lp_id(keys.public_key(), keys.public_key());
 
+        // Ed25519 keypairs for PSQ authentication
+        let ed25519_keypair = ed25519::KeyPair::from_secret([5u8; 32], 0);
+
+        // Test salt
+        let salt = [44u8; 32];
+
         // 2. Create a session (using real noise state)
         let _session = session_manager
-            .create_session_state_machine(&keys, keys.public_key(), true)
+            .create_session_state_machine(
+                &keys,
+                (ed25519_keypair.private_key(), ed25519_keypair.public_key()),
+                keys.public_key(),
+                ed25519_keypair.public_key(),
+                true,
+                &salt,
+            )
             .expect("Failed to create session");
 
         // 3. Try to get a non-existent session
@@ -639,7 +695,14 @@ mod tests {
 
         // 5. Create and immediately remove a session
         let _temp_session = session_manager
-            .create_session_state_machine(&keys, keys.public_key(), true)
+            .create_session_state_machine(
+                &keys,
+                (ed25519_keypair.private_key(), ed25519_keypair.public_key()),
+                keys.public_key(),
+                ed25519_keypair.public_key(),
+                true,
+                &salt,
+            )
             .expect("Failed to create temp session");
 
         assert!(
@@ -721,12 +784,33 @@ mod tests {
         let lp_id = make_lp_id(peer_a_keys.public_key(), peer_b_keys.public_key());
         let psk = [1u8; 32];
 
+        // Ed25519 keypairs for PSQ authentication
+        let ed25519_keypair_a = ed25519::KeyPair::from_secret([6u8; 32], 0);
+        let ed25519_keypair_b = ed25519::KeyPair::from_secret([7u8; 32], 1);
+
+        // Test salt
+        let salt = [45u8; 32];
+
         // 3. Create sessions state machines
         assert!(session_manager_1
-            .create_session_state_machine(&peer_a_keys, peer_b_keys.public_key(), true) // Initiator
+            .create_session_state_machine(
+                &peer_a_keys,
+                (ed25519_keypair_a.private_key(), ed25519_keypair_a.public_key()),
+                peer_b_keys.public_key(),
+                ed25519_keypair_b.public_key(),
+                true,
+                &salt,
+            ) // Initiator
             .is_ok());
         assert!(session_manager_2
-            .create_session_state_machine(&peer_b_keys, peer_a_keys.public_key(), false) // Responder
+            .create_session_state_machine(
+                &peer_b_keys,
+                (ed25519_keypair_b.private_key(), ed25519_keypair_b.public_key()),
+                peer_a_keys.public_key(),
+                ed25519_keypair_a.public_key(),
+                false,
+                &salt,
+            ) // Responder
             .is_ok());
 
         assert_eq!(session_manager_1.session_count(), 1);

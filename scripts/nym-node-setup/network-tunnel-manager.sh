@@ -151,7 +151,9 @@ remove_duplicate_rules() {
   if [[ -n "$rules_v4" ]]; then
     echo "processing ipv4 rules"
 
-    echo "$rules_v4" | sort | uniq | while read -r rule; do
+    while read -r rule; do
+      [[ -z "$rule" ]] && continue
+
       local count
       count=$(echo "$rules_v4" | grep -Fx "$rule" | wc -l)
 
@@ -171,11 +173,9 @@ remove_duplicate_rules() {
           match=$(iptables -S | grep -F -- "$cleaned" | head -n1 || true)
 
           if [[ -n "$match" ]]; then
-            # match looks like: -A FORWARD ...full rule...
             local chain
             chain=$(echo "$match" | awk '{print $2}')
 
-            # find the rule index from iptables -L --line-numbers
             local index
             index=$(iptables -L "$chain" --line-numbers | grep -F "$interface" | awk 'NR==1{print $1}')
 
@@ -190,7 +190,7 @@ remove_duplicate_rules() {
           fi
         done
       fi
-    done
+    done < <(echo "$rules_v4" | sort | uniq)
 
   else
     echo "no ipv4 rules found for $interface to deduplicate"

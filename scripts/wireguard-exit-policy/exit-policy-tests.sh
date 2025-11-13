@@ -199,7 +199,9 @@ test_forward_chain_hook() {
     fi
 
     # Check rule position (should be before UFW rules)
-    local rule_num=$(iptables -L FORWARD -n --line-numbers | grep -E "$NYM_CHAIN.*$WG_INTERFACE.*$NETWORK_DEVICE" | awk '{print $1}' | head -1)
+    local rule_num=$(iptables -L FORWARD -n --line-numbers -v | awk -v chain="$NYM_CHAIN" -v in="$WG_INTERFACE" -v out="$NETWORK_DEVICE" '
+        $0 ~ chain && $0 ~ in && $0 ~ out {print $1; exit}
+    ')
     if [[ -n "$rule_num" ]]; then
         if [[ $rule_num -le 5 ]]; then
             echo -e "${GREEN}✓ Rule is early in FORWARD chain (position #$rule_num) - good for UFW compatibility${NC}"

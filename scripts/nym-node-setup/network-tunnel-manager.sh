@@ -154,7 +154,7 @@ remove_duplicate_rules() {
   # ipv4
   #
   local rules_v4
-  rules_v4=$(iptables-save | grep -E "(-A FORWARD|-A $NYM_CHAIN)" | grep "$interface" || true)
+  rules_v4=$(iptables-save | grep -E "(-A FORWARD|-A $NYM_CHAIN)" | grep -F -- "$interface" || true)
 
   if [[ -n "$rules_v4" ]]; then
     echo "processing ipv4 rules"
@@ -216,7 +216,7 @@ remove_duplicate_rules() {
   # ipv6
   #
   local rules_v6
-  rules_v6=$(ip6tables-save | grep -E "(-A FORWARD|-A $NYM_CHAIN)" | grep "$interface" || true)
+  rules_v6=$(ip6tables-save | grep -E "(-A FORWARD|-A $NYM_CHAIN)" | grep -F -- "$interface" || true)
 
   if [[ -n "$rules_v6" ]]; then
     echo "processing ipv6 rules"

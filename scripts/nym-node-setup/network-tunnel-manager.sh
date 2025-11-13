@@ -17,17 +17,17 @@ echo "checking for jq..."
 if command -v jq >/dev/null 2>&1; then
     echo "jq is already installed"
     # continue script execution
-fi
-
-echo "jq not found, installing..."
-apt-get update -y
-DEBIAN_FRONTEND=noninteractive apt-get install -y jq
-
-if command -v jq >/dev/null 2>&1; then
-    echo "jq installed successfully"
 else
-    echo "failed to install jq"
-    exit 1
+    echo "jq not found, installing..."
+    apt-get update -y
+    DEBIAN_FRONTEND=noninteractive apt-get install -y jq
+
+    if command -v jq >/dev/null 2>&1; then
+        echo "jq installed successfully"
+    else
+        echo "failed to install jq"
+        exit 1
+    fi
 fi
 
 ###############################################################################

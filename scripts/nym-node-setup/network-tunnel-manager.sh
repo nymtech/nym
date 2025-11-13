@@ -170,10 +170,13 @@ remove_duplicate_rules() {
 
         for ((i=1; i<count; i++)); do
           local cleaned="${rule#-A }"
+          local chain rest
+          chain=$(echo "$cleaned" | awk '{print $1}')
+          rest=$(echo "$cleaned" | cut -d' ' -f2-)
 
           # try exact match delete first
-          if iptables -t filter -C "$cleaned" 2>/dev/null; then
-            iptables -t filter -D "$cleaned" && continue
+          if iptables -t filter -C "$chain" $rest 2>/dev/null; then
+            iptables -t filter -D "$chain" $rest && continue
           fi
 
           # fallback: locate rule in iptables -S

@@ -196,6 +196,16 @@ impl SessionManager {
 
         removed.is_some()
     }
+
+    /// Test-only method to initialize KKT state to Completed for a session.
+    /// This allows integration tests to bypass KKT exchange and directly test PSQ/handshake.
+    #[cfg(test)]
+    pub fn init_kkt_for_test(&self, lp_id: u32, remote_x25519_pub: &crate::keypair::PublicKey) -> Result<(), LpError> {
+        self.with_state_machine(lp_id, |sm| {
+            sm.session()?.set_kkt_completed_for_test(remote_x25519_pub);
+            Ok(())
+        })?
+    }
 }
 
 #[cfg(test)]

@@ -583,29 +583,25 @@ impl LpSession {
         let mut psq_state = self.psq_state.lock();
 
         if self.is_initiator && matches!(*psq_state, PSQState::NotStarted) {
-            // Convert X25519 remote public key to EncapsulationKey (DHKEM)
-            let remote_kem_bytes = self.remote_x25519_public.as_bytes();
-            let libcrux_public_key = match libcrux_kem::PublicKey::decode(
-                libcrux_kem::Algorithm::X25519,
-                remote_kem_bytes,
-            ) {
-                Ok(key) => key,
-                Err(e) => {
-                    return Some(Err(LpError::KKTError(format!(
-                        "Failed to convert X25519 key to libcrux PublicKey: {:?}",
-                        e
-                    ))))
+            // Extract KEM public key from completed KKT exchange
+            // PSQ requires the authenticated KEM key obtained via KKT protocol
+            let kkt_state = self.kkt_state.lock();
+            let remote_kem = match &*kkt_state {
+                KKTState::Completed { kem_pk } => kem_pk,
+                _ => {
+                    return Some(Err(LpError::KKTError(
+                        "PSQ handshake requires completed KKT exchange".to_string(),
+                    )))
                 }
             };
-            let remote_kem = EncapsulationKey::X25519(libcrux_public_key);
 
-            // Generate PSQ payload and PSK using X25519 as DHKEM
+            // Generate PSQ payload and PSK using KKT-authenticated KEM key
             let session_context = self.id.to_le_bytes();
 
             let (psk, psq_payload) = match psq_initiator_create_message(
                 &self.local_x25519_private,
                 &self.remote_x25519_public,
-                &remote_kem,
+                remote_kem,
                 &self.local_ed25519_private,
                 &self.local_ed25519_public,
                 &self.salt,
@@ -905,6 +901,23 @@ impl LpSession {
             _ => Err(NoiseError::IncorrectStateError),
         }
     }
+
+    /// Test-only method to set KKT state to Completed with a mock KEM key.
+    /// This allows tests to bypass KKT exchange and directly test PSQ handshake.
+    #[cfg(test)]
+    pub(crate) fn set_kkt_completed_for_test(&self, remote_x25519_pub: &PublicKey) {
+        // Convert remote X25519 public key to EncapsulationKey for testing
+        let remote_kem_bytes = remote_x25519_pub.as_bytes();
+        let libcrux_public_key = libcrux_kem::PublicKey::decode(
+            libcrux_kem::Algorithm::X25519,
+            remote_kem_bytes,
+        )
+        .expect("Test KEM key conversion failed");
+        let kem_pk = EncapsulationKey::X25519(libcrux_public_key);
+
+        let mut kkt_state = self.kkt_state.lock();
+        *kkt_state = KKTState::Completed { kem_pk };
+    }
 }
 
 #[cfg(test)]
@@ -944,7 +957,7 @@ mod tests {
         let salt = [0u8; 32]; // Test salt
 
         // PSQ will derive the PSK during handshake using X25519 as DHKEM
-        LpSession::new(
+        let session = LpSession::new(
             lp_id,
             is_initiator,
             (local_ed25519.private_key(), local_ed25519.public_key()),
@@ -953,7 +966,13 @@ mod tests {
             remote_pub_key,
             &salt,
         )
-        .expect("Test session creation failed")
+        .expect("Test session creation failed");
+
+        // Initialize KKT state to Completed for tests (bypasses KKT exchange)
+        // This simulates having already received the remote party's KEM key via KKT
+        session.set_kkt_completed_for_test(remote_pub_key);
+
+        session
     }
 
     #[test]
@@ -1670,6 +1689,8 @@ mod tests {
             &salt,
         )
         .unwrap();
+        // Initialize KKT state for test
+        initiator_session.set_kkt_completed_for_test(responder_keys.public_key());
 
         let responder_ed25519 = ed25519::KeyPair::from_secret([2u8; 32], 1);
 
@@ -1683,6 +1704,8 @@ mod tests {
             &salt,
         )
         .unwrap();
+        // Initialize KKT state for test
+        responder_session.set_kkt_completed_for_test(initiator_keys.public_key());
 
         // Initiator prepares message (should succeed - signing works)
         let msg1 = initiator_session
@@ -1731,6 +1754,8 @@ mod tests {
             &salt,
         )
         .unwrap();
+        // Initialize KKT state for test
+        initiator_session.set_kkt_completed_for_test(responder_keys.public_key());
 
         let responder_ed25519 = ed25519::KeyPair::from_secret([2u8; 32], 1);
 
@@ -1744,6 +1769,8 @@ mod tests {
             &salt,
         )
         .unwrap();
+        // Initialize KKT state for test
+        responder_session.set_kkt_completed_for_test(initiator_keys.public_key());
 
         // Initiator creates message with valid signature (signed with [1u8])
         let msg = initiator_session

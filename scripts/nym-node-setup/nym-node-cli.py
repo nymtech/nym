@@ -32,8 +32,6 @@ class NodeSetupCLI:
             self.landing_page_html = self.fetch_script("landing-page.html")
             self.nginx_proxy_wss_sh = self.fetch_script("nginx_proxy_wss_sh")
             self.tunnel_manager_sh = self.fetch_script("network_tunnel_manager.sh")
-            self.wg_ip_tables_manager_sh = self.fetch_script("wireguard-exit-policy-manager.sh")
-            self.wg_ip_tables_test_sh = self.fetch_script("exit-policy-tests.sh")
             self.quic_bridge_deployment_sh = self.fetch_script("quic_bridge_deployment.sh")
         else:
             self.landing_page_html = None
@@ -190,9 +188,7 @@ class NodeSetupCLI:
                 "start-node-systemd-service.sh": f"{github_raw_nymtech_nym_scripts_url}nym-node-setup/start-node-systemd-service.sh",
                 "nginx_proxy_wss_sh": f"{github_raw_nymtech_nym_scripts_url}nym-node-setup/setup-nginx-proxy-wss.sh",
                 "landing-page.html": f"{github_raw_nymtech_nym_scripts_url}nym-node-setup/landing-page.html",
-                "network_tunnel_manager.sh": f"https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/network_tunnel_manager.sh",
-                "wireguard-exit-policy-manager.sh": f"https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/wireguard-exit-policy/wireguard-exit-policy-manager.sh",
-                "exit-policy-tests.sh": f"https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/wireguard-exit-policy/exit-policy-tests.sh",
+                "network_tunnel_manager.sh": f"{github_raw_nymtech_nym_scripts_url}nym-node-setup/network-tunnel-manager.sh",
                 "quic_bridge_deployment.sh": f"{github_raw_nymtech_nym_scripts_url}nym-node-setup/quic_bridge_deployment.sh"
                 }
 
@@ -297,9 +293,9 @@ class NodeSetupCLI:
             ans = input(
                 "\nWireGuard is not configured.\n"
                 "Nodes routing WireGuard can be listed as both entry and exit in the app.\n"
-                "Enable WireGuard support? (y/n): "
+                "Enable WireGuard support? (Y/n): "
             ).strip().lower()
-            val = "true" if ans in ("y", "yes") else "false"
+            val = "true" if ans in ("", "y", "yes") else "false"
 
         val = norm(val)
         os.environ["WIREGUARD"] = val
@@ -382,13 +378,15 @@ class NodeSetupCLI:
             "Setting up Wireguard IP tables to match Nym exit policy for mixnet, stored at: https://nymtech.net/.wellknown/network-requester/exit-policy.txt"
             "\nThis may take a while, follow the steps below and don't kill the process..."
             )
-        self.run_script(self.wg_ip_tables_manager_sh,  args=["install"])
-        self.run_script(self.wg_ip_tables_manager_sh,  args=["status"])
-        self.run_script(self.wg_ip_tables_test_sh)
+        self.run_script(self.tunnel_manager_sh,  args=["exit_policy_install"])
 
     def quic_bridge_deploy(self):
         """Setup QUIC bridge and configuration using external script"""
-        self.run_script(self.quic_bridge_deployment_sh, args=["full_bridge_setup"])
+        print("\n* * * Installing and configuring QUIC bridges * * *")
+        answer = input("\nDo you want to install, setup and run QUIC bridge? (Y/n) ").strip().lower()
+
+        if answer in ("", "y", "yes"):
+            self.run_script(self.quic_bridge_deployment_sh, args=["full_bridge_setup"])
 
     def run_nym_node_as_service(self):
         """Starts /etc/systemd/system/nym-node.service based on prompt using external script"""
@@ -416,8 +414,8 @@ class NodeSetupCLI:
 
         if is_active:
             while True:
-                ans = input(f"{service} is already running. Restart it now? (y/n):\n").strip().lower()
-                if ans == "y":
+                ans = input(f"{service} is already running. Restart it now? (Y/n):\n").strip().lower()
+                if ans in ("", "Y", "y"):
                     self.run_script(self.start_node_systemd_service_sh, args=["restart-poll"], env=run_env)
                     return
                 elif ans == "n":
@@ -427,8 +425,8 @@ class NodeSetupCLI:
                     print("Invalid input. Please press 'y' or 'n' and press enter.")
         else:
             while True:
-                ans = input(f"{service} is not running. Start it now? (y/n):\n").strip().lower()
-                if ans == "y":
+                ans = input(f"{service} is not running. Start it now? (Y/n):\n").strip().lower()
+                if ans in ("", "Y", "y"):
                     self.run_script(self.start_node_systemd_service_sh, args=["start-poll"], env=run_env)
                     return
                 elif ans == "n":

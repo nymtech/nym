@@ -159,53 +159,59 @@ remove_duplicate_rules() {
   if [[ -n "$rules_v4" ]]; then
     echo "processing ipv4 rules"
 
-    while read -r rule; do
+    # temp file to avoid subshell loops
+    local tmp4
+    tmp4=$(mktemp)
+
+    printf "%s\n" "$rules_v4" | sort | uniq > "$tmp4"
+
+    local rule count cleaned chain rest match index
+
+    while IFS= read -r rule; do
       [[ -z "$rule" ]] && continue
 
-      local count
-      count=$(echo "$rules_v4" | grep -Fx "$rule" | wc -l)
+      count=$(printf "%s\n" "$rules_v4" | grep -Fx "$rule" | wc -l)
 
       if [[ "$count" -gt 1 ]]; then
         echo "removing $((count - 1)) duplicate(s) of ipv4 rule: $rule"
 
         for ((i=1; i<count; i++)); do
-          local cleaned="${rule#-A }"
-          local chain rest
+          cleaned="${rule#-A }"
           chain=$(echo "$cleaned" | awk '{print $1}')
           rest=$(echo "$cleaned" | cut -d' ' -f2-)
 
-          # try exact match delete first
+          # try exact delete first
           if iptables -t filter -C "$chain" $rest 2>/dev/null; then
             iptables -t filter -D "$chain" $rest && continue
           fi
 
-          # fallback: locate rule in iptables -S
-          local match
+          # fallback: find exact match textually in iptables -S
           match=$(iptables -S | grep -F -- "$cleaned" | head -n1 || true)
 
           if [[ -n "$match" ]]; then
-            local chain
             chain=$(echo "$match" | awk '{print $2}')
 
-            local index
             index=$(iptables -L "$chain" --line-numbers | grep -F "$interface" | awk 'NR==1{print $1}')
 
             if [[ -n "$index" ]]; then
               iptables -D "$chain" "$index" 2>/dev/null || \
-                echo "warning: failed to delete ipv4 duplicate via index ($chain $index)"
+                echo "warning: failed deleting ipv4 duplicate via index ($chain $index)"
             else
               echo "warning: unable to locate ipv4 duplicate index for: $rule"
             fi
           else
-            echo "warning: could not match ipv4 duplicate rule reliably: $rule"
+            echo "warning: could not reliably match ipv4 duplicate rule: $rule"
           fi
         done
       fi
-    done < <(echo "$rules_v4" | sort | uniq)
+    done < "$tmp4"
+
+    rm -f "$tmp4"
 
   else
     echo "no ipv4 rules found for $interface to deduplicate"
   fi
+
 
   #
   # ipv6
@@ -216,47 +222,54 @@ remove_duplicate_rules() {
   if [[ -n "$rules_v6" ]]; then
     echo "processing ipv6 rules"
 
-    echo "$rules_v6" | sort | uniq | while read -r rule; do
-      local count
-      count=$(echo "$rules_v6" | grep -Fx "$rule" | wc -l)
+    local tmp6
+    tmp6=$(mktemp)
+
+    printf "%s\n" "$rules_v6" | sort | uniq > "$tmp6"
+
+    local rule count cleaned chain rule_spec match index
+
+    while IFS= read -r rule; do
+      [[ -z "$rule" ]] && continue
+
+      count=$(printf "%s\n" "$rules_v6" | grep -Fx "$rule" | wc -l)
 
       if [[ "$count" -gt 1 ]]; then
         echo "removing $((count - 1)) duplicate(s) of ipv6 rule: $rule"
 
         for ((i=1; i<count; i++)); do
-          local cleaned="${rule#-A }"
-          local chain="${cleaned%% *}"
-          local rule_spec="${cleaned#"$chain" }"
+          cleaned="${rule#-A }"
+          chain="${cleaned%% *}"
+          rule_spec="${cleaned#"$chain" }"
 
           # try exact delete first
           if ip6tables -t filter -C "$chain" $rule_spec 2>/dev/null; then
             ip6tables -t filter -D "$chain" $rule_spec && continue
           fi
 
-          # fallback: find matching rule in ip6tables -S
-          local match
+          # fallback lookup in ip6tables -S
           match=$(ip6tables -S | grep -F -- "$cleaned" | head -n1 || true)
 
           if [[ -n "$match" ]]; then
-            local chain
             chain=$(echo "$match" | awk '{print $2}')
 
-            local index
             index=$(ip6tables -L "$chain" --line-numbers | grep -F "$interface" | awk 'NR==1{print $1}')
 
             if [[ -n "$index" ]]; then
               ip6tables -D "$chain" "$index" 2>/dev/null || \
-                echo "warning: failed to delete ipv6 duplicate via index ($chain $index)"
+                echo "warning: failed deleting ipv6 duplicate via index ($chain $index)"
             else
               echo "warning: unable to locate ipv6 duplicate index for: $rule"
             fi
           else
             echo "warning: could not match ipv6 duplicate rule reliably: $rule"
           fi
-
         done
       fi
-    done
+
+    done < "$tmp6"
+
+    rm -f "$tmp6"
 
   else
     echo "no ipv6 rules found for $interface to deduplicate"
@@ -264,6 +277,7 @@ remove_duplicate_rules() {
 
   echo "duplicate rule scan completed for $interface"
 }
+
 
 
 apply_iptables_rules() {

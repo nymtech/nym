@@ -243,8 +243,8 @@ remove_duplicate_rules() {
           rule_spec="${cleaned#"$chain" }"
 
           # try exact delete first
-          if ip6tables -t filter -C "$chain" $rule_spec 2>/dev/null; then
-            ip6tables -t filter -D "$chain" $rule_spec && continue
+          if ip6tables -t filter -C "$chain" "$rule_spec" 2>/dev/null; then
+            ip6tables -t filter -D "$chain" "$rule_spec" && continue
           fi
 
           # fallback lookup in ip6tables -S

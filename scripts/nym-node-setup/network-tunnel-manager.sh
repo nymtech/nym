@@ -144,7 +144,7 @@ remove_duplicate_rules() {
   local interface="$1"
 
   if [[ -z "$interface" ]]; then
-    echo "error: no interface specified. usage: $0 remove_duplicate_rules <interface>"
+    echo "Error: No interface specified. Usage: $0 remove_duplicate_rules <interface>"
     exit 1
   fi
 

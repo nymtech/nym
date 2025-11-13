@@ -32,6 +32,8 @@ log() {
 
 # simple redirection that keeps function scope intact
 add_log_redirection() {
+  # Preserve original stdout (fd 1) and stderr (fd 2) in file descriptors 3 and 4
+  # before redirection, to support potential future use cases where the original streams are needed.
   exec 3>&1 4>&2
   exec > >(tee -a "$LOG_FILE") 2>&1
 }

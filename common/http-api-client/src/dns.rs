@@ -115,7 +115,9 @@ pub struct HickoryDnsResolver {
     /// Overall timeout for dns lookup associated with any individual host resolution. For example,
     /// use of retries, server_ordering_strategy, etc. ends absolutely if this timeout is reached.
     overall_dns_timeout: Duration,
-}
+    /// Policy for which Ip version should be used for name_servers.
+    ns_ip_ver_policy: NameServerIpVersionPolicy, 
+}   
 
 impl Default for HickoryDnsResolver {
     fn default() -> Self {
@@ -124,6 +126,7 @@ impl Default for HickoryDnsResolver {
             fallback: Default::default(),
             static_base: Default::default(),
             dont_use_shared: Default::default(),
+            ns_ip_ver_policy: Default::default(),
             overall_dns_timeout: Duration::from_secs(10),
         }
     }
@@ -255,9 +258,9 @@ impl HickoryDnsResolver {
         // using a closure here is slightly gross, but this makes sure that if the
         // lazy-init returns an error it can be handled by the client
         if dont_use_shared {
-            new_resolver()
+            new_resolver(self.ns_ip_ver_policy)
         } else {
-            Ok(SHARED_RESOLVER.state.get_or_try_init(new_resolver)?.clone())
+            Ok(SHARED_RESOLVER.state.get_or_try_init(|| new_resolver(self.ns_ip_ver_policy))?.clone())
         }
     }
 
@@ -316,6 +319,104 @@ impl HickoryDnsResolver {
             .expect("infallible assign");
         self.static_base = Some(Arc::new(cell));
     }
+
+    /// Configure the resolver to use only Ipv4 nameservers and to resolve addresses to Ipv4 (A)
+    /// records only.
+    ///
+    /// NOTE: Calling this function will rebuild the inner resolver which means that the
+    /// cached dns lookups will not carry over and will go to network to resolve again.
+    pub fn set_ipv4_only(&mut self) {
+        self.set_nameserver_ip_version_strategy(NameServerIpVersionPolicy::Ipv4Only);
+        self.set_hostname_ip_version_lookup_strategy(HostnameIpLookupStrategy::A_only);
+    }
+
+    /// Set the policy relating to nameserver IP version.
+    ///
+    /// NOTE: Calling this function will rebuild the inner resolver which means that the
+    /// cached dns lookups will not carry over and will go to network to resolve again.
+    pub fn set_nameserver_ip_version_strategy(&mut self, strategy: NameServerIpVersionPolicy) {}
+
+    /// Set the policy for the record type queried when looking up hostnames
+    pub fn set_hostname_ip_version_lookup_strategy(&mut self, strategy: HostnameIpLookupStrategy) {
+        // self.state.get_mut()
+    }
+}
+
+/// Policy options for nameserver IP versions to use when sending DNS queries.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub enum NameServerIpVersionPolicy {
+    /// Only send queries to Ipv4 nameservers
+    Ipv4Only,
+    /// Only send queries to Ipv6 nameserver
+    Ipv6Only,
+    /// Send queries to Ipv4 AND Ipv6 nameservers in parallel
+    #[default]
+    Ipv4AndIpv6,
+}
+
+/// Policy options for query types sent when lookup up a hostname.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+#[allow(non_camel_case_types)]
+pub enum HostnameIpLookupStrategy {
+    /// Only query for A (Ipv4) records
+    A_only,
+    /// Only query for AAAA (Ipv6) records
+    AAAA_only,
+    /// Query for A and AAAA in parallel
+    A_and_AAAA,
+    /// Query for Ipv6 if that fails, query for Ipv4
+    AAAA_then_A,
+    #[default]
+    /// Query for Ipv4 if that fails, query for Ipv6 (default)
+    A_then_AAAA,
+}
+
+impl From<LookupIpStrategy> for HostnameIpLookupStrategy {
+    fn from(value: LookupIpStrategy) -> Self {
+        match value {
+            LookupIpStrategy::Ipv4AndIpv6 => HostnameIpLookupStrategy::A_and_AAAA,
+            LookupIpStrategy::Ipv4Only => HostnameIpLookupStrategy::A_only,
+            LookupIpStrategy::Ipv6Only => HostnameIpLookupStrategy::AAAA_only,
+            LookupIpStrategy::Ipv4thenIpv6 => HostnameIpLookupStrategy::A_then_AAAA,
+            LookupIpStrategy::Ipv6thenIpv4 => HostnameIpLookupStrategy::AAAA_then_A,
+        }
+    }
+}
+
+impl From<&LookupIpStrategy> for HostnameIpLookupStrategy {
+    fn from(value: &LookupIpStrategy) -> Self {
+        match value {
+            LookupIpStrategy::Ipv4AndIpv6 => HostnameIpLookupStrategy::A_and_AAAA,
+            LookupIpStrategy::Ipv4Only => HostnameIpLookupStrategy::A_only,
+            LookupIpStrategy::Ipv6Only => HostnameIpLookupStrategy::AAAA_only,
+            LookupIpStrategy::Ipv4thenIpv6 => HostnameIpLookupStrategy::A_then_AAAA,
+            LookupIpStrategy::Ipv6thenIpv4 => HostnameIpLookupStrategy::AAAA_then_A,
+        }
+    }
+}
+
+impl From<HostnameIpLookupStrategy> for LookupIpStrategy {
+    fn from(value: HostnameIpLookupStrategy) -> LookupIpStrategy {
+        match value {
+            HostnameIpLookupStrategy::A_and_AAAA => LookupIpStrategy::Ipv4AndIpv6,
+            HostnameIpLookupStrategy::A_only => LookupIpStrategy::Ipv4Only,
+            HostnameIpLookupStrategy::AAAA_only => LookupIpStrategy::Ipv6Only,
+            HostnameIpLookupStrategy::A_then_AAAA => LookupIpStrategy::Ipv4thenIpv6,
+            HostnameIpLookupStrategy::AAAA_then_A => LookupIpStrategy::Ipv6thenIpv4,
+        }
+    }
+}
+
+impl From<&HostnameIpLookupStrategy> for LookupIpStrategy {
+    fn from(value: &HostnameIpLookupStrategy) -> LookupIpStrategy {
+        match value {
+            HostnameIpLookupStrategy::A_and_AAAA => LookupIpStrategy::Ipv4AndIpv6,
+            HostnameIpLookupStrategy::A_only => LookupIpStrategy::Ipv4Only,
+            HostnameIpLookupStrategy::AAAA_only => LookupIpStrategy::Ipv6Only,
+            HostnameIpLookupStrategy::A_then_AAAA => LookupIpStrategy::Ipv4thenIpv6,
+            HostnameIpLookupStrategy::AAAA_then_A => LookupIpStrategy::Ipv6thenIpv4,
+        }
+    }
 }
 
 /// Create a new resolver with a custom DoT based configuration. The options are overridden to look
@@ -326,15 +427,82 @@ impl HickoryDnsResolver {
 ///
 /// Caches successfully resolved addresses for 30 minutes to prevent continual use of remote lookup.
 /// This resolver is intended to be used for OUR API endpoints that do not rapidly rotate IPs.
-fn new_resolver() -> Result<TokioResolver, ResolveError> {
+fn new_resolver(
+    ns_ip_version_policy: NameServerIpVersionPolicy,
+) -> Result<TokioResolver, ResolveError> {
     info!("building new configured resolver");
 
+    let name_servers = match ns_ip_version_policy {
+        NameServerIpVersionPolicy::Ipv4AndIpv6 => default_nameserver_group(),
+        NameServerIpVersionPolicy::Ipv4Only => default_nameserver_group_ipv4_only(),
+        NameServerIpVersionPolicy::Ipv6Only => default_nameserver_group_ipv6_only(),
+    };
+
+    configure_and_build_resolver(name_servers)
+}
+
+fn default_nameserver_group() -> NameServerConfigGroup {
     let mut name_servers = NameServerConfigGroup::quad9_tls();
     name_servers.merge(NameServerConfigGroup::quad9_https());
     name_servers.merge(NameServerConfigGroup::cloudflare_tls());
     name_servers.merge(NameServerConfigGroup::cloudflare_https());
+    name_servers
+}
 
-    configure_and_build_resolver(name_servers)
+fn default_nameserver_group_ipv4_only() -> NameServerConfigGroup {
+    let mut name_servers = NameServerConfigGroup::from_ips_https(
+        &quad9_ips_v4(),
+        443,
+        "dns.quad9.net".to_string(),
+        true,
+    );
+    name_servers.merge(NameServerConfigGroup::from_ips_tls(
+        &quad9_ips_v4(),
+        853,
+        "dns.quad9.net".to_string(),
+        true,
+    ));
+    name_servers.merge(NameServerConfigGroup::from_ips_https(
+        &cloudflare_ips_v4(),
+        443,
+        "cloudflare-dns.com".to_string(),
+        true,
+    ));
+    name_servers.merge(NameServerConfigGroup::from_ips_tls(
+        &cloudflare_ips_v4(),
+        853,
+        "cloudflare-dns.com".to_string(),
+        true,
+    ));
+    name_servers
+}
+
+fn default_nameserver_group_ipv6_only() -> NameServerConfigGroup {
+    let mut name_servers = NameServerConfigGroup::from_ips_https(
+        &quad9_ips_v6(),
+        443,
+        "dns.quad9.net".to_string(),
+        true,
+    );
+    name_servers.merge(NameServerConfigGroup::from_ips_tls(
+        &quad9_ips_v6(),
+        853,
+        "dns.quad9.net".to_string(),
+        true,
+    ));
+    name_servers.merge(NameServerConfigGroup::from_ips_https(
+        &cloudflare_ips_v6(),
+        443,
+        "cloudflare-dns.com".to_string(),
+        true,
+    ));
+    name_servers.merge(NameServerConfigGroup::from_ips_tls(
+        &cloudflare_ips_v6(),
+        853,
+        "cloudflare-dns.com".to_string(),
+        true,
+    ));
+    name_servers
 }
 
 fn configure_and_build_resolver(
@@ -344,11 +512,43 @@ fn configure_and_build_resolver(
     let mut resolver_builder =
         TokioResolver::builder_with_config(config, TokioConnectionProvider::default());
 
-    resolver_builder.options_mut().ip_strategy = LookupIpStrategy::Ipv4AndIpv6;
+    resolver_builder.options_mut().ip_strategy = LookupIpStrategy::Ipv4thenIpv6;
     // Cache successful responses for queries received by this resolver for 30 min minimum.
     resolver_builder.options_mut().positive_min_ttl = Some(Duration::from_secs(1800));
 
     Ok(resolver_builder.build())
+}
+
+fn cloudflare_ips_v4() -> Vec<IpAddr> {
+    hickory_resolver::config::CLOUDFLARE_IPS
+        .iter()
+        .filter(|ip| ip.is_ipv4())
+        .cloned()
+        .collect()
+}
+
+fn cloudflare_ips_v6() -> Vec<IpAddr> {
+    hickory_resolver::config::CLOUDFLARE_IPS
+        .iter()
+        .filter(|ip| ip.is_ipv6())
+        .cloned()
+        .collect()
+}
+
+fn quad9_ips_v4() -> Vec<IpAddr> {
+    hickory_resolver::config::CLOUDFLARE_IPS
+        .iter()
+        .filter(|ip| ip.is_ipv4())
+        .cloned()
+        .collect()
+}
+
+fn quad9_ips_v6() -> Vec<IpAddr> {
+    hickory_resolver::config::CLOUDFLARE_IPS
+        .iter()
+        .filter(|ip| ip.is_ipv4())
+        .cloned()
+        .collect()
 }
 
 /// Create a new resolver with the default configuration, which reads from the system DNS config

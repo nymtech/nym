@@ -275,7 +275,7 @@ class NodeSetupCLI:
         env_file = os.path.join(os.getcwd(), "env.sh")
 
         def norm(v):
-            return "true" if str(v).strip().lower() == ("true") else "false"
+            return "true" if str(v).strip().lower() == "true" else "false"
 
         val = None
 

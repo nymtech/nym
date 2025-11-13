@@ -133,7 +133,7 @@ class NodeSetupCLI:
         mode = getattr(args, "mode", None)
         if mode:
             mode = mode.strip().lower()
-            self._upsert_env_vars("MODE", mode)
+            self._upsert_env_vars({"MODE": mode})
             print(f"Mode set to '{mode}' from CLI argument.")
             return mode
 

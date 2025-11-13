@@ -1,7 +1,10 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::message::{ClientHelloData, EncryptedDataPayload, HandshakeData, LpMessage, MessageType};
+use crate::message::{
+    ClientHelloData, EncryptedDataPayload, HandshakeData, KKTRequestData, KKTResponseData,
+    LpMessage, MessageType,
+};
 use crate::packet::{LpHeader, LpPacket, TRAILER_LEN};
 use crate::LpError;
 use bytes::BytesMut;
@@ -43,7 +46,7 @@ pub fn parse_lp_packet(src: &[u8]) -> Result<LpPacket, LpError> {
             if message_size != 0 {
                 return Err(LpError::InvalidPayloadSize {
                     expected: 0,
-                    actual: message_size,   
+                    actual: message_size,
                 });
             }
             LpMessage::Busy
@@ -62,6 +65,14 @@ pub fn parse_lp_packet(src: &[u8]) -> Result<LpPacket, LpError> {
             let data: ClientHelloData = bincode::deserialize(payload_slice)
                 .map_err(|e| LpError::DeserializationError(e.to_string()))?;
             LpMessage::ClientHello(data)
+        }
+        MessageType::KKTRequest => {
+            // KKT request contains serialized KKTFrame bytes
+            LpMessage::KKTRequest(KKTRequestData(payload_slice.to_vec()))
+        }
+        MessageType::KKTResponse => {
+            // KKT response contains serialized KKTFrame bytes
+            LpMessage::KKTResponse(KKTResponseData(payload_slice.to_vec()))
         }
     };
 

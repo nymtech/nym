@@ -48,6 +48,9 @@ pub enum LpError {
     #[error("Deserialization error: {0}")]
     DeserializationError(String),
 
+    #[error("KKT protocol error: {0}")]
+    KKTError(String),
+
     #[error(transparent)]
     InvalidBase58String(#[from] bs58::decode::Error),
 

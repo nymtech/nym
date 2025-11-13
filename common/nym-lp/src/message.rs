@@ -63,6 +63,8 @@ pub enum MessageType {
     Handshake = 0x0001,
     EncryptedData = 0x0002,
     ClientHello = 0x0003,
+    KKTRequest = 0x0004,
+    KKTResponse = 0x0005,
 }
 
 impl MessageType {
@@ -72,6 +74,8 @@ impl MessageType {
             0x0001 => Some(MessageType::Handshake),
             0x0002 => Some(MessageType::EncryptedData),
             0x0003 => Some(MessageType::ClientHello),
+            0x0004 => Some(MessageType::KKTRequest),
+            0x0005 => Some(MessageType::KKTResponse),
             _ => None,
         }
     }
@@ -82,6 +86,8 @@ impl MessageType {
             MessageType::Handshake => 0x0001,
             MessageType::EncryptedData => 0x0002,
             MessageType::ClientHello => 0x0003,
+            MessageType::KKTRequest => 0x0004,
+            MessageType::KKTResponse => 0x0005,
         }
     }
 }
@@ -92,12 +98,22 @@ pub struct HandshakeData(pub Vec<u8>);
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EncryptedDataPayload(pub Vec<u8>);
 
+/// KKT request frame data (serialized KKTFrame bytes)
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct KKTRequestData(pub Vec<u8>);
+
+/// KKT response frame data (serialized KKTFrame bytes)
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct KKTResponseData(pub Vec<u8>);
+
 #[derive(Debug, Clone)]
 pub enum LpMessage {
     Busy,
     Handshake(HandshakeData),
     EncryptedData(EncryptedDataPayload),
     ClientHello(ClientHelloData),
+    KKTRequest(KKTRequestData),
+    KKTResponse(KKTResponseData),
 }
 
 impl Display for LpMessage {
@@ -107,6 +123,8 @@ impl Display for LpMessage {
             LpMessage::Handshake(_) => write!(f, "Handshake"),
             LpMessage::EncryptedData(_) => write!(f, "EncryptedData"),
             LpMessage::ClientHello(_) => write!(f, "ClientHello"),
+            LpMessage::KKTRequest(_) => write!(f, "KKTRequest"),
+            LpMessage::KKTResponse(_) => write!(f, "KKTResponse"),
         }
     }
 }
@@ -118,6 +136,8 @@ impl LpMessage {
             LpMessage::Handshake(payload) => payload.0.as_slice(),
             LpMessage::EncryptedData(payload) => payload.0.as_slice(),
             LpMessage::ClientHello(_) => unimplemented!(), // Structured data, serialized in encode_content
+            LpMessage::KKTRequest(payload) => payload.0.as_slice(),
+            LpMessage::KKTResponse(payload) => payload.0.as_slice(),
         }
     }
 
@@ -127,6 +147,8 @@ impl LpMessage {
             LpMessage::Handshake(payload) => payload.0.is_empty(),
             LpMessage::EncryptedData(payload) => payload.0.is_empty(),
             LpMessage::ClientHello(_) => false, // Always has data
+            LpMessage::KKTRequest(payload) => payload.0.is_empty(),
+            LpMessage::KKTResponse(payload) => payload.0.is_empty(),
         }
     }
 
@@ -136,6 +158,8 @@ impl LpMessage {
             LpMessage::Handshake(payload) => payload.0.len(),
             LpMessage::EncryptedData(payload) => payload.0.len(),
             LpMessage::ClientHello(_) => 65, // 32 bytes key + 1 byte version + 32 bytes salt
+            LpMessage::KKTRequest(payload) => payload.0.len(),
+            LpMessage::KKTResponse(payload) => payload.0.len(),
         }
     }
 
@@ -145,6 +169,8 @@ impl LpMessage {
             LpMessage::Handshake(_) => MessageType::Handshake,
             LpMessage::EncryptedData(_) => MessageType::EncryptedData,
             LpMessage::ClientHello(_) => MessageType::ClientHello,
+            LpMessage::KKTRequest(_) => MessageType::KKTRequest,
+            LpMessage::KKTResponse(_) => MessageType::KKTResponse,
         }
     }
 
@@ -162,6 +188,12 @@ impl LpMessage {
                 let serialized =
                     bincode::serialize(data).expect("Failed to serialize ClientHelloData");
                 dst.put_slice(&serialized);
+            }
+            LpMessage::KKTRequest(payload) => {
+                dst.put_slice(&payload.0);
+            }
+            LpMessage::KKTResponse(payload) => {
+                dst.put_slice(&payload.0);
             }
         }
     }

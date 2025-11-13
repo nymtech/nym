@@ -4,6 +4,7 @@
 pub mod codec;
 pub mod error;
 pub mod keypair;
+pub mod kkt_orchestrator;
 pub mod message;
 pub mod noise_protocol;
 pub mod packet;
@@ -34,35 +35,41 @@ pub const NOISE_PSK_INDEX: u8 = 3;
 #[cfg(test)]
 pub fn sessions_for_tests() -> (LpSession, LpSession) {
     use crate::{keypair::Keypair, make_lp_id};
+    use nym_crypto::asymmetric::ed25519;
 
+    // X25519 keypairs for Noise protocol
     let keypair_1 = Keypair::default();
     let keypair_2 = Keypair::default();
     let id = make_lp_id(keypair_1.public_key(), keypair_2.public_key());
 
+    // Ed25519 keypairs for PSQ authentication (placeholders for testing)
+    let ed25519_keypair_1 = ed25519::KeyPair::from_secret([1u8; 32], 0);
+    let ed25519_keypair_2 = ed25519::KeyPair::from_secret([2u8; 32], 1);
+
     // Use consistent salt for deterministic tests
     let salt = [1u8; 32];
 
-    // Initiator derives PSK from their perspective
-    let initiator_psk = derive_psk(keypair_1.private_key(), keypair_2.public_key(), &salt);
+    // PSQ will always derive the PSK during handshake using X25519 as DHKEM
 
     let initiator_session = LpSession::new(
         id,
         true,
-        &keypair_1.private_key().to_bytes(),
-        &keypair_2.public_key().to_bytes(),
-        &initiator_psk,
+        (ed25519_keypair_1.private_key(), ed25519_keypair_1.public_key()),
+        keypair_1.private_key(),
+        ed25519_keypair_2.public_key(),
+        keypair_2.public_key(),
+        &salt,
     )
     .expect("Test session creation failed");
-
-    // Responder derives same PSK from their perspective
-    let responder_psk = derive_psk(keypair_2.private_key(), keypair_1.public_key(), &salt);
 
     let responder_session = LpSession::new(
         id,
         false,
-        &keypair_2.private_key().to_bytes(),
-        &keypair_1.public_key().to_bytes(),
-        &responder_psk,
+        (ed25519_keypair_2.private_key(), ed25519_keypair_2.public_key()),
+        keypair_2.private_key(),
+        ed25519_keypair_1.public_key(),
+        keypair_1.public_key(),
+        &salt,
     )
     .expect("Test session creation failed");
 
@@ -228,7 +235,6 @@ mod tests {
                 &local_keypair,
                 remote_keypair.public_key(),
                 true,
-                &[2u8; 32],
             )
             .unwrap();
 
@@ -237,7 +243,6 @@ mod tests {
                 &remote_keypair,
                 local_keypair.public_key(),
                 false,
-                &[2u8; 32],
             )
             .unwrap();
         // === Packet 1 (Counter 0 - Should succeed) ===

@@ -171,9 +171,8 @@ impl SessionManager {
         local_keypair: &Keypair,
         remote_public_key: &PublicKey,
         is_initiator: bool,
-        psk: &[u8],
     ) -> Result<u32, LpError> {
-        let sm = LpStateMachine::new(is_initiator, local_keypair, remote_public_key, psk)?;
+        let sm = LpStateMachine::new(is_initiator, local_keypair, remote_public_key)?;
         let sm_id = sm.id()?;
 
         self.state_machines.insert(sm_id, sm);
@@ -200,7 +199,6 @@ mod tests {
                 &Keypair::default(),
                 &PublicKey::default(),
                 true,
-                &[2u8; 32],
             )
             .unwrap();
 
@@ -219,7 +217,6 @@ mod tests {
                 &Keypair::default(),
                 &PublicKey::default(),
                 true,
-                &[2u8; 32],
             )
             .unwrap();
 
@@ -240,7 +237,6 @@ mod tests {
                 &Keypair::default(),
                 &PublicKey::default(),
                 true,
-                &[2u8; 32],
             )
             .unwrap();
 
@@ -249,7 +245,6 @@ mod tests {
                 &Keypair::default(),
                 &PublicKey::default(),
                 true,
-                &[2u8; 32],
             )
             .unwrap();
 
@@ -258,7 +253,6 @@ mod tests {
                 &Keypair::default(),
                 &PublicKey::default(),
                 true,
-                &[2u8; 32],
             )
             .unwrap();
 
@@ -281,7 +275,6 @@ mod tests {
             &Keypair::default(),
             &PublicKey::default(),
             true,
-            &[2u8; 32],
         );
 
         assert!(sm.is_ok());

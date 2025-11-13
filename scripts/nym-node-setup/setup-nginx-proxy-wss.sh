@@ -12,6 +12,7 @@ fi
 : "${EMAIL:?EMAIL not set}"
 
 export DEBIAN_FRONTEND=noninteractive
+
 WEBROOT="/var/www/${HOSTNAME}"
 SITES_AVAIL="/etc/nginx/sites-available"
 SITES_EN="/etc/nginx/sites-enabled"
@@ -23,29 +24,31 @@ WSS_CONF="${SITES_AVAIL}/wss-config-nym"
 echo
 echo "* * * starting clean nginx configuration for landing page, reverse proxy and wss * * *"
 
-###############################################################################
-# step 1: clean old configs
-###############################################################################
+################################################################################
+# step 1: clean all previous configs
+################################################################################
 
 echo "cleaning existing nginx configuration"
 
-# remove old default symlink
-[[ -L ${SITES_EN}/default ]] && unlink ${SITES_EN}/default || true
+# remove default nginx config
+[[ -L "${SITES_EN}/default" ]] && unlink "${SITES_EN}/default" || true
 
-# remove old vhosts for this domain (symlink + config)
-rm -f "${SITES_EN}/${HOSTNAME}" || true
-rm -f "${SITES_EN}/${HOSTNAME}-ssl" || true
-rm -f "${SITES_EN}/wss-config-nym" || true
+# remove domain symlinks
+rm -f "${SITES_EN}/${HOSTNAME}"       || true
+rm -f "${SITES_EN}/${HOSTNAME}-ssl"   || true
+rm -f "${SITES_EN}/wss-config-nym"    || true
 
-rm -f "${HTTP_CONF}" || true
-rm -f "${HTTPS_CONF}" || true
-rm -f "${WSS_CONF}" || true
+# remove old configs
+rm -f "${HTTP_CONF}"                  || true
+rm -f "${HTTPS_CONF}"                 || true
+rm -f "${WSS_CONF}"                   || true
 
-###############################################################################
-# step 2: create landing page
-###############################################################################
+################################################################################
+# step 2: landing page
+################################################################################
 
 mkdir -p "${WEBROOT}"
+
 if ! curl -fsSL \
   https://raw.githubusercontent.com/nymtech/nym/develop/scripts/nym-node-setup/landing-page.html \
   -o "${WEBROOT}/index.html"; then
@@ -65,9 +68,9 @@ fi
 
 echo "landing page at ${WEBROOT}/index.html"
 
-###############################################################################
-# step 3: create basic http config (80)
-###############################################################################
+################################################################################
+# step 3: HTTP :80 config
+################################################################################
 
 cat > "${HTTP_CONF}" <<EOF
 server {
@@ -76,6 +79,12 @@ server {
 
     server_name ${HOSTNAME};
 
+    # ACME challenge
+    location /.well-known/acme-challenge/ {
+        root /var/www/letsencrypt;
+    }
+
+    # reverse proxy
     location / {
         try_files \$uri \$uri/ @app;
     }
@@ -86,10 +95,6 @@ server {
         proxy_set_header Host \$host;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
     }
-
-    location /.well-known/acme-challenge/ {
-        root /var/www/letsencrypt;
-    }
 }
 EOF
 
@@ -98,9 +103,9 @@ ln -sf "${HTTP_CONF}" "${SITES_EN}/${HOSTNAME}"
 nginx -t
 systemctl reload nginx
 
-###############################################################################
-# step 4: get certificate using certbot --nginx
-###############################################################################
+################################################################################
+# step 4: obtain certificate
+################################################################################
 
 apt-get update -y >/dev/null 2>&1 || true
 apt-get install -y certbot python3-certbot-nginx >/dev/null 2>&1 || true
@@ -108,15 +113,17 @@ apt-get install -y certbot python3-certbot-nginx >/dev/null 2>&1 || true
 echo "requesting let's encrypt certificate for ${HOSTNAME}"
 
 certbot --nginx --non-interactive --agree-tos \
+  --reuse-key \
   -m "${EMAIL}" -d "${HOSTNAME}" --redirect || true
 
-###############################################################################
-# step 5: if cert OK, build https and wss configs
-###############################################################################
+################################################################################
+# step 5: HTTPS and WSS configs
+################################################################################
 
 if [[ -s "/etc/letsencrypt/live/${HOSTNAME}/fullchain.pem" ]]; then
   echo "certificate detected, creating https and wss configs"
 
+  # HTTPS 443
   cat > "${HTTPS_CONF}" <<EOF
 server {
     listen 443 ssl http2;
@@ -145,6 +152,7 @@ EOF
 
   ln -sf "${HTTPS_CONF}" "${SITES_EN}/${HOSTNAME}-ssl"
 
+  # WSS 9001
   cat > "${WSS_CONF}" <<EOF
 server {
     listen 9001 ssl http2;
@@ -179,9 +187,9 @@ else
   echo "certificate missing, skipping https and wss configs"
 fi
 
-###############################################################################
-# step 6: final reload + summary
-###############################################################################
+################################################################################
+# step 6: reload nginx + summary
+################################################################################
 
 nginx -t
 systemctl reload nginx

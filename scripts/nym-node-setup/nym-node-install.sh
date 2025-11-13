@@ -182,11 +182,12 @@ fi
 
 NYM_NODE="$HOME/nym-binaries/nym-node"
 
-# if binary already exists, ask to overwrite; if yes, remove first
+# if binary already exists, ask to overwrite; if yes, remove first; if no, skip download
 if [[ -e "${NYM_NODE}" ]]; then
   echo
   echo -e "\n* * * A nym-node binary already exists at: ${NYM_NODE}"
   read -r -p "Overwrite with the latest release? (Y/n): " ow_ans
+
   if [[ -z "${ow_ans}" || "${ow_ans}" =~ ^[Yy]$ ]]; then
     echo "Removing existing binary..."
     rm -f "${NYM_NODE}"
@@ -195,11 +196,13 @@ if [[ -e "${NYM_NODE}" ]]; then
     echo "Keeping existing binary. Skipping download."
   fi
 
-download_nym_node "$LATEST_TAG_URL" "$NYM_NODE"
+else
+  # binary does not exist → must download
+  download_nym_node "$LATEST_TAG_URL" "$NYM_NODE"
+fi
 
 echo -e "\n * * * Making binary executable * * *"
 chmod +x "${NYM_NODE}"
-
 echo "---------------------------------------------------"
 echo "Nym node binary downloaded:"
 "${NYM_NODE}" --version || true
@@ -226,16 +229,18 @@ WIREGUARD="${WIREGUARD:-}"
 if [[ ( "$MODE" == "entry-gateway" || "$MODE" == "exit-gateway" ) && ( -n "${ASK_WG:-}" || -z "$WIREGUARD" ) ]]; then
   echo
   echo "Gateways can also route WireGuard in NymVPN."
-  echo "Enabling it means your node may be listed as both entry and exit in the app."
-  # show current default in the prompt if present
   def_hint=""
   [[ -n "${WIREGUARD}" ]] && def_hint=" [current: ${WIREGUARD}]"
+
   read -r -p "Enable WireGuard support? (Y/n)${def_hint}: " answer || true
+
   if [[ -z "${answer}" || "${answer}" =~ ^[Yy]$ ]]; then
     WIREGUARD="true"
   elif [[ "${answer}" =~ ^[Nn]$ ]]; then
     WIREGUARD="false"
   fi
+fi
+
 # final default only if still empty
 WIREGUARD="${WIREGUARD:-false}"
 

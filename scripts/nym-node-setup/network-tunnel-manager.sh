@@ -625,20 +625,35 @@ EOF
   total_rules=$(grep "^ExitPolicy reject" "$POLICY_FILE" | grep -v "\*:\*" | wc -l || true)
   echo "processing $total_rules blocklist rules"
 
-  grep "^ExitPolicy reject" "$POLICY_FILE" | grep -v "\*:\*" | while read -r line; do
+  #
+  # main loop — no subshell, safe variable handling
+  #
+  while read -r line; do
+    [[ -z "$line" ]] && continue
+
     local ip_range
     ip_range=$(echo "$line" | sed -E 's/ExitPolicy reject ([^:]+):.*/\1/')
 
     if [[ -n "$ip_range" ]]; then
+
+      # ipv4 reject
       if ! iptables -C "$NYM_CHAIN" -d "$ip_range" -j REJECT 2>/dev/null; then
-        iptables -A "$NYM_CHAIN" -d "$ip_range" -j REJECT
+        iptables -A "$NYM_CHAIN" -d "$ip_range" -j REJECT || \
+          echo "warning: failed adding ipv4 reject for $ip_range"
       fi
-      if [[ "$ip_range" == *":"* ]] && ! ip6tables -C "$NYM_CHAIN" -d "$ip_range" -j REJECT 2>/dev/null; then
-        ip6tables -A "$NYM_CHAIN" -d "$ip_range" -j REJECT
+
+      # ipv6 reject
+      if [[ "$ip_range" == *":"* ]]; then
+        if ! ip6tables -C "$NYM_CHAIN" -d "$ip_range" -j REJECT 2>/dev/null; then
+          ip6tables -A "$NYM_CHAIN" -d "$ip_range" -j REJECT || \
+            echo "warning: failed adding ipv6 reject for $ip_range"
+        fi
       fi
     fi
-  done
+
+  done < <(grep "^ExitPolicy reject" "$POLICY_FILE" | grep -v "\*:\*")
 }
+
 
 add_default_reject_rule() {
   echo "ensuring default reject rule at end of ${NYM_CHAIN}"

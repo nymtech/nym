@@ -91,14 +91,15 @@ fn sanitizing_urls() {
 #[tokio::test]
 async fn api_client_retry() -> Result<(), Box<dyn std::error::Error>> {
     let client = ClientBuilder::new_with_urls(vec![
-        "http://broken.nym.test".parse()?,         // This will fail
-        "https://httpbin.org/status/200".parse()?, // This will succeed
+        "http://broken.nym.test".parse()?, // This will fail because of DNS (rotate)
+        "http://127.0.0.1:9".parse()?,     // This will fail because of TCP refused (rotate)
+        "https://httpbin.org/status/200".parse()?, // This should succeed
     ])?
     .with_retries(3)
     .build()?;
 
     let req = client.create_get_request(&[], NO_PARAMS).unwrap();
-    let resp = client.send(req).await?;
+    let _resp = client.send(req).await?;
 
     // The main test is that we successfully retried and switched to the working URL
     // We accept any response from the working endpoint since external services can be unreliable
@@ -107,7 +108,9 @@ async fn api_client_retry() -> Result<(), Box<dyn std::error::Error>> {
         "https://httpbin.org/status/200"
     );
 
-    println!("Response status: {}", resp.status());
+    // // This assert can be unreliable due to factors beyond our control and beyond the scope of
+    // // this test
+    // assert_eq!(_resp.status(), StatusCode::OK);
 
     Ok(())
 }

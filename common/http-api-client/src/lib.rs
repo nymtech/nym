@@ -395,6 +395,13 @@ pub enum HttpClientError {
     #[error("failed to resolve request to {url} due to data inconsistency: {details}")]
     InternalResponseInconsistency { url: ::url::Url, details: String },
 
+    #[cfg(not(target_arch = "wasm32"))]
+    #[error("encountered dns failure: {inner}")]
+    DnsLookupFailure {
+        #[from]
+        inner: ResolveError,
+    },
+
     #[error("Failed to encode bincode: {0}")]
     Bincode(#[from] bincode::Error),
 
@@ -421,6 +428,8 @@ impl HttpClientError {
             HttpClientError::ReqwestClientError { source } => source.is_timeout(),
             HttpClientError::RequestSendFailure { source, .. } => source.0.is_timeout(),
             HttpClientError::ResponseReadFailure { source, .. } => source.0.is_timeout(),
+            #[cfg(not(target_arch = "wasm32"))]
+            HttpClientError::DnsLookupFailure { inner } => inner.is_timeout(),
             #[cfg(target_arch = "wasm32")]
             HttpClientError::RequestTimeout => true,
             _ => false,
@@ -775,6 +784,7 @@ impl ClientBuilder {
             base_urls: self.urls,
             current_idx: Arc::new(AtomicUsize::new(0)),
             reqwest_client,
+            using_secure_dns: self.use_secure_dns,
 
             #[cfg(feature = "tunneling")]
             front: self.front,
@@ -795,6 +805,7 @@ pub struct Client {
     base_urls: Vec<Url>,
     current_idx: Arc<AtomicUsize>,
     reqwest_client: reqwest::Client,
+    using_secure_dns: bool,
 
     #[cfg(feature = "tunneling")]
     front: Option<fronted::Front>,
@@ -852,6 +863,7 @@ impl Client {
             base_urls: vec![new_url],
             current_idx: Arc::new(Default::default()),
             reqwest_client: self.reqwest_client.clone(),
+            using_secure_dns: self.using_secure_dns,
 
             #[cfg(feature = "tunneling")]
             front: self.front.clone(),
@@ -1076,6 +1088,26 @@ impl ApiClientCore for Client {
             self.apply_hosts_to_req(&mut req);
             let url = Url::parse(req.url().as_str()).unwrap();
 
+            // try an explicit DNS resolution - if successful then it will be in cache when reqwest
+            // goes to execute the request. If failure then we get to handle the DNS lookup error.
+            #[cfg(not(target_arch = "wasm32"))]
+            if self.using_secure_dns
+                && let Some(hostname) = req.url().domain()
+                && let Err(err) = HickoryDnsResolver::default().resolve_str(hostname).await
+            {
+                // on failure update host, but don't trigger fronting enable.
+                self.update_host(Some(url.clone()));
+
+                if attempts < self.retry_limit {
+                    attempts += 1;
+                    warn!(
+                        "Retrying request due to dns error on attempt ({attempts}/{}): {err}",
+                        self.retry_limit
+                    );
+                    continue;
+                }
+            }
+
             #[cfg(target_arch = "wasm32")]
             let response: Result<Response, HttpClientError> = {
                 Ok(wasmtimer::tokio::timeout(
@@ -1120,8 +1152,11 @@ impl ApiClientCore for Client {
                     }
 
                     if attempts < self.retry_limit {
-                        warn!("Retrying request due to http error: {err}");
                         attempts += 1;
+                        warn!(
+                            "Retrying request due to http error on attempt ({attempts}/{}): {err}",
+                            self.retry_limit
+                        );
                         continue;
                     }
 

@@ -636,10 +636,9 @@ EOF
   #
   # main loop — no subshell, safe variable handling
   #
+  local ip_range
   while read -r line; do
     [[ -z "$line" ]] && continue
-
-    local ip_range
     ip_range=$(echo "$line" | sed -E 's/ExitPolicy reject ([^:]+):.*/\1/')
 
     if [[ -n "$ip_range" ]]; then

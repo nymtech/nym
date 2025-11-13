@@ -164,11 +164,11 @@ remove_duplicate_rules() {
     printf "%s\n" "$rules_v4" | sort | uniq > "$tmp4"
 
     local rule count cleaned chain rest match index
-
     while IFS= read -r rule; do
       [[ -z "$rule" ]] && continue
 
-      count=$(printf "%s\n" "$rules_v4" | grep -Fx "$rule" | wc -l)
+      # FIX: protect grep from rule content becoming flags
+      count=$(printf "%s\n" "$rules_v4" | grep -F -- "$rule" | wc -l)
 
       if [[ "$count" -gt 1 ]]; then
         echo "removing $((count - 1)) duplicate(s) of ipv4 rule: $rule"
@@ -178,15 +178,12 @@ remove_duplicate_rules() {
           chain=$(echo "$cleaned" | awk '{print $1}')
           rest=$(echo "$cleaned" | cut -d' ' -f2-)
 
-          # split "rest" into correct argv tokens
           read -ra RULE_ARR <<<"$rest"
 
-          # try exact delete first
           if iptables -t filter -C "$chain" "${RULE_ARR[@]}" 2>/dev/null; then
             iptables -t filter -D "$chain" "${RULE_ARR[@]}" && continue
           fi
 
-          # fallback: find textual rule in iptables -S
           match=$(iptables -S | grep -F -- "$cleaned" | head -n1 || true)
 
           if [[ -n "$match" ]]; then
@@ -202,9 +199,9 @@ remove_duplicate_rules() {
           else
             echo "warning: could not reliably match ipv4 duplicate rule: $rule"
           fi
-
         done
       fi
+
     done < "$tmp4"
 
     rm -f "$tmp4"
@@ -212,6 +209,7 @@ remove_duplicate_rules() {
   else
     echo "no ipv4 rules found for $interface to deduplicate"
   fi
+
 
 
   #
@@ -228,11 +226,11 @@ remove_duplicate_rules() {
     printf "%s\n" "$rules_v6" | sort | uniq > "$tmp6"
 
     local rule count cleaned chain rule_spec match index
-
     while IFS= read -r rule; do
       [[ -z "$rule" ]] && continue
 
-      count=$(printf "%s\n" "$rules_v6" | grep -Fx "$rule" | wc -l)
+      # FIX: protect grep from interpreting rule as flags
+      count=$(printf "%s\n" "$rules_v6" | grep -F -- "$rule" | wc -l)
 
       if [[ "$count" -gt 1 ]]; then
         echo "removing $((count - 1)) duplicate(s) of ipv6 rule: $rule"
@@ -242,19 +240,17 @@ remove_duplicate_rules() {
           chain="${cleaned%% *}"
           rule_spec="${cleaned#"$chain" }"
 
-          # split rule_spec safely
           read -ra RULE6_ARR <<<"$rule_spec"
 
-          # try exact match delete
           if ip6tables -t filter -C "$chain" "${RULE6_ARR[@]}" 2>/dev/null; then
             ip6tables -t filter -D "$chain" "${RULE6_ARR[@]}" && continue
           fi
 
-          # fallback: lookup exact text in ip6tables -S
           match=$(ip6tables -S | grep -F -- "$cleaned" | head -n1 || true)
 
           if [[ -n "$match" ]]; then
             chain=$(echo "$match" | awk '{print $2}')
+
             index=$(ip6tables -L "$chain" --line-numbers | grep -F "$interface" | awk 'NR==1{print $1}')
 
             if [[ -n "$index" ]]; then
@@ -266,7 +262,6 @@ remove_duplicate_rules() {
           else
             echo "warning: could not match ipv6 duplicate rule reliably: $rule"
           fi
-
         done
       fi
 

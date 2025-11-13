@@ -869,74 +869,94 @@ complete_networking_configuration() {
 cmd="${1:-help}"
 
 case "$cmd" in
-  # high level workflows
   full_tunnel_setup)
     full_tunnel_setup
+    status=$?
     ;;
   exit_policy_install)
     exit_policy_install
+    status=$?
     ;;
   complete_networking_configuration)
     complete_networking_configuration
+    status=$?
     ;;
 
   # tunnel manager cmds
   fetch_ipv6_address_nym_tun)
     fetch_ipv6_address "$TUNNEL_INTERFACE"
+    status=$?
     ;;
   fetch_and_display_ipv6)
     fetch_and_display_ipv6
+    status=$?
     ;;
   apply_iptables_rules)
     apply_iptables_rules "$TUNNEL_INTERFACE"
+    status=$?
     ;;
   apply_iptables_rules_wg)
     apply_iptables_rules "$WG_INTERFACE"
+    status=$?
     ;;
   check_nymtun_iptables)
     check_tunnel_iptables "$TUNNEL_INTERFACE"
+    status=$?
     ;;
   check_nym_wg_tun)
     check_tunnel_iptables "$WG_INTERFACE"
+    status=$?
     ;;
   check_ipv6_ipv4_forwarding)
     check_ipv6_ipv4_forwarding
+    status=$?
     ;;
   check_ip_routing)
     check_ip_routing
+    status=$?
     ;;
   perform_pings)
     perform_pings
+    status=$?
     ;;
   joke_through_the_mixnet)
     joke_through_tunnel "$TUNNEL_INTERFACE"
+    status=$?
     ;;
   joke_through_wg_tunnel)
     joke_through_tunnel "$WG_INTERFACE"
+    status=$?
     ;;
   configure_dns_and_icmp_wg)
     configure_dns_and_icmp_wg
+    status=$?
     ;;
   adjust_ip_forwarding)
     adjust_ip_forwarding
+    status=$?
     ;;
   remove_duplicate_rules)
     remove_duplicate_rules "${2:-}"
+    status=$?
     ;;
 
   # exit policy manager cmds
   exit_policy_status)
     show_exit_policy_status
+    status=$?
     ;;
   exit_policy_test_connectivity)
     test_exit_policy_connectivity
+    status=$?
     ;;
   exit_policy_clear)
     clear_exit_policy_rules
+    status=$?
     ;;
   exit_policy_tests)
     shift
     exit_policy_run_tests "$@"
+    status=$?
     ;;
 
   help|--help|-h)
@@ -978,12 +998,17 @@ environment overrides:
   NETWORK_DEVICE                    uplink device, auto-detected if not set
 
 EOF
+    status=0
     ;;
+
   *)
     echo "unknown command: $cmd"
     echo "run with 'help' for usage"
     exit 1
     ;;
-    echo "operation ${cmd} completed"
-    ;;
 esac
+
+# Only print when operation succeeded
+if [ "$status" -eq 0 ]; then
+    echo "operation ${cmd} completed"
+fi

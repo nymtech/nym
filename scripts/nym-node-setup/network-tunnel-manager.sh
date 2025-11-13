@@ -143,11 +143,17 @@ remove_duplicate_rules() {
   rules_v6=$(ip6tables-save | grep -E "(-A FORWARD|-A $NYM_CHAIN)" | grep "$interface" || true)
   if [[ -n "$rules_v6" ]]; then
     echo -e "${YELLOW}processing ipv6 rules${NC}"
-    echo "$rules_v6" | sort | uniq -d | while read -r dup; do
-      echo "removing duplicate ipv6 rule: $dup"
-      while ip6tables -t filter -C ${dup#-A } 2>/dev/null; do
-        ip6tables -t filter -D ${dup#-A } || break
-      done
+    # For each unique rule, count occurrences and remove all but one
+    echo "$rules_v6" | sort | uniq | while read -r rule; do
+      count=$(echo "$rules_v6" | grep -Fx "$rule" | wc -l)
+      if [[ "$count" -gt 1 ]]; then
+        echo "removing $((count - 1)) duplicate(s) of ipv6 rule: $rule"
+        for ((i=1; i<count; i++)); do
+          if ip6tables -t filter -C ${rule#-A } 2>/dev/null; then
+            ip6tables -t filter -D ${rule#-A } || break
+          fi
+        done
+      fi
     done
   else
     echo -e "${GREEN}no ipv6 rules found for $interface to deduplicate${NC}"

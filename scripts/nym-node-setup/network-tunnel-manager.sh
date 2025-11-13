@@ -630,18 +630,14 @@ ExitPolicy reject *:*
 EOF
   fi
 
-  local total_rules
-  total_rules=$(grep "^ExitPolicy reject" "$POLICY_FILE" | grep -v "\*:\*" | wc -l || true)
-  echo "processing $total_rules blocklist rules"
-
-  #
-  # SAFE non-subshell loop using a temp file
-  #
   local tmpfile
   tmpfile=$(mktemp)
 
   grep "^ExitPolicy reject" "$POLICY_FILE" | grep -v "\*:\*" > "$tmpfile"
 
+  local total_rules
+  total_rules=$(wc -l < "$tmpfile")
+  echo "processing $total_rules blocklist rules"
   local line ip_range
   while IFS= read -r line; do
     [[ -z "$line" ]] && continue

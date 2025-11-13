@@ -36,7 +36,7 @@
 //! ### State Guarantees on Error
 //!
 //! - **`psq_state`**: Remains in `NotStarted` (initiator) or `ResponderWaiting` (responder)
-//! - **Noise `HandshakeState`**: PSK slot 3 = dummy `[0u8; 32]` (never modified)
+//! - **Noise `HandshakeState`**: PSK slot 3 = dummy `[0u8; 32]` (not modified on error)
 //! - **No partial data**: All allocations are stack-local to failed function
 //! - **No cleanup needed**: No state was mutated
 

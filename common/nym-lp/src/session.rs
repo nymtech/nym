@@ -17,7 +17,7 @@ use nym_crypto::asymmetric::ed25519;
 use nym_kkt::ciphersuite::{DecapsulationKey, EncapsulationKey};
 use parking_lot::Mutex;
 use snow::Builder;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
 /// PSQ (Post-Quantum Secure PSK) handshake state.
 ///
@@ -58,6 +58,14 @@ pub enum PSQState {
 ///
 /// Sessions manage connection state, including LP replay protection and Noise cryptography.
 /// Each session has a unique receiving index and sending index for connection identification.
+///
+/// ## PSK Injection Lifecycle
+///
+/// 1. Session created with dummy PSK `[0u8; 32]` in Noise HandshakeState
+/// 2. During handshake, PSQ runs and derives real post-quantum PSK
+/// 3. Real PSK injected via `set_psk()` - `psk_injected` flag set to `true`
+/// 4. Handshake completes, transport mode available
+/// 5. Transport operations (`encrypt_data`/`decrypt_data`) check `psk_injected` flag for safety
 #[derive(Debug)]
 pub struct LpSession {
     id: u32,
@@ -76,6 +84,10 @@ pub struct LpSession {
 
     /// Validator for incoming packet counters to prevent replay attacks
     receiving_counter: Mutex<ReceivingKeyCounterValidator>,
+
+    /// Safety flag: `true` if real PSK was injected via PSQ, `false` if still using dummy PSK.
+    /// This prevents transport mode operations from running with the insecure dummy `[0u8; 32]` PSK.
+    psk_injected: AtomicBool,
 
     // PSQ-related keys stored for handshake
     /// Local Ed25519 private key for PSQ authentication
@@ -175,6 +187,7 @@ impl LpSession {
             psq_state: Mutex::new(psq_state),
             sending_counter: AtomicU64::new(0),
             receiving_counter: Mutex::new(ReceivingKeyCounterValidator::default()),
+            psk_injected: AtomicBool::new(false),
             // Ed25519 keys don't impl Clone, so convert to bytes and reconstruct
             local_ed25519_private: ed25519::PrivateKey::from_bytes(
                 &local_ed25519_keypair.0.to_bytes(),
@@ -317,6 +330,8 @@ impl LpSession {
             if let Err(e) = noise_state.set_psk(3, &psk) {
                 return Some(Err(LpError::NoiseError(e)));
             }
+            // Mark PSK as injected for safety checks in transport mode
+            self.psk_injected.store(true, Ordering::Release);
 
             // Get the Noise handshake message
             let noise_msg = match noise_state.get_bytes_to_send() {
@@ -451,6 +466,8 @@ impl LpSession {
 
                     // Inject PSK into Noise HandshakeState
                     noise_state.set_psk(3, &psk)?;
+                    // Mark PSK as injected for safety checks in transport mode
+                    self.psk_injected.store(true, Ordering::Release);
 
                     // Update PSQ state to Completed
                     *psq_state = PSQState::Completed { psk };
@@ -493,6 +510,10 @@ impl LpSession {
     /// * `Err(NoiseError)` if the session is not in transport mode or encryption fails.
     pub fn encrypt_data(&self, payload: &[u8]) -> Result<LpMessage, NoiseError> {
         let mut noise_state = self.noise_state.lock();
+        // Safety: Prevent transport mode with dummy PSK
+        if !self.psk_injected.load(Ordering::Acquire) {
+            return Err(NoiseError::PskNotInjected);
+        }
         // Explicitly check if handshake is finished before trying to write
         if !noise_state.is_handshake_finished() {
             return Err(NoiseError::IncorrectStateError);
@@ -516,6 +537,10 @@ impl LpSession {
     /// * `Err(NoiseError)` if the session is not in transport mode, decryption fails, or the message is not data.
     pub fn decrypt_data(&self, noise_ciphertext: &LpMessage) -> Result<Vec<u8>, NoiseError> {
         let mut noise_state = self.noise_state.lock();
+        // Safety: Prevent transport mode with dummy PSK
+        if !self.psk_injected.load(Ordering::Acquire) {
+            return Err(NoiseError::PskNotInjected);
+        }
         // Explicitly check if handshake is finished before trying to read
         if !noise_state.is_handshake_finished() {
             return Err(NoiseError::IncorrectStateError);
@@ -899,8 +924,8 @@ mod tests {
         let result = initiator_session.encrypt_data(plaintext);
         assert!(result.is_err());
         match result.unwrap_err() {
-            NoiseError::IncorrectStateError => {} // Expected error
-            e => panic!("Expected IncorrectStateError, got {:?}", e),
+            NoiseError::PskNotInjected => {} // Expected - PSK check comes before handshake check
+            e => panic!("Expected PskNotInjected, got {:?}", e),
         }
 
         // Attempt to decrypt before handshake (using dummy ciphertext)
@@ -909,8 +934,8 @@ mod tests {
             initiator_session.decrypt_data(&LpMessage::EncryptedData(EncryptedDataPayload(dummy_ciphertext)));
         assert!(result_decrypt.is_err());
         match result_decrypt.unwrap_err() {
-            NoiseError::IncorrectStateError => {} // Expected error
-            e => panic!("Expected IncorrectStateError, got {:?}", e),
+            NoiseError::PskNotInjected => {} // Expected - PSK check comes before handshake check
+            e => panic!("Expected PskNotInjected, got {:?}", e),
         }
     }
 
@@ -1435,5 +1460,47 @@ mod tests {
             result2.is_ok(),
             "Session should still be functional after PSQ error"
         );
+    }
+
+    #[test]
+    fn test_transport_fails_without_psk_injection() {
+        // This test verifies the safety mechanism that prevents transport mode operations
+        // from running with the dummy PSK if PSQ injection fails or is skipped.
+
+        let initiator_keys = generate_keypair();
+        let responder_keys = generate_keypair();
+
+        // Create session but don't complete handshake (no PSK injection will occur)
+        let session =
+            create_handshake_test_session(true, &initiator_keys, responder_keys.public_key());
+
+        // Verify session was created successfully
+        assert!(!session.is_handshake_complete());
+
+        // Attempt to encrypt data - should fail with PskNotInjected
+        let plaintext = b"test data";
+        let encrypt_result = session.encrypt_data(plaintext);
+
+        assert!(encrypt_result.is_err(), "encrypt_data should fail without PSK injection");
+        match encrypt_result.unwrap_err() {
+            NoiseError::PskNotInjected => {
+                // Expected - this is the safety mechanism working
+            }
+            e => panic!("Expected PskNotInjected error, got: {:?}", e),
+        }
+
+        // Create a dummy encrypted message to test decrypt
+        let dummy_ciphertext = LpMessage::EncryptedData(EncryptedDataPayload(vec![0u8; 48]));
+
+        // Attempt to decrypt data - should also fail with PskNotInjected
+        let decrypt_result = session.decrypt_data(&dummy_ciphertext);
+
+        assert!(decrypt_result.is_err(), "decrypt_data should fail without PSK injection");
+        match decrypt_result.unwrap_err() {
+            NoiseError::PskNotInjected => {
+                // Expected - this is the safety mechanism working
+            }
+            e => panic!("Expected PskNotInjected error, got: {:?}", e),
+        }
     }
 }

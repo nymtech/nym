@@ -20,6 +20,9 @@ pub enum NoiseError {
     #[error("operation is invalid in the current protocol state")]
     IncorrectStateError,
 
+    #[error("attempted transport mode operation without real PSK injection")]
+    PskNotInjected,
+
     #[error("Other Noise-related error: {0}")]
     Other(String),
 }

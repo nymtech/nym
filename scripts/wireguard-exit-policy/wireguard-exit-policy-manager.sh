@@ -290,7 +290,12 @@ apply_port_allowlist() {
     ip6tables -I "$NYM_CHAIN" 1 -p udp --dport 53 -j ACCEPT
     ip6tables -I "$NYM_CHAIN" 2 -p tcp --dport 53 -j ACCEPT
     
-    echo -e "${GREEN}✓ DNS rules inserted at beginning of $NYM_CHAIN${NC}"
+    # ICMP is needed because the probe tests DNS by pinging hostnames
+    iptables -I "$NYM_CHAIN" 3 -p icmp --icmp-type echo-request -j ACCEPT
+    iptables -I "$NYM_CHAIN" 4 -p icmp --icmp-type echo-reply -j ACCEPT
+    ip6tables -I "$NYM_CHAIN" 3 -p ipv6-icmp -j ACCEPT
+    
+    echo -e "${GREEN}✓ DNS and ICMP rules inserted at beginning of $NYM_CHAIN${NC}"
 
     # Dictionary of services and their ports
     declare -A PORT_MAPPINGS=(
@@ -368,17 +373,18 @@ apply_port_allowlist() {
         ["Lightning"]="9735"
         ["NDMP"]="10000"
         ["OpenPGP"]="11371"
-	["Monero"]="18080-18081"
-	["MoneroRPC"]="18089"
+	    ["Monero"]="18080-18081"
+	    ["MoneroRPC"]="18089"
         ["GoogleVoice"]="19294"
         ["EnsimControlPanel"]="19638"
-	["DarkFiTor"]="25551"
+	    ["DarkFiTor"]="25551"
         ["Minecraft"]="25565"
-	["DarkFi"]="26661"
+	    ["DarkFi"]="26661"
         ["Steam"]="27000-27050"
         ["ElectrumSSL"]="50002"
         ["MOSH"]="60000-61000"
         ["Mumble"]="64738"
+        ["Metadata"]="51830"
     )
 
     # Add TCP and UDP rules for each allowed port

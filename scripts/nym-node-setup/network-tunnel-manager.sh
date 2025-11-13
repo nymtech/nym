@@ -653,7 +653,7 @@ EOF
 
       # ipv4 reject
       if ! iptables -C "$NYM_CHAIN" -d "$ip_range" -j REJECT 2>/dev/null; then
-        iptables -A "$NYM_CHAIN" -d "$ip_range" -j REJECT \
+        iptables -A "$NYM_CHAIN" -d "$ip_range" -j REJECT --reject-with icmp-port-unreachable \
           || echo "warning: failed adding ipv4 reject for $ip_range"
       fi
 

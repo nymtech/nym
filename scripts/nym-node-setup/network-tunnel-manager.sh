@@ -783,9 +783,9 @@ test_port_range_rules() {
   )
 
   local failures=0
+  local start end
   for entry in "${port_ranges[@]}"; do
     IFS=':' read -r range proto name <<<"$entry"
-    local start end
     start=$(echo "$range" | cut -d'-' -f1)
     end=$(echo "$range" | cut -d'-' -f2)
 

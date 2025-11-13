@@ -142,6 +142,7 @@ remove_duplicate_rules() {
 
   echo "detecting and removing duplicate rules for $interface in FORWARD and ${NYM_CHAIN}"
 
+
   # ipv4
   local rules_v4
   rules_v4=$(iptables-save | grep -E "(-A FORWARD|-A $NYM_CHAIN)" | grep "$interface" || true)
@@ -282,7 +283,7 @@ joke_through_tunnel() {
 
     if ping -c 1 -I "$ipv4_address" google.com >/dev/null 2>&1; then
       echo -e "${green}ipv4 connectivity is working. fetching a joke${reset}"
-      joke=$(curl -s -H "Accept: application/json" --interface "$ipv4_address" https://icanhazdadjoke.com/ | jq -r .joke || true)
+      joke=$(curl -s -H "Accept: application/json" --interface "$ipv4_address" https://icanhazdadjoke.com/ | jq -r .joke)
       [[ -n "$joke" && "$joke" != "null" ]] && echo -e "${green}ipv4 joke: $joke${reset}" || echo "failed to fetch a joke via ipv4"
     else
       echo -e "${red}ipv4 connectivity is not working for $interface. verify your routing and nat settings${reset}"
@@ -300,7 +301,7 @@ joke_through_tunnel() {
 
     if ping6 -c 1 -I "$ipv6_address" google.com >/dev/null 2>&1; then
       echo -e "${green}ipv6 connectivity is working. fetching a joke${reset}"
-      joke=$(curl -s -H "Accept: application/json" --interface "$ipv6_address" https://icanhazdadjoke.com/ | jq -r .joke || true)
+      joke=$(curl -s -H "Accept: application/json" --interface "$ipv6_address" https://icanhazdadjoke.com/ | jq -r .joke)
       [[ -n "$joke" && "$joke" != "null" ]] && echo -e "${green}ipv6 joke: $joke${reset}" || echo -e "${red}failed to fetch a joke via ipv6${reset}"
     else
       echo -e "${red}ipv6 connectivity is not working for $interface. verify your routing and nat settings${reset}"

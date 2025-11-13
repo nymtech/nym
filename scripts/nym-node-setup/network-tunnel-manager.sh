@@ -518,7 +518,7 @@ apply_port_allowlist() {
     ["NDMP"]="10000"
     ["OpenPGP"]="11371"
     ["Monero"]="18080-18081"
-	["MoneroRPC"]="18089"
+    ["MoneroRPC"]="18089"
     ["GoogleVoice"]="19294"
     ["EnsimControlPanel"]="19638"
     ["DarkFiTor"]="25551"

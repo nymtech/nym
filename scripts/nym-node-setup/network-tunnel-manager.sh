@@ -1107,3 +1107,4 @@ esac
 if [ "${status:-1}" -eq 0 ]; then
     echo "operation ${cmd} completed"
 fi
+exit $status

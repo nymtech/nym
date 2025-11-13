@@ -531,7 +531,7 @@ EOF
   fi
 
   local total_rules
-  total_rules=$(grep -c "^ExitPolicy reject" "$POLICY_FILE" | grep -v "\*:\*" || true)
+  total_rules=$(grep "^ExitPolicy reject" "$POLICY_FILE" | grep -v "\*:\*" | wc -l || true)
   echo "processing $total_rules blocklist rules"
 
   grep "^ExitPolicy reject" "$POLICY_FILE" | grep -v "\*:\*" | while read -r line; do

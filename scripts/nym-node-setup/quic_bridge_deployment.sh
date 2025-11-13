@@ -433,7 +433,6 @@ apply_bridge_iptables_rules() {
 
   iptables-save > /etc/iptables/rules.v4
   ip6tables-save > /etc/iptables/rules.v6
-  
   ok "iptables rules applied."
 }
 

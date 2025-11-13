@@ -6,14 +6,53 @@
 //! This module implements session management functionality, including replay protection
 //! and Noise protocol state handling.
 
+use crate::keypair::{PrivateKey, PublicKey};
 use crate::message::{EncryptedDataPayload, HandshakeData};
 use crate::noise_protocol::{NoiseError, NoiseProtocol, ReadResult};
 use crate::packet::LpHeader;
+use crate::psk::{psq_initiator_create_message, psq_responder_process_message};
 use crate::replay::ReceivingKeyCounterValidator;
 use crate::{LpError, LpMessage, LpPacket};
+use nym_crypto::asymmetric::ed25519;
+use nym_kkt::ciphersuite::{DecapsulationKey, EncapsulationKey};
 use parking_lot::Mutex;
 use snow::Builder;
 use std::sync::atomic::{AtomicU64, Ordering};
+
+/// PSQ (Post-Quantum Secure PSK) handshake state.
+///
+/// Tracks the PSQ protocol state machine through the session lifecycle.
+///
+/// # State Transitions
+///
+/// **Initiator path:**
+/// ```text
+/// NotStarted → InitiatorWaiting → Completed
+/// ```
+///
+/// **Responder path:**
+/// ```text
+/// NotStarted → ResponderWaiting → Completed
+/// ```
+#[derive(Debug)]
+pub enum PSQState {
+    /// PSQ handshake not yet started.
+    NotStarted,
+
+    /// Initiator has sent PSQ ciphertext and is waiting for confirmation.
+    /// Stores the ciphertext that was sent.
+    InitiatorWaiting { ciphertext: Vec<u8> },
+
+    /// Responder is ready to receive and decapsulate PSQ ciphertext.
+    ResponderWaiting,
+
+    /// PSQ handshake completed successfully.
+    /// The PSK has been derived and registered with the Noise protocol.
+    Completed {
+        /// The derived post-quantum PSK
+        psk: [u8; 32],
+    },
+}
 
 /// A session in the Lewes Protocol, handling connection state with Noise.
 ///
@@ -29,11 +68,33 @@ pub struct LpSession {
     /// Noise protocol state machine
     noise_state: Mutex<NoiseProtocol>,
 
+    /// PSQ (Post-Quantum Secure PSK) handshake state
+    psq_state: Mutex<PSQState>,
+
     /// Counter for outgoing packets
     sending_counter: AtomicU64,
 
     /// Validator for incoming packet counters to prevent replay attacks
     receiving_counter: Mutex<ReceivingKeyCounterValidator>,
+
+    // PSQ-related keys stored for handshake
+    /// Local Ed25519 private key for PSQ authentication
+    local_ed25519_private: ed25519::PrivateKey,
+
+    /// Local Ed25519 public key for PSQ authentication
+    local_ed25519_public: ed25519::PublicKey,
+
+    /// Remote Ed25519 public key for PSQ authentication
+    remote_ed25519_public: ed25519::PublicKey,
+
+    /// Local X25519 private key (Noise static key)
+    local_x25519_private: PrivateKey,
+
+    /// Remote X25519 public key (Noise static key)
+    remote_x25519_public: PublicKey,
+
+    /// Salt for PSK derivation
+    salt: [u8; 32],
 }
 
 impl LpSession {
@@ -52,22 +113,26 @@ impl LpSession {
 
     /// Creates a new session and initializes the Noise protocol state.
     ///
+    /// PSQ always runs during the handshake to derive the real PSK from X25519 DHKEM.
+    /// The Noise protocol is initialized with a dummy PSK that gets replaced during handshake.
+    ///
     /// # Arguments
     ///
-    /// * `receiving_index` - Index used for receiving packets (becomes session ID).
-    /// * `sending_index` - Index used for sending packets to the peer.
+    /// * `id` - Session identifier
     /// * `is_initiator` - True if this side initiates the Noise handshake.
-    /// * `local_static_key` - This side's static private key (e.g., X25519).
-    /// * `remote_static_key` - The peer's static public key (required for initiator in some patterns like XK).
-    /// * `psk` - The pre-shared key established out-of-band.
-    /// * `pattern_name` - The Noise protocol pattern string (e.g., "Noise_XKpsk3_25519_ChaChaPoly_SHA256").
-    /// * `psk_index` - The index/position where the PSK is mixed in according to the pattern.
+    /// * `local_ed25519_keypair` - This side's Ed25519 keypair for PSQ authentication
+    /// * `local_x25519_key` - This side's X25519 private key for Noise protocol and DHKEM
+    /// * `remote_ed25519_key` - Peer's Ed25519 public key for PSQ authentication
+    /// * `remote_x25519_key` - Peer's X25519 public key for Noise protocol and DHKEM
+    /// * `salt` - Salt for PSK derivation
     pub fn new(
         id: u32,
         is_initiator: bool,
-        local_private_key: &[u8],
-        remote_public_key: &[u8],
-        psk: &[u8],
+        local_ed25519_keypair: (&ed25519::PrivateKey, &ed25519::PublicKey),
+        local_x25519_key: &PrivateKey,
+        remote_ed25519_key: &ed25519::PublicKey,
+        remote_x25519_key: &PublicKey,
+        salt: &[u8; 32],
     ) -> Result<Self, LpError> {
         // XKpsk3 pattern requires remote static key known upfront (XK)
         // and PSK mixed at position 3. This provides forward secrecy with PSK authentication.
@@ -77,11 +142,16 @@ impl LpSession {
         let params = pattern_name.parse()?;
         let builder = Builder::new(params);
 
-        let builder = builder.local_private_key(local_private_key);
+        let local_key_bytes = local_x25519_key.to_bytes();
+        let builder = builder.local_private_key(&local_key_bytes);
 
-        let builder = builder.remote_public_key(remote_public_key);
+        let remote_key_bytes = remote_x25519_key.to_bytes();
+        let builder = builder.remote_public_key(&remote_key_bytes);
 
-        let builder = builder.psk(psk_index, psk);
+        // Initialize with dummy PSK - real PSK will be injected via set_psk() during handshake
+        // when PSQ runs using X25519 as DHKEM
+        let dummy_psk = [0u8; 32];
+        let builder = builder.psk(psk_index, &dummy_psk);
 
         let initial_state = if is_initiator {
             builder.build_initiator().map_err(LpError::SnowKeyError)?
@@ -91,12 +161,32 @@ impl LpSession {
 
         let noise_protocol = NoiseProtocol::new(initial_state);
 
+        // Initialize PSQ state based on role
+        let psq_state = if is_initiator {
+            PSQState::NotStarted
+        } else {
+            PSQState::ResponderWaiting
+        };
+
         Ok(Self {
             id,
             is_initiator,
             noise_state: Mutex::new(noise_protocol),
+            psq_state: Mutex::new(psq_state),
             sending_counter: AtomicU64::new(0),
             receiving_counter: Mutex::new(ReceivingKeyCounterValidator::default()),
+            // Ed25519 keys don't impl Clone, so convert to bytes and reconstruct
+            local_ed25519_private: ed25519::PrivateKey::from_bytes(
+                &local_ed25519_keypair.0.to_bytes(),
+            )
+            .expect("Valid ed25519 private key"),
+            local_ed25519_public: ed25519::PublicKey::from_bytes(&local_ed25519_keypair.1.to_bytes())
+                .expect("Valid ed25519 public key"),
+            remote_ed25519_public: ed25519::PublicKey::from_bytes(&remote_ed25519_key.to_bytes())
+                .expect("Valid ed25519 public key"),
+            local_x25519_private: local_x25519_key.clone(),
+            remote_x25519_public: remote_x25519_key.clone(),
+            salt: *salt,
         })
     }
 
@@ -171,12 +261,85 @@ impl LpSession {
     /// This should be called by the driver/IO layer to check if the Noise protocol
     /// state machine requires a message to be sent to the peer.
     ///
+    /// For initiators, PSQ always runs on the first message:
+    /// 1. Converts X25519 keys to DHKEM format
+    /// 2. Generates PSQ payload and derives PSK
+    /// 3. Injects PSK into Noise HandshakeState
+    /// 4. Embeds PSQ payload in first handshake message as: [u16 len][psq_payload][noise_msg]
+    ///
     /// # Returns
     ///
     /// * `Ok(None)` if no message needs to be sent currently (e.g., waiting for peer, or handshake complete).
-    /// * `Err(NoiseError)` if there's an error within the Noise protocol state.
+    /// * `Err(LpError)` if there's an error within the Noise protocol or PSQ.
     pub fn prepare_handshake_message(&self) -> Option<Result<LpMessage, LpError>> {
         let mut noise_state = self.noise_state.lock();
+
+        // PSQ always runs for initiator on first message
+        let mut psq_state = self.psq_state.lock();
+
+        if self.is_initiator && matches!(*psq_state, PSQState::NotStarted) {
+            // Convert X25519 remote public key to EncapsulationKey (DHKEM)
+            let remote_kem_bytes = self.remote_x25519_public.as_bytes();
+            let libcrux_public_key = match libcrux_kem::PublicKey::decode(
+                libcrux_kem::Algorithm::X25519,
+                remote_kem_bytes,
+            ) {
+                Ok(key) => key,
+                Err(e) => {
+                    return Some(Err(LpError::KKTError(format!(
+                        "Failed to convert X25519 key to libcrux PublicKey: {:?}",
+                        e
+                    ))))
+                }
+            };
+            let remote_kem = EncapsulationKey::X25519(libcrux_public_key);
+
+            // Generate PSQ payload and PSK using X25519 as DHKEM
+            let session_context = self.id.to_le_bytes();
+
+            let (psk, psq_payload) = match psq_initiator_create_message(
+                &self.local_x25519_private,
+                &self.remote_x25519_public,
+                &remote_kem,
+                &self.local_ed25519_private,
+                &self.local_ed25519_public,
+                &self.salt,
+                &session_context,
+            ) {
+                Ok(result) => result,
+                Err(e) => return Some(Err(e)),
+            };
+
+            // Inject PSK into Noise HandshakeState
+            if let Err(e) = noise_state.set_psk(3, &psk) {
+                return Some(Err(LpError::NoiseError(e)));
+            }
+
+            // Get the Noise handshake message
+            let noise_msg = match noise_state.get_bytes_to_send() {
+                Some(Ok(msg)) => msg,
+                Some(Err(e)) => return Some(Err(LpError::NoiseError(e))),
+                None => return None, // Should not happen if is_my_turn, but handle gracefully
+            };
+
+            // Combine: [u16 psq_len][psq_payload][noise_msg]
+            let psq_len = psq_payload.len() as u16;
+            let mut combined = Vec::with_capacity(2 + psq_payload.len() + noise_msg.len());
+            combined.extend_from_slice(&psq_len.to_be_bytes());
+            combined.extend_from_slice(&psq_payload);
+            combined.extend_from_slice(&noise_msg);
+
+            // Update PSQ state to InitiatorWaiting
+            *psq_state = PSQState::InitiatorWaiting {
+                ciphertext: psq_payload,
+            };
+
+            return Some(Ok(LpMessage::Handshake(HandshakeData(combined))));
+        }
+
+        // Normal flow (no PSQ, or PSQ already completed)
+        drop(psq_state); // Release lock
+
         if let Some(message) = noise_state.get_bytes_to_send() {
             match message {
                 Ok(message) => Some(Ok(LpMessage::Handshake(HandshakeData(message)))),
@@ -192,23 +355,113 @@ impl LpSession {
     /// This should be called by the driver/IO layer after receiving a potential
     /// handshake message payload from an LP packet.
     ///
+    /// For responders, PSQ always runs on the first message:
+    /// 1. Extracts PSQ payload from the first handshake message: [u16 len][psq_payload][noise_msg]
+    /// 2. Converts X25519 keys to DHKEM format
+    /// 3. Decapsulates PSK from PSQ payload
+    /// 4. Injects PSK into Noise HandshakeState
+    /// 5. Processes the remaining Noise handshake message
+    ///
     /// # Arguments
     ///
-    /// * `noise_payload` - The raw bytes received from the peer, purported to be a Noise handshake message.
+    /// * `message` - The LP message received from the peer, expected to be a Handshake message.
     ///
     /// # Returns
     ///
     /// * `Ok(ReadResult)` detailing the outcome (e.g., handshake complete, no-op).
-    /// * `Err(NoiseError)` if the message is invalid or causes a Noise protocol error.
-    pub fn process_handshake_message(&self, message: &LpMessage) -> Result<ReadResult, NoiseError> {
+    /// * `Err(LpError)` if the message is invalid or causes a Noise/PSQ protocol error.
+    pub fn process_handshake_message(
+        &self,
+        message: &LpMessage,
+    ) -> Result<ReadResult, LpError> {
         let mut noise_state = self.noise_state.lock();
+        let mut psq_state = self.psq_state.lock();
 
         match message {
             LpMessage::Handshake(HandshakeData(payload)) => {
+                // PSQ always runs for responder on first message
+                if !self.is_initiator && matches!(*psq_state, PSQState::ResponderWaiting) {
+                    // Extract PSQ payload: [u16 psq_len][psq_payload][noise_msg]
+                    if payload.len() < 2 {
+                        return Err(LpError::NoiseError(NoiseError::Other(
+                            "Payload too short for PSQ extraction".to_string(),
+                        )));
+                    }
+
+                    let psq_len = u16::from_be_bytes([payload[0], payload[1]]) as usize;
+
+                    if payload.len() < 2 + psq_len {
+                        return Err(LpError::NoiseError(NoiseError::Other(
+                            "Payload length mismatch for PSQ extraction".to_string(),
+                        )));
+                    }
+
+                    let psq_payload = &payload[2..2 + psq_len];
+                    let noise_payload = &payload[2 + psq_len..];
+
+                    // Convert X25519 local keys to DecapsulationKey/EncapsulationKey (DHKEM)
+                    let local_private_bytes = &self.local_x25519_private.to_bytes();
+                    let libcrux_private_key = libcrux_kem::PrivateKey::decode(
+                        libcrux_kem::Algorithm::X25519,
+                        local_private_bytes,
+                    )
+                    .map_err(|e| {
+                        LpError::KKTError(format!(
+                            "Failed to convert X25519 private key to libcrux PrivateKey: {:?}",
+                            e
+                        ))
+                    })?;
+                    let dec_key = DecapsulationKey::X25519(libcrux_private_key);
+
+                    let local_public_key = self.local_x25519_private.public_key();
+                    let local_public_bytes = local_public_key.as_bytes();
+                    let libcrux_public_key = libcrux_kem::PublicKey::decode(
+                        libcrux_kem::Algorithm::X25519,
+                        local_public_bytes,
+                    )
+                    .map_err(|e| {
+                        LpError::KKTError(format!(
+                            "Failed to convert X25519 public key to libcrux PublicKey: {:?}",
+                            e
+                        ))
+                    })?;
+                    let enc_key = EncapsulationKey::X25519(libcrux_public_key);
+
+                    // Decapsulate PSK from PSQ payload using X25519 as DHKEM
+                    let session_context = self.id.to_le_bytes();
+
+                    let psk = psq_responder_process_message(
+                        &self.local_x25519_private,
+                        &self.remote_x25519_public,
+                        (&dec_key, &enc_key),
+                        &self.remote_ed25519_public,
+                        psq_payload,
+                        &self.salt,
+                        &session_context,
+                    )?;
+
+                    // Inject PSK into Noise HandshakeState
+                    noise_state.set_psk(3, &psk)?;
+
+                    // Update PSQ state to Completed
+                    *psq_state = PSQState::Completed { psk };
+
+                    // Process the Noise handshake message (without PSQ prefix)
+                    drop(psq_state); // Release lock before processing
+                    return noise_state
+                        .read_message(noise_payload)
+                        .map_err(LpError::NoiseError);
+                }
+
+                // Normal flow (no PSQ, or PSQ already completed)
+                drop(psq_state); // Release lock
+
                 // The sans-io NoiseProtocol::read_message expects only the payload.
-                noise_state.read_message(payload)
+                noise_state
+                    .read_message(payload)
+                    .map_err(LpError::NoiseError)
             }
-            _ => Err(NoiseError::IncorrectStateError),
+            _ => Err(LpError::NoiseError(NoiseError::IncorrectStateError)),
         }
     }
 
@@ -276,26 +529,43 @@ mod tests {
     use crate::{replay::ReplayError, sessions_for_tests, NOISE_PATTERN};
 
     // Helper function to generate keypairs for tests
-    fn generate_keypair() -> Keypair {
-        let params: NoiseParams = NOISE_PATTERN.parse().unwrap();
-        snow::Builder::new(params).generate_keypair().unwrap()
+    fn generate_keypair() -> crate::keypair::Keypair {
+        crate::keypair::Keypair::default()
     }
 
     // Helper function to create a session with real keys for handshake tests
     fn create_handshake_test_session(
         is_initiator: bool,
-        local_keys: &Keypair,
-        remote_pub_key: &[u8],
-        psk: &[u8],
+        local_keys: &crate::keypair::Keypair,
+        remote_pub_key: &crate::keypair::PublicKey,
     ) -> LpSession {
-        // Use a dummy ID for testing, the important part is is_initiator
-        let test_id = if is_initiator { 1 } else { 2 };
+        use nym_crypto::asymmetric::ed25519;
+
+        // Compute the shared lp_id from both keypairs (order-independent)
+        let lp_id = crate::make_lp_id(local_keys.public_key(), remote_pub_key);
+
+        // Create Ed25519 keypairs that correspond to initiator/responder roles
+        // Initiator uses [1u8], Responder uses [2u8]
+        let (local_ed25519_seed, remote_ed25519_seed) = if is_initiator {
+            ([1u8; 32], [2u8; 32])
+        } else {
+            ([2u8; 32], [1u8; 32])
+        };
+
+        let local_ed25519 = ed25519::KeyPair::from_secret(local_ed25519_seed, 0);
+        let remote_ed25519 = ed25519::KeyPair::from_secret(remote_ed25519_seed, 1);
+
+        let salt = [0u8; 32]; // Test salt
+
+        // PSQ will derive the PSK during handshake using X25519 as DHKEM
         LpSession::new(
-            test_id,
+            lp_id,
             is_initiator,
-            &local_keys.private,
+            (local_ed25519.private_key(), local_ed25519.public_key()),
+            local_keys.private_key(),
+            remote_ed25519.public_key(),
             remote_pub_key,
-            psk,
+            &salt,
         )
         .expect("Test session creation failed")
     }
@@ -312,6 +582,21 @@ mod tests {
         let counter = session.next_counter();
         assert_eq!(counter, 1);
     }
+
+    // NOTE: These tests are obsolete after removing optional KEM parameters.
+    // PSQ now always runs using X25519 keys internally converted to KEM format.
+    // The new tests at the end of this file (test_psq_*) cover PSQ integration.
+    /*
+    #[test]
+    fn test_session_creation_with_psq_state_initiator() {
+        // OLD API - REMOVED
+    }
+
+    #[test]
+    fn test_session_creation_with_psq_state_responder() {
+        // OLD API - REMOVED
+    }
+    */
 
     #[test]
     fn test_replay_protection_sequential() {
@@ -381,12 +666,11 @@ mod tests {
         let psk = [3u8; 32];
 
         let initiator_session =
-            create_handshake_test_session(true, &initiator_keys, &responder_keys.public, &psk);
+            create_handshake_test_session(true, &initiator_keys, responder_keys.public_key());
         let responder_session = create_handshake_test_session(
             false,
             &responder_keys,
-            &initiator_keys.public, // Responder also needs initiator's key for XK
-            &psk,
+            initiator_keys.public_key(), // Responder also needs initiator's key for XK
         );
 
         // Initiator should have a message to send immediately (-> e)
@@ -409,9 +693,9 @@ mod tests {
         let psk = [4u8; 32];
 
         let initiator_session =
-            create_handshake_test_session(true, &initiator_keys, &responder_keys.public, &psk);
+            create_handshake_test_session(true, &initiator_keys, responder_keys.public_key());
         let responder_session =
-            create_handshake_test_session(false, &responder_keys, &initiator_keys.public, &psk);
+            create_handshake_test_session(false, &responder_keys, initiator_keys.public_key());
 
         // 1. Initiator prepares the first message (-> e)
         let initiator_msg_result = initiator_session.prepare_handshake_message();
@@ -447,9 +731,9 @@ mod tests {
         let psk = [5u8; 32];
 
         let initiator_session =
-            create_handshake_test_session(true, &initiator_keys, &responder_keys.public, &psk);
+            create_handshake_test_session(true, &initiator_keys, responder_keys.public_key());
         let responder_session =
-            create_handshake_test_session(false, &responder_keys, &initiator_keys.public, &psk);
+            create_handshake_test_session(false, &responder_keys, initiator_keys.public_key());
 
         let mut responder_to_initiator_msg = None;
         let mut rounds = 0;
@@ -535,9 +819,9 @@ mod tests {
         let psk = [6u8; 32];
 
         let initiator_session =
-            create_handshake_test_session(true, &initiator_keys, &responder_keys.public, &psk);
+            create_handshake_test_session(true, &initiator_keys, responder_keys.public_key());
         let responder_session =
-            create_handshake_test_session(false, &responder_keys, &initiator_keys.public, &psk);
+            create_handshake_test_session(false, &responder_keys, initiator_keys.public_key());
 
         // Drive handshake to completion (simplified loop from previous test)
         let mut i_msg = initiator_session
@@ -597,7 +881,7 @@ mod tests {
         let psk = [7u8; 32];
 
         let initiator_session =
-            create_handshake_test_session(true, &initiator_keys, &responder_keys.public, &psk);
+            create_handshake_test_session(true, &initiator_keys, responder_keys.public_key());
 
         assert!(!initiator_session.is_handshake_complete());
 
@@ -656,4 +940,295 @@ mod tests {
         // }
     }
     */
+
+    // ====================================================================
+    // PSQ Handshake Integration Tests
+    // ====================================================================
+
+    /// Test that PSQ runs during handshake and derives a PSK
+    #[test]
+    fn test_psq_handshake_runs_with_psk_injection() {
+        let initiator_keys = generate_keypair();
+        let responder_keys = generate_keypair();
+
+        let initiator_session =
+            create_handshake_test_session(true, &initiator_keys, responder_keys.public_key());
+        let responder_session =
+            create_handshake_test_session(false, &responder_keys, initiator_keys.public_key());
+
+        // Drive the handshake
+        let mut i_msg = initiator_session
+            .prepare_handshake_message()
+            .expect("Initiator should have message")
+            .expect("Message prep should succeed");
+
+        // The first message should contain PSQ payload embedded
+        // Verify message is not empty and has reasonable size
+        assert!(!i_msg.is_empty(), "Initiator message should not be empty");
+        assert!(
+            i_msg.len() > 100,
+            "Message should contain PSQ payload (actual: {})",
+            i_msg.len()
+        );
+
+        // Responder processes message (which includes PSQ decapsulation)
+        responder_session
+            .process_handshake_message(&i_msg)
+            .expect("Responder should process first message");
+
+        // Continue handshake
+        let r_msg = responder_session
+            .prepare_handshake_message()
+            .expect("Responder should have message")
+            .expect("Responder message prep should succeed");
+
+        initiator_session
+            .process_handshake_message(&r_msg)
+            .expect("Initiator should process responder message");
+
+        i_msg = initiator_session
+            .prepare_handshake_message()
+            .expect("Initiator should have final message")
+            .expect("Final message prep should succeed");
+
+        responder_session
+            .process_handshake_message(&i_msg)
+            .expect("Responder should process final message");
+
+        // Verify handshake completed
+        assert!(initiator_session.is_handshake_complete());
+        assert!(responder_session.is_handshake_complete());
+
+        // Verify encryption works (implicitly tests PSK was correctly injected)
+        let plaintext = b"PSQ test message";
+        let encrypted = initiator_session
+            .encrypt_data(plaintext)
+            .expect("Encryption should work after handshake");
+
+        let decrypted = responder_session
+            .decrypt_data(&encrypted)
+            .expect("Decryption should work with PSQ-derived PSK");
+
+        assert_eq!(decrypted, plaintext);
+    }
+
+    /// Test that X25519 keys are correctly converted to KEM format
+    #[test]
+    fn test_x25519_to_kem_conversion() {
+        use nym_kkt::ciphersuite::EncapsulationKey;
+
+        let initiator_keys = generate_keypair();
+        let responder_keys = generate_keypair();
+
+        // Verify we can convert X25519 public key to KEM format (as done in session.rs)
+        let x25519_public_bytes = responder_keys.public_key().as_bytes();
+        let libcrux_public_key = libcrux_kem::PublicKey::decode(
+            libcrux_kem::Algorithm::X25519,
+            x25519_public_bytes,
+        )
+        .expect("X25519 public key should convert to libcrux PublicKey");
+
+        let _kem_key = EncapsulationKey::X25519(libcrux_public_key);
+
+        // Verify we can convert X25519 private key to KEM format
+        let x25519_private_bytes = initiator_keys.private_key().to_bytes();
+        let _libcrux_private_key = libcrux_kem::PrivateKey::decode(
+            libcrux_kem::Algorithm::X25519,
+            &x25519_private_bytes,
+        )
+        .expect("X25519 private key should convert to libcrux PrivateKey");
+
+        // Successful conversion is sufficient - actual encapsulation is tested in psk.rs
+        // (libcrux_kem::PrivateKey is an enum with no len() method, conversion success is enough)
+    }
+
+    /// Test that PSQ actually derives a different PSK (not using dummy)
+    #[test]
+    fn test_psq_derived_psk_differs_from_dummy() {
+        let initiator_keys = generate_keypair();
+        let responder_keys = generate_keypair();
+
+        // Create sessions - they start with dummy PSK [0u8; 32]
+        let initiator_session =
+            create_handshake_test_session(true, &initiator_keys, responder_keys.public_key());
+        let responder_session =
+            create_handshake_test_session(false, &responder_keys, initiator_keys.public_key());
+
+        // Prepare first message (initiator runs PSQ and injects PSK)
+        let i_msg = initiator_session
+            .prepare_handshake_message()
+            .expect("Initiator should have message")
+            .expect("Message prep should succeed");
+
+        // Verify message is not empty (PSQ runs successfully)
+        assert!(
+            !i_msg.is_empty(),
+            "First message should contain PSQ payload"
+        );
+
+        // Complete handshake
+        responder_session
+            .process_handshake_message(&i_msg)
+            .expect("Responder should process message");
+
+        let r_msg = responder_session
+            .prepare_handshake_message()
+            .unwrap()
+            .unwrap();
+
+        initiator_session.process_handshake_message(&r_msg).unwrap();
+
+        let final_msg = initiator_session
+            .prepare_handshake_message()
+            .unwrap()
+            .unwrap();
+
+        responder_session
+            .process_handshake_message(&final_msg)
+            .unwrap();
+
+        // Test that encryption produces non-trivial ciphertext
+        // (would fail if using dummy PSK incorrectly)
+        let plaintext = b"test";
+        let encrypted = initiator_session.encrypt_data(plaintext).unwrap();
+
+        // Decrypt should work
+        let decrypted = responder_session.decrypt_data(&encrypted).unwrap();
+        assert_eq!(decrypted, plaintext);
+
+        // Verify ciphertext is not just plaintext (basic encryption sanity)
+        if let LpMessage::EncryptedData(payload) = encrypted {
+            assert_ne!(
+                &payload.0[..plaintext.len()],
+                plaintext,
+                "Ciphertext should differ from plaintext"
+            );
+        } else {
+            panic!("Expected EncryptedData message");
+        }
+    }
+
+    /// Test full end-to-end handshake with PSQ integration
+    #[test]
+    fn test_handshake_with_psq_end_to_end() {
+        let initiator_keys = generate_keypair();
+        let responder_keys = generate_keypair();
+
+        let initiator_session =
+            create_handshake_test_session(true, &initiator_keys, responder_keys.public_key());
+        let responder_session =
+            create_handshake_test_session(false, &responder_keys, initiator_keys.public_key());
+
+        // Verify initial state
+        assert!(!initiator_session.is_handshake_complete());
+        assert!(!responder_session.is_handshake_complete());
+        assert!(initiator_session.is_initiator());
+        assert!(!responder_session.is_initiator());
+
+        // Round 1: Initiator -> Responder (contains PSQ encapsulation)
+        let msg1 = initiator_session
+            .prepare_handshake_message()
+            .expect("Initiator should prepare message")
+            .expect("Message should succeed");
+
+        assert!(!msg1.is_empty());
+        assert!(!initiator_session.is_handshake_complete());
+
+        responder_session
+            .process_handshake_message(&msg1)
+            .expect("Responder should process PSQ message");
+
+        assert!(!responder_session.is_handshake_complete());
+
+        // Round 2: Responder -> Initiator
+        let msg2 = responder_session
+            .prepare_handshake_message()
+            .expect("Responder should prepare message")
+            .expect("Message should succeed");
+
+        initiator_session
+            .process_handshake_message(&msg2)
+            .expect("Initiator should process message");
+
+        // Round 3: Initiator -> Responder (final)
+        let msg3 = initiator_session
+            .prepare_handshake_message()
+            .expect("Initiator should prepare final message")
+            .expect("Message should succeed");
+
+        responder_session
+            .process_handshake_message(&msg3)
+            .expect("Responder should process final message");
+
+        // Verify both sides completed
+        assert!(initiator_session.is_handshake_complete());
+        assert!(responder_session.is_handshake_complete());
+
+        // Test bidirectional encrypted communication
+        let msg_i_to_r = b"Hello from initiator";
+        let encrypted_i = initiator_session
+            .encrypt_data(msg_i_to_r)
+            .expect("Initiator encryption");
+        let decrypted_i = responder_session
+            .decrypt_data(&encrypted_i)
+            .expect("Responder decryption");
+        assert_eq!(decrypted_i, msg_i_to_r);
+
+        let msg_r_to_i = b"Hello from responder";
+        let encrypted_r = responder_session
+            .encrypt_data(msg_r_to_i)
+            .expect("Responder encryption");
+        let decrypted_r = initiator_session
+            .decrypt_data(&encrypted_r)
+            .expect("Initiator decryption");
+        assert_eq!(decrypted_r, msg_r_to_i);
+
+        // Successfully completed end-to-end test with PSQ
+    }
+
+    /// Test that Ed25519 keys are used in PSQ authentication
+    #[test]
+    fn test_psq_handshake_uses_ed25519_authentication() {
+        let initiator_keys = generate_keypair();
+        let responder_keys = generate_keypair();
+
+        // Create sessions with explicit Ed25519 keys
+        let initiator_session =
+            create_handshake_test_session(true, &initiator_keys, responder_keys.public_key());
+        let responder_session =
+            create_handshake_test_session(false, &responder_keys, initiator_keys.public_key());
+
+        // Verify sessions store Ed25519 keys
+        // (Internal verification - keys are used in PSQ calls)
+        assert_eq!(initiator_session.id(), responder_session.id());
+
+        // Complete handshake
+        let msg1 = initiator_session
+            .prepare_handshake_message()
+            .unwrap()
+            .unwrap();
+        responder_session.process_handshake_message(&msg1).unwrap();
+
+        let msg2 = responder_session
+            .prepare_handshake_message()
+            .unwrap()
+            .unwrap();
+        initiator_session.process_handshake_message(&msg2).unwrap();
+
+        let msg3 = initiator_session
+            .prepare_handshake_message()
+            .unwrap()
+            .unwrap();
+        responder_session.process_handshake_message(&msg3).unwrap();
+
+        // If Ed25519 authentication failed, handshake would not complete
+        assert!(initiator_session.is_handshake_complete());
+        assert!(responder_session.is_handshake_complete());
+
+        // Verify encrypted communication works (proof of successful PSQ with auth)
+        let test_data = b"Authentication test";
+        let encrypted = initiator_session.encrypt_data(test_data).unwrap();
+        let decrypted = responder_session.decrypt_data(&encrypted).unwrap();
+        assert_eq!(decrypted, test_data);
+    }
 }

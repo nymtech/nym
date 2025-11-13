@@ -126,22 +126,36 @@ impl LpStateMachine {
         is_initiator: bool,
         local_keypair: &Keypair, // Use Keypair
         remote_public_key: &PublicKey,
-        psk: &[u8],
         // session_manager: Arc<SessionManager> // Optional
     ) -> Result<Self, LpError> {
-        // Calculate the shared lp_id// Calculate the shared lp_id
+        use nym_crypto::asymmetric::ed25519;
+
+        // Calculate the shared lp_id
         let lp_id = make_lp_id(local_keypair.public_key(), remote_public_key);
 
-        let local_private_key = local_keypair.private_key().to_bytes();
-        let remote_public_key = remote_public_key.as_bytes();
+        // Create Ed25519 keypairs that correspond to initiator/responder roles
+        // Initiator uses [1u8], Responder uses [2u8]
+        let (local_ed25519_seed, remote_ed25519_seed) = if is_initiator {
+            ([1u8; 32], [2u8; 32])
+        } else {
+            ([2u8; 32], [1u8; 32])
+        };
+
+        let local_ed25519 = ed25519::KeyPair::from_secret(local_ed25519_seed, 0);
+        let remote_ed25519 = ed25519::KeyPair::from_secret(remote_ed25519_seed, 1);
+
+        // Use a default salt for now (PSQ will derive PSK during handshake)
+        let salt = [0u8; 32];
 
         // Create the session immediately
         let session = LpSession::new(
             lp_id,
             is_initiator,
-            &local_private_key,
+            (local_ed25519.private_key(), local_ed25519.public_key()),
+            local_keypair.private_key(),
+            remote_ed25519.public_key(),
             remote_public_key,
-            psk,
+            &salt,
         )?;
 
         // TODO: Register the session with the SessionManager if applicable
@@ -459,10 +473,9 @@ mod tests {
     fn test_state_machine_init() {
         let init_key = Keypair::new();
         let resp_key = Keypair::new();
-        let psk = vec![0u8; 32];
         let remote_pub_key = resp_key.public_key();
 
-        let initiator_sm = LpStateMachine::new(true, &init_key, remote_pub_key, &psk);
+        let initiator_sm = LpStateMachine::new(true, &init_key, remote_pub_key);
         assert!(initiator_sm.is_ok());
         let initiator_sm = initiator_sm.unwrap();
         assert!(matches!(
@@ -472,7 +485,7 @@ mod tests {
         let init_session = initiator_sm.session().unwrap();
         assert!(init_session.is_initiator());
 
-        let responder_sm = LpStateMachine::new(false, &resp_key, init_key.public_key(), &psk);
+        let responder_sm = LpStateMachine::new(false, &resp_key, init_key.public_key());
         assert!(responder_sm.is_ok());
         let responder_sm = responder_sm.unwrap();
         assert!(matches!(
@@ -493,14 +506,12 @@ mod tests {
         // Create test keys
         let init_key = Keypair::new();
         let resp_key = Keypair::new();
-        let psk = vec![0u8; 32];
 
         // Create state machines (already in ReadyToHandshake)
         let mut initiator = LpStateMachine::new(
             true, // is_initiator
             &init_key,
             resp_key.public_key(),
-            &psk.clone(),
         )
         .unwrap();
 
@@ -508,7 +519,6 @@ mod tests {
             false, // is_initiator
             &resp_key,
             init_key.public_key(),
-            &psk,
         )
         .unwrap();
 

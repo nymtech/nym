@@ -16,7 +16,7 @@ echo "checking for jq..."
 
 if command -v jq >/dev/null 2>&1; then
     echo "jq is already installed"
-    exit 0
+    # continue script execution
 fi
 
 echo "jq not found, installing..."

@@ -225,10 +225,12 @@ remove_duplicate_rules() {
 
         for ((i=1; i<count; i++)); do
           local cleaned="${rule#-A }"
+          local chain="${cleaned%% *}"
+          local rule_spec="${cleaned#"$chain" }"
 
           # try exact delete first
-          if ip6tables -t filter -C "$cleaned" 2>/dev/null; then
-            ip6tables -t filter -D "$cleaned" && continue
+          if ip6tables -t filter -C "$chain" $rule_spec 2>/dev/null; then
+            ip6tables -t filter -D "$chain" $rule_spec && continue
           fi
 
           # fallback: find matching rule in ip6tables -S

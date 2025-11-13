@@ -172,8 +172,8 @@ remove_duplicate_rules() {
           local cleaned="${rule#-A }"
 
           # try exact match delete first
-          if iptables -t filter -C $cleaned 2>/dev/null; then
-            iptables -t filter -D $cleaned && continue
+          if iptables -t filter -C "$cleaned" 2>/dev/null; then
+            iptables -t filter -D "$cleaned" && continue
           fi
 
           # fallback: locate rule in iptables -S

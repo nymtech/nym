@@ -181,8 +181,8 @@ remove_duplicate_rules() {
           rest=$(echo "$cleaned" | cut -d' ' -f2-)
 
           # try exact delete first
-          if iptables -t filter -C "$chain" $rest 2>/dev/null; then
-            iptables -t filter -D "$chain" $rest && continue
+          if iptables -t filter -C "$chain" "$rest" 2>/dev/null; then
+            iptables -t filter -D "$chain" "$rest" && continue
           fi
 
           # fallback: find exact match textually in iptables -S

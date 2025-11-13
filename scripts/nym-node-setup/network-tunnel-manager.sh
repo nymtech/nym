@@ -224,8 +224,8 @@ remove_duplicate_rules() {
           local cleaned="${rule#-A }"
 
           # try exact delete first
-          if ip6tables -t filter -C $cleaned 2>/dev/null; then
-            ip6tables -t filter -D $cleaned && continue
+          if ip6tables -t filter -C "$cleaned" 2>/dev/null; then
+            ip6tables -t filter -D "$cleaned" && continue
           fi
 
           # fallback: find matching rule in ip6tables -S

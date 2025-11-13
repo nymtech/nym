@@ -131,6 +131,7 @@ fetch_and_display_ipv6() {
 
 # dedupe / clean-up rules for an interface in FORWARD and NYM-EXIT
 # keeps a single copy of each rule
+
 remove_duplicate_rules() {
   local interface="$1"
 
@@ -139,29 +140,35 @@ remove_duplicate_rules() {
     exit 1
   fi
 
-  echo -e "${YELLOW}detecting and removing duplicate rules for $interface in FORWARD and ${NYM_CHAIN}${NC}"
+  echo "detecting and removing duplicate rules for $interface in FORWARD and ${NYM_CHAIN}"
 
   # ipv4
   local rules_v4
   rules_v4=$(iptables-save | grep -E "(-A FORWARD|-A $NYM_CHAIN)" | grep "$interface" || true)
+
   if [[ -n "$rules_v4" ]]; then
-    echo -e "${YELLOW}processing ipv4 rules${NC}"
-    echo "$rules_v4" | sort | uniq -d | while read -r dup; do
-      echo "removing duplicate ipv4 rule: $dup"
-      while iptables -t filter -C ${dup#-A } 2>/dev/null; do
-        iptables -t filter -D ${dup#-A } || break
-      done
+    echo "processing ipv4 rules"
+    echo "$rules_v4" | sort | uniq | while read -r rule; do
+      count=$(echo "$rules_v4" | grep -Fx "$rule" | wc -l)
+      if [[ "$count" -gt 1 ]]; then
+        echo "removing $((count - 1)) duplicate(s) of ipv4 rule: $rule"
+        for ((i=1; i<count; i++)); do
+          if iptables -t filter -C ${rule#-A } 2>/dev/null; then
+            iptables -t filter -D ${rule#-A } || break
+          fi
+        done
+      fi
     done
   else
-    echo -e "${GREEN}no ipv4 rules found for $interface to deduplicate${NC}"
+    echo "no ipv4 rules found for $interface to deduplicate"
   fi
 
   # ipv6
   local rules_v6
   rules_v6=$(ip6tables-save | grep -E "(-A FORWARD|-A $NYM_CHAIN)" | grep "$interface" || true)
+
   if [[ -n "$rules_v6" ]]; then
-    echo -e "${YELLOW}processing ipv6 rules${NC}"
-    # For each unique rule, count occurrences and remove all but one
+    echo "processing ipv6 rules"
     echo "$rules_v6" | sort | uniq | while read -r rule; do
       count=$(echo "$rules_v6" | grep -Fx "$rule" | wc -l)
       if [[ "$count" -gt 1 ]]; then
@@ -174,11 +181,12 @@ remove_duplicate_rules() {
       fi
     done
   else
-    echo -e "${GREEN}no ipv6 rules found for $interface to deduplicate${NC}"
+    echo "no ipv6 rules found for $interface to deduplicate"
   fi
 
-  echo -e "${GREEN}duplicate rule scan completed for $interface${NC}"
+  echo "duplicate rule scan completed for $interface"
 }
+
 
 apply_iptables_rules() {
   local interface=$1

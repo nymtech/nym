@@ -158,7 +158,7 @@ class NodeSetupCLI:
             print("Invalid mode. Must be one of: mixnode, entry-gateway, exit-gateway.")
             raise SystemExit(1)
 
-        self._upsert_env_vars("MODE", mode)
+        self._upsert_env_vars({"MODE": mode})
         print(f"Mode set to '{mode}' — stored in env.sh and sourced for immediate use.")
         return mode
 

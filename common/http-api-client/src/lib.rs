@@ -1099,8 +1099,11 @@ impl ApiClientCore for Client {
                 self.update_host(Some(url.clone()));
 
                 if attempts < self.retry_limit {
-                    warn!("Retrying request due to http error: {err}");
                     attempts += 1;
+                    warn!(
+                        "Retrying request due to dns error on attempt ({attempts}/{}): {err}",
+                        self.retry_limit
+                    );
                     continue;
                 }
             }
@@ -1149,8 +1152,11 @@ impl ApiClientCore for Client {
                     }
 
                     if attempts < self.retry_limit {
-                        warn!("Retrying request due to http error: {err}");
                         attempts += 1;
+                        warn!(
+                            "Retrying request due to http error on attempt ({attempts}/{}): {err}",
+                            self.retry_limit
+                        );
                         continue;
                     }
 

@@ -6578,6 +6578,7 @@ dependencies = [
  "libcrux-kem",
  "libcrux-psq",
  "libcrux-traits",
+ "log",
  "nym-crypto",
  "nym-kkt",
  "nym-lp-common",

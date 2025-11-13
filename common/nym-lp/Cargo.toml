@@ -14,6 +14,7 @@ bytes = { workspace = true }
 dashmap = { workspace = true }
 sha2 = { workspace = true }
 ansi_term = { workspace = true }
+log = { workspace = true }
 utoipa = { workspace = true, features = ["macros", "non_strict_integers"] }
 rand = { workspace = true }
 # rand 0.9 for KKT integration (nym-kkt uses rand 0.9)

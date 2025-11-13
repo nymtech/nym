@@ -9,6 +9,36 @@
 //! Two approaches are supported:
 //! - **Legacy ECDH-only** (`derive_psk`) - Simple but no post-quantum security
 //! - **PSQ-enhanced** (`derive_psk_with_psq_*`) - Combines ECDH with post-quantum KEM
+//!
+//! ## Error Handling Strategy
+//!
+//! **PSQ failures always abort the handshake cleanly with no retry or fallback.**
+//!
+//! ### Rationale
+//!
+//! PSQ errors indicate:
+//! - **Authentication failures** (CredError) - Potential attack or misconfiguration
+//! - **Timing failures** (TimestampElapsed) - Replay attacks or clock skew
+//! - **Crypto failures** (CryptoError) - Library bugs or hardware faults
+//! - **Serialization failures** (Serialization) - Protocol violations or corruption
+//!
+//! None of these are transient errors that benefit from retry. Falling back to
+//! ECDH-only PSK would silently degrade post-quantum security.
+//!
+//! ### Error Recovery Behavior
+//!
+//! On any PSQ error:
+//! 1. Function returns `Err(LpError)` immediately
+//! 2. Session state remains unchanged (dummy PSK, clean Noise state)
+//! 3. Handshake aborts - caller must start fresh connection
+//! 4. Error is logged with diagnostic context
+//!
+//! ### State Guarantees on Error
+//!
+//! - **`psq_state`**: Remains in `NotStarted` (initiator) or `ResponderWaiting` (responder)
+//! - **Noise `HandshakeState`**: PSK slot 3 = dummy `[0u8; 32]` (never modified)
+//! - **No partial data**: All allocations are stack-local to failed function
+//! - **No cleanup needed**: No state was mutated
 
 use crate::keypair::{PrivateKey, PublicKey};
 use crate::LpError;
@@ -296,7 +326,10 @@ pub fn psq_initiator_create_message(
         &ed25519_verification_key,
         &mut rng,
     )
-    .map_err(|e| LpError::Internal(format!("PSQ v1 send_initial_message failed: {:?}", e)))?;
+    .map_err(|e| {
+        log::error!("PSQ initiator failed - KEM encapsulation or signing error: {:?}", e);
+        LpError::Internal(format!("PSQ v1 send_initial_message failed: {:?}", e))
+    })?;
 
     // Extract PSQ shared secret (unregistered PSK)
     let psq_psk = state.unregistered_psk();
@@ -382,7 +415,21 @@ pub fn psq_responder_process_message(
         &initiator_verification_key, // Initiator's Ed25519 public key for verification
         &initiator_msg,         // InitiatorMsg to verify and process
     )
-    .map_err(|e| LpError::Internal(format!("PSQ v1 responder send failed: {:?}", e)))?;
+    .map_err(|e| {
+        use libcrux_psq::v1::Error as PsqError;
+        match e {
+            PsqError::CredError => {
+                log::warn!("PSQ responder auth failure - invalid Ed25519 signature (potential attack)");
+            },
+            PsqError::TimestampElapsed | PsqError::RegistrationError => {
+                log::warn!("PSQ responder timing failure - TTL expired (potential replay attack)");
+            },
+            _ => {
+                log::error!("PSQ responder failed - {:?}", e);
+            }
+        }
+        LpError::Internal(format!("PSQ v1 responder send failed: {:?}", e))
+    })?;
 
     // Extract the PSQ PSK from the registered PSK
     let psq_psk = registered_psk.psk;

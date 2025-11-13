@@ -307,7 +307,10 @@ impl LpSession {
                 &session_context,
             ) {
                 Ok(result) => result,
-                Err(e) => return Some(Err(e)),
+                Err(e) => {
+                    log::error!("PSQ handshake preparation failed, aborting: {:?}", e);
+                    return Some(Err(e));
+                }
             };
 
             // Inject PSK into Noise HandshakeState
@@ -430,7 +433,7 @@ impl LpSession {
                     // Decapsulate PSK from PSQ payload using X25519 as DHKEM
                     let session_context = self.id.to_le_bytes();
 
-                    let psk = psq_responder_process_message(
+                    let psk = match psq_responder_process_message(
                         &self.local_x25519_private,
                         &self.remote_x25519_public,
                         (&dec_key, &enc_key),
@@ -438,7 +441,13 @@ impl LpSession {
                         psq_payload,
                         &self.salt,
                         &session_context,
-                    )?;
+                    ) {
+                        Ok(psk) => psk,
+                        Err(e) => {
+                            log::error!("PSQ handshake processing failed, aborting: {:?}", e);
+                            return Err(e);
+                        }
+                    };
 
                     // Inject PSK into Noise HandshakeState
                     noise_state.set_psk(3, &psk)?;
@@ -1230,5 +1239,201 @@ mod tests {
         let encrypted = initiator_session.encrypt_data(test_data).unwrap();
         let decrypted = responder_session.decrypt_data(&encrypted).unwrap();
         assert_eq!(decrypted, test_data);
+    }
+
+    #[test]
+    fn test_psq_deserialization_failure() {
+        // Test that corrupted PSQ payload causes clean abort
+        let responder_keys = generate_keypair();
+        let initiator_keys = generate_keypair();
+
+        let responder_session = create_handshake_test_session(
+            false,
+            &responder_keys,
+            initiator_keys.public_key(),
+        );
+
+        // Create a handshake message with corrupted PSQ payload
+        let corrupted_psq_data = vec![0xFF; 128]; // Random garbage
+        let bad_message = LpMessage::Handshake(HandshakeData(corrupted_psq_data));
+
+        // Attempt to process corrupted message - should fail
+        let result = responder_session.process_handshake_message(&bad_message);
+
+        // Should return error (PSQ deserialization will fail)
+        assert!(result.is_err(), "Expected error for corrupted PSQ payload");
+
+        // Verify session state is unchanged
+        // PSQ state should still be ResponderWaiting (not modified)
+        // Noise PSK should still be dummy [0u8; 32]
+        assert!(!responder_session.is_handshake_complete());
+    }
+
+    #[test]
+    fn test_handshake_abort_on_psq_failure() {
+        // Test that Ed25519 auth failure causes handshake abort
+        let initiator_keys = generate_keypair();
+        let responder_keys = generate_keypair();
+
+        // Create sessions with MISMATCHED Ed25519 keys
+        // This simulates authentication failure
+        let initiator_ed25519 = ed25519::KeyPair::from_secret([1u8; 32], 0);
+        let wrong_ed25519 = ed25519::KeyPair::from_secret([99u8; 32], 99); // Different key!
+
+        let lp_id = crate::make_lp_id(initiator_keys.public_key(), responder_keys.public_key());
+        let salt = [0u8; 32];
+
+        let initiator_session = LpSession::new(
+            lp_id,
+            true,
+            (initiator_ed25519.private_key(), initiator_ed25519.public_key()),
+            initiator_keys.private_key(),
+            wrong_ed25519.public_key(), // Responder expects THIS key
+            responder_keys.public_key(),
+            &salt,
+        )
+        .unwrap();
+
+        let responder_ed25519 = ed25519::KeyPair::from_secret([2u8; 32], 1);
+
+        let responder_session = LpSession::new(
+            lp_id,
+            false,
+            (responder_ed25519.private_key(), responder_ed25519.public_key()),
+            responder_keys.private_key(),
+            wrong_ed25519.public_key(), // Expects WRONG key (not initiator's)
+            initiator_keys.public_key(),
+            &salt,
+        )
+        .unwrap();
+
+        // Initiator prepares message (should succeed - signing works)
+        let msg1 = initiator_session
+            .prepare_handshake_message()
+            .expect("Initiator should prepare message")
+            .expect("Initiator should have message");
+
+        // Responder processes message - should FAIL (signature verification fails)
+        let result = responder_session.process_handshake_message(&msg1);
+
+        // Should return CredError due to Ed25519 signature mismatch
+        assert!(
+            result.is_err(),
+            "Expected error for Ed25519 authentication failure"
+        );
+
+        // Verify handshake aborted cleanly
+        assert!(!initiator_session.is_handshake_complete());
+        assert!(!responder_session.is_handshake_complete());
+    }
+
+    #[test]
+    fn test_psq_invalid_signature() {
+        // Test Ed25519 signature validation specifically
+        // Setup with matching X25519 keys but mismatched Ed25519 keys
+        let initiator_keys = generate_keypair();
+        let responder_keys = generate_keypair();
+
+        // Initiator uses Ed25519 key [1u8]
+        let initiator_ed25519 = ed25519::KeyPair::from_secret([1u8; 32], 0);
+
+        // Responder expects Ed25519 key [99u8] (wrong!)
+        let wrong_ed25519_keypair = ed25519::KeyPair::from_secret([99u8; 32], 99);
+        let wrong_ed25519_public = wrong_ed25519_keypair.public_key();
+
+        let lp_id = crate::make_lp_id(initiator_keys.public_key(), responder_keys.public_key());
+        let salt = [0u8; 32];
+
+        let initiator_session = LpSession::new(
+            lp_id,
+            true,
+            (initiator_ed25519.private_key(), initiator_ed25519.public_key()),
+            initiator_keys.private_key(),
+            wrong_ed25519_public, // This doesn't matter for initiator
+            responder_keys.public_key(),
+            &salt,
+        )
+        .unwrap();
+
+        let responder_ed25519 = ed25519::KeyPair::from_secret([2u8; 32], 1);
+
+        let responder_session = LpSession::new(
+            lp_id,
+            false,
+            (responder_ed25519.private_key(), responder_ed25519.public_key()),
+            responder_keys.private_key(),
+            wrong_ed25519_public, // Responder expects WRONG key
+            initiator_keys.public_key(),
+            &salt,
+        )
+        .unwrap();
+
+        // Initiator creates message with valid signature (signed with [1u8])
+        let msg = initiator_session
+            .prepare_handshake_message()
+            .unwrap()
+            .unwrap();
+
+        // Responder tries to verify with wrong public key [99u8]
+        // This should fail Ed25519 signature verification
+        let result = responder_session.process_handshake_message(&msg);
+
+        assert!(
+            result.is_err(),
+            "Expected signature verification to fail"
+        );
+
+        // Verify error is related to PSQ/authentication
+        match result.unwrap_err() {
+            LpError::Internal(msg) if msg.contains("PSQ") => {
+                // Expected - PSQ v1 responder send failed due to CredError
+            }
+            e => panic!("Unexpected error type: {:?}", e),
+        }
+    }
+
+    #[test]
+    fn test_psq_state_unchanged_on_error() {
+        // Verify that PSQ errors leave session in clean state
+        let responder_keys = generate_keypair();
+        let initiator_keys = generate_keypair();
+
+        let responder_session = create_handshake_test_session(
+            false,
+            &responder_keys,
+            initiator_keys.public_key(),
+        );
+
+        // Capture initial PSQ state (should be ResponderWaiting)
+        // (We can't directly access psq_state, but we can verify behavior)
+
+        // Send corrupted data
+        let corrupted_message = LpMessage::Handshake(HandshakeData(vec![0xFF; 100]));
+
+        // Process should fail
+        let result = responder_session.process_handshake_message(&corrupted_message);
+        assert!(result.is_err());
+
+        // After error, session should still be in handshake mode (not complete)
+        assert!(!responder_session.is_handshake_complete());
+
+        // Session should still be functional - can process valid messages
+        // Create a proper initiator to send valid message
+        let initiator_session =
+            create_handshake_test_session(true, &initiator_keys, responder_keys.public_key());
+
+        let valid_msg = initiator_session
+            .prepare_handshake_message()
+            .unwrap()
+            .unwrap();
+
+        // After the error, responder should still be able to process valid messages
+        let result2 = responder_session.process_handshake_message(&valid_msg);
+
+        // Should succeed (session state was not corrupted by previous error)
+        assert!(
+            result2.is_ok(),
+            "Session should still be functional after PSQ error"
+        );
     }
 }

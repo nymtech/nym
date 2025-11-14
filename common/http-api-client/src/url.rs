@@ -183,6 +183,11 @@ impl Url {
         })
     }
 
+    /// Returns the underlying URL
+    pub fn inner_url(&self) -> &url::Url {
+        &self.url
+    }
+
     /// Returns true if the URL has a front domain set
     pub fn has_front(&self) -> bool {
         if let Some(fronts) = &self.fronts {
@@ -199,6 +204,11 @@ impl Url {
             .as_ref()
             .and_then(|fronts| fronts.get(current))
             .and_then(|url| url.host_str())
+    }
+
+    /// Returns the fronts
+    pub fn fronts(&self) -> Option<&[url::Url]> {
+        self.fronts.as_deref()
     }
 
     /// Return the string representation of the host (domain or IP address) for this URL, if any.

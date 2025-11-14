@@ -1,4 +1,6 @@
+use crate::cli::Commands;
 use crate::monitor::DelegationsCache;
+use crate::node_scraper::helpers::scrape_and_store_description_by_node_id;
 use crate::ticketbook_manager::TicketbookManager;
 use crate::ticketbook_manager::state::TicketbookManagerState;
 use clap::Parser;
@@ -40,10 +42,48 @@ async fn main() -> anyhow::Result<()> {
     tracing::info!("Registered {} agent keys", agent_key_list.len());
 
     let connection_url = args.database_url.clone();
-    tracing::debug!("Using config:\n{:#?}", args);
+    if std::env::var("SHOW_CONFIG").ok().is_some() {
+        tracing::debug!("Using config:\n{:#?}", args);
+    }
 
     let storage = db::Storage::init(connection_url, args.sqlx_busy_timeout_s).await?;
     let db_pool = storage.pool_owned();
+
+    // node geocache is shared between node monitor and HTTP server
+    let geocache = moka::future::Cache::builder()
+        .time_to_live(args.geodata_ttl)
+        .build();
+    let delegations_cache = DelegationsCache::new();
+
+    let client_config = nym_validator_client::nyxd::Config::try_from_nym_network_details(
+        &nym_network_defaults::NymNetworkDetails::new_from_env(),
+    )?;
+    let nyxd_client = NyxdClient::connect(client_config.clone(), args.nyxd_addr.as_str())
+        .map_err(|err| anyhow::anyhow!("Couldn't connect: {}", err))?;
+
+    match args.command {
+        Some(Commands::ScrapeNode { node_id }) => {
+            if std::env::var("RUN_ONCE_INIT_NODES").ok().is_some() {
+                let geocache_clone = geocache.clone();
+                let delegations_cache_clone = Arc::clone(&delegations_cache);
+                monitor::run_once(
+                    db_pool.clone(),
+                    args.nym_api_client_timeout,
+                    nyxd_client,
+                    args.ipinfo_api_token,
+                    geocache_clone,
+                    delegations_cache_clone,
+                )
+                .await?;
+            }
+            tracing::info!("Scraping node with id {node_id}...");
+            scrape_and_store_description_by_node_id(&db_pool, node_id).await?;
+            return Ok(());
+        }
+        None => {
+            // default behaviour
+        }
+    }
 
     // Start the node scraper
     let scraper = node_scraper::DescriptionScraper::new(storage.pool_owned());
@@ -58,20 +98,9 @@ async fn main() -> anyhow::Result<()> {
         scraper.start().await;
     });
 
-    // node geocache is shared between node monitor and HTTP server
-    let geocache = moka::future::Cache::builder()
-        .time_to_live(args.geodata_ttl)
-        .build();
-    let delegations_cache = DelegationsCache::new();
-
     // Start the monitor
     let geocache_clone = geocache.clone();
     let delegations_cache_clone = Arc::clone(&delegations_cache);
-    let client_config = nym_validator_client::nyxd::Config::try_from_nym_network_details(
-        &nym_network_defaults::NymNetworkDetails::new_from_env(),
-    )?;
-    let nyxd_client = NyxdClient::connect(client_config.clone(), args.nyxd_addr.as_str())
-        .map_err(|err| anyhow::anyhow!("Couldn't connect: {}", err))?;
 
     shutdown_manager.spawn_with_shutdown(async move {
         monitor::run_in_background(

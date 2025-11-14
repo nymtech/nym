@@ -138,6 +138,7 @@ mod db_tests {
             performance: "1.0".to_string(),
             self_described: None,
             bond_info: None,
+            http_api_port: None,
         };
 
         let skimmed_node: nym_validator_client::nym_api::SkimmedNode =
@@ -362,20 +363,40 @@ fn test_scraper_node_info_contact_addresses() {
     let node_info = ScraperNodeInfo {
         node_kind: ScrapeNodeKind::MixingNymNode { node_id: 123 },
         hosts: vec!["1.1.1.1".to_string(), "example.com".to_string()],
-        http_api_port: 8080,
+        http_api_port: None,
     };
 
     let addresses = node_info.contact_addresses();
 
     // Should generate multiple URLs for each host
-    // Custom port (8080) should be inserted at the beginning
+    // When no custom port is specified only default ports should be used
     assert!(addresses.contains(&"http://1.1.1.1:8080".to_string()));
-    assert!(addresses.contains(&"http://example.com:8080".to_string()));
     assert!(addresses.contains(&"http://1.1.1.1:8000".to_string()));
     assert!(addresses.contains(&"https://1.1.1.1".to_string()));
+    assert!(addresses.contains(&"http://1.1.1.1".to_string()));
     assert!(addresses.contains(&"http://example.com:8000".to_string()));
     // Check that URLs follow the expected pattern
     assert!(addresses.len() >= 8); // At least 4 URLs per host
+}
+
+#[test]
+fn test_scraper_node_info_contact_addresses_with_custom_http_api_port() {
+    use crate::db::models::{ScrapeNodeKind, ScraperNodeInfo};
+
+    let node_info = ScraperNodeInfo {
+        node_kind: ScrapeNodeKind::MixingNymNode { node_id: 123 },
+        hosts: vec!["1.1.1.1".to_string(), "example.com".to_string()],
+        http_api_port: Some(4444),
+    };
+
+    let addresses = node_info.contact_addresses();
+
+    // Should generate multiple URLs for each host
+    // Custom port (4444) should be the only port in the list
+    assert!(addresses.contains(&"http://1.1.1.1:4444".to_string()));
+    assert!(addresses.contains(&"http://example.com:4444".to_string()));
+    // Check that URLs follow the expected pattern
+    assert!(addresses.len() >= 2); // At least 4 URLs per host
 }
 
 #[test]
@@ -414,6 +435,7 @@ fn test_nym_node_dto_with_invalid_keys() {
         performance: "1.0".to_string(),
         self_described: None,
         bond_info: None,
+        http_api_port: None,
     };
 
     let result: Result<nym_validator_client::nym_api::SkimmedNode, _> = nym_node_dto.try_into();
@@ -451,6 +473,7 @@ fn test_nym_node_dto_with_invalid_performance() {
         performance: "invalid_percent".to_string(),
         self_described: None,
         bond_info: None,
+        http_api_port: None,
     };
 
     let result: Result<nym_validator_client::nym_api::SkimmedNode, _> = nym_node_dto.try_into();

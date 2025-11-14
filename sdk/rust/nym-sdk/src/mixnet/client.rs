@@ -555,21 +555,22 @@ where
     async fn available_gateways(&mut self) -> Result<Vec<RoutingNode>, ClientCoreError> {
         if let Some(ref mut custom_provider) = self.custom_topology_provider {
             if let Some(topology) = custom_provider.get_new_topology().await {
-                return Ok(topology.entry_gateways().cloned().collect());
+                // Use entry_capable_nodes() instead of entry_gateways() to include
+                // all entry-capable nodes, not just actively assigned ones
+                return Ok(topology.entry_capable_nodes().cloned().collect());
             }
         }
 
         let nym_api_endpoints = self.get_api_endpoints();
         let topology_cfg = &self.config.debug_config.topology;
         let user_agent = self.user_agent.clone();
-        let mut rng = OsRng;
 
         gateways_for_init(
-            &mut rng,
             &nym_api_endpoints,
             user_agent,
             topology_cfg.minimum_gateway_performance,
             topology_cfg.ignore_ingress_epoch_role,
+            None,
         )
         .await
     }
@@ -705,12 +706,27 @@ where
             .config
             .as_base_client_config(nyxd_endpoints, nym_api_endpoints.clone());
 
+        tracing::debug!(
+            "SDK: Passing nym_api_urls to BaseClientBuilder (has {} nym_api_urls)",
+            self.config
+                .network_details
+                .nym_api_urls
+                .as_ref()
+                .map(|urls| urls.len())
+                .unwrap_or(0)
+        );
+
         let mut base_builder: BaseClientBuilder<_, _> =
             BaseClientBuilder::new(base_config, self.storage, self.dkg_query_client)
                 .with_wait_for_gateway(self.wait_for_gateway)
                 .with_forget_me(&self.forget_me)
                 .with_remember_me(&self.remember_me)
                 .with_derivation_material(self.derivation_material);
+
+        // Add nym_api_urls if available in network_details
+        if let Some(nym_api_urls) = self.config.network_details.nym_api_urls.clone() {
+            base_builder = base_builder.with_nym_api_urls(nym_api_urls);
+        }
 
         if let Some(user_agent) = self.user_agent {
             base_builder = base_builder.with_user_agent(user_agent);
@@ -874,5 +890,19 @@ impl IncludedSurbs {
 
     pub fn expose_self_address() -> Self {
         Self::ExposeSelfAddress
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_mixnet_builder_default_no_custom_client() {
+        let builder = MixnetClientBuilder::new_ephemeral();
+        assert!(
+            builder.build().is_ok(),
+            "Builder should succeed without custom client"
+        );
     }
 }

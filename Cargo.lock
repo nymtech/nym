@@ -133,9 +133,9 @@ checksum = "683d7910e743518b0e34f1186f92494becacb047c7b6bf616c96772180fef923"
 
 [[package]]
 name = "ammonia"
-version = "4.1.1"
+version = "4.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d6b346764dd0814805de8abf899fe03065bcee69bb1a4771c785817e39f3978f"
+checksum = "17e913097e1a2124b46746c980134e8c954bc17a6a59bb3fde96f088d126dde6"
 dependencies = [
  "cssparser",
  "html5ever",
@@ -2262,7 +2262,7 @@ dependencies = [
  "libc",
  "option-ext",
  "redox_users",
- "windows-sys 0.59.0",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -4824,7 +4824,7 @@ dependencies = [
 
 [[package]]
 name = "nym-api"
-version = "1.1.68"
+version = "1.1.69"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5050,7 +5050,7 @@ dependencies = [
 
 [[package]]
 name = "nym-cli"
-version = "1.1.65"
+version = "1.1.66"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -5133,7 +5133,7 @@ dependencies = [
 
 [[package]]
 name = "nym-client"
-version = "1.1.65"
+version = "1.1.66"
 dependencies = [
  "bs58",
  "clap",
@@ -6354,7 +6354,7 @@ dependencies = [
 
 [[package]]
 name = "nym-network-requester"
-version = "1.1.66"
+version = "1.1.67"
 dependencies = [
  "addr",
  "anyhow",
@@ -6404,7 +6404,7 @@ dependencies = [
 
 [[package]]
 name = "nym-node"
-version = "1.20.0"
+version = "1.21.0"
 dependencies = [
  "anyhow",
  "arc-swap",
@@ -6546,7 +6546,7 @@ dependencies = [
 
 [[package]]
 name = "nym-node-status-api"
-version = "4.0.10"
+version = "4.0.11-rc1"
 dependencies = [
  "ammonia",
  "anyhow",
@@ -6798,6 +6798,7 @@ dependencies = [
  "tokio",
  "tokio-util",
  "tracing",
+ "typed-builder",
  "url",
 ]
 
@@ -6930,7 +6931,7 @@ dependencies = [
 
 [[package]]
 name = "nym-socks5-client"
-version = "1.1.65"
+version = "1.1.66"
 dependencies = [
  "bs58",
  "clap",
@@ -7669,7 +7670,7 @@ dependencies = [
 
 [[package]]
 name = "nymvisor"
-version = "0.1.30"
+version = "0.1.31"
 dependencies = [
  "anyhow",
  "bytes",
@@ -11389,6 +11390,26 @@ dependencies = [
  "thiserror 1.0.69",
  "url",
  "utf-8",
+]
+
+[[package]]
+name = "typed-builder"
+version = "0.23.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0d0dd654273fc253fde1df4172c31fb6615cf8b041d3a4008a028ef8b1119e66"
+dependencies = [
+ "typed-builder-macro",
+]
+
+[[package]]
+name = "typed-builder-macro"
+version = "0.23.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "016c26257f448222014296978b2c8456e2cad4de308c35bdb1e383acd569ef5b"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.106",
 ]
 
 [[package]]

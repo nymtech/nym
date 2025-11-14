@@ -15,10 +15,12 @@ use nym_sdk::{
 use std::os::fd::RawFd;
 use std::{path::PathBuf, sync::Arc, time::Duration};
 use tokio_util::sync::CancellationToken;
+use typed_builder::TypedBuilder;
 
 use crate::error::RegistrationClientError;
 
 const VPN_AVERAGE_PACKET_DELAY: Duration = Duration::from_millis(15);
+const MIXNET_CLIENT_STARTUP_TIMEOUT: Duration = Duration::from_secs(30);
 
 #[derive(Clone)]
 pub struct NymNodeWithKeys {
@@ -26,11 +28,14 @@ pub struct NymNodeWithKeys {
     pub keys: Arc<KeyPair>,
 }
 
+#[derive(TypedBuilder)]
 pub struct BuilderConfig {
     pub entry_node: NymNodeWithKeys,
     pub exit_node: NymNodeWithKeys,
     pub data_path: Option<PathBuf>,
     pub mixnet_client_config: MixnetClientConfig,
+    #[builder(default = MIXNET_CLIENT_STARTUP_TIMEOUT)]
+    pub mixnet_client_startup_timeout: Duration,
     pub two_hops: bool,
     pub user_agent: UserAgent,
     pub custom_topology_provider: Box<dyn TopologyProvider + Send + Sync>,
@@ -116,6 +121,7 @@ impl BuilderConfig {
             .credentials_mode(true)
             .with_remember_me(remember_me)
             .custom_topology_provider(self.custom_topology_provider);
+
         #[cfg(unix)]
         let builder = builder.with_connection_fd_callback(self.connection_fd_callback);
 
@@ -204,4 +210,18 @@ fn log_mixnet_client_config(debug_config: &DebugConfig) {
 
 fn true_to_disabled(val: bool) -> &'static str {
     if val { "disabled" } else { "enabled" }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_mixnet_client_config_default_values() {
+        let config = MixnetClientConfig::default();
+        assert!(!config.disable_poisson_rate);
+        assert!(!config.disable_background_cover_traffic);
+        assert_eq!(config.min_mixnode_performance, None);
+        assert_eq!(config.min_gateway_performance, None);
+    }
 }

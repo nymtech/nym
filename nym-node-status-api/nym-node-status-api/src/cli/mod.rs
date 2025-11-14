@@ -1,5 +1,5 @@
 use crate::ticketbook_manager::TicketbookManagerConfig;
-use clap::Parser;
+use clap::{Parser, Subcommand};
 use nym_bin_common::bin_info;
 use nym_credential_proxy_lib::shared_state::ecash_state::TicketType;
 use reqwest::Url;
@@ -105,6 +105,19 @@ pub(crate) struct Cli {
 
     #[clap(flatten)]
     pub(crate) ticketbook: TicketbookArgs,
+
+    #[command(subcommand)]
+    pub(crate) command: Option<Commands>,
+}
+
+#[derive(Subcommand, Debug)]
+pub(crate) enum Commands {
+    /// Scrape a single node and output detailed debug logs
+    ScrapeNode {
+        /// The id of the node to scrape
+        #[arg(long)]
+        node_id: i64,
+    },
 }
 
 #[derive(Debug, Parser)]

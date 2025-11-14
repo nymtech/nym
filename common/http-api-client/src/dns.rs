@@ -337,8 +337,7 @@ fn configure_and_build_resolver(
     let mut resolver_builder =
         TokioResolver::builder_with_config(config, TokioConnectionProvider::default());
 
-    resolver_builder.options_mut().ip_strategy = LookupIpStrategy::Ipv4AndIpv6;
-    resolver_builder.options_mut().server_ordering_strategy = ServerOrderingStrategy::RoundRobin;
+    resolver_builder.options_mut().ip_strategy = LookupIpStrategy::Ipv4thenIpv6;
     // Cache successful responses for queries received by this resolver for 30 min minimum.
     resolver_builder.options_mut().positive_min_ttl = Some(Duration::from_secs(1800));
 

@@ -168,6 +168,14 @@ pub enum CredentialProxyError {
         device_id: String,
         credential_id: String,
     },
+
+    #[error(
+        "the attestation check url has not been provided through either the CLI nor the default .env config"
+    )]
+    AttestationCheckUrlNotSet,
+
+    #[error("the provided attestation check url is malformed: {source}")]
+    MalformedAttestationCheckUrl { source: url::ParseError },
 }
 
 impl From<NymAPIError> for CredentialProxyError {

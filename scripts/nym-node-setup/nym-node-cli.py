@@ -391,6 +391,8 @@ class NodeSetupCLI:
 
         if answer in ("", "y", "yes"):
             self.run_script(self.quic_bridge_deployment_sh, args=["full_bridge_setup"])
+        else:
+            print("Skipping QUIC bridge setup.")    
 
     def run_nym_node_as_service(self):
         """Starts /etc/systemd/system/nym-node.service based on prompt using external script"""

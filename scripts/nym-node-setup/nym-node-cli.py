@@ -585,6 +585,7 @@ class NodeSetupCLI:
         # Pass uplink override to all helper scripts if provided
         if getattr(args, "uplink_dev", None):
             os.environ["UPLINK_DEV"] = args.uplink_dev
+            os.environ["NETWORK_DEVICE"] = args.uplink_dev
         self.run_script(self.prereqs_install_sh)
         self.run_script(self.node_install_sh)
         self.run_script(self.service_config_sh)

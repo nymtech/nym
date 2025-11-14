@@ -96,8 +96,12 @@ class NodeSetupCLI:
                 if ip.returncode == 0 and ip.stdout.strip():
                     updated["PUBLIC_IP"] = ip.stdout.strip()
                     os.environ["PUBLIC_IP"] = ip.stdout.strip()
-            except Exception:
-                pass
+            except subprocess.TimeoutExpired:
+                print("[WARN] Timeout expired while trying to fetch public IP with curl.")
+            except FileNotFoundError:
+                print("[WARN] 'curl' command not found. Please install curl or set PUBLIC_IP manually.")
+            except subprocess.CalledProcessError as e:
+                print(f"[WARN] Error while running curl to fetch public IP: {e}")
 
         # write all collected variables to env.sh in one go
         self._upsert_env_vars(updated, env_file)

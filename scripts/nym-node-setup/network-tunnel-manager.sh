@@ -41,13 +41,16 @@ WG_INTERFACE="${WG_INTERFACE:-nymwg}"
 detect_uplink_interface() {
   local cmd="$1"
   local dev
-  dev="$(eval "$cmd" 2>/dev/null | awk '{print \$5}' | head -n1 || true)"
+
+  dev="$(eval "$cmd" 2>/dev/null | awk '{print $5}' | head -n1 || true)"
+
   if [[ -n "$dev" && "$dev" =~ ^[a-zA-Z0-9._-]+$ ]]; then
     echo "$dev"
   else
     echo ""
   fi
 }
+
 
 # uplink device detection, can be overridden
 NETWORK_DEVICE="${NETWORK_DEVICE:-}"

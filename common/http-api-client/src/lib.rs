@@ -1086,13 +1086,14 @@ impl ApiClientCore for Client {
                 .build()
                 .map_err(HttpClientError::reqwest_client_build_error)?;
             self.apply_hosts_to_req(&mut req);
-            let url = Url::parse(req.url().as_str()).unwrap();
+            let url: Url = req.url().clone().into();
 
             // try an explicit DNS resolution - if successful then it will be in cache when reqwest
             // goes to execute the request. If failure then we get to handle the DNS lookup error.
             #[cfg(not(target_arch = "wasm32"))]
             if self.using_secure_dns
                 && let Some(hostname) = req.url().domain()
+                // Default here will use a shared resolver instance
                 && let Err(err) = HickoryDnsResolver::default().resolve_str(hostname).await
             {
                 // on failure update host, but don't trigger fronting enable.

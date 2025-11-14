@@ -8,8 +8,10 @@ use serde::{Deserialize, Serialize};
 /// Data structure for the ClientHello message
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ClientHelloData {
-    /// Client's LP x25519 public key (32 bytes)
+    /// Client's LP x25519 public key (32 bytes) - derived from Ed25519 key
     pub client_lp_public_key: [u8; 32],
+    /// Client's Ed25519 public key (32 bytes) - for PSQ authentication
+    pub client_ed25519_public_key: [u8; 32],
     /// Salt for PSK derivation (32 bytes: 8-byte timestamp + 24-byte nonce)
     pub salt: [u8; 32],
 }
@@ -20,9 +22,12 @@ impl ClientHelloData {
     /// Salt format: 8 bytes timestamp (u64 LE) + 24 bytes random nonce
     ///
     /// # Arguments
-    /// * `client_lp_public_key` - Client's x25519 public key
-    /// * `protocol_version` - Protocol version number
-    pub fn new_with_fresh_salt(client_lp_public_key: [u8; 32]) -> Self {
+    /// * `client_lp_public_key` - Client's x25519 public key (derived from Ed25519)
+    /// * `client_ed25519_public_key` - Client's Ed25519 public key (for PSQ authentication)
+    pub fn new_with_fresh_salt(
+        client_lp_public_key: [u8; 32],
+        client_ed25519_public_key: [u8; 32],
+    ) -> Self {
         use std::time::{SystemTime, UNIX_EPOCH};
 
         // Generate salt: timestamp + nonce
@@ -41,6 +46,7 @@ impl ClientHelloData {
 
         Self {
             client_lp_public_key,
+            client_ed25519_public_key,
             salt,
         }
     }
@@ -63,6 +69,8 @@ pub enum MessageType {
     Handshake = 0x0001,
     EncryptedData = 0x0002,
     ClientHello = 0x0003,
+    KKTRequest = 0x0004,
+    KKTResponse = 0x0005,
 }
 
 impl MessageType {
@@ -72,6 +80,8 @@ impl MessageType {
             0x0001 => Some(MessageType::Handshake),
             0x0002 => Some(MessageType::EncryptedData),
             0x0003 => Some(MessageType::ClientHello),
+            0x0004 => Some(MessageType::KKTRequest),
+            0x0005 => Some(MessageType::KKTResponse),
             _ => None,
         }
     }
@@ -82,6 +92,8 @@ impl MessageType {
             MessageType::Handshake => 0x0001,
             MessageType::EncryptedData => 0x0002,
             MessageType::ClientHello => 0x0003,
+            MessageType::KKTRequest => 0x0004,
+            MessageType::KKTResponse => 0x0005,
         }
     }
 }
@@ -92,12 +104,22 @@ pub struct HandshakeData(pub Vec<u8>);
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EncryptedDataPayload(pub Vec<u8>);
 
+/// KKT request frame data (serialized KKTFrame bytes)
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct KKTRequestData(pub Vec<u8>);
+
+/// KKT response frame data (serialized KKTFrame bytes)
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct KKTResponseData(pub Vec<u8>);
+
 #[derive(Debug, Clone)]
 pub enum LpMessage {
     Busy,
     Handshake(HandshakeData),
     EncryptedData(EncryptedDataPayload),
     ClientHello(ClientHelloData),
+    KKTRequest(KKTRequestData),
+    KKTResponse(KKTResponseData),
 }
 
 impl Display for LpMessage {
@@ -107,6 +129,8 @@ impl Display for LpMessage {
             LpMessage::Handshake(_) => write!(f, "Handshake"),
             LpMessage::EncryptedData(_) => write!(f, "EncryptedData"),
             LpMessage::ClientHello(_) => write!(f, "ClientHello"),
+            LpMessage::KKTRequest(_) => write!(f, "KKTRequest"),
+            LpMessage::KKTResponse(_) => write!(f, "KKTResponse"),
         }
     }
 }
@@ -118,6 +142,8 @@ impl LpMessage {
             LpMessage::Handshake(payload) => payload.0.as_slice(),
             LpMessage::EncryptedData(payload) => payload.0.as_slice(),
             LpMessage::ClientHello(_) => unimplemented!(), // Structured data, serialized in encode_content
+            LpMessage::KKTRequest(payload) => payload.0.as_slice(),
+            LpMessage::KKTResponse(payload) => payload.0.as_slice(),
         }
     }
 
@@ -127,6 +153,8 @@ impl LpMessage {
             LpMessage::Handshake(payload) => payload.0.is_empty(),
             LpMessage::EncryptedData(payload) => payload.0.is_empty(),
             LpMessage::ClientHello(_) => false, // Always has data
+            LpMessage::KKTRequest(payload) => payload.0.is_empty(),
+            LpMessage::KKTResponse(payload) => payload.0.is_empty(),
         }
     }
 
@@ -135,7 +163,9 @@ impl LpMessage {
             LpMessage::Busy => 0,
             LpMessage::Handshake(payload) => payload.0.len(),
             LpMessage::EncryptedData(payload) => payload.0.len(),
-            LpMessage::ClientHello(_) => 65, // 32 bytes key + 1 byte version + 32 bytes salt
+            LpMessage::ClientHello(_) => 97, // 32 bytes x25519 key + 32 bytes ed25519 key + 32 bytes salt + 1 byte bincode overhead
+            LpMessage::KKTRequest(payload) => payload.0.len(),
+            LpMessage::KKTResponse(payload) => payload.0.len(),
         }
     }
 
@@ -145,6 +175,8 @@ impl LpMessage {
             LpMessage::Handshake(_) => MessageType::Handshake,
             LpMessage::EncryptedData(_) => MessageType::EncryptedData,
             LpMessage::ClientHello(_) => MessageType::ClientHello,
+            LpMessage::KKTRequest(_) => MessageType::KKTRequest,
+            LpMessage::KKTResponse(_) => MessageType::KKTResponse,
         }
     }
 
@@ -162,6 +194,12 @@ impl LpMessage {
                 let serialized =
                     bincode::serialize(data).expect("Failed to serialize ClientHelloData");
                 dst.put_slice(&serialized);
+            }
+            LpMessage::KKTRequest(payload) => {
+                dst.put_slice(&payload.0);
+            }
+            LpMessage::KKTResponse(payload) => {
+                dst.put_slice(&payload.0);
             }
         }
     }
@@ -208,8 +246,9 @@ mod tests {
     #[test]
     fn test_client_hello_salt_generation() {
         let client_key = [1u8; 32];
-        let hello1 = ClientHelloData::new_with_fresh_salt(client_key);
-        let hello2 = ClientHelloData::new_with_fresh_salt(client_key);
+        let client_ed25519_key = [2u8; 32];
+        let hello1 = ClientHelloData::new_with_fresh_salt(client_key, client_ed25519_key);
+        let hello2 = ClientHelloData::new_with_fresh_salt(client_key, client_ed25519_key);
 
         // Different salts should be generated
         assert_ne!(hello1.salt, hello2.salt);
@@ -223,7 +262,8 @@ mod tests {
     #[test]
     fn test_client_hello_timestamp_extraction() {
         let client_key = [2u8; 32];
-        let hello = ClientHelloData::new_with_fresh_salt(client_key);
+        let client_ed25519_key = [3u8; 32];
+        let hello = ClientHelloData::new_with_fresh_salt(client_key, client_ed25519_key);
 
         let timestamp = hello.extract_timestamp();
         let now = std::time::SystemTime::now()
@@ -238,7 +278,8 @@ mod tests {
     #[test]
     fn test_client_hello_salt_format() {
         let client_key = [3u8; 32];
-        let hello = ClientHelloData::new_with_fresh_salt(client_key);
+        let client_ed25519_key = [4u8; 32];
+        let hello = ClientHelloData::new_with_fresh_salt(client_key, client_ed25519_key);
 
         // First 8 bytes should be non-zero timestamp
         let timestamp_bytes = &hello.salt[..8];

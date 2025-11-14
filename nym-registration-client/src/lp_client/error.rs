@@ -53,6 +53,10 @@ pub enum LpClientError {
     /// Timeout waiting for response
     #[error("Timeout waiting for {operation}")]
     Timeout { operation: String },
+
+    /// Cryptographic operation failed
+    #[error("Cryptographic error: {0}")]
+    Crypto(String),
 }
 
 pub type Result<T> = std::result::Result<T, LpClientError>;

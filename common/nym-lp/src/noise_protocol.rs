@@ -20,6 +20,9 @@ pub enum NoiseError {
     #[error("operation is invalid in the current protocol state")]
     IncorrectStateError,
 
+    #[error("attempted transport mode operation without real PSK injection")]
+    PskNotInjected,
+
     #[error("Other Noise-related error: {0}")]
     Other(String),
 }
@@ -254,6 +257,32 @@ impl NoiseProtocol {
     /// Check if the handshake has finished and the protocol is in transport mode.
     pub fn is_handshake_finished(&self) -> bool {
         matches!(self.state, NoiseProtocolState::Transport(_))
+    }
+
+    /// Inject a PSK into the Noise HandshakeState.
+    ///
+    /// This allows dynamic PSK injection after HandshakeState construction,
+    /// which is required for PSQ (Post-Quantum Secure PSK) integration where
+    /// the PSK is derived during the handshake process.
+    ///
+    /// # Arguments
+    /// * `index` - PSK index (typically 3 for XKpsk3 pattern)
+    /// * `psk` - The pre-shared key bytes to inject
+    ///
+    /// # Errors
+    /// Returns an error if:
+    /// - Not in handshake state
+    /// - The underlying snow library rejects the PSK
+    pub fn set_psk(&mut self, index: u8, psk: &[u8]) -> Result<(), NoiseError> {
+        match &mut self.state {
+            NoiseProtocolState::Handshaking(ref mut handshake_state) => {
+                handshake_state
+                    .set_psk(index as usize, psk)
+                    .map_err(|e| NoiseError::ProtocolError(e))?;
+                Ok(())
+            }
+            _ => Err(NoiseError::IncorrectStateError),
+        }
     }
 }
 

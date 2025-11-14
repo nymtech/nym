@@ -8,7 +8,14 @@ use utoipa::ToSchema;
 
 use crate::LpError;
 
+#[derive(Clone)]
 pub struct PrivateKey(SphinxPrivateKey);
+
+impl fmt::Debug for PrivateKey {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("PrivateKey").field(&"[REDACTED]").finish()
+    }
+}
 
 impl Deref for PrivateKey {
     type Target = SphinxPrivateKey;
@@ -49,7 +56,16 @@ impl PrivateKey {
     }
 }
 
+#[derive(Clone)]
 pub struct PublicKey(SphinxPublicKey);
+
+impl fmt::Debug for PublicKey {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("PublicKey")
+            .field(&self.to_base58_string())
+            .finish()
+    }
+}
 
 impl Deref for PublicKey {
     type Target = SphinxPublicKey;

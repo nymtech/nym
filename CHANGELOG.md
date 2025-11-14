@@ -4,6 +4,38 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [2025.20-leerdammer] (2025-11-12)
+
+- Max/tweak ts sdk actions ([#6185])
+- chore: resolve clippy 1.91 warnings ([#6168])
+- [chore] Remove unused dependencies ([#6151])
+- Use typed-builder for registration client builder config ([#6150])
+- tommy is too quick ([#6149])
+- configurable mixnet client startup timeout ([#6148])
+- [Feature/operators]: QUIC bridge deployment script v2 ([#6145])
+- Bugfix: Add circuit breaker ([#6143])
+- bugfix: update internal owner address in transferred share ([#6139])
+- Update quic_bridge_deployment.sh for IPv4 and .deb package ([#6138])
+- feat: expose more explicit new_with_fronted_urls builder for http API client ([#6136])
+- bugfix: update stored epoch share when changing ownership ([#6135])
+- Domain fronting ([#6134])
+- bugfix: update stored epoch share when changing announce address ([#6131])
+
+[#6185]: https://github.com/nymtech/nym/pull/6185
+[#6168]: https://github.com/nymtech/nym/pull/6168
+[#6151]: https://github.com/nymtech/nym/pull/6151
+[#6150]: https://github.com/nymtech/nym/pull/6150
+[#6149]: https://github.com/nymtech/nym/pull/6149
+[#6148]: https://github.com/nymtech/nym/pull/6148
+[#6145]: https://github.com/nymtech/nym/pull/6145
+[#6143]: https://github.com/nymtech/nym/pull/6143
+[#6139]: https://github.com/nymtech/nym/pull/6139
+[#6138]: https://github.com/nymtech/nym/pull/6138
+[#6136]: https://github.com/nymtech/nym/pull/6136
+[#6135]: https://github.com/nymtech/nym/pull/6135
+[#6134]: https://github.com/nymtech/nym/pull/6134
+[#6131]: https://github.com/nymtech/nym/pull/6131
+
 ## [2025.19-kase] (2025-10-30)
 
 - update ns agent workflow ([#6154])

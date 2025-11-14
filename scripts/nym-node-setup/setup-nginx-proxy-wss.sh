@@ -48,17 +48,25 @@ rm -f "${HTTP_CONF}"                  || true
 rm -f "${HTTPS_CONF}"                 || true
 rm -f "${WSS_CONF}"                   || true
 
-################################################################################
-# step 2: landing page
-################################################################################
+###############################################################################
+# step 2: create landing page 
+###############################################################################
 
 mkdir -p "${WEBROOT}"
 
-if ! curl -fsSL \
-  https://raw.githubusercontent.com/nymtech/nym/develop/scripts/nym-node-setup/landing-page.html \
-  -o "${WEBROOT}/index.html"; then
+# script directory where Python CLI stores fetched scripts
+SCRIPT_DIR="$(dirname "${ENV_FILE:-./env.sh}")"
+LOCAL_FETCHED_PAGE="${SCRIPT_DIR}/landing-page.html"
 
-  cat > "${WEBROOT}/index.html" <<'EOF'
+if [[ -s "${LOCAL_FETCHED_PAGE}" ]]; then
+  cp "${LOCAL_FETCHED_PAGE}" "${WEBROOT}/index.html"
+else
+  if curl -fsSL \
+    https://raw.githubusercontent.com/nymtech/nym/develop/scripts/nym-node-setup/landing-page.html \
+    -o "${WEBROOT}/index.html"; then
+      :
+  else
+    cat > "${WEBROOT}/index.html" <<EOF
 <!DOCTYPE html>
 <html>
 <head><title>nym node</title></head>
@@ -69,8 +77,10 @@ if ! curl -fsSL \
 </body>
 </html>
 EOF
-
+  fi
 fi
+
+echo "landing page at ${WEBROOT}/index.html"
 
 echo "landing page at ${WEBROOT}/index.html"
 

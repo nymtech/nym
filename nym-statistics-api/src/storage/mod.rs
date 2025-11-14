@@ -1,5 +1,4 @@
 use anyhow::{Result, anyhow};
-use models::{ConnectionInfoDto, DailyActiveDeviceDto};
 use sqlx::{
     Executor,
     migrate::Migrator,
@@ -7,7 +6,7 @@ use sqlx::{
 };
 use std::{path::PathBuf, str::FromStr};
 
-use crate::storage::models::StatsReportV1Dto;
+use crate::storage::models::{StatsReportV1Dto, StatsReportV2Dto};
 
 pub(crate) mod models;
 
@@ -62,66 +61,6 @@ impl StatisticsStorage {
         })
     }
 
-    pub(crate) async fn store_legacy_vpn_client_report(
-        &mut self,
-        active_device: DailyActiveDeviceDto,
-        connection_info: Option<ConnectionInfoDto>,
-    ) -> Result<()> {
-        self.store_device(active_device).await?;
-        if let Some(connection_info) = connection_info {
-            self.store_connection_stats(connection_info).await?;
-        }
-        Ok(())
-    }
-
-    async fn store_device(&self, active_device: DailyActiveDeviceDto) -> Result<()> {
-        sqlx::query!(
-            r#"INSERT INTO active_device (
-                day,
-                device_id,
-                os_type,
-                os_version,
-                architecture,
-                app_version,
-                user_agent,
-                from_mixnet)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-            ON CONFLICT (device_id, day) DO NOTHING"#,
-            active_device.day as time::Date,
-            active_device.stats_id,
-            active_device.os_type,
-            active_device.os_version,
-            active_device.os_arch,
-            active_device.app_version,
-            active_device.user_agent,
-            active_device.from_mixnet
-        )
-        .execute(&self.connection_pool)
-        .await?;
-        Ok(())
-    }
-
-    async fn store_connection_stats(&self, connection_info: ConnectionInfoDto) -> Result<()> {
-        sqlx::query!(
-            r#"INSERT INTO connection_stats (
-                received_at,
-                connection_time_ms,
-                two_hop,
-                source_ip,
-                country_code,
-                from_mixnet) VALUES ($1::timestamptz, $2, $3, $4, $5, $6)"#,
-            connection_info.received_at as time::OffsetDateTime,
-            connection_info.connection_time_ms,
-            connection_info.two_hop,
-            connection_info.received_from,
-            connection_info.country_code,
-            connection_info.from_mixnet
-        )
-        .execute(&self.connection_pool)
-        .await?;
-        Ok(())
-    }
-
     pub(crate) async fn store_vpn_client_report(
         &mut self,
         report_v1: StatsReportV1Dto,
@@ -153,6 +92,53 @@ impl StatisticsStorage {
             report_v1.connection_time_ms,
             report_v1.two_hop,
             report_v1.country_code
+        )
+        .execute(&self.connection_pool)
+        .await?;
+        Ok(())
+    }
+
+    pub(crate) async fn store_vpn_client_report_v2(
+        &self,
+        report_v2: StatsReportV2Dto,
+    ) -> Result<()> {
+        sqlx::query!(
+            r#"INSERT INTO report_v2(
+                received_at,
+                source_ip,
+                from_mixnet,
+                country_code,
+                device_id,
+                os_type,
+                os_version,
+                architecture,
+                app_version,
+                user_agent,
+                start_day,
+                connection_time_ms,
+                two_hop,
+                session_duration_min,
+                exit_id,
+                exit_country_code,
+                error)
+                VALUES ($1::timestamptz, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)"#,
+            report_v2.received_at as time::OffsetDateTime,
+            report_v2.received_from,
+            report_v2.from_mixnet,
+            report_v2.country_code,
+            report_v2.stats_id,
+            report_v2.os_type,
+            report_v2.os_version,
+            report_v2.os_arch,
+            report_v2.app_version,
+            report_v2.user_agent,
+            report_v2.start_day,
+            report_v2.connection_time_ms,
+            report_v2.two_hop,
+            report_v2.session_duration_min,
+            report_v2.exit_id,
+            report_v2.exit_country_code,
+            report_v2.error
         )
         .execute(&self.connection_pool)
         .await?;

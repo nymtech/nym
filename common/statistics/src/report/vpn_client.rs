@@ -2,8 +2,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use serde::{Deserialize, Serialize};
+use time::Date;
 
-const KIND: &str = "vpn_client_stats_report";
+const BASIC_REPORT_KIND: &str = "vpn_client_stats_report";
+const SESSION_REPORT_KIND: &str = "vpn_client_session_report";
 const VERSION: &str = "v1";
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
@@ -20,7 +22,7 @@ pub struct VpnClientStatsReport {
 impl VpnClientStatsReport {
     pub fn new(stats_id: String, static_information: StaticInformationReport) -> Self {
         VpnClientStatsReport {
-            kind: KIND.into(),
+            kind: BASIC_REPORT_KIND.into(),
             api_version: VERSION.into(),
             stats_id,
             static_information,
@@ -34,6 +36,34 @@ impl VpnClientStatsReport {
         self
     }
 }
+
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VpnClientStatsReportV2 {
+    pub kind: String,
+    pub api_version: String,
+    pub stats_id: String,
+
+    pub static_information: StaticInformationReport,
+    pub session_report: SessionReport,
+}
+
+impl VpnClientStatsReportV2 {
+    pub fn new(
+        stats_id: String,
+        static_information: StaticInformationReport,
+        session_report: SessionReport,
+    ) -> Self {
+        VpnClientStatsReportV2 {
+            kind: SESSION_REPORT_KIND.into(),
+            api_version: VERSION.into(),
+            stats_id,
+            static_information,
+            session_report,
+        }
+    }
+}
+
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StaticInformationReport {
@@ -48,4 +78,16 @@ pub struct StaticInformationReport {
 pub struct UsageReport {
     pub connection_time_ms: Option<i32>,
     pub two_hop: bool,
+}
+
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SessionReport {
+    pub start_day: Date,
+    pub connection_time_ms: i32,
+    pub two_hop: bool,
+    pub session_duration_min: i32,
+    pub exit_id: String,
+    pub exit_country_code: Option<String>,
+    pub error: Option<String>,
 }

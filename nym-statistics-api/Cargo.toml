@@ -20,7 +20,6 @@ axum-client-ip.workspace = true
 axum-extra = { workspace = true, features = ["typed-header"] }
 celes.workspace = true
 clap = { workspace = true, features = ["cargo", "derive", "env", "string"] }
-serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 sqlx = { workspace = true, features = [
     "runtime-tokio-rustls",

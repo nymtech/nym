@@ -7,21 +7,16 @@ license.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-async-trait = { workspace =  true }
-bip39 = { workspace = true }
+async-trait = { workspace = true }
 log = { workspace = true }
 rand = { workspace = true }
 thiserror = { workspace = true }
-url = { workspace = true }
-zeroize = { workspace = true }
 
 nym-credential-storage = { path = "../credential-storage" }
 nym-credentials = { path = "../credentials" }
 nym-credentials-interface = { path = "../credentials-interface" }
 nym-crypto = { path = "../crypto", features = ["rand", "asymmetric", "stream_cipher", "aes", "hashing"] }
-nym-ecash-contract-common = { path = "../cosmwasm-smart-contracts/ecash-contract" }
 nym-ecash-time = { path = "../ecash-time" }
-nym-network-defaults = { path = "../network-defaults" }
 nym-task = { path = "../task" }
 nym-validator-client = { path = "../client-libs/validator-client", default-features = false }
 

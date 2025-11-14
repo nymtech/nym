@@ -5005,21 +5005,16 @@ name = "nym-bandwidth-controller"
 version = "0.1.0"
 dependencies = [
  "async-trait",
- "bip39",
  "log",
  "nym-credential-storage",
  "nym-credentials",
  "nym-credentials-interface",
  "nym-crypto",
- "nym-ecash-contract-common",
  "nym-ecash-time",
- "nym-network-defaults",
  "nym-task",
  "nym-validator-client",
  "rand 0.8.5",
  "thiserror 2.0.12",
- "url",
- "zeroize",
 ]
 
 [[package]]
@@ -5572,6 +5567,7 @@ dependencies = [
  "sqlx",
  "sqlx-pool-guard",
  "thiserror 2.0.12",
+ "time",
  "tokio",
  "zeroize",
 ]
@@ -6443,6 +6439,7 @@ dependencies = [
  "nym-bin-common",
  "nym-client-core-config-types",
  "nym-config",
+ "nym-credential-verification",
  "nym-crypto",
  "nym-gateway",
  "nym-gateway-stats-storage",
@@ -6515,13 +6512,13 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "celes",
- "humantime",
  "humantime-serde",
  "nym-bin-common",
  "nym-crypto",
  "nym-exit-policy",
  "nym-http-api-client",
  "nym-noise-keys",
+ "nym-upgrade-mode-check",
  "nym-wireguard-types",
  "rand_chacha 0.3.1",
  "schemars 0.8.22",
@@ -6532,6 +6529,7 @@ dependencies = [
  "thiserror 2.0.12",
  "time",
  "tokio",
+ "url",
  "utoipa",
 ]
 

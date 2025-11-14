@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::bandwidth::ClientBandwidth;
+use crate::client::config::BandwidthTickets;
 use crate::error::GatewayClientError;
 use crate::packet_router::PacketRouter;
 use crate::traits::GatewayPacketRouter;
@@ -177,7 +178,20 @@ impl PartiallyDelegatedRouter {
                         let available_bi2 = bibytes2(available as f64);
                         let required_bi2 = bibytes2(required as f64);
                         warn!("run out of bandwidth when attempting to send the message! we got {available_bi2} available, but needed at least {required_bi2} to send the previous message");
-                        self.client_bandwidth.update_and_log(available, None);
+                        // if we run out of bandwidth (and tried to send reasonable amount of data),
+                        // the upgrade mode is implicitly disabled, as otherwise we would have been
+                        // to proceed
+                        let upgrade_mode = if available
+                            < BandwidthTickets::DEFAULT_REMAINING_BANDWIDTH_THRESHOLD
+                        {
+                            Some(false)
+                        } else {
+                            // we were attempting to send a lot of data at once
+                            // - we have no certainty about upgrade mode at this point
+                            None
+                        };
+                        self.client_bandwidth
+                            .update_and_log(available, upgrade_mode);
                         // UNIMPLEMENTED: we should stop sending messages until we recover bandwidth
                         Ok(())
                     }

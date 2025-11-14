@@ -695,6 +695,10 @@ impl ReplayProtectionDebug {
     pub const DEFAULT_BLOOMFILTER_MINIMUM_PACKETS_PER_SECOND_SIZE: usize = 200;
 
     pub fn validate(&self) -> Result<(), NymNodeError> {
+        if self.unsafe_disabled {
+            return Ok(());
+        }
+
         if self.false_positive_rate >= 1.0 || self.false_positive_rate <= 0.0 {
             return Err(NymNodeError::config_validation_failure(
                 "false positive rate for replay detection can't be larger than (or equal to) 1 or smaller than (or equal to) 0",

@@ -12,7 +12,7 @@ use std::time::Duration;
 use thiserror::Error;
 use time::OffsetDateTime;
 use tokio::sync::{Notify, RwLock};
-use tracing::{debug, error};
+use tracing::{debug, error, info};
 
 #[derive(Debug, Error)]
 pub enum UpgradeModeEnableError {
@@ -101,6 +101,10 @@ impl UpgradeModeDetails {
         }
     }
 
+    pub fn state(&self) -> &UpgradeModeState {
+        &self.state
+    }
+
     pub fn enabled(&self) -> bool {
         self.state.upgrade_mode_enabled()
     }
@@ -156,6 +160,7 @@ impl UpgradeModeDetails {
 
         // note: if attestation has been returned, it means we're definitely in upgrade mode
         // (otherwise it wouldn't have existed in the state)
+        info!("managed to initialise upgrade mode through received JWT");
 
         Ok(())
     }
@@ -196,6 +201,10 @@ impl UpgradeModeState {
                 status: UpgradeModeStatus(Arc::new(AtomicBool::new(false))),
             }),
         }
+    }
+
+    pub fn attester_pubkey(&self) -> ed25519::PublicKey {
+        self.inner.expected_attester_public_key
     }
 
     pub async fn attestation(&self) -> Option<UpgradeModeAttestation> {

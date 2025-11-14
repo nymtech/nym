@@ -8,17 +8,18 @@ use nym_registration_common::GatewayData;
 use std::net::{IpAddr, SocketAddr};
 use std::sync::Arc;
 use std::time::Duration;
-use tracing::{debug, error, trace};
+use tracing::{debug, error, trace, warn};
 
 use crate::error::Result;
 use crate::mixnet_listener::{MixnetMessageBroadcastReceiver, MixnetMessageInputSender};
 use crate::types::{AvailableBandwidthClientResponse, TopUpClientResponse};
+use nym_authenticator_requests::models::BandwidthClaim;
 use nym_authenticator_requests::traits::UpgradeModeStatus;
 use nym_authenticator_requests::{
     AuthenticatorVersion, client_message::ClientMessage, response::AuthenticatorResponse,
     traits::Id, v2, v3, v4, v5, v6,
 };
-use nym_credentials_interface::{CredentialSpendingData, TicketType};
+use nym_credentials_interface::{BandwidthCredential, CredentialSpendingData, TicketType};
 use nym_sdk::mixnet::{IncludedSurbs, Recipient, ReconstructedMessage};
 use nym_service_provider_requests_common::{Protocol, ServiceProviderTypeExt};
 use nym_wireguard_types::PeerPublicKey;
@@ -205,6 +206,57 @@ impl AuthenticatorClient {
         }
     }
 
+    async fn produce_bandwidth_claim(
+        &self,
+        controller: &dyn BandwidthTicketProvider,
+        upgrade_mode_enabled: bool,
+        ticketbook_type: TicketType,
+    ) -> Result<BandwidthClaim> {
+        if upgrade_mode_enabled {
+            match controller
+                .get_upgrade_mode_token()
+                .await
+                .map_err(|source| AuthenticationClientError::UpgradeModeToken { source })?
+            {
+                None => warn!(
+                    "the wireguard node is in the upgrade mode, whilst we do not have an upgrade mode token - we will have to use normal ZK nym instead"
+                ),
+
+                Some(upgrade_mode_token) => {
+                    return Ok(BandwidthClaim {
+                        credential: BandwidthCredential::UpgradeModeJWT {
+                            token: upgrade_mode_token,
+                        },
+                        kind: ticketbook_type,
+                    });
+                }
+            }
+        }
+
+        let credential = controller
+            .get_ecash_ticket(
+                ticketbook_type,
+                self.auth_recipient.gateway(),
+                DEFAULT_TICKETS_TO_SPEND,
+            )
+            .await
+            .map_err(|source| AuthenticationClientError::GetTicket {
+                ticketbook_type,
+                source,
+            })?
+            .data;
+
+        let credential = credential
+            .try_into()
+            .inspect_err(|err| {
+                error!(
+                    "failed to convert {ticketbook_type} ticket to a valid BandwidthClaim: {err}"
+                )
+            })
+            .map_err(|_| AuthenticationClientError::InternalError)?;
+        Ok(credential)
+    }
+
     pub async fn register_wireguard(
         &mut self,
         controller: &dyn BandwidthTicketProvider,
@@ -255,33 +307,19 @@ impl AuthenticatorClient {
                     &self.ip_addr, &pending_registration_response
                 );
 
-                // This call takes care of updating the credential count in storage, so failure of this must be counted as credential waste
-                let credential = Some(
-                    controller
-                        .get_ecash_ticket(
-                            ticketbook_type,
-                            self.auth_recipient.gateway(),
-                            DEFAULT_TICKETS_TO_SPEND,
-                        )
-                        .await
-                        .map_err(|source| RegistrationError::CredentialSent {
-                            source: AuthenticationClientError::GetTicket {
-                                ticketbook_type,
-                                source,
-                            },
-                        })?
-                        .data,
-                );
-                let credential = credential
-                .map(TryInto::try_into)
-                    .transpose()
-                    .inspect_err(|err| error!("failed to convert {ticketbook_type} ticket to a valid BandwidthClaim: {err}"))
-                    .map_err(|_| RegistrationError::CredentialSent {
-                        source: AuthenticationClientError::InternalError,
-                    })?;
+                // if the node reports upgrade mode, we can use the corresponding token for registration
+                // instead of spending zk-nym ticket
+                let upgrade_mode_enabled = pending_registration_response
+                    .upgrade_mode_status()
+                    .is_enabled();
+
+                let bandwidth_claim = self
+                    .produce_bandwidth_claim(controller, upgrade_mode_enabled, ticketbook_type)
+                    .await
+                    .map_err(|source| RegistrationError::CredentialSent { source })?;
 
                 let finalized_message = pending_registration_response
-                    .finalise_registration(self.keypair.private_key(), credential);
+                    .finalise_registration(self.keypair.private_key(), Some(bandwidth_claim));
                 let client_message = ClientMessage::Final(finalized_message);
 
                 trace!("sending final msg to {}: {client_message:?}", &self.ip_addr);
@@ -420,5 +458,33 @@ impl AuthenticatorClient {
             remaining_bandwidth_bytes,
             current_upgrade_mode_status,
         })
+    }
+
+    pub async fn check_upgrade_mode(&mut self, upgrade_mode_jwt: String) -> Result<bool> {
+        let check_um_message = match self.auth_version {
+            AuthenticatorVersion::V1
+            | AuthenticatorVersion::V2
+            | AuthenticatorVersion::V3
+            | AuthenticatorVersion::V4
+            | AuthenticatorVersion::V5
+            | AuthenticatorVersion::UNKNOWN => {
+                return Err(AuthenticationClientError::UnsupportedAuthenticatorVersion);
+            }
+
+            AuthenticatorVersion::V6 => ClientMessage::UpgradeModeCheck(Box::new(
+                v6::upgrade_mode_check::UpgradeModeCheckRequest::UpgradeModeJwt {
+                    token: upgrade_mode_jwt,
+                },
+            )),
+        };
+
+        let response = self.send_and_wait_for_response(&check_um_message).await?;
+        let AuthenticatorResponse::UpgradeMode(upgrade_mode_check_response) = response else {
+            return Err(AuthenticationClientError::InvalidGatewayAuthResponse);
+        };
+
+        Ok(upgrade_mode_check_response
+            .upgrade_mode_status()
+            .is_enabled())
     }
 }

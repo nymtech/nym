@@ -12,7 +12,6 @@ license.workspace = true
 
 [dependencies]
 celes = { workspace = true }                                               # country codes
-humantime = { workspace = true }
 humantime-serde = { workspace = true }
 schemars = { workspace = true, features = ["preserve_order"] }
 serde = { workspace = true, features = ["derive"] }
@@ -21,6 +20,7 @@ strum = { workspace = true, features = ["derive"] }
 strum_macros = { workspace = true }
 time = { workspace = true, features = ["serde", "formatting", "parsing"] }
 thiserror = { workspace = true }
+url = { workspace = true, features = ["serde"] }
 
 nym-crypto = { path = "../../common/crypto", features = [
     "asymmetric",
@@ -29,6 +29,7 @@ nym-crypto = { path = "../../common/crypto", features = [
 nym-exit-policy = { path = "../../common/exit-policy" }
 nym-noise-keys = { path = "../../common/nymnoise/keys" }
 nym-wireguard-types = { path = "../../common/wireguard-types", default-features = false }
+nym-upgrade-mode-check = { path = "../../common/upgrade-mode-check", features = ["openapi"] }
 
 # feature-specific dependencies:
 

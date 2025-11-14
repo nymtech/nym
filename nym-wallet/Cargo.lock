@@ -4466,13 +4466,13 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "celes",
- "humantime 2.2.0",
  "humantime-serde",
  "nym-bin-common",
  "nym-crypto",
  "nym-exit-policy",
  "nym-http-api-client",
  "nym-noise-keys",
+ "nym-upgrade-mode-check",
  "nym-wireguard-types",
  "schemars",
  "serde",
@@ -4481,6 +4481,7 @@ dependencies = [
  "strum_macros",
  "thiserror 2.0.12",
  "time",
+ "url",
  "utoipa",
 ]
 
@@ -4606,6 +4607,7 @@ dependencies = [
  "thiserror 2.0.12",
  "time",
  "tracing",
+ "utoipa",
 ]
 
 [[package]]

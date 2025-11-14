@@ -10,7 +10,9 @@ pub mod routes;
 pub use models::v0;
 pub use models::{
     AxumErrorResponse, AxumResult, Construct, ErrorResponse, Extract, Request, Response, Version,
-    error::Error as ModelError, interface, latest, v1, v2,
+    error::Error as ModelError,
+    interface::{self, AvailableBandwidth},
+    latest, v1, v2,
 };
 
 fn make_bincode_serializer() -> impl bincode::Options {

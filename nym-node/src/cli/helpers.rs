@@ -9,6 +9,7 @@ use crate::error::NymNodeError;
 use celes::Country;
 use clap::Args;
 use clap::builder::ArgPredicate;
+use nym_crypto::asymmetric::ed25519;
 use std::net::{IpAddr, SocketAddr};
 use std::path::{Path, PathBuf};
 use url::Url;
@@ -429,12 +430,22 @@ pub(crate) struct EntryGatewayArgs {
     pub(crate) mnemonic: Option<bip39::Mnemonic>,
 
     /// Endpoint to query to retrieve current upgrade mode attestation.
+    /// This argument should never be set outside testnets and local networks.
     #[clap(
         long,
         env = NYMNODE_UPGRADE_MODE_ATTESTATION_URL_ARG
     )]
     #[zeroize(skip)]
     pub(crate) upgrade_mode_attestation_url: Option<Url>,
+
+    /// Expected public key of the entity signing the published attestation.
+    /// This argument should never be set outside testnets and local networks.
+    #[clap(
+        long,
+        env = NYMNODE_UPGRADE_MODE_ATTESTER_PUBKEY_ARG
+    )]
+    #[zeroize(skip)]
+    pub(crate) upgrade_mode_attester_public_key: Option<ed25519::PublicKey>,
 }
 
 impl EntryGatewayArgs {
@@ -464,6 +475,9 @@ impl EntryGatewayArgs {
         }
         if let Some(upgrade_mode_attestation_url) = self.upgrade_mode_attestation_url.take() {
             section.upgrade_mode.attestation_url = upgrade_mode_attestation_url
+        }
+        if let Some(upgrade_mode_attester_public_key) = self.upgrade_mode_attester_public_key {
+            section.upgrade_mode.attester_public_key = upgrade_mode_attester_public_key
         }
 
         section

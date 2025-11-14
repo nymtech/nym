@@ -244,6 +244,7 @@ pub struct UpgradeModeWatcher {
     #[serde(with = "bs58_ed25519_pubkey")]
     pub attester_public_key: ed25519::PublicKey,
 
+    #[serde(default)]
     pub debug: UpgradeModeWatcherDebug,
 }
 

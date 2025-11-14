@@ -37,21 +37,25 @@ fi
 TUNNEL_INTERFACE="${TUNNEL_INTERFACE:-nymtun0}"
 WG_INTERFACE="${WG_INTERFACE:-nymwg}"
 
+# Function to detect and validate uplink interface
+detect_uplink_interface() {
+  local cmd="$1"
+  local dev
+  dev="$(eval "$cmd" 2>/dev/null | awk '{print \$5}' | head -n1 || true)"
+  if [[ -n "$dev" && "$dev" =~ ^[a-zA-Z0-9._-]+$ ]]; then
+    echo "$dev"
+  else
+    echo ""
+  fi
+}
+
 # uplink device detection, can be overridden
 NETWORK_DEVICE="${NETWORK_DEVICE:-}"
 if [[ -z "$NETWORK_DEVICE" ]]; then
-  NETWORK_DEVICE="$(ip -o route show default 2>/dev/null | awk '{print $5}' | head -n1 || true)"
-  # Validate that NETWORK_DEVICE is non-empty and looks like a network interface
-  if [[ -z "$NETWORK_DEVICE" || ! "$NETWORK_DEVICE" =~ ^[a-zA-Z0-9._-]+$ ]]; then
-    NETWORK_DEVICE=""
-  fi
+  NETWORK_DEVICE="$(detect_uplink_interface "ip -o route show default")"
 fi
 if [[ -z "$NETWORK_DEVICE" ]]; then
-  NETWORK_DEVICE="$(ip -o route show default table all 2>/dev/null | awk '{print $5}' | head -n1 || true)"
-  # Validate that NETWORK_DEVICE is non-empty and looks like a network interface
-  if [[ -z "$NETWORK_DEVICE" || ! "$NETWORK_DEVICE" =~ ^[a-zA-Z0-9._-]+$ ]]; then
-    NETWORK_DEVICE=""
-  fi
+  NETWORK_DEVICE="$(detect_uplink_interface "ip -o route show default table all")"
 fi
 if [[ -z "$NETWORK_DEVICE" ]]; then
   echo "cannot determine uplink interface. set NETWORK_DEVICE or UPLINK_DEV"

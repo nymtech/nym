@@ -5,8 +5,6 @@ pub mod api;
 pub mod client;
 mod helpers;
 
-pub const CREDENTIAL_PROXY_JWT_ISSUER: &str = "nym-credential-proxy";
-
 macro_rules! absolute_route {
     ( $name:ident, $parent:expr, $suffix:expr ) => {
         pub fn $name() -> String {

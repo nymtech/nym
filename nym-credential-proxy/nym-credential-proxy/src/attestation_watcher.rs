@@ -21,6 +21,8 @@ pub struct AttestationWatcher {
 
     attestation_url: Url,
 
+    expected_attester_public_key: ed25519::PublicKey,
+
     jwt_signing_keys: ed25519::KeyPair,
 
     jwt_validity: Duration,
@@ -32,6 +34,7 @@ impl AttestationWatcher {
     pub(crate) fn new(
         regular_polling_interval: Duration,
         expedited_poll_interval: Duration,
+        expected_attester_public_key: ed25519::PublicKey,
         attestation_url: Url,
         jwt_signing_keys: ed25519::KeyPair,
         jwt_validity: Duration,
@@ -40,6 +43,7 @@ impl AttestationWatcher {
             regular_polling_interval,
             expedited_poll_interval,
             attestation_url,
+            expected_attester_public_key,
             jwt_signing_keys,
             jwt_validity,
             upgrade_mode_state: UpgradeModeState {
@@ -65,7 +69,12 @@ impl AttestationWatcher {
             }
             Ok(attestation) => {
                 self.upgrade_mode_state
-                    .update(attestation, &self.jwt_signing_keys, self.jwt_validity)
+                    .update(
+                        attestation,
+                        self.expected_attester_public_key,
+                        &self.jwt_signing_keys,
+                        self.jwt_validity,
+                    )
                     .await
             }
         }
@@ -74,7 +83,7 @@ impl AttestationWatcher {
     pub async fn run_forever(self, cancellation_token: CancellationToken) {
         info!("starting the attestation watcher task");
 
-        let check_wait = tokio::time::sleep(self.regular_polling_interval);
+        let check_wait = tokio::time::sleep(Duration::new(0, 0));
         tokio::pin!(check_wait);
 
         loop {

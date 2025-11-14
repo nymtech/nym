@@ -79,6 +79,29 @@ pub(crate) async fn run_api(cli: Cli) -> Result<(), CredentialProxyError> {
         }
     };
 
+    let attester_pubkey = match cli.upgrade_mode.attester_pubkey {
+        Some(pubkey) => pubkey,
+        None => {
+            // argument hasn't been provided and env is not configured
+            if std::env::var(CONFIGURED).is_err() {
+                return Err(CredentialProxyError::AttesterPublicKeyNotSet);
+            }
+            // argument hasn't been provided and the relevant env value hasn't been set
+            // (technically this shouldn't be possible)
+            let Ok(env_key) = std::env::var(var_names::UPGRADE_MODE_ATTESTER_ED25519_BS58_PUBKEY)
+            else {
+                return Err(CredentialProxyError::AttesterPublicKeyNotSet);
+            };
+
+            match env_key.parse() {
+                Ok(key) => key,
+                Err(err) => {
+                    return Err(CredentialProxyError::MalformedAttesterPublicKey { source: err });
+                }
+            }
+        }
+    };
+
     let ticketbook_manager = TicketbookManager::new(
         build_sha_short(),
         cli.quorum_check_interval,
@@ -94,6 +117,7 @@ pub(crate) async fn run_api(cli: Cli) -> Result<(), CredentialProxyError> {
         cli.upgrade_mode.attestation_check_regular_polling_interval,
         cli.upgrade_mode
             .attestation_check_expedited_polling_interval,
+        attester_pubkey,
         upgrade_mode_attestation_check_url,
         jwt_signing_keys,
         cli.upgrade_mode.upgrade_mode_jwt_validity,

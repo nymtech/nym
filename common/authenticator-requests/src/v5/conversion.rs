@@ -186,8 +186,8 @@ impl From<v4::response::TopUpBandwidthResponse> for v5::response::TopUpBandwidth
     }
 }
 
-impl From<v4::registration::RegistredData> for v5::registration::RegistredData {
-    fn from(value: v4::registration::RegistredData) -> Self {
+impl From<v4::registration::RegisteredData> for v5::registration::RegisteredData {
+    fn from(value: v4::registration::RegisteredData) -> Self {
         Self {
             pub_key: value.pub_key,
             private_ips: value.private_ips.into(),
@@ -405,7 +405,7 @@ mod tests {
         let ipv6 = Ipv6Addr::from_str("fc01::a0a").unwrap();
         let private_ips = v4::registration::IpPair::new(ipv4, ipv6);
         let wg_port = 51822;
-        let registred_data = v4::registration::RegistredData {
+        let registred_data = v4::registration::RegisteredData {
             pub_key,
             private_ips,
             wg_port,
@@ -431,7 +431,7 @@ mod tests {
             upgraded_msg.data,
             v5::response::AuthenticatorResponseData::Registered(v5::response::RegisteredResponse {
                 request_id,
-                reply: v5::registration::RegistredData {
+                reply: v5::registration::RegisteredData {
                     wg_port,
                     pub_key,
                     private_ips: v5::registration::IpPair::new(ipv4, ipv6)

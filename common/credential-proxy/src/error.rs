@@ -184,7 +184,9 @@ pub enum CredentialProxyError {
     AttesterPublicKeyNotSet,
 
     #[error("the provided attester public key is malformed: {source}")]
-    MalformedAttesterPublicKey { source: ed25519::SignatureError },
+    MalformedAttesterPublicKey {
+        source: ed25519::Ed25519RecoveryError,
+    },
 }
 
 impl From<NymAPIError> for CredentialProxyError {

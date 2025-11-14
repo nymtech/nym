@@ -75,9 +75,15 @@ err() { echo -e "${RED}$1${RESET}"; }
 info() { echo -e "${CYAN}$1${RESET}"; }
 press_enter() { read -r -p "$1"; }
 
-# Disable pauses for noninteractive mode
+# Disable pauses and interactive prompts for noninteractive mode
 if [[ "${NONINTERACTIVE:-0}" == "1" ]]; then
+  # all pauses become no-ops
   press_enter() { :; }
+
+  # silence any "enter path:" prompts
+  echo_prompt() { :; }
+else
+  echo_prompt() { echo -n "$1"; }
 fi
 
 # Helper: detect dpkg dependency failure for libc6>=2.34

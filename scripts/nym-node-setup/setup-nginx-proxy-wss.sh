@@ -27,7 +27,7 @@ HTTPS_CONF="${SITES_AVAIL}/${HOSTNAME}-ssl"
 WSS_CONF="${SITES_AVAIL}/wss-config-nym"
 
 echo
-echo "* * * starting clean nginx configuration for landing page, reverse proxy and wss * * *"
+echo "* * * Starting clean nginx configuration for landing page, reverse proxy and wss * * *"
 
 ################################################################################
 # step 1: clean all previous configs

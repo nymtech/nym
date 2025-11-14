@@ -9,6 +9,7 @@ use nym_validator_client::nym_api::error::NymAPIError;
 use nym_validator_client::nyxd::error::NyxdError;
 use nym_validator_client::nyxd::tx::ErrorReport;
 use nym_validator_client::nyxd::{AccountId, Coin};
+use nyxd_scraper_sqlite::error::SqliteScraperError;
 use std::io;
 use std::path::PathBuf;
 use thiserror::Error;
@@ -23,6 +24,9 @@ pub enum NymRewarderError {
 
     #[error("failed to perform startup SQL migration: {0}")]
     StartupMigrationFailure(#[from] sqlx::migrate::MigrateError),
+
+    #[error("config error: database storage path invalid")]
+    ConfigError,
 
     #[error(
     "failed to load config file using path '{}'. detailed message: {source}", path.display()
@@ -81,7 +85,13 @@ pub enum NymRewarderError {
     #[error("chain scraping failure: {source}")]
     ScraperFailure {
         #[from]
-        source: nyxd_scraper::error::ScraperError,
+        source: nyxd_scraper_sqlite::ScraperError,
+    },
+
+    #[error("chain scraper storage failure: {source}")]
+    ScraperStorageFailure {
+        #[from]
+        source: SqliteScraperError,
     },
 
     // this should never happen but unwrapping everywhere was more cumbersome than just propagating the error

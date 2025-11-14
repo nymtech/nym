@@ -1,0 +1,18 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO pre_commit (validator_address, height, timestamp, voting_power, proposer_priority)\n            VALUES ($1, $2, $3, $4, $5)\n            ON CONFLICT (validator_address, timestamp) DO NOTHING\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int8",
+        "Timestamp",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "62e14613f5ffe692346a79086857a22f0444fbc679db1c06b651fb8b5538b278"
+}

@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE metadata SET last_processed_height = GREATEST(last_processed_height, $1)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "2679cdf11fa66c7920678cde860c57402119ec7c3aae731b0da831327301466f"
+}

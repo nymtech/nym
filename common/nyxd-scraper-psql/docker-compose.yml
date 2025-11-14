@@ -1,0 +1,21 @@
+services:
+  postgres-test:
+    image: postgres:16-alpine
+    container_name: nyxd_scraper_psql_test
+    environment:
+      POSTGRES_DB: nyxd_scraper_test
+      POSTGRES_USER: testuser
+      POSTGRES_PASSWORD: testpass
+    ports:
+      - '5433:5432' # Map to 5433 to avoid conflicts with default PostgreSQL
+    healthcheck:
+      test: [ 'CMD-SHELL', 'pg_isready -U testuser -d nyxd_scraper_test' ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    # Optional: Add volume for persistent data during development
+    # volumes:
+    #   - postgres_test_data:/var/lib/postgresql/data
+
+# volumes:
+#   postgres_test_data:

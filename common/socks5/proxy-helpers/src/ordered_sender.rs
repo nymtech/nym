@@ -3,11 +3,12 @@
 
 use crate::proxy_runner::MixProxySender;
 use bytes::Bytes;
+use futures::SinkExt;
 use log::{debug, error};
 use nym_socks5_requests::{ConnectionId, SocketData};
 use std::io;
 
-pub(crate) struct OrderedMessageSender<F, S> {
+pub(crate) struct OrderedMessageSender<F, S: Send + 'static> {
     connection_id: ConnectionId,
     // addresses are provided for better logging
     local_destination_address: String,
@@ -18,7 +19,7 @@ pub(crate) struct OrderedMessageSender<F, S> {
     mix_message_adapter: F,
 }
 
-impl<F, S> OrderedMessageSender<F, S>
+impl<F, S: Send + 'static> OrderedMessageSender<F, S>
 where
     F: Fn(SocketData) -> S,
 {
@@ -55,7 +56,7 @@ where
         (self.mix_message_adapter)(data)
     }
 
-    async fn send_message(&self, message: S) {
+    async fn send_message(&mut self, message: S) {
         if self.mixnet_sender.send(message).await.is_err() {
             panic!("BatchRealMessageReceiver has stopped receiving!")
         }

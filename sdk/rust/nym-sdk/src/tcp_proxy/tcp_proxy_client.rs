@@ -161,7 +161,7 @@ impl NymProxyClient {
         let codec = BytesCodec::new();
         let mut framed_read = FramedRead::new(read, codec);
         // Much like the tcpstream, split our Nym client into a sender and receiver for concurrent read/write
-        let sender = client.split_sender();
+        let mut sender = client.split_sender();
         // The server / service provider address our client is sending messages to will remain static
         let server_addr = server_address;
         // Store outgoing messages in instance of Dashset abstraction

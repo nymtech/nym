@@ -22,7 +22,7 @@ pub enum AuthenticatorVersion {
     /// introduced in dorina-patched release (1.6.1)
     V5,
 
-    /// introduced in mozzarella release (1.22.0)
+    /// introduced in niolo release (1.23.0)
     V6,
 
     /// an unknown, future, variant that can be present if running outdated software
@@ -39,7 +39,7 @@ impl AuthenticatorVersion {
             AuthenticatorVersion::V3 => semver::Version::new(1, 1, 10),
             AuthenticatorVersion::V4 => semver::Version::new(1, 2, 0),
             AuthenticatorVersion::V5 => semver::Version::new(1, 6, 1),
-            AuthenticatorVersion::V6 => semver::Version::new(1, 22, 0),
+            AuthenticatorVersion::V6 => semver::Version::new(1, 23, 0),
             AuthenticatorVersion::UNKNOWN => semver::Version::new(0, 0, 0),
         }
     }
@@ -203,9 +203,9 @@ mod tests {
         assert_eq!(AuthenticatorVersion::V5, "1.7.0".into());
         assert_eq!(AuthenticatorVersion::V5, "1.16.11".into());
         assert_eq!(AuthenticatorVersion::V5, "1.17.0".into());
-        assert_eq!(AuthenticatorVersion::V5, "1.21.0".into());
-        assert_eq!(AuthenticatorVersion::V6, "1.22.0".into());
-        assert_eq!(AuthenticatorVersion::V6, "1.22.1".into());
+        assert_eq!(AuthenticatorVersion::V5, "1.22.0".into());
         assert_eq!(AuthenticatorVersion::V6, "1.23.0".into());
+        assert_eq!(AuthenticatorVersion::V6, "1.23.1".into());
+        assert_eq!(AuthenticatorVersion::V6, "1.24.0".into());
     }
 }

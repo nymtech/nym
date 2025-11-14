@@ -169,18 +169,14 @@ impl SessionManager {
 
     pub fn create_session_state_machine(
         &self,
-        local_keypair: &Keypair,
         local_ed25519_keypair: (&ed25519::PrivateKey, &ed25519::PublicKey),
-        remote_public_key: &PublicKey,
         remote_ed25519_key: &ed25519::PublicKey,
         is_initiator: bool,
         salt: &[u8; 32],
     ) -> Result<u32, LpError> {
         let sm = LpStateMachine::new(
             is_initiator,
-            local_keypair,
             local_ed25519_keypair,
-            remote_public_key,
             remote_ed25519_key,
             salt,
         )?;
@@ -221,9 +217,7 @@ mod tests {
 
         let sm_1_id = manager
             .create_session_state_machine(
-                &Keypair::default(),
                 (ed25519_keypair.private_key(), ed25519_keypair.public_key()),
-                &PublicKey::default(),
                 ed25519_keypair.public_key(),
                 true,
                 &salt,
@@ -245,9 +239,7 @@ mod tests {
 
         let sm_1_id = manager
             .create_session_state_machine(
-                &Keypair::default(),
                 (ed25519_keypair.private_key(), ed25519_keypair.public_key()),
-                &PublicKey::default(),
                 ed25519_keypair.public_key(),
                 true,
                 &salt,
@@ -272,9 +264,7 @@ mod tests {
 
         let sm_1 = manager
             .create_session_state_machine(
-                &Keypair::default(),
                 (ed25519_keypair_1.private_key(), ed25519_keypair_1.public_key()),
-                &PublicKey::default(),
                 ed25519_keypair_1.public_key(),
                 true,
                 &salt,
@@ -283,9 +273,7 @@ mod tests {
 
         let sm_2 = manager
             .create_session_state_machine(
-                &Keypair::default(),
                 (ed25519_keypair_2.private_key(), ed25519_keypair_2.public_key()),
-                &PublicKey::default(),
                 ed25519_keypair_2.public_key(),
                 true,
                 &salt,
@@ -294,9 +282,7 @@ mod tests {
 
         let sm_3 = manager
             .create_session_state_machine(
-                &Keypair::default(),
                 (ed25519_keypair_3.private_key(), ed25519_keypair_3.public_key()),
-                &PublicKey::default(),
                 ed25519_keypair_3.public_key(),
                 true,
                 &salt,
@@ -321,9 +307,7 @@ mod tests {
         let salt = [50u8; 32];
 
         let sm = manager.create_session_state_machine(
-            &Keypair::default(),
             (ed25519_keypair.private_key(), ed25519_keypair.public_key()),
-            &PublicKey::default(),
             ed25519_keypair.public_key(),
             true,
             &salt,

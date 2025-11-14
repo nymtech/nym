@@ -18,16 +18,24 @@ pub struct LpGatewayHandshake {
 
 impl LpGatewayHandshake {
     /// Create a new responder (gateway side) handshake
+    ///
+    /// # Arguments
+    /// * `gateway_ed25519_keypair` - Gateway's Ed25519 identity keypair (for PSQ auth and X25519 derivation)
+    /// * `client_ed25519_public_key` - Client's Ed25519 public key (from ClientHello)
+    /// * `salt` - Salt from ClientHello (for PSK derivation)
     pub fn new_responder(
-        local_keypair: &Keypair,
-        remote_public_key: &PublicKey,
-        psk: &[u8; 32],
+        gateway_ed25519_keypair: (
+            &nym_crypto::asymmetric::ed25519::PrivateKey,
+            &nym_crypto::asymmetric::ed25519::PublicKey,
+        ),
+        client_ed25519_public_key: &nym_crypto::asymmetric::ed25519::PublicKey,
+        salt: &[u8; 32],
     ) -> Result<Self, GatewayError> {
         let state_machine = LpStateMachine::new(
             false, // responder
-            local_keypair,
-            remote_public_key,
-            psk,
+            gateway_ed25519_keypair,
+            client_ed25519_public_key,
+            salt,
         )
         .map_err(|e| {
             GatewayError::LpHandshakeError(format!("Failed to create state machine: {}", e))

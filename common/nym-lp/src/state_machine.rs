@@ -4,7 +4,7 @@
 //! Lewes Protocol State Machine for managing connection lifecycle.
 
 use crate::{
-    keypair::{Keypair, PublicKey},
+    keypair::{Keypair, PrivateKey as LpPrivateKey, PublicKey as LpPublicKey},
     make_lp_id,
     noise_protocol::NoiseError,
     packet::LpPacket,
@@ -129,53 +129,76 @@ impl LpStateMachine {
         Ok(self.session()?.id())
     }
 
-    /// Creates a new state machine, calculates the lp_id, creates the session,
-    /// and sets the initial state to ReadyToHandshake.
+    /// Creates a new state machine from Ed25519 keys, internally deriving X25519 keys.
     ///
-    /// Requires the local *full* keypair to get the public key for lp_id calculation.
+    /// This is the primary constructor that accepts only Ed25519 keys (identity/signing keys)
+    /// and internally derives the X25519 keys needed for Noise protocol and DHKEM.
+    /// This simplifies the API by hiding the X25519 derivation as an implementation detail.
     ///
     /// # Arguments
     ///
     /// * `is_initiator` - Whether this side initiates the handshake
-    /// * `local_keypair` - X25519 keypair for Noise and DHKEM
-    /// * `local_ed25519_keypair` - Ed25519 keypair for PSQ authentication (from client identity key or gateway signing key)
-    /// * `remote_public_key` - Peer's X25519 public key
-    /// * `remote_ed25519_key` - Peer's Ed25519 public key for PSQ authentication
+    /// * `local_ed25519_keypair` - Ed25519 keypair for PSQ authentication and X25519 derivation
+    ///   (from client identity key or gateway signing key)
+    /// * `remote_ed25519_key` - Peer's Ed25519 public key for PSQ authentication and X25519 derivation
     /// * `salt` - Fresh salt for PSK derivation (must be unique per session)
+    ///
+    /// # Errors
+    ///
+    /// Returns `LpError::Ed25519RecoveryError` if Ed25519→X25519 conversion fails for the remote key.
+    /// Local private key conversion cannot fail.
     pub fn new(
         is_initiator: bool,
-        local_keypair: &Keypair,
         local_ed25519_keypair: (&ed25519::PrivateKey, &ed25519::PublicKey),
-        remote_public_key: &PublicKey,
         remote_ed25519_key: &ed25519::PublicKey,
         salt: &[u8; 32],
     ) -> Result<Self, LpError> {
-        // Calculate the shared lp_id
-        let lp_id = make_lp_id(local_keypair.public_key(), remote_public_key);
+        // AIDEV-NOTE: Ed25519→X25519 conversion for API simplification
+        // We use standard RFC 7748 conversion to derive X25519 keys from Ed25519 identity keys.
+        // This allows callers to provide only Ed25519 keys (which they already have for signing/identity)
+        // without needing to manage separate X25519 keypairs.
+        //
+        // Security: Ed25519→X25519 conversion is cryptographically sound (RFC 7748).
+        // The derived X25519 keys are used for:
+        // - Noise protocol ephemeral DH
+        // - PSQ ECDH baseline security (pre-quantum)
+        // - lp_id calculation (session identifier)
 
-        // Create the session immediately with provided Ed25519 keys and salt
+        // Convert Ed25519 keys to X25519 for Noise protocol
+        let local_x25519_private = local_ed25519_keypair.0.to_x25519();
+        let local_x25519_public = local_ed25519_keypair
+            .1
+            .to_x25519()
+            .map_err(LpError::Ed25519RecoveryError)?;
+
+        let remote_x25519_public = remote_ed25519_key
+            .to_x25519()
+            .map_err(LpError::Ed25519RecoveryError)?;
+
+        // Convert nym_crypto X25519 types to nym_lp keypair types
+        let lp_private = LpPrivateKey::from_bytes(local_x25519_private.as_bytes());
+        let lp_public = LpPublicKey::from_bytes(local_x25519_public.as_bytes())?;
+        let lp_remote_public = LpPublicKey::from_bytes(remote_x25519_public.as_bytes())?;
+
+        // Create X25519 keypair for Noise and lp_id calculation
+        let local_x25519_keypair = Keypair::from_keys(lp_private, lp_public);
+
+        // Calculate the shared lp_id using derived X25519 keys
+        let lp_id = make_lp_id(local_x25519_keypair.public_key(), &lp_remote_public);
+
+        // Create the session with both Ed25519 (for PSQ auth) and derived X25519 keys (for Noise)
         let session = LpSession::new(
             lp_id,
             is_initiator,
             local_ed25519_keypair,
-            local_keypair.private_key(),
+            local_x25519_keypair.private_key(),
             remote_ed25519_key,
-            remote_public_key,
+            &lp_remote_public,
             salt,
         )?;
 
-        // TODO: Register the session with the SessionManager if applicable
-        // if let Some(manager) = session_manager {
-        //     manager.insert_session(lp_id, session.clone())?; // Assuming insert_session exists
-        // }
-
         Ok(LpStateMachine {
             state: LpState::ReadyToHandshake { session },
-            // Store necessary info if needed for recreation, otherwise remove
-            // is_initiator,
-            // local_private_key: local_private_key.to_vec(),
-            // remote_public_key: remote_public_key.to_vec(),
-            // psk: psk.to_vec(),
         })
     }
     /// Processes an input event and returns a list of actions to perform.
@@ -585,17 +608,12 @@ impl LpStateMachine {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::keypair::Keypair;
     use bytes::Bytes;
     use nym_crypto::asymmetric::ed25519;
 
     #[test]
     fn test_state_machine_init() {
-        let init_key = Keypair::new();
-        let resp_key = Keypair::new();
-        let remote_pub_key = resp_key.public_key();
-
-        // Ed25519 keypairs for PSQ authentication
+        // Ed25519 keypairs for PSQ authentication and X25519 derivation
         let ed25519_keypair_init = ed25519::KeyPair::from_secret([16u8; 32], 0);
         let ed25519_keypair_resp = ed25519::KeyPair::from_secret([17u8; 32], 1);
 
@@ -604,9 +622,10 @@ mod tests {
 
         let initiator_sm = LpStateMachine::new(
             true,
-            &init_key,
-            (ed25519_keypair_init.private_key(), ed25519_keypair_init.public_key()),
-            remote_pub_key,
+            (
+                ed25519_keypair_init.private_key(),
+                ed25519_keypair_init.public_key(),
+            ),
             ed25519_keypair_resp.public_key(),
             &salt,
         );
@@ -621,9 +640,10 @@ mod tests {
 
         let responder_sm = LpStateMachine::new(
             false,
-            &resp_key,
-            (ed25519_keypair_resp.private_key(), ed25519_keypair_resp.public_key()),
-            init_key.public_key(),
+            (
+                ed25519_keypair_resp.private_key(),
+                ed25519_keypair_resp.public_key(),
+            ),
             ed25519_keypair_init.public_key(),
             &salt,
         );
@@ -636,19 +656,14 @@ mod tests {
         let resp_session = responder_sm.session().unwrap();
         assert!(!resp_session.is_initiator());
 
-        // Check lp_id is the same
-        let expected_lp_id = make_lp_id(init_key.public_key(), remote_pub_key);
-        assert_eq!(init_session.id(), expected_lp_id);
-        assert_eq!(resp_session.id(), expected_lp_id);
+        // Check lp_id is the same (derived internally from Ed25519 keys)
+        // Both state machines should have the same lp_id
+        assert_eq!(init_session.id(), resp_session.id());
     }
 
     #[test]
     fn test_state_machine_simplified_flow() {
-        // Create test keys
-        let init_key = Keypair::new();
-        let resp_key = Keypair::new();
-
-        // Ed25519 keypairs for PSQ authentication
+        // Ed25519 keypairs for PSQ authentication and X25519 derivation
         let ed25519_keypair_init = ed25519::KeyPair::from_secret([18u8; 32], 0);
         let ed25519_keypair_resp = ed25519::KeyPair::from_secret([19u8; 32], 1);
 
@@ -658,9 +673,10 @@ mod tests {
         // Create state machines (already in ReadyToHandshake)
         let mut initiator = LpStateMachine::new(
             true, // is_initiator
-            &init_key,
-            (ed25519_keypair_init.private_key(), ed25519_keypair_init.public_key()),
-            resp_key.public_key(),
+            (
+                ed25519_keypair_init.private_key(),
+                ed25519_keypair_init.public_key(),
+            ),
             ed25519_keypair_resp.public_key(),
             &salt,
         )
@@ -668,9 +684,10 @@ mod tests {
 
         let mut responder = LpStateMachine::new(
             false, // is_initiator
-            &resp_key,
-            (ed25519_keypair_resp.private_key(), ed25519_keypair_resp.public_key()),
-            init_key.public_key(),
+            (
+                ed25519_keypair_resp.private_key(),
+                ed25519_keypair_resp.public_key(),
+            ),
             ed25519_keypair_init.public_key(),
             &salt,
         )
@@ -852,11 +869,7 @@ mod tests {
 
     #[test]
     fn test_kkt_exchange_initiator_flow() {
-        // Create test keys
-        let init_key = Keypair::new();
-        let resp_key = Keypair::new();
-
-        // Ed25519 keypairs for KKT authentication
+        // Ed25519 keypairs for PSQ authentication and X25519 derivation
         let ed25519_keypair_init = ed25519::KeyPair::from_secret([20u8; 32], 0);
         let ed25519_keypair_resp = ed25519::KeyPair::from_secret([21u8; 32], 1);
 
@@ -865,9 +878,10 @@ mod tests {
         // Create initiator state machine
         let mut initiator = LpStateMachine::new(
             true,
-            &init_key,
-            (ed25519_keypair_init.private_key(), ed25519_keypair_init.public_key()),
-            resp_key.public_key(),
+            (
+                ed25519_keypair_init.private_key(),
+                ed25519_keypair_init.public_key(),
+            ),
             ed25519_keypair_resp.public_key(),
             &salt,
         )
@@ -884,11 +898,7 @@ mod tests {
 
     #[test]
     fn test_kkt_exchange_responder_flow() {
-        // Create test keys
-        let init_key = Keypair::new();
-        let resp_key = Keypair::new();
-
-        // Ed25519 keypairs for KKT authentication
+        // Ed25519 keypairs for PSQ authentication and X25519 derivation
         let ed25519_keypair_init = ed25519::KeyPair::from_secret([22u8; 32], 0);
         let ed25519_keypair_resp = ed25519::KeyPair::from_secret([23u8; 32], 1);
 
@@ -897,9 +907,10 @@ mod tests {
         // Create responder state machine
         let mut responder = LpStateMachine::new(
             false,
-            &resp_key,
-            (ed25519_keypair_resp.private_key(), ed25519_keypair_resp.public_key()),
-            init_key.public_key(),
+            (
+                ed25519_keypair_resp.private_key(),
+                ed25519_keypair_resp.public_key(),
+            ),
             ed25519_keypair_init.public_key(),
             &salt,
         )
@@ -916,11 +927,7 @@ mod tests {
 
     #[test]
     fn test_kkt_exchange_full_roundtrip() {
-        // Create test keys
-        let init_key = Keypair::new();
-        let resp_key = Keypair::new();
-
-        // Ed25519 keypairs for KKT authentication
+        // Ed25519 keypairs for PSQ authentication and X25519 derivation
         let ed25519_keypair_init = ed25519::KeyPair::from_secret([24u8; 32], 0);
         let ed25519_keypair_resp = ed25519::KeyPair::from_secret([25u8; 32], 1);
 
@@ -929,9 +936,10 @@ mod tests {
         // Create both state machines
         let mut initiator = LpStateMachine::new(
             true,
-            &init_key,
-            (ed25519_keypair_init.private_key(), ed25519_keypair_init.public_key()),
-            resp_key.public_key(),
+            (
+                ed25519_keypair_init.private_key(),
+                ed25519_keypair_init.public_key(),
+            ),
             ed25519_keypair_resp.public_key(),
             &salt,
         )
@@ -939,9 +947,10 @@ mod tests {
 
         let mut responder = LpStateMachine::new(
             false,
-            &resp_key,
-            (ed25519_keypair_resp.private_key(), ed25519_keypair_resp.public_key()),
-            init_key.public_key(),
+            (
+                ed25519_keypair_resp.private_key(),
+                ed25519_keypair_resp.public_key(),
+            ),
             ed25519_keypair_init.public_key(),
             &salt,
         )
@@ -980,10 +989,6 @@ mod tests {
 
     #[test]
     fn test_kkt_exchange_close() {
-        // Create test keys
-        let init_key = Keypair::new();
-        let resp_key = Keypair::new();
-
         // Ed25519 keypairs for KKT authentication
         let ed25519_keypair_init = ed25519::KeyPair::from_secret([26u8; 32], 0);
         let ed25519_keypair_resp = ed25519::KeyPair::from_secret([27u8; 32], 1);
@@ -993,9 +998,7 @@ mod tests {
         // Create initiator state machine
         let mut initiator = LpStateMachine::new(
             true,
-            &init_key,
             (ed25519_keypair_init.private_key(), ed25519_keypair_init.public_key()),
-            resp_key.public_key(),
             ed25519_keypair_resp.public_key(),
             &salt,
         )
@@ -1013,10 +1016,6 @@ mod tests {
 
     #[test]
     fn test_kkt_exchange_rejects_invalid_inputs() {
-        // Create test keys
-        let init_key = Keypair::new();
-        let resp_key = Keypair::new();
-
         // Ed25519 keypairs for KKT authentication
         let ed25519_keypair_init = ed25519::KeyPair::from_secret([28u8; 32], 0);
         let ed25519_keypair_resp = ed25519::KeyPair::from_secret([29u8; 32], 1);
@@ -1026,9 +1025,7 @@ mod tests {
         // Create initiator state machine
         let mut initiator = LpStateMachine::new(
             true,
-            &init_key,
             (ed25519_keypair_init.private_key(), ed25519_keypair_init.public_key()),
-            resp_key.public_key(),
             ed25519_keypair_resp.public_key(),
             &salt,
         )

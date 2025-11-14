@@ -112,7 +112,7 @@ pub fn make_conv_id(src: &[u8], dst: &[u8]) -> u32 {
 
 #[cfg(test)]
 mod tests {
-    use crate::keypair::Keypair;
+    use crate::keypair::{Keypair, PublicKey};
     use crate::message::LpMessage;
     use crate::packet::{LpHeader, LpPacket, TRAILER_LEN};
     use crate::session_manager::SessionManager;
@@ -228,13 +228,29 @@ mod tests {
         // Create session manager
         let local_manager = SessionManager::new();
         let remote_manager = SessionManager::new();
-        let local_keypair = Keypair::default();
-        let remote_keypair = Keypair::default();
-        let lp_id = make_lp_id(local_keypair.public_key(), remote_keypair.public_key());
 
-        // Ed25519 keypairs for PSQ authentication
+        // Generate Ed25519 keypairs for PSQ authentication
         let ed25519_keypair_local = ed25519::KeyPair::from_secret([8u8; 32], 0);
         let ed25519_keypair_remote = ed25519::KeyPair::from_secret([9u8; 32], 1);
+
+        // Derive X25519 keys from Ed25519 (same as state machine does internally)
+        let x25519_pub_local = ed25519_keypair_local
+            .public_key()
+            .to_x25519()
+            .expect("Failed to derive X25519 from Ed25519");
+        let x25519_pub_remote = ed25519_keypair_remote
+            .public_key()
+            .to_x25519()
+            .expect("Failed to derive X25519 from Ed25519");
+
+        // Convert to LP keypair types
+        let lp_pub_local = PublicKey::from_bytes(x25519_pub_local.as_bytes())
+            .expect("Failed to create PublicKey from bytes");
+        let lp_pub_remote = PublicKey::from_bytes(x25519_pub_remote.as_bytes())
+            .expect("Failed to create PublicKey from bytes");
+
+        // Calculate lp_id (matches state machine's internal calculation)
+        let lp_id = make_lp_id(&lp_pub_local, &lp_pub_remote);
 
         // Test salt
         let salt = [46u8; 32];
@@ -242,9 +258,7 @@ mod tests {
         // Create a session via manager
         let _ = local_manager
             .create_session_state_machine(
-                &local_keypair,
                 (ed25519_keypair_local.private_key(), ed25519_keypair_local.public_key()),
-                remote_keypair.public_key(),
                 ed25519_keypair_remote.public_key(),
                 true,
                 &salt,
@@ -253,9 +267,7 @@ mod tests {
 
         let _ = remote_manager
             .create_session_state_machine(
-                &remote_keypair,
                 (ed25519_keypair_remote.private_key(), ed25519_keypair_remote.public_key()),
-                local_keypair.public_key(),
                 ed25519_keypair_local.public_key(),
                 false,
                 &salt,

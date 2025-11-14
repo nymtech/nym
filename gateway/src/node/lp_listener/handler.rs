@@ -104,36 +104,15 @@ impl LpConnectionHandler {
         // Track total LP connections handled
         inc!("lp_connections_total");
 
-        // For LP, we need:
-        // 1. Gateway's keypair (from local_identity)
-        // 2. Client's public key (will be received during handshake)
-        // 3. PSK (pre-shared key) - for now use a placeholder
-
-        // Derive LP keypair from gateway's ed25519 identity using proper conversion
-        // This creates a valid x25519 keypair for ECDH operations in Noise protocol
-        let x25519_private = self.state.local_identity.private_key().to_x25519();
-        let x25519_public = self
-            .state
-            .local_identity
-            .public_key()
-            .to_x25519()
-            .map_err(|e| {
-                GatewayError::LpHandshakeError(format!(
-                    "Failed to convert ed25519 public key to x25519: {}",
-                    e
-                ))
-            })?;
-
-        let lp_private = LpPrivateKey::from_bytes(x25519_private.as_bytes());
-        let lp_public = PublicKey::from_bytes(x25519_public.as_bytes()).map_err(|e| {
-            GatewayError::LpHandshakeError(format!("Failed to create LP public key: {}", e))
-        })?;
-
-        let gateway_keypair = Keypair::from_keys(lp_private, lp_public);
+        // AIDEV-NOTE: Gateway LP handshake with Ed25519-only API
+        // The state machine now accepts only Ed25519 keys and internally derives X25519 keys.
+        // This simplifies the API by removing manual key conversion from the caller.
+        // Gateway's Ed25519 identity is used for both PSQ authentication and X25519 derivation.
 
         // Receive client's public key and salt via ClientHello message
         // The client initiates by sending ClientHello as first packet
-        let (client_pubkey, salt) = match self.receive_client_hello().await {
+        let (client_pubkey, client_ed25519_pubkey, salt) = match self.receive_client_hello().await
+        {
             Ok(result) => result,
             Err(e) => {
                 // Track ClientHello failures (timestamp validation, protocol errors, etc.)
@@ -144,13 +123,16 @@ impl LpConnectionHandler {
             }
         };
 
-        // Derive PSK using ECDH + Blake3 KDF (nym-109)
-        // Both client and gateway derive the same PSK from their respective keys
-        let psk = nym_lp::derive_psk(gateway_keypair.private_key(), &client_pubkey, &salt);
-        tracing::trace!("Derived PSK from LP keys and ClientHello salt");
-
         // Create LP handshake as responder
-        let handshake = LpGatewayHandshake::new_responder(&gateway_keypair, &client_pubkey, &psk)?;
+        // Pass Ed25519 keys directly - X25519 derivation and PSK generation happen internally
+        let handshake = LpGatewayHandshake::new_responder(
+            (
+                self.state.local_identity.private_key(),
+                self.state.local_identity.public_key(),
+            ),
+            &client_ed25519_pubkey,
+            &salt,
+        )?;
 
         // Complete the LP handshake with duration tracking
         let handshake_start = std::time::Instant::now();
@@ -278,7 +260,10 @@ impl LpConnectionHandler {
     }
 
     /// Receive client's public key and salt via ClientHello message
-    async fn receive_client_hello(&mut self) -> Result<(PublicKey, [u8; 32]), GatewayError> {
+    async fn receive_client_hello(
+        &mut self,
+    ) -> Result<(PublicKey, nym_crypto::asymmetric::ed25519::PublicKey, [u8; 32]), GatewayError>
+    {
         // Receive first packet which should be ClientHello
         let packet = self.receive_lp_packet().await?;
 
@@ -303,16 +288,28 @@ impl LpConnectionHandler {
                     self.state.lp_config.timestamp_tolerance_secs
                 );
 
-                // Convert bytes to PublicKey
+                // Convert bytes to X25519 PublicKey (for Noise protocol)
                 let client_pubkey = PublicKey::from_bytes(&hello_data.client_lp_public_key)
                     .map_err(|e| {
                         GatewayError::LpProtocolError(format!("Invalid client public key: {}", e))
                     })?;
 
+                // Convert bytes to Ed25519 PublicKey (for PSQ authentication)
+                let client_ed25519_pubkey =
+                    nym_crypto::asymmetric::ed25519::PublicKey::from_bytes(
+                        &hello_data.client_ed25519_public_key,
+                    )
+                    .map_err(|e| {
+                        GatewayError::LpProtocolError(format!(
+                            "Invalid client Ed25519 public key: {}",
+                            e
+                        ))
+                    })?;
+
                 // Extract salt for PSK derivation
                 let salt = hello_data.salt;
 
-                Ok((client_pubkey, salt))
+                Ok((client_pubkey, client_ed25519_pubkey, salt))
             }
             other => Err(GatewayError::LpProtocolError(format!(
                 "Expected ClientHello, got {}",

@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
     use crate::codec::{parse_lp_packet, serialize_lp_packet};
-    use crate::keypair::Keypair;
+    use crate::keypair::{Keypair, PublicKey};
     use crate::make_lp_id;
     use crate::{
         message::LpMessage,
@@ -49,15 +49,30 @@ mod tests {
         // 1. Initialize session manager
         let session_manager_1 = SessionManager::new();
         let session_manager_2 = SessionManager::new();
-        // 2. Generate keys and PSK
-        let peer_a_keys = Keypair::default();
-        let peer_b_keys = Keypair::default();
-        let lp_id = make_lp_id(peer_a_keys.public_key(), peer_b_keys.public_key());
-        let psk = [1u8; 32]; // Define a pre-shared key for the test
 
-        // Ed25519 keypairs for PSQ authentication
+        // 2. Generate Ed25519 keypairs for PSQ authentication
         let ed25519_keypair_a = ed25519::KeyPair::from_secret([1u8; 32], 0);
         let ed25519_keypair_b = ed25519::KeyPair::from_secret([2u8; 32], 1);
+
+        // Derive X25519 keys from Ed25519 (same as state machine does internally)
+        let x25519_pub_a = ed25519_keypair_a
+            .public_key()
+            .to_x25519()
+            .expect("Failed to derive X25519 from Ed25519");
+        let x25519_pub_b = ed25519_keypair_b
+            .public_key()
+            .to_x25519()
+            .expect("Failed to derive X25519 from Ed25519");
+
+        // Convert to LP keypair types
+        let lp_pub_a = PublicKey::from_bytes(x25519_pub_a.as_bytes())
+            .expect("Failed to create PublicKey from bytes");
+        let lp_pub_b = PublicKey::from_bytes(x25519_pub_b.as_bytes())
+            .expect("Failed to create PublicKey from bytes");
+
+        // Calculate lp_id (matches state machine's internal calculation)
+        let lp_id = make_lp_id(&lp_pub_a, &lp_pub_b);
+        let psk = [1u8; 32]; // Define a pre-shared key for the test
 
         // Test salt
         let salt = [42u8; 32];
@@ -65,9 +80,7 @@ mod tests {
         // 4. Create sessions using the pre-built Noise states
         let peer_a_sm = session_manager_1
             .create_session_state_machine(
-                &peer_a_keys,
                 (ed25519_keypair_a.private_key(), ed25519_keypair_a.public_key()),
-                peer_b_keys.public_key(),
                 ed25519_keypair_b.public_key(),
                 true,
                 &salt,
@@ -76,9 +89,7 @@ mod tests {
 
         let peer_b_sm = session_manager_2
             .create_session_state_machine(
-                &peer_b_keys,
                 (ed25519_keypair_b.private_key(), ed25519_keypair_b.public_key()),
-                peer_a_keys.public_key(),
                 ed25519_keypair_a.public_key(),
                 false,
                 &salt,
@@ -91,10 +102,10 @@ mod tests {
 
         // Initialize KKT state for both sessions (test bypass)
         session_manager_1
-            .init_kkt_for_test(peer_a_sm, peer_b_keys.public_key())
+            .init_kkt_for_test(peer_a_sm, &lp_pub_b)
             .expect("Failed to init KKT for peer A");
         session_manager_2
-            .init_kkt_for_test(peer_b_sm, peer_a_keys.public_key())
+            .init_kkt_for_test(peer_b_sm, &lp_pub_a)
             .expect("Failed to init KKT for peer B");
 
         // 5. Simulate Noise Handshake (Sans-IO)
@@ -480,24 +491,36 @@ mod tests {
         let session_manager_1 = SessionManager::new();
         let session_manager_2 = SessionManager::new();
 
-        // 2. Setup sessions and complete handshake (similar to test_full_session_flow)
-        let peer_a_keys = Keypair::default();
-        let peer_b_keys = Keypair::default();
-        let lp_id = make_lp_id(peer_a_keys.public_key(), peer_b_keys.public_key());
-        let psk = [2u8; 32];
-
-        // Ed25519 keypairs for PSQ authentication
+        // 2. Generate Ed25519 keypairs for PSQ authentication
         let ed25519_keypair_a = ed25519::KeyPair::from_secret([3u8; 32], 0);
         let ed25519_keypair_b = ed25519::KeyPair::from_secret([4u8; 32], 1);
+
+        // Derive X25519 keys from Ed25519 (same as state machine does internally)
+        let x25519_pub_a = ed25519_keypair_a
+            .public_key()
+            .to_x25519()
+            .expect("Failed to derive X25519 from Ed25519");
+        let x25519_pub_b = ed25519_keypair_b
+            .public_key()
+            .to_x25519()
+            .expect("Failed to derive X25519 from Ed25519");
+
+        // Convert to LP keypair types
+        let lp_pub_a = PublicKey::from_bytes(x25519_pub_a.as_bytes())
+            .expect("Failed to create PublicKey from bytes");
+        let lp_pub_b = PublicKey::from_bytes(x25519_pub_b.as_bytes())
+            .expect("Failed to create PublicKey from bytes");
+
+        // Calculate lp_id (matches state machine's internal calculation)
+        let lp_id = make_lp_id(&lp_pub_a, &lp_pub_b);
+        let psk = [2u8; 32];
 
         // Test salt
         let salt = [43u8; 32];
 
         let peer_a_sm = session_manager_1
             .create_session_state_machine(
-                &peer_a_keys,
                 (ed25519_keypair_a.private_key(), ed25519_keypair_a.public_key()),
-                peer_b_keys.public_key(),
                 ed25519_keypair_b.public_key(),
                 true,
                 &salt,
@@ -505,9 +528,7 @@ mod tests {
             .unwrap();
         let peer_b_sm = session_manager_2
             .create_session_state_machine(
-                &peer_b_keys,
                 (ed25519_keypair_b.private_key(), ed25519_keypair_b.public_key()),
-                peer_a_keys.public_key(),
                 ed25519_keypair_a.public_key(),
                 false,
                 &salt,
@@ -516,10 +537,10 @@ mod tests {
 
         // Initialize KKT state for both sessions (test bypass)
         session_manager_1
-            .init_kkt_for_test(peer_a_sm, peer_b_keys.public_key())
+            .init_kkt_for_test(peer_a_sm, &lp_pub_b)
             .expect("Failed to init KKT for peer A");
         session_manager_2
-            .init_kkt_for_test(peer_b_sm, peer_a_keys.public_key())
+            .init_kkt_for_test(peer_b_sm, &lp_pub_a)
             .expect("Failed to init KKT for peer B");
 
         // Drive handshake to completion (simplified)
@@ -674,14 +695,21 @@ mod tests {
         // 1. Initialize session manager
         let session_manager = SessionManager::new();
 
-        // Setup for creating real noise state (keys/psk don't matter for this test)
-        let keys = Keypair::default();
-        let psk = [3u8; 32];
-
-        let lp_id = make_lp_id(keys.public_key(), keys.public_key());
-
-        // Ed25519 keypairs for PSQ authentication
+        // Generate Ed25519 keypair for PSQ authentication
         let ed25519_keypair = ed25519::KeyPair::from_secret([5u8; 32], 0);
+
+        // Derive X25519 key from Ed25519 (same as state machine does internally)
+        let x25519_pub = ed25519_keypair
+            .public_key()
+            .to_x25519()
+            .expect("Failed to derive X25519 from Ed25519");
+
+        // Convert to LP keypair type
+        let lp_pub = PublicKey::from_bytes(x25519_pub.as_bytes())
+            .expect("Failed to create PublicKey from bytes");
+
+        // Calculate lp_id (self-connection: both sides use same key)
+        let lp_id = make_lp_id(&lp_pub, &lp_pub);
 
         // Test salt
         let salt = [44u8; 32];
@@ -689,9 +717,7 @@ mod tests {
         // 2. Create a session (using real noise state)
         let _session = session_manager
             .create_session_state_machine(
-                &keys,
                 (ed25519_keypair.private_key(), ed25519_keypair.public_key()),
-                keys.public_key(),
                 ed25519_keypair.public_key(),
                 true,
                 &salt,
@@ -712,9 +738,7 @@ mod tests {
         // 5. Create and immediately remove a session
         let _temp_session = session_manager
             .create_session_state_machine(
-                &keys,
                 (ed25519_keypair.private_key(), ed25519_keypair.public_key()),
-                keys.public_key(),
                 ed25519_keypair.public_key(),
                 true,
                 &salt,
@@ -794,15 +818,29 @@ mod tests {
         let session_manager_1 = SessionManager::new();
         let session_manager_2 = SessionManager::new();
 
-        // 2. Generate keys and PSK
-        let peer_a_keys = Keypair::default();
-        let peer_b_keys = Keypair::default();
-        let lp_id = make_lp_id(peer_a_keys.public_key(), peer_b_keys.public_key());
-        let psk = [1u8; 32];
-
-        // Ed25519 keypairs for PSQ authentication
+        // 2. Generate Ed25519 keypairs for PSQ authentication
         let ed25519_keypair_a = ed25519::KeyPair::from_secret([6u8; 32], 0);
         let ed25519_keypair_b = ed25519::KeyPair::from_secret([7u8; 32], 1);
+
+        // Derive X25519 keys from Ed25519 (same as state machine does internally)
+        let x25519_pub_a = ed25519_keypair_a
+            .public_key()
+            .to_x25519()
+            .expect("Failed to derive X25519 from Ed25519");
+        let x25519_pub_b = ed25519_keypair_b
+            .public_key()
+            .to_x25519()
+            .expect("Failed to derive X25519 from Ed25519");
+
+        // Convert to LP keypair types
+        let lp_pub_a = PublicKey::from_bytes(x25519_pub_a.as_bytes())
+            .expect("Failed to create PublicKey from bytes");
+        let lp_pub_b = PublicKey::from_bytes(x25519_pub_b.as_bytes())
+            .expect("Failed to create PublicKey from bytes");
+
+        // Calculate lp_id (matches state machine's internal calculation)
+        let lp_id = make_lp_id(&lp_pub_a, &lp_pub_b);
+        let psk = [1u8; 32];
 
         // Test salt
         let salt = [45u8; 32];
@@ -810,9 +848,7 @@ mod tests {
         // 3. Create sessions state machines
         assert!(session_manager_1
             .create_session_state_machine(
-                &peer_a_keys,
                 (ed25519_keypair_a.private_key(), ed25519_keypair_a.public_key()),
-                peer_b_keys.public_key(),
                 ed25519_keypair_b.public_key(),
                 true,
                 &salt,
@@ -820,9 +856,7 @@ mod tests {
             .is_ok());
         assert!(session_manager_2
             .create_session_state_machine(
-                &peer_b_keys,
                 (ed25519_keypair_b.private_key(), ed25519_keypair_b.public_key()),
-                peer_a_keys.public_key(),
                 ed25519_keypair_a.public_key(),
                 false,
                 &salt,

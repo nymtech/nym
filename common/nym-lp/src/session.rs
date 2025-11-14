@@ -922,10 +922,8 @@ impl LpSession {
 
 #[cfg(test)]
 mod tests {
-    use snow::{params::NoiseParams, Keypair};
-
     use super::*;
-    use crate::{replay::ReplayError, sessions_for_tests, NOISE_PATTERN};
+    use crate::{replay::ReplayError, sessions_for_tests};
 
     // Helper function to generate keypairs for tests
     fn generate_keypair() -> crate::keypair::Keypair {

@@ -401,9 +401,11 @@ mod tests {
 
         // Create ClientHelloData
         let client_key = [42u8; 32];
+        let client_ed25519_key = [43u8; 32];
         let salt = [99u8; 32];
         let hello_data = ClientHelloData {
             client_lp_public_key: client_key,
+            client_ed25519_public_key: client_ed25519_key,
             salt,
         };
 
@@ -449,7 +451,8 @@ mod tests {
 
         // Create ClientHelloData with fresh salt
         let client_key = [7u8; 32];
-        let hello_data = ClientHelloData::new_with_fresh_salt(client_key);
+        let client_ed25519_key = [8u8; 32];
+        let hello_data = ClientHelloData::new_with_fresh_salt(client_key, client_ed25519_key);
 
         // Create a ClientHello message packet
         let packet = LpPacket {
@@ -543,6 +546,7 @@ mod tests {
 
             let hello_data = ClientHelloData {
                 client_lp_public_key: [version; 32],
+                client_ed25519_public_key: [version.wrapping_add(2); 32],
                 salt: [version.wrapping_add(1); 32],
             };
 

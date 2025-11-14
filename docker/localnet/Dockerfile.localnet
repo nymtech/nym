@@ -1,0 +1,53 @@
+# Single-stage Dockerfile for Nym localnet
+# Builds: nym-node, nym-network-requester, nym-socks5-client
+# Target: Apple Container Runtime with host networking
+
+FROM rust:latest
+
+WORKDIR /usr/src/nym
+COPY ./ ./
+
+ENV CARGO_BUILD_JOBS=8
+
+# Build all required binaries in release mode
+RUN cargo build --release --locked \
+    -p nym-node \
+    -p nym-network-requester \
+    -p nym-socks5-client
+
+# Install runtime dependencies including Go for wireguard-go
+RUN apt update && apt install -y \
+    python3 \
+    python3-pip \
+    netcat-openbsd \
+    jq \
+    iproute2 \
+    net-tools \
+    wireguard-tools \
+    golang-go \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install wireguard-go (userspace WireGuard implementation)
+RUN git clone https://git.zx2c4.com/wireguard-go && \
+    cd wireguard-go && \
+    make && \
+    cp wireguard-go /usr/local/bin/ && \
+    cd .. && \
+    rm -rf wireguard-go
+
+# Install Python dependencies for build_topology.py
+RUN pip3 install --break-system-packages base58
+
+# Move binaries to /usr/local/bin for easy access
+RUN cp target/release/nym-node /usr/local/bin/ && \
+    cp target/release/nym-network-requester /usr/local/bin/ && \
+    cp target/release/nym-socks5-client /usr/local/bin/
+
+# Copy supporting scripts
+COPY ./docker/localnet/build_topology.py /usr/local/bin/
+
+WORKDIR /nym
+
+# Default command
+CMD ["nym-node", "--help"]

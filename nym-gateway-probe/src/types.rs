@@ -13,6 +13,7 @@ pub struct ProbeOutcome {
     pub as_entry: Entry,
     pub as_exit: Option<Exit>,
     pub wg: Option<WgProbeResults>,
+    pub lp: Option<LpProbeResults>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -42,6 +43,15 @@ pub struct WgProbeResults {
     pub download_duration_milliseconds_v6: u64,
     pub downloaded_file_v6: String,
     pub download_error_v6: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename = "lp")]
+pub struct LpProbeResults {
+    pub can_connect: bool,
+    pub can_handshake: bool,
+    pub can_register: bool,
+    pub error: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

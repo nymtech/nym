@@ -24,6 +24,7 @@ fn ephemeral_gateway_config(config: &Config) -> nym_gateway::config::Config {
         nym_gateway::config::IpPacketRouter {
             enabled: config.service_providers.network_requester.debug.enabled,
         },
+        config.gateway_tasks.lp.clone(),
         nym_gateway::config::Debug {
             client_bandwidth_max_flushing_rate: config
                 .gateway_tasks
@@ -205,6 +206,7 @@ pub fn gateway_tasks_config(config: &Config) -> GatewayTasksConfig {
             announced_metadata_port: config.wireguard.announced_metadata_port,
             private_network_prefix_v4: config.wireguard.private_network_prefix_v4,
             private_network_prefix_v6: config.wireguard.private_network_prefix_v6,
+            use_userspace: config.wireguard.use_userspace,
             storage_paths: config.wireguard.storage_paths.clone(),
         },
         custom_mixnet_path: None,

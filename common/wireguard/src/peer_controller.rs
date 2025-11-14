@@ -138,6 +138,8 @@ impl PeerController {
 
     // Function that should be used for peer removal, to handle both storage and kernel interaction
     pub async fn remove_peer(&mut self, key: &Key) -> Result<()> {
+        nym_metrics::inc!("wg_peer_removal_attempts");
+
         self.ecash_verifier
             .storage()
             .remove_wireguard_peer(&key.to_string())
@@ -145,9 +147,12 @@ impl PeerController {
         self.bw_storage_managers.remove(key);
         let ret = self.wg_api.remove_peer(key);
         if ret.is_err() {
+            nym_metrics::inc!("wg_peer_removal_failed");
             log::error!(
                 "Wireguard peer could not be removed from wireguard kernel module. Process should be restarted so that the interface is reset."
             );
+        } else {
+            nym_metrics::inc!("wg_peer_removal_success");
         }
         Ok(ret?)
     }
@@ -177,7 +182,15 @@ impl PeerController {
     }
 
     async fn handle_add_request(&mut self, peer: &Peer) -> Result<()> {
-        self.wg_api.configure_peer(peer)?;
+        nym_metrics::inc!("wg_peer_addition_attempts");
+
+        // Try to configure WireGuard peer
+        if let Err(e) = self.wg_api.configure_peer(peer) {
+            nym_metrics::inc!("wg_peer_addition_failed");
+            nym_metrics::inc!("wg_config_errors_total");
+            return Err(e.into());
+        }
+
         let bandwidth_storage_manager = SharedBandwidthStorageManager::new(
             Arc::new(RwLock::new(
                 Self::generate_bandwidth_manager(self.ecash_verifier.storage(), &peer.public_key)
@@ -205,6 +218,8 @@ impl PeerController {
             handle.run().await;
             log::debug!("Peer handle shut down for {public_key}");
         });
+
+        nym_metrics::inc!("wg_peer_addition_success");
         Ok(())
     }
 

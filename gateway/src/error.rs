@@ -125,6 +125,27 @@ pub enum GatewayError {
 
     #[error("{0}")]
     CredentialVefiricationError(#[from] nym_credential_verification::Error),
+
+    #[error("LP connection error: {0}")]
+    LpConnectionError(String),
+
+    #[error("LP protocol error: {0}")]
+    LpProtocolError(String),
+
+    #[error("LP handshake error: {0}")]
+    LpHandshakeError(String),
+
+    #[error("Service provider {service} is not running")]
+    ServiceProviderNotRunning { service: String },
+
+    #[error("Internal error: {0}")]
+    InternalError(String),
+
+    #[error("Failed to bind listener to {address}: {source}")]
+    ListenerBindFailure {
+        address: String,
+        source: Box<dyn std::error::Error + Send + Sync>,
+    },
 }
 
 impl From<ClientCoreError> for GatewayError {

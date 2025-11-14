@@ -119,9 +119,8 @@ impl StatisticsStorage {
                 two_hop,
                 session_duration_min,
                 exit_id,
-                exit_country_code,
                 error)
-                VALUES ($1::timestamptz, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)"#,
+                VALUES ($1::timestamptz, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)"#,
             report_v2.received_at as time::OffsetDateTime,
             report_v2.received_from,
             report_v2.from_mixnet,
@@ -137,7 +136,6 @@ impl StatisticsStorage {
             report_v2.two_hop,
             report_v2.session_duration_min,
             report_v2.exit_id,
-            report_v2.exit_country_code,
             report_v2.error
         )
         .execute(&self.connection_pool)

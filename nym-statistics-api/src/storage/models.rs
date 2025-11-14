@@ -77,7 +77,6 @@ pub(crate) struct StatsReportV2Dto {
     pub(crate) two_hop: bool,
     pub(crate) session_duration_min: i32,
     pub(crate) exit_id: String,
-    pub(crate) exit_country_code: Option<String>,
     pub(crate) error: Option<String>,
 }
 
@@ -106,7 +105,6 @@ impl StatsReportV2Dto {
             two_hop: stats_report.session_report.two_hop,
             session_duration_min: stats_report.session_report.session_duration_min,
             exit_id: stats_report.session_report.exit_id.clone(),
-            exit_country_code: stats_report.session_report.exit_country_code.clone(),
             error: stats_report.session_report.error.clone(),
         }
     }

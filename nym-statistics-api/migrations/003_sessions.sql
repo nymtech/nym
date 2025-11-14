@@ -19,7 +19,6 @@ CREATE TABLE report_v2 (
     two_hop               BOOLEAN,
     session_duration_min  INTEGER,
     exit_id               TEXT,
-    exit_country_code     TEXT,
     error                 TEXT
 ); 
 

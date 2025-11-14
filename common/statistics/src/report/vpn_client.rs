@@ -88,6 +88,5 @@ pub struct SessionReport {
     pub two_hop: bool,
     pub session_duration_min: i32,
     pub exit_id: String,
-    pub exit_country_code: Option<String>,
     pub error: Option<String>,
 }

@@ -65,6 +65,7 @@ if ! curl -fsSL \
 <body style="font-family:sans-serif;text-align:center;padding:2em;">
 <h1>nym exit gateway</h1>
 <p>this is a nym exit gateway.</p>
+<p>Operator contact: <a href="mailto:${EMAIL}">${EMAIL}</a></p>
 </body>
 </html>
 EOF

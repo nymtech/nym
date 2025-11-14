@@ -34,8 +34,9 @@ check_existing_config() {
 
     if [[ "${resp}" =~ ^([Rr][Ee][Ss][Ee][Tt])$ ]]; then
       echo
-      read -r -p "We are going to remove the existing node with configuration $NODE_CONFIG_DIR and replace it with a fresh one, do you want to back up the old one first? (y/n) " backup_ans
-      if [[ "${backup_ans}" =~ ^[Yy]$ ]]; then
+      echo "We are going to remove the existing node with configuration $NODE_CONFIG_DIR and replace it with a fresh one."
+      read -r -p "back up the old one first? (Y/n) " backup_ans
+      if [[ -z "${backup_ans}" || "${backup_ans}" =~ ^[Yy]$ ]]; then
         ts="$(date +%Y%m%d-%H%M%S)"
         backup_dir="$HOME/.nym/backup/$(basename "$NODE_CONFIG_DIR")-$ts"
         echo "Backing up to: $backup_dir"
@@ -181,24 +182,27 @@ fi
 
 NYM_NODE="$HOME/nym-binaries/nym-node"
 
-# if binary already exists, ask to overwrite; if yes, remove first
+# if binary already exists, ask to overwrite; if yes, remove first; if no, skip download
 if [[ -e "${NYM_NODE}" ]]; then
   echo
   echo -e "\n* * * A nym-node binary already exists at: ${NYM_NODE}"
-  read -r -p "Overwrite with the latest release? (y/n): " ow_ans
-  if [[ "${ow_ans}" =~ ^[Yy]$ ]]; then
-    echo "Removing existing binary to avoid 'text file busy'..."
-    rm -f "${NYM_NODE}"
-  else
-    echo "Keeping existing binary."
-  fi
-fi
+  read -r -p "Overwrite with the latest release? (Y/n): " ow_ans
 
-download_nym_node "$LATEST_TAG_URL" "$NYM_NODE"
+  if [[ -z "${ow_ans}" || "${ow_ans}" =~ ^[Yy]$ ]]; then
+    echo "Removing existing binary..."
+    rm -f "${NYM_NODE}"
+    download_nym_node "$LATEST_TAG_URL" "$NYM_NODE"
+  else
+    echo "Keeping existing binary. Skipping download."
+  fi
+
+else
+  # binary does not exist → must download
+  download_nym_node "$LATEST_TAG_URL" "$NYM_NODE"
+fi
 
 echo -e "\n * * * Making binary executable * * *"
 chmod +x "${NYM_NODE}"
-
 echo "---------------------------------------------------"
 echo "Nym node binary downloaded:"
 "${NYM_NODE}" --version || true
@@ -225,17 +229,18 @@ WIREGUARD="${WIREGUARD:-}"
 if [[ ( "$MODE" == "entry-gateway" || "$MODE" == "exit-gateway" ) && ( -n "${ASK_WG:-}" || -z "$WIREGUARD" ) ]]; then
   echo
   echo "Gateways can also route WireGuard in NymVPN."
-  echo "Enabling it means your node may be listed as both entry and exit in the app."
-  # show current default in the prompt if present
   def_hint=""
   [[ -n "${WIREGUARD}" ]] && def_hint=" [current: ${WIREGUARD}]"
-  read -r -p "Enable WireGuard support? (y/n)${def_hint}: " answer || true
-  case "${answer:-}" in
-    [Yy]* ) WIREGUARD="true" ;;
-    [Nn]* ) WIREGUARD="false" ;;
-    * )     : ;;  # keep existing value if user just pressed enter
-  esac
+
+  read -r -p "Enable WireGuard support? (Y/n)${def_hint}: " answer || true
+
+  if [[ -z "${answer}" || "${answer}" =~ ^[Yy]$ ]]; then
+    WIREGUARD="true"
+  elif [[ "${answer}" =~ ^[Nn]$ ]]; then
+    WIREGUARD="false"
+  fi
 fi
+
 # final default only if still empty
 WIREGUARD="${WIREGUARD:-false}"
 

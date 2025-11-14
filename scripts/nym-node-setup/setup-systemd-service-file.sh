@@ -83,8 +83,8 @@ fi
 
 # interactive path (manual runs)
 ensure_mode
-read -rp "Service file not found. Create it now? (y/n): " create_ans
-if [[ "${create_ans:-}" =~ ^[Yy]$ ]]; then
+read -rp "Service file not found. Create it now? (Y/n): " create_ans
+if [[ -z "${create_ans}" || "${create_ans}" =~ ^[Yy]$ ]]; then
   create_service_file
 else
   echo "Not creating the service file."

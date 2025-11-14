@@ -39,16 +39,6 @@ while true; do
   esac
 done
 
-# try to get the latest binary URL (non-fatal if missing)
-LATEST_BINARY=$(
-  curl -fsSL https://github.com/nymtech/nym/releases/latest \
-    | grep -Eo 'href="/nymtech/nym/releases/download/[^"]+/nym-node"' \
-    | head -n1 \
-    | cut -d'"' -f2
-)
-if [[ -z "${LATEST_BINARY:-}" ]]; then
-  echo "WARNING: Could not determine latest nym-node binary URL right now. The installer will resolve it later."
-fi
 
 PUBLIC_IP=$(curl -fsS -4 https://ifconfig.me || true)
 PUBLIC_IP=${PUBLIC_IP:-""}

@@ -1,315 +1,136 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# load env (prefer absolute ENV_FILE injected by Python CLI; fallback to ./env.sh)
+if [[ "$(id -u)" -ne 0 ]]; then
+  echo "This script must be run as root."
+  exit 1
+fi
+
+# load env
 if [[ -n "${ENV_FILE:-}" && -f "${ENV_FILE}" ]]; then
   set -a; . "${ENV_FILE}"; set +a
 elif [[ -f "./env.sh" ]]; then
   set -a; . ./env.sh; set +a
 fi
 
-: "${HOSTNAME:?HOSTNAME not set in env.sh}"
-: "${EMAIL:?EMAIL not set in env.sh}"
+: "${HOSTNAME:?HOSTNAME not set}"
+: "${EMAIL:?EMAIL not set}"
 
-export SYSTEMD_PAGER=""
-export SYSTEMD_COLORS="0"
-DEBIAN_FRONTEND=noninteractive
+export DEBIAN_FRONTEND=noninteractive
 
-# sanity check
-if [[ "${HOSTNAME}" == "localhost" || "${HOSTNAME}" == "127.0.0.1" || "${HOSTNAME}" == "ubuntu"  ]]; then
-  echo "ERROR: HOSTNAME cannot be 'localhost'. Use a public FQDN." >&2
-  exit 1
-fi
-
-echo -e "\n* * * Starting nginx configuration for landing page, reverse proxy and WSS * * *"
-
-# set paths & ports vars
 WEBROOT="/var/www/${HOSTNAME}"
-LE_ACME_DIR="/var/www/letsencrypt"
 SITES_AVAIL="/etc/nginx/sites-available"
 SITES_EN="/etc/nginx/sites-enabled"
-BASE_HTTP="${SITES_AVAIL}/${HOSTNAME}"         # :80 vhost
-BASE_HTTPS="${SITES_AVAIL}/${HOSTNAME}-ssl"    # :443 vhost (we’ll write it ourselves)
-WSS_AVAIL="${SITES_AVAIL}/wss-config-nym"
-BACKUP_DIR="/etc/nginx/sites-backups"
 
-NYM_PORT_HTTP="${NYM_PORT_HTTP:-8080}"
-NYM_PORT_WSS="${NYM_PORT_WSS:-9000}"
-WSS_LISTEN_PORT="${WSS_LISTEN_PORT:-9001}"
+HTTP_CONF="${SITES_AVAIL}/${HOSTNAME}"
+WSS_CONF="${SITES_AVAIL}/wss-config-nym"
 
-mkdir -p "${WEBROOT}" "${LE_ACME_DIR}" "${BACKUP_DIR}" "${SITES_AVAIL}" "${SITES_EN}"
+echo
+echo "* * * Starting nginx configuration for landing page, reverse proxy and WSS * * *"
 
-# helpers
-neat_backup() {
-  local file="$1"; [[ -f "$file" ]] || return 0
-  local sha_now; sha_now="$(sha256sum "$file" | awk '{print $1}')" || return 0
-  local tag; tag="$(basename "$file")"
-  local latest="${BACKUP_DIR}/${tag}.latest"
-  if [[ -f "$latest" ]]; then
-    local sha_prev; sha_prev="$(awk '{print $1}' "$latest")"
-    [[ "$sha_now" == "$sha_prev" ]] && return 0
-  fi
-  cp -a "$file" "${BACKUP_DIR}/${tag}.bak.$(date +%s)"
-  echo "$sha_now  ${tag}" > "$latest"
-  ls -1t "${BACKUP_DIR}/${tag}.bak."* 2>/dev/null | tail -n +6 | xargs -r rm -f
-}
+###############################################################################
+# step 1: ensure landing page exists (local fetch -> github -> template)
+###############################################################################
 
-ensure_enabled() {
-  local src="$1"; local name; name="$(basename "$src")"
-  ln -sf "$src" "${SITES_EN}/${name}"
-}
+mkdir -p "${WEBROOT}"
 
-cert_ok() {
-  [[ -s "/etc/letsencrypt/live/${HOSTNAME}/fullchain.pem" && -s "/etc/letsencrypt/live/${HOSTNAME}/privkey.pem" ]]
-}
+SCRIPT_DIR="$(dirname "${ENV_FILE:-./env.sh}")"
+LOCAL_FETCHED_PAGE="${SCRIPT_DIR}/landing-page.html"
 
-fetch_landing_html() {
-  local url="https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/landing-page.html"
-  mkdir -p "${WEBROOT}"
-
-  if command -v curl >/dev/null 2>&1; then
-    curl -fsSL "$url" -o "${WEBROOT}/index.html" || true
-  else
-    wget -qO "${WEBROOT}/index.html" "$url" || true
-  fi
-
-  if [[ ! -s "${WEBROOT}/index.html" ]]; then
-    cat > "${WEBROOT}/index.html" <<'HTML'
+if [[ -s "${LOCAL_FETCHED_PAGE}" ]]; then
+  cp "${LOCAL_FETCHED_PAGE}" "${WEBROOT}/index.html"
+elif curl -fsSL \
+  https://raw.githubusercontent.com/nymtech/nym/develop/scripts/nym-node-setup/landing-page.html \
+  -o "${WEBROOT}/index.html"; then
+  :
+else
+  cat > "${WEBROOT}/index.html" <<EOF
 <!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nym Exit Gateway</title>
-    <style>
-        body {
-            font-family: sans-serif;
-            text-align: center;
-            padding: 2em;
-            background-color: #111;
-            color: #0ff;
-        }
-        h1 {
-            margin-bottom: 0.5em;
-        }
-    </style>
-</head>
-<body>
-    <h1>Nym Exit Gateway</h1>
-    <p>This is a Nym Exit Gateway. The operator of this router has no access to any of the data routing through that due to encryption design.</p>
+<html>
+<head><title>nym node</title></head>
+<body style="font-family:sans-serif;text-align:center;padding:2em;">
+<h1>nym exit gateway</h1>
+<p>this is a nym exit gateway.</p>
+<p>Operator contact: <a href="mailto:${EMAIL}">${EMAIL}</a></p>
 </body>
 </html>
-HTML
-  fi
-}
+EOF
+fi
 
-inject_email() {
-  local file="${WEBROOT}/index.html"
-  [[ -n "${EMAIL:-}" && -s "$file" ]] || return 0
-
-  # Escape characters that would break sed replacement
-  local esc_email
-  esc_email="$(printf '%s' "$EMAIL" | sed -e 's/[&/\]/\\&/g')"
-
-  # try to update existing meta (case-insensitive on the name attr)
-  if grep -qiE '<meta[^>]+name=["'"'"']contact:email["'"'"']' "$file"; then
-    sed -i -E \
-      "s|(<meta[^>]+name=[\"']contact:email[\"'][^>]*content=\")[^\"]*(\"[^>]*>)|\1${esc_email}\2|I" \
-      "$file" || true
-    return 0
-  fi
-
-  # insert before </head> if present (case-insensitive)
-  if grep -qi '</head>' "$file"; then
-    awk -v email="$EMAIL" '
-      BEGIN{IGNORECASE=1}
-      /<\/head>/ && !done {
-        print "    <meta name=\"contact:email\" content=\"" email "\">"
-        done=1
-      }
-      { print }
-    ' "$file" > "${file}.tmp" && mv "${file}.tmp" "$file"
-    return 0
-  fi
-
-  # fallback: append at end
-  printf '\n<meta name="contact:email" content="%s">\n' "$EMAIL" >> "$file" || true
-}
-
-fetch_logo() {
-  local logo_url="https://raw.githubusercontent.com/nymtech/websites/refs/heads/main/www/nym.com/public/images/Nym_meta_Image.png?token=GHSAT0AAAAAACEERII7URYRTFACZ4F2OWZ42GMCPBQ"
-  mkdir -p "${WEBROOT}/images"
-  if [[ ! -s "${WEBROOT}/images/nym_logo.png" ]]; then
-    if command -v curl >/dev/null 2>&1; then
-      curl -fsSL "$logo_url" -o "${WEBROOT}/images/nym_logo.png" || true
-    else
-      wget -qO "${WEBROOT}/images/nym_logo.png" "$logo_url" || true
-    fi
-  fi
-}
-
-reload_nginx() { nginx -t && systemctl reload nginx; }
-
-# landing page (idempotent)
-fetch_landing_html
-inject_email
-fetch_logo
 echo "Landing page at ${WEBROOT}/index.html"
 
-# disable default and stale SSL configs
+###############################################################################
+# step 2: remove default site and old configs, restart nginx
+###############################################################################
+
+echo "Cleaning existing nginx configuration"
+
+# remove default nginx site
 [[ -L "${SITES_EN}/default" ]] && unlink "${SITES_EN}/default" || true
-for f in "${SITES_EN}"/*; do
-  [[ -L "$f" ]] || continue
-  if grep -q "/etc/letsencrypt/live/localhost" "$f"; then
-    echo "Disabling vhost referencing localhost cert: $f"; unlink "$f"
-  fi
-done
-for f in "${SITES_EN}"/*; do
-  [[ -L "$f" ]] || continue
-  if grep -qE 'listen\s+.*443' "$f"; then
-    cert=$(awk '/ssl_certificate[ \t]+/ {print $2}' "$f" | tr -d ';' | head -n1)
-    key=$(awk '/ssl_certificate_key[ \t]+/ {print $2}' "$f" | tr -d ';' | head -n1)
-    if [[ -n "${cert:-}" && ! -s "$cert" ]] || [[ -n "${key:-}" && ! -s "$key" ]]; then
-      echo "Disabling SSL vhost with missing cert/key: $f"; unlink "$f"
-    fi
-  fi
-done
 
-# HTTP :80 vhost (ACME-safe, proxy to :8080)
-neat_backup "${BASE_HTTP}"
-cat > "${BASE_HTTP}" <<EOF
+# optional: remove default available config if present
+rm -f /etc/nginx/sites-available/default || true
+
+# remove old vhosts for this domain
+rm -f "${SITES_EN}/${HOSTNAME}"     || true
+rm -f "${SITES_EN}/${HOSTNAME}-ssl" || true
+rm -f "${SITES_EN}/wss-config-nym"  || true
+
+rm -f "${HTTP_CONF}" || true
+rm -f "${WSS_CONF}"  || true
+
+systemctl restart nginx || systemctl start nginx
+
+###############################################################################
+# step 3: create basic HTTP config like manual flow (80 -> 8080)
+###############################################################################
+
+cat > "${HTTP_CONF}" <<EOF
 server {
     listen 80;
     listen [::]:80;
+
     server_name ${HOSTNAME};
 
-    # ACME challenge path (HTTP only)
-    location ^~ /.well-known/acme-challenge/ {
-        root ${LE_ACME_DIR};
-        default_type "text/plain";
-    }
-
-    root ${WEBROOT};
-    index index.html;
-
-    location = /favicon.ico { return 204; access_log off; log_not_found off; }
-
     location / {
-        try_files \$uri \$uri/ @app;
-    }
-
-    location @app {
-        proxy_pass http://127.0.0.1:${NYM_PORT_HTTP};
+        proxy_pass http://127.0.0.1:8080;
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header Host \$host;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
     }
 }
 EOF
-ensure_enabled "${BASE_HTTP}"
-reload_nginx
-systemctl status nginx --no-pager | sed -n '1,6p' || true
 
-# ACME preflight (informative)
-echo -e "\n* * * ACME preflight checks * * *"
-if ! curl -fsSL https://acme-v02.api.letsencrypt.org/directory >/dev/null; then
-  echo "WARNING: Can't reach Let's Encrypt directory. We'll still keep HTTP up." >&2
-fi
-THIS_IP="$(curl -fsS -4 https://ifconfig.me || true)"
-DNS_IP="$(getent ahostsv4 "${HOSTNAME}" 2>/dev/null | awk '{print $1; exit}')"
-echo "Public IPv4: ${THIS_IP:-unknown}   DNS A(${HOSTNAME}): ${DNS_IP:-unresolved}"
-if [[ -n "${THIS_IP:-}" && -n "${DNS_IP:-}" && "${THIS_IP}" != "${DNS_IP}" ]]; then
-  echo "WARNING: DNS for ${HOSTNAME} does not match this server's public IPv4."
-fi
-timedatectl show -p NTPSynchronized --value 2>/dev/null | grep -qi yes || timedatectl set-ntp true || true
+ln -sf "${HTTP_CONF}" "${SITES_EN}/${HOSTNAME}"
 
-# install certbot if missing
-if ! command -v certbot >/dev/null 2>&1; then
-  if command -v snap >/dev/null 2>&1; then
-    snap install core || true; snap refresh core || true
-    snap install --classic certbot; ln -sf /snap/bin/certbot /usr/bin/certbot
-  else
-    apt-get update -y >/dev/null 2>&1 || true
-    apt-get install -y certbot >/dev/null 2>&1 || true
-  fi
-fi
+nginx -t
+systemctl daemon-reload
+systemctl restart nginx
 
-# issue/renew via WEBROOT (no nginx auto-edit), non-fatal if it fails
-STAGING_FLAG=""; [[ "${CERTBOT_STAGING:-0}" == "1" ]] && STAGING_FLAG="--staging" && echo "Using Let's Encrypt STAGING."
-if ! cert_ok; then
-  certbot certonly --non-interactive --agree-tos -m "${EMAIL}" -d "${HOSTNAME}" \
-    --webroot -w "${LE_ACME_DIR}" ${STAGING_FLAG} || true
-fi
+###############################################################################
+# step 4: install certbot and obtain certificate (letsencrypt)
+###############################################################################
 
-# create own 443 vhost (only if certs exist)
-if cert_ok; then
-  neat_backup "${BASE_HTTPS}"
-  cat > "${BASE_HTTPS}" <<EOF
+apt-get update -y >/dev/null 2>&1 || true
+apt-get install -y certbot python3-certbot-nginx >/dev/null 2>&1 || true
+
+echo "Requesting Let's Encrypt certificate for ${HOSTNAME}"
+
+certbot --nginx --non-interactive --agree-tos --redirect --reuse-key \
+  -m "${EMAIL}" -d "${HOSTNAME}" || true
+
+###############################################################################
+# step 5: create WSS 9001 config using certbot-generated certs
+###############################################################################
+
+if [[ -s "/etc/letsencrypt/live/${HOSTNAME}/fullchain.pem" ]]; then
+  echo "Certificate detected, creating WSS config"
+
+  cat > "${WSS_CONF}" <<EOF
 server {
-    listen 443 ssl http2;
-    listen [::]:443 ssl http2;
-    server_name ${HOSTNAME};
+    listen 9001 ssl http2;
+    listen [::]:9001 ssl http2;
 
-    ssl_certificate /etc/letsencrypt/live/${HOSTNAME}/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/${HOSTNAME}/privkey.pem;
-    include /etc/letsencrypt/options-ssl-nginx.conf;
-    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
-
-    root ${WEBROOT};
-    index index.html;
-
-    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
-
-    location = /favicon.ico { return 204; access_log off; log_not_found off; }
-
-    location / {
-        try_files \$uri \$uri/ @app;
-    }
-
-    location @app {
-        proxy_pass http://127.0.0.1:${NYM_PORT_HTTP};
-        proxy_http_version 1.1;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header Host \$host;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-    }
-}
-EOF
-  ensure_enabled "${BASE_HTTPS}"
-
-  # optional: redirect HTTP->HTTPS (keeps ACME path in HTTP too via separate small server)
-  neat_backup "${BASE_HTTP}"
-  cat > "${BASE_HTTP}" <<EOF
-server {
-    listen 80;
-    listen [::]:80;
-    server_name ${HOSTNAME};
-
-    # Keep ACME reachable over HTTP:
-    location ^~ /.well-known/acme-challenge/ {
-        root ${LE_ACME_DIR};
-        default_type "text/plain";
-    }
-
-    # Redirect the rest to HTTPS
-    location / {
-        return 301 https://\$host\$request_uri;
-    }
-}
-EOF
-  ensure_enabled "${BASE_HTTP}"
-  reload_nginx
-else
-  echo "NOTE: Cert not present yet; HTTPS (443) will not listen. Only HTTP (80) is active."
-fi
-
-# WSS TLS :9001 (only if certs exist)
-if cert_ok; then
-  neat_backup "${WSS_AVAIL}"
-  cat > "${WSS_AVAIL}" <<EOF
-server {
-    listen ${WSS_LISTEN_PORT} ssl http2;
-    listen [::]:${WSS_LISTEN_PORT} ssl http2;
     server_name ${HOSTNAME};
 
     ssl_certificate /etc/letsencrypt/live/${HOSTNAME}/fullchain.pem;
@@ -320,7 +141,11 @@ server {
     access_log /var/log/nginx/access.log;
     error_log  /var/log/nginx/error.log;
 
-    location = /favicon.ico { return 204; access_log off; log_not_found off; }
+    location /favicon.ico {
+        return 204;
+        access_log     off;
+        log_not_found  off;
+    }
 
     location / {
         add_header 'Access-Control-Allow-Origin' '*' always;
@@ -333,20 +158,30 @@ server {
         proxy_set_header Connection "Upgrade";
         proxy_set_header X-Forwarded-For \$remote_addr;
 
-        proxy_pass http://127.0.0.1:${NYM_PORT_WSS};
+        proxy_pass http://localhost:9000;
         proxy_intercept_errors on;
     }
 }
 EOF
-  ensure_enabled "${WSS_AVAIL}"
-  reload_nginx
+
+  ln -sf "${WSS_CONF}" "${SITES_EN}/wss-config-nym"
+
+  nginx -t
+  systemctl daemon-reload
+  systemctl restart nginx
+else
+  echo "Certificate missing, skipping WSS config"
 fi
 
-echo -e "\nDone."
-if cert_ok; then
-  echo "HTTP : http://${HOSTNAME}/  (redirects to HTTPS)"
-  echo "TLS  : https://${HOSTNAME}/  (served by nginx)"
-  echo "WSS  : wss://${HOSTNAME}:${WSS_LISTEN_PORT}/  (served by nginx)"
+###############################################################################
+# step 6: summary
+###############################################################################
+
+echo "done."
+echo "http  : http://${HOSTNAME}"
+if [[ -s "/etc/letsencrypt/live/${HOSTNAME}/fullchain.pem" ]]; then
+  echo "https : https://${HOSTNAME}"
+  echo "wss   : wss://${HOSTNAME}:9001"
 else
-  echo "Only HTTP is active (no cert yet). Re-run after DNS/ACME is ready to enable HTTPS + WSS."
+  echo "https not active yet (no cert)"
 fi

@@ -56,7 +56,7 @@ if [[ -z "$NET_DEV" ]]; then
   echo -e "${RED}Cannot determine uplink interface. Set UPLINK_DEV.${RESET}" | tee -a "$LOG_FILE"
   exit 1
 fi
-info "Using uplink device: $NET_DEV"
+echo "Using uplink device: $NET_DEV"
 
 WG_IFACE="nymwg"
 
@@ -191,13 +191,31 @@ verify_bridge_prerequisites() {
 }
 
 adjust_ip_forwarding() {
-  title "Adjusting IP Forwarding"
-  sed -i '/^net\.ipv4\.ip_forward=/d' /etc/sysctl.conf
-  sed -i '/^net\.ipv6\.conf\.all\.forwarding=/d' /etc/sysctl.conf
-  echo "net.ipv4.ip_forward=1" >> /etc/sysctl.conf
-  echo "net.ipv6.conf.all.forwarding=1" >> /etc/sysctl.conf
-  sysctl -p /etc/sysctl.conf
-  ok "IPv4/IPv6 forwarding enabled."
+  title "Checking IP forwarding"
+  local v4 v6
+  v4="$(cat /proc/sys/net/ipv4/ip_forward 2>/dev/null || echo 0)"
+  v6="$(cat /proc/sys/net/ipv6/conf/all/forwarding 2>/dev/null || echo 0)"
+
+  if [[ "$v4" == "1" ]]; then
+    ok "IPv4 forwarding is enabled."
+  else
+    warn "IPv4 forwarding is not enabled."
+  fi
+
+  if [[ "$v6" == "1" ]]; then
+    ok "IPv6 forwarding is enabled."
+  else
+    warn "IPv6 forwarding is not enabled."
+  fi
+
+  if [[ "$v4" != "1" || "$v6" != "1" ]]; then
+    echo
+    echo "To enable forwarding and routing consistently, run the network tunnel manager script as root."
+    echo "For example:"
+    echo "  ./network-tunnel-manager.sh complete_networking_configuration"
+    echo "or:"
+    echo "  ./network-tunnel-manager.sh adjust_ip_forwarding"
+  fi
 }
 
 # Install nym-bridge
@@ -410,37 +428,40 @@ EOF
 
 # IPTABLES & helpers
 apply_bridge_iptables_rules() {
-  title "Applying iptables rules"
+  title "Checking iptables rules for bridge routing"
 
-  # Ensure stateful rules exist
-  iptables -C FORWARD -m state --state RELATED,ESTABLISHED -j ACCEPT 2>/dev/null || \
-    iptables -I FORWARD 1 -m state --state RELATED,ESTABLISHED -j ACCEPT
-  ip6tables -C FORWARD -m state --state RELATED,ESTABLISHED -j ACCEPT 2>/dev/null || \
-    ip6tables -I FORWARD 1 -m state --state RELATED,ESTABLISHED -j ACCEPT
+  echo "Inspecting current iptables state for interface ${WG_IFACE} and uplink ${NET_DEV}."
+  echo
 
-  # Allow WG interface input
-  iptables -C INPUT -i "$WG_IFACE" -j ACCEPT 2>/dev/null || iptables -I INPUT -i "$WG_IFACE" -j ACCEPT
-  ip6tables -C INPUT -i "$WG_IFACE" -j ACCEPT 2>/dev/null || ip6tables -I INPUT -i "$WG_IFACE" -j ACCEPT
+  echo "IPv4 FORWARD:"
+  iptables -L FORWARD -n -v 2>/dev/null | sed -n '1,20p' || echo "iptables not available."
+  echo
+  echo "IPv4 NAT POSTROUTING:"
+  iptables -t nat -L POSTROUTING -n -v 2>/dev/null | sed -n '1,20p' || true
+  echo
+  echo "IPv6 FORWARD:"
+  ip6tables -L FORWARD -n -v 2>/dev/null | sed -n '1,20p' || true
+  echo
+  echo "IPv6 NAT POSTROUTING:"
+  ip6tables -t nat -L POSTROUTING -n -v 2>/dev/null | sed -n '1,20p' || true
 
-  # NAT (idempotent)
-  iptables -t nat -C POSTROUTING -o "$NET_DEV" -j MASQUERADE 2>/dev/null || \
-    iptables -t nat -I POSTROUTING 1 -o "$NET_DEV" -j MASQUERADE
-  ip6tables -t nat -C POSTROUTING -o "$NET_DEV" -j MASQUERADE 2>/dev/null || \
-    ip6tables -t nat -I POSTROUTING 1 -o "$NET_DEV" -j MASQUERADE
-
-  iptables-save > /etc/iptables/rules.v4
-  ip6tables-save > /etc/iptables/rules.v6
-  ok "iptables rules applied."
+  echo
+  echo "This script no longer changes iptables. To configure routing and NAT for nym, use the network tunnel manager script."
+  echo "For example (run as root):"
+  echo "  ./network-tunnel-manager.sh complete_networking_configuration"
 }
 
 configure_dns_and_icmp() {
-  title "Allow ICMP and DNS"
-  iptables -A INPUT -p icmp --icmp-type echo-request -j ACCEPT || true
-  ip6tables -A INPUT -p ipv6-icmp -j ACCEPT || true
-  iptables -C INPUT -p udp --dport 53 -j ACCEPT 2>/dev/null || iptables -I INPUT -p udp --dport 53 -j ACCEPT
-  ip6tables -C INPUT -p udp --dport 53 -j ACCEPT 2>/dev/null || ip6tables -I INPUT -p udp --dport 53 -j ACCEPT
+  title "Checking ICMP and DNS firewall rules"
 
-  ok "ICMP and DNS rules applied."
+  echo "IPv4 INPUT rules related to ICMP and DNS:"
+  iptables -L INPUT -n -v 2>/dev/null | grep -E 'icmp|dpt:53' || echo "no matching IPv4 rules shown."
+  echo
+  echo "IPv6 INPUT rules related to ICMP and DNS:"
+  ip6tables -L INPUT -n -v 2>/dev/null | grep -E 'icmp|dpt:53' || echo "no matching IPv6 rules shown."
+
+  echo
+  echo "If ping or DNS are blocked for bridge traffic, adjust your firewall using the network tunnel manager script or your chosen firewall tool."
 }
 
 # Full interactive setup
@@ -485,7 +506,7 @@ full_bridge_setup() {
   press_enter "Press Enter to continue..."
 
   echo ""
-  echo "Step 6/6: Configuring network rules (optional but recommended)..."
+  echo "Step 6/6: Checking network rules and forwarding status..."
   adjust_ip_forwarding
   apply_bridge_iptables_rules
   configure_dns_and_icmp

@@ -23,50 +23,28 @@ SITES_AVAIL="/etc/nginx/sites-available"
 SITES_EN="/etc/nginx/sites-enabled"
 
 HTTP_CONF="${SITES_AVAIL}/${HOSTNAME}"
-HTTPS_CONF="${SITES_AVAIL}/${HOSTNAME}-ssl"
 WSS_CONF="${SITES_AVAIL}/wss-config-nym"
 
 echo
-echo "* * * Starting clean nginx configuration for landing page, reverse proxy and wss * * *"
-
-################################################################################
-# step 1: clean all previous configs
-################################################################################
-
-echo "cleaning existing nginx configuration"
-
-# remove default nginx config
-[[ -L "${SITES_EN}/default" ]] && unlink "${SITES_EN}/default" || true
-
-# remove domain symlinks
-rm -f "${SITES_EN}/${HOSTNAME}"       || true
-rm -f "${SITES_EN}/${HOSTNAME}-ssl"   || true
-rm -f "${SITES_EN}/wss-config-nym"    || true
-
-# remove old configs
-rm -f "${HTTP_CONF}"                  || true
-rm -f "${HTTPS_CONF}"                 || true
-rm -f "${WSS_CONF}"                   || true
+echo "* * * Starting nginx configuration for landing page, reverse proxy and WSS * * *"
 
 ###############################################################################
-# step 2: create landing page 
+# step 1: ensure landing page exists (local fetch -> github -> template)
 ###############################################################################
 
 mkdir -p "${WEBROOT}"
 
-# script directory where Python CLI stores fetched scripts
 SCRIPT_DIR="$(dirname "${ENV_FILE:-./env.sh}")"
 LOCAL_FETCHED_PAGE="${SCRIPT_DIR}/landing-page.html"
 
 if [[ -s "${LOCAL_FETCHED_PAGE}" ]]; then
   cp "${LOCAL_FETCHED_PAGE}" "${WEBROOT}/index.html"
+elif curl -fsSL \
+  https://raw.githubusercontent.com/nymtech/nym/develop/scripts/nym-node-setup/landing-page.html \
+  -o "${WEBROOT}/index.html"; then
+  :
 else
-  if curl -fsSL \
-    https://raw.githubusercontent.com/nymtech/nym/develop/scripts/nym-node-setup/landing-page.html \
-    -o "${WEBROOT}/index.html"; then
-      :
-  else
-    cat > "${WEBROOT}/index.html" <<EOF
+  cat > "${WEBROOT}/index.html" <<EOF
 <!DOCTYPE html>
 <html>
 <head><title>nym node</title></head>
@@ -77,16 +55,35 @@ else
 </body>
 </html>
 EOF
-  fi
 fi
 
-echo "landing page at ${WEBROOT}/index.html"
+echo "Landing page at ${WEBROOT}/index.html"
 
-echo "landing page at ${WEBROOT}/index.html"
+###############################################################################
+# step 2: remove default site and old configs, restart nginx
+###############################################################################
 
-################################################################################
-# step 3: HTTP :80 config
-################################################################################
+echo "Cleaning existing nginx configuration"
+
+# remove default nginx site
+[[ -L "${SITES_EN}/default" ]] && unlink "${SITES_EN}/default" || true
+
+# optional: remove default available config if present
+rm -f /etc/nginx/sites-available/default || true
+
+# remove old vhosts for this domain
+rm -f "${SITES_EN}/${HOSTNAME}"     || true
+rm -f "${SITES_EN}/${HOSTNAME}-ssl" || true
+rm -f "${SITES_EN}/wss-config-nym"  || true
+
+rm -f "${HTTP_CONF}" || true
+rm -f "${WSS_CONF}"  || true
+
+systemctl restart nginx || systemctl start nginx
+
+###############################################################################
+# step 3: create basic HTTP config like manual flow (80 -> 8080)
+###############################################################################
 
 cat > "${HTTP_CONF}" <<EOF
 server {
@@ -95,17 +92,7 @@ server {
 
     server_name ${HOSTNAME};
 
-    # ACME challenge
-    location /.well-known/acme-challenge/ {
-        root /var/www/letsencrypt;
-    }
-
-    # reverse proxy
     location / {
-        try_files \$uri \$uri/ @app;
-    }
-
-    location @app {
         proxy_pass http://127.0.0.1:8080;
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header Host \$host;
@@ -117,58 +104,28 @@ EOF
 ln -sf "${HTTP_CONF}" "${SITES_EN}/${HOSTNAME}"
 
 nginx -t
-systemctl reload nginx
+systemctl daemon-reload
+systemctl restart nginx
 
-################################################################################
-# step 4: obtain certificate
-################################################################################
+###############################################################################
+# step 4: install certbot and obtain certificate (letsencrypt)
+###############################################################################
 
 apt-get update -y >/dev/null 2>&1 || true
 apt-get install -y certbot python3-certbot-nginx >/dev/null 2>&1 || true
 
-echo "requesting let's encrypt certificate for ${HOSTNAME}"
+echo "Requesting Let's Encrypt certificate for ${HOSTNAME}"
 
-certbot --nginx --non-interactive --agree-tos \
-  --reuse-key \
-  -m "${EMAIL}" -d "${HOSTNAME}" --redirect || true
+certbot --nginx --non-interactive --agree-tos --redirect --reuse-key \
+  -m "${EMAIL}" -d "${HOSTNAME}" || true
 
-################################################################################
-# step 5: HTTPS and WSS configs
-################################################################################
+###############################################################################
+# step 5: create WSS 9001 config using certbot-generated certs
+###############################################################################
 
 if [[ -s "/etc/letsencrypt/live/${HOSTNAME}/fullchain.pem" ]]; then
-  echo "certificate detected, creating https and wss configs"
+  echo "Certificate detected, creating WSS config"
 
-  # HTTPS 443
-  cat > "${HTTPS_CONF}" <<EOF
-server {
-    listen 443 ssl http2;
-    listen [::]:443 ssl http2;
-
-    server_name ${HOSTNAME};
-
-    ssl_certificate /etc/letsencrypt/live/${HOSTNAME}/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/${HOSTNAME}/privkey.pem;
-
-    root ${WEBROOT};
-    index index.html;
-
-    location / {
-        try_files \$uri \$uri/ @app;
-    }
-
-    location @app {
-        proxy_pass http://127.0.0.1:8080;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header Host \$host;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-    }
-}
-EOF
-
-  ln -sf "${HTTPS_CONF}" "${SITES_EN}/${HOSTNAME}-ssl"
-
-  # WSS 9001
   cat > "${WSS_CONF}" <<EOF
 server {
     listen 9001 ssl http2;
@@ -178,41 +135,50 @@ server {
 
     ssl_certificate /etc/letsencrypt/live/${HOSTNAME}/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/${HOSTNAME}/privkey.pem;
+    include /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
 
     access_log /var/log/nginx/access.log;
     error_log  /var/log/nginx/error.log;
 
+    location /favicon.ico {
+        return 204;
+        access_log     off;
+        log_not_found  off;
+    }
+
     location / {
-        add_header Access-Control-Allow-Origin '*' always;
-        add_header Access-Control-Allow-Methods 'GET, POST, OPTIONS, HEAD' always;
-        add_header Access-Control-Allow-Headers '*' always;
+        add_header 'Access-Control-Allow-Origin' '*' always;
+        add_header 'Access-Control-Allow-Credentials' 'true' always;
+        add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS, HEAD' always;
+        add_header 'Access-Control-Allow-Headers' '*' always;
 
         proxy_http_version 1.1;
         proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection "Upgrade";
         proxy_set_header X-Forwarded-For \$remote_addr;
 
-        proxy_pass http://127.0.0.1:9000;
+        proxy_pass http://localhost:9000;
+        proxy_intercept_errors on;
     }
 }
 EOF
 
   ln -sf "${WSS_CONF}" "${SITES_EN}/wss-config-nym"
 
+  nginx -t
+  systemctl daemon-reload
+  systemctl restart nginx
 else
-  echo "certificate missing, skipping https and wss configs"
+  echo "Certificate missing, skipping WSS config"
 fi
 
-################################################################################
-# step 6: reload nginx + summary
-################################################################################
-
-nginx -t
-systemctl reload nginx
+###############################################################################
+# step 6: summary
+###############################################################################
 
 echo "done."
 echo "http  : http://${HOSTNAME}"
-
 if [[ -s "/etc/letsencrypt/live/${HOSTNAME}/fullchain.pem" ]]; then
   echo "https : https://${HOSTNAME}"
   echo "wss   : wss://${HOSTNAME}:9001"

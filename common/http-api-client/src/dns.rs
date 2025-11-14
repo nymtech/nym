@@ -114,8 +114,10 @@ impl Default for HickoryDnsResolver {
     fn default() -> Self {
         Self {
             state: Default::default(),
-            fallback: Default::default(),
-            static_base: Default::default(),
+            // Disable system resolver fallback by default - often blocked by firewalls in VPN environments
+            // Enable static fallback for known domains
+            fallback: None,
+            static_base: Some(Default::default()),
             dont_use_shared: Default::default(),
             overall_dns_timeout: Duration::from_secs(10),
         }
@@ -337,7 +339,7 @@ fn configure_and_build_resolver(
     let mut resolver_builder =
         TokioResolver::builder_with_config(config, TokioConnectionProvider::default());
 
-    resolver_builder.options_mut().ip_strategy = LookupIpStrategy::Ipv4AndIpv6;
+    resolver_builder.options_mut().ip_strategy = get_ip_strategy();
     resolver_builder.options_mut().server_ordering_strategy = ServerOrderingStrategy::RoundRobin;
     // Cache successful responses for queries received by this resolver for 30 min minimum.
     resolver_builder.options_mut().positive_min_ttl = Some(Duration::from_secs(1800));
@@ -350,13 +352,40 @@ fn configure_and_build_resolver(
 /// addresses to work with "happy eyeballs" algorithm.
 fn new_resolver_system() -> Result<TokioResolver, ResolveError> {
     let mut resolver_builder = TokioResolver::builder_tokio()?;
-    resolver_builder.options_mut().ip_strategy = LookupIpStrategy::Ipv4AndIpv6;
+    resolver_builder.options_mut().ip_strategy = get_ip_strategy();
 
     Ok(resolver_builder.build())
 }
 
 fn new_default_static_fallback() -> StaticResolver {
     StaticResolver::new(constants::default_static_addrs())
+}
+
+/// Check if IPv6 stack is available for DNS resolution.
+fn should_use_ipv6_dns() -> bool {
+    use std::net::UdpSocket;
+
+    match UdpSocket::bind("[::]:0") {
+        Ok(_) => {
+            debug!("IPv6 stack available - enabling dual-stack DNS");
+            true
+        }
+        Err(e) => {
+            debug!("IPv6 unavailable ({}), using IPv4-only DNS", e);
+            false
+        }
+    }
+}
+
+/// Get DNS lookup strategy based on IPv6 availability.
+fn get_ip_strategy() -> LookupIpStrategy {
+    if should_use_ipv6_dns() {
+        debug!("Using dual-stack DNS (IPv4 + IPv6)");
+        LookupIpStrategy::Ipv4AndIpv6
+    } else {
+        debug!("Using IPv4-only DNS");
+        LookupIpStrategy::Ipv4Only
+    }
 }
 
 #[cfg(test)]
@@ -421,6 +450,35 @@ mod test {
         assert!(addrs.contains(&example_ip4));
         assert!(addrs.contains(&example_ip6));
         Ok(())
+    }
+
+    #[test]
+    fn default_resolver_fallback_config() {
+        let resolver = HickoryDnsResolver::default();
+        assert!(
+            resolver.fallback.is_none(),
+            "system fallback should be disabled by default for VPN environments"
+        );
+        assert!(
+            resolver.static_base.is_some(),
+            "static fallback should be enabled by default"
+        );
+    }
+
+    #[test]
+    fn ipv6_detection_returns_valid_strategy() {
+        let strategy = get_ip_strategy();
+        match strategy {
+            LookupIpStrategy::Ipv4Only | LookupIpStrategy::Ipv4AndIpv6 => {}
+            _ => panic!("Unexpected IP strategy returned: {:?}", strategy),
+        }
+    }
+
+    #[test]
+    fn ipv6_dns_detection_is_consistent() {
+        let first_result = should_use_ipv6_dns();
+        let second_result = should_use_ipv6_dns();
+        assert_eq!(first_result, second_result);
     }
 }
 

@@ -124,22 +124,31 @@ pub(crate) async fn run() -> anyhow::Result<ProbeResult> {
 
     let directory = NymApiDirectory::new(api_url).await?;
 
-    let entry = if let Some(gateway) = &args.entry_gateway {
-        NodeIdentity::from_base58_string(gateway)?
-    } else if let Some(node) = args.node {
-        if directory.entry_gateway(&node).is_ok() {
-            node
-        } else {
-            directory.random_entry_gateway()?
-        }
+    let node_override = args.node;
+    let entry_override = if let Some(gateway) = &args.entry_gateway {
+        Some(NodeIdentity::from_base58_string(gateway)?)
+    } else {
+        None
+    };
+
+    let entry = if let Some(entry) = entry_override {
+        entry
+    } else if let Some(node) = node_override {
+        node
     } else {
         directory.random_entry_gateway()?
     };
 
-    let test_point = if let Some(node) = args.node {
-        TestedNode::Custom { identity: node }
-    } else {
-        TestedNode::SameAsEntry
+    let test_point = match (node_override, entry_override) {
+        (Some(node), Some(_)) => TestedNode::Custom {
+            identity: node,
+            shares_entry: false,
+        },
+        (Some(node), None) => TestedNode::Custom {
+            identity: node,
+            shares_entry: true,
+        },
+        (None, _) => TestedNode::SameAsEntry,
     };
 
     let mut trial =

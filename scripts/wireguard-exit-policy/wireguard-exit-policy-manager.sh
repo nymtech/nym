@@ -38,13 +38,13 @@ add_port_rules() {
         local end_port=$(echo "$port" | cut -d'-' -f2)
 
         if ! $chain -C "$NYM_CHAIN" -p "$protocol" --dport "$start_port:$end_port" -j ACCEPT 2>/dev/null; then
-            $chain -A "$NYM_CHAIN" -p "$protocol" --dport "$start_port:$end_port" -j ACCEPT
+            $chain -I "$NYM_CHAIN" -p "$protocol" --dport "$start_port:$end_port" -j ACCEPT
             echo -e "  ${GREEN}Added: $NYM_CHAIN $protocol port range $start_port:$end_port${NC}"
         fi
     else
         # Single port handling
         if ! $chain -C "$NYM_CHAIN" -p "$protocol" --dport "$port" -j ACCEPT 2>/dev/null; then
-            $chain -A "$NYM_CHAIN" -p "$protocol" --dport "$port" -j ACCEPT
+            $chain -I "$NYM_CHAIN" -p "$protocol" --dport "$port" -j ACCEPT
             echo -e "  ${GREEN}Added: $NYM_CHAIN $protocol port $port${NC}"
         fi
     fi

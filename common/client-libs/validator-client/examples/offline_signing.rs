@@ -7,6 +7,7 @@ use cosmrs::{tx, AccountId, Coin, Denom};
 use nym_validator_client::http_client;
 use nym_validator_client::nyxd::CosmWasmClient;
 use nym_validator_client::signing::direct_wallet::DirectSecp256k1HdWallet;
+use nym_validator_client::signing::signer::OfflineSigner;
 use nym_validator_client::signing::tx_signer::TxSigner;
 use nym_validator_client::signing::SignerData;
 
@@ -19,8 +20,8 @@ async fn main() {
     let validator = "https://rpc.sandbox.nymtech.net";
     let to_address: AccountId = "n1pefc2utwpy5w78p2kqdsfmpjxfwmn9d39k5mqa".parse().unwrap();
 
-    let signer = DirectSecp256k1HdWallet::from_mnemonic(prefix, signer_mnemonic);
-    let signer_address = signer.try_derive_accounts().unwrap()[0].address().clone();
+    let signer = DirectSecp256k1HdWallet::checked_from_mnemonic(prefix, signer_mnemonic).unwrap();
+    let signer_address = signer.signer_addresses()[0].clone();
 
     // local 'client' ONLY signing messages
     let tx_signer = signer;
@@ -57,9 +58,15 @@ async fn main() {
         100000u32,
     );
 
-    let tx_raw = tx_signer
-        .sign_direct(&signer_address, vec![send_msg], fee, memo, signer_data)
-        .unwrap();
+    let tx_raw = TxSigner::sign_direct(
+        &tx_signer,
+        &signer_address,
+        vec![send_msg],
+        fee,
+        memo,
+        signer_data,
+    )
+    .unwrap();
     let tx_bytes = tx_raw.to_bytes().unwrap();
 
     // compare balances from before and after the tx

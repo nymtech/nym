@@ -3,16 +3,12 @@
 
 use crate::signing::signer::{OfflineSigner, SigningError};
 use crate::signing::{AccountData, Secp256k1Derivation};
-use cosmrs::bip32::{DerivationPath, XPrv};
-use cosmrs::crypto::secp256k1::SigningKey;
-use cosmrs::crypto::PublicKey;
+use cosmrs::bip32::DerivationPath;
 use cosmrs::tx;
 use cosmrs::tx::SignDoc;
 use nym_config::defaults;
 use thiserror::Error;
 use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
-
-type Secp256k1Keypair = (SigningKey, PublicKey);
 
 #[derive(Debug, Error)]
 pub enum DirectSecp256k1HdWalletError {
@@ -36,7 +32,7 @@ pub enum DirectSecp256k1HdWalletError {
 }
 
 // TODO: maybe lock this one behind feature flag?
-#[derive(Debug, Clone, Zeroize, ZeroizeOnDrop)]
+#[derive(Zeroize, ZeroizeOnDrop)]
 pub struct DirectSecp256k1HdWallet {
     /// Base secret
     secret: bip39::Mnemonic,
@@ -44,20 +40,17 @@ pub struct DirectSecp256k1HdWallet {
     /// BIP39 seed
     seed: [u8; 64],
 
-    // An unfortunate result of immature rust async story is that async traits (only available in the separate package)
-    // can't yet figure out everything and if we stored our derived account data on the struct,
-    // that would include the secret key which is a dyn EcdsaSigner and hence not Sync making the wallet
-    // not Sync and if used on the signing client in an async trait, it wouldn't be Send
-    /// Derivation instructions
+    /// Derived accounts
     #[zeroize(skip)]
-    accounts: Vec<Secp256k1Derivation>,
+    // unfortunately `dyn EcdsaSigner` does not guarantee Zeroize
+    accounts: Vec<AccountData>,
 }
 
 impl OfflineSigner for DirectSecp256k1HdWallet {
     type Error = DirectSecp256k1HdWalletError;
 
-    fn get_accounts(&self) -> Result<Vec<AccountData>, Self::Error> {
-        self.try_derive_accounts()
+    fn get_accounts(&self) -> &[AccountData] {
+        &self.accounts
     }
 
     fn sign_direct_with_account(
@@ -77,55 +70,27 @@ impl DirectSecp256k1HdWallet {
     }
 
     /// Restores a wallet from the given BIP39 mnemonic using default options.
+    #[deprecated(
+        note = "this function can potentially panic if accounts can't be derived correctly. please use .checked_from_mnemonic() instead"
+    )]
     pub fn from_mnemonic(prefix: &str, mnemonic: bip39::Mnemonic) -> Self {
+        // unfortunately due to backwards compatibility requirements,
+        // we can't change signature of this method
+        #[allow(deprecated)]
         DirectSecp256k1HdWalletBuilder::new(prefix).build(mnemonic)
+    }
+
+    /// Restores a wallet from the given BIP39 mnemonic using default options.
+    pub fn checked_from_mnemonic(
+        prefix: &str,
+        mnemonic: bip39::Mnemonic,
+    ) -> Result<Self, DirectSecp256k1HdWalletError> {
+        DirectSecp256k1HdWalletBuilder::new(prefix).try_build(mnemonic)
     }
 
     pub fn generate(prefix: &str, word_count: usize) -> Result<Self, DirectSecp256k1HdWalletError> {
         let mneomonic = bip39::Mnemonic::generate(word_count)?;
-        Ok(Self::from_mnemonic(prefix, mneomonic))
-    }
-
-    fn derive_keypair(
-        &self,
-        hd_path: &DerivationPath,
-    ) -> Result<Secp256k1Keypair, DirectSecp256k1HdWalletError> {
-        let extended_private_key = XPrv::derive_from_path(self.seed, hd_path)?;
-
-        let private_key: SigningKey = extended_private_key.into();
-        let public_key = private_key.public_key();
-
-        Ok((private_key, public_key))
-    }
-
-    pub fn derive_extended_private_key(
-        &self,
-        hd_path: &DerivationPath,
-    ) -> Result<XPrv, DirectSecp256k1HdWalletError> {
-        Ok(XPrv::derive_from_path(self.seed, hd_path)?)
-    }
-
-    pub fn try_derive_accounts(&self) -> Result<Vec<AccountData>, DirectSecp256k1HdWalletError> {
-        let mut accounts = Vec::with_capacity(self.accounts.len());
-        for derivation_info in &self.accounts {
-            let keypair = self.derive_keypair(&derivation_info.hd_path)?;
-
-            // it seems this can only fail if the provided account prefix is invalid
-            let address = keypair
-                .1
-                .account_id(&derivation_info.prefix)
-                .map_err(
-                    |source| DirectSecp256k1HdWalletError::AccountDerivationError { source },
-                )?;
-
-            accounts.push(AccountData {
-                address,
-                public_key: keypair.1,
-                private_key: keypair.0,
-            })
-        }
-
-        Ok(accounts)
+        Self::checked_from_mnemonic(prefix, mneomonic)
     }
 
     pub fn secret(&self) -> &bip39::Mnemonic {
@@ -188,23 +153,40 @@ impl DirectSecp256k1HdWalletBuilder {
         self
     }
 
+    #[deprecated(
+        note = "this function can potentially panic if accounts can't be derived correctly. please use .try_build() instead"
+    )]
     pub fn build(self, mnemonic: bip39::Mnemonic) -> DirectSecp256k1HdWallet {
+        // unfortunately due to backwards compatibility requirements,
+        // we can't change signature of this method
+        #[allow(clippy::expect_used)]
+        self.try_build(mnemonic)
+            .expect("account derivation failure")
+    }
+
+    pub fn try_build(
+        self,
+        mnemonic: bip39::Mnemonic,
+    ) -> Result<DirectSecp256k1HdWallet, DirectSecp256k1HdWalletError> {
         let seed = mnemonic.to_seed(&self.bip39_password);
         let prefix = self.prefix.clone();
         let accounts = self
             .hd_paths
             .iter()
-            .map(|hd_path| Secp256k1Derivation {
-                hd_path: hd_path.clone(),
-                prefix: prefix.clone(),
+            .map(|hd_path| {
+                Secp256k1Derivation {
+                    hd_path: hd_path.clone(),
+                    prefix: prefix.clone(),
+                }
+                .try_derive_account(seed)
             })
-            .collect();
+            .collect::<Result<_, _>>()?;
 
-        DirectSecp256k1HdWallet {
+        Ok(DirectSecp256k1HdWallet {
             accounts,
             seed,
             secret: mnemonic,
-        }
+        })
     }
 }
 
@@ -215,7 +197,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn generating_account_addresses() {
+    fn generating_account_addresses() -> anyhow::Result<()> {
         // test vectors produced from our js wallet
         let mnemonics = ["crush minute paddle tobacco message debate cabin peace bar jacket execute twenty winner view sure mask popular couch penalty fragile demise fresh pizza stove",
             "acquire rebel spot skin gun such erupt pull swear must define ill chief turtle today flower chunk truth battle claw rigid detail gym feel",
@@ -230,11 +212,10 @@ mod tests {
             "n17n9flp6jflljg6fp05dsy07wcprf2uuu8g40rf",
         ];
         for (idx, mnemonic) in mnemonics.iter().enumerate() {
-            let wallet = DirectSecp256k1HdWallet::from_mnemonic(&prefix, mnemonic.parse().unwrap());
-            assert_eq!(
-                wallet.try_derive_accounts().unwrap()[0].address,
-                addrs[idx].parse().unwrap()
-            )
+            let wallet =
+                DirectSecp256k1HdWallet::checked_from_mnemonic(&prefix, mnemonic.parse()?)?;
+            assert_eq!(wallet.signer_addresses()[0], addrs[idx].parse().unwrap());
         }
+        Ok(())
     }
 }

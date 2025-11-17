@@ -11,7 +11,7 @@ use nym_config::defaults::{NymNetworkDetails, COSMOS_DERIVATION_PATH};
 use nym_types::account::{Account, AccountEntry, Balance};
 use nym_validator_client::nyxd::CosmWasmClient;
 use nym_validator_client::signing::direct_wallet::DirectSecp256k1HdWallet;
-use nym_validator_client::signing::AccountData;
+use nym_validator_client::signing::signer::OfflineSigner;
 use nym_validator_client::DirectSigningHttpRpcValidatorClient;
 use nym_wallet_types::network::Network as WalletNetwork;
 use std::collections::HashMap;
@@ -575,10 +575,10 @@ fn derive_address(
     prefix: &str,
 ) -> Result<cosmrs::AccountId, BackendError> {
     // note: the ephemeral wallet will zeroize the mnemonic on drop
-    DirectSecp256k1HdWallet::from_mnemonic(prefix, mnemonic)
-        .try_derive_accounts()?
+    DirectSecp256k1HdWallet::checked_from_mnemonic(prefix, mnemonic)
+        .map_err(|_| BackendError::FailedToDeriveAddress)?
+        .signer_addresses()
         .first()
-        .map(AccountData::address)
         .cloned()
         .ok_or(BackendError::FailedToDeriveAddress)
 }

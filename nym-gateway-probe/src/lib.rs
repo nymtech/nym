@@ -186,7 +186,7 @@ impl Probe {
     ) -> anyhow::Result<ProbeResult> {
         let tickets_materials = self.credentials_args.decode_attached_ticket_materials()?;
 
-        let tested_entry = self.tested_node.is_same_as_entry();
+        let tested_entry = !only_wireguard;
         let (mixnet_entry_gateway_id, node_info) = self.lookup_gateway(&directory).await?;
 
         let storage = Ephemeral::default();
@@ -232,7 +232,7 @@ impl Probe {
         only_wireguard: bool,
         min_mixnet_performance: Option<u8>,
     ) -> anyhow::Result<ProbeResult> {
-        let tested_entry = self.tested_node.is_same_as_entry();
+        let tested_entry = !only_wireguard;
         let (mixnet_entry_gateway_id, node_info) = self.lookup_gateway(&directory).await?;
 
         if config_dir.is_file() {

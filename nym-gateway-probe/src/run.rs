@@ -126,8 +126,14 @@ pub(crate) async fn run() -> anyhow::Result<ProbeResult> {
 
     let entry = if let Some(gateway) = &args.entry_gateway {
         NodeIdentity::from_base58_string(gateway)?
+    } else if let Some(node) = args.node {
+        if directory.entry_gateway(&node).is_ok() {
+            node
+        } else {
+            directory.random_entry_gateway()?
+        }
     } else {
-        directory.random_exit_with_ipr()?
+        directory.random_entry_gateway()?
     };
 
     let test_point = if let Some(node) = args.node {

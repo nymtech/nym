@@ -296,20 +296,20 @@ apply_iptables_rules() {
     iptables -t nat -A POSTROUTING -o "$NETWORK_DEVICE" -j MASQUERADE
 
   iptables -C FORWARD -i "$interface" -o "$NETWORK_DEVICE" -j ACCEPT 2>/dev/null || \
-    iptables -A FORWARD -i "$interface" -o "$NETWORK_DEVICE" -j ACCEPT
+    iptables -I FORWARD 1 -i "$interface" -o "$NETWORK_DEVICE" -j ACCEPT
 
   iptables -C FORWARD -i "$NETWORK_DEVICE" -o "$interface" -m state --state RELATED,ESTABLISHED -j ACCEPT 2>/dev/null || \
-    iptables -A FORWARD -i "$NETWORK_DEVICE" -o "$interface" -m state --state RELATED,ESTABLISHED -j ACCEPT
+    iptables -I FORWARD 2 -i "$NETWORK_DEVICE" -o "$interface" -m state --state RELATED,ESTABLISHED -j ACCEPT
 
   # ipv6 nat and forwarding
   ip6tables -t nat -C POSTROUTING -o "$NETWORK_DEVICE" -j MASQUERADE 2>/dev/null || \
     ip6tables -t nat -A POSTROUTING -o "$NETWORK_DEVICE" -j MASQUERADE
 
   ip6tables -C FORWARD -i "$interface" -o "$NETWORK_DEVICE" -j ACCEPT 2>/dev/null || \
-    ip6tables -A FORWARD -i "$interface" -o "$NETWORK_DEVICE" -j ACCEPT
+    ip6tables -I FORWARD 1 -i "$interface" -o "$NETWORK_DEVICE" -j ACCEPT
 
   ip6tables -C FORWARD -i "$NETWORK_DEVICE" -o "$interface" -m state --state RELATED,ESTABLISHED -j ACCEPT 2>/dev/null || \
-    ip6tables -A FORWARD -i "$NETWORK_DEVICE" -o "$interface" -m state --state RELATED,ESTABLISHED -j ACCEPT
+    ip6tables -I FORWARD 2 -i "$NETWORK_DEVICE" -o "$interface" -m state --state RELATED,ESTABLISHED -j ACCEPT
 
   save_iptables_rules
 }
@@ -507,45 +507,40 @@ setup_nat_rules() {
   fi
 
   if ! iptables -C FORWARD -i "$WG_INTERFACE" -o "$NETWORK_DEVICE" -j ACCEPT 2>/dev/null; then
-    iptables -A FORWARD -i "$WG_INTERFACE" -o "$NETWORK_DEVICE" -j ACCEPT
+    iptables -I FORWARD 1 -i "$WG_INTERFACE" -o "$NETWORK_DEVICE" -j ACCEPT
   fi
   if ! iptables -C FORWARD -i "$NETWORK_DEVICE" -o "$WG_INTERFACE" -m state --state RELATED,ESTABLISHED -j ACCEPT 2>/dev/null; then
-    iptables -A FORWARD -i "$NETWORK_DEVICE" -o "$WG_INTERFACE" -m state --state RELATED,ESTABLISHED -j ACCEPT
+    iptables -I FORWARD 2 -i "$NETWORK_DEVICE" -o "$WG_INTERFACE" -m state --state RELATED,ESTABLISHED -j ACCEPT
   fi
 
   if ! ip6tables -C FORWARD -i "$WG_INTERFACE" -o "$NETWORK_DEVICE" -j ACCEPT 2>/dev/null; then
-    ip6tables -A FORWARD -i "$WG_INTERFACE" -o "$NETWORK_DEVICE" -j ACCEPT
+    ip6tables -I FORWARD 1 -i "$WG_INTERFACE" -o "$NETWORK_DEVICE" -j ACCEPT
   fi
   if ! ip6tables -C FORWARD -i "$NETWORK_DEVICE" -o "$WG_INTERFACE" -m state --state RELATED,ESTABLISHED -j ACCEPT 2>/dev/null; then
-    ip6tables -A FORWARD -i "$NETWORK_DEVICE" -o "$WG_INTERFACE" -m state --state RELATED,ESTABLISHED -j ACCEPT
+    ip6tables -I FORWARD 2 -i "$NETWORK_DEVICE" -o "$WG_INTERFACE" -m state --state RELATED,ESTABLISHED -j ACCEPT
   fi
 }
 
 configure_exit_dns_and_icmp() {
   echo "ensuring dns and icmp are allowed inside nym exit chain"
 
-  if ! iptables -C "$NYM_CHAIN" -p udp --dport 53 -j ACCEPT 2>/dev/null; then
-    iptables -A "$NYM_CHAIN" -p udp --dport 53 -j ACCEPT
-  fi
-  if ! iptables -C "$NYM_CHAIN" -p tcp --dport 53 -j ACCEPT 2>/dev/null; then
-    iptables -A "$NYM_CHAIN" -p tcp --dport 53 -j ACCEPT
-  fi
-  if ! ip6tables -C "$NYM_CHAIN" -p udp --dport 53 -j ACCEPT 2>/dev/null; then
-    ip6tables -A "$NYM_CHAIN" -p udp --dport 53 -j ACCEPT
-  fi
-  if ! ip6tables -C "$NYM_CHAIN" -p tcp --dport 53 -j ACCEPT 2>/dev/null; then
-    ip6tables -A "$NYM_CHAIN" -p tcp --dport 53 -j ACCEPT
-  fi
+  # Remove any existing DNS/ICMP rules first to avoid duplicates
+  iptables -D "$NYM_CHAIN" -p udp --dport 53 -j ACCEPT 2>/dev/null || true
+  iptables -D "$NYM_CHAIN" -p tcp --dport 53 -j ACCEPT 2>/dev/null || true
+  iptables -D "$NYM_CHAIN" -p icmp --icmp-type echo-request -j ACCEPT 2>/dev/null || true
+  iptables -D "$NYM_CHAIN" -p icmp --icmp-type echo-reply -j ACCEPT 2>/dev/null || true
+  ip6tables -D "$NYM_CHAIN" -p udp --dport 53 -j ACCEPT 2>/dev/null || true
+  ip6tables -D "$NYM_CHAIN" -p tcp --dport 53 -j ACCEPT 2>/dev/null || true
+  ip6tables -D "$NYM_CHAIN" -p ipv6-icmp -j ACCEPT 2>/dev/null || true
 
-  if ! iptables -C "$NYM_CHAIN" -p icmp --icmp-type echo-request -j ACCEPT 2>/dev/null; then
-    iptables -A "$NYM_CHAIN" -p icmp --icmp-type echo-request -j ACCEPT
-  fi
-  if ! iptables -C "$NYM_CHAIN" -p icmp --icmp-type echo-reply -j ACCEPT 2>/dev/null; then
-    iptables -A "$NYM_CHAIN" -p icmp --icmp-type echo-reply -j ACCEPT
-  fi
-  if ! ip6tables -C "$NYM_CHAIN" -p ipv6-icmp -j ACCEPT 2>/dev/null; then
-    ip6tables -A "$NYM_CHAIN" -p ipv6-icmp -j ACCEPT
-  fi
+  # Insert rules at the beginning in correct order: DNS first, then ICMP
+  iptables -I "$NYM_CHAIN" 1 -p udp --dport 53 -j ACCEPT
+  iptables -I "$NYM_CHAIN" 2 -p tcp --dport 53 -j ACCEPT
+  iptables -I "$NYM_CHAIN" 3 -p icmp --icmp-type echo-request -j ACCEPT
+  iptables -I "$NYM_CHAIN" 4 -p icmp --icmp-type echo-reply -j ACCEPT
+  ip6tables -I "$NYM_CHAIN" 1 -p udp --dport 53 -j ACCEPT
+  ip6tables -I "$NYM_CHAIN" 2 -p tcp --dport 53 -j ACCEPT
+  ip6tables -I "$NYM_CHAIN" 3 -p ipv6-icmp -j ACCEPT
 }
 
 apply_port_allowlist() {

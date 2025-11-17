@@ -525,26 +525,26 @@ configure_exit_dns_and_icmp() {
   echo "ensuring dns and icmp are allowed inside nym exit chain"
 
   if ! iptables -C "$NYM_CHAIN" -p udp --dport 53 -j ACCEPT 2>/dev/null; then
-    iptables -A "$NYM_CHAIN" -p udp --dport 53 -j ACCEPT
+    iptables -I "$NYM_CHAIN" -p udp --dport 53 -j ACCEPT
   fi
   if ! iptables -C "$NYM_CHAIN" -p tcp --dport 53 -j ACCEPT 2>/dev/null; then
-    iptables -A "$NYM_CHAIN" -p tcp --dport 53 -j ACCEPT
+    iptables -I "$NYM_CHAIN" -p tcp --dport 53 -j ACCEPT
   fi
   if ! ip6tables -C "$NYM_CHAIN" -p udp --dport 53 -j ACCEPT 2>/dev/null; then
-    ip6tables -A "$NYM_CHAIN" -p udp --dport 53 -j ACCEPT
+    ip6tables -I "$NYM_CHAIN" -p udp --dport 53 -j ACCEPT
   fi
   if ! ip6tables -C "$NYM_CHAIN" -p tcp --dport 53 -j ACCEPT 2>/dev/null; then
-    ip6tables -A "$NYM_CHAIN" -p tcp --dport 53 -j ACCEPT
+    ip6tables -I "$NYM_CHAIN" -p tcp --dport 53 -j ACCEPT
   fi
 
   if ! iptables -C "$NYM_CHAIN" -p icmp --icmp-type echo-request -j ACCEPT 2>/dev/null; then
-    iptables -A "$NYM_CHAIN" -p icmp --icmp-type echo-request -j ACCEPT
+    iptables -I "$NYM_CHAIN" -p icmp --icmp-type echo-request -j ACCEPT
   fi
   if ! iptables -C "$NYM_CHAIN" -p icmp --icmp-type echo-reply -j ACCEPT 2>/dev/null; then
-    iptables -A "$NYM_CHAIN" -p icmp --icmp-type echo-reply -j ACCEPT
+    iptables -I "$NYM_CHAIN" -p icmp --icmp-type echo-reply -j ACCEPT
   fi
   if ! ip6tables -C "$NYM_CHAIN" -p ipv6-icmp -j ACCEPT 2>/dev/null; then
-    ip6tables -A "$NYM_CHAIN" -p ipv6-icmp -j ACCEPT
+    ip6tables -I "$NYM_CHAIN" -p ipv6-icmp -j ACCEPT
   fi
 }
 

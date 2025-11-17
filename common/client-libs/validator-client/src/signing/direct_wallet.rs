@@ -37,9 +37,6 @@ pub struct DirectSecp256k1HdWallet {
     /// Base secret
     secret: bip39::Mnemonic,
 
-    /// BIP39 seed
-    seed: [u8; 64],
-
     /// Derived accounts
     #[zeroize(skip)]
     // unfortunately `dyn EcdsaSigner` does not guarantee Zeroize
@@ -168,7 +165,7 @@ impl DirectSecp256k1HdWalletBuilder {
         self,
         mnemonic: bip39::Mnemonic,
     ) -> Result<DirectSecp256k1HdWallet, DirectSecp256k1HdWalletError> {
-        let seed = mnemonic.to_seed(&self.bip39_password);
+        let seed = Zeroizing::new(mnemonic.to_seed(&self.bip39_password));
         let prefix = self.prefix.clone();
         let accounts = self
             .hd_paths
@@ -178,13 +175,12 @@ impl DirectSecp256k1HdWalletBuilder {
                     hd_path: hd_path.clone(),
                     prefix: prefix.clone(),
                 }
-                .try_derive_account(seed)
+                .try_derive_account(&seed)
             })
             .collect::<Result<_, _>>()?;
 
         Ok(DirectSecp256k1HdWallet {
             accounts,
-            seed,
             secret: mnemonic,
         })
     }

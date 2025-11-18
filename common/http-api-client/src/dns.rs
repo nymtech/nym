@@ -3,34 +3,25 @@
 
 //! DNS resolver configuration for internal lookups.
 //!
-//! The resolver itself is the set combination of the google, cloudflare, and quad9 endpoints
-//! supporting DoH and DoT.
+//! The resolver itself is the set combination of the cloudflare, and quad9 endpoints supporting DoH
+//! and DoT.
 //!
-//! This resolver supports a fallback mechanism where, should the DNS-over-TLS resolution fail, a
-//! followup resolution will be done using the hosts configured default (e.g. `/etc/resolve.conf` on
-//! linux). This is disabled by default and can be enabled using [`enable_system_fallback`].
+//! This resolver supports an optional fallback mechanism where, should the DNS-over-TLS resolution
+//! fail, a followup resolution will be done using the hosts configured default (e.g.
+//! `/etc/resolve.conf` on linux). This is disabled by default and can be enabled using
+//! [`enable_system_fallback`].
 //!
-//! Requires the `dns-over-https-rustls`, `webpki-roots` feature for the
-//! `hickory-resolver` crate
+//! There is also a second optional fallback mechanism that allows a static map to be used as a last
+//! resort. This can help when DNS encounters errors due to blocked resolvers or unknown conditions.
 //!
-//!
-//! Note: The hickory DoH resolver can cause warning logs about H2 connection failure. This
-//! indicates that the long lived https connection was closed by the remote peer and the resolver
-//! will have to reconnect. It should not impact actual functionality.
-//!
-//! code ref: https://github.com/hickory-dns/hickory-dns/blob/06a8b1ce9bd9322d8e6accf857d30257e1274427/crates/proto/src/h2/h2_client_stream.rs#L534
-//!
-//! example log:
-//!
-//! ```txt
-//!   WARN /home/ubuntu/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/hickory-proto-0.24.3/src/h2/h2_client_stream.rs:493: h2 connection failed: unexpected end of file
-//! ```
+//! Requires the `dns-over-https-rustls`, `webpki-roots` feature for the `hickory-resolver` crate
 #![deny(missing_docs)]
 
 use crate::ClientBuilder;
 
 use std::{
     collections::HashMap,
+    fmt::Display,
     net::{IpAddr, SocketAddr},
     str::FromStr,
     sync::{Arc, LazyLock},
@@ -39,7 +30,7 @@ use std::{
 
 use hickory_resolver::{
     TokioResolver,
-    config::{LookupIpStrategy, NameServerConfigGroup, ResolverConfig},
+    config::{LookupIpStrategy, NameServerConfigGroup, ResolverConfig, ResolverOpts},
     lookup_ip::LookupIpIntoIter,
     name_server::TokioConnectionProvider,
 };
@@ -50,6 +41,8 @@ use tracing::*;
 mod constants;
 mod static_resolver;
 pub use static_resolver::*;
+
+const DEFAULT_POSITIVE_LOOKUP_CACHE_TTL: Duration = Duration::from_secs(1800);
 
 impl ClientBuilder {
     /// Override the DNS resolver implementation used by the underlying http client.
@@ -116,8 +109,10 @@ pub struct HickoryDnsResolver {
     /// use of retries, server_ordering_strategy, etc. ends absolutely if this timeout is reached.
     overall_dns_timeout: Duration,
     /// Policy for which Ip version should be used for name_servers.
-    ns_ip_ver_policy: NameServerIpVersionPolicy, 
-}   
+    ns_ip_ver_policy: NameServerIpVersionPolicy,
+    /// Current options used by the resolver and used for rebuilding on preference change.
+    current_options: Option<ResolverOpts>,
+}
 
 impl Default for HickoryDnsResolver {
     fn default() -> Self {
@@ -127,6 +122,7 @@ impl Default for HickoryDnsResolver {
             static_base: Default::default(),
             dont_use_shared: Default::default(),
             ns_ip_ver_policy: Default::default(),
+            current_options: Default::default(),
             overall_dns_timeout: Duration::from_secs(10),
         }
     }
@@ -138,7 +134,9 @@ impl Resolve for HickoryDnsResolver {
         let maybe_fallback = self.fallback.clone();
         let maybe_static = self.static_base.clone();
         let independent = self.dont_use_shared;
+        let ns_strategy = self.ns_ip_ver_policy;
         let overall_dns_timeout = self.overall_dns_timeout;
+        let options = self.current_options.clone();
         Box::pin(async move {
             resolve(
                 name,
@@ -146,6 +144,8 @@ impl Resolve for HickoryDnsResolver {
                 maybe_fallback,
                 maybe_static,
                 independent,
+                ns_strategy,
+                options,
                 overall_dns_timeout,
             )
             .await
@@ -154,15 +154,19 @@ impl Resolve for HickoryDnsResolver {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn resolve(
     name: Name,
     resolver: Arc<OnceCell<TokioResolver>>,
     maybe_fallback: Option<Arc<OnceCell<TokioResolver>>>,
     maybe_static: Option<Arc<OnceCell<StaticResolver>>>,
     independent: bool,
+    ns_strategy: NameServerIpVersionPolicy,
+    options: Option<ResolverOpts>,
     overall_dns_timeout: Duration,
 ) -> Result<Addrs, ResolveError> {
-    let resolver = resolver.get_or_try_init(|| HickoryDnsResolver::new_resolver(independent))?;
+    let resolver = resolver
+        .get_or_try_init(|| HickoryDnsResolver::new_resolver(independent, ns_strategy, options))?;
 
     // Attempt a lookup using the primary resolver
     let resolve_fut = tokio::time::timeout(overall_dns_timeout, resolver.lookup_ip(name.as_str()));
@@ -240,6 +244,8 @@ impl HickoryDnsResolver {
             self.fallback.clone(),
             self.static_base.clone(),
             self.dont_use_shared,
+            self.ns_ip_ver_policy,
+            self.current_options.clone(),
             self.overall_dns_timeout,
         )
         .await
@@ -254,13 +260,20 @@ impl HickoryDnsResolver {
         }
     }
 
-    fn new_resolver(dont_use_shared: bool) -> Result<TokioResolver, ResolveError> {
+    fn new_resolver(
+        dont_use_shared: bool,
+        ns_strategy: NameServerIpVersionPolicy,
+        options: Option<ResolverOpts>,
+    ) -> Result<TokioResolver, ResolveError> {
         // using a closure here is slightly gross, but this makes sure that if the
         // lazy-init returns an error it can be handled by the client
         if dont_use_shared {
-            new_resolver(self.ns_ip_ver_policy)
+            new_resolver(ns_strategy, options)
         } else {
-            Ok(SHARED_RESOLVER.state.get_or_try_init(|| new_resolver(self.ns_ip_ver_policy))?.clone())
+            Ok(SHARED_RESOLVER
+                .state
+                .get_or_try_init(|| new_resolver(ns_strategy, options))?
+                .clone())
         }
     }
 
@@ -326,19 +339,64 @@ impl HickoryDnsResolver {
     /// NOTE: Calling this function will rebuild the inner resolver which means that the
     /// cached dns lookups will not carry over and will go to network to resolve again.
     pub fn set_ipv4_only(&mut self) {
-        self.set_nameserver_ip_version_strategy(NameServerIpVersionPolicy::Ipv4Only);
         self.set_hostname_ip_version_lookup_strategy(HostnameIpLookupStrategy::A_only);
+        self.set_nameserver_ip_version_strategy(NameServerIpVersionPolicy::Ipv4Only);
     }
 
     /// Set the policy relating to nameserver IP version.
     ///
     /// NOTE: Calling this function will rebuild the inner resolver which means that the
     /// cached dns lookups will not carry over and will go to network to resolve again.
-    pub fn set_nameserver_ip_version_strategy(&mut self, strategy: NameServerIpVersionPolicy) {}
+    pub fn set_nameserver_ip_version_strategy(&mut self, strategy: NameServerIpVersionPolicy) {
+        if strategy == self.ns_ip_ver_policy {
+            // correct strategy is already set. avoid rebuilding and clearing cache.
+            return;
+        }
+        self.ns_ip_ver_policy = strategy;
+
+        self.force_primary_rebuild();
+    }
+
+    /// Get the current policy in use by this resolver for nameserver IP version.
+    pub fn get_nameserver_ip_version_strategy(&self) -> NameServerIpVersionPolicy {
+        self.ns_ip_ver_policy
+    }
 
     /// Set the policy for the record type queried when looking up hostnames
+    ///
+    /// NOTE: Calling this function will rebuild the inner resolver which means that the
+    /// cached dns lookups will not carry over and will go to network to resolve again.
     pub fn set_hostname_ip_version_lookup_strategy(&mut self, strategy: HostnameIpLookupStrategy) {
-        // self.state.get_mut()
+        if let Some(opts) = &self.current_options
+            && opts.ip_strategy == strategy.into()
+        {
+            // correct strategy is already set. avoid rebuilding and clearing cache.
+            return;
+        }
+
+        let mut options = self
+            .current_options
+            .clone()
+            .unwrap_or(Self::default_options());
+        options.ip_strategy = strategy.into();
+
+        self.current_options = Some(options);
+        self.force_primary_rebuild();
+    }
+
+    fn default_options() -> ResolverOpts {
+        let mut opts = ResolverOpts::default();
+        // Always cache successful responses for queries received by this resolver for 30 min minimum.
+        opts.positive_min_ttl = Some(DEFAULT_POSITIVE_LOOKUP_CACHE_TTL);
+
+        opts
+    }
+
+    fn force_primary_rebuild(&mut self) {
+        // if !self.dont_use_shared {
+        //     SHARED_RESOLVER = Default::default();
+        // }
+        self.state = Arc::new(OnceCell::new());
     }
 }
 
@@ -352,6 +410,16 @@ pub enum NameServerIpVersionPolicy {
     /// Send queries to Ipv4 AND Ipv6 nameservers in parallel
     #[default]
     Ipv4AndIpv6,
+}
+
+impl Display for NameServerIpVersionPolicy {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Ipv4AndIpv6 => write!(f, "ipv4 & ipv6"),
+            Self::Ipv6Only => write!(f, "ipv6 only"),
+            Self::Ipv4Only => write!(f, "ipv4 only"),
+        }
+    }
 }
 
 /// Policy options for query types sent when lookup up a hostname.
@@ -429,8 +497,9 @@ impl From<&HostnameIpLookupStrategy> for LookupIpStrategy {
 /// This resolver is intended to be used for OUR API endpoints that do not rapidly rotate IPs.
 fn new_resolver(
     ns_ip_version_policy: NameServerIpVersionPolicy,
+    options: Option<ResolverOpts>,
 ) -> Result<TokioResolver, ResolveError> {
-    info!("building new configured resolver");
+    info!("building new configured {ns_ip_version_policy} resolver");
 
     let name_servers = match ns_ip_version_policy {
         NameServerIpVersionPolicy::Ipv4AndIpv6 => default_nameserver_group(),
@@ -438,7 +507,7 @@ fn new_resolver(
         NameServerIpVersionPolicy::Ipv6Only => default_nameserver_group_ipv6_only(),
     };
 
-    configure_and_build_resolver(name_servers)
+    configure_and_build_resolver(name_servers, options)
 }
 
 fn default_nameserver_group() -> NameServerConfigGroup {
@@ -447,6 +516,20 @@ fn default_nameserver_group() -> NameServerConfigGroup {
     name_servers.merge(NameServerConfigGroup::cloudflare_tls());
     name_servers.merge(NameServerConfigGroup::cloudflare_https());
     name_servers
+}
+
+fn configure_and_build_resolver(
+    name_servers: NameServerConfigGroup,
+    options: Option<ResolverOpts>,
+) -> Result<TokioResolver, ResolveError> {
+    let config = ResolverConfig::from_parts(None, Vec::new(), name_servers);
+    let mut resolver_builder =
+        TokioResolver::builder_with_config(config, TokioConnectionProvider::default());
+
+    let options = options.unwrap_or(HickoryDnsResolver::default_options());
+    resolver_builder = resolver_builder.with_options(options);
+
+    Ok(resolver_builder.build())
 }
 
 fn default_nameserver_group_ipv4_only() -> NameServerConfigGroup {
@@ -505,20 +588,6 @@ fn default_nameserver_group_ipv6_only() -> NameServerConfigGroup {
     name_servers
 }
 
-fn configure_and_build_resolver(
-    name_servers: NameServerConfigGroup,
-) -> Result<TokioResolver, ResolveError> {
-    let config = ResolverConfig::from_parts(None, Vec::new(), name_servers);
-    let mut resolver_builder =
-        TokioResolver::builder_with_config(config, TokioConnectionProvider::default());
-
-    resolver_builder.options_mut().ip_strategy = LookupIpStrategy::Ipv4thenIpv6;
-    // Cache successful responses for queries received by this resolver for 30 min minimum.
-    resolver_builder.options_mut().positive_min_ttl = Some(Duration::from_secs(1800));
-
-    Ok(resolver_builder.build())
-}
-
 fn cloudflare_ips_v4() -> Vec<IpAddr> {
     hickory_resolver::config::CLOUDFLARE_IPS
         .iter()
@@ -546,7 +615,7 @@ fn quad9_ips_v4() -> Vec<IpAddr> {
 fn quad9_ips_v6() -> Vec<IpAddr> {
     hickory_resolver::config::CLOUDFLARE_IPS
         .iter()
-        .filter(|ip| ip.is_ipv4())
+        .filter(|ip| ip.is_ipv6())
         .cloned()
         .collect()
 }
@@ -628,6 +697,70 @@ mod test {
         assert!(addrs.contains(&example_ip6));
         Ok(())
     }
+
+    #[test]
+    fn address_filter_check() {
+        // Make sure the nameserver group for Ipv4 is really IPv4 only
+        let ns_group = default_nameserver_group_ipv4_only();
+        let addrs: Vec<IpAddr> = ns_group
+            .into_inner()
+            .iter()
+            .map(|cfg| cfg.socket_addr.ip())
+            .collect();
+        assert!(addrs.iter().all(|addr| addr.is_ipv4()));
+
+        // Make sure the nameserver group for Ipv6 is really IPv6 only
+        let ns_group = default_nameserver_group_ipv6_only();
+        let addrs: Vec<IpAddr> = ns_group
+            .into_inner()
+            .iter()
+            .map(|cfg| cfg.socket_addr.ip())
+            .collect();
+        assert!(addrs.iter().all(|addr| addr.is_ipv6()));
+    }
+
+    #[tokio::test]
+    async fn setting_ns_ip_version_works() {
+        // Make sure that setting IPv4 only on the shared resolver changes the resolver
+        // set to only use IPv4 nameservers and only do lookups for A records.
+        let mut resolver = HickoryDnsResolver {
+            dont_use_shared: true,
+            ..Default::default()
+        };
+
+        let _ = resolver.resolve_str("example.com").await;
+
+        resolver.set_ipv4_only();
+
+        // setting opts resets resolver initialization
+        assert!(resolver.state.get().is_none());
+
+        let _ = resolver.resolve_str("example.com").await;
+
+        // after rebuilding with new options it should have Ipv4 / A only
+        let lookup_strategy = resolver.state.get().unwrap().options().ip_strategy;
+        assert_eq!(lookup_strategy, HostnameIpLookupStrategy::A_only.into());
+
+        let nameservers = resolver.state.get().unwrap().config().name_servers();
+        assert!(nameservers.iter().all(|cfg| cfg.socket_addr.is_ipv4()));
+
+        resolver.set_nameserver_ip_version_strategy(NameServerIpVersionPolicy::Ipv6Only);
+
+        // setting opts resets resolver initialization
+        assert!(resolver.state.get().is_none());
+
+        let _ = resolver.resolve_str("example.com").await;
+
+        // Make sure that setting the shared resolver to use only Ipv6 nameservers changes
+        // the set of nameservers to only IPv6.
+        let nameservers = resolver.state.get().unwrap().config().name_servers();
+        assert!(nameservers.iter().all(|cfg| cfg.socket_addr.is_ipv6()));
+    }
+
+    // #[tokio::test]
+    // async fn setting_ns_ip_version_for_shared_resolver() {
+    //     let mut resolver = HickoryDnsResolver::default();
+    // }
 }
 
 #[cfg(test)]
@@ -664,7 +797,7 @@ mod failure_test {
         );
         broken_ns_group.merge(broken_ns_https);
 
-        configure_and_build_resolver(broken_ns_group)
+        configure_and_build_resolver(broken_ns_group, None)
     }
 
     #[tokio::test]

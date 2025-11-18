@@ -111,8 +111,7 @@ impl LpConnectionHandler {
 
         // Receive client's public key and salt via ClientHello message
         // The client initiates by sending ClientHello as first packet
-        let (client_pubkey, client_ed25519_pubkey, salt) = match self.receive_client_hello().await
-        {
+        let (client_pubkey, client_ed25519_pubkey, salt) = match self.receive_client_hello().await {
             Ok(result) => result,
             Err(e) => {
                 // Track ClientHello failures (timestamp validation, protocol errors, etc.)
@@ -262,8 +261,14 @@ impl LpConnectionHandler {
     /// Receive client's public key and salt via ClientHello message
     async fn receive_client_hello(
         &mut self,
-    ) -> Result<(PublicKey, nym_crypto::asymmetric::ed25519::PublicKey, [u8; 32]), GatewayError>
-    {
+    ) -> Result<
+        (
+            PublicKey,
+            nym_crypto::asymmetric::ed25519::PublicKey,
+            [u8; 32],
+        ),
+        GatewayError,
+    > {
         // Receive first packet which should be ClientHello
         let packet = self.receive_lp_packet().await?;
 
@@ -295,16 +300,15 @@ impl LpConnectionHandler {
                     })?;
 
                 // Convert bytes to Ed25519 PublicKey (for PSQ authentication)
-                let client_ed25519_pubkey =
-                    nym_crypto::asymmetric::ed25519::PublicKey::from_bytes(
-                        &hello_data.client_ed25519_public_key,
-                    )
-                    .map_err(|e| {
-                        GatewayError::LpProtocolError(format!(
-                            "Invalid client Ed25519 public key: {}",
-                            e
-                        ))
-                    })?;
+                let client_ed25519_pubkey = nym_crypto::asymmetric::ed25519::PublicKey::from_bytes(
+                    &hello_data.client_ed25519_public_key,
+                )
+                .map_err(|e| {
+                    GatewayError::LpProtocolError(format!(
+                        "Invalid client Ed25519 public key: {}",
+                        e
+                    ))
+                })?;
 
                 // Extract salt for PSK derivation
                 let salt = hello_data.salt;
@@ -828,7 +832,9 @@ mod tests {
         assert_eq!(received.header().session_id, 200);
         assert_eq!(received.header().counter, 20);
         match received.message() {
-            LpMessage::EncryptedData(data) => assert_eq!(data, &EncryptedDataPayload(expected_payload)),
+            LpMessage::EncryptedData(data) => {
+                assert_eq!(data, &EncryptedDataPayload(expected_payload))
+            }
             _ => panic!("Expected EncryptedData message"),
         }
     }

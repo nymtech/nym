@@ -120,8 +120,13 @@ pub fn process_response<'a>(
     expected_key_hash: &[u8],
     response_data: &KKTResponseData,
 ) -> Result<EncapsulationKey<'a>, LpError> {
-    validate_kem_response(&mut context, responder_vk, expected_key_hash, &response_data.0)
-        .map_err(|e| LpError::KKTError(e.to_string()))
+    validate_kem_response(
+        &mut context,
+        responder_vk,
+        expected_key_hash,
+        &response_data.0,
+    )
+    .map_err(|e| LpError::KKTError(e.to_string()))
 }
 
 /// Handles a KKT request and generates a signed response with the responder's KEM key.
@@ -155,9 +160,13 @@ pub fn handle_request<'a>(
         .map_err(|e| LpError::KKTError(format!("Failed to parse KKT request: {}", e)))?;
 
     // Handle the request and generate response
-    let response_frame =
-        handle_kem_request(&request_frame, initiator_vk, responder_signing_key, responder_kem_key)
-            .map_err(|e| LpError::KKTError(e.to_string()))?;
+    let response_frame = handle_kem_request(
+        &request_frame,
+        initiator_vk,
+        responder_signing_key,
+        responder_kem_key,
+    )
+    .map_err(|e| LpError::KKTError(e.to_string()))?;
 
     let response_bytes = response_frame.to_bytes();
     Ok(KKTResponseData(response_bytes))
@@ -204,7 +213,8 @@ mod tests {
         );
 
         // Client: Create request
-        let (context, request_data) = create_request(ciphersuite, initiator_keypair.private_key()).unwrap();
+        let (context, request_data) =
+            create_request(ciphersuite, initiator_keypair.private_key()).unwrap();
 
         // Gateway: Handle request
         let response_data = handle_request(
@@ -309,7 +319,8 @@ mod tests {
         )
         .unwrap();
 
-        let (_context, request_data) = create_request(ciphersuite, initiator_keypair.private_key()).unwrap();
+        let (_context, request_data) =
+            create_request(ciphersuite, initiator_keypair.private_key()).unwrap();
 
         // Gateway handles request but we provide WRONG verification key
         let result = handle_request(
@@ -354,7 +365,8 @@ mod tests {
         // Use WRONG hash
         let wrong_hash = [0u8; 32];
 
-        let (context, request_data) = create_request(ciphersuite, initiator_keypair.private_key()).unwrap();
+        let (context, request_data) =
+            create_request(ciphersuite, initiator_keypair.private_key()).unwrap();
 
         let response_data = handle_request(
             &request_data,
@@ -431,7 +443,8 @@ mod tests {
         )
         .unwrap();
 
-        let (context, _request_data) = create_request(ciphersuite, initiator_keypair.private_key()).unwrap();
+        let (context, _request_data) =
+            create_request(ciphersuite, initiator_keypair.private_key()).unwrap();
 
         // Create malformed response data
         let malformed_response = KKTResponseData(vec![0xFF; 100]);

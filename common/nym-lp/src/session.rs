@@ -292,8 +292,10 @@ impl LpSession {
                 &local_ed25519_keypair.0.to_bytes(),
             )
             .expect("Valid ed25519 private key"),
-            local_ed25519_public: ed25519::PublicKey::from_bytes(&local_ed25519_keypair.1.to_bytes())
-                .expect("Valid ed25519 public key"),
+            local_ed25519_public: ed25519::PublicKey::from_bytes(
+                &local_ed25519_keypair.1.to_bytes(),
+            )
+            .expect("Valid ed25519 public key"),
             remote_ed25519_public: ed25519::PublicKey::from_bytes(&remote_ed25519_key.to_bytes())
                 .expect("Valid ed25519 public key"),
             local_x25519_private: local_x25519_key.clone(),
@@ -418,7 +420,12 @@ impl LpSession {
             None,
         ) {
             Ok(cs) => cs,
-            Err(e) => return Some(Err(LpError::Internal(format!("KKT ciphersuite error: {:?}", e)))),
+            Err(e) => {
+                return Some(Err(LpError::Internal(format!(
+                    "KKT ciphersuite error: {:?}",
+                    e
+                ))))
+            }
         };
 
         let mut rng = rand09::thread_rng();
@@ -429,9 +436,14 @@ impl LpSession {
 
                 // Serialize KKT frame to bytes
                 let request_bytes = request_frame.to_bytes();
-                Some(Ok(LpMessage::KKTRequest(crate::message::KKTRequestData(request_bytes))))
+                Some(Ok(LpMessage::KKTRequest(crate::message::KKTRequestData(
+                    request_bytes,
+                ))))
             }
-            Err(e) => Some(Err(LpError::Internal(format!("KKT request creation failed: {:?}", e)))),
+            Err(e) => Some(Err(LpError::Internal(format!(
+                "KKT request creation failed: {:?}",
+                e
+            )))),
         }
     }
 
@@ -464,8 +476,8 @@ impl LpSession {
         response_bytes: &[u8],
         expected_key_hash: Option<&[u8]>,
     ) -> Result<(), LpError> {
-        use nym_kkt::kkt::validate_kem_response;
         use nym_kkt::key_utils::hash_encapsulation_key;
+        use nym_kkt::kkt::validate_kem_response;
 
         let mut kkt_state = self.kkt_state.lock();
 
@@ -488,8 +500,9 @@ impl LpSession {
                 // This effectively bypasses hash validation while keeping signature validation
                 use nym_kkt::frame::KKTFrame;
 
-                let (frame, _) = KKTFrame::from_bytes(response_bytes)
-                    .map_err(|e| LpError::Internal(format!("Failed to parse KKT response: {:?}", e)))?;
+                let (frame, _) = KKTFrame::from_bytes(response_bytes).map_err(|e| {
+                    LpError::Internal(format!("Failed to parse KKT response: {:?}", e))
+                })?;
 
                 hash_for_validation = hash_encapsulation_key(
                     &context.ciphersuite().hash_function(),
@@ -539,14 +552,15 @@ impl LpSession {
         let mut kkt_state = self.kkt_state.lock();
 
         // Deserialize request frame
-        let (request_frame, _) = KKTFrame::from_bytes(request_bytes)
-            .map_err(|e| LpError::Internal(format!("KKT request deserialization failed: {:?}", e)))?;
+        let (request_frame, _) = KKTFrame::from_bytes(request_bytes).map_err(|e| {
+            LpError::Internal(format!("KKT request deserialization failed: {:?}", e))
+        })?;
 
         // Handle request and create signed response
         let response_frame = handle_kem_request(
             &request_frame,
             Some(&self.remote_ed25519_public), // Verify initiator signature
-            &self.local_ed25519_private,        // Sign response
+            &self.local_ed25519_private,       // Sign response
             responder_kem_pk,
         )
         .map_err(|e| LpError::Internal(format!("KKT request handling failed: {:?}", e)))?;
@@ -558,7 +572,9 @@ impl LpSession {
         // Serialize response frame
         let response_bytes = response_frame.to_bytes();
 
-        Ok(LpMessage::KKTResponse(crate::message::KKTResponseData(response_bytes)))
+        Ok(LpMessage::KKTResponse(crate::message::KKTResponseData(
+            response_bytes,
+        )))
     }
 
     /// Prepares the next handshake message to be sent, if any.
@@ -700,10 +716,7 @@ impl LpSession {
     ///
     /// * `Ok(ReadResult)` detailing the outcome (e.g., handshake complete, no-op).
     /// * `Err(LpError)` if the message is invalid or causes a Noise/PSQ protocol error.
-    pub fn process_handshake_message(
-        &self,
-        message: &LpMessage,
-    ) -> Result<ReadResult, LpError> {
+    pub fn process_handshake_message(&self, message: &LpMessage) -> Result<ReadResult, LpError> {
         let mut noise_state = self.noise_state.lock();
         let mut psq_state = self.psq_state.lock();
 
@@ -808,7 +821,10 @@ impl LpSession {
                             let handle_bytes = &payload[2..2 + handle_len];
                             let noise_payload = &payload[2 + handle_len..];
 
-                            log::debug!("Extracted PSK handle ({} bytes) from message 2", handle_len);
+                            log::debug!(
+                                "Extracted PSK handle ({} bytes) from message 2",
+                                handle_len
+                            );
 
                             {
                                 let mut psk_handle = self.psk_handle.lock();
@@ -908,11 +924,9 @@ impl LpSession {
     pub(crate) fn set_kkt_completed_for_test(&self, remote_x25519_pub: &PublicKey) {
         // Convert remote X25519 public key to EncapsulationKey for testing
         let remote_kem_bytes = remote_x25519_pub.as_bytes();
-        let libcrux_public_key = libcrux_kem::PublicKey::decode(
-            libcrux_kem::Algorithm::X25519,
-            remote_kem_bytes,
-        )
-        .expect("Test KEM key conversion failed");
+        let libcrux_public_key =
+            libcrux_kem::PublicKey::decode(libcrux_kem::Algorithm::X25519, remote_kem_bytes)
+                .expect("Test KEM key conversion failed");
         let kem_pk = EncapsulationKey::X25519(libcrux_public_key);
 
         let mut kkt_state = self.kkt_state.lock();
@@ -1299,8 +1313,9 @@ mod tests {
 
         // Attempt to decrypt before handshake (using dummy ciphertext)
         let dummy_ciphertext = vec![0u8; 32];
-        let result_decrypt =
-            initiator_session.decrypt_data(&LpMessage::EncryptedData(EncryptedDataPayload(dummy_ciphertext)));
+        let result_decrypt = initiator_session.decrypt_data(&LpMessage::EncryptedData(
+            EncryptedDataPayload(dummy_ciphertext),
+        ));
         assert!(result_decrypt.is_err());
         match result_decrypt.unwrap_err() {
             NoiseError::PskNotInjected => {} // Expected - PSK check comes before handshake check
@@ -1425,21 +1440,17 @@ mod tests {
 
         // Verify we can convert X25519 public key to KEM format (as done in session.rs)
         let x25519_public_bytes = responder_keys.public_key().as_bytes();
-        let libcrux_public_key = libcrux_kem::PublicKey::decode(
-            libcrux_kem::Algorithm::X25519,
-            x25519_public_bytes,
-        )
-        .expect("X25519 public key should convert to libcrux PublicKey");
+        let libcrux_public_key =
+            libcrux_kem::PublicKey::decode(libcrux_kem::Algorithm::X25519, x25519_public_bytes)
+                .expect("X25519 public key should convert to libcrux PublicKey");
 
         let _kem_key = EncapsulationKey::X25519(libcrux_public_key);
 
         // Verify we can convert X25519 private key to KEM format
         let x25519_private_bytes = initiator_keys.private_key().to_bytes();
-        let _libcrux_private_key = libcrux_kem::PrivateKey::decode(
-            libcrux_kem::Algorithm::X25519,
-            &x25519_private_bytes,
-        )
-        .expect("X25519 private key should convert to libcrux PrivateKey");
+        let _libcrux_private_key =
+            libcrux_kem::PrivateKey::decode(libcrux_kem::Algorithm::X25519, &x25519_private_bytes)
+                .expect("X25519 private key should convert to libcrux PrivateKey");
 
         // Successful conversion is sufficient - actual encapsulation is tested in psk.rs
         // (libcrux_kem::PrivateKey is an enum with no len() method, conversion success is enough)
@@ -1641,11 +1652,8 @@ mod tests {
         let responder_keys = generate_keypair();
         let initiator_keys = generate_keypair();
 
-        let responder_session = create_handshake_test_session(
-            false,
-            &responder_keys,
-            initiator_keys.public_key(),
-        );
+        let responder_session =
+            create_handshake_test_session(false, &responder_keys, initiator_keys.public_key());
 
         // Create a handshake message with corrupted PSQ payload
         let corrupted_psq_data = vec![0xFF; 128]; // Random garbage
@@ -1680,7 +1688,10 @@ mod tests {
         let initiator_session = LpSession::new(
             lp_id,
             true,
-            (initiator_ed25519.private_key(), initiator_ed25519.public_key()),
+            (
+                initiator_ed25519.private_key(),
+                initiator_ed25519.public_key(),
+            ),
             initiator_keys.private_key(),
             wrong_ed25519.public_key(), // Responder expects THIS key
             responder_keys.public_key(),
@@ -1695,7 +1706,10 @@ mod tests {
         let responder_session = LpSession::new(
             lp_id,
             false,
-            (responder_ed25519.private_key(), responder_ed25519.public_key()),
+            (
+                responder_ed25519.private_key(),
+                responder_ed25519.public_key(),
+            ),
             responder_keys.private_key(),
             wrong_ed25519.public_key(), // Expects WRONG key (not initiator's)
             initiator_keys.public_key(),
@@ -1745,7 +1759,10 @@ mod tests {
         let initiator_session = LpSession::new(
             lp_id,
             true,
-            (initiator_ed25519.private_key(), initiator_ed25519.public_key()),
+            (
+                initiator_ed25519.private_key(),
+                initiator_ed25519.public_key(),
+            ),
             initiator_keys.private_key(),
             wrong_ed25519_public, // This doesn't matter for initiator
             responder_keys.public_key(),
@@ -1760,7 +1777,10 @@ mod tests {
         let responder_session = LpSession::new(
             lp_id,
             false,
-            (responder_ed25519.private_key(), responder_ed25519.public_key()),
+            (
+                responder_ed25519.private_key(),
+                responder_ed25519.public_key(),
+            ),
             responder_keys.private_key(),
             wrong_ed25519_public, // Responder expects WRONG key
             initiator_keys.public_key(),
@@ -1780,10 +1800,7 @@ mod tests {
         // This should fail Ed25519 signature verification
         let result = responder_session.process_handshake_message(&msg);
 
-        assert!(
-            result.is_err(),
-            "Expected signature verification to fail"
-        );
+        assert!(result.is_err(), "Expected signature verification to fail");
 
         // Verify error is related to PSQ/authentication
         match result.unwrap_err() {
@@ -1800,11 +1817,8 @@ mod tests {
         let responder_keys = generate_keypair();
         let initiator_keys = generate_keypair();
 
-        let responder_session = create_handshake_test_session(
-            false,
-            &responder_keys,
-            initiator_keys.public_key(),
-        );
+        let responder_session =
+            create_handshake_test_session(false, &responder_keys, initiator_keys.public_key());
 
         // Capture initial PSQ state (should be ResponderWaiting)
         // (We can't directly access psq_state, but we can verify behavior)
@@ -1858,7 +1872,10 @@ mod tests {
         let plaintext = b"test data";
         let encrypt_result = session.encrypt_data(plaintext);
 
-        assert!(encrypt_result.is_err(), "encrypt_data should fail without PSK injection");
+        assert!(
+            encrypt_result.is_err(),
+            "encrypt_data should fail without PSK injection"
+        );
         match encrypt_result.unwrap_err() {
             NoiseError::PskNotInjected => {
                 // Expected - this is the safety mechanism working
@@ -1872,7 +1889,10 @@ mod tests {
         // Attempt to decrypt data - should also fail with PskNotInjected
         let decrypt_result = session.decrypt_data(&dummy_ciphertext);
 
-        assert!(decrypt_result.is_err(), "decrypt_data should fail without PSK injection");
+        assert!(
+            decrypt_result.is_err(),
+            "decrypt_data should fail without PSK injection"
+        );
         match decrypt_result.unwrap_err() {
             NoiseError::PskNotInjected => {
                 // Expected - this is the safety mechanism working

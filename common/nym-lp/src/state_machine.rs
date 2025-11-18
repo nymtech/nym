@@ -998,7 +998,10 @@ mod tests {
         // Create initiator state machine
         let mut initiator = LpStateMachine::new(
             true,
-            (ed25519_keypair_init.private_key(), ed25519_keypair_init.public_key()),
+            (
+                ed25519_keypair_init.private_key(),
+                ed25519_keypair_init.public_key(),
+            ),
             ed25519_keypair_resp.public_key(),
             &salt,
         )
@@ -1025,7 +1028,10 @@ mod tests {
         // Create initiator state machine
         let mut initiator = LpStateMachine::new(
             true,
-            (ed25519_keypair_init.private_key(), ed25519_keypair_init.public_key()),
+            (
+                ed25519_keypair_init.private_key(),
+                ed25519_keypair_init.public_key(),
+            ),
             ed25519_keypair_resp.public_key(),
             &salt,
         )
@@ -1037,12 +1043,18 @@ mod tests {
 
         // Try SendData during KKT exchange (should be rejected)
         let send_action = initiator.process_input(LpInput::SendData(vec![1, 2, 3]));
-        assert!(matches!(send_action, Some(Err(LpError::InvalidStateTransition { .. }))));
+        assert!(matches!(
+            send_action,
+            Some(Err(LpError::InvalidStateTransition { .. }))
+        ));
         assert!(matches!(initiator.state, LpState::KKTExchange { .. })); // Still in KKTExchange
 
         // Try StartHandshake again during KKT exchange (should be rejected)
         let start_action = initiator.process_input(LpInput::StartHandshake);
-        assert!(matches!(start_action, Some(Err(LpError::InvalidStateTransition { .. }))));
+        assert!(matches!(
+            start_action,
+            Some(Err(LpError::InvalidStateTransition { .. }))
+        ));
         assert!(matches!(initiator.state, LpState::KKTExchange { .. })); // Still in KKTExchange
     }
 }

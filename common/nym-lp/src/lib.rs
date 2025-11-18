@@ -54,7 +54,10 @@ pub fn sessions_for_tests() -> (LpSession, LpSession) {
     let initiator_session = LpSession::new(
         id,
         true,
-        (ed25519_keypair_1.private_key(), ed25519_keypair_1.public_key()),
+        (
+            ed25519_keypair_1.private_key(),
+            ed25519_keypair_1.public_key(),
+        ),
         keypair_1.private_key(),
         ed25519_keypair_2.public_key(),
         keypair_2.public_key(),
@@ -65,7 +68,10 @@ pub fn sessions_for_tests() -> (LpSession, LpSession) {
     let responder_session = LpSession::new(
         id,
         false,
-        (ed25519_keypair_2.private_key(), ed25519_keypair_2.public_key()),
+        (
+            ed25519_keypair_2.private_key(),
+            ed25519_keypair_2.public_key(),
+        ),
         keypair_2.private_key(),
         ed25519_keypair_1.public_key(),
         keypair_1.public_key(),
@@ -258,7 +264,10 @@ mod tests {
         // Create a session via manager
         let _ = local_manager
             .create_session_state_machine(
-                (ed25519_keypair_local.private_key(), ed25519_keypair_local.public_key()),
+                (
+                    ed25519_keypair_local.private_key(),
+                    ed25519_keypair_local.public_key(),
+                ),
                 ed25519_keypair_remote.public_key(),
                 true,
                 &salt,
@@ -267,7 +276,10 @@ mod tests {
 
         let _ = remote_manager
             .create_session_state_machine(
-                (ed25519_keypair_remote.private_key(), ed25519_keypair_remote.public_key()),
+                (
+                    ed25519_keypair_remote.private_key(),
+                    ed25519_keypair_remote.public_key(),
+                ),
                 ed25519_keypair_local.public_key(),
                 false,
                 &salt,

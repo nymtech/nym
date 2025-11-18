@@ -179,7 +179,10 @@ pub async fn start_wireguard(
     use tracing::info;
 
     let ifname = String::from(WG_TUN_BASE_NAME);
-    info!("Initializing WireGuard interface '{}' with use_userspace={}", ifname, use_userspace);
+    info!(
+        "Initializing WireGuard interface '{}' with use_userspace={}",
+        ifname, use_userspace
+    );
     let wg_api = defguard_wireguard_rs::WGApi::new(ifname.clone(), use_userspace)?;
     let mut peer_bandwidth_managers = HashMap::with_capacity(peers.len());
 

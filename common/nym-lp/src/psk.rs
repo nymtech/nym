@@ -327,7 +327,10 @@ pub fn psq_initiator_create_message(
         &mut rng,
     )
     .map_err(|e| {
-        log::error!("PSQ initiator failed - KEM encapsulation or signing error: {:?}", e);
+        log::error!(
+            "PSQ initiator failed - KEM encapsulation or signing error: {:?}",
+            e
+        );
         LpError::Internal(format!("PSQ v1 send_initial_message failed: {:?}", e))
     })?;
 
@@ -399,9 +402,7 @@ pub fn psq_responder_process_message(
 
     // Step 3: Deserialize InitiatorMsg using TLS decoding
     let initiator_msg = InitiatorMsg::<PsqX25519>::tls_deserialize(&mut &psq_payload[..])
-        .map_err(|e| {
-            LpError::Internal(format!("InitiatorMsg deserialization failed: {:?}", e))
-        })?;
+        .map_err(|e| LpError::Internal(format!("InitiatorMsg deserialization failed: {:?}", e)))?;
 
     // Step 4: Convert nym Ed25519 public key to libcrux VerificationKey format
     type Ed25519VerificationKey = <Ed25519 as Authenticator>::VerificationKey;
@@ -410,23 +411,25 @@ pub fn psq_responder_process_message(
 
     // Step 5: PSQ v1 responder processing with Ed25519 verification
     let (registered_psk, responder_msg) = Responder::send::<Ed25519, PsqX25519>(
-        b"nym-lp-handle",       // PSK storage handle
-        Duration::from_secs(3600), // 1 hour expiry (must match initiator)
-        session_context,        // Must match initiator's session_context
-        kem_pk,                 // Responder's public key
-        kem_sk,                 // Responder's secret key
+        b"nym-lp-handle",            // PSK storage handle
+        Duration::from_secs(3600),   // 1 hour expiry (must match initiator)
+        session_context,             // Must match initiator's session_context
+        kem_pk,                      // Responder's public key
+        kem_sk,                      // Responder's secret key
         &initiator_verification_key, // Initiator's Ed25519 public key for verification
-        &initiator_msg,         // InitiatorMsg to verify and process
+        &initiator_msg,              // InitiatorMsg to verify and process
     )
     .map_err(|e| {
         use libcrux_psq::v1::Error as PsqError;
         match e {
             PsqError::CredError => {
-                log::warn!("PSQ responder auth failure - invalid Ed25519 signature (potential attack)");
-            },
+                log::warn!(
+                    "PSQ responder auth failure - invalid Ed25519 signature (potential attack)"
+                );
+            }
             PsqError::TimestampElapsed | PsqError::RegistrationError => {
                 log::warn!("PSQ responder timing failure - TTL expired (potential replay attack)");
-            },
+            }
             _ => {
                 log::error!("PSQ responder failed - {:?}", e);
             }
@@ -449,9 +452,7 @@ pub fn psq_responder_process_message(
     use tls_codec::Serialize;
     let responder_msg_bytes = responder_msg
         .tls_serialize_detached()
-        .map_err(|e| {
-            LpError::Internal(format!("ResponderMsg serialization failed: {:?}", e))
-        })?;
+        .map_err(|e| LpError::Internal(format!("ResponderMsg serialization failed: {:?}", e)))?;
 
     Ok((final_psk, responder_msg_bytes))
 }
@@ -535,7 +536,7 @@ mod tests {
     }
 
     // PSQ-enhanced PSK tests
-    use nym_kkt::ciphersuite::{EncapsulationKey, DecapsulationKey, KEM};
+    use nym_kkt::ciphersuite::{DecapsulationKey, EncapsulationKey, KEM};
     use nym_kkt::key_utils::generate_keypair_libcrux;
 
     #[test]
@@ -585,7 +586,7 @@ mod tests {
             gateway_keypair.private_key(),
             client_keypair.public_key(),
             (&dec_key, &enc_key),
-            &ct1,  // Same ciphertext
+            &ct1, // Same ciphertext
             &salt,
         )
         .unwrap();

@@ -66,14 +66,14 @@ impl KKTContext {
             version: KKT_VERSION,
             message_sequence: 0,
             status: KKTStatus::Ok,
-            mode: mode,
-            role: role,
-            ciphersuite: ciphersuite,
+            mode,
+            role,
+            ciphersuite,
         })
     }
 
     pub fn derive_responder_header(&self) -> Result<Self, KKTError> {
-        let mut responder_header = self.clone();
+        let mut responder_header = *self;
 
         responder_header.increment_message_sequence_count()?;
         responder_header.role = KKTRole::Responder;
@@ -239,9 +239,9 @@ impl KKTContext {
 
             Ok(KKTContext {
                 version: kkt_version,
-                status: status,
-                mode: mode,
-                role: role,
+                status,
+                mode,
+                role,
                 ciphersuite: Ciphersuite::decode(&header_bytes[2..6])?,
                 message_sequence: message_sequence_counter,
             })

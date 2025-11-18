@@ -37,27 +37,27 @@ impl KKTFrame {
             signature: Vec::from(signature),
         }
     }
-    pub fn context_ref<'a>(&'a self) -> &'a [u8] {
+    pub fn context_ref(&self) -> &[u8] {
         &self.context
     }
-    pub fn signature_ref<'a>(&'a self) -> &'a [u8] {
+    pub fn signature_ref(&self) -> &[u8] {
         &self.signature
     }
-    pub fn body_ref<'a>(&'a self) -> &'a [u8] {
+    pub fn body_ref(&self) -> &[u8] {
         &self.body
     }
 
-    pub fn session_id_ref<'a>(&'a self) -> &'a [u8] {
+    pub fn session_id_ref(&self) -> &[u8] {
         &self.session_id
     }
-    pub fn signature_mut<'a>(&'a mut self) -> &'a mut [u8] {
+    pub fn signature_mut(&mut self) -> &mut [u8] {
         &mut self.signature
     }
-    pub fn body_mut<'a>(&'a mut self) -> &'a mut [u8] {
+    pub fn body_mut(&mut self) -> &mut [u8] {
         &mut self.body
     }
 
-    pub fn session_id_mut<'a>(&'a mut self) -> &'a mut [u8] {
+    pub fn session_id_mut(&mut self) -> &mut [u8] {
         &mut self.session_id
     }
 
@@ -76,13 +76,13 @@ impl KKTFrame {
 
     pub fn from_bytes(bytes: &[u8]) -> Result<(Self, KKTContext), KKTError> {
         if bytes.len() < KKT_CONTEXT_LEN {
-            return Err(KKTError::FrameDecodingError {
+            Err(KKTError::FrameDecodingError {
                 info: format!(
                     "Frame is shorter than expected context length: actual {} != expected {}",
                     bytes.len(),
                     KKT_CONTEXT_LEN
                 ),
-            });
+            })
         } else {
             let context_bytes = Vec::from(&bytes[0..KKT_CONTEXT_LEN]);
 
@@ -118,13 +118,13 @@ impl KKTFrame {
                     context,
                 ))
             } else {
-                return Err(KKTError::FrameDecodingError {
+                Err(KKTError::FrameDecodingError {
                     info: format!(
                         "Frame is shorter than expected: actual {} != expected {}",
                         bytes.len(),
                         context.full_message_len()
                     ),
-                });
+                })
             }
         }
     }

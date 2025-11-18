@@ -185,9 +185,9 @@ impl Ciphersuite {
             None => HASH_LEN_256,
         };
         Ok(Self {
-            hash_function: hash_function,
-            signature_scheme: signature_scheme,
-            kem: kem,
+            hash_function,
+            signature_scheme,
+            kem,
             hash_length: hash_len,
             encapsulation_key_length: match kem {
                 // 1184 bytes
@@ -230,7 +230,7 @@ impl Ciphersuite {
             },
             match self.hash_length {
                 HASH_LEN_256 => 0,
-                _ => self.hash_length as u8,
+                _ => self.hash_length,
             },
             match self.signature_scheme {
                 SignatureScheme::Ed25519 => 0,
@@ -278,13 +278,13 @@ impl Ciphersuite {
 
             Self::resolve_ciphersuite(kem, hash_function, signature_scheme, custom_hash_length)
         } else {
-            return Err(KKTError::CiphersuiteDecodingError {
+            Err(KKTError::CiphersuiteDecodingError {
                 info: format!(
                     "Incorrect Encoding Length: actual: {} != expected: {}",
                     encoding.len(),
                     CIPHERSUITE_ENCODING_LEN
                 ),
-            });
+            })
         }
     }
 }

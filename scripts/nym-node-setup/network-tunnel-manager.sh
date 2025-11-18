@@ -800,8 +800,95 @@ test_exit_policy_connectivity() {
   echo "connectivity tests finished"
 }
 
+
 ###############################################################################
-# part 3: exit policy verification tests
+# part 3: check the firewall setup
+###############################################################################
+
+firewall_rule_line() {
+  local chain=$1
+  local rule_idx=$2
+  # this is because thefirst rule appears on line 3
+  iptables -L "$chain" -n --line-numbers | sed -n "$((rule_idx + 2))p"
+}
+
+check_forward_chain() {
+  local output
+  output=$(iptables -L FORWARD -n --line-numbers)
+
+  if ! echo "$output" | grep -q "^1[[:space:]]\+$NYM_CHAIN"; then
+    echo "FORWARD rule 1 is not ${NYM_CHAIN}; re-run network-tunnel-manager.sh exit_policy_install"
+    return 1
+  fi
+
+  if ! echo "$output" | grep -q "ACCEPT.*state RELATED,ESTABLISHED"; then
+    echo "FORWARD chain missing RELATED,ESTABLISHED accepts; re-run network-tunnel-manager.sh apply_iptables_rules_wg"
+    return 1
+  fi
+
+  echo "FORWARD chain ordering looks good"
+  return 0
+}
+
+check_nym_exit_chain() {
+  local errors=0
+  local patterns=("udp.*dpt:53" "tcp.*dpt:53" "icmp.*type 8" "icmp.*type 0")
+
+  for idx in "${!patterns[@]}"; do
+    local line
+    line=$(firewall_rule_line "$NYM_CHAIN" $((idx + 1)))
+    if [[ "$line" =~ ${patterns[$idx]} ]]; then
+      echo "${NYM_CHAIN} rule $((idx + 1)) ok (${patterns[$idx]})"
+    else
+      echo "${NYM_CHAIN} rule $((idx + 1)) is not ${patterns[$idx]}; re-run network-tunnel-manager.sh exit_policy_install"
+      errors=1
+    fi
+  done
+
+  local last_rule
+  last_rule=$(iptables -L "$NYM_CHAIN" -n --line-numbers | awk 'NR>2 {line=$0} END {print line}')
+  if [[ -z "${last_rule:-}" ]]; then
+    echo "${NYM_CHAIN} chain is empty; re-run network-tunnel-manager.sh exit_policy_install"
+    errors=1
+  elif [[ "$last_rule" =~ REJECT ]] && [[ "$last_rule" =~ 0\.0\.0\.0/0 ]]; then
+    echo "${NYM_CHAIN} ends with the catch-all REJECT"
+  else
+    echo "${NYM_CHAIN} final rule is not the catch-all REJECT (got: $last_rule)"
+    errors=1
+  fi
+
+  return $errors
+}
+
+check_firewall_setup() {
+  echo "checking ipv4 firewall ordering…"
+  local errors=0
+
+  check_forward_chain || errors=1
+  check_nym_exit_chain || errors=1
+
+  if command -v ip6tables >/dev/null 2>&1; then
+    echo "checking ipv6 firewall ordering…"
+    if ip6tables -L "$NYM_CHAIN" -n --line-numbers >/dev/null 2>&1; then
+      if ! ip6tables -L "$NYM_CHAIN" -n --line-numbers | sed -n '3p' | grep -q "udp.*dpt:53"; then
+        echo "ip6tables ${NYM_CHAIN} rule 1 is not UDP 53"
+        errors=1
+      fi
+    fi
+  fi
+
+  if [[ $errors -ne 0 ]]; then
+    echo "There may be some ordering issues, it is recommended to re-run network-tunnel-manager.sh exit_policy_install after configuring UFW."
+    return 1
+  fi
+
+  echo "It's looking good!"
+  return 0
+}
+
+
+###############################################################################
+# part 4: full exit policy verification tests
 ###############################################################################
 
 test_port_range_rules() {
@@ -945,7 +1032,7 @@ exit_policy_run_tests() {
 }
 
 ###############################################################################
-# part 4: high level workflows
+# part 5: high level workflows
 ###############################################################################
 
 full_tunnel_setup() {
@@ -992,6 +1079,7 @@ complete_networking_configuration() {
 
   full_tunnel_setup
   exit_policy_install
+  check_firewall_setup || echo "firewall order checks reported problems, please review output"
   exit_policy_run_tests || echo "exit policy tests reported problems, please review output"
 
   echo "complete networking configuration finished"
@@ -1080,6 +1168,10 @@ case "$cmd" in
     show_exit_policy_status
     status=$?
     ;;
+  check_firewall_setup)
+    check_firewall_setup
+    status=$?
+    ;;
   exit_policy_test_connectivity)
     test_exit_policy_connectivity
     status=$?
@@ -1121,6 +1213,7 @@ tunnel and nat helpers:
 
 exit policy manager:
   exit_policy_install               install exit policy (iptables rules and blocklist)
+  check_firewall_setup              run ordering sanity check (dns/icmp + FORWARD jump)
   exit_policy_status                show status of exit policy and forwarding
   exit_policy_test_connectivity     test connectivity via ${WG_INTERFACE}
   exit_policy_clear                 remove ${NYM_CHAIN} chains and hooks

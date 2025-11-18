@@ -207,6 +207,8 @@ remove_duplicate_rules() {
             echo "warning: could not reliably match ipv4 duplicate rule: $rule"
           fi
         done
+      else
+        echo "no ipv4 rules were deduplicated"
       fi
 
     done < "$tmp4"
@@ -270,6 +272,8 @@ remove_duplicate_rules() {
             echo "warning: could not match ipv6 duplicate rule reliably: $rule"
           fi
         done
+      else
+        echo "no ipv6 rules were deduplicated"
       fi
 
     done < "$tmp6"

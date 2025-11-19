@@ -15,17 +15,17 @@ fi
 echo "checking for jq..."
 
 if command -v jq >/dev/null 2>&1; then
-    echo "jq is already installed"
+    echo -e "${GREEN}jq is already installed${NC}"
     # continue script execution
 else
-    echo "jq not found, installing..."
+    echo -e "${YELLOW}jq not found, installing...${NC}"
     apt-get update -y
     DEBIAN_FRONTEND=noninteractive apt-get install -y jq
 
     if command -v jq >/dev/null 2>&1; then
-        echo "jq installed successfully"
+        echo -e "${GREEN}jq installed successfully${NC}"
     else
-        echo "failed to install jq"
+        echo -e "${RED}failed to install jq${NC}"
         exit 1
     fi
 fi

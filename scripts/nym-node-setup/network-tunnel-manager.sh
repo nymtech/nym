@@ -927,7 +927,7 @@ exit_policy_run_tests() {
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --skip-default-reject) skip_default=1; shift ;;
-      *) echo "unknown test option: $1"; return 1 ;;
+      *) echo -e "${RED}unknown test option: $1${NC}"; return 1 ;;
     esac
   done
 
@@ -948,11 +948,11 @@ exit_policy_run_tests() {
     ((total += 1))
   fi
 
-  echo "tests run: $total, failures: $failed"
+  echo -e "${YELLOW}tests run: ${GREEN}$total${YELLOW}, failures: ${RED}$failed${NC}"
   if [[ $failed -eq 0 ]]; then
-    echo "all exit policy tests passed"
+    echo -e "${GREEN}all exit policy tests passed${NC}"
   else
-    echo "some exit policy tests failed"
+    echo -e "${RED}some exit policy tests failed${NC}"
   fi
 
   return "$failed"

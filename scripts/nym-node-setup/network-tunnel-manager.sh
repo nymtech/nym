@@ -903,23 +903,23 @@ test_forward_chain_hook() {
 }
 
 test_default_reject_rule() {
-  echo "testing default reject rule position in ${NYM_CHAIN}"
+  echo -e "${YELLOW}testing default reject rule position in ${NYM_CHAIN}${NC}"
 
   local last_rule_v4
   last_rule_v4=$(iptables -S "$NYM_CHAIN" | awk '/^-A /{rule=$0} END{print rule}')
   if [[ "$last_rule_v4" != "-A $NYM_CHAIN -j REJECT --reject-with icmp-port-unreachable" ]]; then
-    echo "default reject missing or not last in ipv4 chain"
+    echo -e "${RED}default reject missing or not last in ipv4 chain${NC}"
     return 1
   fi
 
   local last_rule_v6
   last_rule_v6=$(ip6tables -S "$NYM_CHAIN" | awk '/^-A /{rule=$0} END{print rule}')
   if [[ "$last_rule_v6" != "-A $NYM_CHAIN -j REJECT --reject-with icmp6-port-unreachable" ]]; then
-    echo "default reject missing or not last in ipv6 chain"
+    echo -e "${RED}default reject missing or not last in ipv6 chain${NC}"
     return 1
   fi
 
-  echo "default reject confirmed at end of ${NYM_CHAIN}"
+  echo -e "${GREEN}default reject confirmed at end of ${NYM_CHAIN}${NC}"
 }
 
 exit_policy_run_tests() {

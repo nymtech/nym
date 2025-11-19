@@ -881,21 +881,21 @@ test_critical_services() {
 }
 
 test_forward_chain_hook() {
-  echo "testing forward chain hook direction for ${NYM_CHAIN}"
+  echo -e "${YELLOW}testing forward chain hook direction for ${NYM_CHAIN}${NC}"
 
   local failures=0
 
   if iptables -C FORWARD -i "$WG_INTERFACE" -o "$NETWORK_DEVICE" -j "$NYM_CHAIN" 2>/dev/null; then
-    echo "ipv4 forward hook ok: -i $WG_INTERFACE -o $NETWORK_DEVICE -> $NYM_CHAIN"
+    echo echo -e "${GREEN}ipv4 forward hook ok: -i $WG_INTERFACE -o $NETWORK_DEVICE -> $NYM_CHAIN${NC}"
   else
-    echo "ipv4 forward hook missing or wrong"
+    echo -e "${RED}ipv4 forward hook missing or wrong${NC}"
     ((failures++))
   fi
 
   if ip6tables -C FORWARD -i "$WG_INTERFACE" -o "$NETWORK_DEVICE" -j "$NYM_CHAIN" 2>/dev/null; then
-    echo "ipv6 forward hook ok: -i $WG_INTERFACE -o $NETWORK_DEVICE -> $NYM_CHAIN"
+    echo echo -e "${GREEN}ipv6 forward hook ok: -i $WG_INTERFACE -o $NETWORK_DEVICE -> $NYM_CHAIN${NC}"
   else
-    echo "ipv6 forward hook missing or wrong"
+    echo -e "${RED}ipv6 forward hook missing or wrong${NC}"
     ((failures++))
   fi
 
@@ -1002,11 +1002,11 @@ exit_policy_install() {
 }
 
 complete_networking_configuration() {
-  echo "starting complete networking configuration: tunnels + exit policy"
+  echo -e "${YELLOW}starting complete networking configuration: tunnels + exit policy${NC}"
 
   full_tunnel_setup
   exit_policy_install
-  exit_policy_run_tests || echo "exit policy tests reported problems, please review output"
+  exit_policy_run_tests || echo -e "${RED}exit policy tests reported problems, please review output${NC}"
 
   echo "complete networking configuration finished"
 }

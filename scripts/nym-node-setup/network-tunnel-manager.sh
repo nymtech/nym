@@ -12,11 +12,23 @@ RED='\033[0;31m'
 YELLOW='\033[0;33m'
 NC='\033[0m'
 
+info() {
+  printf "%b\n" "${YELLOW}[INFO] $*${NC}"
+}
+
+ok() {
+  printf "%b\n" "${GREEN}[OK] $*${NC}"
+}
+
+error() {
+  printf "%b\n" "${RED}[ERROR] $*${NC}"
+}
+
 ###############################################################################
 # safety: must run as root, jq
 ###############################################################################
 if [ "$(id -u)" -ne 0 ]; then
-   echo -e "${RED}This script must be run as root${NC}"
+   error "This script must be run as root"
   exit 1
 fi
 
@@ -54,7 +66,7 @@ if [[ -z "$NETWORK_DEVICE" ]]; then
   NETWORK_DEVICE="$(detect_uplink_interface "ip -o route show default table all")"
 fi
 if [[ -z "$NETWORK_DEVICE" ]]; then
-  echo "cannot determine uplink interface. set NETWORK_DEVICE or UPLINK_DEV"
+  error "cannot determine uplink interface. set NETWORK_DEVICE or UPLINK_DEV"
   exit 1
 fi
 
@@ -63,19 +75,19 @@ fi
 ###############################################################################
 
 ensure_jq() {
-  echo "checking for jq..."
+  info "checking for jq..."
 
   if command -v jq >/dev/null 2>&1; then
-    echo "jq is already installed"
+    ok "jq is already installed"
   else
-    echo "jq not found, installing..."
+    info "jq not found, installing..."
     apt-get update -y
     DEBIAN_FRONTEND=noninteractive apt-get install -y jq
 
     if command -v jq >/dev/null 2>&1; then
-      echo "jq installed successfully"
+      ok "jq installed successfully"
     else
-      echo "failed to install jq"
+      error "failed to install jq"
       exit 1
     fi
   fi
@@ -810,7 +822,7 @@ test_exit_policy_connectivity() {
 ###############################################################################
 
 test_port_range_rules() {
-  echo "testing port range rules in ${NYM_CHAIN}"
+  info "testing port range rules in ${NYM_CHAIN}"
 
   local port_ranges=(
     "20-21:tcp:ftp"
@@ -834,9 +846,9 @@ test_port_range_rules() {
     end=$(echo "$range" | cut -d'-' -f2)
 
     if iptables -t filter -C "$NYM_CHAIN" -p "$proto" --dport "$start:$end" -j ACCEPT 2>/dev/null; then
-      echo "rule ok: $name $proto $range"
+      ok "rule ok: $name $proto $range"
     else
-      echo "missing rule: $name $proto $range"
+      error "missing rule: $name $proto $range"
       ((failures++))
     fi
   done
@@ -845,7 +857,7 @@ test_port_range_rules() {
 }
 
 test_critical_services() {
-  echo "testing critical service rules in ${NYM_CHAIN}"
+  info "testing critical service rules in ${NYM_CHAIN}"
 
   local tcp_ports=(22 53 443 853 1194)
   local udp_ports=(53 123 1194)
@@ -853,12 +865,12 @@ test_critical_services() {
 
   for port in "${tcp_ports[@]}"; do
     if iptables -t filter -C "$NYM_CHAIN" -p tcp --dport "$port" -j ACCEPT 2>/dev/null; then
-      echo "tcp port $port allowed"
+      ok "tcp port $port allowed"
     else
       if iptables-save | grep -E "^-A $NYM_CHAIN.*tcp.*dpts:" | grep -q "$port"; then
-        echo "tcp port $port allowed by range"
+        ok "tcp port $port allowed by range"
       else
-        echo "tcp port $port missing"
+        error "tcp port $port missing"
         ((failures++))
       fi
     fi
@@ -866,12 +878,12 @@ test_critical_services() {
 
   for port in "${udp_ports[@]}"; do
     if iptables -t filter -C "$NYM_CHAIN" -p udp --dport "$port" -j ACCEPT 2>/dev/null; then
-      echo "udp port $port allowed"
+      ok "udp port $port allowed"
     else
       if iptables-save | grep -E "^-A $NYM_CHAIN.*udp.*dpts:" | grep -q "$port"; then
-        echo "udp port $port allowed by range"
+        ok "udp port $port allowed by range"
       else
-        echo "udp port $port missing"
+        error "udp port $port missing"
         ((failures++))
       fi
     fi
@@ -881,21 +893,21 @@ test_critical_services() {
 }
 
 test_forward_chain_hook() {
-  echo -e "${YELLOW}testing forward chain hook direction for ${NYM_CHAIN}${NC}"
+  info "testing forward chain hook direction for ${NYM_CHAIN}"
 
   local failures=0
 
   if iptables -C FORWARD -i "$WG_INTERFACE" -o "$NETWORK_DEVICE" -j "$NYM_CHAIN" 2>/dev/null; then
-    echo -e "${GREEN}ipv4 forward hook ok: -i $WG_INTERFACE -o $NETWORK_DEVICE -> $NYM_CHAIN${NC}"
+    ok "ipv4 forward hook ok: -i $WG_INTERFACE -o $NETWORK_DEVICE -> $NYM_CHAIN"
   else
-    echo -e "${RED}ipv4 forward hook missing or wrong${NC}"
+    error "ipv4 forward hook missing or wrong"
     ((failures++))
   fi
 
   if ip6tables -C FORWARD -i "$WG_INTERFACE" -o "$NETWORK_DEVICE" -j "$NYM_CHAIN" 2>/dev/null; then
-    echo -e "${GREEN}ipv6 forward hook ok: -i $WG_INTERFACE -o $NETWORK_DEVICE -> $NYM_CHAIN${NC}"
+    ok "ipv6 forward hook ok: -i $WG_INTERFACE -o $NETWORK_DEVICE -> $NYM_CHAIN"
   else
-    echo -e "${RED}ipv6 forward hook missing or wrong${NC}"
+    error "ipv6 forward hook missing or wrong"
     ((failures++))
   fi
 
@@ -903,23 +915,23 @@ test_forward_chain_hook() {
 }
 
 test_default_reject_rule() {
-  echo -e "${YELLOW}testing default reject rule position in ${NYM_CHAIN}${NC}"
+  info "testing default reject rule position in ${NYM_CHAIN}"
 
   local last_rule_v4
   last_rule_v4=$(iptables -S "$NYM_CHAIN" | awk '/^-A /{rule=$0} END{print rule}')
   if [[ "$last_rule_v4" != "-A $NYM_CHAIN -j REJECT --reject-with icmp-port-unreachable" ]]; then
-    echo -e "${RED}default reject missing or not last in ipv4 chain${NC}"
+    error "default reject missing or not last in ipv4 chain"
     return 1
   fi
 
   local last_rule_v6
   last_rule_v6=$(ip6tables -S "$NYM_CHAIN" | awk '/^-A /{rule=$0} END{print rule}')
   if [[ "$last_rule_v6" != "-A $NYM_CHAIN -j REJECT --reject-with icmp6-port-unreachable" ]]; then
-    echo -e "${RED}default reject missing or not last in ipv6 chain${NC}"
+    error "default reject missing or not last in ipv6 chain"
     return 1
   fi
 
-  echo -e "${GREEN}default reject confirmed at end of ${NYM_CHAIN}${NC}"
+  ok "default reject confirmed at end of ${NYM_CHAIN}"
 }
 
 exit_policy_run_tests() {
@@ -927,7 +939,7 @@ exit_policy_run_tests() {
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --skip-default-reject) skip_default=1; shift ;;
-      *) echo -e "${RED}unknown test option: $1${NC}"; return 1 ;;
+      *) error "unknown test option: $1"; return 1 ;;
     esac
   done
 
@@ -948,11 +960,11 @@ exit_policy_run_tests() {
     ((total += 1))
   fi
 
-  echo -e "${YELLOW}tests run: ${GREEN}$total${YELLOW}, failures: ${RED}$failed${NC}"
+  info "tests run: $total, failures: $failed"
   if [[ $failed -eq 0 ]]; then
-    echo -e "${GREEN}all exit policy tests passed${NC}"
+    ok "all exit policy tests passed"
   else
-    echo -e "${RED}some exit policy tests failed${NC}"
+    error "some exit policy tests failed"
   fi
 
   return "$failed"
@@ -964,7 +976,7 @@ exit_policy_run_tests() {
 
 full_tunnel_setup() {
   # this mirrors your previous chain of calls but inside one script
-  echo "running full tunnel setup for ${TUNNEL_INTERFACE} and ${WG_INTERFACE}"
+  info "running full tunnel setup for ${TUNNEL_INTERFACE} and ${WG_INTERFACE}"
 
   check_tunnel_iptables "$TUNNEL_INTERFACE"
   remove_duplicate_rules "$TUNNEL_INTERFACE"
@@ -985,11 +997,11 @@ full_tunnel_setup() {
   joke_through_tunnel "$TUNNEL_INTERFACE"
   joke_through_tunnel "$WG_INTERFACE"
 
-  echo "full tunnel setup completed"
+  ok "full tunnel setup completed"
 }
 
 exit_policy_install() {
-  echo "installing nym wireguard exit policy for ${WG_INTERFACE} via ${NETWORK_DEVICE}"
+  info "installing nym wireguard exit policy for ${WG_INTERFACE} via ${NETWORK_DEVICE}"
   exit_policy_install_deps
   adjust_ip_forwarding
   create_nym_chain
@@ -998,17 +1010,17 @@ exit_policy_install() {
   apply_spamhaus_blocklist
   add_default_reject_rule
   save_iptables_rules
-  echo "nym exit policy installed"
+  ok "nym exit policy installed"
 }
 
 complete_networking_configuration() {
-  echo -e "${YELLOW}starting complete networking configuration: tunnels + exit policy${NC}"
+  info "starting complete networking configuration: tunnels + exit policy"
 
   full_tunnel_setup
   exit_policy_install
-  exit_policy_run_tests || echo -e "${RED}exit policy tests reported problems, please review output${NC}"
+  exit_policy_run_tests || error "exit policy tests reported problems, please review output"
 
-  echo "complete networking configuration finished"
+  ok "complete networking configuration finished"
 }
 
 ###############################################################################

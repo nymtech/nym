@@ -1,8 +1,25 @@
 import { Callout } from 'nextra/components';
 import { Tabs } from 'nextra/components';
-import { VarInfo } from 'components/variable-info.tsx';
 import { Steps } from 'nextra/components';
 import { AccordionTemplate } from 'components/accordion-template.tsx';
+
+export const ManagerIPOutput = () => (
+  <div>
+    Correct <code>./network-tunnel-manager.sh fetch_and_display_ipv6</code> output
+  </div>
+);
+
+export const ManagerTablesOutput = () => (
+  <div>
+    Correct <code>./network-tunnel-manager.sh check_nymtun_iptables</code> output
+  </div>
+);
+
+export const ShowTun = () => (
+  <div>
+    Correct <code>ip addr show nymtun0</code> output
+  </div>
+);
 
 <Callout>
 We're working on Rust implementation agregating all routing settings into a binary, to solve all connectivity configuration requirements. In the meantime node operators need to use the [`network_tunnel_manager.sh`](https://github.com/nymtech/nym/blob/develop/scripts/network_tunnel_manager.sh) as a handy support to configure their servers. 
@@ -28,20 +45,18 @@ Networking configuration across different ISPs and various operation systems doe
 
 * Testing and validating all above
 
-The script should be used in a context where `nym-node` is running to fully utilise its capabilities, particularly for fetching IPv6 addresses or applying network rules that depend on the `nymtun0` and `nymwg` interfaces and to establish a WireGuard tunnel.
-
 **Before starting with the following configuration, make sure you have the [latest `nym-node` binary](https://github.com/nymtech/nym/releases) installed and your [VPS setup](../preliminary-steps/vps-setup.mdx) finished properly!**
 
 <Callout type="warning" emoji="⚠️">
 **Run the following steps as root!**
-</Callout>
+</ Callout>
 
-|**Choose configuration command according your setup**
+**Choose configuration command according your setup**
 
     <div>
       <Tabs items={[
-        <strong>New <code>nym-node</code> Full Configuration</strong>,
-        <strong>Existing <code>nym-node</code> Full Configuration</strong>
+        <strong>New <code>nym-node</ code> Full Configuration</strong>,
+        <strong>Existing <code>nym-node</ code> Full Configuration</strong>,
         <strong>Step-by-step or Partial Configuration</strong>
       ]} defaultIndex={0}>
         <Tabs.Tab>
@@ -67,7 +82,6 @@ chmod +x network-tunnel-manager.sh && \
           </ Steps>
         </Tabs.Tab>
         <Tabs.Tab>
-          <Steps>
 This is meant for operators configuring an existing and bonded node and it will result with a complete server readiness for routing as Entry Gateway and Exit Gateway in both Mixnet and WireGuard mode. 
 
           <Steps>

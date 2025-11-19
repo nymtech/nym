@@ -934,17 +934,17 @@ exit_policy_run_tests() {
   local total=0
   local failed=0
 
-  test_forward_chain_hook || ((failed++))
+  test_forward_chain_hook || ((failed += 1))
   ((total++))
 
-  test_port_range_rules || ((failed++))
+  test_port_range_rules || ((failed += 1))
   ((total++))
 
-  test_critical_services || ((failed++))
+  test_critical_services || ((failed += 1))
   ((total++))
 
   if [[ $skip_default -eq 0 ]]; then
-    test_default_reject_rule || ((failed++))
+    test_default_reject_rule || ((failed += 1))
     ((total++))
   fi
 

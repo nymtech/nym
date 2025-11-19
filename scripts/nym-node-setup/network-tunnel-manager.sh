@@ -5,16 +5,28 @@
 set -euo pipefail
 
 ###############################################################################
+# colors (no emojis)
+###############################################################################
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+YELLOW='\033[0;33m'
+NC='\033[0m'
+
+###############################################################################
 # safety: must run as root, jq
 ###############################################################################
 if [ "$(id -u)" -ne 0 ]; then
-  echo "This script must be run as root"
+   echo -e "${RED}This script must be run as root${NC}"
   exit 1
 fi
 
 ###############################################################################
 # basic config
 ###############################################################################
+
+NYM_CHAIN="NYM-EXIT"
+POLICY_FILE="/etc/nym/exit-policy.txt"
+EXIT_POLICY_LOCATION="https://nymtech.net/.wellknown/network-requester/exit-policy.txt"
 
 TUNNEL_INTERFACE="${TUNNEL_INTERFACE:-nymtun0}"
 WG_INTERFACE="${WG_INTERFACE:-nymwg}"
@@ -45,16 +57,6 @@ if [[ -z "$NETWORK_DEVICE" ]]; then
   echo "cannot determine uplink interface. set NETWORK_DEVICE or UPLINK_DEV"
   exit 1
 fi
-
-NYM_CHAIN="NYM-EXIT"
-POLICY_FILE="/etc/nym/exit-policy.txt"
-EXIT_POLICY_LOCATION="https://nymtech.net/.wellknown/network-requester/exit-policy.txt"
-
-# colors (no emojis)
-GREEN='\033[0;32m'
-RED='\033[0;31m'
-YELLOW='\033[0;33m'
-NC='\033[0m'
 
 ###############################################################################
 # shared helpers

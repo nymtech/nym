@@ -21,6 +21,15 @@ export const ShowTun = () => (
   </div>
 );
 
+
+<Callout>
+We recommend operators to configure their `nym-node` with the full routing configuration.
+
+However, most of the time the packets sent through the Mixnet are IPv4 based. The IPv6 packets are still pretty rare and therefore it's not mandatory from operational point of view to have this configuration implemented if you running only `mixnode` mode.
+
+If you preparing to run a `nym-node` with all modes enabled in the future, this setup is required.
+</Callout>
+
 <Callout>
 We're working on Rust implementation agregating all routing settings into a binary, to solve all connectivity configuration requirements. In the meantime node operators need to use the [`network_tunnel_manager.sh`](https://github.com/nymtech/nym/blob/develop/scripts/network_tunnel_manager.sh) as a handy support to configure their servers. 
 </ Callout>

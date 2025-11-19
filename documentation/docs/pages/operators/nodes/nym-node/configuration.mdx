@@ -206,9 +206,13 @@ This lets your operating system know it's ok to reload the service configuration
 </Steps>
 
 
-## Connectivity Test and Configuration
+## Routing Configuration
 
-During our ongoing testing events we found out, that after introducing IP Packet Router (IPR) and [Nym exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt) on embedded Network Requester (NR) by default,  only a fragment of Gateways routes correctly through IPv4 and IPv6. We built a useful monitor to check out your Gateway (`nym-node --mode exit-gateway`) at [harbourmaster.nymtech.net](https://harbourmaster.nymtech.net/).
+<RoutingConf />
+
+## Routing Validation & Test
+
+### Quick IPv6 Check
 
 IPv6 routing is not only a case for gateways. Imagine a rare occasion when you run a `mixnode` without IPv6 enabled and a client will sent IPv6 packets through the Mixnet through such route:
 ```ascii
@@ -216,19 +220,6 @@ IPv6 routing is not only a case for gateways. Imagine a rare occasion when you r
 ```
 In this (unusual) case your `mixnode` will not be able to route the packets. The node will drop the packets and its performance would go down. For that reason it's beneficial to have IPv6 enabled when running a `mixnode` functionality.
 
-<Callout>
-We recommend operators to configure their `nym-node` with the full routing configuration.
-
-However, most of the time the packets sent through the Mixnet are IPv4 based. The IPv6 packets are still pretty rare and therefore it's not mandatory from operational point of view to have this configuration implemented if you running only `mixnode` mode.
-
-If you preparing to run a `nym-node` with all modes enabled in the future, this setup is required.
-</Callout>
-
-<Callout type="info" emoji="ℹ️">
-For everyone participating in Delegation Program or Service Grant program, this setup is a requirement!
-</Callout>
-
-### Quick IPv6 Check
 
 You can always check IPv6 address and connectivity by using some of these methods:
 <br />
@@ -256,10 +247,6 @@ telnet -6 ipv6.telnetmyip.com
 <Callout type="warning" emoji="⚠️">
 Make sure to keep your IPv4 address enabled while setting up IPv6, as the majority of routing goes through that one!
 </Callout>
-
-### Routing Configuration
-
-<RoutingConf />
 
 ## Wireguard Exit Policy Configuration
 

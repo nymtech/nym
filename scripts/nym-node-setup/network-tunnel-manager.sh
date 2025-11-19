@@ -886,14 +886,14 @@ test_forward_chain_hook() {
   local failures=0
 
   if iptables -C FORWARD -i "$WG_INTERFACE" -o "$NETWORK_DEVICE" -j "$NYM_CHAIN" 2>/dev/null; then
-    echo echo -e "${GREEN}ipv4 forward hook ok: -i $WG_INTERFACE -o $NETWORK_DEVICE -> $NYM_CHAIN${NC}"
+    echo -e "${GREEN}ipv4 forward hook ok: -i $WG_INTERFACE -o $NETWORK_DEVICE -> $NYM_CHAIN${NC}"
   else
     echo -e "${RED}ipv4 forward hook missing or wrong${NC}"
     ((failures++))
   fi
 
   if ip6tables -C FORWARD -i "$WG_INTERFACE" -o "$NETWORK_DEVICE" -j "$NYM_CHAIN" 2>/dev/null; then
-    echo echo -e "${GREEN}ipv6 forward hook ok: -i $WG_INTERFACE -o $NETWORK_DEVICE -> $NYM_CHAIN${NC}"
+    echo -e "${GREEN}ipv6 forward hook ok: -i $WG_INTERFACE -o $NETWORK_DEVICE -> $NYM_CHAIN${NC}"
   else
     echo -e "${RED}ipv6 forward hook missing or wrong${NC}"
     ((failures++))
@@ -905,11 +905,6 @@ test_forward_chain_hook() {
 test_default_reject_rule() {
   echo -e "${YELLOW}testing default reject rule position in ${NYM_CHAIN}${NC}"
 
-  # not sure this will really check that it is on end
-  if iptables -L "$NYM_CHAIN" | grep -q "REJECT"; then
-    echo "default reject present in ipv4 chain"
-  else
-    echo "default reject missing in ipv4 chain"
   local last_rule_v4
   last_rule_v4=$(iptables -S "$NYM_CHAIN" | awk '/^-A /{rule=$0} END{print rule}')
   if [[ "$last_rule_v4" != "-A $NYM_CHAIN -j REJECT --reject-with icmp-port-unreachable" ]]; then

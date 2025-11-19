@@ -6,13 +6,51 @@
 //! The resolver itself is the set combination of the cloudflare, and quad9 endpoints supporting DoH
 //! and DoT.
 //!
-//! This resolver supports an optional fallback mechanism where, should the DNS-over-TLS resolution
-//! fail, a followup resolution will be done using the hosts configured default (e.g.
-//! `/etc/resolve.conf` on linux). This is disabled by default and can be enabled using
-//! [`enable_system_fallback`].
+//! ```rust
+//! use nym_http_api_client::HickoryDnsResolver;
+//! # use nym_http_api_client::ResolveError;
+//! # type Err = ResolveError;
+//! # async fn run() -> Result<(), Err> {
+//! let resolver = HickoryDnsResolver::default();
+//! resolver.resolve_str("example.com").await?;
+//! # Ok(())
+//! # }
+//! ```
 //!
-//! There is also a second optional fallback mechanism that allows a static map to be used as a last
-//! resort. This can help when DNS encounters errors due to blocked resolvers or unknown conditions.
+//! ## Fallbacks
+//!
+//! **System Resolver --** This resolver supports an optional fallback mechanism where, should the
+//! DNS-over-TLS resolution fail, a followup resolution will be done using the hosts configured
+//! default (e.g. `/etc/resolve.conf` on linux).
+//!
+//! This is disabled by default and can be enabled using `enable_system_fallback`.
+//!
+//! **Static Table --**  There is also a second optional fallback mechanism that allows a static map to
+//! be used as a last resort. This can help when DNS encounters errors due to blocked resolvers or
+//! unknown conditions. This is enabled by default, and can be customized if building a new resolver.
+//!
+//! ## IPv4 / IPv6
+//!
+//! The resolver can be modified to control the behavior with respect to IPv4 and IPv6. If using the
+//! shared resolver setting these options will apply to future lookups done using the shared
+//! resolver as well.
+//!
+//! Be default the resolver uses both IPv4 and IPv6 nameservers, and is configured to do `A` lookups
+//! first, and only do `AAAA` if no `A` record is available.
+//!
+//! ```rust
+//! # use nym_http_api_client::{HickoryDnsResolver, dns::NameServerIpVersionPolicy};
+//! let mut resolver = HickoryDnsResolver::default();
+//!
+//! // Set the resolver to only use IPv4 nameservers and
+//! // only do lookups for A records.
+//! resolver.set_ipv4_only();
+//!
+//! // Set the resolver to use only IPv6 nameservers
+//! resolver.set_nameserver_ip_version_strategy(NameServerIpVersionPolicy::Ipv6Only);
+//! ```
+//!
+//! ---
 //!
 //! Requires the `dns-over-https-rustls`, `webpki-roots` feature for the `hickory-resolver` crate
 #![deny(missing_docs)]
@@ -24,7 +62,7 @@ use std::{
     fmt::Display,
     net::{IpAddr, SocketAddr},
     str::FromStr,
-    sync::{Arc, LazyLock},
+    sync::{Arc, LazyLock, RwLock},
     time::Duration,
 };
 
@@ -40,7 +78,7 @@ use tracing::*;
 
 mod constants;
 mod static_resolver;
-pub use static_resolver::*;
+pub(crate) use static_resolver::*;
 
 const DEFAULT_POSITIVE_LOOKUP_CACHE_TTL: Duration = Duration::from_secs(1800);
 
@@ -59,12 +97,17 @@ impl ClientBuilder {
     }
 }
 
-// n.b. static items do not call [`Drop`] on program termination, so this won't be deallocated.
-// this is fine, as the OS can deallocate the terminated program faster than we can free memory
-// but tools like valgrind might report "memory leaks" as it isn't obvious this is intentional.
-static SHARED_RESOLVER: LazyLock<HickoryDnsResolver> = LazyLock::new(|| {
-    tracing::debug!("Initializing shared DNS resolver");
-    HickoryDnsResolver::default()
+// n.b. static items do not call [`Drop`] on program termination, so this won't be deallocated. this
+// is fine, as the OS can deallocate the terminated program faster than we can free memory but tools
+// like valgrind might report "memory leaks" as it isn't obvious this is intentional. Using RwLock
+// for interior mutability to allow safe modification of the shared resolver -- i.e. rebuilding on
+// change to desired IPv4/IPv6 config.
+static SHARED_RESOLVER: LazyLock<Arc<RwLock<HickoryDnsResolver>>> = LazyLock::new(|| {
+    tracing::debug!("Initializing shared DNS resolver with interior mutability");
+    Arc::new(RwLock::new(HickoryDnsResolver {
+        dont_use_shared: true, // prevent infinite recursion
+        ..Default::default()
+    }))
 });
 
 #[derive(Debug, thiserror::Error)]
@@ -271,6 +314,8 @@ impl HickoryDnsResolver {
             new_resolver(ns_strategy, options)
         } else {
             Ok(SHARED_RESOLVER
+                .read()
+                .unwrap()
                 .state
                 .get_or_try_init(|| new_resolver(ns_strategy, options))?
                 .clone())
@@ -280,10 +325,12 @@ impl HickoryDnsResolver {
     fn new_resolver_system(dont_use_shared: bool) -> Result<TokioResolver, ResolveError> {
         // using a closure here is slightly gross, but this makes sure that if the
         // lazy-init returns an error it can be handled by the client
-        if dont_use_shared || SHARED_RESOLVER.fallback.is_none() {
+        if dont_use_shared || SHARED_RESOLVER.read().unwrap().fallback.is_none() {
             new_resolver_system()
         } else {
             Ok(SHARED_RESOLVER
+                .read()
+                .unwrap()
                 .fallback
                 .as_ref()
                 .unwrap()
@@ -293,7 +340,9 @@ impl HickoryDnsResolver {
     }
 
     fn new_static_fallback(dont_use_shared: bool) -> StaticResolver {
-        if !dont_use_shared && let Some(ref shared_resolver) = SHARED_RESOLVER.static_base {
+        if !dont_use_shared
+            && let Some(ref shared_resolver) = SHARED_RESOLVER.read().unwrap().static_base
+        {
             shared_resolver
                 .get_or_init(new_default_static_fallback)
                 .clone()
@@ -393,9 +442,13 @@ impl HickoryDnsResolver {
     }
 
     fn force_primary_rebuild(&mut self) {
-        // if !self.dont_use_shared {
-        //     SHARED_RESOLVER = Default::default();
-        // }
+        if !self.dont_use_shared {
+            let mut resolver = SHARED_RESOLVER.write().unwrap();
+            *resolver = HickoryDnsResolver {
+                dont_use_shared: true,
+                ..Default::default()
+            }
+        }
         self.state = Arc::new(OnceCell::new());
     }
 }
@@ -721,15 +774,25 @@ mod test {
 
     #[tokio::test]
     async fn setting_ns_ip_version_works() {
-        // Make sure that setting IPv4 only on the shared resolver changes the resolver
-        // set to only use IPv4 nameservers and only do lookups for A records.
-        let mut resolver = HickoryDnsResolver {
+        let resolver = HickoryDnsResolver {
             dont_use_shared: true,
             ..Default::default()
         };
 
+        resolver_ns_ip_version_test(resolver).await
+    }
+
+    #[tokio::test]
+    async fn setting_ns_ip_version_for_shared_resolver() {
+        let resolver = HickoryDnsResolver::default();
+        resolver_ns_ip_version_test(resolver).await
+    }
+
+    async fn resolver_ns_ip_version_test(mut resolver: HickoryDnsResolver) {
         let _ = resolver.resolve_str("example.com").await;
 
+        // Make sure that setting IPv4Only changes the resolver set to only use IPv4 nameservers and
+        // only do lookups for A records.
         resolver.set_ipv4_only();
 
         // setting opts resets resolver initialization
@@ -751,15 +814,30 @@ mod test {
 
         let _ = resolver.resolve_str("example.com").await;
 
-        // Make sure that setting the shared resolver to use only Ipv6 nameservers changes
-        // the set of nameservers to only IPv6.
+        // Make sure that setting the resolver to use only Ipv6 nameservers changes the set of
+        // nameservers to only IPv6.
         let nameservers = resolver.state.get().unwrap().config().name_servers();
         assert!(nameservers.iter().all(|cfg| cfg.socket_addr.is_ipv6()));
     }
 
+    // /// Triple check that ip_strategy in ResolverOpts does NOT impact the IP version of the
+    // /// selected nameservers.
+    // ///
+    // /// => Looking at logs, yes it still uses IPv6 nameservers.
     // #[tokio::test]
-    // async fn setting_ns_ip_version_for_shared_resolver() {
-    //     let mut resolver = HickoryDnsResolver::default();
+    // async fn resolver_ipv6_triple_check() {
+    //     // tracing_subscriber::fmt()
+    //     //     .with_max_level(tracing::Level::DEBUG)
+    //     //     .init();
+
+    //     let ns_group = default_nameserver_group();
+    //     let mut options = ResolverOpts::default();
+    //     options.ip_strategy = LookupIpStrategy::Ipv4Only;
+    //     options.num_concurrent_reqs= 4;
+
+    //     let resolver = configure_and_build_resolver(ns_group, Some(options)).unwrap();
+
+    //     let _ = resolver.lookup_ip("example.com").await.unwrap();
     // }
 }
 

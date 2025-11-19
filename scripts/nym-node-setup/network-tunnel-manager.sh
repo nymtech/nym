@@ -12,24 +12,6 @@ if [ "$(id -u)" -ne 0 ]; then
   exit 1
 fi
 
-echo "checking for jq..."
-
-if command -v jq >/dev/null 2>&1; then
-    echo -e "${GREEN}jq is already installed${NC}"
-    # continue script execution
-else
-    echo -e "${YELLOW}jq not found, installing...${NC}"
-    apt-get update -y
-    DEBIAN_FRONTEND=noninteractive apt-get install -y jq
-
-    if command -v jq >/dev/null 2>&1; then
-        echo -e "${GREEN}jq installed successfully${NC}"
-    else
-        echo -e "${RED}failed to install jq${NC}"
-        exit 1
-    fi
-fi
-
 ###############################################################################
 # basic config
 ###############################################################################
@@ -50,7 +32,6 @@ detect_uplink_interface() {
     echo ""
   fi
 }
-
 
 # uplink device detection, can be overridden
 NETWORK_DEVICE="${NETWORK_DEVICE:-}"
@@ -78,6 +59,25 @@ NC='\033[0m'
 ###############################################################################
 # shared helpers
 ###############################################################################
+
+ensure_jq() {
+  echo "checking for jq..."
+
+  if command -v jq >/dev/null 2>&1; then
+    echo "jq is already installed"
+  else
+    echo "jq not found, installing..."
+    apt-get update -y
+    DEBIAN_FRONTEND=noninteractive apt-get install -y jq
+
+    if command -v jq >/dev/null 2>&1; then
+      echo "jq installed successfully"
+    else
+      echo "failed to install jq"
+      exit 1
+    fi
+  fi
+}
 
 install_iptables_persistent() {
   if ! dpkg -s iptables-persistent >/dev/null 2>&1; then
@@ -283,9 +283,6 @@ remove_duplicate_rules() {
   echo "duplicate rule scan completed for $interface"
 }
 
-
-
-
 apply_iptables_rules() {
   local interface=$1
   echo "applying iptables rules for $interface using uplink $NETWORK_DEVICE"
@@ -349,6 +346,7 @@ perform_pings() {
 }
 
 joke_through_tunnel() {
+  ensure_jq
   local interface=$1
   local green="\033[0;32m"
   local reset="\033[0m"
@@ -905,6 +903,11 @@ test_forward_chain_hook() {
 test_default_reject_rule() {
   echo -e "${YELLOW}testing default reject rule position in ${NYM_CHAIN}${NC}"
 
+  # not sure this will really check that it is on end
+  if iptables -L "$NYM_CHAIN" | grep -q "REJECT"; then
+    echo "default reject present in ipv4 chain"
+  else
+    echo "default reject missing in ipv4 chain"
   local last_rule_v4
   last_rule_v4=$(iptables -S "$NYM_CHAIN" | awk '/^-A /{rule=$0} END{print rule}')
   if [[ "$last_rule_v4" != "-A $NYM_CHAIN -j REJECT --reject-with icmp-port-unreachable" ]]; then

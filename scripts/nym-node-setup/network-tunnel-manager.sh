@@ -829,16 +829,16 @@ check_forward_chain() {
   output=$(iptables -L FORWARD -n --line-numbers)
 
   if ! echo "$output" | grep -q "^1[[:space:]]\+$NYM_CHAIN"; then
-    echo "FORWARD rule 1 is not ${NYM_CHAIN}; re-run network-tunnel-manager.sh exit_policy_install"
+    error "FORWARD rule 1 is not ${NYM_CHAIN}; re-run network-tunnel-manager.sh exit_policy_install"
     return 1
   fi
 
   if ! echo "$output" | grep -q "ACCEPT.*state RELATED,ESTABLISHED"; then
-    echo "FORWARD chain missing RELATED,ESTABLISHED accepts; re-run network-tunnel-manager.sh apply_iptables_rules_wg"
+    error "FORWARD chain missing RELATED,ESTABLISHED accepts; re-run network-tunnel-manager.sh apply_iptables_rules_wg"
     return 1
   fi
 
-  echo "FORWARD chain ordering looks good"
+  ok "FORWARD chain ordering looks good"
   return 0
 }
 
@@ -850,9 +850,9 @@ check_nym_exit_chain() {
     local line
     line=$(firewall_rule_line "$NYM_CHAIN" $((idx + 1)))
     if [[ "$line" =~ ${patterns[$idx]} ]]; then
-      echo "${NYM_CHAIN} rule $((idx + 1)) ok (${patterns[$idx]})"
+      ok "${NYM_CHAIN} rule $((idx + 1)) ok (${patterns[$idx]})"
     else
-      echo "${NYM_CHAIN} rule $((idx + 1)) is not ${patterns[$idx]}; re-run network-tunnel-manager.sh exit_policy_install"
+      error "${NYM_CHAIN} rule $((idx + 1)) is not ${patterns[$idx]}; re-run network-tunnel-manager.sh exit_policy_install"
       errors=1
     fi
   done
@@ -860,12 +860,12 @@ check_nym_exit_chain() {
   local last_rule
   last_rule=$(iptables -L "$NYM_CHAIN" -n --line-numbers | awk 'NR>2 {line=$0} END {print line}')
   if [[ -z "${last_rule:-}" ]]; then
-    echo "${NYM_CHAIN} chain is empty; re-run network-tunnel-manager.sh exit_policy_install"
+    error "${NYM_CHAIN} chain is empty; re-run network-tunnel-manager.sh exit_policy_install"
     errors=1
   elif [[ "$last_rule" =~ REJECT ]] && [[ "$last_rule" =~ 0\.0\.0\.0/0 ]]; then
-    echo "${NYM_CHAIN} ends with the catch-all REJECT"
+    ok "${NYM_CHAIN} ends with the catch-all REJECT"
   else
-    echo "${NYM_CHAIN} final rule is not the catch-all REJECT (got: $last_rule)"
+    error "${NYM_CHAIN} final rule is not the catch-all REJECT (got: $last_rule)"
     errors=1
   fi
 
@@ -873,28 +873,28 @@ check_nym_exit_chain() {
 }
 
 check_firewall_setup() {
-  echo "checking ipv4 firewall ordering…"
+  info "checking ipv4 firewall ordering…"
   local errors=0
 
   check_forward_chain || errors=1
   check_nym_exit_chain || errors=1
 
   if command -v ip6tables >/dev/null 2>&1; then
-    echo "checking ipv6 firewall ordering…"
+    info "checking ipv6 firewall ordering…"
     if ip6tables -L "$NYM_CHAIN" -n --line-numbers >/dev/null 2>&1; then
       if ! ip6tables -L "$NYM_CHAIN" -n --line-numbers | sed -n '3p' | grep -q "udp.*dpt:53"; then
-        echo "ip6tables ${NYM_CHAIN} rule 1 is not UDP 53"
+        error "ip6tables ${NYM_CHAIN} rule 1 is not UDP 53"
         errors=1
       fi
     fi
   fi
 
   if [[ $errors -ne 0 ]]; then
-    echo "There may be some ordering issues, it is recommended to re-run network-tunnel-manager.sh exit_policy_install after configuring UFW."
+    error "There may be some ordering issues, it is recommended to re-run network-tunnel-manager.sh exit_policy_install after configuring UFW."
     return 1
   fi
 
-  echo "It's looking good!"
+  ok "It's looking good!"
   return 0
 }
 

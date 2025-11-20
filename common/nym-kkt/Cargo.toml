@@ -1,0 +1,47 @@
+[package]
+name = "nym-kkt"
+version = "0.1.0"
+authors = ["Georgio Nicolas <georgio@nymtech.net>"]
+edition = { workspace = true }
+license.workspace = true
+
+[dependencies]
+arc-swap = { workspace = true }
+bytes = { workspace = true }
+futures = { workspace = true }
+tracing = { workspace = true }
+pin-project = { workspace = true }
+blake3 = { workspace = true }
+aead = { workspace = true }
+strum = { workspace = true, features = ["derive"] }
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
+tokio-util = { workspace = true, features = ["codec"] }
+
+
+
+# internal
+nym-crypto = { path = "../crypto", features = ["asymmetric", "serde"]}
+
+libcrux-traits = { git = "https://github.com/cryspen/libcrux" }
+libcrux-kem = { git = "https://github.com/cryspen/libcrux" }
+libcrux-psq = { git = "https://github.com/cryspen/libcrux", features = ["test-utils"] }
+libcrux-sha3 = { git = "https://github.com/cryspen/libcrux" }
+libcrux-ml-kem = { git = "https://github.com/cryspen/libcrux" }
+libcrux-ecdh = { git = "https://github.com/cryspen/libcrux", features = ["codec"]}
+
+rand = "0.9.2"
+curve25519-dalek = {version = "4.1.3", features = ["rand_core", "serde"] }
+zeroize = { workspace = true, features = ["zeroize_derive"] }
+classic-mceliece-rust = { git = "https://github.com/georgio/classic-mceliece-rust", features = ["mceliece460896f","zeroize"]}
+
+
+[dev-dependencies]
+criterion = {workspace = true}
+
+[[bench]]
+name = "benches"
+harness = false
+
+[lints]
+workspace = true

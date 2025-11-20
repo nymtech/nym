@@ -481,8 +481,8 @@ mod tests {
         let builder = BuilderConfig::builder();
 
         // Verify the builder returns itself for chaining
-        let builder = builder.two_hops(true);
-        let builder = builder.two_hops(false);
+        let builder = builder.data_path(None);
+        let builder = builder.data_path(Some("/tmp/test".into()));
         let builder = builder.data_path(None);
 
         // Builder should still fail because required fields are missing

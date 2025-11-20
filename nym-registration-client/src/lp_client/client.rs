@@ -12,7 +12,6 @@ use nym_credentials_interface::{CredentialSpendingData, TicketType};
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_lp::LpPacket;
 use nym_lp::codec::{parse_lp_packet, serialize_lp_packet};
-use nym_lp::keypair::{Keypair, PublicKey};
 use nym_lp::state_machine::{LpAction, LpInput, LpStateMachine};
 use nym_registration_common::{GatewayData, LpRegistrationRequest, LpRegistrationResponse};
 use nym_wireguard_types::PeerPublicKey;
@@ -41,11 +40,11 @@ pub struct LpRegistrationClient {
     /// Created during `connect()`, None before connection is established.
     tcp_stream: Option<TcpStream>,
 
-    /// Client's LP keypair for Noise protocol.
-    local_keypair: Arc<Keypair>,
+    /// Client's Ed25519 identity keypair (used for PSQ authentication and X25519 derivation).
+    local_ed25519_keypair: Arc<ed25519::KeyPair>,
 
-    /// Gateway's public key for Noise protocol.
-    gateway_public_key: PublicKey,
+    /// Gateway's Ed25519 public key (from directory/discovery).
+    gateway_ed25519_public_key: ed25519::PublicKey,
 
     /// Gateway LP listener address (host:port, e.g., "1.1.1.1:41264").
     gateway_lp_address: SocketAddr,
@@ -65,8 +64,8 @@ impl LpRegistrationClient {
     /// Creates a new LP registration client.
     ///
     /// # Arguments
-    /// * `local_keypair` - Client's LP keypair for Noise protocol
-    /// * `gateway_public_key` - Gateway's public key
+    /// * `local_ed25519_keypair` - Client's Ed25519 identity keypair (for PSQ auth and X25519 derivation)
+    /// * `gateway_ed25519_public_key` - Gateway's Ed25519 public key (from directory/discovery)
     /// * `gateway_lp_address` - Gateway's LP listener socket address
     /// * `client_ip` - Client IP address for registration
     /// * `config` - Configuration for timeouts and TCP parameters (use `LpConfig::default()`)
@@ -74,18 +73,18 @@ impl LpRegistrationClient {
     /// # Note
     /// This creates the client but does not establish the connection.
     /// Call `connect()` to establish the TCP connection.
-    /// PSK is derived automatically during handshake using ECDH + Blake3 KDF (nym-109).
+    /// PSK is derived automatically during handshake inside the state machine.
     pub fn new(
-        local_keypair: Arc<Keypair>,
-        gateway_public_key: PublicKey,
+        local_ed25519_keypair: Arc<ed25519::KeyPair>,
+        gateway_ed25519_public_key: ed25519::PublicKey,
         gateway_lp_address: SocketAddr,
         client_ip: IpAddr,
         config: LpConfig,
     ) -> Self {
         Self {
             tcp_stream: None,
-            local_keypair,
-            gateway_public_key,
+            local_ed25519_keypair,
+            gateway_ed25519_public_key,
             gateway_lp_address,
             state_machine: None,
             client_ip,
@@ -96,23 +95,23 @@ impl LpRegistrationClient {
     /// Creates a new LP registration client with default configuration.
     ///
     /// # Arguments
-    /// * `local_keypair` - Client's LP keypair for Noise protocol
-    /// * `gateway_public_key` - Gateway's public key
+    /// * `local_ed25519_keypair` - Client's Ed25519 identity keypair
+    /// * `gateway_ed25519_public_key` - Gateway's Ed25519 public key
     /// * `gateway_lp_address` - Gateway's LP listener socket address
     /// * `client_ip` - Client IP address for registration
     ///
     /// Uses default config (LpConfig::default()) with sane timeout and TCP parameters.
-    /// PSK is derived automatically during handshake using ECDH + Blake3 KDF (nym-109).
+    /// PSK is derived automatically during handshake inside the state machine.
     /// For custom config, use `new()` directly.
     pub fn new_with_default_psk(
-        local_keypair: Arc<Keypair>,
-        gateway_public_key: PublicKey,
+        local_ed25519_keypair: Arc<ed25519::KeyPair>,
+        gateway_ed25519_public_key: ed25519::PublicKey,
         gateway_lp_address: SocketAddr,
         client_ip: IpAddr,
     ) -> Self {
         Self::new(
-            local_keypair,
-            gateway_public_key,
+            local_ed25519_keypair,
+            gateway_ed25519_public_key,
             gateway_lp_address,
             client_ip,
             LpConfig::default(),
@@ -232,9 +231,20 @@ impl LpRegistrationClient {
 
         tracing::debug!("Starting LP handshake as initiator");
 
-        // Step 1: Generate ClientHelloData with fresh salt (timestamp + nonce)
+        // Step 1: Derive X25519 keys from Ed25519 for Noise protocol (internal to ClientHello)
+        // The Ed25519 keys are used for PSQ authentication and also converted to X25519
+        let client_x25519_public = self
+            .local_ed25519_keypair
+            .public_key()
+            .to_x25519()
+            .map_err(|e| {
+                LpClientError::Crypto(format!("Failed to derive X25519 public key: {}", e))
+            })?;
+
+        // Step 2: Generate ClientHelloData with fresh salt and both public keys
         let client_hello_data = nym_lp::ClientHelloData::new_with_fresh_salt(
-            self.local_keypair.public_key().to_bytes(),
+            client_x25519_public.to_bytes(),
+            self.local_ed25519_keypair.public_key().to_bytes(),
         );
         let salt = client_hello_data.salt;
 
@@ -243,7 +253,7 @@ impl LpRegistrationClient {
             client_hello_data.extract_timestamp()
         );
 
-        // Step 2: Send ClientHello as first packet (before Noise handshake)
+        // Step 3: Send ClientHello as first packet (before Noise handshake)
         let client_hello_header = nym_lp::packet::LpHeader::new(
             0, // session_id not yet established
             0, // counter starts at 0
@@ -255,20 +265,16 @@ impl LpRegistrationClient {
         Self::send_packet(stream, &client_hello_packet).await?;
         tracing::debug!("Sent ClientHello packet");
 
-        // Step 3: Derive PSK using ECDH + Blake3 KDF
-        let psk = nym_lp::derive_psk(
-            self.local_keypair.private_key(),
-            &self.gateway_public_key,
-            &salt,
-        );
-        tracing::trace!("Derived PSK from identity keys and salt");
-
-        // Step 4: Create state machine as initiator with derived PSK
+        // Step 4: Create state machine as initiator with Ed25519 keys
+        // PSK derivation happens internally in the state machine constructor
         let mut state_machine = LpStateMachine::new(
             true, // is_initiator
-            &self.local_keypair,
-            &self.gateway_public_key,
-            &psk,
+            (
+                self.local_ed25519_keypair.private_key(),
+                self.local_ed25519_keypair.public_key(),
+            ),
+            &self.gateway_ed25519_public_key,
+            &salt,
         )?;
 
         // Start handshake - client (initiator) sends first
@@ -310,6 +316,21 @@ impl LpRegistrationClient {
                     LpAction::HandshakeComplete => {
                         tracing::info!("LP handshake completed successfully");
                         break;
+                    }
+                    LpAction::KKTComplete => {
+                        tracing::info!("KKT exchange completed, starting Noise handshake");
+                        // After KKT completes, initiator must send first Noise handshake message
+                        let noise_msg = state_machine
+                            .session()?
+                            .prepare_handshake_message()
+                            .ok_or_else(|| {
+                                LpClientError::Transport(
+                                    "No handshake message available after KKT".to_string(),
+                                )
+                            })??;
+                        let noise_packet = state_machine.session()?.next_packet(noise_msg)?;
+                        tracing::trace!("Sending first Noise handshake message");
+                        Self::send_packet(stream, &noise_packet).await?;
                     }
                     other => {
                         tracing::trace!("Received action during handshake: {:?}", other);
@@ -764,8 +785,9 @@ mod tests {
 
     #[test]
     fn test_client_creation() {
-        let keypair = Arc::new(Keypair::default());
-        let gateway_key = PublicKey::default();
+        let mut rng = rand::thread_rng();
+        let keypair = Arc::new(ed25519::KeyPair::new(&mut rng));
+        let gateway_key = *ed25519::KeyPair::new(&mut rng).public_key();
         let address = "127.0.0.1:41264".parse().unwrap();
         let client_ip = "192.168.1.100".parse().unwrap();
 

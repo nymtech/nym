@@ -4,6 +4,7 @@
 pub mod codec;
 pub mod error;
 pub mod keypair;
+pub mod kkt_orchestrator;
 pub mod message;
 pub mod noise_protocol;
 pub mod packet;
@@ -19,9 +20,8 @@ pub use error::LpError;
 use keypair::PublicKey;
 pub use message::{ClientHelloData, LpMessage};
 pub use packet::LpPacket;
-pub use psk::derive_psk;
 pub use replay::{ReceivingKeyCounterValidator, ReplayError};
-pub use session::LpSession;
+pub use session::{LpSession, generate_fresh_salt};
 pub use session_manager::SessionManager;
 
 // Add the new state machine module
@@ -34,35 +34,47 @@ pub const NOISE_PSK_INDEX: u8 = 3;
 #[cfg(test)]
 pub fn sessions_for_tests() -> (LpSession, LpSession) {
     use crate::{keypair::Keypair, make_lp_id};
+    use nym_crypto::asymmetric::ed25519;
 
+    // X25519 keypairs for Noise protocol
     let keypair_1 = Keypair::default();
     let keypair_2 = Keypair::default();
     let id = make_lp_id(keypair_1.public_key(), keypair_2.public_key());
 
+    // Ed25519 keypairs for PSQ authentication (placeholders for testing)
+    let ed25519_keypair_1 = ed25519::KeyPair::from_secret([1u8; 32], 0);
+    let ed25519_keypair_2 = ed25519::KeyPair::from_secret([2u8; 32], 1);
+
     // Use consistent salt for deterministic tests
     let salt = [1u8; 32];
 
-    // Initiator derives PSK from their perspective
-    let initiator_psk = derive_psk(keypair_1.private_key(), keypair_2.public_key(), &salt);
+    // PSQ will always derive the PSK during handshake using X25519 as DHKEM
 
     let initiator_session = LpSession::new(
         id,
         true,
-        &keypair_1.private_key().to_bytes(),
-        &keypair_2.public_key().to_bytes(),
-        &initiator_psk,
+        (
+            ed25519_keypair_1.private_key(),
+            ed25519_keypair_1.public_key(),
+        ),
+        keypair_1.private_key(),
+        ed25519_keypair_2.public_key(),
+        keypair_2.public_key(),
+        &salt,
     )
     .expect("Test session creation failed");
-
-    // Responder derives same PSK from their perspective
-    let responder_psk = derive_psk(keypair_2.private_key(), keypair_1.public_key(), &salt);
 
     let responder_session = LpSession::new(
         id,
         false,
-        &keypair_2.private_key().to_bytes(),
-        &keypair_1.public_key().to_bytes(),
-        &responder_psk,
+        (
+            ed25519_keypair_2.private_key(),
+            ed25519_keypair_2.public_key(),
+        ),
+        keypair_2.private_key(),
+        ed25519_keypair_1.public_key(),
+        keypair_1.public_key(),
+        &salt,
     )
     .expect("Test session creation failed");
 
@@ -105,11 +117,11 @@ pub fn make_conv_id(src: &[u8], dst: &[u8]) -> u32 {
 
 #[cfg(test)]
 mod tests {
-    use crate::keypair::Keypair;
+    use crate::keypair::PublicKey;
     use crate::message::LpMessage;
     use crate::packet::{LpHeader, LpPacket, TRAILER_LEN};
     use crate::session_manager::SessionManager;
-    use crate::{make_lp_id, sessions_for_tests, LpError};
+    use crate::{LpError, make_lp_id, sessions_for_tests};
     use bytes::BytesMut;
 
     // Import the new standalone functions
@@ -216,28 +228,60 @@ mod tests {
 
     #[test]
     fn test_session_manager_integration() {
+        use nym_crypto::asymmetric::ed25519;
+
         // Create session manager
         let local_manager = SessionManager::new();
         let remote_manager = SessionManager::new();
-        let local_keypair = Keypair::default();
-        let remote_keypair = Keypair::default();
-        let lp_id = make_lp_id(local_keypair.public_key(), remote_keypair.public_key());
+
+        // Generate Ed25519 keypairs for PSQ authentication
+        let ed25519_keypair_local = ed25519::KeyPair::from_secret([8u8; 32], 0);
+        let ed25519_keypair_remote = ed25519::KeyPair::from_secret([9u8; 32], 1);
+
+        // Derive X25519 keys from Ed25519 (same as state machine does internally)
+        let x25519_pub_local = ed25519_keypair_local
+            .public_key()
+            .to_x25519()
+            .expect("Failed to derive X25519 from Ed25519");
+        let x25519_pub_remote = ed25519_keypair_remote
+            .public_key()
+            .to_x25519()
+            .expect("Failed to derive X25519 from Ed25519");
+
+        // Convert to LP keypair types
+        let lp_pub_local = PublicKey::from_bytes(x25519_pub_local.as_bytes())
+            .expect("Failed to create PublicKey from bytes");
+        let lp_pub_remote = PublicKey::from_bytes(x25519_pub_remote.as_bytes())
+            .expect("Failed to create PublicKey from bytes");
+
+        // Calculate lp_id (matches state machine's internal calculation)
+        let lp_id = make_lp_id(&lp_pub_local, &lp_pub_remote);
+
+        // Test salt
+        let salt = [46u8; 32];
+
         // Create a session via manager
         let _ = local_manager
             .create_session_state_machine(
-                &local_keypair,
-                remote_keypair.public_key(),
+                (
+                    ed25519_keypair_local.private_key(),
+                    ed25519_keypair_local.public_key(),
+                ),
+                ed25519_keypair_remote.public_key(),
                 true,
-                &[2u8; 32],
+                &salt,
             )
             .unwrap();
 
         let _ = remote_manager
             .create_session_state_machine(
-                &remote_keypair,
-                local_keypair.public_key(),
+                (
+                    ed25519_keypair_remote.private_key(),
+                    ed25519_keypair_remote.public_key(),
+                ),
+                ed25519_keypair_local.public_key(),
                 false,
-                &[2u8; 32],
+                &salt,
             )
             .unwrap();
         // === Packet 1 (Counter 0 - Should succeed) ===

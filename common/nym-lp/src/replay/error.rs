@@ -56,13 +56,9 @@ mod tests {
     #[test]
     fn test_replay_result() {
         let ok_result: ReplayResult<()> = Ok(());
-        let err_result: ReplayResult<()> = Err(ReplayError::InvalidCounter);
+        let err = ReplayError::InvalidCounter;
 
         assert!(ok_result.is_ok());
-        assert!(err_result.is_err());
-        assert!(matches!(
-            err_result.unwrap_err(),
-            ReplayError::InvalidCounter
-        ));
+        assert!(matches!(err, ReplayError::InvalidCounter));
     }
 }

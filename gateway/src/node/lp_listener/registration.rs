@@ -19,9 +19,6 @@ use nym_gateway_storage::traits::BandwidthGatewayStorage;
 use nym_metrics::{add_histogram_obs, inc, inc_by};
 use nym_registration_common::GatewayData;
 use nym_wireguard::PeerControlRequest;
-use rand::RngCore;
-use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
-use std::str::FromStr;
 use std::sync::Arc;
 use tracing::*;
 
@@ -77,9 +74,7 @@ async fn credential_storage_preparation(
         .storage()
         .get_available_bandwidth(client_id)
         .await?
-        .ok_or_else(|| {
-            GatewayError::InternalError("bandwidth entry should exist".to_string())
-        })?;
+        .ok_or_else(|| GatewayError::InternalError("bandwidth entry should exist".to_string()))?;
     Ok(bandwidth)
 }
 
@@ -158,7 +153,6 @@ pub async fn process_registration(
             // Register as WireGuard peer first to get client_id
             let (gateway_data, client_id) = match register_wg_peer(
                 request.wg_public_key.inner().as_ref(),
-                request.client_ip,
                 request.ticket_type,
                 state,
             )
@@ -223,7 +217,12 @@ pub async fn process_registration(
             inc!("lp_registration_mixnet_attempts");
 
             // Generate i64 client_id from the [u8; 32] in the request
-            let client_id = i64::from_be_bytes(client_id_bytes[0..8].try_into().unwrap());
+            #[allow(clippy::expect_used)]
+            let client_id = i64::from_be_bytes(
+                client_id_bytes[0..8]
+                    .try_into()
+                    .expect("This cannot fail, since the id is 32 bytes long"),
+            );
 
             info!(
                 "LP Mixnet registration for client_id {}, session {}",
@@ -290,7 +289,6 @@ pub async fn process_registration(
 /// Register a WireGuard peer and return gateway data along with the client_id
 async fn register_wg_peer(
     public_key_bytes: &[u8],
-    client_ip: IpAddr,
     ticket_type: nym_credentials_interface::TicketType,
     state: &LpHandlerState,
 ) -> Result<(GatewayData, i64), GatewayError> {
@@ -316,29 +314,47 @@ async fn register_wg_peer(
     key_bytes.copy_from_slice(public_key_bytes);
     let peer_key = Key::new(key_bytes);
 
-    // Allocate IP addresses for the client
-    // TODO: Proper IP pool management - for now use random in private range
-    inc!("wg_ip_allocation_attempts");
-    let last_octet = {
-        let mut rng = rand::thread_rng();
-        (rng.next_u32() % 254 + 1) as u8
-    };
+    // Allocate IPs from centralized pool managed by PeerController
+    let registration_data = nym_wireguard::PeerRegistrationData::new(peer_key.clone());
 
-    let client_ipv4 = Ipv4Addr::new(10, 1, 0, last_octet);
-    let client_ipv6 = Ipv6Addr::new(0xfd00, 0, 0, 0, 0, 0, 0, last_octet as u16);
-    inc!("wg_ip_allocation_success");
+    // Request IP allocation from PeerController
+    let (tx, rx) = oneshot::channel();
+    wg_controller
+        .send(PeerControlRequest::RegisterPeer {
+            registration_data,
+            response_tx: tx,
+        })
+        .await
+        .map_err(|e| {
+            GatewayError::InternalError(format!("Failed to send IP allocation request: {}", e))
+        })?;
 
-    // Create WireGuard peer
+    // Wait for IP allocation from pool
+    let ip_pair = rx
+        .await
+        .map_err(|e| {
+            GatewayError::InternalError(format!("Failed to receive IP allocation: {}", e))
+        })?
+        .map_err(|e| {
+            error!("Failed to allocate IPs from pool: {}", e);
+            GatewayError::InternalError(format!("Failed to allocate IPs: {:?}", e))
+        })?;
+
+    let client_ipv4 = ip_pair.ipv4;
+    let client_ipv6 = ip_pair.ipv6;
+
+    info!(
+        "Allocated IPs for peer {}: {} / {}",
+        peer_key, client_ipv4, client_ipv6
+    );
+
+    // Create WireGuard peer with allocated IPs
     let mut peer = Peer::new(peer_key.clone());
     peer.preshared_key = Some(Key::new(state.local_identity.public_key().to_bytes()));
-    peer.endpoint = Some(
-        format!("{}:51820", client_ip)
-            .parse()
-            .unwrap_or_else(|_| SocketAddr::from_str("0.0.0.0:51820").unwrap()),
-    );
+    peer.endpoint = None;
     peer.allowed_ips = vec![
-        format!("{client_ipv4}/32").parse().unwrap(),
-        format!("{client_ipv6}/128").parse().unwrap(),
+        format!("{client_ipv4}/32").parse()?,
+        format!("{client_ipv6}/128").parse()?,
     ];
     peer.persistent_keepalive_interval = Some(25);
 
@@ -357,7 +373,7 @@ async fn register_wg_peer(
     // This must happen BEFORE AddPeer because generate_bandwidth_manager() expects it to exist
     credential_storage_preparation(state.ecash_verifier.clone(), client_id).await?;
 
-    // Now send to WireGuard peer controller and track latency
+    // Now send peer to WireGuard controller and track latency
     let controller_start = std::time::Instant::now();
     let (tx, rx) = oneshot::channel();
     wg_controller

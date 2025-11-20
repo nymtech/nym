@@ -1,15 +1,16 @@
 #[cfg(test)]
 mod tests {
     use crate::codec::{parse_lp_packet, serialize_lp_packet};
-    use crate::keypair::Keypair;
+    use crate::keypair::PublicKey;
     use crate::make_lp_id;
     use crate::{
+        LpError,
         message::LpMessage,
         packet::{LpHeader, LpPacket, TRAILER_LEN},
         session_manager::SessionManager,
-        LpError,
     };
     use bytes::BytesMut;
+    use nym_crypto::asymmetric::ed25519;
 
     // Function to create a test packet - similar to how it's done in codec.rs tests
     fn create_test_packet(
@@ -48,24 +49,69 @@ mod tests {
         // 1. Initialize session manager
         let session_manager_1 = SessionManager::new();
         let session_manager_2 = SessionManager::new();
-        // 2. Generate keys and PSK
-        let peer_a_keys = Keypair::default();
-        let peer_b_keys = Keypair::default();
-        let lp_id = make_lp_id(peer_a_keys.public_key(), peer_b_keys.public_key());
-        let psk = [1u8; 32]; // Define a pre-shared key for the test
+
+        // 2. Generate Ed25519 keypairs for PSQ authentication
+        let ed25519_keypair_a = ed25519::KeyPair::from_secret([1u8; 32], 0);
+        let ed25519_keypair_b = ed25519::KeyPair::from_secret([2u8; 32], 1);
+
+        // Derive X25519 keys from Ed25519 (same as state machine does internally)
+        let x25519_pub_a = ed25519_keypair_a
+            .public_key()
+            .to_x25519()
+            .expect("Failed to derive X25519 from Ed25519");
+        let x25519_pub_b = ed25519_keypair_b
+            .public_key()
+            .to_x25519()
+            .expect("Failed to derive X25519 from Ed25519");
+
+        // Convert to LP keypair types
+        let lp_pub_a = PublicKey::from_bytes(x25519_pub_a.as_bytes())
+            .expect("Failed to create PublicKey from bytes");
+        let lp_pub_b = PublicKey::from_bytes(x25519_pub_b.as_bytes())
+            .expect("Failed to create PublicKey from bytes");
+
+        // Calculate lp_id (matches state machine's internal calculation)
+        let lp_id = make_lp_id(&lp_pub_a, &lp_pub_b);
+
+        // Test salt
+        let salt = [42u8; 32];
 
         // 4. Create sessions using the pre-built Noise states
         let peer_a_sm = session_manager_1
-            .create_session_state_machine(&peer_a_keys, peer_b_keys.public_key(), true, &psk)
+            .create_session_state_machine(
+                (
+                    ed25519_keypair_a.private_key(),
+                    ed25519_keypair_a.public_key(),
+                ),
+                ed25519_keypair_b.public_key(),
+                true,
+                &salt,
+            )
             .expect("Failed to create session A");
 
         let peer_b_sm = session_manager_2
-            .create_session_state_machine(&peer_b_keys, peer_a_keys.public_key(), false, &psk)
+            .create_session_state_machine(
+                (
+                    ed25519_keypair_b.private_key(),
+                    ed25519_keypair_b.public_key(),
+                ),
+                ed25519_keypair_a.public_key(),
+                false,
+                &salt,
+            )
             .expect("Failed to create session B");
 
         // Verify session count
         assert_eq!(session_manager_1.session_count(), 1);
         assert_eq!(session_manager_2.session_count(), 1);
+
+        // Initialize KKT state for both sessions (test bypass)
+        session_manager_1
+            .init_kkt_for_test(peer_a_sm, &lp_pub_b)
+            .expect("Failed to init KKT for peer A");
+        session_manager_2
+            .init_kkt_for_test(peer_b_sm, &lp_pub_a)
+            .expect("Failed to init KKT for peer B");
 
         // 5. Simulate Noise Handshake (Sans-IO)
         println!("Starting handshake simulation...");
@@ -308,7 +354,9 @@ mod tests {
             1,
             lp_id,
             counter_b,
-            LpMessage::EncryptedData(crate::message::EncryptedDataPayload(plaintext_b_to_a.to_vec())), // Using plaintext here, but content doesn't matter for replay check
+            LpMessage::EncryptedData(crate::message::EncryptedDataPayload(
+                plaintext_b_to_a.to_vec(),
+            )), // Using plaintext here, but content doesn't matter for replay check
         );
         let mut encoded_data_b_to_a_replay = BytesMut::new();
         serialize_lp_packet(&message_b_to_a_replay, &mut encoded_data_b_to_a_replay)
@@ -450,18 +498,62 @@ mod tests {
         let session_manager_1 = SessionManager::new();
         let session_manager_2 = SessionManager::new();
 
-        // 2. Setup sessions and complete handshake (similar to test_full_session_flow)
-        let peer_a_keys = Keypair::default();
-        let peer_b_keys = Keypair::default();
-        let lp_id = make_lp_id(peer_a_keys.public_key(), peer_b_keys.public_key());
-        let psk = [2u8; 32];
+        // 2. Generate Ed25519 keypairs for PSQ authentication
+        let ed25519_keypair_a = ed25519::KeyPair::from_secret([3u8; 32], 0);
+        let ed25519_keypair_b = ed25519::KeyPair::from_secret([4u8; 32], 1);
+
+        // Derive X25519 keys from Ed25519 (same as state machine does internally)
+        let x25519_pub_a = ed25519_keypair_a
+            .public_key()
+            .to_x25519()
+            .expect("Failed to derive X25519 from Ed25519");
+        let x25519_pub_b = ed25519_keypair_b
+            .public_key()
+            .to_x25519()
+            .expect("Failed to derive X25519 from Ed25519");
+
+        // Convert to LP keypair types
+        let lp_pub_a = PublicKey::from_bytes(x25519_pub_a.as_bytes())
+            .expect("Failed to create PublicKey from bytes");
+        let lp_pub_b = PublicKey::from_bytes(x25519_pub_b.as_bytes())
+            .expect("Failed to create PublicKey from bytes");
+
+        // Calculate lp_id (matches state machine's internal calculation)
+        let lp_id = make_lp_id(&lp_pub_a, &lp_pub_b);
+
+        // Test salt
+        let salt = [43u8; 32];
 
         let peer_a_sm = session_manager_1
-            .create_session_state_machine(&peer_a_keys, peer_b_keys.public_key(), true, &psk)
+            .create_session_state_machine(
+                (
+                    ed25519_keypair_a.private_key(),
+                    ed25519_keypair_a.public_key(),
+                ),
+                ed25519_keypair_b.public_key(),
+                true,
+                &salt,
+            )
             .unwrap();
         let peer_b_sm = session_manager_2
-            .create_session_state_machine(&peer_b_keys, peer_a_keys.public_key(), false, &psk)
+            .create_session_state_machine(
+                (
+                    ed25519_keypair_b.private_key(),
+                    ed25519_keypair_b.public_key(),
+                ),
+                ed25519_keypair_a.public_key(),
+                false,
+                &salt,
+            )
             .unwrap();
+
+        // Initialize KKT state for both sessions (test bypass)
+        session_manager_1
+            .init_kkt_for_test(peer_a_sm, &lp_pub_b)
+            .expect("Failed to init KKT for peer A");
+        session_manager_2
+            .init_kkt_for_test(peer_b_sm, &lp_pub_a)
+            .expect("Failed to init KKT for peer B");
 
         // Drive handshake to completion (simplified)
         let mut i_msg = session_manager_1
@@ -615,15 +707,33 @@ mod tests {
         // 1. Initialize session manager
         let session_manager = SessionManager::new();
 
-        // Setup for creating real noise state (keys/psk don't matter for this test)
-        let keys = Keypair::default();
-        let psk = [3u8; 32];
+        // Generate Ed25519 keypair for PSQ authentication
+        let ed25519_keypair = ed25519::KeyPair::from_secret([5u8; 32], 0);
 
-        let lp_id = make_lp_id(keys.public_key(), keys.public_key());
+        // Derive X25519 key from Ed25519 (same as state machine does internally)
+        let x25519_pub = ed25519_keypair
+            .public_key()
+            .to_x25519()
+            .expect("Failed to derive X25519 from Ed25519");
+
+        // Convert to LP keypair type
+        let lp_pub = PublicKey::from_bytes(x25519_pub.as_bytes())
+            .expect("Failed to create PublicKey from bytes");
+
+        // Calculate lp_id (self-connection: both sides use same key)
+        let lp_id = make_lp_id(&lp_pub, &lp_pub);
+
+        // Test salt
+        let salt = [44u8; 32];
 
         // 2. Create a session (using real noise state)
         let _session = session_manager
-            .create_session_state_machine(&keys, keys.public_key(), true, &psk)
+            .create_session_state_machine(
+                (ed25519_keypair.private_key(), ed25519_keypair.public_key()),
+                ed25519_keypair.public_key(),
+                true,
+                &salt,
+            )
             .expect("Failed to create session");
 
         // 3. Try to get a non-existent session
@@ -639,7 +749,12 @@ mod tests {
 
         // 5. Create and immediately remove a session
         let _temp_session = session_manager
-            .create_session_state_machine(&keys, keys.public_key(), true, &psk)
+            .create_session_state_machine(
+                (ed25519_keypair.private_key(), ed25519_keypair.public_key()),
+                ed25519_keypair.public_key(),
+                true,
+                &salt,
+            )
             .expect("Failed to create temp session");
 
         assert!(
@@ -715,19 +830,59 @@ mod tests {
         let session_manager_1 = SessionManager::new();
         let session_manager_2 = SessionManager::new();
 
-        // 2. Generate keys and PSK
-        let peer_a_keys = Keypair::default();
-        let peer_b_keys = Keypair::default();
-        let lp_id = make_lp_id(peer_a_keys.public_key(), peer_b_keys.public_key());
-        let psk = [1u8; 32];
+        // 2. Generate Ed25519 keypairs for PSQ authentication
+        let ed25519_keypair_a = ed25519::KeyPair::from_secret([6u8; 32], 0);
+        let ed25519_keypair_b = ed25519::KeyPair::from_secret([7u8; 32], 1);
+
+        // Derive X25519 keys from Ed25519 (same as state machine does internally)
+        let x25519_pub_a = ed25519_keypair_a
+            .public_key()
+            .to_x25519()
+            .expect("Failed to derive X25519 from Ed25519");
+        let x25519_pub_b = ed25519_keypair_b
+            .public_key()
+            .to_x25519()
+            .expect("Failed to derive X25519 from Ed25519");
+
+        // Convert to LP keypair types
+        let lp_pub_a = PublicKey::from_bytes(x25519_pub_a.as_bytes())
+            .expect("Failed to create PublicKey from bytes");
+        let lp_pub_b = PublicKey::from_bytes(x25519_pub_b.as_bytes())
+            .expect("Failed to create PublicKey from bytes");
+
+        // Calculate lp_id (matches state machine's internal calculation)
+        let lp_id = make_lp_id(&lp_pub_a, &lp_pub_b);
+
+        // Test salt
+        let salt = [45u8; 32];
 
         // 3. Create sessions state machines
-        assert!(session_manager_1
-            .create_session_state_machine(&peer_a_keys, peer_b_keys.public_key(), true, &psk) // Initiator
-            .is_ok());
-        assert!(session_manager_2
-            .create_session_state_machine(&peer_b_keys, peer_a_keys.public_key(), false, &psk) // Responder
-            .is_ok());
+        assert!(
+            session_manager_1
+                .create_session_state_machine(
+                    (
+                        ed25519_keypair_a.private_key(),
+                        ed25519_keypair_a.public_key()
+                    ),
+                    ed25519_keypair_b.public_key(),
+                    true,
+                    &salt,
+                ) // Initiator
+                .is_ok()
+        );
+        assert!(
+            session_manager_2
+                .create_session_state_machine(
+                    (
+                        ed25519_keypair_b.private_key(),
+                        ed25519_keypair_b.public_key()
+                    ),
+                    ed25519_keypair_a.public_key(),
+                    false,
+                    &salt,
+                ) // Responder
+                .is_ok()
+        );
 
         assert_eq!(session_manager_1.session_count(), 1);
         assert_eq!(session_manager_2.session_count(), 1);
@@ -750,7 +905,7 @@ mod tests {
         let mut packet_a_to_b: Option<LpPacket>;
         let mut packet_b_to_a: Option<LpPacket>;
         let mut rounds = 0;
-        const MAX_ROUNDS: usize = 5; // XK handshake takes 3 messages
+        const MAX_ROUNDS: usize = 10; // KKT (2 messages) + XK handshake (3 messages) + PSQ = 6 rounds total
 
         // --- Round 1: Initiator Starts ---
         println!("  Round {}: Initiator starts handshake", rounds);
@@ -760,20 +915,21 @@ mod tests {
             .expect("Initiator StartHandshake failed");
 
         if let LpAction::SendPacket(packet) = action_a1 {
-            println!("    Initiator produced SendPacket (-> e)");
+            println!("    Initiator produced SendPacket (KKT request)");
             packet_a_to_b = Some(packet);
         } else {
             panic!("Initiator StartHandshake did not produce SendPacket");
         }
+        // After StartHandshake, initiator should be in KKTExchange state (not Handshaking yet)
         assert_eq!(
             session_manager_1.get_state(lp_id).unwrap(),
-            LpStateBare::Handshaking,
-            "Initiator state wrong after StartHandshake"
+            LpStateBare::KKTExchange,
+            "Initiator state wrong after StartHandshake (should be KKTExchange)"
         );
 
         // *** ADD THIS BLOCK for Responder StartHandshake ***
         println!(
-            "  Round {}: Responder explicitly enters Handshaking state",
+            "  Round {}: Responder explicitly enters KKTExchange state",
             rounds
         );
         let action_b_start = session_manager_2.process_input(lp_id, LpInput::StartHandshake);
@@ -783,107 +939,209 @@ mod tests {
             "Responder StartHandshake should produce None action, got {:?}",
             action_b_start
         );
-        // Verify responder transitions to Handshaking state
+        // Verify responder transitions to KKTExchange state (not Handshaking yet)
         assert_eq!(
             session_manager_2.get_state(lp_id).unwrap(),
-            LpStateBare::Handshaking, // State should now be Handshaking
-            "Responder state should be Handshaking after its StartHandshake"
+            LpStateBare::KKTExchange, // Responder also enters KKTExchange state
+            "Responder state should be KKTExchange after its StartHandshake"
         );
         // *** END OF ADDED BLOCK ***
 
-        // --- Round 2: Responder Receives, Sends Reply ---
+        // --- Round 2: Responder Receives KKT Request, Sends KKT Response ---
         rounds += 1;
-        println!("  Round {}: Responder receives, sends reply", rounds);
-        let packet_to_process = packet_a_to_b.take().expect("Packet from A was missing");
+        println!(
+            "  Round {}: Responder receives KKT request, sends KKT response",
+            rounds
+        );
+        let packet_to_process = packet_a_to_b
+            .take()
+            .expect("KKT request from A was missing");
 
         // Simulate network: serialize -> parse (optional but good practice)
         let mut buf_a = BytesMut::new();
         serialize_lp_packet(&packet_to_process, &mut buf_a).unwrap();
         let parsed_packet_a = parse_lp_packet(&buf_a).unwrap();
 
-        // Responder processes (Now starting from Handshaking state)
+        // Responder processes KKT request
         let action_b1 = session_manager_2
             .process_input(lp_id, LpInput::ReceivePacket(parsed_packet_a))
             .expect("Responder ReceivePacket should produce an action")
             .expect("Responder ReceivePacket failed");
 
         if let LpAction::SendPacket(packet) = action_b1 {
-            println!("    Responder received, produced SendPacket (<- e, es)");
+            println!("    Responder received KKT request, produced KKT response");
             packet_b_to_a = Some(packet);
         } else {
-            panic!("Responder ReceivePacket did not produce SendPacket");
+            panic!("Responder ReceivePacket did not produce SendPacket for KKT response");
         }
-        // State should remain Handshaking until the final message is processed
+        // Responder transitions to Handshaking after KKT completes
         assert_eq!(
             session_manager_2.get_state(lp_id).unwrap(),
             LpStateBare::Handshaking,
-            "Responder state should remain Handshaking after processing first packet" // Adjusted assertion
+            "Responder state should be Handshaking after KKT exchange"
         );
 
-        // --- Round 3: Initiator Receives, Sends Final, Completes ---
+        // --- Round 3: Initiator Receives KKT Response, Sends First Noise Message (with PSQ) ---
         rounds += 1;
         println!(
-            "  Round {}: Initiator receives, sends final, completes",
+            "  Round {}: Initiator receives KKT response, sends first Noise message (with PSQ)",
             rounds
         );
-        let packet_to_process = packet_b_to_a.take().expect("Packet from B was missing");
+        let packet_to_process = packet_b_to_a
+            .take()
+            .expect("KKT response from B was missing");
 
         // Simulate network
         let mut buf_b = BytesMut::new();
         serialize_lp_packet(&packet_to_process, &mut buf_b).unwrap();
         let parsed_packet_b = parse_lp_packet(&buf_b).unwrap();
 
-        // Initiator processes
+        // Initiator processes KKT response
         let action_a2 = session_manager_1
             .process_input(lp_id, LpInput::ReceivePacket(parsed_packet_b))
             .expect("Initiator ReceivePacket should produce an action")
             .expect("Initiator ReceivePacket failed");
 
-        if let LpAction::SendPacket(packet) = action_a2 {
-            println!("    Initiator received, produced SendPacket (-> s, se)");
-            packet_a_to_b = Some(packet);
-            // Initiator might transition to Transport *after* sending this message
-            assert_eq!(
-                session_manager_1.get_state(lp_id).unwrap(),
-                LpStateBare::Transport,
-                "Initiator state should be Transport after processing second packet"
-            );
-            // Optional: Check for HandshakeComplete action if process_input returns multiple
-        } else {
-            panic!("Initiator ReceivePacket did not produce SendPacket");
+        match action_a2 {
+            LpAction::SendPacket(packet) => {
+                println!(
+                    "    Initiator received KKT response, produced first Noise message (-> e)"
+                );
+                packet_a_to_b = Some(packet);
+                // Initiator transitions to Handshaking after KKT completes
+                assert_eq!(
+                    session_manager_1.get_state(lp_id).unwrap(),
+                    LpStateBare::Handshaking,
+                    "Initiator state should be Handshaking after receiving KKT response"
+                );
+            }
+            LpAction::KKTComplete => {
+                println!(
+                    "    Initiator received KKT response, produced KKTComplete (will send Noise in next step)"
+                );
+                // KKT completed, now need to explicitly trigger handshake message
+                // This might be the case if KKT completion doesn't automatically send the first Noise message
+                // Let's try to prepare the handshake message
+                if let Some(msg_result) = session_manager_1.prepare_handshake_message(lp_id) {
+                    let msg = msg_result.expect("Failed to prepare handshake message after KKT");
+                    // Create a packet from the message
+                    let packet = create_test_packet(1, lp_id, 0, msg);
+                    packet_a_to_b = Some(packet);
+                    println!("    Prepared first Noise message after KKTComplete");
+                } else {
+                    panic!("No handshake message available after KKT complete");
+                }
+            }
+            other => {
+                panic!(
+                    "Initiator ReceivePacket produced unexpected action after KKT response: {:?}",
+                    other
+                );
+            }
         }
 
-        // --- Round 4: Responder Receives Final, Completes ---
+        // --- Round 4: Responder Receives First Noise Message, Sends Second ---
         rounds += 1;
-        println!("  Round {}: Responder receives final, completes", rounds);
+        println!(
+            "  Round {}: Responder receives first Noise message, sends second",
+            rounds
+        );
         let packet_to_process = packet_a_to_b
             .take()
-            .expect("Final packet from A was missing");
+            .expect("First Noise packet from A was missing");
 
         // Simulate network
         let mut buf_a2 = BytesMut::new();
         serialize_lp_packet(&packet_to_process, &mut buf_a2).unwrap();
         let parsed_packet_a2 = parse_lp_packet(&buf_a2).unwrap();
 
-        // Responder processes
+        // Responder processes first Noise message and sends second Noise message
         let action_b2 = session_manager_2
             .process_input(lp_id, LpInput::ReceivePacket(parsed_packet_a2))
+            .expect("Responder ReceivePacket should produce an action")
+            .expect("Responder ReceivePacket failed");
+
+        if let LpAction::SendPacket(packet) = action_b2 {
+            println!(
+                "    Responder received first Noise message, produced second Noise message (<- e, ee, s, es)"
+            );
+            packet_b_to_a = Some(packet);
+        } else {
+            panic!("Responder did not produce SendPacket for second Noise message");
+        }
+        // Responder still in Handshaking, waiting for final message
+        assert_eq!(
+            session_manager_2.get_state(lp_id).unwrap(),
+            LpStateBare::Handshaking,
+            "Responder state should still be Handshaking after sending second message"
+        );
+
+        // --- Round 5: Initiator Receives Second Noise Message, Sends Third, Completes ---
+        rounds += 1;
+        println!(
+            "  Round {}: Initiator receives second Noise message, sends third, completes",
+            rounds
+        );
+        let packet_to_process = packet_b_to_a
+            .take()
+            .expect("Second Noise packet from B was missing");
+
+        let mut buf_b2 = BytesMut::new();
+        serialize_lp_packet(&packet_to_process, &mut buf_b2).unwrap();
+        let parsed_packet_b2 = parse_lp_packet(&buf_b2).unwrap();
+
+        let action_a3 = session_manager_1
+            .process_input(lp_id, LpInput::ReceivePacket(parsed_packet_b2))
+            .expect("Initiator ReceivePacket should produce an action")
+            .expect("Initiator ReceivePacket failed");
+
+        if let LpAction::SendPacket(packet) = action_a3 {
+            println!(
+                "    Initiator received second Noise message, produced third Noise message (-> s, se)"
+            );
+            packet_a_to_b = Some(packet);
+        } else {
+            panic!("Initiator did not produce SendPacket for third Noise message");
+        }
+        // Initiator transitions to Transport after sending third message
+        assert_eq!(
+            session_manager_1.get_state(lp_id).unwrap(),
+            LpStateBare::Transport,
+            "Initiator state should be Transport after sending third message"
+        );
+
+        // --- Round 6: Responder Receives Third Noise Message, Completes ---
+        rounds += 1;
+        println!(
+            "  Round {}: Responder receives third Noise message, completes",
+            rounds
+        );
+        let packet_to_process = packet_a_to_b
+            .take()
+            .expect("Third Noise packet from A was missing");
+
+        let mut buf_a3 = BytesMut::new();
+        serialize_lp_packet(&packet_to_process, &mut buf_a3).unwrap();
+        let parsed_packet_a3 = parse_lp_packet(&buf_a3).unwrap();
+
+        let action_b3 = session_manager_2
+            .process_input(lp_id, LpInput::ReceivePacket(parsed_packet_a3))
             .expect("Responder final ReceivePacket should produce an action")
             .expect("Responder final ReceivePacket failed");
 
-        // Check if the primary action is HandshakeComplete
-        // The state machine might return HandshakeComplete first, or maybe implicit
-        if let LpAction::HandshakeComplete = action_b2 {
-            println!("    Responder received final, produced HandshakeComplete");
+        // Responder completes handshake
+        if let LpAction::HandshakeComplete = action_b3 {
+            println!("    Responder received third Noise message, produced HandshakeComplete");
         } else {
-            // It might just transition state without an explicit HandshakeComplete action
-            println!("    Responder received final (Action: {:?})", action_b2);
-            // Optionally, allow NoOp or other actions if the state transition is the main indicator
+            println!(
+                "    Responder received third Noise message (Action: {:?})",
+                action_b3
+            );
         }
         assert_eq!(
             session_manager_2.get_state(lp_id).unwrap(),
             LpStateBare::Transport,
-            "Responder state should be Transport after processing final packet"
+            "Responder state should be Transport after processing third message"
         );
 
         // --- Verification ---

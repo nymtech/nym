@@ -7,7 +7,6 @@ use nym_authenticator_client::{AuthClientMixnetListener, AuthenticatorClient};
 use nym_bandwidth_controller::BandwidthTicketProvider;
 use nym_credentials_interface::TicketType;
 use nym_ip_packet_client::IprClientConnect;
-use nym_lp::keypair::{Keypair as LpKeypair, PublicKey as LpPublicKey};
 use nym_registration_common::AssignedAddresses;
 use nym_sdk::mixnet::{EventReceiver, MixnetClient, Recipient};
 use std::sync::Arc;
@@ -53,8 +52,7 @@ impl RegistrationClient {
                 node_id: self.config.exit.node.identity.to_base58_string(),
             },
         )?;
-        let mut ipr_client =
-            IprClientConnect::new(self.mixnet_client, self.cancel_token.clone()).await;
+        let mut ipr_client = IprClientConnect::new(self.mixnet_client, self.cancel_token.clone());
         let interface_addresses = ipr_client
             .connect(ipr_address)
             .await
@@ -125,22 +123,22 @@ impl RegistrationClient {
 
         let (entry, exit) = Box::pin(async { tokio::join!(entry_fut, exit_fut) }).await;
 
-        let entry =
-            entry.map_err(
-                |source| RegistrationClientError::EntryGatewayRegisterWireguard {
-                    gateway_id: self.config.entry.node.identity.to_base58_string(),
-                    authenticator_address: Box::new(entry_auth_address),
-                    source: Box::new(source),
-                },
-            )?;
-        let exit =
-            exit.map_err(
-                |source| RegistrationClientError::ExitGatewayRegisterWireguard {
-                    gateway_id: self.config.exit.node.identity.to_base58_string(),
-                    authenticator_address: Box::new(exit_auth_address),
-                    source: Box::new(source),
-                },
-            )?;
+        let entry = entry.map_err(|source| {
+            RegistrationClientError::from_authenticator_error(
+                source,
+                self.config.entry.node.identity.to_base58_string(),
+                entry_auth_address,
+                true, // is entry
+            )
+        })?;
+        let exit = exit.map_err(|source| {
+            RegistrationClientError::from_authenticator_error(
+                source,
+                self.config.exit.node.identity.to_base58_string(),
+                exit_auth_address,
+                false, // is exit (not entry)
+            )
+        })?;
 
         Ok(RegistrationResult::Wireguard(Box::new(
             WireguardRegistrationResult {
@@ -171,49 +169,12 @@ impl RegistrationClient {
         tracing::debug!("Entry gateway LP address: {}", entry_lp_address);
         tracing::debug!("Exit gateway LP address: {}", exit_lp_address);
 
-        // Convert gateway ed25519 identities to x25519 LP public keys using proper conversion
-        let entry_x25519_pub = self.config.entry.node.identity.to_x25519().map_err(|e| {
-            RegistrationClientError::LpRegistrationNotPossible {
-                node_id: format!(
-                    "{}: failed to convert ed25519 to x25519: {}",
-                    self.config.entry.node.identity.to_base58_string(),
-                    e
-                ),
-            }
-        })?;
-
-        let entry_gateway_lp_key = LpPublicKey::from_bytes(entry_x25519_pub.as_bytes()).map_err(|e| {
-            RegistrationClientError::LpRegistrationNotPossible {
-                node_id: format!(
-                    "{}: invalid LP key: {}",
-                    self.config.entry.node.identity.to_base58_string(),
-                    e
-                ),
-            }
-        })?;
-
-        let exit_x25519_pub = self.config.exit.node.identity.to_x25519().map_err(|e| {
-            RegistrationClientError::LpRegistrationNotPossible {
-                node_id: format!(
-                    "{}: failed to convert ed25519 to x25519: {}",
-                    self.config.exit.node.identity.to_base58_string(),
-                    e
-                ),
-            }
-        })?;
-
-        let exit_gateway_lp_key = LpPublicKey::from_bytes(exit_x25519_pub.as_bytes()).map_err(|e| {
-            RegistrationClientError::LpRegistrationNotPossible {
-                node_id: format!(
-                    "{}: invalid LP key: {}",
-                    self.config.exit.node.identity.to_base58_string(),
-                    e
-                ),
-            }
-        })?;
-
-        // Generate LP keypairs for this connection
-        let client_lp_keypair = Arc::new(LpKeypair::default());
+        // Generate fresh Ed25519 keypairs for LP registration
+        // These are ephemeral and used only for the LP handshake protocol
+        use nym_crypto::asymmetric::ed25519;
+        use rand::rngs::OsRng;
+        let entry_lp_keypair = Arc::new(ed25519::KeyPair::new(&mut OsRng));
+        let exit_lp_keypair = Arc::new(ed25519::KeyPair::new(&mut OsRng));
 
         // Register entry gateway via LP
         let entry_fut = {
@@ -221,12 +182,12 @@ impl RegistrationClient {
             let entry_keys = self.config.entry.keys.clone();
             let entry_identity = self.config.entry.node.identity;
             let entry_ip = self.config.entry.node.ip_address;
-            let lp_keypair = client_lp_keypair.clone();
+            let entry_lp_keys = entry_lp_keypair.clone();
 
             async move {
                 let mut client = LpRegistrationClient::new_with_default_psk(
-                    lp_keypair,
-                    entry_gateway_lp_key,
+                    entry_lp_keys,
+                    entry_identity,
                     entry_lp_address,
                     entry_ip,
                 );
@@ -263,12 +224,12 @@ impl RegistrationClient {
             let exit_keys = self.config.exit.keys.clone();
             let exit_identity = self.config.exit.node.identity;
             let exit_ip = self.config.exit.node.ip_address;
-            let lp_keypair = client_lp_keypair;
+            let exit_lp_keys = exit_lp_keypair;
 
             async move {
                 let mut client = LpRegistrationClient::new_with_default_psk(
-                    lp_keypair,
-                    exit_gateway_lp_key,
+                    exit_lp_keys,
+                    exit_identity,
                     exit_lp_address,
                     exit_ip,
                 );

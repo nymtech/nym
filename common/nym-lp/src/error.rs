@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{noise_protocol::NoiseError, replay::ReplayError};
+use nym_crypto::asymmetric::ed25519::Ed25519RecoveryError;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -48,6 +49,9 @@ pub enum LpError {
     #[error("Deserialization error: {0}")]
     DeserializationError(String),
 
+    #[error("KKT protocol error: {0}")]
+    KKTError(String),
+
     #[error(transparent)]
     InvalidBase58String(#[from] bs58::decode::Error),
 
@@ -70,4 +74,8 @@ pub enum LpError {
     /// State machine not found.
     #[error("State machine not found for lp_id: {lp_id}")]
     StateMachineNotFound { lp_id: u32 },
+
+    /// Ed25519 to X25519 conversion error.
+    #[error("Ed25519 key conversion error: {0}")]
+    Ed25519RecoveryError(#[from] Ed25519RecoveryError),
 }

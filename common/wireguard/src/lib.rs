@@ -17,15 +17,22 @@ use tracing::error;
 use nym_credential_verification::ecash::EcashManager;
 
 #[cfg(target_os = "linux")]
+use nym_ip_packet_requests::IpPair;
+#[cfg(target_os = "linux")]
+use std::net::IpAddr;
+
+#[cfg(target_os = "linux")]
 use nym_network_defaults::constants::WG_TUN_BASE_NAME;
 
 pub mod error;
+pub mod ip_pool;
 pub mod peer_controller;
 pub mod peer_handle;
 pub mod peer_storage_manager;
 
 pub use error::Error;
-pub use peer_controller::PeerControlRequest;
+pub use ip_pool::{IpPool, IpPoolError};
+pub use peer_controller::{PeerControlRequest, PeerRegistrationData};
 
 pub const CONTROL_CHANNEL_SIZE: usize = 256;
 
@@ -176,14 +183,16 @@ pub async fn start_wireguard(
     use base64::{Engine, prelude::BASE64_STANDARD};
     use defguard_wireguard_rs::{InterfaceConfiguration, WireguardInterfaceApi};
     use ip_network::IpNetwork;
-    use nym_credential_verification::ecash::traits::EcashManager;
     use peer_controller::PeerController;
     use std::collections::HashMap;
     use tokio::sync::RwLock;
     use tracing::info;
 
     let ifname = String::from(WG_TUN_BASE_NAME);
-    info!("Initializing WireGuard interface '{}' with use_userspace={}", ifname, use_userspace);
+    info!(
+        "Initializing WireGuard interface '{}' with use_userspace={}",
+        ifname, use_userspace
+    );
     let wg_api = defguard_wireguard_rs::WGApi::new(ifname.clone(), use_userspace)?;
     let mut peer_bandwidth_managers = HashMap::with_capacity(peers.len());
 
@@ -207,7 +216,7 @@ pub async fn start_wireguard(
         prvkey: BASE64_STANDARD.encode(wireguard_data.inner.keypair().private_key().to_bytes()),
         address: wireguard_data.inner.config().private_ipv4.to_string(),
         port: wireguard_data.inner.config().announced_tunnel_port as u32,
-        peers,
+        peers: peers.clone(), // Clone since we need to use peers later to mark IPs as used
         mtu: None,
     };
     info!(
@@ -260,9 +269,38 @@ pub async fn start_wireguard(
     let host = wg_api.read_interface_data()?;
     let wg_api = std::sync::Arc::new(WgApiWrapper::new(wg_api));
 
+    // Initialize IP pool from configuration
+    info!("Initializing IP pool for WireGuard peer allocation");
+    let ip_pool = IpPool::new(
+        wireguard_data.inner.config().private_ipv4,
+        wireguard_data.inner.config().private_network_prefix_v4,
+        wireguard_data.inner.config().private_ipv6,
+        wireguard_data.inner.config().private_network_prefix_v6,
+    )?;
+
+    // Mark existing peer IPs as used in the pool
+    for peer in &peers {
+        for allowed_ip in &peer.allowed_ips {
+            // Extract IPv4 and IPv6 from peer's allowed_ips
+            if let IpAddr::V4(ipv4) = allowed_ip.ip {
+                // Find corresponding IPv6
+                if let Some(ipv6_mask) = peer
+                    .allowed_ips
+                    .iter()
+                    .find(|ip| matches!(ip.ip, IpAddr::V6(_)))
+                {
+                    if let IpAddr::V6(ipv6) = ipv6_mask.ip {
+                        ip_pool.mark_used(IpPair::new(ipv4, ipv6)).await;
+                    }
+                }
+            }
+        }
+    }
+
     let mut controller = PeerController::new(
         ecash_manager,
         metrics,
+        ip_pool,
         wg_api.clone(),
         host,
         peer_bandwidth_managers,

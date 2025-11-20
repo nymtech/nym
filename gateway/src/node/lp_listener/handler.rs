@@ -6,10 +6,7 @@ use super::messages::{LpRegistrationRequest, LpRegistrationResponse};
 use super::registration::process_registration;
 use super::LpHandlerState;
 use crate::error::GatewayError;
-use nym_lp::{
-    keypair::{Keypair, PrivateKey as LpPrivateKey, PublicKey},
-    LpMessage, LpPacket, LpSession,
-};
+use nym_lp::{keypair::PublicKey, LpMessage, LpPacket, LpSession};
 use nym_metrics::{add_histogram_obs, inc};
 use std::net::SocketAddr;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -104,36 +101,14 @@ impl LpConnectionHandler {
         // Track total LP connections handled
         inc!("lp_connections_total");
 
-        // For LP, we need:
-        // 1. Gateway's keypair (from local_identity)
-        // 2. Client's public key (will be received during handshake)
-        // 3. PSK (pre-shared key) - for now use a placeholder
-
-        // Derive LP keypair from gateway's ed25519 identity using proper conversion
-        // This creates a valid x25519 keypair for ECDH operations in Noise protocol
-        let x25519_private = self.state.local_identity.private_key().to_x25519();
-        let x25519_public = self
-            .state
-            .local_identity
-            .public_key()
-            .to_x25519()
-            .map_err(|e| {
-                GatewayError::LpHandshakeError(format!(
-                    "Failed to convert ed25519 public key to x25519: {}",
-                    e
-                ))
-            })?;
-
-        let lp_private = LpPrivateKey::from_bytes(x25519_private.as_bytes());
-        let lp_public = PublicKey::from_bytes(x25519_public.as_bytes()).map_err(|e| {
-            GatewayError::LpHandshakeError(format!("Failed to create LP public key: {}", e))
-        })?;
-
-        let gateway_keypair = Keypair::from_keys(lp_private, lp_public);
+        // The state machine now accepts only Ed25519 keys and internally derives X25519 keys.
+        // This simplifies the API by removing manual key conversion from the caller.
+        // Gateway's Ed25519 identity is used for both PSQ authentication and X25519 derivation.
 
         // Receive client's public key and salt via ClientHello message
         // The client initiates by sending ClientHello as first packet
-        let (client_pubkey, salt) = match self.receive_client_hello().await {
+        let (_client_pubkey, client_ed25519_pubkey, salt) = match self.receive_client_hello().await
+        {
             Ok(result) => result,
             Err(e) => {
                 // Track ClientHello failures (timestamp validation, protocol errors, etc.)
@@ -144,13 +119,16 @@ impl LpConnectionHandler {
             }
         };
 
-        // Derive PSK using ECDH + Blake3 KDF (nym-109)
-        // Both client and gateway derive the same PSK from their respective keys
-        let psk = nym_lp::derive_psk(gateway_keypair.private_key(), &client_pubkey, &salt);
-        tracing::trace!("Derived PSK from LP keys and ClientHello salt");
-
         // Create LP handshake as responder
-        let handshake = LpGatewayHandshake::new_responder(&gateway_keypair, &client_pubkey, &psk)?;
+        // Pass Ed25519 keys directly - X25519 derivation and PSK generation happen internally
+        let handshake = LpGatewayHandshake::new_responder(
+            (
+                self.state.local_identity.private_key(),
+                self.state.local_identity.public_key(),
+            ),
+            &client_ed25519_pubkey,
+            &salt,
+        )?;
 
         // Complete the LP handshake with duration tracking
         let handshake_start = std::time::Instant::now();
@@ -239,18 +217,9 @@ impl LpConnectionHandler {
     fn validate_timestamp(client_timestamp: u64, tolerance_secs: u64) -> Result<(), GatewayError> {
         use std::time::{SystemTime, UNIX_EPOCH};
 
-        let now = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .expect("System time before UNIX epoch")
-            .as_secs();
+        let now = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
 
-        let age = if now >= client_timestamp {
-            now - client_timestamp
-        } else {
-            // Client timestamp is in the future
-            client_timestamp - now
-        };
-
+        let age = now.abs_diff(client_timestamp);
         if age > tolerance_secs {
             let direction = if now >= client_timestamp {
                 "old"
@@ -278,7 +247,16 @@ impl LpConnectionHandler {
     }
 
     /// Receive client's public key and salt via ClientHello message
-    async fn receive_client_hello(&mut self) -> Result<(PublicKey, [u8; 32]), GatewayError> {
+    async fn receive_client_hello(
+        &mut self,
+    ) -> Result<
+        (
+            PublicKey,
+            nym_crypto::asymmetric::ed25519::PublicKey,
+            [u8; 32],
+        ),
+        GatewayError,
+    > {
         // Receive first packet which should be ClientHello
         let packet = self.receive_lp_packet().await?;
 
@@ -294,25 +272,33 @@ impl LpConnectionHandler {
                     timestamp,
                     {
                         use std::time::{SystemTime, UNIX_EPOCH};
-                        let now = SystemTime::now()
-                            .duration_since(UNIX_EPOCH)
-                            .expect("System time before UNIX epoch")
-                            .as_secs();
+                        let now = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
                         now.abs_diff(timestamp)
                     },
                     self.state.lp_config.timestamp_tolerance_secs
                 );
 
-                // Convert bytes to PublicKey
+                // Convert bytes to X25519 PublicKey (for Noise protocol)
                 let client_pubkey = PublicKey::from_bytes(&hello_data.client_lp_public_key)
                     .map_err(|e| {
                         GatewayError::LpProtocolError(format!("Invalid client public key: {}", e))
                     })?;
 
+                // Convert bytes to Ed25519 PublicKey (for PSQ authentication)
+                let client_ed25519_pubkey = nym_crypto::asymmetric::ed25519::PublicKey::from_bytes(
+                    &hello_data.client_ed25519_public_key,
+                )
+                .map_err(|e| {
+                    GatewayError::LpProtocolError(format!(
+                        "Invalid client Ed25519 public key: {}",
+                        e
+                    ))
+                })?;
+
                 // Extract salt for PSK derivation
                 let salt = hello_data.salt;
 
-                Ok((client_pubkey, salt))
+                Ok((client_pubkey, client_ed25519_pubkey, salt))
             }
             other => Err(GatewayError::LpProtocolError(format!(
                 "Expected ClientHello, got {}",
@@ -484,7 +470,6 @@ mod tests {
     use crate::node::ActiveClientsStore;
     use bytes::BytesMut;
     use nym_lp::codec::{parse_lp_packet, serialize_lp_packet};
-    use nym_lp::keypair::Keypair;
     use nym_lp::message::{ClientHelloData, EncryptedDataPayload, HandshakeData, LpMessage};
     use nym_lp::packet::{LpHeader, LpPacket};
     use std::sync::Arc;
@@ -530,7 +515,7 @@ mod tests {
     ) -> Result<(), std::io::Error> {
         let mut packet_buf = BytesMut::new();
         serialize_lp_packet(packet, &mut packet_buf)
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
+            .map_err(|e| std::io::Error::other(e.to_string()))?;
 
         // Write length prefix
         let len = packet_buf.len() as u32;
@@ -557,8 +542,7 @@ mod tests {
         stream.read_exact(&mut packet_buf).await?;
 
         // Parse packet
-        parse_lp_packet(&packet_buf)
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))
+        parse_lp_packet(&packet_buf).map_err(|e| std::io::Error::other(e.to_string()))
     }
 
     // ==================== Existing Tests ====================
@@ -831,7 +815,9 @@ mod tests {
         assert_eq!(received.header().session_id, 200);
         assert_eq!(received.header().counter, 20);
         match received.message() {
-            LpMessage::EncryptedData(data) => assert_eq!(data, &EncryptedDataPayload(expected_payload)),
+            LpMessage::EncryptedData(data) => {
+                assert_eq!(data, &EncryptedDataPayload(expected_payload))
+            }
             _ => panic!("Expected EncryptedData message"),
         }
     }
@@ -845,7 +831,8 @@ mod tests {
         let addr = listener.local_addr().unwrap();
 
         let client_key = [7u8; 32];
-        let hello_data = ClientHelloData::new_with_fresh_salt(client_key);
+        let client_ed25519_key = [8u8; 32];
+        let hello_data = ClientHelloData::new_with_fresh_salt(client_key, client_ed25519_key);
         let expected_salt = hello_data.salt; // Clone salt before moving hello_data
 
         let server_task = tokio::spawn(async move {
@@ -901,9 +888,17 @@ mod tests {
         let mut client_stream = TcpStream::connect(addr).await.unwrap();
 
         // Create and send valid ClientHello
-        let client_keypair = Keypair::default();
-        let hello_data =
-            ClientHelloData::new_with_fresh_salt(client_keypair.public_key().to_bytes());
+        // Create separate Ed25519 keypair and derive X25519 from it (like production code)
+        use nym_crypto::asymmetric::ed25519;
+        use rand::rngs::OsRng;
+
+        let client_ed25519_keypair = ed25519::KeyPair::new(&mut OsRng);
+        let client_x25519_public = client_ed25519_keypair.public_key().to_x25519().unwrap();
+
+        let hello_data = ClientHelloData::new_with_fresh_salt(
+            client_x25519_public.to_bytes(),
+            client_ed25519_keypair.public_key().to_bytes(),
+        );
         let packet = LpPacket::new(
             LpHeader {
                 protocol_version: 1,
@@ -919,10 +914,14 @@ mod tests {
 
         // Handler should receive and parse it
         let result = server_task.await.unwrap();
-        assert!(result.is_ok());
+        assert!(result.is_ok(), "Expected Ok, got: {:?}", result);
 
-        let (pubkey, salt) = result.unwrap();
-        assert_eq!(pubkey.as_bytes(), &client_keypair.public_key().to_bytes());
+        let (x25519_pubkey, ed25519_pubkey, salt) = result.unwrap();
+        assert_eq!(x25519_pubkey.as_bytes(), &client_x25519_public.to_bytes());
+        assert_eq!(
+            ed25519_pubkey.to_bytes(),
+            client_ed25519_keypair.public_key().to_bytes()
+        );
         assert_eq!(salt, hello_data.salt);
     }
 
@@ -944,9 +943,17 @@ mod tests {
         let mut client_stream = TcpStream::connect(addr).await.unwrap();
 
         // Create ClientHello with old timestamp
-        let client_keypair = Keypair::default();
-        let mut hello_data =
-            ClientHelloData::new_with_fresh_salt(client_keypair.public_key().to_bytes());
+        // Use proper separate Ed25519 and X25519 keys (like production code)
+        use nym_crypto::asymmetric::ed25519;
+        use rand::rngs::OsRng;
+
+        let client_ed25519_keypair = ed25519::KeyPair::new(&mut OsRng);
+        let client_x25519_public = client_ed25519_keypair.public_key().to_x25519().unwrap();
+
+        let mut hello_data = ClientHelloData::new_with_fresh_salt(
+            client_x25519_public.to_bytes(),
+            client_ed25519_keypair.public_key().to_bytes(),
+        );
 
         // Manually set timestamp to be very old (100 seconds ago)
         let old_timestamp = SystemTime::now()

@@ -1,9 +1,12 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::message::{ClientHelloData, EncryptedDataPayload, HandshakeData, LpMessage, MessageType};
-use crate::packet::{LpHeader, LpPacket, TRAILER_LEN};
 use crate::LpError;
+use crate::message::{
+    ClientHelloData, EncryptedDataPayload, HandshakeData, KKTRequestData, KKTResponseData,
+    LpMessage, MessageType,
+};
+use crate::packet::{LpHeader, LpPacket, TRAILER_LEN};
 use bytes::BytesMut;
 
 /// Parses a complete Lewes Protocol packet from a byte slice (e.g., a UDP datagram payload).
@@ -43,7 +46,7 @@ pub fn parse_lp_packet(src: &[u8]) -> Result<LpPacket, LpError> {
             if message_size != 0 {
                 return Err(LpError::InvalidPayloadSize {
                     expected: 0,
-                    actual: message_size,   
+                    actual: message_size,
                 });
             }
             LpMessage::Busy
@@ -62,6 +65,14 @@ pub fn parse_lp_packet(src: &[u8]) -> Result<LpPacket, LpError> {
             let data: ClientHelloData = bincode::deserialize(payload_slice)
                 .map_err(|e| LpError::DeserializationError(e.to_string()))?;
             LpMessage::ClientHello(data)
+        }
+        MessageType::KKTRequest => {
+            // KKT request contains serialized KKTFrame bytes
+            LpMessage::KKTRequest(KKTRequestData(payload_slice.to_vec()))
+        }
+        MessageType::KKTResponse => {
+            // KKT response contains serialized KKTFrame bytes
+            LpMessage::KKTResponse(KKTResponseData(payload_slice.to_vec()))
         }
     };
 
@@ -105,9 +116,9 @@ mod tests {
     // Import standalone functions
     use super::{parse_lp_packet, serialize_lp_packet};
     // Keep necessary imports
+    use crate::LpError;
     use crate::message::{EncryptedDataPayload, HandshakeData, LpMessage, MessageType};
     use crate::packet::{LpHeader, LpPacket, TRAILER_LEN};
-    use crate::LpError;
     use bytes::BytesMut;
 
     // === Updated Encode/Decode Tests ===
@@ -280,7 +291,7 @@ mod tests {
         buf_too_short.extend_from_slice(&42u32.to_le_bytes()); // Sender index
         buf_too_short.extend_from_slice(&123u64.to_le_bytes()); // Counter
         buf_too_short.extend_from_slice(&MessageType::Handshake.to_u16().to_le_bytes()); // Handshake type
-                                                                                         // No payload, no trailer. Length = 16+2=18. Min size = 34.
+        // No payload, no trailer. Length = 16+2=18. Min size = 34.
         let result_too_short = parse_lp_packet(&buf_too_short);
         assert!(result_too_short.is_err());
         assert!(matches!(
@@ -317,7 +328,7 @@ mod tests {
         buf_too_short.extend_from_slice(&123u64.to_le_bytes()); // Counter
         buf_too_short.extend_from_slice(&MessageType::Busy.to_u16().to_le_bytes()); // Type
         buf_too_short.extend_from_slice(&[0; TRAILER_LEN - 1]); // Missing last byte of trailer
-                                                                // Length = 16 + 2 + 15 = 33. Min Size = 34.
+        // Length = 16 + 2 + 15 = 33. Min Size = 34.
         let result_too_short = parse_lp_packet(&buf_too_short);
         assert!(
             result_too_short.is_err(),
@@ -337,7 +348,7 @@ mod tests {
         buf.extend_from_slice(&42u32.to_le_bytes()); // Sender index
         buf.extend_from_slice(&123u64.to_le_bytes()); // Counter
         buf.extend_from_slice(&255u16.to_le_bytes()); // Invalid message type
-                                                      // Need payload and trailer to meet min_size requirement
+        // Need payload and trailer to meet min_size requirement
         let payload_size = 10; // Arbitrary
         buf.extend_from_slice(&vec![0u8; payload_size]); // Some data
         buf.extend_from_slice(&[0; TRAILER_LEN]); // Trailer
@@ -390,9 +401,11 @@ mod tests {
 
         // Create ClientHelloData
         let client_key = [42u8; 32];
+        let client_ed25519_key = [43u8; 32];
         let salt = [99u8; 32];
         let hello_data = ClientHelloData {
             client_lp_public_key: client_key,
+            client_ed25519_public_key: client_ed25519_key,
             salt,
         };
 
@@ -438,7 +451,8 @@ mod tests {
 
         // Create ClientHelloData with fresh salt
         let client_key = [7u8; 32];
-        let hello_data = ClientHelloData::new_with_fresh_salt(client_key);
+        let client_ed25519_key = [8u8; 32];
+        let hello_data = ClientHelloData::new_with_fresh_salt(client_key, client_ed25519_key);
 
         // Create a ClientHello message packet
         let packet = LpPacket {
@@ -532,6 +546,7 @@ mod tests {
 
             let hello_data = ClientHelloData {
                 client_lp_public_key: [version; 32],
+                client_ed25519_public_key: [version.wrapping_add(2); 32],
                 salt: [version.wrapping_add(1); 32],
             };
 

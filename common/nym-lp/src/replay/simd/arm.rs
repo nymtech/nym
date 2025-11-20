@@ -210,17 +210,20 @@ pub mod atomic {
         if first_full_word <= last_full_word {
             // Use NEON to set words faster
             // Safety: vdupq_n_u64 is safe to call with any u64 value
-            let ones_vec = vdupq_n_u64(u64::MAX);
+            let ones_vec = unsafe { vdupq_n_u64(u64::MAX) };
             let mut idx = first_full_word;
 
             while idx + 2 <= last_full_word + 1 {
                 // Safety:
                 // - bitmap[idx..] is valid for reads/writes of at least 2 u64 words (16 bytes)
                 // - We check that idx + 2 <= last_full_word + 1 to ensure we have 2 complete words
-                let current_vec = vld1q_u64(bitmap[idx..].as_ptr());
-                // Safety: vorrq_u64 is safe when given valid vector values
-                let result_vec = vorrq_u64(current_vec, ones_vec);
-                vst1q_u64(bitmap[idx..].as_mut_ptr(), result_vec);
+                unsafe {
+                    let current_vec = vld1q_u64(bitmap[idx..].as_ptr());
+                    // Safety: vorrq_u64 is safe when given valid vector values
+                    let result_vec = vorrq_u64(current_vec, ones_vec);
+                    vst1q_u64(bitmap[idx..].as_mut_ptr(), result_vec);
+                }
+
                 idx += 2;
             }
 

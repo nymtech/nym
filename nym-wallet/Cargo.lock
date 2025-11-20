@@ -4289,6 +4289,7 @@ version = "0.4.0"
 dependencies = [
  "base64 0.22.1",
  "bs58",
+ "curve25519-dalek",
  "ed25519-dalek",
  "jwt-simple",
  "nym-pemstore",
@@ -4296,6 +4297,7 @@ dependencies = [
  "rand 0.8.5",
  "serde",
  "serde_bytes",
+ "sha2 0.10.9",
  "subtle-encoding",
  "thiserror 2.0.12",
  "x25519-dalek",

@@ -4,14 +4,15 @@
 //! Lewes Protocol State Machine for managing connection lifecycle.
 
 use crate::{
-    keypair::{Keypair, PublicKey},
+    LpError,
+    keypair::{Keypair, PrivateKey as LpPrivateKey, PublicKey as LpPublicKey},
     make_lp_id,
     noise_protocol::NoiseError,
     packet::LpPacket,
     session::LpSession,
-    LpError,
 };
 use bytes::BytesMut;
+use nym_crypto::asymmetric::ed25519;
 use std::mem;
 
 /// Represents the possible states of the Lewes Protocol connection.
@@ -20,6 +21,10 @@ pub enum LpState {
     /// Initial state: Ready to start the handshake.
     /// State machine is created with keys, lp_id is derived, session is ready.
     ReadyToHandshake { session: LpSession },
+
+    /// Performing KKT (KEM Key Transfer) exchange before Noise handshake.
+    /// Initiator requests responder's KEM public key, responder provides signed key.
+    KKTExchange { session: LpSession },
 
     /// Actively performing the Noise handshake.
     /// (We might be able to merge this with ReadyToHandshake if the first step always happens)
@@ -37,6 +42,7 @@ pub enum LpState {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LpStateBare {
     ReadyToHandshake,
+    KKTExchange,
     Handshaking,
     Transport,
     Closed,
@@ -47,6 +53,7 @@ impl From<&LpState> for LpStateBare {
     fn from(state: &LpState) -> Self {
         match state {
             LpState::ReadyToHandshake { .. } => LpStateBare::ReadyToHandshake,
+            LpState::KKTExchange { .. } => LpStateBare::KKTExchange,
             LpState::Handshaking { .. } => LpStateBare::Handshaking,
             LpState::Transport { .. } => LpStateBare::Transport,
             LpState::Closed { .. } => LpStateBare::Closed,
@@ -75,6 +82,8 @@ pub enum LpAction {
     SendPacket(LpPacket),
     /// Deliver decrypted application data received from the peer.
     DeliverData(BytesMut),
+    /// Inform the environment that KKT exchange completed successfully.
+    KKTComplete,
     /// Inform the environment that the handshake is complete.
     HandshakeComplete,
     /// Inform the environment that the connection is closed.
@@ -94,6 +103,7 @@ impl LpStateMachine {
     pub fn session(&self) -> Result<&LpSession, LpError> {
         match &self.state {
             LpState::ReadyToHandshake { session }
+            | LpState::KKTExchange { session }
             | LpState::Handshaking { session }
             | LpState::Transport { session } => Ok(session),
             LpState::Closed { .. } => Err(LpError::LpSessionClosed),
@@ -107,6 +117,7 @@ impl LpStateMachine {
     pub fn into_session(self) -> Result<LpSession, LpError> {
         match self.state {
             LpState::ReadyToHandshake { session }
+            | LpState::KKTExchange { session }
             | LpState::Handshaking { session }
             | LpState::Transport { session } => Ok(session),
             LpState::Closed { .. } => Err(LpError::LpSessionClosed),
@@ -118,44 +129,75 @@ impl LpStateMachine {
         Ok(self.session()?.id())
     }
 
-    /// Creates a new state machine, calculates the lp_id, creates the session,
-    /// and sets the initial state to ReadyToHandshake.
+    /// Creates a new state machine from Ed25519 keys, internally deriving X25519 keys.
     ///
-    /// Requires the local *full* keypair to get the public key for lp_id calculation.
+    /// This is the primary constructor that accepts only Ed25519 keys (identity/signing keys)
+    /// and internally derives the X25519 keys needed for Noise protocol and DHKEM.
+    /// This simplifies the API by hiding the X25519 derivation as an implementation detail.
+    ///
+    /// # Arguments
+    ///
+    /// * `is_initiator` - Whether this side initiates the handshake
+    /// * `local_ed25519_keypair` - Ed25519 keypair for PSQ authentication and X25519 derivation
+    ///   (from client identity key or gateway signing key)
+    /// * `remote_ed25519_key` - Peer's Ed25519 public key for PSQ authentication and X25519 derivation
+    /// * `salt` - Fresh salt for PSK derivation (must be unique per session)
+    ///
+    /// # Errors
+    ///
+    /// Returns `LpError::Ed25519RecoveryError` if Ed25519→X25519 conversion fails for the remote key.
+    /// Local private key conversion cannot fail.
     pub fn new(
         is_initiator: bool,
-        local_keypair: &Keypair, // Use Keypair
-        remote_public_key: &PublicKey,
-        psk: &[u8],
-        // session_manager: Arc<SessionManager> // Optional
+        local_ed25519_keypair: (&ed25519::PrivateKey, &ed25519::PublicKey),
+        remote_ed25519_key: &ed25519::PublicKey,
+        salt: &[u8; 32],
     ) -> Result<Self, LpError> {
-        // Calculate the shared lp_id// Calculate the shared lp_id
-        let lp_id = make_lp_id(local_keypair.public_key(), remote_public_key);
+        // We use standard RFC 7748 conversion to derive X25519 keys from Ed25519 identity keys.
+        // This allows callers to provide only Ed25519 keys (which they already have for signing/identity)
+        // without needing to manage separate X25519 keypairs.
+        //
+        // Security: Ed25519→X25519 conversion is cryptographically sound (RFC 7748).
+        // The derived X25519 keys are used for:
+        // - Noise protocol ephemeral DH
+        // - PSQ ECDH baseline security (pre-quantum)
+        // - lp_id calculation (session identifier)
 
-        let local_private_key = local_keypair.private_key().to_bytes();
-        let remote_public_key = remote_public_key.as_bytes();
+        // Convert Ed25519 keys to X25519 for Noise protocol
+        let local_x25519_private = local_ed25519_keypair.0.to_x25519();
+        let local_x25519_public = local_ed25519_keypair
+            .1
+            .to_x25519()
+            .map_err(LpError::Ed25519RecoveryError)?;
 
-        // Create the session immediately
+        let remote_x25519_public = remote_ed25519_key
+            .to_x25519()
+            .map_err(LpError::Ed25519RecoveryError)?;
+
+        // Convert nym_crypto X25519 types to nym_lp keypair types
+        let lp_private = LpPrivateKey::from_bytes(local_x25519_private.as_bytes());
+        let lp_public = LpPublicKey::from_bytes(local_x25519_public.as_bytes())?;
+        let lp_remote_public = LpPublicKey::from_bytes(remote_x25519_public.as_bytes())?;
+
+        // Create X25519 keypair for Noise and lp_id calculation
+        let local_x25519_keypair = Keypair::from_keys(lp_private, lp_public);
+
+        // Calculate the shared lp_id using derived X25519 keys
+        let lp_id = make_lp_id(local_x25519_keypair.public_key(), &lp_remote_public);
+
+        // Create the session with both Ed25519 (for PSQ auth) and derived X25519 keys (for Noise)
         let session = LpSession::new(
             lp_id,
             is_initiator,
-            &local_private_key,
-            remote_public_key,
-            psk,
+            local_ed25519_keypair,
+            local_x25519_keypair.private_key(),
+            remote_ed25519_key,
+            &lp_remote_public,
+            salt,
         )?;
-
-        // TODO: Register the session with the SessionManager if applicable
-        // if let Some(manager) = session_manager {
-        //     manager.insert_session(lp_id, session.clone())?; // Assuming insert_session exists
-        // }
 
         Ok(LpStateMachine {
             state: LpState::ReadyToHandshake { session },
-            // Store necessary info if needed for recreation, otherwise remove
-            // is_initiator,
-            // local_private_key: local_private_key.to_vec(),
-            // remote_public_key: remote_public_key.to_vec(),
-            // psk: psk.to_vec(),
         })
     }
     /// Processes an input event and returns a list of actions to perform.
@@ -170,22 +212,30 @@ impl LpStateMachine {
             // --- ReadyToHandshake State ---
             (LpState::ReadyToHandshake { session }, LpInput::StartHandshake) => {
                 if session.is_initiator() {
-                    // Initiator sends the first message
-                    match self.start_handshake(&session) {
-                        Some(Ok(action)) => {
-                            result_action = Some(Ok(action));
-                            LpState::Handshaking { session } // Transition state
+                    // Initiator starts by requesting KEM key via KKT
+                    match session.prepare_kkt_request() {
+                        Some(Ok(kkt_message)) => {
+                            match session.next_packet(kkt_message) {
+                                Ok(kkt_packet) => {
+                                    result_action = Some(Ok(LpAction::SendPacket(kkt_packet)));
+                                    LpState::KKTExchange { session } // Transition to KKTExchange
+                                }
+                                Err(e) => {
+                                    let reason = e.to_string();
+                                    result_action = Some(Err(e));
+                                    LpState::Closed { reason }
+                                }
+                            }
                         }
                         Some(Err(e)) => {
-                            // Error occurred, move to Closed state
                             let reason = e.to_string();
                             result_action = Some(Err(e));
                             LpState::Closed { reason }
                         }
                         None => {
-                            // Should not happen, treat as internal error
+                            // Should not happen for initiator
                             let err = LpError::Internal(
-                                "start_handshake returned None unexpectedly".to_string(),
+                                "prepare_kkt_request returned None for initiator".to_string(),
                             );
                             let reason = err.to_string();
                             result_action = Some(Err(err));
@@ -193,10 +243,114 @@ impl LpStateMachine {
                         }
                     }
                 } else {
-                    // Responder waits for the first message, transition to Handshaking to wait.
-                    LpState::Handshaking { session }
+                    // Responder waits for KKT request
+                    LpState::KKTExchange { session }
                     // No action needed yet, result_action remains None.
                 }
+            }
+
+            // --- KKTExchange State ---
+            (LpState::KKTExchange { session }, LpInput::ReceivePacket(packet)) => {
+                // Check if packet lp_id matches our session
+                if packet.header.session_id() != session.id() {
+                    result_action = Some(Err(LpError::UnknownSessionId(packet.header.session_id())));
+                    LpState::KKTExchange { session }
+                } else {
+                    use crate::message::LpMessage;
+
+                    // Packet message is already parsed, match on it directly
+                    match &packet.message {
+                        LpMessage::KKTRequest(kkt_request) if !session.is_initiator() => {
+                            // Responder processes KKT request
+                            // Convert X25519 public key to KEM format for KKT response
+                            use nym_kkt::ciphersuite::EncapsulationKey;
+
+                            // Get local X25519 public key by deriving from private key
+                            let local_x25519_public = session.local_x25519_public();
+
+                            // Convert to libcrux KEM public key
+                            match libcrux_kem::PublicKey::decode(
+                                libcrux_kem::Algorithm::X25519,
+                                local_x25519_public.as_bytes(),
+                            ) {
+                                Ok(libcrux_public_key) => {
+                                    let responder_kem_pk = EncapsulationKey::X25519(libcrux_public_key);
+
+                                    match session.process_kkt_request(&kkt_request.0, &responder_kem_pk) {
+                                        Ok(kkt_response_message) => {
+                                            match session.next_packet(kkt_response_message) {
+                                                Ok(response_packet) => {
+                                                    result_action = Some(Ok(LpAction::SendPacket(response_packet)));
+                                                    // After KKT exchange, move to Handshaking
+                                                    LpState::Handshaking { session }
+                                                }
+                                                Err(e) => {
+                                                    let reason = e.to_string();
+                                                    result_action = Some(Err(e));
+                                                    LpState::Closed { reason }
+                                                }
+                                            }
+                                        }
+                                        Err(e) => {
+                                            let reason = e.to_string();
+                                            result_action = Some(Err(e));
+                                            LpState::Closed { reason }
+                                        }
+                                    }
+                                }
+                                Err(e) => {
+                                    let reason = format!("Failed to convert X25519 to KEM: {:?}", e);
+                                    let err = LpError::Internal(reason.clone());
+                                    result_action = Some(Err(err));
+                                    LpState::Closed { reason }
+                                }
+                            }
+                        }
+                        LpMessage::KKTResponse(kkt_response) if session.is_initiator() => {
+                            // Initiator processes KKT response (signature-only mode with None)
+                            match session.process_kkt_response(&kkt_response.0, None) {
+                                Ok(()) => {
+                                    result_action = Some(Ok(LpAction::KKTComplete));
+                                    // After successful KKT, move to Handshaking
+                                    LpState::Handshaking { session }
+                                }
+                                Err(e) => {
+                                    let reason = e.to_string();
+                                    result_action = Some(Err(e));
+                                    LpState::Closed { reason }
+                                }
+                            }
+                        }
+                        _ => {
+                            // Wrong message type for KKT state
+                            let err = LpError::InvalidStateTransition {
+                                state: "KKTExchange".to_string(),
+                                input: format!("Unexpected message type: {:?}", packet.message),
+                            };
+                            let reason = err.to_string();
+                            result_action = Some(Err(err));
+                            LpState::Closed { reason }
+                        }
+                    }
+                }
+            }
+
+            // Reject SendData during KKT exchange
+            (LpState::KKTExchange { session }, LpInput::SendData(_)) => {
+                result_action = Some(Err(LpError::InvalidStateTransition {
+                    state: "KKTExchange".to_string(),
+                    input: "SendData".to_string(),
+                }));
+                LpState::KKTExchange { session }
+            }
+
+            // Reject StartHandshake if already in KKT exchange
+            (LpState::KKTExchange { session }, LpInput::StartHandshake) => {
+                result_action = Some(Err(LpError::InvalidStateTransition {
+                    state: "KKTExchange".to_string(),
+                    input: "StartHandshake".to_string(),
+                }));
+                LpState::KKTExchange { session }
             }
 
             // --- Handshaking State ---
@@ -270,7 +424,7 @@ impl LpStateMachine {
                              }
                              Err(e) => { // Error from process_handshake_message
                                  let reason = e.to_string();
-                                 result_action = Some(Err(e.into()));
+                                 result_action = Some(Err(e));
                                  LpState::Closed { reason }
                              }
                          }
@@ -360,9 +514,10 @@ impl LpStateMachine {
                  LpState::Transport { session }
             }
 
-            // --- Close Transition (applies to ReadyToHandshake, Handshaking, Transport) ---
+            // --- Close Transition (applies to ReadyToHandshake, KKTExchange, Handshaking, Transport) ---
             (
                 LpState::ReadyToHandshake { .. } // We consume the session here
+                | LpState::KKTExchange { .. }
                 | LpState::Handshaking { .. }
                 | LpState::Transport { .. },
                 LpInput::Close,
@@ -421,20 +576,6 @@ impl LpStateMachine {
         result_action // Return the determined action (or None)
     }
 
-    // Helper to start the handshake (sends first message if initiator)
-    // Kept as it doesn't mutate self.state
-    fn start_handshake(&self, session: &LpSession) -> Option<Result<LpAction, LpError>> {
-        session
-            .prepare_handshake_message()
-            .map(|result| match result {
-                Ok(message) => match session.next_packet(message) {
-                    Ok(packet) => Ok(LpAction::SendPacket(packet)),
-                    Err(e) => Err(e),
-                },
-                Err(e) => Err(e),
-            })
-    }
-
     // Helper to prepare an outgoing data packet
     // Kept as it doesn't mutate self.state
     fn prepare_data_packet(
@@ -452,17 +593,27 @@ impl LpStateMachine {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::keypair::Keypair;
     use bytes::Bytes;
+    use nym_crypto::asymmetric::ed25519;
 
     #[test]
     fn test_state_machine_init() {
-        let init_key = Keypair::new();
-        let resp_key = Keypair::new();
-        let psk = vec![0u8; 32];
-        let remote_pub_key = resp_key.public_key();
+        // Ed25519 keypairs for PSQ authentication and X25519 derivation
+        let ed25519_keypair_init = ed25519::KeyPair::from_secret([16u8; 32], 0);
+        let ed25519_keypair_resp = ed25519::KeyPair::from_secret([17u8; 32], 1);
 
-        let initiator_sm = LpStateMachine::new(true, &init_key, remote_pub_key, &psk);
+        // Test salt
+        let salt = [51u8; 32];
+
+        let initiator_sm = LpStateMachine::new(
+            true,
+            (
+                ed25519_keypair_init.private_key(),
+                ed25519_keypair_init.public_key(),
+            ),
+            ed25519_keypair_resp.public_key(),
+            &salt,
+        );
         assert!(initiator_sm.is_ok());
         let initiator_sm = initiator_sm.unwrap();
         assert!(matches!(
@@ -472,7 +623,15 @@ mod tests {
         let init_session = initiator_sm.session().unwrap();
         assert!(init_session.is_initiator());
 
-        let responder_sm = LpStateMachine::new(false, &resp_key, init_key.public_key(), &psk);
+        let responder_sm = LpStateMachine::new(
+            false,
+            (
+                ed25519_keypair_resp.private_key(),
+                ed25519_keypair_resp.public_key(),
+            ),
+            ed25519_keypair_init.public_key(),
+            &salt,
+        );
         assert!(responder_sm.is_ok());
         let responder_sm = responder_sm.unwrap();
         assert!(matches!(
@@ -482,73 +641,119 @@ mod tests {
         let resp_session = responder_sm.session().unwrap();
         assert!(!resp_session.is_initiator());
 
-        // Check lp_id is the same
-        let expected_lp_id = make_lp_id(init_key.public_key(), remote_pub_key);
-        assert_eq!(init_session.id(), expected_lp_id);
-        assert_eq!(resp_session.id(), expected_lp_id);
+        // Check lp_id is the same (derived internally from Ed25519 keys)
+        // Both state machines should have the same lp_id
+        assert_eq!(init_session.id(), resp_session.id());
     }
 
     #[test]
     fn test_state_machine_simplified_flow() {
-        // Create test keys
-        let init_key = Keypair::new();
-        let resp_key = Keypair::new();
-        let psk = vec![0u8; 32];
+        // Ed25519 keypairs for PSQ authentication and X25519 derivation
+        let ed25519_keypair_init = ed25519::KeyPair::from_secret([18u8; 32], 0);
+        let ed25519_keypair_resp = ed25519::KeyPair::from_secret([19u8; 32], 1);
+
+        // Test salt
+        let salt = [52u8; 32];
 
         // Create state machines (already in ReadyToHandshake)
         let mut initiator = LpStateMachine::new(
             true, // is_initiator
-            &init_key,
-            resp_key.public_key(),
-            &psk.clone(),
+            (
+                ed25519_keypair_init.private_key(),
+                ed25519_keypair_init.public_key(),
+            ),
+            ed25519_keypair_resp.public_key(),
+            &salt,
         )
         .unwrap();
 
         let mut responder = LpStateMachine::new(
             false, // is_initiator
-            &resp_key,
-            init_key.public_key(),
-            &psk,
+            (
+                ed25519_keypair_resp.private_key(),
+                ed25519_keypair_resp.public_key(),
+            ),
+            ed25519_keypair_init.public_key(),
+            &salt,
         )
         .unwrap();
 
         let lp_id = initiator.id().unwrap();
         assert_eq!(lp_id, responder.id().unwrap());
 
-        // --- Start Handshake --- (No index exchange needed)
-        println!("--- Step 1: Initiator starts handshake ---");
+        // --- KKT Exchange ---
+        println!("--- Step 1: Initiator starts handshake (sends KKT request) ---");
         let init_actions_1 = initiator.process_input(LpInput::StartHandshake);
-        let init_packet_1 = if let Some(Ok(LpAction::SendPacket(packet))) = init_actions_1 {
+        let kkt_request_packet = if let Some(Ok(LpAction::SendPacket(packet))) = init_actions_1 {
             packet.clone()
         } else {
-            panic!("Initiator should produce 1 action");
+            panic!("Initiator should send KKT request");
         };
 
         assert!(
-            matches!(initiator.state, LpState::Handshaking { .. }),
-            "Initiator should be Handshaking"
+            matches!(initiator.state, LpState::KKTExchange { .. }),
+            "Initiator should be in KKTExchange"
         );
         assert_eq!(
-            init_packet_1.header.session_id(),
+            kkt_request_packet.header.session_id(),
             lp_id,
-            "Packet 1 has wrong lp_id"
+            "KKT request packet has wrong lp_id"
         );
 
-        println!("--- Step 2: Responder starts handshake (waits) ---");
+        println!("--- Step 2: Responder starts handshake (waits for KKT) ---");
         let resp_actions_1 = responder.process_input(LpInput::StartHandshake);
         assert!(
             resp_actions_1.is_none(),
             "Responder should produce 0 actions initially"
         );
         assert!(
-            matches!(responder.state, LpState::Handshaking { .. }),
-            "Responder should be Handshaking"
+            matches!(responder.state, LpState::KKTExchange { .. }),
+            "Responder should be in KKTExchange"
         );
 
-        // --- Handshake Message Exchange ---
-        println!("--- Step 3: Responder receives packet 1, sends packet 2 ---");
-        let resp_actions_2 = responder.process_input(LpInput::ReceivePacket(init_packet_1));
-        let resp_packet_2 = if let Some(Ok(LpAction::SendPacket(packet))) = resp_actions_2 {
+        println!("--- Step 3: Responder receives KKT request, sends KKT response ---");
+        let resp_actions_2 = responder.process_input(LpInput::ReceivePacket(kkt_request_packet));
+        let kkt_response_packet = if let Some(Ok(LpAction::SendPacket(packet))) = resp_actions_2 {
+            packet.clone()
+        } else {
+            panic!("Responder should send KKT response");
+        };
+        assert!(
+            matches!(responder.state, LpState::Handshaking { .. }),
+            "Responder should be Handshaking after KKT"
+        );
+
+        println!("--- Step 4: Initiator receives KKT response (KKT complete) ---");
+        let init_actions_2 = initiator.process_input(LpInput::ReceivePacket(kkt_response_packet));
+        assert!(
+            matches!(init_actions_2, Some(Ok(LpAction::KKTComplete))),
+            "Initiator should signal KKT complete"
+        );
+        assert!(
+            matches!(initiator.state, LpState::Handshaking { .. }),
+            "Initiator should be Handshaking after KKT"
+        );
+
+        // --- Noise Handshake Message Exchange ---
+        println!("--- Step 5: Responder receives Noise msg 1, sends Noise msg 2 ---");
+        // Now both sides are in Handshaking, continue with Noise handshake
+        // Initiator needs to send first Noise message
+        // (In real flow, this might happen automatically or via another process_input call)
+        // For this test, we'll simulate the responder receiving the first Noise message
+        // Actually, let me check if initiator automatically sends the first Noise message...
+        // Looking at the old test, it seems packet 1 was the first Noise message.
+        // With KKT, we need the initiator to send the first Noise message now.
+
+        // Initiator prepares and sends first Noise handshake message
+        let init_noise_msg = initiator.session().unwrap().prepare_handshake_message();
+        let init_packet_1 = if let Some(Ok(msg)) = init_noise_msg {
+            initiator.session().unwrap().next_packet(msg).unwrap()
+        } else {
+            panic!("Initiator should have first Noise message");
+        };
+
+        let resp_actions_3 = responder.process_input(LpInput::ReceivePacket(init_packet_1));
+        let resp_packet_2 = if let Some(Ok(LpAction::SendPacket(packet))) = resp_actions_3 {
             packet.clone()
         } else {
             panic!("Responder should send packet 2");
@@ -563,12 +768,12 @@ mod tests {
             "Packet 2 has wrong lp_id"
         );
 
-        println!("--- Step 4: Initiator receives packet 2, sends packet 3 ---");
-        let init_actions_2 = initiator.process_input(LpInput::ReceivePacket(resp_packet_2));
-        let init_packet_3 = if let Some(Ok(LpAction::SendPacket(packet))) = init_actions_2 {
+        println!("--- Step 6: Initiator receives Noise msg 2, sends Noise msg 3 ---");
+        let init_actions_3 = initiator.process_input(LpInput::ReceivePacket(resp_packet_2));
+        let init_packet_3 = if let Some(Ok(LpAction::SendPacket(packet))) = init_actions_3 {
             packet.clone()
         } else {
-            panic!("Initiator should send packet 3");
+            panic!("Initiator should send Noise packet 3");
         };
         assert!(
             matches!(initiator.state, LpState::Transport { .. }),
@@ -577,13 +782,13 @@ mod tests {
         assert_eq!(
             init_packet_3.header.session_id(),
             lp_id,
-            "Packet 3 has wrong lp_id"
+            "Noise packet 3 has wrong lp_id"
         );
 
-        println!("--- Step 5: Responder receives packet 3, completes handshake ---");
-        let resp_actions_3 = responder.process_input(LpInput::ReceivePacket(init_packet_3));
+        println!("--- Step 7: Responder receives Noise msg 3, completes handshake ---");
+        let resp_actions_4 = responder.process_input(LpInput::ReceivePacket(init_packet_3));
         assert!(
-            matches!(resp_actions_3, Some(Ok(LpAction::HandshakeComplete))),
+            matches!(resp_actions_4, Some(Ok(LpAction::HandshakeComplete))),
             "Responder should complete handshake"
         );
         assert!(
@@ -592,58 +797,249 @@ mod tests {
         );
 
         // --- Transport Phase ---
-        println!("--- Step 6: Initiator sends data ---");
+        println!("--- Step 8: Initiator sends data ---");
         let data_to_send_1 = b"hello responder";
-        let init_actions_3 = initiator.process_input(LpInput::SendData(data_to_send_1.to_vec()));
-        let data_packet_1 = if let Some(Ok(LpAction::SendPacket(packet))) = init_actions_3 {
+        let init_actions_4 = initiator.process_input(LpInput::SendData(data_to_send_1.to_vec()));
+        let data_packet_1 = if let Some(Ok(LpAction::SendPacket(packet))) = init_actions_4 {
             packet.clone()
         } else {
             panic!("Initiator should send data packet");
         };
         assert_eq!(data_packet_1.header.session_id(), lp_id);
 
-        println!("--- Step 7: Responder receives data ---");
-        let resp_actions_4 = responder.process_input(LpInput::ReceivePacket(data_packet_1));
-        let resp_data_1 = if let Some(Ok(LpAction::DeliverData(data))) = resp_actions_4 {
+        println!("--- Step 9: Responder receives data ---");
+        let resp_actions_5 = responder.process_input(LpInput::ReceivePacket(data_packet_1));
+        let resp_data_1 = if let Some(Ok(LpAction::DeliverData(data))) = resp_actions_5 {
             data
         } else {
             panic!("Responder should deliver data");
         };
         assert_eq!(resp_data_1, Bytes::copy_from_slice(data_to_send_1));
 
-        println!("--- Step 8: Responder sends data ---");
+        println!("--- Step 10: Responder sends data ---");
         let data_to_send_2 = b"hello initiator";
-        let resp_actions_5 = responder.process_input(LpInput::SendData(data_to_send_2.to_vec()));
-        let data_packet_2 = if let Some(Ok(LpAction::SendPacket(packet))) = resp_actions_5 {
+        let resp_actions_6 = responder.process_input(LpInput::SendData(data_to_send_2.to_vec()));
+        let data_packet_2 = if let Some(Ok(LpAction::SendPacket(packet))) = resp_actions_6 {
             packet.clone()
         } else {
             panic!("Responder should send data packet");
         };
         assert_eq!(data_packet_2.header.session_id(), lp_id);
 
-        println!("--- Step 9: Initiator receives data ---");
-        let init_actions_4 = initiator.process_input(LpInput::ReceivePacket(data_packet_2));
-        if let Some(Ok(LpAction::DeliverData(data))) = init_actions_4 {
+        println!("--- Step 11: Initiator receives data ---");
+        let init_actions_5 = initiator.process_input(LpInput::ReceivePacket(data_packet_2));
+        if let Some(Ok(LpAction::DeliverData(data))) = init_actions_5 {
             assert_eq!(data, Bytes::copy_from_slice(data_to_send_2));
         } else {
             panic!("Initiator should deliver data");
         }
 
         // --- Close ---
-        println!("--- Step 10: Initiator closes ---");
-        let init_actions_5 = initiator.process_input(LpInput::Close);
+        println!("--- Step 12: Initiator closes ---");
+        let init_actions_6 = initiator.process_input(LpInput::Close);
         assert!(matches!(
-            init_actions_5,
+            init_actions_6,
             Some(Ok(LpAction::ConnectionClosed))
         ));
         assert!(matches!(initiator.state, LpState::Closed { .. }));
 
-        println!("--- Step 11: Responder closes ---");
-        let resp_actions_6 = responder.process_input(LpInput::Close);
+        println!("--- Step 13: Responder closes ---");
+        let resp_actions_7 = responder.process_input(LpInput::Close);
         assert!(matches!(
-            resp_actions_6,
+            resp_actions_7,
             Some(Ok(LpAction::ConnectionClosed))
         ));
         assert!(matches!(responder.state, LpState::Closed { .. }));
+    }
+
+    #[test]
+    fn test_kkt_exchange_initiator_flow() {
+        // Ed25519 keypairs for PSQ authentication and X25519 derivation
+        let ed25519_keypair_init = ed25519::KeyPair::from_secret([20u8; 32], 0);
+        let ed25519_keypair_resp = ed25519::KeyPair::from_secret([21u8; 32], 1);
+
+        let salt = [53u8; 32];
+
+        // Create initiator state machine
+        let mut initiator = LpStateMachine::new(
+            true,
+            (
+                ed25519_keypair_init.private_key(),
+                ed25519_keypair_init.public_key(),
+            ),
+            ed25519_keypair_resp.public_key(),
+            &salt,
+        )
+        .unwrap();
+
+        // Verify initial state
+        assert!(matches!(initiator.state, LpState::ReadyToHandshake { .. }));
+
+        // Step 1: Initiator starts handshake (should send KKT request)
+        let init_action = initiator.process_input(LpInput::StartHandshake);
+        assert!(matches!(init_action, Some(Ok(LpAction::SendPacket(_)))));
+        assert!(matches!(initiator.state, LpState::KKTExchange { .. }));
+    }
+
+    #[test]
+    fn test_kkt_exchange_responder_flow() {
+        // Ed25519 keypairs for PSQ authentication and X25519 derivation
+        let ed25519_keypair_init = ed25519::KeyPair::from_secret([22u8; 32], 0);
+        let ed25519_keypair_resp = ed25519::KeyPair::from_secret([23u8; 32], 1);
+
+        let salt = [54u8; 32];
+
+        // Create responder state machine
+        let mut responder = LpStateMachine::new(
+            false,
+            (
+                ed25519_keypair_resp.private_key(),
+                ed25519_keypair_resp.public_key(),
+            ),
+            ed25519_keypair_init.public_key(),
+            &salt,
+        )
+        .unwrap();
+
+        // Verify initial state
+        assert!(matches!(responder.state, LpState::ReadyToHandshake { .. }));
+
+        // Step 1: Responder starts handshake (should transition to KKTExchange without sending)
+        let resp_action = responder.process_input(LpInput::StartHandshake);
+        assert!(resp_action.is_none());
+        assert!(matches!(responder.state, LpState::KKTExchange { .. }));
+    }
+
+    #[test]
+    fn test_kkt_exchange_full_roundtrip() {
+        // Ed25519 keypairs for PSQ authentication and X25519 derivation
+        let ed25519_keypair_init = ed25519::KeyPair::from_secret([24u8; 32], 0);
+        let ed25519_keypair_resp = ed25519::KeyPair::from_secret([25u8; 32], 1);
+
+        let salt = [55u8; 32];
+
+        // Create both state machines
+        let mut initiator = LpStateMachine::new(
+            true,
+            (
+                ed25519_keypair_init.private_key(),
+                ed25519_keypair_init.public_key(),
+            ),
+            ed25519_keypair_resp.public_key(),
+            &salt,
+        )
+        .unwrap();
+
+        let mut responder = LpStateMachine::new(
+            false,
+            (
+                ed25519_keypair_resp.private_key(),
+                ed25519_keypair_resp.public_key(),
+            ),
+            ed25519_keypair_init.public_key(),
+            &salt,
+        )
+        .unwrap();
+
+        // Step 1: Initiator starts handshake, sends KKT request
+        let init_action = initiator.process_input(LpInput::StartHandshake);
+        let kkt_request_packet = if let Some(Ok(LpAction::SendPacket(packet))) = init_action {
+            packet.clone()
+        } else {
+            panic!("Initiator should send KKT request");
+        };
+        assert!(matches!(initiator.state, LpState::KKTExchange { .. }));
+
+        // Step 2: Responder transitions to KKTExchange
+        let resp_action = responder.process_input(LpInput::StartHandshake);
+        assert!(resp_action.is_none());
+        assert!(matches!(responder.state, LpState::KKTExchange { .. }));
+
+        // Step 3: Responder receives KKT request, sends KKT response
+        let resp_action = responder.process_input(LpInput::ReceivePacket(kkt_request_packet));
+        let kkt_response_packet = if let Some(Ok(LpAction::SendPacket(packet))) = resp_action {
+            packet.clone()
+        } else {
+            panic!("Responder should send KKT response");
+        };
+        // After sending KKT response, responder moves to Handshaking
+        assert!(matches!(responder.state, LpState::Handshaking { .. }));
+
+        // Step 4: Initiator receives KKT response, completes KKT
+        let init_action = initiator.process_input(LpInput::ReceivePacket(kkt_response_packet));
+        assert!(matches!(init_action, Some(Ok(LpAction::KKTComplete))));
+        // After KKT complete, initiator moves to Handshaking
+        assert!(matches!(initiator.state, LpState::Handshaking { .. }));
+    }
+
+    #[test]
+    fn test_kkt_exchange_close() {
+        // Ed25519 keypairs for KKT authentication
+        let ed25519_keypair_init = ed25519::KeyPair::from_secret([26u8; 32], 0);
+        let ed25519_keypair_resp = ed25519::KeyPair::from_secret([27u8; 32], 1);
+
+        let salt = [56u8; 32];
+
+        // Create initiator state machine
+        let mut initiator = LpStateMachine::new(
+            true,
+            (
+                ed25519_keypair_init.private_key(),
+                ed25519_keypair_init.public_key(),
+            ),
+            ed25519_keypair_resp.public_key(),
+            &salt,
+        )
+        .unwrap();
+
+        // Start handshake to enter KKTExchange state
+        initiator.process_input(LpInput::StartHandshake);
+        assert!(matches!(initiator.state, LpState::KKTExchange { .. }));
+
+        // Close during KKT exchange
+        let close_action = initiator.process_input(LpInput::Close);
+        assert!(matches!(close_action, Some(Ok(LpAction::ConnectionClosed))));
+        assert!(matches!(initiator.state, LpState::Closed { .. }));
+    }
+
+    #[test]
+    fn test_kkt_exchange_rejects_invalid_inputs() {
+        // Ed25519 keypairs for KKT authentication
+        let ed25519_keypair_init = ed25519::KeyPair::from_secret([28u8; 32], 0);
+        let ed25519_keypair_resp = ed25519::KeyPair::from_secret([29u8; 32], 1);
+
+        let salt = [57u8; 32];
+
+        // Create initiator state machine
+        let mut initiator = LpStateMachine::new(
+            true,
+            (
+                ed25519_keypair_init.private_key(),
+                ed25519_keypair_init.public_key(),
+            ),
+            ed25519_keypair_resp.public_key(),
+            &salt,
+        )
+        .unwrap();
+
+        // Start handshake to enter KKTExchange state
+        initiator.process_input(LpInput::StartHandshake);
+        assert!(matches!(initiator.state, LpState::KKTExchange { .. }));
+
+        // Try SendData during KKT exchange (should be rejected)
+        let send_action = initiator.process_input(LpInput::SendData(vec![1, 2, 3]));
+        assert!(matches!(
+            send_action,
+            Some(Err(LpError::InvalidStateTransition { .. }))
+        ));
+        assert!(matches!(initiator.state, LpState::KKTExchange { .. })); // Still in KKTExchange
+
+        // Try StartHandshake again during KKT exchange (should be rejected)
+        let start_action = initiator.process_input(LpInput::StartHandshake);
+        assert!(matches!(
+            start_action,
+            Some(Err(LpError::InvalidStateTransition { .. }))
+        ));
+        assert!(matches!(initiator.state, LpState::KKTExchange { .. })); // Still in KKTExchange
     }
 }

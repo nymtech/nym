@@ -167,6 +167,7 @@ pub(crate) async fn acquire_bandwidth(
 ///
 /// This uses a pre-serialized test credential from the wireguard tests - since MockEcashManager
 /// doesn't verify anything, any valid CredentialSpendingData structure will work.
+#[allow(clippy::expect_used)] // Test helper with hardcoded valid data
 pub(crate) fn create_dummy_credential(
     _gateway_identity: &[u8; 32],
     _ticket_type: TicketType,
@@ -233,8 +234,8 @@ pub(crate) fn create_dummy_credential(
         83, 235, 176, 41, 27, 248, 48, 71, 165, 170, 12, 92, 103, 103, 81, 32, 58, 74, 75, 145,
         192, 94, 153, 69, 80, 128, 241, 3, 16, 117, 192, 86, 161, 103, 44, 174, 211, 196, 182, 124,
         55, 11, 107, 142, 49, 88, 6, 41, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6,
-        6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6,
-        6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 0, 37, 139, 240, 0, 0,
+        6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6,
+        6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 0, 37, 139, 240, 0, 0,
         0, 0, 0, 0, 0, 1,
     ];
 

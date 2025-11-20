@@ -7,8 +7,8 @@
 //! creation, retrieval, and storage of sessions.
 
 use dashmap::DashMap;
+use nym_crypto::asymmetric::ed25519;
 
-use crate::keypair::{Keypair, PublicKey};
 use crate::noise_protocol::ReadResult;
 use crate::state_machine::{LpAction, LpInput, LpState, LpStateBare};
 use crate::{LpError, LpMessage, LpSession, LpStateMachine};
@@ -129,9 +129,7 @@ impl SessionManager {
         lp_id: u32,
         message: &LpMessage,
     ) -> Result<ReadResult, LpError> {
-        self.with_state_machine(lp_id, |sm| {
-            Ok(sm.session()?.process_handshake_message(message)?)
-        })?
+        self.with_state_machine(lp_id, |sm| sm.session()?.process_handshake_message(message))?
     }
 
     pub fn session_count(&self) -> usize {
@@ -168,12 +166,17 @@ impl SessionManager {
 
     pub fn create_session_state_machine(
         &self,
-        local_keypair: &Keypair,
-        remote_public_key: &PublicKey,
+        local_ed25519_keypair: (&ed25519::PrivateKey, &ed25519::PublicKey),
+        remote_ed25519_key: &ed25519::PublicKey,
         is_initiator: bool,
-        psk: &[u8],
+        salt: &[u8; 32],
     ) -> Result<u32, LpError> {
-        let sm = LpStateMachine::new(is_initiator, local_keypair, remote_public_key, psk)?;
+        let sm = LpStateMachine::new(
+            is_initiator,
+            local_ed25519_keypair,
+            remote_ed25519_key,
+            salt,
+        )?;
         let sm_id = sm.id()?;
 
         self.state_machines.insert(sm_id, sm);
@@ -186,21 +189,39 @@ impl SessionManager {
 
         removed.is_some()
     }
+
+    /// Test-only method to initialize KKT state to Completed for a session.
+    /// This allows integration tests to bypass KKT exchange and directly test PSQ/handshake.
+    #[cfg(test)]
+    pub fn init_kkt_for_test(
+        &self,
+        lp_id: u32,
+        remote_x25519_pub: &crate::keypair::PublicKey,
+    ) -> Result<(), LpError> {
+        self.with_state_machine(lp_id, |sm| {
+            sm.session()?.set_kkt_completed_for_test(remote_x25519_pub);
+            Ok(())
+        })?
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use nym_crypto::asymmetric::ed25519;
 
     #[test]
     fn test_session_manager_get() {
         let manager = SessionManager::new();
+        let ed25519_keypair = ed25519::KeyPair::from_secret([10u8; 32], 0);
+        let salt = [47u8; 32];
+
         let sm_1_id = manager
             .create_session_state_machine(
-                &Keypair::default(),
-                &PublicKey::default(),
+                (ed25519_keypair.private_key(), ed25519_keypair.public_key()),
+                ed25519_keypair.public_key(),
                 true,
-                &[2u8; 32],
+                &salt,
             )
             .unwrap();
 
@@ -214,12 +235,15 @@ mod tests {
     #[test]
     fn test_session_manager_remove() {
         let manager = SessionManager::new();
+        let ed25519_keypair = ed25519::KeyPair::from_secret([11u8; 32], 0);
+        let salt = [48u8; 32];
+
         let sm_1_id = manager
             .create_session_state_machine(
-                &Keypair::default(),
-                &PublicKey::default(),
+                (ed25519_keypair.private_key(), ed25519_keypair.public_key()),
+                ed25519_keypair.public_key(),
                 true,
-                &[2u8; 32],
+                &salt,
             )
             .unwrap();
 
@@ -234,31 +258,44 @@ mod tests {
     #[test]
     fn test_multiple_sessions() {
         let manager = SessionManager::new();
+        let ed25519_keypair_1 = ed25519::KeyPair::from_secret([12u8; 32], 0);
+        let ed25519_keypair_2 = ed25519::KeyPair::from_secret([13u8; 32], 1);
+        let ed25519_keypair_3 = ed25519::KeyPair::from_secret([14u8; 32], 2);
+        let salt = [49u8; 32];
 
         let sm_1 = manager
             .create_session_state_machine(
-                &Keypair::default(),
-                &PublicKey::default(),
+                (
+                    ed25519_keypair_1.private_key(),
+                    ed25519_keypair_1.public_key(),
+                ),
+                ed25519_keypair_1.public_key(),
                 true,
-                &[2u8; 32],
+                &salt,
             )
             .unwrap();
 
         let sm_2 = manager
             .create_session_state_machine(
-                &Keypair::default(),
-                &PublicKey::default(),
+                (
+                    ed25519_keypair_2.private_key(),
+                    ed25519_keypair_2.public_key(),
+                ),
+                ed25519_keypair_2.public_key(),
                 true,
-                &[2u8; 32],
+                &salt,
             )
             .unwrap();
 
         let sm_3 = manager
             .create_session_state_machine(
-                &Keypair::default(),
-                &PublicKey::default(),
+                (
+                    ed25519_keypair_3.private_key(),
+                    ed25519_keypair_3.public_key(),
+                ),
+                ed25519_keypair_3.public_key(),
                 true,
-                &[2u8; 32],
+                &salt,
             )
             .unwrap();
 
@@ -276,12 +313,14 @@ mod tests {
     #[test]
     fn test_session_manager_create_session() {
         let manager = SessionManager::new();
+        let ed25519_keypair = ed25519::KeyPair::from_secret([15u8; 32], 0);
+        let salt = [50u8; 32];
 
         let sm = manager.create_session_state_machine(
-            &Keypair::default(),
-            &PublicKey::default(),
+            (ed25519_keypair.private_key(), ed25519_keypair.public_key()),
+            ed25519_keypair.public_key(),
             true,
-            &[2u8; 32],
+            &salt,
         );
 
         assert!(sm.is_ok());

@@ -39,14 +39,9 @@ pub enum KKTError {
 
     #[error("{}", info)]
     X25519Error { info: &'static str },
-    // #[error("Protocol did not complete")]
-    // ProtocolError,
 
-    // #[error("encountered an IO error: {0}")]
-    // IoError(#[from] io::Error),s
-
-    // #[error("Handshake timeout")]
-    // HandshakeTimeout(#[from] tokio::time::error::Elapsed),
+    #[error("Generic libcrux error")]
+    LibcruxError,
 }
 
 impl From<libcrux_kem::Error> for KKTError {
@@ -84,7 +79,7 @@ impl From<libcrux_ecdh::Error> for KKTError {
             libcrux_ecdh::Error::InvalidPoint => KKTError::KEMError {
                 info: "Invalid Remote Public Key",
             },
-            _ => todo!(),
+            _ => KKTError::LibcruxError,
         }
     }
 }

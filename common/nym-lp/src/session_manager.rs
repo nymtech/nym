@@ -9,7 +9,6 @@
 use dashmap::DashMap;
 use nym_crypto::asymmetric::ed25519;
 
-use crate::keypair::{Keypair, PublicKey};
 use crate::noise_protocol::ReadResult;
 use crate::state_machine::{LpAction, LpInput, LpState, LpStateBare};
 use crate::{LpError, LpMessage, LpSession, LpStateMachine};
@@ -131,7 +130,7 @@ impl SessionManager {
         message: &LpMessage,
     ) -> Result<ReadResult, LpError> {
         self.with_state_machine(lp_id, |sm| {
-            Ok(sm.session()?.process_handshake_message(message)?)
+            sm.session()?.process_handshake_message(message)
         })?
     }
 

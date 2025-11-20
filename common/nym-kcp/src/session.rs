@@ -955,7 +955,7 @@ mod tests {
 
         // Check that snd_buf now contains segments up to the new cwnd (8)
         // The total number of segments should be 7 (initial 5 - 1 acked + 3 moved from queue)
-        let expected_buf_len_after_ack = initial_cwnd as usize - 1 + (8 - initial_cwnd as usize);
+        let _expected_buf_len_after_ack = initial_cwnd as usize - 1 + (8 - initial_cwnd as usize);
         assert_eq!(
             session.snd_buf.len(),
             7,
@@ -1028,7 +1028,7 @@ mod tests {
             .expect("Segment must be in buffer")
             .clone(); // Clone for inspection
         let initial_rto = session.rx_rto;
-        let expected_resendts = session.current + initial_rto;
+        let _expected_resendts = session.current + initial_rto;
         assert_eq!(segment.xmit, 1, "Initial transmit count should be 1");
         assert_eq!(
             segment.rto, initial_rto,
@@ -1255,11 +1255,11 @@ mod tests {
         session.set_mtu(50);
 
         // Send 5 segments (SN 0, 1, 2, 3, 4)
-        session.send(&vec![1u8; 30]); // sn=0
-        session.send(&vec![2u8; 30]); // sn=1
-        session.send(&vec![3u8; 30]); // sn=2
-        session.send(&vec![4u8; 30]); // sn=3
-        session.send(&vec![5u8; 30]); // sn=4
+        session.send(&[1u8; 30]); // sn=0
+        session.send(&[2u8; 30]); // sn=1
+        session.send(&[3u8; 30]); // sn=2
+        session.send(&[4u8; 30]); // sn=3
+        session.send(&[5u8; 30]); // sn=4
         assert_eq!(session.snd_queue.len(), 5);
 
         // Move all to snd_buf
@@ -1616,9 +1616,9 @@ mod tests {
         debug!("Simulating loss of fragment sn={}", lost_packet_sn);
 
         // Deliver all packets *except* the lost one
-        for i in 0..num_fragments {
+        for (i, packet) in packets.iter().enumerate().take(num_fragments) {
             if i != 1 {
-                receiver.input(&packets[i]);
+                receiver.input(packet);
             }
         }
         receiver.update(0); // Process inputs

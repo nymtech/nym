@@ -872,41 +872,21 @@ where
     St: nym_sdk::mixnet::CredentialStorage + Clone + Send + Sync + 'static,
     <St as nym_sdk::mixnet::CredentialStorage>::StorageError: Send + Sync,
 {
-    use nym_lp::keypair::{Keypair as LpKeypair, PublicKey as LpPublicKey};
+    use nym_crypto::asymmetric::ed25519;
     use nym_registration_client::LpRegistrationClient;
 
     info!("Starting LP registration probe for gateway at {}", gateway_lp_address);
 
     let mut lp_outcome = types::LpProbeResults::default();
 
-    // Generate LP keypair for this connection
-    let client_lp_keypair = std::sync::Arc::new(LpKeypair::default());
+    // Generate Ed25519 keypair for this connection (X25519 will be derived internally by LP)
+    let mut rng = rand::thread_rng();
+    let client_ed25519_keypair = std::sync::Arc::new(ed25519::KeyPair::new(&mut rng));
 
-    // Derive gateway LP public key from gateway identity using proper ed25519→x25519 conversion
-    let gateway_x25519_pub = match gateway_identity.to_x25519() {
-        Ok(key) => key,
-        Err(e) => {
-            let error_msg = format!("Failed to convert gateway ed25519 key to x25519: {}", e);
-            error!("{}", error_msg);
-            lp_outcome.error = Some(error_msg);
-            return Ok(lp_outcome);
-        }
-    };
-
-    let gateway_lp_key = match LpPublicKey::from_bytes(gateway_x25519_pub.as_bytes()) {
-        Ok(key) => key,
-        Err(e) => {
-            let error_msg = format!("Failed to create LP key from x25519 bytes: {}", e);
-            error!("{}", error_msg);
-            lp_outcome.error = Some(error_msg);
-            return Ok(lp_outcome);
-        }
-    };
-
-    // Create LP registration client
+    // Create LP registration client (uses Ed25519 keys directly, derives X25519 internally)
     let mut client = LpRegistrationClient::new_with_default_psk(
-        client_lp_keypair,
-        gateway_lp_key,
+        client_ed25519_keypair,
+        gateway_identity,
         gateway_lp_address,
         gateway_ip,
     );

@@ -146,6 +146,16 @@ pub enum GatewayError {
         address: String,
         source: Box<dyn std::error::Error + Send + Sync>,
     },
+
+    #[error("Failed to parse ip address: {source}")]
+    IpAddrParseError {
+        #[from]
+        source: defguard_wireguard_rs::net::IpAddrParseError,
+    },
+
+    #[error("Invalid SystemTime: {0}")]
+    InvalidSystemTime(#[from] std::time::SystemTimeError),
+
 }
 
 impl From<ClientCoreError> for GatewayError {

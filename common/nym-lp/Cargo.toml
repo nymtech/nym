@@ -21,7 +21,7 @@ rand = { workspace = true }
 rand09 = { package = "rand", version = "0.9.2" }
 
 nym-crypto = { path = "../crypto", features = ["hashing", "asymmetric"] }
-nym-kkt = { path = "../nymkkt" }
+nym-kkt = { path = "../nym-kkt" }
 nym-lp-common = { path = "../nym-lp-common" }
 nym-sphinx = { path = "../nymsphinx" }
 

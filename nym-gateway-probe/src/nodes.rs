@@ -243,8 +243,9 @@ pub async fn query_gateway_by_ip(address: String) -> anyhow::Result<DirectoryNod
                     authenticator_result.map(|auth| AuthenticatorDetails {
                         address: auth.address,
                     });
+                #[allow(deprecated)]
                 let wireguard: Option<WireguardDetails> = wireguard_result.map(|wg| WireguardDetails {
-                    port: wg.port,
+                    port: wg.tunnel_port, // Use tunnel_port for deprecated port field
                     tunnel_port: wg.tunnel_port,
                     metadata_port: wg.metadata_port,
                     public_key: wg.public_key,

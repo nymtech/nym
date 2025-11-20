@@ -157,21 +157,11 @@ impl Ciphersuite {
         self.hash_length as usize
     }
 
-    pub fn default() -> Self {
-        Self::resolve_ciphersuite(
-            KEM::XWing,
-            HashFunction::Blake3,
-            SignatureScheme::Ed25519,
-            None,
-        )
-        .unwrap()
-    }
-
     pub fn resolve_ciphersuite(
         kem: KEM,
         hash_function: HashFunction,
         signature_scheme: SignatureScheme,
-        // This should be None 99.9999% of the time
+        // This should be None 99.9999% of the time 
         custom_hash_length: Option<u8>,
     ) -> Result<Self, KKTError> {
         let hash_len = match custom_hash_length {
@@ -185,9 +175,9 @@ impl Ciphersuite {
             None => HASH_LEN_256,
         };
         Ok(Self {
-            hash_function: hash_function,
-            signature_scheme: signature_scheme,
-            kem: kem,
+            hash_function,
+            signature_scheme,
+            kem,
             hash_length: hash_len,
             encapsulation_key_length: match kem {
                 // 1184 bytes
@@ -230,7 +220,7 @@ impl Ciphersuite {
             },
             match self.hash_length {
                 HASH_LEN_256 => 0,
-                _ => self.hash_length as u8,
+                _ => self.hash_length,
             },
             match self.signature_scheme {
                 SignatureScheme::Ed25519 => 0,
@@ -278,13 +268,13 @@ impl Ciphersuite {
 
             Self::resolve_ciphersuite(kem, hash_function, signature_scheme, custom_hash_length)
         } else {
-            return Err(KKTError::CiphersuiteDecodingError {
+            Err(KKTError::CiphersuiteDecodingError {
                 info: format!(
                     "Incorrect Encoding Length: actual: {} != expected: {}",
                     encoding.len(),
                     CIPHERSUITE_ENCODING_LEN
                 ),
-            });
+            })
         }
     }
 }
@@ -306,6 +296,6 @@ pub const fn map_kem_to_libcrux_kem(kem: KEM) -> Algorithm {
         KEM::MlKem768 => Algorithm::MlKem768,
         KEM::XWing => Algorithm::XWingKemDraft06,
         KEM::X25519 => Algorithm::X25519,
-        _ => unreachable!(),
+        KEM::McEliece => panic!("McEliece is not supported in libcrux_kem"),
     }
 }

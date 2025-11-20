@@ -288,7 +288,7 @@ mod tests {
         )
         .unwrap();
 
-        let (mut context, request_frame) =
+        let (_context, request_frame) =
             request_kem_key(&mut rng, ciphersuite, initiator_keypair.private_key()).unwrap();
 
         // Gateway handles request but we provide WRONG verification key

@@ -3,7 +3,6 @@
 
 use crate::error::GatewayError;
 use nym_lp::{
-    keypair::{Keypair, PublicKey},
     state_machine::{LpAction, LpInput, LpStateMachine},
     LpPacket, LpSession,
 };

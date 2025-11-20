@@ -278,7 +278,7 @@ impl NoiseProtocol {
             NoiseProtocolState::Handshaking(ref mut handshake_state) => {
                 handshake_state
                     .set_psk(index as usize, psk)
-                    .map_err(|e| NoiseError::ProtocolError(e))?;
+                    .map_err(NoiseError::ProtocolError)?;
                 Ok(())
             }
             _ => Err(NoiseError::IncorrectStateError),

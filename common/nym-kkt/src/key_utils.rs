@@ -55,13 +55,13 @@ pub fn hash_key_bytes(
             hasher.reset();
         }
         HashFunction::SHAKE256 => {
-            libcrux_sha3::shake256_ema(&mut hashed_key, &key_bytes);
+            libcrux_sha3::shake256_ema(&mut hashed_key, key_bytes);
         }
         HashFunction::SHAKE128 => {
-            libcrux_sha3::shake128_ema(&mut hashed_key, &key_bytes);
+            libcrux_sha3::shake128_ema(&mut hashed_key, key_bytes);
         }
         HashFunction::SHA256 => {
-            libcrux_sha3::sha256_ema(&mut hashed_key, &key_bytes);
+            libcrux_sha3::sha256_ema(&mut hashed_key, key_bytes);
         }
     }
 
@@ -103,5 +103,5 @@ pub fn hash_encapsulation_key(
     hash_length: usize,
     encapsulation_key: &[u8],
 ) -> Vec<u8> {
-    hash_key_bytes(hash_function, hash_length, &encapsulation_key)
+    hash_key_bytes(hash_function, hash_length, encapsulation_key)
 }

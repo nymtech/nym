@@ -12,7 +12,6 @@ use nym_credentials_interface::{CredentialSpendingData, TicketType};
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_lp::LpPacket;
 use nym_lp::codec::{parse_lp_packet, serialize_lp_packet};
-use nym_lp::keypair::{Keypair, PublicKey};
 use nym_lp::state_machine::{LpAction, LpInput, LpStateMachine};
 use nym_registration_common::{GatewayData, LpRegistrationRequest, LpRegistrationResponse};
 use nym_wireguard_types::PeerPublicKey;
@@ -317,6 +316,15 @@ impl LpRegistrationClient {
                     LpAction::HandshakeComplete => {
                         tracing::info!("LP handshake completed successfully");
                         break;
+                    }
+                    LpAction::KKTComplete => {
+                        tracing::info!("KKT exchange completed, starting Noise handshake");
+                        // After KKT completes, initiator must send first Noise handshake message
+                        let noise_msg = state_machine.session()?.prepare_handshake_message()
+                            .ok_or_else(|| LpClientError::Transport("No handshake message available after KKT".to_string()))??;
+                        let noise_packet = state_machine.session()?.next_packet(noise_msg)?;
+                        tracing::trace!("Sending first Noise handshake message");
+                        Self::send_packet(stream, &noise_packet).await?;
                     }
                     other => {
                         tracing::trace!("Received action during handshake: {:?}", other);
@@ -771,8 +779,9 @@ mod tests {
 
     #[test]
     fn test_client_creation() {
-        let keypair = Arc::new(Keypair::default());
-        let gateway_key = PublicKey::default();
+        let mut rng = rand::thread_rng();
+        let keypair = Arc::new(ed25519::KeyPair::new(&mut rng));
+        let gateway_key = *ed25519::KeyPair::new(&mut rng).public_key();
         let address = "127.0.0.1:41264".parse().unwrap();
         let client_ip = "192.168.1.100".parse().unwrap();
 

@@ -153,7 +153,6 @@ impl LpStateMachine {
         remote_ed25519_key: &ed25519::PublicKey,
         salt: &[u8; 32],
     ) -> Result<Self, LpError> {
-        // AIDEV-NOTE: Ed25519→X25519 conversion for API simplification
         // We use standard RFC 7748 conversion to derive X25519 keys from Ed25519 identity keys.
         // This allows callers to provide only Ed25519 keys (which they already have for signing/identity)
         // without needing to manage separate X25519 keypairs.
@@ -425,7 +424,7 @@ impl LpStateMachine {
                              }
                              Err(e) => { // Error from process_handshake_message
                                  let reason = e.to_string();
-                                 result_action = Some(Err(e.into()));
+                                 result_action = Some(Err(e));
                                  LpState::Closed { reason }
                              }
                          }
@@ -575,20 +574,6 @@ impl LpStateMachine {
         self.state = next_state;
 
         result_action // Return the determined action (or None)
-    }
-
-    // Helper to start the handshake (sends first message if initiator)
-    // Kept as it doesn't mutate self.state
-    fn start_handshake(&self, session: &LpSession) -> Option<Result<LpAction, LpError>> {
-        session
-            .prepare_handshake_message()
-            .map(|result| match result {
-                Ok(message) => match session.next_packet(message) {
-                    Ok(packet) => Ok(LpAction::SendPacket(packet)),
-                    Err(e) => Err(e),
-                },
-                Err(e) => Err(e),
-            })
     }
 
     // Helper to prepare an outgoing data packet

@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
     use crate::codec::{parse_lp_packet, serialize_lp_packet};
-    use crate::keypair::{Keypair, PublicKey};
+    use crate::keypair::PublicKey;
     use crate::make_lp_id;
     use crate::{
         message::LpMessage,
@@ -72,7 +72,6 @@ mod tests {
 
         // Calculate lp_id (matches state machine's internal calculation)
         let lp_id = make_lp_id(&lp_pub_a, &lp_pub_b);
-        let psk = [1u8; 32]; // Define a pre-shared key for the test
 
         // Test salt
         let salt = [42u8; 32];
@@ -513,7 +512,6 @@ mod tests {
 
         // Calculate lp_id (matches state machine's internal calculation)
         let lp_id = make_lp_id(&lp_pub_a, &lp_pub_b);
-        let psk = [2u8; 32];
 
         // Test salt
         let salt = [43u8; 32];
@@ -840,7 +838,6 @@ mod tests {
 
         // Calculate lp_id (matches state machine's internal calculation)
         let lp_id = make_lp_id(&lp_pub_a, &lp_pub_b);
-        let psk = [1u8; 32];
 
         // Test salt
         let salt = [45u8; 32];

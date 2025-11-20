@@ -75,7 +75,7 @@ members = [
     "common/nym-kcp",
     "common/nym-lp",
     "common/nym-lp-common",
-    "common/nymkkt",
+    "common/nym-kkt",
     "common/nym-metrics",
     "common/nym_offline_compact_ecash",
     "common/nymnoise",

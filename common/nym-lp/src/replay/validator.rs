@@ -757,8 +757,8 @@ mod tests {
         );
 
         // Verify minimum memory needed for different window sizes
-        for window_size in [64, 128, 256, 512, 1024, 2048] {
-            let words_needed = (window_size + WORD_SIZE - 1) / WORD_SIZE; // Ceiling division
+        for window_size in [64usize, 128, 256, 512, 1024, 2048] {
+            let words_needed = window_size.div_ceil(WORD_SIZE);
             let memory_needed = size_of::<u64>() * 2 + size_of::<u64>() * words_needed;
             println!(
                 "Window size {}: {} bytes minimum",
@@ -847,10 +847,11 @@ mod tests {
 
     #[test]
     fn test_clear_window_overflow() {
-        let mut validator = ReceivingKeyCounterValidator::default();
-
         // Set a very large next value, close to u64::MAX
-        validator.next = u64::MAX - 1000;
+        let mut validator = ReceivingKeyCounterValidator {
+            next: u64::MAX - 1000,
+            ..Default::default()
+        };
 
         // Try to clear window with an even higher counter
         // This should exercise the potentially problematic code

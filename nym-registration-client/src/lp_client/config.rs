@@ -87,7 +87,7 @@ mod tests {
         assert_eq!(config.connect_timeout, Duration::from_secs(10));
         assert_eq!(config.handshake_timeout, Duration::from_secs(15));
         assert_eq!(config.registration_timeout, Duration::from_secs(30));
-        assert_eq!(config.tcp_nodelay, true);
+        assert!(config.tcp_nodelay);
         assert_eq!(config.tcp_keepalive, None);
     }
 

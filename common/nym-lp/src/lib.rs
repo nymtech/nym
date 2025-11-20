@@ -20,7 +20,6 @@ pub use error::LpError;
 use keypair::PublicKey;
 pub use message::{ClientHelloData, LpMessage};
 pub use packet::LpPacket;
-pub use psk::derive_psk;
 pub use replay::{ReceivingKeyCounterValidator, ReplayError};
 pub use session::{generate_fresh_salt, LpSession};
 pub use session_manager::SessionManager;
@@ -112,7 +111,7 @@ pub fn make_conv_id(src: &[u8], dst: &[u8]) -> u32 {
 
 #[cfg(test)]
 mod tests {
-    use crate::keypair::{Keypair, PublicKey};
+    use crate::keypair::PublicKey;
     use crate::message::LpMessage;
     use crate::packet::{LpHeader, LpPacket, TRAILER_LEN};
     use crate::session_manager::SessionManager;

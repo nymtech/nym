@@ -51,68 +51,11 @@ use nym_kkt::ciphersuite::{DecapsulationKey, EncapsulationKey};
 use std::time::Duration;
 use tls_codec::{Deserialize as TlsDeserializeTrait, Serialize as TlsSerializeTrait};
 
-/// Context string for Blake3 KDF domain separation (legacy).
-const PSK_CONTEXT: &str = "nym-lp-psk-v1";
-
 /// Context string for Blake3 KDF domain separation (PSQ-enhanced).
 const PSK_PSQ_CONTEXT: &str = "nym-lp-psk-psq-v1";
 
 /// Session context for PSQ protocol.
 const PSQ_SESSION_CONTEXT: &[u8] = b"nym-lp-psq-session";
-
-/// Derives a PSK using Blake3 KDF from local private key, remote public key, and salt.
-///
-/// # Formula
-/// ```text
-/// shared_secret = ECDH(local_private, remote_public)
-/// psk = Blake3_derive_key(context="nym-lp-psk-v1", input=shared_secret || salt)
-/// ```
-///
-/// # Properties
-/// - **Identity-bound**: PSK is tied to the LP keypairs of both parties
-/// - **Session-specific**: Different salts produce different PSKs
-/// - **Symmetric**: Both sides derive the same PSK from their respective keys
-///
-/// # Arguments
-/// * `local_private` - This side's LP private key
-/// * `remote_public` - Peer's LP public key
-/// * `salt` - 32-byte salt (timestamp + nonce from ClientHello)
-///
-/// # Returns
-/// 32-byte PSK suitable for Noise protocol
-///
-/// # Example
-/// ```ignore
-/// // Client side
-/// let client_private = client_keypair.private_key();
-/// let gateway_public = gateway_keypair.public_key();
-/// let salt = ClientHelloData::new_with_fresh_salt(...).salt;
-/// let psk = derive_psk(&client_private, &gateway_public, &salt);
-///
-/// // Gateway side (derives same PSK)
-/// let gateway_private = gateway_keypair.private_key();
-/// let client_public = /* from ClientHello */;
-/// let psk = derive_psk(&gateway_private, &client_public, &salt);
-/// ```
-///
-/// # Deprecation Warning
-/// This function provides no post-quantum security. Use `derive_psk_with_psq_initiator`
-/// or `derive_psk_with_psq_responder` for HNDL (Harvest-Now, Decrypt-Later) resistance.
-#[deprecated(
-    since = "0.1.0",
-    note = "Use derive_psk_with_psq_* for post-quantum security"
-)]
-pub fn derive_psk(
-    local_private: &PrivateKey,
-    remote_public: &PublicKey,
-    salt: &[u8; 32],
-) -> [u8; 32] {
-    // Perform ECDH to get shared secret
-    let shared_secret = local_private.diffie_hellman(remote_public);
-
-    // Derive PSK using Blake3 KDF with domain separation
-    nym_crypto::kdf::derive_key_blake3(PSK_CONTEXT, shared_secret.as_bytes(), salt)
-}
 
 /// Derives a PSK using PSQ (Post-Quantum Secure PSK) protocol - Initiator side.
 ///
@@ -171,8 +114,9 @@ pub fn derive_psk_with_psq_initiator(
     };
 
     let mut rng = rand09::rng();
-    let (psq_psk, ciphertext) = PsqX25519::encapsulate_psq(&kem_pk, PSQ_SESSION_CONTEXT, &mut rng)
-        .map_err(|e| LpError::Internal(format!("PSQ encapsulation failed: {:?}", e)))?;
+    let (psq_psk, ciphertext) =
+        PsqX25519::encapsulate_psq(kem_pk, PSQ_SESSION_CONTEXT, &mut rng)
+            .map_err(|e| LpError::Internal(format!("PSQ encapsulation failed: {:?}", e)))?;
 
     // Step 3: Combine ECDH + PSQ via Blake3 KDF
     let mut combined = Vec::with_capacity(64 + psq_psk.len());
@@ -252,7 +196,7 @@ pub fn derive_psk_with_psq_responder(
         .map_err(|e| LpError::Internal(format!("Ciphertext deserialization failed: {:?}", e)))?;
 
     // Step 4: PSQ decapsulation for post-quantum security
-    let psq_psk = PsqX25519::decapsulate_psq(&kem_sk, &kem_pk, &ct, PSQ_SESSION_CONTEXT)
+    let psq_psk = PsqX25519::decapsulate_psq(kem_sk, kem_pk, &ct, PSQ_SESSION_CONTEXT)
         .map_err(|e| LpError::Internal(format!("PSQ decapsulation failed: {:?}", e)))?;
 
     // Step 5: Combine ECDH + PSQ via Blake3 KDF (same formula as initiator)
@@ -327,7 +271,10 @@ pub fn psq_initiator_create_message(
         &mut rng,
     )
     .map_err(|e| {
-        log::error!("PSQ initiator failed - KEM encapsulation or signing error: {:?}", e);
+        log::error!(
+            "PSQ initiator failed - KEM encapsulation or signing error: {:?}",
+            e
+        );
         LpError::Internal(format!("PSQ v1 send_initial_message failed: {:?}", e))
     })?;
 
@@ -399,9 +346,7 @@ pub fn psq_responder_process_message(
 
     // Step 3: Deserialize InitiatorMsg using TLS decoding
     let initiator_msg = InitiatorMsg::<PsqX25519>::tls_deserialize(&mut &psq_payload[..])
-        .map_err(|e| {
-            LpError::Internal(format!("InitiatorMsg deserialization failed: {:?}", e))
-        })?;
+        .map_err(|e| LpError::Internal(format!("InitiatorMsg deserialization failed: {:?}", e)))?;
 
     // Step 4: Convert nym Ed25519 public key to libcrux VerificationKey format
     type Ed25519VerificationKey = <Ed25519 as Authenticator>::VerificationKey;
@@ -410,23 +355,25 @@ pub fn psq_responder_process_message(
 
     // Step 5: PSQ v1 responder processing with Ed25519 verification
     let (registered_psk, responder_msg) = Responder::send::<Ed25519, PsqX25519>(
-        b"nym-lp-handle",       // PSK storage handle
-        Duration::from_secs(3600), // 1 hour expiry (must match initiator)
-        session_context,        // Must match initiator's session_context
-        kem_pk,                 // Responder's public key
-        kem_sk,                 // Responder's secret key
+        b"nym-lp-handle",            // PSK storage handle
+        Duration::from_secs(3600),   // 1 hour expiry (must match initiator)
+        session_context,             // Must match initiator's session_context
+        kem_pk,                      // Responder's public key
+        kem_sk,                      // Responder's secret key
         &initiator_verification_key, // Initiator's Ed25519 public key for verification
-        &initiator_msg,         // InitiatorMsg to verify and process
+        &initiator_msg,              // InitiatorMsg to verify and process
     )
     .map_err(|e| {
         use libcrux_psq::v1::Error as PsqError;
         match e {
             PsqError::CredError => {
-                log::warn!("PSQ responder auth failure - invalid Ed25519 signature (potential attack)");
-            },
+                log::warn!(
+                    "PSQ responder auth failure - invalid Ed25519 signature (potential attack)"
+                );
+            }
             PsqError::TimestampElapsed | PsqError::RegistrationError => {
                 log::warn!("PSQ responder timing failure - TTL expired (potential replay attack)");
-            },
+            }
             _ => {
                 log::error!("PSQ responder failed - {:?}", e);
             }
@@ -449,9 +396,7 @@ pub fn psq_responder_process_message(
     use tls_codec::Serialize;
     let responder_msg_bytes = responder_msg
         .tls_serialize_detached()
-        .map_err(|e| {
-            LpError::Internal(format!("ResponderMsg serialization failed: {:?}", e))
-        })?;
+        .map_err(|e| LpError::Internal(format!("ResponderMsg serialization failed: {:?}", e)))?;
 
     Ok((final_psk, responder_msg_bytes))
 }
@@ -462,29 +407,34 @@ mod tests {
     use crate::keypair::Keypair;
 
     #[test]
-    fn test_psk_derivation_is_deterministic() {
-        let keypair_1 = Keypair::default();
-        let keypair_2 = Keypair::default();
-        let salt = [1u8; 32];
-
-        // Derive PSK twice with same inputs
-        let psk1 = derive_psk(keypair_1.private_key(), keypair_2.public_key(), &salt);
-        let psk2 = derive_psk(keypair_1.private_key(), keypair_2.public_key(), &salt);
-
-        assert_eq!(psk1, psk2, "Same inputs should produce same PSK");
-    }
-
-    #[test]
     fn test_psk_derivation_is_symmetric() {
         let keypair_1 = Keypair::default();
         let keypair_2 = Keypair::default();
         let salt = [2u8; 32];
 
+        let mut rng = &mut rand09::rng();
+        let (_kem_sk, kem_pk) = generate_keypair_libcrux(&mut rng, KEM::X25519).unwrap();
+        let enc_key = EncapsulationKey::X25519(kem_pk);
+        let dec_key = DecapsulationKey::X25519(_kem_sk);
+
         // Client derives PSK
-        let client_psk = derive_psk(keypair_1.private_key(), keypair_2.public_key(), &salt);
+        let (client_psk, ciphertext) = derive_psk_with_psq_initiator(
+            keypair_1.private_key(),
+            keypair_2.public_key(),
+            &enc_key,
+            &salt,
+        )
+        .unwrap();
 
         // Gateway derives PSK from their perspective
-        let gateway_psk = derive_psk(keypair_2.private_key(), keypair_1.public_key(), &salt);
+        let gateway_psk = derive_psk_with_psq_responder(
+            keypair_2.private_key(),
+            keypair_1.public_key(),
+            (&dec_key, &enc_key),
+            &ciphertext,
+            &salt,
+        )
+        .unwrap();
 
         assert_eq!(
             client_psk, gateway_psk,
@@ -499,9 +449,24 @@ mod tests {
 
         let salt1 = [1u8; 32];
         let salt2 = [2u8; 32];
+        let mut rng = &mut rand09::rng();
+        let (_kem_sk, kem_pk) = generate_keypair_libcrux(&mut rng, KEM::X25519).unwrap();
+        let enc_key = EncapsulationKey::X25519(kem_pk);
 
-        let psk1 = derive_psk(keypair_1.private_key(), keypair_2.public_key(), &salt1);
-        let psk2 = derive_psk(keypair_1.private_key(), keypair_2.public_key(), &salt2);
+        let psk1 = derive_psk_with_psq_initiator(
+            keypair_1.private_key(),
+            keypair_2.public_key(),
+            &enc_key,
+            &salt1,
+        )
+        .unwrap();
+        let psk2 = derive_psk_with_psq_initiator(
+            keypair_1.private_key(),
+            keypair_2.public_key(),
+            &enc_key,
+            &salt2,
+        )
+        .unwrap();
 
         assert_ne!(psk1, psk2, "Different salts should produce different PSKs");
     }
@@ -513,8 +478,24 @@ mod tests {
         let keypair_3 = Keypair::default();
         let salt = [3u8; 32];
 
-        let psk1 = derive_psk(keypair_1.private_key(), keypair_2.public_key(), &salt);
-        let psk2 = derive_psk(keypair_1.private_key(), keypair_3.public_key(), &salt);
+        let mut rng = &mut rand09::rng();
+        let (_kem_sk, kem_pk) = generate_keypair_libcrux(&mut rng, KEM::X25519).unwrap();
+        let enc_key = EncapsulationKey::X25519(kem_pk);
+
+        let psk1 = derive_psk_with_psq_initiator(
+            keypair_1.private_key(),
+            keypair_2.public_key(),
+            &enc_key,
+            &salt,
+        )
+        .unwrap();
+        let psk2 = derive_psk_with_psq_initiator(
+            keypair_1.private_key(),
+            keypair_3.public_key(),
+            &enc_key,
+            &salt,
+        )
+        .unwrap();
 
         assert_ne!(
             psk1, psk2,
@@ -522,20 +503,8 @@ mod tests {
         );
     }
 
-    #[test]
-    fn test_psk_output_length() {
-        let keypair_1 = Keypair::default();
-        let keypair_2 = Keypair::default();
-        let salt = [4u8; 32];
-
-        #[allow(deprecated)]
-        let psk = derive_psk(keypair_1.private_key(), keypair_2.public_key(), &salt);
-
-        assert_eq!(psk.len(), 32, "PSK should be exactly 32 bytes");
-    }
-
     // PSQ-enhanced PSK tests
-    use nym_kkt::ciphersuite::{EncapsulationKey, DecapsulationKey, KEM};
+    use nym_kkt::ciphersuite::{DecapsulationKey, EncapsulationKey, KEM};
     use nym_kkt::key_utils::generate_keypair_libcrux;
 
     #[test]
@@ -554,7 +523,7 @@ mod tests {
         let salt = [1u8; 32];
 
         // Derive PSK twice with same inputs (initiator side)
-        let (psk1, ct1) = derive_psk_with_psq_initiator(
+        let (_psk1, ct1) = derive_psk_with_psq_initiator(
             client_keypair.private_key(),
             gateway_keypair.public_key(),
             &enc_key,
@@ -562,7 +531,7 @@ mod tests {
         )
         .unwrap();
 
-        let (psk2, ct2) = derive_psk_with_psq_initiator(
+        let (_psk2, _ct2) = derive_psk_with_psq_initiator(
             client_keypair.private_key(),
             gateway_keypair.public_key(),
             &enc_key,
@@ -585,7 +554,7 @@ mod tests {
             gateway_keypair.private_key(),
             client_keypair.public_key(),
             (&dec_key, &enc_key),
-            &ct1,  // Same ciphertext
+            &ct1, // Same ciphertext
             &salt,
         )
         .unwrap();

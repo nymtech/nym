@@ -49,7 +49,7 @@ pub enum KKTState {
     /// KKT exchange completed (initiator received and validated KEM key).
     Completed {
         /// Responder's KEM public key for PSQ encapsulation
-        kem_pk: EncapsulationKey<'static>,
+        kem_pk: Box<EncapsulationKey<'static>>,
     },
 
     /// Responder processed a KKT request and sent response.
@@ -421,7 +421,7 @@ impl LpSession {
             Err(e) => return Some(Err(LpError::Internal(format!("KKT ciphersuite error: {:?}", e)))),
         };
 
-        let mut rng = rand09::thread_rng();
+        let mut rng = rand09::rng();
         match request_kem_key(&mut rng, ciphersuite, &self.local_ed25519_private) {
             Ok((context, request_frame)) => {
                 // Store context for response validation
@@ -454,7 +454,6 @@ impl LpSession {
     ///
     /// # Note
     ///
-    /// AIDEV-NOTE: Hash validation is currently optional to support deployment without directory service.
     /// When None is passed, the function computes the hash from the received key and validates against
     /// that (effectively signature-only mode). This allows easy upgrade: just pass Some(directory_hash)
     /// when directory service becomes available. The full KKT protocol with hash pinning provides
@@ -510,7 +509,7 @@ impl LpSession {
         .map_err(|e| LpError::Internal(format!("KKT response validation failed: {:?}", e)))?;
 
         // Store the authenticated KEM key
-        *kkt_state = KKTState::Completed { kem_pk };
+        *kkt_state = KKTState::Completed { kem_pk: Box::new(kem_pk) };
 
         Ok(())
     }
@@ -827,9 +826,6 @@ impl LpSession {
                     // If no valid handle found, fall through to normal processing
                 }
 
-                // Normal flow (no PSQ, or PSQ already completed)
-                drop(psq_state); // Release lock
-
                 // The sans-io NoiseProtocol::read_message expects only the payload.
                 noise_state
                     .read_message(payload)
@@ -916,7 +912,7 @@ impl LpSession {
         let kem_pk = EncapsulationKey::X25519(libcrux_public_key);
 
         let mut kkt_state = self.kkt_state.lock();
-        *kkt_state = KKTState::Completed { kem_pk };
+        *kkt_state = KKTState::Completed { kem_pk: Box::new(kem_pk) };
     }
 }
 
@@ -1066,7 +1062,6 @@ mod tests {
     fn test_prepare_handshake_message_initial_state() {
         let initiator_keys = generate_keypair();
         let responder_keys = generate_keypair();
-        let psk = [3u8; 32];
 
         let initiator_session =
             create_handshake_test_session(true, &initiator_keys, responder_keys.public_key());
@@ -1093,7 +1088,6 @@ mod tests {
     fn test_process_handshake_message_first_step() {
         let initiator_keys = generate_keypair();
         let responder_keys = generate_keypair();
-        let psk = [4u8; 32];
 
         let initiator_session =
             create_handshake_test_session(true, &initiator_keys, responder_keys.public_key());
@@ -1131,7 +1125,6 @@ mod tests {
     fn test_handshake_driver_simulation() {
         let initiator_keys = generate_keypair();
         let responder_keys = generate_keypair();
-        let psk = [5u8; 32];
 
         let initiator_session =
             create_handshake_test_session(true, &initiator_keys, responder_keys.public_key());
@@ -1219,7 +1212,6 @@ mod tests {
         // --- Setup Handshake ---
         let initiator_keys = generate_keypair();
         let responder_keys = generate_keypair();
-        let psk = [6u8; 32];
 
         let initiator_session =
             create_handshake_test_session(true, &initiator_keys, responder_keys.public_key());
@@ -1281,7 +1273,6 @@ mod tests {
     fn test_encrypt_decrypt_before_handshake() {
         let initiator_keys = generate_keypair();
         let responder_keys = generate_keypair();
-        let psk = [7u8; 32];
 
         let initiator_session =
             create_handshake_test_session(true, &initiator_keys, responder_keys.public_key());

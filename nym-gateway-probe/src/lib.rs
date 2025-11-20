@@ -130,12 +130,20 @@ pub enum TestedNode {
     SameAsEntry,
     Custom {
         identity: NodeIdentity,
+        shares_entry: bool,
     },
 }
 
 impl TestedNode {
     pub fn is_same_as_entry(&self) -> bool {
-        matches!(self, TestedNode::SameAsEntry)
+        matches!(
+            self,
+            TestedNode::SameAsEntry
+                | TestedNode::Custom {
+                    shares_entry: true,
+                    ..
+                }
+        )
     }
 }
 
@@ -309,7 +317,20 @@ impl Probe {
         let entry_gateway = directory.entry_gateway(&self.entrypoint)?;
 
         let node_info: TestedNodeDetails = match self.tested_node {
-            TestedNode::Custom { identity } => {
+            TestedNode::Custom {
+                identity: _,
+                shares_entry: true,
+            } => {
+                debug!(
+                    "testing node {} as both entry and exit",
+                    entry_gateway.identity()
+                );
+                entry_gateway.to_testable_node()?
+            }
+            TestedNode::Custom {
+                identity,
+                shares_entry: false,
+            } => {
                 let node = directory.get_nym_node(identity)?;
                 info!(
                     "testing node {} (via entry {})",
@@ -421,12 +442,17 @@ impl Probe {
                 storage.credential_store().clone(),
                 client,
             );
-            let credential = bw_controller
-                .prepare_ecash_ticket(
+            let (wg_ticket_type, credential_provider) = if tested_entry {
+                (
                     TicketType::V1WireguardEntry,
                     nym_address.gateway().to_bytes(),
-                    1,
                 )
+            } else {
+                (TicketType::V1WireguardExit, node_info.identity.to_bytes())
+            };
+
+            let credential = bw_controller
+                .prepare_ecash_ticket(wg_ticket_type, credential_provider, 1)
                 .await?
                 .data;
 
@@ -711,11 +737,7 @@ async fn do_ping_entry(
     }
     info!("Successfully mixnet pinged ourselves");
 
-    if tested_entry {
-        Entry::success()
-    } else {
-        Entry::NotTested
-    }
+    Entry::success()
 }
 
 async fn connect_exit(

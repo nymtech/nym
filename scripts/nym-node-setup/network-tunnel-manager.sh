@@ -1103,41 +1103,41 @@ case "$cmd" in
 usage: $0 <command> [args]
 
 high level workflows:
-  full_tunnel_setup                 run tunnel iptables and checks for nymtun0 and nymwg
-  exit_policy_install               install and configure wireguard exit policy
-  complete_networking_configuration run tunnel setup, exit policy install and tests
+  complete_networking_configuration Run tunnel setup, exit policy install and tests
+  exit_policy_install               Install and configure wireguard exit policy
+  full_tunnel_setup                 Run tunnel iptables and checks for nymtun0 and nymwg
 
 tunnel and nat helpers:
-  fetch_ipv6_address_nym_tun        show global ipv6 address on ${TUNNEL_INTERFACE}
-  fetch_and_display_ipv6            show ipv6 on uplink ${NETWORK_DEVICE}
-  apply_iptables_rules              apply nat/forward rules for ${TUNNEL_INTERFACE}
-  apply_iptables_rules_wg           apply nat/forward rules for ${WG_INTERFACE}
-  check_nymtun_iptables             inspect forward chain for ${TUNNEL_INTERFACE}
-  check_nym_wg_tun                  inspect forward chain for ${WG_INTERFACE}
-  check_ipv6_ipv4_forwarding        show ipv4/ipv6 forwarding flags
-  check_ip_routing                  show ipv4 and ipv6 routes
-  perform_pings                     test ipv4 and ipv6 pings
-  joke_through_the_mixnet           test via ${TUNNEL_INTERFACE} with joke
-  joke_through_wg_tunnel            test via ${WG_INTERFACE} with joke
-  configure_dns_and_icmp_wg         allow ping and dns on this host
-  adjust_ip_forwarding              enable ipv4/ipv6 forwarding via sysctl.d
-  remove_duplicate_rules <iface>    deduplicate rules for interface in FORWARD and ${NYM_CHAIN}
+  adjust_ip_forwarding              Enable ipv4/ipv6 forwarding via sysctl.d
+  apply_iptables_rules              Apply nat/forward rules for ${TUNNEL_INTERFACE}
+  apply_iptables_rules_wg           Apply nat/forward rules for ${WG_INTERFACE}
+  check_ip_routing                  Show ipv4 and ipv6 routes
+  check_ipv6_ipv4_forwarding        Show ipv4/ipv6 forwarding flags
+  check_nym_wg_tun                  Inspect forward chain for ${WG_INTERFACE}
+  check_nymtun_iptables             Inspect forward chain for ${TUNNEL_INTERFACE}
+  configure_dns_and_icmp_wg         Allow ping and dns ports on this host
+  fetch_and_display_ipv6            Show ipv6 on uplink ${NETWORK_DEVICE}
+  fetch_ipv6_address_nym_tun        Show global ipv6 address on ${TUNNEL_INTERFACE}
+  joke_through_the_mixnet           Test via ${TUNNEL_INTERFACE} with joke
+  joke_through_wg_tunnel            Test via ${WG_INTERFACE} with joke
+  perform_pings                     Test ipv4 and ipv6 pings
+  remove_duplicate_rules <iface>    Deduplicate FORWARD and ${NYM_CHAIN} rules for <iface> (required).
 
 exit policy manager:
-  exit_policy_install               install exit policy (iptables rules and blocklist)
-  exit_policy_status                show status of exit policy and forwarding
-  exit_policy_test_connectivity     test connectivity via ${WG_INTERFACE}
-  exit_policy_clear                 remove ${NYM_CHAIN} chains and hooks
+  check_firewall_setup              Run ordering sanity check (dns/icmp + FORWARD jump)
+  exit_policy_clear                 Remove ${NYM_CHAIN} chains and hooks
+  exit_policy_install               Install exit policy (iptables rules and blocklist)
+  exit_policy_status                Show status of exit policy and forwarding
+  exit_policy_test_connectivity     Test connectivity via ${WG_INTERFACE}
   exit_policy_tests [--skip-default-reject]
-                                    run verification tests on exit policy
+                                    Run verification tests on exit policy (options: --skip-default-reject).
 
 environment overrides:
-  TUNNEL_INTERFACE                  default nymtun0
-  WG_INTERFACE                      default nymwg
-  NETWORK_DEVICE                    uplink device, auto-detected if not set
+  NETWORK_DEVICE                    Auto-detected uplink (e.g., eth0). Set manually if detection fails.
+  TUNNEL_INTERFACE                  Default: nymtun0. Requires root privileges (sudo) to manage.
+  WG_INTERFACE                      Default: nymwg - Must match your WireGuard interface name.
 
 EOF
-    status=0
     ;;
 
   *)

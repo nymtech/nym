@@ -657,12 +657,12 @@ apply_port_allowlist() {
 }
 
 apply_spamhaus_blocklist() {
-  echo "applying spamhaus-like blocklist from $EXIT_POLICY_LOCATION"
+  info "applying spamhaus-like blocklist from $EXIT_POLICY_LOCATION"
 
   mkdir -p "$(dirname "$POLICY_FILE")"
 
   if ! wget -q "$EXIT_POLICY_LOCATION" -O "$POLICY_FILE" 2>/dev/null; then
-    echo "failed to download exit policy, using minimal blocklist"
+    arror "failed to download exit policy, using minimal blocklist"
     cat >"$POLICY_FILE" <<EOF
 ExitPolicy reject 5.188.10.0/23:*
 ExitPolicy reject 31.132.36.0/22:*
@@ -679,7 +679,7 @@ EOF
 
   local total_rules
   total_rules=$(wc -l < "$tmpfile")
-  echo "processing $total_rules blocklist rules"
+  info "processing $total_rules blocklist rules"
   local line ip_range
   while IFS= read -r line; do
     [[ -z "$line" ]] && continue
@@ -691,14 +691,14 @@ EOF
       # ipv4 reject
       if ! iptables -C "$NYM_CHAIN" -d "$ip_range" -j REJECT 2>/dev/null; then
         iptables -A "$NYM_CHAIN" -d "$ip_range" -j REJECT --reject-with icmp-port-unreachable \
-          || echo "warning: failed adding ipv4 reject for $ip_range"
+          || error "warning: failed adding ipv4 reject for $ip_range"
       fi
 
       # ipv6 reject
       if [[ "$ip_range" == *":"* ]]; then
         if ! ip6tables -C "$NYM_CHAIN" -d "$ip_range" -j REJECT 2>/dev/null; then
           ip6tables -A "$NYM_CHAIN" -d "$ip_range" -j REJECT \
-            || echo "warning: failed adding ipv6 reject for $ip_range"
+            || error "warning: failed adding ipv6 reject for $ip_range"
         fi
       fi
 
@@ -711,7 +711,7 @@ EOF
 
 
 add_default_reject_rule() {
-  echo "ensuring default reject rule at end of ${NYM_CHAIN}"
+  info "ensuring default reject rule at end of ${NYM_CHAIN}"
 
   iptables -D "$NYM_CHAIN" -j REJECT 2>/dev/null || true
   iptables -D "$NYM_CHAIN" -j REJECT --reject-with icmp-port-unreachable 2>/dev/null || true
@@ -1038,7 +1038,7 @@ exit_policy_run_tests() {
     ((total += 1))
   fi
 
-  echo "tests run: $total, test failed: $failed"
+  info "tests run: ${GREEN}$total${YELLOW}, test failed: ${RED}$failed${NC}"
   if [[ $failed -eq 0 ]]; then
     ok "all exit policy tests passed"
   else

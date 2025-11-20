@@ -278,7 +278,11 @@ pub async fn start_wireguard(
             // Extract IPv4 and IPv6 from peer's allowed_ips
             if let IpAddr::V4(ipv4) = allowed_ip.ip {
                 // Find corresponding IPv6
-                if let Some(ipv6_mask) = peer.allowed_ips.iter().find(|ip| matches!(ip.ip, IpAddr::V6(_))) {
+                if let Some(ipv6_mask) = peer
+                    .allowed_ips
+                    .iter()
+                    .find(|ip| matches!(ip.ip, IpAddr::V6(_)))
+                {
                     if let IpAddr::V6(ipv6) = ipv6_mask.ip {
                         ip_pool.mark_used(IpPair::new(ipv4, ipv6)).await;
                     }

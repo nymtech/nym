@@ -967,6 +967,7 @@ pub mod test_helpers {
                 host: "1.2.3.4".to_string(),
                 custom_http_port: None,
                 identity_key,
+                lp_address: None,
             };
             let msg = nymnode_bonding_sign_payload(self.deps(), sender, node.clone(), stake);
             let owner_signature = ed25519_sign_message(msg, keypair.private_key());

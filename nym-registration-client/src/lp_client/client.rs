@@ -320,8 +320,14 @@ impl LpRegistrationClient {
                     LpAction::KKTComplete => {
                         tracing::info!("KKT exchange completed, starting Noise handshake");
                         // After KKT completes, initiator must send first Noise handshake message
-                        let noise_msg = state_machine.session()?.prepare_handshake_message()
-                            .ok_or_else(|| LpClientError::Transport("No handshake message available after KKT".to_string()))??;
+                        let noise_msg = state_machine
+                            .session()?
+                            .prepare_handshake_message()
+                            .ok_or_else(|| {
+                                LpClientError::Transport(
+                                    "No handshake message available after KKT".to_string(),
+                                )
+                            })??;
                         let noise_packet = state_machine.session()?.next_packet(noise_msg)?;
                         tracing::trace!("Sending first Noise handshake message");
                         Self::send_packet(stream, &noise_packet).await?;

@@ -17,7 +17,9 @@ use nym_gateway_requests::models::CredentialSpendingRequest;
 use nym_gateway_storage::traits::BandwidthGatewayStorage;
 use nym_ip_packet_requests::IpPair;
 use nym_node_metrics::NymNodeMetrics;
-use nym_wireguard_types::{DEFAULT_IP_CLEANUP_INTERVAL, DEFAULT_IP_STALE_AGE, DEFAULT_PEER_TIMEOUT_CHECK};
+use nym_wireguard_types::{
+    DEFAULT_IP_CLEANUP_INTERVAL, DEFAULT_IP_STALE_AGE, DEFAULT_PEER_TIMEOUT_CHECK,
+};
 use std::{collections::HashMap, sync::Arc};
 use std::{
     net::{IpAddr, SocketAddr},
@@ -618,8 +620,8 @@ pub fn start_controller(
     Arc<RwLock<nym_gateway_storage::traits::mock::MockGatewayStorage>>,
     nym_task::ShutdownManager,
 ) {
-    use std::sync::Arc;
     use std::net::{Ipv4Addr, Ipv6Addr};
+    use std::sync::Arc;
 
     let storage = Arc::new(RwLock::new(
         nym_gateway_storage::traits::mock::MockGatewayStorage::default(),
@@ -635,7 +637,8 @@ pub fn start_controller(
         24,
         Ipv6Addr::new(0xfd00, 0, 0, 0, 0, 0, 0, 0),
         112,
-    ).expect("Failed to create IP pool for testing");
+    )
+    .expect("Failed to create IP pool for testing");
 
     let shutdown_manager = nym_task::ShutdownManager::empty_mock();
     let mut peer_controller = PeerController::new(

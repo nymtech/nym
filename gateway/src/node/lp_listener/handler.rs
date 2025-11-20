@@ -542,8 +542,7 @@ mod tests {
         stream.read_exact(&mut packet_buf).await?;
 
         // Parse packet
-        parse_lp_packet(&packet_buf)
-            .map_err(|e| std::io::Error::other(e.to_string()))
+        parse_lp_packet(&packet_buf).map_err(|e| std::io::Error::other(e.to_string()))
     }
 
     // ==================== Existing Tests ====================
@@ -919,7 +918,10 @@ mod tests {
 
         let (x25519_pubkey, ed25519_pubkey, salt) = result.unwrap();
         assert_eq!(x25519_pubkey.as_bytes(), &client_x25519_public.to_bytes());
-        assert_eq!(ed25519_pubkey.to_bytes(), client_ed25519_keypair.public_key().to_bytes());
+        assert_eq!(
+            ed25519_pubkey.to_bytes(),
+            client_ed25519_keypair.public_key().to_bytes()
+        );
         assert_eq!(salt, hello_data.salt);
     }
 

@@ -155,7 +155,6 @@ pub enum GatewayError {
 
     #[error("Invalid SystemTime: {0}")]
     InvalidSystemTime(#[from] std::time::SystemTimeError),
-
 }
 
 impl From<ClientCoreError> for GatewayError {

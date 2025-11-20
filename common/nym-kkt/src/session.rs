@@ -211,12 +211,7 @@ pub fn responder_process<'a>(
 
     let signature = signing_key.sign(bytes_to_sign).to_bytes();
 
-    Ok(KKTFrame::new(
-        &context_bytes,
-        &body,
-        session_id,
-        &signature,
-    ))
+    Ok(KKTFrame::new(&context_bytes, &body, session_id, &signature))
 }
 
 fn check_compatibility(

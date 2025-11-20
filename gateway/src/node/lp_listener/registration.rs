@@ -218,7 +218,11 @@ pub async fn process_registration(
 
             // Generate i64 client_id from the [u8; 32] in the request
             #[allow(clippy::expect_used)]
-            let client_id = i64::from_be_bytes(client_id_bytes[0..8].try_into().expect("This cannot fail, since the id is 32 bytes long"));
+            let client_id = i64::from_be_bytes(
+                client_id_bytes[0..8]
+                    .try_into()
+                    .expect("This cannot fail, since the id is 32 bytes long"),
+            );
 
             info!(
                 "LP Mixnet registration for client_id {}, session {}",
@@ -321,7 +325,9 @@ async fn register_wg_peer(
             response_tx: tx,
         })
         .await
-        .map_err(|e| GatewayError::InternalError(format!("Failed to send IP allocation request: {}", e)))?;
+        .map_err(|e| {
+            GatewayError::InternalError(format!("Failed to send IP allocation request: {}", e))
+        })?;
 
     // Wait for IP allocation from pool
     let ip_pair = rx

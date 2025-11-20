@@ -161,7 +161,7 @@ impl Ciphersuite {
         kem: KEM,
         hash_function: HashFunction,
         signature_scheme: SignatureScheme,
-        // This should be None 99.9999% of the time 
+        // This should be None 99.9999% of the time
         custom_hash_length: Option<u8>,
     ) -> Result<Self, KKTError> {
         let hash_len = match custom_hash_length {

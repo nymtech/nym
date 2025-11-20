@@ -522,7 +522,9 @@ impl LpSession {
         .map_err(|e| LpError::Internal(format!("KKT response validation failed: {:?}", e)))?;
 
         // Store the authenticated KEM key
-        *kkt_state = KKTState::Completed { kem_pk: Box::new(kem_pk) };
+        *kkt_state = KKTState::Completed {
+            kem_pk: Box::new(kem_pk),
+        };
 
         Ok(())
     }
@@ -926,7 +928,9 @@ impl LpSession {
         let kem_pk = EncapsulationKey::X25519(libcrux_public_key);
 
         let mut kkt_state = self.kkt_state.lock();
-        *kkt_state = KKTState::Completed { kem_pk: Box::new(kem_pk) };
+        *kkt_state = KKTState::Completed {
+            kem_pk: Box::new(kem_pk),
+        };
     }
 }
 

@@ -139,10 +139,7 @@ impl IpPool {
             *state = AllocationState::Allocated(SystemTime::now());
             tracing::debug!("Marked IP pair as used: {}", ip_pair);
         } else {
-            tracing::warn!(
-                "Attempted to mark unknown IP pair as used: {}",
-                ip_pair
-            );
+            tracing::warn!("Attempted to mark unknown IP pair as used: {}", ip_pair);
         }
     }
 

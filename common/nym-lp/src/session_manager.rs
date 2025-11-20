@@ -129,9 +129,7 @@ impl SessionManager {
         lp_id: u32,
         message: &LpMessage,
     ) -> Result<ReadResult, LpError> {
-        self.with_state_machine(lp_id, |sm| {
-            sm.session()?.process_handshake_message(message)
-        })?
+        self.with_state_machine(lp_id, |sm| sm.session()?.process_handshake_message(message))?
     }
 
     pub fn session_count(&self) -> usize {

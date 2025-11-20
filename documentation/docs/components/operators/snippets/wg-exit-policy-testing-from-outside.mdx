@@ -1,9 +1,29 @@
+import { Steps } from 'nextra/components';
+
+Here are a few ways you can ensre your WireGuard exit policy is working correctly from the outside.
+
+<Steps>
+
+###### 1. Using NymVPN
+
+- Connect to NymVPN and use your node as an Exit Gateway in dVPN (2-hop) mode
+
+- While connected to NymVPN, navigate to [`portquiz.net:12345`](http://portquiz.net:12345) and see if you can load the page
+
+- It shouldn't load, but if you navigate to some of the accepted ports, like[`portquiz.net:443`](http://portquiz.net:443) it should all work
+
+###### 2. Test it from your local terminal
+
 - Install these dependencies on your local machine:
 ```shell
 sudo apt install tcpdump
 
 sudo tcpdump -i nymwg -n
 ```
-- Connect to [NymVPN](https://nym.com) and select your node as an Exit Gateway (after running the exit policy [manager script](#wireguard-exit-policy-configuration))
+- Connect to [NymVPN](https://nym.com) and select your node as an Exit Gateway
+
 - Run the `tcpdump` command before registering
-- Have the output of the `echo $BLOCKED_IP` from your node and try to go into your browser or a registered client and try to connect - It will not resolve.
+
+- Have the output of the `echo $BLOCKED_IP` from your node and try to go into your browser or a registered client and try to connect - It should not resolve
+
+</ Steps>

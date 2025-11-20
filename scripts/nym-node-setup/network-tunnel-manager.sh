@@ -1247,6 +1247,7 @@ environment overrides:
   WG_INTERFACE                      Default: nymwg - Must match your WireGuard interface name.
 
 EOF
+    status=0
     ;;
 
   *)
@@ -1256,7 +1257,7 @@ EOF
     ;;
 esac
 
-if [ "${status:-1}" -eq 0 ]; then
+if [[ "$cmd" != help && "$cmd" != "--help" && "$cmd" != "-h" && ${status:-1} -eq 0 ]]; then
     echo "operation ${cmd} completed"
 fi
 exit $status

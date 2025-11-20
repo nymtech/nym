@@ -95,16 +95,16 @@ ensure_jq() {
 
 install_iptables_persistent() {
   if ! dpkg -s iptables-persistent >/dev/null 2>&1; then
-    echo -e "${YELLOW}installing iptables-persistent${NC}"
+    info "installing iptables-persistent"
     apt-get update -y
     DEBIAN_FRONTEND=noninteractive apt-get install -y iptables-persistent
   else
-    echo -e "${GREEN}iptables-persistent is already installed${NC}"
+    ok "iptables-persistent is already installed"
   fi
 }
 
 adjust_ip_forwarding() {
-  echo -e "${YELLOW}configuring ip forwarding via /etc/sysctl.d/99-nym-forwarding.conf${NC}"
+  info "configuring ip forwarding via /etc/sysctl.d/99-nym-forwarding.conf"
   install -m 0644 /dev/null /etc/sysctl.d/99-nym-forwarding.conf
   cat > /etc/sysctl.d/99-nym-forwarding.conf <<EOF
 net.ipv4.ip_forward=1
@@ -117,18 +117,18 @@ EOF
   v6=$(cat /proc/sys/net/ipv6/conf/all/forwarding 2>/dev/null || echo 0)
 
   if [[ "$v4" == "1" && "$v6" == "1" ]]; then
-    echo -e "${GREEN}ipv4 and ipv6 forwarding enabled${NC}"
+    ok "ipv4 and ipv6 forwarding enabled"
   else
-    echo -e "${RED}warning: ip forwarding not fully enabled (ipv4=$v4 ipv6=$v6)${NC}"
+    error "warning: ip forwarding not fully enabled (ipv4=$v4 ipv6=$v6)"
   fi
 }
 
 save_iptables_rules() {
-  echo -e "${YELLOW}saving iptables rules to /etc/iptables${NC}"
+  info "saving iptables rules to /etc/iptables$"
   mkdir -p /etc/iptables
   iptables-save > /etc/iptables/rules.v4
   ip6tables-save > /etc/iptables/rules.v6
-  echo -e "${GREEN}iptables rules saved${NC}"
+  ok "iptables rules saved"
 }
 
 ###############################################################################
@@ -141,10 +141,10 @@ fetch_ipv6_address() {
   ipv6_global_address=$(ip -6 addr show "$interface" scope global | awk '/inet6/ {print $2}' | head -n 1)
 
   if [[ -z "$ipv6_global_address" ]]; then
-    echo "no globally routable ipv6 address found on $interface. please configure ipv6 or check your network settings"
+    error "no globally routable ipv6 address found on $interface. please configure ipv6 or check your network settings"
     exit 1
   else
-    echo "using ipv6 address: $ipv6_global_address"
+    info "using ipv6 address: $ipv6_global_address"
   fi
 }
 
@@ -152,9 +152,9 @@ fetch_and_display_ipv6() {
   local ipv6_address
   ipv6_address=$(ip -6 addr show "$NETWORK_DEVICE" scope global | awk '/inet6/ {print $2}')
   if [[ -z "$ipv6_address" ]]; then
-    echo "no global ipv6 address found on $NETWORK_DEVICE"
+    error "no global ipv6 address found on $NETWORK_DEVICE"
   else
-    echo "ipv6 address on $NETWORK_DEVICE: $ipv6_address"
+    ok "ipv6 address on $NETWORK_DEVICE: $ipv6_address"
   fi
 }
 
@@ -165,11 +165,11 @@ remove_duplicate_rules() {
   local interface="$1"
 
   if [[ -z "$interface" ]]; then
-    echo "Error: No interface specified. Usage: $0 remove_duplicate_rules <interface>"
+    error "Error: No interface specified. Usage: $0 remove_duplicate_rules <interface>"
     exit 1
   fi
 
-  echo "detecting and removing duplicate rules for $interface in FORWARD and ${NYM_CHAIN}"
+  info "detecting and removing duplicate rules for $interface in FORWARD and ${NYM_CHAIN}"
 
   #
   # ipv4
@@ -178,7 +178,7 @@ remove_duplicate_rules() {
   rules_v4=$(iptables-save | grep -E "(-A FORWARD|-A $NYM_CHAIN)" | grep -F -- "$interface" || true)
 
   if [[ -n "$rules_v4" ]]; then
-    echo "processing ipv4 rules"
+    info "processing ipv4 rules"
 
     local tmp4
     tmp4=$(mktemp)
@@ -192,7 +192,7 @@ remove_duplicate_rules() {
       count=$(printf "%s\n" "$rules_v4" | grep -F -- "$rule" | wc -l)
 
       if [[ "$count" -gt 1 ]]; then
-        echo "removing $((count - 1)) duplicate(s) of ipv4 rule: $rule"
+        info "removing $((count - 1)) duplicate(s) of ipv4 rule: $rule"
 
         for ((i=1; i<count; i++)); do
           cleaned="${rule#-A }"
@@ -213,12 +213,12 @@ remove_duplicate_rules() {
 
             if [[ -n "$index" ]]; then
               iptables -D "$chain" "$index" 2>/dev/null || \
-                echo "warning: failed deleting ipv4 duplicate via index ($chain $index)"
+                error "warning: failed deleting ipv4 duplicate via index ($chain $index)"
             else
-              echo "warning: unable to locate ipv4 duplicate index for: $rule"
+              error "warning: unable to locate ipv4 duplicate index for: $rule"
             fi
           else
-            echo "warning: could not reliably match ipv4 duplicate rule: $rule"
+            error "warning: could not reliably match ipv4 duplicate rule: $rule"
           fi
         done
       fi
@@ -228,7 +228,7 @@ remove_duplicate_rules() {
     rm -f "$tmp4"
 
   else
-    echo "no ipv4 rules found for $interface to deduplicate"
+    ok "no ipv4 rules found for $interface to deduplicate"
   fi
 
 
@@ -240,7 +240,7 @@ remove_duplicate_rules() {
   rules_v6=$(ip6tables-save | grep -E "(-A FORWARD|-A $NYM_CHAIN)" | grep -F -- "$interface" || true)
 
   if [[ -n "$rules_v6" ]]; then
-    echo "processing ipv6 rules"
+    info "processing ipv6 rules"
 
     local tmp6
     tmp6=$(mktemp)
@@ -254,7 +254,7 @@ remove_duplicate_rules() {
       count=$(printf "%s\n" "$rules_v6" | grep -F -- "$rule" | wc -l)
 
       if [[ "$count" -gt 1 ]]; then
-        echo "removing $((count - 1)) duplicate(s) of ipv6 rule: $rule"
+        info "removing $((count - 1)) duplicate(s) of ipv6 rule: $rule"
 
         for ((i=1; i<count; i++)); do
           cleaned="${rule#-A }"
@@ -276,12 +276,12 @@ remove_duplicate_rules() {
 
             if [[ -n "$index" ]]; then
               ip6tables -D "$chain" "$index" 2>/dev/null || \
-                echo "warning: failed deleting ipv6 duplicate via index ($chain $index)"
+                error "warning: failed deleting ipv6 duplicate via index ($chain $index)"
             else
-              echo "warning: unable to locate ipv6 duplicate index for: $rule"
+              error "warning: unable to locate ipv6 duplicate index for: $rule"
             fi
           else
-            echo "warning: could not match ipv6 duplicate rule reliably: $rule"
+            error "warning: could not match ipv6 duplicate rule reliably: $rule"
           fi
         done
       fi
@@ -291,15 +291,15 @@ remove_duplicate_rules() {
     rm -f "$tmp6"
 
   else
-    echo "no ipv6 rules found for $interface to deduplicate"
+    error "no ipv6 rules found for $interface to deduplicate"
   fi
 
-  echo "duplicate rule scan completed for $interface"
+  ok "duplicate rule scan completed for $interface"
 }
 
 apply_iptables_rules() {
   local interface=$1
-  echo "applying iptables rules for $interface using uplink $NETWORK_DEVICE"
+  info "applying iptables rules for $interface using uplink $NETWORK_DEVICE"
   sleep 1
 
   # ipv4 nat and forwarding
@@ -327,11 +327,11 @@ apply_iptables_rules() {
 
 check_tunnel_iptables() {
   local interface=$1
-  echo "inspecting iptables rules for $interface"
-  echo "ipv4 forward chain:"
+  info "inspecting iptables rules for $interface"
+  info "ipv4 forward chain:"
   iptables -L FORWARD -v -n | awk -v dev="$interface" '/^Chain FORWARD/ || $0 ~ dev || $0 ~ "ufw-reject-forward"'
   echo
-  echo "ipv6 forward chain:"
+  info "ipv6 forward chain:"
   ip6tables -L FORWARD -v -n | awk -v dev="$interface" '/^Chain FORWARD/ || $0 ~ dev || $0 ~ "ufw6-reject-forward"'
 }
 
@@ -339,100 +339,96 @@ check_ipv6_ipv4_forwarding() {
   local result_ipv4 result_ipv6
   result_ipv4=$(cat /proc/sys/net/ipv4/ip_forward)
   result_ipv6=$(cat /proc/sys/net/ipv6/conf/all/forwarding)
-  echo "ipv4 forwarding is $([ "$result_ipv4" == "1" ] && echo enabled || echo not enabled)"
-  echo "ipv6 forwarding is $([ "$result_ipv6" == "1" ] && echo enabled || echo not enabled)"
+  ok "ipv4 forwarding is $([ "$result_ipv4" == "1" ] && ok enabled || error not enabled)"
+  ok "ipv6 forwarding is $([ "$result_ipv6" == "1" ] && ok enabled || error not enabled)"
 }
 
 check_ip_routing() {
-  echo "ipv4 routing table:"
+  info "ipv4 routing table:"
   ip route
-  echo "---------------------------"
-  echo "ipv6 routing table:"
+  info "---------------------------"
+  info "ipv6 routing table:"
   ip -6 route
 }
 
 perform_pings() {
-  echo "performing ipv4 ping to google.com"
-  ping -c 4 google.com || echo "ipv4 ping failed"
+  info "performing ipv4 ping to google.com"
+  ping -c 4 google.com || error "ipv4 ping failed"
   echo "---------------------------"
-  echo "performing ipv6 ping to google.com"
-  ping6 -c 4 google.com || echo "ipv6 ping failed"
+  info "performing ipv6 ping to google.com"
+  ping6 -c 4 google.com || error "ipv6 ping failed"
 }
 
 joke_through_tunnel() {
   ensure_jq
   local interface=$1
-  local green="\033[0;32m"
-  local reset="\033[0m"
-  local red="\033[0;31m"
-  local yellow="\033[0;33m"
 
   sleep 1
   echo
-  echo -e "${yellow}checking tunnel connectivity and fetching a joke for $interface${reset}"
-  echo -e "${yellow}if this test succeeds, it confirms your machine can reach the outside world via ipv4 and ipv6${reset}"
-  echo -e "${yellow}probes and external clients may still see different connectivity to your nym node${reset}"
+  info "checking tunnel connectivity and fetching a joke for $interface"
+  info "if this test succeeds, it confirms your machine can reach the outside world via ipv4 and ipv6"
+  info "probes and external clients may still see different connectivity to your nym node"
 
   local ipv4_address ipv6_address joke
   ipv4_address=$(ip addr show "$interface" | awk '/inet / {print $2}' | cut -d'/' -f1)
   ipv6_address=$(ip addr show "$interface" | awk '/inet6 / && $2 !~ /^fe80/ {print $2}' | cut -d'/' -f1)
 
   if [[ -z "$ipv4_address" && -z "$ipv6_address" ]]; then
-    echo -e "${red}no ip address found on $interface. unable to fetch a joke${reset}"
-    echo -e "${red}please verify your tunnel configuration and ensure the interface is up${reset}"
+    error "no ip address found on $interface. unable to fetch a joke"
+    error "please verify your tunnel configuration and ensure the interface is up"
     return 1
   fi
 
   if [[ -n "$ipv4_address" ]]; then
     echo
     echo "------------------------------------"
-    echo "detected ipv4 address: $ipv4_address"
-    echo "testing ipv4 connectivity"
+    info "detected ipv4 address: $ipv4_address"
+    info "testing ipv4 connectivity"
     echo
 
     if ping -c 1 -I "$ipv4_address" google.com >/dev/null 2>&1; then
-      echo -e "${green}ipv4 connectivity is working. fetching a joke${reset}"
+      ok "ipv4 connectivity is working. fetching a joke"
       joke=$(curl -s -H "Accept: application/json" --interface "$ipv4_address" https://icanhazdadjoke.com/ | jq -r .joke)
-      [[ -n "$joke" && "$joke" != "null" ]] && echo -e "${green}ipv4 joke: $joke${reset}" || echo "failed to fetch a joke via ipv4"
+      [[ -n "$joke" && "$joke" != "null" ]] && ok "ipv4 joke: $joke" || echo "failed to fetch a joke via ipv4"
     else
-      echo -e "${red}ipv4 connectivity is not working for $interface. verify your routing and nat settings${reset}"
+      error "ipv4 connectivity is not working for $interface. verify your routing and nat settings"
     fi
   else
-    echo -e "${red}no ipv4 address found on $interface. unable to fetch a joke via ipv4${reset}"
+    error "no ipv4 address found on $interface. unable to fetch a joke via ipv4"
   fi
 
   if [[ -n "$ipv6_address" ]]; then
     echo
     echo "------------------------------------"
-    echo "detected ipv6 address: $ipv6_address"
-    echo "testing ipv6 connectivity"
+    info "detected ipv6 address: $ipv6_address"
+    info "testing ipv6 connectivity"
     echo
 
     if ping6 -c 1 -I "$ipv6_address" google.com >/dev/null 2>&1; then
-      echo -e "${green}ipv6 connectivity is working. fetching a joke${reset}"
+      ok "ipv6 connectivity is working. fetching a joke"
       joke=$(curl -s -H "Accept: application/json" --interface "$ipv6_address" https://icanhazdadjoke.com/ | jq -r .joke)
-      [[ -n "$joke" && "$joke" != "null" ]] && echo -e "${green}ipv6 joke: $joke${reset}" || echo -e "${red}failed to fetch a joke via ipv6${reset}"
+      [[ -n "$joke" && "$joke" != "null" ]] && ok "ipv6 joke: $joke" || error "failed to fetch a joke via ipv6"
     else
-      echo -e "${red}ipv6 connectivity is not working for $interface. verify your routing and nat settings${reset}"
+      error "ipv6 connectivity is not working for $interface. verify your routing and nat settings"
     fi
   else
-    echo -e "${red}no ipv6 address found on $interface. unable to fetch a joke via ipv6${reset}"
+    error "no ipv6 address found on $interface. unable to fetch a joke via ipv6"
   fi
 
-  echo -e "${green}joke fetching processes completed for $interface${reset}"
+  ok "joke fetching processes completed for $interface"
   echo "------------------------------------"
 
   sleep 3
   echo
   echo
-  echo -e "${yellow}connectivity testing recommendations${reset}"
-  echo -e "${yellow}- from another machine use wscat to test websocket connectivity on 9001${reset}"
-  echo -e "${yellow}- test udp connectivity on port 51822 (wireguard)${reset}"
-  echo -e "${yellow}- example: echo 'test' | nc -u <your-ip> 51822${reset}"
+  info "connectivity testing recommendations"
+  info "- from another machine use wscat to test websocket connectivity on 9001"
+  info "- test udp connectivity on port 51822 (wireguard)"
+  info "- example: echo 'test' | nc -u <your-ip> 51822"
 }
 
 configure_dns_and_icmp_wg() {
-  echo "allowing ping (icmp) and dns on this host"
+  info "allowing ping (icmp) and dns on this host"
   iptables -C INPUT -p icmp --icmp-type echo-request -j ACCEPT 2>/dev/null || \
     iptables -A INPUT -p icmp --icmp-type echo-request -j ACCEPT
   iptables -C OUTPUT -p icmp --icmp-type echo-reply -j ACCEPT 2>/dev/null || \
@@ -444,7 +440,7 @@ configure_dns_and_icmp_wg() {
     iptables -A INPUT -p tcp --dport 53 -j ACCEPT
 
   save_iptables_rules
-  echo "dns and icmp configuration completed"
+  ok "dns and icmp configuration completed"
 }
 
 ###############################################################################
@@ -463,12 +459,12 @@ add_port_rules() {
 
     if ! $cmd -C "$NYM_CHAIN" -p "$protocol" --dport "$start_port:$end_port" -j ACCEPT 2>/dev/null; then
       $cmd -A "$NYM_CHAIN" -p "$protocol" --dport "$start_port:$end_port" -j ACCEPT
-      echo "added $cmd $NYM_CHAIN $protocol port range $start_port:$end_port"
+      ok "added $cmd $NYM_CHAIN $protocol port range $start_port:$end_port"
     fi
   else
     if ! $cmd -C "$NYM_CHAIN" -p "$protocol" --dport "$port" -j ACCEPT 2>/dev/null; then
       $cmd -A "$NYM_CHAIN" -p "$protocol" --dport "$port" -j ACCEPT
-      echo "added $cmd $NYM_CHAIN $protocol port $port"
+      ok "added $cmd $NYM_CHAIN $protocol port $port"
     fi
   fi
 }
@@ -478,14 +474,14 @@ exit_policy_install_deps() {
 
   for cmd in iptables ip6tables ip grep sed awk wget curl; do
     if ! command -v "$cmd" >/dev/null 2>&1; then
-      echo "installing dependency: $cmd"
+      info "installing dependency: $cmd"
       apt-get install -y "$cmd"
     fi
   done
 }
 
 create_nym_chain() {
-  echo "creating nym exit policy chain $NYM_CHAIN"
+  info "creating nym exit policy chain $NYM_CHAIN"
 
   if iptables -L "$NYM_CHAIN" >/dev/null 2>&1; then
     iptables -F "$NYM_CHAIN"
@@ -509,7 +505,7 @@ create_nym_chain() {
 }
 
 setup_nat_rules() {
-  echo "setting up nat and forwarding rules for $WG_INTERFACE via $NETWORK_DEVICE"
+  info "setting up nat and forwarding rules for $WG_INTERFACE via $NETWORK_DEVICE"
 
   if ! iptables -t nat -C POSTROUTING -o "$NETWORK_DEVICE" -j MASQUERADE 2>/dev/null; then
     iptables -t nat -A POSTROUTING -o "$NETWORK_DEVICE" -j MASQUERADE
@@ -534,7 +530,7 @@ setup_nat_rules() {
 }
 
 configure_exit_dns_and_icmp() {
-  echo "ensuring dns and icmp are allowed inside nym exit chain"
+  info "ensuring dns and icmp are allowed inside nym exit chain"
 
   # Remove any existing DNS/ICMP rules first to avoid duplicates
   iptables -D "$NYM_CHAIN" -p udp --dport 53 -j ACCEPT 2>/dev/null || true
@@ -727,7 +723,7 @@ add_default_reject_rule() {
 }
 
 clear_exit_policy_rules() {
-  echo "clearing nym exit policy rules"
+  info "clearing nym exit policy rules ..."
 
   iptables -F "$NYM_CHAIN" 2>/dev/null || true
   ip6tables -F "$NYM_CHAIN" 2>/dev/null || true
@@ -741,8 +737,8 @@ clear_exit_policy_rules() {
 
 show_exit_policy_status() {
   info "nym exit policy status"
-  info "network device: ${NC}$NETWORK_DEVICE"
-  info "wireguard interface: ${NC}$WG_INTERFACE"
+  info "network device: $NETWORK_DEVICE"
+  info "wireguard interface: $WG_INTERFACE"
   echo
 
   if ! ip link show "$WG_INTERFACE" >/dev/null 2>&1; then
@@ -790,26 +786,26 @@ test_exit_policy_connectivity() {
   ok "ipv6 address: ${ipv6_address:-none}"
 
   if [[ -n "$ipv4_address" ]]; then
-    info "testing ipv4 ping to 8.8.8.8"
+     echo -e "${NC}testing ipv4 ping to 8.8.8.8 ..."
     timeout 5 ping -c 3 -I "$ipv4_address" 8.8.8.8 >/dev/null 2>&1 && \
       ok "ipv4 ping ok" || error "ipv4 ping failed"
 
-    info "testing ipv4 dns resolution"
+    echo -e "${NC}testing ipv4 dns resolution ..."
     timeout 5 ping -c 3 -I "$ipv4_address" google.com >/dev/null 2>&1 && \
       ok "ipv4 dns ok" || error "ipv4 dns failed"
   fi
 
   if [[ -n "$ipv6_address" ]]; then
-    info "testing ipv6 ping to google dns"
+    echo -e "${NC}testing ipv6 ping to google dns ..."
     timeout 5 ping6 -c 3 -I "$ipv6_address" 2001:4860:4860::8888 >/dev/null 2>&1 && \
       ok "ipv6 ping ok" || error "ipv6 ping failed"
 
-    info "testing ipv6 dns resolution"
+    echo -e "${NC}testing ipv6 dns resolution ..."
     timeout 5 ping6 -c 3 -I "$ipv6_address" google.com >/dev/null 2>&1 && \
       ok "ipv6 dns ok" || error "ipv6 dns failed"
   fi
 
-  info "connectivity tests finished"
+  ok "connectivity tests finished"
 }
 
 

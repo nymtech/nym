@@ -591,6 +591,8 @@ apply_port_allowlist() {
     ["GroupWise"]="1677"
     ["PPTP"]="1723"
     ["RTSPAlt"]="1755"
+    ["Nym specific"]="1789"
+    ["Nym specific"]="1790"
     ["MSNP"]="1863"
     ["NFS"]="2049"
     ["CPanel"]="2082-2083"
@@ -609,6 +611,7 @@ apply_port_allowlist() {
     ["AndroidMarket"]="5228"
     ["PostgreSQL"]="5432"
     ["MongoDBDefault"]="27017"
+    ["Nym-node-api"]="8080"
     ["Electrum"]="8082"
     ["SimplifyMedia"]="8087-8088"
     ["Zcash"]="8232-8233"
@@ -617,6 +620,7 @@ apply_port_allowlist() {
     ["TeamSpeak"]="8767"
     ["MQTTS"]="8883"
     ["HTTPProxy"]="8888"
+    ["Nym Specific"]="9000"
     ["TorORPort"]="9001"
     ["TorDirPort"]="9030"
     ["Tari"]="9053"
@@ -637,6 +641,7 @@ apply_port_allowlist() {
     ["ElectrumSSL"]="50002"
     ["MOSH"]="60000-61000"
     ["Mumble"]="64738"
+    ["WireGuard"]="51822"
     ["Metadata"]="51830"
   )
 

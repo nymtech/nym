@@ -30,10 +30,6 @@ However, most of the time the packets sent through the Mixnet are IPv4 based. Th
 If you preparing to run a `nym-node` with all modes enabled in the future, this setup is required.
 </Callout>
 
-<Callout>
-We're working on Rust implementation agregating all routing settings into a binary, to solve all connectivity configuration requirements. In the meantime node operators need to use the [`network_tunnel_manager.sh`](https://github.com/nymtech/nym/blob/develop/scripts/network_tunnel_manager.sh) as a handy support to configure their servers. 
-</ Callout>
-
 <Callout type="warning" emoji="⚠️">
 Networking configuration across different ISPs and various operation systems does not have a generic solution. If the provided configuration setup doesn't solve your problem check out [IPv6 troubleshooting](/operators/troubleshooting/vps-isp.mdx#ipv6-troubleshooting) page. Be aware that you may have to do more research, customised adjustments or contact your ISP to change settings for your VPS.
 </ Callout>
@@ -64,9 +60,9 @@ Networking configuration across different ISPs and various operation systems doe
 
     <div>
       <Tabs items={[
-        <strong>New <code>nym-node</ code> Full Configuration</strong>,
-        <strong>Existing <code>nym-node</ code> Full Configuration</strong>,
-        <strong>Step-by-step or Partial Configuration</strong>
+        <strong>New <code>nym-node</ code> full configuration</strong>,
+        <strong>Existing <code>nym-node</ code> full configuration</strong>,
+        <strong>Step-by-step or Pprtial configuration</strong>
       ]} defaultIndex={0}>
         <Tabs.Tab>
 This design is meant for operators setting up a new node on a fresh machine and it will result with a complete server readiness for routing as Entry Gateway and Exit Gateway in both Mixnet and WireGuard mode. 

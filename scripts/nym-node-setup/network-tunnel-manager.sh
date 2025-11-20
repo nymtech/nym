@@ -740,31 +740,31 @@ clear_exit_policy_rules() {
 }
 
 show_exit_policy_status() {
-  echo "nym exit policy status"
-  echo "network device: $NETWORK_DEVICE"
-  echo "wireguard interface: $WG_INTERFACE"
+  info "nym exit policy status"
+  info "network device: ${NC}$NETWORK_DEVICE"
+  info "wireguard interface: ${NC}$WG_INTERFACE"
   echo
 
   if ! ip link show "$WG_INTERFACE" >/dev/null 2>&1; then
-    echo "warning: wireguard interface $WG_INTERFACE not found"
+    error "warning: wireguard interface $WG_INTERFACE not found"
   else
-    echo "interface details:"
+    info "interface details:"
     ip link show "$WG_INTERFACE"
     echo
-    echo "ipv4 addresses:"
+    info "ipv4 addresses:"
     ip -4 addr show dev "$WG_INTERFACE"
     echo
-    echo "ipv6 addresses:"
+    info "ipv6 addresses:"
     ip -6 addr show dev "$WG_INTERFACE"
   fi
 
   echo
-  echo "iptables chains for ${NYM_CHAIN}:"
+  info "iptables chains for ${NYM_CHAIN}:"
   iptables -L "$NYM_CHAIN" -n -v 2>/dev/null || echo "ipv4 chain not found"
   echo
   ip6tables -L "$NYM_CHAIN" -n -v 2>/dev/null || echo "ipv6 chain not found"
   echo
-  echo "ip forwarding:"
+  info "ip forwarding:"
   echo "ipv4: $(cat /proc/sys/net/ipv4/ip_forward 2>/dev/null || echo 0)"
   echo "ipv6: $(cat /proc/sys/net/ipv6/conf/all/forwarding 2>/dev/null || echo 0)"
 }
@@ -1251,13 +1251,13 @@ EOF
     ;;
 
   *)
-    echo "unknown command: $cmd"
-    echo "run with 'help' for usage"
+    error "unknown command: $cmd"
+    info "run with 'help' for usage"
     exit 1
     ;;
 esac
 
 if [[ "$cmd" != help && "$cmd" != "--help" && "$cmd" != "-h" && ${status:-1} -eq 0 ]]; then
-    echo "operation ${cmd} completed"
+    ok "operation ${cmd} completed"
 fi
 exit $status

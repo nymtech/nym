@@ -125,7 +125,7 @@ check_ip_routing() {
 
 perform_pings() {
     echo "performing IPv4 ping to google.com..."
-    ping -c 4 google.com
+    ping -4 -c 4 google.com
     echo "---------------------------------------"
     echo "performing IPv6 ping to google.com..."
     ping6 -c 4 google.com
@@ -160,7 +160,7 @@ joke_through_tunnel() {
         echo -e "testing IPv4 connectivity..."
         echo 
 
-        if ping -c 1 -I "$ipv4_address" google.com >/dev/null 2>&1; then
+        if ping -4 -c 1 -I "$ipv4_address" google.com >/dev/null 2>&1; then
             echo -e "${green}IPv4 connectivity is working. fetching a joke...${reset}"
             joke=$(curl -s -H "Accept: application/json" --interface "$ipv4_address" https://icanhazdadjoke.com/ | jq -r .joke)
             [[ -n "$joke" && "$joke" != "null" ]] && echo -e "${green}IPv4 joke: $joke${reset}" || echo -e "failed to fetch a joke via IPv4."

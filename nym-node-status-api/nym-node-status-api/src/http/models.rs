@@ -372,6 +372,21 @@ impl DVpnGateway {
     }
 }
 
+struct NodeScore {
+    download_speed_score: f64,
+    ping_ips_score: f64,
+    mixnet_performance: f64,
+}
+
+impl NodeScore {
+    // Weighted scoring: mixnet performance (40%), download speed (30%), ping performance (30%)
+    fn calculate_weighted_score(&self) -> f64 {
+        (self.mixnet_performance * 0.4)
+            + (self.download_speed_score * 0.3)
+            + (self.ping_ips_score * 0.3)
+    }
+}
+
 /// calculates the gateway probe score for mixnet mode
 fn calculate_mixnet_score(gateway: &Gateway) -> ScoreValue {
     let mixnet_performance = gateway.performance as f64 / 100.0;
@@ -391,7 +406,7 @@ fn calculate_mixnet_score(gateway: &Gateway) -> ScoreValue {
 fn calculate_score(gateway: &Gateway, probe_outcome: &LastProbeResult) -> ScoreValue {
     let mixnet_performance = gateway.performance as f64 / 100.0;
 
-    let (download_speed_score, ping_ips_performance) = probe_outcome
+    let node_score = probe_outcome
         .outcome
         .wg
         .as_ref()
@@ -420,13 +435,19 @@ fn calculate_score(gateway: &Gateway, probe_outcome: &LastProbeResult) -> ScoreV
                 0.1
             };
 
-            (file_download_score, ping_ips_performance)
+            NodeScore {
+                download_speed_score: file_download_score,
+                ping_ips_score: ping_ips_performance,
+                mixnet_performance,
+            }
         })
-        .unwrap_or((0.0, 0.0));
+        .unwrap_or(NodeScore {
+            download_speed_score: 0.0,
+            ping_ips_score: 0.0,
+            mixnet_performance,
+        });
 
-    // Weighted scoring: mixnet performance (40%), download speed (30%), ping performance (30%)
-    let weighted_score =
-        (mixnet_performance * 0.4) + (download_speed_score * 0.3) + (ping_ips_performance * 0.3);
+    let weighted_score = node_score.calculate_weighted_score();
 
     if weighted_score > 0.75 {
         ScoreValue::High

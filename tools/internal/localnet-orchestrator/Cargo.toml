@@ -1,0 +1,65 @@
+[package]
+name = "localnet-orchestrator"
+version = "0.1.0"
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+readme.workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+bip39 = { workspace = true }
+bytes = { workspace = true }
+cargo-edit = { workspace = true }
+cfg-if = { workspace = true }
+console = { workspace = true }
+cw-utils = { workspace = true }
+clap = { workspace = true, features = ["cargo", "derive"] }
+futures = { workspace = true }
+indicatif = { workspace = true }
+itertools = { workspace = true }
+humantime = { workspace = true }
+rand = { workspace = true }
+reqwest = { workspace = true, features = ["json", "stream", "rustls-tls"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate", "time"] }
+strum_macros = { workspace = true }
+tempfile = { workspace = true }
+time = { workspace = true, features = ["parsing", "formatting"] }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "process"] }
+toml = { workspace = true }
+tracing = { workspace = true }
+url = { workspace = true }
+zeroize = { workspace = true, features = ["zeroize_derive"] }
+
+nym-bin-common = { path = "../../../common/bin-common", features = ["output_format", "basic_tracing"] }
+nym-crypto = { path = "../../../common/crypto", features = ["asymmetric", "rand", "serde"] }
+nym-compact-ecash = { path = "../../../common/nym_offline_compact_ecash" }
+nym-config = { path = "../../../common/config" }
+nym-validator-client = { path = "../../../common/client-libs/validator-client" }
+nym-pemstore = { path = "../../../common/pemstore" }
+
+# contracts:
+nym-mixnet-contract-common = { path = "../../../common/cosmwasm-smart-contracts/mixnet-contract" }
+nym-contracts-common = { path = "../../../common/cosmwasm-smart-contracts/contracts-common" }
+nym-vesting-contract-common = { path = "../../../common/cosmwasm-smart-contracts/vesting-contract" }
+nym-group-contract-common = { path = "../../../common/cosmwasm-smart-contracts/group-contract" }
+nym-ecash-contract-common = { path = "../../../common/cosmwasm-smart-contracts/ecash-contract" }
+nym-coconut-dkg-common = { path = "../../../common/cosmwasm-smart-contracts/coconut-dkg" }
+nym-multisig-contract-common = { path = "../../../common/cosmwasm-smart-contracts/multisig-contract" }
+nym-performance-contract-common = { path = "../../../common/cosmwasm-smart-contracts/nym-performance-contract" }
+dkg-bypass-contract = { path = "dkg-bypass-contract", default-features = false }
+
+[build-dependencies]
+anyhow = { workspace = true }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
+sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"] }
+
+
+[lints]
+workspace = true

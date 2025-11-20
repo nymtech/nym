@@ -4,13 +4,13 @@
 use super::mix_traffic::ClientRequestSender;
 use super::received_buffer::ReceivedBufferMessage;
 use super::statistics_control::StatisticsControl;
-use crate::client::base_client::storage::helpers::store_client_keys;
 use crate::client::base_client::storage::MixnetClientStorage;
+use crate::client::base_client::storage::helpers::store_client_keys;
 use crate::client::cover_traffic_stream::LoopCoverTrafficStream;
 use crate::client::event_control::EventControl;
 use crate::client::inbound_messages::{InputMessage, InputMessageReceiver, InputMessageSender};
-use crate::client::key_manager::persistence::KeyStore;
 use crate::client::key_manager::ClientKeys;
+use crate::client::key_manager::persistence::KeyStore;
 use crate::client::mix_traffic::transceiver::{GatewayReceiver, GatewayTransceiver, RemoteGateway};
 use crate::client::mix_traffic::{BatchMixMessageSender, MixTrafficController, MixTrafficEvent};
 use crate::client::real_messages_control;
@@ -52,12 +52,12 @@ use nym_sphinx::addressing::nodes::NodeIdentity;
 use nym_sphinx::receiver::{ReconstructedMessage, SphinxMessageReceiver};
 use nym_statistics_common::clients::ClientStatsSender;
 use nym_statistics_common::generate_client_stats_id;
-use nym_task::connections::{ConnectionCommandReceiver, ConnectionCommandSender, LaneQueueLengths};
 use nym_task::ShutdownTracker;
-use nym_topology::provider_trait::TopologyProvider;
+use nym_task::connections::{ConnectionCommandReceiver, ConnectionCommandSender, LaneQueueLengths};
 use nym_topology::HardcodedTopologyProvider;
+use nym_topology::provider_trait::TopologyProvider;
 use nym_validator_client::nym_api::NymApiClientExt;
-use nym_validator_client::{nyxd::contract_traits::DkgQueryClient, UserAgent};
+use nym_validator_client::{UserAgent, nyxd::contract_traits::DkgQueryClient};
 use rand::prelude::SliceRandom;
 use rand::rngs::OsRng;
 use rand::thread_rng;
@@ -220,6 +220,7 @@ pub struct BaseClientBuilder<C, S: MixnetClientStorage> {
     nym_api_urls: Option<Vec<nym_network_defaults::ApiUrl>>,
 
     wait_for_gateway: bool,
+    wait_for_initial_topology: bool,
     custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
     custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send>>,
     shutdown: Option<ShutdownTracker>,
@@ -250,6 +251,7 @@ where
             dkg_query_client,
             nym_api_urls: None,
             wait_for_gateway: false,
+            wait_for_initial_topology: false,
             custom_topology_provider: None,
             custom_gateway_transceiver: None,
             shutdown: None,
@@ -302,6 +304,12 @@ where
     #[must_use]
     pub fn with_wait_for_gateway(mut self, wait_for_gateway: bool) -> Self {
         self.wait_for_gateway = wait_for_gateway;
+        self
+    }
+
+    #[must_use]
+    pub fn with_wait_for_initial_topology(mut self, wait_for_initial_topology: bool) -> Self {
+        self.wait_for_initial_topology = wait_for_initial_topology;
         self
     }
 
@@ -674,6 +682,7 @@ where
         topology_accessor: TopologyAccessor,
         local_gateway: NodeIdentity,
         wait_for_gateway: bool,
+        wait_for_initial_topology: bool,
         shutdown_tracker: &ShutdownTracker,
     ) -> Result<(), ClientCoreError> {
         let topology_refresher_config =
@@ -694,6 +703,46 @@ where
         tracing::info!("Obtaining initial network topology");
         topology_refresher.try_refresh().await;
 
+        // 1. wait for the minimum topology (if applicable)
+        if topology_refresher
+            .ensure_topology_is_routable()
+            .await
+            .is_err()
+            && wait_for_initial_topology
+        {
+            if let Err(err) = topology_refresher
+                .wait_for_initial_network(topology_config.max_startup_network_waiting_period)
+                .await
+            {
+                tracing::error!(
+                    "the network did not come become online within the specified timeout: {err}"
+                );
+                return Err(err.into());
+            }
+        }
+
+        // 2. wait for our gateway (if applicable)
+        if topology_refresher
+            .ensure_contains_routable_egress(local_gateway)
+            .await
+            .is_err()
+            && wait_for_gateway
+        {
+            if let Err(err) = topology_refresher
+                .wait_for_gateway(
+                    local_gateway,
+                    topology_config.max_startup_gateway_waiting_period,
+                )
+                .await
+            {
+                tracing::error!(
+                    "the gateway did not come back online within the specified timeout: {err}"
+                );
+                return Err(err.into());
+            }
+        }
+
+        // 3. check if the topology is routable (in case we were NOT waiting for it)
         if let Err(err) = topology_refresher.ensure_topology_is_routable().await {
             tracing::error!(
                 "The current network topology seem to be insufficient to route any packets through \
@@ -702,30 +751,15 @@ where
             return Err(ClientCoreError::InsufficientNetworkTopology(err));
         }
 
-        let gateway_wait_timeout = if wait_for_gateway {
-            Some(topology_config.max_startup_gateway_waiting_period)
-        } else {
-            None
-        };
-
+        // 4. check if the gateway exists (in case we were NOT waiting for it)
         if let Err(err) = topology_refresher
             .ensure_contains_routable_egress(local_gateway)
             .await
         {
-            if let Some(waiting_timeout) = gateway_wait_timeout {
-                if let Err(err) = topology_refresher
-                    .wait_for_gateway(local_gateway, waiting_timeout)
-                    .await
-                {
-                    tracing::error!(
-                        "the gateway did not come back online within the specified timeout: {err}"
-                    );
-                    return Err(err.into());
-                }
-            } else {
-                tracing::error!("the gateway we're supposedly connected to does not exist. We'll not be able to send any packets to ourselves: {err}");
-                return Err(err.into());
-            }
+            tracing::error!(
+                "the gateway we're supposedly connected to does not exist. We'll not be able to send any packets to ourselves: {err}"
+            );
+            return Err(err.into());
         }
 
         if !topology_config.disable_refreshing {
@@ -1024,6 +1058,7 @@ where
             shared_topology_accessor.clone(),
             self_address.gateway(),
             self.wait_for_gateway,
+            self.wait_for_initial_topology,
             &shutdown_tracker.clone(),
         )
         .await?;
@@ -1195,9 +1230,11 @@ mod tests {
         ]);
 
         assert_eq!(network_details.nym_api_urls.as_ref().unwrap().len(), 2);
-        assert!(network_details.nym_api_urls.as_ref().unwrap()[1]
-            .front_hosts
-            .is_some());
+        assert!(
+            network_details.nym_api_urls.as_ref().unwrap()[1]
+                .front_hosts
+                .is_some()
+        );
     }
 
     #[test]
@@ -1210,11 +1247,13 @@ mod tests {
 
         assert_eq!(api_url.url, "https://nym-frontdoor.vercel.app/api/");
         assert_eq!(api_url.front_hosts.as_ref().unwrap().len(), 2);
-        assert!(api_url
-            .front_hosts
-            .as_ref()
-            .unwrap()
-            .contains(&"vercel.app".to_string()));
+        assert!(
+            api_url
+                .front_hosts
+                .as_ref()
+                .unwrap()
+                .contains(&"vercel.app".to_string())
+        );
     }
 
     #[test]

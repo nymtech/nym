@@ -1,8 +1,8 @@
 // Copyright 2023-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::client::key_manager::persistence::KeyStore;
 use crate::client::key_manager::ClientKeys;
+use crate::client::key_manager::persistence::KeyStore;
 use crate::config::Config;
 use crate::error::ClientCoreError;
 use crate::init::{setup_gateway, use_loaded_gateway_details};
@@ -10,8 +10,8 @@ use nym_client_core_gateways_storage::{
     GatewayRegistration, GatewaysDetailsStore, RemoteGatewayDetails,
 };
 use nym_crypto::asymmetric::ed25519;
-use nym_gateway_client::client::{GatewayListeners, InitGatewayClient};
 use nym_gateway_client::SharedSymmetricKey;
+use nym_gateway_client::client::{GatewayListeners, InitGatewayClient};
 use nym_sphinx::addressing::clients::Recipient;
 use nym_topology::node::RoutingNode;
 use nym_validator_client::client::IdentityKey;

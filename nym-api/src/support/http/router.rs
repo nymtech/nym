@@ -12,17 +12,21 @@ use crate::support::http::openapi::ApiDoc;
 use crate::support::http::state::AppState;
 use crate::unstable_routes::v1::unstable_routes_v1;
 use crate::unstable_routes::v2::unstable_routes_v2;
+use crate::utility_routes::utility_routes;
 use anyhow::anyhow;
 use axum::response::Redirect;
 use axum::routing::get;
 use axum::Router;
 use core::net::SocketAddr;
+use nym_http_api_common::middleware::bearer_auth::AuthLayer;
 use nym_http_api_common::middleware::logging::log_request_info;
 use nym_task::ShutdownToken;
+use std::sync::Arc;
 use tokio::net::TcpListener;
 use tower_http::cors::CorsLayer;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
+use zeroize::Zeroizing;
 
 /// Wrapper around `axum::Router` which ensures correct [order of layers][order].
 /// Add new routes as if you were working directly with `axum`.
@@ -36,9 +40,34 @@ pub(crate) struct RouterBuilder {
 }
 
 impl RouterBuilder {
+    fn v1_routes(network_monitor: bool, bearer_token: Option<String>) -> Router<AppState> {
+        let base = Router::new()
+            // unfortunately some routes didn't use correct prefix and were attached to the root
+            .nest("/epoch", epoch_routes())
+            .nest("/circulating-supply", circulating_supply_routes())
+            .nest("/status", status_routes(network_monitor))
+            .nest("/network", nym_network_routes())
+            .nest("/api-status", status::handlers::api_status_routes())
+            .nest("/nym-nodes", nym_node_routes())
+            .nest("/ecash", ecash_routes())
+            .nest("/unstable", unstable_routes_v1())
+            .nest("/legacy", legacy_nodes_routes()); // CORS layer needs to be "outside" of routes
+
+        if let Some(bearer_token) = bearer_token {
+            let auth_middleware = AuthLayer::new(Arc::new(Zeroizing::new(bearer_token)));
+            base.nest("/utility", utility_routes().route_layer(auth_middleware))
+        } else {
+            base
+        }
+    }
+
+    fn v2_routes() -> Router<AppState> {
+        Router::new().nest("/unstable", unstable_routes_v2())
+    }
+
     /// All routes should be, if possible, added here. Exceptions are e.g.
     /// routes which are added conditionally in other places based on some `if`.
-    pub(crate) fn with_default_routes(network_monitor: bool) -> Self {
+    pub(crate) fn with_default_routes(network_monitor: bool, bearer_token: Option<String>) -> Self {
         // https://docs.rs/tower-http/0.1.1/tower_http/trace/index.html
         // TODO rocket use tracing instead of env_logger
         // https://github.com/tokio-rs/axum/blob/main/examples/tracing-aka-logging/src/main.rs
@@ -52,21 +81,8 @@ impl RouterBuilder {
         let default_routes = Router::new()
             .merge(SwaggerUi::new("/swagger").url("/api-docs/openapi.json", ApiDoc::openapi()))
             .route("/", get(|| async { Redirect::to("/swagger") }))
-            .nest(
-                "/v1",
-                Router::new()
-                    // unfortunately some routes didn't use correct prefix and were attached to the root
-                    .nest("/epoch", epoch_routes())
-                    .nest("/circulating-supply", circulating_supply_routes())
-                    .nest("/status", status_routes(network_monitor))
-                    .nest("/network", nym_network_routes())
-                    .nest("/api-status", status::handlers::api_status_routes())
-                    .nest("/nym-nodes", nym_node_routes())
-                    .nest("/ecash", ecash_routes())
-                    .nest("/unstable", unstable_routes_v1())
-                    .nest("/legacy", legacy_nodes_routes()), // CORS layer needs to be "outside" of routes
-            )
-            .nest("/v2", Router::new().nest("/unstable", unstable_routes_v2()));
+            .nest("/v1", Self::v1_routes(network_monitor, bearer_token))
+            .nest("/v2", Self::v2_routes());
 
         Self {
             unfinished_router: default_routes,

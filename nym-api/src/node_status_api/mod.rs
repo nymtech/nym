@@ -5,6 +5,7 @@ use self::cache::refresher::NodeStatusCacheRefresher;
 use crate::node_describe_cache::cache::DescribedNodes;
 use crate::node_performance::provider::NodePerformanceProvider;
 use crate::support::caching::cache::SharedCache;
+use crate::support::caching::refresher::RefreshRequester;
 use crate::support::config;
 use crate::{
     mixnet_contract_cache::cache::MixnetContractCache,
@@ -40,7 +41,7 @@ pub(crate) fn start_cache_refresh(
     nym_contract_cache_listener: watch::Receiver<support::caching::CacheNotification>,
     described_cache_cache_listener: watch::Receiver<support::caching::CacheNotification>,
     shutdown_manager: &ShutdownManager,
-) {
+) -> RefreshRequester {
     let mut nym_api_cache_refresher = NodeStatusCacheRefresher::new(
         node_status_cache_state.to_owned(),
         config.debug.caching_interval,
@@ -50,6 +51,8 @@ pub(crate) fn start_cache_refresh(
         described_cache_cache_listener,
         performance_provider,
     );
+    let refresh_requester = nym_api_cache_refresher.refresh_requester();
     let shutdown_listener = shutdown_manager.clone_shutdown_token();
     tokio::spawn(async move { nym_api_cache_refresher.run(shutdown_listener).await });
+    refresh_requester
 }

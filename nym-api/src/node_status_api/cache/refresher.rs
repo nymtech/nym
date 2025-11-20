@@ -8,6 +8,7 @@ use crate::node_performance::provider::{NodePerformanceProvider, NodesRoutingSco
 use crate::node_status_api::cache::config_score::calculate_config_score;
 use crate::node_status_api::models::Uptime;
 use crate::support::caching::cache::SharedCache;
+use crate::support::caching::refresher::RefreshRequester;
 use crate::{
     mixnet_contract_cache::cache::MixnetContractCache,
     node_status_api::cache::NodeStatusCacheError, support::caching::CacheNotification,
@@ -32,8 +33,17 @@ pub struct NodeStatusCacheRefresher {
     // Sources for when refreshing data
     mixnet_contract_cache: MixnetContractCache,
     described_cache: SharedCache<DescribedNodes>,
+
+    /// channel notifying us when mixnet cache has been refreshed,
+    /// so that this cache could also be recreated
     mixnet_contract_cache_listener: watch::Receiver<CacheNotification>,
+
+    /// channel notifying us when the describe cache has been refreshed,
+    /// so that this cache could also be recreated
     describe_cache_listener: watch::Receiver<CacheNotification>,
+
+    /// channel explicitly requesting cache refresh. it does not follow the usual rate limiting
+    refresh_requester: RefreshRequester,
 
     performance_provider: Box<dyn NodePerformanceProvider + Send + Sync>,
 }
@@ -55,8 +65,13 @@ impl NodeStatusCacheRefresher {
             described_cache,
             mixnet_contract_cache_listener: contract_cache_listener,
             describe_cache_listener,
+            refresh_requester: Default::default(),
             performance_provider,
         }
+    }
+
+    pub(crate) fn refresh_requester(&self) -> RefreshRequester {
+        self.refresh_requester.clone()
     }
 
     /// Runs the node status cache refresher task.
@@ -89,6 +104,23 @@ impl NodeStatusCacheRefresher {
                         }
                     }
                 }
+                // note: `Notify` is not cancellation safe, HOWEVER, there's only one listener,
+                // so it doesn't matter if we lose our queue position
+                _ = self.refresh_requester.notified() => {
+                     tokio::select! {
+                        // perform full refresh regardless of the rates
+                        _ = self.refresh() => {
+                            last_update = OffsetDateTime::now_utc();
+                            fallback_interval.reset();
+                        },
+                        _ = shutdown_token.cancelled() => {
+                            trace!("NodeStatusCacheRefresher: Received shutdown");
+                            break;
+                        }
+                    }
+                }
+
+
                 // ... however, if we don't receive any notifications we fall back to periodic
                 // refreshes
                 _ = fallback_interval.tick() => {

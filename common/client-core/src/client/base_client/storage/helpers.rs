@@ -1,8 +1,8 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::client::key_manager::persistence::KeyStore;
 use crate::client::key_manager::ClientKeys;
+use crate::client::key_manager::persistence::KeyStore;
 use crate::error::ClientCoreError;
 use nym_client_core_gateways_storage::{
     ActiveGateway, GatewayPublishedData, GatewayRegistration, GatewaysDetailsStore,

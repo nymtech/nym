@@ -52,6 +52,7 @@ pub struct MixnetClientBuilder<S: MixnetClientStorage = Ephemeral> {
     socks5_config: Option<Socks5>,
 
     wait_for_gateway: bool,
+    wait_for_initial_topology: bool,
     custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
     custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send + Sync>>,
     custom_shutdown: Option<ShutdownTracker>,
@@ -94,6 +95,7 @@ impl MixnetClientBuilder<OnDiskPersistent> {
             storage_paths: None,
             socks5_config: None,
             wait_for_gateway: false,
+            wait_for_initial_topology: false,
             custom_topology_provider: None,
             storage: storage_paths
                 .initialise_default_persistent_storage()
@@ -132,6 +134,7 @@ where
             storage_paths: None,
             socks5_config: None,
             wait_for_gateway: false,
+            wait_for_initial_topology: false,
             custom_topology_provider: None,
             custom_gateway_transceiver: None,
             custom_shutdown: None,
@@ -157,6 +160,7 @@ where
             storage_paths: self.storage_paths,
             socks5_config: self.socks5_config,
             wait_for_gateway: self.wait_for_gateway,
+            wait_for_initial_topology: self.wait_for_initial_topology,
             custom_topology_provider: self.custom_topology_provider,
             custom_gateway_transceiver: self.custom_gateway_transceiver,
             custom_shutdown: self.custom_shutdown,
@@ -293,10 +297,18 @@ where
         self
     }
 
-    /// Attempt to wait for the selected gateway (if applicable) to come online if its currently not bonded.
+    /// Attempt to wait for the selected gateway (if applicable) to come online if it's currently not bonded.
     #[must_use]
     pub fn with_wait_for_gateway(mut self, wait_for_gateway: bool) -> Self {
         self.wait_for_gateway = wait_for_gateway;
+        self
+    }
+
+    /// Attempt to wait for initial network topology to become online before finalizing client setup
+    /// this is useful during network bootstrapping phases
+    #[must_use]
+    pub fn with_wait_for_initial_topology(mut self, wait_for_initial_topology: bool) -> Self {
+        self.wait_for_initial_topology = wait_for_initial_topology;
         self
     }
 
@@ -352,6 +364,7 @@ where
         client.custom_topology_provider = self.custom_topology_provider;
         client.custom_shutdown = self.custom_shutdown;
         client.wait_for_gateway = self.wait_for_gateway;
+        client.wait_for_initial_topology = self.wait_for_initial_topology;
         client.force_tls = self.force_tls;
         client.no_hostname = self.no_hostname;
         client.user_agent = self.user_agent;
@@ -400,8 +413,12 @@ where
     /// advanced usage of custom gateways
     custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send + Sync>>,
 
-    /// Attempt to wait for the selected gateway (if applicable) to come online if its currently not bonded.
+    /// Attempt to wait for the selected gateway (if applicable) to come online if it's currently not bonded.
     wait_for_gateway: bool,
+
+    /// Attempt to wait for initial network topology to become online before finalizing client setup
+    /// this is useful during network bootstrapping phases
+    wait_for_initial_topology: bool,
 
     /// Force the client to connect using wss protocol with the gateway.
     force_tls: bool,
@@ -476,6 +493,7 @@ where
             custom_topology_provider: None,
             custom_gateway_transceiver: None,
             wait_for_gateway: false,
+            wait_for_initial_topology: false,
             force_tls: false,
             no_hostname: false,
             custom_shutdown: None,
@@ -758,6 +776,7 @@ where
         let mut base_builder: BaseClientBuilder<_, _> =
             BaseClientBuilder::new(base_config, self.storage, self.dkg_query_client)
                 .with_wait_for_gateway(self.wait_for_gateway)
+                .with_wait_for_initial_topology(self.wait_for_initial_topology)
                 .with_forget_me(&self.forget_me)
                 .with_remember_me(&self.remember_me)
                 .with_derivation_material(self.derivation_material);

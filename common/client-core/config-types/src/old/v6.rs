@@ -159,6 +159,7 @@ impl From<ConfigV6> for Config {
                     use_extended_topology: value.debug.topology.use_extended_topology,
                     ignore_egress_epoch_role: value.debug.topology.ignore_egress_epoch_role,
                     ignore_ingress_epoch_role: value.debug.topology.ignore_ingress_epoch_role,
+                    ..Default::default()
                 },
                 reply_surbs: ReplySurbs {
                     minimum_reply_surb_storage_threshold: value

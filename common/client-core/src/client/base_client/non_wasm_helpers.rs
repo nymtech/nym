@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{
-    client::replies::reply_storage::{fs_backend, CombinedReplyStorage, ReplyStorageBackend},
+    client::replies::reply_storage::{CombinedReplyStorage, ReplyStorageBackend, fs_backend},
     config,
     config::Config,
     error::ClientCoreError,
@@ -10,7 +10,7 @@ use crate::{
 use nym_bandwidth_controller::BandwidthController;
 use nym_client_core_gateways_storage::OnDiskGatewaysDetails;
 use nym_credential_storage::storage::Storage as CredentialStorage;
-use nym_validator_client::{nyxd, QueryHttpRpcNyxdClient};
+use nym_validator_client::{QueryHttpRpcNyxdClient, nyxd};
 use std::{io, path::Path};
 use time::OffsetDateTime;
 use tracing::{error, info, trace};
@@ -24,7 +24,9 @@ async fn setup_fresh_backend<P: AsRef<Path>>(
     let mut storage_backend = match fs_backend::Backend::init(db_path).await {
         Ok(backend) => backend,
         Err(err) => {
-            error!("setup_fresh_backend: Failed to setup persistent storage backend for our reply needs: {err}");
+            error!(
+                "setup_fresh_backend: Failed to setup persistent storage backend for our reply needs: {err}"
+            );
             return Err(ClientCoreError::SurbStorageError {
                 source: Box::new(err),
             });
@@ -93,7 +95,9 @@ pub async fn setup_fs_reply_surb_backend<P: AsRef<Path>>(
         match fs_backend::Backend::try_load(db_path).await {
             Ok(backend) => Ok(backend),
             Err(err) => {
-                error!("setup_fs_reply_surb_backend: Failed to setup persistent storage backend for our reply needs: {err}. We're going to create a fresh database instead. This behaviour might change in the future");
+                error!(
+                    "setup_fs_reply_surb_backend: Failed to setup persistent storage backend for our reply needs: {err}. We're going to create a fresh database instead. This behaviour might change in the future"
+                );
                 archive_corrupted_database(db_path).await?;
                 setup_fresh_backend(db_path, surb_config).await
             }

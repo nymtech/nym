@@ -183,6 +183,7 @@ start_mixnode() {
 
     container run \
         --name "$container_name" \
+        --dns 1.1.1.1 \
         -m 2G \
         --network "$NETWORK_NAME" \
         -p "${mixnet_port}:${mixnet_port}" \
@@ -224,6 +225,7 @@ start_gateway() {
 
     container run \
         --name "$GATEWAY_CONTAINER" \
+        --dns 1.1.1.1 \
         -m 2G \
         --network "$NETWORK_NAME" \
         -p 9000:9000 \
@@ -290,6 +292,7 @@ start_network_requester() {
 
     container run \
         --name "$REQUESTER_CONTAINER" \
+        --dns 1.1.1.1 \
         --network "$NETWORK_NAME" \
         -v "$VOLUME_PATH:/localnet" \
         -v "$NYM_VOLUME_PATH:/root/.nym" \
@@ -302,7 +305,7 @@ start_network_requester() {
                 sleep 2;
             done;
             while ! nc -z $GATEWAY_IP 9000 2>/dev/null; do
-                echo "Waiting for gateway on port 9000 ($GATEWAY_IP)...";
+                echo "Waiting for gateway on port 9000  ($GATEWAY_IP)...";
                 sleep 2;
             done;
             SUFFIX=$(date +%s);
@@ -325,6 +328,7 @@ start_socks5_client() {
 
     container run \
         --name "$SOCKS5_CONTAINER" \
+        --dns 1.1.1.1 \
         --network "$NETWORK_NAME" \
         -p 1080:1080 \
         -v "$VOLUME_PATH:/localnet:ro" \
@@ -470,6 +474,7 @@ build_topology() {
     # Run build_topology.py in a container with access to the volumes
     container run \
         --name "nym-localnet-topology-builder" \
+        --dns 1.1.1.1 \
         --network "$NETWORK_NAME" \
         -v "$VOLUME_PATH:/localnet" \
         -v "$NYM_VOLUME_PATH:/root/.nym" \

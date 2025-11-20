@@ -160,7 +160,10 @@ where
         )
         .await?;
     } else {
-        info!("registered with new gateway {} (under address {address}), but this will not be our default address", gateway_details.gateway_id);
+        info!(
+            "registered with new gateway {} (under address {address}), but this will not be our default address",
+            gateway_details.gateway_id
+        );
     }
 
     Ok(GatewayInfo {

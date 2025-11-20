@@ -7,6 +7,7 @@ use async_trait::async_trait;
 use nym_task::ShutdownToken;
 use std::sync::Arc;
 use std::time::Duration;
+use tokio::sync::futures::Notified;
 use tokio::sync::{watch, Notify};
 use tokio::time::interval;
 use tracing::{debug, error, info, trace, warn};
@@ -19,6 +20,10 @@ pub struct RefreshRequester(Arc<Notify>);
 impl RefreshRequester {
     pub(crate) fn request_cache_refresh(&self) {
         self.0.notify_waiters()
+    }
+
+    pub(crate) fn notified(&self) -> Notified<'_> {
+        self.0.notified()
     }
 }
 
@@ -249,7 +254,7 @@ where
                 _ = refresh_interval.tick() => self.refresh(&shutdown_token).await,
                 // note: `Notify` is not cancellation safe, HOWEVER, there's only one listener,
                 // so it doesn't matter if we lose our queue position
-                _ = self.refresh_requester.0.notified() => {
+                _ = self.refresh_requester.notified() => {
                     self.refresh(&shutdown_token).await;
                     // since we just performed the full request, we can reset our existing interval
                     refresh_interval.reset();

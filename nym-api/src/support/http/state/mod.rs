@@ -15,22 +15,24 @@ use crate::support::caching::Cache;
 use crate::support::http::state::chain_status::ChainStatusCache;
 use crate::support::http::state::contract_details::ContractDetailsCache;
 use crate::support::http::state::force_refresh::ForcedRefresh;
+use crate::support::http::state::mixnet_contract_cache::MixnetContractCacheState;
+use crate::support::http::state::node_annotations_cache::NodeAnnotationsCache;
 use crate::support::nyxd::Client;
 use crate::support::storage;
 use crate::unstable_routes::v1::account::cache::AddressInfoCache;
 use crate::unstable_routes::v1::account::models::NyxAccountDetails;
 use axum::extract::FromRef;
-use nym_api_requests::models::NodeAnnotation;
 use nym_crypto::asymmetric::ed25519;
-use nym_mixnet_contract_common::NodeId;
 use nym_topology::CachedEpochRewardedSet;
-use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLockReadGuard;
 
 pub(crate) mod chain_status;
 pub(crate) mod contract_details;
 pub(crate) mod force_refresh;
+pub(crate) mod helpers;
+pub(crate) mod mixnet_contract_cache;
+pub(crate) mod node_annotations_cache;
 
 #[derive(Clone)]
 pub(crate) struct AppState {
@@ -55,11 +57,11 @@ pub(crate) struct AppState {
     pub(crate) forced_refresh: ForcedRefresh,
 
     /// Holds cached state of the Nym Mixnet contract, e.g. bonded nym-nodes, rewarded set, current interval.
-    pub(crate) mixnet_contract_cache: MixnetContractCache,
+    pub(crate) mixnet_contract_cache: MixnetContractCacheState,
 
     /// Holds processed information on network nodes, i.e. performance, config scores, etc.
     // TODO: also perhaps redundant?
-    pub(crate) node_status_cache: NodeStatusCache,
+    pub(crate) node_annotations_cache: NodeAnnotationsCache,
 
     /// Holds reference to the persistent storage of this nym-api.
     pub(crate) storage: storage::NymApiStorage,
@@ -102,7 +104,25 @@ impl FromRef<AppState> for Arc<EcashState> {
 
 impl FromRef<AppState> for MixnetContractCache {
     fn from_ref(app_state: &AppState) -> Self {
+        app_state.mixnet_contract_cache.inner_cache.clone()
+    }
+}
+
+impl FromRef<AppState> for MixnetContractCacheState {
+    fn from_ref(app_state: &AppState) -> Self {
         app_state.mixnet_contract_cache.clone()
+    }
+}
+
+impl FromRef<AppState> for NodeAnnotationsCache {
+    fn from_ref(app_state: &AppState) -> Self {
+        app_state.node_annotations_cache.clone()
+    }
+}
+
+impl FromRef<AppState> for NodeStatusCache {
+    fn from_ref(app_state: &AppState) -> Self {
+        app_state.node_annotations_cache.inner_cache.clone()
     }
 }
 
@@ -120,11 +140,11 @@ impl AppState {
     }
 
     pub(crate) fn nym_contract_cache(&self) -> &MixnetContractCache {
-        &self.mixnet_contract_cache
+        &self.mixnet_contract_cache.inner_cache
     }
 
     pub(crate) fn node_status_cache(&self) -> &NodeStatusCache {
-        &self.node_status_cache
+        &self.node_annotations_cache.inner_cache
     }
 
     pub(crate) fn network_details(&self) -> &NetworkDetails {
@@ -158,16 +178,6 @@ impl AppState {
         Ok(self.nym_contract_cache().cached_rewarded_set().await?)
     }
 
-    pub(crate) async fn node_annotations(
-        &self,
-    ) -> Result<RwLockReadGuard<'_, Cache<HashMap<NodeId, NodeAnnotation>>>, AxumErrorResponse>
-    {
-        self.node_status_cache()
-            .node_annotations()
-            .await
-            .ok_or_else(AxumErrorResponse::internal)
-    }
-
     pub(crate) async fn get_address_info(
         self,
         account_id: nym_validator_client::nyxd::AccountId,
@@ -186,7 +196,7 @@ impl AppState {
                     .address_info_cache
                     .collect_balances(
                         self.nyxd_client.clone(),
-                        self.mixnet_contract_cache.clone(),
+                        self.mixnet_contract_cache.inner_cache.clone(),
                         self.network_details()
                             .network
                             .chain_details

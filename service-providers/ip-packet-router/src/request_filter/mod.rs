@@ -5,6 +5,7 @@ use crate::config::Config;
 use crate::error::IpPacketRouterError;
 use crate::request_filter::exit_policy::ExitPolicyRequestFilter;
 use log::{info, warn};
+use nym_exit_policy::ExitPolicy;
 use std::{net::SocketAddr, sync::Arc};
 
 pub mod exit_policy;
@@ -42,12 +43,17 @@ impl RequestFilter {
     }
 
     async fn new_exit_policy_filter(config: &Config) -> Result<Self, IpPacketRouterError> {
-        let upstream_url = config
-            .ip_packet_router
-            .upstream_exit_policy_url
-            .as_ref()
-            .ok_or(IpPacketRouterError::NoUpstreamExitPolicy)?;
-        let policy_filter = ExitPolicyRequestFilter::new_upstream(upstream_url.clone()).await?;
+        let policy_filter = if config.ip_packet_router.open_proxy {
+            ExitPolicyRequestFilter::new_from_policy(ExitPolicy::new_open())
+        } else {
+            let upstream_url = config
+                .ip_packet_router
+                .upstream_exit_policy_url
+                .as_ref()
+                .ok_or(IpPacketRouterError::NoUpstreamExitPolicy)?;
+            ExitPolicyRequestFilter::new_upstream(upstream_url.clone()).await?
+        };
+
         Ok(RequestFilter {
             inner: Arc::new(RequestFilterInner::ExitPolicy { policy_filter }),
         })

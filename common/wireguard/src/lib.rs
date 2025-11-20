@@ -220,7 +220,7 @@ pub async fn start_wireguard(
 
     info!("Configuring WireGuard interface...");
     wg_api.configure_interface(&interface_config).map_err(|e| {
-        log::error!("Failed to configure WireGuard interface: {:?}", e);
+        tracing::error!("Failed to configure WireGuard interface: {:?}", e);
         e
     })?;
 
@@ -240,7 +240,7 @@ pub async fn start_wireguard(
         ])
         .output()
         .map_err(|e| {
-            log::error!("Failed to add IPv6 address: {:?}", e);
+            tracing::error!("Failed to add IPv6 address: {:?}", e);
             e
         })?;
 

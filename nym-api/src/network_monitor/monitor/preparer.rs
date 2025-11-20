@@ -174,6 +174,33 @@ impl PacketPreparer {
         layer_choices.choose(rng).copied().unwrap()
     }
 
+    fn naive_rearrange(
+        &self,
+        nodes: HashMap<LegacyMixLayer, Vec<(RoutingNode, f64)>>,
+    ) -> HashMap<LegacyMixLayer, Vec<(RoutingNode, f64)>> {
+        let all_nodes = nodes
+            .into_values()
+            .flat_map(|nodes| nodes.into_iter())
+            .collect::<Vec<_>>();
+
+        let mut layered = HashMap::new();
+
+        for (i, node) in all_nodes.into_iter().enumerate() {
+            let layer = match i % 3 {
+                0 => LegacyMixLayer::One,
+                1 => LegacyMixLayer::Two,
+                2 => LegacyMixLayer::Three,
+                // this is literally impossible to reach
+                #[allow(clippy::unreachable)]
+                _ => unreachable!(),
+            };
+            let layer_mixes = layered.entry(layer).or_insert_with(Vec::new);
+            layer_mixes.push(node)
+        }
+
+        layered
+    }
+
     fn to_legacy_layered_mixes<'a, R: Rng>(
         &self,
         rng: &mut R,
@@ -199,7 +226,20 @@ impl PacketPreparer {
             layer_mixes.push((parsed_node, weight))
         }
 
-        layered_mixes
+        // if some layers are empty, fallback to naive assignment
+        // (for small localnets/testnets)
+        let layers = [
+            LegacyMixLayer::One,
+            LegacyMixLayer::Two,
+            LegacyMixLayer::Three,
+        ];
+
+        if layers.into_iter().any(|l| layered_mixes.get(&l).is_none()) {
+            info!("insufficient number of nodes on layers - attempting to fallback to naive assignment");
+            self.naive_rearrange(layered_mixes)
+        } else {
+            layered_mixes
+        }
     }
 
     fn to_legacy_gateway_nodes<'a>(
@@ -233,7 +273,7 @@ impl PacketPreparer {
     // routes so that they wouldn't be reused
     pub(crate) async fn prepare_test_routes(&self, n: usize) -> Option<Vec<TestRoute>> {
         let descriptions = self.described_cache.get().await.ok()?;
-        let statuses = self.node_status_cache.node_annotations().await?;
+        let statuses = self.node_status_cache.node_annotations().await.ok()?;
 
         let mixing_nym_nodes = descriptions.mixing_nym_nodes();
         // last I checked `gatewaying` wasn't a word : )

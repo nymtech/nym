@@ -1,10 +1,10 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use super::action_controller::{AckActionSender, Action};
 use super::SentPacketNotificationReceiver;
+use super::action_controller::{AckActionSender, Action};
 use futures::StreamExt;
-use nym_sphinx::chunking::fragment::{FragmentIdentifier, COVER_FRAG_ID};
+use nym_sphinx::chunking::fragment::{COVER_FRAG_ID, FragmentIdentifier};
 use tracing::*;
 
 /// Module responsible for starting up retransmission timers.

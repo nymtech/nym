@@ -64,6 +64,7 @@ pub struct NRServiceProviderBuilder {
     config: Config,
 
     wait_for_gateway: bool,
+    wait_for_topology: bool,
     custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
     custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send + Sync>>,
     shutdown: ShutdownTracker,
@@ -153,6 +154,7 @@ impl NRServiceProviderBuilder {
         NRServiceProviderBuilder {
             config,
             wait_for_gateway: false,
+            wait_for_topology: false,
             custom_topology_provider: None,
             custom_gateway_transceiver: None,
             shutdown,
@@ -178,6 +180,15 @@ impl NRServiceProviderBuilder {
     #[allow(unused)]
     pub fn with_wait_for_gateway(mut self, wait_for_gateway: bool) -> Self {
         self.wait_for_gateway = wait_for_gateway;
+        self
+    }
+
+    #[must_use]
+    // this is a false positive, this method is actually called when used as a library
+    // but clippy complains about it when building the binary
+    #[allow(unused)]
+    pub fn with_wait_for_initial_topology(mut self, wait_for_initial_topology: bool) -> Self {
+        self.wait_for_topology = wait_for_initial_topology;
         self
     }
 
@@ -232,6 +243,7 @@ impl NRServiceProviderBuilder {
             self.custom_gateway_transceiver,
             self.custom_topology_provider,
             self.wait_for_gateway,
+            self.wait_for_topology,
             &self.config.storage_paths.common_paths,
         )
         .await?;
@@ -554,6 +566,7 @@ async fn create_mixnet_client(
     custom_transceiver: Option<Box<dyn GatewayTransceiver + Send + Sync>>,
     custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
     wait_for_gateway: bool,
+    wait_for_topology: bool,
     paths: &CommonClientPaths,
 ) -> Result<nym_sdk::mixnet::MixnetClient, NetworkRequesterError> {
     let debug_config = config.debug;
@@ -569,7 +582,8 @@ async fn create_mixnet_client(
             .network_details(NymNetworkDetails::new_from_env())
             .debug_config(debug_config)
             .custom_shutdown(shutdown)
-            .with_wait_for_gateway(wait_for_gateway);
+            .with_wait_for_gateway(wait_for_gateway)
+            .with_wait_for_initial_topology(wait_for_topology);
     if !config.get_disabled_credentials_mode() {
         client_builder = client_builder.enable_credentials_mode();
     }

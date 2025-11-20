@@ -64,8 +64,13 @@ pub struct Debug {
     /// of the services providers
     pub minimum_mix_performance: u8,
 
+    /// Specifies the maximum time this node will wait for its initial valid topology
+    #[serde(with = "humantime_serde")]
+    pub maximum_initial_topology_waiting_time: Duration,
+
     /// Defines the timestamp skew of a signed authentication request before it's deemed too excessive to process.
     #[serde(alias = "maximum_auth_request_age")]
+    #[serde(with = "humantime_serde")]
     pub max_request_timestamp_skew: Duration,
 
     pub stale_messages: StaleMessageDebug,
@@ -85,6 +90,8 @@ impl Debug {
     pub const DEFAULT_MAXIMUM_AUTH_REQUEST_TIMESTAMP_SKEW: Duration = Duration::from_secs(120);
     pub const DEFAULT_MAXIMUM_OPEN_CONNECTIONS: usize = 8192;
     pub const DEFAULT_UPGRADE_MODE_MIN_STALENESS_RECHECK: Duration = Duration::from_secs(30);
+    pub const DEFAULT_MAXIMUM_INITIAL_TOPOLOGY_WAITING_TIME: Duration =
+        Duration::from_secs(15 * 60);
 }
 
 impl Default for Debug {
@@ -98,6 +105,8 @@ impl Default for Debug {
             client_bandwidth: Default::default(),
             zk_nym_tickets: Default::default(),
             upgrade_mode_min_staleness_recheck: Self::DEFAULT_UPGRADE_MODE_MIN_STALENESS_RECHECK,
+            maximum_initial_topology_waiting_time:
+                Self::DEFAULT_MAXIMUM_INITIAL_TOPOLOGY_WAITING_TIME,
         }
     }
 }

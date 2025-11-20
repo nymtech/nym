@@ -19,6 +19,7 @@ use crate::{
 
 use super::ClientVersion;
 
+#[derive(Debug)]
 pub(crate) struct VersionedResponse {
     pub(crate) version: ClientVersion,
     pub(crate) reply_to: ConnectedClientId,

@@ -20,10 +20,4 @@ pub trait EcashManager {
         aggregated_verification_key: &VerificationKeyAuth,
     ) -> Result<(), EcashTicketError>;
     fn async_verify(&self, ticket: ClientTicket);
-
-    /// Returns true if this is a mock ecash manager (for local testing).
-    /// Default implementation returns false.
-    fn is_mock(&self) -> bool {
-        false
-    }
 }

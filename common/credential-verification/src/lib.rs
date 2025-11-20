@@ -21,9 +21,8 @@ pub mod ecash;
 pub mod error;
 
 // Histogram buckets for ecash verification duration (in seconds)
-const ECASH_VERIFICATION_DURATION_BUCKETS: &[f64] = &[
-    0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1.0, 2.0, 5.0,
-];
+const ECASH_VERIFICATION_DURATION_BUCKETS: &[f64] =
+    &[0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1.0, 2.0, 5.0];
 
 pub struct CredentialVerifier {
     credential: CredentialSpendingRequest,
@@ -146,7 +145,10 @@ impl CredentialVerifier {
 
         // Track epoch ID - use dynamic metric name via registry
         let epoch_id = self.credential.data.epoch_id;
-        let epoch_metric = format!("nym_credential_verification_ecash_epoch_{}_verifications", epoch_id);
+        let epoch_metric = format!(
+            "nym_credential_verification_ecash_epoch_{}_verifications",
+            epoch_id
+        );
         nym_metrics::metrics_registry().maybe_register_and_inc(&epoch_metric, None);
 
         // Check verification result after timing

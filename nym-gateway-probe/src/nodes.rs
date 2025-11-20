@@ -4,9 +4,9 @@
 use crate::TestedNodeDetails;
 use anyhow::{Context, anyhow, bail};
 use nym_api_requests::models::{
-    AuthenticatorDetails, DeclaredRoles, DescribedNodeType, HostInformation,
-    IpPacketRouterDetails, NetworkRequesterDetails, NymNodeData, OffsetDateTimeJsonSchemaWrapper,
-    WebSockets, WireguardDetails,
+    AuthenticatorDetails, DeclaredRoles, DescribedNodeType, HostInformation, IpPacketRouterDetails,
+    NetworkRequesterDetails, NymNodeData, OffsetDateTimeJsonSchemaWrapper, WebSockets,
+    WireguardDetails,
 };
 use nym_authenticator_requests::AuthenticatorVersion;
 use nym_bin_common::build_information::BinaryBuildInformationOwned;
@@ -166,8 +166,8 @@ pub async fn query_gateway_by_ip(address: String) -> anyhow::Result<DirectoryNod
         // No port specified, try multiple ports in order of likelihood
         vec![
             format!("http://{}:{}", address, DEFAULT_NYM_NODE_HTTP_PORT), // Standard port 8080
-            format!("https://{}", address),                                // HTTPS proxy (443)
-            format!("http://{}", address),                                 // HTTP proxy (80)
+            format!("https://{}", address),                               // HTTPS proxy (443)
+            format!("http://{}", address),                                // HTTP proxy (80)
         ]
     };
 

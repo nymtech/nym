@@ -79,7 +79,10 @@ mod tests {
         // 4. Create sessions using the pre-built Noise states
         let peer_a_sm = session_manager_1
             .create_session_state_machine(
-                (ed25519_keypair_a.private_key(), ed25519_keypair_a.public_key()),
+                (
+                    ed25519_keypair_a.private_key(),
+                    ed25519_keypair_a.public_key(),
+                ),
                 ed25519_keypair_b.public_key(),
                 true,
                 &salt,
@@ -88,7 +91,10 @@ mod tests {
 
         let peer_b_sm = session_manager_2
             .create_session_state_machine(
-                (ed25519_keypair_b.private_key(), ed25519_keypair_b.public_key()),
+                (
+                    ed25519_keypair_b.private_key(),
+                    ed25519_keypair_b.public_key(),
+                ),
                 ed25519_keypair_a.public_key(),
                 false,
                 &salt,
@@ -348,7 +354,9 @@ mod tests {
             1,
             lp_id,
             counter_b,
-            LpMessage::EncryptedData(crate::message::EncryptedDataPayload(plaintext_b_to_a.to_vec())), // Using plaintext here, but content doesn't matter for replay check
+            LpMessage::EncryptedData(crate::message::EncryptedDataPayload(
+                plaintext_b_to_a.to_vec(),
+            )), // Using plaintext here, but content doesn't matter for replay check
         );
         let mut encoded_data_b_to_a_replay = BytesMut::new();
         serialize_lp_packet(&message_b_to_a_replay, &mut encoded_data_b_to_a_replay)
@@ -518,7 +526,10 @@ mod tests {
 
         let peer_a_sm = session_manager_1
             .create_session_state_machine(
-                (ed25519_keypair_a.private_key(), ed25519_keypair_a.public_key()),
+                (
+                    ed25519_keypair_a.private_key(),
+                    ed25519_keypair_a.public_key(),
+                ),
                 ed25519_keypair_b.public_key(),
                 true,
                 &salt,
@@ -526,7 +537,10 @@ mod tests {
             .unwrap();
         let peer_b_sm = session_manager_2
             .create_session_state_machine(
-                (ed25519_keypair_b.private_key(), ed25519_keypair_b.public_key()),
+                (
+                    ed25519_keypair_b.private_key(),
+                    ed25519_keypair_b.public_key(),
+                ),
                 ed25519_keypair_a.public_key(),
                 false,
                 &salt,
@@ -845,7 +859,10 @@ mod tests {
         // 3. Create sessions state machines
         assert!(session_manager_1
             .create_session_state_machine(
-                (ed25519_keypair_a.private_key(), ed25519_keypair_a.public_key()),
+                (
+                    ed25519_keypair_a.private_key(),
+                    ed25519_keypair_a.public_key()
+                ),
                 ed25519_keypair_b.public_key(),
                 true,
                 &salt,
@@ -853,7 +870,10 @@ mod tests {
             .is_ok());
         assert!(session_manager_2
             .create_session_state_machine(
-                (ed25519_keypair_b.private_key(), ed25519_keypair_b.public_key()),
+                (
+                    ed25519_keypair_b.private_key(),
+                    ed25519_keypair_b.public_key()
+                ),
                 ed25519_keypair_a.public_key(),
                 false,
                 &salt,
@@ -925,8 +945,13 @@ mod tests {
 
         // --- Round 2: Responder Receives KKT Request, Sends KKT Response ---
         rounds += 1;
-        println!("  Round {}: Responder receives KKT request, sends KKT response", rounds);
-        let packet_to_process = packet_a_to_b.take().expect("KKT request from A was missing");
+        println!(
+            "  Round {}: Responder receives KKT request, sends KKT response",
+            rounds
+        );
+        let packet_to_process = packet_a_to_b
+            .take()
+            .expect("KKT request from A was missing");
 
         // Simulate network: serialize -> parse (optional but good practice)
         let mut buf_a = BytesMut::new();
@@ -958,7 +983,9 @@ mod tests {
             "  Round {}: Initiator receives KKT response, sends first Noise message (with PSQ)",
             rounds
         );
-        let packet_to_process = packet_b_to_a.take().expect("KKT response from B was missing");
+        let packet_to_process = packet_b_to_a
+            .take()
+            .expect("KKT response from B was missing");
 
         // Simulate network
         let mut buf_b = BytesMut::new();
@@ -973,7 +1000,9 @@ mod tests {
 
         match action_a2 {
             LpAction::SendPacket(packet) => {
-                println!("    Initiator received KKT response, produced first Noise message (-> e)");
+                println!(
+                    "    Initiator received KKT response, produced first Noise message (-> e)"
+                );
                 packet_a_to_b = Some(packet);
                 // Initiator transitions to Handshaking after KKT completes
                 assert_eq!(
@@ -998,13 +1027,19 @@ mod tests {
                 }
             }
             other => {
-                panic!("Initiator ReceivePacket produced unexpected action after KKT response: {:?}", other);
+                panic!(
+                    "Initiator ReceivePacket produced unexpected action after KKT response: {:?}",
+                    other
+                );
             }
         }
 
         // --- Round 4: Responder Receives First Noise Message, Sends Second ---
         rounds += 1;
-        println!("  Round {}: Responder receives first Noise message, sends second", rounds);
+        println!(
+            "  Round {}: Responder receives first Noise message, sends second",
+            rounds
+        );
         let packet_to_process = packet_a_to_b
             .take()
             .expect("First Noise packet from A was missing");
@@ -1035,7 +1070,10 @@ mod tests {
 
         // --- Round 5: Initiator Receives Second Noise Message, Sends Third, Completes ---
         rounds += 1;
-        println!("  Round {}: Initiator receives second Noise message, sends third, completes", rounds);
+        println!(
+            "  Round {}: Initiator receives second Noise message, sends third, completes",
+            rounds
+        );
         let packet_to_process = packet_b_to_a
             .take()
             .expect("Second Noise packet from B was missing");
@@ -1064,7 +1102,10 @@ mod tests {
 
         // --- Round 6: Responder Receives Third Noise Message, Completes ---
         rounds += 1;
-        println!("  Round {}: Responder receives third Noise message, completes", rounds);
+        println!(
+            "  Round {}: Responder receives third Noise message, completes",
+            rounds
+        );
         let packet_to_process = packet_a_to_b
             .take()
             .expect("Third Noise packet from A was missing");
@@ -1082,7 +1123,10 @@ mod tests {
         if let LpAction::HandshakeComplete = action_b3 {
             println!("    Responder received third Noise message, produced HandshakeComplete");
         } else {
-            println!("    Responder received third Noise message (Action: {:?})", action_b3);
+            println!(
+                "    Responder received third Noise message (Action: {:?})",
+                action_b3
+            );
         }
         assert_eq!(
             session_manager_2.get_state(lp_id).unwrap(),

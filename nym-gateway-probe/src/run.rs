@@ -4,7 +4,7 @@
 use clap::{Parser, Subcommand};
 use nym_bin_common::bin_info;
 use nym_config::defaults::setup_env;
-use nym_gateway_probe::nodes::{query_gateway_by_ip, NymApiDirectory};
+use nym_gateway_probe::nodes::{NymApiDirectory, query_gateway_by_ip};
 use nym_gateway_probe::{CredentialArgs, NetstackArgs, ProbeResult, TestedNode};
 use nym_sdk::mixnet::NodeIdentity;
 use std::path::Path;
@@ -136,10 +136,7 @@ pub(crate) async fn run() -> anyhow::Result<ProbeResult> {
 
         // Still create the directory for potential secondary lookups,
         // but only if API URL is available
-        let directory = if let Some(api_url) = network
-            .endpoints
-            .first()
-            .and_then(|ep| ep.api_url())
+        let directory = if let Some(api_url) = network.endpoints.first().and_then(|ep| ep.api_url())
         {
             Some(NymApiDirectory::new(api_url).await?)
         } else {

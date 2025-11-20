@@ -237,7 +237,8 @@ mod tests {
         );
 
         // Anonymous initiator
-        let (mut context, request_frame) = anonymous_initiator_process(&mut rng, ciphersuite).unwrap();
+        let (mut context, request_frame) =
+            anonymous_initiator_process(&mut rng, ciphersuite).unwrap();
 
         // Gateway: Handle anonymous request
         let response_frame = handle_kem_request(

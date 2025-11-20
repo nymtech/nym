@@ -394,8 +394,10 @@ impl Probe {
             &NymNetworkDetails::new_from_env(),
         )?;
         let client = nym_validator_client::nyxd::NyxdClient::connect(config, nyxd_url.as_str())?;
-        let bw_controller =
-            nym_bandwidth_controller::BandwidthController::new(storage.credential_store().clone(), client);
+        let bw_controller = nym_bandwidth_controller::BandwidthController::new(
+            storage.credential_store().clone(),
+            client,
+        );
 
         // Run LP registration probe
         let lp_outcome = lp_registration_probe(
@@ -875,7 +877,10 @@ where
     use nym_crypto::asymmetric::ed25519;
     use nym_registration_client::LpRegistrationClient;
 
-    info!("Starting LP registration probe for gateway at {}", gateway_lp_address);
+    info!(
+        "Starting LP registration probe for gateway at {}",
+        gateway_lp_address
+    );
 
     let mut lp_outcome = types::LpProbeResults::default();
 
@@ -929,7 +934,9 @@ where
     let wg_keypair = nym_crypto::asymmetric::x25519::KeyPair::new(&mut rng);
 
     // Convert gateway identity to ed25519 public key
-    let gateway_ed25519_pubkey = match nym_crypto::asymmetric::ed25519::PublicKey::from_bytes(&gateway_identity.to_bytes()) {
+    let gateway_ed25519_pubkey = match nym_crypto::asymmetric::ed25519::PublicKey::from_bytes(
+        &gateway_identity.to_bytes(),
+    ) {
         Ok(key) => key,
         Err(e) => {
             let error_msg = format!("Failed to convert gateway identity: {}", e);
@@ -948,12 +955,15 @@ where
             ticket_type,
         );
 
-        match client.send_registration_request_with_credential(
-            &wg_keypair,
-            &gateway_ed25519_pubkey,
-            credential,
-            ticket_type,
-        ).await {
+        match client
+            .send_registration_request_with_credential(
+                &wg_keypair,
+                &gateway_ed25519_pubkey,
+                credential,
+                ticket_type,
+            )
+            .await
+        {
             Ok(_) => {
                 info!("LP registration request sent successfully with mock ecash");
             }
@@ -966,12 +976,15 @@ where
         }
     } else {
         info!("Using real bandwidth controller for LP registration");
-        match client.send_registration_request(
-            &wg_keypair,
-            &gateway_ed25519_pubkey,
-            bandwidth_controller,
-            ticket_type,
-        ).await {
+        match client
+            .send_registration_request(
+                &wg_keypair,
+                &gateway_ed25519_pubkey,
+                bandwidth_controller,
+                ticket_type,
+            )
+            .await
+        {
             Ok(_) => {
                 info!("LP registration request sent successfully with real ecash");
             }

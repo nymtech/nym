@@ -52,8 +52,7 @@ impl RegistrationClient {
                 node_id: self.config.exit.node.identity.to_base58_string(),
             },
         )?;
-        let mut ipr_client =
-            IprClientConnect::new(self.mixnet_client, self.cancel_token.clone());
+        let mut ipr_client = IprClientConnect::new(self.mixnet_client, self.cancel_token.clone());
         let interface_addresses = ipr_client
             .connect(ipr_address)
             .await

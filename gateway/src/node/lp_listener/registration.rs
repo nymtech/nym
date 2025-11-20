@@ -74,9 +74,7 @@ async fn credential_storage_preparation(
         .storage()
         .get_available_bandwidth(client_id)
         .await?
-        .ok_or_else(|| {
-            GatewayError::InternalError("bandwidth entry should exist".to_string())
-        })?;
+        .ok_or_else(|| GatewayError::InternalError("bandwidth entry should exist".to_string()))?;
     Ok(bandwidth)
 }
 

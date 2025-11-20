@@ -960,7 +960,7 @@ exit_policy_run_tests() {
     ((total += 1))
   fi
 
-  info "tests run: $total, failures: $failed"
+  echo "tests run: $total, test failed: $failed"
   if [[ $failed -eq 0 ]]; then
     ok "all exit policy tests passed"
   else

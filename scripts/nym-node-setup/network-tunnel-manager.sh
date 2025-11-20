@@ -770,46 +770,46 @@ show_exit_policy_status() {
 }
 
 test_exit_policy_connectivity() {
-  echo "testing connectivity through $WG_INTERFACE"
+  info "testing connectivity through $WG_INTERFACE"
 
   local iface_info
   iface_info=$(ip link show "$WG_INTERFACE" 2>/dev/null || true)
   if [[ -z "$iface_info" ]]; then
-    echo "interface $WG_INTERFACE not found"
+    error "interface $WG_INTERFACE not found"
     return 1
   fi
 
-  echo "interface:"
-  echo "$iface_info"
+  ok "interface:"
+  ok "$iface_info"
 
   local ipv4_address ipv6_address
   ipv4_address=$(ip -4 addr show dev "$WG_INTERFACE" | awk '/inet / {print $2}' | cut -d'/' -f1 | head -n1)
   ipv6_address=$(ip -6 addr show dev "$WG_INTERFACE" scope global | awk '/inet6/ {print $2}' | cut -d'/' -f1 | head -n1)
 
-  echo "ipv4 address: ${ipv4_address:-none}"
-  echo "ipv6 address: ${ipv6_address:-none}"
+  ok "ipv4 address: ${ipv4_address:-none}"
+  ok "ipv6 address: ${ipv6_address:-none}"
 
   if [[ -n "$ipv4_address" ]]; then
-    echo "testing ipv4 ping to 8.8.8.8"
+    info "testing ipv4 ping to 8.8.8.8"
     timeout 5 ping -c 3 -I "$ipv4_address" 8.8.8.8 >/dev/null 2>&1 && \
-      echo "ipv4 ping ok" || echo "ipv4 ping failed"
+      ok "ipv4 ping ok" || error "ipv4 ping failed"
 
-    echo "testing ipv4 dns resolution"
+    info "testing ipv4 dns resolution"
     timeout 5 ping -c 3 -I "$ipv4_address" google.com >/dev/null 2>&1 && \
-      echo "ipv4 dns ok" || echo "ipv4 dns failed"
+      ok "ipv4 dns ok" || error "ipv4 dns failed"
   fi
 
   if [[ -n "$ipv6_address" ]]; then
-    echo "testing ipv6 ping to google dns"
+    info "testing ipv6 ping to google dns"
     timeout 5 ping6 -c 3 -I "$ipv6_address" 2001:4860:4860::8888 >/dev/null 2>&1 && \
-      echo "ipv6 ping ok" || echo "ipv6 ping failed"
+      ok "ipv6 ping ok" || error "ipv6 ping failed"
 
-    echo "testing ipv6 dns resolution"
+    info "testing ipv6 dns resolution"
     timeout 5 ping6 -c 3 -I "$ipv6_address" google.com >/dev/null 2>&1 && \
-      echo "ipv6 dns ok" || echo "ipv6 dns failed"
+      ok "ipv6 dns ok" || error "ipv6 dns failed"
   fi
 
-  echo "connectivity tests finished"
+  info "connectivity tests finished"
 }
 
 

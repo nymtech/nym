@@ -1,6 +1,7 @@
 #!/bin/bash
 
 network_device=$(ip route show default | awk '/default/ {print $5}')
+ipv6_network_device=$(ip -6 route show default | awk '/default/ {print $5}')
 tunnel_interface="nymtun0"
 wg_tunnel_interface="nymwg"
 
@@ -24,11 +25,11 @@ fetch_ipv6_address() {
 }
 
 fetch_and_display_ipv6() {
-    ipv6_address=$(ip -6 addr show "$network_device" scope global | grep inet6 | awk '{print $2}')
+    ipv6_address=$(ip -6 addr show "$ipv6_network_device" scope global | grep inet6 | awk '{print $2}')
     if [[ -z "$ipv6_address" ]]; then
-        echo "no global IPv6 address found on $network_device."
+        echo "no global IPv6 address found on $ipv6_network_device."
         else
-        echo "IPv6 address on $network_device: $ipv6_address"
+        echo "IPv6 address on $ipv6_network_device: $ipv6_address"
     fi
 }
 
@@ -89,9 +90,9 @@ apply_iptables_rules() {
     sudo iptables -A FORWARD -i "$interface" -o "$network_device" -j ACCEPT
     sudo iptables -A FORWARD -i "$network_device" -o "$interface" -m state --state RELATED,ESTABLISHED -j ACCEPT
 
-    sudo ip6tables -t nat -A POSTROUTING -o "$network_device" -j MASQUERADE
-    sudo ip6tables -A FORWARD -i "$interface" -o "$network_device" -j ACCEPT
-    sudo ip6tables -A FORWARD -i "$network_device" -o "$interface" -m state --state RELATED,ESTABLISHED -j ACCEPT
+    sudo ip6tables -t nat -A POSTROUTING -o "$ipv6_network_device" -j MASQUERADE
+    sudo ip6tables -A FORWARD -i "$interface" -o "$ipv6_network_device" -j ACCEPT
+    sudo ip6tables -A FORWARD -i "$ipv6_network_device" -o "$interface" -m state --state RELATED,ESTABLISHED -j ACCEPT
 
     sudo iptables-save | sudo tee /etc/iptables/rules.v4
     sudo ip6tables-save | sudo tee /etc/iptables/rules.v6

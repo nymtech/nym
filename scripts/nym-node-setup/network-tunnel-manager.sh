@@ -307,20 +307,20 @@ apply_iptables_rules() {
     iptables -t nat -A POSTROUTING -o "$NETWORK_DEVICE" -j MASQUERADE
 
   iptables -C FORWARD -i "$interface" -o "$NETWORK_DEVICE" -j ACCEPT 2>/dev/null || \
-    iptables -A FORWARD -i "$interface" -o "$NETWORK_DEVICE" -j ACCEPT
+    iptables -I FORWARD 1 -i "$interface" -o "$NETWORK_DEVICE" -j ACCEPT
 
   iptables -C FORWARD -i "$NETWORK_DEVICE" -o "$interface" -m state --state RELATED,ESTABLISHED -j ACCEPT 2>/dev/null || \
-    iptables -A FORWARD -i "$NETWORK_DEVICE" -o "$interface" -m state --state RELATED,ESTABLISHED -j ACCEPT
+    iptables -I FORWARD 2 -i "$NETWORK_DEVICE" -o "$interface" -m state --state RELATED,ESTABLISHED -j ACCEPT
 
   # ipv6 nat and forwarding
   ip6tables -t nat -C POSTROUTING -o "$NETWORK_DEVICE" -j MASQUERADE 2>/dev/null || \
     ip6tables -t nat -A POSTROUTING -o "$NETWORK_DEVICE" -j MASQUERADE
 
   ip6tables -C FORWARD -i "$interface" -o "$NETWORK_DEVICE" -j ACCEPT 2>/dev/null || \
-    ip6tables -A FORWARD -i "$interface" -o "$NETWORK_DEVICE" -j ACCEPT
+    ip6tables -I FORWARD 1 -i "$interface" -o "$NETWORK_DEVICE" -j ACCEPT
 
   ip6tables -C FORWARD -i "$NETWORK_DEVICE" -o "$interface" -m state --state RELATED,ESTABLISHED -j ACCEPT 2>/dev/null || \
-    ip6tables -A FORWARD -i "$NETWORK_DEVICE" -o "$interface" -m state --state RELATED,ESTABLISHED -j ACCEPT
+    ip6tables -I FORWARD 2 -i "$NETWORK_DEVICE" -o "$interface" -m state --state RELATED,ESTABLISHED -j ACCEPT
 
   save_iptables_rules
 }
@@ -519,45 +519,40 @@ setup_nat_rules() {
   fi
 
   if ! iptables -C FORWARD -i "$WG_INTERFACE" -o "$NETWORK_DEVICE" -j ACCEPT 2>/dev/null; then
-    iptables -A FORWARD -i "$WG_INTERFACE" -o "$NETWORK_DEVICE" -j ACCEPT
+    iptables -I FORWARD 1 -i "$WG_INTERFACE" -o "$NETWORK_DEVICE" -j ACCEPT
   fi
   if ! iptables -C FORWARD -i "$NETWORK_DEVICE" -o "$WG_INTERFACE" -m state --state RELATED,ESTABLISHED -j ACCEPT 2>/dev/null; then
-    iptables -A FORWARD -i "$NETWORK_DEVICE" -o "$WG_INTERFACE" -m state --state RELATED,ESTABLISHED -j ACCEPT
+    iptables -I FORWARD 2 -i "$NETWORK_DEVICE" -o "$WG_INTERFACE" -m state --state RELATED,ESTABLISHED -j ACCEPT
   fi
 
   if ! ip6tables -C FORWARD -i "$WG_INTERFACE" -o "$NETWORK_DEVICE" -j ACCEPT 2>/dev/null; then
-    ip6tables -A FORWARD -i "$WG_INTERFACE" -o "$NETWORK_DEVICE" -j ACCEPT
+    ip6tables -I FORWARD 1 -i "$WG_INTERFACE" -o "$NETWORK_DEVICE" -j ACCEPT
   fi
   if ! ip6tables -C FORWARD -i "$NETWORK_DEVICE" -o "$WG_INTERFACE" -m state --state RELATED,ESTABLISHED -j ACCEPT 2>/dev/null; then
-    ip6tables -A FORWARD -i "$NETWORK_DEVICE" -o "$WG_INTERFACE" -m state --state RELATED,ESTABLISHED -j ACCEPT
+    ip6tables -I FORWARD 2 -i "$NETWORK_DEVICE" -o "$WG_INTERFACE" -m state --state RELATED,ESTABLISHED -j ACCEPT
   fi
 }
 
 configure_exit_dns_and_icmp() {
   echo "ensuring dns and icmp are allowed inside nym exit chain"
 
-  if ! iptables -C "$NYM_CHAIN" -p udp --dport 53 -j ACCEPT 2>/dev/null; then
-    iptables -A "$NYM_CHAIN" -p udp --dport 53 -j ACCEPT
-  fi
-  if ! iptables -C "$NYM_CHAIN" -p tcp --dport 53 -j ACCEPT 2>/dev/null; then
-    iptables -A "$NYM_CHAIN" -p tcp --dport 53 -j ACCEPT
-  fi
-  if ! ip6tables -C "$NYM_CHAIN" -p udp --dport 53 -j ACCEPT 2>/dev/null; then
-    ip6tables -A "$NYM_CHAIN" -p udp --dport 53 -j ACCEPT
-  fi
-  if ! ip6tables -C "$NYM_CHAIN" -p tcp --dport 53 -j ACCEPT 2>/dev/null; then
-    ip6tables -A "$NYM_CHAIN" -p tcp --dport 53 -j ACCEPT
-  fi
+  # Remove any existing DNS/ICMP rules first to avoid duplicates
+  iptables -D "$NYM_CHAIN" -p udp --dport 53 -j ACCEPT 2>/dev/null || true
+  iptables -D "$NYM_CHAIN" -p tcp --dport 53 -j ACCEPT 2>/dev/null || true
+  iptables -D "$NYM_CHAIN" -p icmp --icmp-type echo-request -j ACCEPT 2>/dev/null || true
+  iptables -D "$NYM_CHAIN" -p icmp --icmp-type echo-reply -j ACCEPT 2>/dev/null || true
+  ip6tables -D "$NYM_CHAIN" -p udp --dport 53 -j ACCEPT 2>/dev/null || true
+  ip6tables -D "$NYM_CHAIN" -p tcp --dport 53 -j ACCEPT 2>/dev/null || true
+  ip6tables -D "$NYM_CHAIN" -p ipv6-icmp -j ACCEPT 2>/dev/null || true
 
-  if ! iptables -C "$NYM_CHAIN" -p icmp --icmp-type echo-request -j ACCEPT 2>/dev/null; then
-    iptables -A "$NYM_CHAIN" -p icmp --icmp-type echo-request -j ACCEPT
-  fi
-  if ! iptables -C "$NYM_CHAIN" -p icmp --icmp-type echo-reply -j ACCEPT 2>/dev/null; then
-    iptables -A "$NYM_CHAIN" -p icmp --icmp-type echo-reply -j ACCEPT
-  fi
-  if ! ip6tables -C "$NYM_CHAIN" -p ipv6-icmp -j ACCEPT 2>/dev/null; then
-    ip6tables -A "$NYM_CHAIN" -p ipv6-icmp -j ACCEPT
-  fi
+  # Insert rules at the beginning in correct order: DNS first, then ICMP
+  iptables -I "$NYM_CHAIN" 1 -p udp --dport 53 -j ACCEPT
+  iptables -I "$NYM_CHAIN" 2 -p tcp --dport 53 -j ACCEPT
+  iptables -I "$NYM_CHAIN" 3 -p icmp --icmp-type echo-request -j ACCEPT
+  iptables -I "$NYM_CHAIN" 4 -p icmp --icmp-type echo-reply -j ACCEPT
+  ip6tables -I "$NYM_CHAIN" 1 -p udp --dport 53 -j ACCEPT
+  ip6tables -I "$NYM_CHAIN" 2 -p tcp --dport 53 -j ACCEPT
+  ip6tables -I "$NYM_CHAIN" 3 -p ipv6-icmp -j ACCEPT
 }
 
 apply_port_allowlist() {
@@ -775,50 +770,137 @@ show_exit_policy_status() {
 }
 
 test_exit_policy_connectivity() {
-  echo "testing connectivity through $WG_INTERFACE"
+  info "testing connectivity through $WG_INTERFACE"
 
   local iface_info
   iface_info=$(ip link show "$WG_INTERFACE" 2>/dev/null || true)
   if [[ -z "$iface_info" ]]; then
-    echo "interface $WG_INTERFACE not found"
+    error "interface $WG_INTERFACE not found"
     return 1
   fi
 
-  echo "interface:"
-  echo "$iface_info"
+  ok "interface:"
+  ok "$iface_info"
 
   local ipv4_address ipv6_address
   ipv4_address=$(ip -4 addr show dev "$WG_INTERFACE" | awk '/inet / {print $2}' | cut -d'/' -f1 | head -n1)
   ipv6_address=$(ip -6 addr show dev "$WG_INTERFACE" scope global | awk '/inet6/ {print $2}' | cut -d'/' -f1 | head -n1)
 
-  echo "ipv4 address: ${ipv4_address:-none}"
-  echo "ipv6 address: ${ipv6_address:-none}"
+  ok "ipv4 address: ${ipv4_address:-none}"
+  ok "ipv6 address: ${ipv6_address:-none}"
 
   if [[ -n "$ipv4_address" ]]; then
-    echo "testing ipv4 ping to 8.8.8.8"
+    info "testing ipv4 ping to 8.8.8.8"
     timeout 5 ping -c 3 -I "$ipv4_address" 8.8.8.8 >/dev/null 2>&1 && \
-      echo "ipv4 ping ok" || echo "ipv4 ping failed"
+      ok "ipv4 ping ok" || error "ipv4 ping failed"
 
-    echo "testing ipv4 dns resolution"
+    info "testing ipv4 dns resolution"
     timeout 5 ping -c 3 -I "$ipv4_address" google.com >/dev/null 2>&1 && \
-      echo "ipv4 dns ok" || echo "ipv4 dns failed"
+      ok "ipv4 dns ok" || error "ipv4 dns failed"
   fi
 
   if [[ -n "$ipv6_address" ]]; then
-    echo "testing ipv6 ping to google dns"
+    info "testing ipv6 ping to google dns"
     timeout 5 ping6 -c 3 -I "$ipv6_address" 2001:4860:4860::8888 >/dev/null 2>&1 && \
-      echo "ipv6 ping ok" || echo "ipv6 ping failed"
+      ok "ipv6 ping ok" || error "ipv6 ping failed"
 
-    echo "testing ipv6 dns resolution"
+    info "testing ipv6 dns resolution"
     timeout 5 ping6 -c 3 -I "$ipv6_address" google.com >/dev/null 2>&1 && \
-      echo "ipv6 dns ok" || echo "ipv6 dns failed"
+      ok "ipv6 dns ok" || error "ipv6 dns failed"
   fi
 
-  echo "connectivity tests finished"
+  info "connectivity tests finished"
 }
 
+
 ###############################################################################
-# part 3: exit policy verification tests
+# part 3: check the firewall setup
+###############################################################################
+
+firewall_rule_line() {
+  local chain=$1
+  local rule_idx=$2
+  # this is because thefirst rule appears on line 3
+  iptables -L "$chain" -n --line-numbers | sed -n "$((rule_idx + 2))p"
+}
+
+check_forward_chain() {
+  local output
+  output=$(iptables -L FORWARD -n --line-numbers)
+
+  if ! echo "$output" | grep -q "^1[[:space:]]\+$NYM_CHAIN"; then
+    error "FORWARD rule 1 is not ${NYM_CHAIN}; re-run network-tunnel-manager.sh exit_policy_install"
+    return 1
+  fi
+
+  if ! echo "$output" | grep -q "ACCEPT.*state RELATED,ESTABLISHED"; then
+    error "FORWARD chain missing RELATED,ESTABLISHED accepts; re-run network-tunnel-manager.sh apply_iptables_rules_wg"
+    return 1
+  fi
+
+  ok "FORWARD chain ordering looks good"
+  return 0
+}
+
+check_nym_exit_chain() {
+  local errors=0
+  local patterns=("udp.*dpt:53" "tcp.*dpt:53" "icmp.*type 8" "icmp.*type 0")
+
+  for idx in "${!patterns[@]}"; do
+    local line
+    line=$(firewall_rule_line "$NYM_CHAIN" $((idx + 1)))
+    if [[ "$line" =~ ${patterns[$idx]} ]]; then
+      ok "${NYM_CHAIN} rule $((idx + 1)) ok (${patterns[$idx]})"
+    else
+      error "${NYM_CHAIN} rule $((idx + 1)) is not ${patterns[$idx]}; re-run network-tunnel-manager.sh exit_policy_install"
+      errors=1
+    fi
+  done
+
+  local last_rule
+  last_rule=$(iptables -L "$NYM_CHAIN" -n --line-numbers | awk 'NR>2 {line=$0} END {print line}')
+  if [[ -z "${last_rule:-}" ]]; then
+    error "${NYM_CHAIN} chain is empty; re-run network-tunnel-manager.sh exit_policy_install"
+    errors=1
+  elif [[ "$last_rule" =~ REJECT ]] && [[ "$last_rule" =~ 0\.0\.0\.0/0 ]]; then
+    ok "${NYM_CHAIN} ends with the catch-all REJECT"
+  else
+    error "${NYM_CHAIN} final rule is not the catch-all REJECT (got: $last_rule)"
+    errors=1
+  fi
+
+  return $errors
+}
+
+check_firewall_setup() {
+  info "checking ipv4 firewall ordering…"
+  local errors=0
+
+  check_forward_chain || errors=1
+  check_nym_exit_chain || errors=1
+
+  if command -v ip6tables >/dev/null 2>&1; then
+    info "checking ipv6 firewall ordering…"
+    if ip6tables -L "$NYM_CHAIN" -n --line-numbers >/dev/null 2>&1; then
+      if ! ip6tables -L "$NYM_CHAIN" -n --line-numbers | sed -n '3p' | grep -q "udp.*dpt:53"; then
+        error "ip6tables ${NYM_CHAIN} rule 1 is not UDP 53"
+        errors=1
+      fi
+    fi
+  fi
+
+  if [[ $errors -ne 0 ]]; then
+    error "There may be some ordering issues, it is recommended to re-run network-tunnel-manager.sh exit_policy_install after configuring UFW."
+    return 1
+  fi
+
+  ok "It's looking good!"
+  return 0
+}
+
+
+###############################################################################
+# part 4: full exit policy verification tests
 ###############################################################################
 
 test_port_range_rules() {
@@ -971,7 +1053,7 @@ exit_policy_run_tests() {
 }
 
 ###############################################################################
-# part 4: high level workflows
+# part 5: high level workflows
 ###############################################################################
 
 full_tunnel_setup() {
@@ -1018,6 +1100,7 @@ complete_networking_configuration() {
 
   full_tunnel_setup
   exit_policy_install
+  check_firewall_setup || error "firewall order checks reported problems, please review output"
   exit_policy_run_tests || error "exit policy tests reported problems, please review output"
 
   ok "complete networking configuration finished"
@@ -1106,6 +1189,10 @@ case "$cmd" in
     show_exit_policy_status
     status=$?
     ;;
+  check_firewall_setup)
+    check_firewall_setup
+    status=$?
+    ;;
   exit_policy_test_connectivity)
     test_exit_policy_connectivity
     status=$?
@@ -1125,41 +1212,41 @@ case "$cmd" in
 usage: $0 <command> [args]
 
 high level workflows:
-  full_tunnel_setup                 run tunnel iptables and checks for nymtun0 and nymwg
-  exit_policy_install               install and configure wireguard exit policy
-  complete_networking_configuration run tunnel setup, exit policy install and tests
+  complete_networking_configuration Run tunnel setup, exit policy install and tests
+  exit_policy_install               Install and configure wireguard exit policy
+  full_tunnel_setup                 Run tunnel iptables and checks for nymtun0 and nymwg
 
 tunnel and nat helpers:
-  fetch_ipv6_address_nym_tun        show global ipv6 address on ${TUNNEL_INTERFACE}
-  fetch_and_display_ipv6            show ipv6 on uplink ${NETWORK_DEVICE}
-  apply_iptables_rules              apply nat/forward rules for ${TUNNEL_INTERFACE}
-  apply_iptables_rules_wg           apply nat/forward rules for ${WG_INTERFACE}
-  check_nymtun_iptables             inspect forward chain for ${TUNNEL_INTERFACE}
-  check_nym_wg_tun                  inspect forward chain for ${WG_INTERFACE}
-  check_ipv6_ipv4_forwarding        show ipv4/ipv6 forwarding flags
-  check_ip_routing                  show ipv4 and ipv6 routes
-  perform_pings                     test ipv4 and ipv6 pings
-  joke_through_the_mixnet           test via ${TUNNEL_INTERFACE} with joke
-  joke_through_wg_tunnel            test via ${WG_INTERFACE} with joke
-  configure_dns_and_icmp_wg         allow ping and dns on this host
-  adjust_ip_forwarding              enable ipv4/ipv6 forwarding via sysctl.d
-  remove_duplicate_rules <iface>    deduplicate rules for interface in FORWARD and ${NYM_CHAIN}
+  adjust_ip_forwarding              Enable ipv4/ipv6 forwarding via sysctl.d
+  apply_iptables_rules              Apply nat/forward rules for ${TUNNEL_INTERFACE}
+  apply_iptables_rules_wg           Apply nat/forward rules for ${WG_INTERFACE}
+  check_ip_routing                  Show ipv4 and ipv6 routes
+  check_ipv6_ipv4_forwarding        Show ipv4/ipv6 forwarding flags
+  check_nym_wg_tun                  Inspect forward chain for ${WG_INTERFACE}
+  check_nymtun_iptables             Inspect forward chain for ${TUNNEL_INTERFACE}
+  configure_dns_and_icmp_wg         Allow ping and dns ports on this host
+  fetch_and_display_ipv6            Show ipv6 on uplink ${NETWORK_DEVICE}
+  fetch_ipv6_address_nym_tun        Show global ipv6 address on ${TUNNEL_INTERFACE}
+  joke_through_the_mixnet           Test via ${TUNNEL_INTERFACE} with joke
+  joke_through_wg_tunnel            Test via ${WG_INTERFACE} with joke
+  perform_pings                     Test ipv4 and ipv6 pings
+  remove_duplicate_rules <iface>    Deduplicate FORWARD and ${NYM_CHAIN} rules for <iface> (required).
 
 exit policy manager:
-  exit_policy_install               install exit policy (iptables rules and blocklist)
-  exit_policy_status                show status of exit policy and forwarding
-  exit_policy_test_connectivity     test connectivity via ${WG_INTERFACE}
-  exit_policy_clear                 remove ${NYM_CHAIN} chains and hooks
+  check_firewall_setup              Run ordering sanity check (dns/icmp + FORWARD jump)
+  exit_policy_clear                 Remove ${NYM_CHAIN} chains and hooks
+  exit_policy_install               Install exit policy (iptables rules and blocklist)
+  exit_policy_status                Show status of exit policy and forwarding
+  exit_policy_test_connectivity     Test connectivity via ${WG_INTERFACE}
   exit_policy_tests [--skip-default-reject]
-                                    run verification tests on exit policy
+                                    Run verification tests on exit policy (options: --skip-default-reject).
 
 environment overrides:
-  TUNNEL_INTERFACE                  default nymtun0
-  WG_INTERFACE                      default nymwg
-  NETWORK_DEVICE                    uplink device, auto-detected if not set
+  NETWORK_DEVICE                    Auto-detected uplink (e.g., eth0). Set manually if detection fails.
+  TUNNEL_INTERFACE                  Default: nymtun0. Requires root privileges (sudo) to manage.
+  WG_INTERFACE                      Default: nymwg - Must match your WireGuard interface name.
 
 EOF
-    status=0
     ;;
 
   *)

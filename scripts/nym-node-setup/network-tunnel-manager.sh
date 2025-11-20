@@ -483,13 +483,13 @@ exit_policy_install_deps() {
 create_nym_chain() {
   info "creating nym exit policy chain $NYM_CHAIN"
 
-  if iptables -L "$NYM_CHAIN" >/dev/null 2>&1; then
+  if iptables -S "$NYM_CHAIN" >/dev/null 2>&1; then
     iptables -F "$NYM_CHAIN"
   else
     iptables -N "$NYM_CHAIN"
   fi
 
-  if ip6tables -L "$NYM_CHAIN" >/dev/null 2>&1; then
+  if ip6tables -S "$NYM_CHAIN" >/dev/null 2>&1; then
     ip6tables -F "$NYM_CHAIN"
   else
     ip6tables -N "$NYM_CHAIN"

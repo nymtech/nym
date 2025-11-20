@@ -4,10 +4,10 @@ mod tests {
     use crate::keypair::PublicKey;
     use crate::make_lp_id;
     use crate::{
+        LpError,
         message::LpMessage,
         packet::{LpHeader, LpPacket, TRAILER_LEN},
         session_manager::SessionManager,
-        LpError,
     };
     use bytes::BytesMut;
     use nym_crypto::asymmetric::ed25519;
@@ -857,28 +857,32 @@ mod tests {
         let salt = [45u8; 32];
 
         // 3. Create sessions state machines
-        assert!(session_manager_1
-            .create_session_state_machine(
-                (
-                    ed25519_keypair_a.private_key(),
-                    ed25519_keypair_a.public_key()
-                ),
-                ed25519_keypair_b.public_key(),
-                true,
-                &salt,
-            ) // Initiator
-            .is_ok());
-        assert!(session_manager_2
-            .create_session_state_machine(
-                (
-                    ed25519_keypair_b.private_key(),
-                    ed25519_keypair_b.public_key()
-                ),
-                ed25519_keypair_a.public_key(),
-                false,
-                &salt,
-            ) // Responder
-            .is_ok());
+        assert!(
+            session_manager_1
+                .create_session_state_machine(
+                    (
+                        ed25519_keypair_a.private_key(),
+                        ed25519_keypair_a.public_key()
+                    ),
+                    ed25519_keypair_b.public_key(),
+                    true,
+                    &salt,
+                ) // Initiator
+                .is_ok()
+        );
+        assert!(
+            session_manager_2
+                .create_session_state_machine(
+                    (
+                        ed25519_keypair_b.private_key(),
+                        ed25519_keypair_b.public_key()
+                    ),
+                    ed25519_keypair_a.public_key(),
+                    false,
+                    &salt,
+                ) // Responder
+                .is_ok()
+        );
 
         assert_eq!(session_manager_1.session_count(), 1);
         assert_eq!(session_manager_2.session_count(), 1);
@@ -1012,7 +1016,9 @@ mod tests {
                 );
             }
             LpAction::KKTComplete => {
-                println!("    Initiator received KKT response, produced KKTComplete (will send Noise in next step)");
+                println!(
+                    "    Initiator received KKT response, produced KKTComplete (will send Noise in next step)"
+                );
                 // KKT completed, now need to explicitly trigger handshake message
                 // This might be the case if KKT completion doesn't automatically send the first Noise message
                 // Let's try to prepare the handshake message
@@ -1056,7 +1062,9 @@ mod tests {
             .expect("Responder ReceivePacket failed");
 
         if let LpAction::SendPacket(packet) = action_b2 {
-            println!("    Responder received first Noise message, produced second Noise message (<- e, ee, s, es)");
+            println!(
+                "    Responder received first Noise message, produced second Noise message (<- e, ee, s, es)"
+            );
             packet_b_to_a = Some(packet);
         } else {
             panic!("Responder did not produce SendPacket for second Noise message");
@@ -1088,7 +1096,9 @@ mod tests {
             .expect("Initiator ReceivePacket failed");
 
         if let LpAction::SendPacket(packet) = action_a3 {
-            println!("    Initiator received second Noise message, produced third Noise message (-> s, se)");
+            println!(
+                "    Initiator received second Noise message, produced third Noise message (-> s, se)"
+            );
             packet_a_to_b = Some(packet);
         } else {
             panic!("Initiator did not produce SendPacket for third Noise message");

@@ -467,9 +467,11 @@ mod tests {
         assert!(validator.mark_did_receive_branchless(1000 + 70).is_ok());
         assert!(validator.mark_did_receive_branchless(1000 + 71).is_ok());
         assert!(validator.mark_did_receive_branchless(1000 + 72).is_ok());
-        assert!(validator
-            .mark_did_receive_branchless(1000 + 72 + 125)
-            .is_ok());
+        assert!(
+            validator
+                .mark_did_receive_branchless(1000 + 72 + 125)
+                .is_ok()
+        );
         assert!(validator.mark_did_receive_branchless(1000 + 63).is_ok());
 
         // Check duplicates

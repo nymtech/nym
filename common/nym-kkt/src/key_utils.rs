@@ -4,7 +4,7 @@ use crate::{
 };
 
 use classic_mceliece_rust::keypair_boxed;
-use libcrux_kem::{key_gen, Algorithm};
+use libcrux_kem::{Algorithm, key_gen};
 
 use libcrux_sha3;
 use rand::{CryptoRng, RngCore};

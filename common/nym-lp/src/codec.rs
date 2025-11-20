@@ -1,12 +1,12 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::LpError;
 use crate::message::{
     ClientHelloData, EncryptedDataPayload, HandshakeData, KKTRequestData, KKTResponseData,
     LpMessage, MessageType,
 };
 use crate::packet::{LpHeader, LpPacket, TRAILER_LEN};
-use crate::LpError;
 use bytes::BytesMut;
 
 /// Parses a complete Lewes Protocol packet from a byte slice (e.g., a UDP datagram payload).
@@ -116,9 +116,9 @@ mod tests {
     // Import standalone functions
     use super::{parse_lp_packet, serialize_lp_packet};
     // Keep necessary imports
+    use crate::LpError;
     use crate::message::{EncryptedDataPayload, HandshakeData, LpMessage, MessageType};
     use crate::packet::{LpHeader, LpPacket, TRAILER_LEN};
-    use crate::LpError;
     use bytes::BytesMut;
 
     // === Updated Encode/Decode Tests ===
@@ -291,7 +291,7 @@ mod tests {
         buf_too_short.extend_from_slice(&42u32.to_le_bytes()); // Sender index
         buf_too_short.extend_from_slice(&123u64.to_le_bytes()); // Counter
         buf_too_short.extend_from_slice(&MessageType::Handshake.to_u16().to_le_bytes()); // Handshake type
-                                                                                         // No payload, no trailer. Length = 16+2=18. Min size = 34.
+        // No payload, no trailer. Length = 16+2=18. Min size = 34.
         let result_too_short = parse_lp_packet(&buf_too_short);
         assert!(result_too_short.is_err());
         assert!(matches!(
@@ -328,7 +328,7 @@ mod tests {
         buf_too_short.extend_from_slice(&123u64.to_le_bytes()); // Counter
         buf_too_short.extend_from_slice(&MessageType::Busy.to_u16().to_le_bytes()); // Type
         buf_too_short.extend_from_slice(&[0; TRAILER_LEN - 1]); // Missing last byte of trailer
-                                                                // Length = 16 + 2 + 15 = 33. Min Size = 34.
+        // Length = 16 + 2 + 15 = 33. Min Size = 34.
         let result_too_short = parse_lp_packet(&buf_too_short);
         assert!(
             result_too_short.is_err(),
@@ -348,7 +348,7 @@ mod tests {
         buf.extend_from_slice(&42u32.to_le_bytes()); // Sender index
         buf.extend_from_slice(&123u64.to_le_bytes()); // Counter
         buf.extend_from_slice(&255u16.to_le_bytes()); // Invalid message type
-                                                      // Need payload and trailer to meet min_size requirement
+        // Need payload and trailer to meet min_size requirement
         let payload_size = 10; // Arbitrary
         buf.extend_from_slice(&vec![0u8; payload_size]); // Some data
         buf.extend_from_slice(&[0; TRAILER_LEN]); // Trailer

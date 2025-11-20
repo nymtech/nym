@@ -8,7 +8,7 @@
 // [6] => Reserved
 
 use crate::{
-    context::{KKTContext, KKT_CONTEXT_LEN},
+    context::{KKT_CONTEXT_LEN, KKTContext},
     error::KKTError,
 };
 

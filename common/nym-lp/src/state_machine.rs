@@ -4,12 +4,12 @@
 //! Lewes Protocol State Machine for managing connection lifecycle.
 
 use crate::{
+    LpError,
     keypair::{Keypair, PrivateKey as LpPrivateKey, PublicKey as LpPublicKey},
     make_lp_id,
     noise_protocol::NoiseError,
     packet::LpPacket,
     session::LpSession,
-    LpError,
 };
 use bytes::BytesMut;
 use nym_crypto::asymmetric::ed25519;

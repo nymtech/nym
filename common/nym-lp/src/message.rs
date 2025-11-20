@@ -3,6 +3,7 @@ use std::fmt::{self, Display};
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 use bytes::{BufMut, BytesMut};
+use num_enum::{IntoPrimitive, TryFromPrimitive};
 use serde::{Deserialize, Serialize};
 
 /// Data structure for the ClientHello message
@@ -62,7 +63,7 @@ impl ClientHelloData {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, IntoPrimitive, TryFromPrimitive)]
 #[repr(u16)]
 pub enum MessageType {
     Busy = 0x0000,
@@ -75,26 +76,11 @@ pub enum MessageType {
 
 impl MessageType {
     pub(crate) fn from_u16(value: u16) -> Option<Self> {
-        match value {
-            0x0000 => Some(MessageType::Busy),
-            0x0001 => Some(MessageType::Handshake),
-            0x0002 => Some(MessageType::EncryptedData),
-            0x0003 => Some(MessageType::ClientHello),
-            0x0004 => Some(MessageType::KKTRequest),
-            0x0005 => Some(MessageType::KKTResponse),
-            _ => None,
-        }
+        MessageType::try_from(value).ok()
     }
 
     pub fn to_u16(&self) -> u16 {
-        match self {
-            MessageType::Busy => 0x0000,
-            MessageType::Handshake => 0x0001,
-            MessageType::EncryptedData => 0x0002,
-            MessageType::ClientHello => 0x0003,
-            MessageType::KKTRequest => 0x0004,
-            MessageType::KKTResponse => 0x0005,
-        }
+        u16::from(*self)
     }
 }
 
@@ -208,8 +194,8 @@ impl LpMessage {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::packet::{LpHeader, TRAILER_LEN};
     use crate::LpPacket;
+    use crate::packet::{LpHeader, TRAILER_LEN};
 
     #[test]
     fn encoding() {

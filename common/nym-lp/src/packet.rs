@@ -1,9 +1,9 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::LpError;
 use crate::message::LpMessage;
 use crate::replay::ReceivingKeyCounterValidator;
-use crate::LpError;
 use bytes::{BufMut, BytesMut};
 use nym_lp_common::format_debug_bytes;
 use parking_lot::Mutex;

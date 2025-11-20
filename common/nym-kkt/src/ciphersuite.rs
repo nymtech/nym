@@ -237,7 +237,7 @@ impl Ciphersuite {
                 _ => {
                     return Err(KKTError::CiphersuiteDecodingError {
                         info: format!("Undefined KEM: {}", encoding[0]),
-                    })
+                    });
                 }
             };
             let hash_function = match encoding[1] {
@@ -248,7 +248,7 @@ impl Ciphersuite {
                 _ => {
                     return Err(KKTError::CiphersuiteDecodingError {
                         info: format!("Undefined Hash Function: {}", encoding[1]),
-                    })
+                    });
                 }
             };
 
@@ -262,7 +262,7 @@ impl Ciphersuite {
                 _ => {
                     return Err(KKTError::CiphersuiteDecodingError {
                         info: format!("Undefined Signature Scheme: {}", encoding[3]),
-                    })
+                    });
                 }
             };
 

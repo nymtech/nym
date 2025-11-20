@@ -40,8 +40,8 @@
 //! - **No partial data**: All allocations are stack-local to failed function
 //! - **No cleanup needed**: No state was mutated
 
-use crate::keypair::{PrivateKey, PublicKey};
 use crate::LpError;
+use crate::keypair::{PrivateKey, PublicKey};
 use libcrux_psq::v1::cred::{Authenticator, Ed25519};
 use libcrux_psq::v1::impls::X25519 as PsqX25519;
 use libcrux_psq::v1::psk_registration::{Initiator, InitiatorMsg, Responder};
@@ -109,7 +109,7 @@ pub fn derive_psk_with_psq_initiator(
         _ => {
             return Err(LpError::KKTError(
                 "Only X25519 KEM is currently supported for PSQ".to_string(),
-            ))
+            ));
         }
     };
 
@@ -187,7 +187,7 @@ pub fn derive_psk_with_psq_responder(
         _ => {
             return Err(LpError::KKTError(
                 "Only X25519 KEM is currently supported for PSQ".to_string(),
-            ))
+            ));
         }
     };
 
@@ -250,7 +250,7 @@ pub fn psq_initiator_create_message(
         _ => {
             return Err(LpError::KKTError(
                 "Only X25519 KEM is currently supported for PSQ".to_string(),
-            ))
+            ));
         }
     };
 
@@ -271,7 +271,7 @@ pub fn psq_initiator_create_message(
         &mut rng,
     )
     .map_err(|e| {
-        log::error!(
+        tracing::error!(
             "PSQ initiator failed - KEM encapsulation or signing error: {:?}",
             e
         );
@@ -340,7 +340,7 @@ pub fn psq_responder_process_message(
         _ => {
             return Err(LpError::KKTError(
                 "Only X25519 KEM is currently supported for PSQ".to_string(),
-            ))
+            ));
         }
     };
 
@@ -367,15 +367,17 @@ pub fn psq_responder_process_message(
         use libcrux_psq::v1::Error as PsqError;
         match e {
             PsqError::CredError => {
-                log::warn!(
+                tracing::warn!(
                     "PSQ responder auth failure - invalid Ed25519 signature (potential attack)"
                 );
             }
             PsqError::TimestampElapsed | PsqError::RegistrationError => {
-                log::warn!("PSQ responder timing failure - TTL expired (potential replay attack)");
+                tracing::warn!(
+                    "PSQ responder timing failure - TTL expired (potential replay attack)"
+                );
             }
             _ => {
-                log::error!("PSQ responder failed - {:?}", e);
+                tracing::error!("PSQ responder failed - {:?}", e);
             }
         }
         LpError::Internal(format!("PSQ v1 responder send failed: {:?}", e))

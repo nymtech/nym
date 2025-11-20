@@ -1,7 +1,8 @@
 [package]
 name = "nym-lp"
 version = "0.1.0"
-edition = "2021"
+edition = { workspace = true }
+license = { workspace = true }
 
 [dependencies]
 bincode = { workspace = true }
@@ -14,7 +15,7 @@ bytes = { workspace = true }
 dashmap = { workspace = true }
 sha2 = { workspace = true }
 ansi_term = { workspace = true }
-log = { workspace = true }
+tracing = { workspace = true }
 utoipa = { workspace = true, features = ["macros", "non_strict_integers"] }
 rand = { workspace = true }
 # rand 0.9 for KKT integration (nym-kkt uses rand 0.9)
@@ -26,10 +27,13 @@ nym-lp-common = { path = "../nym-lp-common" }
 nym-sphinx = { path = "../nymsphinx" }
 
 # libcrux dependencies for PSQ (Post-Quantum PSK derivation)
-libcrux-psq = { git = "https://github.com/cryspen/libcrux", features = ["test-utils"] }
+libcrux-psq = { git = "https://github.com/cryspen/libcrux", features = [
+    "test-utils",
+] }
 libcrux-kem = { git = "https://github.com/cryspen/libcrux" }
 libcrux-traits = { git = "https://github.com/cryspen/libcrux" }
-tls_codec = "0.4"
+tls_codec = { workspace = true }
+num_enum = { workspace = true }
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }

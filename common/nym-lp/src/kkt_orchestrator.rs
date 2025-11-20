@@ -59,8 +59,8 @@
 //! ).unwrap();
 //! ```
 
-use crate::message::{KKTRequestData, KKTResponseData};
 use crate::LpError;
+use crate::message::{KKTRequestData, KKTResponseData};
 use nym_crypto::asymmetric::ed25519;
 use nym_kkt::ciphersuite::{Ciphersuite, EncapsulationKey};
 use nym_kkt::context::KKTContext;
@@ -175,7 +175,7 @@ pub fn handle_request<'a>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use nym_kkt::ciphersuite::{HashFunction, SignatureScheme, KEM};
+    use nym_kkt::ciphersuite::{HashFunction, KEM, SignatureScheme};
     use nym_kkt::key_utils::{generate_keypair_libcrux, hash_encapsulation_key};
     use rand09::RngCore;
 

@@ -3,7 +3,7 @@
 
 use std::fmt::Display;
 
-use crate::{ciphersuite::Ciphersuite, error::KKTError, frame::KKT_SESSION_ID_LEN, KKT_VERSION};
+use crate::{KKT_VERSION, ciphersuite::Ciphersuite, error::KKTError, frame::KKT_SESSION_ID_LEN};
 
 pub const KKT_CONTEXT_LEN: usize = 7;
 
@@ -206,7 +206,7 @@ impl KKTContext {
                             "Header - Invalid KKT Status: {}",
                             header_bytes[1] & 0b1110_0000
                         ),
-                    })
+                    });
                 }
             };
 
@@ -220,7 +220,7 @@ impl KKTContext {
                             "Header - Invalid KKT Role: {}",
                             header_bytes[1] & 0b0000_0011
                         ),
-                    })
+                    });
                 }
             };
 
@@ -233,7 +233,7 @@ impl KKTContext {
                             "Header - Invalid KKT Mode: {}",
                             (header_bytes[1] & 0b0001_1100) >> 2
                         ),
-                    })
+                    });
                 }
             };
 

@@ -490,8 +490,16 @@ impl KcpSession {
             post_retain_sns
         );
         // Corrected format string arguments for the removed count log
-        debug!("[ConvID: {}, Thread: {:?}] parse_una(una={}): Removed {} segment(s) from snd_buf ({} -> {}). Remaining sns: {:?}",
-                self.conv, thread::current().id(), una, removed_count, original_len, self.snd_buf.len(), post_retain_sns);
+        debug!(
+            "[ConvID: {}, Thread: {:?}] parse_una(una={}): Removed {} segment(s) from snd_buf ({} -> {}). Remaining sns: {:?}",
+            self.conv,
+            thread::current().id(),
+            una,
+            removed_count,
+            original_len,
+            self.snd_buf.len(),
+            post_retain_sns
+        );
 
         if removed_count > 0 {
             // Use trace level if no segments were removed but buffer wasn't empty

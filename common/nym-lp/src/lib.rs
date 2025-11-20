@@ -21,7 +21,7 @@ use keypair::PublicKey;
 pub use message::{ClientHelloData, LpMessage};
 pub use packet::LpPacket;
 pub use replay::{ReceivingKeyCounterValidator, ReplayError};
-pub use session::{generate_fresh_salt, LpSession};
+pub use session::{LpSession, generate_fresh_salt};
 pub use session_manager::SessionManager;
 
 // Add the new state machine module
@@ -121,7 +121,7 @@ mod tests {
     use crate::message::LpMessage;
     use crate::packet::{LpHeader, LpPacket, TRAILER_LEN};
     use crate::session_manager::SessionManager;
-    use crate::{make_lp_id, sessions_for_tests, LpError};
+    use crate::{LpError, make_lp_id, sessions_for_tests};
     use bytes::BytesMut;
 
     // Import the new standalone functions

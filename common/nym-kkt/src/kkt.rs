@@ -147,7 +147,7 @@ pub fn handle_kem_request<'a>(
 mod tests {
     use super::*;
     use crate::{
-        ciphersuite::{HashFunction, SignatureScheme, KEM},
+        ciphersuite::{HashFunction, KEM, SignatureScheme},
         key_utils::{generate_keypair_libcrux, hash_encapsulation_key},
     };
 

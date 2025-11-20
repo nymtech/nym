@@ -401,7 +401,7 @@ impl LpSession {
     /// * `None` - KKT not applicable (responder, or already completed)
     pub fn prepare_kkt_request(&self) -> Option<Result<LpMessage, LpError>> {
         use nym_kkt::{
-            ciphersuite::{Ciphersuite, HashFunction, SignatureScheme, KEM},
+            ciphersuite::{Ciphersuite, HashFunction, KEM, SignatureScheme},
             kkt::request_kem_key,
         };
 
@@ -424,7 +424,7 @@ impl LpSession {
                 return Some(Err(LpError::Internal(format!(
                     "KKT ciphersuite error: {:?}",
                     e
-                ))))
+                ))));
             }
         };
 
@@ -486,7 +486,7 @@ impl LpSession {
             _ => {
                 return Err(LpError::Internal(
                     "KKT response received in invalid state".to_string(),
-                ))
+                ));
             }
         };
 
@@ -608,7 +608,7 @@ impl LpSession {
                 _ => {
                     return Some(Err(LpError::KKTError(
                         "PSQ handshake requires completed KKT exchange".to_string(),
-                    )))
+                    )));
                 }
             };
 
@@ -626,7 +626,7 @@ impl LpSession {
             ) {
                 Ok(result) => result,
                 Err(e) => {
-                    log::error!("PSQ handshake preparation failed, aborting: {:?}", e);
+                    tracing::error!("PSQ handshake preparation failed, aborting: {:?}", e);
                     return Some(Err(e));
                 }
             };
@@ -648,7 +648,7 @@ impl LpSession {
             // Combine: [u16 psq_len][psq_payload][noise_msg]
             let psq_len = psq_payload.len() as u16;
             let mut combined = Vec::with_capacity(2 + psq_payload.len() + noise_msg.len());
-            combined.extend_from_slice(&psq_len.to_be_bytes());
+            combined.extend_from_slice(&psq_len.to_le_bytes());
             combined.extend_from_slice(&psq_payload);
             combined.extend_from_slice(&noise_msg);
 
@@ -675,11 +675,11 @@ impl LpSession {
                             let handle_len = handle_bytes.len() as u16;
                             let mut combined =
                                 Vec::with_capacity(2 + handle_bytes.len() + noise_msg.len());
-                            combined.extend_from_slice(&handle_len.to_be_bytes());
+                            combined.extend_from_slice(&handle_len.to_le_bytes());
                             combined.extend_from_slice(&handle_bytes);
                             combined.extend_from_slice(&noise_msg);
 
-                            log::debug!(
+                            tracing::debug!(
                                 "Embedding PSK handle ({} bytes) in handshake message 2",
                                 handle_bytes.len()
                             );
@@ -732,7 +732,7 @@ impl LpSession {
                         )));
                     }
 
-                    let psq_len = u16::from_be_bytes([payload[0], payload[1]]) as usize;
+                    let psq_len = u16::from_le_bytes([payload[0], payload[1]]) as usize;
 
                     if payload.len() < 2 + psq_len {
                         return Err(LpError::NoiseError(NoiseError::Other(
@@ -785,7 +785,7 @@ impl LpSession {
                     ) {
                         Ok(result) => result,
                         Err(e) => {
-                            log::error!("PSQ handshake processing failed, aborting: {:?}", e);
+                            tracing::error!("PSQ handshake processing failed, aborting: {:?}", e);
                             return Err(e);
                         }
                     };
@@ -815,14 +815,14 @@ impl LpSession {
                 if self.is_initiator && matches!(*psq_state, PSQState::InitiatorWaiting { .. }) {
                     // Extract PSK handle: [u16 handle_len][handle_bytes][noise_msg]
                     if payload.len() >= 2 {
-                        let handle_len = u16::from_be_bytes([payload[0], payload[1]]) as usize;
+                        let handle_len = u16::from_le_bytes([payload[0], payload[1]]) as usize;
 
                         if handle_len > 0 && payload.len() >= 2 + handle_len {
                             // Extract and store the PSK handle
                             let handle_bytes = &payload[2..2 + handle_len];
                             let noise_payload = &payload[2 + handle_len..];
 
-                            log::debug!(
+                            tracing::debug!(
                                 "Extracted PSK handle ({} bytes) from message 2",
                                 handle_len
                             );

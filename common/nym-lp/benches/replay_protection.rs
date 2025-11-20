@@ -1,4 +1,4 @@
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{BenchmarkId, Criterion, Throughput, black_box, criterion_group, criterion_main};
 use nym_lp::replay::ReceivingKeyCounterValidator;
 use parking_lot::Mutex;
 use rand::{Rng, SeedableRng};

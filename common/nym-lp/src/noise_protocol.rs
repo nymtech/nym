@@ -3,7 +3,7 @@
 
 //! Sans-IO Noise protocol state machine, adapted from noise-psq.
 
-use snow::{params::NoiseParams, TransportState};
+use snow::{TransportState, params::NoiseParams};
 use thiserror::Error;
 
 // --- Error Definition ---
@@ -275,7 +275,7 @@ impl NoiseProtocol {
     /// - The underlying snow library rejects the PSK
     pub fn set_psk(&mut self, index: u8, psk: &[u8]) -> Result<(), NoiseError> {
         match &mut self.state {
-            NoiseProtocolState::Handshaking(ref mut handshake_state) => {
+            NoiseProtocolState::Handshaking(handshake_state) => {
                 handshake_state
                     .set_psk(index as usize, psk)
                     .map_err(NoiseError::ProtocolError)?;

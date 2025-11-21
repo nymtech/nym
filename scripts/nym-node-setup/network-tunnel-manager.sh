@@ -1208,7 +1208,7 @@ case "$cmd" in
 usage: $0 <command> [args]
 
 high level workflows:
-  complete_networking_configuration Install tunnel interfaces, setup networking, iptables & wg exit policy
+  complete_networking_configuration Install tunnel interfaces, setup networking, iptables, wg exit policy & tests
   exit_policy_install               Install and configure wireguard exit policy
   full_tunnel_setup                 Install tunnel interfaces & setup networking
 

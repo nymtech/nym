@@ -345,25 +345,13 @@ class NodeSetupCLI:
         """A standalone fn to pass full cmd list needed for correct setup and test network tunneling, using an external script"""
         print(
             "\n* * * Setting up network configuration for mixnet IP router and Wireguard tunneling * * *"
-            "\nMore info: https://nym.com/docs/operators/nodes/nym-node/configuration#1-download-network_tunnel_managersh-make-executable-and-run"
+            "\nMore info: https://nym.com/docs/operators/nodes/nym-node/configuration#routing-configuration"
             "\nThis may take a while; follow the steps below and don't kill the process..."
         )
 
         # each entry is the exact argv to pass to the script
         steps = [
-            ["check_nymtun_iptables"],
-            ["remove_duplicate_rules", "nymtun0"],
-            ["remove_duplicate_rules", "nymwg"],
-            ["check_nymtun_iptables"],
-            ["adjust_ip_forwarding"],
-            ["apply_iptables_rules"],
-            ["check_nymtun_iptables"],
-            ["apply_iptables_rules_wg"],
-            ["configure_dns_and_icmp_wg"],
-            ["adjust_ip_forwarding"],
-            ["check_ipv6_ipv4_forwarding"],
-            ["joke_through_the_mixnet"],
-            ["joke_through_wg_tunnel"],
+            ["complete_networking_configuration"]
         ]
 
         for argv in steps:

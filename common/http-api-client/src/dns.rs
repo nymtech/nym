@@ -457,11 +457,11 @@ impl HickoryDnsResolver {
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub enum NameServerIpVersionPolicy {
     /// Only send queries to Ipv4 nameservers
+    #[default]
     Ipv4Only,
     /// Only send queries to Ipv6 nameserver
     Ipv6Only,
     /// Send queries to Ipv4 AND Ipv6 nameservers in parallel
-    #[default]
     Ipv4AndIpv6,
 }
 

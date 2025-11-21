@@ -43,6 +43,7 @@ impl LegacySharedKeys {
         rng.fill_bytes(&mut salt);
 
         let legacy_bytes = Zeroizing::new(self.to_bytes());
+        #[allow(clippy::expect_used)]
         let okm = hkdf::extract_then_expand::<GatewaySharedKeyHkdfAlgorithm>(
             Some(&salt),
             &legacy_bytes,
@@ -51,6 +52,7 @@ impl LegacySharedKeys {
         )
         .expect("somehow too long okm was provided");
 
+        #[allow(clippy::expect_used)]
         let key = SharedSymmetricKey::try_from_bytes(&okm)
             .expect("okm was expanded to incorrect length!");
         (key, salt)
@@ -62,6 +64,7 @@ impl LegacySharedKeys {
         expected_digest: &[u8],
     ) -> Option<SharedSymmetricKey> {
         let legacy_bytes = Zeroizing::new(self.to_bytes());
+        #[allow(clippy::expect_used)]
         let okm = hkdf::extract_then_expand::<GatewaySharedKeyHkdfAlgorithm>(
             Some(salt),
             &legacy_bytes,
@@ -69,6 +72,8 @@ impl LegacySharedKeys {
             SharedKeySize::to_usize(),
         )
         .expect("somehow too long okm was provided");
+
+        #[allow(clippy::expect_used)]
         let key = SharedSymmetricKey::try_from_bytes(&okm)
             .expect("okm was expanded to incorrect length!");
         if key.digest() != expected_digest {

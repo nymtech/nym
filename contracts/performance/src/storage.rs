@@ -1261,28 +1261,6 @@ mod tests {
                     }
                 );
 
-                // bonded legacy mix-node
-                let node_id = tester.bond_dummy_legacy_mixnode()?;
-                let perf = NodePerformance {
-                    node_id,
-                    performance: Default::default(),
-                };
-                let res =
-                    storage.submit_performance_data(tester.deps_mut(), env.clone(), &nm, 0, perf);
-                assert!(res.is_ok());
-
-                // unbonded
-                tester.unbond_legacy_mixnode(node_id)?;
-
-                let res = storage
-                    .submit_performance_data(tester.deps_mut(), env.clone(), &nm, 0, dummy_perf)
-                    .unwrap_err();
-                assert_eq!(
-                    res,
-                    NymPerformanceContractError::NodeNotBonded {
-                        node_id: dummy_perf.node_id
-                    }
-                );
                 Ok(())
             }
         }
@@ -1984,11 +1962,6 @@ mod tests {
                 tester.unbond_nymnode(nym_node_between)?;
                 let nym_node2 = tester.bond_dummy_nymnode()?;
 
-                let mix_node1 = tester.bond_dummy_legacy_mixnode()?;
-                let mixnode_between = tester.bond_dummy_legacy_mixnode()?;
-                tester.unbond_legacy_mixnode(mixnode_between)?;
-                let mix_node2 = tester.bond_dummy_legacy_mixnode()?;
-
                 let env = tester.env();
 
                 // single id - nothing bonded
@@ -2052,84 +2025,6 @@ mod tests {
                 )?;
                 assert_eq!(res.accepted_scores, 2);
                 assert_eq!(res.non_existent_nodes, vec![2, nym_node_between]);
-
-                // MIXNODES
-
-                // one bonded mixnode, one not bonded
-                let res = storage.batch_submit_performance_results(
-                    tester.deps_mut(),
-                    env.clone(),
-                    &nm,
-                    3,
-                    vec![
-                        NodePerformance {
-                            node_id: mix_node1,
-                            performance: Default::default(),
-                        },
-                        NodePerformance {
-                            node_id: 999999,
-                            performance: Default::default(),
-                        },
-                    ],
-                )?;
-                assert_eq!(res.accepted_scores, 1);
-                assert_eq!(res.non_existent_nodes, vec![999999]);
-
-                // not-bonded, bonded, not-bonded, bonded
-                let res = storage.batch_submit_performance_results(
-                    tester.deps_mut(),
-                    env.clone(),
-                    &nm,
-                    4,
-                    vec![
-                        NodePerformance {
-                            node_id: 2,
-                            performance: Default::default(),
-                        },
-                        NodePerformance {
-                            node_id: mix_node1,
-                            performance: Default::default(),
-                        },
-                        NodePerformance {
-                            node_id: mixnode_between,
-                            performance: Default::default(),
-                        },
-                        NodePerformance {
-                            node_id: mix_node2,
-                            performance: Default::default(),
-                        },
-                    ],
-                )?;
-                assert_eq!(res.accepted_scores, 2);
-                assert_eq!(res.non_existent_nodes, vec![2, mixnode_between]);
-
-                // nym-node, not bonded, mixnode
-                let res = storage.batch_submit_performance_results(
-                    tester.deps_mut(),
-                    env.clone(),
-                    &nm,
-                    5,
-                    vec![
-                        NodePerformance {
-                            node_id: 3,
-                            performance: Default::default(),
-                        },
-                        NodePerformance {
-                            node_id: nym_node1,
-                            performance: Default::default(),
-                        },
-                        NodePerformance {
-                            node_id: nym_node_between,
-                            performance: Default::default(),
-                        },
-                        NodePerformance {
-                            node_id: mix_node2,
-                            performance: Default::default(),
-                        },
-                    ],
-                )?;
-                assert_eq!(res.accepted_scores, 2);
-                assert_eq!(res.non_existent_nodes, vec![3, nym_node_between]);
 
                 Ok(())
             }

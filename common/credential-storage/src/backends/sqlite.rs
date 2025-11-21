@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::models::{
-    BasicTicketbookInformation, RawCoinIndexSignatures, RawExpirationDateSignatures,
-    RawVerificationKey, StoredIssuedTicketbook, StoredPendingTicketbook,
+    BasicTicketbookInformation, EmergencyCredential, EmergencyCredentialContent,
+    RawCoinIndexSignatures, RawExpirationDateSignatures, RawVerificationKey,
+    StoredIssuedTicketbook, StoredPendingTicketbook,
 };
 use nym_ecash_time::Date;
 use sqlx::{Executor, Sqlite, Transaction};
@@ -303,6 +304,74 @@ impl SqliteEcashTicketbookManager {
         )
             .execute(&*self.connection_pool)
             .await?;
+        Ok(())
+    }
+
+    pub(crate) async fn get_emergency_credential(
+        &self,
+        typ: &str,
+    ) -> Result<Option<EmergencyCredential>, sqlx::Error> {
+        sqlx::query_as(
+            r#"
+                SELECT *
+                FROM emergency_credential
+                WHERE type = ?
+                  AND (expiration IS NULL OR expiration > CURRENT_TIMESTAMP)
+                ORDER BY expiration DESC NULLS LAST
+                LIMIT 1
+            "#,
+        )
+        .bind(typ)
+        .fetch_optional(&*self.connection_pool)
+        .await
+    }
+
+    pub(crate) async fn insert_emergency_credential(
+        &self,
+        credential: &EmergencyCredentialContent,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query!(
+            r#"
+                INSERT INTO emergency_credential
+                (type, content, expiration)
+                VALUES (?, ?, ?)
+                ON CONFLICT(type, content) DO NOTHING;
+            "#,
+            credential.typ,
+            credential.content,
+            credential.expiration,
+        )
+        .execute(&*self.connection_pool)
+        .await?;
+        Ok(())
+    }
+
+    pub(crate) async fn remove_emergency_credential(&self, id: i64) -> Result<(), sqlx::Error> {
+        sqlx::query!(
+            r#"
+                DELETE FROM emergency_credential
+                WHERE id = ?
+            "#,
+            id
+        )
+        .execute(&*self.connection_pool)
+        .await?;
+        Ok(())
+    }
+
+    pub(crate) async fn remove_emergency_credentials_of_type(
+        &self,
+        typ: &str,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query!(
+            r#"
+                DELETE FROM emergency_credential
+                WHERE type = ?
+            "#,
+            typ
+        )
+        .execute(&*self.connection_pool)
+        .await?;
         Ok(())
     }
 }

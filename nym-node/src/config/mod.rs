@@ -262,8 +262,13 @@ impl ConfigBuilder {
         self
     }
 
-    pub fn build(self) -> Config {
-        Config {
+    pub fn build(self) -> Result<Config, NymNodeError> {
+        let gateway_tasks = match self.gateway_tasks {
+            Some(gateway_tasks) => gateway_tasks,
+            None => GatewayTasksConfig::new(&self.data_dir)?,
+        };
+
+        Ok(Config {
             id: self.id,
             modes: self.modes,
             host: self.host.unwrap_or_default(),
@@ -279,16 +284,14 @@ impl ConfigBuilder {
                 .storage_paths
                 .unwrap_or_else(|| NymNodePaths::new(&self.data_dir)),
             metrics: self.metrics.unwrap_or_default(),
-            gateway_tasks: self
-                .gateway_tasks
-                .unwrap_or_else(|| GatewayTasksConfig::new_default(&self.data_dir)),
+            gateway_tasks,
             service_providers: self
                 .service_providers
                 .unwrap_or_else(|| ServiceProvidersConfig::new_default(&self.data_dir)),
             logging: self.logging.unwrap_or_default(),
             save_path: Some(self.config_path),
             debug: Default::default(),
-        }
+        })
     }
 }
 
@@ -692,6 +695,10 @@ impl ReplayProtectionDebug {
     pub const DEFAULT_BLOOMFILTER_MINIMUM_PACKETS_PER_SECOND_SIZE: usize = 200;
 
     pub fn validate(&self) -> Result<(), NymNodeError> {
+        if self.unsafe_disabled {
+            return Ok(());
+        }
+
         if self.false_positive_rate >= 1.0 || self.false_positive_rate <= 0.0 {
             return Err(NymNodeError::config_validation_failure(
                 "false positive rate for replay detection can't be larger than (or equal to) 1 or smaller than (or equal to) 0",

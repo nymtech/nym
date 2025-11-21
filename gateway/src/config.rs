@@ -13,6 +13,8 @@ pub struct Config {
 
     pub ip_packet_router: IpPacketRouter,
 
+    pub upgrade_mode_watcher: UpgradeModeWatcher,
+
     pub debug: Debug,
 }
 
@@ -21,12 +23,14 @@ impl Config {
         gateway: impl Into<Gateway>,
         network_requester: impl Into<NetworkRequester>,
         ip_packet_router: impl Into<IpPacketRouter>,
+        upgrade_mode_watcher: impl Into<UpgradeModeWatcher>,
         debug: impl Into<Debug>,
     ) -> Self {
         Config {
             gateway: gateway.into(),
             network_requester: network_requester.into(),
             ip_packet_router: ip_packet_router.into(),
+            upgrade_mode_watcher: upgrade_mode_watcher.into(),
             debug: debug.into(),
         }
     }
@@ -55,6 +59,28 @@ pub struct Gateway {
 
     /// Addresses to validators which the node uses to check for double spending of ERC20 tokens.
     pub nyxd_urls: Vec<Url>,
+}
+
+#[derive(Debug)]
+pub struct UpgradeModeWatcher {
+    /// Specifies whether this gateway watches for upgrade mode changes
+    /// via the published attestation file.
+    pub enabled: bool,
+
+    /// Endpoint to query to retrieve current upgrade mode attestation.
+    /// If not provided, it implicitly disables the watcher and upgrade-mode features
+    pub attestation_url: Url,
+
+    pub debug: UpgradeModeWatcherDebug,
+}
+
+#[derive(Debug)]
+pub struct UpgradeModeWatcherDebug {
+    /// Default polling interval
+    pub regular_polling_interval: Duration,
+
+    /// Expedited polling interval for once upgrade mode is detected
+    pub expedited_poll_interval: Duration,
 }
 
 #[derive(Debug, PartialEq)]
@@ -104,6 +130,9 @@ pub struct Debug {
 
     /// Defines the timestamp skew of a signed authentication request before it's deemed too excessive to process.
     pub max_request_timestamp_skew: Duration,
+
+    /// The minimum duration since the last explicit check for the upgrade mode to allow creation of new requests.
+    pub upgrade_mode_min_staleness_recheck: Duration,
 }
 
 #[derive(Debug, Clone)]

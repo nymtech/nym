@@ -3,7 +3,7 @@
 
 [package]
 name = "nym-node"
-version = "1.20.0"
+version = "1.21.0"
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
@@ -57,6 +57,7 @@ nym-client-core-config-types = { path = "../common/client-core/config-types", fe
     "disk-persistence",
 ] }
 nym-config = { path = "../common/config" }
+nym-credential-verification = { path = "../common/credential-verification" }
 nym-crypto = { path = "../common/crypto", features = ["asymmetric", "rand"] }
 nym-nonexhaustive-delayqueue = { path = "../common/nonexhaustive-delayqueue" }
 nym-mixnet-client = { path = "../common/client-libs/mixnet-client" }

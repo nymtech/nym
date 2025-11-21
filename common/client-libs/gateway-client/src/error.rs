@@ -54,7 +54,7 @@ pub enum GatewayClientError {
 
     #[cfg(not(target_arch = "wasm32"))]
     #[error("resolution failed: {0}")]
-    ResolutionFailed(#[from] nym_http_api_client::HickoryDnsError),
+    ResolutionFailed(#[from] nym_http_api_client::ResolveError),
 
     #[error("No shared key was provided or obtained")]
     NoSharedKeyAvailable,
@@ -128,6 +128,9 @@ pub enum GatewayClientError {
         "this operation couldn't be completed as the program is in the process of shutting down"
     )]
     ShutdownInProgress,
+
+    #[error("the system is an unexpected upgrade mode state")]
+    UnexpectedUpgradeModeState,
 }
 
 impl From<WsError> for GatewayClientError {

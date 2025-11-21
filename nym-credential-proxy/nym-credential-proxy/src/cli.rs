@@ -156,12 +156,12 @@ pub struct Cli {
 #[derive(Args, Debug, Clone)]
 pub struct UpgradeModeConfig {
     /// URL for polling for upgrade mode changes.
-    #[clap(
-        long,
-        env = "NYM_CREDENTIAL_PROXY_ATTESTATION_CHECK_URL",
-        default_value = "5m"
-    )]
-    pub(crate) attestation_check_url: Url,
+    #[clap(long, env = "NYM_CREDENTIAL_PROXY_ATTESTATION_CHECK_URL")]
+    pub(crate) attestation_check_url: Option<Url>,
+
+    /// Base58-encoded expected upgrade mode attestation ed25519 public key.
+    #[clap(long, env = "NYM_CREDENTIAL_PROXY_ATTESTER_PUBKEY")]
+    pub(crate) attester_pubkey: Option<ed25519::PublicKey>,
 
     /// Default polling interval of the upgrade mode endpoint.
     #[clap(

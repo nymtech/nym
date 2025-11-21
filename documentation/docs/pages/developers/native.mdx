@@ -1,0 +1,86 @@
+import { Callout } from 'nextra/components';
+
+# Native / Desktop Apps
+
+Developers wanting to integrate into desktop apps & CLIs can use our Rust SDK. There are two broad approaches to using the Mixnet (E2E or as a proxy), with different modules suited for each, each with their own specific usecase and limitations.
+
+## Option 1: Mixnet End-To-End
+You might want to embed Nym Clients in both sides of your app, and have them send all of your app network traffic through the Mixnet: maybe two clients in a peer to peer setup, or a client and a server where it is possible for you as a developer to release both the client and server side code, and have some ability to make sure that it is being run.
+
+![](/images/developers/nym-arch-client-to-client.png)
+
+There are several options available:
+
+{ /* ### Stream Wrapper Module
+Exposes `MixSocket`/`MixStream` abstractions that can be split a reader/writer halves that consumes bytes, with an interface inspired by `std::net::TcpStream`. For developers who just want to read/write bytes to/from the Mixnet working with something socket-like.
+
+- docs TODO LINK
+- example TODO LINK */ }
+
+### Mixnet & Client Pool Modules
+The Mixnet module of the SDK exposes low level connection functionality and the Mixnet Client. The Client Pool is one answer to concurrency, and allows developers to run several Nym Clients at once which can be quickly used.
+
+{ /* This approach might be useful if you want to build custom connection logic, but **`MixSocket`/`MixStream` will probably be sufficient for the majority of usecases** where developers just want to send and receive traffic as streams. */ }
+
+This approach might be useful if you want to build custom connection logic, but the TcpProxy Module will probably be sufficient for the majority of usecases where developers just want to send and receive traffic as streams.
+
+- [docs](./rust/mixnet)
+- [examples](./rust/mixnet/examples)
+
+### TcpProxy Module
+{ /* <Callout type="warning" emoji="⚠️">
+    This module has been superseded by the Stream Wrapper module, and will soon be deprecated. **New features will not be added to it.** The main drawback of this (which is fixed with `MixSocket`/`MixStream`) is that TLS is impossible, as it exposes a localhost port for the consuming process to communicate with.
+</Callout> */ }
+A pair of abstractions built for use in a client-server setup, which both expose a `localhost` TCP Socket which apps can read/write bytes to/from.
+
+- [docs](./rust/tcpproxy)
+- [examples](./rust/tcpproxy/examples/singleconn)
+
+<Callout type="info" emoji="ℹ️">
+    There is a new abstraction coming soon mirroring the interface and use of a TCP Socket, making it easier for developers to use the Mixnet, and also perform TLS through a Mixnet connection. Stay tuned.
+</Callout>
+
+## Option 2: Mixnet-As-Proxy
+For developers who are only able to control the client-side code, and/or need to communicate with a 3rd party service, such as a public blockchain RPC or a remote host they do not control.
+
+![](/images/developers/nym-arch-ip-routing.png)
+
+<Callout type="warning">
+
+    ### Security Considerations
+
+    Since traffic is only packaged as Sphinx until it gets to the Exit Gateway, where it is unwrapped into either HTTPS packets (by a Network Requester) or IP packets (by an IP Packet Router), the last hop between the Gateway and the remote host **travels as normal internet traffic**.
+
+    As such, this option has fewer protections than the E2E option against a global passive adversary, but still grants you timing obfuscation and sender-receiver unlinkability between your client software and whatever service it is interacting with.
+</Callout>
+
+### SOCKS Client
+Developers with apps that support SOCKS4,4a, or 5 can use the Socks Client exposed by the Mixnet module. This uses the Network Requester service of the chosen Exit Gateway to interact with the remote host via the chosen SOCKS proxy protocol. The Network Requester uses SURBs to anonymously reply to the original sender with whatever response it gets from the remote host.
+
+- [docs](./rust/mixnet/examples/socks)
+- [example](./rust/mixnet/examples/socks)
+
+<Callout type="info" emoji="ℹ️">
+    There is a new abstraction coming soon that will allow the SDK to send IP packets, the beginning of a longer project to make a native Rust version of [`mixFetch`](./typescript/start#mixfetch). Stay tuned.
+</Callout>
+
+
+{ /* ### `IPMixStream`
+This is a version of the `MixSocket` that consumes IP packets before wrapping them in Sphinx and forwarding through the Mixnet to the IP Packet Router of the chosen Exit Gateway, where they are unwrapped and treated as normal IP packets. The IPR uses SURBs to anonymously reply to the original sender with whatever response it gets from the remote host.
+
+<Callout type="info" emoji="ℹ️">
+    Currently only consumes IP packets - those who do not want to work with IP packets directly should check `mixtcp` below for doing something with HTTP(S).
+</Callout>
+
+- docs TODO LINK
+- examples TODO LINK
+
+### `MixTCP`
+A proof of concept TCP/IP crate containing a [`smoltcp`](https://docs.rs/smoltcp/latest/smoltcp/index.html) `device` that uses the Mixnet for transport. Examples of using this to make a TLS handshake and perform an HTTPS request can be found linked below.
+
+<Callout type="info" emoji="ℹ️">
+    This crate is currently a proof of concept which is in active development. This crate will become the basis of a general-purpose HTTP-through-Mixnet crate in the near future.
+</Callout>
+
+- docs TODO LINK
+- example TODO LINK */ }

@@ -201,6 +201,18 @@ announce_ws_port = {{#if gateway_tasks.announce_ws_port }} {{ gateway_tasks.anno
 # (default: 0 - disabled)
 announce_wss_port = {{#if gateway_tasks.announce_wss_port }} {{ gateway_tasks.announce_wss_port }} {{else}} 0 {{/if}}
 
+[gateway_tasks.upgrade_mode]
+# Specifies whether this gateway watches for upgrade mode changes
+# via the published attestation file.
+enabled = {{ gateway_tasks.upgrade_mode.enabled }}
+
+# Endpoint to query to retrieve current upgrade mode attestation.
+# If not provided, it implicitly disables the watcher and upgrade-mode features
+attestation_url = '{{ gateway_tasks.upgrade_mode.attestation_url }}'
+
+# Expected public key of the attester providing the upgrade mode attestation
+# on the specified endpoint
+attester_public_key = '{{ gateway_tasks.upgrade_mode.attester_public_key }}'
 
 [gateway_tasks.storage_paths]
 # Path to sqlite database containing all persistent data: messages for offline clients,

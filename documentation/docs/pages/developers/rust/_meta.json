@@ -1,8 +1,7 @@
 {
   "importing": "Importing",
-  "development-status": "Development Status",
-  "mixnet": "Mixnet Module",
   "tcpproxy": "TcpProxy Module",
-  "client-pool": "Client Pool",
+  "mixnet": "Mixnet Module",
+  "client-pool": "Client Pool Module",
   "ffi": "FFI"
 }

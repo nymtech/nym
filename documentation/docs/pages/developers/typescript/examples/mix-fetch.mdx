@@ -18,7 +18,7 @@ Sounds great, are there any catches? Well, there are a few (for now):
 <Callout type="info" emoji="ℹ️">
   Right now Gateways are not required to run a Secure Websocket (WSS) listener, so only a subset of nodes running in Gateway mode have configured their nodes to do so.
 
-For the moment you have to select a Gateway that has WSS enabled and Network Requester from [Harbourmaster Gateways for mixFetch list](https://harbourmaster.nymtech.net/).
+For the moment you have to select a Gateway that has WSS from [Harbourmaster Gateways for mixFetch list](https://harbourmaster.nymtech.net/).
 
 ```
 curl -X 'GET' \
@@ -33,9 +33,7 @@ curl -X 'GET' \
 import type { SetupMixFetchOps } from '@nymproject/mix-fetch';
 
 const mixFetchOptions: SetupMixFetchOps = {
-  preferredGateway: '23A7CSaBSA2L67PWuFTPXUnYrCdyVcB7ATYsjUsfdftb', // with WSS
-  preferredNetworkRequester:
-    'HuNL1pFprNSKW6jdqppibXP5KNKCNJxDh7ivpYcoULN9.C62NahRTUf6kqpNtDVHXoVriQr6yyaU5LtxdgpbsGrtA@23A7CSaBSA2L67PWuFTPXUnYrCdyVcB7ATYsjUsfdftb',
+  preferredGateway: "q2A2cbooyC16YJzvdYaSMH9X3cSiieZNtfBr8cE8Fi1", // with WSS
   mixFetchOverride: {
     requestTimeoutMs: 60_000,
   },

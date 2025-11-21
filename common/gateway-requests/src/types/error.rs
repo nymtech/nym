@@ -13,7 +13,7 @@ use thiserror::Error;
 use time::OffsetDateTime;
 
 // specific errors (that should not be nested!!) for clients to match on
-#[derive(Debug, Copy, Clone, Error, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, Error, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum SimpleGatewayRequestsError {
     #[error("insufficient bandwidth available to process the request. required: {required}B, available: {available}B")]

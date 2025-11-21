@@ -4825,7 +4825,7 @@ dependencies = [
 
 [[package]]
 name = "nym-api"
-version = "1.1.68"
+version = "1.1.69"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4988,6 +4988,7 @@ dependencies = [
  "nym-network-defaults",
  "nym-service-provider-requests-common",
  "nym-sphinx",
+ "nym-test-utils",
  "nym-wireguard-types",
  "rand 0.8.5",
  "semver 1.0.26",
@@ -4995,6 +4996,7 @@ dependencies = [
  "sha2 0.10.9",
  "strum_macros",
  "thiserror 2.0.12",
+ "tracing",
  "x25519-dalek",
 ]
 
@@ -5003,21 +5005,16 @@ name = "nym-bandwidth-controller"
 version = "0.1.0"
 dependencies = [
  "async-trait",
- "bip39",
  "log",
  "nym-credential-storage",
  "nym-credentials",
  "nym-credentials-interface",
  "nym-crypto",
- "nym-ecash-contract-common",
  "nym-ecash-time",
- "nym-network-defaults",
  "nym-task",
  "nym-validator-client",
  "rand 0.8.5",
  "thiserror 2.0.12",
- "url",
- "zeroize",
 ]
 
 [[package]]
@@ -5051,7 +5048,7 @@ dependencies = [
 
 [[package]]
 name = "nym-cli"
-version = "1.1.65"
+version = "1.1.66"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -5134,7 +5131,7 @@ dependencies = [
 
 [[package]]
 name = "nym-client"
-version = "1.1.65"
+version = "1.1.66"
 dependencies = [
  "bs58",
  "clap",
@@ -5570,6 +5567,7 @@ dependencies = [
  "sqlx",
  "sqlx-pool-guard",
  "thiserror 2.0.12",
+ "time",
  "tokio",
  "zeroize",
 ]
@@ -5605,12 +5603,13 @@ dependencies = [
  "nym-api-requests",
  "nym-credentials",
  "nym-credentials-interface",
+ "nym-crypto",
  "nym-ecash-contract-common",
  "nym-gateway-requests",
  "nym-gateway-storage",
  "nym-task",
+ "nym-upgrade-mode-check",
  "nym-validator-client",
- "rand 0.8.5",
  "si-scale",
  "thiserror 2.0.12",
  "time",
@@ -5650,6 +5649,7 @@ dependencies = [
  "nym-compact-ecash",
  "nym-ecash-time",
  "nym-network-defaults",
+ "nym-upgrade-mode-check",
  "rand 0.8.5",
  "serde",
  "strum",
@@ -5800,7 +5800,6 @@ dependencies = [
 name = "nym-gateway"
 version = "1.1.36"
 dependencies = [
- "anyhow",
  "async-trait",
  "bincode",
  "bip39",
@@ -5811,7 +5810,6 @@ dependencies = [
  "futures",
  "ipnetwork",
  "mock_instant",
- "nym-api-requests",
  "nym-authenticator-requests",
  "nym-client-core",
  "nym-credential-verification",
@@ -5824,7 +5822,6 @@ dependencies = [
  "nym-id",
  "nym-ip-packet-router",
  "nym-mixnet-client",
- "nym-mixnode-common",
  "nym-network-defaults",
  "nym-network-requester",
  "nym-node-metrics",
@@ -5834,20 +5831,18 @@ dependencies = [
  "nym-statistics-common",
  "nym-task",
  "nym-topology",
- "nym-types",
+ "nym-upgrade-mode-check",
  "nym-validator-client",
  "nym-wireguard",
  "nym-wireguard-private-metadata-server",
  "nym-wireguard-types",
  "rand 0.8.5",
  "serde",
- "sha2 0.10.9",
  "thiserror 2.0.12",
  "time",
  "tokio",
  "tokio-stream",
  "tokio-tungstenite",
- "tokio-util",
  "tracing",
  "url",
  "zeroize",
@@ -6058,6 +6053,7 @@ dependencies = [
  "thiserror 2.0.12",
  "tokio",
  "tracing",
+ "tracing-subscriber",
  "url",
  "wasmtimer",
 ]
@@ -6362,7 +6358,7 @@ dependencies = [
 
 [[package]]
 name = "nym-network-requester"
-version = "1.1.66"
+version = "1.1.67"
 dependencies = [
  "addr",
  "anyhow",
@@ -6412,7 +6408,7 @@ dependencies = [
 
 [[package]]
 name = "nym-node"
-version = "1.20.0"
+version = "1.21.0"
 dependencies = [
  "anyhow",
  "arc-swap",
@@ -6443,6 +6439,7 @@ dependencies = [
  "nym-bin-common",
  "nym-client-core-config-types",
  "nym-config",
+ "nym-credential-verification",
  "nym-crypto",
  "nym-gateway",
  "nym-gateway-stats-storage",
@@ -6515,13 +6512,13 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "celes",
- "humantime",
  "humantime-serde",
  "nym-bin-common",
  "nym-crypto",
  "nym-exit-policy",
  "nym-http-api-client",
  "nym-noise-keys",
+ "nym-upgrade-mode-check",
  "nym-wireguard-types",
  "rand_chacha 0.3.1",
  "schemars 0.8.22",
@@ -6532,6 +6529,7 @@ dependencies = [
  "thiserror 2.0.12",
  "time",
  "tokio",
+ "url",
  "utoipa",
 ]
 
@@ -6939,7 +6937,7 @@ dependencies = [
 
 [[package]]
 name = "nym-socks5-client"
-version = "1.1.65"
+version = "1.1.66"
 dependencies = [
  "bs58",
  "clap",
@@ -7573,17 +7571,10 @@ dependencies = [
 name = "nym-wireguard"
 version = "0.1.0"
 dependencies = [
- "async-trait",
  "base64 0.22.1",
- "bincode",
- "chrono",
- "dashmap",
  "defguard_wireguard_rs",
- "dyn-clone",
  "futures",
  "ip_network",
- "log",
- "nym-authenticator-requests",
  "nym-credential-verification",
  "nym-credentials-interface",
  "nym-crypto",
@@ -7594,11 +7585,9 @@ dependencies = [
  "nym-task",
  "nym-wireguard-types",
  "thiserror 2.0.12",
- "time",
  "tokio",
  "tokio-stream",
  "tracing",
- "x25519-dalek",
 ]
 
 [[package]]
@@ -7650,15 +7639,20 @@ version = "1.0.0"
 dependencies = [
  "async-trait",
  "axum",
+ "futures",
  "nym-credential-verification",
  "nym-credentials-interface",
+ "nym-crypto",
  "nym-http-api-client",
  "nym-http-api-common",
+ "nym-upgrade-mode-check",
  "nym-wireguard",
  "nym-wireguard-private-metadata-client",
  "nym-wireguard-private-metadata-server",
  "nym-wireguard-private-metadata-shared",
+ "time",
  "tokio",
+ "tower 0.5.2",
  "tower-http 0.5.2",
  "utoipa",
 ]
@@ -7668,10 +7662,7 @@ name = "nym-wireguard-types"
 version = "0.1.0"
 dependencies = [
  "base64 0.22.1",
- "log",
- "nym-config",
  "nym-crypto",
- "nym-network-defaults",
  "rand 0.8.5",
  "serde",
  "thiserror 2.0.12",
@@ -7680,7 +7671,7 @@ dependencies = [
 
 [[package]]
 name = "nymvisor"
-version = "0.1.30"
+version = "0.1.31"
 dependencies = [
  "anyhow",
  "bytes",

@@ -782,6 +782,7 @@ mod test {
         resolver_ns_ip_version_test(resolver).await
     }
 
+    #[ignore] // This messes with the settings for the shared resolver which can interleave in negative ways with other tests.
     #[tokio::test]
     async fn setting_ns_ip_version_for_shared_resolver() {
         let resolver = HickoryDnsResolver::default();

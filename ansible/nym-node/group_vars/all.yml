@@ -1,0 +1,10 @@
+main_domain: "changehere.example.com"
+
+packages:
+  - tmux
+  - speedtest-cli
+  - nano
+  - htop
+  - git
+  - zip
+  - nala

@@ -1,0 +1,6 @@
+---
+- name: "Deploy Nym node"
+  hosts: all
+  become: true
+  roles:
+    - base

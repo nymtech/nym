@@ -1208,9 +1208,9 @@ case "$cmd" in
 usage: $0 <command> [args]
 
 high level workflows:
-  complete_networking_configuration Run tunnel setup, exit policy install and tests
+  complete_networking_configuration Install tunnel interfaces, setup networking, iptables & wg exit policy
   exit_policy_install               Install and configure wireguard exit policy
-  full_tunnel_setup                 Run tunnel iptables and checks for nymtun0 and nymwg
+  full_tunnel_setup                 Install tunnel interfaces & setup networking
 
 tunnel and nat helpers:
   adjust_ip_forwarding              Enable ipv4/ipv6 forwarding via sysctl.d

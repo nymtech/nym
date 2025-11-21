@@ -20,6 +20,7 @@ use crate::config::{
 use crate::error::NymNodeError;
 use celes::Country;
 use clap::ValueEnum;
+use humantime::parse_duration;
 use nym_bin_common::logging::LoggingSettings;
 use nym_client_core_config_types::DebugConfig as ClientDebugConfig;
 use nym_config::defaults::{DEFAULT_VERLOC_LISTENING_PORT, WG_METADATA_PORT};
@@ -29,7 +30,9 @@ use nym_config::{
     read_config_from_toml_file,
     serde_helpers::{de_maybe_port, de_maybe_stringified},
 };
+use serde::de::{Deserializer, Error as SerdeDeError};
 use serde::{Deserialize, Serialize};
+use std::convert::TryFrom;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -63,6 +66,7 @@ pub struct WireguardV10 {
 
     /// Port announced to external clients wishing to connect to the wireguard interface.
     /// Useful in the instances where the node is behind a proxy.
+    #[serde(alias = "announced_tunnel_port")]
     pub announced_port: u16,
 
     /// The prefix denoting the maximum number of the clients that can be connected via Wireguard using IPv4.
@@ -75,6 +79,11 @@ pub struct WireguardV10 {
 
     /// Paths for wireguard keys, client registries, etc.
     pub storage_paths: WireguardPathsV10,
+
+    /// Optional override for the peer interaction timeout expressed in milliseconds.
+    /// Accepts either a plain integer value or a humantime string such as "5s".
+    #[serde(default, deserialize_with = "deserialize_optional_duration_ms")]
+    pub peer_interaction_timeout_ms: Option<u64>,
 }
 
 // a temporary solution until all "types" are run at the same time
@@ -1334,6 +1343,11 @@ pub async fn try_upgrade_config_v10<P: AsRef<Path>>(
                     .storage_paths
                     .public_diffie_hellman_key_file,
             },
+            peer_interaction_timeout_ms: old_cfg
+                .wireguard
+                .peer_interaction_timeout_ms
+                .map(Duration::from_millis)
+                .unwrap_or_else(Wireguard::default_peer_interaction_timeout),
         },
         gateway_tasks: GatewayTasksConfig {
             storage_paths: GatewayTasksPaths {
@@ -1572,4 +1586,32 @@ pub async fn try_upgrade_config_v10<P: AsRef<Path>>(
         debug: Default::default(),
     };
     Ok(cfg)
+}
+
+fn deserialize_optional_duration_ms<'de, D>(deserializer: D) -> Result<Option<u64>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum MaybeDuration {
+        Millis(u64),
+        Human(String),
+    }
+
+    let maybe_value = Option::<MaybeDuration>::deserialize(deserializer)?;
+    let Some(value) = maybe_value else {
+        return Ok(None);
+    };
+
+    match value {
+        MaybeDuration::Millis(ms) => Ok(Some(ms)),
+        MaybeDuration::Human(text) => {
+            let duration =
+                parse_duration(&text).map_err(|err| D::Error::custom(err.to_string()))?;
+            let millis = u64::try_from(duration.as_millis())
+                .map_err(|_| D::Error::custom("duration too large"))?;
+            Ok(Some(millis))
+        }
+    }
 }

@@ -9,6 +9,7 @@ use crate::error::NymNodeError;
 use celes::Country;
 use clap::Args;
 use clap::builder::ArgPredicate;
+use humantime::Duration as HumanDuration;
 use nym_crypto::asymmetric::ed25519;
 use std::net::{IpAddr, SocketAddr};
 use std::path::{Path, PathBuf};
@@ -286,6 +287,13 @@ pub(crate) struct WireguardArgs {
     )]
     pub(crate) wireguard_tunnel_announced_port: Option<u16>,
 
+    /// Timeout to wait for responses from the peer controller before aborting the operation.
+    #[clap(
+        long,
+        env = NYMNODE_WG_PEER_INTERACTION_TIMEOUT_MS_ARG
+    )]
+    pub(crate) wireguard_peer_interaction_timeout: Option<HumanDuration>,
+
     /// The prefix denoting the maximum number of the clients that can be connected via Wireguard.
     /// The maximum value for IPv4 is 32 and for IPv6 is 128
     #[clap(
@@ -315,6 +323,10 @@ impl WireguardArgs {
 
         if let Some(announced_tunnel_port) = self.wireguard_tunnel_announced_port {
             section.announced_tunnel_port = announced_tunnel_port
+        }
+
+        if let Some(timeout) = self.wireguard_peer_interaction_timeout {
+            section.peer_interaction_timeout_ms = timeout.into();
         }
 
         if let Some(private_network_prefix) = self.wireguard_private_network_prefix {

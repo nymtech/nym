@@ -23,6 +23,7 @@ use nym_config::{
 };
 use nym_gateway::nym_authenticator;
 use serde::{Deserialize, Serialize};
+use std::convert::TryFrom;
 use std::env;
 use std::fmt::{Display, Formatter};
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
@@ -944,6 +945,7 @@ pub struct Wireguard {
 
     /// Tunnel port announced to external clients wishing to connect to the wireguard interface.
     /// Useful in the instances where the node is behind a proxy.
+    #[serde(alias = "announced_port")]
     pub announced_tunnel_port: u16,
 
     /// Metadata port announced to external clients wishing to connect to the metadata endpoint.
@@ -960,6 +962,14 @@ pub struct Wireguard {
 
     /// Paths for wireguard keys, client registries, etc.
     pub storage_paths: persistence::WireguardPaths,
+
+    /// Timeout that limits how long the authenticator waits for the peer controller to reply.
+    /// Accepts standard humantime values, e.g. `5000ms`, `5s`, `1m`.
+    #[serde(
+        default = "Wireguard::default_peer_interaction_timeout",
+        with = "humantime_serde"
+    )]
+    pub peer_interaction_timeout_ms: Duration,
 }
 
 impl Wireguard {
@@ -974,7 +984,12 @@ impl Wireguard {
             private_network_prefix_v4: WG_TUN_DEVICE_NETMASK_V4,
             private_network_prefix_v6: WG_TUN_DEVICE_NETMASK_V6,
             storage_paths: persistence::WireguardPaths::new(data_dir),
+            peer_interaction_timeout_ms: Self::default_peer_interaction_timeout(),
         }
+    }
+
+    pub fn default_peer_interaction_timeout() -> Duration {
+        Duration::from_millis(nym_authenticator::config::default_peer_interaction_timeout_ms())
     }
 }
 
@@ -994,6 +1009,9 @@ impl From<Wireguard> for nym_wireguard_types::Config {
 
 impl From<Wireguard> for nym_authenticator::config::Authenticator {
     fn from(value: Wireguard) -> Self {
+        let timeout_ms_u128 = value.peer_interaction_timeout_ms.as_millis();
+        let timeout_ms = u64::try_from(timeout_ms_u128).unwrap_or(u64::MAX).max(1);
+
         nym_authenticator::config::Authenticator {
             bind_address: value.bind_address,
             private_ipv4: value.private_ipv4,
@@ -1001,8 +1019,7 @@ impl From<Wireguard> for nym_authenticator::config::Authenticator {
             tunnel_announced_port: value.announced_tunnel_port,
             private_network_prefix_v4: value.private_network_prefix_v4,
             private_network_prefix_v6: value.private_network_prefix_v6,
-            peer_interaction_timeout_ms:
-                nym_authenticator::config::default_peer_interaction_timeout_ms(),
+            peer_interaction_timeout_ms: timeout_ms,
         }
     }
 }

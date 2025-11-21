@@ -208,27 +208,26 @@ async fn resolve(
     options: Option<ResolverOpts>,
     overall_dns_timeout: Duration,
 ) -> Result<Addrs, ResolveError> {
+    let name_str = name.as_str().to_string();
     let resolver = resolver
         .get_or_try_init(|| HickoryDnsResolver::new_resolver(independent, ns_strategy, options))?;
+    let _span = debug_span!("dns", "q" = name_str);
+    let _guard = _span.enter();
 
     // Attempt a lookup using the primary resolver
-    let resolve_fut = tokio::time::timeout(overall_dns_timeout, resolver.lookup_ip(name.as_str()));
+    let resolve_fut = tokio::time::timeout(overall_dns_timeout, resolver.lookup_ip(&name_str));
     let primary_err = match resolve_fut.await {
         Err(_) => ResolveError::Timeout,
         Ok(Ok(lookup)) => {
+            debug!("internal primary resolver found {name_str} -> {lookup:?}",);
             let addrs: Addrs = Box::new(SocketAddrs {
                 iter: lookup.into_iter(),
             });
             return Ok(addrs);
         }
-        Ok(Err(e)) => {
-            // on failure use the fall back system configured DNS resolver
-            if !e.is_no_records_found() {
-                warn!("primary DNS failed w/ error: {e}");
-            }
-            e.into()
-        }
+        Ok(Err(e)) => e.into(),
     };
+    warn!("primary DNS failed w/ error: {primary_err}");
 
     // If the primary resolver encountered an error, attempt a lookup using the fallback
     // resolver if one is configured.
@@ -236,9 +235,9 @@ async fn resolve(
         let resolver =
             fallback.get_or_try_init(|| HickoryDnsResolver::new_resolver_system(independent))?;
 
-        let resolve_fut =
-            tokio::time::timeout(overall_dns_timeout, resolver.lookup_ip(name.as_str()));
+        let resolve_fut = tokio::time::timeout(overall_dns_timeout, resolver.lookup_ip(&name_str));
         if let Ok(Ok(lookup)) = resolve_fut.await {
+            debug!("internal fallback resolver found {name_str} -> {lookup:?}",);
             let addrs: Addrs = Box::new(SocketAddrs {
                 iter: lookup.into_iter(),
             });
@@ -252,9 +251,10 @@ async fn resolve(
         debug!("checking static");
         let resolver =
             static_resolver.get_or_init(|| HickoryDnsResolver::new_static_fallback(independent));
-
         if let Ok(addrs) = resolver.resolve(name).await {
-            return Ok(addrs);
+            let _addrs: Vec<SocketAddr> = addrs.into_iter().collect();
+            debug!("internal static table found {} -> {_addrs:?}", name_str);
+            return Ok(Box::new(_addrs.into_iter()));
         }
     }
 
@@ -818,6 +818,10 @@ mod test {
         // nameservers to only IPv6.
         let nameservers = resolver.state.get().unwrap().config().name_servers();
         assert!(nameservers.iter().all(|cfg| cfg.socket_addr.is_ipv6()));
+
+        // reset to default
+        resolver.set_hostname_ip_version_lookup_strategy(HostnameIpLookupStrategy::A_then_AAAA);
+        resolver.set_nameserver_ip_version_strategy(NameServerIpVersionPolicy::Ipv4AndIpv6);
     }
 
     // /// Triple check that ip_strategy in ResolverOpts does NOT impact the IP version of the
@@ -880,6 +884,9 @@ mod failure_test {
 
     #[tokio::test]
     async fn dns_lookup_failures() -> Result<(), ResolveError> {
+        tracing_subscriber::fmt()
+            .with_max_level(tracing::Level::DEBUG)
+            .init();
         let time_start = std::time::Instant::now();
 
         let r = OnceCell::new();

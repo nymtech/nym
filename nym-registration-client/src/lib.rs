@@ -3,7 +3,9 @@
 
 use tokio_util::sync::CancellationToken;
 
-use nym_authenticator_client::{AuthClientMixnetListener, AuthenticatorClient};
+use nym_authenticator_client::{
+    AuthClientMixnetListener, AuthClientMixnetListenerHandle, AuthenticatorClient,
+};
 use nym_bandwidth_controller::BandwidthTicketProvider;
 use nym_credentials_interface::TicketType;
 use nym_ip_packet_client::IprClientConnect;
@@ -35,9 +37,22 @@ pub struct RegistrationClient {
     event_rx: EventReceiver,
 }
 
+enum MixnetClientHandle {
+    Authenticator(AuthClientMixnetListenerHandle),
+    Sdk(Box<MixnetClient>),
+}
+
+impl MixnetClientHandle {
+    async fn stop(self) {
+        match self {
+            Self::Authenticator(handle) => handle.stop().await,
+            Self::Sdk(handle) => handle.disconnect().await,
+        }
+    }
+}
 // Bundle of an actual error and the underlying mixnet client so it can be shutdown correctly if needed
 struct RegistrationError {
-    mixnet_client: Option<MixnetClient>,
+    mixnet_client_handle: MixnetClientHandle,
     source: crate::RegistrationClientError,
 }
 
@@ -49,7 +64,7 @@ impl RegistrationClient {
 
         let Some(ipr_address) = self.config.exit.node.ipr_address else {
             return Err(RegistrationError {
-                mixnet_client: Some(self.mixnet_client),
+                mixnet_client_handle: MixnetClientHandle::Sdk(Box::new(self.mixnet_client)),
                 source: RegistrationClientError::NoIpPacketRouterAddress {
                     node_id: self.config.exit.node.identity.to_base58_string(),
                 },
@@ -67,13 +82,17 @@ impl RegistrationClient {
             Some(Ok(addr)) => addr,
             Some(Err(e)) => {
                 return Err(RegistrationError {
-                    mixnet_client: Some(ipr_client.into_mixnet_client()),
+                    mixnet_client_handle: MixnetClientHandle::Sdk(Box::new(
+                        ipr_client.into_mixnet_client(),
+                    )),
                     source: RegistrationClientError::ConnectToIpPacketRouter(e),
                 });
             }
             None => {
                 return Err(RegistrationError {
-                    mixnet_client: Some(ipr_client.into_mixnet_client()),
+                    mixnet_client_handle: MixnetClientHandle::Sdk(Box::new(
+                        ipr_client.into_mixnet_client(),
+                    )),
                     source: RegistrationClientError::Cancelled,
                 });
             }
@@ -97,7 +116,7 @@ impl RegistrationClient {
     async fn register_wg(self) -> Result<RegistrationResult, RegistrationError> {
         let Some(entry_auth_address) = self.config.entry.node.authenticator_address else {
             return Err(RegistrationError {
-                mixnet_client: Some(self.mixnet_client),
+                mixnet_client_handle: MixnetClientHandle::Sdk(Box::new(self.mixnet_client)),
                 source: RegistrationClientError::AuthenticationNotPossible {
                     node_id: self.config.entry.node.identity.to_base58_string(),
                 },
@@ -106,7 +125,7 @@ impl RegistrationClient {
 
         let Some(exit_auth_address) = self.config.exit.node.authenticator_address else {
             return Err(RegistrationError {
-                mixnet_client: Some(self.mixnet_client),
+                mixnet_client_handle: MixnetClientHandle::Sdk(Box::new(self.mixnet_client)),
                 source: RegistrationClientError::AuthenticationNotPossible {
                     node_id: self.config.exit.node.identity.to_base58_string(),
                 },
@@ -150,35 +169,50 @@ impl RegistrationClient {
         let exit_fut = exit_auth_client
             .register_wireguard(&*self.bandwidth_controller, TicketType::V1WireguardExit);
 
-        let (entry, exit) = Box::pin(
+        let (entry, exit) = match Box::pin(
             self.cancel_token
                 .run_until_cancelled(async { tokio::join!(entry_fut, exit_fut) }),
         )
         .await
-        .ok_or(RegistrationError {
-            mixnet_client: None,
-            source: RegistrationClientError::Cancelled,
-        })?;
+        {
+            Some((entry, exit)) => (entry, exit),
+            None => {
+                return Err(RegistrationError {
+                    mixnet_client_handle: MixnetClientHandle::Authenticator(mixnet_listener),
+                    source: RegistrationClientError::Cancelled,
+                });
+            }
+        };
 
-        let entry = entry.map_err(|source| RegistrationError {
-            mixnet_client: None,
-            source: RegistrationClientError::from_authenticator_error(
-                source,
-                self.config.entry.node.identity.to_base58_string(),
-                entry_auth_address,
-                true,
-            ),
-        })?;
+        let entry = match entry {
+            Ok(entry) => entry,
+            Err(source) => {
+                return Err(RegistrationError {
+                    mixnet_client_handle: MixnetClientHandle::Authenticator(mixnet_listener),
+                    source: RegistrationClientError::from_authenticator_error(
+                        source,
+                        self.config.entry.node.identity.to_base58_string(),
+                        entry_auth_address,
+                        true,
+                    ),
+                });
+            }
+        };
 
-        let exit = exit.map_err(|source| RegistrationError {
-            mixnet_client: None,
-            source: RegistrationClientError::from_authenticator_error(
-                source,
-                self.config.exit.node.identity.to_base58_string(),
-                exit_auth_address,
-                false,
-            ),
-        })?;
+        let exit = match exit {
+            Ok(exit) => exit,
+            Err(source) => {
+                return Err(RegistrationError {
+                    mixnet_client_handle: MixnetClientHandle::Authenticator(mixnet_listener),
+                    source: RegistrationClientError::from_authenticator_error(
+                        source,
+                        self.config.exit.node.identity.to_base58_string(),
+                        exit_auth_address,
+                        false,
+                    ),
+                });
+            }
+        };
 
         Ok(RegistrationResult::Wireguard(Box::new(
             WireguardRegistrationResult {
@@ -199,15 +233,14 @@ impl RegistrationClient {
             self.register_mix_exit().await
         };
 
-        // If we failed to register, and we were the owner of the mixnet client, shut it down
+        // If we failed to register, shut down the mixnet client and wait for it to exit
         match registration_result {
             Ok(result) => Ok(result),
             Err(error) => {
                 debug!("Registration failed");
-                if let Some(mixnet_client) = error.mixnet_client {
-                    debug!("Shutting down mixnet client");
-                    mixnet_client.disconnect().await;
-                }
+                debug!("Shutting down mixnet client");
+                error.mixnet_client_handle.stop().await;
+                debug!("Mixnet client stopped");
                 Err(error.source)
             }
         }

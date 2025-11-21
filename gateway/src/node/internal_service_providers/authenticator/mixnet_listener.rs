@@ -185,11 +185,16 @@ impl MixnetListener {
     ) -> AuthenticatorHandleResult {
         let remote_public = init_message.pub_key();
         let nonce: u64 = fastrand::u64(..);
-        let mut registered_and_free = self.registered_and_free.write().await;
-        if let Some(registration_data) = registered_and_free
-            .registration_in_progres
-            .get(&remote_public)
-        {
+
+        let pending_registration = {
+            let registered_and_free = self.registered_and_free.read().await;
+            registered_and_free
+                .registration_in_progres
+                .get(&remote_public)
+                .cloned()
+        };
+
+        if let Some(registration_data) = pending_registration {
             let gateway_data = registration_data.gateway_data.clone();
             let bytes = match AuthenticatorVersion::from(protocol) {
                 AuthenticatorVersion::V1 => {
@@ -292,7 +297,17 @@ impl MixnetListener {
             return Ok((bytes, reply_to));
         }
 
-        let peer = self.peer_manager.query_peer(remote_public).await?;
+        let peer = match self.peer_manager.query_peer(remote_public).await {
+            Ok(peer) => peer,
+            Err(err) => {
+                tracing::warn!(
+                    "Failed to query peer {}: {err}. Continuing with fresh registration",
+                    remote_public
+                );
+                None
+            }
+        };
+
         if let Some(peer) = peer {
             let allowed_ipv4 = peer
                 .allowed_ips
@@ -383,6 +398,7 @@ impl MixnetListener {
             return Ok((bytes, reply_to));
         }
 
+        let mut registered_and_free = self.registered_and_free.write().await;
         let private_ip_ref = registered_and_free
             .free_private_network_ips
             .iter_mut()
@@ -818,7 +834,7 @@ impl MixnetListener {
             .to_bytes()
             .map_err(AuthenticatorError::response_serialisation)?,
             AuthenticatorVersion::V1 | AuthenticatorVersion::V2 | AuthenticatorVersion::UNKNOWN => {
-                return Err(AuthenticatorError::UnknownVersion)
+                return Err(AuthenticatorError::UnknownVersion);
             }
         };
 

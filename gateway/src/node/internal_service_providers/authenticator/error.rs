@@ -85,6 +85,9 @@ pub enum AuthenticatorError {
     #[error("peers can't be interacted with anymore")]
     PeerInteractionStopped,
 
+    #[error("peers interaction timed out while attempting to {operation}")]
+    PeerInteractionTimeout { operation: &'static str },
+
     #[error("unknown version number")]
     UnknownVersion,
 

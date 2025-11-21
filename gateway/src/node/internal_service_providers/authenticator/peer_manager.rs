@@ -8,6 +8,9 @@ use nym_credential_verification::{ClientBandwidth, TicketVerifier};
 use nym_credentials_interface::CredentialSpendingData;
 use nym_wireguard::{peer_controller::PeerControlRequest, WireguardGatewayData};
 use nym_wireguard_types::PeerPublicKey;
+use tokio::time::{timeout, Duration};
+
+const PEER_MANAGER_RESPONSE_TIMEOUT: Duration = Duration::from_secs(5);
 
 pub struct PeerManager {
     pub(crate) wireguard_gateway_data: WireguardGatewayData,
@@ -28,9 +31,8 @@ impl PeerManager {
             .await
             .map_err(|_| AuthenticatorError::PeerInteractionStopped)?;
 
-        response_rx
-            .await
-            .map_err(|_| AuthenticatorError::InternalError("no response for add peer".to_string()))?
+        recv_with_timeout(response_rx, "add peer")
+            .await?
             .map_err(|err| {
                 AuthenticatorError::InternalError(format!(
                     "adding peer could not be performed: {err:?}"
@@ -48,11 +50,8 @@ impl PeerManager {
             .await
             .map_err(|_| AuthenticatorError::PeerInteractionStopped)?;
 
-        response_rx
-            .await
-            .map_err(|_| {
-                AuthenticatorError::InternalError("no response for remove peer".to_string())
-            })?
+        recv_with_timeout(response_rx, "remove peer")
+            .await?
             .map_err(|err| {
                 AuthenticatorError::InternalError(format!(
                     "removing peer could not be performed: {err:?}"
@@ -73,11 +72,8 @@ impl PeerManager {
             .await
             .map_err(|_| AuthenticatorError::PeerInteractionStopped)?;
 
-        response_rx
-            .await
-            .map_err(|_| {
-                AuthenticatorError::InternalError("no response for query peer".to_string())
-            })?
+        recv_with_timeout(response_rx, "query peer")
+            .await?
             .map_err(|err| {
                 AuthenticatorError::InternalError(format!(
                     "querying peer could not be performed: {err:?}"
@@ -106,13 +102,8 @@ impl PeerManager {
             .await
             .map_err(|_| AuthenticatorError::PeerInteractionStopped)?;
 
-        response_rx
-            .await
-            .map_err(|_| {
-                AuthenticatorError::InternalError(
-                    "no response for query client bandwidth".to_string(),
-                )
-            })?
+        recv_with_timeout(response_rx, "query client bandwidth")
+            .await?
             .map_err(|err| {
                 AuthenticatorError::InternalError(format!(
                     "querying client bandwidth could not be performed: {err:?}"
@@ -138,17 +129,24 @@ impl PeerManager {
             .await
             .map_err(|_| AuthenticatorError::PeerInteractionStopped)?;
 
-        response_rx
-            .await
-            .map_err(|_| {
-                AuthenticatorError::InternalError("no response for query verifier".to_string())
-            })?
+        recv_with_timeout(response_rx, "query verifier")
+            .await?
             .map_err(|err| {
                 AuthenticatorError::InternalError(format!(
                     "querying verifier could not be performed: {err:?}"
                 ))
             })
     }
+}
+
+async fn recv_with_timeout<T>(
+    response_rx: oneshot::Receiver<T>,
+    operation: &'static str,
+) -> Result<T, AuthenticatorError> {
+    timeout(PEER_MANAGER_RESPONSE_TIMEOUT, response_rx)
+        .await
+        .map_err(|_| AuthenticatorError::PeerInteractionTimeout { operation })?
+        .map_err(|_| AuthenticatorError::PeerInteractionStopped)
 }
 
 #[cfg(test)]

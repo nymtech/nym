@@ -1,0 +1,39 @@
+import { Tabs } from 'nextra/components';
+import { Steps } from 'nextra/components';
+
+import ExitPolicyTestServer from 'components/operators/snippets/wg-exit-policy-testing-from-server.mdx';
+import ExitPolicyTestOutside from 'components/operators/snippets/wg-exit-policy-testing-from-outside.mdx';
+
+**For all routing configuration we provide one tool [`network-tunnel-manager.sh` (NTM)](https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/wireguard-exit-policy/wireguard-exit-policy-manager.sh). This tool manages WireGuard tests all configurations, including WireGuard exit policy as well.**
+
+
+You can use NTM to validate the application of the IP tables routes on your `nym-node` by checking it from the server side as well as from the outside.
+
+    <div>
+      <Tabs items={[
+        <strong>From the server</strong>,
+        <strong>From the outside - using NymVPN</strong>
+      ]} defaultIndex={0}>
+        <Tabs.Tab><ExitPolicyTestServer /></Tabs.Tab>
+        <Tabs.Tab><ExitPolicyTestOutside /></Tabs.Tab>
+      </Tabs>
+    </div>
+
+
+If all works , your node has successfully implemented WireGuard exit policy with the same routing permissions like [Nym exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt) used on 5-hop (Mixnet) for TCP routing.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

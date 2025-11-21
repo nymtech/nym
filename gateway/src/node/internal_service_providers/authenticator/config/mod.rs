@@ -57,6 +57,10 @@ pub struct Authenticator {
     /// The prefix denoting the maximum number of the clients that can be connected via Wireguard using IPv6.
     /// The maximum value for IPv6 is 128
     pub private_network_prefix_v6: u8,
+
+    /// Timeout (in milliseconds) to wait for responses from the peer controller before failing.
+    /// Helps the authenticator recover from suspend/resume scenarios where peer RPCs hang.
+    pub peer_interaction_timeout_ms: u64,
 }
 
 impl Default for Authenticator {
@@ -68,6 +72,7 @@ impl Default for Authenticator {
             tunnel_announced_port: WG_TUNNEL_PORT,
             private_network_prefix_v4: WG_TUN_DEVICE_NETMASK_V4,
             private_network_prefix_v6: WG_TUN_DEVICE_NETMASK_V6,
+            peer_interaction_timeout_ms: default_peer_interaction_timeout_ms(),
         }
     }
 }
@@ -84,4 +89,8 @@ impl From<Authenticator> for nym_wireguard_types::Config {
             private_network_prefix_v6: value.private_network_prefix_v6,
         }
     }
+}
+
+pub const fn default_peer_interaction_timeout_ms() -> u64 {
+    5_000
 }

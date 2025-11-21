@@ -151,6 +151,7 @@ impl Authenticator {
                 }
             })
             .collect();
+        let peer_timeout = std::cmp::max(1, self.config.authenticator.peer_interaction_timeout_ms);
         let mixnet_listener = crate::node::internal_service_providers::authenticator::mixnet_listener::MixnetListener::new(
             self.config,
             free_private_network_ips,
@@ -158,6 +159,7 @@ impl Authenticator {
             mixnet_client,
             self.upgrade_mode_state,
             self.ecash_verifier,
+            std::time::Duration::from_millis(peer_timeout),
         );
 
         tracing::info!("The address of this client is: {self_address}");

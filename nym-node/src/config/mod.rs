@@ -1001,6 +1001,8 @@ impl From<Wireguard> for nym_authenticator::config::Authenticator {
             tunnel_announced_port: value.announced_tunnel_port,
             private_network_prefix_v4: value.private_network_prefix_v4,
             private_network_prefix_v6: value.private_network_prefix_v6,
+            peer_interaction_timeout_ms:
+                nym_authenticator::config::default_peer_interaction_timeout_ms(),
         }
     }
 }

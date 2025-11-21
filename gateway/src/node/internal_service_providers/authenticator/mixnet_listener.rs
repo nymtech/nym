@@ -95,6 +95,7 @@ impl MixnetListener {
         mixnet_client: nym_sdk::mixnet::MixnetClient,
         upgrade_mode: UpgradeModeDetails,
         ecash_verifier: Arc<dyn EcashManager + Send + Sync>,
+        peer_interaction_timeout: Duration,
     ) -> Self {
         let timeout_check_interval =
             IntervalStream::new(tokio::time::interval(DEFAULT_REGISTRATION_TIMEOUT_CHECK));
@@ -102,7 +103,7 @@ impl MixnetListener {
             config,
             mixnet_client,
             registered_and_free: RwLock::new(RegisteredAndFree::new(free_private_network_ips)),
-            peer_manager: PeerManager::new(wireguard_gateway_data),
+            peer_manager: PeerManager::new(wireguard_gateway_data, peer_interaction_timeout),
             upgrade_mode,
             ecash_verifier,
             timeout_check_interval,

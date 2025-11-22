@@ -81,6 +81,8 @@ mod static_resolver;
 pub(crate) use static_resolver::*;
 
 const DEFAULT_POSITIVE_LOOKUP_CACHE_TTL: Duration = Duration::from_secs(1800);
+const DEFAULT_OVERALL_LOOKUP_TIMEOUT: Duration = Duration::from_secs(6);
+const DEFAULT_QUERY_TIMEOUT: Duration = Duration::from_secs(3);
 
 impl ClientBuilder {
     /// Override the DNS resolver implementation used by the underlying http client.
@@ -166,7 +168,7 @@ impl Default for HickoryDnsResolver {
             dont_use_shared: Default::default(),
             ns_ip_ver_policy: Default::default(),
             current_options: Default::default(),
-            overall_dns_timeout: Duration::from_secs(10),
+            overall_dns_timeout: DEFAULT_OVERALL_LOOKUP_TIMEOUT,
         }
     }
 }
@@ -437,6 +439,7 @@ impl HickoryDnsResolver {
         let mut opts = ResolverOpts::default();
         // Always cache successful responses for queries received by this resolver for 30 min minimum.
         opts.positive_min_ttl = Some(DEFAULT_POSITIVE_LOOKUP_CACHE_TTL);
+        opts.timeout = DEFAULT_QUERY_TIMEOUT;
 
         opts
     }
@@ -695,8 +698,7 @@ mod test {
 
     #[tokio::test]
     async fn reqwest_with_custom_dns() {
-        let var_name = HickoryDnsResolver::default();
-        let resolver = var_name;
+        let resolver = HickoryDnsResolver::default();
         let client = reqwest::ClientBuilder::new()
             .dns_resolver(resolver.into())
             .build()

@@ -80,9 +80,9 @@ mod constants;
 mod static_resolver;
 pub(crate) use static_resolver::*;
 
-const DEFAULT_POSITIVE_LOOKUP_CACHE_TTL: Duration = Duration::from_secs(1800);
-const DEFAULT_OVERALL_LOOKUP_TIMEOUT: Duration = Duration::from_secs(6);
-const DEFAULT_QUERY_TIMEOUT: Duration = Duration::from_secs(3);
+pub(crate) const DEFAULT_POSITIVE_LOOKUP_CACHE_TTL: Duration = Duration::from_secs(1800);
+pub(crate) const DEFAULT_OVERALL_LOOKUP_TIMEOUT: Duration = Duration::from_secs(6);
+pub(crate) const DEFAULT_QUERY_TIMEOUT: Duration = Duration::from_secs(3);
 
 impl ClientBuilder {
     /// Override the DNS resolver implementation used by the underlying http client.
@@ -949,6 +949,46 @@ mod failure_test {
         let result = resolver.resolve_str(domain).await;
         assert!(result.is_err_and(|e| matches!(e, ResolveError::Timeout)));
 
+        Ok(())
+    }
+
+    /// This test is meant to check if shifting the lookup in our configured static table forward
+    /// means that the http request will succeed, in the situation where the DNS timeout and HTTP
+    /// request timeout would align IF we had to wait for the DNS lookup to reach its timeout.
+    #[tokio::test]
+    async fn reqwest_using_static_fallback() -> Result<(), ResolveError> {
+        let r = OnceCell::new();
+        r.set(build_broken_resolver().expect("failed to build resolver"))
+            .expect("broken resolver init error");
+
+        // create a new resolver that won't mess with the shared resolver used by other tests
+        let resolver = HickoryDnsResolver {
+            dont_use_shared: true,
+            state: Arc::new(r),
+            static_base: Some(Default::default()),
+            ..Default::default()
+        };
+        build_broken_resolver()?;
+
+        let client = reqwest::ClientBuilder::new()
+            .dns_resolver(resolver.clone().into())
+            .connect_timeout(Duration::from_secs(10))
+            .build()
+            .unwrap();
+
+        // Because the static table is checked first there is no delay and the lookup succeeds
+        // immediately. This means that (for hosts with an entry in the static lookup table) there
+        // should no longer be an issue with timeouts or filling the hickory resolvers query buffer.
+        let resp = client
+            .get("https://nymvpn.com/api/public/v1/health")
+            .send()
+            .await
+            .unwrap()
+            .bytes()
+            .await
+            .unwrap();
+
+        assert!(!resp.is_empty());
         Ok(())
     }
 }

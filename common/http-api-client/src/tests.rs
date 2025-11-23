@@ -95,7 +95,6 @@ async fn api_client_retry() -> Result<(), Box<dyn std::error::Error>> {
         "http://127.0.0.1:9".parse()?,     // This will fail because of TCP refused (rotate)
         "https://httpbin.org/status/200".parse()?, // This should succeed
     ])?
-    .with_timeout(dns::DEFAULT_OVERALL_LOOKUP_TIMEOUT * 3)
     .with_retries(3)
     .build()?;
 

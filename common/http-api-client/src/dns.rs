@@ -217,6 +217,7 @@ async fn resolve(
         maybe_static.is_some(),
         maybe_fallback.is_some()
     );
+
     // If no record has been found and a static map of fallback addresses is configured
     // check the table for our entry
     if let Some(ref static_resolver) = maybe_static {
@@ -559,13 +560,14 @@ fn new_resolver(
     ns_ip_version_policy: NameServerIpVersionPolicy,
     options: Option<ResolverOpts>,
 ) -> Result<TokioResolver, ResolveError> {
-    info!("building new configured {ns_ip_version_policy} resolver");
-
     let name_servers = match ns_ip_version_policy {
         NameServerIpVersionPolicy::Ipv4AndIpv6 => default_nameserver_group(),
         NameServerIpVersionPolicy::Ipv4Only => default_nameserver_group_ipv4_only(),
         NameServerIpVersionPolicy::Ipv6Only => default_nameserver_group_ipv6_only(),
     };
+
+    info!("building new configured {ns_ip_version_policy} resolver");
+    debug!("configuring resolver to use nameserver set: {name_servers:?}");
 
     configure_and_build_resolver(name_servers, options)
 }
@@ -665,7 +667,7 @@ fn cloudflare_ips_v6() -> Vec<IpAddr> {
 }
 
 fn quad9_ips_v4() -> Vec<IpAddr> {
-    hickory_resolver::config::CLOUDFLARE_IPS
+    hickory_resolver::config::QUAD9_IPS
         .iter()
         .filter(|ip| ip.is_ipv4())
         .cloned()
@@ -673,7 +675,7 @@ fn quad9_ips_v4() -> Vec<IpAddr> {
 }
 
 fn quad9_ips_v6() -> Vec<IpAddr> {
-    hickory_resolver::config::CLOUDFLARE_IPS
+    hickory_resolver::config::QUAD9_IPS
         .iter()
         .filter(|ip| ip.is_ipv6())
         .cloned()
@@ -892,9 +894,9 @@ mod failure_test {
 
     #[tokio::test]
     async fn dns_lookup_failures() -> Result<(), ResolveError> {
-        tracing_subscriber::fmt()
-            .with_max_level(tracing::Level::DEBUG)
-            .init();
+        // tracing_subscriber::fmt()
+        //     .with_max_level(tracing::Level::DEBUG)
+        //     .init();
         let time_start = std::time::Instant::now();
 
         let r = OnceCell::new();

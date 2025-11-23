@@ -164,10 +164,10 @@ impl Default for HickoryDnsResolver {
         Self {
             state: Default::default(),
             fallback: Default::default(),
-            static_base: Default::default(),
             dont_use_shared: Default::default(),
             ns_ip_ver_policy: Default::default(),
             current_options: Default::default(),
+            static_base: Some(Default::default()),
             overall_dns_timeout: DEFAULT_OVERALL_LOOKUP_TIMEOUT,
         }
     }
@@ -211,10 +211,27 @@ async fn resolve(
     overall_dns_timeout: Duration,
 ) -> Result<Addrs, ResolveError> {
     let name_str = name.as_str().to_string();
+
+    debug!(
+        "looking up {name_str} - {} {}",
+        maybe_static.is_some(),
+        maybe_fallback.is_some()
+    );
+    // If no record has been found and a static map of fallback addresses is configured
+    // check the table for our entry
+    if let Some(ref static_resolver) = maybe_static {
+        debug!("checking static");
+        let resolver =
+            static_resolver.get_or_init(|| HickoryDnsResolver::new_static_fallback(independent));
+        if let Ok(addrs) = resolver.resolve(name).await {
+            let _addrs: Vec<SocketAddr> = addrs.into_iter().collect();
+            debug!("internal static table found {} -> {_addrs:?}", name_str);
+            return Ok(Box::new(_addrs.into_iter()));
+        }
+    }
+
     let resolver = resolver
         .get_or_try_init(|| HickoryDnsResolver::new_resolver(independent, ns_strategy, options))?;
-    let _span = debug_span!("dns", "q" = name_str);
-    let _guard = _span.enter();
 
     // Attempt a lookup using the primary resolver
     let resolve_fut = tokio::time::timeout(overall_dns_timeout, resolver.lookup_ip(&name_str));
@@ -244,19 +261,6 @@ async fn resolve(
                 iter: lookup.into_iter(),
             });
             return Ok(addrs);
-        }
-    }
-
-    // If no record has been found and a static map of fallback addresses is configured
-    // check the table for our entry
-    if let Some(ref static_resolver) = maybe_static {
-        debug!("checking static");
-        let resolver =
-            static_resolver.get_or_init(|| HickoryDnsResolver::new_static_fallback(independent));
-        if let Ok(addrs) = resolver.resolve(name).await {
-            let _addrs: Vec<SocketAddr> = addrs.into_iter().collect();
-            debug!("internal static table found {} -> {_addrs:?}", name_str);
-            return Ok(Box::new(_addrs.into_iter()));
         }
     }
 

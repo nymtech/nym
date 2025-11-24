@@ -150,6 +150,9 @@ pub struct HickoryDnsResolver {
     fallback: Option<Arc<OnceCell<TokioResolver>>>,
     static_base: Option<Arc<OnceCell<StaticResolver>>>,
     dont_use_shared: bool,
+    /// Toggle to indicate whether `self.static_base` should be checked before the attempting to go
+    /// to network using the inner resolver (state).
+    static_base_first: bool,
     /// Overall timeout for dns lookup associated with any individual host resolution. For example,
     /// use of retries, server_ordering_strategy, etc. ends absolutely if this timeout is reached.
     overall_dns_timeout: Duration,
@@ -168,6 +171,7 @@ impl Default for HickoryDnsResolver {
             ns_ip_ver_policy: Default::default(),
             current_options: Default::default(),
             static_base: Some(Default::default()),
+            static_base_first: false,
             overall_dns_timeout: DEFAULT_OVERALL_LOOKUP_TIMEOUT,
         }
     }
@@ -179,6 +183,7 @@ impl Resolve for HickoryDnsResolver {
         let maybe_fallback = self.fallback.clone();
         let maybe_static = self.static_base.clone();
         let independent = self.dont_use_shared;
+        let static_base_first = self.static_base_first;
         let ns_strategy = self.ns_ip_ver_policy;
         let overall_dns_timeout = self.overall_dns_timeout;
         let options = self.current_options.clone();
@@ -189,6 +194,7 @@ impl Resolve for HickoryDnsResolver {
                 maybe_fallback,
                 maybe_static,
                 independent,
+                static_base_first,
                 ns_strategy,
                 options,
                 overall_dns_timeout,
@@ -206,6 +212,7 @@ async fn resolve(
     maybe_fallback: Option<Arc<OnceCell<TokioResolver>>>,
     maybe_static: Option<Arc<OnceCell<StaticResolver>>>,
     independent: bool,
+    static_base_first: bool,
     ns_strategy: NameServerIpVersionPolicy,
     options: Option<ResolverOpts>,
     overall_dns_timeout: Duration,
@@ -218,13 +225,14 @@ async fn resolve(
         maybe_fallback.is_some()
     );
 
-    // If no record has been found and a static map of fallback addresses is configured
-    // check the table for our entry
-    if let Some(ref static_resolver) = maybe_static {
+    // If we are configured to check the static map first, and a static map of addresses is
+    // configured -- check the table for our entry.
+    if static_base_first && let Some(ref static_resolver) = maybe_static {
         debug!("checking static");
+        let qname = Name::from_str(&name_str).unwrap();
         let resolver =
             static_resolver.get_or_init(|| HickoryDnsResolver::new_static_fallback(independent));
-        if let Ok(addrs) = resolver.resolve(name).await {
+        if let Ok(addrs) = resolver.resolve(qname).await {
             let _addrs: Vec<SocketAddr> = addrs.into_iter().collect();
             debug!("internal static table found {} -> {_addrs:?}", name_str);
             return Ok(Box::new(_addrs.into_iter()));
@@ -265,6 +273,21 @@ async fn resolve(
         }
     }
 
+    // If no record has been found, we are configured to check the static table as a fallback, and
+    // static map of fallback addresses is configured -- check the table for our entry.
+    if !static_base_first && let Some(ref static_resolver) = maybe_static {
+        debug!("checking static");
+        // this unwrap cannot fail as we serialize name_str from a valid Name
+        let qname = Name::from_str(&name_str).unwrap();
+        let resolver =
+            static_resolver.get_or_init(|| HickoryDnsResolver::new_static_fallback(independent));
+        if let Ok(addrs) = resolver.resolve(qname).await {
+            let _addrs: Vec<SocketAddr> = addrs.into_iter().collect();
+            debug!("internal static table found {} -> {_addrs:?}", name_str);
+            return Ok(Box::new(_addrs.into_iter()));
+        }
+    }
+
     Err(primary_err)
 }
 
@@ -294,6 +317,7 @@ impl HickoryDnsResolver {
             self.fallback.clone(),
             self.static_base.clone(),
             self.dont_use_shared,
+            self.static_base_first,
             self.ns_ip_ver_policy,
             self.current_options.clone(),
             self.overall_dns_timeout,
@@ -387,6 +411,18 @@ impl HickoryDnsResolver {
         cell.set(StaticResolver::new(addrs))
             .expect("infallible assign");
         self.static_base = Some(Arc::new(cell));
+    }
+
+    /// Change whether the resolver checks the static table of fallback addresses first or last in
+    /// the flow (i.e.`true` = before using the internal resolver, `false` = as a fallback after the
+    /// internal resolver). If the resolver has no table of static addressed configured, this
+    /// setting has no impact on the lookup flow.
+    pub fn set_check_static_fallback_first(&mut self, setting: bool) {
+        if self.dont_use_shared {
+            self.static_base_first = setting;
+        } else {
+            SHARED_RESOLVER.write().unwrap().static_base_first = setting
+        }
     }
 
     /// Configure the resolver to use only Ipv4 nameservers and to resolve addresses to Ipv4 (A)
@@ -858,7 +894,10 @@ mod test {
 #[cfg(test)]
 mod failure_test {
     use super::*;
-    use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
+    use std::{
+        net::{IpAddr, Ipv4Addr, Ipv6Addr},
+        time::Instant,
+    };
 
     /// IP addresses guaranteed to fail attempts to resolve
     ///
@@ -923,20 +962,17 @@ mod failure_test {
 
     #[tokio::test]
     async fn fallback_to_static() -> Result<(), ResolveError> {
-        let r = OnceCell::new();
-        r.set(build_broken_resolver().expect("failed to build resolver"))
-            .expect("broken resolver init error");
-
         // create a new resolver that won't mess with the shared resolver used by other tests
-        let resolver = HickoryDnsResolver {
+        let mut resolver = HickoryDnsResolver {
             dont_use_shared: true,
-            state: Arc::new(r),
+            state: Arc::new(OnceCell::with_value(build_broken_resolver().unwrap())),
             static_base: Some(Default::default()),
             overall_dns_timeout: Duration::from_secs(5),
             ..Default::default()
         };
-        build_broken_resolver()?;
 
+        // do a lookup where we check the static table as a fallback
+        let start = Instant::now();
         // successful lookup using fallback to static resolver
         let domain = "nymvpn.com";
         let _ = resolver
@@ -944,7 +980,23 @@ mod failure_test {
             .await
             .expect("failed to resolve address in static lookup");
 
-        // unsuccessful lookup - primary times out, and not in
+        let lookup_duration = Instant::now() - start;
+        assert!(lookup_duration > Duration::from_secs(5));
+
+        // do a lookup where we check the static table first
+        resolver.static_base_first = true;
+        let start = Instant::now();
+        // successful lookup using fallback to static resolver
+        let domain = "nymvpn.com";
+        let _ = resolver
+            .resolve_str(domain)
+            .await
+            .expect("failed to resolve address in static lookup");
+
+        let lookup_duration = Instant::now() - start;
+        assert!(lookup_duration < Duration::from_millis(50));
+
+        // unsuccessful lookup - primary times out, and not in static table
         let domain = "non-existent.nymtech.net";
         let result = resolver.resolve_str(domain).await;
         assert!(result.is_err_and(|e| matches!(e, ResolveError::Timeout)));

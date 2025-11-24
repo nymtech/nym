@@ -1298,8 +1298,8 @@ usage: $0 <command> [args]
 
 high level workflows:
   complete_networking_configuration Install tunnel interfaces, setup networking, iptables, wg exit policy & tests
-    nym_tunnel_setup                 Install tunnel interfaces & setup networking
-    exit_policy_install               Install and configure wireguard exit policy
+  nym_tunnel_setup                 Install tunnel interfaces & setup networking
+  exit_policy_install               Install and configure wireguard exit policy
 tunnel and nat helpers:
   adjust_ip_forwarding              Enable ipv4/ipv6 forwarding via sysctl.d
   apply_iptables_rules              Apply nat/forward rules for ${TUNNEL_INTERFACE}

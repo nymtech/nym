@@ -91,7 +91,7 @@ fn sanitizing_urls() {
 #[tokio::test]
 async fn api_client_retry() -> Result<(), Box<dyn std::error::Error>> {
     let client = ClientBuilder::new_with_urls(vec![
-        "http://broken.nym.test".parse()?, // This will fail because of DNS (rotate)
+        "http://broken.nym.test".parse()?, // This should fail because of DNS NXDomain (rotate)
         "http://127.0.0.1:9".parse()?,     // This will fail because of TCP refused (rotate)
         "https://httpbin.org/status/200".parse()?, // This should succeed
     ])?

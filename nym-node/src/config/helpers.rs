@@ -92,6 +92,7 @@ pub struct GatewayTasksConfig {
     pub auth_opts: Option<LocalAuthenticatorOpts>,
     #[allow(dead_code)]
     pub wg_opts: LocalWireguardOpts,
+    #[allow(dead_code)]
     pub lp: nym_gateway::node::LpConfig,
 }
 

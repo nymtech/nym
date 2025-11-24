@@ -64,11 +64,8 @@ nym-topology = { path = "../common/topology" }
 nym-validator-client = { path = "../common/client-libs/validator-client" }
 nym-ip-packet-router = { path = "../service-providers/ip-packet-router" }
 nym-node-metrics = { path = "../nym-node/nym-node-metrics" }
-<<<<<<< HEAD
 nym-upgrade-mode-check = { path = "../common/upgrade-mode-check" }
-=======
 nym-metrics = { path = "../common/nym-metrics" }
->>>>>>> 6ac28abef (fmt and metrics)
 
 nym-wireguard = { path = "../common/wireguard" }
 nym-wireguard-private-metadata-server = { path = "../common/wireguard-private-metadata/server" }

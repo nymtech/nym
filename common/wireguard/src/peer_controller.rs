@@ -34,12 +34,7 @@ use tokio::sync::{RwLock, mpsc};
 use tokio_stream::{StreamExt, wrappers::IntervalStream};
 use tracing::{debug, error, info, trace};
 
-use crate::{
-    error::{Error, Result},
-    ip_pool::IpPool,
-    peer_handle::SharedBandwidthStorageManager,
-};
-use crate::{peer_handle::PeerHandle, peer_storage_manager::CachedPeerManager};
+use crate::ip_pool::IpPool;
 
 /// Registration data for a new peer (without pre-allocated IPs)
 #[derive(Debug, Clone)]
@@ -650,6 +645,7 @@ pub fn start_controller(
     let wg_api = Arc::new(MockWgApi::default());
 
     // Create IP pool for testing
+    #[allow(clippy::expect_used)]
     let ip_pool = IpPool::new(
         Ipv4Addr::new(10, 0, 0, 0),
         24,

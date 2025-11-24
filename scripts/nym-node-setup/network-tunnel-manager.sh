@@ -397,10 +397,10 @@ check_ip_routing() {
 
 perform_pings() {
   info "performing ipv4 ping to google.com"
-  ping -c 4 google.com || error "ipv4 ping failed"
+  ping -4 -c 4 google.com || error "ipv4 ping failed"
   echo "---------------------------"
   info "performing ipv6 ping to google.com"
-  ping6 -c 4 google.com || error "ipv6 ping failed"
+  ping6 -6 -c 4 google.com || error "ipv6 ping failed"
 }
 
 joke_through_tunnel() {

@@ -402,15 +402,28 @@ impl HickoryDnsResolver {
     /// Get the current map of hostname to address in use by the fallback static lookup if one
     /// exists.
     pub fn get_static_fallbacks(&self) -> Option<HashMap<String, Vec<IpAddr>>> {
+        if !self.dont_use_shared {
+            return Some(
+                SHARED_RESOLVER
+                    .read()
+                    .unwrap()
+                    .static_base
+                    .as_ref()?
+                    .get()?
+                    .get_addrs(),
+            );
+        }
         Some(self.static_base.as_ref()?.get()?.get_addrs())
     }
 
     /// Set (or overwrite) the map of addresses used in the fallback static hostname lookup
     pub fn set_static_fallbacks(&mut self, addrs: HashMap<String, Vec<IpAddr>>) {
-        let cell = OnceCell::new();
-        cell.set(StaticResolver::new(addrs))
-            .expect("infallible assign");
-        self.static_base = Some(Arc::new(cell));
+        let resolver_table = Arc::new(OnceCell::with_value(StaticResolver::new(addrs)));
+        self.static_base = Some(resolver_table.clone());
+
+        if !self.dont_use_shared {
+            SHARED_RESOLVER.write().unwrap().static_base = Some(resolver_table);
+        }
     }
 
     /// Change whether the resolver checks the static table of fallback addresses first or last in
@@ -418,9 +431,9 @@ impl HickoryDnsResolver {
     /// internal resolver). If the resolver has no table of static addressed configured, this
     /// setting has no impact on the lookup flow.
     pub fn set_check_static_fallback_first(&mut self, setting: bool) {
-        if self.dont_use_shared {
-            self.static_base_first = setting;
-        } else {
+        self.static_base_first = setting;
+
+        if !self.dont_use_shared {
             SHARED_RESOLVER.write().unwrap().static_base_first = setting
         }
     }
@@ -984,7 +997,7 @@ mod failure_test {
         assert!(lookup_duration > Duration::from_secs(5));
 
         // do a lookup where we check the static table first
-        resolver.static_base_first = true;
+        resolver.set_check_static_fallback_first(true);
         let start = Instant::now();
         // successful lookup using fallback to static resolver
         let domain = "nymvpn.com";

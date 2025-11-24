@@ -7211,7 +7211,6 @@ dependencies = [
  "nym-statistics-common",
  "nym-task",
  "nym-validator-client",
- "serde",
  "serde_json",
  "sqlx",
  "time",

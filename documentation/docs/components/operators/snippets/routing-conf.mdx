@@ -81,11 +81,11 @@ chmod +x network-tunnel-manager.sh && \
 - **If you setting up a new node and not upgrading an existing one, keep it running and [bond](/operators/nodes/nym-node/bonding.mdx) your node now! Then come back here and follow the rest of the configuration.**
         
 ###### 3. Run command for configuration:
-- For nodes with WireGuard enabled:
+- Nodes with **WireGuard enabled**: Configures interfaces (`nymtun0` and `nymwg`), IPv4 and IPv6 routing, WireGuard exit policy and does validation tests
 ```sh
 ./network-tunnel-manager.sh complete_networking_configuration
 ```
-- For nodes with WireGuard disabled:
+- Nodes with **WireGuard disabled**: Does everything like the command above *without WireGuard exit policy*
 ```sh
 ./network-tunnel-manager.sh full_tunnel_setup
 ```
@@ -104,11 +104,11 @@ chmod +x network-tunnel-manager.sh && \
 ```
         
 ###### 2. Run command for configuration:
-- For nodes with WireGuard enabled:
+- Nodes with **WireGuard enabled**: Configures interfaces (`nymtun0` and `nymwg`), IPv4 and IPv6 routing, WireGuard exit policy and does validation tests
 ```sh
 ./network-tunnel-manager.sh complete_networking_configuration
 ```
-- For nodes with WireGuard disabled:
+- Nodes with **WireGuard disabled**: Does everything like the command above *without WireGuard exit policy*
 ```sh
 ./network-tunnel-manager.sh full_tunnel_setup
 ```

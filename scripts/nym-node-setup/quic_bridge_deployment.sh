@@ -7,6 +7,7 @@
 # RUN AS ROOT
 
 set -euo pipefail
+set +o errtrace
 
 # Colors
 RED="\033[0;31m"
@@ -17,24 +18,38 @@ BOLD="\033[1m"
 RESET="\033[0m"
 
 # Logging
-LOG_FILE="/var/log/nym-bridge-helper.log"
+LOG_FILE="/var/log/nym/quic_bridge_deployment.log"
 mkdir -p "$(dirname "$LOG_FILE")"
+
+# rotate log if >10MB BEFORE writing START header
+if [[ -f "$LOG_FILE" && $(stat -c%s "$LOG_FILE") -gt 10485760 ]]; then
+  mv "$LOG_FILE" "${LOG_FILE}.1"
+fi
+
 touch "$LOG_FILE"
 chmod 640 "$LOG_FILE"
+
+echo "----- $(date '+%Y-%m-%d %H:%M:%S') START quic-bridge-manager -----" | tee -a "$LOG_FILE"
 echo -e "${CYAN}Logs are being saved locally to:${RESET} $LOG_FILE"
 echo -e "${CYAN}These logs never leave your machine.${RESET}"
 echo "" | tee -a "$LOG_FILE"
 
-# safe logger
+# safe logger function
 log() {
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "$LOG_FILE"
 }
 
-# simple redirection that keeps function scope intact
+# global redirection, strip ANSI before writing to log
 add_log_redirection() {
-  exec > >(tee -a "$LOG_FILE") 2>&1
+  exec > >(sed -u 's/\x1b\[[0-9;]*m//g' | tee -a "$LOG_FILE") 2>&1
 }
 add_log_redirection
+
+# trap errors with full visibility
+trap 'log "ERROR: exit=$? line=$LINENO cmd=\"$BASH_COMMAND\""' ERR
+
+START_TIME=$(date +%s)
+
 
 # Constants / Paths
 REQUIRED_CMDS=(ip jq curl openssl dpkg)
@@ -493,7 +508,7 @@ full_bridge_setup() {
   echo "Step 2/6: Installing bridge binary..."
   install_bridge_binary
   echo "[Bridge Install] $(date '+%F %T') $( $BRIDGE_BIN --version 2>/dev/null || echo 'nym-bridge (unknown)')" \
-    >> /var/log/nym-bridge-version.log
+    >> /var/log/nym/nym-bridge-version.log
   press_enter "Press Enter to continue..."
 
   echo ""
@@ -533,10 +548,6 @@ full_bridge_setup() {
   echo -e "${YELLOW}------------------------------------------${RESET}"
   echo -e "All done! You can safely close this session."
   echo -e "${YELLOW}------------------------------------------${RESET}"
-  echo ""
-  echo "Logs saved locally at: $LOG_FILE"
-  echo "Operation 'full_bridge_setup' completed."
-  echo ""
 
   hr
   echo -e "${CYAN}Next steps and verification:${RESET}"
@@ -574,22 +585,26 @@ full_bridge_setup() {
 
 graceful_exit() {
   local exit_code=$?
-  echo ""
-  echo -e "${YELLOW}------------------------------------------${RESET}"
+  END_TIME=$(date +%s)
+  ELAPSED=$((END_TIME - START_TIME))
+
+  # Only print success message when there were NO errors
   if [[ $exit_code -eq 0 ]]; then
-    echo -e "${GREEN}Setup completed successfully. Exiting cleanly.${RESET}"
-  else
-    echo -e "${RED}Script exited with errors (code: $exit_code).${RESET}"
-    echo "Check the log at: $LOG_FILE"
+    echo "Operation '${COMMAND}' completed."
   fi
-  echo -e "${YELLOW}------------------------------------------${RESET}"
-  echo ""
-  exec >&- 2>&-
+
+  # END footer always logged
+  echo "----- $(date '+%Y-%m-%d %H:%M:%S') END operation ${COMMAND} (status $exit_code, duration ${ELAPSED}s) -----" >> "$LOG_FILE"
+
   exit $exit_code
 }
-trap graceful_exit EXIT
 
 # Command menu
+COMMAND="${1:-help}"
+trap 'log "ERROR: exit=$? line=$LINENO cmd=$(printf "%q" "$BASH_COMMAND")"' ERR
+
+trap graceful_exit EXIT
+
 case "${1:-}" in
   full_bridge_setup)          full_bridge_setup ;;
   install_bridge_binary)      install_bridge_binary ;;
@@ -614,6 +629,4 @@ case "${1:-}" in
     exit 1
     ;;
 esac
-
-echo "Operation '${1:-help}' completed."
 

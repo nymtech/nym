@@ -516,10 +516,10 @@ add_port_rules() {
 exit_policy_install_deps() {
   install_iptables_persistent
 
-  for cmd in iptables ip6tables ip grep sed awk wget curl; do
-    if ! command -v "$cmd" >/dev/null 2>&1; then
-      info "installing dependency: $cmd"
-      apt-get install -y "$cmd"
+  for item in iptables ip6tables ip grep sed awk wget curl; do
+    if ! command -v "$item" >/dev/null 2>&1; then
+      info "installing dependency: $item"
+      apt-get install -y "$item"
     fi
   done
 }

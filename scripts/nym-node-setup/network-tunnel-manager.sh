@@ -61,11 +61,13 @@ log() {
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "$LOG_FILE"
 }
 
-# simple redirection that keeps function scope intact
+# global redirection, strip ANSI before writing to log
 add_log_redirection() {
-  exec > >(sed -u 's/\x1b\[[0-9;]*m//g' | tee -a "$LOG_FILE") 2>&1
+  exec > >(tee >(sed -u 's/\x1b\[[0-9;]*m//g' >> "$LOG_FILE"))
+  exec 2> >(tee >(sed -u 's/\x1b\[[0-9;]*m//g' >> "$LOG_FILE") >&2)
 }
 add_log_redirection
+
 
 trap 'log "ERROR: exit=$? line=$LINENO cmd=$(printf "%q" "$BASH_COMMAND")"' ERR
 
@@ -333,7 +335,7 @@ remove_duplicate_rules() {
     rm -f "$tmp6"
 
   else
-    error "no ipv6 rules found for $interface to deduplicate"
+    ok "no ipv6 rules found for $interface to deduplicate"
   fi
 
   ok "duplicate rule scan completed for $interface"

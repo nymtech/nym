@@ -62,7 +62,7 @@ Networking configuration across different ISPs and various operation systems doe
       <Tabs items={[
         <strong>New <code>nym-node</ code> full configuration</strong>,
         <strong>Existing <code>nym-node</ code> full configuration</strong>,
-        <strong>Step-by-step or Pprtial configuration</strong>
+        <strong>Step-by-step or Partial configuration</strong>
       ]} defaultIndex={0}>
         <Tabs.Tab>
 This design is meant for operators setting up a new node on a fresh machine and it will result with a complete server readiness for routing as Entry Gateway and Exit Gateway in both Mixnet and WireGuard mode. 
@@ -80,9 +80,14 @@ chmod +x network-tunnel-manager.sh && \
 
 - **If you setting up a new node and not upgrading an existing one, keep it running and [bond](/operators/nodes/nym-node/bonding.mdx) your node now! Then come back here and follow the rest of the configuration.**
         
-###### 3. Execute complete network configuration:
+###### 3. Run command for configuration:
+- Nodes with **WireGuard enabled**: Configures interfaces (`nymtun0` and `nymwg`), IPv4 and IPv6 routing, WireGuard exit policy and does validation tests
 ```sh
-./network-tunnel-manager.sh complete_networking_setup
+./network-tunnel-manager.sh complete_networking_configuration
+```
+- Nodes with **WireGuard disabled**: Does everything like the command above *without WireGuard exit policy*
+```sh
+./network-tunnel-manager.sh full_tunnel_setup
 ```
           </ Steps>
         </Tabs.Tab>
@@ -98,9 +103,14 @@ chmod +x network-tunnel-manager.sh && \
 ./network-tunnel-manager.sh --help
 ```
         
-###### 2. Execute complete network configuration:
+###### 2. Run command for configuration:
+- Nodes with **WireGuard enabled**: Configures interfaces (`nymtun0` and `nymwg`), IPv4 and IPv6 routing, WireGuard exit policy and does validation tests
 ```sh
-./network-tunnel-manager.sh complete_networking_setup
+./network-tunnel-manager.sh complete_networking_configuration
+```
+- Nodes with **WireGuard disabled**: Does everything like the command above *without WireGuard exit policy*
+```sh
+./network-tunnel-manager.sh full_tunnel_setup
 ```
           </ Steps>
         </Tabs.Tab>

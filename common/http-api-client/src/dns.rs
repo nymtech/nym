@@ -519,17 +519,9 @@ impl HickoryDnsResolver {
     /// Do a trial resolution using each nameserver individually to test which are working and which
     /// fail to complete a lookup.
     pub async fn trial_nameservers(&self) -> Result<(), ResolveError> {
-        let trial_results = if !self.dont_use_shared {
-            SHARED_RESOLVER
-                .read()
-                .unwrap()
-                .trial_nameservers_inner()
-                .await
-        } else {
-            self.trial_nameservers_inner().await
-        };
+        let name_servers = self.get_nameservers();
 
-        for (ns, result) in trial_results {
+        for (ns, result) in trial_nameservers_inner(&name_servers).await {
             if let Err(e) = result {
                 warn!("trial {ns:?} errored: {e}");
             } else {
@@ -539,19 +531,12 @@ impl HickoryDnsResolver {
         Ok(())
     }
 
-    /// Do a trial resolution using each nameserver individually to test which are working and which
-    /// fail to complete a lookup.
-    async fn trial_nameservers_inner(&self) -> Vec<(NameServerConfig, Result<(), ResolveError>)> {
-        let name_servers = self.state.get().unwrap().config().name_servers();
-
-        let mut trial_lookups = JoinSet::new();
-
-        for name_server in name_servers {
-            let ns = name_server.clone();
-            trial_lookups.spawn(async { (ns.clone(), trial_lookup(ns, "example.com").await) });
+    fn get_nameservers(&self) -> Vec<NameServerConfig> {
+        if self.dont_use_shared {
+            self.state.get().unwrap().config().name_servers().to_vec()
+        } else {
+            SHARED_RESOLVER.read().unwrap().get_nameservers()
         }
-
-        trial_lookups.join_all().await
     }
 
     /// Do a trial resolution using each nameserver individually to test which are working and which
@@ -561,19 +546,10 @@ impl HickoryDnsResolver {
     /// If no nameservers successfully complete the lookup return an error and leave the current
     /// configured resolver set as is.
     pub async fn trial_nameservers_and_reconfigure(&mut self) -> Result<(), ResolveError> {
-        let trial_results = if self.dont_use_shared {
-            self.trial_nameservers_inner().await
-        } else {
-            // take a read lock here as we don't want to hold a write lock while we are doing trials
-            SHARED_RESOLVER
-                .read()
-                .unwrap()
-                .trial_nameservers_inner()
-                .await
-        };
+        let name_servers = self.get_nameservers();
 
         let mut working_nameservers = Vec::new();
-        for (ns, result) in trial_results {
+        for (ns, result) in trial_nameservers_inner(&name_servers).await {
             if let Err(e) = result {
                 warn!("trial {ns:?} errored: {e}");
             } else {
@@ -589,15 +565,29 @@ impl HickoryDnsResolver {
         let new_resolver =
             configure_and_build_resolver(working_nameservers, self.current_options.clone())?;
 
-        if self.dont_use_shared {
-            self.state = Arc::new(OnceCell::with_value(new_resolver));
-        } else {
+        self.state = Arc::new(OnceCell::with_value(new_resolver.clone()));
+        if !self.dont_use_shared {
             // take a write lock on the shared resolver only once we are ready to make changes
             SHARED_RESOLVER.write().unwrap().state = Arc::new(OnceCell::with_value(new_resolver));
         }
 
         Ok(())
     }
+}
+
+/// Do a trial resolution using each nameserver individually to test which are working and which
+/// fail to complete a lookup.
+async fn trial_nameservers_inner(
+    name_servers: &[NameServerConfig],
+) -> Vec<(NameServerConfig, Result<(), ResolveError>)> {
+    let mut trial_lookups = JoinSet::new();
+
+    for name_server in name_servers {
+        let ns = name_server.clone();
+        trial_lookups.spawn(async { (ns.clone(), trial_lookup(ns, "example.com").await) });
+    }
+
+    trial_lookups.join_all().await
 }
 
 /// Create an independent resolver that has only the provided nameserver and do one lookup for the
@@ -1176,7 +1166,8 @@ mod failure_test {
             ..Default::default()
         };
 
-        for (ns, result) in resolver.trial_nameservers_inner().await {
+        let name_servers = resolver.state.get().unwrap().config().name_servers();
+        for (ns, result) in trial_nameservers_inner(name_servers).await {
             if ns.socket_addr.ip() == good_cf_ip {
                 assert!(result.is_ok())
             } else {
@@ -1198,7 +1189,7 @@ mod failure_test {
 
         let res = resolver.trial_nameservers_and_reconfigure().await;
         assert!(res.is_err_and(
-            |e| matches!(e, ResolveError::ConfigError(msg) if msg == RECONFIGURE_ERROR_MSG.to_string())
+            |e| matches!(e, ResolveError::ConfigError(msg) if msg == RECONFIGURE_ERROR_MSG)
         ));
     }
 

@@ -32,6 +32,10 @@ chmod +x quic_bridge_deployment.sh
 ```sh
 ./quic_bridge_deployment.sh full_bridge_setup
 ```
+- If you prefer a non-interactive mode, run the command with this variable (and skip next step):
+```sh
+NONINTERACTIVE=1 quick_bridge_deployment.sh full_bridge_setup
+```
 
 ###### 3. Follow the interactive prompts
 - Make sure you don't just press enter to insert default values if your setup is different, for example in case of path to the config file

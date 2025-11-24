@@ -3,33 +3,10 @@ import { Tabs } from 'nextra/components';
 import { VarInfo } from 'components/variable-info.tsx';
 import { Steps } from 'nextra/components';
 import { AccordionTemplate } from 'components/accordion-template.tsx';
-import ExitPolicyInstallOutput from 'components/operators/snippets/wg-exit-policy-install-output.mdx';
-import ExitPolicyStatusOutput from 'components/operators/snippets/wg-exit-policy-status-output.mdx';
-import ExitPolicyTestOutput from 'components/operators/snippets/wg-exit-policy-test-output.mdx';
-import ExitPolicyTestServer from 'components/operators/snippets/wg-exit-policy-testing-from-server.mdx';
-import ExitPolicyTestOutside from 'components/operators/snippets/wg-exit-policy-testing-from-outside.mdx';
+import WGExitPolicyConf  from 'components/operators/snippets/wg-exit-policy-conf.mdx';
+import WGExitPolicyTest from 'components/operators/snippets/wg-exit-policy-test.mdx';
+import RoutingConf from 'components/operators/snippets/routing-conf.mdx';
 import QuicDeploymentSteps from 'components/operators/snippets/quic-bridge-deployment-script-setup.mdx';
-
-
-export const ManagerIPOutput = () => (
-  <div>
-    Correct <code>./network_tunnel_manager.sh fetch_and_display_ipv6</code> output
-  </div>
-);
-
-export const ManagerTablesOutput = () => (
-  <div>
-    Correct <code>./network_tunnel_manager.sh check_nymtun_iptables</code> output
-  </div>
-);
-
-export const ShowTun = () => (
-  <div>
-    Correct <code>ip addr show nymtun0</code> output
-  </div>
-);
-
-
 
 # Nym Node Configuration
 
@@ -222,9 +199,11 @@ This lets your operating system know it's ok to reload the service configuration
 </Steps>
 
 
-## Connectivity Test and Configuration
+## Routing Configuration
 
-During our ongoing testing events we found out, that after introducing IP Packet Router (IPR) and [Nym exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt) on embedded Network Requester (NR) by default,  only a fragment of Gateways routes correctly through IPv4 and IPv6. We built a useful monitor to check out your Gateway (`nym-node --mode exit-gateway`) at [harbourmaster.nymtech.net](https://harbourmaster.nymtech.net/).
+<RoutingConf />
+
+### Quick IPv6 Check
 
 IPv6 routing is not only a case for gateways. Imagine a rare occasion when you run a `mixnode` without IPv6 enabled and a client will sent IPv6 packets through the Mixnet through such route:
 ```ascii
@@ -232,19 +211,6 @@ IPv6 routing is not only a case for gateways. Imagine a rare occasion when you r
 ```
 In this (unusual) case your `mixnode` will not be able to route the packets. The node will drop the packets and its performance would go down. For that reason it's beneficial to have IPv6 enabled when running a `mixnode` functionality.
 
-<Callout>
-We recommend operators to configure their `nym-node` with the full routing configuration.
-
-However, most of the time the packets sent through the Mixnet are IPv4 based. The IPv6 packets are still pretty rare and therefore it's not mandatory from operational point of view to have this configuration implemented if you running only `mixnode` mode.
-
-If you preparing to run a `nym-node` with all modes enabled in the future, this setup is required.
-</Callout>
-
-<Callout type="info" emoji="ℹ️">
-For everyone participating in Delegation Program or Service Grant program, this setup is a requirement!
-</Callout>
-
-### Quick IPv6 Check
 
 You can always check IPv6 address and connectivity by using some of these methods:
 <br />
@@ -273,267 +239,13 @@ telnet -6 ipv6.telnetmyip.com
 Make sure to keep your IPv4 address enabled while setting up IPv6, as the majority of routing goes through that one!
 </Callout>
 
-### Routing Configuration
-
-While we're working on Rust implementation to have these settings as a part of the binary build, to solve these connectivity requirements in the meantime we wrote a script [`network_tunnel_manager.sh`](https://github.com/nymtech/nym/blob/develop/scripts/network_tunnel_manager.sh) to support operators to configure their servers and address all the connectivity requirements.
-
-Networking configuration across different ISPs and various operation systems does not have a generic solution. If the provided configuration setup doesn't solve your problem check out [IPv6 troubleshooting](../../troubleshooting/vps-isp.mdx#ipv6-troubleshooting) page. Be aware that you may have to do more research, customised adjustments or contact your ISP to change settings for your VPS.
-
-The `nymtun0` interface is dynamically managed by the `exit-gateway` service. When the service is stopped, `nymtun0` disappears, and when started, `nymtun0` is recreated.
-
-The `nymwg` interface is used for creating a secure wireguard tunnel as part of the Nym Network configuration. Similar to `nymtun0`, the script manages iptables rules specific to `nymwg` to ensure proper routing and forwarding through the wireguard tunnel. The `nymwg` interface needs to be correctly configured and active for the related commands to function properly. This includes applying or removing iptables rules and running connectivity tests through the `nymwg` tunnel.
-
-The script should be used in a context where `nym-node` is running to fully utilise its capabilities, particularly for fetching IPv6 addresses or applying network rules that depend on the `nymtun0` and `nymwg` interfaces and to establish a WireGuard tunnel.
-
-**Before starting with the following configuration, make sure you have the [latest `nym-node` binary](https://github.com/nymtech/nym/releases) installed and your [VPS setup](../preliminary-steps/vps-setup.mdx) finished properly!**
-
-<Steps>
-
-###### 1. Download `network_tunnel_manager.sh`, make executable and run:
-
-```sh
-curl -L https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/network_tunnel_manager.sh -o network_tunnel_manager.sh && \
-chmod +x network_tunnel_manager.sh && \
-./network_tunnel_manager.sh
-```
-
-###### 2. Make sure your `nym-node` service is up and running and bond
-
-- **If you setting up a new node and not upgrading an existing one, keep it running and [bond](bonding.mdx) your node now**. Then come back here and follow the rest of the configuration.
-
-<Callout type="warning" emoji="⚠️">
-**Run the following steps as root or with `sudo` prefix!**
-</Callout>
-
-
-###### 3. Setup IP tables rules
-
-- Delete IP tables rules for IPv4 and IPv6 and apply new ones:
-```sh
-./network_tunnel_manager.sh remove_duplicate_rules nymtun0
-
-./network_tunnel_manager.sh apply_iptables_rules
-```
-
-- The process may prompt you if you want to save current IPv4 and IPv6 rules, choose yes.
-
-![](/images/operators/ip_table_prompt.png)
-
-- At this point you should see a `global ipv6` address.
-```sh
-./network_tunnel_manager.sh fetch_and_display_ipv6
-```
-<br />
-<AccordionTemplate name={<ManagerTablesOutput/>}>
-```sh
-iptables-persistent is already installed.
-Using IPv6 address: 2001:db8:a160::1/112 #the address will be different for you
-operation fetch_ipv6_address_nym_tun completed successfully.
-```
-</AccordionTemplate>
-
-###### 4. Check Nymtun IP tables:
-
-```sh
-./network_tunnel_manager.sh check_nymtun_iptables
-```
-
-- If there's no process running it wouldn't return anything.
-- In case you see `nymtun0` but not active, this is probably because you are setting up a new (never bonded) node and not upgrading an existing one.
-
-<br />
-<AccordionTemplate name={<ManagerIPOutput/>}>
-```sh
-iptables-persistent is already installed.
-network Device: eth0
----------------------------------------
-
-inspecting IPv4 firewall rules...
-Chain FORWARD (policy DROP 0 packets, 0 bytes)
-    0     0 ufw-reject-forward  all  --  *      *       0.0.0.0/0            0.0.0.0/0
-    0     0 ACCEPT     all  --  nymtun0 eth0    0.0.0.0/0            0.0.0.0/0
-    0     0 ACCEPT     all  --  eth0   nymtun0  0.0.0.0/0            0.0.0.0/0            state RELATED,ESTABLISHED
-    0     0 ACCEPT     all  --  nymtun0 eth0    0.0.0.0/0            0.0.0.0/0
-    0     0 ACCEPT     all  --  eth0   nymtun0  0.0.0.0/0            0.0.0.0/0            state RELATED,ESTABLISHED
-    0     0 ACCEPT     all  --  nymtun0 eth0    0.0.0.0/0            0.0.0.0/0
-    0     0 ACCEPT     all  --  eth0   nymtun0  0.0.0.0/0            0.0.0.0/0            state RELATED,ESTABLISHED
----------------------------------------
-
-inspecting IPv6 firewall rules...
-Chain FORWARD (policy DROP 0 packets, 0 bytes)
-    0     0 ufw6-reject-forward  all      *      *       ::/0                 ::/0
-    0     0 ACCEPT     all      eth0   nymtun0  ::/0                 ::/0                 state RELATED,ESTABLISHED
-    0     0 ACCEPT     all      nymtun0 eth0    ::/0                 ::/0
-    0     0 ACCEPT     all      eth0   nymtun0  ::/0                 ::/0                 state RELATED,ESTABLISHED
-    0     0 ACCEPT     all      nymtun0 eth0    ::/0                 ::/0
-    0     0 ACCEPT     all      eth0   nymtun0  ::/0                 ::/0                 state RELATED,ESTABLISHED
-    0     0 ACCEPT     all      nymtun0 eth0    ::/0                 ::/0
-operation check_nymtun_iptables completed successfully.
-```
-</AccordionTemplate>
-
-###### 5. Remove old and apply new rules for wireguad routing
-
-```sh
-/network_tunnel_manager.sh remove_duplicate_rules nymwg
-
-./network_tunnel_manager.sh apply_iptables_rules_wg
-```
-
-###### 6. Apply rules to configure DNS routing and allow ICMP piung test for node probing (network testing)
-
-```sh
-./network_tunnel_manager.sh configure_dns_and_icmp_wg
-```
-###### 7. Adjust and validate IP forwarding
-
-```sh
-./network_tunnel_manager.sh adjust_ip_forwarding
-
-./network_tunnel_manager.sh check_ipv6_ipv4_forwarding
-```
-
-###### 8. Check `nymtun0` interface and test routing configuration
-
-```sh
-ip addr show nymtun0
-```
-
-<br />
-<AccordionTemplate name={<ShowTun/>}>
-```sh
-# your addresses will be different
-8: nymtun0: <POINTOPOINT,MULTICAST,NOARP,UP,LOWER_UP> mtu 1420 qdisc fq_codel state UNKNOWN group default qlen 500
-    link/none
-    inet 10.0.0.1/16 scope global nymtun0
-       valid_lft forever preferred_lft forever
-    inet6 fc00::1/112 scope global
-       valid_lft forever preferred_lft forever
-    inet6 fe80::ad08:d167:5700:8c7c/64 scope link stable-privacy
-       valid_lft forever preferred_lft forever`
-```
-</AccordionTemplate>
-
-- Validate your IPv6 and IPv4 networking by running a joke test via Mixnet:
-```sh
-./network_tunnel_manager.sh joke_through_the_mixnet
-```
-
-- Validate your tunneling by running a joke test via WG:
-```sh
-./network_tunnel_manager.sh joke_through_wg_tunnel
-```
-
-- **Note:** WireGuard will return only IPv4 joke, not IPv6. WG IPv6 is under development. Running IPR joke through the mixnet with `./network_tunnel_manager.sh joke_through_the_mixnet` should work with both IPv4 and IPv6!
-
-
-###### 9. Enable wireguard
-
-Now you can run your node with the `--wireguard-enabled true` flag or add it to your [systemd service config](#systemd). Restart your `nym-node` or [systemd](#2-following-steps-for-nym-nodes-running-as-systemd-service) service (recommended):
-
-```sh
-systemctl daemon-reload && service nym-node restart
-```
-- Optionally, you can check if the node is running correctly by monitoring the service logs:
-
-```sh
-journalctl -u nym-node.service -f -n 100
-```
-</Steps>
-
-Make sure that you get the validation of all connectivity. If there are still any problems, please refer to [troubleshooting section](../../troubleshooting/vps-isp.mdx#incorrect-gateway-network-check).
-
 ## Wireguard Exit Policy Configuration
 
-Nym Node running as Exit Gateway has contains multiple modules, one of them is Nym Network Requester(NR), routing TCP traffic to the internet. To make sure that the node is not just an open proxy, NR checks agains [Nym exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt) following these conditions (in this exact order):
-
-1. Do we explicitly block those IP addresses regardless of ports?
-2. Do we allow those specific ports regardless of IPs?
-3. Do block EVERYTHING else!
-
-The exit policy is same for all NRs, the content is shaped by an offchain governance of Nym Node operators on our [forum](https://forum.nym.com/t/poll-a-new-nym-exit-policy-for-exit-gateways-and-the-nym-mixnet-is-inbound/464).
-
-There is a caveat though. NR is only routing TCP streams and therefore any other type of routing is *not* filtered thorugh the exit policy. To ensure that Nym Nodes follow the same exit policy when routing IP packets through wireguard and don't act as open proxies, the operators have to set up these rules via IP tables rules.
-
-**Follow these steps, using a [setup script](https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/wireguard-exit-policy/wireguard-exit-policy-manager.sh) and [testing scripts](https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/wireguard-exit-policy/exit-policy-tests.sh) written by Nym quality assurance team, to setup exit policy for wireguard:**
-
-<Steps>
-
-###### 1. Download the scripts and make executable
-
-- SSH to your node
-- Create a folder `~/nym-binaries` and navigate there
-```sh
-mkdir $HOME/nym-binaries
-cd $HOME/nym-binaries
-```
-- Download the scripts
-```sh
-wget https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/wireguard-exit-policy/wireguard-exit-policy-manager.sh
-
-wget https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/wireguard-exit-policy/exit-policy-tests.sh
-```
-- Make executable
-```sh
-chmod +x wireguard-exit-policy-manager.sh exit-policy-tests.sh
-```
-
-###### 2. Install `wireguard-exit-policy-manager.sh`
-```sh
-./wireguard-exit-policy-manager.sh install
-```
-- The output should look like this:
-<AccordionTemplate name="Cosole output">
-<ExitPolicyInstallOutput />
-</ AccordionTemplate>
-
-
-###### 3. Run `wireguard-exit-policy-manager.sh`
-```sh
-./wireguard-exit-policy-manager.sh status
-```
-
-- The output should look like this:
-<AccordionTemplate name="Cosole output">
-<ExitPolicyStatusOutput />
-</ AccordionTemplate>
-
-###### 4. Test with `exit-policy-tests.sh`
-
-```sh
-./exit-policy-tests.sh
-```
-
-- The output should look like this:
-<AccordionTemplate name="Cosole output">
-<ExitPolicyTestOutput />
-</ AccordionTemplate>
-
-###### 5. In case of problems, you can clear the exit policy rule
-```sh
-./wireguard-exit-policy-manager.sh clear
-
-./wireguard-exit-policy-manager.sh status
-```
-</ Steps>
-
-Now your wireguart routing should have same rotuing permissions like [Nym exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt) used on 5-hop (Mixnet) mode of NymVPN.
+<WGExitPolicyConf />
 
 ### Testing Wireguard Exit Policy
 
-You can validate the application of the IP tables routes on your `nym-node` by checking it from the server side as well as from the outside.
-
-    <div>
-      <Tabs items={[
-        <strong>From the server</strong>,
-        <strong>From the outside - using NymVPN</strong>
-      ]} defaultIndex={0}>
-        <Tabs.Tab><ExitPolicyTestServer /></Tabs.Tab>
-        <Tabs.Tab><ExitPolicyTestOutside /></Tabs.Tab>
-      </Tabs>
-    </div>
-
-Your node has successfully implemented wireguard exit policy with the same routing permissions like [Nym exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt) used on 5-hop (Mixnet).
+<WGExitPolicyTest />
 
 ## QUIC Transport Bridge Deployment
 

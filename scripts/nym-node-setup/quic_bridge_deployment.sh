@@ -41,12 +41,10 @@ log() {
 
 # global redirection, strip ANSI before writing to log
 add_log_redirection() {
-  exec > >(sed -u 's/\x1b\[[0-9;]*m//g' | tee -a "$LOG_FILE") 2>&1
+  exec > >(tee >(sed -u 's/\x1b\[[0-9;]*m//g' >> "$LOG_FILE"))
+  exec 2> >(tee >(sed -u 's/\x1b\[[0-9;]*m//g' >> "$LOG_FILE") >&2)
 }
 add_log_redirection
-
-# trap errors with full visibility
-trap 'log "ERROR: exit=$? line=$LINENO cmd=\"$BASH_COMMAND\""' ERR
 
 START_TIME=$(date +%s)
 
@@ -82,23 +80,28 @@ if [[ "$(id -u)" -ne 0 ]]; then
 fi
 
 # UI helpers
-hr() { echo -e "${YELLOW}----------------------------------------${RESET}"; }
+hr() { echo -e "${YELLOW}----------------------------------------${RESET}" ; }
 title() { echo -e "\n${YELLOW}==========================================${RESET}\n${YELLOW}  $1${RESET}\n${YELLOW}==========================================${RESET}\n"; }
 ok() { echo -e "${GREEN}$1${RESET}"; }
 warn() { echo -e "${YELLOW}$1${RESET}"; }
 err() { echo -e "${RED}$1${RESET}"; }
 info() { echo -e "${CYAN}$1${RESET}"; }
-press_enter() { read -r -p "$1"; }
+press_enter() {
+  echo -n "$1" > /dev/tty
+  read -r _ < /dev/tty
+}
+
 
 # Disable pauses and interactive prompts for noninteractive mode
 if [[ "${NONINTERACTIVE:-0}" == "1" ]]; then
-  # all pauses become no-ops
-  press_enter() { :; }
-
-  # silence any "enter path:" prompts
-  echo_prompt() { :; }
+    press_enter() { :; }
+    echo_prompt() { :; }
 else
-  echo_prompt() { echo -n "$1"; }
+    press_enter() {
+        echo -n "$1" > /dev/tty
+        read -r _ < /dev/tty
+    }
+    echo_prompt() { echo -n "$1"; }
 fi
 
 # Helper: detect dpkg dependency failure for libc6>=2.34

@@ -916,10 +916,11 @@ check_iptables_default_policies() {
   info "checking base iptables default policies (INPUT/FORWARD)"
 
   local issues=0
-  local input_policy forward_policy
+  local input_policy forward_policy output_policy
 
   input_policy=$(iptables -S INPUT 2>/dev/null | awk 'NR==1 && $1=="-P" {print $3}')
   forward_policy=$(iptables -S FORWARD 2>/dev/null | awk 'NR==1 && $1=="-P" {print $3}')
+  output_policy=$(iptables -S OUTPUT 2>/dev/null | awk 'NR==1 && $1=="-P" {print $3}')
 
   if [[ -z "${input_policy:-}" ]]; then
     error "unable to read INPUT default policy (iptables -S INPUT failed?)"
@@ -939,6 +940,16 @@ check_iptables_default_policies() {
     issues=1
   else
     ok "FORWARD default policy is DROP"
+  fi
+
+  if [[ -z "${output_policy:-}" ]]; then
+    error "unable to read OUTPUT default policy (iptables -S OUTPUT failed?)"
+    issues=1
+  elif [[ "${output_policy^^}" != "ACCEPT" ]]; then
+    error "OUTPUT default policy is ${output_policy^^}; expected ACCEPT"
+    issues=1
+  else
+    ok "OUTPUT default policy is ACCEPT"
   fi
 
   return $issues

@@ -1140,7 +1140,7 @@ exit_policy_run_tests() {
 # part 5: high level workflows
 ###############################################################################
 
-full_tunnel_setup() {
+nym_tunnel_setup() {
   # this mirrors your previous chain of calls but inside one script
   info "running full tunnel setup for ${TUNNEL_INTERFACE} and ${WG_INTERFACE}"
 
@@ -1182,7 +1182,7 @@ exit_policy_install() {
 complete_networking_configuration() {
   info "starting complete networking configuration: tunnels + exit policy"
 
-  full_tunnel_setup
+  nym_tunnel_setup
   exit_policy_install
   check_firewall_setup || error "firewall order checks reported problems, please review output"
   exit_policy_run_tests || error "exit policy tests reported problems, please review output"
@@ -1198,8 +1198,8 @@ cmd="${1:-help}"
 log "COMMAND: $cmd ARGS: $*"
 
 case "$cmd" in
-  full_tunnel_setup)
-    full_tunnel_setup
+  nym_tunnel_setup)
+    nym_tunnel_setup
     status=$?
     ;;
   exit_policy_install)
@@ -1298,9 +1298,8 @@ usage: $0 <command> [args]
 
 high level workflows:
   complete_networking_configuration Install tunnel interfaces, setup networking, iptables, wg exit policy & tests
-  exit_policy_install               Install and configure wireguard exit policy
-  full_tunnel_setup                 Install tunnel interfaces & setup networking
-
+    nym_tunnel_setup                 Install tunnel interfaces & setup networking
+    exit_policy_install               Install and configure wireguard exit policy
 tunnel and nat helpers:
   adjust_ip_forwarding              Enable ipv4/ipv6 forwarding via sysctl.d
   apply_iptables_rules              Apply nat/forward rules for ${TUNNEL_INTERFACE}

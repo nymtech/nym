@@ -5,7 +5,13 @@ import { RunTabs } from 'components/operators/nodes/node-run-command-tabs';
 import { VarInfo } from 'components/variable-info.tsx';
 import { AccordionTemplate } from 'components/accordion-template.tsx';
 import { Steps } from 'nextra/components';
+import NymNodeCliInstallHelp from 'components/outputs/command-outputs/nym-node-cli-install-help.md';
 
+export const NymNodeCliCommand = () => (
+  <div>
+    Arguments and options: <code>./nym-node-cli.py install --help</code>
+  </div>
+);
 
 # Tools
 
@@ -45,10 +51,50 @@ chmod +x ./nym-node-cli.py
 ```
 
 ###### 3. Run the program
+
+There are two ways how to run the program. fully interactive or with provided arguments. The former has a shorter initial command but then operators must fill the values on the go, the latter requires more complex command, but then there is a minimum prompts during the process. 
+
+1. Fully interactive mode - just run:
 ```
-./nym-node-cli.py
+./nym-node-cli.py install
 ```
+
+2. Use arguments - this command to see all options:
+```sh
+./nym-node-cli.py install --help
+```
+<AccordionTemplate name={<NymNodeCliCommand/>}>
+<NymNodeCliInstallHelp />
+</ AccordionTemplate>
+- An example can look like this:
+```sh
+# substitute with your real values:
+ ./nym-node-cli.py install 
+   --hostname node-install.devrel.nymte.ch 
+   --moniker MainnetGW-DE 
+   --description "This node is installed with nym-node-cli v1.2.0" 
+   --wireguard-enabled true 
+   --location DE  
+   --mode exit-gateway 
+   --email kawa_hesinkar@example.ku
+```
+
 ###### 4. Read and follow the prompts
+
+There will be a few needed confirmations and in caser of running the program without the arguments, you will be prompted for values neccessary to setup a `nym-node` and configure your server.
+
+**Read these prompts carefully!**
+
+###### 5. Setup finished
+
+Congratulation, your node is installed.
+
+This version of the program does not prompt an operator for the local node moniker (`--id <ID>`) therefore it asigns your node an automatic one `default-nym-node`. 
+
+All configuration and data of your node can be found in this location:
+```sh
+ls $HOME/.nym/nym-nodes/default-nym-node/
+```
 </ Steps>
 
 ## CMD Reward Tracker

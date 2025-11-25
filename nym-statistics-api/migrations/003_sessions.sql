@@ -15,7 +15,7 @@ CREATE TABLE report_v2 (
     user_agent            TEXT,
 
     -- session info
-    start_day             DATE,
+    start_day_utc         DATE,
     connection_time_ms    INTEGER,
     tunnel_type           TEXT,
     retry_attempt         INTEGER,

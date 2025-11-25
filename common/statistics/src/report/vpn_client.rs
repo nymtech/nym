@@ -83,7 +83,7 @@ pub struct UsageReport {
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SessionReport {
-    pub start_day: Date,
+    pub start_day_utc: Date,
     pub connection_time_ms: i32,
     pub tunnel_type: String,
     pub retry_attempt: i32,

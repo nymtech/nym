@@ -55,7 +55,7 @@ impl NetworkView {
     pub(crate) async fn get_country_by_ip(&self, ip_addr: &IpAddr) -> Option<Option<Country>> {
         self.inner.read().await.ip_to_country.get(ip_addr).copied()
     }
-    pub(crate) async fn get_country_by_id(&self, id_key: &String) -> Option<Option<Country>> {
+    pub(crate) async fn get_country_by_id(&self, id_key: &str) -> Option<Option<Country>> {
         self.inner.read().await.id_to_country.get(id_key).copied()
     }
 }

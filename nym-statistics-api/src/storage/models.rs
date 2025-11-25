@@ -122,7 +122,7 @@ pub(crate) struct StatsReportV2Dto {
     pub(crate) user_agent: String,
 
     // session info
-    pub(crate) start_day: Date,
+    pub(crate) start_day_utc: Date,
     pub(crate) connection_time_ms: i32,
     pub(crate) tunnel_type: String,
     pub(crate) retry_attempt: i32,
@@ -154,7 +154,7 @@ impl StatsReportV2Dto {
             os_arch: stats_report.static_information.os_arch.clone(),
             app_version: stats_report.static_information.app_version.clone(),
             user_agent: user_agent.to_string(),
-            start_day: stats_report.session_report.start_day,
+            start_day_utc: stats_report.session_report.start_day_utc,
             connection_time_ms: stats_report.session_report.connection_time_ms,
             tunnel_type: stats_report.session_report.tunnel_type.clone(),
             retry_attempt: stats_report.session_report.retry_attempt,

@@ -20,6 +20,7 @@ MIXNODE1_CONTAINER="nym-mixnode1"
 MIXNODE2_CONTAINER="nym-mixnode2"
 MIXNODE3_CONTAINER="nym-mixnode3"
 GATEWAY_CONTAINER="nym-gateway"
+GATEWAY2_CONTAINER="nym-gateway2"
 REQUESTER_CONTAINER="nym-network-requester"
 SOCKS5_CONTAINER="nym-socks5-client"
 
@@ -28,6 +29,7 @@ ALL_CONTAINERS=(
     "$MIXNODE2_CONTAINER"
     "$MIXNODE3_CONTAINER"
     "$GATEWAY_CONTAINER"
+    "$GATEWAY2_CONTAINER"
     "$REQUESTER_CONTAINER"
     "$SOCKS5_CONTAINER"
 )
@@ -57,7 +59,7 @@ log_error() {
 
 cleanup_host_state() {
     log_info "Cleaning local nym-node state for suffix ${SUFFIX}"
-    for node in mix1 mix2 mix3 gateway; do
+    for node in mix1 mix2 mix3 gateway gateway2; do
         rm -rf "$HOME/.nym/nym-nodes/${node}-${SUFFIX}"
     done
 }
@@ -283,6 +285,73 @@ start_gateway() {
     done
     log_success "Gateway is ready on port 9000"
 }
+
+# Start gateway2
+start_gateway2() {
+    log_info "Starting $GATEWAY2_CONTAINER..."
+
+        container run \
+        --name "$GATEWAY2_CONTAINER" \
+        -m 2G \
+        --network "$NETWORK_NAME" \
+        -p 9001:9001 \
+        -p 10005:10005 \
+        -p 20005:20005 \
+        -p 30005:30005 \
+        -p 41265:41265 \
+        -p 51265:51265 \
+        -v "$VOLUME_PATH:/localnet" \
+        -v "$NYM_VOLUME_PATH:/root/.nym" \
+        -d \
+        -e "NYM_NODE_SUFFIX=$SUFFIX" \
+        "$IMAGE_NAME" \
+        sh -c '
+            CONTAINER_IP=$(hostname -i);
+            echo "Container IP: $CONTAINER_IP";
+            echo "Initializing gateway2...";
+            nym-node run --id gateway2-localnet --init-only \
+                --unsafe-disable-replay-protection \
+                --local \
+                --mode entry-gateway \
+                --mode exit-gateway \
+                --mixnet-bind-address=0.0.0.0:10005 \
+                --entry-bind-address=0.0.0.0:9001 \
+                --verloc-bind-address=0.0.0.0:20005 \
+                --http-bind-address=0.0.0.0:30005 \
+                --http-access-token=lala \
+                --public-ips $CONTAINER_IP \
+                --enable-lp true \
+                --lp-use-mock-ecash true \
+                --output=json \
+                --wireguard-enabled true \
+                --wireguard-userspace true \
+                --bonding-information-output="/localnet/gateway2.json";
+
+            echo "Waiting for network.json...";
+            while [ ! -f /localnet/network.json ]; do
+                sleep 2;
+            done;
+            echo "Starting gateway2 with LP listener (mock ecash)...";
+            exec nym-node run --id gateway2-localnet --unsafe-disable-replay-protection --local --wireguard-enabled true --wireguard-userspace true --lp-use-mock-ecash true
+        '
+
+    log_success "$GATEWAY2_CONTAINER started"
+
+    # Wait for gateway2 to be ready
+    log_info "Waiting for gateway2 to listen on port 9001..."
+    local retries=0
+    local max_retries=30
+    while ! nc -z 127.0.0.1 9001 2>/dev/null; do
+        sleep 2
+        retries=$((retries + 1))
+        if [ $retries -ge $max_retries ]; then
+            log_error "Gateway2 failed to start on port 9001"
+            return 1
+        fi
+    done
+    log_success "Gateway2 is ready on port 9001"
+}
+
 # Start network requester
 start_network_requester() {
     log_info "Starting $REQUESTER_CONTAINER..."
@@ -473,7 +542,7 @@ build_topology() {
 
     # Wait for all bonding JSON files to be created
     log_info "Waiting for all nodes to complete initialization..."
-    for file in mix1.json mix2.json mix3.json gateway.json; do
+    for file in mix1.json mix2.json mix3.json gateway.json gateway2.json; do
         while [ ! -f "$VOLUME_PATH/$file" ]; do
             echo "  Waiting for $file..."
             sleep 1
@@ -487,12 +556,14 @@ build_topology() {
     MIX2_IP=$(container exec "$MIXNODE2_CONTAINER" hostname -i)
     MIX3_IP=$(container exec "$MIXNODE3_CONTAINER" hostname -i)
     GATEWAY_IP=$(container exec "$GATEWAY_CONTAINER" hostname -i)
+    GATEWAY2_IP=$(container exec "$GATEWAY2_CONTAINER" hostname -i)
 
     log_info "Container IPs:"
-    echo "  mix1:    $MIX1_IP"
-    echo "  mix2:    $MIX2_IP"
-    echo "  mix3:    $MIX3_IP"
-    echo "  gateway: $GATEWAY_IP"
+    echo "  mix1:     $MIX1_IP"
+    echo "  mix2:     $MIX2_IP"
+    echo "  mix3:     $MIX3_IP"
+    echo "  gateway:  $GATEWAY_IP"
+    echo "  gateway2: $GATEWAY2_IP"
 
     # Run build_topology.py in a container with access to the volumes
     container run \
@@ -508,7 +579,8 @@ build_topology() {
             "$MIX1_IP" \
             "$MIX2_IP" \
             "$MIX3_IP" \
-            "$GATEWAY_IP"
+            "$GATEWAY_IP" \
+            "$GATEWAY2_IP"
 
     # Verify network.json was created
     if [ -f "$VOLUME_PATH/network.json" ]; then
@@ -532,6 +604,7 @@ start_all() {
     start_mixnode 2 "$MIXNODE2_CONTAINER"
     start_mixnode 3 "$MIXNODE3_CONTAINER"
     start_gateway
+    start_gateway2
     build_topology
     start_network_requester
     start_socks5_client

@@ -42,6 +42,12 @@ struct CliArgs {
     #[arg(long, global = true)]
     gateway_ip: Option<String>,
 
+    /// The address of the exit gateway for LP forwarding tests (used with --test-lp-wg)
+    /// When specified, --gateway-ip becomes the entry gateway and this becomes the exit gateway
+    /// Supports formats: IP (192.168.66.5), IP:PORT (192.168.66.5:8080), HOST:PORT (localhost:30004)
+    #[arg(long, global = true)]
+    exit_gateway_ip: Option<String>,
+
     /// Identity of the node to test
     #[arg(long, short, value_parser = validate_node_identity, global = true)]
     node: Option<NodeIdentity>,
@@ -57,6 +63,10 @@ struct CliArgs {
 
     #[arg(long, global = true)]
     only_lp_registration: bool,
+
+    /// Test WireGuard via LP registration (no mixnet) - uses nested session forwarding
+    #[arg(long, global = true)]
+    test_lp_wg: bool,
 
     /// Disable logging during probe
     #[arg(long, global = true)]
@@ -129,10 +139,18 @@ pub(crate) async fn run() -> anyhow::Result<ProbeResult> {
         .map(|ep| ep.nyxd_url())
         .ok_or(anyhow::anyhow!("missing nyxd url"))?;
     // If gateway IP is provided, query it directly without using the directory
-    let (entry, directory, gateway_node) = if let Some(gateway_ip) = args.gateway_ip {
+    let (entry, directory, gateway_node, exit_gateway_node) = if let Some(gateway_ip) = args.gateway_ip {
         info!("Using direct IP query mode for gateway: {}", gateway_ip);
         let gateway_node = query_gateway_by_ip(gateway_ip).await?;
         let identity = gateway_node.identity();
+
+        // Query exit gateway if provided (for LP forwarding tests)
+        let exit_node = if let Some(exit_gateway_ip) = args.exit_gateway_ip {
+            info!("Using direct IP query mode for exit gateway: {}", exit_gateway_ip);
+            Some(query_gateway_by_ip(exit_gateway_ip).await?)
+        } else {
+            None
+        };
 
         // Still create the directory for potential secondary lookups,
         // but only if API URL is available
@@ -143,7 +161,7 @@ pub(crate) async fn run() -> anyhow::Result<ProbeResult> {
             None
         };
 
-        (identity, directory, Some(gateway_node))
+        (identity, directory, Some(gateway_node), exit_node)
     } else {
         // Original behavior: use directory service
         let api_url = network
@@ -160,7 +178,7 @@ pub(crate) async fn run() -> anyhow::Result<ProbeResult> {
             directory.random_exit_with_ipr()?
         };
 
-        (entry, Some(directory), None)
+        (entry, Some(directory), None, None)
     };
 
     let test_point = if let Some(node) = args.node {
@@ -169,7 +187,19 @@ pub(crate) async fn run() -> anyhow::Result<ProbeResult> {
         TestedNode::SameAsEntry
     };
 
-    let mut trial = if let Some(gw_node) = gateway_node {
+    let mut trial = if let (Some(entry_node), Some(exit_node)) = (&gateway_node, &exit_gateway_node) {
+        // Both entry and exit gateways provided (for LP telescoping tests)
+        info!("Using both entry and exit gateways for LP forwarding test");
+        nym_gateway_probe::Probe::new_with_gateways(
+            entry,
+            test_point,
+            args.netstack_args,
+            args.credential_args,
+            entry_node.clone(),
+            exit_node.clone(),
+        )
+    } else if let Some(gw_node) = gateway_node {
+        // Only entry gateway provided
         nym_gateway_probe::Probe::new_with_gateway(
             entry,
             test_point,
@@ -178,6 +208,7 @@ pub(crate) async fn run() -> anyhow::Result<ProbeResult> {
             gw_node,
         )
     } else {
+        // No direct gateways, use directory lookup
         nym_gateway_probe::Probe::new(entry, test_point, args.netstack_args, args.credential_args)
     };
 
@@ -208,6 +239,7 @@ pub(crate) async fn run() -> anyhow::Result<ProbeResult> {
                 args.ignore_egress_epoch_role,
                 args.only_wireguard,
                 args.only_lp_registration,
+                args.test_lp_wg,
                 args.min_gateway_mixnet_performance,
                 *use_mock_ecash,
             ))
@@ -220,6 +252,7 @@ pub(crate) async fn run() -> anyhow::Result<ProbeResult> {
                 args.ignore_egress_epoch_role,
                 args.only_wireguard,
                 args.only_lp_registration,
+                args.test_lp_wg,
                 args.min_gateway_mixnet_performance,
             ))
             .await

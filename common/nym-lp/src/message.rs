@@ -72,6 +72,7 @@ pub enum MessageType {
     ClientHello = 0x0003,
     KKTRequest = 0x0004,
     KKTResponse = 0x0005,
+    ForwardPacket = 0x0006,
 }
 
 impl MessageType {
@@ -98,6 +99,20 @@ pub struct KKTRequestData(pub Vec<u8>);
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct KKTResponseData(pub Vec<u8>);
 
+/// Packet forwarding request with embedded inner LP packet
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ForwardPacketData {
+    /// Target gateway's Ed25519 identity (32 bytes)
+    pub target_gateway_identity: [u8; 32],
+
+    /// Target gateway's LP address (IP:port string)
+    pub target_lp_address: String,
+
+    /// Complete inner LP packet bytes (serialized LpPacket)
+    /// This is the CLIENT→EXIT gateway packet, encrypted for exit
+    pub inner_packet_bytes: Vec<u8>,
+}
+
 #[derive(Debug, Clone)]
 pub enum LpMessage {
     Busy,
@@ -106,6 +121,7 @@ pub enum LpMessage {
     ClientHello(ClientHelloData),
     KKTRequest(KKTRequestData),
     KKTResponse(KKTResponseData),
+    ForwardPacket(ForwardPacketData),
 }
 
 impl Display for LpMessage {
@@ -117,6 +133,7 @@ impl Display for LpMessage {
             LpMessage::ClientHello(_) => write!(f, "ClientHello"),
             LpMessage::KKTRequest(_) => write!(f, "KKTRequest"),
             LpMessage::KKTResponse(_) => write!(f, "KKTResponse"),
+            LpMessage::ForwardPacket(_) => write!(f, "ForwardPacket"),
         }
     }
 }
@@ -127,9 +144,10 @@ impl LpMessage {
             LpMessage::Busy => &[],
             LpMessage::Handshake(payload) => payload.0.as_slice(),
             LpMessage::EncryptedData(payload) => payload.0.as_slice(),
-            LpMessage::ClientHello(_) => unimplemented!(), // Structured data, serialized in encode_content
+            LpMessage::ClientHello(_) => &[], // Structured data, serialized in encode_content
             LpMessage::KKTRequest(payload) => payload.0.as_slice(),
             LpMessage::KKTResponse(payload) => payload.0.as_slice(),
+            LpMessage::ForwardPacket(_) => &[], // Structured data, serialized in encode_content
         }
     }
 
@@ -141,6 +159,7 @@ impl LpMessage {
             LpMessage::ClientHello(_) => false, // Always has data
             LpMessage::KKTRequest(payload) => payload.0.is_empty(),
             LpMessage::KKTResponse(payload) => payload.0.is_empty(),
+            LpMessage::ForwardPacket(_) => false, // Always has data
         }
     }
 
@@ -152,6 +171,9 @@ impl LpMessage {
             LpMessage::ClientHello(_) => 97, // 32 bytes x25519 key + 32 bytes ed25519 key + 32 bytes salt + 1 byte bincode overhead
             LpMessage::KKTRequest(payload) => payload.0.len(),
             LpMessage::KKTResponse(payload) => payload.0.len(),
+            LpMessage::ForwardPacket(data) => {
+                32 + data.target_lp_address.len() + data.inner_packet_bytes.len() + 10
+            }
         }
     }
 
@@ -163,6 +185,7 @@ impl LpMessage {
             LpMessage::ClientHello(_) => MessageType::ClientHello,
             LpMessage::KKTRequest(_) => MessageType::KKTRequest,
             LpMessage::KKTResponse(_) => MessageType::KKTResponse,
+            LpMessage::ForwardPacket(_) => MessageType::ForwardPacket,
         }
     }
 
@@ -186,6 +209,11 @@ impl LpMessage {
             }
             LpMessage::KKTResponse(payload) => {
                 dst.put_slice(&payload.0);
+            }
+            LpMessage::ForwardPacket(data) => {
+                let serialized =
+                    bincode::serialize(data).expect("Failed to serialize ForwardPacketData");
+                dst.put_slice(&serialized);
             }
         }
     }

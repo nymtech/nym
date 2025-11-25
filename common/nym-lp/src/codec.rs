@@ -3,8 +3,8 @@
 
 use crate::LpError;
 use crate::message::{
-    ClientHelloData, EncryptedDataPayload, HandshakeData, KKTRequestData, KKTResponseData,
-    LpMessage, MessageType,
+    ClientHelloData, EncryptedDataPayload, ForwardPacketData, HandshakeData, KKTRequestData,
+    KKTResponseData, LpMessage, MessageType,
 };
 use crate::packet::{LpHeader, LpPacket, TRAILER_LEN};
 use bytes::BytesMut;
@@ -73,6 +73,12 @@ pub fn parse_lp_packet(src: &[u8]) -> Result<LpPacket, LpError> {
         MessageType::KKTResponse => {
             // KKT response contains serialized KKTFrame bytes
             LpMessage::KKTResponse(KKTResponseData(payload_slice.to_vec()))
+        }
+        MessageType::ForwardPacket => {
+            // ForwardPacket has structured data
+            let data: ForwardPacketData = bincode::deserialize(payload_slice)
+                .map_err(|e| LpError::DeserializationError(e.to_string()))?;
+            LpMessage::ForwardPacket(data)
         }
     };
 
@@ -570,6 +576,46 @@ mod tests {
                 }
                 _ => panic!("Expected ClientHello message for version {}", version),
             }
+        }
+    }
+
+    #[test]
+    fn test_forward_packet_encode_decode_roundtrip() {
+        let mut dst = BytesMut::new();
+
+        let forward_data = crate::message::ForwardPacketData {
+            target_gateway_identity: [77u8; 32],
+            target_lp_address: "1.2.3.4:41264".to_string(),
+            inner_packet_bytes: vec![0xa, 0xb, 0xc, 0xd],
+        };
+
+        let packet = LpPacket {
+            header: LpHeader {
+                protocol_version: 1,
+                reserved: 0,
+                session_id: 999,
+                counter: 555,
+            },
+            message: LpMessage::ForwardPacket(forward_data),
+            trailer: [0xff; TRAILER_LEN],
+        };
+
+        // Serialize
+        serialize_lp_packet(&packet, &mut dst).unwrap();
+
+        // Parse back
+        let decoded = parse_lp_packet(&dst).unwrap();
+
+        // Verify LP protocol handling works correctly
+        assert_eq!(decoded.header.session_id, 999);
+        assert!(matches!(decoded.message.typ(), MessageType::ForwardPacket));
+
+        if let LpMessage::ForwardPacket(data) = decoded.message {
+            assert_eq!(data.target_gateway_identity, [77u8; 32]);
+            assert_eq!(data.target_lp_address, "1.2.3.4:41264");
+            assert_eq!(data.inner_packet_bytes, vec![0xa, 0xb, 0xc, 0xd]);
+        } else {
+            panic!("Expected ForwardPacket message");
         }
     }
 }

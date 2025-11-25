@@ -12,6 +12,7 @@ use nym_credentials_interface::{CredentialSpendingData, TicketType};
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_lp::LpPacket;
 use nym_lp::codec::{parse_lp_packet, serialize_lp_packet};
+use nym_lp::message::ForwardPacketData;
 use nym_lp::state_machine::{LpAction, LpInput, LpStateMachine};
 use nym_registration_common::{GatewayData, LpRegistrationRequest, LpRegistrationResponse};
 use nym_wireguard_types::PeerPublicKey;
@@ -732,6 +733,140 @@ impl LpRegistrationClient {
         );
 
         Ok(gateway_data)
+    }
+
+    /// Sends a ForwardPacket message to the entry gateway for forwarding to the exit gateway.
+    ///
+    /// This method constructs a ForwardPacket containing the target gateway's identity,
+    /// address, and the inner LP packet bytes, encrypts it through the outer session
+    /// (client-entry), and receives the response from the exit gateway via the entry gateway.
+    ///
+    /// # Arguments
+    /// * `target_identity` - Target gateway's Ed25519 identity (32 bytes)
+    /// * `target_address` - Target gateway's LP address (e.g., "1.1.1.1:41264")
+    /// * `inner_packet_bytes` - Complete inner LP packet bytes to forward to exit gateway
+    ///
+    /// # Returns
+    /// * `Ok(Vec<u8>)` - Decrypted response bytes from the exit gateway
+    ///
+    /// # Errors
+    /// Returns an error if:
+    /// - No connection is established
+    /// - Handshake has not been completed
+    /// - Serialization fails
+    /// - Encryption or network transmission fails
+    /// - Response decryption fails
+    ///
+    /// # Example Flow
+    /// ```ignore
+    /// // Construct inner packet for exit gateway (ClientHello, handshake, etc.)
+    /// let inner_packet = LpPacket::new(...);
+    /// let inner_bytes = serialize_lp_packet(&inner_packet, &mut BytesMut::new())?;
+    ///
+    /// // Forward through entry gateway
+    /// let response_bytes = client.send_forward_packet(
+    ///     exit_identity,
+    ///     "2.2.2.2:41264".to_string(),
+    ///     inner_bytes.to_vec(),
+    /// ).await?;
+    /// ```
+    pub async fn send_forward_packet(
+        &mut self,
+        target_identity: [u8; 32],
+        target_address: String,
+        inner_packet_bytes: Vec<u8>,
+    ) -> Result<Vec<u8>> {
+        // Ensure we have a TCP connection
+        let stream = self.tcp_stream.as_mut().ok_or_else(|| {
+            LpClientError::Transport("Cannot send forward packet: not connected".to_string())
+        })?;
+
+        // Ensure handshake is complete (state machine exists and is in Transport state)
+        let state_machine = self.state_machine.as_mut().ok_or_else(|| {
+            LpClientError::Transport(
+                "Cannot send forward packet: handshake not completed".to_string(),
+            )
+        })?;
+
+        tracing::debug!(
+            "Sending ForwardPacket to {} ({} inner bytes)",
+            target_address,
+            inner_packet_bytes.len()
+        );
+
+        // 1. Construct ForwardPacketData
+        let forward_data = ForwardPacketData {
+            target_gateway_identity: target_identity,
+            target_lp_address: target_address.clone(),
+            inner_packet_bytes,
+        };
+
+        // 2. Serialize the ForwardPacketData
+        let forward_data_bytes = bincode::serialize(&forward_data).map_err(|e| {
+            LpClientError::Transport(format!("Failed to serialize ForwardPacketData: {}", e))
+        })?;
+
+        tracing::trace!(
+            "Serialized ForwardPacketData ({} bytes)",
+            forward_data_bytes.len()
+        );
+
+        // 3. Encrypt and prepare packet via state machine
+        let action = state_machine
+            .process_input(LpInput::SendData(forward_data_bytes))
+            .ok_or_else(|| {
+                LpClientError::Transport("State machine returned no action".to_string())
+            })?
+            .map_err(|e| {
+                LpClientError::Transport(format!("Failed to encrypt ForwardPacket: {}", e))
+            })?;
+
+        // 4. Send the encrypted packet
+        match action {
+            LpAction::SendPacket(packet) => {
+                Self::send_packet(stream, &packet).await?;
+                tracing::trace!("Sent encrypted ForwardPacket to entry gateway");
+            }
+            other => {
+                return Err(LpClientError::Transport(format!(
+                    "Unexpected action when sending ForwardPacket: {:?}",
+                    other
+                )));
+            }
+        }
+
+        // 5. Receive the response from entry gateway
+        let response_packet = Self::receive_packet(stream).await?;
+        tracing::trace!("Received response packet from entry gateway");
+
+        // 6. Decrypt via state machine
+        let action = state_machine
+            .process_input(LpInput::ReceivePacket(response_packet))
+            .ok_or_else(|| {
+                LpClientError::Transport("State machine returned no action".to_string())
+            })?
+            .map_err(|e| {
+                LpClientError::Transport(format!("Failed to decrypt forward response: {}", e))
+            })?;
+
+        // 7. Extract decrypted response data
+        let response_data = match action {
+            LpAction::DeliverData(data) => data,
+            other => {
+                return Err(LpClientError::Transport(format!(
+                    "Unexpected action when receiving forward response: {:?}",
+                    other
+                )));
+            }
+        };
+
+        tracing::debug!(
+            "Successfully received forward response from {} ({} bytes)",
+            target_address,
+            response_data.len()
+        );
+
+        Ok(response_data.to_vec())
     }
 
     /// Converts this client into an LpTransport for ongoing post-handshake communication.

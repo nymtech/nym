@@ -6,7 +6,7 @@ use super::messages::{LpRegistrationRequest, LpRegistrationResponse};
 use super::registration::process_registration;
 use super::LpHandlerState;
 use crate::error::GatewayError;
-use nym_lp::{keypair::PublicKey, LpMessage, LpPacket, LpSession};
+use nym_lp::{keypair::PublicKey, message::ForwardPacketData, LpMessage, LpPacket, LpSession};
 use nym_metrics::{add_histogram_obs, inc};
 use std::net::SocketAddr;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -186,6 +186,21 @@ impl LpConnectionHandler {
                 "LP registration successful for {} (session {})",
                 self.remote_addr, response.session_id
             );
+
+            // After successful registration, keep connection open for forwarding
+            info!(
+                "Entering forwarding mode for {} (session {})",
+                self.remote_addr,
+                session.id()
+            );
+            if let Err(e) = self.handle_forwarding_loop(&session).await {
+                warn!(
+                    "Forwarding loop error for {} (session {}): {}",
+                    self.remote_addr,
+                    session.id(),
+                    e
+                );
+            }
         } else {
             warn!(
                 "LP registration failed for {}: {:?}",
@@ -361,6 +376,229 @@ impl LpConnectionHandler {
 
         // Send the packet
         self.send_lp_packet(&packet).await
+    }
+
+    /// Forward an LP packet to another gateway
+    ///
+    /// This method connects to the target gateway, forwards the inner packet bytes,
+    /// and returns the response. Used for hiding client IP from exit gateway.
+    ///
+    /// # Arguments
+    /// * `forward_data` - ForwardPacketData containing target gateway info and inner packet
+    ///
+    /// # Returns
+    /// * `Ok(Vec<u8>)` - Raw response bytes from target gateway
+    /// * `Err(GatewayError)` - If forwarding fails
+    async fn handle_forward_packet(
+        &mut self,
+        forward_data: ForwardPacketData,
+    ) -> Result<Vec<u8>, GatewayError> {
+        use tokio::time::timeout;
+        use std::time::Duration;
+
+        inc!("lp_forward_total");
+        let start = std::time::Instant::now();
+
+        // Parse target gateway address
+        let target_addr: SocketAddr = forward_data.target_lp_address.parse().map_err(|e| {
+            inc!("lp_forward_failed");
+            GatewayError::LpProtocolError(format!("Invalid target address: {}", e))
+        })?;
+
+        // Connect to target gateway with timeout
+        let mut target_stream = match timeout(Duration::from_secs(5), TcpStream::connect(target_addr)).await {
+            Ok(Ok(stream)) => stream,
+            Ok(Err(e)) => {
+                inc!("lp_forward_failed");
+                return Err(GatewayError::LpConnectionError(format!(
+                    "Failed to connect to target gateway: {}",
+                    e
+                )));
+            }
+            Err(_) => {
+                inc!("lp_forward_failed");
+                return Err(GatewayError::LpConnectionError(
+                    "Target gateway connection timeout".to_string(),
+                ));
+            }
+        };
+
+        debug!(
+            "Forwarding packet to {} (target: {})",
+            target_addr, forward_data.target_lp_address
+        );
+
+        // Forward inner packet bytes (4-byte length prefix + packet data)
+        let len = forward_data.inner_packet_bytes.len() as u32;
+        target_stream
+            .write_all(&len.to_be_bytes())
+            .await
+            .map_err(|e| {
+                inc!("lp_forward_failed");
+                GatewayError::LpConnectionError(format!("Failed to send length to target: {}", e))
+            })?;
+
+        target_stream
+            .write_all(&forward_data.inner_packet_bytes)
+            .await
+            .map_err(|e| {
+                inc!("lp_forward_failed");
+                GatewayError::LpConnectionError(format!("Failed to send packet to target: {}", e))
+            })?;
+
+        target_stream.flush().await.map_err(|e| {
+            inc!("lp_forward_failed");
+            GatewayError::LpConnectionError(format!("Failed to flush target stream: {}", e))
+        })?;
+
+        // Read response from target gateway (4-byte length prefix + packet data)
+        let mut len_buf = [0u8; 4];
+        target_stream.read_exact(&mut len_buf).await.map_err(|e| {
+            inc!("lp_forward_failed");
+            GatewayError::LpConnectionError(format!("Failed to read response length from target: {}", e))
+        })?;
+
+        let response_len = u32::from_be_bytes(len_buf) as usize;
+
+        // Sanity check
+        const MAX_PACKET_SIZE: usize = 65536;
+        if response_len > MAX_PACKET_SIZE {
+            inc!("lp_forward_failed");
+            return Err(GatewayError::LpProtocolError(format!(
+                "Response size {} exceeds maximum {}",
+                response_len, MAX_PACKET_SIZE
+            )));
+        }
+
+        let mut response_buf = vec![0u8; response_len];
+        target_stream
+            .read_exact(&mut response_buf)
+            .await
+            .map_err(|e| {
+                inc!("lp_forward_failed");
+                GatewayError::LpConnectionError(format!("Failed to read response from target: {}", e))
+            })?;
+
+        // Record metrics
+        let duration = start.elapsed().as_secs_f64();
+        add_histogram_obs!(
+            "lp_forward_duration_seconds",
+            duration,
+            LP_DURATION_BUCKETS
+        );
+
+        debug!(
+            "Forwarding successful to {} ({} bytes response, {:.3}s)",
+            target_addr,
+            response_len,
+            duration
+        );
+
+        Ok(response_buf)
+    }
+
+    /// Handle incoming forwarding requests in a loop
+    ///
+    /// After successful registration, the connection stays open to handle
+    /// ForwardPacket messages. This allows the entry gateway to relay packets
+    /// to exit gateways, hiding the client's IP address.
+    ///
+    /// # Arguments
+    /// * `session` - The established LP session with the client
+    ///
+    /// # Returns
+    /// * `Ok(())` - When connection closes gracefully
+    /// * `Err(GatewayError)` - On protocol errors
+    async fn handle_forwarding_loop(&mut self, session: &LpSession) -> Result<(), GatewayError> {
+        debug!(
+            "Entering forwarding loop for {} (session {})",
+            self.remote_addr,
+            session.id()
+        );
+
+        loop {
+            // Receive packet from client
+            let packet = match self.receive_lp_packet().await {
+                Ok(p) => p,
+                Err(e) => {
+                    // Connection closed or error - exit loop gracefully
+                    debug!(
+                        "Forwarding loop ended for {} (session {}): {}",
+                        self.remote_addr,
+                        session.id(),
+                        e
+                    );
+                    return Ok(());
+                }
+            };
+
+            // Verify session ID
+            if packet.header().session_id != session.id() {
+                warn!(
+                    "Session ID mismatch in forwarding loop: expected {}, got {}",
+                    session.id(),
+                    packet.header().session_id
+                );
+                return Err(GatewayError::LpProtocolError(format!(
+                    "Session ID mismatch: expected {}, got {}",
+                    session.id(),
+                    packet.header().session_id
+                )));
+            }
+
+            // Decrypt packet
+            let decrypted_bytes = session.decrypt_data(packet.message()).map_err(|e| {
+                GatewayError::LpProtocolError(format!("Failed to decrypt forwarding packet: {}", e))
+            })?;
+
+            // Deserialize to ForwardPacketData
+            let forward_request: ForwardPacketData =
+                bincode::deserialize(&decrypted_bytes).map_err(|e| {
+                    GatewayError::LpProtocolError(format!(
+                        "Failed to deserialize forward request: {}",
+                        e
+                    ))
+                })?;
+
+            debug!(
+                "Forwarding request from {} to {}",
+                self.remote_addr, forward_request.target_lp_address
+            );
+
+            // Forward the packet
+            let response_bytes = match self.handle_forward_packet(forward_request).await {
+                Ok(bytes) => bytes,
+                Err(e) => {
+                    warn!(
+                        "Forwarding failed for {}: {}. Continuing loop.",
+                        self.remote_addr, e
+                    );
+                    // Send error response back to client
+                    // For now, continue the loop - client will retry if needed
+                    continue;
+                }
+            };
+
+            // Encrypt response
+            let encrypted_msg = session.encrypt_data(&response_bytes).map_err(|e| {
+                GatewayError::LpProtocolError(format!("Failed to encrypt response: {}", e))
+            })?;
+
+            let response_packet = session.next_packet(encrypted_msg).map_err(|e| {
+                GatewayError::LpProtocolError(format!("Failed to create response packet: {}", e))
+            })?;
+
+            // Send response back to client
+            if let Err(e) = self.send_lp_packet(&response_packet).await {
+                warn!(
+                    "Failed to send forwarding response to {}: {}",
+                    self.remote_addr, e
+                );
+                return Err(e);
+            }
+
+            trace!("Forwarding response sent to {}", self.remote_addr);
+        }
     }
 
     /// Receive an LP packet from the stream with proper length-prefixed framing

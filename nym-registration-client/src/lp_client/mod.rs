@@ -33,9 +33,10 @@
 mod client;
 mod config;
 mod error;
+mod nested_session;
 mod transport;
 
 pub use client::LpRegistrationClient;
 pub use config::LpConfig;
 pub use error::LpClientError;
-pub use transport::LpTransport;
+pub use nested_session::NestedLpSession;

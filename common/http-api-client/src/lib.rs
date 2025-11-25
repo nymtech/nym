@@ -896,7 +896,8 @@ impl Client {
     }
 
     fn matches_current_host(&self, url: &Url) -> bool {
-        if cfg!(feature = "tunneling") {
+        #[cfg(feature = "tunneling")]
+        {
             if let Some(ref front) = self.front
                 && front.is_enabled()
             {
@@ -904,7 +905,9 @@ impl Client {
             } else {
                 url.host_str() == self.current_url().host_str()
             }
-        } else {
+        }
+        #[cfg(not(feature = "tunneling"))]
+        {
             url.host_str() == self.current_url().host_str()
         }
     }

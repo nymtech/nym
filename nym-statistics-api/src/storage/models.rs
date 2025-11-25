@@ -2,7 +2,7 @@ use std::net::IpAddr;
 
 use axum_extra::headers::UserAgent;
 use celes::Country;
-use nym_statistics_common::report::vpn_client::VpnClientStatsReport;
+use nym_statistics_common::report::vpn_client::{VpnClientStatsReport, VpnClientStatsReportV2};
 use time::{Date, OffsetDateTime};
 
 pub type StatsId = String;
@@ -37,38 +37,25 @@ impl DailyActiveDeviceDto {
             from_mixnet,
         }
     }
-}
-
-#[derive(Debug, Clone, sqlx::FromRow)]
-pub(crate) struct ConnectionInfoDto {
-    pub(crate) received_at: OffsetDateTime,
-    pub(crate) received_from: String,
-    pub(crate) connection_time_ms: Option<i32>,
-    pub(crate) two_hop: bool,
-    pub(crate) country_code: Option<String>,
-    pub(crate) from_mixnet: bool,
-}
-
-impl ConnectionInfoDto {
-    pub(crate) fn maybe_new(
+    pub(crate) fn new_v2(
         received_at: OffsetDateTime,
-        stats_report: &VpnClientStatsReport,
-        received_from: IpAddr,
-        maybe_country: Option<Country>,
+        stats_report: &VpnClientStatsReportV2,
+        user_agent: UserAgent,
         from_mixnet: bool,
-    ) -> Option<Self> {
-        stats_report.basic_usage.as_ref().map(|usage_report| Self {
-            received_at,
-            received_from: received_from.to_string(),
-            connection_time_ms: usage_report.connection_time_ms,
-            two_hop: usage_report.two_hop,
-            country_code: maybe_country.map(|c| c.alpha2.into()),
+    ) -> Self {
+        Self {
+            day: received_at.date(),
+            stats_id: stats_report.stats_id.clone(),
+            os_type: stats_report.static_information.os_type.clone(),
+            os_version: stats_report.static_information.os_version.clone(),
+            os_arch: stats_report.static_information.os_arch.clone(),
+            app_version: stats_report.static_information.app_version.clone(),
+            user_agent: user_agent.to_string(),
             from_mixnet,
-        })
+        }
     }
 }
 
-// New structure. The two above will be removed when it is confirmed to work
 #[derive(Debug, Clone, sqlx::FromRow)]
 pub(crate) struct StatsReportV1Dto {
     pub(crate) received_at: OffsetDateTime,
@@ -114,5 +101,68 @@ impl StatsReportV1Dto {
         }
 
         report
+    }
+}
+
+#[derive(Debug, Clone, sqlx::FromRow)]
+pub(crate) struct StatsReportV2Dto {
+    // Report metadata
+    pub(crate) received_at: OffsetDateTime,
+    pub(crate) received_from: String,
+    pub(crate) from_mixnet: bool,
+    pub(crate) country_code: Option<String>,
+    pub(crate) report_version: String,
+
+    // Device info
+    pub(crate) stats_id: StatsId,
+    pub(crate) os_type: String,
+    pub(crate) os_version: Option<String>,
+    pub(crate) os_arch: String,
+    pub(crate) app_version: String,
+    pub(crate) user_agent: String,
+
+    // session info
+    pub(crate) start_day_utc: Date,
+    pub(crate) connection_time_ms: i32,
+    pub(crate) tunnel_type: String,
+    pub(crate) retry_attempt: i32,
+    pub(crate) session_duration_min: i32,
+    pub(crate) disconnection_time_ms: i32,
+    pub(crate) exit_id: String,
+    pub(crate) follow_up_id: Option<String>,
+    pub(crate) error: Option<String>,
+}
+
+impl StatsReportV2Dto {
+    pub(crate) fn new(
+        received_at: OffsetDateTime,
+        stats_report: &VpnClientStatsReportV2,
+        user_agent: UserAgent,
+        from_mixnet: bool,
+        received_from: IpAddr,
+        maybe_country: Option<Country>,
+    ) -> Self {
+        Self {
+            received_at,
+            received_from: received_from.to_string(),
+            from_mixnet,
+            country_code: maybe_country.map(|c| c.alpha2.into()),
+            report_version: stats_report.api_version.clone(),
+            stats_id: stats_report.stats_id.clone(),
+            os_type: stats_report.static_information.os_type.clone(),
+            os_version: stats_report.static_information.os_version.clone(),
+            os_arch: stats_report.static_information.os_arch.clone(),
+            app_version: stats_report.static_information.app_version.clone(),
+            user_agent: user_agent.to_string(),
+            start_day_utc: stats_report.session_report.start_day_utc,
+            connection_time_ms: stats_report.session_report.connection_time_ms,
+            tunnel_type: stats_report.session_report.tunnel_type.clone(),
+            retry_attempt: stats_report.session_report.retry_attempt,
+            session_duration_min: stats_report.session_report.session_duration_min,
+            disconnection_time_ms: stats_report.session_report.disconnection_time_ms,
+            exit_id: stats_report.session_report.exit_id.clone(),
+            follow_up_id: stats_report.session_report.follow_up_id.clone(),
+            error: stats_report.session_report.error.clone(),
+        }
     }
 }

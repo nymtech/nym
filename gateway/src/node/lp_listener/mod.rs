@@ -190,11 +190,12 @@ pub struct LpHandlerState {
     /// LP configuration (for timestamp validation, etc.)
     pub lp_config: LpConfig,
 
-    /// In-progress handshakes keyed by client Ed25519 public key (from ClientHello)
+    /// In-progress handshakes keyed by session_id
     ///
-    /// Used during handshake phase before session_id is established (session_id=0).
-    /// After handshake completes, state moves to session_states map.
-    pub handshake_states: Arc<DashMap<[u8; 32], LpStateMachine>>,
+    /// Session ID is deterministically computed from both parties' X25519 keys immediately
+    /// after ClientHello. Used during handshake phase. After handshake completes,
+    /// state moves to session_states map.
+    pub handshake_states: Arc<DashMap<u32, LpStateMachine>>,
 
     /// Established sessions keyed by session_id
     ///

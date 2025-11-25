@@ -1,11 +1,11 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use super::messages::{LpRegistrationRequest, LpRegistrationResponse};
+use super::messages::LpRegistrationRequest;
 use super::registration::process_registration;
 use super::LpHandlerState;
 use crate::error::GatewayError;
-use nym_lp::{keypair::PublicKey, message::ForwardPacketData, LpMessage, LpPacket, LpSession};
+use nym_lp::{keypair::PublicKey, message::ForwardPacketData, LpMessage, LpPacket};
 use nym_metrics::{add_histogram_obs, inc};
 use std::net::SocketAddr;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -141,7 +141,7 @@ impl LpConnectionHandler {
 
     /// Handle ClientHello packet (session_id=0, first packet)
     async fn handle_client_hello(&mut self, packet: LpPacket) -> Result<(), GatewayError> {
-        use nym_lp::state_machine::{LpInput, LpStateMachine, LpAction};
+        use nym_lp::state_machine::{LpInput, LpStateMachine};
 
         // Extract ClientHello data
         let (_client_pubkey, client_ed25519_pubkey, salt) = match packet.message() {
@@ -299,6 +299,10 @@ impl LpConnectionHandler {
     }
 
     /// Handle transport packet (session_id!=0, session established)
+    ///
+    /// This handles packets on established sessions, which can be either:
+    /// 1. LpRegistrationRequest - Client registering for dVPN/Mixnet access
+    /// 2. ForwardPacketData - Client forwarding packets to exit gateway (telescoping)
     async fn handle_transport_packet(
         &mut self,
         session_id: u32,
@@ -309,9 +313,8 @@ impl LpConnectionHandler {
             self.remote_addr, session_id
         );
 
-        // Get session from storage, decrypt, and create response packet
-        // Split into two phases to avoid borrow checker issues
-        let (response_packet, response_was_success, response_session_id, response_error) = {
+        // Get session and decrypt payload
+        let decrypted_bytes = {
             let session_entry = self.state.session_states.get(&session_id).ok_or_else(|| {
                 GatewayError::LpProtocolError(format!("Session not found: {}", session_id))
             })?;
@@ -319,30 +322,52 @@ impl LpConnectionHandler {
             let session = session_entry.value();
 
             // Decrypt packet
-            let decrypted_bytes = session.decrypt_data(packet.message()).map_err(|e| {
+            session.decrypt_data(packet.message()).map_err(|e| {
                 GatewayError::LpProtocolError(format!("Failed to decrypt packet: {}", e))
-            })?;
+            })?
+        };
 
-            // Try to deserialize as registration request
-            let request: LpRegistrationRequest = bincode::deserialize(&decrypted_bytes).map_err(|e| {
-                GatewayError::LpProtocolError(format!(
-                    "Failed to deserialize transport payload: {}",
-                    e
-                ))
-            })?;
-
+        // Try to deserialize as LpRegistrationRequest first (most common case after handshake)
+        if let Ok(request) = bincode::deserialize::<LpRegistrationRequest>(&decrypted_bytes) {
             debug!(
                 "LP registration request from {} (session_id={}): mode={:?}",
                 self.remote_addr, session_id, request.mode
             );
+            return self.handle_registration_request(session_id, request).await;
+        }
 
-            // Release session lock before processing registration (which might acquire other locks)
-            drop(session_entry);
+        // Try to deserialize as ForwardPacketData (entry gateway forwarding to exit)
+        if let Ok(forward_data) = bincode::deserialize::<ForwardPacketData>(&decrypted_bytes) {
+            debug!(
+                "LP forward request from {} (session_id={}) to {}",
+                self.remote_addr, session_id, forward_data.target_lp_address
+            );
+            return self.handle_forwarding_request(session_id, forward_data).await;
+        }
 
-            // Process registration (this might modify state)
-            let response = process_registration(request, &self.state).await;
+        // Neither registration nor forwarding - unknown payload type
+        warn!(
+            "Unknown transport payload type from {} (session_id={})",
+            self.remote_addr, session_id
+        );
+        inc!("lp_errors_unknown_payload_type");
+        self.emit_lifecycle_metrics(false);
+        Err(GatewayError::LpProtocolError(format!(
+            "Unknown transport payload type (not registration or forwarding)"
+        )))
+    }
 
-            // Acquire session lock again for encryption
+    /// Handle registration request on an established session
+    async fn handle_registration_request(
+        &mut self,
+        session_id: u32,
+        request: LpRegistrationRequest,
+    ) -> Result<(), GatewayError> {
+        // Process registration (might modify state)
+        let response = process_registration(request, &self.state).await;
+
+        // Acquire session lock for encryption
+        let response_packet = {
             let session_entry = self.state.session_states.get(&session_id).ok_or_else(|| {
                 GatewayError::LpProtocolError(format!("Session not found: {}", session_id))
             })?;
@@ -357,29 +382,66 @@ impl LpConnectionHandler {
                 GatewayError::LpProtocolError(format!("Failed to encrypt response: {}", e))
             })?;
 
-            let response_packet = session.next_packet(encrypted_message).map_err(|e| {
+            session.next_packet(encrypted_message).map_err(|e| {
                 GatewayError::LpProtocolError(format!("Failed to create response packet: {}", e))
-            })?;
-
-            drop(session_entry); // Release borrow before send
-
-            (response_packet, response.success, response.session_id, response.error.clone())
+            })?
         };
 
-        // Now send the response (no more borrows held)
+        // Send response
         self.send_lp_packet(&response_packet).await?;
 
-        if response_was_success {
+        if response.success {
             info!(
                 "LP registration successful for {} (session_id={})",
-                self.remote_addr, response_session_id
+                self.remote_addr, response.session_id
             );
         } else {
             warn!(
                 "LP registration failed for {} (session_id={}): {:?}",
-                self.remote_addr, response_session_id, response_error
+                self.remote_addr, response.session_id, response.error
             );
         }
+
+        self.emit_lifecycle_metrics(true);
+        Ok(())
+    }
+
+    /// Handle forwarding request on an established session
+    ///
+    /// Entry gateway receives ForwardPacketData from client, forwards inner packet
+    /// to exit gateway, receives response, encrypts it, and sends back to client.
+    /// Connection closes after response is sent (single-packet model).
+    async fn handle_forwarding_request(
+        &mut self,
+        session_id: u32,
+        forward_data: ForwardPacketData,
+    ) -> Result<(), GatewayError> {
+        // Forward the packet to the target gateway
+        let response_bytes = self.handle_forward_packet(forward_data).await?;
+
+        // Encrypt response for client
+        let response_packet = {
+            let session_entry = self.state.session_states.get(&session_id).ok_or_else(|| {
+                GatewayError::LpProtocolError(format!("Session not found: {}", session_id))
+            })?;
+            let session = session_entry.value();
+
+            let encrypted_message = session.encrypt_data(&response_bytes).map_err(|e| {
+                GatewayError::LpProtocolError(format!("Failed to encrypt forward response: {}", e))
+            })?;
+
+            session.next_packet(encrypted_message).map_err(|e| {
+                GatewayError::LpProtocolError(format!("Failed to create response packet: {}", e))
+            })?
+        };
+
+        // Send encrypted response to client
+        self.send_lp_packet(&response_packet).await?;
+
+        debug!(
+            "LP forwarding completed for {} (session_id={})",
+            self.remote_addr, session_id
+        );
 
         self.emit_lifecycle_metrics(true);
         Ok(())
@@ -433,6 +495,11 @@ impl LpConnectionHandler {
     }
 
     /// Receive client's public key and salt via ClientHello message
+    ///
+    /// Note: This method is currently unused but retained for potential future use
+    /// in alternative handshake flows. The current implementation uses `handle_client_hello()`
+    /// which processes ClientHello as part of the single-packet model.
+    #[allow(dead_code)]
     async fn receive_client_hello(
         &mut self,
     ) -> Result<
@@ -493,66 +560,14 @@ impl LpConnectionHandler {
         }
     }
 
-    /// Receive registration request after handshake
-    async fn receive_registration_request(
-        &mut self,
-        session: &LpSession,
-    ) -> Result<LpRegistrationRequest, GatewayError> {
-        // Read LP packet containing the registration request
-        let packet = self.receive_lp_packet().await?;
-
-        // Verify it's from the correct session
-        if packet.header().session_id != session.id() {
-            return Err(GatewayError::LpProtocolError(format!(
-                "Session ID mismatch: expected {}, got {}",
-                session.id(),
-                packet.header().session_id
-            )));
-        }
-
-        // Decrypt the packet payload using the established session
-        let decrypted_bytes = session.decrypt_data(packet.message()).map_err(|e| {
-            GatewayError::LpProtocolError(format!("Failed to decrypt registration request: {}", e))
-        })?;
-
-        // Deserialize the decrypted bytes into LpRegistrationRequest
-        bincode::deserialize(&decrypted_bytes).map_err(|e| {
-            GatewayError::LpProtocolError(format!(
-                "Failed to deserialize registration request: {}",
-                e
-            ))
-        })
-    }
-
-    /// Send registration response after processing
-    async fn send_registration_response(
-        &mut self,
-        session: &LpSession,
-        response: LpRegistrationResponse,
-    ) -> Result<(), GatewayError> {
-        // Serialize response
-        let data = bincode::serialize(&response).map_err(|e| {
-            GatewayError::LpProtocolError(format!("Failed to serialize response: {}", e))
-        })?;
-
-        // Encrypt data first (this increments Noise internal counter)
-        let encrypted_message = session
-            .encrypt_data(&data)
-            .map_err(|e| GatewayError::LpProtocolError(format!("Failed to encrypt data: {}", e)))?;
-
-        // Create LP packet with encrypted message (this increments LP protocol counter)
-        let packet = session.next_packet(encrypted_message).map_err(|e| {
-            GatewayError::LpProtocolError(format!("Failed to create packet: {}", e))
-        })?;
-
-        // Send the packet
-        self.send_lp_packet(&packet).await
-    }
-
-    /// Forward an LP packet to another gateway
+    /// Forward an LP packet to another gateway (single-packet model)
     ///
     /// This method connects to the target gateway, forwards the inner packet bytes,
-    /// and returns the response. Used for hiding client IP from exit gateway.
+    /// receives the response, and returns it. Used for telescoping (hiding client IP).
+    ///
+    /// Called from `handle_forwarding_request()` as part of the single-packet-per-connection
+    /// architecture. Each forward request arrives on a new connection, gets processed,
+    /// response sent, and connection closes.
     ///
     /// # Arguments
     /// * `forward_data` - ForwardPacketData containing target gateway info and inner packet
@@ -658,6 +673,7 @@ impl LpConnectionHandler {
             LP_DURATION_BUCKETS
         );
 
+        inc!("lp_forward_success");
         debug!(
             "Forwarding successful to {} ({} bytes response, {:.3}s)",
             target_addr,
@@ -666,110 +682,6 @@ impl LpConnectionHandler {
         );
 
         Ok(response_buf)
-    }
-
-    /// Handle incoming forwarding requests in a loop
-    ///
-    /// After successful registration, the connection stays open to handle
-    /// ForwardPacket messages. This allows the entry gateway to relay packets
-    /// to exit gateways, hiding the client's IP address.
-    ///
-    /// # Arguments
-    /// * `session` - The established LP session with the client
-    ///
-    /// # Returns
-    /// * `Ok(())` - When connection closes gracefully
-    /// * `Err(GatewayError)` - On protocol errors
-    async fn handle_forwarding_loop(&mut self, session: &LpSession) -> Result<(), GatewayError> {
-        debug!(
-            "Entering forwarding loop for {} (session {})",
-            self.remote_addr,
-            session.id()
-        );
-
-        loop {
-            // Receive packet from client
-            let packet = match self.receive_lp_packet().await {
-                Ok(p) => p,
-                Err(e) => {
-                    // Connection closed or error - exit loop gracefully
-                    debug!(
-                        "Forwarding loop ended for {} (session {}): {}",
-                        self.remote_addr,
-                        session.id(),
-                        e
-                    );
-                    return Ok(());
-                }
-            };
-
-            // Verify session ID
-            if packet.header().session_id != session.id() {
-                warn!(
-                    "Session ID mismatch in forwarding loop: expected {}, got {}",
-                    session.id(),
-                    packet.header().session_id
-                );
-                return Err(GatewayError::LpProtocolError(format!(
-                    "Session ID mismatch: expected {}, got {}",
-                    session.id(),
-                    packet.header().session_id
-                )));
-            }
-
-            // Decrypt packet
-            let decrypted_bytes = session.decrypt_data(packet.message()).map_err(|e| {
-                GatewayError::LpProtocolError(format!("Failed to decrypt forwarding packet: {}", e))
-            })?;
-
-            // Deserialize to ForwardPacketData
-            let forward_request: ForwardPacketData =
-                bincode::deserialize(&decrypted_bytes).map_err(|e| {
-                    GatewayError::LpProtocolError(format!(
-                        "Failed to deserialize forward request: {}",
-                        e
-                    ))
-                })?;
-
-            debug!(
-                "Forwarding request from {} to {}",
-                self.remote_addr, forward_request.target_lp_address
-            );
-
-            // Forward the packet
-            let response_bytes = match self.handle_forward_packet(forward_request).await {
-                Ok(bytes) => bytes,
-                Err(e) => {
-                    warn!(
-                        "Forwarding failed for {}: {}. Continuing loop.",
-                        self.remote_addr, e
-                    );
-                    // Send error response back to client
-                    // For now, continue the loop - client will retry if needed
-                    continue;
-                }
-            };
-
-            // Encrypt response
-            let encrypted_msg = session.encrypt_data(&response_bytes).map_err(|e| {
-                GatewayError::LpProtocolError(format!("Failed to encrypt response: {}", e))
-            })?;
-
-            let response_packet = session.next_packet(encrypted_msg).map_err(|e| {
-                GatewayError::LpProtocolError(format!("Failed to create response packet: {}", e))
-            })?;
-
-            // Send response back to client
-            if let Err(e) = self.send_lp_packet(&response_packet).await {
-                warn!(
-                    "Failed to send forwarding response to {}: {}",
-                    self.remote_addr, e
-                );
-                return Err(e);
-            }
-
-            trace!("Forwarding response sent to {}", self.remote_addr);
-        }
     }
 
     /// Receive an LP packet from the stream with proper length-prefixed framing

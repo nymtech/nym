@@ -7200,7 +7200,7 @@ dependencies = [
 
 [[package]]
 name = "nym-statistics-api"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "axum",
@@ -7214,7 +7214,6 @@ dependencies = [
  "nym-statistics-common",
  "nym-task",
  "nym-validator-client",
- "serde",
  "serde_json",
  "sqlx",
  "time",

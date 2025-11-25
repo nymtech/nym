@@ -112,7 +112,7 @@ impl LpConnectionHandler {
         );
 
         // Step 2: Route packet based on session_id
-        if session_id == 0 {
+        if session_id == nym_lp::BOOTSTRAP_SESSION_ID {
             // ClientHello - first packet in handshake
             self.handle_client_hello(packet).await
         } else {
@@ -198,39 +198,29 @@ impl LpConnectionHandler {
             self.remote_addr, session_id
         );
 
-        // Start handshake and get initial response
-        let response_packet = if let Some(action) = state_machine.process_input(LpInput::StartHandshake) {
-            match action.map_err(|e| {
+        // Transition state machine to KKTExchange (responder waits for client's KKT request)
+        // For responder, StartHandshake returns None (just transitions state)
+        // For initiator, StartHandshake returns SendPacket (KKT request)
+        if let Some(action) = state_machine.process_input(LpInput::StartHandshake) {
+            if let Err(e) = action {
                 inc!("lp_client_hello_failed");
-                GatewayError::LpHandshakeError(format!("Failed to start handshake: {}", e))
-            })? {
-                LpAction::SendPacket(packet) => packet,
-                other => {
-                    inc!("lp_client_hello_failed");
-                    return Err(GatewayError::LpHandshakeError(format!(
-                        "Unexpected action after StartHandshake: {:?}",
-                        other
-                    )));
-                }
+                return Err(GatewayError::LpHandshakeError(format!(
+                    "StartHandshake failed: {}",
+                    e
+                )));
             }
-        } else {
-            inc!("lp_client_hello_failed");
-            return Err(GatewayError::LpHandshakeError(
-                "No action after StartHandshake".to_string(),
-            ));
-        };
+            // Responder (gateway) gets Ok but no packet to send - we just wait for client's next packet
+        }
 
-        // Store state machine for subsequent handshake packets
+        // Store state machine for subsequent handshake packets (KKT request with session_id=X)
         self.state.handshake_states.insert(session_id, state_machine);
 
-        // Send response
-        self.send_lp_packet(&response_packet).await?;
-
         debug!(
-            "Sent ClientHello response to {} (session_id={})",
+            "Stored handshake state for {} (session_id={}) - waiting for KKT request",
             self.remote_addr, session_id
         );
 
+        // NO packet sent - connection closes, client will send KKT request on new connection
         self.emit_lifecycle_metrics(true);
         Ok(())
     }

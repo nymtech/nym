@@ -122,6 +122,14 @@ impl LpPacket {
     }
 }
 
+/// Session ID used for ClientHello bootstrap packets before session is established.
+///
+/// When a client first connects, it sends a ClientHello packet with session_id=0
+/// because neither side can compute the deterministic session ID yet (requires
+/// both parties' X25519 keys). After ClientHello is processed, both sides derive
+/// the same session ID from their keys, and all subsequent packets use that ID.
+pub const BOOTSTRAP_SESSION_ID: u32 = 0;
+
 // VERSION [1B] || RESERVED [3B] || SENDER_INDEX [4B] || COUNTER [8B]
 #[derive(Debug, Clone)]
 pub struct LpHeader {

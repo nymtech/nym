@@ -19,7 +19,7 @@ use std::hash::{DefaultHasher, Hasher as _};
 pub use error::LpError;
 use keypair::PublicKey;
 pub use message::{ClientHelloData, LpMessage};
-pub use packet::LpPacket;
+pub use packet::{LpPacket, BOOTSTRAP_SESSION_ID};
 pub use replay::{ReceivingKeyCounterValidator, ReplayError};
 pub use session::{LpSession, generate_fresh_salt};
 pub use session_manager::SessionManager;

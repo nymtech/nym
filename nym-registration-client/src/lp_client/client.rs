@@ -256,8 +256,8 @@ impl LpRegistrationClient {
 
         // Step 3: Send ClientHello as first packet (before Noise handshake)
         let client_hello_header = nym_lp::packet::LpHeader::new(
-            0, // session_id not yet established
-            0, // counter starts at 0
+            nym_lp::BOOTSTRAP_SESSION_ID, // session_id not yet established
+            0,                              // counter starts at 0
         );
         let client_hello_packet = nym_lp::LpPacket::new(
             client_hello_header,

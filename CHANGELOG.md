@@ -4,6 +4,28 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [2025.21-mozzarella] (2025-11-25)
+
+- [bugfix] Tunnel not waiting on MixnetClient to shut down cleanly ([#6225])
+- bugfix: fix credential proxy upgrade mode attestation url arg ([#6202])
+- HTTP API resilience enable & domain rotation conditions ([#6200])
+- Remove debug feature from http-macro spec in gateway probe ([#6195])
+- DNS relibility and troubleshooting  ([#6179])
+- [bugfix] Distinguish authenticator errors by credential spent ([#6176])
+- Typescript SDK 1.4.1 ([#6146])
+- Enable URL rotation and retries for mixnet gateway init ([#6126])
+- Feature/credential proxy jwt ([#5957])
+
+[#6225]: https://github.com/nymtech/nym/pull/6225
+[#6202]: https://github.com/nymtech/nym/pull/6202
+[#6200]: https://github.com/nymtech/nym/pull/6200
+[#6195]: https://github.com/nymtech/nym/pull/6195
+[#6179]: https://github.com/nymtech/nym/pull/6179
+[#6176]: https://github.com/nymtech/nym/pull/6176
+[#6146]: https://github.com/nymtech/nym/pull/6146
+[#6126]: https://github.com/nymtech/nym/pull/6126
+[#5957]: https://github.com/nymtech/nym/pull/5957
+
 ## [2025.20-leerdammer] (2025-11-12)
 
 - Max/tweak ts sdk actions ([#6185])

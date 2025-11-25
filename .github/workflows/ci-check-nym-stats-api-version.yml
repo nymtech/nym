@@ -10,7 +10,7 @@ env:
 
 jobs:
   check-if-tag-exists:
-    runs-on: arc-linux-latest
+    runs-on: arc-linux-latest-dind
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4

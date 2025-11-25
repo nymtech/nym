@@ -519,7 +519,7 @@ impl HickoryDnsResolver {
     /// Do a trial resolution using each nameserver individually to test which are working and which
     /// fail to complete a lookup.
     pub async fn trial_nameservers(&self) -> Result<(), ResolveError> {
-        let name_servers = self.get_nameservers();
+        let name_servers = self.get_nameservers()?;
 
         for (ns, result) in trial_nameservers_inner(&name_servers).await {
             if let Err(e) = result {
@@ -531,12 +531,24 @@ impl HickoryDnsResolver {
         Ok(())
     }
 
-    fn get_nameservers(&self) -> Vec<NameServerConfig> {
-        if self.dont_use_shared {
-            self.state.get().unwrap().config().name_servers().to_vec()
-        } else {
-            SHARED_RESOLVER.read().unwrap().get_nameservers()
-        }
+    fn get_nameservers(&self) -> Result<Vec<NameServerConfig>, ResolveError> {
+        if !self.dont_use_shared {
+            return SHARED_RESOLVER.read().unwrap().get_nameservers();
+        };
+        let name_servers = self
+            .state
+            .get_or_try_init(|| {
+                HickoryDnsResolver::new_resolver(
+                    self.dont_use_shared,
+                    self.ns_ip_ver_policy,
+                    self.current_options.clone(),
+                )
+            })?
+            .config()
+            .name_servers()
+            .to_vec();
+
+        Ok(name_servers)
     }
 
     /// Do a trial resolution using each nameserver individually to test which are working and which
@@ -546,7 +558,7 @@ impl HickoryDnsResolver {
     /// If no nameservers successfully complete the lookup return an error and leave the current
     /// configured resolver set as is.
     pub async fn trial_nameservers_and_reconfigure(&mut self) -> Result<(), ResolveError> {
-        let name_servers = self.get_nameservers();
+        let name_servers = self.get_nameservers()?;
 
         let mut working_nameservers = Vec::new();
         for (ns, result) in trial_nameservers_inner(&name_servers).await {

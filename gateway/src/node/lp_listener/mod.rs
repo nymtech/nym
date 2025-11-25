@@ -59,8 +59,11 @@
 
 use crate::error::GatewayError;
 use crate::node::ActiveClientsStore;
+use dashmap::DashMap;
 use nym_crypto::asymmetric::ed25519;
 use nym_gateway_storage::GatewayStorage;
+use nym_lp::state_machine::LpStateMachine;
+use nym_lp::LpSession;
 use nym_node_metrics::NymNodeMetrics;
 use nym_task::ShutdownTracker;
 use nym_wireguard::{PeerControlRequest, WireguardGatewayData};
@@ -186,6 +189,19 @@ pub struct LpHandlerState {
 
     /// LP configuration (for timestamp validation, etc.)
     pub lp_config: LpConfig,
+
+    /// In-progress handshakes keyed by client Ed25519 public key (from ClientHello)
+    ///
+    /// Used during handshake phase before session_id is established (session_id=0).
+    /// After handshake completes, state moves to session_states map.
+    pub handshake_states: Arc<DashMap<[u8; 32], LpStateMachine>>,
+
+    /// Established sessions keyed by session_id
+    ///
+    /// Used after handshake completes (session_id is deterministically computed from
+    /// both parties' X25519 keys). Enables stateless transport - each packet lookup
+    /// by session_id, decrypt/process, respond.
+    pub session_states: Arc<DashMap<u32, LpSession>>,
 }
 
 /// LP listener that accepts TCP connections on port 41264

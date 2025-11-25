@@ -743,6 +743,8 @@ mod tests {
             active_clients_store: ActiveClientsStore::new(),
             wg_peer_controller: None,
             wireguard_data: None,
+            handshake_states: Arc::new(dashmap::DashMap::new()),
+            session_states: Arc::new(dashmap::DashMap::new()),
         }
     }
 

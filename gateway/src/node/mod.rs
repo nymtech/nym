@@ -337,6 +337,8 @@ impl GatewayTasksBuilder {
             wg_peer_controller,
             wireguard_data: self.wireguard_data.as_ref().map(|wd| wd.inner.clone()),
             lp_config: self.config.lp.clone(),
+            handshake_states: Arc::new(dashmap::DashMap::new()),
+            session_states: Arc::new(dashmap::DashMap::new()),
         };
 
         // Parse bind address from config

@@ -213,7 +213,7 @@ impl LpConnectionHandler {
         }
 
         // Store state machine for subsequent handshake packets (KKT request with session_id=X)
-        self.state.handshake_states.insert(session_id, state_machine);
+        self.state.handshake_states.insert(session_id, super::TimestampedState::new(state_machine));
 
         debug!(
             "Stored handshake state for {} (session_id={}) - waiting for KKT request",
@@ -243,7 +243,7 @@ impl LpConnectionHandler {
             GatewayError::LpProtocolError(format!("Handshake state not found for session {}", session_id))
         })?;
 
-        let state_machine = state_entry.value_mut();
+        let state_machine = &mut state_entry.value_mut().state;
 
         // Process packet through state machine
         let action = state_machine
@@ -267,13 +267,13 @@ impl LpConnectionHandler {
                 // Extract session and move to session_states
                 drop(state_entry); // Release mutable borrow
 
-                let (_session_id, state_machine) = self.state.handshake_states.remove(&session_id)
+                let (_session_id, timestamped_state) = self.state.handshake_states.remove(&session_id)
                     .ok_or_else(|| GatewayError::LpHandshakeError("Failed to remove handshake state".to_string()))?;
 
-                let session = state_machine.into_session()
+                let session = timestamped_state.state.into_session()
                     .map_err(|e| GatewayError::LpHandshakeError(format!("Failed to extract session: {}", e)))?;
 
-                self.state.session_states.insert(session_id, session);
+                self.state.session_states.insert(session_id, super::TimestampedState::new(session));
 
                 inc!("lp_handshakes_success");
 
@@ -319,7 +319,10 @@ impl LpConnectionHandler {
                 GatewayError::LpProtocolError(format!("Session not found: {}", session_id))
             })?;
 
-            let session = session_entry.value();
+            // Update last activity timestamp
+            session_entry.value().touch();
+
+            let session = &session_entry.value().state;
 
             // Decrypt packet
             session.decrypt_data(packet.message()).map_err(|e| {
@@ -371,7 +374,7 @@ impl LpConnectionHandler {
             let session_entry = self.state.session_states.get(&session_id).ok_or_else(|| {
                 GatewayError::LpProtocolError(format!("Session not found: {}", session_id))
             })?;
-            let session = session_entry.value();
+            let session = &session_entry.value().state;
 
             // Serialize and encrypt response
             let response_bytes = bincode::serialize(&response).map_err(|e| {
@@ -424,7 +427,7 @@ impl LpConnectionHandler {
             let session_entry = self.state.session_states.get(&session_id).ok_or_else(|| {
                 GatewayError::LpProtocolError(format!("Session not found: {}", session_id))
             })?;
-            let session = session_entry.value();
+            let session = &session_entry.value().state;
 
             let encrypted_message = session.encrypt_data(&response_bytes).map_err(|e| {
                 GatewayError::LpProtocolError(format!("Failed to encrypt forward response: {}", e))

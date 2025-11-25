@@ -53,6 +53,10 @@
 // - lp_connections_completed_gracefully: Counter for connections that completed successfully
 // - lp_connections_completed_with_error: Counter for connections that terminated with an error
 //
+// ## State Cleanup Metrics (in cleanup task)
+// - lp_states_cleanup_handshake_removed: Counter for stale handshakes removed by cleanup task
+// - lp_states_cleanup_session_removed: Counter for stale sessions removed by cleanup task
+//
 // ## Usage Example
 // To view metrics, the nym-metrics registry automatically collects all metrics.
 // They can be exported via Prometheus format using the metrics endpoint.
@@ -122,6 +126,36 @@ pub struct LpConfig {
     /// WARNING: Only use this for local testing! Never enable in production.
     #[serde(default = "default_use_mock_ecash")]
     pub use_mock_ecash: bool,
+
+    /// Maximum age of in-progress handshakes before cleanup (default: 90s)
+    ///
+    /// Handshakes should complete quickly (3-5 packets). This TTL accounts for:
+    /// - Network latency and retransmits
+    /// - Slow clients
+    /// - Clock skew tolerance
+    ///
+    /// Stale handshakes are removed by the cleanup task to prevent memory leaks.
+    #[serde(default = "default_handshake_ttl_secs")]
+    pub handshake_ttl_secs: u64,
+
+    /// Maximum age of established sessions before cleanup (default: 24h)
+    ///
+    /// Sessions can be long-lived for dVPN tunnels. This TTL should be set
+    /// high enough to accommodate expected usage patterns:
+    /// - dVPN sessions: hours to days
+    /// - Registration: minutes
+    ///
+    /// Sessions with no activity for this duration are removed by the cleanup task.
+    #[serde(default = "default_session_ttl_secs")]
+    pub session_ttl_secs: u64,
+
+    /// How often to run the state cleanup task (default: 5 minutes)
+    ///
+    /// The cleanup task scans for and removes stale handshakes and sessions.
+    /// Lower values = more frequent cleanup but higher overhead.
+    /// Higher values = less overhead but slower memory reclamation.
+    #[serde(default = "default_state_cleanup_interval_secs")]
+    pub state_cleanup_interval_secs: u64,
 }
 
 impl Default for LpConfig {
@@ -134,6 +168,9 @@ impl Default for LpConfig {
             max_connections: default_max_connections(),
             timestamp_tolerance_secs: default_timestamp_tolerance_secs(),
             use_mock_ecash: default_use_mock_ecash(),
+            handshake_ttl_secs: default_handshake_ttl_secs(),
+            session_ttl_secs: default_session_ttl_secs(),
+            state_cleanup_interval_secs: default_state_cleanup_interval_secs(),
         }
     }
 }
@@ -160,6 +197,77 @@ fn default_timestamp_tolerance_secs() -> u64 {
 
 fn default_use_mock_ecash() -> bool {
     false // Always default to real ecash for security
+}
+
+fn default_handshake_ttl_secs() -> u64 {
+    90 // 90 seconds - handshakes should complete quickly
+}
+
+fn default_session_ttl_secs() -> u64 {
+    86400 // 24 hours - for long-lived dVPN sessions
+}
+
+fn default_state_cleanup_interval_secs() -> u64 {
+    300 // 5 minutes - balances memory reclamation with task overhead
+}
+
+/// Wrapper for state entries with timestamp tracking for cleanup
+///
+/// This wrapper adds `created_at` and `last_activity` timestamps to state entries,
+/// enabling TTL-based cleanup of stale handshakes and sessions.
+pub struct TimestampedState<T> {
+    /// The actual state (LpStateMachine or LpSession)
+    pub state: T,
+
+    /// When this state was created (never changes)
+    created_at: std::time::Instant,
+
+    /// Last activity timestamp (unix seconds, atomically updated)
+    ///
+    /// For handshakes: never updated (use created_at for TTL)
+    /// For sessions: updated on every packet received
+    last_activity: std::sync::atomic::AtomicU64,
+}
+
+impl<T> TimestampedState<T> {
+    /// Create a new timestamped state
+    pub fn new(state: T) -> Self {
+        let now_instant = std::time::Instant::now();
+        let now_unix = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+
+        Self {
+            state,
+            created_at: now_instant,
+            last_activity: std::sync::atomic::AtomicU64::new(now_unix),
+        }
+    }
+
+    /// Update last_activity timestamp (cheap, lock-free operation)
+    pub fn touch(&self) {
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+        self.last_activity.store(now, std::sync::atomic::Ordering::Relaxed);
+    }
+
+    /// Get age since creation
+    pub fn age(&self) -> std::time::Duration {
+        self.created_at.elapsed()
+    }
+
+    /// Get time since last activity (in seconds)
+    pub fn seconds_since_activity(&self) -> u64 {
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+        let last = self.last_activity.load(std::sync::atomic::Ordering::Relaxed);
+        now.saturating_sub(last)
+    }
 }
 
 /// Shared state for LP connection handlers
@@ -195,14 +303,18 @@ pub struct LpHandlerState {
     /// Session ID is deterministically computed from both parties' X25519 keys immediately
     /// after ClientHello. Used during handshake phase. After handshake completes,
     /// state moves to session_states map.
-    pub handshake_states: Arc<DashMap<u32, LpStateMachine>>,
+    ///
+    /// Wrapped in TimestampedState for TTL-based cleanup of stale handshakes.
+    pub handshake_states: Arc<DashMap<u32, TimestampedState<LpStateMachine>>>,
 
     /// Established sessions keyed by session_id
     ///
     /// Used after handshake completes (session_id is deterministically computed from
     /// both parties' X25519 keys). Enables stateless transport - each packet lookup
     /// by session_id, decrypt/process, respond.
-    pub session_states: Arc<DashMap<u32, LpSession>>,
+    ///
+    /// Wrapped in TimestampedState for TTL-based cleanup of inactive sessions.
+    pub session_states: Arc<DashMap<u32, TimestampedState<LpSession>>>,
 }
 
 /// LP listener that accepts TCP connections on port 41264
@@ -258,6 +370,9 @@ impl LpListener {
         );
 
         let shutdown_token = self.shutdown.clone_shutdown_token();
+
+        // Spawn background task for state cleanup
+        let _cleanup_handle = self.spawn_state_cleanup_task();
 
         loop {
             tokio::select! {
@@ -327,6 +442,117 @@ impl LpListener {
             },
             &format!("LP::{}", remote_addr),
         );
+    }
+
+    /// Spawn background task for cleaning up stale state entries
+    ///
+    /// This task runs periodically (every `state_cleanup_interval_secs`) to remove:
+    /// - Handshake states older than `handshake_ttl_secs`
+    /// - Session states with no activity for `session_ttl_secs`
+    ///
+    /// The task automatically stops when the shutdown signal is received.
+    fn spawn_state_cleanup_task(&self) -> tokio::task::JoinHandle<()> {
+        let handshake_states = Arc::clone(&self.handler_state.handshake_states);
+        let session_states = Arc::clone(&self.handler_state.session_states);
+        let handshake_ttl = self.handler_state.lp_config.handshake_ttl_secs;
+        let session_ttl = self.handler_state.lp_config.session_ttl_secs;
+        let interval_secs = self.handler_state.lp_config.state_cleanup_interval_secs;
+        let shutdown = self.shutdown.clone_shutdown_token();
+        let metrics = self.handler_state.metrics.clone();
+
+        info!(
+            "Starting LP state cleanup task (handshake_ttl={}s, session_ttl={}s, interval={}s)",
+            handshake_ttl, session_ttl, interval_secs
+        );
+
+        self.shutdown.try_spawn_named(
+            Self::cleanup_loop(
+                handshake_states,
+                session_states,
+                handshake_ttl,
+                session_ttl,
+                interval_secs,
+                shutdown,
+                metrics,
+            ),
+            "LP::StateCleanup",
+        )
+    }
+
+    /// Background loop for cleaning up stale state entries
+    ///
+    /// Runs periodically to scan handshake_states and session_states maps,
+    /// removing entries that have exceeded their TTL.
+    async fn cleanup_loop(
+        handshake_states: Arc<DashMap<u32, TimestampedState<LpStateMachine>>>,
+        session_states: Arc<DashMap<u32, TimestampedState<LpSession>>>,
+        handshake_ttl_secs: u64,
+        session_ttl_secs: u64,
+        interval_secs: u64,
+        shutdown: nym_task::ShutdownToken,
+        _metrics: NymNodeMetrics,
+    ) {
+        use nym_metrics::inc_by;
+
+        let mut cleanup_interval =
+            tokio::time::interval(std::time::Duration::from_secs(interval_secs));
+
+        loop {
+            tokio::select! {
+                biased;
+
+                _ = shutdown.cancelled() => {
+                    debug!("LP state cleanup task: received shutdown signal");
+                    break;
+                }
+
+                _ = cleanup_interval.tick() => {
+                    let start = std::time::Instant::now();
+                    let mut hs_removed = 0u64;
+                    let mut ss_removed = 0u64;
+
+                    // Remove stale handshakes (based on age since creation)
+                    handshake_states.retain(|_, timestamped| {
+                        if timestamped.age().as_secs() > handshake_ttl_secs {
+                            hs_removed += 1;
+                            false
+                        } else {
+                            true
+                        }
+                    });
+
+                    // Remove stale sessions (based on time since last activity)
+                    session_states.retain(|_, timestamped| {
+                        if timestamped.seconds_since_activity() > session_ttl_secs {
+                            ss_removed += 1;
+                            false
+                        } else {
+                            true
+                        }
+                    });
+
+                    if hs_removed > 0 || ss_removed > 0 {
+                        let duration = start.elapsed();
+                        info!(
+                            "LP state cleanup: removed {} handshakes, {} sessions (took {:.3}s)",
+                            hs_removed,
+                            ss_removed,
+                            duration.as_secs_f64()
+                        );
+
+                        // Track metrics
+                        if hs_removed > 0 {
+                            inc_by!("lp_states_cleanup_handshake_removed", hs_removed as i64);
+                        }
+                        if ss_removed > 0 {
+                            inc_by!("lp_states_cleanup_session_removed", ss_removed as i64);
+                        }
+                    }
+                }
+            }
+        }
+
+        info!("LP state cleanup task shutdown complete");
     }
 
     fn active_lp_connections(&self) -> usize {

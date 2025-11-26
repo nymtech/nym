@@ -49,6 +49,54 @@ This page displays a full list of all the changes during our release cycle from 
 
 <VarInfo />
 
+## `v2025.21-mozzarella`
+
+- [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.21-mozzarella)
+- [`nym-node`](nodes/nym-node.mdx) version `1.22.0`
+
+```sh
+some version output blabla
+```
+
+### Operators Updates & Tools
+
+- new cli
+- new tunnel manager
+- updated DP  
+
+
+### Features
+
+- [HTTP API resilience enable & domain rotation conditions](https://github.com/nymtech/nym/pull/6200): Changes to make sure fallback domains are updated / enabled only for relevant
+
+- [Typescript SDK 1.4.1](https://github.com/nymtech/nym/pull/6146): This PR is a new release of the Typescript SDK, `mixFetch` and `WASM` client. It also removes the Harbour Master client from `mixFetch`, replacing it with the Nym API's described endpoint for nym-nodes.  
+
+- [Enable URL rotation and retries for mixnet gateway init](https://github.com/nymtech/nym/pull/6126): 
+  - Multiple URL fallback with configurable retries (defaults to 3)
+  - Infallible URL conversion per feedback (`Url::from()` instead of `parse().ok()`)
+  - Non-breaking builder pattern for `BuilderConfig` per feedback
+  - Reverted redundant node filtering per clarification that API already filters by `supported_roles.entry`
+
+- [Credential proxy jwt](https://github.com/nymtech/nym/pull/5957): This PR is part of the 'Upgrade Mode' that should allow usage of the network in a situation where ecash credentials are unissuable, because, for example, we have lost signing quorum (i.e. we have fewer than the required number of threshold signers responding to requests). This version is more naive. Instead requesting actual 'emergency credentials' that would have been issued by a subset of ecash signers, the credentials proxy creates a JWT, signed with its key, attesting the upgrade mode has been enabled.
+ 
+### Bugfix
+
+- [Tunnel not waiting on `MixnetClient` to shut down cleanly](https://github.com/nymtech/nym/pull/6225): When there is a wireguard registration error, the mixnet client is signalled to shut down, but the tunnel doesn't wait. Now on errors, the registration client doesn't return until everything is properly stopped
+
+- [Fix credential proxy upgrade mode attestation url arg](https://github.com/nymtech/nym/pull/6202): This includes bringing over changes introduced in [\#6174](https://github.com/nymtech/nym/pull/6174)
+
+- [Remove debug feature from `http-macro` spec in gateway probe](https://github.com/nymtech/nym/pull/6195)
+
+- [DNS relibility and troubleshooting ](https://github.com/nymtech/nym/pull/6179)
+
+- [Distinguish authenticator errors by credential spent](https://github.com/nymtech/nym/pull/6176): This PR introduces a distinction between authenticator client errors that are happening before a credential was taken out of storage, and after  ]
+
+- [Disconnect mixnet client if registration fails](https://github.com/nymtech/nym/pull/6158): Currently the registration client does its job and then handles everything to the `vpn-client`, who then takes care on the mixnet client. However, if the registration fails, nothing is disconnecting the mixnet client, which can lead to errors of the kind of `There is already an open connection to this client`. This PR addresses that
+ 
+
+### Refactors & Maintenance
+
+
 ## `v2025.20-leerdammer`
 
 - [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.20-leerdammer)

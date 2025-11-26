@@ -72,15 +72,18 @@ cargo Profile:      release
 <Callout type="info" emoji="ℹ️">
 **We are introducing new `network-tunnel-manager.sh` (NTM), with improved server configuration (see all changes here: [\#6186](https://github.com/nymtech/nym/pull/6186/)). We ask operators to re-run their routing configuration using the new NTM, following [these steps](/operators/nodes/nym-node/configuration#routing-configuration).**
 
-**PLEASE NOTE THAT THIS IS A NEW TOOL HANDLING VARIOUS COMPLEX SERVER SETTINGS, PLEASE RUN IT ON A FEW NODES AT A TIME, DO THE TESTING, MONITOR YOUR NODES AND REPORT ANY ISSUES**
+**NOTE THAT THIS IS A NEW TOOL HANDLING VARIOUS COMPLEX SERVER SETTINGS, PLEASE RUN IT ON A FEW NODES AT A TIME, DO THE TESTING, MONITOR YOUR NODES AND REPORT ANY ISSUES**
 
 We will keep `nym-node v1.21.1` as the latest version on API side for another 3 days to not penalize operators taking time for a proper implementation. 
 </ Callout>
 
-- new cli
-- new tunnel manager
-- updated DP  
+We are proud to announce that there are several improvements on tools aiming to make node operators life easier. Please let us know how do these programs work for you. 
 
+- [**New Nym Node CLI version**](/operators/tools#nym-node-cli): This version introduces arguments, allowing the operator to pass all needed variables (ie. hostname, mode etcetra) and let the program setup everything needed for `nym-node`, server configuration, nginx, routing, tunnels and bridges without further prompts for these values. This version also installs [QUIC bridge](/operators/nodes/nym-node/configuration#quic-transport-bridge-deployment)
+
+- [**New Network Tunnel Manager**](/operators/nodes/nym-node/configuration#routing-configuration): NTM went through an big overhaul ([\#6186](https://github.com/nymtech/nym/pull/6186/)) - this new version combines old NTM with WG scripts. If run with `complete_networking_configuration` the tool does entire routing configuration, creates interfaces, and configures WireGuard exit policy. 
+
+- [**Updated QUIC Deployment Tool**](/operators/nodes/nym-node/configuration#quic-transport-bridge-deployment): The program is lighter, stripped of redundant functions reworking iptables rules. 
 
 ### Features
 
@@ -104,14 +107,11 @@ We will keep `nym-node v1.21.1` as the latest version on API side for another 3 
 
 - [Remove debug feature from `http-macro` spec in gateway probe](https://github.com/nymtech/nym/pull/6195)
 
-- [DNS relibility and troubleshooting ](https://github.com/nymtech/nym/pull/6179)
+- [DNS reliability and troubleshooting ](https://github.com/nymtech/nym/pull/6179)
 
-- [Distinguish authenticator errors by credential spent](https://github.com/nymtech/nym/pull/6176): This PR introduces a distinction between authenticator client errors that are happening before a credential was taken out of storage, and after  ]
+- [Distinguish authenticator errors by credential spent](https://github.com/nymtech/nym/pull/6176): This PR introduces a distinction between authenticator client errors that are happening before a credential was taken out of storage, and after
 
 - [Disconnect mixnet client if registration fails](https://github.com/nymtech/nym/pull/6158): Currently the registration client does its job and then handles everything to the `vpn-client`, who then takes care on the mixnet client. However, if the registration fails, nothing is disconnecting the mixnet client, which can lead to errors of the kind of `There is already an open connection to this client`. This PR addresses that
- 
-
-### Refactors & Maintenance
 
 
 ## `v2025.20-leerdammer`

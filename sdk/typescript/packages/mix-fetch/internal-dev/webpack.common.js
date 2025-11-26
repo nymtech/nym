@@ -35,7 +35,8 @@ module.exports = mergeWithRules({
           {
             // copy the WASM files, because webpack doesn't do this automatically even though there are
             // `new URL(..., import.meta.url)` statements in the web worker
-            from: path.resolve(path.dirname(require.resolve('@nymproject/mix-fetch/package.json')), 'dist/esm/*.wasm'),
+//            from: path.resolve(path.dirname(require.resolve('@nymproject/mix-fetch/package.json')), 'dist/esm/*.wasm'),
+            from: path.resolve(path.dirname(require.resolve('@nymproject/mix-fetch/package.json')), '*.wasm'),
             to: '[name][ext]',
           },
         ],

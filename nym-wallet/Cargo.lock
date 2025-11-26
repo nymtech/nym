@@ -4219,6 +4219,7 @@ dependencies = [
  "serde_plain",
  "serde_yaml",
  "thiserror 2.0.12",
+ "tokio",
  "tracing",
  "url",
  "wasmtimer",

@@ -58,7 +58,25 @@ pub fn encode_payload_with_headers(
         Ok(metadata) => {
             let metadata = metadata.as_bytes().to_vec();
             let size = (metadata.len() as u64).to_be_bytes().to_vec();
-            Ok([size, metadata, payload].concat())
+            if size.len() != 8 {
+                return Err(JsValue::from(JsError::new(
+                    format!("Size as big endian u8 is {} instead of 8", size.len()).as_str(),
+                )));
+            }
+            let metadata_length = metadata.len();
+            let payload_length = payload.len();
+            let encoded = [size, metadata, payload].concat();
+            if encoded.len() != (8 + metadata_length + payload_length) {
+                return Err(JsValue::from(JsError::new(
+                    format!(
+                        "Total size {} != {} (8 + {metadata_length} + {payload_length})",
+                        encoded.len(),
+                        8 + metadata_length + payload_length
+                    )
+                    .as_str(),
+                )));
+            }
+            Ok(encoded)
         }
         Err(e) => Err(JsValue::from(JsError::new(
             format!("Could not encode message: {e}").as_str(),
@@ -90,7 +108,7 @@ pub fn decode_payload(message: Vec<u8>) -> Result<IEncodedPayload, JsValue> {
 }
 
 pub(crate) fn parse_payload(message: &[u8]) -> anyhow::Result<(EncodedPayloadMetadata, &[u8])> {
-    // 1st 8 bytes are the size (as u64 big endian)
+    // 1st 8 bytes are the size of the metadata field (as u64 big endian)
     let mut size = [0u8; 8];
     if message.len() < 8 {
         bail!("Message is too short to contain size information")
@@ -98,10 +116,23 @@ pub(crate) fn parse_payload(message: &[u8]) -> anyhow::Result<(EncodedPayloadMet
     size.clone_from_slice(&message[0..8]);
     let metadata_size = u64::from_be_bytes(size) as usize;
 
-    if metadata_size + 8 != message.len() {
+    if metadata_size + 8 > message.len() {
         return Err(anyhow::anyhow!(format!(
-            "Metadata size: {}, exceeds message with length of: {}",
+            "Metadata size: {} bytes + 8 bytes ({} bytes) > {} bytes, message length. Did you pass the entire message for decoding?",
             metadata_size,
+            metadata_size + 8,
+            message.len()
+        ),));
+    }
+
+    let payload_size = message.len() - (8 + metadata_size);
+
+    if payload_size + metadata_size + 8 != message.len() {
+        return Err(anyhow::anyhow!(format!(
+            "Payload size {} + Metadata size {} + 8 ({}) != {} message length",
+            payload_size,
+            metadata_size,
+            payload_size + metadata_size + 8,
             message.len()
         ),));
     }
@@ -275,7 +306,7 @@ mod tests {
         let error = result.unwrap_err();
         assert_eq!(
             error.to_string(),
-            "Metadata size: 20, exceeds message with length of: 18"
+            "Metadata size: 20 bytes + 8 bytes (28 bytes) > 18 bytes, message length. Did you pass the entire message for decoding?"
         );
     }
 
@@ -293,6 +324,14 @@ mod tests {
         let mut message = metadata_length.to_be_bytes().to_vec();
         message.extend_from_slice(serialized_metadata.as_bytes());
         message.extend_from_slice(&payload_data);
+
+        wasm_utils::console_log!("message length: {}", message.len());
+        wasm_utils::console_log!("metadata length: {}", metadata_length);
+        wasm_utils::console_log!("payload length: {}", payload_data.len());
+        wasm_utils::console_log!(
+            "8 + metadata_length + payload_length = {}",
+            payload_data.len() + metadata_length as usize + 8
+        );
 
         let (parsed_metadata, parsed_payload) = parse_payload(&message).unwrap();
 

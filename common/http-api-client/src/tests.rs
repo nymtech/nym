@@ -91,14 +91,15 @@ fn sanitizing_urls() {
 #[tokio::test]
 async fn api_client_retry() -> Result<(), Box<dyn std::error::Error>> {
     let client = ClientBuilder::new_with_urls(vec![
-        "http://broken.nym.test".parse()?,         // This will fail
-        "https://httpbin.org/status/200".parse()?, // This will succeed
+        "http://broken.nym.test".parse()?, // This will fail because of DNS (rotate)
+        "http://127.0.0.1:9".parse()?,     // This will fail because of TCP refused (rotate)
+        "https://httpbin.org/status/200".parse()?, // This should succeed
     ])?
     .with_retries(3)
     .build()?;
 
     let req = client.create_get_request(&[], NO_PARAMS).unwrap();
-    let resp = client.send(req).await?;
+    let _resp = client.send(req).await?;
 
     // The main test is that we successfully retried and switched to the working URL
     // We accept any response from the working endpoint since external services can be unreliable
@@ -107,7 +108,9 @@ async fn api_client_retry() -> Result<(), Box<dyn std::error::Error>> {
         "https://httpbin.org/status/200"
     );
 
-    println!("Response status: {}", resp.status());
+    // // This assert can be unreliable due to factors beyond our control and beyond the scope of
+    // // this test
+    // assert_eq!(_resp.status(), StatusCode::OK);
 
     Ok(())
 }
@@ -123,7 +126,7 @@ fn host_updating() {
     assert_eq!(current_url.front_str(), None);
 
     // update the url
-    client.update_host();
+    client.update_host(None);
 
     // check that the url is still the same since there is one URL
     assert_eq!(client.current_url().as_str(), "http://nym-api1.test/");
@@ -138,13 +141,13 @@ fn host_updating() {
     client.change_base_urls(new_urls);
     assert_eq!(client.current_url().as_str(), "http://nym-api1.test/");
 
-    client.update_host();
+    client.update_host(None);
 
     // check that the url got updated now that there are multiple URLs
     assert_eq!(client.current_url().as_str(), "http://nym-api2.test/");
     assert_eq!(client.current_url().front_str(), None);
 
-    client.update_host();
+    client.update_host(None);
     assert_eq!(client.current_url().as_str(), "http://nym-api1.test/");
 
     // =======================================
@@ -162,9 +165,30 @@ fn host_updating() {
 
     assert_eq!(client.current_url().as_str(), "http://nym-api1.test/");
 
-    client.update_host();
+    client.update_host(None);
 
     // check that the url got updated now that there are multiple URLs
+    assert_eq!(client.current_url().as_str(), "http://nym-api2.test/");
+}
+
+#[test]
+fn host_updating_url_conditioned() {
+    let url1 = Url::new("http://nym-api1.test", None).unwrap();
+    let url2 = Url::new("http://nym-api2.test", None).unwrap();
+    let urls = vec![url1.clone(), url2.clone()];
+    let client = ClientBuilder::new_with_urls(urls).unwrap().build().unwrap();
+
+    assert_eq!(client.current_url().as_str(), "http://nym-api1.test/");
+
+    // Try to update with a URL that does NOT match current - should result in no change
+    client.update_host(Some(Url::parse("http://example.com").unwrap()));
+
+    // check that the url did NOT get updated
+    assert_eq!(client.current_url().as_str(), "http://nym-api1.test/");
+    assert_eq!(client.current_url().front_str(), None);
+
+    // Try to update with a URL that DOES match current - should result in no change
+    client.update_host(Some(url1));
     assert_eq!(client.current_url().as_str(), "http://nym-api2.test/");
 }
 
@@ -184,7 +208,7 @@ fn fronted_host_updating() {
     assert_eq!(current_url.front_str(), Some("cdn1.test"));
 
     // update the url
-    client.update_host();
+    client.update_host(None);
 
     // check that the url is still the same since there is one URL and one front
     let current_url = client.current_url();
@@ -209,7 +233,7 @@ fn fronted_host_updating() {
     assert_eq!(current_url.front_str(), Some("cdn1.test"));
 
     // update the url - this should keep the same host but change the front
-    client.update_host();
+    client.update_host(None);
 
     let current_url = client.current_url();
     // check that the url is still the same since there is one URL
@@ -217,7 +241,7 @@ fn fronted_host_updating() {
     assert_eq!(current_url.front_str(), Some("cdn2.test"));
 
     // update the url - this should wrap around to the first front as the second url is not fronted
-    client.update_host();
+    client.update_host(None);
 
     let current_url = client.current_url();
     assert_eq!(current_url.as_str(), "http://nym-api.test/");

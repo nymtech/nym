@@ -79,7 +79,7 @@ class ClientWrapper {
       return undefined;
     }
 
-    return this.client.self_address();
+    return this.client.selfAddress();
   };
 
   /**

@@ -2,7 +2,12 @@ import fs from 'fs';
 
 const packageJson = JSON.parse(fs.readFileSync('package.json').toString());
 
-const devWorkspace = ['sdk/typescript/packages/**', 'sdk/typescript/examples/**', 'sdk/typescript/codegen/**'];
+const devWorkspace = [
+  'dist/**',
+  'sdk/typescript/packages/**',
+  'sdk/typescript/examples/**',
+  'sdk/typescript/codegen/**',
+];
 if (!packageJson.workspaces.includes(devWorkspace)) {
   // add
   packageJson.workspaces.push(...devWorkspace);

@@ -1,0 +1,139 @@
+import { Callout, CalloutTitle, CalloutDescription  } from 'nextra/components';
+import { Steps } from 'nextra/components';
+import { IPR } from 'components/operators/snippets/ipr.js';
+import { ICMP } from 'components/operators/snippets/icmp.js';
+
+# Gateway Probes Details & Contradictions
+
+## Summary
+
+A simplified explanation of node performance measuring is that the [Node Status API](https://node-status.nym.com) runs [gateway probes](/operators/performance-and-testing/gateway-probe) that connect to gateways to:
+
+- Check the configuration of gateways
+  - Checks a list of capabilities (e.g. can route IPv4 traffic in mixnet mode)
+  - Checks a list of configuration (e.g. runs <abbr title={IPR}>IPR</abbr>, has exit policy)
+- Acts like a user:
+  - Registers a mixnet client
+  - Registers a wireguard peer and tops up bandwidth with a zk-nym
+  - Sends <abbr title={ICMP}>ICMP</abbr> ping packets
+  - Downloads files
+
+The results are collected and stored in the [Node Status API](https://node-status.nym.com) and can be also veiwed per node in [Node Status Observatory](https://harbourmaster.nymtech.net).
+
+The [NymVPN API directory](https://nymvpn.com/api/public/v1/directory/gateways) cache uses the output of the gateway probes to calculate and display hints to users about the contention on each gateway and what they might expect if they use the gateway.
+
+## Heisenberg’s Uncertainty Principle for Gateways
+
+> The uncertainty principle, also known as Heisenberg's indeterminacy principle, is a fundamental concept in quantum mechanics. It states that there is a limit to the precision with which certain pairs of physical properties, such as position and momentum, can be simultaneously known. In other words, the more accurately one property is measured, the less accurately the other property can be known.
+> 
+> [https://en.wikipedia.org/wiki/Uncertainty\_principle](https://en.wikipedia.org/wiki/Uncertainty_principle)
+
+The nodes in the Nym network are run by independent operators, so we can only know:
+
+- What we see from the outside
+  - Probes can run tests like users
+  - Users can report performance from a Gateway (also includes the performance of the user’s internet connection and the speed of the host they are using)
+- What we ask operators to report
+  - They can lie
+  - We can’t check them
+
+### Gateway Probe Generates a Stream to Fill Available Bandwidth on Gateway
+
+The probe can check a Gateway periodically and can generate a traffic stream to use the remaining bandwidth:
+
+![](/images/operators/performance/perceived-gw-dwl.png)
+
+Depending on how busy the Gateway is with user streams, the probe will report different values for the available remaining bandwidth.
+
+<Callout >
+This is currently what we do with downloading a 10MB file
+</Callout>
+
+If the timing of the probe and user activity overlaps, then the “available bandwidth” remaining looks like this from the probe’s perspective:
+
+![](/images/operators/performance/bandwith-probe-user-overlaps.png)
+
+### Fully Utilised Gateways Will Have Low Availability
+
+If a Gateway is popular, then there will not be a lot of room for the probe’s stream:
+
+![](/images/operators/performance/popular-gw-probe.png)
+
+The Gateway is doing a fine job is serving 92.5% of its available capacity to clients, and it only have 7.5Mbps available for another user.
+
+<Callout>
+Is that enough for a user? Only they can know!
+</Callout>
+
+### Can Another Netflix 4k Stream Fit?
+
+Streaming Netflix at 4k takes anywhere from 11-15Mbps, so lets see what that looks like in a few cases:
+
+###### “Yay, Netflix will fit most of the time”
+
+![](/images/operators/performance/netflix-fits-bandwidth.png)
+
+###### “Netflix is not going to fit”
+
+![](/images/operators/performance/netflix-not-fit.png)
+
+### Does Measuring Affect Users of the Gateway?
+
+If we add heavy traffic streams to Gateways, what happens to other users?
+
+Imagine there are 6 \* Netflix 4k users on a 100Mbps Gateway, let's look at different traffic stream scenarios:
+
+###### Take the space of 2 streams
+
+Two users will stall while we use their space:
+
+![](/images/operators/performance/two-streams-space.png)
+
+###### Scale the user space down by the test stream
+
+Adjust the Gateway settings to force users into less bandwidth and make the test take priority:
+
+*Sad users for 5 minutes*
+
+![](/images/operators/performance/sad-users.png)
+
+*Angry users for 5 minutes*
+
+![](/images/operators/performance/angry-users.png)
+
+*Furious users for 5 minutes*
+
+![](/images/operators/performance/furious-users.png)
+
+## Gateways, IaaS and Network Quotas
+
+IaaS providers like Linode, AWS, etc and data centre providers have a mix of methods where they can cap or rate limit VMs or physical connections:
+
+- **Fixed quota:** you can only use the outbound networking available, e.g. AWS limits to 100Mbps
+
+![](/images/operators/performance/capped-bandwidth.png)
+
+- **Fixed quota with burst:** you get a fixed outbound network rate, but can burst above it
+  - You pay penalties when you burst - many data centres and fixed lines do this
+  - You have a leaky bucket - you can only burst with your saved quota
+
+![](/images/operators/performance/burst-charges.png)
+
+- **Leaky bucket quota:** you start with a small quota that builds up to a maximum, but once you use your “saved quota” you drop down to the rate at which your quota comes in. Or sometimes no matter how much you pour into the bucket, only a fixed amount drains out the other side (see [https://en.wikipedia.org/wiki/Leaky\_bucket](https://en.wikipedia.org/wiki/Leaky_bucket))
+
+![](/images/operators/performance/leaky-bucket.png)
+
+This means that if there is a flexible quota, a gateway with high usage, can burn through its quota early in the monthly billing cycle leaving it rate limited for the majority of the month:
+
+![](/images/operators/performance/vps-quota.png)
+
+The cheaper the VPS, the more it is likely to be rate limited or have a leaky bucket quota that will appear to users as “unreliable”.
+
+The best hosts will be ones with a fixed bandwidth that is capped by the hosting provider with network equipment, because:
+
+- Users will scale with the available bandwidth
+- No weird side effects of quotas
+- Most predictable behaviour
+- Will not be the cheapest, but will also not be the most expensive
+
+Bursting sounds attractive, but could be financially crippling for operators.

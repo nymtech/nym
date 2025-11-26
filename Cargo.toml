@@ -150,7 +150,7 @@ members = [
     "tools/internal/contract-state-importer/importer-cli",
     "tools/internal/contract-state-importer/importer-contract",
     "tools/internal/mixnet-connectivity-check",
-    # "tools/internal/sdk-version-bump",
+#    "tools/internal/sdk-version-bump",
     "tools/internal/ssl-inject",
     "tools/internal/testnet-manager",
     "tools/internal/testnet-manager/dkg-bypass-contract",
@@ -453,6 +453,11 @@ opt-level = 'z'
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(tokio_unstable)'] }
 
 [workspace.lints.clippy]
+suspicious = "deny"
+complexity = "deny"
+perf = "deny"
+style = "deny"
+
 unwrap_used = "deny"
 expect_used = "deny"
 todo = "deny"

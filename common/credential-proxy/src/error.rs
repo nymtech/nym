@@ -127,6 +127,13 @@ pub enum CredentialProxyError {
     #[error("failed to create deposit")]
     DepositFailure,
 
+    #[error("failed to load jwt signing key from {path}: {err}")]
+    JWTSigningKeyLoadFailure {
+        path: String,
+        #[source]
+        err: std::io::Error,
+    },
+
     #[error("can't obtain sufficient number of credential shares due to unavailable quorum")]
     UnavailableSigningQuorum,
 
@@ -161,6 +168,14 @@ pub enum CredentialProxyError {
         device_id: String,
         credential_id: String,
     },
+
+    #[error(
+        "the attestation check url has not been provided through either the CLI nor the default .env config"
+    )]
+    AttestationCheckUrlNotSet,
+
+    #[error("the provided attestation check url is malformed: {source}")]
+    MalformedAttestationCheckUrl { source: url::ParseError },
 }
 
 impl From<NymAPIError> for CredentialProxyError {

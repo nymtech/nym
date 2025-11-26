@@ -37,7 +37,7 @@ add_log_redirection() {
 add_log_redirection
 
 # Constants / Paths
-REQUIRED_CMDS=(ip jq curl openssl wg dpkg)
+REQUIRED_CMDS=(ip jq curl openssl dpkg)
 BRIDGE_BIN="/usr/local/bin/nym-bridge"
 BRIDGE_CFG_BIN="/usr/local/bin/bridge-cfg"
 
@@ -67,13 +67,9 @@ press_enter() { read -r -p "$1"; }
 
 # Helper: detect dpkg dependency failure for libc6>=2.34
 deb_depends_libc_too_old() {
-  # Grep dpkg -i output in log or run a dry call to dpkg -i with --unpack to observe code
-  # Simpler heuristic: check installed libc6 version
   local v
   v="$(dpkg-query -W -f='${Version}\n' libc6 2>/dev/null || true)"
-  # If no libc6, say "too old" to trigger source build
   if [[ -z "$v" ]]; then return 0; fi
-  # Compare minimalistically: 2.34 vs current (2.31 typical on Debian 11)
   dpkg --compare-versions "$v" ge "2.34" && return 1 || return 0
 }
 
@@ -113,25 +109,19 @@ build_from_source_latest() {
     cargo build --release -p nym-bridge
     cargo build --release -p bridge-cfg
   )
-
-  # After build, binaries are typically in workspace target dir:
-  #   /tmp/nym-bridges/target/release/nym-bridge
-  #   /tmp/nym-bridges/target/release/bridge-cfg
 }
 
-# Helper: robustly locate and install a built binary from /tmp/nym-bridges
+# Helper: robustly locate and install a built binary
 install_built_binary() {
-  local name="$1"             # e.g., bridge-cfg or nym-bridge
+  local name="$1"
   local preferred="/tmp/nym-bridges/target/release/$name"
 
-  # Prefer the common workspace path first:
   if [[ -x "$preferred" ]]; then
     install -m 0755 "$preferred" "/usr/local/bin/$name"
     ok "Installed $name from $preferred to /usr/local/bin/$name"
     return 0
   fi
 
-  # Try expected crate subpaths:
   local alt1="/tmp/nym-bridges/$name/target/release/$name"
   if [[ -x "$alt1" ]]; then
     install -m 0755 "$alt1" "/usr/local/bin/$name"
@@ -139,7 +129,6 @@ install_built_binary() {
     return 0
   fi
 
-  # Broader search within 8 levels:
   local found
   found="$(find /tmp/nym-bridges -maxdepth 8 -type f -name "$name" -perm -111 2>/dev/null | head -n1 || true)"
   if [[ -n "$found" ]]; then
@@ -169,8 +158,14 @@ verify_bridge_prerequisites() {
   else
     ok "✓ iptables-persistent installed"
   fi
-  echo ""
 
+  # Ensure /etc/nym exists and has correct permissions for Ubuntu 24+
+  mkdir -p "$NYM_ETC_DIR"
+  chgrp nym "$NYM_ETC_DIR" 2>/dev/null || true
+  chmod 750 "$NYM_ETC_DIR"
+  ok "✓ Ensured /etc/nym exists with group 'nym' and mode 750"
+
+  echo ""
   local v4=$(cat /proc/sys/net/ipv4/ip_forward 2>/dev/null || echo 0)
   local v6=$(cat /proc/sys/net/ipv6/conf/all/forwarding 2>/dev/null || echo 0)
   [[ "$v4" == "1" ]] && ok "✓ IPv4 forwarding enabled" || warn "IPv4 forwarding disabled"
@@ -193,6 +188,13 @@ adjust_ip_forwarding() {
 # Install nym-bridge
 install_bridge_binary() {
   title "Installing nym-bridge Binary"
+
+  # Handle Ubuntu 24+ case: system-installed path
+  if [[ -x /usr/bin/nym-bridge && ! -x /usr/local/bin/nym-bridge ]]; then
+    cp /usr/bin/nym-bridge /usr/local/bin/nym-bridge
+    chmod +x /usr/local/bin/nym-bridge
+    ok "Copied nym-bridge from /usr/bin to /usr/local/bin/"
+  fi
 
   info "Fetching latest nym-bridge .deb from GitHub..."
   local deb_url
@@ -234,11 +236,24 @@ install_bridge_binary() {
     build_from_source_latest
     install_built_binary "nym-bridge"
   fi
+
+  # Detect alternate binary location (Ubuntu 24+)
+  if [[ -x /usr/bin/nym-bridge ]]; then
+    BRIDGE_BIN="/usr/bin/nym-bridge"
+    ok "Detected nym-bridge binary in /usr/bin"
+  fi
 }
 
 # Install bridge-cfg
 install_bridge_cfg_tool() {
   title "Installing bridge-cfg Tool"
+
+  # Fix for Ubuntu 24+
+  if [[ -x /usr/bin/bridge-cfg && ! -x /usr/local/bin/bridge-cfg ]]; then
+    cp /usr/bin/bridge-cfg /usr/local/bin/bridge-cfg
+    chmod +x /usr/local/bin/bridge-cfg
+    ok "Copied bridge-cfg from /usr/bin to /usr/local/bin/"
+  fi
 
   info "Attempting to fetch latest bridge-cfg from GitHub..."
   local cfg_url
@@ -263,21 +278,23 @@ install_bridge_cfg_tool() {
     warn "Failed to download bridge-cfg; building locally..."
   fi
 
-  # Build from source and install robustly
   ensure_rustup
   build_from_source_latest
   install_built_binary "bridge-cfg"
+
+  if [[ -x /usr/bin/bridge-cfg ]]; then
+    BRIDGE_CFG_BIN="/usr/bin/bridge-cfg"
+    ok "Detected bridge-cfg binary in /usr/bin"
+  fi
 }
 
 # Generate config via bridge-cfg (with backup)
 run_bridge_cfg_generate() {
   title "Generating Bridge Configuration with bridge-cfg"
 
-  # Detect a likely nym-node configuration path
   local HOME_DIR="${HOME:-/root}"
   local NODE_CFG
   NODE_CFG="$(find "$HOME_DIR/.nym/nym-nodes" -type f -name config.toml 2>/dev/null | head -n1 || true)"
-
   if [[ -z "$NODE_CFG" ]]; then
     NODE_CFG="$HOME_DIR/.nym/nym-nodes/default-nym-node/config/config.toml"
   fi
@@ -291,7 +308,6 @@ run_bridge_cfg_generate() {
     exit 1
   fi
 
-  # Backup before modification
   local NODE_ID
   NODE_ID="$(basename "$(dirname "$(dirname "$NODE_CFG")")")"
   local BACKUP_DIR="$HOME/.nym/backup/$NODE_ID/config"
@@ -302,17 +318,15 @@ run_bridge_cfg_generate() {
   cp "$NODE_CFG" "$BACKUP_FILE"
   ok "Backup created: $BACKUP_FILE"
 
-  # Ensure directories exist before running bridge-cfg to prevent "os error 2"
   mkdir -p "$NYM_ETC_DIR" "$NYM_ETC_KEYS_DIR"
-  mkdir -p "$(dirname "$NYM_ETC_CLIENT_PARAMS_DEFAULT")"
-  chmod 700 "$NYM_ETC_DIR" "$NYM_ETC_KEYS_DIR"
+  chgrp nym "$NYM_ETC_DIR" 2>/dev/null || true
+  chmod 750 "$NYM_ETC_DIR"
+  chmod 700 "$NYM_ETC_KEYS_DIR"
   touch "$NYM_ETC_CLIENT_PARAMS_DEFAULT" || true
 
   info "Running: bridge-cfg --gen -n \"$NODE_CFG\" -d \"$NYM_ETC_DIR\" -o \"$NYM_ETC_BRIDGES\""
   set +e
   "$BRIDGE_CFG_BIN" --gen -n "$NODE_CFG" -d "$NYM_ETC_DIR" -o "$NYM_ETC_BRIDGES"
-
-
   local rc=$?
   set -e
   if [[ $rc -ne 0 ]]; then
@@ -337,7 +351,6 @@ run_bridge_cfg_generate() {
 create_bridge_service() {
   title "Creating nym-bridge systemd Service"
 
-  # Respect a service provided by .deb postinst if present
   if systemctl list-unit-files | grep -q '^nym-bridge\.service'; then
     warn "Detected existing nym-bridge service (likely from .deb). Not overwriting."
     systemctl daemon-reload || true
@@ -394,7 +407,7 @@ configure_dns_and_icmp() {
   ok "ICMP and DNS rules applied."
 }
 
-# Full interactive setup (safe exit + backup notice)
+# Full interactive setup
 full_bridge_setup() {
   title "Nym QUIC Bridge - Full Setup"
 
@@ -538,3 +551,4 @@ case "${1:-}" in
 esac
 
 echo "Operation '${1:-help}' completed."
+

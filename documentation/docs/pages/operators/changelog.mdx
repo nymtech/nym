@@ -49,6 +49,76 @@ This page displays a full list of all the changes during our release cycle from 
 
 <VarInfo />
 
+## `v2025.20-leerdammer`
+
+- [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.20-leerdammer)
+- [`nym-node`](nodes/nym-node.mdx) version `1.21.0`
+
+```sh
+nym-node
+Binary Name:        nym-node
+Build Timestamp:    2025-11-12T08:19:33.288341371Z
+Build Version:      1.21.0
+Commit SHA:         babf113fe5d396fa8a84fa939ad4b1b5b4d38b83
+Commit Date:        2025-11-12T08:39:48.000000000+01:00
+Commit Branch:      HEAD
+rustc Version:      1.88.0
+rustc Channel:      stable
+cargo Profile:      release
+```
+
+### Operators Updates & Tools
+
+- [New **Performance Measurement** page](/operators/performance-and-testing) explaining the logic behind node selection for NymVPN application
+
+- [New **Gateway Probe Details** page](/operators/performance-and-testing/gateway-probe-details) explaining complexity and contradictions when measuring network performance
+
+### Developer Tools
+
+- [Typescript SDK 1.4.1](https://github.com/nymtech/nym/pull/6146): This PR is a new release of the Typescript SDK, `mixFetch` and `WASM` client. It also removes the Harbour Master client from `mixFetch`, replacing it with the Nym API's described endpoint for nym-nodes
+
+- [Overhauled **developer integrations** pages](/developers/integrations) explaining the different restrictions for the different SDK options on offer
+
+- [Fixed `mixFetch` and `WASM Client` playground + examples](/developers/typescript/start): new versions of the Typescript SDK and `mixFetch` have been published, examples and live playground have been updated accordingly
+
+
+### Features
+
+- [Tweak ts sdk actions](https://github.com/nymtech/nym/pull/6185): Using `taskset` to limit the number of of CPUs used by `wasm-pack` and `wasm-opt` commands used by ts linting CI
+
+- [Configurable mixnet client startup timeout](https://github.com/nymtech/nym/pull/6148)
+
+- [QUIC bridge deployment script v2](https://github.com/nymtech/nym/pull/6145): Script helping operators to install, configure and deploy QUIC bridge as systemd service
+
+- [Expose more explicit `new_with_fronted_urls` builder for http API client](https://github.com/nymtech/nym/pull/6136)
+
+- [Domain fronting](https://github.com/nymtech/nym/pull/6134): Enable URL rotation and retries for mixnet gateway [`init`](https://github.com/nymtech/nym/pull/6126) 
+
+
+### Bugfix
+
+- [Add circuit breaker](https://github.com/nymtech/nym/pull/6143): When the mixnet client's `mix_tx` channel closes during network drops, `OutQueueControl` would retry sending packets through the closed channel, flooding logs and hanging the daemon. This affects all clients (VPN, SOCKS5, native clients), not just VPN .. (Read more in the [PR description](https://github.com/nymtech/nym/pull/6143))
+
+- [Update internal owner address in transferred share](https://github.com/nymtech/nym/pull/6139)
+
+- [Update quic_bridge_deployment.sh for IPv4 and .deb package](https://github.com/nymtech/nym/pull/6138): Updated ping commands to explicitly use IPv4 and adjusted file permission checks with sudo. Changed the forward address prompt to specify IPv4 and modified the binary download process to fetch and install the latest `.deb` release URL automatically
+
+- [Update stored epoch share when changing ownership](https://github.com/nymtech/nym/pull/6135)
+
+- [Update stored epoch share when changing announce address](https://github.com/nymtech/nym/pull/6131)
+
+### Refactors & Maintenance
+
+- [Re-merge: disconnect mixnet client if registration fails](https://github.com/nymtech/nym/pull/6169) ([\#6158](https://github.com/nymtech/nym/pull/6158))
+
+- [Resolve `clippy 1.91` warnings](https://github.com/nymtech/nym/pull/6168)
+
+- [Remove unused dependencies](https://github.com/nymtech/nym/pull/6151): Removing the crates that only shows up on the workspace `Cargo.toml`
+
+- [Use typed-builder for registration client builder config](https://github.com/nymtech/nym/pull/6150)
+
+- [tommy is too quick](https://github.com/nymtech/nym/pull/6149)
+
 ## `v2025.19-kase`
 
 - [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.19-kase)
@@ -70,7 +140,7 @@ cargo Profile:      release
 ### Operators Updates & Tools
 
 <Callout type="info" emoji="ℹ️">
-**When this platform release becomes latest, we would like to ask operators ruuning any Gateway mode of `nym-node`, to use new version of [QUIC brige deployment tool](https://github.com/nymtech/nym/blob/develop/scripts/nym-node-setup/quic_bridge_deployment.sh)and install QUIC `nym-bridge` on their server, following [these steps](#quic-transport-bridge-deployment).**
+**When this platform release becomes latest, we would like to ask operators ruuning any Gateway mode of `nym-node`, to use new version of [QUIC brige deployment tool](https://github.com/nymtech/nym/blob/develop/scripts/nym-node-setup/quic_bridge_deployment.sh) and install QUIC `nym-bridge` on their server, following [these steps](#quic-transport-bridge-deployment).**
 </Callout>
 
 Alongside this platform release we are happy to introduce several improvements and new tools for node operators.
@@ -2881,7 +2951,7 @@ cargo Profile:      release
 <Callout type="warning" emoji="⚠️">
 After changes coming along with `v2024.13-magura` (`nym-node v1.1.10`), Nym Explorer is no longer picking all values correctly. Instead of fixing this outdated explorer, we are working on a new one, coming out soon.
 
-[Nym Harbourmaster](https://harbourmaster.nymtech.net) has cache of 90min, expect your values to be updated with delay. We are aware of some issues with Nym Harbourmaster and working hard to resolve them in the upcoming explorer v2. To check your routing values in real time, you can use [`nym-gateway-probe`](nodes/performance-and-testing/gateway-probe).
+[Nym Harbourmaster](https://harbourmaster.nymtech.net) has cache of 90min, expect your values to be updated with delay. We are aware of some issues with Nym Harbourmaster and working hard to resolve them in the upcoming explorer v2. To check your routing values in real time, you can use [`nym-gateway-probe`](performance-and-testing/gateway-probe).
 </Callout>
 
 ### Operators Updates & Tools

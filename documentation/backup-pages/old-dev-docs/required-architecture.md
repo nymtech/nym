@@ -1,5 +1,7 @@
 # Required Application Architecture
 
+**TODO once you;ve reworked you can probably just remove this**
+
 Due to the fact that there are a lot of components that make up the Nym network (the Mixnet, Blockchain, etc) there is often confusion / misunderstandings about what is required to run application traffic through the Mixnet and take advantage of its various privacy properties.
 
 ## What do I need?

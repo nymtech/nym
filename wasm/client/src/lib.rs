@@ -20,7 +20,7 @@ use wasm_utils::set_panic_hook;
 
 #[wasm_bindgen(start)]
 #[cfg(target_arch = "wasm32")]
-pub fn main() {
+pub fn main_js() {
     wasm_utils::console_log!("[rust main]: setting panic hook");
     set_panic_hook();
     wasm_utils::console_log!("[rust main]: rust module loaded");

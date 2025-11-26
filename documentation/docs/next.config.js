@@ -1108,22 +1108,22 @@ const config = {
         form-action 'self';
         frame-ancestors 'none';
         upgrade-insecure-requests;
-        connect-src 'self' https://github.com *.vercel.app *.nymtech.net *.nymvpn.com *.nymte.ch *.nyx.network *.nym.com https://nym.com nymvpn.com https://nymvpn.com *.nymtech.cc;
+        connect-src 'self' wss://nym-node-cli.devrel.nymte.ch:9001 https://github.com *.vercel.app *.nymtech.net *.nymvpn.com *.nymte.ch *.nyx.network *.nym.com https://nym.com nymvpn.com https://nymvpn.com *.nymtech.cc;
         frame-src 'self' https://vercel.live *.vercel.app *.nym.com https://nym.com;
         worker-src 'self' blob: https://vercel.live *.vercel.app *.nym.com https://nym.com;
       `;
     return [
       {
-        source: '/(.*)',
+        source: "/(.*)",
         headers: [
           {
-            key: 'Content-Security-Policy',
+            key: "Content-Security-Policy",
             value: csp.replace(/\s{2,}/g, " ").trim(),
-          }
-        ]
-      }
-    ]
-  }
+          },
+        ],
+      },
+    ];
+  },
 };
 
 module.exports = config;

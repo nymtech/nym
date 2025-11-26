@@ -324,7 +324,7 @@ where
 {
     type Error = S::Error;
 
-    fn get_accounts(&self) -> Result<Vec<AccountData>, Self::Error> {
+    fn get_accounts(&self) -> &[AccountData] {
         self.signer.get_accounts()
     }
 

@@ -165,7 +165,7 @@ where
 
         let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier())));
 
-        let signer_address = &self.signer_addresses()?[0];
+        let signer_address = &self.signer_addresses()[0];
         self.execute(
             signer_address,
             performance_contract_address,

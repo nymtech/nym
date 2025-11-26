@@ -1,6 +1,7 @@
 use nym_mixnet_contract_common::ContractsCommonError;
 use nym_validator_client::error::TendermintRpcError;
 use nym_validator_client::nym_api::error::NymAPIError;
+use nym_validator_client::signing::direct_wallet::DirectSecp256k1HdWalletError;
 use nym_validator_client::{nyxd::error::NyxdError, ValidatorClientError};
 use serde::{Serialize, Serializer};
 use std::io;
@@ -59,6 +60,8 @@ pub enum TypesError {
         #[from]
         source: cosmwasm_std::DecimalRangeExceeded,
     },
+    #[error(transparent)]
+    AccountDerivationFailure(#[from] DirectSecp256k1HdWalletError),
     #[error("No nym API URL configured")]
     NoNymApiUrlConfigured,
     #[error("{0} is not a valid amount string")]
@@ -113,6 +116,7 @@ impl From<ValidatorClientError> for TypesError {
             ValidatorClientError::InconsistentPagedMetadata => {
                 TypesError::InconsistentPagedMetadata
             }
+            ValidatorClientError::AccountDerivationFailure { source } => source.into(),
         }
     }
 }

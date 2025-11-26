@@ -7,6 +7,7 @@ use nym_validator_client::nyxd::cosmwasm_client::types::{
     ContractCodeId, InstantiateResult, MigrateResult, UploadResult,
 };
 use nym_validator_client::nyxd::{AccountId, Hash};
+use nym_validator_client::signing::signer::OfflineSigner;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
@@ -145,12 +146,9 @@ impl Account {
     pub(crate) fn new() -> Account {
         let mnemonic = bip39::Mnemonic::generate(24).unwrap();
         // sure, we're using hardcoded prefix, but realistically this will never change
-        let wallet = DirectSecp256k1HdWallet::from_mnemonic("n", mnemonic.clone());
-        let acc = wallet.try_derive_accounts().unwrap().pop().unwrap();
-        Account {
-            address: acc.address,
-            mnemonic,
-        }
+        let wallet = DirectSecp256k1HdWallet::checked_from_mnemonic("n", mnemonic.clone()).unwrap();
+        let address = wallet.signer_addresses().pop().unwrap();
+        Account { address, mnemonic }
     }
 
     pub(crate) fn address(&self) -> AccountId {

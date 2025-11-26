@@ -36,32 +36,35 @@ pub fn sign(args: Args, prefix: &str, mnemonic: Option<bip39::Mnemonic>) {
         return;
     }
 
-    let wallet =
-        DirectSecp256k1HdWallet::from_mnemonic(prefix, mnemonic.expect("mnemonic not set"));
-    match wallet.try_derive_accounts() {
-        Ok(accounts) => match accounts.first() {
-            Some(account) => {
-                let msg = args.message.into_bytes();
-                match wallet.sign_raw_with_account(account, msg) {
-                    Ok(signature) => {
-                        let output = SignatureOutputJson {
-                            account_id: account.address().to_string(),
-                            public_key: account.public_key(),
-                            signature_as_hex: signature.to_string(),
-                        };
-                        println!("{}", json!(output));
-                    }
-                    Err(e) => {
-                        error!("Failed to sign message. {e}");
-                    }
+    let wallet = match DirectSecp256k1HdWallet::checked_from_mnemonic(
+        prefix,
+        mnemonic.expect("mnemonic not set"),
+    ) {
+        Ok(wallet) => wallet,
+        Err(err) => {
+            error!("Could not derive an account key from the mnemonic: {err}");
+            return;
+        }
+    };
+    match wallet.get_accounts().first() {
+        Some(account) => {
+            let msg = args.message.into_bytes();
+            match wallet.sign_raw_with_account(account, msg) {
+                Ok(signature) => {
+                    let output = SignatureOutputJson {
+                        account_id: account.address().to_string(),
+                        public_key: account.public_key(),
+                        signature_as_hex: signature.to_string(),
+                    };
+                    println!("{}", json!(output));
+                }
+                Err(e) => {
+                    error!("Failed to sign message. {e}");
                 }
             }
-            None => {
-                error!("Could not derive an account key from the mnemonic",)
-            }
-        },
-        Err(e) => {
-            error!("Failed to derive accounts. {e}");
+        }
+        None => {
+            error!("Could not derive an account key from the mnemonic",)
         }
     }
 }

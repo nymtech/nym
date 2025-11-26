@@ -75,6 +75,7 @@ workspace = true
 features = ["json", "rustls-tls"]
 
 [dev-dependencies]
+anyhow = { workspace = true }
 bip39 = { workspace = true }
 cosmrs = { workspace = true, features = ["bip32"] }
 ts-rs = { workspace = true }

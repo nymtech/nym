@@ -598,7 +598,7 @@ impl ZkNymTicketHandlerDebugV10 {
         };
 
         assert!(
-            target_secs > 86400,
+            target_secs >= 86400,
             "the maximum time between redemption can't be lower than 1 day!"
         );
         Duration::from_secs(target_secs as u64)

@@ -178,7 +178,7 @@ where
             .ok_or_else(|| NyxdError::unavailable_contract_address("dkg contract"))?;
 
         let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier())));
-        let signer_address = &self.signer_addresses()?[0];
+        let signer_address = &self.signer_addresses()[0];
 
         self.execute(signer_address, dkg_contract_address, &msg, fee, memo, funds)
             .await

@@ -42,12 +42,15 @@ macro_rules! perform_with_compat {
     }};
 }
 
+// the separate implementation is now completely redundant
+#[deprecated(note = "use HttpClient directly instead")]
 pub struct ReqwestRpcClient {
     compat: CompatMode,
     inner: reqwest::Client,
     url: Url,
 }
 
+#[allow(deprecated)]
 impl ReqwestRpcClient {
     pub fn new(url: Url) -> Self {
         ReqwestRpcClient {
@@ -131,6 +134,7 @@ impl TendermintRpcErrorMap for reqwest::Error {
     }
 }
 
+#[allow(deprecated)]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl TendermintRpcClient for ReqwestRpcClient {

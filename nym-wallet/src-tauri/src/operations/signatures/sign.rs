@@ -24,7 +24,7 @@ pub async fn sign(
 ) -> Result<String, BackendError> {
     let guard = state.read().await;
     let client = guard.current_client()?;
-    let derived_accounts = client.nyxd.get_accounts()?;
+    let derived_accounts = client.nyxd.get_accounts();
     let account = derived_accounts.first().ok_or_else(|| {
         log::error!(">>> Unable to derive account");
         BackendError::SignatureError("unable to derive account".to_string())

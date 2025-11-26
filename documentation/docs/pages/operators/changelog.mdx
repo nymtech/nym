@@ -69,6 +69,14 @@ cargo Profile:      release
 
 ### Operators Updates & Tools
 
+<Callout type="info" emoji="ℹ️">
+**We are introducing new `network-tunnel-manager.sh` (NTM), with improved server configuration (see all changes here: [\#6186](https://github.com/nymtech/nym/pull/6186/)). We ask operators to re-run their routing configuration using the new NTM, following [these steps](/operators/nodes/nym-node/configuration#routing-configuration).**
+
+**PLEASE NOTE THAT THIS IS A NEW TOOL HANDLING VARIOUS COMPLEX SERVER SETTINGS, PLEASE RUN IT ON A FEW NODES AT A TIME, DO THE TESTING, MONITOR YOUR NODES AND REPORT ANY ISSUES**
+
+We will keep `nym-node v1.21.1` as the latest version on API side for another 3 days to not penalize operators taking time for a proper implementation. 
+</ Callout>
+
 - new cli
 - new tunnel manager
 - updated DP  

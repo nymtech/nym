@@ -68,12 +68,15 @@ use std::{
 
 use hickory_resolver::{
     TokioResolver,
-    config::{LookupIpStrategy, NameServerConfigGroup, ResolverConfig, ResolverOpts},
+    config::{
+        LookupIpStrategy, NameServerConfig, NameServerConfigGroup, ResolverConfig, ResolverOpts,
+    },
     lookup_ip::LookupIpIntoIter,
     name_server::TokioConnectionProvider,
 };
 use once_cell::sync::OnceCell;
 use reqwest::dns::{Addrs, Name, Resolve, Resolving};
+use tokio::task::JoinSet;
 use tracing::*;
 
 mod constants;
@@ -83,6 +86,8 @@ pub(crate) use static_resolver::*;
 pub(crate) const DEFAULT_POSITIVE_LOOKUP_CACHE_TTL: Duration = Duration::from_secs(1800);
 pub(crate) const DEFAULT_OVERALL_LOOKUP_TIMEOUT: Duration = Duration::from_secs(6);
 pub(crate) const DEFAULT_QUERY_TIMEOUT: Duration = Duration::from_secs(3);
+
+const RECONFIGURE_ERROR_MSG: &str = "attempted to reconfigure with no working nameservers";
 
 impl ClientBuilder {
     /// Override the DNS resolver implementation used by the underlying http client.
@@ -124,6 +129,8 @@ pub enum ResolveError {
     Timeout,
     #[error("hostname not found in static lookup table")]
     StaticLookupMiss,
+    #[error("configuration error: {0}")]
+    ConfigError(String),
 }
 
 impl ResolveError {
@@ -508,6 +515,105 @@ impl HickoryDnsResolver {
         }
         self.state = Arc::new(OnceCell::new());
     }
+
+    /// Do a trial resolution using each nameserver individually to test which are working and which
+    /// fail to complete a lookup.
+    pub async fn trial_nameservers(&self) -> Result<(), ResolveError> {
+        let name_servers = self.get_nameservers()?;
+
+        for (ns, result) in trial_nameservers_inner(&name_servers).await {
+            if let Err(e) = result {
+                warn!("trial {ns:?} errored: {e}");
+            } else {
+                info!("trial {ns:?} succeeded");
+            }
+        }
+        Ok(())
+    }
+
+    fn get_nameservers(&self) -> Result<Vec<NameServerConfig>, ResolveError> {
+        if !self.dont_use_shared {
+            return SHARED_RESOLVER.read().unwrap().get_nameservers();
+        };
+        let name_servers = self
+            .state
+            .get_or_try_init(|| {
+                HickoryDnsResolver::new_resolver(
+                    self.dont_use_shared,
+                    self.ns_ip_ver_policy,
+                    self.current_options.clone(),
+                )
+            })?
+            .config()
+            .name_servers()
+            .to_vec();
+
+        Ok(name_servers)
+    }
+
+    /// Do a trial resolution using each nameserver individually to test which are working and which
+    /// fail to complete a lookup. If one or more of the resolutions succeeds, rebuild the resolver
+    /// using only the nameservers that successfully completed the lookup.
+    ///
+    /// If no nameservers successfully complete the lookup return an error and leave the current
+    /// configured resolver set as is.
+    pub async fn trial_nameservers_and_reconfigure(&mut self) -> Result<(), ResolveError> {
+        let name_servers = self.get_nameservers()?;
+
+        let mut working_nameservers = Vec::new();
+        for (ns, result) in trial_nameservers_inner(&name_servers).await {
+            if let Err(e) = result {
+                warn!("trial {ns:?} errored: {e}");
+            } else {
+                info!("trial {ns:?} succeeded");
+                working_nameservers.push(ns);
+            }
+        }
+
+        if working_nameservers.is_empty() {
+            return Err(ResolveError::ConfigError(RECONFIGURE_ERROR_MSG.to_string()));
+        }
+
+        let new_resolver =
+            configure_and_build_resolver(working_nameservers, self.current_options.clone())?;
+
+        self.state = Arc::new(OnceCell::with_value(new_resolver.clone()));
+        if !self.dont_use_shared {
+            // take a write lock on the shared resolver only once we are ready to make changes
+            SHARED_RESOLVER.write().unwrap().state = Arc::new(OnceCell::with_value(new_resolver));
+        }
+
+        Ok(())
+    }
+}
+
+/// Do a trial resolution using each nameserver individually to test which are working and which
+/// fail to complete a lookup.
+async fn trial_nameservers_inner(
+    name_servers: &[NameServerConfig],
+) -> Vec<(NameServerConfig, Result<(), ResolveError>)> {
+    let mut trial_lookups = JoinSet::new();
+
+    for name_server in name_servers {
+        let ns = name_server.clone();
+        trial_lookups.spawn(async { (ns.clone(), trial_lookup(ns, "example.com").await) });
+    }
+
+    trial_lookups.join_all().await
+}
+
+/// Create an independent resolver that has only the provided nameserver and do one lookup for the
+/// provided query target.
+async fn trial_lookup(name_server: NameServerConfig, query: &str) -> Result<(), ResolveError> {
+    info!("running ns trial {name_server:?} query={query}");
+
+    let resolver = configure_and_build_resolver(vec![name_server], None)?;
+
+    match tokio::time::timeout(DEFAULT_OVERALL_LOOKUP_TIMEOUT, resolver.ipv4_lookup(query)).await {
+        Ok(Ok(_)) => Ok(()),
+        Ok(Err(e)) => Err(e.into()),
+        Err(_) => Err(ResolveError::Timeout),
+    }
 }
 
 /// Policy options for nameserver IP versions to use when sending DNS queries.
@@ -629,10 +735,13 @@ fn default_nameserver_group() -> NameServerConfigGroup {
     name_servers
 }
 
-fn configure_and_build_resolver(
-    name_servers: NameServerConfigGroup,
+fn configure_and_build_resolver<G>(
+    name_servers: G,
     options: Option<ResolverOpts>,
-) -> Result<TokioResolver, ResolveError> {
+) -> Result<TokioResolver, ResolveError>
+where
+    G: Into<NameServerConfigGroup>,
+{
     let config = ResolverConfig::from_parts(None, Vec::new(), name_servers);
     let mut resolver_builder =
         TokioResolver::builder_with_config(config, TokioConnectionProvider::default());
@@ -946,19 +1055,12 @@ mod failure_test {
 
     #[tokio::test]
     async fn dns_lookup_failures() -> Result<(), ResolveError> {
-        // tracing_subscriber::fmt()
-        //     .with_max_level(tracing::Level::DEBUG)
-        //     .init();
         let time_start = std::time::Instant::now();
-
-        let r = OnceCell::new();
-        r.set(build_broken_resolver().expect("failed to build resolver"))
-            .expect("broken resolver init error");
 
         // create a new resolver that won't mess with the shared resolver used by other tests
         let resolver = HickoryDnsResolver {
             dont_use_shared: true,
-            state: Arc::new(r),
+            state: Arc::new(OnceCell::with_value(build_broken_resolver().unwrap())),
             overall_dns_timeout: Duration::from_secs(5),
             ..Default::default()
         };
@@ -1022,18 +1124,13 @@ mod failure_test {
     /// request timeout would align IF we had to wait for the DNS lookup to reach its timeout.
     #[tokio::test]
     async fn reqwest_using_static_fallback() -> Result<(), ResolveError> {
-        let r = OnceCell::new();
-        r.set(build_broken_resolver().expect("failed to build resolver"))
-            .expect("broken resolver init error");
-
         // create a new resolver that won't mess with the shared resolver used by other tests
         let resolver = HickoryDnsResolver {
             dont_use_shared: true,
-            state: Arc::new(r),
+            state: Arc::new(OnceCell::with_value(build_broken_resolver().unwrap())),
             static_base: Some(Default::default()),
             ..Default::default()
         };
-        build_broken_resolver()?;
 
         let client = reqwest::ClientBuilder::new()
             .dns_resolver(resolver.clone().into())
@@ -1055,5 +1152,121 @@ mod failure_test {
 
         assert!(!resp.is_empty());
         Ok(())
+    }
+
+    #[tokio::test]
+    async fn trial_nameservers() {
+        let good_cf_ip = IpAddr::V4(Ipv4Addr::new(1, 1, 1, 1));
+
+        let mut ns_ips = GUARANTEED_BROKEN_IPS_1.to_vec();
+        ns_ips.push(good_cf_ip);
+
+        let broken_ns_https = NameServerConfigGroup::from_ips_https(
+            &ns_ips,
+            443,
+            "cloudflare-dns.com".to_string(),
+            true,
+        );
+
+        let inner = configure_and_build_resolver(broken_ns_https, None).unwrap();
+
+        // create a new resolver that won't mess with the shared resolver used by other tests
+        let resolver = HickoryDnsResolver {
+            dont_use_shared: true,
+            state: Arc::new(OnceCell::with_value(inner)),
+            static_base: Some(Default::default()),
+            ..Default::default()
+        };
+
+        let name_servers = resolver.state.get().unwrap().config().name_servers();
+        for (ns, result) in trial_nameservers_inner(name_servers).await {
+            if ns.socket_addr.ip() == good_cf_ip {
+                assert!(result.is_ok())
+            } else {
+                assert!(result.is_err())
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn trial_nameservers_reconfigure_none_working() {
+        // create a new resolver that won't mess with the shared resolver used by other tests
+        let mut resolver = HickoryDnsResolver {
+            dont_use_shared: true,
+            state: Arc::new(OnceCell::with_value(build_broken_resolver().unwrap())),
+            static_base: Some(Default::default()),
+            overall_dns_timeout: Duration::from_secs(5),
+            ..Default::default()
+        };
+
+        let res = resolver.trial_nameservers_and_reconfigure().await;
+        assert!(res.is_err_and(
+            |e| matches!(e, ResolveError::ConfigError(msg) if msg == RECONFIGURE_ERROR_MSG)
+        ));
+    }
+
+    #[tokio::test]
+    async fn trial_nameservers_independent_reconfigure() {
+        let good_cf_ip = IpAddr::V4(Ipv4Addr::new(1, 1, 1, 1));
+
+        let mut ns_ips = GUARANTEED_BROKEN_IPS_1.to_vec();
+        ns_ips.push(good_cf_ip);
+
+        let broken_ns_https = NameServerConfigGroup::from_ips_https(
+            &ns_ips,
+            443,
+            "cloudflare-dns.com".to_string(),
+            true,
+        );
+
+        let inner = configure_and_build_resolver(broken_ns_https, None).unwrap();
+
+        // create a new resolver that won't mess with the shared resolver used by other tests
+        let mut resolver = HickoryDnsResolver {
+            dont_use_shared: true,
+            state: Arc::new(OnceCell::with_value(inner)),
+            static_base: Some(Default::default()),
+            ..Default::default()
+        };
+
+        resolver.trial_nameservers_and_reconfigure().await.unwrap();
+
+        let ns_set = resolver.state.get().unwrap().config().name_servers();
+        let addrs: Vec<IpAddr> = ns_set.iter().map(|cfg| cfg.socket_addr.ip()).collect();
+        assert_eq!(addrs.len(), 1);
+        assert!(addrs.contains(&good_cf_ip));
+    }
+
+    /// This test ensures that calling `trial_nameservers_and_reconfigure` on a resolver using the
+    /// shared resolver results in the shared resolver updating its nameserver set to use only the
+    /// working nameservers. From the caller perspective this should have the same result.
+    #[tokio::test]
+    // ignore this test as changes to the shared resolver can cause unexpected behavior when
+    // interleaved with other tests
+    #[ignore]
+    async fn trial_nameservers_shared_reconfigure() {
+        let good_cf_ip = IpAddr::V4(Ipv4Addr::new(1, 1, 1, 1));
+
+        let mut ns_ips = GUARANTEED_BROKEN_IPS_1.to_vec();
+        ns_ips.push(good_cf_ip);
+
+        let broken_ns_https = NameServerConfigGroup::from_ips_https(
+            &ns_ips,
+            443,
+            "cloudflare-dns.com".to_string(),
+            true,
+        );
+
+        let inner = configure_and_build_resolver(broken_ns_https, None).unwrap();
+        SHARED_RESOLVER.write().unwrap().state = Arc::new(OnceCell::with_value(inner));
+
+        let mut resolver = HickoryDnsResolver::default();
+        resolver.trial_nameservers_and_reconfigure().await.unwrap();
+
+        let binding = SHARED_RESOLVER.read().unwrap();
+        let ns_set = binding.state.get().unwrap().config().name_servers();
+        let addrs: Vec<IpAddr> = ns_set.iter().map(|cfg| cfg.socket_addr.ip()).collect();
+        assert_eq!(addrs.len(), 1);
+        assert!(addrs.contains(&good_cf_ip));
     }
 }

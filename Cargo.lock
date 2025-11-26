@@ -1283,7 +1283,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "117725a109d387c937a1533ce01b450cbde6b88abceea8473c4d7a85853cda3c"
 dependencies = [
  "lazy_static",
- "windows-sys 0.59.0",
+ "windows-sys 0.48.0",
 ]
 
 [[package]]
@@ -3965,7 +3965,7 @@ checksum = "e04d7f318608d35d4b61ddd75cbdaee86b023ebe2bd5a66ee0915f0bf93095a9"
 dependencies = [
  "hermit-abi",
  "libc",
- "windows-sys 0.59.0",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -4905,7 +4905,7 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "tokio-util",
- "tower-http 0.5.2",
+ "tower-http",
  "tracing",
  "ts-rs",
  "url",
@@ -5487,7 +5487,7 @@ dependencies = [
  "time",
  "tokio",
  "tokio-util",
- "tower-http 0.5.2",
+ "tower-http",
  "tracing",
  "url",
  "utoipa",
@@ -6491,7 +6491,7 @@ dependencies = [
  "tokio-stream",
  "tokio-util",
  "toml 0.8.23",
- "tower-http 0.5.2",
+ "tower-http",
  "tracing",
  "tracing-indicatif",
  "tracing-subscriber",
@@ -6609,7 +6609,7 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "tokio-util",
- "tower-http 0.5.2",
+ "tower-http",
  "tracing",
  "tracing-log 0.2.0",
  "tracing-subscriber",
@@ -7225,7 +7225,7 @@ dependencies = [
  "time",
  "tokio",
  "tokio-util",
- "tower-http 0.5.2",
+ "tower-http",
  "tracing",
  "tracing-subscriber",
  "url",
@@ -7623,7 +7623,7 @@ dependencies = [
  "nym-wireguard-private-metadata-shared",
  "tokio",
  "tokio-util",
- "tower-http 0.5.2",
+ "tower-http",
  "utoipa",
  "utoipa-swagger-ui",
 ]
@@ -7661,7 +7661,7 @@ dependencies = [
  "time",
  "tokio",
  "tower 0.5.2",
- "tower-http 0.5.2",
+ "tower-http",
  "utoipa",
 ]
 
@@ -7730,7 +7730,7 @@ dependencies = [
  "time",
  "tokio",
  "tokio-util",
- "tower-http 0.5.2",
+ "tower-http",
  "tracing",
  "tracing-subscriber",
  "utoipa",
@@ -8658,7 +8658,7 @@ dependencies = [
  "once_cell",
  "socket2 0.5.10",
  "tracing",
- "windows-sys 0.59.0",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -8913,7 +8913,7 @@ dependencies = [
  "tokio-rustls 0.26.2",
  "tokio-util",
  "tower 0.5.2",
- "tower-http 0.6.6",
+ "tower-http",
  "tower-service",
  "url",
  "wasm-bindgen",
@@ -9113,7 +9113,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys 0.4.15",
- "windows-sys 0.59.0",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -10429,7 +10429,7 @@ dependencies = [
  "getrandom 0.3.3",
  "once_cell",
  "rustix 1.0.8",
- "windows-sys 0.59.0",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -11048,9 +11048,9 @@ dependencies = [
 
 [[package]]
 name = "tower-http"
-version = "0.5.2"
+version = "0.6.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1e9cd434a998747dd2c4276bc96ee2e0c7a2eadf3cae88e52be55a05fa9053f5"
+checksum = "adc82fd73de2a9722ac5da747f12383d2bfdb93591ee6c58486e0097890f05f2"
 dependencies = [
  "async-compression",
  "bitflags 2.9.1",
@@ -11062,33 +11062,17 @@ dependencies = [
  "http-body-util",
  "http-range-header",
  "httpdate",
+ "iri-string",
  "mime",
  "mime_guess",
  "percent-encoding",
  "pin-project-lite",
  "tokio",
  "tokio-util",
- "tower-layer",
- "tower-service",
- "tracing",
-]
-
-[[package]]
-name = "tower-http"
-version = "0.6.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "adc82fd73de2a9722ac5da747f12383d2bfdb93591ee6c58486e0097890f05f2"
-dependencies = [
- "bitflags 2.9.1",
- "bytes",
- "futures-util",
- "http 1.3.1",
- "http-body 1.0.1",
- "iri-string",
- "pin-project-lite",
  "tower 0.5.2",
  "tower-layer",
  "tower-service",
+ "tracing",
 ]
 
 [[package]]
@@ -12241,7 +12225,7 @@ version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf221c93e13a30d793f7645a0e7762c55d169dbb0a49671918a2319d289b10bb"
 dependencies = [
- "windows-sys 0.59.0",
+ "windows-sys 0.48.0",
 ]
 
 [[package]]

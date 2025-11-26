@@ -16,7 +16,7 @@ proc-macro = true
 [dependencies]
 proc-macro2 = "1"
 syn = { workspace = true, features = ["full"] }
-quote = "1.0.40"
+quote = "1.0.42"
 proc-macro-crate = "3"
 uuid = { version = "1.0", features = ["v4"] }
 

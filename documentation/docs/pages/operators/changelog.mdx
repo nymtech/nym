@@ -49,6 +49,71 @@ This page displays a full list of all the changes during our release cycle from 
 
 <VarInfo />
 
+## `v2025.21-mozzarella`
+
+- [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.21-mozzarella)
+- [`nym-node`](nodes/nym-node.mdx) version `1.22.0`
+
+```sh
+nym-node
+Binary Name:        nym-node
+Build Timestamp:    2025-11-25T14:26:29.627763948Z
+Build Version:      1.22.0
+Commit SHA:         22793bc45ea21561671d6670497ff42bc36b9d76
+Commit Date:        2025-11-25T15:16:42.000000000+01:00
+Commit Branch:      HEAD
+rustc Version:      1.88.0
+rustc Channel:      stable
+cargo Profile:      release
+```
+
+### Operators Updates & Tools
+
+<Callout type="info" emoji="ℹ️">
+**We are introducing new `network-tunnel-manager.sh` (NTM), with improved server configuration (see all changes here: [\#6186](https://github.com/nymtech/nym/pull/6186/)). We ask operators to re-run their routing configuration using the new NTM, following [these steps](/operators/nodes/nym-node/configuration#routing-configuration).**
+
+**NOTE THAT THIS IS A NEW TOOL HANDLING VARIOUS COMPLEX SERVER SETTINGS, PLEASE RUN IT ON A FEW NODES AT A TIME, DO THE TESTING, MONITOR YOUR NODES AND [REPORT ANY ISSUES](https://matrix.to/#/#operators:nymtech.chat).**
+
+We will keep `nym-node v1.21.1` as the latest version on API side for another 3 days to not penalize operators taking time for a proper implementation. 
+</ Callout>
+
+We are proud to announce that there are several improvements on tools aiming to make node operators life easier. Please let us know how do these programs work for you. 
+
+- [**New Nym Node CLI version**](/operators/tools#nym-node-cli): This version introduces arguments, allowing the operator to pass all needed variables (ie. hostname, mode etcetra) and let the program setup everything required for `nym-node` installation, server configuration, nginx, routing, tunnels and bridges, without further prompts for these values. This version also installs [QUIC bridge](/operators/nodes/nym-node/configuration#quic-transport-bridge-deployment).
+
+- [**New Network Tunnel Manager**](/operators/nodes/nym-node/configuration#routing-configuration): NTM went through an big overhaul ([\#6186](https://github.com/nymtech/nym/pull/6186/)) - this new version combines old NTM with WG scripts. If run with `complete_networking_configuration` the tool does entire routing configuration, creates interfaces, and configures WireGuard exit policy. 
+
+- [**Updated QUIC Deployment Tool**](/operators/nodes/nym-node/configuration#quic-transport-bridge-deployment): The program is lighter, stripped of redundant functions reworking iptables rules. 
+
+### Features
+
+- [HTTP API resilience enable & domain rotation conditions](https://github.com/nymtech/nym/pull/6200): Changes to make sure fallback domains are updated / enabled only for relevant
+
+- [Typescript SDK 1.4.1](https://github.com/nymtech/nym/pull/6146): This PR is a new release of the Typescript SDK, `mixFetch` and `WASM` client. It also removes the Harbour Master client from `mixFetch`, replacing it with the Nym API's described endpoint for nym-nodes.  
+
+- [Enable URL rotation and retries for mixnet gateway init](https://github.com/nymtech/nym/pull/6126): 
+  - Multiple URL fallback with configurable retries (defaults to 3)
+  - Infallible URL conversion per feedback (`Url::from()` instead of `parse().ok()`)
+  - Non-breaking builder pattern for `BuilderConfig` per feedback
+  - Reverted redundant node filtering per clarification that API already filters by `supported_roles.entry`
+
+- [Credential proxy jwt](https://github.com/nymtech/nym/pull/5957): This PR is part of the 'Upgrade Mode' that should allow usage of the network in a situation where ecash credentials are unissuable, because, for example, we have lost signing quorum (i.e. we have fewer than the required number of threshold signers responding to requests). This version is more naive. Instead requesting actual 'emergency credentials' that would have been issued by a subset of ecash signers, the credentials proxy creates a JWT, signed with its key, attesting the upgrade mode has been enabled.
+ 
+### Bugfix
+
+- [Tunnel not waiting on `MixnetClient` to shut down cleanly](https://github.com/nymtech/nym/pull/6225): When there is a wireguard registration error, the mixnet client is signalled to shut down, but the tunnel doesn't wait. Now on errors, the registration client doesn't return until everything is properly stopped
+
+- [Fix credential proxy upgrade mode attestation url arg](https://github.com/nymtech/nym/pull/6202): This includes bringing over changes introduced in [\#6174](https://github.com/nymtech/nym/pull/6174)
+
+- [Remove debug feature from `http-macro` spec in gateway probe](https://github.com/nymtech/nym/pull/6195)
+
+- [DNS reliability and troubleshooting ](https://github.com/nymtech/nym/pull/6179)
+
+- [Distinguish authenticator errors by credential spent](https://github.com/nymtech/nym/pull/6176): This PR introduces a distinction between authenticator client errors that are happening before a credential was taken out of storage, and after
+
+- [Disconnect mixnet client if registration fails](https://github.com/nymtech/nym/pull/6158): Currently the registration client does its job and then handles everything to the `vpn-client`, who then takes care on the mixnet client. However, if the registration fails, nothing is disconnecting the mixnet client, which can lead to errors of the kind of `There is already an open connection to this client`. This PR addresses that
+
+
 ## `v2025.20-leerdammer`
 
 - [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.20-leerdammer)

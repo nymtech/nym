@@ -7,7 +7,7 @@
   },
   "dependencies": {
     "@jsdevtools/rehype-url-inspector": "^2.0.2",
-    "glob": "^10.3.4",
+    "glob": "^10.5.0",
     "rehype-parse": "^9.0.0",
     "rehype-stringify": "^10.0.0",
     "to-vfile": "^8.0.0",

@@ -375,6 +375,8 @@ impl LpConnectionHandler {
             self.remote_addr, receiver_idx
         );
 
+        let counter = packet.header().counter();
+
         // Get session and decrypt payload
         let decrypted_bytes = {
             let session_entry = self.state.session_states.get(&receiver_idx).ok_or_else(|| {
@@ -386,10 +388,24 @@ impl LpConnectionHandler {
 
             let session = &session_entry.value().state;
 
-            // Decrypt packet
-            session.decrypt_data(packet.message()).map_err(|e| {
+            // AIDEV-NOTE: Validate counter BEFORE decryption to prevent replay DoS attacks.
+            // Counter is from cleartext header but authenticated by AEAD AAD, so this is safe.
+            session.receiving_counter_quick_check(counter).map_err(|e| {
+                inc!("lp_errors_replay_check");
+                GatewayError::LpProtocolError(format!("Replay check failed: {}", e))
+            })?;
+
+            // Decrypt packet (Noise inner layer)
+            let decrypted = session.decrypt_data(packet.message()).map_err(|e| {
                 GatewayError::LpProtocolError(format!("Failed to decrypt packet: {}", e))
-            })?
+            })?;
+
+            // Mark counter as received after successful decryption
+            session.receiving_counter_mark(counter).map_err(|e| {
+                GatewayError::LpProtocolError(format!("Failed to mark counter: {}", e))
+            })?;
+
+            decrypted
         };
 
         // Try to deserialize as LpRegistrationRequest first (most common case after handshake)

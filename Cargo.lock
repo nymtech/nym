@@ -6613,6 +6613,7 @@ dependencies = [
  "tls_codec",
  "tracing",
  "utoipa",
+ "zeroize",
 ]
 
 [[package]]

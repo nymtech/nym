@@ -153,7 +153,7 @@ impl NestedLpSession {
 
         // Serialize and forward ClientHello (no state machine yet, no outer key)
         let client_hello_bytes = Self::serialize_packet(&client_hello_packet, None)?;
-        let _response_bytes = outer_client
+        let response_bytes = outer_client
             .send_forward_packet(
                 self.exit_identity,
                 self.exit_address.clone(),
@@ -161,7 +161,25 @@ impl NestedLpSession {
             )
             .await?;
 
-        tracing::debug!("Sent ClientHello to exit gateway via entry");
+        // Parse and validate Ack response (cleartext, no outer key before PSK derivation)
+        let ack_response = Self::parse_packet(&response_bytes, None)?;
+        match ack_response.message() {
+            LpMessage::Ack => {
+                tracing::debug!("Received Ack for ClientHello from exit gateway");
+            }
+            LpMessage::Collision => {
+                return Err(LpClientError::Transport(format!(
+                    "Exit gateway returned Collision - receiver_index {} already in use",
+                    receiver_index
+                )));
+            }
+            other => {
+                return Err(LpClientError::Transport(format!(
+                    "Expected Ack for ClientHello from exit gateway, got: {:?}",
+                    other
+                )));
+            }
+        }
 
         // Step 4: Create state machine for exit gateway handshake
         let mut state_machine = LpStateMachine::new(

@@ -12,6 +12,7 @@ use chacha20poly1305::{
     aead::{AeadInPlace, KeyInit},
     ChaCha20Poly1305, Key, Nonce, Tag,
 };
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 /// Outer AEAD key for LP packet encryption.
 ///
@@ -34,7 +35,7 @@ use chacha20poly1305::{
 /// 3. **No PSK persistence**: PSK handles are not stored/reused across sessions.
 ///    Each connection performs fresh KKT+PSQ handshake.
 ///
-#[derive(Clone)]
+#[derive(Clone, Zeroize, ZeroizeOnDrop)]
 pub struct OuterAeadKey {
     key: [u8; 32],
 }
@@ -55,13 +56,6 @@ impl OuterAeadKey {
     /// Get reference to the raw key bytes.
     pub fn as_bytes(&self) -> &[u8; 32] {
         &self.key
-    }
-}
-
-impl Drop for OuterAeadKey {
-    fn drop(&mut self) {
-        // Zeroize key material on drop
-        self.key.iter_mut().for_each(|b| *b = 0);
     }
 }
 

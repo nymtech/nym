@@ -292,14 +292,28 @@ impl LpRegistrationClient {
                                         .ok()
                                         .and_then(|s| s.outer_aead_key());
                                     tracing::trace!("Sending final handshake packet");
-                                    // Final packet - we don't need the response
-                                    let _ = Self::connect_send_receive(
+                                    let ack_response = Self::connect_send_receive(
                                         self.gateway_lp_address,
                                         &final_packet,
                                         outer_key.as_ref(),
                                         &self.config,
                                     )
                                     .await?;
+
+                                    // Validate Ack response
+                                    match ack_response.message() {
+                                        nym_lp::LpMessage::Ack => {
+                                            tracing::debug!(
+                                                "Received Ack for final handshake packet"
+                                            );
+                                        }
+                                        other => {
+                                            return Err(LpClientError::Transport(format!(
+                                                "Expected Ack for final handshake packet, got: {:?}",
+                                                other
+                                            )));
+                                        }
+                                    }
                                 }
                                 tracing::info!("LP handshake completed after sending final packet");
                                 break;

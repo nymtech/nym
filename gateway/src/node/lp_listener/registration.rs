@@ -142,7 +142,7 @@ pub async fn process_registration(
     if !request.validate_timestamp(30) {
         warn!("LP registration failed: timestamp too old or too far in future");
         inc!("lp_registration_failed_timestamp");
-        return LpRegistrationResponse::error(session_id, "Invalid timestamp".to_string());
+        return LpRegistrationResponse::error("Invalid timestamp".to_string());
     }
 
     // 2. Process based on mode
@@ -163,10 +163,10 @@ pub async fn process_registration(
                     error!("LP WireGuard peer registration failed: {}", e);
                     inc!("lp_registration_dvpn_failed");
                     inc!("lp_errors_wg_peer_registration");
-                    return LpRegistrationResponse::error(
-                        session_id,
-                        format!("WireGuard peer registration failed: {}", e),
-                    );
+                    return LpRegistrationResponse::error(format!(
+                        "WireGuard peer registration failed: {}",
+                        e
+                    ));
                 }
             };
 
@@ -196,19 +196,16 @@ pub async fn process_registration(
                             remove_err
                         );
                     }
-                    return LpRegistrationResponse::error(
-                        session_id,
-                        format!("Credential verification failed: {}", e),
-                    );
+                    return LpRegistrationResponse::error(format!(
+                        "Credential verification failed: {}",
+                        e
+                    ));
                 }
             };
 
-            info!(
-                "LP dVPN registration successful for session {} (client_id: {})",
-                session_id, client_id
-            );
+            info!("LP dVPN registration successful (client_id: {})", client_id);
             inc!("lp_registration_dvpn_success");
-            LpRegistrationResponse::success(session_id, allocated_bandwidth, gateway_data)
+            LpRegistrationResponse::success(allocated_bandwidth, gateway_data)
         }
         RegistrationMode::Mixnet {
             client_id: client_id_bytes,
@@ -244,18 +241,18 @@ pub async fn process_registration(
                         client_id, e
                     );
                     inc!("lp_registration_mixnet_failed");
-                    return LpRegistrationResponse::error(
-                        session_id,
-                        format!("Credential verification failed: {}", e),
-                    );
+                    return LpRegistrationResponse::error(format!(
+                        "Credential verification failed: {}",
+                        e
+                    ));
                 }
             };
 
             // For mixnet mode, we don't have WireGuard data
             // In the future, this would set up mixnet-specific state
             info!(
-                "LP Mixnet registration successful for session {} (client_id: {})",
-                session_id, client_id
+                "LP Mixnet registration successful (client_id: {})",
+                client_id
             );
             inc!("lp_registration_mixnet_success");
             LpRegistrationResponse {
@@ -263,7 +260,6 @@ pub async fn process_registration(
                 error: None,
                 gateway_data: None,
                 allocated_bandwidth,
-                session_id,
             }
         }
     };

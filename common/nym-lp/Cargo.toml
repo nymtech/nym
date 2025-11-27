@@ -34,6 +34,7 @@ libcrux-kem = { git = "https://github.com/cryspen/libcrux" }
 libcrux-traits = { git = "https://github.com/cryspen/libcrux" }
 tls_codec = { workspace = true }
 num_enum = { workspace = true }
+chacha20poly1305 = { workspace = true }
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }

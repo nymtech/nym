@@ -6,6 +6,7 @@
 //! This module implements session management functionality, including replay protection
 //! and Noise protocol state handling.
 
+use crate::codec::OuterAeadKey;
 use crate::keypair::{PrivateKey, PublicKey};
 use crate::message::{EncryptedDataPayload, HandshakeData};
 use crate::noise_protocol::{NoiseError, NoiseProtocol, ReadResult};
@@ -165,6 +166,10 @@ pub struct LpSession {
 
     /// Salt for PSK derivation
     salt: [u8; 32],
+
+    /// Outer AEAD key for packet encryption (derived from PSK after PSQ handshake).
+    /// None before PSK is available, Some after PSK injection.
+    outer_aead_key: Mutex<Option<OuterAeadKey>>,
 }
 
 /// Generates a fresh salt for PSK derivation.
@@ -215,6 +220,17 @@ impl LpSession {
     /// KEM public key in the KKT response.
     pub fn local_x25519_public(&self) -> PublicKey {
         self.local_x25519_private.public_key()
+    }
+
+    /// Returns the outer AEAD key for packet encryption/decryption.
+    ///
+    /// Returns `None` before PSK is derived (during initial handshake),
+    /// `Some(&OuterAeadKey)` after PSK injection via PSQ.
+    ///
+    /// Callers should use `None` for packet encryption/decryption during
+    /// the handshake phase, and use the returned key for transport phase.
+    pub fn outer_aead_key(&self) -> Option<OuterAeadKey> {
+        self.outer_aead_key.lock().clone()
     }
 
     /// Creates a new session and initializes the Noise protocol state.
@@ -301,6 +317,7 @@ impl LpSession {
             local_x25519_private: local_x25519_key.clone(),
             remote_x25519_public: remote_x25519_key.clone(),
             salt: *salt,
+            outer_aead_key: Mutex::new(None),
         })
     }
 
@@ -638,6 +655,12 @@ impl LpSession {
             // Mark PSK as injected for safety checks in transport mode
             self.psk_injected.store(true, Ordering::Release);
 
+            // Derive and store outer AEAD key from PSK
+            {
+                let mut outer_key = self.outer_aead_key.lock();
+                *outer_key = Some(OuterAeadKey::from_psk(&psk));
+            }
+
             // Get the Noise handshake message
             let noise_msg = match noise_state.get_bytes_to_send() {
                 Some(Ok(msg)) => msg,
@@ -801,6 +824,12 @@ impl LpSession {
                     // Mark PSK as injected for safety checks in transport mode
                     self.psk_injected.store(true, Ordering::Release);
 
+                    // Derive and store outer AEAD key from PSK
+                    {
+                        let mut outer_key = self.outer_aead_key.lock();
+                        *outer_key = Some(OuterAeadKey::from_psk(&psk));
+                    }
+
                     // Update PSQ state to Completed
                     *psq_state = PSQState::Completed { psk };
 
@@ -946,14 +975,12 @@ mod tests {
 
     // Helper function to create a session with real keys for handshake tests
     fn create_handshake_test_session(
+        receiver_index: u32,
         is_initiator: bool,
         local_keys: &crate::keypair::Keypair,
         remote_pub_key: &crate::keypair::PublicKey,
     ) -> LpSession {
         use nym_crypto::asymmetric::ed25519;
-
-        // Compute the shared lp_id from both keypairs (order-independent)
-        let lp_id = crate::make_lp_id(local_keys.public_key(), remote_pub_key);
 
         // Create Ed25519 keypairs that correspond to initiator/responder roles
         // Initiator uses [1u8], Responder uses [2u8]
@@ -970,7 +997,7 @@ mod tests {
 
         // PSQ will derive the PSK during handshake using X25519 as DHKEM
         let session = LpSession::new(
-            lp_id,
+            receiver_index,
             is_initiator,
             (local_ed25519.private_key(), local_ed25519.public_key()),
             local_keys.private_key(),
@@ -1080,10 +1107,12 @@ mod tests {
     fn test_prepare_handshake_message_initial_state() {
         let initiator_keys = generate_keypair();
         let responder_keys = generate_keypair();
+        let receiver_index = 12345u32;
 
         let initiator_session =
-            create_handshake_test_session(true, &initiator_keys, responder_keys.public_key());
+            create_handshake_test_session(receiver_index, true, &initiator_keys, responder_keys.public_key());
         let responder_session = create_handshake_test_session(
+            receiver_index,
             false,
             &responder_keys,
             initiator_keys.public_key(), // Responder also needs initiator's key for XK
@@ -1106,11 +1135,12 @@ mod tests {
     fn test_process_handshake_message_first_step() {
         let initiator_keys = generate_keypair();
         let responder_keys = generate_keypair();
+        let receiver_index = 12345u32;
 
         let initiator_session =
-            create_handshake_test_session(true, &initiator_keys, responder_keys.public_key());
+            create_handshake_test_session(receiver_index, true, &initiator_keys, responder_keys.public_key());
         let responder_session =
-            create_handshake_test_session(false, &responder_keys, initiator_keys.public_key());
+            create_handshake_test_session(receiver_index, false, &responder_keys, initiator_keys.public_key());
 
         // 1. Initiator prepares the first message (-> e)
         let initiator_msg_result = initiator_session.prepare_handshake_message();
@@ -1145,9 +1175,9 @@ mod tests {
         let responder_keys = generate_keypair();
 
         let initiator_session =
-            create_handshake_test_session(true, &initiator_keys, responder_keys.public_key());
+            create_handshake_test_session(12345u32, true, &initiator_keys, responder_keys.public_key());
         let responder_session =
-            create_handshake_test_session(false, &responder_keys, initiator_keys.public_key());
+            create_handshake_test_session(12345u32, false, &responder_keys, initiator_keys.public_key());
 
         let mut responder_to_initiator_msg = None;
         let mut rounds = 0;
@@ -1232,9 +1262,9 @@ mod tests {
         let responder_keys = generate_keypair();
 
         let initiator_session =
-            create_handshake_test_session(true, &initiator_keys, responder_keys.public_key());
+            create_handshake_test_session(12345u32, true, &initiator_keys, responder_keys.public_key());
         let responder_session =
-            create_handshake_test_session(false, &responder_keys, initiator_keys.public_key());
+            create_handshake_test_session(12345u32, false, &responder_keys, initiator_keys.public_key());
 
         // Drive handshake to completion (simplified loop from previous test)
         let mut i_msg = initiator_session
@@ -1293,7 +1323,7 @@ mod tests {
         let responder_keys = generate_keypair();
 
         let initiator_session =
-            create_handshake_test_session(true, &initiator_keys, responder_keys.public_key());
+            create_handshake_test_session(12345u32, true, &initiator_keys, responder_keys.public_key());
 
         assert!(!initiator_session.is_handshake_complete());
 
@@ -1365,9 +1395,9 @@ mod tests {
         let responder_keys = generate_keypair();
 
         let initiator_session =
-            create_handshake_test_session(true, &initiator_keys, responder_keys.public_key());
+            create_handshake_test_session(12345u32, true, &initiator_keys, responder_keys.public_key());
         let responder_session =
-            create_handshake_test_session(false, &responder_keys, initiator_keys.public_key());
+            create_handshake_test_session(12345u32, false, &responder_keys, initiator_keys.public_key());
 
         // Drive the handshake
         let mut i_msg = initiator_session
@@ -1459,9 +1489,9 @@ mod tests {
 
         // Create sessions - they start with dummy PSK [0u8; 32]
         let initiator_session =
-            create_handshake_test_session(true, &initiator_keys, responder_keys.public_key());
+            create_handshake_test_session(12345u32, true, &initiator_keys, responder_keys.public_key());
         let responder_session =
-            create_handshake_test_session(false, &responder_keys, initiator_keys.public_key());
+            create_handshake_test_session(12345u32, false, &responder_keys, initiator_keys.public_key());
 
         // Prepare first message (initiator runs PSQ and injects PSK)
         let i_msg = initiator_session
@@ -1524,9 +1554,9 @@ mod tests {
         let responder_keys = generate_keypair();
 
         let initiator_session =
-            create_handshake_test_session(true, &initiator_keys, responder_keys.public_key());
+            create_handshake_test_session(12345u32, true, &initiator_keys, responder_keys.public_key());
         let responder_session =
-            create_handshake_test_session(false, &responder_keys, initiator_keys.public_key());
+            create_handshake_test_session(12345u32, false, &responder_keys, initiator_keys.public_key());
 
         // Verify initial state
         assert!(!initiator_session.is_handshake_complete());
@@ -1603,9 +1633,9 @@ mod tests {
 
         // Create sessions with explicit Ed25519 keys
         let initiator_session =
-            create_handshake_test_session(true, &initiator_keys, responder_keys.public_key());
+            create_handshake_test_session(12345u32, true, &initiator_keys, responder_keys.public_key());
         let responder_session =
-            create_handshake_test_session(false, &responder_keys, initiator_keys.public_key());
+            create_handshake_test_session(12345u32, false, &responder_keys, initiator_keys.public_key());
 
         // Verify sessions store Ed25519 keys
         // (Internal verification - keys are used in PSQ calls)
@@ -1648,7 +1678,7 @@ mod tests {
         let initiator_keys = generate_keypair();
 
         let responder_session =
-            create_handshake_test_session(false, &responder_keys, initiator_keys.public_key());
+            create_handshake_test_session(12345u32, false, &responder_keys, initiator_keys.public_key());
 
         // Create a handshake message with corrupted PSQ payload
         let corrupted_psq_data = vec![0xFF; 128]; // Random garbage
@@ -1677,11 +1707,11 @@ mod tests {
         let initiator_ed25519 = ed25519::KeyPair::from_secret([1u8; 32], 0);
         let wrong_ed25519 = ed25519::KeyPair::from_secret([99u8; 32], 99); // Different key!
 
-        let lp_id = crate::make_lp_id(initiator_keys.public_key(), responder_keys.public_key());
+        let receiver_index: u32 = 55555;
         let salt = [0u8; 32];
 
         let initiator_session = LpSession::new(
-            lp_id,
+            receiver_index,
             true,
             (
                 initiator_ed25519.private_key(),
@@ -1699,7 +1729,7 @@ mod tests {
         let responder_ed25519 = ed25519::KeyPair::from_secret([2u8; 32], 1);
 
         let responder_session = LpSession::new(
-            lp_id,
+            receiver_index,
             false,
             (
                 responder_ed25519.private_key(),
@@ -1748,11 +1778,11 @@ mod tests {
         let wrong_ed25519_keypair = ed25519::KeyPair::from_secret([99u8; 32], 99);
         let wrong_ed25519_public = wrong_ed25519_keypair.public_key();
 
-        let lp_id = crate::make_lp_id(initiator_keys.public_key(), responder_keys.public_key());
+        let receiver_index: u32 = 66666;
         let salt = [0u8; 32];
 
         let initiator_session = LpSession::new(
-            lp_id,
+            receiver_index,
             true,
             (
                 initiator_ed25519.private_key(),
@@ -1770,7 +1800,7 @@ mod tests {
         let responder_ed25519 = ed25519::KeyPair::from_secret([2u8; 32], 1);
 
         let responder_session = LpSession::new(
-            lp_id,
+            receiver_index,
             false,
             (
                 responder_ed25519.private_key(),
@@ -1813,7 +1843,7 @@ mod tests {
         let initiator_keys = generate_keypair();
 
         let responder_session =
-            create_handshake_test_session(false, &responder_keys, initiator_keys.public_key());
+            create_handshake_test_session(12345u32, false, &responder_keys, initiator_keys.public_key());
 
         // Capture initial PSQ state (should be ResponderWaiting)
         // (We can't directly access psq_state, but we can verify behavior)
@@ -1831,7 +1861,7 @@ mod tests {
         // Session should still be functional - can process valid messages
         // Create a proper initiator to send valid message
         let initiator_session =
-            create_handshake_test_session(true, &initiator_keys, responder_keys.public_key());
+            create_handshake_test_session(12345u32, true, &initiator_keys, responder_keys.public_key());
 
         let valid_msg = initiator_session
             .prepare_handshake_message()
@@ -1858,7 +1888,7 @@ mod tests {
 
         // Create session but don't complete handshake (no PSK injection will occur)
         let session =
-            create_handshake_test_session(true, &initiator_keys, responder_keys.public_key());
+            create_handshake_test_session(12345u32, true, &initiator_keys, responder_keys.public_key());
 
         // Verify session was created successfully
         assert!(!session.is_handshake_complete());

@@ -124,18 +124,18 @@ impl LpPacket {
 
 /// Session ID used for ClientHello bootstrap packets before session is established.
 ///
-/// When a client first connects, it sends a ClientHello packet with session_id=0
+/// When a client first connects, it sends a ClientHello packet with receiver_idx=0
 /// because neither side can compute the deterministic session ID yet (requires
 /// both parties' X25519 keys). After ClientHello is processed, both sides derive
 /// the same session ID from their keys, and all subsequent packets use that ID.
-pub const BOOTSTRAP_SESSION_ID: u32 = 0;
+pub const BOOTSTRAP_RECEIVER_IDX: u32 = 0;
 
 // VERSION [1B] || RESERVED [3B] || SENDER_INDEX [4B] || COUNTER [8B]
 #[derive(Debug, Clone)]
 pub struct LpHeader {
     pub protocol_version: u8,
     pub reserved: u16,
-    pub session_id: u32,
+    pub receiver_idx: u32,
     pub counter: u64,
 }
 
@@ -144,11 +144,11 @@ impl LpHeader {
 }
 
 impl LpHeader {
-    pub fn new(session_id: u32, counter: u64) -> Self {
+    pub fn new(receiver_idx: u32, counter: u64) -> Self {
         Self {
             protocol_version: 1,
             reserved: 0,
-            session_id,
+            receiver_idx,
             counter,
         }
     }
@@ -161,7 +161,7 @@ impl LpHeader {
         dst.put_slice(&[0, 0, 0]);
 
         // sender index
-        dst.put_slice(&self.session_id.to_le_bytes());
+        dst.put_slice(&self.receiver_idx.to_le_bytes());
 
         // counter
         dst.put_slice(&self.counter.to_le_bytes());
@@ -175,9 +175,9 @@ impl LpHeader {
         let protocol_version = src[0];
         // Skip reserved bytes [1..4]
 
-        let mut session_id_bytes = [0u8; 4];
-        session_id_bytes.copy_from_slice(&src[4..8]);
-        let session_id = u32::from_le_bytes(session_id_bytes);
+        let mut receiver_idx_bytes = [0u8; 4];
+        receiver_idx_bytes.copy_from_slice(&src[4..8]);
+        let receiver_idx = u32::from_le_bytes(receiver_idx_bytes);
 
         let mut counter_bytes = [0u8; 8];
         counter_bytes.copy_from_slice(&src[8..16]);
@@ -186,7 +186,7 @@ impl LpHeader {
         Ok(LpHeader {
             protocol_version,
             reserved: 0,
-            session_id,
+            receiver_idx,
             counter,
         })
     }
@@ -197,8 +197,8 @@ impl LpHeader {
     }
 
     /// Get the sender index from the header
-    pub fn session_id(&self) -> u32 {
-        self.session_id
+    pub fn receiver_idx(&self) -> u32 {
+        self.receiver_idx
     }
 }
 

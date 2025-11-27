@@ -248,6 +248,7 @@ impl LpRegistrationClient {
             self.local_ed25519_keypair.public_key().to_bytes(),
         );
         let salt = client_hello_data.salt;
+        let receiver_index = client_hello_data.receiver_index;
 
         tracing::trace!(
             "Generated ClientHello with timestamp: {}",
@@ -256,7 +257,7 @@ impl LpRegistrationClient {
 
         // Step 3: Send ClientHello as first packet (before Noise handshake)
         let client_hello_header = nym_lp::packet::LpHeader::new(
-            nym_lp::BOOTSTRAP_SESSION_ID, // session_id not yet established
+            nym_lp::BOOTSTRAP_RECEIVER_IDX, // session_id not yet established
             0,                              // counter starts at 0
         );
         let client_hello_packet = nym_lp::LpPacket::new(
@@ -269,6 +270,7 @@ impl LpRegistrationClient {
         // Step 4: Create state machine as initiator with Ed25519 keys
         // PSK derivation happens internally in the state machine constructor
         let mut state_machine = LpStateMachine::new(
+            receiver_index,
             true, // is_initiator
             (
                 self.local_ed25519_keypair.private_key(),
@@ -352,9 +354,9 @@ impl LpRegistrationClient {
     /// # Errors
     /// Returns an error if serialization or network transmission fails.
     async fn send_packet(stream: &mut TcpStream, packet: &LpPacket) -> Result<()> {
-        // Serialize the packet
+        // During handshake, outer AEAD is not used (PSK not yet established)
         let mut packet_buf = BytesMut::new();
-        serialize_lp_packet(packet, &mut packet_buf)
+        serialize_lp_packet(packet, &mut packet_buf, None)
             .map_err(|e| LpClientError::Transport(format!("Failed to serialize packet: {}", e)))?;
 
         // Send 4-byte length prefix (u32 big-endian)
@@ -416,8 +418,8 @@ impl LpRegistrationClient {
             .await
             .map_err(|e| LpClientError::Transport(format!("Failed to read packet data: {}", e)))?;
 
-        // Parse the packet
-        let packet = parse_lp_packet(&packet_buf)
+        // During handshake, outer AEAD is not used (PSK not yet established)
+        let packet = parse_lp_packet(&packet_buf, None)
             .map_err(|e| LpClientError::Transport(format!("Failed to parse packet: {}", e)))?;
 
         tracing::trace!("Received LP packet ({} bytes + 4 byte header)", packet_len);
@@ -705,9 +707,8 @@ impl LpRegistrationClient {
             })?;
 
         tracing::debug!(
-            "Received registration response: success={}, session_id={}",
+            "Received registration response: success={}",
             response.success,
-            response.session_id
         );
 
         // 5. Validate and extract GatewayData
@@ -727,8 +728,7 @@ impl LpRegistrationClient {
         })?;
 
         tracing::info!(
-            "LP registration successful! Session ID: {}, Allocated bandwidth: {} bytes",
-            response.session_id,
+            "LP registration successful! Allocated bandwidth: {} bytes",
             response.allocated_bandwidth
         );
 

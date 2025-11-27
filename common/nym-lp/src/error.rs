@@ -78,4 +78,8 @@ pub enum LpError {
     /// Ed25519 to X25519 conversion error.
     #[error("Ed25519 key conversion error: {0}")]
     Ed25519RecoveryError(#[from] Ed25519RecoveryError),
+
+    /// Outer AEAD authentication tag verification failed.
+    #[error("AEAD authentication tag verification failed")]
+    AeadTagMismatch,
 }

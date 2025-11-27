@@ -14,12 +14,9 @@ pub mod session;
 mod session_integration;
 pub mod session_manager;
 
-use std::hash::{DefaultHasher, Hasher as _};
-
 pub use error::LpError;
-use keypair::PublicKey;
 pub use message::{ClientHelloData, LpMessage};
-pub use packet::{LpPacket, BOOTSTRAP_SESSION_ID};
+pub use packet::{LpPacket, BOOTSTRAP_RECEIVER_IDX};
 pub use replay::{ReceivingKeyCounterValidator, ReplayError};
 pub use session::{LpSession, generate_fresh_salt};
 pub use session_manager::SessionManager;
@@ -33,13 +30,15 @@ pub const NOISE_PSK_INDEX: u8 = 3;
 
 #[cfg(test)]
 pub fn sessions_for_tests() -> (LpSession, LpSession) {
-    use crate::{keypair::Keypair, make_lp_id};
+    use crate::keypair::Keypair;
     use nym_crypto::asymmetric::ed25519;
 
     // X25519 keypairs for Noise protocol
     let keypair_1 = Keypair::default();
     let keypair_2 = Keypair::default();
-    let id = make_lp_id(keypair_1.public_key(), keypair_2.public_key());
+
+    // Use a fixed receiver_index for deterministic tests
+    let receiver_index: u32 = 12345;
 
     // Ed25519 keypairs for PSQ authentication (placeholders for testing)
     let ed25519_keypair_1 = ed25519::KeyPair::from_secret([1u8; 32], 0);
@@ -51,7 +50,7 @@ pub fn sessions_for_tests() -> (LpSession, LpSession) {
     // PSQ will always derive the PSK during handshake using X25519 as DHKEM
 
     let initiator_session = LpSession::new(
-        id,
+        receiver_index,
         true,
         (
             ed25519_keypair_1.private_key(),
@@ -65,7 +64,7 @@ pub fn sessions_for_tests() -> (LpSession, LpSession) {
     .expect("Test session creation failed");
 
     let responder_session = LpSession::new(
-        id,
+        receiver_index,
         false,
         (
             ed25519_keypair_2.private_key(),
@@ -81,47 +80,12 @@ pub fn sessions_for_tests() -> (LpSession, LpSession) {
     (initiator_session, responder_session)
 }
 
-/// Generates a deterministic u32 session ID for the Lewes Protocol
-/// based on two public keys. The order of the keys does not matter.
-///
-/// Uses a different internal delimiter than `make_conv_id` to avoid
-/// potential collisions if the same key pairs were used in both contexts.
-fn make_id(key1_bytes: &[u8], key2_bytes: &[u8], sep: u8) -> u32 {
-    let mut hasher = DefaultHasher::new();
-
-    // Ensure consistent order for hashing to make the ID order-independent.
-    // This guarantees make_lp_id(a, b) == make_lp_id(b, a).
-    if key1_bytes < key2_bytes {
-        hasher.write(key1_bytes);
-        // Use a delimiter specific to Lewes Protocol ID generation
-        // (0xCC chosen arbitrarily, could be any value different from 0xFF)
-        hasher.write_u8(sep);
-        hasher.write(key2_bytes);
-    } else {
-        hasher.write(key2_bytes);
-        hasher.write_u8(sep);
-        hasher.write(key1_bytes);
-    }
-
-    // Truncate the u64 hash result to u32
-    (hasher.finish() & 0xFFFF_FFFF) as u32
-}
-
-pub fn make_lp_id(key1_bytes: &PublicKey, key2_bytes: &PublicKey) -> u32 {
-    make_id(key1_bytes.as_bytes(), key2_bytes.as_bytes(), 0xCC)
-}
-
-pub fn make_conv_id(src: &[u8], dst: &[u8]) -> u32 {
-    make_id(src, dst, 0xFF)
-}
-
 #[cfg(test)]
 mod tests {
-    use crate::keypair::PublicKey;
     use crate::message::LpMessage;
     use crate::packet::{LpHeader, LpPacket, TRAILER_LEN};
     use crate::session_manager::SessionManager;
-    use crate::{LpError, make_lp_id, sessions_for_tests};
+    use crate::{LpError, sessions_for_tests};
     use bytes::BytesMut;
 
     // Import the new standalone functions
@@ -137,7 +101,7 @@ mod tests {
             header: LpHeader {
                 protocol_version: 1,
                 reserved: 0,
-                session_id: 42, // Matches session's sending_index assumption for this test
+                receiver_idx: 42, // Matches session's sending_index assumption for this test
                 counter: 0,
             },
             message: LpMessage::Busy,
@@ -146,10 +110,10 @@ mod tests {
 
         // Serialize packet
         let mut buf1 = BytesMut::new();
-        serialize_lp_packet(&packet1, &mut buf1).unwrap();
+        serialize_lp_packet(&packet1, &mut buf1, None).unwrap();
 
         // Parse packet
-        let parsed_packet1 = parse_lp_packet(&buf1).unwrap();
+        let parsed_packet1 = parse_lp_packet(&buf1, None).unwrap();
 
         // Perform replay check (should pass)
         session
@@ -166,7 +130,7 @@ mod tests {
             header: LpHeader {
                 protocol_version: 1,
                 reserved: 0,
-                session_id: 42,
+                receiver_idx: 42,
                 counter: 0, // Same counter as before (replay)
             },
             message: LpMessage::Busy,
@@ -175,10 +139,10 @@ mod tests {
 
         // Serialize packet
         let mut buf2 = BytesMut::new();
-        serialize_lp_packet(&packet2, &mut buf2).unwrap();
+        serialize_lp_packet(&packet2, &mut buf2, None).unwrap();
 
         // Parse packet
-        let parsed_packet2 = parse_lp_packet(&buf2).unwrap();
+        let parsed_packet2 = parse_lp_packet(&buf2, None).unwrap();
 
         // Perform replay check (should fail)
         let replay_result = session.receiving_counter_quick_check(parsed_packet2.header.counter);
@@ -196,7 +160,7 @@ mod tests {
             header: LpHeader {
                 protocol_version: 1,
                 reserved: 0,
-                session_id: 42,
+                receiver_idx: 42,
                 counter: 1, // Incremented counter
             },
             message: LpMessage::Busy,
@@ -205,10 +169,10 @@ mod tests {
 
         // Serialize packet
         let mut buf3 = BytesMut::new();
-        serialize_lp_packet(&packet3, &mut buf3).unwrap();
+        serialize_lp_packet(&packet3, &mut buf3, None).unwrap();
 
         // Parse packet
-        let parsed_packet3 = parse_lp_packet(&buf3).unwrap();
+        let parsed_packet3 = parse_lp_packet(&buf3, None).unwrap();
 
         // Perform replay check (should pass)
         session
@@ -238,24 +202,8 @@ mod tests {
         let ed25519_keypair_local = ed25519::KeyPair::from_secret([8u8; 32], 0);
         let ed25519_keypair_remote = ed25519::KeyPair::from_secret([9u8; 32], 1);
 
-        // Derive X25519 keys from Ed25519 (same as state machine does internally)
-        let x25519_pub_local = ed25519_keypair_local
-            .public_key()
-            .to_x25519()
-            .expect("Failed to derive X25519 from Ed25519");
-        let x25519_pub_remote = ed25519_keypair_remote
-            .public_key()
-            .to_x25519()
-            .expect("Failed to derive X25519 from Ed25519");
-
-        // Convert to LP keypair types
-        let lp_pub_local = PublicKey::from_bytes(x25519_pub_local.as_bytes())
-            .expect("Failed to create PublicKey from bytes");
-        let lp_pub_remote = PublicKey::from_bytes(x25519_pub_remote.as_bytes())
-            .expect("Failed to create PublicKey from bytes");
-
-        // Calculate lp_id (matches state machine's internal calculation)
-        let lp_id = make_lp_id(&lp_pub_local, &lp_pub_remote);
+        // Use fixed receiver_index for deterministic test
+        let receiver_index: u32 = 54321;
 
         // Test salt
         let salt = [46u8; 32];
@@ -263,6 +211,7 @@ mod tests {
         // Create a session via manager
         let _ = local_manager
             .create_session_state_machine(
+                receiver_index,
                 (
                     ed25519_keypair_local.private_key(),
                     ed25519_keypair_local.public_key(),
@@ -275,6 +224,7 @@ mod tests {
 
         let _ = remote_manager
             .create_session_state_machine(
+                receiver_index,
                 (
                     ed25519_keypair_remote.private_key(),
                     ed25519_keypair_remote.public_key(),
@@ -289,7 +239,7 @@ mod tests {
             header: LpHeader {
                 protocol_version: 1,
                 reserved: 0,
-                session_id: lp_id,
+                receiver_idx: receiver_index,
                 counter: 0,
             },
             message: LpMessage::Busy,
@@ -298,10 +248,10 @@ mod tests {
 
         // Serialize
         let mut buf1 = BytesMut::new();
-        serialize_lp_packet(&packet1, &mut buf1).unwrap();
+        serialize_lp_packet(&packet1, &mut buf1, None).unwrap();
 
         // Parse
-        let parsed_packet1 = parse_lp_packet(&buf1).unwrap();
+        let parsed_packet1 = parse_lp_packet(&buf1, None).unwrap();
 
         // Process via SessionManager method (which should handle checks + marking)
         // NOTE: We might need a method on SessionManager/LpSession like `process_incoming_packet`
@@ -310,11 +260,11 @@ mod tests {
 
         // Perform replay check
         local_manager
-            .receiving_counter_quick_check(lp_id, parsed_packet1.header.counter)
+            .receiving_counter_quick_check(receiver_index, parsed_packet1.header.counter)
             .expect("Packet 1 check failed");
         // Mark received
         local_manager
-            .receiving_counter_mark(lp_id, parsed_packet1.header.counter)
+            .receiving_counter_mark(receiver_index, parsed_packet1.header.counter)
             .expect("Packet 1 mark failed");
 
         // === Packet 2 (Counter 1 - Should succeed on same session) ===
@@ -322,7 +272,7 @@ mod tests {
             header: LpHeader {
                 protocol_version: 1,
                 reserved: 0,
-                session_id: lp_id,
+                receiver_idx: receiver_index,
                 counter: 1,
             },
             message: LpMessage::Busy,
@@ -331,18 +281,18 @@ mod tests {
 
         // Serialize
         let mut buf2 = BytesMut::new();
-        serialize_lp_packet(&packet2, &mut buf2).unwrap();
+        serialize_lp_packet(&packet2, &mut buf2, None).unwrap();
 
         // Parse
-        let parsed_packet2 = parse_lp_packet(&buf2).unwrap();
+        let parsed_packet2 = parse_lp_packet(&buf2, None).unwrap();
 
         // Perform replay check
         local_manager
-            .receiving_counter_quick_check(lp_id, parsed_packet2.header.counter)
+            .receiving_counter_quick_check(receiver_index, parsed_packet2.header.counter)
             .expect("Packet 2 check failed");
         // Mark received
         local_manager
-            .receiving_counter_mark(lp_id, parsed_packet2.header.counter)
+            .receiving_counter_mark(receiver_index, parsed_packet2.header.counter)
             .expect("Packet 2 mark failed");
 
         // === Packet 3 (Counter 0 - Replay, should fail check) ===
@@ -350,7 +300,7 @@ mod tests {
             header: LpHeader {
                 protocol_version: 1,
                 reserved: 0,
-                session_id: lp_id,
+                receiver_idx: receiver_index,
                 counter: 0, // Replay of first packet
             },
             message: LpMessage::Busy,
@@ -359,14 +309,14 @@ mod tests {
 
         // Serialize
         let mut buf3 = BytesMut::new();
-        serialize_lp_packet(&packet3, &mut buf3).unwrap();
+        serialize_lp_packet(&packet3, &mut buf3, None).unwrap();
 
         // Parse
-        let parsed_packet3 = parse_lp_packet(&buf3).unwrap();
+        let parsed_packet3 = parse_lp_packet(&buf3, None).unwrap();
 
         // Perform replay check (should fail)
         let replay_result =
-            local_manager.receiving_counter_quick_check(lp_id, parsed_packet3.header.counter);
+            local_manager.receiving_counter_quick_check(receiver_index, parsed_packet3.header.counter);
         assert!(replay_result.is_err());
         match replay_result.unwrap_err() {
             LpError::Replay(e) => {

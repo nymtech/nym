@@ -9,6 +9,9 @@ use serde::{Deserialize, Serialize};
 /// Data structure for the ClientHello message
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ClientHelloData {
+    /// Client-proposed receiver index for session identification (4 bytes)
+    /// Auto-generated randomly by the client
+    pub receiver_index: u32,
     /// Client's LP x25519 public key (32 bytes) - derived from Ed25519 key
     pub client_lp_public_key: [u8; 32],
     /// Client's Ed25519 public key (32 bytes) - for PSQ authentication
@@ -46,6 +49,7 @@ impl ClientHelloData {
         rand::thread_rng().fill_bytes(&mut salt[8..]);
 
         Self {
+            receiver_index: rand::random(), // Auto-generate random receiver index
             client_lp_public_key,
             client_ed25519_public_key,
             salt,
@@ -73,6 +77,10 @@ pub enum MessageType {
     KKTRequest = 0x0004,
     KKTResponse = 0x0005,
     ForwardPacket = 0x0006,
+    /// Receiver index collision - client should retry with new index
+    Collision = 0x0007,
+    /// Acknowledgment - gateway confirms receipt of message
+    Ack = 0x0008,
 }
 
 impl MessageType {
@@ -122,6 +130,10 @@ pub enum LpMessage {
     KKTRequest(KKTRequestData),
     KKTResponse(KKTResponseData),
     ForwardPacket(ForwardPacketData),
+    /// Receiver index collision - client should retry with new receiver_index
+    Collision,
+    /// Acknowledgment - gateway confirms receipt of message
+    Ack,
 }
 
 impl Display for LpMessage {
@@ -134,6 +146,8 @@ impl Display for LpMessage {
             LpMessage::KKTRequest(_) => write!(f, "KKTRequest"),
             LpMessage::KKTResponse(_) => write!(f, "KKTResponse"),
             LpMessage::ForwardPacket(_) => write!(f, "ForwardPacket"),
+            LpMessage::Collision => write!(f, "Collision"),
+            LpMessage::Ack => write!(f, "Ack"),
         }
     }
 }
@@ -148,6 +162,8 @@ impl LpMessage {
             LpMessage::KKTRequest(payload) => payload.0.as_slice(),
             LpMessage::KKTResponse(payload) => payload.0.as_slice(),
             LpMessage::ForwardPacket(_) => &[], // Structured data, serialized in encode_content
+            LpMessage::Collision => &[],
+            LpMessage::Ack => &[],
         }
     }
 
@@ -160,6 +176,8 @@ impl LpMessage {
             LpMessage::KKTRequest(payload) => payload.0.is_empty(),
             LpMessage::KKTResponse(payload) => payload.0.is_empty(),
             LpMessage::ForwardPacket(_) => false, // Always has data
+            LpMessage::Collision => true,
+            LpMessage::Ack => true,
         }
     }
 
@@ -168,12 +186,15 @@ impl LpMessage {
             LpMessage::Busy => 0,
             LpMessage::Handshake(payload) => payload.0.len(),
             LpMessage::EncryptedData(payload) => payload.0.len(),
-            LpMessage::ClientHello(_) => 97, // 32 bytes x25519 key + 32 bytes ed25519 key + 32 bytes salt + 1 byte bincode overhead
+            // 4 bytes receiver_index + 32 bytes x25519 key + 32 bytes ed25519 key + 32 bytes salt + bincode overhead
+            LpMessage::ClientHello(_) => 101,
             LpMessage::KKTRequest(payload) => payload.0.len(),
             LpMessage::KKTResponse(payload) => payload.0.len(),
             LpMessage::ForwardPacket(data) => {
                 32 + data.target_lp_address.len() + data.inner_packet_bytes.len() + 10
             }
+            LpMessage::Collision => 0,
+            LpMessage::Ack => 0,
         }
     }
 
@@ -186,6 +207,8 @@ impl LpMessage {
             LpMessage::KKTRequest(_) => MessageType::KKTRequest,
             LpMessage::KKTResponse(_) => MessageType::KKTResponse,
             LpMessage::ForwardPacket(_) => MessageType::ForwardPacket,
+            LpMessage::Collision => MessageType::Collision,
+            LpMessage::Ack => MessageType::Ack,
         }
     }
 
@@ -215,6 +238,8 @@ impl LpMessage {
                     bincode::serialize(data).expect("Failed to serialize ForwardPacketData");
                 dst.put_slice(&serialized);
             }
+            LpMessage::Collision => { /* No content */ }
+            LpMessage::Ack => { /* No content */ }
         }
     }
 }
@@ -232,7 +257,7 @@ mod tests {
         let resp_header = LpHeader {
             protocol_version: 1,
             reserved: 0,
-            session_id: 0,
+            receiver_idx: 0,
             counter: 0,
         };
 

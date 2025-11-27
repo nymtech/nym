@@ -9,7 +9,7 @@
 use super::error::{LpClientError, Result};
 use bytes::BytesMut;
 use nym_lp::LpPacket;
-use nym_lp::codec::{parse_lp_packet, serialize_lp_packet};
+use nym_lp::codec::{parse_lp_packet, serialize_lp_packet, OuterAeadKey};
 use nym_lp::state_machine::{LpAction, LpInput, LpStateBare, LpStateMachine};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
@@ -196,9 +196,15 @@ impl LpTransport {
     ///
     /// Format: 4-byte big-endian u32 length + packet bytes
     async fn send_packet(&mut self, packet: &LpPacket) -> Result<()> {
-        // Serialize the packet
+        // Get outer_aead_key from session for AEAD encryption
+        let outer_key: Option<OuterAeadKey> = self
+            .state_machine
+            .session()
+            .ok()
+            .and_then(|s| s.outer_aead_key());
+
         let mut packet_buf = BytesMut::new();
-        serialize_lp_packet(packet, &mut packet_buf)
+        serialize_lp_packet(packet, &mut packet_buf, outer_key.as_ref())
             .map_err(|e| LpClientError::Transport(format!("Failed to serialize packet: {}", e)))?;
 
         // Send 4-byte length prefix (u32 big-endian)
@@ -257,8 +263,14 @@ impl LpTransport {
             .await
             .map_err(|e| LpClientError::Transport(format!("Failed to read packet data: {}", e)))?;
 
-        // Parse the packet
-        let packet = parse_lp_packet(&packet_buf)
+        // Get outer_aead_key from session for AEAD decryption
+        let outer_key: Option<OuterAeadKey> = self
+            .state_machine
+            .session()
+            .ok()
+            .and_then(|s| s.outer_aead_key());
+
+        let packet = parse_lp_packet(&packet_buf, outer_key.as_ref())
             .map_err(|e| LpClientError::Transport(format!("Failed to parse packet: {}", e)))?;
 
         tracing::trace!("Received LP packet ({} bytes + 4 byte header)", packet_len);

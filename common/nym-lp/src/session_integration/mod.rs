@@ -2,7 +2,6 @@
 mod tests {
     use crate::codec::{parse_lp_packet, serialize_lp_packet};
     use crate::keypair::PublicKey;
-    use crate::make_lp_id;
     use crate::{
         LpError,
         message::LpMessage,
@@ -15,7 +14,7 @@ mod tests {
     // Function to create a test packet - similar to how it's done in codec.rs tests
     fn create_test_packet(
         protocol_version: u8,
-        session_id: u32,
+        receiver_idx: u32,
         counter: u64,
         message: LpMessage,
     ) -> LpPacket {
@@ -23,7 +22,7 @@ mod tests {
         let header = LpHeader {
             protocol_version,
             reserved: 0u16, // reserved
-            session_id,
+            receiver_idx,
             counter,
         };
 
@@ -54,7 +53,7 @@ mod tests {
         let ed25519_keypair_a = ed25519::KeyPair::from_secret([1u8; 32], 0);
         let ed25519_keypair_b = ed25519::KeyPair::from_secret([2u8; 32], 1);
 
-        // Derive X25519 keys from Ed25519 (same as state machine does internally)
+        // Derive X25519 keys from Ed25519 (needed for KKT init test)
         let x25519_pub_a = ed25519_keypair_a
             .public_key()
             .to_x25519()
@@ -70,8 +69,8 @@ mod tests {
         let lp_pub_b = PublicKey::from_bytes(x25519_pub_b.as_bytes())
             .expect("Failed to create PublicKey from bytes");
 
-        // Calculate lp_id (matches state machine's internal calculation)
-        let lp_id = make_lp_id(&lp_pub_a, &lp_pub_b);
+        // Use fixed receiver_index for deterministic test
+        let receiver_index: u32 = 100001;
 
         // Test salt
         let salt = [42u8; 32];
@@ -79,6 +78,7 @@ mod tests {
         // 4. Create sessions using the pre-built Noise states
         let peer_a_sm = session_manager_1
             .create_session_state_machine(
+                receiver_index,
                 (
                     ed25519_keypair_a.private_key(),
                     ed25519_keypair_a.public_key(),
@@ -91,6 +91,7 @@ mod tests {
 
         let peer_b_sm = session_manager_2
             .create_session_state_machine(
+                receiver_index,
                 (
                     ed25519_keypair_b.private_key(),
                     ed25519_keypair_b.public_key(),
@@ -145,13 +146,13 @@ mod tests {
                 );
 
                 // A prepares packet
-                let counter = session_manager_1.next_counter(lp_id).unwrap();
-                let message_a_to_b = create_test_packet(1, lp_id, counter, payload);
+                let counter = session_manager_1.next_counter(receiver_index).unwrap();
+                let message_a_to_b = create_test_packet(1, receiver_index, counter, payload);
                 let mut encoded_msg = BytesMut::new();
-                serialize_lp_packet(&message_a_to_b, &mut encoded_msg).expect("A serialize failed");
+                serialize_lp_packet(&message_a_to_b, &mut encoded_msg, None).expect("A serialize failed");
 
                 // B parses packet and checks replay
-                let decoded_packet = parse_lp_packet(&encoded_msg).expect("B parse failed");
+                let decoded_packet = parse_lp_packet(&encoded_msg, None).expect("B parse failed");
                 assert_eq!(decoded_packet.header.counter, counter);
 
                 // Check replay before processing handshake
@@ -197,12 +198,12 @@ mod tests {
 
                 // B prepares packet
                 let counter = session_manager_2.next_counter(peer_b_sm).unwrap();
-                let message_b_to_a = create_test_packet(1, lp_id, counter, payload);
+                let message_b_to_a = create_test_packet(1, receiver_index, counter, payload);
                 let mut encoded_msg = BytesMut::new();
-                serialize_lp_packet(&message_b_to_a, &mut encoded_msg).expect("B serialize failed");
+                serialize_lp_packet(&message_b_to_a, &mut encoded_msg, None).expect("B serialize failed");
 
                 // A parses packet and checks replay
-                let decoded_packet = parse_lp_packet(&encoded_msg).expect("A parse failed");
+                let decoded_packet = parse_lp_packet(&encoded_msg, None).expect("A parse failed");
                 assert_eq!(decoded_packet.header.counter, counter);
 
                 // Check replay before processing handshake
@@ -282,13 +283,13 @@ mod tests {
 
         // A prepares packet
         let counter_a = session_manager_1.next_counter(peer_a_sm).unwrap();
-        let message_a_to_b = create_test_packet(1, lp_id, counter_a, ciphertext_a_to_b);
+        let message_a_to_b = create_test_packet(1, receiver_index, counter_a, ciphertext_a_to_b);
         let mut encoded_data_a_to_b = BytesMut::new();
-        serialize_lp_packet(&message_a_to_b, &mut encoded_data_a_to_b)
+        serialize_lp_packet(&message_a_to_b, &mut encoded_data_a_to_b, None)
             .expect("A serialize data failed");
 
         // B parses packet and checks replay
-        let decoded_packet_b = parse_lp_packet(&encoded_data_a_to_b).expect("B parse data failed");
+        let decoded_packet_b = parse_lp_packet(&encoded_data_a_to_b, None).expect("B parse data failed");
         assert_eq!(decoded_packet_b.header.counter, counter_a);
 
         // Check replay before decrypting
@@ -316,13 +317,13 @@ mod tests {
             .encrypt_data(peer_b_sm, plaintext_b_to_a)
             .expect("B encrypt failed");
         let counter_b = session_manager_2.next_counter(peer_b_sm).unwrap();
-        let message_b_to_a = create_test_packet(1, lp_id, counter_b, ciphertext_b_to_a);
+        let message_b_to_a = create_test_packet(1, receiver_index, counter_b, ciphertext_b_to_a);
         let mut encoded_data_b_to_a = BytesMut::new();
-        serialize_lp_packet(&message_b_to_a, &mut encoded_data_b_to_a)
+        serialize_lp_packet(&message_b_to_a, &mut encoded_data_b_to_a, None)
             .expect("B serialize data failed");
 
         // A parses packet and checks replay
-        let decoded_packet_a = parse_lp_packet(&encoded_data_b_to_a).expect("A parse data failed");
+        let decoded_packet_a = parse_lp_packet(&encoded_data_b_to_a, None).expect("A parse data failed");
         assert_eq!(decoded_packet_a.header.counter, counter_b);
 
         // Check replay before decrypting
@@ -352,18 +353,18 @@ mod tests {
         // Need to re-encode because decode consumes the buffer
         let message_b_to_a_replay = create_test_packet(
             1,
-            lp_id,
+            receiver_index,
             counter_b,
             LpMessage::EncryptedData(crate::message::EncryptedDataPayload(
                 plaintext_b_to_a.to_vec(),
             )), // Using plaintext here, but content doesn't matter for replay check
         );
         let mut encoded_data_b_to_a_replay = BytesMut::new();
-        serialize_lp_packet(&message_b_to_a_replay, &mut encoded_data_b_to_a_replay)
+        serialize_lp_packet(&message_b_to_a_replay, &mut encoded_data_b_to_a_replay, None)
             .expect("B serialize replay failed");
 
         let parsed_replay_packet =
-            parse_lp_packet(&encoded_data_b_to_a_replay).expect("A parse replay failed");
+            parse_lp_packet(&encoded_data_b_to_a_replay, None).expect("A parse replay failed");
         let replay_result = session_manager_1
             .receiving_counter_quick_check(peer_a_sm, parsed_replay_packet.header.counter);
         assert!(replay_result.is_err(), "Data replay should be prevented");
@@ -386,18 +387,18 @@ mod tests {
 
         let message_a_to_b_skip = create_test_packet(
             1, // protocol version
-            lp_id,
+            receiver_index,
             counter_a_skip, // Send N+1 first
             ciphertext_skip,
         );
 
         // Encode the skip message
         let mut encoded_skip = BytesMut::new();
-        serialize_lp_packet(&message_a_to_b_skip, &mut encoded_skip)
+        serialize_lp_packet(&message_a_to_b_skip, &mut encoded_skip, None)
             .expect("Failed to serialize skip message");
 
         // B parses skip message and checks replay
-        let decoded_packet_skip = parse_lp_packet(&encoded_skip).expect("B parse skip failed");
+        let decoded_packet_skip = parse_lp_packet(&encoded_skip, None).expect("B parse skip failed");
         session_manager_2
             .receiving_counter_quick_check(peer_b_sm, decoded_packet_skip.header.counter)
             .expect("B replay check skip failed");
@@ -428,14 +429,14 @@ mod tests {
 
         let message_a_to_b_delayed = create_test_packet(
             1, // protocol version
-            lp_id,
+            receiver_index,
             counter_a_next, // counter N (delayed packet)
             ciphertext_delayed,
         );
 
         // Encode the delayed message
         let mut encoded_delayed = BytesMut::new();
-        serialize_lp_packet(&message_a_to_b_delayed, &mut encoded_delayed)
+        serialize_lp_packet(&message_a_to_b_delayed, &mut encoded_delayed, None)
             .expect("Failed to serialize delayed message");
 
         // Make a copy for replay test later
@@ -443,7 +444,7 @@ mod tests {
 
         // B parses delayed message and checks replay
         let decoded_packet_delayed =
-            parse_lp_packet(&encoded_delayed).expect("B parse delayed failed");
+            parse_lp_packet(&encoded_delayed, None).expect("B parse delayed failed");
         session_manager_2
             .receiving_counter_quick_check(peer_b_sm, decoded_packet_delayed.header.counter)
             .expect("B replay check delayed failed");
@@ -469,7 +470,7 @@ mod tests {
         // 11. Try to replay message with counter N (should fail)
         println!("Testing replay of delayed packet...");
         let parsed_delayed_replay =
-            parse_lp_packet(&encoded_delayed_copy).expect("Parse delayed replay failed");
+            parse_lp_packet(&encoded_delayed_copy, None).expect("Parse delayed replay failed");
         let result = session_manager_2
             .receiving_counter_quick_check(peer_b_sm, parsed_delayed_replay.header.counter);
         assert!(result.is_err(), "Replay attack should be prevented");
@@ -479,15 +480,15 @@ mod tests {
         );
 
         // 12. Session removal
-        assert!(session_manager_1.remove_state_machine(lp_id));
+        assert!(session_manager_1.remove_state_machine(receiver_index));
         assert_eq!(session_manager_1.session_count(), 0);
 
         // Verify the session is gone
-        let session = session_manager_1.state_machine_exists(lp_id);
+        let session = session_manager_1.state_machine_exists(receiver_index);
         assert!(!session, "Session should be removed");
 
         // But the other session still exists
-        let session = session_manager_2.state_machine_exists(lp_id);
+        let session = session_manager_2.state_machine_exists(receiver_index);
         assert!(session, "Session still exists in the other manager");
     }
 
@@ -518,14 +519,15 @@ mod tests {
         let lp_pub_b = PublicKey::from_bytes(x25519_pub_b.as_bytes())
             .expect("Failed to create PublicKey from bytes");
 
-        // Calculate lp_id (matches state machine's internal calculation)
-        let lp_id = make_lp_id(&lp_pub_a, &lp_pub_b);
+        // Use fixed receiver_index for test
+        let receiver_index: u32 = 100002;
 
         // Test salt
         let salt = [43u8; 32];
 
         let peer_a_sm = session_manager_1
             .create_session_state_machine(
+                receiver_index,
                 (
                     ed25519_keypair_a.private_key(),
                     ed25519_keypair_a.public_key(),
@@ -537,6 +539,7 @@ mod tests {
             .unwrap();
         let peer_b_sm = session_manager_2
             .create_session_state_machine(
+                receiver_index,
                 (
                     ed25519_keypair_b.private_key(),
                     ed25519_keypair_b.public_key(),
@@ -612,12 +615,12 @@ mod tests {
             let current_counter_a = counter_a;
             counter_a += 1;
 
-            let message_a = create_test_packet(1, lp_id, current_counter_a, ciphertext_a);
+            let message_a = create_test_packet(1, receiver_index, current_counter_a, ciphertext_a);
             let mut encoded_a = BytesMut::new();
-            serialize_lp_packet(&message_a, &mut encoded_a).expect("A serialize failed");
+            serialize_lp_packet(&message_a, &mut encoded_a, None).expect("A serialize failed");
 
             // B parses and checks replay
-            let decoded_packet_b = parse_lp_packet(&encoded_a).expect("B parse failed");
+            let decoded_packet_b = parse_lp_packet(&encoded_a, None).expect("B parse failed");
             session_manager_2
                 .receiving_counter_quick_check(peer_b_sm, decoded_packet_b.header.counter)
                 .expect("B replay check failed (A->B)");
@@ -638,12 +641,12 @@ mod tests {
             let current_counter_b = counter_b;
             counter_b += 1;
 
-            let message_b = create_test_packet(1, lp_id, current_counter_b, ciphertext_b);
+            let message_b = create_test_packet(1, receiver_index, current_counter_b, ciphertext_b);
             let mut encoded_b = BytesMut::new();
-            serialize_lp_packet(&message_b, &mut encoded_b).expect("B serialize failed");
+            serialize_lp_packet(&message_b, &mut encoded_b, None).expect("B serialize failed");
 
             // A parses and checks replay
-            let decoded_packet_a = parse_lp_packet(&encoded_b).expect("A parse failed");
+            let decoded_packet_a = parse_lp_packet(&encoded_b, None).expect("A parse failed");
             session_manager_1
                 .receiving_counter_quick_check(peer_a_sm, decoded_packet_a.header.counter)
                 .expect("A replay check failed (B->A)");
@@ -716,12 +719,12 @@ mod tests {
             .to_x25519()
             .expect("Failed to derive X25519 from Ed25519");
 
-        // Convert to LP keypair type
-        let lp_pub = PublicKey::from_bytes(x25519_pub.as_bytes())
+        // Convert to LP keypair type (still needed for init_kkt_for_test below if used)
+        let _lp_pub = PublicKey::from_bytes(x25519_pub.as_bytes())
             .expect("Failed to create PublicKey from bytes");
 
-        // Calculate lp_id (self-connection: both sides use same key)
-        let lp_id = make_lp_id(&lp_pub, &lp_pub);
+        // Use fixed receiver_index for test
+        let receiver_index: u32 = 100003;
 
         // Test salt
         let salt = [44u8; 32];
@@ -729,6 +732,7 @@ mod tests {
         // 2. Create a session (using real noise state)
         let _session = session_manager
             .create_session_state_machine(
+                receiver_index,
                 (ed25519_keypair.private_key(), ed25519_keypair.public_key()),
                 ed25519_keypair.public_key(),
                 true,
@@ -748,8 +752,10 @@ mod tests {
         );
 
         // 5. Create and immediately remove a session
+        let receiver_index_temp: u32 = 100004;
         let _temp_session = session_manager
             .create_session_state_machine(
+                receiver_index_temp,
                 (ed25519_keypair.private_key(), ed25519_keypair.public_key()),
                 ed25519_keypair.public_key(),
                 true,
@@ -758,7 +764,7 @@ mod tests {
             .expect("Failed to create temp session");
 
         assert!(
-            session_manager.remove_state_machine(lp_id),
+            session_manager.remove_state_machine(receiver_index_temp),
             "Should remove the session"
         );
 
@@ -770,7 +776,7 @@ mod tests {
 
         // Add header
         buf.extend_from_slice(&[1, 0, 0, 0]); // Version + reserved
-        buf.extend_from_slice(&lp_id.to_le_bytes()); // Sender index
+        buf.extend_from_slice(&receiver_index.to_le_bytes()); // Sender index
         buf.extend_from_slice(&0u64.to_le_bytes()); // Counter
 
         // Add invalid message type
@@ -783,7 +789,7 @@ mod tests {
         buf.extend_from_slice(&[0u8; TRAILER_LEN]);
 
         // Try to parse the invalid message type
-        let result = parse_lp_packet(&buf);
+        let result = parse_lp_packet(&buf, None);
         assert!(result.is_err(), "Decoding invalid message type should fail");
 
         // Add assertion for the specific error type
@@ -796,7 +802,7 @@ mod tests {
         let partial_packet = &buf[0..10]; // Too short to be a valid packet
         let partial_bytes = BytesMut::from(partial_packet);
 
-        let result = parse_lp_packet(&partial_bytes);
+        let result = parse_lp_packet(&partial_bytes, None);
         assert!(result.is_err(), "Parsing partial packet should fail");
         assert!(matches!(
             result.unwrap_err(),
@@ -844,14 +850,14 @@ mod tests {
             .to_x25519()
             .expect("Failed to derive X25519 from Ed25519");
 
-        // Convert to LP keypair types
+        // Convert to LP keypair types (needed for init_kkt_for_test if used)
         let lp_pub_a = PublicKey::from_bytes(x25519_pub_a.as_bytes())
             .expect("Failed to create PublicKey from bytes");
         let lp_pub_b = PublicKey::from_bytes(x25519_pub_b.as_bytes())
             .expect("Failed to create PublicKey from bytes");
 
-        // Calculate lp_id (matches state machine's internal calculation)
-        let lp_id = make_lp_id(&lp_pub_a, &lp_pub_b);
+        // Use fixed receiver_index for test
+        let receiver_index: u32 = 100005;
 
         // Test salt
         let salt = [45u8; 32];
@@ -860,6 +866,7 @@ mod tests {
         assert!(
             session_manager_1
                 .create_session_state_machine(
+                    receiver_index,
                     (
                         ed25519_keypair_a.private_key(),
                         ed25519_keypair_a.public_key()
@@ -873,6 +880,7 @@ mod tests {
         assert!(
             session_manager_2
                 .create_session_state_machine(
+                    receiver_index,
                     (
                         ed25519_keypair_b.private_key(),
                         ed25519_keypair_b.public_key()
@@ -886,16 +894,16 @@ mod tests {
 
         assert_eq!(session_manager_1.session_count(), 1);
         assert_eq!(session_manager_2.session_count(), 1);
-        assert!(session_manager_1.state_machine_exists(lp_id));
-        assert!(session_manager_2.state_machine_exists(lp_id));
+        assert!(session_manager_1.state_machine_exists(receiver_index));
+        assert!(session_manager_2.state_machine_exists(receiver_index));
 
         // Verify initial states are ReadyToHandshake
         assert_eq!(
-            session_manager_1.get_state(lp_id).unwrap(),
+            session_manager_1.get_state(receiver_index).unwrap(),
             LpStateBare::ReadyToHandshake
         );
         assert_eq!(
-            session_manager_2.get_state(lp_id).unwrap(),
+            session_manager_2.get_state(receiver_index).unwrap(),
             LpStateBare::ReadyToHandshake
         );
 
@@ -910,7 +918,7 @@ mod tests {
         // --- Round 1: Initiator Starts ---
         println!("  Round {}: Initiator starts handshake", rounds);
         let action_a1 = session_manager_1
-            .process_input(lp_id, LpInput::StartHandshake)
+            .process_input(receiver_index, LpInput::StartHandshake)
             .expect("Initiator StartHandshake should produce an action")
             .expect("Initiator StartHandshake failed");
 
@@ -922,7 +930,7 @@ mod tests {
         }
         // After StartHandshake, initiator should be in KKTExchange state (not Handshaking yet)
         assert_eq!(
-            session_manager_1.get_state(lp_id).unwrap(),
+            session_manager_1.get_state(receiver_index).unwrap(),
             LpStateBare::KKTExchange,
             "Initiator state wrong after StartHandshake (should be KKTExchange)"
         );
@@ -932,7 +940,7 @@ mod tests {
             "  Round {}: Responder explicitly enters KKTExchange state",
             rounds
         );
-        let action_b_start = session_manager_2.process_input(lp_id, LpInput::StartHandshake);
+        let action_b_start = session_manager_2.process_input(receiver_index, LpInput::StartHandshake);
         // Responder's StartHandshake should not produce an action to send
         assert!(
             action_b_start.as_ref().unwrap().is_none(),
@@ -941,7 +949,7 @@ mod tests {
         );
         // Verify responder transitions to KKTExchange state (not Handshaking yet)
         assert_eq!(
-            session_manager_2.get_state(lp_id).unwrap(),
+            session_manager_2.get_state(receiver_index).unwrap(),
             LpStateBare::KKTExchange, // Responder also enters KKTExchange state
             "Responder state should be KKTExchange after its StartHandshake"
         );
@@ -959,12 +967,12 @@ mod tests {
 
         // Simulate network: serialize -> parse (optional but good practice)
         let mut buf_a = BytesMut::new();
-        serialize_lp_packet(&packet_to_process, &mut buf_a).unwrap();
-        let parsed_packet_a = parse_lp_packet(&buf_a).unwrap();
+        serialize_lp_packet(&packet_to_process, &mut buf_a, None).unwrap();
+        let parsed_packet_a = parse_lp_packet(&buf_a, None).unwrap();
 
         // Responder processes KKT request
         let action_b1 = session_manager_2
-            .process_input(lp_id, LpInput::ReceivePacket(parsed_packet_a))
+            .process_input(receiver_index, LpInput::ReceivePacket(parsed_packet_a))
             .expect("Responder ReceivePacket should produce an action")
             .expect("Responder ReceivePacket failed");
 
@@ -976,7 +984,7 @@ mod tests {
         }
         // Responder transitions to Handshaking after KKT completes
         assert_eq!(
-            session_manager_2.get_state(lp_id).unwrap(),
+            session_manager_2.get_state(receiver_index).unwrap(),
             LpStateBare::Handshaking,
             "Responder state should be Handshaking after KKT exchange"
         );
@@ -993,12 +1001,12 @@ mod tests {
 
         // Simulate network
         let mut buf_b = BytesMut::new();
-        serialize_lp_packet(&packet_to_process, &mut buf_b).unwrap();
-        let parsed_packet_b = parse_lp_packet(&buf_b).unwrap();
+        serialize_lp_packet(&packet_to_process, &mut buf_b, None).unwrap();
+        let parsed_packet_b = parse_lp_packet(&buf_b, None).unwrap();
 
         // Initiator processes KKT response
         let action_a2 = session_manager_1
-            .process_input(lp_id, LpInput::ReceivePacket(parsed_packet_b))
+            .process_input(receiver_index, LpInput::ReceivePacket(parsed_packet_b))
             .expect("Initiator ReceivePacket should produce an action")
             .expect("Initiator ReceivePacket failed");
 
@@ -1010,7 +1018,7 @@ mod tests {
                 packet_a_to_b = Some(packet);
                 // Initiator transitions to Handshaking after KKT completes
                 assert_eq!(
-                    session_manager_1.get_state(lp_id).unwrap(),
+                    session_manager_1.get_state(receiver_index).unwrap(),
                     LpStateBare::Handshaking,
                     "Initiator state should be Handshaking after receiving KKT response"
                 );
@@ -1022,10 +1030,10 @@ mod tests {
                 // KKT completed, now need to explicitly trigger handshake message
                 // This might be the case if KKT completion doesn't automatically send the first Noise message
                 // Let's try to prepare the handshake message
-                if let Some(msg_result) = session_manager_1.prepare_handshake_message(lp_id) {
+                if let Some(msg_result) = session_manager_1.prepare_handshake_message(receiver_index) {
                     let msg = msg_result.expect("Failed to prepare handshake message after KKT");
                     // Create a packet from the message
-                    let packet = create_test_packet(1, lp_id, 0, msg);
+                    let packet = create_test_packet(1, receiver_index, 0, msg);
                     packet_a_to_b = Some(packet);
                     println!("    Prepared first Noise message after KKTComplete");
                 } else {
@@ -1052,12 +1060,12 @@ mod tests {
 
         // Simulate network
         let mut buf_a2 = BytesMut::new();
-        serialize_lp_packet(&packet_to_process, &mut buf_a2).unwrap();
-        let parsed_packet_a2 = parse_lp_packet(&buf_a2).unwrap();
+        serialize_lp_packet(&packet_to_process, &mut buf_a2, None).unwrap();
+        let parsed_packet_a2 = parse_lp_packet(&buf_a2, None).unwrap();
 
         // Responder processes first Noise message and sends second Noise message
         let action_b2 = session_manager_2
-            .process_input(lp_id, LpInput::ReceivePacket(parsed_packet_a2))
+            .process_input(receiver_index, LpInput::ReceivePacket(parsed_packet_a2))
             .expect("Responder ReceivePacket should produce an action")
             .expect("Responder ReceivePacket failed");
 
@@ -1071,7 +1079,7 @@ mod tests {
         }
         // Responder still in Handshaking, waiting for final message
         assert_eq!(
-            session_manager_2.get_state(lp_id).unwrap(),
+            session_manager_2.get_state(receiver_index).unwrap(),
             LpStateBare::Handshaking,
             "Responder state should still be Handshaking after sending second message"
         );
@@ -1087,11 +1095,11 @@ mod tests {
             .expect("Second Noise packet from B was missing");
 
         let mut buf_b2 = BytesMut::new();
-        serialize_lp_packet(&packet_to_process, &mut buf_b2).unwrap();
-        let parsed_packet_b2 = parse_lp_packet(&buf_b2).unwrap();
+        serialize_lp_packet(&packet_to_process, &mut buf_b2, None).unwrap();
+        let parsed_packet_b2 = parse_lp_packet(&buf_b2, None).unwrap();
 
         let action_a3 = session_manager_1
-            .process_input(lp_id, LpInput::ReceivePacket(parsed_packet_b2))
+            .process_input(receiver_index, LpInput::ReceivePacket(parsed_packet_b2))
             .expect("Initiator ReceivePacket should produce an action")
             .expect("Initiator ReceivePacket failed");
 
@@ -1105,7 +1113,7 @@ mod tests {
         }
         // Initiator transitions to Transport after sending third message
         assert_eq!(
-            session_manager_1.get_state(lp_id).unwrap(),
+            session_manager_1.get_state(receiver_index).unwrap(),
             LpStateBare::Transport,
             "Initiator state should be Transport after sending third message"
         );
@@ -1121,11 +1129,11 @@ mod tests {
             .expect("Third Noise packet from A was missing");
 
         let mut buf_a3 = BytesMut::new();
-        serialize_lp_packet(&packet_to_process, &mut buf_a3).unwrap();
-        let parsed_packet_a3 = parse_lp_packet(&buf_a3).unwrap();
+        serialize_lp_packet(&packet_to_process, &mut buf_a3, None).unwrap();
+        let parsed_packet_a3 = parse_lp_packet(&buf_a3, None).unwrap();
 
         let action_b3 = session_manager_2
-            .process_input(lp_id, LpInput::ReceivePacket(parsed_packet_a3))
+            .process_input(receiver_index, LpInput::ReceivePacket(parsed_packet_a3))
             .expect("Responder final ReceivePacket should produce an action")
             .expect("Responder final ReceivePacket failed");
 
@@ -1139,7 +1147,7 @@ mod tests {
             );
         }
         assert_eq!(
-            session_manager_2.get_state(lp_id).unwrap(),
+            session_manager_2.get_state(receiver_index).unwrap(),
             LpStateBare::Transport,
             "Responder state should be Transport after processing third message"
         );
@@ -1147,11 +1155,11 @@ mod tests {
         // --- Verification ---
         assert!(rounds < MAX_ROUNDS, "Handshake took too many rounds");
         assert_eq!(
-            session_manager_1.get_state(lp_id).unwrap(),
+            session_manager_1.get_state(receiver_index).unwrap(),
             LpStateBare::Transport
         );
         assert_eq!(
-            session_manager_2.get_state(lp_id).unwrap(),
+            session_manager_2.get_state(receiver_index).unwrap(),
             LpStateBare::Transport
         );
         println!("Handshake simulation completed successfully via process_input.");
@@ -1164,7 +1172,7 @@ mod tests {
         // --- A sends to B ---
         println!("  A sends to B");
         let action_a_send = session_manager_1
-            .process_input(lp_id, LpInput::SendData(plaintext_a_to_b.to_vec()))
+            .process_input(receiver_index, LpInput::SendData(plaintext_a_to_b.to_vec()))
             .expect("A SendData should produce action")
             .expect("A SendData failed");
 
@@ -1176,13 +1184,13 @@ mod tests {
 
         // Simulate network
         let mut buf_data_a = BytesMut::new();
-        serialize_lp_packet(&data_packet_a, &mut buf_data_a).unwrap();
-        let parsed_data_a = parse_lp_packet(&buf_data_a).unwrap();
+        serialize_lp_packet(&data_packet_a, &mut buf_data_a, None).unwrap();
+        let parsed_data_a = parse_lp_packet(&buf_data_a, None).unwrap();
 
         // B receives
         println!("  B receives from A");
         let action_b_recv = session_manager_2
-            .process_input(lp_id, LpInput::ReceivePacket(parsed_data_a))
+            .process_input(receiver_index, LpInput::ReceivePacket(parsed_data_a))
             .expect("B ReceivePacket (data) should produce action")
             .expect("B ReceivePacket (data) failed");
 
@@ -1203,7 +1211,7 @@ mod tests {
         // --- B sends to A ---
         println!("  B sends to A");
         let action_b_send = session_manager_2
-            .process_input(lp_id, LpInput::SendData(plaintext_b_to_a.to_vec()))
+            .process_input(receiver_index, LpInput::SendData(plaintext_b_to_a.to_vec()))
             .expect("B SendData should produce action")
             .expect("B SendData failed");
 
@@ -1217,13 +1225,13 @@ mod tests {
 
         // Simulate network
         let mut buf_data_b = BytesMut::new();
-        serialize_lp_packet(&data_packet_b, &mut buf_data_b).unwrap();
-        let parsed_data_b = parse_lp_packet(&buf_data_b).unwrap();
+        serialize_lp_packet(&data_packet_b, &mut buf_data_b, None).unwrap();
+        let parsed_data_b = parse_lp_packet(&buf_data_b, None).unwrap();
 
         // A receives
         println!("  A receives from B");
         let action_a_recv = session_manager_1
-            .process_input(lp_id, LpInput::ReceivePacket(parsed_data_b))
+            .process_input(receiver_index, LpInput::ReceivePacket(parsed_data_b))
             .expect("A ReceivePacket (data) should produce action")
             .expect("A ReceivePacket (data) failed");
 
@@ -1245,7 +1253,7 @@ mod tests {
         // --- 6. Replay Protection Test ---
         println!("Testing data packet replay protection via process_input...");
         let replay_result =
-            session_manager_1.process_input(lp_id, LpInput::ReceivePacket(data_packet_b_replay)); // Use cloned packet
+            session_manager_1.process_input(receiver_index, LpInput::ReceivePacket(data_packet_b_replay)); // Use cloned packet
 
         assert!(replay_result.is_err(), "Replay should produce Err(...)");
         let error = replay_result.err().unwrap();
@@ -1264,7 +1272,7 @@ mod tests {
         let data_n = Bytes::from_static(b"Message N");
 
         let action_send_n1 = session_manager_1
-            .process_input(lp_id, LpInput::SendData(data_n_plus_1.to_vec()))
+            .process_input(receiver_index, LpInput::SendData(data_n_plus_1.to_vec()))
             .unwrap()
             .unwrap();
         let packet_n1 = match action_send_n1 {
@@ -1273,7 +1281,7 @@ mod tests {
         };
 
         let action_send_n = session_manager_1
-            .process_input(lp_id, LpInput::SendData(data_n.to_vec()))
+            .process_input(receiver_index, LpInput::SendData(data_n.to_vec()))
             .unwrap()
             .unwrap();
         let packet_n = match action_send_n {
@@ -1285,7 +1293,7 @@ mod tests {
         // B receives N+1 first
         println!("  B receives N+1");
         let action_recv_n1 = session_manager_2
-            .process_input(lp_id, LpInput::ReceivePacket(packet_n1))
+            .process_input(receiver_index, LpInput::ReceivePacket(packet_n1))
             .unwrap()
             .unwrap();
         match action_recv_n1 {
@@ -1296,7 +1304,7 @@ mod tests {
         // B receives N second (should work)
         println!("  B receives N");
         let action_recv_n = session_manager_2
-            .process_input(lp_id, LpInput::ReceivePacket(packet_n))
+            .process_input(receiver_index, LpInput::ReceivePacket(packet_n))
             .unwrap()
             .unwrap();
         match action_recv_n {
@@ -1307,7 +1315,7 @@ mod tests {
         // B tries to replay N (should fail)
         println!("  B tries to replay N");
         let replay_n_result =
-            session_manager_2.process_input(lp_id, LpInput::ReceivePacket(packet_n_replay));
+            session_manager_2.process_input(receiver_index, LpInput::ReceivePacket(packet_n_replay));
         assert!(replay_n_result.is_err(), "Replay N should produce Err");
         assert!(
             matches!(replay_n_result.err().unwrap(), LpError::Replay(_)),
@@ -1320,18 +1328,18 @@ mod tests {
 
         // A closes
         let action_a_close = session_manager_1
-            .process_input(lp_id, LpInput::Close)
+            .process_input(receiver_index, LpInput::Close)
             .expect("A Close should produce action")
             .expect("A Close failed");
         assert!(matches!(action_a_close, LpAction::ConnectionClosed));
         assert_eq!(
-            session_manager_1.get_state(lp_id).unwrap(),
+            session_manager_1.get_state(receiver_index).unwrap(),
             LpStateBare::Closed
         );
 
         // Further actions on A fail
         let send_after_close_a =
-            session_manager_1.process_input(lp_id, LpInput::SendData(b"fail".to_vec()));
+            session_manager_1.process_input(receiver_index, LpInput::SendData(b"fail".to_vec()));
         assert!(send_after_close_a.is_err());
         assert!(matches!(
             send_after_close_a.err().unwrap(),
@@ -1340,18 +1348,18 @@ mod tests {
 
         // B closes
         let action_b_close = session_manager_2
-            .process_input(lp_id, LpInput::Close)
+            .process_input(receiver_index, LpInput::Close)
             .expect("B Close should produce action")
             .expect("B Close failed");
         assert!(matches!(action_b_close, LpAction::ConnectionClosed));
         assert_eq!(
-            session_manager_2.get_state(lp_id).unwrap(),
+            session_manager_2.get_state(receiver_index).unwrap(),
             LpStateBare::Closed
         );
 
         // Further actions on B fail
         let send_after_close_b =
-            session_manager_2.process_input(lp_id, LpInput::SendData(b"fail".to_vec()));
+            session_manager_2.process_input(receiver_index, LpInput::SendData(b"fail".to_vec()));
         assert!(send_after_close_b.is_err());
         assert!(matches!(
             send_after_close_b.err().unwrap(),
@@ -1360,15 +1368,15 @@ mod tests {
         println!("Close test passed.");
 
         // --- 9. Session Removal ---
-        assert!(session_manager_1.remove_state_machine(lp_id));
+        assert!(session_manager_1.remove_state_machine(receiver_index));
         assert_eq!(session_manager_1.session_count(), 0);
-        assert!(!session_manager_1.state_machine_exists(lp_id));
+        assert!(!session_manager_1.state_machine_exists(receiver_index));
 
         // B's session manager still has it until removed
-        assert!(session_manager_2.state_machine_exists(lp_id));
-        assert!(session_manager_2.remove_state_machine(lp_id));
+        assert!(session_manager_2.state_machine_exists(receiver_index));
+        assert!(session_manager_2.remove_state_machine(receiver_index));
         assert_eq!(session_manager_2.session_count(), 0);
-        assert!(!session_manager_2.state_machine_exists(lp_id));
+        assert!(!session_manager_2.state_machine_exists(receiver_index));
         println!("Session removal test passed.");
     }
     // ... other tests ...

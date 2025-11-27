@@ -7,94 +7,238 @@ use crate::message::{
     KKTResponseData, LpMessage, MessageType,
 };
 use crate::packet::{LpHeader, LpPacket, TRAILER_LEN};
-use bytes::BytesMut;
+use bytes::{BufMut, BytesMut};
+use chacha20poly1305::{
+    aead::{AeadInPlace, KeyInit},
+    ChaCha20Poly1305, Key, Nonce, Tag,
+};
+
+/// Outer AEAD key for LP packet encryption.
+///
+/// Derived from PSK using Blake3 KDF with domain separation.
+/// Used for opportunistic encryption: before PSK packets are cleartext,
+/// after PSK packets have encrypted payload and authenticated header.
+///
+/// # Security: Nonce Reuse Prevention
+///
+/// ChaCha20-Poly1305 requires unique nonces per key. The counter starts at 0
+/// for each session, which is safe because:
+///
+/// 1. **PSK is always fresh**: Each handshake uses PSQ 
+///    with a client-generated random salt. This ensures a unique
+///    PSK for every session, even between the same client-gateway pair.
+///
+/// 2. **Key derivation**: `outer_key = Blake3_KDF("lp-outer-aead", PSK)`.
+///    Different PSK → different outer_key → nonce reuse impossible.
+///
+/// 3. **No PSK persistence**: PSK handles are not stored/reused across sessions.
+///    Each connection performs fresh KKT+PSQ handshake.
+///
+#[derive(Clone)]
+pub struct OuterAeadKey {
+    key: [u8; 32],
+}
+
+impl OuterAeadKey {
+    /// KDF context for outer AEAD key derivation (domain separation)
+    const KDF_CONTEXT: &'static str = "lp-outer-aead";
+
+    /// Derive outer AEAD key from PSK.
+    ///
+    /// Uses Blake3 KDF with domain separation to avoid key reuse
+    /// between the outer AEAD layer and the inner Noise layer.
+    pub fn from_psk(psk: &[u8; 32]) -> Self {
+        let key = nym_crypto::kdf::derive_key_blake3(Self::KDF_CONTEXT, psk, &[]);
+        Self { key }
+    }
+
+    /// Get reference to the raw key bytes.
+    pub fn as_bytes(&self) -> &[u8; 32] {
+        &self.key
+    }
+}
+
+impl Drop for OuterAeadKey {
+    fn drop(&mut self) {
+        // Zeroize key material on drop
+        self.key.iter_mut().for_each(|b| *b = 0);
+    }
+}
+
+impl std::fmt::Debug for OuterAeadKey {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("OuterAeadKey")
+            .field("key", &"[REDACTED]")
+            .finish()
+    }
+}
+
+/// Build 12-byte nonce from 8-byte counter (zero-padded).
+///
+/// Format: counter (8 bytes LE) || 0x00000000 (4 bytes)
+fn build_nonce(counter: u64) -> [u8; 12] {
+    let mut nonce = [0u8; 12];
+    nonce[..8].copy_from_slice(&counter.to_le_bytes());
+    // bytes 8..12 remain zero (zero-padding)
+    nonce
+}
+
+/// Parse message from raw type and content bytes.
+///
+/// Used when decrypting outer-encrypted packets where the message type
+/// was encrypted along with the content.
+fn parse_message_from_type_and_content(
+    msg_type_raw: u16,
+    content: &[u8],
+) -> Result<LpMessage, LpError> {
+    let message_type = MessageType::from_u16(msg_type_raw)
+        .ok_or_else(|| LpError::invalid_message_type(msg_type_raw))?;
+
+    match message_type {
+        MessageType::Busy => {
+            if !content.is_empty() {
+                return Err(LpError::InvalidPayloadSize {
+                    expected: 0,
+                    actual: content.len(),
+                });
+            }
+            Ok(LpMessage::Busy)
+        }
+        MessageType::Handshake => Ok(LpMessage::Handshake(HandshakeData(content.to_vec()))),
+        MessageType::EncryptedData => {
+            Ok(LpMessage::EncryptedData(EncryptedDataPayload(content.to_vec())))
+        }
+        MessageType::ClientHello => {
+            let data: ClientHelloData = bincode::deserialize(content)
+                .map_err(|e| LpError::DeserializationError(e.to_string()))?;
+            Ok(LpMessage::ClientHello(data))
+        }
+        MessageType::KKTRequest => Ok(LpMessage::KKTRequest(KKTRequestData(content.to_vec()))),
+        MessageType::KKTResponse => Ok(LpMessage::KKTResponse(KKTResponseData(content.to_vec()))),
+        MessageType::ForwardPacket => {
+            let data: ForwardPacketData = bincode::deserialize(content)
+                .map_err(|e| LpError::DeserializationError(e.to_string()))?;
+            Ok(LpMessage::ForwardPacket(data))
+        }
+        MessageType::Collision => {
+            if !content.is_empty() {
+                return Err(LpError::InvalidPayloadSize {
+                    expected: 0,
+                    actual: content.len(),
+                });
+            }
+            Ok(LpMessage::Collision)
+        }
+        MessageType::Ack => {
+            if !content.is_empty() {
+                return Err(LpError::InvalidPayloadSize {
+                    expected: 0,
+                    actual: content.len(),
+                });
+            }
+            Ok(LpMessage::Ack)
+        }
+    }
+}
+
+/// Parse only the LP header from raw packet bytes.
+///
+/// Used for routing before session lookup when the header is always cleartext.
+/// This allows the caller to determine the receiver_idx and look up the appropriate
+/// session to get the outer AEAD key before calling `parse_lp_packet()`.
+///
+/// # Arguments
+/// * `src` - Raw packet bytes (at least LpHeader::SIZE bytes)
+///
+/// # Errors
+/// * `LpError::InsufficientBufferSize` - Packet too small for header
+pub fn parse_lp_header_only(src: &[u8]) -> Result<LpHeader, LpError> {
+    if src.len() < LpHeader::SIZE {
+        return Err(LpError::InsufficientBufferSize);
+    }
+    LpHeader::parse(&src[..LpHeader::SIZE])
+}
 
 /// Parses a complete Lewes Protocol packet from a byte slice (e.g., a UDP datagram payload).
 ///
 /// Assumes the input `src` contains exactly one complete packet. It does not handle
 /// stream fragmentation or provide replay protection checks (these belong at the session level).
-pub fn parse_lp_packet(src: &[u8]) -> Result<LpPacket, LpError> {
+///
+/// # Arguments
+/// * `src` - Raw packet bytes
+/// * `outer_key` - None for cleartext parsing, Some for AEAD decryption
+///
+/// # Errors
+/// * `LpError::AeadTagMismatch` - Tag verification failed (when outer_key provided)
+/// * `LpError::InsufficientBufferSize` - Packet too small
+pub fn parse_lp_packet(
+    src: &[u8],
+    outer_key: Option<&OuterAeadKey>,
+) -> Result<LpPacket, LpError> {
     // Minimum size check: LpHeader + Type + Trailer (for 0-payload message)
     let min_size = LpHeader::SIZE + 2 + TRAILER_LEN;
     if src.len() < min_size {
         return Err(LpError::InsufficientBufferSize);
     }
 
-    // Parse LpHeader
-    let header = LpHeader::parse(&src[..LpHeader::SIZE])?; // Uses the new LpHeader::parse
+    // Parse LpHeader (always cleartext for routing)
+    let header = LpHeader::parse(&src[..LpHeader::SIZE])?;
 
-    // Parse Message Type
-    let type_start = LpHeader::SIZE;
-    let type_end = type_start + 2;
-    let mut message_type_bytes = [0u8; 2];
-    message_type_bytes.copy_from_slice(&src[type_start..type_end]);
-    let message_type_raw = u16::from_le_bytes(message_type_bytes);
-    let message_type = MessageType::from_u16(message_type_raw)
-        .ok_or_else(|| LpError::invalid_message_type(message_type_raw))?;
+    // Extract trailer (potential AEAD tag)
+    let trailer_start = src.len() - TRAILER_LEN;
+    let mut trailer = [0u8; TRAILER_LEN];
+    trailer.copy_from_slice(&src[trailer_start..]);
 
-    // Calculate payload size based on total length
-    let total_size = src.len();
-    let message_size = total_size - min_size; // Size of the payload part
+    // Payload is everything between header and trailer
+    let payload_bytes = &src[LpHeader::SIZE..trailer_start];
 
-    // Extract payload based on message type
-    let message_start = type_end;
-    let message_end = message_start + message_size;
-    let payload_slice = &src[message_start..message_end]; // Bounds already checked by min_size and total_size calculation
-
-    let message = match message_type {
-        MessageType::Busy => {
-            if message_size != 0 {
-                return Err(LpError::InvalidPayloadSize {
-                    expected: 0,
-                    actual: message_size,
-                });
+    // Handle decryption if outer key provided
+    let (message_type_raw, message_content) = match outer_key {
+        None => {
+            // Cleartext mode - parse directly
+            if payload_bytes.len() < 2 {
+                return Err(LpError::InsufficientBufferSize);
             }
-            LpMessage::Busy
+            let msg_type = u16::from_le_bytes([payload_bytes[0], payload_bytes[1]]);
+            (msg_type, &payload_bytes[2..])
         }
-        MessageType::Handshake => {
-            // No size validation needed here for Handshake, it's variable
-            LpMessage::Handshake(HandshakeData(payload_slice.to_vec()))
-        }
-        MessageType::EncryptedData => {
-            // No size validation needed here for EncryptedData, it's variable
-            LpMessage::EncryptedData(EncryptedDataPayload(payload_slice.to_vec()))
-        }
-        MessageType::ClientHello => {
-            // ClientHello has structured data
-            // Deserialize ClientHelloData from payload
-            let data: ClientHelloData = bincode::deserialize(payload_slice)
-                .map_err(|e| LpError::DeserializationError(e.to_string()))?;
-            LpMessage::ClientHello(data)
-        }
-        MessageType::KKTRequest => {
-            // KKT request contains serialized KKTFrame bytes
-            LpMessage::KKTRequest(KKTRequestData(payload_slice.to_vec()))
-        }
-        MessageType::KKTResponse => {
-            // KKT response contains serialized KKTFrame bytes
-            LpMessage::KKTResponse(KKTResponseData(payload_slice.to_vec()))
-        }
-        MessageType::ForwardPacket => {
-            // ForwardPacket has structured data
-            let data: ForwardPacketData = bincode::deserialize(payload_slice)
-                .map_err(|e| LpError::DeserializationError(e.to_string()))?;
-            LpMessage::ForwardPacket(data)
+        Some(key) => {
+            // AEAD decryption mode
+            let nonce = build_nonce(header.counter);
+            let aad = &src[..LpHeader::SIZE]; // Header as AAD
+
+            // Copy payload for in-place decryption
+            let mut decrypted = payload_bytes.to_vec();
+
+            // Convert trailer to Tag
+            let tag = Tag::from_slice(&trailer);
+
+            // Decrypt and verify
+            let cipher = ChaCha20Poly1305::new(Key::from_slice(key.as_bytes()));
+            cipher
+                .decrypt_in_place_detached(Nonce::from_slice(&nonce), aad, &mut decrypted, tag)
+                .map_err(|_| LpError::AeadTagMismatch)?;
+
+            // Extract message type from decrypted payload
+            if decrypted.len() < 2 {
+                return Err(LpError::InsufficientBufferSize);
+            }
+            let msg_type = u16::from_le_bytes([decrypted[0], decrypted[1]]);
+
+            // Return decrypted content (owned, so we handle it differently)
+            return parse_message_from_type_and_content(msg_type, &decrypted[2..]).map(|message| {
+                LpPacket {
+                    header,
+                    message,
+                    trailer,
+                }
+            });
         }
     };
 
-    // Extract trailer
-    let trailer_start = message_end;
-    let trailer_end = trailer_start + TRAILER_LEN;
-    // Check if trailer_end exceeds src length (shouldn't happen if min_size check passed and calculation is correct, but good for safety)
-    if trailer_end > total_size {
-        // This indicates an internal logic error or buffer manipulation issue
-        return Err(LpError::InsufficientBufferSize); // Or a more specific internal error
-    }
-    let trailer_slice = &src[trailer_start..trailer_end];
-    let mut trailer = [0u8; TRAILER_LEN];
-    trailer.copy_from_slice(trailer_slice);
+    // Cleartext path: parse message from payload
+    let message = parse_message_from_type_and_content(message_type_raw, message_content)?;
 
-    // Create and return the packet
     Ok(LpPacket {
         header,
         message,
@@ -103,11 +247,66 @@ pub fn parse_lp_packet(src: &[u8]) -> Result<LpPacket, LpError> {
 }
 
 /// Serializes an LpPacket into the provided BytesMut buffer.
-pub fn serialize_lp_packet(item: &LpPacket, dst: &mut BytesMut) -> Result<(), LpError> {
-    // Reserve approximate size - consider making this more accurate if needed
-    dst.reserve(LpHeader::SIZE + 2 + item.message.len() + TRAILER_LEN);
-    item.encode(dst); // Use the existing encode method on LpPacket
-    Ok(())
+///
+/// # Arguments
+/// * `item` - Packet to serialize
+/// * `dst` - Output buffer
+/// * `outer_key` - None for cleartext (uses packet's trailer), Some for AEAD encryption
+///
+/// When `outer_key` is provided:
+/// - Header is written in cleartext (used as AAD)
+/// - Message type + content is encrypted
+/// - Trailer is set to the AEAD tag
+pub fn serialize_lp_packet(
+    item: &LpPacket,
+    dst: &mut BytesMut,
+    outer_key: Option<&OuterAeadKey>,
+) -> Result<(), LpError> {
+    match outer_key {
+        None => {
+            // Cleartext mode - use existing encode method
+            dst.reserve(LpHeader::SIZE + 2 + item.message.len() + TRAILER_LEN);
+            item.encode(dst);
+            Ok(())
+        }
+        Some(key) => {
+            // AEAD encryption mode
+            dst.reserve(LpHeader::SIZE + 2 + item.message.len() + TRAILER_LEN);
+
+            // 1. Encode header (AAD - not encrypted)
+            let header_start = dst.len();
+            item.header.encode(dst);
+            let header_end = dst.len();
+
+            // 2. Build plaintext: message_type (2B) + content
+            let mut plaintext = BytesMut::new();
+            plaintext.put_slice(&(item.message.typ() as u16).to_le_bytes());
+            item.message.encode_content(&mut plaintext);
+
+            // 3. Copy plaintext to dst for in-place encryption
+            let payload_start = dst.len();
+            dst.put_slice(&plaintext);
+
+            // 4. Build nonce and get AAD
+            let nonce = build_nonce(item.header.counter);
+            let aad = &dst[header_start..header_end].to_vec(); // Copy AAD since we mutate dst
+
+            // 5. Encrypt payload in-place
+            let cipher = ChaCha20Poly1305::new(Key::from_slice(key.as_bytes()));
+            let tag = cipher
+                .encrypt_in_place_detached(
+                    Nonce::from_slice(&nonce),
+                    aad,
+                    &mut dst[payload_start..],
+                )
+                .map_err(|_| LpError::Internal("AEAD encryption failed".to_string()))?;
+
+            // 6. Append tag as trailer
+            dst.put_slice(&tag);
+
+            Ok(())
+        }
+    }
 }
 
 // Add a new error variant for invalid message types (Moved from previous impl LpError block)
@@ -120,14 +319,17 @@ impl LpError {
 #[cfg(test)]
 mod tests {
     // Import standalone functions
-    use super::{parse_lp_packet, serialize_lp_packet};
+    use super::{parse_lp_packet, serialize_lp_packet, OuterAeadKey};
     // Keep necessary imports
     use crate::LpError;
     use crate::message::{EncryptedDataPayload, HandshakeData, LpMessage, MessageType};
     use crate::packet::{LpHeader, LpPacket, TRAILER_LEN};
     use bytes::BytesMut;
 
-    // === Updated Encode/Decode Tests ===
+    // Header length: version(1) + reserved(3) + receiver_index(4) + counter(8) = 16 bytes
+    const HEADER_LEN: usize = 16;
+
+    // === Cleartext Encode/Decode Tests ===
 
     #[test]
     fn test_serialize_parse_busy() {
@@ -138,22 +340,22 @@ mod tests {
             header: LpHeader {
                 protocol_version: 1,
                 reserved: 0,
-                session_id: 42,
+                receiver_idx: 42,
                 counter: 123,
             },
             message: LpMessage::Busy,
             trailer: [0; TRAILER_LEN],
         };
 
-        // Serialize the packet
-        serialize_lp_packet(&packet, &mut dst).unwrap();
+        // Serialize the packet (cleartext)
+        serialize_lp_packet(&packet, &mut dst, None).unwrap();
 
-        // Parse the packet
-        let decoded = parse_lp_packet(&dst).unwrap();
+        // Parse the packet (cleartext)
+        let decoded = parse_lp_packet(&dst, None).unwrap();
 
         // Verify the packet fields
         assert_eq!(decoded.header.protocol_version, 1);
-        assert_eq!(decoded.header.session_id, 42);
+        assert_eq!(decoded.header.receiver_idx, 42);
         assert_eq!(decoded.header.counter, 123);
         assert!(matches!(decoded.message, LpMessage::Busy));
         assert_eq!(decoded.trailer, [0; TRAILER_LEN]);
@@ -169,22 +371,22 @@ mod tests {
             header: LpHeader {
                 protocol_version: 1,
                 reserved: 0,
-                session_id: 42,
+                receiver_idx: 42,
                 counter: 123,
             },
             message: LpMessage::Handshake(HandshakeData(payload.clone())),
             trailer: [0; TRAILER_LEN],
         };
 
-        // Serialize the packet
-        serialize_lp_packet(&packet, &mut dst).unwrap();
+        // Serialize the packet (cleartext)
+        serialize_lp_packet(&packet, &mut dst, None).unwrap();
 
-        // Parse the packet
-        let decoded = parse_lp_packet(&dst).unwrap();
+        // Parse the packet (cleartext)
+        let decoded = parse_lp_packet(&dst, None).unwrap();
 
         // Verify the packet fields
         assert_eq!(decoded.header.protocol_version, 1);
-        assert_eq!(decoded.header.session_id, 42);
+        assert_eq!(decoded.header.receiver_idx, 42);
         assert_eq!(decoded.header.counter, 123);
 
         // Verify message type and data
@@ -207,22 +409,22 @@ mod tests {
             header: LpHeader {
                 protocol_version: 1,
                 reserved: 0,
-                session_id: 42,
+                receiver_idx: 42,
                 counter: 123,
             },
             message: LpMessage::EncryptedData(EncryptedDataPayload(payload.clone())),
             trailer: [0; TRAILER_LEN],
         };
 
-        // Serialize the packet
-        serialize_lp_packet(&packet, &mut dst).unwrap();
+        // Serialize the packet (cleartext)
+        serialize_lp_packet(&packet, &mut dst, None).unwrap();
 
-        // Parse the packet
-        let decoded = parse_lp_packet(&dst).unwrap();
+        // Parse the packet (cleartext)
+        let decoded = parse_lp_packet(&dst, None).unwrap();
 
         // Verify the packet fields
         assert_eq!(decoded.header.protocol_version, 1);
-        assert_eq!(decoded.header.session_id, 42);
+        assert_eq!(decoded.header.receiver_idx, 42);
         assert_eq!(decoded.header.counter, 123);
 
         // Verify message type and data
@@ -235,7 +437,7 @@ mod tests {
         assert_eq!(decoded.trailer, [0; TRAILER_LEN]);
     }
 
-    // === Updated Incomplete Data Tests ===
+    // === Incomplete Data Tests ===
 
     #[test]
     fn test_parse_incomplete_header() {
@@ -244,7 +446,7 @@ mod tests {
         buf.extend_from_slice(&[1, 0, 0, 0]); // Only 4 bytes, not enough for LpHeader::SIZE
 
         // Attempt to parse - expect error
-        let result = parse_lp_packet(&buf);
+        let result = parse_lp_packet(&buf, None);
         assert!(result.is_err());
         assert!(matches!(
             result.unwrap_err(),
@@ -262,7 +464,7 @@ mod tests {
         buf.extend_from_slice(&[0]); // Only 1 byte of message type (need 2)
 
         // Buffer length = 16 + 1 = 17. Min size = 16 + 2 + 16 = 34.
-        let result = parse_lp_packet(&buf);
+        let result = parse_lp_packet(&buf, None);
         assert!(result.is_err());
         assert!(matches!(
             result.unwrap_err(),
@@ -298,7 +500,7 @@ mod tests {
         buf_too_short.extend_from_slice(&123u64.to_le_bytes()); // Counter
         buf_too_short.extend_from_slice(&MessageType::Handshake.to_u16().to_le_bytes()); // Handshake type
         // No payload, no trailer. Length = 16+2=18. Min size = 34.
-        let result_too_short = parse_lp_packet(&buf_too_short);
+        let result_too_short = parse_lp_packet(&buf_too_short, None);
         assert!(result_too_short.is_err());
         assert!(matches!(
             result_too_short.unwrap_err(),
@@ -335,7 +537,7 @@ mod tests {
         buf_too_short.extend_from_slice(&MessageType::Busy.to_u16().to_le_bytes()); // Type
         buf_too_short.extend_from_slice(&[0; TRAILER_LEN - 1]); // Missing last byte of trailer
         // Length = 16 + 2 + 15 = 33. Min Size = 34.
-        let result_too_short = parse_lp_packet(&buf_too_short);
+        let result_too_short = parse_lp_packet(&buf_too_short, None);
         assert!(
             result_too_short.is_err(),
             "Expected error for buffer size 33, min 34"
@@ -360,7 +562,7 @@ mod tests {
         buf.extend_from_slice(&[0; TRAILER_LEN]); // Trailer
 
         // Attempt to parse
-        let result = parse_lp_packet(&buf);
+        let result = parse_lp_packet(&buf, None);
         assert!(result.is_err());
         match result {
             Err(LpError::InvalidMessageType(255)) => {} // Expected error
@@ -382,7 +584,7 @@ mod tests {
 
         // Total size = 16 + 2 + 1 + 16 = 35. Min size = 34.
         // Calculated payload size = 35 - 34 = 1.
-        let result = parse_lp_packet(&buf);
+        let result = parse_lp_packet(&buf, None);
         assert!(result.is_err());
         assert!(matches!(
             result.unwrap_err(),
@@ -410,6 +612,7 @@ mod tests {
         let client_ed25519_key = [43u8; 32];
         let salt = [99u8; 32];
         let hello_data = ClientHelloData {
+            receiver_index: 12345,
             client_lp_public_key: client_key,
             client_ed25519_public_key: client_ed25519_key,
             salt,
@@ -420,7 +623,7 @@ mod tests {
             header: LpHeader {
                 protocol_version: 1,
                 reserved: 0,
-                session_id: 42,
+                receiver_idx: 42,
                 counter: 123,
             },
             message: LpMessage::ClientHello(hello_data.clone()),
@@ -428,14 +631,14 @@ mod tests {
         };
 
         // Serialize the packet
-        serialize_lp_packet(&packet, &mut dst).unwrap();
+        serialize_lp_packet(&packet, &mut dst, None).unwrap();
 
         // Parse the packet
-        let decoded = parse_lp_packet(&dst).unwrap();
+        let decoded = parse_lp_packet(&dst, None).unwrap();
 
         // Verify the packet fields
         assert_eq!(decoded.header.protocol_version, 1);
-        assert_eq!(decoded.header.session_id, 42);
+        assert_eq!(decoded.header.receiver_idx, 42);
         assert_eq!(decoded.header.counter, 123);
 
         // Verify message type and data
@@ -465,7 +668,7 @@ mod tests {
             header: LpHeader {
                 protocol_version: 1,
                 reserved: 0,
-                session_id: 100,
+                receiver_idx: 100,
                 counter: 200,
             },
             message: LpMessage::ClientHello(hello_data.clone()),
@@ -473,10 +676,10 @@ mod tests {
         };
 
         // Serialize the packet
-        serialize_lp_packet(&packet, &mut dst).unwrap();
+        serialize_lp_packet(&packet, &mut dst, None).unwrap();
 
         // Parse the packet
-        let decoded = parse_lp_packet(&dst).unwrap();
+        let decoded = parse_lp_packet(&dst, None).unwrap();
 
         // Verify message type and data
         match decoded.message {
@@ -511,7 +714,7 @@ mod tests {
         buf.extend_from_slice(&[0; TRAILER_LEN]); // Trailer
 
         // Attempt to parse
-        let result = parse_lp_packet(&buf);
+        let result = parse_lp_packet(&buf, None);
         assert!(result.is_err());
         match result {
             Err(LpError::DeserializationError(_)) => {} // Expected error
@@ -534,7 +737,7 @@ mod tests {
         buf.extend_from_slice(&[0; TRAILER_LEN]); // Trailer
 
         // Attempt to parse
-        let result = parse_lp_packet(&buf);
+        let result = parse_lp_packet(&buf, None);
         assert!(result.is_err());
         match result {
             Err(LpError::DeserializationError(_)) => {} // Expected error
@@ -551,6 +754,7 @@ mod tests {
             let mut dst = BytesMut::new();
 
             let hello_data = ClientHelloData {
+                receiver_index: version as u32,
                 client_lp_public_key: [version; 32],
                 client_ed25519_public_key: [version.wrapping_add(2); 32],
                 salt: [version.wrapping_add(1); 32],
@@ -560,15 +764,15 @@ mod tests {
                 header: LpHeader {
                     protocol_version: 1,
                     reserved: 0,
-                    session_id: version as u32,
+                    receiver_idx: version as u32,
                     counter: version as u64,
                 },
                 message: LpMessage::ClientHello(hello_data.clone()),
                 trailer: [version; TRAILER_LEN],
             };
 
-            serialize_lp_packet(&packet, &mut dst).unwrap();
-            let decoded = parse_lp_packet(&dst).unwrap();
+            serialize_lp_packet(&packet, &mut dst, None).unwrap();
+            let decoded = parse_lp_packet(&dst, None).unwrap();
 
             match decoded.message {
                 LpMessage::ClientHello(decoded_data) => {
@@ -593,7 +797,7 @@ mod tests {
             header: LpHeader {
                 protocol_version: 1,
                 reserved: 0,
-                session_id: 999,
+                receiver_idx: 999,
                 counter: 555,
             },
             message: LpMessage::ForwardPacket(forward_data),
@@ -601,13 +805,13 @@ mod tests {
         };
 
         // Serialize
-        serialize_lp_packet(&packet, &mut dst).unwrap();
+        serialize_lp_packet(&packet, &mut dst, None).unwrap();
 
         // Parse back
-        let decoded = parse_lp_packet(&dst).unwrap();
+        let decoded = parse_lp_packet(&dst, None).unwrap();
 
         // Verify LP protocol handling works correctly
-        assert_eq!(decoded.header.session_id, 999);
+        assert_eq!(decoded.header.receiver_idx, 999);
         assert!(matches!(decoded.message.typ(), MessageType::ForwardPacket));
 
         if let LpMessage::ForwardPacket(data) = decoded.message {
@@ -616,6 +820,276 @@ mod tests {
             assert_eq!(data.inner_packet_bytes, vec![0xa, 0xb, 0xc, 0xd]);
         } else {
             panic!("Expected ForwardPacket message");
+        }
+    }
+
+    // === Outer AEAD Tests ===
+
+    #[test]
+    fn test_aead_roundtrip_with_key() {
+        // Test that encrypt/decrypt roundtrip works with an AEAD key
+        let psk = [42u8; 32];
+        let outer_key = OuterAeadKey::from_psk(&psk);
+
+        let packet = LpPacket {
+            header: LpHeader {
+                protocol_version: 1,
+                reserved: 0,
+                receiver_idx: 12345,
+                counter: 999,
+            },
+            message: LpMessage::Busy,
+            trailer: [0; TRAILER_LEN],
+        };
+
+        let mut encrypted = BytesMut::new();
+        serialize_lp_packet(&packet, &mut encrypted, Some(&outer_key)).unwrap();
+
+        // Parse back with the same key
+        let decoded = parse_lp_packet(&encrypted, Some(&outer_key)).unwrap();
+
+        assert_eq!(decoded.header.protocol_version, 1);
+        assert_eq!(decoded.header.receiver_idx, 12345);
+        assert_eq!(decoded.header.counter, 999);
+        assert!(matches!(decoded.message, LpMessage::Busy));
+    }
+
+    #[test]
+    fn test_aead_ciphertext_differs_from_plaintext() {
+        // Verify that encrypted payload differs from plaintext
+        let psk = [42u8; 32];
+        let outer_key = OuterAeadKey::from_psk(&psk);
+
+        let packet = LpPacket {
+            header: LpHeader {
+                protocol_version: 1,
+                reserved: 0,
+                receiver_idx: 12345,
+                counter: 999,
+            },
+            message: LpMessage::EncryptedData(crate::message::EncryptedDataPayload(vec![
+                0xAA, 0xBB, 0xCC, 0xDD,
+            ])),
+            trailer: [0; TRAILER_LEN],
+        };
+
+        let mut cleartext = BytesMut::new();
+        serialize_lp_packet(&packet, &mut cleartext, None).unwrap();
+
+        let mut encrypted = BytesMut::new();
+        serialize_lp_packet(&packet, &mut encrypted, Some(&outer_key)).unwrap();
+
+        // Header should be the same (it's authenticated but not encrypted)
+        assert_eq!(&cleartext[..HEADER_LEN], &encrypted[..HEADER_LEN]);
+
+        // Payload should differ (it's encrypted)
+        let payload_start = HEADER_LEN;
+        let payload_end_cleartext = cleartext.len() - TRAILER_LEN;
+        let payload_end_encrypted = encrypted.len() - TRAILER_LEN;
+
+        assert_ne!(
+            &cleartext[payload_start..payload_end_cleartext],
+            &encrypted[payload_start..payload_end_encrypted],
+            "Encrypted payload should differ from plaintext"
+        );
+
+        // Trailer should differ (zeros vs AEAD tag)
+        assert_ne!(
+            &cleartext[payload_end_cleartext..],
+            &encrypted[payload_end_encrypted..],
+            "Encrypted trailer should be a tag, not zeros"
+        );
+    }
+
+    #[test]
+    fn test_aead_tampered_tag_fails() {
+        // Verify that tampering with the tag causes decryption failure
+        let psk = [42u8; 32];
+        let outer_key = OuterAeadKey::from_psk(&psk);
+
+        let packet = LpPacket {
+            header: LpHeader {
+                protocol_version: 1,
+                reserved: 0,
+                receiver_idx: 12345,
+                counter: 999,
+            },
+            message: LpMessage::Busy,
+            trailer: [0; TRAILER_LEN],
+        };
+
+        let mut encrypted = BytesMut::new();
+        serialize_lp_packet(&packet, &mut encrypted, Some(&outer_key)).unwrap();
+
+        // Tamper with the tag (last byte)
+        let last_idx = encrypted.len() - 1;
+        encrypted[last_idx] ^= 0xFF;
+
+        // Parsing should fail with AeadTagMismatch
+        let result = parse_lp_packet(&encrypted, Some(&outer_key));
+        assert!(matches!(result, Err(LpError::AeadTagMismatch)));
+    }
+
+    #[test]
+    fn test_aead_tampered_header_fails() {
+        // Verify that tampering with the header (AAD) causes decryption failure
+        let psk = [42u8; 32];
+        let outer_key = OuterAeadKey::from_psk(&psk);
+
+        let packet = LpPacket {
+            header: LpHeader {
+                protocol_version: 1,
+                reserved: 0,
+                receiver_idx: 12345,
+                counter: 999,
+            },
+            message: LpMessage::Busy,
+            trailer: [0; TRAILER_LEN],
+        };
+
+        let mut encrypted = BytesMut::new();
+        serialize_lp_packet(&packet, &mut encrypted, Some(&outer_key)).unwrap();
+
+        // Tamper with the header (flip a bit in receiver_idx)
+        encrypted[4] ^= 0x01;
+
+        // Parsing should fail with AeadTagMismatch
+        let result = parse_lp_packet(&encrypted, Some(&outer_key));
+        assert!(matches!(result, Err(LpError::AeadTagMismatch)));
+    }
+
+    #[test]
+    fn test_aead_different_counters_produce_different_ciphertext() {
+        // Verify that different counters (nonces) produce different ciphertexts
+        let psk = [42u8; 32];
+        let outer_key = OuterAeadKey::from_psk(&psk);
+
+        let packet1 = LpPacket {
+            header: LpHeader {
+                protocol_version: 1,
+                reserved: 0,
+                receiver_idx: 12345,
+                counter: 1,
+            },
+            message: LpMessage::Busy,
+            trailer: [0; TRAILER_LEN],
+        };
+
+        let packet2 = LpPacket {
+            header: LpHeader {
+                protocol_version: 1,
+                reserved: 0,
+                receiver_idx: 12345,
+                counter: 2, // Different counter
+            },
+            message: LpMessage::Busy,
+            trailer: [0; TRAILER_LEN],
+        };
+
+        let mut encrypted1 = BytesMut::new();
+        serialize_lp_packet(&packet1, &mut encrypted1, Some(&outer_key)).unwrap();
+
+        let mut encrypted2 = BytesMut::new();
+        serialize_lp_packet(&packet2, &mut encrypted2, Some(&outer_key)).unwrap();
+
+        // The encrypted payloads should differ even though the message is the same
+        // (because nonce is different)
+        let payload_start = HEADER_LEN;
+        assert_ne!(
+            &encrypted1[payload_start..],
+            &encrypted2[payload_start..],
+            "Different counters should produce different ciphertexts"
+        );
+    }
+
+    #[test]
+    fn test_aead_wrong_key_fails() {
+        // Verify that decryption with wrong key fails
+        let psk1 = [42u8; 32];
+        let psk2 = [43u8; 32]; // Different PSK
+        let outer_key1 = OuterAeadKey::from_psk(&psk1);
+        let outer_key2 = OuterAeadKey::from_psk(&psk2);
+
+        let packet = LpPacket {
+            header: LpHeader {
+                protocol_version: 1,
+                reserved: 0,
+                receiver_idx: 12345,
+                counter: 999,
+            },
+            message: LpMessage::Busy,
+            trailer: [0; TRAILER_LEN],
+        };
+
+        let mut encrypted = BytesMut::new();
+        serialize_lp_packet(&packet, &mut encrypted, Some(&outer_key1)).unwrap();
+
+        // Parsing with wrong key should fail
+        let result = parse_lp_packet(&encrypted, Some(&outer_key2));
+        assert!(matches!(result, Err(LpError::AeadTagMismatch)));
+    }
+
+    #[test]
+    fn test_aead_encrypted_data_message_roundtrip() {
+        // Test AEAD with EncryptedData message type (larger payload)
+        let psk = [42u8; 32];
+        let outer_key = OuterAeadKey::from_psk(&psk);
+
+        let payload_data = vec![0xDE; 100];
+        let packet = LpPacket {
+            header: LpHeader {
+                protocol_version: 1,
+                reserved: 0,
+                receiver_idx: 54321,
+                counter: 12345678,
+            },
+            message: LpMessage::EncryptedData(crate::message::EncryptedDataPayload(
+                payload_data.clone(),
+            )),
+            trailer: [0; TRAILER_LEN],
+        };
+
+        let mut encrypted = BytesMut::new();
+        serialize_lp_packet(&packet, &mut encrypted, Some(&outer_key)).unwrap();
+
+        let decoded = parse_lp_packet(&encrypted, Some(&outer_key)).unwrap();
+
+        match decoded.message {
+            LpMessage::EncryptedData(data) => {
+                assert_eq!(data.0, payload_data);
+            }
+            _ => panic!("Expected EncryptedData message"),
+        }
+    }
+
+    #[test]
+    fn test_aead_handshake_message_roundtrip() {
+        // Test AEAD with Handshake message type
+        let psk = [42u8; 32];
+        let outer_key = OuterAeadKey::from_psk(&psk);
+
+        let handshake_data = vec![0x01, 0x02, 0x03, 0x04, 0x05];
+        let packet = LpPacket {
+            header: LpHeader {
+                protocol_version: 1,
+                reserved: 0,
+                receiver_idx: 99999,
+                counter: 2,
+            },
+            message: LpMessage::Handshake(HandshakeData(handshake_data.clone())),
+            trailer: [0; TRAILER_LEN],
+        };
+
+        let mut encrypted = BytesMut::new();
+        serialize_lp_packet(&packet, &mut encrypted, Some(&outer_key)).unwrap();
+
+        let decoded = parse_lp_packet(&encrypted, Some(&outer_key)).unwrap();
+
+        match decoded.message {
+            LpMessage::Handshake(data) => {
+                assert_eq!(data.0, handshake_data);
+            }
+            _ => panic!("Expected Handshake message"),
         }
     }
 }

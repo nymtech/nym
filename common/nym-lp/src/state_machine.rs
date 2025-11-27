@@ -6,7 +6,6 @@
 use crate::{
     LpError,
     keypair::{Keypair, PrivateKey as LpPrivateKey, PublicKey as LpPublicKey},
-    make_lp_id,
     noise_protocol::NoiseError,
     packet::LpPacket,
     session::LpSession,
@@ -137,6 +136,7 @@ impl LpStateMachine {
     ///
     /// # Arguments
     ///
+    /// * `receiver_index` - Client-proposed session identifier (random 4 bytes)
     /// * `is_initiator` - Whether this side initiates the handshake
     /// * `local_ed25519_keypair` - Ed25519 keypair for PSQ authentication and X25519 derivation
     ///   (from client identity key or gateway signing key)
@@ -148,6 +148,7 @@ impl LpStateMachine {
     /// Returns `LpError::Ed25519RecoveryError` if Ed25519→X25519 conversion fails for the remote key.
     /// Local private key conversion cannot fail.
     pub fn new(
+        receiver_index: u32,
         is_initiator: bool,
         local_ed25519_keypair: (&ed25519::PrivateKey, &ed25519::PublicKey),
         remote_ed25519_key: &ed25519::PublicKey,
@@ -161,7 +162,6 @@ impl LpStateMachine {
         // The derived X25519 keys are used for:
         // - Noise protocol ephemeral DH
         // - PSQ ECDH baseline security (pre-quantum)
-        // - lp_id calculation (session identifier)
 
         // Convert Ed25519 keys to X25519 for Noise protocol
         let local_x25519_private = local_ed25519_keypair.0.to_x25519();
@@ -179,15 +179,13 @@ impl LpStateMachine {
         let lp_public = LpPublicKey::from_bytes(local_x25519_public.as_bytes())?;
         let lp_remote_public = LpPublicKey::from_bytes(remote_x25519_public.as_bytes())?;
 
-        // Create X25519 keypair for Noise and lp_id calculation
+        // Create X25519 keypair for Noise
         let local_x25519_keypair = Keypair::from_keys(lp_private, lp_public);
 
-        // Calculate the shared lp_id using derived X25519 keys
-        let lp_id = make_lp_id(local_x25519_keypair.public_key(), &lp_remote_public);
-
         // Create the session with both Ed25519 (for PSQ auth) and derived X25519 keys (for Noise)
+        // receiver_index is client-proposed, passed through directly
         let session = LpSession::new(
-            lp_id,
+            receiver_index,
             is_initiator,
             local_ed25519_keypair,
             local_x25519_keypair.private_key(),
@@ -252,8 +250,8 @@ impl LpStateMachine {
             // --- KKTExchange State ---
             (LpState::KKTExchange { session }, LpInput::ReceivePacket(packet)) => {
                 // Check if packet lp_id matches our session
-                if packet.header.session_id() != session.id() {
-                    result_action = Some(Err(LpError::UnknownSessionId(packet.header.session_id())));
+                if packet.header.receiver_idx() != session.id() {
+                    result_action = Some(Err(LpError::UnknownSessionId(packet.header.receiver_idx())));
                     LpState::KKTExchange { session }
                 } else {
                     use crate::message::LpMessage;
@@ -356,8 +354,8 @@ impl LpStateMachine {
             // --- Handshaking State ---
             (LpState::Handshaking { session }, LpInput::ReceivePacket(packet)) => {
                 // Check if packet lp_id matches our session
-                if packet.header.session_id() != session.id() {
-                    result_action = Some(Err(LpError::UnknownSessionId(packet.header.session_id())));
+                if packet.header.receiver_idx() != session.id() {
+                    result_action = Some(Err(LpError::UnknownSessionId(packet.header.receiver_idx())));
                     // Don't change state, return the original state variant
                     LpState::Handshaking { session }
                 } else {
@@ -454,8 +452,8 @@ impl LpStateMachine {
             // --- Transport State ---
             (LpState::Transport { session }, LpInput::ReceivePacket(packet)) => { // Needs mut session for marking counter
                  // Check if packet lp_id matches our session
-                 if packet.header.session_id() != session.id() {
-                    result_action = Some(Err(LpError::UnknownSessionId(packet.header.session_id())));
+                 if packet.header.receiver_idx() != session.id() {
+                    result_action = Some(Err(LpError::UnknownSessionId(packet.header.receiver_idx())));
                     // Remain in transport state
                     LpState::Transport { session }
                  } else {
@@ -605,7 +603,10 @@ mod tests {
         // Test salt
         let salt = [51u8; 32];
 
+        let receiver_index: u32 = 77777;
+
         let initiator_sm = LpStateMachine::new(
+            receiver_index,
             true,
             (
                 ed25519_keypair_init.private_key(),
@@ -624,6 +625,7 @@ mod tests {
         assert!(init_session.is_initiator());
 
         let responder_sm = LpStateMachine::new(
+            receiver_index,
             false,
             (
                 ed25519_keypair_resp.private_key(),
@@ -641,8 +643,7 @@ mod tests {
         let resp_session = responder_sm.session().unwrap();
         assert!(!resp_session.is_initiator());
 
-        // Check lp_id is the same (derived internally from Ed25519 keys)
-        // Both state machines should have the same lp_id
+        // Check both state machines use the same receiver_index
         assert_eq!(init_session.id(), resp_session.id());
     }
 
@@ -654,9 +655,11 @@ mod tests {
 
         // Test salt
         let salt = [52u8; 32];
+        let receiver_index: u32 = 88888;
 
         // Create state machines (already in ReadyToHandshake)
         let mut initiator = LpStateMachine::new(
+            receiver_index,
             true, // is_initiator
             (
                 ed25519_keypair_init.private_key(),
@@ -668,6 +671,7 @@ mod tests {
         .unwrap();
 
         let mut responder = LpStateMachine::new(
+            receiver_index,
             false, // is_initiator
             (
                 ed25519_keypair_resp.private_key(),
@@ -678,8 +682,7 @@ mod tests {
         )
         .unwrap();
 
-        let lp_id = initiator.id().unwrap();
-        assert_eq!(lp_id, responder.id().unwrap());
+        assert_eq!(initiator.id().unwrap(), responder.id().unwrap());
 
         // --- KKT Exchange ---
         println!("--- Step 1: Initiator starts handshake (sends KKT request) ---");
@@ -695,9 +698,9 @@ mod tests {
             "Initiator should be in KKTExchange"
         );
         assert_eq!(
-            kkt_request_packet.header.session_id(),
-            lp_id,
-            "KKT request packet has wrong lp_id"
+            kkt_request_packet.header.receiver_idx(),
+            receiver_index,
+            "KKT request packet has wrong receiver_index"
         );
 
         println!("--- Step 2: Responder starts handshake (waits for KKT) ---");
@@ -763,9 +766,9 @@ mod tests {
             "Responder still Handshaking"
         );
         assert_eq!(
-            resp_packet_2.header.session_id(),
-            lp_id,
-            "Packet 2 has wrong lp_id"
+            resp_packet_2.header.receiver_idx(),
+            receiver_index,
+            "Packet 2 has wrong receiver_index"
         );
 
         println!("--- Step 6: Initiator receives Noise msg 2, sends Noise msg 3 ---");
@@ -780,9 +783,9 @@ mod tests {
             "Initiator should be Transport"
         );
         assert_eq!(
-            init_packet_3.header.session_id(),
-            lp_id,
-            "Noise packet 3 has wrong lp_id"
+            init_packet_3.header.receiver_idx(),
+            receiver_index,
+            "Noise packet 3 has wrong receiver_index"
         );
 
         println!("--- Step 7: Responder receives Noise msg 3, completes handshake ---");
@@ -805,7 +808,7 @@ mod tests {
         } else {
             panic!("Initiator should send data packet");
         };
-        assert_eq!(data_packet_1.header.session_id(), lp_id);
+        assert_eq!(data_packet_1.header.receiver_idx(), receiver_index);
 
         println!("--- Step 9: Responder receives data ---");
         let resp_actions_5 = responder.process_input(LpInput::ReceivePacket(data_packet_1));
@@ -824,7 +827,7 @@ mod tests {
         } else {
             panic!("Responder should send data packet");
         };
-        assert_eq!(data_packet_2.header.session_id(), lp_id);
+        assert_eq!(data_packet_2.header.receiver_idx(), receiver_index);
 
         println!("--- Step 11: Initiator receives data ---");
         let init_actions_5 = initiator.process_input(LpInput::ReceivePacket(data_packet_2));
@@ -859,9 +862,11 @@ mod tests {
         let ed25519_keypair_resp = ed25519::KeyPair::from_secret([21u8; 32], 1);
 
         let salt = [53u8; 32];
+        let receiver_index: u32 = 99901;
 
         // Create initiator state machine
         let mut initiator = LpStateMachine::new(
+            receiver_index,
             true,
             (
                 ed25519_keypair_init.private_key(),
@@ -888,9 +893,11 @@ mod tests {
         let ed25519_keypair_resp = ed25519::KeyPair::from_secret([23u8; 32], 1);
 
         let salt = [54u8; 32];
+        let receiver_index: u32 = 99902;
 
         // Create responder state machine
         let mut responder = LpStateMachine::new(
+            receiver_index,
             false,
             (
                 ed25519_keypair_resp.private_key(),
@@ -917,9 +924,11 @@ mod tests {
         let ed25519_keypair_resp = ed25519::KeyPair::from_secret([25u8; 32], 1);
 
         let salt = [55u8; 32];
+        let receiver_index: u32 = 99903;
 
         // Create both state machines
         let mut initiator = LpStateMachine::new(
+            receiver_index,
             true,
             (
                 ed25519_keypair_init.private_key(),
@@ -931,6 +940,7 @@ mod tests {
         .unwrap();
 
         let mut responder = LpStateMachine::new(
+            receiver_index,
             false,
             (
                 ed25519_keypair_resp.private_key(),
@@ -979,9 +989,11 @@ mod tests {
         let ed25519_keypair_resp = ed25519::KeyPair::from_secret([27u8; 32], 1);
 
         let salt = [56u8; 32];
+        let receiver_index: u32 = 99904;
 
         // Create initiator state machine
         let mut initiator = LpStateMachine::new(
+            receiver_index,
             true,
             (
                 ed25519_keypair_init.private_key(),
@@ -1009,9 +1021,11 @@ mod tests {
         let ed25519_keypair_resp = ed25519::KeyPair::from_secret([29u8; 32], 1);
 
         let salt = [57u8; 32];
+        let receiver_index: u32 = 99905;
 
         // Create initiator state machine
         let mut initiator = LpStateMachine::new(
+            receiver_index,
             true,
             (
                 ed25519_keypair_init.private_key(),

@@ -24,7 +24,7 @@ use bytes::BytesMut;
 use nym_bandwidth_controller::BandwidthTicketProvider;
 use nym_credentials_interface::TicketType;
 use nym_crypto::asymmetric::{ed25519, x25519};
-use nym_lp::codec::{parse_lp_packet, serialize_lp_packet};
+use nym_lp::codec::{parse_lp_packet, serialize_lp_packet, OuterAeadKey};
 use nym_lp::state_machine::{LpAction, LpInput, LpStateMachine};
 use nym_lp::{LpMessage, LpPacket};
 use nym_registration_common::{GatewayData, LpRegistrationRequest, LpRegistrationResponse};
@@ -135,6 +135,7 @@ impl NestedLpSession {
             self.client_keypair.public_key().to_bytes(),
         );
         let salt = client_hello_data.salt;
+        let receiver_index = client_hello_data.receiver_index;
 
         tracing::trace!(
             "Generated ClientHello for exit gateway (timestamp: {})",
@@ -151,8 +152,8 @@ impl NestedLpSession {
             LpMessage::ClientHello(client_hello_data),
         );
 
-        // Serialize and forward ClientHello
-        let client_hello_bytes = Self::serialize_packet(&client_hello_packet)?;
+        // Serialize and forward ClientHello (no state machine yet, no outer key)
+        let client_hello_bytes = Self::serialize_packet(&client_hello_packet, None)?;
         let _response_bytes = outer_client
             .send_forward_packet(
                 self.exit_identity,
@@ -165,6 +166,7 @@ impl NestedLpSession {
 
         // Step 4: Create state machine for exit gateway handshake
         let mut state_machine = LpStateMachine::new(
+            receiver_index,
             true, // is_initiator
             (
                 self.client_keypair.private_key(),
@@ -179,7 +181,9 @@ impl NestedLpSession {
             match action? {
                 LpAction::SendPacket(packet) => {
                     tracing::trace!("Sending initial handshake packet to exit");
-                    let packet_bytes = Self::serialize_packet(&packet)?;
+                    // Get outer key (None before PSK derivation)
+                    let outer_key = state_machine.session().ok().and_then(|s| s.outer_aead_key());
+                    let packet_bytes = Self::serialize_packet(&packet, outer_key.as_ref())?;
                     let response_bytes = outer_client
                         .send_forward_packet(
                             self.exit_identity,
@@ -189,7 +193,8 @@ impl NestedLpSession {
                         .await?;
 
                     // Parse response and feed to state machine
-                    let response_packet = Self::parse_packet(&response_bytes)?;
+                    let outer_key = state_machine.session().ok().and_then(|s| s.outer_aead_key());
+                    let response_packet = Self::parse_packet(&response_bytes, outer_key.as_ref())?;
                     tracing::trace!("Received handshake response from exit");
 
                     // Process response through state machine
@@ -200,7 +205,8 @@ impl NestedLpSession {
                             LpAction::SendPacket(response_packet) => {
                                 // Send response packet
                                 tracing::trace!("Sending handshake response to exit");
-                                let packet_bytes = Self::serialize_packet(&response_packet)?;
+                                let outer_key = state_machine.session().ok().and_then(|s| s.outer_aead_key());
+                                let packet_bytes = Self::serialize_packet(&response_packet, outer_key.as_ref())?;
                                 let response_bytes = outer_client
                                     .send_forward_packet(
                                         self.exit_identity,
@@ -219,7 +225,8 @@ impl NestedLpSession {
                                 }
 
                                 // Process the response from exit gateway
-                                let response_packet = Self::parse_packet(&response_bytes)?;
+                                let outer_key = state_machine.session().ok().and_then(|s| s.outer_aead_key());
+                                let response_packet = Self::parse_packet(&response_bytes, outer_key.as_ref())?;
                                 if let Some(action) = state_machine
                                     .process_input(LpInput::ReceivePacket(response_packet))
                                 {
@@ -249,6 +256,7 @@ impl NestedLpSession {
                             LpAction::KKTComplete => {
                                 tracing::info!("KKT exchange completed with exit, starting Noise");
                                 // After KKT completes, initiator must send first Noise handshake message
+                                // PSK is now available, so outer AEAD key can be used
                                 let noise_msg = state_machine
                                     .session()?
                                     .prepare_handshake_message()
@@ -259,7 +267,8 @@ impl NestedLpSession {
                                     })??;
                                 let noise_packet = state_machine.session()?.next_packet(noise_msg)?;
                                 tracing::trace!("Sending first Noise handshake message to exit");
-                                let packet_bytes = Self::serialize_packet(&noise_packet)?;
+                                let outer_key = state_machine.session().ok().and_then(|s| s.outer_aead_key());
+                                let packet_bytes = Self::serialize_packet(&noise_packet, outer_key.as_ref())?;
                                 let response_bytes = outer_client
                                     .send_forward_packet(
                                         self.exit_identity,
@@ -269,7 +278,8 @@ impl NestedLpSession {
                                     .await?;
 
                                 // Process the Noise response from exit gateway
-                                let response_packet = Self::parse_packet(&response_bytes)?;
+                                let outer_key = state_machine.session().ok().and_then(|s| s.outer_aead_key());
+                                let response_packet = Self::parse_packet(&response_bytes, outer_key.as_ref())?;
                                 if let Some(action) = state_machine
                                     .process_input(LpInput::ReceivePacket(response_packet))
                                 {
@@ -283,7 +293,8 @@ impl NestedLpSession {
                                         }
                                         LpAction::SendPacket(final_packet) => {
                                             tracing::trace!("Sending final handshake packet to exit");
-                                            let packet_bytes = Self::serialize_packet(&final_packet)?;
+                                            let outer_key = state_machine.session().ok().and_then(|s| s.outer_aead_key());
+                                            let packet_bytes = Self::serialize_packet(&final_packet, outer_key.as_ref())?;
                                             let _ = outer_client
                                                 .send_forward_packet(
                                                     self.exit_identity,
@@ -419,9 +430,11 @@ impl NestedLpSession {
             })?;
 
         // Step 7: Send the encrypted packet via forwarding
+        // Get outer key for AEAD encryption (PSK is available after handshake)
+        let outer_key = state_machine.session().ok().and_then(|s| s.outer_aead_key());
         let response_bytes = match action {
             LpAction::SendPacket(packet) => {
-                let packet_bytes = Self::serialize_packet(&packet)?;
+                let packet_bytes = Self::serialize_packet(&packet, outer_key.as_ref())?;
                 outer_client
                     .send_forward_packet(
                         self.exit_identity,
@@ -441,7 +454,8 @@ impl NestedLpSession {
         tracing::trace!("Received registration response from exit gateway");
 
         // Step 8: Parse response bytes to LP packet
-        let response_packet = Self::parse_packet(&response_bytes)?;
+        let outer_key = state_machine.session().ok().and_then(|s| s.outer_aead_key());
+        let response_packet = Self::parse_packet(&response_bytes, outer_key.as_ref())?;
 
         // Step 9: Decrypt via state machine
         let action = state_machine
@@ -477,9 +491,8 @@ impl NestedLpSession {
             })?;
 
         tracing::debug!(
-            "Received registration response from exit: success={}, session_id={}",
+            "Received registration response from exit: success={}",
             response.success,
-            response.session_id
         );
 
         // Step 12: Validate and extract GatewayData
@@ -499,8 +512,7 @@ impl NestedLpSession {
         })?;
 
         tracing::info!(
-            "Exit gateway registration successful! Session ID: {}, Allocated bandwidth: {} bytes",
-            response.session_id,
+            "Exit gateway registration successful! Allocated bandwidth: {} bytes",
             response.allocated_bandwidth
         );
 
@@ -517,9 +529,10 @@ impl NestedLpSession {
     ///
     /// # Errors
     /// Returns an error if serialization fails
-    fn serialize_packet(packet: &LpPacket) -> Result<Vec<u8>> {
+    fn serialize_packet(packet: &LpPacket, outer_key: Option<&OuterAeadKey>) -> Result<Vec<u8>> {
         let mut buf = BytesMut::new();
-        serialize_lp_packet(packet, &mut buf).map_err(|e| {
+        // Use outer AEAD key when available (after PSK derivation)
+        serialize_lp_packet(packet, &mut buf, outer_key).map_err(|e| {
             LpClientError::Transport(format!("Failed to serialize LP packet: {}", e))
         })?;
         Ok(buf.to_vec())
@@ -535,8 +548,9 @@ impl NestedLpSession {
     ///
     /// # Errors
     /// Returns an error if parsing fails
-    fn parse_packet(bytes: &[u8]) -> Result<LpPacket> {
-        parse_lp_packet(bytes).map_err(|e| {
+    fn parse_packet(bytes: &[u8], outer_key: Option<&OuterAeadKey>) -> Result<LpPacket> {
+        // Use outer AEAD key when available (after PSK derivation)
+        parse_lp_packet(bytes, outer_key).map_err(|e| {
             LpClientError::Transport(format!("Failed to parse LP packet: {}", e))
         })
     }

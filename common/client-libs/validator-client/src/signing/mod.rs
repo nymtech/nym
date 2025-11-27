@@ -47,7 +47,7 @@ impl Secp256k1Derivation {
     }
 }
 
-fn derive_keypair<S>(
+pub fn derive_keypair<S>(
     seed: S,
     hd_path: &DerivationPath,
 ) -> Result<Secp256k1Keypair, DirectSecp256k1HdWalletError>
@@ -62,7 +62,7 @@ where
     Ok((private_key, public_key))
 }
 
-fn derive_extended_private_key<S>(
+pub fn derive_extended_private_key<S>(
     seed: S,
     hd_path: &DerivationPath,
 ) -> Result<XPrv, DirectSecp256k1HdWalletError>

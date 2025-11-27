@@ -2,11 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::signing::signer::{OfflineSigner, SigningError};
-use crate::signing::{AccountData, Secp256k1Derivation};
+use crate::signing::{
+    derive_extended_private_key, derive_keypair, AccountData, Secp256k1Derivation, Secp256k1Keypair,
+};
+use bip32::XPrv;
 use cosmrs::bip32::DerivationPath;
 use cosmrs::tx;
 use cosmrs::tx::SignDoc;
 use nym_config::defaults;
+use std::borrow::Cow;
 use thiserror::Error;
 use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 
@@ -103,6 +107,43 @@ impl DirectSecp256k1HdWallet {
 
     pub fn mnemonic_string(&self) -> Zeroizing<String> {
         Zeroizing::new(self.secret.to_string())
+    }
+
+    pub fn account_seed<'a, P: Into<Cow<'a, str>>>(
+        &self,
+        bip39_password: P,
+    ) -> Zeroizing<[u8; 64]> {
+        Zeroizing::new(self.secret.to_seed(bip39_password))
+    }
+
+    /// Derive an extended private key from the stored account secret assuming no bip39 password
+    #[deprecated(
+        note = "use derive_extended_private_key_with_password to ensure correct derivation if used bip39 password"
+    )]
+    pub fn derive_extended_private_key(
+        &self,
+        hd_path: &DerivationPath,
+    ) -> Result<XPrv, DirectSecp256k1HdWalletError> {
+        let seed = self.account_seed("");
+        derive_extended_private_key(seed, hd_path)
+    }
+
+    pub fn derive_keypair<'a, P: Into<Cow<'a, str>>>(
+        &self,
+        hd_path: &DerivationPath,
+        bip39_password: P,
+    ) -> Result<Secp256k1Keypair, DirectSecp256k1HdWalletError> {
+        let seed = self.account_seed(bip39_password);
+        derive_keypair(seed, hd_path)
+    }
+
+    pub fn derive_extended_private_key_with_password<'a, P: Into<Cow<'a, str>>>(
+        &self,
+        hd_path: &DerivationPath,
+        bip39_password: P,
+    ) -> Result<XPrv, DirectSecp256k1HdWalletError> {
+        let seed = self.account_seed(bip39_password);
+        derive_extended_private_key(seed, hd_path)
     }
 }
 

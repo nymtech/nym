@@ -178,7 +178,8 @@ impl RegistrationClient {
         let exit_lp_keypair = Arc::new(ed25519::KeyPair::new(&mut OsRng));
 
         // STEP 1: Establish outer session with entry gateway
-        // This creates the LP connection that will be used to forward packets to exit
+        // This creates the LP session that will be used to forward packets to exit.
+        // Uses packet-per-connection model: each handshake packet on new TCP connection.
         tracing::info!("Establishing outer session with entry gateway");
         let mut entry_client = LpRegistrationClient::new_with_default_psk(
             entry_lp_keypair.clone(),
@@ -186,16 +187,6 @@ impl RegistrationClient {
             entry_lp_address,
             self.config.entry.node.ip_address,
         );
-
-        // Connect to entry gateway
-        entry_client
-            .connect()
-            .await
-            .map_err(|source| RegistrationClientError::EntryGatewayRegisterLp {
-                gateway_id: self.config.entry.node.identity.to_base58_string(),
-                lp_address: entry_lp_address,
-                source: Box::new(source),
-            })?;
 
         // Perform handshake with entry gateway (outer session now established)
         entry_client
@@ -238,10 +229,10 @@ impl RegistrationClient {
 
         tracing::info!("Exit gateway registration completed via forwarding");
 
-        // STEP 3: Send registration request to entry gateway
-        tracing::info!("Sending registration request to entry gateway");
-        entry_client
-            .send_registration_request(
+        // STEP 3: Register with entry gateway (packet-per-connection)
+        tracing::info!("Registering with entry gateway");
+        let entry_gateway_data = entry_client
+            .register(
                 &self.config.entry.keys,
                 &self.config.entry.node.identity,
                 &*self.bandwidth_controller,
@@ -254,25 +245,14 @@ impl RegistrationClient {
                 source: Box::new(source),
             })?;
 
-        // Receive registration response from entry
-        let entry_gateway_data = entry_client
-            .receive_registration_response()
-            .await
-            .map_err(|source| RegistrationClientError::EntryGatewayRegisterLp {
-                gateway_id: self.config.entry.node.identity.to_base58_string(),
-                lp_address: entry_lp_address,
-                source: Box::new(source),
-            })?;
-
         tracing::info!("Entry gateway registration successful");
 
-        tracing::info!(
-            "LP registration successful for both gateways (LP connections will be closed)"
-        );
+        tracing::info!("LP registration successful for both gateways");
 
-        // LP is registration-only. All data flows through WireGuard after this point.
-        // The entry LP connection will be dropped, automatically closing TCP connection.
-        // Exit registration was completed via forwarding through entry, so no direct connection exists.
+        // LP is registration-only (packet-per-connection model).
+        // All data flows through WireGuard after this point.
+        // Each LP packet used its own TCP connection which was closed after the exchange.
+        // Exit registration was completed via forwarding through entry gateway.
         Ok(RegistrationResult::Lp(Box::new(LpRegistrationResult {
             entry_gateway_data,
             exit_gateway_data,

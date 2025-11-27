@@ -8,33 +8,33 @@
 //! registration while maintaining security through Noise protocol handshakes and credential
 //! verification.
 //!
+//! Uses a packet-per-connection model: each LP packet exchange opens a new TCP connection,
+//! sends one packet, receives one response, then closes. Session state is maintained in
+//! the state machine across connections.
+//!
 //! # Usage
 //!
 //! ```ignore
 //! use nym_registration_client::lp_client::LpRegistrationClient;
 //!
-//! let client = LpRegistrationClient::new_with_default_psk(
+//! let mut client = LpRegistrationClient::new_with_default_psk(
 //!     keypair,
 //!     gateway_public_key,
 //!     gateway_lp_address,
 //!     client_ip,
 //! );
 //!
-//! // Establish TCP connection
-//! client.connect().await?;
-//!
-//! // Perform handshake (nym-79)
+//! // Perform handshake (multiple packet-per-connection exchanges)
 //! client.perform_handshake().await?;
 //!
-//! // Register with gateway (nym-80, nym-81)
-//! let response = client.register(credential, ticket_type).await?;
+//! // Register with gateway (single packet-per-connection exchange)
+//! let gateway_data = client.register(wg_keypair, gateway_identity, bandwidth_controller, ticket_type).await?;
 //! ```
 
 mod client;
 mod config;
 mod error;
 mod nested_session;
-mod transport;
 
 pub use client::LpRegistrationClient;
 pub use config::LpConfig;

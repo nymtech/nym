@@ -40,18 +40,17 @@ use std::sync::Arc;
 /// ```ignore
 /// // Outer session already established with entry gateway
 /// let mut outer_client = LpRegistrationClient::new(...);
-/// outer_client.connect().await?;
 /// outer_client.perform_handshake().await?;
 ///
 /// // Now establish inner session with exit gateway
-/// let nested = NestedLpSession::new(
+/// let mut nested = NestedLpSession::new(
 ///     exit_identity,
 ///     "2.2.2.2:41264".to_string(),
 ///     client_keypair,
 ///     exit_public_key,
 /// );
 ///
-/// let exit_session = nested.perform_handshake(&mut outer_client).await?;
+/// let gateway_data = nested.handshake_and_register(&mut outer_client, ...).await?;
 /// ```
 pub struct NestedLpSession {
     /// Exit gateway's Ed25519 identity (32 bytes)
@@ -144,8 +143,8 @@ impl NestedLpSession {
 
         // Step 3: Send ClientHello to exit gateway via forwarding
         let client_hello_header = nym_lp::packet::LpHeader::new(
-            0, // session_id not yet established
-            0, // counter starts at 0
+            nym_lp::BOOTSTRAP_RECEIVER_IDX, // Use constant for bootstrap session
+            0,                               // counter starts at 0
         );
         let client_hello_packet = nym_lp::LpPacket::new(
             client_hello_header,
@@ -176,156 +175,12 @@ impl NestedLpSession {
             &salt,
         )?;
 
-        // Step 5: Start handshake - send initial handshake packet
+        // Step 5: Get initial packet from StartHandshake
+        let mut pending_packet: Option<LpPacket> = None;
         if let Some(action) = state_machine.process_input(LpInput::StartHandshake) {
             match action? {
                 LpAction::SendPacket(packet) => {
-                    tracing::trace!("Sending initial handshake packet to exit");
-                    // Get outer key (None before PSK derivation)
-                    let outer_key = state_machine.session().ok().and_then(|s| s.outer_aead_key());
-                    let packet_bytes = Self::serialize_packet(&packet, outer_key.as_ref())?;
-                    let response_bytes = outer_client
-                        .send_forward_packet(
-                            self.exit_identity,
-                            self.exit_address.clone(),
-                            packet_bytes,
-                        )
-                        .await?;
-
-                    // Parse response and feed to state machine
-                    let outer_key = state_machine.session().ok().and_then(|s| s.outer_aead_key());
-                    let response_packet = Self::parse_packet(&response_bytes, outer_key.as_ref())?;
-                    tracing::trace!("Received handshake response from exit");
-
-                    // Process response through state machine
-                    if let Some(action) =
-                        state_machine.process_input(LpInput::ReceivePacket(response_packet))
-                    {
-                        match action? {
-                            LpAction::SendPacket(response_packet) => {
-                                // Send response packet
-                                tracing::trace!("Sending handshake response to exit");
-                                let outer_key = state_machine.session().ok().and_then(|s| s.outer_aead_key());
-                                let packet_bytes = Self::serialize_packet(&response_packet, outer_key.as_ref())?;
-                                let response_bytes = outer_client
-                                    .send_forward_packet(
-                                        self.exit_identity,
-                                        self.exit_address.clone(),
-                                        packet_bytes,
-                                    )
-                                    .await?;
-
-                                // Check if handshake completed after sending
-                                if state_machine.session()?.is_handshake_complete() {
-                                    tracing::info!(
-                                        "Nested LP handshake completed with exit gateway"
-                                    );
-                                    self.state_machine = Some(state_machine);
-                                    return Ok(());
-                                }
-
-                                // Process the response from exit gateway
-                                let outer_key = state_machine.session().ok().and_then(|s| s.outer_aead_key());
-                                let response_packet = Self::parse_packet(&response_bytes, outer_key.as_ref())?;
-                                if let Some(action) = state_machine
-                                    .process_input(LpInput::ReceivePacket(response_packet))
-                                {
-                                    match action? {
-                                        LpAction::HandshakeComplete => {
-                                            tracing::info!(
-                                                "Nested LP handshake completed with exit gateway"
-                                            );
-                                            self.state_machine = Some(state_machine);
-                                            return Ok(());
-                                        }
-                                        LpAction::SendPacket(_) => {
-                                            // More rounds needed - fall through to loop
-                                            tracing::trace!("More handshake rounds needed");
-                                        }
-                                        other => {
-                                            tracing::trace!("Action after send: {:?}", other);
-                                        }
-                                    }
-                                }
-                            }
-                            LpAction::HandshakeComplete => {
-                                tracing::info!("Nested LP handshake completed with exit gateway");
-                                self.state_machine = Some(state_machine);
-                                return Ok(());
-                            }
-                            LpAction::KKTComplete => {
-                                tracing::info!("KKT exchange completed with exit, starting Noise");
-                                // After KKT completes, initiator must send first Noise handshake message
-                                // PSK is now available, so outer AEAD key can be used
-                                let noise_msg = state_machine
-                                    .session()?
-                                    .prepare_handshake_message()
-                                    .ok_or_else(|| {
-                                        LpClientError::Transport(
-                                            "No handshake message available after KKT".to_string(),
-                                        )
-                                    })??;
-                                let noise_packet = state_machine.session()?.next_packet(noise_msg)?;
-                                tracing::trace!("Sending first Noise handshake message to exit");
-                                let outer_key = state_machine.session().ok().and_then(|s| s.outer_aead_key());
-                                let packet_bytes = Self::serialize_packet(&noise_packet, outer_key.as_ref())?;
-                                let response_bytes = outer_client
-                                    .send_forward_packet(
-                                        self.exit_identity,
-                                        self.exit_address.clone(),
-                                        packet_bytes,
-                                    )
-                                    .await?;
-
-                                // Process the Noise response from exit gateway
-                                let outer_key = state_machine.session().ok().and_then(|s| s.outer_aead_key());
-                                let response_packet = Self::parse_packet(&response_bytes, outer_key.as_ref())?;
-                                if let Some(action) = state_machine
-                                    .process_input(LpInput::ReceivePacket(response_packet))
-                                {
-                                    match action? {
-                                        LpAction::HandshakeComplete => {
-                                            tracing::info!(
-                                                "Nested LP handshake completed with exit gateway"
-                                            );
-                                            self.state_machine = Some(state_machine);
-                                            return Ok(());
-                                        }
-                                        LpAction::SendPacket(final_packet) => {
-                                            tracing::trace!("Sending final handshake packet to exit");
-                                            let outer_key = state_machine.session().ok().and_then(|s| s.outer_aead_key());
-                                            let packet_bytes = Self::serialize_packet(&final_packet, outer_key.as_ref())?;
-                                            let _ = outer_client
-                                                .send_forward_packet(
-                                                    self.exit_identity,
-                                                    self.exit_address.clone(),
-                                                    packet_bytes,
-                                                )
-                                                .await?;
-
-                                            // Check if complete after sending final packet
-                                            if state_machine.session()?.is_handshake_complete() {
-                                                tracing::info!(
-                                                    "Nested LP handshake completed with exit gateway"
-                                                );
-                                                self.state_machine = Some(state_machine);
-                                                return Ok(());
-                                            }
-                                        }
-                                        other => {
-                                            tracing::trace!(
-                                                "Action after Noise response: {:?}",
-                                                other
-                                            );
-                                        }
-                                    }
-                                }
-                            }
-                            other => {
-                                tracing::trace!("Received action during handshake: {:?}", other);
-                            }
-                        }
-                    }
+                    pending_packet = Some(packet);
                 }
                 other => {
                     return Err(LpClientError::Transport(format!(
@@ -336,10 +191,75 @@ impl NestedLpSession {
             }
         }
 
-        // If we reach here, the handshake didn't complete properly
-        Err(LpClientError::Transport(
-            "Nested handshake completed without reaching HandshakeComplete state".to_string(),
-        ))
+        // Step 6: Handshake loop - each packet on new connection via forwarding
+        loop {
+            if let Some(packet) = pending_packet.take() {
+                tracing::trace!("Sending handshake packet to exit via forwarding");
+                let response = self
+                    .send_and_receive_via_forward(outer_client, &state_machine, &packet)
+                    .await?;
+                tracing::trace!("Received handshake response from exit");
+
+                // Process the received packet
+                if let Some(action) =
+                    state_machine.process_input(LpInput::ReceivePacket(response))
+                {
+                    match action? {
+                        LpAction::SendPacket(response_packet) => {
+                            pending_packet = Some(response_packet);
+
+                            // Check if handshake completed - send final packet if so
+                            if state_machine.session()?.is_handshake_complete() {
+                                if let Some(final_packet) = pending_packet.take() {
+                                    tracing::trace!("Sending final handshake packet to exit");
+                                    let _ = self
+                                        .send_and_receive_via_forward(
+                                            outer_client,
+                                            &state_machine,
+                                            &final_packet,
+                                        )
+                                        .await?;
+                                }
+                                tracing::info!(
+                                    "Nested LP handshake completed with exit gateway"
+                                );
+                                break;
+                            }
+                        }
+                        LpAction::HandshakeComplete => {
+                            tracing::info!("Nested LP handshake completed with exit gateway");
+                            break;
+                        }
+                        LpAction::KKTComplete => {
+                            tracing::info!("KKT exchange completed with exit, starting Noise");
+                            // After KKT completes, initiator must send first Noise handshake message
+                            let noise_msg = state_machine
+                                .session()?
+                                .prepare_handshake_message()
+                                .ok_or_else(|| {
+                                    LpClientError::Transport(
+                                        "No handshake message available after KKT".to_string(),
+                                    )
+                                })??;
+                            let noise_packet = state_machine.session()?.next_packet(noise_msg)?;
+                            pending_packet = Some(noise_packet);
+                        }
+                        other => {
+                            tracing::trace!("Received action during handshake: {:?}", other);
+                        }
+                    }
+                }
+            } else {
+                // No pending packet and not complete - something is wrong
+                return Err(LpClientError::Transport(
+                    "Nested handshake stalled: no packet to send".to_string(),
+                ));
+            }
+        }
+
+        // Store the state machine (with established session) for later use
+        self.state_machine = Some(state_machine);
+        Ok(())
     }
 
     /// Performs handshake and registration with the exit gateway via forwarding.
@@ -517,6 +437,31 @@ impl NestedLpSession {
         );
 
         Ok(gateway_data)
+    }
+
+    /// Sends a packet via forwarding through the entry gateway and returns the parsed response.
+    ///
+    /// This helper consolidates the send/receive pattern used throughout the handshake:
+    /// 1. Gets outer AEAD key from state machine (if available)
+    /// 2. Serializes the packet with outer encryption
+    /// 3. Forwards via entry gateway
+    /// 4. Parses and returns the response
+    async fn send_and_receive_via_forward(
+        &self,
+        outer_client: &mut LpRegistrationClient,
+        state_machine: &LpStateMachine,
+        packet: &LpPacket,
+    ) -> Result<LpPacket> {
+        let outer_key = state_machine.session().ok().and_then(|s| s.outer_aead_key());
+        let packet_bytes = Self::serialize_packet(packet, outer_key.as_ref())?;
+        let response_bytes = outer_client
+            .send_forward_packet(
+                self.exit_identity,
+                self.exit_address.clone(),
+                packet_bytes,
+            )
+            .await?;
+        Self::parse_packet(&response_bytes, outer_key.as_ref())
     }
 
     /// Serializes an LP packet to bytes.

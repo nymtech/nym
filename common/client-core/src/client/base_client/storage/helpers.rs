@@ -4,7 +4,9 @@
 use crate::client::key_manager::persistence::KeyStore;
 use crate::client::key_manager::ClientKeys;
 use crate::error::ClientCoreError;
-use nym_client_core_gateways_storage::{ActiveGateway, GatewayRegistration, GatewaysDetailsStore};
+use nym_client_core_gateways_storage::{
+    ActiveGateway, GatewayPublishedData, GatewayRegistration, GatewaysDetailsStore,
+};
 use nym_crypto::asymmetric::ed25519;
 
 // helpers for error wrapping
@@ -85,16 +87,17 @@ where
         })
 }
 
-pub async fn update_stored_gateway_details<D>(
+pub async fn update_stored_published_data_gateway<D>(
     details_store: &D,
-    details: &GatewayRegistration,
+    gateway_id: &str,
+    published_data: &GatewayPublishedData,
 ) -> Result<(), ClientCoreError>
 where
     D: GatewaysDetailsStore,
     D::StorageError: Send + Sync + 'static,
 {
     details_store
-        .update_gateway_details(details)
+        .update_gateway_published_data(gateway_id, published_data)
         .await
         .map_err(|source| ClientCoreError::GatewaysDetailsStoreError {
             source: Box::new(source),

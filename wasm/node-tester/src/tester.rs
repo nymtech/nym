@@ -188,28 +188,30 @@ impl NymNodeTesterBuilder {
 
         let stats_sender_task = task_manager.clone_shutdown_token();
 
-        let mut gateway_client = if let Some(existing_client) =
-            initialisation_result.authenticated_ephemeral_client
-        {
-            existing_client.upgrade(
-                packet_router,
-                self.bandwidth_controller.take(),
-                ClientStatsSender::new(None, stats_sender_task),
-                gateway_task.clone(),
-            )
-        } else {
-            let cfg = GatewayConfig::new(gateway_info.gateway_id, gateway_info.gateway_listeners);
-            GatewayClient::new(
-                GatewayClientConfig::new_default().with_disabled_credentials_mode(true),
-                cfg,
-                managed_keys.identity_keypair(),
-                Some(gateway_info.shared_key),
-                packet_router,
-                self.bandwidth_controller.take(),
-                ClientStatsSender::new(None, stats_sender_task),
-                gateway_task,
-            )
-        };
+        let mut gateway_client =
+            if let Some(existing_client) = initialisation_result.authenticated_ephemeral_client {
+                existing_client.upgrade(
+                    packet_router,
+                    self.bandwidth_controller.take(),
+                    ClientStatsSender::new(None, stats_sender_task),
+                    gateway_task.clone(),
+                )
+            } else {
+                let cfg = GatewayConfig::new(
+                    gateway_info.gateway_id,
+                    gateway_info.published_data.listeners,
+                );
+                GatewayClient::new(
+                    GatewayClientConfig::new_default().with_disabled_credentials_mode(true),
+                    cfg,
+                    managed_keys.identity_keypair(),
+                    Some(gateway_info.shared_key),
+                    packet_router,
+                    self.bandwidth_controller.take(),
+                    ClientStatsSender::new(None, stats_sender_task),
+                    gateway_task,
+                )
+            };
 
         let _auth_res = gateway_client.perform_initial_authentication().await?;
 

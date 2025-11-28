@@ -5,7 +5,7 @@
 
 use crate::client::base_client::storage::helpers::{
     has_gateway_details, load_active_gateway_details, load_client_keys, load_gateway_details,
-    store_gateway_details, update_stored_gateway_details,
+    store_gateway_details, update_stored_published_data_gateway,
 };
 use crate::client::key_manager::persistence::KeyStore;
 use crate::client::key_manager::ClientKeys;
@@ -16,8 +16,8 @@ use crate::init::helpers::{
 use crate::init::types::{
     GatewaySelectionSpecification, GatewaySetup, InitialisationResult, SelectedGateway,
 };
-use nym_client_core_gateways_storage::GatewaysDetailsStore;
 use nym_client_core_gateways_storage::{GatewayDetails, GatewayRegistration};
+use nym_client_core_gateways_storage::{GatewayPublishedData, GatewaysDetailsStore};
 use nym_gateway_client::client::InitGatewayClient;
 use nym_topology::node::RoutingNode;
 use rand::rngs::OsRng;
@@ -127,7 +127,11 @@ where
             )
             .await?;
             (
-                GatewayDetails::new_remote(gateway_id, registration.shared_keys, gateway_listeners),
+                GatewayDetails::new_remote(
+                    gateway_id,
+                    registration.shared_keys,
+                    GatewayPublishedData::new(gateway_listeners),
+                ),
                 Some(registration.authenticated_ephemeral_client),
             )
         }
@@ -152,9 +156,9 @@ where
     })
 }
 
-pub async fn update_gateway_details<D>(
+pub async fn refresh_gateway_published_data<D>(
     details_store: &D,
-    mut registration: GatewayRegistration,
+    registration: GatewayRegistration,
     available_gateways: Vec<RoutingNode>,
     must_use_tls: bool,
     no_hostname: bool,
@@ -179,12 +183,10 @@ where
         }
     };
 
-    registration
-        .details
-        .update_remote_listeners(new_gateway_listeners);
+    let new_published_data = GatewayPublishedData::new(new_gateway_listeners);
 
     // update gateway details
-    update_stored_gateway_details(details_store, &registration).await?;
+    update_stored_published_data_gateway(details_store, &gateway_id, &new_published_data).await?;
 
     Ok(())
 }

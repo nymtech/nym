@@ -380,9 +380,10 @@ impl InitResults {
             identity_key: address.identity().to_base58_string(),
             encryption_key: address.encryption_key().to_base58_string(),
             gateway_id: gateway.gateway_id.to_base58_string(),
-            gateway_listener: gateway.gateway_listeners.primary.to_string(),
+            gateway_listener: gateway.published_data.listeners.primary.to_string(),
             fallback_listener: gateway
-                .gateway_listeners
+                .published_data
+                .listeners
                 .fallback
                 .as_ref()
                 .map(|uri| uri.to_string()),

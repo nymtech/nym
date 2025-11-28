@@ -1,3 +1,4 @@
+use nym_client_core::client::base_client::storage::gateways_storage::GatewayPublishedData;
 use nym_sdk::mixnet::{
     self, ActiveGateway, BadGateway, ClientKeys, EmptyReplyStorage, EphemeralCredentialStorage,
     GatewayRegistration, GatewaysDetailsStore, KeyStore, MixnetClientStorage, MixnetMessageSender,
@@ -164,9 +165,10 @@ impl GatewaysDetailsStore for MockGatewayDetailsStore {
         Ok(())
     }
 
-    async fn update_gateway_details(
+    async fn update_gateway_published_data(
         &self,
-        _details: &GatewayRegistration,
+        _gateway_id: &str,
+        _details: &GatewayPublishedData,
     ) -> Result<(), Self::StorageError> {
         println!("updating gateway details");
 

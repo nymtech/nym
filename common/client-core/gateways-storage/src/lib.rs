@@ -60,9 +60,10 @@ pub trait GatewaysDetailsStore {
     ) -> Result<(), Self::StorageError>;
 
     /// Update the gateway details
-    async fn update_gateway_details(
+    async fn update_gateway_published_data(
         &self,
-        details: &GatewayRegistration,
+        gateway_id: &str,
+        published_data: &GatewayPublishedData,
     ) -> Result<(), Self::StorageError>;
 
     /// Remove given gateway details from the underlying store.

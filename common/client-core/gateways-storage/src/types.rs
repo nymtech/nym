@@ -67,13 +67,12 @@ impl GatewayDetails {
     pub fn new_remote(
         gateway_id: ed25519::PublicKey,
         shared_key: Arc<SharedSymmetricKey>,
-        gateway_listeners: GatewayListeners,
+        published_data: GatewayPublishedData,
     ) -> Self {
         GatewayDetails::Remote(RemoteGatewayDetails {
             gateway_id,
             shared_key,
-            gateway_listeners,
-            expiration_timestamp: OffsetDateTime::now_utc() + GATEWAY_DETAILS_TTL,
+            published_data,
         })
     }
 
@@ -97,20 +96,20 @@ impl GatewayDetails {
 
     pub fn details_exipration(&self) -> Option<OffsetDateTime> {
         match self {
-            GatewayDetails::Remote(details) => Some(details.expiration_timestamp),
+            GatewayDetails::Remote(details) => Some(details.published_data.expiration_timestamp),
             GatewayDetails::Custom(_) => None,
         }
     }
 
-    pub fn update_remote_listeners(&mut self, new_listeners: GatewayListeners) {
-        match self {
-            GatewayDetails::Remote(details) => {
-                details.gateway_listeners = new_listeners;
-                details.expiration_timestamp = OffsetDateTime::now_utc() + GATEWAY_DETAILS_TTL;
-            }
-            GatewayDetails::Custom(_) => {}
-        }
-    }
+    // pub fn update_remote_listeners(&mut self, new_listeners: GatewayListeners) {
+    //     match self {
+    //         GatewayDetails::Remote(details) => {
+    //             details.gateway_listeners = new_listeners;
+    //             details.expiration_timestamp = OffsetDateTime::now_utc() + GATEWAY_DETAILS_TTL;
+    //         }
+    //         GatewayDetails::Custom(_) => {}
+    //     }
+    // }
 
     pub fn is_custom(&self) -> bool {
         matches!(self, GatewayDetails::Custom(..))
@@ -181,15 +180,78 @@ pub struct RegisteredGateway {
     pub gateway_type: GatewayType,
 }
 
+#[derive(Debug, Clone)]
+pub struct GatewayPublishedData {
+    pub listeners: GatewayListeners,
+    pub expiration_timestamp: OffsetDateTime,
+}
+
+impl GatewayPublishedData {
+    pub fn new(listeners: GatewayListeners) -> GatewayPublishedData {
+        GatewayPublishedData {
+            listeners,
+            expiration_timestamp: OffsetDateTime::now_utc() + GATEWAY_DETAILS_TTL,
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[cfg_attr(feature = "sqlx", derive(sqlx::FromRow))]
+pub struct RawGatewayPublishedData {
+    pub gateway_listener: String,
+    pub fallback_listener: Option<String>,
+    pub expiration_timestamp: OffsetDateTime,
+}
+
+impl<'a> From<&'a GatewayPublishedData> for RawGatewayPublishedData {
+    fn from(value: &'a GatewayPublishedData) -> Self {
+        Self {
+            gateway_listener: value.listeners.primary.to_string(),
+            fallback_listener: value.listeners.fallback.as_ref().map(|uri| uri.to_string()),
+            expiration_timestamp: value.expiration_timestamp,
+        }
+    }
+}
+
+impl TryFrom<RawGatewayPublishedData> for GatewayPublishedData {
+    type Error = BadGateway;
+
+    fn try_from(value: RawGatewayPublishedData) -> Result<Self, Self::Error> {
+        let gateway_listener: Url = Url::parse(&value.gateway_listener).map_err(|source| {
+            BadGateway::MalformedListenerNoId {
+                raw_listener: value.gateway_listener.clone(),
+                source,
+            }
+        })?;
+        let fallback_listener = value
+            .fallback_listener
+            .as_ref()
+            .map(|uri| {
+                Url::parse(uri).map_err(|source| BadGateway::MalformedListenerNoId {
+                    raw_listener: uri.to_owned(),
+                    source,
+                })
+            })
+            .transpose()?;
+
+        Ok(GatewayPublishedData {
+            listeners: GatewayListeners {
+                primary: gateway_listener,
+                fallback: fallback_listener,
+            },
+            expiration_timestamp: value.expiration_timestamp,
+        })
+    }
+}
+
 #[derive(Debug, Zeroize, ZeroizeOnDrop, Serialize, Deserialize)]
 #[cfg_attr(feature = "sqlx", derive(sqlx::FromRow))]
 pub struct RawRemoteGatewayDetails {
     pub gateway_id_bs58: String,
     pub derived_aes256_gcm_siv_key: Vec<u8>,
-    pub gateway_listener: String,
-    pub fallback_listener: Option<String>,
     #[zeroize(skip)]
-    pub expiration_timestamp: OffsetDateTime,
+    #[cfg_attr(feature = "sqlx", sqlx(flatten))]
+    pub published_data: RawGatewayPublishedData,
 }
 
 impl TryFrom<RawRemoteGatewayDetails> for RemoteGatewayDetails {
@@ -210,33 +272,10 @@ impl TryFrom<RawRemoteGatewayDetails> for RemoteGatewayDetails {
                 source,
             })?;
 
-        let gateway_listener = Url::parse(&value.gateway_listener).map_err(|source| {
-            BadGateway::MalformedListener {
-                gateway_id: value.gateway_id_bs58.clone(),
-                raw_listener: value.gateway_listener.clone(),
-                source,
-            }
-        })?;
-        let fallback_listener = value
-            .fallback_listener
-            .as_ref()
-            .map(|uri| {
-                Url::parse(uri).map_err(|source| BadGateway::MalformedListener {
-                    gateway_id: value.gateway_id_bs58.clone(),
-                    raw_listener: uri.to_owned(),
-                    source,
-                })
-            })
-            .transpose()?;
-
         Ok(RemoteGatewayDetails {
             gateway_id,
             shared_key: Arc::new(shared_key),
-            gateway_listeners: GatewayListeners {
-                primary: gateway_listener,
-                fallback: fallback_listener,
-            },
-            expiration_timestamp: value.expiration_timestamp,
+            published_data: value.published_data.clone().try_into()?,
         })
     }
 }
@@ -246,13 +285,7 @@ impl<'a> From<&'a RemoteGatewayDetails> for RawRemoteGatewayDetails {
         RawRemoteGatewayDetails {
             gateway_id_bs58: value.gateway_id.to_base58_string(),
             derived_aes256_gcm_siv_key: value.shared_key.to_bytes(),
-            gateway_listener: value.gateway_listeners.primary.to_string(),
-            fallback_listener: value
-                .gateway_listeners
-                .fallback
-                .as_ref()
-                .map(|uri| uri.to_string()),
-            expiration_timestamp: value.expiration_timestamp,
+            published_data: (&value.published_data).into(),
         }
     }
 }
@@ -263,9 +296,7 @@ pub struct RemoteGatewayDetails {
 
     pub shared_key: Arc<SharedSymmetricKey>,
 
-    pub gateway_listeners: GatewayListeners,
-
-    pub expiration_timestamp: OffsetDateTime,
+    pub published_data: GatewayPublishedData,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

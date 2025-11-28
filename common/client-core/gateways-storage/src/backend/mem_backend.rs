@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::types::{ActiveGateway, GatewayRegistration};
-use crate::{BadGateway, GatewaysDetailsStore};
+use crate::{BadGateway, GatewayDetails, GatewayPublishedData, GatewaysDetailsStore};
 use async_trait::async_trait;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -94,12 +94,17 @@ impl GatewaysDetailsStore for InMemGatewaysDetails {
         Ok(())
     }
 
-    // It will overwrite the existing entry, which is what we ultimately want
-    async fn update_gateway_details(
+    async fn update_gateway_published_data(
         &self,
-        details: &GatewayRegistration,
+        gateway_id: &str,
+        published_data: &GatewayPublishedData,
     ) -> Result<(), Self::StorageError> {
-        self.store_gateway_details(details).await?;
+        let mut guard = self.inner.write().await;
+        if let Some(gateway) = guard.gateways.get_mut(gateway_id) {
+            if let GatewayDetails::Remote(ref mut remote_details) = gateway.details {
+                remote_details.published_data = published_data.clone();
+            }
+        }
         Ok(())
     }
 

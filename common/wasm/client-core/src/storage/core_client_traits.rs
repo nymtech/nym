@@ -8,7 +8,9 @@ use crate::storage::wasm_client_traits::WasmClientStorage;
 use crate::storage::ClientStorage;
 use async_trait::async_trait;
 use nym_client_core::client::base_client::storage::{
-    gateways_storage::{ActiveGateway, GatewayRegistration, GatewaysDetailsStore},
+    gateways_storage::{
+        ActiveGateway, GatewayPublishedData, GatewayRegistration, GatewaysDetailsStore,
+    },
     MixnetClientStorage,
 };
 use nym_client_core::client::key_manager::persistence::KeyStore;
@@ -154,12 +156,16 @@ impl GatewaysDetailsStore for ClientStorage {
         self.store_registered_gateway(&raw_registration).await
     }
 
-    async fn update_gateway_details(
+    async fn update_gateway_published_data(
         &self,
-        details: &GatewayRegistration,
+        gateway_id: &str,
+        published_data: &GatewayPublishedData,
     ) -> Result<(), Self::StorageError> {
-        // Will overwrite value, which is what we want
-        self.store_gateway_details(details).await
+        // Get gateway and update it
+        let mut gateway = self.must_get_registered_gateway(gateway_id).await?;
+        gateway.published_data = published_data.into();
+        // Store it again, key didn't change
+        self.store_gateway_details(&gateway.try_into()?).await
     }
 
     async fn remove_gateway_details(&self, gateway_id: &str) -> Result<(), Self::StorageError> {

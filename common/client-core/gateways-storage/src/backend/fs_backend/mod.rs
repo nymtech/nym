@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{
-    ActiveGateway, BadGateway, GatewayDetails, GatewayRegistration, GatewayType,
-    GatewaysDetailsStore, StorageError,
+    ActiveGateway, BadGateway, GatewayDetails, GatewayPublishedData, GatewayRegistration,
+    GatewayType, GatewaysDetailsStore, StorageError,
 };
 use async_trait::async_trait;
 use manager::StorageManager;
@@ -132,20 +132,14 @@ impl GatewaysDetailsStore for OnDiskGatewaysDetails {
         Ok(())
     }
 
-    async fn update_gateway_details(
+    async fn update_gateway_published_data(
         &self,
-        details: &GatewayRegistration,
+        gateway_id: &str,
+        published_data: &GatewayPublishedData,
     ) -> Result<(), Self::StorageError> {
-        match &details.details {
-            GatewayDetails::Remote(remote_details) => {
-                let raw_details = &remote_details.into();
-                self.manager
-                    .update_remote_gateway_details(raw_details)
-                    .await?;
-            }
-            GatewayDetails::Custom(_) => {}
-        }
-
+        self.manager
+            .update_remote_gateway_published_data(gateway_id, &published_data.into())
+            .await?;
         Ok(())
     }
 

@@ -40,4 +40,12 @@ pub enum BadGateway {
         #[source]
         source: url::ParseError,
     },
+
+    #[error("the listening address ({raw_listener}) is malformed: {source}")]
+    MalformedListenerNoId {
+        raw_listener: String,
+
+        #[source]
+        source: url::ParseError,
+    },
 }

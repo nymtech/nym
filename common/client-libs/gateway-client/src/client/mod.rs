@@ -199,10 +199,17 @@ impl<C, St> GatewayClient<C, St> {
 
     #[cfg(not(target_arch = "wasm32"))]
     pub async fn establish_connection(&mut self) -> Result<(), GatewayClientError> {
-        debug!(
-            "Attempting to establish connection to gateway at: {}",
-            self.gateway_addresses.primary
-        );
+        if let Some(fallback_url) = &self.gateway_addresses.fallback {
+            debug!(
+                "Attempting to establish connection to gateway at: {}, with fallback at: {fallback_url}",
+                self.gateway_addresses.primary
+            );
+        } else {
+            debug!(
+                "Attempting to establish connection to gateway at: {}",
+                self.gateway_addresses.primary
+            );
+        }
         let (ws_stream, _) = connect_async_with_fallback(
             &self.gateway_addresses,
             #[cfg(unix)]

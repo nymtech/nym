@@ -554,7 +554,7 @@ where
                     shutdown_tracker.clone_shutdown_token(),
                 )
             } else {
-                let cfg = GatewayConfig::new(details.gateway_id, details.gateway_listeners);
+                let cfg = GatewayConfig::new(details.gateway_id, details.published_data.listeners);
                 GatewayClient::new(
                     GatewayClientConfig::new_default()
                         .with_disabled_credentials_mode(config.client.disabled_credentials_mode)

@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use nym_client_core::client::base_client::storage::gateways_storage::{
-    BadGateway, GatewayDetails, GatewayRegistration, RawRemoteGatewayDetails, RemoteGatewayDetails,
+    BadGateway, GatewayDetails, GatewayPublishedData, GatewayRegistration, RawGatewayPublishedData,
+    RawRemoteGatewayDetails, RemoteGatewayDetails,
 };
 use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
@@ -19,10 +20,8 @@ pub struct WasmRawRegisteredGateway {
     #[serde(default)]
     pub derived_aes256_gcm_siv_key: Vec<u8>,
 
-    pub gateway_listener: String,
-
     #[zeroize(skip)]
-    pub expiration_timestamp: OffsetDateTime,
+    pub published_data: WasmRawGatewayPublishedData,
 }
 
 impl TryFrom<WasmRawRegisteredGateway> for GatewayRegistration {
@@ -33,9 +32,11 @@ impl TryFrom<WasmRawRegisteredGateway> for GatewayRegistration {
         let raw_remote = RawRemoteGatewayDetails {
             gateway_id_bs58: value.gateway_id_bs58,
             derived_aes256_gcm_siv_key: value.derived_aes256_gcm_siv_key,
-            gateway_listener: value.gateway_listener,
-            fallback_listener: None,
-            expiration_timestamp: value.expiration_timestamp,
+            published_data: RawGatewayPublishedData {
+                gateway_listener: value.published_data.gateway_listener,
+                fallback_listener: value.published_data.fallback_listener,
+                expiration_timestamp: value.published_data.expiration_timestamp,
+            },
         };
         let remote: RemoteGatewayDetails = raw_remote.try_into()?;
 
@@ -58,8 +59,26 @@ impl<'a> From<&'a GatewayRegistration> for WasmRawRegisteredGateway {
             gateway_id_bs58: remote_details.gateway_id.to_string(),
             registration_timestamp: value.registration_timestamp,
             derived_aes256_gcm_siv_key,
-            gateway_listener: remote_details.gateway_listeners.primary.to_string(),
-            expiration_timestamp: remote_details.expiration_timestamp,
+            published_data: (&remote_details.published_data).into(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WasmRawGatewayPublishedData {
+    pub gateway_listener: String,
+
+    pub fallback_listener: Option<String>,
+
+    pub expiration_timestamp: OffsetDateTime,
+}
+
+impl<'a> From<&'a GatewayPublishedData> for WasmRawGatewayPublishedData {
+    fn from(value: &'a GatewayPublishedData) -> Self {
+        WasmRawGatewayPublishedData {
+            gateway_listener: value.listeners.primary.to_string(),
+            fallback_listener: value.listeners.fallback.as_ref().map(|uri| uri.to_string()),
+            expiration_timestamp: value.expiration_timestamp,
         }
     }
 }

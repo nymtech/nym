@@ -6,6 +6,7 @@ use crate::{
     types::{
         RawActiveGateway, RawCustomGatewayDetails, RawRegisteredGateway, RawRemoteGatewayDetails,
     },
+    RawGatewayPublishedData,
 };
 use sqlx::{
     sqlite::{SqliteAutoVacuum, SqliteSynchronous},
@@ -144,13 +145,11 @@ impl StorageManager {
         &self,
         gateway_id: &str,
     ) -> Result<RawRemoteGatewayDetails, sqlx::Error> {
-        sqlx::query_as!(
-            RawRemoteGatewayDetails,
-            "SELECT * FROM remote_gateway_details WHERE gateway_id_bs58 = ?",
-            gateway_id
-        )
-        .fetch_one(&self.connection_pool)
-        .await
+        // query_as! macro doesn't use fromRow
+        sqlx::query_as("SELECT * FROM remote_gateway_details WHERE gateway_id_bs58 = ?")
+            .bind(gateway_id)
+            .fetch_one(&self.connection_pool)
+            .await
     }
 
     pub(crate) async fn set_remote_gateway_details(
@@ -164,27 +163,28 @@ impl StorageManager {
             "#,
             remote.gateway_id_bs58,
             remote.derived_aes256_gcm_siv_key,
-            remote.gateway_listener,
-            remote.fallback_listener,
-            remote.expiration_timestamp
+            remote.published_data.gateway_listener,
+            remote.published_data.fallback_listener,
+            remote.published_data.expiration_timestamp
         )
             .execute(&self.connection_pool)
             .await?;
         Ok(())
     }
 
-    pub(crate) async fn update_remote_gateway_details(
+    pub(crate) async fn update_remote_gateway_published_data(
         &self,
-        remote: &RawRemoteGatewayDetails,
+        gateway_id_bs58: &str,
+        published_data: &RawGatewayPublishedData,
     ) -> Result<(), sqlx::Error> {
         sqlx::query!(
             r#"
                 UPDATE remote_gateway_details SET gateway_listener = ?, fallback_listener = ?, expiration_timestamp = ? WHERE gateway_id_bs58 = ?
             "#,
-            remote.gateway_listener,
-            remote.fallback_listener,
-            remote.expiration_timestamp,
-            remote.gateway_id_bs58
+            published_data.gateway_listener,
+            published_data.fallback_listener,
+            published_data.expiration_timestamp,
+            gateway_id_bs58
         )
             .execute(&self.connection_pool)
             .await?;

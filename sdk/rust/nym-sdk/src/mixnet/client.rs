@@ -26,7 +26,7 @@ use nym_client_core::config::{DebugConfig, ForgetMe, RememberMe, StatsReporting}
 use nym_client_core::error::ClientCoreError;
 use nym_client_core::init::helpers::gateways_for_init;
 use nym_client_core::init::types::{GatewaySelectionSpecification, GatewaySetup};
-use nym_client_core::init::{setup_gateway, update_gateway_details};
+use nym_client_core::init::{refresh_gateway_published_data, setup_gateway};
 use nym_credentials_interface::TicketType;
 use nym_crypto::hkdf::DerivationMaterial;
 use nym_socks5_client_core::config::Socks5;
@@ -610,12 +610,12 @@ where
         })
     }
 
-    async fn update_gateway_details(
+    async fn refresh_gateway_published_data(
         &mut self,
         gateway_registration: GatewayRegistration,
     ) -> Result<(), ClientCoreError> {
         let available_gateways = self.available_gateways().await?;
-        update_gateway_details(
+        refresh_gateway_published_data(
             self.storage.gateway_details_store(),
             gateway_registration,
             available_gateways,
@@ -682,7 +682,7 @@ where
 
         // update gateway setup if needed
         if init_results.exipred_details() {
-            self.update_gateway_details(init_results.gateway_registration.clone())
+            self.refresh_gateway_published_data(init_results.gateway_registration.clone())
                 .await?;
         }
 

@@ -15,8 +15,6 @@ use url::{Host, Url};
 
 use std::{net::SocketAddr, time::Duration};
 
-const INITIAL_CONNECTION_TIMEOUT: Duration = Duration::from_secs(5);
-
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) async fn connect_async(
     endpoint: &str,
@@ -40,6 +38,8 @@ pub(crate) async fn connect_async(
         Host::Ipv6(addr) => vec![SocketAddr::new(addr.into(), port)],
         Host::Domain(domain) => {
             // Do a DNS lookup for the domain using our custom DNS resolver
+            println!("I'M TIRED BOSS");
+            tokio::time::sleep(Duration::from_secs(20)).await;
             resolver
                 .resolve_str(domain)
                 .await?
@@ -95,33 +95,29 @@ pub(crate) async fn connect_async_with_fallback(
     endpoints: &GatewayListeners,
     #[cfg(unix)] connection_fd_callback: Option<Arc<dyn Fn(RawFd) + Send + Sync>>,
 ) -> Result<(WebSocketStream<MaybeTlsStream<TcpStream>>, Response), GatewayClientError> {
-    // Hickory DNS has a non cofigurable 2 * 10 seconds timeout so we have to add one here as well
-    match tokio::time::timeout(
-        INITIAL_CONNECTION_TIMEOUT,
-        connect_async(
-            endpoints.primary.as_ref(),
-            #[cfg(unix)]
-            connection_fd_callback.clone(),
-        ),
+    match connect_async(
+        endpoints.primary.as_ref(),
+        #[cfg(unix)]
+        connection_fd_callback.clone(),
     )
     .await
     {
-        Ok(inner) => inner,
-        Err(_) if endpoints.fallback.is_some() => {
-            // SAFTEY: We know there is a fallback here
-            #[allow(clippy::unwrap_used)]
-            let fallback = endpoints.fallback.as_ref().unwrap().to_string();
-            tracing::warn!(
-                "Timeout trying to connect to endpoint {}, trying fallback : {fallback}",
-                endpoints.primary
-            );
-            connect_async(
-                &fallback,
-                #[cfg(unix)]
-                connection_fd_callback,
-            )
-            .await
+        Ok(inner) => Ok(inner),
+        Err(e) => {
+            if let Some(fallback) = &endpoints.fallback {
+                tracing::warn!(
+                    "Main endpoint failed {} : {e}, trying fallback : {fallback}",
+                    endpoints.primary
+                );
+                connect_async(
+                    fallback.as_ref(),
+                    #[cfg(unix)]
+                    connection_fd_callback,
+                )
+                .await
+            } else {
+                Err(e)
+            }
         }
-        Err(_) => Err(GatewayClientError::Timeout),
     }
 }

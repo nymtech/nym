@@ -9,11 +9,12 @@ CREATE TABLE shared_keys_tmp
 (
     client_id                  INTEGER NOT NULL PRIMARY KEY REFERENCES clients (id),
     client_address_bs58        TEXT    NOT NULL UNIQUE,
-    derived_aes256_gcm_siv_key BLOB    NOT NULL
+    derived_aes256_gcm_siv_key BLOB    NOT NULL,
+    last_used_authentication TIMESTAMP WITHOUT TIME ZONE
 );
 
-INSERT INTO shared_keys_tmp (client_id, client_address_bs58, derived_aes256_gcm_siv_key)
-SELECT client_id, client_address_bs58, derived_aes256_gcm_siv_key
+INSERT INTO shared_keys_tmp (client_id, client_address_bs58, derived_aes256_gcm_siv_key, last_used_authentication)
+SELECT client_id, client_address_bs58, derived_aes256_gcm_siv_key, last_used_authentication
 FROM shared_keys
 WHERE derived_aes256_gcm_siv_key IS NOT NULL;
 

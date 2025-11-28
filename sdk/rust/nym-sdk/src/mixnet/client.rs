@@ -57,6 +57,7 @@ pub struct MixnetClientBuilder<S: MixnetClientStorage = Ephemeral> {
     custom_shutdown: Option<ShutdownTracker>,
     event_tx: Option<EventSender>,
     force_tls: bool,
+    no_hostname: bool,
     user_agent: Option<UserAgent>,
     #[cfg(unix)]
     connection_fd_callback: Option<Arc<dyn Fn(std::os::fd::RawFd) + Send + Sync>>,
@@ -102,6 +103,7 @@ impl MixnetClientBuilder<OnDiskPersistent> {
             event_tx: None,
             custom_gateway_transceiver: None,
             force_tls: false,
+            no_hostname: false,
             user_agent: None,
             #[cfg(unix)]
             connection_fd_callback: None,
@@ -135,6 +137,7 @@ where
             custom_shutdown: None,
             event_tx: None,
             force_tls: false,
+            no_hostname: false,
             user_agent: None,
             #[cfg(unix)]
             connection_fd_callback: None,
@@ -159,6 +162,7 @@ where
             custom_shutdown: self.custom_shutdown,
             event_tx: self.event_tx,
             force_tls: self.force_tls,
+            no_hostname: self.no_hostname,
             user_agent: self.user_agent,
             #[cfg(unix)]
             connection_fd_callback: self.connection_fd_callback,
@@ -227,6 +231,13 @@ where
     #[must_use]
     pub fn force_tls(mut self, must_use_tls: bool) -> Self {
         self.force_tls = must_use_tls;
+        self
+    }
+
+    /// Attempt to only choose a gateway with its IP address only, ignored if force_tls is set
+    #[must_use]
+    pub fn no_hostname(mut self, no_hostname: bool) -> Self {
+        self.no_hostname = no_hostname;
         self
     }
 
@@ -342,6 +353,7 @@ where
         client.custom_shutdown = self.custom_shutdown;
         client.wait_for_gateway = self.wait_for_gateway;
         client.force_tls = self.force_tls;
+        client.no_hostname = self.no_hostname;
         client.user_agent = self.user_agent;
         #[cfg(unix)]
         if self.connection_fd_callback.is_some() {
@@ -393,6 +405,9 @@ where
 
     /// Force the client to connect using wss protocol with the gateway.
     force_tls: bool,
+
+    /// Force the client to pick gateway IP and not hostname, ignored if force_tls is set
+    no_hostname: bool,
 
     /// Allows passing an externally controlled shutdown handle.
     custom_shutdown: Option<ShutdownTracker>,
@@ -462,6 +477,7 @@ where
             custom_gateway_transceiver: None,
             wait_for_gateway: false,
             force_tls: false,
+            no_hostname: false,
             custom_shutdown: None,
             event_tx,
             user_agent: None,
@@ -581,6 +597,7 @@ where
             self.config.user_chosen_gateway.clone(),
             None,
             self.force_tls,
+            self.no_hostname,
         );
 
         let available_gateways = self.available_gateways().await?;
@@ -603,6 +620,7 @@ where
             gateway_registration,
             available_gateways,
             self.force_tls,
+            self.no_hostname,
         )
         .await
     }

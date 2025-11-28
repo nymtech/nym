@@ -3,7 +3,7 @@
 
 use async_trait::async_trait;
 use nym_credentials_interface::ClientTicket;
-use nym_gateway_requests::SharedGatewayKey;
+use nym_gateway_requests::SharedSymmetricKey;
 use nym_sphinx::DestinationAddressBytes;
 use time::OffsetDateTime;
 
@@ -25,7 +25,7 @@ pub trait SharedKeyGatewayStorage {
     async fn insert_shared_keys(
         &self,
         client_address: DestinationAddressBytes,
-        shared_keys: &SharedGatewayKey,
+        shared_keys: &SharedSymmetricKey,
     ) -> Result<i64, GatewayStorageError>;
     async fn get_shared_keys(
         &self,

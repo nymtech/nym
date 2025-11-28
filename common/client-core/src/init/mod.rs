@@ -105,27 +105,22 @@ where
     let (gateway_details, authenticated_ephemeral_client) = match selected_gateway {
         SelectedGateway::Remote {
             gateway_id,
-            gateway_owner_address,
-            gateway_listener,
+
+            gateway_listeners,
         } => {
             // if we're using a 'normal' gateway setup, do register
             let our_identity = client_keys.identity_keypair();
 
             let registration = helpers::register_with_gateway(
                 gateway_id,
-                gateway_listener.clone(),
+                gateway_listeners.clone(),
                 our_identity,
                 #[cfg(unix)]
                 connection_fd_callback,
             )
             .await?;
             (
-                GatewayDetails::new_remote(
-                    gateway_id,
-                    registration.shared_keys,
-                    gateway_owner_address,
-                    gateway_listener,
-                ),
+                GatewayDetails::new_remote(gateway_id, registration.shared_keys, gateway_listeners),
                 Some(registration.authenticated_ephemeral_client),
             )
         }

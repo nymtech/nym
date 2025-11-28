@@ -18,16 +18,6 @@ pub enum BadGateway {
         source: Ed25519RecoveryError,
     },
 
-    #[error("the account owner of gateway {gateway_id} ({raw_owner}) is malformed: {source}")]
-    MalformedGatewayOwnerAccountAddress {
-        gateway_id: String,
-
-        raw_owner: String,
-
-        #[source]
-        source: cosmrs::ErrorReport,
-    },
-
     #[error("the shared keys provided for gateway {gateway_id} are malformed: {source}")]
     MalformedSharedKeys {
         gateway_id: String,

@@ -16,6 +16,9 @@ use std::path::PathBuf;
 
 #[derive(thiserror::Error, Debug)]
 pub enum ClientCoreError {
+    #[error("could not perform the state migration: {0}")]
+    UnsupportedMigration(String),
+
     #[error("I/O error: {0}")]
     IoError(#[from] std::io::Error),
 

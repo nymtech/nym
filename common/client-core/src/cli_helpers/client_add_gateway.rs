@@ -167,6 +167,7 @@ where
         identity: gateway_details.gateway_id,
         active: common_args.set_active,
         typ: gateway_registration.details.typ().to_string(),
-        endpoint: Some(gateway_details.gateway_listener.clone()),
+        endpoint: Some(gateway_details.gateway_listeners.primary.clone()),
+        fallback_endpoint: gateway_details.gateway_listeners.fallback.clone(),
     })
 }

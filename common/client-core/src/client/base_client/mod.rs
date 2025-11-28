@@ -529,7 +529,6 @@ where
         config: &Config,
         initialisation_result: InitialisationResult,
         bandwidth_controller: Option<BandwidthController<C, S::CredentialStore>>,
-        details_store: &S::GatewaysDetailsStore,
         packet_router: PacketRouter,
         stats_reporter: ClientStatsSender,
         #[cfg(unix)] connection_fd_callback: Option<Arc<dyn Fn(RawFd) + Send + Sync>>,
@@ -555,14 +554,7 @@ where
                     shutdown_tracker.clone_shutdown_token(),
                 )
             } else {
-                let cfg = GatewayConfig::new(
-                    details.gateway_id,
-                    details
-                        .gateway_owner_address
-                        .as_ref()
-                        .map(|o| o.to_string()),
-                    details.gateway_listener.to_string(),
-                );
+                let cfg = GatewayConfig::new(details.gateway_id, details.gateway_listeners);
                 GatewayClient::new(
                     GatewayClientConfig::new_default()
                         .with_disabled_credentials_mode(config.client.disabled_credentials_mode)
@@ -593,30 +585,12 @@ where
         // we need to:
         // - perform handshake (reg or auth)
         // - check for key upgrade
-        // - maybe perform another upgrade handshake
         // - check for bandwidth
         // - start background tasks
-        let auth_res = gateway_client
+        let _auth_res = gateway_client
             .perform_initial_authentication()
             .await
             .map_err(gateway_failure)?;
-
-        if auth_res.requires_key_upgrade {
-            // drop the shared_key arc because we don't need it and we can't hold it for the purposes of upgrade
-            drop(auth_res);
-
-            let updated_key = gateway_client
-                .upgrade_key_authenticated()
-                .await
-                .map_err(gateway_failure)?;
-
-            details_store
-                .upgrade_stored_remote_gateway_key(gateway_client.gateway_identity(), &updated_key)
-                .await.map_err(|err| {
-                tracing::error!("failed to store upgraded gateway key! this connection might be forever broken now: {err}");
-                ClientCoreError::GatewaysDetailsStoreError { source: Box::new(err) }
-            })?
-        }
 
         gateway_client
             .claim_initial_bandwidth()
@@ -636,7 +610,6 @@ where
         config: &Config,
         initialisation_result: InitialisationResult,
         bandwidth_controller: Option<BandwidthController<C, S::CredentialStore>>,
-        details_store: &S::GatewaysDetailsStore,
         packet_router: PacketRouter,
         stats_reporter: ClientStatsSender,
         #[cfg(unix)] connection_fd_callback: Option<Arc<dyn Fn(RawFd) + Send + Sync>>,
@@ -667,7 +640,6 @@ where
             config,
             initialisation_result,
             bandwidth_controller,
-            details_store,
             packet_router,
             stats_reporter,
             #[cfg(unix)]
@@ -975,8 +947,7 @@ where
         )
         .await?;
 
-        let (reply_storage_backend, credential_store, details_store) =
-            self.client_store.into_runtime_stores();
+        let (reply_storage_backend, credential_store, _) = self.client_store.into_runtime_stores();
 
         // channels for inter-component communication
         // TODO: make the channels be internally created by the relevant components
@@ -1069,7 +1040,6 @@ where
             &self.config,
             init_res,
             bandwidth_controller,
-            &details_store,
             gateway_packet_router,
             stats_reporter.clone(),
             #[cfg(unix)]

@@ -56,7 +56,8 @@ where
                 identity: remote_details.gateway_id,
                 active: active_gateway == Some(remote_details.gateway_id),
                 typ: GatewayType::Remote.to_string(),
-                endpoint: Some(remote_details.gateway_listener),
+                endpoint: Some(remote_details.gateway_listeners.primary),
+                fallback_endpoint: remote_details.gateway_listeners.fallback,
             }),
             GatewayDetails::Custom(_) => info.push(GatewayInfo {
                 registration: gateway.registration_timestamp,
@@ -64,6 +65,7 @@ where
                 active: active_gateway == Some(gateway.details.gateway_id()),
                 typ: gateway.details.typ().to_string(),
                 endpoint: None,
+                fallback_endpoint: None,
             }),
         };
     }

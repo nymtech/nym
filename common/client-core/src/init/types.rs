@@ -10,12 +10,11 @@ use nym_client_core_gateways_storage::{
     GatewayRegistration, GatewaysDetailsStore, RemoteGatewayDetails,
 };
 use nym_crypto::asymmetric::ed25519;
-use nym_gateway_client::client::InitGatewayClient;
-use nym_gateway_requests::shared_key::SharedGatewayKey;
+use nym_gateway_client::client::{GatewayListeners, InitGatewayClient};
+use nym_gateway_client::SharedSymmetricKey;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_topology::node::RoutingNode;
 use nym_validator_client::client::IdentityKey;
-use nym_validator_client::nyxd::AccountId;
 use serde::Serialize;
 use std::fmt::{Debug, Display};
 #[cfg(unix)]
@@ -28,9 +27,7 @@ pub enum SelectedGateway {
     Remote {
         gateway_id: ed25519::PublicKey,
 
-        gateway_owner_address: Option<AccountId>,
-
-        gateway_listener: Url,
+        gateway_listeners: GatewayListeners,
     },
     Custom {
         gateway_id: ed25519::PublicKey,
@@ -59,6 +56,16 @@ impl SelectedGateway {
                 })?
         };
 
+        let fallback_listener =
+            node.ws_entry_address_no_hostname(prefer_ipv6)
+                .and_then(|address| {
+                    Url::parse(&address)
+                        .inspect_err(|err| {
+                            tracing::warn!("Malformed fallback listener, none will be used : {err}")
+                        })
+                        .ok()
+                });
+
         let gateway_listener =
             Url::parse(&gateway_listener).map_err(|source| ClientCoreError::MalformedListener {
                 gateway_id: node.identity_key.to_base58_string(),
@@ -68,8 +75,10 @@ impl SelectedGateway {
 
         Ok(SelectedGateway::Remote {
             gateway_id: node.identity_key,
-            gateway_owner_address: None,
-            gateway_listener,
+            gateway_listeners: GatewayListeners {
+                primary: gateway_listener,
+                fallback: fallback_listener,
+            },
         })
     }
 
@@ -98,7 +107,7 @@ impl SelectedGateway {
 /// - shared keys derived between ourselves and the node
 /// - an authenticated handle of an ephemeral handle created for the purposes of registration
 pub struct RegistrationResult {
-    pub shared_keys: Arc<SharedGatewayKey>,
+    pub shared_keys: Arc<SharedSymmetricKey>,
     pub authenticated_ephemeral_client: InitGatewayClient,
 }
 
@@ -315,6 +324,7 @@ pub struct InitResults {
     pub encryption_key: String,
     pub gateway_id: String,
     pub gateway_listener: String,
+    pub fallback_listener: Option<String>,
     pub gateway_registration: OffsetDateTime,
     pub address: Recipient,
 }
@@ -332,7 +342,12 @@ impl InitResults {
             identity_key: address.identity().to_base58_string(),
             encryption_key: address.encryption_key().to_base58_string(),
             gateway_id: gateway.gateway_id.to_base58_string(),
-            gateway_listener: gateway.gateway_listener.to_string(),
+            gateway_listener: gateway.gateway_listeners.primary.to_string(),
+            fallback_listener: gateway
+                .gateway_listeners
+                .fallback
+                .as_ref()
+                .map(|uri| uri.to_string()),
             gateway_registration: registration,
             address,
         }

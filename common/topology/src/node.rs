@@ -89,6 +89,17 @@ impl RoutingNode {
         self.ws_entry_address_no_tls(prefer_ipv6)
     }
 
+    pub fn ws_entry_address_no_hostname(&self, prefer_ipv6: bool) -> Option<String> {
+        let entry = self.entry.as_ref()?;
+
+        if prefer_ipv6 && let Some(ipv6) = entry.ip_addresses.iter().find(|ip| ip.is_ipv6()) {
+            return Some(format!("ws://{ipv6}:{}", entry.clients_ws_port));
+        }
+
+        let any_ip = entry.ip_addresses.first()?;
+        Some(format!("ws://{any_ip}:{}", entry.clients_ws_port))
+    }
+
     pub fn identity(&self) -> ed25519::PublicKey {
         self.identity_key
     }

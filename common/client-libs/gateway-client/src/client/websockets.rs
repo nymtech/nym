@@ -1,3 +1,5 @@
+#[cfg(not(target_arch = "wasm32"))]
+use crate::client::GatewayListeners;
 use crate::error::GatewayClientError;
 
 use nym_http_api_client::HickoryDnsResolver;
@@ -11,7 +13,9 @@ use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 use tungstenite::handshake::client::Response;
 use url::{Host, Url};
 
-use std::net::SocketAddr;
+use std::{net::SocketAddr, time::Duration};
+
+const INITIAL_CONNECTION_TIMEOUT: Duration = Duration::from_secs(5);
 
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) async fn connect_async(
@@ -84,4 +88,40 @@ pub(crate) async fn connect_async(
             address: endpoint.to_owned(),
             source: Box::new(error),
         })
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) async fn connect_async_with_fallback(
+    endpoints: &GatewayListeners,
+    #[cfg(unix)] connection_fd_callback: Option<Arc<dyn Fn(RawFd) + Send + Sync>>,
+) -> Result<(WebSocketStream<MaybeTlsStream<TcpStream>>, Response), GatewayClientError> {
+    // Hickory DNS has a non cofigurable 2 * 10 seconds timeout so we have to add one here as well
+    match tokio::time::timeout(
+        INITIAL_CONNECTION_TIMEOUT,
+        connect_async(
+            endpoints.primary.as_ref(),
+            #[cfg(unix)]
+            connection_fd_callback.clone(),
+        ),
+    )
+    .await
+    {
+        Ok(inner) => inner,
+        Err(_) if endpoints.fallback.is_some() => {
+            // SAFTEY: We know there is a fallback here
+            #[allow(clippy::unwrap_used)]
+            let fallback = endpoints.fallback.as_ref().unwrap().to_string();
+            tracing::warn!(
+                "Timeout trying to connect to endpoint {}, trying fallback : {fallback}",
+                endpoints.primary
+            );
+            connect_async(
+                &fallback,
+                #[cfg(unix)]
+                connection_fd_callback,
+            )
+            .await
+        }
+        Err(_) => Err(GatewayClientError::Timeout),
+    }
 }

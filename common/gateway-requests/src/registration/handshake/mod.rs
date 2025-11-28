@@ -3,7 +3,7 @@
 
 use self::error::HandshakeError;
 use crate::registration::handshake::state::State;
-use crate::{GatewayProtocolVersion, SharedGatewayKey};
+use crate::{GatewayProtocolVersion, SharedSymmetricKey};
 use futures::future::BoxFuture;
 use futures::{Sink, Stream};
 use nym_crypto::asymmetric::ed25519;
@@ -48,7 +48,7 @@ impl Future for GatewayHandshake<'_> {
 #[derive(Debug, PartialEq)]
 pub struct HandshakeResult {
     pub negotiated_protocol: GatewayProtocolVersion,
-    pub derived_key: SharedGatewayKey,
+    pub derived_key: SharedSymmetricKey,
 }
 
 pub fn client_handshake<'a, S, R>(
@@ -56,7 +56,7 @@ pub fn client_handshake<'a, S, R>(
     ws_stream: &'a mut S,
     identity: &'a ed25519::KeyPair,
     gateway_pubkey: ed25519::PublicKey,
-    gateway_protocol: Option<GatewayProtocolVersion>,
+    gateway_protocol: GatewayProtocolVersion,
     #[cfg(not(target_arch = "wasm32"))] shutdown_token: ShutdownToken,
 ) -> GatewayHandshake<'a>
 where
@@ -84,7 +84,7 @@ pub fn gateway_handshake<'a, S, R>(
     ws_stream: &'a mut S,
     identity: &'a ed25519::KeyPair,
     received_init_payload: Vec<u8>,
-    requested_client_protocol: Option<GatewayProtocolVersion>,
+    requested_client_protocol: GatewayProtocolVersion,
     shutdown_token: ShutdownToken,
 ) -> GatewayHandshake<'a>
 where
@@ -125,7 +125,7 @@ DONE(status)
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{ClientControlRequest, CURRENT_PROTOCOL_VERSION, INITIAL_PROTOCOL_VERSION};
+    use crate::{ClientControlRequest, CURRENT_PROTOCOL_VERSION};
     use anyhow::{bail, Context};
     use futures::StreamExt;
     use nym_test_utils::helpers::u64_seeded_rng;
@@ -221,7 +221,7 @@ mod tests {
             client.socket,
             client.keys,
             *gateway.keys.public_key(),
-            Some(CURRENT_PROTOCOL_VERSION),
+            CURRENT_PROTOCOL_VERSION,
             ShutdownToken::default(),
         );
 
@@ -235,7 +235,7 @@ mod tests {
             gateway.socket,
             gateway.keys,
             init_msg,
-            Some(CURRENT_PROTOCOL_VERSION),
+            CURRENT_PROTOCOL_VERSION,
             ShutdownToken::default(),
         );
 
@@ -261,7 +261,7 @@ mod tests {
             client.socket,
             client.keys,
             *gateway.keys.public_key(),
-            Some(CURRENT_PROTOCOL_VERSION + 42),
+            CURRENT_PROTOCOL_VERSION + 42,
             ShutdownToken::default(),
         );
 
@@ -274,7 +274,7 @@ mod tests {
             gateway.socket,
             gateway.keys,
             init_msg,
-            Some(CURRENT_PROTOCOL_VERSION + 42),
+            CURRENT_PROTOCOL_VERSION + 42,
             ShutdownToken::default(),
         );
 
@@ -289,48 +289,6 @@ mod tests {
 
         // and the protocol got downgraded for both parties
         assert_eq!(client_res.negotiated_protocol, CURRENT_PROTOCOL_VERSION);
-
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn protocol_upgrade() -> anyhow::Result<()> {
-        let (client, gateway) = setup();
-
-        let handshake_client = client_handshake(
-            client.rng,
-            client.socket,
-            client.keys,
-            *gateway.keys.public_key(),
-            None,
-            ShutdownToken::default(),
-        );
-
-        let client_fut = handshake_client.spawn_timeboxed();
-
-        // we need to receive the first message so that it could be propagated to the gateway side of the handshake
-        let init_msg = gateway.socket.get_handshake_init_data().await?;
-
-        let handshake_gateway = gateway_handshake(
-            gateway.rng,
-            gateway.socket,
-            gateway.keys,
-            init_msg,
-            None,
-            ShutdownToken::default(),
-        );
-
-        let gateway_fut = handshake_gateway.spawn_timeboxed();
-        let (client, gateway) = join!(client_fut, gateway_fut);
-
-        let client_res = client???;
-        let gateway_res = gateway???;
-
-        // ensure the created keys are the same
-        assert_eq!(client_res, gateway_res);
-
-        // and the protocol got upgraded to the first known version
-        assert_eq!(client_res.negotiated_protocol, INITIAL_PROTOCOL_VERSION);
 
         Ok(())
     }

@@ -146,7 +146,19 @@ impl StorageManager {
     ) -> Result<RawRemoteGatewayDetails, sqlx::Error> {
         sqlx::query_as!(
             RawRemoteGatewayDetails,
-            "SELECT * FROM remote_gateway_details WHERE gateway_id_bs58 = ?",
+            "SELECT
+                rgd.gateway_id_bs58,
+                derived_aes256_gcm_siv_key,
+                gateway_listener,
+                fallback_listener
+            FROM
+                remote_gateway_details AS rgd
+            INNER JOIN
+                remote_gateway_shared_keys AS rgsk
+            ON
+                rgd.gateway_id_bs58 = rgsk.gateway_id_bs58
+            WHERE
+                rgd.gateway_id_bs58 = ?",
             gateway_id
         )
         .fetch_one(&self.connection_pool)
@@ -159,41 +171,26 @@ impl StorageManager {
     ) -> Result<(), sqlx::Error> {
         sqlx::query!(
             r#"
-                INSERT INTO remote_gateway_details(gateway_id_bs58, derived_aes128_ctr_blake3_hmac_keys_bs58, derived_aes256_gcm_siv_key, gateway_owner_address, gateway_listener)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT INTO remote_gateway_details(gateway_id_bs58, gateway_listener, fallback_listener)
+                VALUES (?, ?, ?)
             "#,
             remote.gateway_id_bs58,
-            remote.derived_aes128_ctr_blake3_hmac_keys_bs58,
-            remote.derived_aes256_gcm_siv_key,
-            remote.gateway_owner_address,
             remote.gateway_listener,
+            remote.fallback_listener
         )
             .execute(&self.connection_pool)
             .await?;
-        Ok(())
-    }
 
-    pub(crate) async fn update_remote_gateway_key(
-        &self,
-        gateway_id_bs58: &str,
-        derived_aes128_ctr_blake3_hmac_keys_bs58: Option<&str>,
-        derived_aes256_gcm_siv_key: Option<&[u8]>,
-    ) -> Result<(), sqlx::Error> {
         sqlx::query!(
             r#"
-                UPDATE remote_gateway_details
-                SET
-                    derived_aes128_ctr_blake3_hmac_keys_bs58 = ?,
-                    derived_aes256_gcm_siv_key = ?
-                WHERE gateway_id_bs58 = ?
+                INSERT INTO remote_gateway_shared_keys(gateway_id_bs58, derived_aes256_gcm_siv_key)
+                VALUES (?, ?)
             "#,
-            derived_aes128_ctr_blake3_hmac_keys_bs58,
-            derived_aes256_gcm_siv_key,
-            gateway_id_bs58
+            remote.gateway_id_bs58,
+            remote.derived_aes256_gcm_siv_key
         )
         .execute(&self.connection_pool)
         .await?;
-
         Ok(())
     }
 

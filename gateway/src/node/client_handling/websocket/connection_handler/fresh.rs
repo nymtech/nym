@@ -17,15 +17,12 @@ use nym_credentials_interface::{AvailableBandwidth, DEFAULT_MIXNET_REQUEST_BANDW
 use nym_crypto::aes::cipher::crypto_common::rand_core::RngCore;
 use nym_crypto::asymmetric::ed25519;
 use nym_gateway_requests::authenticate::AuthenticateRequest;
-use nym_gateway_requests::authentication::encrypted_address::{
-    EncryptedAddressBytes, EncryptedAddressConversionError,
-};
 use nym_gateway_requests::registration::handshake::HandshakeResult;
 use nym_gateway_requests::{
     registration::handshake::{error::HandshakeError, gateway_handshake},
     types::{ClientControlRequest, ServerResponse},
     AuthenticationFailure, BinaryResponse, GatewayProtocolVersion, GatewayProtocolVersionExt,
-    SharedGatewayKey, CURRENT_PROTOCOL_VERSION,
+    SharedSymmetricKey, CURRENT_PROTOCOL_VERSION,
 };
 use nym_gateway_storage::error::GatewayStorageError;
 use nym_gateway_storage::traits::BandwidthGatewayStorage;
@@ -50,6 +47,9 @@ pub(crate) enum InitialAuthenticationError {
     #[error(transparent)]
     AuthenticationFailure(#[from] AuthenticationFailure),
 
+    #[error("the legacy authentication method is no longer supported. please update your client")]
+    UnsupportedLegacyAuthentication,
+
     #[error("attempted to overwrite client session with a stale authentication")]
     StaleSessionOverwrite,
 
@@ -68,18 +68,8 @@ pub(crate) enum InitialAuthenticationError {
     #[error("Failed to perform registration handshake: {0}")]
     HandshakeError(#[from] HandshakeError),
 
-    #[error("Provided client address is malformed: {0}")]
-    // sphinx error is not used here directly as its messaging might be confusing to people
-    MalformedClientAddress(String),
-
-    #[error("Provided encrypted client address is malformed: {0}")]
-    MalformedEncryptedAddress(#[from] EncryptedAddressConversionError),
-
     #[error("There is already an open connection to this client")]
     DuplicateConnection,
-
-    #[error("provided authentication IV is malformed: {0}")]
-    MalformedIV(bs58::decode::Error),
 
     #[error("Only 'Register' or 'Authenticate' requests are allowed")]
     InvalidRequest,
@@ -89,6 +79,9 @@ pub(crate) enum InitialAuthenticationError {
 
     #[error("Experienced connection error: {0}")]
     ConnectionError(Box<WsError>),
+
+    #[error("Attempted to negotiate connection with client using incompatible protocol version. Ours is {current} and the client reports {client:?}")]
+    IncompatibleProtocol { client: u8, current: u8 },
 
     #[error("failed to send authentication response: {source}")]
     ResponseSendFailure {
@@ -192,7 +185,7 @@ impl<R, S> FreshHandler<R, S> {
     async fn perform_registration_handshake(
         &mut self,
         init_msg: Vec<u8>,
-        requested_protocol: Option<GatewayProtocolVersion>,
+        requested_protocol: GatewayProtocolVersion,
     ) -> Result<HandshakeResult, HandshakeError>
     where
         S: AsyncRead + AsyncWrite + Unpin + Send,
@@ -279,7 +272,7 @@ impl<R, S> FreshHandler<R, S> {
     #[allow(clippy::panic)]
     pub(crate) async fn push_packets_to_client(
         &mut self,
-        shared_keys: &SharedGatewayKey,
+        shared_keys: &SharedSymmetricKey,
         packets: Vec<Vec<u8>>,
     ) -> Result<(), WsError>
     where
@@ -337,7 +330,7 @@ impl<R, S> FreshHandler<R, S> {
     async fn push_stored_messages_to_client(
         &mut self,
         client_address: DestinationAddressBytes,
-        shared_keys: &SharedGatewayKey,
+        shared_keys: &SharedSymmetricKey,
     ) -> Result<(), InitialAuthenticationError>
     where
         S: AsyncRead + AsyncWrite + Unpin,
@@ -389,34 +382,6 @@ impl<R, S> FreshHandler<R, S> {
         let keys = KeyWithAuthTimestamp::try_from_stored(stored_shared_keys, client)?;
 
         Ok(Some(keys))
-    }
-
-    /// Checks whether the stored shared keys match the received data, i.e. whether the upon decryption
-    /// the provided encrypted address matches the expected unencrypted address.
-    ///
-    /// Returns the retrieved shared keys if the check was successful.
-    ///
-    /// # Arguments
-    ///
-    /// * `client_address`: address of the client.
-    /// * `encrypted_address`: encrypted address of the client, presumably encrypted using the shared keys.
-    /// * `iv`: nonce/iv created for this particular encryption.
-    async fn auth_v1_verify_stored_shared_key(
-        &self,
-        client_address: DestinationAddressBytes,
-        encrypted_address: EncryptedAddressBytes,
-        nonce: &[u8],
-    ) -> Result<Option<KeyWithAuthTimestamp>, InitialAuthenticationError> {
-        let Some(keys) = self.retrieve_shared_key(client_address).await? else {
-            return Ok(None);
-        };
-
-        // LEGACY ISSUE: we're not verifying HMAC key
-        if encrypted_address.verify(&client_address, &keys.key, nonce) {
-            Ok(Some(keys))
-        } else {
-            Ok(None)
-        }
     }
 
     async fn handle_duplicate_client(
@@ -508,24 +473,31 @@ impl<R, S> FreshHandler<R, S> {
 
     fn negotiate_proposed_protocol(
         &self,
-        client_protocol_version: Option<GatewayProtocolVersion>,
-    ) -> Option<GatewayProtocolVersion> {
+        client_protocol_version: GatewayProtocolVersion,
+    ) -> Result<GatewayProtocolVersion, InitialAuthenticationError> {
+        let incompatible_err = InitialAuthenticationError::IncompatibleProtocol {
+            client: client_protocol_version,
+            current: CURRENT_PROTOCOL_VERSION,
+        };
+
+        debug!("client protocol: {client_protocol_version}, ours: {CURRENT_PROTOCOL_VERSION}");
+
+        // gateway will reject any requests from clients that do not support auth v2 or aes256gcm
+        if !client_protocol_version.supports_authenticate_v2()
+            || !client_protocol_version.supports_aes256_gcm_siv()
+        {
+            error!("{incompatible_err}");
+            return Err(incompatible_err);
+        }
+
+        // we can't handle clients with higher protocol than ours
+        // (perhaps we could try to negotiate downgrade on our end? sounds like a nice future improvement)
         if client_protocol_version.is_future_version() {
-            // this should never happen in a non-malicious client as it should use at most whatever version this gateway has announced
-            warn!("client has announced protocol version greater than one known by this gateway (v{client_protocol_version:?} vs v{}). attempting to downgrade.", GatewayProtocolVersion::CURRENT);
-            // we just reply with our current version, and it's up to the client to accept it or terminate the connection
-            Some(GatewayProtocolVersion::CURRENT)
+            error!("{incompatible_err}");
+            Err(incompatible_err)
         } else {
-            // #####
-            // On backwards compat:
-            // Currently it is the case that gateways will understand all previous protocol versions
-            // and will downgrade accordingly, but this will not always be the case.
-            // For example, once we remove downgrade on legacy auth, anything below version 4 will be rejected
-            // #####
-            debug!(
-                "using the protocol version proposed by the client: v{client_protocol_version:?}"
-            );
-            client_protocol_version
+            debug!("the client is using exactly the same (or older) protocol version as we are. We're good to continue!");
+            Ok(CURRENT_PROTOCOL_VERSION)
         }
     }
 
@@ -558,90 +530,6 @@ impl<R, S> FreshHandler<R, S> {
         }
     }
 
-    /// Tries to handle the received authentication request by checking correctness of the received data.
-    ///
-    /// # Arguments
-    ///
-    /// * `client_address`: address of the client wishing to authenticate.
-    /// * `encrypted_address`: ciphertext of the address of the client wishing to authenticate.
-    /// * `iv`: fresh IV received with the request.
-    #[instrument(skip_all
-        fields(
-            address = %address,
-        )
-    )]
-    async fn handle_legacy_authenticate(
-        &mut self,
-        client_protocol_version: Option<GatewayProtocolVersion>,
-        address: String,
-        enc_address: String,
-        raw_nonce: String,
-    ) -> Result<InitialAuthResult, InitialAuthenticationError>
-    where
-        S: AsyncRead + AsyncWrite + Unpin,
-    {
-        debug!("handling client authentication (v1)");
-
-        let negotiated_protocol = self.negotiate_proposed_protocol(client_protocol_version);
-        // populate the negotiated protocol for future uses
-        self.negotiated_protocol = negotiated_protocol;
-
-        let address = DestinationAddressBytes::try_from_base58_string(address)
-            .map_err(|err| InitialAuthenticationError::MalformedClientAddress(err.to_string()))?;
-        let encrypted_address = EncryptedAddressBytes::try_from_base58_string(enc_address)?;
-        let nonce = bs58::decode(&raw_nonce)
-            .into_vec()
-            .map_err(InitialAuthenticationError::MalformedIV)?;
-
-        // validate the shared key
-        let Some(shared_keys) = self
-            .auth_v1_verify_stored_shared_key(address, encrypted_address, &nonce)
-            .await?
-        else {
-            // it feels weird to be returning an 'Ok' here, but I didn't want to change the existing behaviour
-            return Ok(InitialAuthResult::new_legacy_failed(negotiated_protocol));
-        };
-
-        // in v1 we don't have explicit data so we have to use current timestamp
-        // (which does nothing but just allows us to use the same codepath)
-        let session_request_start = OffsetDateTime::now_utc();
-
-        // Check for duplicate clients
-        if let Some(remote_client_data) = self
-            .shared_state
-            .active_clients_store
-            .get_remote_client(address)
-        {
-            warn!("Detected duplicate connection for client: {address}");
-            self.handle_duplicate_client(address, remote_client_data, session_request_start)
-                .await?;
-        }
-
-        let client_id = shared_keys.client_id;
-
-        // if applicable, push stored messages
-        self.push_stored_messages_to_client(address, &shared_keys.key)
-            .await?;
-
-        // check the bandwidth
-        let bandwidth_remaining = self.authenticated_bandwidth_bytes(client_id).await?;
-
-        Ok(InitialAuthResult::new(
-            Some(ClientDetails::new(
-                client_id,
-                address,
-                shared_keys.key,
-                session_request_start,
-            )),
-            ServerResponse::Authenticate {
-                protocol_version: negotiated_protocol,
-                status: true,
-                bandwidth_remaining,
-                upgrade_mode: self.upgrade_mode_enabled(),
-            },
-        ))
-    }
-
     async fn handle_authenticate_v2(
         &mut self,
         request: Box<AuthenticateRequest>,
@@ -652,9 +540,9 @@ impl<R, S> FreshHandler<R, S> {
         debug!("handling client authentication (v2)");
 
         let negotiated_protocol =
-            self.negotiate_proposed_protocol(Some(request.content.protocol_version));
+            self.negotiate_proposed_protocol(request.content.protocol_version)?;
         // populate the negotiated protocol for future uses
-        self.negotiated_protocol = negotiated_protocol;
+        self.negotiated_protocol = Some(negotiated_protocol);
 
         let address = request.content.client_identity.derive_destination_address();
 
@@ -733,7 +621,7 @@ impl<R, S> FreshHandler<R, S> {
     async fn register_client(
         &mut self,
         client_address: DestinationAddressBytes,
-        client_shared_keys: &SharedGatewayKey,
+        client_shared_keys: &SharedSymmetricKey,
     ) -> Result<i64, InitialAuthenticationError>
     where
         S: AsyncRead + AsyncWrite + Unpin,
@@ -777,13 +665,17 @@ impl<R, S> FreshHandler<R, S> {
     /// * `init_data`: init payload of the registration handshake.
     async fn handle_register(
         &mut self,
-        client_protocol_version: Option<GatewayProtocolVersion>,
+        client_protocol_version: GatewayProtocolVersion,
         init_data: Vec<u8>,
     ) -> Result<InitialAuthResult, InitialAuthenticationError>
     where
         S: AsyncRead + AsyncWrite + Unpin + Send,
         R: CryptoRng + RngCore + Send,
     {
+        let negotiated_protocol = self.negotiate_proposed_protocol(client_protocol_version)?;
+        // populate the negotiated protocol for future uses
+        self.negotiated_protocol = Some(negotiated_protocol);
+
         let remote_identity = Self::extract_remote_identity_from_register_init(&init_data)?;
         let remote_address = remote_identity.derive_destination_address();
 
@@ -802,9 +694,6 @@ impl<R, S> FreshHandler<R, S> {
             .await?;
         let shared_keys = handshake_result.derived_key;
 
-        // populate the negotiated protocol for future uses
-        self.negotiated_protocol = Some(handshake_result.negotiated_protocol);
-
         let client_id = self.register_client(remote_address, &shared_keys).await?;
 
         debug!(client_id = %client_id, "managed to finalize client registration");
@@ -821,7 +710,7 @@ impl<R, S> FreshHandler<R, S> {
         Ok(InitialAuthResult::new(
             Some(client_details),
             ServerResponse::Register {
-                protocol_version: self.negotiated_protocol,
+                protocol_version: negotiated_protocol,
                 status: true,
                 upgrade_mode,
             },
@@ -857,14 +746,8 @@ impl<R, S> FreshHandler<R, S> {
     {
         // we can handle stateless client requests without prior authentication, like `ClientControlRequest::SupportedProtocol`
         let auth_result = match request {
-            ClientControlRequest::Authenticate {
-                protocol_version,
-                address,
-                enc_address,
-                iv,
-            } => {
-                self.handle_legacy_authenticate(protocol_version, address, enc_address, iv)
-                    .await
+            ClientControlRequest::Authenticate { .. } => {
+                return Err(InitialAuthenticationError::UnsupportedLegacyAuthentication)
             }
             ClientControlRequest::AuthenticateV2(req) => self.handle_authenticate_v2(req).await,
             ClientControlRequest::RegisterHandshakeInitRequest {

@@ -52,23 +52,16 @@ impl SelectedGateway {
                         gateway: node.identity_key.to_base58_string(),
                     })?;
             (primary, None)
-        } else if no_hostname {
-            // First IP address for main, second if it exists for fallback
-            let primary = node.ws_entry_address_no_hostname(prefer_ipv6, 0).ok_or(
-                ClientCoreError::MissingIpAddress(node.identity_key.to_base58_string()),
-            )?;
-            let fallback = node.ws_entry_address_no_hostname(prefer_ipv6, 1);
-            (primary, fallback)
         } else {
-            // WS hostname main, IP address fallback
-            let primary =
-                node.ws_entry_address(prefer_ipv6)
-                    .ok_or(ClientCoreError::UnsupportedEntry {
-                        id: node.node_id,
-                        identity: node.identity_key.to_base58_string(),
-                    })?;
-            let fallback = node.ws_entry_address_no_hostname(prefer_ipv6, 0);
-            (primary, fallback)
+            let (maybe_primary, fallback) =
+                node.ws_entry_address_with_fallback(prefer_ipv6, no_hostname);
+            (
+                maybe_primary.ok_or(ClientCoreError::UnsupportedEntry {
+                    id: node.node_id,
+                    identity: node.identity_key.to_base58_string(),
+                })?,
+                fallback,
+            )
         };
 
         let fallback_listener_url = fallback_listener.and_then(|address| {

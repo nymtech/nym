@@ -69,7 +69,9 @@ pub enum ClientControlRequest {
     },
     EcashCredential {
         enc_credential: Vec<u8>,
-        #[serde(alias = "iv")]
+        // Old gateways only understand `iv` so rename the field, but have nonce as an alias for next version update, to then phase out `iv`
+        #[serde(rename = "iv")]
+        #[serde(alias = "nonce")]
         nonce: Vec<u8>,
     },
     UpgradeModeJWT {

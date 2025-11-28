@@ -64,7 +64,7 @@ pub enum RequestHandlingError {
     #[error("failed to decrypt provided text request")]
     InvalidEncryptedTextRequest,
 
-    #[error("Provided binary request was malformed - {0}")]
+    #[error("Provided text request was malformed - {0}")]
     InvalidTextRequest(<ClientControlRequest as TryFrom<String>>::Error),
 
     #[error("The received request is not valid in the current context: {additional_context}")]

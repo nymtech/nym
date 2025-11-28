@@ -457,36 +457,6 @@ impl<C, St> GatewayClient<C, St> {
         }
     }
 
-    fn check_gateway_protocol(
-        &self,
-        gateway_protocol: GatewayProtocolVersion,
-    ) -> Result<(), GatewayClientError> {
-        debug!("gateway protocol: {gateway_protocol:?}, ours: {CURRENT_PROTOCOL_VERSION}");
-
-        // client should reject any gateways that do not indicate they support auth v2 or aes256gcm-siv
-        if !gateway_protocol.supports_authenticate_v2()
-            || !gateway_protocol.supports_aes256_gcm_siv()
-        {
-            return Err(GatewayClientError::IncompatibleProtocol {
-                gateway: gateway_protocol,
-                current: CURRENT_PROTOCOL_VERSION,
-            });
-        }
-
-        // we can't handle gateways with higher protocol than ours
-        if gateway_protocol.is_future_version() {
-            let err = GatewayClientError::IncompatibleProtocol {
-                gateway: gateway_protocol,
-                current: CURRENT_PROTOCOL_VERSION,
-            };
-            error!("{err}");
-            Err(err)
-        } else {
-            debug!("the gateway is using exactly the same (or older) protocol version as we are. We're good to continue!");
-            Ok(())
-        }
-    }
-
     async fn register(
         &mut self,
         supported_gateway_protocol: GatewayProtocolVersion,
@@ -534,7 +504,6 @@ impl<C, St> GatewayClient<C, St> {
             other => return Err(GatewayClientError::UnexpectedResponse { name: other.name() }),
         };
 
-        self.check_gateway_protocol(handshake_result.negotiated_protocol)?;
         self.authenticated = authentication_status;
 
         if self.authenticated {
@@ -558,7 +527,10 @@ impl<C, St> GatewayClient<C, St> {
                 bandwidth_remaining,
                 upgrade_mode,
             } => {
-                self.check_gateway_protocol(protocol_version)?;
+                if protocol_version.is_future_version() {
+                    error!("the gateway insists on using v{protocol_version} protocol which is not supported by this client");
+                    return Err(GatewayClientError::AuthenticationFailure);
+                }
                 self.authenticated = status;
                 self.bandwidth
                     .update_and_maybe_log(bandwidth_remaining, upgrade_mode);

@@ -154,6 +154,14 @@ impl GatewaysDetailsStore for ClientStorage {
         self.store_registered_gateway(&raw_registration).await
     }
 
+    async fn update_gateway_details(
+        &self,
+        details: &GatewayRegistration,
+    ) -> Result<(), Self::StorageError> {
+        // Will overwrite value, which is what we want
+        self.store_gateway_details(details).await
+    }
+
     async fn remove_gateway_details(&self, gateway_id: &str) -> Result<(), Self::StorageError> {
         self.remove_registered_gateway(gateway_id).await
     }

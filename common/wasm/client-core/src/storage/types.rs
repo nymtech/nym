@@ -20,6 +20,9 @@ pub struct WasmRawRegisteredGateway {
     pub derived_aes256_gcm_siv_key: Vec<u8>,
 
     pub gateway_listener: String,
+
+    #[zeroize(skip)]
+    pub expiration_timestamp: OffsetDateTime,
 }
 
 impl TryFrom<WasmRawRegisteredGateway> for GatewayRegistration {
@@ -32,6 +35,7 @@ impl TryFrom<WasmRawRegisteredGateway> for GatewayRegistration {
             derived_aes256_gcm_siv_key: value.derived_aes256_gcm_siv_key,
             gateway_listener: value.gateway_listener,
             fallback_listener: None,
+            expiration_timestamp: value.expiration_timestamp,
         };
         let remote: RemoteGatewayDetails = raw_remote.try_into()?;
 
@@ -55,6 +59,7 @@ impl<'a> From<&'a GatewayRegistration> for WasmRawRegisteredGateway {
             registration_timestamp: value.registration_timestamp,
             derived_aes256_gcm_siv_key,
             gateway_listener: remote_details.gateway_listeners.primary.to_string(),
+            expiration_timestamp: remote_details.expiration_timestamp,
         }
     }
 }

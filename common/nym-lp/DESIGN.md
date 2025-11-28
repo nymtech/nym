@@ -11,25 +11,41 @@ The Lewes Protocol (LP) provides authenticated, encrypted sessions with replay p
 
 ## Packet Structure
 
+### Unified Format (v2)
+
+All packets share the same outer structure - cleartext fields are always first:
+
 ```
-┌─────────┬──────────┬────────────────┬─────────┬─────────────────────┬─────────┐
-│ version │ reserved │ receiver_index │ counter │ payload             │ trailer │
-│ 1B      │ 3B       │ 4B             │ 8B      │ variable            │ 16B     │
-└─────────┴──────────┴────────────────┴─────────┴─────────────────────┴─────────┘
-                     16B header                                          16B
+┌────────────────┬─────────┬─────────┬──────────┬─────────────────────┬─────────┐
+│ receiver_index │ counter │ version │ reserved │ payload             │ trailer │
+│ 4B             │ 8B      │ 1B      │ 3B       │ variable            │ 16B     │
+└────────────────┴─────────┴─────────┴──────────┴─────────────────────┴─────────┘
+│←── 12B outer header ────┤│←── inner (cleartext or encrypted) ──────┤│─ 16B ──┤
 ```
 
-**Total overhead:** 32 bytes (16B header + 16B trailer)
+**Total overhead:** 32 bytes (12B outer + 4B inner prefix + 16B trailer)
+
+Key properties:
+- **Outer header** (12 bytes): Always cleartext, used for routing before session lookup
+- **Inner content**: Cleartext before PSK, encrypted after PSK
+- **No disambiguation needed**: Format is identical for both modes
 
 ### Field Descriptions
+
+**Outer Header** (always cleartext, 12 bytes):
+
+| Field | Size | Description |
+|-------|------|-------------|
+| receiver_index | 4 bytes | Session identifier, proposed by client (routing key) |
+| counter | 8 bytes | Monotonic counter, used as AEAD nonce and for replay protection |
+
+**Inner Content** (cleartext or encrypted):
 
 | Field | Size | Description |
 |-------|------|-------------|
 | version | 1 byte | Protocol version |
 | reserved | 3 bytes | Reserved for future use |
-| receiver_index | 4 bytes | Session identifier, proposed by client |
-| counter | 8 bytes | Monotonic counter, used as AEAD nonce and for replay protection |
-| payload | variable | Message type (2B) + content (plaintext or encrypted depending on state) |
+| payload | variable | Message type (2B) + content |
 | trailer | 16 bytes | Zeros (no PSK) or AEAD Poly1305 tag (with PSK) |
 
 ### Wire Format
@@ -54,10 +70,16 @@ Length-prefixed over TCP:
 | KKTResponse | 0x0005 | KEM key transfer response |
 | ForwardPacket | 0x0006 | Nested session forwarding |
 | Collision | 0x0007 | Receiver index collision |
-| SubsessionRequest | 0x0008 | Client requests new subsession |
-| SubsessionKK1 | 0x0009 | KK handshake msg 1 (responder → initiator) |
-| SubsessionKK2 | 0x000A | KK handshake msg 2 (initiator → responder) |
-| SubsessionReady | 0x000B | Subsession established confirmation |
+| Ack | 0x0008 | Gateway confirms receipt of message |
+
+### Planned Message Types (not yet implemented)
+
+| Type | Value | Description |
+|------|-------|-------------|
+| SubsessionRequest | 0x0009 | Client requests new subsession |
+| SubsessionKK1 | 0x000A | KK handshake msg 1 (responder → initiator) |
+| SubsessionKK2 | 0x000B | KK handshake msg 2 (initiator → responder) |
+| SubsessionReady | 0x000C | Subsession established confirmation |
 
 ## Receiver Index
 
@@ -91,6 +113,7 @@ As soon as PSK is derived (after processing Noise msg 1 with PSQ), all subsequen
 | Packet | PSK Available | Header | Payload | Trailer |
 |--------|---------------|--------|---------|---------|
 | ClientHello | No | Clear | Clear | Zeros |
+| Ack | No | Clear | Clear | Zeros |
 | KKTRequest | No | Clear | Clear | Zeros |
 | KKTResponse | No | Clear | Clear | Zeros |
 | Noise msg 1 | No | Clear | Clear | Zeros |
@@ -104,37 +127,43 @@ As soon as PSK is derived (after processing Noise msg 1 with PSQ), all subsequen
 - **AEAD**: ChaCha20-Poly1305
 - **Key**: outer_key = KDF(PSK, "lp-outer-aead") - derived from PSK, not PSK itself
 - **Nonce**: counter (8 bytes, zero-padded to 12 bytes)
-- **AAD**: version ‖ reserved ‖ receiver_index ‖ counter (16 bytes)
+- **AAD**: receiver_index ‖ counter (12 bytes) - the outer header
+- **Encrypted**: version ‖ reserved ‖ message_type ‖ content
 
 Note: PSK is used as-is for Noise (which does internal key derivation). The outer_key derivation avoids key reuse between the two encryption layers.
 
 ### Before PSK
 
 ```
-┌─────────┬──────────┬────────────────┬─────────┬─────────────────────┬─────────┐
-│ version │ reserved │ receiver_index │ counter │ payload             │ 00...00 │
-│         │          │                │         │ (plaintext)         │         │
-└─────────┴──────────┴────────────────┴─────────┴─────────────────────┴─────────┘
-│←──────────────────────────── cleartext ──────────────────────────────────────┤
+┌────────────────┬─────────┬─────────┬──────────┬─────────────────────┬─────────┐
+│ receiver_index │ counter │ version │ reserved │ payload             │ 00...00 │
+│                │         │         │          │ (plaintext)         │         │
+└────────────────┴─────────┴─────────┴──────────┴─────────────────────┴─────────┘
+│←── 12B outer ──────────┤│←────────────── cleartext inner ──────────┤│─zeros──┤
 ```
 
 ### After PSK
 
 ```
-┌─────────┬──────────┬────────────────┬─────────┬─────────────────────┬─────────┐
-│ version │ reserved │ receiver_index │ counter │ payload             │ tag     │
-│         │          │                │         │ (encrypted)         │         │
-└─────────┴──────────┴────────────────┴─────────┴─────────────────────┴─────────┘
-│←───────── cleartext (authenticated via AAD) ─────────┤│← encrypted ─┤│─ auth ─┤
+┌────────────────┬─────────┬─────────┬──────────┬─────────────────────┬─────────┐
+│ receiver_index │ counter │ version │ reserved │ payload             │ tag     │
+│                │         │ (enc)   │ (enc)    │ (encrypted)         │         │
+└────────────────┴─────────┴─────────┴──────────┴─────────────────────┴─────────┘
+│←── 12B outer (AAD) ────┤│←────────── encrypted inner ──────────────┤│─ tag ──┤
 ```
 
 ## Handshake Flow
+
+Each arrow represents a separate TCP connection (packet-per-connection model).
 
 ```
 Client                                  Gateway
    │                                       │
    │ [hdr][ClientHello][zeros]             │
    │──────────────────────────────────────►│ store state[receiver_index]
+   │                                       │
+   │ [hdr][Ack][zeros]                     │
+   │◄──────────────────────────────────────│ confirm ClientHello
    │                                       │
    │ [hdr][KKTRequest][zeros]              │
    │──────────────────────────────────────►│
@@ -299,18 +328,23 @@ SubsessionReadyData {
 
 ### Always Visible to Observer
 
-- Version (1 byte)
-- Reserved (3 bytes)
+Only the outer header (12 bytes) is visible after PSK establishment:
+
 - Receiver index (4 bytes) - opaque, unlinkable to identity
 - Counter (8 bytes) - reveals packet ordering
 - Packet size
 
+Note: Before PSK, version, reserved, and message type are also visible.
+
 ### Protected After PSK
 
-- Header integrity (authenticated via AEAD AAD)
-- Payload confidentiality (encrypted)
-- Message type (hidden)
-- Application data (double encrypted)
+- Outer header integrity (authenticated via AEAD AAD)
+- Inner content confidentiality (encrypted):
+  - Protocol version
+  - Reserved field
+  - Message type
+  - Payload
+- Application data (double encrypted: outer AEAD + inner Noise)
 
 ### Cryptographic Guarantees
 

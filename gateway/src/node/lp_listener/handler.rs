@@ -6,7 +6,7 @@ use super::registration::process_registration;
 use super::LpHandlerState;
 use crate::error::GatewayError;
 use nym_lp::{
-    codec::OuterAeadKey, keypair::PublicKey, message::ForwardPacketData, packet::LpHeader,
+    codec::OuterAeadKey, keypair::PublicKey, message::ForwardPacketData, OuterHeader,
     LpMessage, LpPacket,
 };
 use nym_metrics::{add_histogram_obs, inc};
@@ -775,11 +775,12 @@ impl LpConnectionHandler {
         Ok(response_buf)
     }
 
-    /// Receive raw packet bytes and parse header only (for routing before session lookup).
+    /// Receive raw packet bytes and parse outer header only (for routing before session lookup).
     ///
-    /// Returns the raw packet bytes and parsed header. The caller should look up
-    /// the session to get outer_aead_key, then call `parse_lp_packet()` with the key.
-    async fn receive_raw_packet(&mut self) -> Result<(Vec<u8>, LpHeader), GatewayError> {
+    /// Returns the raw packet bytes and parsed outer header (receiver_idx + counter).
+    /// The caller should look up the session to get outer_aead_key, then call
+    /// `parse_lp_packet()` with the key.
+    async fn receive_raw_packet(&mut self) -> Result<(Vec<u8>, OuterHeader), GatewayError> {
         use nym_lp::codec::parse_lp_header_only;
 
         // Read 4-byte length prefix (u32 big-endian)
@@ -1096,9 +1097,10 @@ mod tests {
             .unwrap();
 
         // Handler should receive and parse it correctly
+        // Note: header is OuterHeader (receiver_idx + counter only), not LpHeader
         let (header, received) = server_task.await.unwrap().unwrap();
-        assert_eq!(header.protocol_version, 1);
         assert_eq!(header.receiver_idx, 42);
+        assert_eq!(header.counter, 0);
         assert_eq!(received.header().protocol_version, 1);
         assert_eq!(received.header().receiver_idx, 42);
         assert_eq!(received.header().counter, 0);

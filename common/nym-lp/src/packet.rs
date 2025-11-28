@@ -130,7 +130,60 @@ impl LpPacket {
 /// the same session ID from their keys, and all subsequent packets use that ID.
 pub const BOOTSTRAP_RECEIVER_IDX: u32 = 0;
 
-// VERSION [1B] || RESERVED [3B] || SENDER_INDEX [4B] || COUNTER [8B]
+/// Outer header (12 bytes) - always cleartext, used for routing.
+///
+/// This is the first 12 bytes of every LP packet, containing only the fields
+/// needed for session lookup (receiver_idx) and replay protection (counter).
+/// For encrypted packets, this is the AAD (additional authenticated data).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct OuterHeader {
+    pub receiver_idx: u32,
+    pub counter: u64,
+}
+
+impl OuterHeader {
+    pub const SIZE: usize = 12; // receiver_idx(4) + counter(8)
+
+    pub fn new(receiver_idx: u32, counter: u64) -> Self {
+        Self {
+            receiver_idx,
+            counter,
+        }
+    }
+
+    pub fn parse(src: &[u8]) -> Result<Self, LpError> {
+        if src.len() < Self::SIZE {
+            return Err(LpError::InsufficientBufferSize);
+        }
+        Ok(Self {
+            receiver_idx: u32::from_le_bytes(src[0..4].try_into().unwrap()),
+            counter: u64::from_le_bytes(src[4..12].try_into().unwrap()),
+        })
+    }
+
+    pub fn encode(&self) -> [u8; Self::SIZE] {
+        let mut buf = [0u8; Self::SIZE];
+        buf[0..4].copy_from_slice(&self.receiver_idx.to_le_bytes());
+        buf[4..12].copy_from_slice(&self.counter.to_le_bytes());
+        buf
+    }
+
+    /// Encode directly into a BytesMut buffer
+    pub fn encode_into(&self, dst: &mut BytesMut) {
+        dst.put_slice(&self.receiver_idx.to_le_bytes());
+        dst.put_slice(&self.counter.to_le_bytes());
+    }
+}
+
+/// Internal LP header representation containing all logical header fields.
+///
+/// **Note**: This struct represents the LOGICAL header, not the wire format.
+/// On the wire, packets use the unified format where:
+/// - `OuterHeader` (receiver_idx + counter) always comes first (12 bytes, cleartext)
+/// - Inner content (version + reserved + payload) follows (cleartext or encrypted)
+///
+/// The `LpHeader::encode()` method outputs the old logical format for debug purposes only.
+/// Use `serialize_lp_packet()` in codec.rs for actual wire serialization.
 #[derive(Debug, Clone)]
 pub struct LpHeader {
     pub protocol_version: u8,

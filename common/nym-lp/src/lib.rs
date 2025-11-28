@@ -16,7 +16,7 @@ pub mod session_manager;
 
 pub use error::LpError;
 pub use message::{ClientHelloData, LpMessage};
-pub use packet::{LpPacket, BOOTSTRAP_RECEIVER_IDX};
+pub use packet::{LpPacket, OuterHeader, BOOTSTRAP_RECEIVER_IDX};
 pub use replay::{ReceivingKeyCounterValidator, ReplayError};
 pub use session::{LpSession, generate_fresh_salt};
 pub use session_manager::SessionManager;

@@ -6,8 +6,14 @@ use crate::message::{
     ClientHelloData, EncryptedDataPayload, ForwardPacketData, HandshakeData, KKTRequestData,
     KKTResponseData, LpMessage, MessageType,
 };
-use crate::packet::{LpHeader, LpPacket, TRAILER_LEN};
+use crate::packet::{LpHeader, LpPacket, OuterHeader, TRAILER_LEN};
 use bytes::{BufMut, BytesMut};
+
+/// Size of outer header (receiver_idx + counter) - always cleartext
+pub const OUTER_HEADER_SIZE: usize = OuterHeader::SIZE; // 12 bytes
+
+/// Size of inner prefix (proto + reserved) - cleartext or encrypted depending on mode
+const INNER_PREFIX_SIZE: usize = 4; // proto(1) + reserved(3)
 use chacha20poly1305::{
     aead::{AeadInPlace, KeyInit},
     ChaCha20Poly1305, Key, Nonce, Tag,
@@ -135,28 +141,28 @@ fn parse_message_from_type_and_content(
     }
 }
 
-/// Parse only the LP header from raw packet bytes.
+/// Parse only the outer header from raw packet bytes.
 ///
-/// Used for routing before session lookup when the header is always cleartext.
-/// This allows the caller to determine the receiver_idx and look up the appropriate
-/// session to get the outer AEAD key before calling `parse_lp_packet()`.
+/// Used for routing before session lookup. The outer header (receiver_idx + counter)
+/// is always cleartext at bytes 0-12 in the unified packet format.
 ///
 /// # Arguments
-/// * `src` - Raw packet bytes (at least LpHeader::SIZE bytes)
+/// * `src` - Raw packet bytes (at least OuterHeader::SIZE bytes)
 ///
 /// # Errors
-/// * `LpError::InsufficientBufferSize` - Packet too small for header
-pub fn parse_lp_header_only(src: &[u8]) -> Result<LpHeader, LpError> {
-    if src.len() < LpHeader::SIZE {
-        return Err(LpError::InsufficientBufferSize);
-    }
-    LpHeader::parse(&src[..LpHeader::SIZE])
+/// * `LpError::InsufficientBufferSize` - Packet too small for outer header
+pub fn parse_lp_header_only(src: &[u8]) -> Result<OuterHeader, LpError> {
+    OuterHeader::parse(src)
 }
 
 /// Parses a complete Lewes Protocol packet from a byte slice (e.g., a UDP datagram payload).
 ///
-/// Assumes the input `src` contains exactly one complete packet. It does not handle
-/// stream fragmentation or provide replay protection checks (these belong at the session level).
+/// ## Unified Packet Format
+///
+/// Both cleartext and encrypted packets have the same structure:
+/// - Outer header (12B): receiver_idx(4) + counter(8) - always cleartext
+/// - Inner payload: proto(1) + reserved(3) + msg_type(2) + content - cleartext or encrypted
+/// - Trailer (16B): zeros (cleartext) or AEAD tag (encrypted)
 ///
 /// # Arguments
 /// * `src` - Raw packet bytes
@@ -169,40 +175,61 @@ pub fn parse_lp_packet(
     src: &[u8],
     outer_key: Option<&OuterAeadKey>,
 ) -> Result<LpPacket, LpError> {
-    // Minimum size check: LpHeader + Type + Trailer (for 0-payload message)
-    let min_size = LpHeader::SIZE + 2 + TRAILER_LEN;
+    // Minimum size check: OuterHeader + InnerPrefix + MsgType + Trailer (for 0-payload message)
+    // 12 + 4 + 2 + 16 = 34 bytes
+    let min_size = OUTER_HEADER_SIZE + INNER_PREFIX_SIZE + 2 + TRAILER_LEN;
     if src.len() < min_size {
         return Err(LpError::InsufficientBufferSize);
     }
 
-    // Parse LpHeader (always cleartext for routing)
-    let header = LpHeader::parse(&src[..LpHeader::SIZE])?;
+    // Parse outer header (always cleartext at bytes 0-12)
+    let outer_header = OuterHeader::parse(src)?;
 
     // Extract trailer (potential AEAD tag)
     let trailer_start = src.len() - TRAILER_LEN;
     let mut trailer = [0u8; TRAILER_LEN];
     trailer.copy_from_slice(&src[trailer_start..]);
 
-    // Payload is everything between header and trailer
-    let payload_bytes = &src[LpHeader::SIZE..trailer_start];
+    // Inner payload is everything between outer header and trailer
+    let inner_bytes = &src[OUTER_HEADER_SIZE..trailer_start];
 
     // Handle decryption if outer key provided
-    let (message_type_raw, message_content) = match outer_key {
+    match outer_key {
         None => {
-            // Cleartext mode - parse directly
-            if payload_bytes.len() < 2 {
+            // Cleartext mode - parse inner directly
+            // Inner format: proto(1) + reserved(3) + msg_type(2) + content
+            if inner_bytes.len() < INNER_PREFIX_SIZE + 2 {
                 return Err(LpError::InsufficientBufferSize);
             }
-            let msg_type = u16::from_le_bytes([payload_bytes[0], payload_bytes[1]]);
-            (msg_type, &payload_bytes[2..])
+
+            let protocol_version = inner_bytes[0];
+            // reserved bytes [1..4] are ignored
+            let msg_type = u16::from_le_bytes([inner_bytes[4], inner_bytes[5]]);
+            let message_content = &inner_bytes[6..];
+
+            let header = LpHeader {
+                protocol_version,
+                reserved: 0,
+                receiver_idx: outer_header.receiver_idx,
+                counter: outer_header.counter,
+            };
+
+            let message = parse_message_from_type_and_content(msg_type, message_content)?;
+
+            Ok(LpPacket {
+                header,
+                message,
+                trailer,
+            })
         }
         Some(key) => {
             // AEAD decryption mode
-            let nonce = build_nonce(header.counter);
-            let aad = &src[..LpHeader::SIZE]; // Header as AAD
+            // AAD is the outer header (12 bytes)
+            let nonce = build_nonce(outer_header.counter);
+            let aad = &src[..OUTER_HEADER_SIZE];
 
-            // Copy payload for in-place decryption
-            let mut decrypted = payload_bytes.to_vec();
+            // Copy inner payload for in-place decryption
+            let mut decrypted = inner_bytes.to_vec();
 
             // Convert trailer to Tag
             let tag = Tag::from_slice(&trailer);
@@ -213,67 +240,85 @@ pub fn parse_lp_packet(
                 .decrypt_in_place_detached(Nonce::from_slice(&nonce), aad, &mut decrypted, tag)
                 .map_err(|_| LpError::AeadTagMismatch)?;
 
-            // Extract message type from decrypted payload
-            if decrypted.len() < 2 {
+            // Decrypted format: proto(1) + reserved(3) + msg_type(2) + content
+            if decrypted.len() < INNER_PREFIX_SIZE + 2 {
                 return Err(LpError::InsufficientBufferSize);
             }
-            let msg_type = u16::from_le_bytes([decrypted[0], decrypted[1]]);
 
-            // Return decrypted content (owned, so we handle it differently)
-            return parse_message_from_type_and_content(msg_type, &decrypted[2..]).map(|message| {
-                LpPacket {
-                    header,
-                    message,
-                    trailer,
-                }
-            });
+            let protocol_version = decrypted[0];
+            // reserved bytes [1..4] are ignored
+            let msg_type = u16::from_le_bytes([decrypted[4], decrypted[5]]);
+            let message_content = &decrypted[6..];
+
+            let header = LpHeader {
+                protocol_version,
+                reserved: 0,
+                receiver_idx: outer_header.receiver_idx,
+                counter: outer_header.counter,
+            };
+
+            let message = parse_message_from_type_and_content(msg_type, message_content)?;
+
+            Ok(LpPacket {
+                header,
+                message,
+                trailer,
+            })
         }
-    };
-
-    // Cleartext path: parse message from payload
-    let message = parse_message_from_type_and_content(message_type_raw, message_content)?;
-
-    Ok(LpPacket {
-        header,
-        message,
-        trailer,
-    })
+    }
 }
 
 /// Serializes an LpPacket into the provided BytesMut buffer.
 ///
+/// ## Unified Packet Format
+///
+/// Both cleartext and encrypted packets have the same structure:
+/// - Outer header (12B): receiver_idx(4) + counter(8) - always cleartext
+/// - Inner payload: proto(1) + reserved(3) + msg_type(2) + content - cleartext or encrypted
+/// - Trailer (16B): zeros (cleartext) or AEAD tag (encrypted)
+///
 /// # Arguments
 /// * `item` - Packet to serialize
 /// * `dst` - Output buffer
-/// * `outer_key` - None for cleartext (uses packet's trailer), Some for AEAD encryption
-///
-/// When `outer_key` is provided:
-/// - Header is written in cleartext (used as AAD)
-/// - Message type + content is encrypted
-/// - Trailer is set to the AEAD tag
+/// * `outer_key` - None for cleartext, Some for AEAD encryption
 pub fn serialize_lp_packet(
     item: &LpPacket,
     dst: &mut BytesMut,
     outer_key: Option<&OuterAeadKey>,
 ) -> Result<(), LpError> {
+    // Total size: outer_header(12) + inner_prefix(4) + msg_type(2) + content + trailer(16)
+    let total_size = OUTER_HEADER_SIZE + INNER_PREFIX_SIZE + 2 + item.message.len() + TRAILER_LEN;
+    dst.reserve(total_size);
+
+    // 1. Write outer header (always cleartext) - 12 bytes
+    let outer_header = OuterHeader::new(item.header.receiver_idx, item.header.counter);
+    outer_header.encode_into(dst);
+
     match outer_key {
         None => {
-            // Cleartext mode - use existing encode method
-            dst.reserve(LpHeader::SIZE + 2 + item.message.len() + TRAILER_LEN);
-            item.encode(dst);
+            // Cleartext mode
+            // 2. Write inner prefix: proto(1) + reserved(3)
+            dst.put_u8(item.header.protocol_version);
+            dst.put_slice(&[0, 0, 0]); // reserved
+
+            // 3. Write message type (2B) + content
+            dst.put_slice(&(item.message.typ() as u16).to_le_bytes());
+            item.message.encode_content(dst);
+
+            // 4. Write zeros trailer
+            dst.put_slice(&[0u8; TRAILER_LEN]);
+
             Ok(())
         }
         Some(key) => {
             // AEAD encryption mode
-            dst.reserve(LpHeader::SIZE + 2 + item.message.len() + TRAILER_LEN);
+            // AAD is the outer header (first 12 bytes)
+            let aad = outer_header.encode();
 
-            // 1. Encode header (AAD - not encrypted)
-            let header_start = dst.len();
-            item.header.encode(dst);
-            let header_end = dst.len();
-
-            // 2. Build plaintext: message_type (2B) + content
+            // 2. Build plaintext: proto(1) + reserved(3) + msg_type(2) + content
             let mut plaintext = BytesMut::new();
+            plaintext.put_u8(item.header.protocol_version);
+            plaintext.put_slice(&[0, 0, 0]); // reserved
             plaintext.put_slice(&(item.message.typ() as u16).to_le_bytes());
             item.message.encode_content(&mut plaintext);
 
@@ -281,16 +326,15 @@ pub fn serialize_lp_packet(
             let payload_start = dst.len();
             dst.put_slice(&plaintext);
 
-            // 4. Build nonce and get AAD
+            // 4. Build nonce from counter
             let nonce = build_nonce(item.header.counter);
-            let aad = &dst[header_start..header_end].to_vec(); // Copy AAD since we mutate dst
 
             // 5. Encrypt payload in-place
             let cipher = ChaCha20Poly1305::new(Key::from_slice(key.as_bytes()));
             let tag = cipher
                 .encrypt_in_place_detached(
                     Nonce::from_slice(&nonce),
-                    aad,
+                    &aad,
                     &mut dst[payload_start..],
                 )
                 .map_err(|_| LpError::Internal("AEAD encryption failed".to_string()))?;
@@ -320,8 +364,9 @@ mod tests {
     use crate::packet::{LpHeader, LpPacket, TRAILER_LEN};
     use bytes::BytesMut;
 
-    // Header length: version(1) + reserved(3) + receiver_index(4) + counter(8) = 16 bytes
-    const HEADER_LEN: usize = 16;
+    // AIDEV-NOTE: With unified format, outer header (receiver_idx + counter) is always first
+    // and is the only cleartext portion for encrypted packets
+    const OUTER_HDR: usize = super::OUTER_HEADER_SIZE; // 12 bytes
 
     // === Cleartext Encode/Decode Tests ===
 
@@ -483,17 +528,18 @@ mod tests {
         // This *should* parse successfully based on the logic, but the trailer is garbage.
         // Let's rethink: parse_lp_packet assumes the *entire slice* is the packet.
         // If the slice doesn't end exactly where the trailer should, it's an error.
-        // In this case, total length is 58. LpHeader(16) + Type(2) + Trailer(16) = 34. Payload = 58-34=24.
+        // In this case, total length is 58. OuterHdr(12) + InnerPrefix(4) + Type(2) + Trailer(16) = 34. Payload = 58-34=24.
         // Trailer starts at 16+2+24 = 42. Ends at 42+16=58. It fits exactly.
         // This test *still* doesn't test incompleteness correctly for the datagram parser.
 
         // Let's test a buffer that's *too short* even for header+type+trailer+min_payload
+        // Note: Buffer order doesn't matter for this test since we fail on minimum size check
         let mut buf_too_short = BytesMut::new();
-        buf_too_short.extend_from_slice(&[1, 0, 0, 0]); // Version + reserved
-        buf_too_short.extend_from_slice(&42u32.to_le_bytes()); // Sender index
-        buf_too_short.extend_from_slice(&123u64.to_le_bytes()); // Counter
-        buf_too_short.extend_from_slice(&MessageType::Handshake.to_u16().to_le_bytes()); // Handshake type
-        // No payload, no trailer. Length = 16+2=18. Min size = 34.
+        buf_too_short.extend_from_slice(&42u32.to_le_bytes()); // receiver_idx (outer header)
+        buf_too_short.extend_from_slice(&123u64.to_le_bytes()); // counter (outer header)
+        buf_too_short.extend_from_slice(&[1, 0, 0, 0]); // version + reserved (inner prefix)
+        buf_too_short.extend_from_slice(&MessageType::Handshake.to_u16().to_le_bytes()); // msg type
+        // No payload, no trailer. Length = 12+4+2=18. Min size = 34.
         let result_too_short = parse_lp_packet(&buf_too_short, None);
         assert!(result_too_short.is_err());
         assert!(matches!(
@@ -873,11 +919,11 @@ mod tests {
         let mut encrypted = BytesMut::new();
         serialize_lp_packet(&packet, &mut encrypted, Some(&outer_key)).unwrap();
 
-        // Header should be the same (it's authenticated but not encrypted)
-        assert_eq!(&cleartext[..HEADER_LEN], &encrypted[..HEADER_LEN]);
+        // Outer header (receiver_idx + counter) should be the same - always cleartext
+        assert_eq!(&cleartext[..OUTER_HDR], &encrypted[..OUTER_HDR]);
 
-        // Payload should differ (it's encrypted)
-        let payload_start = HEADER_LEN;
+        // Inner payload (proto + reserved + msg_type + content) should differ (encrypted)
+        let payload_start = OUTER_HDR;
         let payload_end_cleartext = cleartext.len() - TRAILER_LEN;
         let payload_end_encrypted = encrypted.len() - TRAILER_LEN;
 
@@ -944,7 +990,8 @@ mod tests {
         let mut encrypted = BytesMut::new();
         serialize_lp_packet(&packet, &mut encrypted, Some(&outer_key)).unwrap();
 
-        // Tamper with the header (flip a bit in receiver_idx)
+        // Tamper with the outer header AAD (flip a bit in counter at byte 4)
+        // New format: [receiver_idx(0-3), counter(4-11)], so byte 4 is counter's LSB
         encrypted[4] ^= 0x01;
 
         // Parsing should fail with AeadTagMismatch
@@ -986,9 +1033,9 @@ mod tests {
         let mut encrypted2 = BytesMut::new();
         serialize_lp_packet(&packet2, &mut encrypted2, Some(&outer_key)).unwrap();
 
-        // The encrypted payloads should differ even though the message is the same
-        // (because nonce is different)
-        let payload_start = HEADER_LEN;
+        // The encrypted inner payloads should differ even though the message is the same
+        // (because nonce is different). Inner payload starts after outer header.
+        let payload_start = OUTER_HDR;
         assert_ne!(
             &encrypted1[payload_start..],
             &encrypted2[payload_start..],

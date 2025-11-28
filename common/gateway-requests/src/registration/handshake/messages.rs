@@ -61,7 +61,7 @@ impl Finalization {
 }
 
 impl HandshakeMessage for Initialisation {
-    // LOCAL_ID_PUBKEY || EPHEMERAL_KEY || MAYBE_SALT
+    // LOCAL_ID_PUBKEY || EPHEMERAL_KEY || SALT
     // Eventually the ID_PUBKEY prefix will get removed and recipient will know
     // initializer's identity from another source.
     fn into_bytes(self) -> Vec<u8> {

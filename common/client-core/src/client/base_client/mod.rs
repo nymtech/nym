@@ -584,10 +584,9 @@ where
         // the gateway client startup procedure is slightly more complicated now
         // we need to:
         // - perform handshake (reg or auth)
-        // - check for key upgrade
         // - check for bandwidth
         // - start background tasks
-        let _auth_res = gateway_client
+        let _ = gateway_client
             .perform_initial_authentication()
             .await
             .map_err(gateway_failure)?;

@@ -144,10 +144,13 @@ impl StorageManager {
         &self,
         gateway_id: &str,
     ) -> Result<RawRemoteGatewayDetails, sqlx::Error> {
-        sqlx::query_as("SELECT * FROM remote_gateway_details WHERE gateway_id_bs58 = ?")
-            .bind(gateway_id)
-            .fetch_one(&self.connection_pool)
-            .await
+        sqlx::query_as!(
+            RawRemoteGatewayDetails,
+            "SELECT * FROM remote_gateway_details WHERE gateway_id_bs58 = ?",
+            gateway_id
+        )
+        .fetch_one(&self.connection_pool)
+        .await
     }
 
     pub(crate) async fn set_remote_gateway_details(

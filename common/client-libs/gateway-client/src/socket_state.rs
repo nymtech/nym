@@ -214,11 +214,6 @@ impl PartiallyDelegatedRouter {
                         SensitiveServerResponse::RememberMeAck {} => {
                             info!("received remember me acknowledgement");
                         }
-                        SensitiveServerResponse::KeyUpgradeAck {} => {
-                            warn!(
-                                    "received illegal key upgrade acknowledgement in an authenticated client"
-                                );
-                        }
                         _ => {
                             warn!("received unknown SensitiveServerResponse");
                         }

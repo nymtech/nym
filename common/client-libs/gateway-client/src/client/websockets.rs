@@ -13,7 +13,7 @@ use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 use tungstenite::handshake::client::Response;
 use url::{Host, Url};
 
-use std::{net::SocketAddr, time::Duration};
+use std::net::SocketAddr;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) async fn connect_async(
@@ -38,8 +38,6 @@ pub(crate) async fn connect_async(
         Host::Ipv6(addr) => vec![SocketAddr::new(addr.into(), port)],
         Host::Domain(domain) => {
             // Do a DNS lookup for the domain using our custom DNS resolver
-            println!("I'M TIRED BOSS");
-            tokio::time::sleep(Duration::from_secs(20)).await;
             resolver
                 .resolve_str(domain)
                 .await?

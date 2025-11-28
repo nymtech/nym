@@ -21,7 +21,7 @@ impl<S, R> State<'_, S, R> {
         let hkdf_salt = self.generate_initiator_salt();
 
         // 1. send ed25519 pubkey alongside ephemeral x25519 pubkey and a hkdf salt if we're using non-legacy client
-        // LOCAL_ID_PUBKEY || EPHEMERAL_KEY || MAYBE_SALT
+        // LOCAL_ID_PUBKEY || EPHEMERAL_KEY || SALT
         let init_message = self.init_message(hkdf_salt.clone());
         self.send_handshake_data(init_message).await?;
 

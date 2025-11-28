@@ -80,7 +80,7 @@ pub(crate) enum InitialAuthenticationError {
     #[error("Experienced connection error: {0}")]
     ConnectionError(Box<WsError>),
 
-    #[error("Attempted to negotiate connection with client using incompatible protocol version. Ours is {current} and the client reports {client:?}")]
+    #[error("Attempted to negotiate connection with client using incompatible protocol version. Ours is {current} and the client reports {client}")]
     IncompatibleProtocol { client: u8, current: u8 },
 
     #[error("failed to send authentication response: {source}")]
@@ -672,10 +672,6 @@ impl<R, S> FreshHandler<R, S> {
         S: AsyncRead + AsyncWrite + Unpin + Send,
         R: CryptoRng + RngCore + Send,
     {
-        let negotiated_protocol = self.negotiate_proposed_protocol(client_protocol_version)?;
-        // populate the negotiated protocol for future uses
-        self.negotiated_protocol = Some(negotiated_protocol);
-
         let remote_identity = Self::extract_remote_identity_from_register_init(&init_data)?;
         let remote_address = remote_identity.derive_destination_address();
 
@@ -694,6 +690,9 @@ impl<R, S> FreshHandler<R, S> {
             .await?;
         let shared_keys = handshake_result.derived_key;
 
+        // populate the negotiated protocol for future uses
+        self.negotiated_protocol = Some(handshake_result.negotiated_protocol);
+
         let client_id = self.register_client(remote_address, &shared_keys).await?;
 
         debug!(client_id = %client_id, "managed to finalize client registration");
@@ -710,7 +709,7 @@ impl<R, S> FreshHandler<R, S> {
         Ok(InitialAuthResult::new(
             Some(client_details),
             ServerResponse::Register {
-                protocol_version: negotiated_protocol,
+                protocol_version: handshake_result.negotiated_protocol,
                 status: true,
                 upgrade_mode,
             },

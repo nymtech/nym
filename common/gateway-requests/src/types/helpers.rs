@@ -8,7 +8,7 @@ use crate::{
 use std::iter::once;
 
 // each binary message consists of the following structure (for non-legacy messages)
-// KIND || ENC_FLAG || MAYBE_NONCE || CIPHERTEXT/PLAINTEXT
+// KIND || ENC_FLAG || NONCE || CIPHERTEXT/PLAINTEXT
 // first byte is the kind of data to influence further serialisation/deseralisation
 // second byte is a flag indicating whether the content is encrypted
 // then it's followed by a pseudorandom nonce, assuming encryption is used
@@ -16,21 +16,18 @@ use std::iter::once;
 pub struct BinaryData<'a> {
     kind: u8,
     encrypted: bool,
-    maybe_nonce: Option<&'a [u8]>,
+    nonce: &'a [u8],
     data: &'a [u8],
 }
 
 impl<'a> BinaryData<'a> {
     // serialises possibly encrypted data into bytes to be put on the wire
     pub fn into_raw(self) -> Vec<u8> {
-        let i = once(self.kind).chain(once(if self.encrypted { 1 } else { 0 }));
-        if let Some(nonce) = self.maybe_nonce {
-            i.chain(nonce.iter().copied())
-                .chain(self.data.iter().copied())
-                .collect()
-        } else {
-            i.chain(self.data.iter().copied()).collect()
-        }
+        once(self.kind)
+            .chain(once(if self.encrypted { 1 } else { 0 }))
+            .chain(self.nonce.iter().copied())
+            .chain(self.data.iter().copied())
+            .collect()
     }
 
     // attempts to perform basic parsing on bytes received from the wire
@@ -59,7 +56,7 @@ impl<'a> BinaryData<'a> {
         Ok(BinaryData {
             kind,
             encrypted,
-            maybe_nonce: Some(&raw[2..2 + available_key.nonce_size()]),
+            nonce: &raw[2..2 + available_key.nonce_size()],
             data: &raw[2 + available_key.nonce_size()..],
         })
     }
@@ -76,7 +73,7 @@ impl<'a> BinaryData<'a> {
         Ok(BinaryData {
             kind,
             encrypted: true,
-            maybe_nonce: Some(&nonce),
+            nonce: &nonce,
             data: &ciphertext,
         }
         .into_raw())
@@ -91,8 +88,7 @@ impl<'a> BinaryData<'a> {
             .ok_or(GatewayRequestsError::UnknownRequestKind { kind: self.kind })?;
 
         let plaintext = if self.encrypted {
-            let raw_nonce = self.maybe_nonce.unwrap_or(&[]);
-            let nonce = SharedSymmetricKey::validate_aead_nonce(raw_nonce)?;
+            let nonce = SharedSymmetricKey::validate_aead_nonce(self.nonce)?;
 
             &*key.decrypt(self.data, &nonce)?
         } else {
@@ -111,8 +107,7 @@ impl<'a> BinaryData<'a> {
             .ok_or(GatewayRequestsError::UnknownResponseKind { kind: self.kind })?;
 
         let plaintext = if self.encrypted {
-            let raw_nonce = self.maybe_nonce.unwrap_or(&[]);
-            let nonce = SharedSymmetricKey::validate_aead_nonce(raw_nonce)?;
+            let nonce = SharedSymmetricKey::validate_aead_nonce(self.nonce)?;
 
             &*key.decrypt(self.data, &nonce)?
         } else {

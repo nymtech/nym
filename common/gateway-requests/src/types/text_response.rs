@@ -12,7 +12,6 @@ use tungstenite::Message;
 #[derive(Serialize, Deserialize, Debug)]
 #[non_exhaustive]
 pub enum SensitiveServerResponse {
-    KeyUpgradeAck {},
     ForgetMeAck {},
     RememberMeAck {},
 }

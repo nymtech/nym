@@ -9,12 +9,14 @@ use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 use std::sync::Arc;
+use time::Duration;
 use time::OffsetDateTime;
 use url::Url;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 pub const REMOTE_GATEWAY_TYPE: &str = "remote";
 pub const CUSTOM_GATEWAY_TYPE: &str = "custom";
+const GATEWAY_DETAILS_TTL: Duration = Duration::days(7);
 
 #[derive(Debug, Clone, Default)]
 pub struct ActiveGateway {
@@ -71,6 +73,7 @@ impl GatewayDetails {
             gateway_id,
             shared_key,
             gateway_listeners,
+            expiration_timestamp: OffsetDateTime::now_utc() + GATEWAY_DETAILS_TTL,
         })
     }
 
@@ -89,6 +92,23 @@ impl GatewayDetails {
         match self {
             GatewayDetails::Remote(details) => Some(&details.shared_key),
             GatewayDetails::Custom(_) => None,
+        }
+    }
+
+    pub fn details_exipration(&self) -> Option<OffsetDateTime> {
+        match self {
+            GatewayDetails::Remote(details) => Some(details.expiration_timestamp),
+            GatewayDetails::Custom(_) => None,
+        }
+    }
+
+    pub fn update_remote_listeners(&mut self, new_listeners: GatewayListeners) {
+        match self {
+            GatewayDetails::Remote(details) => {
+                details.gateway_listeners = new_listeners;
+                details.expiration_timestamp = OffsetDateTime::now_utc() + GATEWAY_DETAILS_TTL;
+            }
+            GatewayDetails::Custom(_) => {}
         }
     }
 
@@ -168,6 +188,8 @@ pub struct RawRemoteGatewayDetails {
     pub derived_aes256_gcm_siv_key: Vec<u8>,
     pub gateway_listener: String,
     pub fallback_listener: Option<String>,
+    #[zeroize(skip)]
+    pub expiration_timestamp: OffsetDateTime,
 }
 
 impl TryFrom<RawRemoteGatewayDetails> for RemoteGatewayDetails {
@@ -214,6 +236,7 @@ impl TryFrom<RawRemoteGatewayDetails> for RemoteGatewayDetails {
                 primary: gateway_listener,
                 fallback: fallback_listener,
             },
+            expiration_timestamp: value.expiration_timestamp,
         })
     }
 }
@@ -229,6 +252,7 @@ impl<'a> From<&'a RemoteGatewayDetails> for RawRemoteGatewayDetails {
                 .fallback
                 .as_ref()
                 .map(|uri| uri.to_string()),
+            expiration_timestamp: value.expiration_timestamp,
         }
     }
 }
@@ -240,6 +264,8 @@ pub struct RemoteGatewayDetails {
     pub shared_key: Arc<SharedSymmetricKey>,
 
     pub gateway_listeners: GatewayListeners,
+
+    pub expiration_timestamp: OffsetDateTime,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

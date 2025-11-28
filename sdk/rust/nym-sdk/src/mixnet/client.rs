@@ -9,6 +9,7 @@ use crate::GatewayTransceiver;
 use crate::NymNetworkDetails;
 use crate::{Error, Result};
 use log::{debug, warn};
+use nym_client_core::client::base_client::storage::gateways_storage::GatewayRegistration;
 use nym_client_core::client::base_client::storage::helpers::{
     get_active_gateway_identity, get_all_registered_identities, has_gateway_details,
     set_active_gateway,
@@ -24,8 +25,8 @@ use nym_client_core::client::{
 use nym_client_core::config::{DebugConfig, ForgetMe, RememberMe, StatsReporting};
 use nym_client_core::error::ClientCoreError;
 use nym_client_core::init::helpers::gateways_for_init;
-use nym_client_core::init::setup_gateway;
 use nym_client_core::init::types::{GatewaySelectionSpecification, GatewaySetup};
+use nym_client_core::init::{setup_gateway, update_gateway_details};
 use nym_credentials_interface::TicketType;
 use nym_crypto::hkdf::DerivationMaterial;
 use nym_socks5_client_core::config::Socks5;
@@ -592,6 +593,20 @@ where
         })
     }
 
+    async fn update_gateway_details(
+        &mut self,
+        gateway_registration: GatewayRegistration,
+    ) -> Result<(), ClientCoreError> {
+        let available_gateways = self.available_gateways().await?;
+        update_gateway_details(
+            self.storage.gateway_details_store(),
+            gateway_registration,
+            available_gateways,
+            self.force_tls,
+        )
+        .await
+    }
+
     /// Register with a gateway. If a gateway is provided in the config then that will try to be
     /// used. If none is specified, a gateway at random will be picked. The used gateway is saved
     /// as the active gateway.
@@ -646,6 +661,12 @@ where
             self.storage.gateway_details_store(),
         )
         .await?;
+
+        // update gateway setup if needed
+        if init_results.exipred_details() {
+            self.update_gateway_details(init_results.gateway_registration.clone())
+                .await?;
+        }
 
         set_active_gateway(
             self.storage.gateway_details_store(),

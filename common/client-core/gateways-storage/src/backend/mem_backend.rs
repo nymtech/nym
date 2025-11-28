@@ -94,6 +94,15 @@ impl GatewaysDetailsStore for InMemGatewaysDetails {
         Ok(())
     }
 
+    // It will overwrite the existing entry, which is what we ultimately want
+    async fn update_gateway_details(
+        &self,
+        details: &GatewayRegistration,
+    ) -> Result<(), Self::StorageError> {
+        self.store_gateway_details(details).await?;
+        Ok(())
+    }
+
     async fn remove_gateway_details(&self, gateway_id: &str) -> Result<(), Self::StorageError> {
         let mut guard = self.inner.write().await;
         if let Some(active) = guard.active_gateway.as_ref() {

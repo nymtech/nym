@@ -166,6 +166,9 @@ pub enum ClientCoreError {
     #[error("custom selection of gateway was expected")]
     CustomGatewaySelectionExpected,
 
+    #[error("custom selection of gateway was unexpected")]
+    UnexpectedCustomGatewaySelection,
+
     #[error("the persisted gateway details were set for a custom setup")]
     UnexpectedPersistedCustomGatewayDetails,
 

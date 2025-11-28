@@ -5,7 +5,7 @@
 
 use crate::client::base_client::storage::helpers::{
     has_gateway_details, load_active_gateway_details, load_client_keys, load_gateway_details,
-    store_gateway_details,
+    store_gateway_details, update_stored_gateway_details,
 };
 use crate::client::key_manager::persistence::KeyStore;
 use crate::client::key_manager::ClientKeys;
@@ -143,6 +143,42 @@ where
         client_keys,
         authenticated_ephemeral_client,
     })
+}
+
+pub async fn update_gateway_details<D>(
+    details_store: &D,
+    mut registration: GatewayRegistration,
+    available_gateways: Vec<RoutingNode>,
+    must_use_tls: bool,
+) -> Result<(), ClientCoreError>
+where
+    D: GatewaysDetailsStore,
+    D::StorageError: Send + Sync + 'static,
+{
+    let gateway_id = registration.gateway_id().to_base58_string();
+    tracing::trace!("Updating gateway details : {gateway_id}");
+
+    let gateway = get_specified_gateway(&gateway_id, &available_gateways, must_use_tls)?;
+    let selected_gateway = SelectedGateway::from_topology_node(gateway, must_use_tls)?;
+
+    let new_gateway_listeners = match selected_gateway {
+        SelectedGateway::Remote {
+            gateway_listeners, ..
+        } => gateway_listeners,
+        SelectedGateway::Custom { .. } => {
+            // this should not happen, as `from_topology_node` returns a Remote
+            Err(ClientCoreError::UnexpectedCustomGatewaySelection)?
+        }
+    };
+
+    registration
+        .details
+        .update_remote_listeners(new_gateway_listeners);
+
+    // update gateway details
+    update_stored_gateway_details(details_store, &registration).await?;
+
+    Ok(())
 }
 
 async fn use_loaded_gateway_details<K, D>(

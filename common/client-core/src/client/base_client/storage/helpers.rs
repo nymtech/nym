@@ -85,6 +85,22 @@ where
         })
 }
 
+pub async fn update_stored_gateway_details<D>(
+    details_store: &D,
+    details: &GatewayRegistration,
+) -> Result<(), ClientCoreError>
+where
+    D: GatewaysDetailsStore,
+    D::StorageError: Send + Sync + 'static,
+{
+    details_store
+        .update_gateway_details(details)
+        .await
+        .map_err(|source| ClientCoreError::GatewaysDetailsStoreError {
+            source: Box::new(source),
+        })
+}
+
 pub async fn load_active_gateway_details<D>(
     details_store: &D,
 ) -> Result<ActiveGateway, ClientCoreError>

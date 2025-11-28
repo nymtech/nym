@@ -164,6 +164,15 @@ impl GatewaysDetailsStore for MockGatewayDetailsStore {
         Ok(())
     }
 
+    async fn update_gateway_details(
+        &self,
+        _details: &GatewayRegistration,
+    ) -> Result<(), Self::StorageError> {
+        println!("updating gateway details");
+
+        Ok(())
+    }
+
     async fn remove_gateway_details(&self, _gateway_id: &str) -> Result<(), Self::StorageError> {
         println!("removing gateway details");
 

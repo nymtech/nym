@@ -154,6 +154,15 @@ impl InitialisationResult {
     pub fn gateway_id(&self) -> ed25519::PublicKey {
         self.gateway_registration.details.gateway_id()
     }
+
+    // indicates if the remote gateway details TTL has expired
+    pub fn exipred_details(&self) -> bool {
+        if let Some(expiration_timestamp) = self.gateway_registration.details.details_exipration() {
+            OffsetDateTime::now_utc() > expiration_timestamp
+        } else {
+            false
+        }
+    }
 }
 
 #[derive(Clone, Debug)]

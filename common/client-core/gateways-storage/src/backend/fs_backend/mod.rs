@@ -132,6 +132,23 @@ impl GatewaysDetailsStore for OnDiskGatewaysDetails {
         Ok(())
     }
 
+    async fn update_gateway_details(
+        &self,
+        details: &GatewayRegistration,
+    ) -> Result<(), Self::StorageError> {
+        match &details.details {
+            GatewayDetails::Remote(remote_details) => {
+                let raw_details = &remote_details.into();
+                self.manager
+                    .update_remote_gateway_details(raw_details)
+                    .await?;
+            }
+            GatewayDetails::Custom(_) => {}
+        }
+
+        Ok(())
+    }
+
     // ideally all of those should be run under a storage tx to ensure storage consistency,
     // but at that point it's fine
     async fn remove_gateway_details(&self, gateway_id: &str) -> Result<(), Self::StorageError> {

@@ -89,10 +89,12 @@ WG_INTERFACE="${WG_INTERFACE:-nymwg}"
 
 # Function to detect and validate uplink interface
 detect_uplink_interface() {
-  local cmd="$1"
+  local host="$2"
+  local ip
   local dev
 
-  dev="$(eval "$cmd" 2>/dev/null | awk '{print $5}' | head -n1 || true)"
+  ip="$(getent ahostsv${1//-/} "$host" 2>/dev/null | awk '{print $1}' | head -n1 || true)"
+  dev="$(ip -$1 route get "$ip" 2>/dev/null | awk '{print $5}' | head -n1 || true)"
 
   if [[ -n "$dev" && "$dev" =~ ^[a-zA-Z0-9._-]+$ ]]; then
     echo "$dev"
@@ -102,15 +104,20 @@ detect_uplink_interface() {
 }
 
 # uplink device detection, can be overridden
-NETWORK_DEVICE="${NETWORK_DEVICE:-}"
-if [[ -z "$NETWORK_DEVICE" ]]; then
-  NETWORK_DEVICE="$(detect_uplink_interface "ip -o route show default")"
+NET4_DEVICE="${NET4_DEVICE:-}"
+if [[ -z "$NET4_DEVICE" ]]; then
+  NET4_DEVICE="$(detect_uplink_interface -4 "ifconfig.co")"
 fi
-if [[ -z "$NETWORK_DEVICE" ]]; then
-  NETWORK_DEVICE="$(detect_uplink_interface "ip -o route show default table all")"
+if [[ -z "$NET4_DEVICE" ]]; then
+  error "cannot determine ipv4 uplink interface. set NET4_DEVICE or UPLINK_DEV"
+  exit 1
 fi
-if [[ -z "$NETWORK_DEVICE" ]]; then
-  error "cannot determine uplink interface. set NETWORK_DEVICE or UPLINK_DEV"
+NET6_DEVICE="${NET6_DEVICE:-}"
+if [[ -z "$NET6_DEVICE" ]]; then
+  NET6_DEVICE="$(detect_uplink_interface -6 "ifconfig.co")"
+fi
+if [[ -z "$NET6_DEVICE" ]]; then
+  error "cannot determine ipv6 uplink interface. set NET6_DEVICE or UPLINK_DEV"
   exit 1
 fi
 
@@ -194,11 +201,11 @@ fetch_ipv6_address() {
 
 fetch_and_display_ipv6() {
   local ipv6_address
-  ipv6_address=$(ip -6 addr show "$NETWORK_DEVICE" scope global | awk '/inet6/ {print $2}')
+  ipv6_address=$(ip -6 addr show "$NET6_DEVICE" scope global | awk '/inet6/ {print $2}')
   if [[ -z "$ipv6_address" ]]; then
-    error "no global ipv6 address found on $NETWORK_DEVICE"
+    error "no global ipv6 address found on $NET6_DEVICE"
   else
-    ok "ipv6 address on $NETWORK_DEVICE: $ipv6_address"
+    ok "ipv6 address on $NET6_DEVICE: $ipv6_address"
   fi
 }
 
@@ -343,28 +350,29 @@ remove_duplicate_rules() {
 
 apply_iptables_rules() {
   local interface=$1
-  info "applying iptables rules for $interface using uplink $NETWORK_DEVICE"
+  info "applying iptables rules for $interface using uplink $NET4_DEVICE"
+  info "applying ip6tables rules for $interface using uplink $NET6_DEVICE"
   sleep 1
 
   # ipv4 nat and forwarding
-  iptables -t nat -C POSTROUTING -o "$NETWORK_DEVICE" -j MASQUERADE 2>/dev/null || \
-    iptables -t nat -A POSTROUTING -o "$NETWORK_DEVICE" -j MASQUERADE
+  iptables -t nat -C POSTROUTING -o "$NET4_DEVICE" -j MASQUERADE 2>/dev/null || \
+    iptables -t nat -A POSTROUTING -o "$NET4_DEVICE" -j MASQUERADE
 
-  iptables -C FORWARD -i "$interface" -o "$NETWORK_DEVICE" -j ACCEPT 2>/dev/null || \
-    iptables -I FORWARD 1 -i "$interface" -o "$NETWORK_DEVICE" -j ACCEPT
+  iptables -C FORWARD -i "$interface" -o "$NET4_DEVICE" -j ACCEPT 2>/dev/null || \
+    iptables -I FORWARD 1 -i "$interface" -o "$NET4_DEVICE" -j ACCEPT
 
-  iptables -C FORWARD -i "$NETWORK_DEVICE" -o "$interface" -m state --state RELATED,ESTABLISHED -j ACCEPT 2>/dev/null || \
-    iptables -I FORWARD 2 -i "$NETWORK_DEVICE" -o "$interface" -m state --state RELATED,ESTABLISHED -j ACCEPT
+  iptables -C FORWARD -i "$NET4_DEVICE" -o "$interface" -m state --state RELATED,ESTABLISHED -j ACCEPT 2>/dev/null || \
+    iptables -I FORWARD 2 -i "$NET4_DEVICE" -o "$interface" -m state --state RELATED,ESTABLISHED -j ACCEPT
 
   # ipv6 nat and forwarding
-  ip6tables -t nat -C POSTROUTING -o "$NETWORK_DEVICE" -j MASQUERADE 2>/dev/null || \
-    ip6tables -t nat -A POSTROUTING -o "$NETWORK_DEVICE" -j MASQUERADE
+  ip6tables -t nat -C POSTROUTING -o "$NET6_DEVICE" -j MASQUERADE 2>/dev/null || \
+    ip6tables -t nat -A POSTROUTING -o "$NET6_DEVICE" -j MASQUERADE
 
-  ip6tables -C FORWARD -i "$interface" -o "$NETWORK_DEVICE" -j ACCEPT 2>/dev/null || \
-    ip6tables -I FORWARD 1 -i "$interface" -o "$NETWORK_DEVICE" -j ACCEPT
+  ip6tables -C FORWARD -i "$interface" -o "$NET6_DEVICE" -j ACCEPT 2>/dev/null || \
+    ip6tables -I FORWARD 1 -i "$interface" -o "$NET6_DEVICE" -j ACCEPT
 
-  ip6tables -C FORWARD -i "$NETWORK_DEVICE" -o "$interface" -m state --state RELATED,ESTABLISHED -j ACCEPT 2>/dev/null || \
-    ip6tables -I FORWARD 2 -i "$NETWORK_DEVICE" -o "$interface" -m state --state RELATED,ESTABLISHED -j ACCEPT
+  ip6tables -C FORWARD -i "$NET6_DEVICE" -o "$interface" -m state --state RELATED,ESTABLISHED -j ACCEPT 2>/dev/null || \
+    ip6tables -I FORWARD 2 -i "$NET6_DEVICE" -o "$interface" -m state --state RELATED,ESTABLISHED -j ACCEPT
 
   save_iptables_rules
 }
@@ -539,37 +547,38 @@ create_nym_chain() {
     ip6tables -N "$NYM_CHAIN"
   fi
 
-  if ! iptables -C FORWARD -i "$WG_INTERFACE" -o "$NETWORK_DEVICE" -j "$NYM_CHAIN" 2>/dev/null; then
-    iptables -I FORWARD 1 -i "$WG_INTERFACE" -o "$NETWORK_DEVICE" -j "$NYM_CHAIN"
+  if ! iptables -C FORWARD -i "$WG_INTERFACE" -o "$NET4_DEVICE" -j "$NYM_CHAIN" 2>/dev/null; then
+    iptables -I FORWARD 1 -i "$WG_INTERFACE" -o "$NET4_DEVICE" -j "$NYM_CHAIN"
   fi
 
-  if ! ip6tables -C FORWARD -i "$WG_INTERFACE" -o "$NETWORK_DEVICE" -j "$NYM_CHAIN" 2>/dev/null; then
-    ip6tables -I FORWARD 1 -i "$WG_INTERFACE" -o "$NETWORK_DEVICE" -j "$NYM_CHAIN"
+  if ! ip6tables -C FORWARD -i "$WG_INTERFACE" -o "$NET6_DEVICE" -j "$NYM_CHAIN" 2>/dev/null; then
+    ip6tables -I FORWARD 1 -i "$WG_INTERFACE" -o "$NET6_DEVICE" -j "$NYM_CHAIN"
   fi
 }
 
 setup_nat_rules() {
-  info "setting up nat and forwarding rules for $WG_INTERFACE via $NETWORK_DEVICE"
+  info "setting up ipv4 nat and forwarding rules for $WG_INTERFACE via $NET4_DEVICE"
+  info "setting up ipv6 nat and forwarding rules for $WG_INTERFACE via $NET6_DEVICE"
 
-  if ! iptables -t nat -C POSTROUTING -o "$NETWORK_DEVICE" -j MASQUERADE 2>/dev/null; then
-    iptables -t nat -A POSTROUTING -o "$NETWORK_DEVICE" -j MASQUERADE
+  if ! iptables -t nat -C POSTROUTING -o "$NET4_DEVICE" -j MASQUERADE 2>/dev/null; then
+    iptables -t nat -A POSTROUTING -o "$NET4_DEVICE" -j MASQUERADE
   fi
-  if ! ip6tables -t nat -C POSTROUTING -o "$NETWORK_DEVICE" -j MASQUERADE 2>/dev/null; then
-    ip6tables -t nat -A POSTROUTING -o "$NETWORK_DEVICE" -j MASQUERADE
-  fi
-
-  if ! iptables -C FORWARD -i "$WG_INTERFACE" -o "$NETWORK_DEVICE" -j ACCEPT 2>/dev/null; then
-    iptables -I FORWARD 1 -i "$WG_INTERFACE" -o "$NETWORK_DEVICE" -j ACCEPT
-  fi
-  if ! iptables -C FORWARD -i "$NETWORK_DEVICE" -o "$WG_INTERFACE" -m state --state RELATED,ESTABLISHED -j ACCEPT 2>/dev/null; then
-    iptables -I FORWARD 2 -i "$NETWORK_DEVICE" -o "$WG_INTERFACE" -m state --state RELATED,ESTABLISHED -j ACCEPT
+  if ! ip6tables -t nat -C POSTROUTING -o "$NET6_DEVICE" -j MASQUERADE 2>/dev/null; then
+    ip6tables -t nat -A POSTROUTING -o "$NET6_DEVICE" -j MASQUERADE
   fi
 
-  if ! ip6tables -C FORWARD -i "$WG_INTERFACE" -o "$NETWORK_DEVICE" -j ACCEPT 2>/dev/null; then
-    ip6tables -I FORWARD 1 -i "$WG_INTERFACE" -o "$NETWORK_DEVICE" -j ACCEPT
+  if ! iptables -C FORWARD -i "$WG_INTERFACE" -o "$NET4_DEVICE" -j ACCEPT 2>/dev/null; then
+    iptables -I FORWARD 1 -i "$WG_INTERFACE" -o "$NET4_DEVICE" -j ACCEPT
   fi
-  if ! ip6tables -C FORWARD -i "$NETWORK_DEVICE" -o "$WG_INTERFACE" -m state --state RELATED,ESTABLISHED -j ACCEPT 2>/dev/null; then
-    ip6tables -I FORWARD 2 -i "$NETWORK_DEVICE" -o "$WG_INTERFACE" -m state --state RELATED,ESTABLISHED -j ACCEPT
+  if ! iptables -C FORWARD -i "$NET4_DEVICE" -o "$WG_INTERFACE" -m state --state RELATED,ESTABLISHED -j ACCEPT 2>/dev/null; then
+    iptables -I FORWARD 2 -i "$NET4_DEVICE" -o "$WG_INTERFACE" -m state --state RELATED,ESTABLISHED -j ACCEPT
+  fi
+
+  if ! ip6tables -C FORWARD -i "$WG_INTERFACE" -o "$NET6_DEVICE" -j ACCEPT 2>/dev/null; then
+    ip6tables -I FORWARD 1 -i "$WG_INTERFACE" -o "$NET6_DEVICE" -j ACCEPT
+  fi
+  if ! ip6tables -C FORWARD -i "$NET6_DEVICE" -o "$WG_INTERFACE" -m state --state RELATED,ESTABLISHED -j ACCEPT 2>/dev/null; then
+    ip6tables -I FORWARD 2 -i "$NET6_DEVICE" -o "$WG_INTERFACE" -m state --state RELATED,ESTABLISHED -j ACCEPT
   fi
 }
 
@@ -772,8 +781,8 @@ clear_exit_policy_rules() {
   iptables -F "$NYM_CHAIN" 2>/dev/null || true
   ip6tables -F "$NYM_CHAIN" 2>/dev/null || true
 
-  iptables -D FORWARD -i "$WG_INTERFACE" -o "$NETWORK_DEVICE" -j "$NYM_CHAIN" 2>/dev/null || true
-  ip6tables -D FORWARD -i "$WG_INTERFACE" -o "$NETWORK_DEVICE" -j "$NYM_CHAIN" 2>/dev/null || true
+  iptables -D FORWARD -i "$WG_INTERFACE" -o "$NET4_DEVICE" -j "$NYM_CHAIN" 2>/dev/null || true
+  ip6tables -D FORWARD -i "$WG_INTERFACE" -o "$NET6_DEVICE" -j "$NYM_CHAIN" 2>/dev/null || true
 
   iptables -X "$NYM_CHAIN" 2>/dev/null || true
   ip6tables -X "$NYM_CHAIN" 2>/dev/null || true
@@ -781,7 +790,8 @@ clear_exit_policy_rules() {
 
 show_exit_policy_status() {
   info "nym exit policy status"
-  info "network device: $NETWORK_DEVICE"
+  info "ipv4 network device: $NET4_DEVICE"
+  info "ipv6 network device: $NET6_DEVICE"
   info "wireguard interface: $WG_INTERFACE"
   echo
 
@@ -1063,15 +1073,15 @@ test_forward_chain_hook() {
 
   local failures=0
 
-  if iptables -C FORWARD -i "$WG_INTERFACE" -o "$NETWORK_DEVICE" -j "$NYM_CHAIN" 2>/dev/null; then
-    ok "ipv4 forward hook ok: -i $WG_INTERFACE -o $NETWORK_DEVICE -> $NYM_CHAIN"
+  if iptables -C FORWARD -i "$WG_INTERFACE" -o "$NET4_DEVICE" -j "$NYM_CHAIN" 2>/dev/null; then
+    ok "ipv4 forward hook ok: -i $WG_INTERFACE -o $NET4_DEVICE -> $NYM_CHAIN"
   else
     error "ipv4 forward hook missing or wrong"
     ((failures++))
   fi
 
-  if ip6tables -C FORWARD -i "$WG_INTERFACE" -o "$NETWORK_DEVICE" -j "$NYM_CHAIN" 2>/dev/null; then
-    ok "ipv6 forward hook ok: -i $WG_INTERFACE -o $NETWORK_DEVICE -> $NYM_CHAIN"
+  if ip6tables -C FORWARD -i "$WG_INTERFACE" -o "$NET6_DEVICE" -j "$NYM_CHAIN" 2>/dev/null; then
+    ok "ipv6 forward hook ok: -i $WG_INTERFACE -o $NET6_DEVICE -> $NYM_CHAIN"
   else
     error "ipv6 forward hook missing or wrong"
     ((failures++))
@@ -1167,7 +1177,8 @@ nym_tunnel_setup() {
 }
 
 exit_policy_install() {
-  info "installing nym wireguard exit policy for ${WG_INTERFACE} via ${NETWORK_DEVICE}"
+  info "installing nym wireguard ipv4 exit policy for ${WG_INTERFACE} via ${NET4_DEVICE}"
+  info "installing nym wireguard ipv6 exit policy for ${WG_INTERFACE} via ${NET6_DEVICE}"
   exit_policy_install_deps
   adjust_ip_forwarding
   create_nym_chain
@@ -1309,7 +1320,7 @@ tunnel and nat helpers:
   check_nym_wg_tun                  Inspect forward chain for ${WG_INTERFACE}
   check_nymtun_iptables             Inspect forward chain for ${TUNNEL_INTERFACE}
   configure_dns_and_icmp_wg         Allow ping and dns ports on this host
-  fetch_and_display_ipv6            Show ipv6 on uplink ${NETWORK_DEVICE}
+  fetch_and_display_ipv6            Show ipv6 on uplink ${NET6_DEVICE}
   fetch_ipv6_address_nym_tun        Show global ipv6 address on ${TUNNEL_INTERFACE}
   joke_through_the_mixnet           Test via ${TUNNEL_INTERFACE} with joke
   joke_through_wg_tunnel            Test via ${WG_INTERFACE} with joke
@@ -1326,7 +1337,8 @@ exit policy manager:
                                     Run verification tests on exit policy (options: --skip-default-reject).
 
 environment overrides:
-  NETWORK_DEVICE                    Auto-detected uplink (e.g., eth0). Set manually if detection fails.
+  NET4_DEVICE                       Auto-detected ipv4 uplink (e.g., eth0). Set manually if detection fails.
+  NET6_DEVICE                       Auto-detected ipv6 uplink (e.g., eth0). Set manually if detection fails.
   TUNNEL_INTERFACE                  Default: nymtun0. Requires root privileges (sudo) to manage.
   WG_INTERFACE                      Default: nymwg - Must match your WireGuard interface name.
 

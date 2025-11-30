@@ -56,6 +56,12 @@
 // ## State Cleanup Metrics (in cleanup task)
 // - lp_states_cleanup_handshake_removed: Counter for stale handshakes removed by cleanup task
 // - lp_states_cleanup_session_removed: Counter for stale sessions removed by cleanup task
+// - lp_states_cleanup_demoted_removed: Counter for demoted (read-only) sessions removed by cleanup task
+//
+// ## Subsession/Rekeying Metrics (in handler.rs)
+// - lp_subsession_kk2_sent: Counter for SubsessionKK2 responses sent (indicates client initiated rekeying)
+// - lp_subsession_complete: Counter for successful subsession promotions
+// - lp_subsession_receiver_index_collision: Counter for subsession receiver_index collisions
 //
 // ## Usage Example
 // To view metrics, the nym-metrics registry automatically collects all metrics.
@@ -67,7 +73,6 @@ use dashmap::DashMap;
 use nym_crypto::asymmetric::ed25519;
 use nym_gateway_storage::GatewayStorage;
 use nym_lp::state_machine::LpStateMachine;
-use nym_lp::LpSession;
 use nym_node_metrics::NymNodeMetrics;
 use nym_task::ShutdownTracker;
 use nym_wireguard::{PeerControlRequest, WireguardGatewayData};
@@ -149,6 +154,14 @@ pub struct LpConfig {
     #[serde(default = "default_session_ttl_secs")]
     pub session_ttl_secs: u64,
 
+    /// Maximum age of demoted (read-only) sessions before cleanup (default: 60s)
+    ///
+    /// After subsession promotion, old sessions enter ReadOnlyTransport state.
+    /// They only need to stay alive briefly to drain in-flight packets.
+    /// This shorter TTL prevents memory buildup from frequent rekeying.
+    #[serde(default = "default_demoted_session_ttl_secs")]
+    pub demoted_session_ttl_secs: u64,
+
     /// How often to run the state cleanup task (default: 5 minutes)
     ///
     /// The cleanup task scans for and removes stale handshakes and sessions.
@@ -170,6 +183,7 @@ impl Default for LpConfig {
             use_mock_ecash: default_use_mock_ecash(),
             handshake_ttl_secs: default_handshake_ttl_secs(),
             session_ttl_secs: default_session_ttl_secs(),
+            demoted_session_ttl_secs: default_demoted_session_ttl_secs(),
             state_cleanup_interval_secs: default_state_cleanup_interval_secs(),
         }
     }
@@ -205,6 +219,10 @@ fn default_handshake_ttl_secs() -> u64 {
 
 fn default_session_ttl_secs() -> u64 {
     86400 // 24 hours - for long-lived dVPN sessions
+}
+
+fn default_demoted_session_ttl_secs() -> u64 {
+    60 // 1 minute - enough to drain in-flight packets after subsession promotion
 }
 
 fn default_state_cleanup_interval_secs() -> u64 {
@@ -314,7 +332,12 @@ pub struct LpHandlerState {
     /// by session_id, decrypt/process, respond.
     ///
     /// Wrapped in TimestampedState for TTL-based cleanup of inactive sessions.
-    pub session_states: Arc<DashMap<u32, TimestampedState<LpSession>>>,
+    ///
+    /// Sessions are stored as LpStateMachine (not LpSession) to enable
+    /// subsession/rekeying support. The state machine handles subsession initiation
+    /// (SubsessionKK1/KK2/Ready) during transport phase, allowing long-lived connections
+    /// to rekey without re-authentication.
+    pub session_states: Arc<DashMap<u32, TimestampedState<LpStateMachine>>>,
 }
 
 /// LP listener that accepts TCP connections on port 41264
@@ -456,13 +479,14 @@ impl LpListener {
         let session_states = Arc::clone(&self.handler_state.session_states);
         let handshake_ttl = self.handler_state.lp_config.handshake_ttl_secs;
         let session_ttl = self.handler_state.lp_config.session_ttl_secs;
+        let demoted_session_ttl = self.handler_state.lp_config.demoted_session_ttl_secs;
         let interval_secs = self.handler_state.lp_config.state_cleanup_interval_secs;
         let shutdown = self.shutdown.clone_shutdown_token();
         let metrics = self.handler_state.metrics.clone();
 
         info!(
-            "Starting LP state cleanup task (handshake_ttl={}s, session_ttl={}s, interval={}s)",
-            handshake_ttl, session_ttl, interval_secs
+            "Starting LP state cleanup task (handshake_ttl={}s, session_ttl={}s, demoted_ttl={}s, interval={}s)",
+            handshake_ttl, session_ttl, demoted_session_ttl, interval_secs
         );
 
         self.shutdown.try_spawn_named(
@@ -471,6 +495,7 @@ impl LpListener {
                 session_states,
                 handshake_ttl,
                 session_ttl,
+                demoted_session_ttl,
                 interval_secs,
                 shutdown,
                 metrics,
@@ -483,15 +508,20 @@ impl LpListener {
     ///
     /// Runs periodically to scan handshake_states and session_states maps,
     /// removing entries that have exceeded their TTL.
+    ///
+    /// Demoted sessions (ReadOnlyTransport) use shorter TTL since they
+    /// only need to drain in-flight packets after subsession promotion.
     async fn cleanup_loop(
         handshake_states: Arc<DashMap<u32, TimestampedState<LpStateMachine>>>,
-        session_states: Arc<DashMap<u32, TimestampedState<LpSession>>>,
+        session_states: Arc<DashMap<u32, TimestampedState<LpStateMachine>>>,
         handshake_ttl_secs: u64,
         session_ttl_secs: u64,
+        demoted_session_ttl_secs: u64,
         interval_secs: u64,
         shutdown: nym_task::ShutdownToken,
         _metrics: NymNodeMetrics,
     ) {
+        use nym_lp::state_machine::LpStateBare;
         use nym_metrics::inc_by;
 
         let mut cleanup_interval =
@@ -510,6 +540,7 @@ impl LpListener {
                     let start = std::time::Instant::now();
                     let mut hs_removed = 0u64;
                     let mut ss_removed = 0u64;
+                    let mut demoted_removed = 0u64;
 
                     // Remove stale handshakes (based on age since creation)
                     handshake_states.retain(|_, timestamped| {
@@ -522,21 +553,34 @@ impl LpListener {
                     });
 
                     // Remove stale sessions (based on time since last activity)
+                    // Use shorter TTL for demoted (ReadOnlyTransport) sessions
                     session_states.retain(|_, timestamped| {
-                        if timestamped.seconds_since_activity() > session_ttl_secs {
-                            ss_removed += 1;
+                        let is_demoted = timestamped.state.bare_state() == LpStateBare::ReadOnlyTransport;
+                        let ttl = if is_demoted {
+                            demoted_session_ttl_secs
+                        } else {
+                            session_ttl_secs
+                        };
+
+                        if timestamped.seconds_since_activity() > ttl {
+                            if is_demoted {
+                                demoted_removed += 1;
+                            } else {
+                                ss_removed += 1;
+                            }
                             false
                         } else {
                             true
                         }
                     });
 
-                    if hs_removed > 0 || ss_removed > 0 {
+                    if hs_removed > 0 || ss_removed > 0 || demoted_removed > 0 {
                         let duration = start.elapsed();
                         info!(
-                            "LP state cleanup: removed {} handshakes, {} sessions (took {:.3}s)",
+                            "LP state cleanup: removed {} handshakes, {} sessions, {} demoted (took {:.3}s)",
                             hs_removed,
                             ss_removed,
+                            demoted_removed,
                             duration.as_secs_f64()
                         );
 
@@ -546,6 +590,9 @@ impl LpListener {
                         }
                         if ss_removed > 0 {
                             inc_by!("lp_states_cleanup_session_removed", ss_removed as i64);
+                        }
+                        if demoted_removed > 0 {
+                            inc_by!("lp_states_cleanup_demoted_removed", demoted_removed as i64);
                         }
                     }
                 }

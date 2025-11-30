@@ -122,7 +122,13 @@ impl LpConnectionHandler {
                 .and_then(|session| session.outer_aead_key())
         } else if let Some(session_entry) = self.state.session_states.get(&receiver_idx) {
             // Established session - should always have PSK
-            session_entry.value().state.outer_aead_key()
+            // session_states now stores LpStateMachine (not LpSession) for subsession support
+            session_entry
+                .value()
+                .state
+                .session()
+                .ok()
+                .and_then(|s| s.outer_aead_key())
         } else {
             // Unknown session - will error during routing, parse cleartext
             None
@@ -326,16 +332,15 @@ impl LpConnectionHandler {
                     self.remote_addr, receiver_idx
                 );
 
-                // Extract session and move to session_states
+                // Move state machine to session_states (already in Transport state)
+                // We keep the state machine (not just session) to enable
+                // subsession/rekeying support during transport phase
                 drop(state_entry); // Release mutable borrow
 
                 let (_receiver_idx, timestamped_state) = self.state.handshake_states.remove(&receiver_idx)
                     .ok_or_else(|| GatewayError::LpHandshakeError("Failed to remove handshake state".to_string()))?;
 
-                let session = timestamped_state.state.into_session()
-                    .map_err(|e| GatewayError::LpHandshakeError(format!("Failed to extract session: {}", e)))?;
-
-                self.state.session_states.insert(receiver_idx, super::TimestampedState::new(session));
+                self.state.session_states.insert(receiver_idx, timestamped_state);
 
                 inc!("lp_handshakes_success");
 
@@ -363,51 +368,101 @@ impl LpConnectionHandler {
     /// Handle transport packet (receiver_idx!=0, session established)
     ///
     /// This handles packets on established sessions, which can be either:
-    /// 1. LpRegistrationRequest - Client registering for dVPN/Mixnet access
-    /// 2. ForwardPacketData - Client forwarding packets to exit gateway (telescoping)
+    /// 1. EncryptedData containing LpRegistrationRequest or ForwardPacketData
+    /// 2. SubsessionKK1 - Client initiates subsession/rekeying
+    /// 3. SubsessionReady - Client confirms subsession promotion
+    ///
+    /// We process all transport packets through the state machine to enable
+    /// subsession support. The state machine returns appropriate actions:
+    /// - DeliverData: decrypted application data to process
+    /// - SendPacket: subsession response (KK2) to send
+    /// - SubsessionComplete: subsession promoted, create new session
     async fn handle_transport_packet(
         &mut self,
         receiver_idx: u32,
         packet: LpPacket,
     ) -> Result<(), GatewayError> {
+        use nym_lp::state_machine::{LpAction, LpInput};
+
         debug!(
             "Processing transport packet from {} (receiver_idx={})",
             self.remote_addr, receiver_idx
         );
 
-        let counter = packet.header().counter();
+        // Get state machine and process packet
+        let mut state_entry = self.state.session_states.get_mut(&receiver_idx).ok_or_else(|| {
+            GatewayError::LpProtocolError(format!("Session not found: {}", receiver_idx))
+        })?;
 
-        // Get session and decrypt payload
-        let decrypted_bytes = {
-            let session_entry = self.state.session_states.get(&receiver_idx).ok_or_else(|| {
-                GatewayError::LpProtocolError(format!("Session not found: {}", receiver_idx))
-            })?;
+        // Update last activity timestamp
+        state_entry.value().touch();
 
-            // Update last activity timestamp
-            session_entry.value().touch();
+        let state_machine = &mut state_entry.value_mut().state;
 
-            let session = &session_entry.value().state;
+        // Process packet through state machine
+        let action = state_machine
+            .process_input(LpInput::ReceivePacket(packet))
+            .ok_or_else(|| {
+                GatewayError::LpProtocolError("No action from state machine".to_string())
+            })?
+            .map_err(|e| GatewayError::LpProtocolError(format!("State machine error: {}", e)))?;
 
-            // Validate counter BEFORE decryption to prevent replay DoS attacks.
-            // Counter is from cleartext header but authenticated by AEAD AAD, so this is safe.
-            session.receiving_counter_quick_check(counter).map_err(|e| {
-                inc!("lp_errors_replay_check");
-                GatewayError::LpProtocolError(format!("Replay check failed: {}", e))
-            })?;
+        // Get outer key before releasing borrow
+        let outer_key = state_machine.session().ok().and_then(|s| s.outer_aead_key());
+        drop(state_entry);
 
-            // Decrypt packet (Noise inner layer)
-            let decrypted = session.decrypt_data(packet.message()).map_err(|e| {
-                GatewayError::LpProtocolError(format!("Failed to decrypt packet: {}", e))
-            })?;
+        match action {
+            LpAction::SendPacket(response_packet) => {
+                // Subsession KK2 response - gateway is responder
+                // This means we received SubsessionKK1 and are responding
+                debug!(
+                    "Sending subsession KK2 response to {} (receiver_idx={})",
+                    self.remote_addr, receiver_idx
+                );
+                inc!("lp_subsession_kk2_sent");
+                self.send_lp_packet(&response_packet, outer_key.as_ref()).await?;
+                self.emit_lifecycle_metrics(true);
+                Ok(())
+            }
+            LpAction::DeliverData(data) => {
+                // Decrypted application data - process as registration/forwarding
+                self.handle_decrypted_payload(receiver_idx, data.to_vec()).await
+            }
+            LpAction::SubsessionComplete {
+                packet: ready_packet,
+                subsession,
+                new_receiver_index,
+            } => {
+                // Subsession complete - promote to new session
+                self.handle_subsession_complete(
+                    receiver_idx,
+                    ready_packet,
+                    subsession,
+                    new_receiver_index,
+                    outer_key,
+                )
+                .await
+            }
+            other => {
+                warn!(
+                    "Unexpected action in transport from {}: {:?}",
+                    self.remote_addr, other
+                );
+                self.emit_lifecycle_metrics(false);
+                Err(GatewayError::LpProtocolError(format!(
+                    "Unexpected action: {:?}",
+                    other
+                )))
+            }
+        }
+    }
 
-            // Mark counter as received after successful decryption
-            session.receiving_counter_mark(counter).map_err(|e| {
-                GatewayError::LpProtocolError(format!("Failed to mark counter: {}", e))
-            })?;
-
-            decrypted
-        };
-
+    /// Handle decrypted transport payload (registration or forwarding request)
+    async fn handle_decrypted_payload(
+        &mut self,
+        receiver_idx: u32,
+        decrypted_bytes: Vec<u8>,
+    ) -> Result<(), GatewayError> {
         // Try to deserialize as LpRegistrationRequest first (most common case after handshake)
         if let Ok(request) = bincode::deserialize::<LpRegistrationRequest>(&decrypted_bytes) {
             debug!(
@@ -433,9 +488,72 @@ impl LpConnectionHandler {
         );
         inc!("lp_errors_unknown_payload_type");
         self.emit_lifecycle_metrics(false);
-        Err(GatewayError::LpProtocolError(format!(
-            "Unknown transport payload type (not registration or forwarding)"
-        )))
+        Err(GatewayError::LpProtocolError(
+            "Unknown transport payload type (not registration or forwarding)".to_string(),
+        ))
+    }
+
+    /// Handle subsession completion - promote subsession to new session
+    ///
+    /// When a subsession handshake completes (SubsessionReady received):
+    /// 1. Send SubsessionReady packet if present (for initiator - gateway is responder, so None)
+    /// 2. Create new state machine from completed subsession
+    /// 3. Store new session under new_receiver_index
+    /// 4. Old session stays in ReadOnlyTransport state until TTL cleanup
+    async fn handle_subsession_complete(
+        &mut self,
+        old_receiver_idx: u32,
+        ready_packet: Option<LpPacket>,
+        subsession: nym_lp::session::SubsessionHandshake,
+        new_receiver_index: u32,
+        outer_key: Option<nym_lp::codec::OuterAeadKey>,
+    ) -> Result<(), GatewayError> {
+        use nym_lp::state_machine::LpStateMachine;
+
+        info!(
+            "Subsession complete from {}: old_idx={}, new_idx={}",
+            self.remote_addr, old_receiver_idx, new_receiver_index
+        );
+
+        // Send SubsessionReady packet if present (for initiator - gateway is responder, so typically None)
+        if let Some(packet) = ready_packet {
+            self.send_lp_packet(&packet, outer_key.as_ref()).await?;
+        }
+
+        // Create new state machine from completed subsession
+        let new_state_machine = LpStateMachine::from_subsession(subsession, new_receiver_index)
+            .map_err(|e| {
+                GatewayError::LpProtocolError(format!("Failed to create session from subsession: {}", e))
+            })?;
+
+        // Check for receiver_index collision before inserting
+        // new_receiver_index is client-generated (rand::random() in state machine).
+        // Collisions are statistically unlikely (1 in 4 billion) but could cause DoS if exploited.
+        if self.state.session_states.contains_key(&new_receiver_index)
+            || self.state.handshake_states.contains_key(&new_receiver_index)
+        {
+            warn!(
+                "Subsession receiver_index collision: {} from {}",
+                new_receiver_index, self.remote_addr
+            );
+            inc!("lp_subsession_receiver_index_collision");
+            self.emit_lifecycle_metrics(false);
+            return Err(GatewayError::LpProtocolError(
+                "Subsession receiver index collision - client should retry".to_string(),
+            ));
+        }
+
+        // Store new session under new_receiver_index
+        self.state
+            .session_states
+            .insert(new_receiver_index, super::TimestampedState::new(new_state_machine));
+
+        // Old session is now in ReadOnlyTransport state (handled by state machine)
+        // It will be cleaned up by TTL-based cleanup task
+
+        inc!("lp_subsession_complete");
+        self.emit_lifecycle_metrics(true);
+        Ok(())
     }
 
     /// Handle registration request on an established session
@@ -452,7 +570,12 @@ impl LpConnectionHandler {
             let session_entry = self.state.session_states.get(&receiver_idx).ok_or_else(|| {
                 GatewayError::LpProtocolError(format!("Session not found: {}", receiver_idx))
             })?;
-            let session = &session_entry.value().state;
+            // Access session via state machine for subsession support
+            let session = session_entry
+                .value()
+                .state
+                .session()
+                .map_err(|e| GatewayError::LpProtocolError(format!("Session error: {}", e)))?;
 
             // Serialize and encrypt response
             let response_bytes = bincode::serialize(&response).map_err(|e| {
@@ -509,7 +632,12 @@ impl LpConnectionHandler {
             let session_entry = self.state.session_states.get(&receiver_idx).ok_or_else(|| {
                 GatewayError::LpProtocolError(format!("Session not found: {}", receiver_idx))
             })?;
-            let session = &session_entry.value().state;
+            // Access session via state machine for subsession support
+            let session = session_entry
+                .value()
+                .state
+                .session()
+                .map_err(|e| GatewayError::LpProtocolError(format!("Session error: {}", e)))?;
 
             let encrypted_message = session.encrypt_data(&response_bytes).map_err(|e| {
                 GatewayError::LpProtocolError(format!("Failed to encrypt forward response: {}", e))

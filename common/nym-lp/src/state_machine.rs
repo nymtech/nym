@@ -236,6 +236,30 @@ impl LpStateMachine {
             state: LpState::ReadyToHandshake { session },
         })
     }
+
+    /// Creates a state machine in Transport state from a completed subsession handshake.
+    ///
+    /// This is used when a subsession (rekeying) completes and we need a new state machine
+    /// for the promoted session that can handle further subsession initiations (chained rekeying).
+    ///
+    /// # Arguments
+    ///
+    /// * `subsession` - The completed subsession handshake
+    /// * `receiver_index` - The new session's receiver index
+    ///
+    /// # Errors
+    ///
+    /// Returns error if the subsession handshake is not complete.
+    pub fn from_subsession(
+        subsession: SubsessionHandshake,
+        receiver_index: u32,
+    ) -> Result<Self, LpError> {
+        let session = subsession.into_session(receiver_index)?;
+        Ok(LpStateMachine {
+            state: LpState::Transport { session },
+        })
+    }
+
     /// Processes an input event and returns a list of actions to perform.
     pub fn process_input(&mut self, input: LpInput) -> Option<Result<LpAction, LpError>> {
         // 1. Replace current state with a placeholder, taking ownership of the real current state.

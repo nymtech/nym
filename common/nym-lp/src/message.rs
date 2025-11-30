@@ -81,6 +81,16 @@ pub enum MessageType {
     Collision = 0x0007,
     /// Acknowledgment - gateway confirms receipt of message
     Ack = 0x0008,
+    /// Subsession request - client initiates subsession creation
+    SubsessionRequest = 0x0009,
+    /// Subsession KK1 - first message of Noise KK handshake
+    SubsessionKK1 = 0x000A,
+    /// Subsession KK2 - second message of Noise KK handshake
+    SubsessionKK2 = 0x000B,
+    /// Subsession ready - subsession established confirmation
+    SubsessionReady = 0x000C,
+    /// Subsession abort - race winner tells loser to become responder
+    SubsessionAbort = 0x000D,
 }
 
 impl MessageType {
@@ -121,6 +131,27 @@ pub struct ForwardPacketData {
     pub inner_packet_bytes: Vec<u8>,
 }
 
+/// Subsession KK1 message - first message of Noise KK handshake
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct SubsessionKK1Data {
+    /// Noise KK first message payload (ephemeral key + encrypted static)
+    pub payload: Vec<u8>,
+}
+
+/// Subsession KK2 message - second message of Noise KK handshake
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct SubsessionKK2Data {
+    /// Noise KK second message payload (ephemeral key + encrypted response)
+    pub payload: Vec<u8>,
+}
+
+/// Subsession ready confirmation with new session index
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct SubsessionReadyData {
+    /// New subsession's receiver index for routing
+    pub receiver_index: u32,
+}
+
 #[derive(Debug, Clone)]
 pub enum LpMessage {
     Busy,
@@ -134,6 +165,16 @@ pub enum LpMessage {
     Collision,
     /// Acknowledgment - gateway confirms receipt of message
     Ack,
+    /// Subsession request - client initiates subsession creation (empty, signal only)
+    SubsessionRequest,
+    /// Subsession KK1 - first message of Noise KK handshake
+    SubsessionKK1(SubsessionKK1Data),
+    /// Subsession KK2 - second message of Noise KK handshake
+    SubsessionKK2(SubsessionKK2Data),
+    /// Subsession ready - subsession established confirmation
+    SubsessionReady(SubsessionReadyData),
+    /// Subsession abort - race winner tells loser to become responder (empty, signal only)
+    SubsessionAbort,
 }
 
 impl Display for LpMessage {
@@ -148,6 +189,11 @@ impl Display for LpMessage {
             LpMessage::ForwardPacket(_) => write!(f, "ForwardPacket"),
             LpMessage::Collision => write!(f, "Collision"),
             LpMessage::Ack => write!(f, "Ack"),
+            LpMessage::SubsessionRequest => write!(f, "SubsessionRequest"),
+            LpMessage::SubsessionKK1(_) => write!(f, "SubsessionKK1"),
+            LpMessage::SubsessionKK2(_) => write!(f, "SubsessionKK2"),
+            LpMessage::SubsessionReady(_) => write!(f, "SubsessionReady"),
+            LpMessage::SubsessionAbort => write!(f, "SubsessionAbort"),
         }
     }
 }
@@ -164,6 +210,11 @@ impl LpMessage {
             LpMessage::ForwardPacket(_) => &[], // Structured data, serialized in encode_content
             LpMessage::Collision => &[],
             LpMessage::Ack => &[],
+            LpMessage::SubsessionRequest => &[],
+            LpMessage::SubsessionKK1(_) => &[], // Structured data, serialized in encode_content
+            LpMessage::SubsessionKK2(_) => &[], // Structured data, serialized in encode_content
+            LpMessage::SubsessionReady(_) => &[], // Structured data, serialized in encode_content
+            LpMessage::SubsessionAbort => &[],
         }
     }
 
@@ -178,6 +229,11 @@ impl LpMessage {
             LpMessage::ForwardPacket(_) => false, // Always has data
             LpMessage::Collision => true,
             LpMessage::Ack => true,
+            LpMessage::SubsessionRequest => true, // Empty signal
+            LpMessage::SubsessionKK1(_) => false, // Always has payload
+            LpMessage::SubsessionKK2(_) => false, // Always has payload
+            LpMessage::SubsessionReady(_) => false, // Always has receiver_index
+            LpMessage::SubsessionAbort => true, // Empty signal
         }
     }
 
@@ -195,6 +251,13 @@ impl LpMessage {
             }
             LpMessage::Collision => 0,
             LpMessage::Ack => 0,
+            LpMessage::SubsessionRequest => 0,
+            // Variable length: bincode overhead (~8 bytes for Vec length) + payload
+            LpMessage::SubsessionKK1(data) => 8 + data.payload.len(),
+            LpMessage::SubsessionKK2(data) => 8 + data.payload.len(),
+            // 4 bytes u32 + bincode overhead (~4 bytes)
+            LpMessage::SubsessionReady(_) => 8,
+            LpMessage::SubsessionAbort => 0,
         }
     }
 
@@ -209,6 +272,11 @@ impl LpMessage {
             LpMessage::ForwardPacket(_) => MessageType::ForwardPacket,
             LpMessage::Collision => MessageType::Collision,
             LpMessage::Ack => MessageType::Ack,
+            LpMessage::SubsessionRequest => MessageType::SubsessionRequest,
+            LpMessage::SubsessionKK1(_) => MessageType::SubsessionKK1,
+            LpMessage::SubsessionKK2(_) => MessageType::SubsessionKK2,
+            LpMessage::SubsessionReady(_) => MessageType::SubsessionReady,
+            LpMessage::SubsessionAbort => MessageType::SubsessionAbort,
         }
     }
 
@@ -240,6 +308,23 @@ impl LpMessage {
             }
             LpMessage::Collision => { /* No content */ }
             LpMessage::Ack => { /* No content */ }
+            LpMessage::SubsessionRequest => { /* No content - signal only */ }
+            LpMessage::SubsessionKK1(data) => {
+                let serialized =
+                    bincode::serialize(data).expect("Failed to serialize SubsessionKK1Data");
+                dst.put_slice(&serialized);
+            }
+            LpMessage::SubsessionKK2(data) => {
+                let serialized =
+                    bincode::serialize(data).expect("Failed to serialize SubsessionKK2Data");
+                dst.put_slice(&serialized);
+            }
+            LpMessage::SubsessionReady(data) => {
+                let serialized =
+                    bincode::serialize(data).expect("Failed to serialize SubsessionReadyData");
+                dst.put_slice(&serialized);
+            }
+            LpMessage::SubsessionAbort => { /* No content - signal only */ }
         }
     }
 }

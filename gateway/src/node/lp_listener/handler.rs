@@ -388,7 +388,7 @@ impl LpConnectionHandler {
 
             let session = &session_entry.value().state;
 
-            // AIDEV-NOTE: Validate counter BEFORE decryption to prevent replay DoS attacks.
+            // Validate counter BEFORE decryption to prevent replay DoS attacks.
             // Counter is from cleartext header but authenticated by AEAD AAD, so this is safe.
             session.receiving_counter_quick_check(counter).map_err(|e| {
                 inc!("lp_errors_replay_check");

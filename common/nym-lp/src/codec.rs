@@ -4,7 +4,8 @@
 use crate::LpError;
 use crate::message::{
     ClientHelloData, EncryptedDataPayload, ForwardPacketData, HandshakeData, KKTRequestData,
-    KKTResponseData, LpMessage, MessageType,
+    KKTResponseData, LpMessage, MessageType, SubsessionKK1Data, SubsessionKK2Data,
+    SubsessionReadyData,
 };
 use crate::packet::{LpHeader, LpPacket, OuterHeader, TRAILER_LEN};
 use bytes::{BufMut, BytesMut};
@@ -137,6 +138,39 @@ fn parse_message_from_type_and_content(
                 });
             }
             Ok(LpMessage::Ack)
+        }
+        MessageType::SubsessionRequest => {
+            if !content.is_empty() {
+                return Err(LpError::InvalidPayloadSize {
+                    expected: 0,
+                    actual: content.len(),
+                });
+            }
+            Ok(LpMessage::SubsessionRequest)
+        }
+        MessageType::SubsessionKK1 => {
+            let data: SubsessionKK1Data = bincode::deserialize(content)
+                .map_err(|e| LpError::DeserializationError(e.to_string()))?;
+            Ok(LpMessage::SubsessionKK1(data))
+        }
+        MessageType::SubsessionKK2 => {
+            let data: SubsessionKK2Data = bincode::deserialize(content)
+                .map_err(|e| LpError::DeserializationError(e.to_string()))?;
+            Ok(LpMessage::SubsessionKK2(data))
+        }
+        MessageType::SubsessionReady => {
+            let data: SubsessionReadyData = bincode::deserialize(content)
+                .map_err(|e| LpError::DeserializationError(e.to_string()))?;
+            Ok(LpMessage::SubsessionReady(data))
+        }
+        MessageType::SubsessionAbort => {
+            // Empty signal message - no content to deserialize
+            if !content.is_empty() {
+                return Err(LpError::DeserializationError(
+                    "SubsessionAbort should have no payload".to_string(),
+                ));
+            }
+            Ok(LpMessage::SubsessionAbort)
         }
     }
 }
@@ -364,7 +398,7 @@ mod tests {
     use crate::packet::{LpHeader, LpPacket, TRAILER_LEN};
     use bytes::BytesMut;
 
-    // AIDEV-NOTE: With unified format, outer header (receiver_idx + counter) is always first
+    // With unified format, outer header (receiver_idx + counter) is always first
     // and is the only cleartext portion for encrypted packets
     const OUTER_HDR: usize = super::OUTER_HEADER_SIZE; // 12 bytes
 
@@ -1131,6 +1165,183 @@ mod tests {
                 assert_eq!(data.0, handshake_data);
             }
             _ => panic!("Expected Handshake message"),
+        }
+    }
+
+    // === Subsession Message Tests ===
+
+    #[test]
+    fn test_serialize_parse_subsession_request() {
+        let mut dst = BytesMut::new();
+
+        let packet = LpPacket {
+            header: LpHeader {
+                protocol_version: 1,
+                reserved: 0,
+                receiver_idx: 42,
+                counter: 100,
+            },
+            message: LpMessage::SubsessionRequest,
+            trailer: [0; TRAILER_LEN],
+        };
+
+        serialize_lp_packet(&packet, &mut dst, None).unwrap();
+        let decoded = parse_lp_packet(&dst, None).unwrap();
+
+        assert_eq!(decoded.header.receiver_idx, 42);
+        assert_eq!(decoded.header.counter, 100);
+        assert!(matches!(decoded.message, LpMessage::SubsessionRequest));
+    }
+
+    #[test]
+    fn test_serialize_parse_subsession_kk1() {
+        use crate::message::SubsessionKK1Data;
+
+        let mut dst = BytesMut::new();
+
+        let kk1_data = SubsessionKK1Data {
+            payload: vec![0xAA; 50], // 50 bytes KK payload
+        };
+
+        let packet = LpPacket {
+            header: LpHeader {
+                protocol_version: 1,
+                reserved: 0,
+                receiver_idx: 123,
+                counter: 456,
+            },
+            message: LpMessage::SubsessionKK1(kk1_data.clone()),
+            trailer: [0; TRAILER_LEN],
+        };
+
+        serialize_lp_packet(&packet, &mut dst, None).unwrap();
+        let decoded = parse_lp_packet(&dst, None).unwrap();
+
+        assert_eq!(decoded.header.receiver_idx, 123);
+        match decoded.message {
+            LpMessage::SubsessionKK1(data) => {
+                assert_eq!(data.payload, kk1_data.payload);
+            }
+            _ => panic!("Expected SubsessionKK1 message"),
+        }
+    }
+
+    #[test]
+    fn test_serialize_parse_subsession_kk2() {
+        use crate::message::SubsessionKK2Data;
+
+        let mut dst = BytesMut::new();
+
+        let kk2_data = SubsessionKK2Data {
+            payload: vec![0x11; 60], // 60 bytes KK response payload
+        };
+
+        let packet = LpPacket {
+            header: LpHeader {
+                protocol_version: 1,
+                reserved: 0,
+                receiver_idx: 789,
+                counter: 1000,
+            },
+            message: LpMessage::SubsessionKK2(kk2_data.clone()),
+            trailer: [0; TRAILER_LEN],
+        };
+
+        serialize_lp_packet(&packet, &mut dst, None).unwrap();
+        let decoded = parse_lp_packet(&dst, None).unwrap();
+
+        assert_eq!(decoded.header.receiver_idx, 789);
+        match decoded.message {
+            LpMessage::SubsessionKK2(data) => {
+                assert_eq!(data.payload, kk2_data.payload);
+            }
+            _ => panic!("Expected SubsessionKK2 message"),
+        }
+    }
+
+    #[test]
+    fn test_serialize_parse_subsession_ready() {
+        use crate::message::SubsessionReadyData;
+
+        let mut dst = BytesMut::new();
+
+        let ready_data = SubsessionReadyData {
+            receiver_index: 99999,
+        };
+
+        let packet = LpPacket {
+            header: LpHeader {
+                protocol_version: 1,
+                reserved: 0,
+                receiver_idx: 42,
+                counter: 200,
+            },
+            message: LpMessage::SubsessionReady(ready_data.clone()),
+            trailer: [0; TRAILER_LEN],
+        };
+
+        serialize_lp_packet(&packet, &mut dst, None).unwrap();
+        let decoded = parse_lp_packet(&dst, None).unwrap();
+
+        assert_eq!(decoded.header.receiver_idx, 42);
+        match decoded.message {
+            LpMessage::SubsessionReady(data) => {
+                assert_eq!(data.receiver_index, 99999);
+            }
+            _ => panic!("Expected SubsessionReady message"),
+        }
+    }
+
+    #[test]
+    fn test_subsession_request_with_payload_fails() {
+        // SubsessionRequest should have no payload
+        let mut buf = BytesMut::new();
+        buf.extend_from_slice(&42u32.to_le_bytes()); // receiver_idx
+        buf.extend_from_slice(&123u64.to_le_bytes()); // counter
+        buf.extend_from_slice(&[1, 0, 0, 0]); // version + reserved
+        buf.extend_from_slice(&MessageType::SubsessionRequest.to_u16().to_le_bytes());
+        buf.extend_from_slice(&[0xFF]); // Invalid payload for SubsessionRequest
+        buf.extend_from_slice(&[0; TRAILER_LEN]);
+
+        let result = parse_lp_packet(&buf, None);
+        assert!(matches!(
+            result,
+            Err(LpError::InvalidPayloadSize { expected: 0, actual: 1 })
+        ));
+    }
+
+    #[test]
+    fn test_aead_subsession_roundtrip() {
+        use crate::message::SubsessionKK1Data;
+
+        let psk = [42u8; 32];
+        let outer_key = OuterAeadKey::from_psk(&psk);
+
+        let kk1_data = SubsessionKK1Data {
+            payload: vec![0xDE; 48], // 48 bytes KK payload
+        };
+
+        let packet = LpPacket {
+            header: LpHeader {
+                protocol_version: 1,
+                reserved: 0,
+                receiver_idx: 54321,
+                counter: 999,
+            },
+            message: LpMessage::SubsessionKK1(kk1_data.clone()),
+            trailer: [0; TRAILER_LEN],
+        };
+
+        let mut encrypted = BytesMut::new();
+        serialize_lp_packet(&packet, &mut encrypted, Some(&outer_key)).unwrap();
+
+        let decoded = parse_lp_packet(&encrypted, Some(&outer_key)).unwrap();
+
+        match decoded.message {
+            LpMessage::SubsessionKK1(data) => {
+                assert_eq!(data.payload, kk1_data.payload);
+            }
+            _ => panic!("Expected SubsessionKK1 message"),
         }
     }
 }

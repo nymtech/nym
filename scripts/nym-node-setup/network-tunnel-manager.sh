@@ -93,8 +93,8 @@ detect_uplink_interface() {
   local ip
   local dev
 
-  ip="$(getent ahostsv${1//-/} "$host" 2>/dev/null | awk '{print $1}' | head -n1 || true)"
-  dev="$(ip -$1 route get "$ip" 2>/dev/null | awk '{print $5}' | head -n1 || true)"
+  ip="$(getent ahosts${1//-/v} "$host" 2>/dev/null | awk '$2=="STREAM" {print $1}' | head -n1 || true)"
+  dev="$(ip $1 route get "$ip" 2>/dev/null | awk '{print $5}' | head -n1 || true)"
 
   if [[ -n "$dev" && "$dev" =~ ^[a-zA-Z0-9._-]+$ ]]; then
     echo "$dev"

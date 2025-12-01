@@ -124,6 +124,89 @@ impl CredentialArgs {
     }
 }
 
+/// Test mode for the gateway probe.
+///
+/// Determines which tests are performed and how connections are established.
+// AIDEV-NOTE: This enum replaces the scattered boolean flags (only_wireguard,
+// only_lp_registration, test_lp_wg) with explicit, named modes for clarity.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum TestMode {
+    /// Traditional mixnet testing - connects via mixnet, tests entry/exit pings + WireGuard via authenticator
+    #[default]
+    Mixnet,
+    /// LP registration + WireGuard on single gateway (no mixnet, no forwarding)
+    SingleHop,
+    /// Entry LP + Exit LP (nested session forwarding) + WireGuard tunnel
+    TwoHop,
+    /// LP registration only - test handshake and registration, skip WireGuard
+    LpOnly,
+}
+
+impl TestMode {
+    /// Infer test mode from legacy boolean flags (backward compatibility)
+    pub fn from_flags(only_wireguard: bool, only_lp_registration: bool, test_lp_wg: bool, has_exit_gateway: bool) -> Self {
+        if only_lp_registration {
+            TestMode::LpOnly
+        } else if test_lp_wg {
+            if has_exit_gateway {
+                TestMode::TwoHop
+            } else {
+                TestMode::SingleHop
+            }
+        } else if only_wireguard {
+            // WireGuard via authenticator (still uses mixnet path)
+            TestMode::Mixnet
+        } else {
+            TestMode::Mixnet
+        }
+    }
+
+    /// Whether this mode requires a mixnet client
+    pub fn needs_mixnet(&self) -> bool {
+        matches!(self, TestMode::Mixnet)
+    }
+
+    /// Whether this mode uses LP registration
+    pub fn uses_lp(&self) -> bool {
+        matches!(self, TestMode::SingleHop | TestMode::TwoHop | TestMode::LpOnly)
+    }
+
+    /// Whether this mode tests WireGuard tunnels
+    pub fn tests_wireguard(&self) -> bool {
+        matches!(self, TestMode::Mixnet | TestMode::SingleHop | TestMode::TwoHop)
+    }
+
+    /// Whether this mode requires an exit gateway
+    pub fn needs_exit_gateway(&self) -> bool {
+        matches!(self, TestMode::TwoHop)
+    }
+}
+
+impl std::fmt::Display for TestMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TestMode::Mixnet => write!(f, "mixnet"),
+            TestMode::SingleHop => write!(f, "single-hop"),
+            TestMode::TwoHop => write!(f, "two-hop"),
+            TestMode::LpOnly => write!(f, "lp-only"),
+        }
+    }
+}
+
+impl std::str::FromStr for TestMode {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "mixnet" => Ok(TestMode::Mixnet),
+            "single-hop" | "singlehop" | "single_hop" => Ok(TestMode::SingleHop),
+            "two-hop" | "twohop" | "two_hop" => Ok(TestMode::TwoHop),
+            "lp-only" | "lponly" | "lp_only" => Ok(TestMode::LpOnly),
+            _ => Err(format!("Unknown test mode: '{}'. Valid modes: mixnet, single-hop, two-hop, lp-only", s)),
+        }
+    }
+}
+
 #[derive(Default, Debug)]
 pub enum TestedNode {
     #[default]
@@ -149,6 +232,32 @@ pub struct TestedNodeDetails {
     lp_address: Option<std::net::SocketAddr>,
 }
 
+impl TestedNodeDetails {
+    /// Create from CLI args (localnet mode - no HTTP query needed)
+    /// Only identity and LP address are required; other fields are None/default.
+    pub fn from_cli(identity: NodeIdentity, lp_address: std::net::SocketAddr) -> Self {
+        Self {
+            identity,
+            ip_address: Some(lp_address.ip()),
+            lp_address: Some(lp_address),
+            // These are None in localnet mode - only needed for mixnet/authenticator
+            exit_router_address: None,
+            authenticator_address: None,
+            authenticator_version: AuthenticatorVersion::UNKNOWN,
+        }
+    }
+
+    /// Check if this node has sufficient info for LP testing
+    pub fn can_test_lp(&self) -> bool {
+        self.lp_address.is_some()
+    }
+
+    /// Check if this node has sufficient info for mixnet testing
+    pub fn can_test_mixnet(&self) -> bool {
+        self.exit_router_address.is_some() || self.authenticator_address.is_some()
+    }
+}
+
 pub struct Probe {
     entrypoint: NodeIdentity,
     tested_node: TestedNode,
@@ -159,6 +268,10 @@ pub struct Probe {
     direct_gateway_node: Option<DirectoryNode>,
     /// Pre-queried exit gateway node (used when --exit-gateway-ip is specified for LP forwarding)
     exit_gateway_node: Option<DirectoryNode>,
+    /// Localnet entry gateway info (used when --entry-gateway-identity is specified)
+    localnet_entry: Option<TestedNodeDetails>,
+    /// Localnet exit gateway info (used when --exit-gateway-identity is specified)
+    localnet_exit: Option<TestedNodeDetails>,
 }
 
 impl Probe {
@@ -176,6 +289,8 @@ impl Probe {
             credentials_args,
             direct_gateway_node: None,
             exit_gateway_node: None,
+            localnet_entry: None,
+            localnet_exit: None,
         }
     }
 
@@ -195,6 +310,8 @@ impl Probe {
             credentials_args,
             direct_gateway_node: Some(gateway_node),
             exit_gateway_node: None,
+            localnet_entry: None,
+            localnet_exit: None,
         }
     }
 
@@ -215,6 +332,30 @@ impl Probe {
             credentials_args,
             direct_gateway_node: Some(entry_gateway_node),
             exit_gateway_node: Some(exit_gateway_node),
+            localnet_entry: None,
+            localnet_exit: None,
+        }
+    }
+
+    /// Create a probe for localnet mode (no HTTP query needed)
+    /// Uses identity + LP address directly from CLI args
+    pub fn new_localnet(
+        entry: TestedNodeDetails,
+        exit: Option<TestedNodeDetails>,
+        netstack_args: NetstackArgs,
+        credentials_args: CredentialArgs,
+    ) -> Self {
+        let entrypoint = entry.identity;
+        Self {
+            entrypoint,
+            tested_node: TestedNode::SameAsEntry,
+            amnezia_args: "".into(),
+            netstack_args,
+            credentials_args,
+            direct_gateway_node: None,
+            exit_gateway_node: None,
+            localnet_entry: Some(entry),
+            localnet_exit: exit,
         }
     }
 
@@ -288,6 +429,45 @@ impl Probe {
         min_mixnet_performance: Option<u8>,
         use_mock_ecash: bool,
     ) -> anyhow::Result<ProbeResult> {
+        // AIDEV-NOTE: Localnet mode - identity + LP address from CLI, no HTTP query
+        // This path is used when --entry-gateway-identity is specified
+        if let Some(entry_info) = &self.localnet_entry {
+            info!("Using localnet mode with CLI-provided gateway identities");
+
+            // Initialize storage (needed for credentials)
+            if !config_dir.exists() {
+                std::fs::create_dir_all(config_dir)?;
+            }
+            let storage_paths = StoragePaths::new_from_dir(config_dir)?;
+            let storage = storage_paths
+                .initialise_default_persistent_storage()
+                .await?;
+
+            // For localnet, use entry as the test node (or exit if provided)
+            let mixnet_entry_gateway_id = entry_info.identity;
+            let node_info = if let Some(exit_info) = &self.localnet_exit {
+                exit_info.clone()
+            } else {
+                entry_info.clone()
+            };
+
+            return self
+                .do_probe_test(
+                    None,
+                    storage,
+                    mixnet_entry_gateway_id,
+                    node_info,
+                    directory.as_ref(),
+                    nyxd_url,
+                    false, // tested_entry
+                    only_wireguard,
+                    only_lp_registration,
+                    test_lp_wg,
+                    use_mock_ecash,
+                )
+                .await;
+        }
+
         // If both gateways are pre-queried via --gateway-ip and --exit-gateway-ip,
         // skip mixnet setup entirely - we have all the data we need
         if self.direct_gateway_node.is_some() && self.exit_gateway_node.is_some() {
@@ -1013,26 +1193,14 @@ where
         gateway_ip,
     );
 
-    // Step 1: Connect to gateway
-    info!("Connecting to LP listener at {}...", gateway_lp_address);
-    match client.connect().await {
-        Ok(_) => {
-            info!("Successfully connected to LP listener");
-            lp_outcome.can_connect = true;
-        }
-        Err(e) => {
-            let error_msg = format!("Failed to connect to LP listener: {}", e);
-            error!("{}", error_msg);
-            lp_outcome.error = Some(error_msg);
-            return Ok(lp_outcome);
-        }
-    }
-
-    // Step 2: Perform handshake
-    info!("Performing LP handshake...");
+    // Step 1: Perform handshake (connection is implicit in packet-per-connection model)
+    // AIDEV-NOTE: LpRegistrationClient uses packet-per-connection model - connect() is gone,
+    // connection is established during handshake and registration automatically.
+    info!("Performing LP handshake at {}...", gateway_lp_address);
     match client.perform_handshake().await {
         Ok(_) => {
             info!("LP handshake completed successfully");
+            lp_outcome.can_connect = true; // Connection succeeded if handshake succeeded
             lp_outcome.can_handshake = true;
         }
         Err(e) => {
@@ -1043,7 +1211,7 @@ where
         }
     }
 
-    // Step 3: Send registration request
+    // Step 2: Register with gateway (send request + receive response in one call)
     info!("Sending LP registration request...");
 
     // Generate WireGuard keypair for dVPN registration
@@ -1063,29 +1231,19 @@ where
         }
     };
 
-    // Generate credential based on mode
+    // Register using the new packet-per-connection API (returns GatewayData directly)
     let ticket_type = TicketType::V1WireguardEntry;
-    if use_mock_ecash {
+    let gateway_data = if use_mock_ecash {
         info!("Using mock ecash credential for LP registration");
         let credential = crate::bandwidth_helpers::create_dummy_credential(
             &gateway_ed25519_pubkey.to_bytes(),
             ticket_type,
         );
 
-        match client
-            .send_registration_request_with_credential(
-                &wg_keypair,
-                &gateway_ed25519_pubkey,
-                credential,
-                ticket_type,
-            )
-            .await
-        {
-            Ok(_) => {
-                info!("LP registration request sent successfully with mock ecash");
-            }
+        match client.register_with_credential(&wg_keypair, credential, ticket_type).await {
+            Ok(data) => data,
             Err(e) => {
-                let error_msg = format!("Failed to send LP registration request: {}", e);
+                let error_msg = format!("LP registration failed (mock ecash): {}", e);
                 error!("{}", error_msg);
                 lp_outcome.error = Some(error_msg);
                 return Ok(lp_outcome);
@@ -1094,44 +1252,25 @@ where
     } else {
         info!("Using real bandwidth controller for LP registration");
         match client
-            .send_registration_request(
-                &wg_keypair,
-                &gateway_ed25519_pubkey,
-                bandwidth_controller,
-                ticket_type,
-            )
+            .register(&wg_keypair, &gateway_ed25519_pubkey, bandwidth_controller, ticket_type)
             .await
         {
-            Ok(_) => {
-                info!("LP registration request sent successfully with real ecash");
-            }
+            Ok(data) => data,
             Err(e) => {
-                let error_msg = format!("Failed to send LP registration request: {}", e);
+                let error_msg = format!("LP registration failed: {}", e);
                 error!("{}", error_msg);
                 lp_outcome.error = Some(error_msg);
                 return Ok(lp_outcome);
             }
         }
-    }
+    };
 
-    // Step 4: Receive registration response
-    info!("Waiting for LP registration response...");
-    match client.receive_registration_response().await {
-        Ok(gateway_data) => {
-            info!("LP registration successful! Received gateway data:");
-            info!("  - Gateway public key: {:?}", gateway_data.public_key);
-            info!("  - Private IPv4: {}", gateway_data.private_ipv4);
-            info!("  - Private IPv6: {}", gateway_data.private_ipv6);
-            info!("  - Endpoint: {}", gateway_data.endpoint);
-            lp_outcome.can_register = true;
-        }
-        Err(e) => {
-            let error_msg = format!("Failed to receive LP registration response: {}", e);
-            error!("{}", error_msg);
-            lp_outcome.error = Some(error_msg);
-            return Ok(lp_outcome);
-        }
-    }
+    info!("LP registration successful! Received gateway data:");
+    info!("  - Gateway public key: {:?}", gateway_data.public_key);
+    info!("  - Private IPv4: {}", gateway_data.private_ipv4);
+    info!("  - Private IPv6: {}", gateway_data.private_ipv6);
+    info!("  - Endpoint: {}", gateway_data.endpoint);
+    lp_outcome.can_register = true;
 
     Ok(lp_outcome)
 }
@@ -1193,7 +1332,9 @@ where
     let exit_wg_keypair = x25519::KeyPair::new(&mut rng);
 
     // STEP 1: Establish outer LP session with entry gateway
-    info!("Connecting to entry gateway via LP...");
+    // AIDEV-NOTE: LpRegistrationClient uses packet-per-connection model - connect() is gone,
+    // connection is established automatically during handshake.
+    info!("Establishing outer LP session with entry gateway...");
     let mut entry_client = LpRegistrationClient::new_with_default_psk(
         entry_lp_keypair,
         entry_gateway.identity,
@@ -1201,13 +1342,7 @@ where
         entry_ip,
     );
 
-    // Connect to entry gateway
-    if let Err(e) = entry_client.connect().await {
-        error!("Failed to connect to entry gateway: {}", e);
-        return Ok(wg_outcome);
-    }
-
-    // Perform handshake with entry gateway
+    // Perform handshake with entry gateway (connection is implicit)
     if let Err(e) = entry_client.perform_handshake().await {
         error!("Failed to handshake with entry gateway: {}", e);
         return Ok(wg_outcome);
@@ -1257,8 +1392,9 @@ where
         ed25519::PublicKey::from_bytes(&entry_gateway.identity.to_bytes())
             .map_err(|e| anyhow::anyhow!("Invalid entry gateway identity: {}", e))?;
 
-    if let Err(e) = entry_client
-        .send_registration_request(
+    // Use packet-per-connection register() which returns GatewayData directly
+    let _entry_gateway_data = match entry_client
+        .register(
             &entry_wg_keypair,
             &entry_gateway_pubkey,
             bandwidth_controller,
@@ -1266,14 +1402,9 @@ where
         )
         .await
     {
-        error!("Failed to send entry registration request: {}", e);
-        return Ok(wg_outcome);
-    }
-
-    let _entry_gateway_data = match entry_client.receive_registration_response().await {
         Ok(data) => data,
         Err(e) => {
-            error!("Failed to receive entry registration response: {}", e);
+            error!("Failed to register with entry gateway: {}", e);
             return Ok(wg_outcome);
         }
     };

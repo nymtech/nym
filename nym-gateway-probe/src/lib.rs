@@ -318,6 +318,10 @@ impl Probe {
 
         let mixnet_client = Box::pin(disconnected_mixnet_client.connect_to_mixnet()).await;
 
+        // Convert legacy flags to TestMode
+        let has_exit = self.exit_gateway_node.is_some() || self.localnet_exit.is_some();
+        let test_mode = TestMode::from_flags(only_wireguard, only_lp_registration, test_lp_wg, has_exit);
+
         self.do_probe_test(
             Some(mixnet_client),
             storage,
@@ -326,9 +330,8 @@ impl Probe {
             directory.as_ref(),
             nyxd_url,
             tested_entry,
+            test_mode,
             only_wireguard,
-            only_lp_registration,
-            test_lp_wg,
             false, // Not using mock ecash in regular probe mode
         )
         .await
@@ -370,6 +373,10 @@ impl Probe {
                 entry_info.clone()
             };
 
+            // Convert legacy flags to TestMode
+            let has_exit = self.localnet_exit.is_some();
+            let test_mode = TestMode::from_flags(only_wireguard, only_lp_registration, test_lp_wg, has_exit);
+
             return self
                 .do_probe_test(
                     None,
@@ -379,9 +386,8 @@ impl Probe {
                     directory.as_ref(),
                     nyxd_url,
                     false, // tested_entry
+                    test_mode,
                     only_wireguard,
-                    only_lp_registration,
-                    test_lp_wg,
                     use_mock_ecash,
                 )
                 .await;
@@ -406,6 +412,9 @@ impl Probe {
             let mixnet_entry_gateway_id = entry_node.identity();
             let node_info = exit_node.to_testable_node()?;
 
+            // Convert legacy flags to TestMode (has_exit = true since we have exit_gateway_node)
+            let test_mode = TestMode::from_flags(only_wireguard, only_lp_registration, test_lp_wg, true);
+
             return self
                 .do_probe_test(
                     None,
@@ -415,9 +424,8 @@ impl Probe {
                     directory.as_ref(),
                     nyxd_url,
                     false, // tested_entry
+                    test_mode,
                     only_wireguard,
-                    only_lp_registration,
-                    test_lp_wg,
                     use_mock_ecash,
                 )
                 .await;
@@ -494,6 +502,10 @@ impl Probe {
 
         let mixnet_client = Box::pin(disconnected_mixnet_client.connect_to_mixnet()).await;
 
+        // Convert legacy flags to TestMode
+        let has_exit = self.exit_gateway_node.is_some() || self.localnet_exit.is_some();
+        let test_mode = TestMode::from_flags(only_wireguard, only_lp_registration, test_lp_wg, has_exit);
+
         self.do_probe_test(
             Some(mixnet_client),
             storage,
@@ -502,9 +514,8 @@ impl Probe {
             directory.as_ref(),
             nyxd_url,
             tested_entry,
+            test_mode,
             only_wireguard,
-            only_lp_registration,
-            test_lp_wg,
             use_mock_ecash,
         )
         .await
@@ -648,15 +659,16 @@ impl Probe {
         directory: Option<&NymApiDirectory>,
         nyxd_url: Url,
         tested_entry: bool,
+        test_mode: TestMode,
         only_wireguard: bool,
-        only_lp_registration: bool,
-        test_lp_wg: bool,
         use_mock_ecash: bool,
     ) -> anyhow::Result<ProbeResult>
     where
         T: MixnetClientStorage + Clone + 'static,
         <T::CredentialStore as CredentialStorage>::StorageError: Send + Sync,
     {
+        // AIDEV-NOTE: test_mode replaces the old only_lp_registration and test_lp_wg flags.
+        // only_wireguard is kept separate as it controls ping behavior within Mixnet mode.
         let mut rng = rand::thread_rng();
         let mixnet_client = match mixnet_client {
             Some(Ok(mixnet_client)) => Some(mixnet_client),
@@ -680,6 +692,11 @@ impl Probe {
             None => None,
         };
 
+        // Determine if we should run ping tests:
+        // - Only in Mixnet mode (LP modes don't use mixnet)
+        // - And only if not --only-wireguard (which skips pings)
+        let run_ping_tests = test_mode.needs_mixnet() && !only_wireguard;
+
         let (outcome, mixnet_client) = if let Some(mixnet_client) = mixnet_client {
             let nym_address = *mixnet_client.nym_address();
             let entry_gateway = nym_address.gateway().to_base58_string();
@@ -687,8 +704,16 @@ impl Probe {
             info!("Successfully connected to entry gateway: {entry_gateway}");
             info!("Our nym address: {nym_address}");
 
-            // Now that we have a connected mixnet client, we can start pinging
-            let (outcome, mixnet_client) = if only_wireguard || only_lp_registration {
+            // Run ping tests if applicable
+            let (outcome, mixnet_client) = if run_ping_tests {
+                do_ping(
+                    mixnet_client,
+                    nym_address,
+                    node_info.exit_router_address,
+                    tested_entry,
+                )
+                .await
+            } else {
                 (
                     Ok(ProbeOutcome {
                         as_entry: if tested_entry {
@@ -702,18 +727,10 @@ impl Probe {
                     }),
                     mixnet_client,
                 )
-            } else {
-                do_ping(
-                    mixnet_client,
-                    nym_address,
-                    node_info.exit_router_address,
-                    tested_entry,
-                )
-                .await
             };
             (outcome, Some(mixnet_client))
-        } else if test_lp_wg {
-            // No mixnet client needed for LP-WG test with pre-queried nodes
+        } else if test_mode.uses_lp() && test_mode.tests_wireguard() {
+            // LP modes (SingleHop/TwoHop) don't need mixnet client
             // Create default outcome and continue to LP-WG test below
             (Ok(ProbeOutcome {
                 as_entry: Entry::NotTested,
@@ -722,7 +739,7 @@ impl Probe {
                 lp: None,
             }), None)
         } else {
-            // For non-LP-WG modes, missing mixnet client is a failure
+            // For Mixnet mode, missing mixnet client is a failure
             (Ok(ProbeOutcome {
                 as_entry: if tested_entry {
                     Entry::fail_to_connect()
@@ -735,10 +752,10 @@ impl Probe {
             }), None)
         };
 
-        let wg_outcome = if only_lp_registration {
-            // Skip WireGuard test when only testing LP registration
+        let wg_outcome = if !test_mode.tests_wireguard() {
+            // LpOnly mode: skip WireGuard test
             WgProbeResults::default()
-        } else if test_lp_wg {
+        } else if test_mode.uses_lp() {
             // Test WireGuard via LP registration (nested session forwarding)
             info!("Testing WireGuard via LP registration (no mixnet)");
 

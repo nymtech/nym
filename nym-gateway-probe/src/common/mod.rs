@@ -1,0 +1,13 @@
+// Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: GPL-3.0-only
+
+//! Common utilities shared across test modes.
+//!
+//! This module contains shared functionality used by multiple test modes:
+//! - WireGuard tunnel testing via netstack
+//! - LP registration helpers
+//! - Credential handling
+
+pub mod wireguard;
+
+pub use wireguard::{WgTunnelConfig, run_tunnel_tests};

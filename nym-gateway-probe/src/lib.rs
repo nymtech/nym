@@ -7,7 +7,7 @@ use std::{
     time::Duration,
 };
 
-use crate::{netstack::NetstackResult, types::Entry};
+use crate::types::Entry;
 use anyhow::bail;
 use base64::{Engine as _, engine::general_purpose};
 use bytes::BytesMut;
@@ -20,7 +20,7 @@ use nym_authenticator_requests::{
 };
 use nym_client_core::config::ForgetMe;
 use nym_config::defaults::{
-    NymNetworkDetails, WG_METADATA_PORT, WG_TUN_DEVICE_IP_ADDRESS_V4,
+    NymNetworkDetails,
     mixnet_vpn::{NYM_TUN_DEVICE_ADDRESS_V4, NYM_TUN_DEVICE_ADDRESS_V6},
 };
 use nym_connection_monitor::self_ping_and_wait;
@@ -51,10 +51,11 @@ use crate::{
     types::Exit,
 };
 
-use netstack::{NetstackRequest, NetstackRequestGo};
 
 mod bandwidth_helpers;
+mod common;
 mod icmp;
+pub mod mode;
 mod netstack;
 pub mod nodes;
 mod types;
@@ -62,6 +63,7 @@ mod types;
 use crate::bandwidth_helpers::{acquire_bandwidth, import_bandwidth};
 use crate::nodes::{DirectoryNode, NymApiDirectory};
 use nym_node_status_client::models::AttachedTicketMaterials;
+pub use mode::TestMode;
 pub use types::{IpPingReplies, ProbeOutcome, ProbeResult};
 
 #[derive(Args, Clone)]
@@ -121,89 +123,6 @@ impl CredentialArgs {
             ticket_materials,
             self.ticket_materials_revision,
         )?)
-    }
-}
-
-/// Test mode for the gateway probe.
-///
-/// Determines which tests are performed and how connections are established.
-// AIDEV-NOTE: This enum replaces the scattered boolean flags (only_wireguard,
-// only_lp_registration, test_lp_wg) with explicit, named modes for clarity.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum TestMode {
-    /// Traditional mixnet testing - connects via mixnet, tests entry/exit pings + WireGuard via authenticator
-    #[default]
-    Mixnet,
-    /// LP registration + WireGuard on single gateway (no mixnet, no forwarding)
-    SingleHop,
-    /// Entry LP + Exit LP (nested session forwarding) + WireGuard tunnel
-    TwoHop,
-    /// LP registration only - test handshake and registration, skip WireGuard
-    LpOnly,
-}
-
-impl TestMode {
-    /// Infer test mode from legacy boolean flags (backward compatibility)
-    pub fn from_flags(only_wireguard: bool, only_lp_registration: bool, test_lp_wg: bool, has_exit_gateway: bool) -> Self {
-        if only_lp_registration {
-            TestMode::LpOnly
-        } else if test_lp_wg {
-            if has_exit_gateway {
-                TestMode::TwoHop
-            } else {
-                TestMode::SingleHop
-            }
-        } else if only_wireguard {
-            // WireGuard via authenticator (still uses mixnet path)
-            TestMode::Mixnet
-        } else {
-            TestMode::Mixnet
-        }
-    }
-
-    /// Whether this mode requires a mixnet client
-    pub fn needs_mixnet(&self) -> bool {
-        matches!(self, TestMode::Mixnet)
-    }
-
-    /// Whether this mode uses LP registration
-    pub fn uses_lp(&self) -> bool {
-        matches!(self, TestMode::SingleHop | TestMode::TwoHop | TestMode::LpOnly)
-    }
-
-    /// Whether this mode tests WireGuard tunnels
-    pub fn tests_wireguard(&self) -> bool {
-        matches!(self, TestMode::Mixnet | TestMode::SingleHop | TestMode::TwoHop)
-    }
-
-    /// Whether this mode requires an exit gateway
-    pub fn needs_exit_gateway(&self) -> bool {
-        matches!(self, TestMode::TwoHop)
-    }
-}
-
-impl std::fmt::Display for TestMode {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            TestMode::Mixnet => write!(f, "mixnet"),
-            TestMode::SingleHop => write!(f, "single-hop"),
-            TestMode::TwoHop => write!(f, "two-hop"),
-            TestMode::LpOnly => write!(f, "lp-only"),
-        }
-    }
-}
-
-impl std::str::FromStr for TestMode {
-    type Err = String;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.to_lowercase().as_str() {
-            "mixnet" => Ok(TestMode::Mixnet),
-            "single-hop" | "singlehop" | "single_hop" => Ok(TestMode::SingleHop),
-            "two-hop" | "twohop" | "two_hop" => Ok(TestMode::TwoHop),
-            "lp-only" | "lponly" | "lp_only" => Ok(TestMode::LpOnly),
-            _ => Err(format!("Unknown test mode: '{}'. Valid modes: mixnet, single-hop, two-hop, lp-only", s)),
-        }
     }
 }
 
@@ -1075,84 +994,38 @@ async fn wg_probe(
 
     wg_outcome.can_register = true;
 
-    if wg_outcome.can_register {
-        let netstack_request = NetstackRequest::new(
-            &registered_data.private_ips().ipv4.to_string(),
-            &registered_data.private_ips().ipv6.to_string(),
-            &private_key_hex,
-            &public_key_hex,
-            &wg_endpoint,
-            &format!("http://{WG_TUN_DEVICE_IP_ADDRESS_V4}:{WG_METADATA_PORT}"),
-            netstack_args.netstack_download_timeout_sec,
-            &awg_args,
-            netstack_args,
-        );
+    // Run tunnel connectivity tests using shared helper
+    let tunnel_config = common::WgTunnelConfig::new(
+        registered_data.private_ips().ipv4.to_string(),
+        registered_data.private_ips().ipv6.to_string(),
+        private_key_hex,
+        public_key_hex,
+        wg_endpoint,
+    );
 
-        // Perform IPv4 ping test
-        let ipv4_request = NetstackRequestGo::from_rust_v4(&netstack_request);
+    let tunnel_results = common::run_tunnel_tests(&tunnel_config, &netstack_args, &awg_args);
 
-        match netstack::ping(&ipv4_request) {
-            Ok(NetstackResult::Response(netstack_response_v4)) => {
-                info!(
-                    "Wireguard probe response for IPv4: {:#?}",
-                    netstack_response_v4
-                );
-                wg_outcome.can_query_metadata_v4 = netstack_response_v4.can_query_metadata;
-                wg_outcome.can_handshake_v4 = netstack_response_v4.can_handshake;
-                wg_outcome.can_resolve_dns_v4 = netstack_response_v4.can_resolve_dns;
-                wg_outcome.ping_hosts_performance_v4 = netstack_response_v4.received_hosts as f32
-                    / netstack_response_v4.sent_hosts as f32;
-                wg_outcome.ping_ips_performance_v4 =
-                    netstack_response_v4.received_ips as f32 / netstack_response_v4.sent_ips as f32;
+    // Merge tunnel test results into outcome
+    wg_outcome.can_query_metadata_v4 = tunnel_results.can_query_metadata_v4;
+    wg_outcome.can_handshake_v4 = tunnel_results.can_handshake_v4;
+    wg_outcome.can_resolve_dns_v4 = tunnel_results.can_resolve_dns_v4;
+    wg_outcome.ping_hosts_performance_v4 = tunnel_results.ping_hosts_performance_v4;
+    wg_outcome.ping_ips_performance_v4 = tunnel_results.ping_ips_performance_v4;
+    wg_outcome.download_duration_sec_v4 = tunnel_results.download_duration_sec_v4;
+    wg_outcome.download_duration_milliseconds_v4 = tunnel_results.download_duration_milliseconds_v4;
+    wg_outcome.downloaded_file_size_bytes_v4 = tunnel_results.downloaded_file_size_bytes_v4;
+    wg_outcome.downloaded_file_v4 = tunnel_results.downloaded_file_v4.clone();
+    wg_outcome.download_error_v4 = tunnel_results.download_error_v4.clone();
 
-                wg_outcome.download_duration_sec_v4 = netstack_response_v4.download_duration_sec;
-                wg_outcome.download_duration_milliseconds_v4 =
-                    netstack_response_v4.download_duration_milliseconds;
-                wg_outcome.downloaded_file_size_bytes_v4 =
-                    netstack_response_v4.downloaded_file_size_bytes;
-                wg_outcome.downloaded_file_v4 = netstack_response_v4.downloaded_file;
-                wg_outcome.download_error_v4 = netstack_response_v4.download_error;
-            }
-            Ok(NetstackResult::Error { error }) => {
-                error!("Netstack runtime error: {error}")
-            }
-            Err(error) => {
-                error!("Internal error: {error}")
-            }
-        }
-
-        // Perform IPv6 ping test
-        let ipv6_request = NetstackRequestGo::from_rust_v6(&netstack_request);
-
-        match netstack::ping(&ipv6_request) {
-            Ok(NetstackResult::Response(netstack_response_v6)) => {
-                info!(
-                    "Wireguard probe response for IPv6: {:#?}",
-                    netstack_response_v6
-                );
-                wg_outcome.can_handshake_v6 = netstack_response_v6.can_handshake;
-                wg_outcome.can_resolve_dns_v6 = netstack_response_v6.can_resolve_dns;
-                wg_outcome.ping_hosts_performance_v6 = netstack_response_v6.received_hosts as f32
-                    / netstack_response_v6.sent_hosts as f32;
-                wg_outcome.ping_ips_performance_v6 =
-                    netstack_response_v6.received_ips as f32 / netstack_response_v6.sent_ips as f32;
-
-                wg_outcome.download_duration_sec_v6 = netstack_response_v6.download_duration_sec;
-                wg_outcome.download_duration_milliseconds_v6 =
-                    netstack_response_v6.download_duration_milliseconds;
-                wg_outcome.downloaded_file_size_bytes_v6 =
-                    netstack_response_v6.downloaded_file_size_bytes;
-                wg_outcome.downloaded_file_v6 = netstack_response_v6.downloaded_file;
-                wg_outcome.download_error_v6 = netstack_response_v6.download_error;
-            }
-            Ok(NetstackResult::Error { error }) => {
-                error!("Netstack runtime error: {error}")
-            }
-            Err(error) => {
-                error!("Internal error: {error}")
-            }
-        }
-    }
+    wg_outcome.can_handshake_v6 = tunnel_results.can_handshake_v6;
+    wg_outcome.can_resolve_dns_v6 = tunnel_results.can_resolve_dns_v6;
+    wg_outcome.ping_hosts_performance_v6 = tunnel_results.ping_hosts_performance_v6;
+    wg_outcome.ping_ips_performance_v6 = tunnel_results.ping_ips_performance_v6;
+    wg_outcome.download_duration_sec_v6 = tunnel_results.download_duration_sec_v6;
+    wg_outcome.download_duration_milliseconds_v6 = tunnel_results.download_duration_milliseconds_v6;
+    wg_outcome.downloaded_file_size_bytes_v6 = tunnel_results.downloaded_file_size_bytes_v6;
+    wg_outcome.downloaded_file_v6 = tunnel_results.downloaded_file_v6.clone();
+    wg_outcome.download_error_v6 = tunnel_results.download_error_v6.clone();
 
     Ok(wg_outcome)
 }
@@ -1426,85 +1299,38 @@ where
     info!("  Private IPv6: {}", exit_gateway_data.private_ipv6);
     info!("  Endpoint: {}", wg_endpoint);
 
-    // Run tunnel tests (copied from wg_probe)
-    let netstack_request = crate::netstack::NetstackRequest::new(
-        &exit_gateway_data.private_ipv4.to_string(),
-        &exit_gateway_data.private_ipv6.to_string(),
-        &private_key_hex,
-        &public_key_hex,
-        &wg_endpoint,
-        &format!("http://{WG_TUN_DEVICE_IP_ADDRESS_V4}:{WG_METADATA_PORT}"),
-        netstack_args.netstack_download_timeout_sec,
-        &awg_args,
-        netstack_args,
+    // Run tunnel connectivity tests using shared helper
+    let tunnel_config = common::WgTunnelConfig::new(
+        exit_gateway_data.private_ipv4.to_string(),
+        exit_gateway_data.private_ipv6.to_string(),
+        private_key_hex,
+        public_key_hex,
+        wg_endpoint,
     );
 
-    // Perform IPv4 ping test
-    info!("Testing IPv4 tunnel connectivity...");
-    let ipv4_request = crate::netstack::NetstackRequestGo::from_rust_v4(&netstack_request);
+    let tunnel_results = common::run_tunnel_tests(&tunnel_config, &netstack_args, &awg_args);
 
-    match crate::netstack::ping(&ipv4_request) {
-        Ok(NetstackResult::Response(netstack_response_v4)) => {
-            info!(
-                "Wireguard probe response for IPv4: {:#?}",
-                netstack_response_v4
-            );
-            wg_outcome.can_query_metadata_v4 = netstack_response_v4.can_query_metadata;
-            wg_outcome.can_handshake_v4 = netstack_response_v4.can_handshake;
-            wg_outcome.can_resolve_dns_v4 = netstack_response_v4.can_resolve_dns;
-            wg_outcome.ping_hosts_performance_v4 =
-                netstack_response_v4.received_hosts as f32 / netstack_response_v4.sent_hosts as f32;
-            wg_outcome.ping_ips_performance_v4 =
-                netstack_response_v4.received_ips as f32 / netstack_response_v4.sent_ips as f32;
+    // Merge tunnel test results into outcome
+    wg_outcome.can_query_metadata_v4 = tunnel_results.can_query_metadata_v4;
+    wg_outcome.can_handshake_v4 = tunnel_results.can_handshake_v4;
+    wg_outcome.can_resolve_dns_v4 = tunnel_results.can_resolve_dns_v4;
+    wg_outcome.ping_hosts_performance_v4 = tunnel_results.ping_hosts_performance_v4;
+    wg_outcome.ping_ips_performance_v4 = tunnel_results.ping_ips_performance_v4;
+    wg_outcome.download_duration_sec_v4 = tunnel_results.download_duration_sec_v4;
+    wg_outcome.download_duration_milliseconds_v4 = tunnel_results.download_duration_milliseconds_v4;
+    wg_outcome.downloaded_file_size_bytes_v4 = tunnel_results.downloaded_file_size_bytes_v4;
+    wg_outcome.downloaded_file_v4 = tunnel_results.downloaded_file_v4.clone();
+    wg_outcome.download_error_v4 = tunnel_results.download_error_v4.clone();
 
-            wg_outcome.download_duration_sec_v4 = netstack_response_v4.download_duration_sec;
-            wg_outcome.download_duration_milliseconds_v4 =
-                netstack_response_v4.download_duration_milliseconds;
-            wg_outcome.downloaded_file_size_bytes_v4 =
-                netstack_response_v4.downloaded_file_size_bytes;
-            wg_outcome.downloaded_file_v4 = netstack_response_v4.downloaded_file;
-            wg_outcome.download_error_v4 = netstack_response_v4.download_error;
-        }
-        Ok(NetstackResult::Error { error }) => {
-            error!("Netstack runtime error (IPv4): {error}")
-        }
-        Err(error) => {
-            error!("Internal error (IPv4): {error}")
-        }
-    }
-
-    // Perform IPv6 ping test
-    info!("Testing IPv6 tunnel connectivity...");
-    let ipv6_request = crate::netstack::NetstackRequestGo::from_rust_v6(&netstack_request);
-
-    match crate::netstack::ping(&ipv6_request) {
-        Ok(NetstackResult::Response(netstack_response_v6)) => {
-            info!(
-                "Wireguard probe response for IPv6: {:#?}",
-                netstack_response_v6
-            );
-            wg_outcome.can_handshake_v6 = netstack_response_v6.can_handshake;
-            wg_outcome.can_resolve_dns_v6 = netstack_response_v6.can_resolve_dns;
-            wg_outcome.ping_hosts_performance_v6 =
-                netstack_response_v6.received_hosts as f32 / netstack_response_v6.sent_hosts as f32;
-            wg_outcome.ping_ips_performance_v6 =
-                netstack_response_v6.received_ips as f32 / netstack_response_v6.sent_ips as f32;
-
-            wg_outcome.download_duration_sec_v6 = netstack_response_v6.download_duration_sec;
-            wg_outcome.download_duration_milliseconds_v6 =
-                netstack_response_v6.download_duration_milliseconds;
-            wg_outcome.downloaded_file_size_bytes_v6 =
-                netstack_response_v6.downloaded_file_size_bytes;
-            wg_outcome.downloaded_file_v6 = netstack_response_v6.downloaded_file;
-            wg_outcome.download_error_v6 = netstack_response_v6.download_error;
-        }
-        Ok(NetstackResult::Error { error }) => {
-            error!("Netstack runtime error (IPv6): {error}")
-        }
-        Err(error) => {
-            error!("Internal error (IPv6): {error}")
-        }
-    }
+    wg_outcome.can_handshake_v6 = tunnel_results.can_handshake_v6;
+    wg_outcome.can_resolve_dns_v6 = tunnel_results.can_resolve_dns_v6;
+    wg_outcome.ping_hosts_performance_v6 = tunnel_results.ping_hosts_performance_v6;
+    wg_outcome.ping_ips_performance_v6 = tunnel_results.ping_ips_performance_v6;
+    wg_outcome.download_duration_sec_v6 = tunnel_results.download_duration_sec_v6;
+    wg_outcome.download_duration_milliseconds_v6 = tunnel_results.download_duration_milliseconds_v6;
+    wg_outcome.downloaded_file_size_bytes_v6 = tunnel_results.downloaded_file_size_bytes_v6;
+    wg_outcome.downloaded_file_v6 = tunnel_results.downloaded_file_v6.clone();
+    wg_outcome.download_error_v6 = tunnel_results.download_error_v6.clone();
 
     info!("LP-based WireGuard probe completed");
     Ok(wg_outcome)

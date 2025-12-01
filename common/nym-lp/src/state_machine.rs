@@ -14,6 +14,7 @@ use crate::{
 use bytes::BytesMut;
 use nym_crypto::asymmetric::ed25519;
 use std::mem;
+use tracing::debug;
 
 /// Represents the possible states of the Lewes Protocol connection.
 #[derive(Debug, Default)]
@@ -594,6 +595,15 @@ impl LpStateMachine {
                                      }
                                  }
                              }
+                         }
+                         // AIDEV-NOTE: Stale abort in Transport state - race already resolved.
+                         // This can happen if abort arrives after loser already returned to Transport
+                         // via KK1 processing (loser detected local < remote and became responder).
+                         // The winner's abort message arrived late. Silently ignore.
+                         LpMessage::SubsessionAbort => {
+                             debug!("Ignoring stale SubsessionAbort in Transport state");
+                             result_action = None;
+                             LpState::Transport { session }
                          }
                          _ => {
                              // Unexpected message type in Transport state

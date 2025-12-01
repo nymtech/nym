@@ -258,7 +258,10 @@ pub(crate) async fn run() -> anyhow::Result<ProbeResult> {
         info!("Test mode: {}", test_mode);
 
         // Convert back to flags for backward compatibility with existing probe methods
-        let (only_wireguard, only_lp_registration, test_lp_wg) = mode_to_flags(test_mode);
+        // AIDEV-NOTE: only_wireguard is preserved from args since it's orthogonal to mode
+        // (it means "skip ping tests" in mixnet mode, irrelevant for LP modes)
+        let (_, only_lp_registration, test_lp_wg) = mode_to_flags(test_mode);
+        let only_wireguard = args.only_wireguard;
 
         let mut trial = nym_gateway_probe::Probe::new_localnet(
             entry_details,
@@ -377,7 +380,9 @@ pub(crate) async fn run() -> anyhow::Result<ProbeResult> {
     info!("Test mode: {}", test_mode);
 
     // Convert back to flags for backward compatibility with existing probe methods
-    let (only_wireguard, only_lp_registration, test_lp_wg) = mode_to_flags(test_mode);
+    // AIDEV-NOTE: only_wireguard is preserved from args since it's orthogonal to mode
+    let (_, only_lp_registration, test_lp_wg) = mode_to_flags(test_mode);
+    let only_wireguard = args.only_wireguard;
 
     let mut trial = if let (Some(entry_node), Some(exit_node)) = (&gateway_node, &exit_gateway_node) {
         // Both entry and exit gateways provided (for LP telescoping tests)

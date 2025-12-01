@@ -13,6 +13,15 @@ use crate::netstack::{NetstackRequest, NetstackRequestGo, NetstackResult};
 use crate::types::WgProbeResults;
 use crate::NetstackArgs;
 
+/// Safe division that returns 0.0 when divisor is 0 (instead of NaN/Inf)
+fn safe_ratio(received: u16, sent: u16) -> f32 {
+    if sent == 0 {
+        0.0
+    } else {
+        received as f32 / sent as f32
+    }
+}
+
 /// WireGuard tunnel configuration for netstack testing.
 ///
 /// Contains all the parameters needed to establish and test a WireGuard tunnel.
@@ -55,21 +64,22 @@ impl WgTunnelConfig {
 /// - ICMP ping to specified hosts and IPs
 /// - Optional download test
 ///
+/// Results are written directly into the provided `wg_outcome` to avoid field-by-field
+/// copying at call sites.
+///
 /// # Arguments
 /// * `config` - WireGuard tunnel configuration
 /// * `netstack_args` - Netstack test parameters (DNS, hosts to ping, timeouts, etc.)
 /// * `awg_args` - Amnezia WireGuard arguments (empty string for standard WG)
-///
-/// # Returns
-/// `WgProbeResults` with the test outcomes for both IPv4 and IPv6.
+/// * `wg_outcome` - Mutable reference to write test results into
 // AIDEV-NOTE: This function extracts the shared netstack testing logic from
 // wg_probe() and wg_probe_lp() to eliminate code duplication.
 pub fn run_tunnel_tests(
     config: &WgTunnelConfig,
     netstack_args: &NetstackArgs,
     awg_args: &str,
-) -> WgProbeResults {
-    let mut wg_outcome = WgProbeResults::default();
+    wg_outcome: &mut WgProbeResults,
+) {
 
     // Build the netstack request
     let netstack_request = NetstackRequest::new(
@@ -97,12 +107,14 @@ pub fn run_tunnel_tests(
             wg_outcome.can_query_metadata_v4 = netstack_response_v4.can_query_metadata;
             wg_outcome.can_handshake_v4 = netstack_response_v4.can_handshake;
             wg_outcome.can_resolve_dns_v4 = netstack_response_v4.can_resolve_dns;
-            // AIDEV-NOTE: Division by zero is possible here if sent_hosts/sent_ips is 0.
-            // This matches existing behavior; consider adding guards in a follow-up.
-            wg_outcome.ping_hosts_performance_v4 =
-                netstack_response_v4.received_hosts as f32 / netstack_response_v4.sent_hosts as f32;
-            wg_outcome.ping_ips_performance_v4 =
-                netstack_response_v4.received_ips as f32 / netstack_response_v4.sent_ips as f32;
+            wg_outcome.ping_hosts_performance_v4 = safe_ratio(
+                netstack_response_v4.received_hosts,
+                netstack_response_v4.sent_hosts,
+            );
+            wg_outcome.ping_ips_performance_v4 = safe_ratio(
+                netstack_response_v4.received_ips,
+                netstack_response_v4.sent_ips,
+            );
 
             wg_outcome.download_duration_sec_v4 = netstack_response_v4.download_duration_sec;
             wg_outcome.download_duration_milliseconds_v4 =
@@ -132,11 +144,14 @@ pub fn run_tunnel_tests(
             );
             wg_outcome.can_handshake_v6 = netstack_response_v6.can_handshake;
             wg_outcome.can_resolve_dns_v6 = netstack_response_v6.can_resolve_dns;
-            // AIDEV-NOTE: Same division by zero concern as IPv4
-            wg_outcome.ping_hosts_performance_v6 =
-                netstack_response_v6.received_hosts as f32 / netstack_response_v6.sent_hosts as f32;
-            wg_outcome.ping_ips_performance_v6 =
-                netstack_response_v6.received_ips as f32 / netstack_response_v6.sent_ips as f32;
+            wg_outcome.ping_hosts_performance_v6 = safe_ratio(
+                netstack_response_v6.received_hosts,
+                netstack_response_v6.sent_hosts,
+            );
+            wg_outcome.ping_ips_performance_v6 = safe_ratio(
+                netstack_response_v6.received_ips,
+                netstack_response_v6.sent_ips,
+            );
 
             wg_outcome.download_duration_sec_v6 = netstack_response_v6.download_duration_sec;
             wg_outcome.download_duration_milliseconds_v6 =
@@ -153,6 +168,4 @@ pub fn run_tunnel_tests(
             error!("Internal error (IPv6): {error}")
         }
     }
-
-    wg_outcome
 }

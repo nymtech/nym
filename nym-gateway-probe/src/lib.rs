@@ -1020,29 +1020,7 @@ async fn wg_probe(
         wg_endpoint,
     );
 
-    let tunnel_results = common::run_tunnel_tests(&tunnel_config, &netstack_args, &awg_args);
-
-    // Merge tunnel test results into outcome
-    wg_outcome.can_query_metadata_v4 = tunnel_results.can_query_metadata_v4;
-    wg_outcome.can_handshake_v4 = tunnel_results.can_handshake_v4;
-    wg_outcome.can_resolve_dns_v4 = tunnel_results.can_resolve_dns_v4;
-    wg_outcome.ping_hosts_performance_v4 = tunnel_results.ping_hosts_performance_v4;
-    wg_outcome.ping_ips_performance_v4 = tunnel_results.ping_ips_performance_v4;
-    wg_outcome.download_duration_sec_v4 = tunnel_results.download_duration_sec_v4;
-    wg_outcome.download_duration_milliseconds_v4 = tunnel_results.download_duration_milliseconds_v4;
-    wg_outcome.downloaded_file_size_bytes_v4 = tunnel_results.downloaded_file_size_bytes_v4;
-    wg_outcome.downloaded_file_v4 = tunnel_results.downloaded_file_v4.clone();
-    wg_outcome.download_error_v4 = tunnel_results.download_error_v4.clone();
-
-    wg_outcome.can_handshake_v6 = tunnel_results.can_handshake_v6;
-    wg_outcome.can_resolve_dns_v6 = tunnel_results.can_resolve_dns_v6;
-    wg_outcome.ping_hosts_performance_v6 = tunnel_results.ping_hosts_performance_v6;
-    wg_outcome.ping_ips_performance_v6 = tunnel_results.ping_ips_performance_v6;
-    wg_outcome.download_duration_sec_v6 = tunnel_results.download_duration_sec_v6;
-    wg_outcome.download_duration_milliseconds_v6 = tunnel_results.download_duration_milliseconds_v6;
-    wg_outcome.downloaded_file_size_bytes_v6 = tunnel_results.downloaded_file_size_bytes_v6;
-    wg_outcome.downloaded_file_v6 = tunnel_results.downloaded_file_v6.clone();
-    wg_outcome.download_error_v6 = tunnel_results.download_error_v6.clone();
+    common::run_tunnel_tests(&tunnel_config, &netstack_args, &awg_args, &mut wg_outcome);
 
     Ok(wg_outcome)
 }
@@ -1325,29 +1303,7 @@ where
         wg_endpoint,
     );
 
-    let tunnel_results = common::run_tunnel_tests(&tunnel_config, &netstack_args, &awg_args);
-
-    // Merge tunnel test results into outcome
-    wg_outcome.can_query_metadata_v4 = tunnel_results.can_query_metadata_v4;
-    wg_outcome.can_handshake_v4 = tunnel_results.can_handshake_v4;
-    wg_outcome.can_resolve_dns_v4 = tunnel_results.can_resolve_dns_v4;
-    wg_outcome.ping_hosts_performance_v4 = tunnel_results.ping_hosts_performance_v4;
-    wg_outcome.ping_ips_performance_v4 = tunnel_results.ping_ips_performance_v4;
-    wg_outcome.download_duration_sec_v4 = tunnel_results.download_duration_sec_v4;
-    wg_outcome.download_duration_milliseconds_v4 = tunnel_results.download_duration_milliseconds_v4;
-    wg_outcome.downloaded_file_size_bytes_v4 = tunnel_results.downloaded_file_size_bytes_v4;
-    wg_outcome.downloaded_file_v4 = tunnel_results.downloaded_file_v4.clone();
-    wg_outcome.download_error_v4 = tunnel_results.download_error_v4.clone();
-
-    wg_outcome.can_handshake_v6 = tunnel_results.can_handshake_v6;
-    wg_outcome.can_resolve_dns_v6 = tunnel_results.can_resolve_dns_v6;
-    wg_outcome.ping_hosts_performance_v6 = tunnel_results.ping_hosts_performance_v6;
-    wg_outcome.ping_ips_performance_v6 = tunnel_results.ping_ips_performance_v6;
-    wg_outcome.download_duration_sec_v6 = tunnel_results.download_duration_sec_v6;
-    wg_outcome.download_duration_milliseconds_v6 = tunnel_results.download_duration_milliseconds_v6;
-    wg_outcome.downloaded_file_size_bytes_v6 = tunnel_results.downloaded_file_size_bytes_v6;
-    wg_outcome.downloaded_file_v6 = tunnel_results.downloaded_file_v6.clone();
-    wg_outcome.download_error_v6 = tunnel_results.download_error_v6.clone();
+    common::run_tunnel_tests(&tunnel_config, &netstack_args, &awg_args, &mut wg_outcome);
 
     info!("LP-based WireGuard probe completed");
     Ok(wg_outcome)

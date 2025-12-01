@@ -1,6 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use anyhow::bail;
 use clap::{Parser, Subcommand};
 use nym_bin_common::bin_info;
 use nym_config::defaults::setup_env;
@@ -255,6 +256,15 @@ pub(crate) async fn run() -> anyhow::Result<ProbeResult> {
             args.test_lp_wg,
             has_exit,
         )?;
+
+        // Validate that two-hop mode has required exit gateway
+        if test_mode.needs_exit_gateway() && !has_exit {
+            bail!(
+                "--mode two-hop requires exit gateway \
+                (use --exit-gateway-identity and --exit-lp-address)"
+            );
+        }
+
         info!("Test mode: {}", test_mode);
 
         // Convert back to flags for backward compatibility with existing probe methods

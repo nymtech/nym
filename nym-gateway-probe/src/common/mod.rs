@@ -5,9 +5,7 @@
 //!
 //! This module contains shared functionality used by multiple test modes:
 //! - WireGuard tunnel testing via netstack
-//! - LP registration helpers
-//! - Credential handling
 
 pub mod wireguard;
 
-pub use wireguard::{WgTunnelConfig, run_tunnel_tests};
+pub use wireguard::{run_tunnel_tests, WgTunnelConfig};

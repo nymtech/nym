@@ -167,6 +167,10 @@ pub struct HickoryDnsResolver {
     ns_ip_ver_policy: NameServerIpVersionPolicy,
     /// Current options used by the resolver and used for rebuilding on preference change.
     current_options: Option<ResolverOpts>,
+
+    /// Set of nameservers used for this resolver before any filtering is applied. Used internally
+    /// and for testing.
+    default_nameserver_config_group: NameServerConfigGroup,
 }
 
 impl Default for HickoryDnsResolver {
@@ -180,6 +184,7 @@ impl Default for HickoryDnsResolver {
             static_base: Some(Default::default()),
             static_base_first: false,
             overall_dns_timeout: DEFAULT_OVERALL_LOOKUP_TIMEOUT,
+            default_nameserver_config_group: default_nameserver_group(),
         }
     }
 }
@@ -517,11 +522,9 @@ impl HickoryDnsResolver {
     }
 
     /// Do a trial resolution using each nameserver individually to test which are working and which
-    /// fail to complete a lookup.
+    /// fail to complete a lookup. This will always try the full set of default configured resolvers.
     pub async fn trial_nameservers(&self) -> Result<(), ResolveError> {
-        let name_servers = self.get_nameservers()?;
-
-        for (ns, result) in trial_nameservers_inner(&name_servers).await {
+        for (ns, result) in trial_nameservers_inner(&self.default_nameserver_config_group).await {
             if let Err(e) = result {
                 warn!("trial {ns:?} errored: {e}");
             } else {
@@ -531,37 +534,17 @@ impl HickoryDnsResolver {
         Ok(())
     }
 
-    fn get_nameservers(&self) -> Result<Vec<NameServerConfig>, ResolveError> {
-        if !self.dont_use_shared {
-            return SHARED_RESOLVER.read().unwrap().get_nameservers();
-        };
-        let name_servers = self
-            .state
-            .get_or_try_init(|| {
-                HickoryDnsResolver::new_resolver(
-                    self.dont_use_shared,
-                    self.ns_ip_ver_policy,
-                    self.current_options.clone(),
-                )
-            })?
-            .config()
-            .name_servers()
-            .to_vec();
-
-        Ok(name_servers)
-    }
-
     /// Do a trial resolution using each nameserver individually to test which are working and which
     /// fail to complete a lookup. If one or more of the resolutions succeeds, rebuild the resolver
     /// using only the nameservers that successfully completed the lookup.
     ///
+    /// This will always try the full set of default configured resolvers.
+    ///
     /// If no nameservers successfully complete the lookup return an error and leave the current
     /// configured resolver set as is.
     pub async fn trial_nameservers_and_reconfigure(&mut self) -> Result<(), ResolveError> {
-        let name_servers = self.get_nameservers()?;
-
         let mut working_nameservers = Vec::new();
-        for (ns, result) in trial_nameservers_inner(&name_servers).await {
+        for (ns, result) in trial_nameservers_inner(&self.default_nameserver_config_group).await {
             if let Err(e) = result {
                 warn!("trial {ns:?} errored: {e}");
             } else {
@@ -1190,12 +1173,22 @@ mod failure_test {
 
     #[tokio::test]
     async fn trial_nameservers_reconfigure_none_working() {
+        let broken_ns_group = NameServerConfigGroup::from_ips_https(
+            GUARANTEED_BROKEN_IPS_1,
+            443,
+            "cloudflare-dns.com".to_string(),
+            true,
+        );
+
+        let inner = configure_and_build_resolver(broken_ns_group.clone(), None).unwrap();
+
         // create a new resolver that won't mess with the shared resolver used by other tests
         let mut resolver = HickoryDnsResolver {
             dont_use_shared: true,
-            state: Arc::new(OnceCell::with_value(build_broken_resolver().unwrap())),
+            state: Arc::new(OnceCell::with_value(inner)),
             static_base: Some(Default::default()),
             overall_dns_timeout: Duration::from_secs(5),
+            default_nameserver_config_group: broken_ns_group,
             ..Default::default()
         };
 
@@ -1219,13 +1212,14 @@ mod failure_test {
             true,
         );
 
-        let inner = configure_and_build_resolver(broken_ns_https, None).unwrap();
+        let inner = configure_and_build_resolver(broken_ns_https.clone(), None).unwrap();
 
         // create a new resolver that won't mess with the shared resolver used by other tests
         let mut resolver = HickoryDnsResolver {
             dont_use_shared: true,
             state: Arc::new(OnceCell::with_value(inner)),
             static_base: Some(Default::default()),
+            default_nameserver_config_group: broken_ns_https,
             ..Default::default()
         };
 

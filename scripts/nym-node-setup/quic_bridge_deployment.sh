@@ -60,16 +60,27 @@ NYM_ETC_BRIDGES="$NYM_ETC_DIR/bridges.toml"
 NYM_ETC_CLIENT_PARAMS_DEFAULT="$NYM_ETC_DIR/client_bridge_params.json"
 SERVICE_FILE="/etc/systemd/system/nym-bridge.service"
 
-NET_DEV="${IPV4_UPLINK_DEV:-}"
-if [[ -z "$NET_DEV" ]]; then
-  NET_DEV="$(ip -o route show default 2>/dev/null | awk '{print $5}' | head -n1)"
-  [[ -z "$NET_DEV" ]] && NET_DEV="$(ip -o route show default table all 2>/dev/null | awk '{print $5}' | head -n1)"
+NET4_DEV="${IPV4_UPLINK_DEV:-}"
+if [[ -z "$NET4_DEV" ]]; then
+  NET4_DEV="$(ip -o route show default 2>/dev/null | awk '{print $5}' | head -n1)"
+  [[ -z "$NET4_DEV" ]] && NET4_DEV="$(ip -4 -o route get "$(getent ahostsv4 "ifconfig.co" | awk '$2=="STREAM" {print $1}' | head -n1)" 2>/dev/null | awk '{print $5}')"
 fi
-if [[ -z "$NET_DEV" ]]; then
+if [[ -z "$NET4_DEV" ]]; then
   echo -e "${RED}Cannot determine uplink interface. Set IPV4_UPLINK_DEV.${RESET}" | tee -a "$LOG_FILE"
   exit 1
 fi
-echo "Using uplink device: $NET_DEV"
+echo "Using ipv4 uplink device: $NET4_DEV"
+
+NET6_DEV="${IPV6_UPLINK_DEV:-}"
+if [[ -z "$NET6_DEV" ]]; then
+  NET6_DEV="$(ip -o route show default 2>/dev/null | awk '{print $5}' | head -n1)"
+  [[ -z "$NET6_DEV" ]] && NET6_DEV="$(ip -6 -o route get "$(getent ahostsv6 "ifconfig.co" | awk '$2=="STREAM" {print $1}' | head -n1)" 2>/dev/null | awk '{print $5}')"
+fi
+if [[ -z "$NET6_DEV" ]]; then
+  echo -e "${RED}Cannot determine uplink interface. Set IPV6_UPLINK_DEV.${RESET}" | tee -a "$LOG_FILE"
+  exit 1
+fi
+echo "Using ipv6 uplink device: $NET6_DEV"
 
 WG_IFACE="nymwg"
 
@@ -454,7 +465,7 @@ EOF
 apply_bridge_iptables_rules() {
   title "Checking iptables rules for bridge routing"
 
-  echo "Inspecting current iptables state for interface ${WG_IFACE} and uplink ${NET_DEV}."
+  echo "Inspecting current iptables state for interface ${WG_IFACE} and uplink ${NET4_DEV}."
   echo
 
   echo "IPv4 FORWARD:"
@@ -463,6 +474,10 @@ apply_bridge_iptables_rules() {
   echo "IPv4 NAT POSTROUTING:"
   iptables -t nat -L POSTROUTING -n -v 2>/dev/null | sed -n '1,20p' || true
   echo
+
+  echo "Inspecting current ip6tables state for interface ${WG_IFACE} and uplink ${NET6_DEV}."
+  echo
+
   echo "IPv6 FORWARD:"
   ip6tables -L FORWARD -n -v 2>/dev/null | sed -n '1,20p' || true
   echo

@@ -23,6 +23,9 @@ dev-db: test-db-up test-db-wait test-db-migrate ## Start PostgreSQL for developm
 	@echo "PostgreSQL is running on port 5433"
 	@echo "Connection string: $(TEST_DATABASE_URL)"
 
+.PHONY: dev-db-restart
+dev-db-restart: clean-db dev-db
+
 # --- Docker Compose Targets ---
 .PHONY: test-db-up
 test-db-up: ## Start the PostgreSQL test database in the background

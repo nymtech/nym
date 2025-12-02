@@ -50,6 +50,7 @@ make build-pg          # Build with PostgreSQL
 make psql              # Connect to running PostgreSQL
 make clean             # Clean build artifacts
 make clean-db          # Stop database and clean volumes
+make dev-db-restart    # Stop database, clean volumes, rebuild test database and restart
 ```
 
 ## Environment Variables

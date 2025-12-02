@@ -1,6 +1,6 @@
 [package]
 name = "nym-service-providers-common"
-version = "0.1.0"
+version.workspace = true
 edition = "2021"
 license.workspace = true
 
@@ -23,4 +23,3 @@ tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
 
 nym-sdk = { path = "../../sdk/rust/nym-sdk" }
 nym-socks5-requests = { path = "../../common/socks5/requests" }
-

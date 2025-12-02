@@ -1,6 +1,6 @@
 [package]
 name = "nym-sphinx-params"
-version = "0.1.0"
+version.workspace = true
 description = "Sphinx packet parameters for the Nym mixnet"
 edition = { workspace = true }
 authors = { workspace = true }

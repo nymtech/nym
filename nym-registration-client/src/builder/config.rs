@@ -55,12 +55,12 @@ pub struct MixnetClientConfig {
     /// The minimum performance of gateways to use.
     pub min_gateway_performance: Option<u8>,
     ///Setting optionally the poisson rate for cover traffic stream
-    pub poisson_rate: Option<f32>,
+    pub poisson_rate: Option<u32>,
     /// Average packet delay in milliseconds.
-    pub average_packet_delay: Option<f32>,
+    pub average_packet_delay: Option<u32>,
 
     /// Average message sending delay in milliseconds.
-    pub message_sending_average_delay: Option<f32>,
+    pub message_sending_average_delay: Option<u32>,
 }
 
 impl BuilderConfig {

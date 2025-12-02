@@ -81,17 +81,12 @@ CREATE TABLE message
 
     funds                       COIN[] DEFAULT '{}',
 
-    wasm_sender                 TEXT,
-    wasm_contract_address       TEXT,
-    wasm_message_type           TEXT,
-
     FOREIGN KEY (transaction_hash) REFERENCES transaction (hash),
     CONSTRAINT unique_message_per_tx UNIQUE (transaction_hash, index)
 );
 CREATE INDEX message_transaction_hash_index ON message (transaction_hash);
 CREATE INDEX message_type_index ON message (type);
 CREATE INDEX message_involved_accounts_index ON message USING GIN (involved_accounts_addresses);
-CREATE INDEX message_wasm_contract_message_type_index ON message (wasm_message_type);
 
 /**
  * This function is used to find all the utils that involve any of the given addresses and have

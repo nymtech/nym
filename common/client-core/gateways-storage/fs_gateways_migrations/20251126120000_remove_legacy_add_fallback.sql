@@ -18,5 +18,5 @@ INSERT INTO remote_gateway_details_temp SELECT gateway_id_bs58, derived_aes256_g
 DROP TABLE remote_gateway_details;
 ALTER TABLE remote_gateway_details_temp RENAME TO remote_gateway_details;
 
--- delete others
-DELETE FROM registered_gateway WHERE gateway_id_bs58 IN ( SELECT gateway_id_bs58 FROM remote_gateway_details WHERE derived_aes256_gcm_siv_key IS NULL);
+-- delete registrations with no key
+DELETE FROM registered_gateway WHERE gateway_id_bs58 NOT IN ( SELECT gateway_id_bs58 FROM remote_gateway_details);

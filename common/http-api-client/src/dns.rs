@@ -190,6 +190,14 @@ impl NsConfigGroupWithStatus {
     fn nameserver_configs(&self) -> Vec<NameServerConfig> {
         self.inner.iter().map(|(cfg, _)| cfg.clone()).collect()
     }
+
+    fn active_nameserver_configs(&self) -> Vec<NameServerConfig> {
+        self.inner
+            .iter()
+            .filter(|(_, status)| matches!(status, NsStatus::Untested | NsStatus::Working(_)))
+            .map(|(cfg, _)| cfg.clone())
+            .collect()
+    }
 }
 
 impl From<&[NameServerConfig]> for NsConfigGroupWithStatus {
@@ -220,7 +228,7 @@ impl From<NameServerConfigGroup> for NsConfigGroupWithStatus {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 enum NsStatus {
     Untested,
     Working(Instant),
@@ -555,6 +563,46 @@ impl HickoryDnsResolver {
         self.force_primary_rebuild();
     }
 
+    /// Get the list of currently available nameserver configs. This includes nameservers that are
+    /// available, but unused because of a filter function -- for example [`Self::set_ipv4_only`]
+    /// would cause available IPv6 nameservers to be unused, but this function WOULD
+    /// include them in the returned value anyways.
+    pub fn all_configured_name_servers(&self) -> Vec<NameServerConfig> {
+        self.default_nameserver_config_group.nameserver_configs()
+    }
+
+    /// Get the list of currently used nameserver configs. This excludes nameservers that are
+    /// available, but unused because of a filter function -- for example [`Self::set_ipv4_only`]
+    /// would cause available IPv6 nameservers to be unused meaning that this function would NOT
+    /// include them in the returned value.
+    pub fn active_name_servers(&self) -> Vec<NameServerConfig> {
+        if !self.dont_use_shared {
+            return SHARED_RESOLVER.read().unwrap().active_name_servers();
+        }
+        if let Some(r) = self.state.get() {
+            return r.config().name_servers().to_vec();
+        }
+        self.default_nameserver_config_group
+            .active_nameserver_configs()
+    }
+
+    /// Sets the available nameservers for use by this resolver to the provided list
+    ///
+    /// NOTE: Calling this function will rebuild the inner resolver which means that the
+    /// cached dns lookups will not carry over and will go to network to resolve again.
+    pub fn set_name_servers(&mut self, name_servers: impl AsRef<[NameServerConfig]>) {
+        self.default_nameserver_config_group =
+            NsConfigGroupWithStatus::from(name_servers.as_ref().to_vec());
+        self.force_primary_rebuild();
+
+        if !self.dont_use_shared {
+            SHARED_RESOLVER
+                .write()
+                .unwrap()
+                .set_name_servers(name_servers);
+        }
+    }
+
     fn default_options() -> ResolverOpts {
         let mut opts = ResolverOpts::default();
         // Always cache successful responses for queries received by this resolver for 30 min minimum.
@@ -567,10 +615,12 @@ impl HickoryDnsResolver {
     fn force_primary_rebuild(&mut self) {
         if !self.dont_use_shared {
             let mut resolver = SHARED_RESOLVER.write().unwrap();
-            *resolver = HickoryDnsResolver {
-                dont_use_shared: true,
-                ..Default::default()
-            }
+            // *resolver = HickoryDnsResolver {
+            //     dont_use_shared: true,
+            //     current_options: resolver.,
+            //     ..Default::default()
+            // }
+            (*resolver).state = Arc::new(OnceCell::new());
         }
         self.state = Arc::new(OnceCell::new());
     }
@@ -837,7 +887,7 @@ fn new_default_static_fallback() -> StaticResolver {
 mod test {
     use super::*;
     use itertools::Itertools;
-    use std::collections::HashMap;
+    use std::{collections::HashMap, net::Ipv4Addr};
 
     #[tokio::test]
     async fn reqwest_with_custom_dns() {
@@ -969,6 +1019,52 @@ mod test {
         // reset to default
         resolver.set_hostname_ip_version_lookup_strategy(HostnameIpLookupStrategy::A_then_AAAA);
         resolver.set_nameserver_ip_version_strategy(NameServerIpVersionPolicy::Ipv4AndIpv6);
+    }
+
+    #[test]
+    // ignore this test as changes to the shared resolver can cause unexpected behavior when
+    // interleaved with other tests
+    #[ignore]
+    fn set_nameservers_using_public_fn_for_shared() {
+        let mut resolver = HickoryDnsResolver::default();
+
+        // Try setting the set of nameservers to be cloudflare only
+        let new_ns_set = NameServerConfigGroup::cloudflare();
+        resolver.set_name_servers(new_ns_set.into_inner());
+
+        // check that our resolver instance contains a cloudflare address, and does not contain a
+        // quad9 address that it would contain by default if the assignment had failed.
+        assert!(
+            resolver
+                .all_configured_name_servers()
+                .iter()
+                .any(|cfg| cfg.socket_addr.ip() == IpAddr::V4(Ipv4Addr::new(1, 1, 1, 1)))
+        );
+        assert!(
+            resolver
+                .all_configured_name_servers()
+                .iter()
+                .all(|cfg| cfg.socket_addr.ip() != IpAddr::V4(Ipv4Addr::new(9, 9, 9, 9)))
+        );
+
+        // check that the shared resolver instance contains a cloudflare address, and does not
+        // contain a quad9 address that it would contain by default if the assignment had failed.
+        assert!(
+            SHARED_RESOLVER
+                .read()
+                .unwrap()
+                .all_configured_name_servers()
+                .iter()
+                .any(|cfg| cfg.socket_addr.ip() == IpAddr::V4(Ipv4Addr::new(1, 1, 1, 1)))
+        );
+        assert!(
+            SHARED_RESOLVER
+                .read()
+                .unwrap()
+                .all_configured_name_servers()
+                .iter()
+                .all(|cfg| cfg.socket_addr.ip() != IpAddr::V4(Ipv4Addr::new(9, 9, 9, 9)))
+        );
     }
 
     // /// Triple check that ip_strategy in ResolverOpts does NOT impact the IP version of the

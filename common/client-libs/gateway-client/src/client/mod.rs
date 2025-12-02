@@ -224,7 +224,7 @@ impl<C, St> GatewayClient<C, St> {
 
     #[cfg(target_arch = "wasm32")]
     pub async fn establish_connection(&mut self) -> Result<(), GatewayClientError> {
-        let ws_stream = match JSWebsocket::new(&self.gateway_addresses.primary.as_ref()) {
+        let ws_stream = match JSWebsocket::new(self.gateway_addresses.primary.as_ref()) {
             Ok(ws_stream) => ws_stream,
             Err(e) => {
                 return Err(GatewayClientError::NetworkErrorWasm(e));

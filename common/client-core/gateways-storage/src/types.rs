@@ -101,16 +101,6 @@ impl GatewayDetails {
         }
     }
 
-    // pub fn update_remote_listeners(&mut self, new_listeners: GatewayListeners) {
-    //     match self {
-    //         GatewayDetails::Remote(details) => {
-    //             details.gateway_listeners = new_listeners;
-    //             details.expiration_timestamp = OffsetDateTime::now_utc() + GATEWAY_DETAILS_TTL;
-    //         }
-    //         GatewayDetails::Custom(_) => {}
-    //     }
-    // }
-
     pub fn is_custom(&self) -> bool {
         matches!(self, GatewayDetails::Custom(..))
     }

@@ -15,11 +15,8 @@ CREATE TABLE remote_gateway_details_temp
 -- keep only registrations with a non null aes256 key
 INSERT INTO remote_gateway_details_temp SELECT gateway_id_bs58, derived_aes256_gcm_siv_key, gateway_listener, NULL, datetime(0, 'unixepoch') FROM remote_gateway_details WHERE derived_aes256_gcm_siv_key IS NOT NULL;
 
--- delete others
-DELETE FROM registered_gateway WHERE gateway_id_bs58 IN ( SELECT gateway_id_bs58 FROM remote_gateway_details WHERE derived_aes256_gcm_siv_key IS NULL);
-
 DROP TABLE remote_gateway_details;
 ALTER TABLE remote_gateway_details_temp RENAME TO remote_gateway_details;
 
-
-
+-- delete others
+DELETE FROM registered_gateway WHERE gateway_id_bs58 IN ( SELECT gateway_id_bs58 FROM remote_gateway_details WHERE derived_aes256_gcm_siv_key IS NULL);

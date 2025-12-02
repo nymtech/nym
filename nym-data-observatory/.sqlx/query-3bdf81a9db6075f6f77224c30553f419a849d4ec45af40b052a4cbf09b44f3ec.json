@@ -1,11 +1,11 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n                SELECT last_processed_height FROM metadata\n            ",
+  "query": "\n                SELECT last_pruned_height FROM pruning\n            ",
   "describe": {
     "columns": [
       {
         "ordinal": 0,
-        "name": "last_processed_height",
+        "name": "last_pruned_height",
         "type_info": "Int8"
       }
     ],
@@ -16,5 +16,5 @@
       false
     ]
   },
-  "hash": "c88d07fecc3f33deaa6e93db1469ce71582635df47f52dcf3fd1df4e7be6b96d"
+  "hash": "3bdf81a9db6075f6f77224c30553f419a849d4ec45af40b052a4cbf09b44f3ec"
 }

@@ -1,0 +1,19 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO block (height, hash, num_txs, total_gas, proposer_address, timestamp)\n            VALUES ($1, $2, $3, $4, $5, $6)\n            ON CONFLICT DO NOTHING\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Int4",
+        "Int8",
+        "Text",
+        "Timestamp"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "64a484fd46d8ec46797f944a4cced56b6e270ce186f0e49528865d1924343b78"
+}

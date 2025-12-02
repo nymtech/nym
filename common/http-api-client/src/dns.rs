@@ -63,7 +63,7 @@ use std::{
     net::{IpAddr, SocketAddr},
     str::FromStr,
     sync::{Arc, LazyLock, RwLock},
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 use hickory_resolver::{
@@ -168,9 +168,63 @@ pub struct HickoryDnsResolver {
     /// Current options used by the resolver and used for rebuilding on preference change.
     current_options: Option<ResolverOpts>,
 
-    /// Set of nameservers used for this resolver before any filtering is applied. Used internally
-    /// and for testing.
-    default_nameserver_config_group: NameServerConfigGroup,
+    /// Set of nameservers used for this resolver before any filtering is applied.
+    // Used internally and for testing.
+    default_nameserver_config_group: NsConfigGroupWithStatus,
+}
+
+#[derive(Debug, Clone)]
+struct NsConfigGroupWithStatus {
+    inner: Vec<(NameServerConfig, NsStatus)>,
+}
+
+impl NsConfigGroupWithStatus {
+    fn into_ns_group(self) -> NameServerConfigGroup {
+        self.inner
+            .iter()
+            .map(|entry| entry.0.clone())
+            .collect::<Vec<NameServerConfig>>()
+            .into()
+    }
+
+    fn nameserver_configs(&self) -> Vec<NameServerConfig> {
+        self.inner.iter().map(|(cfg, _)| cfg.clone()).collect()
+    }
+}
+
+impl From<&[NameServerConfig]> for NsConfigGroupWithStatus {
+    fn from(value: &[NameServerConfig]) -> Self {
+        let inner = value
+            .iter()
+            .map(|cfg| (cfg.clone(), NsStatus::Untested))
+            .collect();
+
+        Self { inner }
+    }
+}
+
+impl From<Vec<NameServerConfig>> for NsConfigGroupWithStatus {
+    fn from(value: Vec<NameServerConfig>) -> Self {
+        let inner = value
+            .iter()
+            .map(|cfg| (cfg.clone(), NsStatus::Untested))
+            .collect();
+
+        Self { inner }
+    }
+}
+
+impl From<NameServerConfigGroup> for NsConfigGroupWithStatus {
+    fn from(value: NameServerConfigGroup) -> Self {
+        Self::from(&value as &[NameServerConfig])
+    }
+}
+
+#[derive(Debug, Clone)]
+enum NsStatus {
+    Untested,
+    Working(Instant),
+    Failed(Instant),
 }
 
 impl Default for HickoryDnsResolver {
@@ -524,7 +578,8 @@ impl HickoryDnsResolver {
     /// Do a trial resolution using each nameserver individually to test which are working and which
     /// fail to complete a lookup. This will always try the full set of default configured resolvers.
     pub async fn trial_nameservers(&self) -> Result<(), ResolveError> {
-        for (ns, result) in trial_nameservers_inner(&self.default_nameserver_config_group).await {
+        let nameservers = self.default_nameserver_config_group.nameserver_configs();
+        for (ns, result) in trial_nameservers_inner(&nameservers).await {
             if let Err(e) = result {
                 warn!("trial {ns:?} errored: {e}");
             } else {
@@ -543,8 +598,10 @@ impl HickoryDnsResolver {
     /// If no nameservers successfully complete the lookup return an error and leave the current
     /// configured resolver set as is.
     pub async fn trial_nameservers_and_reconfigure(&mut self) -> Result<(), ResolveError> {
+        let nameservers = self.default_nameserver_config_group.nameserver_configs();
+
         let mut working_nameservers = Vec::new();
-        for (ns, result) in trial_nameservers_inner(&self.default_nameserver_config_group).await {
+        for (ns, result) in trial_nameservers_inner(&nameservers).await {
             if let Err(e) = result {
                 warn!("trial {ns:?} errored: {e}");
             } else {
@@ -698,11 +755,12 @@ fn new_resolver(
     ns_ip_version_policy: NameServerIpVersionPolicy,
     options: Option<ResolverOpts>,
 ) -> Result<TokioResolver, ResolveError> {
-    let name_servers = match ns_ip_version_policy {
+    let name_servers: NameServerConfigGroup = match ns_ip_version_policy {
         NameServerIpVersionPolicy::Ipv4AndIpv6 => default_nameserver_group(),
         NameServerIpVersionPolicy::Ipv4Only => default_nameserver_group_ipv4_only(),
         NameServerIpVersionPolicy::Ipv6Only => default_nameserver_group_ipv6_only(),
-    };
+    }
+    .into_ns_group();
 
     info!("building new configured {ns_ip_version_policy} resolver");
     debug!("configuring resolver to use nameserver set: {name_servers:?}");
@@ -710,12 +768,12 @@ fn new_resolver(
     configure_and_build_resolver(name_servers, options)
 }
 
-fn default_nameserver_group() -> NameServerConfigGroup {
+fn default_nameserver_group() -> NsConfigGroupWithStatus {
     let mut name_servers = NameServerConfigGroup::quad9_tls();
     name_servers.merge(NameServerConfigGroup::quad9_https());
     name_servers.merge(NameServerConfigGroup::cloudflare_tls());
     name_servers.merge(NameServerConfigGroup::cloudflare_https());
-    name_servers
+    name_servers.into()
 }
 
 fn configure_and_build_resolver<G>(
@@ -735,92 +793,30 @@ where
     Ok(resolver_builder.build())
 }
 
-fn default_nameserver_group_ipv4_only() -> NameServerConfigGroup {
-    let mut name_servers = NameServerConfigGroup::from_ips_https(
-        &quad9_ips_v4(),
-        443,
-        "dns.quad9.net".to_string(),
-        true,
-    );
-    name_servers.merge(NameServerConfigGroup::from_ips_tls(
-        &quad9_ips_v4(),
-        853,
-        "dns.quad9.net".to_string(),
-        true,
-    ));
-    name_servers.merge(NameServerConfigGroup::from_ips_https(
-        &cloudflare_ips_v4(),
-        443,
-        "cloudflare-dns.com".to_string(),
-        true,
-    ));
-    name_servers.merge(NameServerConfigGroup::from_ips_tls(
-        &cloudflare_ips_v4(),
-        853,
-        "cloudflare-dns.com".to_string(),
-        true,
-    ));
-    name_servers
-}
-
-fn default_nameserver_group_ipv6_only() -> NameServerConfigGroup {
-    let mut name_servers = NameServerConfigGroup::from_ips_https(
-        &quad9_ips_v6(),
-        443,
-        "dns.quad9.net".to_string(),
-        true,
-    );
-    name_servers.merge(NameServerConfigGroup::from_ips_tls(
-        &quad9_ips_v6(),
-        853,
-        "dns.quad9.net".to_string(),
-        true,
-    ));
-    name_servers.merge(NameServerConfigGroup::from_ips_https(
-        &cloudflare_ips_v6(),
-        443,
-        "cloudflare-dns.com".to_string(),
-        true,
-    ));
-    name_servers.merge(NameServerConfigGroup::from_ips_tls(
-        &cloudflare_ips_v6(),
-        853,
-        "cloudflare-dns.com".to_string(),
-        true,
-    ));
-    name_servers
-}
-
-fn cloudflare_ips_v4() -> Vec<IpAddr> {
-    hickory_resolver::config::CLOUDFLARE_IPS
+fn filter_ipv4(nameservers: impl AsRef<[NameServerConfig]>) -> Vec<NameServerConfig> {
+    nameservers
+        .as_ref()
         .iter()
-        .filter(|ip| ip.is_ipv4())
+        .filter(|ns| ns.socket_addr.is_ipv4())
         .cloned()
         .collect()
 }
 
-fn cloudflare_ips_v6() -> Vec<IpAddr> {
-    hickory_resolver::config::CLOUDFLARE_IPS
+fn filter_ipv6(nameservers: impl AsRef<[NameServerConfig]>) -> Vec<NameServerConfig> {
+    nameservers
+        .as_ref()
         .iter()
-        .filter(|ip| ip.is_ipv6())
+        .filter(|ns| ns.socket_addr.is_ipv6())
         .cloned()
         .collect()
 }
 
-fn quad9_ips_v4() -> Vec<IpAddr> {
-    hickory_resolver::config::QUAD9_IPS
-        .iter()
-        .filter(|ip| ip.is_ipv4())
-        .cloned()
-        .collect()
+fn default_nameserver_group_ipv4_only() -> NsConfigGroupWithStatus {
+    filter_ipv4(default_nameserver_group().nameserver_configs()).into()
 }
 
-fn quad9_ips_v6() -> Vec<IpAddr> {
-    hickory_resolver::config::QUAD9_IPS
-        .iter()
-        .filter(|ip| ip.is_ipv6())
-        .cloned()
-        .collect()
+fn default_nameserver_group_ipv6_only() -> NsConfigGroupWithStatus {
+    filter_ipv6(default_nameserver_group().nameserver_configs()).into()
 }
 
 /// Create a new resolver with the default configuration, which reads from the system DNS config
@@ -905,7 +901,7 @@ mod test {
         // Make sure the nameserver group for Ipv4 is really IPv4 only
         let ns_group = default_nameserver_group_ipv4_only();
         let addrs: Vec<IpAddr> = ns_group
-            .into_inner()
+            .into_ns_group()
             .iter()
             .map(|cfg| cfg.socket_addr.ip())
             .collect();
@@ -914,7 +910,7 @@ mod test {
         // Make sure the nameserver group for Ipv6 is really IPv6 only
         let ns_group = default_nameserver_group_ipv6_only();
         let addrs: Vec<IpAddr> = ns_group
-            .into_inner()
+            .into_ns_group()
             .iter()
             .map(|cfg| cfg.socket_addr.ip())
             .collect();
@@ -1188,7 +1184,7 @@ mod failure_test {
             state: Arc::new(OnceCell::with_value(inner)),
             static_base: Some(Default::default()),
             overall_dns_timeout: Duration::from_secs(5),
-            default_nameserver_config_group: broken_ns_group,
+            default_nameserver_config_group: broken_ns_group.into(),
             ..Default::default()
         };
 
@@ -1219,7 +1215,7 @@ mod failure_test {
             dont_use_shared: true,
             state: Arc::new(OnceCell::with_value(inner)),
             static_base: Some(Default::default()),
-            default_nameserver_config_group: broken_ns_https,
+            default_nameserver_config_group: broken_ns_https.into(),
             ..Default::default()
         };
 

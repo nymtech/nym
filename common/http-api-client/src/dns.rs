@@ -229,6 +229,7 @@ impl From<NameServerConfigGroup> for NsConfigGroupWithStatus {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+#[allow(unused)]
 enum NsStatus {
     Untested,
     Working(Instant),
@@ -593,7 +594,6 @@ impl HickoryDnsResolver {
     pub fn set_name_servers(&mut self, name_servers: impl AsRef<[NameServerConfig]>) {
         self.default_nameserver_config_group =
             NsConfigGroupWithStatus::from(name_servers.as_ref().to_vec());
-        self.force_primary_rebuild();
 
         if !self.dont_use_shared {
             SHARED_RESOLVER
@@ -601,6 +601,7 @@ impl HickoryDnsResolver {
                 .unwrap()
                 .set_name_servers(name_servers);
         }
+        self.force_primary_rebuild();
     }
 
     fn default_options() -> ResolverOpts {
@@ -615,12 +616,7 @@ impl HickoryDnsResolver {
     fn force_primary_rebuild(&mut self) {
         if !self.dont_use_shared {
             let mut resolver = SHARED_RESOLVER.write().unwrap();
-            // *resolver = HickoryDnsResolver {
-            //     dont_use_shared: true,
-            //     current_options: resolver.,
-            //     ..Default::default()
-            // }
-            (*resolver).state = Arc::new(OnceCell::new());
+            resolver.state = Arc::new(OnceCell::new());
         }
         self.state = Arc::new(OnceCell::new());
     }

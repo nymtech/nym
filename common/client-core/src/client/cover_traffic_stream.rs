@@ -90,10 +90,6 @@ where
         // Get the `now` by looking at the current `delay` deadline
         let avg_delay = self.cover_traffic.loop_cover_traffic_average_delay;
         let next_poisson_delay = sample_poisson_duration(&mut self.rng, avg_delay);
-            println!(
-        "[DEBUG] LoopCoverStream: Next loop cover traffic packet in {:?} (average = {:?})",
-        next_poisson_delay, avg_delay
-    );
         // The next interval value is `next_poisson_delay` after the one that just
         // yielded.
         let now = self.next_delay.deadline();
@@ -240,18 +236,12 @@ impl LoopCoverTrafficStream<OsRng> {
             // so panic and review the code that lead to this branch
             panic!("attempted to run LoopCoverTrafficStream while config explicitly disabled it.")
         }
-      //  println!("Sampled poisson duration");
         // we should set initial delay only when we actually start the stream
         let sampled = sample_poisson_duration(
             &mut self.rng,
             self.cover_traffic.loop_cover_traffic_average_delay,
         );
         self.set_next_delay(sampled);
-    println!(
-        "[DEBUG] LoopCoverTrafficStream initialized with average delay {:?} (sampled = {:?})",
-        self.cover_traffic.loop_cover_traffic_average_delay,
-        sampled
-    );
         while self.next().await.is_some() {
             self.on_new_message().await;
         }

@@ -1,6 +1,6 @@
 [package]
 name = "nym-network-defaults"
-version = "0.1.0"
+version.workspace = true
 description = "Nym network defaults"
 edition.workspace = true
 authors.workspace = true

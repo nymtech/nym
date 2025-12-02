@@ -1,6 +1,6 @@
 [package]
 name = "nym-sphinx-forwarding"
-version = "0.1.0"
+version.workspace = true
 description = "Sphinx packet forwarding as Nym mix packets"
 edition = { workspace = true }
 authors = { workspace = true }

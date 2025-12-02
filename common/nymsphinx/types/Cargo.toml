@@ -1,6 +1,6 @@
 [package]
 name = "nym-sphinx-types"
-version = "0.2.0"
+version.workspace = true
 description = "Re-export sphinx packet types"
 edition = { workspace = true }
 authors = { workspace = true }

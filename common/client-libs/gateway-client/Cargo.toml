@@ -1,6 +1,6 @@
 [package]
 name = "nym-gateway-client"
-version = "0.1.0"
+version.workspace = true
 authors = ["Jędrzej Stuczyński <andrew@nymtech.net>"]
 edition = "2021"
 license.workspace = true

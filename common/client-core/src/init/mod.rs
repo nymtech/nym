@@ -186,7 +186,12 @@ where
     let new_published_data = GatewayPublishedData::new(new_gateway_listeners);
 
     // update gateway details
-    update_stored_published_data_gateway(details_store, &gateway_id, &new_published_data).await?;
+    update_stored_published_data_gateway(
+        details_store,
+        &registration.gateway_id(),
+        &new_published_data,
+    )
+    .await?;
 
     Ok(())
 }

@@ -134,11 +134,14 @@ impl GatewaysDetailsStore for OnDiskGatewaysDetails {
 
     async fn update_gateway_published_data(
         &self,
-        gateway_id: &str,
+        gateway_id: &ed25519::PublicKey,
         published_data: &GatewayPublishedData,
     ) -> Result<(), Self::StorageError> {
         self.manager
-            .update_remote_gateway_published_data(gateway_id, &published_data.into())
+            .update_remote_gateway_published_data(
+                &gateway_id.to_base58_string(),
+                &published_data.into(),
+            )
             .await?;
         Ok(())
     }

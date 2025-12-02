@@ -4,6 +4,7 @@
 use crate::types::{ActiveGateway, GatewayRegistration};
 use crate::{BadGateway, GatewayDetails, GatewayPublishedData, GatewaysDetailsStore};
 use async_trait::async_trait;
+use nym_crypto::asymmetric::ed25519;
 use std::collections::HashMap;
 use std::sync::Arc;
 use thiserror::Error;
@@ -96,11 +97,11 @@ impl GatewaysDetailsStore for InMemGatewaysDetails {
 
     async fn update_gateway_published_data(
         &self,
-        gateway_id: &str,
+        gateway_id: &ed25519::PublicKey,
         published_data: &GatewayPublishedData,
     ) -> Result<(), Self::StorageError> {
         let mut guard = self.inner.write().await;
-        if let Some(gateway) = guard.gateways.get_mut(gateway_id) {
+        if let Some(gateway) = guard.gateways.get_mut(&gateway_id.to_base58_string()) {
             if let GatewayDetails::Remote(ref mut remote_details) = gateway.details {
                 remote_details.published_data = published_data.clone();
             }

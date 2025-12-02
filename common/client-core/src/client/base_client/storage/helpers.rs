@@ -89,7 +89,7 @@ where
 
 pub async fn update_stored_published_data_gateway<D>(
     details_store: &D,
-    gateway_id: &str,
+    gateway_id: &ed25519::PublicKey,
     published_data: &GatewayPublishedData,
 ) -> Result<(), ClientCoreError>
 where

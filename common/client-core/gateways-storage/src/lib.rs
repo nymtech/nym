@@ -62,7 +62,7 @@ pub trait GatewaysDetailsStore {
     /// Update the gateway details
     async fn update_gateway_published_data(
         &self,
-        gateway_id: &str,
+        gateway_id: &ed25519::PublicKey,
         published_data: &GatewayPublishedData,
     ) -> Result<(), Self::StorageError>;
 

@@ -185,7 +185,6 @@ fn mixnet_debug_config(mixnet_client_config: &MixnetClientConfig) -> DebugConfig
             let duration = std::time::Duration::from_millis((poisson_rate as f64).round() as u64);
         debug_config.cover_traffic.loop_cover_traffic_average_delay = duration;
 
-        println!("Debug config has {:?} duration:",duration);
     }
     if let Some(min_mixnode_performance) = mixnet_client_config.min_mixnode_performance {
         debug_config.topology.minimum_mixnode_performance = min_mixnode_performance;

@@ -57,6 +57,7 @@ CREATE TABLE transaction
     gas_used     BIGINT           DEFAULT 0,
     raw_log      TEXT,
     logs         JSONB,
+    events       JSONB,
 
     CONSTRAINT unique_tx UNIQUE (hash)
 );

@@ -23,7 +23,7 @@ use serde_json::json;
 use sqlx::types::time::{OffsetDateTime, PrimitiveDateTime};
 use sqlx::{Postgres, Transaction};
 use std::ops::{Deref, DerefMut};
-use tracing::{debug, trace, warn};
+use tracing::{debug, error, trace, warn};
 
 pub struct PostgresStorageTransaction {
     pub(super) inner: Transaction<'static, Postgres>,
@@ -167,10 +167,17 @@ impl PostgresStorageTransaction {
                 .map(|info| proto::cosmos::tx::v1beta1::SignerInfo::from(info.clone()))
                 .collect::<Vec<_>>();
 
+            let hash = chain_tx.hash.to_string();
+            let height = chain_tx.height.into();
+            let index = chain_tx.index as i32;
+
+            let log = serde_json::to_value(chain_tx.tx_result.log.clone()).map_err(|e| error!(hash, height, index, "Failed to parse logs: {e}")).unwrap_or_default();
+            let events = &chain_tx.tx_result.events;
+
             insert_transaction(
-                chain_tx.hash.to_string(),
-                chain_tx.height.into(),
-                chain_tx.index as i32,
+                hash,
+                height,
+                index,
                 chain_tx.tx_result.code.is_ok(),
                 serde_json::Value::Array(messages),
                 chain_tx.tx.body.memo.clone(),
@@ -180,7 +187,8 @@ impl PostgresStorageTransaction {
                 chain_tx.tx_result.gas_wanted,
                 chain_tx.tx_result.gas_used,
                 chain_tx.tx_result.log.clone(),
-                json!("null"),
+                json!(log),
+                json!(events),
                 self.inner.as_mut(),
             )
             .await?;

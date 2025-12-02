@@ -345,6 +345,7 @@ pub(crate) async fn insert_transaction<'a, E>(
     gas_used: i64,
     raw_log: String,
     logs: JsonValue,
+    events: JsonValue,
     executor: E,
 ) -> Result<(), sqlx::Error>
 where
@@ -356,8 +357,8 @@ where
     sqlx::query!(
         r#"
         INSERT INTO transaction
-        (hash, height, index, success, messages, memo, signatures, signer_infos, fee, gas_wanted, gas_used, raw_log, logs)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+        (hash, height, index, success, messages, memo, signatures, signer_infos, fee, gas_wanted, gas_used, raw_log, logs, events)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
         ON CONFLICT (hash) DO UPDATE
             SET height = excluded.height,
                 index = excluded.index,
@@ -370,7 +371,8 @@ where
                 gas_wanted = excluded.gas_wanted,
                 gas_used = excluded.gas_used,
                 raw_log = excluded.raw_log,
-                logs = excluded.logs
+                logs = excluded.logs,
+                events = excluded.events
         "#,
         hash,
         height,
@@ -385,6 +387,7 @@ where
         gas_used,
         raw_log,
         logs,
+        events,
     )
     .execute(executor)
     .await?;

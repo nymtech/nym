@@ -14,8 +14,8 @@ strum_macros = "0.27.2"
 
 ts-rs = "10.0.0"
 
-cosmwasm-std = "2.2.1"
-cosmrs = "=0.21.1"
+cosmwasm-std = "=2.2.2"
+cosmrs = { version = "0.22.0" }
 
 nym-config = { path = "../../common/config" }
 nym-network-defaults = { path = "../../common/network-defaults" }

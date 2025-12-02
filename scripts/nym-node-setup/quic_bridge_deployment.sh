@@ -60,13 +60,13 @@ NYM_ETC_BRIDGES="$NYM_ETC_DIR/bridges.toml"
 NYM_ETC_CLIENT_PARAMS_DEFAULT="$NYM_ETC_DIR/client_bridge_params.json"
 SERVICE_FILE="/etc/systemd/system/nym-bridge.service"
 
-NET_DEV="${UPLINK_DEV:-}"
+NET_DEV="${IPV4_UPLINK_DEV:-}"
 if [[ -z "$NET_DEV" ]]; then
   NET_DEV="$(ip -o route show default 2>/dev/null | awk '{print $5}' | head -n1)"
   [[ -z "$NET_DEV" ]] && NET_DEV="$(ip -o route show default table all 2>/dev/null | awk '{print $5}' | head -n1)"
 fi
 if [[ -z "$NET_DEV" ]]; then
-  echo -e "${RED}Cannot determine uplink interface. Set UPLINK_DEV.${RESET}" | tee -a "$LOG_FILE"
+  echo -e "${RED}Cannot determine uplink interface. Set IPV4_UPLINK_DEV.${RESET}" | tee -a "$LOG_FILE"
   exit 1
 fi
 echo "Using uplink device: $NET_DEV"

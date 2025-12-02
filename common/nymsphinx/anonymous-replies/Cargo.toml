@@ -1,6 +1,6 @@
 [package]
 name = "nym-sphinx-anonymous-replies"
-version = "0.1.0"
+version.workspace = true
 description = "Anonymous sphinx packet replies using singly-use-reply-blocks (SURB)"
 edition = { workspace = true }
 authors = { workspace = true }

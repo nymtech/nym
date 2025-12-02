@@ -1,6 +1,6 @@
 [package]
 name = "nym-sphinx-acknowledgements"
-version = "0.1.0"
+version.workspace = true
 description = "Sphinx packet ack messages"
 edition = { workspace = true }
 authors = { workspace = true }

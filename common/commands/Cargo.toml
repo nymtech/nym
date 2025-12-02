@@ -60,5 +60,5 @@ nym-credential-utils = { path = "../../common/credential-utils" }
 nym-id = { path = "../nym-id" }
 nym-credential-proxy-requests = { path = "../../nym-credential-proxy/nym-credential-proxy-requests" }
 
-nym-pemstore = { path = "../../common/pemstore", version = "0.3.0" }
+nym-pemstore = { path = "../../common/pemstore" }
 nym-types = { path = "../../common/types" }

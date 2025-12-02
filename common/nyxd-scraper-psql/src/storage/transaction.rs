@@ -171,7 +171,9 @@ impl PostgresStorageTransaction {
             let height = chain_tx.height.into();
             let index = chain_tx.index as i32;
 
-            let log = serde_json::to_value(chain_tx.tx_result.log.clone()).map_err(|e| error!(hash, height, index, "Failed to parse logs: {e}")).unwrap_or_default();
+            let log = serde_json::to_value(chain_tx.tx_result.log.clone())
+                .map_err(|e| error!(hash, height, index, "Failed to parse logs: {e}"))
+                .unwrap_or_default();
             let events = &chain_tx.tx_result.events;
 
             insert_transaction(

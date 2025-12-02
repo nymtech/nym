@@ -1,27 +1,11 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::config::authenticator::{Authenticator, AuthenticatorDebug};
-use crate::config::gateway_tasks::{
-    ClientBandwidthDebug, StaleMessageDebug, UpgradeModeWatcher, ZkNymTicketHandlerDebug,
-};
 use crate::config::old_configs::old_config_v11::{ConfigV11, WireguardV11};
-use crate::config::persistence::{
-    AuthenticatorPaths, GatewayTasksPaths, IpPacketRouterPaths, KeysPaths, NetworkRequesterPaths,
-    NymNodePaths, ReplayProtectionPaths, ServiceProvidersPaths, WireguardPaths,
-};
-use crate::config::service_providers::{
-    IpPacketRouter, IpPacketRouterDebug, NetworkRequester, NetworkRequesterDebug,
-};
-use crate::config::{
-    Config, DEFAULT_HTTP_PORT, GatewayTasksConfig, Host, Http, KeyRotation, KeyRotationDebug,
-    Mixnet, MixnetDebug, NodeModes, ReplayProtection, ReplayProtectionDebug,
-    ServiceProvidersConfig, Verloc, VerlocDebug, Wireguard, gateway_tasks, service_providers,
-};
+use crate::config::{DEFAULT_HTTP_PORT, NodeModes};
 use crate::error::NymNodeError;
 use celes::Country;
 use clap::ValueEnum;
-use nym_bin_common::logging::LoggingSettings;
 use nym_client_core_config_types::DebugConfig as ClientDebugConfig;
 use nym_config::defaults::{DEFAULT_VERLOC_LISTENING_PORT, WG_METADATA_PORT};
 use nym_config::helpers::{in6addr_any_init, inaddr_any};
@@ -34,7 +18,7 @@ use serde::{Deserialize, Serialize};
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
-use tracing::{debug, error, instrument};
+use tracing::{debug, instrument};
 use url::Url;
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]

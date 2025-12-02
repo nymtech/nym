@@ -5,7 +5,6 @@ use crate::config::authenticator::{Authenticator, AuthenticatorDebug};
 use crate::config::gateway_tasks::{
     ClientBandwidthDebug, StaleMessageDebug, UpgradeModeWatcher, ZkNymTicketHandlerDebug,
 };
-use crate::config::old_configs::old_config_v10::*;
 use crate::config::persistence::{
     AuthenticatorPaths, GatewayTasksPaths, IpPacketRouterPaths, KeysPaths, NetworkRequesterPaths,
     NymNodePaths, ReplayProtectionPaths, ServiceProvidersPaths, WireguardPaths,
@@ -14,68 +13,76 @@ use crate::config::service_providers::{
     IpPacketRouter, IpPacketRouterDebug, NetworkRequester, NetworkRequesterDebug,
 };
 use crate::config::{
-    Config, DEFAULT_HTTP_PORT, GatewayTasksConfig, Host, Http, KeyRotation, KeyRotationDebug,
-    Mixnet, MixnetDebug, NodeModes, ReplayProtection, ReplayProtectionDebug,
-    ServiceProvidersConfig, Verloc, VerlocDebug, Wireguard, gateway_tasks, service_providers,
+    Config, GatewayTasksConfig, Host, Http, KeyRotation, KeyRotationDebug, Mixnet, MixnetDebug,
+    NodeModes, ReplayProtection, ReplayProtectionDebug, ServiceProvidersConfig, Verloc,
+    VerlocDebug, Wireguard, gateway_tasks, service_providers,
 };
 use crate::error::NymNodeError;
-use celes::Country;
-use clap::ValueEnum;
 use nym_bin_common::logging::LoggingSettings;
-use nym_client_core_config_types::DebugConfig as ClientDebugConfig;
-use nym_config::defaults::{DEFAULT_VERLOC_LISTENING_PORT, WG_METADATA_PORT};
-use nym_config::helpers::{in6addr_any_init, inaddr_any};
-use nym_config::{
-    defaults::TICKETBOOK_VALIDITY_DAYS,
-    read_config_from_toml_file,
-    serde_helpers::{de_maybe_port, de_maybe_stringified},
-};
+use nym_config::read_config_from_toml_file;
 use serde::{Deserialize, Serialize};
-use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
+use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::path::{Path, PathBuf};
-use std::time::Duration;
 use tracing::{debug, error, instrument};
-use url::Url;
 
-// NO CHANGES HERE:
-pub type WireguardPathsV11 = WireguardPathsV10;
-pub type NodeModeV11 = NodeModeV10;
-pub type NodeModesV11 = NodeModesV10;
-pub type HostV11 = HostV10;
-pub type KeyRotationDebugV11 = KeyRotationDebugV10;
-pub type KeyRotationV11 = KeyRotationV10;
-pub type MixnetDebugV11 = MixnetDebugV10;
-pub type MixnetV11 = MixnetV10;
-pub type ReplayProtectionV11 = ReplayProtectionV10;
-pub type ReplayProtectionPathsV11 = ReplayProtectionPathsV10;
-pub type ReplayProtectionDebugV11 = ReplayProtectionDebugV10;
-pub type KeysPathsV11 = KeysPathsV10;
-pub type NymNodePathsV11 = NymNodePathsV10;
-pub type HttpV11 = HttpV10;
-pub type VerlocDebugV11 = VerlocDebugV10;
-pub type VerlocV11 = VerlocV10;
-pub type DebugV11 = DebugV10;
-pub type ZkNymTicketHandlerDebugV11 = ZkNymTicketHandlerDebugV10;
-pub type NetworkRequesterPathsV11 = NetworkRequesterPathsV10;
-pub type IpPacketRouterPathsV11 = IpPacketRouterPathsV10;
-pub type AuthenticatorPathsV11 = AuthenticatorPathsV10;
-pub type AuthenticatorV11 = AuthenticatorV10;
-pub type AuthenticatorDebugV11 = AuthenticatorDebugV10;
-pub type IpPacketRouterDebugV11 = IpPacketRouterDebugV10;
-pub type IpPacketRouterV11 = IpPacketRouterV10;
-pub type NetworkRequesterDebugV11 = NetworkRequesterDebugV10;
-pub type NetworkRequesterV11 = NetworkRequesterV10;
-pub type GatewayTasksPathsV11 = GatewayTasksPathsV10;
-pub type StaleMessageDebugV11 = StaleMessageDebugV10;
-pub type ClientBandwidthDebugV11 = ClientBandwidthDebugV10;
-pub type GatewayTasksConfigDebugV11 = GatewayTasksConfigDebugV10;
-pub type GatewayTasksConfigV11 = GatewayTasksConfigV10;
-pub type ServiceProvidersPathsV11 = ServiceProvidersPathsV10;
-pub type ServiceProvidersConfigDebugV11 = ServiceProvidersConfigDebugV10;
-pub type ServiceProvidersConfigV11 = ServiceProvidersConfigV10;
-pub type MetricsConfigV11 = MetricsConfigV10;
-pub type MetricsDebugV11 = MetricsDebugV10;
-pub type LoggingSettingsV11 = LoggingSettingsV10;
+pub use unchanged_v11_types::*;
+
+// (while some of those are technically unused, they might be needed in future migrations,
+// thus allow them to exist)
+#[allow(dead_code)]
+pub mod unchanged_v11_types {
+    use crate::config::old_configs::old_config_v10::{
+        AuthenticatorDebugV10, AuthenticatorPathsV10, AuthenticatorV10, ClientBandwidthDebugV10,
+        DebugV10, GatewayTasksConfigDebugV10, GatewayTasksConfigV10, GatewayTasksPathsV10, HostV10,
+        HttpV10, IpPacketRouterDebugV10, IpPacketRouterPathsV10, IpPacketRouterV10,
+        KeyRotationDebugV10, KeyRotationV10, KeysPathsV10, LoggingSettingsV10, MetricsConfigV10,
+        MetricsDebugV10, MixnetDebugV10, MixnetV10, NetworkRequesterDebugV10,
+        NetworkRequesterPathsV10, NetworkRequesterV10, NodeModeV10, NodeModesV10, NymNodePathsV10,
+        ReplayProtectionDebugV10, ReplayProtectionPathsV10, ReplayProtectionV10,
+        ServiceProvidersConfigDebugV10, ServiceProvidersConfigV10, ServiceProvidersPathsV10,
+        StaleMessageDebugV10, VerlocDebugV10, VerlocV10, WireguardPathsV10,
+        ZkNymTicketHandlerDebugV10,
+    };
+
+    pub type WireguardPathsV11 = WireguardPathsV10;
+    pub type NodeModeV11 = NodeModeV10;
+    pub type NodeModesV11 = NodeModesV10;
+    pub type HostV11 = HostV10;
+    pub type KeyRotationDebugV11 = KeyRotationDebugV10;
+    pub type KeyRotationV11 = KeyRotationV10;
+    pub type MixnetDebugV11 = MixnetDebugV10;
+    pub type MixnetV11 = MixnetV10;
+    pub type ReplayProtectionV11 = ReplayProtectionV10;
+    pub type ReplayProtectionPathsV11 = ReplayProtectionPathsV10;
+    pub type ReplayProtectionDebugV11 = ReplayProtectionDebugV10;
+    pub type KeysPathsV11 = KeysPathsV10;
+    pub type NymNodePathsV11 = NymNodePathsV10;
+    pub type HttpV11 = HttpV10;
+    pub type VerlocDebugV11 = VerlocDebugV10;
+    pub type VerlocV11 = VerlocV10;
+    pub type DebugV11 = DebugV10;
+    pub type ZkNymTicketHandlerDebugV11 = ZkNymTicketHandlerDebugV10;
+    pub type NetworkRequesterPathsV11 = NetworkRequesterPathsV10;
+    pub type IpPacketRouterPathsV11 = IpPacketRouterPathsV10;
+    pub type AuthenticatorPathsV11 = AuthenticatorPathsV10;
+    pub type AuthenticatorV11 = AuthenticatorV10;
+    pub type AuthenticatorDebugV11 = AuthenticatorDebugV10;
+    pub type IpPacketRouterDebugV11 = IpPacketRouterDebugV10;
+    pub type IpPacketRouterV11 = IpPacketRouterV10;
+    pub type NetworkRequesterDebugV11 = NetworkRequesterDebugV10;
+    pub type NetworkRequesterV11 = NetworkRequesterV10;
+    pub type GatewayTasksPathsV11 = GatewayTasksPathsV10;
+    pub type StaleMessageDebugV11 = StaleMessageDebugV10;
+    pub type ClientBandwidthDebugV11 = ClientBandwidthDebugV10;
+    pub type GatewayTasksConfigDebugV11 = GatewayTasksConfigDebugV10;
+    pub type GatewayTasksConfigV11 = GatewayTasksConfigV10;
+    pub type ServiceProvidersPathsV11 = ServiceProvidersPathsV10;
+    pub type ServiceProvidersConfigDebugV11 = ServiceProvidersConfigDebugV10;
+    pub type ServiceProvidersConfigV11 = ServiceProvidersConfigV10;
+    pub type MetricsConfigV11 = MetricsConfigV10;
+    pub type MetricsDebugV11 = MetricsDebugV10;
+    pub type LoggingSettingsV11 = LoggingSettingsV10;
+}
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -187,6 +194,9 @@ pub async fn try_upgrade_config_v11<P: AsRef<Path>>(
         ConfigV11::read_from_path(&path)?
     };
 
+    // for future reference: when creating v12 migration,
+    // look at how v10 -> v11 is implemented
+    // you might be able to create a bunch of type aliases again to save you some headache
     let cfg = Config {
         save_path: old_cfg.save_path,
         id: old_cfg.id,

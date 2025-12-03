@@ -4834,7 +4834,7 @@ dependencies = [
 
 [[package]]
 name = "nym-api"
-version = "1.1.70"
+version = "1.20.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5404,7 +5404,7 @@ dependencies = [
 
 [[package]]
 name = "nym-contracts-common"
-version = "0.5.0"
+version = "1.20.0"
 dependencies = [
  "anyhow",
  "bs58",
@@ -5726,7 +5726,7 @@ dependencies = [
 
 [[package]]
 name = "nym-ecash-contract-common"
-version = "0.1.0"
+version = "1.20.0"
 dependencies = [
  "bs58",
  "cosmwasm-schema",
@@ -6026,7 +6026,7 @@ dependencies = [
 
 [[package]]
 name = "nym-group-contract-common"
-version = "0.1.0"
+version = "1.20.0"
 dependencies = [
  "cosmwasm-schema",
  "cw-controllers",
@@ -6253,7 +6253,7 @@ dependencies = [
 
 [[package]]
 name = "nym-mixnet-contract-common"
-version = "0.6.0"
+version = "1.20.0"
 dependencies = [
  "bs58",
  "cosmwasm-schema",
@@ -6303,7 +6303,7 @@ dependencies = [
 
 [[package]]
 name = "nym-multisig-contract-common"
-version = "0.1.0"
+version = "1.20.0"
 dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
@@ -6772,7 +6772,7 @@ dependencies = [
 
 [[package]]
 name = "nym-performance-contract-common"
-version = "0.1.0"
+version = "1.20.0"
 dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
@@ -7532,7 +7532,7 @@ dependencies = [
 
 [[package]]
 name = "nym-vesting-contract-common"
-version = "0.7.0"
+version = "1.20.0"
 dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",

@@ -3,28 +3,41 @@
 
 //! DNS resolver configuration for internal lookups.
 //!
-//! The resolver itself is the set combination of the google, cloudflare, and quad9 endpoints
-//! supporting DoH and DoT.
+//! The resolver itself is the set combination of the cloudflare, and quad9 endpoints supporting DoH
+//! and DoT.
 //!
-//! This resolver supports a fallback mechanism where, should the DNS-over-TLS resolution fail, a
-//! followup resolution will be done using the hosts configured default (e.g. `/etc/resolve.conf` on
-//! linux). This is disabled by default and can be enabled using [`enable_system_fallback`].
-//!
-//! Requires the `dns-over-https-rustls`, `webpki-roots` feature for the
-//! `hickory-resolver` crate
-//!
-//!
-//! Note: The hickory DoH resolver can cause warning logs about H2 connection failure. This
-//! indicates that the long lived https connection was closed by the remote peer and the resolver
-//! will have to reconnect. It should not impact actual functionality.
-//!
-//! code ref: https://github.com/hickory-dns/hickory-dns/blob/06a8b1ce9bd9322d8e6accf857d30257e1274427/crates/proto/src/h2/h2_client_stream.rs#L534
-//!
-//! example log:
-//!
-//! ```txt
-//!   WARN /home/ubuntu/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/hickory-proto-0.24.3/src/h2/h2_client_stream.rs:493: h2 connection failed: unexpected end of file
+//! ```rust
+//! use nym_http_api_client::HickoryDnsResolver;
+//! # use nym_http_api_client::ResolveError;
+//! # type Err = ResolveError;
+//! # async fn run() -> Result<(), Err> {
+//! let resolver = HickoryDnsResolver::default();
+//! resolver.resolve_str("example.com").await?;
+//! # Ok(())
+//! # }
 //! ```
+//!
+//! ## Fallbacks
+//!
+//! **System Resolver --** This resolver supports an optional fallback mechanism where, should the
+//! DNS-over-TLS resolution fail, a followup resolution will be done using the hosts configured
+//! default (e.g. `/etc/resolve.conf` on linux).
+//!
+//! This is disabled by default and can be enabled using `enable_system_fallback`.
+//!
+//! **Static Table --**  There is also a second optional fallback mechanism that allows a static map
+//! to be used as a last resort. This can help when DNS encounters errors due to blocked resolvers
+//! or unknown conditions. This is enabled by default, and can be customized if building a new
+//! resolver.
+//!
+//! ## IPv4 / IPv6
+//!
+//! By default the resolver uses only IPv4 nameservers, and is configured to do `A` lookups first,
+//! and only do `AAAA` if no `A` record is available.
+//!
+//! ---
+//!
+//! Requires the `dns-over-https-rustls`, `webpki-roots` feature for the `hickory-resolver` crate
 #![deny(missing_docs)]
 
 use crate::ClientBuilder;
@@ -49,7 +62,7 @@ use tracing::*;
 
 mod constants;
 mod static_resolver;
-pub use static_resolver::*;
+pub(crate) use static_resolver::*;
 
 pub(crate) const DEFAULT_POSITIVE_LOOKUP_CACHE_TTL: Duration = Duration::from_secs(1800);
 pub(crate) const DEFAULT_OVERALL_LOOKUP_TIMEOUT: Duration = Duration::from_secs(6);
@@ -367,12 +380,6 @@ impl HickoryDnsResolver {
         SHARED_RESOLVER.active_name_servers()
     }
 
-    // /// Sets the available nameservers for use by this resolver to the provided list
-    // ///
-    // /// NOTE: Calling this function will rebuild the inner resolver which means that the
-    // /// cached dns lookups will not carry over and will go to network to resolve again.
-    // pub fn set_name_servers(&mut self, name_servers: impl AsRef<[NameServerConfig]>) {}
-
     /// Do a trial resolution using each nameserver individually to test which are working and which
     /// fail to complete a lookup. This will always try the full set of default configured resolvers.
     pub async fn trial_nameservers(&self) -> Result<(), ResolveError> {
@@ -619,7 +626,7 @@ mod test {
             }
         }
     }
-    #[cfg(test)]
+
     mod failure_test {
         use super::*;
 

@@ -2,11 +2,7 @@
 
 - name: Set hostname
   hostname:
-    name: "{{ base_hostname_fqdn }}"
-  when: base_hostname_name is defined
-  tags:
-    - base
-    - hostname
+    name: "{{ hostname }}"
 
 - name: Instal aptitude 
   apt:

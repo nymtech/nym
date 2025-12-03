@@ -1,5 +1,9 @@
 main_domain: "changehere.example.com"
 
+ansible_user: root
+ansible_ssh_private_key_file: ~/.ssh/operator_key
+hostname: yourhostnamecom
+
 packages:
   - tmux
   - speedtest-cli

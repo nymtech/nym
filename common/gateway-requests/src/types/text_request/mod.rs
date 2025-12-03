@@ -3,13 +3,9 @@
 
 use crate::models::CredentialSpendingRequest;
 use crate::text_request::authenticate::AuthenticateRequest;
-use crate::{
-    GatewayProtocolVersion, GatewayRequestsError, SharedGatewayKey, SymmetricKey,
-    AES_GCM_SIV_PROTOCOL_VERSION, CREDENTIAL_UPDATE_V2_PROTOCOL_VERSION, INITIAL_PROTOCOL_VERSION,
-};
+use crate::{GatewayProtocolVersion, GatewayRequestsError, SharedSymmetricKey};
 use nym_credentials_interface::CredentialSpendingData;
 use nym_crypto::asymmetric::ed25519;
-use nym_sphinx::DestinationAddressBytes;
 use nym_statistics_common::types::SessionType;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
@@ -21,23 +17,14 @@ pub mod authenticate;
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[non_exhaustive]
 pub enum ClientRequest {
-    UpgradeKey {
-        hkdf_salt: Vec<u8>,
-        derived_key_digest: Vec<u8>,
-    },
-    ForgetMe {
-        client: bool,
-        stats: bool,
-    },
-    RememberMe {
-        session_type: SessionType,
-    },
+    ForgetMe { client: bool, stats: bool },
+    RememberMe { session_type: SessionType },
 }
 
 impl ClientRequest {
-    pub fn encrypt<S: SymmetricKey>(
+    pub fn encrypt(
         &self,
-        key: &S,
+        key: &SharedSymmetricKey,
     ) -> Result<ClientControlRequest, GatewayRequestsError> {
         // we're using json representation for few reasons:
         // - ease of re-implementation in other languages (compared to for example bincode)
@@ -47,17 +34,21 @@ impl ClientRequest {
         // SAFETY: the trait has been derived correctly with no weird variants
         #[allow(clippy::unwrap_used)]
         let plaintext = serde_json::to_vec(self).unwrap();
-        let nonce = key.random_nonce_or_iv();
-        let ciphertext = key.encrypt(&plaintext, Some(&nonce))?;
-        Ok(ClientControlRequest::EncryptedRequest { ciphertext, nonce })
+        let nonce = key.random_nonce();
+        let ciphertext = key.encrypt(&plaintext, &nonce)?;
+        Ok(ClientControlRequest::EncryptedRequest {
+            ciphertext,
+            nonce: nonce.to_vec(),
+        })
     }
 
-    pub fn decrypt<S: SymmetricKey>(
+    pub fn decrypt(
         ciphertext: &[u8],
         nonce: &[u8],
-        key: &S,
+        key: &SharedSymmetricKey,
     ) -> Result<Self, GatewayRequestsError> {
-        let plaintext = key.decrypt(ciphertext, Some(nonce))?;
+        let nonce = SharedSymmetricKey::validate_aead_nonce(nonce)?;
+        let plaintext = key.decrypt(ciphertext, &nonce)?;
         serde_json::from_slice(&plaintext)
             .map_err(|source| GatewayRequestsError::MalformedRequest { source })
     }
@@ -68,35 +59,20 @@ impl ClientRequest {
 #[serde(tag = "type", rename_all = "camelCase")]
 #[non_exhaustive]
 pub enum ClientControlRequest {
-    // TODO: should this also contain a MAC considering that at this point we already
-    // have the shared key derived?
-    Authenticate {
-        #[serde(default)]
-        protocol_version: Option<GatewayProtocolVersion>,
-        address: String,
-        enc_address: String,
-        iv: String,
-    },
-
     AuthenticateV2(Box<AuthenticateRequest>),
 
     #[serde(alias = "handshakePayload")]
     RegisterHandshakeInitRequest {
         #[serde(default)]
-        protocol_version: Option<GatewayProtocolVersion>,
+        protocol_version: GatewayProtocolVersion,
         data: Vec<u8>,
-    },
-    BandwidthCredential {
-        enc_credential: Vec<u8>,
-        iv: Vec<u8>,
-    },
-    BandwidthCredentialV2 {
-        enc_credential: Vec<u8>,
-        iv: Vec<u8>,
     },
     EcashCredential {
         enc_credential: Vec<u8>,
-        iv: Vec<u8>,
+        // Old gateways only understand `iv` so rename the field, but have nonce as an alias for next version update, to then phase out `iv`
+        #[serde(rename = "iv")]
+        #[serde(alias = "nonce")]
+        nonce: Vec<u8>,
     },
     UpgradeModeJWT {
         // no need to encrypt it as it's public anyway
@@ -109,40 +85,29 @@ pub enum ClientControlRequest {
     },
     SupportedProtocol {},
     // if you're adding new variants here, consider putting them inside `ClientRequest` instead
+
+    // NO LONGER SUPPORTED
+    Authenticate {
+        #[serde(default)]
+        protocol_version: Option<GatewayProtocolVersion>,
+        address: String,
+        enc_address: String,
+        iv: String,
+    },
+
+    BandwidthCredential {
+        enc_credential: Vec<u8>,
+        iv: Vec<u8>,
+    },
+    BandwidthCredentialV2 {
+        enc_credential: Vec<u8>,
+        iv: Vec<u8>,
+    },
 }
 
 impl ClientControlRequest {
-    pub fn new_legacy_authenticate(
-        address: DestinationAddressBytes,
-        shared_key: &SharedGatewayKey,
-        uses_credentials: bool,
-    ) -> Result<Self, GatewayRequestsError> {
-        // if we're encrypting with non-legacy key, the remote must support AES256-GCM-SIV
-        // since we are using legacy authentication, the gateway definitely doesn't understand the protocol downgrade,
-        // so use the lowest possible version we can
-        let protocol_version = if !shared_key.is_legacy() {
-            Some(AES_GCM_SIV_PROTOCOL_VERSION)
-        } else if uses_credentials {
-            Some(CREDENTIAL_UPDATE_V2_PROTOCOL_VERSION)
-        } else {
-            // if we're not going to be using credentials, advertise lower protocol version to allow connection
-            // to wider range of gateways
-            Some(INITIAL_PROTOCOL_VERSION)
-        };
-
-        let nonce = shared_key.random_nonce_or_iv();
-        let ciphertext = shared_key.encrypt_naive(address.as_bytes_ref(), Some(&nonce))?;
-
-        Ok(ClientControlRequest::Authenticate {
-            protocol_version,
-            address: address.as_base58_string(),
-            enc_address: bs58::encode(&ciphertext).into_string(),
-            iv: bs58::encode(&nonce).into_string(),
-        })
-    }
-
     pub fn new_authenticate_v2(
-        shared_key: &SharedGatewayKey,
+        shared_key: &SharedSymmetricKey,
         identity_keys: &ed25519::KeyPair,
         protocol_version: GatewayProtocolVersion,
     ) -> Result<Self, GatewayRequestsError> {
@@ -174,26 +139,27 @@ impl ClientControlRequest {
 
     pub fn new_enc_ecash_credential(
         credential: CredentialSpendingData,
-        shared_key: &SharedGatewayKey,
+        shared_key: &SharedSymmetricKey,
     ) -> Result<Self, GatewayRequestsError> {
         let cred = CredentialSpendingRequest::new(credential);
         let serialized_credential = cred.to_bytes();
 
-        let nonce = shared_key.random_nonce_or_iv();
-        let enc_credential = shared_key.encrypt(&serialized_credential, Some(&nonce))?;
+        let nonce = shared_key.random_nonce();
+        let enc_credential = shared_key.encrypt(&serialized_credential, &nonce)?;
 
         Ok(ClientControlRequest::EcashCredential {
             enc_credential,
-            iv: nonce,
+            nonce: nonce.to_vec(),
         })
     }
 
     pub fn try_from_enc_ecash_credential(
         enc_credential: Vec<u8>,
-        shared_key: &SharedGatewayKey,
-        iv: Vec<u8>,
+        shared_key: &SharedSymmetricKey,
+        nonce: Vec<u8>,
     ) -> Result<CredentialSpendingRequest, GatewayRequestsError> {
-        let credential_bytes = shared_key.decrypt(&enc_credential, Some(&iv))?;
+        let nonce = SharedSymmetricKey::validate_aead_nonce(&nonce)?;
+        let credential_bytes = shared_key.decrypt(&enc_credential, &nonce)?;
         CredentialSpendingRequest::try_from_bytes(credential_bytes.as_slice())
             .map_err(|_| GatewayRequestsError::MalformedEncryption)
     }

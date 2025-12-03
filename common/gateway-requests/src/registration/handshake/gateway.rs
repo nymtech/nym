@@ -56,10 +56,7 @@ impl<S, R> State<'_, S, R> {
 
         // 2. derive shared keys locally
         // hkdf::<blake3>::(g^xy)
-        self.derive_shared_key(
-            &init_message.ephemeral_dh,
-            init_message.initiator_salt.as_deref(),
-        );
+        self.derive_shared_key(&init_message.ephemeral_dh, &init_message.initiator_salt);
 
         // 3. send ephemeral x25519 pubkey alongside the encrypted signature
         // g^y || AES(k, sig(gate_priv, (g^y || g^x))

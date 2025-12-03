@@ -127,6 +127,7 @@ impl BuilderConfig {
             .network_details(self.network_env)
             .debug_config(debug_config)
             .credentials_mode(true)
+            .no_hostname(true)
             .with_remember_me(remember_me)
             .custom_topology_provider(self.custom_topology_provider);
 

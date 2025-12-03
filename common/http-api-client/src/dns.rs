@@ -35,7 +35,7 @@
 //! shared resolver setting these options will apply to future lookups done using the shared
 //! resolver as well.
 //!
-//! Be default the resolver uses both IPv4 and IPv6 nameservers, and is configured to do `A` lookups
+//! By default the resolver uses both IPv4 and IPv6 nameservers, and is configured to do `A` lookups
 //! first, and only do `AAAA` if no `A` record is available.
 //!
 //! ```rust
@@ -315,7 +315,7 @@ async fn resolve(
     }
 
     let resolver = resolver
-        .get_or_try_init(|| HickoryDnsResolver::new_resolver(independent, ns_strategy, options))?;
+        .get_or_init(|| HickoryDnsResolver::new_resolver(independent, ns_strategy, options));
 
     // Attempt a lookup using the primary resolver
     let resolve_fut = tokio::time::timeout(overall_dns_timeout, resolver.lookup_ip(&name_str));
@@ -413,18 +413,18 @@ impl HickoryDnsResolver {
         dont_use_shared: bool,
         ns_strategy: NameServerIpVersionPolicy,
         options: Option<ResolverOpts>,
-    ) -> Result<TokioResolver, ResolveError> {
+    ) -> TokioResolver {
         // using a closure here is slightly gross, but this makes sure that if the
         // lazy-init returns an error it can be handled by the client
         if dont_use_shared {
             new_resolver(ns_strategy, options)
         } else {
-            Ok(SHARED_RESOLVER
+            SHARED_RESOLVER
                 .read()
                 .unwrap()
                 .state
-                .get_or_try_init(|| new_resolver(ns_strategy, options))?
-                .clone())
+                .get_or_init(|| new_resolver(ns_strategy, options))
+                .clone()
         }
     }
 
@@ -604,6 +604,12 @@ impl HickoryDnsResolver {
         self.force_primary_rebuild();
     }
 
+    /// Successfully resolved addresses are cached for a minimum of 30 minutes
+    /// Individual lookup Timeouts are set to 3 seconds
+    /// Number of retries after lookup failure before giving up is set to (default) to 2
+    /// Lookup order is set to (default) A then AAAA
+    /// Number or parallel lookup is set to (default) 2
+    /// Nameserver selection uses the (default) EWMA statistics / performance based strategy
     fn default_options() -> ResolverOpts {
         let mut opts = ResolverOpts::default();
         // Always cache successful responses for queries received by this resolver for 30 min minimum.
@@ -614,16 +620,25 @@ impl HickoryDnsResolver {
     }
 
     fn force_primary_rebuild(&mut self) {
+        let ns_group = self
+            .default_nameserver_config_group
+            .active_nameserver_configs();
+        let options = self.current_options.clone();
+
+        info!("rebuilding resolver");
+        debug!("configuring resolver, {options:?} {ns_group:?}");
+
+        let new_resolver = configure_and_build_resolver(ns_group, options);
+
         if !self.dont_use_shared {
-            let mut resolver = SHARED_RESOLVER.write().unwrap();
-            resolver.state = Arc::new(OnceCell::new());
+            SHARED_RESOLVER.write().unwrap().state = Arc::new(OnceCell::with_value(new_resolver.clone()));
         }
-        self.state = Arc::new(OnceCell::new());
+        self.state = Arc::new(OnceCell::with_value(new_resolver));
     }
 
     /// Do a trial resolution using each nameserver individually to test which are working and which
     /// fail to complete a lookup. This will always try the full set of default configured resolvers.
-    pub async fn trial_nameservers(&self) -> Result<(), ResolveError> {
+    pub async fn trial_nameservers(&self) {
         let nameservers = self.default_nameserver_config_group.nameserver_configs();
         for (ns, result) in trial_nameservers_inner(&nameservers).await {
             if let Err(e) = result {
@@ -632,7 +647,6 @@ impl HickoryDnsResolver {
                 info!("trial {ns:?} succeeded");
             }
         }
-        Ok(())
     }
 
     /// Do a trial resolution using each nameserver individually to test which are working and which
@@ -646,28 +660,39 @@ impl HickoryDnsResolver {
     pub async fn trial_nameservers_and_reconfigure(&mut self) -> Result<(), ResolveError> {
         let nameservers = self.default_nameserver_config_group.nameserver_configs();
 
-        let mut working_nameservers = Vec::new();
+        let test_time = Instant::now();
+        let mut ns_group = Vec::new();
         for (ns, result) in trial_nameservers_inner(&nameservers).await {
             if let Err(e) = result {
                 warn!("trial {ns:?} errored: {e}");
+                ns_group.push((ns, NsStatus::Failed(test_time)));
             } else {
                 info!("trial {ns:?} succeeded");
-                working_nameservers.push(ns);
+                ns_group.push((ns, NsStatus::Working(test_time)));
             }
         }
+
+        let ns_group = NsConfigGroupWithStatus { inner: ns_group };
+        let working_nameservers = ns_group.active_nameserver_configs();
 
         if working_nameservers.is_empty() {
             return Err(ResolveError::ConfigError(RECONFIGURE_ERROR_MSG.to_string()));
         }
 
-        let new_resolver =
-            configure_and_build_resolver(working_nameservers, self.current_options.clone())?;
-
-        self.state = Arc::new(OnceCell::with_value(new_resolver.clone()));
+        self.default_nameserver_config_group = ns_group.clone();
+        // let new_resolver =
+        //     configure_and_build_resolver(working_nameservers, self.current_options.clone())?;
+        // self.state = Arc::new(OnceCell::with_value(new_resolver.clone()));
         if !self.dont_use_shared {
             // take a write lock on the shared resolver only once we are ready to make changes
-            SHARED_RESOLVER.write().unwrap().state = Arc::new(OnceCell::with_value(new_resolver));
+            SHARED_RESOLVER
+                .write()
+                .unwrap()
+                .default_nameserver_config_group = ns_group;
+            // resolver.state = Arc::new(OnceCell::with_value(new_resolver));
         }
+
+        self.force_primary_rebuild();
 
         Ok(())
     }
@@ -693,7 +718,7 @@ async fn trial_nameservers_inner(
 async fn trial_lookup(name_server: NameServerConfig, query: &str) -> Result<(), ResolveError> {
     info!("running ns trial {name_server:?} query={query}");
 
-    let resolver = configure_and_build_resolver(vec![name_server], None)?;
+    let resolver = configure_and_build_resolver(vec![name_server], None);
 
     match tokio::time::timeout(DEFAULT_OVERALL_LOOKUP_TIMEOUT, resolver.ipv4_lookup(query)).await {
         Ok(Ok(_)) => Ok(()),
@@ -792,7 +817,7 @@ impl From<&HostnameIpLookupStrategy> for LookupIpStrategy {
 /// Create a new resolver with a custom DoT based configuration. The options are overridden to look
 /// up for both IPv4 and IPv6 addresses to work with "happy eyeballs" algorithm.
 ///
-/// Timeout Defaults to 5 seconds
+/// Individual lookup Timeouts are set to 3 seconds
 /// Number of retries after lookup failure before giving up Defaults to 2
 ///
 /// Caches successfully resolved addresses for 30 minutes to prevent continual use of remote lookup.
@@ -800,7 +825,7 @@ impl From<&HostnameIpLookupStrategy> for LookupIpStrategy {
 fn new_resolver(
     ns_ip_version_policy: NameServerIpVersionPolicy,
     options: Option<ResolverOpts>,
-) -> Result<TokioResolver, ResolveError> {
+) -> TokioResolver {
     let name_servers: NameServerConfigGroup = match ns_ip_version_policy {
         NameServerIpVersionPolicy::Ipv4AndIpv6 => default_nameserver_group(),
         NameServerIpVersionPolicy::Ipv4Only => default_nameserver_group_ipv4_only(),
@@ -825,7 +850,7 @@ fn default_nameserver_group() -> NsConfigGroupWithStatus {
 fn configure_and_build_resolver<G>(
     name_servers: G,
     options: Option<ResolverOpts>,
-) -> Result<TokioResolver, ResolveError>
+) -> TokioResolver
 where
     G: Into<NameServerConfigGroup>,
 {
@@ -836,7 +861,7 @@ where
     let options = options.unwrap_or(HickoryDnsResolver::default_options());
     resolver_builder = resolver_builder.with_options(options);
 
-    Ok(resolver_builder.build())
+    resolver_builder.build()
 }
 
 fn filter_ipv4(nameservers: impl AsRef<[NameServerConfig]>) -> Vec<NameServerConfig> {
@@ -988,10 +1013,10 @@ mod test {
         // only do lookups for A records.
         resolver.set_ipv4_only();
 
-        // setting opts resets resolver initialization
-        assert!(resolver.state.get().is_none());
+        // // setting opts resets resolver initialization
+        // assert!(resolver.state.get().is_none());
 
-        let _ = resolver.resolve_str("example.com").await;
+        // let _ = resolver.resolve_str("example.com").await;
 
         // after rebuilding with new options it should have Ipv4 / A only
         let lookup_strategy = resolver.state.get().unwrap().options().ip_strategy;
@@ -1002,10 +1027,10 @@ mod test {
 
         resolver.set_nameserver_ip_version_strategy(NameServerIpVersionPolicy::Ipv6Only);
 
-        // setting opts resets resolver initialization
-        assert!(resolver.state.get().is_none());
+        // // setting opts resets resolver initialization
+        // assert!(resolver.state.get().is_none());
 
-        let _ = resolver.resolve_str("example.com").await;
+        // let _ = resolver.resolve_str("example.com").await;
 
         // Make sure that setting the resolver to use only Ipv6 nameservers changes the set of
         // nameservers to only IPv6.
@@ -1104,7 +1129,7 @@ mod failure_test {
 
     // Create a resolver that behaves the same as the custom configured router, except for the fact
     // that it is guaranteed to fail.
-    fn build_broken_resolver() -> Result<TokioResolver, ResolveError> {
+    fn build_broken_resolver() -> TokioResolver {
         info!("building new faulty resolver");
 
         let mut broken_ns_group = NameServerConfigGroup::from_ips_tls(
@@ -1125,25 +1150,23 @@ mod failure_test {
     }
 
     #[tokio::test]
-    async fn dns_lookup_failures() -> Result<(), ResolveError> {
+    async fn dns_lookup_failures() {
         let time_start = std::time::Instant::now();
 
         // create a new resolver that won't mess with the shared resolver used by other tests
         let resolver = HickoryDnsResolver {
             dont_use_shared: true,
-            state: Arc::new(OnceCell::with_value(build_broken_resolver().unwrap())),
+            state: Arc::new(OnceCell::with_value(build_broken_resolver())),
             overall_dns_timeout: Duration::from_secs(5),
             ..Default::default()
         };
-        build_broken_resolver()?;
+        build_broken_resolver();
         let domain = "ifconfig.me";
         let result = resolver.resolve_str(domain).await;
         assert!(result.is_err_and(|e| matches!(e, ResolveError::Timeout)));
 
         let duration = time_start.elapsed();
         assert!(duration < resolver.overall_dns_timeout + Duration::from_secs(1));
-
-        Ok(())
     }
 
     #[tokio::test]
@@ -1151,7 +1174,7 @@ mod failure_test {
         // create a new resolver that won't mess with the shared resolver used by other tests
         let mut resolver = HickoryDnsResolver {
             dont_use_shared: true,
-            state: Arc::new(OnceCell::with_value(build_broken_resolver().unwrap())),
+            state: Arc::new(OnceCell::with_value(build_broken_resolver())),
             static_base: Some(Default::default()),
             overall_dns_timeout: Duration::from_secs(5),
             ..Default::default()
@@ -1198,7 +1221,7 @@ mod failure_test {
         // create a new resolver that won't mess with the shared resolver used by other tests
         let resolver = HickoryDnsResolver {
             dont_use_shared: true,
-            state: Arc::new(OnceCell::with_value(build_broken_resolver().unwrap())),
+            state: Arc::new(OnceCell::with_value(build_broken_resolver())),
             static_base: Some(Default::default()),
             ..Default::default()
         };
@@ -1239,7 +1262,7 @@ mod failure_test {
             true,
         );
 
-        let inner = configure_and_build_resolver(broken_ns_https, None).unwrap();
+        let inner = configure_and_build_resolver(broken_ns_https, None);
 
         // create a new resolver that won't mess with the shared resolver used by other tests
         let resolver = HickoryDnsResolver {
@@ -1268,7 +1291,7 @@ mod failure_test {
             true,
         );
 
-        let inner = configure_and_build_resolver(broken_ns_group.clone(), None).unwrap();
+        let inner = configure_and_build_resolver(broken_ns_group.clone(), None);
 
         // create a new resolver that won't mess with the shared resolver used by other tests
         let mut resolver = HickoryDnsResolver {
@@ -1300,7 +1323,7 @@ mod failure_test {
             true,
         );
 
-        let inner = configure_and_build_resolver(broken_ns_https.clone(), None).unwrap();
+        let inner = configure_and_build_resolver(broken_ns_https.clone(), None);
 
         // create a new resolver that won't mess with the shared resolver used by other tests
         let mut resolver = HickoryDnsResolver {
@@ -1339,7 +1362,7 @@ mod failure_test {
             true,
         );
 
-        let inner = configure_and_build_resolver(broken_ns_https, None).unwrap();
+        let inner = configure_and_build_resolver(broken_ns_https, None);
         SHARED_RESOLVER.write().unwrap().state = Arc::new(OnceCell::with_value(inner));
 
         let mut resolver = HickoryDnsResolver::default();

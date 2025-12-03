@@ -1,8 +1,8 @@
-use nym_crypto::asymmetric::ed25519::PublicKey;
-use nym_gateway_requests::SharedSymmetricKey;
+use nym_client_core::client::base_client::storage::gateways_storage::GatewayPublishedData;
 use nym_sdk::mixnet::{
-    self, ActiveGateway, BadGateway, ClientKeys, EmptyReplyStorage, EphemeralCredentialStorage,
-    GatewayRegistration, GatewaysDetailsStore, KeyStore, MixnetClientStorage, MixnetMessageSender,
+    self, ed25519, ActiveGateway, BadGateway, ClientKeys, EmptyReplyStorage,
+    EphemeralCredentialStorage, GatewayRegistration, GatewaysDetailsStore, KeyStore,
+    MixnetClientStorage, MixnetMessageSender,
 };
 use nym_topology::provider_trait::async_trait;
 
@@ -166,14 +166,14 @@ impl GatewaysDetailsStore for MockGatewayDetailsStore {
         Ok(())
     }
 
-    async fn upgrade_stored_remote_gateway_key(
+    async fn update_gateway_published_data(
         &self,
-        gateway_id: PublicKey,
-        _updated_key: &SharedSymmetricKey,
+        _gateway_id: &ed25519::PublicKey,
+        _details: &GatewayPublishedData,
     ) -> Result<(), Self::StorageError> {
-        println!("upgrading gateway key for {gateway_id}");
+        println!("updating gateway details");
 
-        Err(MyError)
+        Ok(())
     }
 
     async fn remove_gateway_details(&self, _gateway_id: &str) -> Result<(), Self::StorageError> {

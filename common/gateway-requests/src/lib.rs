@@ -7,17 +7,12 @@ use nym_sphinx::params::GatewayIntegrityHmacAlgorithm;
 
 pub use types::*;
 
-pub mod authentication;
 pub mod models;
 pub mod registration;
 pub mod shared_key;
 pub mod types;
 
-pub use shared_key::helpers::SymmetricKey;
-pub use shared_key::legacy::{LegacySharedKeySize, LegacySharedKeys};
-pub use shared_key::{
-    SharedGatewayKey, SharedKeyConversionError, SharedKeyUsageError, SharedSymmetricKey,
-};
+pub use shared_key::{SharedKeyConversionError, SharedKeyUsageError, SharedSymmetricKey};
 
 pub type GatewayProtocolVersion = u8;
 
@@ -29,7 +24,7 @@ pub const CURRENT_PROTOCOL_VERSION: GatewayProtocolVersion = UPGRADE_MODE_VERSIO
 // 1 - initial release
 // 2 - changes to client credentials structure
 // 3 - change to AES-GCM-SIV and non-zero IVs
-// 4 - introduction of v2 authentication protocol to prevent reply attacks
+// 4 - introduction of v2 authentication protocol to prevent replay attacks
 // 5 - add key rotation information to the serialised mix packet
 // 6 - support for 'upgrade mode'
 pub const INITIAL_PROTOCOL_VERSION: GatewayProtocolVersion = 1;

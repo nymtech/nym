@@ -6,14 +6,14 @@
       {
         "name": "exists",
         "ordinal": 0,
-        "type_info": "Int"
+        "type_info": "Integer"
       }
     ],
     "parameters": {
       "Right": 1
     },
     "nullable": [
-      null
+      false
     ]
   },
   "hash": "06e743d143fcc4be20ca2af5e99b19f15d22fff72490473587a14cdc046fda32"

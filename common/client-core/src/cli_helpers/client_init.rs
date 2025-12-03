@@ -140,6 +140,7 @@ where
         user_chosen_gateway_id.map(|id| id.to_base58_string()),
         Some(common_args.latency_based_selection),
         common_args.force_tls_gateway,
+        false,
     );
     tracing::debug!("Gateway selection specification: {selection_spec:?}");
 

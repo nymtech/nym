@@ -1,0 +1,20 @@
+---
+- name: Configure UFW rules
+  ufw:
+    rule: allow
+    port: "{{ item.port }}"
+    proto: "{{ item.proto }}"
+  loop:
+    - { port: 22, proto: tcp }
+    - { port: 80, proto: tcp }
+    - { port: 443, proto: tcp }
+    - { port: 1789, proto: tcp }
+    - { port: 1790, proto: tcp }
+    - { port: 8080, proto: tcp }
+    - { port: 9000, proto: tcp }
+    - { port: 9001, proto: tcp }
+    - { port: 51822, proto: udp }
+
+- name: Enable UFW
+  ufw:
+    state: enabled

@@ -13,11 +13,6 @@ pub(crate) async fn run_chain_scraper(
 ) -> anyhow::Result<PostgresNyxdScraper> {
     let use_best_effort_start_height = args.start_block_height.is_some();
 
-    if args.nuke_db {
-        warn!("☢️☢️☢️ NUKING THE SCRAPER DATABASE");
-        fs::remove_file(config.chain_scraper_connection_string())?;
-    }
-
     let database_storage = config
         .chain_scraper_connection_string
         .clone()

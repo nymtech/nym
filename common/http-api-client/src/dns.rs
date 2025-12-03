@@ -382,7 +382,7 @@ impl HickoryDnsResolver {
 
     /// Do a trial resolution using each nameserver individually to test which are working and which
     /// fail to complete a lookup. This will always try the full set of default configured resolvers.
-    pub async fn trial_nameservers(&self) -> Result<(), ResolveError> {
+    pub async fn trial_nameservers(&self) {
         let nameservers = default_nameserver_group();
         for (ns, result) in trial_nameservers_inner(&nameservers).await {
             if let Err(e) = result {
@@ -391,7 +391,6 @@ impl HickoryDnsResolver {
                 info!("trial {ns:?} succeeded");
             }
         }
-        Ok(())
     }
 }
 

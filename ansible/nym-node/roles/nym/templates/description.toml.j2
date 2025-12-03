@@ -1,0 +1,5 @@
+{% set moniker_clean = hostname | regex_replace('^nym-exit\\.', '') %}
+moniker = "{{ moniker_clean }}"
+website = "{{ website }}"
+security_contact = "{{ email }}"
+details = "Network infrastructure providing privacy to communities"

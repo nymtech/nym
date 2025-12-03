@@ -67,19 +67,25 @@
 
 - name: Initialize nym node
   command:
-    cmd: "/root/nym-binaries/nym-node run --mode exit-gateway --public-ips {{ public_ip }} --hostname {{ hostname }} --http-bind-address 0.0.0.0:8080 --mixnet-bind-address 0.0.0.0:1789 --location {{ location }} --accept-operator-terms-and-conditions --wireguard-enabled true --landing-page-assets-path /var/www/{{ hostname }}/ -w  --init-only"
+    cmd: "/root/nym-binaries/nym-node run --mode {{ mode }} --public-ips {{ public_ip }} --hostname {{ hostname }} --http-bind-address 0.0.0.0:8080 --mixnet-bind-address 0.0.0.0:1789 --location {{ location }} --accept-operator-terms-and-conditions --wireguard-enabled {{ wireguard_enabled }} --landing-page-assets-path /var/www/{{ hostname }}/ -w  --init-only"
 
+# comment for mixnode
 - name: Configure tunnel manager
   become: true
   command:
-    cmd: "/root/nym-binaries/network_tunnel_manager.sh {{ item }}"
+    cmd: "/root/nym-binaries/network-tunnel-manager.sh {{ item }}"
   loop:
-    - apply_iptables_rules
-    - check_nymtun_iptables
-    - apply_iptables_rules_wg
-    - configure_dns_and_icmp_wg
-    # - joke_through_the_mixnet
-    # - joke_through_wg_tunnel
+    - complete_networking_configuration
+
+# comment for non-wireguard gateway or mixnode
+- name: Configure tunnel manager
+  become: true
+  command:
+    cmd: "/root/nym-binaries/quic_bridge_deployment.sh {{ item }}"
+  environment:
+    NONINTERACTIVE: "1"
+  loop:
+    - full_bridge_setup
 
 - name: Update nym description
   template:

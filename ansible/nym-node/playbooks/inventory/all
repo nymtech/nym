@@ -3,7 +3,7 @@
 # anything global can be set in the group_vars/all.yml like:
 # `email`, `ansible_user` and `main_domain` in this template
 #
-# node1 ansible_host=<YOUR_SERVER_IP> ansible_user=<USER> hostname=<HOSTNAME> location=<LOCATION> email=<EMAIL> mode=<MODE> wireguard_enabled=<true/false> 
+# node1 ansible_host=<YOUR_SERVER_IP> ansible_user=<USER> hostname=<HOSTNAME> location=<LOCATION> email=<EMAIL> mode=<MODE> wireguard_enabled=<true/false> moniker=<MONIKER>
 #
 # example exit + wireguard gateway:
 # node2 ansible_host=11.12.13.14 hostname=nym-exit.ch-1.{{ main_domain }} mode=exit-gateway location=CH wireguard_enabled=true
@@ -11,6 +11,8 @@
 # example entry gateway, no wireguard:
 # node3 ansible_host=12.13.14.15 hostname=nym-entry.ch-2.{{ main_domain }} mode=exentry-gateway location=CH wireguard_enabled=false
 #
+# NOTE:
 # all examples above don't have defined user or email as we use the definition from group_vars/main.yml without an attempt of overwriting it
+# all examples above don't have moniker defined as there is a function in /templates/description.toml.j2 deriving it from the hostname 
 
 

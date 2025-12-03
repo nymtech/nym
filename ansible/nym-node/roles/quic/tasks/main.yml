@@ -1,0 +1,15 @@
+---
+- name: Download quic_bridge_deployment.sh
+  get_url:
+    url: "{{ quic_bridge_deployment_url }}"
+    dest: "/root/nym-binaries/quic_bridge_deployment.sh"
+    mode: "0755"
+
+- name: Configure tunnel manager
+  become: true
+  command:
+    cmd: "/root/nym-binaries/quic_bridge_deployment.sh {{ item }}"
+  environment:
+    NONINTERACTIVE: "1"
+  loop:
+    - full_bridge_setup

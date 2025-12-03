@@ -1,0 +1,35 @@
+server {
+    listen 9001 ssl;
+    listen [::]:9001 ssl;
+
+    server_name {{ hostname }};
+
+    ssl_certificate /etc/letsencrypt/live/{{ hostname }}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/{{ hostname }}/privkey.pem;
+    include /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+
+    access_log /var/log/nginx/access.log;
+    error_log /var/log/nginx/error.log;
+
+    location /favicon.ico {
+        return 204;
+        access_log off;
+        log_not_found off;
+    }
+
+    location / {
+        add_header 'Access-Control-Allow-Origin' '*';
+        add_header 'Access-Control-Allow-Credentials' 'true';
+        add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS, HEAD';
+        add_header 'Access-Control-Allow-Headers' '*';
+
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "Upgrade";
+        proxy_set_header X-Forwarded-For $remote_addr;
+
+        proxy_pass http://localhost:9000;
+        proxy_intercept_errors on;
+    }
+}

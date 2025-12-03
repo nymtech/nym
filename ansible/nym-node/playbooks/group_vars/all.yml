@@ -1,3 +1,14 @@
+---
+# nym_version: "v2025.21-mozzarella"
+# 
+# NOTE:
+# if you want to pin Nym to a specific version instead of using the
+# latest release from GitHub in /tasks/main.yml then
+# uncomment the line above and set the tag
+
+cli_url: "https://github.com/nymtech/nym/releases/download/nym-binaries-{{ nym_version }}/nym-cli"
+operator_name: "<OPERATOR_NAME>"
+
 main_domain: "<DOMAIN>"
 
 ansible_user: root

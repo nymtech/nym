@@ -372,6 +372,20 @@ impl HickoryDnsResolver {
     // /// NOTE: Calling this function will rebuild the inner resolver which means that the
     // /// cached dns lookups will not carry over and will go to network to resolve again.
     // pub fn set_name_servers(&mut self, name_servers: impl AsRef<[NameServerConfig]>) {}
+
+    /// Do a trial resolution using each nameserver individually to test which are working and which
+    /// fail to complete a lookup. This will always try the full set of default configured resolvers.
+    pub async fn trial_nameservers(&self) -> Result<(), ResolveError> {
+        let nameservers = default_nameserver_group();
+        for (ns, result) in trial_nameservers_inner(&nameservers).await {
+            if let Err(e) = result {
+                warn!("trial {ns:?} errored: {e}");
+            } else {
+                info!("trial {ns:?} succeeded");
+            }
+        }
+        Ok(())
+    }
 }
 
 /// Create a new resolver with a custom DoT based configuration. The options are overridden to look
@@ -463,11 +477,54 @@ fn new_default_static_fallback() -> StaticResolver {
     StaticResolver::new(constants::default_static_addrs())
 }
 
+/// Do a trial resolution using each nameserver individually to test which are working and which
+/// fail to complete a lookup.
+async fn trial_nameservers_inner(
+    name_servers: &[NameServerConfig],
+) -> Vec<(NameServerConfig, Result<(), ResolveError>)> {
+    let mut trial_lookups = tokio::task::JoinSet::new();
+
+    for name_server in name_servers {
+        let ns = name_server.clone();
+        trial_lookups.spawn(async { (ns.clone(), trial_lookup(ns, "example.com").await) });
+    }
+
+    trial_lookups.join_all().await
+}
+
+/// Create an independent resolver that has only the provided nameserver and do one lookup for the
+/// provided query target.
+async fn trial_lookup(name_server: NameServerConfig, query: &str) -> Result<(), ResolveError> {
+    debug!("running ns trial {name_server:?} query={query}");
+
+    let resolver = configure_and_build_resolver(vec![name_server]);
+
+    match tokio::time::timeout(DEFAULT_OVERALL_LOOKUP_TIMEOUT, resolver.ipv4_lookup(query)).await {
+        Ok(Ok(_)) => Ok(()),
+        Ok(Err(e)) => Err(e.into()),
+        Err(_) => Err(ResolveError::Timeout),
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
     use itertools::Itertools;
     use std::collections::HashMap;
+    use std::{
+        net::{IpAddr, Ipv4Addr, Ipv6Addr},
+        time::Instant,
+    };
+
+    /// IP addresses guaranteed to fail attempts to resolve
+    ///
+    /// Addresses drawn from blocks set off by RFC5737 (ipv4) and RFC3849 (ipv6)
+    const GUARANTEED_BROKEN_IPS_1: &[IpAddr] = &[
+        IpAddr::V4(Ipv4Addr::new(192, 0, 2, 1)),
+        IpAddr::V4(Ipv4Addr::new(198, 51, 100, 1)),
+        IpAddr::V6(Ipv6Addr::new(0x2001, 0x0db8, 0, 0, 0, 0, 0, 0x1111)),
+        IpAddr::V6(Ipv6Addr::new(0x2001, 0x0db8, 0, 0, 0, 0, 0, 0x1001)),
+    ];
 
     #[tokio::test]
     async fn reqwest_with_custom_dns() {
@@ -526,151 +583,172 @@ mod test {
         assert!(addrs.contains(&example_ip6));
         Ok(())
     }
-}
 
-#[cfg(test)]
-mod failure_test {
-    use super::*;
-    use std::{
-        net::{IpAddr, Ipv4Addr, Ipv6Addr},
-        time::Instant,
-    };
+    // Test the nameserver trial functionality with mostly nameservers guaranteed to be broken and
+    // one that should work.
+    #[tokio::test]
+    async fn trial_nameservers() {
+        let good_cf_ip = IpAddr::V4(Ipv4Addr::new(1, 1, 1, 1));
 
-    /// IP addresses guaranteed to fail attempts to resolve
-    ///
-    /// Addresses drawn from blocks set off by RFC5737 (ipv4) and RFC3849 (ipv6)
-    const GUARANTEED_BROKEN_IPS_1: &[IpAddr] = &[
-        IpAddr::V4(Ipv4Addr::new(192, 0, 2, 1)),
-        IpAddr::V4(Ipv4Addr::new(198, 51, 100, 1)),
-        IpAddr::V6(Ipv6Addr::new(0x2001, 0x0db8, 0, 0, 0, 0, 0, 0x1111)),
-        IpAddr::V6(Ipv6Addr::new(0x2001, 0x0db8, 0, 0, 0, 0, 0, 0x1001)),
-    ];
+        let mut ns_ips = GUARANTEED_BROKEN_IPS_1.to_vec();
+        ns_ips.push(good_cf_ip);
 
-    // Create a resolver that behaves the same as the custom configured router, except for the fact
-    // that it is guaranteed to fail.
-    fn build_broken_resolver() -> Result<TokioResolver, ResolveError> {
-        info!("building new faulty resolver");
-
-        let mut broken_ns_group = NameServerConfigGroup::from_ips_tls(
-            GUARANTEED_BROKEN_IPS_1,
-            853,
-            "cloudflare-dns.com".to_string(),
-            true,
-        );
         let broken_ns_https = NameServerConfigGroup::from_ips_https(
-            GUARANTEED_BROKEN_IPS_1,
+            &ns_ips,
             443,
             "cloudflare-dns.com".to_string(),
             true,
         );
-        broken_ns_group.merge(broken_ns_https);
 
-        Ok(configure_and_build_resolver(broken_ns_group))
-    }
-
-    #[tokio::test]
-    async fn dns_lookup_failures() -> Result<(), ResolveError> {
-        let time_start = std::time::Instant::now();
-
-        let r = OnceCell::new();
-        r.set(build_broken_resolver().expect("failed to build resolver"))
-            .expect("broken resolver init error");
+        let inner = configure_and_build_resolver(broken_ns_https);
 
         // create a new resolver that won't mess with the shared resolver used by other tests
         let resolver = HickoryDnsResolver {
             use_shared: false,
-            state: Arc::new(r),
-            overall_dns_timeout: Duration::from_secs(5),
-            ..Default::default()
-        };
-        build_broken_resolver()?;
-        let domain = "ifconfig.me";
-        let result = resolver.resolve_str(domain).await;
-        assert!(result.is_err_and(|e| matches!(e, ResolveError::Timeout)));
-
-        let duration = time_start.elapsed();
-        assert!(duration < resolver.overall_dns_timeout + Duration::from_secs(1));
-
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn fallback_to_static() -> Result<(), ResolveError> {
-        let r = OnceCell::new();
-        r.set(build_broken_resolver().expect("failed to build resolver"))
-            .expect("broken resolver init error");
-
-        // create a new resolver that won't mess with the shared resolver used by other tests
-        let resolver = HickoryDnsResolver {
-            use_shared: false,
-            state: Arc::new(r),
+            state: Arc::new(OnceCell::with_value(inner)),
             static_base: Some(Default::default()),
-            overall_dns_timeout: Duration::from_secs(5),
             ..Default::default()
         };
-        build_broken_resolver()?;
 
-        // successful lookup using fallback to static resolver
-        let domain = "nymvpn.com";
-        let _ = resolver
-            .resolve_str(domain)
-            .await
-            .expect("failed to resolve address in static lookup");
-
-        // unsuccessful lookup - primary times out, and not in static table
-        let domain = "non-existent.nymtech.net";
-        let result = resolver.resolve_str(domain).await;
-        assert!(result.is_err_and(|e| matches!(e, ResolveError::Timeout)));
-
-        Ok(())
+        let name_servers = resolver.state.get().unwrap().config().name_servers();
+        for (ns, result) in trial_nameservers_inner(name_servers).await {
+            if ns.socket_addr.ip() == good_cf_ip {
+                assert!(result.is_ok())
+            } else {
+                assert!(result.is_err())
+            }
+        }
     }
+    #[cfg(test)]
+    mod failure_test {
+        use super::*;
 
-    #[test]
-    fn default_resolver_uses_ipv4_only_nameservers() {
-        let resolver = HickoryDnsResolver::thread_resolver();
-        resolver
-            .active_name_servers()
-            .iter()
-            .all(|cfg| cfg.socket_addr.is_ipv4());
+        // Create a resolver that behaves the same as the custom configured router, except for the fact
+        // that it is guaranteed to fail.
+        fn build_broken_resolver() -> Result<TokioResolver, ResolveError> {
+            info!("building new faulty resolver");
 
-        SHARED_RESOLVER
-            .active_name_servers()
-            .iter()
-            .all(|cfg| cfg.socket_addr.is_ipv4());
-    }
+            let mut broken_ns_group = NameServerConfigGroup::from_ips_tls(
+                GUARANTEED_BROKEN_IPS_1,
+                853,
+                "cloudflare-dns.com".to_string(),
+                true,
+            );
+            let broken_ns_https = NameServerConfigGroup::from_ips_https(
+                GUARANTEED_BROKEN_IPS_1,
+                443,
+                "cloudflare-dns.com".to_string(),
+                true,
+            );
+            broken_ns_group.merge(broken_ns_https);
 
-    #[tokio::test]
-    #[ignore]
-    // this test is dependent of external network setup -- i.e. blocking all traffic to the default
-    // resolvers. Otherwise the default resolvers will succeed without using the static fallback,
-    // making the test pointless
-    async fn dns_lookup_failure_on_shared() -> Result<(), ResolveError> {
-        let time_start = Instant::now();
-        let r = OnceCell::new();
-        r.set(build_broken_resolver().expect("failed to build resolver"))
-            .expect("broken resolver init error");
+            Ok(configure_and_build_resolver(broken_ns_group))
+        }
 
-        // create a new resolver that won't mess with the shared resolver used by other tests
-        let resolver = HickoryDnsResolver::default();
+        #[tokio::test]
+        async fn dns_lookup_failures() -> Result<(), ResolveError> {
+            let time_start = std::time::Instant::now();
 
-        // successful lookup using fallback to static resolver
-        let domain = "rpc.nymtech.net";
-        let _ = resolver
-            .resolve_str(domain)
-            .await
-            .expect("failed to resolve address in static lookup");
+            let r = OnceCell::new();
+            r.set(build_broken_resolver().expect("failed to build resolver"))
+                .expect("broken resolver init error");
 
-        println!(
-            "{}ms resolved {domain}",
-            (Instant::now() - time_start).as_millis()
-        );
+            // create a new resolver that won't mess with the shared resolver used by other tests
+            let resolver = HickoryDnsResolver {
+                use_shared: false,
+                state: Arc::new(r),
+                overall_dns_timeout: Duration::from_secs(5),
+                ..Default::default()
+            };
+            build_broken_resolver()?;
+            let domain = "ifconfig.me";
+            let result = resolver.resolve_str(domain).await;
+            assert!(result.is_err_and(|e| matches!(e, ResolveError::Timeout)));
 
-        // unsuccessful lookup - primary times out, and not in static table
-        let domain = "non-existent.nymtech.net";
-        let result = resolver.resolve_str(domain).await;
-        assert!(result.is_err());
-        // assert!(result.is_err_and(|e| matches!(e, ResolveError::Timeout)));
-        // assert!(result.is_err_and(|e| matches!(e, ResolveError::ResolveError(e) if e.is_nx_domain())));
-        Ok(())
+            let duration = time_start.elapsed();
+            assert!(duration < resolver.overall_dns_timeout + Duration::from_secs(1));
+
+            Ok(())
+        }
+
+        #[tokio::test]
+        async fn fallback_to_static() -> Result<(), ResolveError> {
+            let r = OnceCell::new();
+            r.set(build_broken_resolver().expect("failed to build resolver"))
+                .expect("broken resolver init error");
+
+            // create a new resolver that won't mess with the shared resolver used by other tests
+            let resolver = HickoryDnsResolver {
+                use_shared: false,
+                state: Arc::new(r),
+                static_base: Some(Default::default()),
+                overall_dns_timeout: Duration::from_secs(5),
+                ..Default::default()
+            };
+            build_broken_resolver()?;
+
+            // successful lookup using fallback to static resolver
+            let domain = "nymvpn.com";
+            let _ = resolver
+                .resolve_str(domain)
+                .await
+                .expect("failed to resolve address in static lookup");
+
+            // unsuccessful lookup - primary times out, and not in static table
+            let domain = "non-existent.nymtech.net";
+            let result = resolver.resolve_str(domain).await;
+            assert!(result.is_err_and(|e| matches!(e, ResolveError::Timeout)));
+
+            Ok(())
+        }
+
+        #[test]
+        fn default_resolver_uses_ipv4_only_nameservers() {
+            let resolver = HickoryDnsResolver::thread_resolver();
+            resolver
+                .active_name_servers()
+                .iter()
+                .all(|cfg| cfg.socket_addr.is_ipv4());
+
+            SHARED_RESOLVER
+                .active_name_servers()
+                .iter()
+                .all(|cfg| cfg.socket_addr.is_ipv4());
+        }
+
+        #[tokio::test]
+        #[ignore]
+        // this test is dependent of external network setup -- i.e. blocking all traffic to the default
+        // resolvers. Otherwise the default resolvers will succeed without using the static fallback,
+        // making the test pointless
+        async fn dns_lookup_failure_on_shared() -> Result<(), ResolveError> {
+            let time_start = Instant::now();
+            let r = OnceCell::new();
+            r.set(build_broken_resolver().expect("failed to build resolver"))
+                .expect("broken resolver init error");
+
+            // create a new resolver that won't mess with the shared resolver used by other tests
+            let resolver = HickoryDnsResolver::default();
+
+            // successful lookup using fallback to static resolver
+            let domain = "rpc.nymtech.net";
+            let _ = resolver
+                .resolve_str(domain)
+                .await
+                .expect("failed to resolve address in static lookup");
+
+            println!(
+                "{}ms resolved {domain}",
+                (Instant::now() - time_start).as_millis()
+            );
+
+            // unsuccessful lookup - primary times out, and not in static table
+            let domain = "non-existent.nymtech.net";
+            let result = resolver.resolve_str(domain).await;
+            assert!(result.is_err());
+            // assert!(result.is_err_and(|e| matches!(e, ResolveError::Timeout)));
+            // assert!(result.is_err_and(|e| matches!(e, ResolveError::ResolveError(e) if e.is_nx_domain())));
+            Ok(())
+        }
     }
 }

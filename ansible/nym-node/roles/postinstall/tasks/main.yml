@@ -1,12 +1,17 @@
 ---
-- name: Get bonding details
+- name: Show which node is being bonded
   tags: postinstall
+  debug:
+    msg: "Bonding Nym node: {{ hostname }}"
+
+- name: Get bonding details
+  tags: bonding
   command: "/root/nym-binaries/nym-node bonding-information"
   register: bondinfo
   changed_when: false
 
 - name: Display bonding info 🎉
-  tags: postinstall
+  tags: bonding
   debug:
     msg:
       - "Nym bonding information:"
@@ -36,7 +41,7 @@
   register: sign_output
 
 - name: Display signed bonding payload (paste this back into your wallet)
-  tags: pbonding
+  tags: bonding
   debug:
     msg:
       - "Paste the last line of the following signed message into your wallet to complete bonding:"

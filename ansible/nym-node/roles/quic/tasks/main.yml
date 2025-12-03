@@ -1,11 +1,13 @@
 ---
 - name: Download quic_bridge_deployment.sh
+  tags: quic bridge deployment
   get_url:
     url: "{{ quic_bridge_deployment_url }}"
     dest: "/root/nym-binaries/quic_bridge_deployment.sh"
     mode: "0755"
 
 - name: Configure tunnel manager
+  tags: quic bridge deployment
   become: true
   command:
     cmd: "/root/nym-binaries/quic_bridge_deployment.sh {{ item }}"

@@ -1,0 +1,10 @@
+- name: Get bonding details
+  tags: postinstall
+  command: "/root/nym-binaries/nym-node bonding-information"
+  register: bondinfo
+  changed_when: false
+
+- name: Display bonding info 🎉
+  tags: postinstall
+  debug:
+    msg: "{{ bondinfo.stdout_lines }}"

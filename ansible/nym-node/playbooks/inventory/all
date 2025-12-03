@@ -1,2 +1,2 @@
-[node]
-nym-exit.pl-1.example.com
+[node-0]
+nym-exit.pl-1.example.com hostname="node-0"

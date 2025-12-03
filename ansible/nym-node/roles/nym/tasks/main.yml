@@ -33,10 +33,16 @@
     dest: "/root/nym-binaries/nym-cli"
     mode: "0755"
 
-- name: Copy tunnel manager script
-  copy:
-    src: files/network_tunnel_manager.sh
-    dest: "/root/nym-binaries/network_tunnel_manager.sh"
+- name: Download network-tunnel-manager.sh
+  get_url:
+    url: "{{ tunnel_manager_url }}"
+    dest: "/root/nym-binaries/network-tunnel-manager.sh"
+    mode: "0755"
+
+- name: Download quic_bridge_deployment.sh
+  get_url:
+    url: "{{ quic_bridge_deployment_url }}"
+    dest: "/root/nym-binaries/quic_bridge_deployment.sh"
     mode: "0755"
 
 - name: Template systemd service

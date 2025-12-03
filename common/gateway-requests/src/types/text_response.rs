@@ -1,7 +1,9 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{GatewayRequestsError, SimpleGatewayRequestsError, SymmetricKey};
+use crate::{
+    GatewayProtocolVersion, GatewayRequestsError, SharedSymmetricKey, SimpleGatewayRequestsError,
+};
 use serde::{Deserialize, Serialize};
 use tungstenite::Message;
 
@@ -10,15 +12,14 @@ use tungstenite::Message;
 #[derive(Serialize, Deserialize, Debug)]
 #[non_exhaustive]
 pub enum SensitiveServerResponse {
-    KeyUpgradeAck {},
     ForgetMeAck {},
     RememberMeAck {},
 }
 
 impl SensitiveServerResponse {
-    pub fn encrypt<S: SymmetricKey>(
+    pub fn encrypt(
         &self,
-        key: &S,
+        key: &SharedSymmetricKey,
     ) -> Result<ServerResponse, GatewayRequestsError> {
         // we're using json representation for few reasons:
         // - ease of re-implementation in other languages (compared to for example bincode)
@@ -26,36 +27,61 @@ impl SensitiveServerResponse {
         // - the schema is self-describing which simplifies deserialisation
 
         // SAFETY: the trait has been derived correctly with no weird variants
+        #[allow(clippy::unwrap_used)]
         let plaintext = serde_json::to_vec(self).unwrap();
-        let nonce = key.random_nonce_or_iv();
-        let ciphertext = key.encrypt(&plaintext, Some(&nonce))?;
-        Ok(ServerResponse::EncryptedResponse { ciphertext, nonce })
+        let nonce = key.random_nonce();
+        let ciphertext = key.encrypt(&plaintext, &nonce)?;
+        Ok(ServerResponse::EncryptedResponse {
+            ciphertext,
+            nonce: nonce.to_vec(),
+        })
     }
 
-    pub fn decrypt<S: SymmetricKey>(
+    pub fn decrypt(
         ciphertext: &[u8],
         nonce: &[u8],
-        key: &S,
+        key: &SharedSymmetricKey,
     ) -> Result<Self, GatewayRequestsError> {
-        let plaintext = key.decrypt(ciphertext, Some(nonce))?;
+        let nonce = SharedSymmetricKey::validate_aead_nonce(nonce)?;
+        let plaintext = key.decrypt(ciphertext, &nonce)?;
         serde_json::from_slice(&plaintext)
             .map_err(|source| GatewayRequestsError::MalformedRequest { source })
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
+pub struct BandwidthResponse {
+    pub available_total: i64,
+
+    /// Flag indicating whether the gateway has detected the system is undergoing the upgrade
+    /// (thus it will not meter bandwidth)
+    #[serde(default)]
+    pub upgrade_mode: bool,
+}
+
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
+pub struct SendResponse {
+    pub remaining_bandwidth: i64,
+
+    /// Flag indicating whether the gateway has detected the system is undergoing the upgrade
+    /// (thus it will not meter bandwidth)
+    #[serde(default)]
+    pub upgrade_mode: bool,
+}
+
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
 #[serde(tag = "type", rename_all = "camelCase")]
 #[non_exhaustive]
 pub enum ServerResponse {
     Authenticate {
         #[serde(default)]
-        protocol_version: Option<u8>,
+        protocol_version: GatewayProtocolVersion,
         status: bool,
         bandwidth_remaining: i64,
     },
     Register {
         #[serde(default)]
-        protocol_version: Option<u8>,
+        protocol_version: GatewayProtocolVersion,
         status: bool,
     },
     EncryptedResponse {

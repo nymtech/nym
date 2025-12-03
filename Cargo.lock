@@ -5251,8 +5251,8 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
- "cosmrs",
  "nym-crypto",
+ "nym-gateway-client",
  "nym-gateway-requests",
  "serde",
  "sqlx",

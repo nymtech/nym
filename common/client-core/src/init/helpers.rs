@@ -5,6 +5,7 @@ use crate::error::ClientCoreError;
 use crate::init::types::RegistrationResult;
 use futures::{SinkExt, StreamExt};
 use nym_crypto::asymmetric::ed25519;
+use nym_gateway_client::client::GatewayListeners;
 use nym_gateway_client::GatewayClient;
 use nym_topology::node::RoutingNode;
 use nym_validator_client::client::{IdentityKeyRef, NymApiClientExt};
@@ -379,12 +380,12 @@ pub(super) fn get_specified_gateway(
 
 pub(super) async fn register_with_gateway(
     gateway_id: ed25519::PublicKey,
-    gateway_listener: Url,
+    gateway_listeners: GatewayListeners,
     our_identity: Arc<ed25519::KeyPair>,
     #[cfg(unix)] connection_fd_callback: Option<Arc<dyn Fn(RawFd) + Send + Sync>>,
 ) -> Result<RegistrationResult, ClientCoreError> {
     let mut gateway_client = GatewayClient::new_init(
-        gateway_listener,
+        gateway_listeners,
         gateway_id,
         our_identity.clone(),
         #[cfg(unix)]
@@ -408,14 +409,6 @@ pub(super) async fn register_with_gateway(
                 source: Box::new(err),
             }
         })?;
-
-    // this should NEVER happen, if it did, it means the function was misused,
-    // because for any fresh **registration**, the derived key is always up to date
-    if auth_response.requires_key_upgrade {
-        return Err(ClientCoreError::UnexpectedKeyUpgrade {
-            gateway_id: gateway_id.to_base58_string(),
-        });
-    }
 
     Ok(RegistrationResult {
         shared_keys: auth_response.initial_shared_key,

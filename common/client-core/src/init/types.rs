@@ -10,12 +10,11 @@ use nym_client_core_gateways_storage::{
     GatewayRegistration, GatewaysDetailsStore, RemoteGatewayDetails,
 };
 use nym_crypto::asymmetric::ed25519;
-use nym_gateway_client::client::InitGatewayClient;
-use nym_gateway_requests::shared_key::SharedGatewayKey;
+use nym_gateway_client::client::{GatewayListeners, InitGatewayClient};
+use nym_gateway_client::SharedSymmetricKey;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_topology::node::RoutingNode;
 use nym_validator_client::client::IdentityKey;
-use nym_validator_client::nyxd::AccountId;
 use serde::Serialize;
 use std::fmt::{Debug, Display};
 #[cfg(unix)]
@@ -28,9 +27,7 @@ pub enum SelectedGateway {
     Remote {
         gateway_id: ed25519::PublicKey,
 
-        gateway_owner_address: Option<AccountId>,
-
-        gateway_listener: Url,
+        gateway_listeners: GatewayListeners,
     },
     Custom {
         gateway_id: ed25519::PublicKey,
@@ -47,7 +44,7 @@ impl SelectedGateway {
         // for now, let's use 'old' behaviour, if you want to change it, you can pass it up the enum stack yourself : )
         let prefer_ipv6 = false;
 
-        let (gateway_listener, _) = if must_use_tls {
+        let (gateway_listener, fallback_listener) = if must_use_tls {
             // WSS main, no fallback
             let primary =
                 node.ws_entry_address_tls()
@@ -67,6 +64,14 @@ impl SelectedGateway {
             )
         };
 
+        let fallback_listener_url = fallback_listener.and_then(|address| {
+            Url::parse(&address)
+                .inspect_err(|err| {
+                    tracing::warn!("Malformed fallback listener, none will be used : {err}")
+                })
+                .ok()
+        });
+
         let gateway_listener_url =
             Url::parse(&gateway_listener).map_err(|source| ClientCoreError::MalformedListener {
                 gateway_id: node.identity_key.to_base58_string(),
@@ -76,8 +81,10 @@ impl SelectedGateway {
 
         Ok(SelectedGateway::Remote {
             gateway_id: node.identity_key,
-            gateway_owner_address: None,
-            gateway_listener: gateway_listener_url,
+            gateway_listeners: GatewayListeners {
+                primary: gateway_listener_url,
+                fallback: fallback_listener_url,
+            },
         })
     }
 
@@ -106,7 +113,7 @@ impl SelectedGateway {
 /// - shared keys derived between ourselves and the node
 /// - an authenticated handle of an ephemeral handle created for the purposes of registration
 pub struct RegistrationResult {
-    pub shared_keys: Arc<SharedGatewayKey>,
+    pub shared_keys: Arc<SharedSymmetricKey>,
     pub authenticated_ephemeral_client: InitGatewayClient,
 }
 
@@ -152,6 +159,15 @@ impl InitialisationResult {
 
     pub fn gateway_id(&self) -> ed25519::PublicKey {
         self.gateway_registration.details.gateway_id()
+    }
+
+    // indicates if the remote gateway details TTL has expired
+    pub fn exipred_details(&self) -> bool {
+        if let Some(expiration_timestamp) = self.gateway_registration.details.details_exipration() {
+            OffsetDateTime::now_utc() > expiration_timestamp
+        } else {
+            false
+        }
     }
 }
 
@@ -339,6 +355,7 @@ pub struct InitResults {
     pub encryption_key: String,
     pub gateway_id: String,
     pub gateway_listener: String,
+    pub fallback_listener: Option<String>,
     pub gateway_registration: OffsetDateTime,
     pub address: Recipient,
 }
@@ -356,7 +373,13 @@ impl InitResults {
             identity_key: address.identity().to_base58_string(),
             encryption_key: address.encryption_key().to_base58_string(),
             gateway_id: gateway.gateway_id.to_base58_string(),
-            gateway_listener: gateway.gateway_listener.to_string(),
+            gateway_listener: gateway.published_data.listeners.primary.to_string(),
+            fallback_listener: gateway
+                .published_data
+                .listeners
+                .fallback
+                .as_ref()
+                .map(|uri| uri.to_string()),
             gateway_registration: registration,
             address,
         }

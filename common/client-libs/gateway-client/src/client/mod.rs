@@ -20,9 +20,9 @@ use nym_credentials_interface::TicketType;
 use nym_crypto::asymmetric::ed25519;
 use nym_gateway_requests::registration::handshake::client_handshake;
 use nym_gateway_requests::{
-    BinaryRequest, ClientControlRequest, ClientRequest, GatewayProtocolVersionExt,
-    GatewayRequestsError, SensitiveServerResponse, ServerResponse, SharedGatewayKey,
-    SharedSymmetricKey, CREDENTIAL_UPDATE_V2_PROTOCOL_VERSION, CURRENT_PROTOCOL_VERSION,
+    BinaryRequest, ClientControlRequest, ClientRequest, GatewayProtocolVersion,
+    GatewayProtocolVersionExt, GatewayRequestsError, ServerResponse, SharedSymmetricKey,
+    CREDENTIAL_UPDATE_V2_PROTOCOL_VERSION, CURRENT_PROTOCOL_VERSION,
 };
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_statistics_common::clients::connection::ConnectionStatsEvent;
@@ -47,43 +47,39 @@ use std::os::raw::c_int as RawFd;
 use wasm_utils::websocket::JSWebsocket;
 #[cfg(target_arch = "wasm32")]
 use wasmtimer::tokio::sleep;
-use zeroize::Zeroizing;
 
 pub mod config;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) mod websockets;
 #[cfg(not(target_arch = "wasm32"))]
-use websockets::connect_async;
+use crate::client::websockets::connect_async_with_fallback;
 
 pub struct GatewayConfig {
     pub gateway_identity: ed25519::PublicKey,
 
-    // currently a dead field
-    pub gateway_owner: Option<String>,
-
-    pub gateway_listener: String,
+    pub gateway_listeners: GatewayListeners,
 }
 
 impl GatewayConfig {
-    pub fn new(
-        gateway_identity: ed25519::PublicKey,
-        gateway_owner: Option<String>,
-        gateway_listener: String,
-    ) -> Self {
+    pub fn new(gateway_identity: ed25519::PublicKey, gateway_listeners: GatewayListeners) -> Self {
         GatewayConfig {
             gateway_identity,
-            gateway_owner,
-            gateway_listener,
+            gateway_listeners,
         }
     }
+}
+
+#[derive(Debug, Clone)]
+pub struct GatewayListeners {
+    pub primary: Url,
+    pub fallback: Option<Url>,
 }
 
 #[must_use]
 #[derive(Debug)]
 pub struct AuthenticationResponse {
-    pub initial_shared_key: Arc<SharedGatewayKey>,
-    pub requires_key_upgrade: bool,
+    pub initial_shared_key: Arc<SharedSymmetricKey>,
 }
 
 // TODO: this should be refactored into a state machine that keeps track of its authentication state
@@ -92,17 +88,16 @@ pub struct GatewayClient<C, St = EphemeralCredentialStorage> {
 
     authenticated: bool,
     bandwidth: ClientBandwidth,
-    gateway_address: String,
+    gateway_addresses: GatewayListeners,
     gateway_identity: ed25519::PublicKey,
     local_identity: Arc<ed25519::KeyPair>,
-    shared_key: Option<Arc<SharedGatewayKey>>,
+    shared_key: Option<Arc<SharedSymmetricKey>>,
     connection: SocketState,
     packet_router: PacketRouter,
     bandwidth_controller: Option<BandwidthController<C, St>>,
     stats_reporter: ClientStatsSender,
 
-    // currently unused (but populated)
-    negotiated_protocol: Option<u8>,
+    negotiated_protocol: Option<GatewayProtocolVersion>,
 
     // Callback on the fd as soon as the connection has been established
     #[cfg(unix)]
@@ -119,7 +114,7 @@ impl<C, St> GatewayClient<C, St> {
         gateway_config: GatewayConfig,
         local_identity: Arc<ed25519::KeyPair>,
         // TODO: make it mandatory. if you don't want to pass it, use `new_init`
-        shared_key: Option<Arc<SharedGatewayKey>>,
+        shared_key: Option<Arc<SharedSymmetricKey>>,
         packet_router: PacketRouter,
         bandwidth_controller: Option<BandwidthController<C, St>>,
         stats_reporter: ClientStatsSender,
@@ -130,7 +125,7 @@ impl<C, St> GatewayClient<C, St> {
             cfg,
             authenticated: false,
             bandwidth: ClientBandwidth::new_empty(),
-            gateway_address: gateway_config.gateway_listener,
+            gateway_addresses: gateway_config.gateway_listeners,
             gateway_identity: gateway_config.gateway_identity,
             local_identity,
             shared_key,
@@ -149,7 +144,7 @@ impl<C, St> GatewayClient<C, St> {
         self.gateway_identity
     }
 
-    pub fn shared_key(&self) -> Option<Arc<SharedGatewayKey>> {
+    pub fn shared_key(&self) -> Option<Arc<SharedSymmetricKey>> {
         self.shared_key.clone()
     }
 
@@ -166,10 +161,12 @@ impl<C, St> GatewayClient<C, St> {
     }
 
     #[cfg(not(target_arch = "wasm32"))]
+    #[allow(clippy::unreachable)]
     async fn _close_connection(&mut self) -> Result<(), GatewayClientError> {
         match std::mem::replace(&mut self.connection, SocketState::NotConnected) {
             SocketState::Available(mut socket) => Ok((*socket).close(None).await?),
             SocketState::PartiallyDelegated(_) => {
+                // SAFETY: this is only called after the caller has already recovered the connection
                 unreachable!("this branch should have never been reached!")
             }
             _ => Ok(()), // no need to do anything in those cases
@@ -177,6 +174,7 @@ impl<C, St> GatewayClient<C, St> {
     }
 
     #[cfg(target_arch = "wasm32")]
+    #[allow(clippy::unreachable)]
     async fn _close_connection(&mut self) -> Result<(), GatewayClientError> {
         match std::mem::replace(&mut self.connection, SocketState::NotConnected) {
             SocketState::Available(socket) => {
@@ -184,6 +182,7 @@ impl<C, St> GatewayClient<C, St> {
                 Ok(())
             }
             SocketState::PartiallyDelegated(_) => {
+                // SAFETY: this is only called after the caller has already recovered the connection
                 unreachable!("this branch should have never been reached!")
             }
             _ => Ok(()), // no need to do anything in those cases
@@ -200,12 +199,19 @@ impl<C, St> GatewayClient<C, St> {
 
     #[cfg(not(target_arch = "wasm32"))]
     pub async fn establish_connection(&mut self) -> Result<(), GatewayClientError> {
-        debug!(
-            "Attempting to establish connection to gateway at: {}",
-            self.gateway_address
-        );
-        let (ws_stream, _) = connect_async(
-            &self.gateway_address,
+        if let Some(fallback_url) = &self.gateway_addresses.fallback {
+            debug!(
+                "Attempting to establish connection to gateway at: {}, with fallback at: {fallback_url}",
+                self.gateway_addresses.primary
+            );
+        } else {
+            debug!(
+                "Attempting to establish connection to gateway at: {}",
+                self.gateway_addresses.primary
+            );
+        }
+        let (ws_stream, _) = connect_async_with_fallback(
+            &self.gateway_addresses,
             #[cfg(unix)]
             self.connection_fd_callback.clone(),
         )
@@ -218,7 +224,7 @@ impl<C, St> GatewayClient<C, St> {
 
     #[cfg(target_arch = "wasm32")]
     pub async fn establish_connection(&mut self) -> Result<(), GatewayClientError> {
-        let ws_stream = match JSWebsocket::new(&self.gateway_address) {
+        let ws_stream = match JSWebsocket::new(self.gateway_addresses.primary.as_ref()) {
             Ok(ws_stream) => ws_stream,
             Err(e) => {
                 return Err(GatewayClientError::NetworkErrorWasm(e));
@@ -271,7 +277,7 @@ impl<C, St> GatewayClient<C, St> {
         message: ClientRequest,
     ) -> Result<(), GatewayClientError> {
         if let Some(shared_key) = self.shared_key() {
-            let encrypted = message.encrypt(&*shared_key)?;
+            let encrypted = message.encrypt(&shared_key)?;
             Box::pin(self.send_websocket_message_without_response(encrypted)).await?;
             Ok(())
         } else {
@@ -458,61 +464,28 @@ impl<C, St> GatewayClient<C, St> {
         }
     }
 
-    fn check_gateway_protocol(
-        &self,
-        gateway_protocol: Option<u8>,
-    ) -> Result<(), GatewayClientError> {
-        debug!("gateway protocol: {gateway_protocol:?}, ours: {CURRENT_PROTOCOL_VERSION}");
-
-        // right now there are no failure cases here, but this might change in the future
-        match gateway_protocol {
-            None => {
-                warn!("the gateway we're connected to has not specified its protocol version. It's probably running version < 1.1.X, but that's still fine for now. It will become a hard error in 1.2.0");
-                // note: in +1.2.0 we will have to return a hard error here
-                Ok(())
-            }
-            Some(v) if v > CURRENT_PROTOCOL_VERSION => {
-                let err = GatewayClientError::IncompatibleProtocol {
-                    gateway: Some(v),
-                    current: CURRENT_PROTOCOL_VERSION,
-                };
-                error!("{err}");
-                Err(err)
-            }
-
-            Some(_) => {
-                debug!("the gateway is using exactly the same (or older) protocol version as we are. We're good to continue!");
-                Ok(())
-            }
-        }
-    }
-
     async fn register(
         &mut self,
-        derive_aes256_gcm_siv_key: bool,
+        supported_gateway_protocol: GatewayProtocolVersion,
     ) -> Result<(), GatewayClientError> {
         if !self.connection.is_established() {
             return Err(GatewayClientError::ConnectionNotEstablished);
         }
 
         debug_assert!(self.connection.is_available());
-        log::debug!(
-            "registering with gateway. using legacy key derivation: {}",
-            !derive_aes256_gcm_siv_key
-        );
+        log::debug!("registering with gateway");
 
         // it's fine to instantiate it here as it's only used once (during authentication or registration)
         // and putting it into the GatewayClient struct would be a hassle
         let mut rng = OsRng;
 
-        let shared_key = match &mut self.connection {
+        let handshake_result = match &mut self.connection {
             SocketState::Available(ws_stream) => client_handshake(
                 &mut rng,
                 ws_stream,
                 self.local_identity.as_ref(),
                 self.gateway_identity,
-                self.cfg.bandwidth.require_tickets,
-                derive_aes256_gcm_siv_key,
+                supported_gateway_protocol,
                 #[cfg(not(target_arch = "wasm32"))]
                 self.shutdown_token.clone(),
             )
@@ -521,97 +494,24 @@ impl<C, St> GatewayClient<C, St> {
             _ => return Err(GatewayClientError::ConnectionInInvalidState),
         }?;
 
-        let (authentication_status, gateway_protocol) = match self.read_control_response().await? {
-            ServerResponse::Register {
-                protocol_version,
-                status,
-            } => (status, protocol_version),
+        let authentication_status = match self.read_control_response().await? {
+            ServerResponse::Register { status, .. } => status,
             ServerResponse::Error { message } => {
                 return Err(GatewayClientError::GatewayError(message))
             }
             other => return Err(GatewayClientError::UnexpectedResponse { name: other.name() }),
         };
 
-        self.check_gateway_protocol(gateway_protocol)?;
         self.authenticated = authentication_status;
 
         if self.authenticated {
-            self.shared_key = Some(Arc::new(shared_key));
+            self.shared_key = Some(Arc::new(handshake_result.derived_key));
         }
 
         // populate the negotiated protocol for future uses
-        self.negotiated_protocol = gateway_protocol;
+        self.negotiated_protocol = Some(handshake_result.negotiated_protocol);
 
         Ok(())
-    }
-
-    pub async fn upgrade_key_authenticated(
-        &mut self,
-    ) -> Result<Zeroizing<SharedSymmetricKey>, GatewayClientError> {
-        info!("*** STARTING AES128CTR-HMAC KEY UPGRADE INTO AES256GCM-SIV***");
-
-        if !self.connection.is_established() {
-            return Err(GatewayClientError::ConnectionNotEstablished);
-        }
-
-        if !self.authenticated {
-            return Err(GatewayClientError::NotAuthenticated);
-        }
-
-        let Some(shared_key) = self.shared_key.as_ref() else {
-            return Err(GatewayClientError::NoSharedKeyAvailable);
-        };
-
-        if !shared_key.is_legacy() {
-            return Err(GatewayClientError::KeyAlreadyUpgraded);
-        }
-
-        // make sure we have the only reference, so we could safely swap it
-        if Arc::strong_count(shared_key) != 1 {
-            return Err(GatewayClientError::KeyAlreadyInUse);
-        }
-
-        assert!(shared_key.is_legacy());
-        let legacy_key = shared_key.unwrap_legacy();
-        let (updated_key, hkdf_salt) = legacy_key.upgrade();
-        let derived_key_digest = updated_key.digest();
-
-        let upgrade_request = ClientRequest::UpgradeKey {
-            hkdf_salt,
-            derived_key_digest,
-        }
-        .encrypt(legacy_key)?;
-
-        info!("sending upgrade request and awaiting the acknowledgement back");
-        let (ciphertext, nonce) = match self
-            .send_websocket_message_with_response(upgrade_request)
-            .await?
-        {
-            ServerResponse::EncryptedResponse { ciphertext, nonce } => (ciphertext, nonce),
-            ServerResponse::Error { message } => {
-                return Err(GatewayClientError::GatewayError(message))
-            }
-            other => return Err(GatewayClientError::UnexpectedResponse { name: other.name() }),
-        };
-
-        // attempt to decrypt it using NEW key
-        let Ok(response) = SensitiveServerResponse::decrypt(&ciphertext, &nonce, &updated_key)
-        else {
-            return Err(GatewayClientError::FatalKeyUpgradeFailure);
-        };
-
-        match response {
-            SensitiveServerResponse::KeyUpgradeAck { .. } => {
-                info!("received key upgrade acknowledgement")
-            }
-            _ => return Err(GatewayClientError::FatalKeyUpgradeFailure),
-        }
-
-        // perform in memory swap and make a copy for updating storage
-        let zeroizing_updated_key = updated_key.zeroizing_clone();
-        self.shared_key = Some(Arc::new(updated_key.into()));
-
-        Ok(zeroizing_updated_key)
     }
 
     async fn send_authenticate_request_and_handle_response(
@@ -624,11 +524,14 @@ impl<C, St> GatewayClient<C, St> {
                 status,
                 bandwidth_remaining,
             } => {
-                self.check_gateway_protocol(protocol_version)?;
+                if protocol_version.is_future_version() {
+                    error!("the gateway insists on using v{protocol_version} protocol which is not supported by this client");
+                    return Err(GatewayClientError::AuthenticationFailure);
+                }
                 self.authenticated = status;
                 self.bandwidth.update_and_maybe_log(bandwidth_remaining);
 
-                self.negotiated_protocol = protocol_version;
+                self.negotiated_protocol = Some(protocol_version);
                 log::debug!("authenticated: {status}, bandwidth remaining: {bandwidth_remaining}");
 
                 Ok(())
@@ -638,56 +541,42 @@ impl<C, St> GatewayClient<C, St> {
         }
     }
 
-    async fn authenticate_v1(&mut self) -> Result<(), GatewayClientError> {
-        debug!("using v1 authentication");
-
-        let Some(shared_key) = self.shared_key.as_ref() else {
-            return Err(GatewayClientError::NoSharedKeyAvailable);
-        };
-
-        let self_address = self
-            .local_identity
-            .public_key()
-            .derive_destination_address();
-
-        let msg = ClientControlRequest::new_authenticate(
-            self_address,
-            shared_key,
-            self.cfg.bandwidth.require_tickets,
-        )?;
-        self.send_authenticate_request_and_handle_response(msg)
-            .await
-    }
-
-    async fn authenticate_v2(&mut self) -> Result<(), GatewayClientError> {
+    async fn authenticate_v2(
+        &mut self,
+        requested_protocol_version: GatewayProtocolVersion,
+    ) -> Result<(), GatewayClientError> {
         debug!("using v2 authentication");
         let Some(shared_key) = self.shared_key.as_ref() else {
             return Err(GatewayClientError::NoSharedKeyAvailable);
         };
 
-        let msg = ClientControlRequest::new_authenticate_v2(shared_key, &self.local_identity)?;
+        let msg = ClientControlRequest::new_authenticate_v2(
+            shared_key,
+            &self.local_identity,
+            requested_protocol_version,
+        )?;
         self.send_authenticate_request_and_handle_response(msg)
             .await
     }
 
-    async fn authenticate(&mut self, use_v2: bool) -> Result<(), GatewayClientError> {
+    async fn authenticate(
+        &mut self,
+        requested_protocol_version: GatewayProtocolVersion,
+    ) -> Result<(), GatewayClientError> {
         if !self.connection.is_established() {
             return Err(GatewayClientError::ConnectionNotEstablished);
         }
         debug!("authenticating with gateway");
 
-        if use_v2 {
-            self.authenticate_v2().await
-        } else {
-            self.authenticate_v1().await
-        }
+        // use the highest possible protocol version the gateway has announced support for
+        self.authenticate_v2(requested_protocol_version).await
     }
 
     /// Helper method to either call register or authenticate based on self.shared_key value
     #[instrument(skip_all,
         fields(
             gateway = %self.gateway_identity,
-            gateway_address = %self.gateway_address
+            gateway_address = %self.gateway_addresses.primary
         )
     )]
     pub async fn perform_initial_authentication(
@@ -698,15 +587,11 @@ impl<C, St> GatewayClient<C, St> {
         }
 
         // 1. check gateway's protocol version
-        let gw_protocol = match self.get_gateway_protocol().await {
-            Ok(protocol) => Some(protocol),
-            Err(_) => {
-                // if we failed to send the request, it means the gateway is running the old binary,
-                // so it has reset our connection - we have to reconnect
-                self.establish_connection().await?;
-                None
-            }
-        };
+        // if we failed to get this request resolved, it means the gateway is on an old version
+        // that definitely does not support auth v2 or aes256gcm, so we bail
+        let gw_protocol = self.get_gateway_protocol().await?;
+
+        debug!("supported gateway protocol: {gw_protocol:?}");
 
         let supports_aes_gcm_siv = gw_protocol.supports_aes256_gcm_siv();
         let supports_auth_v2 = gw_protocol.supports_authenticate_v2();
@@ -718,16 +603,32 @@ impl<C, St> GatewayClient<C, St> {
         if !supports_auth_v2 {
             warn!("this gateway is on an old version that doesn't support authentication v2")
         }
+
+        // Dropping v1 support
+        if !supports_auth_v2 || !supports_aes_gcm_siv {
+            // we can't continue
+            return Err(GatewayClientError::IncompatibleProtocol {
+                gateway: gw_protocol,
+                current: CURRENT_PROTOCOL_VERSION,
+            });
+        }
+
         if !supports_key_rotation_info {
             warn!("this gateway is on an old version that doesn't support key rotation packets")
         }
+
+        let gw_protocol = if gw_protocol.is_future_version() {
+            warn!("we're running outdated software as gateway is announcing protocol {gw_protocol:?} whilst we're using {}. we're going to attempt to downgrade", GatewayProtocolVersion::CURRENT);
+            GatewayProtocolVersion::CURRENT
+        } else {
+            gw_protocol
+        };
 
         if self.authenticated {
             debug!("Already authenticated");
             return if let Some(shared_key) = &self.shared_key {
                 Ok(AuthenticationResponse {
                     initial_shared_key: Arc::clone(shared_key),
-                    requires_key_upgrade: shared_key.is_legacy() && supports_aes_gcm_siv,
                 })
             } else {
                 Err(GatewayClientError::AuthenticationFailureWithPreexistingSharedKey)
@@ -735,32 +636,30 @@ impl<C, St> GatewayClient<C, St> {
         }
 
         if self.shared_key.is_some() {
-            self.authenticate(supports_auth_v2).await?;
+            self.authenticate(gw_protocol).await?;
 
             if self.authenticated {
                 // if we are authenticated it means we MUST have an associated shared_key
+                #[allow(clippy::unwrap_used)]
                 let shared_key = self.shared_key.as_ref().unwrap();
-
-                let requires_key_upgrade = shared_key.is_legacy() && supports_aes_gcm_siv;
 
                 Ok(AuthenticationResponse {
                     initial_shared_key: Arc::clone(shared_key),
-                    requires_key_upgrade,
                 })
             } else {
                 Err(GatewayClientError::AuthenticationFailure)
             }
         } else {
-            self.register(supports_aes_gcm_siv).await?;
+            self.register(gw_protocol).await?;
 
             // if registration didn't return an error, we MUST have an associated shared key
+            #[allow(clippy::unwrap_used)]
             let shared_key = self.shared_key.as_ref().unwrap();
 
             // we're always registering with the highest supported protocol,
             // so no upgrades are required
             Ok(AuthenticationResponse {
                 initial_shared_key: Arc::clone(shared_key),
-                requires_key_upgrade: false,
             })
         }
     }
@@ -828,6 +727,8 @@ impl<C, St> GatewayClient<C, St> {
     }
 
     fn unchecked_bandwidth_controller(&self) -> &BandwidthController<C, St> {
+        // this is an unchecked method
+        #[allow(clippy::unwrap_used)]
         self.bandwidth_controller.as_ref().unwrap()
     }
 
@@ -919,6 +820,7 @@ impl<C, St> GatewayClient<C, St> {
             BinaryRequest::ForwardSphinx { packet }
         };
 
+        #[allow(clippy::expect_used)]
         req.into_ws_message(
             self.shared_key
                 .as_ref()
@@ -1025,6 +927,8 @@ impl<C, St> GatewayClient<C, St> {
         self.send_with_reconnection_on_failure(msg).await
     }
 
+    // SAFETY: this method is only called when the connection is in `PartiallyDelegated` state
+    #[allow(clippy::unreachable)]
     async fn recover_socket_connection(&mut self) -> Result<(), GatewayClientError> {
         if self.connection.is_available() {
             return Ok(());
@@ -1054,6 +958,7 @@ impl<C, St> GatewayClient<C, St> {
             return Err(GatewayClientError::ConnectionInInvalidState);
         }
 
+        #[allow(clippy::expect_used)]
         let partially_delegated =
             match std::mem::replace(&mut self.connection, SocketState::Invalid) {
                 SocketState::Available(conn) => {
@@ -1069,7 +974,13 @@ impl<C, St> GatewayClient<C, St> {
                         self.shutdown_token.clone(),
                     )
                 }
-                _ => unreachable!(),
+                other => {
+                    error!(
+                        "attempted to start mixnet listener whilst the connection is in {} state!",
+                        other.name()
+                    );
+                    return Err(GatewayClientError::ConnectionInInvalidState);
+                }
             };
 
         self.connection = SocketState::PartiallyDelegated(partially_delegated);
@@ -1082,8 +993,12 @@ impl<C, St> GatewayClient<C, St> {
         }
 
         // if we're reconnecting, because we lost connection, we need to re-authenticate the connection
-        self.authenticate(self.negotiated_protocol.supports_authenticate_v2())
-            .await?;
+        if let Some(negotiated_protocol) = self.negotiated_protocol {
+            self.authenticate(negotiated_protocol).await?;
+        } else {
+            // This should never happen, because it would mean we're not registered
+            return Err(GatewayClientError::NotRegistered);
+        }
 
         // this call is NON-blocking
         self.start_listening_for_mixnet_messages()?;
@@ -1128,7 +1043,7 @@ pub struct InitOnly;
 impl GatewayClient<InitOnly, EphemeralCredentialStorage> {
     // for initialisation we do not need credential storage. Though it's still a bit weird we have to set the generic...
     pub fn new_init(
-        gateway_listener: Url,
+        gateway_listeners: GatewayListeners,
         gateway_identity: ed25519::PublicKey,
         local_identity: Arc<ed25519::KeyPair>,
         #[cfg(unix)] connection_fd_callback: Option<Arc<dyn Fn(RawFd) + Send + Sync>>,
@@ -1147,7 +1062,7 @@ impl GatewayClient<InitOnly, EphemeralCredentialStorage> {
             cfg: GatewayClientConfig::default().with_disabled_credentials_mode(true),
             authenticated: false,
             bandwidth: ClientBandwidth::new_empty(),
-            gateway_address: gateway_listener.to_string(),
+            gateway_addresses: gateway_listeners,
             gateway_identity,
             local_identity,
             shared_key: None,
@@ -1179,7 +1094,7 @@ impl GatewayClient<InitOnly, EphemeralCredentialStorage> {
             cfg: self.cfg,
             authenticated: self.authenticated,
             bandwidth: self.bandwidth,
-            gateway_address: self.gateway_address,
+            gateway_addresses: self.gateway_addresses,
             gateway_identity: self.gateway_identity,
             local_identity: self.local_identity,
             shared_key: self.shared_key,

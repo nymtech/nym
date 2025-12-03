@@ -33,18 +33,6 @@
     dest: "/root/nym-binaries/nym-cli"
     mode: "0755"
 
-- name: Download network-tunnel-manager.sh
-  get_url:
-    url: "{{ tunnel_manager_url }}"
-    dest: "/root/nym-binaries/network-tunnel-manager.sh"
-    mode: "0755"
-
-- name: Download quic_bridge_deployment.sh
-  get_url:
-    url: "{{ quic_bridge_deployment_url }}"
-    dest: "/root/nym-binaries/quic_bridge_deployment.sh"
-    mode: "0755"
-
 - name: Template systemd service
   tags: systemctl
   template:
@@ -68,24 +56,6 @@
 - name: Initialize nym node
   command:
     cmd: "/root/nym-binaries/nym-node run --mode {{ mode }} --public-ips {{ public_ip }} --hostname {{ hostname }} --http-bind-address 0.0.0.0:8080 --mixnet-bind-address 0.0.0.0:1789 --location {{ location }} --accept-operator-terms-and-conditions --wireguard-enabled {{ wireguard_enabled }} --landing-page-assets-path /var/www/{{ hostname }}/ -w  --init-only"
-
-# comment for mixnode
-- name: Configure tunnel manager
-  become: true
-  command:
-    cmd: "/root/nym-binaries/network-tunnel-manager.sh {{ item }}"
-  loop:
-    - complete_networking_configuration
-
-# comment for non-wireguard gateway or mixnode
-- name: Configure tunnel manager
-  become: true
-  command:
-    cmd: "/root/nym-binaries/quic_bridge_deployment.sh {{ item }}"
-  environment:
-    NONINTERACTIVE: "1"
-  loop:
-    - full_bridge_setup
 
 - name: Update nym description
   template:

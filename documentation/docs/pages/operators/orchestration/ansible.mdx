@@ -1,0 +1,110 @@
+# Orchestrating Nym Nodes with Ansible
+
+[Ansible](https://docs.ansible.com/) is an open-source automation engine that can perform any IT task and remove complexity from workflows. Ansible ensures that your environment is exactly as you describe it. You can automate any command with Ansible to make your system maintenance very efficient. **For `nym-node` operators Ansible is particularly useful as it can scale infinitely the amount of nodes operators can setup, upgrade, maintain and re-configure from their local shell, removing the complexity and required time when managing many nodes.**
+
+Ansible is more suitable for skilled power users managing multiple nodes at the same time!** 
+
+If you are not familiar with Ansible, your node operation may be a good motivation to learn something new and improve your admin skills, it's worth the time. 
+
+Start by reading through [Ansible documentation pages](https://docs.ansible.com)
+
+
+## Installation
+
+
+### Ansible installation
+
+For anything regarding the installation and management of Ansible itself, the best is to refer to their documentation. On [this page](https://docs.ansible.com/projects/ansible/latest/installation_guide/intro_installation.html#latest-release-via-dnf-or-yum) you can see the installation guide. 
+
+If you are confident and want to start right away, install Ansible on your machine using one of these two ways:
+
+1. `apt` repository:
+```sh
+sudo apt-get update
+sudo apt-get install ansible
+```
+2. `pip` or `pipx` - recommended by Ansible community:
+```sh
+pip install ansible
+# or
+pipx install ansible
+```
+
+### Nym Node Playbook Installation
+
+Nym Node Ansible playbook template is located in our monorepo [`nymtech/nym/ansible/nym-node`](https://github.com/nymtech/nym/tree/develop/ansible/nym-node)
+
+<Steps>
+###### 1. Get `nym/ansible/nym-node` playbook:
+
+The easiest way is to use `git` to `clone` or `pull` the repository:
+
+```sh
+git clone https://github.com/nymtech/nym.git
+
+# or navigate where you already have the repo and run
+
+git checkout develop
+git pull origin develop
+```
+
+###### 2. Save the template to your location:
+
+You may want to create a directory outside of the repository and move the template there so it can be modified without risking that your configuration will be accidentally shared when working with the repository in the future. 
+
+- Navigate to any location and create a directory for your Ansible `nym-node` work:
+```sh
+cd <PATH>
+mkdir `ansible`
+cd ansible
+- Copy the template to the newly created location:
+```sh
+cp -r <PATH>/nym/ansible/nym-node ./
+```
+
+
+
+## Configuration
+
+
+Idempotency
+
+A well-written playbook ensures that even if the playbook is run multiple times, the state will not change from what you wrote it for. For this reason, it is essential to ensure that all tasks in your playbook do not change the system in any way if the change you required has already been applied.
+
+
+
+
+{/*
+NOTE FOR SELF
+
+
+ansible config to prevent args
+
+group_vars -> just one purpose
+    all.yml -> packages is what I use later
+    settings of all general things like user (root) etc
+    
+inventory -> list of machines one is taking care of
+- all vars here which are for one one are there
+- may be better to specify for each node there as it's easier for the operator, but good to use as much automation. 
+
+tasks have all helpers to generate your 
+
+roles: base defaults -> for all
+- each role does only one thing
+- they are called from playbooks/deploy.yml there in roles I made the whole process I am calling for a miachine deploy
+- playboooks/
+
+j2 is aending for variables added in init, it takes it from templates, if it's in files it only moves it
+
+apt_moduleansible.builtin.apt:
+
+
+CMD
+ ansible-playbook --limit=node deploy.yml Limit is the inventory [group] to which I want to do which playbook aka deploy.yml
+
+pip or apt
+which keys
+conventions to store it 
+which inventories
+*/}

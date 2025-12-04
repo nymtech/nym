@@ -1,4 +1,7 @@
-CREATE TABLE report_v2_new (
+-- IMPORTANT : At the time of writing this, there are no instances of the Stats API with data in that table. Dropping it to modify is therefore fine
+DROP TABLE report_v2;
+
+CREATE TABLE report_v2 (
     -- some info about the report, inferred from when/from where we got it
     received_at           TIMESTAMP WITH TIME ZONE  NOT NULL,
     source_ip             TEXT,
@@ -26,24 +29,3 @@ CREATE TABLE report_v2_new (
     follow_up_id          TEXT,
     error                 TEXT
 );
-
---  copy data over
-INSERT INTO report_v2_new (
-    received_at, source_ip, from_mixnet, country_code, report_version,
-    device_id, os_type, os_version, architecture, app_version, user_agent,
-    start_day_utc, connection_time_ms, tunnel_type, retry_attempt,
-    session_duration_min, disconnection_time_ms,
-    exit_id, exit_cc, follow_up_id, error
-)
-SELECT
-    received_at, source_ip, from_mixnet, country_code, report_version,
-    device_id, os_type, os_version, architecture, app_version, user_agent,
-    start_day_utc, connection_time_ms, tunnel_type, retry_attempt,
-    session_duration_min, disconnection_time_ms,
-    exit_id, NULL AS exit_cc, follow_up_id, error
-FROM report_v2;
-
--- Drop old table and rename
-DROP TABLE report_v2;
-ALTER TABLE report_v2_new RENAME TO report_v2;
-CREATE INDEX idx_report_v2_received_at ON report_v2 (received_at);

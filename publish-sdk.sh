@@ -3,7 +3,6 @@ set -e
 
 # SDK and its dependencies
 PACKAGES=(
-  # "nym-api"
   "nym-bandwidth-controller"
   "nym-bin-common"
   "nym-client-core"

@@ -33,7 +33,10 @@ pub trait NyxdScraperStorage: Clone + Sized {
     type StorageTransaction: NyxdScraperTransaction;
 
     /// Either connection string (postgres) or storage path (sqlite)
-    async fn initialise(storage: &str) -> Result<Self, NyxdScraperStorageError>;
+    async fn initialise(
+        storage: &str,
+        run_migrations: &bool,
+    ) -> Result<Self, NyxdScraperStorageError>;
 
     async fn begin_processing_tx(
         &self,

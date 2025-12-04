@@ -60,6 +60,7 @@ pub(crate) async fn run_chain_scraper(
             start_block_height,
             use_best_effort_start_height,
         },
+        run_migrations: true,
     })
     .with_msg_module(BankScraperModule::new(
         db_pool,

@@ -48,6 +48,8 @@ pub struct Config {
     pub store_precommits: bool,
 
     pub start_block: StartingBlockOpts,
+
+    pub run_migrations: bool,
 }
 
 pub struct NyxdScraperBuilder<S> {
@@ -161,7 +163,7 @@ where
 
     pub async fn new(config: Config) -> Result<Self, ScraperError> {
         config.pruning_options.validate()?;
-        let storage = S::initialise(&config.database_storage).await?;
+        let storage = S::initialise(&config.database_storage, &config.run_migrations).await?;
         let rpc_client = RpcClient::new(&config.rpc_url)?;
 
         Ok(NyxdScraper {

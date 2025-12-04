@@ -1,8 +1,7 @@
 use crate::cli::commands::run::Args;
 use crate::db::DbPool;
 use nyxd_scraper_psql::{PostgresNyxdScraper, PruningOptions};
-use std::fs;
-use tracing::{info, warn};
+use tracing::info;
 
 pub(crate) mod webhook;
 
@@ -29,6 +28,7 @@ pub(crate) async fn run_chain_scraper(
             start_block_height: args.start_block_height,
             use_best_effort_start_height,
         },
+        run_migrations: false, // ignore the base migrations
     })
     .with_msg_module(crate::modules::wasm::WasmModule::new(connection_pool))
     .with_tx_module(webhook::WebhookModule::new(config.clone())?);

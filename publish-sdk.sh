@@ -71,13 +71,11 @@ PACKAGES=(
   "nym-sdk"
 )
 
-# Build package flags
 PACKAGE_FLAGS=""
 for pkg in "${PACKAGES[@]}"; do
   PACKAGE_FLAGS="$PACKAGE_FLAGS -p $pkg"
 done
 
-# Run cargo-release
 cargo release \
   $PACKAGE_FLAGS \
   --prev-tag-name "" \
@@ -85,5 +83,5 @@ cargo release \
   --no-tag \
   --no-publish \
   --allow-branch '*' \
-  -vv \
+  -v \
   "$@"

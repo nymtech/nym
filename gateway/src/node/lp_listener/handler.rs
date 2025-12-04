@@ -6,8 +6,8 @@ use super::registration::process_registration;
 use super::LpHandlerState;
 use crate::error::GatewayError;
 use nym_lp::{
-    codec::OuterAeadKey, keypair::PublicKey, message::ForwardPacketData, OuterHeader,
-    LpMessage, LpPacket,
+    codec::OuterAeadKey, keypair::PublicKey, message::ForwardPacketData, packet::LpHeader,
+    LpMessage, LpPacket, OuterHeader,
 };
 use nym_metrics::{add_histogram_obs, inc};
 use std::net::SocketAddr;
@@ -332,6 +332,14 @@ impl LpConnectionHandler {
                     self.remote_addr, receiver_idx
                 );
 
+                // Get outer key for Ack encryption before releasing borrow
+                let outer_key = state_entry
+                    .value()
+                    .state
+                    .session()
+                    .ok()
+                    .and_then(|s| s.outer_aead_key());
+
                 // Move state machine to session_states (already in Transport state)
                 // We keep the state machine (not just session) to enable
                 // subsession/rekeying support during transport phase
@@ -344,9 +352,13 @@ impl LpConnectionHandler {
 
                 inc!("lp_handshakes_success");
 
-                // No response packet to send - HandshakeComplete means we're done
-                trace!("Moved session {} to transport mode", receiver_idx);
-                None
+                // Send Ack to confirm handshake completion to the client
+                let ack_packet = LpPacket::new(
+                    LpHeader::new(receiver_idx, 0),
+                    LpMessage::Ack,
+                );
+                trace!("Moved session {} to transport mode, sending Ack", receiver_idx);
+                Some((ack_packet, outer_key))
             }
             other => {
                 debug!("Received action during handshake: {:?}", other);

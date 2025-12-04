@@ -117,8 +117,12 @@ pub enum PSQState {
     NotStarted,
 
     /// Initiator has sent PSQ ciphertext and is waiting for confirmation.
-    /// Stores the ciphertext that was sent.
-    InitiatorWaiting { ciphertext: Vec<u8> },
+    /// PSK is already derived but we don't encrypt outgoing packets yet
+    /// because the responder may not have processed our message yet.
+    InitiatorWaiting {
+        /// The derived PSK, stored until we transition to Completed
+        psk: [u8; 32],
+    },
 
     /// Responder is ready to receive and decapsulate PSQ ciphertext.
     ResponderWaiting,
@@ -280,8 +284,38 @@ impl LpSession {
     ///
     /// Callers should use `None` for packet encryption/decryption during
     /// the handshake phase, and use the returned key for transport phase.
+    ///
+    /// Note: For sending packets during handshake, use `outer_aead_key_for_sending()`
+    /// which checks PSQ state to avoid encrypting before the responder can decrypt.
     pub fn outer_aead_key(&self) -> Option<OuterAeadKey> {
         self.outer_aead_key.lock().clone()
+    }
+
+    /// Returns the outer AEAD key only if it's safe to use for sending.
+    ///
+    /// This method gates the key based on PSQ handshake state:
+    /// - Returns `None` if PSQ is NotStarted, InitiatorWaiting, or ResponderWaiting
+    /// - Returns `Some(key)` only if PSQ is Completed
+    ///
+    /// # Why This Matters
+    ///
+    /// The first Noise handshake message (containing PSQ payload from initiator)
+    /// must be sent in cleartext because the responder hasn't derived the PSK yet.
+    /// Only after the responder processes the PSQ and both sides have the PSK
+    /// can outer encryption be used for sending.
+    ///
+    /// For receiving, use `outer_aead_key()` which returns the key as soon as
+    /// it's derived (needed because the peer may start encrypting before we've
+    /// finished our send).
+    // AIDEV-NOTE: This fixes a bug where the initiator encrypted the first Noise
+    // message with outer AEAD, but the responder couldn't decrypt because it
+    // hadn't processed the PSQ yet to derive the same PSK.
+    pub fn outer_aead_key_for_sending(&self) -> Option<OuterAeadKey> {
+        let psq_state = self.psq_state.lock();
+        match &*psq_state {
+            PSQState::Completed { .. } => self.outer_aead_key.lock().clone(),
+            _ => None,
+        }
     }
 
     /// Creates a new session and initializes the Noise protocol state.
@@ -735,10 +769,9 @@ impl LpSession {
             combined.extend_from_slice(&psq_payload);
             combined.extend_from_slice(&noise_msg);
 
-            // Update PSQ state to InitiatorWaiting
-            *psq_state = PSQState::InitiatorWaiting {
-                ciphertext: psq_payload,
-            };
+            // PSK is derived but we stay in InitiatorWaiting until we receive msg 2.
+            // This ensures we send msg 1 in cleartext (responder can't decrypt yet).
+            *psq_state = PSQState::InitiatorWaiting { psk };
 
             return Some(Ok(LpMessage::Handshake(HandshakeData(combined))));
         }
@@ -905,36 +938,39 @@ impl LpSession {
                 }
 
                 // Check if initiator should extract PSK handle from message 2
-                if self.is_initiator && matches!(*psq_state, PSQState::InitiatorWaiting { .. }) {
-                    // Extract PSK handle: [u16 handle_len][handle_bytes][noise_msg]
-                    if payload.len() >= 2 {
-                        let handle_len = u16::from_le_bytes([payload[0], payload[1]]) as usize;
+                if let PSQState::InitiatorWaiting { psk } = *psq_state {
+                    if self.is_initiator {
+                        // Extract PSK handle: [u16 handle_len][handle_bytes][noise_msg]
+                        if payload.len() >= 2 {
+                            let handle_len = u16::from_le_bytes([payload[0], payload[1]]) as usize;
 
-                        if handle_len > 0 && payload.len() >= 2 + handle_len {
-                            // Extract and store the PSK handle
-                            let handle_bytes = &payload[2..2 + handle_len];
-                            let noise_payload = &payload[2 + handle_len..];
+                            if handle_len > 0 && payload.len() >= 2 + handle_len {
+                                // Extract and store the PSK handle
+                                let handle_bytes = &payload[2..2 + handle_len];
+                                let noise_payload = &payload[2 + handle_len..];
 
-                            tracing::debug!(
-                                "Extracted PSK handle ({} bytes) from message 2",
-                                handle_len
-                            );
+                                tracing::debug!(
+                                    "Extracted PSK handle ({} bytes) from message 2",
+                                    handle_len
+                                );
 
-                            {
-                                let mut psk_handle = self.psk_handle.lock();
-                                *psk_handle = Some(handle_bytes.to_vec());
+                                {
+                                    let mut psk_handle = self.psk_handle.lock();
+                                    *psk_handle = Some(handle_bytes.to_vec());
+                                }
+
+                                // Transition to Completed - we've received confirmation from responder
+                                *psq_state = PSQState::Completed { psk };
+                                drop(psq_state);
+
+                                // Process only the Noise message part
+                                return noise_state
+                                    .read_message(noise_payload)
+                                    .map_err(LpError::NoiseError);
                             }
-
-                            // Release psq_state lock before processing
-                            drop(psq_state);
-
-                            // Process only the Noise message part
-                            return noise_state
-                                .read_message(noise_payload)
-                                .map_err(LpError::NoiseError);
                         }
+                        // If no valid handle found, fall through to normal processing
                     }
-                    // If no valid handle found, fall through to normal processing
                 }
 
                 // The sans-io NoiseProtocol::read_message expects only the payload.

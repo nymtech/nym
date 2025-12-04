@@ -207,7 +207,8 @@ impl LpRegistrationClient {
         let ack_response = Self::connect_send_receive(
             self.gateway_lp_address,
             &client_hello_packet,
-            None, // No outer key before handshake
+            None, // No outer key for ClientHello (before PSK)
+            None, // No outer key for Ack response (before PSK)
             &self.config,
         )
         .await?;
@@ -258,17 +259,25 @@ impl LpRegistrationClient {
         loop {
             // Send pending packet if we have one
             if let Some(packet) = pending_packet.take() {
-                // Get outer key from session (None before PSK, Some after)
-                let outer_key = state_machine
+                // Get outer keys from session:
+                // - send_key: outer_aead_key_for_sending() returns None until PSQ complete
+                // - recv_key: outer_aead_key() returns key as soon as PSK is derived
+                let send_key = state_machine
+                    .session()
+                    .ok()
+                    .and_then(|s| s.outer_aead_key_for_sending());
+                let recv_key = state_machine
                     .session()
                     .ok()
                     .and_then(|s| s.outer_aead_key());
 
-                tracing::trace!("Sending handshake packet (outer_key={})", outer_key.is_some());
+                tracing::trace!("Sending handshake packet (send_key={}, recv_key={})",
+                    send_key.is_some(), recv_key.is_some());
                 let response = Self::connect_send_receive(
                     self.gateway_lp_address,
                     &packet,
-                    outer_key.as_ref(),
+                    send_key.as_ref(),
+                    recv_key.as_ref(),
                     &self.config,
                 )
                 .await?;
@@ -287,7 +296,11 @@ impl LpRegistrationClient {
                             if state_machine.session()?.is_handshake_complete() {
                                 // Send the final packet before breaking
                                 if let Some(final_packet) = pending_packet.take() {
-                                    let outer_key = state_machine
+                                    let send_key = state_machine
+                                        .session()
+                                        .ok()
+                                        .and_then(|s| s.outer_aead_key_for_sending());
+                                    let recv_key = state_machine
                                         .session()
                                         .ok()
                                         .and_then(|s| s.outer_aead_key());
@@ -295,7 +308,8 @@ impl LpRegistrationClient {
                                     let ack_response = Self::connect_send_receive(
                                         self.gateway_lp_address,
                                         &final_packet,
-                                        outer_key.as_ref(),
+                                        send_key.as_ref(),
+                                        recv_key.as_ref(),
                                         &self.config,
                                     )
                                     .await?;
@@ -369,10 +383,22 @@ impl LpRegistrationClient {
     ///
     /// # Errors
     /// Returns an error if connection, send, or receive fails.
+    ///
+    /// # Outer AEAD Keys
+    ///
+    /// Send and receive use separate keys because during the PSQ handshake:
+    /// - Initiator derives PSK when preparing msg 1, but must send it cleartext
+    ///   (responder hasn't derived PSK yet)
+    /// - Responder sends msg 2 encrypted (both have PSK now)
+    /// - Initiator can decrypt msg 2 (has had PSK since preparing msg 1)
+    ///
+    /// Use `outer_aead_key_for_sending()` for `send_key` (gates on PSQ completion)
+    /// and `outer_aead_key()` for `recv_key` (available as soon as PSK derived).
     async fn connect_send_receive(
         address: SocketAddr,
         packet: &LpPacket,
-        outer_key: Option<&OuterAeadKey>,
+        send_key: Option<&OuterAeadKey>,
+        recv_key: Option<&OuterAeadKey>,
         config: &LpConfig,
     ) -> Result<LpPacket> {
         // 1. Connect with timeout
@@ -398,11 +424,11 @@ impl LpRegistrationClient {
                 source,
             })?;
 
-        // 3. Send packet with optional outer AEAD
-        Self::send_packet_with_key(&mut stream, packet, outer_key).await?;
+        // 3. Send packet with send_key
+        Self::send_packet_with_key(&mut stream, packet, send_key).await?;
 
-        // 4. Receive response with optional outer AEAD
-        let response = Self::receive_packet_with_key(&mut stream, outer_key).await?;
+        // 4. Receive response with recv_key
+        let response = Self::receive_packet_with_key(&mut stream, recv_key).await?;
 
         // Connection drops when stream goes out of scope
         Ok(response)
@@ -617,8 +643,12 @@ impl LpRegistrationClient {
             }
         };
 
-        // 4. Get outer key from session
-        let outer_key = state_machine
+        // 4. Get outer keys from session
+        let send_key = state_machine
+            .session()
+            .ok()
+            .and_then(|s| s.outer_aead_key_for_sending());
+        let recv_key = state_machine
             .session()
             .ok()
             .and_then(|s| s.outer_aead_key());
@@ -629,7 +659,8 @@ impl LpRegistrationClient {
             Self::connect_send_receive(
                 self.gateway_lp_address,
                 &request_packet,
-                outer_key.as_ref(),
+                send_key.as_ref(),
+                recv_key.as_ref(),
                 &self.config,
             ),
         )
@@ -797,8 +828,12 @@ impl LpRegistrationClient {
             }
         };
 
-        // 4. Get outer key from session
-        let outer_key = state_machine
+        // 4. Get outer keys from session
+        let send_key = state_machine
+            .session()
+            .ok()
+            .and_then(|s| s.outer_aead_key_for_sending());
+        let recv_key = state_machine
             .session()
             .ok()
             .and_then(|s| s.outer_aead_key());
@@ -807,7 +842,8 @@ impl LpRegistrationClient {
         let response_packet = Self::connect_send_receive(
             self.gateway_lp_address,
             &forward_packet,
-            outer_key.as_ref(),
+            send_key.as_ref(),
+            recv_key.as_ref(),
             &self.config,
         )
         .await?;

@@ -771,6 +771,10 @@ impl Probe {
             );
 
             // Determine entry and exit gateways
+            // AIDEV-NOTE: Three modes for gateway resolution:
+            // 1. direct_gateway_node/exit_gateway_node - from --gateway-ip (HTTP API query)
+            // 2. localnet_entry/localnet_exit - from --entry-gateway-identity (CLI-only)
+            // 3. directory lookup - original behavior for production
             let (entry_gateway, exit_gateway) = if let Some(exit_node) = &self.exit_gateway_node {
                 // Both entry and exit gateways were pre-queried (direct IP mode)
                 info!("Using pre-queried entry and exit gateways for LP forwarding test");
@@ -783,6 +787,15 @@ impl Probe {
                 let exit_gateway = exit_node.to_testable_node()?;
 
                 (entry_gateway, exit_gateway)
+            } else if let Some(exit_localnet) = &self.localnet_exit {
+                // Localnet mode: use CLI-provided identities and LP addresses
+                info!("Using localnet entry and exit gateways for LP forwarding test");
+                let entry_localnet = self
+                    .localnet_entry
+                    .as_ref()
+                    .ok_or_else(|| anyhow::anyhow!("Entry gateway not available in localnet mode"))?;
+
+                (entry_localnet.clone(), exit_localnet.clone())
             } else {
                 // Original behavior: query from directory
                 // The tested node is the exit
@@ -1230,24 +1243,45 @@ where
         .map_err(|e| anyhow::anyhow!("Invalid exit gateway identity: {}", e))?;
 
     // Perform handshake and registration with exit gateway via forwarding
-    if use_mock_ecash {
-        info!("Note: Using mock ecash mode - gateways must be started with --lp-use-mock-ecash");
-    }
-    let exit_gateway_data = match nested_session
-        .handshake_and_register(
-            &mut entry_client,
-            &exit_wg_keypair,
-            &exit_gateway_pubkey,
-            bandwidth_controller,
+    let exit_gateway_data = if use_mock_ecash {
+        info!("Using mock ecash credential for exit gateway registration");
+        let credential = crate::bandwidth_helpers::create_dummy_credential(
+            &exit_gateway_pubkey.to_bytes(),
             TicketType::V1WireguardExit,
-            exit_ip,
-        )
-        .await
-    {
-        Ok(data) => data,
-        Err(e) => {
-            error!("Failed to register with exit gateway: {}", e);
-            return Ok(wg_outcome);
+        );
+        match nested_session
+            .handshake_and_register_with_credential(
+                &mut entry_client,
+                &exit_wg_keypair,
+                credential,
+                TicketType::V1WireguardExit,
+                exit_ip,
+            )
+            .await
+        {
+            Ok(data) => data,
+            Err(e) => {
+                error!("Failed to register with exit gateway (mock ecash): {}", e);
+                return Ok(wg_outcome);
+            }
+        }
+    } else {
+        match nested_session
+            .handshake_and_register(
+                &mut entry_client,
+                &exit_wg_keypair,
+                &exit_gateway_pubkey,
+                bandwidth_controller,
+                TicketType::V1WireguardExit,
+                exit_ip,
+            )
+            .await
+        {
+            Ok(data) => data,
+            Err(e) => {
+                error!("Failed to register with exit gateway: {}", e);
+                return Ok(wg_outcome);
+            }
         }
     };
     info!("Exit gateway registration successful via forwarding");
@@ -1259,19 +1293,37 @@ where
             .map_err(|e| anyhow::anyhow!("Invalid entry gateway identity: {}", e))?;
 
     // Use packet-per-connection register() which returns GatewayData directly
-    let _entry_gateway_data = match entry_client
-        .register(
-            &entry_wg_keypair,
-            &entry_gateway_pubkey,
-            bandwidth_controller,
+    let _entry_gateway_data = if use_mock_ecash {
+        info!("Using mock ecash credential for entry gateway registration");
+        let credential = crate::bandwidth_helpers::create_dummy_credential(
+            &entry_gateway_pubkey.to_bytes(),
             TicketType::V1WireguardEntry,
-        )
-        .await
-    {
-        Ok(data) => data,
-        Err(e) => {
-            error!("Failed to register with entry gateway: {}", e);
-            return Ok(wg_outcome);
+        );
+        match entry_client
+            .register_with_credential(&entry_wg_keypair, credential, TicketType::V1WireguardEntry)
+            .await
+        {
+            Ok(data) => data,
+            Err(e) => {
+                error!("Failed to register with entry gateway (mock ecash): {}", e);
+                return Ok(wg_outcome);
+            }
+        }
+    } else {
+        match entry_client
+            .register(
+                &entry_wg_keypair,
+                &entry_gateway_pubkey,
+                bandwidth_controller,
+                TicketType::V1WireguardEntry,
+            )
+            .await
+        {
+            Ok(data) => data,
+            Err(e) => {
+                error!("Failed to register with entry gateway: {}", e);
+                return Ok(wg_outcome);
+            }
         }
     };
     info!("Entry gateway registration successful");

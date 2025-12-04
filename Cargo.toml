@@ -375,7 +375,7 @@ zeroize = "1.7.0"
 prometheus = { version = "0.14.0" }
 
 # sdk related deps so we can pull in workspace versions of these in other crates' cargo files, and not have to define the version everywhere
-nym-api = { version = "1.2.0", path = "nym-api" }
+# nym-api = { version = "1.2.0", path = "nym-api" }
 nym-bandwidth-controller = { version = "1.2.0", path = "common/bandwidth-controller" }
 nym-bin-common = { version = "1.2.0", path = "common/bin-common" }
 nym-client-core = { version = "1.2.0", path = "common/client-core" }

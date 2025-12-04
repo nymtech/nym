@@ -6,6 +6,7 @@ use time::Date;
 
 const BASIC_REPORT_KIND: &str = "vpn_client_stats_report";
 const SESSION_REPORT_KIND: &str = "vpn_client_session_report";
+const ACTIVE_DEVICE_REPORT_KIND: &str = "vpn_client_active_device";
 const VERSION_1: &str = "v1";
 const VERSION_2: &str = "v2";
 
@@ -66,6 +67,27 @@ impl VpnClientStatsReportV2 {
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ActiveDeviceReport {
+    pub kind: String,
+    pub api_version: String,
+    pub stats_id: String,
+
+    pub static_information: StaticInformationReport,
+}
+
+impl ActiveDeviceReport {
+    pub fn new(stats_id: String, static_information: StaticInformationReport) -> Self {
+        ActiveDeviceReport {
+            kind: ACTIVE_DEVICE_REPORT_KIND.into(),
+            api_version: VERSION_2.into(),
+            stats_id,
+            static_information,
+        }
+    }
+}
+
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StaticInformationReport {
     pub os_type: String,
     pub os_version: Option<String>,
@@ -90,6 +112,7 @@ pub struct SessionReport {
     pub session_duration_min: i32,
     pub disconnection_time_ms: i32,
     pub exit_id: String,
+    pub exit_cc: Option<String>,
     pub follow_up_id: Option<String>,
     pub error: Option<String>,
 }

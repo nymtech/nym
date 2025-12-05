@@ -446,6 +446,7 @@ nym-validator-client = { version = "1.20.1", path = "common/client-libs/validato
 nym-vesting-contract-common = { version = "1.20.1", path = "common/cosmwasm-smart-contracts/vesting-contract" }
 nym-wireguard-types = { version = "1.20.1", path = "common/wireguard-types" }
 nym-sqlx-pool-guard = { version = "1.2.0", path = "common/sqlx-pool-guard" }
+nym-wasm-utils = { version = "1.20.1", path = "common/wasm/utils" }
 
 # coconut/DKG related
 # unfortunately until https://github.com/zkcrypto/bls12_381/issues/10 is resolved, we have to rely on the fork

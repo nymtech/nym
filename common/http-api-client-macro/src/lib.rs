@@ -23,7 +23,7 @@
 //!     priority = 10;  // Optional, defaults to 0
 //!     timeout = std::time::Duration::from_secs(30),
 //!     gzip = true,
-//!     user_agent = "MyApp/1.0"
+//!     user_agent = "Nym/1.0"
 //! );
 //! ```
 //!
@@ -60,9 +60,8 @@
 //! - Positive priorities: Late configuration (e.g., 100 for overrides)
 
 use proc_macro::TokenStream;
-use proc_macro_crate::{FoundCrate, crate_name};
-use proc_macro2::{Span, TokenStream as TokenStream2};
-use quote::{format_ident, quote};
+use proc_macro2::TokenStream as TokenStream2;
+use quote::quote;
 use syn::{
     Expr, Ident, LitInt, Result, Token, braced,
     parse::{Parse, ParseStream},
@@ -74,22 +73,22 @@ use syn::{
 // ------------------ core crate path resolution ------------------
 
 fn core_path() -> TokenStream2 {
+    use proc_macro_crate::{FoundCrate, crate_name};
+
     match crate_name("nym-http-api-client") {
         Ok(FoundCrate::Itself) => quote!(crate),
         Ok(FoundCrate::Name(name)) => {
-            let ident = Ident::new(&name, Span::call_site());
+            let ident = Ident::new(&name, proc_macro2::Span::call_site());
             quote!( ::#ident )
         }
-        Err(_) => {
-            // Fallback if the crate is not found by name (unlikely if deps set up correctly)
-            quote!(::nym_http_api_client)
-        }
+        Err(_) => quote!(::nym_http_api_client),
     }
 }
 
 // ------------------ DSL parsing ------------------
 
 struct Items(Punctuated<Item, Token![,]>);
+
 impl Parse for Items {
     fn parse(input: ParseStream<'_>) -> Result<Self> {
         Ok(Self(Punctuated::parse_terminated(input)?))
@@ -101,19 +100,19 @@ enum Item {
         key: Ident,
         _eq: Token![=],
         value: Expr,
-    }, // foo = EXPR
+    },
     Call {
         key: Ident,
         args: Punctuated<Expr, Token![,]>,
         _p: token::Paren,
-    }, // foo(a,b)
+    },
     DefaultHeaders {
         _key: Ident,
         map: HeaderMapInit,
-    }, // default_headers { ... }
+    },
     Flag {
         key: Ident,
-    }, // foo
+    },
 }
 
 impl Parse for Item {
@@ -125,16 +124,19 @@ impl Parse for Item {
             let value: Expr = input.parse()?;
             return Ok(Self::Assign { key, _eq, value });
         }
+
         if input.peek(token::Paren) {
             let content;
             let _p = syn::parenthesized!(content in input);
             let args = Punctuated::<Expr, Token![,]>::parse_terminated(&content)?;
             return Ok(Self::Call { key, args, _p });
         }
-        if input.peek(token::Brace) && key == format_ident!("default_headers") {
+
+        if input.peek(token::Brace) && key == quote::format_ident!("default_headers") {
             let map = input.parse::<HeaderMapInit>()?;
             return Ok(Self::DefaultHeaders { _key: key, map });
         }
+
         Ok(Self::Flag { key })
     }
 }
@@ -144,6 +146,7 @@ struct HeaderPair {
     _arrow: Token![=>],
     v: Expr,
 }
+
 impl Parse for HeaderPair {
     fn parse(input: ParseStream<'_>) -> Result<Self> {
         Ok(Self {
@@ -158,6 +161,7 @@ struct HeaderMapInit {
     _brace: token::Brace,
     pairs: Punctuated<HeaderPair, Token![,]>,
 }
+
 impl Parse for HeaderMapInit {
     fn parse(input: ParseStream<'_>) -> Result<Self> {
         let content;
@@ -170,6 +174,7 @@ impl Parse for HeaderMapInit {
 // Generate statements that mutate a builder named `b` using the resolved core path.
 fn to_stmts(items: Items, core: &TokenStream2) -> TokenStream2 {
     let mut stmts = Vec::new();
+
     for it in items.0 {
         match it {
             Item::Assign { key, value, .. } => {
@@ -204,7 +209,71 @@ fn to_stmts(items: Items, core: &TokenStream2) -> TokenStream2 {
             }
         }
     }
+
     quote! { #(#stmts)* }
+}
+
+struct MaybePrioritized {
+    priority: i32,
+    items: Items,
+}
+
+impl Parse for MaybePrioritized {
+    fn parse(input: ParseStream<'_>) -> Result<Self> {
+        // Optional header: `priority = <int> ;`
+        let fork = input.fork();
+        let mut priority = 0i32;
+
+        if fork.peek(Ident) && fork.parse::<Ident>()? == "priority" && fork.peek(Token![=]) {
+            // commit
+            let _ = input.parse::<Ident>()?; // priority
+            let _ = input.parse::<Token![=]>()?; // =
+            let lit: LitInt = input.parse()?;
+            priority = lit.base10_parse()?;
+            let _ = input.parse::<Token![;]>()?; // ;
+        }
+
+        let items = input.parse::<Items>()?;
+        Ok(Self { priority, items })
+    }
+}
+
+fn describe_items(items: &Items) -> String {
+    use std::fmt::Write;
+
+    let mut buf = String::new();
+
+    for (idx, item) in items.0.iter().enumerate() {
+        if idx > 0 {
+            buf.push_str(", ");
+        }
+
+        match item {
+            Item::Assign { key, value, .. } => {
+                let k = quote!(#key).to_string();
+                let v = quote!(#value).to_string();
+                let _ = write!(buf, "{}={}", k, v);
+            }
+            Item::Call { key, args, .. } => {
+                let k = quote!(#key).to_string();
+                let args_str = args
+                    .iter()
+                    .map(|a| quote!(#a).to_string())
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                let _ = write!(buf, "{}({})", k, args_str);
+            }
+            Item::Flag { key } => {
+                let k = quote!(#key).to_string();
+                let _ = write!(buf, "{}()", k);
+            }
+            Item::DefaultHeaders { .. } => {
+                buf.push_str("default_headers{...}");
+            }
+        }
+    }
+
+    buf
 }
 
 // ------------------ client_cfg! ------------------
@@ -236,30 +305,6 @@ pub fn client_cfg(input: TokenStream) -> TokenStream {
     out.into()
 }
 
-// ------------------ client_defaults! with optional priority header ------------------
-
-struct MaybePrioritized {
-    priority: i32,
-    items: Items,
-}
-impl Parse for MaybePrioritized {
-    fn parse(input: ParseStream<'_>) -> Result<Self> {
-        // Optional header: `priority = <int> ;`
-        let fork = input.fork();
-        let mut priority = 0i32;
-        if fork.peek(Ident) && fork.parse::<Ident>()? == "priority" && fork.peek(Token![=]) {
-            // commit
-            let _ = input.parse::<Ident>()?; // priority
-            let _ = input.parse::<Token![=]>()?;
-            let lit: LitInt = input.parse()?;
-            priority = lit.base10_parse()?;
-            let _ = input.parse::<Token![;]>()?;
-        }
-        let items = input.parse::<Items>()?;
-        Ok(Self { priority, items })
-    }
-}
-
 /// Registers global default configurations for HTTP clients.
 ///
 /// This macro submits a configuration record to the global registry that will
@@ -280,7 +325,7 @@ impl Parse for MaybePrioritized {
 ///     connect_timeout = std::time::Duration::from_secs(10),
 ///     pool_max_idle_per_host = 32,
 ///     default_headers {
-///         "User-Agent" => "MyApp/1.0",
+///         "User-Agent" => "Nym/1.0",
 ///         "Accept" => "application/json"
 ///     }
 /// );
@@ -290,99 +335,49 @@ pub fn client_defaults(input: TokenStream) -> TokenStream {
     let MaybePrioritized { priority, items } = parse_macro_input!(input as MaybePrioritized);
     let core = core_path();
 
-    // Generate a description of what this config does (before consuming items)
-    let config_description = if cfg!(feature = "debug-inventory") {
-        let descriptions = items
-            .0
-            .iter()
-            .map(|item| match item {
-                Item::Assign { key, value, .. } => {
-                    format!("{}={:?}", quote!(#key), quote!(#value).to_string())
-                }
-                Item::Call { key, args, .. } => {
-                    let args_str = args
-                        .iter()
-                        .map(|a| quote!(#a).to_string())
-                        .collect::<Vec<_>>()
-                        .join(", ");
-                    format!("{}({})", quote!(#key), args_str)
-                }
-                Item::Flag { key } => {
-                    format!("{}()", quote!(#key))
-                }
-                Item::DefaultHeaders { .. } => "default_headers{{...}}".to_string(),
-            })
-            .collect::<Vec<_>>()
-            .join(", ");
+    // Deterministic debug description string (used only when debug feature is enabled).
+    let description = describe_items(&items);
 
-        quote! {
-            pub const __CONFIG_DESC: &str = #descriptions;
-        }
-    } else {
-        quote! {}
-    };
-
-    // Now consume items to generate the body
+    // Turn the DSL into statements that mutate `b`.
     let body = to_stmts(items, &core);
 
-    // Generate a unique identifier for this submission
-    let submission_id = format!("__client_defaults_{}", uuid::Uuid::new_v4().simple());
-    let submission_ident = syn::Ident::new(&submission_id, proc_macro2::Span::call_site());
-
-    // Debug output at compile time if enabled
+    // Optional compile-time diagnostics for the macro author (does not affect output).
     if std::env::var("DEBUG_HTTP_INVENTORY").is_ok() {
         eprintln!(
-            "cargo:warning=[HTTP-INVENTORY] Registering config with priority={} from {}",
+            "cargo:warning=[HTTP-INVENTORY] Registering config with priority={} from {}: {}",
             priority,
-            std::env::var("CARGO_PKG_NAME").unwrap_or_else(|_| "unknown".to_string())
+            std::env::var("CARGO_PKG_NAME").unwrap_or_else(|_| "unknown".to_string()),
+            description,
         );
     }
 
-    // Add debug_print_inventory call if the feature is enabled
-    let debug_call = if cfg!(feature = "debug-inventory") {
-        quote! {
-            #config_description
-
-            // Ensure the debug function gets called when config is applied
-            pub fn __cfg_with_debug(
-                b: #core::ReqwestClientBuilder
-            ) -> #core::ReqwestClientBuilder {
-                eprintln!("[HTTP-INVENTORY] Applying: {} (priority={})", __CONFIG_DESC, #priority);
-                __cfg(b)
-            }
+    // Debug logging injected into the generated closure, gated by the
+    // *target crate's* `debug-inventory` feature.
+    let debug_block = quote! {
+        #[cfg(feature = "debug-inventory")]
+        {
+            eprintln!(
+                "[HTTP-INVENTORY] Applying: {} (priority={})",
+                #description,
+                #priority
+            );
         }
-    } else {
-        quote! {}
     };
 
-    // Use the debug wrapper if feature is enabled
-    let apply_fn = if cfg!(feature = "debug-inventory") {
-        quote! { __cfg_with_debug }
-    } else {
-        quote! { __cfg }
-    };
-
+    // `apply` is a capture-free closure; it will coerce to a fn pointer
+    // if `ConfigRecord::apply` is typed as `fn(ReqwestClientBuilder) -> ReqwestClientBuilder`.
     let out = quote! {
-        #[allow(non_snake_case)]
-        mod #submission_ident {
-            use super::*;
-            #[allow(unused)]
-            pub fn __cfg(
-                mut b: #core::ReqwestClientBuilder
-            ) -> #core::ReqwestClientBuilder {
-                #body
-                b
-            }
-
-            #debug_call
-
-            #core::inventory::submit! {
-                #core::registry::ConfigRecord {
-                    priority: #priority,
-                    apply: #apply_fn,
-                }
+        #core::inventory::submit! {
+            #core::registry::ConfigRecord {
+                priority: #priority,
+                apply: |mut b: #core::ReqwestClientBuilder| {
+                    #debug_block
+                    #body
+                    b
+                },
             }
         }
     };
+
     out.into()
 }

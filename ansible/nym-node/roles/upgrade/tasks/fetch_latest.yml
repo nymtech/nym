@@ -27,6 +27,4 @@
     mode: "0755"
   register: download_result
   failed_when: false
-  notify: restart nym-node service
   when: not ansible_check_mode
-

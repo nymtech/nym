@@ -14,13 +14,13 @@ generic-array = { workspace = true, optional = true, features = ["serde"] }
 thiserror = { workspace = true }
 zeroize = { workspace = true }
 
-nym-crypto = { path = "../../crypto", features = ["stream_cipher", "rand"] }
-nym-pemstore = { path = "../../pemstore" }
-nym-sphinx-addressing = { path = "../addressing" }
-nym-sphinx-params = { path = "../params" }
-nym-sphinx-routing = { path = "../routing" }
-nym-sphinx-types = { path = "../types", features = ["sphinx"] }
-nym-topology = { path = "../../topology" }
+nym-crypto = { workspace = true, features = ["stream_cipher", "rand"] }
+nym-pemstore = { workspace = true }
+nym-sphinx-addressing = { workspace = true }
+nym-sphinx-params = { workspace = true }
+nym-sphinx-routing = { workspace = true }
+nym-sphinx-types = { workspace = true, features = ["sphinx"] }
+nym-topology = { workspace = true }
 
 [features]
 serde = ["dep:serde", "generic-array"]

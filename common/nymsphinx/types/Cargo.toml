@@ -9,7 +9,7 @@ repository = { workspace = true }
 
 [dependencies]
 sphinx-packet = { workspace = true, optional = true }
-nym-outfox = { path = "../../../nym-outfox", optional = true }
+nym-outfox = { workspace = true, optional = true }
 thiserror = { workspace = true }
 
 [features]

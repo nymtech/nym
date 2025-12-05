@@ -1,4 +1,3 @@
----
 - name: Install nginx and certbot
   apt:
     name:

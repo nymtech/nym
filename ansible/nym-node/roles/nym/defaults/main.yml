@@ -1,4 +1,3 @@
----
 - name: Configure UFW rules
   ufw:
     rule: allow

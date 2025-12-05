@@ -1,4 +1,3 @@
----
 - name: Show which node is being bonded
   tags: postinstall
   debug:

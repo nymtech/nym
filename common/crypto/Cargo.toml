@@ -48,7 +48,7 @@ aead = ["dep:aead", "aead/std", "aes-gcm-siv", "generic-array"]
 naive_jwt = ["asymmetric", "jwt-simple"]
 serde = ["dep:serde", "serde_bytes", "ed25519-dalek/serde", "x25519-dalek/serde"]
 asymmetric = ["x25519-dalek", "ed25519-dalek", "zeroize"]
-hashing = ["blake3", "digest", "hkdf", "hmac", "generic-array", "sha2"]
+hashing = ["blake3", "digest", "hkdf", "hmac", "generic-array", "sha2", "zeroize"]
 stream_cipher = ["aes", "ctr", "cipher", "generic-array"]
 sphinx = ["nym-sphinx-types/sphinx"]
 

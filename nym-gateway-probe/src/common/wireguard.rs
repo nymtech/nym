@@ -9,9 +9,11 @@
 use nym_config::defaults::{WG_METADATA_PORT, WG_TUN_DEVICE_IP_ADDRESS_V4};
 use tracing::{error, info};
 
-use crate::netstack::{NetstackRequest, NetstackRequestGo, NetstackResult, TwoHopNetstackRequestGo};
-use crate::types::WgProbeResults;
 use crate::NetstackArgs;
+use crate::netstack::{
+    NetstackRequest, NetstackRequestGo, NetstackResult, TwoHopNetstackRequestGo,
+};
+use crate::types::WgProbeResults;
 
 /// Safe division that returns 0.0 when divisor is 0 (instead of NaN/Inf)
 fn safe_ratio(received: u16, sent: u16) -> f32 {
@@ -80,7 +82,6 @@ pub fn run_tunnel_tests(
     awg_args: &str,
     wg_outcome: &mut WgProbeResults,
 ) {
-
     // Build the netstack request
     let netstack_request = NetstackRequest::new(
         &config.private_ipv4,

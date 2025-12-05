@@ -16,7 +16,7 @@ pub mod session_manager;
 
 pub use error::LpError;
 pub use message::{ClientHelloData, LpMessage};
-pub use packet::{LpPacket, OuterHeader, BOOTSTRAP_RECEIVER_IDX};
+pub use packet::{BOOTSTRAP_RECEIVER_IDX, LpPacket, OuterHeader};
 pub use replay::{ReceivingKeyCounterValidator, ReplayError};
 pub use session::{LpSession, generate_fresh_salt};
 pub use session_manager::SessionManager;
@@ -315,8 +315,8 @@ mod tests {
         let parsed_packet3 = parse_lp_packet(&buf3, None).unwrap();
 
         // Perform replay check (should fail)
-        let replay_result =
-            local_manager.receiving_counter_quick_check(receiver_index, parsed_packet3.header.counter);
+        let replay_result = local_manager
+            .receiving_counter_quick_check(receiver_index, parsed_packet3.header.counter);
         assert!(replay_result.is_err());
         match replay_result.unwrap_err() {
             LpError::Replay(e) => {

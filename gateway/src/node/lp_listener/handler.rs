@@ -135,11 +135,12 @@ impl LpConnectionHandler {
         };
 
         // Step 3: Parse full packet with outer AEAD key
-        let packet = nym_lp::codec::parse_lp_packet(&raw_bytes, outer_key.as_ref()).map_err(|e| {
-            inc!("lp_errors_parse_packet");
-            self.emit_lifecycle_metrics(false);
-            GatewayError::LpProtocolError(format!("Failed to parse LP packet: {}", e))
-        })?;
+        let packet =
+            nym_lp::codec::parse_lp_packet(&raw_bytes, outer_key.as_ref()).map_err(|e| {
+                inc!("lp_errors_parse_packet");
+                self.emit_lifecycle_metrics(false);
+                GatewayError::LpProtocolError(format!("Failed to parse LP packet: {}", e))
+            })?;
 
         trace!(
             "Received packet from {} (receiver_idx={}, counter={}, encrypted={})",
@@ -179,8 +180,8 @@ impl LpConnectionHandler {
 
     /// Handle ClientHello packet (receiver_idx=0, first packet)
     async fn handle_client_hello(&mut self, packet: LpPacket) -> Result<(), GatewayError> {
-        use nym_lp::state_machine::{LpInput, LpStateMachine};
         use nym_lp::packet::LpHeader;
+        use nym_lp::state_machine::{LpInput, LpStateMachine};
 
         // Extract ClientHello data
         let (receiver_index, client_ed25519_pubkey, salt) = match packet.message() {
@@ -195,7 +196,12 @@ impl LpConnectionHandler {
                 let client_ed25519_pubkey = nym_crypto::asymmetric::ed25519::PublicKey::from_bytes(
                     &hello_data.client_ed25519_public_key,
                 )
-                .map_err(|e| GatewayError::LpProtocolError(format!("Invalid client Ed25519 public key: {}", e)))?;
+                .map_err(|e| {
+                    GatewayError::LpProtocolError(format!(
+                        "Invalid client Ed25519 public key: {}",
+                        e
+                    ))
+                })?;
 
                 (receiver_index, client_ed25519_pubkey, hello_data.salt)
             }
@@ -209,22 +215,26 @@ impl LpConnectionHandler {
             }
         };
 
-        debug!("Processing ClientHello from {} (proposed receiver_index={})", self.remote_addr, receiver_index);
+        debug!(
+            "Processing ClientHello from {} (proposed receiver_index={})",
+            self.remote_addr, receiver_index
+        );
 
         // Collision check for client-proposed receiver_index
         // Check both handshake_states (in-progress) and session_states (established)
         if self.state.handshake_states.contains_key(&receiver_index)
             || self.state.session_states.contains_key(&receiver_index)
         {
-            warn!("Receiver index collision: {} from {}", receiver_index, self.remote_addr);
+            warn!(
+                "Receiver index collision: {} from {}",
+                receiver_index, self.remote_addr
+            );
             inc!("lp_receiver_index_collision");
 
             // Send Collision response to tell client to retry with new receiver_index
             // No outer key - this is before PSK derivation
-            let collision_packet = LpPacket::new(
-                LpHeader::new(receiver_index, 0),
-                LpMessage::Collision,
-            );
+            let collision_packet =
+                LpPacket::new(LpHeader::new(receiver_index, 0), LpMessage::Collision);
             self.send_lp_packet(&collision_packet, None).await?;
 
             self.emit_lifecycle_metrics(true);
@@ -255,19 +265,19 @@ impl LpConnectionHandler {
         // Transition state machine to KKTExchange (responder waits for client's KKT request)
         // For responder, StartHandshake returns None (just transitions state)
         // For initiator, StartHandshake returns SendPacket (KKT request)
-        if let Some(action) = state_machine.process_input(LpInput::StartHandshake) {
-            if let Err(e) = action {
-                inc!("lp_client_hello_failed");
-                return Err(GatewayError::LpHandshakeError(format!(
-                    "StartHandshake failed: {}",
-                    e
-                )));
-            }
+        if let Some(Err(e)) = state_machine.process_input(LpInput::StartHandshake) {
+            inc!("lp_client_hello_failed");
+            return Err(GatewayError::LpHandshakeError(format!(
+                "StartHandshake failed: {}",
+                e
+            )));
             // Responder (gateway) gets Ok but no packet to send - we just wait for client's next packet
         }
 
         // Store state machine for subsequent handshake packets (KKT request with receiver_index=X)
-        self.state.handshake_states.insert(receiver_index, super::TimestampedState::new(state_machine));
+        self.state
+            .handshake_states
+            .insert(receiver_index, super::TimestampedState::new(state_machine));
 
         debug!(
             "Stored handshake state for {} (receiver_index={}) - waiting for KKT request",
@@ -276,10 +286,7 @@ impl LpConnectionHandler {
 
         // Send Ack to confirm ClientHello received (packet-per-connection model)
         // No outer key - this is before PSK derivation
-        let ack_packet = LpPacket::new(
-            LpHeader::new(receiver_index, 0),
-            LpMessage::Ack,
-        );
+        let ack_packet = LpPacket::new(LpHeader::new(receiver_index, 0), LpMessage::Ack);
         self.send_lp_packet(&ack_packet, None).await?;
 
         self.emit_lifecycle_metrics(true);
@@ -292,7 +299,7 @@ impl LpConnectionHandler {
         receiver_idx: u32,
         packet: LpPacket,
     ) -> Result<(), GatewayError> {
-        use nym_lp::state_machine::{LpInput, LpAction};
+        use nym_lp::state_machine::{LpAction, LpInput};
 
         debug!(
             "Processing handshake packet from {} (receiver_idx={})",
@@ -300,9 +307,16 @@ impl LpConnectionHandler {
         );
 
         // Get mutable reference to state machine
-        let mut state_entry = self.state.handshake_states.get_mut(&receiver_idx).ok_or_else(|| {
-            GatewayError::LpProtocolError(format!("Handshake state not found for session {}", receiver_idx))
-        })?;
+        let mut state_entry = self
+            .state
+            .handshake_states
+            .get_mut(&receiver_idx)
+            .ok_or_else(|| {
+                GatewayError::LpProtocolError(format!(
+                    "Handshake state not found for session {}",
+                    receiver_idx
+                ))
+            })?;
 
         let state_machine = &mut state_entry.value_mut().state;
 
@@ -345,19 +359,28 @@ impl LpConnectionHandler {
                 // subsession/rekeying support during transport phase
                 drop(state_entry); // Release mutable borrow
 
-                let (_receiver_idx, timestamped_state) = self.state.handshake_states.remove(&receiver_idx)
-                    .ok_or_else(|| GatewayError::LpHandshakeError("Failed to remove handshake state".to_string()))?;
+                let (_receiver_idx, timestamped_state) = self
+                    .state
+                    .handshake_states
+                    .remove(&receiver_idx)
+                    .ok_or_else(|| {
+                        GatewayError::LpHandshakeError(
+                            "Failed to remove handshake state".to_string(),
+                        )
+                    })?;
 
-                self.state.session_states.insert(receiver_idx, timestamped_state);
+                self.state
+                    .session_states
+                    .insert(receiver_idx, timestamped_state);
 
                 inc!("lp_handshakes_success");
 
                 // Send Ack to confirm handshake completion to the client
-                let ack_packet = LpPacket::new(
-                    LpHeader::new(receiver_idx, 0),
-                    LpMessage::Ack,
+                let ack_packet = LpPacket::new(LpHeader::new(receiver_idx, 0), LpMessage::Ack);
+                trace!(
+                    "Moved session {} to transport mode, sending Ack",
+                    receiver_idx
                 );
-                trace!("Moved session {} to transport mode, sending Ack", receiver_idx);
                 Some((ack_packet, outer_key))
             }
             other => {
@@ -370,7 +393,11 @@ impl LpConnectionHandler {
         // Send response packet if needed
         if let Some((packet, outer_key)) = should_send {
             self.send_lp_packet(&packet, outer_key.as_ref()).await?;
-            trace!("Sent handshake response to {} (encrypted={})", self.remote_addr, outer_key.is_some());
+            trace!(
+                "Sent handshake response to {} (encrypted={})",
+                self.remote_addr,
+                outer_key.is_some()
+            );
         }
 
         self.emit_lifecycle_metrics(true);
@@ -402,9 +429,13 @@ impl LpConnectionHandler {
         );
 
         // Get state machine and process packet
-        let mut state_entry = self.state.session_states.get_mut(&receiver_idx).ok_or_else(|| {
-            GatewayError::LpProtocolError(format!("Session not found: {}", receiver_idx))
-        })?;
+        let mut state_entry = self
+            .state
+            .session_states
+            .get_mut(&receiver_idx)
+            .ok_or_else(|| {
+                GatewayError::LpProtocolError(format!("Session not found: {}", receiver_idx))
+            })?;
 
         // Update last activity timestamp
         state_entry.value().touch();
@@ -420,7 +451,10 @@ impl LpConnectionHandler {
             .map_err(|e| GatewayError::LpProtocolError(format!("State machine error: {}", e)))?;
 
         // Get outer key before releasing borrow
-        let outer_key = state_machine.session().ok().and_then(|s| s.outer_aead_key());
+        let outer_key = state_machine
+            .session()
+            .ok()
+            .and_then(|s| s.outer_aead_key());
         drop(state_entry);
 
         match action {
@@ -432,13 +466,15 @@ impl LpConnectionHandler {
                     self.remote_addr, receiver_idx
                 );
                 inc!("lp_subsession_kk2_sent");
-                self.send_lp_packet(&response_packet, outer_key.as_ref()).await?;
+                self.send_lp_packet(&response_packet, outer_key.as_ref())
+                    .await?;
                 self.emit_lifecycle_metrics(true);
                 Ok(())
             }
             LpAction::DeliverData(data) => {
                 // Decrypted application data - process as registration/forwarding
-                self.handle_decrypted_payload(receiver_idx, data.to_vec()).await
+                self.handle_decrypted_payload(receiver_idx, data.to_vec())
+                    .await
             }
             LpAction::SubsessionComplete {
                 packet: ready_packet,
@@ -449,7 +485,7 @@ impl LpConnectionHandler {
                 self.handle_subsession_complete(
                     receiver_idx,
                     ready_packet,
-                    subsession,
+                    *subsession,
                     new_receiver_index,
                     outer_key,
                 )
@@ -481,7 +517,9 @@ impl LpConnectionHandler {
                 "LP registration request from {} (receiver_idx={}): mode={:?}",
                 self.remote_addr, receiver_idx, request.mode
             );
-            return self.handle_registration_request(receiver_idx, request).await;
+            return self
+                .handle_registration_request(receiver_idx, request)
+                .await;
         }
 
         // Try to deserialize as ForwardPacketData (entry gateway forwarding to exit)
@@ -490,7 +528,9 @@ impl LpConnectionHandler {
                 "LP forward request from {} (receiver_idx={}) to {}",
                 self.remote_addr, receiver_idx, forward_data.target_lp_address
             );
-            return self.handle_forwarding_request(receiver_idx, forward_data).await;
+            return self
+                .handle_forwarding_request(receiver_idx, forward_data)
+                .await;
         }
 
         // Neither registration nor forwarding - unknown payload type
@@ -535,14 +575,20 @@ impl LpConnectionHandler {
         // Create new state machine from completed subsession
         let new_state_machine = LpStateMachine::from_subsession(subsession, new_receiver_index)
             .map_err(|e| {
-                GatewayError::LpProtocolError(format!("Failed to create session from subsession: {}", e))
+                GatewayError::LpProtocolError(format!(
+                    "Failed to create session from subsession: {}",
+                    e
+                ))
             })?;
 
         // Check for receiver_index collision before inserting
         // new_receiver_index is client-generated (rand::random() in state machine).
         // Collisions are statistically unlikely (1 in 4 billion) but could cause DoS if exploited.
         if self.state.session_states.contains_key(&new_receiver_index)
-            || self.state.handshake_states.contains_key(&new_receiver_index)
+            || self
+                .state
+                .handshake_states
+                .contains_key(&new_receiver_index)
         {
             warn!(
                 "Subsession receiver_index collision: {} from {}",
@@ -556,9 +602,10 @@ impl LpConnectionHandler {
         }
 
         // Store new session under new_receiver_index
-        self.state
-            .session_states
-            .insert(new_receiver_index, super::TimestampedState::new(new_state_machine));
+        self.state.session_states.insert(
+            new_receiver_index,
+            super::TimestampedState::new(new_state_machine),
+        );
 
         // Old session is now in ReadOnlyTransport state (handled by state machine)
         // It will be cleaned up by TTL-based cleanup task
@@ -579,9 +626,13 @@ impl LpConnectionHandler {
 
         // Acquire session lock for encryption and get outer AEAD key
         let (response_packet, outer_key) = {
-            let session_entry = self.state.session_states.get(&receiver_idx).ok_or_else(|| {
-                GatewayError::LpProtocolError(format!("Session not found: {}", receiver_idx))
-            })?;
+            let session_entry = self
+                .state
+                .session_states
+                .get(&receiver_idx)
+                .ok_or_else(|| {
+                    GatewayError::LpProtocolError(format!("Session not found: {}", receiver_idx))
+                })?;
             // Access session via state machine for subsession support
             let session = session_entry
                 .value()
@@ -608,13 +659,11 @@ impl LpConnectionHandler {
         };
 
         // Send response (encrypted with outer AEAD)
-        self.send_lp_packet(&response_packet, outer_key.as_ref()).await?;
+        self.send_lp_packet(&response_packet, outer_key.as_ref())
+            .await?;
 
         if response.success {
-            info!(
-                "LP registration successful for {})",
-                self.remote_addr
-            );
+            info!("LP registration successful for {})", self.remote_addr);
         } else {
             warn!(
                 "LP registration failed for {}: {:?}",
@@ -641,9 +690,13 @@ impl LpConnectionHandler {
 
         // Encrypt response for client and get outer AEAD key
         let (response_packet, outer_key) = {
-            let session_entry = self.state.session_states.get(&receiver_idx).ok_or_else(|| {
-                GatewayError::LpProtocolError(format!("Session not found: {}", receiver_idx))
-            })?;
+            let session_entry = self
+                .state
+                .session_states
+                .get(&receiver_idx)
+                .ok_or_else(|| {
+                    GatewayError::LpProtocolError(format!("Session not found: {}", receiver_idx))
+                })?;
             // Access session via state machine for subsession support
             let session = session_entry
                 .value()
@@ -665,7 +718,8 @@ impl LpConnectionHandler {
         };
 
         // Send encrypted response to client (encrypted with outer AEAD)
-        self.send_lp_packet(&response_packet, outer_key.as_ref()).await?;
+        self.send_lp_packet(&response_packet, outer_key.as_ref())
+            .await?;
 
         debug!(
             "LP forwarding completed for {} (receiver_idx={})",
@@ -810,8 +864,8 @@ impl LpConnectionHandler {
         &mut self,
         forward_data: ForwardPacketData,
     ) -> Result<Vec<u8>, GatewayError> {
-        use tokio::time::timeout;
         use std::time::Duration;
+        use tokio::time::timeout;
 
         inc!("lp_forward_total");
         let start = std::time::Instant::now();
@@ -823,22 +877,23 @@ impl LpConnectionHandler {
         })?;
 
         // Connect to target gateway with timeout
-        let mut target_stream = match timeout(Duration::from_secs(5), TcpStream::connect(target_addr)).await {
-            Ok(Ok(stream)) => stream,
-            Ok(Err(e)) => {
-                inc!("lp_forward_failed");
-                return Err(GatewayError::LpConnectionError(format!(
-                    "Failed to connect to target gateway: {}",
-                    e
-                )));
-            }
-            Err(_) => {
-                inc!("lp_forward_failed");
-                return Err(GatewayError::LpConnectionError(
-                    "Target gateway connection timeout".to_string(),
-                ));
-            }
-        };
+        let mut target_stream =
+            match timeout(Duration::from_secs(5), TcpStream::connect(target_addr)).await {
+                Ok(Ok(stream)) => stream,
+                Ok(Err(e)) => {
+                    inc!("lp_forward_failed");
+                    return Err(GatewayError::LpConnectionError(format!(
+                        "Failed to connect to target gateway: {}",
+                        e
+                    )));
+                }
+                Err(_) => {
+                    inc!("lp_forward_failed");
+                    return Err(GatewayError::LpConnectionError(
+                        "Target gateway connection timeout".to_string(),
+                    ));
+                }
+            };
 
         debug!(
             "Forwarding packet to {} (target: {})",
@@ -872,7 +927,10 @@ impl LpConnectionHandler {
         let mut len_buf = [0u8; 4];
         target_stream.read_exact(&mut len_buf).await.map_err(|e| {
             inc!("lp_forward_failed");
-            GatewayError::LpConnectionError(format!("Failed to read response length from target: {}", e))
+            GatewayError::LpConnectionError(format!(
+                "Failed to read response length from target: {}",
+                e
+            ))
         })?;
 
         let response_len = u32::from_be_bytes(len_buf) as usize;
@@ -893,23 +951,20 @@ impl LpConnectionHandler {
             .await
             .map_err(|e| {
                 inc!("lp_forward_failed");
-                GatewayError::LpConnectionError(format!("Failed to read response from target: {}", e))
+                GatewayError::LpConnectionError(format!(
+                    "Failed to read response from target: {}",
+                    e
+                ))
             })?;
 
         // Record metrics
         let duration = start.elapsed().as_secs_f64();
-        add_histogram_obs!(
-            "lp_forward_duration_seconds",
-            duration,
-            LP_DURATION_BUCKETS
-        );
+        add_histogram_obs!("lp_forward_duration_seconds", duration, LP_DURATION_BUCKETS);
 
         inc!("lp_forward_success");
         debug!(
             "Forwarding successful to {} ({} bytes response, {:.3}s)",
-            target_addr,
-            response_len,
-            duration
+            target_addr, response_len, duration
         );
 
         Ok(response_buf)
@@ -950,8 +1005,9 @@ impl LpConnectionHandler {
         self.stats.record_bytes_received(4 + packet_len);
 
         // Parse header only (for routing - header is always cleartext)
-        let header = parse_lp_header_only(&packet_buf)
-            .map_err(|e| GatewayError::LpProtocolError(format!("Failed to parse LP header: {}", e)))?;
+        let header = parse_lp_header_only(&packet_buf).map_err(|e| {
+            GatewayError::LpProtocolError(format!("Failed to parse LP header: {}", e))
+        })?;
 
         Ok((packet_buf, header))
     }
@@ -1214,8 +1270,9 @@ mod tests {
             let mut handler = LpConnectionHandler::new(stream, remote_addr, state);
             // Two-phase: receive raw bytes + header, then parse full packet
             let (raw_bytes, header) = handler.receive_raw_packet().await?;
-            let packet = parse_lp_packet(&raw_bytes, None)
-                .map_err(|e| GatewayError::LpProtocolError(format!("Failed to parse packet: {}", e)))?;
+            let packet = parse_lp_packet(&raw_bytes, None).map_err(|e| {
+                GatewayError::LpProtocolError(format!("Failed to parse packet: {}", e))
+            })?;
             Ok::<_, GatewayError>((header, packet))
         });
 

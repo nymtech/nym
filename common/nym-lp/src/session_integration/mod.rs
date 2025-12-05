@@ -149,7 +149,8 @@ mod tests {
                 let counter = session_manager_1.next_counter(receiver_index).unwrap();
                 let message_a_to_b = create_test_packet(1, receiver_index, counter, payload);
                 let mut encoded_msg = BytesMut::new();
-                serialize_lp_packet(&message_a_to_b, &mut encoded_msg, None).expect("A serialize failed");
+                serialize_lp_packet(&message_a_to_b, &mut encoded_msg, None)
+                    .expect("A serialize failed");
 
                 // B parses packet and checks replay
                 let decoded_packet = parse_lp_packet(&encoded_msg, None).expect("B parse failed");
@@ -200,7 +201,8 @@ mod tests {
                 let counter = session_manager_2.next_counter(peer_b_sm).unwrap();
                 let message_b_to_a = create_test_packet(1, receiver_index, counter, payload);
                 let mut encoded_msg = BytesMut::new();
-                serialize_lp_packet(&message_b_to_a, &mut encoded_msg, None).expect("B serialize failed");
+                serialize_lp_packet(&message_b_to_a, &mut encoded_msg, None)
+                    .expect("B serialize failed");
 
                 // A parses packet and checks replay
                 let decoded_packet = parse_lp_packet(&encoded_msg, None).expect("A parse failed");
@@ -289,7 +291,8 @@ mod tests {
             .expect("A serialize data failed");
 
         // B parses packet and checks replay
-        let decoded_packet_b = parse_lp_packet(&encoded_data_a_to_b, None).expect("B parse data failed");
+        let decoded_packet_b =
+            parse_lp_packet(&encoded_data_a_to_b, None).expect("B parse data failed");
         assert_eq!(decoded_packet_b.header.counter, counter_a);
 
         // Check replay before decrypting
@@ -323,7 +326,8 @@ mod tests {
             .expect("B serialize data failed");
 
         // A parses packet and checks replay
-        let decoded_packet_a = parse_lp_packet(&encoded_data_b_to_a, None).expect("A parse data failed");
+        let decoded_packet_a =
+            parse_lp_packet(&encoded_data_b_to_a, None).expect("A parse data failed");
         assert_eq!(decoded_packet_a.header.counter, counter_b);
 
         // Check replay before decrypting
@@ -360,8 +364,12 @@ mod tests {
             )), // Using plaintext here, but content doesn't matter for replay check
         );
         let mut encoded_data_b_to_a_replay = BytesMut::new();
-        serialize_lp_packet(&message_b_to_a_replay, &mut encoded_data_b_to_a_replay, None)
-            .expect("B serialize replay failed");
+        serialize_lp_packet(
+            &message_b_to_a_replay,
+            &mut encoded_data_b_to_a_replay,
+            None,
+        )
+        .expect("B serialize replay failed");
 
         let parsed_replay_packet =
             parse_lp_packet(&encoded_data_b_to_a_replay, None).expect("A parse replay failed");
@@ -398,7 +406,8 @@ mod tests {
             .expect("Failed to serialize skip message");
 
         // B parses skip message and checks replay
-        let decoded_packet_skip = parse_lp_packet(&encoded_skip, None).expect("B parse skip failed");
+        let decoded_packet_skip =
+            parse_lp_packet(&encoded_skip, None).expect("B parse skip failed");
         session_manager_2
             .receiving_counter_quick_check(peer_b_sm, decoded_packet_skip.header.counter)
             .expect("B replay check skip failed");
@@ -840,22 +849,6 @@ mod tests {
         let ed25519_keypair_a = ed25519::KeyPair::from_secret([6u8; 32], 0);
         let ed25519_keypair_b = ed25519::KeyPair::from_secret([7u8; 32], 1);
 
-        // Derive X25519 keys from Ed25519 (same as state machine does internally)
-        let x25519_pub_a = ed25519_keypair_a
-            .public_key()
-            .to_x25519()
-            .expect("Failed to derive X25519 from Ed25519");
-        let x25519_pub_b = ed25519_keypair_b
-            .public_key()
-            .to_x25519()
-            .expect("Failed to derive X25519 from Ed25519");
-
-        // Convert to LP keypair types (needed for init_kkt_for_test if used)
-        let lp_pub_a = PublicKey::from_bytes(x25519_pub_a.as_bytes())
-            .expect("Failed to create PublicKey from bytes");
-        let lp_pub_b = PublicKey::from_bytes(x25519_pub_b.as_bytes())
-            .expect("Failed to create PublicKey from bytes");
-
         // Use fixed receiver_index for test
         let receiver_index: u32 = 100005;
 
@@ -940,7 +933,8 @@ mod tests {
             "  Round {}: Responder explicitly enters KKTExchange state",
             rounds
         );
-        let action_b_start = session_manager_2.process_input(receiver_index, LpInput::StartHandshake);
+        let action_b_start =
+            session_manager_2.process_input(receiver_index, LpInput::StartHandshake);
         // Responder's StartHandshake should not produce an action to send
         assert!(
             action_b_start.as_ref().unwrap().is_none(),
@@ -1030,7 +1024,9 @@ mod tests {
                 // KKT completed, now need to explicitly trigger handshake message
                 // This might be the case if KKT completion doesn't automatically send the first Noise message
                 // Let's try to prepare the handshake message
-                if let Some(msg_result) = session_manager_1.prepare_handshake_message(receiver_index) {
+                if let Some(msg_result) =
+                    session_manager_1.prepare_handshake_message(receiver_index)
+                {
                     let msg = msg_result.expect("Failed to prepare handshake message after KKT");
                     // Create a packet from the message
                     let packet = create_test_packet(1, receiver_index, 0, msg);
@@ -1252,8 +1248,8 @@ mod tests {
 
         // --- 6. Replay Protection Test ---
         println!("Testing data packet replay protection via process_input...");
-        let replay_result =
-            session_manager_1.process_input(receiver_index, LpInput::ReceivePacket(data_packet_b_replay)); // Use cloned packet
+        let replay_result = session_manager_1
+            .process_input(receiver_index, LpInput::ReceivePacket(data_packet_b_replay)); // Use cloned packet
 
         assert!(replay_result.is_err(), "Replay should produce Err(...)");
         let error = replay_result.err().unwrap();
@@ -1314,8 +1310,8 @@ mod tests {
 
         // B tries to replay N (should fail)
         println!("  B tries to replay N");
-        let replay_n_result =
-            session_manager_2.process_input(receiver_index, LpInput::ReceivePacket(packet_n_replay));
+        let replay_n_result = session_manager_2
+            .process_input(receiver_index, LpInput::ReceivePacket(packet_n_replay));
         assert!(replay_n_result.is_err(), "Replay N should produce Err");
         assert!(
             matches!(replay_n_result.err().unwrap(), LpError::Replay(_)),

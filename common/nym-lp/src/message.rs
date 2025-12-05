@@ -233,7 +233,7 @@ impl LpMessage {
             LpMessage::SubsessionKK1(_) => false, // Always has payload
             LpMessage::SubsessionKK2(_) => false, // Always has payload
             LpMessage::SubsessionReady(_) => false, // Always has receiver_index
-            LpMessage::SubsessionAbort => true, // Empty signal
+            LpMessage::SubsessionAbort => true,   // Empty signal
         }
     }
 

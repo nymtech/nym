@@ -6,9 +6,11 @@ use clap::{Parser, Subcommand};
 use nym_bin_common::bin_info;
 use nym_config::defaults::setup_env;
 use nym_gateway_probe::nodes::{NymApiDirectory, query_gateway_by_ip};
-use nym_gateway_probe::{CredentialArgs, NetstackArgs, ProbeResult, TestedNode, TestedNodeDetails, TestMode};
-use std::net::SocketAddr;
+use nym_gateway_probe::{
+    CredentialArgs, NetstackArgs, ProbeResult, TestMode, TestedNode, TestedNodeDetails,
+};
 use nym_sdk::mixnet::NodeIdentity;
+use std::net::SocketAddr;
 use std::path::Path;
 use std::{path::PathBuf, sync::OnceLock};
 use tracing::*;
@@ -176,11 +178,17 @@ fn resolve_test_mode(
 ) -> anyhow::Result<TestMode> {
     if let Some(mode_str) = mode_arg {
         // Explicit --mode takes priority
-        mode_str.parse::<TestMode>()
+        mode_str
+            .parse::<TestMode>()
             .map_err(|e| anyhow::anyhow!("{}", e))
     } else {
         // Infer from legacy flags
-        Ok(TestMode::from_flags(only_wireguard, only_lp_registration, test_lp_wg, has_exit_gateway))
+        Ok(TestMode::from_flags(
+            only_wireguard,
+            only_lp_registration,
+            test_lp_wg,
+            has_exit_gateway,
+        ))
     }
 }
 
@@ -223,13 +231,19 @@ pub(crate) async fn run() -> anyhow::Result<ProbeResult> {
 
         // Entry LP address: explicit or derived from gateway_ip + lp_port
         let entry_lp_addr: SocketAddr = if let Some(lp_addr) = &args.entry_lp_address {
-            lp_addr.parse().map_err(|e| anyhow::anyhow!("Invalid entry-lp-address '{}': {}", lp_addr, e))?
+            lp_addr
+                .parse()
+                .map_err(|e| anyhow::anyhow!("Invalid entry-lp-address '{}': {}", lp_addr, e))?
         } else if let Some(gw_ip) = &args.gateway_ip {
             // Derive LP address from gateway IP
-            let ip: std::net::IpAddr = gw_ip.parse().map_err(|e| anyhow::anyhow!("Invalid gateway-ip '{}': {}", gw_ip, e))?;
+            let ip: std::net::IpAddr = gw_ip
+                .parse()
+                .map_err(|e| anyhow::anyhow!("Invalid gateway-ip '{}': {}", gw_ip, e))?;
             SocketAddr::new(ip, args.lp_port)
         } else {
-            anyhow::bail!("--entry-lp-address or --gateway-ip required with --entry-gateway-identity");
+            anyhow::bail!(
+                "--entry-lp-address or --gateway-ip required with --entry-gateway-identity"
+            );
         };
 
         let entry_details = TestedNodeDetails::from_cli(entry_identity, entry_lp_addr);
@@ -237,9 +251,12 @@ pub(crate) async fn run() -> anyhow::Result<ProbeResult> {
         // Parse exit gateway if provided
         let exit_details = if let Some(exit_identity_str) = &args.exit_gateway_identity {
             let exit_identity = NodeIdentity::from_base58_string(exit_identity_str)?;
-            let exit_lp_addr: SocketAddr = args.exit_lp_address
+            let exit_lp_addr: SocketAddr = args
+                .exit_lp_address
                 .as_ref()
-                .ok_or_else(|| anyhow::anyhow!("--exit-lp-address required with --exit-gateway-identity"))?
+                .ok_or_else(|| {
+                    anyhow::anyhow!("--exit-lp-address required with --exit-gateway-identity")
+                })?
                 .parse()
                 .map_err(|e| anyhow::anyhow!("Invalid exit-lp-address: {}", e))?;
             Some(TestedNodeDetails::from_cli(exit_identity, exit_lp_addr))
@@ -330,47 +347,51 @@ pub(crate) async fn run() -> anyhow::Result<ProbeResult> {
     }
 
     // If gateway IP is provided, query it directly without using the directory
-    let (entry, directory, gateway_node, exit_gateway_node) = if let Some(gateway_ip) = args.gateway_ip.clone() {
-        info!("Using direct IP query mode for gateway: {}", gateway_ip);
-        let gateway_node = query_gateway_by_ip(gateway_ip).await?;
-        let identity = gateway_node.identity();
+    let (entry, directory, gateway_node, exit_gateway_node) =
+        if let Some(gateway_ip) = args.gateway_ip.clone() {
+            info!("Using direct IP query mode for gateway: {}", gateway_ip);
+            let gateway_node = query_gateway_by_ip(gateway_ip).await?;
+            let identity = gateway_node.identity();
 
-        // Query exit gateway if provided (for LP forwarding tests)
-        let exit_node = if let Some(exit_gateway_ip) = args.exit_gateway_ip {
-            info!("Using direct IP query mode for exit gateway: {}", exit_gateway_ip);
-            Some(query_gateway_by_ip(exit_gateway_ip).await?)
+            // Query exit gateway if provided (for LP forwarding tests)
+            let exit_node = if let Some(exit_gateway_ip) = args.exit_gateway_ip {
+                info!(
+                    "Using direct IP query mode for exit gateway: {}",
+                    exit_gateway_ip
+                );
+                Some(query_gateway_by_ip(exit_gateway_ip).await?)
+            } else {
+                None
+            };
+
+            // Still create the directory for potential secondary lookups,
+            // but only if API URL is available
+            let directory =
+                if let Some(api_url) = network.endpoints.first().and_then(|ep| ep.api_url()) {
+                    Some(NymApiDirectory::new(api_url).await?)
+                } else {
+                    None
+                };
+
+            (identity, directory, Some(gateway_node), exit_node)
         } else {
-            None
+            // Original behavior: use directory service
+            let api_url = network
+                .endpoints
+                .first()
+                .and_then(|ep| ep.api_url())
+                .ok_or(anyhow::anyhow!("missing api url"))?;
+
+            let directory = NymApiDirectory::new(api_url).await?;
+
+            let entry = if let Some(gateway) = &args.entry_gateway {
+                NodeIdentity::from_base58_string(gateway)?
+            } else {
+                directory.random_exit_with_ipr()?
+            };
+
+            (entry, Some(directory), None, None)
         };
-
-        // Still create the directory for potential secondary lookups,
-        // but only if API URL is available
-        let directory = if let Some(api_url) = network.endpoints.first().and_then(|ep| ep.api_url())
-        {
-            Some(NymApiDirectory::new(api_url).await?)
-        } else {
-            None
-        };
-
-        (identity, directory, Some(gateway_node), exit_node)
-    } else {
-        // Original behavior: use directory service
-        let api_url = network
-            .endpoints
-            .first()
-            .and_then(|ep| ep.api_url())
-            .ok_or(anyhow::anyhow!("missing api url"))?;
-
-        let directory = NymApiDirectory::new(api_url).await?;
-
-        let entry = if let Some(gateway) = &args.entry_gateway {
-            NodeIdentity::from_base58_string(gateway)?
-        } else {
-            directory.random_exit_with_ipr()?
-        };
-
-        (entry, Some(directory), None, None)
-    };
 
     let test_point = if let Some(node) = args.node {
         TestedNode::Custom { identity: node }
@@ -394,7 +415,8 @@ pub(crate) async fn run() -> anyhow::Result<ProbeResult> {
     let (_, only_lp_registration, test_lp_wg) = mode_to_flags(test_mode);
     let only_wireguard = args.only_wireguard;
 
-    let mut trial = if let (Some(entry_node), Some(exit_node)) = (&gateway_node, &exit_gateway_node) {
+    let mut trial = if let (Some(entry_node), Some(exit_node)) = (&gateway_node, &exit_gateway_node)
+    {
         // Both entry and exit gateways provided (for LP telescoping tests)
         info!("Using both entry and exit gateways for LP forwarding test");
         nym_gateway_probe::Probe::new_with_gateways(

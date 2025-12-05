@@ -51,7 +51,6 @@ use crate::{
     types::Exit,
 };
 
-
 mod bandwidth_helpers;
 mod common;
 mod icmp;
@@ -62,8 +61,8 @@ mod types;
 
 use crate::bandwidth_helpers::{acquire_bandwidth, import_bandwidth};
 use crate::nodes::{DirectoryNode, NymApiDirectory};
-use nym_node_status_client::models::AttachedTicketMaterials;
 pub use mode::TestMode;
+use nym_node_status_client::models::AttachedTicketMaterials;
 pub use types::{IpPingReplies, ProbeOutcome, ProbeResult};
 
 #[derive(Args, Clone)]
@@ -283,6 +282,7 @@ impl Probe {
         self
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub async fn probe(
         self,
         directory: Option<NymApiDirectory>,
@@ -320,7 +320,8 @@ impl Probe {
 
         // Convert legacy flags to TestMode
         let has_exit = self.exit_gateway_node.is_some() || self.localnet_exit.is_some();
-        let test_mode = TestMode::from_flags(only_wireguard, only_lp_registration, test_lp_wg, has_exit);
+        let test_mode =
+            TestMode::from_flags(only_wireguard, only_lp_registration, test_lp_wg, has_exit);
 
         self.do_probe_test(
             Some(mixnet_client),
@@ -375,7 +376,8 @@ impl Probe {
 
             // Convert legacy flags to TestMode
             let has_exit = self.localnet_exit.is_some();
-            let test_mode = TestMode::from_flags(only_wireguard, only_lp_registration, test_lp_wg, has_exit);
+            let test_mode =
+                TestMode::from_flags(only_wireguard, only_lp_registration, test_lp_wg, has_exit);
 
             return self
                 .do_probe_test(
@@ -396,8 +398,16 @@ impl Probe {
         // If both gateways are pre-queried via --gateway-ip and --exit-gateway-ip,
         // skip mixnet setup entirely - we have all the data we need
         if self.direct_gateway_node.is_some() && self.exit_gateway_node.is_some() {
-            let entry_node = self.direct_gateway_node.as_ref().unwrap();
-            let exit_node = self.exit_gateway_node.as_ref().unwrap();
+            let entry_node = if let Some(entry_node) = self.direct_gateway_node.as_ref() {
+                entry_node
+            } else {
+                return Err(anyhow::anyhow!("Entry gateway node is missing"));
+            };
+            let exit_node = if let Some(exit_node) = self.exit_gateway_node.as_ref() {
+                exit_node
+            } else {
+                return Err(anyhow::anyhow!("Exit gateway node is missing"));
+            };
 
             // Initialize storage (needed for credentials)
             if !config_dir.exists() {
@@ -413,7 +423,8 @@ impl Probe {
             let node_info = exit_node.to_testable_node()?;
 
             // Convert legacy flags to TestMode (has_exit = true since we have exit_gateway_node)
-            let test_mode = TestMode::from_flags(only_wireguard, only_lp_registration, test_lp_wg, true);
+            let test_mode =
+                TestMode::from_flags(only_wireguard, only_lp_registration, test_lp_wg, true);
 
             return self
                 .do_probe_test(
@@ -504,7 +515,8 @@ impl Probe {
 
         // Convert legacy flags to TestMode
         let has_exit = self.exit_gateway_node.is_some() || self.localnet_exit.is_some();
-        let test_mode = TestMode::from_flags(only_wireguard, only_lp_registration, test_lp_wg, has_exit);
+        let test_mode =
+            TestMode::from_flags(only_wireguard, only_lp_registration, test_lp_wg, has_exit);
 
         self.do_probe_test(
             Some(mixnet_client),
@@ -732,24 +744,30 @@ impl Probe {
         } else if test_mode.uses_lp() && test_mode.tests_wireguard() {
             // LP modes (SingleHop/TwoHop) don't need mixnet client
             // Create default outcome and continue to LP-WG test below
-            (Ok(ProbeOutcome {
-                as_entry: Entry::NotTested,
-                as_exit: None,
-                wg: None,
-                lp: None,
-            }), None)
+            (
+                Ok(ProbeOutcome {
+                    as_entry: Entry::NotTested,
+                    as_exit: None,
+                    wg: None,
+                    lp: None,
+                }),
+                None,
+            )
         } else {
             // For Mixnet mode, missing mixnet client is a failure
-            (Ok(ProbeOutcome {
-                as_entry: if tested_entry {
-                    Entry::fail_to_connect()
-                } else {
-                    Entry::EntryFailure
-                },
-                as_exit: None,
-                wg: None,
-                lp: None,
-            }), None)
+            (
+                Ok(ProbeOutcome {
+                    as_entry: if tested_entry {
+                        Entry::fail_to_connect()
+                    } else {
+                        Entry::EntryFailure
+                    },
+                    as_exit: None,
+                    wg: None,
+                    lp: None,
+                }),
+                None,
+            )
         };
 
         let wg_outcome = if !test_mode.tests_wireguard() {
@@ -790,10 +808,9 @@ impl Probe {
             } else if let Some(exit_localnet) = &self.localnet_exit {
                 // Localnet mode: use CLI-provided identities and LP addresses
                 info!("Using localnet entry and exit gateways for LP forwarding test");
-                let entry_localnet = self
-                    .localnet_entry
-                    .as_ref()
-                    .ok_or_else(|| anyhow::anyhow!("Entry gateway not available in localnet mode"))?;
+                let entry_localnet = self.localnet_entry.as_ref().ok_or_else(|| {
+                    anyhow::anyhow!("Entry gateway not available in localnet mode")
+                })?;
 
                 (entry_localnet.clone(), exit_localnet.clone())
             } else {
@@ -1120,7 +1137,10 @@ where
             ticket_type,
         );
 
-        match client.register_with_credential(&wg_keypair, credential, ticket_type).await {
+        match client
+            .register_with_credential(&wg_keypair, credential, ticket_type)
+            .await
+        {
             Ok(data) => data,
             Err(e) => {
                 let error_msg = format!("LP registration failed (mock ecash): {}", e);
@@ -1132,7 +1152,12 @@ where
     } else {
         info!("Using real bandwidth controller for LP registration");
         match client
-            .register(&wg_keypair, &gateway_ed25519_pubkey, bandwidth_controller, ticket_type)
+            .register(
+                &wg_keypair,
+                &gateway_ed25519_pubkey,
+                bandwidth_controller,
+                ticket_type,
+            )
             .await
         {
             Ok(data) => data,

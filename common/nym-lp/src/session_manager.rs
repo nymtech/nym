@@ -42,7 +42,9 @@ impl SessionManager {
 
     pub fn add(&self, session: LpSession) -> Result<(), LpError> {
         let sm = LpStateMachine {
-            state: LpState::ReadyToHandshake { session },
+            state: LpState::ReadyToHandshake {
+                session: Box::new(session),
+            },
         };
         self.state_machines.insert(sm.id()?, sm);
         Ok(())

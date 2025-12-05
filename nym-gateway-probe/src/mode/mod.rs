@@ -58,12 +58,18 @@ impl TestMode {
 
     /// Whether this mode uses LP registration
     pub fn uses_lp(&self) -> bool {
-        matches!(self, TestMode::SingleHop | TestMode::TwoHop | TestMode::LpOnly)
+        matches!(
+            self,
+            TestMode::SingleHop | TestMode::TwoHop | TestMode::LpOnly
+        )
     }
 
     /// Whether this mode tests WireGuard tunnels
     pub fn tests_wireguard(&self) -> bool {
-        matches!(self, TestMode::Mixnet | TestMode::SingleHop | TestMode::TwoHop)
+        matches!(
+            self,
+            TestMode::Mixnet | TestMode::SingleHop | TestMode::TwoHop
+        )
     }
 
     /// Whether this mode requires an exit gateway
@@ -214,7 +220,10 @@ mod tests {
     #[test]
     fn test_from_str_canonical() {
         assert_eq!("mixnet".parse::<TestMode>().unwrap(), TestMode::Mixnet);
-        assert_eq!("single-hop".parse::<TestMode>().unwrap(), TestMode::SingleHop);
+        assert_eq!(
+            "single-hop".parse::<TestMode>().unwrap(),
+            TestMode::SingleHop
+        );
         assert_eq!("two-hop".parse::<TestMode>().unwrap(), TestMode::TwoHop);
         assert_eq!("lp-only".parse::<TestMode>().unwrap(), TestMode::LpOnly);
     }
@@ -222,12 +231,18 @@ mod tests {
     #[test]
     fn test_from_str_alternate_formats() {
         // snake_case
-        assert_eq!("single_hop".parse::<TestMode>().unwrap(), TestMode::SingleHop);
+        assert_eq!(
+            "single_hop".parse::<TestMode>().unwrap(),
+            TestMode::SingleHop
+        );
         assert_eq!("two_hop".parse::<TestMode>().unwrap(), TestMode::TwoHop);
         assert_eq!("lp_only".parse::<TestMode>().unwrap(), TestMode::LpOnly);
 
         // no separator
-        assert_eq!("singlehop".parse::<TestMode>().unwrap(), TestMode::SingleHop);
+        assert_eq!(
+            "singlehop".parse::<TestMode>().unwrap(),
+            TestMode::SingleHop
+        );
         assert_eq!("twohop".parse::<TestMode>().unwrap(), TestMode::TwoHop);
         assert_eq!("lponly".parse::<TestMode>().unwrap(), TestMode::LpOnly);
     }
@@ -235,7 +250,10 @@ mod tests {
     #[test]
     fn test_from_str_case_insensitive() {
         assert_eq!("MIXNET".parse::<TestMode>().unwrap(), TestMode::Mixnet);
-        assert_eq!("Single-Hop".parse::<TestMode>().unwrap(), TestMode::SingleHop);
+        assert_eq!(
+            "Single-Hop".parse::<TestMode>().unwrap(),
+            TestMode::SingleHop
+        );
         assert_eq!("TWO_HOP".parse::<TestMode>().unwrap(), TestMode::TwoHop);
         assert_eq!("LpOnly".parse::<TestMode>().unwrap(), TestMode::LpOnly);
     }
@@ -251,7 +269,12 @@ mod tests {
 
     #[test]
     fn test_display_fromstr_roundtrip() {
-        for mode in [TestMode::Mixnet, TestMode::SingleHop, TestMode::TwoHop, TestMode::LpOnly] {
+        for mode in [
+            TestMode::Mixnet,
+            TestMode::SingleHop,
+            TestMode::TwoHop,
+            TestMode::LpOnly,
+        ] {
             let s = mode.to_string();
             let parsed: TestMode = s.parse().unwrap();
             assert_eq!(mode, parsed);

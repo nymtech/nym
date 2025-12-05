@@ -10,7 +10,7 @@ use nym_bandwidth_controller::{BandwidthTicketProvider, DEFAULT_TICKETS_TO_SPEND
 use nym_credentials_interface::{CredentialSpendingData, TicketType};
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_lp::LpPacket;
-use nym_lp::codec::{parse_lp_packet, serialize_lp_packet, OuterAeadKey};
+use nym_lp::codec::{OuterAeadKey, parse_lp_packet, serialize_lp_packet};
 use nym_lp::message::ForwardPacketData;
 use nym_lp::state_machine::{LpAction, LpInput, LpStateMachine};
 use nym_registration_common::{GatewayData, LpRegistrationRequest, LpRegistrationResponse};
@@ -271,8 +271,11 @@ impl LpRegistrationClient {
                     .ok()
                     .and_then(|s| s.outer_aead_key());
 
-                tracing::trace!("Sending handshake packet (send_key={}, recv_key={})",
-                    send_key.is_some(), recv_key.is_some());
+                tracing::trace!(
+                    "Sending handshake packet (send_key={}, recv_key={})",
+                    send_key.is_some(),
+                    recv_key.is_some()
+                );
                 let response = Self::connect_send_receive(
                     self.gateway_lp_address,
                     &packet,
@@ -284,8 +287,7 @@ impl LpRegistrationClient {
                 tracing::trace!("Received handshake response");
 
                 // Process the received packet
-                if let Some(action) =
-                    state_machine.process_input(LpInput::ReceivePacket(response))
+                if let Some(action) = state_machine.process_input(LpInput::ReceivePacket(response))
                 {
                     match action? {
                         LpAction::SendPacket(response_packet) => {
@@ -344,10 +346,10 @@ impl LpRegistrationClient {
                                 .session()?
                                 .prepare_handshake_message()
                                 .ok_or_else(|| {
-                                    LpClientError::Transport(
-                                        "No handshake message available after KKT".to_string(),
-                                    )
-                                })??;
+                                LpClientError::Transport(
+                                    "No handshake message available after KKT".to_string(),
+                                )
+                            })??;
                             let noise_packet = state_machine.session()?.next_packet(noise_msg)?;
                             pending_packet = Some(noise_packet);
                         }
@@ -596,9 +598,7 @@ impl LpRegistrationClient {
     ) -> Result<GatewayData> {
         // Ensure handshake is complete (state machine exists)
         let state_machine = self.state_machine.as_mut().ok_or_else(|| {
-            LpClientError::Transport(
-                "Cannot register: handshake not completed".to_string(),
-            )
+            LpClientError::Transport("Cannot register: handshake not completed".to_string())
         })?;
 
         tracing::debug!("Sending registration request (packet-per-connection)");

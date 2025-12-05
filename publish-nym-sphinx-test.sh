@@ -16,7 +16,7 @@ BATCH2=(
   "nym-sphinx-framing"
   "nym-sphinx-params"
   "nym-sphinx-routing"
-  "nym-sphinx-types"
+  # "nym-sphinx-types"
 )
 
 BATCH3=(

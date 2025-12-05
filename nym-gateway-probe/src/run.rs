@@ -210,7 +210,7 @@ pub(crate) async fn run() -> anyhow::Result<ProbeResult> {
         .map(|ep| ep.nyxd_url())
         .ok_or(anyhow::anyhow!("missing nyxd url"))?;
 
-    // AIDEV-NOTE: Three resolution modes in priority order:
+    // Three resolution modes in priority order:
     // 1. Localnet mode: --entry-gateway-identity provided (no HTTP query)
     // 2. Direct IP mode: --gateway-ip provided (queries HTTP API)
     // 3. Directory mode: uses nym-api directory service
@@ -268,7 +268,7 @@ pub(crate) async fn run() -> anyhow::Result<ProbeResult> {
         info!("Test mode: {}", test_mode);
 
         // Convert back to flags for backward compatibility with existing probe methods
-        // AIDEV-NOTE: only_wireguard is preserved from args since it's orthogonal to mode
+        // only_wireguard is preserved from args since it's orthogonal to mode
         // (it means "skip ping tests" in mixnet mode, irrelevant for LP modes)
         let (_, only_lp_registration, test_lp_wg) = mode_to_flags(test_mode);
         let only_wireguard = args.only_wireguard;
@@ -390,7 +390,7 @@ pub(crate) async fn run() -> anyhow::Result<ProbeResult> {
     info!("Test mode: {}", test_mode);
 
     // Convert back to flags for backward compatibility with existing probe methods
-    // AIDEV-NOTE: only_wireguard is preserved from args since it's orthogonal to mode
+    // only_wireguard is preserved from args since it's orthogonal to mode
     let (_, only_lp_registration, test_lp_wg) = mode_to_flags(test_mode);
     let only_wireguard = args.only_wireguard;
 

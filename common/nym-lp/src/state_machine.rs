@@ -596,7 +596,7 @@ impl LpStateMachine {
                                  }
                              }
                          }
-                         // AIDEV-NOTE: Stale abort in Transport state - race already resolved.
+                         // Stale abort in Transport state - race already resolved.
                          // This can happen if abort arrives after loser already returned to Transport
                          // via KK1 processing (loser detected local < remote and became responder).
                          // The winner's abort message arrived late. Silently ignore.

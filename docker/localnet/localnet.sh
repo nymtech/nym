@@ -234,6 +234,7 @@ start_gateway() {
         -p 30004:30004 \
         -p 41264:41264 \
         -p 51264:51264 \
+        -p 51822:51822/udp \
         -v "$VOLUME_PATH:/localnet" \
         -v "$NYM_VOLUME_PATH:/root/.nym" \
         -d \
@@ -300,6 +301,7 @@ start_gateway2() {
         -p 30005:30005 \
         -p 41265:41265 \
         -p 51265:51265 \
+        -p 51823:51822/udp \
         -v "$VOLUME_PATH:/localnet" \
         -v "$NYM_VOLUME_PATH:/root/.nym" \
         -d \
@@ -606,6 +608,20 @@ start_all() {
     start_gateway
     start_gateway2
     build_topology
+
+    # Configure networking for two-hop WireGuard routing on both gateways
+    # Note: Runs after build_topology to ensure gateways have finished WireGuard setup
+    log_info "Configuring gateway networking (IP forwarding, NAT)..."
+    for gw in "$GATEWAY_CONTAINER" "$GATEWAY2_CONTAINER"; do
+        container exec "$gw" sh -c "
+            # Enable IP forwarding
+            echo 1 > /proc/sys/net/ipv4/ip_forward
+            # Add NAT masquerade for outbound traffic
+            iptables-legacy -t nat -A POSTROUTING -o eth0 -j MASQUERADE
+        "
+        log_success "Configured $gw"
+    done
+
     start_network_requester
     start_socks5_client
 

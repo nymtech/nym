@@ -351,7 +351,7 @@ impl Probe {
         min_mixnet_performance: Option<u8>,
         use_mock_ecash: bool,
     ) -> anyhow::Result<ProbeResult> {
-        // AIDEV-NOTE: Localnet mode - identity + LP address from CLI, no HTTP query
+        // Localnet mode - identity + LP address from CLI, no HTTP query
         // This path is used when --entry-gateway-identity is specified
         if let Some(entry_info) = &self.localnet_entry {
             info!("Using localnet mode with CLI-provided gateway identities");
@@ -667,7 +667,7 @@ impl Probe {
         T: MixnetClientStorage + Clone + 'static,
         <T::CredentialStore as CredentialStorage>::StorageError: Send + Sync,
     {
-        // AIDEV-NOTE: test_mode replaces the old only_lp_registration and test_lp_wg flags.
+        // test_mode replaces the old only_lp_registration and test_lp_wg flags.
         // only_wireguard is kept separate as it controls ping behavior within Mixnet mode.
         let mut rng = rand::thread_rng();
         let mixnet_client = match mixnet_client {
@@ -771,7 +771,7 @@ impl Probe {
             );
 
             // Determine entry and exit gateways
-            // AIDEV-NOTE: Three modes for gateway resolution:
+            // Three modes for gateway resolution:
             // 1. direct_gateway_node/exit_gateway_node - from --gateway-ip (HTTP API query)
             // 2. localnet_entry/localnet_exit - from --entry-gateway-identity (CLI-only)
             // 3. directory lookup - original behavior for production
@@ -1074,7 +1074,7 @@ where
     );
 
     // Step 1: Perform handshake (connection is implicit in packet-per-connection model)
-    // AIDEV-NOTE: LpRegistrationClient uses packet-per-connection model - connect() is gone,
+    // LpRegistrationClient uses packet-per-connection model - connect() is gone,
     // connection is established during handshake and registration automatically.
     info!("Performing LP handshake at {}...", gateway_lp_address);
     match client.perform_handshake().await {
@@ -1165,6 +1165,13 @@ where
 ///
 /// This validates that IP hiding works (exit sees entry IP, not client IP) and that the
 /// full VPN tunnel operates correctly after LP registration.
+///
+// Known issue in localnet mode - After this probe runs, container networking
+// to the external internet becomes unstable while internal container-to-container traffic
+// continues to work. The two-hop WireGuard tunnel itself succeeds (handshake completes),
+// but subsequent DNS/ping tests may timeout. This appears to be related to Apple Container
+// Runtime networking quirks combined with our NAT/iptables configuration. Tracked in
+// beads issue nym-vbdo. Workaround: restart the localnet containers between probe runs.
 async fn wg_probe_lp<St>(
     entry_gateway: &TestedNodeDetails,
     exit_gateway: &TestedNodeDetails,
@@ -1211,7 +1218,7 @@ where
     let exit_wg_keypair = x25519::KeyPair::new(&mut rng);
 
     // STEP 1: Establish outer LP session with entry gateway
-    // AIDEV-NOTE: LpRegistrationClient uses packet-per-connection model - connect() is gone,
+    // LpRegistrationClient uses packet-per-connection model - connect() is gone,
     // connection is established automatically during handshake.
     info!("Establishing outer LP session with entry gateway...");
     let mut entry_client = LpRegistrationClient::new_with_default_psk(
@@ -1293,7 +1300,7 @@ where
             .map_err(|e| anyhow::anyhow!("Invalid entry gateway identity: {}", e))?;
 
     // Use packet-per-connection register() which returns GatewayData directly
-    let _entry_gateway_data = if use_mock_ecash {
+    let entry_gateway_data = if use_mock_ecash {
         info!("Using mock ecash credential for entry gateway registration");
         let credential = crate::bandwidth_helpers::create_dummy_credential(
             &entry_gateway_pubkey.to_bytes(),
@@ -1331,31 +1338,49 @@ where
     info!("LP registration successful for both gateways!");
     wg_outcome.can_register = true;
 
-    // STEP 4: Test WireGuard tunnels using exit gateway configuration
+    // STEP 4: Test WireGuard tunnels using two-hop configuration
+    // Traffic flows: Exit tunnel -> UDP Forwarder -> Entry tunnel -> Exit Gateway -> Internet
+    // The exit gateway endpoint is not directly reachable from the host in localnet.
+    // We must tunnel through the entry gateway using the UDP forwarder pattern.
+
     // Convert keys to hex for netstack
-    let private_key_hex = hex::encode(exit_wg_keypair.private_key().to_bytes());
-    let public_key_hex = hex::encode(exit_gateway_data.public_key.to_bytes());
+    let entry_private_key_hex = hex::encode(entry_wg_keypair.private_key().to_bytes());
+    let entry_public_key_hex = hex::encode(entry_gateway_data.public_key.to_bytes());
+    let exit_private_key_hex = hex::encode(exit_wg_keypair.private_key().to_bytes());
+    let exit_public_key_hex = hex::encode(exit_gateway_data.public_key.to_bytes());
 
-    // Build WireGuard endpoint address
-    let wg_endpoint = format!("{}:{}", exit_ip, exit_gateway_data.endpoint.port());
+    // Build WireGuard endpoint addresses
+    // Entry endpoint uses entry_ip (host-reachable) + port from registration
+    let entry_wg_endpoint = format!("{}:{}", entry_ip, entry_gateway_data.endpoint.port());
+    // Exit endpoint uses exit_ip + port from registration (forwarded via entry)
+    let exit_wg_endpoint = format!("{}:{}", exit_ip, exit_gateway_data.endpoint.port());
 
-    info!("Exit WireGuard configuration:");
-    info!("  Private IPv4: {}", exit_gateway_data.private_ipv4);
-    info!("  Private IPv6: {}", exit_gateway_data.private_ipv6);
-    info!("  Endpoint: {}", wg_endpoint);
+    info!("Two-hop WireGuard configuration:");
+    info!("  Entry gateway:");
+    info!("    Private IPv4: {}", entry_gateway_data.private_ipv4);
+    info!("    Endpoint: {}", entry_wg_endpoint);
+    info!("  Exit gateway:");
+    info!("    Private IPv4: {}", exit_gateway_data.private_ipv4);
+    info!("    Endpoint (via forwarder): {}", exit_wg_endpoint);
 
-    // Run tunnel connectivity tests using shared helper
-    let tunnel_config = common::WgTunnelConfig::new(
+    // Build two-hop tunnel configuration
+    let two_hop_config = common::TwoHopWgTunnelConfig::new(
+        entry_gateway_data.private_ipv4.to_string(),
+        entry_private_key_hex,
+        entry_public_key_hex,
+        entry_wg_endpoint,
+        awg_args.clone(), // Entry AWG args
         exit_gateway_data.private_ipv4.to_string(),
-        exit_gateway_data.private_ipv6.to_string(),
-        private_key_hex,
-        public_key_hex,
-        wg_endpoint,
+        exit_private_key_hex,
+        exit_public_key_hex,
+        exit_wg_endpoint,
+        awg_args, // Exit AWG args
     );
 
-    common::run_tunnel_tests(&tunnel_config, &netstack_args, &awg_args, &mut wg_outcome);
+    // Run two-hop tunnel connectivity tests
+    common::run_two_hop_tunnel_tests(&two_hop_config, &netstack_args, &mut wg_outcome);
 
-    info!("LP-based WireGuard probe completed");
+    info!("LP-based two-hop WireGuard probe completed");
     Ok(wg_outcome)
 }
 

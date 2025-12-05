@@ -307,7 +307,7 @@ impl LpSession {
     /// For receiving, use `outer_aead_key()` which returns the key as soon as
     /// it's derived (needed because the peer may start encrypting before we've
     /// finished our send).
-    // AIDEV-NOTE: This fixes a bug where the initiator encrypted the first Noise
+    // This fixes a bug where the initiator encrypted the first Noise
     // message with outer AEAD, but the responder couldn't decrypt because it
     // hadn't processed the PSQ yet to derive the same PSK.
     pub fn outer_aead_key_for_sending(&self) -> Option<OuterAeadKey> {

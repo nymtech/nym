@@ -12,7 +12,7 @@
 /// Test mode for the gateway probe.
 ///
 /// Determines which tests are performed and how connections are established.
-// AIDEV-NOTE: This enum replaces the scattered boolean flags (only_wireguard,
+// This enum replaces the scattered boolean flags (only_wireguard,
 // only_lp_registration, test_lp_wg) with explicit, named modes for clarity.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum TestMode {

@@ -8,4 +8,6 @@
 
 pub mod wireguard;
 
-pub use wireguard::{run_tunnel_tests, WgTunnelConfig};
+pub use wireguard::{
+    run_tunnel_tests, run_two_hop_tunnel_tests, TwoHopWgTunnelConfig, WgTunnelConfig,
+};

@@ -346,7 +346,6 @@ async fn register_wg_peer(
 
     // Create WireGuard peer with allocated IPs
     let mut peer = Peer::new(peer_key.clone());
-    peer.preshared_key = Some(Key::new(state.local_identity.public_key().to_bytes()));
     peer.endpoint = None;
     peer.allowed_ips = vec![
         format!("{client_ipv4}/32").parse()?,

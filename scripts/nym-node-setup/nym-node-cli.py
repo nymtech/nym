@@ -641,7 +641,7 @@ class ArgParser:
         install_parser.add_argument("--description", help="Short public description of the node")
         install_parser.add_argument("--public-ip", help="External IPv4 address (autodetected if omitted)")
         install_parser.add_argument("--nym-node-binary", help="URL for nym-node binary (autodetected if omitted)")
-        install_parser.add_argument("--uplink-dev-v4", help="Override ipv4 uplink interface used for NAT/FORWARD (e.g., 'eth0'; autodetected if omitted)")
+        install_parser.add_argument("--uplink-dev", help="Override ipv4 uplink interface used for NAT/FORWARD (e.g., 'eth0'; autodetected if omitted)")
         install_parser.add_argument("--uplink-dev-v6", help="Override ipv6 uplink interface used for NAT/FORWARD (e.g., 'eth0.1'; autodetected if omitted)")
         
         # generic fallback

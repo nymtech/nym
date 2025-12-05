@@ -7,7 +7,7 @@ usage: nym-node-cli install [-h] [-V] [-d BRANCH] [-v]
                             [--description DESCRIPTION]
                             [--public-ip PUBLIC_IP]
                             [--nym-node-binary NYM_NODE_BINARY]
-                            [--uplink-dev-v4 IPV4_UPLINK_DEV]
+                            [--uplink-dev IPV4_UPLINK_DEV]
                             [--uplink-dev-v6 IPV6_UPLINK_DEV] [--env KEY=VALUE]
 
 options:
@@ -31,7 +31,7 @@ options:
                         External IPv4 address (autodetected if omitted)
   --nym-node-binary NYM_NODE_BINARY
                         URL for nym-node binary (autodetected if omitted)
-  --uplink-dev-v4 IPV4_UPLINK_DEV
+  --uplink-dev IPV4_UPLINK_DEV
                         Override ipv4 uplink interface used for NAT/FORWARD (e.g.,
                         'eth0'; autodetected if omitted)
   --uplink-dev-v6 IPV6_UPLINK_DEV

@@ -1342,7 +1342,7 @@ exit policy manager:
 
 environment overrides:
   IPV4_UPLINK_DEV                   Auto-detected ipv4 uplink (e.g., eth0). Set manually if detection fails.
-  IPV6_UPLINK_DEV                   Auto-detected ipv6 uplink (e.g., eth0). Set manually if detection fails.
+  IPV6_UPLINK_DEV                   Auto-detected ipv6 uplink (e.g., eth0.1). Set manually if detection fails.
   TUNNEL_INTERFACE                  Default: nymtun0. Requires root privileges (sudo) to manage.
   WG_INTERFACE                      Default: nymwg - Must match your WireGuard interface name.
 

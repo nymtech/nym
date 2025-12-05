@@ -42,7 +42,7 @@ nym-api-requests = { workspace = true }
 
 
 # 'wasm-serde-types' feature
-wasm-utils = { workspace = true,  default-features = false, optional = true }
+wasm-utils = { workspace = true,  optional = true }
 
 [features]
 default = ["provider-trait"]

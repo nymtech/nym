@@ -80,7 +80,6 @@ cargo release \
   --prev-tag-name "" \
   --no-push \
   --no-tag \
-  --no-publish \
-  --allow-branch '*' \
+  --allow-branch '*' \ # Max: at the moment we're accepting publication from whatever branch - maybe we want to restrain this to master in the future?
   -v \
   "$@"

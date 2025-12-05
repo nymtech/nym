@@ -21,3 +21,5 @@ To publish the `nym-sdk` crate:
 # If there are no errors, run with execute flag - this will attempt to publish the nym-sdk crate and its dependencies to crates.io
 ./publish-sdk.sh --execute 1.20.0
 ```
+
+**Note** that the script will update the dependency versions in the root `Cargo.toml` file, but double check anyway.

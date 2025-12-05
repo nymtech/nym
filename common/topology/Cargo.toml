@@ -7,6 +7,7 @@ license = { workspace = true }
 repository = { workspace = true }
 homepage = { workspace = true }
 documentation = { workspace = true }
+description = "Nym's topology crate"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -37,7 +38,7 @@ nym-sphinx-types = { path = "../nymsphinx/types", features = [
 
 
 # I'm not sure how to feel about pulling in this dependency here...
-nym-api-requests = { path = "../../nym-api/nym-api-requests" }
+nym-api-requests = { workspace = true }
 
 
 # 'wasm-serde-types' feature

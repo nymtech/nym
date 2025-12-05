@@ -1,6 +1,6 @@
 [package]
 name = "nym-wireguard-private-metadata-server"
-version = "1.0.0"
+version.workspace = true
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true

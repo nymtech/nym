@@ -1,6 +1,6 @@
 [package]
 name = "nym-types"
-version = "1.0.0"
+version.workspace = true
 description = "Nym common types"
 authors.workspace = true
 edition = "2021"

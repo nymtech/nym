@@ -1,6 +1,6 @@
 [package]
 name = "nym-common"
-version = "1.18.0"
+version.workspace = true
 authors.workspace = true
 repository.workspace = true
 license.workspace = true

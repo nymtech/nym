@@ -26,13 +26,13 @@ nym-sphinx-types = { path = "types" }
 
 # those dependencies are due to intriducing preparer and receiver. Perpaphs that indicates they should be moved
 # to separate crate?
-nym-crypto = { path = "../crypto" }
-nym-topology = { path = "../topology" }
-nym-metrics = { path = "../nym-metrics" }
+nym-crypto = { workspace = true }
+nym-topology = { workspace = true }
+nym-metrics = { workspace = true }
 
 [dev-dependencies]
-nym-mixnet-contract-common = { path = "../cosmwasm-smart-contracts/mixnet-contract" }
-nym-crypto = { path = "../crypto",  features = [
+nym-mixnet-contract-common = { workspace = true }
+nym-crypto = { workspace = true,  features = [
     "asymmetric",
 ] }
 

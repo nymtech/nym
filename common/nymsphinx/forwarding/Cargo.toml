@@ -8,8 +8,8 @@ license = { workspace = true }
 repository = { workspace = true }
 
 [dependencies]
-nym-sphinx-addressing = { path = "../addressing" }
-nym-sphinx-params = { path = "../params" }
-nym-sphinx-types = { path = "../types", features = ["sphinx", "outfox"] }
-nym-sphinx-anonymous-replies = { path = "../anonymous-replies" }
+nym-sphinx-addressing = { workspace = true }
+nym-sphinx-params = { workspace = true }
+nym-sphinx-types = { workspace = true, features = ["sphinx", "outfox"] }
+nym-sphinx-anonymous-replies = { workspace = true }
 thiserror = { workspace = true }

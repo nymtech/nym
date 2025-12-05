@@ -447,7 +447,7 @@ nym-sphinx-forwarding = { version = "1.2.0", path = "common/nymsphinx/forwarding
 nym-sphinx-framing = { version = "1.2.0", path = "common/nymsphinx/framing" }
 nym-sphinx-params = { version = "1.2.0", path = "common/nymsphinx/params" }
 nym-sphinx-routing = { version = "1.2.0", path = "common/nymsphinx/routing" }
-nym-sphinx-types = { version = "1.2.0", path = "common/nymsphinx/types", default-features = false }
+nym-sphinx-types = { version = "1.2.0", path = "common/nymsphinx/types" }
 nym-statistics-common = { version = "1.2.0", path = "common/statistics" }
 nym-task = { version = "1.2.0", path = "common/task" }
 nym-ticketbooks-merkle = { version = "1.2.0", path = "common/ticketbooks-merkle" }

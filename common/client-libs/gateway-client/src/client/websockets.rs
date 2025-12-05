@@ -1,51 +1,37 @@
 use crate::error::GatewayClientError;
 
-use nym_http_api_client::HickoryDnsResolver;
+#[cfg(not(target_arch = "wasm32"))]
+use nym_topology::EntryDetails;
 #[cfg(unix)]
 use std::{
     os::fd::{AsRawFd, RawFd},
     sync::Arc,
 };
+use tokio::net::TcpSocket;
 use tokio::net::TcpStream;
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 use tungstenite::handshake::client::Response;
-use url::{Host, Url};
+use url::Url;
 
 use std::net::SocketAddr;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) async fn connect_async(
-    endpoint: &str,
+    endpoint: &EntryDetails,
     #[cfg(unix)] connection_fd_callback: Option<Arc<dyn Fn(RawFd) + Send + Sync>>,
 ) -> Result<(WebSocketStream<MaybeTlsStream<TcpStream>>, Response), GatewayClientError> {
-    use tokio::net::TcpSocket;
-
-    let resolver = HickoryDnsResolver::default();
-    let uri =
-        Url::parse(endpoint).map_err(|_| GatewayClientError::InvalidUrl(endpoint.to_owned()))?;
+    let uri = ws_entry_address(endpoint, false)
+        .ok_or(GatewayClientError::InvalidEndpoint(endpoint.to_string()))?;
     let port: u16 = uri.port_or_known_default().unwrap_or(443);
 
-    let host = uri
-        .host()
-        .ok_or(GatewayClientError::InvalidUrl(endpoint.to_owned()))?;
-
-    // Get address for tcp connection, if a domain is provided use our preferred resolver rather than
-    // the default std resolve
-    let sock_addrs: Vec<SocketAddr> = match host {
-        Host::Ipv4(addr) => vec![SocketAddr::new(addr.into(), port)],
-        Host::Ipv6(addr) => vec![SocketAddr::new(addr.into(), port)],
-        Host::Domain(domain) => {
-            // Do a DNS lookup for the domain using our custom DNS resolver
-            resolver
-                .resolve_str(domain)
-                .await?
-                .map(|a| SocketAddr::new(a, port))
-                .collect()
-        }
-    };
+    let sock_addrs = endpoint
+        .ip_addresses
+        .iter()
+        .map(|addr| SocketAddr::new(*addr, port));
+    let uri_str = uri.to_string();
 
     let mut stream = Err(GatewayClientError::NoEndpointForConnection {
-        address: endpoint.to_owned(),
+        address: uri_str.clone(),
     });
     for sock_addr in sock_addrs {
         let socket = if sock_addr.is_ipv4() {
@@ -54,7 +40,7 @@ pub(crate) async fn connect_async(
             TcpSocket::new_v6()
         }
         .map_err(|err| GatewayClientError::NetworkConnectionFailed {
-            address: endpoint.to_owned(),
+            address: uri_str.clone(),
             source: Box::new(tungstenite::Error::from(err)),
         })?;
 
@@ -70,7 +56,7 @@ pub(crate) async fn connect_async(
             }
             Err(err) => {
                 stream = Err(GatewayClientError::NetworkConnectionFailed {
-                    address: endpoint.to_owned(),
+                    address: uri_str.clone(),
                     source: Box::new(tungstenite::Error::from(err)),
                 });
                 continue;
@@ -78,10 +64,39 @@ pub(crate) async fn connect_async(
         }
     }
 
-    tokio_tungstenite::client_async_tls(endpoint, stream?)
+    tokio_tungstenite::client_async_tls(uri.clone(), stream?)
         .await
         .map_err(|error| GatewayClientError::NetworkConnectionFailed {
-            address: endpoint.to_owned(),
+            address: uri_str.clone(),
             source: Box::new(error),
         })
+}
+
+pub fn ws_entry_address_tls(entry: &EntryDetails) -> Option<Url> {
+    let hostname = entry.hostname.as_ref()?;
+    let wss_port = entry.clients_wss_port?;
+
+    Url::parse(&format!("wss://{hostname}:{wss_port}")).ok()
+}
+
+pub fn ws_entry_address_no_tls(entry: &EntryDetails, prefer_ipv6: bool) -> Option<Url> {
+    if let Some(hostname) = entry.hostname.as_ref() {
+        return Url::parse(&format!("ws://{hostname}:{}", entry.clients_ws_port)).ok();
+    }
+
+    if prefer_ipv6 {
+        if let Some(ipv6) = entry.ip_addresses.iter().find(|ip| ip.is_ipv6()) {
+            return Url::parse(&format!("ws://{ipv6}:{}", entry.clients_ws_port)).ok();
+        }
+    }
+
+    let any_ip = entry.ip_addresses.first()?;
+    Url::parse(&format!("ws://{any_ip}:{}", entry.clients_ws_port)).ok()
+}
+
+pub fn ws_entry_address(entry: &EntryDetails, prefer_ipv6: bool) -> Option<Url> {
+    if let Some(tls) = ws_entry_address_tls(entry) {
+        return Some(tls);
+    }
+    ws_entry_address_no_tls(entry, prefer_ipv6)
 }

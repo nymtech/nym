@@ -32,6 +32,7 @@ nym-network-defaults = { path = "../../network-defaults" }
 nym-sphinx = { path = "../../nymsphinx" }
 nym-statistics-common = { path = "../../statistics" }
 nym-pemstore = { path = "../../pemstore" }
+nym-topology = { path = "../../topology", features = ["persistence"] }
 nym-validator-client = { path = "../validator-client", default-features = false }
 nym-task = { path = "../../task" }
 serde = { workspace = true, features = ["derive"] }

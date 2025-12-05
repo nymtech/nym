@@ -28,13 +28,13 @@ use nym_sphinx::forwarding::packet::MixPacket;
 use nym_statistics_common::clients::connection::ConnectionStatsEvent;
 use nym_statistics_common::clients::ClientStatsSender;
 use nym_task::ShutdownToken;
+use nym_topology::EntryDetails;
 use nym_validator_client::nyxd::contract_traits::DkgQueryClient;
 use rand::rngs::OsRng;
 use std::sync::Arc;
 use tracing::instrument;
 use tracing::*;
 use tungstenite::protocol::Message;
-use url::Url;
 
 #[cfg(unix)]
 use std::os::fd::RawFd;
@@ -62,14 +62,14 @@ pub struct GatewayConfig {
     // currently a dead field
     pub gateway_owner: Option<String>,
 
-    pub gateway_listener: String,
+    pub gateway_listener: EntryDetails,
 }
 
 impl GatewayConfig {
     pub fn new(
         gateway_identity: ed25519::PublicKey,
         gateway_owner: Option<String>,
-        gateway_listener: String,
+        gateway_listener: EntryDetails,
     ) -> Self {
         GatewayConfig {
             gateway_identity,
@@ -92,7 +92,7 @@ pub struct GatewayClient<C, St = EphemeralCredentialStorage> {
 
     authenticated: bool,
     bandwidth: ClientBandwidth,
-    gateway_address: String,
+    gateway_address: EntryDetails,
     gateway_identity: ed25519::PublicKey,
     local_identity: Arc<ed25519::KeyPair>,
     shared_key: Option<Arc<SharedGatewayKey>>,
@@ -201,7 +201,7 @@ impl<C, St> GatewayClient<C, St> {
     #[cfg(not(target_arch = "wasm32"))]
     pub async fn establish_connection(&mut self) -> Result<(), GatewayClientError> {
         debug!(
-            "Attempting to establish connection to gateway at: {}",
+            "Attempting to establish connection to gateway at: {:?}",
             self.gateway_address
         );
         let (ws_stream, _) = connect_async(
@@ -467,7 +467,9 @@ impl<C, St> GatewayClient<C, St> {
         // right now there are no failure cases here, but this might change in the future
         match gateway_protocol {
             None => {
-                warn!("the gateway we're connected to has not specified its protocol version. It's probably running version < 1.1.X, but that's still fine for now. It will become a hard error in 1.2.0");
+                warn!(
+                    "the gateway we're connected to has not specified its protocol version. It's probably running version < 1.1.X, but that's still fine for now. It will become a hard error in 1.2.0"
+                );
                 // note: in +1.2.0 we will have to return a hard error here
                 Ok(())
             }
@@ -481,7 +483,9 @@ impl<C, St> GatewayClient<C, St> {
             }
 
             Some(_) => {
-                debug!("the gateway is using exactly the same (or older) protocol version as we are. We're good to continue!");
+                debug!(
+                    "the gateway is using exactly the same (or older) protocol version as we are. We're good to continue!"
+                );
                 Ok(())
             }
         }
@@ -527,7 +531,7 @@ impl<C, St> GatewayClient<C, St> {
                 status,
             } => (status, protocol_version),
             ServerResponse::Error { message } => {
-                return Err(GatewayClientError::GatewayError(message))
+                return Err(GatewayClientError::GatewayError(message));
             }
             other => return Err(GatewayClientError::UnexpectedResponse { name: other.name() }),
         };
@@ -589,7 +593,7 @@ impl<C, St> GatewayClient<C, St> {
         {
             ServerResponse::EncryptedResponse { ciphertext, nonce } => (ciphertext, nonce),
             ServerResponse::Error { message } => {
-                return Err(GatewayClientError::GatewayError(message))
+                return Err(GatewayClientError::GatewayError(message));
             }
             other => return Err(GatewayClientError::UnexpectedResponse { name: other.name() }),
         };
@@ -858,7 +862,9 @@ impl<C, St> GatewayClient<C, St> {
 
         warn!("Not enough bandwidth. Trying to get more bandwidth, this might take a while");
         if !self.cfg.bandwidth.require_tickets {
-            info!("The client is running in disabled credentials mode - attempting to claim bandwidth without a credential");
+            info!(
+                "The client is running in disabled credentials mode - attempting to claim bandwidth without a credential"
+            );
             return self.try_claim_testnet_bandwidth().await;
         }
 
@@ -896,7 +902,9 @@ impl<C, St> GatewayClient<C, St> {
             Err(err) => {
                 error!("failed to claim ecash bandwidth with the gateway...: {err}");
                 if err.is_ticket_replay() {
-                    warn!("this was due to our ticket being replayed! have you messed with the database file?")
+                    warn!(
+                        "this was due to our ticket being replayed! have you messed with the database file?"
+                    )
                 } else {
                     // TODO: tracing span
                     info!("attempting to revert ticket withdrawal...");
@@ -1112,7 +1120,9 @@ impl<C, St> GatewayClient<C, St> {
             self.cfg
                 .bandwidth
                 .ensure_above_cutoff(bandwidth_remaining)?;
-            info!("Claiming more bandwidth with existing credentials. Stop the process now if you don't want that to happen.");
+            info!(
+                "Claiming more bandwidth with existing credentials. Stop the process now if you don't want that to happen."
+            );
             self.claim_bandwidth().await?;
         }
         Ok(())
@@ -1128,7 +1138,7 @@ pub struct InitOnly;
 impl GatewayClient<InitOnly, EphemeralCredentialStorage> {
     // for initialisation we do not need credential storage. Though it's still a bit weird we have to set the generic...
     pub fn new_init(
-        gateway_listener: Url,
+        gateway_listener: EntryDetails,
         gateway_identity: ed25519::PublicKey,
         local_identity: Arc<ed25519::KeyPair>,
         #[cfg(unix)] connection_fd_callback: Option<Arc<dyn Fn(RawFd) + Send + Sync>>,
@@ -1147,7 +1157,7 @@ impl GatewayClient<InitOnly, EphemeralCredentialStorage> {
             cfg: GatewayClientConfig::default().with_disabled_credentials_mode(true),
             authenticated: false,
             bandwidth: ClientBandwidth::new_empty(),
-            gateway_address: gateway_listener.to_string(),
+            gateway_address: gateway_listener.clone(),
             gateway_identity,
             local_identity,
             shared_key: None,

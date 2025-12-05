@@ -5,13 +5,13 @@ use crate::BadGateway;
 use cosmrs::AccountId;
 use nym_crypto::asymmetric::ed25519;
 use nym_gateway_requests::shared_key::{LegacySharedKeys, SharedGatewayKey, SharedSymmetricKey};
+use nym_topology::EntryDetails;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 use std::ops::Deref;
 use std::str::FromStr;
 use std::sync::Arc;
 use time::OffsetDateTime;
-use url::Url;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 pub const REMOTE_GATEWAY_TYPE: &str = "remote";
@@ -67,7 +67,7 @@ impl GatewayDetails {
         gateway_id: ed25519::PublicKey,
         shared_key: Arc<SharedGatewayKey>,
         gateway_owner_address: Option<AccountId>,
-        gateway_listener: Url,
+        gateway_listener: EntryDetails,
     ) -> Self {
         GatewayDetails::Remote(RemoteGatewayDetails {
             gateway_id,
@@ -164,8 +164,7 @@ pub struct RegisteredGateway {
     pub gateway_type: GatewayType,
 }
 
-#[derive(Debug, Zeroize, ZeroizeOnDrop, Serialize, Deserialize)]
-#[cfg_attr(feature = "sqlx", derive(sqlx::FromRow))]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct RawRemoteGatewayDetails {
     pub gateway_id_bs58: String,
     pub derived_aes128_ctr_blake3_hmac_keys_bs58: Option<String>,
@@ -173,6 +172,16 @@ pub struct RawRemoteGatewayDetails {
     pub gateway_owner_address: Option<String>,
     pub gateway_listener: String,
 }
+
+impl Zeroize for RawRemoteGatewayDetails {
+    fn zeroize(&mut self) {
+        self.gateway_id_bs58.zeroize();
+        self.derived_aes128_ctr_blake3_hmac_keys_bs58.zeroize();
+        self.derived_aes256_gcm_siv_key.zeroize();
+        self.gateway_owner_address.zeroize();
+    }
+}
+impl ZeroizeOnDrop for RawRemoteGatewayDetails {}
 
 impl TryFrom<RawRemoteGatewayDetails> for RemoteGatewayDetails {
     type Error = BadGateway;
@@ -230,7 +239,7 @@ impl TryFrom<RawRemoteGatewayDetails> for RemoteGatewayDetails {
             })
             .transpose()?;
 
-        let gateway_listener = Url::parse(&value.gateway_listener).map_err(|source| {
+        let gateway_listener = serde_json::from_str(&value.gateway_listener).map_err(|source| {
             BadGateway::MalformedListener {
                 gateway_id: value.gateway_id_bs58.clone(),
                 raw_listener: value.gateway_listener.clone(),
@@ -255,12 +264,16 @@ impl<'a> From<&'a RemoteGatewayDetails> for RawRemoteGatewayDetails {
                 SharedGatewayKey::Legacy(key) => (Some(key.to_base58_string()), None),
             };
 
+        #[allow(clippy::expect_used)]
+        let gateway_listener = serde_json::to_string(&value.gateway_listener)
+            .expect("serialize for gateway details should never fail");
+
         RawRemoteGatewayDetails {
             gateway_id_bs58: value.gateway_id.to_base58_string(),
             derived_aes128_ctr_blake3_hmac_keys_bs58,
             derived_aes256_gcm_siv_key,
             gateway_owner_address: value.gateway_owner_address.as_ref().map(|o| o.to_string()),
-            gateway_listener: value.gateway_listener.to_string(),
+            gateway_listener,
         }
     }
 }
@@ -273,7 +286,7 @@ pub struct RemoteGatewayDetails {
 
     pub gateway_owner_address: Option<AccountId>,
 
-    pub gateway_listener: Url,
+    pub gateway_listener: EntryDetails,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

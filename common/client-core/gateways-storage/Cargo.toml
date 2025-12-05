@@ -11,6 +11,7 @@ rust-version.workspace = true
 async-trait.workspace = true
 cosmrs.workspace = true
 serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
 thiserror.workspace = true
 time.workspace = true
 tokio = { workspace = true, features = ["sync"] }
@@ -20,6 +21,7 @@ zeroize = { workspace = true, features = ["zeroize_derive"] }
 
 nym-crypto = { path = "../../crypto", features = ["asymmetric"] }
 nym-gateway-requests = { path = "../../gateway-requests" }
+nym-topology = { path = "../../topology", features = ["persistence"] }
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.sqlx]
 workspace = true

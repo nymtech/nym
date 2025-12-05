@@ -28,6 +28,12 @@ pub struct EntryDetails {
     pub clients_wss_port: Option<u16>,
 }
 
+impl std::fmt::Display for EntryDetails {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct SupportedRoles {
     pub mixnode: bool,
@@ -59,36 +65,6 @@ pub struct RoutingNode {
 }
 
 impl RoutingNode {
-    pub fn ws_entry_address_tls(&self) -> Option<String> {
-        let entry = self.entry.as_ref()?;
-        let hostname = entry.hostname.as_ref()?;
-        let wss_port = entry.clients_wss_port?;
-
-        Some(format!("wss://{hostname}:{wss_port}"))
-    }
-
-    pub fn ws_entry_address_no_tls(&self, prefer_ipv6: bool) -> Option<String> {
-        let entry = self.entry.as_ref()?;
-
-        if let Some(hostname) = entry.hostname.as_ref() {
-            return Some(format!("ws://{hostname}:{}", entry.clients_ws_port));
-        }
-
-        if prefer_ipv6 && let Some(ipv6) = entry.ip_addresses.iter().find(|ip| ip.is_ipv6()) {
-            return Some(format!("ws://{ipv6}:{}", entry.clients_ws_port));
-        }
-
-        let any_ip = entry.ip_addresses.first()?;
-        Some(format!("ws://{any_ip}:{}", entry.clients_ws_port))
-    }
-
-    pub fn ws_entry_address(&self, prefer_ipv6: bool) -> Option<String> {
-        if let Some(tls) = self.ws_entry_address_tls() {
-            return Some(tls);
-        }
-        self.ws_entry_address_no_tls(prefer_ipv6)
-    }
-
     pub fn identity(&self) -> ed25519::PublicKey {
         self.identity_key
     }

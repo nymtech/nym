@@ -561,7 +561,7 @@ where
                         .gateway_owner_address
                         .as_ref()
                         .map(|o| o.to_string()),
-                    details.gateway_listener.to_string(),
+                    details.gateway_listener,
                 );
                 GatewayClient::new(
                     GatewayClientConfig::new_default()

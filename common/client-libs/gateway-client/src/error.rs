@@ -49,8 +49,8 @@ pub enum GatewayClientError {
     #[error("no socket address for endpoint: {address}")]
     NoEndpointForConnection { address: String },
 
-    #[error("Invalid URL: {0}")]
-    InvalidUrl(String),
+    #[error("Invalid Endpoint: {0}")]
+    InvalidEndpoint(String),
 
     #[cfg(not(target_arch = "wasm32"))]
     #[error("resolution failed: {0}")]

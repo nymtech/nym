@@ -48,6 +48,6 @@ pub enum BadGateway {
         raw_listener: String,
 
         #[source]
-        source: url::ParseError,
+        source: serde_json::Error,
     },
 }

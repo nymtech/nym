@@ -14,6 +14,7 @@ use nym_gateway_client::client::InitGatewayClient;
 use nym_gateway_requests::shared_key::SharedGatewayKey;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_topology::node::RoutingNode;
+use nym_topology::EntryDetails;
 use nym_validator_client::client::IdentityKey;
 use nym_validator_client::nyxd::AccountId;
 use serde::Serialize;
@@ -22,7 +23,6 @@ use std::fmt::{Debug, Display};
 use std::os::fd::RawFd;
 use std::sync::Arc;
 use time::OffsetDateTime;
-use url::Url;
 
 pub enum SelectedGateway {
     Remote {
@@ -30,7 +30,7 @@ pub enum SelectedGateway {
 
         gateway_owner_address: Option<AccountId>,
 
-        gateway_listener: Url,
+        gateway_listener: EntryDetails,
     },
     Custom {
         gateway_id: ed25519::PublicKey,
@@ -46,25 +46,25 @@ impl SelectedGateway {
         // for now, let's use 'old' behaviour, if you want to change it, you can pass it up the enum stack yourself : )
         let prefer_ipv6 = false;
 
-        let gateway_listener = if must_use_tls {
-            node.ws_entry_address_tls()
-                .ok_or(ClientCoreError::UnsupportedWssProtocol {
-                    gateway: node.identity_key.to_base58_string(),
-                })?
-        } else {
-            node.ws_entry_address(prefer_ipv6)
-                .ok_or(ClientCoreError::UnsupportedEntry {
-                    id: node.node_id,
-                    identity: node.identity_key.to_base58_string(),
-                })?
-        };
+        let gateway_listener = node.entry.ok_or(ClientCoreError::UnsupportedEntry {
+            id: node.node_id,
+            identity: node.identity_key.to_base58_string(),
+        })?;
 
-        let gateway_listener =
-            Url::parse(&gateway_listener).map_err(|source| ClientCoreError::MalformedListener {
-                gateway_id: node.identity_key.to_base58_string(),
-                raw_listener: gateway_listener,
-                source,
-            })?;
+        if must_use_tls
+            && (gateway_listener.hostname.is_none() || gateway_listener.clients_wss_port.is_none())
+        {
+            return Err(ClientCoreError::UnsupportedWssProtocol {
+                gateway: node.identity_key.to_base58_string(),
+            });
+        }
+
+        if prefer_ipv6 && gateway_listener.ip_addresses.iter().all(|i| i.is_ipv4()) {
+            return Err(ClientCoreError::UnsupportedEntry {
+                id: node.node_id,
+                identity: node.identity_key.to_base58_string(),
+            });
+        }
 
         Ok(SelectedGateway::Remote {
             gateway_id: node.identity_key,

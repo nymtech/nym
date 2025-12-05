@@ -436,7 +436,7 @@ where
             }
         }
 
-        if let Some(ref mut next_delay) = &mut self.next_delay {
+        if let Some(next_delay) = &mut self.next_delay {
             // it is not yet time to return a message
             if next_delay.as_mut().poll(cx).is_pending() {
                 return Poll::Pending;

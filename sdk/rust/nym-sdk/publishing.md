@@ -5,7 +5,7 @@ The Rust SDK has a relatively long (60+) workspace dependencies that have to be 
 We have attempted to automate this as much as possible, but due to limitations in tools like `cargo-smart-release` and publishing a subset of a workspace, this is the initial version of publication logic.
 
 ## When Developing
-**If you add a workspace dependency to the SDK when developing, make sure to add this to the workspace dependencies in the root monorepo `Cargo.toml` file.**
+**If you add a workspace dependency to the SDK when developing, make sure to add this to the workspace dependencies in the root monorepo `Cargo.toml` file AND the `publish-sdk.sh` script.**
 
 ## Publishing
 To publish the `nym-sdk` crate:

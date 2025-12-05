@@ -1,6 +1,6 @@
 [package]
 name = "nym-cli-commands"
-version = "1.0.0"
+version.workspace = true
 authors.workspace = true
 edition = "2021"
 license.workspace = true

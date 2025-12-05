@@ -1,6 +1,6 @@
 [package]
 name = "nym-inclusion-probability"
-version = "0.1.0"
+version.workspace = true
 description = "Nym active set probability simulator"
 edition.workspace = true
 authors.workspace = true

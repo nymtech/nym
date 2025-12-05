@@ -6,20 +6,21 @@ set -e
 BATCH1=(
   "nym-sphinx-acknowledgements"
   "nym-sphinx-addressing"
+  "nym-api-requests"
   "nym-topology"
   "nym-sphinx-anonymous-replies"
-  "nym-sphinx-chunking"
 )
 
 BATCH2=(
+  "nym-sphinx-chunking"
   "nym-sphinx-cover"
   "nym-sphinx-forwarding"
   "nym-sphinx-framing"
   "nym-sphinx-params"
-  "nym-sphinx-routing"
 )
 
 BATCH3=(
+  "nym-sphinx-routing"
   "nym-sphinx-types"
   "nym-sphinx"
 )

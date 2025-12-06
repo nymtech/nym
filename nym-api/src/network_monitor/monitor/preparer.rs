@@ -453,7 +453,7 @@ impl PacketPreparer {
             for gateway in &gateways_to_test_details {
                 let recipient = self.create_packet_sender(gateway);
                 let gateway_identity = gateway.identity_key;
-                let gateway_address = gateway.ws_entry_address(false);
+                let gateway_address = gateway.entry;
 
                 // the unwrap here is fine as:
                 // 1. the topology is definitely valid (otherwise we wouldn't be here)

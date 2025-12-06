@@ -43,10 +43,6 @@ pub enum ClientCoreError {
     #[error("Invalid Endpoint: {0}")]
     InvalidEndpoint(String),
 
-    #[cfg(not(target_arch = "wasm32"))]
-    #[error("resolution failed: {0}")]
-    ResolutionFailed(#[from] nym_http_api_client::ResolveError),
-
     #[error("no gateways on network")]
     NoGatewaysOnNetwork,
 

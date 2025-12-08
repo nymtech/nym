@@ -3,35 +3,35 @@
 
 use crate::contract::{execute, instantiate, migrate, query};
 use crate::helpers::MixnetContractQuerier;
-use crate::storage::NYM_PERFORMANCE_CONTRACT_STORAGE;
-use cosmwasm_std::testing::{message_info, mock_env, MockApi};
+use crate::storage::{MeasurementKind, NYM_PERFORMANCE_CONTRACT_STORAGE};
+use cosmwasm_std::testing::{MockApi, message_info, mock_env};
 use cosmwasm_std::{
-    coin, coins, Addr, ContractInfo, Deps, DepsMut, Env, MessageInfo, QuerierWrapper, StdError,
-    StdResult,
+    Addr, ContractInfo, Deps, DepsMut, Env, MessageInfo, QuerierWrapper, StdError, StdResult, coin,
+    coins,
 };
 use mixnet_contract::testable_mixnet_contract::MixnetContract;
-use nym_contracts_common::signing::{ContractMessageContent, MessageSignature};
 use nym_contracts_common::Percent;
+use nym_contracts_common::signing::{ContractMessageContent, MessageSignature};
 use nym_contracts_common_testing::{
-    addr, AdminExt, ArbitraryContractStorageReader, ArbitraryContractStorageWriter, BankExt,
-    ChainOpts, CommonStorageKeys, ContractFn, ContractOpts, ContractStorageWrapper, ContractTester,
-    ContractTesterBuilder, DenomExt, PermissionedFn, QueryFn, RandExt, TestableNymContract,
-    TEST_DENOM,
+    AdminExt, ArbitraryContractStorageReader, ArbitraryContractStorageWriter, BankExt, ChainOpts,
+    CommonStorageKeys, ContractFn, ContractOpts, ContractStorageWrapper, ContractTester,
+    ContractTesterBuilder, DenomExt, PermissionedFn, QueryFn, RandExt, TEST_DENOM,
+    TestableNymContract, addr,
 };
 use nym_crypto::asymmetric::ed25519;
 use nym_mixnet_contract_common::nym_node::{NodeDetailsResponse, NodeOwnershipResponse, Role};
 use nym_mixnet_contract_common::{
-    CurrentIntervalResponse, EpochId, Interval, NodeCostParams, NymNode, NymNodeBondingPayload,
-    RoleAssignment, SignableNymNodeBondingMsg, DEFAULT_INTERVAL_OPERATING_COST_AMOUNT,
-    DEFAULT_PROFIT_MARGIN_PERCENT,
+    CurrentIntervalResponse, DEFAULT_INTERVAL_OPERATING_COST_AMOUNT, DEFAULT_PROFIT_MARGIN_PERCENT,
+    EpochId, Interval, NodeCostParams, NymNode, NymNodeBondingPayload, RoleAssignment,
+    SignableNymNodeBondingMsg,
 };
 use nym_performance_contract_common::constants::storage_keys;
 use nym_performance_contract_common::{
-    ExecuteMsg, InstantiateMsg, MigrateMsg, NodeId, NodePerformance, NodeResults,
+    ExecuteMsg, InstantiateMsg, MigrateMsg, NodeId, NodePerformanceSpecific, NodeResults,
     NymPerformanceContractError, QueryMsg,
 };
-use serde::de::DeserializeOwned;
 use serde::Serialize;
+use serde::de::DeserializeOwned;
 use std::str::FromStr;
 
 pub struct PerformanceContract;
@@ -358,11 +358,33 @@ pub(crate) trait PerformanceContractTesterExt:
         Ok(())
     }
 
-    fn dummy_node_performance(&mut self) -> NodePerformance {
+    fn dummy_measurement_kind(&mut self) -> MeasurementKind {
+        String::from("dummy")
+    }
+
+    fn define_dummy_measurement_kind(
+        &mut self,
+    ) -> Result<MeasurementKind, NymPerformanceContractError> {
+        let admin = self.admin_unchecked();
+        let measurement_kind = self.dummy_measurement_kind();
+
+        self.execute_raw(
+            admin,
+            ExecuteMsg::DefineMeasurementKind {
+                measurement_kind: measurement_kind.clone(),
+            },
+        )?;
+
+        Ok(measurement_kind)
+    }
+
+    fn dummy_node_performance(&mut self) -> NodePerformanceSpecific {
         let node_id = self.bond_dummy_nymnode().unwrap();
-        NodePerformance {
+        let measurement_kind = self.dummy_measurement_kind();
+        NodePerformanceSpecific {
             node_id,
             performance: Percent::from_percentage_value(69).unwrap(),
+            measurement_kind,
         }
     }
 
@@ -382,6 +404,7 @@ pub(crate) trait PerformanceContractTesterExt:
         addr: &Addr,
         epoch_id: EpochId,
         node_id: NodeId,
+        measurement_kind: MeasurementKind,
         performance: Percent,
     ) -> Result<(), NymPerformanceContractError> {
         let env = self.env();
@@ -390,9 +413,10 @@ pub(crate) trait PerformanceContractTesterExt:
             env,
             addr,
             epoch_id,
-            NodePerformance {
+            NodePerformanceSpecific {
                 node_id,
                 performance,
+                measurement_kind,
             },
         )
     }
@@ -401,11 +425,12 @@ pub(crate) trait PerformanceContractTesterExt:
         &mut self,
         addr: &Addr,
         node_id: NodeId,
+        measurement_kind: MeasurementKind,
         performance: Percent,
     ) -> Result<(), NymPerformanceContractError> {
         let epoch_id = self.current_mixnet_epoch()?;
 
-        self.insert_epoch_performance(addr, epoch_id, node_id, performance)
+        self.insert_epoch_performance(addr, epoch_id, node_id, measurement_kind, performance)
     }
 
     // makes testing easier
@@ -413,11 +438,13 @@ pub(crate) trait PerformanceContractTesterExt:
         &mut self,
         addr: &Addr,
         node_id: NodeId,
+        measurement_kind: MeasurementKind,
         raw: &str,
     ) -> Result<(), NymPerformanceContractError> {
         self.insert_performance(
             addr,
             node_id,
+            measurement_kind,
             Percent::from_str(raw).map_err(|err| {
                 NymPerformanceContractError::StdErr(StdError::parse_err("Percent", err.to_string()))
             })?,

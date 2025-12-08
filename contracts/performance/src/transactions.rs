@@ -1,10 +1,10 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::storage::NYM_PERFORMANCE_CONTRACT_STORAGE;
-use cosmwasm_std::{to_json_binary, DepsMut, Env, Event, MessageInfo, Response};
+use crate::storage::{MeasurementKind, NYM_PERFORMANCE_CONTRACT_STORAGE};
+use cosmwasm_std::{DepsMut, Env, Event, MessageInfo, Response, to_json_binary};
 use nym_performance_contract_common::{
-    EpochId, NodeId, NodePerformance, NymPerformanceContractError,
+    EpochId, NodeId, NodePerformanceSpecific, NymPerformanceContractError,
 };
 
 pub fn try_update_contract_admin(
@@ -21,12 +21,28 @@ pub fn try_update_contract_admin(
     Ok(res)
 }
 
+pub fn try_define_measurement_kind(
+    deps: DepsMut<'_>,
+    info: MessageInfo,
+    measurement_kind: MeasurementKind,
+) -> Result<Response, NymPerformanceContractError> {
+    NYM_PERFORMANCE_CONTRACT_STORAGE
+        .contract_admin
+        .assert_admin(deps.as_ref(), &info.sender)?;
+
+    NYM_PERFORMANCE_CONTRACT_STORAGE
+        .performance_results
+        .define_new_measurement_kind(deps.storage, measurement_kind)?;
+
+    Ok(Response::new())
+}
+
 pub fn try_submit_performance_results(
     deps: DepsMut<'_>,
     env: Env,
     info: MessageInfo,
     epoch_id: EpochId,
-    data: NodePerformance,
+    data: NodePerformanceSpecific,
 ) -> Result<Response, NymPerformanceContractError> {
     NYM_PERFORMANCE_CONTRACT_STORAGE.submit_performance_data(
         deps,
@@ -45,7 +61,7 @@ pub fn try_batch_submit_performance_results(
     env: Env,
     info: MessageInfo,
     epoch_id: EpochId,
-    data: Vec<NodePerformance>,
+    data: Vec<NodePerformanceSpecific>,
 ) -> Result<Response, NymPerformanceContractError> {
     let res = NYM_PERFORMANCE_CONTRACT_STORAGE.batch_submit_performance_results(
         deps,
@@ -130,7 +146,7 @@ pub fn try_remove_epoch_measurements(
 mod tests {
     use super::*;
     use crate::storage::retrieval_limits;
-    use crate::testing::{init_contract_tester, PerformanceContractTesterExt};
+    use crate::testing::{PerformanceContractTesterExt, init_contract_tester};
     use cosmwasm_std::from_json;
     use nym_contracts_common_testing::{AdminExt, ContractOpts};
     use nym_performance_contract_common::RemoveEpochMeasurementsResponse;
@@ -222,20 +238,24 @@ mod tests {
             let env = test.env();
             let admin = test.admin_msg();
 
-            assert!(try_authorise_network_monitor(
-                test.deps_mut(),
-                env.clone(),
-                admin.clone(),
-                bad_address
-            )
-            .is_err());
-            assert!(try_authorise_network_monitor(
-                test.deps_mut(),
-                env,
-                admin,
-                good_address.to_string()
-            )
-            .is_ok());
+            assert!(
+                try_authorise_network_monitor(
+                    test.deps_mut(),
+                    env.clone(),
+                    admin.clone(),
+                    bad_address
+                )
+                .is_err()
+            );
+            assert!(
+                try_authorise_network_monitor(
+                    test.deps_mut(),
+                    env,
+                    admin,
+                    good_address.to_string()
+                )
+                .is_ok()
+            );
 
             Ok(())
         }
@@ -244,7 +264,7 @@ mod tests {
     #[cfg(test)]
     mod retiring_network_monitor {
         use super::*;
-        use crate::testing::{init_contract_tester, PerformanceContractTesterExt};
+        use crate::testing::{PerformanceContractTesterExt, init_contract_tester};
         use nym_contracts_common_testing::{AdminExt, ContractOpts, RandExt};
 
         #[test]
@@ -258,20 +278,19 @@ mod tests {
             let env = test.env();
             let admin = test.admin_msg();
 
-            assert!(try_retire_network_monitor(
-                test.deps_mut(),
-                env.clone(),
-                admin.clone(),
-                bad_address
-            )
-            .is_err());
-            assert!(try_retire_network_monitor(
-                test.deps_mut(),
-                env,
-                admin,
-                good_address.to_string()
-            )
-            .is_ok());
+            assert!(
+                try_retire_network_monitor(
+                    test.deps_mut(),
+                    env.clone(),
+                    admin.clone(),
+                    bad_address
+                )
+                .is_err()
+            );
+            assert!(
+                try_retire_network_monitor(test.deps_mut(), env, admin, good_address.to_string())
+                    .is_ok()
+            );
 
             Ok(())
         }
@@ -285,11 +304,14 @@ mod tests {
 
         let nm = tester.addr_make("network-monitor");
         tester.authorise_network_monitor(&nm)?;
+        tester.define_dummy_measurement_kind()?;
 
         tester.advance_mixnet_epoch()?;
+
+        let measurement_kind = tester.dummy_measurement_kind();
         for _ in 0..2 * retrieval_limits::EPOCH_PERFORMANCE_PURGE_LIMIT {
             let node_id = tester.bond_dummy_nymnode()?;
-            tester.insert_raw_performance(&nm, node_id, "0.42")?;
+            tester.insert_raw_performance(&nm, node_id, measurement_kind.clone(), "0.42")?;
         }
 
         let admin = tester.admin_msg();

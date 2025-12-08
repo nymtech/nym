@@ -14,8 +14,8 @@ pub use nym_performance_contract_common::{
     EpochMeasurementsPagedResponse, EpochNodePerformance, EpochPerformancePagedResponse,
     FullHistoricalPerformancePagedResponse, HistoricalPerformance, LastSubmission,
     NetworkMonitorInformation, NetworkMonitorsPagedResponse, NodeId, NodeMeasurement,
-    NodeMeasurementsResponse, NodePerformance, NodePerformancePagedResponse,
-    NodePerformanceResponse, RetiredNetworkMonitor, RetiredNetworkMonitorsPagedResponse,
+    NodeMeasurementsResponse, NodePerformancePagedResponse, NodePerformanceResponse,
+    NodePerformanceSpecific, RetiredNetworkMonitor, RetiredNetworkMonitorsPagedResponse,
 };
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
@@ -167,7 +167,7 @@ pub trait PagedPerformanceQueryClient: PerformanceQueryClient {
     async fn get_all_epoch_performance(
         &self,
         epoch_id: EpochId,
-    ) -> Result<Vec<NodePerformance>, NyxdError> {
+    ) -> Result<Vec<NodePerformanceSpecific>, NyxdError> {
         collect_paged!(self, get_epoch_performance_paged, performance, epoch_id)
     }
 

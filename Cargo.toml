@@ -34,6 +34,7 @@ members = [
     "common/nym-common",
     "common/config",
     "common/cosmwasm-smart-contracts/coconut-dkg",
+    "contracts/performance",
     "common/cosmwasm-smart-contracts/contracts-common",
     "common/cosmwasm-smart-contracts/contracts-common-testing",
     "common/cosmwasm-smart-contracts/easy_addr",

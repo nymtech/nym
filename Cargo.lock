@@ -6294,6 +6294,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-mixnet-contract"
+version = "1.5.1"
+dependencies = [
+ "bs58",
+ "cosmwasm-std",
+ "cw-controllers",
+ "cw-storage-plus",
+ "cw2",
+ "nym-contracts-common",
+ "nym-contracts-common-testing",
+ "nym-mixnet-contract-common",
+ "nym-vesting-contract-common",
+ "semver 1.0.26",
+ "serde",
+]
+
+[[package]]
 name = "nym-mixnet-contract-common"
 version = "0.6.0"
 dependencies = [
@@ -6810,6 +6827,25 @@ dependencies = [
  "pem",
  "tracing",
  "zeroize",
+]
+
+[[package]]
+name = "nym-performance-contract"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-controllers",
+ "cw-storage-plus",
+ "cw2",
+ "nym-contracts-common",
+ "nym-contracts-common-testing",
+ "nym-crypto",
+ "nym-mixnet-contract",
+ "nym-mixnet-contract-common",
+ "nym-performance-contract-common",
+ "serde",
 ]
 
 [[package]]

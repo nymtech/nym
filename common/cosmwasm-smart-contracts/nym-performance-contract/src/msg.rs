@@ -1,7 +1,7 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{EpochId, NodeId, NodePerformance};
+use crate::{EpochId, NodeId, NodePerformanceSpecific};
 use cosmwasm_schema::cw_serde;
 
 #[cfg(feature = "schema")]
@@ -23,17 +23,33 @@ pub enum ExecuteMsg {
     /// Change the admin
     UpdateAdmin { admin: String },
 
+    // TODO dz rename to remove speicifc suffix
     /// Attempt to submit performance data of a particular node for given epoch
-    Submit {
+    SubmitSpecific {
         epoch: EpochId,
-        data: NodePerformance,
+        data: NodePerformanceSpecific,
     },
 
     /// Attempt to submit performance data of a batch of nodes for given epoch
     BatchSubmit {
         epoch: EpochId,
-        data: Vec<NodePerformance>,
+        data: Vec<NodePerformanceSpecific>,
     },
+
+    // TODO dz rename to remove speicifc suffix
+    /// Attempt to submit performance data of a batch of nodes for given epoch
+    BatchSubmitSpecific {
+        epoch: EpochId,
+        data: Vec<NodePerformanceSpecific>,
+    },
+
+    /// Measurement kind needs to be defined by the admin before measurements of
+    /// that kind can be submitted.
+    DefineMeasurementKind { measurement_kind: String },
+
+    /// After this action is done, measurements of this kind are erased.
+    /// New measurements of this kind cannot be submitted
+    RetireMeasurementKind { measurement_kind: String },
 
     /// Attempt to authorise new network monitor for submitting performance data
     AuthoriseNetworkMonitor { address: String },
@@ -72,6 +88,16 @@ pub enum QueryMsg {
     /// Returns all submitted measurements for the particular node
     #[cfg_attr(feature = "schema", returns(NodeMeasurementsResponse))]
     NodeMeasurements { epoch_id: EpochId, node_id: NodeId },
+
+    NodeMeasurementsSpecific {
+        epoch_id: EpochId,
+        node_id: NodeId,
+        kind: String,
+    },
+
+    // TODO dz add paged variant ?
+    #[cfg_attr(feature = "schema", returns(NodeMeasurementsResponse))]
+    AllNodeMeasurements { epoch_id: EpochId, node_id: NodeId },
 
     /// Returns (paged) measurements for particular epoch
     #[cfg_attr(feature = "schema", returns(EpochMeasurementsPagedResponse))]

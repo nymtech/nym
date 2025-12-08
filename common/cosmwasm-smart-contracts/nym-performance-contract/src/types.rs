@@ -1,6 +1,8 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use std::collections::HashMap;
+
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Addr, Env, Timestamp};
 use nym_contracts_common::Percent;
@@ -21,7 +23,7 @@ pub struct LastSubmission {
 pub struct LastSubmittedData {
     pub sender: Addr,
     pub epoch_id: EpochId,
-    pub data: NodePerformance,
+    pub data: NodePerformanceSpecific,
 }
 
 #[cw_serde]
@@ -48,11 +50,14 @@ pub struct RetiredNetworkMonitor {
     pub retired_at_height: u64,
 }
 
+// TODO dz remove specific from name
 #[cw_serde]
-#[derive(Copy)]
-pub struct NodePerformance {
+pub struct NodePerformanceSpecific {
     #[serde(rename = "n")]
     pub node_id: NodeId,
+
+    #[serde(rename = "m")]
+    pub measurement_kind: String,
 
     // note: value is rounded to 2 decimal places.
     #[serde(rename = "p")]
@@ -97,7 +102,7 @@ impl NodeResults {
     }
 
     pub fn inner(&self) -> &[Percent] {
-        &self.0
+        &self.0.as_slice()
     }
 }
 
@@ -109,6 +114,13 @@ pub struct NodePerformanceResponse {
 #[cw_serde]
 pub struct NodeMeasurementsResponse {
     pub measurements: Option<NodeResults>,
+}
+
+#[cw_serde]
+pub struct AllNodeMeasurementsResponse {
+    // Option is used because if a measurement has been defined, that doesn't
+    // mean the node had actually been measured at the time of the query
+    pub measurements: HashMap<String, Option<NodeResults>>,
 }
 
 #[cw_serde]
@@ -128,7 +140,7 @@ pub struct NodePerformancePagedResponse {
 #[cw_serde]
 pub struct EpochPerformancePagedResponse {
     pub epoch_id: EpochId,
-    pub performance: Vec<NodePerformance>,
+    pub performance: Vec<NodePerformanceSpecific>,
     pub start_next_after: Option<NodeId>,
 }
 
@@ -187,11 +199,14 @@ pub struct RemoveEpochMeasurementsResponse {
     pub additional_entries_to_remove_remaining: bool,
 }
 
+/// return details about submissions: whether they were accepted, or why they
+/// were rejected
 #[cw_serde]
 #[derive(Default)]
 pub struct BatchSubmissionResult {
     pub accepted_scores: u64,
     pub non_existent_nodes: Vec<NodeId>,
+    pub non_existent_measurement_kind: Vec<String>,
 }
 
 #[cfg(test)]

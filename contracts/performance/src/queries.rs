@@ -1,16 +1,19 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::storage::{retrieval_limits, NYM_PERFORMANCE_CONTRACT_STORAGE};
+use std::collections::HashMap;
+
+use crate::storage::{NYM_PERFORMANCE_CONTRACT_STORAGE, retrieval_limits};
 use cosmwasm_std::{Addr, Deps, Order, StdResult};
 use cw_controllers::AdminResponse;
 use cw_storage_plus::Bound;
 use nym_performance_contract_common::{
-    EpochId, EpochMeasurementsPagedResponse, EpochNodePerformance, EpochPerformancePagedResponse,
-    FullHistoricalPerformancePagedResponse, HistoricalPerformance, LastSubmission,
-    NetworkMonitorInformation, NetworkMonitorResponse, NetworkMonitorsPagedResponse, NodeId,
-    NodeMeasurement, NodeMeasurementsResponse, NodePerformance, NodePerformancePagedResponse,
-    NodePerformanceResponse, NymPerformanceContractError, RetiredNetworkMonitorsPagedResponse,
+    AllNodeMeasurementsResponse, EpochId, EpochMeasurementsPagedResponse, EpochNodePerformance,
+    EpochPerformancePagedResponse, FullHistoricalPerformancePagedResponse, HistoricalPerformance,
+    LastSubmission, NetworkMonitorInformation, NetworkMonitorResponse,
+    NetworkMonitorsPagedResponse, NodeId, NodeMeasurement, NodeMeasurementsResponse,
+    NodePerformancePagedResponse, NodePerformanceResponse, NodePerformanceSpecific,
+    NymPerformanceContractError, RetiredNetworkMonitorsPagedResponse,
 };
 
 pub fn query_admin(deps: Deps) -> Result<AdminResponse, NymPerformanceContractError> {
@@ -20,6 +23,7 @@ pub fn query_admin(deps: Deps) -> Result<AdminResponse, NymPerformanceContractEr
         .map_err(Into::into)
 }
 
+// TODO dz return measurement_kind in response
 pub fn query_node_performance(
     deps: Deps,
     epoch_id: EpochId,
@@ -40,6 +44,51 @@ pub fn query_node_measurements(
         .results
         .may_load(deps.storage, (epoch_id, node_id))?;
     Ok(NodeMeasurementsResponse { measurements })
+}
+
+// TODO dz unit test
+pub fn query_node_measurements_specific(
+    deps: Deps,
+    epoch_id: EpochId,
+    node_id: NodeId,
+    measurement_kind: String,
+) -> Result<NodeMeasurementsResponse, NymPerformanceContractError> {
+    let measurements = NYM_PERFORMANCE_CONTRACT_STORAGE
+        .performance_results
+        .results_specific;
+
+    let key = (epoch_id, node_id, measurement_kind);
+    let measurements = measurements.may_load(deps.storage, key)?;
+
+    Ok(NodeMeasurementsResponse { measurements })
+}
+
+// TODO dz unit test
+pub fn query_all_node_measurements(
+    deps: Deps,
+    epoch_id: EpochId,
+    node_id: NodeId,
+) -> Result<AllNodeMeasurementsResponse, NymPerformanceContractError> {
+    let measurements = NYM_PERFORMANCE_CONTRACT_STORAGE
+        .performance_results
+        .results_specific;
+
+    // retrieve a list of currently defined measurements, only return results for those
+    // (storage may contain measurements that have since been deleted by admin -
+    // this way, they won't be retrieved)
+    let possible_measurements = NYM_PERFORMANCE_CONTRACT_STORAGE
+        .performance_results
+        .defined_measurements(deps.storage)?;
+    let mut node_measurements = HashMap::new();
+    for measure_name in possible_measurements {
+        let key = (epoch_id, node_id, measure_name.clone());
+        let node_measurement = measurements.may_load(deps.storage, key)?;
+        node_measurements.insert(measure_name, node_measurement);
+    }
+
+    Ok(AllNodeMeasurementsResponse {
+        measurements: node_measurements,
+    })
 }
 
 pub fn query_node_performance_paged(
@@ -97,6 +146,7 @@ pub fn query_node_performance_paged(
     })
 }
 
+// TODO dz unit test changes
 pub fn query_epoch_performance_paged(
     deps: Deps,
     epoch_id: EpochId,
@@ -107,19 +157,22 @@ pub fn query_epoch_performance_paged(
         .unwrap_or(retrieval_limits::NODE_EPOCH_PERFORMANCE_DEFAULT_LIMIT)
         .min(retrieval_limits::NODE_EPOCH_PERFORMANCE_MAX_LIMIT) as usize;
 
-    let start = start_after.map(Bound::exclusive);
+    let start = start_after.map(|node_id| Bound::exclusive((node_id + 1, String::new())));
 
     let performance = NYM_PERFORMANCE_CONTRACT_STORAGE
         .performance_results
-        .results
-        .prefix(epoch_id)
+        .results_specific
+        .sub_prefix(epoch_id)
         .range(deps.storage, start, None, Order::Ascending)
         .take(limit)
         .map(|record| {
-            record.map(|(node_id, results)| NodePerformance {
-                node_id,
-                performance: results.median(),
-            })
+            record.map(
+                |((node_id, measurement_kind), results)| NodePerformanceSpecific {
+                    node_id,
+                    performance: results.median(),
+                    measurement_kind,
+                },
+            )
         })
         .collect::<StdResult<Vec<_>>>()?;
 
@@ -315,9 +368,9 @@ pub fn query_last_submission(deps: Deps) -> Result<LastSubmission, NymPerformanc
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::testing::{init_contract_tester, PerformanceContractTesterExt};
+    use crate::testing::{PerformanceContractTesterExt, init_contract_tester};
     use nym_contracts_common_testing::{ChainOpts, ContractOpts, RandExt};
-    use nym_performance_contract_common::LastSubmittedData;
+    use nym_performance_contract_common::{LastSubmittedData, NodePerformanceSpecific};
 
     #[cfg(test)]
     mod admin_query {
@@ -363,29 +416,30 @@ mod tests {
         let node_id = test.bond_dummy_nymnode()?;
         let nm = test.generate_account();
         test.authorise_network_monitor(&nm)?;
+        let measurement_kind = test.define_dummy_measurement_kind().unwrap();
 
         // epoch 0
-        test.insert_raw_performance(&nm, node_id, "0")?;
+        test.insert_raw_performance(&nm, node_id, measurement_kind.clone(), "0")?;
 
         // epoch 1
         test.advance_mixnet_epoch()?;
-        test.insert_raw_performance(&nm, node_id, "0.1")?;
+        test.insert_raw_performance(&nm, node_id, measurement_kind.clone(), "0.1")?;
 
         // epoch 2
         test.advance_mixnet_epoch()?;
-        test.insert_raw_performance(&nm, node_id, "0.2")?;
+        test.insert_raw_performance(&nm, node_id, measurement_kind.clone(), "0.2")?;
 
         // epoch 3
         test.advance_mixnet_epoch()?;
-        test.insert_raw_performance(&nm, node_id, "0.3")?;
+        test.insert_raw_performance(&nm, node_id, measurement_kind.clone(), "0.3")?;
 
         // epoch 4
         test.advance_mixnet_epoch()?;
-        test.insert_raw_performance(&nm, node_id, "0.4")?;
+        test.insert_raw_performance(&nm, node_id, measurement_kind.clone(), "0.4")?;
 
         // epoch 5
         test.advance_mixnet_epoch()?;
-        test.insert_raw_performance(&nm, node_id, "0.5")?;
+        test.insert_raw_performance(&nm, node_id, measurement_kind.clone(), "0.5")?;
 
         let deps = test.deps();
         let res = query_node_performance_paged(deps, node_id, Some(5), None)?;
@@ -477,6 +531,7 @@ mod tests {
 
         let nm = test.generate_account();
         test.authorise_network_monitor(&nm)?;
+        let measurement_kind = test.define_dummy_measurement_kind().unwrap();
 
         let mut nodes = Vec::new();
         for _ in 0..10 {
@@ -486,12 +541,12 @@ mod tests {
         let epoch_id = 5;
         test.set_mixnet_epoch(epoch_id)?;
 
-        test.insert_raw_performance(&nm, nodes[1], "0.1")?;
-        test.insert_raw_performance(&nm, nodes[2], "0.2")?;
-        test.insert_raw_performance(&nm, nodes[3], "0.3")?;
+        test.insert_raw_performance(&nm, nodes[1], measurement_kind.clone(), "0.1")?;
+        test.insert_raw_performance(&nm, nodes[2], measurement_kind.clone(), "0.2")?;
+        test.insert_raw_performance(&nm, nodes[3], measurement_kind.clone(), "0.3")?;
         // 4 is missing
-        test.insert_raw_performance(&nm, nodes[5], "0.5")?;
-        test.insert_raw_performance(&nm, nodes[6], "0.6")?;
+        test.insert_raw_performance(&nm, nodes[5], measurement_kind.clone(), "0.5")?;
+        test.insert_raw_performance(&nm, nodes[6], measurement_kind.clone(), "0.6")?;
 
         let deps = test.deps();
         let res = query_epoch_performance_paged(deps, epoch_id, Some(nodes[6]), None)?;
@@ -507,13 +562,15 @@ mod tests {
         assert_eq!(
             res.performance,
             vec![
-                NodePerformance {
+                NodePerformanceSpecific {
                     node_id: nodes[5],
                     performance: "0.5".parse()?,
+                    measurement_kind: measurement_kind.clone()
                 },
-                NodePerformance {
+                NodePerformanceSpecific {
                     node_id: nodes[6],
                     performance: "0.6".parse()?,
+                    measurement_kind: measurement_kind.clone()
                 }
             ]
         );
@@ -522,13 +579,15 @@ mod tests {
         assert_eq!(
             res.performance,
             vec![
-                NodePerformance {
+                NodePerformanceSpecific {
                     node_id: nodes[5],
                     performance: "0.5".parse()?,
+                    measurement_kind: measurement_kind.clone()
                 },
-                NodePerformance {
+                NodePerformanceSpecific {
                     node_id: nodes[6],
                     performance: "0.6".parse()?,
+                    measurement_kind: measurement_kind.clone()
                 }
             ]
         );
@@ -538,17 +597,20 @@ mod tests {
         assert_eq!(
             res.performance,
             vec![
-                NodePerformance {
+                NodePerformanceSpecific {
                     node_id: nodes[3],
                     performance: "0.3".parse()?,
+                    measurement_kind: measurement_kind.clone()
                 },
-                NodePerformance {
+                NodePerformanceSpecific {
                     node_id: nodes[5],
                     performance: "0.5".parse()?,
+                    measurement_kind: measurement_kind.clone()
                 },
-                NodePerformance {
+                NodePerformanceSpecific {
                     node_id: nodes[6],
                     performance: "0.6".parse()?,
+                    measurement_kind: measurement_kind.clone()
                 }
             ]
         );
@@ -558,25 +620,30 @@ mod tests {
         assert_eq!(
             res.performance,
             vec![
-                NodePerformance {
+                NodePerformanceSpecific {
                     node_id: nodes[1],
                     performance: "0.1".parse()?,
+                    measurement_kind: measurement_kind.clone()
                 },
-                NodePerformance {
+                NodePerformanceSpecific {
                     node_id: nodes[2],
                     performance: "0.2".parse()?,
+                    measurement_kind: measurement_kind.clone()
                 },
-                NodePerformance {
+                NodePerformanceSpecific {
                     node_id: nodes[3],
                     performance: "0.3".parse()?,
+                    measurement_kind: measurement_kind.clone()
                 },
-                NodePerformance {
+                NodePerformanceSpecific {
                     node_id: nodes[5],
                     performance: "0.5".parse()?,
+                    measurement_kind: measurement_kind.clone()
                 },
-                NodePerformance {
+                NodePerformanceSpecific {
                     node_id: nodes[6],
                     performance: "0.6".parse()?,
+                    measurement_kind: measurement_kind.clone()
                 }
             ]
         );
@@ -585,9 +652,10 @@ mod tests {
         assert_eq!(res.start_next_after, Some(nodes[3]));
         assert_eq!(
             res.performance,
-            vec![NodePerformance {
+            vec![NodePerformanceSpecific {
                 node_id: nodes[3],
                 performance: "0.3".parse()?,
+                measurement_kind: measurement_kind.clone()
             }]
         );
 
@@ -619,8 +687,9 @@ mod tests {
         test.authorise_network_monitor(&nm1)?;
         test.authorise_network_monitor(&nm2)?;
         test.set_mixnet_epoch(10)?;
+        let measurement_kind = test.define_dummy_measurement_kind().unwrap();
 
-        test.insert_raw_performance(&nm1, id1, "0.2")?;
+        test.insert_raw_performance(&nm1, id1, measurement_kind.clone(), "0.2")?;
 
         let data = query_last_submission(test.deps())?;
         assert_eq!(
@@ -631,9 +700,10 @@ mod tests {
                 data: Some(LastSubmittedData {
                     sender: nm1.clone(),
                     epoch_id: 10,
-                    data: NodePerformance {
+                    data: NodePerformanceSpecific {
                         node_id: id1,
-                        performance: "0.2".parse()?
+                        performance: "0.2".parse()?,
+                        measurement_kind: measurement_kind.clone(),
                     },
                 }),
             }
@@ -642,7 +712,7 @@ mod tests {
         test.next_block();
         let env = test.env();
 
-        test.insert_epoch_performance(&nm2, 5, id2, "0.3".parse()?)?;
+        test.insert_epoch_performance(&nm2, 5, id2, measurement_kind.clone(), "0.3".parse()?)?;
 
         // note that even though it's "earlier" data, last submission is still updated accordingly
         let data = query_last_submission(test.deps())?;
@@ -654,9 +724,10 @@ mod tests {
                 data: Some(LastSubmittedData {
                     sender: nm2.clone(),
                     epoch_id: 5,
-                    data: NodePerformance {
+                    data: NodePerformanceSpecific {
                         node_id: id2,
-                        performance: "0.3".parse()?
+                        performance: "0.3".parse()?,
+                        measurement_kind: measurement_kind.clone(),
                     },
                 }),
             }

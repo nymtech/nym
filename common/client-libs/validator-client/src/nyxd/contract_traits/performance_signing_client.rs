@@ -10,7 +10,7 @@ use crate::nyxd::{Fee, SigningCosmWasmClient};
 use crate::signing::signer::OfflineSigner;
 use async_trait::async_trait;
 use nym_performance_contract_common::{
-    EpochId, ExecuteMsg as PerformanceExecuteMsg, NodeId, NodePerformance,
+    EpochId, ExecuteMsg as PerformanceExecuteMsg, NodeId, NodePerformanceSpecific,
     RemoveEpochMeasurementsResponse,
 };
 
@@ -42,7 +42,7 @@ pub trait PerformanceSigningClient {
     async fn submit_performance(
         &self,
         epoch: EpochId,
-        data: NodePerformance,
+        data: NodePerformanceSpecific,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
         self.execute_performance_contract(
@@ -57,7 +57,7 @@ pub trait PerformanceSigningClient {
     async fn batch_submit_performance(
         &self,
         epoch: EpochId,
-        data: Vec<NodePerformance>,
+        data: Vec<NodePerformanceSpecific>,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
         self.execute_performance_contract(

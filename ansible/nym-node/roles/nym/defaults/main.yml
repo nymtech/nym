@@ -1,19 +1,41 @@
-- name: Configure UFW rules
-  ufw:
-    rule: allow
-    port: "{{ item.port }}"
-    proto: "{{ item.proto }}"
-  loop:
-    - { port: 22, proto: tcp }
-    - { port: 80, proto: tcp }
-    - { port: 443, proto: tcp }
-    - { port: 1789, proto: tcp }
-    - { port: 1790, proto: tcp }
-    - { port: 8080, proto: tcp }
-    - { port: 9000, proto: tcp }
-    - { port: 9001, proto: tcp }
-    - { port: 51822, proto: udp }
+---
+# Where binaries live
+nym_install_dir: /root/nym-binaries
 
-- name: Enable UFW
-  ufw:
-    state: enabled
+# nym-node run arguments (defaults, can be overridden per host/group)
+mode: "gateway"                          # maps to --mode
+http_bind_address: "0.0.0.0:8080"        # maps to --http-bind-address
+mixnet_bind_address: "0.0.0.0:1789"      # maps to --mixnet-bind-address
+location: "unknown"                      # maps to --location
+
+# WireGuard boolean
+wireguard_enabled: "{{ wireguard_enabled | default(false) | bool }}"
+
+# Landing page base dir, hostname is appended in the task
+landing_page_assets_base_dir: "/var/www"
+
+# Flag toggles
+accept_operator_terms: true              # controls --accept-operator-terms-and-conditions
+nym_write_flag: true                     # controls -w
+nym_init_only_flag: true                 # controls --init-only
+wss_port: 9001                           # controlls --announce-wss-port
+
+# Optional: extra flags if you want to append more later
+nym_extra_flags: ""
+
+# CLI URL (nym_version can be set elsewhere / via GitHub API)
+nym_cli_url: "https://github.com/nymtech/nym/releases/download/{{ nym_version }}/nym-cli"
+
+# UFW
+nym_ufw_enable: true
+
+nym_ufw_rules:
+  - { port: 22,    proto: tcp }
+  - { port: 80,    proto: tcp }
+  - { port: 443,   proto: tcp }
+  - { port: 1789,  proto: tcp }
+  - { port: 1790,  proto: tcp }
+  - { port: 8080,  proto: tcp }
+  - { port: 9000,  proto: tcp }
+  - { port: 9001,  proto: tcp }
+  - { port: 51822, proto: udp }

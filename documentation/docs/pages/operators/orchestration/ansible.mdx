@@ -71,40 +71,24 @@ Idempotency
 
 A well-written playbook ensures that even if the playbook is run multiple times, the state will not change from what you wrote it for. For this reason, it is essential to ensure that all tasks in your playbook do not change the system in any way if the change you required has already been applied.
 
+```sh
+cd playbooks
+ansible-inventory --graph
+ansible-playbook upgrade.yml
 
 
+ansible-playbook upgrade.yml -l node1
 
-{/*
-NOTE FOR SELF
-
-
-ansible config to prevent args
-
-group_vars -> just one purpose
-    all.yml -> packages is what I use later
-    settings of all general things like user (root) etc
-    
-inventory -> list of machines one is taking care of
-- all vars here which are for one one are there
-- may be better to specify for each node there as it's easier for the operator, but good to use as much automation. 
-
-tasks have all helpers to generate your 
-
-roles: base defaults -> for all
-- each role does only one thing
-- they are called from playbooks/deploy.yml there in roles I made the whole process I am calling for a miachine deploy
-- playboooks/
-
-j2 is aending for variables added in init, it takes it from templates, if it's in files it only moves it
-
-apt_moduleansible.builtin.apt:
+ansible-playbook upgrade.yml -l "node1,node2"
 
 
-CMD
- ansible-playbook --limit=node deploy.yml Limit is the inventory [group] to which I want to do which playbook aka deploy.yml
+Or a regex:
 
-pip or apt
-which keys
-conventions to store it 
-which inventories
-*/}
+ansible-playbook upgrade.yml -l "nyc-*"
+```
+
+
+```cfg
+nocows = 1
+```
+

@@ -1,5 +1,5 @@
 - name: Show which node is being bonded
-  tags: postinstall
+  tags: bonding
   debug:
     msg: "Bonding Nym node: {{ hostname }}"
 
@@ -9,22 +9,26 @@
   register: bondinfo
   changed_when: false
 
-- name: Display bonding info 🎉
+- name: Display bonding info
   tags: bonding
   debug:
-    msg:
-      - "Nym bonding information:"
-      - "{{ bondinfo.stdout_lines }}"
+    msg: "{{ item }}"
+  loop: "{{ bondinfo.stdout_lines }}"
+
 
 - name: Prompt operator to generate contract message in wallet
   tags: bonding
   pause:
     prompt: |
-      Using the bonding information above, go to your wallet and create
-      the bonding transaction.
+      ** Using the bonding information above:
 
-      When the wallet shows you the CONTRACT MESSAGE that must be signed
-      by this node, paste it here and press Enter.
+      1. Open your wallet  
+      2. Go to Bonding section
+      3. Fill Hostname and Identity key from the message printed above
+      4. Copy the CONTRACT MESSAGE that your wallet displays  
+      5. Paste it below and press Enter
+
+      Paste CONTRACT MESSAGE here:
   register: contract_msg_input
 
 - name: Sign bonding contract message on the node
@@ -39,9 +43,7 @@
       - json
   register: sign_output
 
-- name: Display signed bonding payload (paste this back into your wallet)
+- name: Display full signed message exactly as returned
   tags: bonding
   debug:
-    msg:
-      - "Paste the last line of the following signed message into your wallet to complete bonding:"
-      - "{{ sign_output.stdout }}"
+    msg: "{{ sign_output.stdout }}"

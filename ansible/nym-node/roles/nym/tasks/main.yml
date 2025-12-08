@@ -1,70 +1,12 @@
-- name: Create nym directory
-  file:
-    path: "/root/nym-binaries"
-    state: directory
-    mode: "0755"
+---
+- name: Install Nym binaries
+  import_tasks: install.yml
 
-- name: Get latest Nym release metadata
-  uri:
-    url: https://api.github.com/repos/nymtech/nym/releases/latest
-    return_content: yes
-  register: latest_release
-  when: nym_version is not defined
+- name: Configure Nym node
+  import_tasks: config.yml
 
-- name: Set nym_version from GitHub API
-  set_fact:
-    nym_version: "{{ latest_release.json.tag_name }}"
-  when: nym_version is not defined
+- name: Configure firewall for Nym
+  import_tasks: firewall.yml
 
-- name: Generate binary_url from version
-  set_fact:
-    binary_url: "https://github.com/nymtech/nym/releases/download/{{ nym_version }}/nym-node"
-
-- name: Download nym-node binary
-  get_url:
-    url: "{{ binary_url }}"
-    dest: "/root/nym-binaries/nym-node"
-    mode: "0755"
-
-- name: Download nym-cli binary
-  get_url:
-    url: "{{ cli_url }}"
-    dest: "/root/nym-binaries/nym-cli"
-    mode: "0755"
-
-- name: Template systemd service
-  tags: systemctl
-  template:
-    src: nym-node.service.j2
-    dest: /etc/systemd/system/nym-node.service
-
-# Useful when the host is behind a NAT
-- name: Fetch the public IP address
-  command: "curl -4 canhazip.com"
-  register: ipv4
-  changed_when: false
-
-- name: Show IP address
-  debug:
-    msg: "{{ ipv4.stdout }}"
-
-- name: Set public IP address based on curl result
-  set_fact:
-    public_ip: "{{ ipv4.stdout if ipv4.rc == 0 else ansible_default_ipv4.address }}"
-
-- name: Initialize nym node
-  command:
-    cmd: "/root/nym-binaries/nym-node run --mode {{ mode }} --public-ips {{ public_ip }} --hostname {{ hostname }} --http-bind-address 0.0.0.0:8080 --mixnet-bind-address 0.0.0.0:1789 --location {{ location }} --accept-operator-terms-and-conditions --wireguard-enabled {{ wireguard_enabled }} --landing-page-assets-path /var/www/{{ hostname }}/ -w  --init-only"
-
-- name: Update nym description
-  template:
-    src: description.toml.j2
-    dest: /root/.nym/nym-nodes/default-nym-node/data/description.toml
-
-- name: Enable and start nym service
-  tags: systemctl
-  systemd:
-    name: nym-node
-    enabled: yes
-    state: started
-    daemon_reload: yes
+- name: Configure and start Nym service
+  import_tasks: service.yml

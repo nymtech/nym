@@ -1,6 +1,6 @@
 server {
-    listen 9001 ssl;
-    listen [::]:9001 ssl;
+    listen 9001 ssl http2;
+    listen [::]:9001 ssl http2;
 
     server_name {{ hostname }};
 
@@ -10,7 +10,7 @@ server {
     ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
 
     access_log /var/log/nginx/access.log;
-    error_log /var/log/nginx/error.log;
+    error_log  /var/log/nginx/error.log;
 
     location /favicon.ico {
         return 204;
@@ -19,10 +19,10 @@ server {
     }
 
     location / {
-        add_header 'Access-Control-Allow-Origin' '*';
-        add_header 'Access-Control-Allow-Credentials' 'true';
-        add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS, HEAD';
-        add_header 'Access-Control-Allow-Headers' '*';
+        add_header 'Access-Control-Allow-Origin' '*' always;
+        add_header 'Access-Control-Allow-Credentials' 'true' always;
+        add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS, HEAD' always;
+        add_header 'Access-Control-Allow-Headers' '*' always;
 
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;

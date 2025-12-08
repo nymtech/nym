@@ -10,22 +10,24 @@ ansible_ssh_private_key_file: ~/.ssh/<SSH_KEY>
 
 cli_url: "https://github.com/nymtech/nym/releases/download/nym-binaries-{{ nym_version }}/nym-cli"
 tunnel_manager_url: "https://github.com/nymtech/nym/raw/refs/heads/develop/scripts/nym-node-setup/network-tunnel-manager.sh"
-quic_bridge_deployment_url: "https://github.com/nymtech/nym/blob/develop/scripts/nym-node-setup/quic_bridge_deployment.sh"
-
-operator_name: "<OPERATOR_NAME>"
-
-main_domain: "<DOMAIN>"
+quic_bridge_deployment_url: "https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/quic_bridge_deployment.sh"
 
 # NOTE: These values will be used globally unless overwritten per node in inventory/all
-
 ansible_user: root
 email: "<EMAIL>"
-website: "<WEBSITE>""
-description: "<NODE_PUBLIC_DESCRIPTION>"
-moniker: "<MONIKER>"
-description: "<DESCRIPTION>"
+website: "<WEBSITE>"    # it will be used in the description.toml
+description: "<NODE_PUBLIC_DESCRIPTION>" # or define per node in inventory/all
+
+# NOTE: 
+# Set these vars if you want them globally for all nodes
+# Per node in inventory/all will overwrite these global ones:
+hostname: ""            # this is a fallback, keep it and setup hostname per node in inventory/all
+# moniker: "<MONIKER>"
 # mode: <MODE>                            # entry-gateway/exit-gateway/mixnode 
 # wireguard_enabled: <WIREGUARD_ENABLED>  # true/false
+
+# NOTE: Possible vars to incule on landing page, etc.
+# operator_name: "<OPERATOR_NAME>"
 
 packages:
   - tmux
@@ -39,6 +41,5 @@ packages:
   - neovim
   - ca-certificates
   - jq
-  - curl
   - wget
   - ufw

@@ -6,7 +6,7 @@
 #
 # node1 ansible_host=<YOUR_SERVER_IP> ansible_user=<USER> hostname=<HOSTNAME> location=<LOCATION> email=<EMAIL> mode=<MODE> wireguard_enabled=<true/false> moniker=<MONIKER> description=<DESCRIPTION>>
 #
-# anything setup globaly can be removed from here 
+# anything setup globaly can be overwritten  
 # if provided here, it overwrites the global setting per node
 # 
 # example exit + wireguard gateway:
@@ -18,6 +18,4 @@
 # NOTE:
 # 
 # all examples above don't have defined user, email nor description as we use the definition from group_vars/main.yml without an attempt of overwriting it
-# all examples above don't have moniker defined as there is a function in /templates/description.toml.j2 deriving it from the hostname 
-
-
+# all examples above don't have moniker defined as there is a function in /templates/description.toml.j2 deriving it from the hostname

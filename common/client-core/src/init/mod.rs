@@ -71,21 +71,28 @@ where
     let mut rng = OsRng;
 
     let selected_gateway = match selection_specification {
-        GatewaySelectionSpecification::UniformRemote { must_use_tls } => {
+        GatewaySelectionSpecification::UniformRemote {
+            must_use_tls,
+            no_hostname,
+        } => {
             let gateway = uniformly_random_gateway(&mut rng, &available_gateways, must_use_tls)?;
-            SelectedGateway::from_topology_node(gateway, must_use_tls)?
+            SelectedGateway::from_topology_node(gateway, must_use_tls, no_hostname)?
         }
-        GatewaySelectionSpecification::RemoteByLatency { must_use_tls } => {
+        GatewaySelectionSpecification::RemoteByLatency {
+            must_use_tls,
+            no_hostname,
+        } => {
             let gateway =
                 choose_gateway_by_latency(&mut rng, &available_gateways, must_use_tls).await?;
-            SelectedGateway::from_topology_node(gateway, must_use_tls)?
+            SelectedGateway::from_topology_node(gateway, must_use_tls, no_hostname)?
         }
         GatewaySelectionSpecification::Specified {
             must_use_tls,
+            no_hostname,
             identity,
         } => {
             let gateway = get_specified_gateway(&identity, &available_gateways, must_use_tls)?;
-            SelectedGateway::from_topology_node(gateway, must_use_tls)?
+            SelectedGateway::from_topology_node(gateway, must_use_tls, no_hostname)?
         }
         GatewaySelectionSpecification::Custom {
             gateway_identity,

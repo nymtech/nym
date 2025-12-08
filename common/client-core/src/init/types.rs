@@ -42,24 +42,32 @@ impl SelectedGateway {
     pub fn from_topology_node(
         node: RoutingNode,
         must_use_tls: bool,
+        no_hostname: bool,
     ) -> Result<Self, ClientCoreError> {
         // for now, let's use 'old' behaviour, if you want to change it, you can pass it up the enum stack yourself : )
         let prefer_ipv6 = false;
 
-        let gateway_listener = if must_use_tls {
-            node.ws_entry_address_tls()
-                .ok_or(ClientCoreError::UnsupportedWssProtocol {
-                    gateway: node.identity_key.to_base58_string(),
-                })?
+        let (gateway_listener, _) = if must_use_tls {
+            // WSS main, no fallback
+            let primary =
+                node.ws_entry_address_tls()
+                    .ok_or(ClientCoreError::UnsupportedWssProtocol {
+                        gateway: node.identity_key.to_base58_string(),
+                    })?;
+            (primary, None)
         } else {
-            node.ws_entry_address(prefer_ipv6)
-                .ok_or(ClientCoreError::UnsupportedEntry {
+            let (maybe_primary, fallback) =
+                node.ws_entry_address_with_fallback(prefer_ipv6, no_hostname);
+            (
+                maybe_primary.ok_or(ClientCoreError::UnsupportedEntry {
                     id: node.node_id,
                     identity: node.identity_key.to_base58_string(),
-                })?
+                })?,
+                fallback,
+            )
         };
 
-        let gateway_listener =
+        let gateway_listener_url =
             Url::parse(&gateway_listener).map_err(|source| ClientCoreError::MalformedListener {
                 gateway_id: node.identity_key.to_base58_string(),
                 raw_listener: gateway_listener,
@@ -69,7 +77,7 @@ impl SelectedGateway {
         Ok(SelectedGateway::Remote {
             gateway_id: node.identity_key,
             gateway_owner_address: None,
-            gateway_listener,
+            gateway_listener: gateway_listener_url,
         })
     }
 
@@ -150,15 +158,22 @@ impl InitialisationResult {
 #[derive(Clone, Debug)]
 pub enum GatewaySelectionSpecification {
     /// Uniformly choose a random remote gateway.
-    UniformRemote { must_use_tls: bool },
+    UniformRemote {
+        must_use_tls: bool,
+        no_hostname: bool,
+    },
 
     /// Should the new, remote, gateway be selected based on latency.
-    RemoteByLatency { must_use_tls: bool },
+    RemoteByLatency {
+        must_use_tls: bool,
+        no_hostname: bool,
+    },
 
     /// Gateway with this specific identity should be chosen.
     // JS: I don't really like the name of this enum variant but couldn't think of anything better at the time
     Specified {
         must_use_tls: bool,
+        no_hostname: bool,
         identity: IdentityKey,
     },
 
@@ -174,6 +189,7 @@ impl Default for GatewaySelectionSpecification {
     fn default() -> Self {
         GatewaySelectionSpecification::UniformRemote {
             must_use_tls: false,
+            no_hostname: false,
         }
     }
 }
@@ -183,16 +199,24 @@ impl GatewaySelectionSpecification {
         gateway_identity: Option<String>,
         latency_based_selection: Option<bool>,
         must_use_tls: bool,
+        no_hostname: bool,
     ) -> Self {
         if let Some(identity) = gateway_identity {
             GatewaySelectionSpecification::Specified {
                 identity,
                 must_use_tls,
+                no_hostname,
             }
         } else if let Some(true) = latency_based_selection {
-            GatewaySelectionSpecification::RemoteByLatency { must_use_tls }
+            GatewaySelectionSpecification::RemoteByLatency {
+                must_use_tls,
+                no_hostname,
+            }
         } else {
-            GatewaySelectionSpecification::UniformRemote { must_use_tls }
+            GatewaySelectionSpecification::UniformRemote {
+                must_use_tls,
+                no_hostname,
+            }
         }
     }
 }

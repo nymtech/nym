@@ -177,7 +177,7 @@ Ansible reads the roles defined in `<PLAYBOOK>.yml` passed with the command and 
 
 ### Usage
 
-The simpliest way is to run `ansible-playbook` binary with a provided playbook as a command. That will do the defined roles on all entries in the inventory. In Nym we currently have these playbooks:
+The simplest way is to run `ansible-playbook` binary with a provided playbook as a command. That will do the defined roles on all entries in the inventory. In Nym we currently have these playbooks:
 
 <Steps>
 
@@ -228,7 +228,7 @@ ansible-playbook upgrade.yml
 ###### One node at a time
 To test new configuration, it's advised to try it on one server at first. Of course you can comment out any entries in the inventory, but there are easier ways to do it. 
 
-- Provide flag `-l` followed by innventory entry and Ansible will change state only of that entry:
+- Provide flag `-l` followed by inventory entry and Ansible will change state only of that entry:
 
 - Some possibilities are (in example we use upgrade.yml, you can use any playbook):
 ```sh

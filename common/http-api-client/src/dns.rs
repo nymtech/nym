@@ -343,6 +343,8 @@ fn configure_and_build_resolver(name_servers: NameServerConfigGroup) -> TokioRes
     opts.ip_strategy = LookupIpStrategy::Ipv4AndIpv6;
     // Cache successful responses for queries received by this resolver for 30 min minimum.
     opts.positive_min_ttl = Some(Duration::from_secs(1800));
+    // Retry request only once on each failure.
+    opts.attempts = 1;
 
     TokioResolver::builder_with_config(config, TokioConnectionProvider::default())
         .with_options(opts)

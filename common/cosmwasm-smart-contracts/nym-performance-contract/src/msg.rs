@@ -36,13 +36,6 @@ pub enum ExecuteMsg {
         data: Vec<NodePerformanceSpecific>,
     },
 
-    // TODO dz rename to remove speicifc suffix
-    /// Attempt to submit performance data of a batch of nodes for given epoch
-    BatchSubmitSpecific {
-        epoch: EpochId,
-        data: Vec<NodePerformanceSpecific>,
-    },
-
     /// Measurement kind needs to be defined by the admin before measurements of
     /// that kind can be submitted.
     DefineMeasurementKind { measurement_kind: String },

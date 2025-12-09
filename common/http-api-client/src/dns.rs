@@ -39,7 +39,7 @@ use std::{
 
 use hickory_resolver::{
     TokioResolver,
-    config::{LookupIpStrategy, NameServerConfigGroup, ResolverConfig},
+    config::{LookupIpStrategy, NameServerConfigGroup, ResolverConfig, ResolverOpts},
     lookup_ip::LookupIpIntoIter,
     name_server::TokioConnectionProvider,
 };
@@ -159,7 +159,7 @@ async fn resolve(
     independent: bool,
     overall_dns_timeout: Duration,
 ) -> Result<Addrs, ResolveError> {
-    let resolver = resolver.get_or_try_init(|| HickoryDnsResolver::new_resolver(independent))?;
+    let resolver = resolver.get_or_init(|| HickoryDnsResolver::new_resolver(independent));
 
     // Attempt a lookup using the primary resolver
     let resolve_fut = tokio::time::timeout(overall_dns_timeout, resolver.lookup_ip(name.as_str()));
@@ -251,13 +251,13 @@ impl HickoryDnsResolver {
         }
     }
 
-    fn new_resolver(dont_use_shared: bool) -> Result<TokioResolver, ResolveError> {
+    fn new_resolver(dont_use_shared: bool) -> TokioResolver {
         // using a closure here is slightly gross, but this makes sure that if the
         // lazy-init returns an error it can be handled by the client
         if dont_use_shared {
             new_resolver()
         } else {
-            Ok(SHARED_RESOLVER.state.get_or_try_init(new_resolver)?.clone())
+            SHARED_RESOLVER.state.get_or_init(new_resolver).clone()
         }
     }
 
@@ -326,7 +326,7 @@ impl HickoryDnsResolver {
 ///
 /// Caches successfully resolved addresses for 30 minutes to prevent continual use of remote lookup.
 /// This resolver is intended to be used for OUR API endpoints that do not rapidly rotate IPs.
-fn new_resolver() -> Result<TokioResolver, ResolveError> {
+fn new_resolver() -> TokioResolver {
     info!("building new configured resolver");
 
     let mut name_servers = NameServerConfigGroup::quad9_tls();
@@ -337,18 +337,16 @@ fn new_resolver() -> Result<TokioResolver, ResolveError> {
     configure_and_build_resolver(name_servers)
 }
 
-fn configure_and_build_resolver(
-    name_servers: NameServerConfigGroup,
-) -> Result<TokioResolver, ResolveError> {
+fn configure_and_build_resolver(name_servers: NameServerConfigGroup) -> TokioResolver {
     let config = ResolverConfig::from_parts(None, Vec::new(), name_servers);
-    let mut resolver_builder =
-        TokioResolver::builder_with_config(config, TokioConnectionProvider::default());
-
-    resolver_builder.options_mut().ip_strategy = LookupIpStrategy::Ipv4AndIpv6;
+    let mut opts = ResolverOpts::default();
+    opts.ip_strategy = LookupIpStrategy::Ipv4AndIpv6;
     // Cache successful responses for queries received by this resolver for 30 min minimum.
-    resolver_builder.options_mut().positive_min_ttl = Some(Duration::from_secs(1800));
+    opts.positive_min_ttl = Some(Duration::from_secs(1800));
 
-    Ok(resolver_builder.build())
+    TokioResolver::builder_with_config(config, TokioConnectionProvider::default())
+        .with_options(opts)
+        .build()
 }
 
 /// Create a new resolver with the default configuration, which reads from the system DNS config
@@ -447,7 +445,7 @@ mod failure_test {
 
     // Create a resolver that behaves the same as the custom configured router, except for the fact
     // that it is guaranteed to fail.
-    fn build_broken_resolver() -> Result<TokioResolver, ResolveError> {
+    fn build_broken_resolver() -> TokioResolver {
         info!("building new faulty resolver");
 
         let mut broken_ns_group = NameServerConfigGroup::from_ips_tls(
@@ -472,7 +470,7 @@ mod failure_test {
         let time_start = std::time::Instant::now();
 
         let r = OnceCell::new();
-        r.set(build_broken_resolver().expect("failed to build resolver"))
+        r.set(build_broken_resolver())
             .expect("broken resolver init error");
 
         // create a new resolver that won't mess with the shared resolver used by other tests
@@ -482,7 +480,7 @@ mod failure_test {
             overall_dns_timeout: Duration::from_secs(5),
             ..Default::default()
         };
-        build_broken_resolver()?;
+        build_broken_resolver();
         let domain = "ifconfig.me";
         let result = resolver.resolve_str(domain).await;
         assert!(result.is_err_and(|e| matches!(e, ResolveError::Timeout)));
@@ -496,7 +494,7 @@ mod failure_test {
     #[tokio::test]
     async fn fallback_to_static() -> Result<(), ResolveError> {
         let r = OnceCell::new();
-        r.set(build_broken_resolver().expect("failed to build resolver"))
+        r.set(build_broken_resolver())
             .expect("broken resolver init error");
 
         // create a new resolver that won't mess with the shared resolver used by other tests
@@ -507,7 +505,7 @@ mod failure_test {
             overall_dns_timeout: Duration::from_secs(5),
             ..Default::default()
         };
-        build_broken_resolver()?;
+        build_broken_resolver();
 
         // successful lookup using fallback to static resolver
         let domain = "nymvpn.com";

@@ -92,7 +92,7 @@
 //!         pub status: ApiStatus,
 //!         pub uptime: u64,
 //!     }
-//!     
+//!
 //!     #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 //!     pub enum ApiStatus {
 //!         Up,

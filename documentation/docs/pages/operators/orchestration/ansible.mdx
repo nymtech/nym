@@ -76,6 +76,8 @@ cd ansible
 cp -r <PATH>/nym/ansible/nym-node ./
 ```
 
+</ Steps>
+
 Now you have the template of Ansible playbook for `nym-node` remote administration. To make it work, there are a few variables requiring your attention. 
 
 ## Configuration
@@ -173,7 +175,7 @@ Ansible parses `group_vars/all.yml` and asigns global variables to all inventory
 ###### 3. Follow roles in the playbook
 Ansible reads the roles defined in `<PLAYBOOK>.yml` passed with the command and executes the tasks defined under each role
 
-<Steps/>
+</ Steps>
 
 ### Usage
 
@@ -260,3 +262,4 @@ Yes, by default there is a cow printed under each task, you can turn it off by o
 ```cfg
 nocows = 1
 ```
+</ Steps>

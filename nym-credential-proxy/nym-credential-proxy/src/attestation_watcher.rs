@@ -12,6 +12,11 @@ use tokio_util::sync::CancellationToken;
 use tracing::{debug, info};
 use url::Url;
 
+/// Specifies the threshold for retrieval failures that will trigger disabling upgrade mode.
+/// This assumes the file has been removed incorrectly and has been replaced by some placeholder 404
+/// page that does not deserialise correctly
+const FAILURE_THRESHOLD: usize = 5;
+
 pub struct AttestationWatcher {
     // default polling interval
     regular_polling_interval: Duration,
@@ -21,17 +26,22 @@ pub struct AttestationWatcher {
 
     attestation_url: Url,
 
+    expected_attester_public_key: ed25519::PublicKey,
+
     jwt_signing_keys: ed25519::KeyPair,
 
     jwt_validity: Duration,
 
     upgrade_mode_state: UpgradeModeState,
+
+    consecutive_retrieval_failures: usize,
 }
 
 impl AttestationWatcher {
     pub(crate) fn new(
         regular_polling_interval: Duration,
         expedited_poll_interval: Duration,
+        expected_attester_public_key: ed25519::PublicKey,
         attestation_url: Url,
         jwt_signing_keys: ed25519::KeyPair,
         jwt_validity: Duration,
@@ -40,11 +50,13 @@ impl AttestationWatcher {
             regular_polling_interval,
             expedited_poll_interval,
             attestation_url,
+            expected_attester_public_key,
             jwt_signing_keys,
             jwt_validity,
             upgrade_mode_state: UpgradeModeState {
                 inner: Arc::new(Default::default()),
             },
+            consecutive_retrieval_failures: 0,
         }
     }
 
@@ -52,7 +64,7 @@ impl AttestationWatcher {
         self.upgrade_mode_state.clone()
     }
 
-    async fn try_update_state(&self) {
+    async fn try_update_state(&mut self) {
         match attempt_retrieve_attestation(
             self.attestation_url.as_str(),
             Some(generate_user_agent!()),
@@ -60,21 +72,43 @@ impl AttestationWatcher {
         .await
         {
             Err(err) => {
+                self.consecutive_retrieval_failures += 1;
                 info!("upgrade mode attestation is not available at this time");
-                debug!("retrieval error: {err}")
+                debug!("retrieval error: {err}");
+
+                if self.upgrade_mode_state.has_attestation().await
+                    && self.consecutive_retrieval_failures > FAILURE_THRESHOLD
+                {
+                    self.upgrade_mode_state
+                        .update(
+                            None,
+                            self.expected_attester_public_key,
+                            &self.jwt_signing_keys,
+                            self.jwt_validity,
+                        )
+                        .await
+                }
             }
             Ok(attestation) => {
+                self.consecutive_retrieval_failures = 0;
+
                 self.upgrade_mode_state
-                    .update(attestation, &self.jwt_signing_keys, self.jwt_validity)
+                    .update(
+                        attestation,
+                        self.expected_attester_public_key,
+                        &self.jwt_signing_keys,
+                        self.jwt_validity,
+                    )
                     .await
             }
         }
     }
 
-    pub async fn run_forever(self, cancellation_token: CancellationToken) {
+    pub async fn run_forever(mut self, cancellation_token: CancellationToken) {
         info!("starting the attestation watcher task");
 
-        let check_wait = tokio::time::sleep(self.regular_polling_interval);
+        // make sure the first check happens immediately
+        let check_wait = tokio::time::sleep(Duration::new(0, 0));
         tokio::pin!(check_wait);
 
         loop {

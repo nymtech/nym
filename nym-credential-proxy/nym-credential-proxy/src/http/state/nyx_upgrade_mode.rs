@@ -1,14 +1,15 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use nym_credential_proxy_requests::CREDENTIAL_PROXY_JWT_ISSUER;
-use nym_credential_proxy_requests::api::v1::ticketbook::models::UpgradeModeAttestation;
 use nym_crypto::asymmetric::ed25519;
-use nym_upgrade_mode_check::generate_jwt_for_upgrade_mode_attestation;
+use nym_upgrade_mode_check::{
+    CREDENTIAL_PROXY_JWT_ISSUER, UpgradeModeAttestation, generate_jwt_for_upgrade_mode_attestation,
+};
 use std::sync::Arc;
 use std::time::Duration;
 use time::OffsetDateTime;
 use tokio::sync::RwLock;
+use tracing::error;
 
 #[derive(Debug, Clone)]
 pub(crate) struct UpgradeModeState {
@@ -23,6 +24,7 @@ impl UpgradeModeState {
     pub(crate) async fn update(
         &self,
         retrieved_attestation: Option<UpgradeModeAttestation>,
+        expected_attester_public_key: ed25519::PublicKey,
         jwt_signing_keys: &ed25519::KeyPair,
         jwt_validity: Duration,
     ) {
@@ -31,6 +33,14 @@ impl UpgradeModeState {
             *guard = None;
             return;
         };
+
+        if attestation.content.attester_public_key != expected_attester_public_key {
+            error!(
+                "the retrieved attestation has been signed with an unexpected key! expected pubkey: {} actual: {}",
+                expected_attester_public_key, attestation.content.attester_public_key
+            );
+            return;
+        }
 
         match guard.as_mut() {
             None => {

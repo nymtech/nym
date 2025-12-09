@@ -213,12 +213,14 @@ impl NetworkManager {
             id,
             "--enabled-credentials-mode",
             "true",
+            "--minimum-gateway-performance",
+            "0",
             "--port",
             &port.to_string(),
         ])
-        .stdout(Stdio::null())
+        // .stdout(Stdio::null())
         .stdin(Stdio::null())
-        .stderr(Stdio::null())
+        // .stderr(Stdio::null())
         .kill_on_drop(true);
 
         if let Some(gateway) = &ctx.gateway {
@@ -243,10 +245,10 @@ impl NetworkManager {
             config_file,
             r#"
 
-[debug.topology]
-minimum_mixnode_performance = 0
-minimum_gateway_performance = 0
-"#
+        [debug.topology]
+        minimum_mixnode_performance = 0
+        minimum_gateway_performance = 0
+        "#
         )?;
 
         ctx.println(format!("\t✅client {id} is ready to use!"));

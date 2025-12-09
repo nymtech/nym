@@ -179,7 +179,7 @@ mod dns;
 mod path;
 
 #[cfg(not(target_arch = "wasm32"))]
-pub use dns::{HickoryDnsError, HickoryDnsResolver};
+pub use dns::{HickoryDnsResolver, ResolveError};
 
 // helper for generating user agent based on binary information
 #[cfg(not(target_arch = "wasm32"))]
@@ -395,6 +395,13 @@ pub enum HttpClientError {
     #[error("failed to resolve request to {url} due to data inconsistency: {details}")]
     InternalResponseInconsistency { url: ::url::Url, details: String },
 
+    #[cfg(not(target_arch = "wasm32"))]
+    #[error("encountered dns failure: {inner}")]
+    DnsLookupFailure {
+        #[from]
+        inner: ResolveError,
+    },
+
     #[error("Failed to encode bincode: {0}")]
     Bincode(#[from] bincode::Error),
 
@@ -421,6 +428,8 @@ impl HttpClientError {
             HttpClientError::ReqwestClientError { source } => source.is_timeout(),
             HttpClientError::RequestSendFailure { source, .. } => source.0.is_timeout(),
             HttpClientError::ResponseReadFailure { source, .. } => source.0.is_timeout(),
+            #[cfg(not(target_arch = "wasm32"))]
+            HttpClientError::DnsLookupFailure { inner } => inner.is_timeout(),
             #[cfg(target_arch = "wasm32")]
             HttpClientError::RequestTimeout => true,
             _ => false,
@@ -775,6 +784,7 @@ impl ClientBuilder {
             base_urls: self.urls,
             current_idx: Arc::new(AtomicUsize::new(0)),
             reqwest_client,
+            using_secure_dns: self.use_secure_dns,
 
             #[cfg(feature = "tunneling")]
             front: self.front,
@@ -795,6 +805,7 @@ pub struct Client {
     base_urls: Vec<Url>,
     current_idx: Arc<AtomicUsize>,
     reqwest_client: reqwest::Client,
+    using_secure_dns: bool,
 
     #[cfg(feature = "tunneling")]
     front: Option<fronted::Front>,
@@ -852,6 +863,7 @@ impl Client {
             base_urls: vec![new_url],
             current_idx: Arc::new(Default::default()),
             reqwest_client: self.reqwest_client.clone(),
+            using_secure_dns: self.using_secure_dns,
 
             #[cfg(feature = "tunneling")]
             front: self.front.clone(),
@@ -883,8 +895,34 @@ impl Client {
         self.retry_limit = limit;
     }
 
+    fn matches_current_host(&self, url: &Url) -> bool {
+        if cfg!(feature = "tunneling") {
+            if let Some(ref front) = self.front
+                && front.is_enabled()
+            {
+                url.host_str() == self.current_url().front_str()
+            } else {
+                url.host_str() == self.current_url().host_str()
+            }
+        } else {
+            url.host_str() == self.current_url().host_str()
+        }
+    }
+
     /// If multiple base urls are available rotate to next (e.g. when the current one resulted in an error)
-    fn update_host(&self) {
+    ///
+    /// Takes an optional URL argument. If this is none, the current host will be updated automatically.
+    /// If a url is provided first check that the CURRENT host matches the hostname in the URL before
+    /// triggering a rotation. This is meant to prevent parallel requests that fail from rotating the host
+    /// multiple times.
+    fn update_host(&self, maybe_url: Option<Url>) {
+        // If a causal url is provided and it doesn't match the hostname currently in use, skip update.
+        if let Some(err_url) = maybe_url
+            && !self.matches_current_host(&err_url)
+        {
+            return;
+        }
+
         #[cfg(feature = "tunneling")]
         if let Some(ref front) = self.front
             && front.is_enabled()
@@ -1048,8 +1086,28 @@ impl ApiClientCore for Client {
                 .build()
                 .map_err(HttpClientError::reqwest_client_build_error)?;
             self.apply_hosts_to_req(&mut req);
+            let url: Url = req.url().clone().into();
+
+            // try an explicit DNS resolution - if successful then it will be in cache when reqwest
+            // goes to execute the request. If failure then we get to handle the DNS lookup error.
             #[cfg(not(target_arch = "wasm32"))]
-            let url = req.url().clone();
+            if self.using_secure_dns
+                && let Some(hostname) = req.url().domain()
+                // Default here will use a shared resolver instance
+                && let Err(err) = HickoryDnsResolver::default().resolve_str(hostname).await
+            {
+                // on failure update host, but don't trigger fronting enable.
+                self.update_host(Some(url.clone()));
+
+                if attempts < self.retry_limit {
+                    attempts += 1;
+                    warn!(
+                        "Retrying request due to dns error on attempt ({attempts}/{}): {err}",
+                        self.retry_limit
+                    );
+                    continue;
+                }
+            }
 
             #[cfg(target_arch = "wasm32")]
             let response: Result<Response, HttpClientError> = {
@@ -1067,25 +1125,39 @@ impl ApiClientCore for Client {
             match response {
                 Ok(resp) => return Ok(resp),
                 Err(err) => {
-                    // if we have multiple urls, update to the next
-                    self.update_host();
+                    // only if there was a network issue should we consider updating the host info
+                    //
+                    // note: for now this includes DNS resolution failure, I am not sure how I would go about
+                    // segregating that based on the interface provided by request for errors.
+                    #[cfg(target_arch = "wasm32")]
+                    let is_network_err = err.is_timeout();
+                    #[cfg(not(target_arch = "wasm32"))]
+                    let is_network_err = err.is_timeout() || err.is_connect();
 
-                    #[cfg(feature = "tunneling")]
-                    if let Some(ref front) = self.front {
-                        // If fronting is set to be enabled on error, enable domain fronting as we
-                        // have encountered an error.
-                        let was_enabled = front.is_enabled();
-                        front.retry_enable();
-                        if !was_enabled && front.is_enabled() {
-                            tracing::info!(
-                                "Domain fronting activated after connection failure: {err}",
-                            );
+                    if is_network_err {
+                        // if we have multiple urls, update to the next
+                        self.update_host(Some(url.clone()));
+
+                        #[cfg(feature = "tunneling")]
+                        if let Some(ref front) = self.front {
+                            // If fronting is set to be enabled on error, enable domain fronting as we
+                            // have encountered an error.
+                            let was_enabled = front.is_enabled();
+                            front.retry_enable();
+                            if !was_enabled && front.is_enabled() {
+                                tracing::info!(
+                                    "Domain fronting activated after connection failure: {err}",
+                                );
+                            }
                         }
                     }
 
                     if attempts < self.retry_limit {
-                        warn!("Retrying request due to http error: {err}");
                         attempts += 1;
+                        warn!(
+                            "Retrying request due to http error on attempt ({attempts}/{}): {err}",
+                            self.retry_limit
+                        );
                         continue;
                     }
 
@@ -1094,7 +1166,7 @@ impl ApiClientCore for Client {
                         if #[cfg(target_arch = "wasm32")] {
                             return Err(err);
                         } else {
-                            return Err(HttpClientError::request_send_error(url, err));
+                            return Err(HttpClientError::request_send_error(url.into(), err));
                         }
                     }
                 }

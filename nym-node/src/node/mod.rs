@@ -39,8 +39,9 @@ use crate::node::shared_network::{
     CachedNetwork, CachedTopologyProvider, LocalGatewayNode, NetworkRefresher,
 };
 use nym_bin_common::bin_info;
+use nym_credential_verification::UpgradeModeState;
 use nym_crypto::asymmetric::{ed25519, x25519};
-use nym_gateway::node::{ActiveClientsStore, GatewayTasksBuilder};
+use nym_gateway::node::{ActiveClientsStore, GatewayTasksBuilder, UpgradeModeCheckRequestSender};
 use nym_mixnet_client::client::ActiveConnections;
 use nym_mixnet_client::forwarder::MixForwardingSender;
 use nym_network_requester::{
@@ -373,6 +374,8 @@ pub(crate) struct NymNode {
 
     entry_gateway: GatewayTasksData,
 
+    upgrade_mode_state: UpgradeModeState,
+
     #[allow(dead_code)]
     service_providers: ServiceProvidersData,
 
@@ -461,6 +464,9 @@ impl NymNode {
             metrics: NymNodeMetrics::new(),
             verloc_stats: Default::default(),
             entry_gateway: GatewayTasksData::new(&config.gateway_tasks).await?,
+            upgrade_mode_state: UpgradeModeState::new(
+                config.gateway_tasks.upgrade_mode.attester_public_key,
+            ),
             service_providers: ServiceProvidersData::new(&config.service_providers)?,
             wireguard: Some(wireguard_data),
             config,
@@ -624,8 +630,26 @@ impl NymNode {
             metrics_sender,
             self.metrics.clone(),
             self.entry_gateway.mnemonic.clone(),
+            Self::user_agent(),
+            self.upgrade_mode_state.clone(),
             self.shutdown_tracker().clone(),
         );
+
+        // start task for watching the changes in upgrade mode attestation
+        let upgrade_check_request_sender = if let Some(upgrade_mode_watcher) =
+            gateway_tasks_builder.try_build_upgrade_mode_watcher()
+        {
+            let req_sender = upgrade_mode_watcher.request_sender();
+            upgrade_mode_watcher.start();
+            req_sender
+        } else {
+            UpgradeModeCheckRequestSender::new_empty()
+        };
+
+        // create the common state for subtasks relying on the upgrade mode information
+        // (i.e. everything that'd require ticket/bandwidth processing)
+        let upgrade_mode_common_state =
+            gateway_tasks_builder.build_upgrade_mode_common_state(upgrade_check_request_sender);
 
         // if we're running in entry mode, start the websocket
         if self.modes().entry {
@@ -634,7 +658,10 @@ impl NymNode {
                 self.config.gateway_tasks.ws_bind_address
             );
             let mut websocket = gateway_tasks_builder
-                .build_websocket_listener(active_clients_store.clone())
+                .build_websocket_listener(
+                    active_clients_store.clone(),
+                    upgrade_mode_common_state.clone(),
+                )
                 .await?;
             self.shutdown_tracker()
                 .try_spawn_named(async move { websocket.run().await }, "EntryWebsocket");
@@ -682,7 +709,7 @@ impl NymNode {
             gateway_tasks_builder.set_wireguard_data(wg_data.into());
 
             let authenticator = gateway_tasks_builder
-                .build_wireguard_authenticator(topology_provider)
+                .build_wireguard_authenticator(upgrade_mode_common_state.clone(), topology_provider)
                 .await?;
             let started_authenticator = authenticator.start_service_provider().await?;
             active_clients_store.insert_embedded(started_authenticator.handle);
@@ -693,7 +720,7 @@ impl NymNode {
             );
 
             gateway_tasks_builder
-                .try_start_wireguard()
+                .try_start_wireguard(upgrade_mode_common_state)
                 .await
                 .map_err(NymNodeError::GatewayTasksStartupFailure)?;
         } else {
@@ -840,6 +867,12 @@ impl NymNode {
             self.active_sphinx_keys()?.clone(),
             self.metrics.clone(),
             self.verloc_stats.clone(),
+            self.config
+                .gateway_tasks
+                .upgrade_mode
+                .attestation_url
+                .clone(),
+            self.upgrade_mode_state.clone(),
             self.config.http.node_load_cache_ttl,
         );
 
@@ -1131,7 +1164,7 @@ impl NymNode {
     }
 
     pub(crate) async fn run_minimal_mixnet_processing(mut self) -> Result<(), NymNodeError> {
-        let noise_config = nym_noise::config::NoiseConfig::new(
+        let noise_config = NoiseConfig::new(
             self.x25519_noise_keys.clone(),
             NoiseNetworkView::new_empty(),
             self.config.mixnet.debug.initial_connection_timeout,

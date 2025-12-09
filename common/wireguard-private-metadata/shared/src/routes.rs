@@ -4,7 +4,9 @@
 pub const V1_API_VERSION: &str = "v1";
 
 pub const BANDWIDTH: &str = "bandwidth";
+pub const NETWORK: &str = "network";
 
 pub const VERSION: &str = "version";
 pub const AVAILABLE: &str = "available";
 pub const TOPUP: &str = "topup";
+pub const UPGRADE_MODE_CHECK: &str = "upgrade-mode-check";

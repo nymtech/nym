@@ -3,7 +3,7 @@
 
 [package]
 name = "nym-statistics-api"
-version = "0.2.1"
+version = "0.3.1"
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
@@ -20,14 +20,13 @@ axum-client-ip.workspace = true
 axum-extra = { workspace = true, features = ["typed-header"] }
 celes.workspace = true
 clap = { workspace = true, features = ["cargo", "derive", "env", "string"] }
-serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 sqlx = { workspace = true, features = [
     "runtime-tokio-rustls",
     "postgres",
     "time",
 ] }
-time.workspace = true
+time = { workspace = true, features = ["serde-human-readable"] }
 tokio = { workspace = true, features = ["rt-multi-thread"] }
 tokio-util.workspace = true
 tracing.workspace = true

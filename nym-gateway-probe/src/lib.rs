@@ -16,7 +16,7 @@ use futures::StreamExt;
 use nym_authenticator_client::{AuthClientMixnetListener, AuthenticatorClient};
 use nym_authenticator_requests::{
     AuthenticatorVersion, client_message::ClientMessage, response::AuthenticatorResponse, v2, v3,
-    v4, v5,
+    v4, v5, v6,
 };
 use nym_client_core::config::ForgetMe;
 use nym_config::defaults::{
@@ -130,12 +130,20 @@ pub enum TestedNode {
     SameAsEntry,
     Custom {
         identity: NodeIdentity,
+        shares_entry: bool,
     },
 }
 
 impl TestedNode {
     pub fn is_same_as_entry(&self) -> bool {
-        matches!(self, TestedNode::SameAsEntry)
+        matches!(
+            self,
+            TestedNode::SameAsEntry
+                | TestedNode::Custom {
+                    shares_entry: true,
+                    ..
+                }
+        )
     }
 }
 
@@ -309,7 +317,20 @@ impl Probe {
         let entry_gateway = directory.entry_gateway(&self.entrypoint)?;
 
         let node_info: TestedNodeDetails = match self.tested_node {
-            TestedNode::Custom { identity } => {
+            TestedNode::Custom {
+                identity: _,
+                shares_entry: true,
+            } => {
+                debug!(
+                    "testing node {} as both entry and exit",
+                    entry_gateway.identity()
+                );
+                entry_gateway.to_testable_node()?
+            }
+            TestedNode::Custom {
+                identity,
+                shares_entry: false,
+            } => {
                 let node = directory.get_nym_node(identity)?;
                 info!(
                     "testing node {} (via entry {})",
@@ -421,12 +442,17 @@ impl Probe {
                 storage.credential_store().clone(),
                 client,
             );
-            let credential = bw_controller
-                .prepare_ecash_ticket(
+            let (wg_ticket_type, credential_provider) = if tested_entry {
+                (
                     TicketType::V1WireguardEntry,
                     nym_address.gateway().to_bytes(),
-                    1,
                 )
+            } else {
+                (TicketType::V1WireguardExit, node_info.identity.to_bytes())
+            };
+
+            let credential = bw_controller
+                .prepare_ecash_ticket(wg_ticket_type, credential_provider, 1)
                 .await?
                 .data;
 
@@ -467,6 +493,7 @@ async fn wg_probe(
     auth_version: AuthenticatorVersion,
     awg_args: String,
     netstack_args: NetstackArgs,
+    // TODO: update type
     credential: CredentialSpendingData,
 ) -> anyhow::Result<WgProbeResults> {
     info!("attempting to use authenticator version {auth_version:?}");
@@ -493,6 +520,9 @@ async fn wg_probe(
         AuthenticatorVersion::V5 => ClientMessage::Initial(Box::new(
             v5::registration::InitMessage::new(authenticator_pub_key),
         )),
+        AuthenticatorVersion::V6 => ClientMessage::Initial(Box::new(
+            v6::registration::InitMessage::new(authenticator_pub_key),
+        )),
         AuthenticatorVersion::V1 | AuthenticatorVersion::UNKNOWN => bail!("unknown version number"),
     };
 
@@ -512,57 +542,17 @@ async fn wg_probe(
             debug!("Verifying data");
             pending_registration_response.verify(&private_key)?;
 
-            let finalized_message = match auth_version {
-                AuthenticatorVersion::V2 => {
-                    ClientMessage::Final(Box::new(v2::registration::FinalMessage {
-                        gateway_client: v2::registration::GatewayClient::new(
-                            &private_key,
-                            pending_registration_response.pub_key().inner(),
-                            pending_registration_response.private_ips().ipv4.into(),
-                            pending_registration_response.nonce(),
-                        ),
-                        credential: Some(credential),
-                    }))
-                }
-                AuthenticatorVersion::V3 => {
-                    ClientMessage::Final(Box::new(v3::registration::FinalMessage {
-                        gateway_client: v3::registration::GatewayClient::new(
-                            &private_key,
-                            pending_registration_response.pub_key().inner(),
-                            pending_registration_response.private_ips().ipv4.into(),
-                            pending_registration_response.nonce(),
-                        ),
-                        credential: Some(credential),
-                    }))
-                }
-                AuthenticatorVersion::V4 => {
-                    ClientMessage::Final(Box::new(v4::registration::FinalMessage {
-                        gateway_client: v4::registration::GatewayClient::new(
-                            &private_key,
-                            pending_registration_response.pub_key().inner(),
-                            pending_registration_response.private_ips().into(),
-                            pending_registration_response.nonce(),
-                        ),
-                        credential: Some(credential),
-                    }))
-                }
-                AuthenticatorVersion::V5 => {
-                    ClientMessage::Final(Box::new(v5::registration::FinalMessage {
-                        gateway_client: v5::registration::GatewayClient::new(
-                            &private_key,
-                            pending_registration_response.pub_key().inner(),
-                            pending_registration_response.private_ips(),
-                            pending_registration_response.nonce(),
-                        ),
-                        credential: Some(credential),
-                    }))
-                }
-                AuthenticatorVersion::V1 | AuthenticatorVersion::UNKNOWN => {
-                    bail!("Unknown version number")
-                }
-            };
+            let credential = credential
+                .try_into()
+                .inspect_err(|err| error!("invalid zk-nym data: {err}"))
+                .ok();
+
+            let finalized_message =
+                pending_registration_response.finalise_registration(&private_key, credential);
+            let client_message = ClientMessage::Final(finalized_message);
+
             let response = auth_client
-                .send_and_wait_for_response(&finalized_message)
+                .send_and_wait_for_response(&client_message)
                 .await?;
             let AuthenticatorResponse::Registered(registered_response) = response else {
                 bail!("Unexpected response");
@@ -747,11 +737,7 @@ async fn do_ping_entry(
     }
     info!("Successfully mixnet pinged ourselves");
 
-    if tested_entry {
-        Entry::success()
-    } else {
-        Entry::NotTested
-    }
+    Entry::success()
 }
 
 async fn connect_exit(

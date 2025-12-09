@@ -1,14 +1,22 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::config::helpers::log_error_and_return;
 use crate::config::persistence::GatewayTasksPaths;
-use nym_config::defaults::{DEFAULT_CLIENT_LISTENING_PORT, TICKETBOOK_VALIDITY_DAYS};
+use crate::error::NymNodeError;
+use nym_config::defaults::{
+    DEFAULT_CLIENT_LISTENING_PORT, TICKETBOOK_VALIDITY_DAYS, mainnet, var_names,
+};
 use nym_config::helpers::in6addr_any_init;
 use nym_config::serde_helpers::de_maybe_port;
+use nym_crypto::asymmetric::ed25519::{self, serde_helpers::bs58_ed25519_pubkey};
 use serde::{Deserialize, Serialize};
+use std::env;
 use std::net::SocketAddr;
 use std::path::Path;
 use std::time::Duration;
+use tracing::info;
+use url::Url;
 
 pub const DEFAULT_WS_PORT: u16 = DEFAULT_CLIENT_LISTENING_PORT;
 
@@ -35,6 +43,8 @@ pub struct GatewayTasksConfig {
     /// (default: None)
     #[serde(deserialize_with = "de_maybe_port")]
     pub announce_wss_port: Option<u16>,
+
+    pub upgrade_mode: UpgradeModeWatcher,
 
     #[serde(default)]
     pub debug: Debug,
@@ -63,6 +73,10 @@ pub struct Debug {
     pub client_bandwidth: ClientBandwidthDebug,
 
     pub zk_nym_tickets: ZkNymTicketHandlerDebug,
+
+    /// The minimum duration since the last explicit check for the upgrade mode to allow creation of new requests.
+    #[serde(with = "humantime_serde")]
+    pub upgrade_mode_min_staleness_recheck: Duration,
 }
 
 impl Debug {
@@ -70,6 +84,7 @@ impl Debug {
     pub const DEFAULT_MINIMUM_MIX_PERFORMANCE: u8 = 50;
     pub const DEFAULT_MAXIMUM_AUTH_REQUEST_TIMESTAMP_SKEW: Duration = Duration::from_secs(120);
     pub const DEFAULT_MAXIMUM_OPEN_CONNECTIONS: usize = 8192;
+    pub const DEFAULT_UPGRADE_MODE_MIN_STALENESS_RECHECK: Duration = Duration::from_secs(30);
 }
 
 impl Default for Debug {
@@ -82,6 +97,7 @@ impl Default for Debug {
             stale_messages: Default::default(),
             client_bandwidth: Default::default(),
             zk_nym_tickets: Default::default(),
+            upgrade_mode_min_staleness_recheck: Self::DEFAULT_UPGRADE_MODE_MIN_STALENESS_RECHECK,
         }
     }
 }
@@ -201,14 +217,150 @@ impl Default for StaleMessageDebug {
 }
 
 impl GatewayTasksConfig {
-    pub fn new_default<P: AsRef<Path>>(data_dir: P) -> Self {
-        GatewayTasksConfig {
+    pub fn new<P: AsRef<Path>>(data_dir: P) -> Result<Self, NymNodeError> {
+        Ok(GatewayTasksConfig {
             storage_paths: GatewayTasksPaths::new(data_dir),
             enforce_zk_nyms: false,
             ws_bind_address: SocketAddr::new(in6addr_any_init(), DEFAULT_WS_PORT),
             announce_ws_port: None,
             announce_wss_port: None,
+            upgrade_mode: UpgradeModeWatcher::new()?,
             debug: Default::default(),
+        })
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UpgradeModeWatcher {
+    /// Specifies whether this gateway watches for upgrade mode changes
+    /// via the published attestation file.
+    pub enabled: bool,
+
+    /// Endpoint to query to retrieve current upgrade mode attestation.
+    pub attestation_url: Url,
+
+    /// Expected public key of the attester providing the upgrade mode attestation
+    /// on the specified endpoint
+    #[serde(with = "bs58_ed25519_pubkey")]
+    pub attester_public_key: ed25519::PublicKey,
+
+    #[serde(default)]
+    pub debug: UpgradeModeWatcherDebug,
+}
+
+impl From<UpgradeModeWatcher> for nym_gateway::config::UpgradeModeWatcher {
+    fn from(config: UpgradeModeWatcher) -> Self {
+        nym_gateway::config::UpgradeModeWatcher {
+            enabled: config.enabled,
+            attestation_url: config.attestation_url,
+            debug: nym_gateway::config::UpgradeModeWatcherDebug {
+                regular_polling_interval: config.debug.regular_polling_interval,
+                expedited_poll_interval: config.debug.expedited_poll_interval,
+            },
+        }
+    }
+}
+
+impl UpgradeModeWatcher {
+    pub fn new_mainnet() -> UpgradeModeWatcher {
+        info!("using mainnet configuration for the upgrade mode:");
+        info!("\t- url: {}", mainnet::UPGRADE_MODE_ATTESTATION_URL);
+        info!(
+            "\t- attester public key: {}",
+            mainnet::UPGRADE_MODE_ATTESTER_ED25519_BS58_PUBKEY
+        );
+
+        // SAFETY:
+        // our hardcoded values should always be valid
+        #[allow(clippy::expect_used)]
+        let attestation_url = mainnet::UPGRADE_MODE_ATTESTATION_URL
+            .parse()
+            .expect("invalid default upgrade mode attestation URL");
+
+        #[allow(clippy::expect_used)]
+        let attester_public_key = mainnet::UPGRADE_MODE_ATTESTER_ED25519_BS58_PUBKEY
+            .parse()
+            .expect("invalid default upgrade mode attester public key");
+
+        UpgradeModeWatcher {
+            enabled: true,
+            attestation_url,
+            attester_public_key,
+            debug: UpgradeModeWatcherDebug::default(),
+        }
+    }
+
+    pub fn new() -> Result<UpgradeModeWatcher, NymNodeError> {
+        // if env is configured, extract relevant values from there, otherwise fallback to mainnet
+        if env::var(var_names::CONFIGURED).is_err() {
+            return Ok(Self::new_mainnet());
+        }
+
+        // if env is configured, the relevant values should be set
+        let Ok(env_attestation_url) = env::var(var_names::UPGRADE_MODE_ATTESTATION_URL) else {
+            return log_error_and_return(format!(
+                "'{}' is not set whilst the env is set to be configured",
+                var_names::UPGRADE_MODE_ATTESTATION_URL
+            ));
+        };
+
+        let Ok(env_attester_pubkey) =
+            env::var(var_names::UPGRADE_MODE_ATTESTER_ED25519_BS58_PUBKEY)
+        else {
+            return log_error_and_return(format!(
+                "'{}' is not set whilst the env is set to be configured",
+                var_names::UPGRADE_MODE_ATTESTER_ED25519_BS58_PUBKEY
+            ));
+        };
+
+        let attestation_url = match env_attestation_url.parse() {
+            Ok(url) => url,
+            Err(err) => {
+                return log_error_and_return(format!(
+                    "provided attestation url {env_attestation_url} is invalid: {err}!"
+                ));
+            }
+        };
+
+        let attester_public_key = match env_attester_pubkey.parse() {
+            Ok(public_key) => public_key,
+            Err(err) => {
+                return log_error_and_return(format!(
+                    "provided attester public key {env_attester_pubkey} is invalid: {err}!"
+                ));
+            }
+        };
+
+        Ok(UpgradeModeWatcher {
+            enabled: true,
+            attestation_url,
+            attester_public_key,
+            debug: UpgradeModeWatcherDebug::default(),
+        })
+    }
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub struct UpgradeModeWatcherDebug {
+    /// Default polling interval
+    #[serde(with = "humantime_serde")]
+    pub regular_polling_interval: Duration,
+
+    /// Expedited polling interval for once upgrade mode is detected
+    #[serde(with = "humantime_serde")]
+    pub expedited_poll_interval: Duration,
+}
+
+impl UpgradeModeWatcherDebug {
+    const DEFAULT_REGULAR_POLLING_INTERVAL: Duration = Duration::from_secs(15 * 60);
+    const DEFAULT_EXPEDITED_POLL_INTERVAL: Duration = Duration::from_secs(2 * 60);
+}
+
+impl Default for UpgradeModeWatcherDebug {
+    fn default() -> Self {
+        UpgradeModeWatcherDebug {
+            regular_polling_interval: Self::DEFAULT_REGULAR_POLLING_INTERVAL,
+            expedited_poll_interval: Self::DEFAULT_EXPEDITED_POLL_INTERVAL,
         }
     }
 }

@@ -3,6 +3,8 @@
 # run this script as root
 
 set -euo pipefail
+set +o errtrace
+
 
 ###############################################################################
 # colors (no emojis)
@@ -11,6 +13,8 @@ GREEN='\033[0;32m'
 RED='\033[0;31m'
 YELLOW='\033[0;33m'
 NC='\033[0m'
+CYAN='\033[0;36m'
+RESET='\033[0m'
 
 info() {
   printf "%b\n" "${YELLOW}[INFO] $*${NC}"
@@ -31,6 +35,46 @@ if [ "$(id -u)" -ne 0 ]; then
    error "This script must be run as root"
   exit 1
 fi
+
+###############################################################################
+# Logging
+###############################################################################
+LOG_FILE="/var/log/nym/network_tunnel_manager.log"
+mkdir -p "$(dirname "$LOG_FILE")"
+touch "$LOG_FILE"
+chmod 640 "$LOG_FILE"
+
+# rotate log if >10MB
+if [[ -f "$LOG_FILE" && $(stat -c%s "$LOG_FILE") -gt 10485760 ]]; then
+  mv "$LOG_FILE" "${LOG_FILE}.1"
+  touch "$LOG_FILE"
+  chmod 640 "$LOG_FILE"
+fi
+
+echo "----- $(date '+%Y-%m-%d %H:%M:%S') START network-tunnel-manager -----" | tee -a "$LOG_FILE"
+echo -e "${CYAN}Logs are being saved locally to:${RESET} $LOG_FILE"
+echo -e "${CYAN}These logs never leave your machine.${RESET}"
+echo "" | tee -a "$LOG_FILE"
+
+# safe logger
+log() {
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "$LOG_FILE"
+}
+
+# global redirection, strip ANSI before writing to log
+add_log_redirection() {
+  exec > >(tee >(sed -u 's/\x1b\[[0-9;]*m//g' >> "$LOG_FILE"))
+  exec 2> >(tee >(sed -u 's/\x1b\[[0-9;]*m//g' >> "$LOG_FILE") >&2)
+}
+add_log_redirection
+
+
+trap 'log "ERROR: exit=$? line=$LINENO cmd=$(printf "%q" "$BASH_COMMAND")"' ERR
+
+
+
+
+START_TIME=$(date +%s)
 
 ###############################################################################
 # basic config
@@ -291,7 +335,7 @@ remove_duplicate_rules() {
     rm -f "$tmp6"
 
   else
-    error "no ipv6 rules found for $interface to deduplicate"
+    ok "no ipv6 rules found for $interface to deduplicate"
   fi
 
   ok "duplicate rule scan completed for $interface"
@@ -353,10 +397,10 @@ check_ip_routing() {
 
 perform_pings() {
   info "performing ipv4 ping to google.com"
-  ping -c 4 google.com || error "ipv4 ping failed"
+  ping -4 -c 4 google.com || error "ipv4 ping failed"
   echo "---------------------------"
   info "performing ipv6 ping to google.com"
-  ping6 -c 4 google.com || error "ipv6 ping failed"
+  ping6 -6 -c 4 google.com || error "ipv6 ping failed"
 }
 
 joke_through_tunnel() {
@@ -472,10 +516,10 @@ add_port_rules() {
 exit_policy_install_deps() {
   install_iptables_persistent
 
-  for cmd in iptables ip6tables ip grep sed awk wget curl; do
-    if ! command -v "$cmd" >/dev/null 2>&1; then
-      info "installing dependency: $cmd"
-      apt-get install -y "$cmd"
+  for item in iptables ip6tables ip grep sed awk wget curl; do
+    if ! command -v "$item" >/dev/null 2>&1; then
+      info "installing dependency: $item"
+      apt-get install -y "$item"
     fi
   done
 }
@@ -662,7 +706,7 @@ apply_spamhaus_blocklist() {
   mkdir -p "$(dirname "$POLICY_FILE")"
 
   if ! wget -q "$EXIT_POLICY_LOCATION" -O "$POLICY_FILE" 2>/dev/null; then
-    arror "failed to download exit policy, using minimal blocklist"
+    error "failed to download exit policy, using minimal blocklist"
     cat >"$POLICY_FILE" <<EOF
 ExitPolicy reject 5.188.10.0/23:*
 ExitPolicy reject 31.132.36.0/22:*
@@ -868,10 +912,54 @@ check_nym_exit_chain() {
   return $errors
 }
 
+check_iptables_default_policies() {
+  info "checking base iptables default policies (INPUT/FORWARD)"
+
+  local issues=0
+  local input_policy forward_policy output_policy
+
+  input_policy=$(iptables -S INPUT 2>/dev/null | awk 'NR==1 && $1=="-P" {print $3}')
+  forward_policy=$(iptables -S FORWARD 2>/dev/null | awk 'NR==1 && $1=="-P" {print $3}')
+  output_policy=$(iptables -S OUTPUT 2>/dev/null | awk 'NR==1 && $1=="-P" {print $3}')
+
+  if [[ -z "${input_policy:-}" ]]; then
+    error "unable to read INPUT default policy (iptables -S INPUT failed?)"
+    issues=1
+  elif [[ "${input_policy^^}" != "DROP" ]]; then
+    error "INPUT default policy is ${input_policy^^}; expected DROP so traffic is only allowed by explicit rules."
+    issues=1
+  else
+    ok "INPUT default policy is DROP"
+  fi
+
+  if [[ -z "${forward_policy:-}" ]]; then
+    error "unable to read FORWARD default policy (iptables -S FORWARD failed?)"
+    issues=1
+  elif [[ "${forward_policy^^}" != "DROP" ]]; then
+    error "FORWARD default policy is ${forward_policy^^}; expected DROP to ensure traffic only flows via NYM-EXIT rules."
+    issues=1
+  else
+    ok "FORWARD default policy is DROP"
+  fi
+
+  if [[ -z "${output_policy:-}" ]]; then
+    error "unable to read OUTPUT default policy (iptables -S OUTPUT failed?)"
+    issues=1
+  elif [[ "${output_policy^^}" != "ACCEPT" ]]; then
+    error "OUTPUT default policy is ${output_policy^^}; expected ACCEPT"
+    issues=1
+  else
+    ok "OUTPUT default policy is ACCEPT"
+  fi
+
+  return $issues
+}
+
 check_firewall_setup() {
   info "checking ipv4 firewall ordering…"
   local errors=0
 
+  check_iptables_default_policies || errors=1
   check_forward_chain || errors=1
   check_nym_exit_chain || errors=1
 
@@ -1052,7 +1140,7 @@ exit_policy_run_tests() {
 # part 5: high level workflows
 ###############################################################################
 
-full_tunnel_setup() {
+nym_tunnel_setup() {
   # this mirrors your previous chain of calls but inside one script
   info "running full tunnel setup for ${TUNNEL_INTERFACE} and ${WG_INTERFACE}"
 
@@ -1094,7 +1182,7 @@ exit_policy_install() {
 complete_networking_configuration() {
   info "starting complete networking configuration: tunnels + exit policy"
 
-  full_tunnel_setup
+  nym_tunnel_setup
   exit_policy_install
   check_firewall_setup || error "firewall order checks reported problems, please review output"
   exit_policy_run_tests || error "exit policy tests reported problems, please review output"
@@ -1107,10 +1195,11 @@ complete_networking_configuration() {
 ###############################################################################
 
 cmd="${1:-help}"
+log "COMMAND: $cmd ARGS: $*"
 
 case "$cmd" in
-  full_tunnel_setup)
-    full_tunnel_setup
+  nym_tunnel_setup)
+    nym_tunnel_setup
     status=$?
     ;;
   exit_policy_install)
@@ -1208,10 +1297,9 @@ case "$cmd" in
 usage: $0 <command> [args]
 
 high level workflows:
-  complete_networking_configuration Run tunnel setup, exit policy install and tests
+  complete_networking_configuration Install tunnel interfaces, setup networking, iptables, wg exit policy & tests
+  nym_tunnel_setup                 Install tunnel interfaces & setup networking
   exit_policy_install               Install and configure wireguard exit policy
-  full_tunnel_setup                 Run tunnel iptables and checks for nymtun0 and nymwg
-
 tunnel and nat helpers:
   adjust_ip_forwarding              Enable ipv4/ipv6 forwarding via sysctl.d
   apply_iptables_rules              Apply nat/forward rules for ${TUNNEL_INTERFACE}
@@ -1254,6 +1342,11 @@ EOF
 esac
 
 if [[ "$cmd" != help && "$cmd" != "--help" && "$cmd" != "-h" && ${status:-1} -eq 0 ]]; then
+    echo ""
+    echo "Logs saved locally at: $LOG_FILE"
     ok "operation ${cmd} completed"
 fi
+END_TIME=$(date +%s)
+ELAPSED=$((END_TIME - START_TIME))
+echo "----- $(date '+%Y-%m-%d %H:%M:%S') END operation ${cmd} (status $status, duration ${ELAPSED}s) -----" >> "$LOG_FILE"
 exit $status

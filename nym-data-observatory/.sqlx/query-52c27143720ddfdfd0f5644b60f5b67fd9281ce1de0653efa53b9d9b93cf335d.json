@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM message WHERE height < $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "52c27143720ddfdfd0f5644b60f5b67fd9281ce1de0653efa53b9d9b93cf335d"
+}

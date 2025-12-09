@@ -50,7 +50,7 @@ pub trait TxSigner: OfflineSigner {
         )
         .map_err(|source| SigningError::SignDocFailure { source })?;
 
-        self.sign_direct_with_account(&account_from_signer, sign_doc)
+        self.sign_direct_with_account(account_from_signer, sign_doc)
     }
 }
 

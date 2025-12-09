@@ -1,7 +1,9 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::{AuthenticationFailure, GatewayRequestsError, SharedGatewayKey};
+use crate::{
+    AuthenticationFailure, GatewayProtocolVersion, GatewayRequestsError, SharedSymmetricKey,
+};
 use nym_crypto::asymmetric::ed25519;
 use serde::{Deserialize, Serialize};
 use std::iter;
@@ -20,8 +22,8 @@ pub struct AuthenticateRequest {
 
 impl AuthenticateRequest {
     pub fn new(
-        protocol_version: u8,
-        shared_key: &SharedGatewayKey,
+        protocol_version: GatewayProtocolVersion,
+        shared_key: &SharedSymmetricKey,
         identity_keys: &ed25519::KeyPair,
     ) -> Result<AuthenticateRequest, GatewayRequestsError> {
         let content = AuthenticateRequestContent::new(
@@ -70,14 +72,14 @@ impl AuthenticateRequest {
 
     pub fn verify_ciphertext(
         &self,
-        shared_key: &SharedGatewayKey,
+        shared_key: &SharedSymmetricKey,
     ) -> Result<(), AuthenticationFailure> {
         let expected = shared_key.encrypt(
             self.content
                 .client_identity
                 .derive_destination_address()
                 .as_bytes_ref(),
-            Some(&self.content.nonce),
+            &SharedSymmetricKey::validate_aead_nonce(&self.content.nonce)?,
         )?;
 
         if !bool::from(expected.ct_eq(&self.content.address_ciphertext)) {
@@ -98,7 +100,7 @@ impl AuthenticateRequest {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct AuthenticateRequestContent {
-    pub protocol_version: u8,
+    pub protocol_version: GatewayProtocolVersion,
 
     // this is identical to the client's address
     pub client_identity: ed25519::PublicKey,
@@ -115,20 +117,19 @@ pub struct AuthenticateRequestContent {
 impl AuthenticateRequestContent {
     fn new(
         protocol_version: u8,
-        shared_key: &SharedGatewayKey,
+        shared_key: &SharedSymmetricKey,
         client_identity: ed25519::PublicKey,
     ) -> Result<AuthenticateRequestContent, GatewayRequestsError> {
-        let nonce = shared_key.random_nonce_or_iv();
+        let nonce = shared_key.random_nonce();
         let destination_address = client_identity.derive_destination_address();
 
-        let address_ciphertext =
-            shared_key.encrypt(destination_address.as_bytes_ref(), Some(&nonce))?;
+        let address_ciphertext = shared_key.encrypt(destination_address.as_bytes_ref(), &nonce)?;
         let now = OffsetDateTime::now_utc();
         Ok(AuthenticateRequestContent {
             protocol_version,
             client_identity,
             address_ciphertext,
-            nonce,
+            nonce: nonce.to_vec(),
             request_unix_timestamp: now.unix_timestamp() as u64, // SAFETY: we're running this in post 1970...
         })
     }

@@ -4,6 +4,60 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [2025.21-mozzarella] (2025-11-25)
+
+- [bugfix] Tunnel not waiting on MixnetClient to shut down cleanly ([#6225])
+- bugfix: fix credential proxy upgrade mode attestation url arg ([#6202])
+- HTTP API resilience enable & domain rotation conditions ([#6200])
+- Remove debug feature from http-macro spec in gateway probe ([#6195])
+- DNS relibility and troubleshooting  ([#6179])
+- [bugfix] Distinguish authenticator errors by credential spent ([#6176])
+- Typescript SDK 1.4.1 ([#6146])
+- Enable URL rotation and retries for mixnet gateway init ([#6126])
+- Feature/credential proxy jwt ([#5957])
+
+[#6225]: https://github.com/nymtech/nym/pull/6225
+[#6202]: https://github.com/nymtech/nym/pull/6202
+[#6200]: https://github.com/nymtech/nym/pull/6200
+[#6195]: https://github.com/nymtech/nym/pull/6195
+[#6179]: https://github.com/nymtech/nym/pull/6179
+[#6176]: https://github.com/nymtech/nym/pull/6176
+[#6146]: https://github.com/nymtech/nym/pull/6146
+[#6126]: https://github.com/nymtech/nym/pull/6126
+[#5957]: https://github.com/nymtech/nym/pull/5957
+
+## [2025.20-leerdammer] (2025-11-12)
+
+- Max/tweak ts sdk actions ([#6185])
+- chore: resolve clippy 1.91 warnings ([#6168])
+- [chore] Remove unused dependencies ([#6151])
+- Use typed-builder for registration client builder config ([#6150])
+- tommy is too quick ([#6149])
+- configurable mixnet client startup timeout ([#6148])
+- [Feature/operators]: QUIC bridge deployment script v2 ([#6145])
+- Bugfix: Add circuit breaker ([#6143])
+- bugfix: update internal owner address in transferred share ([#6139])
+- Update quic_bridge_deployment.sh for IPv4 and .deb package ([#6138])
+- feat: expose more explicit new_with_fronted_urls builder for http API client ([#6136])
+- bugfix: update stored epoch share when changing ownership ([#6135])
+- Domain fronting ([#6134])
+- bugfix: update stored epoch share when changing announce address ([#6131])
+
+[#6185]: https://github.com/nymtech/nym/pull/6185
+[#6168]: https://github.com/nymtech/nym/pull/6168
+[#6151]: https://github.com/nymtech/nym/pull/6151
+[#6150]: https://github.com/nymtech/nym/pull/6150
+[#6149]: https://github.com/nymtech/nym/pull/6149
+[#6148]: https://github.com/nymtech/nym/pull/6148
+[#6145]: https://github.com/nymtech/nym/pull/6145
+[#6143]: https://github.com/nymtech/nym/pull/6143
+[#6139]: https://github.com/nymtech/nym/pull/6139
+[#6138]: https://github.com/nymtech/nym/pull/6138
+[#6136]: https://github.com/nymtech/nym/pull/6136
+[#6135]: https://github.com/nymtech/nym/pull/6135
+[#6134]: https://github.com/nymtech/nym/pull/6134
+[#6131]: https://github.com/nymtech/nym/pull/6131
+
 ## [2025.19-kase] (2025-10-30)
 
 - update ns agent workflow ([#6154])

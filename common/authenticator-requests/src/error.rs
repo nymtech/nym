@@ -1,6 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use std::fmt::Display;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -36,4 +37,14 @@ pub enum Error {
 
     #[error(transparent)]
     Bincode(#[from] bincode::Error),
+}
+
+impl Error {
+    pub fn conversion(msg: impl Into<String>) -> Self {
+        Error::Conversion(msg.into())
+    }
+
+    pub fn conversion_display(msg: impl Display) -> Self {
+        Error::Conversion(msg.to_string())
+    }
 }

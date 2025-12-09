@@ -5,8 +5,7 @@ use crate::nyxd::{self, NyxdClient};
 use crate::signing::direct_wallet::DirectSecp256k1HdWallet;
 use crate::signing::signer::{NoSigner, OfflineSigner};
 use crate::{
-    DirectSigningReqwestRpcValidatorClient, QueryReqwestRpcValidatorClient, ReqwestRpcClient,
-    ValidatorClientError,
+    DirectSigningReqwestRpcValidatorClient, QueryReqwestRpcValidatorClient, ValidatorClientError,
 };
 use nym_api_requests::ecash::models::{
     AggregatedCoinIndicesSignatureResponse, AggregatedExpirationDateSignatureResponse,
@@ -164,7 +163,7 @@ impl Client<HttpRpcClient, DirectSecp256k1HdWallet> {
     ) -> Result<DirectSigningHttpRpcValidatorClient, ValidatorClientError> {
         let rpc_client = http_client(config.nyxd_url.as_str())?;
         let prefix = &config.nyxd_config.chain_details.bech32_account_prefix;
-        let wallet = DirectSecp256k1HdWallet::from_mnemonic(prefix, mnemonic);
+        let wallet = DirectSecp256k1HdWallet::checked_from_mnemonic(prefix, mnemonic)?;
 
         Ok(Self::new_signing_with_rpc_client(
             config, rpc_client, wallet,
@@ -177,12 +176,13 @@ impl Client<HttpRpcClient, DirectSecp256k1HdWallet> {
     }
 }
 
-impl Client<ReqwestRpcClient, DirectSecp256k1HdWallet> {
+#[allow(deprecated)]
+impl Client<crate::ReqwestRpcClient, DirectSecp256k1HdWallet> {
     pub fn new_reqwest_signing(
         config: Config,
         mnemonic: bip39::Mnemonic,
     ) -> DirectSigningReqwestRpcValidatorClient {
-        let rpc_client = ReqwestRpcClient::new(config.nyxd_url.clone());
+        let rpc_client = crate::ReqwestRpcClient::new(config.nyxd_url.clone());
         let prefix = &config.nyxd_config.chain_details.bech32_account_prefix;
         let wallet = DirectSecp256k1HdWallet::from_mnemonic(prefix, mnemonic);
 
@@ -203,9 +203,10 @@ impl Client<HttpRpcClient> {
     }
 }
 
-impl Client<ReqwestRpcClient> {
+#[allow(deprecated)]
+impl Client<crate::ReqwestRpcClient> {
     pub fn new_reqwest_query(config: Config) -> QueryReqwestRpcValidatorClient {
-        let rpc_client = ReqwestRpcClient::new(config.nyxd_url.clone());
+        let rpc_client = crate::ReqwestRpcClient::new(config.nyxd_url.clone());
         Self::new_with_rpc_client(config, rpc_client)
     }
 }

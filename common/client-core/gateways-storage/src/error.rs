@@ -18,16 +18,6 @@ pub enum BadGateway {
         source: Ed25519RecoveryError,
     },
 
-    #[error("the account owner of gateway {gateway_id} ({raw_owner}) is malformed: {source}")]
-    MalformedGatewayOwnerAccountAddress {
-        gateway_id: String,
-
-        raw_owner: String,
-
-        #[source]
-        source: cosmrs::ErrorReport,
-    },
-
     #[error("the shared keys provided for gateway {gateway_id} are malformed: {source}")]
     MalformedSharedKeys {
         gateway_id: String,
@@ -45,6 +35,14 @@ pub enum BadGateway {
     MalformedListener {
         gateway_id: String,
 
+        raw_listener: String,
+
+        #[source]
+        source: url::ParseError,
+    },
+
+    #[error("the listening address ({raw_listener}) is malformed: {source}")]
+    MalformedListenerNoId {
         raw_listener: String,
 
         #[source]

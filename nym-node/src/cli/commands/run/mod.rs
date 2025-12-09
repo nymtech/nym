@@ -29,7 +29,7 @@ fn check_public_ips(ips: &[IpAddr], local: bool) -> Result<(), NymNodeError> {
         warn!("\n##### WARNING #####");
         for ip in suspicious_ip {
             warn!(
-                "The 'public' IP address you're trying to announce: {ip} may not be accessible to other clients.\
+                "The 'public' IP address you're trying to announce: {ip} may not be accessible to other clients. \
             Please make sure this is what you intended to announce.\
             You can ignore this warning if you're running setup on a local network "
             )

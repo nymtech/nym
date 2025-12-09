@@ -1,3 +1,5 @@
+#[cfg(not(target_arch = "wasm32"))]
+use crate::client::GatewayListeners;
 use crate::error::GatewayClientError;
 
 use nym_http_api_client::HickoryDnsResolver;
@@ -39,7 +41,6 @@ pub(crate) async fn connect_async(
             resolver
                 .resolve_str(domain)
                 .await?
-                .into_iter()
                 .map(|a| SocketAddr::new(a, port))
                 .collect()
         }
@@ -85,4 +86,36 @@ pub(crate) async fn connect_async(
             address: endpoint.to_owned(),
             source: Box::new(error),
         })
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) async fn connect_async_with_fallback(
+    endpoints: &GatewayListeners,
+    #[cfg(unix)] connection_fd_callback: Option<Arc<dyn Fn(RawFd) + Send + Sync>>,
+) -> Result<(WebSocketStream<MaybeTlsStream<TcpStream>>, Response), GatewayClientError> {
+    match connect_async(
+        endpoints.primary.as_ref(),
+        #[cfg(unix)]
+        connection_fd_callback.clone(),
+    )
+    .await
+    {
+        Ok(inner) => Ok(inner),
+        Err(e) => {
+            if let Some(fallback) = &endpoints.fallback {
+                tracing::warn!(
+                    "Main endpoint failed {} : {e}, trying fallback : {fallback}",
+                    endpoints.primary
+                );
+                connect_async(
+                    fallback.as_ref(),
+                    #[cfg(unix)]
+                    connection_fd_callback,
+                )
+                .await
+            } else {
+                Err(e)
+            }
+        }
+    }
 }

@@ -54,7 +54,7 @@ pub enum GatewayClientError {
 
     #[cfg(not(target_arch = "wasm32"))]
     #[error("resolution failed: {0}")]
-    ResolutionFailed(#[from] nym_http_api_client::HickoryDnsError),
+    ResolutionFailed(#[from] nym_http_api_client::ResolveError),
 
     #[error("No shared key was provided or obtained")]
     NoSharedKeyAvailable,
@@ -82,6 +82,9 @@ pub enum GatewayClientError {
 
     #[error("Client is not authenticated")]
     NotAuthenticated,
+
+    #[error("Client is not registered")]
+    NotRegistered,
 
     #[error("Client does not have enough bandwidth: estimated {0}, remaining: {1}")]
     NotEnoughBandwidth(i64, i64),
@@ -116,8 +119,8 @@ pub enum GatewayClientError {
     #[error("Failed to send mixnet message")]
     MixnetMsgSenderFailedToSend,
 
-    #[error("Attempted to negotiate connection with gateway using incompatible protocol version. Ours is {current} and the gateway reports {gateway:?}")]
-    IncompatibleProtocol { gateway: Option<u8>, current: u8 },
+    #[error("Attempted to negotiate connection with gateway using incompatible protocol version. Ours is {current} and the gateway reports {gateway}")]
+    IncompatibleProtocol { gateway: u8, current: u8 },
 
     #[error(
         "The packet router hasn't been set - are you sure you started up the client correctly?"
@@ -128,6 +131,9 @@ pub enum GatewayClientError {
         "this operation couldn't be completed as the program is in the process of shutting down"
     )]
     ShutdownInProgress,
+
+    #[error("the system is an unexpected upgrade mode state")]
+    UnexpectedUpgradeModeState,
 }
 
 impl From<WsError> for GatewayClientError {

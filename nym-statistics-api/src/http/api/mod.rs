@@ -24,7 +24,7 @@ impl RouterBuilder {
             )
             .route(
                 "/",
-                axum::routing::get(|| async { Redirect::permanent("/swagger") }), // SW let's redirect to a blogpost explaining the stats collection process once it exists
+                axum::routing::get(|| async { Redirect::permanent("/swagger") }),
             )
             .nest("/v1", Router::new().nest("/stats", stats::routes()));
 

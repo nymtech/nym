@@ -352,16 +352,17 @@ pub fn client_defaults(input: TokenStream) -> TokenStream {
     }
 
     // Debug logging injected into the generated closure, gated by the
-    // *target crate's* `debug-inventory` feature.
-    let debug_block = quote! {
-        #[cfg(feature = "debug-inventory")]
-        {
+    // *macro crate's* `debug-inventory` feature (checked at expansion time).
+    let debug_block = if cfg!(feature = "debug-inventory") {
+        quote! {
             eprintln!(
                 "[HTTP-INVENTORY] Applying: {} (priority={})",
                 #description,
                 #priority
             );
         }
+    } else {
+        quote! {}
     };
 
     // `apply` is a capture-free closure; it will coerce to a fn pointer

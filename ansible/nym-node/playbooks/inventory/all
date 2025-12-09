@@ -1,10 +1,10 @@
 [nym_nodes]
-# remove all comments and exxchange the <VARIABLES> with your real values for each node
+# remove all comments and exchange the <VARIABLES> with your real values for each node
 # anything global can be set in the group_vars/all.yml like:
 # `email`, `ansible_user`, `moniker`, `description` 
 # required values: `ansible_host`, `hostname`, `location`, `mode`, `wireguard_enabled`
 #
-# node1 ansible_host=<YOUR_SERVER_IP> ansible_user=<USER> hostname=<HOSTNAME> location=<LOCATION> email=<EMAIL> mode=<MODE> wireguard_enabled=<true/false> moniker=<MONIKER> description=<DESCRIPTION>>
+# node1 ansible_host=<YOUR_SERVER_IP> ansible_user=<USER> hostname=<HOSTNAME> location=<LOCATION> email=<EMAIL> mode=<MODE> wireguard_enabled=<true/false> moniker=<MONIKER> description=<DESCRIPTION>
 #
 # anything setup globaly can be overwritten  
 # if provided here, it overwrites the global setting per node

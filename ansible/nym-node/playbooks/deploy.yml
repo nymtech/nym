@@ -6,5 +6,5 @@
     - base
     - nym
     - nginx
-    - tunnel # comment for mixnode
-    - quic # comment for mixnode or non-wireguard gateway
+    - tunnel # comment out for mixnode
+    - quic   # comment out for mixnode or non-wireguard gateway

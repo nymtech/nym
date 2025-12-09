@@ -1,16 +1,28 @@
+import { Callout } from 'nextra/components';
+import { Tabs } from 'nextra/components';
+import { Steps } from 'nextra/components';
+import { RunTabs } from 'components/operators/nodes/node-run-command-tabs';
+import { VarInfo } from 'components/variable-info.tsx';
+
 # Orchestrating Nym Nodes with Ansible
 
-[Ansible](https://docs.ansible.com/) is an open-source automation engine that can perform any IT task and remove complexity from workflows. Ansible ensures that your environment is exactly as you describe it. You can automate any command with Ansible to make your system maintenance very efficient. **For `nym-node` operators Ansible is particularly useful as it can scale infinitely the amount of nodes operators can setup, upgrade, maintain and re-configure from their local shell, removing the complexity and required time when managing many nodes.**
+<VarInfo />
 
-Ansible is more suitable for skilled power users managing multiple nodes at the same time!** 
+[Ansible](https://docs.ansible.com/) is an open-source automation engine that can perform IT tasks and remove complexity from workflows. Ansible ensures that your environment is exactly as you describe it. You can automate any command with Ansible to make your system maintenance very efficient. **For `nym-node` operators Ansible is particularly useful as it can scale infinitely the amount of nodes operators can setup, bond, upgrade, maintain and re-configure from their local shell, removing the complexity and required time when managing many nodes one by one.**
 
-If you are not familiar with Ansible, your node operation may be a good motivation to learn something new and improve your admin skills, it's worth the time. 
+
+<Callout type="warning" emoji="⚠️">
+**This setup should be used only by operators who understand `nym-node` administration and [requirements](/operators/nodes#minimum-requirements)**
+
+**Ansible is more suitable for skilled power users managing multiple nodes at the same time!** 
+</Callout>
+
+If you are not familiar with Ansible, operating Nym nodes may be a good motivation to learn something new and improve your admin skills, it's worth the time. 
 
 Start by reading through [Ansible documentation pages](https://docs.ansible.com)
 
 
 ## Installation
-
 
 ### Ansible installation
 
@@ -52,43 +64,199 @@ git pull origin develop
 
 You may want to create a directory outside of the repository and move the template there so it can be modified without risking that your configuration will be accidentally shared when working with the repository in the future. 
 
-- Navigate to any location and create a directory for your Ansible `nym-node` work:
+- Navigate to any location and create a directory for your Ansible `nym-node` playbook:
 ```sh
 cd <PATH>
 mkdir `ansible`
 cd ansible
+```
+
 - Copy the template to the newly created location:
 ```sh
 cp -r <PATH>/nym/ansible/nym-node ./
 ```
 
-
+Now you have the template of Ansible playbook for `nym-node` remote administration. To make it work, there are a few variables requiring your attention. 
 
 ## Configuration
 
+After [getting the ansible Nym node playbpook](#ansible-installation) to your location, it's time to configure it for your own needs. 
 
-Idempotency
+> Mind that *idempotency* is an essential character when dealing with orchestration. A playbook, even when run many times should ensure that state of your targeted system will not change from what you intended. Therefore, it is important to make sure that all tasks in your playbook do not change the system in any way if the change you required has already been applied.
 
-A well-written playbook ensures that even if the playbook is run multiple times, the state will not change from what you wrote it for. For this reason, it is essential to ensure that all tasks in your playbook do not change the system in any way if the change you required has already been applied.
+<Callout type="warning" emoji="⚠️">
+Before starting Ansible, ensure that your `A` and `AAAA` records are pointed to your server IPs and propagated. Good test is to be able to ping them or use them for ssh into the server.
+</ Callout>
 
+**Open your local copy of the playbook in your favourite text editor and begin with these steps:**
+
+<Steps>
+###### 1. Configure global variables:
+- Open `playbooks/group_vars/all.yml`
+- Setup any variables which you want to have propagated on all your nodes globally
+- Note that in the next step we will be setting up a node inventory, where each of the variable can be configured per node, taking priority over the global ones.
+- Setup a correct path for your SSH kety to `ansible_ssh_private_key_file:`
+- Use these variables or comment them out with `#`:
+    - `ansible_user`
+    - `email`
+    - `website`
+    - `description`
+- Keep `hostname=""` as a fallback for nodes without a hostname
+
+###### 2. Create node inventory:
+- Open `playbooks/inventory/all`
+- Make an entry for each of your node:
+```sh
+node1 ansible_host=<YOUR_SERVER_IP> ansible_user=<USER> hostname=<HOSTNAME> location=<LOCATION> email=<EMAIL> mode=<MODE> wireguard_enabled=<true/false> moniker=<MONIKER> description=<DESCRIPTION>
+```
+- These are mandatory values specific for each node - must be defined in the inventory:
+    - `ansible_host`: IPv4 host address
+    - `hostname`: node domain, otherwise fallbacks to `""` for nodes without domain
+    - `location`: node server location
+- These are mandatory values which can be setup per node or in `group_vars/all` globally:
+    - `ansible_user`
+    - `email`
+    - `website`
+    - `moniker`
+    - `description`
+    - `mode`
+    - `wireguard_enabled`
+
+###### 3. Test your setup
+Run this command to check if everything is configured correctly in your inventory:
 ```sh
 cd playbooks
 ansible-inventory --graph
-ansible-playbook upgrade.yml
-
-
-ansible-playbook upgrade.yml -l node1
-
-ansible-playbook upgrade.yml -l "node1,node2"
-
-
-Or a regex:
-
-ansible-playbook upgrade.yml -l "nyc-*"
 ```
 
+###### 4. Configure `nym-node run` command arguments
+Open `roles/nym/defaults/main.yml` and have a look on the variables used:
+
+- If you agree with [Terms and conditions](/operators/nodes/nym-node/setup#terms--conditions) uncomment the line: `accept_operator_terms: true` without which your node can never take part in Nym Network. 
+- The rest is up to your configuration but generally these flags workflows
+
+These variables are read by the main task for `nym-node` installation: `roles/nym/tasks/config.yaml`
+- Open that yaml and have a look on the flags
+- In case of not needing some of the, delete them (ie when running `--mode mixnode` you can delete everything from `--hostname` to `--announce-wss-port`)
+
+###### 5. Configure `deploy.yml` playbook
+Open `playbooks/deploy.yml` and comment out `tunnel` and `quic` roles in case of running your playbook for nodes in a mode `mixnode`.
+
+Save all the files and test with:
+```sh
+cd playbooks
+ansible-inventory --graph
+```
+
+Right now you should be ready to go.
+</Steps>
+
+## Flow & Usage
+
+This chapter describes fundamental commands for using Ansible playbooks in relation to orchestrating multiple servers running a `nym-node`. For a full understanding of Ansible usage, read [Ansible documentation pages](https://docs.ansible.com).
+
+### Logic
+
+The main logic of the playbook flow when running with a basic command and playbook like this:
+```sh
+ansible-playbook <PLAYBOOK>.yml
+```
+<Steps>
+###### 1. Read inventory
+Ansible parses `inventory/all` and performs the playbook on all entries in it, unless specified otherwise
+
+###### 2. Read global vars
+Ansible parses `group_vars/all.yml` and asigns global variables to all inventory entries, unless they were defined in the inventory.
+
+**Variables defined in the inventory per entry take highest priority!**
+
+###### 3. Follow roles in the playbook
+Ansible reads the roles defined in `<PLAYBOOK>.yml` passed with the command and executes the tasks defined under each role
+
+<Steps/>
+
+### Usage
+
+The simpliest way is to run `ansible-playbook` binary with a provided playbook as a command. That will do the defined roles on all entries in the inventory. In Nym we currently have these playbooks:
+
+<Steps>
+
+###### 1. Deploy
+
+A playbook to deploy server and `nym-node` from scratch, configuring networking, routing, firewall, systemd, bridges, reverse proxy, exit policy and all required tasks.  
+
+This playbook will run roles on all the inventory entries in parallel by default.
+
+```sh
+cd playbooks
+ansible-playbook deploy.yml
+```
+
+###### 2. Bond
+
+A playbook to interactively register your node to Nym network by bonding it to Nyx blockchain account.
+
+This playbook is intercative as it prompts user for data from Nym wallet to sign a message. It will run roles on one inventory entry at a time by default.
+
+```sh
+cd playbooks
+ansible-playbook bond.yml
+```
+
+###### 3. upgrade
+
+A playbook to upgrade `nym-node` binary to the *Latest* by default. Operators can hard code a specific binary version in `roles/upgrade/defaults/main.yml` by un-commenting the `nym-version` line and providing their desired version. 
+
+This playbook will run roles on all the inventory entries in parallel by default.
+
+```sh
+cd playbooks
+ansible-playbook upgrade.yml
+```
+
+</ Steps>
+
+
+### Useful Commands
+
+[Ansible](https://docs.ansible.com) has many smart ways to manage your playbooks, roles or inventory entries. 
+
+**Here are some useful tips:**
+
+<Steps>
+
+###### One node at a time
+To test new configuration, it's advised to try it on one server at first. Of course you can comment out any entries in the inventory, but there are easier ways to do it. 
+
+- Provide flag `-l` followed by innventory entry and Ansible will change state only of that entry:
+
+- Some possibilities are (in example we use upgrade.yml, you can use any playbook):
+```sh
+# point to one entry
+ansible-playbook upgrade.yml -l node1
+
+# point to multiple entries
+ansible-playbook upgrade.yml -l "node1,node2"
+
+# use regex
+ansible-playbook upgrade.yml -l "*exit*"
+```
+
+###### Role limit
+
+Sometimes you may want to run just one role at a time, for that use `-q`, for example:
+```sh
+# in case of wanting to run only quic deployment role
+ansible-playbook deploy.yml -t quic
+
+# in case of running the same on only one node
+ansible-playbook deploy.yml -l node2 -t quic
+```
+
+###### nocows
+
+Yes, by default there is a cow printed under each task, you can turn it off by opening `playbooks/ansible.cfg` and un-commenting the `nocows` line:
 
 ```cfg
 nocows = 1
 ```
-

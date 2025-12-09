@@ -12,7 +12,8 @@ use crate::storage::NYM_PERFORMANCE_CONTRACT_STORAGE;
 use crate::transactions::{
     try_authorise_network_monitor, try_batch_submit_performance_results,
     try_define_measurement_kind, try_remove_epoch_measurements, try_remove_node_measurements,
-    try_retire_network_monitor, try_submit_performance_results, try_update_contract_admin,
+    try_retire_measurement_kind, try_retire_network_monitor, try_submit_performance_results,
+    try_update_contract_admin,
 };
 use cosmwasm_std::{
     Binary, Deps, DepsMut, Env, MessageInfo, Response, entry_point, to_json_binary,
@@ -63,13 +64,12 @@ pub fn execute(
         ExecuteMsg::BatchSubmit { epoch, data } => {
             try_batch_submit_performance_results(deps, env, info, epoch, data)
         }
-        // TODO dz implement
-        ExecuteMsg::BatchSubmitSpecific { epoch, data } => todo!(),
         ExecuteMsg::DefineMeasurementKind { measurement_kind } => {
-            try_define_measurement_kind(deps, info, measurement_kind)
+            try_define_measurement_kind(deps, &info.sender, measurement_kind)
         }
-        // TODO dz implement
-        ExecuteMsg::RetireMeasurementKind { measurement_kind } => todo!(),
+        ExecuteMsg::RetireMeasurementKind { measurement_kind } => {
+            try_retire_measurement_kind(deps, &info.sender, measurement_kind)
+        }
         ExecuteMsg::AuthoriseNetworkMonitor { address } => {
             try_authorise_network_monitor(deps, env, info, address)
         }

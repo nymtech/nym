@@ -634,6 +634,24 @@ impl PerformanceResultsStorage {
             .map_err(From::from)
     }
 
+    /// assumes authorization had been performed
+    pub fn retire_measurement_kind(
+        &self,
+        storage: &mut dyn Storage,
+        measurement_kind: MeasurementKind,
+    ) -> Result<(), NymPerformanceContractError> {
+        if !self.is_measurement_defined(storage, measurement_kind.clone())? {
+            return Err(NymPerformanceContractError::InvalidInput(format!(
+                "Invalid input: measurement {} not defined",
+                &measurement_kind
+            )));
+        }
+
+        self.defined_measurements.remove(storage, measurement_kind);
+
+        Ok(())
+    }
+
     fn update_submission_metadata(
         &self,
         storage: &mut dyn Storage,
@@ -1309,7 +1327,7 @@ mod tests {
                     NodePerformanceSpecific {
                         node_id: nodes[8],
                         performance: Default::default(),
-                        measurement_kind: measurement_kind,
+                        measurement_kind,
                     },
                 )?;
                 let metadata = storage

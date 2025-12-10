@@ -89,13 +89,15 @@ WG_INTERFACE="${WG_INTERFACE:-nymwg}"
 
 # Function to detect and validate uplink interface
 detect_uplink_interface() {
+  local aflag="$1"                  # -4 or -6
+  local etyp="ahosts${aflag//-/v}"  # ahostsv4 or ahostsv6
   local host="$2"
-  local ip
-  local dev
+  local ip dev
 
-  ip="$(getent ahosts${1//-/v} "$host" 2>/dev/null | awk '$2=="STREAM" {print $1}' | head -n1 || true)"
-  dev="$(ip $1 -o route get "$ip" 2>/dev/null | awk '{print $5}' || true)"
-
+  ip="$(getent "$etyp" "$host" 2>/dev/null | awk '$2=="STREAM" {print $1}' | head -n1 || true)"
+  if [[ -n "$ip" ]]; then
+    dev="$(ip "$aflag" -o route get "$ip" 2>/dev/null | awk '{print $5}' || true)"
+  fi
   if [[ -n "$dev" && "$dev" =~ ^[a-zA-Z0-9._-]+$ ]]; then
     echo "$dev"
   else

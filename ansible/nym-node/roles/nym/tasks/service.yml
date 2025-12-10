@@ -1,0 +1,15 @@
+---
+- name: Template systemd service
+  tags: systemctl
+  template:
+    src: nym-node.service.j2
+    dest: /etc/systemd/system/nym-node.service
+  notify: Reload systemd
+
+- name: Enable and start nym service
+  tags: systemctl
+  systemd:
+    name: nym-node
+    enabled: yes
+    state: started
+    daemon_reload: yes

@@ -1,0 +1,34 @@
+[nym_nodes]
+# READ CONFIGURATION GUIDE:
+# https://nym.com//docs/operators/orchestration/ansible#configuration
+
+# VARIABLES INFO
+# required vars to set values per node: 
+# `ansible_host`, `hostname`, `location`
+
+# global vars can be set in the group_vars/all.yml, for example:
+# `email`, `ansible_user`, `moniker`, `description`,  `mode`, `wireguard_enabled`
+# othersise they must be set per node!
+
+############
+# TEMPLATE #
+############
+# node1 ansible_host=<YOUR_SERVER_IP> ansible_user=<USER> hostname=<HOSTNAME> location=<LOCATION> email=<EMAIL> mode=<MODE> wireguard_enabled=<true/false> moniker=<MONIKER> description=<DESCRIPTION>
+
+# remove all comments and exchange the <VARIABLES> with your real values for each node
+# without <> brackets
+
+# PRIORITY ORDER
+# anything setup globaly can be overwritten in this file per node  
+# if provided here, it takes priority over the global setting
+
+# EXAMPLES
+# exit + wireguard gateway:
+# node2 ansible_host=11.12.13.14 hostname=nym-exit.ch-1.mydomain.net mode=exit-gateway location=CH wireguard_enabled=true
+
+# entry gateway, no wireguard:
+# node3 ansible_host=12.13.14.15 hostname=nym-entry.ch-2.mydomain.net mode=entry-gateway location=CH wireguard_enabled=false
+
+# NOTE:
+# all examples above don't have defined user, email nor description as we use the definition from group_vars/main.yml without an attempt of overwriting it
+# all examples above don't have moniker defined as there is a function in /templates/description.toml.j2 deriving it from the hostname

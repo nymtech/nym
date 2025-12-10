@@ -1,0 +1,61 @@
+- name: Install nginx and certbot
+  apt:
+    name:
+      - nginx
+      - certbot
+      - python3-certbot-nginx
+    state: present
+
+- name: Create web root directory
+  file:
+    path: "/var/www/{{ hostname }}"
+    state: directory
+    mode: "0755"
+
+- name: Create landing page template
+  tags: landing
+  template:
+    src: landing.html.j2
+    dest: "/var/www/{{ hostname }}/index.html"
+
+- name: Remove default nginx site
+  file:
+    path: /etc/nginx/sites-enabled/default
+    state: absent
+
+- name: Add bare-bones nginx template
+  template:
+    src: nginx-site.conf.j2
+    dest: "/etc/nginx/sites-available/{{ hostname }}"
+
+- name: Enable nginx config
+  file:
+    src: "/etc/nginx/sites-available/{{ hostname }}"
+    dest: "/etc/nginx/sites-enabled/{{ hostname }}"
+    state: link
+
+- name: Validate nginx configuration
+  command: nginx -t
+  changed_when: false
+
+- name: Obtain SSL certificate
+  command:
+    cmd: "certbot --nginx --non-interactive --agree-tos --redirect -m {{ email }} -d {{ hostname }}"
+
+- name: Add wss config from nginx template
+  template:
+    src: wss-config.conf.j2
+    dest: "/etc/nginx/sites-available/nym-wss-config"
+
+- name: Enable WSS config
+  file:
+    src: "/etc/nginx/sites-available/nym-wss-config"
+    dest: "/etc/nginx/sites-enabled/nym-wss-config"
+    state: link
+
+- name: Validate nginx config after wss
+  command: nginx -t
+  changed_when: false
+
+- name: Restart nginx to apply changes
+  service: name=nginx state=restarted enabled=yes

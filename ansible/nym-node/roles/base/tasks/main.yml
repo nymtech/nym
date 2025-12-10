@@ -1,0 +1,22 @@
+- name: Set hostname
+  hostname:
+    name: "{{ hostname }}"
+  when: hostname is defined and hostname | length > 0
+
+- name: Install aptitude 
+  apt:
+    name: aptitude
+    update_cache: yes
+    state: present
+    force_apt_get: yes
+
+- name: Update packages
+  apt:
+    update_cache: yes
+    upgrade: yes
+    
+- name: Install essential packages
+  package:
+    name: "{{ packages }}"
+    state: latest
+    update_cache: yes

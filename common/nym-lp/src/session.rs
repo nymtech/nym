@@ -15,6 +15,7 @@ use crate::replay::ReceivingKeyCounterValidator;
 use crate::{LpError, LpMessage, LpPacket};
 use nym_crypto::asymmetric::ed25519;
 use nym_kkt::ciphersuite::{DecapsulationKey, EncapsulationKey};
+use nym_kkt::kkt::handle_kem_request;
 use parking_lot::Mutex;
 use snow::Builder;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
@@ -44,6 +45,7 @@ pub enum KKTState {
     InitiatorWaiting {
         /// KKT context for verifying the response
         context: nym_kkt::context::KKTContext,
+        session_secret: nym_kkt::encryption::KKTSessionSecret,
     },
 
     /// KKT exchange completed (initiator received and validated KEM key).
@@ -61,7 +63,7 @@ impl std::fmt::Debug for KKTState {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::NotStarted => write!(f, "KKTState::NotStarted"),
-            Self::InitiatorWaiting { context } => f
+            Self::InitiatorWaiting { context, .. } => f
                 .debug_struct("KKTState::InitiatorWaiting")
                 .field("context", context)
                 .finish(),
@@ -429,13 +431,19 @@ impl LpSession {
         };
 
         let mut rng = rand09::rng();
-        match request_kem_key(&mut rng, ciphersuite, &self.local_ed25519_private) {
-            Ok((context, request_frame)) => {
+        match request_kem_key(
+            &mut rng,
+            ciphersuite,
+            &self.local_ed25519_private,
+            &self.remote_x25519_public,
+        ) {
+            Ok((session_secret, context, request_bytes)) => {
                 // Store context for response validation
-                *kkt_state = KKTState::InitiatorWaiting { context };
+                *kkt_state = KKTState::InitiatorWaiting {
+                    context,
+                    session_secret,
+                };
 
-                // Serialize KKT frame to bytes
-                let request_bytes = request_frame.to_bytes();
                 Some(Ok(LpMessage::KKTRequest(crate::message::KKTRequestData(
                     request_bytes,
                 ))))
@@ -480,9 +488,12 @@ impl LpSession {
 
         let mut kkt_state = self.kkt_state.lock();
 
-        // Extract context from waiting state
-        let mut context = match &*kkt_state {
-            KKTState::InitiatorWaiting { context } => *context,
+        // Extract session secret and context from waiting state
+        let (mut context, session_secret) = match &*kkt_state {
+            KKTState::InitiatorWaiting {
+                context,
+                session_secret,
+            } => (*context, *session_secret),
             _ => {
                 return Err(LpError::Internal(
                     "KKT response received in invalid state".to_string(),
@@ -515,6 +526,7 @@ impl LpSession {
         // Validate response and extract KEM key
         let kem_pk = validate_kem_response(
             &mut context,
+            &session_secret,
             &self.remote_ed25519_public,
             hash_ref,
             response_bytes,
@@ -548,20 +560,15 @@ impl LpSession {
         request_bytes: &[u8],
         responder_kem_pk: &EncapsulationKey,
     ) -> Result<LpMessage, LpError> {
-        use nym_kkt::{frame::KKTFrame, kkt::handle_kem_request};
-
         let mut kkt_state = self.kkt_state.lock();
 
-        // Deserialize request frame
-        let (request_frame, _) = KKTFrame::from_bytes(request_bytes).map_err(|e| {
-            LpError::Internal(format!("KKT request deserialization failed: {:?}", e))
-        })?;
-
         // Handle request and create signed response
-        let response_frame = handle_kem_request(
-            &request_frame,
+        let response_bytes = handle_kem_request(
+            &mut rand09::rng(),
+            &request_bytes,
             Some(&self.remote_ed25519_public), // Verify initiator signature
-            &self.local_ed25519_private,       // Sign response
+            &self.local_ed25519_private,
+            &self.local_x25519_private, // Sign response
             responder_kem_pk,
         )
         .map_err(|e| LpError::Internal(format!("KKT request handling failed: {:?}", e)))?;
@@ -571,7 +578,6 @@ impl LpSession {
         *kkt_state = KKTState::ResponderProcessed;
 
         // Serialize response frame
-        let response_bytes = response_frame.to_bytes();
 
         Ok(LpMessage::KKTResponse(crate::message::KKTResponseData(
             response_bytes,

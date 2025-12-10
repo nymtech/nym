@@ -3,6 +3,7 @@
 
 use crate::{noise_protocol::NoiseError, replay::ReplayError};
 use nym_crypto::asymmetric::ed25519::Ed25519RecoveryError;
+use nym_kkt::error::KKTError;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -78,4 +79,10 @@ pub enum LpError {
     /// Ed25519 to X25519 conversion error.
     #[error("Ed25519 key conversion error: {0}")]
     Ed25519RecoveryError(#[from] Ed25519RecoveryError),
+}
+
+impl From<KKTError> for LpError {
+    fn from(err: KKTError) -> Self {
+        err.into()
+    }
 }

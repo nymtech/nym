@@ -10,7 +10,9 @@
 # `email`, `ansible_user`, `moniker`, `description`,  `mode`, `wireguard_enabled`
 # othersise they must be set per node!
 
-# TEMPLATE
+############
+# TEMPLATE #
+############
 # node1 ansible_host=<YOUR_SERVER_IP> ansible_user=<USER> hostname=<HOSTNAME> location=<LOCATION> email=<EMAIL> mode=<MODE> wireguard_enabled=<true/false> moniker=<MONIKER> description=<DESCRIPTION>
 
 # remove all comments and exchange the <VARIABLES> with your real values for each node
@@ -18,7 +20,7 @@
 
 # PRIORITY ORDER
 # anything setup globaly can be overwritten in this file per node  
-# if provided here, it takes priority the global setting
+# if provided here, it takes priority over the global setting
 
 # EXAMPLES
 # exit + wireguard gateway:

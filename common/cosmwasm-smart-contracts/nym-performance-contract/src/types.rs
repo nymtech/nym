@@ -23,7 +23,7 @@ pub struct LastSubmission {
 pub struct LastSubmittedData {
     pub sender: Addr,
     pub epoch_id: EpochId,
-    pub data: NodePerformanceSpecific,
+    pub data: NodePerformance,
 }
 
 #[cw_serde]
@@ -50,14 +50,13 @@ pub struct RetiredNetworkMonitor {
     pub retired_at_height: u64,
 }
 
-// TODO dz remove specific from name
 #[cw_serde]
-pub struct NodePerformanceSpecific {
+pub struct NodePerformance {
     #[serde(rename = "n")]
     pub node_id: NodeId,
 
     #[serde(rename = "m")]
-    pub measurement_kind: String,
+    pub measurement_kind: MeasurementKind,
 
     // note: value is rounded to 2 decimal places.
     #[serde(rename = "p")]
@@ -106,13 +105,17 @@ impl NodeResults {
     }
 }
 
+pub type MeasurementKind = String;
+
+/// maps measurement kind to the value of that measurement for a node
+/// (present only if measured)
 #[cw_serde]
 pub struct NodePerformanceResponse {
-    pub performance: Option<Percent>,
+    pub performance: HashMap<MeasurementKind, Percent>,
 }
 
 #[cw_serde]
-pub struct NodeMeasurementsResponse {
+pub struct NodeMeasurementsPerKindResponse {
     pub measurements: Option<NodeResults>,
 }
 
@@ -120,14 +123,13 @@ pub struct NodeMeasurementsResponse {
 pub struct AllNodeMeasurementsResponse {
     // Option is used because if a measurement has been defined, that doesn't
     // mean the node had actually been measured at the time of the query
-    pub measurements: HashMap<String, Option<NodeResults>>,
+    pub measurements: HashMap<MeasurementKind, Option<NodeResults>>,
 }
 
 #[cw_serde]
-#[derive(Copy)]
 pub struct EpochNodePerformance {
     pub epoch: EpochId,
-    pub performance: Option<Percent>,
+    pub performance: HashMap<MeasurementKind, Percent>,
 }
 
 #[cw_serde]
@@ -140,20 +142,20 @@ pub struct NodePerformancePagedResponse {
 #[cw_serde]
 pub struct EpochPerformancePagedResponse {
     pub epoch_id: EpochId,
-    pub performance: Vec<NodePerformanceSpecific>,
+    pub performance: Vec<NodePerformance>,
     pub start_next_after: Option<NodeId>,
 }
 
 #[cw_serde]
-pub struct NodeMeasurement {
+pub struct NodeMeasurements {
     pub node_id: NodeId,
-    pub measurements: NodeResults,
+    pub measurements_per_kind: HashMap<String, NodeResults>,
 }
 
 #[cw_serde]
 pub struct EpochMeasurementsPagedResponse {
     pub epoch_id: EpochId,
-    pub measurements: Vec<NodeMeasurement>,
+    pub measurements: Vec<NodeMeasurements>,
     pub start_next_after: Option<NodeId>,
 }
 

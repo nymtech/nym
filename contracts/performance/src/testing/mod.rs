@@ -27,8 +27,8 @@ use nym_mixnet_contract_common::{
 };
 use nym_performance_contract_common::constants::storage_keys;
 use nym_performance_contract_common::{
-    ExecuteMsg, InstantiateMsg, MigrateMsg, NodeId, NodePerformanceSpecific, NodeResults,
-    NymPerformanceContractError, QueryMsg,
+    EpochNodePerformance, ExecuteMsg, InstantiateMsg, MigrateMsg, NodeId, NodePerformance,
+    NodeResults, NymPerformanceContractError, QueryMsg,
 };
 use serde::Serialize;
 use serde::de::DeserializeOwned;
@@ -92,6 +92,20 @@ impl TestableNymContract for PerformanceContract {
 pub fn init_contract_tester() -> ContractTester<PerformanceContract> {
     PerformanceContract::init()
         .with_common_storage_key(CommonStorageKeys::Admin, storage_keys::CONTRACT_ADMIN)
+}
+
+#[cfg(test)]
+// shorthand factory to avoid verbosity in tests
+pub(crate) fn epoch_node_performance_unchecked(
+    epoch: EpochId,
+    measurement_kind: MeasurementKind,
+    performance: &str,
+) -> EpochNodePerformance {
+    let performance = performance.parse().unwrap();
+    EpochNodePerformance {
+        epoch,
+        performance: [(measurement_kind, performance)].into_iter().collect(),
+    }
 }
 
 // we need to be able to test instantiation, but for that we require
@@ -378,10 +392,10 @@ pub(crate) trait PerformanceContractTesterExt:
         Ok(measurement_kind)
     }
 
-    fn dummy_node_performance(&mut self) -> NodePerformanceSpecific {
+    fn dummy_node_performance(&mut self) -> NodePerformance {
         let node_id = self.bond_dummy_nymnode().unwrap();
         let measurement_kind = self.dummy_measurement_kind();
-        NodePerformanceSpecific {
+        NodePerformance {
             node_id,
             performance: Percent::from_percentage_value(69).unwrap(),
             measurement_kind,
@@ -413,7 +427,7 @@ pub(crate) trait PerformanceContractTesterExt:
             env,
             addr,
             epoch_id,
-            NodePerformanceSpecific {
+            NodePerformance {
                 node_id,
                 performance,
                 measurement_kind,
@@ -455,11 +469,12 @@ pub(crate) trait PerformanceContractTesterExt:
         &self,
         epoch_id: EpochId,
         node_id: NodeId,
+        measurement_kind: MeasurementKind,
     ) -> Result<NodeResults, NymPerformanceContractError> {
         let scores = NYM_PERFORMANCE_CONTRACT_STORAGE
             .performance_results
             .results
-            .load(self.deps().storage, (epoch_id, node_id))?;
+            .load(self.deps().storage, (epoch_id, node_id, measurement_kind))?;
         Ok(scores)
     }
 

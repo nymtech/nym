@@ -1,14 +1,14 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{EpochId, NodeId, NodePerformanceSpecific};
+use crate::{EpochId, NodeId, NodePerformance};
 use cosmwasm_schema::cw_serde;
 
 #[cfg(feature = "schema")]
 use crate::types::{
     EpochMeasurementsPagedResponse, EpochPerformancePagedResponse,
     FullHistoricalPerformancePagedResponse, LastSubmission, NetworkMonitorResponse,
-    NetworkMonitorsPagedResponse, NodeMeasurementsResponse, NodePerformancePagedResponse,
+    NetworkMonitorsPagedResponse, NodeMeasurementsPerKindResponse, NodePerformancePagedResponse,
     NodePerformanceResponse, RetiredNetworkMonitorsPagedResponse,
 };
 
@@ -23,17 +23,16 @@ pub enum ExecuteMsg {
     /// Change the admin
     UpdateAdmin { admin: String },
 
-    // TODO dz rename to remove speicifc suffix
     /// Attempt to submit performance data of a particular node for given epoch
-    SubmitSpecific {
+    Submit {
         epoch: EpochId,
-        data: NodePerformanceSpecific,
+        data: NodePerformance,
     },
 
     /// Attempt to submit performance data of a batch of nodes for given epoch
     BatchSubmit {
         epoch: EpochId,
-        data: Vec<NodePerformanceSpecific>,
+        data: Vec<NodePerformance>,
     },
 
     /// Measurement kind needs to be defined by the admin before measurements of
@@ -78,11 +77,9 @@ pub enum QueryMsg {
         limit: Option<u32>,
     },
 
-    /// Returns all submitted measurements for the particular node
+    /// Returns all measurements of a specific kind for the particular node
     #[cfg_attr(feature = "schema", returns(NodeMeasurementsResponse))]
-    NodeMeasurements { epoch_id: EpochId, node_id: NodeId },
-
-    NodeMeasurementsSpecific {
+    NodeMeasurements {
         epoch_id: EpochId,
         node_id: NodeId,
         kind: String,

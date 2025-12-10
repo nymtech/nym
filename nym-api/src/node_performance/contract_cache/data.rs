@@ -6,7 +6,7 @@ use nym_api_requests::models::RoutingScore;
 use nym_contracts_common::NaiveFloat;
 use nym_mixnet_contract_common::reward_params::Performance;
 use nym_mixnet_contract_common::{EpochId, NodeId};
-use nym_validator_client::nyxd::contract_traits::performance_query_client::NodePerformanceSpecific;
+use nym_validator_client::nyxd::contract_traits::performance_query_client::NodePerformance;
 use std::collections::{BTreeMap, HashMap};
 
 pub(crate) struct PerformanceContractEpochCacheData {
@@ -16,7 +16,7 @@ pub(crate) struct PerformanceContractEpochCacheData {
 
 impl PerformanceContractEpochCacheData {
     pub(crate) fn from_node_performance(
-        performance: Vec<NodePerformanceSpecific>,
+        performance: Vec<NodePerformance>,
         epoch_id: EpochId,
     ) -> Self {
         let median_performance = performance

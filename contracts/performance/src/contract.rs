@@ -4,9 +4,8 @@
 use crate::queries::{
     query_admin, query_all_node_measurements, query_epoch_measurements_paged,
     query_epoch_performance_paged, query_full_historical_performance_paged, query_last_submission,
-    query_network_monitor_details, query_network_monitors_paged, query_node_measurements,
-    query_node_measurements_specific, query_node_performance, query_node_performance_paged,
-    query_retired_network_monitors_paged,
+    query_network_monitor_details, query_network_monitors_paged, query_node_measurements_for_kind,
+    query_node_performance, query_node_performance_paged, query_retired_network_monitors_paged,
 };
 use crate::storage::NYM_PERFORMANCE_CONTRACT_STORAGE;
 use crate::transactions::{
@@ -58,7 +57,7 @@ pub fn execute(
 ) -> Result<Response, NymPerformanceContractError> {
     match msg {
         ExecuteMsg::UpdateAdmin { admin } => try_update_contract_admin(deps, info, admin),
-        ExecuteMsg::SubmitSpecific { epoch, data } => {
+        ExecuteMsg::Submit { epoch, data } => {
             try_submit_performance_results(deps, env, info, epoch, data)
         }
         ExecuteMsg::BatchSubmit { epoch, data } => {
@@ -126,18 +125,12 @@ pub fn query(deps: Deps, _: Env, msg: QueryMsg) -> Result<Binary, NymPerformance
         QueryMsg::RetiredNetworkMonitorsPaged { start_after, limit } => Ok(to_json_binary(
             &query_retired_network_monitors_paged(deps, start_after, limit)?,
         )?),
-        QueryMsg::NodeMeasurements { epoch_id, node_id } => Ok(to_json_binary(
-            &query_node_measurements(deps, epoch_id, node_id)?,
-        )?),
-        QueryMsg::NodeMeasurementsSpecific {
+        QueryMsg::NodeMeasurements {
             epoch_id,
             node_id,
-            kind: measurement_kind,
-        } => Ok(to_json_binary(&query_node_measurements_specific(
-            deps,
-            epoch_id,
-            node_id,
-            measurement_kind,
+            kind,
+        } => Ok(to_json_binary(&query_node_measurements_for_kind(
+            deps, epoch_id, node_id, kind,
         )?)?),
         QueryMsg::AllNodeMeasurements { epoch_id, node_id } => Ok(to_json_binary(
             &query_all_node_measurements(deps, epoch_id, node_id)?,

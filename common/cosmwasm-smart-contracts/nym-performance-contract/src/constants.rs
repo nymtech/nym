@@ -9,7 +9,6 @@ pub mod storage_keys {
     pub const AUTHORISED_COUNT: &str = "authorised-count";
     pub const AUTHORISED: &str = "authorised";
     pub const RETIRED: &str = "retired";
-    pub const PERFORMANCE_RESULTS: &str = "performance-results";
     pub const PERFORMANCE_RESULTS_PER_KIND: &str = "performance-results-per-kind";
     pub const PERFORMANCE_DEFINED_KINDS: &str = "performance-defined-kinds";
 

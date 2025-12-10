@@ -358,6 +358,7 @@ impl HickoryDnsResolver {
         // Always cache successful responses for queries received by this resolver for 30 min minimum.
         opts.positive_min_ttl = Some(DEFAULT_POSITIVE_LOOKUP_CACHE_TTL);
         opts.timeout = DEFAULT_QUERY_TIMEOUT;
+        opts.attempts = 0;
 
         opts
     }

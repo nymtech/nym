@@ -21,7 +21,7 @@ description: "<NODE_PUBLIC_DESCRIPTION>" # or define per node in inventory/all
 # NOTE: Set these vars if you want them globally for all nodes
 # Per node changes in inventory/all will overwrite these global ones:
 hostname: ""            # this is a fallback, keep it and setup hostname per node in inventory/all
-# moniker: "<MONIKER>"
+# moniker: "<MONIKER>"                    # if not setup here not in inventory/all it get's derived from the hostname
 # mode: <MODE>                            # entry-gateway/exit-gateway/mixnode 
 # wireguard_enabled: <WIREGUARD_ENABLED>  # true/false
 

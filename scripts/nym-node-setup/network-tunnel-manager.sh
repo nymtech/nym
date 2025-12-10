@@ -617,6 +617,7 @@ apply_port_allowlist() {
     ["SMBWindowsFileShare"]="445"
     ["Kpasswd"]="464"
     ["RTSP"]="554"
+    ["SMTPSubmission"]="587"
     ["LDAPS"]="636"
     ["SILC"]="706"
     ["KerberosAdmin"]="749"
@@ -679,10 +680,14 @@ apply_port_allowlist() {
     ["MoneroRPC"]="18089"
     ["GoogleVoice"]="19294"
     ["EnsimControlPanel"]="19638"
+    ["Session"]="22021"
     ["DarkFiTor"]="25551"
     ["Minecraft"]="25565"
     ["DarkFi"]="26661"
     ["Steam"]="27000-27050"
+    ["WhatsAppSTUN"]="3478"
+    ["WhatsAppMedia1"]="3480"
+    ["WhatsAppMedia2"]="3484"
     ["ElectrumSSL"]="50002"
     ["MOSH"]="60000-61000"
     ["Mumble"]="64738"
@@ -1002,6 +1007,7 @@ test_port_range_rules() {
     "8232-8233:tcp:zcash"
     "8332-8333:tcp:bitcoin"
     "18080-18081:tcp:monero"
+    "3478-3484:tcp:whatsup"
   )
 
   local failures=0

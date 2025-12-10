@@ -573,9 +573,10 @@ class NodeSetupCLI:
         """Main function called by argparser command install running full node install flow"""
         self.ensure_env_values(args)
         # Pass uplink override to all helper scripts if provided
-        if getattr(args, "uplink_dev", None):
-            os.environ["UPLINK_DEV"] = args.uplink_dev
-            os.environ["NETWORK_DEVICE"] = args.uplink_dev
+        if getattr(args, "uplink_dev_v4", None):
+            os.environ["IPV4_UPLINK_DEV"] = args.uplink_dev_v4
+        if getattr(args, "uplink_dev_v6", None):
+            os.environ["IPV6_UPLINK_DEV"] = args.uplink_dev_v6
         self.run_script(self.prereqs_install_sh)
         self.run_script(self.node_install_sh)
         self.run_script(self.service_config_sh)
@@ -640,7 +641,8 @@ class ArgParser:
         install_parser.add_argument("--description", help="Short public description of the node")
         install_parser.add_argument("--public-ip", help="External IPv4 address (autodetected if omitted)")
         install_parser.add_argument("--nym-node-binary", help="URL for nym-node binary (autodetected if omitted)")
-        install_parser.add_argument("--uplink-dev", help="Override uplink interface used for NAT/FORWARD (e.g., 'eth0'; autodetected if omitted)")
+        install_parser.add_argument("--uplink-dev", help="Override ipv4 uplink interface used for NAT/FORWARD (e.g., 'eth0'; autodetected if omitted)")
+        install_parser.add_argument("--uplink-dev-v6", help="Override ipv6 uplink interface used for NAT/FORWARD (e.g., 'eth0.1'; autodetected if omitted)")
         
         # generic fallback
         install_parser.add_argument(

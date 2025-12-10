@@ -175,7 +175,7 @@ mod user_agent;
 pub use user_agent::UserAgent;
 
 #[cfg(not(target_arch = "wasm32"))]
-mod dns;
+pub mod dns;
 mod path;
 
 #[cfg(not(target_arch = "wasm32"))]

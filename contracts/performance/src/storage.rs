@@ -1,6 +1,8 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use std::collections::HashMap;
+
 use crate::helpers::MixnetContractQuerier;
 use cosmwasm_std::{Addr, Deps, DepsMut, Env, StdError, Storage};
 use cw_controllers::Admin;
@@ -9,7 +11,7 @@ use nym_contracts_common::Percent;
 use nym_performance_contract_common::constants::storage_keys;
 use nym_performance_contract_common::{
     BatchSubmissionResult, EpochId, LastSubmission, LastSubmittedData, NetworkMonitorDetails,
-    NetworkMonitorSubmissionMetadata, NodeId, NodePerformanceSpecific, NodeResults,
+    NetworkMonitorSubmissionMetadata, NodeId, NodePerformance, NodeResults,
     NymPerformanceContractError, RemoveEpochMeasurementsResponse, RetiredNetworkMonitor,
 };
 
@@ -115,7 +117,7 @@ impl NymPerformanceContractStorage {
         env: Env,
         sender: &Addr,
         epoch_id: EpochId,
-        data: NodePerformanceSpecific,
+        data: NodePerformance,
     ) -> Result<(), NymPerformanceContractError> {
         // 1. check if the sender is authorised to submit performance data
         self.network_monitors
@@ -138,7 +140,7 @@ impl NymPerformanceContractStorage {
 
         // 4 insert performance data into the storage
         self.performance_results
-            .insert_performance_data_specific(deps.storage, epoch_id, &data)?;
+            .insert_performance_data(deps.storage, epoch_id, &data)?;
 
         // 5. update submission metadata based on the last result we submitted
         self.performance_results.update_submission_metadata(
@@ -171,7 +173,7 @@ impl NymPerformanceContractStorage {
         env: Env,
         sender: &Addr,
         epoch_id: EpochId,
-        data: Vec<NodePerformanceSpecific>,
+        data: Vec<NodePerformance>,
     ) -> Result<BatchSubmissionResult, NymPerformanceContractError> {
         // 1. check if the sender is authorised to submit performance data
         self.network_monitors
@@ -196,11 +198,10 @@ impl NymPerformanceContractStorage {
 
         // 3. submit it
         if self.node_bonded(deps.as_ref(), first.node_id)? {
-            match self.performance_results.insert_performance_data_specific(
-                deps.storage,
-                epoch_id,
-                first,
-            ) {
+            match self
+                .performance_results
+                .insert_performance_data(deps.storage, epoch_id, first)
+            {
                 Ok(_) => accepted_scores += 1,
                 Err(NymPerformanceContractError::UnsupportedMeasurementKind { kind }) => {
                     non_existent_measurement_kind.push(kind);
@@ -226,11 +227,8 @@ impl NymPerformanceContractStorage {
 
             // 5. insert performance data into the storage
             if self.node_bonded(deps.as_ref(), perf.node_id)? {
-                self.performance_results.insert_performance_data_specific(
-                    deps.storage,
-                    epoch_id,
-                    perf,
-                )?;
+                self.performance_results
+                    .insert_performance_data(deps.storage, epoch_id, perf)?;
                 accepted_scores += 1;
             } else {
                 non_existent_nodes.push(perf.node_id);
@@ -332,45 +330,51 @@ impl NymPerformanceContractStorage {
             .retire(deps, &env, sender, &network_monitor)
     }
 
-    // TODO dz needs to support measurement_kind
+    pub fn try_load_measurement_kind(
+        &self,
+        storage: &dyn Storage,
+        epoch_id: EpochId,
+        node_id: NodeId,
+        measurement_kind: MeasurementKind,
+    ) -> Result<Option<NodeResults>, NymPerformanceContractError> {
+        self.performance_results
+            .assert_measurement_defined(storage, measurement_kind.clone())?;
+
+        let key = (epoch_id, node_id, measurement_kind);
+        self.performance_results
+            .results
+            .may_load(storage, key)
+            .map_err(From::from)
+    }
+
     pub fn try_load_performance(
         &self,
         storage: &dyn Storage,
         epoch_id: EpochId,
         node_id: NodeId,
-    ) -> Result<Option<Percent>, NymPerformanceContractError> {
+    ) -> Result<HashMap<String, Percent>, NymPerformanceContractError> {
         // Get all defined measurement kinds
         let measurement_kinds = self.performance_results.defined_measurements(storage)?;
 
         // short-circuit if no measurement kinds are defined
         if measurement_kinds.is_empty() {
-            return Ok(None);
+            return Ok(HashMap::new());
         }
 
-        // Collect median values from all measurement kinds
-        let mut medians = Vec::new();
+        let mut performance_per_kind: HashMap<String, Percent> = HashMap::new();
+
+        // collect median values per measurement kind
         for kind in measurement_kinds {
             if let Some(results) = self
                 .performance_results
-                .results_specific
-                .may_load(storage, (epoch_id, node_id, kind))?
+                .results
+                .may_load(storage, (epoch_id, node_id, kind.clone()))?
             {
-                medians.push(results.median());
+                performance_per_kind.insert(kind, results.median());
             }
         }
 
-        // If no data found for any measurement kind, return None
-        if medians.is_empty() {
-            return Ok(None);
-        }
-
-        // Build NodeResults from collected medians and return the median of medians
-        let mut aggregated = NodeResults::new(medians[0]);
-        for &median in &medians[1..] {
-            aggregated.insert_new(median);
-        }
-
-        Ok(Some(aggregated.median()))
+        Ok(performance_per_kind)
     }
 
     pub fn remove_node_measurements(
@@ -388,7 +392,7 @@ impl NymPerformanceContractStorage {
             .defined_measurements(deps.storage)?;
         for kind in measurement_kinds {
             self.performance_results
-                .results_specific
+                .results
                 .remove(deps.storage, (epoch_id, node_id, kind));
         }
 
@@ -404,18 +408,15 @@ impl NymPerformanceContractStorage {
         self.ensure_is_admin(deps.as_ref(), sender)?;
 
         // 1. purge the entries according to the limit
-        self.performance_results
-            .results_specific
-            .sub_prefix(epoch_id)
-            .clear(
-                deps.storage,
-                Some(retrieval_limits::EPOCH_PERFORMANCE_PURGE_LIMIT),
-            );
+        self.performance_results.results.sub_prefix(epoch_id).clear(
+            deps.storage,
+            Some(retrieval_limits::EPOCH_PERFORMANCE_PURGE_LIMIT),
+        );
 
         // 2. see if there's anything left
         let additional_entries_to_remove_remaining = !self
             .performance_results
-            .results_specific
+            .results
             .sub_prefix(epoch_id)
             .is_empty(deps.storage);
 
@@ -509,9 +510,7 @@ impl NetworkMonitorsStorage {
 }
 
 pub(crate) struct PerformanceResultsStorage {
-    pub(crate) results: Map<(EpochId, NodeId), NodeResults>,
-
-    pub(crate) results_specific: Map<(EpochId, NodeId, MeasurementKind), NodeResults>,
+    pub(crate) results: Map<(EpochId, NodeId, MeasurementKind), NodeResults>,
 
     /// only measurements defined here can be submitted, as defined by contract admin
     defined_measurements: Map<MeasurementKind, ()>,
@@ -529,8 +528,7 @@ impl PerformanceResultsStorage {
     #[allow(clippy::new_without_default)]
     const fn new() -> Self {
         PerformanceResultsStorage {
-            results: Map::new(storage_keys::PERFORMANCE_RESULTS),
-            results_specific: Map::new(storage_keys::PERFORMANCE_RESULTS_PER_KIND),
+            results: Map::new(storage_keys::PERFORMANCE_RESULTS_PER_KIND),
             defined_measurements: Map::new(storage_keys::PERFORMANCE_DEFINED_KINDS),
             submission_metadata: Map::new(storage_keys::SUBMISSION_METADATA),
         }
@@ -542,12 +540,14 @@ impl PerformanceResultsStorage {
         &self,
         storage: &mut dyn Storage,
         epoch_id: EpochId,
-        data: &NodePerformanceSpecific,
+        data: &NodePerformance,
     ) -> Result<(), NymPerformanceContractError> {
+        self.assert_measurement_defined(storage, data.measurement_kind.clone())?;
+
         let performance = data.performance;
 
-        let key = (epoch_id, data.node_id);
-        let updated = match self.results.may_load(storage, key)? {
+        let key = (epoch_id, data.node_id, data.measurement_kind.clone());
+        let updated = match self.results.may_load(storage, key.clone())? {
             None => NodeResults::new(performance),
             Some(mut existing) => {
                 existing.insert_new(performance);
@@ -556,29 +556,6 @@ impl PerformanceResultsStorage {
         };
 
         self.results.save(storage, key, &updated)?;
-        Ok(())
-    }
-
-    fn insert_performance_data_specific(
-        &self,
-        storage: &mut dyn Storage,
-        epoch_id: EpochId,
-        data: &NodePerformanceSpecific,
-    ) -> Result<(), NymPerformanceContractError> {
-        self.assert_measurement_defined(storage, data.measurement_kind.clone())?;
-
-        let performance = data.performance;
-
-        let key = (epoch_id, data.node_id, data.measurement_kind.clone());
-        let updated = match self.results_specific.may_load(storage, key.clone())? {
-            None => NodeResults::new(performance),
-            Some(mut existing) => {
-                existing.insert_new(performance);
-                existing
-            }
-        };
-
-        self.results_specific.save(storage, key, &updated)?;
         Ok(())
     }
 
@@ -594,7 +571,7 @@ impl PerformanceResultsStorage {
 
     fn is_measurement_defined(
         &self,
-        storage: &mut dyn Storage,
+        storage: &dyn Storage,
         measurement_kind: MeasurementKind,
     ) -> Result<bool, cosmwasm_std::StdError> {
         self.defined_measurements
@@ -604,7 +581,7 @@ impl PerformanceResultsStorage {
 
     fn assert_measurement_defined(
         &self,
-        storage: &mut dyn Storage,
+        storage: &dyn Storage,
         measurement_kind: MeasurementKind,
     ) -> Result<(), NymPerformanceContractError> {
         if !self.is_measurement_defined(storage, measurement_kind.clone())? {
@@ -670,6 +647,11 @@ impl PerformanceResultsStorage {
         Ok(())
     }
 
+    // TODO: this logic was written with ONE measurement kind in mind.
+    // Whether different measurement kinds are submitted sequentially or not,
+    // batched by node_id or not etc. is an open question. Until that is decided,
+    // this implementation is flawed and needs to be FIXED.
+    // There is a unit test (currently ignored) showing desired behaviour
     fn ensure_non_stale_submission(
         &self,
         storage: &dyn Storage,
@@ -1015,12 +997,12 @@ mod tests {
                 let id1 = tester.bond_dummy_nymnode()?;
                 let id2 = tester.bond_dummy_nymnode()?;
 
-                let data = NodePerformanceSpecific {
+                let data = NodePerformance {
                     node_id: id1,
                     performance: Percent::hundred(),
                     measurement_kind: measurement_kind.clone(),
                 };
-                let another_data = NodePerformanceSpecific {
+                let another_data = NodePerformance {
                     node_id: id2,
                     performance: Percent::hundred(),
                     measurement_kind,
@@ -1110,12 +1092,12 @@ mod tests {
 
                 let measurement_kind = tester.define_dummy_measurement_kind().unwrap();
 
-                let data = NodePerformanceSpecific {
+                let data = NodePerformance {
                     node_id: id1,
                     performance: Percent::hundred(),
                     measurement_kind: measurement_kind.clone(),
                 };
-                let another_data = NodePerformanceSpecific {
+                let another_data = NodePerformance {
                     node_id: id2,
                     performance: Percent::hundred(),
                     measurement_kind,
@@ -1270,7 +1252,7 @@ mod tests {
                     env.clone(),
                     &nm,
                     0,
-                    NodePerformanceSpecific {
+                    NodePerformance {
                         node_id: nodes[0],
                         performance: Default::default(),
                         measurement_kind: measurement_kind.clone(),
@@ -1288,7 +1270,7 @@ mod tests {
                     env.clone(),
                     &nm,
                     0,
-                    NodePerformanceSpecific {
+                    NodePerformance {
                         node_id: nodes[3],
                         performance: Default::default(),
                         measurement_kind: measurement_kind.clone(),
@@ -1306,7 +1288,7 @@ mod tests {
                     env.clone(),
                     &nm,
                     1,
-                    NodePerformanceSpecific {
+                    NodePerformance {
                         node_id: nodes[1],
                         performance: Default::default(),
                         measurement_kind: measurement_kind.clone(),
@@ -1324,7 +1306,7 @@ mod tests {
                     env.clone(),
                     &nm,
                     12345,
-                    NodePerformanceSpecific {
+                    NodePerformance {
                         node_id: nodes[8],
                         performance: Default::default(),
                         measurement_kind,
@@ -1359,7 +1341,7 @@ mod tests {
                     env.clone(),
                     &nm,
                     0,
-                    NodePerformanceSpecific {
+                    NodePerformance {
                         node_id: nodes[0],
                         performance: Default::default(),
                         measurement_kind: measurement_kind.clone(),
@@ -1374,7 +1356,7 @@ mod tests {
                         data: Some(LastSubmittedData {
                             sender: nm.clone(),
                             epoch_id: 0,
-                            data: NodePerformanceSpecific {
+                            data: NodePerformance {
                                 node_id: nodes[0],
                                 performance: Default::default(),
                                 measurement_kind: measurement_kind.clone()
@@ -1388,7 +1370,7 @@ mod tests {
                     env.clone(),
                     &nm,
                     0,
-                    NodePerformanceSpecific {
+                    NodePerformance {
                         node_id: nodes[6],
                         performance: Default::default(),
                         measurement_kind: measurement_kind.clone(),
@@ -1403,7 +1385,7 @@ mod tests {
                         data: Some(LastSubmittedData {
                             sender: nm.clone(),
                             epoch_id: 0,
-                            data: NodePerformanceSpecific {
+                            data: NodePerformance {
                                 node_id: nodes[6],
                                 performance: Default::default(),
                                 measurement_kind: measurement_kind.clone()
@@ -1417,7 +1399,7 @@ mod tests {
                     env.clone(),
                     &nm,
                     1,
-                    NodePerformanceSpecific {
+                    NodePerformance {
                         node_id: nodes[2],
                         performance: Default::default(),
                         measurement_kind: measurement_kind.clone(),
@@ -1432,7 +1414,7 @@ mod tests {
                         data: Some(LastSubmittedData {
                             sender: nm.clone(),
                             epoch_id: 1,
-                            data: NodePerformanceSpecific {
+                            data: NodePerformance {
                                 node_id: nodes[2],
                                 performance: Default::default(),
                                 measurement_kind: measurement_kind.clone()
@@ -1446,7 +1428,7 @@ mod tests {
                     env.clone(),
                     &nm,
                     12345,
-                    NodePerformanceSpecific {
+                    NodePerformance {
                         node_id: nodes[9],
                         performance: Default::default(),
                         measurement_kind: measurement_kind.clone(),
@@ -1461,7 +1443,7 @@ mod tests {
                         data: Some(LastSubmittedData {
                             sender: nm.clone(),
                             epoch_id: 12345,
-                            data: NodePerformanceSpecific {
+                            data: NodePerformance {
                                 node_id: nodes[9],
                                 performance: Default::default(),
                                 measurement_kind: measurement_kind.clone()
@@ -1483,7 +1465,7 @@ mod tests {
                 tester.authorise_network_monitor(&nm)?;
                 let measurement_kind = tester.define_dummy_measurement_kind().unwrap();
 
-                let dummy_perf = NodePerformanceSpecific {
+                let dummy_perf = NodePerformance {
                     node_id: 12345,
                     performance: Percent::from_percentage_value(69)?,
                     measurement_kind: measurement_kind.clone(),
@@ -1508,7 +1490,7 @@ mod tests {
 
                 // bonded nym-node
                 let node_id = tester.bond_dummy_nymnode()?;
-                let perf = NodePerformanceSpecific {
+                let perf = NodePerformance {
                     node_id,
                     performance: Default::default(),
                     measurement_kind: measurement_kind.clone(),
@@ -1631,17 +1613,17 @@ mod tests {
                 let id2 = tester.bond_dummy_nymnode()?;
                 let id3 = tester.bond_dummy_nymnode()?;
                 let measurement_kind = tester.define_dummy_measurement_kind().unwrap();
-                let data = NodePerformanceSpecific {
+                let data = NodePerformance {
                     node_id: id1,
                     performance: Percent::hundred(),
                     measurement_kind: measurement_kind.clone(),
                 };
-                let another_data = NodePerformanceSpecific {
+                let another_data = NodePerformance {
                     node_id: id2,
                     performance: Percent::hundred(),
                     measurement_kind: measurement_kind.clone(),
                 };
-                let more_data = NodePerformanceSpecific {
+                let more_data = NodePerformance {
                     node_id: id3,
                     performance: Percent::hundred(),
                     measurement_kind: measurement_kind.clone(),
@@ -1724,12 +1706,12 @@ mod tests {
 
                 let measurement_kind = tester.define_dummy_measurement_kind().unwrap();
 
-                let data = NodePerformanceSpecific {
+                let data = NodePerformance {
                     node_id: id1,
                     performance: Percent::hundred(),
                     measurement_kind: measurement_kind.clone(),
                 };
-                let another_data = NodePerformanceSpecific {
+                let another_data = NodePerformance {
                     node_id: id2,
                     performance: Percent::hundred(),
                     measurement_kind: measurement_kind.clone(),
@@ -1831,12 +1813,12 @@ mod tests {
 
                 let measurement_kind = tester.define_dummy_measurement_kind().unwrap();
 
-                let data = NodePerformanceSpecific {
+                let data = NodePerformance {
                     node_id: id1,
                     performance: Percent::hundred(),
                     measurement_kind: measurement_kind.clone(),
                 };
-                let another_data = NodePerformanceSpecific {
+                let another_data = NodePerformance {
                     node_id: id2,
                     performance: Percent::hundred(),
                     measurement_kind: measurement_kind.clone(),
@@ -2016,7 +1998,7 @@ mod tests {
                     env.clone(),
                     &nm,
                     0,
-                    vec![NodePerformanceSpecific {
+                    vec![NodePerformance {
                         node_id: nodes[0],
                         performance: Default::default(),
                         measurement_kind: measurement_kind.clone(),
@@ -2035,7 +2017,7 @@ mod tests {
                     env.clone(),
                     &nm,
                     1,
-                    vec![NodePerformanceSpecific {
+                    vec![NodePerformance {
                         node_id: nodes[1],
                         performance: Default::default(),
                         measurement_kind: measurement_kind.clone(),
@@ -2055,17 +2037,17 @@ mod tests {
                     &nm,
                     1,
                     vec![
-                        NodePerformanceSpecific {
+                        NodePerformance {
                             node_id: nodes[2],
                             performance: Default::default(),
                             measurement_kind: measurement_kind.clone(),
                         },
-                        NodePerformanceSpecific {
+                        NodePerformance {
                             node_id: nodes[3],
                             performance: Default::default(),
                             measurement_kind: measurement_kind.clone(),
                         },
-                        NodePerformanceSpecific {
+                        NodePerformance {
                             node_id: nodes[4],
                             performance: Default::default(),
                             measurement_kind: measurement_kind.clone(),
@@ -2086,17 +2068,17 @@ mod tests {
                     &nm,
                     2,
                     vec![
-                        NodePerformanceSpecific {
+                        NodePerformance {
                             node_id: nodes[1],
                             performance: Default::default(),
                             measurement_kind: measurement_kind.clone(),
                         },
-                        NodePerformanceSpecific {
+                        NodePerformance {
                             node_id: nodes[6],
                             performance: Default::default(),
                             measurement_kind: measurement_kind.clone(),
                         },
-                        NodePerformanceSpecific {
+                        NodePerformance {
                             node_id: nodes[8],
                             performance: Default::default(),
                             measurement_kind: measurement_kind.clone(),
@@ -2134,7 +2116,7 @@ mod tests {
                     env.clone(),
                     &nm,
                     0,
-                    vec![NodePerformanceSpecific {
+                    vec![NodePerformance {
                         node_id: nodes[0],
                         performance: Default::default(),
                         measurement_kind: measurement_kind.clone(),
@@ -2149,7 +2131,7 @@ mod tests {
                         data: Some(LastSubmittedData {
                             sender: nm.clone(),
                             epoch_id: 0,
-                            data: NodePerformanceSpecific {
+                            data: NodePerformance {
                                 node_id: nodes[0],
                                 performance: Default::default(),
                                 measurement_kind: measurement_kind.clone()
@@ -2164,7 +2146,7 @@ mod tests {
                     env.clone(),
                     &nm,
                     1,
-                    vec![NodePerformanceSpecific {
+                    vec![NodePerformance {
                         node_id: nodes[1],
                         performance: Default::default(),
                         measurement_kind: measurement_kind.clone(),
@@ -2179,7 +2161,7 @@ mod tests {
                         data: Some(LastSubmittedData {
                             sender: nm.clone(),
                             epoch_id: 1,
-                            data: NodePerformanceSpecific {
+                            data: NodePerformance {
                                 node_id: nodes[1],
                                 performance: Default::default(),
                                 measurement_kind: measurement_kind.clone()
@@ -2195,17 +2177,17 @@ mod tests {
                     &nm,
                     1,
                     vec![
-                        NodePerformanceSpecific {
+                        NodePerformance {
                             node_id: nodes[2],
                             performance: Default::default(),
                             measurement_kind: measurement_kind.clone(),
                         },
-                        NodePerformanceSpecific {
+                        NodePerformance {
                             node_id: nodes[3],
                             performance: Default::default(),
                             measurement_kind: measurement_kind.clone(),
                         },
-                        NodePerformanceSpecific {
+                        NodePerformance {
                             node_id: nodes[4],
                             performance: Default::default(),
                             measurement_kind: measurement_kind.clone(),
@@ -2221,7 +2203,7 @@ mod tests {
                         data: Some(LastSubmittedData {
                             sender: nm.clone(),
                             epoch_id: 1,
-                            data: NodePerformanceSpecific {
+                            data: NodePerformance {
                                 node_id: nodes[4],
                                 performance: Default::default(),
                                 measurement_kind: measurement_kind.clone()
@@ -2237,17 +2219,17 @@ mod tests {
                     &nm,
                     2,
                     vec![
-                        NodePerformanceSpecific {
+                        NodePerformance {
                             node_id: nodes[1],
                             performance: Default::default(),
                             measurement_kind: measurement_kind.clone(),
                         },
-                        NodePerformanceSpecific {
+                        NodePerformance {
                             node_id: nodes[7],
                             performance: Default::default(),
                             measurement_kind: measurement_kind.clone(),
                         },
-                        NodePerformanceSpecific {
+                        NodePerformance {
                             node_id: nodes[8],
                             performance: Default::default(),
                             measurement_kind: measurement_kind.clone(),
@@ -2263,7 +2245,7 @@ mod tests {
                         data: Some(LastSubmittedData {
                             sender: nm.clone(),
                             epoch_id: 2,
-                            data: NodePerformanceSpecific {
+                            data: NodePerformance {
                                 node_id: nodes[8],
                                 performance: Default::default(),
                                 measurement_kind: measurement_kind.clone()
@@ -2304,7 +2286,7 @@ mod tests {
                     env.clone(),
                     &nm,
                     0,
-                    vec![NodePerformanceSpecific {
+                    vec![NodePerformance {
                         node_id: 999999,
                         performance: Default::default(),
                         measurement_kind: measurement_kind.clone(),
@@ -2320,12 +2302,12 @@ mod tests {
                     &nm,
                     1,
                     vec![
-                        NodePerformanceSpecific {
+                        NodePerformance {
                             node_id: nym_node1,
                             performance: Default::default(),
                             measurement_kind: measurement_kind.clone(),
                         },
-                        NodePerformanceSpecific {
+                        NodePerformance {
                             node_id: 999999,
                             performance: Default::default(),
                             measurement_kind: measurement_kind.clone(),
@@ -2342,22 +2324,22 @@ mod tests {
                     &nm,
                     2,
                     vec![
-                        NodePerformanceSpecific {
+                        NodePerformance {
                             node_id: 2,
                             performance: Default::default(),
                             measurement_kind: measurement_kind.clone(),
                         },
-                        NodePerformanceSpecific {
+                        NodePerformance {
                             node_id: nym_node1,
                             performance: Default::default(),
                             measurement_kind: measurement_kind.clone(),
                         },
-                        NodePerformanceSpecific {
+                        NodePerformance {
                             node_id: nym_node_between,
                             performance: Default::default(),
                             measurement_kind: measurement_kind.clone(),
                         },
-                        NodePerformanceSpecific {
+                        NodePerformance {
                             node_id: nym_node2,
                             performance: Default::default(),
                             measurement_kind: measurement_kind.clone(),
@@ -2651,7 +2633,10 @@ mod tests {
 
             // no results
             let node_id = tester.bond_dummy_nymnode()?;
-            assert_eq!(storage.try_load_performance(&tester, 0, node_id)?, None);
+            assert_eq!(
+                storage.try_load_performance(&tester, 0, node_id)?,
+                HashMap::new()
+            );
 
             //
             // always returns median value with 2decimal places precision
@@ -2664,6 +2649,7 @@ mod tests {
             assert_eq!(
                 storage
                     .try_load_performance(&tester, 0, node_id)?
+                    .get(&measurement_kind)
                     .unwrap()
                     .value()
                     .to_string(),
@@ -2677,6 +2663,7 @@ mod tests {
             assert_eq!(
                 storage
                     .try_load_performance(&tester, 0, node_id)?
+                    .get(&measurement_kind)
                     .unwrap()
                     .value()
                     .to_string(),
@@ -2690,6 +2677,7 @@ mod tests {
             assert_eq!(
                 storage
                     .try_load_performance(&tester, 0, node_id)?
+                    .get(&measurement_kind)
                     .unwrap()
                     .value()
                     .to_string(),
@@ -2704,6 +2692,7 @@ mod tests {
             assert_eq!(
                 storage
                     .try_load_performance(&tester, 0, node_id)?
+                    .get(&measurement_kind)
                     .unwrap()
                     .value()
                     .to_string(),
@@ -2720,6 +2709,7 @@ mod tests {
             assert_eq!(
                 storage
                     .try_load_performance(&tester, 0, node_id)?
+                    .get(&measurement_kind)
                     .unwrap()
                     .value()
                     .to_string(),
@@ -2737,6 +2727,7 @@ mod tests {
             assert_eq!(
                 storage
                     .try_load_performance(&tester, 0, node_id)?
+                    .get(&measurement_kind)
                     .unwrap()
                     .value()
                     .to_string(),
@@ -2848,7 +2839,7 @@ mod tests {
 
                 let before = storage
                     .performance_results
-                    .results_specific
+                    .results
                     .prefix((epoch_id, id1))
                     .all_values(tester.storage())
                     .unwrap();
@@ -2858,7 +2849,7 @@ mod tests {
 
                 let after = storage
                     .performance_results
-                    .results_specific
+                    .results
                     .prefix((epoch_id, id1))
                     .all_values(tester.storage())
                     .unwrap();
@@ -2871,7 +2862,7 @@ mod tests {
 
                 let before = storage
                     .performance_results
-                    .results_specific
+                    .results
                     .prefix((epoch_id, id2))
                     .all_values(tester.storage())
                     .unwrap();
@@ -2881,7 +2872,7 @@ mod tests {
 
                 let after = storage
                     .performance_results
-                    .results_specific
+                    .results
                     .prefix((epoch_id, id2))
                     .all_values(tester.storage())
                     .unwrap();
@@ -2998,7 +2989,7 @@ mod tests {
 
                 let before = storage
                     .performance_results
-                    .results_specific
+                    .results
                     .sub_prefix(epoch_id)
                     .all_values(&tester)?;
                 assert_eq!(before.len(), 10);
@@ -3008,7 +2999,7 @@ mod tests {
                 let after = storage
                     .performance_results
                     .results
-                    .prefix(epoch_id)
+                    .sub_prefix(epoch_id)
                     .all_values(&tester)?;
 
                 assert!(after.is_empty());
@@ -3031,7 +3022,7 @@ mod tests {
                 let after = storage
                     .performance_results
                     .results
-                    .prefix(epoch_id)
+                    .sub_prefix(epoch_id)
                     .all_values(&tester)?;
 
                 assert!(after.is_empty());
@@ -3065,7 +3056,7 @@ mod tests {
 
                 let before = storage
                     .performance_results
-                    .results_specific
+                    .results
                     .sub_prefix(epoch_id)
                     .all_values(&tester)?;
                 assert_eq!(
@@ -3077,7 +3068,7 @@ mod tests {
                 assert!(res.additional_entries_to_remove_remaining);
                 let after = storage
                     .performance_results
-                    .results_specific
+                    .results
                     .sub_prefix(epoch_id)
                     .all_values(&tester)?;
 
@@ -3090,7 +3081,7 @@ mod tests {
                 assert!(res.additional_entries_to_remove_remaining);
                 let after = storage
                     .performance_results
-                    .results_specific
+                    .results
                     .sub_prefix(epoch_id)
                     .all_values(&tester)?;
 
@@ -3100,7 +3091,7 @@ mod tests {
                 assert!(!res.additional_entries_to_remove_remaining);
                 let after = storage
                     .performance_results
-                    .results_specific
+                    .results
                     .sub_prefix(epoch_id)
                     .all_values(&tester)?;
 
@@ -3266,69 +3257,88 @@ mod tests {
             let node_id2 = 456;
             let measurement_kind = tester.define_dummy_measurement_kind().unwrap();
 
-            let data1 = NodePerformanceSpecific {
+            let data1 = NodePerformance {
                 node_id: node_id1,
                 performance: Percent::from_str("0.23")?,
                 measurement_kind: measurement_kind.clone(),
             };
 
-            let data2 = NodePerformanceSpecific {
+            let data2 = NodePerformance {
                 node_id: node_id1,
                 performance: Percent::hundred(),
                 measurement_kind: measurement_kind.clone(),
             };
 
-            let data3 = NodePerformanceSpecific {
+            let data3 = NodePerformance {
                 node_id: node_id2,
                 performance: Percent::from_str("0.23643634")?,
                 measurement_kind: measurement_kind.clone(),
             };
 
-            let data4 = NodePerformanceSpecific {
+            let data4 = NodePerformance {
                 node_id: node_id2,
                 performance: Percent::hundred(),
                 measurement_kind: measurement_kind.clone(),
             };
 
-            assert!(storage.results.may_load(&tester, (1, node_id1))?.is_none());
-            assert!(storage.results.may_load(&tester, (1, node_id2))?.is_none());
-
+            assert!(
+                storage
+                    .results
+                    .may_load(&tester, (1, node_id1, measurement_kind.clone()))?
+                    .is_none()
+            );
+            assert!(
+                storage
+                    .results
+                    .may_load(&tester, (1, node_id2, measurement_kind.clone()))?
+                    .is_none()
+            );
             storage.insert_performance_data(&mut tester, 1, &data1)?;
             assert_eq!(
-                tester.read_raw_scores(1, node_id1)?.inner(),
+                tester
+                    .read_raw_scores(1, node_id1, measurement_kind.clone())?
+                    .inner(),
                 &[data1.performance]
             );
             storage.insert_performance_data(&mut tester, 1, &data2)?;
             assert_eq!(
-                tester.read_raw_scores(1, node_id1)?.inner(),
+                tester
+                    .read_raw_scores(1, node_id1, measurement_kind.clone())?
+                    .inner(),
                 &[data1.performance, data2.performance]
             );
-
             storage.insert_performance_data(&mut tester, 1, &data3)?;
             assert_eq!(
-                tester.read_raw_scores(1, node_id2)?.inner(),
+                tester
+                    .read_raw_scores(1, node_id2, measurement_kind.clone())?
+                    .inner(),
                 &[data3.performance.round_to_two_decimal_places()]
             );
             storage.insert_performance_data(&mut tester, 1, &data4)?;
             assert_eq!(
-                tester.read_raw_scores(1, node_id2)?.inner(),
+                tester
+                    .read_raw_scores(1, node_id2, measurement_kind.clone())?
+                    .inner(),
                 &[
                     data3.performance.round_to_two_decimal_places(),
                     data4.performance
                 ]
             );
-
             storage.insert_performance_data(&mut tester, 2, &data2)?;
             storage.insert_performance_data(&mut tester, 2, &data2)?;
             assert_eq!(
-                tester.read_raw_scores(2, node_id1)?.inner(),
+                tester
+                    .read_raw_scores(2, node_id1, measurement_kind.clone())?
+                    .inner(),
                 &[data2.performance, data2.performance]
             );
 
             storage.insert_performance_data(&mut tester, 2, &data4)?;
             storage.insert_performance_data(&mut tester, 2, &data4)?;
             assert_eq!(
-                tester.read_raw_scores(2, node_id2)?.inner(),
+                tester
+                    .read_raw_scores(2, node_id2, measurement_kind.clone())?
+                    .inner(),
                 &[data4.performance, data4.performance]
             );
 

@@ -36,7 +36,7 @@ use nym_mixnet_contract_common::{
 use nym_validator_client::coconut::EcashApiError;
 use nym_validator_client::nyxd::contract_traits::mixnet_query_client::MixnetQueryClientExt;
 use nym_validator_client::nyxd::contract_traits::performance_query_client::{
-    LastSubmission, NodePerformanceSpecific,
+    LastSubmission, NodePerformance,
 };
 use nym_validator_client::nyxd::contract_traits::{
     PagedDkgQueryClient, PagedPerformanceQueryClient, PerformanceQueryClient,
@@ -414,7 +414,7 @@ impl Client {
     pub(crate) async fn get_full_epoch_performance(
         &self,
         epoch_id: nym_mixnet_contract_common::EpochId,
-    ) -> Result<Vec<NodePerformanceSpecific>, NyxdError> {
+    ) -> Result<Vec<NodePerformance>, NyxdError> {
         nyxd_query!(self, get_all_epoch_performance(epoch_id).await)
     }
 }

@@ -4,7 +4,7 @@
 use crate::storage::{MeasurementKind, NYM_PERFORMANCE_CONTRACT_STORAGE};
 use cosmwasm_std::{Addr, DepsMut, Env, Event, MessageInfo, Response, to_json_binary};
 use nym_performance_contract_common::{
-    EpochId, NodeId, NodePerformanceSpecific, NymPerformanceContractError,
+    EpochId, NodeId, NodePerformance, NymPerformanceContractError,
 };
 
 pub fn try_update_contract_admin(
@@ -29,6 +29,18 @@ pub fn try_define_measurement_kind(
     NYM_PERFORMANCE_CONTRACT_STORAGE
         .contract_admin
         .assert_admin(deps.as_ref(), sender)?;
+
+    // validation
+    if measurement_kind.len() < 2
+        || measurement_kind.len() > 20
+        || !measurement_kind.is_ascii()
+        || measurement_kind.contains(char::is_whitespace)
+    {
+        return Err(NymPerformanceContractError::InvalidInput(format!(
+            "Cannot define {} as measurement kind",
+            measurement_kind
+        )));
+    }
 
     NYM_PERFORMANCE_CONTRACT_STORAGE
         .performance_results
@@ -58,7 +70,7 @@ pub fn try_submit_performance_results(
     env: Env,
     info: MessageInfo,
     epoch_id: EpochId,
-    data: NodePerformanceSpecific,
+    data: NodePerformance,
 ) -> Result<Response, NymPerformanceContractError> {
     NYM_PERFORMANCE_CONTRACT_STORAGE.submit_performance_data(
         deps,
@@ -77,7 +89,7 @@ pub fn try_batch_submit_performance_results(
     env: Env,
     info: MessageInfo,
     epoch_id: EpochId,
-    data: Vec<NodePerformanceSpecific>,
+    data: Vec<NodePerformance>,
 ) -> Result<Response, NymPerformanceContractError> {
     let res = NYM_PERFORMANCE_CONTRACT_STORAGE.batch_submit_performance_results(
         deps,

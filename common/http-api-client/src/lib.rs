@@ -895,18 +895,20 @@ impl Client {
         self.retry_limit = limit;
     }
 
+    #[cfg(feature = "tunneling")]
     fn matches_current_host(&self, url: &Url) -> bool {
-        if cfg!(feature = "tunneling") {
-            if let Some(ref front) = self.front
-                && front.is_enabled()
-            {
-                url.host_str() == self.current_url().front_str()
-            } else {
-                url.host_str() == self.current_url().host_str()
-            }
+        if let Some(ref front) = self.front
+            && front.is_enabled()
+        {
+            url.host_str() == self.current_url().front_str()
         } else {
             url.host_str() == self.current_url().host_str()
         }
+    }
+
+    #[cfg(not(feature = "tunneling"))]
+    fn matches_current_host(&self, url: &Url) -> bool {
+        url.host_str() == self.current_url().host_str()
     }
 
     /// If multiple base urls are available rotate to next (e.g. when the current one resulted in an error)

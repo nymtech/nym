@@ -1348,7 +1348,6 @@ pub async fn try_upgrade_config_v9<P: AsRef<Path>>(
                     .storage_paths
                     .public_diffie_hellman_key_file,
             },
-            peer_interaction_timeout_ms: None,
         },
         gateway_tasks: GatewayTasksConfigV10 {
             storage_paths: GatewayTasksPathsV10 {

@@ -394,30 +394,27 @@ impl MixnetListener {
             return Ok((bytes, reply_to));
         }
 
-        let (registration_data, private_ips) = {
-            let private_ip = self
-                .registered_and_free
-                .free_private_network_ips
-                .iter_mut()
-                .filter(|r| r.1.is_none())
-                .choose(&mut thread_rng())
-                .ok_or(AuthenticatorError::NoFreeIp)?;
-            let private_ips = *private_ip.0;
-            // mark it as used, even though it's not final
-            *private_ip.1 = Some(SystemTime::now());
+        let private_ip = self
+            .registered_and_free
+            .free_private_network_ips
+            .iter_mut()
+            .filter(|r| r.1.is_none())
+            .choose(&mut thread_rng())
+            .ok_or(AuthenticatorError::NoFreeIp)?;
+        let private_ips = *private_ip.0;
+        // mark it as used, even though it's not final
+        *private_ip.1 = Some(SystemTime::now());
 
-            let gateway_data = GatewayClient::new(
-                self.keypair().private_key(),
-                remote_public.inner(),
-                private_ips,
-                nonce,
-            );
-            let registration_data = latest::registration::RegistrationData {
-                nonce,
-                gateway_data: gateway_data.clone(),
-                wg_port: self.config.authenticator.tunnel_announced_port,
-            };
-            (registration_data, private_ips)
+        let gateway_data = GatewayClient::new(
+            self.keypair().private_key(),
+            remote_public.inner(),
+            private_ips,
+            nonce,
+        );
+        let registration_data = latest::registration::RegistrationData {
+            nonce,
+            gateway_data: gateway_data.clone(),
+            wg_port: self.config.authenticator.tunnel_announced_port,
         };
 
         self.registered_and_free

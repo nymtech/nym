@@ -213,7 +213,6 @@ pub fn gateway_tasks_config(config: &Config) -> GatewayTasksConfig {
             private_network_prefix_v4: config.wireguard.private_network_prefix_v4,
             private_network_prefix_v6: config.wireguard.private_network_prefix_v6,
             storage_paths: config.wireguard.storage_paths.clone(),
-            peer_interaction_timeout_ms: config.wireguard.peer_interaction_timeout_ms,
         },
         custom_mixnet_path: None,
     };

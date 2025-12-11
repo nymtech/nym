@@ -7,6 +7,7 @@ use nym_network_defaults::{
 };
 use serde::{Deserialize, Serialize};
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
+use std::time::Duration;
 
 pub use nym_client_core::config::Config as BaseClientConfig;
 pub use persistence::AuthenticatorPaths;
@@ -26,7 +27,6 @@ pub struct Config {
 
 impl Config {
     pub fn validate(&self) -> bool {
-        // no other sections have explicit requirements (yet)
         self.base.validate()
     }
 }
@@ -58,9 +58,11 @@ pub struct Authenticator {
     /// The maximum value for IPv6 is 128
     pub private_network_prefix_v6: u8,
 
-    /// Timeout (in milliseconds) to wait for responses from the peer controller before failing.
-    /// Helps the authenticator recover from suspend/resume scenarios where peer RPCs hang.
-    pub peer_interaction_timeout_ms: u64,
+    /// Timeout to wait for responses from the peer controller before failing.
+    /// Helps the authenticator recover from suspend/resume scenarios where the peer controller
+    /// process/task can get stuck and never respond to oneshot RPC responses, which previously
+    /// caused the authenticator to block forever waiting on the oneshot channel.
+    pub peer_interaction_timeout: Duration,
 }
 
 impl Default for Authenticator {
@@ -72,7 +74,7 @@ impl Default for Authenticator {
             tunnel_announced_port: WG_TUNNEL_PORT,
             private_network_prefix_v4: WG_TUN_DEVICE_NETMASK_V4,
             private_network_prefix_v6: WG_TUN_DEVICE_NETMASK_V6,
-            peer_interaction_timeout_ms: default_peer_interaction_timeout_ms(),
+            peer_interaction_timeout: default_peer_interaction_timeout(),
         }
     }
 }
@@ -91,6 +93,6 @@ impl From<Authenticator> for nym_wireguard_types::Config {
     }
 }
 
-pub const fn default_peer_interaction_timeout_ms() -> u64 {
-    5_000
+pub fn default_peer_interaction_timeout() -> Duration {
+    Duration::from_millis(5_000)
 }

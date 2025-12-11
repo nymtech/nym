@@ -151,10 +151,6 @@ announced_tunnel_port = {{ wireguard.announced_tunnel_port }}
 # Useful in the instances where the node is behind a proxy.
 announced_metadata_port = {{ wireguard.announced_metadata_port }}
 
-# Timeout to wait for responses from the peer controller before aborting the operation.
-# Accepts standard humantime duration strings such as `200ms`, `5s`.
-peer_interaction_timeout_ms = '{{ wireguard.peer_interaction_timeout_ms }}'
-
 # The prefix denoting the maximum number of the clients that can be connected via Wireguard using IPv4.
 # The maximum value for IPv4 is 32
 private_network_prefix_v4 = {{ wireguard.private_network_prefix_v4 }}

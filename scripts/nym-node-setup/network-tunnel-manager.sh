@@ -690,6 +690,7 @@ apply_port_allowlist() {
     ["MOSH"]="60000-61000"
     ["Mumble"]="64738"
     ["Metadata"]="51830"
+    ["TESTING"]="465"
   )
 
   local port

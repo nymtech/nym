@@ -89,13 +89,14 @@ fn sanitizing_urls() {
 // - on error without retries is where we have multiple urls, is the url updated?
 
 #[tokio::test]
+#[ignore] // test relies on external services being available and behaving in a specific way.
 async fn api_client_retry() -> Result<(), Box<dyn std::error::Error>> {
     let client = ClientBuilder::new_with_urls(vec![
         "http://broken.nym.test".parse()?, // This should fail because of DNS NXDomain (rotate)
         "http://127.0.0.1:9".parse()?,     // This will fail because of TCP refused (rotate)
         "https://httpbin.org/status/200".parse()?, // This should succeed
     ])?
-    .with_retries(3)
+    .with_retries(2)
     .build()?;
 
     let req = client.create_get_request(&[], NO_PARAMS).unwrap();

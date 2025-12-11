@@ -160,11 +160,10 @@ pub struct EpochMeasurementsPagedResponse {
 }
 
 #[cw_serde]
-#[derive(Copy)]
 pub struct HistoricalPerformance {
     pub epoch_id: EpochId,
     pub node_id: NodeId,
-    pub performance: Percent,
+    pub performance: HashMap<MeasurementKind, Percent>,
 }
 
 #[cw_serde]

@@ -39,7 +39,7 @@ pub enum ExecuteMsg {
     /// that kind can be submitted.
     DefineMeasurementKind { measurement_kind: String },
 
-    /// After this action is done, measurements of this kind are erased.
+    /// After this action is done, measurements of this kind aren't returned on the API anymore
     /// New measurements of this kind cannot be submitted
     RetireMeasurementKind { measurement_kind: String },
 
@@ -85,7 +85,6 @@ pub enum QueryMsg {
         kind: String,
     },
 
-    // TODO dz add paged variant ?
     #[cfg_attr(feature = "schema", returns(NodeMeasurementsResponse))]
     AllNodeMeasurements { epoch_id: EpochId, node_id: NodeId },
 

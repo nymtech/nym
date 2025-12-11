@@ -7,6 +7,7 @@ use crate::storage::{MeasurementKind, NYM_PERFORMANCE_CONTRACT_STORAGE, retrieva
 use cosmwasm_std::{Addr, Deps, Order, StdResult};
 use cw_controllers::AdminResponse;
 use cw_storage_plus::Bound;
+use nym_contracts_common::Percent;
 use nym_performance_contract_common::{
     AllNodeMeasurementsResponse, EpochId, EpochMeasurementsPagedResponse, EpochNodePerformance,
     EpochPerformancePagedResponse, FullHistoricalPerformancePagedResponse, HistoricalPerformance,
@@ -233,27 +234,63 @@ pub fn query_full_historical_performance_paged(
         .unwrap_or(retrieval_limits::NODE_HISTORICAL_PERFORMANCE_DEFAULT_LIMIT)
         .min(retrieval_limits::NODE_HISTORICAL_PERFORMANCE_MAX_LIMIT) as usize;
 
-    let start = start_after.map(|(n, e)| Bound::exclusive((n, e, String::new())));
+    // because results are sorted first by epoch_id, then by node_id, start at the next node_id
+    // (from the lexicographically first measurement_kind, which is empty string)
+    let start = start_after.map(|(epoch, node)| Bound::exclusive((epoch, node + 1, String::new())));
 
-    let performance = NYM_PERFORMANCE_CONTRACT_STORAGE
+    // storage keeps (epoch_id, node_id, measurement_kind) tuples,
+    // but the API needs results aggregated by (epoch_id, node_id) pairs
+    // so we need an intermediary struct that collects all measurements
+    // per (epoch_id, node_id) pair (and calculates a performance)
+    let mut res_per_epoch_and_node: HashMap<(EpochId, NodeId), HashMap<MeasurementKind, Percent>> =
+        HashMap::new();
+    NYM_PERFORMANCE_CONTRACT_STORAGE
         .performance_results
         .results
         .range(deps.storage, start, None, Order::Ascending)
-        .take(limit)
+        // we can't cut a pagination limit here becasue we don't want to
+        // cut across different measurement kinds of the same node_id
         .map(|record| {
-            record.map(|((epoch_id, node_id, _), results)| HistoricalPerformance {
-                // TODO dz map kind as well
-                epoch_id,
-                node_id,
-                performance: results.median(),
+            record.map(|((epoch_id, node_id, measurement_kind), results)| {
+                // inside map we access elements to populate the intermediary struct
+                let key = (epoch_id, node_id);
+                res_per_epoch_and_node
+                    .entry(key)
+                    .and_modify(|measurements| {
+                        measurements.insert(measurement_kind.clone(), results.median());
+                    })
+                    .or_insert_with(|| {
+                        let mut new = HashMap::new();
+                        // instead of taking all measurements, calculate performance (median)
+                        new.insert(measurement_kind, results.median());
+                        new
+                    });
+
+                // what we return here is irrelevant, it isn't used
+                key
             })
         })
         .collect::<StdResult<Vec<_>>>()?;
 
-    let start_next_after = performance.last().map(|last| (last.epoch_id, last.node_id));
+    // map intermediary struct to the format expected on the API
+    let mut res = Vec::new();
+    for ((epoch_id, node_id), performance) in res_per_epoch_and_node.into_iter() {
+        res.push(HistoricalPerformance {
+            epoch_id,
+            node_id,
+            performance,
+        });
+    }
+    // Storage keeps elements sorted by epoch_id, then node_id. Hashmap shuffles this.
+    // Sort by those two before returning
+    res.sort_by_key(|perf| (perf.epoch_id, perf.node_id));
+    let res: Vec<_> = res.into_iter().take(limit).collect();
+
+    // cut for pagination after sorting
+    let start_next_after = res.last().map(|perf| (perf.epoch_id, perf.node_id));
 
     Ok(FullHistoricalPerformancePagedResponse {
-        performance,
+        performance: res,
         start_next_after,
     })
 }
@@ -445,14 +482,14 @@ mod tests {
         let node1 = test.bond_dummy_nymnode()?;
         let node2 = test.bond_dummy_nymnode()?;
 
-        let epoch_id = 10;
-        test.set_mixnet_epoch(epoch_id)?;
+        let epoch_1 = 1;
+        test.set_mixnet_epoch(epoch_1)?;
 
         let deps = test.deps();
 
         // ===== Test: undefined measurement kind =====
         let undefined_kind = String::from("undefined");
-        let res = query_node_measurements_for_kind(deps, epoch_id, node1, undefined_kind);
+        let res = query_node_measurements_for_kind(deps, epoch_1, node1, undefined_kind);
         assert!(res.is_err());
         assert!(matches!(
             res.unwrap_err(),
@@ -460,33 +497,33 @@ mod tests {
         ));
 
         // ===== Test: query returns None for defined kind with no data =====
-        let res = query_node_measurements_for_kind(deps, epoch_id, node1, kind_mixnet.clone())?;
+        let res = query_node_measurements_for_kind(deps, epoch_1, node1, kind_mixnet.clone())?;
         assert!(res.measurements.is_none());
 
         // ===== Test happy path: single measurement from one monitor =====
         test.insert_raw_performance(&nm1, node1, kind_mixnet.clone(), "0.5")?;
         let res =
-            query_node_measurements_for_kind(test.deps(), epoch_id, node1, kind_mixnet.clone())?;
+            query_node_measurements_for_kind(test.deps(), epoch_1, node1, kind_mixnet.clone())?;
         let measurements = res.measurements.unwrap();
         assert_eq!(measurements.inner().len(), 1);
         assert_eq!(measurements.inner()[0], "0.5".parse()?);
 
         // Verify against raw storage
-        let expected = test.read_raw_scores(epoch_id, node1, kind_mixnet.clone())?;
+        let expected = test.read_raw_scores(epoch_1, node1, kind_mixnet.clone())?;
         assert_eq!(measurements.inner(), expected.inner());
 
         // ===== Test: multiple measurements from different monitors =====
         // each monitor can only submit once per (epoch, node) pair
         test.insert_raw_performance(&nm2, node1, kind_mixnet.clone(), "0.3")?;
         let res =
-            query_node_measurements_for_kind(test.deps(), epoch_id, node1, kind_mixnet.clone())?;
+            query_node_measurements_for_kind(test.deps(), epoch_1, node1, kind_mixnet.clone())?;
         let measurements = res.measurements.unwrap();
         assert_eq!(measurements.inner().len(), 2);
 
         // ===== Test: multiple measurement kinds are independent =====
         // we need a new epoch since monitors already submitted in this epoch
-        let epoch_11 = 11;
-        test.set_mixnet_epoch(epoch_11)?;
+        let epoch_2 = 2;
+        test.set_mixnet_epoch(epoch_2)?;
 
         // now submit
         test.insert_raw_performance(&nm1, node1, kind_wireguard.clone(), "0.8")?;
@@ -494,7 +531,7 @@ mod tests {
 
         // verify data for submitted kind is there
         let res_wireguard_e11 =
-            query_node_measurements_for_kind(test.deps(), epoch_11, node1, kind_wireguard.clone())?;
+            query_node_measurements_for_kind(test.deps(), epoch_2, node1, kind_wireguard.clone())?;
         let wg_measurements = res_wireguard_e11.measurements.unwrap();
         assert_eq!(wg_measurements.inner().len(), 2);
         assert_eq!(wg_measurements.inner()[0], "0.8".parse()?);
@@ -502,12 +539,12 @@ mod tests {
 
         // not submitted for this kind in this epoch: should have no data
         let res_mixnet_e11 =
-            query_node_measurements_for_kind(test.deps(), epoch_11, node1, kind_mixnet.clone())?;
+            query_node_measurements_for_kind(test.deps(), epoch_2, node1, kind_mixnet.clone())?;
         assert!(res_mixnet_e11.measurements.is_none());
 
         // however, mixnet kind should still have old data in previous epoch
         let res_mixnet_e10 =
-            query_node_measurements_for_kind(test.deps(), epoch_id, node1, kind_mixnet.clone())?;
+            query_node_measurements_for_kind(test.deps(), epoch_1, node1, kind_mixnet.clone())?;
         let mixnet_measurements = res_mixnet_e10.measurements.unwrap();
         assert_eq!(mixnet_measurements.inner().len(), 2);
         assert_eq!(mixnet_measurements.inner()[0], "0.3".parse()?);
@@ -515,53 +552,53 @@ mod tests {
 
         // ===== Test: different epochs are independent =====
         // advance epoch again & submit something
-        let epoch_12 = 12;
-        test.set_mixnet_epoch(epoch_12)?;
+        let epoch_3 = 3;
+        test.set_mixnet_epoch(epoch_3)?;
         test.insert_raw_performance(&nm1, node1, kind_mixnet.clone(), "0.25")?;
 
-        // epoch 12 should have new data
+        // epoch 3 should have new data
         let res_epoch12 =
-            query_node_measurements_for_kind(test.deps(), epoch_12, node1, kind_mixnet.clone())?;
+            query_node_measurements_for_kind(test.deps(), epoch_3, node1, kind_mixnet.clone())?;
         assert!(res_epoch12.measurements.is_some());
         let epoch12_measurements = res_epoch12.measurements.unwrap();
         assert_eq!(epoch12_measurements.inner().len(), 1);
         assert_eq!(epoch12_measurements.inner()[0], "0.25".parse()?);
 
-        // epoch 10 should still have old data
+        // epoch 1 should still have old data
         let res_epoch10 =
-            query_node_measurements_for_kind(test.deps(), epoch_id, node1, kind_mixnet.clone())?;
+            query_node_measurements_for_kind(test.deps(), epoch_1, node1, kind_mixnet.clone())?;
         assert_eq!(res_epoch10.measurements.unwrap().inner().len(), 2);
 
-        // epoch 11 with mixnet (no data) should return None
+        // epoch 2 with mixnet (no data) should return None
         let res_epoch11_mixnet =
-            query_node_measurements_for_kind(test.deps(), epoch_11, node1, kind_mixnet.clone())?;
+            query_node_measurements_for_kind(test.deps(), epoch_2, node1, kind_mixnet.clone())?;
         assert!(res_epoch11_mixnet.measurements.is_none());
 
         // ===== Test: different nodes are independent =====
-        // nm1 can now submit for node2 in epoch 12 since node2 > node1
+        // nm1 can now submit for node2 in epoch 3 since node2 > node1
         test.insert_raw_performance(&nm1, node2, kind_mixnet.clone(), "0.42")?;
 
-        // Query node1 in epoch 12 - should have nm1's data
+        // Query node1 in epoch 3 - should have nm1's data
         let res_node1_e12 =
-            query_node_measurements_for_kind(test.deps(), epoch_12, node1, kind_mixnet.clone())?;
+            query_node_measurements_for_kind(test.deps(), epoch_3, node1, kind_mixnet.clone())?;
         assert_eq!(res_node1_e12.measurements.unwrap().inner().len(), 1);
 
-        // Query node2 in epoch 12 - should have different data
+        // Query node2 in epoch 3 - should have different data
         let res_node2_e12 =
-            query_node_measurements_for_kind(test.deps(), epoch_12, node2, kind_mixnet.clone())?;
+            query_node_measurements_for_kind(test.deps(), epoch_3, node2, kind_mixnet.clone())?;
         let node2_measurements = res_node2_e12.measurements.unwrap();
         assert_eq!(node2_measurements.inner().len(), 1);
         assert_eq!(node2_measurements.inner()[0], "0.42".parse()?);
 
-        // Query node2 in epoch 10 (no data) - should return None
+        // Query node2 in epoch 1 (no data) - should return None
         let res_node2_e10 =
-            query_node_measurements_for_kind(test.deps(), epoch_id, node2, kind_mixnet.clone())?;
+            query_node_measurements_for_kind(test.deps(), epoch_1, node2, kind_mixnet.clone())?;
         assert!(res_node2_e10.measurements.is_none());
 
         // verify against raw data
-        let raw_scores = test.read_raw_scores(epoch_id, node1, kind_mixnet.clone())?;
+        let raw_scores = test.read_raw_scores(epoch_1, node1, kind_mixnet.clone())?;
         let query_result =
-            query_node_measurements_for_kind(test.deps(), epoch_id, node1, kind_mixnet.clone())?;
+            query_node_measurements_for_kind(test.deps(), epoch_1, node1, kind_mixnet.clone())?;
         assert_eq!(
             query_result.measurements.unwrap().inner(),
             raw_scores.inner()
@@ -1231,6 +1268,360 @@ mod tests {
         let latency_results = test.read_raw_scores(10, id1, measurement_mixnet.clone())?;
         assert_eq!(latency_results.inner().len(), 1);
         assert_eq!(latency_results.inner()[0], "0.85".parse()?);
+
+        Ok(())
+    }
+
+    #[test]
+    fn querying_full_historical_performance_paged() -> anyhow::Result<()> {
+        use std::collections::HashSet;
+
+        let mut test = init_contract_tester();
+
+        // create & authorize NMs
+        let nm1 = test.generate_account();
+        let nm2 = test.generate_account();
+        let nm3 = test.generate_account();
+        test.authorise_network_monitor(&nm1)?;
+        test.authorise_network_monitor(&nm2)?;
+        test.authorise_network_monitor(&nm3)?;
+
+        // define measurement kinds
+        let admin = test.admin_unchecked();
+        let kind_mixnet = String::from("mixnet");
+        let kind_wireguard = String::from("wireguard");
+        let kind_third = String::from("third");
+
+        test.execute_raw(
+            admin.clone(),
+            ExecuteMsg::DefineMeasurementKind {
+                measurement_kind: kind_mixnet.clone(),
+            },
+        )?;
+        test.execute_raw(
+            admin.clone(),
+            ExecuteMsg::DefineMeasurementKind {
+                measurement_kind: kind_wireguard.clone(),
+            },
+        )?;
+        test.execute_raw(
+            admin,
+            ExecuteMsg::DefineMeasurementKind {
+                measurement_kind: kind_third.clone(),
+            },
+        )?;
+
+        // prepare nodes
+        let node1 = test.bond_dummy_nymnode()?;
+        let node2 = test.bond_dummy_nymnode()?;
+        let node3 = test.bond_dummy_nymnode()?;
+        let node4 = test.bond_dummy_nymnode()?;
+
+        test.set_mixnet_epoch(1)?;
+
+        // epoch 1
+        test.insert_raw_performance(&nm1, node1, kind_mixnet.clone(), "0.101")?;
+        test.insert_raw_performance(&nm2, node1, kind_wireguard.clone(), "0.102")?;
+        test.insert_raw_performance(&nm3, node1, kind_third.clone(), "0.103")?;
+
+        test.insert_raw_performance(&nm1, node2, kind_mixnet.clone(), "0.201")?;
+        test.insert_raw_performance(&nm2, node2, kind_wireguard.clone(), "0.202")?;
+
+        test.insert_raw_performance(&nm1, node3, kind_mixnet.clone(), "0.301")?;
+
+        test.insert_raw_performance(&nm1, node4, kind_mixnet.clone(), "0.401")?;
+        test.insert_raw_performance(&nm2, node4, kind_third.clone(), "0.403")?;
+
+        // epoch 2
+        test.advance_mixnet_epoch()?;
+
+        test.insert_raw_performance(&nm1, node1, kind_mixnet.clone(), "0.111")?;
+
+        test.insert_raw_performance(&nm1, node2, kind_mixnet.clone(), "0.211")?;
+        test.insert_raw_performance(&nm2, node2, kind_wireguard.clone(), "0.212")?;
+        test.insert_raw_performance(&nm3, node2, kind_third.clone(), "0.213")?;
+
+        test.insert_raw_performance(&nm1, node3, kind_wireguard.clone(), "0.312")?;
+        test.insert_raw_performance(&nm2, node3, kind_third.clone(), "0.313")?;
+
+        test.insert_raw_performance(&nm1, node4, kind_mixnet.clone(), "0.411")?;
+
+        // epoch 3
+        test.advance_mixnet_epoch()?;
+
+        test.insert_raw_performance(&nm1, node1, kind_mixnet.clone(), "0.121")?;
+        test.insert_raw_performance(&nm2, node1, kind_wireguard.clone(), "0.122")?;
+
+        test.insert_raw_performance(&nm1, node2, kind_mixnet.clone(), "0.221")?;
+
+        test.insert_raw_performance(&nm1, node3, kind_mixnet.clone(), "0.321")?;
+        test.insert_raw_performance(&nm2, node3, kind_wireguard.clone(), "0.322")?;
+        test.insert_raw_performance(&nm3, node3, kind_third.clone(), "0.323")?;
+
+        let deps = test.deps();
+
+        // Helper function to validate right measurement kinds are present
+        // depending on (epoch_id, node_id) combination
+        let validate_completeness = |item: &HistoricalPerformance| {
+            let expected_kinds = match (item.epoch_id, item.node_id) {
+                (1, n) if n == node1 => vec![&kind_mixnet, &kind_wireguard, &kind_third],
+                (1, n) if n == node2 => vec![&kind_mixnet, &kind_wireguard],
+                (1, n) if n == node3 => vec![&kind_mixnet],
+                (1, n) if n == node4 => vec![&kind_mixnet, &kind_third],
+                (2, n) if n == node1 => vec![&kind_mixnet],
+                (2, n) if n == node2 => vec![&kind_mixnet, &kind_wireguard, &kind_third],
+                (2, n) if n == node3 => vec![&kind_wireguard, &kind_third],
+                (2, n) if n == node4 => vec![&kind_mixnet],
+                (3, n) if n == node1 => vec![&kind_mixnet, &kind_wireguard],
+                (3, n) if n == node2 => vec![&kind_mixnet],
+                (3, n) if n == node3 => vec![&kind_mixnet, &kind_wireguard, &kind_third],
+                _ => panic!(
+                    "Unexpected epoch/node combination: {}/{}",
+                    item.epoch_id, item.node_id
+                ),
+            };
+
+            assert_eq!(
+                item.performance.len(),
+                expected_kinds.len(),
+                "Node {}-{} has incomplete measurement kinds. Expected {}, got {}",
+                item.epoch_id,
+                item.node_id,
+                expected_kinds.len(),
+                item.performance.len()
+            );
+
+            for kind in expected_kinds {
+                assert!(
+                    item.performance.contains_key(kind),
+                    "Missing kind {} for node {}-{}",
+                    kind,
+                    item.epoch_id,
+                    item.node_id
+                );
+            }
+        };
+
+        // ===== full query (no pagination) =====
+        let res = query_full_historical_performance_paged(deps, None, None)?;
+
+        // total count (11 aggregated items: 4+4+3)
+        assert_eq!(
+            res.performance.len(),
+            11,
+            "Expected 11 total items, got {}",
+            res.performance.len()
+        );
+
+        // ordering by (epoch, node)
+        for i in 1..res.performance.len() {
+            let prev = &res.performance[i - 1];
+            let curr = &res.performance[i];
+            assert!(
+                (prev.epoch_id, prev.node_id) < (curr.epoch_id, curr.node_id),
+                "Results not properly sorted: ({}, {}) should be before ({}, {})",
+                prev.epoch_id,
+                prev.node_id,
+                curr.epoch_id,
+                curr.node_id
+            );
+        }
+
+        // no duplicates
+        let keys: HashSet<_> = res
+            .performance
+            .iter()
+            .map(|p| (p.epoch_id, p.node_id))
+            .collect();
+        assert_eq!(
+            keys.len(),
+            11,
+            "Found duplicate (epoch, node) pairs in results"
+        );
+
+        // Verify completeness for all items
+        for item in &res.performance {
+            validate_completeness(item);
+        }
+
+        // Verify start_next_after is the last item
+        assert_eq!(
+            res.start_next_after,
+            Some((3, node3)),
+            "start_next_after should be the last item"
+        );
+
+        // ===== Pagination with small limit =====
+        let mut all_pages = Vec::new();
+        let mut start_after = None;
+        let mut page_count = 0;
+        // safety limit to prevent an infinite loop
+        let max_pages = 20;
+
+        // test page by page if pagination works
+        loop {
+            let page = query_full_historical_performance_paged(deps, start_after, Some(1))?;
+
+            if page.performance.is_empty() {
+                break;
+            }
+
+            assert_eq!(
+                page.performance.len(),
+                1,
+                "Page {} should have exactly 1 item",
+                page_count + 1
+            );
+
+            // in each step, validate_completeness ensures correct data is present
+            // for that (epoch, node) combination
+            validate_completeness(&page.performance[0]);
+
+            all_pages.extend(page.performance);
+            start_after = page.start_next_after;
+            page_count += 1;
+
+            if start_after.is_none() {
+                break;
+            }
+
+            assert!(
+                page_count < max_pages,
+                "Too many pages ({}), possible infinite loop!",
+                page_count
+            );
+        }
+
+        // verify totals
+        assert_eq!(all_pages.len(), 11,);
+        assert_eq!(page_count, 11,);
+
+        // verify no duplicates across pages
+        let keys: HashSet<_> = all_pages.iter().map(|p| (p.epoch_id, p.node_id)).collect();
+        assert_eq!(
+            keys.len(),
+            11,
+            "Found duplicate (epoch, node) pairs across paginated results"
+        );
+
+        // ===== pagination with larger limit =====
+        // Page 1: should get first 3 items from epoch 1 (nodes 1, 2, 3)
+        let page1 = query_full_historical_performance_paged(deps, None, Some(3))?;
+        assert_eq!(page1.performance.len(), 3, "Page 1 should have 3 items");
+        assert_eq!(page1.performance[0].epoch_id, 1);
+        assert_eq!(page1.performance[0].node_id, node1);
+        assert_eq!(page1.performance[1].epoch_id, 1);
+        assert_eq!(page1.performance[1].node_id, node2);
+        assert_eq!(page1.performance[2].epoch_id, 1);
+        assert_eq!(page1.performance[2].node_id, node3);
+        assert_eq!(page1.start_next_after, Some((1, node3)));
+
+        for item in &page1.performance {
+            validate_completeness(item);
+        }
+
+        // Page 2: Should get node4 from epoch 1, then nodes 1,2 from epoch 2
+        let page2 = query_full_historical_performance_paged(deps, page1.start_next_after, Some(3))?;
+        assert_eq!(page2.performance.len(), 3, "Page 2 should have 3 items");
+        assert_eq!(page2.performance[0].epoch_id, 1);
+        assert_eq!(page2.performance[0].node_id, node4);
+        assert_eq!(page2.performance[1].epoch_id, 2);
+        assert_eq!(page2.performance[1].node_id, node1);
+        assert_eq!(page2.performance[2].epoch_id, 2);
+        assert_eq!(page2.performance[2].node_id, node2);
+
+        // Verify no duplication of (10, node3)
+        assert!(
+            page2
+                .performance
+                .iter()
+                .all(|p| (p.epoch_id, p.node_id) != (1, node3)),
+        );
+
+        for item in &page2.performance {
+            validate_completeness(item);
+        }
+
+        // ===== SECTION 4: Pagination with start_after in Middle =====
+        // Start from middle of epoch 11 (after node 2)
+        let res = query_full_historical_performance_paged(deps, Some((2, node2)), None)?;
+        assert_eq!(res.performance.len(), 5,);
+
+        // Verify (2, node2) NOT included (exclusive bound)
+        assert!(
+            res.performance
+                .iter()
+                .all(|p| (p.epoch_id, p.node_id) != (11, node2)),
+        );
+
+        // Verify we get nodes 3,4 from epoch 2 and all from epoch 3
+        assert_eq!(res.performance[0].epoch_id, 2);
+        assert_eq!(res.performance[0].node_id, node3);
+        assert_eq!(res.performance[1].epoch_id, 2);
+        assert_eq!(res.performance[1].node_id, node4);
+        assert_eq!(res.performance[2].epoch_id, 3);
+        assert_eq!(res.performance[2].node_id, node1);
+        assert_eq!(res.performance[3].epoch_id, 3);
+        assert_eq!(res.performance[3].node_id, node2);
+        assert_eq!(res.performance[4].epoch_id, 3);
+        assert_eq!(res.performance[4].node_id, node3);
+
+        for item in &res.performance {
+            validate_completeness(item);
+        }
+
+        // Start from middle with limit
+        let res = query_full_historical_performance_paged(deps, Some((2, node2)), Some(2))?;
+        assert_eq!(res.performance.len(), 2,);
+
+        assert_eq!(res.performance[0].epoch_id, 2);
+        assert_eq!(res.performance[0].node_id, node3);
+        assert_eq!(res.performance[1].epoch_id, 2);
+        assert_eq!(res.performance[1].node_id, node4);
+        assert_eq!(res.start_next_after, Some((2, node4)));
+
+        for item in &res.performance {
+            validate_completeness(item);
+        }
+
+        // ===== edge Cases =====
+        // start_after beyond last item
+        let res = query_full_historical_performance_paged(deps, Some((12, node3)), None)?;
+        assert!(res.performance.is_empty(),);
+        assert_eq!(res.start_next_after, None,);
+
+        // start_after at nonexistent node (should jump to next epoch/node combo)
+        let res = query_full_historical_performance_paged(deps, Some((2, 9999)), None)?;
+        assert_eq!(res.performance.len(), 3,);
+        assert_eq!(res.performance[0].epoch_id, 3);
+        assert_eq!(res.performance[0].node_id, node1);
+
+        // limit exceeding available data should return all items
+        let res = query_full_historical_performance_paged(deps, None, Some(1000))?;
+        assert_eq!(res.performance.len(), 11,);
+        assert_eq!(res.start_next_after, Some((3, node3)));
+
+        // limit=0 should return empty
+        let res = query_full_historical_performance_paged(deps, None, Some(0))?;
+        assert!(res.performance.is_empty(),);
+        assert_eq!(res.start_next_after, None,);
+
+        // ===== Collect all data again and verify against raw storage =====
+        let all_data = query_full_historical_performance_paged(deps, None, None)?;
+        for item in &all_data.performance {
+            for (kind, percent) in &item.performance {
+                // verify the performance value matches the median from raw storage
+                let raw = test.read_raw_scores(item.epoch_id, item.node_id, kind.clone())?;
+                assert_eq!(
+                    *percent,
+                    raw.median(),
+                    "Performance value mismatch for epoch {} node {} kind {}",
+                    item.epoch_id,
+                    item.node_id,
+                    kind
+                );
+            }
+        }
 
         Ok(())
     }

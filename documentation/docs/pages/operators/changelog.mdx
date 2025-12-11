@@ -49,6 +49,72 @@ This page displays a full list of all the changes during our release cycle from 
 
 <VarInfo />
 
+## Last Update of 2025
+
+We are not going to do a platform release this year anymore, but we have two important updates to share.
+
+### Governance decisions
+
+During December operators were active in voting about new ports and changes in the quorum. 
+
+**As agreed in [NIP-4](https://forum.nym.com/t/nip-4-nym-exit-policy-update-opening-port-587/2029/2) and [NIP-6](https://forum.nym.com/t/nip-6-nym-exit-policy-update-opening-ports-for-whatsapp-and-session/2042/1), we are opening these ports on [Nym exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt):**
+```ini
+*:587 (SMTP)
+*:22021(Session)
+*:3478 (WhatsApp)
+*:3480 (WhatsApp)
+*:3484 (WhatsApp)
+```
+
+**Node operators requirements**
+
+In order for these changes to become active, Nym node operators need to update their WireGuard and Mixnet exit policy, by following these simple steps:
+
+<Steps>
+
+###### 1. Update WireGuard exit policy
+
+- WireGuard exit policy is managed by `iptables rules` of each server hosting a `nym-node`
+- To simplify the flow, [`network-tunnel-manager.sh` (NTM)](https://github.com/nymtech/nym/blob/develop/scripts/nym-node-setup/network-tunnel-manager.sh) takes care of this
+- Please get the new NTM by SSH to your node and running:
+```sh
+curl -L https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/network-tunnel-manager.sh -o network-tunnel-manager.sh && \
+chmod +x network-tunnel-manager.sh && \
+./network-tunnel-manager.sh --help
+```
+- Then run either:
+```sh
+./network-tunnel-manager.sh complete_networking_configuration
+```
+- Or in case that you are sure that you did `complete_networking_configuration` since the latest release, you can just run the commands needed for the exit policy:
+```sh
+./network-tunnel-manager.sh exit_policy_clear
+./network-tunnel-manager.sh exit_policy_install
+./network-tunnel-manager.sh  exit_policy_status
+./network-tunnel-manager.sh exit_policy_tests
+```
+
+
+###### 2. Update Mixnet exit policy
+
+- Mixnet exit policy is being pulled with `nym-node run` command from this source: [nymtech.net/.wellknown/network-requester/exit-policy.txt](https://nymtech.net/.wellknown/network-requester/exit-policy.txt)
+- All you need to do is to restart your node:
+```sh
+service nym-node restart 
+```
+</Steps>
+
+
+### Orchestration with Ansible
+
+Finally we release our initial version [**Ansible playbooks](/operators/orchestration) for orchestrating multiple Nym nodes** from local shell. For now we have playbooks to perform these tasks:
+
+- Deploy
+- Upgrade
+- Bond
+
+Checkout the [docs](/operators/orchestration/ansible) and the [Ansible template](https://github.com/nymtech/nym/tree/develop/ansible/nym-node) and let us know how this flag ship worked for you. 
+
 ## `v2025.21-mozzarella`
 
 - [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.21-mozzarella)

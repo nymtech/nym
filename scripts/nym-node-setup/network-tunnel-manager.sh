@@ -616,6 +616,7 @@ apply_port_allowlist() {
     ["HTTPS"]="443"
     ["SMBWindowsFileShare"]="445"
     ["Kpasswd"]="464"
+    ["SMTPTLS"]="465"
     ["RTSP"]="554"
     ["SMTPSubmission"]="587"
     ["LDAPS"]="636"
@@ -690,7 +691,7 @@ apply_port_allowlist() {
     ["MOSH"]="60000-61000"
     ["Mumble"]="64738"
     ["Metadata"]="51830"
-    ["TESTING"]="465"
+    
   )
 
   local port

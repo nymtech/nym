@@ -179,7 +179,7 @@ async fn resolve(
     independent: bool,
     overall_dns_timeout: Duration,
 ) -> Result<Addrs, ResolveError> {
-    let resolver = resolver.get_or_try_init(|| HickoryDnsResolver::new_resolver(independent))?;
+    let resolver = resolver.get_or_init(|| HickoryDnsResolver::new_resolver(independent));
 
     // Attempt a lookup using the primary resolver
     let resolve_fut = tokio::time::timeout(overall_dns_timeout, resolver.lookup_ip(name.as_str()));
@@ -271,13 +271,13 @@ impl HickoryDnsResolver {
         }
     }
 
-    fn new_resolver(use_shared: bool) -> Result<TokioResolver, ResolveError> {
+    fn new_resolver(use_shared: bool) -> TokioResolver {
         // using a closure here is slightly gross, but this makes sure that if the
         // lazy-init returns an error it can be handled by the client
-        if !use_shared {
-            new_resolver()
+        if use_shared {
+            SHARED_RESOLVER.state.get_or_init(new_resolver).clone()
         } else {
-            Ok(SHARED_RESOLVER.state.get_or_try_init(new_resolver)?.clone())
+            new_resolver()
         }
     }
 
@@ -358,6 +358,7 @@ impl HickoryDnsResolver {
         // Always cache successful responses for queries received by this resolver for 30 min minimum.
         opts.positive_min_ttl = Some(DEFAULT_POSITIVE_LOOKUP_CACHE_TTL);
         opts.timeout = DEFAULT_QUERY_TIMEOUT;
+        opts.attempts = 0;
 
         opts
     }
@@ -403,10 +404,10 @@ impl HickoryDnsResolver {
 ///
 /// Caches successfully resolved addresses for 30 minutes to prevent continual use of remote lookup.
 /// This resolver is intended to be used for OUR API endpoints that do not rapidly rotate IPs.
-fn new_resolver() -> Result<TokioResolver, ResolveError> {
+fn new_resolver() -> TokioResolver {
     let name_servers = default_nameserver_group_ipv4_only();
 
-    Ok(configure_and_build_resolver(name_servers))
+    configure_and_build_resolver(name_servers)
 }
 
 fn configure_and_build_resolver<G>(name_servers: G) -> TokioResolver

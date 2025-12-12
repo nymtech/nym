@@ -139,7 +139,7 @@ pub async fn setup_gateway_wasm(
         GatewaySetup::MustLoad { gateway_id: None }
     } else {
         let selection_spec =
-            GatewaySelectionSpecification::new(chosen_gateway.clone(), None, force_tls, false);
+            GatewaySelectionSpecification::new(chosen_gateway.clone(), None, force_tls);
 
         GatewaySetup::New {
             specification: selection_spec,
@@ -218,7 +218,6 @@ pub async fn add_gateway(
         preferred_gateway.clone(),
         latency_based_selection,
         force_tls,
-        false,
     );
 
     let preferred_gateway = preferred_gateway

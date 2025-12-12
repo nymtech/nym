@@ -156,15 +156,16 @@ impl StorageManager {
         &self,
         remote: &RawRemoteGatewayDetails,
     ) -> Result<(), sqlx::Error> {
+        let details =
+            serde_json::to_string(&remote.published_data.gateway_details).expect("AHHHHHHHHH");
         sqlx::query!(
             r#"
-                INSERT INTO remote_gateway_details(gateway_id_bs58, derived_aes256_gcm_siv_key, gateway_listener, fallback_listener, expiration_timestamp)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT INTO remote_gateway_details(gateway_id_bs58, derived_aes256_gcm_siv_key, gateway_details, expiration_timestamp)
+                VALUES (?, ?, ?, ?)
             "#,
             remote.gateway_id_bs58,
             remote.derived_aes256_gcm_siv_key,
-            remote.published_data.gateway_listener,
-            remote.published_data.fallback_listener,
+            details,
             remote.published_data.expiration_timestamp
         )
             .execute(&self.connection_pool)
@@ -177,12 +178,12 @@ impl StorageManager {
         gateway_id_bs58: &str,
         published_data: &RawGatewayPublishedData,
     ) -> Result<(), sqlx::Error> {
+        let details = serde_json::to_string(&published_data.gateway_details).expect("AHHHHHHHHH");
         sqlx::query!(
             r#"
-                UPDATE remote_gateway_details SET gateway_listener = ?, fallback_listener = ?, expiration_timestamp = ? WHERE gateway_id_bs58 = ?
+                UPDATE remote_gateway_details SET gateway_details = ?, expiration_timestamp = ? WHERE gateway_id_bs58 = ?
             "#,
-            published_data.gateway_listener,
-            published_data.fallback_listener,
+            details,
             published_data.expiration_timestamp,
             gateway_id_bs58
         )

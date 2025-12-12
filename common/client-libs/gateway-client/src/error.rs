@@ -49,12 +49,8 @@ pub enum GatewayClientError {
     #[error("no socket address for endpoint: {address}")]
     NoEndpointForConnection { address: String },
 
-    #[error("Invalid URL: {0}")]
-    InvalidUrl(String),
-
-    #[cfg(not(target_arch = "wasm32"))]
-    #[error("resolution failed: {0}")]
-    ResolutionFailed(#[from] nym_http_api_client::ResolveError),
+    #[error("Invalid Endpoint: {0}")]
+    InvalidEndpoint(String),
 
     #[error("No shared key was provided or obtained")]
     NoSharedKeyAvailable,

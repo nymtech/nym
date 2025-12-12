@@ -7,7 +7,7 @@ use nym_crypto::asymmetric::ed25519;
 use nym_mixnet_contract_common::nym_node::Role;
 use nym_mixnet_contract_common::{EpochId, EpochRewardedSet, RewardedSet};
 use nym_topology::node::RoutingNode;
-use nym_topology::{NymRouteProvider, NymTopology, NymTopologyMetadata};
+use nym_topology::{EntryDetails, NymRouteProvider, NymTopology, NymTopologyMetadata};
 use std::fmt::{Debug, Formatter};
 use time::OffsetDateTime;
 
@@ -82,8 +82,8 @@ impl TestRoute {
         self.nodes.nodes_with_role(Role::Layer3).next().unwrap()
     }
 
-    pub(crate) fn gateway_clients_address(&self) -> Option<String> {
-        self.gateway().ws_entry_address(false)
+    pub(crate) fn gateway_details(&self) -> Option<EntryDetails> {
+        self.gateway().entry.clone()
     }
 
     pub(crate) fn gateway_identity(&self) -> ed25519::PublicKey {

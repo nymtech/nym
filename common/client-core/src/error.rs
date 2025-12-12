@@ -43,15 +43,8 @@ pub enum ClientCoreError {
     #[error("no gateway with id: {0}")]
     NoGatewayWithId(String),
 
-    #[error("Invalid URL: {0}")]
-    InvalidUrl(String),
-
-    #[error("node doesn't advertise ip addresses : {0}")]
-    MissingIpAddress(String),
-
-    #[cfg(not(target_arch = "wasm32"))]
-    #[error("resolution failed: {0}")]
-    ResolutionFailed(#[from] nym_http_api_client::ResolveError),
+    #[error("Invalid Endpoint: {0}")]
+    InvalidEndpoint(String),
 
     #[error("no gateways on network")]
     NoGatewaysOnNetwork,

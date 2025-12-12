@@ -10,6 +10,7 @@ rust-version.workspace = true
 [dependencies]
 async-trait.workspace = true
 serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
 thiserror.workspace = true
 time.workspace = true
 tokio = { workspace = true, features = ["sync"] }
@@ -20,10 +21,11 @@ zeroize = { workspace = true, features = ["zeroize_derive"] }
 nym-crypto = { path = "../../crypto", features = ["asymmetric"] }
 nym-gateway-requests = { path = "../../gateway-requests" }
 nym-gateway-client = { path = "../../client-libs/gateway-client" }
+nym-topology = { path = "../../topology", features = ["persistence"] }
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.sqlx]
 workspace = true
-features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate", "time"]
+features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate", "time", "json"]
 optional = true
 
 [build-dependencies]
@@ -34,6 +36,7 @@ sqlx = { workspace = true, features = [
     "sqlite",
     "macros",
     "migrate",
+    "json",
 ] }
 
 [features]

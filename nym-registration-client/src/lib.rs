@@ -191,14 +191,13 @@ impl RegistrationClient {
         );
 
         // Perform handshake with entry gateway (outer session now established)
-        entry_client
-            .perform_handshake()
-            .await
-            .map_err(|source| RegistrationClientError::EntryGatewayRegisterLp {
+        entry_client.perform_handshake().await.map_err(|source| {
+            RegistrationClientError::EntryGatewayRegisterLp {
                 gateway_id: self.config.entry.node.identity.to_base58_string(),
                 lp_address: entry_lp_address,
                 source: Box::new(source),
-            })?;
+            }
+        })?;
 
         tracing::info!("Outer session with entry gateway established");
 

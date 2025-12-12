@@ -68,7 +68,9 @@ fn build_go() -> anyhow::Result<()> {
         .arg(binary_out_path)
         .arg("-buildmode")
         .arg("c-archive")
+        // Include all Go source files in the package (except tests)
         .arg("lib.go")
+        .arg("udp_forwarder.go")
         .spawn()?;
     let status = child.wait()?;
     if !status.success() {

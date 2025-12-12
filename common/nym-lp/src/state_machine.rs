@@ -21,29 +21,29 @@ use tracing::debug;
 pub enum LpState {
     /// Initial state: Ready to start the handshake.
     /// State machine is created with keys, lp_id is derived, session is ready.
-    ReadyToHandshake { session: LpSession },
+    ReadyToHandshake { session: Box<LpSession> },
 
     /// Performing KKT (KEM Key Transfer) exchange before Noise handshake.
     /// Initiator requests responder's KEM public key, responder provides signed key.
-    KKTExchange { session: LpSession },
+    KKTExchange { session: Box<LpSession> },
 
     /// Actively performing the Noise handshake.
     /// (We might be able to merge this with ReadyToHandshake if the first step always happens)
-    Handshaking { session: LpSession }, // Kept for now, logic might merge later
+    Handshaking { session: Box<LpSession> }, // Kept for now, logic might merge later
 
     /// Handshake complete, ready for data transport.
-    Transport { session: LpSession },
+    Transport { session: Box<LpSession> },
 
     /// Performing subsession KK handshake while parent remains active.
     /// Parent can still send/receive; subsession messages tunneled through parent.
     SubsessionHandshaking {
-        session: LpSession,
-        subsession: SubsessionHandshake,
+        session: Box<LpSession>,
+        subsession: Box<SubsessionHandshake>,
     },
 
     /// Parent session demoted after subsession promoted.
     /// Can only receive (drain in-flight), cannot send.
-    ReadOnlyTransport { session: LpSession },
+    ReadOnlyTransport { session: Box<LpSession> },
 
     /// An error occurred, or the connection was intentionally closed.
     Closed { reason: String },
@@ -119,7 +119,7 @@ pub enum LpAction {
     /// the completed SubsessionHandshake for into_session(), and the new receiver_index.
     SubsessionComplete {
         packet: Option<LpPacket>,
-        subsession: SubsessionHandshake,
+        subsession: Box<SubsessionHandshake>,
         new_receiver_index: u32,
     },
 }
@@ -157,7 +157,7 @@ impl LpStateMachine {
             | LpState::Handshaking { session }
             | LpState::Transport { session }
             | LpState::SubsessionHandshaking { session, .. }
-            | LpState::ReadOnlyTransport { session } => Ok(session),
+            | LpState::ReadOnlyTransport { session } => Ok(*session),
             LpState::Closed { .. } => Err(LpError::LpSessionClosed),
             LpState::Processing => Err(LpError::LpSessionProcessing),
         }
@@ -234,7 +234,9 @@ impl LpStateMachine {
         )?;
 
         Ok(LpStateMachine {
-            state: LpState::ReadyToHandshake { session },
+            state: LpState::ReadyToHandshake {
+                session: Box::new(session),
+            },
         })
     }
 
@@ -257,7 +259,9 @@ impl LpStateMachine {
     ) -> Result<Self, LpError> {
         let session = subsession.into_session(receiver_index)?;
         Ok(LpStateMachine {
-            state: LpState::Transport { session },
+            state: LpState::Transport {
+                session: Box::new(session),
+            },
         })
     }
 
@@ -538,7 +542,7 @@ impl LpStateMachine {
                                                          Ok(response_packet) => {
                                                              result_action = Some(Ok(LpAction::SendPacket(response_packet)));
                                                              // Stay in SubsessionHandshaking, wait for SubsessionReady
-                                                             LpState::SubsessionHandshaking { session, subsession }
+                                                             LpState::SubsessionHandshaking { session, subsession: Box::new(subsession) }
                                                          }
                                                          Err(e) => {
                                                              let reason = e.to_string();
@@ -596,7 +600,7 @@ impl LpStateMachine {
                                  }
                              }
                          }
-                         // AIDEV-NOTE: Stale abort in Transport state - race already resolved.
+                         // Stale abort in Transport state - race already resolved.
                          // This can happen if abort arrives after loser already returned to Transport
                          // via KK1 processing (loser detected local < remote and became responder).
                          // The winner's abort message arrived late. Silently ignore.
@@ -659,7 +663,7 @@ impl LpStateMachine {
                                             packet,
                                             subsession_index,
                                         }));
-                                        LpState::SubsessionHandshaking { session, subsession }
+                                        LpState::SubsessionHandshaking { session, subsession: Box::new(subsession) }
                                     }
                                     Err(e) => {
                                         let reason = e.to_string();
@@ -753,7 +757,7 @@ impl LpStateMachine {
                                                             Ok(response_packet) => {
                                                                 result_action = Some(Ok(LpAction::SendPacket(response_packet)));
                                                                 // Replace old initiator subsession with new responder subsession
-                                                                LpState::SubsessionHandshaking { session, subsession: new_subsession }
+                                                                LpState::SubsessionHandshaking { session, subsession: Box::new(new_subsession) }
                                                             }
                                                             Err(e) => {
                                                                 let reason = e.to_string();
@@ -955,8 +959,7 @@ impl LpStateMachine {
                 if packet.header.receiver_idx() != session.id() {
                     result_action = Some(Err(LpError::UnknownSessionId(packet.header.receiver_idx())));
                     LpState::ReadOnlyTransport { session }
-                } else {
-                    if let Err(e) = session.receiving_counter_quick_check(packet.header.counter) {
+                } else if let Err(e) = session.receiving_counter_quick_check(packet.header.counter) {
                         result_action = Some(Err(e));
                         LpState::ReadOnlyTransport { session }
                     } else {
@@ -976,7 +979,6 @@ impl LpStateMachine {
                                 LpState::Closed { reason }
                             }
                         }
-                    }
                 }
             }
 
@@ -1613,7 +1615,12 @@ mod tests {
 
         // --- Complete Noise Handshake ---
         // Alice prepares first Noise message
-        let noise1_msg = alice.session().unwrap().prepare_handshake_message().unwrap().unwrap();
+        let noise1_msg = alice
+            .session()
+            .unwrap()
+            .prepare_handshake_message()
+            .unwrap()
+            .unwrap();
         let noise1_packet = alice.session().unwrap().next_packet(noise1_msg).unwrap();
 
         // Bob receives noise1, sends noise2
@@ -1666,10 +1673,7 @@ mod tests {
         } else {
             panic!("Alice should initiate subsession with KK1");
         };
-        assert!(matches!(
-            alice.state,
-            LpState::SubsessionHandshaking { .. }
-        ));
+        assert!(matches!(alice.state, LpState::SubsessionHandshaking { .. }));
 
         // Bob initiates subsession (simultaneously)
         let bob_kk1_packet = if let Some(Ok(LpAction::SubsessionInitiated { packet, .. })) =

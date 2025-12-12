@@ -83,7 +83,6 @@ use tokio::sync::mpsc;
 use tracing::*;
 
 mod handler;
-mod handshake;
 mod messages;
 mod registration;
 
@@ -269,7 +268,8 @@ impl<T> TimestampedState<T> {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
             .as_secs();
-        self.last_activity.store(now, std::sync::atomic::Ordering::Relaxed);
+        self.last_activity
+            .store(now, std::sync::atomic::Ordering::Relaxed);
     }
 
     /// Get age since creation
@@ -283,7 +283,9 @@ impl<T> TimestampedState<T> {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
             .as_secs();
-        let last = self.last_activity.load(std::sync::atomic::Ordering::Relaxed);
+        let last = self
+            .last_activity
+            .load(std::sync::atomic::Ordering::Relaxed);
         now.saturating_sub(last)
     }
 }
@@ -511,6 +513,7 @@ impl LpListener {
     ///
     /// Demoted sessions (ReadOnlyTransport) use shorter TTL since they
     /// only need to drain in-flight packets after subsession promotion.
+    #[allow(clippy::too_many_arguments)]
     async fn cleanup_loop(
         handshake_states: Arc<DashMap<u32, TimestampedState<LpStateMachine>>>,
         session_states: Arc<DashMap<u32, TimestampedState<LpStateMachine>>>,

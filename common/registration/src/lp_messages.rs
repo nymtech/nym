@@ -144,11 +144,9 @@ mod tests {
     #[test]
     fn test_lp_registration_response_success() {
         let gateway_data = create_test_gateway_data();
-        let session_id = 12345;
         let allocated_bandwidth = 1_000_000_000;
 
-        let response =
-            LpRegistrationResponse::success(allocated_bandwidth, gateway_data.clone());
+        let response = LpRegistrationResponse::success(allocated_bandwidth, gateway_data.clone());
 
         assert!(response.success);
         assert!(response.error.is_none());

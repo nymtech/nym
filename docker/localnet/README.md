@@ -77,12 +77,12 @@ Host Machine (macOS)
 
 Ports published to host:
 - 1080 → SOCKS5 proxy
-- 9000 → Gateway entry
-- 10001-10004 → Mixnet ports
-- 20001-20004 → Verloc ports
-- 30001-30004 → HTTP APIs
-- 41264 → LP control port (registration)
-- 51264 → LP data port
+- 9000/9001 → Gateway entry ports
+- 10001-10005 → Mixnet ports
+- 20001-20005 → Verloc ports
+- 30001-30005 → HTTP APIs
+- 41264/41265 → LP control ports (registration)
+- 51822/51823 → WireGuard tunnel ports (gateway/gateway2)
 
 ### Startup Flow
 

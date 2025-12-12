@@ -16,8 +16,8 @@ pub const OUTER_HEADER_SIZE: usize = OuterHeader::SIZE; // 12 bytes
 /// Size of inner prefix (proto + reserved) - cleartext or encrypted depending on mode
 const INNER_PREFIX_SIZE: usize = 4; // proto(1) + reserved(3)
 use chacha20poly1305::{
-    aead::{AeadInPlace, KeyInit},
     ChaCha20Poly1305, Key, Nonce, Tag,
+    aead::{AeadInPlace, KeyInit},
 };
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
@@ -32,7 +32,7 @@ use zeroize::{Zeroize, ZeroizeOnDrop};
 /// ChaCha20-Poly1305 requires unique nonces per key. The counter starts at 0
 /// for each session, which is safe because:
 ///
-/// 1. **PSK is always fresh**: Each handshake uses PSQ 
+/// 1. **PSK is always fresh**: Each handshake uses PSQ
 ///    with a client-generated random salt. This ensures a unique
 ///    PSK for every session, even between the same client-gateway pair.
 ///
@@ -106,9 +106,9 @@ fn parse_message_from_type_and_content(
             Ok(LpMessage::Busy)
         }
         MessageType::Handshake => Ok(LpMessage::Handshake(HandshakeData(content.to_vec()))),
-        MessageType::EncryptedData => {
-            Ok(LpMessage::EncryptedData(EncryptedDataPayload(content.to_vec())))
-        }
+        MessageType::EncryptedData => Ok(LpMessage::EncryptedData(EncryptedDataPayload(
+            content.to_vec(),
+        ))),
         MessageType::ClientHello => {
             let data: ClientHelloData = bincode::deserialize(content)
                 .map_err(|e| LpError::DeserializationError(e.to_string()))?;
@@ -205,10 +205,7 @@ pub fn parse_lp_header_only(src: &[u8]) -> Result<OuterHeader, LpError> {
 /// # Errors
 /// * `LpError::AeadTagMismatch` - Tag verification failed (when outer_key provided)
 /// * `LpError::InsufficientBufferSize` - Packet too small
-pub fn parse_lp_packet(
-    src: &[u8],
-    outer_key: Option<&OuterAeadKey>,
-) -> Result<LpPacket, LpError> {
+pub fn parse_lp_packet(src: &[u8], outer_key: Option<&OuterAeadKey>) -> Result<LpPacket, LpError> {
     // Minimum size check: OuterHeader + InnerPrefix + MsgType + Trailer (for 0-payload message)
     // 12 + 4 + 2 + 16 = 34 bytes
     let min_size = OUTER_HEADER_SIZE + INNER_PREFIX_SIZE + 2 + TRAILER_LEN;
@@ -391,7 +388,7 @@ impl LpError {
 #[cfg(test)]
 mod tests {
     // Import standalone functions
-    use super::{parse_lp_packet, serialize_lp_packet, OuterAeadKey};
+    use super::{OuterAeadKey, parse_lp_packet, serialize_lp_packet};
     // Keep necessary imports
     use crate::LpError;
     use crate::message::{EncryptedDataPayload, HandshakeData, LpMessage, MessageType};
@@ -1306,7 +1303,10 @@ mod tests {
         let result = parse_lp_packet(&buf, None);
         assert!(matches!(
             result,
-            Err(LpError::InvalidPayloadSize { expected: 0, actual: 1 })
+            Err(LpError::InvalidPayloadSize {
+                expected: 0,
+                actual: 1
+            })
         ));
     }
 

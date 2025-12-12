@@ -7,7 +7,7 @@ use std::{
     time::Duration,
 };
 
-use crate::{netstack::NetstackResult, types::Entry};
+use crate::types::Entry;
 use anyhow::bail;
 use base64::{Engine as _, engine::general_purpose};
 use bytes::BytesMut;
@@ -20,7 +20,7 @@ use nym_authenticator_requests::{
 };
 use nym_client_core::config::ForgetMe;
 use nym_config::defaults::{
-    NymNetworkDetails, WG_METADATA_PORT, WG_TUN_DEVICE_IP_ADDRESS_V4,
+    NymNetworkDetails,
     mixnet_vpn::{NYM_TUN_DEVICE_ADDRESS_V4, NYM_TUN_DEVICE_ADDRESS_V6},
 };
 use nym_connection_monitor::self_ping_and_wait;
@@ -51,16 +51,17 @@ use crate::{
     types::Exit,
 };
 
-use netstack::{NetstackRequest, NetstackRequestGo};
-
 mod bandwidth_helpers;
+mod common;
 mod icmp;
+pub mod mode;
 mod netstack;
 pub mod nodes;
 mod types;
 
 use crate::bandwidth_helpers::{acquire_bandwidth, import_bandwidth};
 use crate::nodes::{DirectoryNode, NymApiDirectory};
+pub use mode::TestMode;
 use nym_node_status_client::models::AttachedTicketMaterials;
 pub use types::{IpPingReplies, ProbeOutcome, ProbeResult};
 
@@ -157,6 +158,32 @@ pub struct TestedNodeDetails {
     lp_address: Option<std::net::SocketAddr>,
 }
 
+impl TestedNodeDetails {
+    /// Create from CLI args (localnet mode - no HTTP query needed)
+    /// Only identity and LP address are required; other fields are None/default.
+    pub fn from_cli(identity: NodeIdentity, lp_address: std::net::SocketAddr) -> Self {
+        Self {
+            identity,
+            ip_address: Some(lp_address.ip()),
+            lp_address: Some(lp_address),
+            // These are None in localnet mode - only needed for mixnet/authenticator
+            exit_router_address: None,
+            authenticator_address: None,
+            authenticator_version: AuthenticatorVersion::UNKNOWN,
+        }
+    }
+
+    /// Check if this node has sufficient info for LP testing
+    pub fn can_test_lp(&self) -> bool {
+        self.lp_address.is_some()
+    }
+
+    /// Check if this node has sufficient info for mixnet testing
+    pub fn can_test_mixnet(&self) -> bool {
+        self.exit_router_address.is_some() || self.authenticator_address.is_some()
+    }
+}
+
 pub struct Probe {
     entrypoint: NodeIdentity,
     tested_node: TestedNode,
@@ -167,6 +194,10 @@ pub struct Probe {
     direct_gateway_node: Option<DirectoryNode>,
     /// Pre-queried exit gateway node (used when --exit-gateway-ip is specified for LP forwarding)
     exit_gateway_node: Option<DirectoryNode>,
+    /// Localnet entry gateway info (used when --entry-gateway-identity is specified)
+    localnet_entry: Option<TestedNodeDetails>,
+    /// Localnet exit gateway info (used when --exit-gateway-identity is specified)
+    localnet_exit: Option<TestedNodeDetails>,
 }
 
 impl Probe {
@@ -184,6 +215,8 @@ impl Probe {
             credentials_args,
             direct_gateway_node: None,
             exit_gateway_node: None,
+            localnet_entry: None,
+            localnet_exit: None,
         }
     }
 
@@ -203,6 +236,8 @@ impl Probe {
             credentials_args,
             direct_gateway_node: Some(gateway_node),
             exit_gateway_node: None,
+            localnet_entry: None,
+            localnet_exit: None,
         }
     }
 
@@ -223,6 +258,30 @@ impl Probe {
             credentials_args,
             direct_gateway_node: Some(entry_gateway_node),
             exit_gateway_node: Some(exit_gateway_node),
+            localnet_entry: None,
+            localnet_exit: None,
+        }
+    }
+
+    /// Create a probe for localnet mode (no HTTP query needed)
+    /// Uses identity + LP address directly from CLI args
+    pub fn new_localnet(
+        entry: TestedNodeDetails,
+        exit: Option<TestedNodeDetails>,
+        netstack_args: NetstackArgs,
+        credentials_args: CredentialArgs,
+    ) -> Self {
+        let entrypoint = entry.identity;
+        Self {
+            entrypoint,
+            tested_node: TestedNode::SameAsEntry,
+            amnezia_args: "".into(),
+            netstack_args,
+            credentials_args,
+            direct_gateway_node: None,
+            exit_gateway_node: None,
+            localnet_entry: Some(entry),
+            localnet_exit: exit,
         }
     }
 
@@ -231,6 +290,7 @@ impl Probe {
         self
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub async fn probe(
         self,
         directory: Option<NymApiDirectory>,
@@ -266,6 +326,11 @@ impl Probe {
 
         let mixnet_client = Box::pin(disconnected_mixnet_client.connect_to_mixnet()).await;
 
+        // Convert legacy flags to TestMode
+        let has_exit = self.exit_gateway_node.is_some() || self.localnet_exit.is_some();
+        let test_mode =
+            TestMode::from_flags(only_wireguard, only_lp_registration, test_lp_wg, has_exit);
+
         self.do_probe_test(
             Some(mixnet_client),
             storage,
@@ -274,9 +339,8 @@ impl Probe {
             directory.as_ref(),
             nyxd_url,
             tested_entry,
+            test_mode,
             only_wireguard,
-            only_lp_registration,
-            test_lp_wg,
             false, // Not using mock ecash in regular probe mode
         )
         .await
@@ -296,11 +360,62 @@ impl Probe {
         min_mixnet_performance: Option<u8>,
         use_mock_ecash: bool,
     ) -> anyhow::Result<ProbeResult> {
+        // Localnet mode - identity + LP address from CLI, no HTTP query
+        // This path is used when --entry-gateway-identity is specified
+        if let Some(entry_info) = &self.localnet_entry {
+            info!("Using localnet mode with CLI-provided gateway identities");
+
+            // Initialize storage (needed for credentials)
+            if !config_dir.exists() {
+                std::fs::create_dir_all(config_dir)?;
+            }
+            let storage_paths = StoragePaths::new_from_dir(config_dir)?;
+            let storage = storage_paths
+                .initialise_default_persistent_storage()
+                .await?;
+
+            // For localnet, use entry as the test node (or exit if provided)
+            let mixnet_entry_gateway_id = entry_info.identity;
+            let node_info = if let Some(exit_info) = &self.localnet_exit {
+                exit_info.clone()
+            } else {
+                entry_info.clone()
+            };
+
+            // Convert legacy flags to TestMode
+            let has_exit = self.localnet_exit.is_some();
+            let test_mode =
+                TestMode::from_flags(only_wireguard, only_lp_registration, test_lp_wg, has_exit);
+
+            return self
+                .do_probe_test(
+                    None,
+                    storage,
+                    mixnet_entry_gateway_id,
+                    node_info,
+                    directory.as_ref(),
+                    nyxd_url,
+                    false, // tested_entry
+                    test_mode,
+                    only_wireguard,
+                    use_mock_ecash,
+                )
+                .await;
+        }
+
         // If both gateways are pre-queried via --gateway-ip and --exit-gateway-ip,
         // skip mixnet setup entirely - we have all the data we need
         if self.direct_gateway_node.is_some() && self.exit_gateway_node.is_some() {
-            let entry_node = self.direct_gateway_node.as_ref().unwrap();
-            let exit_node = self.exit_gateway_node.as_ref().unwrap();
+            let entry_node = if let Some(entry_node) = self.direct_gateway_node.as_ref() {
+                entry_node
+            } else {
+                return Err(anyhow::anyhow!("Entry gateway node is missing"));
+            };
+            let exit_node = if let Some(exit_node) = self.exit_gateway_node.as_ref() {
+                exit_node
+            } else {
+                return Err(anyhow::anyhow!("Exit gateway node is missing"));
+            };
 
             // Initialize storage (needed for credentials)
             if !config_dir.exists() {
@@ -315,6 +430,10 @@ impl Probe {
             let mixnet_entry_gateway_id = entry_node.identity();
             let node_info = exit_node.to_testable_node()?;
 
+            // Convert legacy flags to TestMode (has_exit = true since we have exit_gateway_node)
+            let test_mode =
+                TestMode::from_flags(only_wireguard, only_lp_registration, test_lp_wg, true);
+
             return self
                 .do_probe_test(
                     None,
@@ -324,9 +443,8 @@ impl Probe {
                     directory.as_ref(),
                     nyxd_url,
                     false, // tested_entry
+                    test_mode,
                     only_wireguard,
-                    only_lp_registration,
-                    test_lp_wg,
                     use_mock_ecash,
                 )
                 .await;
@@ -403,6 +521,11 @@ impl Probe {
 
         let mixnet_client = Box::pin(disconnected_mixnet_client.connect_to_mixnet()).await;
 
+        // Convert legacy flags to TestMode
+        let has_exit = self.exit_gateway_node.is_some() || self.localnet_exit.is_some();
+        let test_mode =
+            TestMode::from_flags(only_wireguard, only_lp_registration, test_lp_wg, has_exit);
+
         self.do_probe_test(
             Some(mixnet_client),
             storage,
@@ -411,9 +534,8 @@ impl Probe {
             directory.as_ref(),
             nyxd_url,
             tested_entry,
+            test_mode,
             only_wireguard,
-            only_lp_registration,
-            test_lp_wg,
             use_mock_ecash,
         )
         .await
@@ -570,15 +692,16 @@ impl Probe {
         directory: Option<&NymApiDirectory>,
         nyxd_url: Url,
         tested_entry: bool,
+        test_mode: TestMode,
         only_wireguard: bool,
-        only_lp_registration: bool,
-        test_lp_wg: bool,
         use_mock_ecash: bool,
     ) -> anyhow::Result<ProbeResult>
     where
         T: MixnetClientStorage + Clone + 'static,
         <T::CredentialStore as CredentialStorage>::StorageError: Send + Sync,
     {
+        // test_mode replaces the old only_lp_registration and test_lp_wg flags.
+        // only_wireguard is kept separate as it controls ping behavior within Mixnet mode.
         let mut rng = rand::thread_rng();
         let mixnet_client = match mixnet_client {
             Some(Ok(mixnet_client)) => Some(mixnet_client),
@@ -602,6 +725,11 @@ impl Probe {
             None => None,
         };
 
+        // Determine if we should run ping tests:
+        // - Only in Mixnet mode (LP modes don't use mixnet)
+        // - And only if not --only-wireguard (which skips pings)
+        let run_ping_tests = test_mode.needs_mixnet() && !only_wireguard;
+
         let (outcome, mixnet_client) = if let Some(mixnet_client) = mixnet_client {
             let nym_address = *mixnet_client.nym_address();
             let entry_gateway = nym_address.gateway().to_base58_string();
@@ -609,8 +737,16 @@ impl Probe {
             info!("Successfully connected to entry gateway: {entry_gateway}");
             info!("Our nym address: {nym_address}");
 
-            // Now that we have a connected mixnet client, we can start pinging
-            let (outcome, mixnet_client) = if only_wireguard || only_lp_registration {
+            // Run ping tests if applicable
+            let (outcome, mixnet_client) = if run_ping_tests {
+                do_ping(
+                    mixnet_client,
+                    nym_address,
+                    node_info.exit_router_address,
+                    tested_entry,
+                )
+                .await
+            } else {
                 (
                     Ok(ProbeOutcome {
                         as_entry: if tested_entry {
@@ -624,43 +760,41 @@ impl Probe {
                     }),
                     mixnet_client,
                 )
-            } else {
-                do_ping(
-                    mixnet_client,
-                    nym_address,
-                    node_info.exit_router_address,
-                    tested_entry,
-                )
-                .await
             };
             (outcome, Some(mixnet_client))
-        } else if test_lp_wg {
-            // No mixnet client needed for LP-WG test with pre-queried nodes
+        } else if test_mode.uses_lp() && test_mode.tests_wireguard() {
+            // LP modes (SingleHop/TwoHop) don't need mixnet client
             // Create default outcome and continue to LP-WG test below
-            (Ok(ProbeOutcome {
-                as_entry: Entry::NotTested,
-                as_exit: None,
-                wg: None,
-                lp: None,
-            }), None)
+            (
+                Ok(ProbeOutcome {
+                    as_entry: Entry::NotTested,
+                    as_exit: None,
+                    wg: None,
+                    lp: None,
+                }),
+                None,
+            )
         } else {
-            // For non-LP-WG modes, missing mixnet client is a failure
-            (Ok(ProbeOutcome {
-                as_entry: if tested_entry {
-                    Entry::fail_to_connect()
-                } else {
-                    Entry::EntryFailure
-                },
-                as_exit: None,
-                wg: None,
-                lp: None,
-            }), None)
+            // For Mixnet mode, missing mixnet client is a failure
+            (
+                Ok(ProbeOutcome {
+                    as_entry: if tested_entry {
+                        Entry::fail_to_connect()
+                    } else {
+                        Entry::EntryFailure
+                    },
+                    as_exit: None,
+                    wg: None,
+                    lp: None,
+                }),
+                None,
+            )
         };
 
-        let wg_outcome = if only_lp_registration {
-            // Skip WireGuard test when only testing LP registration
+        let wg_outcome = if !test_mode.tests_wireguard() {
+            // LpOnly mode: skip WireGuard test
             WgProbeResults::default()
-        } else if test_lp_wg {
+        } else if test_mode.uses_lp() {
             // Test WireGuard via LP registration (nested session forwarding)
             info!("Testing WireGuard via LP registration (no mixnet)");
 
@@ -676,6 +810,10 @@ impl Probe {
             );
 
             // Determine entry and exit gateways
+            // Three modes for gateway resolution:
+            // 1. direct_gateway_node/exit_gateway_node - from --gateway-ip (HTTP API query)
+            // 2. localnet_entry/localnet_exit - from --entry-gateway-identity (CLI-only)
+            // 3. directory lookup - original behavior for production
             let (entry_gateway, exit_gateway) = if let Some(exit_node) = &self.exit_gateway_node {
                 // Both entry and exit gateways were pre-queried (direct IP mode)
                 info!("Using pre-queried entry and exit gateways for LP forwarding test");
@@ -688,6 +826,14 @@ impl Probe {
                 let exit_gateway = exit_node.to_testable_node()?;
 
                 (entry_gateway, exit_gateway)
+            } else if let Some(exit_localnet) = &self.localnet_exit {
+                // Localnet mode: use CLI-provided identities and LP addresses
+                info!("Using localnet entry and exit gateways for LP forwarding test");
+                let entry_localnet = self.localnet_entry.as_ref().ok_or_else(|| {
+                    anyhow::anyhow!("Entry gateway not available in localnet mode")
+                })?;
+
+                (entry_localnet.clone(), exit_localnet.clone())
             } else {
                 // Original behavior: query from directory
                 // The tested node is the exit
@@ -705,7 +851,6 @@ impl Probe {
                 &entry_gateway,
                 &exit_gateway,
                 &bw_controller,
-                storage.credential_store().clone(),
                 use_mock_ecash,
                 self.amnezia_args.clone(),
                 self.netstack_args.clone(),
@@ -921,84 +1066,16 @@ async fn wg_probe(
 
     wg_outcome.can_register = true;
 
-    if wg_outcome.can_register {
-        let netstack_request = NetstackRequest::new(
-            &registered_data.private_ips().ipv4.to_string(),
-            &registered_data.private_ips().ipv6.to_string(),
-            &private_key_hex,
-            &public_key_hex,
-            &wg_endpoint,
-            &format!("http://{WG_TUN_DEVICE_IP_ADDRESS_V4}:{WG_METADATA_PORT}"),
-            netstack_args.netstack_download_timeout_sec,
-            &awg_args,
-            netstack_args,
-        );
+    // Run tunnel connectivity tests using shared helper
+    let tunnel_config = common::WgTunnelConfig::new(
+        registered_data.private_ips().ipv4.to_string(),
+        registered_data.private_ips().ipv6.to_string(),
+        private_key_hex,
+        public_key_hex,
+        wg_endpoint,
+    );
 
-        // Perform IPv4 ping test
-        let ipv4_request = NetstackRequestGo::from_rust_v4(&netstack_request);
-
-        match netstack::ping(&ipv4_request) {
-            Ok(NetstackResult::Response(netstack_response_v4)) => {
-                info!(
-                    "Wireguard probe response for IPv4: {:#?}",
-                    netstack_response_v4
-                );
-                wg_outcome.can_query_metadata_v4 = netstack_response_v4.can_query_metadata;
-                wg_outcome.can_handshake_v4 = netstack_response_v4.can_handshake;
-                wg_outcome.can_resolve_dns_v4 = netstack_response_v4.can_resolve_dns;
-                wg_outcome.ping_hosts_performance_v4 = netstack_response_v4.received_hosts as f32
-                    / netstack_response_v4.sent_hosts as f32;
-                wg_outcome.ping_ips_performance_v4 =
-                    netstack_response_v4.received_ips as f32 / netstack_response_v4.sent_ips as f32;
-
-                wg_outcome.download_duration_sec_v4 = netstack_response_v4.download_duration_sec;
-                wg_outcome.download_duration_milliseconds_v4 =
-                    netstack_response_v4.download_duration_milliseconds;
-                wg_outcome.downloaded_file_size_bytes_v4 =
-                    netstack_response_v4.downloaded_file_size_bytes;
-                wg_outcome.downloaded_file_v4 = netstack_response_v4.downloaded_file;
-                wg_outcome.download_error_v4 = netstack_response_v4.download_error;
-            }
-            Ok(NetstackResult::Error { error }) => {
-                error!("Netstack runtime error: {error}")
-            }
-            Err(error) => {
-                error!("Internal error: {error}")
-            }
-        }
-
-        // Perform IPv6 ping test
-        let ipv6_request = NetstackRequestGo::from_rust_v6(&netstack_request);
-
-        match netstack::ping(&ipv6_request) {
-            Ok(NetstackResult::Response(netstack_response_v6)) => {
-                info!(
-                    "Wireguard probe response for IPv6: {:#?}",
-                    netstack_response_v6
-                );
-                wg_outcome.can_handshake_v6 = netstack_response_v6.can_handshake;
-                wg_outcome.can_resolve_dns_v6 = netstack_response_v6.can_resolve_dns;
-                wg_outcome.ping_hosts_performance_v6 = netstack_response_v6.received_hosts as f32
-                    / netstack_response_v6.sent_hosts as f32;
-                wg_outcome.ping_ips_performance_v6 =
-                    netstack_response_v6.received_ips as f32 / netstack_response_v6.sent_ips as f32;
-
-                wg_outcome.download_duration_sec_v6 = netstack_response_v6.download_duration_sec;
-                wg_outcome.download_duration_milliseconds_v6 =
-                    netstack_response_v6.download_duration_milliseconds;
-                wg_outcome.downloaded_file_size_bytes_v6 =
-                    netstack_response_v6.downloaded_file_size_bytes;
-                wg_outcome.downloaded_file_v6 = netstack_response_v6.downloaded_file;
-                wg_outcome.download_error_v6 = netstack_response_v6.download_error;
-            }
-            Ok(NetstackResult::Error { error }) => {
-                error!("Netstack runtime error: {error}")
-            }
-            Err(error) => {
-                error!("Internal error: {error}")
-            }
-        }
-    }
+    common::run_tunnel_tests(&tunnel_config, &netstack_args, &awg_args, &mut wg_outcome);
 
     Ok(wg_outcome)
 }
@@ -1039,26 +1116,14 @@ where
         gateway_ip,
     );
 
-    // Step 1: Connect to gateway
-    info!("Connecting to LP listener at {}...", gateway_lp_address);
-    match client.connect().await {
-        Ok(_) => {
-            info!("Successfully connected to LP listener");
-            lp_outcome.can_connect = true;
-        }
-        Err(e) => {
-            let error_msg = format!("Failed to connect to LP listener: {}", e);
-            error!("{}", error_msg);
-            lp_outcome.error = Some(error_msg);
-            return Ok(lp_outcome);
-        }
-    }
-
-    // Step 2: Perform handshake
-    info!("Performing LP handshake...");
+    // Step 1: Perform handshake (connection is implicit in packet-per-connection model)
+    // LpRegistrationClient uses packet-per-connection model - connect() is gone,
+    // connection is established during handshake and registration automatically.
+    info!("Performing LP handshake at {}...", gateway_lp_address);
     match client.perform_handshake().await {
         Ok(_) => {
             info!("LP handshake completed successfully");
+            lp_outcome.can_connect = true; // Connection succeeded if handshake succeeded
             lp_outcome.can_handshake = true;
         }
         Err(e) => {
@@ -1069,7 +1134,7 @@ where
         }
     }
 
-    // Step 3: Send registration request
+    // Step 2: Register with gateway (send request + receive response in one call)
     info!("Sending LP registration request...");
 
     // Generate WireGuard keypair for dVPN registration
@@ -1089,9 +1154,9 @@ where
         }
     };
 
-    // Generate credential based on mode
+    // Register using the new packet-per-connection API (returns GatewayData directly)
     let ticket_type = TicketType::V1WireguardEntry;
-    if use_mock_ecash {
+    let gateway_data = if use_mock_ecash {
         info!("Using mock ecash credential for LP registration");
         let credential = crate::bandwidth_helpers::create_dummy_credential(
             &gateway_ed25519_pubkey.to_bytes(),
@@ -1099,19 +1164,12 @@ where
         );
 
         match client
-            .send_registration_request_with_credential(
-                &wg_keypair,
-                &gateway_ed25519_pubkey,
-                credential,
-                ticket_type,
-            )
+            .register_with_credential(&wg_keypair, credential, ticket_type)
             .await
         {
-            Ok(_) => {
-                info!("LP registration request sent successfully with mock ecash");
-            }
+            Ok(data) => data,
             Err(e) => {
-                let error_msg = format!("Failed to send LP registration request: {}", e);
+                let error_msg = format!("LP registration failed (mock ecash): {}", e);
                 error!("{}", error_msg);
                 lp_outcome.error = Some(error_msg);
                 return Ok(lp_outcome);
@@ -1120,7 +1178,7 @@ where
     } else {
         info!("Using real bandwidth controller for LP registration");
         match client
-            .send_registration_request(
+            .register(
                 &wg_keypair,
                 &gateway_ed25519_pubkey,
                 bandwidth_controller,
@@ -1128,36 +1186,22 @@ where
             )
             .await
         {
-            Ok(_) => {
-                info!("LP registration request sent successfully with real ecash");
-            }
+            Ok(data) => data,
             Err(e) => {
-                let error_msg = format!("Failed to send LP registration request: {}", e);
+                let error_msg = format!("LP registration failed: {}", e);
                 error!("{}", error_msg);
                 lp_outcome.error = Some(error_msg);
                 return Ok(lp_outcome);
             }
         }
-    }
+    };
 
-    // Step 4: Receive registration response
-    info!("Waiting for LP registration response...");
-    match client.receive_registration_response().await {
-        Ok(gateway_data) => {
-            info!("LP registration successful! Received gateway data:");
-            info!("  - Gateway public key: {:?}", gateway_data.public_key);
-            info!("  - Private IPv4: {}", gateway_data.private_ipv4);
-            info!("  - Private IPv6: {}", gateway_data.private_ipv6);
-            info!("  - Endpoint: {}", gateway_data.endpoint);
-            lp_outcome.can_register = true;
-        }
-        Err(e) => {
-            let error_msg = format!("Failed to receive LP registration response: {}", e);
-            error!("{}", error_msg);
-            lp_outcome.error = Some(error_msg);
-            return Ok(lp_outcome);
-        }
-    }
+    info!("LP registration successful! Received gateway data:");
+    info!("  - Gateway public key: {:?}", gateway_data.public_key);
+    info!("  - Private IPv4: {}", gateway_data.private_ipv4);
+    info!("  - Private IPv6: {}", gateway_data.private_ipv6);
+    info!("  - Endpoint: {}", gateway_data.endpoint);
+    lp_outcome.can_register = true;
 
     Ok(lp_outcome)
 }
@@ -1172,6 +1216,13 @@ where
 ///
 /// This validates that IP hiding works (exit sees entry IP, not client IP) and that the
 /// full VPN tunnel operates correctly after LP registration.
+///
+// Known issue in localnet mode - After this probe runs, container networking
+// to the external internet becomes unstable while internal container-to-container traffic
+// continues to work. The two-hop WireGuard tunnel itself succeeds (handshake completes),
+// but subsequent DNS/ping tests may timeout. This appears to be related to Apple Container
+// Runtime networking quirks combined with our NAT/iptables configuration. Tracked in
+// beads issue nym-vbdo. Workaround: restart the localnet containers between probe runs.
 async fn wg_probe_lp<St>(
     entry_gateway: &TestedNodeDetails,
     exit_gateway: &TestedNodeDetails,
@@ -1179,7 +1230,6 @@ async fn wg_probe_lp<St>(
         nym_validator_client::nyxd::NyxdClient<nym_validator_client::HttpRpcClient>,
         St,
     >,
-    _storage: St,
     use_mock_ecash: bool,
     awg_args: String,
     netstack_args: NetstackArgs,
@@ -1219,7 +1269,9 @@ where
     let exit_wg_keypair = x25519::KeyPair::new(&mut rng);
 
     // STEP 1: Establish outer LP session with entry gateway
-    info!("Connecting to entry gateway via LP...");
+    // LpRegistrationClient uses packet-per-connection model - connect() is gone,
+    // connection is established automatically during handshake.
+    info!("Establishing outer LP session with entry gateway...");
     let mut entry_client = LpRegistrationClient::new_with_default_psk(
         entry_lp_keypair,
         entry_gateway.identity,
@@ -1227,13 +1279,7 @@ where
         entry_ip,
     );
 
-    // Connect to entry gateway
-    if let Err(e) = entry_client.connect().await {
-        error!("Failed to connect to entry gateway: {}", e);
-        return Ok(wg_outcome);
-    }
-
-    // Perform handshake with entry gateway
+    // Perform handshake with entry gateway (connection is implicit)
     if let Err(e) = entry_client.perform_handshake().await {
         error!("Failed to handshake with entry gateway: {}", e);
         return Ok(wg_outcome);
@@ -1255,24 +1301,45 @@ where
         .map_err(|e| anyhow::anyhow!("Invalid exit gateway identity: {}", e))?;
 
     // Perform handshake and registration with exit gateway via forwarding
-    if use_mock_ecash {
-        info!("Note: Using mock ecash mode - gateways must be started with --lp-use-mock-ecash");
-    }
-    let exit_gateway_data = match nested_session
-        .handshake_and_register(
-            &mut entry_client,
-            &exit_wg_keypair,
-            &exit_gateway_pubkey,
-            bandwidth_controller,
+    let exit_gateway_data = if use_mock_ecash {
+        info!("Using mock ecash credential for exit gateway registration");
+        let credential = crate::bandwidth_helpers::create_dummy_credential(
+            &exit_gateway_pubkey.to_bytes(),
             TicketType::V1WireguardExit,
-            exit_ip,
-        )
-        .await
-    {
-        Ok(data) => data,
-        Err(e) => {
-            error!("Failed to register with exit gateway: {}", e);
-            return Ok(wg_outcome);
+        );
+        match nested_session
+            .handshake_and_register_with_credential(
+                &mut entry_client,
+                &exit_wg_keypair,
+                credential,
+                TicketType::V1WireguardExit,
+                exit_ip,
+            )
+            .await
+        {
+            Ok(data) => data,
+            Err(e) => {
+                error!("Failed to register with exit gateway (mock ecash): {}", e);
+                return Ok(wg_outcome);
+            }
+        }
+    } else {
+        match nested_session
+            .handshake_and_register(
+                &mut entry_client,
+                &exit_wg_keypair,
+                &exit_gateway_pubkey,
+                bandwidth_controller,
+                TicketType::V1WireguardExit,
+                exit_ip,
+            )
+            .await
+        {
+            Ok(data) => data,
+            Err(e) => {
+                error!("Failed to register with exit gateway: {}", e);
+                return Ok(wg_outcome);
+            }
         }
     };
     info!("Exit gateway registration successful via forwarding");
@@ -1283,24 +1350,38 @@ where
         ed25519::PublicKey::from_bytes(&entry_gateway.identity.to_bytes())
             .map_err(|e| anyhow::anyhow!("Invalid entry gateway identity: {}", e))?;
 
-    if let Err(e) = entry_client
-        .send_registration_request(
-            &entry_wg_keypair,
-            &entry_gateway_pubkey,
-            bandwidth_controller,
+    // Use packet-per-connection register() which returns GatewayData directly
+    let entry_gateway_data = if use_mock_ecash {
+        info!("Using mock ecash credential for entry gateway registration");
+        let credential = crate::bandwidth_helpers::create_dummy_credential(
+            &entry_gateway_pubkey.to_bytes(),
             TicketType::V1WireguardEntry,
-        )
-        .await
-    {
-        error!("Failed to send entry registration request: {}", e);
-        return Ok(wg_outcome);
-    }
-
-    let _entry_gateway_data = match entry_client.receive_registration_response().await {
-        Ok(data) => data,
-        Err(e) => {
-            error!("Failed to receive entry registration response: {}", e);
-            return Ok(wg_outcome);
+        );
+        match entry_client
+            .register_with_credential(&entry_wg_keypair, credential, TicketType::V1WireguardEntry)
+            .await
+        {
+            Ok(data) => data,
+            Err(e) => {
+                error!("Failed to register with entry gateway (mock ecash): {}", e);
+                return Ok(wg_outcome);
+            }
+        }
+    } else {
+        match entry_client
+            .register(
+                &entry_wg_keypair,
+                &entry_gateway_pubkey,
+                bandwidth_controller,
+                TicketType::V1WireguardEntry,
+            )
+            .await
+        {
+            Ok(data) => data,
+            Err(e) => {
+                error!("Failed to register with entry gateway: {}", e);
+                return Ok(wg_outcome);
+            }
         }
     };
     info!("Entry gateway registration successful");
@@ -1308,100 +1389,49 @@ where
     info!("LP registration successful for both gateways!");
     wg_outcome.can_register = true;
 
-    // STEP 4: Test WireGuard tunnels using exit gateway configuration
+    // STEP 4: Test WireGuard tunnels using two-hop configuration
+    // Traffic flows: Exit tunnel -> UDP Forwarder -> Entry tunnel -> Exit Gateway -> Internet
+    // The exit gateway endpoint is not directly reachable from the host in localnet.
+    // We must tunnel through the entry gateway using the UDP forwarder pattern.
+
     // Convert keys to hex for netstack
-    let private_key_hex = hex::encode(exit_wg_keypair.private_key().to_bytes());
-    let public_key_hex = hex::encode(exit_gateway_data.public_key.to_bytes());
+    let entry_private_key_hex = hex::encode(entry_wg_keypair.private_key().to_bytes());
+    let entry_public_key_hex = hex::encode(entry_gateway_data.public_key.to_bytes());
+    let exit_private_key_hex = hex::encode(exit_wg_keypair.private_key().to_bytes());
+    let exit_public_key_hex = hex::encode(exit_gateway_data.public_key.to_bytes());
 
-    // Build WireGuard endpoint address
-    let wg_endpoint = format!("{}:{}", exit_ip, exit_gateway_data.endpoint.port());
+    // Build WireGuard endpoint addresses
+    // Entry endpoint uses entry_ip (host-reachable) + port from registration
+    let entry_wg_endpoint = format!("{}:{}", entry_ip, entry_gateway_data.endpoint.port());
+    // Exit endpoint uses exit_ip + port from registration (forwarded via entry)
+    let exit_wg_endpoint = format!("{}:{}", exit_ip, exit_gateway_data.endpoint.port());
 
-    info!("Exit WireGuard configuration:");
-    info!("  Private IPv4: {}", exit_gateway_data.private_ipv4);
-    info!("  Private IPv6: {}", exit_gateway_data.private_ipv6);
-    info!("  Endpoint: {}", wg_endpoint);
+    info!("Two-hop WireGuard configuration:");
+    info!("  Entry gateway:");
+    info!("    Private IPv4: {}", entry_gateway_data.private_ipv4);
+    info!("    Endpoint: {}", entry_wg_endpoint);
+    info!("  Exit gateway:");
+    info!("    Private IPv4: {}", exit_gateway_data.private_ipv4);
+    info!("    Endpoint (via forwarder): {}", exit_wg_endpoint);
 
-    // Run tunnel tests (copied from wg_probe)
-    let netstack_request = crate::netstack::NetstackRequest::new(
-        &exit_gateway_data.private_ipv4.to_string(),
-        &exit_gateway_data.private_ipv6.to_string(),
-        &private_key_hex,
-        &public_key_hex,
-        &wg_endpoint,
-        &format!("http://{WG_TUN_DEVICE_IP_ADDRESS_V4}:{WG_METADATA_PORT}"),
-        netstack_args.netstack_download_timeout_sec,
-        &awg_args,
-        netstack_args,
+    // Build two-hop tunnel configuration
+    let two_hop_config = common::TwoHopWgTunnelConfig::new(
+        entry_gateway_data.private_ipv4.to_string(),
+        entry_private_key_hex,
+        entry_public_key_hex,
+        entry_wg_endpoint,
+        awg_args.clone(), // Entry AWG args
+        exit_gateway_data.private_ipv4.to_string(),
+        exit_private_key_hex,
+        exit_public_key_hex,
+        exit_wg_endpoint,
+        awg_args, // Exit AWG args
     );
 
-    // Perform IPv4 ping test
-    info!("Testing IPv4 tunnel connectivity...");
-    let ipv4_request = crate::netstack::NetstackRequestGo::from_rust_v4(&netstack_request);
+    // Run two-hop tunnel connectivity tests
+    common::run_two_hop_tunnel_tests(&two_hop_config, &netstack_args, &mut wg_outcome);
 
-    match crate::netstack::ping(&ipv4_request) {
-        Ok(NetstackResult::Response(netstack_response_v4)) => {
-            info!(
-                "Wireguard probe response for IPv4: {:#?}",
-                netstack_response_v4
-            );
-            wg_outcome.can_query_metadata_v4 = netstack_response_v4.can_query_metadata;
-            wg_outcome.can_handshake_v4 = netstack_response_v4.can_handshake;
-            wg_outcome.can_resolve_dns_v4 = netstack_response_v4.can_resolve_dns;
-            wg_outcome.ping_hosts_performance_v4 =
-                netstack_response_v4.received_hosts as f32 / netstack_response_v4.sent_hosts as f32;
-            wg_outcome.ping_ips_performance_v4 =
-                netstack_response_v4.received_ips as f32 / netstack_response_v4.sent_ips as f32;
-
-            wg_outcome.download_duration_sec_v4 = netstack_response_v4.download_duration_sec;
-            wg_outcome.download_duration_milliseconds_v4 =
-                netstack_response_v4.download_duration_milliseconds;
-            wg_outcome.downloaded_file_size_bytes_v4 =
-                netstack_response_v4.downloaded_file_size_bytes;
-            wg_outcome.downloaded_file_v4 = netstack_response_v4.downloaded_file;
-            wg_outcome.download_error_v4 = netstack_response_v4.download_error;
-        }
-        Ok(NetstackResult::Error { error }) => {
-            error!("Netstack runtime error (IPv4): {error}")
-        }
-        Err(error) => {
-            error!("Internal error (IPv4): {error}")
-        }
-    }
-
-    // Perform IPv6 ping test
-    info!("Testing IPv6 tunnel connectivity...");
-    let ipv6_request = crate::netstack::NetstackRequestGo::from_rust_v6(&netstack_request);
-
-    match crate::netstack::ping(&ipv6_request) {
-        Ok(NetstackResult::Response(netstack_response_v6)) => {
-            info!(
-                "Wireguard probe response for IPv6: {:#?}",
-                netstack_response_v6
-            );
-            wg_outcome.can_handshake_v6 = netstack_response_v6.can_handshake;
-            wg_outcome.can_resolve_dns_v6 = netstack_response_v6.can_resolve_dns;
-            wg_outcome.ping_hosts_performance_v6 =
-                netstack_response_v6.received_hosts as f32 / netstack_response_v6.sent_hosts as f32;
-            wg_outcome.ping_ips_performance_v6 =
-                netstack_response_v6.received_ips as f32 / netstack_response_v6.sent_ips as f32;
-
-            wg_outcome.download_duration_sec_v6 = netstack_response_v6.download_duration_sec;
-            wg_outcome.download_duration_milliseconds_v6 =
-                netstack_response_v6.download_duration_milliseconds;
-            wg_outcome.downloaded_file_size_bytes_v6 =
-                netstack_response_v6.downloaded_file_size_bytes;
-            wg_outcome.downloaded_file_v6 = netstack_response_v6.downloaded_file;
-            wg_outcome.download_error_v6 = netstack_response_v6.download_error;
-        }
-        Ok(NetstackResult::Error { error }) => {
-            error!("Netstack runtime error (IPv6): {error}")
-        }
-        Err(error) => {
-            error!("Internal error (IPv6): {error}")
-        }
-    }
-
-    info!("LP-based WireGuard probe completed");
+    info!("LP-based two-hop WireGuard probe completed");
     Ok(wg_outcome)
 }
 

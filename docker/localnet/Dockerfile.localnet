@@ -26,6 +26,7 @@ RUN apt update && apt install -y \
     wireguard-tools \
     golang-go \
     git \
+    iptables \
     && rm -rf /var/lib/apt/lists/*
 
 # Install wireguard-go (userspace WireGuard implementation)

@@ -1,11 +1,11 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, criterion_group, criterion_main};
 
 use nym_crypto::asymmetric::ed25519;
 use nym_kkt::{
-    ciphersuite::{Ciphersuite, EncapsulationKey, HashFunction, SignatureScheme, KEM},
+    ciphersuite::{Ciphersuite, EncapsulationKey, HashFunction, KEM, SignatureScheme},
     context::KKTMode,
     frame::KKTFrame,
     key_utils::{generate_keypair_libcrux, generate_keypair_mceliece, hash_encapsulation_key},

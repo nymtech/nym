@@ -960,6 +960,10 @@ impl Client {
             }
 
             self.current_idx.store(next, Ordering::Relaxed);
+            debug!(
+                "http client rotating host {} -> {}",
+                self.base_urls[orig], self.base_urls[next]
+            );
         }
     }
 
@@ -1087,27 +1091,6 @@ impl ApiClientCore for Client {
                 .map_err(HttpClientError::reqwest_client_build_error)?;
             self.apply_hosts_to_req(&mut req);
             let url: Url = req.url().clone().into();
-
-            // try an explicit DNS resolution - if successful then it will be in cache when reqwest
-            // goes to execute the request. If failure then we get to handle the DNS lookup error.
-            #[cfg(not(target_arch = "wasm32"))]
-            if self.using_secure_dns
-                && let Some(hostname) = req.url().domain()
-                // Default here will use a shared resolver instance
-                && let Err(err) = HickoryDnsResolver::default().resolve_str(hostname).await
-            {
-                // on failure update host, but don't trigger fronting enable.
-                self.update_host(Some(url.clone()));
-
-                if attempts < self.retry_limit {
-                    attempts += 1;
-                    warn!(
-                        "Retrying request due to dns error on attempt ({attempts}/{}): {err}",
-                        self.retry_limit
-                    );
-                    continue;
-                }
-            }
 
             #[cfg(target_arch = "wasm32")]
             let response: Result<Response, HttpClientError> = {

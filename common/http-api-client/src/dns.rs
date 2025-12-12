@@ -65,8 +65,8 @@ mod static_resolver;
 pub(crate) use static_resolver::*;
 
 pub(crate) const DEFAULT_POSITIVE_LOOKUP_CACHE_TTL: Duration = Duration::from_secs(1800);
-pub(crate) const DEFAULT_OVERALL_LOOKUP_TIMEOUT: Duration = Duration::from_secs(6);
-pub(crate) const DEFAULT_QUERY_TIMEOUT: Duration = Duration::from_secs(3);
+pub(crate) const DEFAULT_OVERALL_LOOKUP_TIMEOUT: Duration = Duration::from_secs(10);
+pub(crate) const DEFAULT_QUERY_TIMEOUT: Duration = Duration::from_secs(5);
 
 impl ClientBuilder {
     /// Override the DNS resolver implementation used by the underlying http client.

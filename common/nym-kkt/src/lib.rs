@@ -7,6 +7,7 @@ pub mod context;
 pub mod error;
 pub mod frame;
 pub mod key_utils;
+pub mod kkt;
 pub mod session;
 
 // pub mod psq;

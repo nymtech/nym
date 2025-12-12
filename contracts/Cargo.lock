@@ -1158,10 +1158,12 @@ version = "0.4.0"
 dependencies = [
  "base64 0.22.1",
  "bs58",
+ "curve25519-dalek",
  "ed25519-dalek",
  "nym-pemstore",
  "nym-sphinx-types",
  "rand",
+ "sha2",
  "subtle-encoding",
  "thiserror 2.0.12",
  "x25519-dalek",
@@ -1795,9 +1797,9 @@ dependencies = [
 
 [[package]]
 name = "sha2"
-version = "0.10.8"
+version = "0.10.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "793db75ad2bcafc3ffa7c68b215fee268f537982cd901d132f89c6343f3a3dc8"
+checksum = "a7507d819769d01a365ab707794a4084392c824f54a7a6a7862f8c3d0892b283"
 dependencies = [
  "cfg-if",
  "cpufeatures",

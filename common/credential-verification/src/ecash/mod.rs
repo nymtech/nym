@@ -59,9 +59,13 @@ impl traits::EcashManager for EcashManager {
             .verify(aggregated_verification_key)
             .map_err(|err| match err {
                 CompactEcashError::ExpirationDateSignatureValidity => {
+                    nym_metrics::inc!("ecash_verification_failures_invalid_date_signature");
                     EcashTicketError::MalformedTicketInvalidDateSignatures
                 }
-                _ => EcashTicketError::MalformedTicket,
+                _ => {
+                    nym_metrics::inc!("ecash_verification_failures_signature");
+                    EcashTicketError::MalformedTicket
+                }
             })?;
 
         self.insert_pay_info(credential.pay_info.into(), insert_index)
@@ -249,4 +253,8 @@ impl traits::EcashManager for MockEcashManager {
     }
 
     fn async_verify(&self, _ticket: ClientTicket) {}
+
+    fn is_mock(&self) -> bool {
+        true
+    }
 }

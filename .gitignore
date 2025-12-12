@@ -65,3 +65,6 @@ nym-api/redocly/formatted-openapi.json
 **/enter_db.sh
 
 *.profraw
+.beads
+CLAUDE.md
+docs

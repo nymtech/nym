@@ -325,6 +325,7 @@ impl ServiceProvidersData {
 pub struct WireguardData {
     inner: WireguardGatewayData,
     peer_rx: mpsc::Receiver<PeerControlRequest>,
+    use_userspace: bool,
 }
 
 impl WireguardData {
@@ -335,7 +336,11 @@ impl WireguardData {
                 &config.storage_paths.x25519_wireguard_storage_paths(),
             )?),
         );
-        Ok(WireguardData { inner, peer_rx })
+        Ok(WireguardData {
+            inner,
+            peer_rx,
+            use_userspace: config.use_userspace,
+        })
     }
 
     pub(crate) fn initialise(config: &Wireguard) -> Result<(), ServiceProvidersError> {
@@ -357,6 +362,7 @@ impl From<WireguardData> for nym_wireguard::WireguardData {
         nym_wireguard::WireguardData {
             inner: value.inner,
             peer_rx: value.peer_rx,
+            use_userspace: value.use_userspace,
         }
     }
 }
@@ -665,6 +671,32 @@ impl NymNode {
                 .await?;
             self.shutdown_tracker()
                 .try_spawn_named(async move { websocket.run().await }, "EntryWebsocket");
+
+            // Set WireGuard data early so LP listener can access it
+            // (LP listener needs wg_peer_controller for dVPN registrations)
+            if self.config.wireguard.enabled {
+                let Some(wg_data) = self.wireguard.take() else {
+                    return Err(NymNodeError::WireguardDataUnavailable);
+                };
+                gateway_tasks_builder.set_wireguard_data(wg_data.into());
+            }
+
+            // Start LP listener if enabled
+            if self.config.gateway_tasks.lp.enabled {
+                info!(
+                    "starting the LP listener on {}:{} (data port: {})",
+                    self.config.gateway_tasks.lp.bind_address,
+                    self.config.gateway_tasks.lp.control_port,
+                    self.config.gateway_tasks.lp.data_port
+                );
+                let mut lp_listener = gateway_tasks_builder
+                    .build_lp_listener(active_clients_store.clone())
+                    .await?;
+                self.shutdown_tracker()
+                    .try_spawn_named(async move { lp_listener.run().await }, "LpListener");
+            } else {
+                info!("LP listener is disabled");
+            }
         } else {
             info!("node not running in entry mode: the websocket will remain closed");
         }
@@ -700,13 +732,6 @@ impl NymNode {
             );
 
             gateway_tasks_builder.set_authenticator_opts(config.auth_opts);
-
-            // that's incredibly nasty, but unfortunately to change it, would require some refactoring...
-            let Some(wg_data) = self.wireguard.take() else {
-                return Err(NymNodeError::WireguardDataUnavailable);
-            };
-
-            gateway_tasks_builder.set_wireguard_data(wg_data.into());
 
             let authenticator = gateway_tasks_builder
                 .build_wireguard_authenticator(upgrade_mode_common_state.clone(), topology_provider)

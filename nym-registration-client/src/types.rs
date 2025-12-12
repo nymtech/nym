@@ -9,6 +9,7 @@ use nym_sdk::mixnet::{EventReceiver, MixnetClient};
 pub enum RegistrationResult {
     Mixnet(Box<MixnetRegistrationResult>),
     Wireguard(Box<WireguardRegistrationResult>),
+    Lp(Box<LpRegistrationResult>),
 }
 
 pub struct MixnetRegistrationResult {
@@ -23,5 +24,26 @@ pub struct WireguardRegistrationResult {
     pub entry_gateway_data: GatewayData,
     pub exit_gateway_data: GatewayData,
     pub authenticator_listener_handle: AuthClientMixnetListenerHandle,
+    pub bw_controller: Box<dyn BandwidthTicketProvider>,
+}
+
+/// Result of LP (Lewes Protocol) registration with entry and exit gateways.
+///
+/// LP is used only for registration. After successful registration, all data flows
+/// through WireGuard tunnels established using the returned gateway configuration.
+/// The LP connections are automatically closed after registration completes.
+///
+/// # Fields
+/// * `entry_gateway_data` - WireGuard configuration from entry gateway
+/// * `exit_gateway_data` - WireGuard configuration from exit gateway
+/// * `bw_controller` - Bandwidth ticket provider for credential management
+pub struct LpRegistrationResult {
+    /// Gateway configuration data from entry gateway
+    pub entry_gateway_data: GatewayData,
+
+    /// Gateway configuration data from exit gateway
+    pub exit_gateway_data: GatewayData,
+
+    /// Bandwidth controller for credential management
     pub bw_controller: Box<dyn BandwidthTicketProvider>,
 }

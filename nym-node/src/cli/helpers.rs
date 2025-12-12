@@ -293,6 +293,14 @@ pub(crate) struct WireguardArgs {
         env = NYMNODE_WG_PRIVATE_NETWORK_PREFIX_ARG
     )]
     pub(crate) wireguard_private_network_prefix: Option<u8>,
+
+    /// Use userspace implementation of WireGuard (wireguard-go) instead of kernel module.
+    /// Useful in containerized environments without kernel WireGuard support.
+    #[clap(
+        long,
+        env = NYMNODE_WG_USERSPACE_ARG
+    )]
+    pub(crate) wireguard_userspace: Option<bool>,
 }
 
 impl WireguardArgs {
@@ -319,6 +327,10 @@ impl WireguardArgs {
 
         if let Some(private_network_prefix) = self.wireguard_private_network_prefix {
             section.private_network_prefix_v4 = private_network_prefix
+        }
+
+        if let Some(userspace) = self.wireguard_userspace {
+            section.use_userspace = userspace
         }
 
         section
@@ -446,6 +458,23 @@ pub(crate) struct EntryGatewayArgs {
     )]
     #[zeroize(skip)]
     pub(crate) upgrade_mode_attester_public_key: Option<ed25519::PublicKey>,
+
+    /// Enable LP (Lewes Protocol) listener for client registration.
+    /// LP provides an alternative registration protocol with improved security features.
+    #[clap(
+        long,
+        env = NYMNODE_ENABLE_LP_ARG
+    )]
+    pub(crate) enable_lp: Option<bool>,
+
+    /// Use mock ecash manager for LP testing.
+    /// WARNING: Only use this for local testing! Never enable in production.
+    /// When enabled, the LP listener will accept any credential without blockchain verification.
+    #[clap(
+        long,
+        env = NYMNODE_LP_USE_MOCK_ECASH_ARG
+    )]
+    pub(crate) lp_use_mock_ecash: Option<bool>,
 }
 
 impl EntryGatewayArgs {
@@ -478,6 +507,12 @@ impl EntryGatewayArgs {
         }
         if let Some(upgrade_mode_attester_public_key) = self.upgrade_mode_attester_public_key {
             section.upgrade_mode.attester_public_key = upgrade_mode_attester_public_key
+        }
+        if let Some(enable_lp) = self.enable_lp {
+            section.lp.enabled = enable_lp
+        }
+        if let Some(use_mock_ecash) = self.lp_use_mock_ecash {
+            section.lp.use_mock_ecash = use_mock_ecash
         }
 
         section

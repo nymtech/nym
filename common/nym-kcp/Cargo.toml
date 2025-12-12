@@ -1,0 +1,28 @@
+[package]
+name = "nym-kcp"
+version = "0.1.0"
+edition = { workspace = true }
+license = { workspace = true }
+
+[lib]
+name = "nym_kcp"
+path = "src/lib.rs"
+
+[[bin]]
+name = "wire_format"
+path = "bin/wire_format/main.rs"
+
+[[bin]]
+name = "session"
+path = "bin/session/main.rs"
+
+[dependencies]
+tokio-util = { workspace = true, features = ["codec"] }
+byte_string = "1.0"
+bytes = { workspace = true }
+thiserror = { workspace = true }
+log = { workspace = true }
+ansi_term = { workspace = true }
+
+[dev-dependencies]
+env_logger = "0.11"

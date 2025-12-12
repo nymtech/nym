@@ -122,12 +122,73 @@ impl LpPacket {
     }
 }
 
-// VERSION [1B] || RESERVED [3B] || SENDER_INDEX [4B] || COUNTER [8B]
+/// Session ID used for ClientHello bootstrap packets before session is established.
+///
+/// When a client first connects, it sends a ClientHello packet with receiver_idx=0
+/// because neither side can compute the deterministic session ID yet (requires
+/// both parties' X25519 keys). After ClientHello is processed, both sides derive
+/// the same session ID from their keys, and all subsequent packets use that ID.
+pub const BOOTSTRAP_RECEIVER_IDX: u32 = 0;
+
+/// Outer header (12 bytes) - always cleartext, used for routing.
+///
+/// This is the first 12 bytes of every LP packet, containing only the fields
+/// needed for session lookup (receiver_idx) and replay protection (counter).
+/// For encrypted packets, this is the AAD (additional authenticated data).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct OuterHeader {
+    pub receiver_idx: u32,
+    pub counter: u64,
+}
+
+impl OuterHeader {
+    pub const SIZE: usize = 12; // receiver_idx(4) + counter(8)
+
+    pub fn new(receiver_idx: u32, counter: u64) -> Self {
+        Self {
+            receiver_idx,
+            counter,
+        }
+    }
+
+    pub fn parse(src: &[u8]) -> Result<Self, LpError> {
+        if src.len() < Self::SIZE {
+            return Err(LpError::InsufficientBufferSize);
+        }
+        Ok(Self {
+            receiver_idx: u32::from_le_bytes(src[0..4].try_into().unwrap()),
+            counter: u64::from_le_bytes(src[4..12].try_into().unwrap()),
+        })
+    }
+
+    pub fn encode(&self) -> [u8; Self::SIZE] {
+        let mut buf = [0u8; Self::SIZE];
+        buf[0..4].copy_from_slice(&self.receiver_idx.to_le_bytes());
+        buf[4..12].copy_from_slice(&self.counter.to_le_bytes());
+        buf
+    }
+
+    /// Encode directly into a BytesMut buffer
+    pub fn encode_into(&self, dst: &mut BytesMut) {
+        dst.put_slice(&self.receiver_idx.to_le_bytes());
+        dst.put_slice(&self.counter.to_le_bytes());
+    }
+}
+
+/// Internal LP header representation containing all logical header fields.
+///
+/// **Note**: This struct represents the LOGICAL header, not the wire format.
+/// On the wire, packets use the unified format where:
+/// - `OuterHeader` (receiver_idx + counter) always comes first (12 bytes, cleartext)
+/// - Inner content (version + reserved + payload) follows (cleartext or encrypted)
+///
+/// The `LpHeader::encode()` method outputs the old logical format for debug purposes only.
+/// Use `serialize_lp_packet()` in codec.rs for actual wire serialization.
 #[derive(Debug, Clone)]
 pub struct LpHeader {
     pub protocol_version: u8,
     pub reserved: u16,
-    pub session_id: u32,
+    pub receiver_idx: u32,
     pub counter: u64,
 }
 
@@ -136,11 +197,11 @@ impl LpHeader {
 }
 
 impl LpHeader {
-    pub fn new(session_id: u32, counter: u64) -> Self {
+    pub fn new(receiver_idx: u32, counter: u64) -> Self {
         Self {
             protocol_version: 1,
             reserved: 0,
-            session_id,
+            receiver_idx,
             counter,
         }
     }
@@ -153,7 +214,7 @@ impl LpHeader {
         dst.put_slice(&[0, 0, 0]);
 
         // sender index
-        dst.put_slice(&self.session_id.to_le_bytes());
+        dst.put_slice(&self.receiver_idx.to_le_bytes());
 
         // counter
         dst.put_slice(&self.counter.to_le_bytes());
@@ -167,9 +228,9 @@ impl LpHeader {
         let protocol_version = src[0];
         // Skip reserved bytes [1..4]
 
-        let mut session_id_bytes = [0u8; 4];
-        session_id_bytes.copy_from_slice(&src[4..8]);
-        let session_id = u32::from_le_bytes(session_id_bytes);
+        let mut receiver_idx_bytes = [0u8; 4];
+        receiver_idx_bytes.copy_from_slice(&src[4..8]);
+        let receiver_idx = u32::from_le_bytes(receiver_idx_bytes);
 
         let mut counter_bytes = [0u8; 8];
         counter_bytes.copy_from_slice(&src[8..16]);
@@ -178,7 +239,7 @@ impl LpHeader {
         Ok(LpHeader {
             protocol_version,
             reserved: 0,
-            session_id,
+            receiver_idx,
             counter,
         })
     }
@@ -189,8 +250,8 @@ impl LpHeader {
     }
 
     /// Get the sender index from the header
-    pub fn session_id(&self) -> u32 {
-        self.session_id
+    pub fn receiver_idx(&self) -> u32 {
+        self.receiver_idx
     }
 }
 

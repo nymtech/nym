@@ -25,6 +25,9 @@ pub enum NoiseError {
 
     #[error("Other Noise-related error: {0}")]
     Other(String),
+
+    #[error("session is read-only after demotion")]
+    SessionReadOnly,
 }
 
 impl From<snow::Error> for NoiseError {

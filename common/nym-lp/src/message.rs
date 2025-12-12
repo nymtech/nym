@@ -9,6 +9,9 @@ use serde::{Deserialize, Serialize};
 /// Data structure for the ClientHello message
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ClientHelloData {
+    /// Client-proposed receiver index for session identification (4 bytes)
+    /// Auto-generated randomly by the client
+    pub receiver_index: u32,
     /// Client's LP x25519 public key (32 bytes) - derived from Ed25519 key
     pub client_lp_public_key: [u8; 32],
     /// Client's Ed25519 public key (32 bytes) - for PSQ authentication
@@ -46,6 +49,7 @@ impl ClientHelloData {
         rand::thread_rng().fill_bytes(&mut salt[8..]);
 
         Self {
+            receiver_index: rand::random(), // Auto-generate random receiver index
             client_lp_public_key,
             client_ed25519_public_key,
             salt,
@@ -72,6 +76,21 @@ pub enum MessageType {
     ClientHello = 0x0003,
     KKTRequest = 0x0004,
     KKTResponse = 0x0005,
+    ForwardPacket = 0x0006,
+    /// Receiver index collision - client should retry with new index
+    Collision = 0x0007,
+    /// Acknowledgment - gateway confirms receipt of message
+    Ack = 0x0008,
+    /// Subsession request - client initiates subsession creation
+    SubsessionRequest = 0x0009,
+    /// Subsession KK1 - first message of Noise KK handshake
+    SubsessionKK1 = 0x000A,
+    /// Subsession KK2 - second message of Noise KK handshake
+    SubsessionKK2 = 0x000B,
+    /// Subsession ready - subsession established confirmation
+    SubsessionReady = 0x000C,
+    /// Subsession abort - race winner tells loser to become responder
+    SubsessionAbort = 0x000D,
 }
 
 impl MessageType {
@@ -98,6 +117,41 @@ pub struct KKTRequestData(pub Vec<u8>);
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct KKTResponseData(pub Vec<u8>);
 
+/// Packet forwarding request with embedded inner LP packet
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ForwardPacketData {
+    /// Target gateway's Ed25519 identity (32 bytes)
+    pub target_gateway_identity: [u8; 32],
+
+    /// Target gateway's LP address (IP:port string)
+    pub target_lp_address: String,
+
+    /// Complete inner LP packet bytes (serialized LpPacket)
+    /// This is the CLIENT→EXIT gateway packet, encrypted for exit
+    pub inner_packet_bytes: Vec<u8>,
+}
+
+/// Subsession KK1 message - first message of Noise KK handshake
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct SubsessionKK1Data {
+    /// Noise KK first message payload (ephemeral key + encrypted static)
+    pub payload: Vec<u8>,
+}
+
+/// Subsession KK2 message - second message of Noise KK handshake
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct SubsessionKK2Data {
+    /// Noise KK second message payload (ephemeral key + encrypted response)
+    pub payload: Vec<u8>,
+}
+
+/// Subsession ready confirmation with new session index
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct SubsessionReadyData {
+    /// New subsession's receiver index for routing
+    pub receiver_index: u32,
+}
+
 #[derive(Debug, Clone)]
 pub enum LpMessage {
     Busy,
@@ -106,6 +160,21 @@ pub enum LpMessage {
     ClientHello(ClientHelloData),
     KKTRequest(KKTRequestData),
     KKTResponse(KKTResponseData),
+    ForwardPacket(ForwardPacketData),
+    /// Receiver index collision - client should retry with new receiver_index
+    Collision,
+    /// Acknowledgment - gateway confirms receipt of message
+    Ack,
+    /// Subsession request - client initiates subsession creation (empty, signal only)
+    SubsessionRequest,
+    /// Subsession KK1 - first message of Noise KK handshake
+    SubsessionKK1(SubsessionKK1Data),
+    /// Subsession KK2 - second message of Noise KK handshake
+    SubsessionKK2(SubsessionKK2Data),
+    /// Subsession ready - subsession established confirmation
+    SubsessionReady(SubsessionReadyData),
+    /// Subsession abort - race winner tells loser to become responder (empty, signal only)
+    SubsessionAbort,
 }
 
 impl Display for LpMessage {
@@ -117,6 +186,14 @@ impl Display for LpMessage {
             LpMessage::ClientHello(_) => write!(f, "ClientHello"),
             LpMessage::KKTRequest(_) => write!(f, "KKTRequest"),
             LpMessage::KKTResponse(_) => write!(f, "KKTResponse"),
+            LpMessage::ForwardPacket(_) => write!(f, "ForwardPacket"),
+            LpMessage::Collision => write!(f, "Collision"),
+            LpMessage::Ack => write!(f, "Ack"),
+            LpMessage::SubsessionRequest => write!(f, "SubsessionRequest"),
+            LpMessage::SubsessionKK1(_) => write!(f, "SubsessionKK1"),
+            LpMessage::SubsessionKK2(_) => write!(f, "SubsessionKK2"),
+            LpMessage::SubsessionReady(_) => write!(f, "SubsessionReady"),
+            LpMessage::SubsessionAbort => write!(f, "SubsessionAbort"),
         }
     }
 }
@@ -127,9 +204,17 @@ impl LpMessage {
             LpMessage::Busy => &[],
             LpMessage::Handshake(payload) => payload.0.as_slice(),
             LpMessage::EncryptedData(payload) => payload.0.as_slice(),
-            LpMessage::ClientHello(_) => unimplemented!(), // Structured data, serialized in encode_content
+            LpMessage::ClientHello(_) => &[], // Structured data, serialized in encode_content
             LpMessage::KKTRequest(payload) => payload.0.as_slice(),
             LpMessage::KKTResponse(payload) => payload.0.as_slice(),
+            LpMessage::ForwardPacket(_) => &[], // Structured data, serialized in encode_content
+            LpMessage::Collision => &[],
+            LpMessage::Ack => &[],
+            LpMessage::SubsessionRequest => &[],
+            LpMessage::SubsessionKK1(_) => &[], // Structured data, serialized in encode_content
+            LpMessage::SubsessionKK2(_) => &[], // Structured data, serialized in encode_content
+            LpMessage::SubsessionReady(_) => &[], // Structured data, serialized in encode_content
+            LpMessage::SubsessionAbort => &[],
         }
     }
 
@@ -141,6 +226,14 @@ impl LpMessage {
             LpMessage::ClientHello(_) => false, // Always has data
             LpMessage::KKTRequest(payload) => payload.0.is_empty(),
             LpMessage::KKTResponse(payload) => payload.0.is_empty(),
+            LpMessage::ForwardPacket(_) => false, // Always has data
+            LpMessage::Collision => true,
+            LpMessage::Ack => true,
+            LpMessage::SubsessionRequest => true, // Empty signal
+            LpMessage::SubsessionKK1(_) => false, // Always has payload
+            LpMessage::SubsessionKK2(_) => false, // Always has payload
+            LpMessage::SubsessionReady(_) => false, // Always has receiver_index
+            LpMessage::SubsessionAbort => true, // Empty signal
         }
     }
 
@@ -149,9 +242,22 @@ impl LpMessage {
             LpMessage::Busy => 0,
             LpMessage::Handshake(payload) => payload.0.len(),
             LpMessage::EncryptedData(payload) => payload.0.len(),
-            LpMessage::ClientHello(_) => 97, // 32 bytes x25519 key + 32 bytes ed25519 key + 32 bytes salt + 1 byte bincode overhead
+            // 4 bytes receiver_index + 32 bytes x25519 key + 32 bytes ed25519 key + 32 bytes salt + bincode overhead
+            LpMessage::ClientHello(_) => 101,
             LpMessage::KKTRequest(payload) => payload.0.len(),
             LpMessage::KKTResponse(payload) => payload.0.len(),
+            LpMessage::ForwardPacket(data) => {
+                32 + data.target_lp_address.len() + data.inner_packet_bytes.len() + 10
+            }
+            LpMessage::Collision => 0,
+            LpMessage::Ack => 0,
+            LpMessage::SubsessionRequest => 0,
+            // Variable length: bincode overhead (~8 bytes for Vec length) + payload
+            LpMessage::SubsessionKK1(data) => 8 + data.payload.len(),
+            LpMessage::SubsessionKK2(data) => 8 + data.payload.len(),
+            // 4 bytes u32 + bincode overhead (~4 bytes)
+            LpMessage::SubsessionReady(_) => 8,
+            LpMessage::SubsessionAbort => 0,
         }
     }
 
@@ -163,6 +269,14 @@ impl LpMessage {
             LpMessage::ClientHello(_) => MessageType::ClientHello,
             LpMessage::KKTRequest(_) => MessageType::KKTRequest,
             LpMessage::KKTResponse(_) => MessageType::KKTResponse,
+            LpMessage::ForwardPacket(_) => MessageType::ForwardPacket,
+            LpMessage::Collision => MessageType::Collision,
+            LpMessage::Ack => MessageType::Ack,
+            LpMessage::SubsessionRequest => MessageType::SubsessionRequest,
+            LpMessage::SubsessionKK1(_) => MessageType::SubsessionKK1,
+            LpMessage::SubsessionKK2(_) => MessageType::SubsessionKK2,
+            LpMessage::SubsessionReady(_) => MessageType::SubsessionReady,
+            LpMessage::SubsessionAbort => MessageType::SubsessionAbort,
         }
     }
 
@@ -187,6 +301,30 @@ impl LpMessage {
             LpMessage::KKTResponse(payload) => {
                 dst.put_slice(&payload.0);
             }
+            LpMessage::ForwardPacket(data) => {
+                let serialized =
+                    bincode::serialize(data).expect("Failed to serialize ForwardPacketData");
+                dst.put_slice(&serialized);
+            }
+            LpMessage::Collision => { /* No content */ }
+            LpMessage::Ack => { /* No content */ }
+            LpMessage::SubsessionRequest => { /* No content - signal only */ }
+            LpMessage::SubsessionKK1(data) => {
+                let serialized =
+                    bincode::serialize(data).expect("Failed to serialize SubsessionKK1Data");
+                dst.put_slice(&serialized);
+            }
+            LpMessage::SubsessionKK2(data) => {
+                let serialized =
+                    bincode::serialize(data).expect("Failed to serialize SubsessionKK2Data");
+                dst.put_slice(&serialized);
+            }
+            LpMessage::SubsessionReady(data) => {
+                let serialized =
+                    bincode::serialize(data).expect("Failed to serialize SubsessionReadyData");
+                dst.put_slice(&serialized);
+            }
+            LpMessage::SubsessionAbort => { /* No content - signal only */ }
         }
     }
 }
@@ -204,7 +342,7 @@ mod tests {
         let resp_header = LpHeader {
             protocol_version: 1,
             reserved: 0,
-            session_id: 0,
+            receiver_idx: 0,
             counter: 0,
         };
 

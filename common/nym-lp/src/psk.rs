@@ -57,6 +57,43 @@ const PSK_PSQ_CONTEXT: &str = "nym-lp-psk-psq-v1";
 /// Session context for PSQ protocol.
 const PSQ_SESSION_CONTEXT: &[u8] = b"nym-lp-psq-session";
 
+/// Context string for subsession PSK derivation.
+const SUBSESSION_PSK_CONTEXT: &str = "lp-subsession-psk-v1";
+
+/// Result from PSQ initiator message creation.
+///
+/// Contains all outputs needed for session establishment:
+/// - `psk`: Final derived PSK for Noise handshake (ECDH || K_pq || salt → Blake3)
+/// - `payload`: Serialized PSQ message to send to responder
+/// - `pq_shared_secret`: Raw K_pq from KEM encapsulation (for subsession derivation)
+#[derive(Debug)]
+pub struct PsqInitiatorResult {
+    /// Final PSK for Noise XKpsk3 handshake
+    pub psk: [u8; 32],
+    /// Serialized PSQ payload to embed in handshake message
+    pub payload: Vec<u8>,
+    /// Raw PQ shared secret (K_pq) before KDF combination.
+    /// Used for deriving subsession PSKs to preserve PQ protection.
+    pub pq_shared_secret: [u8; 32],
+}
+
+/// Result from PSQ responder message processing.
+///
+/// Contains all outputs needed for session establishment:
+/// - `psk`: Final derived PSK for Noise handshake (matches initiator's)
+/// - `psk_handle`: Encrypted PSK handle (ctxt_B) to send back to initiator
+/// - `pq_shared_secret`: Raw K_pq from KEM decapsulation (for subsession derivation)
+#[derive(Debug)]
+pub struct PsqResponderResult {
+    /// Final PSK for Noise XKpsk3 handshake
+    pub psk: [u8; 32],
+    /// Encrypted PSK handle (ctxt_B) from PSQ responder message
+    pub psk_handle: Vec<u8>,
+    /// Raw PQ shared secret (K_pq) before KDF combination.
+    /// Used for deriving subsession PSKs to preserve PQ protection.
+    pub pq_shared_secret: [u8; 32],
+}
+
 /// Derives a PSK using PSQ (Post-Quantum Secure PSK) protocol - Initiator side.
 ///
 /// This function combines classical ECDH with post-quantum KEM to provide forward secrecy
@@ -230,7 +267,7 @@ pub fn derive_psk_with_psq_responder(
 /// * `session_context` - Context bytes for PSQ (e.g., b"nym-lp-psq-session")
 ///
 /// # Returns
-/// `(psk, psq_payload_bytes)` - PSK for Noise and serialized PSQ payload to embed
+/// `PsqInitiatorResult` containing PSK, payload, and raw PQ shared secret
 pub fn psq_initiator_create_message(
     local_x25519_private: &PrivateKey,
     remote_x25519_public: &PublicKey,
@@ -239,7 +276,7 @@ pub fn psq_initiator_create_message(
     client_ed25519_pk: &ed25519::PublicKey,
     salt: &[u8; 32],
     session_context: &[u8],
-) -> Result<([u8; 32], Vec<u8>), LpError> {
+) -> Result<PsqInitiatorResult, LpError> {
     // Step 1: Classical ECDH for baseline security
     let ecdh_secret = local_x25519_private.diffie_hellman(remote_x25519_public);
 
@@ -278,8 +315,12 @@ pub fn psq_initiator_create_message(
         LpError::Internal(format!("PSQ v1 send_initial_message failed: {:?}", e))
     })?;
 
-    // Extract PSQ shared secret (unregistered PSK)
+    // Extract PSQ shared secret (unregistered PSK) - this is K_pq
     let psq_psk = state.unregistered_psk();
+
+    // pq_shared_secret is the raw K_pq from KEM encapsulation.
+    // Store it for subsession derivation before it's combined with ECDH.
+    let pq_shared_secret: [u8; 32] = *psq_psk;
 
     // Step 3: Combine ECDH + PSQ via Blake3 KDF
     let mut combined = Vec::with_capacity(64 + psq_psk.len());
@@ -294,7 +335,11 @@ pub fn psq_initiator_create_message(
         .tls_serialize_detached()
         .map_err(|e| LpError::Internal(format!("InitiatorMsg serialization failed: {:?}", e)))?;
 
-    Ok((final_psk, msg_bytes))
+    Ok(PsqInitiatorResult {
+        psk: final_psk,
+        payload: msg_bytes,
+        pq_shared_secret,
+    })
 }
 
 /// PSQ protocol wrapper for responder (gateway) side.
@@ -317,11 +362,7 @@ pub fn psq_initiator_create_message(
 /// * `session_context` - Context bytes for PSQ
 ///
 /// # Returns
-/// `psk` - Derived PSK for Noise
-/// Processes a PSQ initiator message and generates a PSK with encrypted handle.
-///
-/// Returns a tuple of (derived_psk, responder_msg_bytes) where responder_msg_bytes
-/// contains the encrypted PSK handle (ctxt_B) that should be sent to the initiator.
+/// `PsqResponderResult` containing PSK, PSK handle, and raw PQ shared secret
 pub fn psq_responder_process_message(
     local_x25519_private: &PrivateKey,
     remote_x25519_public: &PublicKey,
@@ -330,7 +371,7 @@ pub fn psq_responder_process_message(
     psq_payload: &[u8],
     salt: &[u8; 32],
     session_context: &[u8],
-) -> Result<([u8; 32], Vec<u8>), LpError> {
+) -> Result<PsqResponderResult, LpError> {
     // Step 1: Classical ECDH for baseline security
     let ecdh_secret = local_x25519_private.diffie_hellman(remote_x25519_public);
 
@@ -383,8 +424,12 @@ pub fn psq_responder_process_message(
         LpError::Internal(format!("PSQ v1 responder send failed: {:?}", e))
     })?;
 
-    // Extract the PSQ PSK from the registered PSK
+    // Extract the PSQ PSK from the registered PSK - this is K_pq
     let psq_psk = registered_psk.psk;
+
+    // pq_shared_secret is the raw K_pq from KEM decapsulation.
+    // Store it for subsession derivation before it's combined with ECDH.
+    let pq_shared_secret: [u8; 32] = psq_psk;
 
     // Step 6: Combine ECDH + PSQ via Blake3 KDF (same formula as initiator)
     let mut combined = Vec::with_capacity(64 + psq_psk.len());
@@ -400,7 +445,38 @@ pub fn psq_responder_process_message(
         .tls_serialize_detached()
         .map_err(|e| LpError::Internal(format!("ResponderMsg serialization failed: {:?}", e)))?;
 
-    Ok((final_psk, responder_msg_bytes))
+    Ok(PsqResponderResult {
+        psk: final_psk,
+        psk_handle: responder_msg_bytes,
+        pq_shared_secret,
+    })
+}
+
+/// Derive subsession PSK from parent's PQ shared secret.
+///
+/// Uses Blake3 KDF with domain separation to derive unique PSK for each subsession.
+/// This preserves PQ protection: subsession keys inherit quantum resistance from
+/// parent's KEM shared secret (K_pq).
+///
+/// # Security Model
+///
+/// Subsessions use Noise KKpsk0 pattern where:
+/// - Both parties already know each other's static X25519 keys (from parent session)
+/// - PSK provides PQ protection by deriving from parent's K_pq
+/// - Each subsession gets unique PSK via index parameter (prevents key reuse)
+///
+/// # Arguments
+/// * `pq_shared_secret` - Parent session's K_pq (32 bytes from KEM)
+/// * `subsession_index` - Monotonic index for this subsession (prevents reuse)
+///
+/// # Returns
+/// 32-byte PSK for Noise KKpsk0 handshake
+pub fn derive_subsession_psk(pq_shared_secret: &[u8; 32], subsession_index: u64) -> [u8; 32] {
+    nym_crypto::kdf::derive_key_blake3(
+        SUBSESSION_PSK_CONTEXT,
+        pq_shared_secret,
+        &subsession_index.to_le_bytes(),
+    )
 }
 
 #[cfg(test)]

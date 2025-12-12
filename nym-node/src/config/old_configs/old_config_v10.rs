@@ -1404,7 +1404,6 @@ pub async fn try_upgrade_config_v10<P: AsRef<Path>>(
                 },
                 ..Default::default()
             },
-            lp: Default::default(),
         },
         service_providers: ServiceProvidersConfig {
             storage_paths: ServiceProvidersPaths {

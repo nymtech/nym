@@ -19,10 +19,12 @@ impl LpGatewayHandshake {
     /// Create a new responder (gateway side) handshake
     ///
     /// # Arguments
+    /// * `receiver_index` - Client-proposed receiver_index (from ClientHello)
     /// * `gateway_ed25519_keypair` - Gateway's Ed25519 identity keypair (for PSQ auth and X25519 derivation)
     /// * `client_ed25519_public_key` - Client's Ed25519 public key (from ClientHello)
     /// * `salt` - Salt from ClientHello (for PSK derivation)
     pub fn new_responder(
+        receiver_index: u32,
         gateway_ed25519_keypair: (
             &nym_crypto::asymmetric::ed25519::PrivateKey,
             &nym_crypto::asymmetric::ed25519::PublicKey,
@@ -31,6 +33,7 @@ impl LpGatewayHandshake {
         salt: &[u8; 32],
     ) -> Result<Self, GatewayError> {
         let state_machine = LpStateMachine::new(
+            receiver_index,
             false, // responder
             gateway_ed25519_keypair,
             client_ed25519_public_key,
@@ -114,9 +117,9 @@ impl LpGatewayHandshake {
         use bytes::BytesMut;
         use nym_lp::codec::serialize_lp_packet;
 
-        // Serialize the packet first
+        // Serialize the packet first (None key during handshake phase)
         let mut packet_buf = BytesMut::new();
-        serialize_lp_packet(packet, &mut packet_buf).map_err(|e| {
+        serialize_lp_packet(packet, &mut packet_buf, None).map_err(|e| {
             GatewayError::LpProtocolError(format!("Failed to serialize packet: {}", e))
         })?;
 
@@ -169,7 +172,8 @@ impl LpGatewayHandshake {
             GatewayError::LpConnectionError(format!("Failed to read packet data: {}", e))
         })?;
 
-        let packet = parse_lp_packet(&packet_buf)
+        // Parse packet (None key during handshake phase)
+        let packet = parse_lp_packet(&packet_buf, None)
             .map_err(|e| GatewayError::LpProtocolError(format!("Failed to parse packet: {}", e)))?;
 
         debug!("Received LP packet ({} bytes + 4 byte header)", packet_len);

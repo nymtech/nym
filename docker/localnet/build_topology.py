@@ -178,30 +178,31 @@ def create_mixnode_entry(base_dir, mix_id, port_delta, suffix, host_ip):
     return entry
 
 
-def create_gateway_entry(base_dir, node_id, port_delta, suffix, host_ip):
+def create_gateway_entry(base_dir, node_id, port_delta, suffix, host_ip, gateway_name="gateway"):
     """Create a node_details entry for a gateway"""
-    debug(f"\n=== Creating gateway entry ===")
-    gateway_file = Path(base_dir) / "gateway.json"
+    debug(f"\n=== Creating {gateway_name} entry ===")
+    gateway_file = Path(base_dir) / f"{gateway_name}.json"
     debug(f"Reading bonding JSON from: {gateway_file}")
     with gateway_file.open("r") as json_blob:
         gateway_data = json.load(json_blob)
 
-    node_details = read_node_details("gateway", suffix)
+    node_details = read_node_details(gateway_name, suffix)
 
     # Get identity key from bonding JSON (already byte array)
     identity = gateway_data.get("identity_key")
     if not identity:
-        raise RuntimeError("Missing identity_key in gateway.json")
+        raise RuntimeError(f"Missing identity_key in {gateway_name}.json")
     debug(f"  ✓ Got identity_key from bonding JSON: {len(identity)} bytes")
 
     # Get sphinx key from node-details (decoded from Base58)
     sphinx_key = node_details.get("sphinx_key")
     if not sphinx_key:
-        raise RuntimeError("Missing sphinx_key from node-details for gateway")
+        raise RuntimeError(f"Missing sphinx_key from node-details for {gateway_name}")
 
     host = host_ip
     mix_port = 10000 + port_delta
-    clients_port = 9000
+    # Calculate clients_port: gateway uses 9000, gateway2 uses 9001, etc.
+    clients_port = 9000 + (port_delta - 4)
     debug(f"  Using host: {host} (mix:{mix_port}, clients:{clients_port})")
 
     entry = {
@@ -229,7 +230,7 @@ def create_gateway_entry(base_dir, node_id, port_delta, suffix, host_ip):
 
 def main(args):
     if not args:
-        raise SystemExit("Usage: build_topology.py <output_dir> [node_suffix] [mix1_ip] [mix2_ip] [mix3_ip] [gateway_ip]")
+        raise SystemExit("Usage: build_topology.py <output_dir> [node_suffix] [mix1_ip] [mix2_ip] [mix3_ip] [gateway_ip] [gateway2_ip]")
 
     base_dir = args[0]
     suffix = args[1] if len(args) > 1 and args[1] else DEFAULT_SUFFIX
@@ -239,18 +240,20 @@ def main(args):
     mix2_ip = args[3] if len(args) > 3 else "127.0.0.1"
     mix3_ip = args[4] if len(args) > 4 else "127.0.0.1"
     gateway_ip = args[5] if len(args) > 5 else "127.0.0.1"
+    gateway2_ip = args[6] if len(args) > 6 else "127.0.0.1"
 
     debug(f"\n=== Starting topology generation ===")
     debug(f"Output directory: {base_dir}")
     debug(f"Node suffix: {suffix}")
-    debug(f"Container IPs: mix1={mix1_ip}, mix2={mix2_ip}, mix3={mix3_ip}, gateway={gateway_ip}")
+    debug(f"Container IPs: mix1={mix1_ip}, mix2={mix2_ip}, mix3={mix3_ip}, gateway={gateway_ip}, gateway2={gateway2_ip}")
 
     # Create node_details entries with integer keys
     node_details = {
         1: create_mixnode_entry(base_dir, 1, 1, suffix, mix1_ip),
         2: create_mixnode_entry(base_dir, 2, 2, suffix, mix2_ip),
         3: create_mixnode_entry(base_dir, 3, 3, suffix, mix3_ip),
-        4: create_gateway_entry(base_dir, 4, 4, suffix, gateway_ip)
+        4: create_gateway_entry(base_dir, 4, 4, suffix, gateway_ip, "gateway"),
+        5: create_gateway_entry(base_dir, 5, 5, suffix, gateway2_ip, "gateway2")
     }
 
     # Create the NymTopology structure
@@ -262,8 +265,8 @@ def main(args):
         },
         "rewarded_set": {
             "epoch_id": 0,
-            "entry_gateways": [4],
-            "exit_gateways": [4],
+            "entry_gateways": [4, 5],
+            "exit_gateways": [4, 5],
             "layer1": [1],
             "layer2": [2],
             "layer3": [3],
@@ -279,7 +282,7 @@ def main(args):
 
     print(f"✓ Generated topology with {len(node_details)} nodes")
     print(f"  - 3 mixnodes (layers 1, 2, 3)")
-    print(f"  - 1 gateway (entry + exit)")
+    print(f"  - 2 gateways (entry + exit)")
     debug(f"\n=== Topology generation complete ===\n")
 
 

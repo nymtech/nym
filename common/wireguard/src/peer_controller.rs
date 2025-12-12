@@ -644,6 +644,7 @@ pub fn start_controller(
     let wg_api = Arc::new(MockWgApi::default());
 
     // Create IP pool for testing
+    #[allow(clippy::expect_used)]
     let ip_pool = IpPool::new(
         Ipv4Addr::new(10, 0, 0, 0),
         24,

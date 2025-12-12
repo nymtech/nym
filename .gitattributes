@@ -1,2 +1,5 @@
 nym-validator-rewarder/.sqlx/** diff=nodiff
 nym-node-status-api/nym-node-status-api/.sqlx/** diff=nodiff
+
+# Use bd merge for beads JSONL files
+.beads/beads.jsonl merge=beads

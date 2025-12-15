@@ -37,6 +37,18 @@ jobs:
       - name: Install wasm-bindgen-cli
         run: cargo install wasm-bindgen-cli
 
+      - name: Check formatting
+        uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --manifest-path nym-credential-proxy/vpn-api-lib-wasm/Cargo.toml --all -- --check
+
+      - name: Run clippy
+        uses: actions-rs/cargo@v1
+        with:
+          command: clippy
+          args: --manifest-path nym-credential-proxy/vpn-api-lib-wasm/Cargo.toml --target wasm32-unknown-unknown -- -D warnings
+
       - name: "Build"
         run: make
         working-directory: nym-credential-proxy/vpn-api-lib-wasm

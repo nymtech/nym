@@ -27,3 +27,16 @@ jobs:
     steps:
       - if: github.event.pull_request.milestone == null && contains( env.LABELS, 'no-milestone' ) == false
         run: exit 1
+
+  check-contributor-checklist:
+    name: Check Contributor Checklist Reference
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check PR description references checklist
+        run: |
+          PR_BODY="${{ github.event.pull_request.body }}"
+          if [[ -z "$PR_BODY" ]] || [[ ! "$PR_BODY" =~ "CONTRIBUTOR_ACCEPTANCE_CHECKLIST" ]] && [[ ! "$PR_BODY" =~ "contributor.*checklist" ]]; then
+            echo "::warning::PR description should reference .github/CONTRIBUTOR_ACCEPTANCE_CHECKLIST.md for external contributors"
+            echo "Please ensure you have reviewed and completed all items in the contributor acceptance checklist."
+          fi

@@ -128,7 +128,7 @@ jobs:
           find . -name "*.msi" -type f
 
       - name: Upload Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: nym-wallet.msi
           path: |

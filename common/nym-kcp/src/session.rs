@@ -50,7 +50,7 @@ pub struct KcpSession {
 #[derive(Debug, Clone)]
 struct Segment {
     sn: u32,
-    frg: u8,
+    frg: u16,
     ts: u32,
     resendts: u32,
     rto: u32,
@@ -60,7 +60,7 @@ struct Segment {
 
 impl Segment {
     #[allow(dead_code)]
-    fn new(sn: u32, frg: u8, data: Vec<u8>) -> Self {
+    fn new(sn: u32, frg: u16, data: Vec<u8>) -> Self {
         Segment {
             sn,
             frg,
@@ -173,7 +173,7 @@ impl KcpSession {
             // first has frg=count-1. This allows receiver to know total count from first packet.
             // In KCP, `frg` is set to the remaining fragments in reverse order.
             // i.e., the last fragment has frg=0, the first has frg=count-1.
-            let frg = (count - i - 1) as u8;
+            let frg = (count - i - 1) as u16;
 
             let seg = Segment {
                 sn: self.snd_nxt,

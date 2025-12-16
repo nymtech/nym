@@ -68,3 +68,5 @@ nym-api/redocly/formatted-openapi.json
 .beads
 CLAUDE.md
 docs
+.claude
+.superego

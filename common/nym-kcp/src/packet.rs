@@ -3,7 +3,11 @@ use log::{debug, trace};
 
 use super::error::KcpError;
 
-pub const KCP_HEADER: usize = 24;
+// Nym-KCP uses a modified header format with u16 for frg field (25 bytes total).
+// Standard KCP uses u8 for frg (24 bytes). This deviation from skywind3000/kcp protocol
+// supports messages up to ~91MB (65535 fragments × MTU) vs standard 355KB limit.
+// This is intentional - Nym uses KCP internally for reliability/multiplexing, not interop.
+pub const KCP_HEADER: usize = 25;
 
 /// Typed enumeration for KCP commands.
 #[repr(u8)]
@@ -48,11 +52,12 @@ impl Into<u8> for KcpCommand {
 }
 
 /// A single KCP packet (on-wire format).
+/// Note: Nym-KCP uses u16 for frg (fragment count) instead of standard u8.
 #[derive(Debug, Clone)]
 pub struct KcpPacket {
     conv: u32,
     cmd: KcpCommand,
-    frg: u8,
+    frg: u16,
     wnd: u16,
     ts: u32,
     sn: u32,
@@ -65,7 +70,7 @@ impl KcpPacket {
     pub fn new(
         conv: u32,
         cmd: KcpCommand,
-        frg: u8,
+        frg: u16,
         wnd: u16,
         ts: u32,
         sn: u32,
@@ -104,7 +109,7 @@ impl KcpPacket {
         self.cmd
     }
 
-    pub fn frg(&self) -> u8 {
+    pub fn frg(&self) -> u16 {
         self.frg
     }
 
@@ -154,12 +159,12 @@ impl KcpPacket {
             return Ok(None);
         }
 
-        // Peek into the first 28 bytes
+        // Peek into the header (25 bytes for Nym-KCP)
         let mut header = &src[..KCP_HEADER];
 
         let conv = header.get_u32_le();
         let cmd_byte = header.get_u8();
-        let frg = header.get_u8();
+        let frg = header.get_u16_le();
         let wnd = header.get_u16_le();
         let ts = header.get_u32_le();
         let sn = header.get_u32_le();
@@ -206,7 +211,7 @@ impl KcpPacket {
 
         dst.put_u32_le(self.conv);
         dst.put_u8(self.cmd.into()); // Convert enum -> u8
-        dst.put_u8(self.frg);
+        dst.put_u16_le(self.frg);
         dst.put_u16_le(self.wnd);
         dst.put_u32_le(self.ts);
         dst.put_u32_le(self.sn);

@@ -17,6 +17,7 @@ use nym_registration_common::{GatewayData, LpRegistrationRequest, LpRegistration
 use nym_wireguard_types::PeerPublicKey;
 use std::net::{IpAddr, SocketAddr};
 use std::sync::Arc;
+use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 
@@ -180,10 +181,16 @@ impl LpRegistrationClient {
                 LpClientError::Crypto(format!("Failed to derive X25519 public key: {}", e))
             })?;
 
+        let timestamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("System time before UNIX epoch")
+            .as_secs();
+
         // Step 2: Generate ClientHelloData with fresh salt and both public keys
         let client_hello_data = nym_lp::ClientHelloData::new_with_fresh_salt(
             client_x25519_public.to_bytes(),
             self.local_ed25519_keypair.public_key().to_bytes(),
+            timestamp,
         );
         let salt = client_hello_data.salt;
         let receiver_index = client_hello_data.receiver_index;

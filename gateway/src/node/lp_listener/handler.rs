@@ -1482,12 +1482,17 @@ mod tests {
         use nym_lp::message::ClientHelloData;
         use tokio::net::{TcpListener, TcpStream};
 
+        let timestamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("System time before UNIX epoch")
+            .as_secs();
+
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let addr = listener.local_addr().unwrap();
 
         let client_key = [7u8; 32];
         let client_ed25519_key = [8u8; 32];
-        let hello_data = ClientHelloData::new_with_fresh_salt(client_key, client_ed25519_key);
+        let hello_data = ClientHelloData::new_with_fresh_salt(client_key, client_ed25519_key, timestamp);
         let expected_salt = hello_data.salt; // Clone salt before moving hello_data
 
         let server_task = tokio::spawn(async move {
@@ -1530,6 +1535,11 @@ mod tests {
     async fn test_receive_client_hello_valid() {
         use tokio::net::{TcpListener, TcpStream};
 
+        let timestamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("System time before UNIX epoch")
+            .as_secs();
+
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let addr = listener.local_addr().unwrap();
 
@@ -1553,6 +1563,7 @@ mod tests {
         let hello_data = ClientHelloData::new_with_fresh_salt(
             client_x25519_public.to_bytes(),
             client_ed25519_keypair.public_key().to_bytes(),
+            timestamp
         );
         let packet = LpPacket::new(
             LpHeader {
@@ -1585,6 +1596,11 @@ mod tests {
         use std::time::{SystemTime, UNIX_EPOCH};
         use tokio::net::{TcpListener, TcpStream};
 
+        let timestamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("System time before UNIX epoch")
+            .as_secs();
+
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let addr = listener.local_addr().unwrap();
 
@@ -1608,6 +1624,7 @@ mod tests {
         let mut hello_data = ClientHelloData::new_with_fresh_salt(
             client_x25519_public.to_bytes(),
             client_ed25519_keypair.public_key().to_bytes(),
+            timestamp,
         );
 
         // Manually set timestamp to be very old (100 seconds ago)

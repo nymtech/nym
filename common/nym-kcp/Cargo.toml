@@ -18,7 +18,6 @@ path = "bin/session/main.rs"
 
 [dependencies]
 tokio-util = { workspace = true, features = ["codec"] }
-byte_string = "1.0"
 bytes = { workspace = true }
 thiserror = { workspace = true }
 log = { workspace = true }

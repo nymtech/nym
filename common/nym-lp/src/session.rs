@@ -723,8 +723,8 @@ impl LpSession {
     ///
     /// # Returns
     ///
-    /// * `Ok(None)` if no message needs to be sent currently (e.g., waiting for peer, or handshake complete).
-    /// * `Err(LpError)` if there's an error within the Noise protocol or PSQ.
+    /// * `None` if no message needs to be sent currently (e.g., waiting for peer, or handshake complete).
+    /// * `Some(LpError)` if there's an error within the Noise protocol or PSQ.
     pub fn prepare_handshake_message(&self) -> Option<Result<LpMessage, LpError>> {
         let mut noise_state = self.noise_state.lock();
 

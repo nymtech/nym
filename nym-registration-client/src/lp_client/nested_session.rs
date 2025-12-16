@@ -32,6 +32,7 @@ use nym_registration_common::{GatewayData, LpRegistrationRequest, LpRegistration
 use nym_wireguard_types::PeerPublicKey;
 use std::net::IpAddr;
 use std::sync::Arc;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 /// Create explicit bincode options for consistent serialization across versions.
 ///
@@ -131,10 +132,16 @@ impl NestedLpSession {
             LpClientError::Crypto(format!("Failed to derive X25519 public key: {}", e))
         })?;
 
+        let timestamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("System time before UNIX epoch")
+            .as_secs();
+
         // Step 2: Generate ClientHello for exit gateway
         let client_hello_data = nym_lp::ClientHelloData::new_with_fresh_salt(
             client_x25519_public.to_bytes(),
             self.client_keypair.public_key().to_bytes(),
+            timestamp,
         );
         let salt = client_hello_data.salt;
         let receiver_index = client_hello_data.receiver_index;

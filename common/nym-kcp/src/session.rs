@@ -6,8 +6,10 @@ use std::{
 
 use ansi_term::Color::Yellow;
 use bytes::{Buf, BytesMut};
-use log::{debug, error, info, warn};
+use log::{debug, error, warn};
 use std::thread;
+
+use crate::MAX_RTO;
 
 use super::error::KcpError;
 use super::packet::{KcpCommand, KcpPacket};
@@ -430,12 +432,11 @@ impl KcpSession {
                 // Exponential backoff: double RTO for this segment
                 seg.rto *= 2;
                 // Clamp to the session's maximum RTO (hardcoded as 60s for now)
-                const MAX_RTO: u32 = 60000; // Same as used in update_rtt
                 if seg.rto > MAX_RTO {
                     seg.rto = MAX_RTO;
                 }
                 seg.resendts = self.current + seg.rto;
-                info!(
+                debug!(
                     "{}",
                     Yellow.paint(format!(
                         "Retransmit conv_id: {}, sn: {}, frg: {}",
@@ -685,7 +686,7 @@ impl KcpSession {
             }
         }
         let rto = self.rx_srtt + cmp::max(self.interval, 4 * self.rx_rttval);
-        self.rx_rto = rto.clamp(self.rx_minrto, 60000);
+        self.rx_rto = rto.clamp(self.rx_minrto, MAX_RTO);
     }
 }
 

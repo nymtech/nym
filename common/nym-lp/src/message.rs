@@ -31,17 +31,13 @@ impl ClientHelloData {
     pub fn new_with_fresh_salt(
         client_lp_public_key: [u8; 32],
         client_ed25519_public_key: [u8; 32],
+        timestamp: u64,
     ) -> Self {
-        use std::time::{SystemTime, UNIX_EPOCH};
 
         // Generate salt: timestamp + nonce
         let mut salt = [0u8; 32];
 
         // First 8 bytes: current timestamp as u64 little-endian
-        let timestamp = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .expect("System time before UNIX epoch")
-            .as_secs();
         salt[..8].copy_from_slice(&timestamp.to_le_bytes());
 
         // Last 24 bytes: random nonce
@@ -331,6 +327,8 @@ impl LpMessage {
 
 #[cfg(test)]
 mod tests {
+    use std::time::{SystemTime, UNIX_EPOCH};
+
     use super::*;
     use crate::LpPacket;
     use crate::packet::{LpHeader, TRAILER_LEN};
@@ -369,10 +367,14 @@ mod tests {
 
     #[test]
     fn test_client_hello_salt_generation() {
+        let timestamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("System time before UNIX epoch")
+            .as_secs();
         let client_key = [1u8; 32];
         let client_ed25519_key = [2u8; 32];
-        let hello1 = ClientHelloData::new_with_fresh_salt(client_key, client_ed25519_key);
-        let hello2 = ClientHelloData::new_with_fresh_salt(client_key, client_ed25519_key);
+        let hello1 = ClientHelloData::new_with_fresh_salt(client_key, client_ed25519_key, timestamp);
+        let hello2 = ClientHelloData::new_with_fresh_salt(client_key, client_ed25519_key, timestamp);
 
         // Different salts should be generated
         assert_ne!(hello1.salt, hello2.salt);
@@ -385,9 +387,13 @@ mod tests {
 
     #[test]
     fn test_client_hello_timestamp_extraction() {
+        let timestamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("System time before UNIX epoch")
+            .as_secs();
         let client_key = [2u8; 32];
         let client_ed25519_key = [3u8; 32];
-        let hello = ClientHelloData::new_with_fresh_salt(client_key, client_ed25519_key);
+        let hello = ClientHelloData::new_with_fresh_salt(client_key, client_ed25519_key, timestamp);
 
         let timestamp = hello.extract_timestamp();
         let now = std::time::SystemTime::now()
@@ -401,9 +407,13 @@ mod tests {
 
     #[test]
     fn test_client_hello_salt_format() {
+        let timestamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("System time before UNIX epoch")
+            .as_secs();
         let client_key = [3u8; 32];
         let client_ed25519_key = [4u8; 32];
-        let hello = ClientHelloData::new_with_fresh_salt(client_key, client_ed25519_key);
+        let hello = ClientHelloData::new_with_fresh_salt(client_key, client_ed25519_key, timestamp);
 
         // First 8 bytes should be non-zero timestamp
         let timestamp_bytes = &hello.salt[..8];

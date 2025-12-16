@@ -1001,12 +1001,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e3b5ca7a04898ad4bcd41c90c5285445ff5b791899bb1b0abdd2a2aa791211d7"
 
 [[package]]
-name = "byte_string"
-version = "1.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "11aade7a05aa8c3a351cedc44c3fc45806430543382fcc4743a9b757a2a0b4ed"
-
-[[package]]
 name = "bytecodec"
 version = "0.4.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6627,7 +6621,6 @@ name = "nym-kcp"
 version = "0.1.0"
 dependencies = [
  "ansi_term",
- "byte_string",
  "bytes",
  "env_logger",
  "log",
@@ -8084,7 +8077,6 @@ dependencies = [
  "futures",
  "ip_network",
  "ipnetwork",
- "log",
  "nym-credential-verification",
  "nym-credentials-interface",
  "nym-crypto",

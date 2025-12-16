@@ -114,19 +114,17 @@ impl ReceivingKeyCounterValidator {
 
         let duplicate = self.check_bit_branchless(counter);
 
-        // Using Option to avoid early returns
         let result = if is_growing {
-            Some(Ok(()))
+            Ok(())
         } else if too_far_back {
-            Some(Err(ReplayError::OutOfWindow))
+            Err(ReplayError::OutOfWindow)
         } else if duplicate {
-            Some(Err(ReplayError::DuplicateCounter))
+            Err(ReplayError::DuplicateCounter)
         } else {
-            Some(Ok(()))
+            Ok(())
         };
 
-        // Unwrap the option (always Some)
-        result.unwrap()
+        result
     }
 
     /// Special case function for clearing the entire bitmap

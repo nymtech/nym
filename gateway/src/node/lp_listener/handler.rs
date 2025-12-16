@@ -453,8 +453,8 @@ impl LpConnectionHandler {
         // Get outer key before releasing borrow
         let outer_key = state_machine
             .session()
-            .ok()
-            .and_then(|s| s.outer_aead_key());
+            .map_err(|e| GatewayError::LpProtocolError(format!("Session unavailable after processing: {}", e)))?
+            .outer_aead_key();
         drop(state_entry);
 
         match action {

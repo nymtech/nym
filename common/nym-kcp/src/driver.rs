@@ -34,8 +34,7 @@ impl KcpDriver {
     }
 
     fn _input(&mut self, pkt: &KcpPacket) -> Result<(), KcpError> {
-        self.session.input(pkt);
-        Ok(())
+        self.session.input(pkt)
     }
 
     pub fn fetch_outgoing(&mut self) -> Vec<KcpPacket> {

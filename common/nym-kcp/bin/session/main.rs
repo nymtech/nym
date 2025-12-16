@@ -45,7 +45,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             decoded_pkt.sn(),
             decoded_pkt.frg()
         );
-        remote_sess.input(&decoded_pkt);
+        remote_sess.input(&decoded_pkt)?;
     }
 
     // Update remote session to process newly received data
@@ -62,7 +62,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     while let Some(decoded_pkt) = KcpPacket::decode(&mut ack_buf)? {
-        local_sess.input(&decoded_pkt);
+        local_sess.input(&decoded_pkt)?;
     }
 
     // Update local again with some arbitrary time, e.g. 50 ms later

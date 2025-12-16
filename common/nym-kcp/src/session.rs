@@ -9,6 +9,7 @@ use bytes::{Buf, BytesMut};
 use log::{debug, error, info, warn};
 use std::thread;
 
+use super::error::KcpError;
 use super::packet::{KcpCommand, KcpPacket};
 
 /// Minimal KCP session that produces/consumes `KcpPacket`s
@@ -200,7 +201,10 @@ impl KcpSession {
     }
 
     /// Input a newly received packet from the network (after decryption).
-    pub fn input(&mut self, pkt: &KcpPacket) {
+    ///
+    /// # Errors
+    /// Returns `KcpError::ConvMismatch` if the packet's conversation ID doesn't match.
+    pub fn input(&mut self, pkt: &KcpPacket) -> Result<(), KcpError> {
         debug!(
             "[ConvID: {}, Thread: {:?}] input: Received packet - cmd: {:?}, sn: {}, frg: {}, wnd: {}, ts: {}, una: {}",
             self.conv,
@@ -220,7 +224,10 @@ impl KcpSession {
                 pkt.conv(),
                 self.conv
             );
-            return;
+            return Err(KcpError::ConvMismatch {
+                expected: self.conv,
+                received: pkt.conv(),
+            });
         }
 
         // Update remote window
@@ -261,6 +268,8 @@ impl KcpSession {
                 // Not implemented in this minimal
             }
         }
+
+        Ok(())
     }
 
     /// Update KCP state with `delta_ms` since the last call.
@@ -793,7 +802,7 @@ mod tests {
         );
 
         println!("Inputting first packet (sn={})", first_packet.sn());
-        receiver.input(&first_packet);
+        receiver.input(&first_packet).unwrap();
         receiver.update(0); // Process input
         println!(
             "Receiver state after first packet: rcv_nxt={}, rcv_buf_len={}, rcv_queue_len={}",
@@ -817,7 +826,7 @@ mod tests {
         );
 
         println!("Inputting last packet (sn={})", last_packet.sn());
-        receiver.input(&last_packet);
+        receiver.input(&last_packet).unwrap();
         receiver.update(0); // Process input
         println!(
             "Receiver state after last packet: rcv_nxt={}, rcv_buf_len={}, rcv_queue_len={}",
@@ -845,7 +854,7 @@ mod tests {
                 middle_packets.iter().map(|p| p.sn()).collect::<Vec<_>>()
             );
             for pkt in middle_packets {
-                receiver.input(&pkt);
+                receiver.input(&pkt).unwrap();
             }
             receiver.update(0); // Process input
         }
@@ -941,7 +950,7 @@ mod tests {
             session.rcv_nxt,
             Vec::new(),
         );
-        session.input(&ack_packet);
+        session.input(&ack_packet).unwrap();
         assert_eq!(
             session.rmt_wnd, new_rmt_wnd,
             "Remote window should be updated to 8"
@@ -1177,7 +1186,7 @@ mod tests {
         );
 
         // Input the ACK
-        session.input(&ack_packet);
+        session.input(&ack_packet).unwrap();
 
         // Verify the segment was removed from snd_buf
         assert!(
@@ -1238,7 +1247,7 @@ mod tests {
         );
 
         // Input the ACK - this triggers parse_ack -> update_rtt
-        session.input(&ack_packet);
+        session.input(&ack_packet).unwrap();
 
         // Verify RTO has changed
         let new_rto = session.rx_rto;
@@ -1295,7 +1304,7 @@ mod tests {
             3,               // una = 3
             Vec::new(),      // data
         );
-        session.input(&packet_with_una3);
+        session.input(&packet_with_una3).unwrap();
 
         // Verify segments < 3 are removed
         assert_eq!(
@@ -1322,7 +1331,7 @@ mod tests {
             5,                // una = 5
             vec![9u8; 10],    // dummy data
         );
-        session.input(&packet_with_una5);
+        session.input(&packet_with_una5).unwrap();
 
         // Verify all segments < 5 are removed (buffer should be empty)
         assert!(
@@ -1456,7 +1465,7 @@ mod tests {
             session.rcv_nxt, // una
             Vec::new(),
         );
-        session.input(&ack_packet);
+        session.input(&ack_packet).unwrap();
 
         // Verify the segment is now gone due to the ACK
         assert!(
@@ -1510,7 +1519,7 @@ mod tests {
         // Simulate receiving all fragments correctly first
         debug!("Simulating initial reception of all fragments...");
         for pkt in &packets {
-            receiver.input(pkt);
+            receiver.input(pkt).unwrap();
         }
         receiver.update(0); // Process inputs
 
@@ -1546,7 +1555,7 @@ mod tests {
             "rcv_nxt should be past the duplicate sn"
         );
 
-        receiver.input(&duplicate_packet);
+        receiver.input(&duplicate_packet).unwrap();
         receiver.update(0); // Process the duplicate input
 
         // --- Verify state after duplicate --- //
@@ -1626,7 +1635,7 @@ mod tests {
         // Deliver all packets *except* the lost one
         for (i, packet) in packets.iter().enumerate().take(num_fragments) {
             if i != 1 {
-                receiver.input(packet);
+                receiver.input(packet).unwrap();
             }
         }
         receiver.update(0); // Process inputs
@@ -1670,7 +1679,7 @@ mod tests {
                 ack_pkt.sn(),
                 ack_pkt.ts()
             );
-            sender.input(&ack_pkt);
+            sender.input(&ack_pkt).unwrap();
         }
         // After processing ACKs, sn=0 and sn=2 should be removed from sender's snd_buf
         assert_eq!(
@@ -1735,7 +1744,7 @@ mod tests {
         );
 
         // --- Deliver retransmitted packet and verify reassembly --- //
-        receiver.input(retransmitted_packet);
+        receiver.input(retransmitted_packet).unwrap();
         receiver.update(0); // Process the retransmitted packet
 
         // Verify message is now complete

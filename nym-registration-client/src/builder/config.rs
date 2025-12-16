@@ -217,21 +217,22 @@ fn mixnet_debug_config(mixnet_client_config: &MixnetClientConfig) -> DebugConfig
     // 2. The loop cover traffic average delay is set to 0ms (special value meaning "disable")
     let mut disable_loop_cover_stream = mixnet_client_config.disable_background_cover_traffic;
 
-    if let Some(delay) = mixnet_client_config.loop_cover_traffic_average_delay {
-        if delay.is_zero() {
-            disable_loop_cover_stream = true;
-        }
+    if let Some(delay) = mixnet_client_config.loop_cover_traffic_average_delay
+        && delay.is_zero()
+    {
+        disable_loop_cover_stream = true;
     }
 
     debug_config.cover_traffic.disable_loop_cover_traffic_stream = disable_loop_cover_stream;
 
     // Only apply a custom loop cover delay if the stream is enabled.
     // If the stream is disabled, the delay value is ignored.
-    if !disable_loop_cover_stream {
-        if let Some(delay) = mixnet_client_config.loop_cover_traffic_average_delay {
-            debug_config.cover_traffic.loop_cover_traffic_average_delay = delay;
-        }
+    if !disable_loop_cover_stream
+        && let Some(delay) = mixnet_client_config.loop_cover_traffic_average_delay
+    {
+        debug_config.cover_traffic.loop_cover_traffic_average_delay = delay;
     }
+
     log_mixnet_client_config(&debug_config);
     debug_config
 }

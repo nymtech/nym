@@ -8,7 +8,7 @@ on:
 
 jobs:
   build:
-    runs-on: arc-linux-dind
+    runs-on: arc-linux-latest-dind
     steps:
       - uses: actions/checkout@v4
 

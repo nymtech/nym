@@ -13,7 +13,7 @@ jobs:
     runs-on: arc-linux-latest-dind
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Get version from cargo.toml
         uses: mikefarah/yq@v4.49.2

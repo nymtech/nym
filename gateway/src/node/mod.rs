@@ -32,6 +32,7 @@ use rand::thread_rng;
 use std::net::IpAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
+use tokio::sync::Semaphore;
 use tracing::*;
 use zeroize::Zeroizing;
 
@@ -339,6 +340,7 @@ impl GatewayTasksBuilder {
             lp_config: self.config.lp.clone(),
             handshake_states: Arc::new(dashmap::DashMap::new()),
             session_states: Arc::new(dashmap::DashMap::new()),
+            forward_semaphore: Arc::new(Semaphore::new(self.config.lp.max_concurrent_forwards)),
         };
 
         // Parse bind address from config

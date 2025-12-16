@@ -79,7 +79,7 @@ use nym_wireguard::{PeerControlRequest, WireguardGatewayData};
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::net::TcpListener;
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, Semaphore};
 use tracing::*;
 
 mod handler;
@@ -168,6 +168,16 @@ pub struct LpConfig {
     /// Higher values = less overhead but slower memory reclamation.
     #[serde(default = "default_state_cleanup_interval_secs")]
     pub state_cleanup_interval_secs: u64,
+
+    /// Maximum concurrent forward connections (default: 1000)
+    ///
+    /// Limits simultaneous outbound connections when forwarding LP packets to other gateways
+    /// during telescope setup. This prevents file descriptor exhaustion under high load.
+    ///
+    /// When at capacity, new forward requests return an error, signaling the client
+    /// to choose a different gateway.
+    #[serde(default = "default_max_concurrent_forwards")]
+    pub max_concurrent_forwards: usize,
 }
 
 impl Default for LpConfig {
@@ -184,6 +194,7 @@ impl Default for LpConfig {
             session_ttl_secs: default_session_ttl_secs(),
             demoted_session_ttl_secs: default_demoted_session_ttl_secs(),
             state_cleanup_interval_secs: default_state_cleanup_interval_secs(),
+            max_concurrent_forwards: default_max_concurrent_forwards(),
         }
     }
 }
@@ -226,6 +237,10 @@ fn default_demoted_session_ttl_secs() -> u64 {
 
 fn default_state_cleanup_interval_secs() -> u64 {
     300 // 5 minutes - balances memory reclamation with task overhead
+}
+
+fn default_max_concurrent_forwards() -> usize {
+    1000 // Limits concurrent outbound connections to prevent fd exhaustion
 }
 
 /// Wrapper for state entries with timestamp tracking for cleanup
@@ -340,6 +355,31 @@ pub struct LpHandlerState {
     /// (SubsessionKK1/KK2/Ready) during transport phase, allowing long-lived connections
     /// to rekey without re-authentication.
     pub session_states: Arc<DashMap<u32, TimestampedState<LpStateMachine>>>,
+
+    /// Semaphore limiting concurrent forward connections
+    ///
+    /// Prevents file descriptor exhaustion when forwarding LP packets during
+    /// telescope setup. When at capacity, forward requests return an error
+    /// so clients can choose a different gateway.
+    // AIDEV-NOTE: Connection limiting (not pooling) chosen for forward requests.
+    //
+    // Why not connection pooling?
+    // 1. Forwarding is one-time per telescope setup (handshake only), not ongoing traffic.
+    //    Once telescope is established, data flows directly through the tunnel.
+    // 2. Telescope targets are distributed across many different gateways - each client
+    //    typically connects to a different exit gateway, so pooled connections would
+    //    rarely be reused.
+    // 3. Connections already go out of scope after each request-response. FD exhaustion
+    //    only happens from concurrent spikes, not accumulation.
+    // 4. A pool would accumulate one idle connection per unique destination, most of
+    //    which would never be reused before TTL expiration.
+    //
+    // Why semaphore limiting is better:
+    // 1. Directly caps concurrent forward connections regardless of destination.
+    // 2. When at capacity, returns "busy" error - client can choose another gateway.
+    //    This is better than silently queuing requests behind a pool.
+    // 3. Simple implementation: no TTL management, stale connection handling, or cleanup.
+    pub forward_semaphore: Arc<Semaphore>,
 }
 
 /// LP listener that accepts TCP connections on port 41264

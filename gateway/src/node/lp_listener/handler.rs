@@ -870,6 +870,17 @@ impl LpConnectionHandler {
         inc!("lp_forward_total");
         let start = std::time::Instant::now();
 
+        // Acquire semaphore permit to limit concurrent forward connections (fd exhaustion protection)
+        let _permit = match self.state.forward_semaphore.try_acquire() {
+            Ok(permit) => permit,
+            Err(_) => {
+                inc!("lp_forward_rejected");
+                return Err(GatewayError::LpConnectionError(
+                    "Gateway at forward capacity".into(),
+                ));
+            }
+        };
+
         // Parse target gateway address
         let target_addr: SocketAddr = forward_data.target_lp_address.parse().map_err(|e| {
             inc!("lp_forward_failed");
@@ -1114,12 +1125,16 @@ mod tests {
         let ecash_verifier =
             nym_credential_verification::ecash::MockEcashManager::new(Box::new(storage.clone()));
 
+        let lp_config = LpConfig {
+            enabled: true,
+            timestamp_tolerance_secs: 30,
+            ..Default::default()
+        };
+        let forward_semaphore =
+            Arc::new(tokio::sync::Semaphore::new(lp_config.max_concurrent_forwards));
+
         LpHandlerState {
-            lp_config: LpConfig {
-                enabled: true,
-                timestamp_tolerance_secs: 30,
-                ..Default::default()
-            },
+            lp_config,
             ecash_verifier: Arc::new(ecash_verifier)
                 as Arc<dyn nym_credential_verification::ecash::traits::EcashManager + Send + Sync>,
             storage,
@@ -1130,6 +1145,7 @@ mod tests {
             wireguard_data: None,
             handshake_states: Arc::new(dashmap::DashMap::new()),
             session_states: Arc::new(dashmap::DashMap::new()),
+            forward_semaphore,
         }
     }
 

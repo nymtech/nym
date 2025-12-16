@@ -16,6 +16,7 @@ use std::time::Duration;
 /// - `connect_timeout`: 10 seconds - reasonable for real network conditions
 /// - `handshake_timeout`: 15 seconds - allows for Noise handshake round-trips
 /// - `registration_timeout`: 30 seconds - includes credential verification and response
+/// - `forward_timeout`: 30 seconds - forward packet send/receive to exit gateway
 /// - `tcp_nodelay`: true - lower latency for small registration messages
 /// - `tcp_keepalive`: None - not needed for short-lived registration connections
 ///
@@ -46,6 +47,13 @@ pub struct LpConfig {
     /// Default: 30 seconds.
     pub registration_timeout: Duration,
 
+    /// Forward packet send/receive timeout.
+    ///
+    /// Maximum time to wait for forward packet send + response receive via entry gateway.
+    /// Covers the entire round-trip through entry to exit gateway and back.
+    /// Default: 30 seconds.
+    pub forward_timeout: Duration,
+
     /// Enable TCP_NODELAY (disable Nagle's algorithm) (nym-104).
     ///
     /// When true, disables Nagle's algorithm for lower latency.
@@ -68,6 +76,7 @@ impl Default for LpConfig {
             connect_timeout: Duration::from_secs(10),
             handshake_timeout: Duration::from_secs(15),
             registration_timeout: Duration::from_secs(30),
+            forward_timeout: Duration::from_secs(30),
 
             // nym-104: Optimized for registration-only protocol
             tcp_nodelay: true,   // Lower latency for small messages
@@ -87,6 +96,7 @@ mod tests {
         assert_eq!(config.connect_timeout, Duration::from_secs(10));
         assert_eq!(config.handshake_timeout, Duration::from_secs(15));
         assert_eq!(config.registration_timeout, Duration::from_secs(30));
+        assert_eq!(config.forward_timeout, Duration::from_secs(30));
         assert!(config.tcp_nodelay);
         assert_eq!(config.tcp_keepalive, None);
     }

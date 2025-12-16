@@ -838,15 +838,24 @@ impl LpRegistrationClient {
             .ok()
             .and_then(|s| s.outer_aead_key());
 
-        // 5. Send and receive on fresh connection
-        let response_packet = Self::connect_send_receive(
-            self.gateway_lp_address,
-            &forward_packet,
-            send_key.as_ref(),
-            recv_key.as_ref(),
-            &self.config,
+        // 5. Send and receive on fresh connection with timeout
+        let response_packet = tokio::time::timeout(
+            self.config.forward_timeout,
+            Self::connect_send_receive(
+                self.gateway_lp_address,
+                &forward_packet,
+                send_key.as_ref(),
+                recv_key.as_ref(),
+                &self.config,
+            ),
         )
-        .await?;
+        .await
+        .map_err(|_| {
+            LpClientError::Transport(format!(
+                "Forward packet timeout after {:?}",
+                self.config.forward_timeout
+            ))
+        })??;
         tracing::trace!("Received response packet from entry gateway");
 
         // 6. Decrypt via state machine

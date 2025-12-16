@@ -377,10 +377,12 @@ impl PrivateKey {
         use sha2::{Digest, Sha512};
 
         // Hash the Ed25519 secret key with SHA-512
-        let hash = Sha512::digest(self.0);
+        // Both hash and x25519_bytes wrapped in Zeroizing to clear key material
+        let mut hash = zeroize::Zeroizing::new([0u8; 64]);
+        hash.copy_from_slice(&Sha512::digest(self.0));
 
         // Take first 32 bytes (clamping is done automatically by x25519_dalek::StaticSecret)
-        let mut x25519_bytes = [0u8; 32];
+        let mut x25519_bytes = zeroize::Zeroizing::new([0u8; 32]);
         x25519_bytes.copy_from_slice(&hash[..32]);
 
         #[allow(clippy::expect_used)]

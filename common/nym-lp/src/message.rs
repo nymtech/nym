@@ -68,7 +68,7 @@ impl ClientHelloData {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, IntoPrimitive, TryFromPrimitive)]
-#[repr(u16)]
+#[repr(u32)]
 pub enum MessageType {
     Busy = 0x0000,
     Handshake = 0x0001,
@@ -94,12 +94,12 @@ pub enum MessageType {
 }
 
 impl MessageType {
-    pub(crate) fn from_u16(value: u16) -> Option<Self> {
+    pub(crate) fn from_u32(value: u32) -> Option<Self> {
         MessageType::try_from(value).ok()
     }
 
-    pub fn to_u16(&self) -> u16 {
-        u16::from(*self)
+    pub fn to_u32(&self) -> u32 {
+        u32::from(*self)
     }
 }
 

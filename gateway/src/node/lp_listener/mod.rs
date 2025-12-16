@@ -361,7 +361,7 @@ pub struct LpHandlerState {
     /// Prevents file descriptor exhaustion when forwarding LP packets during
     /// telescope setup. When at capacity, forward requests return an error
     /// so clients can choose a different gateway.
-    // AIDEV-NOTE: Connection limiting (not pooling) chosen for forward requests.
+    // Connection limiting (not pooling) chosen for forward requests.
     //
     // Why not connection pooling?
     // 1. Forwarding is one-time per telescope setup (handshake only), not ongoing traffic.

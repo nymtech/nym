@@ -453,7 +453,12 @@ impl LpConnectionHandler {
         // Get outer key before releasing borrow
         let outer_key = state_machine
             .session()
-            .map_err(|e| GatewayError::LpProtocolError(format!("Session unavailable after processing: {}", e)))?
+            .map_err(|e| {
+                GatewayError::LpProtocolError(format!(
+                    "Session unavailable after processing: {}",
+                    e
+                ))
+            })?
             .outer_aead_key();
         drop(state_entry);
 
@@ -1130,8 +1135,9 @@ mod tests {
             timestamp_tolerance_secs: 30,
             ..Default::default()
         };
-        let forward_semaphore =
-            Arc::new(tokio::sync::Semaphore::new(lp_config.max_concurrent_forwards));
+        let forward_semaphore = Arc::new(tokio::sync::Semaphore::new(
+            lp_config.max_concurrent_forwards,
+        ));
 
         LpHandlerState {
             lp_config,

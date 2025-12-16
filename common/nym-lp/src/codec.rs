@@ -89,10 +89,10 @@ fn build_nonce(counter: u64) -> [u8; 12] {
 /// Used when decrypting outer-encrypted packets where the message type
 /// was encrypted along with the content.
 fn parse_message_from_type_and_content(
-    msg_type_raw: u16,
+    msg_type_raw: u32,
     content: &[u8],
 ) -> Result<LpMessage, LpError> {
-    let message_type = MessageType::from_u16(msg_type_raw)
+    let message_type = MessageType::from_u32(msg_type_raw)
         .ok_or_else(|| LpError::invalid_message_type(msg_type_raw))?;
 
     match message_type {
@@ -195,7 +195,7 @@ pub fn parse_lp_header_only(src: &[u8]) -> Result<OuterHeader, LpError> {
 ///
 /// Both cleartext and encrypted packets have the same structure:
 /// - Outer header (12B): receiver_idx(4) + counter(8) - always cleartext
-/// - Inner payload: proto(1) + reserved(3) + msg_type(2) + content - cleartext or encrypted
+/// - Inner payload: proto(1) + reserved(3) + msg_type(4) + content - cleartext or encrypted
 /// - Trailer (16B): zeros (cleartext) or AEAD tag (encrypted)
 ///
 /// # Arguments
@@ -228,15 +228,20 @@ pub fn parse_lp_packet(src: &[u8], outer_key: Option<&OuterAeadKey>) -> Result<L
     match outer_key {
         None => {
             // Cleartext mode - parse inner directly
-            // Inner format: proto(1) + reserved(3) + msg_type(2) + content
-            if inner_bytes.len() < INNER_PREFIX_SIZE + 2 {
+            // Inner format: proto(1) + reserved(3) + msg_type(4) + content
+            if inner_bytes.len() < INNER_PREFIX_SIZE + 4 {
                 return Err(LpError::InsufficientBufferSize);
             }
 
             let protocol_version = inner_bytes[0];
             // reserved bytes [1..4] are ignored
-            let msg_type = u16::from_le_bytes([inner_bytes[4], inner_bytes[5]]);
-            let message_content = &inner_bytes[6..];
+            let msg_type = u32::from_le_bytes([
+                inner_bytes[4],
+                inner_bytes[5],
+                inner_bytes[6],
+                inner_bytes[7],
+            ]);
+            let message_content = &inner_bytes[8..];
 
             let header = LpHeader {
                 protocol_version,
@@ -271,15 +276,16 @@ pub fn parse_lp_packet(src: &[u8], outer_key: Option<&OuterAeadKey>) -> Result<L
                 .decrypt_in_place_detached(Nonce::from_slice(&nonce), aad, &mut decrypted, tag)
                 .map_err(|_| LpError::AeadTagMismatch)?;
 
-            // Decrypted format: proto(1) + reserved(3) + msg_type(2) + content
-            if decrypted.len() < INNER_PREFIX_SIZE + 2 {
+            // Decrypted format: proto(1) + reserved(3) + msg_type(4) + content
+            if decrypted.len() < INNER_PREFIX_SIZE + 4 {
                 return Err(LpError::InsufficientBufferSize);
             }
 
             let protocol_version = decrypted[0];
             // reserved bytes [1..4] are ignored
-            let msg_type = u16::from_le_bytes([decrypted[4], decrypted[5]]);
-            let message_content = &decrypted[6..];
+            let msg_type =
+                u32::from_le_bytes([decrypted[4], decrypted[5], decrypted[6], decrypted[7]]);
+            let message_content = &decrypted[8..];
 
             let header = LpHeader {
                 protocol_version,
@@ -305,7 +311,7 @@ pub fn parse_lp_packet(src: &[u8], outer_key: Option<&OuterAeadKey>) -> Result<L
 ///
 /// Both cleartext and encrypted packets have the same structure:
 /// - Outer header (12B): receiver_idx(4) + counter(8) - always cleartext
-/// - Inner payload: proto(1) + reserved(3) + msg_type(2) + content - cleartext or encrypted
+/// - Inner payload: proto(1) + reserved(3) + msg_type(4) + content - cleartext or encrypted
 /// - Trailer (16B): zeros (cleartext) or AEAD tag (encrypted)
 ///
 /// # Arguments
@@ -317,8 +323,8 @@ pub fn serialize_lp_packet(
     dst: &mut BytesMut,
     outer_key: Option<&OuterAeadKey>,
 ) -> Result<(), LpError> {
-    // Total size: outer_header(12) + inner_prefix(4) + msg_type(2) + content + trailer(16)
-    let total_size = OUTER_HEADER_SIZE + INNER_PREFIX_SIZE + 2 + item.message.len() + TRAILER_LEN;
+    // Total size: outer_header(12) + inner_prefix(4) + msg_type(4) + content + trailer(16)
+    let total_size = OUTER_HEADER_SIZE + INNER_PREFIX_SIZE + 4 + item.message.len() + TRAILER_LEN;
     dst.reserve(total_size);
 
     // 1. Write outer header (always cleartext) - 12 bytes
@@ -332,8 +338,8 @@ pub fn serialize_lp_packet(
             dst.put_u8(item.header.protocol_version);
             dst.put_slice(&[0, 0, 0]); // reserved
 
-            // 3. Write message type (2B) + content
-            dst.put_slice(&(item.message.typ() as u16).to_le_bytes());
+            // 3. Write message type (4B) + content
+            dst.put_slice(&(item.message.typ() as u32).to_le_bytes());
             item.message.encode_content(dst);
 
             // 4. Write zeros trailer
@@ -346,11 +352,11 @@ pub fn serialize_lp_packet(
             // AAD is the outer header (first 12 bytes)
             let aad = outer_header.encode();
 
-            // 2. Build plaintext: proto(1) + reserved(3) + msg_type(2) + content
+            // 2. Build plaintext: proto(1) + reserved(3) + msg_type(4) + content
             let mut plaintext = BytesMut::new();
             plaintext.put_u8(item.header.protocol_version);
             plaintext.put_slice(&[0, 0, 0]); // reserved
-            plaintext.put_slice(&(item.message.typ() as u16).to_le_bytes());
+            plaintext.put_slice(&(item.message.typ() as u32).to_le_bytes());
             item.message.encode_content(&mut plaintext);
 
             // 3. Copy plaintext to dst for in-place encryption
@@ -380,7 +386,7 @@ pub fn serialize_lp_packet(
 
 // Add a new error variant for invalid message types (Moved from previous impl LpError block)
 impl LpError {
-    pub fn invalid_message_type(message_type: u16) -> Self {
+    pub fn invalid_message_type(message_type: u32) -> Self {
         LpError::InvalidMessageType(message_type)
     }
 }
@@ -549,7 +555,7 @@ mod tests {
         buf.extend_from_slice(&[1, 0, 0, 0]); // Version + reserved
         buf.extend_from_slice(&42u32.to_le_bytes()); // Sender index
         buf.extend_from_slice(&123u64.to_le_bytes()); // Counter
-        buf.extend_from_slice(&MessageType::Handshake.to_u16().to_le_bytes()); // Handshake type
+        buf.extend_from_slice(&MessageType::Handshake.to_u32().to_le_bytes()); // Handshake type
         buf.extend_from_slice(&[42; 40]); // 40 bytes of payload data
 
         // Buffer length = 16 + 2 + 40 = 58. Min size = 16 + 2 + 16 = 34.
@@ -569,7 +575,7 @@ mod tests {
         buf_too_short.extend_from_slice(&42u32.to_le_bytes()); // receiver_idx (outer header)
         buf_too_short.extend_from_slice(&123u64.to_le_bytes()); // counter (outer header)
         buf_too_short.extend_from_slice(&[1, 0, 0, 0]); // version + reserved (inner prefix)
-        buf_too_short.extend_from_slice(&MessageType::Handshake.to_u16().to_le_bytes()); // msg type
+        buf_too_short.extend_from_slice(&MessageType::Handshake.to_u32().to_le_bytes()); // msg type
         // No payload, no trailer. Length = 12+4+2=18. Min size = 34.
         let result_too_short = parse_lp_packet(&buf_too_short, None);
         assert!(result_too_short.is_err());
@@ -583,7 +589,7 @@ mod tests {
         buf_partial_trailer.extend_from_slice(&[1, 0, 0, 0]); // Version + reserved
         buf_partial_trailer.extend_from_slice(&42u32.to_le_bytes()); // Sender index
         buf_partial_trailer.extend_from_slice(&123u64.to_le_bytes()); // Counter
-        buf_partial_trailer.extend_from_slice(&MessageType::Handshake.to_u16().to_le_bytes()); // Handshake type
+        buf_partial_trailer.extend_from_slice(&MessageType::Handshake.to_u32().to_le_bytes()); // Handshake type
         let payload = vec![42u8; 20]; // Assume 20 byte payload
         buf_partial_trailer.extend_from_slice(&payload);
         buf_partial_trailer.extend_from_slice(&[0; TRAILER_LEN - 1]); // Missing last byte of trailer
@@ -605,7 +611,7 @@ mod tests {
         buf_too_short.extend_from_slice(&[1, 0, 0, 0]); // Version + reserved
         buf_too_short.extend_from_slice(&42u32.to_le_bytes()); // Sender index
         buf_too_short.extend_from_slice(&123u64.to_le_bytes()); // Counter
-        buf_too_short.extend_from_slice(&MessageType::Busy.to_u16().to_le_bytes()); // Type
+        buf_too_short.extend_from_slice(&MessageType::Busy.to_u32().to_le_bytes()); // Type
         buf_too_short.extend_from_slice(&[0; TRAILER_LEN - 1]); // Missing last byte of trailer
         // Length = 16 + 2 + 15 = 33. Min Size = 34.
         let result_too_short = parse_lp_packet(&buf_too_short, None);
@@ -649,7 +655,7 @@ mod tests {
         buf.extend_from_slice(&[1, 0, 0, 0]); // Version + reserved
         buf.extend_from_slice(&42u32.to_le_bytes()); // Sender index
         buf.extend_from_slice(&123u64.to_le_bytes()); // Counter
-        buf.extend_from_slice(&MessageType::Busy.to_u16().to_le_bytes()); // Busy type
+        buf.extend_from_slice(&MessageType::Busy.to_u32().to_le_bytes()); // Busy type
         buf.extend_from_slice(&[42; 1]); // <<< Invalid 1-byte payload for Busy
         buf.extend_from_slice(&[0; TRAILER_LEN]); // Trailer
 
@@ -778,7 +784,7 @@ mod tests {
         buf.extend_from_slice(&[1, 0, 0, 0]); // Version + reserved
         buf.extend_from_slice(&42u32.to_le_bytes()); // Sender index
         buf.extend_from_slice(&123u64.to_le_bytes()); // Counter
-        buf.extend_from_slice(&MessageType::ClientHello.to_u16().to_le_bytes()); // ClientHello type
+        buf.extend_from_slice(&MessageType::ClientHello.to_u32().to_le_bytes()); // ClientHello type
 
         // Add malformed bincode data (random bytes that won't deserialize to ClientHelloData)
         buf.extend_from_slice(&[0xFF; 50]); // Invalid bincode data
@@ -801,7 +807,7 @@ mod tests {
         buf.extend_from_slice(&[1, 0, 0, 0]); // Version + reserved
         buf.extend_from_slice(&42u32.to_le_bytes()); // Sender index
         buf.extend_from_slice(&123u64.to_le_bytes()); // Counter
-        buf.extend_from_slice(&MessageType::ClientHello.to_u16().to_le_bytes()); // ClientHello type
+        buf.extend_from_slice(&MessageType::ClientHello.to_u32().to_le_bytes()); // ClientHello type
 
         // Add incomplete bincode data (only partial ClientHelloData)
         buf.extend_from_slice(&[0; 20]); // Too few bytes for full ClientHelloData
@@ -1296,7 +1302,7 @@ mod tests {
         buf.extend_from_slice(&42u32.to_le_bytes()); // receiver_idx
         buf.extend_from_slice(&123u64.to_le_bytes()); // counter
         buf.extend_from_slice(&[1, 0, 0, 0]); // version + reserved
-        buf.extend_from_slice(&MessageType::SubsessionRequest.to_u16().to_le_bytes());
+        buf.extend_from_slice(&MessageType::SubsessionRequest.to_u32().to_le_bytes());
         buf.extend_from_slice(&[0xFF]); // Invalid payload for SubsessionRequest
         buf.extend_from_slice(&[0; TRAILER_LEN]);
 

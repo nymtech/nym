@@ -3,7 +3,7 @@
 
 //! Configuration for LP protocol.
 //!
-//! AIDEV-NOTE: LP security stack = KKT (key fetch) → PSQ (PQ PSK) → Noise (transport).
+//! LP security stack = KKT (key fetch) → PSQ (PQ PSK) → Noise (transport).
 //! KEM algorithm selection affects only PSQ layer. Noise always uses X25519 DH.
 //! Migration to PQ KEMs (MlKem768, XWing) requires only config change.
 

@@ -636,7 +636,10 @@ impl NestedLpSession {
     ///
     /// Returns `None` during early handshake before PSK derivation.
     fn get_recv_key(state_machine: &LpStateMachine) -> Option<OuterAeadKey> {
-        state_machine.session().ok().and_then(|s| s.outer_aead_key())
+        state_machine
+            .session()
+            .ok()
+            .and_then(|s| s.outer_aead_key())
     }
 
     /// Serializes an LP packet to bytes.

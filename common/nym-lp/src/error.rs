@@ -26,7 +26,7 @@ pub enum LpError {
     InvalidPacketFormat(String),
 
     #[error("Invalid message type: {0}")]
-    InvalidMessageType(u16),
+    InvalidMessageType(u32),
 
     #[error("Payload too large: {0}")]
     PayloadTooLarge(usize),

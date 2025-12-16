@@ -3,7 +3,7 @@
 
 //! Lewes Protocol State Machine for managing connection lifecycle.
 //!
-//! AIDEV-NOTE: LP protocol flow (KKT → PSQ → Noise):
+//! LP protocol flow (KKT → PSQ → Noise):
 //! 1. KKTExchange: Client requests gateway's KEM public key (signed for MITM protection)
 //! 2. Handshaking: Noise XKpsk3 with PSQ-derived PSK embedded in handshake messages
 //!    - PSQ ciphertext piggybacked on ClientHello (no extra round-trip)

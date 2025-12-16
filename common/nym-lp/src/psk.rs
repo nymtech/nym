@@ -6,7 +6,7 @@
 //! This module implements identity-bound PSK derivation where both client and gateway
 //! derive the same PSK from their LP keypairs.
 //!
-//! AIDEV-NOTE: PSQ is embedded in Noise (not separate protocol) because:
+//! PSQ is embedded in Noise (not separate protocol) because:
 //! 1. Single round-trip: PSQ ciphertext piggybacks on Noise handshake messages
 //! 2. PSK binding: Noise XKpsk3 pattern authenticates both ECDH and PSQ-derived PSK
 //! 3. Simpler state machine: No separate PSQ negotiation phase needed
@@ -146,7 +146,7 @@ pub fn derive_psk_with_psq_initiator(
     let ecdh_secret = local_x25519_private.diffie_hellman(remote_x25519_public);
 
     // Step 2: PSQ encapsulation for post-quantum security
-    // AIDEV-NOTE: KEM algorithm migration path:
+    // KEM algorithm migration path:
     // - X25519: Current default for testing/compatibility (no HNDL resistance)
     // - MlKem768: Future production default (NIST PQ Level 3, HNDL resistant)
     // - XWing: Maximum security option (hybrid X25519 + ML-KEM)

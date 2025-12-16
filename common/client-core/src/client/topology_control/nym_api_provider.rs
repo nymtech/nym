@@ -12,7 +12,7 @@ use std::cmp::min;
 use tracing::{debug, error, warn};
 use url::Url;
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub struct Config {
     pub min_mixnode_performance: u8,
     pub min_gateway_performance: u8,

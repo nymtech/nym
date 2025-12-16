@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 pub mod codec;
+pub mod config;
 pub mod error;
 pub mod keypair;
 pub mod kkt_orchestrator;
@@ -14,6 +15,7 @@ pub mod session;
 mod session_integration;
 pub mod session_manager;
 
+pub use config::LpConfig;
 pub use error::LpError;
 pub use message::{ClientHelloData, LpMessage};
 pub use packet::{BOOTSTRAP_RECEIVER_IDX, LpPacket, OuterHeader};

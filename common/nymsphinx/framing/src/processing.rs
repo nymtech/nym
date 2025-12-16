@@ -14,7 +14,7 @@ use nym_sphinx_types::{
 };
 use std::fmt::Display;
 use thiserror::Error;
-use tracing::{debug, error, info, trace};
+use tracing::{debug, info, trace};
 
 #[derive(Debug)]
 pub enum MixProcessingResultData {

@@ -616,7 +616,6 @@ apply_port_allowlist() {
     ["HTTPS"]="443"
     ["SMBWindowsFileShare"]="445"
     ["Kpasswd"]="464"
-    ["SMTPTLS"]="465"
     ["RTSP"]="554"
     ["SMTPSubmission"]="587"
     ["LDAPS"]="636"

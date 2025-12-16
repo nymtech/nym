@@ -219,6 +219,11 @@ pub struct LpSession {
     /// ID of the successor session that replaced this one.
     /// Set when demote() is called.
     successor_session_id: Mutex<Option<u32>>,
+
+    /// Negotiated protocol version from handshake.
+    /// Set during handshake completion from the ClientHello/ServerHello packet header.
+    /// Used for future version negotiation and compatibility checks.
+    negotiated_version: std::sync::atomic::AtomicU8,
 }
 
 /// Generates a fresh salt for PSK derivation.
@@ -261,6 +266,24 @@ impl LpSession {
     /// Returns true if this session was created as the initiator.
     pub fn is_initiator(&self) -> bool {
         self.is_initiator
+    }
+
+    /// Returns the negotiated protocol version from the handshake.
+    ///
+    /// Defaults to 1 (current LP version). Set during handshake via
+    /// `set_negotiated_version()` when ClientHello/ServerHello is processed.
+    pub fn negotiated_version(&self) -> u8 {
+        self.negotiated_version
+            .load(std::sync::atomic::Ordering::Acquire)
+    }
+
+    /// Sets the negotiated protocol version from handshake packet header.
+    ///
+    /// Should be called during handshake when processing ClientHello (responder)
+    /// or ServerHello (initiator) to record the agreed protocol version.
+    pub fn set_negotiated_version(&self, version: u8) {
+        self.negotiated_version
+            .store(version, std::sync::atomic::Ordering::Release);
     }
 
     /// Returns the local X25519 public key derived from the private key.
@@ -409,6 +432,7 @@ impl LpSession {
             subsession_counter: AtomicU64::new(0),
             read_only: AtomicBool::new(false),
             successor_session_id: Mutex::new(None),
+            negotiated_version: std::sync::atomic::AtomicU8::new(1), // Default to version 1
         })
     }
 
@@ -1329,6 +1353,8 @@ impl SubsessionHandshake {
             subsession_counter: AtomicU64::new(0),
             read_only: AtomicBool::new(false),
             successor_session_id: Mutex::new(None),
+            // Inherit parent's protocol version
+            negotiated_version: std::sync::atomic::AtomicU8::new(1),
         })
     }
 }

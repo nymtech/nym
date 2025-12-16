@@ -193,10 +193,10 @@ fn mixnet_debug_config(mixnet_client_config: &MixnetClientConfig) -> DebugConfig
     let mut disable_real_traffic_poisson =
         mixnet_client_config.disable_real_traffic_poisson_process;
 
-    if let Some(delay) = mixnet_client_config.message_sending_average_delay {
-        if delay.is_zero() {
-            disable_real_traffic_poisson = true;
-        }
+    if let Some(delay) = mixnet_client_config.message_sending_average_delay
+        && delay.is_zero()
+    {
+        disable_real_traffic_poisson = true;
     }
 
     debug_config
@@ -205,11 +205,12 @@ fn mixnet_debug_config(mixnet_client_config: &MixnetClientConfig) -> DebugConfig
 
     // Only apply a custom message sending delay if the Poisson process is enabled.
     // If Poisson is disabled, any delay value is ignored.
-    if !disable_real_traffic_poisson {
-        if let Some(delay) = mixnet_client_config.message_sending_average_delay {
-            debug_config.traffic.message_sending_average_delay = delay;
-        }
+    if !disable_real_traffic_poisson
+        && let Some(delay) = mixnet_client_config.message_sending_average_delay
+    {
+        debug_config.traffic.message_sending_average_delay = delay;
     }
+
     // Decide whether the loop cover traffic stream should be disabled.
     //
     // We disable it if:

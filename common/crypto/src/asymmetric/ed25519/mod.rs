@@ -386,7 +386,7 @@ impl PrivateKey {
         x25519_bytes.copy_from_slice(&hash[..32]);
 
         #[allow(clippy::expect_used)]
-        crate::asymmetric::x25519::PrivateKey::from_bytes(&x25519_bytes)
+        crate::asymmetric::x25519::PrivateKey::from_bytes(&*x25519_bytes)
             .expect("x25519 key conversion should never fail")
     }
 }

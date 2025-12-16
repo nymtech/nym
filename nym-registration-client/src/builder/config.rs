@@ -59,7 +59,7 @@ pub struct MixnetClientConfig {
     /// The minimum performance of gateways to use.
     pub min_gateway_performance: Option<u8>,
 
-    ///Setting optionally the poisson rate for cover traffic stream
+    /// Setting optionally the poisson rate for cover traffic stream
     pub loop_cover_traffic_average_delay: Option<Duration>,
 
     /// Average packet delay in milliseconds.
@@ -142,7 +142,6 @@ impl BuilderConfig {
             .map_err(|err| RegistrationClientError::ConnectToMixnet(Box::new(err)))
     }
 }
-
 fn two_hop_debug_config(mixnet_client_config: &MixnetClientConfig) -> DebugConfig {
     let mut debug_config = DebugConfig::default();
 
@@ -164,26 +163,13 @@ fn two_hop_debug_config(mixnet_client_config: &MixnetClientConfig) -> DebugConfi
     if let Some(min_gateway_performance) = mixnet_client_config.min_gateway_performance {
         debug_config.topology.minimum_gateway_performance = min_gateway_performance;
     }
-    if let Some(avg_packet_ms) = mixnet_client_config.average_packet_delay {
-        debug_config.traffic.average_packet_delay = avg_packet_ms;
-        debug_config.acknowledgements.average_ack_delay = avg_packet_ms;
-    }
 
-    if let Some(msg_delay_ms) = mixnet_client_config.message_sending_average_delay {
-        debug_config.traffic.message_sending_average_delay = msg_delay_ms;
-    }
     log_mixnet_client_config(&debug_config);
     debug_config
 }
-
 fn mixnet_debug_config(mixnet_client_config: &MixnetClientConfig) -> DebugConfig {
     let mut debug_config = DebugConfig::default();
     debug_config.traffic.average_packet_delay = VPN_AVERAGE_PACKET_DELAY;
-
-    debug_config
-        .traffic
-        .disable_main_poisson_packet_distribution =
-        mixnet_client_config.disable_real_traffic_poisson_process;
 
     debug_config.cover_traffic.disable_loop_cover_traffic_stream =
         mixnet_client_config.disable_background_cover_traffic;
@@ -199,24 +185,51 @@ fn mixnet_debug_config(mixnet_client_config: &MixnetClientConfig) -> DebugConfig
         debug_config.traffic.average_packet_delay = avg_packet_ms;
         debug_config.acknowledgements.average_ack_delay = avg_packet_ms;
     }
+    // Decide whether the real-traffic Poisson process should be disabled.
+    //
+    // We disable it if:
+    // 1. The user explicitly requested it via `disable_real_traffic_poisson_process`, OR
+    // 2. The user set `message_sending_average_delay` to 0ms (special value meaning "disable")
+    let mut disable_real_traffic_poisson =
+        mixnet_client_config.disable_real_traffic_poisson_process;
 
-    if let Some(msg_delay_ms) = mixnet_client_config.message_sending_average_delay {
-        if msg_delay_ms.is_zero() {
-            debug_config
-                .traffic
-                .disable_main_poisson_packet_distribution = true;
-        } else {
-            debug_config.traffic.message_sending_average_delay = msg_delay_ms;
+    if let Some(delay) = mixnet_client_config.message_sending_average_delay {
+        if delay.is_zero() {
+            disable_real_traffic_poisson = true;
         }
     }
-    if let Some(loop_cover_traffic_average_delay) =
-        mixnet_client_config.loop_cover_traffic_average_delay
-    {
-        if loop_cover_traffic_average_delay.is_zero() {
-            debug_config.cover_traffic.disable_loop_cover_traffic_stream = true;
-        } else {
-            debug_config.cover_traffic.loop_cover_traffic_average_delay =
-                loop_cover_traffic_average_delay;
+
+    debug_config
+        .traffic
+        .disable_main_poisson_packet_distribution = disable_real_traffic_poisson;
+
+    // Only apply a custom message sending delay if the Poisson process is enabled.
+    // If Poisson is disabled, any delay value is ignored.
+    if !disable_real_traffic_poisson {
+        if let Some(delay) = mixnet_client_config.message_sending_average_delay {
+            debug_config.traffic.message_sending_average_delay = delay;
+        }
+    }
+    // Decide whether the loop cover traffic stream should be disabled.
+    //
+    // We disable it if:
+    // 1. The user explicitly disabled background cover traffic, OR
+    // 2. The loop cover traffic average delay is set to 0ms (special value meaning "disable")
+    let mut disable_loop_cover_stream = mixnet_client_config.disable_background_cover_traffic;
+
+    if let Some(delay) = mixnet_client_config.loop_cover_traffic_average_delay {
+        if delay.is_zero() {
+            disable_loop_cover_stream = true;
+        }
+    }
+
+    debug_config.cover_traffic.disable_loop_cover_traffic_stream = disable_loop_cover_stream;
+
+    // Only apply a custom loop cover delay if the stream is enabled.
+    // If the stream is disabled, the delay value is ignored.
+    if !disable_loop_cover_stream {
+        if let Some(delay) = mixnet_client_config.loop_cover_traffic_average_delay {
+            debug_config.cover_traffic.loop_cover_traffic_average_delay = delay;
         }
     }
     log_mixnet_client_config(&debug_config);
@@ -247,28 +260,32 @@ fn log_mixnet_client_config(debug_config: &DebugConfig) {
         "mixnet client minimum gateway performance: {}",
         debug_config.topology.minimum_gateway_performance,
     );
-
-    tracing::info!(
-        "mixnet client loop cover traffic average delay: {} ms",
-        debug_config
-            .cover_traffic
-            .loop_cover_traffic_average_delay
-            .as_millis()
-    );
+    if !debug_config.cover_traffic.disable_loop_cover_traffic_stream {
+        tracing::info!(
+            "mixnet client loop cover traffic average delay: {} ms",
+            debug_config
+                .cover_traffic
+                .loop_cover_traffic_average_delay
+                .as_millis()
+        );
+    }
 
     tracing::info!(
         "mixnet client average packet delay: {} ms",
         debug_config.traffic.average_packet_delay.as_millis()
     );
-
-    tracing::info!(
-        "mixnet client message sending average delay: {} ms",
-        debug_config
-            .traffic
-            .message_sending_average_delay
-            .as_millis()
-    );
-
+    if !debug_config
+        .traffic
+        .disable_main_poisson_packet_distribution
+    {
+        tracing::info!(
+            "mixnet client message sending average delay: {} ms",
+            debug_config
+                .traffic
+                .message_sending_average_delay
+                .as_millis()
+        );
+    }
     tracing::info!(
         "mixnet client disable_loop_cover_traffic_average_delay: {}",
         true_to_disabled(

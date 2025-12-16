@@ -343,11 +343,7 @@ impl NestedLpSession {
             })?;
 
         // Step 6: Send the encrypted packet via forwarding
-        // Get outer key for AEAD encryption (PSK is available after handshake)
-        let outer_key = state_machine
-            .session()
-            .ok()
-            .and_then(|s| s.outer_aead_key_for_sending());
+        let outer_key = Self::get_send_key(state_machine);
         let response_bytes = match action {
             LpAction::SendPacket(packet) => {
                 let packet_bytes = Self::serialize_packet(&packet, outer_key.as_ref())?;
@@ -370,10 +366,7 @@ impl NestedLpSession {
         tracing::trace!("Received registration response from exit gateway");
 
         // Step 7: Parse response bytes to LP packet
-        let outer_key = state_machine
-            .session()
-            .ok()
-            .and_then(|s| s.outer_aead_key());
+        let outer_key = Self::get_recv_key(state_machine);
         let response_packet = Self::parse_packet(&response_bytes, outer_key.as_ref())?;
 
         // Step 8: Decrypt via state machine
@@ -522,11 +515,7 @@ impl NestedLpSession {
             })?;
 
         // Step 7: Send the encrypted packet via forwarding
-        // Get outer key for AEAD encryption (PSK is available after handshake)
-        let outer_key = state_machine
-            .session()
-            .ok()
-            .and_then(|s| s.outer_aead_key_for_sending());
+        let outer_key = Self::get_send_key(state_machine);
         let response_bytes = match action {
             LpAction::SendPacket(packet) => {
                 let packet_bytes = Self::serialize_packet(&packet, outer_key.as_ref())?;
@@ -549,10 +538,7 @@ impl NestedLpSession {
         tracing::trace!("Received registration response from exit gateway");
 
         // Step 8: Parse response bytes to LP packet
-        let outer_key = state_machine
-            .session()
-            .ok()
-            .and_then(|s| s.outer_aead_key());
+        let outer_key = Self::get_recv_key(state_machine);
         let response_packet = Self::parse_packet(&response_bytes, outer_key.as_ref())?;
 
         // Step 9: Decrypt via state machine
@@ -627,20 +613,30 @@ impl NestedLpSession {
         state_machine: &LpStateMachine,
         packet: &LpPacket,
     ) -> Result<LpPacket> {
-        // Use outer_aead_key_for_sending() for send, outer_aead_key() for receive
-        let send_key = state_machine
-            .session()
-            .ok()
-            .and_then(|s| s.outer_aead_key_for_sending());
+        let send_key = Self::get_send_key(state_machine);
         let packet_bytes = Self::serialize_packet(packet, send_key.as_ref())?;
         let response_bytes = outer_client
             .send_forward_packet(self.exit_identity, self.exit_address.clone(), packet_bytes)
             .await?;
-        let recv_key = state_machine
+        let recv_key = Self::get_recv_key(state_machine);
+        Self::parse_packet(&response_bytes, recv_key.as_ref())
+    }
+
+    /// Gets the outer AEAD key for sending (encryption) from the state machine.
+    ///
+    /// Returns `None` during early handshake before PSK derivation.
+    fn get_send_key(state_machine: &LpStateMachine) -> Option<OuterAeadKey> {
+        state_machine
             .session()
             .ok()
-            .and_then(|s| s.outer_aead_key());
-        Self::parse_packet(&response_bytes, recv_key.as_ref())
+            .and_then(|s| s.outer_aead_key_for_sending())
+    }
+
+    /// Gets the outer AEAD key for receiving (decryption) from the state machine.
+    ///
+    /// Returns `None` during early handshake before PSK derivation.
+    fn get_recv_key(state_machine: &LpStateMachine) -> Option<OuterAeadKey> {
+        state_machine.session().ok().and_then(|s| s.outer_aead_key())
     }
 
     /// Serializes an LP packet to bytes.

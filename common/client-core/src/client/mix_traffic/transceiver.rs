@@ -13,7 +13,7 @@ use nym_validator_client::nyxd::contract_traits::DkgQueryClient;
 use std::fmt::Debug;
 use std::os::raw::c_int as RawFd;
 use thiserror::Error;
-use tracing::{debug, error};
+use tracing::debug;
 
 #[cfg(not(target_arch = "wasm32"))]
 use futures::channel::oneshot;

@@ -21,7 +21,7 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: stable
+          toolchain: ${{ vars.REQUIRED_RUSTC_VERSION }}
           target: wasm32-unknown-unknown
           override: true
           components: rustfmt, clippy

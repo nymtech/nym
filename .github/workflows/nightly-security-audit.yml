@@ -12,7 +12,7 @@ jobs:
       - name: Install rust toolchain
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: stable
+          toolchain: ${{ vars.REQUIRED_RUSTC_VERSION }}
       - name: Install cargo deny
         run: cargo install --locked cargo-deny
       - name: Run cargo deny

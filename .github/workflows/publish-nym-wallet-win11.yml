@@ -29,10 +29,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Rust stable
+      - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: stable
+          toolchain: ${{ vars.REQUIRED_RUSTC_VERSION }}
 
       - name: Setup MSBuild.exe
         uses: microsoft/setup-msbuild@v2

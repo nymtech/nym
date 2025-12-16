@@ -46,10 +46,10 @@ jobs:
         run: |
           echo "RUSTFLAGS=--cfg tokio_unstable" >> $GITHUB_ENV
           echo "CARGO_FEATURES=--features tokio-console" >> $GITHUB_ENV
-      - name: Install Rust stable
+      - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: stable
+          toolchain: ${{ vars.REQUIRED_RUSTC_VERSION }}
 
       - name: Build all binaries
         uses: actions-rs/cargo@v1

@@ -181,6 +181,20 @@ async fn resolve(
 ) -> Result<Addrs, ResolveError> {
     let resolver = resolver.get_or_try_init(|| HickoryDnsResolver::new_resolver(independent))?;
 
+    // try checking the static table to see if any of the addresses in the table have been
+    // looked up previously within the timeout to where we are not yet ready to try the
+    // default resolver yet again.
+    if let Some(ref static_resolver) = maybe_static {
+        let resolver =
+            static_resolver.get_or_init(|| HickoryDnsResolver::new_static_fallback(independent));
+
+        if let Some(addrs) = resolver.pre_resolve(name.as_str()) {
+            let addrs: Addrs =
+                Box::new(addrs.into_iter().map(|ip_addr| SocketAddr::new(ip_addr, 0)));
+            return Ok(addrs);
+        }
+    }
+
     // Attempt a lookup using the primary resolver
     let resolve_fut = tokio::time::timeout(overall_dns_timeout, resolver.lookup_ip(name.as_str()));
     let primary_err = match resolve_fut.await {

@@ -76,7 +76,7 @@ jobs:
             apk/nyms5-arch64-release.apk
 
       - name: Upload APKs
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: nyms5-apk-arch64
           path: |

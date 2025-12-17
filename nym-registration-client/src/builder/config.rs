@@ -121,9 +121,10 @@ impl BuilderConfig {
             RememberMe::new_mixnet()
         };
 
+        let identity = self.entry_node.node.identity.to_string();
         let builder = builder
             .with_user_agent(self.user_agent)
-            .request_gateway(self.entry_node.node.identity.to_string())
+            .request_gateway(identity.clone())
             .network_details(self.network_env)
             .debug_config(debug_config)
             .credentials_mode(true)
@@ -136,9 +137,13 @@ impl BuilderConfig {
 
         builder
             .build()
+            .inspect(|_| tracing::debug!("successfully built reg client for {}", identity))
+            .inspect_err(|e| tracing::debug!("failed to build reg client for {}: {e}", identity))
             .map_err(|err| RegistrationClientError::BuildMixnetClient(Box::new(err)))?
             .connect_to_mixnet()
             .await
+            .inspect(|_| tracing::debug!("successfully connected reg client for {}", identity))
+            .inspect_err(|e| tracing::debug!("failed to connect reg client for {}: {e}", identity))
             .map_err(|err| RegistrationClientError::ConnectToMixnet(Box::new(err)))
     }
 }

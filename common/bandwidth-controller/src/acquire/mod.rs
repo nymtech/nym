@@ -127,6 +127,6 @@ where
     storage
         .insert_issued_ticketbook(&issued)
         .await
-        .map_err(|err| BandwidthControllerError::CredentialStorageError(Box::new(err)))?;
+        .map_err(BandwidthControllerError::credential_storage_error)?;
     Ok(issued)
 }

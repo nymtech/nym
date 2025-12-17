@@ -1,6 +1,8 @@
 // Copyright 2022-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use std::time::Duration;
+
 use crate::models::{
     BasicTicketbookInformation, EmergencyCredential, EmergencyCredentialContent,
     RawCoinIndexSignatures, RawExpirationDateSignatures, RawVerificationKey,
@@ -40,8 +42,42 @@ impl SqliteEcashTicketbookManager {
         Ok(())
     }
 
+    const TX_LOCK_AWAIT_BACKOFF: [Duration; 6] = [
+        Duration::from_millis(50),
+        Duration::from_millis(50),
+        Duration::from_millis(100),
+        Duration::from_millis(200),
+        Duration::from_millis(200),
+        Duration::from_millis(200),
+    ];
+
+    /// Attempt to open acquire a connection and a create a new transaction. Given that transactions
+    /// require exclusive write access to the database this function allows several attempts with a
+    /// short backoff in case another transaction is happening in parallel.
+    // TODO: if possible we should make changes so that we don't have to do this hacky sleep /
+    // backoff. We should either make it so that the transactions hold a lock and release it on drop
+    // to remove the need for the timeout, or (better yet) redesign to avoid using transactions.
+    // Having to acquire an exclusive Transaction creates a bottleneck with no guarantees about how
+    // long we will have to await -- what if someone tries a network operation in the middle of
+    // their transaction?
     pub(crate) async fn begin_storage_tx(&self) -> Result<Transaction<'_, Sqlite>, sqlx::Error> {
-        self.connection_pool.begin().await
+        let mut res = self.connection_pool.begin().await;
+        for delay in Self::TX_LOCK_AWAIT_BACKOFF {
+            match res {
+                // we got the transaction
+                Ok(tx) => return Ok(tx),
+                // we hit the db locked error
+                Err(sqlx::Error::Database(e)) => {
+                    tracing::warn!("encountered error acquiring ticketbook DB lock \"{e}\" - retrying after {delay:?}" );
+                }
+                // we encountered a some error other than the database being locked
+                Err(e) => return Err(e),
+            }
+
+            tokio::time::sleep(delay).await;
+            res = self.connection_pool.begin().await;
+        }
+        res
     }
 
     pub(crate) async fn insert_pending_ticketbook(

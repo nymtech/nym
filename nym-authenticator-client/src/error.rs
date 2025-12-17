@@ -33,7 +33,7 @@ pub enum AuthenticationClientError {
     #[error("received invalid response from gateway authenticator")]
     InvalidGatewayAuthResponse,
 
-    #[error("failed to get {ticketbook_type} ticket")]
+    #[error("failed to get {ticketbook_type} ticket: {source}")]
     GetTicket {
         ticketbook_type: TicketType,
         #[source]

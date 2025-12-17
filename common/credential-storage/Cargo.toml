@@ -16,6 +16,7 @@ thiserror = { workspace = true }
 serde = { workspace = true, features = ["derive"], optional = true }
 time = { workspace = true }
 tokio = { workspace = true, features = ["sync"] }
+tracing = { workspace = true}
 zeroize = { workspace = true, features = ["zeroize_derive"] }
 
 nym-credentials = { path = "../credentials" }

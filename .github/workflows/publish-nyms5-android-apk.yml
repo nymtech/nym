@@ -91,7 +91,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
       - name: Download binary artifact
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: nyms5-apk-arch64
           path: apk

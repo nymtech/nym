@@ -6,6 +6,7 @@ use nym_bin_common::bin_info;
 use nym_config::defaults::setup_env;
 use nym_gateway_probe::nodes::NymApiDirectory;
 use nym_gateway_probe::{CredentialArgs, NetstackArgs, ProbeResult, TestedNode};
+use nym_sdk::NymNetworkDetails;
 use nym_sdk::mixnet::NodeIdentity;
 use std::path::Path;
 use std::{path::PathBuf, sync::OnceLock};
@@ -83,6 +84,11 @@ enum Commands {
         #[arg(long)]
         config_dir: Option<PathBuf>,
     },
+    Socks5 {
+        /// if not provided, test a random gateway
+        #[arg(long)]
+        gateway_key: Option<String>,
+    },
 }
 
 fn setup_logging() {
@@ -157,7 +163,7 @@ pub(crate) async fn run() -> anyhow::Result<ProbeResult> {
         trial.with_amnezia(&awg_args);
     }
 
-    match &args.command {
+    match args.command {
         Some(Commands::RunLocal {
             mnemonic,
             config_dir,
@@ -173,7 +179,7 @@ pub(crate) async fn run() -> anyhow::Result<ProbeResult> {
 
             Box::pin(trial.probe_run_locally(
                 &config_dir,
-                mnemonic,
+                &mnemonic,
                 directory,
                 nyxd_url,
                 args.ignore_egress_epoch_role,
@@ -181,6 +187,10 @@ pub(crate) async fn run() -> anyhow::Result<ProbeResult> {
                 args.min_gateway_mixnet_performance,
             ))
             .await
+        }
+        Some(Commands::Socks5 { gateway_key }) => {
+            let network_details = NymNetworkDetails::new_from_env();
+            Box::pin(trial.test_socks5_only(directory, gateway_key, network_details)).await
         }
         None => {
             Box::pin(trial.probe(

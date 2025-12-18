@@ -5970,6 +5970,7 @@ dependencies = [
  "nym-validator-client",
  "pnet_packet",
  "rand 0.8.5",
+ "reqwest 0.12.22",
  "serde",
  "serde_json",
  "thiserror 2.0.17",

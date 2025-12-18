@@ -7,7 +7,10 @@ use std::{
     time::Duration,
 };
 
-use crate::{netstack::NetstackResult, types::Entry};
+use crate::{
+    netstack::NetstackResult,
+    types::{Entry, HttpsConnectivityTest},
+};
 use anyhow::bail;
 use base64::{Engine as _, engine::general_purpose};
 use bytes::BytesMut;
@@ -36,8 +39,9 @@ use nym_ip_packet_requests::{
 };
 use nym_sdk::mixnet::{
     CredentialStorage, Ephemeral, KeyStore, MixnetClient, MixnetClientBuilder, MixnetClientStorage,
-    NodeIdentity, Recipient, ReconstructedMessage, StoragePaths,
+    NodeIdentity, Recipient, ReconstructedMessage, Socks5, StoragePaths,
 };
+use nym_validator_client::models::NetworkRequesterDetails;
 use rand::rngs::OsRng;
 use std::path::PathBuf;
 
@@ -48,7 +52,7 @@ use url::Url;
 
 use crate::{
     icmp::{check_for_icmp_beacon_reply, icmp_identifier, send_ping_v4, send_ping_v6},
-    types::Exit,
+    types::{Exit, HttpsConnectivityResult, Socks5ProbeResults},
 };
 
 use netstack::{NetstackRequest, NetstackRequestGo};
@@ -151,6 +155,7 @@ impl TestedNode {
 pub struct TestedNodeDetails {
     identity: NodeIdentity,
     exit_router_address: Option<Recipient>,
+    network_requester_details: Option<NetworkRequesterDetails>,
     authenticator_address: Option<Recipient>,
     authenticator_version: AuthenticatorVersion,
     ip_address: Option<IpAddr>,
@@ -182,6 +187,50 @@ impl Probe {
     pub fn with_amnezia(&mut self, args: &str) -> &Self {
         self.amnezia_args = args.to_string();
         self
+    }
+
+    pub async fn test_socks5_only(
+        self,
+        directory: NymApiDirectory,
+        gateway_key: Option<String>,
+        network_details: NymNetworkDetails,
+    ) -> anyhow::Result<ProbeResult> {
+        let exit_gateway = match gateway_key {
+            Some(gateway_key) => NodeIdentity::from_base58_string(gateway_key)?,
+            None => directory.random_exit_with_ipr()?,
+        };
+        info!("Testing SOCKS5 only on exit gateway {}", exit_gateway);
+        let node_info = directory
+            .exit_gateway_nr(&exit_gateway)?
+            .to_testable_node()?;
+
+        let socks5_outcome = {
+            if let Some(ref nr_details) = node_info.network_requester_details {
+                match do_socks5_connectivity_test(&nr_details.address, network_details).await {
+                    Ok(results) => Some(results),
+                    Err(e) => {
+                        error!("SOCKS5 test failed: {}", e);
+                        None
+                    }
+                }
+            } else {
+                info!("No NR available, skipping SOCKS5 tests");
+                None
+            }
+        };
+
+        let probe_result = ProbeResult {
+            node: exit_gateway.to_base58_string(),
+            used_entry: exit_gateway.to_base58_string(),
+            outcome: ProbeOutcome {
+                as_entry: Entry::NotTested,
+                as_exit: None,
+                socks5: socks5_outcome,
+                wg: None,
+            },
+        };
+
+        Ok(probe_result)
     }
 
     pub async fn probe(
@@ -381,6 +430,7 @@ impl Probe {
                             Entry::EntryFailure
                         },
                         as_exit: None,
+                        socks5: None,
                         wg: None,
                     },
                 });
@@ -403,6 +453,7 @@ impl Probe {
                         Entry::NotTested
                     },
                     as_exit: None,
+                    socks5: None,
                     wg: None,
                 }),
                 mixnet_client,
@@ -475,9 +526,31 @@ impl Probe {
             WgProbeResults::default()
         };
 
+        // test failure doesn't stop further tests
+        let socks5_outcome = {
+            if let Some(ref nr_details) = node_info.network_requester_details {
+                match do_socks5_connectivity_test(
+                    &nr_details.address,
+                    NymNetworkDetails::new_from_env(),
+                )
+                .await
+                {
+                    Ok(results) => Some(results),
+                    Err(e) => {
+                        error!("SOCKS5 test failed: {}", e);
+                        None
+                    }
+                }
+            } else {
+                info!("No NR available, skipping SOCKS5 tests");
+                None
+            }
+        };
+
         // Disconnect the mixnet client gracefully
         outcome.map(|mut outcome| {
             outcome.wg = Some(wg_outcome);
+            outcome.socks5 = socks5_outcome;
             ProbeResult {
                 node: node_info.identity.to_string(),
                 used_entry: mixnet_entry_gateway_id.to_string(),
@@ -711,6 +784,7 @@ async fn do_ping(
         exit_result.map(|exit| ProbeOutcome {
             as_entry: entry,
             as_exit: exit,
+            socks5: None,
             wg: None,
         }),
         mixnet_client,
@@ -773,6 +847,66 @@ async fn do_ping_exit(
     // Step 3: perform ICMP connectivity checks for the exit gateway
     send_icmp_pings(mixnet_client, our_ips, exit_router_address).await?;
     listen_for_icmp_ping_replies(mixnet_client, our_ips).await
+}
+
+const TEST_REPEAT_COUNT: usize = 10;
+
+/// Creates a SOCKS5 proxy connection through the mixnet to the exit GW
+/// and performs necessary tests.
+#[instrument(level = "info", name = "socks5_test", skip_all)]
+async fn do_socks5_connectivity_test(
+    network_requester_address: &str,
+    network_details: NymNetworkDetails,
+) -> anyhow::Result<Socks5ProbeResults> {
+    info!(
+        "Starting SOCKS5 test through Network Requester: {}",
+        network_requester_address
+    );
+
+    let mut results = Socks5ProbeResults::default();
+
+    // parse the network requester address
+    let _nr_recipient = match network_requester_address.parse::<Recipient>() {
+        Ok(addr) => addr,
+        Err(e) => {
+            error!("Invalid Network Requester address: {}", e);
+            results.https_connectivity =
+                HttpsConnectivityResult::with_error(format!("Invalid NR address: {}", e));
+            return Ok(results);
+        }
+    };
+
+    // create ephemeral SOCKS5 client
+    let socks5_config = Socks5::new(network_requester_address.to_string());
+
+    // mainnet
+    let socks5_client_builder = MixnetClientBuilder::new_ephemeral()
+        .socks5_config(socks5_config)
+        .network_details(network_details)
+        .build()?;
+
+    // connect to mixnet via SOCKS5
+    let socks5_client = match socks5_client_builder.connect_to_mixnet_via_socks5().await {
+        Ok(client) => {
+            info!("Successfully established SOCKS5 proxy connection");
+            results.can_connect_socks5 = true;
+            client
+        }
+        Err(e) => {
+            error!("Failed to establish SOCKS5 connection: {}", e);
+            results.https_connectivity =
+                HttpsConnectivityResult::with_error(format!("SOCKS5 connection failed: {}", e));
+            return Ok(results);
+        }
+    };
+
+    let test = HttpsConnectivityTest::new(TEST_REPEAT_COUNT);
+    results.https_connectivity = test.run_tests(socks5_client.socks5_url()).await;
+
+    // cleanup
+    socks5_client.disconnect().await;
+
+    Ok(results)
 }
 
 async fn send_icmp_pings(

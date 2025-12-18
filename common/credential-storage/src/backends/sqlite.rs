@@ -41,7 +41,7 @@ impl SqliteEcashTicketbookManager {
     }
 
     pub(crate) async fn begin_storage_tx(&self) -> Result<Transaction<'_, Sqlite>, sqlx::Error> {
-        self.connection_pool.begin().await
+        self.connection_pool.begin_with("BEGIN IMMEDIATE").await
     }
 
     pub(crate) async fn insert_pending_ticketbook(

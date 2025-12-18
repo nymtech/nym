@@ -3,14 +3,9 @@
 
 use crate::client_check::check_client;
 use futures::stream::{FuturesUnordered, StreamExt};
+use nym_ecash_signer_check_types::status::{SignerResult, Status};
 use nym_network_defaults::NymNetworkDetails;
 use nym_validator_client::QueryHttpRpcNyxdClient;
-use nym_validator_client::nyxd::contract_traits::{DkgQueryClient, PagedDkgQueryClient};
-use std::collections::HashMap;
-use url::Url;
-
-pub use error::SignerCheckError;
-use nym_ecash_signer_check_types::status::{SignerResult, Status};
 use nym_validator_client::ecash::models::EcashSignerStatusResponse;
 use nym_validator_client::models::{
     ChainBlocksStatusResponse, ChainStatusResponse, SignerInformationResponse,
@@ -18,6 +13,12 @@ use nym_validator_client::models::{
 use nym_validator_client::nyxd::contract_traits::dkg_query_client::{
     ContractVKShare, DealerDetails, Epoch,
 };
+use nym_validator_client::nyxd::contract_traits::{DkgQueryClient, PagedDkgQueryClient};
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use url::Url;
+
+pub use error::SignerCheckError;
 
 mod client_check;
 pub mod error;
@@ -31,6 +32,7 @@ pub type TypedSignerResult = SignerResult<
 pub type LocalChainStatus = Status<ChainStatusResponse, ChainBlocksStatusResponse>;
 pub type SigningStatus = Status<SignerInformationResponse, EcashSignerStatusResponse>;
 
+#[derive(Serialize, Deserialize)]
 pub struct SignersTestResult {
     pub threshold: Option<u64>,
     pub results: Vec<TypedSignerResult>,

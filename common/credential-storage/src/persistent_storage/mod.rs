@@ -243,7 +243,7 @@ impl Storage for PersistentStorage {
         tickets: u32,
     ) -> Result<Option<RetrievedTicketbook>, Self::StorageError> {
         let deadline = ecash_today().ecash_date();
-        let mut tx = self.storage_manager.begin_storage_tx().await?;
+        let mut tx = self.storage_manager.begin_storage_write_tx().await?;
 
         // we don't want ticketbooks with expiration in the past
         let Some(raw) =

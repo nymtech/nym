@@ -132,10 +132,12 @@ impl DirectoryNode {
         // Derive LP address from gateway IP + default LP control port (41264)
         // TODO: Update this when LP address is exposed in node description API
         let lp_address = ip_address.map(|ip| std::net::SocketAddr::new(ip, 41264));
+        let network_requester_details = self.described.description.network_requester.clone();
 
         Ok(TestedNodeDetails {
             identity: self.identity(),
             exit_router_address,
+            network_requester_details,
             authenticator_address,
             authenticator_version,
             ip_address,
@@ -410,6 +412,16 @@ impl NymApiDirectory {
         };
         if !maybe_entry.described.description.declared_role.entry {
             bail!("{identity} is not an entry node")
+        };
+        Ok(maybe_entry)
+    }
+
+    pub fn exit_gateway_nr(&self, identity: &NodeIdentity) -> anyhow::Result<DirectoryNode> {
+        let Some(maybe_entry) = self.nodes.get(identity).cloned() else {
+            bail!("{identity} does not exist")
+        };
+        if !maybe_entry.described.description.declared_role.exit_nr {
+            bail!("{identity} doesn't support exit NR mode")
         };
         Ok(maybe_entry)
     }

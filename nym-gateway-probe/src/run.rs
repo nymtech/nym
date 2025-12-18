@@ -448,7 +448,7 @@ pub(crate) async fn run() -> anyhow::Result<ProbeResult> {
         trial.with_amnezia(&awg_args);
     }
 
-    match &args.command {
+    match args.command {
         Some(Commands::RunLocal {
             mnemonic,
             config_dir,
@@ -473,7 +473,7 @@ pub(crate) async fn run() -> anyhow::Result<ProbeResult> {
                 only_lp_registration,
                 test_lp_wg,
                 args.min_gateway_mixnet_performance,
-                *use_mock_ecash,
+                use_mock_ecash,
             ))
             .await
         }

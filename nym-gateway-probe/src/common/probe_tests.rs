@@ -1,9 +1,12 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::NymApiDirectory;
+use crate::common::helpers::mixnet_debug_config;
 use crate::common::nodes::{TestedNodeDetails, TestedNodeLpDetails};
+use crate::common::socks5_test::HttpsConnectivityTest;
 use crate::common::types::{
-    Entry, Exit, IpPingReplies, LpProbeResults, ProbeOutcome, WgProbeResults,
+    Entry, Exit, IpPingReplies, LpProbeResults, ProbeOutcome, Socks5ProbeResults, WgProbeResults,
 };
 use crate::common::wireguard::{
     TwoHopWgTunnelConfig, WgTunnelConfig, run_tunnel_tests, run_two_hop_tunnel_tests,
@@ -26,7 +29,12 @@ use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_ip_packet_client::IprClientConnect;
 use nym_ip_packet_requests::{IpPair, codec::MultiIpPacketCodec};
 use nym_registration_client::{LpRegistrationClient, NestedLpSession};
-use nym_sdk::mixnet::{MixnetClient, NodeIdentity, Recipient};
+use nym_sdk::mixnet::{MixnetClient, MixnetClientBuilder, NodeIdentity, Recipient, Socks5};
+use nym_sdk::{
+    DebugConfig, NymApiTopologyProvider, NymApiTopologyProviderConfig, NymNetworkDetails,
+    TopologyProvider,
+};
+use nym_topology::{HardcodedTopologyProvider, NymTopology};
 use std::{
     net::{IpAddr, Ipv4Addr, Ipv6Addr},
     sync::Arc,
@@ -35,6 +43,7 @@ use std::{
 use tokio::net::TcpStream;
 use tokio_util::{codec::Decoder, sync::CancellationToken};
 use tracing::*;
+use url::Url;
 
 pub async fn wg_probe(
     mut auth_client: AuthenticatorClient,
@@ -532,6 +541,7 @@ pub async fn do_ping(
         exit_result.map(|exit| ProbeOutcome {
             as_entry: entry,
             as_exit: exit,
+            socks5: None,
             wg: None,
             lp: None,
         }),
@@ -694,4 +704,166 @@ pub async fn listen_for_icmp_ping_replies(
         can_route_ip_v6: registered_replies.ipr_tun_ip_v6,
         can_route_ip_external_v6: registered_replies.external_ip_v6,
     }))
+}
+
+/// Creates a SOCKS5 proxy connection through the mixnet to the exit GW
+/// and performs necessary tests.
+#[allow(clippy::too_many_arguments)]
+#[instrument(level = "info", name = "socks5_test", skip_all)]
+pub(crate) async fn do_socks5_connectivity_test(
+    network_requester_address: &str,
+    network_details: NymNetworkDetails,
+    directory: &NymApiDirectory,
+    json_rpc_endpoints: Vec<String>,
+    mixnet_client_timeout: u64,
+    test_run_count: u64,
+    failure_count_cutoff: usize,
+    topology: Option<NymTopology>,
+) -> anyhow::Result<Socks5ProbeResults> {
+    info!(
+        "Starting SOCKS5 test through Network Requester: {}",
+        network_requester_address
+    );
+    if json_rpc_endpoints.is_empty() {
+        bail!("You need to define JSON RPC URLs in order to test SOCKS5")
+    }
+
+    // parse the network requester address
+    let nr_recipient = match network_requester_address.parse::<Recipient>() {
+        Ok(addr) => addr,
+        Err(e) => {
+            error!("Invalid Network Requester address: {}", e);
+
+            return Ok(Socks5ProbeResults::error_before_connecting(format!(
+                "Invalid NR address: {}",
+                e
+            )));
+        }
+    };
+
+    info!(
+        "Network Requester gateway: {}",
+        nr_recipient.gateway().to_base58_string()
+    );
+    info!(
+        "Network Requester identity: {}",
+        nr_recipient.identity().to_base58_string()
+    );
+
+    // create ephemeral SOCKS5 client
+    let socks5_config = Socks5::new(network_requester_address.to_string());
+
+    // since we define both entry & exit gateways to be the same tested GW,
+    // this shouldn't negatively affect mixnet layers but it will force route
+    // construction in case GW would get filtered out of topology
+    let min_gw_performance = Some(0);
+
+    // debug config similar to main probe
+    let debug_config = mixnet_debug_config(min_gw_performance, true);
+
+    // Verify the NR gateway exists in the directory with exit_nr role
+    let nr_gateway_id = nr_recipient.gateway();
+    if let Err(e) = directory.exit_gateway_nr(&nr_gateway_id) {
+        return Ok(Socks5ProbeResults::error_before_connecting(e.to_string()));
+    } else {
+        info!("✔️ Network Requester gateway found in directory with exit_nr role");
+    }
+
+    // use intended exit as entry as well
+    let entry_gateway = nr_gateway_id;
+
+    // use existing topology if available, otherwise fetch it
+    let topology_provider: Box<HardcodedTopologyProvider> = match topology {
+        Some(t) => {
+            info!("✔️ Reusing topology from main mixnet client");
+            Box::new(HardcodedTopologyProvider::new(t))
+        }
+        None => {
+            info!("Fetching topology for SOCKS5 client...");
+            match hardcoded_topology(&network_details, &debug_config).await {
+                Ok(provider) => provider,
+                Err(e) => return Ok(Socks5ProbeResults::error_before_connecting(e)),
+            }
+        }
+    };
+
+    let socks5_client_builder = MixnetClientBuilder::new_ephemeral()
+        // Specify entry gateway explicitly
+        .request_gateway(entry_gateway.to_base58_string())
+        .socks5_config(socks5_config)
+        .network_details(network_details)
+        .debug_config(debug_config)
+        .custom_topology_provider(topology_provider)
+        .build()?;
+
+    // connect to mixnet via SOCKS5
+    let socks5_client = match socks5_client_builder.connect_to_mixnet_via_socks5().await {
+        Ok(client) => {
+            info!("🌐 Successfully connected to mixnet via SOCKS5 proxy");
+            info!(
+                "Connected via entry gateway: {}",
+                client.nym_address().gateway().to_base58_string()
+            );
+            client
+        }
+        Err(e) => {
+            error!("Failed to establish SOCKS5 connection: {}", e);
+            return Ok(Socks5ProbeResults::error_before_connecting(format!(
+                "SOCKS5 connection failed: {}",
+                e
+            )));
+        }
+    };
+
+    let test =
+        HttpsConnectivityTest::new(test_run_count, mixnet_client_timeout, json_rpc_endpoints);
+    let result = test
+        .run_tests(socks5_client.socks5_url(), failure_count_cutoff)
+        .await;
+
+    socks5_client.disconnect().await;
+
+    Ok(Socks5ProbeResults::with_http_result(result))
+}
+
+async fn hardcoded_topology(
+    network_details: &NymNetworkDetails,
+    debug_config: &DebugConfig,
+) -> Result<Box<HardcodedTopologyProvider>, String> {
+    // get Nym API URLs from network_details
+    let nym_api_urls: Vec<Url> = network_details
+        .nym_api_urls
+        .as_ref()
+        .map(|urls| urls.iter().filter_map(|u| u.url.parse().ok()).collect())
+        .or_else(|| {
+            network_details
+                .endpoints
+                .first()
+                .and_then(|e| e.api_url())
+                .map(|url| vec![url])
+        })
+        .unwrap_or_default();
+
+    if nym_api_urls.is_empty() {
+        return Err(String::from("No nym-api URLs available to fetch topology"));
+    }
+
+    let topology_config = NymApiTopologyProviderConfig {
+        min_mixnode_performance: debug_config.topology.minimum_mixnode_performance,
+        min_gateway_performance: debug_config.topology.minimum_gateway_performance,
+        use_extended_topology: debug_config.topology.use_extended_topology,
+        ignore_egress_epoch_role: debug_config.topology.ignore_egress_epoch_role,
+    };
+
+    let api_client = nym_http_api_client::Client::new_url(nym_api_urls[0].clone(), None)
+        .map_err(|e| e.to_string())?;
+    let mut provider = NymApiTopologyProvider::new(topology_config, nym_api_urls, api_client);
+
+    match provider.get_new_topology().await {
+        Some(topology) => {
+            info!("Fetched network topology");
+            Ok(Box::new(HardcodedTopologyProvider::new(topology)))
+        }
+        None => Err(String::from("Failed to fetch network topology")),
+    }
 }

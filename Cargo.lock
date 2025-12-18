@@ -6488,6 +6488,7 @@ dependencies = [
  "nym-validator-client",
  "pnet_packet",
  "rand 0.8.5",
+ "reqwest 0.12.28",
  "serde",
  "serde_json",
  "thiserror 2.0.17",
@@ -7232,7 +7233,7 @@ dependencies = [
 
 [[package]]
 name = "nym-node-status-agent"
-version = "1.0.7"
+version = "1.0.8-gw-socks5"
 dependencies = [
  "anyhow",
  "clap",

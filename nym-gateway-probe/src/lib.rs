@@ -2,9 +2,13 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::common::helpers;
-use crate::common::probe_tests::{do_ping, lp_registration_probe, wg_probe, wg_probe_lp};
-use crate::common::types::{Entry, Exit, WgProbeResults};
+use crate::common::probe_tests::{
+    do_ping, do_socks5_connectivity_test, lp_registration_probe, wg_probe, wg_probe_lp,
+};
+use crate::common::types::{Entry, Exit, Socks5ProbeResults, WgProbeResults};
+use crate::config::Socks5Args;
 use anyhow::bail;
+use nym_api_requests::models::NetworkRequesterDetailsV1;
 use nym_authenticator_client::{AuthClientMixnetListener, AuthenticatorClient};
 use nym_client_core::config::ForgetMe;
 use nym_config::defaults::NymNetworkDetails;
@@ -14,6 +18,7 @@ use nym_sdk::mixnet::{
     CredentialStorage, Ephemeral, KeyStore, MixnetClient, MixnetClientBuilder, MixnetClientStorage,
     NodeIdentity, StoragePaths,
 };
+use nym_topology::NymTopology;
 use rand::rngs::OsRng;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -46,6 +51,7 @@ pub struct Probe {
     localnet_entry: Option<TestedNodeDetails>,
     /// Localnet exit gateway info (used when --exit-gateway-identity is specified)
     localnet_exit: Option<TestedNodeDetails>,
+    socks5_args: Socks5Args,
 }
 
 impl Probe {
@@ -54,6 +60,7 @@ impl Probe {
         tested_node: TestedNode,
         netstack_args: NetstackArgs,
         credentials_args: CredentialArgs,
+        socks5_args: Socks5Args,
     ) -> Self {
         Self {
             entrypoint,
@@ -65,6 +72,7 @@ impl Probe {
             exit_gateway_node: None,
             localnet_entry: None,
             localnet_exit: None,
+            socks5_args,
         }
     }
 
@@ -75,6 +83,7 @@ impl Probe {
         netstack_args: NetstackArgs,
         credentials_args: CredentialArgs,
         gateway_node: DirectoryNode,
+        socks5_args: Socks5Args,
     ) -> Self {
         Self {
             entrypoint,
@@ -86,6 +95,7 @@ impl Probe {
             exit_gateway_node: None,
             localnet_entry: None,
             localnet_exit: None,
+            socks5_args,
         }
     }
 
@@ -97,6 +107,7 @@ impl Probe {
         credentials_args: CredentialArgs,
         entry_gateway_node: DirectoryNode,
         exit_gateway_node: DirectoryNode,
+        socks5_args: Socks5Args,
     ) -> Self {
         Self {
             entrypoint,
@@ -108,6 +119,7 @@ impl Probe {
             exit_gateway_node: Some(exit_gateway_node),
             localnet_entry: None,
             localnet_exit: None,
+            socks5_args,
         }
     }
 
@@ -118,6 +130,7 @@ impl Probe {
         exit: Option<TestedNodeDetails>,
         netstack_args: NetstackArgs,
         credentials_args: CredentialArgs,
+        socks5_args: Socks5Args,
     ) -> Self {
         let entrypoint = entry.identity;
         Self {
@@ -130,6 +143,7 @@ impl Probe {
             exit_gateway_node: None,
             localnet_entry: Some(entry),
             localnet_exit: exit,
+            socks5_args,
         }
     }
 
@@ -148,6 +162,7 @@ impl Probe {
         only_lp_registration: bool,
         test_lp_wg: bool,
         min_mixnet_performance: Option<u8>,
+        network_details: NymNetworkDetails,
     ) -> anyhow::Result<ProbeResult> {
         let tickets_materials = self.credentials_args.decode_attached_ticket_materials()?;
 
@@ -159,7 +174,7 @@ impl Probe {
         // Connect to the mixnet via the entry gateway
         let disconnected_mixnet_client = MixnetClientBuilder::new_with_storage(storage.clone())
             .request_gateway(mixnet_entry_gateway_id.to_string())
-            .network_details(NymNetworkDetails::new_from_env())
+            .network_details(network_details.clone())
             .debug_config(helpers::mixnet_debug_config(
                 min_mixnet_performance,
                 ignore_egress_epoch_role,
@@ -173,6 +188,15 @@ impl Probe {
         import_bandwidth(bandwidth_import, tickets_materials).await?;
 
         let mixnet_client = Box::pin(disconnected_mixnet_client.connect_to_mixnet()).await;
+
+        // Extract topology from the connected client (if successful) to reuse for SOCKS5 test
+        let topology = match &mixnet_client {
+            Ok(client) => client
+                .read_current_route_provider()
+                .await
+                .map(|rp| rp.topology.clone()),
+            Err(_) => None,
+        };
 
         // Convert legacy flags to TestMode
         let has_exit = self.exit_gateway_node.is_some() || self.localnet_exit.is_some();
@@ -190,6 +214,8 @@ impl Probe {
             test_mode,
             only_wireguard,
             false, // Not using mock ecash in regular probe mode
+            network_details,
+            topology,
         )
         .await
     }
@@ -207,6 +233,7 @@ impl Probe {
         test_lp_wg: bool,
         min_mixnet_performance: Option<u8>,
         use_mock_ecash: bool,
+        network_details: NymNetworkDetails,
     ) -> anyhow::Result<ProbeResult> {
         // Localnet mode - identity + LP address from CLI, no HTTP query
         // This path is used when --entry-gateway-identity is specified
@@ -247,6 +274,8 @@ impl Probe {
                     test_mode,
                     only_wireguard,
                     use_mock_ecash,
+                    network_details,
+                    None, // No topology (no mixnet client in localnet mode)
                 )
                 .await;
         }
@@ -294,6 +323,8 @@ impl Probe {
                     test_mode,
                     only_wireguard,
                     use_mock_ecash,
+                    network_details,
+                    None, // No topology (no mixnet client in direct gateway mode)
                 )
                 .await;
         }
@@ -326,7 +357,7 @@ impl Probe {
         // and keeps its bandwidth between probe runs
         let disconnected_mixnet_client = MixnetClientBuilder::new_with_storage(storage.clone())
             .request_gateway(mixnet_entry_gateway_id.to_string())
-            .network_details(NymNetworkDetails::new_from_env())
+            .network_details(network_details.clone())
             .debug_config(helpers::mixnet_debug_config(
                 min_mixnet_performance,
                 ignore_egress_epoch_role,
@@ -369,6 +400,15 @@ impl Probe {
 
         let mixnet_client = Box::pin(disconnected_mixnet_client.connect_to_mixnet()).await;
 
+        // extract topology from the connected client (if any) to reuse for SOCKS5 test
+        let topology = match &mixnet_client {
+            Ok(client) => client
+                .read_current_route_provider()
+                .await
+                .map(|rp| rp.topology.clone()),
+            Err(_) => None,
+        };
+
         // Convert legacy flags to TestMode
         let has_exit = self.exit_gateway_node.is_some() || self.localnet_exit.is_some();
         let test_mode =
@@ -385,6 +425,8 @@ impl Probe {
             test_mode,
             only_wireguard,
             use_mock_ecash,
+            network_details,
+            topology,
         )
         .await
     }
@@ -458,9 +500,42 @@ impl Probe {
                     Some(Exit::fail_to_connect())
                 },
                 wg: None,
+                socks5: None,
                 lp: Some(lp_outcome),
             },
         })
+    }
+
+    async fn test_socks5_if_possible(
+        &self,
+        network_details: NymNetworkDetails,
+        network_requester_details: &Option<NetworkRequesterDetailsV1>,
+        directory: &NymApiDirectory,
+        topology: Option<NymTopology>,
+    ) -> Option<Socks5ProbeResults> {
+        if let Some(nr_details) = network_requester_details {
+            match do_socks5_connectivity_test(
+                &nr_details.address,
+                network_details,
+                directory,
+                self.socks5_args.socks5_json_rpc_url_list.clone(),
+                self.socks5_args.mixnet_client_timeout_sec,
+                self.socks5_args.test_count,
+                self.socks5_args.failure_count_cutoff,
+                topology,
+            )
+            .await
+            {
+                Ok(results) => Some(results),
+                Err(e) => {
+                    error!("SOCKS5 test failed: {}", e);
+                    None
+                }
+            }
+        } else {
+            info!("No NR available, skipping SOCKS5 tests");
+            None
+        }
     }
 
     pub async fn lookup_gateway(
@@ -535,11 +610,16 @@ impl Probe {
         test_mode: TestMode,
         only_wireguard: bool,
         use_mock_ecash: bool,
+        network_details: NymNetworkDetails,
+        topology: Option<NymTopology>,
     ) -> anyhow::Result<ProbeResult>
     where
         T: MixnetClientStorage + Clone + 'static,
         <T::CredentialStore as CredentialStorage>::StorageError: Send + Sync,
     {
+        let Some(directory) = directory else {
+            bail!("You need to provide NYM API through environment")
+        };
         // test_mode replaces the old only_lp_registration and test_lp_wg flags.
         // only_wireguard is kept separate as it controls ping behavior within Mixnet mode.
         let mut rng = rand::thread_rng();
@@ -557,6 +637,7 @@ impl Probe {
                             Entry::EntryFailure
                         },
                         as_exit: None,
+                        socks5: None,
                         wg: None,
                         lp: None,
                     },
@@ -595,6 +676,7 @@ impl Probe {
                             Entry::NotTested
                         },
                         as_exit: None,
+                        socks5: None,
                         wg: None,
                         lp: None,
                     }),
@@ -609,6 +691,7 @@ impl Probe {
                 Ok(ProbeOutcome {
                     as_entry: Entry::NotTested,
                     as_exit: None,
+                    socks5: None,
                     wg: None,
                     lp: None,
                 }),
@@ -624,6 +707,7 @@ impl Probe {
                         Entry::EntryFailure
                     },
                     as_exit: None,
+                    socks5: None,
                     wg: None,
                     lp: None,
                 }),
@@ -679,8 +763,6 @@ impl Probe {
                 // The tested node is the exit
                 let exit_gateway = node_info.clone();
 
-                let directory = directory
-                    .ok_or_else(|| anyhow::anyhow!("Directory is required for LP-WG test mode"))?;
                 let entry_gateway_node = directory.entry_gateway(&mixnet_entry_gateway_id)?;
                 let entry_gateway = entry_gateway_node.to_testable_node()?;
 
@@ -722,9 +804,8 @@ impl Probe {
                 Arc::new(KeyPair::new(&mut rng)),
                 ip_address,
             );
-            let config = nym_validator_client::nyxd::Config::try_from_nym_network_details(
-                &NymNetworkDetails::new_from_env(),
-            )?;
+            let config =
+                nym_validator_client::nyxd::Config::try_from_nym_network_details(&network_details)?;
             let client =
                 nym_validator_client::nyxd::NyxdClient::connect(config, nyxd_url.as_str())?;
             let bw_controller = nym_bandwidth_controller::BandwidthController::new(
@@ -789,10 +870,21 @@ impl Probe {
             None
         };
 
+        // test failure doesn't stop further tests
+        let socks5_outcome = self
+            .test_socks5_if_possible(
+                network_details,
+                &node_info.network_requester_details,
+                directory,
+                topology,
+            )
+            .await;
+
         // Disconnect the mixnet client gracefully
         outcome.map(|mut outcome| {
             outcome.wg = Some(wg_outcome);
             outcome.lp = lp_outcome;
+            outcome.socks5 = socks5_outcome;
             ProbeResult {
                 node: node_info.identity.to_string(),
                 used_entry: mixnet_entry_gateway_id.to_string(),

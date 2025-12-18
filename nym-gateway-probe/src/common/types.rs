@@ -1,6 +1,8 @@
 use nym_connection_monitor::ConnectionStatusEvent;
 use serde::{Deserialize, Serialize};
 
+pub use super::socks5_test::HttpsConnectivityResult;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProbeResult {
     pub node: String,
@@ -12,6 +14,7 @@ pub struct ProbeResult {
 pub struct ProbeOutcome {
     pub as_entry: Entry,
     pub as_exit: Option<Exit>,
+    pub socks5: Option<Socks5ProbeResults>,
     pub wg: Option<WgProbeResults>,
     pub lp: Option<LpProbeResults>,
 }
@@ -128,6 +131,38 @@ impl Exit {
             can_route_ip_external_v4: replies.external_ip_v4,
             can_route_ip_v6: replies.ipr_tun_ip_v6,
             can_route_ip_external_v6: replies.external_ip_v6,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct Socks5ProbeResults {
+    /// whether we could establish a SOCKS5 proxy connection
+    can_connect_socks5: bool,
+
+    /// HTTPS connectivity test
+    https_connectivity: HttpsConnectivityResult,
+}
+
+impl Socks5ProbeResults {
+    pub fn with_http_result(https_connectivity: HttpsConnectivityResult) -> Self {
+        Self {
+            can_connect_socks5: true,
+            https_connectivity,
+        }
+    }
+
+    pub fn error_before_connecting(error: impl Into<String>) -> Self {
+        Self {
+            can_connect_socks5: false,
+            https_connectivity: HttpsConnectivityResult::with_error(error.into()),
+        }
+    }
+
+    pub fn error_after_connecting(error: impl Into<String>) -> Self {
+        Self {
+            can_connect_socks5: true,
+            https_connectivity: HttpsConnectivityResult::with_error(error.into()),
         }
     }
 }

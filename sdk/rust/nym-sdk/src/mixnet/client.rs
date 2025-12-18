@@ -601,6 +601,13 @@ where
         );
 
         let available_gateways = self.available_gateways().await?;
+        for node in available_gateways.iter() {
+            debug!(
+                "node_id={}, identity_key={}",
+                node.node_id,
+                node.identity_key.to_base58_string()
+            );
+        }
 
         Ok(GatewaySetup::New {
             specification: selection_spec,

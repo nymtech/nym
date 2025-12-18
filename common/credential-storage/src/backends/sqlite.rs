@@ -40,7 +40,10 @@ impl SqliteEcashTicketbookManager {
         Ok(())
     }
 
-    pub(crate) async fn begin_storage_tx(&self) -> Result<Transaction<'_, Sqlite>, sqlx::Error> {
+    /// Starts a write (IMMEDIATE) transaction, to prevent issue when upgrading from a read one to a write one
+    pub(crate) async fn begin_storage_write_tx(
+        &self,
+    ) -> Result<Transaction<'_, Sqlite>, sqlx::Error> {
         self.connection_pool.begin_with("BEGIN IMMEDIATE").await
     }
 

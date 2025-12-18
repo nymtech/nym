@@ -7,8 +7,9 @@ use nym_mixnet_contract_common::{
     NymNodeDetails, RewardingParams,
 };
 use nym_topology::CachedEpochRewardedSet;
+use serde::{Deserialize, Serialize};
 
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub(crate) struct ConfigScoreData {
     pub(crate) config_score_params: ConfigScoreParams,
     pub(crate) nym_node_version_history: Vec<HistoricalNymNodeVersionEntry>,
@@ -27,6 +28,7 @@ impl From<ConfigScoreData> for ConfigScoreDataResponse {
     }
 }
 
+#[derive(Serialize, Deserialize)]
 pub(crate) struct MixnetContractCacheData {
     pub(crate) rewarding_denom: String,
 

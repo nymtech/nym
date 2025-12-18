@@ -346,13 +346,6 @@ impl AxumErrorResponse {
         }
     }
 
-    pub(crate) fn internal() -> Self {
-        Self {
-            message: RequestError::new("Internal server error"),
-            status: StatusCode::INTERNAL_SERVER_ERROR,
-        }
-    }
-
     pub(crate) fn not_implemented() -> Self {
         Self {
             message: RequestError::empty(),

@@ -272,11 +272,7 @@ async fn get_node_annotation(
 ) -> AxumResult<FormattedResponse<AnnotationResponse>> {
     let output = output.output.unwrap_or_default();
 
-    let annotations = state
-        .node_status_cache
-        .node_annotations()
-        .await
-        .ok_or_else(AxumErrorResponse::internal)?;
+    let annotations = state.node_status_cache().node_annotations().await?;
 
     Ok(output.to_response(AnnotationResponse {
         node_id,
@@ -305,11 +301,7 @@ async fn get_current_node_performance(
 ) -> AxumResult<FormattedResponse<NodePerformanceResponse>> {
     let output = output.output.unwrap_or_default();
 
-    let annotations = state
-        .node_status_cache
-        .node_annotations()
-        .await
-        .ok_or_else(AxumErrorResponse::internal)?;
+    let annotations = state.node_status_cache().node_annotations().await?;
 
     Ok(output.to_response(NodePerformanceResponse {
         node_id,

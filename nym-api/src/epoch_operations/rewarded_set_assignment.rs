@@ -214,7 +214,7 @@ impl EpochAdvancer {
         #[allow(clippy::unwrap_used)]
         let described_cache = self.described_cache.get().await.unwrap();
 
-        let Some(status_cache) = self.status_cache.node_annotations().await else {
+        let Ok(status_cache) = self.status_cache.node_annotations().await else {
             warn!("there are no node annotations available");
             return Vec::new();
         };

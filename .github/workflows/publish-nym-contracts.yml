@@ -11,9 +11,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Rust stable
+      - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
+          toolchain: ${{ vars.REQUIRED_RUSTC_VERSION }}
           target: wasm32-unknown-unknown
           override: true
 

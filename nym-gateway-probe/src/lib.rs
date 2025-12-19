@@ -128,6 +128,15 @@ impl CredentialArgs {
     }
 }
 
+#[derive(Args)]
+pub struct Socks5Args {
+    #[arg(long, default_value_t = 45)]
+    mixnet_client_timeout_sec: u64,
+
+    #[arg(long, default_value_t = 10)]
+    test_count: u64,
+}
+
 #[derive(Default, Debug)]
 pub enum TestedNode {
     #[default]
@@ -167,6 +176,7 @@ pub struct Probe {
     amnezia_args: String,
     netstack_args: NetstackArgs,
     credentials_args: CredentialArgs,
+    socks5_args: Socks5Args,
 }
 
 impl Probe {
@@ -175,6 +185,7 @@ impl Probe {
         tested_node: TestedNode,
         netstack_args: NetstackArgs,
         credentials_args: CredentialArgs,
+        socks5_args: Socks5Args,
     ) -> Self {
         Self {
             entrypoint,
@@ -182,6 +193,7 @@ impl Probe {
             amnezia_args: "".into(),
             netstack_args,
             credentials_args,
+            socks5_args,
         }
     }
     pub fn with_amnezia(&mut self, args: &str) -> &Self {
@@ -197,7 +209,7 @@ impl Probe {
     ) -> anyhow::Result<ProbeResult> {
         let exit_gateway = match gateway_key {
             Some(gateway_key) => NodeIdentity::from_base58_string(gateway_key)?,
-            None => directory.random_exit_with_ipr()?,
+            None => directory.random_exit_with_nr()?,
         };
         info!("Testing SOCKS5 only on exit gateway {}", exit_gateway);
         let node_info = directory
@@ -206,7 +218,15 @@ impl Probe {
 
         let socks5_outcome = {
             if let Some(ref nr_details) = node_info.network_requester_details {
-                match do_socks5_connectivity_test(&nr_details.address, network_details).await {
+                match do_socks5_connectivity_test(
+                    &nr_details.address,
+                    network_details,
+                    directory,
+                    self.socks5_args.mixnet_client_timeout_sec,
+                    self.socks5_args.test_count,
+                )
+                .await
+                {
                     Ok(results) => Some(results),
                     Err(e) => {
                         error!("SOCKS5 test failed: {}", e);
@@ -274,6 +294,7 @@ impl Probe {
             nyxd_url,
             tested_entry,
             only_wireguard,
+            directory,
         )
         .await
     }
@@ -354,6 +375,7 @@ impl Probe {
             nyxd_url,
             tested_entry,
             only_wireguard,
+            directory,
         )
         .await
     }
@@ -410,6 +432,7 @@ impl Probe {
         nyxd_url: Url,
         tested_entry: bool,
         only_wireguard: bool,
+        directory: NymApiDirectory,
     ) -> anyhow::Result<ProbeResult>
     where
         T: MixnetClientStorage + Clone + 'static,
@@ -532,6 +555,9 @@ impl Probe {
                 match do_socks5_connectivity_test(
                     &nr_details.address,
                     NymNetworkDetails::new_from_env(),
+                    directory,
+                    self.socks5_args.mixnet_client_timeout_sec,
+                    self.socks5_args.test_count,
                 )
                 .await
                 {
@@ -849,14 +875,15 @@ async fn do_ping_exit(
     listen_for_icmp_ping_replies(mixnet_client, our_ips).await
 }
 
-const TEST_REPEAT_COUNT: usize = 10;
-
 /// Creates a SOCKS5 proxy connection through the mixnet to the exit GW
 /// and performs necessary tests.
 #[instrument(level = "info", name = "socks5_test", skip_all)]
 async fn do_socks5_connectivity_test(
     network_requester_address: &str,
     network_details: NymNetworkDetails,
+    directory: NymApiDirectory,
+    mixnet_client_timeout: u64,
+    test_run_count: u64,
 ) -> anyhow::Result<Socks5ProbeResults> {
     info!(
         "Starting SOCKS5 test through Network Requester: {}",
@@ -866,7 +893,7 @@ async fn do_socks5_connectivity_test(
     let mut results = Socks5ProbeResults::default();
 
     // parse the network requester address
-    let _nr_recipient = match network_requester_address.parse::<Recipient>() {
+    let nr_recipient = match network_requester_address.parse::<Recipient>() {
         Ok(addr) => addr,
         Err(e) => {
             error!("Invalid Network Requester address: {}", e);
@@ -876,19 +903,58 @@ async fn do_socks5_connectivity_test(
         }
     };
 
+    info!(
+        "Network Requester gateway: {}",
+        nr_recipient.gateway().to_base58_string()
+    );
+    info!(
+        "Network Requester identity: {}",
+        nr_recipient.identity().to_base58_string()
+    );
+
     // create ephemeral SOCKS5 client
     let socks5_config = Socks5::new(network_requester_address.to_string());
 
-    // mainnet
+    // Create debug config similar to main probe
+    let mut debug_config = nym_client_core::config::DebugConfig::default();
+    debug_config
+        .traffic
+        .disable_main_poisson_packet_distribution = true;
+    debug_config.cover_traffic.disable_loop_cover_traffic_stream = true;
+    debug_config.topology.ignore_egress_epoch_role = true;
+    // since we define both entry & exit gateways to be the same tested GW,
+    // this shouldn't negatively affect mixnet layers but it will force route
+    // construction in case GW would get filtered out on topology refresh
+    debug_config.topology.minimum_gateway_performance = 0;
+
+    // Verify the NR gateway exists in the directory with exit_nr role
+    let nr_gateway_id = nr_recipient.gateway();
+    if let Err(e) = directory.exit_gateway_nr(&nr_gateway_id) {
+        results.https_connectivity = HttpsConnectivityResult::with_error(e.to_string());
+        return Ok(results);
+    } else {
+        info!("✔️ Network Requester gateway found in directory with exit_nr role");
+    }
+
+    // use intended exit as entry as well
+    let entry_gateway = nr_gateway_id;
+
     let socks5_client_builder = MixnetClientBuilder::new_ephemeral()
+        // Specify entry gateway explicitly
+        .request_gateway(entry_gateway.to_base58_string())
         .socks5_config(socks5_config)
         .network_details(network_details)
+        .debug_config(debug_config)
         .build()?;
 
     // connect to mixnet via SOCKS5
     let socks5_client = match socks5_client_builder.connect_to_mixnet_via_socks5().await {
         Ok(client) => {
             info!("Successfully established SOCKS5 proxy connection");
+            info!(
+                "Connected via entry gateway: {}",
+                client.nym_address().gateway().to_base58_string()
+            );
             results.can_connect_socks5 = true;
             client
         }
@@ -900,7 +966,10 @@ async fn do_socks5_connectivity_test(
         }
     };
 
-    let test = HttpsConnectivityTest::new(TEST_REPEAT_COUNT);
+    info!("Waiting for network topology to be ready...");
+    tokio::time::sleep(Duration::from_secs(10)).await;
+
+    let test = HttpsConnectivityTest::new(test_run_count, mixnet_client_timeout);
     results.https_connectivity = test.run_tests(socks5_client.socks5_url()).await;
 
     // cleanup

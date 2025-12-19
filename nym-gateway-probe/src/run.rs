@@ -5,7 +5,7 @@ use clap::{Parser, Subcommand};
 use nym_bin_common::bin_info;
 use nym_config::defaults::setup_env;
 use nym_gateway_probe::nodes::NymApiDirectory;
-use nym_gateway_probe::{CredentialArgs, NetstackArgs, ProbeResult, TestedNode};
+use nym_gateway_probe::{CredentialArgs, NetstackArgs, ProbeResult, Socks5Args, TestedNode};
 use nym_sdk::NymNetworkDetails;
 use nym_sdk::mixnet::NodeIdentity;
 use std::path::Path;
@@ -69,6 +69,10 @@ struct CliArgs {
     /// Arguments to manage credentials
     #[command(flatten)]
     credential_args: CredentialArgs,
+
+    /// Arguments to configure socks5 probe
+    #[command(flatten)]
+    socks5_args: Socks5Args,
 }
 
 const DEFAULT_CONFIG_DIR: &str = "/tmp/nym-gateway-probe/config/";
@@ -157,8 +161,13 @@ pub(crate) async fn run() -> anyhow::Result<ProbeResult> {
         (None, _) => TestedNode::SameAsEntry,
     };
 
-    let mut trial =
-        nym_gateway_probe::Probe::new(entry, test_point, args.netstack_args, args.credential_args);
+    let mut trial = nym_gateway_probe::Probe::new(
+        entry,
+        test_point,
+        args.netstack_args,
+        args.credential_args,
+        args.socks5_args,
+    );
     if let Some(awg_args) = args.amnezia_args {
         trial.with_amnezia(&awg_args);
     }

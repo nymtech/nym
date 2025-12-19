@@ -202,6 +202,16 @@ impl NymApiDirectory {
             .map(|(id, _)| *id)
     }
 
+    pub fn random_exit_with_nr(&self) -> anyhow::Result<NodeIdentity> {
+        info!("Selecting random gateway with NR enabled");
+        self.nodes
+            .iter()
+            .filter(|(_, n)| n.described.description.ip_packet_router.is_some())
+            .choose(&mut rand::thread_rng())
+            .ok_or(anyhow!("no gateways running NR available"))
+            .map(|(id, _)| *id)
+    }
+
     pub fn random_entry_gateway(&self) -> anyhow::Result<NodeIdentity> {
         info!("Selecting random entry gateway");
         self.nodes
@@ -231,7 +241,7 @@ impl NymApiDirectory {
 
     pub fn exit_gateway_nr(&self, identity: &NodeIdentity) -> anyhow::Result<DirectoryNode> {
         let Some(maybe_entry) = self.nodes.get(identity).cloned() else {
-            bail!("{identity} does not exist")
+            bail!("{identity} not found in directory")
         };
         if !maybe_entry.described.description.declared_role.exit_nr {
             bail!("{identity} doesn't support exit NR mode")

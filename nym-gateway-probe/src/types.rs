@@ -162,19 +162,20 @@ impl HttpsConnectivityResult {
 }
 
 pub struct HttpsConnectivityTest {
-    test_count: usize,
+    test_count: u64,
+    mixnet_client_timeout: Duration,
 }
 
-/// currently we test against this endpoint
+/// endpoint to test against
 /// https://www.quicknode.com/docs/ethereum/web3_clientVersion
 const TARGET_URL: &str = "https://docs-demo.quiknode.pro";
 const POST_BODY: &str = r#"{"jsonrpc":"2.0","method":"web3_clientVersion","params":[],"id":1}"#;
-const MIXNET_TIMEOUT: Duration = Duration::from_secs(60);
 
 impl HttpsConnectivityTest {
-    pub fn new(test_count: usize) -> Self {
+    pub fn new(test_count: u64, mixnet_client_timeout: u64) -> Self {
         Self {
             test_count: std::cmp::max(test_count, 1),
+            mixnet_client_timeout: Duration::from_secs(mixnet_client_timeout),
         }
     }
 
@@ -191,8 +192,7 @@ impl HttpsConnectivityTest {
 
         let client = match reqwest::Client::builder()
             .proxy(proxy)
-            // longer timeout for mixnet
-            .timeout(MIXNET_TIMEOUT)
+            .timeout(self.mixnet_client_timeout)
             .build()
         {
             Ok(c) => c,
@@ -202,9 +202,9 @@ impl HttpsConnectivityTest {
             }
         };
 
-        let mut successful_runs = 0;
-        for i in 0..self.test_count {
-            info!("Running test {}/{}", i + 1, self.test_count);
+        let mut successful_runs = 0u64;
+        for i in 1..self.test_count + 1 {
+            info!("Running test {}/{}", i, self.test_count);
             let interim_res = self.perform_https_request(&client).await;
             if interim_res.https_success
                 && let Some(latency_ms) = interim_res.https_latency_ms
@@ -217,11 +217,17 @@ impl HttpsConnectivityTest {
                 );
                 result.https_success = true;
                 result.https_status_code = interim_res.https_status_code;
-                info!("{}/{} latency: {}ms", i + 1, self.test_count, latency_ms);
+                info!("{}/{} latency: {}ms", i, self.test_count, latency_ms);
             } else if let Some(new_error) = interim_res.error {
-                result.error = result
-                    .error
-                    .map(|existing| format!("{},{}", existing, new_error));
+                result.error = Some(result.error.map_or(new_error.clone(), |existing| {
+                    format!("{},{}", existing, new_error)
+                }))
+            }
+
+            // too many failed runs: return early
+            if successful_runs < 2 && i - successful_runs > 2 {
+                // if < 2 runs, we don't have to calculate average before returning
+                return result;
             }
         }
         result.https_latency_ms = result
@@ -241,7 +247,7 @@ impl HttpsConnectivityTest {
         let mut result = HttpsConnectivityResult::default();
         let start = Instant::now();
         match tokio::time::timeout(
-            MIXNET_TIMEOUT,
+            self.mixnet_client_timeout,
             client
                 .post(TARGET_URL)
                 .header(reqwest::header::CONTENT_TYPE, "application/json")
@@ -271,7 +277,7 @@ impl HttpsConnectivityTest {
             Err(_) => {
                 warn!(
                     "HTTPS request timed out after {}s",
-                    MIXNET_TIMEOUT.as_secs()
+                    self.mixnet_client_timeout.as_secs()
                 );
                 if result.error.is_none() {
                     result.error = Some("HTTPS request timed out".to_string());

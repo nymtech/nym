@@ -3,7 +3,7 @@ name: ci-check-ns-api-version
 on:
   pull_request:
     paths:
-      - "nym-node-status-api/**"
+      - "nym-node-status-api/nym-node-status-api/**"
 
 env:
   WORKING_DIRECTORY: "nym-node-status-api/nym-node-status-api"

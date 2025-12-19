@@ -8,7 +8,7 @@ use crate::mixnet::{CredentialStorage, MixnetClient, Recipient};
 use crate::GatewayTransceiver;
 use crate::NymNetworkDetails;
 use crate::{Error, Result};
-use log::{debug, warn};
+use log::{debug, info, warn};
 use nym_client_core::client::base_client::storage::gateways_storage::GatewayRegistration;
 use nym_client_core::client::base_client::storage::helpers::{
     get_active_gateway_identity, get_all_registered_identities, has_gateway_details,
@@ -601,6 +601,10 @@ where
         );
 
         let available_gateways = self.available_gateways().await?;
+        info!("Listing all available gateways in topology:");
+        for node in available_gateways.iter() {
+            info!("{}", node.identity_key.to_base58_string());
+        }
 
         Ok(GatewaySetup::New {
             specification: selection_spec,

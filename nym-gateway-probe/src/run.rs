@@ -5,10 +5,10 @@ use anyhow::bail;
 use clap::{Parser, Subcommand};
 use nym_bin_common::bin_info;
 use nym_config::defaults::setup_env;
-use nym_gateway_probe::nodes::{NymApiDirectory, query_gateway_by_ip};
-use nym_gateway_probe::{
-    CredentialArgs, NetstackArgs, ProbeResult, TestMode, TestedNode, TestedNodeDetails,
-};
+use nym_gateway_probe::nodes::NymApiDirectory;
+use nym_gateway_probe::nodes::query_gateway_by_ip;
+use nym_gateway_probe::{CredentialArgs, NetstackArgs, ProbeResult, Socks5Args, TestedNode};
+use nym_gateway_probe::{TestMode, TestedNodeDetails};
 use nym_sdk::mixnet::NodeIdentity;
 use std::net::SocketAddr;
 use std::path::Path;
@@ -131,6 +131,10 @@ struct CliArgs {
     /// Arguments to manage credentials
     #[command(flatten)]
     credential_args: CredentialArgs,
+
+    /// Arguments to configure socks5 probe
+    #[command(flatten)]
+    socks5_args: Socks5Args,
 }
 
 const DEFAULT_CONFIG_DIR: &str = "/tmp/nym-gateway-probe/config/";
@@ -295,6 +299,7 @@ pub(crate) async fn run() -> anyhow::Result<ProbeResult> {
             exit_details,
             args.netstack_args,
             args.credential_args,
+            args.socks5_args,
         );
 
         if let Some(awg_args) = args.amnezia_args {
@@ -429,6 +434,7 @@ pub(crate) async fn run() -> anyhow::Result<ProbeResult> {
             args.credential_args,
             entry_node.clone(),
             exit_node.clone(),
+            args.socks5_args,
         )
     } else if let Some(gw_node) = gateway_node {
         // Only entry gateway provided
@@ -438,10 +444,17 @@ pub(crate) async fn run() -> anyhow::Result<ProbeResult> {
             args.netstack_args,
             args.credential_args,
             gw_node,
+            args.socks5_args,
         )
     } else {
         // No direct gateways, use directory lookup
-        nym_gateway_probe::Probe::new(entry, test_point, args.netstack_args, args.credential_args)
+        nym_gateway_probe::Probe::new(
+            entry,
+            test_point,
+            args.netstack_args,
+            args.credential_args,
+            args.socks5_args,
+        )
     };
 
     if let Some(awg_args) = args.amnezia_args {

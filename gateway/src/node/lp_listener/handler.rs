@@ -75,6 +75,10 @@ pub struct LpConnectionHandler {
     /// All subsequent packets on this connection must use this receiver_idx.
     /// Set from ClientHello's proposed receiver_index, or from header for non-bootstrap packets.
     bound_receiver_idx: Option<u32>,
+    /// Persistent connection to exit gateway for forwarding.
+    /// Opened on first forward, reused for subsequent forwards, closed when client disconnects.
+    /// Tuple contains (stream, target_address) to verify subsequent forwards go to same exit.
+    exit_stream: Option<(TcpStream, SocketAddr)>,
 }
 
 impl LpConnectionHandler {
@@ -85,6 +89,7 @@ impl LpConnectionHandler {
             state,
             stats: ConnectionStats::new(),
             bound_receiver_idx: None,
+            exit_stream: None,
         }
     }
 
@@ -955,6 +960,17 @@ impl LpConnectionHandler {
     /// # Returns
     /// * `Ok(Vec<u8>)` - Raw response bytes from target gateway
     /// * `Err(GatewayError)` - If forwarding fails
+    /// AIDEV-NOTE: Persistent exit stream forwarding
+    /// Uses self.exit_stream to maintain a persistent connection to the exit gateway.
+    /// First forward opens the connection, subsequent forwards reuse it.
+    /// Connection errors clear exit_stream, causing reconnection on next forward.
+    ///
+    /// Semaphore rationale: The forward_semaphore limits concurrent connection OPENS
+    /// (FD exhaustion protection), not concurrent operations. Since:
+    /// 1. Each LpConnectionHandler owns its exit_stream exclusively
+    /// 2. The handler loop processes packets sequentially (no concurrent access)
+    /// 3. Only connection opens consume new FDs
+    /// The semaphore is only acquired when opening a new connection, not for reuse.
     async fn handle_forward_packet(
         &mut self,
         forward_data: ForwardPacketData,
@@ -965,79 +981,118 @@ impl LpConnectionHandler {
         inc!("lp_forward_total");
         let start = std::time::Instant::now();
 
-        // Acquire semaphore permit to limit concurrent forward connections (fd exhaustion protection)
-        let _permit = match self.state.forward_semaphore.try_acquire() {
-            Ok(permit) => permit,
-            Err(_) => {
-                inc!("lp_forward_rejected");
-                return Err(GatewayError::LpConnectionError(
-                    "Gateway at forward capacity".into(),
-                ));
-            }
-        };
-
         // Parse target gateway address
         let target_addr: SocketAddr = forward_data.target_lp_address.parse().map_err(|e| {
             inc!("lp_forward_failed");
             GatewayError::LpProtocolError(format!("Invalid target address: {}", e))
         })?;
 
-        // Connect to target gateway with timeout
-        let mut target_stream =
-            match timeout(Duration::from_secs(5), TcpStream::connect(target_addr)).await {
-                Ok(Ok(stream)) => stream,
-                Ok(Err(e)) => {
-                    inc!("lp_forward_failed");
-                    return Err(GatewayError::LpConnectionError(format!(
-                        "Failed to connect to target gateway: {}",
-                        e
-                    )));
-                }
+        // Check if we need to open a new connection
+        let need_new_connection = match &self.exit_stream {
+            Some((_, existing_addr)) if *existing_addr == target_addr => false,
+            Some((_, existing_addr)) => {
+                // Target mismatch - this shouldn't happen in normal operation
+                // (client should only forward to one exit gateway)
+                warn!(
+                    "Forward target changed from {} to {}, closing old connection",
+                    existing_addr, target_addr
+                );
+                self.exit_stream = None;
+                true
+            }
+            None => true,
+        };
+
+        if need_new_connection {
+            // Acquire semaphore permit to limit concurrent connection opens (FD exhaustion protection)
+            // Permit is scoped to this block - only protects the connect() call, not stream reuse
+            let _permit = match self.state.forward_semaphore.try_acquire() {
+                Ok(permit) => permit,
                 Err(_) => {
-                    inc!("lp_forward_failed");
+                    inc!("lp_forward_rejected");
                     return Err(GatewayError::LpConnectionError(
-                        "Target gateway connection timeout".to_string(),
+                        "Gateway at forward capacity".into(),
                     ));
                 }
             };
 
+            // Connect to target gateway with timeout
+            let stream =
+                match timeout(Duration::from_secs(5), TcpStream::connect(target_addr)).await {
+                    Ok(Ok(stream)) => stream,
+                    Ok(Err(e)) => {
+                        inc!("lp_forward_failed");
+                        return Err(GatewayError::LpConnectionError(format!(
+                            "Failed to connect to target gateway: {}",
+                            e
+                        )));
+                    }
+                    Err(_) => {
+                        inc!("lp_forward_failed");
+                        return Err(GatewayError::LpConnectionError(
+                            "Target gateway connection timeout".to_string(),
+                        ));
+                    }
+                };
+
+            debug!(
+                "Opened persistent exit connection to {} for forwarding",
+                target_addr
+            );
+            self.exit_stream = Some((stream, target_addr));
+        }
+
+        // Get mutable reference to the exit stream
+        let (target_stream, _) = self.exit_stream.as_mut().unwrap();
+
         debug!(
-            "Forwarding packet to {} (target: {})",
-            target_addr, forward_data.target_lp_address
+            "Forwarding packet to {} ({} bytes)",
+            target_addr,
+            forward_data.inner_packet_bytes.len()
         );
 
         // Forward inner packet bytes (4-byte length prefix + packet data)
         let len = forward_data.inner_packet_bytes.len() as u32;
-        target_stream
-            .write_all(&len.to_be_bytes())
-            .await
-            .map_err(|e| {
-                inc!("lp_forward_failed");
-                GatewayError::LpConnectionError(format!("Failed to send length to target: {}", e))
-            })?;
+        if let Err(e) = target_stream.write_all(&len.to_be_bytes()).await {
+            inc!("lp_forward_failed");
+            self.exit_stream = None; // Clear broken connection
+            return Err(GatewayError::LpConnectionError(format!(
+                "Failed to send length to target: {}",
+                e
+            )));
+        }
 
-        target_stream
+        if let Err(e) = target_stream
             .write_all(&forward_data.inner_packet_bytes)
             .await
-            .map_err(|e| {
-                inc!("lp_forward_failed");
-                GatewayError::LpConnectionError(format!("Failed to send packet to target: {}", e))
-            })?;
-
-        target_stream.flush().await.map_err(|e| {
+        {
             inc!("lp_forward_failed");
-            GatewayError::LpConnectionError(format!("Failed to flush target stream: {}", e))
-        })?;
+            self.exit_stream = None;
+            return Err(GatewayError::LpConnectionError(format!(
+                "Failed to send packet to target: {}",
+                e
+            )));
+        }
+
+        if let Err(e) = target_stream.flush().await {
+            inc!("lp_forward_failed");
+            self.exit_stream = None;
+            return Err(GatewayError::LpConnectionError(format!(
+                "Failed to flush target stream: {}",
+                e
+            )));
+        }
 
         // Read response from target gateway (4-byte length prefix + packet data)
         let mut len_buf = [0u8; 4];
-        target_stream.read_exact(&mut len_buf).await.map_err(|e| {
+        if let Err(e) = target_stream.read_exact(&mut len_buf).await {
             inc!("lp_forward_failed");
-            GatewayError::LpConnectionError(format!(
+            self.exit_stream = None;
+            return Err(GatewayError::LpConnectionError(format!(
                 "Failed to read response length from target: {}",
                 e
-            ))
-        })?;
+            )));
+        }
 
         let response_len = u32::from_be_bytes(len_buf) as usize;
 
@@ -1045,6 +1100,7 @@ impl LpConnectionHandler {
         const MAX_PACKET_SIZE: usize = 65536;
         if response_len > MAX_PACKET_SIZE {
             inc!("lp_forward_failed");
+            self.exit_stream = None;
             return Err(GatewayError::LpProtocolError(format!(
                 "Response size {} exceeds maximum {}",
                 response_len, MAX_PACKET_SIZE
@@ -1052,16 +1108,14 @@ impl LpConnectionHandler {
         }
 
         let mut response_buf = vec![0u8; response_len];
-        target_stream
-            .read_exact(&mut response_buf)
-            .await
-            .map_err(|e| {
-                inc!("lp_forward_failed");
-                GatewayError::LpConnectionError(format!(
-                    "Failed to read response from target: {}",
-                    e
-                ))
-            })?;
+        if let Err(e) = target_stream.read_exact(&mut response_buf).await {
+            inc!("lp_forward_failed");
+            self.exit_stream = None;
+            return Err(GatewayError::LpConnectionError(format!(
+                "Failed to read response from target: {}",
+                e
+            )));
+        }
 
         // Record metrics
         let duration = start.elapsed().as_secs_f64();

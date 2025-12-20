@@ -18,6 +18,10 @@ use tracing::*;
 // Histogram buckets for LP operation duration (legacy - used by unused forwarding methods)
 const LP_DURATION_BUCKETS: &[f64] = &[0.01, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0];
 
+// Timeout for forward I/O operations (send + receive on exit stream)
+// Must be long enough to cover exit gateway processing time
+const FORWARD_IO_TIMEOUT_SECS: u64 = 30;
+
 // Histogram buckets for LP connection lifecycle duration
 // LP connections can be very short (registration only: ~1s) or very long (dVPN sessions: hours/days)
 // Covers full range from seconds to 24 hours
@@ -993,12 +997,12 @@ impl LpConnectionHandler {
             Some((_, existing_addr)) => {
                 // Target mismatch - this shouldn't happen in normal operation
                 // (client should only forward to one exit gateway)
-                warn!(
-                    "Forward target changed from {} to {}, closing old connection",
+                // Return error to prevent silent behavior changes that could mask bugs
+                inc!("lp_forward_failed");
+                return Err(GatewayError::LpProtocolError(format!(
+                    "Forward target mismatch: session bound to {}, got request for {}",
                     existing_addr, target_addr
-                );
-                self.exit_stream = None;
-                true
+                )));
             }
             None => true,
         };
@@ -1051,71 +1055,80 @@ impl LpConnectionHandler {
             forward_data.inner_packet_bytes.len()
         );
 
-        // Forward inner packet bytes (4-byte length prefix + packet data)
-        let len = forward_data.inner_packet_bytes.len() as u32;
-        if let Err(e) = target_stream.write_all(&len.to_be_bytes()).await {
-            inc!("lp_forward_failed");
-            self.exit_stream = None; // Clear broken connection
-            return Err(GatewayError::LpConnectionError(format!(
-                "Failed to send length to target: {}",
-                e
-            )));
-        }
+        // Wrap all I/O in timeout to prevent hanging on unresponsive exit gateway
+        let io_timeout = Duration::from_secs(FORWARD_IO_TIMEOUT_SECS);
+        let inner_bytes = &forward_data.inner_packet_bytes;
 
-        if let Err(e) = target_stream
-            .write_all(&forward_data.inner_packet_bytes)
-            .await
-        {
-            inc!("lp_forward_failed");
-            self.exit_stream = None;
-            return Err(GatewayError::LpConnectionError(format!(
-                "Failed to send packet to target: {}",
-                e
-            )));
-        }
+        let io_result: Result<Vec<u8>, GatewayError> = timeout(io_timeout, async {
+            // Forward inner packet bytes (4-byte length prefix + packet data)
+            let len = inner_bytes.len() as u32;
+            target_stream
+                .write_all(&len.to_be_bytes())
+                .await
+                .map_err(|e| {
+                    GatewayError::LpConnectionError(format!("Failed to send length to target: {}", e))
+                })?;
 
-        if let Err(e) = target_stream.flush().await {
-            inc!("lp_forward_failed");
-            self.exit_stream = None;
-            return Err(GatewayError::LpConnectionError(format!(
-                "Failed to flush target stream: {}",
-                e
-            )));
-        }
+            target_stream
+                .write_all(inner_bytes)
+                .await
+                .map_err(|e| {
+                    GatewayError::LpConnectionError(format!("Failed to send packet to target: {}", e))
+                })?;
 
-        // Read response from target gateway (4-byte length prefix + packet data)
-        let mut len_buf = [0u8; 4];
-        if let Err(e) = target_stream.read_exact(&mut len_buf).await {
-            inc!("lp_forward_failed");
-            self.exit_stream = None;
-            return Err(GatewayError::LpConnectionError(format!(
-                "Failed to read response length from target: {}",
-                e
-            )));
-        }
+            target_stream.flush().await.map_err(|e| {
+                GatewayError::LpConnectionError(format!("Failed to flush target stream: {}", e))
+            })?;
 
-        let response_len = u32::from_be_bytes(len_buf) as usize;
+            // Read response from target gateway (4-byte length prefix + packet data)
+            let mut len_buf = [0u8; 4];
+            target_stream.read_exact(&mut len_buf).await.map_err(|e| {
+                GatewayError::LpConnectionError(format!(
+                    "Failed to read response length from target: {}",
+                    e
+                ))
+            })?;
 
-        // Sanity check
-        const MAX_PACKET_SIZE: usize = 65536;
-        if response_len > MAX_PACKET_SIZE {
-            inc!("lp_forward_failed");
-            self.exit_stream = None;
-            return Err(GatewayError::LpProtocolError(format!(
-                "Response size {} exceeds maximum {}",
-                response_len, MAX_PACKET_SIZE
-            )));
-        }
+            let response_len = u32::from_be_bytes(len_buf) as usize;
 
-        let mut response_buf = vec![0u8; response_len];
-        if let Err(e) = target_stream.read_exact(&mut response_buf).await {
-            inc!("lp_forward_failed");
-            self.exit_stream = None;
-            return Err(GatewayError::LpConnectionError(format!(
-                "Failed to read response from target: {}",
-                e
-            )));
-        }
+            // Sanity check
+            const MAX_PACKET_SIZE: usize = 65536;
+            if response_len > MAX_PACKET_SIZE {
+                return Err(GatewayError::LpProtocolError(format!(
+                    "Response size {} exceeds maximum {}",
+                    response_len, MAX_PACKET_SIZE
+                )));
+            }
+
+            let mut response_buf = vec![0u8; response_len];
+            target_stream
+                .read_exact(&mut response_buf)
+                .await
+                .map_err(|e| {
+                    GatewayError::LpConnectionError(format!(
+                        "Failed to read response from target: {}",
+                        e
+                    ))
+                })?;
+
+            Ok(response_buf)
+        })
+        .await
+        .unwrap_or_else(|_| {
+            Err(GatewayError::LpConnectionError(
+                "Forward I/O timeout".to_string(),
+            ))
+        });
+
+        // Handle result - clear exit_stream on any error
+        let response_buf = match io_result {
+            Ok(buf) => buf,
+            Err(e) => {
+                inc!("lp_forward_failed");
+                self.exit_stream = None;
+                return Err(e);
+            }
+        };
 
         // Record metrics
         let duration = start.elapsed().as_secs_f64();
@@ -1124,7 +1137,9 @@ impl LpConnectionHandler {
         inc!("lp_forward_success");
         debug!(
             "Forwarding successful to {} ({} bytes response, {:.3}s)",
-            target_addr, response_len, duration
+            target_addr,
+            response_buf.len(),
+            duration
         );
 
         Ok(response_buf)

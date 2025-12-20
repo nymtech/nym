@@ -272,17 +272,27 @@ impl LpRegistrationClient {
     /// The connection remains open after handshake for registration/forwarding.
     pub async fn perform_handshake(&mut self) -> Result<()> {
         // Apply handshake timeout (nym-102)
-        tokio::time::timeout(
+        let result = tokio::time::timeout(
             self.config.handshake_timeout,
             self.perform_handshake_inner(),
         )
-        .await
-        .map_err(|_| {
-            LpClientError::Transport(format!(
-                "Handshake timeout after {:?}",
-                self.config.handshake_timeout
-            ))
-        })?
+        .await;
+
+        // Clean up connection on any error to prevent state machine inconsistency
+        match result {
+            Ok(Ok(())) => Ok(()),
+            Ok(Err(e)) => {
+                self.close();
+                Err(e)
+            }
+            Err(_) => {
+                self.close();
+                Err(LpClientError::Transport(format!(
+                    "Handshake timeout after {:?}",
+                    self.config.handshake_timeout
+                )))
+            }
+        }
     }
 
     /// Internal handshake implementation without timeout.

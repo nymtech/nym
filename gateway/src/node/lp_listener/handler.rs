@@ -71,6 +71,10 @@ pub struct LpConnectionHandler {
     remote_addr: SocketAddr,
     state: LpHandlerState,
     stats: ConnectionStats,
+    /// Bound receiver_idx for this connection (set after first packet).
+    /// All subsequent packets on this connection must use this receiver_idx.
+    /// Set from ClientHello's proposed receiver_index, or from header for non-bootstrap packets.
+    bound_receiver_idx: Option<u32>,
 }
 
 impl LpConnectionHandler {
@@ -80,9 +84,16 @@ impl LpConnectionHandler {
             remote_addr,
             state,
             stats: ConnectionStats::new(),
+            bound_receiver_idx: None,
         }
     }
 
+    /// AIDEV-NOTE: Stream-oriented packet loop
+    /// This handler processes multiple packets on a single TCP connection.
+    /// Connection lifecycle: handshake + registration, then client closes.
+    /// First packet binds the connection to a receiver_idx (session-affine).
+    /// Binding is set by handle_client_hello() from payload's receiver_index,
+    /// or by validate_or_set_binding() for non-bootstrap first packets.
     pub async fn handle(mut self) -> Result<(), GatewayError> {
         debug!("Handling LP connection from {}", self.remote_addr);
 
@@ -90,25 +101,108 @@ impl LpConnectionHandler {
         inc!("lp_connections_total");
 
         // ============================================================
-        // SINGLE-PACKET PROCESSING: Process ONE packet then close
-        // State persists in LpHandlerState maps between connections
+        // STREAM-ORIENTED PROCESSING: Loop until connection closes
+        // State persists in LpHandlerState maps across packets
         // ============================================================
 
-        // Step 1: Receive raw packet bytes and parse header only (for routing)
-        let (raw_bytes, header) = match self.receive_raw_packet().await {
-            Ok(result) => result,
-            Err(e) => {
-                inc!("lp_errors_receive_packet");
+        loop {
+            // Step 1: Receive raw packet bytes and parse header only (for routing)
+            let (raw_bytes, header) = match self.receive_raw_packet().await {
+                Ok(result) => result,
+                Err(e) if Self::is_connection_closed(&e) => {
+                    // Graceful EOF - client closed connection
+                    trace!("Connection closed by {} (EOF)", self.remote_addr);
+                    break;
+                }
+                Err(e) => {
+                    inc!("lp_errors_receive_packet");
+                    self.emit_lifecycle_metrics(false);
+                    return Err(e);
+                }
+            };
+
+            let receiver_idx = header.receiver_idx;
+
+            // Step 2: Validate or set binding (session-affine connection)
+            // Note: ClientHello (receiver_idx=0) defers binding to handle_client_hello()
+            if let Err(e) = self.validate_or_set_binding(receiver_idx) {
                 self.emit_lifecycle_metrics(false);
                 return Err(e);
             }
-        };
 
-        let receiver_idx = header.receiver_idx;
+            // Step 3: Process the packet
+            if let Err(e) = self.process_packet(raw_bytes, receiver_idx).await {
+                self.emit_lifecycle_metrics(false);
+                return Err(e);
+            }
+        }
 
-        // Step 2: Get outer_aead_key based on receiver_idx
+        self.emit_lifecycle_metrics(true);
+        Ok(())
+    }
+
+    /// Check if an error indicates the connection was closed (EOF).
+    /// AIDEV-NOTE: Uses string matching on error messages. Tokio's read_exact
+    /// returns UnexpectedEof which gets formatted into the error message.
+    fn is_connection_closed(e: &GatewayError) -> bool {
+        match e {
+            GatewayError::LpConnectionError(msg) => {
+                msg.contains("unexpected end of file")
+                    || msg.contains("connection reset")
+                    || msg.contains("broken pipe")
+            }
+            _ => false,
+        }
+    }
+
+    /// Validate that the receiver_idx matches the bound session, or set binding if first packet.
+    ///
+    /// Binding rules:
+    /// - ClientHello (receiver_idx=0): binding deferred to handle_client_hello() which
+    ///   extracts receiver_index from payload
+    /// - First non-bootstrap packet: sets binding from header's receiver_idx
+    /// - Subsequent packets: must match bound receiver_idx
+    fn validate_or_set_binding(&mut self, receiver_idx: u32) -> Result<(), GatewayError> {
+        match self.bound_receiver_idx {
+            None => {
+                // First packet - don't bind if bootstrap (handle_client_hello sets binding)
+                if receiver_idx != nym_lp::BOOTSTRAP_RECEIVER_IDX {
+                    self.bound_receiver_idx = Some(receiver_idx);
+                    trace!(
+                        "Bound connection from {} to receiver_idx={}",
+                        self.remote_addr,
+                        receiver_idx
+                    );
+                }
+                Ok(())
+            }
+            Some(bound) => {
+                if receiver_idx == bound {
+                    Ok(())
+                } else {
+                    warn!(
+                        "Receiver_idx mismatch from {}: expected {}, got {}",
+                        self.remote_addr, bound, receiver_idx
+                    );
+                    inc!("lp_errors_receiver_idx_mismatch");
+                    Err(GatewayError::LpProtocolError(format!(
+                        "receiver_idx mismatch: connection bound to {}, packet has {}",
+                        bound, receiver_idx
+                    )))
+                }
+            }
+        }
+    }
+
+    /// Process a single packet: lookup session, parse, route to handler.
+    /// Individual handlers do NOT emit lifecycle metrics - the main loop handles that.
+    async fn process_packet(
+        &mut self,
+        raw_bytes: Vec<u8>,
+        receiver_idx: u32,
+    ) -> Result<(), GatewayError> {
+        // Get outer_aead_key based on receiver_idx
         // Header is always cleartext for routing. Payload is encrypted after PSK.
-        // We lookup the session to get the key, then parse the full packet.
         let outer_key: Option<OuterAeadKey> = if receiver_idx == nym_lp::BOOTSTRAP_RECEIVER_IDX {
             // ClientHello - no encryption (PSK not yet derived)
             None
@@ -122,7 +216,6 @@ impl LpConnectionHandler {
                 .and_then(|session| session.outer_aead_key())
         } else if let Some(session_entry) = self.state.session_states.get(&receiver_idx) {
             // Established session - should always have PSK
-            // session_states now stores LpStateMachine (not LpSession) for subsession support
             session_entry
                 .value()
                 .state
@@ -134,11 +227,10 @@ impl LpConnectionHandler {
             None
         };
 
-        // Step 3: Parse full packet with outer AEAD key
+        // Parse full packet with outer AEAD key
         let packet =
             nym_lp::codec::parse_lp_packet(&raw_bytes, outer_key.as_ref()).map_err(|e| {
                 inc!("lp_errors_parse_packet");
-                self.emit_lifecycle_metrics(false);
                 GatewayError::LpProtocolError(format!("Failed to parse LP packet: {}", e))
             })?;
 
@@ -150,7 +242,7 @@ impl LpConnectionHandler {
             outer_key.is_some()
         );
 
-        // Step 4: Route packet based on receiver_idx
+        // Route packet based on receiver_idx
         if receiver_idx == nym_lp::BOOTSTRAP_RECEIVER_IDX {
             // ClientHello - first packet in handshake
             self.handle_client_hello(packet).await
@@ -169,7 +261,6 @@ impl LpConnectionHandler {
                     receiver_idx, self.remote_addr
                 );
                 inc!("lp_errors_unknown_session");
-                self.emit_lifecycle_metrics(false);
                 Err(GatewayError::LpProtocolError(format!(
                     "Unknown session ID: {}",
                     receiver_idx
@@ -207,7 +298,6 @@ impl LpConnectionHandler {
             }
             other => {
                 inc!("lp_client_hello_failed");
-                self.emit_lifecycle_metrics(false);
                 return Err(GatewayError::LpProtocolError(format!(
                     "Expected ClientHello, got {}",
                     other
@@ -233,13 +323,22 @@ impl LpConnectionHandler {
 
             // Send Collision response to tell client to retry with new receiver_index
             // No outer key - this is before PSK derivation
+            // Note: Do NOT set binding on collision - client may retry with new receiver_index
             let collision_packet =
                 LpPacket::new(LpHeader::new(receiver_index, 0), LpMessage::Collision);
             self.send_lp_packet(&collision_packet, None).await?;
 
-            self.emit_lifecycle_metrics(true);
             return Ok(());
         }
+
+        // Collision check passed - bind this connection to the receiver_index
+        // All subsequent packets on this connection must use this receiver_index
+        self.bound_receiver_idx = Some(receiver_index);
+        trace!(
+            "Bound connection from {} to receiver_idx={} (via ClientHello)",
+            self.remote_addr,
+            receiver_index
+        );
 
         // Create state machine for this handshake using client-proposed receiver_index
         let mut state_machine = LpStateMachine::new(
@@ -284,12 +383,11 @@ impl LpConnectionHandler {
             self.remote_addr, receiver_index
         );
 
-        // Send Ack to confirm ClientHello received (packet-per-connection model)
+        // Send Ack to confirm ClientHello received
         // No outer key - this is before PSK derivation
         let ack_packet = LpPacket::new(LpHeader::new(receiver_index, 0), LpMessage::Ack);
         self.send_lp_packet(&ack_packet, None).await?;
 
-        self.emit_lifecycle_metrics(true);
         Ok(())
     }
 
@@ -400,7 +498,6 @@ impl LpConnectionHandler {
             );
         }
 
-        self.emit_lifecycle_metrics(true);
         Ok(())
     }
 
@@ -473,7 +570,6 @@ impl LpConnectionHandler {
                 inc!("lp_subsession_kk2_sent");
                 self.send_lp_packet(&response_packet, outer_key.as_ref())
                     .await?;
-                self.emit_lifecycle_metrics(true);
                 Ok(())
             }
             LpAction::DeliverData(data) => {
@@ -501,7 +597,6 @@ impl LpConnectionHandler {
                     "Unexpected action in transport from {}: {:?}",
                     self.remote_addr, other
                 );
-                self.emit_lifecycle_metrics(false);
                 Err(GatewayError::LpProtocolError(format!(
                     "Unexpected action: {:?}",
                     other
@@ -544,7 +639,6 @@ impl LpConnectionHandler {
             self.remote_addr, receiver_idx
         );
         inc!("lp_errors_unknown_payload_type");
-        self.emit_lifecycle_metrics(false);
         Err(GatewayError::LpProtocolError(
             "Unknown transport payload type (not registration or forwarding)".to_string(),
         ))
@@ -600,7 +694,6 @@ impl LpConnectionHandler {
                 new_receiver_index, self.remote_addr
             );
             inc!("lp_subsession_receiver_index_collision");
-            self.emit_lifecycle_metrics(false);
             return Err(GatewayError::LpProtocolError(
                 "Subsession receiver index collision - client should retry".to_string(),
             ));
@@ -616,7 +709,6 @@ impl LpConnectionHandler {
         // It will be cleaned up by TTL-based cleanup task
 
         inc!("lp_subsession_complete");
-        self.emit_lifecycle_metrics(true);
         Ok(())
     }
 
@@ -676,7 +768,6 @@ impl LpConnectionHandler {
             );
         }
 
-        self.emit_lifecycle_metrics(true);
         Ok(())
     }
 
@@ -731,7 +822,6 @@ impl LpConnectionHandler {
             self.remote_addr, receiver_idx
         );
 
-        self.emit_lifecycle_metrics(true);
         Ok(())
     }
 
@@ -1112,6 +1202,7 @@ mod tests {
     use nym_lp::message::{ClientHelloData, EncryptedDataPayload, HandshakeData, LpMessage};
     use nym_lp::packet::{LpHeader, LpPacket};
     use std::sync::Arc;
+    use std::time::{SystemTime, UNIX_EPOCH};
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
     // ==================== Test Helpers ====================

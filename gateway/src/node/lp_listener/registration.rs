@@ -127,6 +127,69 @@ async fn credential_verification(
     Ok(allocated)
 }
 
+/// Check if WG peer already registered, return cached response if so.
+///
+/// This enables idempotent registration: if a client retries registration
+/// with the same WG public key (e.g., after network failure), we return
+/// the existing registration data instead of re-processing. This prevents
+/// wasting credentials on network issues.
+async fn check_existing_registration(
+    wg_key_str: &str,
+    state: &LpHandlerState,
+) -> Option<LpRegistrationResponse> {
+    // Need WG data to build GatewayData
+    let wg_data = state.wireguard_data.as_ref()?;
+
+    // Look up existing peer
+    let peer = state.storage.get_wireguard_peer(wg_key_str).await.ok()??;
+
+    // Convert to defguard Peer to access allowed_ips
+    let defguard_peer: Peer = peer.clone().try_into().ok()?;
+
+    // Extract IPv4 and IPv6 from allowed_ips
+    let mut ipv4 = None;
+    let mut ipv6 = None;
+    for ip_mask in &defguard_peer.allowed_ips {
+        match ip_mask.ip {
+            std::net::IpAddr::V4(v4) => ipv4 = Some(v4),
+            std::net::IpAddr::V6(v6) => ipv6 = Some(v6),
+        }
+    }
+
+    let (private_ipv4, private_ipv6) = match (ipv4, ipv6) {
+        (Some(v4), Some(v6)) => (v4, v6),
+        _ => return None, // Incomplete data, treat as new registration
+    };
+
+    // Get current bandwidth
+    let bandwidth = state
+        .ecash_verifier
+        .storage()
+        .get_available_bandwidth(peer.client_id)
+        .await
+        .ok()?
+        .map(|b| b.available)
+        .unwrap_or(0);
+
+    // Only return cached response if bandwidth was actually allocated.
+    // If bandwidth is 0, registration was incomplete (peer exists but
+    // credential verification failed or never completed). Let the caller
+    // proceed with normal registration flow which will handle cleanup.
+    if bandwidth == 0 {
+        return None;
+    }
+
+    Some(LpRegistrationResponse::success(
+        bandwidth,
+        GatewayData {
+            public_key: *wg_data.keypair().public_key(),
+            endpoint: wg_data.config().bind_address,
+            private_ipv4,
+            private_ipv6,
+        },
+    ))
+}
+
 /// Process an LP registration request
 pub async fn process_registration(
     request: LpRegistrationRequest,
@@ -150,6 +213,20 @@ pub async fn process_registration(
         RegistrationMode::Dvpn => {
             // Track dVPN registration attempts
             inc!("lp_registration_dvpn_attempts");
+
+            // Check for idempotent re-registration (same WG key already registered)
+            // This allows clients to retry registration after network failures
+            // without wasting credentials
+            let wg_key_str = request.wg_public_key.to_string();
+            if let Some(existing_response) = check_existing_registration(&wg_key_str, state).await {
+                info!(
+                    "LP dVPN re-registration for existing peer {} (idempotent)",
+                    wg_key_str
+                );
+                inc!("lp_registration_dvpn_idempotent");
+                return existing_response;
+            }
+
             // Register as WireGuard peer first to get client_id
             let (gateway_data, client_id) = match register_wg_peer(
                 request.wg_public_key.inner().as_ref(),

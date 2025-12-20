@@ -607,6 +607,118 @@ impl NestedLpSession {
         Ok(gateway_data)
     }
 
+    /// Performs handshake and registration with the exit gateway via forwarding,
+    /// with automatic retry on network failure.
+    ///
+    /// This method:
+    /// 1. Acquires credential ONCE
+    /// 2. Performs handshake and registration with exit gateway
+    /// 3. On network failure, clears state and retries with same credential
+    /// 4. Gateway idempotency ensures no double-spend even if credential was processed
+    ///
+    /// Use this method for resilient exit registration on unreliable networks (e.g., train
+    /// through tunnel). The gateway's idempotent registration check ensures that if
+    /// a registration succeeds but the response is lost, retrying with the same WG key
+    /// will return the cached result instead of spending a new credential.
+    ///
+    /// # Arguments
+    /// * `outer_client` - Connected LP client with established outer session to entry gateway
+    /// * `wg_keypair` - Client's WireGuard x25519 keypair (same key used for all retries)
+    /// * `gateway_identity` - Exit gateway's Ed25519 identity (for credential verification)
+    /// * `bandwidth_controller` - Provider for bandwidth credentials
+    /// * `ticket_type` - Type of bandwidth ticket to use
+    /// * `client_ip` - Client IP address for registration metadata
+    /// * `max_retries` - Maximum number of retry attempts after initial failure
+    ///
+    /// # Returns
+    /// * `Ok(GatewayData)` - Exit gateway configuration data on successful registration
+    ///
+    /// # Errors
+    /// Returns an error if all retry attempts fail.
+    pub async fn handshake_and_register_with_retry(
+        &mut self,
+        outer_client: &mut LpRegistrationClient,
+        wg_keypair: &x25519::KeyPair,
+        gateway_identity: &ed25519::PublicKey,
+        bandwidth_controller: &dyn BandwidthTicketProvider,
+        ticket_type: TicketType,
+        client_ip: IpAddr,
+        max_retries: u32,
+    ) -> Result<GatewayData> {
+        tracing::debug!(
+            "Starting resilient exit registration (max_retries={})",
+            max_retries
+        );
+
+        // Acquire credential ONCE before any attempts
+        let credential = bandwidth_controller
+            .get_ecash_ticket(
+                ticket_type,
+                *gateway_identity,
+                nym_bandwidth_controller::DEFAULT_TICKETS_TO_SPEND,
+            )
+            .await
+            .map_err(|e| {
+                LpClientError::Transport(format!("Failed to acquire bandwidth credential: {}", e))
+            })?
+            .data;
+
+        let mut last_error = None;
+        for attempt in 0..=max_retries {
+            if attempt > 0 {
+                // Verify outer session is still usable before retry
+                if !outer_client.is_handshake_complete() {
+                    return Err(LpClientError::Transport(
+                        "Outer session lost during retry - caller must re-establish entry gateway connection".to_string()
+                    ));
+                }
+
+                // Exponential backoff with jitter: 100ms, 200ms, 400ms, 800ms, 1600ms (capped)
+                let base_delay_ms = 100u64 * (1 << attempt.min(4));
+                let jitter_ms = rand::random::<u64>() % (base_delay_ms / 4 + 1);
+                let delay = std::time::Duration::from_millis(base_delay_ms + jitter_ms);
+                tracing::info!(
+                    "Retrying exit registration (attempt {}) after {:?}",
+                    attempt + 1,
+                    delay
+                );
+                tokio::time::sleep(delay).await;
+
+                // Clear state machine before retry - handshake needs fresh start
+                self.state_machine = None;
+            }
+
+            match self
+                .handshake_and_register_with_credential(
+                    outer_client,
+                    wg_keypair,
+                    credential.clone(),
+                    ticket_type,
+                    client_ip,
+                )
+                .await
+            {
+                Ok(data) => {
+                    if attempt > 0 {
+                        tracing::info!(
+                            "Exit registration succeeded on retry attempt {}",
+                            attempt + 1
+                        );
+                    }
+                    return Ok(data);
+                }
+                Err(e) => {
+                    tracing::warn!("Exit registration attempt {} failed: {}", attempt + 1, e);
+                    last_error = Some(e);
+                }
+            }
+        }
+
+        Err(last_error.unwrap_or_else(|| {
+            LpClientError::Transport("Exit registration failed after all retries".to_string())
+        }))
+    }
+
     /// Sends a packet via forwarding through the entry gateway and returns the parsed response.
     ///
     /// This helper consolidates the send/receive pattern used throughout the handshake:

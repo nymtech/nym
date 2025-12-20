@@ -873,6 +873,115 @@ impl LpRegistrationClient {
         Ok(gateway_data)
     }
 
+    /// Register with automatic retry on network failure.
+    ///
+    /// This method:
+    /// 1. Acquires credential ONCE
+    /// 2. Performs handshake if not already connected
+    /// 3. Attempts registration
+    /// 4. On network failure, re-establishes connection and retries with same credential
+    /// 5. Gateway idempotency ensures no double-spend even if credential was processed
+    ///
+    /// Use this method for resilient registration on unreliable networks (e.g., train
+    /// through tunnel). The gateway's idempotent registration check ensures that if
+    /// a registration succeeds but the response is lost, retrying with the same WG key
+    /// will return the cached result instead of spending a new credential.
+    ///
+    /// # Arguments
+    /// * `wg_keypair` - Client's WireGuard x25519 keypair (same key used for all retries)
+    /// * `gateway_identity` - Gateway's ed25519 identity for credential verification
+    /// * `bandwidth_controller` - Provider for bandwidth credentials
+    /// * `ticket_type` - Type of bandwidth ticket to use
+    /// * `max_retries` - Maximum number of retry attempts after initial failure
+    ///
+    /// # Returns
+    /// * `Ok(GatewayData)` - Gateway configuration data on successful registration
+    ///
+    /// # Errors
+    /// Returns an error if all retry attempts fail.
+    ///
+    /// # Note
+    /// Unlike `register()`, this method handles the full flow including handshake.
+    /// Do NOT call `perform_handshake()` before this method.
+    pub async fn register_with_retry(
+        &mut self,
+        wg_keypair: &x25519::KeyPair,
+        gateway_identity: &ed25519::PublicKey,
+        bandwidth_controller: &dyn BandwidthTicketProvider,
+        ticket_type: TicketType,
+        max_retries: u32,
+    ) -> Result<GatewayData> {
+        tracing::debug!(
+            "Starting resilient registration (max_retries={})",
+            max_retries
+        );
+
+        // Acquire credential ONCE before any attempts
+        let credential = bandwidth_controller
+            .get_ecash_ticket(ticket_type, *gateway_identity, DEFAULT_TICKETS_TO_SPEND)
+            .await
+            .map_err(|e| {
+                LpClientError::SendRegistrationRequest(format!(
+                    "Failed to acquire bandwidth credential: {}",
+                    e
+                ))
+            })?
+            .data;
+
+        let mut last_error = None;
+        for attempt in 0..=max_retries {
+            if attempt > 0 {
+                // Exponential backoff with jitter: 100ms, 200ms, 400ms, 800ms, 1600ms (capped)
+                let base_delay_ms = 100u64 * (1 << attempt.min(4));
+                let jitter_ms = rand::random::<u64>() % (base_delay_ms / 4 + 1);
+                let delay = std::time::Duration::from_millis(base_delay_ms + jitter_ms);
+                tracing::info!(
+                    "Retrying registration (attempt {}) after {:?}",
+                    attempt + 1,
+                    delay
+                );
+                tokio::time::sleep(delay).await;
+            }
+
+            // Ensure fresh connection and handshake for each attempt
+            // (On retry, the old connection/session may be dead)
+            if self.stream.is_none() || attempt > 0 {
+                // Clear any stale state before re-handshaking
+                self.close();
+                self.state_machine = None;
+
+                if let Err(e) = self.perform_handshake().await {
+                    tracing::warn!("Handshake failed on attempt {}: {}", attempt + 1, e);
+                    last_error = Some(e);
+                    continue;
+                }
+            }
+
+            match self
+                .register_with_credential(wg_keypair, credential.clone(), ticket_type)
+                .await
+            {
+                Ok(data) => {
+                    if attempt > 0 {
+                        tracing::info!(
+                            "Registration succeeded on retry attempt {}",
+                            attempt + 1
+                        );
+                    }
+                    return Ok(data);
+                }
+                Err(e) => {
+                    tracing::warn!("Registration attempt {} failed: {}", attempt + 1, e);
+                    last_error = Some(e);
+                }
+            }
+        }
+
+        Err(last_error.unwrap_or_else(|| {
+            LpClientError::Transport("Registration failed after all retries".to_string())
+        }))
+    }
+
     /// Sends a ForwardPacket message to the entry gateway for forwarding to the exit gateway.
     ///
     /// This method constructs a ForwardPacket containing the target gateway's identity,

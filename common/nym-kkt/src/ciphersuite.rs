@@ -8,7 +8,7 @@ use nym_crypto::asymmetric::ed25519;
 
 use crate::error::KKTError;
 
-pub const HASH_LEN_256: u8 = 32;
+pub const HASH_LEN_256: usize = 32;
 pub const CIPHERSUITE_ENCODING_LEN: usize = 4;
 
 pub const CURVE25519_KEY_LEN: usize = 32;
@@ -172,7 +172,7 @@ impl Ciphersuite {
                     l
                 }
             }
-            None => HASH_LEN_256,
+            None => HASH_LEN_256 as u8,
         };
         Ok(Self {
             hash_function,
@@ -218,8 +218,8 @@ impl Ciphersuite {
                 HashFunction::SHAKE128 => 2,
                 HashFunction::SHA256 => 3,
             },
-            match self.hash_length {
-                HASH_LEN_256 => 0,
+            match self.hash_length as usize {
+                HASH_LEN_256 => 0u8,
                 _ => self.hash_length,
             },
             match self.signature_scheme {

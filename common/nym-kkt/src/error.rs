@@ -1,6 +1,9 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use std::fmt::Debug;
+
+use nym_crypto::asymmetric::x25519::KeyRecoveryError;
 use thiserror::Error;
 
 use crate::context::KKTStatus;
@@ -40,8 +43,17 @@ pub enum KKTError {
     #[error("{}", info)]
     X25519Error { info: &'static str },
 
+    #[error("{}", info)]
+    AEADError { info: &'static str },
+
     #[error("Generic libcrux error")]
     LibcruxError,
+}
+
+impl From<KeyRecoveryError> for KKTError {
+    fn from(err: KeyRecoveryError) -> Self {
+        err.into()
+    }
 }
 
 impl From<libcrux_kem::Error> for KKTError {
@@ -80,6 +92,30 @@ impl From<libcrux_ecdh::Error> for KKTError {
                 info: "Invalid Remote Public Key",
             },
             _ => KKTError::LibcruxError,
+        }
+    }
+}
+impl From<libcrux_chacha20poly1305::AeadError> for KKTError {
+    fn from(err: libcrux_chacha20poly1305::AeadError) -> Self {
+        KKTError::KEMError {
+            info: match err {
+                libcrux_chacha20poly1305::AeadError::PlaintextTooLarge => {
+                    "Plaintext is longer than u32::MAX"
+                }
+                libcrux_chacha20poly1305::AeadError::CiphertextTooLarge => {
+                    "Ciphertext is longer than u32::MAX"
+                }
+                libcrux_chacha20poly1305::AeadError::AadTooLarge => "Aad is longer than u32::MAX",
+                libcrux_chacha20poly1305::AeadError::CiphertextTooShort => {
+                    "The provided destination ciphertext does not fit the ciphertext and tag"
+                }
+                libcrux_chacha20poly1305::AeadError::PlaintextTooShort => {
+                    "The provided destination plaintext is too short to fit the decrypted plaintext"
+                }
+                libcrux_chacha20poly1305::AeadError::InvalidCiphertext => {
+                    "The ciphertext is not a valid encryption under the given key and nonce."
+                }
+            },
         }
     }
 }

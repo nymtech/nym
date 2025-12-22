@@ -76,13 +76,11 @@ where
 
 pub fn initiator_ingest_response<'a>(
     own_context: &mut KKTContext,
+    remote_frame: &KKTFrame,
+    remote_context: &KKTContext,
     remote_verification_key: &ed25519::PublicKey,
     expected_hash: &[u8],
-    message_bytes: &[u8],
 ) -> Result<EncapsulationKey<'a>, KKTError> {
-    // sizes have to be correct
-    let (frame, remote_context) = KKTFrame::from_bytes(message_bytes)?;
-
     check_compatibility(own_context, &remote_context)?;
     match remote_context.status() {
         KKTStatus::Ok => {
@@ -90,21 +88,21 @@ pub fn initiator_ingest_response<'a>(
                 remote_context.full_message_len() - remote_context.signature_len(),
             );
             bytes_to_verify.extend_from_slice(&remote_context.encode()?);
-            bytes_to_verify.extend_from_slice(frame.body_ref());
-            bytes_to_verify.extend_from_slice(frame.session_id_ref());
+            bytes_to_verify.extend_from_slice(remote_frame.body_ref());
+            bytes_to_verify.extend_from_slice(remote_frame.session_id_ref());
 
-            match Signature::from_bytes(frame.signature_ref()) {
+            match Signature::from_bytes(remote_frame.signature_ref()) {
                 Ok(sig) => match remote_verification_key.verify(bytes_to_verify, &sig) {
                     Ok(()) => {
                         let received_encapsulation_key = EncapsulationKey::decode(
                             own_context.ciphersuite().kem(),
-                            frame.body_ref(),
+                            remote_frame.body_ref(),
                         )?;
 
                         match validate_encapsulation_key(
                             &own_context.ciphersuite().hash_function(),
                             own_context.ciphersuite().hash_len(),
-                            frame.body_ref(),
+                            remote_frame.body_ref(),
                             expected_hash,
                         ) {
                             true => Ok(received_encapsulation_key),

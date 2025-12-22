@@ -1,8 +1,7 @@
-//! LP+KCP Mixnet Speedtest Client
+//! LP+KCP Mixnet Client
 //!
 //! A client that registers with the Nym mixnet using LP transport,
-//! sends traffic through Sphinx routing with KCP framing,
-//! and measures network performance.
+//! and sends traffic through Sphinx routing with KCP framing.
 
 mod client;
 mod speedtest;
@@ -20,8 +19,8 @@ use client::SpeedtestClient;
 use topology::SpeedtestTopology;
 
 #[derive(Parser, Debug)]
-#[command(name = "nym-lp-speedtest")]
-#[command(about = "LP+KCP mixnet speedtest client")]
+#[command(name = "nym-lp-client")]
+#[command(about = "LP+KCP mixnet client")]
 struct Cli {
     /// Nym API URL for topology discovery
     #[arg(long, default_value = "https://validator.nymtech.net/api")]
@@ -98,7 +97,7 @@ async fn main() -> Result<()> {
 
     // Test data path through mixnet
     info!("Testing data path through mixnet...");
-    let test_payload = b"Hello from nym-lp-speedtest!";
+    let test_payload = b"Hello from nym-lp-client!";
 
     // Test one-way send (no SURBs)
     match client.send_data(test_payload).await {

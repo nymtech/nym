@@ -42,7 +42,7 @@ impl SpeedtestTopology {
         info!("Fetching topology from {}", nym_api);
 
         let user_agent = UserAgent {
-            application: "nym-lp-speedtest".to_string(),
+            application: "nym-lp-client".to_string(),
             version: VERSION.to_string(),
             platform: std::env::consts::OS.to_string(),
             git_commit: "unknown".to_string(),

@@ -163,7 +163,7 @@ impl SpeedtestClient {
 
         // Step 1: Feed payload to KCP for reliable delivery
         driver.send(payload);
-        tokio::time::sleep(Duration::from_millis(10)).await;
+        driver.update(10); // Process KCP state machine to produce outgoing packets
 
         let outgoing = driver.fetch_outgoing();
         if outgoing.is_empty() {

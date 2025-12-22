@@ -6702,11 +6702,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "nym-lp-common"
-version = "0.1.0"
-
-[[package]]
-name = "nym-lp-speedtest"
+name = "nym-lp-client"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -6736,6 +6732,10 @@ dependencies = [
  "tracing-subscriber",
  "url",
 ]
+
+[[package]]
+name = "nym-lp-common"
+version = "0.1.0"
 
 [[package]]
 name = "nym-metrics"

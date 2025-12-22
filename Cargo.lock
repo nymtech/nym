@@ -6706,6 +6706,33 @@ name = "nym-lp-common"
 version = "0.1.0"
 
 [[package]]
+name = "nym-lp-speedtest"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "nym-crypto",
+ "nym-kcp",
+ "nym-lp",
+ "nym-sphinx",
+ "nym-sphinx-addressing",
+ "nym-sphinx-anonymous-replies",
+ "nym-sphinx-framing",
+ "nym-sphinx-params",
+ "nym-topology",
+ "nym-validator-client",
+ "rand 0.8.5",
+ "rand_chacha 0.3.1",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tokio-util",
+ "tracing",
+ "tracing-subscriber",
+ "url",
+]
+
+[[package]]
 name = "nym-metrics"
 version = "0.1.0"
 dependencies = [

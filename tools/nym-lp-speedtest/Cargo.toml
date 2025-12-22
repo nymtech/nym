@@ -1,0 +1,35 @@
+[package]
+name = "nym-lp-speedtest"
+version = "0.1.0"
+edition = "2021"
+description = "LP+KCP mixnet speedtest client"
+license.workspace = true
+
+[[bin]]
+name = "nym-lp-speedtest"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = "1"
+clap = { version = "4", features = ["derive"] }
+rand = { workspace = true }
+rand_chacha = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
+tokio-util = { workspace = true, features = ["codec"] }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
+url = { workspace = true }
+
+# Nym crates
+nym-crypto = { path = "../../common/crypto" }
+nym-kcp = { path = "../../common/nym-kcp" }
+nym-lp = { path = "../../common/nym-lp" }
+nym-sphinx = { path = "../../common/nymsphinx" }
+nym-sphinx-framing = { path = "../../common/nymsphinx/framing", features = ["no-mix-acks"] }
+nym-sphinx-anonymous-replies = { path = "../../common/nymsphinx/anonymous-replies" }
+nym-sphinx-addressing = { path = "../../common/nymsphinx/addressing" }
+nym-sphinx-params = { path = "../../common/nymsphinx/params" }
+nym-topology = { path = "../../common/topology" }
+nym-validator-client = { path = "../../common/client-libs/validator-client" }

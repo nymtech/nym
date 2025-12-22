@@ -16,6 +16,7 @@ rand = { workspace = true }
 rand_chacha = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
+time = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 tokio-util = { workspace = true, features = ["codec"] }
 tracing = { workspace = true }
@@ -23,7 +24,9 @@ tracing-subscriber = { workspace = true, features = ["env-filter"] }
 url = { workspace = true }
 
 # Nym crates
+nym-api-requests = { path = "../../nym-api/nym-api-requests" }
 nym-crypto = { path = "../../common/crypto" }
+nym-http-api-client = { path = "../../common/http-api-client" }
 nym-kcp = { path = "../../common/nym-kcp" }
 nym-lp = { path = "../../common/nym-lp" }
 nym-sphinx = { path = "../../common/nymsphinx" }
@@ -31,5 +34,6 @@ nym-sphinx-framing = { path = "../../common/nymsphinx/framing", features = ["no-
 nym-sphinx-anonymous-replies = { path = "../../common/nymsphinx/anonymous-replies" }
 nym-sphinx-addressing = { path = "../../common/nymsphinx/addressing" }
 nym-sphinx-params = { path = "../../common/nymsphinx/params" }
+nym-sphinx-types = { path = "../../common/nymsphinx/types" }
 nym-topology = { path = "../../common/topology" }
 nym-validator-client = { path = "../../common/client-libs/validator-client" }

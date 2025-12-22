@@ -6716,6 +6716,7 @@ dependencies = [
  "nym-http-api-client",
  "nym-kcp",
  "nym-lp",
+ "nym-registration-client",
  "nym-sphinx",
  "nym-sphinx-addressing",
  "nym-sphinx-anonymous-replies",

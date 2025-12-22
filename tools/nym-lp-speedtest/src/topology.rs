@@ -8,7 +8,7 @@ use nym_api_requests::nym_nodes::SkimmedNode;
 use nym_crypto::asymmetric::ed25519;
 use nym_http_api_client::UserAgent;
 use nym_sphinx_types::Node as SphinxNode;
-use nym_topology::{NymTopology, NymTopologyMetadata};
+use nym_topology::{NymRouteProvider, NymTopology, NymTopologyMetadata};
 use nym_validator_client::nym_api::NymApiClientExt;
 use rand::prelude::IteratorRandom;
 use rand::{CryptoRng, Rng};
@@ -167,6 +167,16 @@ impl SpeedtestTopology {
     pub fn gateways(&self) -> &[GatewayInfo] {
         &self.gateways
     }
+
+    /// Get the underlying NymTopology for route construction
+    pub fn nym_topology(&self) -> &NymTopology {
+        &self.topology
+    }
+
+    /// Create a NymRouteProvider from this topology
+    pub fn route_provider(&self) -> NymRouteProvider {
+        NymRouteProvider::new(self.topology.clone(), true) // ignore epoch roles for testing
+    }
 }
 
 /// Extract gateway info for LP connections from a SkimmedNode
@@ -200,7 +210,7 @@ mod tests {
         assert!(topology.gateway_count() > 0);
         println!("Found {} gateways", topology.gateway_count());
 
-        let mut rng = rand::rng();
+        let mut rng = rand::thread_rng();
         let gateway = topology.random_gateway(&mut rng).unwrap();
         println!("Selected gateway: {:?}", gateway.identity);
 

@@ -8,10 +8,16 @@ mod client;
 mod speedtest;
 mod topology;
 
-use anyhow::Result;
+use std::sync::Arc;
+
+use anyhow::{Context, Result};
 use clap::Parser;
-use tracing::info;
+use rand::thread_rng;
+use tracing::{error, info};
 use url::Url;
+
+use client::SpeedtestClient;
+use topology::SpeedtestTopology;
 
 #[derive(Parser, Debug)]
 #[command(name = "nym-lp-speedtest")]
@@ -59,20 +65,57 @@ async fn main() -> Result<()> {
     info!("Starting LP+KCP speedtest");
     info!("Nym API: {}", cli.nym_api);
 
-    // TODO: Phase 1 - Fetch topology
-    // let topology = topology::fetch_topology(&cli.nym_api).await?;
+    // Fetch topology
+    info!("Fetching network topology...");
+    let topology = SpeedtestTopology::fetch(&cli.nym_api)
+        .await
+        .context("failed to fetch topology")?;
 
-    // TODO: Phase 2 - Create client and connect
-    // let mut client = client::LpSphinxClient::new(...).await?;
+    info!("Topology loaded: {} entry gateways", topology.gateway_count());
 
-    // TODO: Phase 3 - Run speedtest
-    // let results = speedtest::run(&mut client, cli.ping_count).await?;
+    // Select gateway
+    let mut rng = thread_rng();
+    let gateway = match &cli.gateway {
+        Some(identity) => topology.gateway_by_identity(identity)?.clone(),
+        None => topology.random_gateway(&mut rng)?.clone(),
+    };
 
-    // TODO: Output results
-    // match cli.format {
-    //     OutputFormat::Json => println!("{}", serde_json::to_string(&results)?),
-    //     OutputFormat::Pretty => println!("{}", serde_json::to_string_pretty(&results)?),
-    // }
+    info!("Selected gateway: {}", gateway.identity);
+    info!("  LP address: {}", gateway.lp_address);
+    info!("  Mix host: {}", gateway.mix_host);
+
+    // Test LP handshake
+    let topology = Arc::new(topology);
+    let mut client = SpeedtestClient::new(gateway, topology);
+
+    match client.test_lp_handshake().await {
+        Ok(duration) => info!("LP handshake successful in {:?}", duration),
+        Err(e) => {
+            error!("LP handshake failed: {}", e);
+            return Err(e);
+        }
+    }
+
+    // Test data path through mixnet
+    info!("Testing data path through mixnet...");
+    let test_payload = b"Hello from nym-lp-speedtest!";
+
+    // Test one-way send (no SURBs)
+    match client.send_data(test_payload).await {
+        Ok(()) => info!("One-way data send successful"),
+        Err(e) => error!("One-way data send failed: {}", e),
+    }
+
+    // Test send with SURBs (for bidirectional capability)
+    match client.send_data_with_surbs(test_payload, 3).await {
+        Ok(keys) => {
+            info!(
+                "Data with {} SURBs sent successfully (reply keys stored)",
+                keys.len()
+            );
+        }
+        Err(e) => error!("Data with SURBs send failed: {}", e),
+    }
 
     info!("Speedtest complete");
     Ok(())

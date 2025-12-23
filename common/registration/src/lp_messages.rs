@@ -37,11 +37,40 @@ pub enum RegistrationMode {
     /// dVPN mode - register as WireGuard peer (most common)
     Dvpn,
 
-    /// Mixnet mode - register for mixnet usage (future)
+    /// Mixnet mode - register for mixnet routing via IPR
+    ///
+    /// Client provides identity and encryption keys for nym address derivation.
+    /// Gateway stores client in ActiveClientsStore for SURB reply delivery.
     Mixnet {
-        /// Client identifier for mixnet mode
-        client_id: [u8; 32],
+        /// Client's ed25519 public key (identity)
+        ///
+        /// Used to derive DestinationAddressBytes for ActiveClientsStore lookup.
+        /// Must match the key used in LP handshake for authentication.
+        client_ed25519_pubkey: [u8; 32],
+
+        /// Client's x25519 public key (encryption)
+        ///
+        /// Used for SURB reply encryption. Combined with ed25519 identity
+        /// and gateway identity to form the full nym Recipient address.
+        client_x25519_pubkey: [u8; 32],
     },
+}
+
+/// Gateway data for mixnet mode registration
+///
+/// Contains the gateway's identity and sphinx key needed for the client
+/// to construct its full nym Recipient address.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LpGatewayData {
+    /// Gateway's ed25519 identity public key
+    ///
+    /// Forms part of the client's nym Recipient address.
+    pub gateway_identity: [u8; 32],
+
+    /// Gateway's x25519 sphinx public key
+    ///
+    /// Used by the client for Sphinx packet construction.
+    pub gateway_sphinx_key: [u8; 32],
 }
 
 /// Registration response from gateway
@@ -54,9 +83,15 @@ pub struct LpRegistrationResponse {
     /// Error message if registration failed
     pub error: Option<String>,
 
-    /// Gateway configuration data (same as returned by authenticator)
+    /// Gateway configuration data for dVPN mode (WireGuard)
     /// This matches what WireguardRegistrationResult expects
     pub gateway_data: Option<GatewayData>,
+
+    /// Gateway data for mixnet mode
+    ///
+    /// Contains gateway identity and sphinx key needed for nym address construction.
+    /// Only populated for Mixnet mode registrations.
+    pub lp_gateway_data: Option<LpGatewayData>,
 
     /// Allocated bandwidth in bytes
     pub allocated_bandwidth: i64,
@@ -96,12 +131,24 @@ impl LpRegistrationRequest {
 }
 
 impl LpRegistrationResponse {
-    /// Create a success response with GatewayData
+    /// Create a success response with GatewayData (for dVPN mode)
     pub fn success(allocated_bandwidth: i64, gateway_data: GatewayData) -> Self {
         Self {
             success: true,
             error: None,
             gateway_data: Some(gateway_data),
+            lp_gateway_data: None,
+            allocated_bandwidth,
+        }
+    }
+
+    /// Create a success response for mixnet mode with LpGatewayData
+    pub fn success_mixnet(allocated_bandwidth: i64, lp_gateway_data: LpGatewayData) -> Self {
+        Self {
+            success: true,
+            error: None,
+            gateway_data: None,
+            lp_gateway_data: Some(lp_gateway_data),
             allocated_bandwidth,
         }
     }
@@ -112,6 +159,7 @@ impl LpRegistrationResponse {
             success: false,
             error: Some(error),
             gateway_data: None,
+            lp_gateway_data: None,
             allocated_bandwidth: 0,
         }
     }
@@ -188,18 +236,47 @@ mod tests {
 
     #[test]
     fn test_registration_mode_serialize_mixnet() {
-        let client_id = [99u8; 32];
-        let mode = RegistrationMode::Mixnet { client_id };
+        let client_ed25519_pubkey = [99u8; 32];
+        let client_x25519_pubkey = [88u8; 32];
+        let mode = RegistrationMode::Mixnet {
+            client_ed25519_pubkey,
+            client_x25519_pubkey,
+        };
 
         let serialized = bincode::serialize(&mode).expect("Failed to serialize mode");
         let deserialized: RegistrationMode =
             bincode::deserialize(&serialized).expect("Failed to deserialize mode");
 
         match deserialized {
-            RegistrationMode::Mixnet { client_id: id } => {
-                assert_eq!(id, client_id);
+            RegistrationMode::Mixnet {
+                client_ed25519_pubkey: ed25519,
+                client_x25519_pubkey: x25519,
+            } => {
+                assert_eq!(ed25519, client_ed25519_pubkey);
+                assert_eq!(x25519, client_x25519_pubkey);
             }
             _ => panic!("Expected Mixnet mode"),
         }
+    }
+
+    #[test]
+    fn test_lp_registration_response_success_mixnet() {
+        let lp_gateway_data = LpGatewayData {
+            gateway_identity: [1u8; 32],
+            gateway_sphinx_key: [2u8; 32],
+        };
+        let allocated_bandwidth = 500_000_000;
+
+        let response = LpRegistrationResponse::success_mixnet(allocated_bandwidth, lp_gateway_data);
+
+        assert!(response.success);
+        assert!(response.error.is_none());
+        assert!(response.gateway_data.is_none());
+        assert!(response.lp_gateway_data.is_some());
+        assert_eq!(response.allocated_bandwidth, allocated_bandwidth);
+
+        let gw_data = response.lp_gateway_data.expect("LpGatewayData should be present");
+        assert_eq!(gw_data.gateway_identity, [1u8; 32]);
+        assert_eq!(gw_data.gateway_sphinx_key, [2u8; 32]);
     }
 }

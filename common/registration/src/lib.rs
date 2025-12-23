@@ -3,7 +3,9 @@
 
 mod lp_messages;
 
-pub use lp_messages::{LpRegistrationRequest, LpRegistrationResponse, RegistrationMode};
+pub use lp_messages::{
+    LpGatewayData, LpRegistrationRequest, LpRegistrationResponse, RegistrationMode,
+};
 
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 

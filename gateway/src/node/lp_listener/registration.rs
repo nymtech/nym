@@ -1,18 +1,22 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use super::messages::{LpRegistrationRequest, LpRegistrationResponse, RegistrationMode};
+use super::messages::{
+    LpGatewayData, LpRegistrationRequest, LpRegistrationResponse, RegistrationMode,
+};
 use super::LpHandlerState;
 use crate::error::GatewayError;
+use crate::node::client_handling::websocket::message_receiver::IsActive;
 use defguard_wireguard_rs::host::Peer;
 use defguard_wireguard_rs::key::Key;
-use futures::channel::oneshot;
+use futures::channel::{mpsc, oneshot};
 use nym_credential_verification::ecash::traits::EcashManager;
 use nym_credential_verification::{
     bandwidth_storage_manager::BandwidthStorageManager, BandwidthFlushingBehaviourConfig,
     ClientBandwidth, CredentialVerifier,
 };
 use nym_credentials_interface::CredentialSpendingData;
+use nym_crypto::asymmetric::ed25519;
 use nym_gateway_requests::models::CredentialSpendingRequest;
 use nym_gateway_storage::models::PersistedBandwidth;
 use nym_gateway_storage::traits::BandwidthGatewayStorage;
@@ -20,6 +24,7 @@ use nym_metrics::{add_histogram_obs, inc, inc_by};
 use nym_registration_common::GatewayData;
 use nym_wireguard::PeerControlRequest;
 use std::sync::Arc;
+use time::OffsetDateTime;
 use tracing::*;
 
 // Histogram buckets for LP registration duration tracking
@@ -285,22 +290,39 @@ pub async fn process_registration(
             LpRegistrationResponse::success(allocated_bandwidth, gateway_data)
         }
         RegistrationMode::Mixnet {
-            client_id: client_id_bytes,
+            client_ed25519_pubkey,
+            client_x25519_pubkey: _,
         } => {
             // Track mixnet registration attempts
             inc!("lp_registration_mixnet_attempts");
 
-            // Generate i64 client_id from the [u8; 32] in the request
+            // Parse client's ed25519 public key
+            let client_identity = match ed25519::PublicKey::from_bytes(&client_ed25519_pubkey) {
+                Ok(key) => key,
+                Err(e) => {
+                    warn!("LP Mixnet registration failed: invalid ed25519 key: {}", e);
+                    inc!("lp_registration_mixnet_failed");
+                    return LpRegistrationResponse::error(format!(
+                        "Invalid client ed25519 key: {}",
+                        e
+                    ));
+                }
+            };
+
+            // Derive destination address for ActiveClientsStore lookup
+            let client_address = client_identity.derive_destination_address();
+
+            // Generate client_id for credential verification (first 8 bytes of ed25519 key)
             #[allow(clippy::expect_used)]
             let client_id = i64::from_be_bytes(
-                client_id_bytes[0..8]
+                client_ed25519_pubkey[0..8]
                     .try_into()
-                    .expect("This cannot fail, since the id is 32 bytes long"),
+                    .expect("This cannot fail, since the key is 32 bytes long"),
             );
 
             info!(
-                "LP Mixnet registration for client_id {}, session {}",
-                client_id, session_id
+                "LP Mixnet registration for client {}, session {}",
+                client_identity, session_id
             );
 
             // Verify credential with CredentialVerifier
@@ -315,7 +337,7 @@ pub async fn process_registration(
                 Err(e) => {
                     warn!(
                         "LP Mixnet credential verification failed for client {}: {}",
-                        client_id, e
+                        client_identity, e
                     );
                     inc!("lp_registration_mixnet_failed");
                     return LpRegistrationResponse::error(format!(
@@ -325,19 +347,50 @@ pub async fn process_registration(
                 }
             };
 
-            // For mixnet mode, we don't have WireGuard data
-            // In the future, this would set up mixnet-specific state
+            // Create channels for client message delivery
+            let (mix_sender, _mix_receiver) = mpsc::unbounded();
+            let (is_active_request_sender, _is_active_request_receiver) =
+                mpsc::unbounded::<oneshot::Sender<IsActive>>();
+
+            // Insert client into ActiveClientsStore for SURB reply delivery
+            if !state.active_clients_store.insert_remote(
+                client_address,
+                mix_sender,
+                is_active_request_sender,
+                OffsetDateTime::now_utc(),
+            ) {
+                warn!(
+                    "LP Mixnet registration failed: client {} already registered",
+                    client_identity
+                );
+                inc!("lp_registration_mixnet_failed");
+                return LpRegistrationResponse::error(
+                    "Client already registered".to_string(),
+                );
+            }
+
+            // Get gateway identity and derive sphinx key
+            let gateway_identity = state.local_identity.public_key().to_bytes();
+            let gateway_sphinx_key = state
+                .local_identity
+                .public_key()
+                .to_x25519()
+                .expect("valid ed25519 key should convert to x25519")
+                .to_bytes();
+
             info!(
-                "LP Mixnet registration successful (client_id: {})",
-                client_id
+                "LP Mixnet registration successful (client: {})",
+                client_identity
             );
             inc!("lp_registration_mixnet_success");
-            LpRegistrationResponse {
-                success: true,
-                error: None,
-                gateway_data: None,
+
+            LpRegistrationResponse::success_mixnet(
                 allocated_bandwidth,
-            }
+                LpGatewayData {
+                    gateway_identity,
+                    gateway_sphinx_key,
+                },
+            )
         }
     };
 

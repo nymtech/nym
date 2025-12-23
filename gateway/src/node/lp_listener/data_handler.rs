@@ -24,6 +24,7 @@
 
 use super::LpHandlerState;
 use crate::error::GatewayError;
+use nym_lp::state_machine::{LpAction, LpInput};
 use nym_metrics::inc;
 use nym_sphinx::forwarding::packet::MixPacket;
 use std::net::SocketAddr;
@@ -109,11 +110,16 @@ impl LpDataHandler {
     /// Handle a single UDP packet
     ///
     /// # Packet Processing Steps
-    /// 1. Parse LP header to get receiver_idx
-    /// 2. Look up session by receiver_idx
-    /// 3. Decrypt LP layer using session's outer AEAD key
-    /// 4. Parse inner payload as Sphinx packet
-    /// 5. Forward Sphinx packet to mixnet
+    /// 1. Parse LP header to get receiver_idx (for routing)
+    /// 2. Look up session state machine by receiver_idx
+    /// 3. Process packet through state machine (handles decryption + replay protection)
+    /// 4. Forward decrypted Sphinx packet to mixnet
+    ///
+    /// # Security
+    /// The state machine's `process_input()` method handles replay protection by:
+    /// - Checking packet counter against receiving window
+    /// - Marking counter as used after successful decryption
+    /// This prevents replay attacks where captured packets are re-sent.
     async fn handle_packet(&self, packet: &[u8], src_addr: SocketAddr) -> Result<(), GatewayError> {
         inc!("lp_data_packets_received");
 
@@ -132,11 +138,11 @@ impl LpDataHandler {
             packet.len()
         );
 
-        // Step 2: Look up session by receiver_idx
-        let session_entry = self
+        // Step 2: Look up session state machine by receiver_idx (mutable for state updates)
+        let mut state_entry = self
             .state
             .session_states
-            .get(&receiver_idx)
+            .get_mut(&receiver_idx)
             .ok_or_else(|| {
                 inc!("lp_data_unknown_session");
                 GatewayError::LpProtocolError(format!(
@@ -146,10 +152,10 @@ impl LpDataHandler {
             })?;
 
         // Update last activity timestamp
-        session_entry.value().touch();
+        state_entry.value().touch();
 
-        // Step 3: Get outer AEAD key and decrypt LP layer
-        let outer_key = session_entry
+        // Step 3: Get outer AEAD key for packet parsing
+        let outer_key = state_entry
             .value()
             .state
             .session()
@@ -159,46 +165,63 @@ impl LpDataHandler {
                 GatewayError::LpProtocolError("Session has no outer AEAD key".to_string())
             })?;
 
-        // Parse full packet with decryption
+        // Parse full packet with outer AEAD decryption
         let lp_packet =
             nym_lp::codec::parse_lp_packet(packet, Some(&outer_key)).map_err(|e| {
                 inc!("lp_data_decrypt_errors");
                 GatewayError::LpProtocolError(format!("Failed to decrypt LP packet: {}", e))
             })?;
 
-        // Step 4: Extract Sphinx packet from decrypted payload
-        // The LP message should be EncryptedData containing the Sphinx packet bytes
-        let sphinx_bytes = match lp_packet.message() {
-            nym_lp::LpMessage::EncryptedData(_) => {
-                // The session needs to decrypt the inner Noise layer
-                let session = session_entry
-                    .value()
-                    .state
-                    .session()
-                    .map_err(|e| GatewayError::LpProtocolError(format!("Session error: {}", e)))?;
+        // Step 4: Process packet through state machine
+        // This handles:
+        // - Replay protection (counter check + mark)
+        // - Inner Noise decryption
+        // - Subsession handling if applicable
+        let state_machine = &mut state_entry.value_mut().state;
 
-                // decrypt_data expects &LpMessage, not raw bytes
-                session.decrypt_data(lp_packet.message()).map_err(|e| {
-                    inc!("lp_data_inner_decrypt_errors");
-                    GatewayError::LpProtocolError(format!("Failed to decrypt inner data: {}", e))
-                })?
-            }
-            other => {
-                return Err(GatewayError::LpProtocolError(format!(
-                    "Expected EncryptedData in LP data packet, got {}",
-                    other
-                )));
-            }
-        };
+        let action = state_machine
+            .process_input(LpInput::ReceivePacket(lp_packet))
+            .ok_or_else(|| {
+                GatewayError::LpProtocolError("State machine returned no action".to_string())
+            })?
+            .map_err(|e| {
+                inc!("lp_data_state_machine_errors");
+                GatewayError::LpProtocolError(format!("State machine error: {}", e))
+            })?;
 
         // Release session lock before forwarding
-        drop(session_entry);
+        drop(state_entry);
 
-        // Step 5: Parse and forward Sphinx packet to mixnet
-        self.forward_sphinx_packet(&sphinx_bytes).await?;
-
-        inc!("lp_data_packets_forwarded");
-        Ok(())
+        // Step 5: Handle the action from state machine
+        match action {
+            LpAction::DeliverData(data) => {
+                // Decrypted application data - forward as Sphinx packet
+                self.forward_sphinx_packet(&data).await?;
+                inc!("lp_data_packets_forwarded");
+                Ok(())
+            }
+            LpAction::SendPacket(_response_packet) => {
+                // UDP is connectionless - we can't send responses back easily
+                // For subsession rekeying, the client should use TCP control plane
+                debug!(
+                    "Ignoring SendPacket action on UDP (receiver_idx={}) - use TCP for rekeying",
+                    receiver_idx
+                );
+                inc!("lp_data_ignored_send_actions");
+                Ok(())
+            }
+            other => {
+                warn!(
+                    "Unexpected action on UDP data plane from {}: {:?}",
+                    src_addr, other
+                );
+                inc!("lp_data_unexpected_actions");
+                Err(GatewayError::LpProtocolError(format!(
+                    "Unexpected state machine action on UDP: {:?}",
+                    other
+                )))
+            }
+        }
     }
 
     /// Parse Sphinx packet bytes and forward to mixnet

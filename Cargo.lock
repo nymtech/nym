@@ -6593,6 +6593,7 @@ dependencies = [
  "nym-exit-policy",
  "nym-id",
  "nym-ip-packet-requests",
+ "nym-kcp",
  "nym-network-defaults",
  "nym-network-requester",
  "nym-sdk",

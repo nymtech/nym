@@ -56,4 +56,20 @@ impl KcpDriver {
             buffer: BytesMut::new(),
         }
     }
+
+    /// Fetch any complete messages that have been reassembled from received KCP packets.
+    ///
+    /// Returns a vector of complete messages. Messages are only returned once all
+    /// fragments have been received and reassembled.
+    pub fn fetch_incoming(&mut self) -> Vec<BytesMut> {
+        self.session.fetch_incoming()
+    }
+
+    /// Read reassembled data into a buffer.
+    ///
+    /// Returns the number of bytes read into the buffer.
+    /// If no complete message is available, returns 0.
+    pub fn recv(&mut self, buf: &mut [u8]) -> usize {
+        self.session.recv(buf)
+    }
 }

@@ -116,6 +116,9 @@ pub enum IpPacketRouterError {
 
     #[error("failed to deserialize protocol: {source}")]
     FailedToDeserializeProtocol { source: ProtocolError },
+
+    #[error("KCP protocol error: {0}")]
+    KcpError(String),
 }
 
 pub type Result<T> = std::result::Result<T, IpPacketRouterError>;

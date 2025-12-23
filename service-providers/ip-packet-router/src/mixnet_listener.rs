@@ -449,6 +449,8 @@ impl MixnetListener {
     ///
     /// LP clients send: KCP(IpPacketRequest)
     /// We unwrap the KCP layer, reassemble fragments, then process the inner IpPacketRequest.
+    /// Responses are wrapped in KCP and sent directly via the sender_tag reply mechanism,
+    /// rather than being returned for standard handling.
     async fn on_kcp_message(
         &mut self,
         reconstructed: ReconstructedMessage,
@@ -458,14 +460,20 @@ impl MixnetListener {
             .map(|d| d.as_millis() as u64)
             .unwrap_or(0);
 
-        // Process the KCP data through the session manager
-        // Note: LP clients don't use reply_surbs in the same way - they use SURBs
-        // embedded in the Sphinx packet. For now we pass empty surbs.
-        let (conv_id, _decoded_pkts, reassembled_messages) = self
+        // Process the KCP data through the session manager.
+        // AIDEV-NOTE: Reply mechanism for LP clients:
+        // 1. LP clients MUST send SURBs (in RepliableMessage) when connecting/sending data
+        // 2. The SDK's client-core layer (ReceivedMessagesBuffer + ReplyController) automatically
+        //    extracts SURBs from incoming RepliableMessages and stores them keyed by sender_tag
+        // 3. When we call InputMessage::new_reply(sender_tag, ...), the SDK looks up stored SURBs
+        // 4. The vec![] here is for KcpSessionManager's internal SURB storage (currently unused)
+        //    since the SDK handles SURB storage at a lower layer
+        // 5. If replies fail, check that LP client is sending SURBs in its messages
+        let (conv_id, decoded_pkts, reassembled_messages) = self
             .kcp_session_manager
             .process_incoming(
                 &reconstructed.message,
-                vec![], // SURBs handled separately via Sphinx layer
+                vec![], // SDK handles SURB extraction/storage automatically
                 reconstructed.sender_tag,
                 current_time_ms,
             )
@@ -477,12 +485,11 @@ impl MixnetListener {
         log::debug!(
             "KCP conv_id={}: received {} packets, {} complete messages",
             conv_id,
-            _decoded_pkts.len(),
+            decoded_pkts.len(),
             reassembled_messages.len()
         );
 
         // Process each reassembled message as an IpPacketRequest
-        let mut all_results = Vec::new();
         for message_data in reassembled_messages {
             // Create a synthetic ReconstructedMessage for the inner payload
             let inner_reconstructed = ReconstructedMessage {
@@ -491,7 +498,23 @@ impl MixnetListener {
             };
 
             match self.on_ipr_message(inner_reconstructed).await {
-                Ok(results) => all_results.extend(results),
+                Ok(results) => {
+                    // Handle responses by wrapping in KCP and sending directly
+                    for result in results {
+                        if let Ok(Some(response)) = result {
+                            if let Err(e) = self
+                                .handle_kcp_response(conv_id, response, current_time_ms)
+                                .await
+                            {
+                                log::warn!(
+                                    "Error sending KCP-wrapped response for conv_id={}: {}",
+                                    conv_id,
+                                    e
+                                );
+                            }
+                        }
+                    }
+                }
                 Err(e) => {
                     log::warn!("Error processing KCP inner message: {}", e);
                     // Continue processing other messages
@@ -499,7 +522,45 @@ impl MixnetListener {
             }
         }
 
-        Ok(all_results)
+        // Return empty - we handled responses directly above
+        Ok(vec![])
+    }
+
+    /// Wrap a response in KCP and send it via the mixnet reply mechanism.
+    ///
+    /// This is used for LP clients that communicate via KCP-wrapped messages.
+    async fn handle_kcp_response(
+        &mut self,
+        conv_id: u32,
+        response: VersionedResponse,
+        current_time_ms: u64,
+    ) -> Result<()> {
+        let reply_to = response.reply_to.clone();
+
+        // Serialize the response
+        let response_bytes = response.try_into_bytes()?;
+
+        // Wrap in KCP
+        let kcp_wrapped = self
+            .kcp_session_manager
+            .wrap_response(conv_id, &response_bytes, current_time_ms)?;
+
+        log::debug!(
+            "KCP conv_id={}: wrapped {} byte response into {} bytes",
+            conv_id,
+            response_bytes.len(),
+            kcp_wrapped.len()
+        );
+
+        // Send via mixnet using the sender_tag reply mechanism
+        let input_message =
+            crate::util::create_message::create_input_message(&reply_to, kcp_wrapped);
+
+        self.mixnet_client.send(input_message).await.map_err(|err| {
+            IpPacketRouterError::FailedToSendPacketToMixnet {
+                source: Box::new(err),
+            }
+        })
     }
 
     /// Handle regular IPR protocol messages (from websocket clients).

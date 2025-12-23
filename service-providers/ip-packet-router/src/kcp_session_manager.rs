@@ -250,6 +250,37 @@ impl KcpSessionManager {
             .unwrap_or(0)
     }
 
+    /// Get the sender_tag associated with a session.
+    ///
+    /// Returns None if the session doesn't exist or has no sender_tag.
+    pub fn get_sender_tag(&self, conv_id: u32) -> Option<AnonymousSenderTag> {
+        self.sessions.get(&conv_id)?.sender_tag
+    }
+
+    /// Fetch any pending outgoing KCP packets for a specific session.
+    ///
+    /// This is used to send immediate ACKs after receiving packets,
+    /// rather than waiting for the periodic tick.
+    pub fn fetch_outgoing_for_conv(
+        &mut self,
+        conv_id: u32,
+        current_time_ms: u64,
+    ) -> Option<Vec<u8>> {
+        let session = self.sessions.get_mut(&conv_id)?;
+        session.driver.update(current_time_ms);
+        let packets = session.driver.fetch_outgoing();
+
+        if packets.is_empty() {
+            return None;
+        }
+
+        let mut buf = BytesMut::new();
+        for pkt in packets {
+            pkt.encode(&mut buf);
+        }
+        Some(buf.to_vec())
+    }
+
     /// Periodic update for all sessions.
     ///
     /// This should be called periodically (e.g., every 10-100ms) to:

@@ -31,8 +31,8 @@ use std::{net::SocketAddr, time::Duration};
 use tokio::io::AsyncWriteExt;
 use tokio_util::codec::FramedRead;
 
-/// KCP tick interval for session updates (retransmissions, cleanup)
-const KCP_TICK_INTERVAL: Duration = Duration::from_millis(100);
+/// KCP tick interval for session updates (retransmissions, ACKs, cleanup)
+const KCP_TICK_INTERVAL: Duration = Duration::from_millis(10);
 
 #[cfg(not(target_os = "linux"))]
 type TunDevice = crate::non_linux_dummy::DummyDevice;
@@ -638,28 +638,48 @@ impl MixnetListener {
         }
     }
 
-    /// Handle KCP session tick - drives retransmissions and cleanup.
+    /// Handle KCP session tick - drives retransmissions, ACKs, and cleanup.
     ///
-    /// Returns any outgoing KCP packets that need to be sent (e.g., retransmissions).
-    /// Note: For LP clients, responses are sent via SURB, not directly here.
-    fn handle_kcp_tick(&mut self) {
+    /// Sends any pending outgoing KCP packets (ACKs, retransmissions) via the
+    /// sender_tag reply mechanism.
+    async fn handle_kcp_tick(&mut self) {
         let current_time_ms = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .map(|d| d.as_millis() as u64)
             .unwrap_or(0);
 
-        // Tick all KCP sessions - this handles retransmissions internally
+        // Tick all KCP sessions - generates ACKs, retransmissions, etc.
         let outgoing = self.kcp_session_manager.tick(current_time_ms);
 
-        // Log any pending outgoing data (would be sent via SURB in full implementation)
+        // Send any pending outgoing KCP protocol packets
         for (conv_id, data) in outgoing {
+            // Get the sender_tag for this session to reply via mixnet
+            let Some(sender_tag) = self.kcp_session_manager.get_sender_tag(conv_id) else {
+                log::warn!(
+                    "KCP tick: conv_id={} has {} bytes but no sender_tag, dropping",
+                    conv_id,
+                    data.len()
+                );
+                continue;
+            };
+
             log::trace!(
-                "KCP tick: conv_id={} has {} bytes pending for SURB reply",
+                "KCP tick: conv_id={} sending {} bytes",
                 conv_id,
                 data.len()
             );
-            // TODO: In full implementation, these would be sent via stored SURBs
-            // For now, we just log - the client will retransmit if needed
+
+            let reply_to = crate::clients::ConnectedClientId::AnonymousSenderTag(sender_tag);
+            let input_message =
+                crate::util::create_message::create_input_message(&reply_to, data);
+
+            if let Err(e) = self.mixnet_client.send(input_message).await {
+                log::warn!(
+                    "KCP tick: failed to send for conv_id={}: {}",
+                    conv_id,
+                    e
+                );
+            }
         }
     }
 
@@ -678,7 +698,7 @@ impl MixnetListener {
                     self.handle_disconnect_timer().await;
                 },
                 _ = kcp_tick_timer.tick() => {
-                    self.handle_kcp_tick();
+                    self.handle_kcp_tick().await;
                 },
                 msg = self.mixnet_client.next() => {
                     if let Some(msg) = msg {

@@ -1134,6 +1134,90 @@ impl LpRegistrationClient {
 
         Ok(response_data.to_vec())
     }
+
+    /// Wrap data in an LP packet for UDP transmission to the data plane (port 51264).
+    ///
+    /// This method encrypts the provided data using the established LP session
+    /// and returns serialized LP packet bytes ready to send over UDP.
+    ///
+    /// # Prerequisites
+    /// - Handshake must be completed (`perform_handshake()`)
+    ///
+    /// # Arguments
+    /// * `data` - Raw application data to wrap (e.g., Sphinx packet bytes)
+    ///
+    /// # Returns
+    /// * `Ok(Vec<u8>)` - Serialized LP packet bytes (outer header + encrypted payload)
+    ///
+    /// # Wire Format
+    /// The returned bytes are in LP wire format:
+    /// - Outer header (12B): receiver_idx(4) + counter(8) - always cleartext
+    /// - Encrypted payload: proto(1) + reserved(3) + msg_type(4) + content + tag(16)
+    ///
+    /// # Usage
+    /// After LP handshake, wrap Sphinx packets before sending to gateway's LP data port:
+    /// ```ignore
+    /// client.perform_handshake().await?;
+    /// let sphinx_bytes = build_sphinx_packet(...);
+    /// let lp_bytes = client.wrap_data(&sphinx_bytes)?;
+    /// socket.send_to(&lp_bytes, gateway_lp_data_address).await?; // UDP:51264
+    /// ```
+    pub fn wrap_data(&mut self, data: &[u8]) -> Result<Vec<u8>> {
+        let state_machine = self.state_machine.as_mut().ok_or_else(|| {
+            LpClientError::Transport("Cannot wrap data: handshake not completed".to_string())
+        })?;
+
+        // Process data through state machine to create LP packet
+        let action = state_machine
+            .process_input(LpInput::SendData(data.to_vec()))
+            .ok_or_else(|| LpClientError::Transport("State machine returned no action".to_string()))?
+            .map_err(|e| LpClientError::Transport(format!("Failed to encrypt data: {}", e)))?;
+
+        let packet = match action {
+            LpAction::SendPacket(packet) => packet,
+            other => {
+                return Err(LpClientError::Transport(format!(
+                    "Unexpected action when wrapping data: {:?}",
+                    other
+                )));
+            }
+        };
+
+        // Get outer AEAD key for encryption
+        let outer_key = state_machine
+            .session()
+            .ok()
+            .and_then(|s| s.outer_aead_key_for_sending());
+
+        // Serialize the packet with outer AEAD encryption
+        let mut buf = BytesMut::new();
+        serialize_lp_packet(&packet, &mut buf, outer_key.as_ref()).map_err(|e| {
+            LpClientError::Transport(format!("Failed to serialize LP packet: {}", e))
+        })?;
+
+        Ok(buf.to_vec())
+    }
+
+    /// Get the LP session ID (receiver_idx) for this client.
+    ///
+    /// This ID is included in the outer header of LP packets and is used by
+    /// the gateway to look up the session for decryption.
+    ///
+    /// # Returns
+    /// * `Ok(u32)` - The session ID
+    ///
+    /// # Errors
+    /// Returns an error if handshake has not been completed.
+    pub fn session_id(&self) -> Result<u32> {
+        let state_machine = self.state_machine.as_ref().ok_or_else(|| {
+            LpClientError::Transport("Cannot get session ID: handshake not completed".to_string())
+        })?;
+
+        state_machine
+            .session()
+            .map(|s| s.id())
+            .map_err(|e| LpClientError::Transport(format!("Failed to get session: {}", e)))
+    }
 }
 
 #[cfg(test)]

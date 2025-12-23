@@ -1299,6 +1299,9 @@ mod tests {
             lp_config.max_concurrent_forwards,
         ));
 
+        // Create mix forwarding channel (unused in tests but required by struct)
+        let (mix_sender, _mix_receiver) = nym_mixnet_client::forwarder::mix_forwarding_channels();
+
         LpHandlerState {
             lp_config,
             ecash_verifier: Arc::new(ecash_verifier)
@@ -1309,6 +1312,7 @@ mod tests {
             active_clients_store: ActiveClientsStore::new(),
             wg_peer_controller: None,
             wireguard_data: None,
+            outbound_mix_sender: mix_sender,
             handshake_states: Arc::new(dashmap::DashMap::new()),
             session_states: Arc::new(dashmap::DashMap::new()),
             forward_semaphore,

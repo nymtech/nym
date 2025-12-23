@@ -338,6 +338,7 @@ impl GatewayTasksBuilder {
             wg_peer_controller,
             wireguard_data: self.wireguard_data.as_ref().map(|wd| wd.inner.clone()),
             lp_config: self.config.lp.clone(),
+            outbound_mix_sender: self.mix_packet_sender.clone(),
             handshake_states: Arc::new(dashmap::DashMap::new()),
             session_states: Arc::new(dashmap::DashMap::new()),
             forward_semaphore: Arc::new(Semaphore::new(self.config.lp.max_concurrent_forwards)),

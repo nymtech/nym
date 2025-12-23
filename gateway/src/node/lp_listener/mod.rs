@@ -73,6 +73,7 @@ use dashmap::DashMap;
 use nym_crypto::asymmetric::ed25519;
 use nym_gateway_storage::GatewayStorage;
 use nym_lp::state_machine::LpStateMachine;
+use nym_mixnet_client::forwarder::MixForwardingSender;
 use nym_node_metrics::NymNodeMetrics;
 use nym_task::ShutdownTracker;
 use nym_wireguard::{PeerControlRequest, WireguardGatewayData};
@@ -82,6 +83,7 @@ use tokio::net::TcpListener;
 use tokio::sync::{mpsc, Semaphore};
 use tracing::*;
 
+mod data_handler;
 mod handler;
 mod messages;
 mod registration;
@@ -333,6 +335,12 @@ pub struct LpHandlerState {
     /// LP configuration (for timestamp validation, etc.)
     pub lp_config: LpConfig,
 
+    /// Channel for forwarding Sphinx packets into the mixnet
+    ///
+    /// Used by the LP data handler (UDP:51264) to forward decrypted Sphinx packets
+    /// from LP clients into the mixnet for routing.
+    pub outbound_mix_sender: MixForwardingSender,
+
     /// In-progress handshakes keyed by session_id
     ///
     /// Session ID is deterministically computed from both parties' X25519 keys immediately
@@ -430,7 +438,7 @@ impl LpListener {
         })?;
 
         info!(
-            "LP listener started on {} (data port reserved: {})",
+            "LP listener started on {} (data port: {})",
             self.control_address, self.data_port
         );
 
@@ -438,6 +446,9 @@ impl LpListener {
 
         // Spawn background task for state cleanup
         let _cleanup_handle = self.spawn_state_cleanup_task();
+
+        // Spawn UDP data handler for LP data plane (port 51264)
+        let _data_handler_handle = self.spawn_data_handler().await?;
 
         loop {
             tokio::select! {
@@ -507,6 +518,43 @@ impl LpListener {
             },
             &format!("LP::{}", remote_addr),
         );
+    }
+
+    /// Spawn the UDP data handler for LP data plane
+    ///
+    /// The data handler listens on UDP port 51264 and processes LP-wrapped Sphinx packets
+    /// from registered clients. It decrypts the LP layer and forwards the Sphinx packets
+    /// into the mixnet.
+    async fn spawn_data_handler(&self) -> Result<tokio::task::JoinHandle<()>, GatewayError> {
+        // Build data port address using same bind address as control port
+        let data_addr: SocketAddr = format!(
+            "{}:{}",
+            self.handler_state.lp_config.bind_address, self.data_port
+        )
+        .parse()
+        .map_err(|e| {
+            GatewayError::InternalError(format!("Invalid LP data bind address: {}", e))
+        })?;
+
+        // Create data handler
+        let data_handler = data_handler::LpDataHandler::new(
+            data_addr,
+            self.handler_state.clone(),
+            self.shutdown.clone_shutdown_token(),
+        )
+        .await?;
+
+        // Spawn data handler task
+        let handle = self.shutdown.try_spawn_named(
+            async move {
+                if let Err(e) = data_handler.run().await {
+                    error!("LP data handler error: {}", e);
+                }
+            },
+            "LP::DataHandler",
+        );
+
+        Ok(handle)
     }
 
     /// Spawn background task for cleaning up stale state entries

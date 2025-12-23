@@ -6,6 +6,7 @@ use crate::{
     config::Config,
     constants::DISCONNECT_TIMER_INTERVAL,
     error::{IpPacketRouterError, Result},
+    kcp_session_manager::KcpSessionManager,
     messages::{
         ClientVersion,
         request::{
@@ -29,6 +30,9 @@ use nym_task::ShutdownToken;
 use std::{net::SocketAddr, time::Duration};
 use tokio::io::AsyncWriteExt;
 use tokio_util::codec::FramedRead;
+
+/// KCP tick interval for session updates (retransmissions, cleanup)
+const KCP_TICK_INTERVAL: Duration = Duration::from_millis(100);
 
 #[cfg(not(target_os = "linux"))]
 type TunDevice = crate::non_linux_dummy::DummyDevice;
@@ -56,6 +60,28 @@ pub(crate) struct MixnetListener {
     // The map of connected clients that the mixnet listener keeps track of. It monitors
     // activity and disconnects clients that have been inactive for too long.
     pub(crate) connected_clients: ConnectedClients,
+
+    // KCP session manager for LP clients sending KCP-wrapped messages
+    pub(crate) kcp_session_manager: KcpSessionManager,
+}
+
+/// Check if a message payload appears to be KCP-wrapped.
+///
+/// KCP packets have a 25-byte header with the command byte at position 4.
+/// Valid KCP commands are: Push(81), Ack(82), Wask(83), Wins(84).
+///
+/// This is distinguishable from IPR protocol messages which have:
+/// - Version byte at position 0: 6, 7, or 8
+/// - ServiceProviderType at position 1: 0, 1, or 2
+fn is_kcp_message(data: &[u8]) -> bool {
+    // KCP header is 25 bytes minimum
+    if data.len() < 25 {
+        return false;
+    }
+    // KCP command byte is at position 4
+    let cmd = data[4];
+    // Valid KCP commands: Push=81, Ack=82, Wask=83, Wins=84
+    (81..=84).contains(&cmd)
 }
 
 // #[cfg(target_os = "linux")]
@@ -393,6 +419,77 @@ impl MixnetListener {
                 .unwrap_or("missing".to_owned())
         );
 
+        // Check if this is a KCP-wrapped message from an LP client
+        if is_kcp_message(&reconstructed.message) {
+            return self.on_kcp_message(reconstructed).await;
+        }
+
+        // Regular IPR protocol message (websocket clients)
+        self.on_ipr_message(reconstructed).await
+    }
+
+    /// Handle KCP-wrapped messages from LP clients.
+    ///
+    /// LP clients send: KCP(IpPacketRequest)
+    /// We unwrap the KCP layer, reassemble fragments, then process the inner IpPacketRequest.
+    async fn on_kcp_message(
+        &mut self,
+        reconstructed: ReconstructedMessage,
+    ) -> Result<Vec<PacketHandleResult>> {
+        let current_time_ms = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis() as u64)
+            .unwrap_or(0);
+
+        // Process the KCP data through the session manager
+        // Note: LP clients don't use reply_surbs in the same way - they use SURBs
+        // embedded in the Sphinx packet. For now we pass empty surbs.
+        let (conv_id, _decoded_pkts, reassembled_messages) = self
+            .kcp_session_manager
+            .process_incoming(
+                &reconstructed.message,
+                vec![], // SURBs handled separately via Sphinx layer
+                reconstructed.sender_tag,
+                current_time_ms,
+            )
+            .map_err(|e| {
+                log::warn!("KCP processing error: {}", e);
+                e
+            })?;
+
+        log::debug!(
+            "KCP conv_id={}: received {} packets, {} complete messages",
+            conv_id,
+            _decoded_pkts.len(),
+            reassembled_messages.len()
+        );
+
+        // Process each reassembled message as an IpPacketRequest
+        let mut all_results = Vec::new();
+        for message_data in reassembled_messages {
+            // Create a synthetic ReconstructedMessage for the inner payload
+            let inner_reconstructed = ReconstructedMessage {
+                message: message_data,
+                sender_tag: reconstructed.sender_tag,
+            };
+
+            match self.on_ipr_message(inner_reconstructed).await {
+                Ok(results) => all_results.extend(results),
+                Err(e) => {
+                    log::warn!("Error processing KCP inner message: {}", e);
+                    // Continue processing other messages
+                }
+            }
+        }
+
+        Ok(all_results)
+    }
+
+    /// Handle regular IPR protocol messages (from websocket clients).
+    async fn on_ipr_message(
+        &mut self,
+        reconstructed: ReconstructedMessage,
+    ) -> Result<Vec<PacketHandleResult>> {
         // First deserialize the request
         let request = match IpPacketRequest::try_from(&reconstructed) {
             Err(IpPacketRouterError::InvalidPacketVersion(version)) => {
@@ -463,8 +560,34 @@ impl MixnetListener {
         }
     }
 
+    /// Handle KCP session tick - drives retransmissions and cleanup.
+    ///
+    /// Returns any outgoing KCP packets that need to be sent (e.g., retransmissions).
+    /// Note: For LP clients, responses are sent via SURB, not directly here.
+    fn handle_kcp_tick(&mut self) {
+        let current_time_ms = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis() as u64)
+            .unwrap_or(0);
+
+        // Tick all KCP sessions - this handles retransmissions internally
+        let outgoing = self.kcp_session_manager.tick(current_time_ms);
+
+        // Log any pending outgoing data (would be sent via SURB in full implementation)
+        for (conv_id, data) in outgoing {
+            log::trace!(
+                "KCP tick: conv_id={} has {} bytes pending for SURB reply",
+                conv_id,
+                data.len()
+            );
+            // TODO: In full implementation, these would be sent via stored SURBs
+            // For now, we just log - the client will retransmit if needed
+        }
+    }
+
     pub(crate) async fn run(mut self) -> Result<()> {
         let mut disconnect_timer = tokio::time::interval(DISCONNECT_TIMER_INTERVAL);
+        let mut kcp_tick_timer = tokio::time::interval(KCP_TICK_INTERVAL);
 
         loop {
             tokio::select! {
@@ -475,6 +598,9 @@ impl MixnetListener {
                 },
                 _ = disconnect_timer.tick() => {
                     self.handle_disconnect_timer().await;
+                },
+                _ = kcp_tick_timer.tick() => {
+                    self.handle_kcp_tick();
                 },
                 msg = self.mixnet_client.next() => {
                     if let Some(msg) = msg {

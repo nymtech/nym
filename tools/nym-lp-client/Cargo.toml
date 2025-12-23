@@ -11,6 +11,7 @@ path = "src/main.rs"
 
 [dependencies]
 anyhow = "1"
+bytes = { workspace = true }
 clap = { version = "4", features = ["derive"] }
 rand = { workspace = true }
 rand_chacha = { workspace = true }
@@ -38,3 +39,4 @@ nym-sphinx-types = { path = "../../common/nymsphinx/types" }
 nym-topology = { path = "../../common/topology" }
 nym-validator-client = { path = "../../common/client-libs/validator-client" }
 nym-registration-client = { path = "../../nym-registration-client" }
+nym-ip-packet-requests = { path = "../../common/ip-packet-requests" }

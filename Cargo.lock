@@ -6707,10 +6707,12 @@ name = "nym-lp-client"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bytes",
  "clap",
  "nym-api-requests",
  "nym-crypto",
  "nym-http-api-client",
+ "nym-ip-packet-requests",
  "nym-kcp",
  "nym-lp",
  "nym-registration-client",

@@ -4,6 +4,7 @@
 //! Supports bidirectional encrypted data channel testing.
 
 use anyhow::{Context, Result, bail};
+use bytes::Bytes;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_kcp::driver::KcpDriver;
 use nym_kcp::session::KcpSession;
@@ -28,6 +29,7 @@ use tokio_util::codec::Encoder;
 use tracing::{debug, info, trace};
 
 use crate::topology::{GatewayInfo, SpeedtestTopology};
+use nym_ip_packet_requests::v8::request::IpPacketRequest;
 
 /// Conv ID for KCP - hash of source and destination addresses
 fn compute_conv_id(local: SocketAddr, remote: SocketAddr) -> u32 {
@@ -161,8 +163,11 @@ impl SpeedtestClient {
         let driver = self.kcp_driver.as_mut().context("KCP not initialized")?;
         let socket = self.socket.as_ref().context("socket not initialized")?;
 
-        // Step 1: Feed payload to KCP for reliable delivery
-        driver.send(payload);
+        // Step 1: Wrap payload in IpPacketRequest (DataRequest) and feed to KCP
+        let data_request = IpPacketRequest::new_data_request(Bytes::copy_from_slice(payload));
+        let data_bytes = data_request.to_bytes()
+            .context("failed to serialize IpPacketRequest")?;
+        driver.send(&data_bytes);
         driver.update(10); // Process KCP state machine to produce outgoing packets
 
         let outgoing = driver.fetch_outgoing();

@@ -18,6 +18,9 @@ use url::Url;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
+/// LP default data port (for Sphinx packets wrapped in LP)
+const LP_DATA_PORT: u16 = 51264;
+
 /// Gateway information for LP connection
 #[derive(Debug, Clone)]
 pub struct GatewayInfo {
@@ -27,6 +30,8 @@ pub struct GatewayInfo {
     pub mix_host: SocketAddr,
     /// LP control address (IP:41264)
     pub lp_address: SocketAddr,
+    /// LP data address (IP:51264) for Sphinx packets wrapped in LP
+    pub lp_data_address: SocketAddr,
 }
 
 /// Topology for routing Sphinx packets
@@ -194,6 +199,7 @@ fn gateway_info_from_skimmed(node: &SkimmedNode) -> Result<GatewayInfo> {
         sphinx_key: node.x25519_sphinx_pubkey,
         mix_host: SocketAddr::new(*first_ip, node.mix_port),
         lp_address: SocketAddr::new(*first_ip, LP_CONTROL_PORT),
+        lp_data_address: SocketAddr::new(*first_ip, LP_DATA_PORT),
     })
 }
 

@@ -8,8 +8,8 @@ use crate::nym_node::Role;
 use crate::reward_params::{ActiveSetUpdate, IntervalRewardParams, IntervalRewardingParamsUpdate};
 use crate::rewarding::RewardDistribution;
 use crate::{BlockHeight, ContractStateParamsUpdate, EpochId, IdentityKeyRef, Interval, NodeId};
-pub use contracts_common::events::*;
 use cosmwasm_std::{Addr, Coin, Decimal, Event, attr};
+pub use nym_contracts_common::events::*;
 use std::fmt::Display;
 
 pub const EVENT_VERSION_PREFIX: &str = "v2_";

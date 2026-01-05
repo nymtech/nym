@@ -18,9 +18,9 @@ use crate::{
     VersionScoreFormulaParams,
 };
 use crate::{OperatingCostRange, ProfitMarginRange};
-use contracts_common::{IdentityKey, Percent, signing::MessageSignature};
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Coin, Decimal};
+use nym_contracts_common::{IdentityKey, Percent, signing::MessageSignature};
 use std::time::Duration;
 
 #[cfg(feature = "schema")]
@@ -55,9 +55,9 @@ use crate::{
     types::{ContractState, ContractStateParams},
 };
 #[cfg(feature = "schema")]
-use contracts_common::{ContractBuildInformation, signing::Nonce};
-#[cfg(feature = "schema")]
 use cosmwasm_schema::QueryResponses;
+#[cfg(feature = "schema")]
+use nym_contracts_common::{ContractBuildInformation, signing::Nonce};
 
 #[cw_serde]
 pub struct InstantiateMsg {

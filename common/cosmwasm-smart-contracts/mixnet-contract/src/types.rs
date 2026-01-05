@@ -5,10 +5,10 @@ use crate::EpochId;
 use crate::config_score::{ConfigScoreParams, OutdatedVersionWeights, VersionScoreFormulaParams};
 use crate::nym_node::Role;
 use crate::reward_params::RewardedSetParams;
-use contracts_common::Percent;
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::Coin;
 use cosmwasm_std::{Addr, Uint128};
+use nym_contracts_common::Percent;
 use std::fmt::{Display, Formatter};
 
 // type aliases for better reasoning about available data

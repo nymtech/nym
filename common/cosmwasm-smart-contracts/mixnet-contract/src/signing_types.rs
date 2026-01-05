@@ -3,11 +3,11 @@
 
 use crate::nym_node::NymNode;
 use crate::{Gateway, MixNode, NodeCostParams};
-use contracts_common::signing::{
+use cosmwasm_std::{Addr, Coin};
+use nym_contracts_common::signing::{
     ContractMessageContent, LegacyContractMessageContent, MessageType, Nonce, SignableMessage,
     SigningPurpose,
 };
-use cosmwasm_std::{Addr, Coin};
 use serde::Serialize;
 
 pub type SignableMixNodeBondingMsg = SignableMessage<ContractMessageContent<MixnodeBondingPayload>>;

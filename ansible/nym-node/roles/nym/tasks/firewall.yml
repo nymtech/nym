@@ -1,3 +1,4 @@
+---
 - name: Ensure UFW is installed
   apt:
     name: ufw

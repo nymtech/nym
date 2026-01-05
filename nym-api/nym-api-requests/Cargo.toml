@@ -37,8 +37,8 @@ nym-compact-ecash = { workspace = true  }
 nym-contracts-common = { workspace = true , features = ["naive_float"] }
 nym-mixnet-contract-common = { workspace = true , features = ["utoipa"] }
 nym-coconut-dkg-common = { workspace = true }
-nym-node-requests = { path = "../../nym-node/nym-node-requests", default-features = false, features = ["openapi"] }
-nym-noise-keys = { path = "../../common/nymnoise/keys" }
+nym-node-requests = { workspace = true, default-features = false, features = ["openapi"] }
+nym-noise-keys = { workspace = true }
 nym-network-defaults = { workspace = true }
 nym-ticketbooks-merkle = { workspace = true }
 nym-ecash-signer-check-types = { workspace = true }
@@ -46,7 +46,7 @@ nym-ecash-signer-check-types = { workspace = true }
 
 [dev-dependencies]
 rand_chacha = { workspace = true }
-nym-crypto = { path = "../../common/crypto", features = ["rand"] }
+nym-crypto = { workspace = true, features = ["rand"] }
 
 
 [features]

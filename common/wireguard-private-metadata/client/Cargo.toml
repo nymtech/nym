@@ -11,8 +11,8 @@ license.workspace = true
 [dependencies]
 async-trait = { workspace = true }
 tracing = { workspace = true }
-nym-http-api-client = { path = "../../http-api-client" }
-nym-wireguard-private-metadata-shared = { path = "../shared" }
+nym-http-api-client = { workspace = true }
+nym-wireguard-private-metadata-shared = { workspace = true }
 
 [lints]
 workspace = true

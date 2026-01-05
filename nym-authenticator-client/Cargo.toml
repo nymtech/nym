@@ -26,7 +26,7 @@ nym-bandwidth-controller = { workspace = true }
 nym-credentials-interface = { workspace = true }
 nym-crypto = { workspace = true }
 nym-registration-common = { workspace = true }
-nym-sdk = { path = "../sdk/rust/nym-sdk" }
-nym-service-provider-requests-common = { path = "../common/service-provider-requests-common" }
+nym-sdk = { workspace = true }
+nym-service-provider-requests-common = { workspace = true }
 nym-validator-client = { workspace = true }
 nym-wireguard-types = { workspace = true }

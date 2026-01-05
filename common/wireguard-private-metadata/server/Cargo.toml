@@ -32,8 +32,8 @@ nym-http-api-common = { workspace = true, features = [
     "utoipa",
     "output",
 ] }
-nym-wireguard = { path = "../../wireguard" }
-nym-wireguard-private-metadata-shared = { path = "../shared" }
+nym-wireguard = { workspace = true }
+nym-wireguard-private-metadata-shared = { workspace = true }
 
 [dev-dependencies]
 async-trait = { workspace = true }

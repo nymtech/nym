@@ -31,7 +31,7 @@ nym-crypto = { workspace = true }
 nym-ip-packet-client = { workspace = true }
 nym-lp = { path = "../common/nym-lp" }
 nym-lp-transport = { path = "../common/nym-lp-transport" }
-nym-registration-common = { path = "../common/registration" }
-nym-sdk = { path = "../sdk/rust/nym-sdk" }
+nym-registration-common = { workspace = true }
+nym-sdk = { workspace = true }
 nym-validator-client = { workspace = true }
 nym-wireguard-types = { path = "../common/wireguard-types" }

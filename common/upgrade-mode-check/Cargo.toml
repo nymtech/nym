@@ -20,14 +20,14 @@ thiserror = { workspace = true }
 tracing = { workspace = true }
 utoipa = { workspace = true, optional = true }
 
-nym-http-api-client = { path = "../http-api-client", default-features = false }
-nym-crypto = { path = "../crypto", features = ["asymmetric", "serde", "naive_jwt"] }
+nym-http-api-client = { workspace = true }
+nym-crypto = { workspace = true, features = ["asymmetric", "serde", "naive_jwt"] }
 
 [dev-dependencies]
 anyhow = { workspace = true }
 time = { workspace = true, features = ["macros"] }
 nym-test-utils = { path = "../test-utils" }
-nym-crypto = { path = "../crypto", features = ["rand"] }
+nym-crypto = { workspace = true, features = ["rand"] }
 
 
 [features]

@@ -19,8 +19,8 @@ time = { workspace = true }
 tracing = { workspace = true }
 utoipa = { workspace = true }
 
-nym-coconut-dkg-common = { path = "../cosmwasm-smart-contracts/coconut-dkg" }
-nym-crypto = { path = "../crypto", features = ["asymmetric"] }
+nym-coconut-dkg-common = { workspace = true }
+nym-crypto = { workspace = true, features = ["asymmetric"] }
 
 
 [lints]

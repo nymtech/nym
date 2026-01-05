@@ -16,7 +16,7 @@ thiserror = { workspace = true }
 toml = { workspace = true, features = ["display"] }
 url = { workspace = true }
 
-nym-network-defaults = { path = "../network-defaults", features = ["utoipa"] }
+nym-network-defaults = { workspace = true, features = ["utoipa"] }
 
 [features]
 default = ["dirs"]

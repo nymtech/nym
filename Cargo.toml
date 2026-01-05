@@ -405,7 +405,7 @@ nym-gateway-requests = { version = "1.20.1", path = "common/gateway-requests" }
 nym-group-contract-common = { version = "1.20.1", path = "common/cosmwasm-smart-contracts/group-contract" }
 nym-http-api-client = { version = "1.20.1", path = "common/http-api-client" }
 nym-http-api-client-macro = { version = "1.20.1", path = "common/http-api-client-macro" }
-nym-http-api-common = { version = "1.20.1", path = "common/http-api-common" }
+nym-http-api-common = { version = "1.20.1", path = "common/http-api-common", default-features = false }
 nym-id = { version = "1.20.1", path = "common/nym-id" }
 nym-metrics = { version = "1.20.1", path = "common/nym-metrics" }
 nym-mixnet-client = { version = "1.20.1", path = "common/client-libs/mixnet-client" }

@@ -13,7 +13,7 @@ license.workspace = true
 [dependencies]
 time.workspace = true
 
-nym-compact-ecash = { path = "../nym_offline_compact_ecash", optional = true }
+nym-compact-ecash = { workspace = true, optional = true }
 
 [features]
 expiration = ["nym-compact-ecash"]

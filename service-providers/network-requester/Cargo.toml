@@ -8,6 +8,7 @@ version = "1.1.69"
 authors.workspace = true
 edition.workspace = true
 rust-version = "1.85"
+publish = false
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

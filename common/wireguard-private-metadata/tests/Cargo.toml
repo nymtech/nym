@@ -21,8 +21,8 @@ nym-http-api-common = { workspace = true, features = [
     "utoipa",
     "output",
 ] }
-nym-upgrade-mode-check = { path = "../../upgrade-mode-check" }
-nym-wireguard = { path = "../../wireguard" }
+nym-upgrade-mode-check = { workspace = true }
+nym-wireguard = { workspace = true }
 time = { workspace = true, features = ["macros"] }
 tokio = { workspace = true, features = ["rt-multi-thread", "net", "io-util"] }
 tower = { workspace = true }
@@ -36,8 +36,8 @@ tower-http = { workspace = true, features = [
 ] }
 utoipa = { workspace = true, features = ["axum_extras", "time"] }
 
-nym-wireguard-private-metadata-client = { path = "../client" }
-nym-wireguard-private-metadata-shared = { path = "../shared", features = [
+nym-wireguard-private-metadata-client = { workspace = true }
+nym-wireguard-private-metadata-shared = { workspace = true, features = [
     "testing",
 ] }
-nym-wireguard-private-metadata-server = { path = "../server" }
+nym-wireguard-private-metadata-server = { workspace = true }

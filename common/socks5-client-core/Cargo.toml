@@ -28,11 +28,11 @@ nym-contracts-common = { workspace = true }
 nym-credential-storage = { workspace = true }
 nym-mixnet-contract-common = { workspace = true }
 nym-network-defaults = { workspace = true }
-nym-service-providers-common = { path = "../../service-providers/common" }
-nym-socks5-proxy-helpers = { path = "../socks5/proxy-helpers" }
-nym-socks5-requests = { path = "../socks5/requests" }
-nym-sphinx = { path = "../nymsphinx" }
-nym-task = { path = "../task" }
+nym-service-providers-common = { workspace = true }
+nym-socks5-proxy-helpers = { workspace = true }
+nym-socks5-requests = { workspace = true }
+nym-sphinx = { workspace = true }
+nym-task = { workspace = true }
 nym-validator-client = { workspace = true }
 
 [features]

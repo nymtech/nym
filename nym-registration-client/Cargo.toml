@@ -25,6 +25,6 @@ nym-bandwidth-controller = { workspace = true }
 nym-credential-storage = { workspace = true }
 nym-credentials-interface = { workspace = true }
 nym-ip-packet-client = { workspace = true }
-nym-registration-common = { path = "../common/registration" }
-nym-sdk = { path = "../sdk/rust/nym-sdk" }
+nym-registration-common = { workspace = true }
+nym-sdk = { workspace = true }
 nym-validator-client = { workspace = true }

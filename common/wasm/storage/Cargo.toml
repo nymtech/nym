@@ -17,5 +17,5 @@ serde-wasm-bindgen = { workspace = true }
 indexed_db_futures = { workspace = true }
 thiserror = { workspace = true }
 
-nym-store-cipher = { path = "../../store-cipher", features = ["json"] }
+nym-store-cipher = { workspace = true, features = ["json"] }
 nym-wasm-utils = { workspace = true, default-features = false }

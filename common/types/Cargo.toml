@@ -30,10 +30,10 @@ cosmwasm-std = { workspace = true }
 cosmrs = { workspace = true }
 
 nym-validator-client = { workspace = true }
-nym-mixnet-contract-common = { path = "../../common/cosmwasm-smart-contracts/mixnet-contract" }
-nym-vesting-contract-common = { path = "../../common/cosmwasm-smart-contracts/vesting-contract" }
+nym-mixnet-contract-common = { workspace = true }
+nym-vesting-contract-common = { workspace = true }
 nym-config = { workspace = true }
-nym-crypto = { path = "../../common/crypto", features = ["asymmetric"] }
+nym-crypto = { workspace = true, features = ["asymmetric"] }
 
 [dev-dependencies]
 tempfile = { workspace = true }

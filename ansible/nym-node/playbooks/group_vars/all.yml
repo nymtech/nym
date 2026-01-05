@@ -2,7 +2,7 @@
 ansible_ssh_private_key_file: ~/.ssh/<SSH_KEY>
 
 # nym_version: "v2025.21-mozzarella"
-# 
+#
 # NOTE:
 # if you want to pin Nym to a specific version instead of using the
 # latest release from GitHub in /tasks/main.yml then
@@ -13,17 +13,17 @@ tunnel_manager_url: "https://github.com/nymtech/nym/raw/refs/heads/develop/scrip
 quic_bridge_deployment_url: "https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/quic_bridge_deployment.sh"
 
 # NOTE: These values will be used globally unless overwritten per node in inventory/all
-ansible_user: root                       # used for ssh, like `ssh root@nym-exit.ch-1.mynodes.net`
-email: "<EMAIL>"                         # used in certbot, description.toml and landing page
-website: "<WEBSITE>"                     # it is used in the description.toml
-description: "<NODE_PUBLIC_DESCRIPTION>" # or define per node in inventory/all
+ansible_user: root                         # used for ssh, like `ssh root@nym-exit.ch-1.mynodes.net`
+email: "<EMAIL>"                           # used in certbot, description.toml and landing page
+website: "<WEBSITE>"                       # it is used in the description.toml
+description: "<NODE_PUBLIC_DESCRIPTION>"   # or define per node in inventory/all
 
 # NOTE: Set these vars if you want them globally for all nodes
 # Per node changes in inventory/all will overwrite these global ones:
-hostname: ""            # this is a fallback, keep it and setup hostname per node in inventory/all
-# moniker: "<MONIKER>"                    # if not setup here not in inventory/all it get's derived from the hostname
-# mode: <MODE>                            # entry-gateway/exit-gateway/mixnode 
-# wireguard_enabled: <WIREGUARD_ENABLED>  # true/false
+hostname: ""                                # this is a fallback, keep it and setup hostname per node in inventory/all
+# moniker: "<MONIKER>"                      # if not setup here not in inventory/all it get's derived from the hostname
+# mode: <MODE>                              # entry-gateway/exit-gateway/mixnode
+# wireguard_enabled: <WIREGUARD_ENABLED>    # true/false
 
 # NOTE: Possible vars to incule on landing page, etc.
 # operator_name: "<OPERATOR_NAME>"
@@ -41,4 +41,4 @@ packages:
   - ca-certificates
   - jq
   - wget
-  - ufw
+  - ufinteroperabilityw

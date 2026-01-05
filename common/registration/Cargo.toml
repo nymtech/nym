@@ -14,7 +14,7 @@ workspace = true
 [dependencies]
 tokio-util.workspace = true
 
-nym-authenticator-requests = { path = "../authenticator-requests" }
-nym-crypto = { path = "../crypto" }
-nym-ip-packet-requests = { path = "../ip-packet-requests" }
-nym-sphinx = { path = "../nymsphinx" }
+nym-authenticator-requests = { workspace = true }
+nym-crypto = { workspace = true }
+nym-ip-packet-requests = { workspace = true }
+nym-sphinx = { workspace = true }

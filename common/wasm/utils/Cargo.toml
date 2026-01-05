@@ -1,5 +1,5 @@
 [package]
-name = "wasm-utils"
+name = "nym-wasm-utils"
 version.workspace = true
 authors = ["Jedrzej Stuczynski <andrew@nymtech.net>"]
 edition = "2021"

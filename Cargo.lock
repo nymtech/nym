@@ -2129,8 +2129,8 @@ dependencies = [
  "base64 0.22.1",
  "libc",
  "log",
- "netlink-packet-core 0.7.0",
- "netlink-packet-generic 0.3.3",
+ "netlink-packet-core",
+ "netlink-packet-generic",
  "netlink-packet-route",
  "netlink-packet-utils",
  "netlink-packet-wireguard",
@@ -2656,12 +2656,12 @@ dependencies = [
  "bip39",
  "console_error_panic_hook",
  "js-sys",
+ "nym-wasm-storage",
+ "nym-wasm-utils",
  "serde-wasm-bindgen 0.6.5",
  "thiserror 2.0.17",
  "wasm-bindgen",
  "wasm-bindgen-futures",
- "wasm-storage",
- "wasm-utils",
  "zeroize",
 ]
 
@@ -4591,6 +4591,8 @@ dependencies = [
  "nym-service-providers-common",
  "nym-socks5-requests",
  "nym-validator-client",
+ "nym-wasm-client-core",
+ "nym-wasm-utils",
  "rand 0.8.5",
  "serde",
  "serde-wasm-bindgen 0.6.5",
@@ -4600,8 +4602,6 @@ dependencies = [
  "url",
  "wasm-bindgen",
  "wasm-bindgen-futures",
- "wasm-client-core",
- "wasm-utils",
 ]
 
 [[package]]
@@ -4674,15 +4674,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "netlink-packet-core"
-version = "0.8.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3463cbb78394cb0141e2c926b93fc2197e473394b761986eca3b9da2c63ae0f4"
-dependencies = [
- "paste",
-]
-
-[[package]]
 name = "netlink-packet-generic"
 version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4690,17 +4681,8 @@ checksum = "1cd7eb8ad331c84c6b8cb7f685b448133e5ad82e1ffd5acafac374af4a5a308b"
 dependencies = [
  "anyhow",
  "byteorder",
- "netlink-packet-core 0.7.0",
+ "netlink-packet-core",
  "netlink-packet-utils",
-]
-
-[[package]]
-name = "netlink-packet-generic"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2f891b2e0054cac5a684a06628f59568f841c93da4e551239da6e518f539e775"
-dependencies = [
- "netlink-packet-core 0.8.1",
 ]
 
 [[package]]
@@ -4714,7 +4696,7 @@ dependencies = [
  "byteorder",
  "libc",
  "log",
- "netlink-packet-core 0.7.0",
+ "netlink-packet-core",
  "netlink-packet-utils",
 ]
 
@@ -4732,14 +4714,16 @@ dependencies = [
 
 [[package]]
 name = "netlink-packet-wireguard"
-version = "0.2.4"
+version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "598962d9067d3153a00106da10e7b8276cea68f396f4a22f5b4a079270d92e29"
+checksum = "60b25b050ff1f6a1e23c6777b72db22790fe5b6b5ccfd3858672587a79876c8f"
 dependencies = [
+ "anyhow",
+ "byteorder",
  "libc",
  "log",
- "netlink-packet-core 0.8.1",
- "netlink-packet-generic 0.4.0",
+ "netlink-packet-generic",
+ "netlink-packet-utils",
 ]
 
 [[package]]
@@ -5080,7 +5064,7 @@ dependencies = [
 
 [[package]]
 name = "nym-authenticator-client"
-version = "0.1.0"
+version = "1.20.1"
 dependencies = [
  "bincode",
  "futures",
@@ -5328,6 +5312,7 @@ dependencies = [
  "nym-task",
  "nym-topology",
  "nym-validator-client",
+ "nym-wasm-utils",
  "rand 0.8.5",
  "rand_chacha 0.3.1",
  "serde",
@@ -5346,7 +5331,6 @@ dependencies = [
  "url",
  "wasm-bindgen",
  "wasm-bindgen-futures",
- "wasm-utils",
  "wasmtimer",
  "zeroize",
 ]
@@ -5415,6 +5399,8 @@ dependencies = [
  "nym-gateway-requests",
  "nym-node-tester-utils",
  "nym-node-tester-wasm",
+ "nym-wasm-client-core",
+ "nym-wasm-utils",
  "once_cell",
  "rand 0.8.5",
  "serde",
@@ -5426,8 +5412,6 @@ dependencies = [
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "wasm-bindgen-test",
- "wasm-client-core",
- "wasm-utils",
  "web-sys",
 ]
 
@@ -6029,6 +6013,7 @@ dependencies = [
  "nym-statistics-common",
  "nym-task",
  "nym-validator-client",
+ "nym-wasm-utils",
  "rand 0.8.5",
  "serde",
  "si-scale",
@@ -6042,7 +6027,6 @@ dependencies = [
  "url",
  "wasm-bindgen",
  "wasm-bindgen-futures",
- "wasm-utils",
  "wasmtimer",
  "zeroize",
 ]
@@ -6798,13 +6782,13 @@ dependencies = [
  "nym-sphinx-params",
  "nym-task",
  "nym-topology",
+ "nym-wasm-utils",
  "rand 0.8.5",
  "rand_chacha 0.3.1",
  "serde",
  "serde_json",
  "thiserror 2.0.17",
  "tokio",
- "wasm-utils",
 ]
 
 [[package]]
@@ -6814,6 +6798,8 @@ dependencies = [
  "futures",
  "js-sys",
  "nym-node-tester-utils",
+ "nym-wasm-client-core",
+ "nym-wasm-utils",
  "rand 0.8.5",
  "serde",
  "serde-wasm-bindgen 0.6.5",
@@ -6822,8 +6808,6 @@ dependencies = [
  "tsify",
  "wasm-bindgen",
  "wasm-bindgen-futures",
- "wasm-client-core",
- "wasm-utils",
  "wasmtimer",
 ]
 
@@ -7494,6 +7478,7 @@ dependencies = [
  "nym-mixnet-contract-common",
  "nym-sphinx-addressing",
  "nym-sphinx-types",
+ "nym-wasm-utils",
  "rand 0.8.5",
  "reqwest 0.12.28",
  "serde",
@@ -7503,7 +7488,6 @@ dependencies = [
  "tracing",
  "tsify",
  "wasm-bindgen",
- "wasm-utils",
 ]
 
 [[package]]
@@ -7710,6 +7694,7 @@ dependencies = [
  "nym-credentials-interface",
  "nym-crypto",
  "nym-ecash-time",
+ "nym-wasm-utils",
  "serde",
  "serde-wasm-bindgen 0.6.5",
  "serde_json",
@@ -7717,7 +7702,6 @@ dependencies = [
  "time",
  "tsify",
  "wasm-bindgen",
- "wasm-utils",
  "zeroize",
 ]
 
@@ -7739,6 +7723,72 @@ dependencies = [
  "strum",
  "strum_macros",
  "ts-rs",
+]
+
+[[package]]
+name = "nym-wasm-client-core"
+version = "1.20.1"
+dependencies = [
+ "async-trait",
+ "console_error_panic_hook",
+ "js-sys",
+ "nym-bandwidth-controller",
+ "nym-client-core",
+ "nym-config",
+ "nym-credential-storage",
+ "nym-crypto",
+ "nym-gateway-client",
+ "nym-http-api-client",
+ "nym-sphinx",
+ "nym-sphinx-acknowledgements",
+ "nym-statistics-common",
+ "nym-task",
+ "nym-topology",
+ "nym-validator-client",
+ "nym-wasm-storage",
+ "nym-wasm-utils",
+ "rand 0.8.5",
+ "serde",
+ "serde-wasm-bindgen 0.6.5",
+ "thiserror 2.0.17",
+ "time",
+ "tsify",
+ "url",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "zeroize",
+]
+
+[[package]]
+name = "nym-wasm-storage"
+version = "1.20.1"
+dependencies = [
+ "async-trait",
+ "getrandom 0.2.16",
+ "indexed_db_futures",
+ "js-sys",
+ "nym-store-cipher",
+ "nym-wasm-utils",
+ "serde",
+ "serde-wasm-bindgen 0.6.5",
+ "thiserror 2.0.17",
+ "wasm-bindgen",
+]
+
+[[package]]
+name = "nym-wasm-utils"
+version = "1.20.1"
+dependencies = [
+ "console_error_panic_hook",
+ "futures",
+ "getrandom 0.2.16",
+ "gloo-net",
+ "gloo-utils 0.2.0",
+ "js-sys",
+ "tungstenite 0.20.1",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
 ]
 
 [[package]]
@@ -12249,56 +12299,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "wasm-client-core"
-version = "1.20.1"
-dependencies = [
- "async-trait",
- "console_error_panic_hook",
- "js-sys",
- "nym-bandwidth-controller",
- "nym-client-core",
- "nym-config",
- "nym-credential-storage",
- "nym-crypto",
- "nym-gateway-client",
- "nym-http-api-client",
- "nym-sphinx",
- "nym-sphinx-acknowledgements",
- "nym-statistics-common",
- "nym-task",
- "nym-topology",
- "nym-validator-client",
- "rand 0.8.5",
- "serde",
- "serde-wasm-bindgen 0.6.5",
- "thiserror 2.0.17",
- "time",
- "tsify",
- "url",
- "wasm-bindgen",
- "wasm-bindgen-futures",
- "wasm-storage",
- "wasm-utils",
- "zeroize",
-]
-
-[[package]]
-name = "wasm-storage"
-version = "1.20.1"
-dependencies = [
- "async-trait",
- "getrandom 0.2.16",
- "indexed_db_futures",
- "js-sys",
- "nym-store-cipher",
- "serde",
- "serde-wasm-bindgen 0.6.5",
- "thiserror 2.0.17",
- "wasm-bindgen",
- "wasm-utils",
-]
-
-[[package]]
 name = "wasm-streams"
 version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -12306,22 +12306,6 @@ checksum = "15053d8d85c7eccdbefef60f06769760a563c7f0a9d6902a13d35c7800b0ad65"
 dependencies = [
  "futures-util",
  "js-sys",
- "wasm-bindgen",
- "wasm-bindgen-futures",
- "web-sys",
-]
-
-[[package]]
-name = "wasm-utils"
-version = "1.20.1"
-dependencies = [
- "console_error_panic_hook",
- "futures",
- "getrandom 0.2.16",
- "gloo-net",
- "gloo-utils 0.2.0",
- "js-sys",
- "tungstenite 0.20.1",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
@@ -13124,6 +13108,7 @@ dependencies = [
  "nym-credentials",
  "nym-crypto",
  "nym-http-api-client",
+ "nym-wasm-utils",
  "rand 0.8.5",
  "reqwest 0.12.28",
  "serde",
@@ -13132,7 +13117,6 @@ dependencies = [
  "tsify",
  "uuid",
  "wasm-bindgen",
- "wasm-utils",
  "wasmtimer",
  "zeroize",
 ]

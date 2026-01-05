@@ -105,8 +105,8 @@ features = ["tokio"]
 workspace = true
 features = ["futures"]
 
-[target."cfg(target_arch = \"wasm32\")".dependencies.wasm-utils]
-path = "../wasm/utils"
+[target."cfg(target_arch = \"wasm32\")".dependencies.nym-wasm-utils]
+workspace = true
 features = ["websocket"]
 
 [target."cfg(target_arch = \"wasm32\")".dependencies.time]

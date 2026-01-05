@@ -25,7 +25,7 @@ nym-bin-common = { path = "../common/bin-common", features = ["output_format", "
 nym-ecash-signer-check = { path = "../common/ecash-signer-check" }
 nym-network-defaults = { path = "../common/network-defaults" }
 nym-task = { path = "../common/task" }
-nym-validator-client = { path = "../common/client-libs/validator-client" }
+nym-validator-client = { workspace = true }
 zulip-client = { path = "../common/zulip-client" }
 
 [lints]

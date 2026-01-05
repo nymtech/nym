@@ -15,9 +15,10 @@ publish = false
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-nym-client-wasm = { path = "../client", optional = true }
+nym-client-wasm = { workspace = true, optional = true }
+
 nym-node-tester-wasm = { path = "../node-tester", optional = true }
-mix-fetch-wasm = { path = "../mix-fetch", optional = true }
+mix-fetch-wasm = { workspace = true, optional = true }
 
 [features]
 default = ["client", "node-tester"]

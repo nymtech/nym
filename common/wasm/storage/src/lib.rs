@@ -8,11 +8,11 @@ use nym_store_cipher::{
     Aes256Gcm, Algorithm, EncryptedData, KdfInfo, KeySizeUser, Params, StoreCipher, Unsigned,
     Version,
 };
+use nym_wasm_utils::console_log;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use std::future::IntoFuture;
 use wasm_bindgen::JsValue;
-use wasm_utils::console_log;
 
 pub use indexed_db_futures::database::{Database, VersionChangeEvent};
 pub use indexed_db_futures::prelude::*;

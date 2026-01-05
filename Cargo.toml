@@ -381,30 +381,35 @@ prometheus = { version = "0.14.0" }
 # sdk related deps so we can pull in workspace versions of these in other crates' cargo files, and not have to define the version everywhere
 # these versions should be kept in line with the workspace version defined above
 nym-api-requests = { version = "1.20.1", path = "nym-api/nym-api-requests" }
+nym-authenticator-requests = { version = "1.20.1", path = "common/authenticator-requests" }
+nym-async-file-watcher = { version = "1.20.1", path = "common/async-file-watcher" }
+nym-authenticator-client = { version = "1.20.1", path = "nym-authenticator-client" }
 nym-bandwidth-controller = { version = "1.20.1", path = "common/bandwidth-controller" }
 nym-bin-common = { version = "1.20.1", path = "common/bin-common" }
 nym-cache = { version = "1.20.1", path = "common/nym-cache" }
-nym-client-core = { version = "1.20.1", path = "common/client-core" }
+nym-client-core = { version = "1.20.1", path = "common/client-core", default-features = false }
 nym-client-core-config-types = { version = "1.20.1", path = "common/client-core/config-types" }
 nym-client-core-gateways-storage = { version = "1.20.1", path = "common/client-core/gateways-storage" }
 nym-client-core-surb-storage = { version = "1.20.1", path = "common/client-core/surb-storage" }
+nym-common = { version = "1.20.1", path = "common/nym-common" }
 nym-compact-ecash = { version = "1.20.1", path = "common/nym_offline_compact_ecash" }
 nym-config = { version = "1.20.1", path = "common/config" }
 nym-contracts-common = { version = "1.20.1", path = "common/cosmwasm-smart-contracts/contracts-common" }
 nym-coconut-dkg-common = { version = "1.20.1", path = "common/cosmwasm-smart-contracts/coconut-dkg" }
 nym-credential-storage = { version = "1.20.1", path = "common/credential-storage" }
 nym-credential-utils = { version = "1.20.1", path = "common/credential-utils" }
-nym-credentials = { version = "1.20.1", path = "common/credentials" }
+nym-credentials = { version = "1.20.1", path = "common/credentials", default-features = false }
 nym-credentials-interface = { version = "1.20.1", path = "common/credentials-interface" }
-nym-credential-proxy-requests = { version = "1.20.1", path = "nym-credential-proxy/nym-credential-proxy-requests" }
-nym-crypto = { version = "1.20.1", path = "common/crypto" }
+nym-credential-proxy-requests = { version = "1.20.1", path = "nym-credential-proxy/nym-credential-proxy-requests", default-features = false }
+nym-credential-verification = { version = "1.20.1", path = "common/credential-verification" }
+nym-crypto = { version = "1.20.1", path = "common/crypto", default-features = false }
 nym-ecash-contract-common = { version = "1.20.1", path = "common/cosmwasm-smart-contracts/ecash-contract" }
 nym-ecash-signer-check = { version = "1.20.1", path = "common/ecash-signer-check" }
 nym-ecash-signer-check-types = { version = "1.20.1", path = "common/ecash-signer-check-types" }
 nym-ecash-time = { version = "1.20.1", path = "common/ecash-time" }
 nym-exit-policy = { version = "1.20.1", path = "common/exit-policy" }
 nym-ffi-shared = { version = "1.20.1", path = "sdk/ffi/shared" }
-nym-gateway-client = { version = "1.20.1", path = "common/client-libs/gateway-client" }
+nym-gateway-client = { version = "1.20.1", path = "common/client-libs/gateway-client", default-features = false }
 nym-gateway-requests = { version = "1.20.1", path = "common/gateway-requests" }
 nym-gateway-storage = { version = "1.20.1", path = "common/gateway-storage" }
 nym-group-contract-common = { version = "1.20.1", path = "common/cosmwasm-smart-contracts/group-contract" }
@@ -412,11 +417,14 @@ nym-http-api-client = { version = "1.20.1", path = "common/http-api-client" }
 nym-http-api-client-macro = { version = "1.20.1", path = "common/http-api-client-macro" }
 nym-http-api-common = { version = "1.20.1", path = "common/http-api-common", default-features = false }
 nym-id = { version = "1.20.1", path = "common/nym-id" }
+nym-ip-packet-client = { version = "1.20.1", path = "nym-ip-packet-client" }
+nym-ip-packet-requests = { version = "1.20.1", path = "common/ip-packet-requests" }
 nym-metrics = { version = "1.20.1", path = "common/nym-metrics" }
 nym-mixnet-client = { version = "1.20.1", path = "common/client-libs/mixnet-client" }
 nym-mixnet-contract-common = { version = "1.20.1", path = "common/cosmwasm-smart-contracts/mixnet-contract" }
 nym-multisig-contract-common = { version = "1.20.1", path = "common/cosmwasm-smart-contracts/multisig-contract" }
 nym-network-defaults = { version = "1.20.1", path = "common/network-defaults" }
+nym-node-tester-utils = { version = "1.20.1", path = "common/node-tester-utils" }
 nym-noise = { version = "1.20.1", path = "common/nymnoise" }
 nym-noise-keys = { version = "1.20.1", path = "common/nymnoise/keys" }
 nym-nonexhaustive-delayqueue = { version = "1.20.1", path = "common/nonexhaustive-delayqueue" }
@@ -424,6 +432,7 @@ nym-node-requests = { version = "1.20.1", path = "nym-node/nym-node-requests" }
 nym-node-metrics = { version = "1.20.1", path = "nym-node/nym-node-metrics" }
 nym-ordered-buffer = { version = "1.20.1", path = "common/socks5/ordered-buffer" }
 nym-outfox = { version = "1.20.1", path = "nym-outfox" }
+nym-registration-common = { version = "1.20.1", path = "common/registration" }
 nym-pemstore = { version = "1.20.1", path = "common/pemstore" }
 nym-performance-contract-common = { version = "1.20.1", path = "common/cosmwasm-smart-contracts/nym-performance-contract" }
 nym-sdk = { version = "1.20.1", path = "sdk/rust/nym-sdk" }
@@ -446,16 +455,20 @@ nym-sphinx-routing = { version = "1.20.1", path = "common/nymsphinx/routing" }
 nym-sphinx-types = { version = "1.20.1", path = "common/nymsphinx/types" }
 nym-statistics-common = { version = "1.20.1", path = "common/statistics" }
 nym-task = { version = "1.20.1", path = "common/task" }
+nym-tun = { version = "1.20.1", path = "common/tun" }
 nym-test-utils = { version = "1.20.1", path = "common/test-utils" }
 nym-ticketbooks-merkle = { version = "1.20.1", path = "common/ticketbooks-merkle" }
 nym-topology = { version = "1.20.1", path = "common/topology" }
 nym-types = { version = "1.20.1", path = "common/types" }
 nym-upgrade-mode-check = { version = "1.20.1", path = "common/upgrade-mode-check" }
-nym-validator-client = { version = "1.20.1", path = "common/client-libs/validator-client" }
+nym-validator-client = { version = "1.20.1", path = "common/client-libs/validator-client", default-features = false }
 nym-vesting-contract-common = { version = "1.20.1", path = "common/cosmwasm-smart-contracts/vesting-contract" }
+nym-wireguard = { version = "1.20.1", path = "common/wireguard" }
 nym-wireguard-types = { version = "1.20.1", path = "common/wireguard-types" }
-nym-sqlx-pool-guard = { version = "1.2.0", path = "common/sqlx-pool-guard" }
-wasm-utils = { version = "1.20.1", path = "common/wasm/utils" }
+nym-sqlx-pool-guard = { version = "1.2.0", path = "nym-sqlx-pool-guard" }
+nym-wasm-client-core = { version = "1.20.1", path = "common/wasm/client-core" }
+nym-wasm-storage = { version = "1.20.1", path = "common/wasm/storage" }
+nym-wasm-utils = { version = "1.20.1", path = "common/wasm/utils", default-features = false }
 
 # coconut/DKG related
 # unfortunately until https://github.com/zkcrypto/bls12_381/issues/10 is resolved, we have to rely on the fork

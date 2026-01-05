@@ -16,5 +16,5 @@ time = { workspace = true }
 strum = { workspace = true }
 tracing = { workspace = true }
 
-nym-metrics = { path = "../../common/nym-metrics" }
-nym-statistics-common = { path = "../../common/statistics" }
+nym-metrics = { workspace = true }
+nym-statistics-common = { workspace = true }

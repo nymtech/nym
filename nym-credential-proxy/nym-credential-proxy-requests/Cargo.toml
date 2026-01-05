@@ -27,7 +27,7 @@ utoipa = { workspace = true, optional = true, features = ["uuid"] }
 
 nym-credentials = { path = "../../common/credentials" }
 nym-credentials-interface = { path = "../../common/credentials-interface" }
-nym-http-api-common = { path = "../../common/http-api-common", optional = true }
+nym-http-api-common = { workspace = true, optional = true }
 nym-http-api-client = { path = "../../common/http-api-client" }
 nym-serde-helpers = { path = "../../common/serde-helpers", features = ["bs58"] }
 nym-upgrade-mode-check = { path = "../../common/upgrade-mode-check" }

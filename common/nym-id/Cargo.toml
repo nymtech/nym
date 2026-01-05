@@ -16,5 +16,5 @@ time.workspace = true
 tracing.workspace = true
 zeroize.workspace = true
 
-nym-credential-storage = { path = "../credential-storage" }
-nym-credentials = { path = "../credentials" }
+nym-credential-storage = { workspace = true }
+nym-credentials = { workspace = true }

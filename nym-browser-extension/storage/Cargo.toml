@@ -26,8 +26,8 @@ thiserror = { workspace = true }
 
 console_error_panic_hook = { workspace = true, optional = true }
 
-wasm-utils = { path = "../../common/wasm/utils" }
-wasm-storage = { path = "../../common/wasm/storage" }
+nym-wasm-utils = { path = "../../common/wasm/utils" }
+nym-wasm-storage = { path = "../../common/wasm/storage" }
 
 
 #[package.metadata.wasm-pack.profile.release]

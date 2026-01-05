@@ -28,11 +28,11 @@ tsify = { workspace = true, features = ["js"] }
 serde-wasm-bindgen = { workspace = true }
 
 # NYM:
-nym-bin-common = { path = "../../common/bin-common" }
-nym-crypto = { path = "../../common/crypto", features = ["asymmetric"] }
-nym-compact-ecash = { path = "../../common/nym_offline_compact_ecash" }
-nym-credentials = { path = "../../common/credentials" }
-nym-credentials-interface = { path = "../../common/credentials-interface" }
-nym-ecash-time = { path = "../../common/ecash-time", features = ["expiration"] }
-nym-credential-proxy-requests = { path = "../nym-credential-proxy-requests", default-features = false, features = ["tsify"] }
-wasm-utils = { path = "../../common/wasm/utils" }
+nym-bin-common = { workspace = true }
+nym-crypto = { workspace = true, features = ["asymmetric"] }
+nym-compact-ecash = { workspace = true }
+nym-credentials = { workspace = true }
+nym-credentials-interface = { workspace = true }
+nym-ecash-time = { workspace = true, features = ["expiration"] }
+nym-credential-proxy-requests = { workspace = true, features = ["tsify"] }
+nym-wasm-utils = { workspace = true }

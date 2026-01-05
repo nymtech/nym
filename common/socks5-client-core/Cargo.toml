@@ -21,19 +21,19 @@ thiserror = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "net", "signal"] }
 url = { workspace = true }
 
-nym-bandwidth-controller = { path = "../../common/bandwidth-controller" }
-nym-client-core = { path = "../client-core", features = ["fs-credentials-storage", "fs-surb-storage", "fs-gateways-storage"] }
-nym-config = { path = "../config" }
-nym-contracts-common = { path = "../cosmwasm-smart-contracts/contracts-common" }
-nym-credential-storage = { path = "../credential-storage" }
-nym-mixnet-contract-common = { path = "../cosmwasm-smart-contracts/mixnet-contract" }
-nym-network-defaults = { path = "../network-defaults" }
+nym-bandwidth-controller = { workspace = true }
+nym-client-core = { workspace = true, features = ["fs-credentials-storage", "fs-surb-storage", "fs-gateways-storage"] }
+nym-config = { workspace = true }
+nym-contracts-common = { workspace = true }
+nym-credential-storage = { workspace = true }
+nym-mixnet-contract-common = { workspace = true }
+nym-network-defaults = { workspace = true }
 nym-service-providers-common = { path = "../../service-providers/common" }
 nym-socks5-proxy-helpers = { path = "../socks5/proxy-helpers" }
 nym-socks5-requests = { path = "../socks5/requests" }
 nym-sphinx = { path = "../nymsphinx" }
 nym-task = { path = "../task" }
-nym-validator-client = { path = "../client-libs/validator-client" }
+nym-validator-client = { workspace = true }
 
 [features]
 default = []

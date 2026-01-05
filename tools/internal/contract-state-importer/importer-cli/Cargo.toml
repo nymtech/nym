@@ -22,7 +22,7 @@ tokio = { workspace = true, features = ["rt-multi-thread", "net", "signal"] }
 tracing = { workspace = true }
 
 importer-contract = { path = "../importer-contract" }
-nym-validator-client = { path = "../../../../common/client-libs/validator-client" }
+nym-validator-client = { workspace = true }
 nym-bin-common = { path = "../../../../common/bin-common", features = ["basic_tracing"] }
 nym-network-defaults = { path = "../../../../common/network-defaults" }
 

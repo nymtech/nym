@@ -26,13 +26,13 @@ url = { workspace = true }
 time.workspace = true
 thiserror = { workspace = true }
 
-nym-crypto = { path = "../crypto", features = ["asymmetric"] }
-nym-network-defaults = { path = "../network-defaults" }
-nym-sphinx-acknowledgements = { path = "../nymsphinx/acknowledgements" }
-nym-sphinx-addressing = { path = "../nymsphinx/addressing" }
-nym-sphinx-forwarding = { path = "../nymsphinx/forwarding" }
-nym-sphinx-framing = { path = "../nymsphinx/framing" }
-nym-sphinx-params = { path = "../nymsphinx/params" }
-nym-sphinx-types = { path = "../nymsphinx/types" }
+nym-crypto = { workspace = true, features = ["asymmetric"] }
+nym-network-defaults = { workspace = true }
+nym-sphinx-acknowledgements = { workspace = true }
+nym-sphinx-addressing = { workspace = true }
+nym-sphinx-forwarding = { workspace = true }
+nym-sphinx-framing = { workspace = true }
+nym-sphinx-params = { workspace = true }
+nym-sphinx-types = { workspace = true }
 nym-task = { path = "../task" }
-nym-metrics = { path = "../nym-metrics" }
+nym-metrics = { workspace = true }

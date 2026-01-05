@@ -12,11 +12,11 @@ license.workspace = true
 async-trait = { workspace = true }
 axum = { workspace = true, features = ["tokio", "macros"] }
 futures = { workspace = true }
-nym-credential-verification = { path = "../../credential-verification" }
-nym-credentials-interface = { path = "../../credentials-interface" }
-nym-crypto = { path = "../../crypto", features = ["asymmetric"] }
-nym-http-api-client = { path = "../../http-api-client" }
-nym-http-api-common = { path = "../../http-api-common", features = [
+nym-credential-verification = { workspace = true }
+nym-credentials-interface = { workspace = true }
+nym-crypto = { workspace = true, features = ["asymmetric"] }
+nym-http-api-client = { workspace = true }
+nym-http-api-common = { workspace = true, features = [
     "middleware",
     "utoipa",
     "output",

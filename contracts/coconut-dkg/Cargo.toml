@@ -16,7 +16,7 @@ required-features = ["schema-gen"]
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-nym-coconut-dkg-common = { path = "../../common/cosmwasm-smart-contracts/coconut-dkg" }
+nym-coconut-dkg-common = { workspace = true }
 nym-contracts-common = { path = "../../common/cosmwasm-smart-contracts/contracts-common" }
 nym-contracts-common-testing = { path = "../../common/cosmwasm-smart-contracts/contracts-common-testing", optional = true }
 nym-group-contract-common = { path = "../../common/cosmwasm-smart-contracts/group-contract", optional = true }

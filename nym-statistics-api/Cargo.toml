@@ -39,7 +39,7 @@ utoipauto.workspace = true
 
 #internal
 nym-bin-common = { path = "../common/bin-common" }
-nym-http-api-common = { path = "../common/http-api-common", features = [
+nym-http-api-common = { workspace = true, features = [
     "middleware",
 ] }
 nym-statistics-common = { path = "../common/statistics", features = [
@@ -48,7 +48,7 @@ nym-statistics-common = { path = "../common/statistics", features = [
 nym-task = { path = "../common/task" }
 
 nym-http-api-client = { path = "../common/http-api-client" }
-nym-validator-client = { path = "../common/client-libs/validator-client" }
+nym-validator-client = { workspace = true }
 
 [build-dependencies]
 anyhow = { workspace = true }

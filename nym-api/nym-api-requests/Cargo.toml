@@ -27,21 +27,21 @@ tracing = { workspace = true }
 # for serde on secp256k1 signatures
 ecdsa = { workspace = true, features = ["serde"] }
 
-nym-serde-helpers = { path = "../../common/serde-helpers", features = ["bs58", "base64", "date"] }
-nym-credentials-interface = { path = "../../common/credentials-interface" }
-nym-crypto = { path = "../../common/crypto", features = ["serde", "asymmetric"] }
+nym-serde-helpers = { workspace = true, features = ["bs58", "base64", "date"] }
+nym-credentials-interface = { workspace = true }
+nym-crypto = { workspace = true, features = ["serde", "asymmetric"] }
 
-nym-config = { path = "../../common/config" }
-nym-ecash-time = { path = "../../common/ecash-time" }
-nym-compact-ecash = { path = "../../common/nym_offline_compact_ecash" }
-nym-contracts-common = { path = "../../common/cosmwasm-smart-contracts/contracts-common", features = ["naive_float"] }
-nym-mixnet-contract-common = { path = "../../common/cosmwasm-smart-contracts/mixnet-contract", features = ["utoipa"] }
-nym-coconut-dkg-common = { path = "../../common/cosmwasm-smart-contracts/coconut-dkg" }
+nym-config = { workspace = true  }
+nym-ecash-time = { workspace = true  }
+nym-compact-ecash = { workspace = true  }
+nym-contracts-common = { workspace = true , features = ["naive_float"] }
+nym-mixnet-contract-common = { workspace = true , features = ["utoipa"] }
+nym-coconut-dkg-common = { workspace = true }
 nym-node-requests = { path = "../../nym-node/nym-node-requests", default-features = false, features = ["openapi"] }
 nym-noise-keys = { path = "../../common/nymnoise/keys" }
-nym-network-defaults = { path = "../../common/network-defaults" }
-nym-ticketbooks-merkle = { path = "../../common/ticketbooks-merkle" }
-nym-ecash-signer-check-types = { path = "../../common/ecash-signer-check-types" }
+nym-network-defaults = { workspace = true }
+nym-ticketbooks-merkle = { workspace = true }
+nym-ecash-signer-check-types = { workspace = true }
 
 
 [dev-dependencies]

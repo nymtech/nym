@@ -39,7 +39,7 @@ nym-crypto = { workspace = true,  features = [
 # do not include this when compiling into wasm as it somehow when combined together with reqwest, it will require
 # net2 via tokio-util -> tokio -> mio -> net2
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.nym-sphinx-framing]
-path = "framing"
+workspace = true
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio]
 workspace = true

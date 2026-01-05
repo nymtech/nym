@@ -42,11 +42,11 @@ nym-api-requests = { workspace = true }
 
 
 # 'wasm-serde-types' feature
-wasm-utils = { workspace = true,  optional = true }
+nym-wasm-utils = { workspace = true,  optional = true }
 
 [features]
 default = ["provider-trait"]
 provider-trait = ["async-trait"]
-wasm-serde-types = ["tsify", "wasm-bindgen", "wasm-utils"]
+wasm-serde-types = ["tsify", "wasm-bindgen", "nym-wasm-utils"]
 persistence = ["serde_json"]
 outfox = []

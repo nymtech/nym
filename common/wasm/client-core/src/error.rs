@@ -11,8 +11,8 @@ use nym_sphinx::addressing::clients::RecipientFormattingError;
 use nym_sphinx::anonymous_replies::requests::InvalidAnonymousSenderTagRepresentation;
 use nym_topology::NymTopologyError;
 use nym_validator_client::ValidatorClientError;
+use nym_wasm_utils::wasm_error;
 use thiserror::Error;
-use wasm_utils::wasm_error;
 
 #[derive(Debug, Error)]
 pub enum WasmCoreError {

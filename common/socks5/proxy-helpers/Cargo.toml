@@ -17,9 +17,9 @@ futures = { workspace = true }
 log = { workspace = true }
 
 # internal
-nym-ordered-buffer = { path = "../ordered-buffer" }
-nym-socks5-requests = { path = "../requests" }
-nym-task = { path = "../../task" }
+nym-ordered-buffer = { workspace = true }
+nym-socks5-requests = { workspace = true }
+nym-task = { workspace = true }
 
 [dev-dependencies]
 tokio-test = { workspace = true }

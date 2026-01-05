@@ -47,10 +47,10 @@ zeroize = { workspace = true }
 
 
 # internal
-nym-credentials = { path = "../common/credentials" }
-nym-credentials-interface = { path = "../common/credentials-interface" }
-nym-credential-verification = { path = "../common/credential-verification" }
-nym-crypto = { path = "../common/crypto", features = ["sphinx"] }
+nym-credentials = { workspace = true }
+nym-credentials-interface = { workspace = true }
+nym-credential-verification = { workspace = true }
+nym-crypto = { workspace = true, features = ["sphinx"] }
 nym-gateway-storage = { path = "../common/gateway-storage" }
 nym-gateway-stats-storage = { path = "../common/gateway-stats-storage" }
 nym-gateway-requests = { path = "../common/gateway-requests" }
@@ -62,18 +62,18 @@ nym-sphinx = { path = "../common/nymsphinx" }
 nym-statistics-common = { path = "../common/statistics" }
 nym-task = { path = "../common/task" }
 nym-topology = { path = "../common/topology" }
-nym-validator-client = { path = "../common/client-libs/validator-client" }
+nym-validator-client = { workspace = true }
 nym-ip-packet-router = { path = "../service-providers/ip-packet-router" }
 nym-node-metrics = { path = "../nym-node/nym-node-metrics" }
 nym-upgrade-mode-check = { path = "../common/upgrade-mode-check" }
 
 nym-wireguard = { path = "../common/wireguard" }
 nym-wireguard-private-metadata-server = { path = "../common/wireguard-private-metadata/server" }
-nym-wireguard-types = { path = "../common/wireguard-types" }
+nym-wireguard-types = { workspace = true }
 
-nym-authenticator-requests = { path = "../common/authenticator-requests" }
-nym-client-core = { path = "../common/client-core", features = ["cli"] }
-nym-id = { path = "../common/nym-id" }
+nym-authenticator-requests = { workspace = true }
+nym-client-core = { workspace = true, features = ["cli"] }
+nym-id = { workspace = true }
 nym-service-provider-requests-common = { path = "../common/service-provider-requests-common" }
 
 defguard_wireguard_rs = { workspace = true }

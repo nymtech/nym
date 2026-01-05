@@ -28,9 +28,9 @@ tsify = { workspace = true, features = ["js"] }
 
 wasmtimer = { workspace = true }
 
-nym-node-tester-utils = { path = "../../common/node-tester-utils" }
-wasm-client-core = { path = "../../common/wasm/client-core" }
-wasm-utils = { path = "../../common/wasm/utils" }
+nym-node-tester-utils = { workspace = true }
+nym-wasm-client-core = { workspace = true }
+nym-wasm-utils = { workspace = true }
 
 [package.metadata.wasm-pack.profile.release]
 wasm-opt = false

@@ -6,6 +6,7 @@ description = "Implementation of the Nym Client"
 edition = "2021"
 rust-version = "1.85"
 license.workspace = true
+publish = false
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

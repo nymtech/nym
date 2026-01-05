@@ -6,6 +6,7 @@ description = "A SOCKS5 localhost proxy that converts incoming messages to Sphin
 edition = "2021"
 rust-version = "1.85"
 license.workspace = true
+publish = false
 
 [dependencies]
 bs58 = { workspace = true }

@@ -6,6 +6,7 @@ license = "Apache-2.0"
 repository = "https://github.com/nymtech/nym"
 description = "WebAssembly-based secure storage for browser extension mnemonics"
 authors = ["Nym Technologies SA <contact@nymtech.net>"]
+publish = false
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -13,17 +14,17 @@ authors = ["Nym Technologies SA <contact@nymtech.net>"]
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-bip39 = { workspace = true }              
-zeroize = { workspace = true }           
+bip39 = { workspace = true }
+zeroize = { workspace = true }
 
-js-sys = { workspace = true }             
-wasm-bindgen = { workspace = true }       
-wasm-bindgen-futures = { workspace = true } 
+js-sys = { workspace = true }
+wasm-bindgen = { workspace = true }
+wasm-bindgen-futures = { workspace = true }
 serde-wasm-bindgen = { workspace = true }
 
-thiserror = { workspace = true }       
+thiserror = { workspace = true }
 
-console_error_panic_hook = { workspace = true, optional = true } 
+console_error_panic_hook = { workspace = true, optional = true }
 
 wasm-utils = { path = "../../common/wasm/utils" }
 wasm-storage = { path = "../../common/wasm/storage" }

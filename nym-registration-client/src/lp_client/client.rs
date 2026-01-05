@@ -12,6 +12,7 @@ use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_lp::LpPacket;
 use nym_lp::codec::{OuterAeadKey, parse_lp_packet, serialize_lp_packet};
 use nym_lp::message::ForwardPacketData;
+use nym_lp::serialisation::{BincodeOptions, lp_bincode_serializer};
 use nym_lp::state_machine::{LpAction, LpInput, LpStateMachine};
 use nym_registration_common::{GatewayData, LpRegistrationRequest, LpRegistrationResponse};
 use nym_wireguard_types::PeerPublicKey;
@@ -745,7 +746,7 @@ impl LpRegistrationClient {
         tracing::trace!("Built registration request: {:?}", request);
 
         // 2. Serialize the request
-        let request_bytes = bincode::serialize(&request).map_err(|e| {
+        let request_bytes = lp_bincode_serializer().serialize(&request).map_err(|e| {
             LpClientError::SendRegistrationRequest(format!("Failed to serialize request: {e}"))
         })?;
 
@@ -831,8 +832,9 @@ impl LpRegistrationClient {
         };
 
         // 8. Deserialize the response
-        let response: LpRegistrationResponse =
-            bincode::deserialize(&response_data).map_err(|e| {
+        let response: LpRegistrationResponse = lp_bincode_serializer()
+            .deserialize(&response_data)
+            .map_err(|e| {
                 LpClientError::ReceiveRegistrationResponse(format!(
                     "Failed to deserialize registration response: {e}",
                 ))
@@ -1024,9 +1026,11 @@ impl LpRegistrationClient {
         };
 
         // 2. Serialize the ForwardPacketData
-        let forward_data_bytes = bincode::serialize(&forward_data).map_err(|e| {
-            LpClientError::Transport(format!("Failed to serialize ForwardPacketData: {e}"))
-        })?;
+        let forward_data_bytes = lp_bincode_serializer()
+            .serialize(&forward_data)
+            .map_err(|e| {
+                LpClientError::Transport(format!("Failed to serialize ForwardPacketData: {e}"))
+            })?;
 
         tracing::trace!(
             "Serialized ForwardPacketData ({} bytes)",

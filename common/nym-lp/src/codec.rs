@@ -8,18 +8,19 @@ use crate::message::{
     SubsessionReadyData,
 };
 use crate::packet::{LpHeader, LpPacket, OuterHeader, TRAILER_LEN};
+use crate::serialisation::{BincodeOptions, lp_bincode_serializer};
 use bytes::{BufMut, BytesMut};
+use chacha20poly1305::{
+    ChaCha20Poly1305, Key, Nonce, Tag,
+    aead::{AeadInPlace, KeyInit},
+};
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 /// Size of outer header (receiver_idx + counter) - always cleartext
 pub const OUTER_HEADER_SIZE: usize = OuterHeader::SIZE; // 12 bytes
 
 /// Size of inner prefix (proto + reserved) - cleartext or encrypted depending on mode
 const INNER_PREFIX_SIZE: usize = 4; // proto(1) + reserved(3)
-use chacha20poly1305::{
-    ChaCha20Poly1305, Key, Nonce, Tag,
-    aead::{AeadInPlace, KeyInit},
-};
-use zeroize::{Zeroize, ZeroizeOnDrop};
 
 /// Outer AEAD key for LP packet encryption.
 ///
@@ -110,14 +111,16 @@ fn parse_message_from_type_and_content(
             content.to_vec(),
         ))),
         MessageType::ClientHello => {
-            let data: ClientHelloData = bincode::deserialize(content)
+            let data: ClientHelloData = lp_bincode_serializer()
+                .deserialize(content)
                 .map_err(|e| LpError::DeserializationError(e.to_string()))?;
             Ok(LpMessage::ClientHello(data))
         }
         MessageType::KKTRequest => Ok(LpMessage::KKTRequest(KKTRequestData(content.to_vec()))),
         MessageType::KKTResponse => Ok(LpMessage::KKTResponse(KKTResponseData(content.to_vec()))),
         MessageType::ForwardPacket => {
-            let data: ForwardPacketData = bincode::deserialize(content)
+            let data: ForwardPacketData = lp_bincode_serializer()
+                .deserialize(content)
                 .map_err(|e| LpError::DeserializationError(e.to_string()))?;
             Ok(LpMessage::ForwardPacket(data))
         }
@@ -149,17 +152,20 @@ fn parse_message_from_type_and_content(
             Ok(LpMessage::SubsessionRequest)
         }
         MessageType::SubsessionKK1 => {
-            let data: SubsessionKK1Data = bincode::deserialize(content)
+            let data: SubsessionKK1Data = lp_bincode_serializer()
+                .deserialize(content)
                 .map_err(|e| LpError::DeserializationError(e.to_string()))?;
             Ok(LpMessage::SubsessionKK1(data))
         }
         MessageType::SubsessionKK2 => {
-            let data: SubsessionKK2Data = bincode::deserialize(content)
+            let data: SubsessionKK2Data = lp_bincode_serializer()
+                .deserialize(content)
                 .map_err(|e| LpError::DeserializationError(e.to_string()))?;
             Ok(LpMessage::SubsessionKK2(data))
         }
         MessageType::SubsessionReady => {
-            let data: SubsessionReadyData = bincode::deserialize(content)
+            let data: SubsessionReadyData = lp_bincode_serializer()
+                .deserialize(content)
                 .map_err(|e| LpError::DeserializationError(e.to_string()))?;
             Ok(LpMessage::SubsessionReady(data))
         }

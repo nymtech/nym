@@ -20,12 +20,12 @@
 
 use super::client::LpRegistrationClient;
 use super::error::{LpClientError, Result};
-use bincode::Options;
 use bytes::BytesMut;
 use nym_bandwidth_controller::BandwidthTicketProvider;
 use nym_credentials_interface::TicketType;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_lp::codec::{OuterAeadKey, parse_lp_packet, serialize_lp_packet};
+use nym_lp::serialisation::{BincodeOptions, lp_bincode_serializer};
 use nym_lp::state_machine::{LpAction, LpInput, LpStateMachine};
 use nym_lp::{LpMessage, LpPacket};
 use nym_registration_common::{GatewayData, LpRegistrationRequest, LpRegistrationResponse};
@@ -33,15 +33,6 @@ use nym_wireguard_types::PeerPublicKey;
 use std::net::IpAddr;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
-
-/// Create explicit bincode options for consistent serialization across versions.
-///
-/// Using explicit options future-proofs against bincode 1.x/2.x default changes.
-fn bincode_options() -> impl Options {
-    bincode::DefaultOptions::new()
-        .with_big_endian()
-        .with_varint_encoding()
-}
 
 /// Manages a nested LP session where the client establishes a handshake with
 /// an exit gateway by forwarding packets through an entry gateway.
@@ -330,7 +321,7 @@ impl NestedLpSession {
         tracing::trace!("Built registration request: {:?}", request);
 
         // Step 4: Serialize the request
-        let request_bytes = bincode_options().serialize(&request).map_err(|e| {
+        let request_bytes = lp_bincode_serializer().serialize(&request).map_err(|e| {
             LpClientError::Transport(format!("Failed to serialize registration request: {}", e))
         })?;
 
@@ -398,8 +389,9 @@ impl NestedLpSession {
         };
 
         // Step 10: Deserialize the response
-        let response: LpRegistrationResponse =
-            bincode_options().deserialize(&response_data).map_err(|e| {
+        let response: LpRegistrationResponse = lp_bincode_serializer()
+            .deserialize(&response_data)
+            .map_err(|e| {
                 LpClientError::Transport(format!(
                     "Failed to deserialize registration response: {}",
                     e
@@ -502,7 +494,7 @@ impl NestedLpSession {
         tracing::trace!("Built registration request: {:?}", request);
 
         // Step 5: Serialize the request
-        let request_bytes = bincode_options().serialize(&request).map_err(|e| {
+        let request_bytes = lp_bincode_serializer().serialize(&request).map_err(|e| {
             LpClientError::Transport(format!("Failed to serialize registration request: {}", e))
         })?;
 
@@ -570,8 +562,9 @@ impl NestedLpSession {
         };
 
         // Step 11: Deserialize the response
-        let response: LpRegistrationResponse =
-            bincode_options().deserialize(&response_data).map_err(|e| {
+        let response: LpRegistrationResponse = lp_bincode_serializer()
+            .deserialize(&response_data)
+            .map_err(|e| {
                 LpClientError::Transport(format!(
                     "Failed to deserialize registration response: {}",
                     e

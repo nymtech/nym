@@ -1,10 +1,11 @@
-use std::fmt::{self, Display};
-
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
+
+use crate::serialisation::{BincodeOptions, lp_bincode_serializer};
 use bytes::{BufMut, BytesMut};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use serde::{Deserialize, Serialize};
+use std::fmt::{self, Display};
 
 /// Data structure for the ClientHello message
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -286,8 +287,9 @@ impl LpMessage {
             }
             LpMessage::ClientHello(data) => {
                 // Serialize ClientHelloData using bincode
-                let serialized =
-                    bincode::serialize(data).expect("Failed to serialize ClientHelloData");
+                let serialized = lp_bincode_serializer()
+                    .serialize(data)
+                    .expect("Failed to serialize ClientHelloData");
                 dst.put_slice(&serialized);
             }
             LpMessage::KKTRequest(payload) => {
@@ -297,26 +299,30 @@ impl LpMessage {
                 dst.put_slice(&payload.0);
             }
             LpMessage::ForwardPacket(data) => {
-                let serialized =
-                    bincode::serialize(data).expect("Failed to serialize ForwardPacketData");
+                let serialized = lp_bincode_serializer()
+                    .serialize(data)
+                    .expect("Failed to serialize ForwardPacketData");
                 dst.put_slice(&serialized);
             }
             LpMessage::Collision => { /* No content */ }
             LpMessage::Ack => { /* No content */ }
             LpMessage::SubsessionRequest => { /* No content - signal only */ }
             LpMessage::SubsessionKK1(data) => {
-                let serialized =
-                    bincode::serialize(data).expect("Failed to serialize SubsessionKK1Data");
+                let serialized = lp_bincode_serializer()
+                    .serialize(data)
+                    .expect("Failed to serialize SubsessionKK1Data");
                 dst.put_slice(&serialized);
             }
             LpMessage::SubsessionKK2(data) => {
-                let serialized =
-                    bincode::serialize(data).expect("Failed to serialize SubsessionKK2Data");
+                let serialized = lp_bincode_serializer()
+                    .serialize(data)
+                    .expect("Failed to serialize SubsessionKK2Data");
                 dst.put_slice(&serialized);
             }
             LpMessage::SubsessionReady(data) => {
-                let serialized =
-                    bincode::serialize(data).expect("Failed to serialize SubsessionReadyData");
+                let serialized = lp_bincode_serializer()
+                    .serialize(data)
+                    .expect("Failed to serialize SubsessionReadyData");
                 dst.put_slice(&serialized);
             }
             LpMessage::SubsessionAbort => { /* No content - signal only */ }

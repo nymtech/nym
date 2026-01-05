@@ -12,7 +12,6 @@ license.workspace = true
 workspace = true
 
 [dependencies]
-bincode.workspace = true
 bytes.workspace = true
 futures.workspace = true
 rand.workspace = true

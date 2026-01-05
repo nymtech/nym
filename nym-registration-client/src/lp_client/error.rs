@@ -4,6 +4,7 @@
 //! Error types for LP (Lewes Protocol) client operations.
 
 use nym_lp::LpError;
+use nym_lp::serialisation::BincodeError;
 use std::io;
 use thiserror::Error;
 
@@ -44,7 +45,7 @@ pub enum LpClientError {
 
     /// Serialization/deserialization error
     #[error("Serialization error: {0}")]
-    Serialization(#[from] bincode::Error),
+    Serialization(#[from] BincodeError),
 
     /// Connection closed unexpectedly
     #[error("Connection closed unexpectedly")]
@@ -60,8 +61,8 @@ pub enum LpClientError {
 }
 
 impl LpClientError {
-    pub fn transport<S>(message: S) -> LpClientError {
-        LpClientError::Transport(message.to_string())
+    pub fn transport(message: impl Into<String>) -> LpClientError {
+        LpClientError::Transport(message.into())
     }
 }
 

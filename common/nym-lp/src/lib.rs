@@ -24,7 +24,9 @@ pub use session::{LpSession, generate_fresh_salt};
 pub use session_manager::SessionManager;
 
 // Add the new state machine module
+pub mod serialisation;
 pub mod state_machine;
+
 pub use state_machine::LpStateMachine;
 
 pub const NOISE_PATTERN: &str = "Noise_XKpsk3_25519_ChaChaPoly_SHA256";

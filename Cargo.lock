@@ -7316,7 +7316,6 @@ dependencies = [
 name = "nym-registration-client"
 version = "0.1.0"
 dependencies = [
- "bincode",
  "bytes",
  "futures",
  "nym-authenticator-client",

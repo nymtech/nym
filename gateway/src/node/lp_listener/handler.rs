@@ -5,6 +5,7 @@ use super::messages::LpRegistrationRequest;
 use super::registration::process_registration;
 use super::LpHandlerState;
 use crate::error::GatewayError;
+use nym_lp::serialisation::{lp_bincode_serializer, BincodeOptions};
 use nym_lp::{
     codec::OuterAeadKey, keypair::PublicKey, message::ForwardPacketData, packet::LpHeader,
     LpMessage, LpPacket, OuterHeader,
@@ -621,7 +622,9 @@ impl LpConnectionHandler {
         decrypted_bytes: Vec<u8>,
     ) -> Result<(), GatewayError> {
         // Try to deserialize as LpRegistrationRequest first (most common case after handshake)
-        if let Ok(request) = bincode::deserialize::<LpRegistrationRequest>(&decrypted_bytes) {
+        if let Ok(request) =
+            lp_bincode_serializer().deserialize::<LpRegistrationRequest>(&decrypted_bytes)
+        {
             debug!(
                 "LP registration request from {} (receiver_idx={}): mode={:?}",
                 self.remote_addr, receiver_idx, request.mode
@@ -632,7 +635,9 @@ impl LpConnectionHandler {
         }
 
         // Try to deserialize as ForwardPacketData (entry gateway forwarding to exit)
-        if let Ok(forward_data) = bincode::deserialize::<ForwardPacketData>(&decrypted_bytes) {
+        if let Ok(forward_data) =
+            lp_bincode_serializer().deserialize::<ForwardPacketData>(&decrypted_bytes)
+        {
             debug!(
                 "LP forward request from {} (receiver_idx={}) to {}",
                 self.remote_addr, receiver_idx, forward_data.target_lp_address
@@ -747,7 +752,7 @@ impl LpConnectionHandler {
                 .map_err(|e| GatewayError::LpProtocolError(format!("Session error: {}", e)))?;
 
             // Serialize and encrypt response
-            let response_bytes = bincode::serialize(&response).map_err(|e| {
+            let response_bytes = lp_bincode_serializer().serialize(&response).map_err(|e| {
                 GatewayError::LpProtocolError(format!("Failed to serialize response: {}", e))
             })?;
 

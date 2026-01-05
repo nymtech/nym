@@ -33,7 +33,6 @@ impl ClientHelloData {
         client_ed25519_public_key: [u8; 32],
         timestamp: u64,
     ) -> Self {
-
         // Generate salt: timestamp + nonce
         let mut salt = [0u8; 32];
 
@@ -373,8 +372,10 @@ mod tests {
             .as_secs();
         let client_key = [1u8; 32];
         let client_ed25519_key = [2u8; 32];
-        let hello1 = ClientHelloData::new_with_fresh_salt(client_key, client_ed25519_key, timestamp);
-        let hello2 = ClientHelloData::new_with_fresh_salt(client_key, client_ed25519_key, timestamp);
+        let hello1 =
+            ClientHelloData::new_with_fresh_salt(client_key, client_ed25519_key, timestamp);
+        let hello2 =
+            ClientHelloData::new_with_fresh_salt(client_key, client_ed25519_key, timestamp);
 
         // Different salts should be generated
         assert_ne!(hello1.salt, hello2.salt);

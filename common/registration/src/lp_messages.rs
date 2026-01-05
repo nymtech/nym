@@ -275,7 +275,9 @@ mod tests {
         assert!(response.lp_gateway_data.is_some());
         assert_eq!(response.allocated_bandwidth, allocated_bandwidth);
 
-        let gw_data = response.lp_gateway_data.expect("LpGatewayData should be present");
+        let gw_data = response
+            .lp_gateway_data
+            .expect("LpGatewayData should be present");
         assert_eq!(gw_data.gateway_identity, [1u8; 32]);
         assert_eq!(gw_data.gateway_sphinx_key, [2u8; 32]);
     }

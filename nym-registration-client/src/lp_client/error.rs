@@ -59,4 +59,10 @@ pub enum LpClientError {
     Crypto(String),
 }
 
+impl LpClientError {
+    pub fn transport<S>(message: S) -> LpClientError {
+        LpClientError::Transport(message.to_string())
+    }
+}
+
 pub type Result<T> = std::result::Result<T, LpClientError>;

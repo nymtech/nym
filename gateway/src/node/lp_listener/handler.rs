@@ -1066,15 +1066,15 @@ impl LpConnectionHandler {
                 .write_all(&len.to_be_bytes())
                 .await
                 .map_err(|e| {
-                    GatewayError::LpConnectionError(format!("Failed to send length to target: {}", e))
+                    GatewayError::LpConnectionError(format!(
+                        "Failed to send length to target: {}",
+                        e
+                    ))
                 })?;
 
-            target_stream
-                .write_all(inner_bytes)
-                .await
-                .map_err(|e| {
-                    GatewayError::LpConnectionError(format!("Failed to send packet to target: {}", e))
-                })?;
+            target_stream.write_all(inner_bytes).await.map_err(|e| {
+                GatewayError::LpConnectionError(format!("Failed to send packet to target: {}", e))
+            })?;
 
             target_stream.flush().await.map_err(|e| {
                 GatewayError::LpConnectionError(format!("Failed to flush target stream: {}", e))
@@ -1656,7 +1656,8 @@ mod tests {
 
         let client_key = [7u8; 32];
         let client_ed25519_key = [8u8; 32];
-        let hello_data = ClientHelloData::new_with_fresh_salt(client_key, client_ed25519_key, timestamp);
+        let hello_data =
+            ClientHelloData::new_with_fresh_salt(client_key, client_ed25519_key, timestamp);
         let expected_salt = hello_data.salt; // Clone salt before moving hello_data
 
         let server_task = tokio::spawn(async move {
@@ -1727,7 +1728,7 @@ mod tests {
         let hello_data = ClientHelloData::new_with_fresh_salt(
             client_x25519_public.to_bytes(),
             client_ed25519_keypair.public_key().to_bytes(),
-            timestamp
+            timestamp,
         );
         let packet = LpPacket::new(
             LpHeader {

@@ -532,9 +532,7 @@ impl LpListener {
             self.handler_state.lp_config.bind_address, self.data_port
         )
         .parse()
-        .map_err(|e| {
-            GatewayError::InternalError(format!("Invalid LP data bind address: {}", e))
-        })?;
+        .map_err(|e| GatewayError::InternalError(format!("Invalid LP data bind address: {}", e)))?;
 
         // Create data handler
         let data_handler = data_handler::LpDataHandler::new(

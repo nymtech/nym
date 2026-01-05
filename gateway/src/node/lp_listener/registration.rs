@@ -364,9 +364,7 @@ pub async fn process_registration(
                     client_identity
                 );
                 inc!("lp_registration_mixnet_failed");
-                return LpRegistrationResponse::error(
-                    "Client already registered".to_string(),
-                );
+                return LpRegistrationResponse::error("Client already registered".to_string());
             }
 
             // Get gateway identity and derive sphinx key

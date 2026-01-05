@@ -3,7 +3,7 @@
 //! Integrates LP transport with Sphinx routing and KCP framing.
 //! Supports bidirectional encrypted data channel testing.
 
-use anyhow::{Context, Result, bail};
+use anyhow::{bail, Context, Result};
 use bytes::Bytes;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_kcp::driver::KcpDriver;
@@ -18,8 +18,8 @@ use nym_sphinx_anonymous_replies::requests::{AnonymousSenderTag, RepliableMessag
 use nym_sphinx_anonymous_replies::{ReplySurb, SurbEncryptionKey};
 use nym_sphinx_framing::codec::NymCodec;
 use nym_sphinx_framing::packet::FramedNymPacket;
-use rand_chacha::ChaCha8Rng;
 use rand_chacha::rand_core::SeedableRng;
+use rand_chacha::ChaCha8Rng;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -218,10 +218,7 @@ impl SpeedtestClient {
         let local_addr = socket.local_addr()?;
         let conv_id = compute_conv_id(local_addr, self.gateway.mix_host);
 
-        debug!(
-            "UDP socket bound to {}, conv_id={}",
-            local_addr, conv_id
-        );
+        debug!("UDP socket bound to {}, conv_id={}", local_addr, conv_id);
 
         let session = KcpSession::new(conv_id);
         let driver = KcpDriver::new(session);
@@ -324,12 +321,8 @@ impl SpeedtestClient {
         // Step 5: Build message (RepliableMessage if SURBs, plain otherwise)
         let nym_message = if num_surbs > 0 {
             let sender_tag = AnonymousSenderTag::new_random(&mut self.rng);
-            let repliable_message = RepliableMessage::new_data(
-                false,
-                kcp_buf.to_vec(),
-                sender_tag,
-                surbs_with_keys,
-            );
+            let repliable_message =
+                RepliableMessage::new_data(false, kcp_buf.to_vec(), sender_tag, surbs_with_keys);
             NymMessage::new_repliable(repliable_message)
         } else {
             NymMessage::new_plain(kcp_buf.to_vec())
@@ -474,10 +467,13 @@ impl SpeedtestClient {
                 .context("failed to wrap in LP")?;
 
             // Send to gateway's LP data port (51264) with timeout
-            tokio::time::timeout(Duration::from_secs(5), socket.send_to(&lp_packet, lp_data_address))
-                .await
-                .context("UDP send timed out")?
-                .context("UDP send failed")?;
+            tokio::time::timeout(
+                Duration::from_secs(5),
+                socket.send_to(&lp_packet, lp_data_address),
+            )
+            .await
+            .context("UDP send timed out")?
+            .context("UDP send failed")?;
             total_sent += lp_packet.len();
         }
 
@@ -578,12 +574,8 @@ mod tests {
         assert!(packet.len() > 0, "packet should not be empty");
 
         // Verify we can frame it
-        let framed = FramedNymPacket::new(
-            packet,
-            PacketType::Mix,
-            SphinxKeyRotation::Unknown,
-            false,
-        );
+        let framed =
+            FramedNymPacket::new(packet, PacketType::Mix, SphinxKeyRotation::Unknown, false);
 
         let mut buf = BytesMut::new();
         let mut codec = NymCodec;

@@ -744,7 +744,8 @@ mod tests {
         // Create ClientHelloData with fresh salt
         let client_key = [7u8; 32];
         let client_ed25519_key = [8u8; 32];
-        let hello_data = ClientHelloData::new_with_fresh_salt(client_key, client_ed25519_key, timestamp);
+        let hello_data =
+            ClientHelloData::new_with_fresh_salt(client_key, client_ed25519_key, timestamp);
 
         // Create a ClientHello message packet
         let packet = LpPacket {

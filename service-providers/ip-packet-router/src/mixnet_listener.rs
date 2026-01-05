@@ -541,9 +541,9 @@ impl MixnetListener {
         let response_bytes = response.try_into_bytes()?;
 
         // Wrap in KCP
-        let kcp_wrapped = self
-            .kcp_session_manager
-            .wrap_response(conv_id, &response_bytes, current_time_ms)?;
+        let kcp_wrapped =
+            self.kcp_session_manager
+                .wrap_response(conv_id, &response_bytes, current_time_ms)?;
 
         log::debug!(
             "KCP conv_id={}: wrapped {} byte response into {} bytes",
@@ -663,22 +663,13 @@ impl MixnetListener {
                 continue;
             };
 
-            log::trace!(
-                "KCP tick: conv_id={} sending {} bytes",
-                conv_id,
-                data.len()
-            );
+            log::trace!("KCP tick: conv_id={} sending {} bytes", conv_id, data.len());
 
             let reply_to = crate::clients::ConnectedClientId::AnonymousSenderTag(sender_tag);
-            let input_message =
-                crate::util::create_message::create_input_message(&reply_to, data);
+            let input_message = crate::util::create_message::create_input_message(&reply_to, data);
 
             if let Err(e) = self.mixnet_client.send(input_message).await {
-                log::warn!(
-                    "KCP tick: failed to send for conv_id={}: {}",
-                    conv_id,
-                    e
-                );
+                log::warn!("KCP tick: failed to send for conv_id={}: {}", conv_id, e);
             }
         }
     }

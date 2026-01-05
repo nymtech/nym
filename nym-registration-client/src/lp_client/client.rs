@@ -202,9 +202,10 @@ impl LpRegistrationClient {
         packet: &LpPacket,
         outer_key: Option<&OuterAeadKey>,
     ) -> Result<()> {
-        let stream = self.stream.as_mut().ok_or_else(|| {
-            LpClientError::Transport("Cannot send: not connected".to_string())
-        })?;
+        let stream = self
+            .stream
+            .as_mut()
+            .ok_or_else(|| LpClientError::Transport("Cannot send: not connected".to_string()))?;
 
         Self::send_packet_with_key(stream, packet, outer_key).await
     }
@@ -217,9 +218,10 @@ impl LpRegistrationClient {
     /// # Errors
     /// Returns an error if not connected or if receive fails.
     async fn receive_packet(&mut self, outer_key: Option<&OuterAeadKey>) -> Result<LpPacket> {
-        let stream = self.stream.as_mut().ok_or_else(|| {
-            LpClientError::Transport("Cannot receive: not connected".to_string())
-        })?;
+        let stream = self
+            .stream
+            .as_mut()
+            .ok_or_else(|| LpClientError::Transport("Cannot receive: not connected".to_string()))?;
 
         Self::receive_packet_with_key(stream, outer_key).await
     }
@@ -313,7 +315,7 @@ impl LpRegistrationClient {
             .public_key()
             .to_x25519()
             .map_err(|e| {
-                LpClientError::Crypto(format!("Failed to derive X25519 public key: {}", e))
+                LpClientError::Crypto(format!("Failed to derive X25519 public key: {e}"))
             })?;
 
         let timestamp = SystemTime::now()
@@ -473,9 +475,7 @@ impl LpRegistrationClient {
                                 .session()?
                                 .prepare_handshake_message()
                                 .ok_or_else(|| {
-                                LpClientError::Transport(
-                                    "No handshake message available after KKT".to_string(),
-                                )
+                                LpClientError::transport("No handshake message available after KKT")
                             })??;
                             let noise_packet = state_machine.session()?.next_packet(noise_msg)?;
                             pending_packet = Some(noise_packet);
@@ -487,8 +487,8 @@ impl LpRegistrationClient {
                 }
             } else {
                 // No pending packet and not complete - something is wrong
-                return Err(LpClientError::Transport(
-                    "Handshake stalled: no packet to send".to_string(),
+                return Err(LpClientError::transport(
+                    "Handshake stalled: no packet to send",
                 ));
             }
         }
@@ -586,25 +586,26 @@ impl LpRegistrationClient {
     ) -> Result<()> {
         let mut packet_buf = BytesMut::new();
         serialize_lp_packet(packet, &mut packet_buf, outer_key)
-            .map_err(|e| LpClientError::Transport(format!("Failed to serialize packet: {}", e)))?;
+            .map_err(|e| LpClientError::Transport(format!("Failed to serialize packet: {e}")))?;
 
         // Send 4-byte length prefix (u32 big-endian)
         let len = packet_buf.len() as u32;
-        stream.write_all(&len.to_be_bytes()).await.map_err(|e| {
-            LpClientError::Transport(format!("Failed to send packet length: {}", e))
-        })?;
+        stream
+            .write_all(&len.to_be_bytes())
+            .await
+            .map_err(|e| LpClientError::Transport(format!("Failed to send packet length: {e}")))?;
 
         // Send the actual packet data
         stream
             .write_all(&packet_buf)
             .await
-            .map_err(|e| LpClientError::Transport(format!("Failed to send packet data: {}", e)))?;
+            .map_err(|e| LpClientError::Transport(format!("Failed to send packet data: {e}")))?;
 
         // Flush to ensure data is sent immediately
         stream
             .flush()
             .await
-            .map_err(|e| LpClientError::Transport(format!("Failed to flush stream: {}", e)))?;
+            .map_err(|e| LpClientError::Transport(format!("Failed to flush stream: {e}")))?;
 
         tracing::trace!(
             "Sent LP packet ({} bytes + 4 byte header)",
@@ -632,9 +633,10 @@ impl LpRegistrationClient {
     ) -> Result<LpPacket> {
         // Read 4-byte length prefix (u32 big-endian)
         let mut len_buf = [0u8; 4];
-        stream.read_exact(&mut len_buf).await.map_err(|e| {
-            LpClientError::Transport(format!("Failed to read packet length: {}", e))
-        })?;
+        stream
+            .read_exact(&mut len_buf)
+            .await
+            .map_err(|e| LpClientError::Transport(format!("Failed to read packet length: {e}")))?;
 
         let packet_len = u32::from_be_bytes(len_buf) as usize;
 
@@ -642,8 +644,7 @@ impl LpRegistrationClient {
         const MAX_PACKET_SIZE: usize = 65536; // 64KB max
         if packet_len > MAX_PACKET_SIZE {
             return Err(LpClientError::Transport(format!(
-                "Packet size {} exceeds maximum {}",
-                packet_len, MAX_PACKET_SIZE
+                "Packet size {packet_len} exceeds maximum {MAX_PACKET_SIZE}",
             )));
         }
 
@@ -652,10 +653,10 @@ impl LpRegistrationClient {
         stream
             .read_exact(&mut packet_buf)
             .await
-            .map_err(|e| LpClientError::Transport(format!("Failed to read packet data: {}", e)))?;
+            .map_err(|e| LpClientError::Transport(format!("Failed to read packet data: {e}")))?;
 
         let packet = parse_lp_packet(&packet_buf, outer_key)
-            .map_err(|e| LpClientError::Transport(format!("Failed to parse packet: {}", e)))?;
+            .map_err(|e| LpClientError::Transport(format!("Failed to parse packet: {e}")))?;
 
         tracing::trace!("Received LP packet ({} bytes + 4 byte header)", packet_len);
         Ok(packet)
@@ -745,7 +746,7 @@ impl LpRegistrationClient {
 
         // 2. Serialize the request
         let request_bytes = bincode::serialize(&request).map_err(|e| {
-            LpClientError::SendRegistrationRequest(format!("Failed to serialize request: {}", e))
+            LpClientError::SendRegistrationRequest(format!("Failed to serialize request: {e}"))
         })?;
 
         tracing::debug!(
@@ -756,18 +757,15 @@ impl LpRegistrationClient {
         // 3. Encrypt and prepare packet via state machine (scoped borrow)
         let (request_packet, send_key, recv_key) = {
             let state_machine = self.state_machine.as_mut().ok_or_else(|| {
-                LpClientError::Transport("Cannot register: handshake not completed".to_string())
+                LpClientError::transport("Cannot register: handshake not completed")
             })?;
 
             let action = state_machine
                 .process_input(LpInput::SendData(request_bytes))
-                .ok_or_else(|| {
-                    LpClientError::Transport("State machine returned no action".to_string())
-                })?
+                .ok_or_else(|| LpClientError::transport("State machine returned no action"))?
                 .map_err(|e| {
                     LpClientError::SendRegistrationRequest(format!(
-                        "Failed to encrypt registration request: {}",
-                        e
+                        "Failed to encrypt registration request: {e}",
                     ))
                 })?;
 
@@ -775,8 +773,7 @@ impl LpRegistrationClient {
                 LpAction::SendPacket(packet) => packet,
                 other => {
                     return Err(LpClientError::Transport(format!(
-                        "Unexpected action when sending registration data: {:?}",
-                        other
+                        "Unexpected action when sending registration data: {other:?}",
                     )));
                 }
             };
@@ -810,18 +807,16 @@ impl LpRegistrationClient {
         tracing::trace!("Received registration response packet");
 
         // 5. Decrypt via state machine (re-borrow)
-        let state_machine = self.state_machine.as_mut().ok_or_else(|| {
-            LpClientError::Transport("State machine disappeared unexpectedly".to_string())
-        })?;
+        let state_machine = self
+            .state_machine
+            .as_mut()
+            .ok_or_else(|| LpClientError::transport("State machine disappeared unexpectedly"))?;
         let action = state_machine
             .process_input(LpInput::ReceivePacket(response_packet))
-            .ok_or_else(|| {
-                LpClientError::Transport("State machine returned no action".to_string())
-            })?
+            .ok_or_else(|| LpClientError::transport("State machine returned no action"))?
             .map_err(|e| {
                 LpClientError::ReceiveRegistrationResponse(format!(
-                    "Failed to decrypt registration response: {}",
-                    e
+                    "Failed to decrypt registration response: {e}",
                 ))
             })?;
 
@@ -830,8 +825,7 @@ impl LpRegistrationClient {
             LpAction::DeliverData(data) => data,
             other => {
                 return Err(LpClientError::Transport(format!(
-                    "Unexpected action when receiving registration response: {:?}",
-                    other
+                    "Unexpected action when receiving registration response: {other:?}"
                 )));
             }
         };
@@ -840,8 +834,7 @@ impl LpRegistrationClient {
         let response: LpRegistrationResponse =
             bincode::deserialize(&response_data).map_err(|e| {
                 LpClientError::ReceiveRegistrationResponse(format!(
-                    "Failed to deserialize registration response: {}",
-                    e
+                    "Failed to deserialize registration response: {e}",
                 ))
             })?;
 
@@ -855,7 +848,7 @@ impl LpRegistrationClient {
             let error_msg = response
                 .error
                 .unwrap_or_else(|| "Unknown error".to_string());
-            tracing::warn!("Gateway rejected registration: {}", error_msg);
+            tracing::warn!("Gateway rejected registration: {error_msg}");
             return Err(LpClientError::RegistrationRejected { reason: error_msg });
         }
 
@@ -911,10 +904,7 @@ impl LpRegistrationClient {
         ticket_type: TicketType,
         max_retries: u32,
     ) -> Result<GatewayData> {
-        tracing::debug!(
-            "Starting resilient registration (max_retries={})",
-            max_retries
-        );
+        tracing::debug!("Starting resilient registration (max_retries={max_retries})",);
 
         // Acquire credential ONCE before any attempts
         let credential = bandwidth_controller
@@ -922,8 +912,7 @@ impl LpRegistrationClient {
             .await
             .map_err(|e| {
                 LpClientError::SendRegistrationRequest(format!(
-                    "Failed to acquire bandwidth credential: {}",
-                    e
+                    "Failed to acquire bandwidth credential: {e}",
                 ))
             })?
             .data;
@@ -951,7 +940,7 @@ impl LpRegistrationClient {
                 self.state_machine = None;
 
                 if let Err(e) = self.perform_handshake().await {
-                    tracing::warn!("Handshake failed on attempt {}: {}", attempt + 1, e);
+                    tracing::warn!("Handshake failed on attempt {}: {e}", attempt + 1);
                     last_error = Some(e);
                     continue;
                 }
@@ -963,23 +952,19 @@ impl LpRegistrationClient {
             {
                 Ok(data) => {
                     if attempt > 0 {
-                        tracing::info!(
-                            "Registration succeeded on retry attempt {}",
-                            attempt + 1
-                        );
+                        tracing::info!("Registration succeeded on retry attempt {}", attempt + 1);
                     }
                     return Ok(data);
                 }
                 Err(e) => {
-                    tracing::warn!("Registration attempt {} failed: {}", attempt + 1, e);
+                    tracing::warn!("Registration attempt {} failed: {e}", attempt + 1);
                     last_error = Some(e);
                 }
             }
         }
 
-        Err(last_error.unwrap_or_else(|| {
-            LpClientError::Transport("Registration failed after all retries".to_string())
-        }))
+        Err(last_error
+            .unwrap_or_else(|| LpClientError::transport("Registration failed after all retries")))
     }
 
     /// Sends a ForwardPacket message to the entry gateway for forwarding to the exit gateway.
@@ -1040,7 +1025,7 @@ impl LpRegistrationClient {
 
         // 2. Serialize the ForwardPacketData
         let forward_data_bytes = bincode::serialize(&forward_data).map_err(|e| {
-            LpClientError::Transport(format!("Failed to serialize ForwardPacketData: {}", e))
+            LpClientError::Transport(format!("Failed to serialize ForwardPacketData: {e}"))
         })?;
 
         tracing::trace!(
@@ -1051,18 +1036,14 @@ impl LpRegistrationClient {
         // 3. Encrypt and prepare packet via state machine (scoped borrow)
         let (forward_packet, send_key, recv_key) = {
             let state_machine = self.state_machine.as_mut().ok_or_else(|| {
-                LpClientError::Transport(
-                    "Cannot send forward packet: handshake not completed".to_string(),
-                )
+                LpClientError::transport("Cannot send forward packet: handshake not completed")
             })?;
 
             let action = state_machine
                 .process_input(LpInput::SendData(forward_data_bytes))
-                .ok_or_else(|| {
-                    LpClientError::Transport("State machine returned no action".to_string())
-                })?
+                .ok_or_else(|| LpClientError::transport("State machine returned no action"))?
                 .map_err(|e| {
-                    LpClientError::Transport(format!("Failed to encrypt ForwardPacket: {}", e))
+                    LpClientError::Transport(format!("Failed to encrypt ForwardPacket: {e}"))
                 })?;
 
             let forward_packet = match action {
@@ -1103,16 +1084,15 @@ impl LpRegistrationClient {
         tracing::trace!("Received response packet from entry gateway");
 
         // 5. Decrypt via state machine (re-borrow)
-        let state_machine = self.state_machine.as_mut().ok_or_else(|| {
-            LpClientError::Transport("State machine disappeared unexpectedly".to_string())
-        })?;
+        let state_machine = self
+            .state_machine
+            .as_mut()
+            .ok_or_else(|| LpClientError::transport("State machine disappeared unexpectedly"))?;
         let action = state_machine
             .process_input(LpInput::ReceivePacket(response_packet))
-            .ok_or_else(|| {
-                LpClientError::Transport("State machine returned no action".to_string())
-            })?
+            .ok_or_else(|| LpClientError::transport("State machine returned no action"))?
             .map_err(|e| {
-                LpClientError::Transport(format!("Failed to decrypt forward response: {}", e))
+                LpClientError::Transport(format!("Failed to decrypt forward response: {e}"))
             })?;
 
         // 7. Extract decrypted response data
@@ -1163,15 +1143,16 @@ impl LpRegistrationClient {
     /// socket.send_to(&lp_bytes, gateway_lp_data_address).await?; // UDP:51264
     /// ```
     pub fn wrap_data(&mut self, data: &[u8]) -> Result<Vec<u8>> {
-        let state_machine = self.state_machine.as_mut().ok_or_else(|| {
-            LpClientError::Transport("Cannot wrap data: handshake not completed".to_string())
-        })?;
+        let state_machine = self
+            .state_machine
+            .as_mut()
+            .ok_or_else(|| LpClientError::transport("Cannot wrap data: handshake not completed"))?;
 
         // Process data through state machine to create LP packet
         let action = state_machine
             .process_input(LpInput::SendData(data.to_vec()))
-            .ok_or_else(|| LpClientError::Transport("State machine returned no action".to_string()))?
-            .map_err(|e| LpClientError::Transport(format!("Failed to encrypt data: {}", e)))?;
+            .ok_or_else(|| LpClientError::transport("State machine returned no action"))?
+            .map_err(|e| LpClientError::Transport(format!("Failed to encrypt data: {e}")))?;
 
         let packet = match action {
             LpAction::SendPacket(packet) => packet,
@@ -1191,9 +1172,8 @@ impl LpRegistrationClient {
 
         // Serialize the packet with outer AEAD encryption
         let mut buf = BytesMut::new();
-        serialize_lp_packet(&packet, &mut buf, outer_key.as_ref()).map_err(|e| {
-            LpClientError::Transport(format!("Failed to serialize LP packet: {}", e))
-        })?;
+        serialize_lp_packet(&packet, &mut buf, outer_key.as_ref())
+            .map_err(|e| LpClientError::Transport(format!("Failed to serialize LP packet: {e}")))?;
 
         Ok(buf.to_vec())
     }
@@ -1210,13 +1190,13 @@ impl LpRegistrationClient {
     /// Returns an error if handshake has not been completed.
     pub fn session_id(&self) -> Result<u32> {
         let state_machine = self.state_machine.as_ref().ok_or_else(|| {
-            LpClientError::Transport("Cannot get session ID: handshake not completed".to_string())
+            LpClientError::transport("Cannot get session ID: handshake not completed")
         })?;
 
         state_machine
             .session()
             .map(|s| s.id())
-            .map_err(|e| LpClientError::Transport(format!("Failed to get session: {}", e)))
+            .map_err(|e| LpClientError::Transport(format!("Failed to get session: {e}")))
     }
 }
 

@@ -166,11 +166,10 @@ impl LpDataHandler {
             })?;
 
         // Parse full packet with outer AEAD decryption
-        let lp_packet =
-            nym_lp::codec::parse_lp_packet(packet, Some(&outer_key)).map_err(|e| {
-                inc!("lp_data_decrypt_errors");
-                GatewayError::LpProtocolError(format!("Failed to decrypt LP packet: {}", e))
-            })?;
+        let lp_packet = nym_lp::codec::parse_lp_packet(packet, Some(&outer_key)).map_err(|e| {
+            inc!("lp_data_decrypt_errors");
+            GatewayError::LpProtocolError(format!("Failed to decrypt LP packet: {}", e))
+        })?;
 
         // Step 4: Process packet through state machine
         // This handles:

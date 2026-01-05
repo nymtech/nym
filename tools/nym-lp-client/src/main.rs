@@ -70,7 +70,10 @@ async fn main() -> Result<()> {
         .await
         .context("failed to fetch topology")?;
 
-    info!("Topology loaded: {} entry gateways", topology.gateway_count());
+    info!(
+        "Topology loaded: {} entry gateways",
+        topology.gateway_count()
+    );
 
     // Select gateway
     let mut rng = thread_rng();

@@ -3,7 +3,7 @@
 //! Queries nym-api for active mix nodes and gateways,
 //! builds routes for Sphinx packet construction.
 
-use anyhow::{Context, Result, anyhow, bail};
+use anyhow::{anyhow, bail, Context, Result};
 use nym_api_requests::nym_nodes::SkimmedNode;
 use nym_crypto::asymmetric::ed25519;
 use nym_http_api_client::UserAgent;
@@ -65,10 +65,7 @@ impl SpeedtestTopology {
             .await
             .context("failed to fetch mixing nodes")?;
 
-        info!(
-            "Fetched {} mixing nodes",
-            mixing_nodes.nodes.len()
-        );
+        info!("Fetched {} mixing nodes", mixing_nodes.nodes.len());
 
         // Fetch entry gateways
         debug!("Fetching entry gateways...");
@@ -77,10 +74,7 @@ impl SpeedtestTopology {
             .await
             .context("failed to fetch entry gateways")?;
 
-        info!(
-            "Fetched {} entry gateways",
-            entry_gateways.nodes.len()
-        );
+        info!("Fetched {} entry gateways", entry_gateways.nodes.len());
 
         // Get rewarded set info
         debug!("Fetching rewarded set...");
@@ -125,9 +119,8 @@ impl SpeedtestTopology {
 
     /// Get a specific gateway by identity string
     pub fn gateway_by_identity(&self, identity: &str) -> Result<&GatewayInfo> {
-        let identity_key: ed25519::PublicKey = identity
-            .parse()
-            .context("invalid gateway identity")?;
+        let identity_key: ed25519::PublicKey =
+            identity.parse().context("invalid gateway identity")?;
 
         self.gateways
             .iter()

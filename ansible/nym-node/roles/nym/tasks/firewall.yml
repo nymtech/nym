@@ -1,3 +1,11 @@
+- name: Ensure UFW is installed
+  apt:
+    name: ufw
+    state: present
+    update_cache: yes
+  when: nym_ufw_enable
+
+
 - name: Configure UFW rules
   ufw:
     rule: allow
@@ -14,9 +22,10 @@
 - name: Allow bandwidth/topup rule inside WG tunnel
   command: >
     ufw allow in on nymwg to any port 51830 proto tcp comment 'bandwidth queries/topup'
+  changed_when: false
   when:
     - nym_ufw_enable
-    - (wireguard_enabled | bool)
+    - (wireguard_enabled | default(false) | bool)
 
 - name: Enable UFW
   ufw:

@@ -11,7 +11,7 @@ bs58.workspace = true
 cosmwasm-std = { workspace = true }
 cosmwasm-schema = { workspace = true }
 cw2 = { workspace = true, optional = true }
-nym-multisig-contract-common = { path = "../multisig-contract" }
+nym-multisig-contract-common = { workspace = true }
 thiserror.workspace = true
 cw-utils = { workspace = true }
 cw-controllers = { workspace = true }

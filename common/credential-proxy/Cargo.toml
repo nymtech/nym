@@ -33,16 +33,16 @@ uuid = { workspace = true, features = ["serde"] }
 url = { workspace = true }
 zeroize = { workspace = true }
 
-nym-credentials = { path = "../credentials" }
-nym-crypto = { path = "../crypto", features = ["asymmetric", "rand", "serde"] }
-nym-credentials-interface = { path = "../credentials-interface" }
-nym-credential-proxy-requests = { path = "../../nym-credential-proxy/nym-credential-proxy-requests" }
-nym-ecash-signer-check = { path = "../ecash-signer-check" }
-nym-ecash-contract-common = { path = "../cosmwasm-smart-contracts/ecash-contract" }
-nym-compact-ecash = { path = "../nym_offline_compact_ecash" }
-nym-validator-client = { path = "../client-libs/validator-client" }
-nym-network-defaults = { path = "../network-defaults" }
-nym-cache = { path = "../nym-cache" }
+nym-credentials = { workspace = true }
+nym-crypto = { workspace = true, features = ["asymmetric", "rand", "serde"] }
+nym-credentials-interface = { workspace = true }
+nym-credential-proxy-requests = { workspace = true }
+nym-ecash-signer-check = { workspace = true }
+nym-ecash-contract-common = { workspace = true }
+nym-compact-ecash = { workspace = true }
+nym-validator-client = { workspace = true }
+nym-network-defaults = { workspace = true }
+nym-cache = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }

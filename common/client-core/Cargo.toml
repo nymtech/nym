@@ -31,32 +31,32 @@ tracing = { workspace = true }
 zeroize = { workspace = true }
 
 # internal
-nym-id = { path = "../nym-id" }
-nym-bandwidth-controller = { path = "../bandwidth-controller" }
-nym-crypto = { path = "../crypto" }
-nym-gateway-client = { path = "../client-libs/gateway-client" }
-nym-gateway-requests = { path = "../gateway-requests" }
-nym-http-api-client = { path = "../http-api-client", features = ["network-defaults"] }
-nym-nonexhaustive-delayqueue = { path = "../nonexhaustive-delayqueue" }
-nym-sphinx = { path = "../nymsphinx" }
-nym-statistics-common = { path = "../statistics" }
-nym-pemstore = { path = "../pemstore" }
-nym-topology = { path = "../topology", features = ["persistence"] }
-nym-validator-client = { path = "../client-libs/validator-client", default-features = false }
-nym-task = { path = "../task" }
-nym-credentials-interface = { path = "../credentials-interface" }
-nym-credential-storage = { path = "../credential-storage" }
-nym-network-defaults = { path = "../network-defaults" }
-nym-client-core-config-types = { path = "./config-types", features = [
+nym-id = { workspace = true }
+nym-bandwidth-controller = { workspace = true }
+nym-crypto = { workspace = true }
+nym-gateway-client = { workspace = true }
+nym-gateway-requests = { workspace = true }
+nym-http-api-client = { workspace = true, features = ["network-defaults"] }
+nym-nonexhaustive-delayqueue = { workspace = true }
+nym-sphinx = { workspace = true }
+nym-statistics-common = { workspace = true }
+nym-pemstore = { workspace = true }
+nym-topology = { workspace = true, features = ["persistence"] }
+nym-validator-client = { workspace = true }
+nym-task = { workspace = true }
+nym-credentials-interface = { workspace = true }
+nym-credential-storage = { workspace = true }
+nym-network-defaults = { workspace = true }
+nym-client-core-config-types = { workspace = true, features = [
     "disk-persistence",
 ] }
-nym-client-core-surb-storage = { path = "./surb-storage" }
-nym-client-core-gateways-storage = { path = "./gateways-storage" }
-nym-ecash-time = { path = "../ecash-time" }
-nym-mixnet-contract-common = { path = "../cosmwasm-smart-contracts/mixnet-contract" }
+nym-client-core-surb-storage = { workspace = true }
+nym-client-core-gateways-storage = { workspace = true }
+nym-ecash-time = { workspace = true }
+nym-mixnet-contract-common = { workspace = true }
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies]
-nym-mixnet-client = { path = "../client-libs/mixnet-client", default-features = false }
+nym-mixnet-client = { workspace = true }
 
 ### For serving prometheus metrics
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.hyper]

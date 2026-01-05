@@ -12,18 +12,18 @@ license.workspace = true
 base64 = { workspace = true }
 colored = { workspace = true }
 
-nym-coconut-dkg-common = { path = "../../cosmwasm-smart-contracts/coconut-dkg" }
-nym-contracts-common = { path = "../../cosmwasm-smart-contracts/contracts-common" }
-nym-mixnet-contract-common = { path = "../../cosmwasm-smart-contracts/mixnet-contract" }
-nym-vesting-contract-common = { path = "../../cosmwasm-smart-contracts/vesting-contract" }
-nym-ecash-contract-common = { path = "../../cosmwasm-smart-contracts/ecash-contract" }
-nym-multisig-contract-common = { path = "../../cosmwasm-smart-contracts/multisig-contract" }
-nym-group-contract-common = { path = "../../cosmwasm-smart-contracts/group-contract" }
-nym-performance-contract-common = { path = "../../cosmwasm-smart-contracts/nym-performance-contract" }
-nym-serde-helpers = { path = "../../serde-helpers", features = ["hex", "base64"] }
+nym-coconut-dkg-common = { workspace = true }
+nym-contracts-common = { workspace = true }
+nym-mixnet-contract-common = { workspace = true }
+nym-vesting-contract-common = { workspace = true }
+nym-ecash-contract-common = { workspace = true }
+nym-multisig-contract-common = { workspace = true }
+nym-group-contract-common = { workspace = true }
+nym-performance-contract-common = { workspace = true }
+nym-serde-helpers = { workspace = true, features = ["hex", "base64"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
-nym-http-api-client = { path = "../../../common/http-api-client" }
+nym-http-api-client = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 url = { workspace = true, features = ["serde"] }
@@ -31,13 +31,13 @@ tokio = { workspace = true, features = ["sync", "time"] }
 time = { workspace = true, features = ["formatting"] }
 futures = { workspace = true }
 
-nym-compact-ecash = { path = "../../nym_offline_compact_ecash" }
-nym-network-defaults = { path = "../../network-defaults" }
-nym-api-requests = { path = "../../../nym-api/nym-api-requests" }
+nym-compact-ecash = { workspace = true }
+nym-network-defaults = { workspace = true }
+nym-api-requests = { workspace = true }
 
 async-trait = { workspace = true }
 bip39 = { workspace = true, features = ["rand"] }
-nym-config = { path = "../../config" }
+nym-config = { workspace = true }
 cosmrs = { workspace = true, features = ["bip32", "cosmwasm"] }
 # note that this has the same version as used by cosmrs
 

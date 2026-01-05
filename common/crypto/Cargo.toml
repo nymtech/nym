@@ -39,7 +39,7 @@ nym-pemstore = { workspace = true }
 anyhow = { workspace = true }
 rand_chacha = { workspace = true }
 serde_json = { workspace = true }
-nym-test-utils = { path = "../test-utils" }
+nym-test-utils = { workspace = true }
 
 
 [features]

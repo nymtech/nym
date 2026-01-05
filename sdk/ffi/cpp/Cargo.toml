@@ -12,10 +12,10 @@ crate-type = ["cdylib"]
 # Async runtime
 tokio = { workspace = true, features = ["full"] }
 # Nym clients, addressing, packet format, common tools (logging), ffi shared
-nym-sdk = { path = "../../rust/nym-sdk/" }
-nym-bin-common = { path = "../../../common/bin-common", features = ["basic_tracing"] }
-nym-sphinx-anonymous-replies = { path = "../../../common/nymsphinx/anonymous-replies" }
-nym-ffi-shared = { path = "../shared" }
+nym-sdk = { workspace = true }
+nym-bin-common = { workspace = true, features = ["basic_tracing"] }
+nym-sphinx-anonymous-replies = { workspace = true }
+nym-ffi-shared = { workspace = true }
 lazy_static = { workspace = true }
 # error handling
 anyhow = { workspace = true }

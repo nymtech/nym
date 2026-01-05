@@ -19,7 +19,7 @@ cosmwasm-std = { workspace = true }
 cosmwasm-schema = { workspace = true }
 cw-controllers = { workspace = true }
 
-nym-contracts-common = { path = "../contracts-common" }
+nym-contracts-common = { workspace = true }
 
 
 [features]

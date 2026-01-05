@@ -11,8 +11,8 @@ repository = { workspace = true }
 cosmwasm-std = { workspace = true }
 cosmwasm-schema = { workspace = true }
 cw2 = { workspace = true, optional = true }
-mixnet-contract-common = { path = "../mixnet-contract", package = "nym-mixnet-contract-common" }
-contracts-common = { path = "../contracts-common", package = "nym-contracts-common" }
+nym-mixnet-contract-common = { workspace = true }
+nym-contracts-common = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 thiserror = { workspace = true }
 # without this feature, cargo clippy emits a ton of incompatibility warnings

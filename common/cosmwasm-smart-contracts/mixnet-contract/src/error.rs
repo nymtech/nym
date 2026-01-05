@@ -5,10 +5,10 @@ use crate::nym_node::Role;
 use crate::{
     EpochEventId, EpochState, IntervalEventId, NodeId, OperatingCostRange, ProfitMarginRange,
 };
-use contracts_common::Percent;
-use contracts_common::signing::verifier::ApiVerifierError;
 use cosmwasm_std::{Addr, Coin, Decimal, Uint128};
 use cw_controllers::AdminError;
+use nym_contracts_common::Percent;
+use nym_contracts_common::signing::verifier::ApiVerifierError;
 use thiserror::Error;
 
 #[derive(Error, Debug, PartialEq)]

@@ -2,19 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{PledgeCap, VestingSpecification};
-use contracts_common::signing::MessageSignature;
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Coin, Timestamp};
-use mixnet_contract_common::{
+use nym_contracts_common::signing::MessageSignature;
+use nym_mixnet_contract_common::{
     Gateway, MixNode, NodeId,
     gateway::GatewayConfigUpdate,
     mixnode::{MixNodeConfigUpdate, NodeCostParams},
 };
 
 #[cfg(feature = "schema")]
-use contracts_common::ContractBuildInformation;
-#[cfg(feature = "schema")]
 use cosmwasm_schema::QueryResponses;
+#[cfg(feature = "schema")]
+use nym_contracts_common::ContractBuildInformation;
 
 #[cfg(feature = "schema")]
 use crate::{

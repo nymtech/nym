@@ -1,8 +1,8 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use contracts_common::truncate_decimal;
 use cosmwasm_std::{Coin, Decimal, Uint128};
+use nym_contracts_common::truncate_decimal;
 
 /// Truncates all decimal points so that the reward would fit in a `Coin` and so that we would
 /// never attempt to reward more than the owner is due

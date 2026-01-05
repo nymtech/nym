@@ -22,9 +22,9 @@ time = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 
-nym-sphinx = { path = "../nymsphinx" }
-nym-node-metrics = { path = "../../nym-node/nym-node-metrics" }
-nym-statistics-common = { path = "../statistics" }
+nym-sphinx = { workspace = true }
+nym-node-metrics = { workspace = true }
+nym-statistics-common = { workspace = true }
 
 
 [build-dependencies]

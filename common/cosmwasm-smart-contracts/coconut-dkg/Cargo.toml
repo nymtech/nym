@@ -14,7 +14,7 @@ cw-utils = { workspace = true }
 cw2 = { workspace = true }
 cw4 = { workspace = true }
 
-nym-contracts-common = { workspace = true,  package = "nym-contracts-common" }
+nym-contracts-common = { workspace = true }
 nym-multisig-contract-common = { workspace = true }
 
 [features]

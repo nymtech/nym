@@ -12,13 +12,13 @@ log = { workspace = true }
 rand = { workspace = true }
 thiserror = { workspace = true }
 
-nym-credential-storage = { path = "../credential-storage" }
-nym-credentials = { path = "../credentials" }
-nym-credentials-interface = { path = "../credentials-interface" }
-nym-crypto = { path = "../crypto", features = ["rand", "asymmetric", "stream_cipher", "aes", "hashing"] }
-nym-ecash-time = { path = "../ecash-time" }
-nym-task = { path = "../task" }
-nym-validator-client = { path = "../client-libs/validator-client", default-features = false }
+nym-credential-storage = { workspace = true }
+nym-credentials = { workspace = true }
+nym-credentials-interface = { workspace = true }
+nym-crypto = { workspace = true, features = ["rand", "asymmetric", "stream_cipher", "aes", "hashing"] }
+nym-ecash-time = { workspace = true }
+nym-task = { workspace = true }
+nym-validator-client = { workspace = true }
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.nym-validator-client]
 path = "../client-libs/validator-client"

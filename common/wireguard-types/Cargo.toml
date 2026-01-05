@@ -16,8 +16,8 @@ serde = { workspace = true, features = ["derive"] }
 thiserror = { workspace = true }
 
 x25519-dalek = { workspace = true, features = ["static_secrets"] }
-nym-crypto = { path = "../crypto", features = ["asymmetric"] }
+nym-crypto = { workspace = true, features = ["asymmetric"] }
 
 [dev-dependencies]
 rand = { workspace = true }
-nym-crypto = { path = "../crypto", features = ["rand"] }
+nym-crypto = { workspace = true, features = ["rand"] }

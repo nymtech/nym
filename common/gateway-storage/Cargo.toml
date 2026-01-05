@@ -27,7 +27,7 @@ thiserror = { workspace = true }
 tokio = { workspace = true, features = ["sync"], optional = true }
 tracing = { workspace = true }
 
-nym-credentials-interface = { path = "../credentials-interface" }
+nym-credentials-interface = { workspace = true }
 nym-gateway-requests = { path = "../gateway-requests" }
 nym-sphinx = { path = "../nymsphinx" }
 

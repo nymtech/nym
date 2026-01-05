@@ -77,7 +77,7 @@ nym-task = { path = "../common/task" }
 nym-types = { path = "../common/types" }
 nym-validator-client = { path = "../common/client-libs/validator-client" }
 nym-wireguard = { path = "../common/wireguard" }
-nym-wireguard-types = { path = "../common/wireguard-types", default-features = false }
+nym-wireguard-types = { path = "../common/wireguard-types" }
 nym-verloc = { path = "../common/verloc" }
 nym-metrics = { path = "../common/nym-metrics" }
 nym-gateway-stats-storage = { path = "../common/gateway-stats-storage" }

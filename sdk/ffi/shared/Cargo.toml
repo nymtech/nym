@@ -8,10 +8,10 @@ license.workspace = true
 # Async runtime
 tokio = { workspace = true, features = ["full"] }
 # Nym clients, addressing, packet format, common tools (logging)
-nym-sdk = { path = "../../rust/nym-sdk/" }
-nym-bin-common = { path = "../../../common/bin-common" }
-nym-crypto = { path = "../../../common/crypto" }
-nym-sphinx-anonymous-replies = { path = "../../../common/nymsphinx/anonymous-replies" }
+nym-sdk = { workspace = true }
+nym-bin-common = { workspace = true }
+nym-crypto = { workspace = true }
+nym-sphinx-anonymous-replies = { workspace = true }
 # static var macro
 lazy_static = { workspace = true }
 # error handling

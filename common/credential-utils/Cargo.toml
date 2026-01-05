@@ -12,11 +12,11 @@ thiserror = { workspace = true }
 tokio = { workspace = true }
 time.workspace = true
 
-nym-bandwidth-controller = { path = "../../common/bandwidth-controller" }
-nym-credentials = { path = "../../common/credentials" }
-nym-credentials-interface = { path = "../../common/credentials-interface" }
-nym-credential-storage = { path = "../../common/credential-storage", features = ["persistent-storage"] }
-nym-validator-client = { path = "../../common/client-libs/validator-client" }
-nym-config = { path = "../../common/config" }
-nym-client-core = { path = "../../common/client-core" }
-nym-ecash-time = { path = "../../common/ecash-time" }
+nym-bandwidth-controller = { workspace = true }
+nym-credentials = { workspace = true }
+nym-credentials-interface = { workspace = true }
+nym-credential-storage = { workspace = true, features = ["persistent-storage"] }
+nym-validator-client = { workspace = true }
+nym-config = { workspace = true }
+nym-client-core = { workspace = true }
+nym-ecash-time = { workspace = true }

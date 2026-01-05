@@ -21,19 +21,19 @@ time.workspace = true
 zeroize.workspace = true
 
 # internal
-nym-bandwidth-controller = { path = "../../bandwidth-controller" }
-nym-credentials = { path = "../../credentials" }
-nym-credential-storage = { path = "../../credential-storage" }
-nym-credentials-interface = { path = "../../credentials-interface" }
-nym-crypto = { path = "../../crypto" }
-nym-gateway-requests = { path = "../../gateway-requests" }
-nym-http-api-client = { path = "../../http-api-client" }
-nym-network-defaults = { path = "../../network-defaults" }
-nym-sphinx = { path = "../../nymsphinx" }
-nym-statistics-common = { path = "../../statistics" }
-nym-pemstore = { path = "../../pemstore" }
-nym-validator-client = { path = "../validator-client", default-features = false }
-nym-task = { path = "../../task" }
+nym-bandwidth-controller = { workspace = true }
+nym-credentials = { workspace = true }
+nym-credential-storage = { workspace = true }
+nym-credentials-interface = { workspace = true }
+nym-crypto = { workspace = true }
+nym-gateway-requests = { workspace = true }
+nym-http-api-client = { workspace = true }
+nym-network-defaults = { workspace = true }
+nym-sphinx = { workspace = true }
+nym-statistics-common = { workspace = true }
+nym-pemstore = { workspace = true }
+nym-validator-client = { workspace = true, default-features = false }
+nym-task = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 
 

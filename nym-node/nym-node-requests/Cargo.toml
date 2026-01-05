@@ -22,31 +22,31 @@ time = { workspace = true, features = ["serde", "formatting", "parsing"] }
 thiserror = { workspace = true }
 url = { workspace = true, features = ["serde"] }
 
-nym-crypto = { path = "../../common/crypto", features = [
+nym-crypto = { workspace = true, features = [
     "asymmetric",
     "serde",
 ] }
-nym-exit-policy = { path = "../../common/exit-policy" }
-nym-noise-keys = { path = "../../common/nymnoise/keys" }
-nym-wireguard-types = { path = "../../common/wireguard-types", default-features = false }
-nym-upgrade-mode-check = { path = "../../common/upgrade-mode-check", features = ["openapi"] }
+nym-exit-policy = { workspace = true }
+nym-noise-keys = { workspace = true }
+nym-wireguard-types = { workspace = true }
+nym-upgrade-mode-check = { workspace = true, features = ["openapi"] }
 
 # feature-specific dependencies:
 
 ## client:
 async-trait = { workspace = true, optional = true }
-nym-http-api-client = { path = "../../common/http-api-client", optional = true }
+nym-http-api-client = { workspace = true, optional = true }
 
 ## openapi:
 utoipa = { workspace = true, features = ["time"], optional = true }
-nym-bin-common = { path = "../../common/bin-common", features = [
+nym-bin-common = { workspace = true, features = [
     "bin_info_schema",
 ] }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["full"] }
 rand_chacha = { workspace = true }
-nym-crypto = { path = "../../common/crypto", features = ["rand"] }
+nym-crypto = { workspace = true, features = ["rand"] }
 
 
 [features]

@@ -18,8 +18,8 @@ utoipa = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 time = { workspace = true }
 
-nym-credentials-interface = { path = "../credentials-interface" }
-nym-serde-helpers = { path = "../serde-helpers", features = ["date", "base64", "hex"] }
+nym-credentials-interface = { workspace = true }
+nym-serde-helpers = { workspace = true, features = ["date", "base64", "hex"] }
 
 [dev-dependencies]
 rand_chacha = { workspace = true }

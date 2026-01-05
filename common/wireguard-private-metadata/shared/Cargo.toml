@@ -16,7 +16,7 @@ serde = { workspace = true }
 thiserror = { workspace = true }
 utoipa = { workspace = true }
 
-nym-credentials-interface = { path = "../../credentials-interface" }
+nym-credentials-interface = { workspace = true }
 
 [features]
 testing = []

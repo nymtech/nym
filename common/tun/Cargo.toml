@@ -15,7 +15,7 @@ thiserror.workspace = true
 tokio = { workspace = true, features = ["rt-multi-thread", "net", "io-util", "time", "sync", "macros"] }
 etherparse = { workspace = true }
 log.workspace = true
-nym-wireguard-types = { path = "../wireguard-types", optional = true }
+nym-wireguard-types = { workspace = true, optional = true }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 tokio-tun.workspace = true

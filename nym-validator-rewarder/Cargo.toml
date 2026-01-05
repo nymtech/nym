@@ -33,18 +33,18 @@ humantime = { workspace = true }
 humantime-serde.workspace = true
 
 # internal
-nym-bin-common = { path = "../common/bin-common", features = ["output_format", "basic_tracing"] }
-nym-config = { path = "../common/config" }
-nym-ecash-time = { path = "../common/ecash-time" }
-nym-contracts-common = { path = "../common/cosmwasm-smart-contracts/contracts-common" }
-nym-compact-ecash = { path = "../common/nym_offline_compact_ecash" }
-nym-crypto = { path = "../common/crypto", features = ["asymmetric", "rand"] }
-nym-credentials = { path = "../common/credentials" }
+nym-bin-common = { workspace = true, features = ["output_format", "basic_tracing"] }
+nym-config = { workspace = true }
+nym-ecash-time = { workspace = true }
+nym-contracts-common = { workspace = true }
+nym-compact-ecash = { workspace = true }
+nym-crypto = { workspace = true, features = ["asymmetric", "rand"] }
+nym-credentials = { workspace = true }
 nym-network-defaults = { path = "../common/network-defaults" }
 nym-task = { path = "../common/task" }
-nym-validator-client = { path = "../common/client-libs/validator-client" }
+nym-validator-client = { workspace = true }
 nym-http-api-client = { path = "../common/http-api-client" }
-nym-coconut-dkg-common = { path = "../common/cosmwasm-smart-contracts/coconut-dkg" }
+nym-coconut-dkg-common = { workspace = true }
 nyxd-scraper-sqlite = { path = "../common/nyxd-scraper-sqlite" }
 nym-ticketbooks-merkle = { path = "../common/ticketbooks-merkle" }
 nym-serde-helpers = { path = "../common/serde-helpers", features = ["base64"] }

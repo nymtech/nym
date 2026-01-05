@@ -33,12 +33,13 @@ thiserror = { workspace = true }
 tsify = { workspace = true, features = ["js"] }
 web-sys = { workspace = true }
 
-nym-bin-common = { path = "../../common/bin-common" }
-wasm-client-core = { path = "../../common/wasm/client-core" }
-wasm-utils = { path = "../../common/wasm/utils" }
-nym-gateway-requests = { path = "../../common/gateway-requests" }
+nym-bin-common = { workspace = true }
+nym-wasm-client-core = { workspace = true }
+nym-wasm-utils = { workspace = true }
+nym-gateway-requests = { workspace = true }
 
-nym-node-tester-utils = { path = "../../common/node-tester-utils", optional = true }
+nym-node-tester-utils = { workspace = true, optional = true }
+
 nym-node-tester-wasm = { path = "../node-tester", optional = true }
 
 tokio_with_wasm = { workspace = true, features = ["full"] }

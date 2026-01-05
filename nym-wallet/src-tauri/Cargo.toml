@@ -57,7 +57,7 @@ cosmwasm-std = "=2.2.2"
 cosmrs = { version = "0.22.0" }
 
 nym-node-requests = { path = "../../nym-node/nym-node-requests" }
-nym-validator-client = { path = "../../common/client-libs/validator-client" }
+nym-validator-client = { workspace = true }
 nym-crypto = { path = "../../common/crypto", features = ["asymmetric"] }
 nym-contracts-common = { path = "../../common/cosmwasm-smart-contracts/contracts-common" }
 nym-mixnet-contract-common = { path = "../../common/cosmwasm-smart-contracts/mixnet-contract" }

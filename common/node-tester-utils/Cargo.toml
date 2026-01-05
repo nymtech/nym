@@ -16,17 +16,17 @@ serde_json = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["macros"] }
 
-nym-crypto = { path = "../crypto", features = ["asymmetric"] }
-nym-task = { path = "../task" }
-nym-topology = { path = "../topology" }
-nym-sphinx-params = { path = "../nymsphinx/params" }
+nym-crypto = { workspace = true, features = ["asymmetric"] }
+nym-task = { workspace = true }
+nym-topology = { workspace = true }
+nym-sphinx-params = { workspace = true }
 # TODO: do we need the whole nymsphinx?
-nym-sphinx = { path = "../nymsphinx" }
+nym-sphinx = { workspace = true }
 
 ## non-wasm-only dependencies
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.log]
 workspace = true
 
 ## wasm-only dependencies
-[target."cfg(target_arch = \"wasm32\")".dependencies.wasm-utils]
-path = "../wasm/utils"
+[target."cfg(target_arch = \"wasm32\")".dependencies.nym-wasm-utils]
+workspace = true

@@ -57,7 +57,7 @@ nym-bin-common = { path = "../common/bin-common", features = [
 nym-client-core-config-types = { path = "../common/client-core/config-types", features = [
     "disk-persistence",
 ] }
-nym-config = { path = "../common/config" }
+nym-config = { workspace = true }
 nym-credential-verification = { path = "../common/credential-verification" }
 nym-crypto = { path = "../common/crypto", features = ["asymmetric", "rand"] }
 nym-nonexhaustive-delayqueue = { path = "../common/nonexhaustive-delayqueue" }
@@ -65,23 +65,23 @@ nym-mixnet-client = { path = "../common/client-libs/mixnet-client" }
 nym-noise = { path = "../common/nymnoise" }
 nym-noise-keys = { path = "../common/nymnoise/keys" }
 nym-pemstore = { path = "../common/pemstore" }
-nym-sphinx-acknowledgements = { path = "../common/nymsphinx/acknowledgements" }
-nym-sphinx-addressing = { path = "../common/nymsphinx/addressing" }
-nym-sphinx-framing = { path = "../common/nymsphinx/framing" }
-nym-sphinx-types = { path = "../common/nymsphinx/types" }
-nym-sphinx-forwarding = { path = "../common/nymsphinx/forwarding" }
+nym-sphinx-acknowledgements = { workspace = true }
+nym-sphinx-addressing = { workspace = true }
+nym-sphinx-framing = { workspace = true }
+nym-sphinx-types = { workspace = true }
+nym-sphinx-forwarding = { workspace = true }
 nym-sphinx-routing = { path = "../common/nymsphinx/routing" }
 nym-sphinx-params = { path = "../common/nymsphinx/params" }
 nym-statistics-common = { path = "../common/statistics" }
 nym-task = { path = "../common/task" }
 nym-types = { path = "../common/types" }
-nym-validator-client = { path = "../common/client-libs/validator-client" }
+nym-validator-client = { workspace = true }
 nym-wireguard = { path = "../common/wireguard" }
-nym-wireguard-types = { path = "../common/wireguard-types" }
+nym-wireguard-types = { workspace = true }
 nym-verloc = { path = "../common/verloc" }
-nym-metrics = { path = "../common/nym-metrics" }
+nym-metrics = { workspace = true}
 nym-gateway-stats-storage = { path = "../common/gateway-stats-storage" }
-nym-topology = { path = "../common/topology" }
+nym-topology = { workspace = true }
 nym-http-api-client = { path = "../common/http-api-client" }
 
 # http server
@@ -93,7 +93,7 @@ tower-http = { workspace = true, features = ["fs"] }
 utoipa = { workspace = true, features = ["axum_extras", "time"] }
 utoipa-swagger-ui = { workspace = true, features = ["axum"] }
 
-nym-http-api-common = { path = "../common/http-api-common", features = [
+nym-http-api-common = { workspace = true, features = [
     "utoipa",
     "output",
     "middleware",

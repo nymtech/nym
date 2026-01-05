@@ -29,10 +29,10 @@ x25519-dalek = { workspace = true, features = ["static_secrets"] }
 cosmwasm-std = { workspace = true }
 cosmrs = { workspace = true }
 
-nym-validator-client = { path = "../../common/client-libs/validator-client" }
+nym-validator-client = { workspace = true }
 nym-mixnet-contract-common = { path = "../../common/cosmwasm-smart-contracts/mixnet-contract" }
 nym-vesting-contract-common = { path = "../../common/cosmwasm-smart-contracts/vesting-contract" }
-nym-config = { path = "../../common/config" }
+nym-config = { workspace = true }
 nym-crypto = { path = "../../common/crypto", features = ["asymmetric"] }
 
 [dev-dependencies]

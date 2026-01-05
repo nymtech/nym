@@ -19,8 +19,8 @@ url = { workspace = true, features = ["serde"] }
 serde = { workspace = true, features = ["derive"] }
 zeroize = { workspace = true }
 
-nym-bin-common = { path = "../bin-common" }
-nym-http-api-client = { path = "../http-api-client" }
+nym-bin-common = { workspace = true }
+nym-http-api-client = { workspace = true }
 reqwest = { workspace = true }
 tracing = { workspace = true }
 

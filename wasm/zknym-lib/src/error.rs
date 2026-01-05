@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use nym_http_api_client::HttpClientError;
+use nym_wasm_utils::wasm_error;
 use thiserror::Error;
-use wasm_utils::wasm_error;
 
 #[derive(Debug, Error)]
 pub enum ZkNymError {

@@ -27,7 +27,7 @@ features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate", "time"]
 optional = true
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.nym-sqlx-pool-guard]
-path = "../../../nym-sqlx-pool-guard"
+workspace = true
 
 [build-dependencies]
 anyhow = { workspace = true }

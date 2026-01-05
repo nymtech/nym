@@ -61,8 +61,8 @@ workspace = true
 [target."cfg(target_arch = \"wasm32\")".dependencies.wasm-bindgen-futures]
 workspace = true
 
-[target."cfg(target_arch = \"wasm32\")".dependencies.wasm-utils]
-path = "../../wasm/utils"
+[target."cfg(target_arch = \"wasm32\")".dependencies.nym-wasm-utils]
+workspace = true
 features = ["websocket"]
 
 [target."cfg(target_arch = \"wasm32\")".dependencies.gloo-utils]

@@ -18,25 +18,27 @@ clap.workspace = true
 etherparse = { workspace = true }
 futures = { workspace = true }
 log = { workspace = true }
-nym-bin-common = { path = "../../common/bin-common", features = ["clap", "basic_tracing"] }
-nym-client-core = { path = "../../common/client-core" }
-nym-config = { path = "../../common/config" }
-nym-crypto = { path = "../../common/crypto" }
-nym-exit-policy = { path = "../../common/exit-policy" }
-nym-id = { path = "../../common/nym-id" }
-nym-ip-packet-requests = { path = "../../common/ip-packet-requests" }
-nym-kcp = { path = "../../common/nym-kcp" }
-nym-network-defaults = { path = "../../common/network-defaults" }
+
+nym-bin-common = { workspace = true, features = ["clap", "basic_tracing"] }
+nym-client-core = { workspace = true }
+nym-config = { workspace = true }
+nym-crypto = { workspace = true }
+nym-exit-policy = { workspace = true }
+nym-id = { workspace = true }
+nym-ip-packet-requests = { workspace = true }
+nym-kcp = { path = "../../common/nym-kcp" } # TODO MAX add to workspace dependencies
+nym-network-defaults = { workspace = true }
+
 nym-network-requester = { path = "../network-requester" }
-nym-sdk = { path = "../../sdk/rust/nym-sdk" }
-nym-service-provider-requests-common = { path = "../../common/service-provider-requests-common" }
-nym-service-providers-common = { path = "../common" }
-nym-sphinx = { path = "../../common/nymsphinx" }
-nym-task = { path = "../../common/task" }
-nym-tun = { path = "../../common/tun" }
-nym-types = { path = "../../common/types" }
-nym-wireguard = { path = "../../common/wireguard" }
-nym-wireguard-types = { path = "../../common/wireguard-types" }
+nym-sdk = { workspace = true }
+nym-service-provider-requests-common = { workspace = true }
+nym-service-providers-common = { workspace = true }
+nym-sphinx = { workspace = true }
+nym-task = { workspace = true }
+nym-tun = { workspace = true }
+nym-types = { workspace = true }
+nym-wireguard = { workspace = true }
+nym-wireguard-types = { workspace = true }
 rand = { workspace = true }
 reqwest.workspace = true
 serde = { workspace = true, features = ["derive"] }

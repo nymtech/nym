@@ -22,15 +22,15 @@ use nym_topology::wasm_helpers::WasmFriendlyNymTopology;
 use nym_topology::{EpochRewardedSet, NymTopology, RoutingNode};
 use nym_validator_client::client::IdentityKey;
 use nym_validator_client::{nym_api::NymApiClientExt, UserAgent};
+use nym_wasm_utils::error::PromisableResult;
 use rand::thread_rng;
 use url::Url;
 use wasm_bindgen::prelude::wasm_bindgen;
 use wasm_bindgen_futures::future_to_promise;
-use wasm_utils::error::PromisableResult;
 
 pub use nym_credential_storage::ephemeral_storage::EphemeralStorage as EphemeralCredentialStorage;
 use nym_topology::provider_trait::ToTopologyMetadata;
-use wasm_utils::{console_log, console_warn};
+use nym_wasm_utils::{console_log, console_warn};
 
 // don't get too excited about the name, under the hood it's just a big fat placeholder
 // with no disk_persistence

@@ -22,16 +22,16 @@ tokio = { workspace = true, features = ["rt-multi-thread", "net", "io-util"] }
 tokio-stream = { workspace = true }
 tracing = { workspace = true }
 
-nym-credentials-interface = { path = "../credentials-interface" }
-nym-credential-verification = { path = "../credential-verification" }
-nym-crypto = { path = "../crypto", features = ["asymmetric"] }
+nym-credentials-interface = { workspace = true }
+nym-credential-verification = { workspace = true }
+nym-crypto = { workspace = true, features = ["asymmetric"] }
 nym-gateway-storage = { path = "../gateway-storage" }
 nym-gateway-requests = { path = "../gateway-requests" }
 nym-ip-packet-requests = { path = "../ip-packet-requests" }
 nym-metrics = { path = "../nym-metrics" }
 nym-network-defaults = { path = "../network-defaults" }
 nym-task = { path = "../task" }
-nym-wireguard-types = { path = "../wireguard-types" }
+nym-wireguard-types = { workspace = true }
 nym-node-metrics = { path = "../../nym-node/nym-node-metrics" }
 
 [dev-dependencies]

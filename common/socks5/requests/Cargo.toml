@@ -10,9 +10,9 @@ license.workspace = true
 [dependencies]
 bincode = { workspace = true }
 log = { workspace = true }
-nym-exit-policy = { path = "../../../common/exit-policy"}
-nym-service-providers-common = { path = "../../../service-providers/common" }
-nym-sphinx-addressing = { path = "../../../common/nymsphinx/addressing" }
+nym-exit-policy = { workspace = true}
+nym-service-providers-common = { workspace = true }
+nym-sphinx-addressing = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 tap = { workspace = true }

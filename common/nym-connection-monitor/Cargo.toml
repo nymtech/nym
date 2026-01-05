@@ -16,10 +16,10 @@ workspace = true
 bincode.workspace = true
 bytes.workspace = true
 futures.workspace = true
-nym-config = { path = "../config" }
-nym-common = { path = "../nym-common" }
-nym-ip-packet-requests = { path = "../ip-packet-requests" }
-nym-sdk = { path = "../../sdk/rust/nym-sdk" }
+nym-config = { workspace = true }
+nym-common = { workspace = true }
+nym-ip-packet-requests = { workspace = true }
+nym-sdk = { workspace = true }
 pnet_packet.workspace = true
 thiserror.workspace = true
 tokio.workspace = true

@@ -20,5 +20,5 @@ tokio-util.workspace = true
 tokio.workspace = true
 tracing.workspace = true
 
-nym-sdk = { path = "../sdk/rust/nym-sdk" }
-nym-ip-packet-requests = { path = "../common/ip-packet-requests" }
+nym-sdk = { workspace = true }
+nym-ip-packet-requests = { workspace = true }

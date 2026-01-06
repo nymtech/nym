@@ -427,7 +427,7 @@ nym-node-tester-utils = { version = "1.20.1", path = "common/node-tester-utils" 
 nym-noise = { version = "1.20.1", path = "common/nymnoise" }
 nym-noise-keys = { version = "1.20.1", path = "common/nymnoise/keys" }
 nym-nonexhaustive-delayqueue = { version = "1.20.1", path = "common/nonexhaustive-delayqueue" }
-nym-node-requests = { version = "1.20.1", path = "nym-node/nym-node-requests" }
+nym-node-requests = { version = "1.20.1", path = "nym-node/nym-node-requests", default-features = false }
 nym-node-metrics = { version = "1.20.1", path = "nym-node/nym-node-metrics" }
 nym-ordered-buffer = { version = "1.20.1", path = "common/socks5/ordered-buffer" }
 nym-outfox = { version = "1.20.1", path = "nym-outfox" }

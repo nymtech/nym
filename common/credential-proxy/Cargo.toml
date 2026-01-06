@@ -9,6 +9,7 @@ edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
 readme.workspace = true
+description = "Build script and core functionality of the Nym Credential Proxy"
 
 [dependencies]
 anyhow = { workspace = true }

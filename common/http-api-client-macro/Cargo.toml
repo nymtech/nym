@@ -9,6 +9,7 @@ edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
 readme.workspace = true
+description = "Proc-macros for configuring HTTP clients globally via the `inventory` crate"
 
 [lib]
 proc-macro = true

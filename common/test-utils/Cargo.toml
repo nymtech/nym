@@ -9,6 +9,7 @@ edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
 readme.workspace = true
+description = "Helpers, traits, and mock definitions for tests"
 
 [dependencies]
 anyhow = { workspace = true }

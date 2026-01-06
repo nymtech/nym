@@ -8,6 +8,7 @@ documentation.workspace = true
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
+description = "Functionality Nym Gateway statistics storage"
 
 [dependencies]
 sqlx = { workspace = true, features = [

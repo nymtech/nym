@@ -5,6 +5,7 @@ version.workspace = true
 edition = "2021"
 license = "Apache-2.0"
 repository = "https://github.com/nymtech/nym"
+description = "Crate containing core WASM client functionality and configs"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

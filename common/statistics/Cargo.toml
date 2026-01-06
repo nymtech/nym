@@ -6,6 +6,7 @@ name = "nym-statistics-common"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+description = "This crate contains basic statistics utilities and abstractions to be re-used and applied throughout both the client and gateway implementations"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

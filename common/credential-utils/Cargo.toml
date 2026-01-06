@@ -3,6 +3,7 @@ name = "nym-credential-utils"
 version.workspace = true
 edition = "2021"
 license.workspace = true
+description = "Utils crate for dealing with zknym credentials"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

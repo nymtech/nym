@@ -3,6 +3,7 @@ name = "nym-client-core-surb-storage"
 version.workspace = true
 edition = "2021"
 license.workspace = true
+description = "Functionality for Nym clients to generate and use Single Use Reply Blocks (SURBs)"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

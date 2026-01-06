@@ -5,6 +5,7 @@ authors.workspace = true
 repository.workspace = true
 license.workspace = true
 edition.workspace = true
+description = "max todo"
 
 [lints]
 workspace = true

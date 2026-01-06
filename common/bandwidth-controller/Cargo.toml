@@ -3,6 +3,7 @@ name = "nym-bandwidth-controller"
 version.workspace = true
 edition = "2021"
 license.workspace = true
+description = "Crate for controlling the use of zknym credentials to ensure constant bandwidth availability for NymVPN app"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

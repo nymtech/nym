@@ -3,6 +3,7 @@ name = "nym-async-file-watcher"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+description = "Simple file watcher that sends a notification whenever there was any change in the watched file"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

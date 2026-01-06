@@ -7,6 +7,7 @@ homepage.workspace = true
 documentation.workspace = true
 edition.workspace = true
 license.workspace = true
+description = "Codec, signing functionality, and different version definitions for IP packet request and responses"
 
 [dependencies]
 bincode = { workspace = true }

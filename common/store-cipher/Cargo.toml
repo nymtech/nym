@@ -3,6 +3,7 @@ name = "nym-store-cipher"
 version.workspace = true
 edition = "2021"
 license.workspace = true
+description = "Helpers for various ciphers used throughout the Nym network"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

@@ -9,6 +9,7 @@ edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
 readme.workspace = true
+description = "Helper functions around a RwLock for writing to local cache of items"
 
 [dependencies]
 tokio = { workspace = true, features = ["sync"] }

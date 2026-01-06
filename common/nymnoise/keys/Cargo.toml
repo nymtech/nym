@@ -4,6 +4,7 @@ version.workspace = true
 authors = ["Simon Wicky <simon@nymtech.net>"]
 edition = "2021"
 license.workspace = true
+description = "Helpers and type definition of Nym's Noise protocol keys"
 
 [dependencies]
 schemars = { workspace = true, features = ["preserve_order"] }

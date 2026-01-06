@@ -3,6 +3,7 @@ name = "nym-go-ffi"
 version.workspace = true
 edition = "2021"
 license.workspace = true
+description = "Go FFI bindings for Nym Rust SDK"
 
 [lib]
 crate-type = ["cdylib"]

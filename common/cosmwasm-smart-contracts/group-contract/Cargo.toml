@@ -3,6 +3,7 @@ name = "nym-group-contract-common"
 version.workspace = true
 edition = "2021"
 license.workspace = true
+description = "Common crate for Nym's group cosmwasm contract"
 
 [dependencies]
 cosmwasm-schema = { workspace = true }

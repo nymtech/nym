@@ -4,6 +4,7 @@ version.workspace = true
 authors = ["Simon Wicky <simon@nymtech.net>"]
 edition = "2021"
 license.workspace = true
+description = "Nym's Noise protocol implementation"
 
 [dependencies]
 arc-swap = { workspace = true }

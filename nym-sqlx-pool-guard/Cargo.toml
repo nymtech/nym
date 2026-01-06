@@ -3,6 +3,7 @@ name = "nym-sqlx-pool-guard"
 version.workspace = true
 edition = "2024"
 license.workspace = true
+description = "Platform-specific functions for SQLX dbs"
 
 [lints]
 workspace = true

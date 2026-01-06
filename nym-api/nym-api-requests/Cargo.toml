@@ -3,6 +3,7 @@ name = "nym-api-requests"
 version.workspace = true
 edition = "2021"
 license.workspace = true
+description = "Nym API request types and functions"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

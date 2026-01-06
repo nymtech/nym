@@ -3,6 +3,7 @@ name = "nym-socks5-client-core"
 version.workspace = true
 edition = "2021"
 license.workspace = true
+description = "Core functionality of the Nym SOCKS client"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

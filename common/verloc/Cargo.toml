@@ -9,6 +9,7 @@ edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
 readme.workspace = true
+description = "Nym's verloc (Verifiable Location) implementation"
 
 [dependencies]
 bytes = { workspace = true }

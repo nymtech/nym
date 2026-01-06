@@ -9,6 +9,7 @@ edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
 readme.workspace = true
+description = "Crate containing types for the `ecash-signer-check` crate used to check if zknym signers are up and running properly"
 
 [dependencies]
 semver = { workspace = true }

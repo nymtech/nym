@@ -3,6 +3,7 @@ name = "nym-ecash-contract-common"
 version.workspace = true
 edition = "2021"
 license.workspace = true
+description = "Common crate for Nym's ecash/zknym cosmwasm contract"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

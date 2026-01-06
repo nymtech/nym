@@ -3,6 +3,7 @@ name = "nym-cpp-ffi"
 version.workspace = true
 edition = "2021"
 license.workspace = true
+description = "C++ FFI bindings for Nym Rust SDK"
 
 [lib]
 name = "nym_cpp_ffi"

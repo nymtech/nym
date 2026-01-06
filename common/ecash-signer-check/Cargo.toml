@@ -9,6 +9,7 @@ edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
 readme.workspace = true
+description = "Functions to interact with zknym signers, checking their status and health"
 
 [dependencies]
 futures = { workspace = true }

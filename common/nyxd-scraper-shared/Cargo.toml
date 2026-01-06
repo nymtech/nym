@@ -9,6 +9,7 @@ edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
 readme.workspace = true
+description = "Common crate for the sqlite and psql Nyxd blockchain scrapers"
 
 [dependencies]
 async-trait.workspace = true

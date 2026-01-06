@@ -5,6 +5,7 @@ authors = ["Jędrzej Stuczyński <andrew@nymtech.net>"]
 edition = "2021"
 rust-version = "1.85"
 license.workspace = true
+description = "Client for interacting with Nyx Cosmos SDK blockchain"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

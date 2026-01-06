@@ -9,6 +9,7 @@ edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
 readme.workspace = true
+description = "Common crate for Nym's group performance contract"
 
 [dependencies]
 thiserror = { workspace = true }

@@ -1005,8 +1005,7 @@ impl LpConnectionHandler {
                 // Return error to prevent silent behavior changes that could mask bugs
                 inc!("lp_forward_failed");
                 return Err(GatewayError::LpProtocolError(format!(
-                    "Forward target mismatch: session bound to {}, got request for {}",
-                    existing_addr, target_addr
+                    "Forward target mismatch: session bound to {existing_addr}, got request for {target_addr}"
                 )));
             }
             None => true,
@@ -1032,8 +1031,7 @@ impl LpConnectionHandler {
                     Ok(Err(e)) => {
                         inc!("lp_forward_failed");
                         return Err(GatewayError::LpConnectionError(format!(
-                            "Failed to connect to target gateway: {}",
-                            e
+                            "Failed to connect to target gateway: {e}",
                         )));
                     }
                     Err(_) => {
@@ -1044,14 +1042,12 @@ impl LpConnectionHandler {
                     }
                 };
 
-            debug!(
-                "Opened persistent exit connection to {} for forwarding",
-                target_addr
-            );
+            debug!("Opened persistent exit connection to {target_addr} for forwarding",);
             self.exit_stream = Some((stream, target_addr));
         }
 
         // Get mutable reference to the exit stream
+        #[allow(clippy::unwrap_used)]
         let (target_stream, _) = self.exit_stream.as_mut().unwrap();
 
         debug!(

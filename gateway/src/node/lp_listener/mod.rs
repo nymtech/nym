@@ -488,8 +488,7 @@ impl LpListener {
         }
 
         debug!(
-            "Accepting LP connection from {} ({} active connections)",
-            remote_addr, active_connections
+            "Accepting LP connection from {remote_addr} ({active_connections} active connections)"
         );
 
         // Increment connection counter
@@ -507,7 +506,7 @@ impl LpListener {
                 // Handler emits lifecycle metrics internally on success
                 // For errors, we need to emit them here since handler is consumed
                 if let Err(e) = result {
-                    warn!("LP handler error for {}: {}", remote_addr, e);
+                    warn!("LP handler error for {remote_addr}: {e}");
                     // Note: metrics are emitted in handle() for graceful path
                     // On error path, handle() returns early without emitting
                     // So we track errors here
@@ -516,7 +515,7 @@ impl LpListener {
                 // Decrement connection counter on exit
                 metrics.network.lp_connection_closed();
             },
-            &format!("LP::{}", remote_addr),
+            &format!("LP::{remote_addr}"),
         );
     }
 
@@ -546,7 +545,7 @@ impl LpListener {
         let handle = self.shutdown.try_spawn_named(
             async move {
                 if let Err(e) = data_handler.run().await {
-                    error!("LP data handler error: {}", e);
+                    error!("LP data handler error: {e}");
                 }
             },
             "LP::DataHandler",

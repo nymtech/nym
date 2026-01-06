@@ -72,7 +72,6 @@ impl LpRegistrationClient {
     ///
     /// # Note
     /// This creates the client. Call `perform_handshake()` to establish the LP session.
-    /// Each packet exchange opens a new TCP connection (packet-per-connection model).
     pub fn new(
         local_ed25519_keypair: Arc<ed25519::KeyPair>,
         gateway_ed25519_public_key: ed25519::PublicKey,
@@ -666,8 +665,10 @@ impl LpRegistrationClient {
     /// Sends registration request and receives response in a single operation.
     ///
     /// This is the primary registration method. It acquires a bandwidth credential,
-    /// sends the registration request, and receives the response using the
-    /// packet-per-connection model.
+    /// sends the registration request, and receives the response
+    /// on the same underlying connection.
+    /// Do note that this method does **not** perform retries on network failures,
+    /// for that please use [`Self::register_with_retry`] instead
     ///
     /// # Arguments
     /// * `wg_keypair` - Client's WireGuard x25519 keypair
@@ -701,8 +702,7 @@ impl LpRegistrationClient {
             .await
             .map_err(|e| {
                 LpClientError::SendRegistrationRequest(format!(
-                    "Failed to acquire bandwidth credential: {}",
-                    e
+                    "Failed to acquire bandwidth credential: {e}",
                 ))
             })?
             .data;

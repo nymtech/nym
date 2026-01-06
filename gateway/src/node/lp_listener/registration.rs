@@ -224,10 +224,7 @@ pub async fn process_registration(
             // without wasting credentials
             let wg_key_str = request.wg_public_key.to_string();
             if let Some(existing_response) = check_existing_registration(&wg_key_str, state).await {
-                info!(
-                    "LP dVPN re-registration for existing peer {} (idempotent)",
-                    wg_key_str
-                );
+                info!("LP dVPN re-registration for existing peer {wg_key_str} (idempotent)",);
                 inc!("lp_registration_dvpn_idempotent");
                 return existing_response;
             }
@@ -242,12 +239,11 @@ pub async fn process_registration(
             {
                 Ok(result) => result,
                 Err(e) => {
-                    error!("LP WireGuard peer registration failed: {}", e);
+                    error!("LP WireGuard peer registration failed: {e}");
                     inc!("lp_registration_dvpn_failed");
                     inc!("lp_errors_wg_peer_registration");
                     return LpRegistrationResponse::error(format!(
-                        "WireGuard peer registration failed: {}",
-                        e
+                        "WireGuard peer registration failed: {e}",
                     ));
                 }
             };
@@ -263,24 +259,17 @@ pub async fn process_registration(
                 Ok(bandwidth) => bandwidth,
                 Err(e) => {
                     // Credential verification failed, remove the peer
-                    warn!(
-                        "LP credential verification failed for client {}: {}",
-                        client_id, e
-                    );
+                    warn!("LP credential verification failed for client {client_id}: {e}",);
                     inc!("lp_registration_dvpn_failed");
                     if let Err(remove_err) = state
                         .storage
                         .remove_wireguard_peer(&request.wg_public_key.to_string())
                         .await
                     {
-                        error!(
-                            "Failed to remove peer after credential verification failure: {}",
-                            remove_err
-                        );
+                        error!("Failed to remove peer after credential verification failure: {remove_err}");
                     }
                     return LpRegistrationResponse::error(format!(
-                        "Credential verification failed: {}",
-                        e
+                        "Credential verification failed: {e}",
                     ));
                 }
             };
@@ -300,11 +289,10 @@ pub async fn process_registration(
             let client_identity = match ed25519::PublicKey::from_bytes(&client_ed25519_pubkey) {
                 Ok(key) => key,
                 Err(e) => {
-                    warn!("LP Mixnet registration failed: invalid ed25519 key: {}", e);
+                    warn!("LP Mixnet registration failed: invalid ed25519 key: {e}");
                     inc!("lp_registration_mixnet_failed");
                     return LpRegistrationResponse::error(format!(
-                        "Invalid client ed25519 key: {}",
-                        e
+                        "Invalid client ed25519 key: {e}",
                     ));
                 }
             };
@@ -320,10 +308,7 @@ pub async fn process_registration(
                     .expect("This cannot fail, since the key is 32 bytes long"),
             );
 
-            info!(
-                "LP Mixnet registration for client {}, session {}",
-                client_identity, session_id
-            );
+            info!("LP Mixnet registration for client {client_identity}, session {session_id}",);
 
             // Verify credential with CredentialVerifier
             let allocated_bandwidth = match credential_verification(
@@ -335,14 +320,10 @@ pub async fn process_registration(
             {
                 Ok(bandwidth) => bandwidth,
                 Err(e) => {
-                    warn!(
-                        "LP Mixnet credential verification failed for client {}: {}",
-                        client_identity, e
-                    );
+                    warn!("LP Mixnet credential verification failed for client {client_identity}: {e}");
                     inc!("lp_registration_mixnet_failed");
                     return LpRegistrationResponse::error(format!(
-                        "Credential verification failed: {}",
-                        e
+                        "Credential verification failed: {e}"
                     ));
                 }
             };
@@ -359,10 +340,7 @@ pub async fn process_registration(
                 is_active_request_sender,
                 OffsetDateTime::now_utc(),
             ) {
-                warn!(
-                    "LP Mixnet registration failed: client {} already registered",
-                    client_identity
-                );
+                warn!("LP Mixnet registration failed: client {client_identity} already registered",);
                 inc!("lp_registration_mixnet_failed");
                 return LpRegistrationResponse::error("Client already registered".to_string());
             }
@@ -376,10 +354,7 @@ pub async fn process_registration(
                 .expect("valid ed25519 key should convert to x25519")
                 .to_bytes();
 
-            info!(
-                "LP Mixnet registration successful (client: {})",
-                client_identity
-            );
+            info!("LP Mixnet registration successful (client: {client_identity})",);
             inc!("lp_registration_mixnet_success");
 
             LpRegistrationResponse::success_mixnet(

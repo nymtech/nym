@@ -477,9 +477,8 @@ impl MixnetListener {
                 reconstructed.sender_tag,
                 current_time_ms,
             )
-            .map_err(|e| {
-                log::warn!("KCP processing error: {}", e);
-                e
+            .inspect_err(|e| {
+                log::warn!("KCP processing error: {e}");
             })?;
 
         log::debug!(
@@ -507,9 +506,7 @@ impl MixnetListener {
                                 .await
                             {
                                 log::warn!(
-                                    "Error sending KCP-wrapped response for conv_id={}: {}",
-                                    conv_id,
-                                    e
+                                    "Error sending KCP-wrapped response for conv_id={conv_id}: {e}",
                                 );
                             }
                         }

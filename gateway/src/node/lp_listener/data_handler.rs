@@ -56,14 +56,14 @@ impl LpDataHandler {
         shutdown: nym_task::ShutdownToken,
     ) -> Result<Self, GatewayError> {
         let socket = UdpSocket::bind(bind_addr).await.map_err(|e| {
-            error!("Failed to bind LP data socket to {}: {}", bind_addr, e);
+            error!("Failed to bind LP data socket to {bind_addr}: {e}");
             GatewayError::ListenerBindFailure {
                 address: bind_addr.to_string(),
                 source: Box::new(e),
             }
         })?;
 
-        info!("LP data handler listening on UDP {}", bind_addr);
+        info!("LP data handler listening on UDP {bind_addr}");
 
         Ok(Self {
             socket: Arc::new(socket),
@@ -129,14 +129,10 @@ impl LpDataHandler {
         })?;
 
         let receiver_idx = header.receiver_idx;
+        let counter = header.counter;
+        let len = packet.len();
 
-        trace!(
-            "LP data packet from {} (receiver_idx={}, counter={}, len={})",
-            src_addr,
-            receiver_idx,
-            header.counter,
-            packet.len()
-        );
+        trace!("LP data packet from {src_addr} (receiver_idx={receiver_idx}, counter={counter}, len={len})");
 
         // Step 2: Look up session state machine by receiver_idx (mutable for state updates)
         let mut state_entry = self
@@ -146,8 +142,7 @@ impl LpDataHandler {
             .ok_or_else(|| {
                 inc!("lp_data_unknown_session");
                 GatewayError::LpProtocolError(format!(
-                    "Unknown session for receiver_idx {}",
-                    receiver_idx
+                    "Unknown session for receiver_idx {receiver_idx}"
                 ))
             })?;
 
@@ -203,8 +198,7 @@ impl LpDataHandler {
                 // UDP is connectionless - we can't send responses back easily
                 // For subsession rekeying, the client should use TCP control plane
                 debug!(
-                    "Ignoring SendPacket action on UDP (receiver_idx={}) - use TCP for rekeying",
-                    receiver_idx
+                    "Ignoring SendPacket action on UDP (receiver_idx={receiver_idx}) - use TCP for rekeying",
                 );
                 inc!("lp_data_ignored_send_actions");
                 Ok(())
@@ -234,7 +228,7 @@ impl LpDataHandler {
         // Parse as MixPacket v2 format (packet_type || key_rotation || next_hop || packet)
         let mix_packet = MixPacket::try_from_v2_bytes(sphinx_bytes).map_err(|e| {
             inc!("lp_data_sphinx_parse_errors");
-            GatewayError::LpProtocolError(format!("Failed to parse MixPacket: {}", e))
+            GatewayError::LpProtocolError(format!("Failed to parse MixPacket: {e}"))
         })?;
 
         trace!(
@@ -248,8 +242,7 @@ impl LpDataHandler {
             error!("Failed to forward Sphinx packet to mixnet: {}", e);
             inc!("lp_data_forward_errors");
             return Err(GatewayError::InternalError(format!(
-                "Mix packet forwarding failed: {}",
-                e
+                "Mix packet forwarding failed: {e}",
             )));
         }
 

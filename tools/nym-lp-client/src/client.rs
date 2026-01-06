@@ -114,7 +114,7 @@ impl SpeedtestClient {
             self.gateway.lp_address
         );
 
-        let client_ip = "0.0.0.0".parse().unwrap();
+        let client_ip = "0.0.0.0".parse()?;
 
         let mut lp_client = LpRegistrationClient::new_with_default_psk(
             self.identity_keypair.clone(),
@@ -218,7 +218,7 @@ impl SpeedtestClient {
         let local_addr = socket.local_addr()?;
         let conv_id = compute_conv_id(local_addr, self.gateway.mix_host);
 
-        debug!("UDP socket bound to {}, conv_id={}", local_addr, conv_id);
+        debug!("UDP socket bound to {local_addr}, conv_id={conv_id}");
 
         let session = KcpSession::new(conv_id);
         let driver = KcpDriver::new(session);

@@ -10,9 +10,9 @@ name = "nym-lp-client"
 path = "src/main.rs"
 
 [dependencies]
-anyhow = "1"
+anyhow = { workspace = true }
 bytes = { workspace = true }
-clap = { version = "4", features = ["derive"] }
+clap = { workspace = true, features = ["derive"] }
 rand = { workspace = true }
 rand_chacha = { workspace = true }
 serde = { workspace = true, features = ["derive"] }

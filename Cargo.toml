@@ -378,7 +378,7 @@ zeroize = "1.7.0"
 
 prometheus = { version = "0.14.0" }
 
-# Workspace deps to publish to crates.io
+# Workspace dep definitions required by crates.io publication - for a full list of published crates run `cargo workspaces plan --long` from the monorepo root
 nym-api-requests = { version = "1.20.1", path = "nym-api/nym-api-requests" }
 nym-authenticator-requests = { version = "1.20.1", path = "common/authenticator-requests" }
 nym-async-file-watcher = { version = "1.20.1", path = "common/async-file-watcher" }

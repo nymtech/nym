@@ -13,6 +13,10 @@ pub enum KKTError {
     SigVerifError,
     #[error("Ciphersuite Decoding Error: {}", info)]
     CiphersuiteDecodingError { info: String },
+
+    #[error("KEM mapping failure: {}", info)]
+    KEMMapping { info: &'static str },
+
     #[error("Insecure Encapsulation Key Hash Length")]
     InsecureHashLen,
 

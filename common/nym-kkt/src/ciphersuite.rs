@@ -63,15 +63,15 @@ impl<'a> EncapsulationKey<'a> {
                 }
             }
             KEM::X25519 => Ok(EncapsulationKey::X25519(libcrux_kem::PublicKey::decode(
-                map_kem_to_libcrux_kem(kem),
+                map_kem_to_libcrux_kem(kem)?,
                 bytes,
             )?)),
             KEM::MlKem768 => Ok(EncapsulationKey::MlKem768(libcrux_kem::PublicKey::decode(
-                map_kem_to_libcrux_kem(kem),
+                map_kem_to_libcrux_kem(kem)?,
                 bytes,
             )?)),
             KEM::XWing => Ok(EncapsulationKey::XWing(libcrux_kem::PublicKey::decode(
-                map_kem_to_libcrux_kem(kem),
+                map_kem_to_libcrux_kem(kem)?,
                 bytes,
             )?)),
         }
@@ -291,11 +291,13 @@ impl Display for Ciphersuite {
     }
 }
 
-pub const fn map_kem_to_libcrux_kem(kem: KEM) -> Algorithm {
+pub const fn map_kem_to_libcrux_kem(kem: KEM) -> Result<Algorithm, KKTError> {
     match kem {
-        KEM::MlKem768 => Algorithm::MlKem768,
-        KEM::XWing => Algorithm::XWingKemDraft06,
-        KEM::X25519 => Algorithm::X25519,
-        KEM::McEliece => panic!("McEliece is not supported in libcrux_kem"),
+        KEM::MlKem768 => Ok(Algorithm::MlKem768),
+        KEM::XWing => Ok(Algorithm::XWingKemDraft06),
+        KEM::X25519 => Ok(Algorithm::X25519),
+        KEM::McEliece => Err(KKTError::KEMMapping {
+            info: "attempted to map McEliece KEM to libcrux_kem",
+        }),
     }
 }

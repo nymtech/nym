@@ -8,6 +8,9 @@ authors = ["Jedrzej Stuczynski <andrew@nymtech.net>"]
 edition = "2021"
 license.workspace = true
 description = "Request and response definitions for Nym Gateway <> client communication"
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

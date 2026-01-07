@@ -6,6 +6,9 @@ authors.workspace = true
 edition = "2021"
 rust-version.workspace = true
 license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
 
 [dependencies]
 base64 = { workspace = true }

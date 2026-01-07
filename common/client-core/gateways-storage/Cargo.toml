@@ -5,6 +5,9 @@ edition = "2021"
 license.workspace = true
 rust-version.workspace = true
 description = "Functionality for Nym clients to store and retrive Gateway connections"
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

@@ -106,4 +106,47 @@ impl<T> ContentWrapper<T> {
     }
 }
 
+impl ContentWrapper<Vec<u8>> {
+    pub fn take_at_most(&mut self, count: usize) -> Vec<u8> {
+        if self.content.is_empty() {
+            return Vec::new();
+        }
+        if self.content.len() <= count {
+            return self.take_content();
+        }
+        let remaining = self.content.split_off(count);
+        mem::replace(&mut self.content, remaining)
+    }
+}
+
 impl<T> LockState<T> {}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn take_at_most() {
+        let mut empty: ContentWrapper<Vec<u8>> = ContentWrapper::default();
+
+        let mut non_empty: ContentWrapper<Vec<u8>> = ContentWrapper {
+            content: vec![1, 2, 3, 4, 5],
+            ..Default::default()
+        };
+
+        assert_eq!(empty.take_at_most(0), vec![]);
+        assert_eq!(empty.take_at_most(1), vec![]);
+        assert_eq!(empty.take_at_most(42), vec![]);
+
+        assert_eq!(non_empty.take_at_most(0), vec![]);
+        assert_eq!(non_empty.take_at_most(1), vec![1]);
+        assert_eq!(non_empty.take_at_most(3), vec![2, 3, 4]);
+        assert_eq!(non_empty.take_at_most(42), vec![5]);
+
+        let mut non_empty: ContentWrapper<Vec<u8>> = ContentWrapper {
+            content: vec![1, 2, 3, 4, 5],
+            ..Default::default()
+        };
+        assert_eq!(non_empty.take_at_most(100), vec![1, 2, 3, 4, 5]);
+    }
+}

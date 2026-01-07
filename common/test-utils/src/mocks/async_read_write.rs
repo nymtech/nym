@@ -7,6 +7,10 @@ use std::io;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
+use tracing::trace;
+
+const INIT_ID: &str = "initialiser";
+const RECV_ID: &str = "recipient";
 
 // sending buffer of the first stream is the receiving buffer of the second stream
 // and vice versa
@@ -17,8 +21,10 @@ pub fn mock_io_streams() -> (MockIOStream, MockIOStream) {
     (ch1, ch2)
 }
 
-#[derive(Default)]
 pub struct MockIOStream {
+    // identifier to use for logging purposes
+    id: &'static str,
+
     // messages to send
     tx: InnerWrapper<Vec<u8>>,
 
@@ -26,12 +32,33 @@ pub struct MockIOStream {
     rx: InnerWrapper<Vec<u8>>,
 }
 
-impl MockIOStream {
-    fn make_connection(&self) -> Self {
+impl Default for MockIOStream {
+    fn default() -> Self {
         MockIOStream {
+            id: INIT_ID,
+            tx: Default::default(),
+            rx: Default::default(),
+        }
+    }
+}
+
+impl MockIOStream {
+    #[allow(clippy::panic)]
+    fn make_connection(&self) -> Self {
+        if self.id != INIT_ID {
+            panic!("attempted to make invalid connection")
+        }
+        MockIOStream {
+            id: RECV_ID,
             tx: self.rx.cloned_buffer(),
             rx: self.tx.cloned_buffer(),
         }
+    }
+
+    // the prefix `try_` is due to the fact that if the mock is cloned at an invalid state,
+    // `assert!` will fail causing panic (which is fine in **test** code)
+    pub fn try_get_remote_handle(&self) -> Self {
+        self.make_connection()
     }
 
     // unwrap in test code is fine
@@ -55,11 +82,13 @@ impl AsyncRead for MockIOStream {
     ) -> Poll<io::Result<()>> {
         ready!(Pin::new(&mut self.rx).poll_guard_ready(cx));
 
+        let unfilled = buf.remaining();
+
         // SAFETY: guard is ready
         #[allow(clippy::unwrap_used)]
         let guard = self.rx.guard().unwrap();
 
-        let data = guard.take_content();
+        let data = guard.take_at_most(unfilled);
         if data.is_empty() {
             // nothing to retrieve - store the waiter so that the sender could trigger it
             guard.waker = Some(cx.waker().clone());
@@ -69,6 +98,7 @@ impl AsyncRead for MockIOStream {
             return Poll::Pending;
         }
 
+        trace!("{}: read {} bytes from mock stream", self.id, data.len());
         // if let Some(waker) = guard.waker.take() {
         //     waker.wake();
         // }
@@ -104,6 +134,8 @@ impl AsyncWrite for MockIOStream {
         //     self.tx.transition_to_idle();
         //     return Poll::Pending;
         // }
+
+        trace!("{}: wrote {len} bytes to mock stream", self.id);
 
         Poll::Ready(Ok(len))
     }

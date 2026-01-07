@@ -174,14 +174,14 @@ impl EcashManager {
 }
 
 pub struct MockEcashManager {
-    verfication_key: tokio::sync::RwLock<VerificationKeyAuth>,
+    verification_key: tokio::sync::RwLock<VerificationKeyAuth>,
     storage: Box<dyn BandwidthGatewayStorage + Send + Sync>,
 }
 
 impl MockEcashManager {
     pub fn new(storage: Box<dyn BandwidthGatewayStorage + Send + Sync>) -> Self {
         Self {
-            verfication_key: tokio::sync::RwLock::new(
+            verification_key: tokio::sync::RwLock::new(
                 VerificationKeyAuth::from_bytes(&[
                     129, 187, 76, 12, 1, 51, 46, 26, 132, 205, 148, 109, 140, 131, 50, 119, 45,
                     128, 51, 218, 106, 70, 181, 74, 244, 38, 162, 62, 42, 12, 5, 100, 7, 136, 32,
@@ -237,7 +237,7 @@ impl traits::EcashManager for MockEcashManager {
         &self,
         _epoch_id: EpochId,
     ) -> Result<RwLockReadGuard<'_, VerificationKeyAuth>, EcashTicketError> {
-        Ok(self.verfication_key.read().await)
+        Ok(self.verification_key.read().await)
     }
 
     fn storage(&self) -> Box<dyn BandwidthGatewayStorage + Send + Sync> {

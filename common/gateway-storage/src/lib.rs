@@ -133,6 +133,13 @@ impl GatewayStorage {
             }
         };
 
+        Self::from_connection_pool(connection_pool, message_retrieval_limit).await
+    }
+
+    pub async fn from_connection_pool(
+        connection_pool: sqlx::sqlite::SqlitePool,
+        message_retrieval_limit: i64,
+    ) -> Result<Self, GatewayStorageError> {
         if let Err(err) = sqlx::migrate!("./migrations").run(&connection_pool).await {
             error!("Failed to perform migration on the SQLx database: {err}");
             return Err(err.into());

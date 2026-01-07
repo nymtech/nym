@@ -58,6 +58,10 @@ pub enum LpClientError {
     /// Cryptographic operation failed
     #[error("Cryptographic error: {0}")]
     Crypto(String),
+
+    /// Another uncategorized error
+    #[error("{0}")]
+    Other(String),
 }
 
 impl LpClientError {

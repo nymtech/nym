@@ -1,0 +1,29 @@
+[package]
+name = "integration-tests"
+version = "0.1.0"
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+readme.workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
+tokio-util = { workspace = true }
+nym-wireguard = { path = "../common/wireguard", features = ["mock"] }
+nym-bandwidth-controller = { path = "../common/bandwidth-controller" }
+nym-crypto = { path = "../common/crypto", features = ["asymmetric", "rand"] }
+nym-credential-verification = { path = "../common/credential-verification" }
+nym-credentials-interface = { path = "../common/credentials-interface" }
+nym-test-utils = { path = "../common/test-utils" }
+nym-registration-client = { path = "../nym-registration-client", features = ["io-mocks"] }
+nym-gateway = { path = "../gateway" }
+sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite"] }
+
+
+[lints]
+workspace = true

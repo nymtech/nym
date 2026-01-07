@@ -28,7 +28,9 @@ pub use builder::config::{
 };
 pub use config::RegistrationMode;
 pub use error::RegistrationClientError;
-pub use lp_client::{LpConfig, LpRegistrationClient, NestedLpSession};
+pub use lp_client::{
+    LpConfig, LpRegistrationClient, NestedLpSession, error::LpClientError, traits::LpTransportLayer,
+};
 pub use types::{
     LpRegistrationResult, MixnetRegistrationResult, RegistrationResult, WireguardRegistrationResult,
 };

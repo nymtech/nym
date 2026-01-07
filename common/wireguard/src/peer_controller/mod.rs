@@ -21,7 +21,6 @@ use nym_credential_verification::{
 use nym_credentials_interface::CredentialSpendingData;
 use nym_gateway_requests::models::CredentialSpendingRequest;
 use nym_gateway_storage::traits::BandwidthGatewayStorage;
-use nym_ip_packet_requests::IpPair;
 use nym_node_metrics::NymNodeMetrics;
 use nym_wireguard_types::{
     DEFAULT_IP_CLEANUP_INTERVAL, DEFAULT_IP_STALE_AGE, DEFAULT_PEER_TIMEOUT_CHECK,
@@ -34,6 +33,11 @@ use std::{
 use tokio::sync::{RwLock, mpsc};
 use tokio_stream::{StreamExt, wrappers::IntervalStream};
 use tracing::{debug, error, info, trace};
+
+pub use nym_ip_packet_requests::IpPair;
+
+#[cfg(feature = "mock")]
+pub mod mock;
 
 /// Registration data for a new peer (without pre-allocated IPs)
 #[derive(Debug, Clone)]

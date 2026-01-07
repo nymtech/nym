@@ -33,8 +33,9 @@
 
 mod client;
 mod config;
-mod error;
+pub(crate) mod error;
 mod nested_session;
+pub mod traits;
 
 pub use client::LpRegistrationClient;
 pub use config::LpConfig;

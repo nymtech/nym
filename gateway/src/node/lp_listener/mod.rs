@@ -73,18 +73,21 @@ use dashmap::DashMap;
 use nym_crypto::asymmetric::ed25519;
 use nym_gateway_storage::GatewayStorage;
 use nym_lp::state_machine::LpStateMachine;
-use nym_mixnet_client::forwarder::MixForwardingSender;
 use nym_node_metrics::NymNodeMetrics;
 use nym_task::ShutdownTracker;
-use nym_wireguard::{PeerControlRequest, WireguardGatewayData};
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::net::TcpListener;
 use tokio::sync::{mpsc, Semaphore};
 use tracing::*;
 
+pub use nym_mixnet_client::forwarder::{
+    mix_forwarding_channels, MixForwardingReceiver, MixForwardingSender,
+};
+pub use nym_wireguard::{PeerControlRequest, WireguardGatewayData};
+
 mod data_handler;
-mod handler;
+pub mod handler;
 mod messages;
 mod registration;
 

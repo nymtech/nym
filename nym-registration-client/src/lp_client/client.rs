@@ -5,6 +5,7 @@
 
 use super::config::LpConfig;
 use super::error::{LpClientError, Result};
+use crate::lp_client::traits::LpTransportLayer;
 use bytes::BytesMut;
 use nym_bandwidth_controller::{BandwidthTicketProvider, DEFAULT_TICKETS_TO_SPEND};
 use nym_credentials_interface::{CredentialSpendingData, TicketType};
@@ -35,7 +36,7 @@ use tokio::net::TcpStream;
 /// let gateway_data = client.register(...).await?;  // Registration (same connection)
 /// // Connection automatically closes after registration
 /// ```
-pub struct LpRegistrationClient {
+pub struct LpRegistrationClient<S = TcpStream> {
     /// Client's Ed25519 identity keypair (used for PSQ authentication and X25519 derivation).
     local_ed25519_keypair: Arc<ed25519::KeyPair>,
 
@@ -57,10 +58,13 @@ pub struct LpRegistrationClient {
 
     /// Persistent TCP stream for the connection.
     /// Opened on first use, closed after registration.
-    stream: Option<TcpStream>,
+    stream: Option<S>,
 }
 
-impl LpRegistrationClient {
+impl<S> LpRegistrationClient<S>
+where
+    S: LpTransportLayer + Unpin,
+{
     /// Creates a new LP registration client.
     ///
     /// # Arguments
@@ -135,6 +139,11 @@ impl LpRegistrationClient {
         self.client_ip
     }
 
+    /// Returns reference to the established connection between the client and the gateway.
+    pub fn connection(&self) -> &Option<S> {
+        &self.stream
+    }
+
     // -------------------------------------------------------------------------
     // Persistent connection management
     // -------------------------------------------------------------------------
@@ -146,7 +155,9 @@ impl LpRegistrationClient {
     ///
     /// # Errors
     /// Returns an error if connection fails or times out.
-    async fn ensure_connected(&mut self) -> Result<()> {
+    // Do not manually call this function. It is only exposed for the purposes of integration tests
+    #[doc(hidden)]
+    pub async fn ensure_connected(&mut self) -> Result<()> {
         if self.stream.is_some() {
             return Ok(());
         }
@@ -156,9 +167,9 @@ impl LpRegistrationClient {
             self.gateway_lp_address
         );
 
-        let stream = tokio::time::timeout(
+        let mut stream = tokio::time::timeout(
             self.config.connect_timeout,
-            TcpStream::connect(self.gateway_lp_address),
+            S::connect(self.gateway_lp_address),
         )
         .await
         .map_err(|_| LpClientError::TcpConnection {
@@ -175,7 +186,7 @@ impl LpRegistrationClient {
 
         // Set TCP_NODELAY for low latency
         stream
-            .set_nodelay(self.config.tcp_nodelay)
+            .configure(&self.config)
             .map_err(|source| LpClientError::TcpConnection {
                 address: self.gateway_lp_address.to_string(),
                 source,
@@ -320,7 +331,7 @@ impl LpRegistrationClient {
 
         let timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .expect("System time before UNIX epoch")
+            .map_err(|_| LpClientError::Other("System time before UNIX epoch".into()))?
             .as_secs();
 
         // Step 2: Generate ClientHelloData with fresh salt and both public keys
@@ -536,7 +547,7 @@ impl LpRegistrationClient {
         config: &LpConfig,
     ) -> Result<LpPacket> {
         // 1. Connect with timeout
-        let mut stream = tokio::time::timeout(config.connect_timeout, TcpStream::connect(address))
+        let mut stream = tokio::time::timeout(config.connect_timeout, S::connect(address))
             .await
             .map_err(|_| LpClientError::TcpConnection {
                 address: address.to_string(),
@@ -552,7 +563,7 @@ impl LpRegistrationClient {
 
         // 2. Set TCP_NODELAY
         stream
-            .set_nodelay(config.tcp_nodelay)
+            .configure(config)
             .map_err(|source| LpClientError::TcpConnection {
                 address: address.to_string(),
                 source,
@@ -580,7 +591,7 @@ impl LpRegistrationClient {
     /// # Errors
     /// Returns an error if serialization or network transmission fails.
     async fn send_packet_with_key(
-        stream: &mut TcpStream,
+        stream: &mut S,
         packet: &LpPacket,
         outer_key: Option<&OuterAeadKey>,
     ) -> Result<()> {
@@ -628,7 +639,7 @@ impl LpRegistrationClient {
     /// - Packet size exceeds maximum (64KB)
     /// - Packet parsing/decryption fails
     async fn receive_packet_with_key(
-        stream: &mut TcpStream,
+        stream: &mut S,
         outer_key: Option<&OuterAeadKey>,
     ) -> Result<LpPacket> {
         // Read 4-byte length prefix (u32 big-endian)
@@ -1216,8 +1227,12 @@ mod tests {
         let address = "127.0.0.1:41264".parse().unwrap();
         let client_ip = "192.168.1.100".parse().unwrap();
 
-        let client =
-            LpRegistrationClient::new_with_default_psk(keypair, gateway_key, address, client_ip);
+        let client = LpRegistrationClient::<TcpStream>::new_with_default_psk(
+            keypair,
+            gateway_key,
+            address,
+            client_ip,
+        );
 
         assert!(!client.is_handshake_complete());
         assert_eq!(client.gateway_address(), address);

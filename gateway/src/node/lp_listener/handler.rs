@@ -12,7 +12,7 @@ use nym_lp::{
 };
 use nym_metrics::{add_histogram_obs, inc};
 use std::net::SocketAddr;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tracing::*;
 
@@ -71,8 +71,8 @@ impl ConnectionStats {
     }
 }
 
-pub struct LpConnectionHandler {
-    stream: TcpStream,
+pub struct LpConnectionHandler<S = TcpStream> {
+    stream: S,
     remote_addr: SocketAddr,
     state: LpHandlerState,
     stats: ConnectionStats,
@@ -86,8 +86,11 @@ pub struct LpConnectionHandler {
     exit_stream: Option<(TcpStream, SocketAddr)>,
 }
 
-impl LpConnectionHandler {
-    pub fn new(stream: TcpStream, remote_addr: SocketAddr, state: LpHandlerState) -> Self {
+impl<S> LpConnectionHandler<S>
+where
+    S: AsyncRead + AsyncWrite + Unpin,
+{
+    pub fn new(stream: S, remote_addr: SocketAddr, state: LpHandlerState) -> Self {
         Self {
             stream,
             remote_addr,
@@ -298,10 +301,9 @@ impl LpConnectionHandler {
                     &hello_data.client_ed25519_public_key,
                 )
                 .map_err(|e| {
-                    GatewayError::LpProtocolError(format!(
-                        "Invalid client Ed25519 public key: {}",
-                        e
-                    ))
+                    GatewayError::LpProtocolError(
+                        format!("Invalid client Ed25519 public key: {e}",),
+                    )
                 })?;
 
                 (receiver_index, client_ed25519_pubkey, hello_data.salt)
@@ -309,8 +311,7 @@ impl LpConnectionHandler {
             other => {
                 inc!("lp_client_hello_failed");
                 return Err(GatewayError::LpProtocolError(format!(
-                    "Expected ClientHello, got {}",
-                    other
+                    "Expected ClientHello, got {other}",
                 )));
             }
         };
@@ -969,6 +970,7 @@ impl LpConnectionHandler {
     /// # Returns
     /// * `Ok(Vec<u8>)` - Raw response bytes from target gateway
     /// * `Err(GatewayError)` - If forwarding fails
+    ///
     /// AIDEV-NOTE: Persistent exit stream forwarding
     /// Uses self.exit_stream to maintain a persistent connection to the exit gateway.
     /// First forward opens the connection, subsequent forwards reuse it.
@@ -979,6 +981,7 @@ impl LpConnectionHandler {
     /// 1. Each LpConnectionHandler owns its exit_stream exclusively
     /// 2. The handler loop processes packets sequentially (no concurrent access)
     /// 3. Only connection opens consume new FDs
+    ///
     /// The semaphore is only acquired when opening a new connection, not for reuse.
     async fn handle_forward_packet(
         &mut self,
@@ -1341,7 +1344,7 @@ mod tests {
     }
 
     /// Helper to read an LP packet from a stream with proper framing
-    async fn read_lp_packet_from_stream<R: AsyncReadExt + Unpin>(
+    async fn read_lp_packet_from_stream<R: AsyncRead + Unpin>(
         stream: &mut R,
     ) -> Result<LpPacket, std::io::Error> {
         // Read length prefix
@@ -1369,7 +1372,7 @@ mod tests {
             .as_secs();
 
         // Current timestamp should always pass
-        assert!(LpConnectionHandler::validate_timestamp(now, 30).is_ok());
+        assert!(LpConnectionHandler::<TcpStream>::validate_timestamp(now, 30).is_ok());
     }
 
     #[test]
@@ -1383,11 +1386,11 @@ mod tests {
 
         // 10 seconds old, tolerance 30s -> should pass
         let old_timestamp = now - 10;
-        assert!(LpConnectionHandler::validate_timestamp(old_timestamp, 30).is_ok());
+        assert!(LpConnectionHandler::<TcpStream>::validate_timestamp(old_timestamp, 30).is_ok());
 
         // 10 seconds in future, tolerance 30s -> should pass
         let future_timestamp = now + 10;
-        assert!(LpConnectionHandler::validate_timestamp(future_timestamp, 30).is_ok());
+        assert!(LpConnectionHandler::<TcpStream>::validate_timestamp(future_timestamp, 30).is_ok());
     }
 
     #[test]
@@ -1401,7 +1404,7 @@ mod tests {
 
         // 60 seconds old, tolerance 30s -> should fail
         let old_timestamp = now - 60;
-        let result = LpConnectionHandler::validate_timestamp(old_timestamp, 30);
+        let result = LpConnectionHandler::<TcpStream>::validate_timestamp(old_timestamp, 30);
         assert!(result.is_err());
         assert!(format!("{:?}", result).contains("too old"));
     }
@@ -1417,7 +1420,7 @@ mod tests {
 
         // 60 seconds in future, tolerance 30s -> should fail
         let future_timestamp = now + 60;
-        let result = LpConnectionHandler::validate_timestamp(future_timestamp, 30);
+        let result = LpConnectionHandler::<TcpStream>::validate_timestamp(future_timestamp, 30);
         assert!(result.is_err());
         assert!(format!("{:?}", result).contains("too future"));
     }
@@ -1433,11 +1436,15 @@ mod tests {
 
         // Exactly at tolerance boundary -> should pass
         let boundary_timestamp = now - 30;
-        assert!(LpConnectionHandler::validate_timestamp(boundary_timestamp, 30).is_ok());
+        assert!(
+            LpConnectionHandler::<TcpStream>::validate_timestamp(boundary_timestamp, 30).is_ok()
+        );
 
         // Just beyond boundary -> should fail
         let beyond_timestamp = now - 31;
-        assert!(LpConnectionHandler::validate_timestamp(beyond_timestamp, 30).is_err());
+        assert!(
+            LpConnectionHandler::<TcpStream>::validate_timestamp(beyond_timestamp, 30).is_err()
+        );
     }
 
     // ==================== Packet I/O Tests ====================

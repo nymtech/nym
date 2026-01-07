@@ -4007,6 +4007,24 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8bb03732005da905c88227371639bf1ad885cc712789c011c31c5fb3ab3ccf02"
 
 [[package]]
+name = "integration-tests"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "nym-bandwidth-controller",
+ "nym-credential-verification",
+ "nym-credentials-interface",
+ "nym-crypto",
+ "nym-gateway",
+ "nym-registration-client",
+ "nym-test-utils",
+ "nym-wireguard",
+ "sqlx",
+ "tokio",
+ "tokio-util",
+]
+
+[[package]]
 name = "inventory"
 version = "0.3.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7315,6 +7333,7 @@ dependencies = [
  "nym-lp",
  "nym-registration-common",
  "nym-sdk",
+ "nym-test-utils",
  "nym-validator-client",
  "nym-wireguard-types",
  "rand 0.8.5",
@@ -7813,8 +7832,10 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "futures",
+ "nym-bin-common",
  "rand_chacha 0.3.1",
  "tokio",
+ "tracing",
 ]
 
 [[package]]

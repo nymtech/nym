@@ -7,7 +7,7 @@ use nym_sdk::{
     DebugConfig, NymNetworkDetails, RememberMe, TopologyProvider, UserAgent,
     mixnet::{
         CredentialStorage, GatewaysDetailsStore, KeyStore, MixnetClient, MixnetClientBuilder,
-        MixnetClientStorage, OnDiskPersistent, ReplyStorageBackend, StoragePaths, x25519::KeyPair,
+        MixnetClientStorage, OnDiskPersistent, ReplyStorageBackend, StoragePaths, x25519,
     },
 };
 
@@ -26,7 +26,7 @@ const MIXNET_CLIENT_STARTUP_TIMEOUT: Duration = Duration::from_secs(30);
 #[derive(Clone)]
 pub struct NymNodeWithKeys {
     pub node: NymNode,
-    pub keys: Arc<KeyPair>,
+    pub keys: Arc<x25519::KeyPair>,
 }
 
 #[derive(TypedBuilder)]

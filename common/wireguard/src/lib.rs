@@ -8,7 +8,6 @@
 
 use defguard_wireguard_rs::{WGApi, WireguardInterfaceApi, host::Peer, key::Key, net::IpAddrMask};
 use nym_crypto::asymmetric::x25519::KeyPair;
-use nym_wireguard_types::Config;
 use std::sync::Arc;
 use tokio::sync::mpsc::{self, Receiver, Sender};
 use tracing::error;
@@ -32,6 +31,7 @@ pub mod peer_storage_manager;
 
 pub use error::Error;
 pub use ip_pool::{IpPool, IpPoolError};
+pub use nym_wireguard_types::Config as WireguardConfig;
 pub use peer_controller::{PeerControlRequest, PeerRegistrationData};
 
 pub const CONTROL_CHANNEL_SIZE: usize = 256;
@@ -132,13 +132,16 @@ impl Drop for WgApiWrapper {
 
 #[derive(Clone)]
 pub struct WireguardGatewayData {
-    config: Config,
+    config: WireguardConfig,
     keypair: Arc<KeyPair>,
     peer_tx: Sender<PeerControlRequest>,
 }
 
 impl WireguardGatewayData {
-    pub fn new(config: Config, keypair: Arc<KeyPair>) -> (Self, Receiver<PeerControlRequest>) {
+    pub fn new(
+        config: WireguardConfig,
+        keypair: Arc<KeyPair>,
+    ) -> (Self, Receiver<PeerControlRequest>) {
         let (peer_tx, peer_rx) = mpsc::channel(CONTROL_CHANNEL_SIZE);
         (
             WireguardGatewayData {
@@ -150,7 +153,7 @@ impl WireguardGatewayData {
         )
     }
 
-    pub fn config(&self) -> Config {
+    pub fn config(&self) -> WireguardConfig {
         self.config
     }
 

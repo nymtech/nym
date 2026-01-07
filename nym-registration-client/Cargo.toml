@@ -33,3 +33,8 @@ nym-registration-common = { path = "../common/registration" }
 nym-sdk = { path = "../sdk/rust/nym-sdk" }
 nym-validator-client = { path = "../common/client-libs/validator-client" }
 nym-wireguard-types = { path = "../common/wireguard-types" }
+
+nym-test-utils = { path = "../common/test-utils", optional = true }
+
+[features]
+io-mocks = ["nym-test-utils"]

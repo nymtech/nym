@@ -28,8 +28,8 @@ ff = { workspace = true }
 group = { workspace = true }
 subtle = { workspace = true }
 
-nym-pemstore = { path = "../pemstore" }
-nym-network-defaults = { path = "../network-defaults", default-features = false }
+nym-pemstore = { workspace = true }
+nym-network-defaults = { workspace = true }
 
 [dev-dependencies]
 criterion = { workspace = true, features = ["html_reports"] }

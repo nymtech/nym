@@ -447,7 +447,7 @@ impl GatewayTasksBuilder {
                     .await?;
                 continue;
             };
-            used_private_network_ips.push(allowed_ip.ip);
+            used_private_network_ips.push(allowed_ip.address);
             all_peers.push(peer);
         }
 

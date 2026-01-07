@@ -41,4 +41,4 @@ packages:
   - ca-certificates
   - jq
   - wget
-  - ufinteroperabilityw
+  - ufw

@@ -6,6 +6,9 @@ edition = "2021"
 rust-version = "1.85"
 license.workspace = true
 description = "Client for interacting with Nyx Cosmos SDK blockchain"
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

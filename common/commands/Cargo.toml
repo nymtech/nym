@@ -5,6 +5,9 @@ authors.workspace = true
 edition = "2021"
 license.workspace = true
 description = "Common commands crate used by the nym-cli tool for interacting with the Nyx Cosmos SDK blockchain and Mixnet endpoints"
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
 
 [dependencies]
 anyhow = { workspace = true }

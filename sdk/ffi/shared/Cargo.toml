@@ -2,6 +2,9 @@
 name = "nym-ffi-shared"
 version.workspace = true
 edition = "2021"
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
 license.workspace = true
 description = "Common crate for use by Rust SDK FFI crates"
 

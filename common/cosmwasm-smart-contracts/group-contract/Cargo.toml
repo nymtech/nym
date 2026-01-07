@@ -4,6 +4,9 @@ version.workspace = true
 edition = "2021"
 license.workspace = true
 description = "Common crate for Nym's group cosmwasm contract"
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
 
 [dependencies]
 cosmwasm-schema = { workspace = true }

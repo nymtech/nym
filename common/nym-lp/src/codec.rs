@@ -111,9 +111,7 @@ fn parse_message_from_type_and_content(
             content.to_vec(),
         ))),
         MessageType::ClientHello => {
-            let data: ClientHelloData = lp_bincode_serializer()
-                .deserialize(content)
-                .map_err(|e| LpError::DeserializationError(e.to_string()))?;
+            let data = ClientHelloData::decode(content)?;
             Ok(LpMessage::ClientHello(data))
         }
         MessageType::KKTRequest => Ok(LpMessage::KKTRequest(KKTRequestData(content.to_vec()))),
@@ -791,7 +789,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_client_hello_malformed_bincode() {
+    fn test_parse_client_hello_malformed_data() {
         // Create a buffer with ClientHello message type but invalid bincode data
         let mut buf = BytesMut::new();
         buf.extend_from_slice(&[1, 0, 0, 0]); // Version + reserved
@@ -799,15 +797,15 @@ mod tests {
         buf.extend_from_slice(&123u64.to_le_bytes()); // Counter
         buf.extend_from_slice(&MessageType::ClientHello.to_u32().to_le_bytes()); // ClientHello type
 
-        // Add malformed bincode data (random bytes that won't deserialize to ClientHelloData)
-        buf.extend_from_slice(&[0xFF; 50]); // Invalid bincode data
+        // Add data that does not equal to ClientHelloData::LEN
+        buf.extend_from_slice(&[0xFF; 50]); // invalid data
         buf.extend_from_slice(&[0; TRAILER_LEN]); // Trailer
 
         // Attempt to parse
         let result = parse_lp_packet(&buf, None);
         assert!(result.is_err());
         match result {
-            Err(LpError::DeserializationError(_)) => {} // Expected error
+            Err(LpError::DeserializationError(msg)) => {} // Expected error
             Err(e) => panic!("Expected DeserializationError, got {:?}", e),
             Ok(_) => panic!("Expected error, but got Ok"),
         }

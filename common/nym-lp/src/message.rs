@@ -1,6 +1,7 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::LpError;
 use crate::serialisation::{BincodeOptions, lp_bincode_serializer};
 use bytes::{BufMut, BytesMut};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
@@ -22,6 +23,8 @@ pub struct ClientHelloData {
 }
 
 impl ClientHelloData {
+    pub const LEN: usize = 100;
+
     /// Generates a new ClientHelloData with fresh salt.
     ///
     /// Salt format: 8 bytes timestamp (u64 LE) + 24 bytes random nonce
@@ -60,6 +63,33 @@ impl ClientHelloData {
         let mut timestamp_bytes = [0u8; 8];
         timestamp_bytes.copy_from_slice(&self.salt[..8]);
         u64::from_le_bytes(timestamp_bytes)
+    }
+
+    pub fn encode(&self) -> Vec<u8> {
+        let mut out = Vec::with_capacity(Self::LEN);
+        out.put_u32_le(self.receiver_index);
+        out.put_slice(&self.client_lp_public_key);
+        out.put_slice(&self.client_ed25519_public_key);
+        out.put_slice(&self.salt);
+        out
+    }
+    pub fn decode(b: &[u8]) -> Result<Self, LpError> {
+        if b.len() != Self::LEN {
+            return Err(LpError::DeserializationError(format!(
+                "Expected {} bytes to deserialise ClientHelloData. got {}",
+                Self::LEN,
+                b.len()
+            )));
+        }
+
+        // SAFETY: we checked for valid byte lengths
+        #[allow(clippy::unwrap_used)]
+        Ok(ClientHelloData {
+            receiver_index: u32::from_le_bytes([b[0], b[1], b[2], b[3]]),
+            client_lp_public_key: b[4..36].try_into().unwrap(),
+            client_ed25519_public_key: b[36..68].try_into().unwrap(),
+            salt: b[68..].try_into().unwrap(),
+        })
     }
 }
 
@@ -238,8 +268,8 @@ impl LpMessage {
             LpMessage::Busy => 0,
             LpMessage::Handshake(payload) => payload.0.len(),
             LpMessage::EncryptedData(payload) => payload.0.len(),
-            // 4 bytes receiver_index + 32 bytes x25519 key + 32 bytes ed25519 key + 32 bytes salt + bincode overhead
-            LpMessage::ClientHello(_) => 101,
+            // 4 bytes receiver_index + 32 bytes x25519 key + 32 bytes ed25519 key + 32 bytes salt
+            LpMessage::ClientHello(_) => ClientHelloData::LEN,
             LpMessage::KKTRequest(payload) => payload.0.len(),
             LpMessage::KKTResponse(payload) => payload.0.len(),
             LpMessage::ForwardPacket(data) => {
@@ -286,11 +316,7 @@ impl LpMessage {
                 dst.put_slice(&payload.0);
             }
             LpMessage::ClientHello(data) => {
-                // Serialize ClientHelloData using bincode
-                let serialized = lp_bincode_serializer()
-                    .serialize(data)
-                    .expect("Failed to serialize ClientHelloData");
-                dst.put_slice(&serialized);
+                dst.put_slice(&data.encode());
             }
             LpMessage::KKTRequest(payload) => {
                 dst.put_slice(&payload.0);

@@ -116,7 +116,7 @@
   when: not ansible_check_mode and (upgrade_ok | default(false)) == false
 
 # optional: hard-fail the play for CI environments
-#- name: Fail the play to signal upgrade failure
+#- name: fail the play to signal upgrade failure
 #  fail:
 #    msg: "nym-node upgrade failed; rolled back to previous binary."
 #  when: not ansible_check_mode and (upgrade_ok | default(false)) == false

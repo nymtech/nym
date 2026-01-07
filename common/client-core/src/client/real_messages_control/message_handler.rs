@@ -8,6 +8,7 @@ use crate::client::real_messages_control::real_traffic_stream::{
 use crate::client::real_messages_control::{AckActionSender, Action};
 use crate::client::replies::reply_controller::MaxRetransmissions;
 use crate::client::replies::reply_storage::{ReceivedReplySurbsMap, SentReplyKeys, UsedSenderTags};
+use crate::client::rtt_analyzer::{RttConfig, RttEvent, RttPattern};
 use crate::client::topology_control::{TopologyAccessor, TopologyReadPermit};
 use nym_client_core_surb_storage::RetrievedReplySurb;
 use nym_sphinx::acknowledgements::AckKey;
@@ -27,6 +28,8 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 use thiserror::Error;
+use tokio::sync::mpsc::Sender;
+use tokio::time::sleep;
 use tracing::{debug, error, info, trace, warn};
 
 // TODO: move that error elsewhere since it seems to be contaminating different files
@@ -555,6 +558,97 @@ where
         Ok(())
     }
 
+    pub(crate) async fn try_split_and_send_non_reply_rtt_message(
+        &mut self,
+        sender_tag: AnonymousSenderTag,
+        recipient: Recipient,
+        lane: TransmissionLane,
+        packet_type: PacketType,
+        topology: &NymRouteProvider,
+        max_retransmissions: Option<u32>,
+        route_index: usize,
+        sender: Sender<RttEvent>,
+    ) -> Result<(), PreparationError> {
+        debug!("Sending RTT test message on route index {route_index} with packet type {packet_type:?}");
+
+        // Construct the base message
+        let message = NymMessage::new_repliable(RepliableMessage::new_data(
+            self.config.use_legacy_sphinx_format,
+            Vec::new(),
+            sender_tag,
+            Vec::new(),
+        ));
+
+        debug_assert!(!matches!(message, NymMessage::Reply(_)));
+
+        let packet_size = if packet_type == PacketType::Outfox {
+            PacketSize::OutfoxRegularPacket
+        } else {
+            self.optimal_packet_size(&message)
+        };
+
+        trace!("Using packet size {packet_size:?}");
+
+        // ✅ Drop the read lock before mutably borrowing self
+
+        // Prepare fragments from message
+        let fragments = self
+            .message_preparer
+            .pad_and_split_message(message, packet_size);
+
+        if fragments.len() > 1 {
+            println!(
+                "[RTT TEST] Warning: message was split into {} fragments",
+                fragments.len()
+            );
+        }
+
+        let mut pending_acks = Vec::with_capacity(fragments.len());
+        let mut real_messages = Vec::with_capacity(fragments.len());
+
+        for fragment in &fragments {
+            let prepared_fragment = self
+                .message_preparer
+                .prepare_chunk_for_sending_with_deterministic_route(
+                    fragment.clone(),
+                    &topology,
+                    &self.config.ack_key,
+                    &recipient,
+                    packet_type,
+                    route_index,
+                )?;
+
+            let _ = sender.try_send(RttEvent::RouteUsed {
+                route_index,
+                fragment_id: (fragment.fragment_identifier().set_id().to_string()),
+            });
+
+            let real_message = RealMessage::new(
+                prepared_fragment.mix_packet,
+                Some(fragment.fragment_identifier().clone()),
+            );
+
+            let pending_ack = PendingAcknowledgement::new_known(
+                fragment.clone(),
+                prepared_fragment.total_delay,
+                recipient,
+                max_retransmissions,
+            );
+
+            real_messages.push(real_message);
+            pending_acks.push(pending_ack);
+        }
+
+        // Record ACKs and forward messages for *this route only*
+        self.insert_pending_acks(pending_acks);
+        self.forward_messages(real_messages, lane).await;
+
+        // // Optional: small delay to avoid flooding
+        // sleep(Duration::from_millis(200)).await;
+
+        Ok(())
+    }
+
     pub(crate) async fn try_send_additional_reply_surbs(
         &mut self,
         recipient: Recipient,
@@ -630,6 +724,142 @@ where
 
         tracing::trace!("storing {} reply keys", reply_keys.len());
         self.reply_key_storage.insert_multiple(reply_keys);
+
+        Ok(())
+    }
+    // Helper: sends ONE RTT packet on ONE specific route.
+    // Rust requires this to be a standalone async function (not an async closure),
+    // because async closures cannot borrow local variables safely.
+    async fn send_packet_on_route(
+        &mut self,
+        recipient: &Recipient,
+        num_reply_surbs: u32,
+        lane: TransmissionLane,
+        packet_type: PacketType,
+        topology: &NymRouteProvider,
+        max_retransmissions: Option<u32>,
+        route_index: usize,
+        sender: &Sender<RttEvent>,
+    ) -> Result<(), SurbWrappedPreparationError> {
+        let sender_tag = self.get_or_create_sender_tag(recipient);
+
+        // Prepare reply SURBs
+        let reply_surbs = self.generate_reply_surbs(num_reply_surbs as usize).await?;
+        let reply_keys = reply_surbs
+            .iter()
+            .map(|s| *s.encryption_key())
+            .collect::<Vec<_>>();
+
+        // Send message on the given route
+        self.try_split_and_send_non_reply_rtt_message(
+            sender_tag,
+            recipient.clone(),
+            lane,
+            packet_type,
+            topology,
+            max_retransmissions,
+            route_index,
+            sender.clone(),
+        )
+        .await?;
+
+        // Store reply keys after sending
+        self.reply_key_storage.insert_multiple(reply_keys);
+
+        Ok(())
+    }
+    pub(crate) async fn try_run_rtt_test(
+        &mut self,
+        recipient: Recipient,
+        lane: TransmissionLane,
+        packet_type: PacketType,
+        max_retransmissions: Option<u32>,
+        sender: Sender<RttEvent>,
+        config: RttConfig,
+    ) -> Result<(), SurbWrappedPreparationError> {
+        debug!("Starting RTT test using pattern {:?}", config.pattern);
+
+        // Load topology
+        let topology_permit = self.topology_access.get_read_permit().await;
+        let mut topology = self.get_topology(&topology_permit)?.clone();
+        let route_strings = topology
+            .topology
+            .initialize_static_mixnodes_for_rtt_testing()?;
+        let total_routes = topology.topology.all_mix_routes.len();
+        drop(topology_permit);
+        // =====================================================
+        // SEND ROUTE STRINGS TO RTT ANALYZER USING try_send()
+        // =====================================================
+        for (route_index, nodes_string) in route_strings {
+            let _ = sender.try_send(RttEvent::RouteNodes {
+                route_index,
+                nodes: nodes_string,
+            });
+        }
+        sender
+            .send(RttEvent::ExperimentConfiguration {
+                total_routes: total_routes as usize,
+                per_route_sent: config.packets_per_route as usize,
+            })
+            .await
+            .unwrap();
+
+        // ==============================================================
+        // PATTERN: BURST
+        // Send packets_per_route packets on each route sequentially
+        // ==============================================================
+        if let RttPattern::Burst = config.pattern {
+            for route in 0..total_routes {
+                for _ in 0..config.packets_per_route {
+                    self.send_packet_on_route(
+                        &recipient,
+                        0,
+                        lane,
+                        packet_type,
+                        &topology,
+                        max_retransmissions,
+                        route,
+                        &sender,
+                    )
+                    .await?;
+
+                    // Optional delay between packets on the same route
+                    if config.inter_route_delay_ms > 0 {
+                        tokio::time::sleep(Duration::from_millis(config.inter_route_delay_ms))
+                            .await;
+                    }
+                }
+            }
+            return Ok(());
+        }
+
+        // ==============================================================
+        // PATTERN: ROUND ROBIN
+        // Send packets in cycles: 1 on route 0, 1 on route 1, ..., repeat
+        // ==============================================================
+        if let RttPattern::RoundRobin = config.pattern {
+            for _cycle in 0..config.packets_per_route {
+                for route in 0..total_routes {
+                    self.send_packet_on_route(
+                        &recipient,
+                        0,
+                        lane,
+                        packet_type,
+                        &topology,
+                        max_retransmissions,
+                        route,
+                        &sender,
+                    )
+                    .await?;
+
+                    if config.inter_route_delay_ms > 0 {
+                        tokio::time::sleep(Duration::from_millis(config.inter_route_delay_ms))
+                            .await;
+                    }
+                }
+            }
+            return Ok(());
+        }
 
         Ok(())
     }

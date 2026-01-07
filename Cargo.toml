@@ -18,6 +18,7 @@ resolver = "2"
 members = [
     "clients/native",
     "clients/native/websocket-requests",
+    "clients/rtt-tester",
     "clients/socks5",
     "common/async-file-watcher",
     "common/authenticator-requests",

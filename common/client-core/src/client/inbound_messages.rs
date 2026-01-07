@@ -1,11 +1,13 @@
 // Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::client::rtt_analyzer::{RttConfig, RttEvent};
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_sphinx::params::PacketType;
 use nym_task::connections::TransmissionLane;
+use tokio::sync::mpsc::Sender;
 
 pub type InputMessageSender = tokio::sync::mpsc::Sender<InputMessage>;
 pub type InputMessageReceiver = tokio::sync::mpsc::Receiver<InputMessage>;
@@ -45,6 +47,13 @@ pub enum InputMessage {
         reply_surbs: u32,
         lane: TransmissionLane,
         max_retransmissions: Option<u32>,
+    },
+    RunRTTTest {
+        recipient: Recipient,
+        lane: TransmissionLane,
+        max_retransmissions: Option<u32>,
+        sender: Sender<RttEvent>,
+        config: RttConfig,
     },
 
     /// Attempt to use our internally received and stored `ReplySurb` to send the message back
@@ -150,6 +159,7 @@ impl InputMessage {
         match self {
             InputMessage::Regular { lane, .. }
             | InputMessage::Anonymous { lane, .. }
+            | InputMessage::RunRTTTest { lane, .. }
             | InputMessage::Reply { lane, .. }
             | InputMessage::Premade { lane, .. } => lane,
             InputMessage::MessageWrapper { message, .. } => message.lane(),
@@ -163,6 +173,10 @@ impl InputMessage {
                 ..
             }
             | InputMessage::Anonymous {
+                max_retransmissions: m,
+                ..
+            }
+            | InputMessage::RunRTTTest {
                 max_retransmissions: m,
                 ..
             }

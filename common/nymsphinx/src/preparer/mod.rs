@@ -89,6 +89,29 @@ pub trait FragmentPreparer {
         )
     }
 
+    fn generate_surb_ack_with_0_delays(
+        &mut self,
+        recipient: &Recipient,
+        fragment_id: FragmentIdentifier,
+        topology: &NymRouteProvider,
+        ack_key: &AckKey,
+        packet_type: PacketType,
+    ) -> Result<SurbAck, NymTopologyError> {
+        let use_legacy_sphinx_format = self.use_legacy_sphinx_format();
+        let disable_mix_hops = self.mix_hops_disabled();
+
+        SurbAck::construct(
+            self.rng(),
+            use_legacy_sphinx_format,
+            recipient,
+            ack_key,
+            fragment_id.to_bytes(),
+            Duration::ZERO,
+            topology,
+            packet_type,
+            disable_mix_hops,
+        )
+    }
     /// The procedure is as follows:
     /// For each fragment:
     /// - compute SURB_ACK
@@ -288,6 +311,114 @@ pub trait FragmentPreparer {
         })
     }
 
+    #[allow(clippy::too_many_arguments)]
+    fn prepare_chunk_with_deterministic_route_for_sending_and_rtt_test(
+        &mut self,
+
+        fragment: Fragment,
+
+        topology: &NymRouteProvider, // needs to be mutable because it may auto-generate routes
+
+        ack_key: &AckKey,
+
+        packet_sender: &Recipient,
+
+        packet_recipient: &Recipient,
+
+        packet_type: PacketType,
+
+        route_index: usize, //  NEW ARGUMENT: select which route to use
+    ) -> Result<PreparedFragment, NymTopologyError> {
+        debug!(
+            "Preparing chunk for sending (deterministic route index = {})",
+            route_index
+        );
+
+        let destination = packet_recipient.gateway();
+
+        monitoring::fragment_sent(&fragment, self.nonce(), destination);
+
+        let non_reply_overhead = x25519::PUBLIC_KEY_SIZE;
+
+        let expected_plaintext = match packet_type {
+            PacketType::Outfox => {
+                fragment.serialized_size() + OUTFOX_ACK_OVERHEAD + non_reply_overhead
+            }
+
+            _ => fragment.serialized_size() + ACK_OVERHEAD + non_reply_overhead,
+        };
+
+        let packet_size = PacketSize::get_type_from_plaintext(expected_plaintext, packet_type)
+            .expect("the message has been incorrectly fragmented");
+
+        let rotation_id = topology.current_key_rotation();
+
+        let sphinx_key_rotation = SphinxKeyRotation::from(rotation_id);
+
+        let fragment_identifier = fragment.fragment_identifier();
+
+        // create an ack
+
+        let surb_ack = self.generate_surb_ack_with_0_delays(
+            packet_sender,
+            fragment_identifier,
+            topology,
+            ack_key,
+            packet_type,
+        )?;
+
+        let ack_delay = surb_ack.expected_total_delay();
+
+        // build the payload
+
+        let packet_payload = NymPayloadBuilder::new(fragment, surb_ack)
+            .build_regular(self.rng(), packet_recipient.encryption_key())
+            .map_err(|_| NymTopologyError::PayloadBuilder)?;
+
+        // Get the deterministic route by index
+
+        trace!("Selecting deterministic route index {}", route_index);
+
+        let route = topology.deterministic_route_to_egress(route_index, destination)?;
+
+        let destination = packet_recipient.as_sphinx_destination();
+
+        // No artificial delay for RTT test
+
+        let delays = nym_sphinx_routing::generate_hop_delays(Duration::ZERO, route.len());
+
+        // build the actual Sphinx packet
+
+        let packet = match packet_type {
+            PacketType::Outfox => NymPacket::outfox_build(
+                packet_payload,
+                route.as_slice(),
+                &destination,
+                Some(packet_size.plaintext_size()),
+            )?,
+
+            PacketType::Mix => NymPacket::sphinx_build(
+                self.use_legacy_sphinx_format(),
+                packet_size.payload_size(),
+                packet_payload,
+                &route,
+                &destination,
+                &delays,
+            )?,
+        };
+
+        let first_hop_address =
+            NymNodeRoutingAddress::try_from(route.first().unwrap().address).unwrap();
+
+        Ok(PreparedFragment {
+            total_delay: delays.iter().take(delays.len() - 1).sum::<Delay>() + ack_delay,
+
+            mix_packet: MixPacket::new(first_hop_address, packet, packet_type, sphinx_key_rotation),
+
+            fragment_identifier,
+        })
+    }
+
     fn pad_and_split_message(
         &mut self,
         message: NymMessage,
@@ -442,6 +573,28 @@ where
         )
     }
 
+    pub fn prepare_chunk_for_sending_with_deterministic_route(
+        &mut self,
+        fragment: Fragment,
+        topology: &NymRouteProvider,
+        ack_key: &AckKey,
+        packet_recipient: &Recipient,
+        packet_type: PacketType,
+        route_index: usize,
+    ) -> Result<PreparedFragment, NymTopologyError> {
+        let sender = self.sender_address;
+
+        <Self as FragmentPreparer>::prepare_chunk_with_deterministic_route_for_sending_and_rtt_test(
+            self,
+            fragment,
+            topology,
+            ack_key,
+            &sender,
+            packet_recipient,
+            packet_type,
+            route_index,
+        )
+    }
     /// Construct an acknowledgement SURB for the given [`FragmentIdentifier`]
     pub fn generate_surb_ack(
         &mut self,

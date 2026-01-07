@@ -5204,6 +5204,7 @@ dependencies = [
  "nym-task",
  "nym-topology",
  "nym-validator-client",
+ "once_cell",
  "rand 0.8.5",
  "rand_chacha 0.3.1",
  "serde",
@@ -5275,6 +5276,22 @@ dependencies = [
  "sqlx-pool-guard",
  "thiserror 2.0.12",
  "time",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "nym-client-rtt-tester"
+version = "0.1.0"
+dependencies = [
+ "nym-client-core",
+ "nym-config",
+ "nym-crypto",
+ "nym-network-defaults",
+ "nym-sdk",
+ "nym-sphinx",
+ "nym-task",
+ "nym-topology",
  "tokio",
  "tracing",
 ]

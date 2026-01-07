@@ -21,7 +21,6 @@ pub use error::NymTopologyError;
 pub use nym_mixnet_contract_common::nym_node::Role;
 pub use nym_mixnet_contract_common::{EpochRewardedSet, NodeId};
 pub use rewarded_set::CachedEpochRewardedSet;
-
 pub mod error;
 pub mod node;
 pub mod rewarded_set;
@@ -135,7 +134,8 @@ pub struct NymTopology {
     // while this is not ideal, use empty values as default to not break backwards compatibility
     #[serde(default)]
     metadata: NymTopologyMetadata,
-
+    #[serde(default)]
+    pub all_mix_routes: Vec<Vec<RoutingNode>>,
     // for the purposes of future VRF, everyone will need the same view of the network, regardless of performance filtering
     // so we use the same 'master' rewarded set information for that
     //
@@ -231,6 +231,30 @@ impl NymRouteProvider {
             .random_route_to_egress(rng, egress_identity, self.ignore_egress_epoch_roles)
     }
 
+    /// Selects a deterministic route to the egress, using the i-th precomputed mixnode route.
+    /// This requires that [`generate_all_mix_routes()`] has already been called.
+    pub fn deterministic_route_to_egress(
+        &self,
+        route_index: usize,
+        egress_identity: NodeIdentity,
+    ) -> Result<Vec<SphinxNode>, NymTopologyError> {
+        if self.topology.all_mix_routes.is_empty() {
+            return Err(NymTopologyError::EmptyNetworkTopology);
+        }
+
+        let Some(existing_route) = self.topology.all_mix_routes.get(route_index) else {
+            return Err(NymTopologyError::NoMixnodesAvailable);
+        };
+        let mut route: Vec<SphinxNode> = existing_route.iter().map(Into::into).collect();
+
+        // add egress node
+        let egress = self
+            .topology
+            .egress_node_by_identity(egress_identity, self.ignore_egress_epoch_roles)?;
+        route.push(egress);
+
+        Ok(route)
+    }
     /// Returns a route directly to the egress point, which can be any known node
     pub fn empty_route_to_egress(
         &self,
@@ -262,6 +286,7 @@ impl NymTopology {
             metadata: NymTopologyMetadata::default(),
             rewarded_set: rewarded_set.into(),
             node_details: Default::default(),
+            all_mix_routes: Vec::new(),
         }
     }
 
@@ -272,6 +297,7 @@ impl NymTopology {
     ) -> Self {
         NymTopology {
             metadata,
+            all_mix_routes: Vec::new(),
             rewarded_set: rewarded_set.into(),
             node_details: node_details.into_iter().map(|n| (n.node_id, n)).collect(),
         }
@@ -529,6 +555,65 @@ impl NymTopology {
         mix_route.push(self.choose_mixing_node(rng, &self.rewarded_set.layer3)?);
 
         Ok(mix_route)
+    }
+
+    pub fn initialize_static_mixnodes_for_rtt_testing(
+        &mut self,
+    ) -> Result<Vec<(usize, String)>, NymTopologyError> {
+        if self.rewarded_set.is_empty() || self.node_details.is_empty() {
+            return Err(NymTopologyError::EmptyNetworkTopology);
+        }
+
+        // Collect nodes for each layer
+        let layer1_nodes: Vec<&RoutingNode> = self
+            .rewarded_set
+            .layer1
+            .iter()
+            .filter_map(|id| self.node_details.get(id))
+            .collect();
+
+        let layer2_nodes: Vec<&RoutingNode> = self
+            .rewarded_set
+            .layer2
+            .iter()
+            .filter_map(|id| self.node_details.get(id))
+            .collect();
+
+        let layer3_nodes: Vec<&RoutingNode> = self
+            .rewarded_set
+            .layer3
+            .iter()
+            .filter_map(|id| self.node_details.get(id))
+            .collect();
+
+        // Reset routes
+        self.all_mix_routes.clear();
+
+        // Build mix routes
+        for n1 in layer1_nodes.clone() {
+            for n2 in layer2_nodes.clone() {
+                for n3 in layer3_nodes.clone() {
+                    self.all_mix_routes
+                        .push(vec![n1.clone(), n2.clone(), n3.clone()]);
+                }
+            }
+        }
+
+        // ============================================================
+        // RETURN route_index + string
+        // ============================================================
+        let mut results: Vec<(usize, String)> = Vec::new();
+
+        for (i, route) in self.all_mix_routes.iter().enumerate() {
+            let node_strings: Vec<String> = route
+                .iter()
+                .map(|node| node.identity_key.to_base58_string())
+                .collect();
+
+            results.push((i, node_strings.join(" > ")));
+        }
+
+        Ok(results)
     }
 
     pub fn random_mix_route<R>(&self, rng: &mut R) -> Result<Vec<SphinxNode>, NymTopologyError>

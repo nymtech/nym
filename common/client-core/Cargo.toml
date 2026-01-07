@@ -29,6 +29,8 @@ time = { workspace = true }
 tokio = { workspace = true, features = ["sync", "macros"] }
 tracing = { workspace = true }
 zeroize = { workspace = true }
+once_cell = "1.19"
+
 
 # internal
 nym-id = { path = "../nym-id" }

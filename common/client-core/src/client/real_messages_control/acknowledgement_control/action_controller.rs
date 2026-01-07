@@ -3,6 +3,7 @@
 
 use super::PendingAcknowledgement;
 use crate::client::real_messages_control::acknowledgement_control::RetransmissionRequestSender;
+use crate::client::rtt_analyzer::{RttAnalyzer, RttEvent};
 use futures::channel::mpsc;
 use futures::StreamExt;
 use nym_nonexhaustive_delayqueue::{Expired, NonExhaustiveDelayQueue, QueueKey};
@@ -16,6 +17,7 @@ use tracing::*;
 
 pub(crate) type AckActionSender = mpsc::UnboundedSender<Action>;
 pub(crate) type AckActionReceiver = mpsc::UnboundedReceiver<Action>;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 // The actual data being sent off as well as potential key to the delay queue
 type PendingAckEntry = (Arc<PendingAcknowledgement>, Option<QueueKey>);
@@ -207,8 +209,22 @@ impl ActionController {
 
     // note: when the entry expires it's automatically removed from pending_acks_timers
     #[allow(clippy::panic)]
-    fn handle_expired_ack_timer(&mut self, expired_ack: Expired<FragmentIdentifier>) {
+    fn handle_expired_ack_timer(
+        &mut self,
+        expired_ack: Expired<FragmentIdentifier>,
+        rtt_producer: Option<tokio::sync::mpsc::Sender<RttEvent>>,
+    ) {
         let frag_id = expired_ack.into_inner();
+        if let Some(ref producer) = rtt_producer {
+            if let Ok(duration) = SystemTime::now().duration_since(UNIX_EPOCH) {
+                let now: u128 = duration.as_millis();
+
+                let _ = producer.try_send(RttEvent::FragmentAckExpired {
+                    fragment_id: frag_id.set_id().to_string(),
+                    timestamp: now,
+                });
+            }
+        }
 
         trace!("{frag_id} has expired");
 
@@ -244,7 +260,7 @@ impl ActionController {
 
     pub(crate) async fn run(&mut self, shutdown_token: ShutdownToken) {
         debug!("Started ActionController with graceful shutdown support");
-
+        let rtt_producer = RttAnalyzer::producer();
         loop {
             tokio::select! {
                 biased;
@@ -262,7 +278,7 @@ impl ActionController {
                     }
                 },
                 expired_ack = self.pending_acks_timers.next() => match expired_ack {
-                    Some(expired_ack) => self.handle_expired_ack_timer(expired_ack),
+                    Some(expired_ack) => self.handle_expired_ack_timer(expired_ack,rtt_producer.clone()),
                     None => {
                         tracing::trace!("ActionController: Stopping since ack channel closed");
                         break;

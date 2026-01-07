@@ -5,8 +5,10 @@ use crate::mixnet::{AnonymousSenderTag, IncludedSurbs, Recipient};
 use crate::Result;
 use async_trait::async_trait;
 use nym_client_core::client::inbound_messages::InputMessage;
+use nym_client_core::client::rtt_analyzer::{RttConfig, RttEvent};
 use nym_sphinx::params::PacketType;
 use nym_task::connections::TransmissionLane;
+use tokio::sync::mpsc::Sender;
 
 // defined to guarantee common interface regardless of whether you're using the full client
 // or just the sending handler
@@ -85,6 +87,34 @@ pub trait MixnetMessageSender {
                 self.packet_type(),
             ),
         };
+        self.send(input_msg).await
+    }
+    /// Sends a RunRTTTest message to the supplied Nym address.
+    ///
+    /// This is a special message used for measuring per-route RTT.
+    /// It will instruct the client to run a test that sends one message
+    /// per available route and logs the time of each send.
+    async fn send_rtt_test(
+        &self,
+        address: Recipient,
+        max_retransmissions: Option<u32>,
+        sender: Sender<RttEvent>,
+        config: RttConfig,
+    ) -> Result<()>
+where {
+        let lane = TransmissionLane::General;
+        //Is there a way to find my address from here?
+        // Construct a RunRTTTest message
+        let input_msg = InputMessage::RunRTTTest {
+            recipient: address,
+            lane,
+            max_retransmissions,
+            sender,
+            config,
+        };
+        println!("[RTT TEST DEBUG] Sending RTT test message to {})", address,);
+
+        // Send it for processing
         self.send(input_msg).await
     }
 

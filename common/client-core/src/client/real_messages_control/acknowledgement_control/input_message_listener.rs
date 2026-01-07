@@ -5,6 +5,7 @@ use crate::client::inbound_messages::{InputMessage, InputMessageReceiver};
 use crate::client::real_messages_control::message_handler::MessageHandler;
 use crate::client::real_messages_control::real_traffic_stream::RealMessage;
 use crate::client::replies::reply_controller::ReplyControllerSender;
+use crate::client::rtt_analyzer::{RttConfig, RttEvent};
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nym_sphinx::forwarding::packet::MixPacket;
@@ -12,6 +13,7 @@ use nym_sphinx::params::PacketType;
 use nym_task::connections::TransmissionLane;
 use nym_task::ShutdownToken;
 use rand::{CryptoRng, Rng};
+use tokio::sync::mpsc::Sender;
 use tracing::*;
 
 /// Module responsible for dealing with the received messages: splitting them, creating acknowledgements,
@@ -111,7 +113,30 @@ where
             warn!("failed to send a repliable message - {err}")
         }
     }
-
+    async fn run_rtt_test(
+        &mut self,
+        recipient: Recipient,
+        lane: TransmissionLane,
+        packet_type: PacketType,
+        max_retransmissions: Option<u32>,
+        sender: Sender<RttEvent>,
+        config: RttConfig,
+    ) {
+        if let Err(err) = self
+            .message_handler
+            .try_run_rtt_test(
+                recipient,
+                lane,
+                packet_type,
+                max_retransmissions,
+                sender,
+                config,
+            )
+            .await
+        {
+            warn!("failed to send a repliable message - {err}")
+        }
+    }
     #[allow(clippy::panic)]
     async fn on_input_message(&mut self, msg: InputMessage) {
         match msg {
@@ -147,6 +172,23 @@ where
                 )
                 .await
             }
+            InputMessage::RunRTTTest {
+                recipient,
+                lane,
+                max_retransmissions,
+                sender,
+                config,
+            } => {
+                self.run_rtt_test(
+                    recipient,
+                    lane,
+                    PacketType::Mix,
+                    max_retransmissions,
+                    sender,
+                    config,
+                )
+                .await
+            }
             InputMessage::Reply {
                 recipient_tag,
                 data,
@@ -173,6 +215,23 @@ where
                         lane,
                         packet_type,
                         max_retransmissions,
+                    )
+                    .await
+                }
+                InputMessage::RunRTTTest {
+                    recipient,
+                    lane,
+                    max_retransmissions,
+                    sender,
+                    config,
+                } => {
+                    self.run_rtt_test(
+                        recipient,
+                        lane,
+                        PacketType::Mix,
+                        max_retransmissions,
+                        sender,
+                        config,
                     )
                     .await
                 }

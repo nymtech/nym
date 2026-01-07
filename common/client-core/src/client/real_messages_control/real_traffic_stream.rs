@@ -4,6 +4,7 @@
 use self::sending_delay_controller::SendingDelayController;
 use crate::client::mix_traffic::BatchMixMessageSender;
 use crate::client::real_messages_control::acknowledgement_control::SentPacketNotificationSender;
+use crate::client::rtt_analyzer::{RttAnalyzer, RttEvent};
 use crate::client::topology_control::TopologyAccessor;
 use crate::client::transmission_buffer::TransmissionBuffer;
 use crate::config;
@@ -21,6 +22,7 @@ use nym_statistics_common::clients::{packet_statistics::PacketStatisticsEvent, C
 use nym_task::connections::{
     ConnectionCommand, ConnectionCommandReceiver, ConnectionId, LaneQueueLengths, TransmissionLane,
 };
+
 use nym_task::ShutdownToken;
 use rand::{CryptoRng, Rng};
 use std::pin::Pin;
@@ -224,7 +226,11 @@ where
         }
     }
 
-    async fn on_message(&mut self, next_message: StreamMessage) {
+    async fn on_message(
+        &mut self,
+        next_message: StreamMessage,
+        rtt_producer: Option<tokio::sync::mpsc::Sender<RttEvent>>,
+    ) {
         trace!("created new message");
 
         let (next_message, fragment_id, packet_size) = match next_message {
@@ -271,6 +277,21 @@ where
                 )
             }
             StreamMessage::Real(real_message) => {
+                if let Some(ref producer) = rtt_producer {
+                    if let Some(fragment_id_local) = real_message.fragment_id {
+                        use std::time::{SystemTime, UNIX_EPOCH};
+
+                        let now = SystemTime::now()
+                            .duration_since(UNIX_EPOCH)
+                            .unwrap()
+                            .as_millis();
+                        let _ = producer.try_send(RttEvent::FragmentSent {
+                            fragment_id: (fragment_id_local.set_id().to_string()),
+                            timestamp: (now),
+                        });
+                    }
+                }
+
                 let packet_size = real_message.packet_size();
                 (
                     real_message.mix_packet,
@@ -584,7 +605,7 @@ where
 
     pub(crate) async fn run(&mut self) {
         debug!("Started OutQueueControl with graceful shutdown support");
-
+        let rtt_producer = RttAnalyzer::producer();
         // avoid borrow on self
         let shutdown_token = self.shutdown_token.clone();
         #[cfg(not(target_arch = "wasm32"))]
@@ -602,7 +623,7 @@ where
                         self.log_status();
                     }
                     next_message = self.next() => if let Some(next_message) = next_message {
-                        self.on_message(next_message).await;
+                        self.on_message(next_message,rtt_producer.clone()).await;
                     } else {
                         tracing::trace!("OutQueueControl: Stopping since channel closed");
                         break;

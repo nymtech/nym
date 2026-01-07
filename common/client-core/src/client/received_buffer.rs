@@ -5,6 +5,7 @@ use crate::client::helpers::get_time_now;
 use crate::client::replies::{
     reply_controller::ReplyControllerSender, reply_storage::SentReplyKeys,
 };
+use crate::client::rtt_analyzer::{RttAnalyzer, RttEvent};
 use futures::channel::mpsc;
 use futures::lock::Mutex;
 use futures::StreamExt;
@@ -55,6 +56,7 @@ struct ReceivedMessagesBufferInner<R: MessageReceiver> {
 
     // Periodically check for stale buffers to clean up
     last_stale_check: crate::client::helpers::Instant,
+    rtt_producer: Option<tokio::sync::mpsc::Sender<RttEvent>>,
 }
 
 impl<R: MessageReceiver> ReceivedMessagesBufferInner<R> {
@@ -81,7 +83,20 @@ impl<R: MessageReceiver> ReceivedMessagesBufferInner<R> {
                 warn!("failed to recover fragment from raw data: {err}. The whole underlying message might be corrupted and unrecoverable!");
                 return None;
             }
-            Ok(frag) => frag,
+            Ok(frag) => {
+                if let Some(ref producer) = self.rtt_producer {
+                    use std::time::{SystemTime, UNIX_EPOCH};
+                    let now = SystemTime::now()
+                        .duration_since(UNIX_EPOCH)
+                        .unwrap()
+                        .as_millis();
+                    let _ = producer.try_send(RttEvent::FragmentReceived {
+                        fragment_id: frag.id().to_string(),
+                        timestamp: now,
+                    });
+                }
+                frag
+            }
         };
 
         if self.recently_reconstructed.contains(&fragment.id()) {
@@ -181,6 +196,7 @@ impl<R: MessageReceiver> ReceivedMessagesBuffer<R> {
         reply_controller_sender: ReplyControllerSender,
         stats_tx: ClientStatsSender,
         shutdown_token: ShutdownToken,
+        rtt_producer: Option<tokio::sync::mpsc::Sender<RttEvent>>,
     ) -> Self {
         ReceivedMessagesBuffer {
             inner: Arc::new(Mutex::new(ReceivedMessagesBufferInner {
@@ -191,6 +207,7 @@ impl<R: MessageReceiver> ReceivedMessagesBuffer<R> {
                 recently_reconstructed: HashSet::new(),
                 stats_tx,
                 last_stale_check: get_time_now(),
+                rtt_producer: rtt_producer.clone(),
             })),
             reply_key_storage,
             reply_controller_sender,
@@ -585,6 +602,7 @@ impl<R: MessageReceiver + Clone + Send + 'static> ReceivedMessagesBufferControll
             reply_controller_sender,
             metrics_reporter,
             shutdown_token.clone(),
+            RttAnalyzer::producer(),
         );
 
         ReceivedMessagesBufferController {

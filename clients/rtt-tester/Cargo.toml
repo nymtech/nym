@@ -1,0 +1,22 @@
+[package]
+name = "nym-client-rtt-tester"
+version = "0.1.0"
+edition = "2021"
+description = "RTT testing client built using nym-client-core"
+license.workspace = true
+
+[[bin]]
+name = "nym-client-rtt-tester"
+path = "src/main.rs"
+
+[dependencies]
+tokio = { workspace = true, features = ["full"] }
+tracing = { workspace = true }
+nym-client-core = { path = "../../common/client-core" }
+nym-network-defaults = { path = "../../common/network-defaults" }
+nym-sphinx = { path = "../../common/nymsphinx" }
+nym-topology = { path = "../../common/topology" }
+nym-config = { path = "../../common/config" }
+nym-task = { path = "../../common/task" }
+nym-crypto = { path = "../../common/crypto" }
+nym-sdk = { path = "../../sdk/rust/nym-sdk" }

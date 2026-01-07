@@ -4,6 +4,7 @@
 use super::action_controller::{AckActionSender, Action};
 use nym_statistics_common::clients::{packet_statistics::PacketStatisticsEvent, ClientStatsSender};
 
+use crate::client::rtt_analyzer::{RttAnalyzer, RttEvent};
 use futures::StreamExt;
 use nym_gateway_client::AcknowledgementReceiver;
 use nym_sphinx::{
@@ -12,6 +13,7 @@ use nym_sphinx::{
 };
 use nym_task::ShutdownToken;
 use std::sync::Arc;
+use std::time::{SystemTime, UNIX_EPOCH};
 use tracing::*;
 
 /// Module responsible for listening for any data resembling acknowledgements from the network
@@ -38,7 +40,11 @@ impl AcknowledgementListener {
         }
     }
 
-    async fn on_ack(&mut self, ack_content: Vec<u8>) {
+    async fn on_ack(
+        &mut self,
+        ack_content: Vec<u8>,
+        rtt_producer: Option<tokio::sync::mpsc::Sender<RttEvent>>,
+    ) {
         trace!("Received an ack");
         self.stats_tx
             .report(PacketStatisticsEvent::AckReceived(ack_content.len()).into());
@@ -62,6 +68,16 @@ impl AcknowledgementListener {
             return;
         }
 
+        if let Some(ref producer) = rtt_producer {
+            if let Ok(duration) = SystemTime::now().duration_since(UNIX_EPOCH) {
+                let now = duration.as_millis();
+                let _ = producer.try_send(RttEvent::FragmentAckReceived {
+                    fragment_id: frag_id.set_id().to_string(),
+                    timestamp: now,
+                });
+            }
+        }
+
         trace!("Received {frag_id} from the mix network");
         self.stats_tx
             .report(PacketStatisticsEvent::RealAckReceived(ack_content.len()).into());
@@ -70,15 +86,20 @@ impl AcknowledgementListener {
             .unbounded_send(Action::new_remove(frag_id));
     }
 
-    async fn handle_ack_receiver_item(&mut self, item: Vec<Vec<u8>>) {
+    async fn handle_ack_receiver_item(
+        &mut self,
+        item: Vec<Vec<u8>>,
+        rtt_producer: Option<tokio::sync::mpsc::Sender<RttEvent>>,
+    ) {
         // realistically we would only be getting one ack at the time
         for ack in item {
-            self.on_ack(ack).await;
+            self.on_ack(ack, rtt_producer.clone()).await;
         }
     }
 
     pub(crate) async fn run(&mut self, shutdown_token: ShutdownToken) {
         debug!("Started AcknowledgementListener with graceful shutdown support");
+        let rtt_producer = RttAnalyzer::producer();
 
         loop {
             tokio::select! {
@@ -88,7 +109,7 @@ impl AcknowledgementListener {
                     break;
                 }
                 acks = self.ack_receiver.next() => match acks {
-                    Some(acks) => self.handle_ack_receiver_item(acks).await,
+                    Some(acks) => self.handle_ack_receiver_item(acks,rtt_producer.clone()).await,
                     None => {
                         tracing::trace!("AcknowledgementListener: Stopping since channel closed");
                         break;

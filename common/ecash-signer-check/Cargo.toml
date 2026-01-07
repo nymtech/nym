@@ -20,7 +20,7 @@ tracing = { workspace = true }
 url = { workspace = true }
 
 
-nym-validator-client = { workspace = true }
+nym-validator-client = { workspace = true, features = ["http-client"] }
 nym-network-defaults = { workspace = true }
 nym-ecash-signer-check-types = { workspace = true }
 nym-http-api-client = { workspace = true }

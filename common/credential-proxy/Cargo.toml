@@ -37,7 +37,7 @@ zeroize = { workspace = true }
 nym-credentials = { workspace = true }
 nym-crypto = { workspace = true, features = ["asymmetric", "rand", "serde"] }
 nym-credentials-interface = { workspace = true }
-nym-credential-proxy-requests = { workspace = true }
+nym-credential-proxy-requests = { workspace = true, features = ["query-types"] }
 nym-ecash-signer-check = { workspace = true }
 nym-ecash-contract-common = { workspace = true }
 nym-compact-ecash = { workspace = true }

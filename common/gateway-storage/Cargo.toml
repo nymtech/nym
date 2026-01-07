@@ -8,6 +8,7 @@ documentation.workspace = true
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
+description = "Crate handling db setup and use for Nym Gateways, used for credentials, packets, connections"
 
 [dependencies]
 async-trait = { workspace = true }

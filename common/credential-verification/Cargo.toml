@@ -9,6 +9,7 @@ edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
 readme.workspace = true
+description = "Store and verify zknym credentials"
 
 [dependencies]
 async-trait = { workspace = true }
@@ -32,5 +33,5 @@ nym-gateway-requests = { workspace = true }
 nym-gateway-storage = { workspace = true }
 nym-metrics = { workspace = true }
 nym-task = { workspace = true }
-nym-validator-client = { workspace = true }
+nym-validator-client = { workspace = true, features = ["http-client"] }
 nym-upgrade-mode-check = { workspace = true }

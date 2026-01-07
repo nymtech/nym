@@ -5,7 +5,7 @@ authors.workspace = true
 repository.workspace = true
 license.workspace = true
 edition.workspace = true
-description = "max todo"
+description = "Runtime diagnostics for high frequency logging, debugging and error handling utilities"
 
 [lints]
 workspace = true

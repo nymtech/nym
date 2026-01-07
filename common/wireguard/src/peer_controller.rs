@@ -224,7 +224,7 @@ impl PeerController {
                 bw_manager
                     .allowed_ips()
                     .iter()
-                    .find(|ip_mask| ip_mask.ip == ip)
+                    .find(|ip_mask| ip_mask.address == ip)
                     .and(Some(key.clone()))
             }))
     }
@@ -443,7 +443,7 @@ struct MockWgApi {
 #[allow(clippy::todo)]
 impl WireguardInterfaceApi for MockWgApi {
     fn create_interface(
-        &self,
+        &mut self,
     ) -> std::result::Result<(), defguard_wireguard_rs::error::WireguardInterfaceError> {
         todo!()
     }
@@ -462,7 +462,6 @@ impl WireguardInterfaceApi for MockWgApi {
         todo!()
     }
 
-    #[cfg(not(target_os = "windows"))]
     fn configure_interface(
         &self,
         _config: &defguard_wireguard_rs::InterfaceConfiguration,
@@ -470,17 +469,16 @@ impl WireguardInterfaceApi for MockWgApi {
         todo!()
     }
 
-    #[cfg(target_os = "windows")]
-    fn configure_interface(
-        &self,
-        _config: &defguard_wireguard_rs::InterfaceConfiguration,
-        _dns: &[std::net::IpAddr],
-    ) -> std::result::Result<(), defguard_wireguard_rs::error::WireguardInterfaceError> {
-        todo!()
-    }
-
+    #[cfg(not(windows))]
     fn remove_interface(
         &self,
+    ) -> std::result::Result<(), defguard_wireguard_rs::error::WireguardInterfaceError> {
+        todo!()
+    }
+
+    #[cfg(windows)]
+    fn remove_interface(
+        &mut self,
     ) -> std::result::Result<(), defguard_wireguard_rs::error::WireguardInterfaceError> {
         todo!()
     }
@@ -515,6 +513,7 @@ impl WireguardInterfaceApi for MockWgApi {
     fn configure_dns(
         &self,
         _dns: &[std::net::IpAddr],
+        _search_domains: &[&str],
     ) -> std::result::Result<(), defguard_wireguard_rs::error::WireguardInterfaceError> {
         todo!()
     }

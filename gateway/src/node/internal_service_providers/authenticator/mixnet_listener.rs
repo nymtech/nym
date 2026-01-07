@@ -297,7 +297,7 @@ impl MixnetListener {
             let allowed_ipv4 = peer
                 .allowed_ips
                 .iter()
-                .find_map(|ip_mask| match ip_mask.ip {
+                .find_map(|ip_mask| match ip_mask.address {
                     IpAddr::V4(ipv4_addr) => Some(ipv4_addr),
                     _ => None,
                 })
@@ -307,7 +307,7 @@ impl MixnetListener {
             let allowed_ipv6 = peer
                 .allowed_ips
                 .iter()
-                .find_map(|ip_mask| match ip_mask.ip {
+                .find_map(|ip_mask| match ip_mask.address {
                     IpAddr::V6(ipv6_addr) => Some(ipv6_addr),
                     _ => None,
                 })

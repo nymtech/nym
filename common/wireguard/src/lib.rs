@@ -29,13 +29,31 @@ pub use error::Error;
 
 pub const CONTROL_CHANNEL_SIZE: usize = 256;
 
+// See platforms where kernel implementation is available:
+// https://github.com/DefGuard/wireguard-rs
+#[cfg(any(
+    target_os = "linux",
+    target_os = "windows",
+    target_os = "freebsd",
+    target_os = "netbsd"
+))]
+pub type WGApiImp = WGApi<defguard_wireguard_rs::Kernel>;
+
+#[cfg(not(any(
+    target_os = "linux",
+    target_os = "windows",
+    target_os = "freebsd",
+    target_os = "netbsd"
+)))]
+pub type WGApiImp = WGApi<defguard_wireguard_rs::Userspace>;
+
 pub struct WgApiWrapper {
-    inner: WGApi,
+    inner: WGApiImp,
 }
 
 impl WireguardInterfaceApi for WgApiWrapper {
     fn create_interface(
-        &self,
+        &mut self,
     ) -> Result<(), defguard_wireguard_rs::error::WireguardInterfaceError> {
         self.inner.create_interface()
     }
@@ -54,7 +72,6 @@ impl WireguardInterfaceApi for WgApiWrapper {
         self.inner.configure_peer_routing(peers)
     }
 
-    #[cfg(not(target_os = "windows"))]
     fn configure_interface(
         &self,
         config: &defguard_wireguard_rs::InterfaceConfiguration,
@@ -62,17 +79,16 @@ impl WireguardInterfaceApi for WgApiWrapper {
         self.inner.configure_interface(config)
     }
 
-    #[cfg(target_os = "windows")]
-    fn configure_interface(
-        &self,
-        config: &defguard_wireguard_rs::InterfaceConfiguration,
-        dns: &[std::net::IpAddr],
-    ) -> Result<(), defguard_wireguard_rs::error::WireguardInterfaceError> {
-        self.inner.configure_interface(config, dns)
-    }
-
+    #[cfg(not(windows))]
     fn remove_interface(
         &self,
+    ) -> Result<(), defguard_wireguard_rs::error::WireguardInterfaceError> {
+        self.inner.remove_interface()
+    }
+
+    #[cfg(windows)]
+    fn remove_interface(
+        &mut self,
     ) -> Result<(), defguard_wireguard_rs::error::WireguardInterfaceError> {
         self.inner.remove_interface()
     }
@@ -103,21 +119,21 @@ impl WireguardInterfaceApi for WgApiWrapper {
     fn configure_dns(
         &self,
         dns: &[std::net::IpAddr],
+        search_domains: &[&str],
     ) -> Result<(), defguard_wireguard_rs::error::WireguardInterfaceError> {
-        self.inner.configure_dns(dns)
+        self.inner.configure_dns(dns, search_domains)
     }
 }
 
 impl WgApiWrapper {
-    pub fn new(wg_api: WGApi) -> Self {
+    pub fn new(wg_api: WGApiImp) -> Self {
         WgApiWrapper { inner: wg_api }
     }
 }
 
 impl Drop for WgApiWrapper {
     fn drop(&mut self) {
-        if let Err(e) = defguard_wireguard_rs::WireguardInterfaceApi::remove_interface(&self.inner)
-        {
+        if let Err(e) = self.inner.remove_interface() {
             error!("Could not remove the wireguard interface: {e:?}");
         }
     }

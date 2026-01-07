@@ -1,3 +1,4 @@
+---
 - name: Install nginx and certbot
   apt:
     name:
@@ -5,57 +6,168 @@
       - certbot
       - python3-certbot-nginx
     state: present
+    update_cache: yes
 
-- name: Create web root directory
+- name: Ensure nginx snippets directory exists
+  file:
+    path: /etc/nginx/snippets
+    state: directory
+    mode: "0755"
+
+# own SSL defaults - don't rely on certbot files
+- name: Install Nym SSL options snippet
+  copy:
+    dest: /etc/nginx/snippets/nym-ssl-options.conf
+    mode: "0644"
+    content: |
+      ssl_session_cache shared:NYMSSL:10m;
+      ssl_session_timeout 1d;
+      ssl_session_tickets off;
+
+      ssl_protocols TLSv1.2 TLSv1.3;
+      ssl_prefer_server_ciphers off;
+
+      # Reasonable modern cipher set (works across Ubuntu nginx builds)
+      ssl_ciphers "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305";
+
+      # OCSP stapling is nice but can break if resolver isn't set; keep minimal here.
+  notify: Restart nginx
+
+- name: Ensure web root directory exists
   file:
     path: "/var/www/{{ hostname }}"
     state: directory
     mode: "0755"
 
-- name: Create landing page template
-  tags: landing
+- name: Deploy landing page
   template:
     src: landing.html.j2
     dest: "/var/www/{{ hostname }}/index.html"
+    mode: "0644"
+  notify: Restart nginx
 
-- name: Remove default nginx site
+# remove default site - safe on fresh + redeploy
+- name: Disable default nginx site symlink
   file:
     path: /etc/nginx/sites-enabled/default
     state: absent
+  notify: Restart nginx
 
-- name: Add bare-bones nginx template
+- name: Remove default nginx site definition if present
+  file:
+    path: /etc/nginx/sites-available/default
+    state: absent
+  notify: Restart nginx
+
+# always deploy/enable HTTP vhost
+- name: Deploy HTTP vhost
   template:
     src: nginx-site.conf.j2
     dest: "/etc/nginx/sites-available/{{ hostname }}"
+    mode: "0644"
+  notify: Restart nginx
 
-- name: Enable nginx config
+- name: Enable HTTP vhost (force correct symlink)
   file:
     src: "/etc/nginx/sites-available/{{ hostname }}"
     dest: "/etc/nginx/sites-enabled/{{ hostname }}"
     state: link
+    force: true
+  notify: Restart nginx
 
-- name: Validate nginx configuration
+# detect if cert exists already
+- name: Check whether certificate exists
+  stat:
+    path: "/etc/letsencrypt/live/{{ hostname }}/fullchain.pem"
+  register: le_cert
+
+# if cert does NOT exist yet, ensure SSL/WSS are NOT enabled
+- name: Ensure SSL and WSS vhosts are disabled until cert exists
+  file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - "/etc/nginx/sites-enabled/{{ hostname }}-ssl"
+    - "/etc/nginx/sites-enabled/nym-wss-config"
+  when: not le_cert.stat.exists
+  notify: Restart nginx
+
+- name: Ensure nginx is enabled and running (needed for ACME http-01)
+  service:
+    name: nginx
+    state: started
+    enabled: yes
+
+- name: Validate nginx configuration (HTTP stage)
   command: nginx -t
   changed_when: false
 
-- name: Obtain SSL certificate
-  command:
-    cmd: "certbot --nginx --non-interactive --agree-tos --redirect -m {{ email }} -d {{ hostname }}"
+- name: Flush handlers (ensure HTTP is active before certbot)
+  meta: flush_handlers
 
-- name: Add wss config from nginx template
+# certbot strategy:
+# - if cert exists: webroot - doesn't touch nginx
+# - else:  --nginx works first-time; may touch nginx
+- name: Obtain/renew certificate
+  command:
+    cmd: >-
+      {% if le_cert.stat.exists %}
+      certbot certonly --webroot
+      -w /var/www/{{ hostname }}
+      --non-interactive --agree-tos --keep-until-expiring
+      -m {{ email }} -d {{ hostname }}
+      {% else %}
+      certbot --nginx
+      --non-interactive --agree-tos --redirect
+      -m {{ email }} -d {{ hostname }}
+      {% endif %}
+  register: certbot_result
+  failed_when: false
+
+# re-check cert after certbot attempt
+- name: Re-check whether certificate exists after certbot
+  stat:
+    path: "/etc/letsencrypt/live/{{ hostname }}/fullchain.pem"
+  register: le_cert_after
+
+# only deploy/enable SSL & WSS if cert exists
+- name: Deploy HTTPS vhost for {{ hostname }}
+  template:
+    src: nginx-site-ssl.conf.j2
+    dest: "/etc/nginx/sites-available/{{ hostname }}-ssl"
+    mode: "0644"
+  when: le_cert_after.stat.exists
+  notify: Restart nginx
+
+- name: Enable HTTPS vhost (force correct symlink)
+  file:
+    src: "/etc/nginx/sites-available/{{ hostname }}-ssl"
+    dest: "/etc/nginx/sites-enabled/{{ hostname }}-ssl"
+    state: link
+    force: true
+  when: le_cert_after.stat.exists
+  notify: Restart nginx
+
+- name: Deploy WSS vhost
   template:
     src: wss-config.conf.j2
     dest: "/etc/nginx/sites-available/nym-wss-config"
+    mode: "0644"
+  when: le_cert_after.stat.exists
+  notify: Restart nginx
 
-- name: Enable WSS config
+- name: Enable WSS vhost (force correct symlink)
   file:
     src: "/etc/nginx/sites-available/nym-wss-config"
     dest: "/etc/nginx/sites-enabled/nym-wss-config"
     state: link
+    force: true
+  when: le_cert_after.stat.exists
+  notify: Restart nginx
 
-- name: Validate nginx config after wss
+- name: Validate nginx configuration (final)
   command: nginx -t
   changed_when: false
 
-- name: Restart nginx to apply changes
-  service: name=nginx state=restarted enabled=yes
+- name: Flush handlers (apply restart after successful tests)
+  meta: flush_handlers

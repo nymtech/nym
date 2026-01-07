@@ -6,10 +6,6 @@ nym_install_dir: /root/nym-binaries
 http_bind_address: "0.0.0.0:8080"        # maps to --http-bind-address
 mixnet_bind_address: "0.0.0.0:1789"      # maps to --mixnet-bind-address
 
-
-# WireGuard boolean
-wireguard_enabled: "{{ wireguard_enabled | default(false) | bool }}"
-
 # Landing page base dir, hostname is appended in the task
 landing_page_assets_base_dir: "/var/www"
 

@@ -1,5 +1,5 @@
 ---
-# Useful when the host is behind a NAT
+# useful when the host is behind a NAT
 - name: Fetch the public IP address
   command: "curl -4 canhazip.com"
   register: ipv4
@@ -11,7 +11,7 @@
     public_ip: "{{ ipv4.stdout | default(ansible_default_ipv4.address) }}"
 
 - name: Initialize nym node
-  # Delete the part from --hostname onward if you run  mode=mixnode only
+  # delete the part from --hostname onward if you run  mode=mixnode only
   command:
     cmd: >
       {{ nym_install_dir }}/nym-node run
@@ -25,7 +25,7 @@
       {{ nym_extra_flags }}
 
       --hostname {{ hostname }}
-      --wireguard-enabled {{ wireguard_enabled }}
+      --wireguard-enabled {{ (wireguard_enabled | default('false') | bool) | ternary('true','false') }}
       --landing-page-assets-path {{ landing_page_assets_base_dir }}/{{ hostname }}/
       {% if nym_write_flag %}-w{% endif %}
       {% if nym_init_only_flag %}--init-only{% endif %}

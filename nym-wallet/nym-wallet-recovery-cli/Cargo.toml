@@ -13,5 +13,5 @@ clap = { version = "4.0", features = ["derive"] }
 log = "0.4"
 serde_json = "1.0.0"
 
-nym-bin-common = { workspace = true, features = ["basic_tracing"] }
-nym-store-cipher = { workspace = true }
+nym-bin-common = { path = "../../common/bin-common", features = ["basic_tracing"] }
+nym-store-cipher = { path = "../../common/store-cipher" }

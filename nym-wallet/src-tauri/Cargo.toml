@@ -68,7 +68,7 @@ nym-wallet-types = { path = "../nym-wallet-types" }
 nym-store-cipher = { path = "../../common/store-cipher", features = ["json"] }
 
 [dev-dependencies]
-nym-crypto = { workspace = true, features = ["rand"] }
+nym-crypto = { path = "../../common/crypto", features = ["rand"] }
 rand_chacha = "0.3"
 tempfile = "3.3.0"
 ts-rs = "10.0.0"

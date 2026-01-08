@@ -121,7 +121,7 @@ impl WireguardInterfaceApi for WgApiWrapper {
 
     fn configure_dns(
         &self,
-        dns: &[std::net::IpAddr],
+        dns: &[IpAddr],
         search_domains: &[&str],
     ) -> Result<(), defguard_wireguard_rs::error::WireguardInterfaceError> {
         self.inner.configure_dns(dns, search_domains)

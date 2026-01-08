@@ -185,23 +185,23 @@ pub mod atomic {
         }
 
         // Handle partial words at the beginning and end
-        if start_bit % 64 != 0 {
+        if !start_bit.is_multiple_of(64) {
             let start_mask = u64::MAX << (start_bit % 64);
             bitmap[start_word] |= start_mask;
         }
 
-        if (end_bit + 1) % 64 != 0 {
+        if !(end_bit + 1).is_multiple_of(64) {
             let end_mask = u64::MAX >> (63 - (end_bit % 64));
             bitmap[end_word] |= end_mask;
         }
 
         // Handle complete words in the middle using NEON
-        let first_full_word = if start_bit % 64 == 0 {
+        let first_full_word = if start_bit.is_multiple_of(64) {
             start_word
         } else {
             start_word + 1
         };
-        let last_full_word = if (end_bit + 1) % 64 == 0 {
+        let last_full_word = if (end_bit + 1).is_multiple_of(64) {
             end_word
         } else {
             end_word - 1

@@ -469,7 +469,7 @@ impl MixnetListener {
         // 4. The vec![] here is for KcpSessionManager's internal SURB storage (currently unused)
         //    since the SDK handles SURB storage at a lower layer
         // 5. If replies fail, check that LP client is sending SURBs in its messages
-        let (conv_id, decoded_pkts, reassembled_messages) = self
+        let processing_result = self
             .kcp_session_manager
             .process_incoming(
                 &reconstructed.message,
@@ -481,15 +481,17 @@ impl MixnetListener {
                 log::warn!("KCP processing error: {e}");
             })?;
 
+        let conv_id = processing_result.conversation_id;
+
         log::debug!(
             "KCP conv_id={}: received {} packets, {} complete messages",
-            conv_id,
-            decoded_pkts.len(),
-            reassembled_messages.len()
+            processing_result.conversation_id,
+            processing_result.decoded_packets.len(),
+            processing_result.reassembled_messages.len()
         );
 
         // Process each reassembled message as an IpPacketRequest
-        for message_data in reassembled_messages {
+        for message_data in processing_result.reassembled_messages {
             // Create a synthetic ReconstructedMessage for the inner payload
             let inner_reconstructed = ReconstructedMessage {
                 message: message_data,
@@ -500,6 +502,9 @@ impl MixnetListener {
                 Ok(results) => {
                     // Handle responses by wrapping in KCP and sending directly
                     for result in results {
+                        // false positive: this if can't be collapsed due to `response` being moved
+                        // between calls
+                        #[allow(clippy::collapsible_if)]
                         if let Ok(Some(response)) = result {
                             if let Err(e) = self
                                 .handle_kcp_response(conv_id, response, current_time_ms)

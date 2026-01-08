@@ -1,6 +1,8 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+#![allow(clippy::expect_used)]
+
 use crate::error::BandwidthControllerError;
 use crate::{BandwidthTicketProvider, PreparedCredential, PreparedCredentialMetadata};
 use async_trait::async_trait;

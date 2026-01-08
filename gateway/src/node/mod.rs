@@ -277,15 +277,11 @@ impl GatewayTasksBuilder {
         GatewayError,
     > {
         match self.ecash_manager.clone() {
-            Some(cached) => Ok(cached
-                as Arc<dyn nym_credential_verification::ecash::traits::EcashManager + Send + Sync>),
+            Some(cached) => Ok(cached),
             None => {
                 let manager = self.build_ecash_manager().await?;
                 self.ecash_manager = Some(manager.clone());
-                Ok(manager
-                    as Arc<
-                        dyn nym_credential_verification::ecash::traits::EcashManager + Send + Sync,
-                    >)
+                Ok(manager)
             }
         }
     }

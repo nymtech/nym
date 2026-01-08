@@ -114,7 +114,7 @@ impl ReceivingKeyCounterValidator {
 
         let duplicate = self.check_bit_branchless(counter);
 
-        let result = if is_growing {
+        if is_growing {
             Ok(())
         } else if too_far_back {
             Err(ReplayError::OutOfWindow)
@@ -122,9 +122,7 @@ impl ReceivingKeyCounterValidator {
             Err(ReplayError::DuplicateCounter)
         } else {
             Ok(())
-        };
-
-        result
+        }
     }
 
     /// Special case function for clearing the entire bitmap
@@ -270,13 +268,13 @@ impl ReceivingKeyCounterValidator {
         let simd_width = simd::optimal_simd_width();
 
         // Pre-alignment clearing
-        if i % (WORD_SIZE as u64) != 0 {
+        if !i.is_multiple_of(WORD_SIZE as u64) {
             let current_word = (i % (N_BITS as u64) / (WORD_SIZE as u64)) as usize;
 
             // Check if we need to clear this word
             if self.bitmap[current_word] != 0 {
                 // Safely handle potential overflow by checking before each increment
-                while i % (WORD_SIZE as u64) != 0 && i < counter {
+                while !i.is_multiple_of(WORD_SIZE as u64) && i < counter {
                     self.clear_bit(i);
 
                     // Prevent overflow on increment
@@ -303,7 +301,7 @@ impl ReceivingKeyCounterValidator {
 
             // Check if we have enough consecutive words to use SIMD
             if current_word + simd_width <= N_WORDS
-                && i % (simd_width as u64 * WORD_SIZE as u64) == 0
+                && i.is_multiple_of(simd_width as u64 * WORD_SIZE as u64)
             {
                 // Use SIMD to clear multiple words at once if any need clearing
                 let needs_clearing =

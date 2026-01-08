@@ -100,6 +100,18 @@ pub struct KcpSessionManager {
     max_sessions: usize,
 }
 
+/// Result of processing incoming KCP data from a client
+pub(crate) struct KcpProcessingResult {
+    /// The conv_id extracted from the KCP packet
+    pub(crate) conversation_id: u32,
+
+    /// Vector of decoded KCP packets (for inspection/logging)
+    pub(crate) decoded_packets: Vec<KcpPacket>,
+
+    /// Vector of complete reassembled messages ready for IPR processing
+    pub(crate) reassembled_messages: Vec<Vec<u8>>,
+}
+
 impl Default for KcpSessionManager {
     fn default() -> Self {
         Self::new()
@@ -147,7 +159,7 @@ impl KcpSessionManager {
         reply_surbs: Vec<ReplySurb>,
         sender_tag: Option<AnonymousSenderTag>,
         current_time_ms: u64,
-    ) -> Result<(u32, Vec<KcpPacket>, Vec<Vec<u8>>), IpPacketRouterError> {
+    ) -> Result<KcpProcessingResult, IpPacketRouterError> {
         if kcp_data.len() < 4 {
             return Err(IpPacketRouterError::KcpError(
                 "KCP data too short to contain conv_id".to_string(),
@@ -155,7 +167,7 @@ impl KcpSessionManager {
         }
 
         // Extract conv_id from first 4 bytes of KCP packet
-        let conv_id = u32::from_le_bytes(kcp_data[..4].try_into().unwrap());
+        let conv_id = u32::from_le_bytes([kcp_data[0], kcp_data[1], kcp_data[2], kcp_data[3]]);
 
         // Get or create session
         self.ensure_session(conv_id, sender_tag)?;
@@ -190,7 +202,11 @@ impl KcpSessionManager {
             .map(|buf| buf.to_vec())
             .collect();
 
-        Ok((conv_id, decoded_packets, incoming_messages))
+        Ok(KcpProcessingResult {
+            conversation_id: conv_id,
+            decoded_packets,
+            reassembled_messages: incoming_messages,
+        })
     }
 
     /// Wrap outgoing data in KCP for sending via SURB.
@@ -341,11 +357,12 @@ impl KcpSessionManager {
     ) -> Result<(), IpPacketRouterError> {
         if self.sessions.contains_key(&conv_id) {
             // Update sender_tag if provided
-            if let Some(tag) = sender_tag {
-                if let Some(session) = self.sessions.get_mut(&conv_id) {
-                    session.sender_tag = Some(tag);
-                }
+            if let Some(tag) = sender_tag
+                && let Some(session) = self.sessions.get_mut(&conv_id)
+            {
+                session.sender_tag = Some(tag);
             }
+
             return Ok(());
         }
 
@@ -455,16 +472,16 @@ mod tests {
         }
 
         // Feed to the session manager
-        let (extracted_conv_id, _decoded_pkts, messages) = manager
+        let res = manager
             .process_incoming(&kcp_data, vec![], None, 100)
             .expect("process_incoming should succeed");
 
         // Verify conv_id was extracted correctly
-        assert_eq!(extracted_conv_id, conv_id);
+        assert_eq!(res.conversation_id, conv_id);
 
         // Should have received the complete message
-        assert_eq!(messages.len(), 1);
-        assert_eq!(messages[0], message);
+        assert_eq!(res.reassembled_messages.len(), 1);
+        assert_eq!(res.reassembled_messages[0], message);
     }
 
     #[test]

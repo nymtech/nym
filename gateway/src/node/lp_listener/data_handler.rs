@@ -119,6 +119,7 @@ impl LpDataHandler {
     /// The state machine's `process_input()` method handles replay protection by:
     /// - Checking packet counter against receiving window
     /// - Marking counter as used after successful decryption
+    ///
     /// This prevents replay attacks where captured packets are re-sent.
     async fn handle_packet(&self, packet: &[u8], src_addr: SocketAddr) -> Result<(), GatewayError> {
         inc!("lp_data_packets_received");
@@ -254,11 +255,10 @@ impl LpDataHandler {
 mod tests {
     use super::*;
 
-    #[tokio::test]
-    async fn test_max_packet_size_reasonable() {
-        // Sphinx packets are typically around 2KB
-        // LP overhead is small (~50 bytes header + AEAD tag)
-        // 4KB should be plenty with room to spare
+    // Sphinx packets are typically around 2KB
+    // LP overhead is small (~50 bytes header + AEAD tag)
+    // 4KB should be plenty with room to spare
+    const _: () = {
         assert!(MAX_UDP_PACKET_SIZE >= 2048 + 100);
-    }
+    };
 }

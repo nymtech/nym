@@ -23,6 +23,7 @@ fn ensure_can_advance_state(
     }
 
     // otherwise fallback to the deadline
+    #[allow(clippy::collapsible_if)]
     if let Some(finish_timestamp) = current_epoch.deadline {
         if finish_timestamp > env.block.time {
             return Err(ContractError::EarlyEpochStateAdvancement(

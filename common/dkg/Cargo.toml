@@ -5,6 +5,9 @@ edition = "2021"
 resolver = "2"
 license.workspace = true
 description = "Nym's Distributed Key Generation functionality"
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

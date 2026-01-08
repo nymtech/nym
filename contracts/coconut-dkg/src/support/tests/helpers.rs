@@ -84,6 +84,7 @@ fn querier_handler(query: &WasmQuery) -> QuerierResult {
                 Ok(Cw4QueryMsg::Member { addr, at_height }) => {
                     let weight = GROUP_MEMBERS.lock().unwrap().iter().find_map(|(m, h)| {
                         if m.addr == addr {
+                            #[allow(clippy::collapsible_if)]
                             if let Some(height) = at_height {
                                 if height != *h {
                                     return None;

@@ -23,9 +23,9 @@ name = "schema"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-nym-group-contract-common = { path = "../../../common/cosmwasm-smart-contracts/group-contract" }
-nym-contracts-common = { path = "../../../common/cosmwasm-smart-contracts/contracts-common" }
-nym-contracts-common-testing = { path = "../../../common/cosmwasm-smart-contracts/contracts-common-testing", optional = true }
+nym-group-contract-common = { workspace = true }
+nym-contracts-common = { workspace = true }
+nym-contracts-common-testing = { workspace = true, optional = true }
 
 cw-utils = { workspace = true }
 cw2 = { workspace = true }
@@ -39,7 +39,7 @@ serde = { workspace = true, default-features = false, features = ["derive"] }
 thiserror = { workspace = true }
 
 [dev-dependencies]
-easy-addr = { path = "../../../common/cosmwasm-smart-contracts/easy_addr" }
+easy-addr = { workspace = true }
 
 [features]
 # use library feature to disable all instantiate/execute/query exports

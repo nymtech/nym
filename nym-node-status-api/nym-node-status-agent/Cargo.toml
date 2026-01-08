@@ -18,8 +18,8 @@ publish = false
 anyhow = { workspace = true }
 clap = { workspace = true, features = ["derive", "env"] }
 futures = { workspace = true }
-nym-bin-common = { path = "../../common/bin-common", features = ["models"] }
-nym-crypto = { path = "../../common/crypto", features = ["asymmetric", "rand"] }
+nym-bin-common = { workspace = true, features = ["models"] }
+nym-crypto = { workspace = true, features = ["asymmetric", "rand"] }
 
 nym-node-status-client = { path = "../nym-node-status-client" }
 rand = { workspace = true }

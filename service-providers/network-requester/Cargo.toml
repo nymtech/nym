@@ -43,25 +43,25 @@ time = { workspace = true }
 zeroize = { workspace = true }
 
 # internal
-nym-async-file-watcher = { path = "../../common/async-file-watcher" }
-nym-bin-common = { path = "../../common/bin-common", features = ["output_format", "clap", "basic_tracing"] }
-nym-client-core = { path = "../../common/client-core", features = ["cli", "fs-gateways-storage", "fs-surb-storage"] }
-nym-client-websocket-requests = { path = "../../clients/native/websocket-requests" }
-nym-config = { path = "../../common/config" }
-nym-credentials = { path = "../../common/credentials" }
-nym-credential-storage = { path = "../../common/credential-storage" }
-nym-crypto = { path = "../../common/crypto" }
-nym-network-defaults = { path = "../../common/network-defaults" }
-nym-ordered-buffer = { path = "../../common/socks5/ordered-buffer" }
-nym-sdk = { path = "../../sdk/rust/nym-sdk" }
-nym-service-providers-common = { path = "../common" }
-nym-socks5-proxy-helpers = { path = "../../common/socks5/proxy-helpers" }
-nym-socks5-requests = { path = "../../common/socks5/requests" }
-nym-sphinx = { path = "../../common/nymsphinx" }
-nym-task = { path = "../../common/task" }
-nym-types = { path = "../../common/types" }
-nym-exit-policy = { path = "../../common/exit-policy", features = ["client"] }
-nym-id = { path = "../../common/nym-id" }
+nym-async-file-watcher = { workspace = true }
+nym-bin-common = { workspace = true, features = ["output_format", "clap", "basic_tracing"] }
+nym-client-core = { workspace = true, features = ["cli", "fs-gateways-storage", "fs-surb-storage"] }
+nym-client-websocket-requests = { workspace = true }
+nym-config = { workspace = true }
+nym-credentials = { workspace = true }
+nym-credential-storage = { workspace = true }
+nym-crypto = { workspace = true }
+nym-network-defaults = { workspace = true }
+nym-ordered-buffer = { workspace = true }
+nym-sdk = { workspace = true }
+nym-service-providers-common = { workspace = true }
+nym-socks5-proxy-helpers = { workspace = true }
+nym-socks5-requests = { workspace = true }
+nym-sphinx = { workspace = true }
+nym-task = { workspace = true }
+nym-types = { workspace = true }
+nym-exit-policy = { workspace = true, features = ["client"] }
+nym-id = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }

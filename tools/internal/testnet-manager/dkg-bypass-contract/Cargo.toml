@@ -19,7 +19,7 @@ cosmwasm-schema = { workspace = true }
 cw-storage-plus = { workspace = true }
 
 nym-coconut-dkg-common = { workspace = true }
-nym-contracts-common = { path = "../../../../common/cosmwasm-smart-contracts/contracts-common" }
+nym-contracts-common = { workspace = true }
 
 [features]
 default = ["library"]

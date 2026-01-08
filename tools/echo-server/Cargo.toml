@@ -26,14 +26,14 @@ serde = { workspace = true, features = ["derive"] }
 tracing.workspace = true
 tracing-subscriber = { workspace = true }
 bytecodec = { workspace = true }
-nym-sdk = { path = "../../sdk/rust/nym-sdk" }
+nym-sdk = { workspace = true }
 bytes.workspace = true
 dirs.workspace = true
 clap.workspace = true
-nym-bin-common = { path = "../../common/bin-common", features = [
+nym-bin-common = { workspace = true, features = [
     "basic_tracing",
     "output_format",
 ] }
-nym-crypto = { path = "../../common/crypto", features = ["asymmetric"] }
+nym-crypto = { workspace = true, features = ["asymmetric"] }
 futures = { workspace = true }
 tempfile.workspace = true

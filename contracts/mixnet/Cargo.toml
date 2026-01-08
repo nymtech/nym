@@ -26,10 +26,10 @@ name = "mixnet_contract"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-mixnet-contract-common = { path = "../../common/cosmwasm-smart-contracts/mixnet-contract", package = "nym-mixnet-contract-common" }
-vesting-contract-common = { path = "../../common/cosmwasm-smart-contracts/vesting-contract", package = "nym-vesting-contract-common" }
-nym-contracts-common = { path = "../../common/cosmwasm-smart-contracts/contracts-common" }
-nym-contracts-common-testing = { path = "../../common/cosmwasm-smart-contracts/contracts-common-testing", optional = true }
+mixnet-contract-common = { workspace = true, package = "nym-mixnet-contract-common" }
+vesting-contract-common = { workspace = true, package = "nym-vesting-contract-common" }
+nym-contracts-common = { workspace = true }
+nym-contracts-common-testing = { workspace = true, optional = true }
 
 cosmwasm-schema = { workspace = true, optional = true }
 cosmwasm-std = { workspace = true }
@@ -46,12 +46,12 @@ semver = { workspace = true }
 anyhow.workspace = true
 rand_chacha = { workspace = true }
 rand = { workspace = true }
-nym-crypto = { path = "../../common/crypto", features = ["asymmetric", "rand"] }
-easy-addr = { path = "../../common/cosmwasm-smart-contracts/easy_addr" }
+nym-crypto = { workspace = true, features = ["asymmetric", "rand"] }
+easy-addr = { workspace = true }
 
 # activate the `testable-mixnet-contract` in tests (weird workaround, but it does the trick)
-nym-mixnet-contract = { path = ".", features = ["testable-mixnet-contract"] }
-nym-contracts-common-testing = { path = "../../common/cosmwasm-smart-contracts/contracts-common-testing" }
+nym-mixnet-contract = { workspace = true, features = ["testable-mixnet-contract"] }
+nym-contracts-common-testing = { workspace = true }
 
 [features]
 default = []

@@ -26,17 +26,17 @@ tracing = { workspace = true }
 nym-credentials-interface = { workspace = true }
 nym-credential-verification = { workspace = true }
 nym-crypto = { workspace = true, features = ["asymmetric"] }
-nym-gateway-storage = { path = "../gateway-storage" }
-nym-gateway-requests = { path = "../gateway-requests" }
-nym-ip-packet-requests = { path = "../ip-packet-requests" }
-nym-metrics = { path = "../nym-metrics" }
-nym-network-defaults = { path = "../network-defaults" }
-nym-task = { path = "../task" }
+nym-gateway-storage = { workspace = true }
+nym-gateway-requests = { workspace = true }
+nym-ip-packet-requests = { workspace = true }
+nym-metrics = { workspace = true }
+nym-network-defaults = { workspace = true }
+nym-task = { workspace = true }
 nym-wireguard-types = { workspace = true }
-nym-node-metrics = { path = "../../nym-node/nym-node-metrics" }
+nym-node-metrics = { workspace = true }
 
 [dev-dependencies]
-nym-gateway-storage = { path = "../gateway-storage", features = ["mock"] }
+nym-gateway-storage = { workspace = true, features = ["mock"] }
 
 [features]
 default = []

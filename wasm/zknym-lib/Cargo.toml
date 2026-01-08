@@ -35,8 +35,8 @@ nym-bin-common = { workspace = true }
 nym-compact-ecash = { workspace = true }
 nym-credentials = { workspace = true }
 nym-crypto = { workspace = true, features = ["asymmetric", "rand"] }
-nym-http-api-client = { path = "../../common/http-api-client" }
-nym-wasm-utils = { path = "../../common/wasm/utils" }
+nym-http-api-client = { workspace = true }
+nym-wasm-utils = { workspace = true }
 
 [dev-dependencies]
 anyhow = { workspace = true }

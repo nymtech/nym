@@ -27,7 +27,7 @@ nym-crypto = { workspace = true, features = ["asymmetric", "serde", "naive_jwt"]
 [dev-dependencies]
 anyhow = { workspace = true }
 time = { workspace = true, features = ["macros"] }
-nym-test-utils = { path = "../test-utils" }
+nym-test-utils = { workspace = true }
 nym-crypto = { workspace = true, features = ["rand"] }
 
 

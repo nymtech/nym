@@ -36,7 +36,7 @@ tokio-tracing = ["tokio/tracing"]
 [dev-dependencies]
 anyhow = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "net", "signal", "test-util", "macros"] }
-nym-test-utils = { path = "../test-utils" }
+nym-test-utils = { workspace = true }
 
 [lints]
 workspace = true

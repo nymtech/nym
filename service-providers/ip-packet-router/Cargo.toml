@@ -28,7 +28,6 @@ nym-id = { workspace = true }
 nym-ip-packet-requests = { workspace = true }
 nym-kcp = { path = "../../common/nym-kcp" } # TODO MAX add to workspace dependencies
 nym-network-defaults = { workspace = true }
-
 nym-network-requester = { path = "../network-requester" }
 nym-sdk = { workspace = true }
 nym-service-provider-requests-common = { workspace = true }

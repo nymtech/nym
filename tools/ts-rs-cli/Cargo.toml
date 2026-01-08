@@ -18,5 +18,5 @@ nym-validator-client = { workspace = true, features = [
 nym-api-requests = { workspace = true, features = ["generate-ts"] }
 nym-mixnet-contract-common = { workspace = true, features = ["generate-ts"] }
 nym-vesting-contract-common = { workspace = true, features = ["generate-ts"] }
-nym-types = { path = "../../common/types", features = ["generate-ts"] }
+nym-types = { workspace = true, features = ["generate-ts"] }
 nym-wallet-types = { path = "../../nym-wallet/nym-wallet-types", features = ["generate-ts"] }

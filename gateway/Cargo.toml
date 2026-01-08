@@ -53,31 +53,31 @@ nym-credentials-interface = { workspace = true }
 nym-credential-verification = { workspace = true }
 nym-crypto = { workspace = true, features = ["sphinx"] }
 nym-config = { workspace = true }
-nym-gateway-storage = { path = "../common/gateway-storage" }
-nym-gateway-stats-storage = { path = "../common/gateway-stats-storage" }
-nym-gateway-requests = { path = "../common/gateway-requests" }
-nym-mixnet-client = { path = "../common/client-libs/mixnet-client" }
-nym-network-defaults = { path = "../common/network-defaults" }
+nym-gateway-storage = { workspace = true }
+nym-gateway-stats-storage = { workspace = true }
+nym-gateway-requests = { workspace = true }
+nym-mixnet-client = { workspace = true }
+nym-network-defaults = { workspace = true }
 nym-network-requester = { path = "../service-providers/network-requester" }
-nym-sdk = { path = "../sdk/rust/nym-sdk" }
-nym-sphinx = { path = "../common/nymsphinx" }
-nym-statistics-common = { path = "../common/statistics" }
-nym-task = { path = "../common/task" }
-nym-topology = { path = "../common/topology" }
+nym-sdk = { workspace = true }
+nym-sphinx = { workspace = true }
+nym-statistics-common = { workspace = true }
+nym-task = { workspace = true }
+nym-topology = { workspace = true }
 nym-validator-client = { workspace = true }
 nym-ip-packet-router = { path = "../service-providers/ip-packet-router" }
-nym-node-metrics = { path = "../nym-node/nym-node-metrics" }
-nym-upgrade-mode-check = { path = "../common/upgrade-mode-check" }
-nym-metrics = { path = "../common/nym-metrics" }
+nym-node-metrics = { workspace = true }
+nym-upgrade-mode-check = { workspace = true }
+nym-metrics = { workspace = true }
 
-nym-wireguard = { path = "../common/wireguard" }
-nym-wireguard-private-metadata-server = { path = "../common/wireguard-private-metadata/server" }
+nym-wireguard = { workspace = true }
+nym-wireguard-private-metadata-server = { workspace = true }
 nym-wireguard-types = { workspace = true }
 
 nym-authenticator-requests = { workspace = true }
 nym-client-core = { workspace = true, features = ["cli"] }
 nym-id = { workspace = true }
-nym-service-provider-requests-common = { path = "../common/service-provider-requests-common" }
+nym-service-provider-requests-common = { workspace = true }
 
 # LP dependencies
 nym-lp = { path = "../common/nym-lp" }
@@ -89,8 +89,8 @@ bytes = { workspace = true }
 defguard_wireguard_rs = { workspace = true }
 
 [dev-dependencies]
-nym-gateway-storage = { path = "../common/gateway-storage", features = ["mock"] }
-nym-wireguard = { path = "../common/wireguard", features = ["mock"] }
+nym-gateway-storage = { workspace = true, features = ["mock"] }
+nym-wireguard = { workspace = true, features = ["mock"] }
 mock_instant = "0.6.0"
 time = { workspace = true }
 

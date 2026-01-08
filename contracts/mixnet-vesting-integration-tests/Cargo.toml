@@ -16,15 +16,15 @@ cosmwasm-std = { workspace = true }
 cw-multi-test = { workspace = true }
 
 # contracts dependencies
-nym-mixnet-contract-common = { path = "../../common/cosmwasm-smart-contracts/mixnet-contract" }
-nym-vesting-contract-common = { path = "../../common/cosmwasm-smart-contracts/vesting-contract" }
-nym-contracts-common = { path = "../../common/cosmwasm-smart-contracts/contracts-common" }
+nym-mixnet-contract-common = { workspace = true }
+nym-vesting-contract-common = { workspace = true }
+nym-contracts-common = { workspace = true }
 
-nym-mixnet-contract = { path = "../mixnet" }
-nym-vesting-contract = { path = "../vesting" }
+nym-mixnet-contract = { workspace = true }
+nym-vesting-contract = { workspace = true }
 
 # other local dependencies
-nym-crypto = { path = "../../common/crypto", features = ["asymmetric", "rand"] }
+nym-crypto = { workspace = true, features = ["asymmetric", "rand"] }
 
 # external dependencies
 rand_chacha = "0.3"

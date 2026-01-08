@@ -46,7 +46,7 @@ utoipa = { workspace = true, features = ["axum_extras", "time"] }
 utoipa-swagger-ui = { workspace = true, features = ["axum"] }
 zeroize.workspace = true
 
-nym-bin-common = { path = "../../common/bin-common", features = [
+nym-bin-common = { workspace = true, features = [
     "basic_tracing",
 ] }
 nym-compact-ecash = { workspace = true }
@@ -56,25 +56,25 @@ nym-crypto = { workspace = true, features = [
     "rand",
     "serde",
 ] }
-nym-credentials = { path = "../../common/credentials" }
-nym-credentials-interface = { path = "../../common/credentials-interface" }
-nym-ecash-contract-common = { path = "../../common/cosmwasm-smart-contracts/ecash-contract" }
+nym-credentials = { workspace = true }
+nym-credentials-interface = { workspace = true }
+nym-ecash-contract-common = { workspace = true }
 nym-http-api-common = { workspace = true, features = [
     "utoipa",
     "middleware",
 ] }
-nym-http-api-client = { path = "../../common/http-api-client", default-features = false }
+nym-http-api-client = { workspace = true }
 nym-validator-client = { workspace = true }
-nym-network-defaults = { path = "../../common/network-defaults" }
+nym-network-defaults = { workspace = true }
 
-nym-credential-proxy-requests = { path = "../nym-credential-proxy-requests", features = [
+nym-credential-proxy-requests = { workspace = true, features = [
     "openapi",
 ] }
-nym-upgrade-mode-check = { path = "../../common/upgrade-mode-check" }
-nym-ecash-signer-check = { path = "../../common/ecash-signer-check" }
-nym-pemstore = { path = "../../common/pemstore" }
+nym-upgrade-mode-check = { workspace = true }
+nym-ecash-signer-check = { workspace = true }
+nym-pemstore = { workspace = true }
 
-nym-credential-proxy-lib = { path = "../../common/credential-proxy" }
+nym-credential-proxy-lib = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }

@@ -22,7 +22,7 @@ proc-macro-crate = "3"
 uuid = { version = "1.0", features = ["v4"] }
 
 [dev-dependencies]
-nym-http-api-client = { path = "../http-api-client" }
+nym-http-api-client = { workspace = true }
 reqwest = { workspace = true }
 
 [features]

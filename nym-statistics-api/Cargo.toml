@@ -38,16 +38,16 @@ utoipa-swagger-ui = { workspace = true, features = ["axum"] }
 utoipauto.workspace = true
 
 #internal
-nym-bin-common = { path = "../common/bin-common" }
+nym-bin-common = { workspace = true }
 nym-http-api-common = { workspace = true, features = [
     "middleware",
 ] }
-nym-statistics-common = { path = "../common/statistics", features = [
+nym-statistics-common = { workspace = true, features = [
     "openapi",
 ] }
-nym-task = { path = "../common/task" }
+nym-task = { workspace = true }
 
-nym-http-api-client = { path = "../common/http-api-client" }
+nym-http-api-client = { workspace = true }
 nym-validator-client = { workspace = true }
 
 [build-dependencies]

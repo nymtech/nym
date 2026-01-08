@@ -23,9 +23,9 @@ anyhow = { workspace = true }
 tap = { workspace = true }
 
 nym-cli-commands = { path = "../../common/commands" }
-nym-bin-common = { path = "../../common/bin-common", features = ["basic_tracing"] }
+nym-bin-common = { workspace = true, features = ["basic_tracing"] }
 nym-validator-client = { workspace = true, features = ["http-client"] }
-nym-network-defaults = { path = "../../common/network-defaults" }
+nym-network-defaults = { workspace = true }
 
 [package.metadata.deb]
 name = "nym-cli"

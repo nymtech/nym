@@ -21,9 +21,9 @@ axum = { workspace = true, features = ["tokio"] }
 chrono = { workspace = true }
 clap = { workspace = true, features = ["cargo", "derive", "env"] }
 nym-config = { workspace = true }
-nym-bin-common = { path = "../common/bin-common", features = ["output_format"] }
-nym-network-defaults = { path = "../common/network-defaults" }
-nym-task = { path = "../common/task" }
+nym-bin-common = { workspace = true, features = ["output_format"] }
+nym-network-defaults = { workspace = true }
+nym-task = { workspace = true }
 nym-validator-client = { workspace = true }
 nyxd-scraper-sqlite = { path = "../common/nyxd-scraper-sqlite" }
 reqwest = { workspace = true, features = ["rustls-tls"] }

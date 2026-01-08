@@ -48,17 +48,17 @@ nym-authenticator-requests = { workspace = true }
 nym-bandwidth-controller = { workspace = true }
 nym-bin-common = { workspace = true }
 nym-client-core = { workspace = true }
-nym-crypto = { path = "../common/crypto" }
+nym-crypto = { workspace = true }
 nym-config = { workspace = true }
 nym-connection-monitor = { path = "../common/nym-connection-monitor" }
-nym-credentials-interface = { path = "../common/credentials-interface" }
-nym-credential-utils = { path = "../common/credential-utils" }
+nym-credentials-interface = { workspace = true }
+nym-credential-utils = { workspace = true }
 nym-ip-packet-client = { workspace = true }
 nym-authenticator-client = { workspace = true }
 nym-ip-packet-requests = { workspace = true }
 nym-sdk = { workspace = true }
 nym-validator-client = { workspace = true }
-nym-credentials = { path = "../common/credentials" }
+nym-credentials = { workspace = true }
 nym-http-api-client-macro = { path = "../common/http-api-client-macro" }
 nym-http-api-client = { path = "../common/http-api-client" }
 nym-node-status-client = { path = "../nym-node-status-api/nym-node-status-client" }
@@ -71,7 +71,7 @@ nym-registration-common = { path = "../common/registration" }
 time = { workspace = true }
 
 # TEMP: REMOVE BEFORE PR
-nym-topology = { path = "../common/topology" }
+nym-topology = { workspace = true }
 
 [build-dependencies]
 anyhow = { workspace = true }

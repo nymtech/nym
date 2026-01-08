@@ -19,7 +19,7 @@ wasm-bindgen-futures = { workspace = true }
 getrandom = { workspace = true, features = ["js"], optional = true }
 gloo-utils = { workspace = true }
 gloo-net = { workspace = true, features = ["websocket"], optional = true }
-#gloo-net = { path = "../../../../gloo/crates/net", features = ["websocket"], optional = true }
+#gloo-net = { workspace = truepath = "../../../../gloo/crates/net", features = ["websocket"], optional = true }
 
 console_error_panic_hook = { workspace = true, optional = true }
 

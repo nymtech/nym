@@ -85,7 +85,7 @@ nym-crypto = { workspace = true }
 cw2 = { workspace = true }
 cw3 = { workspace = true }
 cw4 = { workspace = true }
-nym-dkg = { path = "../common/dkg", features = ["cw-types"] }
+nym-dkg = { workspace = true, features = ["cw-types"] }
 nym-gateway-client = { workspace = true }
 nym-mixnet-contract-common = { workspace = true, features = ["utoipa"] }
 nym-contracts-common = { workspace = true, features = ["naive_float", "utoipa"] }
@@ -98,7 +98,7 @@ nym-validator-client = { workspace = true }
 nym-http-api-client = { workspace = true }
 nym-bin-common = { workspace = true, features = ["output_format", "openapi", "basic_tracing"] }
 nym-node-tester-utils = { workspace = true }
-nym-node-requests = { workspace = true }
+nym-node-requests = { workspace = true, features = ["client"] }
 nym-types = { workspace = true }
 nym-http-api-common = { workspace = true, features = ["utoipa", "output", "middleware"] }
 nym-serde-helpers = { workspace = true, features = ["date"] }

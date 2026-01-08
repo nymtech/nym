@@ -11,6 +11,7 @@ use nym_crypto::asymmetric::x25519::KeyPair;
 use nym_wireguard_types::Config;
 use peer_controller::PeerControlRequest;
 use std::sync::Arc;
+use std::net::IpAddr;
 use tokio::sync::mpsc::{self, Receiver, Sender};
 use tracing::error;
 
@@ -197,7 +198,7 @@ pub async fn start_wireguard(
     use tracing::info;
 
     let ifname = String::from(WG_TUN_BASE_NAME);
-    let wg_api = defguard_wireguard_rs::WGApi::new(ifname.clone(), false)?;
+    let mut wg_api = defguard_wireguard_rs::WGApi::new(ifname.clone())?;
     let mut peer_bandwidth_managers = HashMap::with_capacity(peers.len());
 
     for peer in peers.iter() {
@@ -218,14 +219,14 @@ pub async fn start_wireguard(
     let interface_config = InterfaceConfiguration {
         name: ifname.clone(),
         prvkey: BASE64_STANDARD.encode(wireguard_data.inner.keypair().private_key().to_bytes()),
-        address: wireguard_data.inner.config().private_ipv4.to_string(),
-        port: wireguard_data.inner.config().announced_tunnel_port as u32,
+        addresses: vec![IpAddrMask::host(IpAddr::from(wireguard_data.inner.config().private_ipv4))],
+        port: wireguard_data.inner.config().announced_tunnel_port,
         peers,
         mtu: None,
     };
     info!(
-        "attempting to configure wireguard interface '{ifname}': address={}, port={}",
-        interface_config.address, interface_config.port
+        "attempting to configure wireguard interface '{ifname}': addresses=[{}], port={}",
+        interface_config.addresses.iter().map(|s| s.to_string()).collect::<Vec<_>>().join(", "), interface_config.port
     );
 
     wg_api.configure_interface(&interface_config)?;

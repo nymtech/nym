@@ -6,12 +6,12 @@ use crate::mixnet_contract_settings::storage::ADMIN;
 use cosmwasm_std::Response;
 use cosmwasm_std::{DepsMut, StdResult};
 use cosmwasm_std::{Env, MessageInfo};
-use mixnet_contract_common::error::MixnetContractError;
-use mixnet_contract_common::events::{
+use nym_mixnet_contract_common::ContractStateParamsUpdate;
+use nym_mixnet_contract_common::error::MixnetContractError;
+use nym_mixnet_contract_common::events::{
     new_rewarding_validator_address_update_event, new_settings_update_event,
     new_update_nym_node_semver_event,
 };
-use mixnet_contract_common::ContractStateParamsUpdate;
 
 pub fn try_update_contract_admin(
     mut deps: DepsMut<'_>,
@@ -133,8 +133,8 @@ pub mod tests {
     use cosmwasm_std::testing::message_info;
     use cosmwasm_std::{Coin, Uint128};
     use cw_controllers::AdminError::NotAdmin;
-    use mixnet_contract_common::OperatorsParamsUpdate;
     use nym_contracts_common_testing::mock_api;
+    use nym_mixnet_contract_common::OperatorsParamsUpdate;
 
     #[test]
     fn update_contract_rewarding_validator_address() {
@@ -301,7 +301,7 @@ pub mod tests {
         mod semver_chain_updates {
             use super::*;
             use crate::mixnet_contract_settings::queries::query_nym_node_version_history_paged;
-            use mixnet_contract_common::{
+            use nym_mixnet_contract_common::{
                 HistoricalNymNodeVersion, HistoricalNymNodeVersionEntry, TotalVersionDifference,
             };
 

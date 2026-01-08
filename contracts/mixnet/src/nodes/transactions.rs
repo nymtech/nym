@@ -16,19 +16,19 @@ use crate::support::helpers::{
     ensure_epoch_in_progress_state, ensure_no_existing_bond, ensure_operating_cost_within_range,
     ensure_profit_margin_within_range, validate_pledge,
 };
-use cosmwasm_std::{coin, Coin, DepsMut, Env, MessageInfo, Response};
-use mixnet_contract_common::error::MixnetContractError;
-use mixnet_contract_common::events::{
+use cosmwasm_std::{Coin, DepsMut, Env, MessageInfo, Response, coin};
+use nym_contracts_common::signing::{MessageSignature, SigningPurpose};
+use nym_mixnet_contract_common::error::MixnetContractError;
+use nym_mixnet_contract_common::events::{
     new_nym_node_bonding_event, new_pending_cost_params_update_event,
     new_pending_nym_node_unbonding_event, new_pending_pledge_decrease_event,
     new_pending_pledge_increase_event,
 };
-use mixnet_contract_common::nym_node::{NodeConfigUpdate, NymNode};
-use mixnet_contract_common::{
+use nym_mixnet_contract_common::nym_node::{NodeConfigUpdate, NymNode};
+use nym_mixnet_contract_common::{
     NodeCostParams, NymNodeBondingPayload, NymNodeDetails, PendingEpochEventKind,
     PendingIntervalEventKind,
 };
-use nym_contracts_common::signing::{MessageSignature, SigningPurpose};
 use serde::Serialize;
 
 pub fn try_add_nym_node(

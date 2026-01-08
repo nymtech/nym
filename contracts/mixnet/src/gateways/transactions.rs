@@ -10,14 +10,14 @@ use crate::nodes::helpers::save_new_nymnode_with_id;
 use crate::nodes::transactions::add_nym_node_inner;
 use crate::support::helpers::ensure_epoch_in_progress_state;
 use cosmwasm_std::{DepsMut, Env, MessageInfo, Response};
-use mixnet_contract_common::error::MixnetContractError;
-use mixnet_contract_common::events::{
-    new_gateway_config_update_event, new_gateway_unbonding_event, new_migrated_gateway_event,
-};
-use mixnet_contract_common::gateway::GatewayConfigUpdate;
-use mixnet_contract_common::{Gateway, GatewayBondingPayload, NodeCostParams};
 use nym_contracts_common::helpers::ResponseExt;
 use nym_contracts_common::signing::MessageSignature;
+use nym_mixnet_contract_common::error::MixnetContractError;
+use nym_mixnet_contract_common::events::{
+    new_gateway_config_update_event, new_gateway_unbonding_event, new_migrated_gateway_event,
+};
+use nym_mixnet_contract_common::gateway::GatewayConfigUpdate;
+use nym_mixnet_contract_common::{Gateway, GatewayBondingPayload, NodeCostParams};
 
 pub(crate) fn try_add_gateway(
     deps: DepsMut<'_>,
@@ -155,7 +155,7 @@ pub mod tests {
     use crate::support::tests::test_helpers::TestSetup;
     use cosmwasm_std::testing::message_info;
     use cosmwasm_std::{Addr, BankMsg, Uint128};
-    use mixnet_contract_common::ExecuteMsg;
+    use nym_mixnet_contract_common::ExecuteMsg;
 
     #[test]
     fn gateway_add() -> anyhow::Result<()> {

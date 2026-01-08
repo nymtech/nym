@@ -6,9 +6,9 @@
 // use crate::rewards::storage as rewards_storage;
 // use cosmwasm_std::Storage;
 // use cw_storage_plus::Map;
-// use mixnet_contract_common::error::MixnetContractError;
-// use mixnet_contract_common::mixnode::PendingMixNodeChanges;
-// use mixnet_contract_common::{NodeId, PendingNodeChanges};
+// use nym_mixnet_contract_common::error::MixnetContractError;
+// use nym_mixnet_contract_common::mixnode::PendingMixNodeChanges;
+// use nym_mixnet_contract_common::{NodeId, PendingNodeChanges};
 // use serde::de::DeserializeOwned;
 // use serde::{Deserialize, Serialize};
 //

@@ -10,7 +10,7 @@ pub(crate) mod rewards {
     use crate::mixnodes::helpers::{get_mixnode_details_by_id, get_mixnode_details_by_owner};
     use crate::nodes::helpers::{get_node_details_by_id, get_node_details_by_owner};
     use cosmwasm_std::{Addr, Deps, StdResult};
-    use mixnet_contract_common::{NodeId, PendingRewardResponse};
+    use nym_mixnet_contract_common::{NodeId, PendingRewardResponse};
 
     #[allow(deprecated)]
     pub(crate) fn pending_operator_reward(

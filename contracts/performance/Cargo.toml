@@ -25,15 +25,15 @@ serde = { workspace = true }
 
 cosmwasm-schema = { workspace = true, optional = true }
 
-nym-contracts-common = { path = "../../common/cosmwasm-smart-contracts/contracts-common" }
-nym-performance-contract-common = { path = "../../common/cosmwasm-smart-contracts/nym-performance-contract" }
-nym-mixnet-contract-common = { path = "../../common/cosmwasm-smart-contracts/mixnet-contract" }
+nym-contracts-common = { workspace = true }
+nym-performance-contract-common = { workspace = true }
+nym-mixnet-contract-common = { workspace = true }
 
 [dev-dependencies]
 anyhow = { workspace = true }
-nym-contracts-common-testing = { path = "../../common/cosmwasm-smart-contracts/contracts-common-testing" }
-nym-mixnet-contract = { path = "../mixnet", features = ["testable-mixnet-contract"] }
-nym-crypto = { path = "../../common/crypto", features = ["asymmetric", "rand"] }
+nym-contracts-common-testing = { workspace = true }
+nym-mixnet-contract = { workspace = true, features = ["testable-mixnet-contract"] }
+nym-crypto = { workspace = true, features = ["asymmetric", "rand"] }
 
 [features]
 schema-gen = ["nym-performance-contract-common/schema", "cosmwasm-schema"]

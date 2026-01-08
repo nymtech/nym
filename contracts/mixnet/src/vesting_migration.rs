@@ -9,10 +9,10 @@ use crate::rewards::storage as rewards_storage;
 use crate::support::helpers::{
     ensure_bonded, ensure_epoch_in_progress_state, ensure_no_pending_pledge_changes,
 };
-use cosmwasm_std::{wasm_execute, DepsMut, Env, Event, MessageInfo, Response};
-use mixnet_contract_common::error::MixnetContractError;
-use mixnet_contract_common::{Delegation, NodeId};
-use vesting_contract_common::messages::ExecuteMsg as VestingExecuteMsg;
+use cosmwasm_std::{DepsMut, Env, Event, MessageInfo, Response, wasm_execute};
+use nym_mixnet_contract_common::error::MixnetContractError;
+use nym_mixnet_contract_common::{Delegation, NodeId};
+use nym_vesting_contract_common::messages::ExecuteMsg as VestingExecuteMsg;
 
 pub(crate) fn try_migrate_vested_mixnode(
     deps: DepsMut<'_>,
@@ -223,7 +223,7 @@ mod tests {
         use crate::mixnodes::helpers::get_mixnode_details_by_id;
         use crate::support::tests::test_helpers::TestSetup;
         use cosmwasm_std::testing::message_info;
-        use cosmwasm_std::{from_json, CosmosMsg, WasmMsg};
+        use cosmwasm_std::{CosmosMsg, WasmMsg, from_json};
 
         #[test]
         fn with_no_bonded_nodes() {
@@ -290,14 +290,14 @@ mod tests {
     mod migrating_vested_delegation {
         use super::*;
         use crate::delegations::storage::delegations;
-        use crate::support::tests::test_helpers::{assert_eq_with_leeway, TestSetup};
+        use crate::support::tests::test_helpers::{TestSetup, assert_eq_with_leeway};
         use cosmwasm_std::testing::message_info;
-        use cosmwasm_std::{from_json, CosmosMsg, Order, Uint128, WasmMsg};
-        use mixnet_contract_common::helpers::compare_decimals;
-        use mixnet_contract_common::nym_node::Role;
-        use mixnet_contract_common::reward_params::{NodeRewardingParameters, Performance};
-        use mixnet_contract_common::rewarding::helpers::truncate_reward;
-        use mixnet_contract_common::RoleAssignment;
+        use cosmwasm_std::{CosmosMsg, Order, Uint128, WasmMsg, from_json};
+        use nym_mixnet_contract_common::RoleAssignment;
+        use nym_mixnet_contract_common::helpers::compare_decimals;
+        use nym_mixnet_contract_common::nym_node::Role;
+        use nym_mixnet_contract_common::reward_params::{NodeRewardingParameters, Performance};
+        use nym_mixnet_contract_common::rewarding::helpers::truncate_reward;
         use rand::RngCore;
 
         #[test]
@@ -325,10 +325,12 @@ mod tests {
                 .unwrap();
 
             // make sure we haven't chosen somebody that also has a vested delegation because that would have invalidated the test
-            assert!(!delegations()
-                .range(test.deps().storage, None, None, Order::Ascending)
-                .filter_map(|d| d.map(|(_, del)| del).ok())
-                .any(|d| d.proxy.is_some() && d.owner.as_str() == delegation.owner.as_str()));
+            assert!(
+                !delegations()
+                    .range(test.deps().storage, None, None, Order::Ascending)
+                    .filter_map(|d| d.map(|(_, del)| del).ok())
+                    .any(|d| d.proxy.is_some() && d.owner.as_str() == delegation.owner.as_str())
+            );
 
             let sender = message_info(&delegation.owner, &[]);
             let mix_id = delegation.node_id;
@@ -352,10 +354,12 @@ mod tests {
                 .unwrap();
 
             // make sure we haven't chosen somebody that also has a liquid delegation because that would have invalidated the test
-            assert!(!delegations()
-                .range(test.deps().storage, None, None, Order::Ascending)
-                .filter_map(|d| d.map(|(_, del)| del).ok())
-                .any(|d| d.proxy.is_none() && d.owner.as_str() == delegation.owner.as_str()));
+            assert!(
+                !delegations()
+                    .range(test.deps().storage, None, None, Order::Ascending)
+                    .filter_map(|d| d.map(|(_, del)| del).ok())
+                    .any(|d| d.proxy.is_none() && d.owner.as_str() == delegation.owner.as_str())
+            );
 
             let storage_key = delegation.storage_key();
             let mut expected_liquid = delegation.clone();
@@ -380,10 +384,12 @@ mod tests {
             );
 
             // the entry is gone from the old storage key
-            assert!(delegations()
-                .may_load(test.deps().storage, storage_key)
-                .unwrap()
-                .is_none());
+            assert!(
+                delegations()
+                    .may_load(test.deps().storage, storage_key)
+                    .unwrap()
+                    .is_none()
+            );
 
             // and is resaved (without proxy) under the new key
             assert_eq!(
@@ -450,10 +456,12 @@ mod tests {
             );
 
             // the vested delegation is gone
-            assert!(delegations()
-                .may_load(test.deps().storage, vested_storage_key)
-                .unwrap()
-                .is_none());
+            assert!(
+                delegations()
+                    .may_load(test.deps().storage, vested_storage_key)
+                    .unwrap()
+                    .is_none()
+            );
 
             let updated_liquid_delegation = delegations()
                 .load(test.deps().storage, liquid_storage_key.clone())

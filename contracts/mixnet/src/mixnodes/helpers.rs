@@ -4,9 +4,9 @@
 use super::storage;
 use crate::rewards::storage as rewards_storage;
 use cosmwasm_std::{Addr, Decimal, Env, StdResult, Storage};
-use mixnet_contract_common::error::MixnetContractError;
-use mixnet_contract_common::mixnode::{MixNodeDetails, UnbondedMixnode};
-use mixnet_contract_common::{IdentityKey, MixNodeBond, NodeId};
+use nym_mixnet_contract_common::error::MixnetContractError;
+use nym_mixnet_contract_common::mixnode::{MixNodeDetails, UnbondedMixnode};
+use nym_mixnet_contract_common::{IdentityKey, MixNodeBond, NodeId};
 
 pub(crate) fn must_get_mixnode_bond_by_owner(
     store: &dyn Storage,

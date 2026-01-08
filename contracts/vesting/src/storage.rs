@@ -1,9 +1,9 @@
 use cosmwasm_std::{Addr, Api, Storage, Uint128};
 use cosmwasm_std::{Coin, Order};
 use cw_storage_plus::{Item, Map};
-use mixnet_contract_common::{IdentityKey, NodeId};
-use vesting_contract_common::account::VestingAccountStorageKey;
-use vesting_contract_common::{Account, PledgeData, VestingContractError};
+use nym_mixnet_contract_common::{IdentityKey, NodeId};
+use nym_vesting_contract_common::account::VestingAccountStorageKey;
+use nym_vesting_contract_common::{Account, PledgeData, VestingContractError};
 
 pub(crate) type BlockTimestampSecs = u64;
 

@@ -2,16 +2,16 @@ use super::PledgeData;
 use crate::storage::MIXNET_CONTRACT_ADDRESS;
 use crate::traits::GatewayBondingAccount;
 use crate::vesting::account::StorableVestingAccountExt;
-use contracts_common::signing::MessageSignature;
-use cosmwasm_std::{wasm_execute, Coin, Env, Response, Storage, Uint128};
-use mixnet_contract_common::{
-    gateway::GatewayConfigUpdate, ExecuteMsg as MixnetExecuteMsg, Gateway,
+use cosmwasm_std::{Coin, Env, Response, Storage, Uint128, wasm_execute};
+use nym_contracts_common::signing::MessageSignature;
+use nym_mixnet_contract_common::{
+    ExecuteMsg as MixnetExecuteMsg, Gateway, gateway::GatewayConfigUpdate,
 };
-use vesting_contract_common::events::{
+use nym_vesting_contract_common::VestingContractError;
+use nym_vesting_contract_common::events::{
     new_vesting_gateway_bonding_event, new_vesting_gateway_unbonding_event,
     new_vesting_update_gateway_config_event,
 };
-use vesting_contract_common::VestingContractError;
 
 use super::Account;
 

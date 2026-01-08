@@ -3,16 +3,16 @@
 
 use super::VestingPeriod;
 use crate::storage::{
-    count_subdelegations_for_mix, decrease_bond_pledge, load_balance, load_bond_pledge,
-    load_delegation_timestamps, load_gateway_pledge, load_withdrawn, remove_bond_pledge,
-    remove_delegation, remove_gateway_pledge, save_account, save_balance, save_bond_pledge,
-    save_gateway_pledge, save_withdrawn, BlockTimestampSecs, DELEGATIONS, KEY,
+    BlockTimestampSecs, DELEGATIONS, KEY, count_subdelegations_for_mix, decrease_bond_pledge,
+    load_balance, load_bond_pledge, load_delegation_timestamps, load_gateway_pledge,
+    load_withdrawn, remove_bond_pledge, remove_delegation, remove_gateway_pledge, save_account,
+    save_balance, save_bond_pledge, save_gateway_pledge, save_withdrawn,
 };
 use crate::traits::VestingAccount;
 use cosmwasm_std::{Addr, Coin, Order, Storage, Timestamp, Uint128};
-use mixnet_contract_common::NodeId;
-use vesting_contract_common::account::VestingAccountStorageKey;
-use vesting_contract_common::{Account, PledgeCap, PledgeData, VestingContractError};
+use nym_mixnet_contract_common::NodeId;
+use nym_vesting_contract_common::account::VestingAccountStorageKey;
+use nym_vesting_contract_common::{Account, PledgeCap, PledgeData, VestingContractError};
 
 mod delegating_account;
 mod gateway_bonding_account;

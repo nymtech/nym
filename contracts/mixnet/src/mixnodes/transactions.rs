@@ -14,19 +14,19 @@ use crate::support::helpers::{
     ensure_bonded, ensure_epoch_in_progress_state, ensure_no_pending_params_changes,
     ensure_no_pending_pledge_changes, validate_pledge,
 };
-use cosmwasm_std::{coin, Coin, DepsMut, Env, MessageInfo, Response};
-use mixnet_contract_common::error::MixnetContractError;
-use mixnet_contract_common::events::{
+use cosmwasm_std::{Coin, DepsMut, Env, MessageInfo, Response, coin};
+use nym_contracts_common::signing::MessageSignature;
+use nym_mixnet_contract_common::error::MixnetContractError;
+use nym_mixnet_contract_common::events::{
     new_migrated_mixnode_event, new_mixnode_config_update_event,
     new_pending_cost_params_update_event, new_pending_mixnode_unbonding_event,
     new_pending_pledge_decrease_event, new_pending_pledge_increase_event,
 };
-use mixnet_contract_common::mixnode::{MixNodeConfigUpdate, NodeCostParams};
-use mixnet_contract_common::pending_events::{PendingEpochEventKind, PendingIntervalEventKind};
-use mixnet_contract_common::{
+use nym_mixnet_contract_common::mixnode::{MixNodeConfigUpdate, NodeCostParams};
+use nym_mixnet_contract_common::pending_events::{PendingEpochEventKind, PendingIntervalEventKind};
+use nym_mixnet_contract_common::{
     MixNode, MixNodeDetails, MixnodeBondingPayload, NymNodeBond, PendingNodeChanges,
 };
-use nym_contracts_common::signing::MessageSignature;
 
 pub fn try_add_mixnode(
     deps: DepsMut<'_>,
@@ -263,14 +263,14 @@ pub mod tests {
     use crate::mixnodes::helpers::{get_mixnode_details_by_id, get_mixnode_details_by_identity};
     use crate::nodes::helpers::{get_node_details_by_identity, must_get_node_bond_by_owner};
     use crate::signing::storage as signing_storage;
-    use crate::support::tests::fixtures::{good_mixnode_pledge, TEST_COIN_DENOM};
+    use crate::support::tests::fixtures::{TEST_COIN_DENOM, good_mixnode_pledge};
     use crate::support::tests::test_helpers::TestSetup;
     use crate::support::tests::{fixtures, test_helpers};
     use cosmwasm_std::testing::message_info;
     use cosmwasm_std::{Addr, Order, StdResult, Uint128};
-    use mixnet_contract_common::mixnode::PendingMixNodeChanges;
-    use mixnet_contract_common::nym_node::Role;
-    use mixnet_contract_common::{EpochState, EpochStatus, ExecuteMsg, Percent};
+    use nym_mixnet_contract_common::mixnode::PendingMixNodeChanges;
+    use nym_mixnet_contract_common::nym_node::Role;
+    use nym_mixnet_contract_common::{EpochState, EpochStatus, ExecuteMsg, Percent};
 
     #[test]
     fn mixnode_add() -> anyhow::Result<()> {
@@ -762,15 +762,17 @@ pub mod tests {
         let info_alice = message_info(&test.make_addr("alice"), &good_mixnode_pledge());
         let info_bob = message_info(&test.make_addr("bob"), &good_mixnode_pledge());
 
-        assert!(try_add_mixnode(
-            test.deps_mut(),
-            env.clone(),
-            info_alice,
-            mixnode1,
-            cost_params.clone(),
-            sig1,
-        )
-        .is_ok());
+        assert!(
+            try_add_mixnode(
+                test.deps_mut(),
+                env.clone(),
+                info_alice,
+                mixnode1,
+                cost_params.clone(),
+                sig1,
+            )
+            .is_ok()
+        );
 
         // change identity but reuse sphinx key
         assert!(

@@ -8,9 +8,9 @@ use crate::constants::{
 use crate::interval::storage;
 use cosmwasm_std::{Deps, Env, Order, StdResult};
 use cw_storage_plus::Bound;
-use mixnet_contract_common::error::MixnetContractError;
-use mixnet_contract_common::pending_events::{PendingEpochEvent, PendingIntervalEvent};
-use mixnet_contract_common::{
+use nym_mixnet_contract_common::error::MixnetContractError;
+use nym_mixnet_contract_common::pending_events::{PendingEpochEvent, PendingIntervalEvent};
+use nym_mixnet_contract_common::{
     CurrentIntervalResponse, EpochEventId, EpochStatus, IntervalEventId,
     NumberOfPendingEventsResponse, PendingEpochEventResponse, PendingEpochEventsResponse,
     PendingIntervalEventResponse, PendingIntervalEventsResponse,
@@ -124,7 +124,7 @@ mod tests {
     use crate::support::tests::fixtures;
     use crate::support::tests::test_helpers::TestSetup;
     use cosmwasm_std::Addr;
-    use mixnet_contract_common::{PendingEpochEventKind, PendingIntervalEventKind};
+    use nym_mixnet_contract_common::{PendingEpochEventKind, PendingIntervalEventKind};
     use rand_chacha::rand_core::RngCore;
 
     fn push_n_dummy_epoch_actions(test: &mut TestSetup, n: usize) {

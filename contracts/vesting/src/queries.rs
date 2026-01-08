@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::storage;
-use crate::storage::{account_from_address, BlockTimestampSecs, ACCOUNTS, DELEGATIONS, MIX_DENOM};
+use crate::storage::{ACCOUNTS, BlockTimestampSecs, DELEGATIONS, MIX_DENOM, account_from_address};
 use crate::traits::VestingAccount;
 use crate::vesting::StorableVestingAccountExt;
-use contracts_common::{get_build_information, ContractBuildInformation};
 use cosmwasm_std::{Coin, Deps, Env, Order, StdResult, Timestamp, Uint128};
 use cw_storage_plus::Bound;
-use mixnet_contract_common::NodeId;
-use vesting_contract_common::{
+use nym_contracts_common::{ContractBuildInformation, get_build_information};
+use nym_mixnet_contract_common::NodeId;
+use nym_vesting_contract_common::{
     Account, AccountVestingCoins, AccountsResponse, AllDelegationsResponse, BaseVestingAccountInfo,
     DelegationTimesResponse, OriginalVestingResponse, Period, PledgeData, VestingCoinsResponse,
     VestingContractError, VestingDelegation,

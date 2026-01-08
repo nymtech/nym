@@ -10,10 +10,10 @@ use cosmwasm_std::Deps;
 use cosmwasm_std::Order;
 use cosmwasm_std::StdResult;
 use cw_storage_plus::Bound;
-use mixnet_contract_common::delegation::{NodeDelegationResponse, OwnerProxySubKey};
-use mixnet_contract_common::{
-    delegation, Delegation, NodeId, PagedAllDelegationsResponse, PagedDelegatorDelegationsResponse,
-    PagedNodeDelegationsResponse,
+use nym_mixnet_contract_common::delegation::{NodeDelegationResponse, OwnerProxySubKey};
+use nym_mixnet_contract_common::{
+    Delegation, NodeId, PagedAllDelegationsResponse, PagedDelegatorDelegationsResponse,
+    PagedNodeDelegationsResponse, delegation,
 };
 
 pub(crate) fn query_node_delegations_paged(
@@ -466,10 +466,11 @@ mod tests {
             )
             .unwrap();
             assert_eq!(res1.delegations.len(), 100);
-            assert!(res1
-                .delegations
-                .into_iter()
-                .all(|d| d.owner == test.make_addr("delegator2")));
+            assert!(
+                res1.delegations
+                    .into_iter()
+                    .all(|d| d.owner == test.make_addr("delegator2"))
+            );
 
             let res2 = query_delegator_delegations_paged(
                 test.deps(),
@@ -479,10 +480,11 @@ mod tests {
             )
             .unwrap();
             assert_eq!(res2.delegations.len(), 100);
-            assert!(res2
-                .delegations
-                .into_iter()
-                .all(|d| d.owner == test.make_addr("delegator35")));
+            assert!(
+                res2.delegations
+                    .into_iter()
+                    .all(|d| d.owner == test.make_addr("delegator35"))
+            );
         }
     }
 

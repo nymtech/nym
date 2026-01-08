@@ -8,10 +8,10 @@ use crate::constants::{
 use crate::rewards::models::RewardPoolChange;
 use cosmwasm_std::{Decimal, StdResult, Storage};
 use cw_storage_plus::{Item, Map};
-use mixnet_contract_common::error::MixnetContractError;
-use mixnet_contract_common::mixnode::NodeRewarding;
-use mixnet_contract_common::reward_params::{RewardingParams, WorkFactor};
-use mixnet_contract_common::NodeId;
+use nym_mixnet_contract_common::NodeId;
+use nym_mixnet_contract_common::error::MixnetContractError;
+use nym_mixnet_contract_common::mixnode::NodeRewarding;
+use nym_mixnet_contract_common::reward_params::{RewardingParams, WorkFactor};
 
 // LEGACY CONSTANTS:
 

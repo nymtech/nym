@@ -6,12 +6,12 @@ use crate::nodes::storage;
 use crate::nodes::storage::next_nymnode_id_counter;
 use crate::rewards::storage as rewards_storage;
 use cosmwasm_std::{Addr, Coin, Env, StdResult, Storage};
-use mixnet_contract_common::error::MixnetContractError;
-use mixnet_contract_common::nym_node::UnbondedNymNode;
-use mixnet_contract_common::{
+use nym_contracts_common::IdentityKey;
+use nym_mixnet_contract_common::error::MixnetContractError;
+use nym_mixnet_contract_common::nym_node::UnbondedNymNode;
+use nym_mixnet_contract_common::{
     NodeCostParams, NodeId, NodeRewarding, NymNode, NymNodeBond, NymNodeDetails, PendingNodeChanges,
 };
-use nym_contracts_common::IdentityKey;
 
 pub(crate) fn save_new_nymnode(
     storage: &mut dyn Storage,

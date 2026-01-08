@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use cosmwasm_std::{Coin, Uint128};
-use mixnet_contract_common::{
-    NodeCostParams, DEFAULT_INTERVAL_OPERATING_COST_AMOUNT, DEFAULT_PROFIT_MARGIN_PERCENT,
-};
 use nym_contracts_common::Percent;
+use nym_mixnet_contract_common::{
+    DEFAULT_INTERVAL_OPERATING_COST_AMOUNT, DEFAULT_PROFIT_MARGIN_PERCENT, NodeCostParams,
+};
 
 /// Constant specifying minimum of coin amount required to bond a node
 pub const INITIAL_PLEDGE_AMOUNT: Uint128 = Uint128::new(100_000_000);

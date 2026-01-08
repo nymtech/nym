@@ -26,10 +26,10 @@ name = "mixnet_contract"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-mixnet-contract-common = { path = "../../common/cosmwasm-smart-contracts/mixnet-contract", package = "nym-mixnet-contract-common" }
-vesting-contract-common = { path = "../../common/cosmwasm-smart-contracts/vesting-contract", package = "nym-vesting-contract-common" }
-nym-contracts-common = { path = "../../common/cosmwasm-smart-contracts/contracts-common" }
-nym-contracts-common-testing = { path = "../../common/cosmwasm-smart-contracts/contracts-common-testing", optional = true }
+nym-mixnet-contract-common = { workspace = true }
+nym-vesting-contract-common = { workspace = true }
+nym-contracts-common = { workspace = true }
+nym-contracts-common-testing = { workspace = true, optional = true }
 
 cosmwasm-schema = { workspace = true, optional = true }
 cosmwasm-std = { workspace = true }
@@ -38,7 +38,7 @@ cw2 = { workspace = true }
 cw-storage-plus = { workspace = true }
 
 bs58 = { workspace = true }
-serde = { workspace = true, default-features = false, features = ["derive"] }
+serde = { workspace = true, features = ["derive"] }
 semver = { workspace = true }
 
 
@@ -46,8 +46,8 @@ semver = { workspace = true }
 anyhow.workspace = true
 rand_chacha = { workspace = true }
 rand = { workspace = true }
-nym-crypto = { path = "../../common/crypto", features = ["asymmetric", "rand"] }
-easy-addr = { path = "../../common/cosmwasm-smart-contracts/easy_addr" }
+nym-crypto = { workspace = true, features = ["asymmetric", "rand"] }
+easy-addr = { workspace = true }
 
 # activate the `testable-mixnet-contract` in tests (weird workaround, but it does the trick)
 nym-mixnet-contract = { path = ".", features = ["testable-mixnet-contract"] }
@@ -55,9 +55,9 @@ nym-contracts-common-testing = { path = "../../common/cosmwasm-smart-contracts/c
 
 [features]
 default = []
-contract-testing = ["mixnet-contract-common/contract-testing"]
+contract-testing = ["nym-mixnet-contract-common/contract-testing"]
 testable-mixnet-contract = ["nym-contracts-common-testing"]
-schema-gen = ["mixnet-contract-common/schema", "cosmwasm-schema"]
+schema-gen = ["nym-mixnet-contract-common/schema", "cosmwasm-schema"]
 
 [lints]
 workspace = true

@@ -5,7 +5,7 @@ pub mod helpers {
     // the `ContractState` should replace the below
     #[allow(unused)]
     mod state_dump_decoder {
-        use base64::{engine::general_purpose, Engine};
+        use base64::{Engine, engine::general_purpose};
         use serde::{Deserialize, Serialize};
         use std::fs::File;
         use std::path::Path;
@@ -69,22 +69,22 @@ pub mod helpers {
     }
 
     use crate::contract::{instantiate, try_create_periodic_vesting_account};
-    use crate::storage::{ACCOUNTS, ADMIN, MIXNET_CONTRACT_ADDRESS, MIX_DENOM};
+    use crate::storage::{ACCOUNTS, ADMIN, MIX_DENOM, MIXNET_CONTRACT_ADDRESS};
     use crate::support::tests::helpers::state_dump_decoder::RawState;
     use crate::traits::VestingAccount;
-    use crate::vesting::{populate_vesting_periods, StorableVestingAccountExt};
-    use contracts_common::Percent;
-    use cosmwasm_std::testing::{message_info, mock_dependencies, mock_env, MockApi, MockQuerier};
+    use crate::vesting::{StorableVestingAccountExt, populate_vesting_periods};
+    use cosmwasm_std::testing::{MockApi, MockQuerier, message_info, mock_dependencies, mock_env};
     use cosmwasm_std::{
-        coin, Addr, BlockInfo, Coin, ContractInfo, Deps, DepsMut, Empty, Env, MemoryStorage,
-        MessageInfo, OwnedDeps, Storage, Timestamp, Uint128,
+        Addr, BlockInfo, Coin, ContractInfo, Deps, DepsMut, Empty, Env, MemoryStorage, MessageInfo,
+        OwnedDeps, Storage, Timestamp, Uint128, coin,
     };
-    use rand_chacha::rand_core::SeedableRng;
+    use nym_contracts_common::Percent;
+    use nym_vesting_contract_common::messages::InitMsg;
+    use nym_vesting_contract_common::{Account, PledgeCap, VestingSpecification};
     use rand_chacha::ChaCha20Rng;
+    use rand_chacha::rand_core::SeedableRng;
     use std::path::Path;
     use std::str::FromStr;
-    use vesting_contract_common::messages::InitMsg;
-    use vesting_contract_common::{Account, PledgeCap, VestingSpecification};
 
     // use rng with constant seed for all tests so that they would be deterministic
     #[allow(unused)]

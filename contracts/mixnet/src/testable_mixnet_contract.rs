@@ -6,14 +6,14 @@
 
 use crate::contract::{execute, instantiate, migrate, query};
 use cosmwasm_std::Decimal;
-use mixnet_contract_common::error::MixnetContractError;
-use mixnet_contract_common::reward_params::RewardedSetParams;
-use mixnet_contract_common::{
-    ExecuteMsg, InitialRewardingParams, InstantiateMsg, MigrateMsg, QueryMsg,
-};
 use nym_contracts_common::Percent;
 use nym_contracts_common_testing::{
-    mock_dependencies, ContractFn, PermissionedFn, QueryFn, TEST_DENOM,
+    ContractFn, PermissionedFn, QueryFn, TEST_DENOM, mock_dependencies,
+};
+use nym_mixnet_contract_common::error::MixnetContractError;
+use nym_mixnet_contract_common::reward_params::RewardedSetParams;
+use nym_mixnet_contract_common::{
+    ExecuteMsg, InitialRewardingParams, InstantiateMsg, MigrateMsg, QueryMsg,
 };
 use std::time::Duration;
 

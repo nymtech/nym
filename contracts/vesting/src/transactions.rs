@@ -3,25 +3,25 @@
 
 use crate::contract::{ensure_staking_permission, validate_funds};
 use crate::storage::{
-    account_from_address, save_account, ADMIN, MIXNET_CONTRACT_ADDRESS, MIX_DENOM,
+    ADMIN, MIX_DENOM, MIXNET_CONTRACT_ADDRESS, account_from_address, save_account,
 };
 use crate::traits::{
     DelegatingAccount, GatewayBondingAccount, MixnodeBondingAccount, VestingAccount,
 };
-use crate::vesting::{populate_vesting_periods, StorableVestingAccountExt};
-use contracts_common::signing::MessageSignature;
-use cosmwasm_std::{coin, BankMsg, Coin, DepsMut, Env, MessageInfo, Response, Timestamp};
-use mixnet_contract_common::{
+use crate::vesting::{StorableVestingAccountExt, populate_vesting_periods};
+use cosmwasm_std::{BankMsg, Coin, DepsMut, Env, MessageInfo, Response, Timestamp, coin};
+use nym_contracts_common::signing::MessageSignature;
+use nym_mixnet_contract_common::{
     Gateway, GatewayConfigUpdate, MixNode, MixNodeConfigUpdate, NodeCostParams, NodeId,
 };
-use vesting_contract_common::events::{
+use nym_vesting_contract_common::events::{
     new_ownership_transfer_event, new_periodic_vesting_account_event,
     new_staking_address_update_event, new_track_gateway_unbond_event,
     new_track_migrate_mixnode_event, new_track_mixnode_pledge_decrease_event,
     new_track_mixnode_unbond_event, new_track_reward_event, new_track_undelegation_event,
     new_vested_coins_withdraw_event,
 };
-use vesting_contract_common::{Account, PledgeCap, VestingContractError, VestingSpecification};
+use nym_vesting_contract_common::{Account, PledgeCap, VestingContractError, VestingSpecification};
 
 /// Update locked_pledge_cap, the hard cap for staking/bonding with unvested tokens.
 ///

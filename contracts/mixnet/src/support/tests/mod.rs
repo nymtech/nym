@@ -23,7 +23,7 @@ pub mod test_helpers {
     };
     use crate::interval::{pending_events, storage as interval_storage};
     use crate::mixnet_contract_settings::storage::{
-        self as mixnet_params_storage, minimum_node_pledge, ADMIN,
+        self as mixnet_params_storage, ADMIN, minimum_node_pledge,
     };
     use crate::mixnet_contract_settings::storage::{rewarding_denom, rewarding_validator_address};
     use crate::mixnodes::helpers::get_mixnode_details_by_id;
@@ -55,38 +55,16 @@ pub mod test_helpers {
     };
     use crate::support::tests::{legacy, test_helpers};
     use crate::testable_mixnet_contract::MixnetContract;
-    use cosmwasm_std::testing::message_info;
-    use cosmwasm_std::testing::mock_env;
     use cosmwasm_std::testing::MockApi;
     use cosmwasm_std::testing::MockQuerier;
-    use cosmwasm_std::{coin, coins, Addr, BankMsg, CosmosMsg, Storage};
+    use cosmwasm_std::testing::message_info;
+    use cosmwasm_std::testing::mock_env;
+    use cosmwasm_std::{Addr, BankMsg, CosmosMsg, Storage, coin, coins};
     use cosmwasm_std::{Coin, Order};
     use cosmwasm_std::{Decimal, Empty, MemoryStorage};
     use cosmwasm_std::{Deps, OwnedDeps};
     use cosmwasm_std::{DepsMut, MessageInfo};
     use cosmwasm_std::{Env, Response, Timestamp, Uint128};
-    use mixnet_contract_common::error::MixnetContractError;
-    use mixnet_contract_common::events::{
-        MixnetEventType, DELEGATES_REWARD_KEY, OPERATOR_REWARD_KEY,
-    };
-    use mixnet_contract_common::helpers::compare_decimals;
-    use mixnet_contract_common::mixnode::{NodeRewarding, UnbondedMixnode};
-    use mixnet_contract_common::nym_node::{RewardedSetMetadata, Role};
-    use mixnet_contract_common::pending_events::{PendingEpochEventData, PendingIntervalEventData};
-    use mixnet_contract_common::reward_params::{
-        NodeRewardingParameters, Performance, RewardingParams, WorkFactor,
-    };
-    use mixnet_contract_common::rewarding::simulator::simulated_node::SimulatedNode;
-    use mixnet_contract_common::rewarding::simulator::Simulator;
-    use mixnet_contract_common::rewarding::RewardDistribution;
-    use mixnet_contract_common::{
-        ContractStateParamsUpdate, Delegation, EpochEventId, EpochState, EpochStatus, ExecuteMsg,
-        Gateway, GatewayBondingPayload, IdentityKey, Interval, MixNode, MixNodeBond,
-        MixNodeDetails, MixnodeBondingPayload, NodeId, NymNode, NymNodeBond, NymNodeBondingPayload,
-        NymNodeDetails, OperatingCostRange, OperatorsParamsUpdate, ProfitMarginRange,
-        RoleAssignment, SignableGatewayBondingMsg, SignableMixNodeBondingMsg,
-        SignableNymNodeBondingMsg,
-    };
     use nym_contracts_common::signing::{
         ContractMessageContent, MessageSignature, SignableMessage, SigningAlgorithm, SigningPurpose,
     };
@@ -94,14 +72,38 @@ pub mod test_helpers {
     use nym_contracts_common_testing::{mock_api, mock_dependencies};
     use nym_crypto::asymmetric::ed25519;
     use nym_crypto::asymmetric::ed25519::KeyPair;
+    use nym_mixnet_contract_common::error::MixnetContractError;
+    use nym_mixnet_contract_common::events::{
+        DELEGATES_REWARD_KEY, MixnetEventType, OPERATOR_REWARD_KEY,
+    };
+    use nym_mixnet_contract_common::helpers::compare_decimals;
+    use nym_mixnet_contract_common::mixnode::{NodeRewarding, UnbondedMixnode};
+    use nym_mixnet_contract_common::nym_node::{RewardedSetMetadata, Role};
+    use nym_mixnet_contract_common::pending_events::{
+        PendingEpochEventData, PendingIntervalEventData,
+    };
+    use nym_mixnet_contract_common::reward_params::{
+        NodeRewardingParameters, Performance, RewardingParams, WorkFactor,
+    };
+    use nym_mixnet_contract_common::rewarding::RewardDistribution;
+    use nym_mixnet_contract_common::rewarding::simulator::Simulator;
+    use nym_mixnet_contract_common::rewarding::simulator::simulated_node::SimulatedNode;
+    use nym_mixnet_contract_common::{
+        ContractStateParamsUpdate, Delegation, EpochEventId, EpochState, EpochStatus, ExecuteMsg,
+        Gateway, GatewayBondingPayload, IdentityKey, Interval, MixNode, MixNodeBond,
+        MixNodeDetails, MixnodeBondingPayload, NodeId, NymNode, NymNodeBond, NymNodeBondingPayload,
+        NymNodeDetails, OperatingCostRange, OperatorsParamsUpdate, ProfitMarginRange,
+        RoleAssignment, SignableGatewayBondingMsg, SignableMixNodeBondingMsg,
+        SignableNymNodeBondingMsg,
+    };
     use rand::distributions::WeightedIndex;
     use rand::prelude::*;
-    use rand_chacha::rand_core::{CryptoRng, RngCore, SeedableRng};
     use rand_chacha::ChaCha20Rng;
+    use rand_chacha::rand_core::{CryptoRng, RngCore, SeedableRng};
     use serde::Serialize;
     use std::collections::HashMap;
 
-    pub(crate) use nym_contracts_common_testing::helpers::{find_attribute, FindAttribute};
+    pub(crate) use nym_contracts_common_testing::helpers::{FindAttribute, find_attribute};
 
     pub(crate) fn sorted_addresses(n: usize) -> Vec<Addr> {
         let mut rng = test_rng();

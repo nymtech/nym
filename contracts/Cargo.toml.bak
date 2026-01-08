@@ -57,6 +57,11 @@ schemars = "0.8.16"
 
 thiserror = "2.0.11"
 
+# nym-coconut-dkg-common = { path = "../common/cosmwasm-smart-contracts/coconut-dkg" }
+# nym-contracts-common = { path = "../common/cosmwasm-smart-contracts/contracts-common" }
+# nym-mixnet-contract-common = { path = "../common/cosmwasm-smart-contracts/mixnet-contract" }
+# nym-multisig-contract-common = { path = "../common/cosmwasm-smart-contracts/multisig-contract" }
+
 [workspace.lints.clippy]
 unwrap_used = "deny"
 expect_used = "deny"

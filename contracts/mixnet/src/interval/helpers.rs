@@ -5,9 +5,9 @@ use crate::interval::storage;
 use crate::rewards;
 use crate::rewards::storage as rewards_storage;
 use cosmwasm_std::{Env, Response, Storage};
-use mixnet_contract_common::error::MixnetContractError;
-use mixnet_contract_common::events::new_interval_config_update_event;
-use mixnet_contract_common::{BlockHeight, EpochId, Interval};
+use nym_mixnet_contract_common::error::MixnetContractError;
+use nym_mixnet_contract_common::events::new_interval_config_update_event;
+use nym_mixnet_contract_common::{BlockHeight, EpochId, Interval};
 use std::time::Duration;
 
 pub(crate) fn change_interval_config(

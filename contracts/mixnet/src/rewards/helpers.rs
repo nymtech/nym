@@ -6,11 +6,11 @@ use crate::delegations::storage as delegations_storage;
 use crate::interval::storage as interval_storage;
 use crate::nodes::storage::read_assigned_roles;
 use cosmwasm_std::{Coin, Storage};
-use mixnet_contract_common::error::MixnetContractError;
-use mixnet_contract_common::helpers::{IntoBaseDecimal, NodeBond, NodeDetails};
-use mixnet_contract_common::mixnode::NodeRewarding;
-use mixnet_contract_common::nym_node::Role;
-use mixnet_contract_common::{Delegation, EpochState, EpochStatus, NodeId};
+use nym_mixnet_contract_common::error::MixnetContractError;
+use nym_mixnet_contract_common::helpers::{IntoBaseDecimal, NodeBond, NodeDetails};
+use nym_mixnet_contract_common::mixnode::NodeRewarding;
+use nym_mixnet_contract_common::nym_node::Role;
+use nym_mixnet_contract_common::{Delegation, EpochState, EpochStatus, NodeId};
 
 pub(crate) fn update_and_save_last_rewarded(
     storage: &mut dyn Storage,
@@ -137,9 +137,9 @@ mod tests {
     use super::*;
     use crate::mixnodes::helpers::get_mixnode_details_by_id;
     use crate::rewards::models::RewardPoolChange;
-    use crate::support::tests::test_helpers::{assert_decimals, TestSetup};
+    use crate::support::tests::test_helpers::{TestSetup, assert_decimals};
     use cosmwasm_std::Uint128;
-    use mixnet_contract_common::rewarding::helpers::truncate_reward_amount;
+    use nym_mixnet_contract_common::rewarding::helpers::truncate_reward_amount;
 
     #[test]
     fn applying_reward_pool_changes() {

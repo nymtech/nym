@@ -6,9 +6,9 @@ use crate::mixnodes::storage as mixnode_storage;
 use crate::nodes::storage as nymnodes_storage;
 use crate::support::helpers::ensure_epoch_in_progress_state;
 use cosmwasm_std::{Coin, StdResult, Storage};
-use mixnet_contract_common::error::MixnetContractError;
-use mixnet_contract_common::helpers::{NodeBond, NodeDetails, PendingChanges};
-use mixnet_contract_common::NodeId;
+use nym_mixnet_contract_common::NodeId;
+use nym_mixnet_contract_common::error::MixnetContractError;
+use nym_mixnet_contract_common::helpers::{NodeBond, NodeDetails, PendingChanges};
 
 pub fn ensure_can_withdraw_rewards<D>(node_details: &D) -> Result<(), MixnetContractError>
 where

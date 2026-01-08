@@ -6,18 +6,18 @@ use crate::compat;
 use crate::compat::helpers::may_get_bond;
 use crate::delegations::storage as delegations_storage;
 use crate::interval::storage as interval_storage;
-use cosmwasm_std::{coin, Coin, Decimal, Deps, StdResult};
-use mixnet_contract_common::error::MixnetContractError;
-use mixnet_contract_common::helpers::into_base_decimal;
-use mixnet_contract_common::nym_node::Role;
-use mixnet_contract_common::reward_params::{
+use cosmwasm_std::{Coin, Decimal, Deps, StdResult, coin};
+use nym_mixnet_contract_common::error::MixnetContractError;
+use nym_mixnet_contract_common::helpers::into_base_decimal;
+use nym_mixnet_contract_common::nym_node::Role;
+use nym_mixnet_contract_common::reward_params::{
     NodeRewardingParameters, Performance, RewardingParams, WorkFactor,
 };
-use mixnet_contract_common::rewarding::helpers::truncate_reward;
-use mixnet_contract_common::rewarding::{
+use nym_mixnet_contract_common::rewarding::helpers::truncate_reward;
+use nym_mixnet_contract_common::rewarding::{
     EstimatedCurrentEpochRewardResponse, PendingRewardResponse,
 };
-use mixnet_contract_common::{Delegation, NodeId};
+use nym_mixnet_contract_common::{Delegation, NodeId};
 
 pub(crate) fn query_rewarding_params(deps: Deps<'_>) -> StdResult<RewardingParams> {
     storage::REWARDING_PARAMS.load(deps.storage)
@@ -844,8 +844,8 @@ mod tests {
         use super::*;
         use crate::mixnodes::transactions::try_remove_mixnode;
         use crate::support::tests::fixtures::TEST_COIN_DENOM;
-        use cosmwasm_std::testing::message_info;
         use cosmwasm_std::Addr;
+        use cosmwasm_std::testing::message_info;
 
         fn expected_current_delegator(
             test: &TestSetup,

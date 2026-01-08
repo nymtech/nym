@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use cosmwasm_schema::write_api;
-use vesting_contract_common::{ExecuteMsg, InitMsg, MigrateMsg, QueryMsg};
+use nym_vesting_contract_common::{ExecuteMsg, InitMsg, MigrateMsg, QueryMsg};
 
 fn main() {
     write_api! {

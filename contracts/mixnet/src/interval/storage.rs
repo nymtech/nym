@@ -8,10 +8,10 @@ use crate::constants::{
 };
 use cosmwasm_std::{Addr, Env, StdResult, Storage};
 use cw_storage_plus::{Item, Map};
-use mixnet_contract_common::pending_events::{
+use nym_mixnet_contract_common::pending_events::{
     PendingEpochEventData, PendingEpochEventKind, PendingIntervalEventData,
 };
-use mixnet_contract_common::{
+use nym_mixnet_contract_common::{
     EpochEventId, EpochStatus, Interval, IntervalEventId, PendingIntervalEventKind,
 };
 

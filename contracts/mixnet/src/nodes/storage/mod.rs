@@ -11,9 +11,11 @@ use crate::constants::{
 use crate::nodes::storage::helpers::RoleStorageBucket;
 use cosmwasm_std::Addr;
 use cw_storage_plus::{Index, IndexList, IndexedMap, Item, Map, MultiIndex, UniqueIndex};
-use mixnet_contract_common::nym_node::{NymNodeBond, RewardedSetMetadata, Role, UnbondedNymNode};
-use mixnet_contract_common::{KeyRotationState, NodeId, PendingNodeChanges};
 use nym_contracts_common::IdentityKey;
+use nym_mixnet_contract_common::nym_node::{
+    NymNodeBond, RewardedSetMetadata, Role, UnbondedNymNode,
+};
+use nym_mixnet_contract_common::{KeyRotationState, NodeId, PendingNodeChanges};
 
 pub(crate) mod helpers;
 
@@ -113,8 +115,8 @@ impl IndexList<UnbondedNymNode> for UnbondedNymNodeIndex<'_> {
     }
 }
 
-pub(crate) fn unbonded_nym_nodes<'a>(
-) -> IndexedMap<NodeId, UnbondedNymNode, UnbondedNymNodeIndex<'a>> {
+pub(crate) fn unbonded_nym_nodes<'a>()
+-> IndexedMap<NodeId, UnbondedNymNode, UnbondedNymNodeIndex<'a>> {
     let indexes = UnbondedNymNodeIndex {
         owner: MultiIndex::new(
             |_pk, d| d.owner.clone(),

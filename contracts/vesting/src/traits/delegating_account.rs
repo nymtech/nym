@@ -1,6 +1,6 @@
 use cosmwasm_std::{Coin, Env, Response, Storage, Uint128};
-use mixnet_contract_common::NodeId;
-use vesting_contract_common::VestingContractError;
+use nym_mixnet_contract_common::NodeId;
+use nym_vesting_contract_common::VestingContractError;
 
 pub trait DelegatingAccount {
     fn try_claim_delegator_reward(

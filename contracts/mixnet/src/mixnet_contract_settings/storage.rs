@@ -9,8 +9,8 @@ use cosmwasm_std::Coin;
 use cosmwasm_std::{Addr, DepsMut, Env, Storage};
 use cw_controllers::Admin;
 use cw_storage_plus::{Item, Map};
-use mixnet_contract_common::error::MixnetContractError;
-use mixnet_contract_common::{
+use nym_mixnet_contract_common::error::MixnetContractError;
+use nym_mixnet_contract_common::{
     ContractState, ContractStateParams, HistoricalNymNodeVersion, HistoricalNymNodeVersionEntry,
     OperatingCostRange, ProfitMarginRange,
 };
@@ -262,10 +262,12 @@ mod tests {
             let env = mock_env();
             let storage = NymNodeVersionHistory::new();
 
-            assert!(storage
-                .id_counter
-                .may_load(deps.as_mut().storage)?
-                .is_none());
+            assert!(
+                storage
+                    .id_counter
+                    .may_load(deps.as_mut().storage)?
+                    .is_none()
+            );
 
             storage.try_insert_new(deps.as_mut().storage, &env, "1.1.1")?;
             assert_eq!(storage.id_counter.load(deps.as_mut().storage)?, 0);
@@ -296,23 +298,33 @@ mod tests {
             let storage = NymNodeVersionHistory::new();
 
             // lower version
-            assert!(storage
-                .try_insert_new(test.storage_mut(), &env, "1.1.9")
-                .is_err());
-            assert!(storage
-                .try_insert_new(test.storage_mut(), &env, "1.0.1")
-                .is_err());
+            assert!(
+                storage
+                    .try_insert_new(test.storage_mut(), &env, "1.1.9")
+                    .is_err()
+            );
+            assert!(
+                storage
+                    .try_insert_new(test.storage_mut(), &env, "1.0.1")
+                    .is_err()
+            );
 
             // malformed
-            assert!(storage
-                .try_insert_new(test.storage_mut(), &env, "1.0")
-                .is_err());
-            assert!(storage
-                .try_insert_new(test.storage_mut(), &env, "1.0bad")
-                .is_err());
-            assert!(storage
-                .try_insert_new(test.storage_mut(), &env, "foomp")
-                .is_err());
+            assert!(
+                storage
+                    .try_insert_new(test.storage_mut(), &env, "1.0")
+                    .is_err()
+            );
+            assert!(
+                storage
+                    .try_insert_new(test.storage_mut(), &env, "1.0bad")
+                    .is_err()
+            );
+            assert!(
+                storage
+                    .try_insert_new(test.storage_mut(), &env, "foomp")
+                    .is_err()
+            );
 
             // patch
             let mut test = TestSetup::new();

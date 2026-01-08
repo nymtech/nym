@@ -1,9 +1,9 @@
-use crate::storage::{delete_account, save_account, MIX_DENOM};
+use crate::storage::{MIX_DENOM, delete_account, save_account};
 use crate::traits::VestingAccount;
 use crate::vesting::account::StorableVestingAccountExt;
 use cosmwasm_std::{Addr, Coin, Env, Storage, Timestamp, Uint128};
+use nym_vesting_contract_common::{OriginalVestingResponse, Period, VestingContractError};
 use std::cmp::min;
-use vesting_contract_common::{OriginalVestingResponse, Period, VestingContractError};
 
 use super::Account;
 

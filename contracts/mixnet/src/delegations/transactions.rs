@@ -8,12 +8,12 @@ use crate::support::helpers::{
     ensure_any_node_bonded, ensure_epoch_in_progress_state, validate_delegation_stake,
 };
 use cosmwasm_std::{DepsMut, Env, MessageInfo, Response};
-use mixnet_contract_common::error::MixnetContractError;
-use mixnet_contract_common::events::{
+use nym_mixnet_contract_common::error::MixnetContractError;
+use nym_mixnet_contract_common::events::{
     new_pending_delegation_event, new_pending_undelegation_event,
 };
-use mixnet_contract_common::pending_events::PendingEpochEventKind;
-use mixnet_contract_common::{Delegation, NodeId};
+use nym_mixnet_contract_common::pending_events::PendingEpochEventKind;
+use nym_mixnet_contract_common::{Delegation, NodeId};
 
 pub(crate) fn try_delegate_to_node(
     deps: DepsMut<'_>,
@@ -88,9 +88,9 @@ mod tests {
         use crate::support::tests::fixtures::TEST_COIN_DENOM;
         use crate::support::tests::test_helpers::TestSetup;
         use cosmwasm_std::testing::message_info;
-        use cosmwasm_std::{coin, Addr, Decimal};
-        use mixnet_contract_common::nym_node::Role;
-        use mixnet_contract_common::{EpochState, EpochStatus};
+        use cosmwasm_std::{Addr, Decimal, coin};
+        use nym_mixnet_contract_common::nym_node::Role;
+        use nym_mixnet_contract_common::{EpochState, EpochStatus};
 
         #[test]
         fn cant_be_performed_if_epoch_transition_is_in_progress() {
@@ -321,8 +321,8 @@ mod tests {
         use crate::support::tests::test_helpers::TestSetup;
         use cosmwasm_std::coin;
         use cosmwasm_std::testing::message_info;
-        use mixnet_contract_common::nym_node::Role;
-        use mixnet_contract_common::{EpochState, EpochStatus};
+        use nym_mixnet_contract_common::nym_node::Role;
+        use nym_mixnet_contract_common::{EpochState, EpochStatus};
 
         #[test]
         fn cant_be_performed_if_epoch_transition_is_in_progress() {

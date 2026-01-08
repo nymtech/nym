@@ -14,11 +14,11 @@ use crate::mixnodes::helpers::{
 use crate::rewards::storage as rewards_storage;
 use cosmwasm_std::{Deps, Order, StdResult, Storage};
 use cw_storage_plus::Bound;
-use mixnet_contract_common::mixnode::{
+use nym_mixnet_contract_common::mixnode::{
     MixNodeBond, MixNodeDetails, MixStakeSaturationResponse, MixnodeRewardingDetailsResponse,
     PagedMixnodesDetailsResponse, PagedUnbondedMixnodesResponse, UnbondedMixnodeResponse,
 };
-use mixnet_contract_common::{
+use nym_mixnet_contract_common::{
     IdentityKey, MixOwnershipResponse, MixnodeDetailsByIdentityResponse, MixnodeDetailsResponse,
     NodeId, PagedMixnodeBondsResponse,
 };
@@ -236,7 +236,7 @@ pub fn query_stake_saturation(
                 mix_id,
                 current_saturation: None,
                 uncapped_saturation: None,
-            })
+            });
         }
     };
 
@@ -449,7 +449,7 @@ pub(crate) mod tests {
     mod unbonded_mixnodes {
         use super::*;
         use cosmwasm_std::Addr;
-        use mixnet_contract_common::mixnode::UnbondedMixnode;
+        use nym_mixnet_contract_common::mixnode::UnbondedMixnode;
 
         #[test]
         fn obeys_limits() {
@@ -562,7 +562,7 @@ pub(crate) mod tests {
         use super::*;
         use crate::support::tests::test_helpers::sorted_addresses;
         use cosmwasm_std::Addr;
-        use mixnet_contract_common::mixnode::UnbondedMixnode;
+        use nym_mixnet_contract_common::mixnode::UnbondedMixnode;
 
         fn add_unbonded_with_owner(storage: &mut dyn Storage, id: NodeId, owner: &Addr) {
             storage::unbonded_mixnodes()
@@ -808,7 +808,7 @@ pub(crate) mod tests {
     mod unbonded_mixnodes_by_identity {
         use super::*;
         use cosmwasm_std::Addr;
-        use mixnet_contract_common::mixnode::UnbondedMixnode;
+        use nym_mixnet_contract_common::mixnode::UnbondedMixnode;
 
         fn add_unbonded_with_identity(storage: &mut dyn Storage, id: NodeId, identity: &str) {
             storage::unbonded_mixnodes()

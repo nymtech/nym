@@ -15,17 +15,17 @@ use crate::nodes::storage;
 use crate::rewards::storage as rewards_storage;
 use cosmwasm_std::{Deps, Order, StdResult, Storage};
 use cw_storage_plus::Bound;
-use mixnet_contract_common::error::MixnetContractError;
-use mixnet_contract_common::nym_node::{
+use nym_contracts_common::IdentityKey;
+use nym_mixnet_contract_common::error::MixnetContractError;
+use nym_mixnet_contract_common::nym_node::{
     EpochAssignmentResponse, NodeDetailsByIdentityResponse, NodeDetailsResponse,
     NodeOwnershipResponse, NodeRewardingDetailsResponse, PagedNymNodeBondsResponse,
     PagedNymNodeDetailsResponse, PagedUnbondedNymNodesResponse, Role, RolesMetadataResponse,
     StakeSaturationResponse, UnbondedNodeResponse,
 };
-use mixnet_contract_common::{
+use nym_mixnet_contract_common::{
     KeyRotationIdResponse, KeyRotationState, NodeId, NymNodeBond, NymNodeDetails,
 };
-use nym_contracts_common::IdentityKey;
 
 pub(crate) fn query_nymnode_bonds_paged(
     deps: Deps<'_>,
@@ -248,7 +248,7 @@ pub fn query_stake_saturation(
                 node_id,
                 current_saturation: None,
                 uncapped_saturation: None,
-            })
+            });
         }
     };
 

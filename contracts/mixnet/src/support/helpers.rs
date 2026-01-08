@@ -8,11 +8,11 @@ use crate::mixnodes::storage as mixnodes_storage;
 use crate::nodes::helpers::must_get_node_bond_by_owner;
 use crate::nodes::storage as nymnodes_storage;
 use cosmwasm_std::{Addr, Coin, Storage};
-use mixnet_contract_common::error::MixnetContractError;
-use mixnet_contract_common::mixnode::PendingMixNodeChanges;
-use mixnet_contract_common::{EpochState, EpochStatus, IdentityKeyRef, MixNodeBond, NodeId};
 use nym_contracts_common::IdentityKey;
 use nym_contracts_common::Percent;
+use nym_mixnet_contract_common::error::MixnetContractError;
+use nym_mixnet_contract_common::mixnode::PendingMixNodeChanges;
+use nym_mixnet_contract_common::{EpochState, EpochStatus, IdentityKeyRef, MixNodeBond, NodeId};
 
 pub(crate) fn validate_pledge(
     mut pledge: Vec<Coin>,

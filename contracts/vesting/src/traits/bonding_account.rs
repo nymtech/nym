@@ -1,11 +1,11 @@
-use contracts_common::signing::MessageSignature;
 use cosmwasm_std::{Coin, Env, Response, Storage};
-use mixnet_contract_common::{
+use nym_contracts_common::signing::MessageSignature;
+use nym_mixnet_contract_common::{
+    Gateway, MixNode,
     gateway::GatewayConfigUpdate,
     mixnode::{MixNodeConfigUpdate, NodeCostParams},
-    Gateway, MixNode,
 };
-use vesting_contract_common::VestingContractError;
+use nym_vesting_contract_common::VestingContractError;
 
 pub trait MixnodeBondingAccount {
     fn try_claim_operator_reward(

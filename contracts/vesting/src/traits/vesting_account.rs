@@ -1,5 +1,5 @@
 use cosmwasm_std::{Addr, Coin, Env, Storage, Timestamp, Uint128};
-use vesting_contract_common::{OriginalVestingResponse, VestingContractError};
+use nym_vesting_contract_common::{OriginalVestingResponse, VestingContractError};
 
 pub trait VestingAccount {
     fn total_staked(&self, storage: &dyn Storage) -> Result<Uint128, VestingContractError>;

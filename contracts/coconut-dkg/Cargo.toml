@@ -17,9 +17,9 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 nym-coconut-dkg-common = { workspace = true }
-nym-contracts-common = { path = "../../common/cosmwasm-smart-contracts/contracts-common" }
-nym-contracts-common-testing = { path = "../../common/cosmwasm-smart-contracts/contracts-common-testing", optional = true }
-nym-group-contract-common = { path = "../../common/cosmwasm-smart-contracts/group-contract", optional = true }
+nym-contracts-common = { workspace = true }
+nym-contracts-common-testing = { workspace = true, optional = true }
+nym-group-contract-common = { workspace = true, optional = true }
 
 cosmwasm-schema = { workspace = true, optional = true }
 cosmwasm-std = { workspace = true }
@@ -30,15 +30,15 @@ cw2 = { workspace = true }
 cw4 = { workspace = true }
 thiserror = { workspace = true }
 
-cw3-flex-multisig = { path = "../multisig/cw3-flex-multisig", features = ["testable-cw3-contract"], optional = true }
-cw4-group = { path = "../multisig/cw4-group", features = ["testable-cw4-contract"], optional = true }
+cw3-flex-multisig = { workspace = true, features = ["testable-cw3-contract"], optional = true }
+cw4-group = { workspace = true, features = ["testable-cw4-contract"], optional = true }
 
 [dev-dependencies]
 anyhow = { workspace = true }
-easy-addr = { path = "../../common/cosmwasm-smart-contracts/easy_addr" }
-nym-group-contract-common = { path = "../../common/cosmwasm-smart-contracts/group-contract" }
+easy-addr = { workspace = true }
+nym-group-contract-common = { workspace = true }
 cw-multi-test = { workspace = true }
-cw4-group = { path = "../multisig/cw4-group" }
+cw4-group = { workspace = true }
 
 [features]
 schema-gen = ["nym-coconut-dkg-common/schema", "cosmwasm-schema"]

@@ -3,7 +3,7 @@
 
 use super::storage;
 use cosmwasm_std::{Addr, Storage};
-use mixnet_contract_common::{error::MixnetContractError, GatewayBond};
+use nym_mixnet_contract_common::{GatewayBond, error::MixnetContractError};
 
 pub(crate) fn must_get_gateway_bond_by_owner(
     store: &dyn Storage,

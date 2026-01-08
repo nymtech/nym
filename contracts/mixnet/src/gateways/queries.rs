@@ -5,8 +5,8 @@ use super::storage;
 use crate::constants::{GATEWAY_BOND_DEFAULT_RETRIEVAL_LIMIT, GATEWAY_BOND_MAX_RETRIEVAL_LIMIT}; // Keeps gateway and mixnode retrieval in sync by re-using the constant. Could be split into its own constant.
 use cosmwasm_std::{Deps, Order, StdResult};
 use cw_storage_plus::Bound;
-use mixnet_contract_common::gateway::{PreassignedGatewayIdsResponse, PreassignedId};
-use mixnet_contract_common::{
+use nym_mixnet_contract_common::gateway::{PreassignedGatewayIdsResponse, PreassignedId};
+use nym_mixnet_contract_common::{
     GatewayBond, GatewayBondResponse, GatewayOwnershipResponse, IdentityKey, PagedGatewayResponse,
 };
 
@@ -85,7 +85,7 @@ pub(crate) mod tests {
     use super::*;
     use crate::support::tests;
     use crate::support::tests::test_helpers;
-    use crate::support::tests::test_helpers::{sorted_addresses, TestSetup};
+    use crate::support::tests::test_helpers::{TestSetup, sorted_addresses};
     use cosmwasm_std::testing::message_info;
 
     #[test]

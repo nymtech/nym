@@ -8,9 +8,9 @@ use crate::constants::{
     UNBONDED_MIXNODES_PK_NAMESPACE,
 };
 use cw_storage_plus::{Index, IndexList, IndexedMap, Map, MultiIndex, UniqueIndex};
-use mixnet_contract_common::mixnode::{PendingMixNodeChanges, UnbondedMixnode};
-use mixnet_contract_common::SphinxKey;
-use mixnet_contract_common::{Addr, IdentityKey, MixNodeBond, NodeId};
+use nym_mixnet_contract_common::SphinxKey;
+use nym_mixnet_contract_common::mixnode::{PendingMixNodeChanges, UnbondedMixnode};
+use nym_mixnet_contract_common::{Addr, IdentityKey, MixNodeBond, NodeId};
 
 pub const PENDING_MIXNODE_CHANGES: Map<NodeId, PendingMixNodeChanges> =
     Map::new(PENDING_MIXNODE_CHANGES_NAMESPACE);
@@ -31,8 +31,8 @@ impl IndexList<UnbondedMixnode> for UnbondedMixnodeIndex<'_> {
     }
 }
 
-pub(crate) fn unbonded_mixnodes<'a>(
-) -> IndexedMap<NodeId, UnbondedMixnode, UnbondedMixnodeIndex<'a>> {
+pub(crate) fn unbonded_mixnodes<'a>()
+-> IndexedMap<NodeId, UnbondedMixnode, UnbondedMixnodeIndex<'a>> {
     let indexes = UnbondedMixnodeIndex {
         owner: MultiIndex::new(
             |_pk, d| d.owner.clone(),

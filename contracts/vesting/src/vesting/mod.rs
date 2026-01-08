@@ -1,7 +1,7 @@
 mod account;
 
 pub(crate) use account::StorableVestingAccountExt;
-use vesting_contract_common::{VestingPeriod, VestingSpecification};
+use nym_vesting_contract_common::{VestingPeriod, VestingSpecification};
 
 pub fn populate_vesting_periods(
     start_time: u64,
@@ -16,21 +16,21 @@ mod tests {
 
     use crate::support::tests::helpers::vesting_account_percent_fixture;
     use crate::support::tests::helpers::{
-        init_contract, vesting_account_mid_fixture, vesting_account_new_fixture, TEST_COIN_DENOM,
+        TEST_COIN_DENOM, init_contract, vesting_account_mid_fixture, vesting_account_new_fixture,
     };
     use crate::traits::DelegatingAccount;
     use crate::traits::GatewayBondingAccount;
     use crate::traits::VestingAccount;
     use crate::vesting::account::StorableVestingAccountExt;
     use crate::vesting::populate_vesting_periods;
-    use contracts_common::signing::MessageSignature;
     use cosmwasm_std::testing::{message_info, mock_env};
-    use cosmwasm_std::{coin, coins, Addr, Coin, Timestamp, Uint128};
-    use mixnet_contract_common::mixnode::NodeCostParams;
-    use mixnet_contract_common::{Gateway, MixNode, Percent};
-    use vesting_contract_common::messages::ExecuteMsg;
-    use vesting_contract_common::{Account, PledgeCap, VestingSpecification};
-    use vesting_contract_common::{Period, VestingContractError};
+    use cosmwasm_std::{Addr, Coin, Timestamp, Uint128, coin, coins};
+    use nym_contracts_common::signing::MessageSignature;
+    use nym_mixnet_contract_common::mixnode::NodeCostParams;
+    use nym_mixnet_contract_common::{Gateway, MixNode, Percent};
+    use nym_vesting_contract_common::messages::ExecuteMsg;
+    use nym_vesting_contract_common::{Account, PledgeCap, VestingSpecification};
+    use nym_vesting_contract_common::{Period, VestingContractError};
 
     #[test]
     fn test_account_creation() {

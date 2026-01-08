@@ -4,9 +4,9 @@
 use crate::delegations::storage;
 use crate::rewards::storage as rewards_storage;
 use cosmwasm_std::{Coin, Storage};
-use mixnet_contract_common::error::MixnetContractError;
-use mixnet_contract_common::mixnode::NodeRewarding;
-use mixnet_contract_common::Delegation;
+use nym_mixnet_contract_common::Delegation;
+use nym_mixnet_contract_common::error::MixnetContractError;
+use nym_mixnet_contract_common::mixnode::NodeRewarding;
 
 pub(crate) fn undelegate(
     store: &mut dyn Storage,
@@ -26,7 +26,7 @@ mod tests {
     use super::*;
     use crate::support::tests::test_helpers::TestSetup;
     use cosmwasm_std::{Addr, Decimal, Uint128};
-    use mixnet_contract_common::rewarding::helpers::truncate_reward_amount;
+    use nym_mixnet_contract_common::rewarding::helpers::truncate_reward_amount;
 
     #[test]
     fn undelegation_updates_mix_rewarding_storage_and_deletes_delegation() {
@@ -61,9 +61,11 @@ mod tests {
 
         let storage_key =
             Delegation::generate_storage_key(mix_id, &Addr::unchecked(delegator), None);
-        assert!(storage::delegations()
-            .may_load(test.deps().storage, storage_key)
-            .unwrap()
-            .is_none());
+        assert!(
+            storage::delegations()
+                .may_load(test.deps().storage, storage_key)
+                .unwrap()
+                .is_none()
+        );
     }
 }

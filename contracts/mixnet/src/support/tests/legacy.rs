@@ -8,11 +8,11 @@ use crate::mixnodes::storage as mixnodes_storage;
 use crate::nodes::storage::next_nymnode_id_counter;
 use crate::rewards::storage as rewards_storage;
 use cosmwasm_std::{Addr, Coin, Env, Storage};
-use mixnet_contract_common::error::MixnetContractError;
-use mixnet_contract_common::{
+use nym_contracts_common::IdentityKey;
+use nym_mixnet_contract_common::error::MixnetContractError;
+use nym_mixnet_contract_common::{
     Gateway, GatewayBond, MixNode, MixNodeBond, NodeCostParams, NodeId, NodeRewarding,
 };
-use nym_contracts_common::IdentityKey;
 
 pub(crate) fn save_new_mixnode(
     storage: &mut dyn Storage,

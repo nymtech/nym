@@ -5,17 +5,17 @@ use super::Account;
 use crate::storage::MIXNET_CONTRACT_ADDRESS;
 use crate::traits::MixnodeBondingAccount;
 use crate::vesting::account::StorableVestingAccountExt;
-use contracts_common::signing::MessageSignature;
-use cosmwasm_std::{wasm_execute, Coin, Env, Response, Storage, Uint128};
-use mixnet_contract_common::mixnode::MixNodeConfigUpdate;
-use mixnet_contract_common::mixnode::NodeCostParams;
-use mixnet_contract_common::{ExecuteMsg as MixnetExecuteMsg, MixNode};
-use vesting_contract_common::events::{
+use cosmwasm_std::{Coin, Env, Response, Storage, Uint128, wasm_execute};
+use nym_contracts_common::signing::MessageSignature;
+use nym_mixnet_contract_common::mixnode::MixNodeConfigUpdate;
+use nym_mixnet_contract_common::mixnode::NodeCostParams;
+use nym_mixnet_contract_common::{ExecuteMsg as MixnetExecuteMsg, MixNode};
+use nym_vesting_contract_common::events::{
     new_vesting_decrease_pledge_event, new_vesting_mixnode_bonding_event,
     new_vesting_mixnode_unbonding_event, new_vesting_pledge_more_event,
     new_vesting_update_mixnode_config_event, new_vesting_update_mixnode_cost_params_event,
 };
-use vesting_contract_common::{PledgeData, VestingContractError};
+use nym_vesting_contract_common::{PledgeData, VestingContractError};
 
 impl MixnodeBondingAccount for Account {
     fn try_claim_operator_reward(

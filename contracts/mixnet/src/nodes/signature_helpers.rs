@@ -4,11 +4,11 @@
 use crate::signing::storage as signing_storage;
 use crate::support::helpers::decode_ed25519_identity_key;
 use cosmwasm_std::{Addr, Coin, Deps};
-use mixnet_contract_common::construct_generic_node_bonding_payload;
-use mixnet_contract_common::error::MixnetContractError;
+use nym_contracts_common::IdentityKeyRef;
 use nym_contracts_common::signing::Verifier;
 use nym_contracts_common::signing::{MessageSignature, SigningPurpose};
-use nym_contracts_common::IdentityKeyRef;
+use nym_mixnet_contract_common::construct_generic_node_bonding_payload;
+use nym_mixnet_contract_common::error::MixnetContractError;
 use serde::Serialize;
 
 /// Verifies the bonding signature on either a legacy mixnode, legacy gateway or a nym-node.

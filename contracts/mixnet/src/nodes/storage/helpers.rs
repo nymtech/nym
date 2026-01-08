@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::nodes::storage::rewarded_set::{ACTIVE_ROLES_BUCKET, ROLES, ROLES_METADATA};
-use crate::nodes::storage::{nym_nodes, KEY_ROTATION_STATE, NYMNODE_ID_COUNTER};
+use crate::nodes::storage::{KEY_ROTATION_STATE, NYMNODE_ID_COUNTER, nym_nodes};
 use cosmwasm_std::{StdResult, Storage};
-use mixnet_contract_common::error::MixnetContractError;
-use mixnet_contract_common::nym_node::{RewardedSetMetadata, Role};
-use mixnet_contract_common::{EpochId, KeyRotationState, NodeId, NymNodeBond, RoleAssignment};
+use nym_mixnet_contract_common::error::MixnetContractError;
+use nym_mixnet_contract_common::nym_node::{RewardedSetMetadata, Role};
+use nym_mixnet_contract_common::{EpochId, KeyRotationState, NodeId, NymNodeBond, RoleAssignment};
 use serde::{Deserialize, Serialize};
 
 #[derive(Copy, Clone, Default, Debug, Serialize, Deserialize, Eq, PartialEq)]

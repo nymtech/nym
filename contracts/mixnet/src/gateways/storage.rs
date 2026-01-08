@@ -6,8 +6,8 @@ use crate::constants::{
 };
 use cosmwasm_std::Addr;
 use cw_storage_plus::{Index, IndexList, IndexedMap, Map, UniqueIndex};
-use mixnet_contract_common::{GatewayBond, IdentityKeyRef, NodeId};
 use nym_contracts_common::IdentityKey;
+use nym_mixnet_contract_common::{GatewayBond, IdentityKeyRef, NodeId};
 
 pub(crate) const PREASSIGNED_LEGACY_IDS: Map<IdentityKey, NodeId> =
     Map::new(LEGACY_GATEWAY_ID_NAMESPACE);

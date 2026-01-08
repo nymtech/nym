@@ -5,8 +5,8 @@ use crate::interval::transactions::{
     perform_pending_epoch_actions, perform_pending_interval_actions,
 };
 use cosmwasm_std::{DepsMut, Env, Response};
-use mixnet_contract_common::error::MixnetContractError;
-use mixnet_contract_common::events::{
+use nym_mixnet_contract_common::error::MixnetContractError;
+use nym_mixnet_contract_common::events::{
     new_pending_epoch_events_execution_event, new_pending_interval_events_execution_event,
     new_reconcile_pending_events,
 };

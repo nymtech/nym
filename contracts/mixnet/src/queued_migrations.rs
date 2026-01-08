@@ -4,8 +4,8 @@
 use crate::interval::storage as interval_storage;
 use crate::nodes::storage as nymnodes_storage;
 use cosmwasm_std::DepsMut;
-use mixnet_contract_common::error::MixnetContractError;
-use mixnet_contract_common::KeyRotationState;
+use nym_mixnet_contract_common::KeyRotationState;
+use nym_mixnet_contract_common::error::MixnetContractError;
 
 pub fn introduce_key_rotation_id(deps: DepsMut) -> Result<(), MixnetContractError> {
     let current_epoch_id =

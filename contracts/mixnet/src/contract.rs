@@ -8,15 +8,15 @@ use crate::nodes::storage as nymnodes_storage;
 use crate::queued_migrations::introduce_key_rotation_id;
 use crate::rewards::storage::RewardingStorage;
 use cosmwasm_std::{
-    entry_point, to_json_binary, Addr, Coin, Deps, DepsMut, Env, MessageInfo, QueryResponse,
-    Response,
+    Addr, Coin, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response, entry_point,
+    to_json_binary,
 };
-use mixnet_contract_common::error::MixnetContractError;
-use mixnet_contract_common::{
+use nym_contracts_common::set_build_information;
+use nym_mixnet_contract_common::error::MixnetContractError;
+use nym_mixnet_contract_common::{
     ConfigScoreParams, ContractState, ContractStateParams, DelegationsParams, ExecuteMsg,
     InstantiateMsg, Interval, MigrateMsg, OperatorsParams, QueryMsg,
 };
-use nym_contracts_common::set_build_information;
 use std::str::FromStr;
 
 // version info for migration info
@@ -651,13 +651,13 @@ mod tests {
     use crate::rewards::storage as rewards_storage;
     use cosmwasm_std::testing::{message_info, mock_env};
     use cosmwasm_std::{Decimal, Uint128};
-    use mixnet_contract_common::reward_params::{
+    use nym_contracts_common_testing::mock_dependencies;
+    use nym_mixnet_contract_common::reward_params::{
         IntervalRewardParams, RewardedSetParams, RewardingParams,
     };
-    use mixnet_contract_common::{
+    use nym_mixnet_contract_common::{
         InitialRewardingParams, OperatingCostRange, Percent, ProfitMarginRange,
     };
-    use nym_contracts_common_testing::mock_dependencies;
     use std::time::Duration;
 
     #[test]

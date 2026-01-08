@@ -6,12 +6,12 @@ use crate::mixnet_contract_settings::storage::ADMIN;
 use cosmwasm_std::{Deps, Order, StdResult};
 use cw_controllers::AdminResponse;
 use cw_storage_plus::Bound;
-use mixnet_contract_common::error::MixnetContractError;
-use mixnet_contract_common::{
+use nym_contracts_common::get_build_information;
+use nym_mixnet_contract_common::error::MixnetContractError;
+use nym_mixnet_contract_common::{
     ContractBuildInformation, ContractState, ContractStateParams, CurrentNymNodeVersionResponse,
     HistoricalNymNodeVersionEntry, NymNodeVersionHistoryResponse,
 };
-use nym_contracts_common::get_build_information;
 
 pub(crate) fn query_admin(deps: Deps<'_>) -> StdResult<AdminResponse> {
     ADMIN.query_admin(deps)
@@ -71,8 +71,8 @@ pub(crate) fn query_current_nym_node_version(
 pub(crate) mod tests {
     use super::*;
     use crate::support::tests::test_helpers;
-    use cosmwasm_std::{coin, Addr};
-    use mixnet_contract_common::{ConfigScoreParams, DelegationsParams, OperatorsParams};
+    use cosmwasm_std::{Addr, coin};
+    use nym_mixnet_contract_common::{ConfigScoreParams, DelegationsParams, OperatorsParams};
 
     #[test]
     fn query_for_contract_settings_works() {

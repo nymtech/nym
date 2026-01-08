@@ -5,8 +5,8 @@ use crate::constants::{
     DELEGATION_MIXNODE_IDX_NAMESPACE, DELEGATION_OWNER_IDX_NAMESPACE, DELEGATION_PK_NAMESPACE,
 };
 use cw_storage_plus::{Index, IndexList, IndexedMap, MultiIndex};
-use mixnet_contract_common::delegation::OwnerProxySubKey;
-use mixnet_contract_common::{Addr, Delegation, NodeId};
+use nym_mixnet_contract_common::delegation::OwnerProxySubKey;
+use nym_mixnet_contract_common::{Addr, Delegation, NodeId};
 
 // It's a composite key on node's id and delegator address
 type PrimaryKey = (NodeId, OwnerProxySubKey);

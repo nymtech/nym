@@ -15,20 +15,20 @@ use crate::support::helpers::{
     ensure_any_node_bonded, ensure_can_advance_epoch, ensure_epoch_in_progress_state,
 };
 use cosmwasm_std::{DepsMut, Env, MessageInfo, Response};
-use mixnet_contract_common::error::MixnetContractError;
-use mixnet_contract_common::events::{
+use nym_contracts_common::helpers::ResponseExt;
+use nym_mixnet_contract_common::error::MixnetContractError;
+use nym_mixnet_contract_common::events::{
     new_active_set_update_event, new_mix_rewarding_event,
     new_not_found_node_operator_rewarding_event, new_pending_active_set_update_event,
     new_pending_rewarding_params_update_event, new_rewarding_params_update_event,
     new_withdraw_delegator_reward_event, new_withdraw_operator_reward_event,
     new_zero_uptime_mix_operator_rewarding_event,
 };
-use mixnet_contract_common::pending_events::{PendingEpochEventKind, PendingIntervalEventKind};
-use mixnet_contract_common::reward_params::{
+use nym_mixnet_contract_common::pending_events::{PendingEpochEventKind, PendingIntervalEventKind};
+use nym_mixnet_contract_common::reward_params::{
     ActiveSetUpdate, IntervalRewardingParamsUpdate, NodeRewardingParameters,
 };
-use mixnet_contract_common::{Delegation, EpochState, MixNodeDetails, NodeId, NymNodeDetails};
-use nym_contracts_common::helpers::ResponseExt;
+use nym_mixnet_contract_common::{Delegation, EpochState, MixNodeDetails, NodeId, NymNodeDetails};
 
 pub(crate) fn try_reward_node(
     deps: DepsMut<'_>,
@@ -368,22 +368,22 @@ pub mod tests {
     mod legacy_mixnode_rewarding {
         use super::*;
         use crate::interval::pending_events;
-        use crate::support::tests::test_helpers::{find_attribute, FindAttribute, TestSetup};
+        use crate::support::tests::test_helpers::{FindAttribute, TestSetup, find_attribute};
         use cosmwasm_std::{Decimal, Uint128};
-        use mixnet_contract_common::events::{
-            MixnetEventType, BOND_NOT_FOUND_VALUE, DELEGATES_REWARD_KEY, NO_REWARD_REASON_KEY,
+        use nym_mixnet_contract_common::EpochStatus;
+        use nym_mixnet_contract_common::events::{
+            BOND_NOT_FOUND_VALUE, DELEGATES_REWARD_KEY, MixnetEventType, NO_REWARD_REASON_KEY,
             OPERATOR_REWARD_KEY, PRIOR_DELEGATES_KEY, PRIOR_UNIT_REWARD_KEY,
             ZERO_PERFORMANCE_OR_WORK_VALUE,
         };
-        use mixnet_contract_common::helpers::compare_decimals;
-        use mixnet_contract_common::nym_node::Role;
-        use mixnet_contract_common::reward_params::WorkFactor;
-        use mixnet_contract_common::EpochStatus;
+        use nym_mixnet_contract_common::helpers::compare_decimals;
+        use nym_mixnet_contract_common::nym_node::Role;
+        use nym_mixnet_contract_common::reward_params::WorkFactor;
 
         #[cfg(test)]
         mod epoch_state_is_correctly_updated {
             use super::*;
-            use mixnet_contract_common::reward_params::WorkFactor;
+            use nym_mixnet_contract_common::reward_params::WorkFactor;
 
             #[test]
             fn when_target_mixnode_unbonded() {
@@ -1312,9 +1312,9 @@ pub mod tests {
     mod legacy_gateway_rewarding {
         use super::*;
         use crate::support::tests::test_helpers::FindAttribute;
-        use mixnet_contract_common::events::{BOND_NOT_FOUND_VALUE, NO_REWARD_REASON_KEY};
-        use mixnet_contract_common::nym_node::Role;
-        use mixnet_contract_common::RoleAssignment;
+        use nym_mixnet_contract_common::RoleAssignment;
+        use nym_mixnet_contract_common::events::{BOND_NOT_FOUND_VALUE, NO_REWARD_REASON_KEY};
+        use nym_mixnet_contract_common::nym_node::Role;
 
         #[test]
         fn regardless_of_performance_or_work_they_get_nothing() {
@@ -1347,13 +1347,13 @@ pub mod tests {
         use crate::interval::pending_events;
         use crate::support::tests::test_helpers::FindAttribute;
         use cosmwasm_std::{Decimal, Uint128};
-        use mixnet_contract_common::events::{
+        use nym_mixnet_contract_common::RoleAssignment;
+        use nym_mixnet_contract_common::events::{
             BOND_NOT_FOUND_VALUE, NO_REWARD_REASON_KEY, OPERATOR_REWARD_KEY,
             ZERO_PERFORMANCE_OR_WORK_VALUE,
         };
-        use mixnet_contract_common::nym_node::Role;
-        use mixnet_contract_common::reward_params::WorkFactor;
-        use mixnet_contract_common::RoleAssignment;
+        use nym_mixnet_contract_common::nym_node::Role;
+        use nym_mixnet_contract_common::reward_params::WorkFactor;
         use std::collections::HashMap;
         use std::ops::{Deref, DerefMut};
 
@@ -1616,10 +1616,10 @@ pub mod tests {
     #[cfg(test)]
     mod withdrawing_delegator_reward {
         use crate::interval::pending_events;
-        use crate::support::tests::test_helpers::{assert_eq_with_leeway, TestSetup};
+        use crate::support::tests::test_helpers::{TestSetup, assert_eq_with_leeway};
         use cosmwasm_std::testing::message_info;
         use cosmwasm_std::{BankMsg, CosmosMsg, Decimal, Uint128};
-        use mixnet_contract_common::rewarding::helpers::truncate_reward_amount;
+        use nym_mixnet_contract_common::rewarding::helpers::truncate_reward_amount;
 
         use super::*;
 
@@ -2106,8 +2106,8 @@ pub mod tests {
     #[cfg(test)]
     mod updating_active_set {
         use cw_controllers::AdminError::NotAdmin;
-        use mixnet_contract_common::nym_node::Role;
-        use mixnet_contract_common::EpochStatus;
+        use nym_mixnet_contract_common::EpochStatus;
+        use nym_mixnet_contract_common::nym_node::Role;
 
         use crate::support::tests::test_helpers::TestSetup;
 
@@ -2369,11 +2369,11 @@ pub mod tests {
         use cosmwasm_std::Decimal;
         use cw_controllers::AdminError::NotAdmin;
 
-        use mixnet_contract_common::nym_node::Role;
-        use mixnet_contract_common::reward_params::RewardedSetParams;
-        use mixnet_contract_common::EpochStatus;
+        use nym_mixnet_contract_common::EpochStatus;
+        use nym_mixnet_contract_common::nym_node::Role;
+        use nym_mixnet_contract_common::reward_params::RewardedSetParams;
 
-        use crate::support::tests::test_helpers::{assert_decimals, TestSetup};
+        use crate::support::tests::test_helpers::{TestSetup, assert_decimals};
 
         use super::*;
 

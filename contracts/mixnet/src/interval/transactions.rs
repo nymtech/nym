@@ -13,15 +13,15 @@ use crate::support::helpers::{
     ensure_can_advance_epoch, ensure_epoch_in_progress_state, ensure_is_authorized,
 };
 use cosmwasm_std::{DepsMut, Env, MessageInfo, Response};
-use mixnet_contract_common::error::MixnetContractError;
-use mixnet_contract_common::events::{
+use nym_mixnet_contract_common::error::MixnetContractError;
+use nym_mixnet_contract_common::events::{
     new_advance_epoch_event, new_assigned_role_event, new_epoch_transition_start_event,
     new_pending_epoch_events_execution_event, new_pending_interval_config_update_event,
     new_pending_interval_events_execution_event, new_reconcile_pending_events,
 };
-use mixnet_contract_common::nym_node::Role;
-use mixnet_contract_common::pending_events::PendingIntervalEventKind;
-use mixnet_contract_common::{EpochState, EpochStatus, RoleAssignment};
+use nym_mixnet_contract_common::nym_node::Role;
+use nym_mixnet_contract_common::pending_events::PendingIntervalEventKind;
+use nym_mixnet_contract_common::{EpochState, EpochStatus, RoleAssignment};
 
 // those two should be called in separate tx (from advancing epoch),
 // since there might be a lot of events to execute.
@@ -336,8 +336,8 @@ mod tests {
     use crate::rewards::storage as rewards_storage;
     use crate::support::tests::fixtures;
     use crate::support::tests::test_helpers::TestSetup;
-    use mixnet_contract_common::pending_events::PendingEpochEventKind;
-    use mixnet_contract_common::NodeId;
+    use nym_mixnet_contract_common::NodeId;
+    use nym_mixnet_contract_common::pending_events::PendingEpochEventKind;
 
     fn push_n_dummy_epoch_actions(test: &mut TestSetup, n: usize) {
         // if you attempt to undelegate non-existent delegation,
@@ -366,9 +366,9 @@ mod tests {
     #[cfg(test)]
     mod performing_pending_epoch_actions {
         use super::*;
-        use crate::support::tests::fixtures::{active_set_update_fixture, TEST_COIN_DENOM};
-        use cosmwasm_std::{coin, coins, BankMsg, Empty, SubMsg};
-        use mixnet_contract_common::events::{
+        use crate::support::tests::fixtures::{TEST_COIN_DENOM, active_set_update_fixture};
+        use cosmwasm_std::{BankMsg, Empty, SubMsg, coin, coins};
+        use nym_mixnet_contract_common::events::{
             new_active_set_update_event, new_delegation_on_unbonded_node_event,
             new_undelegation_event,
         };
@@ -585,14 +585,14 @@ mod tests {
     mod performing_pending_interval_actions {
         use super::*;
         use crate::support::tests::fixtures::TEST_COIN_DENOM;
-        use cosmwasm_std::{coin, Empty, SubMsg};
-        use mixnet_contract_common::events::{
+        use cosmwasm_std::{Empty, SubMsg, coin};
+        use nym_mixnet_contract_common::Percent;
+        use nym_mixnet_contract_common::events::{
             new_cost_params_update_event, new_interval_config_update_event,
             new_rewarding_params_update_event,
         };
-        use mixnet_contract_common::mixnode::NodeCostParams;
-        use mixnet_contract_common::reward_params::IntervalRewardingParamsUpdate;
-        use mixnet_contract_common::Percent;
+        use nym_mixnet_contract_common::mixnode::NodeCostParams;
+        use nym_mixnet_contract_common::reward_params::IntervalRewardingParamsUpdate;
 
         #[test]
         fn without_limit_executes_all_actions() {
@@ -948,12 +948,12 @@ mod tests {
         use super::*;
         use crate::support::tests::fixtures::TEST_COIN_DENOM;
         use cosmwasm_std::testing::message_info;
-        use cosmwasm_std::{coin, coins, BankMsg, Empty, SubMsg};
-        use mixnet_contract_common::events::{
+        use cosmwasm_std::{BankMsg, Empty, SubMsg, coin, coins};
+        use nym_contracts_common::Percent;
+        use nym_mixnet_contract_common::events::{
             new_delegation_on_unbonded_node_event, new_rewarding_params_update_event,
         };
-        use mixnet_contract_common::reward_params::IntervalRewardingParamsUpdate;
-        use nym_contracts_common::Percent;
+        use nym_mixnet_contract_common::reward_params::IntervalRewardingParamsUpdate;
 
         #[test]
         fn can_only_be_performed_if_in_reconciling_state() {
@@ -1038,8 +1038,8 @@ mod tests {
         }
 
         #[test]
-        fn epoch_state_is_correctly_updated_if_even_with_leftover_interval_events_if_interval_is_not_over(
-        ) {
+        fn epoch_state_is_correctly_updated_if_even_with_leftover_interval_events_if_interval_is_not_over()
+         {
             let mut test = TestSetup::new();
             let rewarding_validator = test.rewarding_validator();
 
@@ -1347,8 +1347,8 @@ mod tests {
     #[cfg(test)]
     mod assigning_roles {
         use super::*;
-        use cosmwasm_std::testing::message_info;
         use cosmwasm_std::Uint128;
+        use cosmwasm_std::testing::message_info;
 
         fn setup_test() -> TestSetup {
             let mut test = TestSetup::new();
@@ -1615,7 +1615,7 @@ mod tests {
         #[cfg(test)]
         mod correctly_updates_storage {
             use super::*;
-            use mixnet_contract_common::nym_node::RoleMetadata;
+            use nym_mixnet_contract_common::nym_node::RoleMetadata;
 
             fn perform_partial_assignment(test: &mut TestSetup) -> anyhow::Result<()> {
                 let env = test.env();
@@ -1787,8 +1787,8 @@ mod tests {
     #[cfg(test)]
     mod updating_interval_config {
         use super::*;
-        use cosmwasm_std::testing::message_info;
         use cosmwasm_std::Decimal;
+        use cosmwasm_std::testing::message_info;
         use cw_controllers::AdminError::NotAdmin;
         use std::time::Duration;
 

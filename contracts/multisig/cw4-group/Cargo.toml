@@ -35,7 +35,7 @@ cw-storage-plus = { workspace = true }
 cosmwasm-schema = { workspace = true }
 cosmwasm-std = { workspace = true }
 schemars = { workspace = true }
-serde = { workspace = true, default-features = false, features = ["derive"] }
+serde = { workspace = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]

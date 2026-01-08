@@ -16,8 +16,8 @@ use crate::support::helpers::{
     ensure_operating_cost_within_range, ensure_profit_margin_within_range,
 };
 use cosmwasm_std::{Coin, DepsMut, Env, MessageInfo, Response};
-use mixnet_contract_common::error::MixnetContractError;
-use mixnet_contract_common::NodeCostParams;
+use nym_mixnet_contract_common::NodeCostParams;
+use nym_mixnet_contract_common::error::MixnetContractError;
 
 pub(crate) fn try_increase_pledge(
     deps: DepsMut<'_>,
@@ -293,10 +293,10 @@ mod tests {
         use super::*;
         use crate::support::tests::fixtures::TEST_COIN_DENOM;
         use crate::support::tests::test_helpers::TestSetup;
-        use cosmwasm_std::testing::message_info;
         use cosmwasm_std::Uint128;
-        use mixnet_contract_common::{OperatingCostRange, ProfitMarginRange};
+        use cosmwasm_std::testing::message_info;
         use nym_contracts_common::Percent;
+        use nym_mixnet_contract_common::{OperatingCostRange, ProfitMarginRange};
 
         fn new_dummy_params() -> NodeCostParams {
             NodeCostParams {

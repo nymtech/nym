@@ -1,10 +1,10 @@
 use crate::constants::INITIAL_PLEDGE_AMOUNT;
-use cosmwasm_std::{coin, Coin};
-use mixnet_contract_common::mixnode::NodeCostParams;
-use mixnet_contract_common::reward_params::ActiveSetUpdate;
-use mixnet_contract_common::{
-    Gateway, MixNode, Percent, DEFAULT_INTERVAL_OPERATING_COST_AMOUNT,
-    DEFAULT_PROFIT_MARGIN_PERCENT,
+use cosmwasm_std::{Coin, coin};
+use nym_mixnet_contract_common::mixnode::NodeCostParams;
+use nym_mixnet_contract_common::reward_params::ActiveSetUpdate;
+use nym_mixnet_contract_common::{
+    DEFAULT_INTERVAL_OPERATING_COST_AMOUNT, DEFAULT_PROFIT_MARGIN_PERCENT, Gateway, MixNode,
+    Percent,
 };
 
 pub const TEST_COIN_DENOM: &str = "unym";

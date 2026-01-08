@@ -1,13 +1,13 @@
 pub use crate::queries::*;
-use crate::storage::{ADMIN, MIXNET_CONTRACT_ADDRESS, MIX_DENOM};
+use crate::storage::{ADMIN, MIX_DENOM, MIXNET_CONTRACT_ADDRESS};
 pub use crate::transactions::*;
-use contracts_common::set_build_information;
 use cosmwasm_std::{
-    entry_point, to_json_binary, Addr, Coin, Deps, DepsMut, Env, MessageInfo, QueryResponse,
-    Response, Uint128,
+    Addr, Coin, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response, Uint128, entry_point,
+    to_json_binary,
 };
-use vesting_contract_common::messages::{ExecuteMsg, InitMsg, MigrateMsg, QueryMsg};
-use vesting_contract_common::{Account, VestingContractError};
+use nym_contracts_common::set_build_information;
+use nym_vesting_contract_common::messages::{ExecuteMsg, InitMsg, MigrateMsg, QueryMsg};
+use nym_vesting_contract_common::{Account, VestingContractError};
 
 // version info for migration info
 const CONTRACT_NAME: &str = "crate:nym-vesting-contract";

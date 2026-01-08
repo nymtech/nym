@@ -913,7 +913,7 @@ dependencies = [
 [[package]]
 name = "bls12_381"
 version = "0.8.0"
-source = "git+https://github.com/jstuczyn/bls12_381?branch=temp%2Fexperimental-serdect-updated#9bf520059cb28323fc51469cae86868ef4fa6fbd"
+source = "git+https://github.com/nymtech/bls12_381?branch=temp%2Fexperimental-serdect-updated#9bf520059cb28323fc51469cae86868ef4fa6fbd"
 dependencies = [
  "digest 0.10.7",
  "ff",
@@ -1415,10 +1415,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "const_panic"
+version = "0.2.15"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e262cdaac42494e3ae34c43969f9cdeb7da178bdb4b66fa6a1ea2edb4c8ae652"
+dependencies = [
+ "typewit",
+]
+
+[[package]]
 name = "constant_time_eq"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7c74b8349d32d297c9134b8c88677813a227df8f779daa29bfc29c183fe3dca6"
+
+[[package]]
+name = "convert_case"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "baaaa0ecca5b51987b9423ccdc971514dd8b0bb7b4060b983d3664dad3f1f89f"
+dependencies = [
+ "unicode-segmentation",
+]
 
 [[package]]
 name = "cookie"
@@ -1488,9 +1506,9 @@ checksum = "63efd882086668c3bad621b5b897a0e058d0b5fae027c984e1a6230bf284ab85"
 
 [[package]]
 name = "cosmwasm-crypto"
-version = "2.3.0"
+version = "2.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0969e6f569f867725bf89e672058ae336e130c1fcf914def4f7c6c0380b2bc83"
+checksum = "aa2f53285517db3e33d825b3e46301efe845135778527e1295154413b2f0469e"
 dependencies = [
  "ark-bls12-381",
  "ark-ec",
@@ -1512,9 +1530,9 @@ dependencies = [
 
 [[package]]
 name = "cosmwasm-derive"
-version = "2.3.0"
+version = "2.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d0da0db99715fc86e6a5ad7be9c19d0d9e5a92179862b17cae7406b729a402c2"
+checksum = "a782b93fae93e57ca8ad3e9e994e784583f5933aeaaa5c80a545c4b437be2047"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2004,6 +2022,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "cw20-base"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d6de8c32e100f1fca306972d86b617234a5e6b00594ea2b48716fd6804d4d95d"
+dependencies = [
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-storage-plus",
+ "cw2",
+ "cw20",
+ "schemars 0.8.22",
+ "semver 1.0.27",
+ "serde",
+ "thiserror 1.0.69",
+]
+
+[[package]]
 name = "cw3"
 version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2019,6 +2054,46 @@ dependencies = [
 ]
 
 [[package]]
+name = "cw3-fixed-multisig"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9a8233125653e61e898eaade6c6fdb3bd9c48aceb2ad97e84eada2c9bf5bff46"
+dependencies = [
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-storage-plus",
+ "cw-utils",
+ "cw2",
+ "cw3",
+ "schemars 0.8.22",
+ "serde",
+ "thiserror 1.0.69",
+]
+
+[[package]]
+name = "cw3-flex-multisig"
+version = "2.0.0"
+dependencies = [
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-multi-test",
+ "cw-storage-plus",
+ "cw-utils",
+ "cw2",
+ "cw20",
+ "cw20-base",
+ "cw3",
+ "cw3-fixed-multisig",
+ "cw4",
+ "cw4-group",
+ "easy-addr",
+ "nym-contracts-common",
+ "nym-contracts-common-testing",
+ "nym-group-contract-common",
+ "nym-multisig-contract-common",
+]
+
+[[package]]
 name = "cw4"
 version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2029,6 +2104,26 @@ dependencies = [
  "cw-storage-plus",
  "schemars 0.8.22",
  "serde",
+]
+
+[[package]]
+name = "cw4-group"
+version = "2.0.0"
+dependencies = [
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-controllers",
+ "cw-storage-plus",
+ "cw-utils",
+ "cw2",
+ "cw4",
+ "easy-addr",
+ "nym-contracts-common",
+ "nym-contracts-common-testing",
+ "nym-group-contract-common",
+ "schemars 0.8.22",
+ "serde",
+ "thiserror 2.0.17",
 ]
 
 [[package]]
@@ -4229,6 +4324,33 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c33070833c9ee02266356de0c43f723152bd38bd96ddf52c82b3af10c9138b28"
 
 [[package]]
+name = "konst"
+version = "0.3.16"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4381b9b00c55f251f2ebe9473aef7c117e96828def1a7cb3bd3f0f903c6894e9"
+dependencies = [
+ "const_panic",
+ "konst_kernel",
+ "konst_proc_macros",
+ "typewit",
+]
+
+[[package]]
+name = "konst_kernel"
+version = "0.3.15"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e4b1eb7788f3824c629b1116a7a9060d6e898c358ebff59070093d51103dcc3c"
+dependencies = [
+ "typewit",
+]
+
+[[package]]
+name = "konst_proc_macros"
+version = "0.3.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "00af7901ba50898c9e545c24d5c580c96a982298134e8037d8978b6594782c07"
+
+[[package]]
 name = "kqueue"
 version = "1.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4617,6 +4739,21 @@ dependencies = [
  "nym-sdk",
  "tokio",
  "tracing",
+]
+
+[[package]]
+name = "mixnet-vesting-integration-tests"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-std",
+ "cw-multi-test",
+ "nym-contracts-common",
+ "nym-crypto",
+ "nym-mixnet-contract",
+ "nym-mixnet-contract-common",
+ "nym-vesting-contract",
+ "nym-vesting-contract-common",
+ "rand_chacha 0.3.1",
 ]
 
 [[package]]
@@ -5425,6 +5562,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-coconut-dkg"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-controllers",
+ "cw-multi-test",
+ "cw-storage-plus",
+ "cw2",
+ "cw3-flex-multisig",
+ "cw4",
+ "cw4-group",
+ "easy-addr",
+ "nym-coconut-dkg-common",
+ "nym-contracts-common",
+ "nym-contracts-common-testing",
+ "nym-group-contract-common",
+ "thiserror 2.0.17",
+]
+
+[[package]]
 name = "nym-coconut-dkg-common"
 version = "1.20.1"
 dependencies = [
@@ -5858,6 +6017,34 @@ dependencies = [
  "sha2 0.10.9",
  "thiserror 2.0.17",
  "zeroize",
+]
+
+[[package]]
+name = "nym-ecash"
+version = "1.20.1"
+dependencies = [
+ "anyhow",
+ "bs58",
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-controllers",
+ "cw-multi-test",
+ "cw-storage-plus",
+ "cw-utils",
+ "cw2",
+ "cw3",
+ "cw4",
+ "nym-contracts-common",
+ "nym-crypto",
+ "nym-ecash-contract-common",
+ "nym-multisig-contract-common",
+ "nym-network-defaults",
+ "rand_chacha 0.3.1",
+ "schemars 0.8.22",
+ "semver 1.0.27",
+ "serde",
+ "sylvia",
+ "thiserror 2.0.17",
 ]
 
 [[package]]
@@ -6388,6 +6575,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-mixnet-contract"
+version = "1.5.1"
+dependencies = [
+ "anyhow",
+ "bs58",
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-controllers",
+ "cw-storage-plus",
+ "cw2",
+ "easy-addr",
+ "nym-contracts-common",
+ "nym-contracts-common-testing",
+ "nym-crypto",
+ "nym-mixnet-contract",
+ "nym-mixnet-contract-common",
+ "nym-vesting-contract-common",
+ "rand 0.8.5",
+ "rand_chacha 0.3.1",
+ "semver 1.0.27",
+ "serde",
+]
+
+[[package]]
 name = "nym-mixnet-contract-common"
 version = "1.20.1"
 dependencies = [
@@ -6907,6 +7118,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-performance-contract"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-controllers",
+ "cw-storage-plus",
+ "cw2",
+ "nym-contracts-common",
+ "nym-contracts-common-testing",
+ "nym-crypto",
+ "nym-mixnet-contract",
+ "nym-mixnet-contract-common",
+ "nym-performance-contract-common",
+ "serde",
+]
+
+[[package]]
 name = "nym-performance-contract-common"
 version = "1.20.1"
 dependencies = [
@@ -6917,6 +7147,21 @@ dependencies = [
  "schemars 0.8.22",
  "serde",
  "thiserror 2.0.17",
+]
+
+[[package]]
+name = "nym-pool-contract"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-controllers",
+ "cw-storage-plus",
+ "cw2",
+ "nym-contracts-common",
+ "nym-contracts-common-testing",
+ "nym-pool-contract-common",
 ]
 
 [[package]]
@@ -7664,6 +7909,27 @@ dependencies = [
  "tokio-util",
  "tracing",
  "url",
+]
+
+[[package]]
+name = "nym-vesting-contract"
+version = "1.4.1"
+dependencies = [
+ "base64 0.21.7",
+ "cosmwasm-crypto",
+ "cosmwasm-derive",
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-storage-plus",
+ "cw2",
+ "hex",
+ "nym-contracts-common",
+ "nym-mixnet-contract-common",
+ "nym-vesting-contract-common",
+ "rand_chacha 0.3.1",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.17",
 ]
 
 [[package]]
@@ -8727,6 +8993,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "proc-macro-error"
+version = "1.0.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "da25490ff9892aab3fcf7c36f08cfb902dd3e71ca0f9f9517bea02a73a5ce38c"
+dependencies = [
+ "proc-macro-error-attr",
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
+ "version_check",
+]
+
+[[package]]
+name = "proc-macro-error-attr"
+version = "1.0.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a1be40180e52ecc98ad80b184934baf3d0d29f979574e439af5a55274b35f869"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "version_check",
+]
+
+[[package]]
 name = "proc-macro-error-attr2"
 version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9718,6 +10008,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde-cw-value"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a75d32da6b8ed758b7d850b6c3c08f1d7df51a4df3cb201296e63e34a78e99d4"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "serde-json-wasm"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -10552,6 +10851,40 @@ dependencies = [
  "hmac-sha512",
  "rand 0.8.5",
  "rsa",
+]
+
+[[package]]
+name = "sylvia"
+version = "1.3.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "967a2aceb034b72e9ec106f6f889a45cebd8a93e831ceafb490ec8a0fb2fdb13"
+dependencies = [
+ "anyhow",
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-multi-test",
+ "cw-utils",
+ "konst",
+ "schemars 0.8.22",
+ "serde",
+ "serde-cw-value",
+ "serde-json-wasm",
+ "sylvia-derive",
+]
+
+[[package]]
+name = "sylvia-derive"
+version = "1.3.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c4a9f6b6ef457c685c596939baeb4e1c7257e949d690fa89be1aaea27963183e"
+dependencies = [
+ "convert_case",
+ "itertools 0.14.0",
+ "proc-macro-crate",
+ "proc-macro-error",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.113",
 ]
 
 [[package]]
@@ -11691,6 +12024,21 @@ name = "typenum"
 version = "1.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "562d481066bde0658276a35467c4af00bdc6ee726305698a55b86e61d7ad82bb"
+
+[[package]]
+name = "typewit"
+version = "1.14.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f8c1ae7cc0fdb8b842d65d127cb981574b0d2b249b74d1c7a2986863dc134f71"
+dependencies = [
+ "typewit_proc_macros",
+]
+
+[[package]]
+name = "typewit_proc_macros"
+version = "1.8.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e36a83ea2b3c704935a01b4642946aadd445cea40b10935e3f8bd8052b8193d6"
 
 [[package]]
 name = "ucd-trie"

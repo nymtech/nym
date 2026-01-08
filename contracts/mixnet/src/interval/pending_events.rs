@@ -3,21 +3,21 @@
 
 use cosmwasm_std::{Addr, BankMsg, Coin, DepsMut, Env, Response};
 
-use mixnet_contract_common::error::MixnetContractError;
-use mixnet_contract_common::events::{
+use nym_contracts_common::helpers::ResponseExt;
+use nym_mixnet_contract_common::error::MixnetContractError;
+use nym_mixnet_contract_common::events::{
     new_active_set_update_event, new_active_set_update_failure, new_cost_params_update_event,
     new_delegation_event, new_delegation_on_unbonded_node_event, new_mixnode_unbonding_event,
     new_nym_node_unbonding_event, new_pledge_decrease_event, new_pledge_increase_event,
     new_rewarding_params_update_event, new_undelegation_event,
 };
-use mixnet_contract_common::mixnode::NodeCostParams;
-use mixnet_contract_common::pending_events::{
+use nym_mixnet_contract_common::mixnode::NodeCostParams;
+use nym_mixnet_contract_common::pending_events::{
     PendingEpochEventData, PendingEpochEventKind, PendingIntervalEventData,
     PendingIntervalEventKind,
 };
-use mixnet_contract_common::reward_params::{ActiveSetUpdate, IntervalRewardingParamsUpdate};
-use mixnet_contract_common::{BlockHeight, Delegation, NodeId};
-use nym_contracts_common::helpers::ResponseExt;
+use nym_mixnet_contract_common::reward_params::{ActiveSetUpdate, IntervalRewardingParamsUpdate};
+use nym_mixnet_contract_common::{BlockHeight, Delegation, NodeId};
 
 use crate::delegations;
 use crate::delegations::storage as delegations_storage;
@@ -637,9 +637,9 @@ impl ContractExecutableEvent for PendingIntervalEventData {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::support::tests::test_helpers::{assert_decimals, TestSetup};
+    use crate::support::tests::test_helpers::{TestSetup, assert_decimals};
     use cosmwasm_std::Decimal;
-    use mixnet_contract_common::Percent;
+    use nym_mixnet_contract_common::Percent;
     use std::time::Duration;
 
     // note that authorization and basic validation has already been performed for all of those
@@ -652,7 +652,7 @@ mod tests {
         use crate::support::tests::fixtures::TEST_COIN_DENOM;
         use crate::support::tests::test_helpers::get_bank_send_msg;
         use cosmwasm_std::coin;
-        use mixnet_contract_common::rewarding::helpers::truncate_reward_amount;
+        use nym_mixnet_contract_common::rewarding::helpers::truncate_reward_amount;
 
         #[test]
         fn returns_the_tokens_if_mixnode_has_unbonded() {
@@ -705,10 +705,12 @@ mod tests {
             .unwrap();
             let storage_key =
                 Delegation::generate_storage_key(mix_id, &Addr::unchecked(owner2), None);
-            assert!(delegations_storage::delegations()
-                .may_load(test.deps().storage, storage_key)
-                .unwrap()
-                .is_none());
+            assert!(
+                delegations_storage::delegations()
+                    .may_load(test.deps().storage, storage_key)
+                    .unwrap()
+                    .is_none()
+            );
 
             // and all tokens are returned back to the delegator
             let (receiver, sent_amount) = get_bank_send_msg(&res_fresh).unwrap();
@@ -767,10 +769,12 @@ mod tests {
             )
             .unwrap();
             let storage_key = Delegation::generate_storage_key(mix_id, owner2, None);
-            assert!(delegations_storage::delegations()
-                .may_load(test.deps().storage, storage_key)
-                .unwrap()
-                .is_none());
+            assert!(
+                delegations_storage::delegations()
+                    .may_load(test.deps().storage, storage_key)
+                    .unwrap()
+                    .is_none()
+            );
 
             // and all tokens are returned back to the delegator
             let (receiver, sent_amount) = get_bank_send_msg(&res_fresh).unwrap();
@@ -960,7 +964,7 @@ mod tests {
     mod undelegating {
         use super::*;
         use crate::support::tests::test_helpers::get_bank_send_msg;
-        use mixnet_contract_common::rewarding::helpers::truncate_reward_amount;
+        use nym_mixnet_contract_common::rewarding::helpers::truncate_reward_amount;
 
         #[test]
         fn doesnt_return_any_tokens_if_it_doesnt_exist() {
@@ -1031,10 +1035,12 @@ mod tests {
             // make sure delegation no longer exists
             let storage_key =
                 Delegation::generate_storage_key(mix_id, &Addr::unchecked(owner), None);
-            assert!(delegations_storage::delegations()
-                .may_load(test.deps().storage, storage_key)
-                .unwrap()
-                .is_none());
+            assert!(
+                delegations_storage::delegations()
+                    .may_load(test.deps().storage, storage_key)
+                    .unwrap()
+                    .is_none()
+            );
 
             // and mix rewarding no longer contains any information about the delegation
             let rewarding = test.mix_rewarding(mix_id);
@@ -1049,12 +1055,12 @@ mod tests {
         use crate::interval::pending_events::unbond_mixnode;
         use crate::mixnodes::storage as mixnodes_storage;
         use crate::rewards::storage as rewards_storage;
-        use crate::support::tests::test_helpers::{get_bank_send_msg, TestSetup};
+        use crate::support::tests::test_helpers::{TestSetup, get_bank_send_msg};
         use cosmwasm_std::testing::message_info;
         use cosmwasm_std::{Addr, Uint128};
-        use mixnet_contract_common::error::MixnetContractError;
-        use mixnet_contract_common::mixnode::{PendingMixNodeChanges, UnbondedMixnode};
-        use mixnet_contract_common::rewarding::helpers::truncate_reward_amount;
+        use nym_mixnet_contract_common::error::MixnetContractError;
+        use nym_mixnet_contract_common::mixnode::{PendingMixNodeChanges, UnbondedMixnode};
+        use nym_mixnet_contract_common::rewarding::helpers::truncate_reward_amount;
 
         #[test]
         fn returns_hard_error_if_mixnode_doesnt_exist() {
@@ -1156,14 +1162,18 @@ mod tests {
             assert_eq!(receiver, owner.to_string());
             assert_eq!(sent_amount[0].amount, expected_return);
 
-            assert!(rewards_storage::MIXNODE_REWARDING
-                .may_load(test.deps().storage, mix_id)
-                .unwrap()
-                .is_none());
-            assert!(mixnodes_storage::mixnode_bonds()
-                .may_load(test.deps().storage, mix_id)
-                .unwrap()
-                .is_none());
+            assert!(
+                rewards_storage::MIXNODE_REWARDING
+                    .may_load(test.deps().storage, mix_id)
+                    .unwrap()
+                    .is_none()
+            );
+            assert!(
+                mixnodes_storage::mixnode_bonds()
+                    .may_load(test.deps().storage, mix_id)
+                    .unwrap()
+                    .is_none()
+            );
             let expected = UnbondedMixnode {
                 identity_key: mix_details.identity().to_string(),
                 owner: Addr::unchecked(owner),
@@ -1183,7 +1193,7 @@ mod tests {
     mod increasing_pledge {
         use cosmwasm_std::Uint128;
 
-        use mixnet_contract_common::rewarding::helpers::truncate_reward_amount;
+        use nym_mixnet_contract_common::rewarding::helpers::truncate_reward_amount;
 
         use super::*;
 
@@ -1517,7 +1527,7 @@ mod tests {
     mod decreasing_pledge {
         use super::*;
         use cosmwasm_std::{BankMsg, CosmosMsg, Uint128};
-        use mixnet_contract_common::rewarding::helpers::truncate_reward_amount;
+        use nym_mixnet_contract_common::rewarding::helpers::truncate_reward_amount;
 
         #[test]
         fn returns_hard_error_if_mixnode_doesnt_exist() {

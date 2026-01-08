@@ -1,8 +1,8 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::LpError;
 use crate::serialisation::{BincodeOptions, lp_bincode_serializer};
+use crate::{BOOTSTRAP_RECEIVER_IDX, LpError};
 use bytes::{BufMut, BytesMut};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use serde::{Deserialize, Serialize};
@@ -24,6 +24,15 @@ pub struct ClientHelloData {
 
 impl ClientHelloData {
     pub const LEN: usize = 100;
+
+    fn generate_receiver_index() -> u32 {
+        loop {
+            let candidate = rand::random();
+            if candidate != BOOTSTRAP_RECEIVER_IDX {
+                return candidate;
+            }
+        }
+    }
 
     /// Generates a new ClientHelloData with fresh salt.
     ///
@@ -48,7 +57,7 @@ impl ClientHelloData {
         rand::thread_rng().fill_bytes(&mut salt[8..]);
 
         Self {
-            receiver_index: rand::random(), // Auto-generate random receiver index
+            receiver_index: Self::generate_receiver_index(), // Auto-generate random receiver index
             client_lp_public_key,
             client_ed25519_public_key,
             salt,

@@ -513,6 +513,42 @@ add_port_rules() {
   fi
 }
 
+apply_smtps_465_rate_limit() {
+  info "adding SMTPS(465) with per-source NEW-connection rate limit (spam protection)"
+
+  # IPv4 - allow established traffic for existing SMTPS sessions
+  iptables -C "$NYM_CHAIN" -p tcp --dport 465 -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT 2>/dev/null || \
+    iptables -I "$NYM_CHAIN" 5 -p tcp --dport 465 -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+
+  # allow NEW connections but rate-limited per source IP
+  iptables -C "$NYM_CHAIN" -p tcp --dport 465 -m conntrack --ctstate NEW \
+    -m hashlimit --hashlimit 10/min --hashlimit-burst 30 --hashlimit-mode srcip --hashlimit-name smtps465v4 \
+    -j ACCEPT 2>/dev/null || \
+    iptables -I "$NYM_CHAIN" 6 -p tcp --dport 465 -m conntrack --ctstate NEW \
+      -m hashlimit --hashlimit 10/min --hashlimit-burst 30 --hashlimit-mode srcip --hashlimit-name smtps465v4 \
+      -j ACCEPT
+
+  # drop NEW connections above the limit - quiet
+  iptables -C "$NYM_CHAIN" -p tcp --dport 465 -m conntrack --ctstate NEW -j DROP 2>/dev/null || \
+    iptables -I "$NYM_CHAIN" 7 -p tcp --dport 465 -m conntrack --ctstate NEW -j DROP
+
+  # IPv6 - same logic
+  ip6tables -C "$NYM_CHAIN" -p tcp --dport 465 -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT 2>/dev/null || \
+    ip6tables -I "$NYM_CHAIN" 5 -p tcp --dport 465 -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+
+  ip6tables -C "$NYM_CHAIN" -p tcp --dport 465 -m conntrack --ctstate NEW \
+    -m hashlimit --hashlimit 10/min --hashlimit-burst 30 --hashlimit-mode srcip --hashlimit-name smtps465v6 \
+    -j ACCEPT 2>/dev/null || \
+    ip6tables -I "$NYM_CHAIN" 6 -p tcp --dport 465 -m conntrack --ctstate NEW \
+      -m hashlimit --hashlimit 10/min --hashlimit-burst 30 --hashlimit-mode srcip --hashlimit-name smtps465v6 \
+      -j ACCEPT
+
+  ip6tables -C "$NYM_CHAIN" -p tcp --dport 465 -m conntrack --ctstate NEW -j DROP 2>/dev/null || \
+    ip6tables -I "$NYM_CHAIN" 7 -p tcp --dport 465 -m conntrack --ctstate NEW -j DROP
+
+  ok "SMTPS(465) enabled with rate limit: 10 NEW/min burst 30 per source"
+}
+
 exit_policy_install_deps() {
   install_iptables_persistent
 
@@ -616,6 +652,7 @@ apply_port_allowlist() {
     ["HTTPS"]="443"
     ["SMBWindowsFileShare"]="445"
     ["Kpasswd"]="464"
+    ["SMTP"]="465"
     ["RTSP"]="554"
     ["SMTPSubmission"]="587"
     ["LDAPS"]="636"
@@ -1178,6 +1215,7 @@ exit_policy_install() {
   create_nym_chain
   setup_nat_rules
   apply_port_allowlist
+  apply_smtps_465_rate_limit
   apply_spamhaus_blocklist
   add_default_reject_rule
   save_iptables_rules

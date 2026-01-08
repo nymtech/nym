@@ -14,7 +14,7 @@ use nym_sphinx_types::{
 };
 use std::fmt::Display;
 use thiserror::Error;
-use tracing::{debug, info, trace};
+use tracing::{debug, trace};
 
 #[derive(Debug)]
 pub enum MixProcessingResultData {
@@ -375,7 +375,7 @@ fn split_into_ack_and_message(
                         match SurbAck::try_recover_first_hop_packet(&ack_data, packet_type) {
                             Ok((first_hop, packet)) => (first_hop, packet),
                             Err(err) => {
-                                info!("Failed to recover first hop from ack data: {err}");
+                                tracing::info!("Failed to recover first hop from ack data: {err}");
                                 return Err(err.into());
                             }
                         };

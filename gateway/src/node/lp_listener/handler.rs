@@ -10,10 +10,13 @@ use nym_lp::{
     codec::OuterAeadKey, keypair::PublicKey, message::ForwardPacketData, packet::LpHeader,
     LpMessage, LpPacket, OuterHeader,
 };
+use nym_lp_transport::traits::LpTransport;
 use nym_metrics::{add_histogram_obs, inc};
 use std::net::SocketAddr;
-use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
+use std::time::Duration;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
+use tokio::time::timeout;
 use tracing::*;
 
 // Histogram buckets for LP operation duration (legacy - used by unused forwarding methods)
@@ -80,15 +83,16 @@ pub struct LpConnectionHandler<S = TcpStream> {
     /// All subsequent packets on this connection must use this receiver_idx.
     /// Set from ClientHello's proposed receiver_index, or from header for non-bootstrap packets.
     bound_receiver_idx: Option<u32>,
+
     /// Persistent connection to exit gateway for forwarding.
     /// Opened on first forward, reused for subsequent forwards, closed when client disconnects.
     /// Tuple contains (stream, target_address) to verify subsequent forwards go to same exit.
-    exit_stream: Option<(TcpStream, SocketAddr)>,
+    exit_stream: Option<(S, SocketAddr)>,
 }
 
 impl<S> LpConnectionHandler<S>
 where
-    S: AsyncRead + AsyncWrite + Unpin,
+    S: LpTransport + Unpin,
 {
     pub fn new(stream: S, remote_addr: SocketAddr, state: LpHandlerState) -> Self {
         Self {
@@ -622,13 +626,15 @@ where
         receiver_idx: u32,
         decrypted_bytes: Vec<u8>,
     ) -> Result<(), GatewayError> {
+        let remote = self.remote_addr;
+
         // Try to deserialize as LpRegistrationRequest first (most common case after handshake)
         if let Ok(request) =
             lp_bincode_serializer().deserialize::<LpRegistrationRequest>(&decrypted_bytes)
         {
             debug!(
-                "LP registration request from {} (receiver_idx={}): mode={:?}",
-                self.remote_addr, receiver_idx, request.mode
+                "LP registration request from {remote} (receiver_idx={receiver_idx}): mode={:?}",
+                request.mode
             );
             return self
                 .handle_registration_request(receiver_idx, request)
@@ -640,8 +646,8 @@ where
             lp_bincode_serializer().deserialize::<ForwardPacketData>(&decrypted_bytes)
         {
             debug!(
-                "LP forward request from {} (receiver_idx={}) to {}",
-                self.remote_addr, receiver_idx, forward_data.target_lp_address
+                "LP forward request from {remote} (receiver_idx={receiver_idx}) to {}",
+                forward_data.target_lp_address
             );
             return self
                 .handle_forwarding_request(receiver_idx, forward_data)
@@ -649,10 +655,7 @@ where
         }
 
         // Neither registration nor forwarding - unknown payload type
-        warn!(
-            "Unknown transport payload type from {} (receiver_idx={})",
-            self.remote_addr, receiver_idx
-        );
+        warn!("Unknown transport payload type from {remote} (receiver_idx={receiver_idx})");
         inc!("lp_errors_unknown_payload_type");
         Err(GatewayError::LpProtocolError(
             "Unknown transport payload type (not registration or forwarding)".to_string(),
@@ -790,7 +793,6 @@ where
     ///
     /// Entry gateway receives ForwardPacketData from client, forwards inner packet
     /// to exit gateway, receives response, encrypts it, and sends back to client.
-    /// Connection closes after response is sent (single-packet model).
     async fn handle_forwarding_request(
         &mut self,
         receiver_idx: u32,
@@ -955,14 +957,62 @@ where
         }
     }
 
-    /// Forward an LP packet to another gateway (single-packet model)
+    /// Returns reference to the established forwarding channel to the exit.
+    pub fn forwarding_channel(&self) -> &Option<(S, SocketAddr)> {
+        &self.exit_stream
+    }
+
+    /// This method establishes connection to the target gateway in order to
+    /// forward received packets and retrieve any responses
+    //
+    // In the future it will also perform identity validation to make sure
+    // the target node is a valid gateway present in the network
+    //
+    // Do not manually call this function. It is only exposed for the purposes of integration tests
+    #[doc(hidden)]
+    pub async fn establish_exit_stream(
+        &mut self,
+        target_addr: SocketAddr,
+    ) -> Result<(), GatewayError> {
+        // Acquire semaphore permit to limit concurrent connection opens (FD exhaustion protection)
+        // Permit is scoped to this block - only protects the connect() call, not stream reuse
+        let _permit = match self.state.forward_semaphore.try_acquire() {
+            Ok(permit) => permit,
+            Err(_) => {
+                inc!("lp_forward_rejected");
+                return Err(GatewayError::LpConnectionError(
+                    "Gateway at forward capacity".into(),
+                ));
+            }
+        };
+
+        // Connect to target gateway with timeout
+        let stream = match timeout(Duration::from_secs(5), S::connect(target_addr)).await {
+            Ok(Ok(stream)) => stream,
+            Ok(Err(e)) => {
+                inc!("lp_forward_failed");
+                return Err(GatewayError::LpConnectionError(format!(
+                    "Failed to connect to target gateway: {e}",
+                )));
+            }
+            Err(_) => {
+                inc!("lp_forward_failed");
+                return Err(GatewayError::LpConnectionError(
+                    "Target gateway connection timeout".to_string(),
+                ));
+            }
+        };
+
+        debug!("Opened persistent exit connection to {target_addr} for forwarding");
+        self.exit_stream = Some((stream, target_addr));
+
+        Ok(())
+    }
+
+    /// Forward an LP packet to another gateway
     ///
     /// This method connects to the target gateway, forwards the inner packet bytes,
     /// receives the response, and returns it. Used for telescoping (hiding client IP).
-    ///
-    /// Called from `handle_forwarding_request()` as part of the single-packet-per-connection
-    /// architecture. Each forward request arrives on a new connection, gets processed,
-    /// response sent, and connection closes.
     ///
     /// # Arguments
     /// * `forward_data` - ForwardPacketData containing target gateway info and inner packet
@@ -1015,38 +1065,7 @@ where
         };
 
         if need_new_connection {
-            // Acquire semaphore permit to limit concurrent connection opens (FD exhaustion protection)
-            // Permit is scoped to this block - only protects the connect() call, not stream reuse
-            let _permit = match self.state.forward_semaphore.try_acquire() {
-                Ok(permit) => permit,
-                Err(_) => {
-                    inc!("lp_forward_rejected");
-                    return Err(GatewayError::LpConnectionError(
-                        "Gateway at forward capacity".into(),
-                    ));
-                }
-            };
-
-            // Connect to target gateway with timeout
-            let stream =
-                match timeout(Duration::from_secs(5), TcpStream::connect(target_addr)).await {
-                    Ok(Ok(stream)) => stream,
-                    Ok(Err(e)) => {
-                        inc!("lp_forward_failed");
-                        return Err(GatewayError::LpConnectionError(format!(
-                            "Failed to connect to target gateway: {e}",
-                        )));
-                    }
-                    Err(_) => {
-                        inc!("lp_forward_failed");
-                        return Err(GatewayError::LpConnectionError(
-                            "Target gateway connection timeout".to_string(),
-                        ));
-                    }
-                };
-
-            debug!("Opened persistent exit connection to {target_addr} for forwarding",);
-            self.exit_stream = Some((stream, target_addr));
+            self.establish_exit_stream(target_addr).await?;
         }
 
         // Get mutable reference to the exit stream
@@ -1099,8 +1118,7 @@ where
             const MAX_PACKET_SIZE: usize = 65536;
             if response_len > MAX_PACKET_SIZE {
                 return Err(GatewayError::LpProtocolError(format!(
-                    "Response size {} exceeds maximum {}",
-                    response_len, MAX_PACKET_SIZE
+                    "Response size {response_len} exceeds maximum {MAX_PACKET_SIZE}",
                 )));
             }
 
@@ -1110,8 +1128,7 @@ where
                 .await
                 .map_err(|e| {
                     GatewayError::LpConnectionError(format!(
-                        "Failed to read response from target: {}",
-                        e
+                        "Failed to read response from target: {e}",
                     ))
                 })?;
 
@@ -1276,7 +1293,7 @@ mod tests {
     use nym_lp::packet::{LpHeader, LpPacket};
     use std::sync::Arc;
     use std::time::{SystemTime, UNIX_EPOCH};
-    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    use tokio::io::{AsyncRead, AsyncReadExt, AsyncWriteExt};
 
     // ==================== Test Helpers ====================
 

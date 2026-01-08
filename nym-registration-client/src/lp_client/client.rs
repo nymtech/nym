@@ -5,7 +5,6 @@
 
 use super::config::LpConfig;
 use super::error::{LpClientError, Result};
-use crate::lp_client::traits::LpTransportLayer;
 use bytes::BytesMut;
 use nym_bandwidth_controller::{BandwidthTicketProvider, DEFAULT_TICKETS_TO_SPEND};
 use nym_credentials_interface::{CredentialSpendingData, TicketType};
@@ -15,6 +14,7 @@ use nym_lp::codec::{OuterAeadKey, parse_lp_packet, serialize_lp_packet};
 use nym_lp::message::ForwardPacketData;
 use nym_lp::serialisation::{BincodeOptions, lp_bincode_serializer};
 use nym_lp::state_machine::{LpAction, LpInput, LpStateMachine};
+use nym_lp_transport::traits::LpTransport;
 use nym_registration_common::{GatewayData, LpRegistrationRequest, LpRegistrationResponse};
 use nym_wireguard_types::PeerPublicKey;
 use std::net::{IpAddr, SocketAddr};
@@ -63,7 +63,7 @@ pub struct LpRegistrationClient<S = TcpStream> {
 
 impl<S> LpRegistrationClient<S>
 where
-    S: LpTransportLayer + Unpin,
+    S: LpTransport + Unpin,
 {
     /// Creates a new LP registration client.
     ///
@@ -186,7 +186,7 @@ where
 
         // Set TCP_NODELAY for low latency
         stream
-            .configure(&self.config)
+            .set_no_delay(self.config.tcp_nodelay)
             .map_err(|source| LpClientError::TcpConnection {
                 address: self.gateway_lp_address.to_string(),
                 source,
@@ -563,7 +563,7 @@ where
 
         // 2. Set TCP_NODELAY
         stream
-            .configure(config)
+            .set_no_delay(config.tcp_nodelay)
             .map_err(|source| LpClientError::TcpConnection {
                 address: address.to_string(),
                 source,

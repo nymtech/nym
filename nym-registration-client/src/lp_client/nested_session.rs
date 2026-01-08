@@ -28,6 +28,7 @@ use nym_lp::codec::{OuterAeadKey, parse_lp_packet, serialize_lp_packet};
 use nym_lp::serialisation::{BincodeOptions, lp_bincode_serializer};
 use nym_lp::state_machine::{LpAction, LpInput, LpStateMachine};
 use nym_lp::{LpMessage, LpPacket};
+use nym_lp_transport::traits::LpTransport;
 use nym_registration_common::{GatewayData, LpRegistrationRequest, LpRegistrationResponse};
 use nym_wireguard_types::PeerPublicKey;
 use std::net::IpAddr;
@@ -112,7 +113,13 @@ impl NestedLpSession {
     /// - Forwarding through entry gateway fails
     /// - Exit gateway handshake fails
     /// - Cryptographic operations fail
-    async fn perform_handshake(&mut self, outer_client: &mut LpRegistrationClient) -> Result<()> {
+    async fn perform_handshake<S>(
+        &mut self,
+        outer_client: &mut LpRegistrationClient<S>,
+    ) -> Result<()>
+    where
+        S: LpTransport + Unpin,
+    {
         tracing::debug!(
             "Starting nested LP handshake with exit gateway {}",
             self.exit_address
@@ -125,7 +132,7 @@ impl NestedLpSession {
 
         let timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .expect("System time before UNIX epoch")
+            .map_err(|_| LpClientError::Other("System time before UNIX epoch".into()))?
             .as_secs();
 
         // Step 2: Generate ClientHello for exit gateway
@@ -170,8 +177,7 @@ impl NestedLpSession {
             }
             LpMessage::Collision => {
                 return Err(LpClientError::Transport(format!(
-                    "Exit gateway returned Collision - receiver_index {} already in use",
-                    receiver_index
+                    "Exit gateway returned Collision - receiver_index {receiver_index} already in use",
                 )));
             }
             other => {
@@ -203,8 +209,7 @@ impl NestedLpSession {
                 }
                 other => {
                     return Err(LpClientError::Transport(format!(
-                        "Unexpected action at handshake start: {:?}",
-                        other
+                        "Unexpected action at handshake start: {other:?}",
                     )));
                 }
             }
@@ -293,14 +298,17 @@ impl NestedLpSession {
     ///
     /// # Returns
     /// * `Ok(GatewayData)` - Exit gateway configuration data on successful registration
-    pub async fn handshake_and_register_with_credential(
+    pub async fn handshake_and_register_with_credential<S>(
         &mut self,
-        outer_client: &mut LpRegistrationClient,
+        outer_client: &mut LpRegistrationClient<S>,
         wg_keypair: &x25519::KeyPair,
         credential: nym_credentials_interface::CredentialSpendingData,
         ticket_type: TicketType,
         client_ip: IpAddr,
-    ) -> Result<GatewayData> {
+    ) -> Result<GatewayData>
+    where
+        S: LpTransport + Unpin,
+    {
         // Step 1: Perform handshake with exit gateway via forwarding
         self.perform_handshake(outer_client).await?;
 
@@ -454,15 +462,18 @@ impl NestedLpSession {
     /// - Forwarding through entry gateway fails
     /// - Response decryption/deserialization fails
     /// - Gateway rejects the registration
-    pub async fn handshake_and_register(
+    pub async fn handshake_and_register<S>(
         &mut self,
-        outer_client: &mut LpRegistrationClient,
+        outer_client: &mut LpRegistrationClient<S>,
         wg_keypair: &x25519::KeyPair,
         gateway_identity: &ed25519::PublicKey,
         bandwidth_controller: &dyn BandwidthTicketProvider,
         ticket_type: TicketType,
         client_ip: IpAddr,
-    ) -> Result<GatewayData> {
+    ) -> Result<GatewayData>
+    where
+        S: LpTransport + Unpin,
+    {
         // Step 1: Perform handshake with exit gateway via forwarding
         self.perform_handshake(outer_client).await?;
 
@@ -628,16 +639,20 @@ impl NestedLpSession {
     ///
     /// # Errors
     /// Returns an error if all retry attempts fail.
-    pub async fn handshake_and_register_with_retry(
+    #[allow(clippy::too_many_arguments)]
+    pub async fn handshake_and_register_with_retry<S>(
         &mut self,
-        outer_client: &mut LpRegistrationClient,
+        outer_client: &mut LpRegistrationClient<S>,
         wg_keypair: &x25519::KeyPair,
         gateway_identity: &ed25519::PublicKey,
         bandwidth_controller: &dyn BandwidthTicketProvider,
         ticket_type: TicketType,
         client_ip: IpAddr,
         max_retries: u32,
-    ) -> Result<GatewayData> {
+    ) -> Result<GatewayData>
+    where
+        S: LpTransport + Unpin,
+    {
         tracing::debug!(
             "Starting resilient exit registration (max_retries={})",
             max_retries
@@ -719,12 +734,15 @@ impl NestedLpSession {
     /// 2. Serializes the packet with outer encryption
     /// 3. Forwards via entry gateway
     /// 4. Parses and returns the response
-    async fn send_and_receive_via_forward(
+    async fn send_and_receive_via_forward<S>(
         &self,
-        outer_client: &mut LpRegistrationClient,
+        outer_client: &mut LpRegistrationClient<S>,
         state_machine: &LpStateMachine,
         packet: &LpPacket,
-    ) -> Result<LpPacket> {
+    ) -> Result<LpPacket>
+    where
+        S: LpTransport + Unpin,
+    {
         let send_key = Self::get_send_key(state_machine);
         let packet_bytes = Self::serialize_packet(packet, send_key.as_ref())?;
         let response_bytes = outer_client

@@ -3,14 +3,32 @@
 
 use crate::mocks::shared::InnerWrapper;
 use futures::ready;
+use std::fmt::{Display, Formatter};
 use std::io;
 use std::pin::Pin;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicU8, Ordering};
 use std::task::{Context, Poll};
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tracing::trace;
 
 const INIT_ID: &str = "initialiser";
 const RECV_ID: &str = "recipient";
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Side {
+    Initialiser,
+    Recipient,
+}
+
+impl Display for Side {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Side::Initialiser => INIT_ID.fmt(f),
+            Side::Recipient => RECV_ID.fmt(f),
+        }
+    }
+}
 
 // sending buffer of the first stream is the receiving buffer of the second stream
 // and vice versa
@@ -23,7 +41,10 @@ pub fn mock_io_streams() -> (MockIOStream, MockIOStream) {
 
 pub struct MockIOStream {
     // identifier to use for logging purposes
-    id: &'static str,
+    id: Arc<AtomicU8>,
+
+    // side of the stream to use for logging purposes
+    side: Side,
 
     // messages to send
     tx: InnerWrapper<Vec<u8>>,
@@ -35,7 +56,8 @@ pub struct MockIOStream {
 impl Default for MockIOStream {
     fn default() -> Self {
         MockIOStream {
-            id: INIT_ID,
+            id: Arc::new(AtomicU8::new(0)),
+            side: Side::Initialiser,
             tx: Default::default(),
             rx: Default::default(),
         }
@@ -45,14 +67,19 @@ impl Default for MockIOStream {
 impl MockIOStream {
     #[allow(clippy::panic)]
     fn make_connection(&self) -> Self {
-        if self.id != INIT_ID {
+        if self.side != Side::Initialiser {
             panic!("attempted to make invalid connection")
         }
         MockIOStream {
-            id: RECV_ID,
+            id: self.id.clone(),
+            side: Side::Recipient,
             tx: self.rx.cloned_buffer(),
             rx: self.tx.cloned_buffer(),
         }
+    }
+
+    pub fn set_id(&self, id: u8) {
+        self.id.store(id, Ordering::Relaxed)
     }
 
     // the prefix `try_` is due to the fact that if the mock is cloned at an invalid state,
@@ -71,6 +98,25 @@ impl MockIOStream {
     #[allow(clippy::unwrap_used)]
     pub fn unchecked_rx_data(&self) -> Vec<u8> {
         self.rx.buffer.try_lock().unwrap().content.clone()
+    }
+
+    fn log_read(&self, bytes: usize) {
+        let id = self.id.load(Ordering::Relaxed);
+        if id == 0 {
+            trace!("[{}] read {bytes} bytes from mock stream", self.side)
+        } else {
+            trace!("[{}-{id}] read {bytes} bytes from mock stream", self.side)
+        }
+    }
+
+    fn log_write(&self, bytes: usize) {
+        let id = self.id.load(Ordering::Relaxed);
+
+        if id == 0 {
+            trace!("[{}] wrote {bytes} bytes to mock stream", self.side)
+        } else {
+            trace!("[{}-{id}] wrote {bytes} bytes to mock stream", self.side)
+        }
     }
 }
 
@@ -98,7 +144,7 @@ impl AsyncRead for MockIOStream {
             return Poll::Pending;
         }
 
-        trace!("{}: read {} bytes from mock stream", self.id, data.len());
+        self.log_read(data.len());
         // if let Some(waker) = guard.waker.take() {
         //     waker.wake();
         // }
@@ -135,7 +181,7 @@ impl AsyncWrite for MockIOStream {
         //     return Poll::Pending;
         // }
 
-        trace!("{}: wrote {len} bytes to mock stream", self.id);
+        self.log_write(buf.len());
 
         Poll::Ready(Ok(len))
     }

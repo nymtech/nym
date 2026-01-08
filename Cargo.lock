@@ -4016,12 +4016,14 @@ dependencies = [
  "nym-credentials-interface",
  "nym-crypto",
  "nym-gateway",
+ "nym-lp-transport",
  "nym-registration-client",
  "nym-test-utils",
  "nym-wireguard",
  "sqlx",
  "tokio",
  "tokio-util",
+ "tracing",
 ]
 
 [[package]]
@@ -6240,6 +6242,7 @@ dependencies = [
  "nym-ip-packet-router",
  "nym-kcp",
  "nym-lp",
+ "nym-lp-transport",
  "nym-metrics",
  "nym-mixnet-client",
  "nym-network-defaults",
@@ -6745,6 +6748,14 @@ dependencies = [
 [[package]]
 name = "nym-lp-common"
 version = "0.1.0"
+
+[[package]]
+name = "nym-lp-transport"
+version = "0.1.0"
+dependencies = [
+ "nym-test-utils",
+ "tokio",
+]
 
 [[package]]
 name = "nym-metrics"
@@ -7331,9 +7342,9 @@ dependencies = [
  "nym-crypto",
  "nym-ip-packet-client",
  "nym-lp",
+ "nym-lp-transport",
  "nym-registration-common",
  "nym-sdk",
- "nym-test-utils",
  "nym-validator-client",
  "nym-wireguard-types",
  "rand 0.8.5",

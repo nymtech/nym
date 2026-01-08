@@ -78,6 +78,7 @@ nym-service-provider-requests-common = { path = "../common/service-provider-requ
 
 # LP dependencies
 nym-lp = { path = "../common/nym-lp" }
+nym-lp-transport = { path = "../common/nym-lp-transport" }
 nym-kcp = { path = "../common/nym-kcp" }
 nym-registration-common = { path = "../common/registration" }
 bytes = { workspace = true }

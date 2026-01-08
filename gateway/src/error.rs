@@ -124,7 +124,7 @@ pub enum GatewayError {
     },
 
     #[error("{0}")]
-    CredentialVefiricationError(#[from] nym_credential_verification::Error),
+    CredentialVerificationError(#[from] nym_credential_verification::Error),
 
     #[error("LP connection error: {0}")]
     LpConnectionError(String),

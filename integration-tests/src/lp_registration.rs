@@ -25,15 +25,14 @@ mod tests {
         RegisteredResponse, mock_peer_controller,
     };
     use nym_wireguard::{IpPool, WireguardConfig};
-    use std::any::Any;
     use std::mem;
     use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
-    use std::str::FromStr;
     use std::sync::Arc;
     use tokio::sync::Semaphore;
     use tokio::sync::mpsc::Receiver;
     use tokio::task::JoinHandle;
     use tokio_util::sync::CancellationToken;
+    use tracing::error;
 
     trait WgKeyConv {
         fn to_wg_key(self) -> KeyWrapper;
@@ -91,19 +90,32 @@ mod tests {
         Invalid,
     }
 
-    struct EntryGateway {
+    enum SpawnedLpConnectionHandlerState {
+        NotCreated,
+        Ready {
+            handler: LpConnectionHandler<MockIOStream>,
+        },
+        Running {
+            handle: JoinHandle<Option<Result<(), GatewayError>>>,
+        },
+        Finished,
+    }
+
+    struct Gateway {
         base: Party,
         lp_state: LpHandlerState,
         ip_pool: IpPool,
+        // might be used later for mixnet registration tests
+        #[allow(unused)]
         mix_receiver: MixForwardingReceiver,
         mock_peer_controller: SpawnedPeerController,
-        mock_peer_controller_state: MockPeerControllerState,
 
-        handle_cancellation: CancellationToken,
-        handler_handle: Option<JoinHandle<Option<Result<(), GatewayError>>>>,
+        tasks_cancellation: CancellationToken,
+        mock_peer_controller_state: MockPeerControllerState,
+        lp_connection_handler: SpawnedLpConnectionHandlerState,
     }
 
-    impl EntryGateway {
+    impl Gateway {
         async fn register_peer_controller_response(
             &self,
             request: PeerControlRequestType,
@@ -219,7 +231,7 @@ mod tests {
                 forward_semaphore,
             };
 
-            Ok(EntryGateway {
+            Ok(Gateway {
                 base,
                 lp_state,
                 ip_pool: Self::ip_pool(),
@@ -228,26 +240,68 @@ mod tests {
                     controller: mock_peer_controller,
                 },
                 mock_peer_controller_state: peer_controller_state,
-                handle_cancellation: Default::default(),
-                handler_handle: None,
+                tasks_cancellation: Default::default(),
+                lp_connection_handler: SpawnedLpConnectionHandlerState::NotCreated,
             })
         }
 
-        fn spawn_lp_handler(
+        fn create_lp_handler(
             &mut self,
             client_connection: MockIOStream,
             client_address: SocketAddr,
         ) {
-            assert!(self.handler_handle.is_none());
-            let mut gateway_lp_handler =
-                LpConnectionHandler::new(client_connection, client_address, self.lp_state.clone());
+            let SpawnedLpConnectionHandlerState::NotCreated = self.lp_connection_handler else {
+                panic!("lp connection handler in invalid state")
+            };
 
-            let cancellation_token = self.handle_cancellation.clone();
-            self.handler_handle = Some(tokio::spawn(async move {
-                cancellation_token
-                    .run_until_cancelled(gateway_lp_handler.handle())
-                    .await
-            }));
+            self.lp_connection_handler = SpawnedLpConnectionHandlerState::Ready {
+                handler: LpConnectionHandler::new(
+                    client_connection,
+                    client_address,
+                    self.lp_state.clone(),
+                ),
+            };
+        }
+
+        async fn establish_forwarding_channel(
+            &mut self,
+            exit_address: SocketAddr,
+        ) -> anyhow::Result<MockIOStream> {
+            let SpawnedLpConnectionHandlerState::Ready { handler } =
+                &mut self.lp_connection_handler
+            else {
+                panic!("lp connection handler in invalid state")
+            };
+
+            handler.establish_exit_stream(exit_address).await?;
+            Ok(handler
+                .forwarding_channel()
+                .as_ref()
+                .context("mock connection has failed!")?
+                .0
+                .try_get_remote_handle())
+        }
+
+        fn spawn_lp_handler(&mut self) {
+            let SpawnedLpConnectionHandlerState::Ready { handler } = mem::replace(
+                &mut self.lp_connection_handler,
+                SpawnedLpConnectionHandlerState::NotCreated,
+            ) else {
+                panic!("lp connection handler in invalid state")
+            };
+            let cancellation_token = self.tasks_cancellation.clone();
+
+            self.lp_connection_handler = SpawnedLpConnectionHandlerState::Running {
+                handle: tokio::spawn(async move {
+                    let handler_future = async move {
+                        handler
+                            .handle()
+                            .await
+                            .inspect_err(|err| error!("lp handler has failed: {err}"))
+                    };
+                    cancellation_token.run_until_cancelled(handler_future).await
+                }),
+            }
         }
 
         fn spawn_peer_controller(&mut self) {
@@ -258,7 +312,7 @@ mod tests {
                 panic!("mock peer controller in invalid state")
             };
 
-            let cancellation_token = self.handle_cancellation.clone();
+            let cancellation_token = self.tasks_cancellation.clone();
             let join_handle = tokio::spawn(async move {
                 cancellation_token
                     .run_until_cancelled(controller.run())
@@ -271,34 +325,35 @@ mod tests {
 
         #[allow(clippy::panic)]
         async fn stop_tasks(&mut self) -> anyhow::Result<()> {
-            self.handle_cancellation.cancel();
+            self.tasks_cancellation.cancel();
 
-            if let Some(handle) = self.handler_handle.take() {
-                if let Some(Err(err)) = handle.timeboxed().await?.context("join failure")? {
-                    panic!("gateway handler failure: {err}")
-                }
-            }
+            let SpawnedLpConnectionHandlerState::Running { handle: lp_handle } = mem::replace(
+                &mut self.lp_connection_handler,
+                SpawnedLpConnectionHandlerState::NotCreated,
+            ) else {
+                panic!("lp connection handler in invalid state")
+            };
 
-            let SpawnedPeerController::Running { handle } = mem::replace(
+            let SpawnedPeerController::Running {
+                handle: peer_controller_handle,
+            } = mem::replace(
                 &mut self.mock_peer_controller,
                 SpawnedPeerController::Invalid,
-            ) else {
+            )
+            else {
                 panic!("mock peer controller in invalid state")
             };
 
-            handle.timeboxed().await?.context("join failure")?;
+            lp_handle.timeboxed().await?.context("join failure")?;
+            peer_controller_handle
+                .timeboxed()
+                .await?
+                .context("join failure")?;
             self.mock_peer_controller = SpawnedPeerController::Finished;
+            self.lp_connection_handler = SpawnedLpConnectionHandlerState::Finished;
 
             Ok(())
         }
-    }
-
-    fn mock_client_address() -> SocketAddr {
-        SocketAddr::from(([1, 2, 3, 4], 5678))
-    }
-
-    fn mock_gateway_address() -> SocketAddr {
-        SocketAddr::from(([8, 7, 6, 5], 4321))
     }
 
     #[cfg(test)]
@@ -311,6 +366,7 @@ mod tests {
     #[cfg(test)]
     mod using_lp_registration_client {
         use super::*;
+        use nym_registration_client::NestedLpSession;
 
         #[tokio::test]
         async fn test_basic_lp_entry_registration() -> anyhow::Result<()> {
@@ -321,7 +377,7 @@ mod tests {
 
             let client_data = Client::mock(&mut client_rng);
             let client_key = *client_data.base.x25519_wg_keys.public_key();
-            let mut entry = EntryGateway::mock(&mut gateway_rng).await?;
+            let mut entry = Gateway::mock(&mut gateway_rng).await?;
 
             let mut client = LpRegistrationClient::<MockIOStream>::new_with_default_psk(
                 client_data.base.ed25519_keys,
@@ -339,7 +395,8 @@ mod tests {
                 .try_get_remote_handle();
 
             // 2. create and spawn gateway handler for the client connection
-            entry.spawn_lp_handler(gateway_conn, client_data.base.socket_addr);
+            entry.create_lp_handler(gateway_conn, client_data.base.socket_addr);
+            entry.spawn_lp_handler();
 
             // 3. register all needed responses for the dvpn registration that will reach the peer controller
             // 1) peer registration - ip pair allocation
@@ -411,8 +468,7 @@ mod tests {
             let mut gateway_rng = u64_seeded_rng(1);
 
             let client_data = Client::mock(&mut client_rng);
-            let client_key = *client_data.base.x25519_wg_keys.public_key();
-            let mut entry = EntryGateway::mock(&mut gateway_rng).await?;
+            let mut entry = Gateway::mock(&mut gateway_rng).await?;
 
             let mut client = LpRegistrationClient::<MockIOStream>::new_with_default_psk(
                 client_data.base.ed25519_keys,
@@ -430,7 +486,8 @@ mod tests {
                 .try_get_remote_handle();
 
             // 2. create and spawn gateway handler for the client connection
-            entry.spawn_lp_handler(gateway_conn, client_data.base.socket_addr);
+            entry.create_lp_handler(gateway_conn, client_data.base.socket_addr);
+            entry.spawn_lp_handler();
 
             // 3. spawn peer controller to be able to handle dvpn registration requests
             // (which we shouldn't receive anyway)
@@ -458,6 +515,182 @@ mod tests {
 
             // 5. stop the gateway task and finish the test
             entry.stop_tasks().await?;
+            Ok(())
+        }
+
+        #[tokio::test]
+        async fn test_basic_lp_exit_registration() -> anyhow::Result<()> {
+            // initialise random, but deterministic, keys, addresses, etc. for the parties
+            let mut client_rng = u64_seeded_rng(0);
+            let mut entry_rng = u64_seeded_rng(1);
+            let mut exit_rng = u64_seeded_rng(2);
+
+            let client_data = Client::mock(&mut client_rng);
+            let client_key = *client_data.base.x25519_wg_keys.public_key();
+            let mut entry = Gateway::mock(&mut entry_rng).await?;
+            let mut exit = Gateway::mock(&mut exit_rng).await?;
+
+            let mut entry_client = LpRegistrationClient::<MockIOStream>::new_with_default_psk(
+                client_data.base.ed25519_keys.clone(),
+                *entry.base.ed25519_keys.public_key(),
+                entry.base.socket_addr,
+                client_data.base.socket_addr.ip(),
+            );
+
+            // START: ENTRY SETUP
+            //
+            // 1. establish mock connection between client and gateway and retrieve gateway's handle
+            entry_client.ensure_connected().await?;
+            let entry_conn = entry_client
+                .connection()
+                .as_ref()
+                .context("mock connection has failed!")?
+                .try_get_remote_handle();
+            entry_conn.set_id(1);
+
+            // 2. create handler for the client connection (entry)
+            entry.create_lp_handler(entry_conn, client_data.base.socket_addr);
+
+            // 3. pre-establish connection between entry and exit
+            let exit_conn = entry
+                .establish_forwarding_channel(exit.base.socket_addr)
+                .await?;
+            exit_conn.set_id(255);
+
+            // 4. register all needed responses for the dvpn registration that will reach the peer controller
+            // 1) peer registration - ip pair allocation
+            let entry_ip_pair = entry.allocate_ip_pair().await;
+            let reg_res = Ok::<_, nym_wireguard::Error>(entry_ip_pair);
+            let public_key = client_key.to_wg_key();
+
+            entry
+                .register_peer_controller_response(
+                    PeerControlRequestType::RegisterPeer { public_key },
+                    reg_res,
+                )
+                .await;
+
+            // 2) new peer inclusion - in non-mock system it would spawn handlers,
+            // here we'll just set a flag and say it's all fine
+            let public_key = client_key.to_wg_key();
+            let add_res = Ok::<_, nym_wireguard::Error>(());
+            entry
+                .register_peer_controller_response(
+                    PeerControlRequestType::AddPeer { public_key },
+                    add_res,
+                )
+                .await;
+
+            // 5. spawn peer controller to be able to handle dvpn registration requests
+            entry.spawn_peer_controller();
+
+            // 6. finally spawn the handler
+            entry.spawn_lp_handler();
+
+            // 7. perform client handshake (with the entry)
+            entry_client.perform_handshake().timeboxed().await??;
+
+            // END: ENTRY SETUP
+            //
+            // START: EXIT SETUP:
+            // 8. create handler for the forwarding channel (exit)
+            exit.create_lp_handler(exit_conn, client_data.base.socket_addr);
+
+            // 9. spawn the handler
+            exit.spawn_lp_handler();
+
+            // 10. register all needed responses for the dvpn registration that will reach the peer controller
+            // 1) peer registration - ip pair allocation
+            let exit_ip_pair = exit.allocate_ip_pair().await;
+            let reg_res = Ok::<_, nym_wireguard::Error>(exit_ip_pair);
+            let public_key = client_key.to_wg_key();
+
+            exit.register_peer_controller_response(
+                PeerControlRequestType::RegisterPeer { public_key },
+                reg_res,
+            )
+            .await;
+
+            // 2) new peer inclusion - in non-mock system it would spawn handlers,
+            // here we'll just set a flag and say it's all fine
+            let public_key = client_key.to_wg_key();
+            let add_res = Ok::<_, nym_wireguard::Error>(());
+            exit.register_peer_controller_response(
+                PeerControlRequestType::AddPeer { public_key },
+                add_res,
+            )
+            .await;
+
+            // 11. spawn peer controller to be able to handle dvpn registration requests
+            exit.spawn_peer_controller();
+
+            // END: EXIT SETUP
+
+            // 12. create nested session to register with exit via forwarding
+            // technically we should use different ephemeral keys than we had for the entry
+            // but crypto is going to work the same
+            let mut nested_session = NestedLpSession::new(
+                exit.base.ed25519_keys.public_key().to_bytes(),
+                exit.base.socket_addr.to_string(),
+                client_data.base.ed25519_keys,
+                *exit.base.ed25519_keys.public_key(),
+            );
+
+            // 13. Perform handshake and registration with exit gateway (all via entry forwarding)
+            let exit_registration_result = nested_session
+                .handshake_and_register(
+                    &mut entry_client,
+                    &client_data.base.x25519_wg_keys,
+                    exit.base.ed25519_keys.public_key(),
+                    &client_data.ticket_provider,
+                    TicketType::V1WireguardExit,
+                    client_data.base.socket_addr.ip(),
+                )
+                .timeboxed()
+                .await??;
+
+            // 14. complete registration with the entry
+            let entry_registration_result = entry_client
+                .register(
+                    &client_data.base.x25519_wg_keys,
+                    entry.base.ed25519_keys.public_key(),
+                    &client_data.ticket_provider,
+                    TicketType::V1WireguardEntry,
+                )
+                .timeboxed()
+                .await??;
+
+            // 15. verify all registration results
+            let peers_guard = entry.mock_peer_controller_state.peers.read().await;
+            let entry_peer = peers_guard.get_by_x25519_key(&client_key).unwrap().clone();
+            drop(peers_guard);
+            assert!(entry_peer.register_success);
+            assert!(entry_peer.add_success);
+
+            let peers_guard = exit.mock_peer_controller_state.peers.read().await;
+            let exit_peer = peers_guard.get_by_x25519_key(&client_key).unwrap().clone();
+            drop(peers_guard);
+            assert!(exit_peer.register_success);
+            assert!(exit_peer.add_success);
+
+            assert_eq!(entry_registration_result.private_ipv4, entry_ip_pair.ipv4);
+            assert_eq!(entry_registration_result.private_ipv6, entry_ip_pair.ipv6);
+            assert_eq!(
+                entry_registration_result.public_key,
+                *entry.base.x25519_wg_keys.public_key()
+            );
+
+            assert_eq!(exit_registration_result.private_ipv4, exit_ip_pair.ipv4);
+            assert_eq!(exit_registration_result.private_ipv6, exit_ip_pair.ipv6);
+            assert_eq!(
+                exit_registration_result.public_key,
+                *exit.base.x25519_wg_keys.public_key()
+            );
+
+            // 16. stop the gateway task and finish the test
+            entry.stop_tasks().await?;
+            exit.stop_tasks().await?;
+
             Ok(())
         }
     }

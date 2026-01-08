@@ -3,17 +3,15 @@
 
 use tokio_util::sync::CancellationToken;
 
-use nym_authenticator_client::{
-    AuthClientMixnetListener, AuthClientMixnetListenerHandle, AuthenticatorClient,
-};
+use crate::config::RegistrationClientConfig;
+use nym_authenticator_client::{AuthClientMixnetListener, AuthenticatorClient};
 use nym_bandwidth_controller::BandwidthTicketProvider;
 use nym_credentials_interface::TicketType;
 use nym_ip_packet_client::IprClientConnect;
 use nym_registration_common::AssignedAddresses;
 use nym_sdk::mixnet::{EventReceiver, MixnetClient, Recipient};
 use std::sync::Arc;
-
-use crate::config::RegistrationClientConfig;
+use tokio::net::TcpStream;
 
 mod builder;
 mod config;
@@ -28,9 +26,7 @@ pub use builder::config::{
 };
 pub use config::RegistrationMode;
 pub use error::RegistrationClientError;
-pub use lp_client::{
-    LpConfig, LpRegistrationClient, NestedLpSession, error::LpClientError, traits::LpTransportLayer,
-};
+pub use lp_client::{LpConfig, LpRegistrationClient, NestedLpSession, error::LpClientError};
 pub use types::{
     LpRegistrationResult, MixnetRegistrationResult, RegistrationResult, WireguardRegistrationResult,
 };
@@ -171,8 +167,8 @@ impl RegistrationClient {
             },
         )?;
 
-        tracing::debug!("Entry gateway LP address: {}", entry_lp_address);
-        tracing::debug!("Exit gateway LP address: {}", exit_lp_address);
+        tracing::debug!("Entry gateway LP address: {entry_lp_address}");
+        tracing::debug!("Exit gateway LP address: {exit_lp_address}");
 
         // Generate fresh Ed25519 keypairs for LP registration
         // These are ephemeral and used only for the LP handshake protocol
@@ -185,7 +181,7 @@ impl RegistrationClient {
         // This creates the LP session that will be used to forward packets to exit.
         // Uses packet-per-connection model: each handshake packet on new TCP connection.
         tracing::info!("Establishing outer session with entry gateway");
-        let mut entry_client = LpRegistrationClient::new_with_default_psk(
+        let mut entry_client = LpRegistrationClient::<TcpStream>::new_with_default_psk(
             entry_lp_keypair.clone(),
             self.config.entry.node.identity,
             entry_lp_address,
@@ -215,7 +211,7 @@ impl RegistrationClient {
 
         // Perform handshake and registration with exit gateway (all via entry forwarding)
         let exit_gateway_data = nested_session
-            .handshake_and_register(
+            .handshake_and_register::<TcpStream>(
                 &mut entry_client,
                 &self.config.exit.keys,
                 &self.config.exit.node.identity,

@@ -487,6 +487,25 @@ configure_dns_and_icmp_wg() {
   ok "dns and icmp configuration completed"
 }
 
+apply_smtps_465_rate_limit() {
+  info "adding SMTPS tcp/465 rules with rate limiting to ${NYM_CHAIN}"
+
+  # IPv4
+  iptables -A "$NYM_CHAIN" -p tcp --dport 465 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+  iptables -A "$NYM_CHAIN" -p tcp --dport 465 -m conntrack --ctstate NEW -m hashlimit \
+    --hashlimit-upto 30/min --hashlimit-burst 60 --hashlimit-mode srcip --hashlimit-name smtps465v4 -j ACCEPT
+  iptables -A "$NYM_CHAIN" -p tcp --dport 465 -m conntrack --ctstate NEW -j REJECT --reject-with tcp-reset
+
+  # IPv6
+  ip6tables -A "$NYM_CHAIN" -p tcp --dport 465 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+  ip6tables -A "$NYM_CHAIN" -p tcp --dport 465 -m conntrack --ctstate NEW -m hashlimit \
+    --hashlimit-upto 30/min --hashlimit-burst 60 --hashlimit-mode srcip --hashlimit-name smtps465v6 -j ACCEPT
+  ip6tables -A "$NYM_CHAIN" -p tcp --dport 465 -m conntrack --ctstate NEW -j REJECT --reject-with tcp-reset
+
+  ok "SMTPS tcp/465 installed: NEW <= 30/min burst 60 per srcip; overflow rejected; ESTABLISHED allowed"
+}
+
+
 ###############################################################################
 # part 2: wireguard exit policy manager
 ###############################################################################
@@ -511,42 +530,6 @@ add_port_rules() {
       ok "added $cmd $NYM_CHAIN $protocol port $port"
     fi
   fi
-}
-
-apply_smtps_465_rate_limit() {
-  info "adding SMTPS(465) with per-source NEW-connection rate limit (spam protection)"
-
-  # IPv4 - allow established traffic for existing SMTPS sessions
-  iptables -C "$NYM_CHAIN" -p tcp --dport 465 -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT 2>/dev/null || \
-    iptables -I "$NYM_CHAIN" 5 -p tcp --dport 465 -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
-
-  # allow NEW connections but rate-limited per source IP
-  iptables -C "$NYM_CHAIN" -p tcp --dport 465 -m conntrack --ctstate NEW \
-    -m hashlimit --hashlimit 10/min --hashlimit-burst 30 --hashlimit-mode srcip --hashlimit-name smtps465v4 \
-    -j ACCEPT 2>/dev/null || \
-    iptables -I "$NYM_CHAIN" 6 -p tcp --dport 465 -m conntrack --ctstate NEW \
-      -m hashlimit --hashlimit 10/min --hashlimit-burst 30 --hashlimit-mode srcip --hashlimit-name smtps465v4 \
-      -j ACCEPT
-
-  # drop NEW connections above the limit - quiet
-  iptables -C "$NYM_CHAIN" -p tcp --dport 465 -m conntrack --ctstate NEW -j DROP 2>/dev/null || \
-    iptables -I "$NYM_CHAIN" 7 -p tcp --dport 465 -m conntrack --ctstate NEW -j DROP
-
-  # IPv6 - same logic
-  ip6tables -C "$NYM_CHAIN" -p tcp --dport 465 -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT 2>/dev/null || \
-    ip6tables -I "$NYM_CHAIN" 5 -p tcp --dport 465 -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
-
-  ip6tables -C "$NYM_CHAIN" -p tcp --dport 465 -m conntrack --ctstate NEW \
-    -m hashlimit --hashlimit 10/min --hashlimit-burst 30 --hashlimit-mode srcip --hashlimit-name smtps465v6 \
-    -j ACCEPT 2>/dev/null || \
-    ip6tables -I "$NYM_CHAIN" 6 -p tcp --dport 465 -m conntrack --ctstate NEW \
-      -m hashlimit --hashlimit 10/min --hashlimit-burst 30 --hashlimit-mode srcip --hashlimit-name smtps465v6 \
-      -j ACCEPT
-
-  ip6tables -C "$NYM_CHAIN" -p tcp --dport 465 -m conntrack --ctstate NEW -j DROP 2>/dev/null || \
-    ip6tables -I "$NYM_CHAIN" 7 -p tcp --dport 465 -m conntrack --ctstate NEW -j DROP
-
-  ok "SMTPS(465) enabled with rate limit: 10 NEW/min burst 30 per source"
 }
 
 exit_policy_install_deps() {
@@ -652,7 +635,8 @@ apply_port_allowlist() {
     ["HTTPS"]="443"
     ["SMBWindowsFileShare"]="445"
     ["Kpasswd"]="464"
-    ["SMTP"]="465"
+    # this port is opened and rate limited in apply_smtps_465_rate_limit
+    # ["SMTP"]="465" 
     ["RTSP"]="554"
     ["SMTPSubmission"]="587"
     ["LDAPS"]="636"

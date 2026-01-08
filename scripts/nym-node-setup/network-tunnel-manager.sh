@@ -343,26 +343,28 @@ remove_duplicate_rules() {
 
 apply_iptables_rules() {
   local interface=$1
-  info "applying NAT/forward rules for $interface using uplink $NETWORK_DEVICE"
+  info "applying iptables rules for $interface using uplink $NETWORK_DEVICE"
+  sleep 1
 
-  # always NAT
-  iptables  -t nat -C POSTROUTING -o "$NETWORK_DEVICE" -j MASQUERADE 2>/dev/null || \
-    iptables  -t nat -A POSTROUTING -o "$NETWORK_DEVICE" -j MASQUERADE
+  # ipv4 nat and forwarding
+  iptables -t nat -C POSTROUTING -o "$NETWORK_DEVICE" -j MASQUERADE 2>/dev/null || \
+    iptables -t nat -A POSTROUTING -o "$NETWORK_DEVICE" -j MASQUERADE
+
+  iptables -C FORWARD -i "$interface" -o "$NETWORK_DEVICE" -j ACCEPT 2>/dev/null || \
+    iptables -I FORWARD 1 -i "$interface" -o "$NETWORK_DEVICE" -j ACCEPT
+
+  iptables -C FORWARD -i "$NETWORK_DEVICE" -o "$interface" -m state --state RELATED,ESTABLISHED -j ACCEPT 2>/dev/null || \
+    iptables -I FORWARD 2 -i "$NETWORK_DEVICE" -o "$interface" -m state --state RELATED,ESTABLISHED -j ACCEPT
+
+  # ipv6 nat and forwarding
   ip6tables -t nat -C POSTROUTING -o "$NETWORK_DEVICE" -j MASQUERADE 2>/dev/null || \
     ip6tables -t nat -A POSTROUTING -o "$NETWORK_DEVICE" -j MASQUERADE
 
-  # only add broad FORWARD accepts for the MIXNET tunnel, not for WG exit policy
-  if [[ "$interface" == "$TUNNEL_INTERFACE" ]]; then
-    iptables -C FORWARD -i "$interface" -o "$NETWORK_DEVICE" -j ACCEPT 2>/dev/null || \
-      iptables -I FORWARD 1 -i "$interface" -o "$NETWORK_DEVICE" -j ACCEPT
-    iptables -C FORWARD -i "$NETWORK_DEVICE" -o "$interface" -m state --state RELATED,ESTABLISHED -j ACCEPT 2>/dev/null || \
-      iptables -I FORWARD 2 -i "$NETWORK_DEVICE" -o "$interface" -m state --state RELATED,ESTABLISHED -j ACCEPT
+  ip6tables -C FORWARD -i "$interface" -o "$NETWORK_DEVICE" -j ACCEPT 2>/dev/null || \
+    ip6tables -I FORWARD 1 -i "$interface" -o "$NETWORK_DEVICE" -j ACCEPT
 
-    ip6tables -C FORWARD -i "$interface" -o "$NETWORK_DEVICE" -j ACCEPT 2>/dev/null || \
-      ip6tables -I FORWARD 1 -i "$interface" -o "$NETWORK_DEVICE" -j ACCEPT
-    ip6tables -C FORWARD -i "$NETWORK_DEVICE" -o "$interface" -m state --state RELATED,ESTABLISHED -j ACCEPT 2>/dev/null || \
-      ip6tables -I FORWARD 2 -i "$NETWORK_DEVICE" -o "$interface" -m state --state RELATED,ESTABLISHED -j ACCEPT
-  fi
+  ip6tables -C FORWARD -i "$NETWORK_DEVICE" -o "$interface" -m state --state RELATED,ESTABLISHED -j ACCEPT 2>/dev/null || \
+    ip6tables -I FORWARD 2 -i "$NETWORK_DEVICE" -o "$interface" -m state --state RELATED,ESTABLISHED -j ACCEPT
 
   save_iptables_rules
 }
@@ -550,19 +552,23 @@ create_nym_chain() {
   else
     iptables -N "$NYM_CHAIN"
   fi
+
   if ip6tables -S "$NYM_CHAIN" >/dev/null 2>&1; then
     ip6tables -F "$NYM_CHAIN"
   else
     ip6tables -N "$NYM_CHAIN"
   fi
 
-  # remove ANY existing FORWARD -> NYM-EXIT jumps so ordering is deterministic
-  while iptables -C FORWARD -j "$NYM_CHAIN" 2>/dev/null; do
-    iptables -D FORWARD -j "$NYM_CHAIN" || break
-  done
-  while ip6tables -C FORWARD -j "$NYM_CHAIN" 2>/dev/null; do
-    ip6tables -D FORWARD -j "$NYM_CHAIN" || break
-  done
+  # remove *all* FORWARD -> NYM-EXIT jumps 
+  while read -r rule; do
+    spec="${rule#-A FORWARD }"
+    iptables -D FORWARD $spec 2>/dev/null || true
+  done < <(iptables -S FORWARD | grep -F " -j $NYM_CHAIN" || true)
+
+  while read -r rule; do
+    spec="${rule#-A FORWARD }"
+    ip6tables -D FORWARD $spec 2>/dev/null || true
+  done < <(ip6tables -S FORWARD | grep -F " -j $NYM_CHAIN" || true)
 
   # add the single correct hook
   iptables  -I FORWARD 1 -i "$WG_INTERFACE" -o "$NETWORK_DEVICE" -j "$NYM_CHAIN"
@@ -572,17 +578,30 @@ create_nym_chain() {
 }
 
 
-
 setup_nat_rules() {
-  info "setting up NAT (no FORWARD inserts) for $WG_INTERFACE via $NETWORK_DEVICE"
+  info "setting up nat and forwarding rules for $WG_INTERFACE via $NETWORK_DEVICE"
 
-  iptables  -t nat -C POSTROUTING -o "$NETWORK_DEVICE" -j MASQUERADE 2>/dev/null || \
-    iptables  -t nat -A POSTROUTING -o "$NETWORK_DEVICE" -j MASQUERADE
-
-  ip6tables -t nat -C POSTROUTING -o "$NETWORK_DEVICE" -j MASQUERADE 2>/dev/null || \
+  if ! iptables -t nat -C POSTROUTING -o "$NETWORK_DEVICE" -j MASQUERADE 2>/dev/null; then
+    iptables -t nat -A POSTROUTING -o "$NETWORK_DEVICE" -j MASQUERADE
+  fi
+  if ! ip6tables -t nat -C POSTROUTING -o "$NETWORK_DEVICE" -j MASQUERADE 2>/dev/null; then
     ip6tables -t nat -A POSTROUTING -o "$NETWORK_DEVICE" -j MASQUERADE
-}
+  fi
 
+  if ! iptables -C FORWARD -i "$WG_INTERFACE" -o "$NETWORK_DEVICE" -j ACCEPT 2>/dev/null; then
+    iptables -I FORWARD 1 -i "$WG_INTERFACE" -o "$NETWORK_DEVICE" -j ACCEPT
+  fi
+  if ! iptables -C FORWARD -i "$NETWORK_DEVICE" -o "$WG_INTERFACE" -m state --state RELATED,ESTABLISHED -j ACCEPT 2>/dev/null; then
+    iptables -I FORWARD 2 -i "$NETWORK_DEVICE" -o "$WG_INTERFACE" -m state --state RELATED,ESTABLISHED -j ACCEPT
+  fi
+
+  if ! ip6tables -C FORWARD -i "$WG_INTERFACE" -o "$NETWORK_DEVICE" -j ACCEPT 2>/dev/null; then
+    ip6tables -I FORWARD 1 -i "$WG_INTERFACE" -o "$NETWORK_DEVICE" -j ACCEPT
+  fi
+  if ! ip6tables -C FORWARD -i "$NETWORK_DEVICE" -o "$WG_INTERFACE" -m state --state RELATED,ESTABLISHED -j ACCEPT 2>/dev/null; then
+    ip6tables -I FORWARD 2 -i "$NETWORK_DEVICE" -o "$WG_INTERFACE" -m state --state RELATED,ESTABLISHED -j ACCEPT
+  fi
+}
 
 configure_exit_dns_and_icmp() {
   info "ensuring dns and icmp are allowed inside nym exit chain"

@@ -80,6 +80,7 @@ impl AuthenticatorClient {
     }
 
     async fn send_request(&self, message: &ClientMessage) -> Result<u64> {
+        debug!("Request that will be sent : {:#?}", message);
         let serialised = message.bytes(self.our_nym_address)?;
         let data = serialised.bytes;
         let request_id = serialised.request_id;
@@ -97,6 +98,7 @@ impl AuthenticatorClient {
             IncludedSurbs::ExposeSelfAddress
         };
         let input_message = helpers::create_input_message(self.auth_recipient, data, surbs);
+        debug!("Message that will be sent : {:#?}", input_message);
 
         self.mixnet_sender
             .send(input_message)

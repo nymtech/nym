@@ -8,15 +8,13 @@
 
 use defguard_wireguard_rs::{WGApi, WireguardInterfaceApi, host::Peer, key::Key, net::IpAddrMask};
 use nym_crypto::asymmetric::x25519::KeyPair;
-use std::sync::Arc;
 use std::net::IpAddr;
+use std::sync::Arc;
 use tokio::sync::mpsc::{self, Receiver, Sender};
 use tracing::error;
 
 #[cfg(target_os = "linux")]
 use nym_ip_packet_requests::IpPair;
-#[cfg(target_os = "linux")]
-use std::net::IpAddr;
 
 #[cfg(target_os = "linux")]
 use nym_network_defaults::constants::WG_TUN_BASE_NAME;
@@ -227,14 +225,22 @@ pub async fn start_wireguard(
     let interface_config = InterfaceConfiguration {
         name: ifname.clone(),
         prvkey: BASE64_STANDARD.encode(wireguard_data.inner.keypair().private_key().to_bytes()),
-        addresses: vec![IpAddrMask::host(IpAddr::from(wireguard_data.inner.config().private_ipv4))],
+        addresses: vec![IpAddrMask::host(IpAddr::from(
+            wireguard_data.inner.config().private_ipv4,
+        ))],
         port: wireguard_data.inner.config().announced_tunnel_port,
         peers: peers.clone(), // Clone since we need to use peers later to mark IPs as used
         mtu: None,
     };
     info!(
         "attempting to configure wireguard interface '{ifname}': addresses=[{}], port={}",
-        interface_config.addresses.iter().map(|s| s.to_string()).collect::<Vec<_>>().join(", "), interface_config.port
+        interface_config
+            .addresses
+            .iter()
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>()
+            .join(", "),
+        interface_config.port
     );
 
     info!("Configuring WireGuard interface...");

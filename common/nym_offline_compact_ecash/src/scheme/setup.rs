@@ -3,9 +3,9 @@
 
 use crate::ecash_group_parameters;
 use crate::utils::hash_g1;
-use bls12_381::{G1Affine, G1Projective, G2Affine, G2Prepared, Scalar};
 use ff::Field;
 use group::GroupEncoding;
+use nym_bls12_381_fork::{G1Affine, G1Projective, G2Affine, G2Prepared, Scalar};
 use rand::thread_rng;
 
 #[derive(Debug)]

@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::DkgError;
-use bls12_381::Scalar;
 use core::iter::Sum;
 use core::ops::Mul;
+use nym_bls12_381_fork::Scalar;
 use std::collections::HashSet;
 
 pub mod polynomial;

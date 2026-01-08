@@ -3,8 +3,8 @@
 
 use crate::utils::try_deserialize_g1_projective;
 use crate::{CompactEcashError, EncodedDate, EncodedTicketType};
-use bls12_381::{G1Projective, Scalar};
 use group::Curve;
+use nym_bls12_381_fork::{G1Projective, Scalar};
 use std::any::{type_name, Any};
 
 pub(crate) fn g1_tuple_to_bytes(el: (G1Projective, G1Projective)) -> [u8; 96] {

@@ -3,9 +3,9 @@
 
 use crate::error::DkgError;
 use crate::utils::deserialize_g2;
-use bls12_381::{G2Projective, Scalar};
 use ff::Field;
 use group::GroupEncoding;
+use nym_bls12_381_fork::{G2Projective, Scalar};
 use rand::CryptoRng;
 use rand_core::RngCore;
 use std::ops::{Add, Index, IndexMut};

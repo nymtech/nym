@@ -1,9 +1,9 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use bls12_381::{G1Projective, G2Affine, G2Prepared, Scalar};
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use ff::Field;
+use nym_bls12_381_fork::{G1Projective, G2Affine, G2Prepared, Scalar};
 use nym_dkg::bte::encryption::BabyStepGiantStepLookup;
 use nym_dkg::bte::proof_chunking::ProofOfChunking;
 use nym_dkg::bte::proof_discrete_log::ProofOfDiscreteLog;

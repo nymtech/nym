@@ -11,9 +11,9 @@ description = "Nym's Distributed Key Generation functionality"
 [dependencies]
 bitvec = { workspace = true }
 
-# unfortunately until https://github.com/zkcrypto/bls12_381/issues/10 is resolved, we have to rely on the fork
+# unfortunately until https://github.com/zkcrypto/nym-bls12_381-fork/issues/10 is resolved, we have to rely on the fork
 # as we need to be able to serialize Gt so that we could create the lookup table for baby-step-giant-step algorithm
-bls12_381 = { workspace = true, default-features = false, features = ["alloc", "pairings", "experimental", "zeroize"] }
+nym-bls12_381-fork = { workspace = true, features = ["alloc", "pairings", "experimental", "zeroize"] }
 nym-contracts-common = { workspace = true, optional = true }
 bs58 = { workspace = true }
 

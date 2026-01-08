@@ -12,7 +12,7 @@ description = "Interface for Nym's compact eacash / zknym credential scheme"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-bls12_381 = { workspace = true, default-features = false }
+nym-bls12_381-fork = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 thiserror = { workspace = true }
 strum = { workspace = true, features = ["derive"] }

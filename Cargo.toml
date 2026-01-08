@@ -486,10 +486,10 @@ nym-wasm-storage = { version = "1.20.1", path = "common/wasm/storage" }
 nym-wasm-utils = { version = "1.20.1", path = "common/wasm/utils", default-features = false }
 
 # coconut/DKG related
-# unfortunately until https://github.com/zkcrypto/bls12_381/issues/10 is resolved, we have to rely on the fork
+# unfortunately until https://github.com/zkcrypto/nym-bls12_381-fork/issues/10 is resolved, we have to rely on the fork
 # as we need to be able to serialize Gt so that we could create the lookup table for baby-step-giant-step algorithm
-# plus to make our live easier we need serde support from https://github.com/zkcrypto/bls12_381/pull/125
-bls12_381 = { git = "https://github.com/jstuczyn/bls12_381", default-features = false, branch = "temp/experimental-serdect-updated" }
+# plus to make our live easier we need serde support from https://github.com/zkcrypto/nym-bls12_381-fork/pull/125
+nym-bls12_381-fork = { version = "0.8.0-forked", default-features = false }
 group = { version = "0.13.0", default-features = false }
 ff = { version = "0.13.1", default-features = false }
 subtle = "2.5.0"

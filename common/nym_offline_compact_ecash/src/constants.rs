@@ -1,7 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use bls12_381::Scalar;
+use nym_bls12_381_fork::Scalar;
 use nym_network_defaults::ecash::TICKETBOOK_VALIDITY_DAYS;
 use nym_network_defaults::TICKETBOOK_SIZE;
 

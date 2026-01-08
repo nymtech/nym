@@ -9,6 +9,7 @@
 use defguard_wireguard_rs::{WGApi, WireguardInterfaceApi, host::Peer, key::Key, net::IpAddrMask};
 use nym_crypto::asymmetric::x25519::KeyPair;
 use std::sync::Arc;
+use std::net::IpAddr;
 use tokio::sync::mpsc::{self, Receiver, Sender};
 use tracing::error;
 
@@ -205,11 +206,7 @@ pub async fn start_wireguard(
     use tracing::info;
 
     let ifname = String::from(WG_TUN_BASE_NAME);
-    info!(
-        "Initializing WireGuard interface '{}' with use_userspace={}",
-        ifname, use_userspace
-    );
-    let wg_api = defguard_wireguard_rs::WGApi::new(ifname.clone(), use_userspace)?;
+    let mut wg_api = defguard_wireguard_rs::WGApi::new(ifname.clone())?;
     let mut peer_bandwidth_managers = HashMap::with_capacity(peers.len());
 
     for peer in peers.iter() {
@@ -230,14 +227,14 @@ pub async fn start_wireguard(
     let interface_config = InterfaceConfiguration {
         name: ifname.clone(),
         prvkey: BASE64_STANDARD.encode(wireguard_data.inner.keypair().private_key().to_bytes()),
-        address: wireguard_data.inner.config().private_ipv4.to_string(),
-        port: wireguard_data.inner.config().announced_tunnel_port as u32,
+        addresses: vec![IpAddrMask::host(IpAddr::from(wireguard_data.inner.config().private_ipv4))],
+        port: wireguard_data.inner.config().announced_tunnel_port,
         peers: peers.clone(), // Clone since we need to use peers later to mark IPs as used
         mtu: None,
     };
     info!(
-        "attempting to configure wireguard interface '{ifname}': address={}, port={}",
-        interface_config.address, interface_config.port
+        "attempting to configure wireguard interface '{ifname}': addresses=[{}], port={}",
+        interface_config.addresses.iter().map(|s| s.to_string()).collect::<Vec<_>>().join(", "), interface_config.port
     );
 
     info!("Configuring WireGuard interface...");
@@ -294,13 +291,13 @@ pub async fn start_wireguard(
     for peer in &peers {
         for allowed_ip in &peer.allowed_ips {
             // Extract IPv4 and IPv6 from peer's allowed_ips
-            if let IpAddr::V4(ipv4) = allowed_ip.ip {
+            if let IpAddr::V4(ipv4) = allowed_ip.address {
                 // Find corresponding IPv6
                 if let Some(ipv6_mask) = peer
                     .allowed_ips
                     .iter()
-                    .find(|ip| matches!(ip.ip, IpAddr::V6(_)))
-                    && let IpAddr::V6(ipv6) = ipv6_mask.ip
+                    .find(|ip| matches!(ip.address, IpAddr::V6(_)))
+                    && let IpAddr::V6(ipv6) = ipv6_mask.address
                 {
                     ip_pool.mark_used(IpPair::new(ipv4, ipv6)).await;
                 }

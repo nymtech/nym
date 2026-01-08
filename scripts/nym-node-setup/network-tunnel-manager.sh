@@ -546,26 +546,34 @@ exit_policy_install_deps() {
 create_nym_chain() {
   info "creating nym exit policy chain $NYM_CHAIN"
 
+  # create/flush chain
   if iptables -S "$NYM_CHAIN" >/dev/null 2>&1; then
     iptables -F "$NYM_CHAIN"
   else
     iptables -N "$NYM_CHAIN"
   fi
-
   if ip6tables -S "$NYM_CHAIN" >/dev/null 2>&1; then
     ip6tables -F "$NYM_CHAIN"
   else
     ip6tables -N "$NYM_CHAIN"
   fi
 
-  if ! iptables -C FORWARD -i "$WG_INTERFACE" -o "$NETWORK_DEVICE" -j "$NYM_CHAIN" 2>/dev/null; then
-    iptables -I FORWARD 1 -i "$WG_INTERFACE" -o "$NETWORK_DEVICE" -j "$NYM_CHAIN"
-  fi
+  # remove ANY existing FORWARD -> NYM-EXIT jumps so ordering is deterministic
+  while iptables -C FORWARD -j "$NYM_CHAIN" 2>/dev/null; do
+    iptables -D FORWARD -j "$NYM_CHAIN" || break
+  done
+  while ip6tables -C FORWARD -j "$NYM_CHAIN" 2>/dev/null; do
+    ip6tables -D FORWARD -j "$NYM_CHAIN" || break
+  done
 
-  if ! ip6tables -C FORWARD -i "$WG_INTERFACE" -o "$NETWORK_DEVICE" -j "$NYM_CHAIN" 2>/dev/null; then
-    ip6tables -I FORWARD 1 -i "$WG_INTERFACE" -o "$NETWORK_DEVICE" -j "$NYM_CHAIN"
-  fi
+  # add the single correct hook
+  iptables  -I FORWARD 1 -i "$WG_INTERFACE" -o "$NETWORK_DEVICE" -j "$NYM_CHAIN"
+  ip6tables -I FORWARD 1 -i "$WG_INTERFACE" -o "$NETWORK_DEVICE" -j "$NYM_CHAIN"
+
+  ok "NYM-EXIT chain ready + single FORWARD hook installed"
 }
+
+
 
 setup_nat_rules() {
   info "setting up nat and forwarding rules for $WG_INTERFACE via $NETWORK_DEVICE"

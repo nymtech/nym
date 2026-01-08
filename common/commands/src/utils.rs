@@ -105,7 +105,7 @@ pub(crate) enum CommonConfigsWrapper {
     // nym-api
     NymApi(NymApiConfigLight),
 
-    // anything else that might get get introduced
+    // anything else that might get introduced
     Unknown(UnknownConfigWrapper),
 }
 

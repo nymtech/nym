@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::dealers::storage::{
-    self, get_dealer_details, get_dealer_index, get_registration_details, DEALERS_INDICES,
-    EPOCH_DEALERS_MAP,
+    self, DEALERS_INDICES, EPOCH_DEALERS_MAP, get_dealer_details, get_dealer_index,
+    get_registration_details,
 };
 use crate::epoch_state::storage::load_current_epoch;
 use cosmwasm_std::{Deps, Order, StdResult};

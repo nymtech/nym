@@ -4,8 +4,8 @@
 use crate::support::setup::{MIX_DENOM, REWARDING_VALIDATOR};
 use cosmwasm_std::Decimal;
 use nym_contracts_common::Percent;
-use nym_mixnet_contract_common::reward_params::RewardedSetParams;
 use nym_mixnet_contract_common::InitialRewardingParams;
+use nym_mixnet_contract_common::reward_params::RewardedSetParams;
 use std::time::Duration;
 
 pub fn default_mixnet_init_msg() -> nym_mixnet_contract_common::InstantiateMsg {

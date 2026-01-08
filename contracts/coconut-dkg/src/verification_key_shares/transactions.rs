@@ -11,7 +11,7 @@ use crate::verification_key_shares::storage::vk_shares;
 use cosmwasm_std::{DepsMut, Env, MessageInfo, Response};
 use nym_coconut_dkg_common::types::EpochState;
 use nym_coconut_dkg_common::verification_key::{
-    to_cosmos_msg, ContractVKShare, VerificationKeyShare,
+    ContractVKShare, VerificationKeyShare, to_cosmos_msg,
 };
 
 pub fn try_commit_verification_key_share(
@@ -105,10 +105,10 @@ mod tests {
     use crate::epoch_state::transactions::{try_advance_epoch_state, try_initiate_dkg};
     use crate::support::tests::helpers;
     use crate::support::tests::helpers::{
-        add_current_dealer, add_fixture_dealer, ADMIN_ADDRESS, MULTISIG_CONTRACT,
+        ADMIN_ADDRESS, MULTISIG_CONTRACT, add_current_dealer, add_fixture_dealer,
     };
-    use cosmwasm_std::testing::{message_info, mock_env};
     use cosmwasm_std::Addr;
+    use cosmwasm_std::testing::{message_info, mock_env};
     use cw_controllers::AdminError;
     use nym_coconut_dkg_common::dealer::DealerDetails;
     use nym_coconut_dkg_common::types::TimeConfiguration;

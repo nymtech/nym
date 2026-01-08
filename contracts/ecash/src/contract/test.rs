@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::contract::NymEcashContract;
-use cosmwasm_std::testing::{message_info, mock_dependencies, mock_env, MockApi, MockQuerier};
-use cosmwasm_std::{coin, Addr, Empty, Env, MemoryStorage, OwnedDeps};
+use cosmwasm_std::testing::{MockApi, MockQuerier, message_info, mock_dependencies, mock_env};
+use cosmwasm_std::{Addr, Empty, Env, MemoryStorage, OwnedDeps, coin};
 use sylvia::ctx::{InstantiateCtx, QueryCtx};
 
 pub const TEST_DENOM: &str = "unym";

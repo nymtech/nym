@@ -1,7 +1,7 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::storage::{retrieval_limits, NYM_PERFORMANCE_CONTRACT_STORAGE};
+use crate::storage::{NYM_PERFORMANCE_CONTRACT_STORAGE, retrieval_limits};
 use cosmwasm_std::{Addr, Deps, Order, StdResult};
 use cw_controllers::AdminResponse;
 use cw_storage_plus::Bound;
@@ -315,7 +315,7 @@ pub fn query_last_submission(deps: Deps) -> Result<LastSubmission, NymPerformanc
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::testing::{init_contract_tester, PerformanceContractTesterExt};
+    use crate::testing::{PerformanceContractTesterExt, init_contract_tester};
     use nym_contracts_common_testing::{ChainOpts, ContractOpts, RandExt};
     use nym_performance_contract_common::LastSubmittedData;
 

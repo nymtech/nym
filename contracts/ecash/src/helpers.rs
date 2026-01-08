@@ -3,14 +3,14 @@
 
 use crate::constants::{BLACKLIST_PROPOSAL_REPLY_ID, REDEMPTION_PROPOSAL_REPLY_ID};
 use cosmwasm_std::{
-    to_json_binary, Addr, Coin, CosmosMsg, Reply, StdError, StdResult, SubMsg, SubMsgResult,
-    WasmMsg,
+    Addr, Coin, CosmosMsg, Reply, StdError, StdResult, SubMsg, SubMsgResult, WasmMsg,
+    to_json_binary,
 };
 use cw4::Cw4Contract;
 use nym_contracts_common::events::try_find_attribute;
 use nym_ecash_contract_common::events::{PROPOSAL_ID_ATTRIBUTE_NAME, WASM_EVENT_NAME};
 use nym_ecash_contract_common::redeem_credential::BATCH_REDEMPTION_PROPOSAL_TITLE;
-use nym_ecash_contract_common::{msg::ExecuteMsg, EcashContractError};
+use nym_ecash_contract_common::{EcashContractError, msg::ExecuteMsg};
 use nym_multisig_contract_common::msg::ExecuteMsg as MultisigExecuteMsg;
 use serde::{Deserialize, Serialize};
 

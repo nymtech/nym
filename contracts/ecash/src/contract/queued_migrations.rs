@@ -4,8 +4,8 @@
 use crate::contract::NymEcashContract;
 use crate::helpers::Config;
 use cosmwasm_std::{Addr, Coin, Decimal, DepsMut};
-use cw4::Cw4Contract;
 use cw_storage_plus::Item;
+use cw4::Cw4Contract;
 use nym_ecash_contract_common::EcashContractError;
 use serde::{Deserialize, Serialize};
 

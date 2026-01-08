@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use cosmwasm_std::testing::MockApi;
-use cosmwasm_std::{coin, Coin};
+use cosmwasm_std::{Coin, coin};
 use cw_multi_test::IntoBech32;
 use cw_utils::PaymentError;
 use nym_ecash_contract_common::EcashContractError;

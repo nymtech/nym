@@ -1,7 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::epoch_state::storage::{load_current_epoch, save_epoch, EPOCH_THRESHOLDS, THRESHOLD};
+use crate::epoch_state::storage::{EPOCH_THRESHOLDS, THRESHOLD, load_current_epoch, save_epoch};
 use crate::epoch_state::transactions::reset_dkg_state;
 use crate::epoch_state::utils::check_state_completion;
 use crate::error::ContractError;
@@ -95,7 +95,7 @@ mod tests {
     use crate::epoch_state::utils::check_epoch_state;
     use crate::error::ContractError::EarlyEpochStateAdvancement;
     use crate::state::storage::STATE;
-    use crate::support::tests::helpers::{init_contract, ADMIN_ADDRESS};
+    use crate::support::tests::helpers::{ADMIN_ADDRESS, init_contract};
     use cosmwasm_std::testing::{message_info, mock_env};
     use cosmwasm_std::{Addr, Storage};
     use nym_coconut_dkg_common::types::TimeConfiguration;

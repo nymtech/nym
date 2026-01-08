@@ -51,7 +51,9 @@ pub enum ContractError {
     #[error("This sender is not a dealer for epoch {epoch_id}")]
     NotADealer { epoch_id: EpochId },
 
-    #[error("Dealer {dealer} has already committed dealing chunk for epoch {epoch_id} with dealing index {dealing_index} and chunk index {chunk_index} at height {block_height}")]
+    #[error(
+        "Dealer {dealer} has already committed dealing chunk for epoch {epoch_id} with dealing index {dealing_index} and chunk index {chunk_index} at height {block_height}"
+    )]
     DealingChunkAlreadyCommitted {
         epoch_id: EpochId,
         dealer: Addr,
@@ -60,7 +62,9 @@ pub enum ContractError {
         block_height: u64,
     },
 
-    #[error("dealer {dealer} tried to commit chunk {chunk_index} of dealing {dealing_index} for epoch {epoch_id}, but it hasn't been declared in the prior metadata")]
+    #[error(
+        "dealer {dealer} tried to commit chunk {chunk_index} of dealing {dealing_index} for epoch {epoch_id}, but it hasn't been declared in the prior metadata"
+    )]
     DealingChunkNotInMetadata {
         epoch_id: EpochId,
         dealer: Addr,
@@ -68,7 +72,9 @@ pub enum ContractError {
         chunk_index: ChunkIndex,
     },
 
-    #[error("dealer {dealer} has attempted to commit dealing chunk for epoch {epoch_id} with dealing index {index} while the key size is set to {key_size}")]
+    #[error(
+        "dealer {dealer} has attempted to commit dealing chunk for epoch {epoch_id} with dealing index {index} while the key size is set to {key_size}"
+    )]
     DealingOutOfRange {
         epoch_id: EpochId,
         dealer: Addr,
@@ -76,7 +82,10 @@ pub enum ContractError {
         key_size: u32,
     },
 
-    #[error("dealer {dealer} has attempted to commit dealing metadata for epoch {epoch_id} for dealing index {dealing_index} with {chunks} chunks while at most {} chunks are allowed", MAX_DEALING_CHUNKS)]
+    #[error(
+        "dealer {dealer} has attempted to commit dealing metadata for epoch {epoch_id} for dealing index {dealing_index} with {chunks} chunks while at most {} chunks are allowed",
+        MAX_DEALING_CHUNKS
+    )]
     TooFragmentedMetadata {
         epoch_id: EpochId,
         dealer: Addr,
@@ -84,7 +93,9 @@ pub enum ContractError {
         chunks: usize,
     },
 
-    #[error("the declared chunk split for epoch {epoch_id} from dealer {dealer} for dealing index {dealing_index} is uneven. first chunk has size of {first_chunk_size} while chunk at index {chunk_index} has {size}")]
+    #[error(
+        "the declared chunk split for epoch {epoch_id} from dealer {dealer} for dealing index {dealing_index} is uneven. first chunk has size of {first_chunk_size} while chunk at index {chunk_index} has {size}"
+    )]
     UnevenChunkSplit {
         epoch_id: EpochId,
         dealer: Addr,
@@ -94,7 +105,9 @@ pub enum ContractError {
         size: u64,
     },
 
-    #[error("the received chunk for epoch {epoch_id} from dealer {dealer} at dealing index {dealing_index} at chunk index {chunk_index} has inconsistent length. the metadata contains length of {metadata_length} while the received data is {received} bytes long")]
+    #[error(
+        "the received chunk for epoch {epoch_id} from dealer {dealer} at dealing index {dealing_index} at chunk index {chunk_index} has inconsistent length. the metadata contains length of {metadata_length} while the received data is {received} bytes long"
+    )]
     InconsistentChunkLength {
         epoch_id: EpochId,
         dealer: Addr,
@@ -104,21 +117,27 @@ pub enum ContractError {
         received: u64,
     },
 
-    #[error("dealer {dealer} has attempted to commit dealing metadata for epoch {epoch_id} for dealing index {dealing_index} zero chunks")]
+    #[error(
+        "dealer {dealer} has attempted to commit dealing metadata for epoch {epoch_id} for dealing index {dealing_index} zero chunks"
+    )]
     EmptyMetadata {
         epoch_id: EpochId,
         dealer: Addr,
         dealing_index: DealingIndex,
     },
 
-    #[error("metadata for dealing for epoch {epoch_id} from {dealer} at index {dealing_index} does not exist")]
+    #[error(
+        "metadata for dealing for epoch {epoch_id} from {dealer} at index {dealing_index} does not exist"
+    )]
     UnavailableDealingMetadata {
         epoch_id: EpochId,
         dealer: Addr,
         dealing_index: DealingIndex,
     },
 
-    #[error("metadata for dealing for epoch {epoch_id} from {dealer} at index {dealing_index} already exists")]
+    #[error(
+        "metadata for dealing for epoch {epoch_id} from {dealer} at index {dealing_index} already exists"
+    )]
     MetadataAlreadyExists {
         epoch_id: EpochId,
         dealer: Addr,
@@ -137,7 +156,9 @@ pub enum ContractError {
     #[error("cannot perform DKG resharing during an ongoing exchange")]
     CantReshareDuringExchange,
 
-    #[error("retrieved the maximum allowed number of cw4 members. for more the contracts have to be refactored")]
+    #[error(
+        "retrieved the maximum allowed number of cw4 members. for more the contracts have to be refactored"
+    )]
     PossiblyIncompleteGroupMembersQuery,
 
     #[error("this method has been called outside transaction context")]

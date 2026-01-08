@@ -1,7 +1,7 @@
 // Copyright 2022-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::dealings::storage::{StoredDealing, DEALINGS_METADATA};
+use crate::dealings::storage::{DEALINGS_METADATA, StoredDealing};
 use crate::state::storage::STATE;
 use cosmwasm_std::{Deps, StdResult};
 use nym_coconut_dkg_common::dealing::{

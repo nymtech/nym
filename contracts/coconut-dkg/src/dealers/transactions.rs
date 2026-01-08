@@ -1,16 +1,16 @@
 // Copyright 2022-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::Dealer;
 use crate::dealers::storage::{
-    ensure_dealer, get_or_assign_index, is_dealer, save_dealer_details_if_not_a_dealer,
-    DEALERS_INDICES, EPOCH_DEALERS_MAP, OWNERSHIP_TRANSFER_LOG,
+    DEALERS_INDICES, EPOCH_DEALERS_MAP, OWNERSHIP_TRANSFER_LOG, ensure_dealer, get_or_assign_index,
+    is_dealer, save_dealer_details_if_not_a_dealer,
 };
 use crate::epoch_state::storage::{load_current_epoch, save_epoch};
 use crate::epoch_state::utils::check_epoch_state;
 use crate::error::ContractError;
 use crate::state::storage::STATE;
 use crate::verification_key_shares::storage::vk_shares;
-use crate::Dealer;
 use cosmwasm_std::{Deps, DepsMut, Env, Event, MessageInfo, Response};
 use nym_coconut_dkg_common::dealer::{DealerRegistrationDetails, OwnershipTransfer};
 use nym_coconut_dkg_common::types::{EncodedBTEPublicKeyWithProof, EpochState};
@@ -188,9 +188,9 @@ pub(crate) mod tests {
     use super::*;
     use crate::epoch_state::transactions::{try_advance_epoch_state, try_initiate_dkg};
     use crate::support::tests::helpers;
-    use crate::support::tests::helpers::{add_fixture_dealer, ADMIN_ADDRESS};
-    use cosmwasm_std::testing::{message_info, mock_env};
+    use crate::support::tests::helpers::{ADMIN_ADDRESS, add_fixture_dealer};
     use cosmwasm_std::Addr;
+    use cosmwasm_std::testing::{message_info, mock_env};
     use nym_coconut_dkg_common::types::TimeConfiguration;
 
     #[test]
@@ -243,7 +243,7 @@ pub(crate) mod tests {
 mod tests_with_mock {
     use super::*;
     use crate::testable_dkg_contract::{
-        init_contract_tester, init_contract_tester_with_group_members, DkgContractTesterExt,
+        DkgContractTesterExt, init_contract_tester, init_contract_tester_with_group_members,
     };
     use anyhow::Context;
     use cosmwasm_std::testing::message_info;
@@ -257,12 +257,16 @@ mod tests_with_mock {
         let group_member = contract.random_group_member();
 
         // sanity check, pre-dkg
-        assert!(DEALERS_INDICES
-            .may_load(&contract, &group_member)?
-            .is_none());
-        assert!(EPOCH_DEALERS_MAP
-            .may_load(&contract, (0, &group_member))?
-            .is_none());
+        assert!(
+            DEALERS_INDICES
+                .may_load(&contract, &group_member)?
+                .is_none()
+        );
+        assert!(
+            EPOCH_DEALERS_MAP
+                .may_load(&contract, (0, &group_member))?
+                .is_none()
+        );
 
         contract.run_initial_dummy_dkg();
         let old_index = DEALERS_INDICES.load(&contract, &group_member)?;
@@ -271,35 +275,45 @@ mod tests_with_mock {
 
         let not_group_member = contract.addr_make("not_group_member");
         let (deps, env) = contract.deps_mut_env();
-        assert!(try_transfer_ownership(
-            deps,
-            env,
-            message_info(&group_member, &[]),
-            not_group_member.to_string()
-        )
-        .is_err());
+        assert!(
+            try_transfer_ownership(
+                deps,
+                env,
+                message_info(&group_member, &[]),
+                not_group_member.to_string()
+            )
+            .is_err()
+        );
 
         let new_group_member = contract.addr_make("new_group_member");
         contract.add_group_member(new_group_member.clone());
         let (deps, env) = contract.deps_mut_env();
-        assert!(try_transfer_ownership(
-            deps,
-            env.clone(),
-            message_info(&group_member, &[]),
-            new_group_member.to_string()
-        )
-        .is_ok());
+        assert!(
+            try_transfer_ownership(
+                deps,
+                env.clone(),
+                message_info(&group_member, &[]),
+                new_group_member.to_string()
+            )
+            .is_ok()
+        );
 
         // data under old key doesn't exist anymore
-        assert!(DEALERS_INDICES
-            .may_load(&contract, &group_member)?
-            .is_none());
-        assert!(EPOCH_DEALERS_MAP
-            .may_load(&contract, (0, &group_member))?
-            .is_none());
-        assert!(vk_shares()
-            .may_load(&contract, (&group_member, 0))?
-            .is_none());
+        assert!(
+            DEALERS_INDICES
+                .may_load(&contract, &group_member)?
+                .is_none()
+        );
+        assert!(
+            EPOCH_DEALERS_MAP
+                .may_load(&contract, (0, &group_member))?
+                .is_none()
+        );
+        assert!(
+            vk_shares()
+                .may_load(&contract, (&group_member, 0))?
+                .is_none()
+        );
 
         let new_index = DEALERS_INDICES.load(&contract, &new_group_member)?;
         let new_details = EPOCH_DEALERS_MAP.load(&contract, (0, &new_group_member))?;
@@ -362,30 +376,42 @@ mod tests_with_mock {
         let new_group_member = contract.addr_make("new_group_member");
         contract.add_group_member(new_group_member.clone());
         let (deps, env) = contract.deps_mut_env();
-        assert!(try_transfer_ownership(
-            deps,
-            env.clone(),
-            message_info(&group_member, &[]),
-            new_group_member.to_string()
-        )
-        .is_ok());
+        assert!(
+            try_transfer_ownership(
+                deps,
+                env.clone(),
+                message_info(&group_member, &[]),
+                new_group_member.to_string()
+            )
+            .is_ok()
+        );
 
         // data under old key doesn't exist anymore
-        assert!(DEALERS_INDICES
-            .may_load(&contract, &group_member)?
-            .is_none());
-        assert!(EPOCH_DEALERS_MAP
-            .may_load(&contract, (0, &group_member))?
-            .is_none());
-        assert!(EPOCH_DEALERS_MAP
-            .may_load(&contract, (1, &group_member))?
-            .is_none());
-        assert!(EPOCH_DEALERS_MAP
-            .may_load(&contract, (2, &group_member))?
-            .is_none());
-        assert!(EPOCH_DEALERS_MAP
-            .may_load(&contract, (3, &group_member))?
-            .is_none());
+        assert!(
+            DEALERS_INDICES
+                .may_load(&contract, &group_member)?
+                .is_none()
+        );
+        assert!(
+            EPOCH_DEALERS_MAP
+                .may_load(&contract, (0, &group_member))?
+                .is_none()
+        );
+        assert!(
+            EPOCH_DEALERS_MAP
+                .may_load(&contract, (1, &group_member))?
+                .is_none()
+        );
+        assert!(
+            EPOCH_DEALERS_MAP
+                .may_load(&contract, (2, &group_member))?
+                .is_none()
+        );
+        assert!(
+            EPOCH_DEALERS_MAP
+                .may_load(&contract, (3, &group_member))?
+                .is_none()
+        );
 
         let new_index = DEALERS_INDICES.load(&contract, &new_group_member)?;
         let new_details0 = EPOCH_DEALERS_MAP.load(&contract, (0, &new_group_member))?;

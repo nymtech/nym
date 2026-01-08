@@ -5,10 +5,10 @@ use super::fixtures::TEST_MIX_DENOM;
 use crate::contract::instantiate;
 use crate::dealers::storage::{DEALERS_INDICES, EPOCH_DEALERS_MAP};
 use crate::epoch_state::storage::load_current_epoch;
-use cosmwasm_std::testing::{message_info, mock_dependencies, mock_env, MockApi, MockQuerier};
+use cosmwasm_std::testing::{MockApi, MockQuerier, message_info, mock_dependencies, mock_env};
 use cosmwasm_std::{
-    from_json, to_json_binary, Addr, ContractResult, DepsMut, Empty, MemoryStorage, OwnedDeps,
-    QuerierResult, SystemResult, WasmQuery,
+    Addr, ContractResult, DepsMut, Empty, MemoryStorage, OwnedDeps, QuerierResult, SystemResult,
+    WasmQuery, from_json, to_json_binary,
 };
 use cw4::{Cw4QueryMsg, Member, MemberListResponse, MemberResponse};
 use easy_addr::addr;

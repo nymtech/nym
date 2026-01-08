@@ -3,10 +3,10 @@
 
 use crate::contract::NymEcashContract;
 use crate::helpers::Config;
-use cosmwasm_std::testing::{message_info, mock_dependencies, mock_env, MockApi, MockQuerier};
-use cosmwasm_std::{coin, Addr, Deps, Empty, Env, MemoryStorage, MessageInfo, OwnedDeps};
-use rand_chacha::rand_core::SeedableRng;
+use cosmwasm_std::testing::{MockApi, MockQuerier, message_info, mock_dependencies, mock_env};
+use cosmwasm_std::{Addr, Deps, Empty, Env, MemoryStorage, MessageInfo, OwnedDeps, coin};
 use rand_chacha::ChaCha20Rng;
+use rand_chacha::rand_core::SeedableRng;
 use sylvia::ctx::{ExecCtx, InstantiateCtx, QueryCtx};
 
 pub fn test_rng() -> ChaCha20Rng {

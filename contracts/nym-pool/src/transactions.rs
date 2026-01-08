@@ -262,7 +262,7 @@ pub fn try_remove_expired(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::testing::{init_contract_tester, NymPoolContractTesterExt};
+    use crate::testing::{NymPoolContractTesterExt, init_contract_tester};
     use nym_contracts_common_testing::{AdminExt, ContractOpts, DenomExt, RandExt};
     use nym_pool_contract_common::ExecuteMsg;
 
@@ -418,14 +418,16 @@ mod tests {
             ));
 
             let valid_address = test.generate_account();
-            assert!(try_grant_allowance(
-                test.deps_mut(),
-                env.clone(),
-                admin.clone(),
-                valid_address.to_string(),
-                dummy_grant
-            )
-            .is_ok());
+            assert!(
+                try_grant_allowance(
+                    test.deps_mut(),
+                    env.clone(),
+                    admin.clone(),
+                    valid_address.to_string(),
+                    dummy_grant
+                )
+                .is_ok()
+            );
 
             Ok(())
         }
@@ -473,13 +475,15 @@ mod tests {
             );
 
             // for sanity’s sake check with an existing grant
-            assert!(try_revoke_grant(
-                test.deps_mut(),
-                env.clone(),
-                admin.clone(),
-                grant.grantee.to_string()
-            )
-            .is_ok());
+            assert!(
+                try_revoke_grant(
+                    test.deps_mut(),
+                    env.clone(),
+                    admin.clone(),
+                    grant.grantee.to_string()
+                )
+                .is_ok()
+            );
 
             Ok(())
         }
@@ -811,7 +815,7 @@ mod tests {
     #[cfg(test)]
     mod withdrawing_from_allowance {
         use super::*;
-        use crate::testing::{init_contract_tester, NymPoolContractTesterExt};
+        use crate::testing::{NymPoolContractTesterExt, init_contract_tester};
         use cosmwasm_std::coin;
         use nym_contracts_common_testing::{AdminExt, ChainOpts, ContractOpts, DenomExt, RandExt};
         use nym_pool_contract_common::{BasicAllowance, ExecuteMsg};
@@ -1450,10 +1454,12 @@ mod tests {
         assert!(res.is_ok());
 
         // introduces new granter
-        assert!(NYM_POOL_STORAGE
-            .granters
-            .may_load(test.storage(), good_address)?
-            .is_some());
+        assert!(
+            NYM_POOL_STORAGE
+                .granters
+                .may_load(test.storage(), good_address)?
+                .is_some()
+        );
 
         Ok(())
     }
@@ -1493,10 +1499,12 @@ mod tests {
         );
         assert!(res.is_ok());
 
-        assert!(NYM_POOL_STORAGE
-            .granters
-            .may_load(test.storage(), granter_address)?
-            .is_none());
+        assert!(
+            NYM_POOL_STORAGE
+                .granters
+                .may_load(test.storage(), granter_address)?
+                .is_none()
+        );
 
         Ok(())
     }
@@ -1504,7 +1512,7 @@ mod tests {
     #[cfg(test)]
     mod removing_expired {
         use super::*;
-        use crate::testing::{init_contract_tester, NymPoolContract, NymPoolContractTesterExt};
+        use crate::testing::{NymPoolContract, NymPoolContractTesterExt, init_contract_tester};
         use nym_contracts_common_testing::{ChainOpts, ContractOpts, ContractTester, RandExt};
         use nym_pool_contract_common::{BasicAllowance, GranteeAddress};
 
@@ -1580,10 +1588,12 @@ mod tests {
             let (mut test, grantee) = setup_with_expired_grant();
             let sender = test.generate_account();
 
-            assert!(NYM_POOL_STORAGE
-                .grants
-                .may_load(test.storage(), grantee.clone())?
-                .is_some());
+            assert!(
+                NYM_POOL_STORAGE
+                    .grants
+                    .may_load(test.storage(), grantee.clone())?
+                    .is_some()
+            );
 
             test.execute_raw(
                 sender.clone(),
@@ -1592,10 +1602,12 @@ mod tests {
                 },
             )?;
 
-            assert!(NYM_POOL_STORAGE
-                .grants
-                .may_load(test.storage(), grantee)?
-                .is_none());
+            assert!(
+                NYM_POOL_STORAGE
+                    .grants
+                    .may_load(test.storage(), grantee)?
+                    .is_none()
+            );
 
             Ok(())
         }

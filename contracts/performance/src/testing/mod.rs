@@ -4,34 +4,34 @@
 use crate::contract::{execute, instantiate, migrate, query};
 use crate::helpers::MixnetContractQuerier;
 use crate::storage::NYM_PERFORMANCE_CONTRACT_STORAGE;
-use cosmwasm_std::testing::{message_info, mock_env, MockApi};
+use cosmwasm_std::testing::{MockApi, message_info, mock_env};
 use cosmwasm_std::{
-    coin, coins, Addr, ContractInfo, Deps, DepsMut, Env, MessageInfo, QuerierWrapper, StdError,
-    StdResult,
+    Addr, ContractInfo, Deps, DepsMut, Env, MessageInfo, QuerierWrapper, StdError, StdResult, coin,
+    coins,
 };
 use mixnet_contract::testable_mixnet_contract::MixnetContract;
-use nym_contracts_common::signing::{ContractMessageContent, MessageSignature};
 use nym_contracts_common::Percent;
+use nym_contracts_common::signing::{ContractMessageContent, MessageSignature};
 use nym_contracts_common_testing::{
-    addr, AdminExt, ArbitraryContractStorageReader, ArbitraryContractStorageWriter, BankExt,
-    ChainOpts, CommonStorageKeys, ContractFn, ContractOpts, ContractStorageWrapper, ContractTester,
-    ContractTesterBuilder, DenomExt, PermissionedFn, QueryFn, RandExt, TestableNymContract,
-    TEST_DENOM,
+    AdminExt, ArbitraryContractStorageReader, ArbitraryContractStorageWriter, BankExt, ChainOpts,
+    CommonStorageKeys, ContractFn, ContractOpts, ContractStorageWrapper, ContractTester,
+    ContractTesterBuilder, DenomExt, PermissionedFn, QueryFn, RandExt, TEST_DENOM,
+    TestableNymContract, addr,
 };
 use nym_crypto::asymmetric::ed25519;
 use nym_mixnet_contract_common::nym_node::{NodeDetailsResponse, NodeOwnershipResponse, Role};
 use nym_mixnet_contract_common::{
-    CurrentIntervalResponse, EpochId, Interval, NodeCostParams, NymNode, NymNodeBondingPayload,
-    RoleAssignment, SignableNymNodeBondingMsg, DEFAULT_INTERVAL_OPERATING_COST_AMOUNT,
-    DEFAULT_PROFIT_MARGIN_PERCENT,
+    CurrentIntervalResponse, DEFAULT_INTERVAL_OPERATING_COST_AMOUNT, DEFAULT_PROFIT_MARGIN_PERCENT,
+    EpochId, Interval, NodeCostParams, NymNode, NymNodeBondingPayload, RoleAssignment,
+    SignableNymNodeBondingMsg,
 };
 use nym_performance_contract_common::constants::storage_keys;
 use nym_performance_contract_common::{
     ExecuteMsg, InstantiateMsg, MigrateMsg, NodeId, NodePerformance, NodeResults,
     NymPerformanceContractError, QueryMsg,
 };
-use serde::de::DeserializeOwned;
 use serde::Serialize;
+use serde::de::DeserializeOwned;
 use std::str::FromStr;
 
 pub struct PerformanceContract;

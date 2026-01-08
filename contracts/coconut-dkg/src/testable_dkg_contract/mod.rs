@@ -7,8 +7,8 @@
 
 use crate::contract::{execute, instantiate, migrate, query};
 use crate::error::ContractError;
-use cosmwasm_std::testing::message_info;
 use cosmwasm_std::Addr;
+use cosmwasm_std::testing::message_info;
 use cw4::{Cw4Contract, Member};
 use nym_contracts_common_testing::{
     AdminExt, ArbitraryContractStorageReader, ArbitraryContractStorageWriter, BankExt, ChainOpts,

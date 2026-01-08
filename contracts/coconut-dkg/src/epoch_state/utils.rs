@@ -68,8 +68,8 @@ pub(crate) mod test {
     use super::*;
     use crate::epoch_state::storage::save_epoch;
     use crate::support::tests::helpers::init_contract;
-    use cosmwasm_std::testing::mock_env;
     use cosmwasm_std::Timestamp;
+    use cosmwasm_std::testing::mock_env;
     use nym_coconut_dkg_common::types::TimeConfiguration;
 
     #[test]

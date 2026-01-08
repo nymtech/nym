@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::storage::NYM_PERFORMANCE_CONTRACT_STORAGE;
-use cosmwasm_std::{to_json_binary, DepsMut, Env, Event, MessageInfo, Response};
+use cosmwasm_std::{DepsMut, Env, Event, MessageInfo, Response, to_json_binary};
 use nym_performance_contract_common::{
     EpochId, NodeId, NodePerformance, NymPerformanceContractError,
 };
@@ -130,7 +130,7 @@ pub fn try_remove_epoch_measurements(
 mod tests {
     use super::*;
     use crate::storage::retrieval_limits;
-    use crate::testing::{init_contract_tester, PerformanceContractTesterExt};
+    use crate::testing::{PerformanceContractTesterExt, init_contract_tester};
     use cosmwasm_std::from_json;
     use nym_contracts_common_testing::{AdminExt, ContractOpts};
     use nym_performance_contract_common::RemoveEpochMeasurementsResponse;
@@ -222,20 +222,24 @@ mod tests {
             let env = test.env();
             let admin = test.admin_msg();
 
-            assert!(try_authorise_network_monitor(
-                test.deps_mut(),
-                env.clone(),
-                admin.clone(),
-                bad_address
-            )
-            .is_err());
-            assert!(try_authorise_network_monitor(
-                test.deps_mut(),
-                env,
-                admin,
-                good_address.to_string()
-            )
-            .is_ok());
+            assert!(
+                try_authorise_network_monitor(
+                    test.deps_mut(),
+                    env.clone(),
+                    admin.clone(),
+                    bad_address
+                )
+                .is_err()
+            );
+            assert!(
+                try_authorise_network_monitor(
+                    test.deps_mut(),
+                    env,
+                    admin,
+                    good_address.to_string()
+                )
+                .is_ok()
+            );
 
             Ok(())
         }
@@ -244,7 +248,7 @@ mod tests {
     #[cfg(test)]
     mod retiring_network_monitor {
         use super::*;
-        use crate::testing::{init_contract_tester, PerformanceContractTesterExt};
+        use crate::testing::{PerformanceContractTesterExt, init_contract_tester};
         use nym_contracts_common_testing::{AdminExt, ContractOpts, RandExt};
 
         #[test]
@@ -258,20 +262,19 @@ mod tests {
             let env = test.env();
             let admin = test.admin_msg();
 
-            assert!(try_retire_network_monitor(
-                test.deps_mut(),
-                env.clone(),
-                admin.clone(),
-                bad_address
-            )
-            .is_err());
-            assert!(try_retire_network_monitor(
-                test.deps_mut(),
-                env,
-                admin,
-                good_address.to_string()
-            )
-            .is_ok());
+            assert!(
+                try_retire_network_monitor(
+                    test.deps_mut(),
+                    env.clone(),
+                    admin.clone(),
+                    bad_address
+                )
+                .is_err()
+            );
+            assert!(
+                try_retire_network_monitor(test.deps_mut(), env, admin, good_address.to_string())
+                    .is_ok()
+            );
 
             Ok(())
         }

@@ -1,8 +1,8 @@
 // Copyright 2022-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use cosmwasm_std::testing::MockApi;
 use cosmwasm_std::Addr;
+use cosmwasm_std::testing::MockApi;
 use nym_coconut_dkg_common::dealer::DealerDetails;
 use nym_coconut_dkg_common::dealing::{DealingChunkInfo, PartialContractDealing};
 use nym_coconut_dkg_common::types::ContractSafeBytes;

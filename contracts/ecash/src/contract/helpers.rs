@@ -3,10 +3,10 @@
 
 use crate::contract::NymEcashContract;
 use crate::helpers::{
-    create_batch_redemption_proposal, create_blacklist_proposal, Config, ProposalId,
+    Config, ProposalId, create_batch_redemption_proposal, create_blacklist_proposal,
 };
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{to_json_binary, Addr, Coin, Decimal, Deps, Storage, SubMsg, Uint128};
+use cosmwasm_std::{Addr, Coin, Decimal, Deps, Storage, SubMsg, Uint128, to_json_binary};
 use cw3::ProposalResponse;
 use nym_ecash_contract_common::EcashContractError;
 use nym_multisig_contract_common::msg::QueryMsg as MultisigQueryMsg;

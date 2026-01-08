@@ -3,7 +3,7 @@
 
 use crate::dealers::storage::ensure_dealer;
 use crate::dealings::storage::{
-    metadata_exists, must_read_metadata, store_metadata, StoredDealing,
+    StoredDealing, metadata_exists, must_read_metadata, store_metadata,
 };
 use crate::epoch_state::storage::{load_current_epoch, save_epoch};
 use crate::epoch_state::utils::check_epoch_state;
@@ -11,7 +11,7 @@ use crate::error::ContractError;
 use crate::state::storage::STATE;
 use cosmwasm_std::{Addr, DepsMut, Env, MessageInfo, Response, Storage};
 use nym_coconut_dkg_common::dealing::{
-    DealingChunkInfo, DealingMetadata, PartialContractDealing, MAX_DEALING_CHUNKS,
+    DealingChunkInfo, DealingMetadata, MAX_DEALING_CHUNKS, PartialContractDealing,
 };
 use nym_coconut_dkg_common::types::{ChunkIndex, DealingIndex, EpochId, EpochState};
 
@@ -209,7 +209,7 @@ pub(crate) mod tests {
     use crate::epoch_state::transactions::{try_advance_epoch_state, try_initiate_dkg};
     use crate::support::tests::fixtures::{dealing_metadata_fixture, partial_dealing_fixture};
     use crate::support::tests::helpers;
-    use crate::support::tests::helpers::{add_current_dealer, re_register_dealer, ADMIN_ADDRESS};
+    use crate::support::tests::helpers::{ADMIN_ADDRESS, add_current_dealer, re_register_dealer};
     use cosmwasm_std::testing::{message_info, mock_env};
     use nym_coconut_dkg_common::dealer::DealerDetails;
     use nym_coconut_dkg_common::types::{ContractSafeBytes, TimeConfiguration};

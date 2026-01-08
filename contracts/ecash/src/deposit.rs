@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use cosmwasm_std::{Order, StdResult, Storage};
-use cw_storage_plus::{range_with_prefix, Bound, Item, Key, Path, Prefix, PrimaryKey};
+use cw_storage_plus::{Bound, Item, Key, Path, Prefix, PrimaryKey, range_with_prefix};
 use nym_ecash_contract_common::deposit::DepositId;
-use nym_ecash_contract_common::{deposit::Deposit, EcashContractError};
+use nym_ecash_contract_common::{EcashContractError, deposit::Deposit};
 use std::ops::Deref;
 
 pub(crate) struct DepositStorage {

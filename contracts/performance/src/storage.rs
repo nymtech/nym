@@ -579,7 +579,7 @@ mod tests {
     #[cfg(test)]
     mod performance_contract_storage {
         use super::*;
-        use crate::testing::{init_contract_tester, PerformanceContractTesterExt, PreInitContract};
+        use crate::testing::{PerformanceContractTesterExt, PreInitContract, init_contract_tester};
         use nym_contracts_common_testing::{AdminExt, ContractOpts};
 
         #[cfg(test)]
@@ -788,9 +788,11 @@ mod tests {
 
                 // authorised network monitor can submit the results just fine
                 let perf = tester.dummy_node_performance();
-                assert!(storage
-                    .submit_performance_data(tester.deps_mut(), env.clone(), &nm1, 0, perf)
-                    .is_ok());
+                assert!(
+                    storage
+                        .submit_performance_data(tester.deps_mut(), env.clone(), &nm1, 0, perf)
+                        .is_ok()
+                );
 
                 // unauthorised address is rejected
                 let res = storage
@@ -805,9 +807,11 @@ mod tests {
 
                 // it is fine after explicit authorisation though
                 tester.authorise_network_monitor(&nm2)?;
-                assert!(storage
-                    .submit_performance_data(tester.deps_mut(), env.clone(), &nm2, 0, perf)
-                    .is_ok());
+                assert!(
+                    storage
+                        .submit_performance_data(tester.deps_mut(), env.clone(), &nm2, 0, perf)
+                        .is_ok()
+                );
 
                 // and address that was never authorised still fails
                 let res = storage
@@ -843,9 +847,11 @@ mod tests {
                 };
 
                 // first submission
-                assert!(storage
-                    .submit_performance_data(tester.deps_mut(), env.clone(), &nm, 0, data)
-                    .is_ok());
+                assert!(
+                    storage
+                        .submit_performance_data(tester.deps_mut(), env.clone(), &nm, 0, data)
+                        .is_ok()
+                );
 
                 // second submission
                 let res = storage
@@ -863,14 +869,24 @@ mod tests {
                 );
 
                 // another submission works fine
-                assert!(storage
-                    .submit_performance_data(tester.deps_mut(), env.clone(), &nm, 0, another_data)
-                    .is_ok());
+                assert!(
+                    storage
+                        .submit_performance_data(
+                            tester.deps_mut(),
+                            env.clone(),
+                            &nm,
+                            0,
+                            another_data
+                        )
+                        .is_ok()
+                );
 
                 // original one works IF it's for next epoch
-                assert!(storage
-                    .submit_performance_data(tester.deps_mut(), env.clone(), &nm, 1, data)
-                    .is_ok());
+                assert!(
+                    storage
+                        .submit_performance_data(tester.deps_mut(), env.clone(), &nm, 1, data)
+                        .is_ok()
+                );
 
                 let res = storage
                     .submit_performance_data(tester.deps_mut(), env.clone(), &nm, 0, data)
@@ -908,9 +924,17 @@ mod tests {
                     performance: Percent::hundred(),
                 };
 
-                assert!(storage
-                    .submit_performance_data(tester.deps_mut(), env.clone(), &nm, 0, another_data)
-                    .is_ok());
+                assert!(
+                    storage
+                        .submit_performance_data(
+                            tester.deps_mut(),
+                            env.clone(),
+                            &nm,
+                            0,
+                            another_data
+                        )
+                        .is_ok()
+                );
 
                 let res = storage
                     .submit_performance_data(tester.deps_mut(), env.clone(), &nm, 0, data)
@@ -927,9 +951,11 @@ mod tests {
                 );
 
                 // check across epochs
-                assert!(storage
-                    .submit_performance_data(tester.deps_mut(), env.clone(), &nm, 10, data)
-                    .is_ok());
+                assert!(
+                    storage
+                        .submit_performance_data(tester.deps_mut(), env.clone(), &nm, 10, data)
+                        .is_ok()
+                );
 
                 let res = storage
                     .submit_performance_data(tester.deps_mut(), env.clone(), &nm, 9, data)
@@ -987,12 +1013,16 @@ mod tests {
                     }
                 );
 
-                assert!(storage
-                    .submit_performance_data(tester.deps_mut(), env.clone(), &nm, 10, perf)
-                    .is_ok());
-                assert!(storage
-                    .submit_performance_data(tester.deps_mut(), env.clone(), &nm, 11, perf)
-                    .is_ok());
+                assert!(
+                    storage
+                        .submit_performance_data(tester.deps_mut(), env.clone(), &nm, 10, perf)
+                        .is_ok()
+                );
+                assert!(
+                    storage
+                        .submit_performance_data(tester.deps_mut(), env.clone(), &nm, 11, perf)
+                        .is_ok()
+                );
 
                 Ok(())
             }
@@ -1282,15 +1312,17 @@ mod tests {
 
                 let perf = tester.dummy_node_performance();
                 // authorised network monitor can submit the results just fine
-                assert!(storage
-                    .batch_submit_performance_results(
-                        tester.deps_mut(),
-                        env.clone(),
-                        &nm1,
-                        0,
-                        vec![perf]
-                    )
-                    .is_ok());
+                assert!(
+                    storage
+                        .batch_submit_performance_results(
+                            tester.deps_mut(),
+                            env.clone(),
+                            &nm1,
+                            0,
+                            vec![perf]
+                        )
+                        .is_ok()
+                );
 
                 // unauthorised address is rejected
                 let res = storage
@@ -1311,15 +1343,17 @@ mod tests {
 
                 // it is fine after explicit authorisation though
                 tester.authorise_network_monitor(&nm2)?;
-                assert!(storage
-                    .batch_submit_performance_results(
-                        tester.deps_mut(),
-                        env.clone(),
-                        &nm2,
-                        0,
-                        vec![perf]
-                    )
-                    .is_ok());
+                assert!(
+                    storage
+                        .batch_submit_performance_results(
+                            tester.deps_mut(),
+                            env.clone(),
+                            &nm2,
+                            0,
+                            vec![perf]
+                        )
+                        .is_ok()
+                );
 
                 // and address that was never authorised still fails
                 let res = storage
@@ -1414,15 +1448,17 @@ mod tests {
                     .unwrap_err();
                 assert_eq!(res, NymPerformanceContractError::UnsortedBatchSubmission);
 
-                assert!(storage
-                    .batch_submit_performance_results(
-                        tester.deps_mut(),
-                        env.clone(),
-                        &nm,
-                        0,
-                        sorted
-                    )
-                    .is_ok());
+                assert!(
+                    storage
+                        .batch_submit_performance_results(
+                            tester.deps_mut(),
+                            env.clone(),
+                            &nm,
+                            0,
+                            sorted
+                        )
+                        .is_ok()
+                );
                 Ok(())
             }
 
@@ -1446,15 +1482,17 @@ mod tests {
                 };
 
                 // first submission
-                assert!(storage
-                    .batch_submit_performance_results(
-                        tester.deps_mut(),
-                        env.clone(),
-                        &nm,
-                        0,
-                        vec![data]
-                    )
-                    .is_ok());
+                assert!(
+                    storage
+                        .batch_submit_performance_results(
+                            tester.deps_mut(),
+                            env.clone(),
+                            &nm,
+                            0,
+                            vec![data]
+                        )
+                        .is_ok()
+                );
 
                 // second submission
                 let res = storage
@@ -1478,26 +1516,30 @@ mod tests {
                 );
 
                 // another submission works fine
-                assert!(storage
-                    .batch_submit_performance_results(
-                        tester.deps_mut(),
-                        env.clone(),
-                        &nm,
-                        0,
-                        vec![another_data]
-                    )
-                    .is_ok());
+                assert!(
+                    storage
+                        .batch_submit_performance_results(
+                            tester.deps_mut(),
+                            env.clone(),
+                            &nm,
+                            0,
+                            vec![another_data]
+                        )
+                        .is_ok()
+                );
 
                 // original one works IF it's for next epoch
-                assert!(storage
-                    .batch_submit_performance_results(
-                        tester.deps_mut(),
-                        env.clone(),
-                        &nm,
-                        1,
-                        vec![data]
-                    )
-                    .is_ok());
+                assert!(
+                    storage
+                        .batch_submit_performance_results(
+                            tester.deps_mut(),
+                            env.clone(),
+                            &nm,
+                            1,
+                            vec![data]
+                        )
+                        .is_ok()
+                );
 
                 let res = storage
                     .batch_submit_performance_results(
@@ -1541,15 +1583,17 @@ mod tests {
                     performance: Percent::hundred(),
                 };
 
-                assert!(storage
-                    .batch_submit_performance_results(
-                        tester.deps_mut(),
-                        env.clone(),
-                        &nm,
-                        0,
-                        vec![another_data]
-                    )
-                    .is_ok());
+                assert!(
+                    storage
+                        .batch_submit_performance_results(
+                            tester.deps_mut(),
+                            env.clone(),
+                            &nm,
+                            0,
+                            vec![another_data]
+                        )
+                        .is_ok()
+                );
 
                 let res = storage
                     .batch_submit_performance_results(
@@ -1572,15 +1616,17 @@ mod tests {
                 );
 
                 // check across epochs
-                assert!(storage
-                    .batch_submit_performance_results(
-                        tester.deps_mut(),
-                        env.clone(),
-                        &nm,
-                        10,
-                        vec![data]
-                    )
-                    .is_ok());
+                assert!(
+                    storage
+                        .batch_submit_performance_results(
+                            tester.deps_mut(),
+                            env.clone(),
+                            &nm,
+                            10,
+                            vec![data]
+                        )
+                        .is_ok()
+                );
 
                 let res = storage
                     .batch_submit_performance_results(
@@ -1657,24 +1703,28 @@ mod tests {
                     }
                 );
 
-                assert!(storage
-                    .batch_submit_performance_results(
-                        tester.deps_mut(),
-                        env.clone(),
-                        &nm,
-                        10,
-                        vec![perf]
-                    )
-                    .is_ok());
-                assert!(storage
-                    .batch_submit_performance_results(
-                        tester.deps_mut(),
-                        env.clone(),
-                        &nm,
-                        11,
-                        vec![perf]
-                    )
-                    .is_ok());
+                assert!(
+                    storage
+                        .batch_submit_performance_results(
+                            tester.deps_mut(),
+                            env.clone(),
+                            &nm,
+                            10,
+                            vec![perf]
+                        )
+                        .is_ok()
+                );
+                assert!(
+                    storage
+                        .batch_submit_performance_results(
+                            tester.deps_mut(),
+                            env.clone(),
+                            &nm,
+                            11,
+                            vec![perf]
+                        )
+                        .is_ok()
+                );
 
                 Ok(())
             }
@@ -2091,9 +2141,11 @@ mod tests {
                     .unwrap_err();
                 assert_eq!(res, NymPerformanceContractError::Admin(NotAdmin {}));
 
-                assert!(storage
-                    .authorise_network_monitor(tester.deps_mut(), &env, &admin, nm)
-                    .is_ok());
+                assert!(
+                    storage
+                        .authorise_network_monitor(tester.deps_mut(), &env, &admin, nm)
+                        .is_ok()
+                );
 
                 // change admin
                 let new_admin = tester.addr_make("new-admin");
@@ -2107,9 +2159,11 @@ mod tests {
                     .unwrap_err();
                 assert_eq!(res, NymPerformanceContractError::Admin(NotAdmin {}));
 
-                assert!(storage
-                    .authorise_network_monitor(tester.deps_mut(), &env, &new_admin, another_nm)
-                    .is_ok());
+                assert!(
+                    storage
+                        .authorise_network_monitor(tester.deps_mut(), &env, &new_admin, another_nm)
+                        .is_ok()
+                );
                 Ok(())
             }
 
@@ -2234,9 +2288,11 @@ mod tests {
                     .unwrap_err();
                 assert_eq!(res, NymPerformanceContractError::Admin(NotAdmin {}));
 
-                assert!(storage
-                    .retire_network_monitor(tester.deps_mut(), env.clone(), &admin, nm)
-                    .is_ok());
+                assert!(
+                    storage
+                        .retire_network_monitor(tester.deps_mut(), env.clone(), &admin, nm)
+                        .is_ok()
+                );
 
                 // change admin
                 let new_admin = tester.addr_make("new-admin");
@@ -2253,9 +2309,11 @@ mod tests {
                     .unwrap_err();
                 assert_eq!(res, NymPerformanceContractError::Admin(NotAdmin {}));
 
-                assert!(storage
-                    .retire_network_monitor(tester.deps_mut(), env, &new_admin, another_nm)
-                    .is_ok());
+                assert!(
+                    storage
+                        .retire_network_monitor(tester.deps_mut(), env, &new_admin, another_nm)
+                        .is_ok()
+                );
 
                 Ok(())
             }
@@ -2425,9 +2483,11 @@ mod tests {
                     .unwrap_err();
                 assert_eq!(res, NymPerformanceContractError::Admin(NotAdmin {}));
 
-                assert!(storage
-                    .remove_node_measurements(tester.deps_mut(), &admin, epoch_id, id1)
-                    .is_ok());
+                assert!(
+                    storage
+                        .remove_node_measurements(tester.deps_mut(), &admin, epoch_id, id1)
+                        .is_ok()
+                );
 
                 // change admin
                 let new_admin = tester.addr_make("new-admin");
@@ -2439,9 +2499,11 @@ mod tests {
                     .unwrap_err();
                 assert_eq!(res, NymPerformanceContractError::Admin(NotAdmin {}));
 
-                assert!(storage
-                    .remove_node_measurements(tester.deps_mut(), &new_admin, epoch_id, id2)
-                    .is_ok());
+                assert!(
+                    storage
+                        .remove_node_measurements(tester.deps_mut(), &new_admin, epoch_id, id2)
+                        .is_ok()
+                );
 
                 Ok(())
             }
@@ -2561,9 +2623,11 @@ mod tests {
                     .unwrap_err();
                 assert_eq!(res, NymPerformanceContractError::Admin(NotAdmin {}));
 
-                assert!(storage
-                    .remove_epoch_measurements(tester.deps_mut(), &admin, 0)
-                    .is_ok());
+                assert!(
+                    storage
+                        .remove_epoch_measurements(tester.deps_mut(), &admin, 0)
+                        .is_ok()
+                );
 
                 // change admin
                 let new_admin = tester.addr_make("new-admin");
@@ -2575,9 +2639,11 @@ mod tests {
                     .unwrap_err();
                 assert_eq!(res, NymPerformanceContractError::Admin(NotAdmin {}));
 
-                assert!(storage
-                    .remove_epoch_measurements(tester.deps_mut(), &new_admin, 1)
-                    .is_ok());
+                assert!(
+                    storage
+                        .remove_epoch_measurements(tester.deps_mut(), &new_admin, 1)
+                        .is_ok()
+                );
 
                 Ok(())
             }
@@ -2726,7 +2792,7 @@ mod tests {
     #[cfg(test)]
     mod network_monitors_storage {
         use super::*;
-        use crate::testing::{init_contract_tester, PerformanceContractTesterExt};
+        use crate::testing::{PerformanceContractTesterExt, init_contract_tester};
         use nym_contracts_common_testing::{AdminExt, ContractOpts};
 
         #[test]
@@ -2741,9 +2807,11 @@ mod tests {
             let nm1 = tester.addr_make("network-monitor1");
             let nm2 = tester.addr_make("network-monitor2");
 
-            assert!(storage
-                .insert_new(tester.deps_mut(), &env, &admin, &nm1)
-                .is_ok());
+            assert!(
+                storage
+                    .insert_new(tester.deps_mut(), &env, &admin, &nm1)
+                    .is_ok()
+            );
 
             // total authorised count is incremented
             assert_eq!(storage.authorised_count.load(&tester)?, 1);
@@ -2758,9 +2826,11 @@ mod tests {
                 }
             );
 
-            assert!(storage
-                .insert_new(tester.deps_mut(), &env, &admin, &nm2)
-                .is_ok());
+            assert!(
+                storage
+                    .insert_new(tester.deps_mut(), &env, &admin, &nm2)
+                    .is_ok()
+            );
 
             assert_eq!(storage.authorised_count.load(&tester)?, 2);
             assert_eq!(
@@ -2781,9 +2851,11 @@ mod tests {
             assert!(storage.retired.may_load(&tester, &nm1)?.is_some());
 
             // if it was previously retired, that information is purged
-            assert!(storage
-                .insert_new(tester.deps_mut(), &env, &admin, &nm1)
-                .is_ok());
+            assert!(
+                storage
+                    .insert_new(tester.deps_mut(), &env, &admin, &nm1)
+                    .is_ok()
+            );
 
             assert!(storage.retired.may_load(&tester, &nm1)?.is_none());
 
@@ -2805,9 +2877,11 @@ mod tests {
             tester.authorise_network_monitor(&nm2)?;
 
             // fails on unauthorised NMs
-            assert!(storage
-                .retire(tester.deps_mut(), &env, &admin, &nm3)
-                .is_err());
+            assert!(
+                storage
+                    .retire(tester.deps_mut(), &env, &admin, &nm3)
+                    .is_err()
+            );
 
             assert_eq!(storage.authorised_count.load(&tester)?, 2);
 
@@ -2855,7 +2929,7 @@ mod tests {
     #[cfg(test)]
     mod performance_storage {
         use super::*;
-        use crate::testing::{init_contract_tester, PerformanceContractTesterExt};
+        use crate::testing::{PerformanceContractTesterExt, init_contract_tester};
         use nym_contracts_common_testing::ContractOpts;
         use std::str::FromStr;
 
@@ -2948,37 +3022,55 @@ mod tests {
             tester.insert_epoch_performance(&nm, 2, id2, Percent::hundred())?;
 
             // illegal to submit anything < than last used epoch
-            assert!(storage
-                .ensure_non_stale_submission(&tester, &nm, 0, id2)
-                .is_err());
-            assert!(storage
-                .ensure_non_stale_submission(&tester, &nm, 1, id2)
-                .is_err());
-            assert!(storage
-                .ensure_non_stale_submission(&tester, &nm, 1, id3)
-                .is_err());
+            assert!(
+                storage
+                    .ensure_non_stale_submission(&tester, &nm, 0, id2)
+                    .is_err()
+            );
+            assert!(
+                storage
+                    .ensure_non_stale_submission(&tester, &nm, 1, id2)
+                    .is_err()
+            );
+            assert!(
+                storage
+                    .ensure_non_stale_submission(&tester, &nm, 1, id3)
+                    .is_err()
+            );
 
             // for the current epoch, node id has to be greater than what has already been submitted
-            assert!(storage
-                .ensure_non_stale_submission(&tester, &nm, 2, id1)
-                .is_err());
-            assert!(storage
-                .ensure_non_stale_submission(&tester, &nm, 2, id2)
-                .is_err());
-            assert!(storage
-                .ensure_non_stale_submission(&tester, &nm, 2, id3)
-                .is_ok());
+            assert!(
+                storage
+                    .ensure_non_stale_submission(&tester, &nm, 2, id1)
+                    .is_err()
+            );
+            assert!(
+                storage
+                    .ensure_non_stale_submission(&tester, &nm, 2, id2)
+                    .is_err()
+            );
+            assert!(
+                storage
+                    .ensure_non_stale_submission(&tester, &nm, 2, id3)
+                    .is_ok()
+            );
 
             // and anything for future epochs is fine (as long as it's the first entry)
-            assert!(storage
-                .ensure_non_stale_submission(&tester, &nm, 3, id1)
-                .is_ok());
-            assert!(storage
-                .ensure_non_stale_submission(&tester, &nm, 3, id2)
-                .is_ok());
-            assert!(storage
-                .ensure_non_stale_submission(&tester, &nm, 1111, id3)
-                .is_ok());
+            assert!(
+                storage
+                    .ensure_non_stale_submission(&tester, &nm, 3, id1)
+                    .is_ok()
+            );
+            assert!(
+                storage
+                    .ensure_non_stale_submission(&tester, &nm, 3, id2)
+                    .is_ok()
+            );
+            assert!(
+                storage
+                    .ensure_non_stale_submission(&tester, &nm, 1111, id3)
+                    .is_ok()
+            );
 
             Ok(())
         }

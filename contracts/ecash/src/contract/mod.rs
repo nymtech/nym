@@ -5,14 +5,15 @@ use crate::constants::{BLACKLIST_PROPOSAL_REPLY_ID, REDEMPTION_PROPOSAL_REPLY_ID
 use crate::contract::helpers::Invariants;
 use crate::deposit::DepositStorage;
 use crate::helpers::{
-    BlacklistKey, Config, MultisigReply, BLACKLIST_PAGE_DEFAULT_LIMIT, BLACKLIST_PAGE_MAX_LIMIT,
-    CONTRACT_NAME, CONTRACT_VERSION, DEPOSITS_PAGE_DEFAULT_LIMIT, DEPOSITS_PAGE_MAX_LIMIT,
+    BLACKLIST_PAGE_DEFAULT_LIMIT, BLACKLIST_PAGE_MAX_LIMIT, BlacklistKey, CONTRACT_NAME,
+    CONTRACT_VERSION, Config, DEPOSITS_PAGE_DEFAULT_LIMIT, DEPOSITS_PAGE_MAX_LIMIT, MultisigReply,
 };
-use cosmwasm_std::{coin, BankMsg, Coin, Event, Order, Reply, Response, StdResult};
-use cw4::Cw4Contract;
+use cosmwasm_std::{BankMsg, Coin, Event, Order, Reply, Response, StdResult, coin};
 use cw_controllers::Admin;
 use cw_storage_plus::{Bound, Item, Map};
+use cw4::Cw4Contract;
 use nym_contracts_common::set_build_information;
+use nym_ecash_contract_common::EcashContractError;
 use nym_ecash_contract_common::blacklist::{
     BlacklistedAccount, BlacklistedAccountResponse, Blacklisting, PagedBlacklistedAccountResponse,
 };
@@ -21,9 +22,8 @@ use nym_ecash_contract_common::deposit::{
     DepositData, DepositResponse, LatestDepositResponse, PagedDepositsResponse,
 };
 use nym_ecash_contract_common::events::{
-    DEPOSITED_FUNDS_EVENT_TYPE, DEPOSIT_ID, PROPOSAL_ID_ATTRIBUTE_NAME,
+    DEPOSIT_ID, DEPOSITED_FUNDS_EVENT_TYPE, PROPOSAL_ID_ATTRIBUTE_NAME,
 };
-use nym_ecash_contract_common::EcashContractError;
 use nym_network_defaults::TICKETBOOK_SIZE;
 use sylvia::ctx::{ExecCtx, InstantiateCtx, MigrateCtx, QueryCtx};
 use sylvia::{contract, entry_points};

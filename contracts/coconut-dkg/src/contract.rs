@@ -29,7 +29,7 @@ use crate::verification_key_shares::queries::{query_vk_share, query_vk_shares_pa
 use crate::verification_key_shares::transactions::try_commit_verification_key_share;
 use crate::verification_key_shares::transactions::try_verify_verification_key_share;
 use cosmwasm_std::{
-    entry_point, to_json_binary, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response,
+    Deps, DepsMut, Env, MessageInfo, QueryResponse, Response, entry_point, to_json_binary,
 };
 use cw4::Cw4Contract;
 use nym_coconut_dkg_common::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
@@ -267,10 +267,10 @@ mod tests {
     use super::*;
     use crate::support::tests::fixtures::TEST_MIX_DENOM;
     use crate::support::tests::helpers::{ADMIN_ADDRESS, MULTISIG_CONTRACT};
-    use cosmwasm_std::testing::{message_info, mock_dependencies, mock_env, MockApi};
-    use cosmwasm_std::{coins, Addr};
-    use cw4::Member;
+    use cosmwasm_std::testing::{MockApi, message_info, mock_dependencies, mock_env};
+    use cosmwasm_std::{Addr, coins};
     use cw_multi_test::{App, AppBuilder, AppResponse, ContractWrapper, Executor};
+    use cw4::Member;
     use nym_coconut_dkg_common::dealing::DEFAULT_DEALINGS;
     use nym_coconut_dkg_common::msg::ExecuteMsg::{InitiateDkg, RegisterDealer};
     use nym_coconut_dkg_common::types::NodeIndex;

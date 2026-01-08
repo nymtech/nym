@@ -1,11 +1,11 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::support::setup::{MIXNET_OWNER, MIX_DENOM, REWARDING_VALIDATOR, VESTING_OWNER};
-use cosmwasm_std::{coin, coins, Addr, Coin, Empty};
+use crate::support::setup::{MIX_DENOM, MIXNET_OWNER, REWARDING_VALIDATOR, VESTING_OWNER};
+use cosmwasm_std::{Addr, Coin, Empty, coin, coins};
 use cw_multi_test::{Contract, ContractWrapper};
-use rand_chacha::rand_core::SeedableRng;
 use rand_chacha::ChaCha20Rng;
+use rand_chacha::rand_core::SeedableRng;
 
 #[allow(unused)]
 pub fn mixnet_owner() -> Addr {

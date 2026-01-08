@@ -41,7 +41,7 @@ pub fn load_current_epoch(storage: &dyn Storage) -> StdResult<Epoch> {
 mod tests {
     use super::*;
     use crate::epoch_state::transactions::{try_advance_epoch_state, try_initiate_dkg};
-    use crate::support::tests::helpers::{init_contract, ADMIN_ADDRESS};
+    use crate::support::tests::helpers::{ADMIN_ADDRESS, init_contract};
     use cosmwasm_std::testing::{message_info, mock_dependencies, mock_env};
     use cosmwasm_std::{Addr, Env};
     use nym_coconut_dkg_common::types::EpochState;
@@ -80,9 +80,11 @@ mod tests {
         let mut empty_deps = mock_dependencies();
 
         // before contract is initialised, there's nothing saved
-        assert!(HISTORICAL_EPOCH
-            .may_load(empty_deps.as_mut().storage)?
-            .is_none());
+        assert!(
+            HISTORICAL_EPOCH
+                .may_load(empty_deps.as_mut().storage)?
+                .is_none()
+        );
 
         let mut deps = init_contract();
         let mut env = EnvWrapper { env: mock_env() };
@@ -153,9 +155,11 @@ mod tests {
         );
 
         // check old data
-        assert!(HISTORICAL_EPOCH
-            .may_load_at_height(deps.as_mut().storage, init_height - 1)?
-            .is_none());
+        assert!(
+            HISTORICAL_EPOCH
+                .may_load_at_height(deps.as_mut().storage, init_height - 1)?
+                .is_none()
+        );
         assert_eq!(
             HISTORICAL_EPOCH
                 .may_load_at_height(deps.as_mut().storage, init_height + 1)?

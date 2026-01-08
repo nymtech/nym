@@ -1,8 +1,8 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::error::ContractError;
 use crate::Dealer;
+use crate::error::ContractError;
 use cosmwasm_std::{StdResult, Storage};
 use cw_storage_plus::{Item, Map};
 use nym_coconut_dkg_common::dealer::{BlockHeight, OwnershipTransfer, TransactionIndex};

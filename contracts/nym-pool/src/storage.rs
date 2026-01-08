@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::helpers::validate_usage_coin;
-use cosmwasm_std::{coin, Addr, Coin, Deps, DepsMut, Env, Storage, Uint128};
+use cosmwasm_std::{Addr, Coin, Deps, DepsMut, Env, Storage, Uint128, coin};
 use cw_controllers::Admin;
 use cw_storage_plus::{Item, Map};
 use nym_pool_contract_common::constants::storage_keys;
@@ -489,11 +489,11 @@ mod tests {
     #[cfg(test)]
     mod nympool_storage {
         use super::*;
-        use crate::testing::{init_contract_tester, NymPoolContractTesterExt, TEST_DENOM};
+        use crate::testing::{NymPoolContractTesterExt, TEST_DENOM, init_contract_tester};
         use cosmwasm_std::testing::{
-            mock_dependencies, mock_env, MockApi, MockQuerier, MockStorage,
+            MockApi, MockQuerier, MockStorage, mock_dependencies, mock_env,
         };
-        use cosmwasm_std::{coin, coins, Empty, OwnedDeps};
+        use cosmwasm_std::{Empty, OwnedDeps, coin, coins};
         use nym_contracts_common_testing::{AdminExt, ContractOpts, RandExt};
         use nym_pool_contract_common::BasicAllowance;
 
@@ -502,7 +502,7 @@ mod tests {
             use super::*;
             use crate::testing::TEST_DENOM;
             use cosmwasm_std::testing::{mock_dependencies, mock_env};
-            use cosmwasm_std::{coin, Order};
+            use cosmwasm_std::{Order, coin};
             use nym_contracts_common_testing::deps_with_balance;
             use nym_pool_contract_common::BasicAllowance;
 
@@ -688,9 +688,11 @@ mod tests {
                 let mut grants = HashMap::new();
                 grants.insert(deps.api.addr_make("gr1").to_string(), dummy_allowance());
                 grants.insert("invalid_address".to_string(), dummy_allowance());
-                assert!(storage
-                    .initialise(deps.as_mut(), env.clone(), admin.clone(), denom, grants)
-                    .is_err());
+                assert!(
+                    storage
+                        .initialise(deps.as_mut(), env.clone(), admin.clone(), denom, grants)
+                        .is_err()
+                );
 
                 // fails on invalid allowance
                 let mut deps = deps_with_balance(&env);
@@ -702,9 +704,11 @@ mod tests {
                         expiration_unix_timestamp: None,
                     }),
                 );
-                assert!(storage
-                    .initialise(deps.as_mut(), env.clone(), admin, denom, grants)
-                    .is_err());
+                assert!(
+                    storage
+                        .initialise(deps.as_mut(), env.clone(), admin, denom, grants)
+                        .is_err()
+                );
                 Ok(())
             }
 
@@ -782,11 +786,13 @@ mod tests {
                 let denom = &TEST_DENOM.to_string();
 
                 storage.initialise(deps.as_mut(), env, admin, denom, HashMap::new())?;
-                assert!(storage
-                    .locked
-                    .total_locked
-                    .load(deps.as_ref().storage)?
-                    .is_zero());
+                assert!(
+                    storage
+                        .locked
+                        .total_locked
+                        .load(deps.as_ref().storage)?
+                        .is_zero()
+                );
 
                 Ok(())
             }
@@ -966,12 +972,16 @@ mod tests {
             let not_granter = test.generate_account();
 
             let deps = test.deps();
-            assert!(storage
-                .ensure_is_whitelisted_granter(deps, &granter)
-                .is_ok());
-            assert!(storage
-                .ensure_is_whitelisted_granter(deps, &not_granter)
-                .is_err());
+            assert!(
+                storage
+                    .ensure_is_whitelisted_granter(deps, &granter)
+                    .is_ok()
+            );
+            assert!(
+                storage
+                    .ensure_is_whitelisted_granter(deps, &not_granter)
+                    .is_err()
+            );
 
             Ok(())
         }
@@ -1207,14 +1217,18 @@ mod tests {
                 let admin = test.admin_unchecked();
                 let granter = test.generate_account();
 
-                assert!(storage
-                    .remove_granter(test.deps_mut(), &admin, &granter)
-                    .is_err());
+                assert!(
+                    storage
+                        .remove_granter(test.deps_mut(), &admin, &granter)
+                        .is_err()
+                );
 
                 test.add_granter(&granter);
-                assert!(storage
-                    .remove_granter(test.deps_mut(), &admin, &granter)
-                    .is_ok());
+                assert!(
+                    storage
+                        .remove_granter(test.deps_mut(), &admin, &granter)
+                        .is_ok()
+                );
 
                 Ok(())
             }
@@ -1230,33 +1244,43 @@ mod tests {
                 test.add_granter(&granter);
 
                 // can't be removed by the granter itself
-                assert!(storage
-                    .remove_granter(test.deps_mut(), &granter, &granter)
-                    .is_err());
+                assert!(
+                    storage
+                        .remove_granter(test.deps_mut(), &granter, &granter)
+                        .is_err()
+                );
 
                 // not by some random address
-                assert!(storage
-                    .remove_granter(test.deps_mut(), &random_address, &granter)
-                    .is_err());
+                assert!(
+                    storage
+                        .remove_granter(test.deps_mut(), &random_address, &granter)
+                        .is_err()
+                );
 
                 // admin can do it though!
-                assert!(storage
-                    .remove_granter(test.deps_mut(), &admin, &granter)
-                    .is_ok());
+                assert!(
+                    storage
+                        .remove_granter(test.deps_mut(), &admin, &granter)
+                        .is_ok()
+                );
 
                 test.add_granter(&granter);
                 let new_admin = test.generate_account();
                 test.change_admin(&new_admin);
 
                 // old admin can't do anything : (
-                assert!(storage
-                    .remove_granter(test.deps_mut(), &admin, &granter)
-                    .is_err());
+                assert!(
+                    storage
+                        .remove_granter(test.deps_mut(), &admin, &granter)
+                        .is_err()
+                );
 
                 // but new admin can!
-                assert!(storage
-                    .remove_granter(test.deps_mut(), &new_admin, &granter)
-                    .is_ok());
+                assert!(
+                    storage
+                        .remove_granter(test.deps_mut(), &new_admin, &granter)
+                        .is_ok()
+                );
 
                 Ok(())
             }
@@ -1270,17 +1294,21 @@ mod tests {
                 let granter = test.generate_account();
                 test.add_granter(&granter);
 
-                assert!(storage
-                    .granters
-                    .may_load(test.storage(), granter.clone())?
-                    .is_some());
+                assert!(
+                    storage
+                        .granters
+                        .may_load(test.storage(), granter.clone())?
+                        .is_some()
+                );
 
                 storage.remove_granter(test.deps_mut(), &admin, &granter)?;
 
-                assert!(storage
-                    .granters
-                    .may_load(test.storage(), granter.clone())?
-                    .is_none());
+                assert!(
+                    storage
+                        .granters
+                        .may_load(test.storage(), granter.clone())?
+                        .is_none()
+                );
                 Ok(())
             }
         }
@@ -1478,14 +1506,16 @@ mod tests {
                 assert!(matches!(res, NymPoolContractError::GrantNotFound { .. }));
 
                 test.add_dummy_grant_for(&grantee);
-                assert!(storage
-                    .try_spend_part_of_grant(
-                        test.deps_mut(),
-                        &env,
-                        &grantee,
-                        &coin(100, TEST_DENOM)
-                    )
-                    .is_ok());
+                assert!(
+                    storage
+                        .try_spend_part_of_grant(
+                            test.deps_mut(),
+                            &env,
+                            &grantee,
+                            &coin(100, TEST_DENOM)
+                        )
+                        .is_ok()
+                );
                 Ok(())
             }
 
@@ -1629,17 +1659,21 @@ mod tests {
             // removes the actual entry from the map
             test.add_dummy_grant_for(&grantee);
 
-            assert!(storage
-                .grants
-                .may_load(test.storage(), grantee.clone())?
-                .is_some());
+            assert!(
+                storage
+                    .grants
+                    .may_load(test.storage(), grantee.clone())?
+                    .is_some()
+            );
 
             assert!(storage.remove_grant(test.deps_mut(), &grantee).is_ok());
 
-            assert!(storage
-                .grants
-                .may_load(test.storage(), grantee.clone())?
-                .is_none());
+            assert!(
+                storage
+                    .grants
+                    .may_load(test.storage(), grantee.clone())?
+                    .is_none()
+            );
 
             // if applicable, unlocks any locked tokens
             // (all the details of unlocking are already tested in different unit test(s),
@@ -1649,11 +1683,13 @@ mod tests {
 
             assert!(storage.remove_grant(test.deps_mut(), &grantee2).is_ok());
 
-            assert!(storage
-                .locked
-                .grantees
-                .may_load(test.storage(), grantee2)?
-                .is_none());
+            assert!(
+                storage
+                    .locked
+                    .grantees
+                    .may_load(test.storage(), grantee2)?
+                    .is_none()
+            );
             assert!(storage.locked.total_locked.load(test.storage())?.is_zero());
 
             Ok(())
@@ -1682,9 +1718,11 @@ mod tests {
                 );
 
                 test.add_dummy_grant_for(&grantee);
-                assert!(storage
-                    .revoke_grant(test.deps_mut(), &grantee, &admin)
-                    .is_ok());
+                assert!(
+                    storage
+                        .revoke_grant(test.deps_mut(), &grantee, &admin)
+                        .is_ok()
+                );
 
                 Ok(())
             }
@@ -1698,17 +1736,21 @@ mod tests {
 
                 // current admin
                 let admin = test.admin_unchecked();
-                assert!(storage
-                    .revoke_grant(test.deps_mut(), &grantee, &admin)
-                    .is_ok());
+                assert!(
+                    storage
+                        .revoke_grant(test.deps_mut(), &grantee, &admin)
+                        .is_ok()
+                );
 
                 // new admin
                 let new_admin = test.generate_account();
                 let grantee = test.add_dummy_grant().grantee;
                 test.change_admin(&new_admin);
-                assert!(storage
-                    .revoke_grant(test.deps_mut(), &grantee, &new_admin)
-                    .is_ok());
+                assert!(
+                    storage
+                        .revoke_grant(test.deps_mut(), &grantee, &new_admin)
+                        .is_ok()
+                );
 
                 // old admin
                 let grantee = test.add_dummy_grant().grantee;
@@ -1750,9 +1792,11 @@ mod tests {
                 )?;
 
                 // still whitelisted
-                assert!(storage
-                    .revoke_grant(test.deps_mut(), &grantee1, &granter)
-                    .is_ok());
+                assert!(
+                    storage
+                        .revoke_grant(test.deps_mut(), &grantee1, &granter)
+                        .is_ok()
+                );
 
                 // not whitelisted anymore
                 storage.remove_granter(test.deps_mut(), &admin, &granter)?;
@@ -1775,10 +1819,12 @@ mod tests {
                 let grantee = test.add_dummy_grant().grantee;
 
                 storage.revoke_grant(test.deps_mut(), &grantee, &admin)?;
-                assert!(storage
-                    .grants
-                    .may_load(test.storage(), grantee.clone())?
-                    .is_none());
+                assert!(
+                    storage
+                        .grants
+                        .may_load(test.storage(), grantee.clone())?
+                        .is_none()
+                );
 
                 Ok(())
             }
@@ -1801,12 +1847,16 @@ mod tests {
 
                 let env = test.env();
 
-                assert!(storage
-                    .lock_part_of_allowance(test.deps_mut(), &env, &grantee, bad_amount)
-                    .is_err());
-                assert!(storage
-                    .lock_part_of_allowance(test.deps_mut(), &env, &grantee, good_amount)
-                    .is_ok());
+                assert!(
+                    storage
+                        .lock_part_of_allowance(test.deps_mut(), &env, &grantee, bad_amount)
+                        .is_err()
+                );
+                assert!(
+                    storage
+                        .lock_part_of_allowance(test.deps_mut(), &env, &grantee, good_amount)
+                        .is_ok()
+                );
 
                 Ok(())
             }
@@ -1821,15 +1871,19 @@ mod tests {
                 let amount = test.coin(100);
 
                 // doesn't exist
-                assert!(storage
-                    .lock_part_of_allowance(test.deps_mut(), &env, &grantee, amount.clone())
-                    .is_err());
+                assert!(
+                    storage
+                        .lock_part_of_allowance(test.deps_mut(), &env, &grantee, amount.clone())
+                        .is_err()
+                );
 
                 // does exist
                 test.add_dummy_grant_for(&grantee);
-                assert!(storage
-                    .lock_part_of_allowance(test.deps_mut(), &env, &grantee, amount)
-                    .is_ok());
+                assert!(
+                    storage
+                        .lock_part_of_allowance(test.deps_mut(), &env, &grantee, amount)
+                        .is_ok()
+                );
                 Ok(())
             }
 
@@ -1848,14 +1902,18 @@ mod tests {
                 storage.insert_new_grant(test.deps_mut(), &env, &admin, &grantee, allowance)?;
 
                 let amount = test.coin(101);
-                assert!(storage
-                    .lock_part_of_allowance(test.deps_mut(), &env, &grantee, amount)
-                    .is_err());
+                assert!(
+                    storage
+                        .lock_part_of_allowance(test.deps_mut(), &env, &grantee, amount)
+                        .is_err()
+                );
 
                 let amount = test.coin(100);
-                assert!(storage
-                    .lock_part_of_allowance(test.deps_mut(), &env, &grantee, amount)
-                    .is_ok());
+                assert!(
+                    storage
+                        .lock_part_of_allowance(test.deps_mut(), &env, &grantee, amount)
+                        .is_ok()
+                );
 
                 Ok(())
             }
@@ -1962,7 +2020,7 @@ mod tests {
         #[cfg(test)]
         mod unlocking_part_of_allowance {
             use super::*;
-            use crate::testing::{init_contract_tester, NymPoolContract};
+            use crate::testing::{NymPoolContract, init_contract_tester};
             use nym_contracts_common_testing::{ContractTester, DenomExt};
 
             fn setup_locked_grant(test: &mut ContractTester<NymPoolContract>) -> Addr {
@@ -1980,12 +2038,16 @@ mod tests {
                 let bad_amount = coin(0, "invalid-denom");
                 let good_amount = test.coin(100);
 
-                assert!(storage
-                    .unlock_part_of_allowance(test.deps_mut(), &grantee, &bad_amount)
-                    .is_err());
-                assert!(storage
-                    .unlock_part_of_allowance(test.deps_mut(), &grantee, &good_amount)
-                    .is_ok());
+                assert!(
+                    storage
+                        .unlock_part_of_allowance(test.deps_mut(), &grantee, &bad_amount)
+                        .is_err()
+                );
+                assert!(
+                    storage
+                        .unlock_part_of_allowance(test.deps_mut(), &grantee, &good_amount)
+                        .is_ok()
+                );
 
                 Ok(())
             }
@@ -1997,14 +2059,18 @@ mod tests {
                 let grantee = setup_locked_grant(&mut test);
 
                 let amount = test.coin(101);
-                assert!(storage
-                    .unlock_part_of_allowance(test.deps_mut(), &grantee, &amount)
-                    .is_err());
+                assert!(
+                    storage
+                        .unlock_part_of_allowance(test.deps_mut(), &grantee, &amount)
+                        .is_err()
+                );
 
                 let amount = test.coin(100);
-                assert!(storage
-                    .unlock_part_of_allowance(test.deps_mut(), &grantee, &amount)
-                    .is_ok());
+                assert!(
+                    storage
+                        .unlock_part_of_allowance(test.deps_mut(), &grantee, &amount)
+                        .is_ok()
+                );
                 Ok(())
             }
 
@@ -2016,14 +2082,18 @@ mod tests {
 
                 let amount = test.coin(100);
 
-                assert!(storage
-                    .unlock_part_of_allowance(test.deps_mut(), &grantee, &amount)
-                    .is_err());
+                assert!(
+                    storage
+                        .unlock_part_of_allowance(test.deps_mut(), &grantee, &amount)
+                        .is_err()
+                );
                 test.add_dummy_grant_for(&grantee);
                 test.lock_allowance(&grantee, Uint128::new(100));
-                assert!(storage
-                    .unlock_part_of_allowance(test.deps_mut(), &grantee, &amount)
-                    .is_ok());
+                assert!(
+                    storage
+                        .unlock_part_of_allowance(test.deps_mut(), &grantee, &amount)
+                        .is_ok()
+                );
                 Ok(())
             }
 
@@ -2035,13 +2105,17 @@ mod tests {
 
                 let amount = test.coin(100);
 
-                assert!(storage
-                    .unlock_part_of_allowance(test.deps_mut(), &grantee, &amount)
-                    .is_err());
+                assert!(
+                    storage
+                        .unlock_part_of_allowance(test.deps_mut(), &grantee, &amount)
+                        .is_err()
+                );
                 test.lock_allowance(&grantee, Uint128::new(100));
-                assert!(storage
-                    .unlock_part_of_allowance(test.deps_mut(), &grantee, &amount)
-                    .is_ok());
+                assert!(
+                    storage
+                        .unlock_part_of_allowance(test.deps_mut(), &grantee, &amount)
+                        .is_ok()
+                );
                 Ok(())
             }
 
@@ -2112,11 +2186,13 @@ mod tests {
 
                 let amount = test.coin(80);
                 storage.unlock_part_of_allowance(test.deps_mut(), &grantee, &amount)?;
-                assert!(storage
-                    .locked
-                    .grantees
-                    .may_load(test.storage(), grantee)?
-                    .is_none(),);
+                assert!(
+                    storage
+                        .locked
+                        .grantees
+                        .may_load(test.storage(), grantee)?
+                        .is_none(),
+                );
                 assert!(storage.locked.total_locked.load(test.storage())?.is_zero());
 
                 Ok(())
@@ -2127,7 +2203,7 @@ mod tests {
     #[cfg(test)]
     mod locked_storage {
         use super::*;
-        use crate::testing::{init_contract_tester, NymPoolContractTesterExt};
+        use crate::testing::{NymPoolContractTesterExt, init_contract_tester};
         use cosmwasm_std::testing::mock_dependencies;
         use nym_contracts_common_testing::{ContractOpts, RandExt};
 
@@ -2154,15 +2230,19 @@ mod tests {
             let storage = LockedStorage::new();
 
             // returns zero when there's nothing
-            assert!(storage
-                .grantee_locked(test.deps().storage, &grantee)?
-                .is_zero());
+            assert!(
+                storage
+                    .grantee_locked(test.deps().storage, &grantee)?
+                    .is_zero()
+            );
 
             // even when a grant is created (but with nothing locked!)
             test.add_dummy_grant_for(&grantee);
-            assert!(storage
-                .grantee_locked(test.deps().storage, &grantee)?
-                .is_zero());
+            assert!(
+                storage
+                    .grantee_locked(test.deps().storage, &grantee)?
+                    .is_zero()
+            );
             let to_lock = Uint128::new(100);
 
             // lock some tokens...
@@ -2185,15 +2265,19 @@ mod tests {
             let storage = LockedStorage::new();
 
             // returns None when there's nothing
-            assert!(storage
-                .maybe_grantee_locked(test.deps().storage, &grantee)?
-                .is_none());
+            assert!(
+                storage
+                    .maybe_grantee_locked(test.deps().storage, &grantee)?
+                    .is_none()
+            );
 
             // even when a grant is created (but with nothing locked!)
             test.add_dummy_grant_for(&grantee);
-            assert!(storage
-                .maybe_grantee_locked(test.deps().storage, &grantee)?
-                .is_none());
+            assert!(
+                storage
+                    .maybe_grantee_locked(test.deps().storage, &grantee)?
+                    .is_none()
+            );
             let to_lock = Uint128::new(100);
 
             // lock some tokens...

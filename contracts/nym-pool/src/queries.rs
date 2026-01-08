@@ -1,7 +1,7 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::storage::{retrieval_limits, NYM_POOL_STORAGE};
+use crate::storage::{NYM_POOL_STORAGE, retrieval_limits};
 use cosmwasm_std::{Coin, Deps, Env, Order, StdResult};
 use cw_controllers::AdminResponse;
 use cw_storage_plus::Bound;
@@ -182,9 +182,9 @@ pub fn query_granters_paged(
 mod tests {
     use super::*;
     use crate::contract::instantiate;
-    use crate::testing::{init_contract_tester, NymPoolContractTesterExt, TEST_DENOM};
+    use crate::testing::{NymPoolContractTesterExt, TEST_DENOM, init_contract_tester};
     use cosmwasm_std::testing::{message_info, mock_dependencies_with_balance, mock_env};
-    use cosmwasm_std::{coin, Uint128};
+    use cosmwasm_std::{Uint128, coin};
     use nym_contracts_common_testing::{AdminExt, ChainOpts, ContractOpts, DenomExt, RandExt};
     use nym_pool_contract_common::{Allowance, BasicAllowance, GranterInformation, InstantiateMsg};
 
@@ -574,7 +574,7 @@ mod tests {
     #[cfg(test)]
     mod grants_paged_query {
         use super::*;
-        use crate::testing::{init_contract_tester, NymPoolContract};
+        use crate::testing::{NymPoolContract, init_contract_tester};
         use nym_contracts_common_testing::{ContractOpts, ContractTester};
 
         fn grants_sorted(

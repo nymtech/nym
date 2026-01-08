@@ -13,7 +13,7 @@ use crate::transactions::{
     try_withdraw_locked_allowance,
 };
 use cosmwasm_std::{
-    entry_point, to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response,
+    Binary, Deps, DepsMut, Env, MessageInfo, Response, entry_point, to_json_binary,
 };
 use nym_contracts_common::set_build_information;
 use nym_pool_contract_common::{
@@ -193,7 +193,7 @@ mod tests {
         #[cfg(test)]
         mod setting_initial_grants {
             use super::*;
-            use cosmwasm_std::{coin, Order, Storage};
+            use cosmwasm_std::{Order, Storage, coin};
             use nym_contracts_common_testing::deps_with_balance;
             use nym_pool_contract_common::{Allowance, BasicAllowance, Grant, GranteeAddress};
             use std::collections::HashMap;

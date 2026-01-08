@@ -1,7 +1,7 @@
 // Copyright 2022-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::epoch_state::storage::{load_current_epoch, save_epoch, THRESHOLD};
+use crate::epoch_state::storage::{THRESHOLD, load_current_epoch, save_epoch};
 use crate::error::ContractError;
 use crate::state::storage::DKG_ADMIN;
 use cosmwasm_std::{DepsMut, Env, MessageInfo, Response, Storage};
@@ -90,9 +90,9 @@ pub(crate) fn try_trigger_resharing(
 pub(crate) mod tests {
     use super::*;
     use crate::epoch_state::storage::load_current_epoch;
-    use crate::support::tests::helpers::{init_contract, ADMIN_ADDRESS};
-    use cosmwasm_std::testing::{message_info, mock_env};
+    use crate::support::tests::helpers::{ADMIN_ADDRESS, init_contract};
     use cosmwasm_std::Addr;
+    use cosmwasm_std::testing::{message_info, mock_env};
     use cw_controllers::AdminError;
 
     #[test]

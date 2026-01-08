@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::epoch_state::storage::{
-    load_current_epoch, EPOCH_THRESHOLDS, HISTORICAL_EPOCH, THRESHOLD,
+    EPOCH_THRESHOLDS, HISTORICAL_EPOCH, THRESHOLD, load_current_epoch,
 };
 use crate::epoch_state::utils::check_state_completion;
 use crate::error::ContractError;
@@ -63,9 +63,9 @@ pub(crate) fn query_epoch_threshold(
 pub(crate) mod test {
     use super::*;
     use crate::epoch_state::transactions::try_initiate_dkg;
-    use crate::support::tests::helpers::{init_contract, ADMIN_ADDRESS};
-    use cosmwasm_std::testing::{message_info, mock_env};
+    use crate::support::tests::helpers::{ADMIN_ADDRESS, init_contract};
     use cosmwasm_std::Addr;
+    use cosmwasm_std::testing::{message_info, mock_env};
     use nym_coconut_dkg_common::types::TimeConfiguration;
 
     #[test]

@@ -14,7 +14,7 @@ use crate::transactions::{
     try_submit_performance_results, try_update_contract_admin,
 };
 use cosmwasm_std::{
-    entry_point, to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response,
+    Binary, Deps, DepsMut, Env, MessageInfo, Response, entry_point, to_json_binary,
 };
 use nym_contracts_common::set_build_information;
 use nym_performance_contract_common::{

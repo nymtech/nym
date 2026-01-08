@@ -5,7 +5,7 @@ use crate::support::fixtures;
 use crate::support::helpers::{
     mixnet_contract_wrapper, rewarding_validator, test_rng, vesting_contract_wrapper,
 };
-use cosmwasm_std::{coins, Addr, Coin, Decimal, Timestamp};
+use cosmwasm_std::{Addr, Coin, Decimal, Timestamp, coins};
 use cw_multi_test::{App, AppBuilder, Executor};
 use nym_contracts_common::signing::{ContractMessageContent, MessageSignature, Nonce};
 use nym_crypto::asymmetric::ed25519;

@@ -49,6 +49,7 @@ pub(crate) fn try_reward_node(
 
     let absolute_epoch_id = interval.current_epoch_absolute_id();
 
+    #[allow(clippy::collapsible_if)]
     if let EpochState::Rewarding { last_rewarded, .. } = current_epoch_status.state {
         if last_rewarded >= node_id {
             return Err(MixnetContractError::NodeAlreadyRewarded {

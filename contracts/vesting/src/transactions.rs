@@ -160,6 +160,7 @@ pub fn try_update_staking_address(
     deps: DepsMut<'_>,
 ) -> Result<Response, VestingContractError> {
     if let Some(ref to_address) = to_address {
+        #[allow(clippy::collapsible_if)]
         if account_from_address(to_address, deps.storage, deps.api).is_ok() {
             // do not allow setting staking address to an existing account's address
             return Err(VestingContractError::StakingAccountExists(

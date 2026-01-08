@@ -260,6 +260,7 @@ pub(crate) fn ensure_staking_permission(
     addr: &Addr,
     account: &Account,
 ) -> Result<(), VestingContractError> {
+    #[allow(clippy::collapsible_if)]
     if let Some(staking_address) = account.staking_address() {
         if staking_address == addr {
             return Ok(());

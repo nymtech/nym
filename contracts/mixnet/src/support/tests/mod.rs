@@ -1452,6 +1452,7 @@ pub mod test_helpers {
 
         pub fn get_legacy_rewarding_node_work_factor(&self, node_id: NodeId) -> Decimal {
             let global_rewarding_params = self.rewarding_params();
+            #[allow(clippy::let_and_return)]
             let work_factor =
                 match expensive_role_lookup(self.deps.as_ref().storage, node_id).unwrap() {
                     None => Decimal::zero(),

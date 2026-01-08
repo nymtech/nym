@@ -46,7 +46,10 @@ use std::{
     collections::HashMap,
     net::{IpAddr, SocketAddr},
     str::FromStr,
-    sync::{Arc, LazyLock},
+    sync::{
+        Arc, LazyLock,
+        atomic::{AtomicBool, Ordering::Relaxed},
+    },
     time::Duration,
 };
 
@@ -129,7 +132,8 @@ pub struct HickoryDnsResolver {
     // Tokio Runtime in initialization, so we must delay the actual
     // construction of the resolver.
     state: Arc<OnceCell<TokioResolver>>,
-    fallback: Option<Arc<OnceCell<TokioResolver>>>,
+    use_system: Arc<AtomicBool>,
+    system_resolver: Arc<OnceCell<TokioResolver>>,
     static_base: Option<Arc<OnceCell<StaticResolver>>>,
     use_shared: bool,
     /// Overall timeout for dns lookup associated with any individual host resolution. For example,
@@ -141,7 +145,8 @@ impl Default for HickoryDnsResolver {
     fn default() -> Self {
         Self {
             state: Default::default(),
-            fallback: Default::default(),
+            use_system: Arc::new(AtomicBool::new(false)),
+            system_resolver: Default::default(),
             static_base: Some(Default::default()),
             use_shared: true,
             overall_dns_timeout: DEFAULT_OVERALL_LOOKUP_TIMEOUT,
@@ -151,16 +156,28 @@ impl Default for HickoryDnsResolver {
 
 impl Resolve for HickoryDnsResolver {
     fn resolve(&self, name: Name) -> Resolving {
-        let resolver = self.state.clone();
-        let maybe_fallback = self.fallback.clone();
-        let maybe_static = self.static_base.clone();
+        let use_system = self.use_system.load(std::sync::atomic::Ordering::Relaxed);
         let use_shared = self.use_shared;
+        let resolver = if use_system {
+            match self
+                .system_resolver
+                .get_or_try_init(|| HickoryDnsResolver::new_resolver_system(use_shared))
+            {
+                Ok(r) => r.clone(),
+                Err(e) => return Box::pin(return_err(e)),
+            }
+        } else {
+            self.state
+                .get_or_init(|| HickoryDnsResolver::new_resolver(use_shared))
+                .clone()
+        };
+
+        let maybe_static = self.static_base.clone();
         let overall_dns_timeout = self.overall_dns_timeout;
         Box::pin(async move {
             resolve(
                 name,
                 resolver,
-                maybe_fallback,
                 maybe_static,
                 use_shared,
                 overall_dns_timeout,
@@ -171,16 +188,17 @@ impl Resolve for HickoryDnsResolver {
     }
 }
 
+async fn return_err(e: ResolveError) -> Result<Addrs, Box<dyn std::error::Error + Send + Sync>> {
+    Err(Box::new(e) as Box<dyn std::error::Error + Send + Sync>)
+}
+
 async fn resolve(
     name: Name,
-    resolver: Arc<OnceCell<TokioResolver>>,
-    maybe_fallback: Option<Arc<OnceCell<TokioResolver>>>,
+    resolver: TokioResolver,
     maybe_static: Option<Arc<OnceCell<StaticResolver>>>,
     independent: bool,
     overall_dns_timeout: Duration,
 ) -> Result<Addrs, ResolveError> {
-    let resolver = resolver.get_or_init(|| HickoryDnsResolver::new_resolver(independent));
-
     // try checking the static table to see if any of the addresses in the table have been
     // looked up previously within the timeout to where we are not yet ready to try the
     // default resolver yet again.
@@ -213,22 +231,6 @@ async fn resolve(
             e.into()
         }
     };
-
-    // If the primary resolver encountered an error, attempt a lookup using the fallback
-    // resolver if one is configured.
-    if let Some(ref fallback) = maybe_fallback {
-        let resolver =
-            fallback.get_or_try_init(|| HickoryDnsResolver::new_resolver_system(independent))?;
-
-        let resolve_fut =
-            tokio::time::timeout(overall_dns_timeout, resolver.lookup_ip(name.as_str()));
-        if let Ok(Ok(lookup)) = resolve_fut.await {
-            let addrs: Addrs = Box::new(SocketAddrs {
-                iter: lookup.into_iter(),
-            });
-            return Ok(addrs);
-        }
-    }
 
     // If no record has been found and a static map of fallback addresses is configured
     // check the table for our entry
@@ -265,10 +267,20 @@ impl HickoryDnsResolver {
     ) -> Result<impl Iterator<Item = IpAddr> + use<>, ResolveError> {
         let n =
             Name::from_str(name).map_err(|_| ResolveError::InvalidNameError(name.to_string()))?;
+        let use_system = self.use_system.load(std::sync::atomic::Ordering::Relaxed);
+        let resolver = if use_system {
+            self.system_resolver
+                .get_or_try_init(|| HickoryDnsResolver::new_resolver_system(self.use_shared))?
+                .clone()
+        } else {
+            self.state
+                .get_or_init(|| HickoryDnsResolver::new_resolver(self.use_shared))
+                .clone()
+        };
+
         resolve(
             n,
-            self.state.clone(),
-            self.fallback.clone(),
+            resolver,
             self.static_base.clone(),
             self.use_shared,
             self.overall_dns_timeout,
@@ -298,13 +310,11 @@ impl HickoryDnsResolver {
     fn new_resolver_system(use_shared: bool) -> Result<TokioResolver, ResolveError> {
         // using a closure here is slightly gross, but this makes sure that if the
         // lazy-init returns an error it can be handled by the client
-        if !use_shared || SHARED_RESOLVER.fallback.is_none() {
+        if !use_shared {
             new_resolver_system()
         } else {
             Ok(SHARED_RESOLVER
-                .fallback
-                .as_ref()
-                .unwrap()
+                .system_resolver
                 .get_or_try_init(new_resolver_system)?
                 .clone())
         }
@@ -320,31 +330,24 @@ impl HickoryDnsResolver {
         }
     }
 
-    /// Enable fallback to the system default resolver if the primary (DoX) resolver fails
-    pub fn enable_system_fallback(&mut self) -> Result<(), ResolveError> {
-        self.fallback = Some(Default::default());
-        let _ = self
-            .fallback
-            .as_ref()
-            .unwrap()
-            .get_or_try_init(new_resolver_system)?;
+    /// Swap the primary internal resolver to the system resolver rather than the
+    /// configured custom resolver.
+    pub fn use_system_resolver(&self) {
+        self.use_system.store(true, Relaxed);
 
-        // IF THIS INSTANCE IS A FRONT FOR THE SHARED RESOLVER SHOULDN'T THIS FN ENABLE THE SYSTEM FALLBACK FOR THE SHARED RESOLVER TOO?
-        // if self.use_shared {
-        //     SHARED_RESOLVER.enable_system_fallback()?;
-        // }
-        Ok(())
+        if self.use_shared {
+            SHARED_RESOLVER.use_system_resolver();
+        }
     }
 
-    /// Disable fallback resolution. If the primary resolver fails the error is
-    /// returned immediately
-    pub fn disable_system_fallback(&mut self) {
-        self.fallback = None;
+    /// Swap the primary internal resolver to the configured custom resolver rather than the
+    /// system resolver.
+    pub fn use_configured_resolver(&self) {
+        self.use_system.store(false, Relaxed);
 
-        // // IF THIS INSTANCE IS A FRONT FOR THE SHARED RESOLVER SHOULDN'T THIS FN ENABLE THE SYSTEM FALLBACK FOR THE SHARED RESOLVER TOO?
-        // if self.use_shared {
-        //     SHARED_RESOLVER.fallback = None;
-        // }
+        if self.use_shared {
+            SHARED_RESOLVER.use_configured_resolver();
+        }
     }
 
     /// Get the current map of hostname to address in use by the fallback static lookup if one

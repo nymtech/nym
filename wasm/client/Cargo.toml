@@ -32,6 +32,7 @@ once_cell = { workspace = true }
 thiserror = { workspace = true }
 tsify = { workspace = true, features = ["js"] }
 web-sys = { workspace = true }
+tokio = { workspace = true, default-features = false, features = ["sync"] }
 
 nym-bin-common = { workspace = true }
 nym-wasm-client-core = { workspace = true }

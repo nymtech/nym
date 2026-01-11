@@ -5715,6 +5715,7 @@ version = "1.20.4"
 dependencies = [
  "async-trait",
  "base64 0.22.1",
+ "bincode",
  "bs58",
  "cfg-if",
  "clap",
@@ -5761,6 +5762,7 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "tokio-tungstenite",
+ "tokio-util",
  "tokio_with_wasm",
  "tracing",
  "tungstenite 0.20.1",
@@ -5842,7 +5844,8 @@ dependencies = [
  "serde",
  "serde-wasm-bindgen 0.6.5",
  "serde_json",
- "thiserror 2.0.12",
+ "thiserror 2.0.17",
+ "tokio",
  "tokio_with_wasm",
  "tsify",
  "wasm-bindgen",
@@ -7120,6 +7123,7 @@ dependencies = [
  "time",
  "tokio",
  "tokio-tungstenite",
+ "tokio-util",
  "url",
  "zeroize",
 ]
@@ -7580,6 +7584,7 @@ dependencies = [
  "nym-bandwidth-controller",
  "nym-bin-common",
  "nym-client-core",
+ "nym-config",
  "nym-credential-storage",
  "nym-credential-utils",
  "nym-credentials",
@@ -7587,6 +7592,7 @@ dependencies = [
  "nym-crypto",
  "nym-gateway-requests",
  "nym-http-api-client",
+ "nym-ip-packet-requests",
  "nym-network-defaults",
  "nym-ordered-buffer",
  "nym-service-providers-common",
@@ -7599,6 +7605,7 @@ dependencies = [
  "nym-topology",
  "nym-validator-client",
  "parking_lot",
+ "pnet_packet",
  "rand 0.8.5",
  "reqwest 0.13.1",
  "serde",
@@ -7732,6 +7739,7 @@ dependencies = [
  "tap",
  "thiserror 2.0.12",
  "tokio",
+ "tokio-util",
  "url",
 ]
 
@@ -7769,6 +7777,8 @@ dependencies = [
 name = "nym-sphinx"
 version = "1.20.4"
 dependencies = [
+ "bincode",
+ "log",
  "nym-crypto",
  "nym-metrics",
  "nym-mixnet-contract-common",
@@ -7786,8 +7796,10 @@ dependencies = [
  "rand 0.8.5",
  "rand_chacha 0.3.1",
  "rand_distr",
- "thiserror 2.0.12",
+ "serde",
+ "thiserror 2.0.17",
  "tokio",
+ "tokio-util",
  "tracing",
 ]
 
@@ -7835,7 +7847,8 @@ dependencies = [
  "nym-topology",
  "rand 0.8.5",
  "rand_chacha 0.3.1",
- "thiserror 2.0.12",
+ "serde",
+ "thiserror 2.0.17",
  "tracing",
  "wasm-bindgen",
 ]
@@ -7883,7 +7896,8 @@ dependencies = [
  "nym-sphinx-anonymous-replies",
  "nym-sphinx-params",
  "nym-sphinx-types",
- "thiserror 2.0.12",
+ "serde",
+ "thiserror 2.0.17",
 ]
 
 [[package]]
@@ -8023,7 +8037,8 @@ dependencies = [
  "futures",
  "log",
  "nym-test-utils",
- "thiserror 2.0.12",
+ "serde",
+ "thiserror 2.0.17",
  "tokio",
  "tokio-util",
  "tracing",

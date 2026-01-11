@@ -220,7 +220,7 @@ async fn send_receive_mixnet(state: AppState) -> Result<String, StatusCode> {
     });
 
     let send_handle = tokio::spawn(async move {
-        let mixnet_sender = sender.read().await.split_sender();
+        let mut mixnet_sender = sender.read().await.split_sender();
         let our_address = *sender.read().await.nym_address();
         match timeout(
             Duration::from_secs(5),

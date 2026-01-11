@@ -13,6 +13,10 @@ rand = { workspace = true }
 rand_distr = { workspace = true }
 rand_chacha = { workspace = true }
 thiserror = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+bincode = { workspace = true }
+log = { workspace = true }
+tokio-util = { workspace = true, features = ["codec"] }
 
 nym-sphinx-acknowledgements = { path = "acknowledgements" }
 nym-sphinx-addressing = { path = "addressing" }
@@ -47,11 +51,5 @@ features = ["sync"]
 
 [features]
 default = ["sphinx"]
-sphinx = [
-    "nym-sphinx-params/sphinx",
-    "nym-sphinx-types/sphinx",
-]
-outfox = [
-    "nym-sphinx-params/outfox",
-    "nym-sphinx-types/outfox",
-]
+sphinx = ["nym-sphinx-params/sphinx", "nym-sphinx-types/sphinx"]
+outfox = ["nym-sphinx-params/outfox", "nym-sphinx-types/outfox"]

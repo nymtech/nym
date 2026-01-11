@@ -18,6 +18,9 @@ pub enum Error {
     )]
     ReceivedResponseWithNewVersion { expected: u8, received: u8 },
 
+    #[error("got reply for connect request, but it appears intended for the wrong address?")]
+    GotReplyIntendedForWrongAddress,
+
     #[error("unexpected connect response")]
     UnexpectedConnectResponse,
 
@@ -41,6 +44,10 @@ pub enum Error {
 
     #[error(transparent)]
     Bincode(#[from] bincode::Error),
+    #[error("failed to create connect request")]
+    FailedToCreateConnectRequest {
+        source: nym_ip_packet_requests::sign::SignatureError,
+    },
 }
 
 // Result type based on our error type

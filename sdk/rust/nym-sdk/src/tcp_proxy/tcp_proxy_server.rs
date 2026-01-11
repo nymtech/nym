@@ -217,7 +217,7 @@ impl NymProxyServer {
                     sender
                         .write()
                         .await
-                        .send_reply(surb, bincode::serialize(&reply)?)
+                        .send_reply(surb, &bincode::serialize(&reply)?)
                         .await?
                 }
                 info!(

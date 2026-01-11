@@ -70,7 +70,7 @@ impl BinaryRequest {
 
         let plaintext = match self {
             BinaryRequest::ForwardSphinx { packet } => packet.into_v1_bytes()?,
-            BinaryRequest::ForwardSphinxV2 { packet } => packet.into_v2_bytes()?,
+            BinaryRequest::ForwardSphinxV2 { packet } => packet.to_v2_bytes()?,
         };
 
         BinaryData::make_encrypted_blob(kind as u8, &plaintext, shared_key)

@@ -17,7 +17,7 @@
 #![warn(clippy::dbg_macro)]
 
 use crate::client::inbound_messages::{InputMessage, InputMessageSender};
-use futures::StreamExt;
+use futures::{SinkExt, StreamExt};
 use nym_client_core_config_types::StatsReporting;
 use nym_sphinx::addressing::Recipient;
 use nym_statistics_common::clients::{

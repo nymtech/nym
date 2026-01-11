@@ -1,3 +1,4 @@
+#![allow(deprecated)] // silences clippy warning: use of deprecated associated function `nym_crypto::generic_array::GenericArray::<T, N>::clone_from_slice`: please upgrade to generic-array 1.x - TODO
 use std::future::Future;
 
 #[cfg(all(
@@ -38,4 +39,11 @@ where
     F::Output: Send + 'static,
 {
     tokio::spawn(future);
+}
+
+fn make_bincode_serializer() -> impl bincode::Options {
+    use bincode::Options;
+    bincode::DefaultOptions::new()
+        .with_big_endian()
+        .with_varint_encoding()
 }

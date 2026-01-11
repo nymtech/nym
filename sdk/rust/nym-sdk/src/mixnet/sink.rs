@@ -26,6 +26,7 @@ const SINK_BUFFER_SIZE_IN_MESSAGES: usize = 8;
 /// Traits that represents the ability to convert bytes into InputMessages that can be sent to the
 /// mixnet. This is typically used to set the destination and other sending parameters.
 pub trait MixnetMessageSinkTranslator: Unpin {
+    #[allow(clippy::result_large_err)]
     fn to_input_message(&self, bytes: &[u8]) -> Result<InputMessage, Error>;
 }
 
@@ -175,7 +176,7 @@ where
     }
 
     fn start_sender_task<Sender>(
-        mixnet_client_sender: Sender,
+        mut mixnet_client_sender: Sender,
     ) -> (mpsc::Sender<InputMessage>, JoinHandle<()>)
     where
         Sender: MixnetMessageSender + Send + 'static,

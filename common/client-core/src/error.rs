@@ -255,6 +255,12 @@ pub enum ClientCoreError {
 
     #[error("Could not access task registry, {0}")]
     RegistryAccess(#[from] RegistryAccessError),
+
+    #[error("Serialization error: {0}")]
+    BincodeError(#[from] Box<bincode::ErrorKind>),
+
+    #[error("Could not coarce to array")]
+    ArrayCreationFailure(#[from] std::array::TryFromSliceError),
 }
 
 impl From<tungstenite::Error> for ClientCoreError {

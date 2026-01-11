@@ -340,6 +340,7 @@ where
     }
 
     /// Construct a [`DisconnectedMixnetClient`] from the setup specified.
+    #[allow(clippy::result_large_err)]
     pub fn build(self) -> Result<DisconnectedMixnetClient<S>> {
         let mut client = DisconnectedMixnetClient::new(
             self.config,
@@ -445,6 +446,7 @@ where
     /// Callers have the option of supplying further parameters to:
     /// - store persistent identities at a location on-disk, if desired;
     /// - use SOCKS5 mode
+    #[allow(clippy::result_large_err)]
     fn new(
         config: Config,
         socks5_config: Option<Socks5>,

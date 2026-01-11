@@ -1,6 +1,9 @@
 use nym_validator_client::nyxd::error::NyxdError;
 use std::path::PathBuf;
 
+use nym_ip_packet_requests::v8::response::{ConnectFailureReason, IpPacketResponseData};
+use nym_validator_client::nym_api::error::NymAPIError;
+
 /// Top-level Error enum for the mixnet client and its relevant types.
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -99,6 +102,63 @@ pub enum Error {
 
     #[error("Failed to get shutdown tracker from the task runtime registry: {0}")]
     RegistryAccess(#[from] nym_task::RegistryAccessError),
+    #[error("nymsphinx receiver error: {0}")]
+    MessageRecovery(#[from] nym_sphinx::receiver::MessageRecoveryError),
+
+    #[error("client not connected")]
+    IprStreamClientNotConnected,
+
+    #[error("client already connected or connecting")]
+    IprStreamClientAlreadyConnectedOrConnecting,
+
+    #[error("trying to send an anonymous reply but peer surb tag is not set")]
+    MixStreamSurbTagNotSet,
+
+    #[error("trying to send an outgoing message but receipient address is not set")]
+    MixStreamRecipientNotSet,
+
+    #[error("listening for connection response timed out")]
+    IPRConnectResponseTimeout,
+
+    #[error("no next frame: assuming stream is closed")]
+    IPRClientStreamClosed,
+
+    #[error("expected control response, got {0:?}")]
+    UnexpectedResponseType(IpPacketResponseData),
+
+    #[error("connect denied: {0:?}")]
+    ConnectDenied(ConnectFailureReason),
+
+    #[allow(clippy::result_large_err)]
+    #[error("api directory error: {0}")]
+    GatewayDirectoryError(#[from] NymAPIError),
+
+    #[error("did not receive Validator endpoint details")]
+    NoValidatorDetailsAvailable,
+
+    #[error("did not receive URL")]
+    NoValidatorAPIUrl,
+
+    #[error("did not receive NymVPN API URL")]
+    NoNymAPIUrl,
+
+    #[error("no available gateway")]
+    NoGatewayAvailable,
+
+    #[error("no IPR address on selected gateway")]
+    NoIPRAvailable,
+
+    #[error("message version check failed: {0}")]
+    IPRMessageVersionCheckFailed(String),
+
+    #[error("no response id found in connect response")]
+    IPRNoId,
+
+    #[error("Could not find peer address or surb tag")]
+    MixStreamNoPeerOrSurb,
+
+    #[error("No network env specified on new MixStream")]
+    MissingStreamConfig,
 }
 
 impl Error {

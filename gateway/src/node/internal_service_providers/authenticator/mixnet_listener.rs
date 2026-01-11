@@ -935,7 +935,7 @@ impl MixnetListener {
 
     // When an incoming mixnet message triggers a response that we send back.
     async fn handle_response(
-        &self,
+        &mut self,
         response: Vec<u8>,
         recipient: Option<Recipient>,
         sender_tag: Option<AnonymousSenderTag>,

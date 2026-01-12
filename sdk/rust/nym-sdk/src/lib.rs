@@ -8,6 +8,7 @@ mod error;
 
 pub mod bandwidth;
 pub mod client_pool;
+pub mod ip_packet_client;
 pub mod mixnet;
 pub mod stream_wrapper;
 pub mod tcp_proxy;

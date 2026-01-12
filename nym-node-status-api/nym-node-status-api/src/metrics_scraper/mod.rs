@@ -1,6 +1,6 @@
-use crate::db::{models::GatewaySessionsRecord, queries, DbPool};
+use crate::db::{DbPool, models::GatewaySessionsRecord, queries};
 use error::NodeScraperError;
-use nym_network_defaults::{NymNetworkDetails, DEFAULT_NYM_NODE_HTTP_PORT};
+use nym_network_defaults::{DEFAULT_NYM_NODE_HTTP_PORT, NymNetworkDetails};
 use nym_node_requests::api::{client::NymNodeApiClientExt, v1::metrics::models::SessionStats};
 use nym_validator_client::{
     client::{NodeId, NymNodeDetails},
@@ -21,7 +21,7 @@ const REFRESH_INTERVAL: Duration = Duration::from_secs(60 * 60 * 6);
 const STALE_DURATION: Duration = Duration::from_secs(86400 * 365); //one year
 
 #[instrument(level = "info", name = "metrics_scraper", skip_all)]
-pub(crate) async fn spawn_in_background(db_pool: DbPool, nym_api_client_timeout: Duration) {
+pub(crate) async fn run_in_background(db_pool: DbPool, nym_api_client_timeout: Duration) {
     let network_defaults = nym_network_defaults::NymNetworkDetails::new_from_env();
 
     loop {
@@ -57,7 +57,7 @@ async fn run(
         .clone()
         .expect("rust sdk mainnet default missing api_url");
 
-    let nym_api = nym_http_api_client::ClientBuilder::new_with_urls(vec![default_api_url.into()])
+    let nym_api = nym_http_api_client::ClientBuilder::new_with_urls(vec![default_api_url.into()])?
         .no_hickory_dns()
         .with_timeout(nym_api_client_timeout)
         .build()?;

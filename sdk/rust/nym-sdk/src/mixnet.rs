@@ -45,15 +45,21 @@ pub use native_client::MixnetClient;
 pub use native_client::MixnetClientSender;
 #[allow(deprecated)]
 pub use nym_client_core::client::{
-    base_client::storage::{
-        gateways_storage::{ActiveGateway, BadGateway, GatewayRegistration, GatewaysDetailsStore},
-        Ephemeral, MixnetClientStorage, OnDiskPersistent,
+    base_client::{
+        storage::{
+            gateways_storage::{
+                ActiveGateway, BadGateway, GatewayRegistration, GatewaysDetailsStore,
+            },
+            Ephemeral, MixnetClientStorage, OnDiskPersistent,
+        },
+        EventReceiver, EventSender, MixnetClientEvent,
     },
     inbound_messages::InputMessage,
     key_manager::{
         persistence::{InMemEphemeralKeys, KeyStore, OnDiskKeys},
         ClientKeys,
     },
+    mix_traffic::MixTrafficEvent,
     replies::reply_storage::{
         fs_backend::Backend as ReplyStorage, CombinedReplyStorage, Empty as EmptyReplyStorage,
         ReplyStorageBackend,
@@ -63,7 +69,7 @@ pub use nym_credential_storage::{
     ephemeral_storage::EphemeralStorage as EphemeralCredentialStorage,
     models::StoredIssuedTicketbook, storage::Storage as CredentialStorage,
 };
-pub use nym_crypto::asymmetric::ed25519;
+pub use nym_crypto::asymmetric::{ed25519, x25519};
 pub use nym_network_defaults::NymNetworkDetails;
 pub use nym_socks5_client_core::config::Socks5;
 pub use nym_sphinx::{

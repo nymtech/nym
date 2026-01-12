@@ -1,16 +1,21 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::{
+    error::{Error, Result},
+    peer_handle::SharedBandwidthStorageManager,
+};
+use crate::{peer_handle::PeerHandle, peer_storage_manager::CachedPeerManager};
 use defguard_wireguard_rs::{
+    WireguardInterfaceApi,
     host::{Host, Peer},
     key::Key,
-    WireguardInterfaceApi,
 };
 use futures::channel::oneshot;
-use log::info;
+use nym_credential_verification::upgrade_mode::UpgradeModeStatus;
 use nym_credential_verification::{
-    bandwidth_storage_manager::BandwidthStorageManager, ecash::traits::EcashManager,
     BandwidthFlushingBehaviourConfig, ClientBandwidth, CredentialVerifier, TicketVerifier,
+    bandwidth_storage_manager::BandwidthStorageManager, ecash::traits::EcashManager,
 };
 use nym_credentials_interface::CredentialSpendingData;
 use nym_gateway_requests::models::CredentialSpendingRequest;
@@ -22,14 +27,9 @@ use std::{
     net::IpAddr,
     time::{Duration, SystemTime},
 };
-use tokio::sync::{mpsc, RwLock};
-use tokio_stream::{wrappers::IntervalStream, StreamExt};
-
-use crate::{
-    error::{Error, Result},
-    peer_handle::SharedBandwidthStorageManager,
-};
-use crate::{peer_handle::PeerHandle, peer_storage_manager::CachedPeerManager};
+use tokio::sync::{RwLock, mpsc};
+use tokio_stream::{StreamExt, wrappers::IntervalStream};
+use tracing::{debug, error, info, trace};
 
 pub enum PeerControlRequest {
     AddPeer {
@@ -84,6 +84,10 @@ pub struct PeerController {
     host_information: Arc<RwLock<Host>>,
     bw_storage_managers: HashMap<Key, SharedBandwidthStorageManager>,
     timeout_check_interval: IntervalStream,
+
+    /// Flag indicating whether the system is undergoing an upgrade and thus peers shouldn't be getting
+    /// their bandwidth metered.
+    upgrade_mode: UpgradeModeStatus,
     shutdown_token: nym_task::ShutdownToken,
 }
 
@@ -97,6 +101,7 @@ impl PeerController {
         bw_storage_managers: HashMap<Key, (SharedBandwidthStorageManager, Peer)>,
         request_tx: mpsc::Sender<PeerControlRequest>,
         request_rx: mpsc::Receiver<PeerControlRequest>,
+        upgrade_mode: UpgradeModeStatus,
         shutdown_token: nym_task::ShutdownToken,
     ) -> Self {
         let timeout_check_interval =
@@ -110,12 +115,13 @@ impl PeerController {
                 cached_peer_manager,
                 bandwidth_storage_manager.clone(),
                 request_tx.clone(),
+                upgrade_mode.clone(),
                 &shutdown_token,
             );
             let public_key = public_key.clone();
             tokio::spawn(async move {
                 handle.run().await;
-                log::debug!("Peer handle shut down for {public_key}");
+                debug!("Peer handle shut down for {public_key}");
             });
         }
         let bw_storage_managers = bw_storage_managers
@@ -131,6 +137,7 @@ impl PeerController {
             request_tx,
             request_rx,
             timeout_check_interval,
+            upgrade_mode,
             shutdown_token,
             metrics,
         }
@@ -145,7 +152,9 @@ impl PeerController {
         self.bw_storage_managers.remove(key);
         let ret = self.wg_api.remove_peer(key);
         if ret.is_err() {
-            log::error!("Wireguard peer could not be removed from wireguard kernel module. Process should be restarted so that the interface is reset.");
+            error!(
+                "Wireguard peer could not be removed from wireguard kernel module. Process should be restarted so that the interface is reset."
+            );
         }
         Ok(ret?)
     }
@@ -190,6 +199,7 @@ impl PeerController {
             cached_peer_manager,
             bandwidth_storage_manager.clone(),
             self.request_tx.clone(),
+            self.upgrade_mode.clone(),
             &self.shutdown_token,
         );
         self.bw_storage_managers
@@ -201,7 +211,7 @@ impl PeerController {
         let public_key = peer.public_key.clone();
         tokio::spawn(async move {
             handle.run().await;
-            log::debug!("Peer handle shut down for {public_key}");
+            debug!("Peer handle shut down for {public_key}");
         });
         Ok(())
     }
@@ -355,6 +365,7 @@ impl PeerController {
             }
         }
 
+        #[allow(clippy::expect_used)]
         self.metrics.wireguard.update(
             // if the conversion fails it means we're running not running on a 64bit system
             // and that's a reason enough for this failure.
@@ -375,7 +386,7 @@ impl PeerController {
             tokio::select! {
                 _ = self.timeout_check_interval.next() => {
                     let Ok(host) = self.wg_api.read_interface_data() else {
-                        log::error!("Can't read wireguard kernel data");
+                        error!("Can't read wireguard kernel data");
                         continue;
                     };
                     self.update_metrics(&host).await;
@@ -383,7 +394,7 @@ impl PeerController {
                     *self.host_information.write().await = host;
                 }
                 _ = self.shutdown_token.cancelled() => {
-                    log::trace!("PeerController handler: Received shutdown");
+                    trace!("PeerController handler: Received shutdown");
                     break;
                 }
                 msg = self.request_rx.recv() => {
@@ -410,7 +421,7 @@ impl PeerController {
                             response_tx.send(self.handle_query_verifier_by_ip(ip, *credential).await).ok();
                         }
                         None => {
-                            log::trace!("PeerController [main loop]: stopping since channel closed");
+                            trace!("PeerController [main loop]: stopping since channel closed");
                             break;
                         }
                     }
@@ -427,6 +438,9 @@ struct MockWgApi {
 }
 
 #[cfg(feature = "mock")]
+// unwraps, etc. are fine in test code
+#[allow(clippy::unwrap_used)]
+#[allow(clippy::todo)]
 impl WireguardInterfaceApi for MockWgApi {
     fn create_interface(
         &self,
@@ -532,6 +546,7 @@ pub fn start_controller(
         Default::default(),
         request_tx,
         request_rx,
+        UpgradeModeStatus::default(),
         shutdown_manager.child_shutdown_token(),
     );
     tokio::spawn(async move { peer_controller.run().await });
@@ -540,12 +555,15 @@ pub fn start_controller(
 }
 
 #[cfg(feature = "mock")]
+// unwraps are fine in test code
+#[allow(clippy::unwrap_used)]
 pub async fn stop_controller(mut shutdown_manager: nym_task::ShutdownManager) {
     shutdown_manager.send_cancellation();
     shutdown_manager.run_until_shutdown().await;
 }
 
 #[cfg(test)]
+#[cfg(feature = "mock")]
 mod tests {
     use super::*;
 

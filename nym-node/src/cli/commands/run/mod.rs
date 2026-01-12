@@ -3,9 +3,9 @@
 
 use crate::config::upgrade_helpers::try_load_current_config;
 use crate::error::NymNodeError;
+use crate::node::NymNode;
 use crate::node::bonding_information::BondingInformation;
 use crate::node::mixnet::packet_forwarding::global::is_global_ip;
-use crate::node::NymNode;
 use std::fs;
 use std::net::IpAddr;
 use tracing::{debug, info, trace, warn};
@@ -28,9 +28,11 @@ fn check_public_ips(ips: &[IpAddr], local: bool) -> Result<(), NymNodeError> {
     if !suspicious_ip.is_empty() {
         warn!("\n##### WARNING #####");
         for ip in suspicious_ip {
-            warn!("The 'public' IP address you're trying to announce: {ip} may not be accessible to other clients.\
+            warn!(
+                "The 'public' IP address you're trying to announce: {ip} may not be accessible to other clients. \
             Please make sure this is what you intended to announce.\
-            You can ignore this warning if you're running setup on a local network ")
+            You can ignore this warning if you're running setup on a local network "
+            )
         }
         warn!("\n##### WARNING #####\n");
     }
@@ -49,7 +51,9 @@ pub(crate) async fn execute(mut args: Args) -> Result<(), NymNodeError> {
 
     if !accepted_operator_terms_and_conditions {
         warn!("you don't seem to have accepted the terms and conditions of a Nym node operator");
-        warn!("please familiarise yourself with <https://nymtech.net/terms-and-conditions/operators/v1.0.0> and run the binary with '--accept-operator-terms-and-conditions' flag if you agree with them");
+        warn!(
+            "please familiarise yourself with <https://nymtech.net/terms-and-conditions/operators/v1.0.0> and run the binary with '--accept-operator-terms-and-conditions' flag if you agree with them"
+        );
     }
 
     let config = if !config_path.exists() {
@@ -81,11 +85,15 @@ pub(crate) async fn execute(mut args: Args) -> Result<(), NymNodeError> {
     config.validate()?;
 
     if !config.modes.any_enabled() {
-        warn!("this node is going to run without mixnode or gateway support! consider providing `mode` value");
+        warn!(
+            "this node is going to run without mixnode or gateway support! consider providing `mode` value"
+        );
     }
 
     if config.modes.standalone_exit() {
-        warn!("this node is going to run in EXIT gateway mode only - it will not be able to accept client traffic and thus will NOT be eligible for any rewards. consider running it alongside `entry` (or `full-gateway`) mode")
+        warn!(
+            "this node is going to run in EXIT gateway mode only - it will not be able to accept client traffic and thus will NOT be eligible for any rewards. consider running it alongside `entry` (or `full-gateway`) mode"
+        )
     }
 
     if config.host.public_ips.is_empty() {

@@ -12,7 +12,7 @@ use crate::utils::{
     ApiClientsWrapper,
 };
 use log::error;
-use nym_credential_storage::models::RetrievedTicketbook;
+use nym_credential_storage::models::{EmergencyCredential, RetrievedTicketbook};
 use nym_credential_storage::storage::Storage;
 use nym_credentials::ecash::bandwidth::CredentialSpendingData;
 use nym_credentials_interface::{
@@ -23,10 +23,12 @@ use nym_validator_client::nym_api::EpochId;
 use nym_validator_client::nyxd::contract_traits::DkgQueryClient;
 
 pub use event::BandwidthStatusMessage;
+pub use traits::{BandwidthTicketProvider, DEFAULT_TICKETS_TO_SPEND};
 
 pub mod acquire;
 pub mod error;
 mod event;
+mod traits;
 mod utils;
 
 #[derive(Debug)]
@@ -217,6 +219,19 @@ impl<C, St: Storage> BandwidthController<C, St> {
                 Err(err)
             }
         }
+    }
+
+    pub async fn get_emergency_credential(
+        &self,
+        typ: &str,
+    ) -> Result<Option<EmergencyCredential>, BandwidthControllerError>
+    where
+        <St as Storage>::StorageError: Send + Sync + 'static,
+    {
+        self.storage
+            .get_emergency_credential(typ)
+            .await
+            .map_err(BandwidthControllerError::credential_storage_error)
     }
 }
 

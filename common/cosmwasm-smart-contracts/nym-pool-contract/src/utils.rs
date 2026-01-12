@@ -20,8 +20,8 @@ pub fn ensure_unix_timestamp_not_in_the_past(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use cosmwasm_std::testing::mock_env;
     use cosmwasm_std::Timestamp;
+    use cosmwasm_std::testing::mock_env;
     use time::macros::datetime;
 
     #[test]

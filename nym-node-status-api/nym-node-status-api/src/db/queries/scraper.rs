@@ -1,10 +1,10 @@
 use crate::{
     db::{
+        DbPool,
         models::{ScrapeNodeKind, ScraperNodeInfo},
         queries::{
             self, gateways::insert_gateway_description, nym_nodes::insert_nym_node_description,
         },
-        DbPool,
     },
     node_scraper::helpers::NodeDescriptionResponse,
     utils::now_utc,
@@ -21,10 +21,11 @@ pub(crate) async fn get_nodes_for_scraping(pool: &DbPool) -> Result<Vec<ScraperN
     let skimmed_nodes = queries::get_described_bonded_nym_nodes(pool)
         .await
         .map(|nodes_dto| {
-            nodes_dto.into_iter().filter_map(|node| {
-                let node_id = node.node_id;
-                match SkimmedNode::try_from(node) {
-                    Ok(node) => Some(node),
+            nodes_dto.into_iter().filter_map(|node_dto| {
+                let node_id = node_dto.node_id;
+                let http_api_port = node_dto.http_api_port;
+                match SkimmedNode::try_from(node_dto) {
+                    Ok(node) => Some((node, http_api_port)),
                     Err(e) => {
                         tracing::error!("Failed to decode node_id={}: {}", node_id, e);
                         None
@@ -33,7 +34,7 @@ pub(crate) async fn get_nodes_for_scraping(pool: &DbPool) -> Result<Vec<ScraperN
             })
         })?;
 
-    skimmed_nodes.for_each(|node| {
+    skimmed_nodes.for_each(|(node, http_api_port)| {
         // TODO: relies on polyfilling: Nym nodes table might contain legacy mixnodes
         // as well. Categorize them here.
         let node_kind = if gateway_keys.contains(&node.ed25519_identity_pubkey.to_base58_string()) {
@@ -54,7 +55,7 @@ pub(crate) async fn get_nodes_for_scraping(pool: &DbPool) -> Result<Vec<ScraperN
                 .into_iter()
                 .map(|ip| ip.to_string())
                 .collect::<Vec<_>>(),
-            http_api_port: node.mix_port.into(),
+            http_api_port: http_api_port.map(|port| port as u16),
         })
     });
 

@@ -5,22 +5,25 @@ use nym_credentials::ecash::bandwidth::serialiser::signatures::{
     AggregatedCoinIndicesSignatures, AggregatedExpirationDateSignatures,
 };
 use nym_credentials_interface::{PublicKeyUser, TicketType, WithdrawalRequest};
-use schemars::gen::SchemaGenerator;
-use schemars::schema::Schema;
 use schemars::JsonSchema;
+use schemars::r#gen::SchemaGenerator;
+use schemars::schema::Schema;
 use serde::{Deserialize, Serialize};
+use serde_with::{DisplayFromStr, serde_as};
 use std::ops::{Deref, DerefMut};
 use time::{Date, OffsetDateTime};
+use uuid::Uuid;
 
 #[cfg(feature = "query-types")]
 use nym_http_api_common::Output;
 
 #[cfg(feature = "tsify")]
 use tsify::Tsify;
-use uuid::Uuid;
 
 #[cfg(feature = "tsify")]
 use wasm_bindgen::prelude::wasm_bindgen;
+
+pub use nym_upgrade_mode_check::UpgradeModeAttestation;
 
 #[derive(JsonSchema)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
@@ -132,9 +135,9 @@ impl JsonSchema for WithdrawalRequestBs58Wrapper {
         "WithdrawalRequestBs58Wrapper".into()
     }
 
-    fn json_schema(gen: &mut SchemaGenerator) -> Schema {
+    fn json_schema(r#gen: &mut SchemaGenerator) -> Schema {
         // during serialisation we just use bs58 representation
-        String::json_schema(gen)
+        String::json_schema(r#gen)
     }
 }
 
@@ -224,6 +227,27 @@ pub struct TicketbookWalletSharesResponse {
     pub aggregated_expiration_date_signatures: Option<AggregatedExpirationDateSignaturesResponse>,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[serde(rename_all = "camelCase")]
+#[serde(untagged)]
+pub enum ObtainTicketBookSharesAsyncResponse {
+    InProgress(TicketbookWalletSharesAsyncResponse),
+    UpgradeMode(Box<UpgradeModeResponse>),
+}
+
+impl From<TicketbookWalletSharesAsyncResponse> for ObtainTicketBookSharesAsyncResponse {
+    fn from(response: TicketbookWalletSharesAsyncResponse) -> Self {
+        Self::InProgress(response)
+    }
+}
+
+impl From<UpgradeModeResponse> for ObtainTicketBookSharesAsyncResponse {
+    fn from(response: UpgradeModeResponse) -> Self {
+        Self::UpgradeMode(Box::new(response))
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(rename_all = "camelCase")]
@@ -264,12 +288,14 @@ pub struct WebhookTicketbookWalletSharesRequest {
     pub secret: String,
 }
 
+#[serde_as]
 #[derive(Default, Debug, Serialize, Deserialize, Clone)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema, utoipa::IntoParams))]
 #[cfg(feature = "query-types")]
 #[serde(default, rename_all = "kebab-case")]
 pub struct TicketbookObtainParams {
     #[serde(default)]
+    #[serde_as(as = "DisplayFromStr")]
     pub skip_webhook: bool,
 
     #[serde(default)]
@@ -277,15 +303,19 @@ pub struct TicketbookObtainParams {
     pub global: GlobalDataParams,
 }
 
+#[serde_as]
 #[derive(Default, Debug, Serialize, Deserialize, Clone)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema, utoipa::IntoParams))]
 #[cfg(feature = "query-types")]
 #[serde(default, rename_all = "kebab-case")]
 pub struct GlobalDataParams {
+    #[serde_as(as = "DisplayFromStr")]
     pub include_master_verification_key: bool,
 
+    #[serde_as(as = "DisplayFromStr")]
     pub include_coin_index_signatures: bool,
 
+    #[serde_as(as = "DisplayFromStr")]
     pub include_expiration_date_signatures: bool,
 }
 
@@ -311,4 +341,14 @@ pub struct SharesQueryParams {
     #[serde(default)]
     #[serde(flatten)]
     pub global: GlobalDataParams,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[serde(rename_all = "camelCase")]
+pub struct UpgradeModeResponse {
+    pub upgrade_mode_attestation: UpgradeModeAttestation,
+    /// The issued upgrade mode JWT.
+    /// The value is `None` if this credential proxy is not-authorised to be issuing one
+    pub jwt: Option<String>,
 }

@@ -1,49 +1,269 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::latest::registration::IpPair;
+use crate::models::{BandwidthClaim, CurrentUpgradeModeStatus};
+use crate::{AuthenticatorVersion, Error, v1, v2, v3, v4, v5, v6};
 use nym_credentials_interface::CredentialSpendingData;
-use nym_crypto::asymmetric::x25519::PrivateKey;
-use nym_service_provider_requests_common::{Protocol, ServiceProviderType};
-use nym_sphinx::addressing::clients::Recipient;
+use nym_crypto::asymmetric::x25519;
 use nym_wireguard_types::PeerPublicKey;
+use std::fmt;
+use std::net::{Ipv4Addr, Ipv6Addr};
+use tracing::error;
 
-use crate::{
-    v1, v2, v3, v4,
-    v5::{self, registration::IpPair},
-    Error,
-};
-
-#[derive(Copy, Clone, Debug)]
-pub enum AuthenticatorVersion {
-    V1,
-    V2,
-    V3,
-    V4,
-    V5,
-    UNKNOWN,
+pub trait Versionable {
+    fn version(&self) -> AuthenticatorVersion;
 }
 
-impl From<Protocol> for AuthenticatorVersion {
-    fn from(value: Protocol) -> Self {
-        if value.service_provider_type != ServiceProviderType::Authenticator {
-            AuthenticatorVersion::UNKNOWN
-        } else if value.version == v1::VERSION {
-            AuthenticatorVersion::V1
-        } else if value.version == v2::VERSION {
-            AuthenticatorVersion::V2
-        } else if value.version == v3::VERSION {
-            AuthenticatorVersion::V3
-        } else if value.version == v4::VERSION {
-            AuthenticatorVersion::V4
-        } else if value.version == v5::VERSION {
-            AuthenticatorVersion::V5
-        } else {
-            AuthenticatorVersion::UNKNOWN
-        }
+impl Versionable for v1::GatewayClient {
+    fn version(&self) -> AuthenticatorVersion {
+        AuthenticatorVersion::V1
     }
 }
 
-pub trait InitMessage {
+impl Versionable for v1::registration::InitMessage {
+    fn version(&self) -> AuthenticatorVersion {
+        AuthenticatorVersion::V1
+    }
+}
+
+impl Versionable for v2::registration::InitMessage {
+    fn version(&self) -> AuthenticatorVersion {
+        AuthenticatorVersion::V2
+    }
+}
+
+impl Versionable for v3::registration::InitMessage {
+    fn version(&self) -> AuthenticatorVersion {
+        AuthenticatorVersion::V3
+    }
+}
+
+impl Versionable for v4::registration::InitMessage {
+    fn version(&self) -> AuthenticatorVersion {
+        AuthenticatorVersion::V4
+    }
+}
+
+impl Versionable for v5::registration::InitMessage {
+    fn version(&self) -> AuthenticatorVersion {
+        AuthenticatorVersion::V5
+    }
+}
+
+impl Versionable for v6::registration::InitMessage {
+    fn version(&self) -> AuthenticatorVersion {
+        AuthenticatorVersion::V6
+    }
+}
+
+impl Versionable for v2::registration::FinalMessage {
+    fn version(&self) -> AuthenticatorVersion {
+        AuthenticatorVersion::V2
+    }
+}
+
+impl Versionable for v3::registration::FinalMessage {
+    fn version(&self) -> AuthenticatorVersion {
+        AuthenticatorVersion::V3
+    }
+}
+
+impl Versionable for v4::registration::FinalMessage {
+    fn version(&self) -> AuthenticatorVersion {
+        AuthenticatorVersion::V4
+    }
+}
+
+impl Versionable for v5::registration::FinalMessage {
+    fn version(&self) -> AuthenticatorVersion {
+        AuthenticatorVersion::V5
+    }
+}
+
+impl Versionable for v6::registration::FinalMessage {
+    fn version(&self) -> AuthenticatorVersion {
+        AuthenticatorVersion::V6
+    }
+}
+
+impl Versionable for PeerPublicKey {
+    fn version(&self) -> AuthenticatorVersion {
+        AuthenticatorVersion::V3
+    }
+}
+
+impl Versionable for v3::topup::TopUpMessage {
+    fn version(&self) -> AuthenticatorVersion {
+        AuthenticatorVersion::V3
+    }
+}
+
+impl Versionable for v4::topup::TopUpMessage {
+    fn version(&self) -> AuthenticatorVersion {
+        AuthenticatorVersion::V4
+    }
+}
+
+impl Versionable for v5::topup::TopUpMessage {
+    fn version(&self) -> AuthenticatorVersion {
+        AuthenticatorVersion::V5
+    }
+}
+impl Versionable for v6::topup::TopUpMessage {
+    fn version(&self) -> AuthenticatorVersion {
+        AuthenticatorVersion::V6
+    }
+}
+
+impl Versionable for v6::upgrade_mode_check::UpgradeModeCheckRequest {
+    fn version(&self) -> AuthenticatorVersion {
+        AuthenticatorVersion::V6
+    }
+}
+
+pub trait UpgradeModeStatus: Id + fmt::Debug {
+    fn upgrade_mode_status(&self) -> CurrentUpgradeModeStatus;
+}
+
+impl UpgradeModeStatus for v1::response::PendingRegistrationResponse {
+    fn upgrade_mode_status(&self) -> CurrentUpgradeModeStatus {
+        CurrentUpgradeModeStatus::Unknown
+    }
+}
+
+impl UpgradeModeStatus for v1::response::RegisteredResponse {
+    fn upgrade_mode_status(&self) -> CurrentUpgradeModeStatus {
+        CurrentUpgradeModeStatus::Unknown
+    }
+}
+
+impl UpgradeModeStatus for v1::response::RemainingBandwidthResponse {
+    fn upgrade_mode_status(&self) -> CurrentUpgradeModeStatus {
+        CurrentUpgradeModeStatus::Unknown
+    }
+}
+
+impl UpgradeModeStatus for v2::response::PendingRegistrationResponse {
+    fn upgrade_mode_status(&self) -> CurrentUpgradeModeStatus {
+        CurrentUpgradeModeStatus::Unknown
+    }
+}
+
+impl UpgradeModeStatus for v2::response::RegisteredResponse {
+    fn upgrade_mode_status(&self) -> CurrentUpgradeModeStatus {
+        CurrentUpgradeModeStatus::Unknown
+    }
+}
+
+impl UpgradeModeStatus for v2::response::RemainingBandwidthResponse {
+    fn upgrade_mode_status(&self) -> CurrentUpgradeModeStatus {
+        CurrentUpgradeModeStatus::Unknown
+    }
+}
+impl UpgradeModeStatus for v3::response::PendingRegistrationResponse {
+    fn upgrade_mode_status(&self) -> CurrentUpgradeModeStatus {
+        CurrentUpgradeModeStatus::Unknown
+    }
+}
+
+impl UpgradeModeStatus for v3::response::RegisteredResponse {
+    fn upgrade_mode_status(&self) -> CurrentUpgradeModeStatus {
+        CurrentUpgradeModeStatus::Unknown
+    }
+}
+
+impl UpgradeModeStatus for v3::response::RemainingBandwidthResponse {
+    fn upgrade_mode_status(&self) -> CurrentUpgradeModeStatus {
+        CurrentUpgradeModeStatus::Unknown
+    }
+}
+
+impl UpgradeModeStatus for v3::response::TopUpBandwidthResponse {
+    fn upgrade_mode_status(&self) -> CurrentUpgradeModeStatus {
+        CurrentUpgradeModeStatus::Unknown
+    }
+}
+
+impl UpgradeModeStatus for v4::response::PendingRegistrationResponse {
+    fn upgrade_mode_status(&self) -> CurrentUpgradeModeStatus {
+        CurrentUpgradeModeStatus::Unknown
+    }
+}
+
+impl UpgradeModeStatus for v4::response::RegisteredResponse {
+    fn upgrade_mode_status(&self) -> CurrentUpgradeModeStatus {
+        CurrentUpgradeModeStatus::Unknown
+    }
+}
+
+impl UpgradeModeStatus for v4::response::RemainingBandwidthResponse {
+    fn upgrade_mode_status(&self) -> CurrentUpgradeModeStatus {
+        CurrentUpgradeModeStatus::Unknown
+    }
+}
+
+impl UpgradeModeStatus for v4::response::TopUpBandwidthResponse {
+    fn upgrade_mode_status(&self) -> CurrentUpgradeModeStatus {
+        CurrentUpgradeModeStatus::Unknown
+    }
+}
+
+impl UpgradeModeStatus for v5::response::PendingRegistrationResponse {
+    fn upgrade_mode_status(&self) -> CurrentUpgradeModeStatus {
+        CurrentUpgradeModeStatus::Unknown
+    }
+}
+
+impl UpgradeModeStatus for v5::response::RegisteredResponse {
+    fn upgrade_mode_status(&self) -> CurrentUpgradeModeStatus {
+        CurrentUpgradeModeStatus::Unknown
+    }
+}
+
+impl UpgradeModeStatus for v5::response::RemainingBandwidthResponse {
+    fn upgrade_mode_status(&self) -> CurrentUpgradeModeStatus {
+        CurrentUpgradeModeStatus::Unknown
+    }
+}
+
+impl UpgradeModeStatus for v5::response::TopUpBandwidthResponse {
+    fn upgrade_mode_status(&self) -> CurrentUpgradeModeStatus {
+        CurrentUpgradeModeStatus::Unknown
+    }
+}
+
+impl UpgradeModeStatus for v6::response::PendingRegistrationResponse {
+    fn upgrade_mode_status(&self) -> CurrentUpgradeModeStatus {
+        self.upgrade_mode_enabled.into()
+    }
+}
+
+impl UpgradeModeStatus for v6::response::RegisteredResponse {
+    fn upgrade_mode_status(&self) -> CurrentUpgradeModeStatus {
+        self.upgrade_mode_enabled.into()
+    }
+}
+
+impl UpgradeModeStatus for v6::response::RemainingBandwidthResponse {
+    fn upgrade_mode_status(&self) -> CurrentUpgradeModeStatus {
+        self.upgrade_mode_enabled.into()
+    }
+}
+
+impl UpgradeModeStatus for v6::response::TopUpBandwidthResponse {
+    fn upgrade_mode_status(&self) -> CurrentUpgradeModeStatus {
+        self.upgrade_mode_enabled.into()
+    }
+}
+
+impl UpgradeModeStatus for v6::response::UpgradeModeResponse {
+    fn upgrade_mode_status(&self) -> CurrentUpgradeModeStatus {
+        self.upgrade_mode_enabled.into()
+    }
+}
+
+pub trait InitMessage: Versionable + fmt::Debug {
     fn pub_key(&self) -> PeerPublicKey;
 }
 
@@ -77,19 +297,28 @@ impl InitMessage for v5::registration::InitMessage {
     }
 }
 
-pub trait FinalMessage {
-    fn pub_key(&self) -> PeerPublicKey;
-    fn verify(&self, private_key: &PrivateKey, nonce: u64) -> Result<(), Error>;
-    fn private_ips(&self) -> IpPair;
-    fn credential(&self) -> Option<CredentialSpendingData>;
-}
-
-impl FinalMessage for v1::GatewayClient {
+impl InitMessage for v6::registration::InitMessage {
     fn pub_key(&self) -> PeerPublicKey {
         self.pub_key
     }
+}
 
-    fn verify(&self, private_key: &PrivateKey, nonce: u64) -> Result<(), Error> {
+pub trait FinalMessage: Versionable + fmt::Debug {
+    fn gateway_client_pub_key(&self) -> PeerPublicKey;
+    fn verify(&self, private_key: &x25519::PrivateKey, nonce: u64) -> Result<(), Error>;
+    fn private_ips(&self) -> IpPair;
+    fn gateway_client_ipv4(&self) -> Option<Ipv4Addr>;
+    fn gateway_client_ipv6(&self) -> Option<Ipv6Addr>;
+    fn gateway_client_mac(&self) -> Vec<u8>;
+    fn credential(&self) -> Option<BandwidthClaim>;
+}
+
+impl FinalMessage for v1::GatewayClient {
+    fn gateway_client_pub_key(&self) -> PeerPublicKey {
+        self.pub_key
+    }
+
+    fn verify(&self, private_key: &x25519::PrivateKey, nonce: u64) -> Result<(), Error> {
         self.verify(private_key, nonce)
     }
 
@@ -97,17 +326,32 @@ impl FinalMessage for v1::GatewayClient {
         self.private_ip.into()
     }
 
-    fn credential(&self) -> Option<CredentialSpendingData> {
+    fn gateway_client_ipv4(&self) -> Option<Ipv4Addr> {
+        match self.private_ip {
+            std::net::IpAddr::V4(ipv4_addr) => Some(ipv4_addr),
+            std::net::IpAddr::V6(_) => None,
+        }
+    }
+
+    fn gateway_client_ipv6(&self) -> Option<Ipv6Addr> {
+        None
+    }
+
+    fn gateway_client_mac(&self) -> Vec<u8> {
+        self.mac.to_vec()
+    }
+
+    fn credential(&self) -> Option<BandwidthClaim> {
         None
     }
 }
 
 impl FinalMessage for v2::registration::FinalMessage {
-    fn pub_key(&self) -> PeerPublicKey {
+    fn gateway_client_pub_key(&self) -> PeerPublicKey {
         self.gateway_client.pub_key
     }
 
-    fn verify(&self, private_key: &PrivateKey, nonce: u64) -> Result<(), Error> {
+    fn verify(&self, private_key: &x25519::PrivateKey, nonce: u64) -> Result<(), Error> {
         self.gateway_client.verify(private_key, nonce)
     }
 
@@ -115,17 +359,36 @@ impl FinalMessage for v2::registration::FinalMessage {
         self.gateway_client.private_ip.into()
     }
 
-    fn credential(&self) -> Option<CredentialSpendingData> {
-        self.credential.clone()
+    fn gateway_client_ipv4(&self) -> Option<Ipv4Addr> {
+        match self.gateway_client.private_ip {
+            std::net::IpAddr::V4(ipv4_addr) => Some(ipv4_addr),
+            std::net::IpAddr::V6(_) => None,
+        }
+    }
+
+    fn gateway_client_ipv6(&self) -> Option<Ipv6Addr> {
+        None
+    }
+
+    fn gateway_client_mac(&self) -> Vec<u8> {
+        self.gateway_client.mac.to_vec()
+    }
+
+    fn credential(&self) -> Option<BandwidthClaim> {
+        self.credential.clone().and_then(|c| {
+            c.try_into()
+                .inspect_err(|err| error!("credential conversion error: {err}"))
+                .ok()
+        })
     }
 }
 
 impl FinalMessage for v3::registration::FinalMessage {
-    fn pub_key(&self) -> PeerPublicKey {
+    fn gateway_client_pub_key(&self) -> PeerPublicKey {
         self.gateway_client.pub_key
     }
 
-    fn verify(&self, private_key: &PrivateKey, nonce: u64) -> Result<(), Error> {
+    fn verify(&self, private_key: &x25519::PrivateKey, nonce: u64) -> Result<(), Error> {
         self.gateway_client.verify(private_key, nonce)
     }
 
@@ -133,17 +396,71 @@ impl FinalMessage for v3::registration::FinalMessage {
         self.gateway_client.private_ip.into()
     }
 
-    fn credential(&self) -> Option<CredentialSpendingData> {
-        self.credential.clone()
+    fn gateway_client_ipv4(&self) -> Option<Ipv4Addr> {
+        match self.gateway_client.private_ip {
+            std::net::IpAddr::V4(ipv4_addr) => Some(ipv4_addr),
+            std::net::IpAddr::V6(_) => None,
+        }
+    }
+
+    fn gateway_client_ipv6(&self) -> Option<Ipv6Addr> {
+        None
+    }
+
+    fn gateway_client_mac(&self) -> Vec<u8> {
+        self.gateway_client.mac.to_vec()
+    }
+
+    fn credential(&self) -> Option<BandwidthClaim> {
+        self.credential.clone().and_then(|c| {
+            c.try_into()
+                .inspect_err(|err| error!("credential conversion error: {err}"))
+                .ok()
+        })
     }
 }
 
 impl FinalMessage for v4::registration::FinalMessage {
-    fn pub_key(&self) -> PeerPublicKey {
+    fn gateway_client_pub_key(&self) -> PeerPublicKey {
         self.gateway_client.pub_key
     }
 
-    fn verify(&self, private_key: &PrivateKey, nonce: u64) -> Result<(), Error> {
+    fn verify(&self, private_key: &x25519::PrivateKey, nonce: u64) -> Result<(), Error> {
+        self.gateway_client.verify(private_key, nonce)
+    }
+
+    fn private_ips(&self) -> IpPair {
+        // v4 -> v5 -> v6
+        v5::registration::IpPair::from(self.gateway_client.private_ips).into()
+    }
+
+    fn gateway_client_ipv4(&self) -> Option<Ipv4Addr> {
+        Some(self.gateway_client.private_ips.ipv4)
+    }
+
+    fn gateway_client_ipv6(&self) -> Option<Ipv6Addr> {
+        Some(self.gateway_client.private_ips.ipv6)
+    }
+
+    fn gateway_client_mac(&self) -> Vec<u8> {
+        self.gateway_client.mac.to_vec()
+    }
+
+    fn credential(&self) -> Option<BandwidthClaim> {
+        self.credential.clone().and_then(|c| {
+            c.try_into()
+                .inspect_err(|err| error!("credential conversion error: {err}"))
+                .ok()
+        })
+    }
+}
+
+impl FinalMessage for v5::registration::FinalMessage {
+    fn gateway_client_pub_key(&self) -> PeerPublicKey {
+        self.gateway_client.pub_key
+    }
+
+    fn verify(&self, private_key: &x25519::PrivateKey, nonce: u64) -> Result<(), Error> {
         self.gateway_client.verify(private_key, nonce)
     }
 
@@ -151,17 +468,33 @@ impl FinalMessage for v4::registration::FinalMessage {
         self.gateway_client.private_ips.into()
     }
 
-    fn credential(&self) -> Option<CredentialSpendingData> {
-        self.credential.clone()
+    fn gateway_client_ipv4(&self) -> Option<Ipv4Addr> {
+        Some(self.gateway_client.private_ips.ipv4)
+    }
+
+    fn gateway_client_ipv6(&self) -> Option<Ipv6Addr> {
+        Some(self.gateway_client.private_ips.ipv6)
+    }
+
+    fn gateway_client_mac(&self) -> Vec<u8> {
+        self.gateway_client.mac.to_vec()
+    }
+
+    fn credential(&self) -> Option<BandwidthClaim> {
+        self.credential.clone().and_then(|c| {
+            c.try_into()
+                .inspect_err(|err| error!("credential conversion error: {err}"))
+                .ok()
+        })
     }
 }
 
-impl FinalMessage for v5::registration::FinalMessage {
-    fn pub_key(&self) -> PeerPublicKey {
+impl FinalMessage for v6::registration::FinalMessage {
+    fn gateway_client_pub_key(&self) -> PeerPublicKey {
         self.gateway_client.pub_key
     }
 
-    fn verify(&self, private_key: &PrivateKey, nonce: u64) -> Result<(), Error> {
+    fn verify(&self, private_key: &x25519::PrivateKey, nonce: u64) -> Result<(), Error> {
         self.gateway_client.verify(private_key, nonce)
     }
 
@@ -169,12 +502,24 @@ impl FinalMessage for v5::registration::FinalMessage {
         self.gateway_client.private_ips
     }
 
-    fn credential(&self) -> Option<CredentialSpendingData> {
+    fn gateway_client_ipv4(&self) -> Option<Ipv4Addr> {
+        Some(self.gateway_client.private_ips.ipv4)
+    }
+
+    fn gateway_client_ipv6(&self) -> Option<Ipv6Addr> {
+        Some(self.gateway_client.private_ips.ipv6)
+    }
+
+    fn gateway_client_mac(&self) -> Vec<u8> {
+        self.gateway_client.mac.to_vec()
+    }
+
+    fn credential(&self) -> Option<BandwidthClaim> {
         self.credential.clone()
     }
 }
 
-pub trait QueryBandwidthMessage {
+pub trait QueryBandwidthMessage: Versionable + fmt::Debug {
     fn pub_key(&self) -> PeerPublicKey;
 }
 
@@ -184,7 +529,7 @@ impl QueryBandwidthMessage for PeerPublicKey {
     }
 }
 
-pub trait TopUpMessage {
+pub trait TopUpMessage: Versionable + fmt::Debug {
     fn pub_key(&self) -> PeerPublicKey;
     fn credential(&self) -> CredentialSpendingData;
 }
@@ -219,197 +564,491 @@ impl TopUpMessage for v5::topup::TopUpMessage {
     }
 }
 
-pub enum AuthenticatorRequest {
-    Initial {
-        msg: Box<dyn InitMessage + Send + Sync + 'static>,
-        protocol: Protocol,
-        reply_to: Option<Recipient>,
-        request_id: u64,
-    },
-    Final {
-        msg: Box<dyn FinalMessage + Send + Sync + 'static>,
-        protocol: Protocol,
-        reply_to: Option<Recipient>,
-        request_id: u64,
-    },
-    QueryBandwidth {
-        msg: Box<dyn QueryBandwidthMessage + Send + Sync + 'static>,
-        protocol: Protocol,
-        reply_to: Option<Recipient>,
-        request_id: u64,
-    },
-    TopUpBandwidth {
-        msg: Box<dyn TopUpMessage + Send + Sync + 'static>,
-        protocol: Protocol,
-        reply_to: Option<Recipient>,
-        request_id: u64,
-    },
+impl TopUpMessage for v6::topup::TopUpMessage {
+    fn pub_key(&self) -> PeerPublicKey {
+        self.pub_key
+    }
+
+    fn credential(&self) -> CredentialSpendingData {
+        self.credential.clone()
+    }
 }
 
-impl From<v1::request::AuthenticatorRequest> for AuthenticatorRequest {
-    fn from(value: v1::request::AuthenticatorRequest) -> Self {
-        match value.data {
-            v1::request::AuthenticatorRequestData::Initial(init_message) => Self::Initial {
-                msg: Box::new(init_message),
-                protocol: Protocol {
-                    version: value.version,
-                    service_provider_type: ServiceProviderType::Authenticator,
-                },
-                reply_to: Some(value.reply_to),
-                request_id: value.request_id,
-            },
-            v1::request::AuthenticatorRequestData::Final(gateway_client) => Self::Final {
-                msg: Box::new(gateway_client),
-                protocol: Protocol {
-                    version: value.version,
-                    service_provider_type: ServiceProviderType::Authenticator,
-                },
-                reply_to: Some(value.reply_to),
-                request_id: value.request_id,
-            },
-            v1::request::AuthenticatorRequestData::QueryBandwidth(peer_public_key) => {
-                Self::QueryBandwidth {
-                    msg: Box::new(peer_public_key),
-                    protocol: Protocol {
-                        version: value.version,
-                        service_provider_type: ServiceProviderType::Authenticator,
-                    },
-                    reply_to: Some(value.reply_to),
-                    request_id: value.request_id,
-                }
-            }
+pub trait UpgradeModeMessage: Versionable + fmt::Debug {
+    // the idea is to expose different types of emergency credentials here,
+    // like upgrade mode JWT, emergency threshold credential issued by signers, etc.
+    fn upgrade_mode_global_attestation_jwt(&self) -> Option<String>;
+}
+
+impl UpgradeModeMessage for v6::upgrade_mode_check::UpgradeModeCheckRequest {
+    fn upgrade_mode_global_attestation_jwt(&self) -> Option<String> {
+        use v6::upgrade_mode_check::UpgradeModeCheckRequest;
+
+        match self {
+            UpgradeModeCheckRequest::UpgradeModeJwt { token } => Some(token.clone()),
         }
     }
 }
 
-impl From<v2::request::AuthenticatorRequest> for AuthenticatorRequest {
-    fn from(value: v2::request::AuthenticatorRequest) -> Self {
-        match value.data {
-            v2::request::AuthenticatorRequestData::Initial(init_message) => Self::Initial {
-                msg: Box::new(init_message),
-                protocol: value.protocol,
-                reply_to: Some(value.reply_to),
-                request_id: value.request_id,
-            },
-            v2::request::AuthenticatorRequestData::Final(final_message) => Self::Final {
-                msg: final_message,
-                protocol: value.protocol,
-                reply_to: Some(value.reply_to),
-                request_id: value.request_id,
-            },
-            v2::request::AuthenticatorRequestData::QueryBandwidth(peer_public_key) => {
-                Self::QueryBandwidth {
-                    msg: Box::new(peer_public_key),
-                    protocol: value.protocol,
-                    reply_to: Some(value.reply_to),
-                    request_id: value.request_id,
-                }
-            }
-        }
+pub trait Id {
+    fn id(&self) -> u64;
+}
+
+impl Id for v1::response::PendingRegistrationResponse {
+    fn id(&self) -> u64 {
+        self.request_id
     }
 }
 
-impl From<v3::request::AuthenticatorRequest> for AuthenticatorRequest {
-    fn from(value: v3::request::AuthenticatorRequest) -> Self {
-        match value.data {
-            v3::request::AuthenticatorRequestData::Initial(init_message) => Self::Initial {
-                msg: Box::new(init_message),
-                protocol: value.protocol,
-                reply_to: Some(value.reply_to),
-                request_id: value.request_id,
-            },
-            v3::request::AuthenticatorRequestData::Final(final_message) => Self::Final {
-                msg: final_message,
-                protocol: value.protocol,
-                reply_to: Some(value.reply_to),
-                request_id: value.request_id,
-            },
-            v3::request::AuthenticatorRequestData::QueryBandwidth(peer_public_key) => {
-                Self::QueryBandwidth {
-                    msg: Box::new(peer_public_key),
-                    protocol: value.protocol,
-                    reply_to: Some(value.reply_to),
-                    request_id: value.request_id,
-                }
-            }
-            v3::request::AuthenticatorRequestData::TopUpBandwidth(top_up_message) => {
-                Self::TopUpBandwidth {
-                    msg: top_up_message,
-                    protocol: value.protocol,
-                    reply_to: Some(value.reply_to),
-                    request_id: value.request_id,
-                }
-            }
-        }
+impl Id for v2::response::PendingRegistrationResponse {
+    fn id(&self) -> u64 {
+        self.request_id
     }
 }
 
-impl From<v4::request::AuthenticatorRequest> for AuthenticatorRequest {
-    fn from(value: v4::request::AuthenticatorRequest) -> Self {
-        match value.data {
-            v4::request::AuthenticatorRequestData::Initial(init_message) => Self::Initial {
-                msg: Box::new(init_message),
-                protocol: value.protocol,
-                reply_to: Some(value.reply_to),
-                request_id: value.request_id,
-            },
-            v4::request::AuthenticatorRequestData::Final(final_message) => Self::Final {
-                msg: final_message,
-                protocol: value.protocol,
-                reply_to: Some(value.reply_to),
-                request_id: value.request_id,
-            },
-            v4::request::AuthenticatorRequestData::QueryBandwidth(peer_public_key) => {
-                Self::QueryBandwidth {
-                    msg: Box::new(peer_public_key),
-                    protocol: value.protocol,
-                    reply_to: Some(value.reply_to),
-                    request_id: value.request_id,
-                }
-            }
-            v4::request::AuthenticatorRequestData::TopUpBandwidth(top_up_message) => {
-                Self::TopUpBandwidth {
-                    msg: top_up_message,
-                    protocol: value.protocol,
-                    reply_to: Some(value.reply_to),
-                    request_id: value.request_id,
-                }
-            }
-        }
+impl Id for v3::response::PendingRegistrationResponse {
+    fn id(&self) -> u64 {
+        self.request_id
     }
 }
 
-impl From<v5::request::AuthenticatorRequest> for AuthenticatorRequest {
-    fn from(value: v5::request::AuthenticatorRequest) -> Self {
-        match value.data {
-            v5::request::AuthenticatorRequestData::Initial(init_message) => Self::Initial {
-                msg: Box::new(init_message),
-                protocol: value.protocol,
-                reply_to: None,
-                request_id: value.request_id,
-            },
-            v5::request::AuthenticatorRequestData::Final(final_message) => Self::Final {
-                msg: final_message,
-                protocol: value.protocol,
-                reply_to: None,
-                request_id: value.request_id,
-            },
-            v5::request::AuthenticatorRequestData::QueryBandwidth(peer_public_key) => {
-                Self::QueryBandwidth {
-                    msg: Box::new(peer_public_key),
-                    protocol: value.protocol,
-                    reply_to: None,
-                    request_id: value.request_id,
-                }
-            }
-            v5::request::AuthenticatorRequestData::TopUpBandwidth(top_up_message) => {
-                Self::TopUpBandwidth {
-                    msg: top_up_message,
-                    protocol: value.protocol,
-                    reply_to: None,
-                    request_id: value.request_id,
-                }
-            }
-        }
+impl Id for v4::response::PendingRegistrationResponse {
+    fn id(&self) -> u64 {
+        self.request_id
+    }
+}
+
+impl Id for v5::response::PendingRegistrationResponse {
+    fn id(&self) -> u64 {
+        self.request_id
+    }
+}
+
+impl Id for v6::response::PendingRegistrationResponse {
+    fn id(&self) -> u64 {
+        self.request_id
+    }
+}
+
+impl Id for v1::response::RegisteredResponse {
+    fn id(&self) -> u64 {
+        self.request_id
+    }
+}
+
+impl Id for v2::response::RegisteredResponse {
+    fn id(&self) -> u64 {
+        self.request_id
+    }
+}
+
+impl Id for v3::response::RegisteredResponse {
+    fn id(&self) -> u64 {
+        self.request_id
+    }
+}
+
+impl Id for v4::response::RegisteredResponse {
+    fn id(&self) -> u64 {
+        self.request_id
+    }
+}
+
+impl Id for v5::response::RegisteredResponse {
+    fn id(&self) -> u64 {
+        self.request_id
+    }
+}
+
+impl Id for v6::response::RegisteredResponse {
+    fn id(&self) -> u64 {
+        self.request_id
+    }
+}
+
+impl Id for v1::response::RemainingBandwidthResponse {
+    fn id(&self) -> u64 {
+        self.request_id
+    }
+}
+
+impl Id for v2::response::RemainingBandwidthResponse {
+    fn id(&self) -> u64 {
+        self.request_id
+    }
+}
+
+impl Id for v3::response::RemainingBandwidthResponse {
+    fn id(&self) -> u64 {
+        self.request_id
+    }
+}
+
+impl Id for v4::response::RemainingBandwidthResponse {
+    fn id(&self) -> u64 {
+        self.request_id
+    }
+}
+
+impl Id for v5::response::RemainingBandwidthResponse {
+    fn id(&self) -> u64 {
+        self.request_id
+    }
+}
+
+impl Id for v6::response::RemainingBandwidthResponse {
+    fn id(&self) -> u64 {
+        self.request_id
+    }
+}
+
+impl Id for v3::response::TopUpBandwidthResponse {
+    fn id(&self) -> u64 {
+        self.request_id
+    }
+}
+
+impl Id for v4::response::TopUpBandwidthResponse {
+    fn id(&self) -> u64 {
+        self.request_id
+    }
+}
+
+impl Id for v5::response::TopUpBandwidthResponse {
+    fn id(&self) -> u64 {
+        self.request_id
+    }
+}
+
+impl Id for v6::response::TopUpBandwidthResponse {
+    fn id(&self) -> u64 {
+        self.request_id
+    }
+}
+
+impl Id for v6::response::UpgradeModeResponse {
+    fn id(&self) -> u64 {
+        self.request_id
+    }
+}
+
+pub trait PendingRegistrationResponse: Id + UpgradeModeStatus + fmt::Debug {
+    fn nonce(&self) -> u64;
+    fn verify(&self, gateway_key: &x25519::PrivateKey) -> Result<(), Error>;
+    fn pub_key(&self) -> PeerPublicKey;
+    fn private_ips(&self) -> IpPair;
+    fn finalise_registration(
+        &self,
+        private_key: &x25519::PrivateKey,
+        credential: Option<BandwidthClaim>,
+    ) -> Box<dyn FinalMessage + Send + Sync>;
+}
+
+impl PendingRegistrationResponse for v2::response::PendingRegistrationResponse {
+    fn nonce(&self) -> u64 {
+        self.reply.nonce
+    }
+
+    fn verify(&self, gateway_key: &x25519::PrivateKey) -> Result<(), Error> {
+        self.reply.gateway_data.verify(gateway_key, self.nonce())
+    }
+
+    fn pub_key(&self) -> PeerPublicKey {
+        self.reply.gateway_data.pub_key
+    }
+
+    fn private_ips(&self) -> IpPair {
+        self.reply.gateway_data.private_ip.into()
+    }
+
+    fn finalise_registration(
+        &self,
+        private_key: &x25519::PrivateKey,
+        credential: Option<BandwidthClaim>,
+    ) -> Box<dyn FinalMessage + Send + Sync> {
+        Box::new(v2::registration::FinalMessage {
+            gateway_client: v2::registration::GatewayClient::new(
+                private_key,
+                self.pub_key().inner(),
+                self.private_ips().ipv4.into(),
+                self.nonce(),
+            ),
+            credential: credential.and_then(|b| b.credential.into_zk_nym().map(|c| *c)),
+        })
+    }
+}
+
+impl PendingRegistrationResponse for v3::response::PendingRegistrationResponse {
+    fn nonce(&self) -> u64 {
+        self.reply.nonce
+    }
+
+    fn verify(&self, gateway_key: &x25519::PrivateKey) -> Result<(), Error> {
+        self.reply.gateway_data.verify(gateway_key, self.nonce())
+    }
+
+    fn pub_key(&self) -> PeerPublicKey {
+        self.reply.gateway_data.pub_key
+    }
+
+    fn private_ips(&self) -> IpPair {
+        self.reply.gateway_data.private_ip.into()
+    }
+
+    fn finalise_registration(
+        &self,
+        private_key: &x25519::PrivateKey,
+        credential: Option<BandwidthClaim>,
+    ) -> Box<dyn FinalMessage + Send + Sync> {
+        Box::new(v3::registration::FinalMessage {
+            gateway_client: v3::registration::GatewayClient::new(
+                private_key,
+                self.pub_key().inner(),
+                self.private_ips().ipv4.into(),
+                self.nonce(),
+            ),
+            credential: credential.and_then(|b| b.credential.into_zk_nym().map(|c| *c)),
+        })
+    }
+}
+
+impl PendingRegistrationResponse for v4::response::PendingRegistrationResponse {
+    fn nonce(&self) -> u64 {
+        self.reply.nonce
+    }
+
+    fn verify(&self, gateway_key: &x25519::PrivateKey) -> Result<(), Error> {
+        self.reply.gateway_data.verify(gateway_key, self.nonce())
+    }
+
+    fn pub_key(&self) -> PeerPublicKey {
+        self.reply.gateway_data.pub_key
+    }
+
+    fn private_ips(&self) -> IpPair {
+        // v4 -> v5 -> v6
+        v5::registration::IpPair::from(self.reply.gateway_data.private_ips).into()
+    }
+
+    fn finalise_registration(
+        &self,
+        private_key: &x25519::PrivateKey,
+        credential: Option<BandwidthClaim>,
+    ) -> Box<dyn FinalMessage + Send + Sync> {
+        Box::new(v4::registration::FinalMessage {
+            gateway_client: v4::registration::GatewayClient::new(
+                private_key,
+                self.pub_key().inner(),
+                self.reply.gateway_data.private_ips,
+                self.nonce(),
+            ),
+            credential: credential.and_then(|b| b.credential.into_zk_nym().map(|c| *c)),
+        })
+    }
+}
+
+impl PendingRegistrationResponse for v5::response::PendingRegistrationResponse {
+    fn nonce(&self) -> u64 {
+        self.reply.nonce
+    }
+
+    fn verify(&self, gateway_key: &x25519::PrivateKey) -> Result<(), Error> {
+        self.reply.gateway_data.verify(gateway_key, self.nonce())
+    }
+
+    fn pub_key(&self) -> PeerPublicKey {
+        self.reply.gateway_data.pub_key
+    }
+
+    fn private_ips(&self) -> IpPair {
+        self.reply.gateway_data.private_ips.into()
+    }
+
+    fn finalise_registration(
+        &self,
+        private_key: &x25519::PrivateKey,
+        credential: Option<BandwidthClaim>,
+    ) -> Box<dyn FinalMessage + Send + Sync> {
+        Box::new(v5::registration::FinalMessage {
+            gateway_client: v5::registration::GatewayClient::new(
+                private_key,
+                self.pub_key().inner(),
+                self.reply.gateway_data.private_ips,
+                self.nonce(),
+            ),
+            credential: credential.and_then(|b| b.credential.into_zk_nym().map(|c| *c)),
+        })
+    }
+}
+
+impl PendingRegistrationResponse for v6::response::PendingRegistrationResponse {
+    fn nonce(&self) -> u64 {
+        self.reply.nonce
+    }
+
+    fn verify(&self, gateway_key: &x25519::PrivateKey) -> Result<(), Error> {
+        self.reply.gateway_data.verify(gateway_key, self.nonce())
+    }
+
+    fn pub_key(&self) -> PeerPublicKey {
+        self.reply.gateway_data.pub_key
+    }
+
+    fn private_ips(&self) -> IpPair {
+        self.reply.gateway_data.private_ips
+    }
+
+    fn finalise_registration(
+        &self,
+        private_key: &x25519::PrivateKey,
+        credential: Option<BandwidthClaim>,
+    ) -> Box<dyn FinalMessage + Send + Sync> {
+        Box::new(v6::registration::FinalMessage {
+            gateway_client: v6::registration::GatewayClient::new(
+                private_key,
+                self.pub_key().inner(),
+                self.reply.gateway_data.private_ips,
+                self.nonce(),
+            ),
+            credential,
+        })
+    }
+}
+
+pub trait RegisteredResponse: Id + UpgradeModeStatus + fmt::Debug {
+    fn private_ips(&self) -> IpPair;
+    fn pub_key(&self) -> PeerPublicKey;
+    fn wg_port(&self) -> u16;
+}
+
+impl RegisteredResponse for v2::response::RegisteredResponse {
+    fn private_ips(&self) -> IpPair {
+        self.reply.private_ip.into()
+    }
+
+    fn pub_key(&self) -> PeerPublicKey {
+        self.reply.pub_key
+    }
+
+    fn wg_port(&self) -> u16 {
+        self.reply.wg_port
+    }
+}
+
+impl RegisteredResponse for v3::response::RegisteredResponse {
+    fn private_ips(&self) -> IpPair {
+        self.reply.private_ip.into()
+    }
+
+    fn pub_key(&self) -> PeerPublicKey {
+        self.reply.pub_key
+    }
+
+    fn wg_port(&self) -> u16 {
+        self.reply.wg_port
+    }
+}
+impl RegisteredResponse for v4::response::RegisteredResponse {
+    fn private_ips(&self) -> IpPair {
+        // v4 -> v5 -> v6
+        v5::registration::IpPair::from(self.reply.private_ips).into()
+    }
+
+    fn pub_key(&self) -> PeerPublicKey {
+        self.reply.pub_key
+    }
+
+    fn wg_port(&self) -> u16 {
+        self.reply.wg_port
+    }
+}
+
+impl RegisteredResponse for v5::response::RegisteredResponse {
+    fn private_ips(&self) -> IpPair {
+        self.reply.private_ips.into()
+    }
+
+    fn pub_key(&self) -> PeerPublicKey {
+        self.reply.pub_key
+    }
+
+    fn wg_port(&self) -> u16 {
+        self.reply.wg_port
+    }
+}
+
+impl RegisteredResponse for v6::response::RegisteredResponse {
+    fn private_ips(&self) -> IpPair {
+        self.reply.private_ips
+    }
+
+    fn pub_key(&self) -> PeerPublicKey {
+        self.reply.pub_key
+    }
+
+    fn wg_port(&self) -> u16 {
+        self.reply.wg_port
+    }
+}
+
+pub trait RemainingBandwidthResponse: Id + UpgradeModeStatus + fmt::Debug {
+    fn available_bandwidth(&self) -> Option<i64>;
+}
+
+impl RemainingBandwidthResponse for v2::response::RemainingBandwidthResponse {
+    fn available_bandwidth(&self) -> Option<i64> {
+        self.reply.as_ref().map(|r| r.available_bandwidth)
+    }
+}
+
+impl RemainingBandwidthResponse for v3::response::RemainingBandwidthResponse {
+    fn available_bandwidth(&self) -> Option<i64> {
+        self.reply.as_ref().map(|r| r.available_bandwidth)
+    }
+}
+
+impl RemainingBandwidthResponse for v4::response::RemainingBandwidthResponse {
+    fn available_bandwidth(&self) -> Option<i64> {
+        self.reply.as_ref().map(|r| r.available_bandwidth)
+    }
+}
+
+impl RemainingBandwidthResponse for v5::response::RemainingBandwidthResponse {
+    fn available_bandwidth(&self) -> Option<i64> {
+        self.reply.as_ref().map(|r| r.available_bandwidth)
+    }
+}
+
+impl RemainingBandwidthResponse for v6::response::RemainingBandwidthResponse {
+    fn available_bandwidth(&self) -> Option<i64> {
+        self.reply.as_ref().map(|r| r.available_bandwidth)
+    }
+}
+
+pub trait TopUpBandwidthResponse: Id + UpgradeModeStatus + fmt::Debug {
+    fn available_bandwidth(&self) -> i64;
+}
+
+impl TopUpBandwidthResponse for v3::response::TopUpBandwidthResponse {
+    fn available_bandwidth(&self) -> i64 {
+        self.reply.available_bandwidth
+    }
+}
+
+impl TopUpBandwidthResponse for v4::response::TopUpBandwidthResponse {
+    fn available_bandwidth(&self) -> i64 {
+        self.reply.available_bandwidth
+    }
+}
+
+impl TopUpBandwidthResponse for v5::response::TopUpBandwidthResponse {
+    fn available_bandwidth(&self) -> i64 {
+        self.reply.available_bandwidth
+    }
+}
+
+impl TopUpBandwidthResponse for v6::response::TopUpBandwidthResponse {
+    fn available_bandwidth(&self) -> i64 {
+        self.reply.available_bandwidth
     }
 }

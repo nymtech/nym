@@ -1,15 +1,15 @@
 use axum::{
-    extract::{Path, Query, State},
     Json, Router,
+    extract::{Path, Query, State},
 };
 use serde::Deserialize;
 use utoipa::IntoParams;
 
 use crate::http::{
+    PagedResult, Pagination,
     error::{HttpError, HttpResult},
     models::{Gateway, GatewaySkinny},
     state::AppState,
-    PagedResult, Pagination,
 };
 
 pub(crate) fn routes() -> Router<AppState> {
@@ -139,6 +139,7 @@ mod tests {
             last_updated_utc: "2024-01-20T11:00:00Z".to_string(),
             routing_score: 0.95,
             config_score: 100,
+            bridges: None,
         }
     }
 

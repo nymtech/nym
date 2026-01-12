@@ -1,0 +1,10 @@
+---
+- name: "Deploy Nym node"
+  hosts: all    # or a specific host/group
+  become: true
+  roles:
+    - base
+    - nym
+    - nginx
+    - tunnel # comment out for mixnode
+    - quic   # comment out for mixnode or non-wireguard gateway

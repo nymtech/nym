@@ -29,7 +29,7 @@ packages=(
 "wasm/extension-storage"
 
 "node/wasm/client"
-"node/wasm/mix-fetch"
+#"node/wasm/mix-fetch"
 
 "ts/sdk/mix-fetch/cjs"
 "ts/sdk/mix-fetch/cjs-full-fat"
@@ -49,7 +49,7 @@ packages=(
 "ts/sdk/sdk/esm"
 "ts/sdk/sdk/esm-full-fat"
 
-"ts/sdk/contract-clients"
+#"ts/sdk/contract-clients"
 )
 
 pushd () {
@@ -66,7 +66,7 @@ for item in "${packages[@]}"
 do
   pushd "$item"
   jq -r '. | "📦 " + .version + "   " +.name' < package.json
-  popd 
+  popd
 done
 
 echo ""

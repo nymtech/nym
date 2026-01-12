@@ -6,14 +6,16 @@ use crate::var_names::{DEPRECATED_API_VALIDATOR, DEPRECATED_NYMD_VALIDATOR, NYM_
 use std::path::Path;
 
 fn fix_deprecated_environmental_variables() {
-    // if we're using the outdated environmental variables, set the updated ones to preserve compatibility
-    if let Ok(nyxd) = std::env::var(DEPRECATED_NYMD_VALIDATOR) {
-        if std::env::var(NYXD).is_err() {
+    unsafe {
+        // if we're using the outdated environmental variables, set the updated ones to preserve compatibility
+        if let Ok(nyxd) = std::env::var(DEPRECATED_NYMD_VALIDATOR)
+            && std::env::var(NYXD).is_err()
+        {
             std::env::set_var(NYXD, nyxd)
         }
-    }
-    if let Ok(nym_apis) = std::env::var(DEPRECATED_API_VALIDATOR) {
-        if std::env::var(NYM_API).is_err() {
+        if let Ok(nym_apis) = std::env::var(DEPRECATED_API_VALIDATOR)
+            && std::env::var(NYM_API).is_err()
+        {
             std::env::set_var(NYM_API, nym_apis)
         }
     }

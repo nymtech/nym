@@ -7,7 +7,7 @@ use crate::rewarder::epoch::Epoch;
 use crate::rewarder::nyxd_client::NyxdClient;
 use nym_validator_client::nyxd::module_traits::staking;
 use nym_validator_client::nyxd::{AccountId, PageRequest};
-use nyxd_scraper::NyxdScraper;
+use nyxd_scraper_sqlite::SqliteNyxdScraper;
 use std::cmp::min;
 use std::collections::HashMap;
 use std::ops::Range;
@@ -17,7 +17,7 @@ pub(crate) mod types;
 
 pub struct EpochSigning {
     pub(crate) nyxd_client: NyxdClient,
-    pub(crate) nyxd_scraper: NyxdScraper,
+    pub(crate) nyxd_scraper: SqliteNyxdScraper,
     pub(crate) whitelist: Vec<AccountId>,
 }
 
@@ -150,7 +150,9 @@ impl EpochSigning {
                 .get_voting_power(&validator.consensus_address, vp_range.clone())
                 .await?
             else {
-                error!("failed to obtain voting power for validator {addr} for any block between heights {vp_range:?} - there were no stored pre-commits for that validator.");
+                error!(
+                    "failed to obtain voting power for validator {addr} for any block between heights {vp_range:?} - there were no stored pre-commits for that validator."
+                );
                 continue;
             };
 

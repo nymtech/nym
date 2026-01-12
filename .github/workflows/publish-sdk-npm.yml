@@ -4,9 +4,9 @@ on:
 
 jobs:
   publish:
-    runs-on: arc-ubuntu-22.04
+    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install Node
         uses: actions/setup-node@v4
@@ -17,10 +17,13 @@ jobs:
       - name: Setup yarn
         run: npm install -g yarn
 
-      - name: Install Rust stable
+      - name: Install rust toolchain
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: stable
+          profile: minimal
+          toolchain: ${{ vars.REQUIRED_RUSTC_VERSION }}
+          override: true
+          components: rustfmt, clippy
 
       - name: Install wasm-pack
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
@@ -29,9 +32,9 @@ jobs:
         run: cargo install wasm-opt
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
-          go-version: "1.23.7"
+          go-version: "1.24.6"
 
       - name: Install dependencies
         run: yarn

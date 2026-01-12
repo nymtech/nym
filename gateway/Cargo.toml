@@ -11,7 +11,7 @@ authors = [
 ]
 description = "Implementation of the Nym Mixnet Gateway"
 edition = "2021"
-rust-version = "1.77"
+rust-version = "1.85"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -19,7 +19,6 @@ rust-version = "1.77"
 path = "src/lib.rs"
 
 [dependencies]
-anyhow = { workspace = true }
 bincode = { workspace = true }
 async-trait = { workspace = true }
 bip39 = { workspace = true }
@@ -30,7 +29,6 @@ futures = { workspace = true }
 ipnetwork = { workspace = true }
 rand = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
-sha2 = { workspace = true }
 thiserror = { workspace = true }
 time = { workspace = true }
 tokio = { workspace = true, features = [
@@ -40,16 +38,14 @@ tokio = { workspace = true, features = [
     "fs",
     "time",
 ] }
-tokio-stream = { workspace = true, features = ["fs"] }
+tokio-stream = { workspace = true }
 tokio-tungstenite = { workspace = true }
-tokio-util = { workspace = true, features = ["codec"] }
 tracing = { workspace = true }
 url = { workspace = true, features = ["serde"] }
 zeroize = { workspace = true }
 
 
 # internal
-nym-api-requests = { path = "../nym-api/nym-api-requests" }
 nym-credentials = { path = "../common/credentials" }
 nym-credentials-interface = { path = "../common/credentials-interface" }
 nym-credential-verification = { path = "../common/credential-verification" }
@@ -58,7 +54,6 @@ nym-gateway-storage = { path = "../common/gateway-storage" }
 nym-gateway-stats-storage = { path = "../common/gateway-stats-storage" }
 nym-gateway-requests = { path = "../common/gateway-requests" }
 nym-mixnet-client = { path = "../common/client-libs/mixnet-client" }
-nym-mixnode-common = { path = "../common/mixnode-common" }
 nym-network-defaults = { path = "../common/network-defaults" }
 nym-network-requester = { path = "../service-providers/network-requester" }
 nym-sdk = { path = "../sdk/rust/nym-sdk" }
@@ -66,10 +61,10 @@ nym-sphinx = { path = "../common/nymsphinx" }
 nym-statistics-common = { path = "../common/statistics" }
 nym-task = { path = "../common/task" }
 nym-topology = { path = "../common/topology" }
-nym-types = { path = "../common/types" }
 nym-validator-client = { path = "../common/client-libs/validator-client" }
 nym-ip-packet-router = { path = "../service-providers/ip-packet-router" }
 nym-node-metrics = { path = "../nym-node/nym-node-metrics" }
+nym-upgrade-mode-check = { path = "../common/upgrade-mode-check" }
 
 nym-wireguard = { path = "../common/wireguard" }
 nym-wireguard-private-metadata-server = { path = "../common/wireguard-private-metadata/server" }
@@ -80,7 +75,6 @@ nym-client-core = { path = "../common/client-core", features = ["cli"] }
 nym-id = { path = "../common/nym-id" }
 nym-service-provider-requests-common = { path = "../common/service-provider-requests-common" }
 
-
 defguard_wireguard_rs = { workspace = true }
 
 [dev-dependencies]
@@ -88,3 +82,6 @@ nym-gateway-storage = { path = "../common/gateway-storage", features = ["mock"] 
 nym-wireguard = { path = "../common/wireguard", features = ["mock"] }
 mock_instant = "0.6.0"
 time = { workspace = true }
+
+[lints]
+workspace = true

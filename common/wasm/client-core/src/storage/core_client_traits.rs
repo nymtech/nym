@@ -8,15 +8,16 @@ use crate::storage::wasm_client_traits::WasmClientStorage;
 use crate::storage::ClientStorage;
 use async_trait::async_trait;
 use nym_client_core::client::base_client::storage::{
-    gateways_storage::{ActiveGateway, GatewayRegistration, GatewaysDetailsStore},
+    gateways_storage::{
+        ActiveGateway, GatewayPublishedData, GatewayRegistration, GatewaysDetailsStore,
+    },
     MixnetClientStorage,
 };
 use nym_client_core::client::key_manager::persistence::KeyStore;
 use nym_client_core::client::key_manager::ClientKeys;
 use nym_client_core::client::replies::reply_storage::browser_backend;
 use nym_credential_storage::ephemeral_storage::EphemeralStorage as EphemeralCredentialStorage;
-use nym_crypto::asymmetric::ed25519::PublicKey;
-use nym_gateway_client::SharedSymmetricKey;
+use nym_crypto::asymmetric::ed25519;
 use wasm_utils::console_log;
 
 // temporary until other variants are properly implemented (probably it should get changed into `ClientStorage`
@@ -96,8 +97,6 @@ impl KeyStore for ClientStorage {
     }
 
     async fn store_keys(&self, keys: &ClientKeys) -> Result<(), Self::StorageError> {
-        console_log!("attempting to store cryptographic keys...");
-
         self.store_identity_keypair(&keys.identity_keypair())
             .await?;
         self.store_encryption_keypair(&keys.encryption_keypair())
@@ -158,17 +157,18 @@ impl GatewaysDetailsStore for ClientStorage {
         self.store_registered_gateway(&raw_registration).await
     }
 
-    async fn upgrade_stored_remote_gateway_key(
+    async fn update_gateway_published_data(
         &self,
-        gateway_id: PublicKey,
-        updated_key: &SharedSymmetricKey,
+        gateway_id: &ed25519::PublicKey,
+        published_data: &GatewayPublishedData,
     ) -> Result<(), Self::StorageError> {
-        self.update_remote_gateway_key(
-            &gateway_id.to_base58_string(),
-            None,
-            Some(updated_key.as_bytes()),
-        )
-        .await
+        // Get gateway and update it
+        let mut gateway = self
+            .must_get_registered_gateway(&gateway_id.to_base58_string())
+            .await?;
+        gateway.published_data = published_data.into();
+        // Store it again, key didn't change
+        self.store_gateway_details(&gateway.try_into()?).await
     }
 
     async fn remove_gateway_details(&self, gateway_id: &str) -> Result<(), Self::StorageError> {

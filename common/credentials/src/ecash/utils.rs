@@ -13,7 +13,9 @@ use nym_validator_client::client::EcashApiClient;
 use nym_validator_client::nym_api::NymApiClientExt;
 
 // so we wouldn't break all the existing imports
-pub use nym_ecash_time::{cred_exp_date, ecash_date_offset, ecash_today, EcashTime};
+pub use nym_ecash_time::{
+    cred_exp_date, ecash_date_offset, ecash_default_expiration_date, ecash_today, EcashTime,
+};
 
 pub fn aggregate_verification_keys(
     api_clients: &[EcashApiClient],

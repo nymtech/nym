@@ -1,17 +1,19 @@
+use crate::node_scraper::models::BridgeInformation;
 use crate::{
     db::{
-        models::{InsertStatsRecord, NodeStats, ScrapeNodeKind, ScraperNodeInfo},
-        queries::insert_scraped_node_description,
         DbPool,
+        models::{InsertNodeScraperRecords, NodeStats, ScrapeNodeKind, ScraperNodeInfo},
+        queries::insert_scraped_node_description,
     },
     utils::{generate_node_name, now_utc},
 };
 use ammonia::Builder;
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use serde::{Deserialize, Serialize};
 use sqlx::Transaction;
 use std::time::Duration;
 use time::UtcDateTime;
+use tracing::{error, trace};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct NodeDescriptionResponse {
@@ -24,6 +26,8 @@ pub struct NodeDescriptionResponse {
 // Eventhough they are `/api/v1/*`, newer nodes have a redirect to the correct endpoints
 const DESCRIPTION_URL: &str = "/description";
 const PACKET_STATS_URL: &str = "/stats";
+
+const BRIDGES_URL: &str = "/api/v1/bridges/client-params";
 
 // We need this as some of the mixnodes respond with float values for the packet statistics (?????)
 pub fn get_packet_value(response: &serde_json::Value, key: &str) -> Option<i32> {
@@ -114,6 +118,17 @@ pub fn sanitize_description(
     }
 }
 
+pub async fn scrape_and_store_description_by_node_id(pool: &DbPool, node_id: i64) -> Result<()> {
+    let nodes = crate::db::queries::get_nodes_for_scraping(pool).await?;
+    match nodes.iter().find(|n| *n.node_kind.node_id() == node_id) {
+        Some(node) => Ok(scrape_and_store_description(pool, node.clone()).await?),
+        None => {
+            error!("Could not find node with id {node_id}");
+            Err(anyhow!("Could not find node with id {node_id}"))
+        }
+    }
+}
+
 pub async fn scrape_and_store_description(pool: &DbPool, node: ScraperNodeInfo) -> Result<()> {
     let client = build_client()?;
     let urls = node.contact_addresses();
@@ -148,32 +163,66 @@ pub async fn scrape_and_store_description(pool: &DbPool, node: ScraperNodeInfo) 
         anyhow::anyhow!("Failed to fetch description from any URL: {}", err_msg)
     })?;
 
-    let sanitized_description = sanitize_description(description, *node.node_id());
+    let sanitized_description = sanitize_description(description.clone(), *node.node_id());
+
+    trace!("tried_url_list = {tried_url_list:?}");
+    trace!("ndoe_id = {}", node.node_id());
+    trace!("description = {:?}", description);
+    trace!("sanitized_description = {:?}", sanitized_description);
+
     insert_scraped_node_description(pool, &node.node_kind, &sanitized_description).await?;
 
     Ok(())
 }
 
-pub async fn scrape_packet_stats(node: &ScraperNodeInfo) -> Result<InsertStatsRecord> {
+pub async fn scrape_node(node: &ScraperNodeInfo) -> Result<InsertNodeScraperRecords> {
     let client = build_client()?;
     let urls = node.contact_addresses();
 
     let mut stats = None;
     let mut error = None;
     let mut tried_url_list = Vec::new();
+    let mut bridges = None;
 
-    for mut url in urls {
-        url = format!("{}{}", url.trim_end_matches('/'), PACKET_STATS_URL);
-        tried_url_list.push(url.clone());
+    for url in urls {
+        let url_to_try = format!("{}{}", url.trim_end_matches('/'), PACKET_STATS_URL);
+        tried_url_list.push(url_to_try.clone());
 
-        match client.get(&url).send().await {
+        // try to get stats
+        match client.get(&url_to_try).send().await {
             Ok(response) => {
                 if let Some(node_stats) = parse_mixnet_stats(response.json().await?) {
                     stats = Some(node_stats);
-                    break;
                 }
             }
             Err(e) => error = Some(anyhow!("{:?} ({})", tried_url_list, e)),
+        }
+
+        // this url worked, so scrape some other endpoints
+        if stats.is_some() {
+            let url_bridges = format!("{}{}", url.trim_end_matches('/'), BRIDGES_URL);
+            if let Ok(response) = client
+                .get(&url_bridges)
+                .send()
+                .await
+                .and_then(|res| res.error_for_status())
+            {
+                let json = response.json().await?;
+                bridges = serde_json::from_value::<BridgeInformation>(json)
+                    .inspect_err(|err| {
+                        error!("Failed to deserialize bridge information: {err}");
+                    })
+                    .ok();
+                trace!(
+                    "got bridge info from node id {}: {bridges:?}",
+                    node.node_kind.node_id()
+                );
+            }
+        }
+
+        // if we have valid stats, we can stop trying other URLs
+        if stats.is_some() {
+            break;
         }
     }
 
@@ -184,11 +233,12 @@ pub async fn scrape_packet_stats(node: &ScraperNodeInfo) -> Result<InsertStatsRe
 
     let timestamp_utc = now_utc();
     let unix_timestamp = timestamp_utc.unix_timestamp();
-    let result = InsertStatsRecord {
+    let result = InsertNodeScraperRecords {
         node_kind: node.node_kind.to_owned(),
         timestamp_utc,
         unix_timestamp,
         stats,
+        bridges,
     };
 
     Ok(result)

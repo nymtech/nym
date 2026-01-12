@@ -1,13 +1,13 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::context::QueryClient;
+use crate::utils::show_error;
 use clap::Parser;
 use log::{error, info};
 use nym_validator_client::nyxd::{AccountId, CosmWasmClient};
 use nym_validator_client::signing::direct_wallet::DirectSecp256k1HdWallet;
-
-use crate::context::QueryClient;
-use crate::utils::show_error;
+use nym_validator_client::signing::signer::OfflineSigner;
 
 #[derive(Debug, Parser)]
 pub struct Args {
@@ -50,20 +50,19 @@ pub async fn get_pubkey(
 }
 
 pub fn get_pubkey_from_mnemonic(address: AccountId, prefix: &str, mnemonic: bip39::Mnemonic) {
-    let wallet = DirectSecp256k1HdWallet::from_mnemonic(prefix, mnemonic);
-    match wallet.try_derive_accounts() {
-        Ok(accounts) => match accounts.iter().find(|a| *a.address() == address) {
-            Some(account) => {
-                println!("{}", account.public_key().to_string());
-            }
-            None => {
-                error!("Could not derive key that matches {address}")
-            }
-        },
-        Err(e) => {
-            error!("Failed to derive accounts. {e}");
+    let wallet = match DirectSecp256k1HdWallet::checked_from_mnemonic(prefix, mnemonic) {
+        Ok(wallet) => wallet,
+        Err(err) => {
+            error!("Failed to derive accounts. {err}");
+            return;
         }
-    }
+    };
+
+    let Ok(account) = wallet.find_account(&address) else {
+        error!("Could not derive key that matches {address}");
+        return;
+    };
+    println!("{}", account.public_key().to_string());
 }
 
 pub async fn get_pubkey_from_chain(address: AccountId, client: &QueryClient) {

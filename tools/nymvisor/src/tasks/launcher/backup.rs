@@ -4,12 +4,12 @@
 use crate::config::NYMVISOR_DIR;
 use crate::error::NymvisorError;
 use crate::helpers::init_path;
-use flate2::write::GzEncoder;
 use flate2::Compression;
+use flate2::write::GzEncoder;
 use std::fs;
 use std::fs::{DirEntry, File};
 use std::path::{Path, PathBuf};
-use time::{format_description, OffsetDateTime};
+use time::{OffsetDateTime, format_description};
 use tracing::info;
 
 fn generate_backup_filename() -> String {

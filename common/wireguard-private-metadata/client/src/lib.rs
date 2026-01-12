@@ -7,7 +7,7 @@ use tracing::instrument;
 use nym_http_api_client::{ApiClient, Client, HttpClientError, NO_PARAMS};
 
 use nym_wireguard_private_metadata_shared::{
-    routes, Version, {Request, Response},
+    Version, routes, {Request, Response},
 };
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
@@ -41,6 +41,23 @@ pub trait WireguardMetadataApiClient: ApiClient {
     async fn topup_bandwidth(&self, request_body: &Request) -> Result<Response, HttpClientError> {
         self.post_json(
             &[routes::V1_API_VERSION, routes::BANDWIDTH, routes::TOPUP],
+            NO_PARAMS,
+            request_body,
+        )
+        .await
+    }
+
+    #[instrument(level = "debug", skip(self, request_body))]
+    async fn request_upgrade_mode_check(
+        &self,
+        request_body: &Request,
+    ) -> Result<Response, HttpClientError> {
+        self.post_json(
+            &[
+                routes::V1_API_VERSION,
+                routes::NETWORK,
+                routes::UPGRADE_MODE_CHECK,
+            ],
             NO_PARAMS,
             request_body,
         )

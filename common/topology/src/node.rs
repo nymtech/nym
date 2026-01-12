@@ -74,10 +74,8 @@ impl RoutingNode {
             return Some(format!("ws://{hostname}:{}", entry.clients_ws_port));
         }
 
-        if prefer_ipv6 {
-            if let Some(ipv6) = entry.ip_addresses.iter().find(|ip| ip.is_ipv6()) {
-                return Some(format!("ws://{ipv6}:{}", entry.clients_ws_port));
-            }
+        if prefer_ipv6 && let Some(ipv6) = entry.ip_addresses.iter().find(|ip| ip.is_ipv6()) {
+            return Some(format!("ws://{ipv6}:{}", entry.clients_ws_port));
         }
 
         let any_ip = entry.ip_addresses.first()?;
@@ -89,6 +87,45 @@ impl RoutingNode {
             return Some(tls);
         }
         self.ws_entry_address_no_tls(prefer_ipv6)
+    }
+
+    pub fn ws_entry_address_with_fallback(
+        &self,
+        prefer_ipv6: bool,
+        no_hostname: bool,
+    ) -> (Option<String>, Option<String>) {
+        let Some(entry) = &self.entry else {
+            return (None, None);
+        };
+
+        // Put hostname first if we want it
+        let maybe_hostname = if !no_hostname {
+            entry.hostname.clone()
+        } else {
+            None
+        };
+
+        // Put ipv6 first or keep them as is
+        let ips: Vec<&IpAddr> = if prefer_ipv6 {
+            entry
+                .ip_addresses
+                .iter()
+                .filter(|ip| ip.is_ipv6())
+                .chain(entry.ip_addresses.iter().filter(|ip| ip.is_ipv4()))
+                .collect()
+        } else {
+            entry.ip_addresses.iter().collect()
+        };
+
+        // chain everything and keep the top two as ws addresses
+        let ws_addresses: Vec<_> = maybe_hostname
+            .into_iter()
+            .chain(ips.into_iter().map(|ip| ip.to_string()))
+            .take(2)
+            .map(|host| format!("ws://{host}:{}", entry.clients_ws_port))
+            .collect();
+
+        (ws_addresses.first().cloned(), ws_addresses.get(1).cloned())
     }
 
     pub fn identity(&self) -> ed25519::PublicKey {

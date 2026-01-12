@@ -1,5 +1,5 @@
-use anyhow::{anyhow, Result};
-use sqlx::{migrate::Migrator, sqlite::SqliteConnectOptions, SqlitePool};
+use anyhow::{Result, anyhow};
+use sqlx::{SqlitePool, migrate::Migrator, sqlite::SqliteConnectOptions};
 use std::str::FromStr;
 
 pub(crate) mod models;

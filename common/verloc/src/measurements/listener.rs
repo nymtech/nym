@@ -107,7 +107,9 @@ impl ConnectionHandler {
                 .write_all(reply_packet.to_bytes().as_ref())
                 .await
             {
-                debug!("Failed to write reply packet back to the sender: {err}. Closing the socket on our end");
+                debug!(
+                    "Failed to write reply packet back to the sender: {err}. Closing the socket on our end"
+                );
                 return;
             }
         }

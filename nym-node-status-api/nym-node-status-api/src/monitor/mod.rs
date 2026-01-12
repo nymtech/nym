@@ -1,22 +1,22 @@
 #![allow(deprecated)]
 
 use crate::db::models::{
-    gateway, mixnode, GatewayInsertRecord, NetworkSummary, NymNodeInsertRecord,
     ASSIGNED_ENTRY_COUNT, ASSIGNED_EXIT_COUNT, ASSIGNED_MIXING_COUNT, GATEWAYS_BONDED_COUNT,
-    GATEWAYS_HISTORICAL_COUNT, MIXNODES_HISTORICAL_COUNT, NYMNODES_DESCRIBED_COUNT, NYMNODE_COUNT,
+    GATEWAYS_HISTORICAL_COUNT, GatewayInsertRecord, MIXNODES_HISTORICAL_COUNT, NYMNODE_COUNT,
+    NYMNODES_DESCRIBED_COUNT, NetworkSummary, NymNodeInsertRecord, gateway, mixnode,
 };
-use crate::db::{queries, DbPool};
+use crate::db::{DbPool, queries};
 use crate::utils::now_utc;
 use crate::utils::{LogError, NumericalCheckedCast};
 use moka::future::Cache;
 use nym_network_defaults::NymNetworkDetails;
 use nym_validator_client::{
-    client::{NodeId, NymApiClientExt, NymNodeDetails},
-    models::NymNodeDescription,
+    QueryHttpRpcNyxdClient,
+    nym_nodes::{NodeRole, SkimmedNode},
 };
 use nym_validator_client::{
-    nym_nodes::{NodeRole, SkimmedNode},
-    QueryHttpRpcNyxdClient,
+    client::{NodeId, NymApiClientExt, NymNodeDetails},
+    models::NymNodeDescription,
 };
 use std::{collections::HashMap, sync::Arc};
 use tokio::{sync::RwLock, time::Duration};
@@ -44,7 +44,7 @@ struct Monitor {
 // TODO dz: query many NYM APIs:
 // multiple instances running directory cache, ask sachin
 #[instrument(level = "debug", name = "data_monitor", skip_all)]
-pub(crate) async fn spawn_in_background(
+pub(crate) async fn run_in_background(
     db_pool: DbPool,
     nym_api_client_timeout: Duration,
     nyxd_client: nym_validator_client::QueryHttpRpcNyxdClient,
@@ -68,7 +68,7 @@ pub(crate) async fn spawn_in_background(
     loop {
         tracing::info!("Refreshing node info...");
 
-        if let Err(e) = monitor.run().await {
+        if let Err(e) = monitor.run(false).await {
             tracing::error!(
                 "Monitor run failed: {e}, retrying in {}s...",
                 MONITOR_FAILURE_RETRY_DELAY.as_secs()
@@ -84,8 +84,33 @@ pub(crate) async fn spawn_in_background(
     }
 }
 
+#[instrument(level = "debug", name = "data_monitor", skip_all)]
+pub(crate) async fn run_once(
+    db_pool: DbPool,
+    nym_api_client_timeout: Duration,
+    nyxd_client: nym_validator_client::QueryHttpRpcNyxdClient,
+    ipinfo_api_token: String,
+    geocache: NodeGeoCache,
+    node_delegations: Arc<RwLock<DelegationsCache>>,
+) -> anyhow::Result<()> {
+    let ipinfo = IpInfoClient::new(ipinfo_api_token.clone());
+
+    let mut monitor = Monitor {
+        db_pool,
+        network_details: nym_network_defaults::NymNetworkDetails::new_from_env(),
+        nym_api_client_timeout,
+        nyxd_client,
+        ipinfo,
+        geocache,
+        node_delegations,
+    };
+
+    tracing::info!("Refreshing node info...");
+    monitor.run(true).await
+}
+
 impl Monitor {
-    async fn run(&mut self) -> anyhow::Result<()> {
+    async fn run(&mut self, exit_early: bool) -> anyhow::Result<()> {
         self.check_ipinfo_bandwidth().await;
 
         let default_api_url = self
@@ -98,7 +123,7 @@ impl Monitor {
             .expect("rust sdk mainnet default missing api_url");
 
         let nym_api =
-            nym_http_api_client::ClientBuilder::new_with_urls(vec![default_api_url.into()])
+            nym_http_api_client::ClientBuilder::new_with_urls(vec![default_api_url.into()])?
                 .no_hickory_dns()
                 .with_timeout(self.nym_api_client_timeout)
                 .build()?;
@@ -152,6 +177,11 @@ impl Monitor {
             .map(|inserted| {
                 tracing::debug!("{} nym nodes written to DB!", inserted);
             })?;
+
+        // stop here if running once
+        if exit_early {
+            return Ok(());
+        }
 
         // refresh geodata for all nodes
         for node_description in described_nodes.values() {

@@ -1,5 +1,5 @@
 use crate::{
-    db::{models::GatewaySessionsRecord, DbPool},
+    db::{DbPool, models::GatewaySessionsRecord},
     http::models::SessionStats,
 };
 use futures_util::TryStreamExt;

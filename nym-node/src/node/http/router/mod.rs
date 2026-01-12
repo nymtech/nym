@@ -1,12 +1,12 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::node::http::NymNodeHttpServer;
 use crate::node::http::error::NymNodeHttpError;
 use crate::node::http::state::AppState;
-use crate::node::http::NymNodeHttpServer;
+use axum::Router;
 use axum::response::Redirect;
 use axum::routing::get;
-use axum::Router;
 use nym_bin_common::bin_info_owned;
 use nym_http_api_common::middleware::logging;
 use nym_node_requests::api::v1::authenticator::models::Authenticator;

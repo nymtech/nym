@@ -1,5 +1,5 @@
-use crate::db::models::CoingeckoPriceResponse;
 use crate::db::DbPool;
+use crate::db::models::CoingeckoPriceResponse;
 use crate::helpers::RingBuffer;
 use crate::http::models::status::PaymentWatcher;
 use crate::models::WebhookPayload;
@@ -7,7 +7,7 @@ use axum::extract::FromRef;
 use nym_bin_common::bin_info;
 use nym_bin_common::build_information::BinaryBuildInformation;
 use nym_validator_client::nyxd::{Coin, MsgSend};
-use nyxd_scraper::ParsedTransactionResponse;
+use nyxd_scraper_sqlite::ParsedTransactionResponse;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::ops::Deref;

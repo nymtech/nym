@@ -15,9 +15,10 @@ mod sandbox;
     feature = "generate-ts",
     ts(export, export_to = "nym-wallet/src/types/rust/Network.ts")
 )]
-#[derive(Copy, Clone, Debug, Deserialize, EnumIter, Eq, Hash, PartialEq, Serialize)]
+#[derive(Copy, Clone, Default, Debug, Deserialize, EnumIter, Eq, Hash, PartialEq, Serialize)]
 pub enum Network {
     SANDBOX,
+    #[default]
     MAINNET,
 }
 
@@ -49,12 +50,6 @@ impl Network {
 
     pub fn default_zero_mix_display_coin(&self) -> DecCoin {
         DecCoin::zero(self.display_mix_denom())
-    }
-}
-
-impl Default for Network {
-    fn default() -> Self {
-        Network::MAINNET
     }
 }
 

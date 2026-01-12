@@ -4,14 +4,14 @@
 use crate::deposits_buffer::DepositsBuffer;
 use crate::error::CredentialProxyError;
 use crate::quorum_checker::QuorumStateChecker;
+use crate::shared_state::CredentialProxyState;
 use crate::shared_state::ecash_state::EcashState;
 use crate::shared_state::nyxd_client::ChainClient;
 use crate::shared_state::required_deposit_cache::RequiredDepositCache;
-use crate::shared_state::CredentialProxyState;
-use crate::storage::pruner::StoragePruner;
 use crate::storage::CredentialProxyStorage;
+use crate::storage::pruner::StoragePruner;
 use crate::webhook::ZkNymWebhook;
-use nym_credentials::ecash::utils::ecash_today;
+use nym_credentials::ecash::utils::ecash_default_expiration_date;
 use nym_validator_client::nym_api::EpochId;
 use std::future::Future;
 use std::time::Duration;
@@ -100,7 +100,7 @@ impl TicketbookManager {
     }
 
     async fn build_initial_cache(&self) -> Result<(), CredentialProxyError> {
-        let today = ecash_today().date();
+        let default_expiration = ecash_default_expiration_date();
 
         let epoch_id = self.state.current_epoch_id().await?;
         let _ = self.state.deposit_amount().await?;
@@ -113,7 +113,7 @@ impl TicketbookManager {
             .await?;
         let _ = self
             .state
-            .master_expiration_date_signatures(epoch_id, today)
+            .master_expiration_date_signatures(epoch_id, default_expiration)
             .await?;
 
         Ok(())

@@ -1,7 +1,8 @@
+use crate::node_scraper::models::BridgeInformation;
 use crate::{
     db::{
-        models::{InsertStatsRecord, NodeStats, ScrapeNodeKind},
         DbPool,
+        models::{InsertNodeScraperRecords, NodeStats, ScrapeNodeKind},
     },
     node_scraper::helpers::update_daily_stats_uncommitted,
     utils::now_utc,
@@ -13,13 +14,13 @@ use tokio::sync::Mutex;
 use tracing::{info, instrument};
 
 #[instrument(level = "info", skip_all)]
-pub(crate) async fn batch_store_packet_stats(
+pub(crate) async fn batch_store_node_scraper_results(
     pool: &DbPool,
-    results: Arc<Mutex<Vec<InsertStatsRecord>>>,
+    results: Arc<Mutex<Vec<InsertNodeScraperRecords>>>,
 ) -> anyhow::Result<()> {
     let results_iter = results.lock().await;
     info!(
-        "📊 ⏳ Storing {} packet stats into the DB",
+        "📊 ⏳ Storing {} scraped node info (packet stats, bridges, ...) into the DB",
         results_iter.len()
     );
     let started_at = now_utc();
@@ -29,20 +30,30 @@ pub(crate) async fn batch_store_packet_stats(
         .await
         .map_err(|err| anyhow::anyhow!("Failed to begin transaction: {err}"))?;
 
-    for stats_record in &(*results_iter) {
+    for record in &(*results_iter) {
+        if record.bridges.is_some() {
+            if let ScrapeNodeKind::EntryExitNymNode {
+                node_id: _,
+                identity_key,
+            } = &record.node_kind
+            {
+                insert_node_bridges(&mut tx, identity_key, &record.bridges).await?;
+            }
+        }
+
         insert_node_packet_stats_uncommitted(
             &mut tx,
-            &stats_record.node_kind,
-            &stats_record.stats,
-            stats_record.unix_timestamp,
+            &record.node_kind,
+            &record.stats,
+            record.unix_timestamp,
         )
         .await?;
 
         update_daily_stats_uncommitted(
             &mut tx,
-            &stats_record.node_kind,
-            stats_record.timestamp_utc,
-            &stats_record.stats,
+            &record.node_kind,
+            record.timestamp_utc,
+            &record.stats,
         )
         .await?;
     }
@@ -163,6 +174,27 @@ pub(crate) async fn insert_daily_node_stats_uncommitted(
             .execute(tx.as_mut())
             .await?;
         }
+    }
+
+    Ok(())
+}
+
+async fn insert_node_bridges(
+    tx: &mut Transaction<'static, sqlx::Postgres>,
+    gateway_identity_key: &str,
+    bridges: &Option<BridgeInformation>,
+) -> Result<()> {
+    if let Some(bridges) = bridges {
+        let bridges = serde_json::to_value(bridges)?;
+        sqlx::query!(
+            r#"
+                    UPDATE gateways SET bridges = $1 WHERE gateway_identity_key = $2;
+                    "#,
+            bridges,
+            gateway_identity_key
+        )
+        .execute(tx.as_mut())
+        .await?;
     }
 
     Ok(())

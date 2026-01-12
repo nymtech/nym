@@ -3,12 +3,12 @@
 
 use crate::error::NetworkManagerError;
 use crate::helpers::{ProgressCtx, ProgressTracker};
-use crate::manager::network::LoadedNetwork;
 use crate::manager::NetworkManager;
+use crate::manager::network::LoadedNetwork;
 use console::style;
-use nym_config::{must_get_home, DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, NYM_DIR};
+use nym_config::{DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, NYM_DIR, must_get_home};
 use nym_validator_client::nym_api::NymApiClientExt;
-use rand::{thread_rng, RngCore};
+use rand::{RngCore, thread_rng};
 use std::fs;
 use std::fs::OpenOptions;
 use std::io::prelude::*;
@@ -213,12 +213,14 @@ impl NetworkManager {
             id,
             "--enabled-credentials-mode",
             "true",
+            "--minimum-gateway-performance",
+            "0",
             "--port",
             &port.to_string(),
         ])
-        .stdout(Stdio::null())
+        // .stdout(Stdio::null())
         .stdin(Stdio::null())
-        .stderr(Stdio::null())
+        // .stderr(Stdio::null())
         .kill_on_drop(true);
 
         if let Some(gateway) = &ctx.gateway {
@@ -243,10 +245,10 @@ impl NetworkManager {
             config_file,
             r#"
 
-[debug.topology]
-minimum_mixnode_performance = 0
-minimum_gateway_performance = 0
-"#
+        [debug.topology]
+        minimum_mixnode_performance = 0
+        minimum_gateway_performance = 0
+        "#
         )?;
 
         ctx.println(format!("\t✅client {id} is ready to use!"));

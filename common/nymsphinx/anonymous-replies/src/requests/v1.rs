@@ -16,10 +16,10 @@ const fn v1_reply_surb_serialised_len() -> usize {
 
 fn v1_reply_surbs_serialised_len(surbs: &[ReplySurbWithKeyRotation]) -> usize {
     // sanity checks; this should probably be removed later on
-    if let Some(reply_surb) = surbs.first() {
-        if reply_surb.inner.surb.uses_key_seeds() {
-            error!("using v1 surbs encoding with updated structure - the surbs will be unusable")
-        }
+    if let Some(reply_surb) = surbs.first()
+        && reply_surb.inner.surb.uses_key_seeds()
+    {
+        error!("using v1 surbs encoding with updated structure - the surbs will be unusable")
     }
 
     // when serialising surbs are always prepended with u32-encoded count

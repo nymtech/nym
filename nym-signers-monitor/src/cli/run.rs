@@ -3,11 +3,11 @@
 
 use crate::cli::env::vars::*;
 use crate::monitor::SignersMonitor;
-use anyhow::{bail, Context};
+use anyhow::{Context, bail};
 use clap::ArgGroup;
-use nym_network_defaults::{setup_env, NymNetworkDetails};
-use nym_validator_client::nyxd::AccountId;
+use nym_network_defaults::{NymNetworkDetails, setup_env};
 use nym_validator_client::QueryHttpRpcNyxdClient;
+use nym_validator_client::nyxd::AccountId;
 use std::time::Duration;
 use url::Url;
 
@@ -50,7 +50,9 @@ impl NyxdConnectionArgs {
         if let Some(known_network_name) = &self.known_network_name {
             match known_network_name.as_str() {
                 "mainnet" => return Ok(NymNetworkDetails::new_mainnet()),
-                other => bail!("{other} is not a known network name - please use another method of setting up chain connection"),
+                other => bail!(
+                    "{other} is not a known network name - please use another method of setting up chain connection"
+                ),
             }
         }
 

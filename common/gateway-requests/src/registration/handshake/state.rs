@@ -5,12 +5,11 @@ use crate::registration::handshake::error::HandshakeError;
 use crate::registration::handshake::messages::{
     HandshakeMessage, Initialisation, MaterialExchange,
 };
-use crate::registration::handshake::{SharedGatewayKey, WsItem, KDF_SALT_LENGTH};
-use crate::shared_key::SharedKeySize;
-use crate::{
-    types, LegacySharedKeySize, LegacySharedKeys, SharedSymmetricKey, AES_GCM_SIV_PROTOCOL_VERSION,
-    CREDENTIAL_UPDATE_V2_PROTOCOL_VERSION, INITIAL_PROTOCOL_VERSION,
+use crate::registration::handshake::{
+    HandshakeResult, SharedSymmetricKey, WsItem, KDF_SALT_LENGTH,
 };
+use crate::shared_key::SharedKeySize;
+use crate::{types, GatewayProtocolVersion};
 use futures::{Sink, SinkExt, Stream, StreamExt};
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_crypto::symmetric::aead::random_nonce;
@@ -48,18 +47,15 @@ pub(crate) struct State<'a, S, R> {
     ephemeral_keypair: x25519::KeyPair,
 
     /// The derived shared key using the ephemeral keys of both parties.
-    derived_shared_keys: Option<SharedGatewayKey>,
+    derived_shared_keys: Option<SharedSymmetricKey>,
 
     /// The known or received public identity key of the remote.
     /// Ideally it would always be known before the handshake was initiated.
     remote_pubkey: Option<ed25519::PublicKey>,
 
-    // this field is really out of place here, however, we need to propagate this information somehow
-    // in order to establish correct protocol for backwards compatibility reasons
-    expects_credential_usage: bool,
-
-    /// Specifies whether the end product should be an AES128Ctr + blake3 HMAC keys (legacy) or AES256-GCM-SIV (current)
-    derive_aes256_gcm_siv_key: bool,
+    /// Version of the protocol to use during the handshake that also implicitly specifies
+    /// additional features
+    protocol_version: GatewayProtocolVersion,
 
     // channel to receive shutdown signal
     #[cfg(not(target_arch = "wasm32"))]
@@ -72,6 +68,7 @@ impl<'a, S, R> State<'a, S, R> {
         ws_stream: &'a mut S,
         identity: &'a ed25519::KeyPair,
         remote_pubkey: Option<ed25519::PublicKey>,
+        protocol_version: GatewayProtocolVersion,
         #[cfg(not(target_arch = "wasm32"))] shutdown_token: ShutdownToken,
     ) -> Self
     where
@@ -84,28 +81,11 @@ impl<'a, S, R> State<'a, S, R> {
             ephemeral_keypair,
             identity,
             remote_pubkey,
+            protocol_version,
             derived_shared_keys: None,
-            // later on this should become the default
-            expects_credential_usage: false,
-            derive_aes256_gcm_siv_key: false,
             #[cfg(not(target_arch = "wasm32"))]
             shutdown_token,
         }
-    }
-
-    pub(crate) fn with_credential_usage(mut self, expects_credential_usage: bool) -> Self {
-        self.expects_credential_usage = expects_credential_usage;
-        self
-    }
-
-    pub(crate) fn with_aes256_gcm_siv_key(mut self, derive_aes256_gcm_siv_key: bool) -> Self {
-        self.derive_aes256_gcm_siv_key = derive_aes256_gcm_siv_key;
-        self
-    }
-
-    #[cfg(not(target_arch = "wasm32"))]
-    pub(crate) fn set_aes256_gcm_siv_key_derivation(&mut self, derive_aes256_gcm_siv_key: bool) {
-        self.derive_aes256_gcm_siv_key = derive_aes256_gcm_siv_key;
     }
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -113,23 +93,27 @@ impl<'a, S, R> State<'a, S, R> {
         self.ephemeral_keypair.public_key()
     }
 
-    pub(crate) fn maybe_generate_initiator_salt(&mut self) -> Option<Vec<u8>>
+    pub(crate) fn proposed_protocol_version(&self) -> GatewayProtocolVersion {
+        self.protocol_version
+    }
+
+    pub(crate) fn set_protocol_version(&mut self, protocol_version: GatewayProtocolVersion) {
+        self.protocol_version = protocol_version;
+    }
+
+    pub(crate) fn generate_initiator_salt(&mut self) -> Vec<u8>
     where
         R: CryptoRng + RngCore,
     {
-        if self.derive_aes256_gcm_siv_key {
-            let mut salt = vec![0u8; KDF_SALT_LENGTH];
-            self.rng.fill_bytes(&mut salt);
-            Some(salt)
-        } else {
-            None
-        }
+        let mut salt = vec![0u8; KDF_SALT_LENGTH];
+        self.rng.fill_bytes(&mut salt);
+        salt
     }
 
-    // LOCAL_ID_PUBKEY || EPHEMERAL_KEY || MAYBE_SALT
+    // LOCAL_ID_PUBKEY || EPHEMERAL_KEY || SALT
     // Eventually the ID_PUBKEY prefix will get removed and recipient will know
     // initializer's identity from another source.
-    pub(crate) fn init_message(&self, initiator_salt: Option<Vec<u8>>) -> Initialisation {
+    pub(crate) fn init_message(&self, initiator_salt: Vec<u8>) -> Initialisation {
         Initialisation {
             identity: *self.identity.public_key(),
             ephemeral_dh: *self.ephemeral_keypair.public_key(),
@@ -147,37 +131,30 @@ impl<'a, S, R> State<'a, S, R> {
     pub(crate) fn derive_shared_key(
         &mut self,
         remote_ephemeral_key: &x25519::PublicKey,
-        initiator_salt: Option<&[u8]>,
+        initiator_salt: &[u8],
     ) {
         let dh_result = self
             .ephemeral_keypair
             .private_key()
             .diffie_hellman(remote_ephemeral_key);
 
-        let key_size = if self.derive_aes256_gcm_siv_key {
-            SharedKeySize::to_usize()
-        } else {
-            LegacySharedKeySize::to_usize()
-        };
+        let key_size = SharedKeySize::to_usize();
 
-        // there is no reason for this to fail as our okm is expected to be only 16 bytes
+        // SAFETY: there is no reason for this to fail as our okm is expected to be only 16 bytes
+        #[allow(clippy::expect_used)]
         let okm = hkdf::extract_then_expand::<GatewaySharedKeyHkdfAlgorithm>(
-            initiator_salt,
+            Some(initiator_salt),
             &dh_result,
             None,
             key_size,
         )
         .expect("somehow too long okm was provided");
 
-        let shared_key = if self.derive_aes256_gcm_siv_key {
-            let current_key = SharedSymmetricKey::try_from_bytes(&okm)
-                .expect("okm was expanded to incorrect length!");
-            SharedGatewayKey::Current(current_key)
-        } else {
-            let legacy_key = LegacySharedKeys::try_from_bytes(&okm)
-                .expect("okm was expanded to incorrect length!");
-            SharedGatewayKey::Legacy(legacy_key)
-        };
+        // SAFETY: the okm has been expanded to the length expected by the corresponding keys
+        #[allow(clippy::expect_used)]
+        let shared_key = SharedSymmetricKey::try_from_bytes(&okm)
+            .expect("okm was expanded to incorrect length!");
+
         self.derived_shared_keys = Some(shared_key)
     }
 
@@ -196,19 +173,16 @@ impl<'a, S, R> State<'a, S, R> {
             .collect();
         let signature = self.identity.private_key().sign(plaintext);
 
-        let nonce = if self.derive_aes256_gcm_siv_key {
-            let mut rng = thread_rng();
-            Some(random_nonce::<GatewayEncryptionAlgorithm, _>(&mut rng).to_vec())
-        } else {
-            None
-        };
+        let mut rng = thread_rng();
+        let nonce = random_nonce::<GatewayEncryptionAlgorithm, _>(&mut rng);
 
         // SAFETY: this function is only called after the local key has already been derived
+        #[allow(clippy::expect_used)]
         let signature_ciphertext = self
             .derived_shared_keys
             .as_ref()
             .expect("shared key was not derived!")
-            .encrypt_naive(&signature.to_bytes(), nonce.as_deref())?;
+            .encrypt(&signature.to_bytes(), &nonce)?;
 
         Ok(MaterialExchange {
             signature_ciphertext,
@@ -222,20 +196,16 @@ impl<'a, S, R> State<'a, S, R> {
         remote_ephemeral_key: &x25519::PublicKey,
     ) -> Result<(), HandshakeError> {
         // SAFETY: this function is only called after the local key has already been derived
+        #[allow(clippy::expect_used)]
         let derived_shared_key = self
             .derived_shared_keys
             .as_ref()
             .expect("shared key was not derived!");
 
-        // if the [client] init message contained non-legacy flag, the associated nonce MUST be present
-        if self.derive_aes256_gcm_siv_key && remote_response.nonce.is_none() {
-            return Err(HandshakeError::MissingNonceForCurrentKey);
-        }
-
         // first decrypt received data
-        let decrypted_signature = derived_shared_key.decrypt_naive(
+        let decrypted_signature = derived_shared_key.decrypt(
             &remote_response.signature_ciphertext,
-            remote_response.nonce.as_deref(),
+            &remote_response.nonce,
         )?;
 
         // now verify signature itself
@@ -249,6 +219,7 @@ impl<'a, S, R> State<'a, S, R> {
             .chain(self.ephemeral_keypair.public_key().to_bytes())
             .collect();
 
+        #[allow(clippy::unwrap_used)]
         self.remote_pubkey
             .as_ref()
             .unwrap()
@@ -261,7 +232,10 @@ impl<'a, S, R> State<'a, S, R> {
         self.remote_pubkey = Some(remote_pubkey)
     }
 
-    fn on_wg_msg(msg: Option<WsItem>) -> Result<Option<Vec<u8>>, HandshakeError> {
+    #[allow(clippy::complexity)]
+    fn on_wg_msg(
+        msg: Option<WsItem>,
+    ) -> Result<Option<(Vec<u8>, GatewayProtocolVersion)>, HandshakeError> {
         let Some(msg) = msg else {
             return Err(HandshakeError::ClosedStream);
         };
@@ -277,9 +251,10 @@ impl<'a, S, R> State<'a, S, R> {
                             // hehe, that's a bit disgusting that the type system requires we explicitly ignore the
                             // protocol_version field that we actually never attach at this point
                             // yet another reason for the overdue refactor
-                            types::RegistrationHandshake::HandshakePayload { data, .. } => {
-                                Ok(Some(data))
-                            }
+                            types::RegistrationHandshake::HandshakePayload {
+                                protocol_version,
+                                data,
+                            } => Ok(Some((data, protocol_version))),
                             types::RegistrationHandshake::HandshakeError { message } => {
                                 Err(HandshakeError::RemoteError(message))
                             }
@@ -299,7 +274,9 @@ impl<'a, S, R> State<'a, S, R> {
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    async fn _receive_handshake_message_bytes(&mut self) -> Result<Vec<u8>, HandshakeError>
+    async fn _receive_handshake_message_bytes(
+        &mut self,
+    ) -> Result<(Vec<u8>, GatewayProtocolVersion), HandshakeError>
     where
         S: Stream<Item = WsItem> + Unpin,
     {
@@ -318,7 +295,9 @@ impl<'a, S, R> State<'a, S, R> {
     }
 
     #[cfg(target_arch = "wasm32")]
-    async fn _receive_handshake_message_bytes(&mut self) -> Result<Vec<u8>, HandshakeError>
+    async fn _receive_handshake_message_bytes(
+        &mut self,
+    ) -> Result<(Vec<u8>, GatewayProtocolVersion), HandshakeError>
     where
         S: Stream<Item = WsItem> + Unpin,
     {
@@ -331,20 +310,22 @@ impl<'a, S, R> State<'a, S, R> {
         }
     }
 
-    pub(crate) async fn receive_handshake_message<M>(&mut self) -> Result<M, HandshakeError>
+    pub(crate) async fn receive_handshake_message<M>(
+        &mut self,
+    ) -> Result<(M, GatewayProtocolVersion), HandshakeError>
     where
         S: Stream<Item = WsItem> + Unpin,
         M: HandshakeMessage,
     {
         // TODO: make timeout duration configurable
-        let bytes = timeout(
+        let (bytes, protocol) = timeout(
             Duration::from_secs(5),
             self._receive_handshake_message_bytes(),
         )
         .await
         .map_err(|_| HandshakeError::Timeout)??;
 
-        M::try_from_bytes(&bytes)
+        M::try_from_bytes(&bytes).map(|msg| (msg, protocol))
     }
 
     // upon receiving this, the receiver should terminate the handshake
@@ -357,19 +338,9 @@ impl<'a, S, R> State<'a, S, R> {
     {
         let handshake_message = types::RegistrationHandshake::new_error(message);
         self.ws_stream
-            .send(WsMessage::Text(handshake_message.try_into().unwrap()))
+            .send(WsMessage::Text(handshake_message.into()))
             .await
             .map_err(|_| HandshakeError::ClosedStream)
-    }
-
-    fn request_protocol_version(&self) -> u8 {
-        if self.derive_aes256_gcm_siv_key {
-            AES_GCM_SIV_PROTOCOL_VERSION
-        } else if self.expects_credential_usage {
-            CREDENTIAL_UPDATE_V2_PROTOCOL_VERSION
-        } else {
-            INITIAL_PROTOCOL_VERSION
-        }
     }
 
     pub(crate) async fn send_handshake_data<M>(
@@ -384,18 +355,23 @@ impl<'a, S, R> State<'a, S, R> {
 
         let handshake_message = types::RegistrationHandshake::new_payload(
             inner_message.into_bytes(),
-            self.request_protocol_version(),
+            self.protocol_version,
         );
         self.ws_stream
-            .send(WsMessage::Text(handshake_message.try_into().unwrap()))
+            .send(WsMessage::Text(handshake_message.into()))
             .await
             .map_err(|_| HandshakeError::ClosedStream)
     }
 
     /// Finish the handshake, yielding the derived shared key and implicitly dropping all borrowed
     /// values.
-    pub(crate) fn finalize_handshake(self) -> SharedGatewayKey {
-        self.derived_shared_keys.unwrap()
+    pub(crate) fn finalize_handshake(self) -> HandshakeResult {
+        // SAFETY: handshake can't be finalised without deriving the shared keys
+        #[allow(clippy::unwrap_used)]
+        HandshakeResult {
+            negotiated_protocol: self.proposed_protocol_version(),
+            derived_key: self.derived_shared_keys.unwrap(),
+        }
     }
 
     // If any step along the way failed (that are non-network related),

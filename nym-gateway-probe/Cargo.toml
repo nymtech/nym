@@ -1,0 +1,75 @@
+[package]
+name = "nym-gateway-probe"
+version = "1.18.0"
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow.workspace = true
+base64.workspace = true
+bs58.workspace = true
+bincode.workspace = true
+bytes.workspace = true
+clap = { workspace = true, features = ["cargo", "derive"] }
+futures.workspace = true
+hex.workspace = true
+tracing.workspace = true
+pnet_packet.workspace = true
+rand.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tokio = { workspace = true, features = [
+    "process",
+    "rt-multi-thread",
+    "fs",
+    "sync",
+    "macros",
+] }
+tokio-util.workspace = true
+tracing-subscriber.workspace = true
+url = { workspace = true }
+x25519-dalek = { workspace = true, features = [
+    "reusable_secrets",
+    "static_secrets",
+] }
+
+nym-authenticator-requests = { path = "../common/authenticator-requests" }
+nym-bandwidth-controller = { path = "../common/bandwidth-controller" }
+nym-bin-common = { path = "../common/bin-common" }
+nym-client-core = { path = "../common/client-core" }
+nym-crypto = { path = "../common/crypto" }
+nym-config = { path = "../common/config" }
+nym-connection-monitor = { path = "../common/nym-connection-monitor" }
+nym-credentials-interface = { path = "../common/credentials-interface" }
+nym-credential-utils = { path = "../common/credential-utils" }
+nym-ip-packet-client = { path = "../nym-ip-packet-client" }
+nym-authenticator-client = { path = "../nym-authenticator-client" }
+nym-ip-packet-requests = { path = "../common/ip-packet-requests" }
+nym-sdk = { path = "../sdk/rust/nym-sdk" }
+nym-validator-client = { path = "../common/client-libs/validator-client" }
+nym-credentials = { path = "../common/credentials" }
+nym-http-api-client-macro = { path = "../common/http-api-client-macro" }
+nym-http-api-client = { path = "../common/http-api-client" }
+nym-node-status-client = { path = "../nym-node-status-api/nym-node-status-client" }
+
+# TEMP: REMOVE BEFORE PR
+nym-topology = { path = "../common/topology" }
+
+[build-dependencies]
+anyhow = { workspace = true }
+vergen-gitcl = { workspace = true, default-features = false, features = [
+    "build",
+    "cargo",
+    "rustc",
+] }
+
+[package.metadata.cargo-machete]
+ignored = ["vergen", "nym-http-api-client"]

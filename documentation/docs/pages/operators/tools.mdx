@@ -1,0 +1,204 @@
+import { Callout } from 'nextra/components';
+import { Tabs } from 'nextra/components';
+import { MyTab } from 'components/generic-tabs.tsx';
+import { RunTabs } from 'components/operators/nodes/node-run-command-tabs';
+import { VarInfo } from 'components/variable-info.tsx';
+import { AccordionTemplate } from 'components/accordion-template.tsx';
+import { Steps } from 'nextra/components';
+import NymNodeCliInstallHelp from 'components/outputs/command-outputs/nym-node-cli-install-help.md';
+
+export const NymNodeCliCommand = () => (
+  <div>
+    Arguments and options: <code>./nym-node-cli.py install --help</code>
+  </div>
+);
+
+# Tools
+
+On this page you can find tools to [setup a node automatically](#nym-node-cli), [explorers](#explorers) and other useful dashboards and [scripts](#cmd-reward-tracker).
+
+<VarInfo />
+
+## Explorers
+
+Nym Network stats can be humanly read on some of the explorers and dashboards.
+
+- **[Nym Explorer v2](https://nym.com/explorer):** Official Nym Explorer
+
+- **[SpectreDAO Explorer](https://explorer.nym.spectredao.net/):** By operators for operators - currently the most used Nym explorer
+
+- **[Nym Node Status Observatory](https://harbourmaster.nymtech.net/):** An explorer with a list of Nym Nodes, their properformance and per node data 
+
+- **[Nym Node Status UI](https://node-status.nym.com/):** A dashboard displaying results of Gateway probes and much more in one table
+
+- **[Nymesis](https://nymesis.vercel.app/):** A slick dashboard by operator community
+
+## Nym Node CLI
+
+This interactive command-line-based tool takes an operator through a journey of installing, configuring and starting a `nym-node` as a systemd service, doing most of the steps automatically for them.
+
+**Installation & Running**
+
+<Steps>
+
+###### 1. SSH into your server (VPS)
+
+- The installation of `nym-node` using this program requires you to run as `root`
+
+###### 2. Download `nym-node-cli.py` and make executable
+
+```sh
+wget https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/nym-node-cli.py && \
+chmod +x ./nym-node-cli.py
+```
+
+###### 3. Run the program
+
+There are two ways how to run the program. fully interactive or with provided arguments. The former has a shorter initial command but then operators must fill the values on the go, the latter requires more complex command, but then there is a minimum prompts during the process. 
+
+1. Fully interactive mode - just run:
+```sh
+./nym-node-cli.py install
+```
+
+2. Use arguments - run this command to see all options:
+```sh
+./nym-node-cli.py install --help
+```
+<AccordionTemplate name={<NymNodeCliCommand/>}>
+<NymNodeCliInstallHelp />
+</ AccordionTemplate>
+- An example can look like this:
+```sh
+# substitute with your real values:
+./nym-node-cli.py install 
+  --hostname node-install.devrel.nymte.ch 
+  --moniker MainnetGW-DE 
+  --description "This node is installed with nym-node-cli v1.2.0" 
+  --wireguard-enabled true 
+  --location DE  
+  --mode exit-gateway 
+  --email kawa_hesinkar@example.ku
+```
+
+###### 4. Read and follow the prompts
+
+There ware a few required confirmations and in case of running the program without the arguments, you will be prompted for values neccessary to setup a `nym-node` and configure your server.
+
+**Read these prompts carefully!**
+
+###### 5. Setup finished
+
+Congratulation, your node is installed.
+
+This version of the program does not prompt an operator for the local node moniker (`--id <ID>`) therefore it asigns your node an automatic one `default-nym-node`. 
+
+All configuration and data of your node can be found in this location:
+```sh
+ls $HOME/.nym/nym-nodes/default-nym-node/
+```
+</ Steps>
+
+## CMD Reward Tracker
+
+A command-line-based program locally calculating nodes rewards based on provided Nyx account addresses in `data/wallet-addresses.csv`.
+
+**Installation & Running**
+
+<Steps>
+
+###### 1. Pull / clone `nymtech/nym` repository
+
+- Open terminal and navigate to where you want to have `nym` repostiry and run:
+```sh
+git clone https://github.com/nymtech/nym
+```
+
+###### 2. Add your Nyx accounts to `wallet-addresses.csv`
+
+- Navigate to `nym/scripts/rewards-tracker/data`
+- Open `wallet-addresses.csv` in your favourite text editor or a sheet managing tool (Like Libre Office Calc)
+- To the first collumn called `address` add all Nyx addresses you want to track
+- Delete all `add_wallet_or_delete` template examples
+
+###### 3. Add entity to `wallet-addresses.csv` - optional
+
+- In the same file operators who want to separate their nodes by an entity, can add this entity to the `tag` column
+- If not leave this column empty - delete all `optional_tag_or_delete` fields
+
+- Csv example with `tag`s:
+```
+address, tag
+n1foofoofoo, personal
+n1barbarbar, personal
+n1bazbazbaz, mysquad
+n1lollollol, mysquad
+```
+- For operators having all nodes under one entity, the tag field will be left empty. Example:
+```csv
+address, tag
+n1foofoofoo
+n1barbarbar
+n1bazbazbaz
+```
+
+###### 4. Save `wallet-addresses.csv` and exit
+
+###### 5. Run the program
+
+- In terminal navigate to `nym/scripts/rewards-tracker`
+- Run the program:
+```
+./node_rewards_tracker.py
+```
+</ Steps>
+
+**The Output**
+
+The result of running `node_rewards_tracker.py` is:
+
+1. Printed table in terminal
+2. Updated sheet with complete info stored in `data/node-balances.csv`
+3. Historical data file stored in `data/data.yaml` - this file should not be changed manually, as all values older than 30 days get auto-removed
+
+
+## Node Ping Tester
+
+This tool is used to diagnose how many nodes providing self-described endpoint allow your IP to ping them. It's a very simple script fetching all [`/described`](https://validator.nymtech.net/api/v1/nym-nodes/described) nodes and trying to ping each of them.
+
+The output is collected into two files:
+```
+  ├── ping_not_working.csv
+  └── ping_works.csv
+```
+
+**Installation & Running**
+
+<Steps>
+
+###### 1. SSH into your node server (VPS)
+
+###### 2. Download and make executable
+
+- Navigate to the directory where you want to have this script
+- Download and make executable:
+```sh
+wget https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/test-nodes-pings.sh && \
+chmod +x test-nodes-pings.sh
+```
+
+###### 3. Run the script
+
+- Default running command is straight forward
+```sh
+./test-nodes-pings.sh
+```
+- If you want to increase the `ping` attempts from default 2 or lower the concurency, feel free to change the variables, like this:
+```sh
+PING_RETRIES=10 PING_TIMEOUT=5 CONCURRENCY=16 ./test-nodes-pings.sh
+```
+</Steps>
+
+You can look up the IPs from `ping_not_working.csv`, using some online database, like [ipinfo.io](https://ipinfo.io).
+
+Feel invited to share the outcome with Nym team, mentors and the rest of the operators in our [Matrix Node Operators channel](https://matrix.to/#/#operators:nymtech.chat).

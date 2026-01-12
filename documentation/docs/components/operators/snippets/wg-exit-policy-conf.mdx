@@ -1,0 +1,68 @@
+import { Callout } from 'nextra/components';
+import { Tabs } from 'nextra/components';
+import { Steps } from 'nextra/components';
+import { AccordionTemplate } from 'components/accordion-template.tsx';
+import ExitPolicyInstallOutput from 'components/operators/snippets/wg-exit-policy-install-output.mdx';
+import ExitPolicyStatusOutput from 'components/operators/snippets/wg-exit-policy-status-output.mdx';
+
+<Callout type="info" emoji="ℹ️">
+**In case you had used `network-tunnel-manager.sh` with the command `complete_networking_setup`, your WireGuard exit policy is already setup. You can test it in the next chapter.**
+</ Callout>
+
+Nym Node running as Exit Gateway has contains multiple modules, one of them is Nym Network Requester(NR), routing TCP traffic to the internet. To make sure that the node is not just an open proxy, NR checks agains [Nym exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt) following these conditions (in this exact order):
+
+1. Do we explicitly block those IP addresses regardless of ports?
+2. Do we allow those specific ports regardless of IPs?
+3. Do block EVERYTHING else!
+
+The exit policy is same for all NRs, the content is shaped by an offchain governance of Nym Node operators on our [forum](https://forum.nym.com/t/poll-a-new-nym-exit-policy-for-exit-gateways-and-the-nym-mixnet-is-inbound/464).
+
+There is a caveat though. NR is only routing TCP streams and therefore any other type of routing than Mixnet is *not* filtered thorugh the exit policy. To ensure that Nym Nodes follow the same exit policy when routing IP packets through WireGuard and don't act as open proxies, the operators have to set up these rules via IP tables rules.
+
+**For all routing configuration we provide one tool [`network-tunnel-manager.sh` (NTM)](https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/wireguard-exit-policy/wireguard-exit-policy-manager.sh). This tool manages WireGuard exit policy as well.**
+
+In case you haven't run `network-tunnel-manager.sh` with the command `complete_networking_setup` you need to use NTM for WireGuard exit policy configuration. 
+
+**Folow these steps**
+
+<Callout type="warning" emoji="⚠️">
+**Run the following steps as root!**
+</ Callout>
+
+<Steps>
+
+###### 1. Download `network-tunnel-manager.sh`, make executable and run with `--help` command:
+
+```sh
+curl -L https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/network-tunnel-manager.sh -o network-tunnel-manager.sh && \
+chmod +x network-tunnel-manager.sh && \
+./network-tunnel-manager.sh --help
+```
+
+###### 2. Install exit policy
+
+- Clear old rules and configure new ones:
+```sh
+./network-tunnel-manager.sh exit_policy_clear
+./network-tunnel-manager.sh exit_policy_install
+```
+- The output should look like this:
+<AccordionTemplate name="Cosole output">
+<ExitPolicyInstallOutput />
+</ AccordionTemplate>
+
+
+###### 3. Check status of your configuration
+```sh
+./network-tunnel-manager.sh  exit_policy_status
+```
+
+- The output should look like this:
+<AccordionTemplate name="Cosole output">
+<ExitPolicyStatusOutput />
+</ AccordionTemplate>
+</ Steps>
+
+Now your WireGuard routing (2-hop) should have same rotuing permissions like [Nym exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt) used on 5-hop (Mixnet) mode of NymVPN.
+
+

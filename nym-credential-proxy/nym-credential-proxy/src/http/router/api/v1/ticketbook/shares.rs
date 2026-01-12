@@ -3,9 +3,9 @@
 
 use crate::http::router::api::v1::ticketbook::FormattedTicketbookWalletSharesResponse;
 use crate::http::state::ApiState;
+use axum::Router;
 use axum::extract::{Path, Query, State};
 use axum::routing::get;
-use axum::Router;
 use nym_credential_proxy_lib::helpers::random_uuid;
 use nym_credential_proxy_lib::http_helpers::RequestError;
 use nym_credential_proxy_requests::api::v1::ticketbook::models::{
@@ -43,7 +43,7 @@ pub(crate) async fn query_for_shares_by_id(
     let output = params.output.unwrap_or_default();
 
     let response = state
-        .inner_state()
+        .ticketbooks()
         .query_for_shares_by_id(uuid, params.global, share_id)
         .await
         .map_err(|err| RequestError::new_server_error(err, uuid))?;
@@ -80,7 +80,7 @@ pub(crate) async fn query_for_shares_by_device_id_and_credential_id(
     let output = params.output.unwrap_or_default();
 
     let response = state
-        .inner_state()
+        .ticketbooks()
         .query_for_shares_by_device_id_and_credential_id(
             uuid,
             params.global,

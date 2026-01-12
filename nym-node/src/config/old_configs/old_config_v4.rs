@@ -5,8 +5,8 @@
 
 use crate::config::*;
 use nym_client_core_config_types::{
-    disk_persistence::{ClientKeysPaths, CommonClientPaths},
     DebugConfig as ClientDebugConfig,
+    disk_persistence::{ClientKeysPaths, CommonClientPaths},
 };
 use nym_config::{defaults::TICKETBOOK_VALIDITY_DAYS, serde_helpers::de_maybe_port};
 use old_configs::old_config_v5::*;

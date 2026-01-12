@@ -9,14 +9,14 @@ use crate::error::MixnetContractError;
 use crate::helpers::IntoBaseDecimal;
 use crate::nym_node::Role;
 use crate::reward_params::{NodeRewardingParameters, RewardingParams};
-use crate::rewarding::helpers::truncate_reward;
 use crate::rewarding::RewardDistribution;
+use crate::rewarding::helpers::truncate_reward;
 use crate::{
     Delegation, EpochEventId, EpochId, IdentityKey, IntervalEventId, NodeId, OperatingCostRange,
     Percent, ProfitMarginRange, SphinxKey,
 };
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{to_json_string, Addr, Coin, Decimal, StdResult, Uint128};
+use cosmwasm_std::{Addr, Coin, Decimal, StdResult, Uint128, to_json_string};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};

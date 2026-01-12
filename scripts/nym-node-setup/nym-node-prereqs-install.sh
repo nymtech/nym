@@ -1,6 +1,11 @@
 #!/bin/bash
 
-# update, upgrade & install dependencies
+if [[ "$(id -u)" -ne 0 ]]; then
+  echo "This script must be run as root."
+  exit 1
+fi
+
+# update, upgrade and install dependencies
 echo -e "\n* * * Installing needed prerequisities * * *"
 
 apt update  -y && apt --fix-broken install
@@ -8,11 +13,9 @@ apt upgrade
 apt install apt ca-certificates jq curl wget ufw jq tmux pkg-config build-essential libssl-dev git ntp ntpdate neovim tree tmux tig nginx -y
 apt install ufw --fix-missing
 
-
-
 # enable & setup firewall
 echo -e "\n* * * Setting up firewall using ufw * * * "
-echo "Please enable the firewall in the next prompt for node proper routing!"
+echo "Please enable the firewall in the next prompt for node proper routing."
 echo
 ufw enable
 ufw allow 22/tcp    # SSH - you're in control of these ports
@@ -24,6 +27,6 @@ ufw allow 8080/tcp  # Nym specific - nym-node-api
 ufw allow 9000/tcp  # Nym Specific - clients port
 ufw allow 9001/tcp  # Nym specific - wss port
 ufw allow 51822/udp # WireGuard
-ufw allow 'Nginx Full' && \
+ufw allow in on nymwg to any port 51830 proto tcp # bandwidth queries/topup - inside the tunnel
 ufw reload && \
 ufw status

@@ -7,14 +7,14 @@ use nym_sdk::{mixnet::Recipient, tcp_proxy, tcp_proxy::NymProxyServer};
 use std::{
     fmt::Debug,
     sync::{
-        atomic::{AtomicU64, Ordering},
         Arc,
+        atomic::{AtomicU64, Ordering},
     },
 };
 use tokio::{
     io::AsyncWriteExt,
     net::{TcpListener, TcpStream},
-    sync::{broadcast, Mutex},
+    sync::{Mutex, broadcast},
     task,
 };
 use tokio_stream::StreamExt;
@@ -226,7 +226,8 @@ mod tests {
                 error!("{err}");
                 // this is not an ideal way of checking it, but if test fails due to networking failures
                 // it should be fine to progress
-                if err.to_string().contains("nym api request failed") {
+                let err_str = err.to_string();
+                if err_str.contains("nym api") || err_str.contains("failed to connect") {
                     return Ok(());
                 }
                 return Err(err);
@@ -291,7 +292,8 @@ mod tests {
                 error!("{err}");
                 // this is not an ideal way of checking it, but if test fails due to networking failures
                 // it should be fine to progress
-                if err.to_string().contains("nym api request failed") {
+                let err_str = err.to_string();
+                if err_str.contains("nym api") || err_str.contains("failed to connect") {
                     return Ok(());
                 }
                 return Err(err);

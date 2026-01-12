@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::config::persistence::IpPacketRouterPaths;
-use crate::config::{default_config_filepath, IpPacketRouter};
+use crate::config::{IpPacketRouter, default_config_filepath};
 use crate::error::IpPacketRouterError;
 use nym_bin_common::logging::LoggingSettings;
 use nym_client_core::config::disk_persistence::old_v1_1_33::CommonClientPathsV1_1_33;

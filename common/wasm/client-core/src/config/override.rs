@@ -50,7 +50,6 @@ pub struct DebugWasmOverride {
 
     #[tsify(optional)]
     pub forget_me: Option<ForgetMeWasmOverride>,
-
     #[tsify(optional)]
     pub remember_me: Option<RememberMeWasmOverride>,
 }

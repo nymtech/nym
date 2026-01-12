@@ -3,11 +3,13 @@
 
 use super::LocalWireguardOpts;
 use crate::config::Config;
+use crate::error::NymNodeError;
 use clap::crate_version;
 use nym_gateway::node::{
     LocalAuthenticatorOpts, LocalIpPacketRouterOpts, LocalNetworkRequesterOpts,
 };
 use nym_gateway::nym_authenticator;
+use tracing::error;
 
 // a temporary solution until further refactoring is made
 fn ephemeral_gateway_config(config: &Config) -> nym_gateway::config::Config {
@@ -24,6 +26,7 @@ fn ephemeral_gateway_config(config: &Config) -> nym_gateway::config::Config {
         nym_gateway::config::IpPacketRouter {
             enabled: config.service_providers.network_requester.debug.enabled,
         },
+        config.gateway_tasks.upgrade_mode.clone(),
         nym_gateway::config::Debug {
             client_bandwidth_max_flushing_rate: config
                 .gateway_tasks
@@ -62,6 +65,10 @@ fn ephemeral_gateway_config(config: &Config) -> nym_gateway::config::Config {
                     .maximum_time_between_redemption,
             },
             max_request_timestamp_skew: config.gateway_tasks.debug.max_request_timestamp_skew,
+            upgrade_mode_min_staleness_recheck: config
+                .gateway_tasks
+                .debug
+                .upgrade_mode_min_staleness_recheck,
         },
     )
 }
@@ -217,4 +224,10 @@ pub fn gateway_tasks_config(config: &Config) -> GatewayTasksConfig {
         auth_opts: Some(auth_opts),
         wg_opts,
     }
+}
+
+pub(crate) fn log_error_and_return<T>(msg: impl Into<String>) -> Result<T, NymNodeError> {
+    let msg = msg.into();
+    error!("{msg}");
+    Err(NymNodeError::config_validation_failure(msg))
 }

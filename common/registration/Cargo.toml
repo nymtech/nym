@@ -1,0 +1,21 @@
+[package]
+name = "nym-registration-common"
+version = "0.1.0"
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+tokio-util.workspace = true
+serde.workspace = true
+
+nym-authenticator-requests = { path = "../authenticator-requests" }
+nym-crypto = { path = "../crypto" }
+nym-ip-packet-requests = { path = "../ip-packet-requests" }
+nym-sphinx = { path = "../nymsphinx" }

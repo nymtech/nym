@@ -1,11 +1,11 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::ShutdownToken;
 use crate::cancellation::tracker::{Cancelled, ShutdownTracker};
 use crate::spawn::JoinHandle;
-use crate::ShutdownToken;
-use futures::stream::FuturesUnordered;
 use futures::StreamExt;
+use futures::stream::FuturesUnordered;
 use log::error;
 use std::future::Future;
 use std::mem;
@@ -20,7 +20,7 @@ use tokio::time::sleep;
 use wasmtimer::tokio::sleep;
 
 #[cfg(unix)]
-use tokio::signal::unix::{signal, SignalKind};
+use tokio::signal::unix::{SignalKind, signal};
 use tokio::task::JoinSet;
 
 /// A top level structure responsible for controlling process shutdown by listening to
@@ -588,8 +588,8 @@ impl ShutdownManager {
 mod tests {
     use super::*;
     use nym_test_utils::traits::{ElapsedExt, Timeboxed};
-    use std::sync::atomic::AtomicBool;
     use std::sync::Arc;
+    use std::sync::atomic::AtomicBool;
 
     #[tokio::test]
     async fn shutdown_with_no_tracked_tasks_and_signals() -> anyhow::Result<()> {

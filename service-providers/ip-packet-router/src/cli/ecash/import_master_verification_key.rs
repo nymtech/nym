@@ -3,7 +3,7 @@
 
 use crate::cli::CliIpPacketRouterClient;
 use nym_client_core::cli_helpers::client_import_master_verification_key::{
-    import_master_verification_key, CommonClientImportMasterVerificationKeyArgs,
+    CommonClientImportMasterVerificationKeyArgs, import_master_verification_key,
 };
 use nym_ip_packet_router::error::IpPacketRouterError;
 

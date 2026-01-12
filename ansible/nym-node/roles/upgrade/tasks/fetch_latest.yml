@@ -1,0 +1,30 @@
+- name: Get latest Nym release metadata
+  uri:
+    url: https://api.github.com/repos/nymtech/nym/releases/latest
+    return_content: yes
+  register: latest_release
+  when: nym_version is not defined and not ansible_check_mode
+
+- name: Set nym_version from GitHub API
+  set_fact:
+    nym_version: "{{ latest_release.json.tag_name }}"
+  when: nym_version is not defined and not ansible_check_mode
+
+- name: Show target Nym version tag
+  debug:
+    msg: "Target Nym release tag: {{ nym_version | default('latest (check-mode)') }}"
+
+- name: Generate binary_url from version
+  set_fact:
+    binary_url: >-
+      https://github.com/nymtech/nym/releases/download/{{ nym_version }}/nym-node
+  when: not ansible_check_mode
+
+- name: Download nym-node binary
+  get_url:
+    url: "{{ binary_url }}"
+    dest: "{{ nym_binary_path }}"
+    mode: "0755"
+  register: download_result
+  failed_when: false
+  when: not ansible_check_mode

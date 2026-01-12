@@ -3,6 +3,7 @@
 
 mod legacy_helpers;
 
+use crate::models::{EmergencyCredential, EmergencyCredentialContent};
 use crate::{
     backends::sqlite::{
         get_next_unspent_ticketbook, increase_used_ticketbook_tickets, SqliteEcashTicketbookManager,
@@ -58,7 +59,6 @@ impl PersistentStorage {
             "Attempting to connect to database {}",
             database_path.as_ref().display()
         );
-
         let opts = sqlx::sqlite::SqliteConnectOptions::new()
             .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal)
             .synchronous(SqliteSynchronous::Normal)
@@ -149,6 +149,44 @@ impl Storage for PersistentStorage {
         Ok(())
     }
 
+    async fn insert_partial_issued_ticketbook(
+        &self,
+        ticketbook: &IssuedTicketBook,
+        allowed_start_ticket_index: u32,
+        allowed_final_ticket_index: u32,
+    ) -> Result<(), Self::StorageError> {
+        // sanity check: start <= final && final <= params max
+        if allowed_start_ticket_index > allowed_final_ticket_index {
+            return Err(StorageError::database_inconsistency(
+                "start_ticket_index must be less than or equal to final_ticket_index",
+            ));
+        }
+
+        if allowed_final_ticket_index > ticketbook.params_total_tickets() as u32 {
+            return Err(StorageError::database_inconsistency(
+                "final ticket index must be less than or equal to params_total_tickets()",
+            ));
+        }
+
+        let ser = ticketbook.pack();
+        let data = Zeroizing::new(ser.data);
+        let serialisation_revision = ser.revision;
+
+        self.storage_manager
+            .insert_new_ticketbook(
+                serialisation_revision,
+                &data,
+                ticketbook.expiration_date(),
+                &ticketbook.ticketbook_type().to_string(),
+                ticketbook.epoch_id() as u32,
+                allowed_final_ticket_index + 1,
+                allowed_start_ticket_index,
+            )
+            .await?;
+
+        Ok(())
+    }
+
     async fn contains_issued_ticketbook(
         &self,
         ticketbook: &IssuedTicketBook,
@@ -206,7 +244,7 @@ impl Storage for PersistentStorage {
         tickets: u32,
     ) -> Result<Option<RetrievedTicketbook>, Self::StorageError> {
         let deadline = ecash_today().ecash_date();
-        let mut tx = self.storage_manager.begin_storage_tx().await?;
+        let mut tx = self.storage_manager.begin_storage_write_tx().await?;
 
         // we don't want ticketbooks with expiration in the past
         let Some(raw) =
@@ -235,6 +273,7 @@ impl Storage for PersistentStorage {
         deserialised.update_spent_tickets(raw.used_tickets as u64);
         Ok(Some(RetrievedTicketbook {
             ticketbook_id: raw.id,
+            total_tickets: raw.total_tickets,
             ticketbook: deserialised,
         }))
     }
@@ -360,6 +399,38 @@ impl Storage for PersistentStorage {
                 signatures.expiration_date,
                 &packed.data,
             )
+            .await?;
+        Ok(())
+    }
+
+    async fn get_emergency_credential(
+        &self,
+        typ: &str,
+    ) -> Result<Option<EmergencyCredential>, Self::StorageError> {
+        Ok(self.storage_manager.get_emergency_credential(typ).await?)
+    }
+
+    async fn insert_emergency_credential(
+        &self,
+        credential: &EmergencyCredentialContent,
+    ) -> Result<(), Self::StorageError> {
+        self.storage_manager
+            .insert_emergency_credential(credential)
+            .await?;
+        Ok(())
+    }
+
+    async fn remove_emergency_credential(&self, id: i64) -> Result<(), Self::StorageError> {
+        self.storage_manager.remove_emergency_credential(id).await?;
+        Ok(())
+    }
+
+    async fn remove_emergency_credentials_of_type(
+        &self,
+        typ: &str,
+    ) -> Result<(), Self::StorageError> {
+        self.storage_manager
+            .remove_emergency_credentials_of_type(typ)
             .await?;
         Ok(())
     }

@@ -6,8 +6,8 @@ mod network;
 mod transceiver;
 
 pub use http::{
+    ShutdownHandles,
     router::{ApiHttpServer, RouterBuilder, RouterWithState},
     state::AppState,
-    ShutdownHandles,
 };
 pub use transceiver::PeerControllerTransceiver;

@@ -1,27 +1,23 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::deposits_buffer::helpers::request_sizes;
 use crate::deposits_buffer::refill_task::RefillTask;
 use crate::error::CredentialProxyError;
 use crate::shared_state::nyxd_client::ChainClient;
 use crate::shared_state::required_deposit_cache::RequiredDepositCache;
 use crate::storage::CredentialProxyStorage;
 use nym_compact_ecash::PublicKeyUser;
-use nym_crypto::asymmetric::ed25519;
 use nym_ecash_contract_common::deposit::DepositId;
-use nym_validator_client::nyxd::cosmwasm_client::ContractResponseData;
 use nym_validator_client::nyxd::Coin;
-use rand::rngs::OsRng;
 use std::sync::Arc;
 use std::time::Duration;
 use time::OffsetDateTime;
 use tokio::sync::Mutex as AsyncMutex;
 use tokio_util::sync::CancellationToken;
-use tracing::{debug, error, info, instrument, warn};
+use tracing::{debug, info, instrument, warn};
 use uuid::Uuid;
 
-pub use helpers::{BufferedDeposit, PerformedDeposits};
+pub use helpers::{BufferedDeposit, PerformedDeposits, make_deposits_request, split_deposits};
 
 pub(crate) mod helpers;
 mod refill_task;
@@ -89,70 +85,20 @@ impl DepositsBuffer {
         &self,
         amount: usize,
     ) -> Result<PerformedDeposits, CredentialProxyError> {
-        let requested_on = OffsetDateTime::now_utc();
-        let chain_write_permit = self.inner.client.start_chain_tx().await;
-        let mut rng = OsRng;
-
+        let memo = format!(
+            "credential-proxy-{}: performing {amount} deposits",
+            self.inner.short_sha
+        );
         let deposit_amount = self.deposit_amount().await?;
-        let keys = (0..amount)
-            .map(|_| ed25519::PrivateKey::new(&mut rng))
-            .collect::<Vec<_>>();
 
-        info!("starting {amount} deposits");
-        let mut contents = Vec::new();
-        for key in &keys {
-            let public_key: ed25519::PublicKey = key.into();
-            contents.push((public_key.to_base58_string(), deposit_amount.clone()));
-        }
-
-        let execute_res = chain_write_permit
-            .make_deposits(self.inner.short_sha, contents)
-            .await?;
-
-        let tx_hash = execute_res.transaction_hash;
-        info!("{amount} deposits made in transaction: {tx_hash}");
-
-        let contract_data = match execute_res.to_contract_data() {
-            Ok(contract_data) => contract_data,
-            Err(err) => {
-                // that one is tricky. deposits technically got made, but we somehow failed to parse response,
-                // in this case terminate the proxy with 0 exit code so it wouldn't get automatically restarted
-                // because it requires some serious MANUAL intervention
-                error!("CRITICAL FAILURE: failed to parse out deposit information from the contract transaction. either the chain got upgraded and the schema changed or the ecash contract got changed! terminating the process. it has to be inspected manually. error was: {err}");
-                self.inner.cancellation_token.cancel();
-                return Err(CredentialProxyError::DepositFailure);
-            }
-        };
-
-        if contract_data.len() != amount {
-            // another critical failure, that one should be quite impossible and thus has to be manually inspected
-            error!("CRITICAL FAILURE: failed to parse out all deposit information from the contract transaction. got {} responses while we sent {amount} deposits! either the chain got upgraded and the schema changed or the ecash contract got changed! terminating the process. it has to be inspected manually", contract_data.len());
-            self.inner.cancellation_token.cancel();
-            return Err(CredentialProxyError::DepositFailure);
-        }
-
-        let mut deposits_data = Vec::new();
-        for (key, response) in keys.into_iter().zip(contract_data) {
-            let response_index = response.message_index;
-            let deposit_id = match response.parse_singleton_u32_contract_data() {
-                Ok(deposit_id) => deposit_id,
-                Err(err) => {
-                    // another impossibility
-                    error!("CRITICAL FAILURE: failed to parse out deposit id out of the response at index {response_index}: {err}. either the chain got upgraded and the schema changed or the ecash contract got changed! terminating the process. it has to be inspected manually");
-                    self.inner.cancellation_token.cancel();
-                    return Err(CredentialProxyError::DepositFailure);
-                }
-            };
-
-            deposits_data.push(BufferedDeposit::new(deposit_id, key));
-        }
-
-        Ok(PerformedDeposits {
-            deposits_data,
-            tx_hash,
-            requested_on,
+        make_deposits_request(
+            &self.inner.client,
             deposit_amount,
-        })
+            &memo,
+            amount,
+            &self.inner.cancellation_token,
+        )
+        .await
     }
 
     async fn insert_new_deposits(
@@ -180,7 +126,7 @@ impl DepositsBuffer {
         let target = self.deposits_upper_threshold();
         let to_request = target - available;
 
-        for request_chunk in request_sizes(to_request, self.inner.max_concurrent_deposits) {
+        for request_chunk in split_deposits(to_request, self.inner.max_concurrent_deposits) {
             // note: we check for cancellation between individual requests
             // as opposed to wrapping that in tokio::select! so that we would never abandon chain operations
             // as we wouldn't want to lose funds
@@ -273,7 +219,9 @@ impl DepositsBuffer {
 
         match maybe_deposit {
             None => {
-                warn!("we currently don't have any usable deposits! are we using them up faster than we request them?");
+                warn!(
+                    "we currently don't have any usable deposits! are we using them up faster than we request them?"
+                );
 
                 // we have to wait until refill task has completed (either initiated by this or another fn call)
                 self.wait_for_deposit(request_uuid, requested_on, client_pubkey)
@@ -296,7 +244,9 @@ impl DepositsBuffer {
         let task_handle = self.inner.deposits_refill_task.take_task_join_handle();
         if let Some(task_handle) = task_handle {
             if !task_handle.is_finished() {
-                info!("the deposit refill task is currently in progress - waiting for the current transaction to finish before concluding shutdown");
+                info!(
+                    "the deposit refill task is currently in progress - waiting for the current transaction to finish before concluding shutdown"
+                );
                 let _ = task_handle.await;
             }
         }

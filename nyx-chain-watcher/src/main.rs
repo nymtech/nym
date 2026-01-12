@@ -1,4 +1,4 @@
-use clap::{crate_name, crate_version, Parser};
+use clap::{Parser, crate_name, crate_version};
 use nym_bin_common::bin_info_owned;
 use nym_bin_common::logging::maybe_print_banner;
 use nym_network_defaults::setup_env;
@@ -12,9 +12,9 @@ mod env;
 mod error;
 pub(crate) mod helpers;
 mod http;
+mod listener;
 mod logging;
 pub mod models;
-mod payment_listener;
 mod price_scraper;
 
 #[tokio::main]

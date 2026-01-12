@@ -1,6 +1,6 @@
 use axum::{
-    extract::{Path, Query, State},
     Json, Router,
+    extract::{Path, Query, State},
 };
 use nym_validator_client::client::NodeId;
 use serde::Deserialize;
@@ -8,10 +8,10 @@ use tracing::instrument;
 use utoipa::IntoParams;
 
 use crate::http::{
+    PagedResult, Pagination,
     error::{HttpError, HttpResult},
     models::{ExtendedNymNode, NodeDelegation},
     state::AppState,
-    PagedResult, Pagination,
 };
 
 pub(crate) fn routes() -> Router<AppState> {

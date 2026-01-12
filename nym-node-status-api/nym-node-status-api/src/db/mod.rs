@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use std::{str::FromStr, time::Duration};
 
 pub(crate) mod models;
@@ -7,14 +7,15 @@ pub(crate) mod queries;
 #[cfg(test)]
 mod tests;
 
-use sqlx::{migrate::Migrator, postgres::PgConnectOptions, ConnectOptions, PgPool};
+use sqlx::{ConnectOptions, PgPool, Postgres, migrate::Migrator, postgres::PgConnectOptions};
 
 static MIGRATOR: Migrator = sqlx::migrate!("./migrations_pg");
 
 pub(crate) type DbPool = PgPool;
 
-pub(crate) type DbConnection = sqlx::pool::PoolConnection<sqlx::Postgres>;
+pub(crate) type DbConnection = sqlx::pool::PoolConnection<Postgres>;
 
+#[derive(Clone)]
 pub(crate) struct Storage {
     pool: DbPool,
 }

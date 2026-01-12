@@ -4,12 +4,12 @@
 use crate::codec::NymCodecError;
 use bytes::{BufMut, BytesMut};
 use nym_sphinx_forwarding::packet::MixPacket;
+use nym_sphinx_params::PacketType;
 use nym_sphinx_params::key_rotation::SphinxKeyRotation;
 use nym_sphinx_params::packet_sizes::PacketSize;
 use nym_sphinx_params::packet_version::{
-    PacketVersion, CURRENT_PACKET_VERSION, LEGACY_PACKET_VERSION,
+    CURRENT_PACKET_VERSION, LEGACY_PACKET_VERSION, PacketVersion,
 };
-use nym_sphinx_params::PacketType;
 use nym_sphinx_types::NymPacket;
 
 #[derive(Debug)]

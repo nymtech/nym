@@ -13,8 +13,8 @@ use nym_credentials::{
 use nym_validator_client::ecash::BlindedSignatureResponse;
 use nym_validator_client::nym_api::EpochId;
 use nym_validator_client::nyxd::contract_traits::ecash_query_client::DepositId;
-use sqlx::sqlite::{SqliteAutoVacuum, SqliteSynchronous};
 use sqlx::ConnectOptions;
+use sqlx::sqlite::{SqliteAutoVacuum, SqliteSynchronous};
 use std::fmt::Debug;
 use std::path::Path;
 use std::time::Duration;
@@ -26,6 +26,7 @@ use uuid::Uuid;
 mod manager;
 pub mod models;
 pub(crate) mod pruner;
+pub mod traits;
 
 // TODO: proper import
 type NodeId = u64;
@@ -404,8 +405,8 @@ mod tests {
     use nym_compact_ecash::scheme::keygen::KeyPairUser;
     use nym_crypto::asymmetric::ed25519;
     use nym_validator_client::nyxd::{Coin, Hash};
-    use rand::rngs::OsRng;
     use rand::RngCore;
+    use rand::rngs::OsRng;
     use std::ops::Deref;
     use tempfile::{NamedTempFile, TempPath};
 

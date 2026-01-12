@@ -8,8 +8,8 @@ use nym_client_core_config_types::DebugConfig as ClientDebugConfig;
 use nym_config::serde_helpers::de_maybe_port;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_network_requester::{
-    set_active_gateway, setup_fs_gateways_storage, store_gateway_details, CustomGatewayDetails,
-    GatewayDetails,
+    CustomGatewayDetails, GatewayDetails, set_active_gateway, setup_fs_gateways_storage,
+    store_gateway_details,
 };
 use nym_pemstore::{load_key, store_key, store_keypair};
 use nym_sphinx_acknowledgements::AckKey;
@@ -682,7 +682,8 @@ impl ConfigV2 {
         if config_dir_name != DEFAULT_CONFIG_DIR {
             error!(
                 "the parent directory of '{}' ({}) is not {DEFAULT_CONFIG_DIR}. currently this is not supported",
-                config_path.display(), config_dir_name.to_str().unwrap_or("UNKNOWN")
+                config_path.display(),
+                config_dir_name.to_str().unwrap_or("UNKNOWN")
             );
             return Err(NymNodeError::DataDirDerivationFailure);
         }

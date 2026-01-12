@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::node::http::state::AppState;
-use axum::routing::get;
 use axum::Router;
+use axum::routing::get;
 use nym_node_requests::routes::api::v1;
 
 pub mod authenticator;
@@ -14,6 +14,7 @@ pub mod ip_packet_router;
 pub mod load;
 pub mod metrics;
 pub mod mixnode;
+pub mod network;
 pub mod network_requester;
 pub mod node;
 pub mod openapi;
@@ -34,6 +35,7 @@ pub(super) fn routes(config: Config) -> Router<AppState> {
     Router::new()
         .route(v1::HEALTH, get(health::root_health))
         .route(v1::LOAD, get(load::root_load))
+        .nest(v1::NETWORK, network::routes())
         .nest(v1::METRICS, metrics::routes(config.metrics))
         .nest(v1::BRIDGES, bridges::routes(config.bridges))
         .nest(v1::GATEWAY, gateway::routes(config.gateway))

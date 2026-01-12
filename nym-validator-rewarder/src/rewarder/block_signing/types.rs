@@ -6,8 +6,8 @@ use crate::{
     rewarder::helpers::{consensus_pubkey_to_address, operator_account_to_owner_account},
 };
 use cosmwasm_std::{Decimal, Uint128};
-use nym_validator_client::nyxd::{module_traits::staking, AccountId, Coin};
-use nyxd_scraper::models;
+use nym_validator_client::nyxd::{AccountId, Coin, module_traits::staking};
+use nyxd_scraper_sqlite::models;
 use std::collections::HashMap;
 use tracing::info;
 
@@ -144,11 +144,11 @@ impl EpochSigningResults {
         for v in &self.validators {
             let amount = v.reward_amount(budget);
             info!(
-                    "validator {} will receive {amount} at address {} for block signing work (whitelisted: {})",
-                    v.moniker(),
-                    v.operator_account,
-                    v.whitelisted
-                );
+                "validator {} will receive {amount} at address {} for block signing work (whitelisted: {})",
+                v.moniker(),
+                v.operator_account,
+                v.whitelisted
+            );
             amounts.push((v.operator_account.clone(), vec![amount]))
         }
 

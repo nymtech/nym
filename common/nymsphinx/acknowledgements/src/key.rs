@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use nym_crypto::symmetric::stream_cipher::{generate_key, CipherKey, KeySizeUser};
+use nym_crypto::symmetric::stream_cipher::{CipherKey, KeySizeUser, generate_key};
 use nym_pemstore::traits::PemStorableKey;
 use nym_sphinx_params::AckEncryptionAlgorithm;
 use rand::{CryptoRng, RngCore};

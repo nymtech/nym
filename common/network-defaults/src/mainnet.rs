@@ -54,6 +54,12 @@ pub const NYM_APIS: &[ApiUrlConst] = &[
 ];
 
 pub const NYM_VPN_API: &str = "https://nymvpn.com/api/";
+
+pub const UPGRADE_MODE_ATTESTATION_URL: &str =
+    "https://nymtech.net/.wellknown/upgrade-mode/attestation.json";
+pub const UPGRADE_MODE_ATTESTER_ED25519_BS58_PUBKEY: &str =
+    "3bgffBYcfFkTTXc2npNNn9MkddFZ3H2LrPjXDmnJzrqd";
+
 #[cfg(feature = "network")]
 pub const NYM_VPN_APIS: &[ApiUrlConst] = &[
     ApiUrlConst {
@@ -84,8 +90,10 @@ const DEFAULT_SUFFIX: &str = "_MAINNET_DEFAULT";
 
 #[cfg(all(feature = "env", feature = "network"))]
 fn set_var_to_default(var: &str, value: &str) {
-    std::env::set_var(var, value);
-    std::env::set_var(format!("{var}{DEFAULT_SUFFIX}"), "1")
+    unsafe {
+        std::env::set_var(var, value);
+        std::env::set_var(format!("{var}{DEFAULT_SUFFIX}"), "1")
+    }
 }
 
 #[cfg(all(feature = "env", feature = "network"))]
@@ -157,6 +165,14 @@ pub fn export_to_env() {
     set_var_to_default(var_names::NYXD_WEBSOCKET, NYXD_WS);
     set_var_to_default(var_names::EXIT_POLICY_URL, EXIT_POLICY_URL);
     set_var_to_default(var_names::NYM_VPN_API, NYM_VPN_API);
+    set_var_to_default(
+        var_names::UPGRADE_MODE_ATTESTATION_URL,
+        UPGRADE_MODE_ATTESTATION_URL,
+    );
+    set_var_to_default(
+        var_names::UPGRADE_MODE_ATTESTER_ED25519_BS58_PUBKEY,
+        UPGRADE_MODE_ATTESTER_ED25519_BS58_PUBKEY,
+    );
 }
 
 #[cfg(all(feature = "env", feature = "network"))]
@@ -197,4 +213,12 @@ pub fn export_to_env_if_not_set() {
     set_var_conditionally_to_default(var_names::NYM_API, NYM_API);
     set_var_conditionally_to_default(var_names::NYXD_WEBSOCKET, NYXD_WS);
     set_var_conditionally_to_default(var_names::EXIT_POLICY_URL, EXIT_POLICY_URL);
+    set_var_conditionally_to_default(
+        var_names::UPGRADE_MODE_ATTESTATION_URL,
+        UPGRADE_MODE_ATTESTATION_URL,
+    );
+    set_var_conditionally_to_default(
+        var_names::UPGRADE_MODE_ATTESTER_ED25519_BS58_PUBKEY,
+        UPGRADE_MODE_ATTESTER_ED25519_BS58_PUBKEY,
+    );
 }

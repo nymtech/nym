@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use anyhow::anyhow;
+use axum::Router;
 use axum::response::Redirect;
 use axum::routing::get;
-use axum::Router;
 use core::net::SocketAddr;
 use nym_http_api_common::middleware::logging::log_request_info;
 use std::future::Future;
@@ -15,7 +15,7 @@ use utoipa_swagger_ui::SwaggerUi;
 
 use crate::http::openapi::ApiDoc;
 use crate::http::state::AppState;
-use crate::network::bandwidth_routes;
+use crate::network::{bandwidth_routes, network_routes};
 
 /// Wrapper around `axum::Router` which ensures correct [order of layers][order].
 /// Add new routes as if you were working directly with `axum`.
@@ -35,7 +35,12 @@ impl RouterBuilder {
         let default_routes = Router::new()
             .merge(SwaggerUi::new("/swagger").url("/api-docs/openapi.json", ApiDoc::openapi()))
             .route("/", get(|| async { Redirect::to("/swagger") }))
-            .nest("/v1", Router::new().nest("/bandwidth", bandwidth_routes()));
+            .nest(
+                "/v1",
+                Router::new()
+                    .nest("/bandwidth", bandwidth_routes())
+                    .nest("/network", network_routes()),
+            );
         Self {
             unfinished_router: default_routes,
         }

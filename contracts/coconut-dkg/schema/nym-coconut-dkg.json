@@ -280,6 +280,50 @@
           }
         },
         "additionalProperties": false
+      },
+      {
+        "description": "Transfers ownership of the epoch dealer to another address. This assumes off-chain hand-over of keys",
+        "type": "object",
+        "required": [
+          "transfer_ownership"
+        ],
+        "properties": {
+          "transfer_ownership": {
+            "type": "object",
+            "required": [
+              "transfer_to"
+            ],
+            "properties": {
+              "transfer_to": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Update announce address of this signer",
+        "type": "object",
+        "required": [
+          "update_announce_address"
+        ],
+        "properties": {
+          "update_announce_address": {
+            "type": "object",
+            "required": [
+              "new_address"
+            ],
+            "properties": {
+              "new_address": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
       }
     ],
     "definitions": {

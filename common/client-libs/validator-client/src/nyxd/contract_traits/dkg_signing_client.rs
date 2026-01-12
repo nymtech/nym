@@ -136,6 +136,27 @@ pub trait DkgSigningClient {
         self.execute_dkg_contract(fee, req, "trigger DKG resharing".to_string(), vec![])
             .await
     }
+
+    async fn transfer_ownership(
+        &self,
+        transfer_to: String,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NyxdError> {
+        let req = DkgExecuteMsg::TransferOwnership { transfer_to };
+
+        self.execute_dkg_contract(fee, req, "".to_string(), vec![])
+            .await
+    }
+    async fn update_announce_address(
+        &self,
+        new_address: String,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NyxdError> {
+        let req = DkgExecuteMsg::UpdateAnnounceAddress { new_address };
+
+        self.execute_dkg_contract(fee, req, "".to_string(), vec![])
+            .await
+    }
 }
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
@@ -157,7 +178,7 @@ where
             .ok_or_else(|| NyxdError::unavailable_contract_address("dkg contract"))?;
 
         let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier())));
-        let signer_address = &self.signer_addresses()?[0];
+        let signer_address = &self.signer_addresses()[0];
 
         self.execute(signer_address, dkg_contract_address, &msg, fee, memo, funds)
             .await
@@ -168,6 +189,7 @@ where
 mod tests {
     use super::*;
     use crate::nyxd::contract_traits::tests::IgnoreValue;
+    use nym_coconut_dkg_common::msg::ExecuteMsg;
 
     // it's enough that this compiles and clippy is happy about it
     #[allow(dead_code)]
@@ -210,6 +232,12 @@ mod tests {
             DkgExecuteMsg::AdvanceEpochState {} => client.advance_dkg_epoch_state(None).ignore(),
             DkgExecuteMsg::TriggerReset {} => client.trigger_dkg_reset(None).ignore(),
             DkgExecuteMsg::TriggerResharing {} => client.trigger_dkg_resharing(None).ignore(),
+            ExecuteMsg::TransferOwnership { transfer_to } => {
+                client.transfer_ownership(transfer_to, None).ignore()
+            }
+            ExecuteMsg::UpdateAnnounceAddress { new_address } => {
+                client.update_announce_address(new_address, None).ignore()
+            }
         };
     }
 }

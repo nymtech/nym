@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::cli::ConfigOverridableArgs;
-use crate::config::{default_config_directory, default_data_directory, Config};
+use crate::config::{Config, default_config_directory, default_data_directory};
 use crate::error::NymRewarderError;
 use nym_crypto::asymmetric::ed25519;
 use nym_network_defaults::NymNetworkDetails;

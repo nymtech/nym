@@ -1,42 +1,69 @@
+use nym_credentials_interface::TicketType;
+use nym_sdk::mixnet::InputMessage;
+
 #[derive(thiserror::Error, Debug)]
-pub enum Error {
+pub enum AuthenticationClientError {
     #[error("mixnet client stopped returning responses")]
     NoMixnetMessagesReceived,
 
-    #[error("failed to get version from message")]
-    NoVersionInMessage,
-
-    #[error(
-        "received response with version v{received}, the client is too new and can only understand v{expected}"
-    )]
-    ReceivedResponseWithOldVersion { expected: u8, received: u8 },
-
-    #[error(
-        "received response with version v{received}, the client is too old and can only understand v{expected}"
-    )]
-    ReceivedResponseWithNewVersion { expected: u8, received: u8 },
-
     #[error("failed to send mixnet message")]
-    SendMixnetMessage(#[source] Box<nym_sdk::Error>),
+    SendMixnetMessage(#[source] Box<tokio::sync::mpsc::error::SendError<InputMessage>>),
 
     #[error("timeout waiting for connect response from exit gateway (authenticator)")]
     TimeoutWaitingForConnectResponse,
 
-    #[error("unable to get mixnet handle when sending authenticator message")]
-    UnableToGetMixnetHandle,
-
     #[error("unknown version number")]
     UnknownVersion,
+
+    #[error("unsupported request version")]
+    UnsupportedVersion,
 
     #[error(transparent)]
     Bincode(#[from] bincode::Error),
 
-    #[error("gateway doesn't support this type of message")]
-    UnsupportedMessage,
-
     #[error(transparent)]
     AuthenticatorRequests(#[from] nym_authenticator_requests::Error),
+
+    #[error("verification failure")]
+    VerificationFailed(#[source] nym_authenticator_requests::Error),
+
+    #[error("failed to parse entry gateway socket addr")]
+    FailedToParseEntryGatewaySocketAddr(#[source] std::net::AddrParseError),
+
+    #[error("received invalid response from gateway authenticator")]
+    InvalidGatewayAuthResponse,
+
+    #[error("failed to get {ticketbook_type} ticket")]
+    GetTicket {
+        ticketbook_type: TicketType,
+        #[source]
+        source: nym_bandwidth_controller::error::BandwidthControllerError,
+    },
+
+    #[error("failed to retrieve upgrade mode token")]
+    UpgradeModeToken {
+        #[source]
+        source: nym_bandwidth_controller::error::BandwidthControllerError,
+    },
+
+    #[error("unknown authenticator version number")]
+    UnsupportedAuthenticatorVersion,
+
+    #[error("encountered an internal error")]
+    InternalError,
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum RegistrationError {
+    #[error(transparent)]
+    NoCredentialSent(AuthenticationClientError), // This intentionally doesn't use `from` to avoid random ? operator to land here when they shouldn't
+
+    #[error("an error occured after a credential was sent : {source}")]
+    CredentialSent {
+        #[source]
+        source: AuthenticationClientError,
+    },
 }
 
 // Result type based on our error type
-pub type Result<T> = std::result::Result<T, Error>;
+pub(crate) type Result<T> = std::result::Result<T, AuthenticationClientError>;

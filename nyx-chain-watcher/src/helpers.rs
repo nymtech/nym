@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use serde::{Deserialize, Serialize};
-use std::collections::vec_deque::{IntoIter, Iter};
 use std::collections::VecDeque;
+use std::collections::vec_deque::{IntoIter, Iter};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct RingBuffer<T> {

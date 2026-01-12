@@ -4,6 +4,222 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [2025.21-mozzarella] (2025-11-25)
+
+- [bugfix] Tunnel not waiting on MixnetClient to shut down cleanly ([#6225])
+- bugfix: fix credential proxy upgrade mode attestation url arg ([#6202])
+- HTTP API resilience enable & domain rotation conditions ([#6200])
+- Remove debug feature from http-macro spec in gateway probe ([#6195])
+- DNS relibility and troubleshooting  ([#6179])
+- [bugfix] Distinguish authenticator errors by credential spent ([#6176])
+- Typescript SDK 1.4.1 ([#6146])
+- Enable URL rotation and retries for mixnet gateway init ([#6126])
+- Feature/credential proxy jwt ([#5957])
+
+[#6225]: https://github.com/nymtech/nym/pull/6225
+[#6202]: https://github.com/nymtech/nym/pull/6202
+[#6200]: https://github.com/nymtech/nym/pull/6200
+[#6195]: https://github.com/nymtech/nym/pull/6195
+[#6179]: https://github.com/nymtech/nym/pull/6179
+[#6176]: https://github.com/nymtech/nym/pull/6176
+[#6146]: https://github.com/nymtech/nym/pull/6146
+[#6126]: https://github.com/nymtech/nym/pull/6126
+[#5957]: https://github.com/nymtech/nym/pull/5957
+
+## [2025.20-leerdammer] (2025-11-12)
+
+- Max/tweak ts sdk actions ([#6185])
+- chore: resolve clippy 1.91 warnings ([#6168])
+- [chore] Remove unused dependencies ([#6151])
+- Use typed-builder for registration client builder config ([#6150])
+- tommy is too quick ([#6149])
+- configurable mixnet client startup timeout ([#6148])
+- [Feature/operators]: QUIC bridge deployment script v2 ([#6145])
+- Bugfix: Add circuit breaker ([#6143])
+- bugfix: update internal owner address in transferred share ([#6139])
+- Update quic_bridge_deployment.sh for IPv4 and .deb package ([#6138])
+- feat: expose more explicit new_with_fronted_urls builder for http API client ([#6136])
+- bugfix: update stored epoch share when changing ownership ([#6135])
+- Domain fronting ([#6134])
+- bugfix: update stored epoch share when changing announce address ([#6131])
+
+[#6185]: https://github.com/nymtech/nym/pull/6185
+[#6168]: https://github.com/nymtech/nym/pull/6168
+[#6151]: https://github.com/nymtech/nym/pull/6151
+[#6150]: https://github.com/nymtech/nym/pull/6150
+[#6149]: https://github.com/nymtech/nym/pull/6149
+[#6148]: https://github.com/nymtech/nym/pull/6148
+[#6145]: https://github.com/nymtech/nym/pull/6145
+[#6143]: https://github.com/nymtech/nym/pull/6143
+[#6139]: https://github.com/nymtech/nym/pull/6139
+[#6138]: https://github.com/nymtech/nym/pull/6138
+[#6136]: https://github.com/nymtech/nym/pull/6136
+[#6135]: https://github.com/nymtech/nym/pull/6135
+[#6134]: https://github.com/nymtech/nym/pull/6134
+[#6131]: https://github.com/nymtech/nym/pull/6131
+
+## [2025.19-kase] (2025-10-30)
+
+- update ns agent workflow ([#6154])
+- Cherry pick - request #6143 from nymtech/bugfix/mix-tx-closed-v2 ([#6153])
+- bugfix: nym-credential-proxy query params parsing regression ([#6121])
+- bugfix: revert some dep updates introduced in #6043 ([#6120])
+- Skip ipv6 metadata endpoint request ([#6118])
+- update to no longer use 1mb files ([#6117])
+- chore: restore pending dkg contract state migration ([#6116])
+- Revert "Propagate cancel token to mixnet client" ([#6115])
+- Update dirs to 6.0 ([#6109])
+- Propagate cancel token to mixnet client ([#6105])
+- bugfix: retrieve and update ticketbook in the same query ([#6101])
+- bugfix: include network name in the default gateway probe config path ([#6100])
+- Bugfix/incompatibility fixes ([#6099])
+- [DOCs/operators] QUIC deployment script & docs ([#6098])
+- bugfix: testnet manager 02sql migration ([#6096])
+- feat: move gateway probe to monorepo (and update to rust edition 2024) ([#6094])
+- bugfix: use custom topology provider for list of init gateways ([#6092])
+- Max/fix wasm client + build commands ([#6043])
+
+[#6154]: https://github.com/nymtech/nym/pull/6154
+[#6153]: https://github.com/nymtech/nym/pull/6153
+[#6121]: https://github.com/nymtech/nym/pull/6121
+[#6120]: https://github.com/nymtech/nym/pull/6120
+[#6118]: https://github.com/nymtech/nym/pull/6118
+[#6117]: https://github.com/nymtech/nym/pull/6117
+[#6116]: https://github.com/nymtech/nym/pull/6116
+[#6115]: https://github.com/nymtech/nym/pull/6115
+[#6109]: https://github.com/nymtech/nym/pull/6109
+[#6105]: https://github.com/nymtech/nym/pull/6105
+[#6101]: https://github.com/nymtech/nym/pull/6101
+[#6100]: https://github.com/nymtech/nym/pull/6100
+[#6099]: https://github.com/nymtech/nym/pull/6099
+[#6098]: https://github.com/nymtech/nym/pull/6098
+[#6096]: https://github.com/nymtech/nym/pull/6096
+[#6094]: https://github.com/nymtech/nym/pull/6094
+[#6092]: https://github.com/nymtech/nym/pull/6092
+[#6043]: https://github.com/nymtech/nym/pull/6043
+
+## [2025.18-jarlsberg] (2025-10-14)
+
+- ns-api: add descriptions to dVPN gateway responses ([#6102])
+- NS API: use new probe download filesize and milliseconds field ([#6097])
+- ns-api: use download files size from probes instead of parsing filenames ([#6095])
+- ns-api: add new fields for probe output for query_metadata and download file size and duration in ms ([#6091])
+- Bugfix/bloomfilters purge ([#6089])
+- Hotfix: Update API source in node ping tester script ([#6082])
+- Get wireguard keypair as arg instead of reading it from disk ([#6078])
+- Feature: Ping probe all nodes /described nodes from a server ([#6074])
+- Node Status API: add bridge information to dVPN endpoint ([#6069])
+- frontdoor typo fix ([#6067])
+- Feature: Node rewards tracker ([#6064])
+- [chore] Clippy fix ([#6060])
+- Registration Client ([#6059])
+- Bugfix: Nym node CLI download nym-node exception ([#6058])
+- Feature: Nym node html landing page ([#6053])
+- feat: DKG contract method for updating announce address ([#6050])
+- feat: NS ticket faucet ([#6047])
+- Bridge proto client params in Self-Described ([#6035])
+- Node Status API: remove sqlite support ([#6004])
+- Benny/ci contract fix ([#5962])
+
+[#6102]: https://github.com/nymtech/nym/pull/6102
+[#6097]: https://github.com/nymtech/nym/pull/6097
+[#6095]: https://github.com/nymtech/nym/pull/6095
+[#6091]: https://github.com/nymtech/nym/pull/6091
+[#6089]: https://github.com/nymtech/nym/pull/6089
+[#6082]: https://github.com/nymtech/nym/pull/6082
+[#6078]: https://github.com/nymtech/nym/pull/6078
+[#6074]: https://github.com/nymtech/nym/pull/6074
+[#6069]: https://github.com/nymtech/nym/pull/6069
+[#6067]: https://github.com/nymtech/nym/pull/6067
+[#6064]: https://github.com/nymtech/nym/pull/6064
+[#6060]: https://github.com/nymtech/nym/pull/6060
+[#6059]: https://github.com/nymtech/nym/pull/6059
+[#6058]: https://github.com/nymtech/nym/pull/6058
+[#6053]: https://github.com/nymtech/nym/pull/6053
+[#6050]: https://github.com/nymtech/nym/pull/6050
+[#6047]: https://github.com/nymtech/nym/pull/6047
+[#6035]: https://github.com/nymtech/nym/pull/6035
+[#6004]: https://github.com/nymtech/nym/pull/6004
+[#5962]: https://github.com/nymtech/nym/pull/5962
+
+## [2025.17-isabirra] (2025-09-29)
+
+- Bugfix | Fix the registration handshake ([#6062])
+- Convenience for ShutdownTracker ([#6038])
+- chore: made http-api-client-macro doctest compile ([#6037])
+- feat: refresh mixnet contract on epoch progression ([#6023])
+- chore: remove legacy nodes from nym api [and kinda-ish from node status api] ([#6021])
+- Feature/credential proxy crate ([#6018])
+- Moving clients crate from vpn-client repo to here ([#6015])
+- Feature/cancellation migration ([#6014])
+- Use default value for the ports until api is deployed ([#6007])
+- bugfix: return from MixTrafficController if client request channel has closed ([#6002])
+- Revert "Create an axum_test client for more integrated unit testing (… ([#5999])
+- chore: upgraded syn to 2.0 and removed nym-execute ([#5998])
+- feat: use `ShutdownToken` (`CancellationToken` inside) for nym-api ([#5997])
+- bugfix: Recipient deserialisation for deserialisers missing bytes specialisation ([#5991])
+- chore: use updated version of simulate endpoint ([#5988])
+- chore: purge temp databases on build ([#5984])
+- Bump sha.js from 2.4.11 to 2.4.12 ([#5983])
+- Feature: Delegation program stake checker and adjuster ([#5980])
+- build(deps): bump actions/setup-java from 4 to 5 ([#5975])
+- Domain fronting integration ([#5974])
+- chore: internal hidden command to force advance nyx epoch ([#5964])
+- Create an axum_test client for more integrated unit testing ([#5956])
+- feat: shared library for attempting to retrieve update mode attestation ([#5954])
+- Bump slab from 0.4.10 to 0.4.11 ([#5952])
+- build(deps): bump actions/first-interaction from 1 to 3 ([#5950])
+- fix: use WASM compatible time API in client ([#5948])
+- feat: credential proxy deposit pool ([#5945])
+- build(deps): bump actions/download-artifact from 4 to 5 ([#5939])
+- feat: nym signers monitor ([#5933])
+- Bump console from 0.15.11 to 0.16.0 ([#5931])
+- Bump mock_instant from 0.5.3 to 0.6.0 ([#5930])
+- Bump tokio from 1.46.1 to 1.47.1 ([#5929])
+- Bump defguard_wireguard_rs from v0.4.7 to v0.7.5 ([#5928])
+- Bump indicatif from 0.17.11 to 0.18.0 ([#5924])
+- Feature: Nym node autorun CLI ([#5916])
+- build(deps): bump mikefarah/yq from 4.45.4 to 4.47.1 ([#5911])
+- build(deps): bump pbkdf2 from 3.1.2 to 3.1.3 ([#5869])
+
+[#6062]: https://github.com/nymtech/nym/pull/6062
+[#6038]: https://github.com/nymtech/nym/pull/6038
+[#6037]: https://github.com/nymtech/nym/pull/6037
+[#6023]: https://github.com/nymtech/nym/pull/6023
+[#6021]: https://github.com/nymtech/nym/pull/6021
+[#6018]: https://github.com/nymtech/nym/pull/6018
+[#6015]: https://github.com/nymtech/nym/pull/6015
+[#6014]: https://github.com/nymtech/nym/pull/6014
+[#6007]: https://github.com/nymtech/nym/pull/6007
+[#6002]: https://github.com/nymtech/nym/pull/6002
+[#5999]: https://github.com/nymtech/nym/pull/5999
+[#5998]: https://github.com/nymtech/nym/pull/5998
+[#5997]: https://github.com/nymtech/nym/pull/5997
+[#5991]: https://github.com/nymtech/nym/pull/5991
+[#5988]: https://github.com/nymtech/nym/pull/5988
+[#5984]: https://github.com/nymtech/nym/pull/5984
+[#5983]: https://github.com/nymtech/nym/pull/5983
+[#5980]: https://github.com/nymtech/nym/pull/5980
+[#5975]: https://github.com/nymtech/nym/pull/5975
+[#5974]: https://github.com/nymtech/nym/pull/5974
+[#5964]: https://github.com/nymtech/nym/pull/5964
+[#5956]: https://github.com/nymtech/nym/pull/5956
+[#5954]: https://github.com/nymtech/nym/pull/5954
+[#5952]: https://github.com/nymtech/nym/pull/5952
+[#5950]: https://github.com/nymtech/nym/pull/5950
+[#5948]: https://github.com/nymtech/nym/pull/5948
+[#5945]: https://github.com/nymtech/nym/pull/5945
+[#5939]: https://github.com/nymtech/nym/pull/5939
+[#5933]: https://github.com/nymtech/nym/pull/5933
+[#5931]: https://github.com/nymtech/nym/pull/5931
+[#5930]: https://github.com/nymtech/nym/pull/5930
+[#5929]: https://github.com/nymtech/nym/pull/5929
+[#5928]: https://github.com/nymtech/nym/pull/5928
+[#5924]: https://github.com/nymtech/nym/pull/5924
+[#5916]: https://github.com/nymtech/nym/pull/5916
+[#5911]: https://github.com/nymtech/nym/pull/5911
+[#5869]: https://github.com/nymtech/nym/pull/5869
+
 ## [2025.16-halloumi] (2025-09-16)
 
 - Backport metadata endpoint ([#6010])

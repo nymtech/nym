@@ -24,6 +24,7 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
 use tokio::sync::RwLockReadGuard;
+use tokio_util::sync::CancellationToken;
 
 /// Client connected to the Nym mixnet.
 pub struct MixnetClient {
@@ -52,12 +53,11 @@ pub struct MixnetClient {
     pub(crate) stats_events_reporter: ClientStatsSender,
 
     /// The task manager that controls all the spawned tasks that the clients uses to do it's job.
-    pub(crate) shutdown_handle: Option<ShutdownTracker>,
+    pub(crate) shutdown_handle: ShutdownTracker,
     pub(crate) packet_type: Option<PacketType>,
 
     // internal state used for the `Stream` implementation
     _buffered: Vec<ReconstructedMessage>,
-    pub(crate) client_request_sender: ClientRequestSender,
     pub(crate) forget_me: ForgetMe,
     pub(crate) remember_me: RememberMe,
 }
@@ -72,9 +72,8 @@ impl MixnetClient {
         client_state: ClientState,
         reconstructed_receiver: ReconstructedMessagesReceiver,
         stats_events_reporter: ClientStatsSender,
-        task_handle: Option<ShutdownTracker>,
+        task_handle: ShutdownTracker,
         packet_type: Option<PacketType>,
-        client_request_sender: ClientRequestSender,
         forget_me: ForgetMe,
         remember_me: RememberMe,
     ) -> Self {
@@ -89,7 +88,6 @@ impl MixnetClient {
             shutdown_handle: task_handle,
             packet_type,
             _buffered: Vec::new(),
-            client_request_sender,
             forget_me,
             remember_me,
         }
@@ -122,8 +120,13 @@ impl MixnetClient {
         &self.nym_address
     }
 
+    /// Get a child token of the root, to monitor unexpected shutdown, without causing one
+    pub fn cancellation_token(&self) -> CancellationToken {
+        self.shutdown_handle.child_shutdown_token().inner().clone()
+    }
+
     pub fn client_request_sender(&self) -> ClientRequestSender {
-        self.client_request_sender.clone()
+        self.client_input.client_request_sender.clone()
     }
 
     /// Get the client's identity keys.
@@ -238,9 +241,7 @@ impl MixnetClient {
             tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
         }
 
-        if let Some(tracker) = self.shutdown_handle {
-            tracker.shutdown().await;
-        }
+        self.shutdown_handle.shutdown().await;
     }
 
     pub async fn send_forget_me(&self) -> Result<()> {
@@ -248,7 +249,12 @@ impl MixnetClient {
             client: self.forget_me.client(),
             stats: self.forget_me.stats(),
         };
-        match self.client_request_sender.send(client_request).await {
+        match self
+            .client_input
+            .client_request_sender
+            .send(client_request)
+            .await
+        {
             Ok(_) => Ok(()),
             Err(e) => {
                 error!("Failed to send forget me request: {e}");
@@ -261,7 +267,12 @@ impl MixnetClient {
         let client_request = ClientRequest::RememberMe {
             session_type: self.remember_me.session_type(),
         };
-        match self.client_request_sender.send(client_request).await {
+        match self
+            .client_input
+            .client_request_sender
+            .send(client_request)
+            .await
+        {
             Ok(_) => Ok(()),
             Err(e) => {
                 error!("Failed to send forget me request: {e}");

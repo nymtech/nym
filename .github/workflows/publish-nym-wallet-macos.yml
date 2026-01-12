@@ -21,17 +21,17 @@ jobs:
       release_tag: ${{ github.ref_name }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Node
         uses: actions/setup-node@v4
         with:
           node-version: 21
           
-      - name: Install Rust stable
+      - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: stable
+          toolchain: ${{ vars.REQUIRED_RUSTC_VERSION }}
           
       - name: Add Rust target for x86_64-apple-darwin
         run: rustup target add x86_64-apple-darwin
@@ -108,7 +108,7 @@ jobs:
           cd -
 
       - name: Upload Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: nym-wallet.app.tar.gz
           path: nym-wallet/target/x86_64-apple-darwin/release/bundle/macos/nym-wallet.app.tar.gz

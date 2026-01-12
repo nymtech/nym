@@ -7,12 +7,12 @@ use crate::ticketbook_manager::TicketbookManager;
 use nym_compact_ecash::Base58;
 use nym_credential_proxy_requests::api::v1::ticketbook::models::{
     CurrentEpochResponse, DepositResponse, GlobalDataParams, MasterVerificationKeyResponse,
-    PartialVerificationKey, PartialVerificationKeysResponse, TicketbookAsyncRequest,
-    TicketbookObtainParams, TicketbookRequest, TicketbookWalletSharesAsyncResponse,
-    TicketbookWalletSharesResponse,
+    ObtainTicketBookSharesAsyncResponse, PartialVerificationKey, PartialVerificationKeysResponse,
+    TicketbookAsyncRequest, TicketbookObtainParams, TicketbookRequest,
+    TicketbookWalletSharesAsyncResponse, TicketbookWalletSharesResponse,
 };
 use time::OffsetDateTime;
-use tracing::{error, info, span, warn, Instrument, Level};
+use tracing::{Instrument, Level, error, info, span, warn};
 use uuid::Uuid;
 
 impl TicketbookManager {
@@ -65,7 +65,7 @@ impl TicketbookManager {
         uuid: Uuid,
         request: TicketbookAsyncRequest,
         params: TicketbookObtainParams,
-    ) -> Result<TicketbookWalletSharesAsyncResponse, CredentialProxyError> {
+    ) -> Result<ObtainTicketBookSharesAsyncResponse, CredentialProxyError> {
         let requested_on = OffsetDateTime::now_utc();
         let span = span!(Level::INFO, "[async] obtain ticketboook", uuid = %uuid);
         async move {
@@ -110,7 +110,7 @@ impl TicketbookManager {
             }
 
             // 4. in the meantime, return the id to the user
-            Ok(TicketbookWalletSharesAsyncResponse { id, uuid })
+            Ok(TicketbookWalletSharesAsyncResponse { id, uuid }.into())
         }
         .instrument(span)
         .await

@@ -11,8 +11,8 @@
     "type": "menu",
     "items": {
       "developers": {
-        "title": "Developer Overview",
-        "href": "/developers/"
+        "title": "Integrations",
+        "href": "/developers/integrations"
       },
       "rust": {
         "title": "Rust SDK",

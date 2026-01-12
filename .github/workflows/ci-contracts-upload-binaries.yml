@@ -11,13 +11,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: [ arc-ubuntu-22.04 ]
+        platform: [ arc-linux-latest-dind ]
 
     runs-on: ${{ matrix.platform }}
     env:
       CARGO_TERM_COLOR: always
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Prepare build output directory
         shell: bash
@@ -28,18 +28,11 @@ jobs:
           mkdir -p $OUTPUT_DIR
           echo $OUTPUT_DIR
 
-      - name: Install Rust stable
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          target: wasm32-unknown-unknown
-          override: true
+      - name: Build contracts
+        run: make optimize-contracts
 
-      - name: Install cosmwasm-check
-        run: cargo install cosmwasm-check
-
-      - name: Build release contracts
-        run: make publish-contracts
+      - name: Check optimized contracts
+        run: make docker-check-contracts
 
       - name: Prepare build output
         shell: bash

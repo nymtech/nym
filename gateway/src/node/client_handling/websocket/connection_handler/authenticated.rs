@@ -14,23 +14,25 @@ use futures::{
     future::{FusedFuture, OptionFuture},
     FutureExt, StreamExt,
 };
+use nym_credential_verification::upgrade_mode::UpgradeModeEnableError;
 use nym_credential_verification::CredentialVerifier;
 use nym_credential_verification::{
     bandwidth_storage_manager::BandwidthStorageManager, ClientBandwidth,
 };
+use nym_credentials_interface::DEFAULT_MIXNET_REQUEST_BANDWIDTH_THRESHOLD;
 use nym_gateway_requests::{
     types::{BinaryRequest, ServerResponse},
-    ClientControlRequest, ClientRequest, GatewayRequestsError, SensitiveServerResponse,
-    SimpleGatewayRequestsError,
+    BandwidthResponse, ClientControlRequest, ClientRequest, GatewayRequestsError, SendResponse,
+    SensitiveServerResponse, SimpleGatewayRequestsError,
 };
 use nym_gateway_storage::error::GatewayStorageError;
 use nym_gateway_storage::traits::BandwidthGatewayStorage;
-use nym_gateway_storage::traits::SharedKeyGatewayStorage;
 use nym_node_metrics::events::MetricsEvent;
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_statistics_common::{gateways::GatewaySessionEvent, types::SessionType};
 use nym_validator_client::coconut::EcashApiError;
 use rand::{random, CryptoRng, Rng};
+use std::cmp::max;
 use std::{process, time::Duration};
 use thiserror::Error;
 use tokio::io::{AsyncRead, AsyncWrite};
@@ -62,7 +64,7 @@ pub enum RequestHandlingError {
     #[error("failed to decrypt provided text request")]
     InvalidEncryptedTextRequest,
 
-    #[error("Provided binary request was malformed - {0}")]
+    #[error("Provided text request was malformed - {0}")]
     InvalidTextRequest(<ClientControlRequest as TryFrom<String>>::Error),
 
     #[error("The received request is not valid in the current context: {additional_context}")]
@@ -92,8 +94,11 @@ pub enum RequestHandlingError {
     #[error("failed to recover bandwidth value: {0}")]
     BandwidthRecoveryFailure(#[from] BandwidthError),
 
-    #[error("{0}")]
+    #[error(transparent)]
     CredentialVerification(#[from] nym_credential_verification::Error),
+
+    #[error(transparent)]
+    UpgradeModeEnable(#[from] UpgradeModeEnableError),
 }
 
 impl RequestHandlingError {
@@ -159,6 +164,10 @@ impl<R, S> Drop for AuthenticatedHandler<R, S> {
 impl<R, S> AuthenticatedHandler<R, S> {
     pub(crate) fn inner(&self) -> &FreshHandler<R, S> {
         &self.inner
+    }
+
+    fn upgrade_mode_enabled(&self) -> bool {
+        self.inner.upgrade_mode_enabled()
     }
 
     /// Upgrades `FreshHandler` into the Authenticated variant implying the client is now authenticated
@@ -271,7 +280,50 @@ impl<R, S> AuthenticatedHandler<R, S> {
             .inspect_err(|verification_failure| debug!("{verification_failure}"))?;
         trace!("available total bandwidth: {available_total}");
 
-        Ok(ServerResponse::Bandwidth { available_total })
+        Ok(ServerResponse::Bandwidth(BandwidthResponse {
+            available_total,
+            upgrade_mode: self.upgrade_mode_enabled(),
+        }))
+    }
+
+    async fn upgrade_mode_bandwidth(&self) -> i64 {
+        // if we're undergoing upgrade mode, we don't meter bandwidth,
+        // we simply return MAX of clients current bandwidth and minimum bandwidth before default
+        // client would have attempted to send new ticket
+        // the latter is to support older clients that will ignore `upgrade_mode` field in the response
+        // as they're not aware of its existence
+        let available_bandwidth = self.bandwidth_storage_manager.available_bandwidth().await;
+        max(
+            DEFAULT_MIXNET_REQUEST_BANDWIDTH_THRESHOLD + 1,
+            available_bandwidth,
+        )
+    }
+
+    /// Tries to handle the received JWT token request by checking its correctness and
+    /// internally enables upgrade mode if it hasn't been set before.
+    /// Furthermore, clients bandwidth metering is getting disabled.
+    async fn handle_upgrade_mode_jwt(
+        &self,
+        token: String,
+    ) -> Result<ServerResponse, RequestHandlingError> {
+        // if we're already in the upgrade mode, don't bother validating the token
+        if self.upgrade_mode_enabled() {
+            return Ok(ServerResponse::Bandwidth(BandwidthResponse {
+                available_total: self.upgrade_mode_bandwidth().await,
+                upgrade_mode: true,
+            }));
+        }
+
+        self.inner
+            .shared_state
+            .upgrade_mode
+            .try_enable_via_received_jwt(token)
+            .await?;
+
+        Ok(ServerResponse::Bandwidth(BandwidthResponse {
+            available_total: self.upgrade_mode_bandwidth().await,
+            upgrade_mode: true,
+        }))
     }
 
     /// Tries to handle request to forward sphinx packet into the network. The request can only succeed
@@ -289,15 +341,22 @@ impl<R, S> AuthenticatedHandler<R, S> {
     ) -> Result<ServerResponse, RequestHandlingError> {
         let required_bandwidth = mix_packet.packet().len() as i64;
 
-        let remaining_bandwidth = self
-            .bandwidth_storage_manager
-            .try_use_bandwidth(required_bandwidth)
-            .await?;
+        let upgrade_mode = self.upgrade_mode_enabled();
+
+        let remaining_bandwidth = if self.upgrade_mode_enabled() {
+            self.upgrade_mode_bandwidth().await
+        } else {
+            self.bandwidth_storage_manager
+                .try_use_bandwidth(required_bandwidth)
+                .await?
+        };
+
         self.forward_packet(mix_packet);
 
-        Ok(ServerResponse::Send {
+        Ok(ServerResponse::Send(SendResponse {
             remaining_bandwidth,
-        })
+            upgrade_mode,
+        }))
     }
 
     /// Attempts to handle a binary data frame websocket message.
@@ -350,35 +409,6 @@ impl<R, S> AuthenticatedHandler<R, S> {
         Ok(SensitiveServerResponse::RememberMeAck {}.encrypt(&self.client.shared_keys)?)
     }
 
-    async fn handle_key_upgrade(
-        &mut self,
-        hkdf_salt: Vec<u8>,
-        client_key_digest: Vec<u8>,
-    ) -> Result<ServerResponse, RequestHandlingError> {
-        if !self.client.shared_keys.is_legacy() {
-            return Ok(ServerResponse::new_error(
-                "the connection is already using an aes256-gcm-siv key",
-            ));
-        }
-        let legacy_key = self.client.shared_keys.unwrap_legacy();
-        let Some(upgraded_key) = legacy_key.upgrade_verify(&hkdf_salt, &client_key_digest) else {
-            return Ok(ServerResponse::new_error(
-                "failed to derive matching aes256-gcm-siv key",
-            ));
-        };
-
-        let updated_key = upgraded_key.into();
-        self.inner
-            .shared_state
-            .storage
-            .insert_shared_keys(self.client.address, &updated_key)
-            .await?;
-
-        // swap the in-memory key
-        self.client.shared_keys = updated_key;
-        Ok(SensitiveServerResponse::KeyUpgradeAck {}.encrypt(&self.client.shared_keys)?)
-    }
-
     async fn handle_encrypted_text_request(
         &mut self,
         ciphertext: Vec<u8>,
@@ -389,10 +419,6 @@ impl<R, S> AuthenticatedHandler<R, S> {
         };
 
         match req {
-            ClientRequest::UpgradeKey {
-                hkdf_salt,
-                derived_key_digest,
-            } => self.handle_key_upgrade(hkdf_salt, derived_key_digest).await,
             ClientRequest::ForgetMe { client, stats } => self.handle_forget_me(client, stats).await,
             ClientRequest::RememberMe { session_type } => {
                 self.handle_remember_me(session_type).await
@@ -429,8 +455,12 @@ impl<R, S> AuthenticatedHandler<R, S> {
             ClientControlRequest::EncryptedRequest { ciphertext, nonce } => {
                 self.handle_encrypted_text_request(ciphertext, nonce).await
             }
-            ClientControlRequest::EcashCredential { enc_credential, iv } => {
-                self.handle_ecash_bandwidth(enc_credential, iv).await
+            ClientControlRequest::EcashCredential {
+                enc_credential,
+                nonce,
+            } => self.handle_ecash_bandwidth(enc_credential, nonce).await,
+            ClientControlRequest::UpgradeModeJWT { token } => {
+                self.handle_upgrade_mode_jwt(token).await
             }
             ClientControlRequest::BandwidthCredential { .. } => {
                 Err(RequestHandlingError::IllegalRequest {
@@ -446,7 +476,13 @@ impl<R, S> AuthenticatedHandler<R, S> {
                 .bandwidth_storage_manager
                 .handle_claim_testnet_bandwidth()
                 .await
-                .map_err(|e| e.into()),
+                .map_err(|e| e.into())
+                .map(|available_total| {
+                    ServerResponse::Bandwidth(BandwidthResponse {
+                        available_total,
+                        upgrade_mode: self.upgrade_mode_enabled(),
+                    })
+                }),
             ClientControlRequest::SupportedProtocol { .. } => {
                 Ok(self.inner.handle_supported_protocol_request())
             }

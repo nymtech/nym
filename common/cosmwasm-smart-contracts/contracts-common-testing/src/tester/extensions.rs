@@ -2,21 +2,22 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{
-    CommonStorageKeys, ContractOpts, ContractTester, StorageWrapper, TestableNymContract,
-    TEST_DENOM,
+    CommonStorageKeys, ContractOpts, ContractTester, StorageWrapper, TEST_DENOM,
+    TestableNymContract,
 };
 use cosmwasm_std::testing::message_info;
 use cosmwasm_std::{
-    coin, coins, from_json, to_json_vec, Addr, Coin, MessageInfo, StdError, StdResult, Storage,
+    Addr, Coin, MessageInfo, StdError, StdResult, Storage, coin, coins, from_json, to_json_vec,
 };
 use cw_multi_test::Executor;
 use cw_storage_plus::{Key, Path, PrimaryKey};
-use rand::RngCore;
 use rand_chacha::ChaCha20Rng;
-use serde::de::DeserializeOwned;
 use serde::Serialize;
+use serde::de::DeserializeOwned;
 use std::any::type_name;
 use std::ops::Deref;
+
+pub use rand::prelude::*;
 
 pub trait StorageReader {
     fn common_key(&self, key: CommonStorageKeys) -> Option<&[u8]>;

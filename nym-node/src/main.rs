@@ -5,7 +5,7 @@
 #![warn(clippy::unwrap_used)]
 
 use crate::cli::Cli;
-use clap::{crate_name, crate_version, Parser};
+use clap::{Parser, crate_name, crate_version};
 use nym_bin_common::logging::maybe_print_banner;
 use nym_config::defaults::setup_env;
 

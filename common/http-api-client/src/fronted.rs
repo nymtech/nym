@@ -73,7 +73,9 @@ impl ClientBuilder {
 
         // Check if any of the supplied urls even support fronting
         if !self.urls.iter().any(|url| url.has_front()) {
-            warn!("fronting is enabled, but none of the supplied urls have configured fronting domains");
+            warn!(
+                "fronting is enabled, but none of the supplied urls have configured fronting domains"
+            );
         }
 
         self.front = Some(front);
@@ -85,7 +87,7 @@ impl ClientBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{ApiClientCore, Url, NO_PARAMS};
+    use crate::{ApiClientCore, NO_PARAMS, Url};
 
     #[tokio::test]
     async fn nym_api_works() {
@@ -117,6 +119,91 @@ mod tests {
             .expect("failed get request");
 
         // println!("{response:?}");
+        assert_eq!(response.status(), 200);
+    }
+
+    #[tokio::test]
+    async fn fallback_on_failure() {
+        let url1 = Url::new(
+            "https://fake-domain.nymtech.net",
+            Some(vec![
+                "https://fake-front-1.nymtech.net",
+                "https://fake-front-2.nymtech.net",
+            ]),
+        )
+        .unwrap();
+        let url2 = Url::new(
+            "https://validator.global.ssl.fastly.net",
+            Some(vec!["https://yelp.global.ssl.fastly.net"]),
+        )
+        .unwrap(); // fastly
+
+        let client = ClientBuilder::new_with_urls(vec![url1, url2])
+            .expect("bad url")
+            .with_fronting(FrontPolicy::Always)
+            .build()
+            .expect("failed to build client");
+
+        // Check that the initial configuration has the broken domain and front.
+        assert_eq!(
+            client.current_url().as_str(),
+            "https://fake-domain.nymtech.net/",
+        );
+        assert_eq!(
+            client.current_url().front_str(),
+            Some("fake-front-1.nymtech.net"),
+        );
+
+        let result = client
+            .send_request::<_, (), &str, &str>(
+                reqwest::Method::GET,
+                &["api", "v1", "network", "details"],
+                NO_PARAMS,
+                None,
+            )
+            .await;
+        assert!(result.is_err());
+
+        // Check that the host configuration updated the front on error.
+        assert_eq!(
+            client.current_url().as_str(),
+            "https://fake-domain.nymtech.net/",
+        );
+        assert_eq!(
+            client.current_url().front_str(),
+            Some("fake-front-2.nymtech.net"),
+        );
+
+        let result = client
+            .send_request::<_, (), &str, &str>(
+                reqwest::Method::GET,
+                &["api", "v1", "network", "details"],
+                NO_PARAMS,
+                None,
+            )
+            .await;
+        assert!(result.is_err());
+
+        // Check that the host configuration updated the domain and front on error.
+        assert_eq!(
+            client.current_url().as_str(),
+            "https://validator.global.ssl.fastly.net/",
+        );
+        assert_eq!(
+            client.current_url().front_str(),
+            Some("yelp.global.ssl.fastly.net"),
+        );
+
+        let response = client
+            .send_request::<_, (), &str, &str>(
+                reqwest::Method::GET,
+                &["api", "v1", "network", "details"],
+                NO_PARAMS,
+                None,
+            )
+            .await
+            .expect("failed get request");
+
         assert_eq!(response.status(), 200);
     }
 }

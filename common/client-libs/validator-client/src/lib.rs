@@ -12,6 +12,7 @@ pub mod rpc;
 pub mod signing;
 
 pub use crate::error::ValidatorClientError;
+#[allow(deprecated)]
 pub use crate::rpc::reqwest::ReqwestRpcClient;
 pub use crate::signing::direct_wallet::DirectSecp256k1HdWallet;
 pub use client::{Client, Config, EcashApiClient};
@@ -38,9 +39,13 @@ pub type DirectSigningHttpRpcValidatorClient = Client<HttpRpcClient, DirectSecp2
 #[cfg(feature = "http-client")]
 pub type DirectSigningHttpRpcNyxdClient = nyxd::NyxdClient<HttpRpcClient, DirectSecp256k1HdWallet>;
 
+#[allow(deprecated)]
 pub type QueryReqwestRpcValidatorClient = Client<ReqwestRpcClient>;
+#[allow(deprecated)]
 pub type QueryReqwestRpcNyxdClient = nyxd::NyxdClient<ReqwestRpcClient>;
 
+#[allow(deprecated)]
 pub type DirectSigningReqwestRpcValidatorClient = Client<ReqwestRpcClient, DirectSecp256k1HdWallet>;
+#[allow(deprecated)]
 pub type DirectSigningReqwestRpcNyxdClient =
     nyxd::NyxdClient<ReqwestRpcClient, DirectSecp256k1HdWallet>;

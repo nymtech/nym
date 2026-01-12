@@ -1,0 +1,11 @@
+---
+- name: Configure tunnel manager
+  tags:
+    - network_tunnel_manager
+  become: true
+  command:
+    cmd: "/root/nym-binaries/network-tunnel-manager.sh {{ item }}"
+  loop:
+    - complete_networking_configuration
+  register: tunnel_mgr
+  failed_when: false

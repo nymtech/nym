@@ -1,5 +1,5 @@
 use anyhow::anyhow;
-use axum::{response::Redirect, Router};
+use axum::{Router, response::Redirect};
 use nym_http_api_common::middleware::logging::log_request_info;
 use tokio::net::ToSocketAddrs;
 use tower_http::cors::CorsLayer;
@@ -24,7 +24,7 @@ impl RouterBuilder {
             )
             .route(
                 "/",
-                axum::routing::get(|| async { Redirect::permanent("/swagger") }), // SW let's redirect to a blogpost explaining the stats collection process once it exists
+                axum::routing::get(|| async { Redirect::permanent("/swagger") }),
             )
             .nest("/v1", Router::new().nest("/stats", stats::routes()));
 

@@ -12,8 +12,8 @@ use crate::db::DbConnection;
 use crate::http::models::DailyStats;
 use crate::{
     db::{
-        models::{NymNodeDto, NymNodeInsertRecord},
         DbPool,
+        models::{NymNodeDto, NymNodeInsertRecord},
     },
     node_scraper::helpers::NodeDescriptionResponse,
 };
@@ -35,7 +35,8 @@ pub(crate) async fn get_all_nym_nodes(pool: &DbPool) -> anyhow::Result<Vec<NymNo
             entry as "entry: serde_json::Value",
             performance,
             self_described as "self_described: serde_json::Value",
-            bond_info as "bond_info: serde_json::Value"
+            bond_info as "bond_info: serde_json::Value",
+            http_api_port
         FROM
             nym_nodes
         ORDER BY
@@ -72,7 +73,8 @@ pub(crate) async fn get_described_bonded_nym_nodes(
             entry as "entry: serde_json::Value",
             performance,
             self_described as "self_described: serde_json::Value",
-            bond_info as "bond_info: serde_json::Value"
+            bond_info as "bond_info: serde_json::Value",
+            http_api_port
         FROM
             nym_nodes
         WHERE
@@ -115,9 +117,9 @@ pub(crate) async fn update_nym_nodes(
                     supported_roles, entry,
                     self_described,
                     bond_info,
-                    performance, last_updated_utc
+                    performance, last_updated_utc, http_api_port
                 )
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
                 ON CONFLICT(node_id) DO UPDATE SET
                 ed25519_identity_pubkey=excluded.ed25519_identity_pubkey,
                 ip_addresses=excluded.ip_addresses,
@@ -129,7 +131,8 @@ pub(crate) async fn update_nym_nodes(
                 self_described=excluded.self_described,
                 bond_info=excluded.bond_info,
                 performance=excluded.performance,
-                last_updated_utc=excluded.last_updated_utc
+                last_updated_utc=excluded.last_updated_utc,
+                http_api_port=excluded.http_api_port
                 ;",
             record.node_id,
             record.ed25519_identity_pubkey,
@@ -144,6 +147,7 @@ pub(crate) async fn update_nym_nodes(
             record.bond_info,
             record.performance,
             record.last_updated_utc as i32,
+            record.http_api_port,
         )
         .execute(&mut *tx)
         .await

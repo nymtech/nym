@@ -21,7 +21,7 @@ yarn
 yarn build:ci:sdk
 
 # build documentation
-yarn docs:prod:build
+#yarn docs:prod:build
 
 # turn dev mode off
 yarn dev:off

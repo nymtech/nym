@@ -6,7 +6,9 @@ use crate::dealers::queries::{
     query_epoch_dealers_addresses_paged, query_epoch_dealers_paged,
     query_registered_dealer_details,
 };
-use crate::dealers::transactions::try_add_dealer;
+use crate::dealers::transactions::{
+    try_add_dealer, try_transfer_ownership, try_update_announce_address,
+};
 use crate::dealings::queries::{
     query_dealer_dealings_status, query_dealing_chunk, query_dealing_chunk_status,
     query_dealing_metadata, query_dealing_status,
@@ -21,7 +23,6 @@ use crate::epoch_state::transactions::{
     try_advance_epoch_state, try_initiate_dkg, try_trigger_reset, try_trigger_resharing,
 };
 use crate::error::ContractError;
-use crate::queued_migrations::introduce_historical_epochs;
 use crate::state::queries::query_state;
 use crate::state::storage::{DKG_ADMIN, MULTISIG, STATE};
 use crate::verification_key_shares::queries::{query_vk_share, query_vk_shares_paged};
@@ -127,6 +128,12 @@ pub fn execute(
         ExecuteMsg::AdvanceEpochState {} => try_advance_epoch_state(deps, env),
         ExecuteMsg::TriggerReset {} => try_trigger_reset(deps, env, info),
         ExecuteMsg::TriggerResharing {} => try_trigger_resharing(deps, env, info),
+        ExecuteMsg::TransferOwnership { transfer_to } => {
+            try_transfer_ownership(deps, env, info, transfer_to)
+        }
+        ExecuteMsg::UpdateAnnounceAddress { new_address } => {
+            try_update_announce_address(deps, info, new_address)
+        }
     }
 }
 
@@ -248,11 +255,9 @@ pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, C
 }
 
 #[entry_point]
-pub fn migrate(deps: DepsMut<'_>, env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+pub fn migrate(deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
     set_build_information!(deps.storage)?;
     cw2::ensure_from_older_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
-
-    introduce_historical_epochs(deps, env)?;
 
     Ok(Response::new())
 }

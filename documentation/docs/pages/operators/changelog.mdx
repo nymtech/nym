@@ -7,6 +7,7 @@ import { AccordionTemplate } from 'components/accordion-template.tsx';
 import { Steps } from 'nextra/components';
 import AbuseResponse from 'components/operators/templates/dmca_response.md';
 import OperatorIntroduction from 'components/operators/templates/provider_introduction.md';
+import QuicDeploymentSteps from 'components/operators/snippets/quic-bridge-deployment-script-setup.mdx';
 
 
 export const TestingSteps = () => (
@@ -48,6 +49,776 @@ This page displays a full list of all the changes during our release cycle from 
 
 <VarInfo />
 
+## Last Update of 2025
+
+We are not going to do a platform release this year anymore, but we have two important updates to share.
+
+### Governance decisions
+
+During December operators were active in voting about new ports and changes in the quorum. 
+
+**As agreed in [NIP-4](https://forum.nym.com/t/nip-4-nym-exit-policy-update-opening-port-587/2029/2) and [NIP-6](https://forum.nym.com/t/nip-6-nym-exit-policy-update-opening-ports-for-whatsapp-and-session/2042/1), we are opening these ports on [Nym exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt):**
+```ini
+*:587 (SMTPSubmission)
+*:22021(Session)
+*:3478 (WhatsApp)
+*:3480 (WhatsApp)
+*:3484 (WhatsApp)
+```
+
+**Node operators requirements**
+
+In order for these changes to become active, Nym node operators need to update their WireGuard and Mixnet exit policy, by following these simple steps:
+
+<Steps>
+
+###### 1. Update WireGuard exit policy
+
+- WireGuard exit policy is managed by `iptables rules` of each server hosting a `nym-node`
+- To simplify the flow, [`network-tunnel-manager.sh` (NTM)](https://github.com/nymtech/nym/blob/develop/scripts/nym-node-setup/network-tunnel-manager.sh) takes care of this
+- Please get the new NTM by SSH to your node and running:
+```sh
+curl -L https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/network-tunnel-manager.sh -o network-tunnel-manager.sh && \
+chmod +x network-tunnel-manager.sh && \
+./network-tunnel-manager.sh --help
+```
+- Then run either:
+```sh
+./network-tunnel-manager.sh complete_networking_configuration
+```
+- Or in case that you are sure that you did `complete_networking_configuration` since the latest release, you can just run the commands needed for the exit policy:
+```sh
+./network-tunnel-manager.sh exit_policy_clear
+./network-tunnel-manager.sh exit_policy_install
+./network-tunnel-manager.sh exit_policy_status
+./network-tunnel-manager.sh exit_policy_tests
+```
+
+
+###### 2. Update Mixnet exit policy
+
+- Mixnet exit policy is being pulled with `nym-node run` command from this source: [nymtech.net/.wellknown/network-requester/exit-policy.txt](https://nymtech.net/.wellknown/network-requester/exit-policy.txt)
+- All you need to do is to restart your node:
+```sh
+service nym-node restart 
+```
+</Steps>
+
+
+### Orchestration with Ansible
+
+Finally we release our initial version **[Ansible playbooks](/operators/orchestration) for orchestrating multiple Nym nodes** from local shell. For now we have playbooks to perform these tasks:
+
+- Deploy
+- Upgrade
+- Bond
+
+Checkout the [docs](/operators/orchestration/ansible) and the [Ansible template](https://github.com/nymtech/nym/tree/develop/ansible/nym-node) and let us know how this flag ship worked for you. 
+
+## `v2025.21-mozzarella`
+
+- [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.21-mozzarella)
+- [`nym-node`](nodes/nym-node.mdx) version `1.22.0`
+
+```sh
+nym-node
+Binary Name:        nym-node
+Build Timestamp:    2025-11-25T14:26:29.627763948Z
+Build Version:      1.22.0
+Commit SHA:         22793bc45ea21561671d6670497ff42bc36b9d76
+Commit Date:        2025-11-25T15:16:42.000000000+01:00
+Commit Branch:      HEAD
+rustc Version:      1.88.0
+rustc Channel:      stable
+cargo Profile:      release
+```
+
+### Operators Updates & Tools
+
+<Callout type="info" emoji="ℹ️">
+**We are introducing new `network-tunnel-manager.sh` (NTM), with improved server configuration (see all changes here: [\#6186](https://github.com/nymtech/nym/pull/6186/)). We ask operators to re-run their routing configuration using the new NTM, following [these steps](/operators/nodes/nym-node/configuration#routing-configuration).**
+
+**NOTE THAT THIS IS A NEW TOOL HANDLING VARIOUS COMPLEX SERVER SETTINGS, PLEASE RUN IT ON A FEW NODES AT A TIME, DO THE TESTING, MONITOR YOUR NODES AND [REPORT ANY ISSUES](https://matrix.to/#/#operators:nymtech.chat).**
+
+We will keep `nym-node v1.21.1` as the latest version on API side for another 3 days to not penalize operators taking time for a proper implementation. 
+</ Callout>
+
+We are proud to announce that there are several improvements on tools aiming to make node operators life easier. Please let us know how do these programs work for you. 
+
+- [**New Nym Node CLI version**](/operators/tools#nym-node-cli): This version introduces arguments, allowing the operator to pass all needed variables (ie. hostname, mode etcetra) and let the program setup everything required for `nym-node` installation, server configuration, nginx, routing, tunnels and bridges, without further prompts for these values. This version also installs [QUIC bridge](/operators/nodes/nym-node/configuration#quic-transport-bridge-deployment).
+
+- [**New Network Tunnel Manager**](/operators/nodes/nym-node/configuration#routing-configuration): NTM went through an big overhaul ([\#6186](https://github.com/nymtech/nym/pull/6186/)) - this new version combines old NTM with WG scripts. If run with `complete_networking_configuration` the tool does entire routing configuration, creates interfaces, and configures WireGuard exit policy. 
+
+- [**Updated QUIC Deployment Tool**](/operators/nodes/nym-node/configuration#quic-transport-bridge-deployment): The program is lighter, stripped of redundant functions reworking iptables rules. 
+
+### Features
+
+- [HTTP API resilience enable & domain rotation conditions](https://github.com/nymtech/nym/pull/6200): Changes to make sure fallback domains are updated / enabled only for relevant
+
+- [Typescript SDK 1.4.1](https://github.com/nymtech/nym/pull/6146): This PR is a new release of the Typescript SDK, `mixFetch` and `WASM` client. It also removes the Harbour Master client from `mixFetch`, replacing it with the Nym API's described endpoint for nym-nodes.  
+
+- [Enable URL rotation and retries for mixnet gateway init](https://github.com/nymtech/nym/pull/6126): 
+  - Multiple URL fallback with configurable retries (defaults to 3)
+  - Infallible URL conversion per feedback (`Url::from()` instead of `parse().ok()`)
+  - Non-breaking builder pattern for `BuilderConfig` per feedback
+  - Reverted redundant node filtering per clarification that API already filters by `supported_roles.entry`
+
+- [Credential proxy jwt](https://github.com/nymtech/nym/pull/5957): This PR is part of the 'Upgrade Mode' that should allow usage of the network in a situation where ecash credentials are unissuable, because, for example, we have lost signing quorum (i.e. we have fewer than the required number of threshold signers responding to requests). This version is more naive. Instead requesting actual 'emergency credentials' that would have been issued by a subset of ecash signers, the credentials proxy creates a JWT, signed with its key, attesting the upgrade mode has been enabled.
+ 
+### Bugfix
+
+- [Tunnel not waiting on `MixnetClient` to shut down cleanly](https://github.com/nymtech/nym/pull/6225): When there is a wireguard registration error, the mixnet client is signalled to shut down, but the tunnel doesn't wait. Now on errors, the registration client doesn't return until everything is properly stopped
+
+- [Fix credential proxy upgrade mode attestation url arg](https://github.com/nymtech/nym/pull/6202): This includes bringing over changes introduced in [\#6174](https://github.com/nymtech/nym/pull/6174)
+
+- [Remove debug feature from `http-macro` spec in gateway probe](https://github.com/nymtech/nym/pull/6195)
+
+- [DNS reliability and troubleshooting ](https://github.com/nymtech/nym/pull/6179)
+
+- [Distinguish authenticator errors by credential spent](https://github.com/nymtech/nym/pull/6176): This PR introduces a distinction between authenticator client errors that are happening before a credential was taken out of storage, and after
+
+- [Disconnect mixnet client if registration fails](https://github.com/nymtech/nym/pull/6158): Currently the registration client does its job and then handles everything to the `vpn-client`, who then takes care on the mixnet client. However, if the registration fails, nothing is disconnecting the mixnet client, which can lead to errors of the kind of `There is already an open connection to this client`. This PR addresses that
+
+
+## `v2025.20-leerdammer`
+
+- [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.20-leerdammer)
+- [`nym-node`](nodes/nym-node.mdx) version `1.21.0`
+
+```sh
+nym-node
+Binary Name:        nym-node
+Build Timestamp:    2025-11-12T08:19:33.288341371Z
+Build Version:      1.21.0
+Commit SHA:         babf113fe5d396fa8a84fa939ad4b1b5b4d38b83
+Commit Date:        2025-11-12T08:39:48.000000000+01:00
+Commit Branch:      HEAD
+rustc Version:      1.88.0
+rustc Channel:      stable
+cargo Profile:      release
+```
+
+### Operators Updates & Tools
+
+- [New **Performance Measurement** page](/operators/performance-and-testing) explaining the logic behind node selection for NymVPN application
+
+- [New **Gateway Probe Details** page](/operators/performance-and-testing/gateway-probe-details) explaining complexity and contradictions when measuring network performance
+
+### Developer Tools
+
+- [Typescript SDK 1.4.1](https://github.com/nymtech/nym/pull/6146): This PR is a new release of the Typescript SDK, `mixFetch` and `WASM` client. It also removes the Harbour Master client from `mixFetch`, replacing it with the Nym API's described endpoint for nym-nodes
+
+- [Overhauled **developer integrations** pages](/developers/integrations) explaining the different restrictions for the different SDK options on offer
+
+- [Fixed `mixFetch` and `WASM Client` playground + examples](/developers/typescript/start): new versions of the Typescript SDK and `mixFetch` have been published, examples and live playground have been updated accordingly
+
+
+### Features
+
+- [Tweak ts sdk actions](https://github.com/nymtech/nym/pull/6185): Using `taskset` to limit the number of of CPUs used by `wasm-pack` and `wasm-opt` commands used by ts linting CI
+
+- [Configurable mixnet client startup timeout](https://github.com/nymtech/nym/pull/6148)
+
+- [QUIC bridge deployment script v2](https://github.com/nymtech/nym/pull/6145): Script helping operators to install, configure and deploy QUIC bridge as systemd service
+
+- [Expose more explicit `new_with_fronted_urls` builder for http API client](https://github.com/nymtech/nym/pull/6136)
+
+- [Domain fronting](https://github.com/nymtech/nym/pull/6134): Enable URL rotation and retries for mixnet gateway [`init`](https://github.com/nymtech/nym/pull/6126) 
+
+
+### Bugfix
+
+- [Add circuit breaker](https://github.com/nymtech/nym/pull/6143): When the mixnet client's `mix_tx` channel closes during network drops, `OutQueueControl` would retry sending packets through the closed channel, flooding logs and hanging the daemon. This affects all clients (VPN, SOCKS5, native clients), not just VPN .. (Read more in the [PR description](https://github.com/nymtech/nym/pull/6143))
+
+- [Update internal owner address in transferred share](https://github.com/nymtech/nym/pull/6139)
+
+- [Update quic_bridge_deployment.sh for IPv4 and .deb package](https://github.com/nymtech/nym/pull/6138): Updated ping commands to explicitly use IPv4 and adjusted file permission checks with sudo. Changed the forward address prompt to specify IPv4 and modified the binary download process to fetch and install the latest `.deb` release URL automatically
+
+- [Update stored epoch share when changing ownership](https://github.com/nymtech/nym/pull/6135)
+
+- [Update stored epoch share when changing announce address](https://github.com/nymtech/nym/pull/6131)
+
+### Refactors & Maintenance
+
+- [Re-merge: disconnect mixnet client if registration fails](https://github.com/nymtech/nym/pull/6169) ([\#6158](https://github.com/nymtech/nym/pull/6158))
+
+- [Resolve `clippy 1.91` warnings](https://github.com/nymtech/nym/pull/6168)
+
+- [Remove unused dependencies](https://github.com/nymtech/nym/pull/6151): Removing the crates that only shows up on the workspace `Cargo.toml`
+
+- [Use typed-builder for registration client builder config](https://github.com/nymtech/nym/pull/6150)
+
+- [tommy is too quick](https://github.com/nymtech/nym/pull/6149)
+
+## `v2025.19-kase`
+
+- [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.19-kase)
+- [`nym-node`](nodes/nym-node.mdx) version `1.20.0`
+
+```sh
+nym-node
+Binary Name:        nym-node
+Build Timestamp:    2025-10-30T12:43:37.933354749Z
+Build Version:      1.20.0
+Commit SHA:         75a6d3426bd18dca600ad1cfa39b0a3c4f319c69
+Commit Date:        2025-10-30T11:59:32.000000000+01:00
+Commit Branch:      HEAD
+rustc Version:      1.88.0
+rustc Channel:      stable
+cargo Profile:      release
+```
+
+### Operators Updates & Tools
+
+<Callout type="info" emoji="ℹ️">
+**When this platform release becomes latest, we would like to ask operators ruuning any Gateway mode of `nym-node`, to use new version of [QUIC brige deployment tool](https://github.com/nymtech/nym/blob/develop/scripts/nym-node-setup/quic_bridge_deployment.sh) and install QUIC `nym-bridge` on their server, following [these steps](#quic-transport-bridge-deployment).**
+</Callout>
+
+Alongside this platform release we are happy to introduce several improvements and new tools for node operators.
+
+- [Updated version of QUIC brige deployment tool](https://github.com/nymtech/nym/blob/develop/scripts/nym-node-setup/quic_bridge_deployment.sh), **if you run a `nym-node` in any Gateway mode, please install QUIC on your server, following [these steps](#quic-transport-bridge-deployment)**
+
+- [New **Nym Node Status Dashboard**](https://node-status.nym.com)
+
+- [New **Harbourmaster** aka ***Nym Node Status Observatory***](https://harbourmaster.nymtech.net)
+
+
+
+### Features
+
+- [Propagate cancel token to mixnet client](https://github.com/nymtech/nym/pull/6105): Ensures cancellation token propagation to mixnet client
+
+- [[DOCs/operators] QUIC deployment script & docs](https://github.com/nymtech/nym/pull/6098): Script and documentation for QUIC deployment, referencing `nym-bridges` repository  
+
+- [Move gateway probe to monorepo (Rust edition 2024)](https://github.com/nymtech/nym/pull/6094): Moves `nym-gateway-probe` and related packages into monorepo, updates to Rust 2024 edition
+
+- [Expose reference to Mnemonic from `DirectSecp256k1HdWallet`](https://github.com/nymtech/nym/pull/6083): Adds safer accessors for mnemonic references and deprecates unsafe cloning
+
+### Bugfix
+
+- [Cherry pick - request #6143 from nymtech/bugfix/mix-tx-closed-v2](https://github.com/nymtech/nym/pull/6153): Add circuit breaker  
+<AccordionTemplate name={<TestingSteps/>}>
+ **Summary:**
+- Network-requester started successfully  
+- SOCKS5 client started successfully  
+- Traffic was proxied through the mixnet  
+- Shutdown was clean  
+- No 'channel closed (outside of shutdown!)' errors  
+</AccordionTemplate>
+
+- [`nym-credential-proxy` query params parsing regression](https://github.com/nymtech/nym/pull/6121): Fix query deserialization issue with `serde_urlencoded` breaking compatibility with VPN API
+
+- [Revert some dep updates introduced in #6043](https://github.com/nymtech/nym/pull/6120): Revert dependency updates that broke ANSI escape characters within tracing output
+
+- [Skip IPv6 metadata endpoint request](https://github.com/nymtech/nym/pull/6118): Skip querying IPv4-only metadata endpoints during IPv6 probing tests
+
+- [Revert "Propagate cancel token to mixnet client"](https://github.com/nymtech/nym/pull/6115): Reverts earlier change due to premature mixnet exit issues
+
+- [Retrieve and update ticketbook in the same query](https://github.com/nymtech/nym/pull/6101): Fix concurrency issue with multiple agents retrieving ticketbooks simultaneously
+
+- [Include network name in default gateway probe config path](https://github.com/nymtech/nym/pull/6100): Prevents reuse of credentials across different networks
+
+- [Incompatibility fixes](https://github.com/nymtech/nym/pull/6099): Fixes several incompatibilities, including initialization and build mismatches
+
+- [Testnet manager `02sql` migration](https://github.com/nymtech/nym/pull/6096): Fix invalid FK constraint blocking SQL migration
+
+- [Use custom topology provider for list of init gateways](https://github.com/nymtech/nym/pull/6092): Fixes SDK bug where clients ignored custom topology provider on registration
+
+- [Fix `WASM` client + build commands](https://github.com/nymtech/nym/pull/6043): Fixes WASM client hang and runtime time-related issues; improves internal dev testing stability
+
+### Refactors & Maintenance
+
+- [Update to no longer use 1mb files](https://github.com/nymtech/nym/pull/6117)
+
+- [Restore pending DKG contract state migration](https://github.com/nymtech/nym/pull/6116)
+
+- [Update `dirs` to `6.0`](https://github.com/nymtech/nym/pull/6109): Minor dependency update, safe for compatibility
+
+## `v2025.18-jarlsberg`
+
+- [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.18-jarlsberg)
+- [`nym-node`](nodes/nym-node.mdx) version `1.19.0`
+
+```sh
+nym-node
+Binary Name:        nym-node
+Build Timestamp:    2025-10-15T09:04:32.043934599Z
+Build Version:      1.19.0
+Commit SHA:         2235a6e1477bea7368ee5443a298f544deb63504
+Commit Date:        2025-10-15T10:22:16.000000000+02:00
+Commit Branch:      master
+rustc Version:      1.92.0-nightly
+rustc Channel:      nightly
+cargo Profile:      release
+```
+
+### API Changes
+There have been a few updates to the Node Status API (used by the NymVPN API) to do with Nodes' metadata endpoints, which are used to determine if they are running a QUIC bridge.
+
+- [Node Status API: add bridge information to dVPN endpoint](https://github.com/nymtech/nym/pull/6069)
+Scrape the `/api/v1/bridges/client-params` endpoint from nodes to get bridge information and add to the dVPN output:
+
+ ```
+ {
+ 	"identity_key": "3wqfp9ebaajgV8HRKYHeZuZCNXgitnW8BbytxyBH65xZ",
+ 	"name": "middle winner wing",
+ 	"authenticator": {
+ 		"address": "6CQMtm9DqUj7mPVkSD9YarjUuPh7mJaZQnnHWxNpgByh.AGXiTivVieBULeDhL9tuyMKgRydoT67sFCjeoERDN84k@3wqfp9ebaajgV8HRKYHeZuZCNXgitnW8BbytxyBH65xZ"
+ 	},
+ 	"ip_packet_router": {
+ 		"address": "GA47h8294m7f6ciyFuDkjk3mmqrvALqboL2o22jkqFhi.22SdTGBWKFrrBM31hMgzjmgduSH1nosnbE9dgNcY2CXz@3wqfp9ebaajgV8HRKYHeZuZCNXgitnW8BbytxyBH65xZ"
+ 	},
+ 	"location": {
+ 		"two_letter_iso_country_code": "GB",
+ 		"latitude": 51.5085,
+ 		"longitude": -0.1257
+ 	},
+ 	"last_probe": {
+ 		"last_updated_utc": "2025-09-02T18:19:10Z",
+ 		"outcome": {
+ 		"as_entry": {
+ 			"can_connect": true,
+ 			"can_route": true
+ 		},
+ 		"as_exit": {
+ 			"can_connect": true,
+ 			"can_route_ip_external_v4": true,
+ 			"can_route_ip_external_v6": true,
+ 			"can_route_ip_v4": true,
+ 			"can_route_ip_v6": true
+ 		},
+ 		"wg": {
+ 			"can_handshake_v4": true,
+ 			"can_handshake_v6": true,
+ 			"can_register": true,
+ 			"can_resolve_dns_v4": true,
+ 			"can_resolve_dns_v6": true,
+ 			"download_duration_sec_v4": 0,
+ 			"download_duration_sec_v6": 5,
+ 			"download_error_v4": "",
+ 			"download_error_v6": "",
+ 			"downloaded_file_v4": "https://proof.ovh.net/files/1Mb.dat",
+ 			"downloaded_file_v6": "https://proof.ovh.net/files/10Mb.dat",
+ 			"ping_hosts_performance_v4": 1,
+ 			"ping_hosts_performance_v6": 1,
+ 			"ping_ips_performance_v4": 1,
+ 			"ping_ips_performance_v6": 0.6666667,
+ 			"can_handshake": true,
+ 			"can_resolve_dns": true,
+ 			"ping_hosts_performance": 1,
+ 			"ping_ips_performance": 1
+ 		}
+ 		}
+ 	},
+ 	"ip_addresses": [
+ 		"178.79.168.250",
+ 		"2a01:7e00::f03c:95ff:fef8:77f"
+ 	],
+ 	"mix_port": 1789,
+ 	"role": "EntryGateway",
+ 	"entry": {
+ 		"hostname": "nym-circ.anonym.tech",
+ 		"ws_port": 9000,
+ 		"wss_port": 9443
+ 	},
+ + 	"bridges":{
+ + 		"version": 0,
+ + 		"transports": [
+ + 			{
+ + 				"transport_type": "quic_plain",
+ + 				"args": {
+ + 					"addresses":  ["[2a01:7e00::f03c:95ff:fef8:77f]:4443", "178.79.168.250:4443"],
+ + 					"id_pubkey": "gyKl6DN9hgdPGhEzdf9gY4Ha2GzrOwSzLCguxeTVTJU=",
+ + 					"host": "netdna.bootstrapcdn.com"
+ + 				}
+ + 			}
+ + 		]
+ + 	}
+ 	"performance": "1",
+ 	"build_information": {
+ 		"build_version": "1.16.0",
+ 		"commit_branch": "build",
+ 		"commit_sha": "7f97f13799342f864e1b106e8cafc9f6d6c24c0f"
+ 	}
+ }
+ ```
+
+- [ns-api: add new fields for probe output for query_metadata and download file size and duration in ms](https://github.com/nymtech/nym/pull/6091)
+
+This PR adds new fields to the Node Status API:
+
+ ```json
+ {
+   "node": "ByxGq9hpDQu6Wc8augEh22w7CRWJHPNfDshB1b8nfWkh",
+   "used_entry": "ByxGq9hpDQu6Wc8augEh22w7CRWJHPNfDshB1b8nfWkh",
+   "outcome": {
+     "as_entry": {
+       "can_connect": true,
+       "can_route": true
+     },
+     "as_exit": {
+       "can_connect": true,
+       "can_route_ip_v4": true,
+       "can_route_ip_external_v4": true,
+       "can_route_ip_v6": true,
+       "can_route_ip_external_v6": true
+     },
+     "wg": {
+       "can_register": true,
+       "can_query_metadata_v4": true, // <--------------------------------
+       "can_handshake_v4": true,
+       "can_resolve_dns_v4": true,
+       "ping_hosts_performance_v4": 1.0,
+       "ping_ips_performance_v4": 1.0,
+       "can_handshake_v6": true,
+       "can_resolve_dns_v6": true,
+       "ping_hosts_performance_v6": 1.0,
+       "ping_ips_performance_v6": 0.93333334,
+       "download_duration_sec_v4": 2,
+       "download_duration_milliseconds_v4": 2034, // <--------------------------------
+       "downloaded_file_size_bytes_v4": 1048576, // <--------------------------------
+       "downloaded_file_v4": "https://nym-bandwidth-monitoring.ops-d86.workers.dev/1mb.dat",
+       "download_error_v4": "",
+       "download_duration_sec_v6": 5,
+       "downloaded_file_size_bytes_v6": 1048576,
+       "download_duration_milliseconds_v6": 5501,
+       "downloaded_file_v6": "https://proof.ovh.net/files/1Mb.dat",
+       "download_error_v6": ""
+     }
+   }
+ }
+ ```
+
+- [ns-api: add descriptions to dVPN gateway responses](https://github.com/nymtech/nym/pull/6102)
+This PR adds the `description` field to dVPN gateways in `/dvpn/v1/directory/gateways`.
+
+- [NS API: use new probe download filesize and milliseconds field](https://github.com/nymtech/nym/pull/6097)
+This PR uses the new fields in mainnet to calculate the probe download score.
+
+- [ns-api: use download files size from probes instead of parsing filenames](https://github.com/nymtech/nym/pull/6095) This PR uses the new field in the probe results that says how many bytes were downloaded to calculate the speed of download. It only uses downloads on ipv4 and ignores ipv6 for now. This might change in the future.
+
+- [Node Status API: remove sqlite support](https://github.com/nymtech/nym/pull/6004)
+This PR removes sqlite support, requiring pgsql to run the NS API.
+
+ It also fixes the following issues:
+
+ - deserialisation of `NodeDescription`
+ - defaults for `WireguardDetails` for deserialisation
+
+ It also bumps the version to v4.0.0.
+
+### Operators Updates & Tools
+
+- [Node rewards tracker](https://github.com/nymtech/nym/pull/6064)
+This PR introduces a script fetching operators rewards based on provided Nyx account addresses provided in `data/wallet-addresses.csv`.
+
+<AccordionTemplate name="Info">
+ **Output is:**
+     1. Printed table in terminal
+     3. Sheet with complete info stored in `data/node-balances.csv`
+     4. Historical data yaml file stored in `data/data.yaml` - this file should not be changed manually, as
+     all values older than 30 days get auto-removed
+
+ **RUN**
+
+ Before you start fill first column of `data/wallet-addresses.csv` called `addresses` with your Nyx account addresses and (optionally) second column called `tag` with an entity, for example *"mysquad"* and *"personal"* to get sorted output per entity.
+
+ - Csv example with `tag`s:
+ ```
+ n1foofoofoo, personal
+ n1barbarbar, personal
+ n1bazbazbaz, mysquad
+ n1lollollol, mysquad
+ ```
+ - For operators having all nodes under one entity, the tag field will be left empty. Example:
+ ```csv
+ n1foofoofoo
+ n1barbarbar
+ n1bazbazbaz
+ ```
+
+Documentation coming soon.
+</AccordionTemplate>
+
+- [Bugfix/bloomfilters purge](https://github.com/nymtech/nym/pull/6089)
+This PR fixes bug where old replay protection bloomfilters were never getting removed.
+
+
+### Features
+- [Get wireguard keypair as arg instead of reading it from disk](https://github.com/nymtech/nym/pull/6078)
+
+- [Registration Client](https://github.com/nymtech/nym/pull/6059)
+ This PR introduces the `RegistrationClient` whose eventual job will be to handle registration with gateway and bandwidth control. This is step 1, where it only handles registration and then hands back the control channel to the vpn-client.
+
+<AccordionTemplate name="Info">
+
+ **nym-wg-gateway-client**
+ This crate has been smooshed with the nym-authenticator-client as they were doing the same thing : talking with the Authenticator.
+
+ **nym-authenticator-client**
+ The job of the `AuthenticatorClient` is to talk to the `Authenticator`s via the mixnet. They both make use of a `AuthClientMixnetListener` that handles interaction with the mixnet client. No more `SharedMixnetClient`, only clear owners. That component could be turned into an actual multiplexer, but that's out of scope.
+
+ It is designed to be able to shut down, since it won't be necessary for bandwidth top up in the future.
+
+ Lots of types and traits were copied in both repos, some of them are sadly still there. Further work could be done to improve messaging ( `ClientMessage` and `AuthenticatorRequests` for example)
+
+ **nym-ip-packet-client**
+ This crate has minor changes, focused on getting rid of the `SharedMixnetClient`. It still talks to the `IpPacketRouter` but it owns the `MixnetClient`
+
+ **Nym-registration-client**
+ Brand new crates, whose current job is to run a `MixnetClient` with the given options,  register with the component related to the tunnel type, and hand back the necessary component for running the tunnel.
+
+ **authenticator-requests**
+ Mostly refactoring, lots of code was duplicated in the vpn-client repo
+
+ **misc**
+ The rest are qol changes that might not be needed right away but that is preparing the future improvements coming soon™
+ </AccordionTemplate>
+
+- [Feature: Ping probe all nodes /described nodes from a server](https://github.com/nymtech/nym/pull/6074)
+This script should be ran from a node hosting server. It pings all IPs listed in /described endpoint and returns a file with unreachable IPs. Such list gives operator an idea on IPs potentially blocking their IP.
+
+- [Feature: Nym node html landing page](https://github.com/nymtech/nym/pull/6053)
+This PR introduces a new landing page which contains:
+  - no more deprecated tornul
+  - new nym theme
+  - bold text about DMCA
+  - hook for nym-node-cli to use it and add $EMAIL prompted to the operator
+
+- [feat: DKG contract method for updating announce address](https://github.com/nymtech/nym/pull/6050)
+
+- [feat: NS ticket faucet](https://github.com/nymtech/nym/pull/6047)
+Overview: modifies the Node Status API so that it keeps a buffer of tickets inside its storage that it gives out when new test runs get requested. it also slightly adjusts the ticketbook API in a bit hacky way to allow importing ticketbooks with specific index ranges. However, those changes also involve modifying cli arguments passed to both NS API and gateway probes. The associated vpn-client repo branch is `feature/ticket-faucet-probe` which for the same reason is not yet ready
+
+<AccordionTemplate name="Info">
+**Node Status API**
+**Added**
+ - `--config-env-file` / `-c` (optional) - helper allowing testing locally on non-mainnet networks without passing everything through env variables
+ - `--mnemonic` (env: `NYM_NODE_STATUS_API_MNEMONIC`) - account used for obtaining ticketbooks
+ - `--max-concurrent-deposits` (env: `NYM_NODE_STATUS_API_MAX_CONCURRENT_DEPOSITS`) (optional; default: 5) - Specifies the maximum number of deposits the node status api can make in a single transaction. Note that each deposit batch is followed by the same number of sequential signing requests
+ - `--tickets-buffer-size` (env: `NYM_NODE_STATUS_API_TICKETS_BUFFER`) (optional; default: 50) - Specifies the size of the tickets buffer the node status api should have available at any time for each ticket type.
+ - `--tickets-buffer-check-interval` (env: `NYM_NODE_STATUS_API_TICKETS_CHECK_INTERVAL`) (optional; default: 1min) - Specifies interval at which the node status api should check if it has sufficient number of tickets buffered
+ - `--quorum-check-interval` (env: `NYM_NODE_STATUS_API_QUORUM_CHECK_INTERVAL`) (optional; default: 5min) - Specifies interval at which the node status api should check if signing quorum is available
+ - `--buffered-ticket-types` (env: `NYM_NODE_STATUS_BUFFERED_TICKET_TYPES`) (optional; default: `[V1MixnetEntry, V1WireguardEntry, V1WireguardExit]`) - Specifies types of tickets to buffer
+ - `--ecash-client-identifier-bs58` (env: `NYM_NODE_STATUS_API_ECASH_CLIENT_IDENTIFIER_BS58`) - Identifier used for deriving keys embedded in the issued ticketbooks (i.e. seed for the client identity). It can be a random string, but make sure it has sufficient entropy. it has to be base58 encoded.
+
+**Node Status Agent**
+**Removed**
+ - `--mnemonic` - no longer needed as tickets are obtained throught the faucet
+
+**Gateway Probe (vpn-client repo)**
+**Added**
+ - `--ticket-materials` - all the encoded generated tickets (and global data) needed by the probe
+ - `--ticket-materials-revision` - revision of the serialisation to help with decoding (not strictly needed, but it was already available)
+**Removed**
+ - `--mnemonic` - no longer needed as tickets are obtained throught the faucet
+</AccordionTemplate>
+
+- [Bridge proto client params in Self-Described](https://github.com/nymtech/nym/pull/6035)
+This PR gives the nym-node a way to expose information about the bridge protocols that the node supports, and the parameters that are necessary to connect using those protocols.
+
+<AccordionTemplate name="Info">
+ This is meant to be usable by the node status API to be be included into node descriptors that are compiled for the vpn client.
+
+ - Adds a new field to the nym-node config `gateway_tasks.storage_paths.bridge_client_params`
+   - IF the new config field is present a new self-described endpoint is available at `/v1/bridges/client-params`
+   - IF the new config field is NOT present the endpoint is not exposed.
+
+ I arbitrarily chose config v8 as the oldest nym-node configuration version that supports the option. This can probably be propogated further backwards if necessary.
+
+ NOTE: The new `/bridges/client-params` endpoint does not have swagger / utopia docs associated. This interface will likely change in several upcoming iterations and serving from file (for now) means that the types are not defined internally.
+
+ tested as working on node `3wqfp9eb` both when file is provided in config (sucessful response) and when file is not specified in config (path gives 404).
+
+ </AccordionTemplate>
+
+### Refactors & Maintenance
+- [[chore] Clippy fix](https://github.com/nymtech/nym/pull/6060)
+
+- [Bugfix: Nym node CLI download nym-node exception](https://github.com/nymtech/nym/pull/6058)
+This PR fixes a case when the "Latest" platform release doesn't include `nym-node` by prompting user to insert binary URL instead of failing. Additionally it fixes fetching new landing page script in the CLI.
+
+- [Benny/ci contract fix](https://github.com/nymtech/nym/pull/5962)
+
+- [frontdoor typo fix](https://github.com/nymtech/nym/pull/6067)
+
+- [Hotfix: Update API source in node ping tester script](https://github.com/nymtech/nym/pull/6082)
+This PR fixes initial development bug where a wrong API endpoint was used.
+ `https://validator.nymtech.net/api/v1/nym-nodes/described` gets all nym nodes, not just gateways.
+ Code is simplified accordingly.
+
+## QUIC Transport Bridge Deployment
+
+<QuicDeploymentSteps />
+
+## `v2025.17-isabirra`
+
+- [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.17-isabirra)
+- [`nym-node`](nodes/nym-node.mdx) version `1.18.0`
+
+```sh
+nym-node
+Binary Name:        nym-node
+Build Timestamp:    2025-10-01T10:42:58.647419869Z
+Build Version:      1.18.0
+Commit SHA:         bbea2ff9e913f49cb7bf6c7bafa9d9b158c80de5
+Commit Date:        2025-10-01T12:06:07.000000000+02:00
+Commit Branch:      HEAD
+rustc Version:      1.88.0
+rustc Channel:      stable
+cargo Profile:      release
+```
+
+### Operators Updates & Tools
+
+<Callout type="info" emoji="ℹ️">
+**With `nym-node` version `1.18.0` operators need to make `tcp/51830` reachable on the WG interface (for bandwidth queries/topup).**
+
+This is inside the tunnel - no need to expose it publicly unless you want an external test.
+**Run this command to expose it:**
+```
+ufw allow in on nymwg to any port 51830 proto tcp
+```
+</Callout>
+
+With this platform upgrade we are releasing several tools to improve operator experience. Check them out and let us know what you think.
+
+- **New program for `nym-node` automated installation**: [`nym-node-cli.py`](tools#nym-node-cli)
+
+- **New node reward tracker**: [`node_rewards_tracker.py`](tools#cmd-reward-tracker)
+
+- **New server ping testing diagnostic tool**: [`test-nodes-pings.sh`](tools#node-ping-tester)
+
+- **New [Tools page](tools)**
+
+- **New Gateway landing page [template](https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/landing-page.html)** and simplified [documentation for reverse proxy configuration](nodes/nym-node/configuration/proxy-configuration#html-file-customization)
+
+- SpectreDAO Explorer has a new [Delegation Wizzard](https://explorer.nym.spectredao.net/delegate): Allowing for a smart multi-delegation with optimal node selection form Keplr Wallet
+
+### API Changes
+
+Please read carefully below to follow up with API removal and changes to ensure that your development is up to date.
+
+#### Nym API Removed Routes
+
+All of the routes removed had already been deprecated over a year ago. This is mostly due to the fact that either they were returning only data on legacy nodes (that could never be used anyway) or required some non-sense conversions. Open the dropdown below to see removed routes
+<br/>
+<AccordionTemplate name="Removed API routes">
+
+### Legacy mixnodes related:
+
+- `/v1/mixnodes`
+- `/v1/mixnodes/active`
+- `/v1/mixnodes/active/detailed`
+- `/v1/mixnodes/described`
+- `/v1/mixnodes/rewarded`
+- `/v1/mixnodes/rewarded/detailed`
+- `/v1/mixnodes/detailed`
+- `/v1/mixnodes/blacklisted`
+- `/v1/status/mixnodes/active/detailed`
+- `/v1/status/mixnodes/rewarded/detailed`
+- `/v1/status/mixnodes/detailed`
+- `/v1/status/mixnodes/inclusion-probability`
+- `/v1/status/mixnodes/inclusion-probability`
+- `/v1/status/mixnode/{mix_id}/inclusion-probability`
+- `/v1/status/mixnode/{mix_id}/stake-saturation`
+- `/v1/status/mixnode/{mix_id}/status`
+- `/v1/status/mixnode/{mix_id}/reward-estimation`
+- `/v1/status/mixnode/{mix_id}/compute-reward-estimation`
+- `/v1/status/mixnodes/detailed-unfiltered`
+- `/v1/status/mixnode/{mix_id}/report`
+- `/v1/status/mixnode/{mix_id}/avg_uptime`
+
+### Legacy gateways related:
+
+- `/v1/gateways`
+- `/v1/gateways/described`
+- `/v1/gateways/blacklisted`
+- `/v1/status/gateways/detailed`
+- `/v1/status/gateways/detailed-unfiltered`
+- `/v1/status/gateway/{identity}/report`
+- `/v1/status/gateway/{identity}/avg_uptime`
+
+</AccordionTemplate>
+
+#### Structs changes:
+
+- `MixnodeUptimeHistoryResponse` no longer has `owner` field
+- `GatewayUptimeHistoryResponse` no longer has `owner` field
+
+
+#### New Routes Added
+
+- `/v1/nym-nodes/stake-saturation/{node_id}` - as a better replacement for `/v1/status/mixnode/{mix_id}/stake-saturation` as this information might be potentially useful and can be applied to any nym-node, not just a legacy mixnode.
+- `/v1/legacy/mixnodes` - returns a list of bonded legacy mixnodes that haven't migrated to nym-nodes
+- `/v1/legacy/gateways` - returns a list of bonded legacy gateways that haven't migrated to nym-nodes
+
+#### Node Status API
+
+Furthermore the changes remove all scraping of legacy mixnodes from NS and the following routes are removed:
+
+- `/v2/mixnodes/{mix_id}`
+- `/v2/mixnodes`
+
+### Features
+
+- [Refresh mixnet contract on epoch progression](https://github.com/nymtech/nym/pull/6023): Currently when an epoch has advanced, `nym-api` might still be serving data from the previous iteration. This PR makes sure the data is refreshed as soon as possible so new role assignment would be available quickly after.
+
+- [Explorer-v2: Replace recommended servers with automated selection](https://github.com/nymtech/nym/pull/6019): Use params to get 10 nodes, no more manual paste.
+
+- [Credential proxy crate](https://github.com/nymtech/nym/pull/6018): This PR moves 90% of the credential proxy functionalities into a common crate instead.
+
+- [Moving clients crate from vpn-client repo to here](https://github.com/nymtech/nym/pull/6015): As part of the registration-client work, moved `nym-authenticator-client`, `nym-ip-packet-client` and `nym-wg-gateway-client` from the vpn-client repo into this repository.
+
+- [Cancellation migration](https://github.com/nymtech/nym/pull/6014): Migrates shutdown watchers from `TaskManager` into the new `ShutdownManager`, which relies on tokio’s `CancellationToken` and `TaskTracker`.
+
+- [Use `ShutdownToken` for nym-api](https://github.com/nymtech/nym/pull/5997): Makes `nym-api` use `ShutdownToken` (tokio `CancellationToken` inside) for cancellation; groundwork for migrating clients to the same approach.
+
+- [Delegation program stake checker and adjuster](https://github.com/nymtech/nym/pull/5980): Adds a script to generate a CSV for delegation adjustments according to Delegation Program rules, including node/stake/uptime/version and other fields.
+
+- [Domain fronting integration](https://github.com/nymtech/nym/pull/5974): Completes migration to `nym_http_api_client::Client`, enabling domain fronting and unifying HTTP client usage across the monorepo.
+
+- [Shared library for attempting to retrieve update mode attestation](https://github.com/nymtech/nym/pull/5954): Part of NET-341, provides a shared library to attempt retrieving update mode attestation.
+
+- [Credential proxy deposit pool](https://github.com/nymtech/nym/pull/5945): Changes the credential proxy to hold a pool of available deposits and monitor quorum state, reducing wastage and improving reliability.
+
+- [Nym signers monitor](https://github.com/nymtech/nym/pull/5933): Independent tool for checking the status of network signers and sending notifications if “upgrade” mode is detected.
+
+- [Nym node autorun CLI](https://github.com/nymtech/nym/pull/5916): Adds an interactive CLI to install, set up, and configure `nym-node` as a systemd service, improving operator experience.
+
+### Bugfix
+
+- [Fix the registration handshake](https://github.com/nymtech/nym/pull/6062): Resolves issues in the registration handshake process.
+
+- [Return from MixTrafficController if client request channel has closed](https://github.com/nymtech/nym/pull/6002): Ensures the MixTrafficController exits properly when the client request channel closes.
+
+- [Use default value for the ports until api is deployed](https://github.com/nymtech/nym/pull/6007): Fixes VPN querying mainnet for the API and not finding some of the newly added values by using default port values until the API is deployed.
+
+- [Recipient deserialisation for deserialisers missing bytes specialisation](https://github.com/nymtech/nym/pull/5991): Fixes deserialization where formats like TOML/JSON defaulted incorrectly, ignoring bytes-related optimisations.
+
+- [Use WASM compatible time API in client](https://github.com/nymtech/nym/pull/5948): Prevents client crashes in WASM by replacing time APIs unavailable in that environment.
+
+### Refactors & Maintenance
+
+- [Convenience for ShutdownTracker](https://github.com/nymtech/nym/pull/6038): Adds a method to create a `ShutdownToken` from a `CancellationToken`. Exposes `ShutdownTracker` in the SDK.
+
+- [Made http-api-client-macro doctest compile](https://github.com/nymtech/nym/pull/6037): Adjusts doctests in `http-api-client-macro` so they compile.
+
+- [Remove legacy nodes from nym api](https://github.com/nymtech/nym/pull/6021): Removes nearly all references to legacy nodes from `nym-api` and node status API; cleans up deprecated endpoints and adjusts structs.
+
+- [Upgraded syn to 2.0 and removed nym-execute](https://github.com/nymtech/nym/pull/5998): Updates the `syn` dependency and removes `nym-execute`.
+
+- [Use updated version of simulate endpoint](https://github.com/nymtech/nym/pull/5988): Switches to the updated simulate endpoint.
+
+- [Purge temp databases on build](https://github.com/nymtech/nym/pull/5984): Prevents build failures when switching to branches without DB migrations by cleaning temp databases during builds.
+
+- [Internal hidden command to force advance nyx epoch](https://github.com/nymtech/nym/pull/5964): Adds a hidden developer command to advance the Nyx epoch manually.
+
+- [Create an axum_test client for more integrated unit testing](https://github.com/nymtech/nym/pull/5956): Adds an `axum_test` client to support more integrated unit tests.
+
+- [Revert "Create an axum_test client for more integrated unit testing"](https://github.com/nymtech/nym/pull/5999): Reverts PR #5956 due to OpenSSL dependency issues.
+
+
 ## `v2025.16-halloumi`
 
 - **[`nym-node`](nodes/nym-node.mdx) is not part of the release, the latest stays on version `1.16.0`**
@@ -56,7 +827,7 @@ This page displays a full list of all the changes during our release cycle from 
 ### Operators Updates & Tools
 
 <Callout type="info" emoji="ℹ️">
-Nodes receiving stake as a part of [**Nym Delegation Program**](https://nym.com/network/DP) are updated weekly based on the [rules](https://forms.nym.com/form/#/2/form/view/BRh8QroXFinjOF4D3FHgYiX76zbiRvUV2Sy+czaoKFQ) without prior notification given to the operators. 
+Nodes receiving stake as a part of [**Nym Delegation Program**](https://nym.com/network/DP) are updated weekly based on the [rules](https://forms.nym.com/form/#/2/form/view/BRh8QroXFinjOF4D3FHgYiX76zbiRvUV2Sy+czaoKFQ) without prior notification given to the operators.
 
 [**Nym Delegation account**](https://explorer.nym.spectredao.net/account/n1rnxpdpx3kldygsklfft0gech7fhfcux4zst5lw) `n1rnxpdpx3kldygsklfft0gech7fhfcux4zst5lw` is a single source of truth. If you expect your node to have Nym team stake and it doesn't, please reach out in in the [**Node Operators Matrix channel**](https://matrix.to/#/#operators:nymtech.chat).
 </Callout>
@@ -79,32 +850,32 @@ nym-vpnc connect --enable-two-hop  --entry-gateway-id 7CWjY3QFoA9dgE535u9bQiXCfz
 
 - [Feature/testing utils](https://github.com/nymtech/nym/pull/5963): This PR introduces a couple of general helpers, in particular some mocks for sending across values using Stream/Sink and AsyncRead/AsyncWrite without actual underlying networking. Example implementation are with NymNoise (which was the original inspiration) and gateway handshake.
 
-- [Backport metadata endpoint](https://github.com/nymtech/nym/pull/6010) 
+- [Backport metadata endpoint](https://github.com/nymtech/nym/pull/6010)
 
 ### Bugfix
 
 - [Fix rust `1.89` `clippy` issues](https://github.com/nymtech/nym/pull/5944)
 
-- [`http api` client adjustment](https://github.com/nymtech/nym/pull/5953): It fixes missing `feature-lock` when cloning the client and adds helper macro for user agent creation  
+- [`http api` client adjustment](https://github.com/nymtech/nym/pull/5953): It fixes missing `feature-lock` when cloning the client and adds helper macro for user agent creation
 
 - [Fix `ci-build` for linux (and use updated runner)](https://github.com/nymtech/nym/pull/5958): This PR fixes our build pipeline by using correct (updated) linux runner and updates all the conditional steps that were behind `ubuntu` runners (which no longer exist)
 
-- [Fixing the ci for ns agent](https://github.com/nymtech/nym/pull/5965) 
+- [Fixing the ci for ns agent](https://github.com/nymtech/nym/pull/5965)
 
 - [Manually calculate per node work on rewarded set changes](https://github.com/nymtech/nym/pull/5972): This PR fixes:
-    1. Nym rewarded set was set to X, for argument sake say 200 
+    1. Nym rewarded set was set to X, for argument sake say 200
     2. We sent transaction to update it to Y, say 100
     3. This internally updated the interval rewarding parameters inside the mixnet contract including the default active and standby node work factors. Note that the rewarded set itself stayed the same, as it only changes after epoch rolls over and new one is assigned (by the `nym-api`)
    4. Epoch has finished and `nym-api` wanted to do the rewarding. It grabbed the **current** rewarded set (of X, 200) and started calculating the total work in the system. But since the contract already had new parameters (adjusted for size of Y, 100), the result was greater than 1 thus `nym-api` was preventably blowing up.
     To fix it we introduce additional checks, so that if the current rewarded set does not match the specification defined in the contract rewarding parameters, `nym-api` will attempt to do its best to manually calculate work factors for this epoch.
 
-- [Fix the ns api ci workflow](https://github.com/nymtech/nym/pull/5981) 
+- [Fix the ns api ci workflow](https://github.com/nymtech/nym/pull/5981)
 
-- [Make sure tables are removed in correct order to not trigger FK constraint issue](https://github.com/nymtech/nym/pull/5987) 
+- [Make sure tables are removed in correct order to not trigger FK constraint issue](https://github.com/nymtech/nym/pull/5987)
 
 ### Refactors & Maintenance
 
-- [Move credential verifier in peer controller](https://github.com/nymtech/nym/pull/5938): This PR is to not duplicate the verifier code (minus the actual verification operation, which is harder to unit test because of expiration checks) 
+- [Move credential verifier in peer controller](https://github.com/nymtech/nym/pull/5938): This PR is to not duplicate the verifier code (minus the actual verification operation, which is harder to unit test because of expiration checks)
 
 - [Remove unused import](https://github.com/nymtech/nym/pull/5942)
 
@@ -115,7 +886,7 @@ nym-vpnc connect --enable-two-hop  --entry-gateway-id 7CWjY3QFoA9dgE535u9bQiXCfz
 - [Remove freshness check on testrun submit](https://github.com/nymtech/nym/pull/5977):
     - Freshness is enforced by a background task that marks test runs as stale after a configured amount of time
     - Make existing freshness period configurable to avoid code changes in the future
-    - Added `humantime` for parsing  
+    - Added `humantime` for parsing
 
 - [Move authenticator into gateway crate](https://github.com/nymtech/nym/pull/5982)
 
@@ -138,7 +909,7 @@ nym-vpnc connect --enable-two-hop  --entry-gateway-id 7CWjY3QFoA9dgE535u9bQiXCfz
 
 - [Ecash liveness check](https://github.com/nymtech/nym/pull/5890)
 
-- [Basic zulip client for sending messages](https://github.com/nymtech/nym/pull/5913): In order to be able to send zulip notifications about *emergency* upgrade mode being activated, we need some sort of client. Unfortunately there isn't any rust library that's maintained (the only one had last commit 4 years ago). This simple thing now currently only supports message sending 
+- [Basic zulip client for sending messages](https://github.com/nymtech/nym/pull/5913): In order to be able to send zulip notifications about *emergency* upgrade mode being activated, we need some sort of client. Unfortunately there isn't any rust library that's maintained (the only one had last commit 4 years ago). This simple thing now currently only supports message sending
 
 - [`nym-node` debug command to reset providers db](https://github.com/nymtech/nym/pull/5914)
 
@@ -148,7 +919,7 @@ nym-vpnc connect --enable-two-hop  --entry-gateway-id 7CWjY3QFoA9dgE535u9bQiXCfz
 
 ### Refactors & Maintenance
 
-- [Allow compatibility with 'CDLA-Permissive-2.0'](https://github.com/nymtech/nym/pull/5910): This license is present in the included `webpki-roots` 
+- [Allow compatibility with 'CDLA-Permissive-2.0'](https://github.com/nymtech/nym/pull/5910): This license is present in the included `webpki-roots`
 
 - [Migrate strum to `0.27.2`](https://github.com/nymtech/nym/pull/5960): This PR migrates strum to the latest. Notably all macros' were moved into `strum_macros`. The rest stays the same.
 
@@ -173,9 +944,9 @@ cargo Profile:      release
 
 ### Operators Updates & Tools
 
--  Stark Industries is on a sanction list by EU. IP addresses managed by Stark Ind. and their subsidies (ASN 44477 / ASN 33993) had been put on [spamhaus.org](http://spamhaus.org/) [list](https://www.spamhaus.org/drop/asndrop.json). The effect on NymVPN user experience is that Exit Gateways IPs hosted on Stark Ind. are seen as a spam proxies by many online services.  
+-  Stark Industries is on a sanction list by EU. IP addresses managed by Stark Ind. and their subsidies (ASN 44477 / ASN 33993) had been put on [spamhaus.org](http://spamhaus.org/) [list](https://www.spamhaus.org/drop/asndrop.json). The effect on NymVPN user experience is that Exit Gateways IPs hosted on Stark Ind. are seen as a spam proxies by many online services.
 
-- We ask operators - especially Exit Gateways - to consider moving to another ISP. Visit an updated [ISP list](community-counsel/isp-list) and feel free to add more providers, following [these steps](community-counsel/add-content). 
+- We ask operators - especially Exit Gateways - to consider moving to another ISP. Visit an updated [ISP list](community-counsel/isp-list) and feel free to add more providers, following [these steps](community-counsel/add-content).
 
 ### Features
 
@@ -189,13 +960,13 @@ cargo Profile:      release
 - [`sqlx-pool-guard`: allocate more memory on windows](https://github.com/nymtech/nym/pull/5896):
     - Allocate 1.5x more memory than reported by the system to provide a safety margin
     - Increase number of retry attempts to 5
-    
+
 
 - [dkg epoch dealers query](https://github.com/nymtech/nym/pull/5899)
 
 - [dkg snapshot epoch](https://github.com/nymtech/nym/pull/5900): In order to determine if signer quorum has been down at particular height, we need to know with certainty the dkg epoch id corresponding to given block height. This PR makes it possible. Every time epoch state is changed (due to DKG progress), snapshot is saved and can be queried. This doesn't work for past data, but given mainnet has only had a single DKG instance, that's not an issue.
 
-- [`sqlx-pool-guard`: obtain filename from connect options](https://github.com/nymtech/nym/pull/5905): 
+- [`sqlx-pool-guard`: obtain filename from connect options](https://github.com/nymtech/nym/pull/5905):
 
 ### Refactors & Maintenance
 
@@ -251,7 +1022,7 @@ cargo Profile:      release
 
 - [Remove old explorer references](https://github.com/nymtech/nym/pull/5846)
 
-- [Listen for shutdown signals during nym-node startup](https://github.com/nymtech/nym/pull/5879): This is to avoid situation where the process can't be killed without 'kill -9' because the logic to listen to shutdown signals hasn't been hit yet 
+- [Listen for shutdown signals during nym-node startup](https://github.com/nymtech/nym/pull/5879): This is to avoid situation where the process can't be killed without 'kill -9' because the logic to listen to shutdown signals hasn't been hit yet
 
 ### Bugfixes
 
@@ -2311,7 +3082,7 @@ cargo Profile:      release
 <Callout type="warning" emoji="⚠️">
 After changes coming along with `v2024.13-magura` (`nym-node v1.1.10`), Nym Explorer is no longer picking all values correctly. Instead of fixing this outdated explorer, we are working on a new one, coming out soon.
 
-[Nym Harbourmaster](https://harbourmaster.nymtech.net) has cache of 90min, expect your values to be updated with delay. We are aware of some issues with Nym Harbourmaster and working hard to resolve them in the upcoming explorer v2. To check your routing values in real time, you can use [`nym-gateway-probe`](nodes/performance-and-testing/gateway-probe).
+[Nym Harbourmaster](https://harbourmaster.nymtech.net) has cache of 90min, expect your values to be updated with delay. We are aware of some issues with Nym Harbourmaster and working hard to resolve them in the upcoming explorer v2. To check your routing values in real time, you can use [`nym-gateway-probe`](performance-and-testing/gateway-probe).
 </Callout>
 
 ### Operators Updates & Tools
@@ -4023,7 +4794,6 @@ For Entry Gateway:
 22 # SSH
 123 # NTP
 445 # SMB file share Windows
-465 # URD for SSM
 587 # SMTP
 853 # DNS over TLS
 1433 # databases

@@ -1,5 +1,5 @@
 use anyhow::anyhow;
-use axum::{response::Redirect, Router};
+use axum::{Router, response::Redirect};
 use tokio::net::ToSocketAddrs;
 use tower_http::{cors::CorsLayer, trace::TraceLayer};
 use utoipa::OpenApi;

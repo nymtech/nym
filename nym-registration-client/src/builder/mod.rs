@@ -1,0 +1,111 @@
+// Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
+use futures::channel::mpsc;
+use nym_bandwidth_controller::{BandwidthController, BandwidthTicketProvider};
+use nym_credential_storage::ephemeral_storage::EphemeralCredentialStorage;
+use nym_sdk::{
+    NymNetworkDetails,
+    mixnet::{EventSender, MixnetClient, MixnetClientBuilder},
+};
+use nym_validator_client::{
+    QueryHttpRpcNyxdClient,
+    nyxd::{Config as NyxdClientConfig, NyxdClient},
+};
+
+use crate::{RegistrationClient, config::RegistrationClientConfig, error::RegistrationClientError};
+use config::BuilderConfig;
+
+pub(crate) mod config;
+
+pub struct RegistrationClientBuilder {
+    pub config: BuilderConfig,
+}
+
+impl RegistrationClientBuilder {
+    pub fn new(config: BuilderConfig) -> Self {
+        Self { config }
+    }
+
+    pub async fn build(self) -> Result<RegistrationClient, RegistrationClientError> {
+        let storage = self.config.setup_storage().await?;
+        let config = RegistrationClientConfig {
+            entry: self.config.entry_node.clone(),
+            exit: self.config.exit_node.clone(),
+            two_hops: self.config.two_hops,
+        };
+        let cancel_token = self.config.cancel_token.clone();
+        let (event_tx, event_rx) = mpsc::unbounded();
+
+        let nyxd_client = get_nyxd_client(&self.config.network_env)?;
+        let mixnet_client_startup_timeout = self.config.mixnet_client_startup_timeout;
+
+        let (mixnet_client, bandwidth_controller): (
+            MixnetClient,
+            Box<dyn BandwidthTicketProvider>,
+        ) = if let Some((mixnet_client_storage, credential_storage)) = storage {
+            let builder = MixnetClientBuilder::new_with_storage(mixnet_client_storage)
+                .event_tx(EventSender(event_tx));
+            let mixnet_client = tokio::time::timeout(
+                mixnet_client_startup_timeout,
+                self.config.build_and_connect_mixnet_client(builder),
+            )
+            .await
+            .inspect_err(|_| {
+                tracing::warn!(
+                    "mixnet client connection timed out after {:?}",
+                    mixnet_client_startup_timeout
+                )
+            })?
+            .inspect_err(|e| tracing::warn!("mixnet build/connect error: {e}"))?;
+            let bandwidth_controller =
+                Box::new(BandwidthController::new(credential_storage, nyxd_client));
+            (mixnet_client, bandwidth_controller)
+        } else {
+            let builder = MixnetClientBuilder::new_ephemeral().event_tx(EventSender(event_tx));
+            let mixnet_client = tokio::time::timeout(
+                mixnet_client_startup_timeout,
+                self.config.build_and_connect_mixnet_client(builder),
+            )
+            .await
+            .inspect_err(|_| {
+                tracing::warn!(
+                    "mixnet client connection timed out after {:?}",
+                    mixnet_client_startup_timeout
+                )
+            })?
+            .inspect_err(|e| tracing::warn!("mixnet build/connect error: {e}"))?;
+            let bandwidth_controller = Box::new(BandwidthController::new(
+                EphemeralCredentialStorage::default(),
+                nyxd_client,
+            ));
+            (mixnet_client, bandwidth_controller)
+        };
+        let mixnet_client_address = *mixnet_client.nym_address();
+
+        Ok(RegistrationClient {
+            mixnet_client,
+            config,
+            cancel_token,
+            mixnet_client_address,
+            bandwidth_controller,
+            event_rx,
+        })
+    }
+}
+
+// temporary while we use the legacy bandwidth-controller
+fn get_nyxd_client(
+    network: &NymNetworkDetails,
+) -> Result<QueryHttpRpcNyxdClient, RegistrationClientError> {
+    let config = NyxdClientConfig::try_from_nym_network_details(network)
+        .map_err(RegistrationClientError::FailedToCreateNyxdClientConfig)?;
+    let nyxd_url = network
+        .endpoints
+        .first()
+        .map(|ep| ep.nyxd_url())
+        .ok_or(RegistrationClientError::InvalidNyxdUrl)?;
+
+    NyxdClient::connect(config, nyxd_url.as_str())
+        .map_err(RegistrationClientError::FailedToConnectUsingNyxdClient)
+}

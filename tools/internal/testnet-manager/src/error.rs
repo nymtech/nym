@@ -15,7 +15,9 @@ pub enum NetworkManagerError {
     #[error("failed to parse the url: {0}")]
     MalformedUrl(#[from] url::ParseError),
 
-    #[error("one of the account addresses was malformed - the developer was too lazy to propagate the actual error message with the address")]
+    #[error(
+        "one of the account addresses was malformed - the developer was too lazy to propagate the actual error message with the address"
+    )]
     MalformedAccountAddress,
 
     #[error(transparent)]
@@ -48,7 +50,9 @@ pub enum NetworkManagerError {
     #[error("could not find build information for {name} contract")]
     ContractNotQueried { name: String },
 
-    #[error("contract {name} has been build before build information got standarised. this is not supported")]
+    #[error(
+        "contract {name} has been build before build information got standarised. this is not supported"
+    )]
     MissingBuildInfo { name: String },
 
     #[error("there aren't any initialised networks in the storage")]
@@ -98,10 +102,14 @@ pub enum NetworkManagerError {
     #[error("the default, pre-generated, .env file does not have the nym-api endpoint set!")]
     NymApiEndpointMissing,
 
-    #[error("timed out while waiting for some gateway to appear in the directory (you don't need to run it)")]
+    #[error(
+        "timed out while waiting for some gateway to appear in the directory (you don't need to run it)"
+    )]
     ApiGatewayWaitTimeout,
 
-    #[error("timed out while waiting for the gateway to start receiving traffic (you need to actually run it!)")]
+    #[error(
+        "timed out while waiting for the gateway to start receiving traffic (you need to actually run it!)"
+    )]
     GatewayWaitTimeout,
 
     #[error("attempted to bond nodes on a non-empty network")]

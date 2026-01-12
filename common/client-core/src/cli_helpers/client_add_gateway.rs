@@ -87,6 +87,7 @@ where
         user_chosen_gateway_id.map(|id| id.to_base58_string()),
         Some(common_args.latency_based_selection),
         common_args.force_tls_gateway,
+        false,
     );
     tracing::debug!("Gateway selection specification: {selection_spec:?}");
 
@@ -114,13 +115,12 @@ where
         })?;
         hardcoded_topology.entry_capable_nodes().cloned().collect()
     } else {
-        let mut rng = rand::thread_rng();
         crate::init::helpers::gateways_for_init(
-            &mut rng,
             &core.client.nym_api_urls,
             user_agent,
             core.debug.topology.minimum_gateway_performance,
             core.debug.topology.ignore_ingress_epoch_role,
+            None,
         )
         .await?
     };
@@ -168,6 +168,7 @@ where
         identity: gateway_details.gateway_id,
         active: common_args.set_active,
         typ: gateway_registration.details.typ().to_string(),
-        endpoint: Some(gateway_details.gateway_listener.clone()),
+        endpoint: Some(gateway_details.published_data.listeners.primary.clone()),
+        fallback_endpoint: gateway_details.published_data.listeners.fallback.clone(),
     })
 }

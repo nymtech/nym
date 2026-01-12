@@ -13,21 +13,19 @@ pub mod error;
 mod helpers;
 #[cfg(target_arch = "wasm32")]
 mod response_pusher;
-
-#[cfg(target_arch = "wasm32")]
-pub use wasm_client_core::set_panic_hook;
-
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
+#[cfg(target_arch = "wasm32")]
+use wasm_utils::set_panic_hook;
 
 #[wasm_bindgen(start)]
 #[cfg(target_arch = "wasm32")]
-pub fn main() {
+pub fn main_js() {
+    wasm_utils::console_log!("[rust main]: setting panic hook");
+    set_panic_hook();
     wasm_utils::console_log!("[rust main]: rust module loaded");
     wasm_utils::console_log!(
         "wasm client version used: {}",
         nym_bin_common::bin_info_owned!()
     );
-    wasm_utils::console_log!("[rust main]: setting panic hook");
-    wasm_utils::set_panic_hook();
 }

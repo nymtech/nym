@@ -1,7 +1,10 @@
 // Copyright 2023-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::models::{BasicTicketbookInformation, RetrievedPendingTicketbook, RetrievedTicketbook};
+use crate::models::{
+    BasicTicketbookInformation, EmergencyCredential, EmergencyCredentialContent,
+    RetrievedPendingTicketbook, RetrievedTicketbook,
+};
 use nym_compact_ecash::scheme::coin_indices_signatures::AnnotatedCoinIndexSignature;
 use nym_compact_ecash::scheme::expiration_date_signatures::AnnotatedExpirationDateSignature;
 use nym_compact_ecash::VerificationKeyAuth;
@@ -23,19 +26,34 @@ pub struct MemoryEcachTicketbookManager {
 }
 
 #[derive(Default)]
+struct InternalIdCounters {
+    next_ticketbook_id: i64,
+    next_emergency_credential_id: i64,
+}
+
+#[derive(Default)]
 struct EcashCredentialManagerInner {
     ticketbooks: HashMap<i64, RetrievedTicketbook>,
     pending: HashMap<i64, RetrievedPendingTicketbook>,
     master_vk: HashMap<u64, VerificationKeyAuth>,
     coin_indices_sigs: HashMap<u64, Vec<AnnotatedCoinIndexSignature>>,
     expiration_date_sigs: HashMap<(u64, Date), Vec<AnnotatedExpirationDateSignature>>,
-    _next_id: i64,
+    emergency_credentials: HashMap<String, Vec<EmergencyCredential>>,
+
+    // internal counters emulating assignment of an increasing id to new inserted database entries
+    internal_counters: InternalIdCounters,
 }
 
 impl EcashCredentialManagerInner {
-    fn next_id(&mut self) -> i64 {
-        let next = self._next_id;
-        self._next_id += 1;
+    fn next_ticketbook_id(&mut self) -> i64 {
+        let next = self.internal_counters.next_ticketbook_id;
+        self.internal_counters.next_ticketbook_id += 1;
+        next
+    }
+
+    fn next_emergency_credential_id(&mut self) -> i64 {
+        let next = self.internal_counters.next_emergency_credential_id;
+        self.internal_counters.next_emergency_credential_id += 1;
         next
     }
 }
@@ -44,6 +62,7 @@ impl EcashCredentialManagerInner {
 fn hack_clone_ticketbook(book: &IssuedTicketBook) -> IssuedTicketBook {
     let ser = book.pack();
     let data = Zeroizing::new(ser.data);
+    #[allow(clippy::unwrap_used)]
     IssuedTicketBook::try_unpack(&data, None).unwrap()
 }
 
@@ -79,18 +98,24 @@ impl MemoryEcachTicketbookManager {
         let mut guard = self.inner.write().await;
 
         for t in guard.ticketbooks.values_mut() {
-            if !t.ticketbook.expired()
-                && t.ticketbook.spent_tickets() + tickets as u64
-                    <= t.ticketbook.params_total_tickets()
-                && t.ticketbook.ticketbook_type().to_string() == ticketbook_type
-            {
-                t.ticketbook
-                    .update_spent_tickets(t.ticketbook.spent_tickets() + tickets as u64);
-                return Some(RetrievedTicketbook {
-                    ticketbook_id: t.ticketbook_id,
-                    ticketbook: hack_clone_ticketbook(&t.ticketbook),
-                });
+            if t.ticketbook.expired() {
+                continue;
             }
+            if t.ticketbook.spent_tickets() + tickets as u64 > t.total_tickets as u64 {
+                continue;
+            }
+            if t.ticketbook.ticketbook_type().to_string() != ticketbook_type {
+                continue;
+            }
+
+            let cloned = hack_clone_ticketbook(&t.ticketbook);
+            t.ticketbook
+                .update_spent_tickets(t.ticketbook.spent_tickets() + tickets as u64);
+            return Some(RetrievedTicketbook {
+                ticketbook_id: t.ticketbook_id,
+                total_tickets: t.total_tickets,
+                ticketbook: cloned,
+            });
         }
 
         None
@@ -156,18 +181,25 @@ impl MemoryEcachTicketbookManager {
         guard.pending.remove(&pending_id);
     }
 
-    pub(crate) async fn insert_new_ticketbook(&self, ticketbook: &IssuedTicketBook) {
+    pub(crate) async fn insert_new_ticketbook(
+        &self,
+        ticketbook: &IssuedTicketBook,
+        total_tickets: u32,
+        used_tickets: u32,
+    ) {
         let mut guard = self.inner.write().await;
-        let id = guard.next_id();
+        let id = guard.next_ticketbook_id();
 
-        // hehe, that's hacky AF, but it works as a **TEMPORARY** workaround
-        let ser = ticketbook.pack();
-        let data = Zeroizing::new(ser.data);
+        #[allow(clippy::unwrap_used)]
+        let mut nasty_clone = hack_clone_ticketbook(ticketbook);
+        nasty_clone.update_spent_tickets(used_tickets as u64);
+
         guard.ticketbooks.insert(
             id,
             RetrievedTicketbook {
                 ticketbook_id: id,
-                ticketbook: IssuedTicketBook::try_unpack(&data, None).unwrap(),
+                total_tickets,
+                ticketbook: nasty_clone,
             },
         );
     }
@@ -199,7 +231,7 @@ impl MemoryEcachTicketbookManager {
                 ticketbook_type: t.ticketbook.ticketbook_type().to_string(),
                 epoch_id: t.ticketbook.epoch_id() as u32,
                 total_tickets: t.ticketbook.spent_tickets() as u32,
-                used_tickets: t.ticketbook.params_total_tickets() as u32,
+                used_tickets: t.total_tickets,
             })
             .collect()
     }
@@ -262,5 +294,42 @@ impl MemoryEcachTicketbookManager {
             (sigs.epoch_id, sigs.expiration_date),
             sigs.signatures.clone(),
         );
+    }
+
+    pub(crate) async fn get_emergency_credential(&self, typ: &str) -> Option<EmergencyCredential> {
+        let guard = self.inner.read().await;
+
+        guard.emergency_credentials.get(typ)?.first().cloned()
+    }
+
+    pub(crate) async fn insert_emergency_credential(
+        &self,
+        credential: &EmergencyCredentialContent,
+    ) {
+        let mut guard = self.inner.write().await;
+        let id = guard.next_emergency_credential_id();
+
+        guard
+            .emergency_credentials
+            .entry(credential.typ.clone())
+            .or_default()
+            .push(EmergencyCredential {
+                id,
+                data: credential.clone(),
+            });
+    }
+
+    pub(crate) async fn remove_emergency_credential(&self, id: i64) {
+        let mut guard = self.inner.write().await;
+
+        guard.emergency_credentials.retain(|_, credentials| {
+            credentials.retain(|c| c.id != id);
+            !credentials.is_empty()
+        })
+    }
+
+    pub(crate) async fn remove_emergency_credentials_of_type(&self, typ: &str) {
+        let mut guard = self.inner.write().await;
+        guard.emergency_credentials.remove(typ);
     }
 }

@@ -3,17 +3,17 @@
 
 use async_trait::async_trait;
 use nym_credentials_interface::ClientTicket;
-use nym_gateway_requests::SharedGatewayKey;
+use nym_gateway_requests::SharedSymmetricKey;
 use nym_sphinx::DestinationAddressBytes;
 use time::OffsetDateTime;
 
 use crate::{
+    GatewayStorageError,
     clients::ClientType,
     models::{
         Client, PersistedBandwidth, PersistedSharedKeys, RedemptionProposal, StoredMessage,
         VerifiedTicket, WireguardPeer,
     },
-    GatewayStorageError,
 };
 
 #[async_trait]
@@ -25,7 +25,7 @@ pub trait SharedKeyGatewayStorage {
     async fn insert_shared_keys(
         &self,
         client_address: DestinationAddressBytes,
-        shared_keys: &SharedGatewayKey,
+        shared_keys: &SharedSymmetricKey,
     ) -> Result<i64, GatewayStorageError>;
     async fn get_shared_keys(
         &self,
@@ -169,7 +169,7 @@ pub trait BandwidthGatewayStorage: dyn_clone::DynClone {
     ///
     /// * `peer_public_key`: wireguard public key of the peer to be removed.
     async fn remove_wireguard_peer(&self, peer_public_key: &str)
-        -> Result<(), GatewayStorageError>;
+    -> Result<(), GatewayStorageError>;
 }
 
 #[cfg(feature = "mock")]

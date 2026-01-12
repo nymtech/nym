@@ -2,7 +2,8 @@ import { Callout } from 'nextra/components';
 import { Steps } from 'nextra/components';
 import { Tabs } from 'nextra/components';
 import NymNodeSpecs from 'components/operators/snippets/nym-node-specs.mdx';
-import TermsConditions from 'components/operators/snippets/tc-info.mdx'
+import TermsConditions from 'components/operators/snippets/tc-info.mdx';
+import QuickStart from 'components/operators/snippets/quick-start.mdx'
 
 # Nym Nodes Operator Guides
 
@@ -10,13 +11,17 @@ Welcome to the section containing setup guides for operators of Nym Nodes and Ny
 
 ## Minimum Requirements
 
-Operating a `nym-node` is not a set-and-forget endeavor. To prevent operators committing their time and money into a sub-optimal server, resulting in frustration of never seeing their node active, we composed this list of prerequisites. Please read below about expectations regarding operators [skill set](#knowledge-base), [time dedication](#time) and [minimum hardware specs](#vps-hardware-specs).
+Operating a `nym-node` is not a set-and-forget endeavor. To prevent operators committing their time and money into a sub-optimal server, resulting in frustration of never seeing their node active, we composed this list of prerequisites. Please read below about expectations regarding operators [skill set](#knowledge-base), [time dedication](#time), [minimum hardware specs](#vps-hardware-specs) and [Nym Wallet](nodes/preliminary-steps/wallet-preparation) with at least 101 NYM tokens.
 
 ### Knowledge base
 
 **All nodes are run remotely from operators shell, using [SSH](https://www.ssh.com/academy/ssh) and [Bash](https://www.gnu.org/software/bash/) commands. Node operators need to be experienced super users or sys-admins.** If you never used terminal before, maybe start with some tutorial of [basic Linux administration](https://www.linode.com/docs/guides/linux-system-administration-basics/) before committing to run a node.
 
 <NymNodeSpecs />
+
+### Nym Wallet
+
+To [register (bond)](nodes/nym-node/bonding) `nym-node` to the network, you need a Nyx blockchain account and at least 101 NYM tokens. Follow the steps on [this page](nodes/preliminary-steps/wallet-preparation).
 
 ### Time
 
@@ -30,10 +35,11 @@ Outdated nodes are never selected for routing/mixing packets, resulting in not r
 
 Accepting T&Cs is done via a flag `--accept-operator-terms-and-conditions` added explicitly to `nym-node run` command every time. Detailed info and proper syntax is provided on the [setup page](nodes/nym-node/setup#terms--conditions).
 
+<QuickStart />
+
 ## Steps for Nym Node Operators
 
 This is a summary of all needed steps for node operators to setup and configure a `nym-node` and register it to Nym Network:
-
 
 1. **Start with [Preliminary Steps](nodes/preliminary-steps.mdx), preparing [VPS](nodes/preliminary-steps/vps-setup.mdx) and [Nym wallet](nodes/preliminary-steps/wallet-preparation)**
 

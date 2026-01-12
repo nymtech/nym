@@ -1,12 +1,12 @@
 use crate::http::{
+    PagedResult, Pagination,
     error::{HttpError, HttpResult},
     models::Service,
     state::AppState,
-    PagedResult, Pagination,
 };
 use axum::{
-    extract::{Query, State},
     Json, Router,
+    extract::{Query, State},
 };
 use json_path::{ParseJsonPaths, ParsedDetails};
 use tracing::instrument;
@@ -195,6 +195,7 @@ mod tests {
             last_updated_utc: "2024-01-20T11:00:00Z".to_string(),
             routing_score: 0.95,
             config_score: 100,
+            bridges: None,
         }
     }
 

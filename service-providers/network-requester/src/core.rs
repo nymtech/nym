@@ -11,15 +11,15 @@ use futures::channel::{mpsc, oneshot};
 use futures::stream::StreamExt;
 use log::{debug, error, warn};
 use nym_bin_common::bin_info_owned;
+use nym_client_core::HardcodedTopologyProvider;
 use nym_client_core::client::mix_traffic::transceiver::GatewayTransceiver;
 use nym_client_core::config::disk_persistence::CommonClientPaths;
-use nym_client_core::HardcodedTopologyProvider;
 use nym_network_defaults::NymNetworkDetails;
 use nym_sdk::mixnet::{MixnetMessageSender, TopologyProvider};
+use nym_service_providers_common::ServiceProvider;
 use nym_service_providers_common::interface::{
     BinaryInformation, ProviderInterfaceVersion, Request, RequestVersion,
 };
-use nym_service_providers_common::ServiceProvider;
 use nym_socks5_proxy_helpers::connection_controller::{
     Controller, ControllerCommand, ControllerSender,
 };
@@ -33,8 +33,8 @@ use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nym_sphinx::params::{PacketSize, PacketType};
 use nym_sphinx::receiver::ReconstructedMessage;
-use nym_task::connections::LaneQueueLengths;
 use nym_task::ShutdownTracker;
+use nym_task::connections::LaneQueueLengths;
 use std::path::Path;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -101,7 +101,9 @@ impl ServiceProvider<Socks5Request> for NRServiceProvider {
                     .await
                     .expect("InputMessageReceiver has stopped receiving!");
             } else {
-                warn!("currently we can only send generic replies via reply surbs and we haven't got any : (")
+                warn!(
+                    "currently we can only send generic replies via reply surbs and we haven't got any : ("
+                )
             }
         }
         Ok(())

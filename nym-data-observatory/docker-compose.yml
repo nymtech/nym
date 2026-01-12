@@ -1,0 +1,21 @@
+services:
+  postgres-test:
+    image: postgres:16-alpine
+    container_name: nym_data_observatory_test
+    environment:
+      POSTGRES_DB: nym_data_observatory_test
+      POSTGRES_USER: testuser
+      POSTGRES_PASSWORD: testpass
+    ports:
+      - '5433:5432' # Map to 5433 to avoid conflicts with default PostgreSQL
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U testuser -d nyx_chain_scraper_test']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    # Optional: Add volume for persistent data during development
+#    volumes:
+#      - nym_data_observatory_test_data:/var/lib/postgresql/data
+
+#volumes:
+#  nym_data_observatory_test_data:

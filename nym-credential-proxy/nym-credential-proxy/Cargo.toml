@@ -1,6 +1,6 @@
 [package]
 name = "nym-credential-proxy"
-version = "0.2.0"
+version = "0.3.0"
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
@@ -62,13 +62,16 @@ nym-http-api-common = { path = "../../common/http-api-common", features = [
     "utoipa",
     "middleware",
 ] }
+nym-http-api-client = { path = "../../common/http-api-client", default-features = false }
 nym-validator-client = { path = "../../common/client-libs/validator-client" }
 nym-network-defaults = { path = "../../common/network-defaults" }
 
 nym-credential-proxy-requests = { path = "../nym-credential-proxy-requests", features = [
     "openapi",
 ] }
+nym-upgrade-mode-check = { path = "../../common/upgrade-mode-check" }
 nym-ecash-signer-check = { path = "../../common/ecash-signer-check" }
+nym-pemstore = { path = "../../common/pemstore" }
 
 nym-credential-proxy-lib = { path = "../../common/credential-proxy" }
 

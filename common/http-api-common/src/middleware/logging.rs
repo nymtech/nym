@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use axum::extract::Request;
-use axum::http::header::{HOST, USER_AGENT};
 use axum::http::HeaderValue;
+use axum::http::header::{HOST, USER_AGENT};
 use axum::middleware::Next;
 use axum::response::IntoResponse;
 use axum_client_ip::InsecureClientIp;

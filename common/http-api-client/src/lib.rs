@@ -92,7 +92,7 @@
 //!         pub status: ApiStatus,
 //!         pub uptime: u64,
 //!     }
-//!     
+//!
 //!     #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 //!     pub enum ApiStatus {
 //!         Up,
@@ -147,8 +147,8 @@ pub mod registry;
 use crate::path::RequestPath;
 use async_trait::async_trait;
 use bytes::Bytes;
-use http::header::{ACCEPT, CONTENT_TYPE};
 use http::HeaderMap;
+use http::header::{ACCEPT, CONTENT_TYPE};
 use itertools::Itertools;
 use mime::Mime;
 use reqwest::header::HeaderValue;
@@ -175,11 +175,11 @@ mod user_agent;
 pub use user_agent::UserAgent;
 
 #[cfg(not(target_arch = "wasm32"))]
-mod dns;
+pub mod dns;
 mod path;
 
 #[cfg(not(target_arch = "wasm32"))]
-pub use dns::{HickoryDnsError, HickoryDnsResolver};
+pub use dns::{HickoryDnsResolver, ResolveError};
 
 // helper for generating user agent based on binary information
 #[cfg(not(target_arch = "wasm32"))]
@@ -267,10 +267,10 @@ impl Display for ReqwestErrorWrapper {
         if self.0.is_timeout() {
             write!(f, "timed out: ")?;
         }
-        if self.0.is_redirect() {
-            if let Some(final_stop) = self.0.url() {
-                write!(f, "redirect loop at {final_stop}: ")?;
-            }
+        if self.0.is_redirect()
+            && let Some(final_stop) = self.0.url()
+        {
+            write!(f, "redirect loop at {final_stop}: ")?;
         }
 
         self.0.fmt(f)?;
@@ -296,6 +296,9 @@ impl std::error::Error for ReqwestErrorWrapper {}
 #[derive(Debug, Error)]
 #[allow(missing_docs)]
 pub enum HttpClientError {
+    #[error("did not provide any valid client URLs")]
+    NoUrlsProvided,
+
     #[error("failed to construct inner reqwest client: {source}")]
     ReqwestBuildError {
         #[source]
@@ -358,7 +361,9 @@ pub enum HttpClientError {
     // #[error("request failed with error message: {0}")]
     // GenericRequestFailure(String),
     //
-    #[error("the request for {url} failed with status '{status}'. no additional error message provided. response headers: {headers:?}")]
+    #[error(
+        "the request for {url} failed with status '{status}'. no additional error message provided. response headers: {headers:?}"
+    )]
     RequestFailure {
         url: reqwest::Url,
         status: StatusCode,
@@ -374,7 +379,9 @@ pub enum HttpClientError {
         headers: Box<HeaderMap>,
     },
 
-    #[error("failed to resolve request for {url}. status: '{status}'. response headers: {headers:?}. additional error message: {error}")]
+    #[error(
+        "failed to resolve request for {url}. status: '{status}'. response headers: {headers:?}. additional error message: {error}"
+    )]
     EndpointFailure {
         url: reqwest::Url,
         status: StatusCode,
@@ -387,6 +394,13 @@ pub enum HttpClientError {
 
     #[error("failed to resolve request to {url} due to data inconsistency: {details}")]
     InternalResponseInconsistency { url: ::url::Url, details: String },
+
+    #[cfg(not(target_arch = "wasm32"))]
+    #[error("encountered dns failure: {inner}")]
+    DnsLookupFailure {
+        #[from]
+        inner: ResolveError,
+    },
 
     #[error("Failed to encode bincode: {0}")]
     Bincode(#[from] bincode::Error),
@@ -414,6 +428,8 @@ impl HttpClientError {
             HttpClientError::ReqwestClientError { source } => source.is_timeout(),
             HttpClientError::RequestSendFailure { source, .. } => source.0.is_timeout(),
             HttpClientError::ResponseReadFailure { source, .. } => source.0.is_timeout(),
+            #[cfg(not(target_arch = "wasm32"))]
+            HttpClientError::DnsLookupFailure { inner } => inner.is_timeout(),
             #[cfg(target_arch = "wasm32")]
             HttpClientError::RequestTimeout => true,
             _ => false,
@@ -571,29 +587,36 @@ impl ClientBuilder {
         // a naive check: if the provided URL does not start with http(s), add that scheme
         if !str_url.starts_with("http") {
             let alt = format!("http://{str_url}");
-            warn!("the provided url ('{str_url}') does not contain scheme information. Changing it to '{alt}' ...");
+            warn!(
+                "the provided url ('{str_url}') does not contain scheme information. Changing it to '{alt}' ..."
+            );
             // TODO: or should we maybe default to https?
             Self::new(alt)
         } else {
             let url = url.to_url()?;
-            Ok(Self::new_with_urls(vec![url]))
+            Self::new_with_urls(vec![url])
         }
     }
 
     /// Create a client builder from network details with sensible defaults
     #[cfg(feature = "network-defaults")]
+    // deprecating function since it's not clear from its signature whether the client
+    // would be constructed using `nym_api_urls` or `nym_vpn_api_urls`
+    #[deprecated(note = "use explicit Self::new_with_fronted_urls instead")]
     pub fn from_network(
         network: &nym_network_defaults::NymNetworkDetails,
     ) -> Result<Self, HttpClientError> {
-        let urls = network
-            .nym_api_urls
-            .as_ref()
-            .ok_or_else(|| {
-                HttpClientError::GenericRequestFailure(
-                    "No API URLs configured in network details".to_string(),
-                )
-            })?
-            .iter()
+        let urls = network.nym_api_urls.as_ref().cloned().unwrap_or_default();
+        Self::new_with_fronted_urls(urls.clone())
+    }
+
+    /// Create a client builder using the provided set of domain-fronted URLs
+    #[cfg(feature = "network-defaults")]
+    pub fn new_with_fronted_urls(
+        urls: Vec<nym_network_defaults::ApiUrl>,
+    ) -> Result<Self, HttpClientError> {
+        let urls = urls
+            .into_iter()
             .map(|api_url| {
                 // Convert ApiUrl to our Url type with fronting support
                 let mut url = Url::parse(&api_url.url)?;
@@ -605,15 +628,19 @@ impl ClientBuilder {
                         .iter()
                         .map(|host| format!("https://{}", host))
                         .collect();
-                    url = Url::new(api_url.url.clone(), Some(fronts))
-                        .map_err(|e| HttpClientError::GenericRequestFailure(e.to_string()))?;
+                    url = Url::new(api_url.url.clone(), Some(fronts)).map_err(|source| {
+                        HttpClientError::MalformedUrl {
+                            raw: api_url.url.clone(),
+                            source,
+                        }
+                    })?;
                 }
 
                 Ok(url)
             })
             .collect::<Result<Vec<_>, HttpClientError>>()?;
 
-        let mut builder = Self::new_with_urls(urls);
+        let mut builder = Self::new_with_urls(urls)?;
 
         // Enable domain fronting by default (on retry)
         #[cfg(feature = "tunneling")]
@@ -625,7 +652,11 @@ impl ClientBuilder {
     }
 
     /// Constructs a new http `ClientBuilder` from a valid url.
-    pub fn new_with_urls(urls: Vec<Url>) -> Self {
+    pub fn new_with_urls(urls: Vec<Url>) -> Result<Self, HttpClientError> {
+        if urls.is_empty() {
+            return Err(HttpClientError::NoUrlsProvided);
+        }
+
         let urls = Self::check_urls(urls);
 
         #[cfg(target_arch = "wasm32")]
@@ -634,7 +665,7 @@ impl ClientBuilder {
         #[cfg(not(target_arch = "wasm32"))]
         let reqwest_client_builder = default_builder();
 
-        ClientBuilder {
+        Ok(ClientBuilder {
             urls,
             timeout: None,
             custom_user_agent: false,
@@ -645,7 +676,7 @@ impl ClientBuilder {
 
             retry_limit: 0,
             serialization: SerializationFormat::Json,
-        }
+        })
     }
 
     /// Add an additional URL to the set usable by this constructed `Client`
@@ -753,6 +784,7 @@ impl ClientBuilder {
             base_urls: self.urls,
             current_idx: Arc::new(AtomicUsize::new(0)),
             reqwest_client,
+            using_secure_dns: self.use_secure_dns,
 
             #[cfg(feature = "tunneling")]
             front: self.front,
@@ -773,6 +805,7 @@ pub struct Client {
     base_urls: Vec<Url>,
     current_idx: Arc<AtomicUsize>,
     reqwest_client: reqwest::Client,
+    using_secure_dns: bool,
 
     #[cfg(feature = "tunneling")]
     front: Option<fronted::Front>,
@@ -830,6 +863,7 @@ impl Client {
             base_urls: vec![new_url],
             current_idx: Arc::new(Default::default()),
             reqwest_client: self.reqwest_client.clone(),
+            using_secure_dns: self.using_secure_dns,
 
             #[cfg(feature = "tunneling")]
             front: self.front.clone(),
@@ -861,43 +895,77 @@ impl Client {
         self.retry_limit = limit;
     }
 
-    /// If multiple base urls are available rotate to next (e.g. when the current one resulted in an error)
-    fn update_host(&self) {
-        #[cfg(feature = "tunneling")]
-        if let Some(ref front) = self.front {
-            if front.is_enabled() {
-                // if we are using fronting, try updating to the next front
-                let url = self.current_url();
+    #[cfg(feature = "tunneling")]
+    fn matches_current_host(&self, url: &Url) -> bool {
+        if let Some(ref front) = self.front
+            && front.is_enabled()
+        {
+            url.host_str() == self.current_url().front_str()
+        } else {
+            url.host_str() == self.current_url().host_str()
+        }
+    }
 
-                // try to update the current host to use a next front, if one is available, otherwise
-                // we move on and try the next base url (if one is available)
-                if url.has_front() && !url.update() {
-                    // we swapped to the next front for the current host
-                    return;
-                }
+    #[cfg(not(feature = "tunneling"))]
+    fn matches_current_host(&self, url: &Url) -> bool {
+        url.host_str() == self.current_url().host_str()
+    }
+
+    /// If multiple base urls are available rotate to next (e.g. when the current one resulted in an error)
+    ///
+    /// Takes an optional URL argument. If this is none, the current host will be updated automatically.
+    /// If a url is provided first check that the CURRENT host matches the hostname in the URL before
+    /// triggering a rotation. This is meant to prevent parallel requests that fail from rotating the host
+    /// multiple times.
+    fn update_host(&self, maybe_url: Option<Url>) {
+        // If a causal url is provided and it doesn't match the hostname currently in use, skip update.
+        if let Some(err_url) = maybe_url
+            && !self.matches_current_host(&err_url)
+        {
+            return;
+        }
+
+        #[cfg(feature = "tunneling")]
+        if let Some(ref front) = self.front
+            && front.is_enabled()
+        {
+            // if we are using fronting, try updating to the next front
+            let url = self.current_url();
+
+            // try to update the current host to use a next front, if one is available, otherwise
+            // we move on and try the next base url (if one is available)
+            if url.has_front() && !url.update() {
+                // we swapped to the next front for the current host
+                return;
             }
         }
 
         if self.base_urls.len() > 1 {
             let orig = self.current_idx.load(Ordering::Relaxed);
+
+            #[allow(unused_mut)]
             let mut next = (orig + 1) % self.base_urls.len();
 
             // if fronting is enabled we want to update to a host that has fronts configured
             #[cfg(feature = "tunneling")]
-            if let Some(ref front) = self.front {
-                if front.is_enabled() {
-                    while next != orig {
-                        if self.base_urls[next].has_front() {
-                            // we have a front for the next host, so we can use it
-                            break;
-                        }
-
-                        next = (next + 1) % self.base_urls.len();
+            if let Some(ref front) = self.front
+                && front.is_enabled()
+            {
+                while next != orig {
+                    if self.base_urls[next].has_front() {
+                        // we have a front for the next host, so we can use it
+                        break;
                     }
+
+                    next = (next + 1) % self.base_urls.len();
                 }
             }
 
             self.current_idx.store(next, Ordering::Relaxed);
+            debug!(
+                "http client rotating host {} -> {}",
+                self.base_urls[orig], self.base_urls[next]
+            );
         }
     }
 
@@ -918,34 +986,38 @@ impl Client {
         r.url_mut().set_host(url.host_str()).unwrap();
 
         #[cfg(feature = "tunneling")]
-        if let Some(ref front) = self.front {
-            if front.is_enabled() {
-                if let Some(front_host) = url.front_str() {
-                    if let Some(actual_host) = url.host_str() {
-                        tracing::debug!(
-                            "Domain fronting enabled: routing via CDN {} to actual host {}",
-                            front_host,
-                            actual_host
-                        );
+        if let Some(ref front) = self.front
+            && front.is_enabled()
+        {
+            if let Some(front_host) = url.front_str() {
+                if let Some(actual_host) = url.host_str() {
+                    tracing::debug!(
+                        "Domain fronting enabled: routing via CDN {} to actual host {}",
+                        front_host,
+                        actual_host
+                    );
 
-                        // this should never fail as we are transplanting the host from one url to another
-                        r.url_mut().set_host(Some(front_host)).unwrap();
+                    // this should never fail as we are transplanting the host from one url to another
+                    r.url_mut().set_host(Some(front_host)).unwrap();
 
-                        let actual_host_header: HeaderValue =
-                            actual_host.parse().unwrap_or(HeaderValue::from_static(""));
-                        // If the map did have this key present, the new value is associated with the key
-                        // and all previous values are removed. (reqwest HeaderMap docs)
-                        _ = r
-                            .headers_mut()
-                            .insert(reqwest::header::HOST, actual_host_header);
+                    let actual_host_header: HeaderValue =
+                        actual_host.parse().unwrap_or(HeaderValue::from_static(""));
+                    // If the map did have this key present, the new value is associated with the key
+                    // and all previous values are removed. (reqwest HeaderMap docs)
+                    _ = r
+                        .headers_mut()
+                        .insert(reqwest::header::HOST, actual_host_header);
 
-                        return (url.as_str(), url.front_str());
-                    } else {
-                        warn!("Domain fronting is enabled, but no host_url is defined! Domain fronting WILL NOT WORK")
-                    }
+                    return (url.as_str(), url.front_str());
                 } else {
-                    warn!("Domain fronting is enabled, but no front_url is defined! Domain fronting WILL NOT WORK")
+                    tracing::debug!(
+                        "Domain fronting is enabled, but no host_url is defined for current URL"
+                    )
                 }
+            } else {
+                tracing::debug!(
+                    "Domain fronting is enabled, but current URL has no front_hosts configured"
+                )
             }
         }
         (url.as_str(), None)
@@ -1020,8 +1092,7 @@ impl ApiClientCore for Client {
                 .build()
                 .map_err(HttpClientError::reqwest_client_build_error)?;
             self.apply_hosts_to_req(&mut req);
-            #[cfg(not(target_arch = "wasm32"))]
-            let url = req.url().clone();
+            let url: Url = req.url().clone().into();
 
             #[cfg(target_arch = "wasm32")]
             let response: Result<Response, HttpClientError> = {
@@ -1039,25 +1110,39 @@ impl ApiClientCore for Client {
             match response {
                 Ok(resp) => return Ok(resp),
                 Err(err) => {
-                    // if we have multiple urls, update to the next
-                    self.update_host();
+                    // only if there was a network issue should we consider updating the host info
+                    //
+                    // note: for now this includes DNS resolution failure, I am not sure how I would go about
+                    // segregating that based on the interface provided by request for errors.
+                    #[cfg(target_arch = "wasm32")]
+                    let is_network_err = err.is_timeout();
+                    #[cfg(not(target_arch = "wasm32"))]
+                    let is_network_err = err.is_timeout() || err.is_connect();
 
-                    #[cfg(feature = "tunneling")]
-                    if let Some(ref front) = self.front {
-                        // If fronting is set to be enabled on error, enable domain fronting as we
-                        // have encountered an error.
-                        let was_enabled = front.is_enabled();
-                        front.retry_enable();
-                        if !was_enabled && front.is_enabled() {
-                            tracing::info!(
-                                "Domain fronting activated after connection failure: {err}",
-                            );
+                    if is_network_err {
+                        // if we have multiple urls, update to the next
+                        self.update_host(Some(url.clone()));
+
+                        #[cfg(feature = "tunneling")]
+                        if let Some(ref front) = self.front {
+                            // If fronting is set to be enabled on error, enable domain fronting as we
+                            // have encountered an error.
+                            let was_enabled = front.is_enabled();
+                            front.retry_enable();
+                            if !was_enabled && front.is_enabled() {
+                                tracing::info!(
+                                    "Domain fronting activated after connection failure: {err}",
+                                );
+                            }
                         }
                     }
 
                     if attempts < self.retry_limit {
-                        warn!("Retrying request due to http error: {err}");
                         attempts += 1;
+                        warn!(
+                            "Retrying request due to http error on attempt ({attempts}/{}): {err}",
+                            self.retry_limit
+                        );
                         continue;
                     }
 
@@ -1066,7 +1151,7 @@ impl ApiClientCore for Client {
                         if #[cfg(target_arch = "wasm32")] {
                             return Err(err);
                         } else {
-                            return Err(HttpClientError::request_send_error(url, err));
+                            return Err(HttpClientError::request_send_error(url.into(), err));
                         }
                     }
                 }
@@ -1430,14 +1515,12 @@ where
     tracing::trace!("status: {status} (success: {})", status.is_success());
     tracing::trace!("headers: {headers:?}");
 
-    if !allow_empty {
-        if let Some(0) = res.content_length() {
-            return Err(HttpClientError::EmptyResponse {
-                url,
-                status,
-                headers: Box::new(headers),
-            });
-        }
+    if !allow_empty && let Some(0) = res.content_length() {
+        return Err(HttpClientError::EmptyResponse {
+            url,
+            status,
+            headers: Box::new(headers),
+        });
     }
 
     if res.status().is_success() {

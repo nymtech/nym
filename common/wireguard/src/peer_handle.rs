@@ -6,12 +6,16 @@ use crate::peer_controller::PeerControlRequest;
 use crate::peer_storage_manager::{CachedPeerManager, PeerInformation};
 use defguard_wireguard_rs::{host::Host, key::Key, net::IpAddrMask};
 use futures::channel::oneshot;
+use nym_credential_verification::OutOfBandwidthResultExt;
 use nym_credential_verification::bandwidth_storage_manager::BandwidthStorageManager;
+use nym_credential_verification::upgrade_mode::UpgradeModeStatus;
 use nym_task::ShutdownToken;
 use nym_wireguard_types::DEFAULT_PEER_TIMEOUT_CHECK;
+use std::fmt::Display;
 use std::sync::Arc;
-use tokio::sync::{mpsc, RwLock};
-use tokio_stream::{wrappers::IntervalStream, StreamExt};
+use tokio::sync::{RwLock, mpsc};
+use tokio_stream::{StreamExt, wrappers::IntervalStream};
+use tracing::{debug, error, trace, warn};
 
 #[derive(Clone)]
 pub(crate) struct SharedBandwidthStorageManager {
@@ -43,7 +47,17 @@ pub struct PeerHandle {
     bandwidth_storage_manager: SharedBandwidthStorageManager,
     request_tx: mpsc::Sender<PeerControlRequest>,
     timeout_check_interval: IntervalStream,
+
+    /// Flag indicating whether the system is undergoing an upgrade and thus peers shouldn't be getting
+    /// their bandwidth metered.
+    upgrade_mode: UpgradeModeStatus,
     shutdown_token: ShutdownToken,
+}
+
+impl Display for PeerHandle {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "peer {}", self.public_key)
+    }
 }
 
 impl PeerHandle {
@@ -53,11 +67,11 @@ impl PeerHandle {
         cached_peer: CachedPeerManager,
         bandwidth_storage_manager: SharedBandwidthStorageManager,
         request_tx: mpsc::Sender<PeerControlRequest>,
+        upgrade_mode: UpgradeModeStatus,
         shutdown_token: &ShutdownToken,
     ) -> Self {
-        let timeout_check_interval = tokio_stream::wrappers::IntervalStream::new(
-            tokio::time::interval(DEFAULT_PEER_TIMEOUT_CHECK),
-        );
+        let timeout_check_interval =
+            IntervalStream::new(tokio::time::interval(DEFAULT_PEER_TIMEOUT_CHECK));
         let shutdown_token = shutdown_token.clone();
         PeerHandle {
             public_key,
@@ -66,8 +80,20 @@ impl PeerHandle {
             bandwidth_storage_manager,
             request_tx,
             timeout_check_interval,
+            upgrade_mode,
             shutdown_token,
         }
+    }
+
+    /// Attempt to use the specified amount of bandwidth and update internal cache.
+    /// Returns the amount of bandwidth remaining
+    async fn try_use_bandwidth(&self, spent: i64) -> nym_credential_verification::Result<i64> {
+        self.bandwidth_storage_manager
+            .inner
+            .write()
+            .await
+            .try_use_bandwidth(spent)
+            .await
     }
 
     async fn remove_peer(&self) -> Result<bool, Error> {
@@ -87,73 +113,33 @@ impl PeerHandle {
         Ok(success)
     }
 
-    fn compute_spent_bandwidth(
-        kernel_peer: PeerInformation,
-        cached_peer: PeerInformation,
-    ) -> Option<u64> {
-        let kernel_total = kernel_peer
-            .rx_bytes
-            .checked_add(kernel_peer.tx_bytes)
-            .or_else(|| {
-                tracing::error!(
-                    "Overflow on kernel adding bytes: {} + {}",
-                    kernel_peer.rx_bytes,
-                    kernel_peer.tx_bytes
-                );
-                None
-            })?;
-        let cached_total = cached_peer
-            .rx_bytes
-            .checked_add(cached_peer.tx_bytes)
-            .or_else(|| {
-                tracing::error!(
-                    "Overflow on cached adding bytes: {} + {}",
-                    cached_peer.rx_bytes,
-                    cached_peer.tx_bytes
-                );
-                None
-            })?;
-
-        kernel_total.checked_sub(cached_total).or_else(|| {
-            tracing::error!("Overflow on spent bandwidth subtraction: kernel - cached = {kernel_total} - {cached_total}");
-            None
-        })
-    }
-
     async fn active_peer(&mut self, kernel_peer: PeerInformation) -> Result<bool, Error> {
         let Some(cached_peer) = self.cached_peer.get_peer() else {
-            log::debug!(
-                "Peer {:?} not in storage anymore, shutting down handle",
-                self.public_key
-            );
+            debug!("{self} not in storage anymore, shutting down handle");
             return Ok(false);
         };
 
-        let spent_bandwidth = Self::compute_spent_bandwidth(kernel_peer, cached_peer)
-            .unwrap_or_default()
-            .try_into()
-            .inspect_err(|err| tracing::error!("Could not convert from u64 to i64: {err:?}"))
-            .unwrap_or_default();
-
+        let spent_bandwidth = kernel_peer.consumed_kernel_bandwidth(&cached_peer);
         self.cached_peer.update(kernel_peer);
 
-        if spent_bandwidth > 0
-            && self
-                .bandwidth_storage_manager
-                .inner()
-                .write()
-                .await
+        if spent_bandwidth > 0 {
+            trace!("{self} has used {spent_bandwidth} of bandwidth");
+            if self.upgrade_mode.enabled() {
+                debug!("we're in upgrade mode - {self} is not going to get its bandwidth deducted");
+                return Ok(true);
+            }
+
+            // 'regular' flow
+            if self
                 .try_use_bandwidth(spent_bandwidth)
                 .await
-                .is_err()
-        {
-            tracing::debug!(
-                "Peer {} is out of bandwidth, removing it",
-                self.public_key.to_string()
-            );
-            let success = self.remove_peer().await?;
-            self.cached_peer.remove_peer();
-            return Ok(!success);
+                .is_out_of_bandwidth()
+            {
+                debug!("{self} is out of bandwidth, removing it");
+                let success = self.remove_peer().await?;
+                self.cached_peer.remove_peer();
+                return Ok(!success);
+            }
         }
 
         Ok(true)
@@ -169,10 +155,7 @@ impl PeerHandle {
             .ok_or(Error::MissingClientKernelEntry(self.public_key.to_string()))?
             .into();
         if !self.active_peer(kernel_peer).await? {
-            log::debug!(
-                "Peer {:?} is not active anymore, shutting down handle",
-                self.public_key
-            );
+            debug!("{self} is not active anymore, shutting down handle",);
             Ok(false)
         } else {
             Ok(true)
@@ -184,12 +167,12 @@ impl PeerHandle {
             tokio::select! {
                 biased;
                 _ = self.shutdown_token.cancelled() => {
-                    log::trace!("PeerHandle: Received shutdown");
+                    trace!("PeerHandle: Received shutdown");
                     if let Err(e) = self.bandwidth_storage_manager.inner().write().await.sync_storage_bandwidth().await {
-                        log::error!("Storage sync failed - {e}, unaccounted bandwidth might have been consumed");
+                        error!("Storage sync failed - {e}, unaccounted bandwidth might have been consumed");
                     }
 
-                    log::trace!("PeerHandle: Finished shutdown");
+                    trace!("PeerHandle: Finished shutdown");
                     break;
                 }
                 _ = self.timeout_check_interval.next() => {
@@ -199,11 +182,11 @@ impl PeerHandle {
                         Err(err) => {
                             match self.remove_peer().await {
                                 Ok(true) => {
-                                    tracing::debug!("Removed peer due to error {err}");
+                                    debug!("Removed peer due to error {err}");
                                     return;
                                 }
                                 _ => {
-                                    tracing::warn!("Could not remove peer yet, we'll try again later. If this message persists, the gateway might need to be restarted");
+                                    warn!("Could not remove peer yet, we'll try again later. If this message persists, the gateway might need to be restarted");
                                     continue;
                                 }
                             }

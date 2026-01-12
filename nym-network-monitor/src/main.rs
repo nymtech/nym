@@ -13,8 +13,8 @@ use nym_sdk::mixnet::{self, MixnetClient};
 use nym_sphinx::chunking::monitoring;
 use nym_topology::provider_trait::ToTopologyMetadata;
 use nym_topology::{HardcodedTopologyProvider, NymTopology};
-use nym_validator_client::nym_api::NymApiClientExt;
 use nym_validator_client::UserAgent;
+use nym_validator_client::nym_api::NymApiClientExt;
 use std::fs::File;
 use std::io::Write;
 use std::sync::LazyLock;
@@ -154,7 +154,9 @@ fn generate_key_pair() -> Result<()> {
     let mut private_key_file = File::create("network-monitor-private")?;
     private_key_file.write_all(keypair.private_key().to_base58_string().as_bytes())?;
 
-    info!("Generated keypair, public key to 'network-monitor-public', and private key to 'network-monitor-private', public key should be whitelisted with the nym-api");
+    info!(
+        "Generated keypair, public key to 'network-monitor-public', and private key to 'network-monitor-private', public key should be whitelisted with the nym-api"
+    );
 
     Ok(())
 }

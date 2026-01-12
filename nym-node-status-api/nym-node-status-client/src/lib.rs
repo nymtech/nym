@@ -1,4 +1,4 @@
-use crate::models::{get_testrun, submit_results, submit_results_v2, TestrunAssignment};
+use crate::models::{TestrunAssignmentWithTickets, get_testrun, submit_results, submit_results_v2};
 use anyhow::bail;
 use api::ApiPaths;
 use nym_crypto::asymmetric::ed25519::{PrivateKey, Signature};
@@ -39,7 +39,7 @@ impl NsApiClient {
     }
 
     #[instrument(level = "debug", skip_all)]
-    pub async fn request_testrun(&self) -> anyhow::Result<Option<TestrunAssignment>> {
+    pub async fn request_testrun(&self) -> anyhow::Result<Option<TestrunAssignmentWithTickets>> {
         let target_url = self.api.request_testrun();
 
         let payload = get_testrun::Payload {

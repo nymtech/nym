@@ -81,6 +81,10 @@ pub struct CommonClientInitArgs {
     #[cfg_attr(feature = "cli", clap(long, hide = true))]
     pub enabled_credentials_mode: Option<bool>,
 
+    /// Change the default minimum node performance used during initial node selection filtering.
+    #[cfg_attr(feature = "cli", clap(long, hide = true))]
+    pub minimum_gateway_performance: Option<u8>,
+
     /// Mostly debug-related option to increase default traffic rate so that you would not need to
     /// modify config post init
     #[cfg_attr(feature = "cli", clap(long, hide = true))]
@@ -136,6 +140,7 @@ where
         user_chosen_gateway_id.map(|id| id.to_base58_string()),
         Some(common_args.latency_based_selection),
         common_args.force_tls_gateway,
+        false,
     );
     tracing::debug!("Gateway selection specification: {selection_spec:?}");
 
@@ -173,13 +178,16 @@ where
         })?;
         hardcoded_topology.entry_capable_nodes().cloned().collect()
     } else {
-        let mut rng = rand::thread_rng();
+        let minimum_performance = common_args
+            .minimum_gateway_performance
+            .unwrap_or(core.debug.topology.minimum_gateway_performance);
+
         crate::init::helpers::gateways_for_init(
-            &mut rng,
             &core.client.nym_api_urls,
             user_agent,
-            core.debug.topology.minimum_gateway_performance,
+            minimum_performance,
             core.debug.topology.ignore_ingress_epoch_role,
+            None,
         )
         .await?
     };

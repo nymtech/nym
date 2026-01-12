@@ -7,9 +7,9 @@ mod v8;
 
 use nym_bin_common::build_information::BinaryBuildInformationOwned;
 use nym_ip_packet_requests::{
-    v6::response::IpPacketResponse as IpPacketResponseV6,
+    IpPair, v6::response::IpPacketResponse as IpPacketResponseV6,
     v7::response::IpPacketResponse as IpPacketResponseV7,
-    v8::response::IpPacketResponse as IpPacketResponseV8, IpPair,
+    v8::response::IpPacketResponse as IpPacketResponseV8,
 };
 
 use crate::{
@@ -147,9 +147,7 @@ pub(crate) enum InfoResponseReply {
     Generic { msg: String },
 
     #[allow(unused)]
-    #[error(
-        "version mismatch: response is v{request_version} and response is v{response_version}"
-    )]
+    #[error("version mismatch: response is v{request_version} and response is v{response_version}")]
     VersionMismatch {
         request_version: u8,
         response_version: u8,

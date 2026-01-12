@@ -3,7 +3,7 @@
 
 use crate::config::authenticator::{Authenticator, AuthenticatorDebug};
 use crate::config::gateway_tasks::{
-    ClientBandwidthDebug, StaleMessageDebug, ZkNymTicketHandlerDebug,
+    ClientBandwidthDebug, StaleMessageDebug, UpgradeModeWatcher, ZkNymTicketHandlerDebug,
 };
 use crate::config::persistence::{
     AuthenticatorPaths, GatewayTasksPaths, IpPacketRouterPaths, KeysPaths, NetworkRequesterPaths,
@@ -13,9 +13,9 @@ use crate::config::service_providers::{
     IpPacketRouter, IpPacketRouterDebug, NetworkRequester, NetworkRequesterDebug,
 };
 use crate::config::{
-    gateway_tasks, service_providers, Config, GatewayTasksConfig, Host, Http, KeyRotation,
-    KeyRotationDebug, Mixnet, MixnetDebug, NodeModes, ReplayProtection, ReplayProtectionDebug,
-    ServiceProvidersConfig, Verloc, VerlocDebug, Wireguard, DEFAULT_HTTP_PORT,
+    Config, DEFAULT_HTTP_PORT, GatewayTasksConfig, Host, Http, KeyRotation, KeyRotationDebug,
+    Mixnet, MixnetDebug, NodeModes, ReplayProtection, ReplayProtectionDebug,
+    ServiceProvidersConfig, Verloc, VerlocDebug, Wireguard, gateway_tasks, service_providers,
 };
 use crate::error::NymNodeError;
 use celes::Country;
@@ -33,7 +33,7 @@ use serde::{Deserialize, Serialize};
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
-use tracing::{debug, instrument};
+use tracing::{debug, error, instrument};
 use url::Url;
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
@@ -1346,6 +1346,13 @@ pub async fn try_upgrade_config_v10<P: AsRef<Path>>(
             ws_bind_address: old_cfg.gateway_tasks.ws_bind_address,
             announce_ws_port: old_cfg.gateway_tasks.announce_ws_port,
             announce_wss_port: old_cfg.gateway_tasks.announce_wss_port,
+            upgrade_mode: UpgradeModeWatcher::new()
+                .inspect_err(|_| {
+                    error!(
+                        "failed to set custom upgrade mode configuration - falling back to mainnet"
+                    )
+                })
+                .unwrap_or(UpgradeModeWatcher::new_mainnet()),
             debug: gateway_tasks::Debug {
                 message_retrieval_limit: old_cfg.gateway_tasks.debug.message_retrieval_limit,
                 maximum_open_connections: old_cfg.gateway_tasks.debug.maximum_open_connections,
@@ -1394,6 +1401,7 @@ pub async fn try_upgrade_config_v10<P: AsRef<Path>>(
                         .zk_nym_tickets
                         .maximum_time_between_redemption,
                 },
+                ..Default::default()
             },
         },
         service_providers: ServiceProvidersConfig {

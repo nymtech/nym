@@ -3,9 +3,9 @@ pub use nym_client_core::config::Config as BaseClientConfig;
 use nym_bin_common::logging::LoggingSettings;
 use nym_client_core::{cli_helpers::CliClientConfig, config::disk_persistence::CommonClientPaths};
 use nym_config::{
-    defaults::mainnet, must_get_home, save_formatted_config_to_file,
-    serde_helpers::de_maybe_stringified, NymConfigTemplate, OptionalSet, DEFAULT_CONFIG_DIR,
-    DEFAULT_CONFIG_FILENAME, DEFAULT_DATA_DIR, NYM_DIR,
+    DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, DEFAULT_DATA_DIR, NYM_DIR, NymConfigTemplate,
+    OptionalSet, defaults::mainnet, must_get_home, save_formatted_config_to_file,
+    serde_helpers::de_maybe_stringified,
 };
 use nym_service_providers_common::DEFAULT_SERVICE_PROVIDERS_DIR;
 use serde::{Deserialize, Serialize};

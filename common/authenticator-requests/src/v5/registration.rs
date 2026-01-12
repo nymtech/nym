@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::Error;
-use base64::{engine::general_purpose, Engine};
+use base64::{Engine, engine::general_purpose};
 use nym_credentials_interface::CredentialSpendingData;
 use nym_network_defaults::constants::{WG_TUN_DEVICE_IP_ADDRESS_V4, WG_TUN_DEVICE_IP_ADDRESS_V6};
 use nym_wireguard_types::PeerPublicKey;
@@ -108,7 +108,7 @@ pub struct RegistrationData {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-pub struct RegistredData {
+pub struct RegisteredData {
     pub pub_key: PeerPublicKey,
     pub private_ips: IpPair,
     pub wg_port: u16,

@@ -14,6 +14,7 @@ bincode = { workspace = true, optional = true }
 log = { workspace = true }
 thiserror = { workspace = true }
 serde = { workspace = true, features = ["derive"], optional = true }
+time = { workspace = true }
 tokio = { workspace = true, features = ["sync"] }
 zeroize = { workspace = true, features = ["zeroize_derive"] }
 
@@ -31,6 +32,14 @@ features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate", "time"]
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio]
 workspace = true
 features = ["rt-multi-thread", "net", "signal", "fs"]
+
+
+[dev-dependencies]
+anyhow = { workspace = true }
+nym-crypto = { path = "../crypto", features = ["asymmetric", "rand"] }
+nym-test-utils = { path = "../test-utils" }
+nym-credentials-interface = { path = "../credentials-interface" }
+nym-compact-ecash = { path = "../nym_offline_compact_ecash" }
 
 
 [build-dependencies]

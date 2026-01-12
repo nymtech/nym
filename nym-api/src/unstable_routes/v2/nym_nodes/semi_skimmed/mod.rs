@@ -67,7 +67,8 @@ pub struct PaginatedCachedNodesExpandedResponseSchema {
 /// Return all Nym Nodes and optionally legacy mixnodes/gateways (if `no-legacy` flag is not used)
 /// that are currently bonded.
 #[utoipa::path(
-    tag = "Unstable Nym Nodes",
+    operation_id = "v2_nodes_expanded",
+    tag = "Unstable Nym Nodes v2",
     get,
     params(NodesParamsWithRole),
     path = "",

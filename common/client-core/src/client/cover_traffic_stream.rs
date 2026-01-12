@@ -32,8 +32,11 @@ where
     /// Key used to encrypt and decrypt content of an ACK packet.
     ack_key: Arc<AckKey>,
 
-    /// Average delay an acknowledgement packet is going to get delay at a single mixnode.
+    /// Average delay an acknowledgement packet is going to get delayed at a single mixnode.
     average_ack_delay: Duration,
+
+    /// Average delay a forward packet is going to get delayed at a single mixnode.
+    average_packet_delay: Duration,
 
     /// Defines configuration options related to cover traffic.
     cover_traffic: config::CoverTraffic,
@@ -122,6 +125,7 @@ impl LoopCoverTrafficStream<OsRng> {
         LoopCoverTrafficStream {
             ack_key,
             average_ack_delay,
+            average_packet_delay: traffic_config.average_packet_delay,
             cover_traffic: cover_config,
             next_delay,
             mix_tx,
@@ -187,7 +191,7 @@ impl LoopCoverTrafficStream<OsRng> {
             &self.ack_key,
             &self.our_full_destination,
             self.average_ack_delay,
-            self.cover_traffic.loop_cover_traffic_average_delay,
+            self.average_packet_delay,
             cover_traffic_packet_size,
             self.packet_type,
         ) {
@@ -205,7 +209,7 @@ impl LoopCoverTrafficStream<OsRng> {
                 TrySendError::Full(_) => {
                     // This isn't a problem, if the channel is full means we're already sending the
                     // max amount of messages downstream can handle.
-                    tracing::debug!("Failed to send cover message - channel full");
+                    tracing::trace!("Failed to send cover message - channel full");
                 }
                 TrySendError::Closed(_) => {
                     tracing::warn!("Failed to send cover message - channel closed");
@@ -225,9 +229,15 @@ impl LoopCoverTrafficStream<OsRng> {
         // JS: due to identical logical structure to OutQueueControl::on_message(), this is also
         // presumably required to prevent bugs in the future. Exact reason is still unknown to me.
 
-        // TODO: temporary and BAD workaround for wasm (we should find a way to yield here in wasm)
         #[cfg(not(target_arch = "wasm32"))]
-        tokio::task::yield_now().await;
+        {
+            tokio::task::yield_now().await;
+        }
+
+        #[cfg(target_arch = "wasm32")]
+        {
+            tokio_with_wasm::task::yield_now().await;
+        }
     }
 
     // it's fine if cover traffic stream task gets killed whilst processing next message

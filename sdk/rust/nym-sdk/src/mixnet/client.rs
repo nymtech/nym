@@ -2,13 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::{connection_state::BuilderState, Config, StoragePaths};
-use crate::bandwidth::BandwidthAcquireClient;
+use crate::bandwidth::{BandwidthAcquireClient, BandwidthImporter};
 use crate::mixnet::socks5_client::Socks5MixnetClient;
 use crate::mixnet::{CredentialStorage, MixnetClient, Recipient};
 use crate::GatewayTransceiver;
 use crate::NymNetworkDetails;
 use crate::{Error, Result};
 use log::{debug, warn};
+use nym_client_core::client::base_client::storage::gateways_storage::GatewayRegistration;
 use nym_client_core::client::base_client::storage::helpers::{
     get_active_gateway_identity, get_all_registered_identities, has_gateway_details,
     set_active_gateway,
@@ -16,7 +17,7 @@ use nym_client_core::client::base_client::storage::helpers::{
 use nym_client_core::client::base_client::storage::{
     Ephemeral, GatewaysDetailsStore, MixnetClientStorage, OnDiskPersistent,
 };
-use nym_client_core::client::base_client::BaseClient;
+use nym_client_core::client::base_client::{BaseClient, EventSender};
 use nym_client_core::client::key_manager::persistence::KeyStore;
 use nym_client_core::client::{
     base_client::BaseClientBuilder, replies::reply_storage::ReplyStorageBackend,
@@ -24,20 +25,20 @@ use nym_client_core::client::{
 use nym_client_core::config::{DebugConfig, ForgetMe, RememberMe, StatsReporting};
 use nym_client_core::error::ClientCoreError;
 use nym_client_core::init::helpers::gateways_for_init;
-use nym_client_core::init::setup_gateway;
 use nym_client_core::init::types::{GatewaySelectionSpecification, GatewaySetup};
+use nym_client_core::init::{refresh_gateway_published_data, setup_gateway};
 use nym_credentials_interface::TicketType;
 use nym_crypto::hkdf::DerivationMaterial;
 use nym_socks5_client_core::config::Socks5;
 use nym_task::ShutdownTracker;
 use nym_topology::provider_trait::TopologyProvider;
+use nym_topology::RoutingNode;
 use nym_validator_client::{nyxd, QueryHttpRpcNyxdClient, UserAgent};
 use rand::rngs::OsRng;
 use std::path::Path;
 use std::path::PathBuf;
 #[cfg(unix)]
 use std::sync::Arc;
-use tokio_util::sync::CancellationToken;
 use url::Url;
 use zeroize::Zeroizing;
 
@@ -54,7 +55,9 @@ pub struct MixnetClientBuilder<S: MixnetClientStorage = Ephemeral> {
     custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
     custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send + Sync>>,
     custom_shutdown: Option<ShutdownTracker>,
+    event_tx: Option<EventSender>,
     force_tls: bool,
+    no_hostname: bool,
     user_agent: Option<UserAgent>,
     #[cfg(unix)]
     connection_fd_callback: Option<Arc<dyn Fn(std::os::fd::RawFd) + Send + Sync>>,
@@ -97,8 +100,10 @@ impl MixnetClientBuilder<OnDiskPersistent> {
                 .await?,
             gateway_endpoint_config_path: None,
             custom_shutdown: None,
+            event_tx: None,
             custom_gateway_transceiver: None,
             force_tls: false,
+            no_hostname: false,
             user_agent: None,
             #[cfg(unix)]
             connection_fd_callback: None,
@@ -119,11 +124,6 @@ where
     <S::KeyStore as KeyStore>::StorageError: Send + Sync,
     <S::GatewaysDetailsStore as GatewaysDetailsStore>::StorageError: Send + Sync,
 {
-    pub fn with_shutdown_token(self, token: CancellationToken) -> Self {
-        let shutdown_tracker = ShutdownTracker::new_from_external_shutdown_token(token.into());
-        self.custom_shutdown(shutdown_tracker)
-    }
-
     /// Creates a client builder with the provided client storage implementation.
     #[must_use]
     pub fn new_with_storage(storage: S) -> MixnetClientBuilder<S> {
@@ -135,7 +135,9 @@ where
             custom_topology_provider: None,
             custom_gateway_transceiver: None,
             custom_shutdown: None,
+            event_tx: None,
             force_tls: false,
+            no_hostname: false,
             user_agent: None,
             #[cfg(unix)]
             connection_fd_callback: None,
@@ -158,7 +160,9 @@ where
             custom_topology_provider: self.custom_topology_provider,
             custom_gateway_transceiver: self.custom_gateway_transceiver,
             custom_shutdown: self.custom_shutdown,
+            event_tx: self.event_tx,
             force_tls: self.force_tls,
+            no_hostname: self.no_hostname,
             user_agent: self.user_agent,
             #[cfg(unix)]
             connection_fd_callback: self.connection_fd_callback,
@@ -230,6 +234,13 @@ where
         self
     }
 
+    /// Attempt to only choose a gateway with its IP address only, ignored if force_tls is set
+    #[must_use]
+    pub fn no_hostname(mut self, no_hostname: bool) -> Self {
+        self.no_hostname = no_hostname;
+        self
+    }
+
     /// Enable paid coconut bandwidth credentials mode.
     #[must_use]
     pub fn enable_credentials_mode(mut self) -> Self {
@@ -272,6 +283,13 @@ where
     #[must_use]
     pub fn custom_shutdown(mut self, shutdown: ShutdownTracker) -> Self {
         self.custom_shutdown = Some(shutdown);
+        self
+    }
+
+    /// Use an externally managed shutdown mechanism.
+    #[must_use]
+    pub fn event_tx(mut self, event_tx: EventSender) -> Self {
+        self.event_tx = Some(event_tx);
         self
     }
 
@@ -323,14 +341,19 @@ where
 
     /// Construct a [`DisconnectedMixnetClient`] from the setup specified.
     pub fn build(self) -> Result<DisconnectedMixnetClient<S>> {
-        let mut client =
-            DisconnectedMixnetClient::new(self.config, self.socks5_config, self.storage)?;
+        let mut client = DisconnectedMixnetClient::new(
+            self.config,
+            self.socks5_config,
+            self.storage,
+            self.event_tx,
+        )?;
 
         client.custom_gateway_transceiver = self.custom_gateway_transceiver;
         client.custom_topology_provider = self.custom_topology_provider;
         client.custom_shutdown = self.custom_shutdown;
         client.wait_for_gateway = self.wait_for_gateway;
         client.force_tls = self.force_tls;
+        client.no_hostname = self.no_hostname;
         client.user_agent = self.user_agent;
         #[cfg(unix)]
         if self.connection_fd_callback.is_some() {
@@ -383,8 +406,14 @@ where
     /// Force the client to connect using wss protocol with the gateway.
     force_tls: bool,
 
+    /// Force the client to pick gateway IP and not hostname, ignored if force_tls is set
+    no_hostname: bool,
+
     /// Allows passing an externally controlled shutdown handle.
     custom_shutdown: Option<ShutdownTracker>,
+
+    /// Sender of mixnet client events to the SDK caller
+    event_tx: Option<EventSender>,
 
     user_agent: Option<UserAgent>,
 
@@ -395,7 +424,6 @@ where
     forget_me: ForgetMe,
 
     remember_me: RememberMe,
-
     /// The derivation material to use for the client keys, its up to the caller to save this for rederivation later
     derivation_material: Option<DerivationMaterial>,
 }
@@ -421,6 +449,7 @@ where
         config: Config,
         socks5_config: Option<Socks5>,
         storage: S,
+        event_tx: Option<EventSender>,
     ) -> Result<DisconnectedMixnetClient<S>> {
         // don't create dkg client for the bandwidth controller if credentials are disabled
         let dkg_query_client = if config.enabled_credentials_mode {
@@ -448,7 +477,9 @@ where
             custom_gateway_transceiver: None,
             wait_for_gateway: false,
             force_tls: false,
+            no_hostname: false,
             custom_shutdown: None,
+            event_tx,
             user_agent: None,
             #[cfg(unix)]
             connection_fd_callback: None,
@@ -537,27 +568,39 @@ where
         }
     }
 
-    async fn new_gateway_setup(&self) -> Result<GatewaySetup, ClientCoreError> {
+    /// Attempt to retrieve list of all gateways available for registration
+    async fn available_gateways(&mut self) -> Result<Vec<RoutingNode>, ClientCoreError> {
+        if let Some(ref mut custom_provider) = self.custom_topology_provider {
+            if let Some(topology) = custom_provider.get_new_topology().await {
+                // Use entry_capable_nodes() instead of entry_gateways() to include
+                // all entry-capable nodes, not just actively assigned ones
+                return Ok(topology.entry_capable_nodes().cloned().collect());
+            }
+        }
+
         let nym_api_endpoints = self.get_api_endpoints();
-
-        let selection_spec = GatewaySelectionSpecification::new(
-            self.config.user_chosen_gateway.clone(),
-            None,
-            self.force_tls,
-        );
-
+        let topology_cfg = &self.config.debug_config.topology;
         let user_agent = self.user_agent.clone();
 
-        let topology_cfg = &self.config.debug_config.topology;
-        let mut rng = OsRng;
-        let available_gateways = gateways_for_init(
-            &mut rng,
+        gateways_for_init(
             &nym_api_endpoints,
             user_agent,
             topology_cfg.minimum_gateway_performance,
             topology_cfg.ignore_ingress_epoch_role,
+            None,
         )
-        .await?;
+        .await
+    }
+
+    async fn new_gateway_setup(&mut self) -> Result<GatewaySetup, ClientCoreError> {
+        let selection_spec = GatewaySelectionSpecification::new(
+            self.config.user_chosen_gateway.clone(),
+            None,
+            self.force_tls,
+            self.no_hostname,
+        );
+
+        let available_gateways = self.available_gateways().await?;
 
         Ok(GatewaySetup::New {
             specification: selection_spec,
@@ -565,6 +608,21 @@ where
             #[cfg(unix)]
             connection_fd_callback: self.connection_fd_callback.clone(),
         })
+    }
+
+    async fn refresh_gateway_published_data(
+        &mut self,
+        gateway_registration: GatewayRegistration,
+    ) -> Result<(), ClientCoreError> {
+        let available_gateways = self.available_gateways().await?;
+        refresh_gateway_published_data(
+            self.storage.gateway_details_store(),
+            gateway_registration,
+            available_gateways,
+            self.force_tls,
+            self.no_hostname,
+        )
+        .await
     }
 
     /// Register with a gateway. If a gateway is provided in the config then that will try to be
@@ -622,6 +680,12 @@ where
         )
         .await?;
 
+        // update gateway setup if needed
+        if init_results.exipred_details() {
+            self.refresh_gateway_published_data(init_results.gateway_registration.clone())
+                .await?;
+        }
+
         set_active_gateway(
             self.storage.gateway_details_store(),
             &init_results.gateway_id().to_base58_string(),
@@ -665,6 +729,10 @@ where
         )
     }
 
+    pub fn begin_bandwidth_import(&self) -> BandwidthImporter<'_, S::CredentialStore> {
+        BandwidthImporter::new(self.storage.credential_store())
+    }
+
     async fn connect_to_mixnet_common(mut self) -> Result<(BaseClient, Recipient)> {
         self.setup_client_keys().await?;
         self.setup_gateway().await?;
@@ -677,12 +745,27 @@ where
             .config
             .as_base_client_config(nyxd_endpoints, nym_api_endpoints.clone());
 
+        tracing::debug!(
+            "SDK: Passing nym_api_urls to BaseClientBuilder (has {} nym_api_urls)",
+            self.config
+                .network_details
+                .nym_api_urls
+                .as_ref()
+                .map(|urls| urls.len())
+                .unwrap_or(0)
+        );
+
         let mut base_builder: BaseClientBuilder<_, _> =
             BaseClientBuilder::new(base_config, self.storage, self.dkg_query_client)
                 .with_wait_for_gateway(self.wait_for_gateway)
                 .with_forget_me(&self.forget_me)
                 .with_remember_me(&self.remember_me)
                 .with_derivation_material(self.derivation_material);
+
+        // Add nym_api_urls if available in network_details
+        if let Some(nym_api_urls) = self.config.network_details.nym_api_urls.clone() {
+            base_builder = base_builder.with_nym_api_urls(nym_api_urls);
+        }
 
         if let Some(user_agent) = self.user_agent {
             base_builder = base_builder.with_user_agent(user_agent);
@@ -692,15 +775,14 @@ where
             base_builder = base_builder.with_topology_provider(topology_provider);
         }
 
-        // Use custom shutdown if provided, otherwise get from registry
-        let shutdown_tracker = match self.custom_shutdown {
-            Some(custom) => custom,
-            None => {
-                // Auto-create from registry for SDK use
-                nym_task::get_sdk_shutdown_tracker()?
-            }
-        };
-        base_builder = base_builder.with_shutdown(shutdown_tracker);
+        // Use custom shutdown if provided, otherwise the sdk one will be used later down the line
+        if let Some(shutdown_tracker) = self.custom_shutdown {
+            base_builder = base_builder.with_shutdown(shutdown_tracker);
+        }
+
+        if let Some(event_tx) = self.event_tx {
+            base_builder = base_builder.with_event_tx(event_tx);
+        }
 
         if let Some(gateway_transceiver) = self.custom_gateway_transceiver {
             base_builder = base_builder.with_gateway_transceiver(gateway_transceiver);
@@ -751,13 +833,6 @@ where
         let packet_type = self.config.debug_config.traffic.packet_type;
         let (mut started_client, nym_address) = self.connect_to_mixnet_common().await?;
 
-        // TODO: more graceful handling here, surely both variants should work... I think?
-        let Some(tracker) = started_client.shutdown_handle else {
-            return Err(Error::new_unsupported(
-                "connecting with socks5 is currently unsupported with custom shutdown",
-            ));
-        };
-
         let client_input = started_client.client_input.register_producer();
         let client_output = started_client.client_output.register_consumer();
         let client_state = started_client.client_state;
@@ -769,14 +844,14 @@ where
             client_output,
             client_state.clone(),
             nym_address,
-            tracker.child_tracker(),
+            started_client.shutdown_handle.clone(),
             packet_type,
         );
 
         Ok(Socks5MixnetClient {
             nym_address,
             client_state,
-            task_handle: tracker,
+            task_handle: started_client.shutdown_handle,
             socks5_config,
         })
     }
@@ -825,7 +900,6 @@ where
             stats_events_reporter,
             started_client.shutdown_handle,
             None,
-            started_client.client_request_sender,
             started_client.forget_me,
             started_client.remember_me,
         ))
@@ -855,5 +929,19 @@ impl IncludedSurbs {
 
     pub fn expose_self_address() -> Self {
         Self::ExposeSelfAddress
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_mixnet_builder_default_no_custom_client() {
+        let builder = MixnetClientBuilder::new_ephemeral();
+        assert!(
+            builder.build().is_ok(),
+            "Builder should succeed without custom client"
+        );
     }
 }

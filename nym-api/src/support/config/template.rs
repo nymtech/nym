@@ -70,30 +70,6 @@ per_node_test_packets = {{ network_monitor.debug.per_node_test_packets }}
 # Path to the database file containing uptime statuses for all mixnodes and gateways.
 database_path = '{{ node_status_api.storage_paths.database_path }}'
 
-[node_status_api.debug]
-
-caching_interval = '{{ node_status_api.debug.caching_interval }}'
-
-
-##### topology cacher config options #####
-
-[topology_cacher.debug]
-
-caching_interval = '{{ topology_cacher.debug.caching_interval }}'
-
-
-##### circulating supply cacher config options #####
-
-[circulating_supply_cacher]
-
-# Specifies whether circulating supply caching service is enabled in this process.
-enabled = {{ circulating_supply_cacher.enabled }}
-
-[circulating_supply_cacher.debug]
-
-caching_interval = '{{ circulating_supply_cacher.debug.caching_interval }}'
-
-
 ##### rewarding config options #####
 
 [rewarding]

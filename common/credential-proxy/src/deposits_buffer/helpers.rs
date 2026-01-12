@@ -2,12 +2,18 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::error::CredentialProxyError;
+use crate::shared_state::nyxd_client::ChainClient;
 use crate::storage::models::StorableEcashDeposit;
 use nym_compact_ecash::WithdrawalRequest;
 use nym_credentials::IssuanceTicketBook;
 use nym_crypto::asymmetric::ed25519;
+use nym_validator_client::nyxd::cosmwasm_client::ContractResponseData;
 use nym_validator_client::nyxd::{Coin, Hash};
+use rand::rngs::OsRng;
+use std::fmt::Debug;
 use time::OffsetDateTime;
+use tokio_util::sync::CancellationToken;
+use tracing::{error, info, instrument};
 use zeroize::Zeroizing;
 
 pub struct BufferedDeposit {
@@ -76,7 +82,87 @@ impl PerformedDeposits {
     }
 }
 
-pub(super) fn request_sizes(total: usize, max_request_size: usize) -> impl Iterator<Item = usize> {
+#[instrument(skip(client, cancellation_on_critical_failure), err(Display))]
+pub async fn make_deposits_request(
+    client: &ChainClient,
+    deposit_amount: Coin,
+    memo: impl Into<String> + Debug,
+    amount: usize,
+    cancellation_on_critical_failure: &CancellationToken,
+) -> Result<PerformedDeposits, CredentialProxyError> {
+    let requested_on = OffsetDateTime::now_utc();
+    let chain_write_permit = client.start_chain_tx().await;
+    let mut rng = OsRng;
+
+    let keys = (0..amount)
+        .map(|_| ed25519::PrivateKey::new(&mut rng))
+        .collect::<Vec<_>>();
+
+    info!("starting {amount} deposits");
+    let mut contents = Vec::new();
+    for key in &keys {
+        let public_key: ed25519::PublicKey = key.into();
+        contents.push((public_key.to_base58_string(), deposit_amount.clone()));
+    }
+
+    let execute_res = chain_write_permit
+        .make_deposits(memo.into(), contents)
+        .await?;
+
+    let tx_hash = execute_res.transaction_hash;
+    info!("{amount} deposits made in transaction: {tx_hash}");
+
+    let contract_data = match execute_res.to_contract_data() {
+        Ok(contract_data) => contract_data,
+        Err(err) => {
+            // that one is tricky. deposits technically got made, but we somehow failed to parse response,
+            // in this case terminate the proxy with 0 exit code so it wouldn't get automatically restarted
+            // because it requires some serious MANUAL intervention
+            error!(
+                "CRITICAL FAILURE: failed to parse out deposit information from the contract transaction. either the chain got upgraded and the schema changed or the ecash contract got changed! terminating the process. it has to be inspected manually. error was: {err}"
+            );
+            cancellation_on_critical_failure.cancel();
+            return Err(CredentialProxyError::DepositFailure);
+        }
+    };
+
+    if contract_data.len() != amount {
+        // another critical failure, that one should be quite impossible and thus has to be manually inspected
+        error!(
+            "CRITICAL FAILURE: failed to parse out all deposit information from the contract transaction. got {} responses while we sent {amount} deposits! either the chain got upgraded and the schema changed or the ecash contract got changed! terminating the process. it has to be inspected manually",
+            contract_data.len()
+        );
+        cancellation_on_critical_failure.cancel();
+        return Err(CredentialProxyError::DepositFailure);
+    }
+
+    let mut deposits_data = Vec::new();
+    for (key, response) in keys.into_iter().zip(contract_data) {
+        let response_index = response.message_index;
+        let deposit_id = match response.parse_singleton_u32_contract_data() {
+            Ok(deposit_id) => deposit_id,
+            Err(err) => {
+                // another impossibility
+                error!(
+                    "CRITICAL FAILURE: failed to parse out deposit id out of the response at index {response_index}: {err}. either the chain got upgraded and the schema changed or the ecash contract got changed! terminating the process. it has to be inspected manually"
+                );
+                cancellation_on_critical_failure.cancel();
+                return Err(CredentialProxyError::DepositFailure);
+            }
+        };
+
+        deposits_data.push(BufferedDeposit::new(deposit_id, key));
+    }
+
+    Ok(PerformedDeposits {
+        deposits_data,
+        tx_hash,
+        requested_on,
+        deposit_amount,
+    })
+}
+
+pub fn split_deposits(total: usize, max_request_size: usize) -> impl Iterator<Item = usize> {
     (0..total)
         .step_by(max_request_size)
         .map(move |start| std::cmp::min(max_request_size, total - start))
@@ -89,13 +175,13 @@ mod tests {
     #[test]
     fn request_sizes_test() {
         assert_eq!(
-            request_sizes(100, 32).collect::<Vec<_>>(),
+            split_deposits(100, 32).collect::<Vec<_>>(),
             vec![32, 32, 32, 4]
         );
 
-        assert_eq!(request_sizes(10, 32).collect::<Vec<_>>(), vec![10]);
-        assert_eq!(request_sizes(32, 32).collect::<Vec<_>>(), vec![32]);
-        assert_eq!(request_sizes(33, 32).collect::<Vec<_>>(), vec![32, 1]);
-        assert_eq!(request_sizes(1, 32).collect::<Vec<_>>(), vec![1]);
+        assert_eq!(split_deposits(10, 32).collect::<Vec<_>>(), vec![10]);
+        assert_eq!(split_deposits(32, 32).collect::<Vec<_>>(), vec![32]);
+        assert_eq!(split_deposits(33, 32).collect::<Vec<_>>(), vec![32, 1]);
+        assert_eq!(split_deposits(1, 32).collect::<Vec<_>>(), vec![1]);
     }
 }

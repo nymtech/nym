@@ -9,6 +9,7 @@ use nym_validator_client::nym_api::error::NymAPIError;
 use nym_validator_client::nyxd::error::NyxdError;
 use nym_validator_client::nyxd::tx::ErrorReport;
 use nym_validator_client::nyxd::{AccountId, Coin};
+use nyxd_scraper_sqlite::error::SqliteScraperError;
 use std::io;
 use std::path::PathBuf;
 use thiserror::Error;
@@ -23,6 +24,9 @@ pub enum NymRewarderError {
 
     #[error("failed to perform startup SQL migration: {0}")]
     StartupMigrationFailure(#[from] sqlx::migrate::MigrateError),
+
+    #[error("config error: database storage path invalid")]
+    ConfigError,
 
     #[error(
     "failed to load config file using path '{}'. detailed message: {source}", path.display()
@@ -81,7 +85,13 @@ pub enum NymRewarderError {
     #[error("chain scraping failure: {source}")]
     ScraperFailure {
         #[from]
-        source: nyxd_scraper::error::ScraperError,
+        source: nyxd_scraper_sqlite::ScraperError,
+    },
+
+    #[error("chain scraper storage failure: {source}")]
+    ScraperStorageFailure {
+        #[from]
+        source: SqliteScraperError,
     },
 
     // this should never happen but unwrapping everywhere was more cumbersome than just propagating the error
@@ -132,7 +142,9 @@ pub enum NymRewarderError {
     #[error("failed to resolve nym-api query: {0}")]
     ApiQueryFailure(Box<NymAPIError>),
 
-    #[error("operator {runner_account} didn't return all requested credentials! requested {requested} but got only {received}")]
+    #[error(
+        "operator {runner_account} didn't return all requested credentials! requested {requested} but got only {received}"
+    )]
     IncompleteRequest {
         runner_account: AccountId,
         requested: usize,
@@ -158,7 +170,9 @@ pub enum NymRewarderError {
     #[error("could not verify the blinded credential")]
     BlindVerificationFailure,
 
-    #[error("the same deposit ({deposit_id}) has been used for multiple issued credentials! {first} and {other}")]
+    #[error(
+        "the same deposit ({deposit_id}) has been used for multiple issued credentials! {first} and {other}"
+    )]
     DuplicateDepositId {
         deposit_id: u32,
         first: i64,
@@ -168,14 +182,18 @@ pub enum NymRewarderError {
     #[error("could not find the deposit details for deposit id {deposit_id}")]
     DepositNotFound { deposit_id: u32 },
 
-    #[error("the provided deposit value of deposit {deposit_id} is inconsistent. got '{request:?}' while the value on chain is '{on_chain}'")]
+    #[error(
+        "the provided deposit value of deposit {deposit_id} is inconsistent. got '{request:?}' while the value on chain is '{on_chain}'"
+    )]
     InconsistentDepositValue {
         deposit_id: u32,
         request: Option<String>,
         on_chain: String,
     },
 
-    #[error("the provided deposit info of deposit {deposit_id}  is inconsistent. got '{request:?}' while the value on chain is '{on_chain}'")]
+    #[error(
+        "the provided deposit info of deposit {deposit_id}  is inconsistent. got '{request:?}' while the value on chain is '{on_chain}'"
+    )]
     InconsistentDepositInfo {
         deposit_id: u32,
         request: Option<String>,
@@ -203,7 +221,9 @@ pub enum NymRewarderError {
     #[error("attempted to send an empty rewarding coin")]
     EmptyRewardingCoin,
 
-    #[error("the current pruning strategy is set to 'everything' - we won't have any block data for rewarding")]
+    #[error(
+        "the current pruning strategy is set to 'everything' - we won't have any block data for rewarding"
+    )]
     EverythingPruningStrategy,
 
     #[error("pruning.keep_recent must not be smaller than {min_to_keep}. got: {keep_recent}")]

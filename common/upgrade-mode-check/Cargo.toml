@@ -15,9 +15,10 @@ jwt-simple = { workspace = true }
 reqwest = { workspace = true, features = ["rustls-tls"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
-time = { workspace = true, features = ["serde"] }
+time = { workspace = true, features = ["serde", "formatting", "parsing"] }
 thiserror = { workspace = true }
 tracing = { workspace = true }
+utoipa = { workspace = true, optional = true }
 
 nym-http-api-client = { path = "../http-api-client", default-features = false }
 nym-crypto = { path = "../crypto", features = ["asymmetric", "serde", "naive_jwt"] }
@@ -25,6 +26,12 @@ nym-crypto = { path = "../crypto", features = ["asymmetric", "serde", "naive_jwt
 [dev-dependencies]
 anyhow = { workspace = true }
 time = { workspace = true, features = ["macros"] }
+nym-test-utils = { path = "../test-utils" }
+nym-crypto = { path = "../crypto", features = ["rand"] }
+
+
+[features]
+openapi = ["utoipa"]
 
 [lints]
 workspace = true

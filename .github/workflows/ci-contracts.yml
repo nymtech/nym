@@ -17,12 +17,12 @@ jobs:
   build:
     # since it's going to be compiled into wasm, there's absolutely
     # no point in running CI on different OS-es
-    runs-on: ubuntu-22.04
+    runs-on: arc-linux-latest
     env:
       CARGO_TERM_COLOR: always
       RUSTUP_PERMIT_COPY_RENAME: 1
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup rust
         uses: actions-rs/toolchain@v1
@@ -54,7 +54,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --lib --manifest-path contracts/Cargo.toml
+          args: --lib --manifest-path contracts/Cargo.toml --all-features
 
       - name: Check formatting
         uses: actions-rs/cargo@v1

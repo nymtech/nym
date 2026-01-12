@@ -6,9 +6,9 @@ use sqlx::FromRow;
 use std::fmt::{Display, Formatter};
 use std::ops::Add;
 use std::time::Duration;
-use time::format_description::well_known::Rfc3339;
 use time::OffsetDateTime;
-use tokio::time::{interval_at, Instant, Interval};
+use time::format_description::well_known::Rfc3339;
+use tokio::time::{Instant, Interval, interval_at};
 use tracing::info;
 
 const HOUR: Duration = Duration::from_secs(60 * 60);

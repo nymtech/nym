@@ -9,17 +9,17 @@ use clap::ValueEnum;
 use human_repr::HumanCount;
 use nym_bin_common::logging::LoggingSettings;
 use nym_config::defaults::{
-    mainnet, var_names, DEFAULT_MIX_LISTENING_PORT, DEFAULT_NYM_NODE_HTTP_PORT,
-    DEFAULT_VERLOC_LISTENING_PORT, WG_METADATA_PORT, WG_TUNNEL_PORT, WG_TUN_DEVICE_IP_ADDRESS_V4,
-    WG_TUN_DEVICE_IP_ADDRESS_V6,
+    DEFAULT_MIX_LISTENING_PORT, DEFAULT_NYM_NODE_HTTP_PORT, DEFAULT_VERLOC_LISTENING_PORT,
+    WG_METADATA_PORT, WG_TUN_DEVICE_IP_ADDRESS_V4, WG_TUN_DEVICE_IP_ADDRESS_V6, WG_TUNNEL_PORT,
+    mainnet, var_names,
 };
 use nym_config::defaults::{WG_TUN_DEVICE_NETMASK_V4, WG_TUN_DEVICE_NETMASK_V6};
 use nym_config::helpers::{in6addr_any_init, inaddr_any};
 use nym_config::serde_helpers::de_maybe_port;
 use nym_config::serde_helpers::de_maybe_stringified;
 use nym_config::{
+    DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, DEFAULT_DATA_DIR, NYM_DIR, NymConfigTemplate,
     must_get_home, parse_urls, read_config_from_toml_file, save_formatted_config_to_file,
-    NymConfigTemplate, DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, DEFAULT_DATA_DIR, NYM_DIR,
 };
 use nym_gateway::nym_authenticator;
 use serde::{Deserialize, Serialize};
@@ -262,8 +262,13 @@ impl ConfigBuilder {
         self
     }
 
-    pub fn build(self) -> Config {
-        Config {
+    pub fn build(self) -> Result<Config, NymNodeError> {
+        let gateway_tasks = match self.gateway_tasks {
+            Some(gateway_tasks) => gateway_tasks,
+            None => GatewayTasksConfig::new(&self.data_dir)?,
+        };
+
+        Ok(Config {
             id: self.id,
             modes: self.modes,
             host: self.host.unwrap_or_default(),
@@ -279,16 +284,14 @@ impl ConfigBuilder {
                 .storage_paths
                 .unwrap_or_else(|| NymNodePaths::new(&self.data_dir)),
             metrics: self.metrics.unwrap_or_default(),
-            gateway_tasks: self
-                .gateway_tasks
-                .unwrap_or_else(|| GatewayTasksConfig::new_default(&self.data_dir)),
+            gateway_tasks,
             service_providers: self
                 .service_providers
                 .unwrap_or_else(|| ServiceProvidersConfig::new_default(&self.data_dir)),
             logging: self.logging.unwrap_or_default(),
             save_path: Some(self.config_path),
             debug: Default::default(),
-        }
+        })
     }
 }
 
@@ -391,7 +394,8 @@ impl Config {
         if config_dir_name != DEFAULT_CONFIG_DIR {
             error!(
                 "the parent directory of '{}' ({}) is not {DEFAULT_CONFIG_DIR}. currently this is not supported",
-                config_path.display(), config_dir_name.to_str().unwrap_or("UNKNOWN")
+                config_path.display(),
+                config_dir_name.to_str().unwrap_or("UNKNOWN")
             );
             return Err(NymNodeError::DataDirDerivationFailure);
         }
@@ -691,6 +695,10 @@ impl ReplayProtectionDebug {
     pub const DEFAULT_BLOOMFILTER_MINIMUM_PACKETS_PER_SECOND_SIZE: usize = 200;
 
     pub fn validate(&self) -> Result<(), NymNodeError> {
+        if self.unsafe_disabled {
+            return Ok(());
+        }
+
         if self.false_positive_rate >= 1.0 || self.false_positive_rate <= 0.0 {
             return Err(NymNodeError::config_validation_failure(
                 "false positive rate for replay detection can't be larger than (or equal to) 1 or smaller than (or equal to) 0",
@@ -718,8 +726,11 @@ impl ReplayProtectionDebug {
 
         let memory = sys_info.available_memory();
         if (memory as usize) < required_memory {
-            return Err(NymNodeError::config_validation_failure(
-                 format!("system does not have sufficient memory to allocate required replay protection bloomfilters. {} is available whilst at least {} is needed",memory.human_count_bytes(), required_memory.human_count_bytes())));
+            return Err(NymNodeError::config_validation_failure(format!(
+                "system does not have sufficient memory to allocate required replay protection bloomfilters. {} is available whilst at least {} is needed",
+                memory.human_count_bytes(),
+                required_memory.human_count_bytes()
+            )));
         }
 
         Ok(())

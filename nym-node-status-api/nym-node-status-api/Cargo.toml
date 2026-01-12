@@ -3,7 +3,7 @@
 
 [package]
 name = "nym-node-status-api"
-version = "4.0.3"
+version = "4.0.12"
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
@@ -17,6 +17,7 @@ ammonia = { workspace = true }
 anyhow = { workspace = true }
 axum = { workspace = true, features = ["tokio", "macros"] }
 bip39 = { workspace = true }
+bs58 = { workspace = true }
 celes = { workspace = true }
 clap = { workspace = true, features = ["cargo", "derive", "env", "string"] }
 cosmwasm-std = { workspace = true }
@@ -25,6 +26,8 @@ humantime = { workspace = true }
 itertools = { workspace = true }
 moka = { workspace = true, features = ["future"] }
 
+nym-credentials = { path = "../../common/credentials" }
+nym-credential-proxy-lib = { path = "../../common/credential-proxy" }
 nym-contracts-common = { path = "../../common/cosmwasm-smart-contracts/contracts-common" }
 nym-mixnet-contract-common = { path = "../../common/cosmwasm-smart-contracts/mixnet-contract", features = ["utoipa"] }
 nym-bin-common = { path = "../../common/bin-common", features = ["models"] }
@@ -38,6 +41,7 @@ nym-statistics-common = { path = "../../common/statistics" }
 nym-validator-client = { path = "../../common/client-libs/validator-client" }
 nym-task = { path = "../../common/task" }
 nym-node-requests = { path = "../../nym-node/nym-node-requests", features = ["openapi"] }
+nym-ecash-time = { path = "../../common/ecash-time", features = ["expiration"] }
 
 rand = { workspace = true }
 rand_chacha = { workspace = true }
@@ -54,6 +58,7 @@ thiserror = { workspace = true }
 time = { workspace = true, features = ["formatting"] }
 tokio = { workspace = true, features = ["rt-multi-thread"] }
 tokio-util = { workspace = true }
+tokio-stream = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
 tracing-log = { workspace = true }
@@ -61,6 +66,7 @@ tower-http = { workspace = true, features = ["cors", "trace"] }
 utoipa = { workspace = true, features = ["axum_extras", "time"] }
 utoipa-swagger-ui = { workspace = true, features = ["axum"] }
 utoipauto = { workspace = true }
+zeroize = { workspace = true }
 
 nym-node-metrics = { path = "../../nym-node/nym-node-metrics" }
 
@@ -75,5 +81,5 @@ sqlx = { workspace = true, features = [
 ] }
 
 [dev-dependencies]
-axum-test = "17.3.0"
+axum-test = { workspace = true }
 time = { workspace = true, features = ["macros"] }

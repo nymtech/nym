@@ -109,6 +109,8 @@ fn read_pem_file<P: AsRef<Path>>(filepath: P) -> io::Result<ZeroizingPem> {
 
 fn write_pem_file<P: AsRef<Path>>(filepath: P, mut data: Vec<u8>, tag: &str) -> io::Result<()> {
     // ensure the whole directory structure exists
+    // don't use nested if else due to contracts still being on 2021 and this code being pulled in indirectly in tests
+    #[allow(clippy::collapsible_if)]
     if let Some(parent_dir) = filepath.as_ref().parent() {
         if let Err(err) = std::fs::create_dir_all(parent_dir) {
             // in case of a failure, make sure to zeroize the data before returning

@@ -1,10 +1,10 @@
 // Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::EpochId;
 use crate::config_score::{ConfigScoreParams, OutdatedVersionWeights, VersionScoreFormulaParams};
 use crate::nym_node::Role;
 use crate::reward_params::RewardedSetParams;
-use crate::EpochId;
 use contracts_common::Percent;
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::Coin;

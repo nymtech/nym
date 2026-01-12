@@ -9,7 +9,7 @@ use crate::reward_params::{ActiveSetUpdate, IntervalRewardParams, IntervalReward
 use crate::rewarding::RewardDistribution;
 use crate::{BlockHeight, ContractStateParamsUpdate, EpochId, IdentityKeyRef, Interval, NodeId};
 pub use contracts_common::events::*;
-use cosmwasm_std::{attr, Addr, Coin, Decimal, Event};
+use cosmwasm_std::{Addr, Coin, Decimal, Event, attr};
 use std::fmt::Display;
 
 pub const EVENT_VERSION_PREFIX: &str = "v2_";

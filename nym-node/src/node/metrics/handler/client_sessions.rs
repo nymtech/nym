@@ -7,11 +7,11 @@ use crate::node::metrics::handler::{
 use async_trait::async_trait;
 use nym_gateway::node::PersistentStatsStorage;
 use nym_gateway_stats_storage::error::StatsStorageError;
+use nym_node_metrics::NymNodeMetrics;
 use nym_node_metrics::entry::{ActiveSession, ClientSessions, FinishedSession};
 use nym_node_metrics::events::GatewaySessionEvent;
-use nym_node_metrics::prometheus_wrapper::PrometheusMetric::EntryClientSessionsDurations;
 use nym_node_metrics::prometheus_wrapper::PROMETHEUS_METRICS;
-use nym_node_metrics::NymNodeMetrics;
+use nym_node_metrics::prometheus_wrapper::PrometheusMetric::EntryClientSessionsDurations;
 use nym_sphinx_types::DestinationAddressBytes;
 use nym_statistics_common::types::SessionType;
 use time::{Date, Duration, OffsetDateTime};
@@ -51,21 +51,21 @@ impl GatewaySessionStatsHandler {
         client: DestinationAddressBytes,
     ) -> Result<(), StatsStorageError> {
         if let Some(session) = self.storage.get_active_session(client).await? {
-            if session.remember {
-                if let Some(finished_session) = session.end_at(stop_time) {
-                    PROMETHEUS_METRICS.observe_histogram(
-                        EntryClientSessionsDurations {
-                            typ: finished_session.typ.to_string(),
-                        },
-                        finished_session.duration.as_secs_f64(),
-                    );
-                    self.storage
-                        .insert_unique_user(self.current_day, client.as_base58_string())
-                        .await?;
-                    self.storage
-                        .insert_finished_session(self.current_day, finished_session)
-                        .await?;
-                }
+            if session.remember
+                && let Some(finished_session) = session.end_at(stop_time)
+            {
+                PROMETHEUS_METRICS.observe_histogram(
+                    EntryClientSessionsDurations {
+                        typ: finished_session.typ.to_string(),
+                    },
+                    finished_session.duration.as_secs_f64(),
+                );
+                self.storage
+                    .insert_unique_user(self.current_day, client.as_base58_string())
+                    .await?;
+                self.storage
+                    .insert_finished_session(self.current_day, finished_session)
+                    .await?;
             }
             self.storage.delete_active_session(client).await?;
         }

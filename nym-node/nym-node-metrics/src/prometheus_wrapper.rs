@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::mixnet::PacketKind;
-use nym_metrics::{metrics_registry, HistogramTimer, Metric};
+use nym_metrics::{HistogramTimer, Metric, metrics_registry};
 use std::sync::LazyLock;
 use strum::{Display, EnumCount, EnumIter, EnumProperty, IntoEnumIterator};
 
@@ -298,11 +298,11 @@ impl PrometheusMetric {
 
     fn set(&self, value: i64) {
         let reg = metrics_registry();
-        if !reg.set(&self.name(), value) {
-            if let Some(registrable) = self.to_registrable_metric() {
-                reg.register_metric(registrable);
-                reg.set(&self.name(), value);
-            }
+        if !reg.set(&self.name(), value)
+            && let Some(registrable) = self.to_registrable_metric()
+        {
+            reg.register_metric(registrable);
+            reg.set(&self.name(), value);
         }
     }
 
@@ -320,11 +320,11 @@ impl PrometheusMetric {
 
     fn observe_histogram(&self, value: f64) {
         let reg = metrics_registry();
-        if !reg.add_to_histogram(&self.name(), value) {
-            if let Some(registrable) = self.to_registrable_metric() {
-                reg.register_metric(registrable);
-                reg.add_to_histogram(&self.name(), value);
-            }
+        if !reg.add_to_histogram(&self.name(), value)
+            && let Some(registrable) = self.to_registrable_metric()
+        {
+            reg.register_metric(registrable);
+            reg.add_to_histogram(&self.name(), value);
         }
     }
 
@@ -343,10 +343,10 @@ impl NymNodePrometheusMetrics {
 
         // we can't initialise complex metrics as their names will only be fully known at runtime
         for kind in PrometheusMetric::iter() {
-            if !kind.is_complex() {
-                if let Some(metric) = kind.to_registrable_metric() {
-                    registry.register_metric(metric);
-                }
+            if !kind.is_complex()
+                && let Some(metric) = kind.to_registrable_metric()
+            {
+                registry.register_metric(metric);
             }
         }
 

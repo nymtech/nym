@@ -3,10 +3,10 @@
 
 use crate::node::routing_filter::RoutingFilter;
 use futures::StreamExt;
-use nym_mixnet_client::forwarder::{
-    mix_forwarding_channels, MixForwardingReceiver, MixForwardingSender, PacketToForward,
-};
 use nym_mixnet_client::SendWithoutResponse;
+use nym_mixnet_client::forwarder::{
+    MixForwardingReceiver, MixForwardingSender, PacketToForward, mix_forwarding_channels,
+};
 use nym_node_metrics::NymNodeMetrics;
 use nym_nonexhaustive_delayqueue::{Expired, NonExhaustiveDelayQueue};
 use nym_sphinx_forwarding::packet::MixPacket;

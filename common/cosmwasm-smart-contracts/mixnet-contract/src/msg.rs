@@ -18,7 +18,7 @@ use crate::{
     VersionScoreFormulaParams,
 };
 use crate::{OperatingCostRange, ProfitMarginRange};
-use contracts_common::{signing::MessageSignature, IdentityKey, Percent};
+use contracts_common::{IdentityKey, Percent, signing::MessageSignature};
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Coin, Decimal};
 use std::time::Duration;
@@ -55,7 +55,7 @@ use crate::{
     types::{ContractState, ContractStateParams},
 };
 #[cfg(feature = "schema")]
-use contracts_common::{signing::Nonce, ContractBuildInformation};
+use contracts_common::{ContractBuildInformation, signing::Nonce};
 #[cfg(feature = "schema")]
 use cosmwasm_schema::QueryResponses;
 

@@ -7,7 +7,7 @@ use anyhow::bail;
 use arrayref::array_ref;
 use blake2::VarBlake2b;
 use chacha::ChaCha;
-use futures::{stream, SinkExt, Stream, StreamExt};
+use futures::{SinkExt, Stream, StreamExt, stream};
 use hkdf::Hkdf;
 use human_repr::{HumanCount, HumanDuration, HumanThroughput};
 use lioness::Lioness;
@@ -22,8 +22,8 @@ use nym_sphinx_types::constants::{
     EXPANDED_SHARED_SECRET_LENGTH,
 };
 use nym_sphinx_types::{
-    Destination, DestinationAddressBytes, Node, NymPacket, PayloadKey, DESTINATION_ADDRESS_LENGTH,
-    IDENTIFIER_LENGTH,
+    DESTINATION_ADDRESS_LENGTH, Destination, DestinationAddressBytes, IDENTIFIER_LENGTH, Node,
+    NymPacket, PayloadKey,
 };
 use nym_task::ShutdownToken;
 use rand::rngs::OsRng;
@@ -36,9 +36,9 @@ use std::time::Duration;
 use time::OffsetDateTime;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::select;
-use tokio::time::{interval, sleep, Instant};
+use tokio::time::{Instant, interval, sleep};
 use tokio_util::codec::Framed;
-use tracing::{debug, error, info, Span};
+use tracing::{Span, debug, error, info};
 use tracing_indicatif::span_ext::IndicatifSpanExt;
 
 struct PacketTag {
@@ -325,9 +325,13 @@ impl ThroughputTestingClient {
         let diff = 1. - saturation;
 
         if saturation > 1. {
-            debug!("saturation {saturation:.2}, packet latency over threshold: need to decrease sending rate");
+            debug!(
+                "saturation {saturation:.2}, packet latency over threshold: need to decrease sending rate"
+            );
         } else {
-            debug!("saturation {saturation:.2}, packet latency under threshold: can increase sending rate");
+            debug!(
+                "saturation {saturation:.2}, packet latency under threshold: can increase sending rate"
+            );
         }
 
         // be conservative and only apply 50% of the diff

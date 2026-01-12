@@ -35,7 +35,9 @@ pub enum Error {
     #[error("This gateway is only accepting coconut credentials for bandwidth")]
     OnlyCoconutCredentials,
 
-    #[error("insufficient bandwidth available to process the request. required: {required}B, available: {available}B")]
+    #[error(
+        "insufficient bandwidth available to process the request. required: {required}B, available: {available}B"
+    )]
     OutOfBandwidth { required: i64, available: i64 },
 
     #[error("Internal gateway storage error")]
@@ -43,6 +45,25 @@ pub enum Error {
 
     #[error("{0}")]
     UnknownTicketType(#[from] nym_credentials_interface::UnknownTicketType),
+}
+
+impl Error {
+    pub fn is_out_of_bandwidth(&self) -> bool {
+        matches!(self, Error::OutOfBandwidth { .. })
+    }
+}
+
+pub trait OutOfBandwidthResultExt {
+    fn is_out_of_bandwidth(&self) -> bool;
+}
+
+impl<T> OutOfBandwidthResultExt for Result<T> {
+    fn is_out_of_bandwidth(&self) -> bool {
+        match &self {
+            Ok(_) => false,
+            Err(err) => err.is_out_of_bandwidth(),
+        }
+    }
 }
 
 impl From<EcashTicketError> for Error {

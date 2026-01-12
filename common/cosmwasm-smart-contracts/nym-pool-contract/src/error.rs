@@ -16,7 +16,9 @@ pub enum NymPoolContractError {
     #[error(transparent)]
     StdErr(#[from] cosmwasm_std::StdError),
 
-    #[error("this sender is not authorised to revoke this grant. its neither the admin or the original (and still whitelisted) granter")]
+    #[error(
+        "this sender is not authorised to revoke this grant. its neither the admin or the original (and still whitelisted) granter"
+    )]
     UnauthorizedGrantRevocation,
 
     #[error("the specified address is already a whitelisted granter")]
@@ -28,7 +30,9 @@ pub enum NymPoolContractError {
     #[error("invalid coin denomination. got {got}, but expected {expected}")]
     InvalidDenom { expected: String, got: String },
 
-    #[error("there already exists an active grant for {grantee}. it was granted by {granter} at block height {created_at_height}")]
+    #[error(
+        "there already exists an active grant for {grantee}. it was granted by {granter} at block height {created_at_height}"
+    )]
     GrantAlreadyExist {
         granter: String,
         grantee: String,
@@ -38,13 +42,17 @@ pub enum NymPoolContractError {
     #[error("could not find any active grants for {grantee}")]
     GrantNotFound { grantee: String },
 
-    #[error("the provided timestamp value ({timestamp}) is set in the past. the current block timestamp is {current_block_timestamp}")]
+    #[error(
+        "the provided timestamp value ({timestamp}) is set in the past. the current block timestamp is {current_block_timestamp}"
+    )]
     TimestampInThePast {
         timestamp: u64,
         current_block_timestamp: u64,
     },
 
-    #[error("there are not enough tokens to process this request. {available} are available, but {required} is needed.")]
+    #[error(
+        "there are not enough tokens to process this request. {available} are available, but {required} is needed."
+    )]
     InsufficientTokens { available: Coin, required: Coin },
 
     #[error("the period length can't be zero")]
@@ -53,22 +61,30 @@ pub enum NymPoolContractError {
     #[error("the provided coin value is zero")]
     ZeroAmount,
 
-    #[error("the periodic spend limit of {periodic} was set to be higher than the total spend limit {total_limit}")]
+    #[error(
+        "the periodic spend limit of {periodic} was set to be higher than the total spend limit {total_limit}"
+    )]
     PeriodicGrantOverSpendLimit { periodic: Coin, total_limit: Coin },
 
-    #[error("the accumulation spend limit of {accumulation} was set to be lower than the periodic grant amount of {periodic_grant}")]
+    #[error(
+        "the accumulation spend limit of {accumulation} was set to be lower than the periodic grant amount of {periodic_grant}"
+    )]
     AccumulationBelowGrantAmount {
         accumulation: Coin,
         periodic_grant: Coin,
     },
 
-    #[error("the accumulation spend limit of {accumulation} was set to be higher than the total spend limit of {total_limit}")]
+    #[error(
+        "the accumulation spend limit of {accumulation} was set to be higher than the total spend limit of {total_limit}"
+    )]
     AccumulationOverSpendLimit {
         accumulation: Coin,
         total_limit: Coin,
     },
 
-    #[error("the specified delayed allowance would never be available. it would become active at {available_timestamp} yet it expires at {expiration_timestamp}")]
+    #[error(
+        "the specified delayed allowance would never be available. it would become active at {available_timestamp} yet it expires at {expiration_timestamp}"
+    )]
     UnattainableDelayedAllowance {
         expiration_timestamp: u64,
         available_timestamp: u64,

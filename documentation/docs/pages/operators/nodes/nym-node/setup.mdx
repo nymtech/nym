@@ -8,6 +8,7 @@ import NymNodeHelp from 'components/outputs/command-outputs/nym-node-help.md';
 import NymNodeRunHelp from 'components/outputs/command-outputs/nym-node-run-help.md';
 import { AccordionTemplate } from 'components/accordion-template.tsx';
 import TermsConditions from 'components/operators/snippets/tc-info.mdx';
+import QuickStart from 'components/operators/snippets/quick-start.mdx'
 
 # Nym Node Setup & Run
 
@@ -20,12 +21,12 @@ This documentation page provides a guide on how to set up and run a [NYM NODE](.
 ```sh
 nym-node
 Binary Name:        nym-node
-Build Timestamp:    2025-08-05T09:14:30.322593213Z
-Build Version:      1.16.0
-Commit SHA:         7f97f13799342f864e1b106e8cafc9f6d6c24c0f
-Commit Date:        2025-07-24T11:00:58.000000000+01:00
+Build Timestamp:    2025-11-25T14:26:29.627763948Z
+Build Version:      1.22.0
+Commit SHA:         22793bc45ea21561671d6670497ff42bc36b9d76
+Commit Date:        2025-11-25T15:16:42.000000000+01:00
 Commit Branch:      HEAD
-rustc Version:      1.86.0
+rustc Version:      1.88.0
 rustc Channel:      stable
 cargo Profile:      release
 ```
@@ -35,6 +36,7 @@ Detailed version archive and release notes is documented [here](../../changelog.
 {/* COMMENTING THIS OUT ASS WE HAVE TO FIGURE OUT HOW TO SHOW THE LATEST VERSION FROM MASTER BRANCH
 <BuildInfo />
 */}
+
 
 ## Functionality (mode)
 
@@ -75,6 +77,8 @@ Wireguard nodes route data directly to the open internet. Therefore it exposes I
 Everything essential for each mode exists on `nym-node` by default. For instance, if you run a Mixnode, you'll find that a NR (Network Requester) and IPR (IP Packet Router) addresses exist, but they will be ignored in `mixnode` mode.
 
 Note that every `exit-gateway` mode is basically an `entry-gateway` with NR (Network Requester) and IPR (IP Packet Router) enabled. This means that every `exit-gateway` can work as an `entry-gateway` but not the opposite.
+
+<QuickStart />
 
 ## Command & Examples
 
@@ -180,7 +184,7 @@ Make sure to use `--deny-init` flag to prevent initialisation of a new node.
 
 ## Functionality & Performance Check
 
-We have a chapter called [Performance Monitoring & Testing](../performance-and-testing) including much more information and tooling. If you want to just quickly check your nodes performance, connectivity and much more, visit [harbourmaster.nymtech.net](https://harbourmaster.nymtech.net/).
+We have a chapter called [Performance Monitoring & Testing](/operators/performance-and-testing) including much more information and tooling. If you want to just quickly check your nodes performance, connectivity and much more, visit [harbourmaster.nymtech.net](https://harbourmaster.nymtech.net/).
 
 For more information about available endpoints and their status, you can refer to:
 ```sh

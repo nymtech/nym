@@ -2,20 +2,32 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::Error;
-use base64::engine::general_purpose;
 use base64::Engine;
+use base64::engine::general_purpose;
 use serde::Serialize;
 use std::fmt;
 use std::ops::Deref;
 use std::str::FromStr;
 
+use nym_crypto::asymmetric::x25519;
 use x25519_dalek::PublicKey;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
 pub struct PeerPublicKey(PublicKey);
 
+impl From<x25519::PublicKey> for PeerPublicKey {
+    fn from(pk: x25519::PublicKey) -> Self {
+        PeerPublicKey(pk.into())
+    }
+}
+
+impl From<&x25519::PublicKey> for PeerPublicKey {
+    fn from(pk: &x25519::PublicKey) -> Self {
+        (*pk).into()
+    }
+}
+
 impl PeerPublicKey {
-    #[allow(dead_code)]
     pub fn new(key: PublicKey) -> Self {
         PeerPublicKey(key)
     }
@@ -26,6 +38,12 @@ impl PeerPublicKey {
 
     pub fn inner(&self) -> PublicKey {
         self.0
+    }
+}
+
+impl From<PublicKey> for PeerPublicKey {
+    fn from(key: PublicKey) -> Self {
+        PeerPublicKey::new(key)
     }
 }
 

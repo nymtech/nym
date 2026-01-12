@@ -31,9 +31,9 @@ use tracing::*;
 #[cfg(not(target_arch = "wasm32"))]
 use tokio::time::{sleep, Sleep};
 
+// use wasm_utils::console_log;
 #[cfg(target_arch = "wasm32")]
 use wasmtimer::tokio::{sleep, Sleep};
-
 mod sending_delay_controller;
 
 /// Configurable parameters of the `OutQueueControl`
@@ -298,6 +298,8 @@ where
                         "failed to send mixnet packet due to closed channel (outside of shutdown!)"
                     );
                 }
+                // Early return to avoid further processing when channel is closed
+                return;
             }
             Ok(_) => {
                 let event = if fragment_id.is_some() {
@@ -325,9 +327,15 @@ where
         // ready and hence was immediately re-scheduled causing other tasks to be starved;
         // yield makes it go back the scheduling queue regardless of its value availability
 
-        // TODO: temporary and BAD workaround for wasm (we should find a way to yield here in wasm)
         #[cfg(not(target_arch = "wasm32"))]
-        tokio::task::yield_now().await;
+        {
+            tokio::task::yield_now().await;
+        }
+
+        #[cfg(target_arch = "wasm32")]
+        {
+            tokio_with_wasm::task::yield_now().await;
+        }
     }
 
     fn on_close_connection(&mut self, connection_id: ConnectionId) {

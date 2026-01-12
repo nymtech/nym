@@ -31,6 +31,7 @@ members = [
     "common/client-libs/mixnet-client",
     "common/client-libs/validator-client",
     "common/commands",
+    "common/nym-common",
     "common/config",
     "common/cosmwasm-smart-contracts/coconut-dkg",
     "common/cosmwasm-smart-contracts/contracts-common",
@@ -58,7 +59,8 @@ members = [
     "common/gateway-requests",
     "common/gateway-stats-storage",
     "common/gateway-storage",
-    "common/http-api-client", "common/http-api-client-macro",
+    "common/http-api-client",
+    "common/http-api-client-macro",
     "common/http-api-common",
     "common/inclusion-probability",
     "common/ip-packet-requests",
@@ -67,6 +69,8 @@ members = [
     "common/network-defaults",
     "common/node-tester-utils",
     "common/nonexhaustive-delayqueue",
+    "common/nym-cache",
+    "common/nym-connection-monitor",
     "common/nym-id",
     "common/nym-metrics",
     "common/nym_offline_compact_ecash",
@@ -83,8 +87,11 @@ members = [
     "common/nymsphinx/params",
     "common/nymsphinx/routing",
     "common/nymsphinx/types",
-    "common/nyxd-scraper",
+    "common/nyxd-scraper-sqlite",
+    "common/nyxd-scraper-psql",
+    "common/nyxd-scraper-shared",
     "common/pemstore",
+    "common/registration",
     "common/serde-helpers",
     "common/service-provider-requests-common",
     "common/socks5-client-core",
@@ -92,11 +99,13 @@ members = [
     "common/socks5/requests",
     "common/statistics",
     "common/store-cipher",
-    "common/task", "common/test-utils",
+    "common/task",
+    "common/test-utils",
     "common/ticketbooks-merkle",
     "common/topology",
     "common/tun",
-    "common/types", "common/upgrade-mode-check",
+    "common/types",
+    "common/upgrade-mode-check",
     "common/verloc",
     "common/wasm/client-core",
     "common/wasm/storage",
@@ -117,6 +126,7 @@ members = [
     "nym-credential-proxy/nym-credential-proxy",
     "nym-credential-proxy/nym-credential-proxy-requests",
     "nym-credential-proxy/vpn-api-lib-wasm",
+    "nym-data-observatory",
     "nym-ip-packet-client",
     "nym-network-monitor",
     "nym-node",
@@ -125,10 +135,11 @@ members = [
     "nym-node-status-api/nym-node-status-client",
     "nym-node/nym-node-metrics",
     "nym-node/nym-node-requests",
-    "nym-outfox", "nym-signers-monitor",
+    "nym-outfox",
+    "nym-registration-client",
+    "nym-signers-monitor",
     "nym-statistics-api",
     "nym-validator-rewarder",
-    "nym-wg-gateway-client",
     "nyx-chain-watcher",
     "sdk/ffi/cpp",
     "sdk/ffi/go",
@@ -142,9 +153,8 @@ members = [
     "tools/internal/contract-state-importer/importer-cli",
     "tools/internal/contract-state-importer/importer-contract",
     "tools/internal/mixnet-connectivity-check",
-    # "tools/internal/sdk-version-bump",
+#    "tools/internal/sdk-version-bump",
     "tools/internal/ssl-inject",
-    "tools/internal/testnet-manager",
     "tools/internal/testnet-manager",
     "tools/internal/testnet-manager/dkg-bypass-contract",
     "tools/internal/validator-status-check",
@@ -158,11 +168,13 @@ members = [
     "wasm/mix-fetch",
     "wasm/node-tester",
     "wasm/zknym-lib",
+    "nym-gateway-probe"
 ]
 
 default-members = [
     "clients/native",
     "clients/socks5",
+    "nym-authenticator-client",
     "nym-api",
     "nym-credential-proxy/nym-credential-proxy",
     "nym-node",
@@ -176,16 +188,16 @@ default-members = [
     "tools/nymvisor",
 ]
 
-exclude = ["explorer", "contracts", "nym-wallet", "cpu-cycles"]
+exclude = ["contracts", "nym-wallet", "cpu-cycles"]
 
 [workspace.package]
 authors = ["Nym Technologies SA"]
 repository = "https://github.com/nymtech/nym"
 homepage = "https://nymtech.net"
 documentation = "https://nymtech.net"
-edition = "2021"
+edition = "2024"
 license = "Apache-2.0"
-rust-version = "1.81"
+rust-version = "1.85"
 readme = "README.md"
 
 [workspace.dependencies]
@@ -207,7 +219,6 @@ base64 = "0.22.1"
 base85rs = "0.1.3"
 bincode = "1.3.3"
 bip39 = { version = "2.0.0", features = ["zeroize"] }
-bit-vec = "0.7.0"                                     # can we unify those?
 bitvec = "1.0.0"
 blake3 = "1.7.0"
 bloomfilter = "3.0.1"
@@ -235,13 +246,11 @@ criterion = "0.5"
 csv = "1.3.1"
 ctr = "0.9.1"
 cupid = "0.6.1"
-curve25519-dalek = "4.1"
 dashmap = "5.5.3"
 # We want https://github.com/DefGuard/wireguard-rs/pull/64 , but there's no crates.io release being pushed out anymore
 defguard_wireguard_rs = { git = "https://github.com/DefGuard/wireguard-rs.git", rev = "v0.4.7" }
 digest = "0.10.7"
-dirs = "5.0"
-doc-comment = "0.3"
+dirs = "6.0"
 dotenvy = "0.15.6"
 dyn-clone = "1.0.19"
 ecdsa = "0.16"
@@ -257,12 +266,10 @@ futures = "0.3.31"
 futures-util = "0.3"
 generic-array = "0.14.7"
 getrandom = "0.2.10"
-getset = "0.1.5"
+glob = "0.3"
 handlebars = "3.5.5"
-headers = "0.4.0"
 hex = "0.4.3"
-hex-literal = "0.3.3"
-hickory-resolver = "0.25"
+hickory-resolver = "0.25.2"
 hkdf = "0.12.3"
 hmac = "0.12.1"
 http = "1"
@@ -285,12 +292,10 @@ lazy_static = "1.5.0"
 ledger-transport = "0.10.0"
 ledger-transport-hid = "0.10.0"
 log = "0.4"
-maxminddb = "0.23.0"
 mime = "0.3.17"
 moka = { version = "0.12", features = ["future"] }
 nix = "0.27.1"
 notify = "5.1.0"
-okapi = "0.7.0"
 once_cell = "1.21.3"
 opentelemetry = "0.19.0"
 opentelemetry-jaeger = "0.18.0"
@@ -298,7 +303,7 @@ parking_lot = "0.12.3"
 pem = "0.8"
 petgraph = "0.6.5"
 pin-project = "1.1"
-pin-project-lite = "0.2.16"
+pnet_packet = "0.35.0"
 publicsuffix = "2.3.0"
 proc_pidinfo = "0.1.3"
 quote = "1"
@@ -306,13 +311,10 @@ rand = "0.8.5"
 rand_chacha = "0.3"
 rand_core = "0.6.3"
 rand_distr = "0.4"
-rand_pcg = "0.3.1"
-rand_seeder = "0.2.3"
 rayon = "1.5.1"
 regex = "1.10.6"
 reqwest = { version = "0.12.15", default-features = false }
 rs_merkle = "1.5.0"
-safer-ffi = "0.1.13"
 schemars = "0.8.22"
 semver = "1.0.26"
 serde = "1.0.219"
@@ -349,15 +351,17 @@ tokio-tungstenite = { version = "0.20.1" }
 tokio-util = "0.7.15"
 toml = "0.8.22"
 tower = "0.5.2"
-tower-http = "0.5.2"
+tower-http = "0.6.6"
 tracing = "0.1.41"
 tracing-log = "0.2"
 tracing-opentelemetry = "0.19.0"
-tracing-subscriber = "0.3.19"
+tracing-subscriber = "0.3.20"
 tracing-tree = "0.2.2"
 tracing-indicatif = "0.3.9"
+tracing-test = "0.2.5"
 ts-rs = "10.1.0"
 tungstenite = { version = "0.20.1", default-features = false }
+typed-builder = "0.23.0"
 uniffi = "0.29.2"
 uniffi_build = "0.29.0"
 url = "2.5"
@@ -366,6 +370,7 @@ utoipa-swagger-ui = "8.1"
 utoipauto = "0.2"
 uuid = "*"
 vergen = { version = "=8.3.1", default-features = false }
+vergen-gitcl = { version = "1.0.8", default-features = false }
 walkdir = "2"
 x25519-dalek = "2.0.0"
 zeroize = "1.7.0"
@@ -397,7 +402,9 @@ cw-multi-test = "=2.3.2"
 bip32 = { version = "0.5.3", default-features = false }
 
 
-cosmrs = { version = "0.21.1" }
+cosmrs = { version = "0.22.0" }
+cosmos-sdk-proto = { version = "0.27.0" }
+ibc-proto = { version = "0.52.0" }
 tendermint = "0.40.4"
 tendermint-rpc = "0.40.4"
 prost = { version = "0.13", default-features = false }
@@ -405,17 +412,18 @@ prost = { version = "0.13", default-features = false }
 # wasm-related dependencies
 gloo-utils = "0.2.0"
 gloo-net = "0.6.0"
+gloo-timers = "0.3.0"
 
 indexed_db_futures = "0.6.4"
 js-sys = "0.3.76"
 serde-wasm-bindgen = "0.6.5"
 tsify = "0.4.5"
+tokio_with_wasm = { version = "0.8.7" }
 wasm-bindgen = "0.2.99"
 wasm-bindgen-futures = "0.4.49"
 wasm-bindgen-test = "0.3.49"
 wasmtimer = "0.4.1"
 web-sys = "0.3.76"
-
 
 # for local development:
 #[patch.crates-io]
@@ -452,6 +460,11 @@ opt-level = 'z'
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(tokio_unstable)'] }
 
 [workspace.lints.clippy]
+suspicious = "deny"
+complexity = "deny"
+perf = "deny"
+style = "deny"
+
 unwrap_used = "deny"
 expect_used = "deny"
 todo = "deny"

@@ -7,7 +7,7 @@ use human_repr::HumanThroughput;
 use nym_node_metrics::NymNodeMetrics;
 use std::time::Duration;
 use time::OffsetDateTime;
-use tokio::time::{interval_at, Instant};
+use tokio::time::{Instant, interval_at};
 use tokio_stream::wrappers::IntervalStream;
 use tracing::{error, info, trace};
 
@@ -84,7 +84,8 @@ impl ConsoleLogger {
         let wg_tx_rate = (wg_tx - self.at_last_update.wg_tx) as f64 / delta_secs;
         let wg_rx_rate = (wg_rx - self.at_last_update.wg_rx) as f64 / delta_secs;
 
-        info!("↑↓ Packets sent [total] / sent [acks] / received [mix] / received [gw]: {} ({}) / {} ({}) / {} ({}) / {} ({})",
+        info!(
+            "↑↓ Packets sent [total] / sent [acks] / received [mix] / received [gw]: {} ({}) / {} ({}) / {} ({}) / {} ({})",
             forward_sent.human_count_bare(),
             forward_sent_rate.human_throughput_bare(),
             acks.human_count_bare(),

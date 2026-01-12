@@ -139,7 +139,7 @@ pub async fn setup_gateway_wasm(
         GatewaySetup::MustLoad { gateway_id: None }
     } else {
         let selection_spec =
-            GatewaySelectionSpecification::new(chosen_gateway.clone(), None, force_tls);
+            GatewaySelectionSpecification::new(chosen_gateway.clone(), None, force_tls, false);
 
         GatewaySetup::New {
             specification: selection_spec,
@@ -160,13 +160,12 @@ pub async fn setup_gateway_from_api(
     minimum_performance: u8,
     ignore_epoch_roles: bool,
 ) -> Result<InitialisationResult, WasmCoreError> {
-    let mut rng = thread_rng();
     let gateways = gateways_for_init(
-        &mut rng,
         nym_apis,
         None,
         minimum_performance,
         ignore_epoch_roles,
+        None,
     )
     .await?;
     setup_gateway_wasm(client_store, force_tls, chosen_gateway, gateways).await
@@ -178,13 +177,12 @@ pub async fn current_gateways_wasm(
     minimum_performance: u8,
     ignore_epoch_roles: bool,
 ) -> Result<Vec<RoutingNode>, ClientCoreError> {
-    let mut rng = thread_rng();
     gateways_for_init(
-        &mut rng,
         nym_apis,
         user_agent,
         minimum_performance,
         ignore_epoch_roles,
+        None,
     )
     .await
 }
@@ -220,6 +218,7 @@ pub async fn add_gateway(
         preferred_gateway.clone(),
         latency_based_selection,
         force_tls,
+        false,
     );
 
     let preferred_gateway = preferred_gateway

@@ -178,12 +178,6 @@ While the stored info point to:\n{stored_info:#?}"
         source: io::Error,
     },
 
-    #[error("coundn't unlock the lock at {lock_path} with error code {libc_code}")]
-    LockFileUnlockFailure {
-        lock_path: PathBuf,
-        libc_code: Errno,
-    },
-
     #[error("could not remove the lock file at {} after performing binary upgrade: {source}", path.display())]
     LockFileRemovalFailure {
         path: PathBuf,

@@ -59,7 +59,7 @@ pub(crate) async fn perform_upgrade(config: &Config) -> Result<UpgradeResult, Ny
         })?;
 
     debug!("attempting to acquire the lock");
-    let locked_file =
+    let _locked_file =
         Flock::lock(lock_file, FlockArg::LockExclusiveNonblock).map_err(|(_lock_file, err)| {
             NymvisorError::UnableToAcquireUpgradePlanLock {
                 lock_path: lock_path.clone(),
@@ -113,13 +113,6 @@ pub(crate) async fn perform_upgrade(config: &Config) -> Result<UpgradeResult, Ny
         path: lock_path.clone(),
         source,
     })?;
-
-    locked_file
-        .unlock()
-        .map_err(|(_locked_file, err)| NymvisorError::LockFileUnlockFailure {
-            lock_path,
-            libc_code: err,
-        })?;
 
     Ok(UpgradeResult {
         binary_swapped: true,

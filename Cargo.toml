@@ -148,6 +148,9 @@ members = [
     "sdk/ffi/shared",
     "sdk/rust/nym-sdk",
     "smolmix/core",
+    "smolmix/dns",
+    "smolmix/hyper",
+    "smolmix/tls",
     "service-providers/common",
     "service-providers/ip-packet-router",
     "service-providers/network-requester",
@@ -335,7 +338,7 @@ rayon = "1.5.1"
 regex = "1.10.6"
 reqwest = { version = "0.13.1", default-features = false }
 rs_merkle = "1.5.0"
-rustls = { version = "0.23.37", default-features = false }
+rustls = { version = "0.23.37", default-features = false, features = ["std", "ring"] }
 schemars = "0.8.22"
 semver = "1.0.26"
 serde = "1.0.219"
@@ -350,6 +353,9 @@ serde_plain = "1.0.2"
 sha2 = "0.10.3"
 si-scale = "0.2.3"
 smolmix = { version = "0.0.1", path = "smolmix/core" }
+smolmix-dns = { version = "0.0.1", path = "smolmix/dns" }
+smolmix-hyper = { version = "0.0.1", path = "smolmix/hyper" }
+smolmix-tls = { version = "0.0.1", path = "smolmix/tls" }
 smoltcp = "0.12"
 snow = "0.9.6"
 sphinx-packet = "=0.6.0"

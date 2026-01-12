@@ -145,6 +145,7 @@ members = [
     "sdk/ffi/go",
     "sdk/ffi/shared",
     "sdk/rust/nym-sdk",
+    "mixtcp",
     "service-providers/common",
     "service-providers/ip-packet-router",
     "service-providers/network-requester",
@@ -315,6 +316,7 @@ rayon = "1.5.1"
 regex = "1.10.6"
 reqwest = { version = "0.12.15", default-features = false }
 rs_merkle = "1.5.0"
+rustls = { version = "0.23", default-features = false, features = ["std", "ring"] }
 schemars = "0.8.22"
 semver = "1.0.26"
 serde = "1.0.219"
@@ -328,6 +330,7 @@ serde_yaml = "0.9.25"
 serde_plain = "1.0.2"
 sha2 = "0.10.9"
 si-scale = "0.2.3"
+smoltcp = "0.12"
 snow = "0.9.6"
 sphinx-packet = "=0.6.0"
 sqlx = "0.8.6"
@@ -423,6 +426,7 @@ wasm-bindgen = "0.2.99"
 wasm-bindgen-futures = "0.4.49"
 wasm-bindgen-test = "0.3.49"
 wasmtimer = "0.4.1"
+webpki-roots = "0.26"
 web-sys = "0.3.76"
 
 # for local development:

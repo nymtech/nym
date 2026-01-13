@@ -43,7 +43,9 @@ where
         // 1. check whether we sent any surbs in the past to this recipient, otherwise
         // they have no business in asking for more
         if !self.tags_storage.exists(&recipient) {
-            warn!("{recipient} asked us for reply SURBs even though we never sent them any anonymous messages before!");
+            warn!(
+                "{recipient} asked us for reply SURBs even though we never sent them any anonymous messages before!"
+            );
             return;
         }
 
@@ -54,7 +56,12 @@ where
                 .reply_surbs
                 .maximum_allowed_reply_surb_request_size
         {
-            warn!("The requested reply surb amount is larger than our maximum allowed ({amount} > {}). Lowering it to a more sane value...", self.config.reply_surbs.maximum_allowed_reply_surb_request_size);
+            warn!(
+                "The requested reply surb amount is larger than our maximum allowed ({amount} > {}). Lowering it to a more sane value...",
+                self.config
+                    .reply_surbs
+                    .maximum_allowed_reply_surb_request_size
+            );
             amount = self
                 .config
                 .reply_surbs

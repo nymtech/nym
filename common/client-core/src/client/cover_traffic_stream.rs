@@ -11,8 +11,8 @@ use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::cover::generate_loop_cover_packet;
 use nym_sphinx::params::{PacketSize, PacketType};
 use nym_sphinx::utils::sample_poisson_duration;
-use nym_statistics_common::clients::{packet_statistics::PacketStatisticsEvent, ClientStatsSender};
-use rand::{rngs::OsRng, CryptoRng, Rng};
+use nym_statistics_common::clients::{ClientStatsSender, packet_statistics::PacketStatisticsEvent};
+use rand::{CryptoRng, Rng, rngs::OsRng};
 use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;
@@ -20,10 +20,10 @@ use tokio::sync::mpsc::error::TrySendError;
 use tracing::*;
 
 #[cfg(not(target_arch = "wasm32"))]
-use tokio::time::{sleep, Sleep};
+use tokio::time::{Sleep, sleep};
 
 #[cfg(target_arch = "wasm32")]
-use wasmtimer::tokio::{sleep, Sleep};
+use wasmtimer::tokio::{Sleep, sleep};
 
 pub struct LoopCoverTrafficStream<R>
 where
@@ -179,7 +179,9 @@ impl LoopCoverTrafficStream<OsRng> {
         ) {
             Ok(topology) => topology,
             Err(err) => {
-                warn!("We're not going to send any loop cover message this time, as the current topology seem to be invalid - {err}");
+                warn!(
+                    "We're not going to send any loop cover message this time, as the current topology seem to be invalid - {err}"
+                );
                 return;
             }
         };

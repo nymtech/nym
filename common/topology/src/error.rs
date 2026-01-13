@@ -38,6 +38,9 @@ pub enum NymTopologyError {
     #[error("timed out while waiting for gateway '{identity_key}' to come online")]
     TimedOutWaitingForGateway { identity_key: String },
 
+    #[error("timed out while waiting for minimum network topology to become online")]
+    TimedOutWaitingForTopology,
+
     #[error(
         "Wanted to create a mix route with {requested} hops, while only {available} layers are available"
     )]

@@ -17,6 +17,7 @@ pub mod network;
 pub mod network_monitor;
 pub mod node_status;
 pub mod schema_helpers;
+pub mod utility;
 
 // don't break existing imports
 pub use api_status::*;

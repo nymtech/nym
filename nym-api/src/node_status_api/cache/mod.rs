@@ -3,18 +3,15 @@
 
 use self::data::NodeStatusCacheData;
 use crate::node_performance::provider::PerformanceRetrievalFailure;
-use crate::support::caching::cache::UninitialisedCache;
+use crate::support::caching::cache::{SharedCache, UninitialisedCache};
 use crate::support::caching::Cache;
 use nym_api_requests::models::NodeAnnotation;
 use nym_mixnet_contract_common::NodeId;
 use std::collections::HashMap;
-use std::{sync::Arc, time::Duration};
 use thiserror::Error;
+use time::OffsetDateTime;
 use tokio::sync::RwLockReadGuard;
-use tokio::{sync::RwLock, time};
 use tracing::error;
-
-const CACHE_TIMEOUT_MS: u64 = 100;
 
 mod config_score;
 pub mod data;
@@ -44,43 +41,48 @@ impl From<UninitialisedCache> for NodeStatusCacheError {
 /// The cache can be triggered to update on contract cache changes, and/or periodically on a timer.
 #[derive(Clone)]
 pub struct NodeStatusCache {
-    inner: Arc<RwLock<NodeStatusCacheData>>,
+    inner: SharedCache<NodeStatusCacheData>,
 }
 
 impl NodeStatusCache {
     /// Creates a new cache with no data.
     pub(crate) fn new() -> NodeStatusCache {
         NodeStatusCache {
-            inner: Arc::new(RwLock::new(NodeStatusCacheData::new())),
+            inner: SharedCache::new_with_value(HashMap::new().into()),
         }
+    }
+
+    pub async fn cache_timestamp(&self) -> OffsetDateTime {
+        let Ok(cache) = self.inner.get().await else {
+            return OffsetDateTime::UNIX_EPOCH;
+        };
+
+        cache.timestamp()
     }
 
     /// Updates the cache with the latest data.
     async fn update(&self, node_annotations: HashMap<NodeId, NodeAnnotation>) {
-        match time::timeout(Duration::from_millis(CACHE_TIMEOUT_MS), self.inner.write()).await {
-            Ok(mut cache) => {
-                cache.node_annotations.unchecked_update(node_annotations);
-            }
-            Err(e) => error!("{e}"),
+        if self
+            .inner
+            .try_overwrite_old_value(node_annotations, "node-status")
+            .await
+            .is_err()
+        {
+            error!("failed to update node status cache!")
         }
     }
 
     async fn get<'a, T: 'a>(
         &'a self,
-        fn_arg: impl FnOnce(&NodeStatusCacheData) -> &Cache<T>,
-    ) -> Option<RwLockReadGuard<'a, Cache<T>>> {
-        match time::timeout(Duration::from_millis(CACHE_TIMEOUT_MS), self.inner.read()).await {
-            Ok(cache) => Some(RwLockReadGuard::map(cache, |item| fn_arg(item))),
-            Err(e) => {
-                error!("{e}");
-                None
-            }
-        }
+        fn_arg: impl FnOnce(&Cache<NodeStatusCacheData>) -> &T,
+    ) -> Result<RwLockReadGuard<'a, T>, UninitialisedCache> {
+        let guard = self.inner.get().await?;
+        Ok(RwLockReadGuard::map(guard, fn_arg))
     }
 
     pub(crate) async fn node_annotations(
         &self,
-    ) -> Option<RwLockReadGuard<'_, Cache<HashMap<NodeId, NodeAnnotation>>>> {
+    ) -> Result<RwLockReadGuard<'_, HashMap<NodeId, NodeAnnotation>>, UninitialisedCache> {
         self.get(|c| &c.node_annotations).await
     }
 }

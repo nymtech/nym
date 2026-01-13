@@ -17,11 +17,11 @@ use nym_sphinx::forwarding::packet::MixPacket;
 use nym_sphinx::params::PacketSize;
 use nym_sphinx::preparer::PreparedFragment;
 use nym_sphinx::utils::sample_poisson_duration;
-use nym_statistics_common::clients::{packet_statistics::PacketStatisticsEvent, ClientStatsSender};
+use nym_statistics_common::clients::{ClientStatsSender, packet_statistics::PacketStatisticsEvent};
+use nym_task::ShutdownToken;
 use nym_task::connections::{
     ConnectionCommand, ConnectionCommandReceiver, ConnectionId, LaneQueueLengths, TransmissionLane,
 };
-use nym_task::ShutdownToken;
 use rand::{CryptoRng, Rng};
 use std::pin::Pin;
 use std::sync::Arc;
@@ -29,11 +29,11 @@ use std::time::Duration;
 use tracing::*;
 
 #[cfg(not(target_arch = "wasm32"))]
-use tokio::time::{sleep, Sleep};
+use tokio::time::{Sleep, sleep};
 
 // use wasm_utils::console_log;
 #[cfg(target_arch = "wasm32")]
-use wasmtimer::tokio::{sleep, Sleep};
+use wasmtimer::tokio::{Sleep, sleep};
 mod sending_delay_controller;
 
 /// Configurable parameters of the `OutQueueControl`
@@ -230,7 +230,9 @@ where
         let (next_message, fragment_id, packet_size) = match next_message {
             StreamMessage::Cover => {
                 let cover_traffic_packet_size = self.loop_cover_message_size();
-                trace!("the next loop cover message will be put in a {cover_traffic_packet_size} packet");
+                trace!(
+                    "the next loop cover message will be put in a {cover_traffic_packet_size} packet"
+                );
 
                 // TODO for way down the line: in very rare cases (during topology update) we might have
                 // to wait a really tiny bit before actually obtaining the permit hence messing with our
@@ -244,7 +246,9 @@ where
                 ) {
                     Ok(topology) => topology,
                     Err(err) => {
-                        warn!("We're not going to send any loop cover message this time, as the current topology seem to be invalid - {err}");
+                        warn!(
+                            "We're not going to send any loop cover message this time, as the current topology seem to be invalid - {err}"
+                        );
                         return;
                     }
                 };
@@ -436,7 +440,7 @@ where
             }
         }
 
-        if let Some(ref mut next_delay) = &mut self.next_delay {
+        if let Some(next_delay) = &mut self.next_delay {
             // it is not yet time to return a message
             if next_delay.as_mut().poll(cx).is_pending() {
                 return Poll::Pending;

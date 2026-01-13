@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::client::helpers::{get_time_now, Instant};
+use crate::client::helpers::{Instant, get_time_now};
 use std::time::Duration;
 
 // The minimum time between increasing the average delay between packets. If we hit the ceiling in

@@ -204,6 +204,9 @@ pub enum NymNodeError {
     )]
     InitialTopologyQueryFailure { source: ValidatorClientError },
 
+    #[error("failed to retrieve initial valid topology within the specified deadline")]
+    InitialTopologyTimeout,
+
     #[error("experienced critical failure with the replay detection bloomfilter: {message}")]
     BloomfilterFailure { message: &'static str },
 

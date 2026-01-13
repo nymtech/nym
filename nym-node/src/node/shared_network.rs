@@ -28,7 +28,7 @@ use std::ops::Deref;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
-use tokio::time::interval;
+use tokio::time::{Instant, interval, sleep};
 use tracing::log::error;
 use tracing::{debug, trace, warn};
 use url::Url;
@@ -148,27 +148,12 @@ impl CachedTopologyProvider {
 #[async_trait]
 impl TopologyProvider for CachedTopologyProvider {
     async fn get_new_topology(&mut self) -> Option<NymTopology> {
-        let network_guard = self.cached_network.inner.read().await;
         let self_node = self.gateway_node.identity_key;
 
-        let mut topology = NymTopology::new(
-            network_guard.topology_metadata,
-            network_guard.rewarded_set.clone(),
-            Vec::new(),
-        )
-        .with_additional_nodes(
-            network_guard
-                .network_nodes
-                .iter()
-                .map(|node| &node.basic)
-                .filter(|node| {
-                    if node.supported_roles.mixnode {
-                        node.performance.round_to_integer() >= self.min_mix_performance
-                    } else {
-                        true
-                    }
-                }),
-        );
+        let mut topology = self
+            .cached_network
+            .network_topology(self.min_mix_performance)
+            .await;
 
         if !topology.has_node(self.gateway_node.identity_key) {
             debug!("{self_node} didn't exist in topology. inserting it.",);
@@ -195,6 +180,29 @@ impl CachedNetwork {
             })),
         }
     }
+
+    async fn network_topology(&self, min_mix_performance: u8) -> NymTopology {
+        let network_guard = self.inner.read().await;
+
+        NymTopology::new(
+            network_guard.topology_metadata,
+            network_guard.rewarded_set.clone(),
+            Vec::new(),
+        )
+        .with_additional_nodes(
+            network_guard
+                .network_nodes
+                .iter()
+                .map(|node| &node.basic)
+                .filter(|node| {
+                    if node.supported_roles.mixnode {
+                        node.performance.round_to_integer() >= min_mix_performance
+                    } else {
+                        true
+                    }
+                }),
+        )
+    }
 }
 
 struct CachedNetworkInner {
@@ -215,12 +223,15 @@ pub struct NetworkRefresher {
 }
 
 impl NetworkRefresher {
+    #[allow(clippy::too_many_arguments)]
     pub(crate) async fn initialise_new(
         testnet: bool,
         user_agent: UserAgent,
         nym_api_urls: Vec<Url>,
         full_refresh_interval: Duration,
         pending_check_interval: Duration,
+        max_startup_waiting_period: Duration,
+        min_mix_performance: u8,
         shutdown_token: ShutdownToken,
     ) -> Result<Self, NymNodeError> {
         let nym_api = nym_http_api_client::Client::builder(nym_api_urls[0].clone())?
@@ -242,7 +253,8 @@ impl NetworkRefresher {
             noise_view: NoiseNetworkView::new_empty(),
         };
 
-        this.obtain_initial_network().await?;
+        this.obtain_initial_network(max_startup_waiting_period, min_mix_performance)
+            .await?;
         Ok(this)
     }
 
@@ -319,7 +331,7 @@ impl NetworkRefresher {
         self.routing_filter.resolved.swap_denied(current_denied);
         self.routing_filter.pending.clear().await;
 
-        //update noise Noise Nodes
+        //update noise Nodes
         let noise_nodes = nodes
             .iter()
             .filter(|n| n.x25519_noise_versioned_key.is_some())
@@ -355,10 +367,32 @@ impl NetworkRefresher {
         }
     }
 
-    pub(crate) async fn obtain_initial_network(&mut self) -> Result<(), NymNodeError> {
-        self.refresh_network_nodes_inner()
-            .await
-            .map_err(|source| NymNodeError::InitialTopologyQueryFailure { source })
+    pub(crate) async fn obtain_initial_network(
+        &mut self,
+        max_startup_waiting_period: Duration,
+        min_mix_performance: u8,
+    ) -> Result<(), NymNodeError> {
+        // make it configurable
+        const STARTUP_REFRESH_INTERVAL: Duration = Duration::from_secs(30);
+
+        let start = Instant::now();
+
+        loop {
+            self.refresh_network_nodes_inner()
+                .await
+                .map_err(|source| NymNodeError::InitialTopologyQueryFailure { source })?;
+
+            let topology = self.network.network_topology(min_mix_performance).await;
+            if topology.is_minimally_routable() {
+                return Ok(());
+            }
+
+            if start.elapsed() > max_startup_waiting_period {
+                return Err(NymNodeError::InitialTopologyTimeout);
+            }
+
+            sleep(STARTUP_REFRESH_INTERVAL).await;
+        }
     }
 
     pub(crate) fn routing_filter(&self) -> NetworkRoutingFilter {

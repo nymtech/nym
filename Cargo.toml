@@ -153,10 +153,10 @@ members = [
     "tools/internal/contract-state-importer/importer-cli",
     "tools/internal/contract-state-importer/importer-contract",
     "tools/internal/mixnet-connectivity-check",
-#    "tools/internal/sdk-version-bump",
+    #    "tools/internal/sdk-version-bump",
     "tools/internal/ssl-inject",
-    "tools/internal/testnet-manager",
-    "tools/internal/testnet-manager/dkg-bypass-contract",
+    "tools/internal/localnet-orchestrator",
+    "tools/internal/localnet-orchestrator/dkg-bypass-contract",
     "tools/internal/validator-status-check",
     "tools/nym-cli",
     "tools/nym-id-cli",
@@ -186,6 +186,7 @@ default-members = [
     "service-providers/ip-packet-router",
     "service-providers/network-requester",
     "tools/nymvisor",
+    "tools/internal/localnet-orchestrator"
 ]
 
 exclude = ["contracts", "nym-wallet", "cpu-cycles"]
@@ -225,6 +226,7 @@ bloomfilter = "3.0.1"
 bs58 = "0.5.1"
 bytecodec = "0.4.15"
 bytes = "1.10.1"
+cargo-edit = "0.13.8"
 cargo_metadata = "0.19.2"
 celes = "2.6.0"
 cfg-if = "1.0.0"

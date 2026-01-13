@@ -1285,7 +1285,7 @@ impl TestFixture {
             address_info_cache: AddressInfoCache::new(Duration::from_secs(42), 1000),
             forced_refresh: ForcedRefresh::new(true),
             mixnet_contract_cache: MixnetContractCache::new(),
-            node_status_cache: NodeStatusCache::new(),
+            node_annotations_cache: NodeStatusCache::new(),
             storage,
             described_nodes_cache: SharedCache::<DescribedNodes>::new(),
             network_details: NetworkDetails::new(

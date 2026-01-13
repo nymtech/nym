@@ -7,9 +7,9 @@ use nym_gateway_client::error::GatewayClientError;
 use nym_task::RegistryAccessError;
 use nym_topology::node::RoutingNodeError;
 use nym_topology::{NodeId, NymTopologyError};
+use nym_validator_client::ValidatorClientError;
 use nym_validator_client::nym_api::error::NymAPIError;
 use nym_validator_client::nyxd::error::NyxdError;
-use nym_validator_client::ValidatorClientError;
 use rand::distributions::WeightedError;
 use std::error::Error;
 use std::path::PathBuf;
@@ -56,7 +56,9 @@ pub enum ClientCoreError {
     #[error("no gateways on network")]
     NoGatewaysOnNetwork,
 
-    #[error("there are no more new gateways on the network - it seems this client has already registered with all nodes it could have")]
+    #[error(
+        "there are no more new gateways on the network - it seems this client has already registered with all nodes it could have"
+    )]
     NoNewGatewaysAvailable,
 
     #[error("list of nym apis is empty")]
@@ -127,7 +129,9 @@ pub enum ClientCoreError {
     #[error("unexpected exit")]
     UnexpectedExit,
 
-    #[error("this operation would have resulted in the gateway {gateway_id:?} key being overwritten without permission")]
+    #[error(
+        "this operation would have resulted in the gateway {gateway_id:?} key being overwritten without permission"
+    )]
     ForbiddenGatewayKeyOverwrite { gateway_id: String },
 
     #[error(
@@ -151,7 +155,9 @@ pub enum ClientCoreError {
     #[error("attempted to obtain fresh gateway details whilst already knowing about one")]
     UnexpectedGatewayDetails,
 
-    #[error("the provided gateway details (for gateway {gateway_id}) do not correspond to the shared keys")]
+    #[error(
+        "the provided gateway details (for gateway {gateway_id}) do not correspond to the shared keys"
+    )]
     MismatchedGatewayDetails { gateway_id: String },
 
     #[error("unable to upgrade config file from `{current_version}`")]
@@ -227,7 +233,9 @@ pub enum ClientCoreError {
         source: url::ParseError,
     },
 
-    #[error("this client (id: '{client_id}') has already been initialised before. If you want to add additional gateway, use `add-gateway` command")]
+    #[error(
+        "this client (id: '{client_id}') has already been initialised before. If you want to add additional gateway, use `add-gateway` command"
+    )]
     AlreadyInitialised { client_id: String },
 
     #[error("this client has already registered with gateway {gateway_id}")]

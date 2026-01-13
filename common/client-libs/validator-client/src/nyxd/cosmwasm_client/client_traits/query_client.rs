@@ -130,7 +130,7 @@ pub trait CosmWasmClient: TendermintRpcClient {
 
         let req = QueryBalanceRequest {
             address: address.to_string(),
-            denom: search_denom.to_string(),
+            denom: search_denom,
         };
 
         let res = self

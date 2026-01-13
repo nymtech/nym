@@ -26,6 +26,8 @@ use crate::support::config::{Config, DEFAULT_CHAIN_STATUS_CACHE_TTL};
 use crate::support::http::state::chain_status::ChainStatusCache;
 use crate::support::http::state::contract_details::ContractDetailsCache;
 use crate::support::http::state::force_refresh::ForcedRefresh;
+use crate::support::http::state::mixnet_contract_cache::MixnetContractCacheState;
+use crate::support::http::state::node_annotations_cache::NodeAnnotationsCache;
 use crate::support::http::state::AppState;
 use crate::support::http::{RouterBuilder, TASK_MANAGER_TIMEOUT_S};
 use crate::support::nyxd;
@@ -117,20 +119,33 @@ pub(crate) struct Args {
 
     #[clap(hide = true, long, default_value_t = false)]
     pub(crate) allow_illegal_ips: bool,
+
+    /// Bearer token for exposing and accessing additional utility routes
+    #[clap(long, env = "NYMAPI_UTILITY_ROUTES_BEARER_ARG")]
+    pub(crate) utility_routes_bearer: Option<String>,
 }
 
-async fn start_nym_api_tasks(config: &Config) -> anyhow::Result<ShutdownManager> {
+pub(crate) async fn initialise_storage(config: &Config) -> anyhow::Result<NymApiStorage> {
+    let nyxd_client = nyxd::Client::new(config)?;
+    let storage = NymApiStorage::init(&config.node_status_api.storage_paths.database_path).await?;
+
+    // try to perform any needed migrations of the storage
+    migrate_to_directory_services_v2_1(&storage, &nyxd_client).await?;
+    Ok(storage)
+}
+
+async fn start_nym_api_tasks(mut config: Config) -> anyhow::Result<ShutdownManager> {
     let shutdown_manager = ShutdownManager::build_new_default()?
         .with_shutdown_duration(Duration::from_secs(TASK_MANAGER_TIMEOUT_S));
 
-    let nyxd_client = nyxd::Client::new(config)?;
+    let nyxd_client = nyxd::Client::new(&config)?;
     let connected_nyxd = config.get_nyxd_url();
     let nym_network_details = NymNetworkDetails::new_from_env();
     let network_details = NetworkDetails::new(connected_nyxd.to_string(), nym_network_details);
 
     let ecash_keypair_wrapper = ecash::keys::KeyPair::new();
 
-    // if the keypair doesnt exist (because say this API is running in the caching mode), nothing will happen
+    // if the keypair doesn't exist (because say this API is running in the caching mode), nothing will happen
     if let Some(loaded_keys) = load_ecash_keypair_if_exists(&config.ecash_signer)? {
         let issued_for = loaded_keys.issued_for_epoch;
         ecash_keypair_wrapper.set(loaded_keys).await;
@@ -140,15 +155,10 @@ async fn start_nym_api_tasks(config: &Config) -> anyhow::Result<ShutdownManager>
         }
     }
 
-    let storage = NymApiStorage::init(&config.node_status_api.storage_paths.database_path).await?;
-
-    // try to perform any needed migrations of the storage
-    migrate_to_directory_services_v2_1(&storage, &nyxd_client).await?;
+    let storage = initialise_storage(&config).await?;
 
     let identity_keypair = config.base.storage_paths.load_identity()?;
     let identity_public_key = *identity_keypair.public_key();
-
-    let router = RouterBuilder::with_default_routes(config.network_monitor.enabled);
 
     let mixnet_contract_cache_state = MixnetContractCache::new();
     let node_status_cache_state = NodeStatusCache::new();
@@ -173,7 +183,7 @@ async fn start_nym_api_tasks(config: &Config) -> anyhow::Result<ShutdownManager>
 
     let encoded_identity = identity_keypair.public_key().to_base58_string();
     let mut ecash_state = EcashState::new(
-        config,
+        &config,
         ecash_contract,
         nyxd_client.clone(),
         identity_keypair,
@@ -223,25 +233,6 @@ async fn start_nym_api_tasks(config: &Config) -> anyhow::Result<ShutdownManager>
     };
 
     ecash_state.spawn_background_cleaner();
-    let router = router.with_state(AppState {
-        nyxd_client: nyxd_client.clone(),
-        chain_status_cache: ChainStatusCache::new(DEFAULT_CHAIN_STATUS_CACHE_TTL),
-        ecash_signers_cache,
-        address_info_cache: AddressInfoCache::new(
-            config.address_cache.time_to_live,
-            config.address_cache.capacity,
-        ),
-        forced_refresh: ForcedRefresh::new(config.describe_cache.debug.allow_illegal_ips),
-        mixnet_contract_cache: mixnet_contract_cache_state.clone(),
-        node_status_cache: node_status_cache_state.clone(),
-        storage: storage.clone(),
-        described_nodes_cache: described_nodes_cache.clone(),
-        network_details: network_details.clone(),
-        node_info_cache,
-        contract_info_cache: ContractDetailsCache::new(config.contracts_info_cache.time_to_live),
-        api_status: ApiStatusState::new(signer_information),
-        ecash_state: Arc::new(ecash_state),
-    });
 
     // start note describe cache refresher
     // we should be doing the below, but can't due to our current startup structure
@@ -292,7 +283,7 @@ async fn start_nym_api_tasks(config: &Config) -> anyhow::Result<ShutdownManager>
     let contract_cache_watcher =
         mixnet_contract_cache_refresher.start_with_watcher(shutdown_manager.clone_shutdown_token());
 
-    node_status_api::start_cache_refresh(
+    let node_status_cache_refresh_requester = node_status_api::start_cache_refresh(
         &config.node_status_api,
         &mixnet_contract_cache_state,
         &described_nodes_cache,
@@ -325,7 +316,7 @@ async fn start_nym_api_tasks(config: &Config) -> anyhow::Result<ShutdownManager>
     // if the monitoring is enabled
     if config.network_monitor.enabled {
         network_monitor::start::<SphinxMessageReceiver>(
-            config,
+            &config,
             &mixnet_contract_cache_state,
             described_nodes_cache.clone(),
             node_status_cache_state.clone(),
@@ -342,9 +333,9 @@ async fn start_nym_api_tasks(config: &Config) -> anyhow::Result<ShutdownManager>
     if config.rewarding.enabled && has_performance_data {
         epoch_operations::ensure_rewarding_permission(&nyxd_client).await?;
         EpochAdvancer::start(
-            nyxd_client,
+            nyxd_client.clone(),
             &mixnet_contract_cache_state,
-            mixnet_contract_cache_refresh_requester,
+            mixnet_contract_cache_refresh_requester.clone(),
             &node_status_cache_state,
             described_nodes_cache.clone(),
             &storage,
@@ -357,9 +348,40 @@ async fn start_nym_api_tasks(config: &Config) -> anyhow::Result<ShutdownManager>
     KeyRotationController::new(
         describe_cache_refresh_requester,
         contract_cache_watcher,
-        mixnet_contract_cache_state,
+        mixnet_contract_cache_state.clone(),
     )
     .start(shutdown_manager.clone_shutdown_token());
+
+    let mixnet_contract_cache = MixnetContractCacheState::new(
+        mixnet_contract_cache_state,
+        mixnet_contract_cache_refresh_requester,
+    );
+    let node_annotations_cache =
+        NodeAnnotationsCache::new(node_status_cache_state, node_status_cache_refresh_requester);
+
+    let router = RouterBuilder::with_default_routes(
+        config.network_monitor.enabled,
+        config.base.utility_routes_bearer.take(),
+    )
+    .with_state(AppState {
+        nyxd_client,
+        chain_status_cache: ChainStatusCache::new(DEFAULT_CHAIN_STATUS_CACHE_TTL),
+        ecash_signers_cache,
+        address_info_cache: AddressInfoCache::new(
+            config.address_cache.time_to_live,
+            config.address_cache.capacity,
+        ),
+        forced_refresh: ForcedRefresh::new(config.describe_cache.debug.allow_illegal_ips),
+        mixnet_contract_cache,
+        node_annotations_cache,
+        storage,
+        described_nodes_cache,
+        network_details,
+        node_info_cache,
+        contract_info_cache: ContractDetailsCache::new(config.contracts_info_cache.time_to_live),
+        api_status: ApiStatusState::new(signer_information),
+        ecash_state: Arc::new(ecash_state),
+    });
 
     let bind_address = config.base.bind_address.to_owned();
     let server = router.build_server(&bind_address).await?;
@@ -385,7 +407,7 @@ pub(crate) async fn execute(args: Args) -> anyhow::Result<()> {
 
     config.validate()?;
 
-    let mut shutdown_manager = start_nym_api_tasks(&config).await?;
+    let mut shutdown_manager = start_nym_api_tasks(config).await?;
     shutdown_manager.run_until_shutdown().await;
 
     Ok(())

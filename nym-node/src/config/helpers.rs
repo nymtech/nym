@@ -149,6 +149,7 @@ pub fn gateway_tasks_config(config: &Config) -> GatewayTasksConfig {
                 debug: config.service_providers.ip_packet_router.debug.client_debug,
             },
             ip_packet_router: nym_ip_packet_router::config::IpPacketRouter {
+                open_proxy: config.service_providers.open_proxy,
                 disable_poisson_rate: config
                     .service_providers
                     .ip_packet_router
@@ -212,6 +213,7 @@ pub fn gateway_tasks_config(config: &Config) -> GatewayTasksConfig {
             announced_metadata_port: config.wireguard.announced_metadata_port,
             private_network_prefix_v4: config.wireguard.private_network_prefix_v4,
             private_network_prefix_v6: config.wireguard.private_network_prefix_v6,
+            use_userspace: config.wireguard.use_userspace,
             storage_paths: config.wireguard.storage_paths.clone(),
         },
         custom_mixnet_path: None,

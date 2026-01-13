@@ -19,6 +19,7 @@ pub async fn create_mixnet_client(
     custom_transceiver: Option<Box<dyn GatewayTransceiver + Send + Sync>>,
     custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
     wait_for_gateway: bool,
+    wait_for_topology: bool,
     paths: &CommonClientPaths,
 ) -> Result<nym_sdk::mixnet::MixnetClient, AuthenticatorError> {
     let debug_config = config.debug;
@@ -34,7 +35,8 @@ pub async fn create_mixnet_client(
             .network_details(NymNetworkDetails::new_from_env())
             .debug_config(debug_config)
             .custom_shutdown(shutdown)
-            .with_wait_for_gateway(wait_for_gateway);
+            .with_wait_for_gateway(wait_for_gateway)
+            .with_wait_for_initial_topology(wait_for_topology);
     if !config.get_disabled_credentials_mode() {
         client_builder = client_builder.enable_credentials_mode();
     }

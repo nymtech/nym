@@ -325,6 +325,7 @@ impl ServiceProvidersData {
 pub struct WireguardData {
     inner: WireguardGatewayData,
     peer_rx: mpsc::Receiver<PeerControlRequest>,
+    use_userspace: bool,
 }
 
 impl WireguardData {
@@ -335,7 +336,11 @@ impl WireguardData {
                 &config.storage_paths.x25519_wireguard_storage_paths(),
             )?),
         );
-        Ok(WireguardData { inner, peer_rx })
+        Ok(WireguardData {
+            inner,
+            peer_rx,
+            use_userspace: config.use_userspace,
+        })
     }
 
     pub(crate) fn initialise(config: &Wireguard) -> Result<(), ServiceProvidersError> {
@@ -357,6 +362,7 @@ impl From<WireguardData> for nym_wireguard::WireguardData {
         nym_wireguard::WireguardData {
             inner: value.inner,
             peer_rx: value.peer_rx,
+            use_userspace: value.use_userspace,
         }
     }
 }
@@ -569,6 +575,11 @@ impl NymNode {
             self.config.mixnet.nym_api_urls.clone(),
             self.config.debug.topology_cache_ttl,
             self.config.debug.routing_nodes_check_interval,
+            self.config
+                .gateway_tasks
+                .debug
+                .maximum_initial_topology_waiting_time,
+            self.config.gateway_tasks.debug.minimum_mix_performance,
             self.shutdown_manager.clone_shutdown_token(),
         )
         .await
@@ -1242,8 +1253,11 @@ impl NymNode {
             active_egress_mixnet_connections,
         );
 
+        let network = network_refresher.cached_network();
+        network_refresher.start();
+
         self.start_gateway_tasks(
-            network_refresher.cached_network(),
+            network,
             metrics_sender,
             active_clients_store,
             mix_packet_sender,
@@ -1253,7 +1267,6 @@ impl NymNode {
         self.setup_key_rotation(nym_apis_client, bloomfilters_manager)
             .await?;
 
-        network_refresher.start();
         self.shutdown_manager.close_tracker();
 
         Ok(self.shutdown_manager)

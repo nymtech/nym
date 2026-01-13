@@ -15,6 +15,16 @@ pub struct ChainDetails {
     pub stake_denom: DenomDetailsOwned,
 }
 
+impl ChainDetails {
+    pub fn mainnet() -> Self {
+        ChainDetails {
+            bech32_account_prefix: mainnet::BECH32_PREFIX.into(),
+            mix_denom: mainnet::MIX_DENOM.into(),
+            stake_denom: mainnet::STAKE_DENOM.into(),
+        }
+    }
+}
+
 #[derive(Clone, Debug, Default, Deserialize, Eq, Hash, PartialEq, Serialize, JsonSchema)]
 #[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 pub struct NymContracts {
@@ -175,11 +185,7 @@ impl NymNetworkDetails {
         // Consider caching this process (lazy static)
         NymNetworkDetails {
             network_name: mainnet::NETWORK_NAME.into(),
-            chain_details: ChainDetails {
-                bech32_account_prefix: mainnet::BECH32_PREFIX.into(),
-                mix_denom: mainnet::MIX_DENOM.into(),
-                stake_denom: mainnet::STAKE_DENOM.into(),
-            },
+            chain_details: ChainDetails::mainnet(),
             endpoints: mainnet::validators(),
             contracts: NymContracts {
                 mixnet_contract_address: parse_optional_str(mainnet::MIXNET_CONTRACT_ADDRESS),

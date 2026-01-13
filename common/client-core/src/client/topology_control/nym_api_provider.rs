@@ -3,8 +3,8 @@
 
 use async_trait::async_trait;
 use nym_mixnet_contract_common::EpochRewardedSet;
-use nym_topology::provider_trait::{ToTopologyMetadata, TopologyProvider};
 use nym_topology::NymTopology;
+use nym_topology::provider_trait::{ToTopologyMetadata, TopologyProvider};
 use nym_validator_client::nym_api::NymApiClientExt;
 use rand::prelude::SliceRandom;
 use rand::thread_rng;
@@ -82,7 +82,9 @@ impl NymApiTopologyProvider {
 
     fn use_next_nym_api(&mut self) {
         if self.nym_api_urls.len() == 1 {
-            warn!("There's only a single nym API available - it won't be possible to use a different one");
+            warn!(
+                "There's only a single nym API available - it won't be possible to use a different one"
+            );
             return;
         }
 
@@ -155,7 +157,10 @@ impl NymApiTopologyProvider {
             let mixnodes = mixnodes_res.nodes;
 
             if !gateways_res.metadata.consistency_check(&metadata) {
-                warn!("inconsistent nodes metadata between mixnodes and gateways calls! {metadata:?} and {:?}", gateways_res.metadata);
+                warn!(
+                    "inconsistent nodes metadata between mixnodes and gateways calls! {metadata:?} and {:?}",
+                    gateways_res.metadata
+                );
                 return None;
             }
 

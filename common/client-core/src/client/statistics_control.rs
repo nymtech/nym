@@ -23,7 +23,7 @@ use nym_sphinx::addressing::Recipient;
 use nym_statistics_common::clients::{
     ClientStatsController, ClientStatsReceiver, ClientStatsSender,
 };
-use nym_task::{connections::TransmissionLane, ShutdownToken, ShutdownTracker};
+use nym_task::{ShutdownToken, ShutdownTracker, connections::TransmissionLane};
 use std::time::Duration;
 
 /// Time interval between reporting statistics locally (logging/shutdown_token)

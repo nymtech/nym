@@ -366,6 +366,9 @@ fn split_into_ack_and_message(
             trace!("received a normal packet!");
             cfg_if::cfg_if! {
                 if #[cfg(feature = "no-mix-acks")] {
+                    let _ = packet_type;
+                    let _ = key_rotation;
+
                     // AIDEV-NOTE: When no-mix-acks is enabled, skip ack extraction entirely.
                     // The full payload (including ack portion) is returned as the message.
                     Ok((None, data))
@@ -387,6 +390,7 @@ fn split_into_ack_and_message(
     }
 }
 
+#[allow(dead_code)]
 fn split_hop_data_into_ack_and_message(
     mut extracted_data: Vec<u8>,
     packet_type: PacketType,

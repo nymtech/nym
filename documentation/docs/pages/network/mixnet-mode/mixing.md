@@ -22,6 +22,8 @@ Output sequence: C A E B D
 
 The delays follow an exponential distribution. This choice is mathematically optimal: if two packets arrive at times t₀ and t₁, they have equal probability of leaving in either order, regardless of when they arrived. The adversary gains no information from timing observations.
 
+Routing and delay handling: [`common/nymsphinx/routing`](https://github.com/nymtech/nym/tree/develop/common/nymsphinx/routing)
+
 ## Why exponential delays
 
 The exponential distribution is "memoryless"—the probability of a packet leaving in the next moment doesn't depend on how long it's already waited. This means the adversary cannot narrow down possibilities by noting how long packets have been in the node.
@@ -39,6 +41,8 @@ Continuous-time mixing processes each packet independently. Latency is predictab
 With three Mix Node layers, each applying random delays, the overall effect is thorough reordering. Packets entering the mixnet in sequence exit in a completely different order. The timing relationship between sending and receiving is destroyed.
 
 This is why mixnet mode has higher latency than dVPN mode. The delays are the price of timing protection. Mean delays of 50-100ms per hop add up to 150-300ms average across three layers—noticeable, but worth it for the privacy gain.
+
+Sphinx packet processing: [`common/nymsphinx`](https://github.com/nymtech/nym/tree/develop/common/nymsphinx)
 
 ## Combined with cover traffic
 

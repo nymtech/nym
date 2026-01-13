@@ -19,3 +19,5 @@ Acknowledgements operate hop-by-hop between adjacent nodes. They confirm that pa
 ## Implementation
 
 This is handled entirely by the Nym binaries. Developers and operators don't need to implement or configure acknowledgements—the system handles packet loss transparently.
+
+Acknowledgement handling: [`common/nymsphinx/acknowledgements`](https://github.com/nymtech/nym/tree/develop/common/nymsphinx/acknowledgements)

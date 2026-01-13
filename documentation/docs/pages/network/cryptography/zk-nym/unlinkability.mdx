@@ -1,7 +1,10 @@
 import { Callout } from 'nextra/components'
 
 # Unlinkability
-Each time a credential is requested by an ingress Gateway to prove that a client has purchased data to send through the Mixnet the Requester's device will produce a ticket. This is a rereandomised value that is able to be verified as being legitimate (in that it was created by a valid root ticketbook) but **not linked to any other tickets**, either previously generated or to be generated in the future. This feature also allows for a single ticketbook to allow access to be split across multiple ingress Gateways / connections and [incrementally spent](./rerandomise) over time.
+
+Ticket randomization: [`common/nym_offline_compact_ecash/src/scheme/coin_indices_signatures.rs`](https://github.com/nymtech/nym/blob/develop/common/nym_offline_compact_ecash/src/scheme/coin_indices_signatures.rs)
+
+Each time a credential is requested by an ingress Gateway to prove that a client has purchased data to send through the Mixnet the Requester's device will produce a ticket. This is a rerandomised value that is able to be verified as being legitimate (in that it was created by a valid root ticketbook) but **not linked to any other tickets**, either previously generated or to be generated in the future. This feature also allows for a single ticketbook to allow access to be split across multiple ingress Gateways / connections and [incrementally spent](./rerandomise) over time.
 
 <Callout type="info" emoji="ℹ️">
 

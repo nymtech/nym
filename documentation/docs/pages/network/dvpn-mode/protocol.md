@@ -22,7 +22,11 @@ dVPN mode combines WireGuard with additional layer encryption. The client-to-Ent
 
 The WireGuard layer uses Curve25519 for key exchange, ChaCha20-Poly1305 for symmetric encryption, and BLAKE2s for hashing. This provides 256-bit security with modern, well-audited primitives.
 
+WireGuard integration: [`nym-vpn-core/crates/nym-wg-go`](https://github.com/nymtech/nym-vpn-client/tree/main/nym-vpn-core/crates/nym-wg-go)
+
 The inner layer uses AES-GCM-SIV-256, an authenticated encryption scheme with nonce-misuse resistance. Even if a nonce is accidentally reused, the scheme degrades gracefully rather than catastrophically. Keys are derived through ECDH between the client and Exit Gateway, with separate keys for each direction.
+
+AEAD implementation: [`common/crypto/src/symmetric/aead.rs`](https://github.com/nymtech/nym/blob/develop/common/crypto/src/symmetric/aead.rs)
 
 ## Packet format
 
@@ -35,6 +39,8 @@ This uniformity matters because packet sizes can leak information about content 
 When connecting, the client first selects Entry and Exit Gateways based on latency, location preference, or random selection. It then presents a zk-nym credential to the Entry Gateway for anonymous authentication. The credential proves payment without revealing identity—it's re-randomized for each connection and cannot be linked to previous usage.
 
 Once authenticated, the client establishes a WireGuard tunnel to the Entry Gateway, which establishes a link to the Exit Gateway. Traffic then flows through both hops until the session ends.
+
+VPN connection handling: [`nym-vpn-core/crates/nym-vpn-lib`](https://github.com/nymtech/nym-vpn-client/tree/main/nym-vpn-core/crates/nym-vpn-lib)
 
 ## Security properties
 

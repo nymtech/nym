@@ -49,6 +49,83 @@ This page displays a full list of all the changes during our release cycle from 
 
 <VarInfo />
 
+## `v2026.1-niolo`
+
+- [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2026.1-niolo)
+- [`nym-node`](nodes/nym-node.mdx) version `1.23.0`
+
+```sh
+nym-node
+Binary Name:        nym-node
+Build Timestamp:    2025-12-02T16:21:03.251191389Z
+Build Version:      1.23.0
+Commit SHA:         46fe1bc8191f42aa27f34743c96e9e9f26453d87
+Commit Date:        2025-12-02T15:29:30.000000000Z
+Commit Branch:      release/2025.22-niolo
+rustc Version:      1.91.1
+rustc Channel:      stable
+cargo Profile:      release
+```
+
+### Operators Updates & Tools
+
+We’re excited to announce that the first **nym-node release of 2026 **. 
+
+In December 2025, two NIP proposals were approved, introducing new ports to Nym network: [NIP-6](https://governator.nym.com/proposal/prop-ba886b9d-6f6e-4365-b4ed-fe7e604bc375) opening ports for WhatsApp and Session + Port `465` and [NIP-4:](https://governator.nym.com/proposal/prop-ca6726ea-38b1-4568-97fe-8bdc5fdc83a0), opening port `587`.
+
+**Due to the concerns raised by the operators we built a rate limiting function to Network tunnel manager (NTM) to prevent spam abuse of the network. You can see the changes [here](https://github.com/nymtech/nym/pull/6317).** 
+
+To implement the changes and ensure that the nodes have expected perfomance, please re-run NTM following thse steps:
+
+<Steps>
+###### 1. Get new NTM
+- Download the updated NTM and make executable
+```
+curl -L https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/network-tunnel-manager.sh -o ./network-tunnel-manager.sh && chmod +x network-tunnel-manager.sh
+```
+
+###### 2. Update exit policy
+- To be sure that your routing is clean, run this command:
+```sh
+./network-tunnel-manager.sh complete_networking_configuration
+```
+</ Steps>
+
+### Features
+
+- [Merge intermediate upgrade mode changes](https://github.com/nymtech/nym/pull/6174): This PR contains a long changelog on itself, please read the full [in the PR description](https://github.com/nymtech/nym/pull/6174)
+
+- [Config migration](https://github.com/nymtech/nym/pull/6259)
+
+- [Statistics API v2](https://github.com/nymtech/nym/pull/6227): This PRs adds a v2 of the `VpnClientSessionReport` and update the stats API to be able to store it
+
+- [Update chain registry link](https://github.com/nymtech/nym/pull/6219)
+
+
+### Bugfix
+
+- [Re-exposed 'derive_extended_private_key'](https://github.com/nymtech/nym/pull/6247)
+
+- [`gateway-probe` fixes for run-local](https://github.com/nymtech/nym/pull/6212)
+
+- [Upgrade mode: VPN adjustments](https://github.com/nymtech/nym/pull/6189): This PR further builds up on [\#6174](https://github.com/nymtech/nym/pull/6174) to include changes required by the VPN-client to fully support the upgrade mode, what is relevant here is that this PR modifies the credential storage to allow it to storage an opaque `emergency credential` that lets it be shared between sessions (if it is still valid)  ]
+
+- [Add weighted scoring to NS API](https://github.com/nymtech/nym/pull/6144)
+
+### Refactors & Maintenance
+
+- [Remove run DKG migration](https://github.com/nymtech/nym/pull/6253)
+
+- [Do not re-derive wallet keys on every tx](https://github.com/nymtech/nym/pull/6213): The `cosmrs' trait bounds on `EcdsaSigner` got updated to include `Send` and `Sync`, meaning we no longer need to derive private keys on every transaction and instead we can just do it once, on construction
+
+- [Remove support for legacy mixnode within the performance contract](https://github.com/nymtech/nym/pull/6205): The network no longer supports those nodes, there's no point in having the "brand new" (kinda) contract support them either  
+
+
+
+
+<br />
+<AccordionTemplate name="Changelog 2025">
+
 ## Last Update of 2025
 
 We are not going to do a platform release this year anymore, but we have two important updates to share.
@@ -2750,6 +2827,7 @@ Config changes:
 
 To allow reading through older changelogs, we store them below sorted by years.
 
+</ AccordionTemplate>
 <br />
 <AccordionTemplate name="Changelog 2024">
 

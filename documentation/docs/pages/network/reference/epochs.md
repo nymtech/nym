@@ -19,3 +19,5 @@ Currently, SURBs remain valid across epoch boundaries since node keys don't chan
 ## Querying epoch information
 
 Current epoch data is available through Nyx blockchain queries and Nym API endpoints.
+
+Epoch types: [`common/types/src/epoch.rs`](https://github.com/nymtech/nym/blob/develop/common/types/src/epoch.rs)

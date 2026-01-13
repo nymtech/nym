@@ -26,6 +26,8 @@ DguTcdkWWtDyUFLvQxRdcA8qZhardhE1ZXy1YCC7Zfmq.Dxreouj5RhQqMb3ZaAxgXFdGkmfbDKwk457
 
 When sending to a Nym address, the sender extracts the Gateway key and constructs a Sphinx packet with that Gateway as the final hop. The Gateway receives the packet, identifies the recipient by their identity key, and delivers the message (or stores it if the recipient is offline).
 
+Address types: [`common/nymsphinx/addressing`](https://github.com/nymtech/nym/tree/develop/common/nymsphinx/addressing)
+
 ## Privacy considerations
 
 The address reveals which Gateway you use and your public keys. It doesn't reveal your IP address or private keys. Multiple clients can use the same Gateway, so the Gateway key alone doesn't identify you.

@@ -25,6 +25,8 @@ Time ─────────────────────────
 
 The cover packets are real Sphinx packets with valid encryption—just empty payloads. They travel through the network exactly like real packets, get mixed at each hop, and are discarded at their destination. No node along the way can tell whether a packet contains real data or is cover traffic.
 
+Cover message construction: [`common/nymsphinx/cover`](https://github.com/nymtech/nym/tree/develop/common/nymsphinx/cover)
+
 ## Loop traffic
 
 Cover packets follow complete routes through the network back to the sender. These "loops" serve multiple purposes: they test that network routes are functioning, they provide traffic for mixing with others' cover traffic, and they can detect active attacks. If your loop packets stop returning, something is wrong.
@@ -34,6 +36,8 @@ Mix nodes also generate their own cover traffic, ensuring minimum traffic levels
 ## How it's generated
 
 Traffic follows a Poisson process with a configurable rate parameter. Inter-packet times are exponentially distributed—random, but with a known average rate. This distribution provides maximum entropy (uncertainty) for a given mean rate, which translates to optimal privacy properties.
+
+Delay and rate parameters: [`common/nymsphinx/params`](https://github.com/nymtech/nym/tree/develop/common/nymsphinx/params)
 
 ## Tradeoffs
 

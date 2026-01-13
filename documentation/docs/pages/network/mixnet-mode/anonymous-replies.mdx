@@ -14,6 +14,8 @@ Alice creates SURBs—encrypted routing headers—and includes them with her mes
 
 A SURB contains the address of the first hop (Alice's Entry Gateway), encrypted routing headers for the path back to Alice, and a key to encrypt the reply payload. The routing headers are layered like a Sphinx packet—each hop can only see the next destination.
 
+SURB implementation: [`common/nymsphinx/anonymous-replies`](https://github.com/nymtech/nym/tree/develop/common/nymsphinx/anonymous-replies)
+
 ## Single use
 
 Each SURB can only be used once. This prevents replay attacks and ensures forward secrecy. For conversations requiring multiple exchanges, Alice sends multiple SURBs with her initial message.
@@ -50,6 +52,8 @@ sequenceDiagram
 ## Sender tags
 
 For sessions with multiple messages, Alice includes a randomly generated sender tag with her SURBs. This helps Bob organize SURBs from multiple conversations without revealing anything about Alice's identity—the tag is random and unlinkable to her address.
+
+Sender tags and SURB requests: [`common/nymsphinx/acknowledgements`](https://github.com/nymtech/nym/tree/develop/common/nymsphinx/acknowledgements)
 
 ## Security considerations
 

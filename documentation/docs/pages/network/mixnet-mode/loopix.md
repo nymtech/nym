@@ -14,6 +14,8 @@ The network uses a layered architecture. Traffic flows through Entry Gateways, t
 
 This structure prevents observations about which paths are used together and limits the damage any single compromised node can cause.
 
+Topology management: [`common/topology`](https://github.com/nymtech/nym/tree/develop/common/topology)
+
 ## Continuous-time mixing
 
 Unlike batch mixnets that collect messages and release them periodically, Loopix uses continuous-time mixing. Each message is delayed independently according to an exponential distribution, then forwarded as soon as its delay expires.
@@ -22,11 +24,15 @@ This approach offers optimal anonymity for a given mean latency. The exponential
 
 Continuous mixing also means lower latency overall since messages don't wait for batches to fill.
 
+Delay configuration: [`common/nymsphinx/routing`](https://github.com/nymtech/nym/tree/develop/common/nymsphinx/routing)
+
 ## Cover traffic loops
 
 Connected clients and nodes continuously generate dummy packets that travel in loops through the network back to the sender. These packets are indistinguishable from real traffic—same size, same encryption, same timing distribution.
 
 Loop traffic ensures minimum anonymity even when few users are active. It hides when real communication starts and stops. And it can detect active attacks: if your loop packets don't return, something is interfering with the network.
+
+Cover traffic generation: [`common/nymsphinx/cover`](https://github.com/nymtech/nym/tree/develop/common/nymsphinx/cover)
 
 ## Nym's modifications
 

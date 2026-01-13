@@ -26,8 +26,8 @@ name = "mixnet_contract"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-mixnet-contract-common = { workspace = true, package = "nym-mixnet-contract-common" }
-vesting-contract-common = { workspace = true, package = "nym-vesting-contract-common" }
+mixnet-contract-common = { workspace = true }
+vesting-contract-common = { workspace = true }
 nym-contracts-common = { workspace = true }
 nym-contracts-common-testing = { workspace = true, optional = true }
 

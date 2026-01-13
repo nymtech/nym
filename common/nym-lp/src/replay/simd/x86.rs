@@ -162,7 +162,7 @@ impl BitmapOps for X86BitmapOps {
                     let data_vec = _mm_loadu_si128(bitmap[idx..].as_ptr() as *const __m128i);
 
                     // Safety: _mm_testz_si128 is safe when given valid __m128i values
-                    if !_mm_testz_si128(data_vec, data_vec) {
+                    if _mm_testz_si128(data_vec, data_vec) == 0 {
                         return false;
                     }
                     idx += 2;
@@ -200,7 +200,7 @@ impl BitmapOps for X86BitmapOps {
                 #[cfg(target_feature = "sse4.1")]
                 {
                     // Safety: _mm_testz_si128 is safe when given valid __m128i values
-                    if !_mm_testz_si128(data_vec, data_vec) {
+                    if _mm_testz_si128(data_vec, data_vec) == 0 {
                         return false;
                     }
                 }

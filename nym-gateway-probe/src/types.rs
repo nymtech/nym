@@ -1,5 +1,8 @@
+use std::time::Duration;
+
 use nym_connection_monitor::ConnectionStatusEvent;
 use serde::{Deserialize, Serialize};
+use tracing::{debug, info, warn};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProbeResult {
@@ -12,6 +15,7 @@ pub struct ProbeResult {
 pub struct ProbeOutcome {
     pub as_entry: Entry,
     pub as_exit: Option<Exit>,
+    pub socks5: Option<Socks5ProbeResults>,
     pub wg: Option<WgProbeResults>,
 }
 
@@ -119,6 +123,169 @@ impl Exit {
             can_route_ip_v6: replies.ipr_tun_ip_v6,
             can_route_ip_external_v6: replies.external_ip_v6,
         }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct Socks5ProbeResults {
+    /// whether we could establish a SOCKS5 proxy connection
+    pub can_connect_socks5: bool,
+
+    /// HTTPS connectivity test
+    pub https_connectivity: HttpsConnectivityResult,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct HttpsConnectivityResult {
+    /// successfully completed HTTPS request
+    https_success: bool,
+
+    /// HTTPS status code received
+    https_status_code: Option<u16>,
+
+    /// average HTTPS request latency in milliseconds
+    https_latency_ms: Option<u64>,
+
+    /// error message(s) (if any)
+    error: Option<String>,
+}
+
+impl HttpsConnectivityResult {
+    pub fn with_error(error: impl Into<String>) -> Self {
+        Self {
+            https_success: false,
+            https_status_code: None,
+            https_latency_ms: None,
+            error: Some(error.into()),
+        }
+    }
+}
+
+pub struct HttpsConnectivityTest {
+    test_count: u64,
+    mixnet_client_timeout: Duration,
+}
+
+/// endpoint to test against
+/// https://www.quicknode.com/docs/ethereum/web3_clientVersion
+const TARGET_URL: &str = "https://docs-demo.quiknode.pro";
+const POST_BODY: &str = r#"{"jsonrpc":"2.0","method":"web3_clientVersion","params":[],"id":1}"#;
+
+impl HttpsConnectivityTest {
+    pub fn new(test_count: u64, mixnet_client_timeout: u64) -> Self {
+        Self {
+            test_count: std::cmp::max(test_count, 1),
+            mixnet_client_timeout: Duration::from_secs(mixnet_client_timeout),
+        }
+    }
+
+    pub async fn run_tests(self, socks5_url: String) -> HttpsConnectivityResult {
+        let mut result = HttpsConnectivityResult::default();
+
+        let proxy = match reqwest::Proxy::all(socks5_url) {
+            Ok(p) => p,
+            Err(e) => {
+                result.error = Some(format!("Failed to create proxy: {}", e));
+                return result;
+            }
+        };
+
+        let client = match reqwest::Client::builder()
+            .proxy(proxy)
+            .timeout(self.mixnet_client_timeout)
+            .build()
+        {
+            Ok(c) => c,
+            Err(e) => {
+                result.error = Some(format!("Failed to build HTTP client: {}", e));
+                return result;
+            }
+        };
+
+        let mut successful_runs = 0u64;
+        for i in 1..self.test_count + 1 {
+            info!("Running test {}/{}", i, self.test_count);
+            let interim_res = self.perform_https_request(&client).await;
+            if interim_res.https_success
+                && let Some(latency_ms) = interim_res.https_latency_ms
+            {
+                successful_runs += 1;
+                result.https_latency_ms = Some(
+                    result
+                        .https_latency_ms
+                        .map_or(latency_ms, |existing| existing + latency_ms),
+                );
+                result.https_success = true;
+                result.https_status_code = interim_res.https_status_code;
+                info!("{}/{} latency: {}ms", i, self.test_count, latency_ms);
+            } else if let Some(new_error) = interim_res.error {
+                result.error = Some(result.error.map_or(new_error.clone(), |existing| {
+                    format!("{},{}", existing, new_error)
+                }))
+            }
+
+            // too many failed runs: return early
+            if successful_runs < 2 && i - successful_runs > 2 {
+                // if < 2 runs, we don't have to calculate average before returning
+                return result;
+            }
+        }
+        result.https_latency_ms = result
+            .https_latency_ms
+            .map(|latency| latency / successful_runs);
+        info!(
+            "AVG latency over {} runs (in ms): {:?}",
+            successful_runs, result.https_latency_ms
+        );
+
+        result
+    }
+
+    async fn perform_https_request(&self, client: &reqwest::Client) -> HttpsConnectivityResult {
+        use tokio::time::Instant;
+
+        let mut result = HttpsConnectivityResult::default();
+        let start = Instant::now();
+        match tokio::time::timeout(
+            self.mixnet_client_timeout,
+            client
+                .post(TARGET_URL)
+                .header(reqwest::header::CONTENT_TYPE, "application/json")
+                .body(POST_BODY)
+                .send(),
+        )
+        .await
+        {
+            Ok(Ok(response)) => {
+                let elapsed = start.elapsed();
+                let status = response.status();
+                result.https_success = status.is_success();
+                result.https_status_code = Some(status.as_u16());
+                result.https_latency_ms = Some(elapsed.as_millis() as u64);
+                debug!(
+                    "HTTPS test completed: status={}, latency={}ms",
+                    status.as_u16(),
+                    elapsed.as_millis()
+                );
+            }
+            Ok(Err(e)) => {
+                warn!("HTTPS request failed: {}", e);
+                if result.error.is_none() {
+                    result.error = Some(format!("HTTPS request failed: {}", e));
+                }
+            }
+            Err(_) => {
+                warn!(
+                    "HTTPS request timed out after {}s",
+                    self.mixnet_client_timeout.as_secs()
+                );
+                if result.error.is_none() {
+                    result.error = Some("HTTPS request timed out".to_string());
+                }
+            }
+        }
+
+        result
     }
 }
 

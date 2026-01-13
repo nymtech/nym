@@ -26,6 +26,9 @@ pub enum NymPerformanceContractError {
     #[error("{kind} not a valid measurement kind")]
     UnsupportedMeasurementKind { kind: String },
 
+    #[error("Measurement {kind} already defined")]
+    MeasurementAlreadyDefined { kind: String },
+
     #[error("Invalid input: {0}")]
     InvalidInput(String),
 

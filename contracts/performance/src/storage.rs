@@ -140,6 +140,8 @@ impl NymPerformanceContractStorage {
 
         // 4 insert performance data into the storage
         self.performance_results
+            .assert_measurement_defined(deps.storage, data.measurement_kind.clone())?;
+        self.performance_results
             .insert_performance_data(deps.storage, epoch_id, &data)?;
 
         // 5. update submission metadata based on the last result we submitted
@@ -198,6 +200,8 @@ impl NymPerformanceContractStorage {
 
         // 3. submit it
         if self.node_bonded(deps.as_ref(), first.node_id)? {
+            self.performance_results
+                .assert_measurement_defined(deps.storage, first.measurement_kind.clone())?;
             match self
                 .performance_results
                 .insert_performance_data(deps.storage, epoch_id, first)
@@ -227,6 +231,10 @@ impl NymPerformanceContractStorage {
 
             // 5. insert performance data into the storage
             if self.node_bonded(deps.as_ref(), perf.node_id)? {
+                self.performance_results.assert_measurement_defined(
+                    deps.storage,
+                    perf.measurement_kind.clone().clone(),
+                )?;
                 self.performance_results
                     .insert_performance_data(deps.storage, epoch_id, perf)?;
                 accepted_scores += 1;
@@ -542,8 +550,6 @@ impl PerformanceResultsStorage {
         epoch_id: EpochId,
         data: &NodePerformance,
     ) -> Result<(), NymPerformanceContractError> {
-        self.assert_measurement_defined(storage, data.measurement_kind.clone())?;
-
         let performance = data.performance;
 
         let key = (epoch_id, data.node_id, data.measurement_kind.clone());
@@ -597,17 +603,14 @@ impl PerformanceResultsStorage {
     pub fn define_new_measurement_kind(
         &self,
         storage: &mut dyn Storage,
-        measurement_kind: MeasurementKind,
+        kind: MeasurementKind,
     ) -> Result<(), NymPerformanceContractError> {
-        if self.is_measurement_defined(storage, measurement_kind.clone())? {
-            return Err(NymPerformanceContractError::InvalidInput(format!(
-                "Measurement {} already defined",
-                &measurement_kind
-            )));
+        if self.is_measurement_defined(storage, kind.clone())? {
+            return Err(NymPerformanceContractError::MeasurementAlreadyDefined { kind });
         }
 
         self.defined_measurements
-            .save(storage, measurement_kind, &())
+            .save(storage, kind, &())
             .map_err(From::from)
     }
 
@@ -615,16 +618,13 @@ impl PerformanceResultsStorage {
     pub fn retire_measurement_kind(
         &self,
         storage: &mut dyn Storage,
-        measurement_kind: MeasurementKind,
+        kind: MeasurementKind,
     ) -> Result<(), NymPerformanceContractError> {
-        if !self.is_measurement_defined(storage, measurement_kind.clone())? {
-            return Err(NymPerformanceContractError::InvalidInput(format!(
-                "Invalid input: measurement {} not defined",
-                &measurement_kind
-            )));
+        if !self.is_measurement_defined(storage, kind.clone())? {
+            return Err(NymPerformanceContractError::UnsupportedMeasurementKind { kind });
         }
 
-        self.defined_measurements.remove(storage, measurement_kind);
+        self.defined_measurements.remove(storage, kind);
 
         Ok(())
     }
@@ -1900,6 +1900,7 @@ mod tests {
                 tester.set_mixnet_epoch(10)?;
                 let nm = tester.addr_make("network-monitor");
                 tester.authorise_network_monitor(&nm)?;
+                tester.define_dummy_measurement_kind()?;
 
                 let perf = tester.dummy_node_performance();
 
@@ -1943,6 +1944,8 @@ mod tests {
                         last_node_id: 0,
                     }
                 );
+
+                println!("{:#?}", res);
 
                 assert!(
                     storage

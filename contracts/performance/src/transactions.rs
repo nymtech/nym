@@ -30,23 +30,35 @@ pub fn try_define_measurement_kind(
         .contract_admin
         .assert_admin(deps.as_ref(), sender)?;
 
-    // validation
-    if measurement_kind.len() < 2
-        || measurement_kind.len() > 20
-        || !measurement_kind.is_ascii()
-        || measurement_kind.contains(char::is_whitespace)
-    {
-        return Err(NymPerformanceContractError::InvalidInput(format!(
-            "Cannot define {} as measurement kind",
-            measurement_kind
-        )));
-    }
+    validate_measurement_kind(&measurement_kind)?;
 
     NYM_PERFORMANCE_CONTRACT_STORAGE
         .performance_results
         .define_new_measurement_kind(deps.storage, measurement_kind)?;
 
     Ok(Response::new())
+}
+
+/// error out if validation fails, Ok otherwise
+fn validate_measurement_kind(measurement_kind: &str) -> Result<(), NymPerformanceContractError> {
+    const MIN_LENGTH: usize = 2;
+    const MAX_LENGTH: usize = 32;
+    let error = if measurement_kind.len() < MIN_LENGTH || measurement_kind.len() > MAX_LENGTH {
+        format!(
+            "Length should be between {} and {} chars (exclusive)",
+            MIN_LENGTH, MAX_LENGTH
+        )
+    } else if !measurement_kind.is_ascii() {
+        "Only ASCII symbols allowed".to_string()
+    } else if measurement_kind.contains(char::is_whitespace) {
+        "No whitespaces allowed in measurement name".to_string()
+    } else if !measurement_kind.starts_with(char::is_alphanumeric) {
+        "Name needs to start with alphanumeric character(s)".to_string()
+    } else {
+        return Ok(());
+    };
+
+    Err(NymPerformanceContractError::InvalidInput(error))
 }
 
 pub fn try_retire_measurement_kind(
@@ -423,7 +435,7 @@ mod tests {
                 &admin.sender,
                 new_measurement.clone(),
             );
-            assert!(matches!(authorized, Ok(..)));
+            assert!(authorized.is_ok());
         }
 
         #[allow(clippy::panic)]
@@ -438,13 +450,13 @@ mod tests {
                 &admin.sender,
                 new_measurement.clone(),
             );
-            assert!(matches!(first_attempt, Ok(..)));
+            assert!(first_attempt.is_ok());
 
             let second_attempt =
                 try_define_measurement_kind(tester.deps_mut(), &admin.sender, new_measurement);
             assert!(matches!(
                 second_attempt,
-                Err(NymPerformanceContractError::InvalidInput(_))
+                Err(NymPerformanceContractError::MeasurementAlreadyDefined { .. })
             ));
         }
 
@@ -459,7 +471,7 @@ mod tests {
 
             assert!(matches!(
                 err,
-                Err(NymPerformanceContractError::InvalidInput(_))
+                Err(NymPerformanceContractError::UnsupportedMeasurementKind { .. })
             ));
         }
 
@@ -503,7 +515,7 @@ mod tests {
                 0,
                 dummy_perf,
             );
-            assert!(matches!(second_attempt, Ok(..)));
+            assert!(second_attempt.is_ok());
         }
 
         #[allow(clippy::panic)]
@@ -533,7 +545,7 @@ mod tests {
                 0,
                 dummy_perf.clone(),
             );
-            assert!(matches!(defined_ok, Ok(..)));
+            assert!(defined_ok.is_ok());
 
             // can't submit for the same node in the same epoch again
             tester.advance_mixnet_epoch().unwrap();
@@ -559,6 +571,48 @@ mod tests {
                 retired_err,
                 Err(NymPerformanceContractError::UnsupportedMeasurementKind { .. })
             ));
+        }
+    }
+
+    mod measurement_kind_validation {
+        use nym_performance_contract_common::NymPerformanceContractError;
+
+        use crate::transactions::validate_measurement_kind;
+
+        #[test]
+        fn invalid_names() {
+            let invalid_names = [
+                "a",
+                "NameLongerThanTheUpperLimitForContract",
+                "contains spaces",
+                "nonaščii",
+                "-+*/",
+                // starts with a symbol
+                "+-*/invalid",
+            ];
+
+            for kind in invalid_names {
+                let err = validate_measurement_kind(kind);
+                assert!(matches!(
+                    err,
+                    Err(NymPerformanceContractError::InvalidInput(..))
+                ));
+            }
+        }
+
+        #[test]
+        fn valid_names() {
+            let valid_names = [
+                "ascii-symbols",
+                "UpperLowerCase",
+                // starts with an alphanumeric char
+                "valid-+*/",
+            ];
+
+            for kind in valid_names {
+                let err = validate_measurement_kind(kind);
+                assert!(matches!(err, Ok(())));
+            }
         }
     }
 }

@@ -75,3 +75,5 @@ docs
 .superego/
 .claude/hooks/superego/
 .claude/settings.json
+
+/notes

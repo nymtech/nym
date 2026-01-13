@@ -2,113 +2,36 @@ import { Callout } from 'nextra/components'
 
 # Nym Nodes
 
-Nym Nodes are the servers that route traffic through the Nym Network. A single unified binary operates in different modes depending on its role.
+All traffic-routing infrastructure runs on the `nym-node` binary. This unified binary operates in different modes—Entry Gateway, Mix Node, or Exit Gateway—simplifying deployment and enabling future dynamic role assignment.
 
 <Callout type="info">
-To run a node, see the [Operator Documentation](../../operators/introduction).
+To run a node, see the [Operator Documentation](/operators/introduction).
 </Callout>
 
-## The Unified Binary
+## Node roles
 
-All network infrastructure runs on the `nym-node` binary, which can operate in different modes:
+**Entry Gateways** are the user's first point of contact with the network. They accept WebSocket connections from clients, verify zk-nym credentials to confirm payment, and store messages for clients that go offline (up to 24 hours). Entry Gateways know the client's IP address but cannot see message contents or final destinations.
 
-| Mode | Function |
-|------|----------|
-| **Entry Gateway** | First hop, client connections, credential verification |
-| **Mix Node** | Traffic mixing with random delays |
-| **Exit Gateway** | Final hop, external service communication |
+**Mix Nodes** form the three mixing layers that provide core privacy. They receive Sphinx packets, remove one encryption layer, verify integrity, apply a random delay, and forward to the next hop. Mix Nodes cannot determine their position in the route and cannot link incoming packets to outgoing packets.
 
-## Node Roles
+**Exit Gateways** handle traffic leaving the mixnet. They communicate with external internet services on behalf of users and return responses through the network. Exit Gateways can see destination addresses but cannot identify the original sender.
 
-### Entry Gateways
+## Unified binary
 
-Entry Gateways are clients' first contact with the network:
+The various components were originally separate binaries. They've been consolidated into a single `nym-node` binary where the role is specified at runtime. This simplifies operation and makes configuration consistent across roles.
 
-- Accept WebSocket connections from Nym clients
-- Verify zk-nym credentials (proof of payment)
-- Store messages for offline clients (up to 24 hours)
-- Forward Sphinx packets into the mix layers
+In the future, nodes will automatically switch roles based on network conditions. Operators won't need to manually set whether a node is a Gateway or Mix Node—the network will assign roles dynamically each epoch.
 
-**Trust model**: Entry Gateways know the client's IP address but cannot see message contents or final destinations.
-
-### Mix Nodes
-
-Mix Nodes form the three mixing layers that provide core privacy:
-
-- Receive Sphinx packets from the previous hop
-- Decrypt one encryption layer
-- Verify HMAC integrity
-- Apply random delay (exponential distribution)
-- Forward to the next hop
-
-**Trust model**: Mix Nodes cannot determine their position in the route, cannot link incoming to outgoing packets, and cannot see payload contents.
-
-### Exit Gateways
-
-Exit Gateways handle traffic leaving the mixnet:
-
-- Receive packets from Mix Layer 3
-- Communicate with external internet services
-- Handle responses back through the network
-- For internal traffic: deliver to receiving client's Gateway
-
-**Trust model**: Exit Gateways can see destination addresses (like Tor exits) but cannot identify the original sender.
-
-## Node Smoosh Status
-
-The various components were originally separate binaries. They have been "smooshed" into a single binary for:
-
-- Easier operation and deployment
-- Consistent configuration
-- Future dynamic role assignment
-
-### Current Status
-
-**Completed:**
-- All nodes run as `nym-node` with mode specified at runtime
-- Network Requester functionality integrated into Exit Gateway mode
-
-**Upcoming:**
-- Dynamic role assignment based on network conditions
-- Nodes will automatically switch between roles per epoch
-- Operators will no longer manually set node roles
-
-## Network Statistics
-
-Current deployment:
-- 600+ active nodes
-- ~60 countries
-- Independent operators worldwide
-
-## Becoming an Operator
-
-Running a Nym Node requires:
-
-1. **Hardware**: Server meeting minimum specifications
-2. **Bonding**: Stake NYM tokens as collateral
-3. **Configuration**: Set up and maintain the node
-4. **Monitoring**: Ensure high uptime for rewards
-
-See the [Operator Documentation](../../operators/introduction) for complete setup guides.
-
-## Nym Clients
+## Nym clients
 
 <Callout type="info">
-For client setup, see the [Developer Documentation](../../developers/clients/socks5).
+For client setup, see the [Developer Documentation](/developers/clients/socks5).
 </Callout>
 
-Nym Clients are the user-side software that connects to the network. They perform:
+Clients are the user-side software that connects to the network. They discover network topology from the blockchain, register with an Entry Gateway, construct Sphinx packets with layered encryption, generate cover traffic, and handle acknowledgements and retransmission.
 
-- **Topology discovery**: Learn network structure from Nyx blockchain
-- **Gateway registration**: Connect to an Entry Gateway
-- **Packet construction**: Create layered Sphinx packets
-- **Cover traffic**: Generate dummy packets to hide real traffic
-- **Retransmission**: Handle acknowledgements and resend dropped packets
+Client types include native Rust clients, WASM clients for browsers, the SOCKS5 proxy client, and the NymVPN client. The NymVPN client supports both dVPN and mixnet modes.
 
-Client types include:
-- Native clients (Rust)
-- WASM clients (browser)
-- SOCKS5 proxy client
-- NymVPN client (both dVPN and mixnet modes)
+## Running infrastructure
 
-> At present, Nym clients are message-based. The SOCKS5 client and NymVPN handle the translation between IP traffic and mixnet messages. Future work aims to make this translation transparent for all client types.
+The current deployment includes over 600 active nodes across approximately 60 countries, operated by independent parties worldwide. Running a node requires meeting minimum hardware specifications, staking NYM tokens as collateral, and maintaining high uptime for rewards.

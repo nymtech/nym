@@ -1,79 +1,33 @@
-# Addressing System
+# Addressing
 
-All clients and nodes in the Nym Network have an address that uniquely identifies them for routing purposes.
+All clients and nodes in the Nym Network have an address that uniquely identifies them for routing.
 
-## Address Format
+## Address format
+
+A Nym address has three parts separated by dots and an @ symbol:
 
 ```
 <user-identity-key>.<user-encryption-key>@<gateway-identity-key>
 ```
 
-### Components
+The **identity key** identifies the client for routing purposes. It's derived from the client's Ed25519 keypair and base58-encoded for readability.
 
-| Component | Purpose |
-|-----------|---------|
-| `user-identity-key` | Identifies the client for routing |
-| `user-encryption-key` | Public key for encrypting messages to this client |
-| `gateway-identity-key` | Identifies the client's registered Entry Gateway |
+The **encryption key** is the public key used to encrypt the final layer of Sphinx packets destined for this client. Only the client holding the corresponding private key can decrypt messages addressed to them.
 
-### Example
+The **gateway key** identifies which Gateway holds messages for this client. When you connect, your client registers with a specific Entry Gateway, and that Gateway's identity becomes part of your address.
+
+## Example
 
 ```
 DguTcdkWWtDyUFLvQxRdcA8qZhardhE1ZXy1YCC7Zfmq.Dxreouj5RhQqMb3ZaAxgXFdGkmfbDKwk457FdeHGKmQQ@4kjgWmFU1tcGAZYRZR57yFuVAexjLbJ5M7jvo3X5Hkcf
 ```
 
-## Key Functions
+## How routing works
 
-### Identity Key
+When sending to a Nym address, the sender extracts the Gateway key and constructs a Sphinx packet with that Gateway as the final hop. The Gateway receives the packet, identifies the recipient by their identity key, and delivers the message (or stores it if the recipient is offline).
 
-- Used by the network to route packets to the correct client
-- Derived from the client's Ed25519 keypair
-- Base58-encoded for human readability
+## Privacy considerations
 
-### Encryption Key
+The address reveals which Gateway you use and your public keys. It doesn't reveal your IP address or private keys. Multiple clients can use the same Gateway, so the Gateway key alone doesn't identify you.
 
-- Used to encrypt the final layer of Sphinx packets
-- Only the client can decrypt messages addressed to them
-- Derived from the client's X25519 keypair
-
-### Gateway Key
-
-- Identifies which Gateway holds messages for this client
-- Clients register with a specific Gateway on connection
-- Messages are delivered to this Gateway for pickup
-
-## Address Generation
-
-When a Nym client initializes:
-
-1. Generates Ed25519 keypair (identity)
-2. Generates X25519 keypair (encryption)
-3. Registers with a Gateway
-4. Combines keys and Gateway ID into the address
-
-## Routing Process
-
-When sending to a Nym address:
-
-1. Sender extracts the Gateway key from the address
-2. Constructs Sphinx packet with Gateway as final hop
-3. Gateway receives packet, identifies recipient by identity key
-4. Delivers to recipient (or stores if offline)
-
-## Privacy Considerations
-
-The Nym address does reveal:
-- Which Gateway the client uses
-- Public keys (but not private keys)
-
-However:
-- The Gateway cannot read message contents
-- Multiple clients can use the same Gateway
-- Addresses can be changed by re-registering
-
-## Address Persistence
-
-By default, clients generate new addresses on each initialization. For persistent identity:
-- Store the keypairs securely
-- Re-register with the same Gateway
-- Address remains constant across sessions
+For persistent identity across sessions, store your keypairs and re-register with the same Gateway. For ephemeral identity, generate new keys each session.

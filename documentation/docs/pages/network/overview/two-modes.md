@@ -1,123 +1,41 @@
 # Two Modes: dVPN and Mixnet
 
-NymVPN provides two distinct privacy modes, each with different tradeoffs between speed and protection level. Both operate on the same Nym Network infrastructure.
+NymVPN provides two distinct privacy modes. Both operate on the same Nym Network infrastructure, but they make different tradeoffs between speed and protection level.
 
-## Quick Comparison
+## dVPN mode
 
-| Aspect | dVPN Mode | Mixnet Mode |
-|--------|-----------|-------------|
-| **Hops** | 2 (Entry → Exit) | 5 (Entry → Mix × 3 → Exit) |
-| **Latency** | Low (~50-150ms) | Higher (~200-500ms) |
-| **Throughput** | High | Moderate |
-| **Timing protection** | Basic | Full |
-| **Cover traffic** | No | Yes |
-| **Packet mixing** | No | Yes |
-| **Use case** | Everyday browsing | High-security needs |
-
-## dVPN Mode (2-Hop)
+dVPN mode routes traffic through 2 hops—an Entry Gateway and an Exit Gateway. Traffic flows from your device to the Entry Gateway, then to the Exit Gateway, then to the destination.
 
 ```
-┌────────┐     ┌───────────────┐     ┌──────────────┐     ┌──────────┐
-│  User  │────▶│ Entry Gateway │────▶│ Exit Gateway │────▶│ Internet │
-└────────┘     └───────────────┘     └──────────────┘     └──────────┘
+User ──▶ Entry Gateway ──▶ Exit Gateway ──▶ Internet
 ```
 
-### How It Works
+This mode uses WireGuard encryption between you and the Entry Gateway, with additional layer encryption between the gateways. All packets are padded to uniform sizes. Latency is typically 50-150ms additional, comparable to traditional VPNs.
 
-1. Traffic is encrypted and sent to an Entry Gateway
-2. The Entry Gateway forwards to an Exit Gateway
-3. The Exit Gateway decrypts and sends to the destination
-4. Responses follow the reverse path
+dVPN mode hides your IP from destination servers and splits knowledge between two independent operators—the Entry Gateway knows your IP but not your destination, while the Exit Gateway knows your destination but not your IP. However, it does not add timing delays or cover traffic. A sophisticated adversary observing both gateways could potentially correlate entry and exit timing.
 
-### Privacy Properties
+Use dVPN mode for general web browsing, streaming video, downloads, and situations where speed matters and your adversaries are typical—ISPs, websites, advertisers.
 
-- **IP hiding**: Your IP is hidden from destination servers
-- **Decentralization**: No single VPN provider to trust
-- **Encryption**: WireGuard-based encryption between hops
-- **Packet padding**: Uniform packet sizes prevent size-based fingerprinting
+## Mixnet mode
 
-### Limitations
-
-- **No timing obfuscation**: Packets are forwarded immediately
-- **No cover traffic**: Traffic volume is visible to observers
-- **Correlation attacks**: A GPA could potentially correlate entry/exit timing
-
-### Best For
-
-- General web browsing
-- Streaming video
-- Downloads
-- Any use case where speed matters and you face typical adversaries (ISPs, websites, advertisers)
-
-## Mixnet Mode (5-Hop)
+Mixnet mode routes traffic through 5 hops—an Entry Gateway, three layers of Mix Nodes, and an Exit Gateway. Each Mix Node adds a random delay and mixes your traffic with other packets passing through.
 
 ```
-┌────────┐     ┌───────┐     ┌─────────┐     ┌─────────┐     ┌─────────┐     ┌──────┐     ┌──────────┐
-│  User  │────▶│ Entry │────▶│ Mix L1  │────▶│ Mix L2  │────▶│ Mix L3  │────▶│ Exit │────▶│ Internet │
-└────────┘     └───────┘     └─────────┘     └─────────┘     └─────────┘     └──────┘     └──────────┘
-                                  │               │               │
-                             Variable         Variable        Variable
-                              delay            delay           delay
+User ──▶ Entry ──▶ Mix L1 ──▶ Mix L2 ──▶ Mix L3 ──▶ Exit ──▶ Internet
+                     │           │           │
+                  delay       delay       delay
 ```
 
-### How It Works
+Beyond the additional hops, mixnet mode generates constant cover traffic—dummy packets indistinguishable from real ones. This hides not just who you're communicating with, but whether you're communicating at all.
 
-1. Client creates layered Sphinx packets with routing instructions
-2. Packets travel through Entry Gateway to three Mix Node layers
-3. Each Mix Node:
-   - Removes one encryption layer
-   - Adds a random delay
-   - Forwards to the next hop
-4. Exit Gateway sends to destination
-5. Cover traffic is continuously generated to mask real traffic
+Latency is higher, typically 200-500ms additional, due to the mixing delays. But this mode defeats timing correlation attacks and provides unobservability against even global passive adversaries.
 
-### Privacy Properties
+Use mixnet mode for sensitive communications, high-risk situations, journalism, activism, or whenever maximum privacy justifies the latency cost.
 
-- **Timing obfuscation**: Random delays break timing correlation
-- **Traffic analysis resistance**: Cover traffic hides real communication
-- **Unlinkability**: Each packet takes an independent random path
-- **Unobservability**: Impossible to distinguish real traffic from cover traffic
+## Traffic indistinguishability
 
-### Limitations
+A critical design feature: external observers cannot tell whether traffic is using dVPN mode or mixnet mode. Both modes use the same Entry and Exit Gateways, the same packet sizes, and the same encryption. This ambiguity itself provides privacy—observers don't know whether you're in the faster, less protected mode or the slower, maximum protection mode.
 
-- **Higher latency**: Mixing delays add ~100-400ms per hop
-- **Lower throughput**: Cover traffic consumes bandwidth
-- **Message-based**: Works at message level, not raw IP
+## SDK access
 
-### Best For
-
-- Sensitive communications
-- Whistleblowing or journalism
-- Users in high-surveillance environments
-- Any scenario where adversaries may be monitoring the network
-
-## Traffic Indistinguishability
-
-A critical design feature: **dVPN and mixnet traffic are indistinguishable to external observers**.
-
-Both modes:
-- Use the same Entry and Exit Gateways
-- Employ the same encryption standards
-- Produce identically-sized packets
-
-This means an observer cannot tell whether a user is in dVPN mode (faster, less protected) or mixnet mode (slower, maximum protection). This ambiguity itself provides privacy benefits.
-
-## Choosing a Mode
-
-**Use dVPN Mode when:**
-- Speed is important
-- You're accessing streaming services
-- Your threat model is typical (hiding from ISPs, websites)
-- Convenience matters
-
-**Use Mixnet Mode when:**
-- Maximum privacy is required
-- You're in a high-risk situation
-- Latency is acceptable
-- You're concerned about sophisticated adversaries
-
-## SDK Access
-
-Developers using the [Nym SDKs](../../developers) have access to **mixnet mode only**. The dVPN mode is specific to the NymVPN application.
-
-SDK-based applications communicate through the mixnet using the same privacy guarantees as NymVPN's mixnet mode.
+Developers using the [Nym SDKs](/developers) have access to mixnet mode only. The dVPN mode is specific to the NymVPN application. SDK-based applications communicate through the mixnet using the same privacy guarantees as NymVPN's mixnet mode.

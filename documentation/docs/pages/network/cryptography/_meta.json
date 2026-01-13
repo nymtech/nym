@@ -1,4 +1,6 @@
 {
-  "sphinx": "Sphinx",
-  "zk-nym": "Zk-Nym Credentials"
+  "index": "Overview",
+  "encryption-standards": "Encryption Standards",
+  "sphinx": "Sphinx Packets",
+  "zk-nym": "zk-nym Credentials"
 }

@@ -1,6 +1,10 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+// fine in benchmarking code
+#![allow(clippy::expect_used)]
+#![allow(clippy::unwrap_used)]
+
 use criterion::{Criterion, criterion_group, criterion_main};
 
 use nym_crypto::asymmetric::ed25519;

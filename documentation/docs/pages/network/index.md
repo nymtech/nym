@@ -6,21 +6,92 @@ section: "Network"
 lastUpdated: "2026-02-11"
 ---
 
-# Introduction
-Nym's network documentation covering network architecture, node types, tokenomics, and crypto systems.
+# The Nym Network
 
-## Technical Motivations for Nym
-When you send data across the internet, it can be recorded by a wide range of observers: your ISP, internet infrastructure providers, large tech companies, and governments.
+The Nym Network is a decentralized privacy infrastructure designed to protect users against network-level surveillance. Unlike traditional encryption which protects message *content*, the Nym Network protects *metadata*: who is communicating with whom, when, how often, and how much.
 
-Even if the content of a network request is encrypted, observers can still see that data was transmitted, its size, frequency of transmission, and gather metadata from unencrypted parts of the data (such as IP routing information). Adversaries may then combine all the leaked information to probabilistically de-anonymize users.
+## The Problem
 
-The Nym mixnet provides very strong security guarantees against this sort of surveillance. It _packetises_ and _mixes_ together IP traffic from many users inside the _Mixnet_. It does this by obfuscating and anonymising traffic patterns: hiding the signal in background noise. It aims to make passive network surveillance obselete by hiding who is talking to who at any one time at the _network level_; using an anonymous email service, even one paid for anonymously, is not enough to protect you from surveillance unless you are also hiding your IP and other metadata which can be used to deanonymise you over time. We are up against agencies and companies employing enourmous compute resources scraping the web for swathes of traffic information and piping this into Machine Learning algorithms.
+When you send data across the internet, observers (ISPs, infrastructure providers, governments, corporations) can see:
+- That communication occurred
+- Source and destination IP addresses
+- Timing and frequency of transmissions
+- Packet sizes and patterns
 
-## Mixnet TL;DR
-The Mixnet is a decentralised network of nodes run by various operators in various jurisdictions around the world, who are incentivised to do so via `NYM` token rewards: cryptocurrency allows for the creation of an incentivised, decentralised privacy network.
+Even with encrypted content, this metadata can be used to identify users, infer relationships, and build behavioral profiles. Machine learning makes these attacks increasingly practical.
 
-> If you're into comparisons, the Nym mixnet is conceptually similar to other systems such as Tor, but provides improved protections against end-to-end timing attacks which can de-anonymize users. When Tor was first fielded, in 2002, those kinds of attacks were regarded as science fiction. But the future is now here.
+## The Solution: A Noise-Generating Network
 
-User applications do not have to run their own node (although we do encourage people to run infrastructure if they have the skills and time), but instead connect to the Mixnet via a Nym client either running as a separate process or (more likely) embedded in an existing application.
+The Nym Network defeats metadata surveillance by making all traffic look identical. It does this through:
 
-The Mixnet (once the credentialing system is turned on in late 2024) is pay-to-play: anonymous selective disclosure zk-nym credentials are used to ensure that clients have paid for sending bandwidth through the mixnet, but in a way that is unlinkable to their payment accounts. Furthermore each time they use a credential, it can be rerandomised: each time a user spends a credential, regardless of whether they have connected before, it appears as a new credential to the Nym network. The zk-nym scheme is a combination of the Coconut and Offline Ecash credential schemes.
+- **Packet uniformity**: All packets are the same size
+- **Encryption layering**: Each hop only sees the next destination
+- **Traffic mixing**: Packets are delayed and reordered
+- **Cover traffic**: Dummy packets hide real communication patterns
+
+The network consists of 600+ nodes operated independently across nearly 60 countries, creating a decentralized infrastructure with no single point of trust or failure.
+
+## Two Ways to Access the Network
+
+### NymVPN (Consumer Product)
+
+[NymVPN](https://nymvpn.com) is a paid application providing two privacy modes:
+
+| Mode | Hops | Speed | Privacy Level | Best For |
+|------|------|-------|---------------|----------|
+| **dVPN Mode** | 2 | Fast | Strong | Browsing, streaming, general use |
+| **Mixnet Mode** | 5 | Moderate | Maximum | Sensitive communications, high-threat scenarios |
+
+Both modes use the same underlying network infrastructure. To external observers, traffic from either mode is indistinguishable.
+
+- **dVPN Mode**: Routes traffic through 2 hops using WireGuard with enhanced layer encryption. Provides strong privacy against most adversaries while maintaining speed suitable for everyday use.
+
+- **Mixnet Mode**: Routes traffic through 5 hops with packet mixing, timing delays, and cover traffic. Provides maximum privacy against sophisticated adversaries including those capable of observing the entire network.
+
+### Developer SDKs (Mixnet Access)
+
+Developers can integrate mixnet functionality directly into applications using the [Nym SDKs](../developers). This provides:
+
+- Direct access to mixnet privacy (equivalent to NymVPN's mixnet mode)
+- Message-based communication through the network
+- Currently free for development and testing
+
+The SDKs do not provide access to dVPN mode, which is specific to the NymVPN application.
+
+## Network Components
+
+The Nym Network consists of several types of infrastructure:
+
+- **Nym Nodes**: Servers that route and mix traffic. They operate in different modes:
+  - *Entry Gateways*: First hop into the network, manage client connections
+  - *Mix Nodes*: Middle layers that mix and delay packets
+  - *Exit Gateways*: Final hop, communicate with external services
+
+- **Nyx Blockchain**: A Cosmos SDK chain that manages network topology, staking, and the credential system
+
+- **Nym API**: Services that monitor network health and issue privacy-preserving access credentials (zk-nyms)
+
+## Paying for Privacy (Without Losing It)
+
+A fundamental problem with VPNs and privacy services is that payment information can deanonymize users. The Nym Network solves this with **zk-nyms**: zero-knowledge anonymous credentials that prove you've paid without revealing who you are.
+
+When you pay for NymVPN access:
+1. Payment is converted to a cryptographic credential
+2. The credential can be split and re-randomized
+3. Each time you connect, you present a fresh, unlinkable proof
+4. Gateways verify payment validity without learning your identity
+
+This means your subscription cannot be linked to your network activity, even by Nym infrastructure operators.
+
+## Documentation Structure
+
+This documentation is organized as follows:
+
+- **[Overview](./overview)**: High-level explanations of network concepts and design
+- **[dVPN Mode](./dvpn-mode)**: How the 2-hop decentralized VPN works (NymVPN)
+- **[Mixnet Mode](./mixnet-mode)**: How the 5-hop mixnet works
+- **[Cryptography](./cryptography)**: Encryption standards, Sphinx packets, and zk-nyms
+- **[Infrastructure](./infrastructure)**: Nyx blockchain and node architecture
+- **[Reference](./reference)**: Technical specifications and protocol details
+
+For building applications on the mixnet, see the [Developer Documentation](../developers).

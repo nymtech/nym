@@ -1158,10 +1158,12 @@ version = "0.4.0"
 dependencies = [
  "base64 0.22.1",
  "bs58",
+ "curve25519-dalek",
  "ed25519-dalek",
  "nym-pemstore",
  "nym-sphinx-types",
  "rand",
+ "sha2",
  "subtle-encoding",
  "thiserror 2.0.12",
  "x25519-dalek",

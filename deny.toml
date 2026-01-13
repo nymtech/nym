@@ -140,7 +140,7 @@ expression = "MIT AND ISC AND OpenSSL"
 # depending on the rest of your configuration
 license-files = [
     # Each entry is a crate relative path, and the (opaque) hash of its contents
-    { workspace = true, hash = 0xbd0eed23 }
+    { path = "LICENSE", hash = 0xbd0eed23 }
 ]
 
 [licenses.private]

@@ -3,6 +3,8 @@
 //! Integrates LP transport with Sphinx routing and KCP framing.
 //! Supports bidirectional encrypted data channel testing.
 
+#![allow(unused)]
+
 use anyhow::{bail, Context, Result};
 use bytes::Bytes;
 use nym_crypto::asymmetric::{ed25519, x25519};
@@ -23,7 +25,7 @@ use rand_chacha::ChaCha8Rng;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use tokio::net::UdpSocket;
+use tokio::net::{TcpStream, UdpSocket};
 use tokio_util::bytes::BytesMut;
 use tokio_util::codec::Encoder;
 use tracing::{debug, info, trace};
@@ -116,7 +118,7 @@ impl SpeedtestClient {
 
         let client_ip = "0.0.0.0".parse()?;
 
-        let mut lp_client = LpRegistrationClient::new_with_default_psk(
+        let mut lp_client = LpRegistrationClient::<TcpStream>::new_with_default_psk(
             self.identity_keypair.clone(),
             self.gateway.identity,
             self.gateway.lp_address,
@@ -157,9 +159,9 @@ impl SpeedtestClient {
             self.gateway.lp_address
         );
 
-        let client_ip = "0.0.0.0".parse().unwrap();
+        let client_ip = "0.0.0.0".parse()?;
 
-        let mut lp_client = LpRegistrationClient::new_with_default_psk(
+        let mut lp_client = LpRegistrationClient::<TcpStream>::new_with_default_psk(
             self.identity_keypair.clone(),
             self.gateway.identity,
             self.gateway.lp_address,
@@ -315,7 +317,7 @@ impl SpeedtestClient {
 
         let encryption_keys: Vec<SurbEncryptionKey> = surbs_with_keys
             .iter()
-            .map(|s| s.encryption_key().clone())
+            .map(|s| *s.encryption_key())
             .collect();
 
         // Step 5: Build message (RepliableMessage if SURBs, plain otherwise)
@@ -571,7 +573,7 @@ mod tests {
 
         assert!(result.is_ok(), "sphinx_build failed: {:?}", result.err());
         let packet = result.unwrap();
-        assert!(packet.len() > 0, "packet should not be empty");
+        assert!(!packet.is_empty(), "packet should not be empty");
 
         // Verify we can frame it
         let framed =
@@ -585,6 +587,6 @@ mod tests {
             "framing failed: {:?}",
             encode_result.err()
         );
-        assert!(buf.len() > 0, "encoded buffer should not be empty");
+        assert!(!buf.is_empty(), "encoded buffer should not be empty");
     }
 }

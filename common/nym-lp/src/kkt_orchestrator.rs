@@ -26,7 +26,7 @@
 //! ```ignore
 //! use nym_lp::kkt_orchestrator::{create_request, process_response, handle_request};
 //! use nym_lp::message::{KKTRequestData, KKTResponseData};
-//! use nym-kkt::ciphersuite::{Ciphersuite, KEM, HashFunction, SignatureScheme, EncapsulationKey};
+//! use nym_kkt::ciphersuite::{Ciphersuite, KEM, HashFunction, SignatureScheme, EncapsulationKey};
 //!
 //! // Setup ciphersuite
 //! let ciphersuite = Ciphersuite::resolve_ciphersuite(

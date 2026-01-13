@@ -13,9 +13,6 @@ use tokio::sync::mpsc::{self, Receiver, Sender};
 use tracing::error;
 
 #[cfg(target_os = "linux")]
-use nym_credential_verification::ecash::EcashManager;
-
-#[cfg(target_os = "linux")]
 use nym_ip_packet_requests::IpPair;
 #[cfg(target_os = "linux")]
 use std::net::IpAddr;
@@ -228,10 +225,9 @@ pub async fn start_wireguard(
     );
 
     info!("Configuring WireGuard interface...");
-    wg_api.configure_interface(&interface_config).map_err(|e| {
-        log::error!("Failed to configure WireGuard interface: {:?}", e);
-        e
-    })?;
+    wg_api
+        .configure_interface(&interface_config)
+        .inspect_err(|e| tracing::error!("Failed to configure WireGuard interface: {:?}", e))?;
 
     info!("Adding IPv6 address to interface...");
     std::process::Command::new("ip")
@@ -248,10 +244,7 @@ pub async fn start_wireguard(
             (&ifname),
         ])
         .output()
-        .map_err(|e| {
-            log::error!("Failed to add IPv6 address: {:?}", e);
-            e
-        })?;
+        .inspect_err(|e| tracing::error!("Failed to add IPv6 address: {:?}", e))?;
 
     // Use a dummy peer to create routing rule for the entire network space
     let mut catch_all_peer = Peer::new(Key::new([0; 32]));
@@ -291,10 +284,9 @@ pub async fn start_wireguard(
                     .allowed_ips
                     .iter()
                     .find(|ip| matches!(ip.ip, IpAddr::V6(_)))
+                    && let IpAddr::V6(ipv6) = ipv6_mask.ip
                 {
-                    if let IpAddr::V6(ipv6) = ipv6_mask.ip {
-                        ip_pool.mark_used(IpPair::new(ipv4, ipv6)).await;
-                    }
+                    ip_pool.mark_used(IpPair::new(ipv4, ipv6)).await;
                 }
             }
         }

@@ -1,6 +1,8 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+#![allow(unused)]
+
 //! KCP Session Manager for LP clients at the exit gateway.
 //!
 //! This module sits between Sphinx unwrapping and IPR message processing.

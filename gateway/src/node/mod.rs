@@ -333,7 +333,7 @@ impl GatewayTasksBuilder {
             active_clients_store,
             wg_peer_controller,
             wireguard_data: self.wireguard_data.as_ref().map(|wd| wd.inner.clone()),
-            lp_config: self.config.lp.clone(),
+            lp_config: self.config.lp,
             outbound_mix_sender: self.mix_packet_sender.clone(),
             handshake_states: Arc::new(dashmap::DashMap::new()),
             session_states: Arc::new(dashmap::DashMap::new()),

@@ -11,7 +11,7 @@ mod tests {
     use nym_gateway::GatewayError;
     use nym_gateway::node::lp_listener::handler::LpConnectionHandler;
     use nym_gateway::node::lp_listener::{
-        LpHandlerState, MixForwardingReceiver, PeerControlRequest, WireguardGatewayData,
+        LpDebug, LpHandlerState, MixForwardingReceiver, PeerControlRequest, WireguardGatewayData,
         mix_forwarding_channels,
     };
     use nym_gateway::node::{ActiveClientsStore, GatewayStorage, LpConfig};
@@ -28,6 +28,7 @@ mod tests {
     use std::mem;
     use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
     use std::sync::Arc;
+    use std::time::Duration;
     use tokio::sync::Semaphore;
     use tokio::sync::mpsc::Receiver;
     use tokio::task::JoinHandle;
@@ -81,6 +82,7 @@ mod tests {
         }
     }
 
+    #[allow(clippy::large_enum_variant)]
     enum SpawnedPeerController {
         Ready { controller: MockPeerController },
         Running { handle: JoinHandle<Option<()>> },
@@ -90,6 +92,7 @@ mod tests {
         Invalid,
     }
 
+    #[allow(clippy::large_enum_variant)]
     enum SpawnedLpConnectionHandlerState {
         NotCreated,
         Ready {
@@ -176,11 +179,14 @@ mod tests {
             let ecash_verifier = MockEcashManager::new(Box::new(storage.clone()));
 
             let lp_config = LpConfig {
-                enabled: true,
-                timestamp_tolerance_secs: 30,
+                debug: LpDebug {
+                    timestamp_tolerance: Duration::from_secs(30),
+                    ..Default::default()
+                },
                 ..Default::default()
             };
-            let forward_semaphore = Arc::new(Semaphore::new(lp_config.max_concurrent_forwards));
+            let forward_semaphore =
+                Arc::new(Semaphore::new(lp_config.debug.max_concurrent_forwards));
 
             // Create mix forwarding channel (unused in tests but required by struct)
             let (mix_sender, mix_receiver) = mix_forwarding_channels();

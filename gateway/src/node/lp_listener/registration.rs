@@ -347,6 +347,9 @@ pub async fn process_registration(
 
             // Get gateway identity and derive sphinx key
             let gateway_identity = state.local_identity.public_key().to_bytes();
+
+            warn!("TEMPORARY ed25519 -> x25519 conversion");
+            #[allow(clippy::expect_used)]
             let gateway_sphinx_key = state
                 .local_identity
                 .public_key()

@@ -7,7 +7,9 @@
 use super::BitmapOps;
 
 // Track execution counts for debugging
+#[cfg(target_feature = "avx2")]
 static mut AVX2_CLEAR_COUNT: usize = 0;
+#[cfg(all(target_feature = "sse2", not(target_feature = "avx2")))]
 static mut SSE2_CLEAR_COUNT: usize = 0;
 static mut SCALAR_CLEAR_COUNT: usize = 0;
 
@@ -21,8 +23,7 @@ use std::arch::x86_64::{
 
 #[cfg(target_feature = "sse2")]
 use std::arch::x86_64::{
-    __m128i, _mm_cmpeq_epi64, _mm_loadu_si128, _mm_or_si128, _mm_set1_epi64x, _mm_setzero_si128,
-    _mm_storeu_si128, _mm_testz_si128,
+    __m128i, _mm_loadu_si128, _mm_or_si128, _mm_set1_epi64x, _mm_setzero_si128, _mm_storeu_si128,
 };
 
 #[cfg(all(target_feature = "sse2", not(target_feature = "sse4.1")))]
@@ -117,6 +118,7 @@ impl BitmapOps for X86BitmapOps {
         }
 
         // Scalar fallback
+        #[allow(clippy::needless_range_loop)]
         for i in start_idx..(start_idx + num_words) {
             bitmap[i] = 0;
         }
@@ -162,7 +164,7 @@ impl BitmapOps for X86BitmapOps {
                     let data_vec = _mm_loadu_si128(bitmap[idx..].as_ptr() as *const __m128i);
 
                     // Safety: _mm_testz_si128 is safe when given valid __m128i values
-                    if _mm_testz_si128(data_vec, data_vec) == 0 {
+                    if std::arch::x86_64::_mm_testz_si128(data_vec, data_vec) == 0 {
                         return false;
                     }
                     idx += 2;
@@ -200,7 +202,7 @@ impl BitmapOps for X86BitmapOps {
                 #[cfg(target_feature = "sse4.1")]
                 {
                     // Safety: _mm_testz_si128 is safe when given valid __m128i values
-                    if _mm_testz_si128(data_vec, data_vec) == 0 {
+                    if std::arch::x86_64::_mm_testz_si128(data_vec, data_vec) == 0 {
                         return false;
                     }
                 }
@@ -240,21 +242,21 @@ impl BitmapOps for X86BitmapOps {
     #[inline(always)]
     fn set_bit(bitmap: &mut [u64], bit_idx: u64) {
         let word_idx = (bit_idx / 64) as usize;
-        let bit_pos = (bit_idx % 64) as u64;
+        let bit_pos = bit_idx % 64;
         bitmap[word_idx] |= 1u64 << bit_pos;
     }
 
     #[inline(always)]
     fn clear_bit(bitmap: &mut [u64], bit_idx: u64) {
         let word_idx = (bit_idx / 64) as usize;
-        let bit_pos = (bit_idx % 64) as u64;
+        let bit_pos = bit_idx % 64;
         bitmap[word_idx] &= !(1u64 << bit_pos);
     }
 
     #[inline(always)]
     fn check_bit(bitmap: &[u64], bit_idx: u64) -> bool {
         let word_idx = (bit_idx / 64) as usize;
-        let bit_pos = (bit_idx % 64) as u64;
+        let bit_pos = bit_idx % 64;
         (bitmap[word_idx] & (1u64 << bit_pos)) != 0
     }
 }
@@ -268,7 +270,7 @@ pub mod atomic {
     #[inline(always)]
     pub fn check_and_set_bit(bitmap: &mut [u64], bit_idx: u64) -> bool {
         let word_idx = (bit_idx / 64) as usize;
-        let bit_pos = (bit_idx % 64) as u64;
+        let bit_pos = bit_idx % 64;
         let mask = 1u64 << bit_pos;
 
         // Get old value
@@ -322,7 +324,7 @@ pub mod atomic {
         }
 
         // Handle complete words in the middle using AVX2
-        let first_full_word = if start_bit % 64 == 0 {
+        let first_full_word = if start_bit.is_multiple_of(64) {
             start_word
         } else {
             start_word + 1
@@ -357,7 +359,7 @@ pub mod atomic {
                 // - We check that i + 2 <= last_full_word + 1 to ensure we have 2 complete words
                 // - The unaligned _loadu/_storeu variants are used to handle any alignment
                 let sse_ones = _mm_set1_epi64x(-1);
-                let current = _mm_loadu_si128(bitmap[i..].as_ptr() as *const __m128i);
+                let current = unsafe { _mm_loadu_si128(bitmap[i..].as_ptr() as *const __m128i) };
                 let result = _mm_or_si128(current, sse_ones);
                 _mm_storeu_si128(bitmap[i..].as_mut_ptr() as *mut __m128i, result);
                 i += 2;
@@ -401,23 +403,23 @@ pub mod atomic {
         }
 
         // Handle partial words at the beginning and end
-        if start_bit % 64 != 0 {
+        if !start_bit.is_multiple_of(64) {
             let start_mask = u64::MAX << (start_bit % 64);
             bitmap[start_word] |= start_mask;
         }
 
-        if (end_bit + 1) % 64 != 0 {
+        if !(end_bit + 1).is_multiple_of(64) {
             let end_mask = u64::MAX >> (63 - (end_bit % 64));
             bitmap[end_word] |= end_mask;
         }
 
         // Handle complete words in the middle using SSE2
-        let first_full_word = if start_bit % 64 == 0 {
+        let first_full_word = if start_bit.is_multiple_of(64) {
             start_word
         } else {
             start_word + 1
         };
-        let last_full_word = if (end_bit + 1) % 64 == 0 {
+        let last_full_word = if (end_bit + 1).is_multiple_of(64) {
             end_word
         } else {
             end_word - 1
@@ -434,7 +436,7 @@ pub mod atomic {
                 // - bitmap[i..] is valid for reads/writes of at least 2 u64 words (16 bytes)
                 // - We check that i + 2 <= last_full_word + 1 to ensure we have 2 complete words
                 // - The unaligned _loadu/_storeu variants are used to handle any alignment
-                let current = _mm_loadu_si128(bitmap[i..].as_ptr() as *const __m128i);
+                let current = unsafe { _mm_loadu_si128(bitmap[i..].as_ptr() as *const __m128i) };
                 let result = unsafe { _mm_or_si128(current, ones) };
                 unsafe { _mm_storeu_si128(bitmap[i..].as_mut_ptr() as *mut __m128i, result) };
                 i += 2;
@@ -476,7 +478,7 @@ pub mod atomic {
         }
 
         // Handle complete words in the middle
-        let first_full_word = if start_bit % 64 == 0 {
+        let first_full_word = if start_bit.is_multiple_of(64) {
             start_word
         } else {
             start_word + 1

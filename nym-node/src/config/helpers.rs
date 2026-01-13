@@ -27,7 +27,7 @@ fn ephemeral_gateway_config(config: &Config) -> nym_gateway::config::Config {
             enabled: config.service_providers.network_requester.debug.enabled,
         },
         config.gateway_tasks.upgrade_mode.clone(),
-        config.gateway_tasks.lp.clone(),
+        config.gateway_tasks.lp,
         nym_gateway::config::Debug {
             client_bandwidth_max_flushing_rate: config
                 .gateway_tasks
@@ -227,7 +227,7 @@ pub fn gateway_tasks_config(config: &Config) -> GatewayTasksConfig {
         ipr_opts: Some(ipr_opts),
         auth_opts: Some(auth_opts),
         wg_opts,
-        lp: config.gateway_tasks.lp.clone(),
+        lp: config.gateway_tasks.lp,
     }
 }
 

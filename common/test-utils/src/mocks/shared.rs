@@ -134,11 +134,11 @@ mod tests {
             ..Default::default()
         };
 
-        assert_eq!(empty.take_at_most(0), vec![]);
-        assert_eq!(empty.take_at_most(1), vec![]);
-        assert_eq!(empty.take_at_most(42), vec![]);
+        assert_eq!(empty.take_at_most(0), Vec::<u8>::new());
+        assert_eq!(empty.take_at_most(1), Vec::<u8>::new());
+        assert_eq!(empty.take_at_most(42), Vec::<u8>::new());
 
-        assert_eq!(non_empty.take_at_most(0), vec![]);
+        assert_eq!(non_empty.take_at_most(0), Vec::<u8>::new());
         assert_eq!(non_empty.take_at_most(1), vec![1]);
         assert_eq!(non_empty.take_at_most(3), vec![2, 3, 4]);
         assert_eq!(non_empty.take_at_most(42), vec![5]);

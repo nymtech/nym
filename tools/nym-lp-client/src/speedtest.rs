@@ -3,6 +3,8 @@
 //! Echo request/reply for RTT measurement.
 //! Throughput testing for bandwidth measurement.
 
+#![allow(unused)]
+
 use serde::{Deserialize, Serialize};
 
 /// Speedtest results

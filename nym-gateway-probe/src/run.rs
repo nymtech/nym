@@ -394,7 +394,10 @@ pub(crate) async fn run() -> anyhow::Result<ProbeResult> {
         };
 
     let test_point = if let Some(node) = args.node {
-        TestedNode::Custom { identity: node }
+        TestedNode::Custom {
+            identity: node,
+            shares_entry: false,
+        }
     } else {
         TestedNode::SameAsEntry
     };

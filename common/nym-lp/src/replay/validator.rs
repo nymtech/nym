@@ -805,7 +805,7 @@ mod tests {
 
             // Verify other words are unchanged
             for i in 4..N_WORDS {
-                assert_eq!(validator.bitmap[i], original_bitmap[i]);
+                assert_eq!(validator.bitmap[i], _original_bitmap[i]);
             }
         }
 
@@ -814,7 +814,7 @@ mod tests {
             use std::arch::x86_64::{_mm_setzero_si128, _mm_storeu_si128};
 
             // Reset validator
-            validator.bitmap = original_bitmap;
+            validator.bitmap = _original_bitmap;
 
             // Clear words 0-1 using SSE2
             unsafe {
@@ -827,8 +827,9 @@ mod tests {
             assert_eq!(validator.bitmap[1], 0);
 
             // Verify other words are unchanged
+            #[allow(clippy::needless_range_loop)]
             for i in 2..N_WORDS {
-                assert_eq!(validator.bitmap[i], original_bitmap[i]);
+                assert_eq!(validator.bitmap[i], _original_bitmap[i]);
             }
         }
 

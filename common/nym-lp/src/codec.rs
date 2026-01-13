@@ -805,7 +805,7 @@ mod tests {
         let result = parse_lp_packet(&buf, None);
         assert!(result.is_err());
         match result {
-            Err(LpError::DeserializationError(msg)) => {} // Expected error
+            Err(LpError::DeserializationError(_)) => {} // Expected error
             Err(e) => panic!("Expected DeserializationError, got {:?}", e),
             Ok(_) => panic!("Expected error, but got Ok"),
         }

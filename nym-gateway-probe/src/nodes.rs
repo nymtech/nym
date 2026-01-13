@@ -5,8 +5,8 @@ use crate::TestedNodeDetails;
 use anyhow::{Context, anyhow, bail};
 use nym_api_requests::models::{
     AuthenticatorDetails, DeclaredRoles, DescribedNodeType, HostInformation, IpPacketRouterDetails,
-    NetworkRequesterDetails, NymNodeData, OffsetDateTimeJsonSchemaWrapper, WebSockets,
-    WireguardDetails,
+    LewesProtocolDetails, NetworkRequesterDetails, NymNodeData, OffsetDateTimeJsonSchemaWrapper,
+    WebSockets, WireguardDetails,
 };
 use nym_authenticator_requests::AuthenticatorVersion;
 use nym_bin_common::build_information::BinaryBuildInformationOwned;
@@ -204,12 +204,13 @@ pub async fn query_gateway_by_ip(address: String) -> anyhow::Result<DirectoryNod
             Ok(health) if health.status.is_up() => {
                 info!("Successfully connected to gateway at {}", address);
 
-                // Query all required metadata concurrently
+                // Query all required metadata
                 let host_info_result = client.get_host_information().await;
                 let roles_result = client.get_roles().await;
                 let build_info_result = client.get_build_information().await;
                 let aux_details_result = client.get_auxiliary_details().await;
                 let websockets_result = client.get_mixnet_websockets().await;
+                let lp_result = client.get_lewes_protocol().await;
 
                 // These are optional, so we use ok() to ignore errors
                 let ipr_result = client.get_ip_packet_router().await.ok();
@@ -252,6 +253,8 @@ pub async fn query_gateway_by_ip(address: String) -> anyhow::Result<DirectoryNod
                         public_key: wg.public_key,
                     });
 
+                let lp: Option<LewesProtocolDetails> = lp_result.ok().map(Into::into);
+
                 // Construct NymNodeData
                 let node_data = NymNodeData {
                     last_polled: OffsetDateTimeJsonSchemaWrapper(OffsetDateTime::now_utc()),
@@ -283,6 +286,7 @@ pub async fn query_gateway_by_ip(address: String) -> anyhow::Result<DirectoryNod
                     ip_packet_router,
                     authenticator,
                     wireguard,
+                    lewes_protocol: lp,
                     mixnet_websockets: WebSockets {
                         ws_port: websockets.ws_port,
                         wss_port: websockets.wss_port,

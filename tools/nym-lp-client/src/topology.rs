@@ -3,6 +3,8 @@
 //! Queries nym-api for active mix nodes and gateways,
 //! builds routes for Sphinx packet construction.
 
+#![allow(unused)]
+
 use anyhow::{anyhow, bail, Context, Result};
 use nym_api_requests::nym_nodes::SkimmedNode;
 use nym_crypto::asymmetric::ed25519;
@@ -146,7 +148,7 @@ impl SpeedtestTopology {
         // Build route to the gateway's identity
         let route = self
             .topology
-            .random_route_to_egress(rng, gateway.identity.into(), true)
+            .random_route_to_egress(rng, gateway.identity, true)
             .context("failed to build route to gateway")?;
 
         if route.is_empty() {

@@ -19,16 +19,32 @@ pub struct StaticResolver {
 }
 
 #[derive(Debug, Clone, Default)]
+enum PreResolveStatus {
+    Valid,
+    ValidUntil(Instant),
+    #[default]
+    Invalid,
+}
+
+#[derive(Debug, Clone, Default)]
 struct Entry {
-    valid_for_pre_resolve_until: Option<Instant>,
+    status: PreResolveStatus,
     addrs: Vec<IpAddr>,
 }
 
 impl Entry {
     fn new(addrs: Vec<IpAddr>) -> Self {
         Self {
-            valid_for_pre_resolve_until: None,
+            status: PreResolveStatus::Invalid,
             addrs,
+        }
+    }
+
+    fn is_valid(&self) -> bool {
+        match self.status {
+            PreResolveStatus::Invalid => false,
+            PreResolveStatus::Valid => true,
+            PreResolveStatus::ValidUntil(t) => t > Instant::now(),
         }
     }
 }
@@ -59,6 +75,50 @@ impl StaticResolver {
         out
     }
 
+    /// Clear entries from the static table that would return entries during the pre-resolve stage.
+    /// This means that all lookups will attempt to use the network resolver again before the static
+    /// table is consulted.
+    ///  
+    /// Entries elevated to pre-resolve from fallback (added from default or using
+    /// [`fallback_to_addrs`]`) will have their cache timeout cleared. Entries added directly to
+    /// pre-resolve (using [`Self::preresolve_to_addrs`]) will be removed.
+    ///
+    /// (Corner case) entries that were added first as fallback, then overwritten with pre-resolve
+    /// entries using [`Self::preresolve_to_addrs`] will not be downgraded back to fallback. They
+    /// will be removed like all other pre-resolve entries.
+    pub fn clear_preresolve(&self) {
+        let mut to_remove = Vec::new();
+        let mut current_map = self.static_addr_map.lock().unwrap();
+        for (domain, entry) in current_map.iter_mut() {
+            match entry.status {
+                // retain entries that are there for static fallback
+                PreResolveStatus::Invalid => {}
+                // clear pre-resolve cache timeout for entries elevated from fallback
+                PreResolveStatus::ValidUntil(_) => entry.status = PreResolveStatus::Invalid,
+                // remove entries added exclusively for pre-resolve
+                PreResolveStatus::Valid => to_remove.push(domain.clone()),
+            }
+        }
+        to_remove.iter().for_each(|k| {
+            _ = current_map.remove(k);
+        });
+    }
+
+    /// Set (or overwrite) the map of static addresses and mark these domains to be returned
+    /// WITHOUT attempting a lookup over the network resolver.
+    pub fn preresolve_to_addrs(&self, addrs: HashMap<String, Vec<IpAddr>>) {
+        let mut current_map = self.static_addr_map.lock().unwrap();
+        for (domain, ips) in addrs.into_iter() {
+            _ = current_map.insert(
+                domain,
+                Entry {
+                    status: PreResolveStatus::Valid,
+                    addrs: ips,
+                },
+            )
+        }
+    }
+
     /// Change the timeout for which domains can be pre-resolved after they are looked up in the
     /// static lookup table.
     #[allow(unused)]
@@ -79,10 +139,7 @@ impl StaticResolver {
             .lock()
             .unwrap()
             .get(name)
-            .filter(|e| {
-                e.valid_for_pre_resolve_until
-                    .is_some_and(|t| t > Instant::now())
-            })
+            .filter(|e| e.is_valid())
             .map(|e| e.addrs.clone())
     }
 
@@ -99,16 +156,28 @@ impl StaticResolver {
     fn resolve_inner(
         mut table: MutexGuard<'_, HashMap<String, Entry>>,
         name: &str,
-        timeout: Option<Duration>,
+        pre_resolve_cache_timeout: Option<Duration>,
     ) -> Option<Entry> {
         let resolved = table.get_mut(name)?;
 
         debug!("found {name:?} in static table resolver");
 
-        if let Some(pre_resolve_timeout) = timeout {
-            // We had to look this entry up and a pre-resolve duration is defined, so it will
-            // trigger in pre-resolve lookups for the next _timeout_ window.
-            resolved.valid_for_pre_resolve_until = Some(Instant::now() + pre_resolve_timeout);
+        // We had to look this entry up and a pre-resolve duration is defined, so it will
+        // trigger in pre-resolve lookups for the next _timeout_ window if it wasn't already
+        // triggering.
+        if let Some(pre_resolve_timeout) = pre_resolve_cache_timeout {
+            let timeout = Instant::now() + pre_resolve_timeout;
+            match resolved.status {
+                PreResolveStatus::Invalid => {
+                    resolved.status = PreResolveStatus::ValidUntil(timeout)
+                }
+                PreResolveStatus::ValidUntil(t) => {
+                    if t < timeout {
+                        resolved.status = PreResolveStatus::ValidUntil(timeout)
+                    }
+                }
+                PreResolveStatus::Valid => {}
+            }
         }
         Some(resolved.clone())
     }
@@ -142,6 +211,7 @@ mod test {
 
     use super::*;
     use std::error::Error as StdError;
+    use std::net::Ipv4Addr;
     use std::str::FromStr;
 
     #[tokio::test]
@@ -175,7 +245,7 @@ mod test {
     }
 
     #[test]
-    fn static_lookup_pre_resolve() {
+    fn elevate_fallback_to_pre_resolve() {
         let example_duration = Duration::from_secs(3);
         let example_domain = String::from("static.nymvpn.com");
         let mut addr_map = HashMap::new();
@@ -196,11 +266,8 @@ mod test {
             Some(example_duration),
         )
         .expect("missing entry???!!!!");
-        assert!(
-            entry
-                .valid_for_pre_resolve_until
-                .is_some_and(|t| t < Instant::now() + example_duration)
-        );
+        assert!(matches!(entry
+                .status, PreResolveStatus::ValidUntil(t) if t < Instant::now() + example_duration));
 
         // check that pre-resolve now returns the expected record
         let addrs = resolver
@@ -213,5 +280,57 @@ mod test {
         // check that after the timeout duration the pre-resolve no longer returns the address
         let result = resolver.pre_resolve(&example_domain);
         assert!(result.is_none());
+    }
+
+    #[test]
+    fn set_and_use_preresolve() {
+        let example_duration = Duration::from_secs(3);
+        let example_domains = vec![
+            String::from("static1.nymvpn.com"),
+            String::from("static2.nymvpn.com"),
+            String::from("preresolve.nymvpn.com"),
+        ];
+        let mut addr_map1 = HashMap::new();
+        addr_map1.insert(
+            example_domains[0].clone(),
+            vec![Ipv4Addr::new(10, 10, 10, 10).into()],
+        );
+        addr_map1.insert(
+            example_domains[1].clone(),
+            vec![Ipv4Addr::new(1, 1, 1, 1).into()],
+        );
+
+        let mut addr_map2 = HashMap::new();
+        addr_map2.insert(
+            example_domains[1].clone(),
+            vec![Ipv4Addr::new(1, 1, 1, 1).into()],
+        );
+        addr_map2.insert(
+            example_domains[2].clone(),
+            vec![Ipv4Addr::new(8, 8, 8, 8).into()],
+        );
+
+        let resolver = StaticResolver::new(addr_map1).with_pre_resolve_timeout(example_duration);
+
+        // ensure that attempting to pre-resolve without first resolving returns none
+        let result = resolver.pre_resolve(&example_domains[0]);
+        assert!(result.is_none());
+
+        resolver.preresolve_to_addrs(addr_map2);
+
+        // ensure that attempting to pre-resolve without first resolving returns none
+        let result = resolver.pre_resolve(&example_domains[0]);
+        assert!(result.is_none());
+
+        // ensure that attempting to pre-resolve without first resolving returns none
+        let result = resolver.pre_resolve(&example_domains[1]);
+        assert!(result.is_some());
+
+        let result = resolver.pre_resolve(&example_domains[2]);
+        assert!(result.is_some());
+
+        resolver.clear_preresolve();
+
+        println!("{:?}", resolver.get_addrs());
     }
 }

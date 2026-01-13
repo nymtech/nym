@@ -682,23 +682,18 @@ impl NymNode {
             }
 
             // Start LP listener if enabled
-            if self.config.gateway_tasks.lp.enabled {
-                info!(
-                    "starting the LP listener on {}:{} (data port: {})",
-                    self.config.gateway_tasks.lp.bind_address,
-                    self.config.gateway_tasks.lp.control_port,
-                    self.config.gateway_tasks.lp.data_port
-                );
-                let mut lp_listener = gateway_tasks_builder
-                    .build_lp_listener(active_clients_store.clone())
-                    .await?;
-                self.shutdown_tracker()
-                    .try_spawn_named(async move { lp_listener.run().await }, "LpListener");
-            } else {
-                info!("LP listener is disabled");
-            }
+            info!(
+                "starting the LP listener on {} (data handler on: {})",
+                self.config.gateway_tasks.lp.control_bind_address,
+                self.config.gateway_tasks.lp.data_bind_address,
+            );
+            let mut lp_listener = gateway_tasks_builder
+                .build_lp_listener(active_clients_store.clone())
+                .await?;
+            self.shutdown_tracker()
+                .try_spawn_named(async move { lp_listener.run().await }, "LpListener");
         } else {
-            info!("node not running in entry mode: the websocket will remain closed");
+            info!("node not running in entry mode: the websocket and LP will remain closed");
         }
 
         // if we're running in exit mode, start the IPR and NR
@@ -838,6 +833,12 @@ impl NymNode {
                 policy: None,
             };
 
+        let lp_details = api_requests::v1::lewes_protocol::models::LewesProtocol {
+            enabled: self.modes().entry,
+            control_port: self.config.gateway_tasks.lp.announced_control_port(),
+            data_port: self.config.gateway_tasks.lp.announced_data_port(),
+        };
+
         let mut config = HttpServerConfig::new()
             .with_landing_page_assets(self.config.http.landing_page_assets_path.as_ref())
             .with_mixnode_details(mixnode_details)
@@ -848,7 +849,8 @@ impl NymNode {
             .with_used_exit_policy(exit_policy_details)
             .with_description(self.description.clone())
             .with_auxiliary_details(auxiliary_details)
-            .with_prometheus_bearer_token(self.config.http.access_token.clone());
+            .with_prometheus_bearer_token(self.config.http.access_token.clone())
+            .with_lewes_protocol(lp_details);
 
         if self.config.http.expose_system_info {
             config = config.with_system_info(get_system_info(

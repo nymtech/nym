@@ -26,6 +26,7 @@ bs58 = { workspace = true }
 dashmap = { workspace = true }
 fastrand = { workspace = true }
 futures = { workspace = true }
+humantime-serde = { workspace = true }
 ipnetwork = { workspace = true }
 rand = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
@@ -50,6 +51,7 @@ nym-credentials = { path = "../common/credentials" }
 nym-credentials-interface = { path = "../common/credentials-interface" }
 nym-credential-verification = { path = "../common/credential-verification" }
 nym-crypto = { path = "../common/crypto", features = ["sphinx"] }
+nym-config = { path = "../common/config" }
 nym-gateway-storage = { path = "../common/gateway-storage" }
 nym-gateway-stats-storage = { path = "../common/gateway-stats-storage" }
 nym-gateway-requests = { path = "../common/gateway-requests" }

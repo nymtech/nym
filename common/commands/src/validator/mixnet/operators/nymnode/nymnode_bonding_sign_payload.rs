@@ -25,9 +25,6 @@ pub struct Args {
     #[clap(long)]
     pub custom_http_api_port: Option<u16>,
 
-    #[clap(long, help = "LP (Lewes Protocol) listener port (default: 41264)")]
-    pub lp_port: Option<u16>,
-
     #[clap(long)]
     pub profit_margin_percent: Option<u64>,
 
@@ -50,13 +47,10 @@ pub struct Args {
 pub async fn create_payload(args: Args, client: SigningClient) {
     let denom = client.current_chain_details().mix_denom.base.as_str();
 
-    let lp_address = args.lp_port.map(|port| format!("{}:{}", args.host, port));
-
     let mixnode = nym_mixnet_contract_common::NymNode {
         host: args.host,
         custom_http_port: args.custom_http_api_port,
         identity_key: args.identity_key,
-        lp_address,
     };
 
     let coin = Coin::new(args.amount, denom);

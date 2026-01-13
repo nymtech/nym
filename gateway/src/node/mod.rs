@@ -222,8 +222,8 @@ impl GatewayTasksBuilder {
         GatewayError,
     > {
         // Check if we should use mock ecash for testing
-        if self.config.lp.use_mock_ecash {
-            info!("Using MockEcashManager for LP testing (credentials NOT verified)");
+        if self.config.lp.debug.use_mock_ecash {
+            warn!("Using MockEcashManager for LP testing (credentials NOT verified)");
             let mock_manager = MockEcashManager::new(Box::new(self.storage.clone()));
             return Ok(Arc::new(mock_manager)
                 as Arc<
@@ -337,22 +337,13 @@ impl GatewayTasksBuilder {
             outbound_mix_sender: self.mix_packet_sender.clone(),
             handshake_states: Arc::new(dashmap::DashMap::new()),
             session_states: Arc::new(dashmap::DashMap::new()),
-            forward_semaphore: Arc::new(Semaphore::new(self.config.lp.max_concurrent_forwards)),
+            forward_semaphore: Arc::new(Semaphore::new(
+                self.config.lp.debug.max_concurrent_forwards,
+            )),
         };
 
-        // Parse bind address from config
-        let bind_addr = format!(
-            "{}:{}",
-            self.config.lp.bind_address, self.config.lp.control_port
-        )
-        .parse()
-        .map_err(|e| GatewayError::InternalError(format!("Invalid LP bind address: {}", e)))?;
-
         Ok(lp_listener::LpListener::new(
-            bind_addr,
-            self.config.lp.data_port,
             handler_state,
-            self.config.lp.max_connections,
             self.shutdown_tracker.clone(),
         ))
     }

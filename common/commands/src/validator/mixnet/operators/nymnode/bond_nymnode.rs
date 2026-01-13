@@ -27,9 +27,6 @@ pub struct Args {
     #[clap(long)]
     pub identity_key: String,
 
-    #[clap(long, help = "LP (Lewes Protocol) listener port (default: 41264)")]
-    pub lp_port: Option<u16>,
-
     #[clap(long)]
     pub profit_margin_percent: Option<u64>,
 
@@ -60,13 +57,10 @@ pub async fn bond_nymnode(args: Args, client: SigningClient) {
         return;
     }
 
-    let lp_address = args.lp_port.map(|port| format!("{}:{}", args.host, port));
-
     let nymnode = nym_mixnet_contract_common::NymNode {
         host: args.host,
         custom_http_port: args.http_api_port,
         identity_key: args.identity_key,
-        lp_address,
     };
 
     let coin = Coin::new(args.amount, denom);

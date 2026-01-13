@@ -296,7 +296,10 @@ where
             LpMessage::ClientHello(hello_data) => {
                 // Validate timestamp
                 let timestamp = hello_data.extract_timestamp();
-                Self::validate_timestamp(timestamp, self.state.lp_config.timestamp_tolerance_secs)?;
+                Self::validate_timestamp(
+                    timestamp,
+                    self.state.lp_config.debug.timestamp_tolerance,
+                )?;
 
                 // Extract client-proposed receiver_index
                 let receiver_index = hello_data.receiver_index;
@@ -846,7 +849,7 @@ where
     ///
     /// # Arguments
     /// * `client_timestamp` - Unix timestamp (seconds) from ClientHello salt
-    /// * `tolerance_secs` - Maximum acceptable age in seconds
+    /// * `tolerance` - Maximum acceptable age
     ///
     /// # Returns
     /// * `Ok(())` if timestamp is valid (within tolerance window)
@@ -857,13 +860,13 @@ where
     /// The tolerance window should be:
     /// - Large enough for clock skew + network latency
     /// - Small enough to limit replay attack window
-    fn validate_timestamp(client_timestamp: u64, tolerance_secs: u64) -> Result<(), GatewayError> {
+    fn validate_timestamp(client_timestamp: u64, tolerance: Duration) -> Result<(), GatewayError> {
         use std::time::{SystemTime, UNIX_EPOCH};
 
         let now = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
 
         let age = now.abs_diff(client_timestamp);
-        if age > tolerance_secs {
+        if age > tolerance.as_secs() {
             let direction = if now >= client_timestamp {
                 "old"
             } else {
@@ -880,7 +883,9 @@ where
 
             return Err(GatewayError::LpProtocolError(format!(
                 "ClientHello timestamp is too {} (age: {}s, tolerance: {}s)",
-                direction, age, tolerance_secs
+                direction,
+                age,
+                tolerance.as_secs()
             )));
         }
 
@@ -915,7 +920,10 @@ where
             LpMessage::ClientHello(hello_data) => {
                 // Extract and validate timestamp (nym-110: replay protection)
                 let timestamp = hello_data.extract_timestamp();
-                Self::validate_timestamp(timestamp, self.state.lp_config.timestamp_tolerance_secs)?;
+                Self::validate_timestamp(
+                    timestamp,
+                    self.state.lp_config.debug.timestamp_tolerance,
+                )?;
 
                 tracing::debug!(
                     "ClientHello timestamp validated: {} (age: {}s, tolerance: {}s)",
@@ -925,7 +933,7 @@ where
                         let now = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
                         now.abs_diff(timestamp)
                     },
-                    self.state.lp_config.timestamp_tolerance_secs
+                    self.state.lp_config.debug.timestamp_tolerance.as_secs()
                 );
 
                 // Convert bytes to X25519 PublicKey (for Noise protocol)
@@ -1285,7 +1293,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::node::lp_listener::LpConfig;
+    use crate::node::lp_listener::{LpConfig, LpDebug};
     use crate::node::ActiveClientsStore;
     use bytes::BytesMut;
     use nym_lp::codec::{parse_lp_packet, serialize_lp_packet};
@@ -1312,12 +1320,14 @@ mod tests {
             nym_credential_verification::ecash::MockEcashManager::new(Box::new(storage.clone()));
 
         let lp_config = LpConfig {
-            enabled: true,
-            timestamp_tolerance_secs: 30,
+            debug: LpDebug {
+                timestamp_tolerance: Duration::from_secs(30),
+                ..Default::default()
+            },
             ..Default::default()
         };
         let forward_semaphore = Arc::new(tokio::sync::Semaphore::new(
-            lp_config.max_concurrent_forwards,
+            lp_config.debug.max_concurrent_forwards,
         ));
 
         // Create mix forwarding channel (unused in tests but required by struct)
@@ -1389,7 +1399,10 @@ mod tests {
             .as_secs();
 
         // Current timestamp should always pass
-        assert!(LpConnectionHandler::<TcpStream>::validate_timestamp(now, 30).is_ok());
+        assert!(
+            LpConnectionHandler::<TcpStream>::validate_timestamp(now, Duration::from_secs(30))
+                .is_ok()
+        );
     }
 
     #[test]
@@ -1403,11 +1416,19 @@ mod tests {
 
         // 10 seconds old, tolerance 30s -> should pass
         let old_timestamp = now - 10;
-        assert!(LpConnectionHandler::<TcpStream>::validate_timestamp(old_timestamp, 30).is_ok());
+        assert!(LpConnectionHandler::<TcpStream>::validate_timestamp(
+            old_timestamp,
+            Duration::from_secs(30)
+        )
+        .is_ok());
 
         // 10 seconds in future, tolerance 30s -> should pass
         let future_timestamp = now + 10;
-        assert!(LpConnectionHandler::<TcpStream>::validate_timestamp(future_timestamp, 30).is_ok());
+        assert!(LpConnectionHandler::<TcpStream>::validate_timestamp(
+            future_timestamp,
+            Duration::from_secs(30)
+        )
+        .is_ok());
     }
 
     #[test]
@@ -1421,7 +1442,10 @@ mod tests {
 
         // 60 seconds old, tolerance 30s -> should fail
         let old_timestamp = now - 60;
-        let result = LpConnectionHandler::<TcpStream>::validate_timestamp(old_timestamp, 30);
+        let result = LpConnectionHandler::<TcpStream>::validate_timestamp(
+            old_timestamp,
+            Duration::from_secs(30),
+        );
         assert!(result.is_err());
         assert!(format!("{:?}", result).contains("too old"));
     }
@@ -1437,7 +1461,10 @@ mod tests {
 
         // 60 seconds in future, tolerance 30s -> should fail
         let future_timestamp = now + 60;
-        let result = LpConnectionHandler::<TcpStream>::validate_timestamp(future_timestamp, 30);
+        let result = LpConnectionHandler::<TcpStream>::validate_timestamp(
+            future_timestamp,
+            Duration::from_secs(30),
+        );
         assert!(result.is_err());
         assert!(format!("{:?}", result).contains("too future"));
     }
@@ -1453,15 +1480,19 @@ mod tests {
 
         // Exactly at tolerance boundary -> should pass
         let boundary_timestamp = now - 30;
-        assert!(
-            LpConnectionHandler::<TcpStream>::validate_timestamp(boundary_timestamp, 30).is_ok()
-        );
+        assert!(LpConnectionHandler::<TcpStream>::validate_timestamp(
+            boundary_timestamp,
+            Duration::from_secs(30)
+        )
+        .is_ok());
 
         // Just beyond boundary -> should fail
         let beyond_timestamp = now - 31;
-        assert!(
-            LpConnectionHandler::<TcpStream>::validate_timestamp(beyond_timestamp, 30).is_err()
-        );
+        assert!(LpConnectionHandler::<TcpStream>::validate_timestamp(
+            beyond_timestamp,
+            Duration::from_secs(30)
+        )
+        .is_err());
     }
 
     // ==================== Packet I/O Tests ====================

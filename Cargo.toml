@@ -192,6 +192,7 @@ default-members = [
     "service-providers/ip-packet-router",
     "service-providers/network-requester",
     "tools/nymvisor",
+    "nym-registration-client"
 ]
 
 exclude = ["contracts", "nym-wallet", "cpu-cycles"]

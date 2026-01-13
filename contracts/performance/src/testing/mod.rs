@@ -446,7 +446,6 @@ pub(crate) trait PerformanceContractTesterExt:
             host: "1.2.3.4".to_string(),
             custom_http_port: None,
             identity_key,
-            lp_address: None,
         };
         let cost_params = NodeCostParams {
             profit_margin_percent: Percent::from_percentage_value(DEFAULT_PROFIT_MARGIN_PERCENT)

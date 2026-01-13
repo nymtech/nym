@@ -36,9 +36,4 @@ custom_http_port: number | null,
 /**
  * Base58-encoded ed25519 EdDSA public key.
  */
-identity_key: string, 
-/**
- * Optional LP (Lewes Protocol) listener address for direct gateway connections.
- * Format: "host:port", for example "1.1.1.1:41264" or "gateway.example.com:41264"
- */
-lp_address: string | null, };
+identity_key: string, };

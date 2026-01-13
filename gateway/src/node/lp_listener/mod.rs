@@ -70,13 +70,15 @@
 use crate::error::GatewayError;
 use crate::node::ActiveClientsStore;
 use dashmap::DashMap;
+use nym_config::serde_helpers::de_maybe_port;
 use nym_crypto::asymmetric::ed25519;
 use nym_gateway_storage::GatewayStorage;
 use nym_lp::state_machine::LpStateMachine;
 use nym_node_metrics::NymNodeMetrics;
 use nym_task::ShutdownTracker;
-use std::net::SocketAddr;
+use std::net::{IpAddr, Ipv6Addr, SocketAddr};
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::net::TcpListener;
 use tokio::sync::{mpsc, Semaphore};
 use tracing::*;
@@ -92,26 +94,38 @@ mod messages;
 mod registration;
 
 /// Configuration for LP listener
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, Copy, serde::Deserialize, serde::Serialize)]
 #[serde(default)]
 pub struct LpConfig {
-    /// Enable/disable LP listener
-    pub enabled: bool,
+    /// Bind address for the TCP LP control traffic.
+    /// default: `[::]:41264`
+    pub control_bind_address: SocketAddr,
 
-    /// Bind address for control port
-    #[serde(default = "default_bind_address")]
-    pub bind_address: String,
+    /// Bind address for the UDP LP data traffic.
+    /// default: `[::]:51264`
+    pub data_bind_address: SocketAddr,
 
-    /// Control port (default: 41264)
-    #[serde(default = "default_control_port")]
-    pub control_port: u16,
+    /// Custom announced port for listening for the TCP LP control traffic.
+    /// If unspecified, the value from the `control_bind_address` will be used instead
+    /// (default: None)
+    #[serde(deserialize_with = "de_maybe_port")]
+    pub announce_control_port: Option<u16>,
 
-    /// Data port (default: 51264)
-    #[serde(default = "default_data_port")]
-    pub data_port: u16,
+    /// Custom announced port for listening for the UDP LP data traffic.
+    /// If unspecified, the value from the `data_bind_address` will be used instead    
+    /// (default: None)
+    #[serde(deserialize_with = "de_maybe_port")]
+    pub announce_data_port: Option<u16>,
 
+    /// Auxiliary configuration
+    #[serde(default)]
+    pub debug: LpDebug,
+}
+
+#[derive(Debug, Clone, Copy, serde::Deserialize, serde::Serialize)]
+#[serde(default)]
+pub struct LpDebug {
     /// Maximum concurrent connections
-    #[serde(default = "default_max_connections")]
     pub max_connections: usize,
 
     /// Maximum acceptable age of ClientHello timestamp in seconds (default: 30)
@@ -122,8 +136,8 @@ pub struct LpConfig {
     /// - Small enough to limit replay attack window
     ///
     /// Recommended: 30-60 seconds
-    #[serde(default = "default_timestamp_tolerance_secs")]
-    pub timestamp_tolerance_secs: u64,
+    #[serde(with = "humantime_serde")]
+    pub timestamp_tolerance: Duration,
 
     /// Use mock ecash manager for testing (default: false)
     ///
@@ -133,7 +147,6 @@ pub struct LpConfig {
     /// a full blockchain/contract setup.
     ///
     /// WARNING: Only use this for local testing! Never enable in production.
-    #[serde(default = "default_use_mock_ecash")]
     pub use_mock_ecash: bool,
 
     /// Maximum age of in-progress handshakes before cleanup (default: 90s)
@@ -144,8 +157,8 @@ pub struct LpConfig {
     /// - Clock skew tolerance
     ///
     /// Stale handshakes are removed by the cleanup task to prevent memory leaks.
-    #[serde(default = "default_handshake_ttl_secs")]
-    pub handshake_ttl_secs: u64,
+    #[serde(with = "humantime_serde")]
+    pub handshake_ttl: Duration,
 
     /// Maximum age of established sessions before cleanup (default: 24h)
     ///
@@ -155,24 +168,24 @@ pub struct LpConfig {
     /// - Registration: minutes
     ///
     /// Sessions with no activity for this duration are removed by the cleanup task.
-    #[serde(default = "default_session_ttl_secs")]
-    pub session_ttl_secs: u64,
+    #[serde(with = "humantime_serde")]
+    pub session_ttl: Duration,
 
     /// Maximum age of demoted (read-only) sessions before cleanup (default: 60s)
     ///
     /// After subsession promotion, old sessions enter ReadOnlyTransport state.
     /// They only need to stay alive briefly to drain in-flight packets.
     /// This shorter TTL prevents memory buildup from frequent rekeying.
-    #[serde(default = "default_demoted_session_ttl_secs")]
-    pub demoted_session_ttl_secs: u64,
+    #[serde(with = "humantime_serde")]
+    pub demoted_session_ttl: Duration,
 
     /// How often to run the state cleanup task (default: 5 minutes)
     ///
     /// The cleanup task scans for and removes stale handshakes and sessions.
     /// Lower values = more frequent cleanup but higher overhead.
     /// Higher values = less overhead but slower memory reclamation.
-    #[serde(default = "default_state_cleanup_interval_secs")]
-    pub state_cleanup_interval_secs: u64,
+    #[serde(with = "humantime_serde")]
+    pub state_cleanup_interval: Duration,
 
     /// Maximum concurrent forward connections (default: 1000)
     ///
@@ -181,71 +194,77 @@ pub struct LpConfig {
     ///
     /// When at capacity, new forward requests return an error, signaling the client
     /// to choose a different gateway.
-    #[serde(default = "default_max_concurrent_forwards")]
     pub max_concurrent_forwards: usize,
+}
+
+impl LpConfig {
+    pub const DEFAULT_CONTROL_PORT: u16 = 41264;
+    pub const DEFAULT_DATA_PORT: u16 = 51264;
+
+    pub fn announced_control_port(&self) -> u16 {
+        self.announce_control_port
+            .unwrap_or(self.control_bind_address.port())
+    }
+
+    pub fn announced_data_port(&self) -> u16 {
+        self.announce_data_port
+            .unwrap_or(self.data_bind_address.port())
+    }
 }
 
 impl Default for LpConfig {
     fn default() -> Self {
-        Self {
-            enabled: true,
-            bind_address: default_bind_address(),
-            control_port: default_control_port(),
-            data_port: default_data_port(),
-            max_connections: default_max_connections(),
-            timestamp_tolerance_secs: default_timestamp_tolerance_secs(),
-            use_mock_ecash: default_use_mock_ecash(),
-            handshake_ttl_secs: default_handshake_ttl_secs(),
-            session_ttl_secs: default_session_ttl_secs(),
-            demoted_session_ttl_secs: default_demoted_session_ttl_secs(),
-            state_cleanup_interval_secs: default_state_cleanup_interval_secs(),
-            max_concurrent_forwards: default_max_concurrent_forwards(),
+        LpConfig {
+            control_bind_address: SocketAddr::new(
+                IpAddr::V6(Ipv6Addr::UNSPECIFIED),
+                Self::DEFAULT_CONTROL_PORT,
+            ),
+            data_bind_address: SocketAddr::new(
+                IpAddr::V6(Ipv6Addr::UNSPECIFIED),
+                Self::DEFAULT_DATA_PORT,
+            ),
+            announce_control_port: None,
+            announce_data_port: None,
+            debug: Default::default(),
         }
     }
 }
 
-fn default_bind_address() -> String {
-    "0.0.0.0".to_string()
+impl LpDebug {
+    pub const DEFAULT_MAX_CONNECTIONS: usize = 10000;
+
+    // 30 seconds - balances security vs clock skew tolerance
+    pub const DEFAULT_TIMESTAMP_TOLERANCE: Duration = Duration::from_secs(30);
+
+    // 90 seconds - handshakes should complete quickly
+    pub const DEFAULT_HANDSHAKE_TTL: Duration = Duration::from_secs(90);
+
+    // 24 hours - for long-lived dVPN sessions
+    pub const DEFAULT_SESSION_TTL: Duration = Duration::from_secs(86400);
+
+    // 1 minute - enough to drain in-flight packets after subsession promotion
+    pub const DEFAULT_DEMOTED_SESSION_TTL: Duration = Duration::from_secs(60);
+
+    // 5 minutes - balances memory reclamation with task overhead
+    pub const DEFAULT_STATE_CLEANUP_INTERVAL: Duration = Duration::from_secs(300);
+
+    // Limits concurrent outbound connections to prevent fd exhaustion
+    pub const DEFAULT_MAX_CONCURRENT_FORWARDS: usize = 1000;
 }
 
-fn default_control_port() -> u16 {
-    41264
-}
-
-fn default_data_port() -> u16 {
-    51264
-}
-
-fn default_max_connections() -> usize {
-    10000
-}
-
-fn default_timestamp_tolerance_secs() -> u64 {
-    30 // 30 seconds - balances security vs clock skew tolerance
-}
-
-fn default_use_mock_ecash() -> bool {
-    false // Always default to real ecash for security
-}
-
-fn default_handshake_ttl_secs() -> u64 {
-    90 // 90 seconds - handshakes should complete quickly
-}
-
-fn default_session_ttl_secs() -> u64 {
-    86400 // 24 hours - for long-lived dVPN sessions
-}
-
-fn default_demoted_session_ttl_secs() -> u64 {
-    60 // 1 minute - enough to drain in-flight packets after subsession promotion
-}
-
-fn default_state_cleanup_interval_secs() -> u64 {
-    300 // 5 minutes - balances memory reclamation with task overhead
-}
-
-fn default_max_concurrent_forwards() -> usize {
-    1000 // Limits concurrent outbound connections to prevent fd exhaustion
+impl Default for LpDebug {
+    fn default() -> Self {
+        LpDebug {
+            max_connections: Self::DEFAULT_MAX_CONNECTIONS,
+            timestamp_tolerance: Self::DEFAULT_TIMESTAMP_TOLERANCE,
+            use_mock_ecash: false,
+            handshake_ttl: Self::DEFAULT_HANDSHAKE_TTL,
+            session_ttl: Self::DEFAULT_SESSION_TTL,
+            demoted_session_ttl: Self::DEFAULT_DEMOTED_SESSION_TTL,
+            state_cleanup_interval: Self::DEFAULT_STATE_CLEANUP_INTERVAL,
+            max_concurrent_forwards: Self::DEFAULT_MAX_CONCURRENT_FORWARDS,
+        }
+    }
 }
 
 /// Wrapper for state entries with timestamp tracking for cleanup
@@ -297,8 +316,8 @@ impl<T> TimestampedState<T> {
         self.created_at.elapsed()
     }
 
-    /// Get time since last activity (in seconds)
-    pub fn seconds_since_activity(&self) -> u64 {
+    /// Get time since last activity
+    pub fn since_activity(&self) -> std::time::Duration {
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
@@ -306,7 +325,7 @@ impl<T> TimestampedState<T> {
         let last = self
             .last_activity
             .load(std::sync::atomic::Ordering::Relaxed);
-        now.saturating_sub(last)
+        Duration::from_secs(now.saturating_sub(last))
     }
 }
 
@@ -395,55 +414,35 @@ pub struct LpHandlerState {
 
 /// LP listener that accepts TCP connections on port 41264
 pub struct LpListener {
-    /// Address to bind the LP control port (41264)
-    control_address: SocketAddr,
-
-    /// Port for data plane (51264) - reserved for future use
-    data_port: u16,
-
     /// Shared state for connection handlers
     handler_state: LpHandlerState,
-
-    /// Maximum concurrent connections
-    max_connections: usize,
 
     /// Shutdown coordination
     shutdown: ShutdownTracker,
 }
 
 impl LpListener {
-    pub fn new(
-        bind_address: SocketAddr,
-        data_port: u16,
-        handler_state: LpHandlerState,
-        max_connections: usize,
-        shutdown: ShutdownTracker,
-    ) -> Self {
+    pub fn new(handler_state: LpHandlerState, shutdown: ShutdownTracker) -> Self {
         Self {
-            control_address: bind_address,
-            data_port,
             handler_state,
-            max_connections,
             shutdown,
         }
     }
 
+    fn lp_config(&self) -> LpConfig {
+        self.handler_state.lp_config
+    }
+
     pub async fn run(&mut self) -> Result<(), GatewayError> {
-        let listener = TcpListener::bind(self.control_address).await.map_err(|e| {
-            error!(
-                "Failed to bind LP listener to {}: {}",
-                self.control_address, e
-            );
+        let control_bind_address = self.lp_config().control_bind_address;
+        let data_bind_address = self.lp_config().data_bind_address;
+        let listener = TcpListener::bind(control_bind_address).await.map_err(|e| {
+            error!("Failed to bind LP listener to {control_bind_address}: {e}",);
             GatewayError::ListenerBindFailure {
-                address: self.control_address.to_string(),
+                address: control_bind_address.to_string(),
                 source: Box::new(e),
             }
         })?;
-
-        info!(
-            "LP listener started on {} (data port: {})",
-            self.control_address, self.data_port
-        );
 
         let shutdown_token = self.shutdown.clone_shutdown_token();
 
@@ -452,6 +451,10 @@ impl LpListener {
 
         // Spawn UDP data handler for LP data plane (port 51264)
         let _data_handler_handle = self.spawn_data_handler().await?;
+
+        info!(
+            "LP listener started on {control_bind_address} (data handler on: {data_bind_address})",
+        );
 
         loop {
             tokio::select! {
@@ -482,10 +485,10 @@ impl LpListener {
     fn handle_connection(&self, stream: tokio::net::TcpStream, remote_addr: SocketAddr) {
         // Check connection limit
         let active_connections = self.active_lp_connections();
-        if active_connections >= self.max_connections {
+        let max_connections = self.lp_config().debug.max_connections;
+        if active_connections >= max_connections {
             warn!(
-                "LP connection limit exceeded ({}/{}), rejecting connection from {}",
-                active_connections, self.max_connections, remote_addr
+                "LP connection limit exceeded ({active_connections}/{max_connections}), rejecting connection from {remote_addr}"
             );
             return;
         }
@@ -528,17 +531,9 @@ impl LpListener {
     /// from registered clients. It decrypts the LP layer and forwards the Sphinx packets
     /// into the mixnet.
     async fn spawn_data_handler(&self) -> Result<tokio::task::JoinHandle<()>, GatewayError> {
-        // Build data port address using same bind address as control port
-        let data_addr: SocketAddr = format!(
-            "{}:{}",
-            self.handler_state.lp_config.bind_address, self.data_port
-        )
-        .parse()
-        .map_err(|e| GatewayError::InternalError(format!("Invalid LP data bind address: {}", e)))?;
-
         // Create data handler
         let data_handler = data_handler::LpDataHandler::new(
-            data_addr,
+            self.lp_config().data_bind_address,
             self.handler_state.clone(),
             self.shutdown.clone_shutdown_token(),
         )
@@ -567,16 +562,18 @@ impl LpListener {
     fn spawn_state_cleanup_task(&self) -> tokio::task::JoinHandle<()> {
         let handshake_states = Arc::clone(&self.handler_state.handshake_states);
         let session_states = Arc::clone(&self.handler_state.session_states);
-        let handshake_ttl = self.handler_state.lp_config.handshake_ttl_secs;
-        let session_ttl = self.handler_state.lp_config.session_ttl_secs;
-        let demoted_session_ttl = self.handler_state.lp_config.demoted_session_ttl_secs;
-        let interval_secs = self.handler_state.lp_config.state_cleanup_interval_secs;
+        let dbg_cfg = self.handler_state.lp_config.debug;
+
+        let handshake_ttl = dbg_cfg.handshake_ttl;
+        let session_ttl = dbg_cfg.session_ttl;
+        let demoted_session_ttl = dbg_cfg.demoted_session_ttl;
+        let interval = dbg_cfg.state_cleanup_interval;
         let shutdown = self.shutdown.clone_shutdown_token();
         let metrics = self.handler_state.metrics.clone();
 
         info!(
             "Starting LP state cleanup task (handshake_ttl={}s, session_ttl={}s, demoted_ttl={}s, interval={}s)",
-            handshake_ttl, session_ttl, demoted_session_ttl, interval_secs
+            handshake_ttl.as_secs(), session_ttl.as_secs(), demoted_session_ttl.as_secs(), interval.as_secs()
         );
 
         self.shutdown.try_spawn_named(
@@ -586,7 +583,7 @@ impl LpListener {
                 handshake_ttl,
                 session_ttl,
                 demoted_session_ttl,
-                interval_secs,
+                interval,
                 shutdown,
                 metrics,
             ),
@@ -605,18 +602,17 @@ impl LpListener {
     async fn cleanup_loop(
         handshake_states: Arc<DashMap<u32, TimestampedState<LpStateMachine>>>,
         session_states: Arc<DashMap<u32, TimestampedState<LpStateMachine>>>,
-        handshake_ttl_secs: u64,
-        session_ttl_secs: u64,
-        demoted_session_ttl_secs: u64,
-        interval_secs: u64,
+        handshake_ttl: Duration,
+        session_ttl: Duration,
+        demoted_session_ttl: Duration,
+        interval: Duration,
         shutdown: nym_task::ShutdownToken,
         _metrics: NymNodeMetrics,
     ) {
         use nym_lp::state_machine::LpStateBare;
         use nym_metrics::inc_by;
 
-        let mut cleanup_interval =
-            tokio::time::interval(std::time::Duration::from_secs(interval_secs));
+        let mut cleanup_interval = tokio::time::interval(interval);
 
         loop {
             tokio::select! {
@@ -635,7 +631,7 @@ impl LpListener {
 
                     // Remove stale handshakes (based on age since creation)
                     handshake_states.retain(|_, timestamped| {
-                        if timestamped.age().as_secs() > handshake_ttl_secs {
+                        if timestamped.age() > handshake_ttl {
                             hs_removed += 1;
                             false
                         } else {
@@ -648,12 +644,12 @@ impl LpListener {
                     session_states.retain(|_, timestamped| {
                         let is_demoted = timestamped.state.bare_state() == LpStateBare::ReadOnlyTransport;
                         let ttl = if is_demoted {
-                            demoted_session_ttl_secs
+                            demoted_session_ttl
                         } else {
-                            session_ttl_secs
+                            session_ttl
                         };
 
-                        if timestamped.seconds_since_activity() > ttl {
+                        if timestamped.since_activity() > ttl {
                             if is_demoted {
                                 demoted_removed += 1;
                             } else {

@@ -373,11 +373,6 @@ pub struct NymNode {
     /// Base58-encoded ed25519 EdDSA public key.
     #[cfg_attr(feature = "utoipa", schema(value_type = String))]
     pub identity_key: IdentityKey,
-
-    /// Optional LP (Lewes Protocol) listener address for direct gateway connections.
-    /// Format: "host:port", for example "1.1.1.1:41264" or "gateway.example.com:41264"
-    #[serde(default)]
-    pub lp_address: Option<String>,
     // TODO: I don't think we want to include sphinx keys here,
     // given we want to rotate them and keeping that in sync with contract will be a PITA
 }
@@ -410,7 +405,6 @@ impl From<MixNode> for NymNode {
             host: value.host,
             custom_http_port: Some(value.http_api_port),
             identity_key: value.identity_key,
-            lp_address: None,
         }
     }
 }
@@ -421,7 +415,6 @@ impl From<Gateway> for NymNode {
             host: value.host,
             custom_http_port: None,
             identity_key: value.identity_key,
-            lp_address: None,
         }
     }
 }
@@ -444,13 +437,6 @@ pub struct NodeConfigUpdate {
     // equivalent to setting `custom_http_port` to `None`
     #[serde(default)]
     pub restore_default_http_port: bool,
-
-    /// LP listener address for direct gateway connections (format: "host:port")
-    pub lp_address: Option<String>,
-
-    // equivalent to setting `lp_address` to `None`
-    #[serde(default)]
-    pub restore_default_lp_address: bool,
 }
 
 #[cw_serde]

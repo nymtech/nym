@@ -21,14 +21,18 @@ use std::arch::x86_64::{
 
 #[cfg(target_feature = "sse2")]
 use std::arch::x86_64::{
-    __m128i, _mm_cmpeq_epi64, _mm_load_si128, _mm_loadu_si128, _mm_movemask_epi8, _mm_or_si128,
-    _mm_set1_epi64x, _mm_setzero_si128, _mm_store_si128, _mm_storeu_si128, _mm_testz_si128,
+    __m128i, _mm_cmpeq_epi64, _mm_loadu_si128, _mm_or_si128, _mm_set1_epi64x, _mm_setzero_si128,
+    _mm_storeu_si128, _mm_testz_si128,
 };
+
+#[cfg(all(target_feature = "sse2", not(target_feature = "sse4.1")))]
+use std::arch::x86_64::{_mm_cmpeq_epi64, _mm_movemask_epi8};
 
 /// x86/x86_64 SIMD bitmap operations implementation
 pub struct X86BitmapOps;
 
 impl BitmapOps for X86BitmapOps {
+    #[allow(unreachable_code)]
     #[inline(always)]
     fn clear_words(bitmap: &mut [u64], start_idx: usize, num_words: usize) {
         debug_assert!(start_idx + num_words <= bitmap.len());
@@ -118,6 +122,7 @@ impl BitmapOps for X86BitmapOps {
         }
     }
 
+    #[allow(unreachable_code)]
     #[inline(always)]
     fn is_range_zero(bitmap: &[u64], start_idx: usize, num_words: usize) -> bool {
         debug_assert!(start_idx + num_words <= bitmap.len());
@@ -421,7 +426,7 @@ pub mod atomic {
         if first_full_word <= last_full_word {
             // Use SSE2 to set multiple words at once
             // Safety: _mm_set1_epi64x is safe to call with any i64 value
-            let ones = _mm_set1_epi64x(-1); // All bits set to 1
+            let ones = unsafe { _mm_set1_epi64x(-1) }; // All bits set to 1
 
             let mut i = first_full_word;
             while i + 2 <= last_full_word + 1 {
@@ -430,8 +435,8 @@ pub mod atomic {
                 // - We check that i + 2 <= last_full_word + 1 to ensure we have 2 complete words
                 // - The unaligned _loadu/_storeu variants are used to handle any alignment
                 let current = _mm_loadu_si128(bitmap[i..].as_ptr() as *const __m128i);
-                let result = _mm_or_si128(current, ones);
-                _mm_storeu_si128(bitmap[i..].as_mut_ptr() as *mut __m128i, result);
+                let result = unsafe { _mm_or_si128(current, ones) };
+                unsafe { _mm_storeu_si128(bitmap[i..].as_mut_ptr() as *mut __m128i, result) };
                 i += 2;
             }
 

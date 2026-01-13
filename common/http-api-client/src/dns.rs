@@ -347,6 +347,26 @@ impl HickoryDnsResolver {
         // }
     }
 
+    /// Set (or overwrite) the map of static addresses and mark these domains to be returned
+    /// WITHOUT attempting a lookup over the network resolver.
+    pub fn preresolve_to_addrs(&self, addrs: HashMap<String, Vec<IpAddr>>) {
+        if let Some(cell) = &self.static_base {
+            let static_base =
+                cell.get_or_init(|| HickoryDnsResolver::new_static_fallback(self.use_shared));
+            static_base.preresolve_to_addrs(addrs);
+        }
+    }
+
+    /// Set (or overwrite) the map of static addresses and mark these domains to be returned
+    /// WITHOUT attempting a lookup over the network resolver.
+    pub fn clear_preresolve(&self) {
+        if let Some(cell) = &self.static_base {
+            if let Some(static_base) = cell.get() {
+                static_base.clear_preresolve()
+            }
+        }
+    }
+
     /// Get the current map of hostname to address in use by the fallback static lookup if one
     /// exists.
     pub fn get_static_fallbacks(&self) -> Option<HashMap<String, Vec<IpAddr>>> {

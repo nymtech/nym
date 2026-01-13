@@ -2,36 +2,21 @@ import { Callout } from 'nextra/components'
 
 # Traffic Flow
 
-This page provides a detailed breakdown of how packets travel through the mixnet, from sending client to destination.
+This page walks through how packets travel through the mixnet, from sending client to destination.
 
 <Callout type="info">
-This describes the 5-hop mixnet flow used in NymVPN's mixnet mode and via the Nym SDKs. For the 2-hop dVPN mode, see [dVPN Protocol](../dvpn-mode/protocol).
+This describes the 5-hop mixnet flow. For the 2-hop dVPN mode, see [dVPN Protocol](/network/dvpn-mode/protocol).
 </Callout>
 
 ## Overview
 
-> Nym uses a source-routed decryption mixnet ... in source routing, the sender of a message chooses the route that the message will traverse before reaching its final destination.
->
-> — [Nym Whitepaper](https://nym.com/nym-whitepaper.pdf) §4
+The Nym mixnet uses source routing—the sender chooses the complete route before sending. This means the sender constructs a Sphinx packet with layered encryption, where each layer contains routing information for one hop.
 
-Traffic flows through 5 hops:
-1. Entry Gateway
-2. Mix Node Layer 1
-3. Mix Node Layer 2
-4. Mix Node Layer 3
-5. Exit Gateway
+## Client to Entry Gateway
 
-## Sending Client → Entry Gateway
+When you connect, your Nym client registers with a particular Entry Gateway. This becomes part of your Nym address and is where your incoming messages are delivered.
 
-Nym Clients register with a particular Entry Gateway on startup, which partially defines their [Nym address](../reference/addressing).
-
-Once connected, clients **continuously send traffic** into the mixnet—both real packets and [cover traffic](./cover-traffic) at a rate defined by a Poisson process.
-
-When sending application data, the client:
-1. Queues the data internally
-2. Packetizes and encrypts as [Sphinx packets](../cryptography/sphinx)
-3. Performs Diffie-Hellman key exchange with the Entry Gateway
-4. Sends packets over WebSocket, interleaved with cover traffic
+The client continuously sends packets to the Entry Gateway over a WebSocket connection. This stream includes both real messages and cover traffic at a constant rate. When you have data to send, it's encrypted as Sphinx packets and slotted into the stream. When you don't, cover packets flow instead.
 
 ```mermaid
 ---
@@ -40,49 +25,28 @@ config:
 ---
 sequenceDiagram
     box Local Machine
-        participant AL as Application Logic
-        participant NC as Nym Client
+        participant App as Application
+        participant Client as Nym Client
     end
+    participant Gateway as Entry Gateway
 
-    box Mixnet Infrastructure
-        participant EG as Entry Gateway
+    Gateway->>Client: Key Exchange
+
+    loop Continuous Traffic
+        Client->>Gateway: Cover packet
+        Client->>Gateway: Cover packet
+        App-->>Client: Data to send
+        Client->>Client: Encrypt as Sphinx
+        Client->>Gateway: Real packet
+        Client->>Gateway: Cover packet
     end
-
-    EG->NC: Diffie Hellman Key Exchange
-
-    Note over NC,EG: Cover Traffic Stream
-    loop Continuous Cover Traffic
-        NC->>NC: Delay
-        NC->>EG: Cover traffic
-    end
-
-    Note over AL,EG: Mixed Traffic Stream
-    loop Cover + Real Traffic Processing
-        NC->>NC: Check internal queue + delay
-        NC->>EG: Cover traffic
-        opt Packets with Application Payload
-            AL-->>NC: Send(bytes): add to internal queue
-            NC->>NC: Check queue: bytes to send
-            NC->>NC: Encrypt & packetise bytes
-            NC->>EG: Real Packets
-            NC->>NC: Check queue: more bytes
-            NC->>NC: Encrypt & packetise bytes
-            NC->>EG: Real Packets
-            NC->>NC: Check queue: empty
-        end
-        NC->>NC: Delay
-        NC->>EG: Cover traffic
-    end
-
 ```
 
-## Entry Gateway → Mix Nodes → Exit Gateway
+## Through the Mix Nodes
 
-As packets traverse the mixnet, each receiving node:
-1. Verifies the MAC of the incoming Sphinx packet
-2. Decrypts its layer, revealing the next destination
-3. (Mix Nodes only) Applies a [random delay](./mixing)
-4. Forwards via TCP to the next hop
+The Entry Gateway forwards packets into the three Mix Node layers. At each hop, the node decrypts its layer of the Sphinx packet to learn the next destination, verifies the HMAC to ensure integrity, applies a random delay, and forwards to the next hop.
+
+The delay is critical. Without it, timing would correlate inputs to outputs. With exponential random delays, packets are reordered and the timing relationship is destroyed.
 
 ```mermaid
 ---
@@ -90,58 +54,36 @@ config:
   theme: neo-dark
 ---
 sequenceDiagram
-    box Mixnet Infrastructure
-        participant EG as Entry Gateway
-        participant M1 as Mix Node Layer 1
-        participant M2 as Mix Node Layer 2
-        participant M3 as Mix Node Layer 3
-        participant ExG as Exit Gateway
-    end
+    participant Entry as Entry Gateway
+    participant M1 as Mix Layer 1
+    participant M2 as Mix Layer 2
+    participant M3 as Mix Layer 3
+    participant Exit as Exit Gateway
 
-    Note over EG: Process packets
-    EG->>EG: Decrypt outer encryption layer
-    EG->>EG: Check MAC for tampering
-
-    Note over EG,M1: Layer 1 Transmission
-    EG->>M1: Sphinx Packets
-    Note over M1: Process packets
-    M1->>M1: Decrypt outer encryption layer
-    M1->>M1: Check MAC for tampering
-    M1->>M1: Hold packet for variable time delay
-
-    Note over M1,M2: Layer 2 Transmission
-    M1->>M2: Sphinx Packets
-    Note over M2: Process packets
-    M2->>M2: Decrypt outer encryption layer
-    M2->>M2: Check MAC for tampering
-    M2->>M2: Hold packet for variable time delay
-
-    Note over M2,M3: Layer 3 Transmission
-    M2->>M3: Sphinx Packets
-    Note over M3: Process packets
-    M3->>M3: Decrypt outer encryption layer
-    M3->>M3: Check MAC for tampering
-    M3->>M3: Hold packet for variable time delay
-
-    Note over M3,ExG: Exit Gateway Transmission
-    M3->>ExG: Sphinx Packets
-    Note over ExG: Process packets
-    ExG->>ExG: Decrypt outer encryption layer
-    ExG->>ExG: Check MAC for tampering
-
+    Entry->>M1: Sphinx Packet
+    M1->>M1: Decrypt layer
+    M1->>M1: Verify HMAC
+    M1->>M1: Random delay
+    M1->>M2: Sphinx Packet
+    M2->>M2: Decrypt layer
+    M2->>M2: Verify HMAC
+    M2->>M2: Random delay
+    M2->>M3: Sphinx Packet
+    M3->>M3: Decrypt layer
+    M3->>M3: Verify HMAC
+    M3->>M3: Random delay
+    M3->>Exit: Sphinx Packet
 ```
 
-## Exit Gateway → Receiving Client
+## Exit Gateway to Destination
 
-The final hop involves:
-1. Exit Gateway decrypts and verifies the packet
-2. If the recipient is online, delivers immediately
-3. If offline, stores for up to 24 hours
+The Exit Gateway handles the final hop. For traffic destined for external services, it decrypts the packet and forwards to the destination, then packages responses back into Sphinx packets for the return journey.
 
-The receiving client then:
-1. Decrypts the final Sphinx layer
-2. Extracts the payload
-3. If [SURBs](./anonymous-replies) are attached, stores them for anonymous replies
+For traffic destined for another Nym client, the Exit Gateway delivers to that client's registered Gateway, which holds the message until the recipient comes online.
+
+## The complete picture
+
+Putting it together, a packet travels through five hops with encryption removed and delays applied at each Mix Node layer:
 
 ```mermaid
 ---
@@ -149,115 +91,43 @@ config:
   theme: neo-dark
 ---
 sequenceDiagram
-    box Mixnet Infrastructure
-        participant ExG as Exit Gateway
+    box Sender
+        participant App1 as Application
+        participant C1 as Nym Client
     end
 
-    box Remote Machine
-        participant RC as Nym Client
-        participant AR as Application Logic
+    box Mixnet
+        participant Entry as Entry GW
+        participant M1 as Mix L1
+        participant M2 as Mix L2
+        participant M3 as Mix L3
+        participant Exit as Exit GW
     end
 
-    ExG->RC: Diffie Hellman Key Exchange
-    ExG->>RC: Sphinx Packets
-    Note over RC: Process packets
-    RC->>RC: Decrypt outer encryption layer
-    RC->>RC: Check MAC for tampering
+    box Receiver
+        participant C2 as Nym Client
+        participant App2 as Application
+    end
 
-    RC->>AR: Bytes
+    App1->>C1: Send data
+    C1->>C1: Create Sphinx packet
+    C1->>Entry: Encrypted packet
+    Entry->>M1: Forward
+    M1->>M1: Decrypt, delay
+    M1->>M2: Forward
+    M2->>M2: Decrypt, delay
+    M2->>M3: Forward
+    M3->>M3: Decrypt, delay
+    M3->>Exit: Forward
+    Exit->>C2: Deliver
+    C2->>C2: Decrypt final layer
+    C2->>App2: Received data
 ```
 
-## Complete Flow
+## External services
 
-Putting it all together:
+When sending to an external service rather than another Nym client, the Exit Gateway acts as a proxy. It extracts the destination from the decrypted packet, makes the request on your behalf, and routes responses back through the network. The destination service sees the Exit Gateway's IP, not yours.
 
-```mermaid
----
-config:
-  theme: neo-dark
----
-sequenceDiagram
-    box Local Machine
-        participant AL as Application Logic
-        participant NC as Nym Client
-    end
+## Peer-to-peer
 
-    box Mixnet Infrastructure
-        participant EG as Entry Gateway
-        participant M1 as Mix Node Layer 1
-        participant M2 as Mix Node Layer 2
-        participant M3 as Mix Node Layer 3
-        participant ExG as Exit Gateway
-    end
-
-    box Remote Machine
-        participant RC as Nym Client
-        participant AR as Application Logic
-    end
-
-    EG->NC: Diffie Hellman Key Exchange
-
-    Note over NC,EG: Cover Traffic Stream
-    loop Continuous Cover Traffic
-        NC->>NC: Delay
-        NC->>EG: Cover traffic
-    end
-
-    Note over AL,EG: Mixed Traffic Stream
-    loop Cover + Real Traffic Processing
-        NC->>NC: Check internal queue + delay
-        NC->>EG: Cover traffic
-        opt Packets with Application Payload
-            AL-->>NC: Send(bytes): add to internal queue
-            NC->>NC: Check queue: bytes to send
-            NC->>NC: Encrypt & packetise bytes
-            NC->>EG: Real Packets
-        end
-        NC->>NC: Delay
-        NC->>EG: Cover traffic
-    end
-
-    Note over EG: Process packets
-    EG->>EG: Decrypt outer encryption layer
-    EG->>EG: Check MAC for tampering
-
-    Note over EG,M1: Layer 1 Transmission
-    EG->>M1: Sphinx Packets
-    M1->>M1: Decrypt, verify, delay
-
-    Note over M1,M2: Layer 2 Transmission
-    M1->>M2: Sphinx Packets
-    M2->>M2: Decrypt, verify, delay
-
-    Note over M2,M3: Layer 3 Transmission
-    M2->>M3: Sphinx Packets
-    M3->>M3: Decrypt, verify, delay
-
-    Note over M3,ExG: Exit Gateway Transmission
-    M3->>ExG: Sphinx Packets
-    ExG->>ExG: Decrypt, verify
-
-    ExG->RC: Diffie Hellman Key Exchange
-    ExG->>RC: Sphinx Packets
-    RC->>RC: Decrypt, verify
-
-    RC->>AR: Bytes
-```
-
-## External Service Communication
-
-When traffic is destined for an external service (not another Nym client), the Exit Gateway:
-1. Receives the decrypted payload
-2. Forwards to the external destination
-3. Awaits response
-4. Packages response into Sphinx packets for return
-
-This allows Nym to proxy traffic to arbitrary internet services while protecting the client's metadata.
-
-## Peer-to-Peer Communication
-
-For P2P applications where all parties run Nym clients:
-- Traffic stays entirely within the mixnet
-- No need to contact external servers
-- Both parties enjoy full mixnet privacy
-- SURBs enable anonymous bidirectional communication
+For applications where all parties run Nym clients, traffic stays entirely within the mixnet. Both sides enjoy full privacy protection, and [SURBs](/network/mixnet-mode/anonymous-replies) enable anonymous bidirectional communication without either party learning the other's address.

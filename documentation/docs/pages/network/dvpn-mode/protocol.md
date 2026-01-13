@@ -1,174 +1,51 @@
 # dVPN Protocol
 
-This page describes the technical details of dVPN mode's protocol and encryption.
+This page covers the technical details of dVPN mode's protocol stack and encryption.
 
-## Protocol Stack
+## Protocol layers
 
-dVPN mode combines WireGuard with additional layer encryption:
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                      Application Data                           │
-├─────────────────────────────────────────────────────────────────┤
-│                    Layer Encryption                             │
-│              (Entry-to-Exit hop encryption)                     │
-├─────────────────────────────────────────────────────────────────┤
-│                      WireGuard                                  │
-│              (Client-to-Entry encryption)                       │
-├─────────────────────────────────────────────────────────────────┤
-│                       UDP/IP                                    │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-## WireGuard Integration
-
-The client-to-Entry Gateway connection uses the WireGuard protocol:
-
-- **Key exchange**: Curve25519 (X25519)
-- **Symmetric encryption**: ChaCha20-Poly1305
-- **Hash function**: BLAKE2s
-- **Authentication**: Pre-shared keys derived during connection setup
-
-WireGuard provides:
-- Fast handshake and reconnection
-- Efficient encryption with low overhead
-- Modern cryptographic primitives
-- Minimal attack surface
-
-## Layer Encryption
-
-Beyond WireGuard, dVPN mode applies additional layer encryption for the Entry-to-Exit hop:
-
-### Encryption Algorithms
-
-The Nym Network uses the following encryption standards:
-
-| Algorithm | Purpose |
-|-----------|---------|
-| AES-GCM-SIV-256 | Authenticated encryption with nonce-misuse resistance |
-| AES-CTR-128 | Stream cipher for payload encryption |
-| ChaCha20-Poly1305 | Authenticated encryption (WireGuard layer) |
-| Curve25519 | Key exchange (X25519) and signatures (Ed25519) |
-
-### Key Derivation
-
-Keys for layer encryption are derived through:
-
-1. ECDH key exchange between client and Exit Gateway
-2. HKDF-based key derivation
-3. Separate keys for each direction (client→exit, exit→client)
-
-## Packet Format
-
-All dVPN packets are padded to a uniform size:
+dVPN mode combines WireGuard with additional layer encryption. The client-to-Entry Gateway connection uses WireGuard, providing fast handshakes, efficient encryption, and graceful reconnection. The Entry-to-Exit Gateway connection adds another encryption layer using AES-GCM-SIV-256.
 
 ```
-┌────────────────────────────────────────────────────────────────┐
-│ Header (routing info)                                          │
-├────────────────────────────────────────────────────────────────┤
-│ Encrypted Payload                                              │
-│                                                                │
-│ ┌────────────────────────────────────────────────────────────┐ │
-│ │ Original packet data                                       │ │
-│ ├────────────────────────────────────────────────────────────┤ │
-│ │ Padding (to uniform size)                                  │ │
-│ └────────────────────────────────────────────────────────────┘ │
-├────────────────────────────────────────────────────────────────┤
-│ Authentication tag                                             │
-└────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────┐
+│           Application Data              │
+├─────────────────────────────────────────┤
+│    Layer Encryption (Entry → Exit)      │
+├─────────────────────────────────────────┤
+│    WireGuard (Client → Entry)           │
+├─────────────────────────────────────────┤
+│              UDP/IP                     │
+└─────────────────────────────────────────┘
 ```
 
-### Packet Padding
+## Encryption
 
-- All packets are padded to a fixed size
-- Padding prevents packet-size fingerprinting
-- Padding is removed at the Exit Gateway before forwarding
+The WireGuard layer uses Curve25519 for key exchange, ChaCha20-Poly1305 for symmetric encryption, and BLAKE2s for hashing. This provides 256-bit security with modern, well-audited primitives.
 
-## Connection Lifecycle
+The inner layer uses AES-GCM-SIV-256, an authenticated encryption scheme with nonce-misuse resistance. Even if a nonce is accidentally reused, the scheme degrades gracefully rather than catastrophically. Keys are derived through ECDH between the client and Exit Gateway, with separate keys for each direction.
 
-### 1. Gateway Selection
+## Packet format
 
-Client selects Entry and Exit Gateways:
-- Entry: Based on latency, location preference, or random selection
-- Exit: Based on exit location requirements
+All packets are padded to a uniform size before encryption. The packet contains a header with routing information, the encrypted payload (original data plus padding), and an authentication tag. Padding is removed at the Exit Gateway before forwarding to the destination.
 
-### 2. Authentication
+This uniformity matters because packet sizes can leak information about content types—video streams have different size patterns than text messages. With uniform packets, this side channel is eliminated.
 
-```
-Client                    Entry Gateway                Nym API
-   │                            │                         │
-   │─── zk-nym credential ─────▶│                         │
-   │                            │─── verify credential ──▶│
-   │                            │◀── validity response ───│
-   │◀── connection accepted ────│                         │
-```
+## Connection lifecycle
 
-The zk-nym credential:
-- Proves payment without revealing identity
-- Is re-randomized for each connection
-- Cannot be linked to previous usage
+When connecting, the client first selects Entry and Exit Gateways based on latency, location preference, or random selection. It then presents a zk-nym credential to the Entry Gateway for anonymous authentication. The credential proves payment without revealing identity—it's re-randomized for each connection and cannot be linked to previous usage.
 
-### 3. Tunnel Establishment
+Once authenticated, the client establishes a WireGuard tunnel to the Entry Gateway, which establishes a link to the Exit Gateway. Traffic then flows through both hops until the session ends.
 
-```
-Client                    Entry Gateway              Exit Gateway
-   │                            │                         │
-   │─── WireGuard handshake ───▶│                         │
-   │◀── WireGuard response ─────│                         │
-   │                            │─── establish link ─────▶│
-   │                            │◀── link confirmed ──────│
-   │◀── tunnel ready ───────────│                         │
-```
+## Security properties
 
-### 4. Data Transfer
+The protocol provides forward secrecy—new session keys are derived for each connection, so compromising long-term keys doesn't expose past sessions. WireGuard's key rotation provides additional forward secrecy within sessions.
 
-```
-Client                    Entry Gateway              Exit Gateway          Destination
-   │                            │                         │                     │
-   │─── encrypted packet ──────▶│                         │                     │
-   │                            │─── re-encrypted ───────▶│                     │
-   │                            │                         │─── plaintext ──────▶│
-   │                            │                         │◀── response ────────│
-   │                            │◀── encrypted ───────────│                     │
-   │◀── decrypted response ─────│                         │                     │
-```
+The split-knowledge architecture ensures the Entry Gateway knows your IP but not your destinations or payload content, while the Exit Gateway knows your destinations but not your IP. Neither can correlate the two.
 
-## Security Properties
+Replay protection comes from WireGuard's counter-based mechanism and from zk-nym serial numbers that prevent credential reuse.
 
-### Forward Secrecy
+## Relationship to mixnet mode
 
-- New session keys are derived for each connection
-- Compromise of long-term keys doesn't expose past sessions
-- WireGuard's key rotation provides additional forward secrecy
+dVPN mode shares infrastructure with mixnet mode. Both use the same Entry and Exit Gateways, the same credential system, and the same packet sizes. External observers cannot distinguish between the two modes. The difference is internal: mixnet mode routes through three additional Mix Node layers with delays and cover traffic, while dVPN mode routes directly between gateways.
 
-### Split-Knowledge Architecture
-
-| Node | Knows | Doesn't Know |
-|------|-------|--------------|
-| Entry Gateway | Client IP, Entry-Exit link | Destination, Payload content |
-| Exit Gateway | Destination, Payload | Client IP |
-
-### Replay Protection
-
-- WireGuard provides replay protection via counters
-- zk-nym credentials include replay protection via serial numbers
-
-## Differences from Mixnet Mode
-
-| Aspect | dVPN Mode | Mixnet Mode |
-|--------|-----------|-------------|
-| Hops | 2 | 5 |
-| Packet format | Custom | Sphinx |
-| Timing delays | None | Random exponential |
-| Cover traffic | None | Continuous |
-| Routing | Static per-session | Per-packet |
-
-## Implementation Notes
-
-The dVPN mode is implemented in the NymVPN application and is not available through the SDKs. The underlying protocol shares infrastructure with mixnet mode:
-
-- Same Entry and Exit Gateways
-- Same zk-nym credential system
-- Same packet size (for traffic indistinguishability)
-
-This ensures that external observers cannot distinguish between dVPN and mixnet users.
+This shared infrastructure means improvements to Gateways and credentials benefit both modes, and the indistinguishability between modes provides privacy benefits even for dVPN users.

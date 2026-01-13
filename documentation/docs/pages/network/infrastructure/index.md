@@ -1,59 +1,9 @@
 # Infrastructure
 
-The Nym Network is supported by blockchain infrastructure that provides coordination, incentives, and credential management.
+The Nym Network runs on decentralized infrastructure coordinated by a blockchain. This section covers the supporting systems—the Nyx blockchain and the nodes that route traffic.
 
-## Components
+## What's covered
 
-- **[Nyx Blockchain](./nyx)**: The Cosmos SDK chain that coordinates the network
-- **[Nym Nodes](./nym-nodes)**: The unified binary that runs all network infrastructure
+[Nyx Blockchain](/network/infrastructure/nyx) explains the Cosmos SDK chain that coordinates the network. It maintains the topology registry, manages NYM token staking, distributes rewards, and hosts the smart contracts for credentials.
 
-## Architecture
-
-```
-                    ┌─────────────────────────────────────────┐
-                    │           Nyx Blockchain                │
-                    │  ┌─────────────────────────────────┐    │
-                    │  │ Mixnet Contract (topology)      │    │
-                    │  │ Vesting Contract (tokens)       │    │
-                    │  │ zk-nym Contract (credentials)   │    │
-                    │  └─────────────────────────────────┘    │
-                    └───────────────────┬─────────────────────┘
-                                        │
-                    ┌───────────────────┼───────────────────┐
-                    │                   │                   │
-                    ▼                   ▼                   ▼
-            ┌───────────────┐   ┌───────────────┐   ┌───────────────┐
-            │   Nym API     │   │   Nym API     │   │   Nym API     │
-            │   (Quorum)    │   │   (Quorum)    │   │   (Quorum)    │
-            └───────────────┘   └───────────────┘   └───────────────┘
-                    │                   │                   │
-                    └───────────────────┼───────────────────┘
-                                        │
-                                        ▼
-            ┌─────────────────────────────────────────────────────┐
-            │                   Nym Network                       │
-            │  Gateways ◄──► Mix Nodes ◄──► Mix Nodes ◄──► Gateways │
-            └─────────────────────────────────────────────────────┘
-```
-
-## Decentralization Model
-
-The Nym infrastructure achieves decentralization through:
-
-| Component | Decentralization Method |
-|-----------|------------------------|
-| Nyx Validators | Proof-of-Stake consensus |
-| Nym API Quorum | Threshold cryptography (subset of validators) |
-| Nym Nodes | Independent operators worldwide |
-| Topology | On-chain registry (no central directory) |
-
-## Economic Incentives
-
-The NYM token aligns incentives across the network:
-
-- **Node operators**: Earn rewards for routing traffic reliably
-- **Validators**: Earn fees for securing the blockchain
-- **Delegators**: Share in rewards by staking with operators
-- **Users**: Pay for privacy-preserving network access
-
-See the [Operator Documentation](../../operators) for details on running infrastructure.
+[Nym Nodes](/network/infrastructure/nym-nodes) covers the unified binary that runs all traffic-routing infrastructure. The same binary operates as Entry Gateways, Mix Nodes, or Exit Gateways depending on configuration.

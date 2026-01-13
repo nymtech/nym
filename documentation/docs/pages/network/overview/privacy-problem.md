@@ -1,79 +1,29 @@
 # The Privacy Problem
 
-## Metadata: The Data About Your Data
+## Metadata is the message
 
-When you communicate over the internet, two types of information are transmitted:
+When you communicate over the internet, two types of information are transmitted. The **content** is the actual message, file, or data being sent. The **metadata** is information about the communication itself—IP addresses revealing who is communicating, timestamps showing when, packet sizes hinting at what type of content, and frequency patterns indicating how often parties interact.
 
-1. **Content**: The actual message, file, or data being sent
-2. **Metadata**: Information *about* the communication itself
+Traditional encryption like TLS and end-to-end encryption protects content well. Metadata remains exposed.
 
-Traditional encryption (TLS, end-to-end encryption) protects content. But metadata remains exposed:
+This matters because metadata can reveal social graphs showing who knows whom, behavioral patterns exposing daily routines and habits, sensitive activities like medical consultations or legal advice, and location history tracking where you've been and when. As former NSA Director Michael Hayden put it: "We kill people based on metadata."
 
-| Metadata Type | What It Reveals |
-|---------------|-----------------|
-| IP addresses | Who is communicating |
-| Timing | When communication occurs |
-| Frequency | How often parties communicate |
-| Packet sizes | What type of content (video, text, etc.) |
-| Connection duration | Length of sessions |
+## The adversary model
 
-## Why Metadata Matters
+The Nym Network is designed to protect against **Global Passive Adversaries**—entities capable of observing traffic across the entire network simultaneously. This includes nation-state intelligence agencies, large corporations with extensive network infrastructure, ISPs, and collaborative adversaries sharing data.
 
-> "We kill people based on metadata." — Former NSA Director Michael Hayden
+These adversaries can monitor all entry and exit points, correlate timing across the network, apply machine learning to traffic patterns, and conduct long-term statistical analysis. When Tor was first deployed in 2002, such attacks were considered science fiction. They are now documented reality.
 
-Metadata can reveal:
-- **Social graphs**: Who knows whom, organizational structures
-- **Behavioral patterns**: Daily routines, habits, interests
-- **Sensitive activities**: Medical consultations, legal advice, journalism sources
-- **Location history**: Where you've been and when
+## Why traditional solutions fall short
 
-Even with encrypted content, metadata enables:
-- Identification of anonymous users through traffic analysis
-- Inference of communication content from patterns
-- Construction of detailed profiles over time
+**VPNs** provide a single point of trust. The VPN provider sees all your traffic, can be compelled to log, and your payment links directly to your usage. There's no timing protection—traffic patterns flow through unchanged.
 
-## The Adversary Model
+**Tor** was designed before global passive adversaries were considered realistic. It provides no timing obfuscation and no cover traffic, making it vulnerable to end-to-end correlation attacks. Its centralized directory authority is another trust point.
 
-The Nym Network is designed to protect against **Global Passive Adversaries (GPAs)**: entities capable of observing traffic across the entire network simultaneously. This includes:
+**End-to-end encryption** like Signal protects content excellently but leaves metadata fully exposed. The server still sees who communicates with whom and when.
 
-- Nation-state intelligence agencies
-- Large corporations with extensive network infrastructure
-- ISP-level observers
-- Collaborative adversaries sharing data
+## Nym's approach
 
-These adversaries can:
-- Monitor all entry and exit points
-- Correlate timing across the network
-- Apply machine learning to traffic patterns
-- Conduct long-term statistical analysis
+The Nym Network addresses these limitations through decentralization (no single entity to trust or compromise), packet mixing (reordering traffic to break timing correlation), cover traffic (generating dummy packets indistinguishable from real ones), uniform packet sizes (preventing content-type inference), and anonymous credentials (ensuring payment cannot be linked to usage).
 
-## Why Traditional Solutions Fall Short
-
-### VPNs
-- Single point of trust (the VPN provider sees everything)
-- No protection against timing correlation
-- Payment information links to usage
-- Provider can be compelled to log
-
-### Tor
-- Designed before GPA was considered realistic
-- No timing obfuscation (vulnerable to end-to-end correlation)
-- No cover traffic (traffic patterns are visible)
-- Centralized directory authority
-
-### Signal/End-to-End Encryption
-- Protects content only
-- Metadata fully exposed to servers
-- Communication patterns visible to observers
-
-## Nym's Approach
-
-The Nym Network addresses these limitations through:
-
-1. **Decentralization**: No single entity to trust or compromise
-2. **Packet mixing**: Reorders traffic to break timing correlation
-3. **Cover traffic**: Generates dummy packets indistinguishable from real ones
-4. **Uniform packets**: All packets are identical in size
-5. **Anonymous credentials**: Payment cannot be linked to usage
-
-The result is a network where observers—even those watching the entire network—cannot determine who is communicating with whom or when real communication is occurring.
+The result is a network where observers—even those watching everything—cannot determine who is communicating with whom or when real communication is occurring.

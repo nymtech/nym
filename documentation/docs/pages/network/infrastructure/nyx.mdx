@@ -2,120 +2,40 @@ import { Callout } from 'nextra/components'
 
 # Nyx Blockchain
 
-Nyx is a Cosmos SDK blockchain that provides coordination services for the Nym Network.
+Nyx is a Cosmos SDK blockchain that coordinates the Nym Network. It maintains the topology of active nodes, manages token economics, and hosts the smart contracts that power the credential system.
 
 <Callout type="info">
-To interact with the chain, see [Interacting with Nyx](../../developers/chain). To run a Validator, see the [Operator Documentation](../../operators/nodes/validator-setup).
+To interact with the chain, see [Interacting with Nyx](/developers/chain). To run a Validator, see the [Operator Documentation](/operators/nodes/validator-setup).
 </Callout>
 
-## Role in the Network
+## Role in the network
 
-The blockchain plays a supporting but fundamental role:
+The blockchain serves several functions. It maintains the **topology registry**—the list of active nodes and their public keys. This eliminates the need for a centralized directory server and prevents attacks that plague peer-to-peer directory systems.
 
-- **Topology registry**: Maintains the list of active nodes and their public keys
-- **Token management**: The NYM token is a native token of the chain
-- **Smart contracts**: Hosts contracts for mixnet coordination and credentials
-- **Reward distribution**: Calculates and distributes node operator rewards
+It manages **token economics**. The NYM token is a native token of the chain, used for staking, rewards, and credential payments. Validators secure the chain via proof-of-stake consensus.
+
+And it hosts **smart contracts** for mixnet coordination and the zk-nym credential system.
 
 ## Validators
 
-Nyx Validators secure the blockchain via Proof-of-Stake consensus. They:
-
-- Run the `nyxd` binary ([source code](https://github.com/nymtech/nyxd))
-- Maintain a CosmWasm and IBC-enabled blockchain
-- Process transactions and execute smart contracts
-
-The validator set also includes nodes running the Nym API for credential issuance.
+Nyx Validators run the `nyxd` binary to maintain the blockchain. They process transactions, execute smart contracts, and participate in consensus. A subset of validators also run Nym API instances for credential issuance.
 
 ## Nym API
 
 <Callout type="info">
-For setup instructions, see the [Nym API Operator Guide](../../operators/nodes/validator-setup/nym-api).
+For setup instructions, see the [Nym API Operator Guide](/operators/nodes/validator-setup/nym-api).
 </Callout>
 
-A subset of Nyx validators operate **Nym API** instances, forming the "Quorum". These perform:
+The Nym API is operated by a subset of validators forming the "Quorum." This group performs network monitoring—sending test packets through the mixnet and calculating reliability scores for nodes. More critically, it handles credential issuance, generating the partial blind signatures that form zk-nyms.
 
-### Network Monitoring
+The Quorum uses threshold cryptography. No single member can issue credentials alone. The system remains functional even if some members are offline. This distributes trust across multiple independent parties.
 
-- Send test packets through the mixnet
-- Calculate routing scores for nodes
-- Determine node reliability metrics
+## Smart contracts
 
-### Credential Issuance
+The Nyx chain is CosmWasm-enabled. The **Mixnet Contract** stores bonded node information, provides network topology for client routing, and tracks delegations and rewards. The **Vesting Contract** manages NYM token vesting schedules. The **zk-nym Contract** tracks deposits for credential generation and manages the blacklist for double-spend attempts.
 
-- Generate partial blind signatures for zk-nyms
-- Verify payment deposits
-- Maintain double-spend protection (Bloom filter)
+Contract addresses for different networks are in the [`network-defaults`](https://github.com/nymtech/nym/blob/master/common/network-defaults/src/mainnet.rs) directory of the codebase.
 
-The Quorum uses threshold cryptography: no single member can issue credentials alone, and the system remains functional even if some members are offline.
+## Querying the chain
 
-## Smart Contracts
-
-The Nyx chain is [CosmWasm](https://cosmwasm.com/)-enabled, hosting several key contracts:
-
-### Mixnet Contract
-
-The core contract for network coordination:
-
-- Stores bonded node information (and removes on unbonding)
-- Provides network topology for client routing
-- Tracks delegation and bond amounts
-- Manages reward calculations
-
-Having the topology on-chain prevents attacks that plague P2P directory systems.
-
-Code: [`contracts/mixnet`](https://github.com/nymtech/nym/tree/master/contracts/mixnet)
-
-### Vesting Contract
-
-Manages NYM token vesting:
-
-- Creates and tracks vesting accounts
-- Allows delegation of unvested tokens
-- Enables participation in staking before full vest
-
-Code: [`contracts/vesting`](https://github.com/nymtech/nym/tree/master/contracts/vesting)
-
-### zk-nym Contract
-
-<Callout type="info">
-In the codebase, this contract is named `ecash` for historical reasons.
-</Callout>
-
-Hub for credential-related actions:
-
-- Tracks NYM deposits for credential generation
-- Manages blacklist for double-spend attempts
-- Handles Gateway redemption of spent credentials
-
-Called by:
-- Payment backend (deposits)
-- Gateways (redemption proposals)
-- Quorum multisig (blacklist management)
-
-### Multisig Contract
-
-The Quorum uses a multisig contract (based on `cw3-flex-multisig`) to:
-
-- Execute zk-nym contract actions
-- Trigger reward payouts
-- Manage blacklist proposals
-
-## Contract Addresses
-
-Contract addresses for different networks are in the [`network-defaults`](https://github.com/nymtech/nym/blob/master/common/network-defaults/src/mainnet.rs) directory.
-
-## Interacting with Contracts
-
-The [Nym API](../../apis/nym-api) provides HTTP endpoints for querying:
-
-- Network topology
-- Node status and rewards
-- Credential-related information
-
-For direct contract interaction, see the [Developer Documentation](../../developers/chain).
-
-## References
-
-- [Nym Cryptoecon Paper](https://nym.com/nym-cryptoecon-paper.pdf): Sections 2.3-2.4 on validators and token flow
-- [Nym Whitepaper](https://nym.com/nym-whitepaper.pdf): Section 3.1 on blockchain integration
+The [Nym API](/apis/nym-api) provides HTTP endpoints for querying network topology, node status, rewards, and credential information. For direct contract interaction, see the [Developer Documentation](/developers/chain).

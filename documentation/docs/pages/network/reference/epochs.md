@@ -1,73 +1,21 @@
 # Epochs
 
-Time in the Nym Network is organized into **epochs**—discrete time periods during which certain network operations occur.
+Time in the Nym Network is organized into epochs—discrete periods during which certain network operations occur. The current epoch length is one hour.
 
-## Current Configuration
+## What happens at epoch boundaries
 
-| Parameter | Value |
-|-----------|-------|
-| Epoch length | 1 hour |
-| Configurable | Yes (network parameter) |
+**Reward distribution** calculates performance metrics for each node and distributes NYM token rewards based on routing reliability and uptime. Nodes that successfully forward packets earn more than those with poor performance.
 
-## Epoch Boundaries
+**Topology rerandomization** shuffles the arrangement of nodes in each layer. This prevents long-term route prediction attacks and limits the damage from any compromised nodes. Nodes may also enter or leave the active set based on uptime monitoring and stake changes.
 
-At each epoch boundary, the network performs:
+## Future changes
 
-### Reward Distribution
+In upcoming releases, epochs will trigger automatic role assignment. Nodes will switch between Mix Node and Gateway roles based on network demand, without operators needing to manually configure roles.
 
-- Calculate performance metrics for each node
-- Distribute NYM token rewards based on:
-  - Routing reliability (packets successfully forwarded)
-  - Uptime during the epoch
-  - Stake delegated to the node
+## SURB validity
 
-See the [Operator Tokenomics](../../operators/tokenomics/mixnet-rewards) documentation for reward calculation details.
+Currently, SURBs remain valid across epoch boundaries since node keys don't change. When key rotation is implemented, SURBs will expire at epoch boundaries, and applications will need to handle this gracefully.
 
-### Topology Rerandomization
+## Querying epoch information
 
-- The arrangement of nodes in each layer is shuffled
-- This prevents long-term route prediction attacks
-- Nodes may enter or leave the active set based on:
-  - Uptime monitoring results
-  - Stake changes
-  - Operator actions
-
-### Active Set Updates
-
-The "active set" is the subset of registered nodes that actively route traffic:
-
-- Nodes with insufficient uptime may be removed
-- Newly bonded nodes may be added
-- Set size is limited to maintain network efficiency
-
-## Future: Dynamic Role Assignment
-
-In upcoming releases, epochs will also trigger:
-
-- Automatic role changes (Mix Node ↔ Gateway)
-- Based on network demand and performance
-- Operators won't need to manually set roles
-
-## SURB Validity
-
-Currently, SURBs (Single Use Reply Blocks) are valid across epoch boundaries. However, future key rotation features will limit SURB validity to specific epochs:
-
-- SURBs will expire when the signing keys rotate
-- Applications should handle SURB expiration gracefully
-- Exact validity period TBD (will be tied to key epoch)
-
-## Monitoring Epochs
-
-The network monitoring system operates in sync with epochs:
-
-- Test packets are sent throughout each epoch
-- Results are aggregated at epoch boundaries
-- Node reliability scores are calculated per-epoch
-
-## Querying Epoch Information
-
-Current epoch information is available via:
-
-- Nyx blockchain queries
-- Nym API endpoints
-- Client SDK methods
+Current epoch data is available through Nyx blockchain queries and Nym API endpoints.

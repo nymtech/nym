@@ -1,140 +1,41 @@
 # Nym vs Other Systems
 
-How does the Nym Network compare to other privacy solutions?
-
-## Comparison Summary
-
-| Feature | VPNs | Tor | I2P | Nym |
-|---------|------|-----|-----|-----|
-| IP hiding | Yes | Yes | Yes | Yes |
-| Decentralized | No | Partial | Yes | Yes |
-| Timing obfuscation | No | No | No | Yes (mixnet) |
-| Cover traffic | No | No | No | Yes (mixnet) |
-| GPA resistance | No | No | No | Yes |
-| Incentivized | Some | No | No | Yes |
-| Anonymous payment | Rarely | N/A | N/A | Yes |
+How does the Nym Network compare to other privacy solutions? Each system makes different tradeoffs.
 
 ## Nym vs VPNs
 
-**Traditional VPNs** provide an encrypted tunnel between your device and a VPN server.
+Traditional VPNs provide an encrypted tunnel between your device and a VPN server. This hides your IP from destination websites and encrypts traffic from local observers like your ISP.
 
-### Limitations of VPNs
+The fundamental limitation is trust. The VPN provider can see all your traffic—every site you visit, when you visit it, how long you stay. They can log this information voluntarily or be compelled to by legal process. Your payment information directly links to your account and activity.
 
-- **Single point of trust**: The VPN provider can see all your traffic
-- **Logging risks**: Provider can be compelled to log or may log voluntarily
-- **Payment linkage**: Your subscription is linked to your activity
-- **No timing protection**: Traffic patterns are visible
-- **Centralized**: Single company controls the service
+Nym's dVPN mode improves on this by splitting trust across two independent operators. The Entry Gateway knows your IP but not your destination. The Exit Gateway knows your destination but not your IP. Neither can build a complete picture. Payment is handled through zk-nyms, making subscriptions unlinkable to activity.
 
-### Nym's Advantages
-
-- Decentralized operation—no single entity to trust
-- Payment unlinkable to usage via zk-nyms
-- Multiple hops prevent any single node from seeing full picture
-- Mixnet mode provides timing obfuscation
-- No central authority to compel logging
+For maximum privacy, Nym's mixnet mode goes further with timing obfuscation and cover traffic—protections no traditional VPN offers.
 
 ## Nym vs Tor
 
-**Tor** is an onion routing network using three-hop circuits.
+Tor is the best-known anonymous overlay network. It routes traffic through three relays using onion encryption, where each relay removes one encryption layer. This prevents any single relay from seeing both source and destination.
 
-### How Tor Works
+Tor's design predates the era of practical global passive adversaries. It provides no timing obfuscation—packets flow through without delays. It provides no cover traffic—observers can see when you're communicating and how much. End-to-end timing correlation attacks, once theoretical, are now feasible for well-resourced adversaries.
 
-- Traffic is encrypted in layers (like an onion)
-- Each relay removes one encryption layer
-- Three relays: Guard → Middle → Exit
-- Circuits are long-lived (minutes)
+Nym's mixnet addresses these gaps. Random delays at each mix node break timing correlations. Cover traffic hides when real communication occurs. Per-packet routing (rather than Tor's per-session circuits) prevents long-term route observation. Blockchain-based topology eliminates the centralized directory authority.
 
-### Tor's Limitations
-
-- **No timing obfuscation**: Packets are forwarded immediately
-- **No cover traffic**: Traffic patterns are observable
-- **Vulnerable to GPA**: End-to-end timing correlation is feasible
-- **Centralized directory**: Directory authorities are a trust point
-- **No economic incentives**: Relies on volunteers
-
-### Nym's Advantages
-
-- Continuous-time mixing with random delays
-- Cover traffic provides unobservability
-- Per-packet routing (no long-lived circuits)
-- Decentralized topology via blockchain
-- Economic incentives ensure network health
-
-### When Tor May Be Preferred
-
-- Accessing the entire web (Nym mixnet is message-based)
-- Lower latency requirements
-- Established ecosystem and tooling
+Tor may be preferred when you need to access the entire web with lower latency, since Nym's mixnet adds delay. But for message-based communications and scenarios with sophisticated adversaries, the mixnet provides stronger guarantees.
 
 ## Nym vs I2P
 
-**I2P** (Invisible Internet Project) is a peer-to-peer anonymous network.
+I2P replaces Tor's directory authority with a distributed hash table. While this improves decentralization, DHT-based routing has known attack vectors. Like Tor, I2P provides no timing protection—packets flow without delays or cover traffic.
 
-### How I2P Works
+Nym's blockchain-based topology is more robust than DHT approaches and provides similar decentralization benefits. The addition of mixing and cover traffic provides protections I2P cannot offer.
 
-- Uses "garlic routing" (bundling messages)
-- Distributed hash table for routing
-- Primarily for accessing I2P internal services
-- All participants are also routers
+## Nym vs end-to-end encryption
 
-### I2P's Limitations
+End-to-end encryption systems like Signal provide excellent content protection. Messages are encrypted on your device and can only be decrypted by the recipient. The server cannot read message contents.
 
-- **DHT vulnerabilities**: Distributed hash tables have known attack vectors
-- **Security by obscurity**: Assumes adversaries can't observe full network
-- **No timing protection**: Like Tor, packets flow without delays
-- **Complex setup**: Not user-friendly
+But E2EE does nothing for metadata. The server sees who you communicate with, when, how often, and how much. This metadata alone can reveal sensitive information about relationships and activities.
 
-### Nym's Advantages
+Nym and E2EE are complementary. Use E2EE to protect message content. Use Nym to protect metadata. Together they provide comprehensive privacy—neither alone is sufficient.
 
-- Blockchain-based topology eliminates DHT attacks
-- Designed to resist global passive adversaries
-- Cover traffic and mixing provide stronger guarantees
-- Simpler user experience via NymVPN
+## Summary
 
-## Nym vs Signal/E2EE
-
-**End-to-end encryption** (E2EE) like Signal protects message content.
-
-### What E2EE Protects
-
-- Message contents are encrypted client-to-client
-- Server cannot read messages
-- Strong cryptographic guarantees
-
-### What E2EE Doesn't Protect
-
-- **Who** is communicating
-- **When** communication occurs
-- **How often** parties communicate
-- **Message sizes** and patterns
-
-### Nym's Complement
-
-Nym operates at the network layer, protecting metadata that E2EE cannot. They are complementary:
-
-- Use E2EE for content protection
-- Use Nym for metadata protection
-- Together, they provide comprehensive privacy
-
-## Summary: When to Use Nym
-
-**Use Nym (dVPN mode) when:**
-- You want decentralized VPN without trusting a single provider
-- Speed matters but you want better privacy than traditional VPNs
-- Anonymous payment is important
-
-**Use Nym (mixnet mode) when:**
-- You face sophisticated adversaries
-- Metadata protection is critical
-- You're willing to accept higher latency for maximum privacy
-
-**Consider Tor when:**
-- You need to access the full web with lower latency
-- Mixnet latency is unacceptable
-- You're using Tor-specific services (.onion)
-
-**Use alongside E2EE:**
-- Nym protects the network layer
-- E2EE protects message contents
-- Both together provide defense in depth
+Use Nym dVPN mode when you want decentralized VPN without trusting a single provider, speed matters, and your adversaries are typical. Use Nym mixnet mode when metadata protection is critical and latency is acceptable. Consider Tor for general web browsing with lower latency when mixnet delays are unacceptable. Always combine network-layer protection with end-to-end encryption for defense in depth.

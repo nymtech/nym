@@ -1,80 +1,21 @@
-# Acknowledgements & Retransmission
+# Acknowledgements
 
-The Nym Network uses acknowledgements (acks) to ensure reliable packet delivery.
+The Nym Network uses acknowledgements to ensure reliable packet delivery. When a node receives a packet, it sends an ack back to the sender. If no ack arrives within a timeout, the packet is retransmitted.
 
-## Overview
+## How it works
 
-When a packet is successfully received at each hop, the receiving node sends an acknowledgement back to the sender. If no ack is received within a timeout period, the packet is retransmitted.
+The sender transmits a packet and waits for acknowledgement. The receiver processes the packet and sends an ack. If the sender receives the ack, the packet is marked as delivered. If not, the sender retransmits.
 
-## How It Works
+This happens automatically at each hop. If a client sends 100 packets to a Gateway and only receives 95 acks, it retransmits the 5 missing packets. The same mechanism operates between all nodes in the route.
 
-```mermaid
----
-config:
-  theme: neo-dark
-  layout: elk
----
-sequenceDiagram
-    Nym Client->>Gateway: N Sphinx Packets
-    Gateway-->>Nym Client: N Acks
-    Gateway->>Mix Node 1: Packets 1..95
-    Mix Node 1-->>Gateway: Acks 1..95
-    Gateway-xMix Node 1: Packets 96..100 Dropped - No Acks
-    Gateway->>Mix Node 1: Retransmit Dropped Packets after timeout
-    Mix Node 1-->>Gateway: Acks 96..100
-    Mix Node 1->>Mix Node 2: etc
-```
+## Why it matters
 
-## Mechanism
-
-1. **Sender transmits packet** to the next hop
-2. **Receiver processes packet** and sends ack
-3. **Sender waits** for ack within timeout period
-4. **If ack received**: Mark packet as delivered
-5. **If no ack**: Retransmit the packet
-
-## Automatic Handling
-
-This mechanism is handled entirely by the Nym binaries:
-
-- Developers don't need to implement acks
-- Node operators don't need to configure retransmission
-- The system handles packet loss transparently
-
-## Example
-
-If a client sends 100 packets to a Gateway:
-- Gateway acknowledges 95 packets
-- 5 packets had no acknowledgement
-- Client automatically retransmits those 5 packets
-- Gateway acknowledges the retransmitted packets
-
-## Benefits
-
-### Reliability
-
-- Ensures all packets eventually arrive
-- Handles network congestion and temporary failures
-- No manual intervention required
-
-### Transparency
-
-- Application layer sees reliable delivery
-- Underlying packet loss is hidden
-- Consistent behavior across the network
-
-## Performance Considerations
-
-- Acks add some overhead to network traffic
-- Timeout periods are tuned for typical network conditions
-- Retransmission adds latency only for dropped packets
+Network conditions can cause packet loss—congestion, temporary failures, connectivity issues. Without acks and retransmission, lost packets would mean lost messages. The acknowledgement system ensures reliable delivery despite imperfect network conditions.
 
 ## Scope
 
-Acknowledgements operate hop-by-hop:
-- Client ↔ Entry Gateway
-- Entry Gateway ↔ Mix Nodes
-- Mix Nodes ↔ Mix Nodes
-- Mix Nodes ↔ Exit Gateway
+Acknowledgements operate hop-by-hop between adjacent nodes. They confirm that packets reached the next hop, not that they reached the final destination. End-to-end delivery confirmation for anonymous communication is handled separately through [SURBs](/network/mixnet-mode/anonymous-replies).
 
-End-to-end delivery confirmation (application level) is separate and handled via [SURBs](../mixnet-mode/anonymous-replies) for anonymous communication.
+## Implementation
+
+This is handled entirely by the Nym binaries. Developers and operators don't need to implement or configure acknowledgements—the system handles packet loss transparently.

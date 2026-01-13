@@ -1,9 +1,9 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use nym_wasm_storage::error::StorageError;
+use nym_wasm_utils::wasm_error;
 use thiserror::Error;
-use wasm_storage::error::StorageError;
-use wasm_utils::wasm_error;
 
 #[derive(Debug, Error)]
 pub enum ExtensionStorageError {

@@ -10,12 +10,12 @@ use crate::types::WasmTestMessageExt;
 use js_sys::Promise;
 use nym_node_tester_utils::processor::Received;
 use nym_node_tester_utils::receiver::ReceivedReceiver;
+use nym_wasm_utils::console_warn;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tokio::sync::{Mutex as AsyncMutex, MutexGuard as AsyncMutexGuard};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::future_to_promise;
-use wasm_utils::console_warn;
 
 #[derive(Clone)]
 pub(super) struct ReceivedReceiverWrapper(Arc<AsyncMutex<ReceivedReceiver<WasmTestMessageExt>>>);

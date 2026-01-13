@@ -85,7 +85,7 @@ pub enum WasmCoreError {
     #[error(transparent)]
     BaseStorageError {
         #[from]
-        source: wasm_storage::error::StorageError,
+        source: nym_wasm_storage::error::StorageError,
     },
 
     #[error(transparent)]

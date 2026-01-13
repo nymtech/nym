@@ -6,13 +6,13 @@ use futures::channel::mpsc;
 use futures::StreamExt;
 use nym_service_providers_common::interface::ResponseContent;
 use nym_socks5_requests::{Socks5ProviderResponse, Socks5ResponseContent};
-use wasm_bindgen_futures::spawn_local;
-use wasm_client_core::client::base_client::ClientOutput;
-use wasm_client_core::client::received_buffer::{
+use nym_wasm_client_core::client::base_client::ClientOutput;
+use nym_wasm_client_core::client::received_buffer::{
     ReceivedBufferMessage, ReceivedBufferRequestSender, ReconstructedMessagesReceiver,
 };
-use wasm_client_core::ReconstructedMessage;
-use wasm_utils::console_error;
+use nym_wasm_client_core::ReconstructedMessage;
+use nym_wasm_utils::console_error;
+use wasm_bindgen_futures::spawn_local;
 
 pub(crate) struct RequestWriter {
     reconstructed_receiver: ReconstructedMessagesReceiver,

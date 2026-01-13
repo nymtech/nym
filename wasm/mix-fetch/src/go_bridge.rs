@@ -4,9 +4,9 @@
 use crate::error::MixFetchError;
 use crate::mix_fetch_client;
 use js_sys::Promise;
+use nym_wasm_utils::error::{simple_rejected_promise, PromisableResult};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::future_to_promise;
-use wasm_utils::error::{simple_rejected_promise, PromisableResult};
 
 /// Called by go runtime whenever local connection produces any data that has to be sent to the remote.
 //

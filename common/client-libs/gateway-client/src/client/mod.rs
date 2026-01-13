@@ -41,10 +41,10 @@ use std::os::fd::RawFd;
 #[cfg(not(target_arch = "wasm32"))]
 use tokio::time::sleep;
 
+#[cfg(target_arch = "wasm32")]
+use nym_wasm_utils::websocket::JSWebsocket;
 #[cfg(not(unix))]
 use std::os::raw::c_int as RawFd;
-#[cfg(target_arch = "wasm32")]
-use wasm_utils::websocket::JSWebsocket;
 #[cfg(target_arch = "wasm32")]
 use wasmtimer::tokio::sleep;
 

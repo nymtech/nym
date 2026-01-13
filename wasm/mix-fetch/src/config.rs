@@ -10,13 +10,15 @@
 #![allow(clippy::empty_docs)]
 
 use crate::error::MixFetchError;
+use nym_wasm_client_core::config::{
+    new_base_client_config, BaseClientConfig, ConfigDebug, DebugWasm,
+};
+use nym_wasm_client_core::helpers::parse_recipient;
+use nym_wasm_client_core::Recipient;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use tsify::Tsify;
 use wasm_bindgen::prelude::*;
-use wasm_client_core::config::{new_base_client_config, BaseClientConfig, ConfigDebug, DebugWasm};
-use wasm_client_core::helpers::parse_recipient;
-use wasm_client_core::Recipient;
 
 const DEFAULT_MIX_FETCH_TIMEOUT: Duration = Duration::from_secs(5);
 const DEFAULT_MIX_FETCH_ID: &str = "_default-nym-mix-fetch";

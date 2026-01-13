@@ -1,130 +1,35 @@
 # Network Components
 
-The Nym Network is a decentralized infrastructure consisting of several types of components working together to provide privacy.
-
-## Architecture Overview
-
-```
-                                    ┌─────────────────────────────────────────┐
-                                    │           Nyx Blockchain                │
-                                    │  (Topology, Staking, Credentials)       │
-                                    └─────────────────────────────────────────┘
-                                                       │
-                                                       ▼
-┌──────────┐      ┌───────────────────────────────────────────────────────────────────┐      ┌──────────┐
-│          │      │                        Nym Network                                │      │          │
-│   User   │─────▶│  Entry GW ───▶ Mix L1 ───▶ Mix L2 ───▶ Mix L3 ───▶ Exit GW       │─────▶│ Internet │
-│          │      │                                                                   │      │          │
-└──────────┘      └───────────────────────────────────────────────────────────────────┘      └──────────┘
-                                                       │
-                                                       ▼
-                                    ┌─────────────────────────────────────────┐
-                                    │              Nym API                    │
-                                    │   (Monitoring, Credential Issuance)    │
-                                    └─────────────────────────────────────────┘
-```
+The Nym Network is built from several types of infrastructure working together. No single component has enough information to break privacy.
 
 ## Nym Nodes
 
-All traffic-routing infrastructure runs on **Nym Nodes**—a unified binary that can operate in different modes. This simplifies operation and enables future dynamic role assignment.
+All traffic-routing infrastructure runs on **Nym Nodes**—a unified binary that operates in different modes. This simplifies deployment and enables future dynamic role assignment based on network conditions.
 
-### Entry Gateways
+**Entry Gateways** are the user's first point of contact. They accept client connections via WebSocket, verify zk-nym credentials to confirm payment, and store messages for clients that go offline (up to 24 hours). Entry Gateways know the client's IP address but cannot see message contents or final destinations.
 
-Entry Gateways are the user's first point of contact with the network.
+**Mix Nodes** form the three mixing layers that provide core privacy. They receive Sphinx packets, remove one encryption layer, verify integrity, apply a random delay, and forward to the next hop. Mix Nodes cannot determine their position in the route and cannot link incoming packets to outgoing packets.
 
-**Responsibilities:**
-- Accept client connections via WebSocket
-- Verify zk-nym credentials (proof of payment)
-- Store messages for offline clients (up to 24 hours)
-- Forward traffic into the mix node layers
-
-**Properties:**
-- Knows the client's IP address
-- Cannot see message contents or final destination
-- Cannot link client identity to payment (due to zk-nyms)
-
-### Mix Nodes
-
-Mix Nodes form the core privacy layer of the network, arranged in three layers.
-
-**Responsibilities:**
-- Receive Sphinx packets from the previous hop
-- Remove one layer of encryption
-- Apply a random delay (exponential distribution)
-- Forward to the next hop
-
-**Properties:**
-- Cannot see packet contents
-- Cannot determine position in route
-- Cannot link incoming packets to outgoing packets (due to mixing)
-
-### Exit Gateways
-
-Exit Gateways are the final hop before traffic reaches external services.
-
-**Responsibilities:**
-- Receive traffic from Mix Layer 3
-- Communicate with external internet services
-- Return responses through the network
-- For mixnet mode: store messages for receiving clients
-
-**Properties:**
-- Can see destination addresses (like a Tor exit node)
-- Cannot see the original sender
-- Cannot link requests to specific users
+**Exit Gateways** handle traffic leaving the mixnet. They communicate with external internet services on behalf of users and return responses through the network. Like Tor exit nodes, they can see destination addresses but cannot identify the original sender.
 
 ## Nyx Blockchain
 
-Nyx is a Cosmos SDK blockchain that provides coordination services for the network.
+Nyx is a Cosmos SDK blockchain that provides coordination services. It maintains the topology registry—the list of active nodes and their public keys—eliminating the need for a centralized directory server. It manages NYM token staking and distributes rewards to node operators. And it hosts the smart contracts that coordinate the credential system.
 
-**Functions:**
-- **Topology registry**: Maintains the list of active nodes and their public keys
-- **Staking**: Manages NYM token bonding for node operators
-- **Rewards**: Distributes rewards based on node performance
-- **Credential contracts**: Manages zk-nym deposit and redemption
-
-**Key Contracts:**
-- Mixnet Contract: Node registration and topology
-- Vesting Contract: Token vesting schedules
-- zk-nym Contract: Credential payment tracking
+The blockchain is secured by validators using proof-of-stake consensus. Having the topology on-chain prevents the attacks that plague peer-to-peer directory systems.
 
 ## Nym API
 
-The Nym API is operated by a subset of Nyx validators (the "Quorum").
+A subset of Nyx validators operate **Nym API** instances, forming the "Quorum." This group performs network monitoring by sending test packets through the mixnet and calculating reliability scores for nodes. More critically, the Quorum handles credential issuance—generating the partial blind signatures that form zk-nyms.
 
-**Functions:**
-- **Network monitoring**: Measures node reliability and performance
-- **Credential issuance**: Generates partial signatures for zk-nyms
-- **Double-spend protection**: Maintains global bloom filter of spent credentials
-- **Reward calculation**: Determines node operator payouts
+The Quorum uses threshold cryptography. No single member can issue credentials alone, and the system remains functional even if some members are offline. This distributes trust across multiple independent parties.
 
-## Decentralization Properties
+## Decentralization properties
 
-| Component | Trust Requirement |
-|-----------|-------------------|
-| Entry Gateway | Knows your IP, not your activity |
-| Mix Nodes | No single node can deanonymize |
-| Exit Gateway | Sees destination, not source |
-| Nyx Blockchain | Decentralized via validator set |
-| Nym API Quorum | Threshold signature (no single authority) |
+The architecture ensures no single point of compromise. Entry Gateways know your IP but not your activity. Mix Nodes process your packets but can't trace them. Exit Gateways see destinations but not sources. The blockchain is decentralized via its validator set. The Nym API Quorum requires threshold agreement.
 
-**Key insight**: No single component has enough information to break privacy. Even if some nodes are malicious, the network remains secure as long as at least one honest node exists on each route.
+Even if some nodes are malicious, privacy holds as long as at least one honest node exists on each route. Route selection is random and independent per-packet, making it infeasible to predict or manipulate paths.
 
-## Node Selection
+## Scale
 
-For mixnet mode, routes are selected randomly and independently for each packet:
-- One Entry Gateway (typically client's registered gateway)
-- One node from each of the three Mix Node layers
-- One Exit Gateway
-
-This means successive packets from the same user take different paths, preventing traffic analysis based on route observation.
-
-## Network Scale
-
-As of the current deployment:
-- 600+ active nodes
-- ~60 countries
-- Independent operators worldwide
-- Decentralized operation with no central authority
-
-For information on running a node, see the [Operator Documentation](../../operators).
+The current deployment includes over 600 active nodes across approximately 60 countries, operated by independent parties worldwide. For information on running infrastructure, see the [Operator Documentation](/operators).

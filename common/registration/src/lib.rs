@@ -1,12 +1,6 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-mod lp_messages;
-
-pub use lp_messages::{
-    LpGatewayData, LpRegistrationRequest, LpRegistrationResponse, RegistrationMode,
-};
-
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 
 use nym_authenticator_requests::AuthenticatorVersion;
@@ -14,6 +8,14 @@ use nym_crypto::asymmetric::x25519::{PublicKey, serde_helpers::bs58_x25519_pubke
 use nym_ip_packet_requests::IpPair;
 use nym_sphinx::addressing::{NodeIdentity, Recipient};
 use serde::{Deserialize, Serialize};
+
+mod lp_messages;
+mod serialisation;
+
+pub use lp_messages::{
+    LpGatewayData, LpRegistrationRequest, LpRegistrationResponse, RegistrationMode,
+};
+pub use serialisation::BincodeError;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct NymNode {

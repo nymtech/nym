@@ -2,13 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::LpError;
-use crate::message::{
-    ClientHelloData, EncryptedDataPayload, ForwardPacketData, HandshakeData, KKTRequestData,
-    KKTResponseData, LpMessage, MessageType, SubsessionKK1Data, SubsessionKK2Data,
-    SubsessionReadyData,
-};
+use crate::message::{LpMessage, MessageType};
 use crate::packet::{LpHeader, LpPacket, OuterHeader, TRAILER_LEN};
-use crate::serialisation::{BincodeOptions, lp_bincode_serializer};
 use bytes::{BufMut, BytesMut};
 use chacha20poly1305::{
     ChaCha20Poly1305, Key, Nonce, Tag,
@@ -96,87 +91,7 @@ fn parse_message_from_type_and_content(
     let message_type = MessageType::from_u32(msg_type_raw)
         .ok_or_else(|| LpError::invalid_message_type(msg_type_raw))?;
 
-    match message_type {
-        MessageType::Busy => {
-            if !content.is_empty() {
-                return Err(LpError::InvalidPayloadSize {
-                    expected: 0,
-                    actual: content.len(),
-                });
-            }
-            Ok(LpMessage::Busy)
-        }
-        MessageType::Handshake => Ok(LpMessage::Handshake(HandshakeData(content.to_vec()))),
-        MessageType::EncryptedData => Ok(LpMessage::EncryptedData(EncryptedDataPayload(
-            content.to_vec(),
-        ))),
-        MessageType::ClientHello => {
-            let data = ClientHelloData::decode(content)?;
-            Ok(LpMessage::ClientHello(data))
-        }
-        MessageType::KKTRequest => Ok(LpMessage::KKTRequest(KKTRequestData(content.to_vec()))),
-        MessageType::KKTResponse => Ok(LpMessage::KKTResponse(KKTResponseData(content.to_vec()))),
-        MessageType::ForwardPacket => {
-            let data: ForwardPacketData = lp_bincode_serializer()
-                .deserialize(content)
-                .map_err(|e| LpError::DeserializationError(e.to_string()))?;
-            Ok(LpMessage::ForwardPacket(data))
-        }
-        MessageType::Collision => {
-            if !content.is_empty() {
-                return Err(LpError::InvalidPayloadSize {
-                    expected: 0,
-                    actual: content.len(),
-                });
-            }
-            Ok(LpMessage::Collision)
-        }
-        MessageType::Ack => {
-            if !content.is_empty() {
-                return Err(LpError::InvalidPayloadSize {
-                    expected: 0,
-                    actual: content.len(),
-                });
-            }
-            Ok(LpMessage::Ack)
-        }
-        MessageType::SubsessionRequest => {
-            if !content.is_empty() {
-                return Err(LpError::InvalidPayloadSize {
-                    expected: 0,
-                    actual: content.len(),
-                });
-            }
-            Ok(LpMessage::SubsessionRequest)
-        }
-        MessageType::SubsessionKK1 => {
-            let data: SubsessionKK1Data = lp_bincode_serializer()
-                .deserialize(content)
-                .map_err(|e| LpError::DeserializationError(e.to_string()))?;
-            Ok(LpMessage::SubsessionKK1(data))
-        }
-        MessageType::SubsessionKK2 => {
-            let data: SubsessionKK2Data = lp_bincode_serializer()
-                .deserialize(content)
-                .map_err(|e| LpError::DeserializationError(e.to_string()))?;
-            Ok(LpMessage::SubsessionKK2(data))
-        }
-        MessageType::SubsessionReady => {
-            let data: SubsessionReadyData = lp_bincode_serializer()
-                .deserialize(content)
-                .map_err(|e| LpError::DeserializationError(e.to_string()))?;
-            Ok(LpMessage::SubsessionReady(data))
-        }
-        MessageType::SubsessionAbort => {
-            // Empty signal message - no content to deserialize
-            if !content.is_empty() {
-                return Err(LpError::DeserializationError(
-                    "SubsessionAbort should have no payload".to_string(),
-                ));
-            }
-            Ok(LpMessage::SubsessionAbort)
-        }
-    }
+    LpMessage::decode_content(content, message_type)
 }
 
 /// Parse only the outer header from raw packet bytes.

@@ -14,6 +14,7 @@ pub mod replay;
 pub mod session;
 mod session_integration;
 pub mod session_manager;
+pub mod state_machine;
 
 pub use config::LpConfig;
 pub use error::LpError;
@@ -22,11 +23,6 @@ pub use packet::{BOOTSTRAP_RECEIVER_IDX, LpPacket, OuterHeader};
 pub use replay::{ReceivingKeyCounterValidator, ReplayError};
 pub use session::{LpSession, generate_fresh_salt};
 pub use session_manager::SessionManager;
-
-// Add the new state machine module
-pub mod serialisation;
-pub mod state_machine;
-
 pub use state_machine::LpStateMachine;
 
 pub const NOISE_PATTERN: &str = "Noise_XKpsk3_25519_ChaChaPoly_SHA256";

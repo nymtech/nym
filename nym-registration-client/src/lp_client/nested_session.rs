@@ -25,7 +25,6 @@ use nym_bandwidth_controller::BandwidthTicketProvider;
 use nym_credentials_interface::TicketType;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_lp::codec::{OuterAeadKey, parse_lp_packet, serialize_lp_packet};
-use nym_lp::serialisation::{BincodeOptions, lp_bincode_serializer};
 use nym_lp::state_machine::{LpAction, LpInput, LpStateMachine};
 use nym_lp::{LpMessage, LpPacket};
 use nym_lp_transport::traits::LpTransport;
@@ -329,7 +328,7 @@ impl NestedLpSession {
         tracing::trace!("Built registration request: {:?}", request);
 
         // Step 4: Serialize the request
-        let request_bytes = lp_bincode_serializer().serialize(&request).map_err(|e| {
+        let request_bytes = request.serialise().map_err(|e| {
             LpClientError::Transport(format!("Failed to serialize registration request: {}", e))
         })?;
 
@@ -397,14 +396,12 @@ impl NestedLpSession {
         };
 
         // Step 10: Deserialize the response
-        let response: LpRegistrationResponse = lp_bincode_serializer()
-            .deserialize(&response_data)
-            .map_err(|e| {
-                LpClientError::Transport(format!(
-                    "Failed to deserialize registration response: {}",
-                    e
-                ))
-            })?;
+        let response = LpRegistrationResponse::try_deserialise(&response_data).map_err(|e| {
+            LpClientError::Transport(format!(
+                "Failed to deserialize registration response: {}",
+                e
+            ))
+        })?;
 
         tracing::debug!(
             "Received registration response from exit: success={}",
@@ -505,7 +502,7 @@ impl NestedLpSession {
         tracing::trace!("Built registration request: {:?}", request);
 
         // Step 5: Serialize the request
-        let request_bytes = lp_bincode_serializer().serialize(&request).map_err(|e| {
+        let request_bytes = request.serialise().map_err(|e| {
             LpClientError::Transport(format!("Failed to serialize registration request: {}", e))
         })?;
 
@@ -573,14 +570,12 @@ impl NestedLpSession {
         };
 
         // Step 11: Deserialize the response
-        let response: LpRegistrationResponse = lp_bincode_serializer()
-            .deserialize(&response_data)
-            .map_err(|e| {
-                LpClientError::Transport(format!(
-                    "Failed to deserialize registration response: {}",
-                    e
-                ))
-            })?;
+        let response = LpRegistrationResponse::try_deserialise(&response_data).map_err(|e| {
+            LpClientError::Transport(format!(
+                "Failed to deserialize registration response: {}",
+                e
+            ))
+        })?;
 
         tracing::debug!(
             "Received registration response from exit: success={}",

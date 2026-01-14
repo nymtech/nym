@@ -6686,7 +6686,6 @@ name = "nym-lp"
 version = "0.1.0"
 dependencies = [
  "ansi_term",
- "bincode",
  "bs58",
  "bytes",
  "chacha20poly1305",

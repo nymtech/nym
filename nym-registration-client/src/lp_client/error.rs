@@ -4,7 +4,7 @@
 //! Error types for LP (Lewes Protocol) client operations.
 
 use nym_lp::LpError;
-use nym_lp::serialisation::BincodeError;
+use nym_registration_common::BincodeError;
 use std::io;
 use thiserror::Error;
 

@@ -1324,6 +1324,7 @@ pub async fn try_upgrade_config_v10<P: AsRef<Path>>(
             announced_metadata_port: WG_METADATA_PORT,
             private_network_prefix_v4: old_cfg.wireguard.private_network_prefix_v4,
             private_network_prefix_v6: old_cfg.wireguard.private_network_prefix_v6,
+            use_userspace: false,
             storage_paths: WireguardPaths {
                 private_diffie_hellman_key_file: old_cfg
                     .wireguard
@@ -1353,6 +1354,7 @@ pub async fn try_upgrade_config_v10<P: AsRef<Path>>(
                     )
                 })
                 .unwrap_or(UpgradeModeWatcher::new_mainnet()),
+            lp: Default::default(),
             debug: gateway_tasks::Debug {
                 message_retrieval_limit: old_cfg.gateway_tasks.debug.message_retrieval_limit,
                 maximum_open_connections: old_cfg.gateway_tasks.debug.maximum_open_connections,

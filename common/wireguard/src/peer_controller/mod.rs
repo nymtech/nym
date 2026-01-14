@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{
+    IpPool,
     error::{Error, Result},
     peer_handle::SharedBandwidthStorageManager,
 };
@@ -21,20 +22,68 @@ use nym_credentials_interface::CredentialSpendingData;
 use nym_gateway_requests::models::CredentialSpendingRequest;
 use nym_gateway_storage::traits::BandwidthGatewayStorage;
 use nym_node_metrics::NymNodeMetrics;
-use nym_wireguard_types::DEFAULT_PEER_TIMEOUT_CHECK;
+use nym_wireguard_types::{
+    DEFAULT_IP_CLEANUP_INTERVAL, DEFAULT_IP_STALE_AGE, DEFAULT_PEER_TIMEOUT_CHECK,
+};
 use std::{collections::HashMap, sync::Arc};
 use std::{
-    net::IpAddr,
+    net::{IpAddr, SocketAddr},
     time::{Duration, SystemTime},
 };
 use tokio::sync::{RwLock, mpsc};
 use tokio_stream::{StreamExt, wrappers::IntervalStream};
 use tracing::{debug, error, info, trace};
 
+pub use nym_ip_packet_requests::IpPair;
+
+#[cfg(feature = "mock")]
+pub mod mock;
+
+/// Registration data for a new peer (without pre-allocated IPs)
+#[derive(Debug, Clone)]
+pub struct PeerRegistrationData {
+    pub public_key: Key,
+    pub preshared_key: Option<Key>,
+    pub endpoint: Option<SocketAddr>,
+    pub persistent_keepalive_interval: Option<u16>,
+}
+
+impl PeerRegistrationData {
+    pub fn new(public_key: Key) -> Self {
+        Self {
+            public_key,
+            preshared_key: None,
+            endpoint: None,
+            persistent_keepalive_interval: None,
+        }
+    }
+
+    pub fn with_preshared_key(mut self, key: Key) -> Self {
+        self.preshared_key = Some(key);
+        self
+    }
+
+    pub fn with_endpoint(mut self, endpoint: SocketAddr) -> Self {
+        self.endpoint = Some(endpoint);
+        self
+    }
+
+    pub fn with_keepalive(mut self, interval: u16) -> Self {
+        self.persistent_keepalive_interval = Some(interval);
+        self
+    }
+}
+
 pub enum PeerControlRequest {
+    /// Add a peer with pre-allocated IPs (for backwards compatibility)
     AddPeer {
         peer: Peer,
         response_tx: oneshot::Sender<AddPeerControlResponse>,
+    },
+    /// Register a new peer and allocate IPs from the pool
+    RegisterPeer {
+        registration_data: PeerRegistrationData,
+        response_tx: oneshot::Sender<RegisterPeerControlResponse>,
     },
     RemovePeer {
         key: Key,
@@ -65,6 +114,7 @@ pub enum PeerControlRequest {
 }
 
 pub type AddPeerControlResponse = Result<()>;
+pub type RegisterPeerControlResponse = Result<IpPair>;
 pub type RemovePeerControlResponse = Result<()>;
 pub type QueryPeerControlResponse = Result<Option<Peer>>;
 pub type GetClientBandwidthControlResponse = Result<ClientBandwidth>;
@@ -77,6 +127,9 @@ pub struct PeerController {
     // so the overhead is minimal
     metrics: NymNodeMetrics,
 
+    // IP address pool for peer allocation
+    ip_pool: IpPool,
+
     // used to receive commands from individual handles too
     request_tx: mpsc::Sender<PeerControlRequest>,
     request_rx: mpsc::Receiver<PeerControlRequest>,
@@ -84,6 +137,7 @@ pub struct PeerController {
     host_information: Arc<RwLock<Host>>,
     bw_storage_managers: HashMap<Key, SharedBandwidthStorageManager>,
     timeout_check_interval: IntervalStream,
+    ip_cleanup_interval: IntervalStream,
 
     /// Flag indicating whether the system is undergoing an upgrade and thus peers shouldn't be getting
     /// their bandwidth metered.
@@ -96,6 +150,7 @@ impl PeerController {
     pub(crate) fn new(
         ecash_verifier: Arc<dyn EcashManager + Send + Sync>,
         metrics: NymNodeMetrics,
+        ip_pool: IpPool,
         wg_api: Arc<dyn WireguardInterfaceApi + Send + Sync>,
         initial_host_information: Host,
         bw_storage_managers: HashMap<Key, (SharedBandwidthStorageManager, Peer)>,
@@ -106,6 +161,8 @@ impl PeerController {
     ) -> Self {
         let timeout_check_interval =
             IntervalStream::new(tokio::time::interval(DEFAULT_PEER_TIMEOUT_CHECK));
+        let ip_cleanup_interval =
+            IntervalStream::new(tokio::time::interval(DEFAULT_IP_CLEANUP_INTERVAL));
         let host_information = Arc::new(RwLock::new(initial_host_information));
         for (public_key, (bandwidth_storage_manager, peer)) in bw_storage_managers.iter() {
             let cached_peer_manager = CachedPeerManager::new(peer);
@@ -131,20 +188,24 @@ impl PeerController {
 
         PeerController {
             ecash_verifier,
+            metrics,
+            ip_pool,
             wg_api,
             host_information,
             bw_storage_managers,
             request_tx,
             request_rx,
             timeout_check_interval,
+            ip_cleanup_interval,
             upgrade_mode,
             shutdown_token,
-            metrics,
         }
     }
 
     // Function that should be used for peer removal, to handle both storage and kernel interaction
     pub async fn remove_peer(&mut self, key: &Key) -> Result<()> {
+        nym_metrics::inc!("wg_peer_removal_attempts");
+
         self.ecash_verifier
             .storage()
             .remove_wireguard_peer(&key.to_string())
@@ -152,9 +213,12 @@ impl PeerController {
         self.bw_storage_managers.remove(key);
         let ret = self.wg_api.remove_peer(key);
         if ret.is_err() {
+            nym_metrics::inc!("wg_peer_removal_failed");
             error!(
                 "Wireguard peer could not be removed from wireguard kernel module. Process should be restarted so that the interface is reset."
             );
+        } else {
+            nym_metrics::inc!("wg_peer_removal_success");
         }
         Ok(ret?)
     }
@@ -184,7 +248,15 @@ impl PeerController {
     }
 
     async fn handle_add_request(&mut self, peer: &Peer) -> Result<()> {
-        self.wg_api.configure_peer(peer)?;
+        nym_metrics::inc!("wg_peer_addition_attempts");
+
+        // Try to configure WireGuard peer
+        if let Err(e) = self.wg_api.configure_peer(peer) {
+            nym_metrics::inc!("wg_peer_addition_failed");
+            nym_metrics::inc!("wg_config_errors_total");
+            return Err(e.into());
+        }
+
         let bandwidth_storage_manager = SharedBandwidthStorageManager::new(
             Arc::new(RwLock::new(
                 Self::generate_bandwidth_manager(self.ecash_verifier.storage(), &peer.public_key)
@@ -213,7 +285,32 @@ impl PeerController {
             handle.run().await;
             debug!("Peer handle shut down for {public_key}");
         });
+
+        nym_metrics::inc!("wg_peer_addition_success");
         Ok(())
+    }
+
+    /// Allocate IP pair from pool for a new peer registration
+    ///
+    /// This only allocates IPs - the caller must handle database storage and
+    /// then call AddPeer with a complete Peer struct.
+    async fn handle_register_request(
+        &mut self,
+        _registration_data: PeerRegistrationData,
+    ) -> Result<IpPair> {
+        nym_metrics::inc!("wg_ip_allocation_attempts");
+
+        // Allocate IP pair from pool
+        let ip_pair = self
+            .ip_pool
+            .allocate()
+            .await
+            .map_err(|e| Error::IpPool(e.to_string()))?;
+
+        nym_metrics::inc!("wg_ip_allocation_success");
+        tracing::debug!("Allocated IP pair: {}", ip_pair);
+
+        Ok(ip_pair)
     }
 
     async fn ip_to_key(&self, ip: IpAddr) -> Result<Option<Key>> {
@@ -393,6 +490,14 @@ impl PeerController {
 
                     *self.host_information.write().await = host;
                 }
+                _ = self.ip_cleanup_interval.next() => {
+                    // Periodically cleanup stale IP allocations
+                    let freed = self.ip_pool.cleanup_stale(DEFAULT_IP_STALE_AGE).await;
+                    if freed > 0 {
+                        nym_metrics::inc_by!("wg_stale_ips_cleaned", freed as u64);
+                        info!("Cleaned up {} stale IP allocations", freed);
+                    }
+                }
                 _ = self.shutdown_token.cancelled() => {
                     trace!("PeerController handler: Received shutdown");
                     break;
@@ -401,6 +506,9 @@ impl PeerController {
                     match msg {
                         Some(PeerControlRequest::AddPeer { peer, response_tx }) => {
                             response_tx.send(self.handle_add_request(&peer).await).ok();
+                        }
+                        Some(PeerControlRequest::RegisterPeer { registration_data, response_tx }) => {
+                            response_tx.send(self.handle_register_request(registration_data).await).ok();
                         }
                         Some(PeerControlRequest::RemovePeer { key, response_tx }) => {
                             response_tx.send(self.remove_peer(&key).await).ok();
@@ -528,6 +636,7 @@ pub fn start_controller(
     Arc<RwLock<nym_gateway_storage::traits::mock::MockGatewayStorage>>,
     nym_task::ShutdownManager,
 ) {
+    use std::net::{Ipv4Addr, Ipv6Addr};
     use std::sync::Arc;
 
     let storage = Arc::new(RwLock::new(
@@ -537,10 +646,22 @@ pub fn start_controller(
         Box::new(storage.clone()),
     ));
     let wg_api = Arc::new(MockWgApi::default());
+
+    // Create IP pool for testing
+    #[allow(clippy::expect_used)]
+    let ip_pool = IpPool::new(
+        Ipv4Addr::new(10, 0, 0, 0),
+        24,
+        Ipv6Addr::new(0xfd00, 0, 0, 0, 0, 0, 0, 0),
+        112,
+    )
+    .expect("Failed to create IP pool for testing");
+
     let shutdown_manager = nym_task::ShutdownManager::empty_mock();
     let mut peer_controller = PeerController::new(
         ecash_manager,
         Default::default(),
+        ip_pool,
         wg_api,
         Default::default(),
         Default::default(),
@@ -562,8 +683,7 @@ pub async fn stop_controller(mut shutdown_manager: nym_task::ShutdownManager) {
     shutdown_manager.run_until_shutdown().await;
 }
 
-#[cfg(test)]
-#[cfg(feature = "mock")]
+#[cfg(all(test, feature = "mock"))]
 mod tests {
     use super::*;
 

@@ -72,6 +72,10 @@ members = [
     "common/nym-cache",
     "common/nym-connection-monitor",
     "common/nym-id",
+    "common/nym-kcp",
+    "common/nym-lp",
+    "common/nym-lp-common",
+    "common/nym-kkt",
     "common/nym-metrics",
     "common/nym_offline_compact_ecash",
     "common/nymnoise",
@@ -153,13 +157,14 @@ members = [
     "tools/internal/contract-state-importer/importer-cli",
     "tools/internal/contract-state-importer/importer-contract",
     "tools/internal/mixnet-connectivity-check",
-#    "tools/internal/sdk-version-bump",
+    #    "tools/internal/sdk-version-bump",
     "tools/internal/ssl-inject",
     "tools/internal/testnet-manager",
     "tools/internal/testnet-manager/dkg-bypass-contract",
     "tools/internal/validator-status-check",
     "tools/nym-cli",
     "tools/nym-id-cli",
+    "tools/nym-lp-client",
     "tools/nym-nr-query",
     "tools/nymvisor",
     "tools/ts-rs-cli",
@@ -168,7 +173,8 @@ members = [
     "wasm/mix-fetch",
     "wasm/node-tester",
     "wasm/zknym-lib",
-    "nym-gateway-probe"
+    "nym-gateway-probe",
+    "integration-tests", "common/nym-lp-transport",
 ]
 
 default-members = [
@@ -186,6 +192,7 @@ default-members = [
     "service-providers/ip-packet-router",
     "service-providers/network-requester",
     "tools/nymvisor",
+    "nym-registration-client"
 ]
 
 exclude = ["contracts", "nym-wallet", "cpu-cycles"]
@@ -207,6 +214,7 @@ aes = "0.8.1"
 aes-gcm = "0.10.1"
 aes-gcm-siv = "0.11.1"
 ammonia = "4"
+ansi_term = "0.12"
 anyhow = "1.0.98"
 arc-swap = "1.7.1"
 argon2 = "0.5.0"
@@ -246,6 +254,7 @@ criterion = "0.5"
 csv = "1.3.1"
 ctr = "0.9.1"
 cupid = "0.6.1"
+curve25519-dalek = "4.1.3"
 dashmap = "5.5.3"
 # We want https://github.com/DefGuard/wireguard-rs/pull/64 , but there's no crates.io release being pushed out anymore
 defguard_wireguard_rs = { git = "https://github.com/DefGuard/wireguard-rs.git", rev = "v0.4.7" }
@@ -286,7 +295,9 @@ inventory = "0.3.21"
 ip_network = "0.4.1"
 ipnetwork = "0.20"
 itertools = "0.14.0"
-jwt-simple = { version = "0.12.12", default-features = false, features = ["pure-rust"] }
+jwt-simple = { version = "0.12.12", default-features = false, features = [
+    "pure-rust",
+] }
 k256 = "0.13"
 lazy_static = "1.5.0"
 ledger-transport = "0.10.0"
@@ -296,6 +307,7 @@ mime = "0.3.17"
 moka = { version = "0.12", features = ["future"] }
 nix = "0.30.1"
 notify = "5.1.0"
+num_enum = "0.7.5"
 once_cell = "1.21.3"
 opentelemetry = "0.19.0"
 opentelemetry-jaeger = "0.18.0"
@@ -326,7 +338,7 @@ serde_repr = "0.1"
 serde_with = "3.9.0"
 serde_yaml = "0.9.25"
 serde_plain = "1.0.2"
-sha2 = "0.10.9"
+sha2 = "0.10.3"
 si-scale = "0.2.3"
 snow = "0.9.6"
 sphinx-packet = "=0.6.0"
@@ -342,6 +354,7 @@ test-with = { version = "0.15.4", default-features = false }
 tempfile = "3.20"
 thiserror = "2.0"
 time = "0.3.41"
+tls_codec = "0.4.1"
 tokio = "1.47"
 tokio-postgres = "0.7"
 tokio-stream = "0.1.17"

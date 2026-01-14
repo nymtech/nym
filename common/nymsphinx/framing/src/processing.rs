@@ -14,7 +14,7 @@ use nym_sphinx_types::{
 };
 use std::fmt::Display;
 use thiserror::Error;
-use tracing::{debug, info, trace};
+use tracing::{debug, trace};
 
 #[derive(Debug)]
 pub enum MixProcessingResultData {
@@ -364,21 +364,33 @@ fn split_into_ack_and_message(
         | PacketSize::ExtendedPacket32
         | PacketSize::OutfoxRegularPacket => {
             trace!("received a normal packet!");
-            let (ack_data, message) = split_hop_data_into_ack_and_message(data, packet_type)?;
-            let (ack_first_hop, ack_packet) =
-                match SurbAck::try_recover_first_hop_packet(&ack_data, packet_type) {
-                    Ok((first_hop, packet)) => (first_hop, packet),
-                    Err(err) => {
-                        info!("Failed to recover first hop from ack data: {err}");
-                        return Err(err.into());
-                    }
-                };
-            let forward_ack = MixPacket::new(ack_first_hop, ack_packet, packet_type, key_rotation);
-            Ok((Some(forward_ack), message))
+            cfg_if::cfg_if! {
+                if #[cfg(feature = "no-mix-acks")] {
+                    let _ = packet_type;
+                    let _ = key_rotation;
+
+                    // AIDEV-NOTE: When no-mix-acks is enabled, skip ack extraction entirely.
+                    // The full payload (including ack portion) is returned as the message.
+                    Ok((None, data))
+                } else {
+                    let (ack_data, message) = split_hop_data_into_ack_and_message(data, packet_type)?;
+                    let (ack_first_hop, ack_packet) =
+                        match SurbAck::try_recover_first_hop_packet(&ack_data, packet_type) {
+                            Ok((first_hop, packet)) => (first_hop, packet),
+                            Err(err) => {
+                                tracing::info!("Failed to recover first hop from ack data: {err}");
+                                return Err(err.into());
+                            }
+                        };
+                    let forward_ack = MixPacket::new(ack_first_hop, ack_packet, packet_type, key_rotation);
+                    Ok((Some(forward_ack), message))
+                }
+            }
         }
     }
 }
 
+#[allow(dead_code)]
 fn split_hop_data_into_ack_and_message(
     mut extracted_data: Vec<u8>,
     packet_type: PacketType,

@@ -15,6 +15,7 @@ use super::v1::metrics::models::SessionStats;
 use crate::api::v1::authenticator::models::Authenticator;
 use crate::api::v1::health::models::NodeHealth;
 use crate::api::v1::ip_packet_router::models::IpPacketRouter;
+use crate::api::v1::lewes_protocol::models::LewesProtocol;
 use crate::api::v1::network_requester::exit_policy::models::UsedExitPolicy;
 use crate::api::v1::network_requester::models::NetworkRequester;
 use crate::api::v1::node_load::models::NodeLoad;
@@ -95,6 +96,10 @@ pub trait NymNodeApiClientExt: ApiClient {
     async fn get_sessions_metrics(&self) -> Result<SessionStats, NymNodeApiClientError> {
         self.get_json_from(routes::api::v1::metrics::sessions_absolute())
             .await
+    }
+
+    async fn get_lewes_protocol(&self) -> Result<LewesProtocol, NymNodeApiClientError> {
+        self.get_json_from(routes::api::v1::lp_absolute()).await
     }
 }
 

@@ -28,6 +28,7 @@ pub use traits::{BandwidthTicketProvider, DEFAULT_TICKETS_TO_SPEND};
 pub mod acquire;
 pub mod error;
 mod event;
+pub mod mock;
 mod traits;
 mod utils;
 

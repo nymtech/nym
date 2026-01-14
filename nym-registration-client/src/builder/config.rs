@@ -7,7 +7,7 @@ use nym_sdk::{
     DebugConfig, NymNetworkDetails, RememberMe, TopologyProvider, UserAgent,
     mixnet::{
         CredentialStorage, GatewaysDetailsStore, KeyStore, MixnetClient, MixnetClientBuilder,
-        MixnetClientStorage, OnDiskPersistent, ReplyStorageBackend, StoragePaths, x25519::KeyPair,
+        MixnetClientStorage, OnDiskPersistent, ReplyStorageBackend, StoragePaths, x25519,
     },
 };
 
@@ -17,6 +17,7 @@ use std::{path::PathBuf, sync::Arc, time::Duration};
 use tokio_util::sync::CancellationToken;
 use typed_builder::TypedBuilder;
 
+use crate::config::RegistrationMode;
 use crate::error::RegistrationClientError;
 
 const VPN_AVERAGE_PACKET_DELAY: Duration = Duration::from_millis(15);
@@ -25,7 +26,7 @@ const MIXNET_CLIENT_STARTUP_TIMEOUT: Duration = Duration::from_secs(30);
 #[derive(Clone)]
 pub struct NymNodeWithKeys {
     pub node: NymNode,
-    pub keys: Arc<KeyPair>,
+    pub keys: Arc<x25519::KeyPair>,
 }
 
 #[derive(TypedBuilder)]
@@ -36,7 +37,7 @@ pub struct BuilderConfig {
     pub mixnet_client_config: MixnetClientConfig,
     #[builder(default = MIXNET_CLIENT_STARTUP_TIMEOUT)]
     pub mixnet_client_startup_timeout: Duration,
-    pub two_hops: bool,
+    pub mode: RegistrationMode,
     pub user_agent: UserAgent,
     pub custom_topology_provider: Box<dyn TopologyProvider + Send + Sync>,
     pub network_env: NymNetworkDetails,
@@ -70,10 +71,13 @@ pub struct MixnetClientConfig {
 }
 impl BuilderConfig {
     pub fn mixnet_client_debug_config(&self) -> DebugConfig {
-        if self.two_hops {
-            two_hop_debug_config(&self.mixnet_client_config)
-        } else {
-            mixnet_debug_config(&self.mixnet_client_config)
+        match self.mode {
+            // Mixnet mode uses 5-hop configuration
+            RegistrationMode::Mixnet => mixnet_debug_config(&self.mixnet_client_config),
+            // Wireguard and LP both use 2-hop configuration
+            RegistrationMode::Wireguard | RegistrationMode::Lp => {
+                two_hop_debug_config(&self.mixnet_client_config)
+            }
         }
     }
 
@@ -115,10 +119,9 @@ impl BuilderConfig {
         <S::GatewaysDetailsStore as GatewaysDetailsStore>::StorageError: Send + Sync,
     {
         let debug_config = self.mixnet_client_debug_config();
-        let remember_me = if self.two_hops {
-            RememberMe::new_vpn()
-        } else {
-            RememberMe::new_mixnet()
+        let remember_me = match self.mode {
+            RegistrationMode::Mixnet => RememberMe::new_mixnet(),
+            RegistrationMode::Wireguard | RegistrationMode::Lp => RememberMe::new_vpn(),
         };
 
         let identity = self.entry_node.node.identity.to_string();

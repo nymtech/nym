@@ -213,6 +213,37 @@ impl PublicKey {
     ) -> Result<(), SignatureError> {
         self.0.verify(message.as_ref(), &signature.0)
     }
+
+    /// Converts this Ed25519 public key to an X25519 public key for ECDH.
+    ///
+    /// Uses the standard ed25519→x25519 conversion by converting the Edwards point
+    /// to Montgomery form. This is the same approach as libsodium's
+    /// `crypto_sign_ed25519_pk_to_curve25519`.
+    ///
+    /// # Returns
+    /// * `Ok(x25519::PublicKey)` - The converted X25519 public key
+    /// * `Err(Ed25519RecoveryError)` - If the conversion fails (e.g., low-order point)
+    pub fn to_x25519(&self) -> Result<crate::asymmetric::x25519::PublicKey, Ed25519RecoveryError> {
+        use curve25519_dalek::edwards::CompressedEdwardsY;
+
+        // Decompress the Ed25519 point
+        let compressed = CompressedEdwardsY((*self).to_bytes());
+        let edwards_point = compressed.decompress().ok_or_else(|| {
+            Ed25519RecoveryError::MalformedBytes(SignatureError::from_source(
+                "Failed to decompress Ed25519 point".to_string(),
+            ))
+        })?;
+
+        // Convert to Montgomery form
+        let montgomery = edwards_point.to_montgomery();
+
+        // Create X25519 public key
+        crate::asymmetric::x25519::PublicKey::from_bytes(montgomery.as_bytes()).map_err(|_| {
+            Ed25519RecoveryError::MalformedBytes(SignatureError::from_source(
+                "Failed to convert to X25519".to_string(),
+            ))
+        })
+    }
 }
 
 #[cfg(feature = "sphinx")]
@@ -333,6 +364,30 @@ impl PrivateKey {
     pub fn sign_text(&self, text: &str) -> String {
         let signature_bytes = self.sign(text).to_bytes();
         bs58::encode(signature_bytes).into_string()
+    }
+
+    /// Converts this Ed25519 private key to an X25519 private key for ECDH.
+    ///
+    /// Uses the standard ed25519→x25519 conversion via SHA-512 hash and clamping.
+    /// This is the same approach as libsodium's `crypto_sign_ed25519_sk_to_curve25519`.
+    ///
+    /// # Returns
+    /// The converted X25519 private key
+    pub fn to_x25519(&self) -> crate::asymmetric::x25519::PrivateKey {
+        use sha2::{Digest, Sha512};
+
+        // Hash the Ed25519 secret key with SHA-512
+        // Both hash and x25519_bytes wrapped in Zeroizing to clear key material
+        let mut hash = zeroize::Zeroizing::new([0u8; 64]);
+        hash.copy_from_slice(&Sha512::digest(self.0));
+
+        // Take first 32 bytes (clamping is done automatically by x25519_dalek::StaticSecret)
+        let mut x25519_bytes = zeroize::Zeroizing::new([0u8; 32]);
+        x25519_bytes.copy_from_slice(&hash[..32]);
+
+        #[allow(clippy::expect_used)]
+        crate::asymmetric::x25519::PrivateKey::from_bytes(&*x25519_bytes)
+            .expect("x25519 key conversion should never fail")
     }
 }
 
@@ -516,5 +571,28 @@ mod tests {
         let sig2 = compact_ed25519.sk.sign(dummy_message, None).to_vec();
 
         assert_eq!(sig1.to_vec(), sig2);
+    }
+
+    #[test]
+    #[cfg(feature = "rand")]
+    fn test_ed25519_to_x25519_ecdh() {
+        let mut rng = thread_rng();
+
+        // Create two ed25519 keypairs
+        let alice_ed = KeyPair::new(&mut rng);
+        let bob_ed = KeyPair::new(&mut rng);
+
+        // Convert to x25519
+        let alice_x25519_private = alice_ed.private_key().to_x25519();
+        let alice_x25519_public = alice_ed.public_key().to_x25519().unwrap();
+        let bob_x25519_private = bob_ed.private_key().to_x25519();
+        let bob_x25519_public = bob_ed.public_key().to_x25519().unwrap();
+
+        // Perform ECDH both ways
+        let alice_shared = alice_x25519_private.diffie_hellman(&bob_x25519_public);
+        let bob_shared = bob_x25519_private.diffie_hellman(&alice_x25519_public);
+
+        // Both should produce the same shared secret
+        assert_eq!(alice_shared, bob_shared);
     }
 }

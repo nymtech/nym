@@ -32,7 +32,7 @@ impl RegistrationClientBuilder {
         let config = RegistrationClientConfig {
             entry: self.config.entry_node.clone(),
             exit: self.config.exit_node.clone(),
-            two_hops: self.config.two_hops,
+            mode: self.config.mode,
         };
         let cancel_token = self.config.cancel_token.clone();
         let (event_tx, event_rx) = mpsc::unbounded();

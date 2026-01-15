@@ -242,7 +242,7 @@ impl ForwardPacketData {
 
     fn encode(&self, dst: &mut BytesMut) {
         dst.put_slice(&self.target_gateway_identity);
-        dst.put_u32_le(self.target_lp_address.len() as u32);
+        dst.put_u16_le(self.target_lp_address.len() as u16);
         dst.put_slice(self.target_lp_address.as_bytes());
         dst.put_u32_le(self.inner_packet_bytes.len() as u32);
         dst.put_slice(&self.inner_packet_bytes);
@@ -256,7 +256,7 @@ impl ForwardPacketData {
 
     pub fn decode(bytes: &[u8]) -> Result<Self, LpError> {
         // smallest possible packet with empty address and empty data
-        if bytes.len() < 40 {
+        if bytes.len() < 38 {
             return Err(LpError::DeserializationError(format!(
                 "Too few bytes to deserialise ForwardPacketData[1]. got {}",
                 bytes.len()
@@ -265,11 +265,10 @@ impl ForwardPacketData {
         // SAFETY: we ensured we have sufficient data
         #[allow(clippy::unwrap_used)]
         let target_gateway_identity = bytes[0..32].try_into().unwrap();
-        let target_lp_address_len =
-            u32::from_le_bytes([bytes[32], bytes[33], bytes[34], bytes[35]]);
+        let target_lp_address_len = u16::from_le_bytes([bytes[32], bytes[33]]);
 
         // smallest possible packet with empty data
-        if bytes[36..].len() < 4 + target_lp_address_len as usize {
+        if bytes[34..].len() < 4 + target_lp_address_len as usize {
             return Err(LpError::DeserializationError(format!(
                 "Too few bytes to deserialise ForwardPacketData[2]. got {}",
                 bytes.len()
@@ -277,21 +276,21 @@ impl ForwardPacketData {
         }
 
         let target_lp_address =
-            String::from_utf8_lossy(&bytes[36..36 + target_lp_address_len as usize]).to_string();
+            String::from_utf8_lossy(&bytes[34..34 + target_lp_address_len as usize]).to_string();
         let inner_packet_bytes_len = u32::from_le_bytes([
-            bytes[36 + target_lp_address_len as usize],
-            bytes[36 + target_lp_address_len as usize + 1],
-            bytes[36 + target_lp_address_len as usize + 2],
-            bytes[36 + target_lp_address_len as usize + 3],
+            bytes[34 + target_lp_address_len as usize],
+            bytes[34 + target_lp_address_len as usize + 1],
+            bytes[34 + target_lp_address_len as usize + 2],
+            bytes[34 + target_lp_address_len as usize + 3],
         ]);
-        if bytes[36 + target_lp_address_len as usize + 4..].len() != inner_packet_bytes_len as usize
+        if bytes[34 + target_lp_address_len as usize + 4..].len() != inner_packet_bytes_len as usize
         {
             return Err(LpError::DeserializationError(format!(
                 "Expected {inner_packet_bytes_len} bytes to deserialise inner packet bytes of ForwardPacketData. got {}",
-                bytes[36 + target_lp_address_len as usize + 4..].len()
+                bytes[34 + target_lp_address_len as usize + 4..].len()
             )));
         }
-        let inner_packet_bytes = bytes[36 + target_lp_address_len as usize + 4..].to_vec();
+        let inner_packet_bytes = bytes[34 + target_lp_address_len as usize + 4..].to_vec();
 
         Ok(ForwardPacketData {
             target_gateway_identity,

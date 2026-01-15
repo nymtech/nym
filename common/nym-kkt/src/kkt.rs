@@ -25,6 +25,10 @@ pub use crate::session::{
 };
 
 use crate::encryption::{KKTSessionSecret, encrypt_initial_kkt_frame};
+use crate::frame::KKTFrame;
+
+pub(crate) const KKT_RESPONSE_AAD: &[u8] = b"KKT_Response";
+pub(crate) const KKT_INITIAL_FRAME_AAD: &[u8] = b"KKT_INITIAL_FRAME";
 
 /// Perform an *Encrypted* request for a KEM public key from a responder (OneWay mode).
 ///
@@ -63,7 +67,7 @@ pub fn request_kem_key<R: CryptoRng + RngCore>(
     let (initiator_context, initiator_frame) =
         initiator_process(rng, KKTMode::OneWay, ciphersuite, signing_key, None)?;
 
-    // Generate the session's shared secret and encrypt the Intitiator's request
+    // Generate the session's shared secret and encrypt the Initiator's request
     let (session_secret, encrypted_request_bytes) =
         encrypt_initial_kkt_frame(rng, responder_dh_public_key, &initiator_frame)?;
 
@@ -105,15 +109,25 @@ pub fn validate_kem_response<'a>(
     encrypted_response_bytes: &[u8],
 ) -> Result<EncapsulationKey<'a>, KKTError> {
     let (responder_frame, responder_context) =
-        decrypt_kkt_frame(&session_secret, &encrypted_response_bytes, b"KKT_Response")?;
+        decrypt_kkt_response_frame(session_secret, encrypted_response_bytes)?;
 
     initiator_ingest_response(
         context,
         &responder_frame,
         &responder_context,
         responder_vk,
-        &expected_key_hash,
+        expected_key_hash,
     )
+}
+
+/// Decrypts and validates an *Encrypted* KKT response
+///
+/// This is the client-side operation that processes the gateway's response.
+pub fn decrypt_kkt_response_frame(
+    session_secret: &KKTSessionSecret,
+    frame_ciphertext: &[u8],
+) -> Result<(KKTFrame, KKTContext), KKTError> {
+    decrypt_kkt_frame(session_secret, frame_ciphertext, KKT_RESPONSE_AAD)
 }
 
 /// Handle an *Encrypted* KKT request and generate a signed response with the responder's KEM key.
@@ -123,9 +137,10 @@ pub fn validate_kem_response<'a>(
 /// the gateway's KEM public key, signed for authenticity.
 ///
 /// # Arguments
-/// * `request_frame` - Request frame received from initiator
+/// * `encrypted_request_bytes` - encrypted KEM request
 /// * `initiator_vk` - Initiator's Ed25519 verification key (None for anonymous)
 /// * `responder_signing_key` - Gateway's Ed25519 signing key
+/// * `responder_dh_public_key` - Gateway's long-term x25519 Diffie-Hellman private key
 /// * `responder_kem_key` - Gateway's KEM public key to send
 ///
 /// # Returns
@@ -174,7 +189,7 @@ where
     )?;
 
     // Encrypt the responder's response with the session's shared secret
-    encrypt_kkt_frame(rng, &session_secret, &responder_frame, b"KKT_Response")
+    encrypt_kkt_frame(rng, &session_secret, &responder_frame, KKT_RESPONSE_AAD)
 }
 
 // #[cfg(test)]

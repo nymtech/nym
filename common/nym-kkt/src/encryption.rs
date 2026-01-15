@@ -7,6 +7,7 @@ use nym_sphinx::{PrivateKey, PublicKey};
 use rand::{CryptoRng, RngCore};
 use zeroize::Zeroize;
 
+use crate::kkt::KKT_INITIAL_FRAME_AAD;
 use crate::{
     ciphersuite::CURVE25519_KEY_LEN, context::KKTContext, error::KKTError, frame::KKTFrame,
 };
@@ -21,7 +22,7 @@ impl KKTSessionSecret {
         let ephemeral_public_key = PublicKey::from(&ephemeral_private_key);
 
         (
-            Self::derive(&ephemeral_private_key, &remote_public_key),
+            Self::derive(&ephemeral_private_key, remote_public_key),
             ephemeral_public_key,
         )
     }
@@ -38,7 +39,7 @@ impl KKTSessionSecret {
     }
 
     pub fn derive(private_key: &PrivateKey, public_key: &PublicKey) -> Self {
-        let mut shared_secret = private_key.diffie_hellman(&public_key);
+        let mut shared_secret = private_key.diffie_hellman(public_key);
 
         let mut hasher = Hasher::new();
 
@@ -63,7 +64,7 @@ where
     let (session_secret_key, ephemeral_public_key) = KKTSessionSecret::new(remote_public_key);
 
     let mut encrypted_frame =
-        encrypt_kkt_frame(rng, &session_secret_key, &kkt_frame, b"KKT_INITIAL_FRAME")?;
+        encrypt_kkt_frame(rng, &session_secret_key, kkt_frame, KKT_INITIAL_FRAME_AAD)?;
 
     let mut output_buffer = Vec::with_capacity(encrypted_frame.len() + CURVE25519_KEY_LEN);
     output_buffer.extend_from_slice(ephemeral_public_key.as_bytes());
@@ -79,9 +80,9 @@ pub fn decrypt_initial_kkt_frame(
     encrypted_frame_bytes: &[u8],
 ) -> Result<(KKTSessionSecret, KKTFrame, KKTContext), KKTError> {
     if encrypted_frame_bytes.len() < CURVE25519_KEY_LEN + TAG_LEN + NONCE_LEN {
-        return Err(KKTError::AEADError {
+        Err(KKTError::AEADError {
             info: "Encrypted KKT Frame is too short.",
-        });
+        })
     } else {
         let shared_secret = KKTSessionSecret::try_derive(
             responder_private_key,
@@ -91,7 +92,7 @@ pub fn decrypt_initial_kkt_frame(
         let (kkt_frame, kkt_context) = decrypt_kkt_frame(
             &shared_secret,
             &encrypted_frame_bytes[CURVE25519_KEY_LEN..],
-            b"KKT_INITIAL_FRAME",
+            KKT_INITIAL_FRAME_AAD,
         )?;
         Ok((shared_secret, kkt_frame, kkt_context))
     }
@@ -112,7 +113,7 @@ where
     let mut nonce: [u8; NONCE_LEN] = [0u8; NONCE_LEN];
     rng.fill_bytes(&mut nonce);
 
-    let mut ciphertext = encrypt(&secret_key.as_bytes(), &kkt_frame_bytes, &aad, &nonce)?;
+    let mut ciphertext = encrypt(secret_key.as_bytes(), &kkt_frame_bytes, aad, &nonce)?;
 
     // [  12  | ciphertext | 16];
     // [nonce | ciphertext | tag];
@@ -153,7 +154,7 @@ fn encrypt(
     nonce: &[u8; NONCE_LEN],
 ) -> Result<Vec<u8>, KKTError> {
     let mut output_buffer = vec![0; plaintext.len() + TAG_LEN];
-    libcrux_chacha20poly1305::encrypt(&secret_key, &plaintext, &mut output_buffer, &aad, &nonce)?;
+    libcrux_chacha20poly1305::encrypt(secret_key, plaintext, &mut output_buffer, aad, nonce)?;
     Ok(output_buffer)
 }
 
@@ -164,19 +165,23 @@ fn decrypt(
     nonce: &[u8; NONCE_LEN],
 ) -> Result<Vec<u8>, KKTError> {
     let mut output_buffer = vec![0; ciphertext.len() - TAG_LEN];
-    libcrux_chacha20poly1305::decrypt(&secret_key, &mut output_buffer, &ciphertext, &aad, &nonce)?;
+    libcrux_chacha20poly1305::decrypt(secret_key, &mut output_buffer, ciphertext, aad, nonce)?;
     Ok(output_buffer)
 }
 
 #[cfg(test)]
 mod test {
-    use rand::{RngCore, rng};
-
+    use crate::ciphersuite::Ciphersuite;
+    use crate::context::{KKTContext, KKTMode, KKTRole};
+    use crate::encryption::{decrypt_kkt_frame, encrypt_kkt_frame};
+    use crate::frame::{KKT_SESSION_ID_LEN, KKTFrame};
     use crate::{
         ciphersuite::HASH_LEN_256,
         encryption::{KKTSessionSecret, decrypt, encrypt},
         key_utils::generate_keypair_x25519,
     };
+    use rand::{RngCore, SeedableRng, rng};
+    use rand_chacha::ChaCha20Rng;
 
     #[test]
     fn test_keygen() {
@@ -187,7 +192,7 @@ mod test {
 
         let shared_secret = KKTSessionSecret::try_derive(
             &responder_x25519_keypair.0,
-            &ephemeral_public_key.as_bytes().as_slice(),
+            ephemeral_public_key.as_bytes().as_slice(),
         )
         .unwrap();
 
@@ -215,5 +220,32 @@ mod test {
         let o_plaintext = decrypt(&secret_key, &ciphertext, &aad, &nonce).unwrap();
 
         assert_eq!(o_plaintext, plaintext)
+    }
+
+    #[test]
+    fn kkt_frame_encryption() -> anyhow::Result<()> {
+        let mut rng = ChaCha20Rng::seed_from_u64(42);
+        let session_key = KKTSessionSecret::from_bytes([42u8; 32]);
+        let aad = b"my-amazing-aad";
+
+        let valid_context = KKTContext::new(
+            KKTRole::Initiator,
+            KKTMode::Mutual,
+            Ciphersuite::decode(&[255, 1, 0, 0])?,
+        )?;
+        let dummy_frame = KKTFrame::new(
+            &valid_context.encode()?,
+            &[2u8; 32],
+            &[3u8; KKT_SESSION_ID_LEN],
+            &[4u8; 64],
+        );
+
+        let ciphertext = encrypt_kkt_frame(&mut rng, &session_key, &dummy_frame, aad.as_slice())?;
+
+        let (frame, context) = decrypt_kkt_frame(&session_key, &ciphertext, aad.as_slice())?;
+
+        assert_eq!(dummy_frame, frame);
+        assert_eq!(context, valid_context);
+        Ok(())
     }
 }

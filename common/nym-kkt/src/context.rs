@@ -53,7 +53,7 @@ pub enum KKTMode {
     Mutual = 0b0000_0100,
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub struct KKTContext {
     version: u8,
     message_sequence: u8,
@@ -134,11 +134,11 @@ impl KKTContext {
         }
     }
 
-    pub fn header_len(&self) -> usize {
+    pub const fn header_len(&self) -> usize {
         KKT_CONTEXT_LEN
     }
 
-    pub fn session_id_len(&self) -> usize {
+    pub const fn session_id_len(&self) -> usize {
         // match self.role {
         //     KKTRole::Initiator | KKTRole::Responder => SESSION_ID_LENGTH,
         // It doesn't make sense to send a session_id if we send messages in the clear
@@ -166,52 +166,68 @@ impl KKTContext {
     }
 
     pub fn try_decode(header_bytes: &[u8]) -> Result<Self, KKTError> {
-        if header_bytes.len() == KKT_CONTEXT_LEN {
-            let kkt_version = header_bytes[0] & 0b1111_0000;
-
-            let message_sequence_counter = header_bytes[0] & 0b0000_1111;
-
-            // We only check if stuff is valid here, not necessarily if it's compatible
-
-            if (kkt_version >> 4) > KKT_VERSION {
-                return Err(KKTError::FrameDecodingError {
-                    info: format!("Header - Invalid KKT Version: {}", kkt_version >> 4),
-                });
-            }
-
-            let raw_kkt_status = header_bytes[1] & 0b1110_0000;
-            let raw_kkt_role = header_bytes[1] & 0b0000_0011;
-            let raw_kkt_mode = header_bytes[1] & 0b0001_1100;
-
-            let status =
-                KKTStatus::try_from(raw_kkt_status).map_err(|_| KKTError::FrameDecodingError {
-                    info: format!("Header - Invalid KKT Status: {raw_kkt_status}"),
-                })?;
-            let role =
-                KKTRole::try_from(raw_kkt_role).map_err(|_| KKTError::FrameDecodingError {
-                    info: format!("Header - Invalid KKT Role: {raw_kkt_role}"),
-                })?;
-            let mode =
-                KKTMode::try_from(raw_kkt_mode).map_err(|_| KKTError::FrameDecodingError {
-                    info: format!("Header - Invalid KKT Mode: {raw_kkt_mode}"),
-                })?;
-
-            Ok(KKTContext {
-                version: kkt_version,
-                status,
-                mode,
-                role,
-                ciphersuite: Ciphersuite::decode(&header_bytes[2..6])?,
-                message_sequence: message_sequence_counter,
-            })
-        } else {
-            Err(KKTError::FrameDecodingError {
+        if header_bytes.len() != KKT_CONTEXT_LEN {
+            return Err(KKTError::FrameDecodingError {
                 info: format!(
                     "Header - Invalid Header Length: actual: {} != expected: {}",
                     header_bytes.len(),
                     KKT_CONTEXT_LEN
                 ),
-            })
+            });
         }
+
+        let kkt_version = (header_bytes[0] & 0b1111_0000) >> 4;
+        let message_sequence_counter = header_bytes[0] & 0b0000_1111;
+
+        // We only check if stuff is valid here, not necessarily if it's compatible
+
+        if kkt_version > KKT_VERSION {
+            return Err(KKTError::FrameDecodingError {
+                info: format!("Header - Invalid KKT Version: {kkt_version}"),
+            });
+        }
+
+        let raw_kkt_status = header_bytes[1] & 0b1110_0000;
+        let raw_kkt_role = header_bytes[1] & 0b0000_0011;
+        let raw_kkt_mode = header_bytes[1] & 0b0001_1100;
+
+        let status =
+            KKTStatus::try_from(raw_kkt_status).map_err(|_| KKTError::FrameDecodingError {
+                info: format!("Header - Invalid KKT Status: {raw_kkt_status}"),
+            })?;
+        let role = KKTRole::try_from(raw_kkt_role).map_err(|_| KKTError::FrameDecodingError {
+            info: format!("Header - Invalid KKT Role: {raw_kkt_role}"),
+        })?;
+        let mode = KKTMode::try_from(raw_kkt_mode).map_err(|_| KKTError::FrameDecodingError {
+            info: format!("Header - Invalid KKT Mode: {raw_kkt_mode}"),
+        })?;
+
+        Ok(KKTContext {
+            version: kkt_version,
+            status,
+            mode,
+            role,
+            ciphersuite: Ciphersuite::decode(&header_bytes[2..6])?,
+            message_sequence: message_sequence_counter,
+        })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn kkt_context_encoding() {
+        let valid_context = KKTContext::new(
+            KKTRole::Initiator,
+            KKTMode::Mutual,
+            Ciphersuite::decode(&[255, 1, 0, 0]).unwrap(),
+        )
+        .unwrap();
+        let encoded = valid_context.encode().unwrap();
+        let decoded = KKTContext::try_decode(&encoded).unwrap();
+
+        assert_eq!(decoded, valid_context);
     }
 }

@@ -81,7 +81,7 @@ pub fn initiator_ingest_response<'a>(
     remote_verification_key: &ed25519::PublicKey,
     expected_hash: &[u8],
 ) -> Result<EncapsulationKey<'a>, KKTError> {
-    check_compatibility(own_context, &remote_context)?;
+    check_compatibility(own_context, remote_context)?;
     match remote_context.status() {
         KKTStatus::Ok => {
             let mut bytes_to_verify: Vec<u8> = Vec::with_capacity(

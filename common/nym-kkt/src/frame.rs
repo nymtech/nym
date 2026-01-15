@@ -14,6 +14,7 @@ use crate::{
 
 pub const KKT_SESSION_ID_LEN: usize = 16;
 
+#[derive(Debug, PartialEq, Clone)]
 pub struct KKTFrame {
     context: Vec<u8>,
     session_id: Vec<u8>,
@@ -74,56 +75,55 @@ impl KKTFrame {
 
     pub fn from_bytes(bytes: &[u8]) -> Result<(Self, KKTContext), KKTError> {
         if bytes.len() < KKT_CONTEXT_LEN {
-            Err(KKTError::FrameDecodingError {
+            return Err(KKTError::FrameDecodingError {
                 info: format!(
                     "Frame is shorter than expected context length: actual {} != expected {}",
                     bytes.len(),
                     KKT_CONTEXT_LEN
                 ),
-            })
-        } else {
-            let context_bytes = Vec::from(&bytes[0..KKT_CONTEXT_LEN]);
-
-            let context = KKTContext::try_decode(&context_bytes)?;
-
-            let (mut session_id, mut body, mut signature): (Vec<u8>, Vec<u8>, Vec<u8>) =
-                (vec![], vec![], vec![]);
-
-            if bytes.len() == context.full_message_len() {
-                if context.body_len() > 0 {
-                    body.extend_from_slice(
-                        &bytes[KKT_CONTEXT_LEN..KKT_CONTEXT_LEN + context.body_len()],
-                    );
-                }
-                if context.session_id_len() > 0 {
-                    session_id.extend_from_slice(
-                        &bytes[KKT_CONTEXT_LEN + context.body_len()
-                            ..KKT_CONTEXT_LEN + context.body_len() + context.session_id_len()],
-                    );
-                }
-                if context.signature_len() > 0 {
-                    signature.extend_from_slice(
-                        &bytes[KKT_CONTEXT_LEN + context.body_len() + context.session_id_len()
-                            ..KKT_CONTEXT_LEN
-                                + context.body_len()
-                                + context.session_id_len()
-                                + context.signature_len()],
-                    );
-                }
-
-                Ok((
-                    KKTFrame::new(&context_bytes, &body, &session_id, &signature),
-                    context,
-                ))
-            } else {
-                Err(KKTError::FrameDecodingError {
-                    info: format!(
-                        "Frame is shorter than expected: actual {} != expected {}",
-                        bytes.len(),
-                        context.full_message_len()
-                    ),
-                })
-            }
+            });
         }
+
+        let context_bytes = Vec::from(&bytes[0..KKT_CONTEXT_LEN]);
+        let context = KKTContext::try_decode(&context_bytes)?;
+
+        if bytes.len() != context.full_message_len() {
+            return Err(KKTError::FrameDecodingError {
+                info: format!(
+                    "Frame is shorter than expected: actual {} != expected {}",
+                    bytes.len(),
+                    context.full_message_len()
+                ),
+            });
+        }
+
+        let (mut session_id, mut body, mut signature): (Vec<u8>, Vec<u8>, Vec<u8>) =
+            (vec![], vec![], vec![]);
+
+        if context.body_len() > 0 {
+            body.extend_from_slice(&bytes[KKT_CONTEXT_LEN..KKT_CONTEXT_LEN + context.body_len()]);
+        }
+
+        if context.session_id_len() > 0 {
+            session_id.extend_from_slice(
+                &bytes[KKT_CONTEXT_LEN + context.body_len()
+                    ..KKT_CONTEXT_LEN + context.body_len() + context.session_id_len()],
+            );
+        }
+
+        if context.signature_len() > 0 {
+            signature.extend_from_slice(
+                &bytes[KKT_CONTEXT_LEN + context.body_len() + context.session_id_len()
+                    ..KKT_CONTEXT_LEN
+                        + context.body_len()
+                        + context.session_id_len()
+                        + context.signature_len()],
+            );
+        }
+
+        Ok((
+            KKTFrame::new(&context_bytes, &body, &session_id, &signature),
+            context,
+        ))
     }
 }

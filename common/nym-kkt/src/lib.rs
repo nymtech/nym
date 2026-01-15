@@ -16,6 +16,7 @@ const _: () = assert!(KKT_VERSION < 1 << 4);
 
 #[cfg(test)]
 mod test {
+    use crate::kkt::KKT_RESPONSE_AAD;
     use crate::{
         ciphersuite::{Ciphersuite, EncapsulationKey, HashFunction, KEM},
         encryption::{
@@ -336,13 +337,13 @@ mod test {
 
                     // encryption - responder frame
                     let r_bytes =
-                        encrypt_kkt_frame(&mut rng, &r_session_secret, &r_frame, b"KKT_Response")
+                        encrypt_kkt_frame(&mut rng, &r_session_secret, &r_frame, KKT_RESPONSE_AAD)
                             .unwrap();
 
                     // decryption - responder frame
 
                     let (i_frame_r, i_context_r) =
-                        decrypt_kkt_frame(&i_session_secret, &r_bytes, b"KKT_Response").unwrap();
+                        decrypt_kkt_frame(&i_session_secret, &r_bytes, KKT_RESPONSE_AAD).unwrap();
 
                     let i_obtained_key = initiator_ingest_response(
                         &mut i_context,
@@ -397,13 +398,13 @@ mod test {
 
                     // encryption - responder frame
                     let r_bytes =
-                        encrypt_kkt_frame(&mut rng, &r_session_secret, &r_frame, b"KKT_Response")
+                        encrypt_kkt_frame(&mut rng, &r_session_secret, &r_frame, KKT_RESPONSE_AAD)
                             .unwrap();
 
                     // decryption - responder frame
 
                     let (i_frame_r, i_context_r) =
-                        decrypt_kkt_frame(&i_session_secret, &r_bytes, b"KKT_Response").unwrap();
+                        decrypt_kkt_frame(&i_session_secret, &r_bytes, KKT_RESPONSE_AAD).unwrap();
 
                     let i_obtained_key = initiator_ingest_response(
                         &mut i_context,
@@ -459,13 +460,13 @@ mod test {
 
                     // encryption - responder frame
                     let r_bytes =
-                        encrypt_kkt_frame(&mut rng, &r_session_secret, &r_frame, b"KKT_Response")
+                        encrypt_kkt_frame(&mut rng, &r_session_secret, &r_frame, KKT_RESPONSE_AAD)
                             .unwrap();
 
                     // decryption - responder frame
 
                     let (i_frame_r, i_context_r) =
-                        decrypt_kkt_frame(&i_session_secret, &r_bytes, b"KKT_Response").unwrap();
+                        decrypt_kkt_frame(&i_session_secret, &r_bytes, KKT_RESPONSE_AAD).unwrap();
 
                     let i_obtained_key = initiator_ingest_response(
                         &mut i_context,

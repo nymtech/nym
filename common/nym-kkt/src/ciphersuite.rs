@@ -13,7 +13,7 @@ pub const CIPHERSUITE_ENCODING_LEN: usize = 4;
 
 pub const CURVE25519_KEY_LEN: usize = 32;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum HashFunction {
     Blake3,
     SHAKE128,
@@ -87,7 +87,7 @@ impl<'a> EncapsulationKey<'a> {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum SignatureScheme {
     Ed25519,
 }
@@ -99,7 +99,7 @@ impl Display for SignatureScheme {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum KEM {
     MlKem768,
     XWing,
@@ -118,7 +118,7 @@ impl Display for KEM {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Ciphersuite {
     hash_function: HashFunction,
     signature_scheme: SignatureScheme,

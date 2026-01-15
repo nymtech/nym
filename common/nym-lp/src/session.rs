@@ -19,6 +19,7 @@ use crate::{LpError, LpMessage, LpPacket};
 use nym_crypto::asymmetric::ed25519;
 use nym_kkt::ciphersuite::{DecapsulationKey, EncapsulationKey};
 use nym_kkt::encryption::KKTSessionSecret;
+use nym_kkt::kkt::decrypt_kkt_response_frame;
 use parking_lot::Mutex;
 use snow::Builder;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
@@ -641,11 +642,10 @@ impl LpSession {
             None => {
                 // Signature-only mode: extract key from response and compute its hash
                 // This effectively bypasses hash validation while keeping signature validation
-                use nym_kkt::frame::KKTFrame;
-
-                let (frame, _) = KKTFrame::from_bytes(response_bytes).map_err(|e| {
-                    LpError::Internal(format!("Failed to parse KKT response: {:?}", e))
-                })?;
+                let (frame, _) = decrypt_kkt_response_frame(&session_secret, &response_bytes)
+                    .map_err(|e| {
+                        LpError::Internal(format!("Failed to decrypt KKT response: {:?}", e))
+                    })?;
 
                 hash_for_validation = hash_encapsulation_key(
                     &context.ciphersuite().hash_function(),

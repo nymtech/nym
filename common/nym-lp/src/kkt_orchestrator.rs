@@ -189,7 +189,6 @@ mod tests {
         generate_keypair_ed25519, generate_keypair_libcrux, generate_keypair_x25519,
         hash_encapsulation_key,
     };
-    use nym_kkt::kkt::initiator_ingest_response;
     use rand09::RngCore;
 
     #[test]

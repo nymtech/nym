@@ -157,6 +157,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4b46cbb362ab8752921c97e041f5e366ee6297bd428a31275b9fcf1e380f7299"
 
 [[package]]
+name = "ansi_term"
+version = "0.12.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d52a9bb7ec0cf484c551830a7ce27bd20d67eac647e1befb56b0be4ee39a55d2"
+dependencies = [
+ "winapi",
+]
+
+[[package]]
 name = "anstream"
 version = "0.6.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1236,6 +1245,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b94f61472cee1439c0b966b47e3aca9ae07e45d070759512cd390ea2bebc6675"
 
 [[package]]
+name = "classic-mceliece-rust"
+version = "3.2.0"
+source = "git+https://github.com/georgio/classic-mceliece-rust#7bdf0c3c8c727cbc4784e05b0972641ad0791ab9"
+dependencies = [
+ "rand 0.9.2",
+ "sha3",
+ "zeroize",
+]
+
+[[package]]
 name = "coarsetime"
 version = "0.1.36"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1407,6 +1426,16 @@ name = "core-foundation-sys"
 version = "0.8.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "773648b94d0e5d620f64f280777445740e61fe701025087ec8b57f45c791888b"
+
+[[package]]
+name = "core-models"
+version = "0.0.4"
+source = "git+https://github.com/cryspen/libcrux#21cf9cae922f55ca2394641d5ee7bbabfd36ace0"
+dependencies = [
+ "hax-lib",
+ "pastey 0.2.1",
+ "rand 0.9.2",
+]
 
 [[package]]
 name = "cosmos-sdk-proto"
@@ -3166,6 +3195,43 @@ dependencies = [
 ]
 
 [[package]]
+name = "hax-lib"
+version = "0.3.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "74d9ba66d1739c68e0219b2b2238b5c4145f491ebf181b9c6ab561a19352ae86"
+dependencies = [
+ "hax-lib-macros",
+ "num-bigint",
+ "num-traits",
+]
+
+[[package]]
+name = "hax-lib-macros"
+version = "0.3.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "24ba777a231a58d1bce1d68313fa6b6afcc7966adef23d60f45b8a2b9b688bf1"
+dependencies = [
+ "hax-lib-macros-types",
+ "proc-macro-error2",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.104",
+]
+
+[[package]]
+name = "hax-lib-macros-types"
+version = "0.3.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "867e19177d7425140b417cd27c2e05320e727ee682e98368f88b7194e80ad515"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "serde",
+ "serde_json",
+ "uuid",
+]
+
+[[package]]
 name = "hdrhistogram"
 version = "7.5.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3944,6 +4010,26 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8bb03732005da905c88227371639bf1ad885cc712789c011c31c5fb3ab3ccf02"
 
 [[package]]
+name = "integration-tests"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "nym-bandwidth-controller",
+ "nym-credential-verification",
+ "nym-credentials-interface",
+ "nym-crypto",
+ "nym-gateway",
+ "nym-lp-transport",
+ "nym-registration-client",
+ "nym-test-utils",
+ "nym-wireguard",
+ "sqlx",
+ "tokio",
+ "tokio-util",
+ "tracing",
+]
+
+[[package]]
 name = "inventory"
 version = "0.3.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4162,6 +4248,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "keccak"
+version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ecc2af9a1119c51f12a14607e783cb977bde58bc069ff0c3da1095e635d70654"
+dependencies = [
+ "cpufeatures",
+]
+
+[[package]]
 name = "keystream"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4238,6 +4333,240 @@ name = "libc"
 version = "0.2.174"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1171693293099992e19cddea4e8b849964e9846f4acee11b3948bcc337be8776"
+
+[[package]]
+name = "libcrux-aesgcm"
+version = "0.0.5"
+source = "git+https://github.com/cryspen/libcrux#21cf9cae922f55ca2394641d5ee7bbabfd36ace0"
+dependencies = [
+ "libcrux-intrinsics",
+ "libcrux-platform",
+ "libcrux-secrets",
+ "libcrux-traits",
+]
+
+[[package]]
+name = "libcrux-chacha20poly1305"
+version = "0.0.4"
+source = "git+https://github.com/cryspen/libcrux#21cf9cae922f55ca2394641d5ee7bbabfd36ace0"
+dependencies = [
+ "libcrux-hacl-rs",
+ "libcrux-macros",
+ "libcrux-poly1305",
+ "libcrux-secrets",
+ "libcrux-traits",
+]
+
+[[package]]
+name = "libcrux-curve25519"
+version = "0.0.4"
+source = "git+https://github.com/cryspen/libcrux#21cf9cae922f55ca2394641d5ee7bbabfd36ace0"
+dependencies = [
+ "libcrux-hacl-rs",
+ "libcrux-macros",
+ "libcrux-secrets",
+ "libcrux-traits",
+]
+
+[[package]]
+name = "libcrux-ecdh"
+version = "0.0.4"
+source = "git+https://github.com/cryspen/libcrux#21cf9cae922f55ca2394641d5ee7bbabfd36ace0"
+dependencies = [
+ "libcrux-curve25519",
+ "libcrux-p256",
+ "rand 0.9.2",
+ "tls_codec",
+]
+
+[[package]]
+name = "libcrux-ed25519"
+version = "0.0.4"
+source = "git+https://github.com/cryspen/libcrux#21cf9cae922f55ca2394641d5ee7bbabfd36ace0"
+dependencies = [
+ "libcrux-hacl-rs",
+ "libcrux-macros",
+ "libcrux-sha2",
+ "rand_core 0.9.3",
+ "tls_codec",
+]
+
+[[package]]
+name = "libcrux-hacl-rs"
+version = "0.0.4"
+source = "git+https://github.com/cryspen/libcrux#21cf9cae922f55ca2394641d5ee7bbabfd36ace0"
+dependencies = [
+ "libcrux-macros",
+]
+
+[[package]]
+name = "libcrux-hkdf"
+version = "0.0.4"
+source = "git+https://github.com/cryspen/libcrux#21cf9cae922f55ca2394641d5ee7bbabfd36ace0"
+dependencies = [
+ "libcrux-hacl-rs",
+ "libcrux-hmac",
+ "libcrux-secrets",
+]
+
+[[package]]
+name = "libcrux-hmac"
+version = "0.0.4"
+source = "git+https://github.com/cryspen/libcrux#21cf9cae922f55ca2394641d5ee7bbabfd36ace0"
+dependencies = [
+ "libcrux-hacl-rs",
+ "libcrux-macros",
+ "libcrux-sha2",
+]
+
+[[package]]
+name = "libcrux-intrinsics"
+version = "0.0.4"
+source = "git+https://github.com/cryspen/libcrux#21cf9cae922f55ca2394641d5ee7bbabfd36ace0"
+dependencies = [
+ "core-models",
+ "hax-lib",
+]
+
+[[package]]
+name = "libcrux-kem"
+version = "0.0.4"
+source = "git+https://github.com/cryspen/libcrux#21cf9cae922f55ca2394641d5ee7bbabfd36ace0"
+dependencies = [
+ "libcrux-curve25519",
+ "libcrux-ecdh",
+ "libcrux-ml-kem",
+ "libcrux-p256",
+ "libcrux-sha3",
+ "libcrux-traits",
+ "rand 0.9.2",
+ "tls_codec",
+]
+
+[[package]]
+name = "libcrux-macros"
+version = "0.0.3"
+source = "git+https://github.com/cryspen/libcrux#21cf9cae922f55ca2394641d5ee7bbabfd36ace0"
+dependencies = [
+ "quote",
+ "syn 2.0.104",
+]
+
+[[package]]
+name = "libcrux-ml-dsa"
+version = "0.0.5"
+source = "git+https://github.com/cryspen/libcrux#21cf9cae922f55ca2394641d5ee7bbabfd36ace0"
+dependencies = [
+ "core-models",
+ "hax-lib",
+ "libcrux-intrinsics",
+ "libcrux-macros",
+ "libcrux-platform",
+ "libcrux-sha3",
+ "tls_codec",
+]
+
+[[package]]
+name = "libcrux-ml-kem"
+version = "0.0.5"
+source = "git+https://github.com/cryspen/libcrux#21cf9cae922f55ca2394641d5ee7bbabfd36ace0"
+dependencies = [
+ "hax-lib",
+ "libcrux-intrinsics",
+ "libcrux-platform",
+ "libcrux-secrets",
+ "libcrux-sha3",
+ "libcrux-traits",
+ "rand 0.9.2",
+ "tls_codec",
+]
+
+[[package]]
+name = "libcrux-p256"
+version = "0.0.4"
+source = "git+https://github.com/cryspen/libcrux#21cf9cae922f55ca2394641d5ee7bbabfd36ace0"
+dependencies = [
+ "libcrux-hacl-rs",
+ "libcrux-macros",
+ "libcrux-secrets",
+ "libcrux-sha2",
+ "libcrux-traits",
+]
+
+[[package]]
+name = "libcrux-platform"
+version = "0.0.3"
+source = "git+https://github.com/cryspen/libcrux#21cf9cae922f55ca2394641d5ee7bbabfd36ace0"
+dependencies = [
+ "libc",
+]
+
+[[package]]
+name = "libcrux-poly1305"
+version = "0.0.4"
+source = "git+https://github.com/cryspen/libcrux#21cf9cae922f55ca2394641d5ee7bbabfd36ace0"
+dependencies = [
+ "libcrux-hacl-rs",
+ "libcrux-macros",
+]
+
+[[package]]
+name = "libcrux-psq"
+version = "0.0.5"
+source = "git+https://github.com/cryspen/libcrux#21cf9cae922f55ca2394641d5ee7bbabfd36ace0"
+dependencies = [
+ "libcrux-aesgcm",
+ "libcrux-chacha20poly1305",
+ "libcrux-ecdh",
+ "libcrux-ed25519",
+ "libcrux-hkdf",
+ "libcrux-hmac",
+ "libcrux-kem",
+ "libcrux-ml-dsa",
+ "libcrux-ml-kem",
+ "libcrux-sha2",
+ "libcrux-traits",
+ "rand 0.9.2",
+ "tls_codec",
+]
+
+[[package]]
+name = "libcrux-secrets"
+version = "0.0.4"
+source = "git+https://github.com/cryspen/libcrux#21cf9cae922f55ca2394641d5ee7bbabfd36ace0"
+dependencies = [
+ "hax-lib",
+]
+
+[[package]]
+name = "libcrux-sha2"
+version = "0.0.4"
+source = "git+https://github.com/cryspen/libcrux#21cf9cae922f55ca2394641d5ee7bbabfd36ace0"
+dependencies = [
+ "libcrux-hacl-rs",
+ "libcrux-macros",
+ "libcrux-traits",
+]
+
+[[package]]
+name = "libcrux-sha3"
+version = "0.0.5"
+source = "git+https://github.com/cryspen/libcrux#21cf9cae922f55ca2394641d5ee7bbabfd36ace0"
+dependencies = [
+ "hax-lib",
+ "libcrux-intrinsics",
+ "libcrux-platform",
+ "libcrux-traits",
+]
+
+[[package]]
+name = "libcrux-traits"
+version = "0.0.4"
+source = "git+https://github.com/cryspen/libcrux#21cf9cae922f55ca2394641d5ee7bbabfd36ace0"
+dependencies = [
+ "libcrux-secrets",
+ "rand 0.9.2",
+]
 
 [[package]]
 name = "libloading"
@@ -4663,7 +4992,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3176f18d11a1ae46053e59ec89d46ba318ae1343615bd3f8c908bfc84edae35c"
 dependencies = [
  "byteorder",
- "pastey",
+ "pastey 0.1.1",
  "thiserror 2.0.17",
 ]
 
@@ -4703,17 +5032,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1f71d09d5c87634207f894c6b31b6a2b2c64ea3bdcf71bd5599fdbbe1600c00f"
 dependencies = [
  "unicode-segmentation",
-]
-
-[[package]]
-name = "nix"
-version = "0.27.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2eb04e9c688eff1c89d72b407f168cf79bb9e867a9d3323ed6c01519eb9cc053"
-dependencies = [
- "bitflags 2.9.1",
- "cfg-if",
- "libc",
 ]
 
 [[package]]
@@ -4886,6 +5204,28 @@ checksum = "91df4bbde75afed763b708b7eee1e8e7651e02d97f6d5dd763e89367e957b23b"
 dependencies = [
  "hermit-abi",
  "libc",
+]
+
+[[package]]
+name = "num_enum"
+version = "0.7.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b1207a7e20ad57b847bbddc6776b968420d38292bbfe2089accff5e19e82454c"
+dependencies = [
+ "num_enum_derive",
+ "rustversion",
+]
+
+[[package]]
+name = "num_enum_derive"
+version = "0.7.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ff32365de1b6743cb203b710788263c44a03de03802daf96092f2da4fe6ba4d7"
+dependencies = [
+ "proc-macro-crate",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.104",
 ]
 
 [[package]]
@@ -5681,6 +6021,7 @@ dependencies = [
  "nym-ecash-contract-common",
  "nym-gateway-requests",
  "nym-gateway-storage",
+ "nym-metrics",
  "nym-task",
  "nym-upgrade-mode-check",
  "nym-validator-client",
@@ -5746,6 +6087,7 @@ dependencies = [
  "bs58",
  "cipher",
  "ctr",
+ "curve25519-dalek",
  "digest 0.10.7",
  "ed25519-dalek",
  "generic-array 0.14.7",
@@ -5915,14 +6257,17 @@ dependencies = [
  "bincode",
  "bip39",
  "bs58",
+ "bytes",
  "dashmap",
  "defguard_wireguard_rs",
  "fastrand 2.3.0",
  "futures",
+ "humantime-serde",
  "ipnetwork",
  "mock_instant",
  "nym-authenticator-requests",
  "nym-client-core",
+ "nym-config",
  "nym-credential-verification",
  "nym-credentials",
  "nym-credentials-interface",
@@ -5932,10 +6277,15 @@ dependencies = [
  "nym-gateway-storage",
  "nym-id",
  "nym-ip-packet-router",
+ "nym-kcp",
+ "nym-lp",
+ "nym-lp-transport",
+ "nym-metrics",
  "nym-mixnet-client",
  "nym-network-defaults",
  "nym-network-requester",
  "nym-node-metrics",
+ "nym-registration-common",
  "nym-sdk",
  "nym-service-provider-requests-common",
  "nym-sphinx",
@@ -6009,6 +6359,7 @@ dependencies = [
  "clap",
  "futures",
  "hex",
+ "nym-api-requests",
  "nym-authenticator-client",
  "nym-authenticator-requests",
  "nym-bandwidth-controller",
@@ -6024,7 +6375,13 @@ dependencies = [
  "nym-http-api-client-macro",
  "nym-ip-packet-client",
  "nym-ip-packet-requests",
+ "nym-lp",
+ "nym-mixnet-contract-common",
+ "nym-network-defaults",
+ "nym-node-requests",
  "nym-node-status-client",
+ "nym-registration-client",
+ "nym-registration-common",
  "nym-sdk",
  "nym-topology",
  "nym-validator-client",
@@ -6033,6 +6390,7 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror 2.0.17",
+ "time",
  "tokio",
  "tokio-util",
  "tracing",
@@ -6292,6 +6650,7 @@ dependencies = [
  "nym-exit-policy",
  "nym-id",
  "nym-ip-packet-requests",
+ "nym-kcp",
  "nym-network-defaults",
  "nym-network-requester",
  "nym-sdk",
@@ -6316,6 +6675,36 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-kcp"
+version = "0.1.0"
+dependencies = [
+ "ansi_term",
+ "bytes",
+ "env_logger",
+ "log",
+ "thiserror 2.0.17",
+ "tokio-util",
+]
+
+[[package]]
+name = "nym-kkt"
+version = "0.1.0"
+dependencies = [
+ "blake3",
+ "classic-mceliece-rust",
+ "criterion",
+ "libcrux-ecdh",
+ "libcrux-kem",
+ "libcrux-ml-kem",
+ "libcrux-psq",
+ "libcrux-sha3",
+ "libcrux-traits",
+ "nym-crypto",
+ "rand 0.9.2",
+ "thiserror 2.0.17",
+]
+
+[[package]]
 name = "nym-ledger"
 version = "0.1.0"
 dependencies = [
@@ -6324,6 +6713,85 @@ dependencies = [
  "ledger-transport",
  "ledger-transport-hid",
  "thiserror 2.0.17",
+]
+
+[[package]]
+name = "nym-lp"
+version = "0.1.0"
+dependencies = [
+ "ansi_term",
+ "bincode",
+ "bs58",
+ "bytes",
+ "chacha20poly1305",
+ "criterion",
+ "dashmap",
+ "libcrux-kem",
+ "libcrux-psq",
+ "libcrux-traits",
+ "num_enum",
+ "nym-crypto",
+ "nym-kkt",
+ "nym-lp-common",
+ "nym-sphinx",
+ "parking_lot",
+ "rand 0.8.5",
+ "rand 0.9.2",
+ "rand_chacha 0.3.1",
+ "serde",
+ "sha2 0.10.9",
+ "snow",
+ "thiserror 2.0.17",
+ "tls_codec",
+ "tracing",
+ "utoipa",
+ "zeroize",
+]
+
+[[package]]
+name = "nym-lp-client"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bytes",
+ "clap",
+ "nym-api-requests",
+ "nym-crypto",
+ "nym-http-api-client",
+ "nym-ip-packet-requests",
+ "nym-kcp",
+ "nym-lp",
+ "nym-registration-client",
+ "nym-sphinx",
+ "nym-sphinx-addressing",
+ "nym-sphinx-anonymous-replies",
+ "nym-sphinx-framing",
+ "nym-sphinx-params",
+ "nym-sphinx-types",
+ "nym-topology",
+ "nym-validator-client",
+ "rand 0.8.5",
+ "rand_chacha 0.3.1",
+ "serde",
+ "serde_json",
+ "time",
+ "tokio",
+ "tokio-util",
+ "tracing",
+ "tracing-subscriber",
+ "url",
+]
+
+[[package]]
+name = "nym-lp-common"
+version = "0.1.0"
+
+[[package]]
+name = "nym-lp-transport"
+version = "0.1.0"
+dependencies = [
+ "nym-test-utils",
+ "tokio",
 ]
 
 [[package]]
@@ -6902,15 +7370,21 @@ dependencies = [
 name = "nym-registration-client"
 version = "0.1.0"
 dependencies = [
+ "bytes",
  "futures",
  "nym-authenticator-client",
  "nym-bandwidth-controller",
  "nym-credential-storage",
  "nym-credentials-interface",
+ "nym-crypto",
  "nym-ip-packet-client",
+ "nym-lp",
+ "nym-lp-transport",
  "nym-registration-common",
  "nym-sdk",
  "nym-validator-client",
+ "nym-wireguard-types",
+ "rand 0.8.5",
  "thiserror 2.0.17",
  "tokio",
  "tokio-util",
@@ -6923,11 +7397,15 @@ dependencies = [
 name = "nym-registration-common"
 version = "0.1.0"
 dependencies = [
+ "bincode",
  "nym-authenticator-requests",
+ "nym-credentials-interface",
  "nym-crypto",
  "nym-ip-packet-requests",
  "nym-sphinx",
+ "nym-wireguard-types",
  "serde",
+ "time",
  "tokio-util",
 ]
 
@@ -7268,6 +7746,7 @@ name = "nym-sphinx-framing"
 version = "0.1.0"
 dependencies = [
  "bytes",
+ "cfg-if",
  "nym-sphinx-acknowledgements",
  "nym-sphinx-addressing",
  "nym-sphinx-forwarding",
@@ -7401,8 +7880,10 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "futures",
+ "nym-bin-common",
  "rand_chacha 0.3.1",
  "tokio",
+ "tracing",
 ]
 
 [[package]]
@@ -7687,15 +8168,19 @@ dependencies = [
  "defguard_wireguard_rs",
  "futures",
  "ip_network",
+ "ipnetwork",
  "nym-credential-verification",
  "nym-credentials-interface",
  "nym-crypto",
  "nym-gateway-requests",
  "nym-gateway-storage",
+ "nym-ip-packet-requests",
+ "nym-metrics",
  "nym-network-defaults",
  "nym-node-metrics",
  "nym-task",
  "nym-wireguard-types",
+ "rand 0.8.5",
  "thiserror 2.0.17",
  "tokio",
  "tokio-stream",
@@ -7794,7 +8279,7 @@ dependencies = [
  "hex",
  "humantime",
  "humantime-serde",
- "nix 0.27.1",
+ "nix 0.30.1",
  "nym-async-file-watcher",
  "nym-bin-common",
  "nym-config",
@@ -8166,6 +8651,12 @@ name = "pastey"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "35fb2e5f958ec131621fdd531e9fc186ed768cbe395337403ae56c17a74c68ec"
+
+[[package]]
+name = "pastey"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b867cad97c0791bbd3aaa6472142568c6c9e8f71937e98379f584cfb0cf35bec"
 
 [[package]]
 name = "peg"
@@ -9903,6 +10394,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "sha3"
+version = "0.10.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "75872d278a8f37ef87fa0ddbda7802605cb18344497949862c0d4dcb291eba60"
+dependencies = [
+ "digest 0.10.7",
+ "keccak",
+]
+
+[[package]]
 name = "sharded-slab"
 version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -10887,6 +11388,27 @@ name = "tinyvec_macros"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
+
+[[package]]
+name = "tls_codec"
+version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0de2e01245e2bb89d6f05801c564fa27624dbd7b1846859876c7dad82e90bf6b"
+dependencies = [
+ "tls_codec_derive",
+ "zeroize",
+]
+
+[[package]]
+name = "tls_codec_derive"
+version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2d2e76690929402faae40aebdda620a2c0e25dd6d3b9afe48867dfd95991f4bd"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.104",
+]
 
 [[package]]
 name = "tokio"

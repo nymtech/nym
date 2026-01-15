@@ -155,7 +155,7 @@ async fn check_existing_registration(
     let mut ipv4 = None;
     let mut ipv6 = None;
     for ip_mask in &defguard_peer.allowed_ips {
-        match ip_mask.ip {
+        match ip_mask.address {
             std::net::IpAddr::V4(v4) => ipv4 = Some(v4),
             std::net::IpAddr::V6(v6) => ipv6 = Some(v6),
         }

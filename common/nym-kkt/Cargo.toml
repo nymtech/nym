@@ -8,6 +8,7 @@ license.workspace = true
 [dependencies]
 blake3 = { workspace = true }
 thiserror = { workspace = true }
+num_enum = { workspace = true }
 
 
 # internal

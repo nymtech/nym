@@ -63,7 +63,7 @@ export const LandingPage = () => {
         to allow developers to build new applications, or upgrade existing apps,
         with privacy features unavailable in other systems.
       </Typography>*/}
-      <Grid container border={"1px solid #2E3538"}>
+      <Grid container border={"1px solid #262626"}>
         {squares.map((square, index) => (
           <Grid
             item
@@ -73,12 +73,12 @@ export const LandingPage = () => {
             padding={{ xs: 3, xl: 4 }}
             sx={{
               borderBottom: {
-                xs: index < 3 ? "1px solid #2E3538" : "none",
-                sm: index === 0 || index === 1 ? "1px solid #2E3538" : "none",
+                xs: index < 3 ? "1px solid #262626" : "none",
+                sm: index === 0 || index === 1 ? "1px solid #262626" : "none",
               },
               borderRight: {
                 xs: "none",
-                sm: index === 0 || index === 2 ? "1px solid #2E3538" : "none",
+                sm: index === 0 || index === 2 ? "1px solid #262626" : "none",
               },
             }}
           >

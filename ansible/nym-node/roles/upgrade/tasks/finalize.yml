@@ -9,7 +9,7 @@
   changed_when: false
   when: not ansible_check_mode
 
-# show the full stdout so we don’t depend on regex parsing at all
+# show the full stdout
 # show full upgraded version output, line by line
 - name: Show upgraded nym-node version info
   debug:

@@ -46,6 +46,7 @@ pub mod routes {
             pub const NETWORK_REQUESTER: &str = "/network-requester";
             pub const IP_PACKET_ROUTER: &str = "/ip-packet-router";
             pub const AUTHENTICATOR: &str = "/authenticator";
+            pub const LEWES_PROTOCOL: &str = "/lewes-protocol";
 
             // define helper functions to get absolute routes
             absolute_route!(health_absolute, v1_absolute(), HEALTH);
@@ -64,6 +65,7 @@ pub mod routes {
             absolute_route!(network_requester_absolute, v1_absolute(), NETWORK_REQUESTER);
             absolute_route!(ip_packet_router_absolute, v1_absolute(), IP_PACKET_ROUTER);
             absolute_route!(authenticator_absolute, v1_absolute(), AUTHENTICATOR);
+            absolute_route!(lp_absolute, v1_absolute(), LEWES_PROTOCOL);
             absolute_route!(swagger_absolute, v1_absolute(), SWAGGER);
 
             pub mod metrics {
@@ -143,6 +145,10 @@ pub mod routes {
                     network_absolute(),
                     UPGRADE_MODE_STATUS
                 );
+            }
+
+            pub mod lewes_protocol {
+                // use super::*;
             }
         }
     }

@@ -47,6 +47,9 @@ pub struct GatewayTasksConfig {
     pub upgrade_mode: UpgradeModeWatcher,
 
     #[serde(default)]
+    pub lp: nym_gateway::node::LpConfig,
+
+    #[serde(default)]
     pub debug: Debug,
 }
 
@@ -225,6 +228,7 @@ impl GatewayTasksConfig {
             announce_ws_port: None,
             announce_wss_port: None,
             upgrade_mode: UpgradeModeWatcher::new()?,
+            lp: Default::default(),
             debug: Default::default(),
         })
     }

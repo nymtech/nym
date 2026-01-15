@@ -92,7 +92,7 @@
 //!         pub status: ApiStatus,
 //!         pub uptime: u64,
 //!     }
-//!     
+//!
 //!     #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 //!     pub enum ApiStatus {
 //!         Up,
@@ -175,7 +175,7 @@ mod user_agent;
 pub use user_agent::UserAgent;
 
 #[cfg(not(target_arch = "wasm32"))]
-mod dns;
+pub mod dns;
 mod path;
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -895,18 +895,20 @@ impl Client {
         self.retry_limit = limit;
     }
 
+    #[cfg(feature = "tunneling")]
     fn matches_current_host(&self, url: &Url) -> bool {
-        if cfg!(feature = "tunneling") {
-            if let Some(ref front) = self.front
-                && front.is_enabled()
-            {
-                url.host_str() == self.current_url().front_str()
-            } else {
-                url.host_str() == self.current_url().host_str()
-            }
+        if let Some(ref front) = self.front
+            && front.is_enabled()
+        {
+            url.host_str() == self.current_url().front_str()
         } else {
             url.host_str() == self.current_url().host_str()
         }
+    }
+
+    #[cfg(not(feature = "tunneling"))]
+    fn matches_current_host(&self, url: &Url) -> bool {
+        url.host_str() == self.current_url().host_str()
     }
 
     /// If multiple base urls are available rotate to next (e.g. when the current one resulted in an error)
@@ -960,6 +962,10 @@ impl Client {
             }
 
             self.current_idx.store(next, Ordering::Relaxed);
+            debug!(
+                "http client rotating host {} -> {}",
+                self.base_urls[orig], self.base_urls[next]
+            );
         }
     }
 
@@ -1087,27 +1093,6 @@ impl ApiClientCore for Client {
                 .map_err(HttpClientError::reqwest_client_build_error)?;
             self.apply_hosts_to_req(&mut req);
             let url: Url = req.url().clone().into();
-
-            // try an explicit DNS resolution - if successful then it will be in cache when reqwest
-            // goes to execute the request. If failure then we get to handle the DNS lookup error.
-            #[cfg(not(target_arch = "wasm32"))]
-            if self.using_secure_dns
-                && let Some(hostname) = req.url().domain()
-                // Default here will use a shared resolver instance
-                && let Err(err) = HickoryDnsResolver::default().resolve_str(hostname).await
-            {
-                // on failure update host, but don't trigger fronting enable.
-                self.update_host(Some(url.clone()));
-
-                if attempts < self.retry_limit {
-                    attempts += 1;
-                    warn!(
-                        "Retrying request due to dns error on attempt ({attempts}/{}): {err}",
-                        self.retry_limit
-                    );
-                    continue;
-                }
-            }
 
             #[cfg(target_arch = "wasm32")]
             let response: Result<Response, HttpClientError> = {

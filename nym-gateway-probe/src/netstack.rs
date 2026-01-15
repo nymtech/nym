@@ -10,6 +10,7 @@ mod sys {
 
     unsafe extern "C" {
         pub unsafe fn wgPing(req: *const c_char) -> *const c_char;
+        pub unsafe fn wgPingTwoHop(req: *const c_char) -> *const c_char;
         pub unsafe fn wgFreePtr(ptr: *mut c_void);
     }
 }
@@ -191,6 +192,74 @@ pub fn ping(req: &NetstackRequestGo) -> anyhow::Result<NetstackResult> {
     let response_str_ptr = unsafe { sys::wgPing(req_json_cstr.as_ptr()) };
     if response_str_ptr.is_null() {
         return Err(anyhow::anyhow!("wgPing() returned null"));
+    }
+
+    // SAFETY: safety guarantees are upheld by CGO
+    let response_cstr = unsafe { CStr::from_ptr(response_str_ptr) };
+    let result = match response_cstr.to_str() {
+        Ok(response_str) => {
+            let mut de = serde_json::Deserializer::from_str(response_str);
+            let response = NetstackResult::deserialize(&mut de);
+
+            response.context("Failed to deserialize ffi response")
+        }
+        Err(err) => Err(anyhow::anyhow!(
+            "Failed to convert ffi response to utf8 string: {err}"
+        )),
+    };
+
+    // SAFETY: freeing the pointer returned by CGO
+    unsafe { sys::wgFreePtr(response_str_ptr as _) };
+
+    result
+}
+
+/// Request structure for two-hop WireGuard ping test.
+/// Matches TwoHopNetstackRequest in Go.
+// This struct is serialized to JSON and passed to wgPingTwoHop() via CGO.
+// The Go side creates: entry tunnel -> UDP forwarder -> exit tunnel, then runs tests.
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct TwoHopNetstackRequestGo {
+    // Entry tunnel configuration (connects directly to entry gateway)
+    pub entry_wg_ip: String,
+    pub entry_private_key: String,
+    pub entry_public_key: String,
+    pub entry_endpoint: String,
+    pub entry_awg_args: String,
+
+    // Exit tunnel configuration (connects via forwarder through entry)
+    pub exit_wg_ip: String,
+    pub exit_private_key: String,
+    pub exit_public_key: String,
+    pub exit_endpoint: String,
+    pub exit_awg_args: String,
+
+    // Test parameters
+    pub dns: String,
+    pub ip_version: u8,
+    pub ping_hosts: Vec<String>,
+    pub ping_ips: Vec<String>,
+    pub num_ping: u8,
+    pub send_timeout_sec: u64,
+    pub recv_timeout_sec: u64,
+    pub download_timeout_sec: u64,
+}
+
+/// Perform a two-hop WireGuard ping test through entry and exit gateways.
+///
+/// This creates two nested WireGuard tunnels with a UDP forwarder:
+/// - Entry tunnel connects directly to entry gateway (reachable from host)
+/// - UDP forwarder listens on localhost and forwards via entry tunnel
+/// - Exit tunnel connects to forwarder, traffic flows: exit -> forwarder -> entry -> exit gateway
+/// - Tests run through the exit tunnel
+pub fn ping_two_hop(req: &TwoHopNetstackRequestGo) -> anyhow::Result<NetstackResult> {
+    let req_json = serde_json::to_string_pretty(req)?;
+    let req_json_cstr = CString::new(req_json)?;
+
+    // SAFETY: safety guarantees are upheld by CGO
+    let response_str_ptr = unsafe { sys::wgPingTwoHop(req_json_cstr.as_ptr()) };
+    if response_str_ptr.is_null() {
+        return Err(anyhow::anyhow!("wgPingTwoHop() returned null"));
     }
 
     // SAFETY: safety guarantees are upheld by CGO

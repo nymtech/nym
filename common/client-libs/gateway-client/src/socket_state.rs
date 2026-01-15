@@ -10,7 +10,7 @@ use crate::{cleanup_socket_messages, try_decrypt_binary_message};
 use futures::channel::oneshot;
 use futures::stream::{SplitSink, SplitStream};
 use futures::{SinkExt, StreamExt};
-use nym_gateway_requests::shared_key::SharedGatewayKey;
+use nym_gateway_requests::shared_key::SharedSymmetricKey;
 use nym_gateway_requests::{
     SendResponse, SensitiveServerResponse, ServerResponse, SimpleGatewayRequestsError,
 };
@@ -66,7 +66,7 @@ pub(crate) struct PartiallyDelegatedHandle {
 
 struct PartiallyDelegatedRouter {
     packet_router: PacketRouter,
-    shared_key: Arc<SharedGatewayKey>,
+    shared_key: Arc<SharedSymmetricKey>,
     client_bandwidth: ClientBandwidth,
 
     stream_return: SplitStreamSender,
@@ -76,7 +76,7 @@ struct PartiallyDelegatedRouter {
 impl PartiallyDelegatedRouter {
     fn new(
         packet_router: PacketRouter,
-        shared_key: Arc<SharedGatewayKey>,
+        shared_key: Arc<SharedSymmetricKey>,
         client_bandwidth: ClientBandwidth,
         stream_return: SplitStreamSender,
         stream_return_requester: oneshot::Receiver<()>,
@@ -214,11 +214,6 @@ impl PartiallyDelegatedRouter {
                         SensitiveServerResponse::RememberMeAck {} => {
                             info!("received remember me acknowledgement");
                         }
-                        SensitiveServerResponse::KeyUpgradeAck {} => {
-                            warn!(
-                                    "received illegal key upgrade acknowledgement in an authenticated client"
-                                );
-                        }
                         _ => {
                             warn!("received unknown SensitiveServerResponse");
                         }
@@ -294,7 +289,7 @@ impl PartiallyDelegatedHandle {
     pub(crate) fn split_and_listen_for_mixnet_messages(
         conn: WsConn,
         packet_router: PacketRouter,
-        shared_key: Arc<SharedGatewayKey>,
+        shared_key: Arc<SharedSymmetricKey>,
         client_bandwidth: ClientBandwidth,
         shutdown: ShutdownToken,
     ) -> Self {

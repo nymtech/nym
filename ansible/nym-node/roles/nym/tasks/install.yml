@@ -1,0 +1,34 @@
+---
+- name: Create nym directory
+  file:
+    path: "{{ nym_install_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: Get latest Nym release metadata
+  uri:
+    url: https://api.github.com/repos/nymtech/nym/releases/latest
+    return_content: yes
+  register: latest_release
+  when: nym_version is not defined or nym_version == 'latest'
+
+- name: Set nym_version from GitHub API
+  set_fact:
+    nym_version: "{{ latest_release.json.tag_name }}"
+  when: nym_version is not defined or nym_version == 'latest'
+
+- name: Set binary URL
+  set_fact:
+    binary_url: "https://github.com/nymtech/nym/releases/download/{{ nym_version }}/nym-node"
+
+- name: Download nym-node binary
+  get_url:
+    url: "{{ binary_url }}"
+    dest: "{{ nym_install_dir }}/nym-node"
+    mode: "0755"
+
+- name: Download nym-cli binary
+  get_url:
+    url: "{{ nym_cli_url }}"
+    dest: "{{ nym_install_dir }}/nym-cli"
+    mode: "0755"

@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                INSERT INTO remote_gateway_details(gateway_id_bs58, gateway_listener, fallback_listener)\n                VALUES (?, ?, ?)\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "a64a557ba87d4b2c7457857afa7ebc7d4f895fc4991da18ec02c9e250bea0fe0"
+}

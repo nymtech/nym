@@ -97,6 +97,7 @@ pub async fn attempt_retrieve_attestation(
     let attestation = reqwest::ClientBuilder::new()
         .user_agent(user_agent.unwrap_or_else(|| nym_http_api_client::generate_user_agent!()))
         .timeout(std::time::Duration::from_secs(5))
+        .no_hickory_dns()
         .build()
         .map_err(retrieval_failure)?
         .get(url)

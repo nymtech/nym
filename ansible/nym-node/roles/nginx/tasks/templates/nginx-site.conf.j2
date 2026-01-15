@@ -1,0 +1,18 @@
+server {
+    listen 80;
+    listen [::]:80;
+
+    server_name {{ hostname }};
+
+    root /var/www/{{ hostname }};
+    index index.html;
+
+    location ^~ /.well-known/acme-challenge/ {
+        default_type "text/plain";
+        try_files $uri =404;
+    }
+
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}

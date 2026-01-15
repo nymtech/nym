@@ -63,3 +63,15 @@ nym-api/redocly/formatted-openapi.json
 
 **/settings.sql
 **/enter_db.sh
+
+*.profraw
+.beads
+CLAUDE.md
+docs
+.claude
+.superego
+
+# Superego (machine-specific paths)
+.superego/
+.claude/hooks/superego/
+.claude/settings.json

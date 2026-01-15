@@ -1,0 +1,122 @@
+# run --version on the new binary
+- name: Check new nym-node version
+  command:
+    argv:
+      - "{{ nym_binary_path }}"
+      - --version
+  register: nym_new_version_cmd
+  failed_when: false
+  changed_when: false
+  when: not ansible_check_mode
+
+# show the full stdout
+# show full upgraded version output, line by line
+- name: Show upgraded nym-node version info
+  debug:
+    msg: >-
+      {{
+        [
+          "New nym-node --version rc: " ~ (nym_new_version_cmd.rc | default('unset') | string),
+          "New nym-node --version output:"
+        ]
+        + (nym_new_version_cmd.stdout_lines | default([]))
+      }}
+  when: not ansible_check_mode
+
+# decide if upgrade is successful
+# success means: the binary executed without an error (rc == 0)
+- name: Determine if upgrade is successful
+  set_fact:
+    upgrade_ok: "{{ (nym_new_version_cmd.rc | default(1)) == 0 }}"
+  when: not ansible_check_mode
+
+# show the decision for debugging
+- name: Debug upgrade_ok decision
+  debug:
+    msg:
+      - "upgrade_ok: {{ upgrade_ok }}"
+  when: not ansible_check_mode
+
+#########
+# success
+#########
+
+# show the full version output to the user, line-by-line
+- name: Show upgraded nym-node version info
+  debug:
+    msg:
+      - "Upgraded nym-node version output:"
+      - "{{ nym_new_version_cmd.stdout_lines | default([]) }}"
+  when: not ansible_check_mode and upgrade_ok | default(false)
+
+
+# remove backup
+- name: Remove backup after successful upgrade
+  file:
+    path: "{{ nym_backup_path }}"
+    state: absent
+  when:
+    - not ansible_check_mode
+    - upgrade_ok | default(false)
+    - nym_node_bin.stat.exists | default(false)
+
+# restart service
+- name: Restart nym-node service after successful upgrade
+  systemd:
+    name: "{{ nym_service_name }}"
+    state: restarted
+  when: not ansible_check_mode and upgrade_ok | default(false)
+
+# report success
+- name: Report successful upgrade
+  debug:
+    msg: >-
+      Upgrade successful. nym-node binary executed correctly and the service has been restarted.
+  when: not ansible_check_mode and upgrade_ok | default(false)
+
+#########
+# failure
+#########
+
+- name: Restore previous nym-node binary after failed upgrade
+  copy:
+    src: "{{ nym_backup_path }}"
+    dest: "{{ nym_binary_path }}"
+    mode: "0755"
+    remote_src: true
+  when:
+    - not ansible_check_mode
+    - (upgrade_ok | default(false)) == false
+    - nym_node_bin.stat.exists | default(false)
+
+- name: Remove backup after rollback
+  file:
+    path: "{{ nym_backup_path }}"
+    state: absent
+  when:
+    - not ansible_check_mode
+    - (upgrade_ok | default(false)) == false
+    - nym_node_bin.stat.exists | default(false)
+
+# always restart the service with the restored binary
+- name: Restart nym-node service with previous version after failed upgrade
+  systemd:
+    name: "{{ nym_service_name }}"
+    state: restarted
+  when:
+    - not ansible_check_mode
+    - (upgrade_ok | default(false)) == false
+    - nym_node_bin.stat.exists | default(false)
+
+- name: Report failed upgrade and rollback
+  debug:
+    msg: >-
+      Upgrade NOT successful. The previous nym-node binary has been restored
+      and the nym-node service has been restarted with the old version.
+  when: not ansible_check_mode and (upgrade_ok | default(false)) == false
+
+# optional: hard-fail the play for CI environments
+#- name: fail the play to signal upgrade failure
+#  fail:
+#    msg: "nym-node upgrade failed; rolled back to previous binary."
+#  when: not ansible_check_mode and (upgrade_ok | default(false)) == false

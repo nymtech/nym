@@ -1,0 +1,50 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT timestamp, chf, usd, eur, gbp, btc FROM price_history ORDER BY timestamp DESC LIMIT 1;",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "timestamp",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "chf",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 2,
+        "name": "usd",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 3,
+        "name": "eur",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 4,
+        "name": "gbp",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 5,
+        "name": "btc",
+        "type_info": "Float8"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "f81a3275a1c7cbeefb3fdf7904c677d46a284e0446b96a2fc5bd77630c62d4b8"
+}

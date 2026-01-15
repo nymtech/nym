@@ -14,6 +14,7 @@ use nym_network_defaults::{
 use nym_node_requests::api::v1::authenticator::models::Authenticator;
 use nym_node_requests::api::v1::gateway::models::Wireguard;
 use nym_node_requests::api::v1::ip_packet_router::models::IpPacketRouter;
+use nym_node_requests::api::v1::lewes_protocol::models::LewesProtocol;
 use nym_node_requests::api::v1::node::models::{AuxiliaryDetails, NodeRoles};
 use nym_noise_keys::VersionedNoiseKey;
 use serde::{Deserialize, Serialize};
@@ -341,6 +342,29 @@ impl From<Wireguard> for WireguardDetails {
     }
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
+pub struct LewesProtocolDetails {
+    /// Helper field that specifies whether the LP listener(s) is enabled on this node.
+    /// It is directly controlled by the node's role (i.e. it is enabled if it supports 'entry' mode)
+    pub enabled: bool,
+
+    /// LP TCP control address (default: 41264) for establishing LP sessions
+    pub control_port: u16,
+
+    /// LP UDP data address (default: 51264) for Sphinx packets wrapped in LP
+    pub data_port: u16,
+}
+
+impl From<LewesProtocol> for LewesProtocolDetails {
+    fn from(value: LewesProtocol) -> Self {
+        LewesProtocolDetails {
+            enabled: value.enabled,
+            control_port: value.control_port,
+            data_port: value.data_port,
+        }
+    }
+}
+
 // this struct is getting quite bloated...
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
 pub struct NymNodeData {
@@ -369,6 +393,9 @@ pub struct NymNodeData {
 
     #[serde(default)]
     pub wireguard: Option<WireguardDetails>,
+
+    #[serde(default)]
+    pub lewes_protocol: Option<LewesProtocolDetails>,
 
     // for now we only care about their ws/wss situation, nothing more
     pub mixnet_websockets: WebSockets,

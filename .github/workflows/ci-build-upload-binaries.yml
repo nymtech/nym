@@ -28,7 +28,7 @@ jobs:
       CARGO_TERM_COLOR: always
       RUSTUP_PERMIT_COPY_RENAME: 1
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Prepare build output directory
         shell: bash
@@ -46,10 +46,10 @@ jobs:
         run: |
           echo "RUSTFLAGS=--cfg tokio_unstable" >> $GITHUB_ENV
           echo "CARGO_FEATURES=--features tokio-console" >> $GITHUB_ENV
-      - name: Install Rust stable
+      - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: stable
+          toolchain: ${{ vars.REQUIRED_RUSTC_VERSION }}
 
       - name: Build all binaries
         uses: actions-rs/cargo@v1
@@ -71,7 +71,7 @@ jobs:
 
       - name: Upload Artifact
         if: github.event_name == 'workflow_dispatch'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: nym-binaries-artifacts
           path: |

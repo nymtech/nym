@@ -15,7 +15,7 @@ mod config;
 use crate::chain_scraper::run_chain_scraper;
 use crate::db::DbPool;
 use crate::http::state::{BankScraperModuleState, PaymentListenerState, PriceScraperState};
-use crate::payment_listener::PaymentListener;
+use crate::listener::PaymentListener;
 use crate::price_scraper::PriceScraper;
 use crate::{db, http};
 pub(crate) use args::Args;

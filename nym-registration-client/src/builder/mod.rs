@@ -32,12 +32,13 @@ impl RegistrationClientBuilder {
         let config = RegistrationClientConfig {
             entry: self.config.entry_node.clone(),
             exit: self.config.exit_node.clone(),
-            two_hops: self.config.two_hops,
+            mode: self.config.mode,
         };
         let cancel_token = self.config.cancel_token.clone();
         let (event_tx, event_rx) = mpsc::unbounded();
 
         let nyxd_client = get_nyxd_client(&self.config.network_env)?;
+        let mixnet_client_startup_timeout = self.config.mixnet_client_startup_timeout;
 
         let (mixnet_client, bandwidth_controller): (
             MixnetClient,
@@ -46,20 +47,34 @@ impl RegistrationClientBuilder {
             let builder = MixnetClientBuilder::new_with_storage(mixnet_client_storage)
                 .event_tx(EventSender(event_tx));
             let mixnet_client = tokio::time::timeout(
-                self.config.mixnet_client_startup_timeout,
+                mixnet_client_startup_timeout,
                 self.config.build_and_connect_mixnet_client(builder),
             )
-            .await??;
+            .await
+            .inspect_err(|_| {
+                tracing::warn!(
+                    "mixnet client connection timed out after {:?}",
+                    mixnet_client_startup_timeout
+                )
+            })?
+            .inspect_err(|e| tracing::warn!("mixnet build/connect error: {e}"))?;
             let bandwidth_controller =
                 Box::new(BandwidthController::new(credential_storage, nyxd_client));
             (mixnet_client, bandwidth_controller)
         } else {
             let builder = MixnetClientBuilder::new_ephemeral().event_tx(EventSender(event_tx));
             let mixnet_client = tokio::time::timeout(
-                self.config.mixnet_client_startup_timeout,
+                mixnet_client_startup_timeout,
                 self.config.build_and_connect_mixnet_client(builder),
             )
-            .await??;
+            .await
+            .inspect_err(|_| {
+                tracing::warn!(
+                    "mixnet client connection timed out after {:?}",
+                    mixnet_client_startup_timeout
+                )
+            })?
+            .inspect_err(|e| tracing::warn!("mixnet build/connect error: {e}"))?;
             let bandwidth_controller = Box::new(BandwidthController::new(
                 EphemeralCredentialStorage::default(),
                 nyxd_client,

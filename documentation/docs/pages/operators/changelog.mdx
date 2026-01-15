@@ -49,6 +49,161 @@ This page displays a full list of all the changes during our release cycle from 
 
 <VarInfo />
 
+## `v2026.1-niolo`
+
+- [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2026.1-niolo)
+- [`nym-node`](nodes/nym-node.mdx) version `1.23.0`
+
+```sh
+nym-node
+Binary Name:        nym-node
+Build Timestamp:    2025-12-02T16:21:03.251191389Z
+Build Version:      1.23.0
+Commit SHA:         46fe1bc8191f42aa27f34743c96e9e9f26453d87
+Commit Date:        2025-12-02T15:29:30.000000000Z
+Commit Branch:      release/2025.22-niolo
+rustc Version:      1.91.1
+rustc Channel:      stable
+cargo Profile:      release
+```
+
+### Operators Updates & Tools
+
+We’re excited to announce the first **nym-node release of 2026**. 
+
+**Exit Policy Ports Management**
+
+In December 2025, two NIP proposals were approved, introducing new ports to Nym network: [NIP-6](https://governator.nym.com/proposal/prop-ba886b9d-6f6e-4365-b4ed-fe7e604bc375), opening ports for WhatsApp and Session + Port `465` and [NIP-4](https://governator.nym.com/proposal/prop-ca6726ea-38b1-4568-97fe-8bdc5fdc83a0), opening port `587`.
+
+**Due to the concerns raised by the operators we built a rate limiting function to Network tunnel manager (NTM) to prevent spam abuse of the network. You can see the changes [here](https://github.com/nymtech/nym/pull/6317).** 
+
+To implement the changes and ensure that the nodes have expected performance, please re-run NTM following these steps:
+
+<Steps>
+###### 1. Get the new NTM
+- Download the updated NTM and make executable
+```sh
+curl -L https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/network-tunnel-manager.sh -o ./network-tunnel-manager.sh && \
+chmod +x network-tunnel-manager.sh
+```
+
+###### 2. Update exit policy
+- To be sure that your routing is clean, run this command:
+```sh
+./network-tunnel-manager.sh complete_networking_configuration
+```
+</ Steps>
+
+**Node Orchestration**
+
+Nym network scaling is done mostly by squads, organizations, DAOs and other entities of collaborating operators administrating multiple nodes. To improve efficiency, user experience and cost we added a new menu item [*Orchestration*](/operators/orchestration) where you can find step by step guides to:
+
+- [Virtualise server using KVM](/operators/nodes/preliminary-steps/vps-setup/advanced): Creating VMs with desired size, bandwidth and capacity for lower cost in comparison to renting VPS
+- [Ansible guide](/operators/orchestration/ansible): Orchestrating many nodes effectively using the [Ansible template](https://github.com/nymtech/nym/tree/develop/ansible/nym-node)
+
+Please, let us know how that worked for you.
+
+### Features
+
+- [Merge intermediate upgrade mode changes](https://github.com/nymtech/nym/pull/6174): This PR contains a long changelog on itself, please read the full [in the PR description](https://github.com/nymtech/nym/pull/6174)
+
+- [Config migration](https://github.com/nymtech/nym/pull/6259)
+
+- [Statistics API v2](https://github.com/nymtech/nym/pull/6227): This PRs adds a v2 of the `VpnClientSessionReport` and update the stats API to be able to store it
+
+- [Update chain registry link](https://github.com/nymtech/nym/pull/6219)
+
+
+### Bugfix
+
+- [Re-exposed 'derive_extended_private_key'](https://github.com/nymtech/nym/pull/6247)
+
+- [`gateway-probe` fixes for run-local](https://github.com/nymtech/nym/pull/6212)
+
+- [Upgrade mode: VPN adjustments](https://github.com/nymtech/nym/pull/6189): This PR further builds up on [\#6174](https://github.com/nymtech/nym/pull/6174) to include changes required by the VPN-client to fully support the upgrade mode, what is relevant here is that this PR modifies the credential storage to allow it to storage an opaque `emergency credential` that lets it be shared between sessions (if it is still valid)  ]
+
+- [Add weighted scoring to NS API](https://github.com/nymtech/nym/pull/6144)
+
+### Refactors & Maintenance
+
+- [Remove run DKG migration](https://github.com/nymtech/nym/pull/6253)
+
+- [Do not re-derive wallet keys on every tx](https://github.com/nymtech/nym/pull/6213): The `cosmrs' trait bounds on `EcdsaSigner` got updated to include `Send` and `Sync`, meaning we no longer need to derive private keys on every transaction and instead we can just do it once, on construction
+
+- [Remove support for legacy mixnode within the performance contract](https://github.com/nymtech/nym/pull/6205): The network no longer supports those nodes, there's no point in having the "brand new" (kinda) contract support them either  
+
+
+
+
+<br />
+<AccordionTemplate name="Changelog 2025">
+
+## Last Update of 2025
+
+We are not going to do a platform release this year anymore, but we have two important updates to share.
+
+### Governance decisions
+
+During December operators were active in voting about new ports and changes in the quorum. 
+
+**As agreed in [NIP-4](https://forum.nym.com/t/nip-4-nym-exit-policy-update-opening-port-587/2029/2) and [NIP-6](https://forum.nym.com/t/nip-6-nym-exit-policy-update-opening-ports-for-whatsapp-and-session/2042/1), we are opening these ports on [Nym exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt):**
+```ini
+*:587 (SMTPSubmission)
+*:22021(Session)
+*:3478 (WhatsApp)
+*:3480 (WhatsApp)
+*:3484 (WhatsApp)
+```
+
+**Node operators requirements**
+
+In order for these changes to become active, Nym node operators need to update their WireGuard and Mixnet exit policy, by following these simple steps:
+
+<Steps>
+
+###### 1. Update WireGuard exit policy
+
+- WireGuard exit policy is managed by `iptables rules` of each server hosting a `nym-node`
+- To simplify the flow, [`network-tunnel-manager.sh` (NTM)](https://github.com/nymtech/nym/blob/develop/scripts/nym-node-setup/network-tunnel-manager.sh) takes care of this
+- Please get the new NTM by SSH to your node and running:
+```sh
+curl -L https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/network-tunnel-manager.sh -o network-tunnel-manager.sh && \
+chmod +x network-tunnel-manager.sh && \
+./network-tunnel-manager.sh --help
+```
+- Then run either:
+```sh
+./network-tunnel-manager.sh complete_networking_configuration
+```
+- Or in case that you are sure that you did `complete_networking_configuration` since the latest release, you can just run the commands needed for the exit policy:
+```sh
+./network-tunnel-manager.sh exit_policy_clear
+./network-tunnel-manager.sh exit_policy_install
+./network-tunnel-manager.sh exit_policy_status
+./network-tunnel-manager.sh exit_policy_tests
+```
+
+
+###### 2. Update Mixnet exit policy
+
+- Mixnet exit policy is being pulled with `nym-node run` command from this source: [nymtech.net/.wellknown/network-requester/exit-policy.txt](https://nymtech.net/.wellknown/network-requester/exit-policy.txt)
+- All you need to do is to restart your node:
+```sh
+service nym-node restart 
+```
+</Steps>
+
+
+### Orchestration with Ansible
+
+Finally we release our initial version **[Ansible playbooks](/operators/orchestration) for orchestrating multiple Nym nodes** from local shell. For now we have playbooks to perform these tasks:
+
+- Deploy
+- Upgrade
+- Bond
+
+Checkout the [docs](/operators/orchestration/ansible) and the [Ansible template](https://github.com/nymtech/nym/tree/develop/ansible/nym-node) and let us know how this flag ship worked for you. 
+
 ## `v2025.21-mozzarella`
 
 - [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.21-mozzarella)
@@ -2684,6 +2839,7 @@ Config changes:
 
 To allow reading through older changelogs, we store them below sorted by years.
 
+</ AccordionTemplate>
 <br />
 <AccordionTemplate name="Changelog 2024">
 
@@ -4378,7 +4534,7 @@ done
     - Top routing score now includes:
         - Wireguard registration and complete handshake test, to configure see [tasklist below](#operators-tasks)
         - DNS resolution check, to configure see [tasklist below](#operators-tasks)
-        - Wireguard perfomance bigger than 0.75, to configure see [tasklist below](#operators-tasks)
+        - Wireguard performance bigger than 0.75, to configure see [tasklist below](#operators-tasks)
 
 - New [Nym Wallet](https://github.com/nymtech/nym/releases/tag/nym-wallet-v1.2.14) is out!
     - Vesting contract functionalities have been purged, users can only remove tokens from vesting
@@ -4728,7 +4884,6 @@ For Entry Gateway:
 22 # SSH
 123 # NTP
 445 # SMB file share Windows
-465 # URD for SSM
 587 # SMTP
 853 # DNS over TLS
 1433 # databases

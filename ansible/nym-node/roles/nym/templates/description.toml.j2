@@ -1,0 +1,20 @@
+{# Priority:
+   1. Use moniker if provided in inventory
+   2. Else strip "nym-exit." prefix if hostname starts with it
+   3. Else use hostname unchanged
+#}
+
+{% if moniker is defined and moniker | length > 0 %}
+    {% set moniker_final = moniker %}
+{% else %}
+    {% if hostname is defined and hostname.startswith('nym-exit.') %}
+        {% set moniker_final = hostname | regex_replace('^nym-exit\\.', '') %}
+    {% else %}
+        {% set moniker_final = hostname %}
+    {% endif %}
+{% endif %}
+
+moniker = "{{ moniker_final }}"
+website = " {{ website }}"
+security_contact = "{{ email }}"
+details = "{{ description }}"

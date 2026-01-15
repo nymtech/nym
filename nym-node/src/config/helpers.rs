@@ -27,6 +27,7 @@ fn ephemeral_gateway_config(config: &Config) -> nym_gateway::config::Config {
             enabled: config.service_providers.network_requester.debug.enabled,
         },
         config.gateway_tasks.upgrade_mode.clone(),
+        config.gateway_tasks.lp,
         nym_gateway::config::Debug {
             client_bandwidth_max_flushing_rate: config
                 .gateway_tasks
@@ -91,6 +92,8 @@ pub struct GatewayTasksConfig {
     pub auth_opts: Option<LocalAuthenticatorOpts>,
     #[allow(dead_code)]
     pub wg_opts: LocalWireguardOpts,
+    #[allow(dead_code)]
+    pub lp: nym_gateway::node::LpConfig,
 }
 
 // that function is rather disgusting, but I hope it's not going to live for too long
@@ -212,6 +215,7 @@ pub fn gateway_tasks_config(config: &Config) -> GatewayTasksConfig {
             announced_metadata_port: config.wireguard.announced_metadata_port,
             private_network_prefix_v4: config.wireguard.private_network_prefix_v4,
             private_network_prefix_v6: config.wireguard.private_network_prefix_v6,
+            use_userspace: config.wireguard.use_userspace,
             storage_paths: config.wireguard.storage_paths.clone(),
         },
         custom_mixnet_path: None,
@@ -223,6 +227,7 @@ pub fn gateway_tasks_config(config: &Config) -> GatewayTasksConfig {
         ipr_opts: Some(ipr_opts),
         auth_opts: Some(auth_opts),
         wg_opts,
+        lp: config.gateway_tasks.lp,
     }
 }
 

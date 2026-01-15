@@ -1525,7 +1525,7 @@ mod tests {
         let packet = LpPacket::new(
             LpHeader {
                 protocol_version: 1,
-                reserved: 0,
+                reserved: [0u8; 3],
                 receiver_idx: 42,
                 counter: 0,
             },
@@ -1591,7 +1591,7 @@ mod tests {
             let packet = LpPacket::new(
                 LpHeader {
                     protocol_version: 1,
-                    reserved: 0,
+                    reserved: [0u8; 3],
                     receiver_idx: 99,
                     counter: 5,
                 },
@@ -1631,7 +1631,7 @@ mod tests {
             let packet = LpPacket::new(
                 LpHeader {
                     protocol_version: 1,
-                    reserved: 0,
+                    reserved: [0u8; 3],
                     receiver_idx: 100,
                     counter: 10,
                 },
@@ -1672,7 +1672,7 @@ mod tests {
             let packet = LpPacket::new(
                 LpHeader {
                     protocol_version: 1,
-                    reserved: 0,
+                    reserved: [0u8; 3],
                     receiver_idx: 200,
                     counter: 20,
                 },
@@ -1724,7 +1724,7 @@ mod tests {
             let packet = LpPacket::new(
                 LpHeader {
                     protocol_version: 1,
-                    reserved: 0,
+                    reserved: [0u8; 3],
                     receiver_idx: 300,
                     counter: 30,
                 },
@@ -1789,7 +1789,7 @@ mod tests {
         let packet = LpPacket::new(
             LpHeader {
                 protocol_version: 1,
-                reserved: 0,
+                reserved: [0u8; 3],
                 receiver_idx: 0,
                 counter: 0,
             },
@@ -1859,7 +1859,7 @@ mod tests {
         let packet = LpPacket::new(
             LpHeader {
                 protocol_version: 1,
-                reserved: 0,
+                reserved: [0u8; 3],
                 receiver_idx: 0,
                 counter: 0,
             },

@@ -193,6 +193,7 @@ pub async fn start_wireguard(
     upgrade_mode_status: nym_credential_verification::upgrade_mode::UpgradeModeStatus,
     shutdown_token: nym_task::ShutdownToken,
     wireguard_data: WireguardData,
+    _use_userspace: bool, // TODO check if this is actually still used post-rebase clippy check
 ) -> Result<std::sync::Arc<WgApiWrapper>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     use base64::{Engine, prelude::BASE64_STANDARD};
     use defguard_wireguard_rs::{InterfaceConfiguration, WireguardInterfaceApi};

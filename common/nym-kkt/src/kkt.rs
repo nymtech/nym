@@ -183,7 +183,7 @@ where
     // Generate signed response with our KEM public key
     let responder_frame = responder_process(
         &mut response_context,
-        request_frame.session_id_ref(),
+        request_frame.session_id(),
         responder_signing_key,
         responder_kem_key,
     )?;

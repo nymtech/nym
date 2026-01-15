@@ -1,6 +1,7 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::ciphersuite::CIPHERSUITE_ENCODING_LEN;
 use crate::{KKT_VERSION, ciphersuite::Ciphersuite, error::KKTError, frame::KKT_SESSION_ID_LEN};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use std::fmt::Display;
@@ -139,6 +140,9 @@ impl KKTContext {
     }
 
     pub const fn session_id_len(&self) -> usize {
+        // note: if anyone decides to update this function and changes the constant value,
+        // you will have to adjust encoding/decoding functions
+
         // match self.role {
         //     KKTRole::Initiator | KKTRole::Responder => SESSION_ID_LENGTH,
         // It doesn't make sense to send a session_id if we send messages in the clear
@@ -151,31 +155,27 @@ impl KKTContext {
         self.body_len() + self.signature_len() + self.header_len() + self.session_id_len()
     }
 
-    pub fn encode(&self) -> Result<Vec<u8>, KKTError> {
-        let mut header_bytes: Vec<u8> = Vec::with_capacity(KKT_CONTEXT_LEN);
+    pub fn encode(&self) -> Result<[u8; KKT_CONTEXT_LEN], KKTError> {
+        let mut header_bytes = [0u8; KKT_CONTEXT_LEN];
         if self.message_sequence >= 1 << 4 {
             return Err(KKTError::MessageCountLimitReached);
         }
 
-        header_bytes.push((KKT_VERSION << 4) + self.message_sequence);
-        header_bytes.push(u8::from(self.status) + u8::from(self.mode) + u8::from(self.role));
+        let ciphersuite_bytes = self.ciphersuite.encode();
 
-        header_bytes.extend_from_slice(&self.ciphersuite.encode());
-        header_bytes.push(0);
+        header_bytes[0] = (KKT_VERSION << 4) + self.message_sequence;
+        header_bytes[1] = u8::from(self.status) + u8::from(self.mode) + u8::from(self.role);
+
+        let mut i = 2;
+        for b in ciphersuite_bytes.into_iter() {
+            header_bytes[i] = b;
+            i += 1;
+        }
+        header_bytes[i] = 0;
         Ok(header_bytes)
     }
 
-    pub fn try_decode(header_bytes: &[u8]) -> Result<Self, KKTError> {
-        if header_bytes.len() != KKT_CONTEXT_LEN {
-            return Err(KKTError::FrameDecodingError {
-                info: format!(
-                    "Header - Invalid Header Length: actual: {} != expected: {}",
-                    header_bytes.len(),
-                    KKT_CONTEXT_LEN
-                ),
-            });
-        }
-
+    pub fn try_decode(header_bytes: [u8; KKT_CONTEXT_LEN]) -> Result<Self, KKTError> {
         let kkt_version = (header_bytes[0] & 0b1111_0000) >> 4;
         let message_sequence_counter = header_bytes[0] & 0b0000_1111;
 
@@ -202,12 +202,20 @@ impl KKTContext {
             info: format!("Header - Invalid KKT Mode: {raw_kkt_mode}"),
         })?;
 
+        let ciphersuite_bytes = header_bytes[2..6].try_into().map_err(|_| {
+            KKTError::CiphersuiteDecodingError {
+                info: format!(
+                    "Incorrect Encoding Length: actual: 4 != expected: {CIPHERSUITE_ENCODING_LEN}",
+                ),
+            }
+        })?;
+
         Ok(KKTContext {
             version: kkt_version,
             status,
             mode,
             role,
-            ciphersuite: Ciphersuite::decode(&header_bytes[2..6])?,
+            ciphersuite: Ciphersuite::decode(ciphersuite_bytes)?,
             message_sequence: message_sequence_counter,
         })
     }
@@ -222,11 +230,11 @@ mod tests {
         let valid_context = KKTContext::new(
             KKTRole::Initiator,
             KKTMode::Mutual,
-            Ciphersuite::decode(&[255, 1, 0, 0]).unwrap(),
+            Ciphersuite::decode([255, 1, 0, 0]).unwrap(),
         )
         .unwrap();
         let encoded = valid_context.encode().unwrap();
-        let decoded = KKTContext::try_decode(&encoded).unwrap();
+        let decoded = KKTContext::try_decode(encoded).unwrap();
 
         assert_eq!(decoded, valid_context);
     }

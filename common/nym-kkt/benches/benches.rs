@@ -160,7 +160,7 @@ pub fn kkt_benchmark(c: &mut Criterion) {
                         b.iter(|| {
                             responder_process(
                                 &mut r_context,
-                                i_frame_r.session_id_ref(),
+                                i_frame_r.session_id(),
                                 responder_ed25519_keypair.private_key(),
                                 &responder_kem_public_key,
                             )
@@ -170,7 +170,7 @@ pub fn kkt_benchmark(c: &mut Criterion) {
                 );
                 let r_frame = responder_process(
                     &mut r_context,
-                    i_frame_r.session_id_ref(),
+                    i_frame_r.session_id(),
                     responder_ed25519_keypair.private_key(),
                     &responder_kem_public_key,
                 )
@@ -301,7 +301,7 @@ pub fn kkt_benchmark(c: &mut Criterion) {
                         b.iter(|| {
                             responder_process(
                                 &mut r_context,
-                                i_frame_r.session_id_ref(),
+                                i_frame_r.session_id(),
                                 responder_ed25519_keypair.private_key(),
                                 &responder_kem_public_key,
                             )
@@ -312,7 +312,7 @@ pub fn kkt_benchmark(c: &mut Criterion) {
 
                 let r_frame = responder_process(
                     &mut r_context,
-                    i_frame_r.session_id_ref(),
+                    i_frame_r.session_id(),
                     responder_ed25519_keypair.private_key(),
                     &responder_kem_public_key,
                 )
@@ -450,7 +450,7 @@ pub fn kkt_benchmark(c: &mut Criterion) {
                         b.iter(|| {
                             responder_process(
                                 &mut r_context,
-                                i_frame_r.session_id_ref(),
+                                i_frame_r.session_id(),
                                 responder_ed25519_keypair.private_key(),
                                 &responder_kem_public_key,
                             )
@@ -461,7 +461,7 @@ pub fn kkt_benchmark(c: &mut Criterion) {
 
                 let r_frame = responder_process(
                     &mut r_context,
-                    i_frame_r.session_id_ref(),
+                    i_frame_r.session_id(),
                     responder_ed25519_keypair.private_key(),
                     &responder_kem_public_key,
                 )

@@ -1,6 +1,7 @@
 use nym_crypto::asymmetric::ed25519::{self, Signature};
 use rand::{CryptoRng, RngCore};
 
+use crate::frame::KKTSessionId;
 use crate::{
     ciphersuite::{Ciphersuite, EncapsulationKey},
     context::{KKTContext, KKTMode, KKTRole, KKTStatus},
@@ -51,7 +52,7 @@ where
 
     Ok((
         context,
-        KKTFrame::new(&context_bytes, body, &session_id, &signature),
+        KKTFrame::new(context_bytes, body, session_id, &signature),
     ))
 }
 
@@ -68,10 +69,7 @@ where
     let mut session_id = [0u8; KKT_SESSION_ID_LEN];
     rng.fill_bytes(&mut session_id);
 
-    Ok((
-        context,
-        KKTFrame::new(&context_bytes, &[], &session_id, &[]),
-    ))
+    Ok((context, KKTFrame::new(context_bytes, &[], session_id, &[])))
 }
 
 pub fn initiator_ingest_response<'a>(
@@ -204,7 +202,7 @@ pub fn responder_ingest_message<'a>(
 
 pub fn responder_process<'a>(
     own_context: &mut KKTContext,
-    session_id: &[u8],
+    session_id: KKTSessionId,
     signing_key: &ed25519::PrivateKey,
     encapsulation_key: &EncapsulationKey<'a>,
 ) -> Result<KKTFrame, KKTError> {
@@ -216,11 +214,11 @@ pub fn responder_process<'a>(
         Vec::with_capacity(own_context.full_message_len() - own_context.signature_len());
     bytes_to_sign.extend_from_slice(&own_context.encode()?);
     bytes_to_sign.extend_from_slice(&body);
-    bytes_to_sign.extend_from_slice(session_id);
+    bytes_to_sign.extend_from_slice(&session_id);
 
     let signature = signing_key.sign(bytes_to_sign).to_bytes();
 
-    Ok(KKTFrame::new(&context_bytes, &body, session_id, &signature))
+    Ok(KKTFrame::new(context_bytes, &body, session_id, &signature))
 }
 
 fn check_compatibility(

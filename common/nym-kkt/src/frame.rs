@@ -14,10 +14,12 @@ use crate::{
 
 pub const KKT_SESSION_ID_LEN: usize = 16;
 
+pub type KKTSessionId = [u8; KKT_SESSION_ID_LEN];
+
 #[derive(Debug, PartialEq, Clone)]
 pub struct KKTFrame {
-    context: Vec<u8>,
-    session_id: Vec<u8>,
+    context: [u8; KKT_CONTEXT_LEN],
+    session_id: KKTSessionId,
     body: Vec<u8>,
     signature: Vec<u8>,
 }
@@ -28,20 +30,27 @@ pub struct KKTFrame {
 // if coming from responder => body has the responder's kem public key and the signature is over the context + body + session_id.
 
 impl KKTFrame {
-    pub fn new(context: &[u8], body: &[u8], session_id: &[u8], signature: &[u8]) -> Self {
+    pub fn new(
+        context: [u8; KKT_CONTEXT_LEN],
+        body: &[u8],
+        session_id: [u8; KKT_SESSION_ID_LEN],
+        signature: &[u8],
+    ) -> Self {
         Self {
-            context: Vec::from(context),
+            context,
             body: Vec::from(body),
-            session_id: Vec::from(session_id),
+            session_id,
             signature: Vec::from(signature),
         }
     }
     pub fn context_ref(&self) -> &[u8] {
         &self.context
     }
+
     pub fn signature_ref(&self) -> &[u8] {
         &self.signature
     }
+
     pub fn body_ref(&self) -> &[u8] {
         &self.body
     }
@@ -49,6 +58,10 @@ impl KKTFrame {
     pub fn session_id_ref(&self) -> &[u8] {
         &self.session_id
     }
+    pub fn session_id(&self) -> [u8; KKT_SESSION_ID_LEN] {
+        self.session_id
+    }
+
     pub fn signature_mut(&mut self) -> &mut [u8] {
         &mut self.signature
     }
@@ -74,55 +87,64 @@ impl KKTFrame {
     }
 
     pub fn from_bytes(bytes: &[u8]) -> Result<(Self, KKTContext), KKTError> {
+        let len = bytes.len();
         if bytes.len() < KKT_CONTEXT_LEN {
             return Err(KKTError::FrameDecodingError {
                 info: format!(
-                    "Frame is shorter than expected context length: actual {} != expected {}",
-                    bytes.len(),
-                    KKT_CONTEXT_LEN
+                    "Frame is shorter than expected context length: actual {len} != expected {KKT_CONTEXT_LEN}",
                 ),
             });
         }
 
-        let context_bytes = Vec::from(&bytes[0..KKT_CONTEXT_LEN]);
-        let context = KKTContext::try_decode(&context_bytes)?;
+        // SAFETY: we're using exactly KKT_CONTEXT_LEN bytes
+        #[allow(clippy::unwrap_used)]
+        let context_bytes = bytes[0..KKT_CONTEXT_LEN].try_into().unwrap();
+        let context = KKTContext::try_decode(context_bytes)?;
 
         if bytes.len() != context.full_message_len() {
             return Err(KKTError::FrameDecodingError {
                 info: format!(
-                    "Frame is shorter than expected: actual {} != expected {}",
-                    bytes.len(),
+                    "Frame is shorter than expected: actual {len} != expected {}",
                     context.full_message_len()
                 ),
             });
         }
 
-        let (mut session_id, mut body, mut signature): (Vec<u8>, Vec<u8>, Vec<u8>) =
-            (vec![], vec![], vec![]);
+        let mut body = Vec::new();
+        let mut signature = Vec::new();
 
+        // decode body
         if context.body_len() > 0 {
-            body.extend_from_slice(&bytes[KKT_CONTEXT_LEN..KKT_CONTEXT_LEN + context.body_len()]);
+            let body_bytes = &bytes[KKT_CONTEXT_LEN..KKT_CONTEXT_LEN + context.body_len()];
+            body.extend_from_slice(&body_bytes);
         }
 
-        if context.session_id_len() > 0 {
-            session_id.extend_from_slice(
-                &bytes[KKT_CONTEXT_LEN + context.body_len()
-                    ..KKT_CONTEXT_LEN + context.body_len() + context.session_id_len()],
-            );
-        }
+        let session_bytes = &bytes[KKT_CONTEXT_LEN + context.body_len()
+            ..KKT_CONTEXT_LEN + context.body_len() + KKT_SESSION_ID_LEN];
+        // SAFETY: we're using exactly KKT_SESSION_ID_LEN bytes and we checked for sufficient bytes
+        #[allow(clippy::unwrap_used)]
+        let session_id = session_bytes.try_into().unwrap();
 
+        // // old code left for reference if session id becomes variable in length:
+        // if context.session_id_len() > 0 {
+        //     session_id.extend_from_slice(
+        //         &bytes[KKT_CONTEXT_LEN + context.body_len()
+        //             ..KKT_CONTEXT_LEN + context.body_len() + context.session_id_len()],
+        //     );
+        // }
+
+        // decode signature
         if context.signature_len() > 0 {
-            signature.extend_from_slice(
-                &bytes[KKT_CONTEXT_LEN + context.body_len() + context.session_id_len()
-                    ..KKT_CONTEXT_LEN
-                        + context.body_len()
-                        + context.session_id_len()
-                        + context.signature_len()],
-            );
+            let signature_bytes = &bytes[KKT_CONTEXT_LEN + context.body_len() + KKT_SESSION_ID_LEN
+                ..KKT_CONTEXT_LEN
+                    + context.body_len()
+                    + KKT_SESSION_ID_LEN
+                    + context.signature_len()];
+            signature.extend_from_slice(signature_bytes);
         }
 
         Ok((
-            KKTFrame::new(&context_bytes, &body, &session_id, &signature),
+            KKTFrame::new(context_bytes, &body, session_id, &signature),
             context,
         ))
     }

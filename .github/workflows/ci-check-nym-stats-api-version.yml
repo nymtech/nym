@@ -10,13 +10,13 @@ env:
 
 jobs:
   check-if-tag-exists:
-    runs-on: arc-ubuntu-22.04-dind
+    runs-on: arc-linux-latest-dind
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
 
       - name: Get version from cargo.toml
-        uses: mikefarah/yq@v4.47.1
+        uses: mikefarah/yq@v4.48.1
         id: get_version
         with:
           cmd: yq -oy '.package.version' ${{ env.WORKING_DIRECTORY }}/Cargo.toml

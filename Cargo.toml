@@ -171,6 +171,7 @@ members = [
 default-members = [
     "clients/native",
     "clients/socks5",
+    "nym-authenticator-client",
     "nym-api",
     "nym-credential-proxy/nym-credential-proxy",
     "nym-node",
@@ -346,11 +347,11 @@ tokio-tungstenite = { version = "0.20.1" }
 tokio-util = "0.7.15"
 toml = "0.8.22"
 tower = "0.5.2"
-tower-http = "0.5.2"
+tower-http = "0.6.6"
 tracing = "0.1.41"
 tracing-log = "0.2"
 tracing-opentelemetry = "0.19.0"
-tracing-subscriber = "0.3.19"
+tracing-subscriber = "0.3.20"
 tracing-tree = "0.2.2"
 tracing-indicatif = "0.3.9"
 tracing-test = "0.2.5"

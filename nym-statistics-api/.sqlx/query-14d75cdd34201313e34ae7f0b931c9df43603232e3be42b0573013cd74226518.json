@@ -1,0 +1,33 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO report_v2(\n                received_at,\n                source_ip,\n                from_mixnet,\n                country_code,\n                report_version,\n                device_id,\n                os_type,\n                os_version,\n                architecture,\n                app_version,\n                user_agent,\n                start_day_utc,\n                connection_time_ms,\n                tunnel_type,\n                retry_attempt,\n                session_duration_min,\n                disconnection_time_ms,\n                exit_id,\n                follow_up_id,\n                error)\n                VALUES ($1::timestamptz, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Text",
+        "Bool",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Date",
+        "Int4",
+        "Text",
+        "Int4",
+        "Int4",
+        "Int4",
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "14d75cdd34201313e34ae7f0b931c9df43603232e3be42b0573013cd74226518"
+}

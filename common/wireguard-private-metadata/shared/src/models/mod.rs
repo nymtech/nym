@@ -14,7 +14,10 @@ pub mod interface;
 pub mod v0; // dummy version, only for filling boilerplate code for update/downgrade and testing
 pub mod v1;
 
-pub use v1 as latest;
+// adds upgrade mode information to bandwidth response
+pub mod v2;
+
+pub use v2 as latest;
 
 use crate::models::error::Error;
 
@@ -24,6 +27,7 @@ pub enum Version {
     /// only used for testing purposes, don't include it in your matching arms
     V0,
     V1,
+    V2,
 }
 
 impl From<u64> for Version {
@@ -35,6 +39,7 @@ impl From<u64> for Version {
         match value {
             0 => zero_version,
             1 => Version::V1,
+            2 => Version::V2,
             _ => latest::VERSION, // if unknown, it means we're behind, so we can use the latest we know about
         }
     }
@@ -47,6 +52,7 @@ impl From<Version> for u64 {
             #[cfg(feature = "testing")]
             Version::V0 => 0,
             Version::V1 => 1,
+            Version::V2 => 2,
         }
     }
 }
@@ -57,10 +63,22 @@ pub struct Request {
     pub(crate) inner: Vec<u8>,
 }
 
-#[derive(Clone, Serialize, Deserialize, ToSchema)]
+impl Request {
+    pub fn new(version: Version, inner: Vec<u8>) -> Self {
+        Request { version, inner }
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
 pub struct Response {
     pub version: Version,
     pub(crate) inner: Vec<u8>,
+}
+
+impl Response {
+    pub fn new(version: Version, inner: Vec<u8>) -> Self {
+        Response { version, inner }
+    }
 }
 
 pub trait Extract<T> {

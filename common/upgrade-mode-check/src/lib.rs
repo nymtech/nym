@@ -9,7 +9,12 @@ pub use attestation::{
     UpgradeModeAttestation, generate_new_attestation, generate_new_attestation_with_starting_time,
 };
 pub use error::UpgradeModeCheckError;
-pub use jwt::{generate_jwt_for_upgrade_mode_attestation, validate_upgrade_mode_jwt};
+pub use jwt::{
+    CREDENTIAL_PROXY_JWT_ISSUER, generate_jwt_for_upgrade_mode_attestation,
+    try_decode_upgrade_mode_jwt_claims, validate_upgrade_mode_jwt,
+};
 
 #[cfg(not(target_arch = "wasm32"))]
 pub use attestation::attempt_retrieve_attestation;
+
+pub const UPGRADE_MODE_CREDENTIAL_TYPE: &str = "upgrade_mode_jwt";

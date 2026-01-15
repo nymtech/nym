@@ -7,6 +7,7 @@
 # RUN AS ROOT
 
 set -euo pipefail
+set +o errtrace
 
 # Colors
 RED="\033[0;31m"
@@ -17,24 +18,36 @@ BOLD="\033[1m"
 RESET="\033[0m"
 
 # Logging
-LOG_FILE="/var/log/nym-bridge-helper.log"
+LOG_FILE="/var/log/nym/quic_bridge_deployment.log"
 mkdir -p "$(dirname "$LOG_FILE")"
+
+# rotate log if >10MB BEFORE writing START header
+if [[ -f "$LOG_FILE" && $(stat -c%s "$LOG_FILE") -gt 10485760 ]]; then
+  mv "$LOG_FILE" "${LOG_FILE}.1"
+fi
+
 touch "$LOG_FILE"
 chmod 640 "$LOG_FILE"
+
+echo "----- $(date '+%Y-%m-%d %H:%M:%S') START quic-bridge-manager -----" | tee -a "$LOG_FILE"
 echo -e "${CYAN}Logs are being saved locally to:${RESET} $LOG_FILE"
 echo -e "${CYAN}These logs never leave your machine.${RESET}"
 echo "" | tee -a "$LOG_FILE"
 
-# safe logger
+# safe logger function
 log() {
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "$LOG_FILE"
 }
 
-# simple redirection that keeps function scope intact
+# global redirection, strip ANSI before writing to log
 add_log_redirection() {
-  exec > >(tee -a "$LOG_FILE") 2>&1
+  exec > >(tee >(sed -u 's/\x1b\[[0-9;]*m//g' >> "$LOG_FILE"))
+  exec 2> >(tee >(sed -u 's/\x1b\[[0-9;]*m//g' >> "$LOG_FILE") >&2)
 }
 add_log_redirection
+
+START_TIME=$(date +%s)
+
 
 # Constants / Paths
 REQUIRED_CMDS=(ip jq curl openssl dpkg)
@@ -47,7 +60,17 @@ NYM_ETC_BRIDGES="$NYM_ETC_DIR/bridges.toml"
 NYM_ETC_CLIENT_PARAMS_DEFAULT="$NYM_ETC_DIR/client_bridge_params.json"
 SERVICE_FILE="/etc/systemd/system/nym-bridge.service"
 
-NET_DEV="$(ip route show default 2>/dev/null | awk '/default/ {print $5}' || true)"
+NET_DEV="${UPLINK_DEV:-}"
+if [[ -z "$NET_DEV" ]]; then
+  NET_DEV="$(ip -o route show default 2>/dev/null | awk '{print $5}' | head -n1)"
+  [[ -z "$NET_DEV" ]] && NET_DEV="$(ip -o route show default table all 2>/dev/null | awk '{print $5}' | head -n1)"
+fi
+if [[ -z "$NET_DEV" ]]; then
+  echo -e "${RED}Cannot determine uplink interface. Set UPLINK_DEV.${RESET}" | tee -a "$LOG_FILE"
+  exit 1
+fi
+echo "Using uplink device: $NET_DEV"
+
 WG_IFACE="nymwg"
 
 # Root check
@@ -57,13 +80,29 @@ if [[ "$(id -u)" -ne 0 ]]; then
 fi
 
 # UI helpers
-hr() { echo -e "${YELLOW}----------------------------------------${RESET}"; }
+hr() { echo -e "${YELLOW}----------------------------------------${RESET}" ; }
 title() { echo -e "\n${YELLOW}==========================================${RESET}\n${YELLOW}  $1${RESET}\n${YELLOW}==========================================${RESET}\n"; }
 ok() { echo -e "${GREEN}$1${RESET}"; }
 warn() { echo -e "${YELLOW}$1${RESET}"; }
 err() { echo -e "${RED}$1${RESET}"; }
 info() { echo -e "${CYAN}$1${RESET}"; }
-press_enter() { read -r -p "$1"; }
+press_enter() {
+  echo -n "$1" > /dev/tty
+  read -r _ < /dev/tty
+}
+
+
+# Disable pauses and interactive prompts for noninteractive mode
+if [[ "${NONINTERACTIVE:-0}" == "1" ]]; then
+    press_enter() { :; }
+    echo_prompt() { :; }
+else
+    press_enter() {
+        echo -n "$1" > /dev/tty
+        read -r _ < /dev/tty
+    }
+    echo_prompt() { echo -n "$1"; }
+fi
 
 # Helper: detect dpkg dependency failure for libc6>=2.34
 deb_depends_libc_too_old() {
@@ -176,13 +215,31 @@ verify_bridge_prerequisites() {
 }
 
 adjust_ip_forwarding() {
-  title "Adjusting IP Forwarding"
-  sed -i '/^net\.ipv4\.ip_forward=/d' /etc/sysctl.conf
-  sed -i '/^net\.ipv6\.conf\.all\.forwarding=/d' /etc/sysctl.conf
-  echo "net.ipv4.ip_forward=1" >> /etc/sysctl.conf
-  echo "net.ipv6.conf.all.forwarding=1" >> /etc/sysctl.conf
-  sysctl -p /etc/sysctl.conf
-  ok "IPv4/IPv6 forwarding enabled."
+  title "Checking IP forwarding"
+  local v4 v6
+  v4="$(cat /proc/sys/net/ipv4/ip_forward 2>/dev/null || echo 0)"
+  v6="$(cat /proc/sys/net/ipv6/conf/all/forwarding 2>/dev/null || echo 0)"
+
+  if [[ "$v4" == "1" ]]; then
+    ok "IPv4 forwarding is enabled."
+  else
+    warn "IPv4 forwarding is not enabled."
+  fi
+
+  if [[ "$v6" == "1" ]]; then
+    ok "IPv6 forwarding is enabled."
+  else
+    warn "IPv6 forwarding is not enabled."
+  fi
+
+  if [[ "$v4" != "1" || "$v6" != "1" ]]; then
+    echo
+    echo "To enable forwarding and routing consistently, run the network tunnel manager script as root."
+    echo "For example:"
+    echo "  ./network-tunnel-manager.sh complete_networking_configuration"
+    echo "or:"
+    echo "  ./network-tunnel-manager.sh adjust_ip_forwarding"
+  fi
 }
 
 # Install nym-bridge
@@ -377,6 +434,11 @@ User=root
 ExecStart=$BRIDGE_BIN --config $NYM_ETC_BRIDGES
 Restart=on-failure
 RestartSec=5
+LimitNOFILE=65535
+ProtectSystem=full
+ProtectHome=yes
+PrivateTmp=yes
+
 
 [Install]
 WantedBy=multi-user.target
@@ -390,21 +452,40 @@ EOF
 
 # IPTABLES & helpers
 apply_bridge_iptables_rules() {
-  title "Applying iptables rules"
-  iptables -I INPUT -i "$WG_IFACE" -j ACCEPT || true
-  ip6tables -I INPUT -i "$WG_IFACE" -j ACCEPT || true
-  iptables -t nat -A POSTROUTING -o "$NET_DEV" -j MASQUERADE || true
-  ip6tables -t nat -A POSTROUTING -o "$NET_DEV" -j MASQUERADE || true
-  iptables-save > /etc/iptables/rules.v4
-  ip6tables-save > /etc/iptables/rules.v6
-  ok "iptables rules applied."
+  title "Checking iptables rules for bridge routing"
+
+  echo "Inspecting current iptables state for interface ${WG_IFACE} and uplink ${NET_DEV}."
+  echo
+
+  echo "IPv4 FORWARD:"
+  iptables -L FORWARD -n -v 2>/dev/null | sed -n '1,20p' || echo "iptables not available."
+  echo
+  echo "IPv4 NAT POSTROUTING:"
+  iptables -t nat -L POSTROUTING -n -v 2>/dev/null | sed -n '1,20p' || true
+  echo
+  echo "IPv6 FORWARD:"
+  ip6tables -L FORWARD -n -v 2>/dev/null | sed -n '1,20p' || true
+  echo
+  echo "IPv6 NAT POSTROUTING:"
+  ip6tables -t nat -L POSTROUTING -n -v 2>/dev/null | sed -n '1,20p' || true
+
+  echo
+  echo "This script no longer changes iptables. To configure routing and NAT for nym, use the network tunnel manager script."
+  echo "For example (run as root):"
+  echo "  ./network-tunnel-manager.sh complete_networking_configuration"
 }
 
 configure_dns_and_icmp() {
-  title "Allow ICMP and DNS"
-  iptables -A INPUT -p icmp --icmp-type echo-request -j ACCEPT || true
-  ip6tables -A INPUT -p ipv6-icmp -j ACCEPT || true
-  ok "ICMP and DNS rules applied."
+  title "Checking ICMP and DNS firewall rules"
+
+  echo "IPv4 INPUT rules related to ICMP and DNS:"
+  iptables -L INPUT -n -v 2>/dev/null | grep -E 'icmp|dpt:53' || echo "no matching IPv4 rules shown."
+  echo
+  echo "IPv6 INPUT rules related to ICMP and DNS:"
+  ip6tables -L INPUT -n -v 2>/dev/null | grep -E 'icmp|dpt:53' || echo "no matching IPv6 rules shown."
+
+  echo
+  echo "If ping or DNS are blocked for bridge traffic, adjust your firewall using the network tunnel manager script or your chosen firewall tool."
 }
 
 # Full interactive setup
@@ -429,6 +510,8 @@ full_bridge_setup() {
   echo ""
   echo "Step 2/6: Installing bridge binary..."
   install_bridge_binary
+  echo "[Bridge Install] $(date '+%F %T') $( $BRIDGE_BIN --version 2>/dev/null || echo 'nym-bridge (unknown)')" \
+    >> /var/log/nym/nym-bridge-version.log
   press_enter "Press Enter to continue..."
 
   echo ""
@@ -447,7 +530,7 @@ full_bridge_setup() {
   press_enter "Press Enter to continue..."
 
   echo ""
-  echo "Step 6/6: Configuring network rules (optional but recommended)..."
+  echo "Step 6/6: Checking network rules and forwarding status..."
   adjust_ip_forwarding
   apply_bridge_iptables_rules
   configure_dns_and_icmp
@@ -468,10 +551,6 @@ full_bridge_setup() {
   echo -e "${YELLOW}------------------------------------------${RESET}"
   echo -e "All done! You can safely close this session."
   echo -e "${YELLOW}------------------------------------------${RESET}"
-  echo ""
-  echo "Logs saved locally at: $LOG_FILE"
-  echo "Operation 'full_bridge_setup' completed."
-  echo ""
 
   hr
   echo -e "${CYAN}Next steps and verification:${RESET}"
@@ -509,22 +588,26 @@ full_bridge_setup() {
 
 graceful_exit() {
   local exit_code=$?
-  echo ""
-  echo -e "${YELLOW}------------------------------------------${RESET}"
+  END_TIME=$(date +%s)
+  ELAPSED=$((END_TIME - START_TIME))
+
+  # Only print success message when there were NO errors
   if [[ $exit_code -eq 0 ]]; then
-    echo -e "${GREEN}Setup completed successfully. Exiting cleanly.${RESET}"
-  else
-    echo -e "${RED}Script exited with errors (code: $exit_code).${RESET}"
-    echo "Check the log at: $LOG_FILE"
+    echo "Operation '${COMMAND}' completed."
   fi
-  echo -e "${YELLOW}------------------------------------------${RESET}"
-  echo ""
-  exec >&- 2>&-
+
+  # END footer always logged
+  echo "----- $(date '+%Y-%m-%d %H:%M:%S') END operation ${COMMAND} (status $exit_code, duration ${ELAPSED}s) -----" >> "$LOG_FILE"
+
   exit $exit_code
 }
-trap graceful_exit EXIT
 
 # Command menu
+COMMAND="${1:-help}"
+trap 'log "ERROR: exit=$? line=$LINENO cmd=$(printf "%q" "$BASH_COMMAND")"' ERR
+
+trap graceful_exit EXIT
+
 case "${1:-}" in
   full_bridge_setup)          full_bridge_setup ;;
   install_bridge_binary)      install_bridge_binary ;;
@@ -549,6 +632,4 @@ case "${1:-}" in
     exit 1
     ;;
 esac
-
-echo "Operation '${1:-help}' completed."
 

@@ -4,6 +4,62 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [2026.1-niolo] (2026-01-13)
+
+- bugfix: mozzarella -> niolo config migration ([#6259])
+- chore: remove run DKG migration ([#6253])
+- bugfix: reexposed 'derive_extended_private_key' ([#6247])
+- Bump js-yaml from 3.14.1 to 3.14.2 in /sdk/typescript/codegen/contract-clients ([#6231])
+- Statistics API v2 ([#6227])
+- Bump golang.org/x/crypto from 0.39.0 to 0.45.0 in /nym-gateway-probe/netstack_ping ([#6220])
+- Update chain registry link ([#6219])
+- Bump glob from 10.3.4 to 10.5.0 in /documentation/scripts/post-process ([#6216])
+- Bump js-yaml from 4.1.0 to 4.1.1 in /sdk/typescript/tests/integration-tests/mix-fetch ([#6215])
+- gateway-probe fixes for run-local ([#6212])
+- chore: updated default endpoint for retrieving attestation.json ([#6207])
+- chore: remove support for legacy mixnode within the performance contract ([#6205])
+- feat: upgrade mode: VPN adjustments ([#6189])
+- Bump min-document from 2.19.0 to 2.19.1 ([#6181])
+- Bump next from 15.4.1 to 15.4.7 in /nym-node-status-api/nym-node-status-ui ([#6180])
+- feat: merge intermediate upgrade mode changes ([#6174])
+- Add weighted scoring to NS API ([#6144])
+- build(deps): bump mikefarah/yq from 4.47.1 to 4.48.1 ([#6107])
+- build(deps): bump SonarSource/sonarqube-scan-action from 5 to 6 in /.github/workflows ([#6068])
+- build(deps): bump tar-fs from 3.0.9 to 3.1.1 in /sdk/typescript/tests/integration-tests/mix-fetch ([#6063])
+- build(deps): bump ammonia from 4.1.1 to 4.1.2 ([#6057])
+- build(deps): bump tower-http from 0.5.2 to 0.6.6 ([#6030])
+- build(deps): bump actions/setup-go from 5 to 6 ([#6013])
+- build(deps): bump next from 14.2.28 to 14.2.32 ([#5996])
+- build(deps): bump tracing-subscriber from 0.3.19 to 0.3.20 ([#5993])
+- build(deps): bump actions/upload-pages-artifact from 3 to 4 ([#5992])
+
+[#6259]: https://github.com/nymtech/nym/pull/6259
+[#6253]: https://github.com/nymtech/nym/pull/6253
+[#6247]: https://github.com/nymtech/nym/pull/6247
+[#6231]: https://github.com/nymtech/nym/pull/6231
+[#6227]: https://github.com/nymtech/nym/pull/6227
+[#6220]: https://github.com/nymtech/nym/pull/6220
+[#6219]: https://github.com/nymtech/nym/pull/6219
+[#6216]: https://github.com/nymtech/nym/pull/6216
+[#6215]: https://github.com/nymtech/nym/pull/6215
+[#6212]: https://github.com/nymtech/nym/pull/6212
+[#6207]: https://github.com/nymtech/nym/pull/6207
+[#6205]: https://github.com/nymtech/nym/pull/6205
+[#6189]: https://github.com/nymtech/nym/pull/6189
+[#6181]: https://github.com/nymtech/nym/pull/6181
+[#6180]: https://github.com/nymtech/nym/pull/6180
+[#6174]: https://github.com/nymtech/nym/pull/6174
+[#6144]: https://github.com/nymtech/nym/pull/6144
+[#6107]: https://github.com/nymtech/nym/pull/6107
+[#6068]: https://github.com/nymtech/nym/pull/6068
+[#6063]: https://github.com/nymtech/nym/pull/6063
+[#6057]: https://github.com/nymtech/nym/pull/6057
+[#6030]: https://github.com/nymtech/nym/pull/6030
+[#6013]: https://github.com/nymtech/nym/pull/6013
+[#5996]: https://github.com/nymtech/nym/pull/5996
+[#5993]: https://github.com/nymtech/nym/pull/5993
+[#5992]: https://github.com/nymtech/nym/pull/5992
+
 ## [2025.21-mozzarella] (2025-11-25)
 
 - [bugfix] Tunnel not waiting on MixnetClient to shut down cleanly ([#6225])

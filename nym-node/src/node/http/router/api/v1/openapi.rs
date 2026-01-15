@@ -1,7 +1,6 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::node::http::router::api;
 use axum::Router;
 use nym_node_requests::api as api_requests;
 use nym_node_requests::routes::api::{v1, v1_absolute};
@@ -13,25 +12,31 @@ use utoipa_swagger_ui::SwaggerUi;
 #[openapi(
     info(title = "NymNode API"),
     paths(
-        api::v1::node::build_information::build_information,
-        api::v1::node::host_information::host_information,
-        api::v1::node::roles::roles,
-        api::v1::node::hardware::host_system,
-        api::v1::node::description::description,
-        api::v1::node::auxiliary::auxiliary,
-        api::v1::metrics::legacy_mixing::legacy_mixing_stats,
-        api::v1::metrics::packets_stats::packets_stats,
-        api::v1::metrics::verloc::verloc_stats,
-        api::v1::metrics::prometheus::prometheus_metrics,
-        api::v1::health::root_health,
-        api::v1::load::root_load,
-        api::v1::gateway::root::root_gateway,
-        api::v1::gateway::client_interfaces::client_interfaces,
-        api::v1::gateway::client_interfaces::mixnet_websockets,
-        api::v1::mixnode::root::root_mixnode,
-        api::v1::network_requester::root::root_network_requester,
-        api::v1::network_requester::exit_policy::node_exit_policy,
-        api::v1::ip_packet_router::root::root_ip_packet_router,
+        crate::node::http::router::api::v1::metrics::verloc::verloc_stats,
+        crate::node::http::router::api::v1::metrics::legacy_mixing::legacy_mixing_stats,
+        crate::node::http::router::api::v1::metrics::wireguard::wireguard_stats,
+        crate::node::http::router::api::v1::metrics::sessions::sessions_stats,
+        crate::node::http::router::api::v1::metrics::packets_stats::packets_stats,
+        crate::node::http::router::api::v1::metrics::prometheus::prometheus_metrics,
+        crate::node::http::router::api::v1::ip_packet_router::root::root_ip_packet_router,
+        crate::node::http::router::api::v1::health::root_health,
+        crate::node::http::router::api::v1::network::upgrade_mode::upgrade_mode_status,
+        crate::node::http::router::api::v1::mixnode::root::root_mixnode,
+        crate::node::http::router::api::v1::load::root_load,
+        crate::node::http::router::api::v1::node::host_information::host_information,
+        crate::node::http::router::api::v1::node::description::description,
+        crate::node::http::router::api::v1::node::roles::roles,
+        crate::node::http::router::api::v1::node::auxiliary::auxiliary,
+        crate::node::http::router::api::v1::node::build_information::build_information,
+        crate::node::http::router::api::v1::node::hardware::host_system,
+        crate::node::http::router::api::v1::authenticator::root::root_authenticator,
+        crate::node::http::router::api::v1::network_requester::exit_policy::node_exit_policy,
+        crate::node::http::router::api::v1::network_requester::root::root_network_requester,
+        crate::node::http::router::api::v1::gateway::client_interfaces::client_interfaces,
+        crate::node::http::router::api::v1::gateway::client_interfaces::mixnet_websockets,
+        crate::node::http::router::api::v1::gateway::client_interfaces::wireguard_details,
+        crate::node::http::router::api::v1::gateway::root::root_gateway,
+
     ),
     components(
         schemas(

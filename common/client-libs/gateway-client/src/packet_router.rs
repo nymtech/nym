@@ -35,6 +35,7 @@ impl PacketRouter {
         }
     }
 
+    #[allow(clippy::panic)]
     pub fn route_mixnet_messages(
         &self,
         received_messages: Vec<Vec<u8>>,
@@ -54,6 +55,7 @@ impl PacketRouter {
         Ok(())
     }
 
+    #[allow(clippy::panic)]
     pub fn route_acks(&self, received_acks: Vec<Vec<u8>>) -> Result<(), GatewayClientError> {
         if let Err(err) = self.ack_sender.unbounded_send(received_acks) {
             // check if the failure is due to the shutdown being in progress and thus the receiver channel

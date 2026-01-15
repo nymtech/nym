@@ -1,0 +1,153 @@
+// Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
+use super::registration::{RegisteredData, RegistrationData, RemainingBandwidthData};
+use nym_service_provider_requests_common::Protocol;
+use serde::{Deserialize, Serialize};
+
+use crate::make_bincode_serializer;
+
+use super::PROTOCOL;
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct AuthenticatorResponse {
+    pub protocol: Protocol,
+    pub data: AuthenticatorResponseData,
+}
+
+impl AuthenticatorResponse {
+    pub fn new_pending_registration_success(
+        registration_data: RegistrationData,
+        request_id: u64,
+        upgrade_mode_enabled: bool,
+    ) -> Self {
+        Self {
+            protocol: PROTOCOL,
+            data: AuthenticatorResponseData::PendingRegistration(PendingRegistrationResponse {
+                reply: registration_data,
+                request_id,
+                upgrade_mode_enabled,
+            }),
+        }
+    }
+
+    pub fn new_registered(
+        registered_data: RegisteredData,
+        request_id: u64,
+        upgrade_mode_enabled: bool,
+    ) -> Self {
+        Self {
+            protocol: PROTOCOL,
+            data: AuthenticatorResponseData::Registered(RegisteredResponse {
+                reply: registered_data,
+                request_id,
+                upgrade_mode_enabled,
+            }),
+        }
+    }
+
+    pub fn new_remaining_bandwidth(
+        remaining_bandwidth_data: Option<RemainingBandwidthData>,
+        request_id: u64,
+        upgrade_mode_enabled: bool,
+    ) -> Self {
+        Self {
+            protocol: PROTOCOL,
+            data: AuthenticatorResponseData::RemainingBandwidth(RemainingBandwidthResponse {
+                reply: remaining_bandwidth_data,
+                request_id,
+                upgrade_mode_enabled,
+            }),
+        }
+    }
+
+    pub fn new_topup_bandwidth(
+        remaining_bandwidth_data: RemainingBandwidthData,
+        request_id: u64,
+        upgrade_mode_enabled: bool,
+    ) -> Self {
+        Self {
+            protocol: PROTOCOL,
+            data: AuthenticatorResponseData::TopUpBandwidth(TopUpBandwidthResponse {
+                reply: remaining_bandwidth_data,
+                request_id,
+                upgrade_mode_enabled,
+            }),
+        }
+    }
+
+    pub fn new_upgrade_mode_check(request_id: u64, upgrade_mode_enabled: bool) -> Self {
+        Self {
+            protocol: PROTOCOL,
+            data: AuthenticatorResponseData::UpgradeMode(UpgradeModeResponse {
+                request_id,
+                upgrade_mode_enabled,
+            }),
+        }
+    }
+
+    pub fn to_bytes(&self) -> Result<Vec<u8>, bincode::Error> {
+        use bincode::Options;
+        make_bincode_serializer().serialize(self)
+    }
+
+    pub fn from_reconstructed_message(
+        message: &nym_sphinx::receiver::ReconstructedMessage,
+    ) -> Result<Self, bincode::Error> {
+        use bincode::Options;
+        make_bincode_serializer().deserialize(&message.message)
+    }
+
+    pub fn id(&self) -> Option<u64> {
+        match &self.data {
+            AuthenticatorResponseData::PendingRegistration(response) => Some(response.request_id),
+            AuthenticatorResponseData::Registered(response) => Some(response.request_id),
+            AuthenticatorResponseData::RemainingBandwidth(response) => Some(response.request_id),
+            AuthenticatorResponseData::TopUpBandwidth(response) => Some(response.request_id),
+            AuthenticatorResponseData::UpgradeMode(response) => Some(response.request_id),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub enum AuthenticatorResponseData {
+    PendingRegistration(PendingRegistrationResponse),
+    Registered(RegisteredResponse),
+    RemainingBandwidth(RemainingBandwidthResponse),
+    TopUpBandwidth(TopUpBandwidthResponse),
+    UpgradeMode(UpgradeModeResponse),
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct PendingRegistrationResponse {
+    pub request_id: u64,
+    pub reply: RegistrationData,
+    pub upgrade_mode_enabled: bool,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct RegisteredResponse {
+    pub request_id: u64,
+    pub reply: RegisteredData,
+    pub upgrade_mode_enabled: bool,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct RemainingBandwidthResponse {
+    pub request_id: u64,
+    pub reply: Option<RemainingBandwidthData>,
+    pub upgrade_mode_enabled: bool,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct TopUpBandwidthResponse {
+    pub request_id: u64,
+    pub reply: RemainingBandwidthData,
+    pub upgrade_mode_enabled: bool,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct UpgradeModeResponse {
+    pub request_id: u64,
+    pub upgrade_mode_enabled: bool,
+}

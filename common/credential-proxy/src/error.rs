@@ -1,6 +1,7 @@
 // Copyright 2025 Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use nym_crypto::asymmetric::ed25519;
 use nym_ecash_signer_check::SignerCheckError;
 use nym_validator_client::coconut::EcashApiError;
 use nym_validator_client::nym_api::{EpochId, error::NymAPIError};
@@ -174,8 +175,18 @@ pub enum CredentialProxyError {
     )]
     AttestationCheckUrlNotSet,
 
-    #[error("the provided attestation check url is malformed: {source}")]
+    #[error("the provided attester public key is malformed: {source}")]
     MalformedAttestationCheckUrl { source: url::ParseError },
+
+    #[error(
+        "the attester public key has not been provided through either the CLI nor the default .env config"
+    )]
+    AttesterPublicKeyNotSet,
+
+    #[error("the provided attester public key is malformed: {source}")]
+    MalformedAttesterPublicKey {
+        source: ed25519::Ed25519RecoveryError,
+    },
 }
 
 impl From<NymAPIError> for CredentialProxyError {

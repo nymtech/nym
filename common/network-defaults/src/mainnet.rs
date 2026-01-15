@@ -55,7 +55,8 @@ pub const NYM_APIS: &[ApiUrlConst] = &[
 
 pub const NYM_VPN_API: &str = "https://nymvpn.com/api/";
 
-pub const UPGRADE_MODE_ATTESTATION_URL: &str = "https://nym.com/upgrade-mode/attestation.json";
+pub const UPGRADE_MODE_ATTESTATION_URL: &str =
+    "https://nymtech.net/.wellknown/upgrade-mode/attestation.json";
 pub const UPGRADE_MODE_ATTESTER_ED25519_BS58_PUBKEY: &str =
     "3bgffBYcfFkTTXc2npNNn9MkddFZ3H2LrPjXDmnJzrqd";
 

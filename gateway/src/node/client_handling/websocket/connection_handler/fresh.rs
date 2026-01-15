@@ -13,18 +13,19 @@ use futures::{
     channel::{mpsc, oneshot},
     SinkExt, StreamExt,
 };
-use nym_credentials_interface::AvailableBandwidth;
+use nym_credentials_interface::{AvailableBandwidth, DEFAULT_MIXNET_REQUEST_BANDWIDTH_THRESHOLD};
 use nym_crypto::aes::cipher::crypto_common::rand_core::RngCore;
 use nym_crypto::asymmetric::ed25519;
 use nym_gateway_requests::authenticate::AuthenticateRequest;
 use nym_gateway_requests::authentication::encrypted_address::{
     EncryptedAddressBytes, EncryptedAddressConversionError,
 };
+use nym_gateway_requests::registration::handshake::HandshakeResult;
 use nym_gateway_requests::{
     registration::handshake::{error::HandshakeError, gateway_handshake},
     types::{ClientControlRequest, ServerResponse},
-    AuthenticationFailure, BinaryResponse, SharedGatewayKey, CURRENT_PROTOCOL_VERSION,
-    INITIAL_PROTOCOL_VERSION,
+    AuthenticationFailure, BinaryResponse, GatewayProtocolVersion, GatewayProtocolVersionExt,
+    SharedGatewayKey, CURRENT_PROTOCOL_VERSION,
 };
 use nym_gateway_storage::error::GatewayStorageError;
 use nym_gateway_storage::traits::BandwidthGatewayStorage;
@@ -34,6 +35,7 @@ use nym_node_metrics::events::MetricsEvent;
 use nym_sphinx::DestinationAddressBytes;
 use nym_task::ShutdownToken;
 use rand::CryptoRng;
+use std::cmp::max;
 use std::net::SocketAddr;
 use std::time::Duration;
 use thiserror::Error;
@@ -88,9 +90,6 @@ pub(crate) enum InitialAuthenticationError {
     #[error("Experienced connection error: {0}")]
     ConnectionError(Box<WsError>),
 
-    #[error("Attempted to negotiate connection with client using incompatible protocol version. Ours is {current} and the client reports {client:?}")]
-    IncompatibleProtocol { client: Option<u8>, current: u8 },
-
     #[error("failed to send authentication response: {source}")]
     ResponseSendFailure {
         #[source]
@@ -130,12 +129,16 @@ pub(crate) struct FreshHandler<R, S> {
     pub(crate) shutdown: ShutdownToken,
 
     // currently unused (but populated)
-    pub(crate) negotiated_protocol: Option<u8>,
+    pub(crate) negotiated_protocol: Option<GatewayProtocolVersion>,
 }
 
 impl<R, S> FreshHandler<R, S> {
     pub(crate) fn shared_state(&self) -> &CommonHandlerState {
         &self.shared_state
+    }
+
+    pub(crate) fn upgrade_mode_enabled(&self) -> bool {
+        self.shared_state.upgrade_mode.enabled()
     }
 
     // for time being we assume handle is always constructed from raw socket.
@@ -189,7 +192,8 @@ impl<R, S> FreshHandler<R, S> {
     async fn perform_registration_handshake(
         &mut self,
         init_msg: Vec<u8>,
-    ) -> Result<SharedGatewayKey, HandshakeError>
+        requested_protocol: Option<GatewayProtocolVersion>,
+    ) -> Result<HandshakeResult, HandshakeError>
     where
         S: AsyncRead + AsyncWrite + Unpin + Send,
         R: CryptoRng + RngCore + Send,
@@ -202,15 +206,17 @@ impl<R, S> FreshHandler<R, S> {
                     ws_stream,
                     self.shared_state.local_identity.as_ref(),
                     init_msg,
+                    requested_protocol,
                     self.shutdown.clone(),
                 )
                 .await
             }
-            _ => unreachable!(),
+            _ => Err(HandshakeError::ConnectionInInvalidState),
         }
     }
 
     /// Attempts to read websocket message from the associated socket.
+    #[allow(clippy::panic)]
     pub(crate) async fn read_websocket_message(&mut self) -> Option<Result<Message, WsError>>
     where
         S: AsyncRead + AsyncWrite + Unpin,
@@ -226,6 +232,7 @@ impl<R, S> FreshHandler<R, S> {
     /// # Arguments
     ///
     /// * `msg`: WebSocket message to write back to the client.
+    #[allow(clippy::panic)]
     pub(crate) async fn send_websocket_message(
         &mut self,
         msg: impl Into<Message>,
@@ -269,6 +276,7 @@ impl<R, S> FreshHandler<R, S> {
     ///
     /// * `shared_keys`: keys derived between the client and gateway.
     /// * `packets`: unwrapped packets that are to be pushed back to the client.
+    #[allow(clippy::panic)]
     pub(crate) async fn push_packets_to_client(
         &mut self,
         shared_keys: &SharedGatewayKey,
@@ -411,59 +419,6 @@ impl<R, S> FreshHandler<R, S> {
         }
     }
 
-    fn negotiate_client_protocol(
-        &self,
-        client_protocol: Option<u8>,
-    ) -> Result<u8, InitialAuthenticationError> {
-        debug!("client protocol: {client_protocol:?}, ours: {CURRENT_PROTOCOL_VERSION}");
-        let Some(client_protocol_version) = client_protocol else {
-            warn!("the client we're connected to has not specified its protocol version. It's probably running version < 1.1.X, but that's still fine for now. It will become a hard error in 1.2.0");
-            // note: in +1.2.0 we will have to return a hard error here
-            return Ok(INITIAL_PROTOCOL_VERSION);
-        };
-
-        // #####
-        // On backwards compat:
-        // Currently it is the case that gateways will understand all previous protocol versions
-        // and will downgrade accordingly, but this will now always be the case.
-        // For example, once we remove downgrade on legacy auth, anything below version 4 will be rejected
-        // #####
-
-        // a v2 gateway will understand v1 requests, but v1 client will not understand v2 responses
-        if client_protocol_version == 1 {
-            return Ok(1);
-        }
-
-        // a v3 gateway will understand v2 requests (legacy keys)
-        if client_protocol_version == 2 {
-            return Ok(2);
-        }
-
-        // a v4 gateway will understand v3 requests (aes256gcm-siv)
-        if client_protocol_version == 3 {
-            return Ok(3);
-        }
-
-        // a v5 gateway will understand v4 requests (key-rotation)
-        if client_protocol_version == 4 {
-            return Ok(4);
-        }
-
-        // we can't handle clients with higher protocol than ours
-        // (perhaps we could try to negotiate downgrade on our end? sounds like a nice future improvement)
-        if client_protocol_version <= CURRENT_PROTOCOL_VERSION {
-            debug!("the client is using exactly the same (or older) protocol version as we are. We're good to continue!");
-            Ok(CURRENT_PROTOCOL_VERSION)
-        } else {
-            let err = InitialAuthenticationError::IncompatibleProtocol {
-                client: client_protocol,
-                current: CURRENT_PROTOCOL_VERSION,
-            };
-            error!("{err}");
-            Err(err)
-        }
-    }
-
     async fn handle_duplicate_client(
         &mut self,
         address: DestinationAddressBytes,
@@ -551,6 +506,58 @@ impl<R, S> FreshHandler<R, S> {
         Ok(available_bandwidth)
     }
 
+    fn negotiate_proposed_protocol(
+        &self,
+        client_protocol_version: Option<GatewayProtocolVersion>,
+    ) -> Option<GatewayProtocolVersion> {
+        if client_protocol_version.is_future_version() {
+            // this should never happen in a non-malicious client as it should use at most whatever version this gateway has announced
+            warn!("client has announced protocol version greater than one known by this gateway (v{client_protocol_version:?} vs v{}). attempting to downgrade.", GatewayProtocolVersion::CURRENT);
+            // we just reply with our current version, and it's up to the client to accept it or terminate the connection
+            Some(GatewayProtocolVersion::CURRENT)
+        } else {
+            // #####
+            // On backwards compat:
+            // Currently it is the case that gateways will understand all previous protocol versions
+            // and will downgrade accordingly, but this will not always be the case.
+            // For example, once we remove downgrade on legacy auth, anything below version 4 will be rejected
+            // #####
+            debug!(
+                "using the protocol version proposed by the client: v{client_protocol_version:?}"
+            );
+            client_protocol_version
+        }
+    }
+
+    /// Determine the amount of remaining bandwidth the authenticated client should see.
+    /// This depends on whether the bandwidth stored persistently had already expired (in which case it's set back to 0)
+    /// and whether the upgrade mode is enabled. In that case the minimum constant amount is returned.
+    async fn authenticated_bandwidth_bytes(
+        &self,
+        client_id: i64,
+    ) -> Result<i64, InitialAuthenticationError> {
+        // 1. get the actual registered bandwidth
+        let available_bandwidth = self.get_registered_available_bandwidth(client_id).await?;
+
+        // 2. check if it had already expired
+        let true_remaining_bandwidth = if available_bandwidth.expired() {
+            self.shared_state.storage.reset_bandwidth(client_id).await?;
+            0
+        } else {
+            available_bandwidth.bytes
+        };
+
+        // 3. perform upgrade mode adjustments
+        if self.upgrade_mode_enabled() {
+            Ok(max(
+                true_remaining_bandwidth,
+                DEFAULT_MIXNET_REQUEST_BANDWIDTH_THRESHOLD + 1,
+            ))
+        } else {
+            Ok(true_remaining_bandwidth)
+        }
+    }
+
     /// Tries to handle the received authentication request by checking correctness of the received data.
     ///
     /// # Arguments
@@ -565,7 +572,7 @@ impl<R, S> FreshHandler<R, S> {
     )]
     async fn handle_legacy_authenticate(
         &mut self,
-        client_protocol_version: Option<u8>,
+        client_protocol_version: Option<GatewayProtocolVersion>,
         address: String,
         enc_address: String,
         raw_nonce: String,
@@ -575,9 +582,9 @@ impl<R, S> FreshHandler<R, S> {
     {
         debug!("handling client authentication (v1)");
 
-        let negotiated_protocol = self.negotiate_client_protocol(client_protocol_version)?;
+        let negotiated_protocol = self.negotiate_proposed_protocol(client_protocol_version);
         // populate the negotiated protocol for future uses
-        self.negotiated_protocol = Some(negotiated_protocol);
+        self.negotiated_protocol = negotiated_protocol;
 
         let address = DestinationAddressBytes::try_from_base58_string(address)
             .map_err(|err| InitialAuthenticationError::MalformedClientAddress(err.to_string()))?;
@@ -592,7 +599,7 @@ impl<R, S> FreshHandler<R, S> {
             .await?
         else {
             // it feels weird to be returning an 'Ok' here, but I didn't want to change the existing behaviour
-            return Ok(InitialAuthResult::new_failed(Some(negotiated_protocol)));
+            return Ok(InitialAuthResult::new_legacy_failed(negotiated_protocol));
         };
 
         // in v1 we don't have explicit data so we have to use current timestamp
@@ -617,14 +624,7 @@ impl<R, S> FreshHandler<R, S> {
             .await?;
 
         // check the bandwidth
-        let available_bandwidth = self.get_registered_available_bandwidth(client_id).await?;
-
-        let bandwidth_remaining = if available_bandwidth.expired() {
-            self.shared_state.storage.reset_bandwidth(client_id).await?;
-            0
-        } else {
-            available_bandwidth.bytes
-        };
+        let bandwidth_remaining = self.authenticated_bandwidth_bytes(client_id).await?;
 
         Ok(InitialAuthResult::new(
             Some(ClientDetails::new(
@@ -634,9 +634,10 @@ impl<R, S> FreshHandler<R, S> {
                 session_request_start,
             )),
             ServerResponse::Authenticate {
-                protocol_version: Some(negotiated_protocol),
+                protocol_version: negotiated_protocol,
                 status: true,
                 bandwidth_remaining,
+                upgrade_mode: self.upgrade_mode_enabled(),
             },
         ))
     }
@@ -651,9 +652,9 @@ impl<R, S> FreshHandler<R, S> {
         debug!("handling client authentication (v2)");
 
         let negotiated_protocol =
-            self.negotiate_client_protocol(Some(request.content.protocol_version))?;
+            self.negotiate_proposed_protocol(Some(request.content.protocol_version));
         // populate the negotiated protocol for future uses
-        self.negotiated_protocol = Some(negotiated_protocol);
+        self.negotiated_protocol = negotiated_protocol;
 
         let address = request.content.client_identity.derive_destination_address();
 
@@ -703,14 +704,7 @@ impl<R, S> FreshHandler<R, S> {
             .await?;
 
         // finally check and retrieve client's bandwidth
-        let available_bandwidth = self.get_registered_available_bandwidth(client_id).await?;
-
-        let bandwidth_remaining = if available_bandwidth.expired() {
-            self.shared_state.storage.reset_bandwidth(client_id).await?;
-            0
-        } else {
-            available_bandwidth.bytes
-        };
+        let bandwidth_remaining = self.authenticated_bandwidth_bytes(client_id).await?;
 
         Ok(InitialAuthResult::new(
             Some(ClientDetails::new(
@@ -720,9 +714,10 @@ impl<R, S> FreshHandler<R, S> {
                 session_request_start,
             )),
             ServerResponse::Authenticate {
-                protocol_version: Some(negotiated_protocol),
+                protocol_version: negotiated_protocol,
                 status: true,
                 bandwidth_remaining,
+                upgrade_mode: self.upgrade_mode_enabled(),
             },
         ))
     }
@@ -782,17 +777,13 @@ impl<R, S> FreshHandler<R, S> {
     /// * `init_data`: init payload of the registration handshake.
     async fn handle_register(
         &mut self,
-        client_protocol_version: Option<u8>,
+        client_protocol_version: Option<GatewayProtocolVersion>,
         init_data: Vec<u8>,
     ) -> Result<InitialAuthResult, InitialAuthenticationError>
     where
         S: AsyncRead + AsyncWrite + Unpin + Send,
         R: CryptoRng + RngCore + Send,
     {
-        let negotiated_protocol = self.negotiate_client_protocol(client_protocol_version)?;
-        // populate the negotiated protocol for future uses
-        self.negotiated_protocol = Some(negotiated_protocol);
-
         let remote_identity = Self::extract_remote_identity_from_register_init(&init_data)?;
         let remote_address = remote_identity.derive_destination_address();
 
@@ -806,10 +797,19 @@ impl<R, S> FreshHandler<R, S> {
             return Err(InitialAuthenticationError::DuplicateConnection);
         }
 
-        let shared_keys = self.perform_registration_handshake(init_data).await?;
+        let handshake_result = self
+            .perform_registration_handshake(init_data, client_protocol_version)
+            .await?;
+        let shared_keys = handshake_result.derived_key;
+
+        // populate the negotiated protocol for future uses
+        self.negotiated_protocol = Some(handshake_result.negotiated_protocol);
+
         let client_id = self.register_client(remote_address, &shared_keys).await?;
 
         debug!(client_id = %client_id, "managed to finalize client registration");
+
+        let upgrade_mode = self.upgrade_mode_enabled();
 
         let client_details = ClientDetails::new(
             client_id,
@@ -821,8 +821,9 @@ impl<R, S> FreshHandler<R, S> {
         Ok(InitialAuthResult::new(
             Some(client_details),
             ServerResponse::Register {
-                protocol_version: Some(negotiated_protocol),
+                protocol_version: self.negotiated_protocol,
                 status: true,
+                upgrade_mode,
             },
         ))
     }
@@ -946,12 +947,15 @@ impl<R, S> FreshHandler<R, S> {
                 let (mix_sender, mix_receiver) = mpsc::unbounded();
                 // Channel for handlers to ask other handlers if they are still active.
                 let (is_active_request_sender, is_active_request_receiver) = mpsc::unbounded();
-                self.shared_state.active_clients_store.insert_remote(
+                if !self.shared_state.active_clients_store.insert_remote(
                     registration_details.address,
                     mix_sender,
                     is_active_request_sender,
                     registration_details.session_request_timestamp,
-                );
+                ) {
+                    error!("failed to insert remote client handle as it already existed!");
+                    return None;
+                }
 
                 return AuthenticatedHandler::upgrade(
                     self,

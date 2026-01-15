@@ -1283,7 +1283,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "117725a109d387c937a1533ce01b450cbde6b88abceea8473c4d7a85853cda3c"
 dependencies = [
  "lazy_static",
- "windows-sys 0.59.0",
+ "windows-sys 0.48.0",
 ]
 
 [[package]]
@@ -3965,7 +3965,7 @@ checksum = "e04d7f318608d35d4b61ddd75cbdaee86b023ebe2bd5a66ee0915f0bf93095a9"
 dependencies = [
  "hermit-abi",
  "libc",
- "windows-sys 0.59.0",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -4374,11 +4374,11 @@ dependencies = [
 
 [[package]]
 name = "matchers"
-version = "0.1.0"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8263075bb86c5a1b1427b5ae862e8889656f126e9f77c484496e8b47cf5c5558"
+checksum = "d1525a2a28c7f4fa0fc98bb91ae755d1e2d1505079e05539e35bc876b5d65ae9"
 dependencies = [
- "regex-automata 0.1.10",
+ "regex-automata",
 ]
 
 [[package]]
@@ -4742,6 +4742,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "nu-ansi-term"
+version = "0.50.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d4a28e057d01f97e61255210fcff094d74ed0466038633e95017f5beb68e4399"
+dependencies = [
+ "windows-sys 0.52.0",
+]
+
+[[package]]
 name = "num-bigint"
 version = "0.4.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4825,7 +4834,7 @@ dependencies = [
 
 [[package]]
 name = "nym-api"
-version = "1.1.70"
+version = "1.1.71"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4896,7 +4905,7 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "tokio-util",
- "tower-http 0.5.2",
+ "tower-http",
  "tracing",
  "ts-rs",
  "url",
@@ -4988,6 +4997,7 @@ dependencies = [
  "nym-network-defaults",
  "nym-service-provider-requests-common",
  "nym-sphinx",
+ "nym-test-utils",
  "nym-wireguard-types",
  "rand 0.8.5",
  "semver 1.0.26",
@@ -4995,6 +5005,7 @@ dependencies = [
  "sha2 0.10.9",
  "strum_macros",
  "thiserror 2.0.12",
+ "tracing",
  "x25519-dalek",
 ]
 
@@ -5003,21 +5014,16 @@ name = "nym-bandwidth-controller"
 version = "0.1.0"
 dependencies = [
  "async-trait",
- "bip39",
  "log",
  "nym-credential-storage",
  "nym-credentials",
  "nym-credentials-interface",
  "nym-crypto",
- "nym-ecash-contract-common",
  "nym-ecash-time",
- "nym-network-defaults",
  "nym-task",
  "nym-validator-client",
  "rand 0.8.5",
  "thiserror 2.0.12",
- "url",
- "zeroize",
 ]
 
 [[package]]
@@ -5051,7 +5057,7 @@ dependencies = [
 
 [[package]]
 name = "nym-cli"
-version = "1.1.67"
+version = "1.1.68"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -5134,7 +5140,7 @@ dependencies = [
 
 [[package]]
 name = "nym-client"
-version = "1.1.67"
+version = "1.1.68"
 dependencies = [
  "bs58",
  "clap",
@@ -5481,7 +5487,7 @@ dependencies = [
  "time",
  "tokio",
  "tokio-util",
- "tower-http 0.5.2",
+ "tower-http",
  "tracing",
  "url",
  "utoipa",
@@ -5570,6 +5576,7 @@ dependencies = [
  "sqlx",
  "sqlx-pool-guard",
  "thiserror 2.0.12",
+ "time",
  "tokio",
  "zeroize",
 ]
@@ -5605,12 +5612,13 @@ dependencies = [
  "nym-api-requests",
  "nym-credentials",
  "nym-credentials-interface",
+ "nym-crypto",
  "nym-ecash-contract-common",
  "nym-gateway-requests",
  "nym-gateway-storage",
  "nym-task",
+ "nym-upgrade-mode-check",
  "nym-validator-client",
- "rand 0.8.5",
  "si-scale",
  "thiserror 2.0.12",
  "time",
@@ -5650,6 +5658,7 @@ dependencies = [
  "nym-compact-ecash",
  "nym-ecash-time",
  "nym-network-defaults",
+ "nym-upgrade-mode-check",
  "rand 0.8.5",
  "serde",
  "strum",
@@ -5800,7 +5809,6 @@ dependencies = [
 name = "nym-gateway"
 version = "1.1.36"
 dependencies = [
- "anyhow",
  "async-trait",
  "bincode",
  "bip39",
@@ -5811,7 +5819,6 @@ dependencies = [
  "futures",
  "ipnetwork",
  "mock_instant",
- "nym-api-requests",
  "nym-authenticator-requests",
  "nym-client-core",
  "nym-credential-verification",
@@ -5824,7 +5831,6 @@ dependencies = [
  "nym-id",
  "nym-ip-packet-router",
  "nym-mixnet-client",
- "nym-mixnode-common",
  "nym-network-defaults",
  "nym-network-requester",
  "nym-node-metrics",
@@ -5834,20 +5840,18 @@ dependencies = [
  "nym-statistics-common",
  "nym-task",
  "nym-topology",
- "nym-types",
+ "nym-upgrade-mode-check",
  "nym-validator-client",
  "nym-wireguard",
  "nym-wireguard-private-metadata-server",
  "nym-wireguard-types",
  "rand 0.8.5",
  "serde",
- "sha2 0.10.9",
  "thiserror 2.0.12",
  "time",
  "tokio",
  "tokio-stream",
  "tokio-tungstenite",
- "tokio-util",
  "tracing",
  "url",
  "zeroize",
@@ -6363,7 +6367,7 @@ dependencies = [
 
 [[package]]
 name = "nym-network-requester"
-version = "1.1.68"
+version = "1.1.69"
 dependencies = [
  "addr",
  "anyhow",
@@ -6413,7 +6417,7 @@ dependencies = [
 
 [[package]]
 name = "nym-node"
-version = "1.22.0"
+version = "1.23.0"
 dependencies = [
  "anyhow",
  "arc-swap",
@@ -6444,6 +6448,7 @@ dependencies = [
  "nym-bin-common",
  "nym-client-core-config-types",
  "nym-config",
+ "nym-credential-verification",
  "nym-crypto",
  "nym-gateway",
  "nym-gateway-stats-storage",
@@ -6486,7 +6491,7 @@ dependencies = [
  "tokio-stream",
  "tokio-util",
  "toml 0.8.23",
- "tower-http 0.5.2",
+ "tower-http",
  "tracing",
  "tracing-indicatif",
  "tracing-subscriber",
@@ -6516,13 +6521,13 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "celes",
- "humantime",
  "humantime-serde",
  "nym-bin-common",
  "nym-crypto",
  "nym-exit-policy",
  "nym-http-api-client",
  "nym-noise-keys",
+ "nym-upgrade-mode-check",
  "nym-wireguard-types",
  "rand_chacha 0.3.1",
  "schemars 0.8.22",
@@ -6533,6 +6538,7 @@ dependencies = [
  "thiserror 2.0.12",
  "time",
  "tokio",
+ "url",
  "utoipa",
 ]
 
@@ -6555,7 +6561,7 @@ dependencies = [
 
 [[package]]
 name = "nym-node-status-api"
-version = "4.0.11-rc1"
+version = "4.0.12"
 dependencies = [
  "ammonia",
  "anyhow",
@@ -6603,7 +6609,7 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "tokio-util",
- "tower-http 0.5.2",
+ "tower-http",
  "tracing",
  "tracing-log 0.2.0",
  "tracing-subscriber",
@@ -6940,7 +6946,7 @@ dependencies = [
 
 [[package]]
 name = "nym-socks5-client"
-version = "1.1.67"
+version = "1.1.68"
 dependencies = [
  "bs58",
  "clap",
@@ -7200,7 +7206,7 @@ dependencies = [
 
 [[package]]
 name = "nym-statistics-api"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "axum",
@@ -7214,13 +7220,12 @@ dependencies = [
  "nym-statistics-common",
  "nym-task",
  "nym-validator-client",
- "serde",
  "serde_json",
  "sqlx",
  "time",
  "tokio",
  "tokio-util",
- "tower-http 0.5.2",
+ "tower-http",
  "tracing",
  "tracing-subscriber",
  "url",
@@ -7401,6 +7406,7 @@ dependencies = [
 name = "nym-validator-client"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "async-trait",
  "base64 0.22.1",
  "bip32",
@@ -7574,17 +7580,10 @@ dependencies = [
 name = "nym-wireguard"
 version = "0.1.0"
 dependencies = [
- "async-trait",
  "base64 0.22.1",
- "bincode",
- "chrono",
- "dashmap",
  "defguard_wireguard_rs",
- "dyn-clone",
  "futures",
  "ip_network",
- "log",
- "nym-authenticator-requests",
  "nym-credential-verification",
  "nym-credentials-interface",
  "nym-crypto",
@@ -7595,11 +7594,9 @@ dependencies = [
  "nym-task",
  "nym-wireguard-types",
  "thiserror 2.0.12",
- "time",
  "tokio",
  "tokio-stream",
  "tracing",
- "x25519-dalek",
 ]
 
 [[package]]
@@ -7627,7 +7624,7 @@ dependencies = [
  "nym-wireguard-private-metadata-shared",
  "tokio",
  "tokio-util",
- "tower-http 0.5.2",
+ "tower-http",
  "utoipa",
  "utoipa-swagger-ui",
 ]
@@ -7651,16 +7648,21 @@ version = "1.0.0"
 dependencies = [
  "async-trait",
  "axum",
+ "futures",
  "nym-credential-verification",
  "nym-credentials-interface",
+ "nym-crypto",
  "nym-http-api-client",
  "nym-http-api-common",
+ "nym-upgrade-mode-check",
  "nym-wireguard",
  "nym-wireguard-private-metadata-client",
  "nym-wireguard-private-metadata-server",
  "nym-wireguard-private-metadata-shared",
+ "time",
  "tokio",
- "tower-http 0.5.2",
+ "tower 0.5.2",
+ "tower-http",
  "utoipa",
 ]
 
@@ -7669,10 +7671,7 @@ name = "nym-wireguard-types"
 version = "0.1.0"
 dependencies = [
  "base64 0.22.1",
- "log",
- "nym-config",
  "nym-crypto",
- "nym-network-defaults",
  "rand 0.8.5",
  "serde",
  "thiserror 2.0.12",
@@ -7681,7 +7680,7 @@ dependencies = [
 
 [[package]]
 name = "nymvisor"
-version = "0.1.32"
+version = "0.1.33"
 dependencies = [
  "anyhow",
  "bytes",
@@ -7732,7 +7731,7 @@ dependencies = [
  "time",
  "tokio",
  "tokio-util",
- "tower-http 0.5.2",
+ "tower-http",
  "tracing",
  "tracing-subscriber",
  "utoipa",
@@ -8660,7 +8659,7 @@ dependencies = [
  "once_cell",
  "socket2 0.5.10",
  "tracing",
- "windows-sys 0.59.0",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -8821,17 +8820,8 @@ checksum = "b544ef1b4eac5dc2db33ea63606ae9ffcfac26c1416a2806ae0bf5f56b201191"
 dependencies = [
  "aho-corasick",
  "memchr",
- "regex-automata 0.4.9",
- "regex-syntax 0.8.5",
-]
-
-[[package]]
-name = "regex-automata"
-version = "0.1.10"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6c230d73fb8d8c1b9c0b3135c5142a8acee3a0558fb8db5cf1cb65f8d7862132"
-dependencies = [
- "regex-syntax 0.6.29",
+ "regex-automata",
+ "regex-syntax",
 ]
 
 [[package]]
@@ -8842,14 +8832,8 @@ checksum = "809e8dc61f6de73b46c85f4c96486310fe304c434cfa43669d7b40f711150908"
 dependencies = [
  "aho-corasick",
  "memchr",
- "regex-syntax 0.8.5",
+ "regex-syntax",
 ]
-
-[[package]]
-name = "regex-syntax"
-version = "0.6.29"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f162c6dd7b008981e4d40210aca20b4bd0f9b60ca9271061b07f78537722f2e1"
 
 [[package]]
 name = "regex-syntax"
@@ -8930,7 +8914,7 @@ dependencies = [
  "tokio-rustls 0.26.2",
  "tokio-util",
  "tower 0.5.2",
- "tower-http 0.6.6",
+ "tower-http",
  "tower-service",
  "url",
  "wasm-bindgen",
@@ -9130,7 +9114,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys 0.4.15",
- "windows-sys 0.59.0",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -10446,7 +10430,7 @@ dependencies = [
  "getrandom 0.3.3",
  "once_cell",
  "rustix 1.0.8",
- "windows-sys 0.59.0",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -11065,9 +11049,9 @@ dependencies = [
 
 [[package]]
 name = "tower-http"
-version = "0.5.2"
+version = "0.6.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1e9cd434a998747dd2c4276bc96ee2e0c7a2eadf3cae88e52be55a05fa9053f5"
+checksum = "adc82fd73de2a9722ac5da747f12383d2bfdb93591ee6c58486e0097890f05f2"
 dependencies = [
  "async-compression",
  "bitflags 2.9.1",
@@ -11079,33 +11063,17 @@ dependencies = [
  "http-body-util",
  "http-range-header",
  "httpdate",
+ "iri-string",
  "mime",
  "mime_guess",
  "percent-encoding",
  "pin-project-lite",
  "tokio",
  "tokio-util",
- "tower-layer",
- "tower-service",
- "tracing",
-]
-
-[[package]]
-name = "tower-http"
-version = "0.6.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "adc82fd73de2a9722ac5da747f12383d2bfdb93591ee6c58486e0097890f05f2"
-dependencies = [
- "bitflags 2.9.1",
- "bytes",
- "futures-util",
- "http 1.3.1",
- "http-body 1.0.1",
- "iri-string",
- "pin-project-lite",
  "tower 0.5.2",
  "tower-layer",
  "tower-service",
+ "tracing",
 ]
 
 [[package]]
@@ -11213,14 +11181,14 @@ dependencies = [
 
 [[package]]
 name = "tracing-subscriber"
-version = "0.3.19"
+version = "0.3.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e8189decb5ac0fa7bc8b96b7cb9b2701d60d48805aca84a238004d665fcc4008"
+checksum = "2054a14f5307d601f88daf0553e1cbf472acc4f2c51afab632431cdcd72124d5"
 dependencies = [
  "matchers",
- "nu-ansi-term",
+ "nu-ansi-term 0.50.1",
  "once_cell",
- "regex",
+ "regex-automata",
  "sharded-slab",
  "smallvec",
  "thread_local",
@@ -11256,7 +11224,7 @@ version = "0.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2ec6adcab41b1391b08a308cc6302b79f8095d1673f6947c2dc65ffb028b0b2d"
 dependencies = [
- "nu-ansi-term",
+ "nu-ansi-term 0.46.0",
  "tracing-core",
  "tracing-log 0.1.4",
  "tracing-subscriber",
@@ -12258,7 +12226,7 @@ version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf221c93e13a30d793f7645a0e7762c55d169dbb0a49671918a2319d289b10bb"
 dependencies = [
- "windows-sys 0.59.0",
+ "windows-sys 0.48.0",
 ]
 
 [[package]]

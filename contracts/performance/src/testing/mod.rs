@@ -6,10 +6,9 @@ use crate::helpers::MixnetContractQuerier;
 use crate::storage::NYM_PERFORMANCE_CONTRACT_STORAGE;
 use cosmwasm_std::testing::{message_info, mock_env, MockApi};
 use cosmwasm_std::{
-    coin, coins, Addr, Binary, ContractInfo, Deps, DepsMut, Env, MessageInfo, QuerierWrapper,
-    StdError, StdResult,
+    coin, coins, Addr, ContractInfo, Deps, DepsMut, Env, MessageInfo, QuerierWrapper, StdError,
+    StdResult,
 };
-use cw_storage_plus::PrimaryKey;
 use mixnet_contract::testable_mixnet_contract::MixnetContract;
 use nym_contracts_common::signing::{ContractMessageContent, MessageSignature};
 use nym_contracts_common::Percent;
@@ -22,9 +21,8 @@ use nym_contracts_common_testing::{
 use nym_crypto::asymmetric::ed25519;
 use nym_mixnet_contract_common::nym_node::{NodeDetailsResponse, NodeOwnershipResponse, Role};
 use nym_mixnet_contract_common::{
-    CurrentIntervalResponse, EpochId, Interval, MixNode, MixNodeBond, MixnodeDetailsResponse,
-    NodeCostParams, NodeRewarding, NymNode, NymNodeBondingPayload, RoleAssignment,
-    SignableNymNodeBondingMsg, DEFAULT_INTERVAL_OPERATING_COST_AMOUNT,
+    CurrentIntervalResponse, EpochId, Interval, NodeCostParams, NymNode, NymNodeBondingPayload,
+    RoleAssignment, SignableNymNodeBondingMsg, DEFAULT_INTERVAL_OPERATING_COST_AMOUNT,
     DEFAULT_PROFIT_MARGIN_PERCENT,
 };
 use nym_performance_contract_common::constants::storage_keys;
@@ -33,7 +31,7 @@ use nym_performance_contract_common::{
     NymPerformanceContractError, QueryMsg,
 };
 use serde::de::DeserializeOwned;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use std::str::FromStr;
 
 pub struct PerformanceContract;
@@ -494,110 +492,6 @@ pub(crate) trait PerformanceContractTesterExt:
         self.execute_mixnet_contract(
             message_info(&node_owner, &[]),
             &nym_mixnet_contract_common::ExecuteMsg::UnbondNymNode {},
-        )?;
-
-        self.advance_mixnet_epoch()?;
-        Ok(())
-    }
-
-    fn bond_dummy_legacy_mixnode(&mut self) -> Result<NodeId, NymPerformanceContractError> {
-        #[derive(Deserialize, Serialize)]
-        pub(crate) struct UniqueRef<T> {
-            // note, we collapse the pk - combining everything under the namespace - even if it is composite
-            pk: Binary,
-            value: T,
-        }
-
-        // there's no proper Execute flow for this anymore, so we have to "hack" the storage a bit,
-        // ensuring all invariants still hold
-        let owner = self.generate_account_with_balance();
-
-        let mixnode = MixNode {
-            host: "1.2.3.4".to_string(),
-            mix_port: 123,
-            verloc_port: 123,
-            http_api_port: 123,
-            sphinx_key: "aaaa".to_string(),
-            identity_key: "bbbbb".to_string(),
-            version: "ccc".to_string(),
-        };
-        let cost_params = NodeCostParams {
-            profit_margin_percent: Percent::from_percentage_value(DEFAULT_PROFIT_MARGIN_PERCENT)
-                .unwrap(),
-            interval_operating_cost: coin(DEFAULT_INTERVAL_OPERATING_COST_AMOUNT, TEST_DENOM),
-        };
-
-        // adjust node counter
-        let node_id_counter: u32 = self.read_from_mixnet_contract_storage("nic")?;
-        let node_id = node_id_counter + 1;
-        self.write_to_mixnet_contract_storage_value("nic", &node_id)?;
-
-        let current_epoch = self.current_mixnet_epoch()?;
-        let pledge = coin(100_000000, TEST_DENOM);
-        let mixnode_rewarding =
-            NodeRewarding::initialise_new(cost_params, &pledge, current_epoch).unwrap();
-        let env = self.env();
-        let mixnode_bond = MixNodeBond {
-            mix_id: node_id,
-            owner,
-            original_pledge: pledge,
-            mix_node: mixnode,
-            proxy: None,
-            bonding_height: env.block.height,
-            is_unbonding: false,
-        };
-
-        // save to the main mixnode storage
-        self.set_contract_map_value(
-            self.mixnet_contract_address()?,
-            "mnn",
-            node_id,
-            &mixnode_bond,
-        )?;
-        // update indices
-        let pk = node_id.joined_key();
-        let unique_ref = UniqueRef {
-            pk: pk.into(),
-            value: mixnode_bond.clone(),
-        };
-
-        // owner index
-        let idx = mixnode_bond.owner.clone();
-        self.set_contract_map_value(self.mixnet_contract_address()?, "mno", idx, &unique_ref)?;
-
-        // identity key index
-        let idx = mixnode_bond.mix_node.identity_key.clone();
-        self.set_contract_map_value(self.mixnet_contract_address()?, "mni", idx, &unique_ref)?;
-
-        // sphinx key index
-        let idx = mixnode_bond.mix_node.sphinx_key.clone();
-        self.set_contract_map_value(self.mixnet_contract_address()?, "mns", idx, &unique_ref)?;
-
-        // update rewarding data
-        self.set_contract_map_value(
-            self.mixnet_contract_address()?,
-            "mnr",
-            node_id,
-            &mixnode_rewarding,
-        )?;
-
-        Ok(node_id)
-    }
-
-    fn unbond_legacy_mixnode(
-        &mut self,
-        node_id: NodeId,
-    ) -> Result<(), NymPerformanceContractError> {
-        let bond: MixnodeDetailsResponse = self.query_arbitrary_contract(
-            self.mixnet_contract_address()?,
-            &nym_mixnet_contract_common::QueryMsg::GetMixnodeDetails { mix_id: node_id },
-        )?;
-
-        let node_owner = bond.mixnode_details.unwrap().bond_information.owner;
-
-        self.execute_mixnet_contract(
-            message_info(&node_owner, &[]),
-            &nym_mixnet_contract_common::ExecuteMsg::UnbondMixnode {},
         )?;
 
         self.advance_mixnet_epoch()?;

@@ -21,6 +21,9 @@ pub enum BandwidthControllerError {
     #[error("There was a credential storage error - {0}")]
     CredentialStorageError(Box<dyn std::error::Error + Send + Sync>),
 
+    #[error("retrieved upgrade mode token is not a valid String")]
+    MalformedUpgradeModeToken,
+
     #[error("the credential storage does not contain any usable credentials")]
     NoCredentialsAvailable,
 

@@ -11,14 +11,15 @@ use nym_task::ShutdownTracker;
 use nym_wireguard::WireguardGatewayData;
 use std::{net::IpAddr, path::Path, sync::Arc, time::SystemTime};
 
+pub use config::Config;
+use nym_credential_verification::upgrade_mode::UpgradeModeDetails;
+
 pub mod config;
 pub mod error;
 pub mod mixnet_client;
 pub mod mixnet_listener;
 mod peer_manager;
 mod seen_credential_cache;
-
-pub use config::Config;
 
 pub struct OnStartData {
     // to add more fields as required
@@ -33,7 +34,8 @@ impl OnStartData {
 
 pub struct Authenticator {
     #[allow(unused)]
-    config: crate::node::internal_service_providers::authenticator::Config,
+    config: Config,
+    upgrade_mode_state: UpgradeModeDetails,
     wait_for_gateway: bool,
     custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
     custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send + Sync>>,
@@ -46,7 +48,8 @@ pub struct Authenticator {
 
 impl Authenticator {
     pub fn new(
-        config: crate::node::internal_service_providers::authenticator::Config,
+        config: Config,
+        upgrade_mode_state: UpgradeModeDetails,
         wireguard_gateway_data: WireguardGatewayData,
         used_private_network_ips: Vec<IpAddr>,
         ecash_verifier: Arc<EcashManager>,
@@ -54,6 +57,7 @@ impl Authenticator {
     ) -> Self {
         Self {
             config,
+            upgrade_mode_state,
             wait_for_gateway: false,
             custom_topology_provider: None,
             custom_gateway_transceiver: None,
@@ -152,6 +156,7 @@ impl Authenticator {
             free_private_network_ips,
             self.wireguard_gateway_data,
             mixnet_client,
+            self.upgrade_mode_state,
             self.ecash_verifier,
         );
 

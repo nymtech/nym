@@ -3,7 +3,10 @@
 
 use crate::backends::memory::MemoryEcachTicketbookManager;
 use crate::error::StorageError;
-use crate::models::{BasicTicketbookInformation, RetrievedPendingTicketbook, RetrievedTicketbook};
+use crate::models::{
+    BasicTicketbookInformation, EmergencyCredential, EmergencyCredentialContent,
+    RetrievedPendingTicketbook, RetrievedTicketbook,
+};
 use crate::storage::Storage;
 use async_trait::async_trait;
 use nym_compact_ecash::scheme::coin_indices_signatures::AnnotatedCoinIndexSignature;
@@ -215,6 +218,38 @@ impl Storage for EphemeralStorage {
     ) -> Result<(), Self::StorageError> {
         self.storage_manager
             .insert_expiration_date_signatures(signatures)
+            .await;
+        Ok(())
+    }
+
+    async fn get_emergency_credential(
+        &self,
+        typ: &str,
+    ) -> Result<Option<EmergencyCredential>, Self::StorageError> {
+        Ok(self.storage_manager.get_emergency_credential(typ).await)
+    }
+
+    async fn insert_emergency_credential(
+        &self,
+        credential: &EmergencyCredentialContent,
+    ) -> Result<(), Self::StorageError> {
+        self.storage_manager
+            .insert_emergency_credential(credential)
+            .await;
+        Ok(())
+    }
+
+    async fn remove_emergency_credential(&self, id: i64) -> Result<(), Self::StorageError> {
+        self.storage_manager.remove_emergency_credential(id).await;
+        Ok(())
+    }
+
+    async fn remove_emergency_credentials_of_type(
+        &self,
+        typ: &str,
+    ) -> Result<(), Self::StorageError> {
+        self.storage_manager
+            .remove_emergency_credentials_of_type(typ)
             .await;
         Ok(())
     }

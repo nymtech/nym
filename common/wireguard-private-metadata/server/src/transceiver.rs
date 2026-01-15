@@ -37,12 +37,12 @@ impl PeerControllerTransceiver {
             })
     }
 
-    pub(crate) async fn query_bandwidth(&self, ip: IpAddr) -> Result<i64, MetadataError> {
+    pub async fn query_bandwidth(&self, ip: IpAddr) -> Result<i64, MetadataError> {
         Ok(self.get_client_bandwidth(ip).await?.available().await)
     }
 
     // Top up with a credential and return the afterwards available bandwidth
-    pub(crate) async fn topup_bandwidth(
+    pub async fn topup_bandwidth(
         &self,
         ip: IpAddr,
         credential: Box<CredentialSpendingData>,

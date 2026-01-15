@@ -30,6 +30,35 @@ pub use nym_compact_ecash::{
 };
 pub use nym_ecash_time::{EcashTime, ecash_today};
 pub use nym_network_defaults::TicketTypeRepr;
+use nym_network_defaults::TicketTypeRepr::V1MixnetEntry;
+
+/// Default bandwidth amount under which [mixnet] clients will attempt to send additional zk-nyms
+/// to increase their allowance.
+// currently defined as 20% of entry ticket value
+// clients are, of course, free to override this value
+pub const DEFAULT_MIXNET_REQUEST_BANDWIDTH_THRESHOLD: i64 =
+    (V1MixnetEntry.bandwidth_value() / 5) as i64;
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub enum BandwidthCredential {
+    ZkNym(Box<CredentialSpendingData>),
+    UpgradeModeJWT { token: String },
+}
+
+impl BandwidthCredential {
+    pub fn into_zk_nym(self) -> Option<Box<CredentialSpendingData>> {
+        match self {
+            BandwidthCredential::ZkNym(credential) => Some(credential),
+            _ => None,
+        }
+    }
+}
+
+impl From<CredentialSpendingData> for BandwidthCredential {
+    fn from(credential: CredentialSpendingData) -> Self {
+        Self::ZkNym(Box::new(credential))
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct CredentialSigningData {

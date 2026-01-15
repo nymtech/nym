@@ -19,7 +19,7 @@ use crate::signing::signer::NoSigner;
 use crate::signing::signer::OfflineSigner;
 use crate::signing::tx_signer::TxSigner;
 use crate::signing::AccountData;
-use crate::{DirectSigningReqwestRpcNyxdClient, QueryReqwestRpcNyxdClient, ReqwestRpcClient};
+use crate::{DirectSigningReqwestRpcNyxdClient, QueryReqwestRpcNyxdClient};
 use async_trait::async_trait;
 use cosmrs::tendermint::{abci, evidence::Evidence, Genesis};
 use cosmrs::tx::{Raw, SignDoc};
@@ -158,12 +158,13 @@ impl NyxdClient<HttpClient> {
     }
 }
 
-impl NyxdClient<ReqwestRpcClient> {
+#[allow(deprecated)]
+impl NyxdClient<crate::ReqwestRpcClient> {
     pub fn connect_reqwest(
         config: Config,
         endpoint: Url,
     ) -> Result<QueryReqwestRpcNyxdClient, NyxdError> {
-        let client = ReqwestRpcClient::new(endpoint);
+        let client = crate::ReqwestRpcClient::new(endpoint);
 
         Ok(NyxdClient {
             client: MaybeSigningClient::new(client, (&config).into()),
@@ -195,18 +196,19 @@ impl NyxdClient<HttpClient, DirectSecp256k1HdWallet> {
         let client = http_client(endpoint)?;
 
         let prefix = &config.chain_details.bech32_account_prefix;
-        let wallet = DirectSecp256k1HdWallet::from_mnemonic(prefix, mnemonic);
+        let wallet = DirectSecp256k1HdWallet::checked_from_mnemonic(prefix, mnemonic)?;
         Ok(Self::connect_with_signer(config, client, wallet))
     }
 }
 
-impl NyxdClient<ReqwestRpcClient, DirectSecp256k1HdWallet> {
+#[allow(deprecated)]
+impl NyxdClient<crate::ReqwestRpcClient, DirectSecp256k1HdWallet> {
     pub fn connect_reqwest_with_mnemonic(
         config: Config,
         endpoint: Url,
         mnemonic: bip39::Mnemonic,
     ) -> DirectSigningReqwestRpcNyxdClient {
-        let client = ReqwestRpcClient::new(endpoint);
+        let client = crate::ReqwestRpcClient::new(endpoint);
 
         let prefix = &config.chain_details.bech32_account_prefix;
         let wallet = DirectSecp256k1HdWallet::from_mnemonic(prefix, mnemonic);
@@ -391,17 +393,12 @@ where
     S: OfflineSigner + Send + Sync,
     NyxdError: From<<S as OfflineSigner>::Error>,
 {
-    pub fn signing_account(&self) -> Result<AccountData, NyxdError> {
+    pub fn signing_account(&self) -> Result<&AccountData, NyxdError> {
         Ok(self.find_account(&self.address())?)
     }
 
     pub fn address(&self) -> AccountId {
-        match self.client.signer_addresses() {
-            Ok(addresses) => addresses[0].clone(),
-            Err(_) => {
-                panic!("key derivation failure")
-            }
-        }
+        self.client.signer_addresses()[0].clone()
     }
 
     pub fn mix_coin(&self, amount: u128) -> Coin {
@@ -867,7 +864,7 @@ where
 {
     type Error = S::Error;
 
-    fn get_accounts(&self) -> Result<Vec<AccountData>, Self::Error> {
+    fn get_accounts(&self) -> &[AccountData] {
         self.client.get_accounts()
     }
 

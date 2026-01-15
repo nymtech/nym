@@ -199,6 +199,16 @@ impl NymApiDirectory {
             .map(|(id, _)| *id)
     }
 
+    pub fn random_entry_gateway(&self) -> anyhow::Result<NodeIdentity> {
+        info!("Selecting random entry gateway");
+        self.nodes
+            .iter()
+            .filter(|(_, n)| n.described.description.declared_role.entry)
+            .choose(&mut rand::thread_rng())
+            .ok_or(anyhow!("no entry gateways available"))
+            .map(|(id, _)| *id)
+    }
+
     pub fn get_nym_node(&self, identity: NodeIdentity) -> anyhow::Result<DirectoryNode> {
         self.nodes
             .get(&identity)

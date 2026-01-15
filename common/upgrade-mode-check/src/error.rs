@@ -6,8 +6,11 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum UpgradeModeCheckError {
-    #[error("failed to decode jwt metadata")]
+    #[error("failed to decode jwt metadata: {source}")]
     TokenMetadataDecodeFailure { source: jwt_simple::Error },
+
+    #[error("the upgrade mode JWT is malformed")]
+    MalformedToken,
 
     #[error("the jwt metadata didn't contain explicit public key")]
     MissingTokenPublicKey,
@@ -21,6 +24,6 @@ pub enum UpgradeModeCheckError {
     #[error("failed to verify the jwt: {source}")]
     JwtVerificationFailure { source: jwt_simple::Error },
 
-    #[error("failed to retrieve attestation from {url}:{source}")]
+    #[error("failed to retrieve attestation from {url}: {source}")]
     AttestationRetrievalFailure { url: String, source: reqwest::Error },
 }

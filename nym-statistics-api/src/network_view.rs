@@ -20,6 +20,7 @@ use tracing::{error, info, trace, warn};
 const NETWORK_CACHE_TTL: Duration = Duration::from_secs(600);
 
 type IpToCountryMap = HashMap<IpAddr, Option<Country>>;
+type IdToCountryMap = HashMap<String, Option<Country>>;
 
 // SW this should use a proper NS API client once it exists
 struct NodesQuerier {
@@ -45,19 +46,24 @@ impl NetworkView {
     fn new_empty() -> Self {
         NetworkView {
             inner: Arc::new(RwLock::new(NetworkViewInner {
-                network_nodes: HashMap::new(),
+                ip_to_country: HashMap::new(),
+                id_to_country: HashMap::new(),
             })),
         }
     }
 
     pub(crate) async fn get_country_by_ip(&self, ip_addr: &IpAddr) -> Option<Option<Country>> {
-        self.inner.read().await.network_nodes.get(ip_addr).copied()
+        self.inner.read().await.ip_to_country.get(ip_addr).copied()
+    }
+    pub(crate) async fn get_country_by_id(&self, id_key: &str) -> Option<Option<Country>> {
+        self.inner.read().await.id_to_country.get(id_key).copied()
     }
 }
 
 #[derive(Debug)]
 struct NetworkViewInner {
-    network_nodes: IpToCountryMap,
+    ip_to_country: IpToCountryMap,
+    id_to_country: IdToCountryMap,
 }
 
 pub struct NetworkRefresher {
@@ -112,7 +118,7 @@ impl NetworkRefresher {
             let nodes = querier.current_nymnodes().await?;
 
             // collect all known/allowed nodes information
-            let known_nodes = nodes
+            let ip_to_country = nodes
                 .iter()
                 .flat_map(|n| {
                     n.description
@@ -124,8 +130,19 @@ impl NetworkRefresher {
                 })
                 .collect::<HashMap<_, _>>();
 
+            let id_to_country = nodes
+                .iter()
+                .map(|n| {
+                    (
+                        n.ed25519_identity_key().to_base58_string(),
+                        n.description.auxiliary_details.location,
+                    )
+                })
+                .collect::<HashMap<_, _>>();
+
             let mut network_guard = self.network.inner.write().await;
-            network_guard.network_nodes = known_nodes;
+            network_guard.ip_to_country = ip_to_country;
+            network_guard.id_to_country = id_to_country;
         }
 
         Ok(())

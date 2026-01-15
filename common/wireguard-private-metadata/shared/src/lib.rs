@@ -1,6 +1,7 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+pub(crate) mod conversion_helpers;
 pub mod error;
 mod models;
 pub mod routes;
@@ -9,7 +10,9 @@ pub mod routes;
 pub use models::v0;
 pub use models::{
     AxumErrorResponse, AxumResult, Construct, ErrorResponse, Extract, Request, Response, Version,
-    error::Error as ModelError, interface, latest, v1,
+    error::Error as ModelError,
+    interface::{self, AvailableBandwidth},
+    latest, v1, v2,
 };
 
 fn make_bincode_serializer() -> impl bincode::Options {

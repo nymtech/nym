@@ -3,6 +3,7 @@
 
 mod old_config_v1;
 mod old_config_v10;
+mod old_config_v11;
 mod old_config_v2;
 mod old_config_v3;
 mod old_config_v4;
@@ -22,3 +23,4 @@ pub use old_config_v7::try_upgrade_config_v7;
 pub use old_config_v8::try_upgrade_config_v8;
 pub use old_config_v9::try_upgrade_config_v9;
 pub use old_config_v10::try_upgrade_config_v10;
+pub use old_config_v11::try_upgrade_config_v11;

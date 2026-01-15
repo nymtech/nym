@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::nym_api;
+use crate::signing::direct_wallet::DirectSecp256k1HdWalletError;
 pub use tendermint_rpc::error::Error as TendermintRpcError;
 use thiserror::Error;
 
@@ -26,6 +27,12 @@ pub enum ValidatorClientError {
 
     #[error("No validator API url has been provided")]
     NoAPIUrlAvailable,
+
+    #[error("failed to derive signing accounts: {source}")]
+    AccountDerivationFailure {
+        #[from]
+        source: DirectSecp256k1HdWalletError,
+    },
 }
 
 impl From<nym_api::error::NymAPIError> for ValidatorClientError {

@@ -26,7 +26,7 @@ serde = { workspace = true, features = ["derive"] }
 tracing.workspace = true
 tracing-subscriber = { workspace = true }
 bytecodec = { workspace = true }
-nym-sdk = { path = "../../sdk/rust/nym-sdk/" }
+nym-sdk = { path = "../../sdk/rust/nym-sdk" }
 bytes.workspace = true
 dirs.workspace = true
 clap.workspace = true

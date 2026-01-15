@@ -16,9 +16,6 @@ const _: () = assert!(KKT_VERSION < 1 << 4);
 
 #[cfg(test)]
 mod test {
-    use nym_crypto::asymmetric::ed25519;
-    use rand::prelude::*;
-
     use crate::{
         ciphersuite::{Ciphersuite, EncapsulationKey, HashFunction, KEM},
         encryption::{

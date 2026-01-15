@@ -8,10 +8,7 @@ use rand::{CryptoRng, RngCore};
 use zeroize::Zeroize;
 
 use crate::{
-    ciphersuite::{CURVE25519_KEY_LEN, HASH_LEN_256},
-    context::KKTContext,
-    error::KKTError,
-    frame::KKTFrame,
+    ciphersuite::CURVE25519_KEY_LEN, context::KKTContext, error::KKTError, frame::KKTFrame,
 };
 
 #[derive(Clone, Copy, Zeroize)]

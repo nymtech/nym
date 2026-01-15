@@ -19,7 +19,6 @@ use crate::{LpError, LpMessage, LpPacket};
 use nym_crypto::asymmetric::ed25519;
 use nym_kkt::ciphersuite::{DecapsulationKey, EncapsulationKey};
 use nym_kkt::encryption::KKTSessionSecret;
-use nym_kkt::kkt;
 use parking_lot::Mutex;
 use snow::Builder;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
@@ -694,7 +693,7 @@ impl LpSession {
         request_bytes: &[u8],
         responder_kem_pk: &EncapsulationKey,
     ) -> Result<LpMessage, LpError> {
-        use nym_kkt::{frame::KKTFrame, kkt::handle_kem_request};
+        use nym_kkt::kkt::handle_kem_request;
 
         let mut rng = rand09::rng();
 

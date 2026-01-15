@@ -73,7 +73,7 @@ We’re excited to announce the first **nym-node release of 2026**.
 
 **Exit Policy Ports Management**
 
-In December 2025, two NIP proposals were approved, introducing new ports to Nym network: [NIP-6](https://governator.nym.com/proposal/prop-ba886b9d-6f6e-4365-b4ed-fe7e604bc375) opening ports for WhatsApp and Session + Port `465` and [NIP-4:](https://governator.nym.com/proposal/prop-ca6726ea-38b1-4568-97fe-8bdc5fdc83a0), opening port `587`.
+In December 2025, two NIP proposals were approved, introducing new ports to Nym network: [NIP-6](https://governator.nym.com/proposal/prop-ba886b9d-6f6e-4365-b4ed-fe7e604bc375), opening ports for WhatsApp and Session + Port `465` and [NIP-4](https://governator.nym.com/proposal/prop-ca6726ea-38b1-4568-97fe-8bdc5fdc83a0), opening port `587`.
 
 **Due to the concerns raised by the operators we built a rate limiting function to Network tunnel manager (NTM) to prevent spam abuse of the network. You can see the changes [here](https://github.com/nymtech/nym/pull/6317).** 
 
@@ -99,7 +99,7 @@ chmod +x network-tunnel-manager.sh
 Nym network scaling is done mostly by squads, organizations, DAOs and other entities of collaborating operators administrating multiple nodes. To improve efficiency, user experience and cost we added a new menu item [*Orchestration*](/operators/orchestration) where you can find step by step guides to:
 
 - [Virtualise server using KVM](/operators/nodes/preliminary-steps/vps-setup/advanced): Creating VMs with desired size, bandwidth and capacity for lower cost in comparison to renting VPS
-- [Ansible guide](/operators/orchestration/ansible): Orchestrating endless nodes using the [Ansible template](https://github.com/nymtech/nym/tree/develop/ansible/nym-node)
+- [Ansible guide](/operators/orchestration/ansible): Orchestrating many nodes effectively using the [Ansible template](https://github.com/nymtech/nym/tree/develop/ansible/nym-node)
 
 Please, let us know how that worked for you.
 

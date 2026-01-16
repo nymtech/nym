@@ -8,6 +8,7 @@ documentation.workspace = true
 edition.workspace = true
 license.workspace = true
 description = "Crate for dealing with Mixnet and Wireguard registration between Nym clients and Gateways"
+publish = false
 
 [lints]
 workspace = true

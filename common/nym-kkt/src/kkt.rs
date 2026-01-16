@@ -192,213 +192,255 @@ where
     encrypt_kkt_frame(rng, &session_secret, &responder_frame, KKT_RESPONSE_AAD)
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-//     use crate::{
-//         ciphersuite::{HashFunction, KEM, SignatureScheme},
-//         key_utils::{generate_keypair_libcrux, hash_encapsulation_key},
-//     };
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        ciphersuite::{HashFunction, KEM, SignatureScheme},
+        key_utils::{generate_keypair_libcrux, hash_encapsulation_key},
+    };
 
-//     #[test]
-//     fn test_kkt_wrappers_oneway_authenticated() {
-//         let mut rng = rand::rng();
+    #[test]
+    fn test_kkt_wrappers_oneway_authenticated() {
+        let mut rng = rand::rng();
 
-//         // Generate Ed25519 keypairs for both parties
-//         let mut initiator_secret = [0u8; 32];
-//         rng.fill_bytes(&mut initiator_secret);
-//         let initiator_keypair = ed25519::KeyPair::from_secret(initiator_secret, 0);
+        // Generate Ed25519 keypairs for both parties
+        let mut initiator_secret = [0u8; 32];
+        rng.fill_bytes(&mut initiator_secret);
+        let ed25519_init = ed25519::KeyPair::from_secret(initiator_secret, 0);
 
-//         let mut responder_secret = [0u8; 32];
-//         rng.fill_bytes(&mut responder_secret);
-//         let responder_keypair = ed25519::KeyPair::from_secret(responder_secret, 1);
+        let mut responder_secret = [0u8; 32];
+        rng.fill_bytes(&mut responder_secret);
+        let ed25519_resp = ed25519::KeyPair::from_secret(responder_secret, 1);
 
-//         // Generate responder's KEM keypair (X25519 for testing)
-//         let (_, responder_kem_pk) = generate_keypair_libcrux(&mut rng, KEM::X25519).unwrap();
-//         let responder_kem_key = EncapsulationKey::X25519(responder_kem_pk);
+        let x25519_resp_priv = nym_sphinx::PrivateKey::random();
+        let x25519_resp_pub = nym_sphinx::PublicKey::from(&x25519_resp_priv);
 
-//         // Create ciphersuite
-//         let ciphersuite = Ciphersuite::resolve_ciphersuite(
-//             KEM::X25519,
-//             HashFunction::Blake3,
-//             SignatureScheme::Ed25519,
-//             None,
-//         )
-//         .unwrap();
+        // Generate responder's KEM keypair (X25519 for testing)
+        let (_, responder_kem_pk) = generate_keypair_libcrux(&mut rng, KEM::X25519).unwrap();
+        let responder_kem_key = EncapsulationKey::X25519(responder_kem_pk);
 
-//         // Hash the KEM key (simulating directory storage)
-//         let key_hash = hash_encapsulation_key(
-//             &ciphersuite.hash_function(),
-//             ciphersuite.hash_len(),
-//             &responder_kem_key.encode(),
-//         );
+        // Create ciphersuite
+        let ciphersuite = Ciphersuite::resolve_ciphersuite(
+            KEM::X25519,
+            HashFunction::Blake3,
+            SignatureScheme::Ed25519,
+            None,
+        )
+        .unwrap();
 
-//         // Client: Request KEM key
-//         let (mut context, request_frame) =
-//             request_kem_key(&mut rng, ciphersuite, initiator_keypair.private_key()).unwrap();
+        // Hash the KEM key (simulating directory storage)
+        let key_hash = hash_encapsulation_key(
+            &ciphersuite.hash_function(),
+            ciphersuite.hash_len(),
+            &responder_kem_key.encode(),
+        );
 
-//         // Gateway: Handle request
-//         let response_frame = handle_kem_request(
-//             &request_frame,
-//             Some(initiator_keypair.public_key()), // Authenticated
-//             responder_keypair.private_key(),
-//             &responder_kem_key,
-//         )
-//         .unwrap();
+        // Client: Request KEM key
+        let (session_key, mut context, request_frame_ciphertext) = request_kem_key(
+            &mut rng,
+            ciphersuite,
+            ed25519_init.private_key(),
+            &x25519_resp_pub,
+        )
+        .unwrap();
 
-//         // Client: Validate response
-//         let obtained_key = validate_kem_response(
-//             &mut context,
-//             responder_keypair.public_key(),
-//             &key_hash,
-//             &response_frame.to_bytes(),
-//         )
-//         .unwrap();
+        // Gateway: Handle request
+        let response_frame_ciphertext = handle_kem_request(
+            &mut rng,
+            &request_frame_ciphertext,
+            Some(ed25519_init.public_key()), // Authenticated
+            ed25519_resp.private_key(),
+            &x25519_resp_priv,
+            &responder_kem_key,
+        )
+        .unwrap();
 
-//         // Verify we got the correct KEM key
-//         assert_eq!(obtained_key.encode(), responder_kem_key.encode());
-//     }
+        // Client: Validate response
+        let obtained_key = validate_kem_response(
+            &mut context,
+            &session_key,
+            ed25519_resp.public_key(),
+            &key_hash,
+            &response_frame_ciphertext,
+        )
+        .unwrap();
 
-//     #[test]
-//     fn test_kkt_wrappers_anonymous() {
-//         let mut rng = rand::rng();
+        // Verify we got the correct KEM key
+        assert_eq!(obtained_key.encode(), responder_kem_key.encode());
+    }
 
-//         // Only responder has keys
-//         let mut responder_secret = [0u8; 32];
-//         rng.fill_bytes(&mut responder_secret);
-//         let responder_keypair = ed25519::KeyPair::from_secret(responder_secret, 1);
+    #[test]
+    fn test_kkt_wrappers_anonymous() {
+        let mut rng = rand::rng();
 
-//         let (_, responder_kem_pk) = generate_keypair_libcrux(&mut rng, KEM::X25519).unwrap();
-//         let responder_kem_key = EncapsulationKey::X25519(responder_kem_pk);
+        // Only responder has keys
+        let mut responder_secret = [0u8; 32];
+        rng.fill_bytes(&mut responder_secret);
+        let responder_keypair = ed25519::KeyPair::from_secret(responder_secret, 1);
 
-//         let ciphersuite = Ciphersuite::resolve_ciphersuite(
-//             KEM::X25519,
-//             HashFunction::Blake3,
-//             SignatureScheme::Ed25519,
-//             None,
-//         )
-//         .unwrap();
+        let (_, responder_kem_pk) = generate_keypair_libcrux(&mut rng, KEM::X25519).unwrap();
+        let responder_kem_key = EncapsulationKey::X25519(responder_kem_pk);
 
-//         let key_hash = hash_encapsulation_key(
-//             &ciphersuite.hash_function(),
-//             ciphersuite.hash_len(),
-//             &responder_kem_key.encode(),
-//         );
+        let x25519_resp_priv = nym_sphinx::PrivateKey::random();
+        let x25519_resp_pub = nym_sphinx::PublicKey::from(&x25519_resp_priv);
 
-//         // Anonymous initiator
-//         let (mut context, request_frame) =
-//             anonymous_initiator_process(&mut rng, ciphersuite).unwrap();
+        let ciphersuite = Ciphersuite::resolve_ciphersuite(
+            KEM::X25519,
+            HashFunction::Blake3,
+            SignatureScheme::Ed25519,
+            None,
+        )
+        .unwrap();
 
-//         // Gateway: Handle anonymous request
-//         let response_frame = handle_kem_request(
-//             &request_frame,
-//             None, // Anonymous - no verification key
-//             responder_keypair.private_key(),
-//             &responder_kem_key,
-//         )
-//         .unwrap();
+        let key_hash = hash_encapsulation_key(
+            &ciphersuite.hash_function(),
+            ciphersuite.hash_len(),
+            &responder_kem_key.encode(),
+        );
 
-//         // Initiator: Validate response
-//         let obtained_key = validate_kem_response(
-//             &mut context,
-//             responder_keypair.public_key(),
-//             &key_hash,
-//             &response_frame.to_bytes(),
-//         )
-//         .unwrap();
+        // Anonymous initiator
+        let (mut context, request_frame) =
+            anonymous_initiator_process(&mut rng, ciphersuite).unwrap();
 
-//         assert_eq!(obtained_key.encode(), responder_kem_key.encode());
-//     }
+        // Generate the session's shared secret and encrypt the Initiator's request
+        let (session_secret, encrypted_request_bytes) =
+            encrypt_initial_kkt_frame(&mut rng, &x25519_resp_pub, &request_frame).unwrap();
 
-//     #[test]
-//     fn test_invalid_signature_rejected() {
-//         let mut rng = rand::rng();
+        // Gateway: Handle anonymous request
+        let response_frame = handle_kem_request(
+            &mut rng,
+            &encrypted_request_bytes,
+            None, // Anonymous - no verification key
+            responder_keypair.private_key(),
+            &x25519_resp_priv,
+            &responder_kem_key,
+        )
+        .unwrap();
 
-//         let mut initiator_secret = [0u8; 32];
-//         rng.fill_bytes(&mut initiator_secret);
-//         let initiator_keypair = ed25519::KeyPair::from_secret(initiator_secret, 0);
+        // Initiator: Validate response
+        let obtained_key = validate_kem_response(
+            &mut context,
+            &session_secret,
+            responder_keypair.public_key(),
+            &key_hash,
+            &response_frame,
+        )
+        .unwrap();
 
-//         let mut responder_secret = [0u8; 32];
-//         rng.fill_bytes(&mut responder_secret);
-//         let responder_keypair = ed25519::KeyPair::from_secret(responder_secret, 1);
+        assert_eq!(obtained_key.encode(), responder_kem_key.encode());
+    }
 
-//         // Different keypair for wrong signature
-//         let mut wrong_secret = [0u8; 32];
-//         rng.fill_bytes(&mut wrong_secret);
-//         let wrong_keypair = ed25519::KeyPair::from_secret(wrong_secret, 2);
+    #[test]
+    fn test_invalid_signature_rejected() {
+        let mut rng = rand::rng();
 
-//         let (_, responder_kem_pk) = generate_keypair_libcrux(&mut rng, KEM::X25519).unwrap();
-//         let responder_kem_key = EncapsulationKey::X25519(responder_kem_pk);
+        let mut initiator_secret = [0u8; 32];
+        rng.fill_bytes(&mut initiator_secret);
+        let initiator_keypair = ed25519::KeyPair::from_secret(initiator_secret, 0);
 
-//         let ciphersuite = Ciphersuite::resolve_ciphersuite(
-//             KEM::X25519,
-//             HashFunction::Blake3,
-//             SignatureScheme::Ed25519,
-//             None,
-//         )
-//         .unwrap();
+        let mut responder_secret = [0u8; 32];
+        rng.fill_bytes(&mut responder_secret);
+        let responder_keypair = ed25519::KeyPair::from_secret(responder_secret, 1);
 
-//         let (_context, request_frame) =
-//             request_kem_key(&mut rng, ciphersuite, initiator_keypair.private_key()).unwrap();
+        let x25519_resp_priv = nym_sphinx::PrivateKey::random();
+        let x25519_resp_pub = nym_sphinx::PublicKey::from(&x25519_resp_priv);
 
-//         // Gateway handles request but we provide WRONG verification key
-//         let result = handle_kem_request(
-//             &request_frame,
-//             Some(wrong_keypair.public_key()), // Wrong key!
-//             responder_keypair.private_key(),
-//             &responder_kem_key,
-//         );
+        // Different keypair for wrong signature
+        let mut wrong_secret = [0u8; 32];
+        rng.fill_bytes(&mut wrong_secret);
+        let wrong_keypair = ed25519::KeyPair::from_secret(wrong_secret, 2);
 
-//         // Should fail signature verification
-//         assert!(result.is_err());
-//     }
+        let (_, responder_kem_pk) = generate_keypair_libcrux(&mut rng, KEM::X25519).unwrap();
+        let responder_kem_key = EncapsulationKey::X25519(responder_kem_pk);
 
-//     #[test]
-//     fn test_hash_mismatch_rejected() {
-//         let mut rng = rand::rng();
+        let ciphersuite = Ciphersuite::resolve_ciphersuite(
+            KEM::X25519,
+            HashFunction::Blake3,
+            SignatureScheme::Ed25519,
+            None,
+        )
+        .unwrap();
 
-//         let mut initiator_secret = [0u8; 32];
-//         rng.fill_bytes(&mut initiator_secret);
-//         let initiator_keypair = ed25519::KeyPair::from_secret(initiator_secret, 0);
+        let (_session_key, _context, request_frame_ciphertext) = request_kem_key(
+            &mut rng,
+            ciphersuite,
+            initiator_keypair.private_key(),
+            &x25519_resp_pub,
+        )
+        .unwrap();
 
-//         let mut responder_secret = [0u8; 32];
-//         rng.fill_bytes(&mut responder_secret);
-//         let responder_keypair = ed25519::KeyPair::from_secret(responder_secret, 1);
+        // Gateway handles request but we provide WRONG verification key
+        let result = handle_kem_request(
+            &mut rng,
+            &request_frame_ciphertext,
+            Some(wrong_keypair.public_key()), // Wrong key!
+            responder_keypair.private_key(),
+            &x25519_resp_priv,
+            &responder_kem_key,
+        );
 
-//         let (_, responder_kem_pk) = generate_keypair_libcrux(&mut rng, KEM::X25519).unwrap();
-//         let responder_kem_key = EncapsulationKey::X25519(responder_kem_pk);
+        // Should fail signature verification
+        assert!(result.is_err());
+    }
 
-//         let ciphersuite = Ciphersuite::resolve_ciphersuite(
-//             KEM::X25519,
-//             HashFunction::Blake3,
-//             SignatureScheme::Ed25519,
-//             None,
-//         )
-//         .unwrap();
+    #[test]
+    fn test_hash_mismatch_rejected() {
+        let mut rng = rand::rng();
 
-//         // Use WRONG hash
-//         let wrong_hash = [0u8; 32];
+        let mut initiator_secret = [0u8; 32];
+        rng.fill_bytes(&mut initiator_secret);
+        let initiator_keypair = ed25519::KeyPair::from_secret(initiator_secret, 0);
 
-//         let (mut context, request_frame) =
-//             request_kem_key(&mut rng, ciphersuite, initiator_keypair.private_key()).unwrap();
+        let mut responder_secret = [0u8; 32];
+        rng.fill_bytes(&mut responder_secret);
+        let responder_keypair = ed25519::KeyPair::from_secret(responder_secret, 1);
 
-//         let response_frame = handle_kem_request(
-//             &request_frame,
-//             Some(initiator_keypair.public_key()),
-//             responder_keypair.private_key(),
-//             &responder_kem_key,
-//         )
-//         .unwrap();
+        let x25519_resp_priv = nym_sphinx::PrivateKey::random();
+        let x25519_resp_pub = nym_sphinx::PublicKey::from(&x25519_resp_priv);
 
-//         // Client validates with WRONG hash
-//         let result = validate_kem_response(
-//             &mut context,
-//             responder_keypair.public_key(),
-//             &wrong_hash, // Wrong!
-//             &response_frame.to_bytes(),
-//         );
+        let (_, responder_kem_pk) = generate_keypair_libcrux(&mut rng, KEM::X25519).unwrap();
+        let responder_kem_key = EncapsulationKey::X25519(responder_kem_pk);
 
-//         // Should fail hash validation
-//         assert!(result.is_err());
-//     }
-// }
+        let ciphersuite = Ciphersuite::resolve_ciphersuite(
+            KEM::X25519,
+            HashFunction::Blake3,
+            SignatureScheme::Ed25519,
+            None,
+        )
+        .unwrap();
+
+        // Use WRONG hash
+        let wrong_hash = [0u8; 32];
+
+        let (session_key, mut context, request_frame) = request_kem_key(
+            &mut rng,
+            ciphersuite,
+            initiator_keypair.private_key(),
+            &x25519_resp_pub,
+        )
+        .unwrap();
+
+        let response_frame = handle_kem_request(
+            &mut rng,
+            &request_frame,
+            Some(initiator_keypair.public_key()),
+            responder_keypair.private_key(),
+            &x25519_resp_priv,
+            &responder_kem_key,
+        )
+        .unwrap();
+
+        // Client validates with WRONG hash
+        let result = validate_kem_response(
+            &mut context,
+            &session_key,
+            responder_keypair.public_key(),
+            &wrong_hash, // Wrong!
+            &response_frame,
+        );
+
+        // Should fail hash validation
+        assert!(result.is_err());
+    }
+}

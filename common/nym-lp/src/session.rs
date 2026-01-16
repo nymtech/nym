@@ -1347,13 +1347,12 @@ impl SubsessionHandshake {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::keypair::KeyPair;
     use crate::{replay::ReplayError, sessions_for_tests};
     use rand::thread_rng;
 
     // Helper function to generate keypairs for tests
     fn generate_keypair() -> x25519::KeyPair {
-        KeyPair::new(&mut thread_rng())
+        x25519::KeyPair::new(&mut thread_rng())
     }
 
     // Helper function to create a session with real keys for handshake tests

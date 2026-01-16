@@ -202,7 +202,7 @@ impl SessionManager {
     pub fn init_kkt_for_test(
         &self,
         lp_id: u32,
-        remote_x25519_pub: &crate::keypair::PublicKey,
+        remote_x25519_pub: &x25519::PublicKey,
     ) -> Result<(), LpError> {
         self.with_state_machine(lp_id, |sm| {
             sm.session()?.set_kkt_completed_for_test(remote_x25519_pub);

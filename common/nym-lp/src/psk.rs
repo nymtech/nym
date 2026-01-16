@@ -47,12 +47,11 @@
 //! - **No cleanup needed**: No state was mutated
 
 use crate::LpError;
-use crate::keypair::{PrivateKey, PublicKey};
 use libcrux_psq::v1::cred::{Authenticator, Ed25519};
 use libcrux_psq::v1::impls::X25519 as PsqX25519;
 use libcrux_psq::v1::psk_registration::{Initiator, InitiatorMsg, Responder};
 use libcrux_psq::v1::traits::{Ciphertext as PsqCiphertext, PSQ};
-use nym_crypto::asymmetric::ed25519;
+use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_kkt::ciphersuite::{DecapsulationKey, EncapsulationKey};
 use std::time::Duration;
 use tls_codec::{Deserialize as TlsDeserializeTrait, Serialize as TlsSerializeTrait};
@@ -137,8 +136,8 @@ pub struct PsqResponderResult {
 /// // Send ciphertext to gateway
 /// ```
 pub fn derive_psk_with_psq_initiator(
-    local_x25519_private: &PrivateKey,
-    remote_x25519_public: &PublicKey,
+    local_x25519_private: &x25519::PrivateKey,
+    remote_x25519_public: &x25519::PublicKey,
     remote_kem_public: &EncapsulationKey,
     salt: &[u8; 32],
 ) -> Result<([u8; 32], Vec<u8>), LpError> {
@@ -220,8 +219,8 @@ pub fn derive_psk_with_psq_initiator(
 /// )?;
 /// ```
 pub fn derive_psk_with_psq_responder(
-    local_x25519_private: &PrivateKey,
-    remote_x25519_public: &PublicKey,
+    local_x25519_private: &x25519::PrivateKey,
+    remote_x25519_public: &x25519::PublicKey,
     local_kem_keypair: (&DecapsulationKey, &EncapsulationKey),
     ciphertext: &[u8],
     salt: &[u8; 32],
@@ -280,8 +279,8 @@ pub fn derive_psk_with_psq_responder(
 /// # Returns
 /// `PsqInitiatorResult` containing PSK, payload, and raw PQ shared secret
 pub fn psq_initiator_create_message(
-    local_x25519_private: &PrivateKey,
-    remote_x25519_public: &PublicKey,
+    local_x25519_private: &x25519::PrivateKey,
+    remote_x25519_public: &x25519::PublicKey,
     remote_kem_public: &EncapsulationKey,
     client_ed25519_sk: &ed25519::PrivateKey,
     client_ed25519_pk: &ed25519::PublicKey,
@@ -375,8 +374,8 @@ pub fn psq_initiator_create_message(
 /// # Returns
 /// `PsqResponderResult` containing PSK, PSK handle, and raw PQ shared secret
 pub fn psq_responder_process_message(
-    local_x25519_private: &PrivateKey,
-    remote_x25519_public: &PublicKey,
+    local_x25519_private: &x25519::PrivateKey,
+    remote_x25519_public: &x25519::PublicKey,
     local_kem_keypair: (&DecapsulationKey, &EncapsulationKey),
     initiator_ed25519_pk: &ed25519::PublicKey,
     psq_payload: &[u8],
@@ -495,8 +494,8 @@ mod tests {
     use super::*;
     use rand::thread_rng;
 
-    fn generate_x25519_keypair() -> KeyPair {
-        KeyPair::new(&mut thread_rng())
+    fn generate_x25519_keypair() -> x25519::KeyPair {
+        x25519::KeyPair::new(&mut thread_rng())
     }
 
     #[test]
@@ -597,7 +596,6 @@ mod tests {
     }
 
     // PSQ-enhanced PSK tests
-    use crate::keypair::KeyPair;
     use nym_kkt::ciphersuite::{DecapsulationKey, EncapsulationKey, KEM};
     use nym_kkt::key_utils::generate_keypair_libcrux;
 

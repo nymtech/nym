@@ -4,7 +4,6 @@
 pub mod codec;
 pub mod config;
 pub mod error;
-pub mod keypair;
 pub mod kkt_orchestrator;
 pub mod message;
 pub mod noise_protocol;

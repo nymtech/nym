@@ -1,7 +1,6 @@
 #[cfg(test)]
 mod tests {
     use crate::codec::{parse_lp_packet, serialize_lp_packet};
-    use crate::keypair::PublicKey;
     use crate::{
         LpError,
         message::LpMessage,
@@ -9,7 +8,7 @@ mod tests {
         session_manager::SessionManager,
     };
     use bytes::BytesMut;
-    use nym_crypto::asymmetric::ed25519;
+    use nym_crypto::asymmetric::{ed25519, x25519};
     use std::sync::Arc;
 
     // Function to create a test packet - similar to how it's done in codec.rs tests
@@ -70,9 +69,9 @@ mod tests {
             .expect("Failed to derive X25519 from Ed25519");
 
         // Convert to LP keypair types
-        let lp_pub_a = PublicKey::from_bytes(x25519_pub_a.as_bytes())
+        let lp_pub_a = x25519::PublicKey::from_bytes(x25519_pub_a.as_bytes())
             .expect("Failed to create PublicKey from bytes");
-        let lp_pub_b = PublicKey::from_bytes(x25519_pub_b.as_bytes())
+        let lp_pub_b = x25519::PublicKey::from_bytes(x25519_pub_b.as_bytes())
             .expect("Failed to create PublicKey from bytes");
 
         // Use fixed receiver_index for deterministic test
@@ -530,9 +529,9 @@ mod tests {
             .expect("Failed to derive X25519 from Ed25519");
 
         // Convert to LP keypair types
-        let lp_pub_a = PublicKey::from_bytes(x25519_pub_a.as_bytes())
+        let lp_pub_a = x25519::PublicKey::from_bytes(x25519_pub_a.as_bytes())
             .expect("Failed to create PublicKey from bytes");
-        let lp_pub_b = PublicKey::from_bytes(x25519_pub_b.as_bytes())
+        let lp_pub_b = x25519::PublicKey::from_bytes(x25519_pub_b.as_bytes())
             .expect("Failed to create PublicKey from bytes");
 
         // Use fixed receiver_index for test
@@ -738,7 +737,7 @@ mod tests {
         let keypair_a = Arc::new(ed25519_keypair_a);
 
         // Convert to LP keypair type (still needed for init_kkt_for_test below if used)
-        let _lp_pub = PublicKey::from_bytes(x25519_pub.as_bytes())
+        let _lp_pub = x25519::PublicKey::from_bytes(x25519_pub.as_bytes())
             .expect("Failed to create PublicKey from bytes");
 
         // Use fixed receiver_index for test

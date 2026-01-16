@@ -36,8 +36,8 @@ pub fn sessions_for_tests() -> (LpSession, LpSession) {
     let mut rng = rand::thread_rng();
 
     // X25519 keypairs for Noise protocol
-    let keypair_1 = x25519::KeyPair::new(&mut rng);
-    let keypair_2 = x25519::KeyPair::new(&mut rng);
+    let keypair_1 = Arc::new(x25519::KeyPair::new(&mut rng));
+    let keypair_2 = Arc::new(x25519::KeyPair::new(&mut rng));
 
     // Use a fixed receiver_index for deterministic tests
     let receiver_index: u32 = 12345;
@@ -57,7 +57,7 @@ pub fn sessions_for_tests() -> (LpSession, LpSession) {
         receiver_index,
         true,
         Arc::new(ed25519_keypair_1),
-        keypair_1.private_key(),
+        keypair_1.clone(),
         ed25519_keypair_2.public_key(),
         keypair_2.public_key(),
         &salt,
@@ -68,7 +68,7 @@ pub fn sessions_for_tests() -> (LpSession, LpSession) {
         receiver_index,
         false,
         Arc::new(ed25519_keypair_2),
-        keypair_2.private_key(),
+        keypair_2.clone(),
         &ed25519_keypair1_pubkey,
         keypair_1.public_key(),
         &salt,
@@ -202,6 +202,8 @@ mod tests {
         let ed25519_keypair_remote = ed25519::KeyPair::from_secret([9u8; 32], 1);
 
         let ed25519_keypair_local_pubkey = *ed25519_keypair_local.public_key();
+        let x25519_keypair_local_pubkey = ed25519_keypair_local_pubkey.to_x25519().unwrap();
+        let x25519_keypair_remote_pubkey = ed25519_keypair_remote.public_key().to_x25519().unwrap();
 
         // Use fixed receiver_index for deterministic test
         let receiver_index: u32 = 54321;
@@ -215,6 +217,7 @@ mod tests {
                 receiver_index,
                 Arc::new(ed25519_keypair_local),
                 ed25519_keypair_remote.public_key(),
+                &x25519_keypair_remote_pubkey,
                 true,
                 &salt,
             )
@@ -225,6 +228,7 @@ mod tests {
                 receiver_index,
                 Arc::new(ed25519_keypair_remote),
                 &ed25519_keypair_local_pubkey,
+                &x25519_keypair_local_pubkey,
                 false,
                 &salt,
             )

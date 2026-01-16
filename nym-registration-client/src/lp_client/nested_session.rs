@@ -129,6 +129,10 @@ impl NestedLpSession {
             LpClientError::Crypto(format!("Failed to derive X25519 public key: {}", e))
         })?;
 
+        let gateway_x25519_public = self.exit_public_key.to_x25519().map_err(|e| {
+            LpClientError::Crypto(format!("Failed to derive X25519 public key: {e}"))
+        })?;
+
         let timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .map_err(|_| LpClientError::Other("System time before UNIX epoch".into()))?
@@ -193,6 +197,7 @@ impl NestedLpSession {
             true, // is_initiator
             self.client_keypair.clone(),
             &self.exit_public_key,
+            &gateway_x25519_public,
             &salt,
         )?;
 

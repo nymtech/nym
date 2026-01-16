@@ -7,7 +7,7 @@
 //! creation, retrieval, and storage of sessions.
 
 use dashmap::DashMap;
-use nym_crypto::asymmetric::ed25519;
+use nym_crypto::asymmetric::{ed25519, x25519};
 use std::sync::Arc;
 
 use crate::noise_protocol::ReadResult;
@@ -172,6 +172,7 @@ impl SessionManager {
         receiver_index: u32,
         local_ed25519_keypair: Arc<ed25519::KeyPair>,
         remote_ed25519_key: &ed25519::PublicKey,
+        remote_x25519_key: &x25519::PublicKey,
         is_initiator: bool,
         salt: &[u8; 32],
     ) -> Result<u32, LpError> {
@@ -180,6 +181,7 @@ impl SessionManager {
             is_initiator,
             local_ed25519_keypair,
             remote_ed25519_key,
+            remote_x25519_key,
             salt,
         )?;
 
@@ -220,6 +222,8 @@ mod tests {
         let ed25519_keypair = ed25519::KeyPair::from_secret([10u8; 32], 0);
         let ed25519_keypair2 = ed25519::KeyPair::from_secret([16u8; 32], 0);
 
+        let x25519_keypair2 = ed25519_keypair2.to_x25519();
+
         let salt = [47u8; 32];
         let receiver_index: u32 = 1001;
 
@@ -228,6 +232,7 @@ mod tests {
                 receiver_index,
                 Arc::new(ed25519_keypair),
                 ed25519_keypair2.public_key(),
+                x25519_keypair2.public_key(),
                 true,
                 &salt,
             )
@@ -246,6 +251,8 @@ mod tests {
         let ed25519_keypair = ed25519::KeyPair::from_secret([11u8; 32], 0);
         let ed25519_keypair2 = ed25519::KeyPair::from_secret([16u8; 32], 0);
 
+        let x25519_keypair2 = ed25519_keypair2.to_x25519();
+
         let salt = [48u8; 32];
         let receiver_index: u32 = 2002;
 
@@ -254,6 +261,7 @@ mod tests {
                 receiver_index,
                 Arc::new(ed25519_keypair),
                 ed25519_keypair2.public_key(),
+                x25519_keypair2.public_key(),
                 true,
                 &salt,
             )
@@ -279,16 +287,41 @@ mod tests {
         let pubkey2 = *ed25519_keypair_2.public_key();
         let pubkey3 = *ed25519_keypair_3.public_key();
 
+        let xpubkey1 = *ed25519_keypair_1.to_x25519().public_key();
+        let xpubkey2 = *ed25519_keypair_2.to_x25519().public_key();
+        let xpubkey3 = *ed25519_keypair_3.to_x25519().public_key();
+
         let sm_1 = manager
-            .create_session_state_machine(3001, Arc::new(ed25519_keypair_1), &pubkey2, true, &salt)
+            .create_session_state_machine(
+                3001,
+                Arc::new(ed25519_keypair_1),
+                &pubkey2,
+                &xpubkey2,
+                true,
+                &salt,
+            )
             .unwrap();
 
         let sm_2 = manager
-            .create_session_state_machine(3002, Arc::new(ed25519_keypair_2), &pubkey3, true, &salt)
+            .create_session_state_machine(
+                3002,
+                Arc::new(ed25519_keypair_2),
+                &pubkey3,
+                &xpubkey3,
+                true,
+                &salt,
+            )
             .unwrap();
 
         let sm_3 = manager
-            .create_session_state_machine(3003, Arc::new(ed25519_keypair_3), &pubkey1, true, &salt)
+            .create_session_state_machine(
+                3003,
+                Arc::new(ed25519_keypair_3),
+                &pubkey1,
+                &xpubkey1,
+                true,
+                &salt,
+            )
             .unwrap();
 
         assert_eq!(manager.session_count(), 3);
@@ -310,10 +343,13 @@ mod tests {
         let salt = [50u8; 32];
         let receiver_index: u32 = 4004;
 
+        let x25519_keypair2 = ed25519_keypair2.to_x25519();
+
         let sm = manager.create_session_state_machine(
             receiver_index,
             Arc::new(ed25519_keypair),
             ed25519_keypair2.public_key(),
+            x25519_keypair2.public_key(),
             true,
             &salt,
         );

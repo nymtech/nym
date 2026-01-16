@@ -328,6 +328,10 @@ where
                 LpClientError::Crypto(format!("Failed to derive X25519 public key: {e}"))
             })?;
 
+        let gateway_x25519_public = self.gateway_ed25519_public_key.to_x25519().map_err(|e| {
+            LpClientError::Crypto(format!("Failed to derive X25519 public key: {e}"))
+        })?;
+
         let timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .map_err(|_| LpClientError::Other("System time before UNIX epoch".into()))?
@@ -383,6 +387,7 @@ where
             true, // is_initiator
             self.local_ed25519_keypair.clone(),
             &self.gateway_ed25519_public_key,
+            &gateway_x25519_public,
             &salt,
         )?;
 

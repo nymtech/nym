@@ -54,6 +54,9 @@ mod tests {
         let ed25519_keypair_a = ed25519::KeyPair::from_secret([1u8; 32], 0);
         let ed25519_keypair_b = ed25519::KeyPair::from_secret([2u8; 32], 1);
 
+        let x25519_keypair_a = ed25519_keypair_a.to_x25519();
+        let x25519_keypair_b = ed25519_keypair_b.to_x25519();
+
         let ed25519_pubkey_a = *ed25519_keypair_a.public_key();
 
         // Derive X25519 keys from Ed25519 (needed for KKT init test)
@@ -84,6 +87,7 @@ mod tests {
                 receiver_index,
                 Arc::new(ed25519_keypair_a),
                 ed25519_keypair_b.public_key(),
+                x25519_keypair_b.public_key(),
                 true,
                 &salt,
             )
@@ -94,6 +98,7 @@ mod tests {
                 receiver_index,
                 Arc::new(ed25519_keypair_b),
                 &ed25519_pubkey_a,
+                x25519_keypair_a.public_key(),
                 false,
                 &salt,
             )
@@ -509,6 +514,9 @@ mod tests {
         let ed25519_keypair_a = ed25519::KeyPair::from_secret([3u8; 32], 0);
         let ed25519_keypair_b = ed25519::KeyPair::from_secret([4u8; 32], 1);
 
+        let x25519_keypair_a = ed25519_keypair_a.to_x25519();
+        let x25519_keypair_b = ed25519_keypair_b.to_x25519();
+
         let ed25519_pubkey_a = *ed25519_keypair_a.public_key();
 
         // Derive X25519 keys from Ed25519 (same as state machine does internally)
@@ -538,6 +546,7 @@ mod tests {
                 receiver_index,
                 Arc::new(ed25519_keypair_a),
                 ed25519_keypair_b.public_key(),
+                x25519_keypair_b.public_key(),
                 true,
                 &salt,
             )
@@ -547,6 +556,7 @@ mod tests {
                 receiver_index,
                 Arc::new(ed25519_keypair_b),
                 &ed25519_pubkey_a,
+                x25519_keypair_a.public_key(),
                 false,
                 &salt,
             )
@@ -716,6 +726,9 @@ mod tests {
         let ed25519_keypair_a = ed25519::KeyPair::from_secret([5u8; 32], 0);
         let ed25519_keypair_b = ed25519::KeyPair::from_secret([6u8; 32], 0);
 
+        let x25519_keypair_a = ed25519_keypair_a.to_x25519();
+        let x25519_keypair_b = ed25519_keypair_b.to_x25519();
+
         // Derive X25519 key from Ed25519 (same as state machine does internally)
         let x25519_pub = ed25519_keypair_a
             .public_key()
@@ -740,6 +753,7 @@ mod tests {
                 receiver_index,
                 keypair_a.clone(),
                 ed25519_keypair_b.public_key(),
+                x25519_keypair_b.public_key(),
                 true,
                 &salt,
             )
@@ -763,6 +777,7 @@ mod tests {
                 receiver_index_temp,
                 keypair_a.clone(),
                 ed25519_keypair_b.public_key(),
+                x25519_keypair_a.public_key(),
                 true,
                 &salt,
             )
@@ -845,6 +860,9 @@ mod tests {
         let ed25519_keypair_a = ed25519::KeyPair::from_secret([6u8; 32], 0);
         let ed25519_keypair_b = ed25519::KeyPair::from_secret([7u8; 32], 1);
 
+        let x25519_keypair_a = ed25519_keypair_a.to_x25519();
+        let x25519_keypair_b = ed25519_keypair_b.to_x25519();
+
         let pubkey_a = *ed25519_keypair_a.public_key();
         let pubkey_b = *ed25519_keypair_b.public_key();
 
@@ -861,6 +879,7 @@ mod tests {
                     receiver_index,
                     Arc::new(ed25519_keypair_a),
                     &pubkey_b,
+                    x25519_keypair_b.public_key(),
                     true,
                     &salt,
                 ) // Initiator
@@ -872,6 +891,7 @@ mod tests {
                     receiver_index,
                     Arc::new(ed25519_keypair_b),
                     &pubkey_a,
+                    x25519_keypair_a.public_key(),
                     false,
                     &salt,
                 ) // Responder

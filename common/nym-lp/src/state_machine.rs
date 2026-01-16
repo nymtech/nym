@@ -15,14 +15,13 @@
 
 use crate::{
     LpError,
-    keypair::KeyPair,
     message::{LpMessage, SubsessionKK1Data, SubsessionKK2Data, SubsessionReadyData},
     noise_protocol::NoiseError,
     packet::LpPacket,
     session::{LpSession, SubsessionHandshake},
 };
 use bytes::BytesMut;
-use nym_crypto::asymmetric::ed25519;
+use nym_crypto::asymmetric::{ed25519, x25519};
 use std::mem;
 use std::sync::Arc;
 use tracing::debug;
@@ -190,7 +189,8 @@ impl LpStateMachine {
     /// * `is_initiator` - Whether this side initiates the handshake
     /// * `local_ed25519_keypair` - Ed25519 keypair for PSQ authentication and X25519 derivation
     ///   (from client identity key or gateway signing key)
-    /// * `remote_ed25519_key` - Peer's Ed25519 public key for PSQ authentication and X25519 derivation
+    /// * `remote_ed25519_key` - Peer's Ed25519 public key for PSQ authentication
+    /// * `remote_x25519_key` - Peer's x25519 public key for Noise protocol and DHKEM
     /// * `salt` - Fresh salt for PSK derivation (must be unique per session)
     ///
     /// # Errors
@@ -202,6 +202,7 @@ impl LpStateMachine {
         is_initiator: bool,
         local_ed25519_keypair: Arc<ed25519::KeyPair>,
         remote_ed25519_key: &ed25519::PublicKey,
+        remote_x25519_key: &x25519::PublicKey,
         salt: &[u8; 32],
     ) -> Result<Self, LpError> {
         // We use standard RFC 7748 conversion to derive X25519 keys from Ed25519 identity keys.
@@ -214,20 +215,7 @@ impl LpStateMachine {
         // - PSQ ECDH baseline security (pre-quantum)
 
         // Convert Ed25519 keys to X25519 for Noise protocol
-        let local_x25519_private = local_ed25519_keypair.private_key().to_x25519();
-        let local_x25519_public = local_x25519_private.public_key();
-
-        let remote_x25519_public = remote_ed25519_key
-            .to_x25519()
-            .map_err(LpError::Ed25519RecoveryError)?;
-
-        // Convert nym_crypto X25519 types to nym_lp keypair types
-        let lp_private = local_x25519_private;
-        let lp_public = local_x25519_public;
-        let lp_remote_public = remote_x25519_public;
-
-        // Create X25519 keypair for Noise
-        let local_x25519_keypair = KeyPair::from((lp_private, lp_public));
+        let local_x25519 = Arc::new(local_ed25519_keypair.to_x25519());
 
         // Create the session with both Ed25519 (for PSQ auth) and derived X25519 keys (for Noise)
         // receiver_index is client-proposed, passed through directly
@@ -235,9 +223,9 @@ impl LpStateMachine {
             receiver_index,
             is_initiator,
             local_ed25519_keypair,
-            local_x25519_keypair.private_key(),
+            local_x25519,
             remote_ed25519_key,
-            &lp_remote_public,
+            remote_x25519_key,
             salt,
         )?;
 
@@ -1104,6 +1092,8 @@ mod tests {
         let ed25519_keypair_resp = ed25519::KeyPair::from_secret([17u8; 32], 1);
 
         let ed25519_pubkey_init = *ed25519_keypair_init.public_key();
+        let x25519_pubkey_init = ed25519_pubkey_init.to_x25519().unwrap();
+        let x25519_pubkey_resp = *ed25519_keypair_resp.to_x25519().public_key();
 
         // Test salt
         let salt = [51u8; 32];
@@ -1115,6 +1105,7 @@ mod tests {
             true,
             Arc::new(ed25519_keypair_init),
             ed25519_keypair_resp.public_key(),
+            &x25519_pubkey_resp,
             &salt,
         );
         assert!(initiator_sm.is_ok());
@@ -1131,6 +1122,7 @@ mod tests {
             false,
             Arc::new(ed25519_keypair_resp),
             &ed25519_pubkey_init,
+            &x25519_pubkey_init,
             &salt,
         );
         assert!(responder_sm.is_ok());
@@ -1153,6 +1145,8 @@ mod tests {
         let ed25519_keypair_resp = ed25519::KeyPair::from_secret([19u8; 32], 1);
 
         let ed25519_pubkey_init = *ed25519_keypair_init.public_key();
+        let x25519_pubkey_init = ed25519_pubkey_init.to_x25519().unwrap();
+        let x25519_pubkey_resp = *ed25519_keypair_resp.to_x25519().public_key();
 
         // Test salt
         let salt = [52u8; 32];
@@ -1164,6 +1158,7 @@ mod tests {
             true, // is_initiator
             Arc::new(ed25519_keypair_init),
             ed25519_keypair_resp.public_key(),
+            &x25519_pubkey_resp,
             &salt,
         )
         .unwrap();
@@ -1173,6 +1168,7 @@ mod tests {
             false, // is_initiator
             Arc::new(ed25519_keypair_resp),
             &ed25519_pubkey_init,
+            &x25519_pubkey_init,
             &salt,
         )
         .unwrap();
@@ -1356,6 +1352,8 @@ mod tests {
         let ed25519_keypair_init = ed25519::KeyPair::from_secret([20u8; 32], 0);
         let ed25519_keypair_resp = ed25519::KeyPair::from_secret([21u8; 32], 1);
 
+        let x25519_pubkey_init = *ed25519_keypair_init.to_x25519().public_key();
+
         let salt = [53u8; 32];
         let receiver_index: u32 = 99901;
 
@@ -1365,6 +1363,7 @@ mod tests {
             true,
             Arc::new(ed25519_keypair_init),
             ed25519_keypair_resp.public_key(),
+            &x25519_pubkey_init,
             &salt,
         )
         .unwrap();
@@ -1385,6 +1384,7 @@ mod tests {
         let ed25519_keypair_resp = ed25519::KeyPair::from_secret([23u8; 32], 1);
 
         let ed25519_pubkey_init = *ed25519_keypair_init.public_key();
+        let x25519_pubkey_init = ed25519_pubkey_init.to_x25519().unwrap();
 
         let salt = [54u8; 32];
         let receiver_index: u32 = 99902;
@@ -1395,6 +1395,7 @@ mod tests {
             false,
             Arc::new(ed25519_keypair_resp),
             &ed25519_pubkey_init,
+            &x25519_pubkey_init,
             &salt,
         )
         .unwrap();
@@ -1415,6 +1416,8 @@ mod tests {
         let ed25519_keypair_resp = ed25519::KeyPair::from_secret([25u8; 32], 1);
 
         let ed25519_pubkey_init = *ed25519_keypair_init.public_key();
+        let x25519_pubkey_init = ed25519_pubkey_init.to_x25519().unwrap();
+        let x25519_pubkey_resp = *ed25519_keypair_resp.to_x25519().public_key();
 
         let salt = [55u8; 32];
         let receiver_index: u32 = 99903;
@@ -1425,6 +1428,7 @@ mod tests {
             true,
             Arc::new(ed25519_keypair_init),
             ed25519_keypair_resp.public_key(),
+            &x25519_pubkey_resp,
             &salt,
         )
         .unwrap();
@@ -1434,6 +1438,7 @@ mod tests {
             false,
             Arc::new(ed25519_keypair_resp),
             &ed25519_pubkey_init,
+            &x25519_pubkey_init,
             &salt,
         )
         .unwrap();
@@ -1475,6 +1480,8 @@ mod tests {
         let ed25519_keypair_init = ed25519::KeyPair::from_secret([26u8; 32], 0);
         let ed25519_keypair_resp = ed25519::KeyPair::from_secret([27u8; 32], 1);
 
+        let x25519_pubkey_resp = *ed25519_keypair_resp.to_x25519().public_key();
+
         let salt = [56u8; 32];
         let receiver_index: u32 = 99904;
 
@@ -1484,6 +1491,7 @@ mod tests {
             true,
             Arc::new(ed25519_keypair_init),
             ed25519_keypair_resp.public_key(),
+            &x25519_pubkey_resp,
             &salt,
         )
         .unwrap();
@@ -1504,6 +1512,8 @@ mod tests {
         let ed25519_keypair_init = ed25519::KeyPair::from_secret([28u8; 32], 0);
         let ed25519_keypair_resp = ed25519::KeyPair::from_secret([29u8; 32], 1);
 
+        let x25519_pubkey_resp = *ed25519_keypair_resp.to_x25519().public_key();
+
         let salt = [57u8; 32];
         let receiver_index: u32 = 99905;
 
@@ -1513,6 +1523,7 @@ mod tests {
             true,
             Arc::new(ed25519_keypair_init),
             ed25519_keypair_resp.public_key(),
+            &x25519_pubkey_resp,
             &salt,
         )
         .unwrap();
@@ -1548,6 +1559,9 @@ mod tests {
 
         let ed25519_pubkey_a = *ed25519_keypair_a.public_key();
 
+        let x25519_pubkey_a = *ed25519_keypair_a.to_x25519().public_key();
+        let x25519_pubkey_b = *ed25519_keypair_b.to_x25519().public_key();
+
         let salt = [60u8; 32];
         let receiver_index: u32 = 111111;
 
@@ -1557,6 +1571,7 @@ mod tests {
             true,
             Arc::new(ed25519_keypair_a),
             ed25519_keypair_b.public_key(),
+            &x25519_pubkey_b,
             &salt,
         )
         .unwrap();
@@ -1566,6 +1581,7 @@ mod tests {
             false,
             Arc::new(ed25519_keypair_b),
             &ed25519_pubkey_a,
+            &x25519_pubkey_a,
             &salt,
         )
         .unwrap();

@@ -255,7 +255,7 @@ pub fn serialize_lp_packet(
             // Cleartext mode
             // 2. Write inner prefix: proto(1) + reserved(3)
             dst.put_u8(item.header.protocol_version);
-            dst.put_slice(&[0, 0, 0]); // reserved
+            dst.put_slice(&item.header.reserved); // reserved
 
             // 3. Write message type (4B) + content
             dst.put_slice(&(item.message.typ() as u32).to_le_bytes());
@@ -274,7 +274,7 @@ pub fn serialize_lp_packet(
             // 2. Build plaintext: proto(1) + reserved(3) + msg_type(4) + content
             let mut plaintext = BytesMut::new();
             plaintext.put_u8(item.header.protocol_version);
-            plaintext.put_slice(&[0, 0, 0]); // reserved
+            plaintext.put_slice(&item.header.reserved); // reserved
             plaintext.put_slice(&(item.message.typ() as u32).to_le_bytes());
             item.message.encode_content(&mut plaintext);
 

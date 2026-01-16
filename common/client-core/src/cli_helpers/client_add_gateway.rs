@@ -87,7 +87,6 @@ where
         user_chosen_gateway_id.map(|id| id.to_base58_string()),
         Some(common_args.latency_based_selection),
         common_args.force_tls_gateway,
-        false,
     );
     tracing::debug!("Gateway selection specification: {selection_spec:?}");
 
@@ -168,7 +167,6 @@ where
         identity: gateway_details.gateway_id,
         active: common_args.set_active,
         typ: gateway_registration.details.typ().to_string(),
-        endpoint: Some(gateway_details.published_data.listeners.primary.clone()),
-        fallback_endpoint: gateway_details.published_data.listeners.fallback.clone(),
+        endpoint: Some(gateway_details.published_data.details.clone()),
     })
 }

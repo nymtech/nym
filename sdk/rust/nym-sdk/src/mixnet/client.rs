@@ -353,7 +353,6 @@ where
         client.custom_shutdown = self.custom_shutdown;
         client.wait_for_gateway = self.wait_for_gateway;
         client.force_tls = self.force_tls;
-        client.no_hostname = self.no_hostname;
         client.user_agent = self.user_agent;
         #[cfg(unix)]
         if self.connection_fd_callback.is_some() {
@@ -405,9 +404,6 @@ where
 
     /// Force the client to connect using wss protocol with the gateway.
     force_tls: bool,
-
-    /// Force the client to pick gateway IP and not hostname, ignored if force_tls is set
-    no_hostname: bool,
 
     /// Allows passing an externally controlled shutdown handle.
     custom_shutdown: Option<ShutdownTracker>,
@@ -477,7 +473,6 @@ where
             custom_gateway_transceiver: None,
             wait_for_gateway: false,
             force_tls: false,
-            no_hostname: false,
             custom_shutdown: None,
             event_tx,
             user_agent: None,
@@ -597,7 +592,6 @@ where
             self.config.user_chosen_gateway.clone(),
             None,
             self.force_tls,
-            self.no_hostname,
         );
 
         let available_gateways = self.available_gateways().await?;
@@ -620,7 +614,6 @@ where
             gateway_registration,
             available_gateways,
             self.force_tls,
-            self.no_hostname,
         )
         .await
     }

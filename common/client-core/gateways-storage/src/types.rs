@@ -3,15 +3,14 @@
 
 use crate::BadGateway;
 use nym_crypto::asymmetric::ed25519;
-use nym_gateway_client::client::GatewayListeners;
 use nym_gateway_requests::shared_key::SharedSymmetricKey;
+use nym_topology::EntryDetails;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 use std::sync::Arc;
 use time::Duration;
 use time::OffsetDateTime;
-use url::Url;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 pub const REMOTE_GATEWAY_TYPE: &str = "remote";
@@ -172,14 +171,14 @@ pub struct RegisteredGateway {
 
 #[derive(Debug, Clone)]
 pub struct GatewayPublishedData {
-    pub listeners: GatewayListeners,
+    pub details: EntryDetails,
     pub expiration_timestamp: OffsetDateTime,
 }
 
 impl GatewayPublishedData {
-    pub fn new(listeners: GatewayListeners) -> GatewayPublishedData {
+    pub fn new(details: EntryDetails) -> GatewayPublishedData {
         GatewayPublishedData {
-            listeners,
+            details,
             expiration_timestamp: OffsetDateTime::now_utc() + GATEWAY_DETAILS_TTL,
         }
     }
@@ -188,16 +187,16 @@ impl GatewayPublishedData {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[cfg_attr(feature = "sqlx", derive(sqlx::FromRow))]
 pub struct RawGatewayPublishedData {
-    pub gateway_listener: String,
-    pub fallback_listener: Option<String>,
+    #[cfg_attr(feature = "sqlx", sqlx(json))]
+    pub gateway_details: EntryDetails,
     pub expiration_timestamp: OffsetDateTime,
 }
 
 impl<'a> From<&'a GatewayPublishedData> for RawGatewayPublishedData {
     fn from(value: &'a GatewayPublishedData) -> Self {
         Self {
-            gateway_listener: value.listeners.primary.to_string(),
-            fallback_listener: value.listeners.fallback.as_ref().map(|uri| uri.to_string()),
+            // fallback_listener: value.listeners.fallback.as_ref().map(|uri| uri.to_string()),
+            gateway_details: value.details.clone(),
             expiration_timestamp: value.expiration_timestamp,
         }
     }
@@ -207,28 +206,15 @@ impl TryFrom<RawGatewayPublishedData> for GatewayPublishedData {
     type Error = BadGateway;
 
     fn try_from(value: RawGatewayPublishedData) -> Result<Self, Self::Error> {
-        let gateway_listener: Url = Url::parse(&value.gateway_listener).map_err(|source| {
-            BadGateway::MalformedListenerNoId {
-                raw_listener: value.gateway_listener.clone(),
-                source,
-            }
-        })?;
-        let fallback_listener = value
-            .fallback_listener
-            .as_ref()
-            .map(|uri| {
-                Url::parse(uri).map_err(|source| BadGateway::MalformedListenerNoId {
-                    raw_listener: uri.to_owned(),
-                    source,
-                })
-            })
-            .transpose()?;
+        // let details = serde_json::from_str(&value.gateway_listener).map_err(|source| {
+        //     BadGateway::MalformedDetailsNoId  {
+        //         raw_details: value.gateway_listener.clone(),
+        //         source,
+        //     }
+        // })?;
 
         Ok(GatewayPublishedData {
-            listeners: GatewayListeners {
-                primary: gateway_listener,
-                fallback: fallback_listener,
-            },
+            details: value.gateway_details,
             expiration_timestamp: value.expiration_timestamp,
         })
     }

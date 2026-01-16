@@ -7,6 +7,13 @@ use serde::{Deserialize, Serialize};
 use std::ops::Not;
 use url::Url;
 
+#[cfg(feature = "env")]
+use crate::var_names;
+#[cfg(feature = "env")]
+use std::env::{VarError, var};
+#[cfg(feature = "env")]
+use std::ffi::OsStr;
+
 #[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize, JsonSchema)]
 #[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 pub struct ChainDetails {
@@ -55,7 +62,7 @@ pub struct ApiUrl {
     pub front_hosts: Option<Vec<String>>,
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug, Serialize)]
 pub struct ApiUrlConst<'a> {
     pub url: &'a str,
     pub front_hosts: Option<&'a [&'a str]>,
@@ -106,10 +113,6 @@ impl NymNetworkDetails {
 
     #[cfg(feature = "env")]
     pub fn new_from_env() -> Self {
-        use crate::var_names;
-        use std::env::{VarError, var};
-        use std::ffi::OsStr;
-
         fn get_optional_env<K: AsRef<OsStr>>(env: K) -> Option<String> {
             match var(env) {
                 Ok(var) => {
@@ -125,6 +128,11 @@ impl NymNetworkDetails {
         }
 
         let nym_api = var(var_names::NYM_API).expect("nym api not set");
+        let nym_api_urls = try_parse_api_urls(var_names::NYM_APIS).unwrap_or(vec![ApiUrl {
+            url: nym_api.clone(),
+            front_hosts: None,
+        }]);
+        let nym_vpn_api_urls = try_parse_api_urls(var_names::NYM_VPN_APIS);
 
         NymNetworkDetails::new_empty()
             .with_network_name(var(var_names::NETWORK_NAME).expect("network name not set"))
@@ -161,10 +169,8 @@ impl NymNetworkDetails {
             .with_multisig_contract(get_optional_env(var_names::MULTISIG_CONTRACT_ADDRESS))
             .with_coconut_dkg_contract(get_optional_env(var_names::COCONUT_DKG_CONTRACT_ADDRESS))
             .with_nym_vpn_api_url(get_optional_env(var_names::NYM_VPN_API))
-            .with_nym_api_urls(Some(vec![ApiUrl {
-                url: nym_api,
-                front_hosts: None,
-            }]))
+            .with_nym_vpn_api_urls(nym_vpn_api_urls)
+            .with_nym_api_urls(nym_api_urls)
     }
 
     pub fn new_mainnet() -> Self {
@@ -218,6 +224,9 @@ impl NymNetworkDetails {
             }
         }
         unsafe {
+            let nym_api_urls = self.nym_api_urls();
+            let nym_vpn_api_urls = self.nym_vpn_api_urls();
+
             set_var(var_names::NETWORK_NAME, self.network_name);
             set_var(var_names::BECH32_PREFIX, self.chain_details.bech32_account_prefix);
 
@@ -243,9 +252,9 @@ impl NymNetworkDetails {
             set_optional_var(var_names::COCONUT_DKG_CONTRACT_ADDRESS, self.contracts.coconut_dkg_contract_address);
 
             set_optional_var(var_names::NYM_VPN_API, self.nym_vpn_api_url);
+            set_optional_var(var_names::NYM_APIS, nym_vpn_api_urls);
+
         }
-
-
     }
 
     pub fn default_gas_price_amount(&self) -> f64 {
@@ -355,8 +364,14 @@ impl NymNetworkDetails {
     }
 
     #[must_use]
-    pub fn with_nym_api_urls(mut self, urls: Option<Vec<ApiUrl>>) -> Self {
-        self.nym_api_urls = urls;
+    pub fn with_nym_api_urls(mut self, urls: Vec<ApiUrl>) -> Self {
+        self.nym_api_urls = Some(urls);
+        self
+    }
+
+    #[must_use]
+    pub fn with_nym_vpn_api_urls(mut self, urls: Option<Vec<ApiUrl>>) -> Self {
+        self.nym_vpn_api_urls = urls;
         self
     }
 
@@ -366,6 +381,28 @@ impl NymNetworkDetails {
                 .expect("the provided nym-vpn api url is invalid!")
         })
     }
+
+    #[cfg(feature = "env")]
+    fn nym_api_urls(&self) -> Option<String> {
+        serde_json::to_string(self.nym_api_urls.as_deref()?)
+            .inspect_err(|e| tracing::warn!("failed to serialize nym_api_urls for env: {e}"))
+            .ok()
+    }
+
+    #[cfg(feature = "env")]
+    fn nym_vpn_api_urls(&self) -> Option<String> {
+        serde_json::to_string(self.nym_vpn_api_urls.as_deref()?)
+            .inspect_err(|e| tracing::warn!("failed to serialize nym_vpn_api_urls for env: {e}"))
+            .ok()
+    }
+}
+
+#[cfg(feature = "env")]
+fn try_parse_api_urls(k: impl AsRef<OsStr>) -> Option<Vec<ApiUrl>> {
+    let raw = var(k).ok()?;
+    serde_json::from_str(&raw)
+        .inspect_err(|e| tracing::warn!("failed to parse api urls from env \"{raw:?}\": {e}"))
+        .ok()
 }
 
 #[derive(Debug, Copy, Serialize, Deserialize, Clone, PartialEq, Eq)]

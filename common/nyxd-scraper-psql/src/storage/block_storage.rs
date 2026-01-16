@@ -13,7 +13,7 @@ use nyxd_scraper_shared::storage::helpers::log_db_operation_time;
 use nyxd_scraper_shared::storage::{NyxdScraperStorage, NyxdScraperStorageError};
 use sqlx::types::time::{OffsetDateTime, PrimitiveDateTime};
 use tokio::time::Instant;
-use tracing::{debug, error, info, instrument, warn};
+use tracing::{debug, error, info, instrument};
 
 #[derive(Clone)]
 pub struct PostgresScraperStorage {
@@ -22,7 +22,10 @@ pub struct PostgresScraperStorage {
 
 impl PostgresScraperStorage {
     #[instrument]
-    pub async fn init(connection_string: &str) -> Result<Self, PostgresScraperError> {
+    pub async fn init(
+        connection_string: &str,
+        run_migrations: &bool,
+    ) -> Result<Self, PostgresScraperError> {
         debug!("initialising scraper database with '{connection_string}'",);
 
         let connection_pool = match sqlx::PgPool::connect(connection_string).await {
@@ -33,12 +36,13 @@ impl PostgresScraperStorage {
             }
         };
 
-        if let Err(err) = sqlx::migrate!("./sql_migrations")
-            .run(&connection_pool)
-            .await
-        {
-            warn!("Failed to initialize SQLx database: {err}");
-            // return Err(err.into());
+        if *run_migrations {
+            if let Err(err) = sqlx::migrate!("./sql_migrations")
+                .run(&connection_pool)
+                .await
+            {
+                return Err(err.into());
+            }
         }
 
         info!("Database migration finished!");
@@ -192,8 +196,11 @@ impl PostgresScraperStorage {
 impl NyxdScraperStorage for PostgresScraperStorage {
     type StorageTransaction = PostgresStorageTransaction;
 
-    async fn initialise(storage: &str) -> Result<Self, NyxdScraperStorageError> {
-        PostgresScraperStorage::init(storage)
+    async fn initialise(
+        storage: &str,
+        run_migrations: &bool,
+    ) -> Result<Self, NyxdScraperStorageError> {
+        PostgresScraperStorage::init(storage, run_migrations)
             .await
             .map_err(NyxdScraperStorageError::from)
     }

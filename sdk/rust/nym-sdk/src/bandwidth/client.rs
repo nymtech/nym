@@ -29,6 +29,7 @@ where
     St: Storage + Clone,
     <St as Storage>::StorageError: Send + Sync + 'static,
 {
+    #[allow(clippy::result_large_err)]
     pub(crate) fn new(
         network_details: NymNetworkDetails,
         mnemonic: String,

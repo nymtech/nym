@@ -28,7 +28,7 @@ impl MixnetConnectionBeacon {
         }
     }
 
-    async fn send_mixnet_self_ping(&self) -> Result<u64> {
+    async fn send_mixnet_self_ping(&mut self) -> Result<u64> {
         trace!("Sending mixnet self ping");
         let (input_message, request_id) = create_self_ping(self.our_address);
         self.mixnet_client_sender
@@ -38,7 +38,7 @@ impl MixnetConnectionBeacon {
         Ok(request_id)
     }
 
-    pub async fn run(self, shutdown: CancellationToken) -> Result<()> {
+    pub async fn run(mut self, shutdown: CancellationToken) -> Result<()> {
         debug!("Mixnet connection beacon is running");
         let mut ping_interval = tokio::time::interval(MIXNET_SELF_PING_INTERVAL);
         loop {

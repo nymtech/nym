@@ -70,7 +70,7 @@ impl WgApiWrapper {
     }
 
     /// Create userspace implementation
-    fn userspace(ifname: &str) -> Result<Self, WgApiWrapperError> {
+    fn userspace(_ifname: &str) -> Result<Self, WgApiWrapperError> {
         #[cfg(any(
             target_os = "linux",
             target_os = "macos",
@@ -78,7 +78,7 @@ impl WgApiWrapper {
             target_os = "netbsd"
         ))]
         {
-            let api = WGApi::<defguard_wireguard_rs::Userspace>::new(ifname)?;
+            let api = WGApi::<defguard_wireguard_rs::Userspace>::new(_ifname)?;
             Ok(Self {
                 inner: Box::new(api),
             })
@@ -105,9 +105,9 @@ impl WgApiWrapper {
         ))]
         {
             let api = WGApi::<defguard_wireguard_rs::Kernel>::new(_ifname)?;
-            Ok(Some(Self {
+            Ok(Self {
                 inner: Box::new(api),
-            }))
+            })
         }
 
         #[cfg(not(any(

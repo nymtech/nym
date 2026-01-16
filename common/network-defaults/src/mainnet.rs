@@ -72,6 +72,12 @@ pub const NYM_VPN_APIS: &[ApiUrlConst] = &[
     },
 ];
 
+fn serialize_api_urls(urls: &[ApiUrlConst]) -> String {
+    serde_json::to_string(urls)
+        .inspect_err(|e| tracing::warn!("failed to serialize nym_api_urls for env: {e}"))
+        .unwrap_or_default()
+}
+
 // I'm making clippy mad on purpose, because that url HAS TO be updated and deployed before merging
 pub const EXIT_POLICY_URL: &str =
     "https://nymtech.net/.wellknown/network-requester/exit-policy.txt";
@@ -162,9 +168,11 @@ pub fn export_to_env() {
     );
     set_var_to_default(var_names::NYXD, NYXD_URL);
     set_var_to_default(var_names::NYM_API, NYM_API);
+    set_var_to_default(var_names::NYM_APIS, &serialize_api_urls(NYM_APIS));
     set_var_to_default(var_names::NYXD_WEBSOCKET, NYXD_WS);
     set_var_to_default(var_names::EXIT_POLICY_URL, EXIT_POLICY_URL);
     set_var_to_default(var_names::NYM_VPN_API, NYM_VPN_API);
+    set_var_to_default(var_names::NYM_VPN_APIS, &serialize_api_urls(NYM_VPN_APIS));
     set_var_to_default(
         var_names::UPGRADE_MODE_ATTESTATION_URL,
         UPGRADE_MODE_ATTESTATION_URL,
@@ -211,6 +219,9 @@ pub fn export_to_env_if_not_set() {
     );
     set_var_conditionally_to_default(var_names::NYXD, NYXD_URL);
     set_var_conditionally_to_default(var_names::NYM_API, NYM_API);
+    set_var_conditionally_to_default(var_names::NYM_APIS, &serialize_api_urls(NYM_APIS));
+    set_var_conditionally_to_default(var_names::NYM_VPN_API, NYM_VPN_API);
+    set_var_conditionally_to_default(var_names::NYM_VPN_APIS, &serialize_api_urls(NYM_VPN_APIS));
     set_var_conditionally_to_default(var_names::NYXD_WEBSOCKET, NYXD_WS);
     set_var_conditionally_to_default(var_names::EXIT_POLICY_URL, EXIT_POLICY_URL);
     set_var_conditionally_to_default(

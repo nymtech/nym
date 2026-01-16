@@ -36,7 +36,7 @@ pub use peer_controller::{PeerControlRequest, PeerRegistrationData};
 pub const CONTROL_CHANNEL_SIZE: usize = 256;
 
 pub struct WgApiWrapper {
-    inner: Box<dyn WireguardInterfaceApi>,
+    inner: Box<dyn WireguardInterfaceApi + Sync + Send>,
 }
 
 impl WgApiWrapper {
@@ -241,7 +241,7 @@ pub async fn start_wireguard(
         "Initializing WireGuard interface '{}' with use_userspace={}",
         ifname, use_userspace
     );
-    let mut wg_api = std::sync::Arc::new(WgApiWrapper::new(&ifname, use_userspace)?);
+    let mut wg_api = WgApiWrapper::new(&ifname, use_userspace)?;
     let mut peer_bandwidth_managers = HashMap::with_capacity(peers.len());
 
     for peer in peers.iter() {
@@ -347,6 +347,7 @@ pub async fn start_wireguard(
         }
     }
 
+    let wg_api = std::sync::Arc::new(wg_api);
     let mut controller = PeerController::new(
         ecash_manager,
         metrics,

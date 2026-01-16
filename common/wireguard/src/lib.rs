@@ -258,7 +258,7 @@ pub async fn start_wireguard(
     use_userspace: bool,
 ) -> Result<std::sync::Arc<WgApiWrapper>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     use base64::{Engine, prelude::BASE64_STANDARD};
-    use defguard_wireguard_rs::{InterfaceConfiguration, WireguardInterfaceApi};
+    use defguard_wireguard_rs::InterfaceConfiguration;
     use ip_network::IpNetwork;
     use peer_controller::PeerController;
     use std::collections::HashMap;

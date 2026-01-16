@@ -6,9 +6,9 @@ use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 
 pub use crate::dealer::{DealerDetails, DealerRegistrationDetails, PagedDealerResponse};
-pub use contracts_common::dealings::ContractSafeBytes;
 pub use cosmwasm_std::{Addr, Coin, Timestamp};
 pub use cw4::Cw4Contract;
+pub use nym_contracts_common::dealings::ContractSafeBytes;
 
 pub type EncodedBTEPublicKeyWithProof = String;
 pub type EncodedBTEPublicKeyWithProofRef<'a> = &'a str;

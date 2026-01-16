@@ -4,24 +4,24 @@
 use std::ops::Neg;
 use std::time::Duration;
 
-use bls12_381::{
-    multi_miller_loop, G1Affine, G1Projective, G2Affine, G2Prepared, G2Projective, Gt, Scalar,
-};
 use criterion::{criterion_group, criterion_main, Criterion};
 use ff::Field;
 use group::{Curve, Group};
+use nym_bls12_381_fork::{
+    multi_miller_loop, G1Affine, G1Projective, G2Affine, G2Prepared, G2Projective, Gt, Scalar,
+};
 use nym_compact_ecash::utils::check_bilinear_pairing;
 
 #[allow(unused)]
 fn double_pairing(g11: &G1Affine, g21: &G2Affine, g12: &G1Affine, g22: &G2Affine) {
-    let gt1 = bls12_381::pairing(g11, g21);
-    let gt2 = bls12_381::pairing(g12, g22);
+    let gt1 = nym_bls12_381_fork::pairing(g11, g21);
+    let gt2 = nym_bls12_381_fork::pairing(g12, g22);
     assert_eq!(gt1, gt2)
 }
 
 #[allow(unused)]
 fn single_pairing(g11: &G1Affine, g21: &G2Affine) {
-    let gt1 = bls12_381::pairing(g11, g21);
+    let gt1 = nym_bls12_381_fork::pairing(g11, g21);
 }
 
 #[allow(unused)]
@@ -98,7 +98,7 @@ fn bench_group_operations(c: &mut Criterion) {
     let g22 = (g2 * r).to_affine();
     let g22_prep = G2Prepared::from(g22);
 
-    let gt = bls12_381::pairing(&g11, &g21);
+    let gt = nym_bls12_381_fork::pairing(&g11, &g21);
     let gen1 = G1Projective::generator();
     let gen2 = G2Projective::generator();
 

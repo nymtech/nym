@@ -1,12 +1,13 @@
 [package]
 name = "nym-credential-proxy-requests"
-version = "0.1.0"
+version.workspace = true
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true
 edition.workspace = true
 license.workspace = true
+description = "Request and response definitions for interacting with the Nym Credential Proxy"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -25,12 +26,12 @@ wasm-bindgen = { workspace = true, optional = true }
 ## openapi:
 utoipa = { workspace = true, optional = true, features = ["uuid"] }
 
-nym-credentials = { path = "../../common/credentials" }
-nym-credentials-interface = { path = "../../common/credentials-interface" }
-nym-http-api-common = { path = "../../common/http-api-common", optional = true }
-nym-http-api-client = { path = "../../common/http-api-client" }
-nym-serde-helpers = { path = "../../common/serde-helpers", features = ["bs58"] }
-nym-upgrade-mode-check = { path = "../../common/upgrade-mode-check" }
+nym-credentials = { workspace = true }
+nym-credentials-interface = { workspace = true }
+nym-http-api-common = { workspace = true, optional = true }
+nym-http-api-client = { workspace = true }
+nym-serde-helpers = { workspace = true, features = ["bs58"] }
+nym-upgrade-mode-check = { workspace = true }
 
 [target."cfg(target_arch = \"wasm32\")".dependencies.wasmtimer]
 workspace = true

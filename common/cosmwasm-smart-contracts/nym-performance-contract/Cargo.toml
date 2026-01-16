@@ -1,6 +1,6 @@
 [package]
 name = "nym-performance-contract-common"
-version = "0.1.0"
+version.workspace = true
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
@@ -9,6 +9,7 @@ edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
 readme.workspace = true
+description = "Common crate for Nym's group performance contract"
 
 [dependencies]
 thiserror = { workspace = true }
@@ -19,7 +20,7 @@ cosmwasm-std = { workspace = true }
 cosmwasm-schema = { workspace = true }
 cw-controllers = { workspace = true }
 
-nym-contracts-common = { path = "../contracts-common" }
+nym-contracts-common = { workspace = true }
 
 
 [features]

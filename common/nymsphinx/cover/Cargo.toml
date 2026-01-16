@@ -1,6 +1,6 @@
 [package]
 name = "nym-sphinx-cover"
-version = "0.1.0"
+version.workspace = true
 description = "Sphinx packets used as cover traffic"
 edition = { workspace = true }
 authors = { workspace = true }
@@ -11,12 +11,12 @@ repository = { workspace = true }
 rand = { workspace = true }
 thiserror = { workspace = true }
 
-nym-crypto = { path = "../../crypto" }
-nym-sphinx-acknowledgements = { path = "../acknowledgements" }
-nym-sphinx-addressing = { path = "../addressing" }
-nym-sphinx-chunking = { path = "../chunking" }
-nym-sphinx-forwarding = { path = "../forwarding" }
-nym-sphinx-params = { path = "../params" }
-nym-sphinx-routing = { path = "../routing" }
-nym-sphinx-types = { path = "../types" }
-nym-topology = { path = "../../topology" }
+nym-crypto = { workspace = true }
+nym-sphinx-acknowledgements = { workspace = true }
+nym-sphinx-addressing = { workspace = true }
+nym-sphinx-chunking = { workspace = true }
+nym-sphinx-forwarding = { workspace = true }
+nym-sphinx-params = { workspace = true }
+nym-sphinx-routing = { workspace = true }
+nym-sphinx-types = { workspace = true }
+nym-topology = { workspace = true }

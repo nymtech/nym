@@ -6,8 +6,8 @@ use std::sync::LazyLock;
 use crate::bte::encryption::BabyStepGiantStepLookup;
 use crate::utils::hash_g2;
 use crate::{Chunk, Share};
-use bls12_381::{G1Affine, G2Affine, G2Prepared, G2Projective, Gt};
 use group::Curve;
+use nym_bls12_381_fork::{G1Affine, G2Affine, G2Prepared, G2Projective, Gt};
 
 pub mod encryption;
 pub mod keys;
@@ -19,7 +19,7 @@ pub use encryption::{decrypt_share, encrypt_shares, Ciphertexts};
 pub use keys::{keygen, DecryptionKey, PublicKey, PublicKeyWithProof};
 
 pub(crate) static PAIRING_BASE: LazyLock<Gt> =
-    LazyLock::new(|| bls12_381::pairing(&G1Affine::generator(), &G2Affine::generator()));
+    LazyLock::new(|| nym_bls12_381_fork::pairing(&G1Affine::generator(), &G2Affine::generator()));
 pub(crate) static G2_GENERATOR_PREPARED: LazyLock<G2Prepared> =
     LazyLock::new(|| G2Prepared::from(G2Affine::generator()));
 pub static BSGS_TABLE: LazyLock<BabyStepGiantStepLookup> =

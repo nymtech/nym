@@ -9,6 +9,7 @@ edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
 readme.workspace = true
+publish = false
 
 [dependencies]
 anyhow = { workspace = true }
@@ -22,10 +23,10 @@ tracing = { workspace = true }
 time = { workspace = true }
 
 
-nym-validator-client = { path = "../../../common/client-libs/validator-client" }
-nym-bin-common = { path = "../../../common/bin-common", features = ["output_format", "basic_tracing"] }
-nym-network-defaults = { path = "../../../common/network-defaults" }
-nym-http-api-client = { path = "../../../common/http-api-client" }
+nym-validator-client = { workspace = true }
+nym-bin-common = { workspace = true, features = ["output_format", "basic_tracing"] }
+nym-network-defaults = { workspace = true }
+nym-http-api-client = { workspace = true }
 
 [lints]
 workspace = true

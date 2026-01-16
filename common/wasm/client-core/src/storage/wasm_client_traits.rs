@@ -6,10 +6,10 @@ use async_trait::async_trait;
 use nym_client_core::client::base_client::storage::gateways_storage::RawActiveGateway;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_sphinx_acknowledgements::AckKey;
+use nym_wasm_storage::traits::BaseWasmStorage;
 use std::error::Error;
 use thiserror::Error;
 use wasm_bindgen::JsValue;
-use wasm_storage::traits::BaseWasmStorage;
 
 // v1 tables
 pub(crate) mod v1 {

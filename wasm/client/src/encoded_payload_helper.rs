@@ -325,10 +325,10 @@ mod tests {
         message.extend_from_slice(serialized_metadata.as_bytes());
         message.extend_from_slice(&payload_data);
 
-        wasm_utils::console_log!("message length: {}", message.len());
-        wasm_utils::console_log!("metadata length: {}", metadata_length);
-        wasm_utils::console_log!("payload length: {}", payload_data.len());
-        wasm_utils::console_log!(
+        nym_wasm_utils::console_log!("message length: {}", message.len());
+        nym_wasm_utils::console_log!("metadata length: {}", metadata_length);
+        nym_wasm_utils::console_log!("payload length: {}", payload_data.len());
+        nym_wasm_utils::console_log!(
             "8 + metadata_length + payload_length = {}",
             payload_data.len() + metadata_length as usize + 8
         );

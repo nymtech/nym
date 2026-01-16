@@ -1,8 +1,11 @@
 [package]
 name = "nym-sdk"
-version = "0.1.0"
+version.workspace = true
 edition = "2021"
 license.workspace = true
+description = "Nym's Rust SDK"
+repository = "https://github.com/nymtech/nym/sdk/rust/nym-sdk/"
+# documentation = "https://docs.rs/nym-sdk" Max: once we upload to crates.io and this is generated, this can be uncommented.
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -17,33 +20,33 @@ path = "src/tcp_proxy/bin/proxy_client.rs"
 [dependencies]
 async-trait = { workspace = true }
 bip39 = { workspace = true }
-nym-client-core = { path = "../../../common/client-core", features = [
+nym-client-core = { workspace = true, features = [
     "fs-credentials-storage",
     "fs-surb-storage",
     "fs-gateways-storage",
 ] }
-nym-crypto = { path = "../../../common/crypto" }
-nym-gateway-requests = { path = "../../../common/gateway-requests" }
-nym-bandwidth-controller = { path = "../../../common/bandwidth-controller" }
-nym-credentials = { path = "../../../common/credentials" }
-nym-credentials-interface = { path = "../../../common/credentials-interface" }
-nym-credential-storage = { path = "../../../common/credential-storage" }
-nym-credential-utils = { path = "../../../common/credential-utils" }
-nym-network-defaults = { path = "../../../common/network-defaults" }
-nym-sphinx = { path = "../../../common/nymsphinx" }
-nym-statistics-common = { path = "../../../common/statistics" }
-nym-task = { path = "../../../common/task" }
-nym-topology = { path = "../../../common/topology" }
-nym-socks5-client-core = { path = "../../../common/socks5-client-core" }
-nym-validator-client = { path = "../../../common/client-libs/validator-client", features = [
+nym-crypto = { workspace = true }
+nym-gateway-requests = { workspace = true }
+nym-bandwidth-controller = { workspace = true }
+nym-credentials = { workspace = true }
+nym-credentials-interface = { workspace = true }
+nym-credential-storage = { workspace = true }
+nym-credential-utils = { workspace = true }
+nym-network-defaults = { workspace = true }
+nym-sphinx = { workspace = true }
+nym-statistics-common = { workspace = true }
+nym-task = { workspace = true }
+nym-topology = { workspace = true }
+nym-socks5-client-core = { workspace = true }
+nym-validator-client = { workspace = true , features = [
     "http-client",
 ] }
-nym-http-api-client = { path = "../../../common/http-api-client" }
-nym-socks5-requests = { path = "../../../common/socks5/requests" }
-nym-ordered-buffer = { path = "../../../common/socks5/ordered-buffer" }
-nym-service-providers-common = { path = "../../../service-providers/common" }
-nym-sphinx-addressing = { path = "../../../common/nymsphinx/addressing" }
-nym-bin-common = { path = "../../../common/bin-common", features = [
+nym-http-api-client = { workspace = true }
+nym-socks5-requests = { workspace = true }
+nym-ordered-buffer = { workspace = true }
+nym-service-providers-common = { workspace = true }
+nym-sphinx-addressing = { workspace = true }
+nym-bin-common = { workspace = true, features = [
     "basic_tracing",
 ] }
 bytecodec = { workspace = true }
@@ -82,7 +85,7 @@ reqwest = { workspace = true, features = ["json", "socks"] }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 time = { workspace = true }
-nym-bin-common = { path = "../../../common/bin-common", features = ["basic_tracing"] }
+nym-bin-common = {workspace = true, features = ["basic_tracing"] }
 
 # extra dependencies for libp2p examples
 #libp2p = { git = "https://github.com/ChainSafe/rust-libp2p.git", rev = "e3440d25681df380c9f0f8cfdcfd5ecc0a4f2fb6", features = [ "identify", "macros", "ping", "tokio", "tcp", "dns", "websocket", "noise", "mplex", "yamux", "gossipsub" ]}

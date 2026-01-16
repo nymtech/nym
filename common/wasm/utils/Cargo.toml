@@ -1,9 +1,13 @@
 [package]
-name = "wasm-utils"
-version = "0.1.0"
+name = "nym-wasm-utils"
+version.workspace = true
 authors = ["Jedrzej Stuczynski <andrew@nymtech.net>"]
 edition = "2021"
 license.workspace = true
+description = "Helpers and macros for the Nym WASM client"
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -15,7 +19,7 @@ wasm-bindgen-futures = { workspace = true }
 getrandom = { workspace = true, features = ["js"], optional = true }
 gloo-utils = { workspace = true }
 gloo-net = { workspace = true, features = ["websocket"], optional = true }
-#gloo-net = { path = "../../../../gloo/crates/net", features = ["websocket"], optional = true }
+#gloo-net = { workspace = truepath = "../../../../gloo/crates/net", features = ["websocket"], optional = true }
 
 console_error_panic_hook = { workspace = true, optional = true }
 

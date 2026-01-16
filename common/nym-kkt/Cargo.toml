@@ -4,6 +4,7 @@ version = "0.1.0"
 authors = ["Georgio Nicolas <georgio@nymtech.net>"]
 edition = { workspace = true }
 license.workspace = true
+publish = false
 
 [dependencies]
 blake3 = { workspace = true }

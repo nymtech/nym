@@ -1,12 +1,14 @@
 [package]
 name = "nym-registration-client"
-version = "0.1.0"
+version.workspace = true
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true
 edition.workspace = true
 license.workspace = true
+description = "Crate for dealing with Mixnet and Wireguard registration between Nym clients and Gateways"
+publish = false
 
 [lints]
 workspace = true
@@ -22,15 +24,16 @@ tracing.workspace = true
 typed-builder.workspace = true
 url.workspace = true
 
-nym-authenticator-client = { path = "../nym-authenticator-client" }
-nym-bandwidth-controller = { path = "../common/bandwidth-controller" }
-nym-credential-storage = { path = "../common/credential-storage" }
-nym-credentials-interface = { path = "../common/credentials-interface" }
-nym-crypto = { path = "../common/crypto" }
-nym-ip-packet-client = { path = "../nym-ip-packet-client" }
+
+nym-authenticator-client = { workspace = true }
+nym-bandwidth-controller = { workspace = true }
+nym-credential-storage = { workspace = true }
+nym-credentials-interface = { workspace = true }
+nym-crypto = { workspace = true }
+nym-ip-packet-client = { workspace = true }
 nym-lp = { path = "../common/nym-lp" }
 nym-lp-transport = { path = "../common/nym-lp-transport" }
-nym-registration-common = { path = "../common/registration" }
-nym-sdk = { path = "../sdk/rust/nym-sdk" }
-nym-validator-client = { path = "../common/client-libs/validator-client" }
+nym-registration-common = { workspace = true }
+nym-sdk = { workspace = true }
+nym-validator-client = { workspace = true }
 nym-wireguard-types = { path = "../common/wireguard-types" }

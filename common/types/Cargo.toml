@@ -1,11 +1,14 @@
 [package]
 name = "nym-types"
-version = "1.0.0"
+version.workspace = true
 description = "Nym common types"
 authors.workspace = true
 edition = "2021"
 rust-version.workspace = true
 license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
 
 [dependencies]
 base64 = { workspace = true }
@@ -29,11 +32,11 @@ x25519-dalek = { workspace = true, features = ["static_secrets"] }
 cosmwasm-std = { workspace = true }
 cosmrs = { workspace = true }
 
-nym-validator-client = { path = "../../common/client-libs/validator-client" }
-nym-mixnet-contract-common = { path = "../../common/cosmwasm-smart-contracts/mixnet-contract" }
-nym-vesting-contract-common = { path = "../../common/cosmwasm-smart-contracts/vesting-contract" }
-nym-config = { path = "../../common/config" }
-nym-crypto = { path = "../../common/crypto", features = ["asymmetric"] }
+nym-validator-client = { workspace = true }
+nym-mixnet-contract-common = { workspace = true }
+nym-vesting-contract-common = { workspace = true }
+nym-config = { workspace = true }
+nym-crypto = { workspace = true, features = ["asymmetric"] }
 
 [dev-dependencies]
 tempfile = { workspace = true }

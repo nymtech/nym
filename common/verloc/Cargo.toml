@@ -1,6 +1,6 @@
 [package]
 name = "nym-verloc"
-version = "0.1.0"
+version.workspace = true
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
@@ -9,6 +9,7 @@ edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
 readme.workspace = true
+description = "Nym's verloc (Verifiable Location) implementation"
 
 [dependencies]
 bytes = { workspace = true }
@@ -22,8 +23,8 @@ thiserror = { workspace = true }
 rand = { workspace = true }
 url = { workspace = true }
 
-nym-crypto = { path = "../crypto", features = ["asymmetric"] }
-nym-task = { path = "../task" }
-nym-validator-client = { path = "../client-libs/validator-client" }
-nym-http-api-client = { path = "../http-api-client" }
-nym-api-requests = { path = "../../nym-api/nym-api-requests" }
+nym-crypto = { workspace = true, features = ["asymmetric"] }
+nym-task = { workspace = true }
+nym-validator-client = { workspace = true }
+nym-http-api-client = { workspace = true }
+nym-api-requests = { workspace = true }

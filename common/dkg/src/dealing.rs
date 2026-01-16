@@ -11,8 +11,8 @@ use crate::interpolation::{
 };
 use crate::utils::deserialize_g2;
 use crate::{NodeIndex, Share, Threshold};
-use bls12_381::{G2Projective, Scalar};
 use group::GroupEncoding;
+use nym_bls12_381_fork::{G2Projective, Scalar};
 use rand::CryptoRng;
 use rand_core::RngCore;
 use std::collections::BTreeMap;

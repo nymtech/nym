@@ -7,6 +7,7 @@ homepage.workspace = true
 documentation.workspace = true
 edition.workspace = true
 license.workspace = true
+publish = false
 
 [lints]
 workspace = true
@@ -41,22 +42,23 @@ x25519-dalek = { workspace = true, features = [
     "static_secrets",
 ] }
 
+
 nym-api-requests = { path = "../nym-api/nym-api-requests" }
-nym-authenticator-requests = { path = "../common/authenticator-requests" }
-nym-bandwidth-controller = { path = "../common/bandwidth-controller" }
-nym-bin-common = { path = "../common/bin-common" }
-nym-client-core = { path = "../common/client-core" }
-nym-crypto = { path = "../common/crypto" }
-nym-config = { path = "../common/config" }
+nym-authenticator-requests = { workspace = true }
+nym-bandwidth-controller = { workspace = true }
+nym-bin-common = { workspace = true }
+nym-client-core = { workspace = true }
+nym-crypto = { workspace = true }
+nym-config = { workspace = true }
 nym-connection-monitor = { path = "../common/nym-connection-monitor" }
-nym-credentials-interface = { path = "../common/credentials-interface" }
-nym-credential-utils = { path = "../common/credential-utils" }
-nym-ip-packet-client = { path = "../nym-ip-packet-client" }
-nym-authenticator-client = { path = "../nym-authenticator-client" }
-nym-ip-packet-requests = { path = "../common/ip-packet-requests" }
-nym-sdk = { path = "../sdk/rust/nym-sdk" }
-nym-validator-client = { path = "../common/client-libs/validator-client" }
-nym-credentials = { path = "../common/credentials" }
+nym-credentials-interface = { workspace = true }
+nym-credential-utils = { workspace = true }
+nym-ip-packet-client = { workspace = true }
+nym-authenticator-client = { workspace = true }
+nym-ip-packet-requests = { workspace = true }
+nym-sdk = { workspace = true }
+nym-validator-client = { workspace = true }
+nym-credentials = { workspace = true }
 nym-http-api-client-macro = { path = "../common/http-api-client-macro" }
 nym-http-api-client = { path = "../common/http-api-client" }
 nym-node-status-client = { path = "../nym-node-status-api/nym-node-status-client" }
@@ -69,7 +71,7 @@ nym-registration-common = { path = "../common/registration" }
 time = { workspace = true }
 
 # TEMP: REMOVE BEFORE PR
-nym-topology = { path = "../common/topology" }
+nym-topology = { workspace = true }
 
 [build-dependencies]
 anyhow = { workspace = true }

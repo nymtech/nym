@@ -24,9 +24,9 @@ name = "vesting_contract"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-mixnet-contract-common = { path = "../../common/cosmwasm-smart-contracts/mixnet-contract", package = "nym-mixnet-contract-common", version = "0.6.0" }
-contracts-common = { path = "../../common/cosmwasm-smart-contracts/contracts-common", package = "nym-contracts-common", version = "0.5.0" }
-vesting-contract-common = { path = "../../common/cosmwasm-smart-contracts/vesting-contract", package = "nym-vesting-contract-common", version = "0.7.0" }
+mixnet-contract-common = { workspace = true }
+contracts-common = { workspace = true }
+vesting-contract-common = { workspace = true }
 
 cosmwasm-schema = { workspace = true, optional = true }
 cosmwasm-std = { workspace = true }

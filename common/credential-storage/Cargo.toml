@@ -1,9 +1,13 @@
 [package]
 name = "nym-credential-storage"
-version = "0.1.0"
+version.workspace = true
 edition = "2021"
 license.workspace = true
 rust-version.workspace = true
+description = "Crate for handling and storing spent and unspent zknym ticketbooks"
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -18,12 +22,12 @@ time = { workspace = true }
 tokio = { workspace = true, features = ["sync"] }
 zeroize = { workspace = true, features = ["zeroize_derive"] }
 
-nym-credentials = { path = "../credentials" }
-nym-compact-ecash = { path = "../nym_offline_compact_ecash" }
-nym-ecash-time = { path = "../ecash-time" }
+nym-credentials = { workspace = true }
+nym-compact-ecash = { workspace = true }
+nym-ecash-time = { workspace = true }
 
-[target."cfg(not(target_arch = \"wasm32\"))".dependencies.sqlx-pool-guard]
-path = "../../sqlx-pool-guard"
+[target."cfg(not(target_arch = \"wasm32\"))".dependencies.nym-sqlx-pool-guard]
+workspace = true
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.sqlx]
 workspace = true
@@ -36,10 +40,10 @@ features = ["rt-multi-thread", "net", "signal", "fs"]
 
 [dev-dependencies]
 anyhow = { workspace = true }
-nym-crypto = { path = "../crypto", features = ["asymmetric", "rand"] }
-nym-test-utils = { path = "../test-utils" }
-nym-credentials-interface = { path = "../credentials-interface" }
-nym-compact-ecash = { path = "../nym_offline_compact_ecash" }
+nym-crypto = { workspace = true, features = ["asymmetric", "rand"] }
+nym-test-utils = { workspace = true }
+nym-credentials-interface = { workspace = true }
+nym-compact-ecash = { workspace = true }
 
 
 [build-dependencies]

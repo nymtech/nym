@@ -12,8 +12,8 @@ use crate::scheme::setup::GroupParameters;
 use crate::scheme::PartialWallet;
 use crate::utils::{check_bilinear_pairing, hash_g1};
 use crate::{constants, ecash_group_parameters, Attribute, EncodedDate, EncodedTicketType};
-use bls12_381::{multi_miller_loop, G1Projective, G2Prepared, G2Projective, Scalar};
 use group::{Curve, Group, GroupEncoding};
+use nym_bls12_381_fork::{multi_miller_loop, G1Projective, G2Prepared, G2Projective, Scalar};
 use serde::{Deserialize, Serialize};
 use std::ops::Neg;
 use zeroize::{Zeroize, ZeroizeOnDrop};
@@ -569,7 +569,7 @@ mod tests {
     use crate::common_types::BlindedSignature;
     use crate::ecash_group_parameters;
     use crate::scheme::keygen::{SecretKeyUser, VerificationKeyAuth};
-    use bls12_381::G1Projective;
+    use nym_bls12_381_fork::G1Projective;
 
     #[test]
     fn test_generate_non_identity_h() {

@@ -30,15 +30,15 @@ cw4 = { workspace = true }
 cw-utils = { workspace = true }
 semver = { workspace = true, default-features = false }
 
-nym-ecash-contract-common = { path = "../../common/cosmwasm-smart-contracts/ecash-contract" }
-nym-contracts-common = { path = "../../common/cosmwasm-smart-contracts/contracts-common" }
-nym-multisig-contract-common = { path = "../../common/cosmwasm-smart-contracts/multisig-contract" }
-nym-network-defaults = { path = "../../common/network-defaults", default-features = false }
+nym-ecash-contract-common = { workspace = true }
+nym-contracts-common = { workspace = true }
+nym-multisig-contract-common = { workspace = true }
+nym-network-defaults = { workspace = true, default-features = false }
 
 [dev-dependencies]
 anyhow = { workspace = true }
 sylvia = { workspace = true, features = ["mt"] }
-nym-crypto = { path = "../../common/crypto", features = ["rand", "asymmetric"] }
+nym-crypto = { workspace = true, features = ["rand", "asymmetric"] }
 rand_chacha = "0.3"
 cw-multi-test = { workspace = true }
 

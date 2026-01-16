@@ -35,4 +35,4 @@ pub use nym_validator_client::{DirectSigningReqwestRpcNyxdClient, QueryReqwestRp
 pub use nym_validator_client::client::IdentityKey;
 
 #[cfg(target_arch = "wasm32")]
-pub use wasm_utils::set_panic_hook;
+pub use nym_wasm_utils::set_panic_hook;

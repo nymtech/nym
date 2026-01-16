@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::utils::hash_to_scalar;
-use bls12_381::{G1Projective, Scalar};
 use ff::Field;
 use group::GroupEncoding;
+use nym_bls12_381_fork::{G1Projective, Scalar};
 use rand::CryptoRng;
 use rand_core::RngCore;
 use zeroize::{Zeroize, ZeroizeOnDrop};

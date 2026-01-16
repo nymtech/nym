@@ -1,6 +1,6 @@
 [package]
 name = "nym-ecash-signer-check"
-version = "0.1.0"
+version.workspace = true
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
@@ -9,6 +9,7 @@ edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
 readme.workspace = true
+description = "Functions to interact with zknym signers, checking their status and health"
 
 [dependencies]
 futures = { workspace = true }
@@ -19,10 +20,10 @@ tracing = { workspace = true }
 url = { workspace = true }
 
 
-nym-validator-client = { path = "../client-libs/validator-client" }
-nym-network-defaults = { path = "../network-defaults" }
-nym-ecash-signer-check-types = { path = "../ecash-signer-check-types" }
-nym-http-api-client = { path = "../http-api-client" }
+nym-validator-client = { workspace = true, features = ["http-client"] }
+nym-network-defaults = { workspace = true }
+nym-ecash-signer-check-types = { workspace = true }
+nym-http-api-client = { workspace = true }
 
 [lints]
 workspace = true

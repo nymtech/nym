@@ -5,10 +5,10 @@ use crate::RequestId;
 use nym_ordered_buffer::OrderedMessageError;
 use nym_socks5_requests::ConnectionError;
 use nym_validator_client::nym_api::error::NymAPIError;
+use nym_wasm_client_core::error::WasmCoreError;
+use nym_wasm_client_core::ClientCoreError;
+use nym_wasm_utils::wasm_error;
 use thiserror::Error;
-use wasm_client_core::error::WasmCoreError;
-use wasm_client_core::ClientCoreError;
-use wasm_utils::wasm_error;
 
 #[derive(Debug, Error)]
 pub enum MixFetchError {

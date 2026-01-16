@@ -1,20 +1,22 @@
 [package]
 name = "nym-ip-packet-requests"
-version = "0.1.0"
+version.workspace = true
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true
 edition.workspace = true
 license.workspace = true
+description = "Codec, signing functionality, and different version definitions for IP packet request and responses"
+
 
 [dependencies]
 bincode = { workspace = true }
 bytes = { workspace = true }
-nym-bin-common = { path = "../bin-common" }
-nym-crypto = { path = "../crypto" }
-nym-service-provider-requests-common = { path = "../service-provider-requests-common" }
-nym-sphinx = { path = "../nymsphinx" }
+nym-bin-common = { workspace = true }
+nym-crypto = { workspace = true }
+nym-service-provider-requests-common = { workspace = true }
+nym-sphinx = { workspace = true }
 rand = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 thiserror = { workspace = true }

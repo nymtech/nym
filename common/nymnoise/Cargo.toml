@@ -1,9 +1,13 @@
 [package]
 name = "nym-noise"
-version = "0.1.0"
+version.workspace = true
 authors = ["Simon Wicky <simon@nymtech.net>"]
 edition = "2021"
 license.workspace = true
+description = "Nym's Noise protocol implementation"
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
 
 [dependencies]
 arc-swap = { workspace = true }
@@ -20,15 +24,15 @@ tokio = { workspace = true, features = ["net", "io-util", "time"] }
 tokio-util = { workspace = true, features = ["codec"] }
 
 # internal
-nym-crypto = { path = "../crypto" }
-nym-noise-keys = { path = "keys" }
+nym-crypto = { workspace = true }
+nym-noise-keys = { workspace = true }
 
 [dev-dependencies]
 anyhow = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 rand_chacha = { workspace = true }
-nym-crypto = { path = "../crypto", features = ["rand"] }
-nym-test-utils = { path = "../test-utils" }
+nym-crypto = { workspace = true, features = ["rand"] }
+nym-test-utils = { workspace = true }
 
 
 [lints]

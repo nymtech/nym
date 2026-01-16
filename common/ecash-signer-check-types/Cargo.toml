@@ -1,6 +1,6 @@
 [package]
 name = "nym-ecash-signer-check-types"
-version = "0.1.0"
+version.workspace = true
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
@@ -9,6 +9,7 @@ edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
 readme.workspace = true
+description = "Crate containing types for the `ecash-signer-check` crate used to check if zknym signers are up and running properly"
 
 [dependencies]
 semver = { workspace = true }
@@ -19,8 +20,8 @@ time = { workspace = true }
 tracing = { workspace = true }
 utoipa = { workspace = true }
 
-nym-coconut-dkg-common = { path = "../cosmwasm-smart-contracts/coconut-dkg" }
-nym-crypto = { path = "../crypto", features = ["asymmetric"] }
+nym-coconut-dkg-common = { workspace = true }
+nym-crypto = { workspace = true, features = ["asymmetric"] }
 
 
 [lints]

@@ -11,6 +11,7 @@ documentation.workspace = true
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
+publish = false
 
 [dependencies]
 anyhow = { workspace = true }
@@ -19,13 +20,13 @@ axum = { workspace = true, features = ["tokio"] }
 chrono = { workspace = true }
 clap = { workspace = true, features = ["cargo", "derive", "env"] }
 cosmrs = { workspace = true }
-nym-config = { path = "../common/config" }
-nym-bin-common = { path = "../common/bin-common", features = ["output_format"] }
-nym-network-defaults = { path = "../common/network-defaults" }
-nym-task = { path = "../common/task" }
-nym-validator-client = { path = "../common/client-libs/validator-client" }
+nym-config = { workspace = true }
+nym-bin-common = { workspace = true, features = ["output_format"] }
+nym-network-defaults = { workspace = true }
+nym-task = { workspace = true }
+nym-validator-client = { workspace = true }
 nyxd-scraper-psql = { path = "../common/nyxd-scraper-psql" }
-nyxd-scraper-shared = { path = "../common/nyxd-scraper-shared" }
+nyxd-scraper-shared = { workspace = true }
 reqwest = { workspace = true, features = ["rustls-tls"] }
 schemars = { workspace = true }
 serde = { workspace = true, features = ["derive"] }

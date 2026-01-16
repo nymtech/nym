@@ -5,6 +5,7 @@ edition = { workspace = true }
 authors = { workspace = true }
 license = { workspace = true }
 repository = { workspace = true }
+publish = false
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -17,8 +18,8 @@ cosmwasm-std = { workspace = true }
 cosmwasm-schema = { workspace = true }
 cw-storage-plus = { workspace = true }
 
-nym-coconut-dkg-common = { path = "../../../../common/cosmwasm-smart-contracts/coconut-dkg" }
-nym-contracts-common = { path = "../../../../common/cosmwasm-smart-contracts/contracts-common" }
+nym-coconut-dkg-common = { workspace = true }
+nym-contracts-common = { workspace = true }
 
 [features]
 default = ["library"]

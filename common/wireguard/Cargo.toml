@@ -1,12 +1,13 @@
 [package]
 name = "nym-wireguard"
-version = "0.1.0"
+version.workspace = true
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true
 edition.workspace = true
 license.workspace = true
+description = "Interface and peer handling functionality for Wireguard protocol"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -22,20 +23,20 @@ tokio = { workspace = true, features = ["rt-multi-thread", "net", "io-util"] }
 tokio-stream = { workspace = true }
 tracing = { workspace = true }
 
-nym-credentials-interface = { path = "../credentials-interface" }
-nym-credential-verification = { path = "../credential-verification" }
-nym-crypto = { path = "../crypto", features = ["asymmetric"] }
-nym-gateway-storage = { path = "../gateway-storage" }
-nym-gateway-requests = { path = "../gateway-requests" }
-nym-ip-packet-requests = { path = "../ip-packet-requests" }
-nym-metrics = { path = "../nym-metrics" }
-nym-network-defaults = { path = "../network-defaults" }
-nym-task = { path = "../task" }
-nym-wireguard-types = { path = "../wireguard-types" }
-nym-node-metrics = { path = "../../nym-node/nym-node-metrics" }
+nym-credentials-interface = { workspace = true }
+nym-credential-verification = { workspace = true }
+nym-crypto = { workspace = true, features = ["asymmetric"] }
+nym-gateway-storage = { workspace = true }
+nym-gateway-requests = { workspace = true }
+nym-ip-packet-requests = { workspace = true }
+nym-metrics = { workspace = true }
+nym-network-defaults = { workspace = true }
+nym-task = { workspace = true }
+nym-wireguard-types = { workspace = true }
+nym-node-metrics = { workspace = true }
 
 [dev-dependencies]
-nym-gateway-storage = { path = "../gateway-storage", features = ["mock"] }
+nym-gateway-storage = { workspace = true, features = ["mock"] }
 
 [features]
 default = []

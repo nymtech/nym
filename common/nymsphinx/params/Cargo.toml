@@ -1,6 +1,6 @@
 [package]
 name = "nym-sphinx-params"
-version = "0.1.0"
+version.workspace = true
 description = "Sphinx packet parameters for the Nym mixnet"
 edition = { workspace = true }
 authors = { workspace = true }
@@ -11,8 +11,8 @@ repository = { workspace = true }
 thiserror = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 
-nym-crypto = { path = "../../crypto", features = ["hashing", "stream_cipher", "aead"] }
-nym-sphinx-types = { path = "../types" }
+nym-crypto = { workspace = true, features = ["hashing", "stream_cipher", "aead"] }
+nym-sphinx-types = { workspace = true }
 
 [features]
 default = ["sphinx"]

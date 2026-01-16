@@ -23,8 +23,8 @@ pub(crate) mod vpn_api_client;
 #[wasm_bindgen(start)]
 // #[cfg(target_arch = "wasm32")]
 pub fn main() {
-    wasm_utils::console_log!("[rust main]: rust module loaded");
-    wasm_utils::console_log!(
+    nym_wasm_utils::console_log!("[rust main]: rust module loaded");
+    nym_wasm_utils::console_log!(
         "wasm zk-nym version used: {}",
         nym_bin_common::bin_info_owned!()
     );

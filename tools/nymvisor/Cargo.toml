@@ -1,12 +1,13 @@
 [package]
 name = "nymvisor"
-version = "0.1.33"
+version.workspace = true
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true
 edition.workspace = true
 license.workspace = true
+publish = false
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -32,10 +33,10 @@ thiserror = { workspace = true }
 tracing = { workspace = true }
 url = { workspace = true, features = ["serde"] }
 
-nym-async-file-watcher = { path = "../../common/async-file-watcher" }
-nym-bin-common = { path = "../../common/bin-common", features = ["output_format", "basic_tracing"] }
-nym-config = { path = "../../common/config" }
-nym-task = { path = "../../common/task"}
+nym-async-file-watcher = { workspace = true }
+nym-bin-common = { workspace = true, features = ["output_format", "basic_tracing"] }
+nym-config = { workspace = true }
+nym-task = { workspace = true}
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["full"] }

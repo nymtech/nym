@@ -1,6 +1,6 @@
 [package]
 name = "nym-sphinx-framing"
-version = "0.1.0"
+version.workspace = true
 description = "Sphinx packet framing for the Nym mixnet"
 edition = { workspace = true }
 authors = { workspace = true }
@@ -14,11 +14,11 @@ tokio-util = { workspace = true, features = ["codec"] }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 
-nym-sphinx-types = { path = "../types", features = ["sphinx", "outfox"] }
-nym-sphinx-params = { path = "../params", features = ["sphinx", "outfox"] }
-nym-sphinx-forwarding = { path = "../forwarding" }
-nym-sphinx-addressing = { path = "../addressing" }
-nym-sphinx-acknowledgements = { path = "../acknowledgements" }
+nym-sphinx-types = { workspace = true, features = ["sphinx", "outfox"] }
+nym-sphinx-params = { workspace = true, features = ["sphinx", "outfox"] }
+nym-sphinx-forwarding = { workspace = true }
+nym-sphinx-addressing = { workspace = true }
+nym-sphinx-acknowledgements = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["full"] }

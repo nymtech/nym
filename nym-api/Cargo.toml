@@ -4,10 +4,11 @@
 [package]
 name = "nym-api"
 license = "GPL-3.0"
-version = "1.1.71"
+version.workspace = true
 authors.workspace = true
 edition = "2021"
 rust-version.workspace = true
+publish = false
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -67,43 +68,43 @@ utoipa-swagger-ui = { workspace = true, features = ["axum"] }
 tracing = { workspace = true }
 
 ## internal
-nym-cache = { path = "../common/nym-cache" }
-nym-bandwidth-controller = { path = "../common/bandwidth-controller" }
-nym-ecash-contract-common = { path = "../common/cosmwasm-smart-contracts/ecash-contract" }
-nym-ecash-time = { path = "../common/ecash-time", features = ["expiration"] }
-nym-coconut-dkg-common = { path = "../common/cosmwasm-smart-contracts/coconut-dkg" }
-nym-compact-ecash = { path = "../common/nym_offline_compact_ecash" }
-nym-credentials-interface = { path = "../common/credentials-interface" }
-nym-config = { path = "../common/config" }
+nym-cache = { workspace = true }
+nym-bandwidth-controller = { workspace = true }
+nym-ecash-contract-common = { workspace = true }
+nym-ecash-time = { workspace = true, features = ["expiration"] }
+nym-coconut-dkg-common = { workspace = true }
+nym-compact-ecash = { workspace = true }
+nym-credentials-interface = { workspace = true }
+nym-config = { workspace = true }
 cosmwasm-std = { workspace = true }
-nym-credential-storage = { path = "../common/credential-storage", features = [
+nym-credential-storage = { workspace = true, features = [
     "persistent-storage",
 ] }
-nym-credentials = { path = "../common/credentials" }
-nym-crypto = { path = "../common/crypto" }
+nym-credentials = { workspace = true }
+nym-crypto = { workspace = true }
 cw2 = { workspace = true }
 cw3 = { workspace = true }
 cw4 = { workspace = true }
-nym-dkg = { path = "../common/dkg", features = ["cw-types"] }
-nym-gateway-client = { path = "../common/client-libs/gateway-client" }
-nym-mixnet-contract-common = { path = "../common/cosmwasm-smart-contracts/mixnet-contract", features = ["utoipa"] }
-nym-contracts-common = { path = "../common/cosmwasm-smart-contracts/contracts-common", features = ["naive_float", "utoipa"] }
-nym-sphinx = { path = "../common/nymsphinx" }
-nym-pemstore = { path = "../common/pemstore" }
-nym-task = { path = "../common/task" }
-nym-topology = { path = "../common/topology" }
-nym-api-requests = { path = "nym-api-requests" }
-nym-validator-client = { path = "../common/client-libs/validator-client" }
-nym-http-api-client = { path = "../common/http-api-client" }
-nym-bin-common = { path = "../common/bin-common", features = ["output_format", "openapi", "basic_tracing"] }
-nym-node-tester-utils = { path = "../common/node-tester-utils" }
-nym-node-requests = { path = "../nym-node/nym-node-requests" }
-nym-types = { path = "../common/types" }
-nym-http-api-common = { path = "../common/http-api-common", features = ["utoipa", "output", "middleware"] }
-nym-serde-helpers = { path = "../common/serde-helpers", features = ["date"] }
-nym-ticketbooks-merkle = { path = "../common/ticketbooks-merkle" }
-nym-statistics-common = { path = "../common/statistics" }
-nym-ecash-signer-check = { path = "../common/ecash-signer-check" }
+nym-dkg = { workspace = true, features = ["cw-types"] }
+nym-gateway-client = { workspace = true }
+nym-mixnet-contract-common = { workspace = true, features = ["utoipa"] }
+nym-contracts-common = { workspace = true, features = ["naive_float", "utoipa"] }
+nym-sphinx = { workspace = true }
+nym-pemstore = { workspace = true }
+nym-task = { workspace = true }
+nym-topology = { workspace = true }
+nym-api-requests = { workspace = true }
+nym-validator-client = { workspace = true }
+nym-http-api-client = { workspace = true }
+nym-bin-common = { workspace = true, features = ["output_format", "openapi", "basic_tracing"] }
+nym-node-tester-utils = { workspace = true }
+nym-node-requests = { workspace = true, features = ["client"] }
+nym-types = { workspace = true }
+nym-http-api-common = { workspace = true, features = ["utoipa", "output", "middleware"] }
+nym-serde-helpers = { workspace = true, features = ["date"] }
+nym-ticketbooks-merkle = { workspace = true }
+nym-statistics-common = { workspace = true }
+nym-ecash-signer-check = { workspace = true }
 
 
 [features]

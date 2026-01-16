@@ -1,7 +1,7 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use bls12_381::{G2Projective, Scalar};
+use nym_bls12_381_fork::{G2Projective, Scalar};
 use nym_dkg::bte::{decrypt_share, keygen, setup};
 use nym_dkg::dealing::RecoveredVerificationKeys;
 use nym_dkg::interpolation::perform_lagrangian_interpolation_at_origin;

@@ -1,10 +1,10 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use contracts_common::Percent;
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Coin, Timestamp, Uint128};
-use mixnet_contract_common::NodeId;
+use nym_contracts_common::Percent;
+use nym_mixnet_contract_common::NodeId;
 use std::str::FromStr;
 
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]

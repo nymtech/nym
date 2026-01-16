@@ -1,9 +1,13 @@
 [package]
 name = "nym-cli-commands"
-version = "1.0.0"
+version.workspace = true
 authors.workspace = true
 edition = "2021"
 license.workspace = true
+description = "Common commands crate used by the nym-cli tool for interacting with the Nyx Cosmos SDK blockchain and Mixnet endpoints"
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
@@ -37,28 +41,28 @@ zeroize = { workspace = true }
 cosmrs = { workspace = true }
 cosmwasm-std = { workspace = true }
 
-nym-validator-client = { path = "../client-libs/validator-client" }
-nym-http-api-client = { path = "../http-api-client" }
-nym-bin-common = { path = "../../common/bin-common", features = ["output_format"] }
-nym-crypto = { path = "../../common/crypto", features = ["asymmetric"] }
-nym-network-defaults = { path = "../network-defaults" }
-nym-contracts-common = { path = "../cosmwasm-smart-contracts/contracts-common" }
-nym-bandwidth-controller = { path = "../../common/bandwidth-controller" }
-nym-mixnet-contract-common = { path = "../cosmwasm-smart-contracts/mixnet-contract" }
-nym-vesting-contract-common = { path = "../cosmwasm-smart-contracts/vesting-contract" }
-nym-coconut-dkg-common = { path = "../cosmwasm-smart-contracts/coconut-dkg" }
-nym-multisig-contract-common = { path = "../cosmwasm-smart-contracts/multisig-contract" }
-nym-ecash-contract-common = { path = "../cosmwasm-smart-contracts/ecash-contract" }
-nym-ecash-time = { path = "../../common/ecash-time" }
-nym-sphinx = { path = "../../common/nymsphinx" }
-nym-client-core = { path = "../../common/client-core" }
-nym-config = { path = "../../common/config" }
-nym-credentials = { path = "../../common/credentials" }
-nym-credentials-interface = { path = "../../common/credentials-interface" }
-nym-credential-storage = { path = "../../common/credential-storage" }
-nym-credential-utils = { path = "../../common/credential-utils" }
-nym-id = { path = "../nym-id" }
-nym-credential-proxy-requests = { path = "../../nym-credential-proxy/nym-credential-proxy-requests" }
+nym-validator-client = { workspace = true}
+nym-http-api-client = { workspace = true}
+nym-bin-common = { workspace = true, features = ["output_format"] }
+nym-crypto = { workspace = true, features = ["asymmetric"] }
+nym-network-defaults = { workspace = true }
+nym-contracts-common = { workspace = true }
+nym-bandwidth-controller = { workspace = true }
+nym-mixnet-contract-common = { workspace = true }
+nym-vesting-contract-common = { workspace = true }
+nym-coconut-dkg-common = { workspace = true }
+nym-multisig-contract-common = { workspace = true }
+nym-ecash-contract-common = { workspace = true }
+nym-ecash-time = { workspace = true }
+nym-sphinx = { workspace = true }
+nym-client-core = { workspace = true }
+nym-config = { workspace = true }
+nym-credentials = { workspace = true }
+nym-credentials-interface = { workspace = true }
+nym-credential-storage = { workspace = true }
+nym-credential-utils = { workspace = true }
+nym-id = { workspace = true }
+nym-credential-proxy-requests = { workspace = true }
 
-nym-pemstore = { path = "../../common/pemstore", version = "0.3.0" }
-nym-types = { path = "../../common/types" }
+nym-pemstore = { workspace = true }
+nym-types = { workspace = true }

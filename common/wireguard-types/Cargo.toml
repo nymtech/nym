@@ -1,12 +1,13 @@
 [package]
 name = "nym-wireguard-types"
-version = "0.1.0"
+version.workspace = true
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true
 edition.workspace = true
 license.workspace = true
+description = "Wireguard public key and config definitions"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -16,8 +17,8 @@ serde = { workspace = true, features = ["derive"] }
 thiserror = { workspace = true }
 
 x25519-dalek = { workspace = true, features = ["static_secrets"] }
-nym-crypto = { path = "../crypto", features = ["asymmetric"] }
+nym-crypto = { workspace = true, features = ["asymmetric"] }
 
 [dev-dependencies]
 rand = { workspace = true }
-nym-crypto = { path = "../crypto", features = ["rand"] }
+nym-crypto = { workspace = true, features = ["rand"] }

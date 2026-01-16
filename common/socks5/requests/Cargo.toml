@@ -1,18 +1,22 @@
 [package]
 name = "nym-socks5-requests"
-version = "0.1.0"
+version.workspace = true
 authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>"]
 edition = "2021"
 license.workspace = true
+description = "Request and response definitions for the Nym SOCKS client"
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 bincode = { workspace = true }
 log = { workspace = true }
-nym-exit-policy = { path = "../../../common/exit-policy"}
-nym-service-providers-common = { path = "../../../service-providers/common" }
-nym-sphinx-addressing = { path = "../../../common/nymsphinx/addressing" }
+nym-exit-policy = { workspace = true}
+nym-service-providers-common = { workspace = true }
+nym-sphinx-addressing = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 tap = { workspace = true }

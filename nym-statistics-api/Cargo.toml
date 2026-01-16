@@ -11,7 +11,7 @@ documentation.workspace = true
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
-
+publish = false
 
 [dependencies]
 anyhow.workspace = true
@@ -38,17 +38,17 @@ utoipa-swagger-ui = { workspace = true, features = ["axum"] }
 utoipauto.workspace = true
 
 #internal
-nym-bin-common = { path = "../common/bin-common" }
-nym-http-api-common = { path = "../common/http-api-common", features = [
+nym-bin-common = { workspace = true }
+nym-http-api-common = { workspace = true, features = [
     "middleware",
 ] }
-nym-statistics-common = { path = "../common/statistics", features = [
+nym-statistics-common = { workspace = true, features = [
     "openapi",
 ] }
-nym-task = { path = "../common/task" }
+nym-task = { workspace = true }
 
-nym-http-api-client = { path = "../common/http-api-client" }
-nym-validator-client = { path = "../common/client-libs/validator-client" }
+nym-http-api-client = { workspace = true }
+nym-validator-client = { workspace = true }
 
 [build-dependencies]
 anyhow = { workspace = true }

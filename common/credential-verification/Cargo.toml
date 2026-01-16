@@ -1,6 +1,6 @@
 [package]
 name = "nym-credential-verification"
-version = "0.1.0"
+version.workspace = true
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
@@ -9,6 +9,7 @@ edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
 readme.workspace = true
+description = "Store and verify zknym credentials"
 
 [dependencies]
 async-trait = { workspace = true }
@@ -23,14 +24,14 @@ tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
 time = { workspace = true }
 tracing = { workspace = true }
 
-nym-api-requests = { path = "../../nym-api/nym-api-requests" }
-nym-credentials = { path = "../credentials" }
-nym-credentials-interface = { path = "../credentials-interface" }
-nym-crypto = { path = "../crypto", features = ["asymmetric"] }
-nym-ecash-contract-common = { path = "../cosmwasm-smart-contracts/ecash-contract" }
-nym-gateway-requests = { path = "../gateway-requests" }
-nym-gateway-storage = { path = "../gateway-storage" }
-nym-metrics = { path = "../nym-metrics" }
-nym-task = { path = "../task" }
-nym-validator-client = { path = "../client-libs/validator-client" }
-nym-upgrade-mode-check = { path = "../upgrade-mode-check" }
+nym-api-requests = { workspace = true }
+nym-credentials = { workspace = true }
+nym-credentials-interface = { workspace = true }
+nym-crypto = { workspace = true, features = ["asymmetric"] }
+nym-ecash-contract-common = { workspace = true }
+nym-gateway-requests = { workspace = true }
+nym-gateway-storage = { workspace = true }
+nym-metrics = { workspace = true }
+nym-task = { workspace = true }
+nym-validator-client = { workspace = true, features = ["http-client"] }
+nym-upgrade-mode-check = { workspace = true }

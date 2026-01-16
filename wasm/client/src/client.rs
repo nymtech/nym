@@ -14,30 +14,30 @@ use crate::response_pusher::ResponsePusher;
 use js_sys::Promise;
 use nym_bin_common::bin_info;
 use nym_gateway_requests::ClientRequest;
+use nym_wasm_client_core::client::base_client::storage::GatewaysDetailsStore;
+use nym_wasm_client_core::client::{
+    base_client::{BaseClientBuilder, ClientInput, ClientOutput, ClientState},
+    inbound_messages::InputMessage,
+};
+use nym_wasm_client_core::config::r#override::DebugWasmOverride;
+use nym_wasm_client_core::helpers::{
+    add_gateway, generate_new_client_keys, parse_recipient, parse_sender_tag,
+};
+use nym_wasm_client_core::nym_task::connections::TransmissionLane;
+use nym_wasm_client_core::nym_task::ShutdownTracker;
+use nym_wasm_client_core::storage::core_client_traits::FullWasmClientStorage;
+use nym_wasm_client_core::storage::wasm_client_traits::WasmClientStorage;
+use nym_wasm_client_core::storage::ClientStorage;
+use nym_wasm_client_core::topology::{SerializableTopologyExt, WasmFriendlyNymTopology};
+use nym_wasm_client_core::{IdentityKey, NymTopology, PacketType, QueryReqwestRpcNyxdClient};
+use nym_wasm_utils::error::PromisableResult;
+use nym_wasm_utils::{check_promise_result, console_error, console_log};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio_with_wasm::sync::mpsc;
 use tsify::Tsify;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::future_to_promise;
-use wasm_client_core::client::base_client::storage::GatewaysDetailsStore;
-use wasm_client_core::client::{
-    base_client::{BaseClientBuilder, ClientInput, ClientOutput, ClientState},
-    inbound_messages::InputMessage,
-};
-use wasm_client_core::config::r#override::DebugWasmOverride;
-use wasm_client_core::helpers::{
-    add_gateway, generate_new_client_keys, parse_recipient, parse_sender_tag,
-};
-use wasm_client_core::nym_task::connections::TransmissionLane;
-use wasm_client_core::nym_task::ShutdownTracker;
-use wasm_client_core::storage::core_client_traits::FullWasmClientStorage;
-use wasm_client_core::storage::wasm_client_traits::WasmClientStorage;
-use wasm_client_core::storage::ClientStorage;
-use wasm_client_core::topology::{SerializableTopologyExt, WasmFriendlyNymTopology};
-use wasm_client_core::{IdentityKey, NymTopology, PacketType, QueryReqwestRpcNyxdClient};
-use wasm_utils::error::PromisableResult;
-use wasm_utils::{check_promise_result, console_error, console_log};
 
 #[cfg(feature = "node-tester")]
 use crate::helpers::{NymClientTestRequest, WasmTopologyTestExt};

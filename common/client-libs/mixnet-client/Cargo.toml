@@ -1,9 +1,13 @@
 [package]
 name = "nym-mixnet-client"
-version = "0.1.0"
+version.workspace = true
 authors = ["Jedrzej Stuczynski <andrew@nymtech.net>"]
 edition = "2021"
 license.workspace = true
+description = "Client for Mix Node <> Mix Node & Mix Node <> Gateway communication"
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -16,14 +20,14 @@ tokio-util = { workspace = true, features = ["codec"], optional = true }
 tokio-stream = { workspace = true }
 
 # internal
-nym-noise = { path = "../../nymnoise" }
-nym-sphinx = { path = "../../nymsphinx" }
-nym-task = { path = "../../task", optional = true }
+nym-noise = { workspace = true }
+nym-sphinx = { workspace = true }
+nym-task = { workspace = true, optional = true }
 
 [features]
 default = ["client"]
 client = ["tokio-util", "nym-task", "tokio/net", "tokio/rt"]
 
 [dev-dependencies]
-nym-crypto = { path = "../../crypto" }
+nym-crypto = { workspace = true }
 rand = { workspace = true }

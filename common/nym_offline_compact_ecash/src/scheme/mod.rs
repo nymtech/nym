@@ -15,8 +15,8 @@ use crate::utils::{
 };
 use crate::{constants, ecash_group_parameters};
 use crate::{Base58, EncodedDate, EncodedTicketType};
-use bls12_381::{G1Projective, G2Prepared, G2Projective, Scalar};
 use group::Curve;
+use nym_bls12_381_fork::{G1Projective, G2Prepared, G2Projective, Scalar};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::borrow::Borrow;
 use zeroize::{Zeroize, ZeroizeOnDrop};

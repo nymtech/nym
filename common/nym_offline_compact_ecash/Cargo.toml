@@ -3,15 +3,19 @@
 
 [package]
 name = "nym-compact-ecash"
-version = "0.1.0"
+version.workspace = true
 authors = ["Ania Piotrowska <ania@nymtech.net>"]
 edition = "2021"
 license = { workspace = true }
+description = "Nym's ecash implementation"
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-bls12_381 = { workspace = true, features = ["alloc", "pairings", "experimental", "zeroize", "experimental_serde"] }
+nym-bls12_381-fork = { workspace = true, features = ["alloc", "pairings", "experimental", "zeroize", "experimental_serde"] }
 bincode.workspace = true
 cfg-if.workspace = true
 itertools = { workspace = true }
@@ -27,8 +31,8 @@ ff = { workspace = true }
 group = { workspace = true }
 subtle = { workspace = true }
 
-nym-pemstore = { path = "../pemstore" }
-nym-network-defaults = { path = "../network-defaults", default-features = false }
+nym-pemstore = { workspace = true }
+nym-network-defaults = { workspace = true }
 
 [dev-dependencies]
 criterion = { workspace = true, features = ["html_reports"] }

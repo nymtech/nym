@@ -1,6 +1,6 @@
 [package]
 name = "nym-gateway-stats-storage"
-version = "0.1.0"
+version.workspace = true
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
@@ -8,6 +8,7 @@ documentation.workspace = true
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
+description = "Functionality Nym Gateway statistics storage"
 
 [dependencies]
 sqlx = { workspace = true, features = [
@@ -22,9 +23,9 @@ time = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 
-nym-sphinx = { path = "../nymsphinx" }
-nym-node-metrics = { path = "../../nym-node/nym-node-metrics" }
-nym-statistics-common = { path = "../statistics" }
+nym-sphinx = { workspace = true }
+nym-node-metrics = { workspace = true }
+nym-statistics-common = { workspace = true }
 
 
 [build-dependencies]

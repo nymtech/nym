@@ -1,6 +1,6 @@
 [package]
 name = "nym-ticketbooks-merkle"
-version = "0.1.0"
+version.workspace = true
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
@@ -9,6 +9,7 @@ edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
 readme.workspace = true
+description = "Generate and verify merkleproofs of zknym ticketbooks"
 
 [dependencies]
 sha2 = { workspace = true }
@@ -18,8 +19,8 @@ utoipa = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 time = { workspace = true }
 
-nym-credentials-interface = { path = "../credentials-interface" }
-nym-serde-helpers = { path = "../serde-helpers", features = ["date", "base64", "hex"] }
+nym-credentials-interface = { workspace = true }
+nym-serde-helpers = { workspace = true, features = ["date", "base64", "hex"] }
 
 [dev-dependencies]
 rand_chacha = { workspace = true }

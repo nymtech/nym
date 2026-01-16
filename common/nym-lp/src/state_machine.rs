@@ -90,6 +90,7 @@ impl From<&LpState> for LpStateBare {
 }
 
 /// Represents inputs that drive the state machine transitions.
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug)]
 pub enum LpInput {
     /// Explicitly trigger the start of the handshake (optional, could be implicit on creation)

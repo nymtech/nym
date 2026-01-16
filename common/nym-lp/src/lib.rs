@@ -14,6 +14,7 @@ pub mod replay;
 pub mod session;
 mod session_integration;
 pub mod session_manager;
+pub mod state_machine;
 
 pub use config::LpConfig;
 pub use error::LpError;
@@ -22,11 +23,6 @@ pub use packet::{BOOTSTRAP_RECEIVER_IDX, LpPacket, OuterHeader};
 pub use replay::{ReceivingKeyCounterValidator, ReplayError};
 pub use session::{LpSession, generate_fresh_salt};
 pub use session_manager::SessionManager;
-
-// Add the new state machine module
-pub mod serialisation;
-pub mod state_machine;
-
 pub use state_machine::LpStateMachine;
 
 pub const NOISE_PATTERN: &str = "Noise_XKpsk3_25519_ChaChaPoly_SHA256";
@@ -104,7 +100,7 @@ mod tests {
         let packet1 = LpPacket {
             header: LpHeader {
                 protocol_version: 1,
-                reserved: 0,
+                reserved: [0u8; 3],
                 receiver_idx: 42, // Matches session's sending_index assumption for this test
                 counter: 0,
             },
@@ -133,7 +129,7 @@ mod tests {
         let packet2 = LpPacket {
             header: LpHeader {
                 protocol_version: 1,
-                reserved: 0,
+                reserved: [0u8; 3],
                 receiver_idx: 42,
                 counter: 0, // Same counter as before (replay)
             },
@@ -163,7 +159,7 @@ mod tests {
         let packet3 = LpPacket {
             header: LpHeader {
                 protocol_version: 1,
-                reserved: 0,
+                reserved: [0u8; 3],
                 receiver_idx: 42,
                 counter: 1, // Incremented counter
             },
@@ -242,7 +238,7 @@ mod tests {
         let packet1 = LpPacket {
             header: LpHeader {
                 protocol_version: 1,
-                reserved: 0,
+                reserved: [0u8; 3],
                 receiver_idx: receiver_index,
                 counter: 0,
             },
@@ -275,7 +271,7 @@ mod tests {
         let packet2 = LpPacket {
             header: LpHeader {
                 protocol_version: 1,
-                reserved: 0,
+                reserved: [0u8; 3],
                 receiver_idx: receiver_index,
                 counter: 1,
             },
@@ -303,7 +299,7 @@ mod tests {
         let packet3 = LpPacket {
             header: LpHeader {
                 protocol_version: 1,
-                reserved: 0,
+                reserved: [0u8; 3],
                 receiver_idx: receiver_index,
                 counter: 0, // Replay of first packet
             },

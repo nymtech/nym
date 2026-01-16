@@ -1,22 +1,25 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use std::fmt::Display;
-
+use crate::ciphersuite::CIPHERSUITE_ENCODING_LEN;
 use crate::{KKT_VERSION, ciphersuite::Ciphersuite, error::KKTError, frame::KKT_SESSION_ID_LEN};
+use num_enum::{IntoPrimitive, TryFromPrimitive};
+use std::fmt::Display;
 
 pub const KKT_CONTEXT_LEN: usize = 7;
 
-#[derive(Clone, Copy, PartialEq, Debug)]
+// bitmask used: 0b1110_0000
+#[derive(Clone, Copy, PartialEq, Debug, IntoPrimitive, TryFromPrimitive)]
+#[repr(u8)]
 pub enum KKTStatus {
-    Ok,
-    InvalidRequestFormat,
-    InvalidResponseFormat,
-    InvalidSignature,
-    UnsupportedCiphersuite,
-    UnsupportedKKTVersion,
-    InvalidKey,
-    Timeout,
+    Ok = 0b0000_0000,
+    InvalidRequestFormat = 0b0010_0000,
+    InvalidResponseFormat = 0b0100_0000,
+    InvalidSignature = 0b0110_0000,
+    UnsupportedCiphersuite = 0b1000_0000,
+    UnsupportedKKTVersion = 0b1010_0000,
+    InvalidKey = 0b1100_0000,
+    Timeout = 0b1110_0000,
 }
 
 impl Display for KKTStatus {
@@ -33,20 +36,25 @@ impl Display for KKTStatus {
         })
     }
 }
-#[derive(Clone, Copy, PartialEq, Debug)]
+
+// bitmask used: 0b0000_0011
+#[derive(Clone, Copy, PartialEq, Debug, IntoPrimitive, TryFromPrimitive)]
+#[repr(u8)]
 pub enum KKTRole {
-    Initiator,
-    AnonymousInitiator,
-    Responder,
+    Initiator = 0b0000_0000,
+    Responder = 0b0000_0001,
+    AnonymousInitiator = 0b0000_0010,
 }
 
-#[derive(Clone, Copy, PartialEq, Debug)]
+// bitmask used: 0b0001_1100
+#[derive(Clone, Copy, PartialEq, Debug, IntoPrimitive, TryFromPrimitive)]
+#[repr(u8)]
 pub enum KKTMode {
-    OneWay,
-    Mutual,
+    OneWay = 0b0000_0000,
+    Mutual = 0b0000_0100,
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub struct KKTContext {
     version: u8,
     message_sequence: u8,
@@ -127,11 +135,14 @@ impl KKTContext {
         }
     }
 
-    pub fn header_len(&self) -> usize {
+    pub const fn header_len(&self) -> usize {
         KKT_CONTEXT_LEN
     }
 
-    pub fn session_id_len(&self) -> usize {
+    pub const fn session_id_len(&self) -> usize {
+        // note: if anyone decides to update this function and changes the constant value,
+        // you will have to adjust encoding/decoding functions
+
         // match self.role {
         //     KKTRole::Initiator | KKTRole::Responder => SESSION_ID_LENGTH,
         // It doesn't make sense to send a session_id if we send messages in the clear
@@ -144,115 +155,87 @@ impl KKTContext {
         self.body_len() + self.signature_len() + self.header_len() + self.session_id_len()
     }
 
-    pub fn encode(&self) -> Result<Vec<u8>, KKTError> {
-        let mut header_bytes: Vec<u8> = Vec::with_capacity(KKT_CONTEXT_LEN);
+    pub fn encode(&self) -> Result<[u8; KKT_CONTEXT_LEN], KKTError> {
+        let mut header_bytes = [0u8; KKT_CONTEXT_LEN];
         if self.message_sequence >= 1 << 4 {
             return Err(KKTError::MessageCountLimitReached);
         }
 
-        header_bytes.push((KKT_VERSION << 4) + self.message_sequence);
+        let ciphersuite_bytes = self.ciphersuite.encode();
 
-        header_bytes.push(
-            match self.status {
-                KKTStatus::Ok => 0,
-                KKTStatus::InvalidRequestFormat => 0b0010_0000,
-                KKTStatus::InvalidResponseFormat => 0b0100_0000,
-                KKTStatus::InvalidSignature => 0b0110_0000,
-                KKTStatus::UnsupportedCiphersuite => 0b1000_0000,
-                KKTStatus::UnsupportedKKTVersion => 0b1010_0000,
-                KKTStatus::InvalidKey => 0b1100_0000,
-                KKTStatus::Timeout => 0b1110_0000,
-            } + match self.mode {
-                KKTMode::OneWay => 0,
-                KKTMode::Mutual => 0b0000_0100,
-            } + match self.role {
-                KKTRole::Initiator => 0,
-                KKTRole::Responder => 1,
-                KKTRole::AnonymousInitiator => 2,
-            },
-        );
+        header_bytes[0] = (KKT_VERSION << 4) + self.message_sequence;
+        header_bytes[1] = u8::from(self.status) + u8::from(self.mode) + u8::from(self.role);
 
-        header_bytes.extend_from_slice(&self.ciphersuite.encode());
-        header_bytes.push(0);
+        let mut i = 2;
+        for b in ciphersuite_bytes.into_iter() {
+            header_bytes[i] = b;
+            i += 1;
+        }
+        header_bytes[i] = 0;
         Ok(header_bytes)
     }
 
-    pub fn try_decode(header_bytes: &[u8]) -> Result<Self, KKTError> {
-        if header_bytes.len() == KKT_CONTEXT_LEN {
-            let kkt_version = header_bytes[0] & 0b1111_0000;
+    pub fn try_decode(header_bytes: [u8; KKT_CONTEXT_LEN]) -> Result<Self, KKTError> {
+        let kkt_version = (header_bytes[0] & 0b1111_0000) >> 4;
+        let message_sequence_counter = header_bytes[0] & 0b0000_1111;
 
-            let message_sequence_counter = header_bytes[0] & 0b0000_1111;
+        // We only check if stuff is valid here, not necessarily if it's compatible
 
-            // We only check if stuff is valid here, not necessarily if it's compatible
-
-            if (kkt_version >> 4) > KKT_VERSION {
-                return Err(KKTError::FrameDecodingError {
-                    info: format!("Header - Invalid KKT Version: {}", kkt_version >> 4),
-                });
-            }
-
-            let status = match header_bytes[1] & 0b1110_0000 {
-                0 => KKTStatus::Ok,
-                0b0010_0000 => KKTStatus::InvalidRequestFormat,
-                0b0100_0000 => KKTStatus::InvalidResponseFormat,
-                0b0110_0000 => KKTStatus::InvalidSignature,
-                0b1000_0000 => KKTStatus::UnsupportedCiphersuite,
-                0b1010_0000 => KKTStatus::UnsupportedKKTVersion,
-                0b1100_0000 => KKTStatus::InvalidKey,
-                0b1110_0000 => KKTStatus::Timeout,
-                _ => {
-                    return Err(KKTError::FrameDecodingError {
-                        info: format!(
-                            "Header - Invalid KKT Status: {}",
-                            header_bytes[1] & 0b1110_0000
-                        ),
-                    });
-                }
-            };
-
-            let role = match header_bytes[1] & 0b0000_0011 {
-                0 => KKTRole::Initiator,
-                1 => KKTRole::Responder,
-                2 => KKTRole::AnonymousInitiator,
-                _ => {
-                    return Err(KKTError::FrameDecodingError {
-                        info: format!(
-                            "Header - Invalid KKT Role: {}",
-                            header_bytes[1] & 0b0000_0011
-                        ),
-                    });
-                }
-            };
-
-            let mode = match (header_bytes[1] & 0b0001_1100) >> 2 {
-                0 => KKTMode::OneWay,
-                1 => KKTMode::Mutual,
-                _ => {
-                    return Err(KKTError::FrameDecodingError {
-                        info: format!(
-                            "Header - Invalid KKT Mode: {}",
-                            (header_bytes[1] & 0b0001_1100) >> 2
-                        ),
-                    });
-                }
-            };
-
-            Ok(KKTContext {
-                version: kkt_version,
-                status,
-                mode,
-                role,
-                ciphersuite: Ciphersuite::decode(&header_bytes[2..6])?,
-                message_sequence: message_sequence_counter,
-            })
-        } else {
-            Err(KKTError::FrameDecodingError {
-                info: format!(
-                    "Header - Invalid Header Length: actual: {} != expected: {}",
-                    header_bytes.len(),
-                    KKT_CONTEXT_LEN
-                ),
-            })
+        if kkt_version > KKT_VERSION {
+            return Err(KKTError::FrameDecodingError {
+                info: format!("Header - Invalid KKT Version: {kkt_version}"),
+            });
         }
+
+        let raw_kkt_status = header_bytes[1] & 0b1110_0000;
+        let raw_kkt_role = header_bytes[1] & 0b0000_0011;
+        let raw_kkt_mode = header_bytes[1] & 0b0001_1100;
+
+        let status =
+            KKTStatus::try_from(raw_kkt_status).map_err(|_| KKTError::FrameDecodingError {
+                info: format!("Header - Invalid KKT Status: {raw_kkt_status}"),
+            })?;
+        let role = KKTRole::try_from(raw_kkt_role).map_err(|_| KKTError::FrameDecodingError {
+            info: format!("Header - Invalid KKT Role: {raw_kkt_role}"),
+        })?;
+        let mode = KKTMode::try_from(raw_kkt_mode).map_err(|_| KKTError::FrameDecodingError {
+            info: format!("Header - Invalid KKT Mode: {raw_kkt_mode}"),
+        })?;
+
+        let ciphersuite_bytes = header_bytes[2..6].try_into().map_err(|_| {
+            KKTError::CiphersuiteDecodingError {
+                info: format!(
+                    "Incorrect Encoding Length: actual: 4 != expected: {CIPHERSUITE_ENCODING_LEN}",
+                ),
+            }
+        })?;
+
+        Ok(KKTContext {
+            version: kkt_version,
+            status,
+            mode,
+            role,
+            ciphersuite: Ciphersuite::decode(ciphersuite_bytes)?,
+            message_sequence: message_sequence_counter,
+        })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn kkt_context_encoding() {
+        let valid_context = KKTContext::new(
+            KKTRole::Initiator,
+            KKTMode::Mutual,
+            Ciphersuite::decode([255, 1, 0, 0]).unwrap(),
+        )
+        .unwrap();
+        let encoded = valid_context.encode().unwrap();
+        let decoded = KKTContext::try_decode(encoded).unwrap();
+
+        assert_eq!(decoded, valid_context);
     }
 }

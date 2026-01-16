@@ -14,8 +14,8 @@ use rand::{CryptoRng, RngCore};
 use crate::{
     ciphersuite::{Ciphersuite, EncapsulationKey},
     context::{KKTContext, KKTMode},
+    encryption::{decrypt_initial_kkt_frame, decrypt_kkt_frame, encrypt_kkt_frame},
     error::KKTError,
-    frame::KKTFrame,
 };
 
 // Re-export core session functions for advanced use cases
@@ -24,7 +24,13 @@ pub use crate::session::{
     responder_ingest_message, responder_process,
 };
 
-/// Request a KEM public key from a responder (OneWay mode).
+use crate::encryption::{KKTSessionSecret, encrypt_initial_kkt_frame};
+use crate::frame::KKTFrame;
+
+pub(crate) const KKT_RESPONSE_AAD: &[u8] = b"KKT_Response";
+pub(crate) const KKT_INITIAL_FRAME_AAD: &[u8] = b"KKT_INITIAL_FRAME";
+
+/// Perform an *Encrypted* request for a KEM public key from a responder (OneWay mode).
 ///
 /// This is the client-side operation that initiates a KKT exchange.
 /// The request will be signed with the provided signing key.
@@ -33,17 +39,20 @@ pub use crate::session::{
 /// * `rng` - Random number generator
 /// * `ciphersuite` - Negotiated ciphersuite (KEM, hash, signature algorithms)
 /// * `signing_key` - Client's Ed25519 signing key for authentication
+/// * `responder_dh_public_key` - Responder's long-term x25519 Diffie-Hellman public key
 ///
 /// # Returns
+/// * `KKTSessionSecret` - Session Secret Key to use when decrypting responses
 /// * `KKTContext` - Context to use when validating the response
-/// * `KKTFrame` - Signed request frame to send to responder
+/// * `Vec<u8>` - Contains the client's ephemeral public key and encrypted and signed bytes to send to responder
 ///
 /// # Example
 /// ```ignore
-/// let (context, request_frame) = request_kem_key(
+/// let (session_secret, context, request_frame) = request_kem_key(
 ///     &mut rng,
 ///     ciphersuite,
 ///     client_signing_key,
+///     responder_dh_public_key,
 /// )?;
 /// // Send request_frame to gateway
 /// ```
@@ -51,13 +60,21 @@ pub fn request_kem_key<R: CryptoRng + RngCore>(
     rng: &mut R,
     ciphersuite: Ciphersuite,
     signing_key: &ed25519::PrivateKey,
-) -> Result<(KKTContext, KKTFrame), KKTError> {
+    responder_dh_public_key: &nym_sphinx::PublicKey,
+) -> Result<(KKTSessionSecret, KKTContext, Vec<u8>), KKTError> {
     // OneWay mode: client only wants responder's KEM key
     // None: client doesn't send their own KEM key
-    initiator_process(rng, KKTMode::OneWay, ciphersuite, signing_key, None)
+    let (initiator_context, initiator_frame) =
+        initiator_process(rng, KKTMode::OneWay, ciphersuite, signing_key, None)?;
+
+    // Generate the session's shared secret and encrypt the Initiator's request
+    let (session_secret, encrypted_request_bytes) =
+        encrypt_initial_kkt_frame(rng, responder_dh_public_key, &initiator_frame)?;
+
+    Ok((session_secret, initiator_context, encrypted_request_bytes))
 }
 
-/// Validate a KKT response and extract the responder's KEM public key.
+/// Decrypt, validate an *Encrypted* KKT response and extract the responder's KEM public key.
 ///
 /// This is the client-side operation that processes the gateway's response.
 /// It verifies the signature and validates the key hash against the expected value
@@ -65,6 +82,7 @@ pub fn request_kem_key<R: CryptoRng + RngCore>(
 ///
 /// # Arguments
 /// * `context` - Context from the initial request
+/// * `session_secret` - Session Secret Key (generated with request)
 /// * `responder_vk` - Responder's Ed25519 verification key (from directory)
 /// * `expected_key_hash` - Expected hash of responder's KEM key (from directory)
 /// * `response_bytes` - Serialized response frame from responder
@@ -76,7 +94,8 @@ pub fn request_kem_key<R: CryptoRng + RngCore>(
 /// ```ignore
 /// let gateway_kem_key = validate_kem_response(
 ///     &mut context,
-///     gateway_verification_key,
+///     &session_secret,
+///     &gateway_verification_key,
 ///     &expected_hash_from_directory,
 ///     &response_bytes,
 /// )?;
@@ -84,23 +103,44 @@ pub fn request_kem_key<R: CryptoRng + RngCore>(
 /// ```
 pub fn validate_kem_response<'a>(
     context: &mut KKTContext,
+    session_secret: &KKTSessionSecret,
     responder_vk: &ed25519::PublicKey,
     expected_key_hash: &[u8],
-    response_bytes: &[u8],
+    encrypted_response_bytes: &[u8],
 ) -> Result<EncapsulationKey<'a>, KKTError> {
-    initiator_ingest_response(context, responder_vk, expected_key_hash, response_bytes)
+    let (responder_frame, responder_context) =
+        decrypt_kkt_response_frame(session_secret, encrypted_response_bytes)?;
+
+    initiator_ingest_response(
+        context,
+        &responder_frame,
+        &responder_context,
+        responder_vk,
+        expected_key_hash,
+    )
 }
 
-/// Handle a KKT request and generate a signed response with the responder's KEM key.
+/// Decrypts and validates an *Encrypted* KKT response
+///
+/// This is the client-side operation that processes the gateway's response.
+pub fn decrypt_kkt_response_frame(
+    session_secret: &KKTSessionSecret,
+    frame_ciphertext: &[u8],
+) -> Result<(KKTFrame, KKTContext), KKTError> {
+    decrypt_kkt_frame(session_secret, frame_ciphertext, KKT_RESPONSE_AAD)
+}
+
+/// Handle an *Encrypted* KKT request and generate a signed response with the responder's KEM key.
 ///
 /// This is the gateway-side operation that processes a client's KKT request.
 /// It validates the request signature (if authenticated) and responds with
 /// the gateway's KEM public key, signed for authenticity.
 ///
 /// # Arguments
-/// * `request_frame` - Request frame received from initiator
+/// * `encrypted_request_bytes` - encrypted KEM request
 /// * `initiator_vk` - Initiator's Ed25519 verification key (None for anonymous)
 /// * `responder_signing_key` - Gateway's Ed25519 signing key
+/// * `responder_dh_public_key` - Gateway's long-term x25519 Diffie-Hellman private key
 /// * `responder_kem_key` - Gateway's KEM public key to send
 ///
 /// # Returns
@@ -116,31 +156,40 @@ pub fn validate_kem_response<'a>(
 /// )?;
 /// // Send response_frame back to client
 /// ```
-pub fn handle_kem_request<'a>(
-    request_frame: &KKTFrame,
+pub fn handle_kem_request<'a, R>(
+    rng: &mut R,
+    encrypted_request_bytes: &[u8],
     initiator_vk: Option<&ed25519::PublicKey>,
     responder_signing_key: &ed25519::PrivateKey,
+    responder_dh_private_key: &nym_sphinx::PrivateKey,
     responder_kem_key: &EncapsulationKey<'a>,
-) -> Result<KKTFrame, KKTError> {
-    // Parse context from the request frame
-    let request_bytes = request_frame.to_bytes();
-    let (_, request_context) = KKTFrame::from_bytes(&request_bytes)?;
+) -> Result<Vec<u8>, KKTError>
+where
+    R: RngCore + CryptoRng,
+{
+    // Compute the session's shared secret, decrypt and parse context from the request frame
+
+    let (session_secret, request_frame, initiator_context) =
+        decrypt_initial_kkt_frame(responder_dh_private_key, encrypted_request_bytes)?;
 
     // Validate the request (verifies signature if initiator_vk provided)
     let (mut response_context, _) = responder_ingest_message(
-        &request_context,
+        &initiator_context,
         initiator_vk,
         None, // Not checking initiator's KEM key in OneWay mode
-        request_frame,
+        &request_frame,
     )?;
 
     // Generate signed response with our KEM public key
-    responder_process(
+    let responder_frame = responder_process(
         &mut response_context,
-        request_frame.session_id_ref(),
+        request_frame.session_id(),
         responder_signing_key,
         responder_kem_key,
-    )
+    )?;
+
+    // Encrypt the responder's response with the session's shared secret
+    encrypt_kkt_frame(rng, &session_secret, &responder_frame, KKT_RESPONSE_AAD)
 }
 
 #[cfg(test)]
@@ -158,11 +207,14 @@ mod tests {
         // Generate Ed25519 keypairs for both parties
         let mut initiator_secret = [0u8; 32];
         rng.fill_bytes(&mut initiator_secret);
-        let initiator_keypair = ed25519::KeyPair::from_secret(initiator_secret, 0);
+        let ed25519_init = ed25519::KeyPair::from_secret(initiator_secret, 0);
 
         let mut responder_secret = [0u8; 32];
         rng.fill_bytes(&mut responder_secret);
-        let responder_keypair = ed25519::KeyPair::from_secret(responder_secret, 1);
+        let ed25519_resp = ed25519::KeyPair::from_secret(responder_secret, 1);
+
+        let x25519_resp_priv = nym_sphinx::PrivateKey::random();
+        let x25519_resp_pub = nym_sphinx::PublicKey::from(&x25519_resp_priv);
 
         // Generate responder's KEM keypair (X25519 for testing)
         let (_, responder_kem_pk) = generate_keypair_libcrux(&mut rng, KEM::X25519).unwrap();
@@ -185,14 +237,21 @@ mod tests {
         );
 
         // Client: Request KEM key
-        let (mut context, request_frame) =
-            request_kem_key(&mut rng, ciphersuite, initiator_keypair.private_key()).unwrap();
+        let (session_key, mut context, request_frame_ciphertext) = request_kem_key(
+            &mut rng,
+            ciphersuite,
+            ed25519_init.private_key(),
+            &x25519_resp_pub,
+        )
+        .unwrap();
 
         // Gateway: Handle request
-        let response_frame = handle_kem_request(
-            &request_frame,
-            Some(initiator_keypair.public_key()), // Authenticated
-            responder_keypair.private_key(),
+        let response_frame_ciphertext = handle_kem_request(
+            &mut rng,
+            &request_frame_ciphertext,
+            Some(ed25519_init.public_key()), // Authenticated
+            ed25519_resp.private_key(),
+            &x25519_resp_priv,
             &responder_kem_key,
         )
         .unwrap();
@@ -200,9 +259,10 @@ mod tests {
         // Client: Validate response
         let obtained_key = validate_kem_response(
             &mut context,
-            responder_keypair.public_key(),
+            &session_key,
+            ed25519_resp.public_key(),
             &key_hash,
-            &response_frame.to_bytes(),
+            &response_frame_ciphertext,
         )
         .unwrap();
 
@@ -222,6 +282,9 @@ mod tests {
         let (_, responder_kem_pk) = generate_keypair_libcrux(&mut rng, KEM::X25519).unwrap();
         let responder_kem_key = EncapsulationKey::X25519(responder_kem_pk);
 
+        let x25519_resp_priv = nym_sphinx::PrivateKey::random();
+        let x25519_resp_pub = nym_sphinx::PublicKey::from(&x25519_resp_priv);
+
         let ciphersuite = Ciphersuite::resolve_ciphersuite(
             KEM::X25519,
             HashFunction::Blake3,
@@ -240,11 +303,17 @@ mod tests {
         let (mut context, request_frame) =
             anonymous_initiator_process(&mut rng, ciphersuite).unwrap();
 
+        // Generate the session's shared secret and encrypt the Initiator's request
+        let (session_secret, encrypted_request_bytes) =
+            encrypt_initial_kkt_frame(&mut rng, &x25519_resp_pub, &request_frame).unwrap();
+
         // Gateway: Handle anonymous request
         let response_frame = handle_kem_request(
-            &request_frame,
+            &mut rng,
+            &encrypted_request_bytes,
             None, // Anonymous - no verification key
             responder_keypair.private_key(),
+            &x25519_resp_priv,
             &responder_kem_key,
         )
         .unwrap();
@@ -252,9 +321,10 @@ mod tests {
         // Initiator: Validate response
         let obtained_key = validate_kem_response(
             &mut context,
+            &session_secret,
             responder_keypair.public_key(),
             &key_hash,
-            &response_frame.to_bytes(),
+            &response_frame,
         )
         .unwrap();
 
@@ -273,6 +343,9 @@ mod tests {
         rng.fill_bytes(&mut responder_secret);
         let responder_keypair = ed25519::KeyPair::from_secret(responder_secret, 1);
 
+        let x25519_resp_priv = nym_sphinx::PrivateKey::random();
+        let x25519_resp_pub = nym_sphinx::PublicKey::from(&x25519_resp_priv);
+
         // Different keypair for wrong signature
         let mut wrong_secret = [0u8; 32];
         rng.fill_bytes(&mut wrong_secret);
@@ -289,14 +362,21 @@ mod tests {
         )
         .unwrap();
 
-        let (_context, request_frame) =
-            request_kem_key(&mut rng, ciphersuite, initiator_keypair.private_key()).unwrap();
+        let (_session_key, _context, request_frame_ciphertext) = request_kem_key(
+            &mut rng,
+            ciphersuite,
+            initiator_keypair.private_key(),
+            &x25519_resp_pub,
+        )
+        .unwrap();
 
         // Gateway handles request but we provide WRONG verification key
         let result = handle_kem_request(
-            &request_frame,
+            &mut rng,
+            &request_frame_ciphertext,
             Some(wrong_keypair.public_key()), // Wrong key!
             responder_keypair.private_key(),
+            &x25519_resp_priv,
             &responder_kem_key,
         );
 
@@ -316,6 +396,9 @@ mod tests {
         rng.fill_bytes(&mut responder_secret);
         let responder_keypair = ed25519::KeyPair::from_secret(responder_secret, 1);
 
+        let x25519_resp_priv = nym_sphinx::PrivateKey::random();
+        let x25519_resp_pub = nym_sphinx::PublicKey::from(&x25519_resp_priv);
+
         let (_, responder_kem_pk) = generate_keypair_libcrux(&mut rng, KEM::X25519).unwrap();
         let responder_kem_key = EncapsulationKey::X25519(responder_kem_pk);
 
@@ -330,13 +413,20 @@ mod tests {
         // Use WRONG hash
         let wrong_hash = [0u8; 32];
 
-        let (mut context, request_frame) =
-            request_kem_key(&mut rng, ciphersuite, initiator_keypair.private_key()).unwrap();
+        let (session_key, mut context, request_frame) = request_kem_key(
+            &mut rng,
+            ciphersuite,
+            initiator_keypair.private_key(),
+            &x25519_resp_pub,
+        )
+        .unwrap();
 
         let response_frame = handle_kem_request(
+            &mut rng,
             &request_frame,
             Some(initiator_keypair.public_key()),
             responder_keypair.private_key(),
+            &x25519_resp_priv,
             &responder_kem_key,
         )
         .unwrap();
@@ -344,9 +434,10 @@ mod tests {
         // Client validates with WRONG hash
         let result = validate_kem_response(
             &mut context,
+            &session_key,
             responder_keypair.public_key(),
             &wrong_hash, // Wrong!
-            &response_frame.to_bytes(),
+            &response_frame,
         );
 
         // Should fail hash validation

@@ -1,6 +1,7 @@
 use nym_crypto::asymmetric::ed25519::{self, Signature};
 use rand::{CryptoRng, RngCore};
 
+use crate::frame::KKTSessionId;
 use crate::{
     ciphersuite::{Ciphersuite, EncapsulationKey},
     context::{KKTContext, KKTMode, KKTRole, KKTStatus},
@@ -51,7 +52,7 @@ where
 
     Ok((
         context,
-        KKTFrame::new(&context_bytes, body, &session_id, &signature),
+        KKTFrame::new(context_bytes, body, session_id, &signature),
     ))
 }
 
@@ -68,43 +69,38 @@ where
     let mut session_id = [0u8; KKT_SESSION_ID_LEN];
     rng.fill_bytes(&mut session_id);
 
-    Ok((
-        context,
-        KKTFrame::new(&context_bytes, &[], &session_id, &[]),
-    ))
+    Ok((context, KKTFrame::new(context_bytes, &[], session_id, &[])))
 }
 
 pub fn initiator_ingest_response<'a>(
     own_context: &mut KKTContext,
+    remote_frame: &KKTFrame,
+    remote_context: &KKTContext,
     remote_verification_key: &ed25519::PublicKey,
     expected_hash: &[u8],
-    message_bytes: &[u8],
 ) -> Result<EncapsulationKey<'a>, KKTError> {
-    // sizes have to be correct
-    let (frame, remote_context) = KKTFrame::from_bytes(message_bytes)?;
-
-    check_compatibility(own_context, &remote_context)?;
+    check_compatibility(own_context, remote_context)?;
     match remote_context.status() {
         KKTStatus::Ok => {
             let mut bytes_to_verify: Vec<u8> = Vec::with_capacity(
                 remote_context.full_message_len() - remote_context.signature_len(),
             );
             bytes_to_verify.extend_from_slice(&remote_context.encode()?);
-            bytes_to_verify.extend_from_slice(frame.body_ref());
-            bytes_to_verify.extend_from_slice(frame.session_id_ref());
+            bytes_to_verify.extend_from_slice(remote_frame.body_ref());
+            bytes_to_verify.extend_from_slice(remote_frame.session_id_ref());
 
-            match Signature::from_bytes(frame.signature_ref()) {
+            match Signature::from_bytes(remote_frame.signature_ref()) {
                 Ok(sig) => match remote_verification_key.verify(bytes_to_verify, &sig) {
                     Ok(()) => {
                         let received_encapsulation_key = EncapsulationKey::decode(
                             own_context.ciphersuite().kem(),
-                            frame.body_ref(),
+                            remote_frame.body_ref(),
                         )?;
 
                         match validate_encapsulation_key(
                             &own_context.ciphersuite().hash_function(),
                             own_context.ciphersuite().hash_len(),
-                            frame.body_ref(),
+                            remote_frame.body_ref(),
                             expected_hash,
                         ) {
                             true => Ok(received_encapsulation_key),
@@ -206,7 +202,7 @@ pub fn responder_ingest_message<'a>(
 
 pub fn responder_process<'a>(
     own_context: &mut KKTContext,
-    session_id: &[u8],
+    session_id: KKTSessionId,
     signing_key: &ed25519::PrivateKey,
     encapsulation_key: &EncapsulationKey<'a>,
 ) -> Result<KKTFrame, KKTError> {
@@ -218,11 +214,11 @@ pub fn responder_process<'a>(
         Vec::with_capacity(own_context.full_message_len() - own_context.signature_len());
     bytes_to_sign.extend_from_slice(&own_context.encode()?);
     bytes_to_sign.extend_from_slice(&body);
-    bytes_to_sign.extend_from_slice(session_id);
+    bytes_to_sign.extend_from_slice(&session_id);
 
     let signature = signing_key.sign(bytes_to_sign).to_bytes();
 
-    Ok(KKTFrame::new(&context_bytes, &body, session_id, &signature))
+    Ok(KKTFrame::new(context_bytes, &body, session_id, &signature))
 }
 
 fn check_compatibility(

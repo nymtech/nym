@@ -8,12 +8,12 @@ use nym_crypto::asymmetric::ed25519;
 
 use crate::error::KKTError;
 
-pub const HASH_LEN_256: u8 = 32;
+pub const HASH_LEN_256: usize = 32;
 pub const CIPHERSUITE_ENCODING_LEN: usize = 4;
 
 pub const CURVE25519_KEY_LEN: usize = 32;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum HashFunction {
     Blake3,
     SHAKE128,
@@ -87,7 +87,7 @@ impl<'a> EncapsulationKey<'a> {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum SignatureScheme {
     Ed25519,
 }
@@ -99,7 +99,7 @@ impl Display for SignatureScheme {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum KEM {
     MlKem768,
     XWing,
@@ -118,7 +118,7 @@ impl Display for KEM {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Ciphersuite {
     hash_function: HashFunction,
     signature_scheme: SignatureScheme,
@@ -172,7 +172,7 @@ impl Ciphersuite {
                     l
                 }
             }
-            None => HASH_LEN_256,
+            None => HASH_LEN_256 as u8,
         };
         Ok(Self {
             hash_function,
@@ -203,7 +203,7 @@ impl Ciphersuite {
             },
         })
     }
-    pub fn encode(&self) -> [u8; 4] {
+    pub fn encode(&self) -> [u8; CIPHERSUITE_ENCODING_LEN] {
         // [kem, hash, hashlen, sig]
         [
             match self.kem {
@@ -218,8 +218,8 @@ impl Ciphersuite {
                 HashFunction::SHAKE128 => 2,
                 HashFunction::SHA256 => 3,
             },
-            match self.hash_length {
-                HASH_LEN_256 => 0,
+            match self.hash_length as usize {
+                HASH_LEN_256 => 0u8,
                 _ => self.hash_length,
             },
             match self.signature_scheme {
@@ -227,55 +227,45 @@ impl Ciphersuite {
             },
         ]
     }
-    pub fn decode(encoding: &[u8]) -> Result<Self, KKTError> {
-        if encoding.len() == 4 {
-            let kem = match encoding[0] {
-                0 => KEM::XWing,
-                1 => KEM::MlKem768,
-                2 => KEM::McEliece,
-                255 => KEM::X25519,
-                _ => {
-                    return Err(KKTError::CiphersuiteDecodingError {
-                        info: format!("Undefined KEM: {}", encoding[0]),
-                    });
-                }
-            };
-            let hash_function = match encoding[1] {
-                0 => HashFunction::Blake3,
-                1 => HashFunction::SHAKE256,
-                2 => HashFunction::SHAKE128,
-                3 => HashFunction::SHA256,
-                _ => {
-                    return Err(KKTError::CiphersuiteDecodingError {
-                        info: format!("Undefined Hash Function: {}", encoding[1]),
-                    });
-                }
-            };
+    pub fn decode(encoding: [u8; CIPHERSUITE_ENCODING_LEN]) -> Result<Self, KKTError> {
+        let kem = match encoding[0] {
+            0 => KEM::XWing,
+            1 => KEM::MlKem768,
+            2 => KEM::McEliece,
+            255 => KEM::X25519,
+            _ => {
+                return Err(KKTError::CiphersuiteDecodingError {
+                    info: format!("Undefined KEM: {}", encoding[0]),
+                });
+            }
+        };
+        let hash_function = match encoding[1] {
+            0 => HashFunction::Blake3,
+            1 => HashFunction::SHAKE256,
+            2 => HashFunction::SHAKE128,
+            3 => HashFunction::SHA256,
+            _ => {
+                return Err(KKTError::CiphersuiteDecodingError {
+                    info: format!("Undefined Hash Function: {}", encoding[1]),
+                });
+            }
+        };
 
-            let custom_hash_length = match encoding[2] {
-                0 => None,
-                _ => Some(encoding[2]),
-            };
+        let custom_hash_length = match encoding[2] {
+            0 => None,
+            _ => Some(encoding[2]),
+        };
 
-            let signature_scheme = match encoding[3] {
-                0 => SignatureScheme::Ed25519,
-                _ => {
-                    return Err(KKTError::CiphersuiteDecodingError {
-                        info: format!("Undefined Signature Scheme: {}", encoding[3]),
-                    });
-                }
-            };
+        let signature_scheme = match encoding[3] {
+            0 => SignatureScheme::Ed25519,
+            _ => {
+                return Err(KKTError::CiphersuiteDecodingError {
+                    info: format!("Undefined Signature Scheme: {}", encoding[3]),
+                });
+            }
+        };
 
-            Self::resolve_ciphersuite(kem, hash_function, signature_scheme, custom_hash_length)
-        } else {
-            Err(KKTError::CiphersuiteDecodingError {
-                info: format!(
-                    "Incorrect Encoding Length: actual: {} != expected: {}",
-                    encoding.len(),
-                    CIPHERSUITE_ENCODING_LEN
-                ),
-            })
-        }
+        Self::resolve_ciphersuite(kem, hash_function, signature_scheme, custom_hash_length)
     }
 }
 

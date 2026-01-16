@@ -2,13 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::LpError;
-use crate::message::{
-    ClientHelloData, EncryptedDataPayload, ForwardPacketData, HandshakeData, KKTRequestData,
-    KKTResponseData, LpMessage, MessageType, SubsessionKK1Data, SubsessionKK2Data,
-    SubsessionReadyData,
-};
+use crate::message::{LpMessage, MessageType};
 use crate::packet::{LpHeader, LpPacket, OuterHeader, TRAILER_LEN};
-use crate::serialisation::{BincodeOptions, lp_bincode_serializer};
 use bytes::{BufMut, BytesMut};
 use chacha20poly1305::{
     ChaCha20Poly1305, Key, Nonce, Tag,
@@ -96,87 +91,7 @@ fn parse_message_from_type_and_content(
     let message_type = MessageType::from_u32(msg_type_raw)
         .ok_or_else(|| LpError::invalid_message_type(msg_type_raw))?;
 
-    match message_type {
-        MessageType::Busy => {
-            if !content.is_empty() {
-                return Err(LpError::InvalidPayloadSize {
-                    expected: 0,
-                    actual: content.len(),
-                });
-            }
-            Ok(LpMessage::Busy)
-        }
-        MessageType::Handshake => Ok(LpMessage::Handshake(HandshakeData(content.to_vec()))),
-        MessageType::EncryptedData => Ok(LpMessage::EncryptedData(EncryptedDataPayload(
-            content.to_vec(),
-        ))),
-        MessageType::ClientHello => {
-            let data = ClientHelloData::decode(content)?;
-            Ok(LpMessage::ClientHello(data))
-        }
-        MessageType::KKTRequest => Ok(LpMessage::KKTRequest(KKTRequestData(content.to_vec()))),
-        MessageType::KKTResponse => Ok(LpMessage::KKTResponse(KKTResponseData(content.to_vec()))),
-        MessageType::ForwardPacket => {
-            let data: ForwardPacketData = lp_bincode_serializer()
-                .deserialize(content)
-                .map_err(|e| LpError::DeserializationError(e.to_string()))?;
-            Ok(LpMessage::ForwardPacket(data))
-        }
-        MessageType::Collision => {
-            if !content.is_empty() {
-                return Err(LpError::InvalidPayloadSize {
-                    expected: 0,
-                    actual: content.len(),
-                });
-            }
-            Ok(LpMessage::Collision)
-        }
-        MessageType::Ack => {
-            if !content.is_empty() {
-                return Err(LpError::InvalidPayloadSize {
-                    expected: 0,
-                    actual: content.len(),
-                });
-            }
-            Ok(LpMessage::Ack)
-        }
-        MessageType::SubsessionRequest => {
-            if !content.is_empty() {
-                return Err(LpError::InvalidPayloadSize {
-                    expected: 0,
-                    actual: content.len(),
-                });
-            }
-            Ok(LpMessage::SubsessionRequest)
-        }
-        MessageType::SubsessionKK1 => {
-            let data: SubsessionKK1Data = lp_bincode_serializer()
-                .deserialize(content)
-                .map_err(|e| LpError::DeserializationError(e.to_string()))?;
-            Ok(LpMessage::SubsessionKK1(data))
-        }
-        MessageType::SubsessionKK2 => {
-            let data: SubsessionKK2Data = lp_bincode_serializer()
-                .deserialize(content)
-                .map_err(|e| LpError::DeserializationError(e.to_string()))?;
-            Ok(LpMessage::SubsessionKK2(data))
-        }
-        MessageType::SubsessionReady => {
-            let data: SubsessionReadyData = lp_bincode_serializer()
-                .deserialize(content)
-                .map_err(|e| LpError::DeserializationError(e.to_string()))?;
-            Ok(LpMessage::SubsessionReady(data))
-        }
-        MessageType::SubsessionAbort => {
-            // Empty signal message - no content to deserialize
-            if !content.is_empty() {
-                return Err(LpError::DeserializationError(
-                    "SubsessionAbort should have no payload".to_string(),
-                ));
-            }
-            Ok(LpMessage::SubsessionAbort)
-        }
-    }
+    LpMessage::decode_content(content, message_type)
 }
 
 /// Parse only the outer header from raw packet bytes.
@@ -249,7 +164,7 @@ pub fn parse_lp_packet(src: &[u8], outer_key: Option<&OuterAeadKey>) -> Result<L
 
             let header = LpHeader {
                 protocol_version,
-                reserved: 0,
+                reserved: [0u8; 3],
                 receiver_idx: outer_header.receiver_idx,
                 counter: outer_header.counter,
             };
@@ -293,7 +208,7 @@ pub fn parse_lp_packet(src: &[u8], outer_key: Option<&OuterAeadKey>) -> Result<L
 
             let header = LpHeader {
                 protocol_version,
-                reserved: 0,
+                reserved: [0u8; 3],
                 receiver_idx: outer_header.receiver_idx,
                 counter: outer_header.counter,
             };
@@ -421,7 +336,7 @@ mod tests {
         let packet = LpPacket {
             header: LpHeader {
                 protocol_version: 1,
-                reserved: 0,
+                reserved: [0u8; 3],
                 receiver_idx: 42,
                 counter: 123,
             },
@@ -452,7 +367,7 @@ mod tests {
         let packet = LpPacket {
             header: LpHeader {
                 protocol_version: 1,
-                reserved: 0,
+                reserved: [0u8; 3],
                 receiver_idx: 42,
                 counter: 123,
             },
@@ -490,7 +405,7 @@ mod tests {
         let packet = LpPacket {
             header: LpHeader {
                 protocol_version: 1,
-                reserved: 0,
+                reserved: [0u8; 3],
                 receiver_idx: 42,
                 counter: 123,
             },
@@ -705,7 +620,7 @@ mod tests {
         let packet = LpPacket {
             header: LpHeader {
                 protocol_version: 1,
-                reserved: 0,
+                reserved: [0u8; 3],
                 receiver_idx: 42,
                 counter: 123,
             },
@@ -755,7 +670,7 @@ mod tests {
         let packet = LpPacket {
             header: LpHeader {
                 protocol_version: 1,
-                reserved: 0,
+                reserved: [0u8; 3],
                 receiver_idx: 100,
                 counter: 200,
             },
@@ -851,7 +766,7 @@ mod tests {
             let packet = LpPacket {
                 header: LpHeader {
                     protocol_version: 1,
-                    reserved: 0,
+                    reserved: [0u8; 3],
                     receiver_idx: version as u32,
                     counter: version as u64,
                 },
@@ -884,7 +799,7 @@ mod tests {
         let packet = LpPacket {
             header: LpHeader {
                 protocol_version: 1,
-                reserved: 0,
+                reserved: [0u8; 3],
                 receiver_idx: 999,
                 counter: 555,
             },
@@ -922,7 +837,7 @@ mod tests {
         let packet = LpPacket {
             header: LpHeader {
                 protocol_version: 1,
-                reserved: 0,
+                reserved: [0u8; 3],
                 receiver_idx: 12345,
                 counter: 999,
             },
@@ -951,7 +866,7 @@ mod tests {
         let packet = LpPacket {
             header: LpHeader {
                 protocol_version: 1,
-                reserved: 0,
+                reserved: [0u8; 3],
                 receiver_idx: 12345,
                 counter: 999,
             },
@@ -998,7 +913,7 @@ mod tests {
         let packet = LpPacket {
             header: LpHeader {
                 protocol_version: 1,
-                reserved: 0,
+                reserved: [0u8; 3],
                 receiver_idx: 12345,
                 counter: 999,
             },
@@ -1027,7 +942,7 @@ mod tests {
         let packet = LpPacket {
             header: LpHeader {
                 protocol_version: 1,
-                reserved: 0,
+                reserved: [0u8; 3],
                 receiver_idx: 12345,
                 counter: 999,
             },
@@ -1056,7 +971,7 @@ mod tests {
         let packet1 = LpPacket {
             header: LpHeader {
                 protocol_version: 1,
-                reserved: 0,
+                reserved: [0u8; 3],
                 receiver_idx: 12345,
                 counter: 1,
             },
@@ -1067,7 +982,7 @@ mod tests {
         let packet2 = LpPacket {
             header: LpHeader {
                 protocol_version: 1,
-                reserved: 0,
+                reserved: [0u8; 3],
                 receiver_idx: 12345,
                 counter: 2, // Different counter
             },
@@ -1102,7 +1017,7 @@ mod tests {
         let packet = LpPacket {
             header: LpHeader {
                 protocol_version: 1,
-                reserved: 0,
+                reserved: [0u8; 3],
                 receiver_idx: 12345,
                 counter: 999,
             },
@@ -1128,7 +1043,7 @@ mod tests {
         let packet = LpPacket {
             header: LpHeader {
                 protocol_version: 1,
-                reserved: 0,
+                reserved: [0u8; 3],
                 receiver_idx: 54321,
                 counter: 12345678,
             },
@@ -1161,7 +1076,7 @@ mod tests {
         let packet = LpPacket {
             header: LpHeader {
                 protocol_version: 1,
-                reserved: 0,
+                reserved: [0u8; 3],
                 receiver_idx: 99999,
                 counter: 2,
             },
@@ -1191,7 +1106,7 @@ mod tests {
         let packet = LpPacket {
             header: LpHeader {
                 protocol_version: 1,
-                reserved: 0,
+                reserved: [0u8; 3],
                 receiver_idx: 42,
                 counter: 100,
             },
@@ -1220,7 +1135,7 @@ mod tests {
         let packet = LpPacket {
             header: LpHeader {
                 protocol_version: 1,
-                reserved: 0,
+                reserved: [0u8; 3],
                 receiver_idx: 123,
                 counter: 456,
             },
@@ -1253,7 +1168,7 @@ mod tests {
         let packet = LpPacket {
             header: LpHeader {
                 protocol_version: 1,
-                reserved: 0,
+                reserved: [0u8; 3],
                 receiver_idx: 789,
                 counter: 1000,
             },
@@ -1286,7 +1201,7 @@ mod tests {
         let packet = LpPacket {
             header: LpHeader {
                 protocol_version: 1,
-                reserved: 0,
+                reserved: [0u8; 3],
                 receiver_idx: 42,
                 counter: 200,
             },
@@ -1341,7 +1256,7 @@ mod tests {
         let packet = LpPacket {
             header: LpHeader {
                 protocol_version: 1,
-                reserved: 0,
+                reserved: [0u8; 3],
                 receiver_idx: 54321,
                 counter: 999,
             },

@@ -8,23 +8,29 @@ license.workspace = true
 [dependencies]
 blake3 = { workspace = true }
 thiserror = { workspace = true }
+num_enum = { workspace = true }
+
 
 # internal
 nym-crypto = { path = "../crypto", features = ["asymmetric", "serde"] }
+nym-sphinx = { path = "../nymsphinx" }
 
-libcrux-traits = { git = "https://github.com/cryspen/libcrux" }
 libcrux-kem = { git = "https://github.com/cryspen/libcrux" }
-libcrux-psq = { git = "https://github.com/cryspen/libcrux", features = ["test-utils"] }
 libcrux-sha3 = { git = "https://github.com/cryspen/libcrux" }
-libcrux-ml-kem = { git = "https://github.com/cryspen/libcrux" }
 libcrux-ecdh = { git = "https://github.com/cryspen/libcrux", features = ["codec"] }
+libcrux-chacha20poly1305 = { git = "https://github.com/cryspen/libcrux" }
 
+#rand = "0.9.2"
 rand = "0.9.2"
+zeroize = { workspace = true, features = ["zeroize_derive"] }
 classic-mceliece-rust = { git = "https://github.com/georgio/classic-mceliece-rust", features = ["mceliece460896f", "zeroize"] }
 
 
 [dev-dependencies]
+rand_chacha = "0.9.0"
+anyhow = { workspace = true }
 criterion = { workspace = true }
+
 
 [[bench]]
 name = "benches"

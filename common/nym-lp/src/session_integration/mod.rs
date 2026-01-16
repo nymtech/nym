@@ -21,7 +21,7 @@ mod tests {
         // Create the header
         let header = LpHeader {
             protocol_version,
-            reserved: 0u16, // reserved
+            reserved: [0u8; 3], // reserved
             receiver_idx,
             counter,
         };

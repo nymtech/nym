@@ -10,6 +10,7 @@ use parking_lot::Mutex;
 use std::fmt::Write;
 use std::fmt::{Debug, Formatter};
 use std::sync::Arc;
+use tracing::warn;
 
 #[allow(dead_code)]
 pub(crate) const UDP_HEADER_LEN: usize = 8;
@@ -24,6 +25,11 @@ pub(crate) const UDP_OVERHEAD: usize = UDP_HEADER_LEN + IP_HEADER_LEN;
 pub const TRAILER_LEN: usize = 16;
 #[allow(dead_code)]
 pub(crate) const UDP_PAYLOAD_SIZE: usize = MTU - UDP_OVERHEAD - TRAILER_LEN;
+
+pub mod version {
+    /// The current version of the Lewes Protocol that is put into each new constructed header.
+    pub const CURRENT: u8 = 1;
+}
 
 #[derive(Clone)]
 pub struct LpPacket {
@@ -187,7 +193,7 @@ impl OuterHeader {
 #[derive(Debug, Clone)]
 pub struct LpHeader {
     pub protocol_version: u8,
-    pub reserved: u16,
+    pub reserved: [u8; 3],
     pub receiver_idx: u32,
     pub counter: u64,
 }
@@ -199,8 +205,8 @@ impl LpHeader {
 impl LpHeader {
     pub fn new(receiver_idx: u32, counter: u64) -> Self {
         Self {
-            protocol_version: 1,
-            reserved: 0,
+            protocol_version: version::CURRENT,
+            reserved: [0u8; 3],
             receiver_idx,
             counter,
         }
@@ -211,7 +217,7 @@ impl LpHeader {
         dst.put_u8(self.protocol_version);
 
         // reserved
-        dst.put_slice(&[0, 0, 0]);
+        dst.put_slice(&self.reserved);
 
         // sender index
         dst.put_slice(&self.receiver_idx.to_le_bytes());
@@ -226,7 +232,28 @@ impl LpHeader {
         }
 
         let protocol_version = src[0];
-        // Skip reserved bytes [1..4]
+
+        // Ensure we are using compatible protocol
+        // right now only support a single version
+        if protocol_version > version::CURRENT {
+            return Err(LpError::IncompatibleFuturePacketVersion {
+                got: protocol_version,
+                highest_supported: version::CURRENT,
+            });
+        }
+
+        if protocol_version < version::CURRENT {
+            return Err(LpError::IncompatibleLegacyPacketVersion {
+                got: protocol_version,
+                lowest_supported: version::CURRENT,
+            });
+        }
+
+        // skip reserved bytes, but log if they're different from the expected zeroes
+        let reserved = [src[1], src[2], src[3]];
+        if reserved != [0u8; 3] {
+            warn!("received non-zero reserved bytes. got: {reserved:?}");
+        }
 
         let mut receiver_idx_bytes = [0u8; 4];
         receiver_idx_bytes.copy_from_slice(&src[4..8]);
@@ -238,7 +265,7 @@ impl LpHeader {
 
         Ok(LpHeader {
             protocol_version,
-            reserved: 0,
+            reserved: [0u8; 3],
             receiver_idx,
             counter,
         })

@@ -82,4 +82,12 @@ pub enum LpError {
     /// Outer AEAD authentication tag verification failed.
     #[error("AEAD authentication tag verification failed")]
     AeadTagMismatch,
+
+    /// Received an LP packet with an incompatible, future, version
+    #[error("incompatible LP packet version. got: {got}, highest supported: {highest_supported}")]
+    IncompatibleFuturePacketVersion { got: u8, highest_supported: u8 },
+
+    /// Received an LP packet with an incompatible, legacy, version
+    #[error("incompatible LP packet version. got: {got}, lowest supported: {lowest_supported}")]
+    IncompatibleLegacyPacketVersion { got: u8, lowest_supported: u8 },
 }

@@ -164,7 +164,7 @@ pub fn parse_lp_packet(src: &[u8], outer_key: Option<&OuterAeadKey>) -> Result<L
 
             let header = LpHeader {
                 protocol_version,
-                reserved: 0,
+                reserved: [0u8; 3],
                 receiver_idx: outer_header.receiver_idx,
                 counter: outer_header.counter,
             };
@@ -208,7 +208,7 @@ pub fn parse_lp_packet(src: &[u8], outer_key: Option<&OuterAeadKey>) -> Result<L
 
             let header = LpHeader {
                 protocol_version,
-                reserved: 0,
+                reserved: [0u8; 3],
                 receiver_idx: outer_header.receiver_idx,
                 counter: outer_header.counter,
             };
@@ -336,7 +336,7 @@ mod tests {
         let packet = LpPacket {
             header: LpHeader {
                 protocol_version: 1,
-                reserved: 0,
+                reserved: [0u8; 3],
                 receiver_idx: 42,
                 counter: 123,
             },
@@ -367,7 +367,7 @@ mod tests {
         let packet = LpPacket {
             header: LpHeader {
                 protocol_version: 1,
-                reserved: 0,
+                reserved: [0u8; 3],
                 receiver_idx: 42,
                 counter: 123,
             },
@@ -405,7 +405,7 @@ mod tests {
         let packet = LpPacket {
             header: LpHeader {
                 protocol_version: 1,
-                reserved: 0,
+                reserved: [0u8; 3],
                 receiver_idx: 42,
                 counter: 123,
             },
@@ -620,7 +620,7 @@ mod tests {
         let packet = LpPacket {
             header: LpHeader {
                 protocol_version: 1,
-                reserved: 0,
+                reserved: [0u8; 3],
                 receiver_idx: 42,
                 counter: 123,
             },
@@ -670,7 +670,7 @@ mod tests {
         let packet = LpPacket {
             header: LpHeader {
                 protocol_version: 1,
-                reserved: 0,
+                reserved: [0u8; 3],
                 receiver_idx: 100,
                 counter: 200,
             },
@@ -766,7 +766,7 @@ mod tests {
             let packet = LpPacket {
                 header: LpHeader {
                     protocol_version: 1,
-                    reserved: 0,
+                    reserved: [0u8; 3],
                     receiver_idx: version as u32,
                     counter: version as u64,
                 },
@@ -799,7 +799,7 @@ mod tests {
         let packet = LpPacket {
             header: LpHeader {
                 protocol_version: 1,
-                reserved: 0,
+                reserved: [0u8; 3],
                 receiver_idx: 999,
                 counter: 555,
             },
@@ -837,7 +837,7 @@ mod tests {
         let packet = LpPacket {
             header: LpHeader {
                 protocol_version: 1,
-                reserved: 0,
+                reserved: [0u8; 3],
                 receiver_idx: 12345,
                 counter: 999,
             },
@@ -866,7 +866,7 @@ mod tests {
         let packet = LpPacket {
             header: LpHeader {
                 protocol_version: 1,
-                reserved: 0,
+                reserved: [0u8; 3],
                 receiver_idx: 12345,
                 counter: 999,
             },
@@ -913,7 +913,7 @@ mod tests {
         let packet = LpPacket {
             header: LpHeader {
                 protocol_version: 1,
-                reserved: 0,
+                reserved: [0u8; 3],
                 receiver_idx: 12345,
                 counter: 999,
             },
@@ -942,7 +942,7 @@ mod tests {
         let packet = LpPacket {
             header: LpHeader {
                 protocol_version: 1,
-                reserved: 0,
+                reserved: [0u8; 3],
                 receiver_idx: 12345,
                 counter: 999,
             },
@@ -971,7 +971,7 @@ mod tests {
         let packet1 = LpPacket {
             header: LpHeader {
                 protocol_version: 1,
-                reserved: 0,
+                reserved: [0u8; 3],
                 receiver_idx: 12345,
                 counter: 1,
             },
@@ -982,7 +982,7 @@ mod tests {
         let packet2 = LpPacket {
             header: LpHeader {
                 protocol_version: 1,
-                reserved: 0,
+                reserved: [0u8; 3],
                 receiver_idx: 12345,
                 counter: 2, // Different counter
             },
@@ -1017,7 +1017,7 @@ mod tests {
         let packet = LpPacket {
             header: LpHeader {
                 protocol_version: 1,
-                reserved: 0,
+                reserved: [0u8; 3],
                 receiver_idx: 12345,
                 counter: 999,
             },
@@ -1043,7 +1043,7 @@ mod tests {
         let packet = LpPacket {
             header: LpHeader {
                 protocol_version: 1,
-                reserved: 0,
+                reserved: [0u8; 3],
                 receiver_idx: 54321,
                 counter: 12345678,
             },
@@ -1076,7 +1076,7 @@ mod tests {
         let packet = LpPacket {
             header: LpHeader {
                 protocol_version: 1,
-                reserved: 0,
+                reserved: [0u8; 3],
                 receiver_idx: 99999,
                 counter: 2,
             },
@@ -1106,7 +1106,7 @@ mod tests {
         let packet = LpPacket {
             header: LpHeader {
                 protocol_version: 1,
-                reserved: 0,
+                reserved: [0u8; 3],
                 receiver_idx: 42,
                 counter: 100,
             },
@@ -1135,7 +1135,7 @@ mod tests {
         let packet = LpPacket {
             header: LpHeader {
                 protocol_version: 1,
-                reserved: 0,
+                reserved: [0u8; 3],
                 receiver_idx: 123,
                 counter: 456,
             },
@@ -1168,7 +1168,7 @@ mod tests {
         let packet = LpPacket {
             header: LpHeader {
                 protocol_version: 1,
-                reserved: 0,
+                reserved: [0u8; 3],
                 receiver_idx: 789,
                 counter: 1000,
             },
@@ -1201,7 +1201,7 @@ mod tests {
         let packet = LpPacket {
             header: LpHeader {
                 protocol_version: 1,
-                reserved: 0,
+                reserved: [0u8; 3],
                 receiver_idx: 42,
                 counter: 200,
             },
@@ -1256,7 +1256,7 @@ mod tests {
         let packet = LpPacket {
             header: LpHeader {
                 protocol_version: 1,
-                reserved: 0,
+                reserved: [0u8; 3],
                 receiver_idx: 54321,
                 counter: 999,
             },

@@ -603,7 +603,7 @@ mod tests {
 
         let resp_header = LpHeader {
             protocol_version: 1,
-            reserved: 0,
+            reserved: [0u8; 3],
             receiver_idx: 0,
             counter: 0,
         };

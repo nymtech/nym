@@ -6,7 +6,10 @@
 // #![warn(clippy::expect_used)]
 // #![warn(clippy::unwrap_used)]
 
-use defguard_wireguard_rs::{WGApi, WireguardInterfaceApi, host::Peer, key::Key, net::IpAddrMask};
+use defguard_wireguard_rs::{
+    WGApi, WireguardInterfaceApi, error::WireguardInterfaceError, host::Peer, key::Key,
+    net::IpAddrMask,
+};
 use nym_crypto::asymmetric::x25519::KeyPair;
 use std::net::IpAddr;
 use std::sync::Arc;
@@ -32,26 +35,70 @@ pub use peer_controller::{PeerControlRequest, PeerRegistrationData};
 
 pub const CONTROL_CHANNEL_SIZE: usize = 256;
 
-// See platforms where kernel implementation is available:
-// https://github.com/DefGuard/wireguard-rs
-#[cfg(any(
-    target_os = "linux",
-    target_os = "windows",
-    target_os = "freebsd",
-    target_os = "netbsd"
-))]
-pub type WGApiImp = WGApi<defguard_wireguard_rs::Kernel>;
-
-#[cfg(not(any(
-    target_os = "linux",
-    target_os = "windows",
-    target_os = "freebsd",
-    target_os = "netbsd"
-)))]
-pub type WGApiImp = WGApi<defguard_wireguard_rs::Userspace>;
-
 pub struct WgApiWrapper {
-    inner: WGApiImp,
+    inner: Box<dyn WireguardInterfaceApi>,
+}
+
+impl WgApiWrapper {
+    /// Create new instance of `WgApiWrapper` choosing internal implementation based on `use_userspace` flag and platform availability.
+    ///
+    /// Falls back to userspace implementation when kernel implementation is requested but not available.
+    pub fn new(ifname: &str, use_userspace: bool) -> Result<Self, WireguardInterfaceError> {
+        if use_userspace {
+            Self::userspace(ifname)
+        } else {
+            Self::kernel(ifname)
+                .transpose()
+                .unwrap_or_else(|| Self::userspace(ifname))
+        }
+    }
+
+    /// Create userspace implementation
+    fn userspace(ifname: &str) -> Result<Self, WireguardInterfaceError> {
+        let api = WGApi::<defguard_wireguard_rs::Userspace>::new(ifname)?;
+        Ok(Self {
+            inner: Box::new(api),
+        })
+    }
+
+    /// Create kernel implementation if available.
+    ///
+    /// Returns `None` if kernel implementation is not available.
+    ///
+    /// See platforms where kernel implementation is available:
+    /// <https://github.com/DefGuard/wireguard-rs>
+    fn kernel(_ifname: &str) -> Result<Option<Self>, WireguardInterfaceError> {
+        #[cfg(any(
+            target_os = "linux",
+            target_os = "windows",
+            target_os = "freebsd",
+            target_os = "netbsd"
+        ))]
+        {
+            let api = WGApi::<defguard_wireguard_rs::Kernel>::new(_ifname)?;
+            Ok(Some(Self {
+                inner: Box::new(api),
+            }))
+        }
+
+        #[cfg(not(any(
+            target_os = "linux",
+            target_os = "windows",
+            target_os = "freebsd",
+            target_os = "netbsd"
+        )))]
+        {
+            Ok(None)
+        }
+    }
+}
+
+impl Drop for WgApiWrapper {
+    fn drop(&mut self) {
+        if let Err(e) = self.inner.remove_interface() {
+            error!("Could not remove the wireguard interface: {e:?}");
+        }
+    }
 }
 
 impl WireguardInterfaceApi for WgApiWrapper {
@@ -128,20 +175,6 @@ impl WireguardInterfaceApi for WgApiWrapper {
     }
 }
 
-impl WgApiWrapper {
-    pub fn new(wg_api: WGApiImp) -> Self {
-        WgApiWrapper { inner: wg_api }
-    }
-}
-
-impl Drop for WgApiWrapper {
-    fn drop(&mut self) {
-        if let Err(e) = self.inner.remove_interface() {
-            error!("Could not remove the wireguard interface: {e:?}");
-        }
-    }
-}
-
 #[derive(Clone)]
 pub struct WireguardGatewayData {
     config: WireguardConfig,
@@ -193,7 +226,7 @@ pub async fn start_wireguard(
     upgrade_mode_status: nym_credential_verification::upgrade_mode::UpgradeModeStatus,
     shutdown_token: nym_task::ShutdownToken,
     wireguard_data: WireguardData,
-    _use_userspace: bool, // TODO check if this is actually still used post-rebase clippy check
+    use_userspace: bool,
 ) -> Result<std::sync::Arc<WgApiWrapper>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     use base64::{Engine, prelude::BASE64_STANDARD};
     use defguard_wireguard_rs::{InterfaceConfiguration, WireguardInterfaceApi};
@@ -204,7 +237,11 @@ pub async fn start_wireguard(
     use tracing::info;
 
     let ifname = String::from(WG_TUN_BASE_NAME);
-    let mut wg_api = defguard_wireguard_rs::WGApi::new(ifname.clone())?;
+    info!(
+        "Initializing WireGuard interface '{}' with use_userspace={}",
+        ifname, use_userspace
+    );
+    let mut wg_api = std::sync::Arc::new(WgApiWrapper::new(&ifname, use_userspace)?);
     let mut peer_bandwidth_managers = HashMap::with_capacity(peers.len());
 
     for peer in peers.iter() {
@@ -282,7 +319,6 @@ pub async fn start_wireguard(
     wg_api.configure_peer_routing(&[catch_all_peer])?;
 
     let host = wg_api.read_interface_data()?;
-    let wg_api = std::sync::Arc::new(WgApiWrapper::new(wg_api));
 
     // Initialize IP pool from configuration
     info!("Initializing IP pool for WireGuard peer allocation");

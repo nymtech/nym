@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use std::fmt::Debug;
-
-use nym_crypto::asymmetric::x25519::KeyRecoveryError;
 use thiserror::Error;
 
 use crate::context::KKTStatus;
@@ -52,12 +50,6 @@ pub enum KKTError {
 
     #[error("Generic libcrux error")]
     LibcruxError,
-}
-
-impl From<KeyRecoveryError> for KKTError {
-    fn from(err: KeyRecoveryError) -> Self {
-        err.into()
-    }
 }
 
 impl From<libcrux_kem::Error> for KKTError {

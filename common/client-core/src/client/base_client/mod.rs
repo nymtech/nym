@@ -36,6 +36,7 @@ use crate::init::{
     types::{GatewaySetup, InitialisationResult},
 };
 use futures::channel::mpsc;
+use futures::SinkExt;
 use nym_bandwidth_controller::BandwidthController;
 use nym_client_core_config_types::{ForgetMe, RememberMe};
 use nym_client_core_gateways_storage::{GatewayDetails, GatewaysDetailsStore};
@@ -66,7 +67,7 @@ use std::os::raw::c_int as RawFd;
 use std::path::Path;
 use std::sync::Arc;
 use time::OffsetDateTime;
-use tokio::sync::mpsc::Sender;
+use tokio_util::sync::{PollSendError, PollSender};
 use url::Url;
 
 #[cfg(target_arch = "wasm32")]
@@ -112,10 +113,7 @@ pub struct ClientInput {
 }
 
 impl ClientInput {
-    pub async fn send(
-        &self,
-        message: InputMessage,
-    ) -> Result<(), tokio::sync::mpsc::error::SendError<InputMessage>> {
+    pub async fn send(&mut self, message: InputMessage) -> Result<(), PollSendError<InputMessage>> {
         self.input_sender.send(message).await
     }
 }
@@ -745,7 +743,7 @@ where
         config: &Config,
         user_agent: Option<UserAgent>,
         client_stats_id: String,
-        input_sender: Sender<InputMessage>,
+        input_sender: PollSender<InputMessage>,
         shutdown_tracker: &ShutdownTracker,
     ) -> ClientStatsSender {
         tracing::info!("Starting statistics control...");
@@ -1013,7 +1011,7 @@ where
             &self.config,
             self.user_agent.clone(),
             generate_client_stats_id(*self_address.identity()),
-            input_sender.clone(),
+            tokio_util::sync::PollSender::new(input_sender.clone()),
             &shutdown_tracker.clone(),
         );
 
@@ -1139,7 +1137,7 @@ where
             client_input: ClientInputStatus::AwaitingProducer {
                 client_input: ClientInput {
                     connection_command_sender: client_connection_tx,
-                    input_sender,
+                    input_sender: PollSender::new(input_sender),
                     client_request_sender,
                 },
             },

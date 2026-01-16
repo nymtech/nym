@@ -1,14 +1,17 @@
 //! Rust SDK for the Nym platform
 //!
 //! The main component currently is [`mixnet`].
-//! [`tcp_proxy`] is probably a good place to start for anyone wanting to integrate with existing app code and read/write from a socket.
 //! [`client_pool`] is a configurable client pool.
+//! [`tcp_proxy`] is a soon to be deprecated wrapper around the mixnet client which exposes a localhost port.
+//! [`stream_wrapper`] is the v2 of the tcp_proxy, exposing a socket-like abstraction around the mixnet client.
 
 mod error;
 
 pub mod bandwidth;
 pub mod client_pool;
+pub mod ip_packet_client;
 pub mod mixnet;
+pub mod stream_wrapper;
 pub mod tcp_proxy;
 
 pub use error::{Error, Result};

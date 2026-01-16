@@ -1,12 +1,13 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::current::response::ConnectFailureReason;
+use crate::ip_packet_client::current::response::ConnectFailureReason;
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
     #[error("nym sdk")]
-    SdkError(#[source] Box<nym_sdk::Error>),
+    // SdkError(#[source] Box<nym_sdk::Error>),
+    SdkError(#[source] Box<crate::error::Error>),
 
     #[error(
         "received response with version v{received}, the client is too new and can only understand v{expected}"
@@ -42,13 +43,37 @@ pub enum Error {
     #[error("already connected to the mixnet")]
     AlreadyConnected,
 
-    #[error(transparent)]
-    Bincode(#[from] bincode::Error),
     #[error("failed to create connect request")]
     FailedToCreateConnectRequest {
         source: nym_ip_packet_requests::sign::SignatureError,
     },
+
+    /// Below error types are from the nym-connection-monitor crate
+    #[error(
+        "timeout waiting for mixnet self ping, the entry gateway is not routing our mixnet traffic"
+    )]
+    TimeoutWaitingForMixnetSelfPing,
+
+    #[error("failed to serialize message")]
+    FailedToSerializeMessage {
+        #[from]
+        source: bincode::Error,
+    },
+
+    #[error("failed to create icmp echo request packet")]
+    IcmpEchoRequestPacketCreationFailure,
+
+    #[error("failed to create icmp packet")]
+    IcmpPacketCreationFailure,
+
+    #[error("failed to create ipv4 packet")]
+    Ipv4PacketCreationFailure,
 }
 
-// Result type based on our error type
+impl From<crate::error::Error> for Error {
+    fn from(err: crate::error::Error) -> Self {
+        Error::SdkError(Box::new(err))
+    }
+}
+
 pub type Result<T> = std::result::Result<T, Error>;

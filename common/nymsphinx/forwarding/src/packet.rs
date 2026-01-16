@@ -4,6 +4,11 @@
 use nym_sphinx_addressing::nodes::{NymNodeRoutingAddress, NymNodeRoutingAddressError};
 use nym_sphinx_params::{PacketSize, PacketType, SphinxKeyRotation};
 use nym_sphinx_types::{NymPacket, NymPacketError};
+use serde::{
+    Deserialize, Deserializer, Serialize, Serializer,
+    de::{self, Visitor},
+};
+use std::fmt;
 
 use nym_sphinx_anonymous_replies::reply_surb::AppliedReplySurb;
 use nym_sphinx_params::key_rotation::InvalidSphinxKeyRotation;
@@ -174,12 +179,39 @@ impl MixPacket {
         })
     }
 
-    pub fn into_v2_bytes(self) -> Result<Vec<u8>, MixPacketFormattingError> {
+    pub fn to_v2_bytes(&self) -> Result<Vec<u8>, MixPacketFormattingError> {
         Ok(std::iter::once(self.packet_type as u8)
             .chain(std::iter::once(self.key_rotation as u8))
             .chain(self.next_hop.as_bytes())
             .chain(self.packet.to_bytes()?)
             .collect())
+    }
+}
+
+// MAX TODO implement for v1 as well for back compat? - this was added in the original asyncread/write work when we only had one v
+impl Serialize for MixPacket {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_bytes(&self.to_v2_bytes().map_err(serde::ser::Error::custom)?)
+    }
+}
+
+struct MixPacketVisitor;
+
+impl<'de> Visitor<'de> for MixPacketVisitor {
+    type Value = MixPacket;
+
+    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        formatter.write_str("a byte array representing a mix packet")
+    }
+
+    fn visit_bytes<E: de::Error>(self, v: &[u8]) -> Result<Self::Value, E> {
+        MixPacket::try_from_v2_bytes(v).map_err(serde::de::Error::custom)
+    }
+}
+
+impl<'de> Deserialize<'de> for MixPacket {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        deserializer.deserialize_bytes(MixPacketVisitor)
     }
 }
 

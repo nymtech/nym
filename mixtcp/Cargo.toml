@@ -1,0 +1,30 @@
+[package]
+name = "mixtcp"
+version = "0.0.1"
+edition = "2021"
+license.workspace = true
+
+[dependencies]
+smoltcp = { workspace = true, default-features = false, features = [
+    "std",
+    "medium-ip",
+    "proto-ipv4",
+    "proto-ipv6",
+    "socket-tcp",
+    "socket-icmp",
+] }
+tokio = { workspace = true }
+bytes = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+nym-bin-common = { path = "../common/bin-common", features = ["basic_tracing"] }
+nym-sdk = { path = "../sdk/rust/nym-sdk" }
+nym-ip-packet-requests = { path = "../common/ip-packet-requests" }
+thiserror.workspace = true
+rustls  = { workspace = true }
+
+[dev-dependencies]
+reqwest.workspace = true
+dirs.workspace = true
+webpki-roots.workspace = true
+serde_json.workspace = true

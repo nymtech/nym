@@ -12,6 +12,8 @@ dotenvy = { workspace = true, optional = true }
 log = { workspace = true, optional = true }
 schemars = { workspace = true, features = ["preserve_order"], optional = true }
 serde = { workspace = true, features = ["derive"], optional = true }
+serde_json = {workspace = true, optional = true }
+tracing = {workspace = true, optional = true }
 url = { workspace = true, optional = true }
 utoipa = { workspace = true, optional = true }
 
@@ -20,7 +22,7 @@ utoipa = { workspace = true, optional = true }
 
 [features]
 default = ["env", "network"]
-env = ["dotenvy", "log"]
+env = ["dotenvy", "log", "serde_json", "tracing"]
 network = ["schemars", "serde", "url"]
 utoipa = [ "dep:utoipa" ]
 

@@ -48,6 +48,7 @@ pub struct WireguardV10 {
 
     /// Port announced to external clients wishing to connect to the wireguard interface.
     /// Useful in the instances where the node is behind a proxy.
+    #[serde(alias = "announced_tunnel_port")]
     pub announced_port: u16,
 
     /// The prefix denoting the maximum number of the clients that can be connected via Wireguard using IPv4.

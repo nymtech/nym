@@ -8,15 +8,19 @@ use nym_credential_verification::{ClientBandwidth, TicketVerifier};
 use nym_credentials_interface::CredentialSpendingData;
 use nym_wireguard::{peer_controller::PeerControlRequest, WireguardGatewayData};
 use nym_wireguard_types::PeerPublicKey;
+use std::time::Duration;
+use tokio::time::timeout;
 
 pub struct PeerManager {
     pub(crate) wireguard_gateway_data: WireguardGatewayData,
+    response_timeout: Duration,
 }
 
 impl PeerManager {
-    pub fn new(wireguard_gateway_data: WireguardGatewayData) -> Self {
+    pub fn new(wireguard_gateway_data: WireguardGatewayData, response_timeout: Duration) -> Self {
         PeerManager {
             wireguard_gateway_data,
+            response_timeout,
         }
     }
     pub async fn add_peer(&self, peer: Peer) -> Result<(), AuthenticatorError> {
@@ -28,9 +32,8 @@ impl PeerManager {
             .await
             .map_err(|_| AuthenticatorError::PeerInteractionStopped)?;
 
-        response_rx
-            .await
-            .map_err(|_| AuthenticatorError::InternalError("no response for add peer".to_string()))?
+        recv_with_timeout(response_rx, "add peer", self.response_timeout)
+            .await?
             .map_err(|err| {
                 AuthenticatorError::InternalError(format!(
                     "adding peer could not be performed: {err:?}"
@@ -48,11 +51,8 @@ impl PeerManager {
             .await
             .map_err(|_| AuthenticatorError::PeerInteractionStopped)?;
 
-        response_rx
-            .await
-            .map_err(|_| {
-                AuthenticatorError::InternalError("no response for remove peer".to_string())
-            })?
+        recv_with_timeout(response_rx, "remove peer", self.response_timeout)
+            .await?
             .map_err(|err| {
                 AuthenticatorError::InternalError(format!(
                     "removing peer could not be performed: {err:?}"
@@ -73,11 +73,8 @@ impl PeerManager {
             .await
             .map_err(|_| AuthenticatorError::PeerInteractionStopped)?;
 
-        response_rx
-            .await
-            .map_err(|_| {
-                AuthenticatorError::InternalError("no response for query peer".to_string())
-            })?
+        recv_with_timeout(response_rx, "query peer", self.response_timeout)
+            .await?
             .map_err(|err| {
                 AuthenticatorError::InternalError(format!(
                     "querying peer could not be performed: {err:?}"
@@ -106,13 +103,8 @@ impl PeerManager {
             .await
             .map_err(|_| AuthenticatorError::PeerInteractionStopped)?;
 
-        response_rx
-            .await
-            .map_err(|_| {
-                AuthenticatorError::InternalError(
-                    "no response for query client bandwidth".to_string(),
-                )
-            })?
+        recv_with_timeout(response_rx, "query client bandwidth", self.response_timeout)
+            .await?
             .map_err(|err| {
                 AuthenticatorError::InternalError(format!(
                     "querying client bandwidth could not be performed: {err:?}"
@@ -138,11 +130,8 @@ impl PeerManager {
             .await
             .map_err(|_| AuthenticatorError::PeerInteractionStopped)?;
 
-        response_rx
-            .await
-            .map_err(|_| {
-                AuthenticatorError::InternalError("no response for query verifier".to_string())
-            })?
+        recv_with_timeout(response_rx, "query verifier", self.response_timeout)
+            .await?
             .map_err(|err| {
                 AuthenticatorError::InternalError(format!(
                     "querying verifier could not be performed: {err:?}"
@@ -151,10 +140,31 @@ impl PeerManager {
     }
 }
 
+async fn recv_with_timeout<T>(
+    response_rx: oneshot::Receiver<T>,
+    operation: &'static str,
+    timeout_duration: Duration,
+) -> Result<T, AuthenticatorError> {
+    // Suspend/resume can wedge the peer controller, so we bound the wait to avoid deadlocking
+    // authenticator responses on a stuck oneshot channel.
+    match timeout(timeout_duration, response_rx).await {
+        Ok(Ok(value)) => Ok(value),
+        Ok(Err(_)) => Err(AuthenticatorError::PeerInteractionStopped),
+        Err(_) => {
+            tracing::warn!(
+                "peer controller response timed out while attempting to {operation} after {:?}",
+                timeout_duration
+            );
+            Err(AuthenticatorError::PeerInteractionTimeout { operation })
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::{str::FromStr, sync::Arc};
 
+    use futures::channel::oneshot;
     use nym_credential_verification::{
         bandwidth_storage_manager::BandwidthStorageManager, ecash::MockEcashManager,
     };
@@ -163,7 +173,8 @@ mod tests {
     use nym_gateway_storage::traits::{mock::MockGatewayStorage, BandwidthGatewayStorage};
     use nym_wireguard::peer_controller::{start_controller, stop_controller};
     use rand::rngs::OsRng;
-    use time::{Duration, OffsetDateTime};
+    use std::time::Duration;
+    use time::{Duration as TimeDuration, OffsetDateTime};
     use tokio::sync::RwLock;
 
     use crate::nym_authenticator::{
@@ -243,7 +254,7 @@ mod tests {
             Authenticator::default().into(),
             Arc::new(KeyPair::new(&mut OsRng)),
         );
-        let peer_manager = PeerManager::new(wireguard_data);
+        let peer_manager = PeerManager::new(wireguard_data, Duration::from_secs(5));
         let (storage, task_manager) = start_controller(
             peer_manager.wireguard_gateway_data.peer_tx().clone(),
             request_rx,
@@ -291,7 +302,7 @@ mod tests {
             Authenticator::default().into(),
             Arc::new(KeyPair::new(&mut OsRng)),
         );
-        let mut peer_manager = PeerManager::new(wireguard_data);
+        let mut peer_manager = PeerManager::new(wireguard_data, Duration::from_secs(5));
         let key = Key::default();
         let public_key = PeerPublicKey::from_str(&key.to_string()).unwrap();
         let (storage, task_manager) = start_controller(
@@ -311,7 +322,7 @@ mod tests {
             Authenticator::default().into(),
             Arc::new(KeyPair::new(&mut OsRng)),
         );
-        let mut peer_manager = PeerManager::new(wireguard_data);
+        let mut peer_manager = PeerManager::new(wireguard_data, Duration::from_secs(5));
         let key = Key::default();
         let public_key = PeerPublicKey::from_str(&key.to_string()).unwrap();
         let (storage, task_manager) = start_controller(
@@ -334,7 +345,7 @@ mod tests {
             Authenticator::default().into(),
             Arc::new(KeyPair::new(&mut OsRng)),
         );
-        let mut peer_manager = PeerManager::new(wireguard_data);
+        let mut peer_manager = PeerManager::new(wireguard_data, Duration::from_secs(5));
         let key = Key::default();
         let public_key = PeerPublicKey::from_str(&key.to_string()).unwrap();
         let (storage, task_manager) = start_controller(
@@ -357,7 +368,7 @@ mod tests {
             Authenticator::default().into(),
             Arc::new(KeyPair::new(&mut OsRng)),
         );
-        let mut peer_manager = PeerManager::new(wireguard_data);
+        let mut peer_manager = PeerManager::new(wireguard_data, Duration::from_secs(5));
         let key = Key::default();
         let public_key = PeerPublicKey::from_str(&key.to_string()).unwrap();
         let (storage, task_manager) = start_controller(
@@ -388,7 +399,7 @@ mod tests {
             Authenticator::default().into(),
             Arc::new(KeyPair::new(&mut OsRng)),
         );
-        let mut peer_manager = PeerManager::new(wireguard_data);
+        let mut peer_manager = PeerManager::new(wireguard_data, Duration::from_secs(5));
         let key = Key::default();
         let public_key = PeerPublicKey::from_str(&key.to_string()).unwrap();
         let (storage, task_manager) = start_controller(
@@ -417,7 +428,7 @@ mod tests {
             Authenticator::default().into(),
             Arc::new(KeyPair::new(&mut OsRng)),
         );
-        let mut peer_manager = PeerManager::new(wireguard_data);
+        let mut peer_manager = PeerManager::new(wireguard_data, Duration::from_secs(5));
         let key = Key::default();
         let public_key = PeerPublicKey::from_str(&key.to_string()).unwrap();
         let top_up = 42;
@@ -444,7 +455,7 @@ mod tests {
             .increase_bandwidth(
                 Bandwidth::new_unchecked(top_up as u64),
                 OffsetDateTime::now_utc()
-                    .checked_add(Duration::minutes(1))
+                    .checked_add(TimeDuration::minutes(1))
                     .unwrap(),
             )
             .await
@@ -465,5 +476,29 @@ mod tests {
         );
 
         stop_controller(task_manager).await;
+    }
+
+    #[tokio::test]
+    async fn recv_with_timeout_errors_after_deadline() {
+        let (_tx, rx) = oneshot::channel::<()>();
+        let err = super::recv_with_timeout(rx, "unit-test", Duration::from_millis(10))
+            .await
+            .unwrap_err();
+        assert!(matches!(
+            err,
+            AuthenticatorError::PeerInteractionTimeout {
+                operation: "unit-test"
+            }
+        ));
+    }
+
+    #[tokio::test]
+    async fn recv_with_timeout_succeeds_before_deadline() {
+        let (tx, rx) = oneshot::channel::<u8>();
+        tx.send(42).unwrap();
+        let value = super::recv_with_timeout(rx, "unit-test", Duration::from_secs(1))
+            .await
+            .unwrap();
+        assert_eq!(value, 42);
     }
 }

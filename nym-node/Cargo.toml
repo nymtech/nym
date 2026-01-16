@@ -27,6 +27,7 @@ console-subscriber = { workspace = true, optional = true }
 csv = { workspace = true }
 clap = { workspace = true, features = ["cargo", "env"] }
 futures = { workspace = true }
+humantime = { workspace = true }
 humantime-serde = { workspace = true }
 human-repr = { workspace = true }
 ipnetwork = { workspace = true }

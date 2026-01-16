@@ -7,7 +7,22 @@ use classic_mceliece_rust::keypair_boxed;
 use libcrux_kem::{Algorithm, key_gen};
 
 use libcrux_sha3;
+use nym_crypto::asymmetric::ed25519;
 use rand::{CryptoRng, RngCore};
+pub fn generate_keypair_ed25519<R>(rng: &mut R, index: Option<u32>) -> ed25519::KeyPair
+where
+    R: RngCore + CryptoRng,
+{
+    let mut secret_initiator: [u8; 32] = [0u8; 32];
+    rng.fill_bytes(&mut secret_initiator);
+    ed25519::KeyPair::from_secret(secret_initiator, index.unwrap_or(0))
+}
+
+pub fn generate_keypair_x25519() -> (nym_sphinx::PrivateKey, nym_sphinx::PublicKey) {
+    let private_key = nym_sphinx::PrivateKey::random();
+    let public_key = nym_sphinx::PublicKey::from(&private_key);
+    (private_key, public_key)
+}
 
 // (decapsulation_key, encapsulation_key)
 pub fn generate_keypair_libcrux<R>(

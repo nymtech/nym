@@ -439,75 +439,75 @@ impl LpStateMachine {
                     // --- Inline handle_handshake_packet logic ---
                     // 1. Check replay protection *before* processing
                     if let Err(e) = session.receiving_counter_quick_check(packet.header.counter) {
-                         let _reason = e.to_string();
-                         result_action = Some(Err(e));
-                         LpState::Handshaking { session }
+                        let _reason = e.to_string();
+                        result_action = Some(Err(e));
+                        LpState::Handshaking { session }
                         //  LpState::Closed { reason }
                     } else {
-                         // 2. Process the handshake message
-                         match session.process_handshake_message(&packet.message) {
-                             Ok(_) => {
-                                 // 3. Mark counter as received *after* successful processing
-                                 if let Err(e) = session.receiving_counter_mark(packet.header.counter) {
-                                     let _reason = e.to_string();
-                                     result_action = Some(Err(e));
+                        // 2. Process the handshake message
+                        match session.process_handshake_message(&packet.message) {
+                            Ok(_) => {
+                                // 3. Mark counter as received *after* successful processing
+                                if let Err(e) = session.receiving_counter_mark(packet.header.counter) {
+                                    let _reason = e.to_string();
+                                    result_action = Some(Err(e));
                                     //  LpState::Closed { reason }
                                     LpState::Handshaking { session }
-                                 } else {
-                                     // 4. First check if we need to send a handshake message (before checking completion)
-                                     match session.prepare_handshake_message() {
-                                         Some(Ok(message)) => {
-                                             match session.next_packet(message) {
-                                                 Ok(response_packet) => {
-                                                     result_action = Some(Ok(LpAction::SendPacket(response_packet)));
-                                                     // Check if handshake became complete after preparing message
-                                                     if session.is_handshake_complete() {
-                                                         LpState::Transport { session } // Transition to Transport
-                                                     } else {
-                                                         LpState::Handshaking { session } // Remain Handshaking
-                                                     }
-                                                 }
-                                                 Err(e) => {
-                                                     let reason = e.to_string();
-                                                     result_action = Some(Err(e));
-                                                     LpState::Closed { reason }
-                                                 }
-                                             }
-                                         }
-                                         Some(Err(e)) => {
-                                             let reason = e.to_string();
-                                             result_action = Some(Err(e));
-                                             LpState::Closed { reason }
-                                         }
-                                         None => {
-                                             // 5. No message to send - check if handshake is complete
-                                             if session.is_handshake_complete() {
-                                                 result_action = Some(Ok(LpAction::HandshakeComplete));
-                                                 LpState::Transport { session } // Transition to Transport
-                                             } else {
-                                                 // Handshake stalled unexpectedly
-                                                 let err = LpError::NoiseError(NoiseError::Other(
-                                                     "Handshake stalled unexpectedly".to_string(),
-                                                 ));
-                                                 let reason = err.to_string();
-                                                 result_action = Some(Err(err));
-                                                 LpState::Closed { reason }
-                                             }
-                                         }
-                                     }
-                                 }
-                             }
-                             Err(e) => { // Error from process_handshake_message
-                                 let reason = e.to_string();
-                                 result_action = Some(Err(e));
-                                 LpState::Closed { reason }
-                             }
-                         }
+                                } else {
+                                    // 4. First check if we need to send a handshake message (before checking completion)
+                                    match session.prepare_handshake_message() {
+                                        Some(Ok(message)) => {
+                                            match session.next_packet(message) {
+                                                Ok(response_packet) => {
+                                                    result_action = Some(Ok(LpAction::SendPacket(response_packet)));
+                                                    // Check if handshake became complete after preparing message
+                                                    if session.is_handshake_complete() {
+                                                        LpState::Transport { session } // Transition to Transport
+                                                    } else {
+                                                        LpState::Handshaking { session } // Remain Handshaking
+                                                    }
+                                                }
+                                                Err(e) => {
+                                                    let reason = e.to_string();
+                                                    result_action = Some(Err(e));
+                                                    LpState::Closed { reason }
+                                                }
+                                            }
+                                        }
+                                        Some(Err(e)) => {
+                                            let reason = e.to_string();
+                                            result_action = Some(Err(e));
+                                            LpState::Closed { reason }
+                                        }
+                                        None => {
+                                            // 5. No message to send - check if handshake is complete
+                                            if session.is_handshake_complete() {
+                                                result_action = Some(Ok(LpAction::HandshakeComplete));
+                                                LpState::Transport { session } // Transition to Transport
+                                            } else {
+                                                // Handshake stalled unexpectedly
+                                                let err = LpError::NoiseError(NoiseError::Other(
+                                                    "Handshake stalled unexpectedly".to_string(),
+                                                ));
+                                                let reason = err.to_string();
+                                                result_action = Some(Err(err));
+                                                LpState::Closed { reason }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            Err(e) => { // Error from process_handshake_message
+                                let reason = e.to_string();
+                                result_action = Some(Err(e));
+                                LpState::Closed { reason }
+                            }
+                        }
                     }
                     // --- End inline handle_handshake_packet logic ---
                 }
             }
-             // Reject SendData during handshake
+            // Reject SendData during handshake
             (LpState::Handshaking { session }, LpInput::SendData(_)) => { // Keep session if returning to this state
                 result_action = Some(Err(LpError::InvalidStateTransition {
                     state: "Handshaking".to_string(),
@@ -522,114 +522,114 @@ impl LpStateMachine {
                     state: "Handshaking".to_string(),
                     input: "StartHandshake".to_string(),
                 }));
-                 // Invalid input, remain in Handshaking state
-                 LpState::Handshaking { session }
+                // Invalid input, remain in Handshaking state
+                LpState::Handshaking { session }
             }
 
             // --- Transport State ---
             (LpState::Transport { session }, LpInput::ReceivePacket(packet)) => {
-                 // Check if packet lp_id matches our session
-                 if packet.header.receiver_idx() != session.id() {
+                // Check if packet lp_id matches our session
+                if packet.header.receiver_idx() != session.id() {
                     result_action = Some(Err(LpError::UnknownSessionId(packet.header.receiver_idx())));
                     LpState::Transport { session }
-                 } else {
-                     // Check message type - handle subsession initiation from peer
-                     match &packet.message {
-                         // Peer initiated subsession - we become responder
-                         LpMessage::SubsessionKK1(kk1_data) => {
-                             // Create subsession as responder
-                             let subsession_index = session.next_subsession_index();
-                             match session.create_subsession(subsession_index, false) {
-                                 Ok(subsession) => {
-                                     // Process KK1
-                                     match subsession.process_message(&kk1_data.payload) {
-                                         Ok(_) => {
-                                             // Prepare KK2 response
-                                             match subsession.prepare_message() {
-                                                 Ok(kk2_payload) => {
-                                                     let kk2_msg = LpMessage::SubsessionKK2(SubsessionKK2Data { payload: kk2_payload });
-                                                     match session.next_packet(kk2_msg) {
-                                                         Ok(response_packet) => {
-                                                             result_action = Some(Ok(LpAction::SendPacket(response_packet)));
-                                                             // Stay in SubsessionHandshaking, wait for SubsessionReady
-                                                             LpState::SubsessionHandshaking { session, subsession: Box::new(subsession) }
-                                                         }
-                                                         Err(e) => {
-                                                             let reason = e.to_string();
-                                                             result_action = Some(Err(e));
-                                                             LpState::Closed { reason }
-                                                         }
-                                                     }
-                                                 }
-                                                 Err(e) => {
-                                                     let reason = e.to_string();
-                                                     result_action = Some(Err(e));
-                                                     LpState::Closed { reason }
-                                                 }
-                                             }
-                                         }
-                                         Err(e) => {
-                                             let reason = e.to_string();
-                                             result_action = Some(Err(e));
-                                             LpState::Closed { reason }
-                                         }
-                                     }
-                                 }
-                                 Err(e) => {
-                                     let reason = e.to_string();
-                                     result_action = Some(Err(e));
-                                     LpState::Closed { reason }
-                                 }
-                             }
-                         }
-                         // Normal encrypted data
-                         LpMessage::EncryptedData(_) => {
-                             // 1. Check replay protection
-                             if let Err(e) = session.receiving_counter_quick_check(packet.header.counter) {
-                                 result_action = Some(Err(e));
-                                 LpState::Transport { session }
-                             } else {
-                                 // 2. Decrypt data
-                                 match session.decrypt_data(&packet.message) {
-                                     Ok(plaintext) => {
-                                         // 3. Mark counter as received
-                                         if let Err(e) = session.receiving_counter_mark(packet.header.counter) {
-                                             result_action = Some(Err(e));
-                                             LpState::Transport { session }
-                                         } else {
-                                             // 4. Deliver data
-                                             result_action = Some(Ok(LpAction::DeliverData(BytesMut::from(plaintext.as_slice()))));
-                                             LpState::Transport { session }
-                                         }
-                                     }
-                                     Err(e) => {
-                                         let reason = e.to_string();
-                                         result_action = Some(Err(e.into()));
-                                         LpState::Closed { reason }
-                                     }
-                                 }
-                             }
-                         }
-                         // Stale abort in Transport state - race already resolved.
-                         // This can happen if abort arrives after loser already returned to Transport
-                         // via KK1 processing (loser detected local < remote and became responder).
-                         // The winner's abort message arrived late. Silently ignore.
-                         LpMessage::SubsessionAbort => {
-                             debug!("Ignoring stale SubsessionAbort in Transport state");
-                             result_action = None;
-                             LpState::Transport { session }
-                         }
-                         _ => {
-                             // Unexpected message type in Transport state
-                             let err = LpError::InvalidStateTransition {
-                                 state: "Transport".to_string(),
-                                 input: format!("Unexpected message type: {}", packet.message),
-                             };
-                             result_action = Some(Err(err));
-                             LpState::Transport { session }
-                         }
-                     }
-                 }
+                } else {
+                    // Check message type - handle subsession initiation from peer
+                    match &packet.message {
+                        // Peer initiated subsession - we become responder
+                        LpMessage::SubsessionKK1(kk1_data) => {
+                            // Create subsession as responder
+                            let subsession_index = session.next_subsession_index();
+                            match session.create_subsession(subsession_index, false) {
+                                Ok(subsession) => {
+                                    // Process KK1
+                                    match subsession.process_message(&kk1_data.payload) {
+                                        Ok(_) => {
+                                            // Prepare KK2 response
+                                            match subsession.prepare_message() {
+                                                Ok(kk2_payload) => {
+                                                    let kk2_msg = LpMessage::SubsessionKK2(SubsessionKK2Data { payload: kk2_payload });
+                                                    match session.next_packet(kk2_msg) {
+                                                        Ok(response_packet) => {
+                                                            result_action = Some(Ok(LpAction::SendPacket(response_packet)));
+                                                            // Stay in SubsessionHandshaking, wait for SubsessionReady
+                                                            LpState::SubsessionHandshaking { session, subsession: Box::new(subsession) }
+                                                        }
+                                                        Err(e) => {
+                                                            let reason = e.to_string();
+                                                            result_action = Some(Err(e));
+                                                            LpState::Closed { reason }
+                                                        }
+                                                    }
+                                                }
+                                                Err(e) => {
+                                                    let reason = e.to_string();
+                                                    result_action = Some(Err(e));
+                                                    LpState::Closed { reason }
+                                                }
+                                            }
+                                        }
+                                        Err(e) => {
+                                            let reason = e.to_string();
+                                            result_action = Some(Err(e));
+                                            LpState::Closed { reason }
+                                        }
+                                    }
+                                }
+                                Err(e) => {
+                                    let reason = e.to_string();
+                                    result_action = Some(Err(e));
+                                    LpState::Closed { reason }
+                                }
+                            }
+                        }
+                        // Normal encrypted data
+                        LpMessage::EncryptedData(_) => {
+                            // 1. Check replay protection
+                            if let Err(e) = session.receiving_counter_quick_check(packet.header.counter) {
+                                result_action = Some(Err(e));
+                                LpState::Transport { session }
+                            } else {
+                                // 2. Decrypt data
+                                match session.decrypt_data(&packet.message) {
+                                    Ok(plaintext) => {
+                                        // 3. Mark counter as received
+                                        if let Err(e) = session.receiving_counter_mark(packet.header.counter) {
+                                            result_action = Some(Err(e));
+                                            LpState::Transport { session }
+                                        } else {
+                                            // 4. Deliver data
+                                            result_action = Some(Ok(LpAction::DeliverData(BytesMut::from(plaintext.as_slice()))));
+                                            LpState::Transport { session }
+                                        }
+                                    }
+                                    Err(e) => {
+                                        let reason = e.to_string();
+                                        result_action = Some(Err(e.into()));
+                                        LpState::Closed { reason }
+                                    }
+                                }
+                            }
+                        }
+                        // Stale abort in Transport state - race already resolved.
+                        // This can happen if abort arrives after loser already returned to Transport
+                        // via KK1 processing (loser detected local < remote and became responder).
+                        // The winner's abort message arrived late. Silently ignore.
+                        LpMessage::SubsessionAbort => {
+                            debug!("Ignoring stale SubsessionAbort in Transport state");
+                            result_action = None;
+                            LpState::Transport { session }
+                        }
+                        _ => {
+                            // Unexpected message type in Transport state
+                            let err = LpError::InvalidStateTransition {
+                                state: "Transport".to_string(),
+                                input: format!("Unexpected message type: {}", packet.message),
+                            };
+                            result_action = Some(Err(err));
+                            LpState::Transport { session }
+                        }
+                    }
+                }
             }
             (LpState::Transport { session }, LpInput::SendData(data)) => {
                 // Encrypt and send application data
@@ -641,17 +641,17 @@ impl LpStateMachine {
                         result_action = Some(Err(e.into()));
                     }
                 }
-                 // Remain in transport state
-                 LpState::Transport { session }
+                // Remain in transport state
+                LpState::Transport { session }
             }
-             // Reject StartHandshake if already in transport
+            // Reject StartHandshake if already in transport
             (LpState::Transport { session }, LpInput::StartHandshake) => { // Keep session
                 result_action = Some(Err(LpError::InvalidStateTransition {
                     state: "Transport".to_string(),
                     input: "StartHandshake".to_string(),
                 }));
-                 // Invalid input, remain in Transport state
-                 LpState::Transport { session }
+                // Invalid input, remain in Transport state
+                LpState::Transport { session }
             }
 
             // --- Transport + InitiateSubsession → SubsessionHandshaking ---
@@ -970,25 +970,25 @@ impl LpStateMachine {
                     result_action = Some(Err(LpError::UnknownSessionId(packet.header.receiver_idx())));
                     LpState::ReadOnlyTransport { session }
                 } else if let Err(e) = session.receiving_counter_quick_check(packet.header.counter) {
-                        result_action = Some(Err(e));
-                        LpState::ReadOnlyTransport { session }
-                    } else {
-                        match session.decrypt_data(&packet.message) {
-                            Ok(plaintext) => {
-                                if let Err(e) = session.receiving_counter_mark(packet.header.counter) {
-                                    result_action = Some(Err(e));
-                                    LpState::ReadOnlyTransport { session }
-                                } else {
-                                    result_action = Some(Ok(LpAction::DeliverData(BytesMut::from(plaintext.as_slice()))));
-                                    LpState::ReadOnlyTransport { session }
-                                }
-                            }
-                            Err(e) => {
-                                let reason = e.to_string();
-                                result_action = Some(Err(e.into()));
-                                LpState::Closed { reason }
+                    result_action = Some(Err(e));
+                    LpState::ReadOnlyTransport { session }
+                } else {
+                    match session.decrypt_data(&packet.message) {
+                        Ok(plaintext) => {
+                            if let Err(e) = session.receiving_counter_mark(packet.header.counter) {
+                                result_action = Some(Err(e));
+                                LpState::ReadOnlyTransport { session }
+                            } else {
+                                result_action = Some(Ok(LpAction::DeliverData(BytesMut::from(plaintext.as_slice()))));
+                                LpState::ReadOnlyTransport { session }
                             }
                         }
+                        Err(e) => {
+                            let reason = e.to_string();
+                            result_action = Some(Err(e.into()));
+                            LpState::Closed { reason }
+                        }
+                    }
                 }
             }
 
@@ -1026,8 +1026,8 @@ impl LpStateMachine {
                 LpInput::Close,
             ) => {
                 result_action = Some(Ok(LpAction::ConnectionClosed));
-                 // Transition to Closed state
-                 LpState::Closed { reason: "Closed by user".to_string() }
+                // Transition to Closed state
+                LpState::Closed { reason: "Closed by user".to_string() }
             }
             // Ignore Close if already Closed
             (closed_state @ LpState::Closed { .. }, LpInput::Close) => {
@@ -1040,36 +1040,36 @@ impl LpStateMachine {
             //      result_action = Some(Err(LpError::LpSessionClosed));
             //      closed_state
             // }
-             // Ignore ReceivePacket if Closed
+            // Ignore ReceivePacket if Closed
             (closed_state @ LpState::Closed { .. }, LpInput::ReceivePacket(_)) => {
-                 result_action = Some(Err(LpError::LpSessionClosed));
-                 closed_state
+                result_action = Some(Err(LpError::LpSessionClosed));
+                closed_state
             }
-             // Ignore SendData if Closed
+            // Ignore SendData if Closed
             (closed_state @ LpState::Closed { .. }, LpInput::SendData(_)) => {
-                 result_action = Some(Err(LpError::LpSessionClosed));
-                 closed_state
+                result_action = Some(Err(LpError::LpSessionClosed));
+                closed_state
             }
             // Processing state should not be matched directly if using replace
             (LpState::Processing, _) => {
-                 // This case should ideally be unreachable if placeholder logic is correct
-                 let err = LpError::Internal("Reached Processing state unexpectedly".to_string());
-                 let reason = err.to_string();
-                 result_action = Some(Err(err));
-                 LpState::Closed { reason }
+                // This case should ideally be unreachable if placeholder logic is correct
+                let err = LpError::Internal("Reached Processing state unexpectedly".to_string());
+                let reason = err.to_string();
+                result_action = Some(Err(err));
+                LpState::Closed { reason }
             }
 
             // --- Default: Invalid input for current state (if any combinations missed) ---
             // Consider if this should transition to Closed state. For now, just report error
             // and transition to Closed as a safety measure.
             (invalid_state, input) => {
-                 let err = LpError::InvalidStateTransition {
-                     state: format!("{:?}", invalid_state), // Use owned state for debug info
-                     input: format!("{:?}", input),
-                 };
-                 let reason = err.to_string();
-                 result_action = Some(Err(err));
-                 LpState::Closed { reason }
+                let err = LpError::InvalidStateTransition {
+                    state: format!("{:?}", invalid_state), // Use owned state for debug info
+                    input: format!("{:?}", input),
+                };
+                let reason = err.to_string();
+                result_action = Some(Err(err));
+                LpState::Closed { reason }
             }
         };
 

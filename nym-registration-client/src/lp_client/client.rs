@@ -335,8 +335,8 @@ where
 
         // Step 2: Generate ClientHelloData with fresh salt and both public keys
         let client_hello_data = nym_lp::ClientHelloData::new_with_fresh_salt(
-            client_x25519_public.to_bytes(),
-            self.local_ed25519_keypair.public_key().to_bytes(),
+            client_x25519_public,
+            *self.local_ed25519_keypair.public_key(),
             timestamp,
         );
         let salt = client_hello_data.salt;

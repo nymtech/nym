@@ -20,6 +20,7 @@ pub use serde_helpers::*;
 #[cfg(feature = "sphinx")]
 use nym_sphinx_types::{DESTINATION_ADDRESS_LENGTH, DestinationAddressBytes};
 
+use crate::asymmetric::x25519;
 #[cfg(feature = "rand")]
 use rand::{CryptoRng, Rng, RngCore};
 #[cfg(feature = "serde")]
@@ -110,6 +111,18 @@ impl KeyPair {
             index: fake_index(pub_bytes),
         })
     }
+
+    /// Converts this Ed25519 keypair to an X25519 keypair for ECDH.
+    ///
+    /// Uses the standard ed25519→x25519 conversion via SHA-512 hash and clamping.
+    /// This is the same approach as libsodium's `crypto_sign_ed25519_sk_to_curve25519`.
+    ///
+    /// # Returns
+    /// The converted X25519 keypair
+    pub fn to_x25519(&self) -> x25519::KeyPair {
+        let private_key = self.private_key.to_x25519();
+        x25519::KeyPair::from(private_key)
+    }
 }
 
 /// Reduces a byte slice into a u32 value by XOR-ing all its bytes into a 4-byte accumulator.
@@ -195,14 +208,25 @@ impl PublicKey {
     }
 
     /// Convert this public key to a byte array.
+    #[inline]
     pub fn to_bytes(self) -> [u8; PUBLIC_KEY_LENGTH] {
         self.0.to_bytes()
     }
 
+    /// View this public key as a byte array.
+    #[inline]
+    pub fn as_bytes(&self) -> &[u8; PUBLIC_KEY_LENGTH] {
+        self.0.as_bytes()
+    }
+
+    #[inline]
     pub fn from_bytes(b: &[u8]) -> Result<Self, Ed25519RecoveryError> {
-        Ok(PublicKey(ed25519_dalek::VerifyingKey::from_bytes(
-            b.try_into()?,
-        )?))
+        Self::from_byte_array(b.try_into()?)
+    }
+
+    #[inline]
+    pub fn from_byte_array(b: &[u8; PUBLIC_KEY_LENGTH]) -> Result<Self, Ed25519RecoveryError> {
+        Ok(PublicKey(ed25519_dalek::VerifyingKey::from_bytes(b)?))
     }
 
     pub fn to_base58_string(self) -> String {

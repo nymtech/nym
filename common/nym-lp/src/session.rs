@@ -421,7 +421,7 @@ impl LpSession {
                     .expect("Valid x25519 private key")
                     .into(),
             ),
-            remote_x25519_public: remote_x25519_key.clone(),
+            remote_x25519_public: *remote_x25519_key,
             salt: *salt,
             outer_aead_key: Mutex::new(None),
             pq_shared_secret: Mutex::new(None),
@@ -697,8 +697,8 @@ impl LpSession {
             &mut rng,
             request_bytes,
             Some(&self.remote_ed25519_public), // Verify initiator signature
-            &self.local_ed25519.private_key(), // Sign response
-            &self.local_x25519.private_key(),
+            self.local_ed25519.private_key(),  // Sign response
+            self.local_x25519.private_key(),
             responder_kem_pk,
         )
         .map_err(|e| LpError::Internal(format!("KKT request handling failed: {:?}", e)))?;
@@ -750,11 +750,11 @@ impl LpSession {
             let session_context = self.id.to_le_bytes();
 
             let psq_result = match psq_initiator_create_message(
-                &self.local_x25519.private_key(),
+                self.local_x25519.private_key(),
                 &self.remote_x25519_public,
                 remote_kem,
-                &self.local_ed25519.private_key(),
-                &self.local_ed25519.public_key(),
+                self.local_ed25519.private_key(),
+                self.local_ed25519.public_key(),
                 &self.salt,
                 &session_context,
             ) {
@@ -919,7 +919,7 @@ impl LpSession {
                     let session_context = self.id.to_le_bytes();
 
                     let psq_result = match psq_responder_process_message(
-                        &self.local_x25519.private_key(),
+                        self.local_x25519.private_key(),
                         &self.remote_x25519_public,
                         (&dec_key, &enc_key),
                         &self.remote_ed25519_public,
@@ -1199,7 +1199,7 @@ impl LpSession {
             // Copy key material from parent for into_session() conversion
             local_ed25519: self.local_ed25519.clone(),
             remote_ed25519_public: self.remote_ed25519_public,
-            remote_x25519_public: self.remote_x25519_public.clone(),
+            remote_x25519_public: self.remote_x25519_public,
             pq_shared_secret: PqSharedSecret::new(pq_secret),
             subsession_psk,
             local_x25519: self.local_x25519.clone(),
@@ -1368,7 +1368,7 @@ mod tests {
         receiver_index: u32,
         is_initiator: bool,
         local_keys: &KeyPair,
-        remote_pub_key: &crate::keypair::PublicKey,
+        remote_pub_key: &x25519::PublicKey,
     ) -> LpSession {
         use nym_crypto::asymmetric::ed25519;
 

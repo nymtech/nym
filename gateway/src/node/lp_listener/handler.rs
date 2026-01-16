@@ -5,9 +5,10 @@ use super::messages::LpRegistrationRequest;
 use super::registration::process_registration;
 use super::LpHandlerState;
 use crate::error::GatewayError;
+use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_lp::{
-    codec::OuterAeadKey, keypair::PublicKey, message::ForwardPacketData, packet::LpHeader,
-    LpMessage, LpPacket, OuterHeader,
+    codec::OuterAeadKey, message::ForwardPacketData, packet::LpHeader, LpMessage, LpPacket,
+    OuterHeader,
 };
 use nym_lp_transport::traits::LpTransport;
 use nym_metrics::{add_histogram_obs, inc};
@@ -303,14 +304,7 @@ where
                 // Extract client-proposed receiver_index
                 let receiver_index = hello_data.receiver_index;
 
-                let client_ed25519_pubkey = nym_crypto::asymmetric::ed25519::PublicKey::from_bytes(
-                    &hello_data.client_ed25519_public_key,
-                )
-                .map_err(|e| {
-                    GatewayError::LpProtocolError(
-                        format!("Invalid client Ed25519 public key: {e}",),
-                    )
-                })?;
+                let client_ed25519_pubkey = hello_data.client_ed25519_public_key;
 
                 (receiver_index, client_ed25519_pubkey, hello_data.salt)
             }
@@ -894,14 +888,7 @@ where
     #[allow(dead_code)]
     async fn receive_client_hello(
         &mut self,
-    ) -> Result<
-        (
-            PublicKey,
-            nym_crypto::asymmetric::ed25519::PublicKey,
-            [u8; 32],
-        ),
-        GatewayError,
-    > {
+    ) -> Result<(x25519::PublicKey, ed25519::PublicKey, [u8; 32]), GatewayError> {
         // Receive first packet which should be ClientHello (no outer encryption)
         let (raw_bytes, _header) = self.receive_raw_packet().await?;
         let packet = nym_lp::codec::parse_lp_packet(&raw_bytes, None)
@@ -928,22 +915,11 @@ where
                     self.state.lp_config.debug.timestamp_tolerance.as_secs()
                 );
 
-                // Convert bytes to X25519 PublicKey (for Noise protocol)
-                let client_pubkey = PublicKey::from_bytes(&hello_data.client_lp_public_key)
-                    .map_err(|e| {
-                        GatewayError::LpProtocolError(format!("Invalid client public key: {}", e))
-                    })?;
+                // Retrieve X25519 PublicKey (for Noise protocol)
+                let client_pubkey = hello_data.client_lp_public_key;
 
-                // Convert bytes to Ed25519 PublicKey (for PSQ authentication)
-                let client_ed25519_pubkey = nym_crypto::asymmetric::ed25519::PublicKey::from_bytes(
-                    &hello_data.client_ed25519_public_key,
-                )
-                .map_err(|e| {
-                    GatewayError::LpProtocolError(format!(
-                        "Invalid client Ed25519 public key: {}",
-                        e
-                    ))
-                })?;
+                // Retrieve Ed25519 PublicKey (for PSQ authentication)
+                let client_ed25519_pubkey = hello_data.client_ed25519_public_key;
 
                 // Extract salt for PSK derivation
                 let salt = hello_data.salt;
@@ -1702,8 +1678,13 @@ mod tests {
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let addr = listener.local_addr().unwrap();
 
-        let client_key = [7u8; 32];
-        let client_ed25519_key = [8u8; 32];
+        let mut rng = rand::thread_rng();
+        let ed25519 = ed25519::KeyPair::new(&mut rng);
+        let x25519 = ed25519.to_x25519();
+
+        let client_key = *x25519.public_key();
+        let client_ed25519_key = *ed25519.public_key();
+
         let hello_data =
             ClientHelloData::new_with_fresh_salt(client_key, client_ed25519_key, timestamp);
         let expected_salt = hello_data.salt; // Clone salt before moving hello_data
@@ -1774,8 +1755,8 @@ mod tests {
         let client_x25519_public = client_ed25519_keypair.public_key().to_x25519().unwrap();
 
         let hello_data = ClientHelloData::new_with_fresh_salt(
-            client_x25519_public.to_bytes(),
-            client_ed25519_keypair.public_key().to_bytes(),
+            client_x25519_public,
+            *client_ed25519_keypair.public_key(),
             timestamp,
         );
         let packet = LpPacket::new(
@@ -1835,8 +1816,8 @@ mod tests {
         let client_x25519_public = client_ed25519_keypair.public_key().to_x25519().unwrap();
 
         let mut hello_data = ClientHelloData::new_with_fresh_salt(
-            client_x25519_public.to_bytes(),
-            client_ed25519_keypair.public_key().to_bytes(),
+            client_x25519_public,
+            *client_ed25519_keypair.public_key(),
             timestamp,
         );
 

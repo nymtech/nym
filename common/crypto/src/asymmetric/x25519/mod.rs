@@ -155,14 +155,17 @@ impl Debug for PublicKey {
 }
 
 impl PublicKey {
+    #[inline]
     pub fn to_bytes(self) -> [u8; PUBLIC_KEY_SIZE] {
         *self.0.as_bytes()
     }
 
+    #[inline]
     pub fn as_bytes(&self) -> &[u8; PUBLIC_KEY_SIZE] {
         self.0.as_bytes()
     }
 
+    #[inline]
     pub fn from_bytes(b: &[u8]) -> Result<Self, KeyRecoveryError> {
         if b.len() != PUBLIC_KEY_SIZE {
             return Err(KeyRecoveryError::InvalidSizePublicKey {
@@ -172,7 +175,12 @@ impl PublicKey {
         }
         let mut bytes = [0; PUBLIC_KEY_SIZE];
         bytes.copy_from_slice(&b[..PUBLIC_KEY_SIZE]);
-        Ok(Self(x25519_dalek::PublicKey::from(bytes)))
+        Ok(Self::from_byte_array(&bytes))
+    }
+
+    #[inline]
+    pub fn from_byte_array(b: &[u8; PUBLIC_KEY_SIZE]) -> Self {
+        Self(x25519_dalek::PublicKey::from(*b))
     }
 
     pub fn to_base58_string(self) -> String {

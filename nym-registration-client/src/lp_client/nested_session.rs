@@ -136,8 +136,8 @@ impl NestedLpSession {
 
         // Step 2: Generate ClientHello for exit gateway
         let client_hello_data = nym_lp::ClientHelloData::new_with_fresh_salt(
-            client_x25519_public.to_bytes(),
-            self.client_keypair.public_key().to_bytes(),
+            client_x25519_public,
+            *self.client_keypair.public_key(),
             timestamp,
         );
         let salt = client_hello_data.salt;

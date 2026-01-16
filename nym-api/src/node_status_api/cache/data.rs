@@ -1,20 +1,20 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::support::caching::Cache;
 use nym_api_requests::models::NodeAnnotation;
 use nym_mixnet_contract_common::NodeId;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-#[derive(Default)]
+#[derive(Default, Serialize, Deserialize)]
 #[allow(deprecated)]
 pub(crate) struct NodeStatusCacheData {
     /// Basic annotation for nym-nodes
-    pub(crate) node_annotations: Cache<HashMap<NodeId, NodeAnnotation>>,
+    pub(crate) node_annotations: HashMap<NodeId, NodeAnnotation>,
 }
 
-impl NodeStatusCacheData {
-    pub fn new() -> Self {
-        Self::default()
+impl From<HashMap<NodeId, NodeAnnotation>> for NodeStatusCacheData {
+    fn from(node_annotations: HashMap<NodeId, NodeAnnotation>) -> Self {
+        NodeStatusCacheData { node_annotations }
     }
 }

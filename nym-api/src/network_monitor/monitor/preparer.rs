@@ -233,7 +233,7 @@ impl PacketPreparer {
     // routes so that they wouldn't be reused
     pub(crate) async fn prepare_test_routes(&self, n: usize) -> Option<Vec<TestRoute>> {
         let descriptions = self.described_cache.get().await.ok()?;
-        let statuses = self.node_status_cache.node_annotations().await?;
+        let statuses = self.node_status_cache.node_annotations().await.ok()?;
 
         let mixing_nym_nodes = descriptions.mixing_nym_nodes();
         // last I checked `gatewaying` wasn't a word : )

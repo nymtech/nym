@@ -6192,6 +6192,7 @@ dependencies = [
  "nym-network-defaults",
  "nym-validator-client",
  "semver 1.0.26",
+ "serde",
  "thiserror 2.0.17",
  "tokio",
  "tracing",

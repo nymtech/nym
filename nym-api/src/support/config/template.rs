@@ -22,6 +22,12 @@ bind_address = '{{ base.bind_address }}'
 mnemonic = '{{ base.mnemonic }}'
 
 [base.storage_paths]
+
+# Path to directory containing persistent caches of, for example,
+# the describe information, performance, etc.
+# It is used for restarting the nym-api and preserving the data
+persistent_cache_directory = '{{ base.storage_paths.persistent_cache_directory }}'
+
 # Path to file containing private identity key of the nym-api.
 private_identity_key_file = '{{ base.storage_paths.private_identity_key_file }}'
 

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::epoch_operations::EpochAdvancer;
-use crate::support::caching::Cache;
+use crate::support::caching::cache::UninitialisedCache;
 use cosmwasm_std::{Decimal, Fraction};
 use nym_api_requests::models::NodeAnnotation;
 use nym_mixnet_contract_common::helpers::IntoBaseDecimal;
@@ -210,10 +210,13 @@ fn determine_per_node_work(
 
 impl EpochAdvancer {
     fn load_performance(
-        status_cache: &Option<RwLockReadGuard<'_, Cache<HashMap<NodeId, NodeAnnotation>>>>,
+        status_cache: &Result<
+            RwLockReadGuard<'_, HashMap<NodeId, NodeAnnotation>>,
+            UninitialisedCache,
+        >,
         node_id: NodeId,
     ) -> NodeWithPerformance {
-        let Some(status_cache) = status_cache.as_ref() else {
+        let Ok(status_cache) = status_cache.as_ref() else {
             return NodeWithPerformance::new_zero(node_id);
         };
 
@@ -239,7 +242,7 @@ impl EpochAdvancer {
         let standby_node_work_factor = nodes_work.standby;
 
         let status_cache = self.status_cache.node_annotations().await;
-        if status_cache.is_none() {
+        if status_cache.is_err() {
             error!("there are no node annotations available");
         };
 

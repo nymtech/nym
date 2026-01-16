@@ -8,6 +8,7 @@ use crate::node_performance::provider::{NodePerformanceProvider, NodesRoutingSco
 use crate::node_status_api::cache::config_score::calculate_config_score;
 use crate::node_status_api::models::Uptime;
 use crate::support::caching::cache::SharedCache;
+use crate::support::caching::refresher::RefreshRequester;
 use crate::{
     mixnet_contract_cache::cache::MixnetContractCache,
     node_status_api::cache::NodeStatusCacheError, support::caching::CacheNotification,
@@ -18,10 +19,11 @@ use nym_mixnet_contract_common::{NodeId, NymNodeDetails};
 use nym_task::ShutdownToken;
 use nym_topology::CachedEpochRewardedSet;
 use std::collections::HashMap;
+use std::path::PathBuf;
 use std::time::Duration;
 use tokio::sync::watch;
 use tokio::time;
-use tracing::{info, trace, warn};
+use tracing::{error, info, trace, warn};
 
 // Long running task responsible for keeping the node status cache up-to-date.
 pub struct NodeStatusCacheRefresher {
@@ -32,13 +34,27 @@ pub struct NodeStatusCacheRefresher {
     // Sources for when refreshing data
     mixnet_contract_cache: MixnetContractCache,
     described_cache: SharedCache<DescribedNodes>,
+
+    /// channel notifying us when mixnet cache has been refreshed,
+    /// so that this cache could also be recreated
     mixnet_contract_cache_listener: watch::Receiver<CacheNotification>,
+
+    /// channel notifying us when the describe cache has been refreshed,
+    /// so that this cache could also be recreated
     describe_cache_listener: watch::Receiver<CacheNotification>,
+
+    /// channel explicitly requesting cache refresh. it does not follow the usual rate limiting
+    refresh_requester: RefreshRequester,
+
+    /// Path to an on-disk location where the contents of the retrieved items should be written
+    /// upon refresh
+    on_disk_file: PathBuf,
 
     performance_provider: Box<dyn NodePerformanceProvider + Send + Sync>,
 }
 
 impl NodeStatusCacheRefresher {
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         cache: NodeStatusCache,
         fallback_caching_interval: Duration,
@@ -47,6 +63,7 @@ impl NodeStatusCacheRefresher {
         contract_cache_listener: watch::Receiver<CacheNotification>,
         describe_cache_listener: watch::Receiver<CacheNotification>,
         performance_provider: Box<dyn NodePerformanceProvider + Send + Sync>,
+        on_disk_file: PathBuf,
     ) -> Self {
         Self {
             cache,
@@ -55,6 +72,8 @@ impl NodeStatusCacheRefresher {
             described_cache,
             mixnet_contract_cache_listener: contract_cache_listener,
             describe_cache_listener,
+            refresh_requester: Default::default(),
+            on_disk_file,
             performance_provider,
         }
     }
@@ -89,6 +108,23 @@ impl NodeStatusCacheRefresher {
                         }
                     }
                 }
+                // note: `Notify` is not cancellation safe, HOWEVER, there's only one listener,
+                // so it doesn't matter if we lose our queue position
+                _ = self.refresh_requester.notified() => {
+                     tokio::select! {
+                        // perform full refresh regardless of the rates
+                        _ = self.refresh() => {
+                            last_update = OffsetDateTime::now_utc();
+                            fallback_interval.reset();
+                        },
+                        _ = shutdown_token.cancelled() => {
+                            trace!("NodeStatusCacheRefresher: Received shutdown");
+                            break;
+                        }
+                    }
+                }
+
+
                 // ... however, if we don't receive any notifications we fall back to periodic
                 // refreshes
                 _ = fallback_interval.tick() => {
@@ -219,6 +255,15 @@ impl NodeStatusCacheRefresher {
 
         // Update the cache
         self.cache.update(node_annotations).await;
+
+        // attempt to update on-disk cache
+        let Ok(new_cached) = self.cache.cache().await else {
+            error!("the node status cache is still not initialised!");
+            return Ok(());
+        };
+        // error reporting is handled by the serialise function itself
+        let _ = new_cached.try_serialise_to_file(&self.on_disk_file);
+
         Ok(())
     }
 }

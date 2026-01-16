@@ -3,10 +3,11 @@
 
 use nym_api_requests::models::{DescribedNodeType, NymNodeData, NymNodeDescription};
 use nym_mixnet_contract_common::NodeId;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::net::IpAddr;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DescribedNodes {
     pub(crate) nodes: HashMap<NodeId, NymNodeDescription>,
     pub(crate) addresses_cache: HashMap<IpAddr, NodeId>,

@@ -438,7 +438,7 @@ mod tests {
             &malformed_request,
             None,
             responder_ed25519_keypair.private_key(),
-            &responder_x25519.private_key(),
+            responder_x25519.private_key(),
             &responder_kem_key,
         );
 
@@ -472,7 +472,7 @@ mod tests {
         let (session_secret, context, _request_data) = create_request(
             ciphersuite,
             initiator_ed25519_keypair.private_key(),
-            &responder_x25519.public_key(),
+            responder_x25519.public_key(),
         )
         .unwrap();
 

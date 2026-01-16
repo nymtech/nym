@@ -194,7 +194,7 @@ mod test {
         let responder_x25519_keypair = generate_keypair_x25519(&mut rng);
 
         let (session_secret_key, ephemeral_public_key) =
-            KKTSessionSecret::new(&mut rng, &responder_x25519_keypair.public_key());
+            KKTSessionSecret::new(&mut rng, responder_x25519_keypair.public_key());
 
         let shared_secret = KKTSessionSecret::try_derive(
             responder_x25519_keypair.private_key(),

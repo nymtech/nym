@@ -23,6 +23,15 @@ pub enum NymPerformanceContractError {
     #[error("{address} is not an authorised network monitor")]
     NotAuthorised { address: Addr },
 
+    #[error("{kind} not a valid measurement kind")]
+    UnsupportedMeasurementKind { kind: String },
+
+    #[error("Measurement {kind} already defined")]
+    MeasurementAlreadyDefined { kind: String },
+
+    #[error("Invalid input: {0}")]
+    InvalidInput(String),
+
     #[error(
         "attempted to submit performance data for epoch {epoch_id} and node {node_id} whilst last submitted was {last_epoch_id} for node {last_node_id}"
     )]

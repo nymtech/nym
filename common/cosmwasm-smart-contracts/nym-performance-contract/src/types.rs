@@ -1,6 +1,8 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use std::collections::HashMap;
+
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Addr, Env, Timestamp};
 use nym_contracts_common::Percent;
@@ -49,10 +51,12 @@ pub struct RetiredNetworkMonitor {
 }
 
 #[cw_serde]
-#[derive(Copy)]
 pub struct NodePerformance {
     #[serde(rename = "n")]
     pub node_id: NodeId,
+
+    #[serde(rename = "m")]
+    pub measurement_kind: MeasurementKind,
 
     // note: value is rounded to 2 decimal places.
     #[serde(rename = "p")]
@@ -97,25 +101,35 @@ impl NodeResults {
     }
 
     pub fn inner(&self) -> &[Percent] {
-        &self.0
+        &self.0.as_slice()
     }
 }
 
+pub type MeasurementKind = String;
+
+/// maps measurement kind to the value of that measurement for a node
+/// (present only if measured)
 #[cw_serde]
 pub struct NodePerformanceResponse {
-    pub performance: Option<Percent>,
+    pub performance: HashMap<MeasurementKind, Percent>,
 }
 
 #[cw_serde]
-pub struct NodeMeasurementsResponse {
+pub struct NodeMeasurementsPerKindResponse {
     pub measurements: Option<NodeResults>,
 }
 
 #[cw_serde]
-#[derive(Copy)]
+pub struct AllNodeMeasurementsResponse {
+    // Option is used because if a measurement has been defined, that doesn't
+    // mean the node had actually been measured at the time of the query
+    pub measurements: HashMap<MeasurementKind, Option<NodeResults>>,
+}
+
+#[cw_serde]
 pub struct EpochNodePerformance {
     pub epoch: EpochId,
-    pub performance: Option<Percent>,
+    pub performance: HashMap<MeasurementKind, Percent>,
 }
 
 #[cw_serde]
@@ -133,24 +147,23 @@ pub struct EpochPerformancePagedResponse {
 }
 
 #[cw_serde]
-pub struct NodeMeasurement {
+pub struct NodeMeasurements {
     pub node_id: NodeId,
-    pub measurements: NodeResults,
+    pub measurements_per_kind: HashMap<String, NodeResults>,
 }
 
 #[cw_serde]
 pub struct EpochMeasurementsPagedResponse {
     pub epoch_id: EpochId,
-    pub measurements: Vec<NodeMeasurement>,
+    pub measurements: Vec<NodeMeasurements>,
     pub start_next_after: Option<NodeId>,
 }
 
 #[cw_serde]
-#[derive(Copy)]
 pub struct HistoricalPerformance {
     pub epoch_id: EpochId,
     pub node_id: NodeId,
-    pub performance: Percent,
+    pub performance: HashMap<MeasurementKind, Percent>,
 }
 
 #[cw_serde]
@@ -187,11 +200,14 @@ pub struct RemoveEpochMeasurementsResponse {
     pub additional_entries_to_remove_remaining: bool,
 }
 
+/// return details about submissions: whether they were accepted, or why they
+/// were rejected
 #[cw_serde]
 #[derive(Default)]
 pub struct BatchSubmissionResult {
     pub accepted_scores: u64,
     pub non_existent_nodes: Vec<NodeId>,
+    pub non_existent_measurement_kind: Vec<String>,
 }
 
 #[cfg(test)]

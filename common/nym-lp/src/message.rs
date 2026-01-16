@@ -1,7 +1,6 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::serialisation::{BincodeOptions, lp_bincode_serializer};
 use crate::{BOOTSTRAP_RECEIVER_IDX, LpError};
 use bytes::{BufMut, BytesMut};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
@@ -23,7 +22,12 @@ pub struct ClientHelloData {
 }
 
 impl ClientHelloData {
+    // 4 bytes for receiver index + 32 bytes for client lp key, 32 bytes for client ed25519 key + 32 bytes for salt
     pub const LEN: usize = 100;
+
+    fn len(&self) -> usize {
+        Self::LEN
+    }
 
     fn generate_receiver_index() -> u32 {
         loop {
@@ -74,14 +78,13 @@ impl ClientHelloData {
         u64::from_le_bytes(timestamp_bytes)
     }
 
-    pub fn encode(&self) -> Vec<u8> {
-        let mut out = Vec::with_capacity(Self::LEN);
-        out.put_u32_le(self.receiver_index);
-        out.put_slice(&self.client_lp_public_key);
-        out.put_slice(&self.client_ed25519_public_key);
-        out.put_slice(&self.salt);
-        out
+    pub fn encode(&self, dst: &mut BytesMut) {
+        dst.put_u32_le(self.receiver_index);
+        dst.put_slice(&self.client_lp_public_key);
+        dst.put_slice(&self.client_ed25519_public_key);
+        dst.put_slice(&self.salt);
     }
+
     pub fn decode(b: &[u8]) -> Result<Self, LpError> {
         if b.len() != Self::LEN {
             return Err(LpError::DeserializationError(format!(
@@ -141,23 +144,80 @@ impl MessageType {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HandshakeData(pub Vec<u8>);
 
+impl HandshakeData {
+    fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    fn encode(&self, dst: &mut BytesMut) {
+        dst.put_slice(&self.0);
+    }
+
+    fn decode(bytes: &[u8]) -> Result<Self, LpError> {
+        Ok(HandshakeData(bytes.to_vec()))
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EncryptedDataPayload(pub Vec<u8>);
+
+impl EncryptedDataPayload {
+    fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    fn encode(&self, dst: &mut BytesMut) {
+        dst.put_slice(&self.0);
+    }
+
+    fn decode(bytes: &[u8]) -> Result<Self, LpError> {
+        Ok(EncryptedDataPayload(bytes.to_vec()))
+    }
+}
 
 /// KKT request frame data (serialized KKTFrame bytes)
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct KKTRequestData(pub Vec<u8>);
 
+impl KKTRequestData {
+    fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    fn encode(&self, dst: &mut BytesMut) {
+        dst.put_slice(&self.0);
+    }
+
+    fn decode(bytes: &[u8]) -> Result<Self, LpError> {
+        Ok(KKTRequestData(bytes.to_vec()))
+    }
+}
+
 /// KKT response frame data (serialized KKTFrame bytes)
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct KKTResponseData(pub Vec<u8>);
 
+impl KKTResponseData {
+    fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    fn encode(&self, dst: &mut BytesMut) {
+        dst.put_slice(&self.0);
+    }
+
+    fn decode(bytes: &[u8]) -> Result<Self, LpError> {
+        Ok(KKTResponseData(bytes.to_vec()))
+    }
+}
+
 /// Packet forwarding request with embedded inner LP packet
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct ForwardPacketData {
     /// Target gateway's Ed25519 identity (32 bytes)
     pub target_gateway_identity: [u8; 32],
 
+    // TODO: replace it with `SocketAddr`
     /// Target gateway's LP address (IP:port string)
     pub target_lp_address: String,
 
@@ -166,25 +226,155 @@ pub struct ForwardPacketData {
     pub inner_packet_bytes: Vec<u8>,
 }
 
+impl ForwardPacketData {
+    fn len(&self) -> usize {
+        // 32 bytes target gateway identity
+        // +
+        // 4 bytes length of target lp address
+        // +
+        // target_lp_address.len()
+        // +
+        // 4 bytes of length of inner packet bytes
+        // +
+        // inner_packet_bytes.len()
+        32 + 4 + self.target_lp_address.len() + 4 + self.inner_packet_bytes.len()
+    }
+
+    fn encode(&self, dst: &mut BytesMut) {
+        dst.put_slice(&self.target_gateway_identity);
+        dst.put_u16_le(self.target_lp_address.len() as u16);
+        dst.put_slice(self.target_lp_address.as_bytes());
+        dst.put_u32_le(self.inner_packet_bytes.len() as u32);
+        dst.put_slice(&self.inner_packet_bytes);
+    }
+
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let mut buf = BytesMut::new();
+        self.encode(&mut buf);
+        buf.into()
+    }
+
+    pub fn decode(bytes: &[u8]) -> Result<Self, LpError> {
+        // smallest possible packet with empty address and empty data
+        if bytes.len() < 38 {
+            return Err(LpError::DeserializationError(format!(
+                "Too few bytes to deserialise ForwardPacketData[1]. got {}",
+                bytes.len()
+            )));
+        }
+        // SAFETY: we ensured we have sufficient data
+        #[allow(clippy::unwrap_used)]
+        let target_gateway_identity = bytes[0..32].try_into().unwrap();
+        let target_lp_address_len = u16::from_le_bytes([bytes[32], bytes[33]]);
+
+        // smallest possible packet with empty data
+        if bytes[34..].len() < 4 + target_lp_address_len as usize {
+            return Err(LpError::DeserializationError(format!(
+                "Too few bytes to deserialise ForwardPacketData[2]. got {}",
+                bytes.len()
+            )));
+        }
+
+        let target_lp_address =
+            String::from_utf8_lossy(&bytes[34..34 + target_lp_address_len as usize]).to_string();
+        let inner_packet_bytes_len = u32::from_le_bytes([
+            bytes[34 + target_lp_address_len as usize],
+            bytes[34 + target_lp_address_len as usize + 1],
+            bytes[34 + target_lp_address_len as usize + 2],
+            bytes[34 + target_lp_address_len as usize + 3],
+        ]);
+        if bytes[34 + target_lp_address_len as usize + 4..].len() != inner_packet_bytes_len as usize
+        {
+            return Err(LpError::DeserializationError(format!(
+                "Expected {inner_packet_bytes_len} bytes to deserialise inner packet bytes of ForwardPacketData. got {}",
+                bytes[34 + target_lp_address_len as usize + 4..].len()
+            )));
+        }
+        let inner_packet_bytes = bytes[34 + target_lp_address_len as usize + 4..].to_vec();
+
+        Ok(ForwardPacketData {
+            target_gateway_identity,
+            target_lp_address,
+            inner_packet_bytes,
+        })
+    }
+}
+
 /// Subsession KK1 message - first message of Noise KK handshake
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SubsessionKK1Data {
     /// Noise KK first message payload (ephemeral key + encrypted static)
     pub payload: Vec<u8>,
 }
 
+impl SubsessionKK1Data {
+    fn len(&self) -> usize {
+        self.payload.len()
+    }
+
+    fn encode(&self, dst: &mut BytesMut) {
+        dst.put_slice(&self.payload);
+    }
+
+    fn decode(bytes: &[u8]) -> Result<Self, LpError> {
+        Ok(SubsessionKK1Data {
+            payload: bytes.to_vec(),
+        })
+    }
+}
+
 /// Subsession KK2 message - second message of Noise KK handshake
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SubsessionKK2Data {
     /// Noise KK second message payload (ephemeral key + encrypted response)
     pub payload: Vec<u8>,
 }
 
+impl SubsessionKK2Data {
+    fn len(&self) -> usize {
+        self.payload.len()
+    }
+
+    fn encode(&self, dst: &mut BytesMut) {
+        dst.put_slice(&self.payload);
+    }
+
+    fn decode(bytes: &[u8]) -> Result<Self, LpError> {
+        Ok(SubsessionKK2Data {
+            payload: bytes.to_vec(),
+        })
+    }
+}
+
 /// Subsession ready confirmation with new session index
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SubsessionReadyData {
     /// New subsession's receiver index for routing
     pub receiver_index: u32,
+}
+
+impl SubsessionReadyData {
+    pub const LEN: usize = 4;
+
+    fn len(&self) -> usize {
+        Self::LEN
+    }
+
+    fn encode(&self, dst: &mut BytesMut) {
+        dst.put_u32_le(self.receiver_index);
+    }
+
+    fn decode(bytes: &[u8]) -> Result<Self, LpError> {
+        if bytes.len() != 4 {
+            return Err(LpError::DeserializationError(format!(
+                "Expected 4 bytes to deserialise SubsessionReadyData. got {}",
+                bytes.len()
+            )));
+        }
+        Ok(SubsessionReadyData {
+            receiver_index: u32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]),
+        })
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -275,23 +465,18 @@ impl LpMessage {
     pub fn len(&self) -> usize {
         match self {
             LpMessage::Busy => 0,
-            LpMessage::Handshake(payload) => payload.0.len(),
-            LpMessage::EncryptedData(payload) => payload.0.len(),
-            // 4 bytes receiver_index + 32 bytes x25519 key + 32 bytes ed25519 key + 32 bytes salt
-            LpMessage::ClientHello(_) => ClientHelloData::LEN,
-            LpMessage::KKTRequest(payload) => payload.0.len(),
-            LpMessage::KKTResponse(payload) => payload.0.len(),
-            LpMessage::ForwardPacket(data) => {
-                32 + data.target_lp_address.len() + data.inner_packet_bytes.len() + 10
-            }
+            LpMessage::Handshake(payload) => payload.len(),
+            LpMessage::EncryptedData(payload) => payload.len(),
+            LpMessage::ClientHello(payload) => payload.len(),
+            LpMessage::KKTRequest(payload) => payload.len(),
+            LpMessage::KKTResponse(payload) => payload.len(),
+            LpMessage::ForwardPacket(payload) => payload.len(),
             LpMessage::Collision => 0,
             LpMessage::Ack => 0,
             LpMessage::SubsessionRequest => 0,
-            // Variable length: bincode overhead (~8 bytes for Vec length) + payload
-            LpMessage::SubsessionKK1(data) => 8 + data.payload.len(),
-            LpMessage::SubsessionKK2(data) => 8 + data.payload.len(),
-            // 4 bytes u32 + bincode overhead (~4 bytes)
-            LpMessage::SubsessionReady(_) => 8,
+            LpMessage::SubsessionKK1(payload) => payload.len(),
+            LpMessage::SubsessionKK2(payload) => payload.len(),
+            LpMessage::SubsessionReady(payload) => payload.len(),
             LpMessage::SubsessionAbort => 0,
         }
     }
@@ -318,50 +503,89 @@ impl LpMessage {
     pub fn encode_content(&self, dst: &mut BytesMut) {
         match self {
             LpMessage::Busy => { /* No content */ }
-            LpMessage::Handshake(payload) => {
-                dst.put_slice(&payload.0);
-            }
-            LpMessage::EncryptedData(payload) => {
-                dst.put_slice(&payload.0);
-            }
-            LpMessage::ClientHello(data) => {
-                dst.put_slice(&data.encode());
-            }
-            LpMessage::KKTRequest(payload) => {
-                dst.put_slice(&payload.0);
-            }
-            LpMessage::KKTResponse(payload) => {
-                dst.put_slice(&payload.0);
-            }
-            LpMessage::ForwardPacket(data) => {
-                let serialized = lp_bincode_serializer()
-                    .serialize(data)
-                    .expect("Failed to serialize ForwardPacketData");
-                dst.put_slice(&serialized);
-            }
+            LpMessage::Handshake(payload) => payload.encode(dst),
+            LpMessage::EncryptedData(payload) => payload.encode(dst),
+            LpMessage::ClientHello(data) => data.encode(dst),
+            LpMessage::KKTRequest(payload) => payload.encode(dst),
+            LpMessage::KKTResponse(payload) => payload.encode(dst),
+            LpMessage::ForwardPacket(data) => data.encode(dst),
             LpMessage::Collision => { /* No content */ }
             LpMessage::Ack => { /* No content */ }
             LpMessage::SubsessionRequest => { /* No content - signal only */ }
-            LpMessage::SubsessionKK1(data) => {
-                let serialized = lp_bincode_serializer()
-                    .serialize(data)
-                    .expect("Failed to serialize SubsessionKK1Data");
-                dst.put_slice(&serialized);
-            }
-            LpMessage::SubsessionKK2(data) => {
-                let serialized = lp_bincode_serializer()
-                    .serialize(data)
-                    .expect("Failed to serialize SubsessionKK2Data");
-                dst.put_slice(&serialized);
-            }
-            LpMessage::SubsessionReady(data) => {
-                let serialized = lp_bincode_serializer()
-                    .serialize(data)
-                    .expect("Failed to serialize SubsessionReadyData");
-                dst.put_slice(&serialized);
-            }
+            LpMessage::SubsessionKK1(data) => data.encode(dst),
+            LpMessage::SubsessionKK2(data) => data.encode(dst),
+            LpMessage::SubsessionReady(data) => data.encode(dst),
             LpMessage::SubsessionAbort => { /* No content - signal only */ }
         }
+    }
+
+    /// Parse message from its type and content bytes.
+    ///
+    /// Used when decrypting outer-encrypted packets where the message type
+    /// was encrypted along with the content.
+    pub fn decode_content(content: &[u8], message_type: MessageType) -> Result<Self, LpError> {
+        match message_type {
+            MessageType::Busy => {
+                content.ensure_empty()?;
+                Ok(LpMessage::Busy)
+            }
+            MessageType::Handshake => Ok(LpMessage::Handshake(HandshakeData::decode(content)?)),
+            MessageType::EncryptedData => Ok(LpMessage::EncryptedData(
+                EncryptedDataPayload::decode(content)?,
+            )),
+            MessageType::ClientHello => {
+                Ok(LpMessage::ClientHello(ClientHelloData::decode(content)?))
+            }
+            MessageType::KKTRequest => Ok(LpMessage::KKTRequest(KKTRequestData::decode(content)?)),
+            MessageType::KKTResponse => {
+                Ok(LpMessage::KKTResponse(KKTResponseData::decode(content)?))
+            }
+            MessageType::ForwardPacket => Ok(LpMessage::ForwardPacket(ForwardPacketData::decode(
+                content,
+            )?)),
+            MessageType::Collision => {
+                content.ensure_empty()?;
+                Ok(LpMessage::Collision)
+            }
+            MessageType::Ack => {
+                content.ensure_empty()?;
+                Ok(LpMessage::Ack)
+            }
+            MessageType::SubsessionRequest => {
+                content.ensure_empty()?;
+                Ok(LpMessage::SubsessionRequest)
+            }
+            MessageType::SubsessionKK1 => Ok(LpMessage::SubsessionKK1(SubsessionKK1Data::decode(
+                content,
+            )?)),
+            MessageType::SubsessionKK2 => Ok(LpMessage::SubsessionKK2(SubsessionKK2Data::decode(
+                content,
+            )?)),
+            MessageType::SubsessionReady => Ok(LpMessage::SubsessionReady(
+                SubsessionReadyData::decode(content)?,
+            )),
+            MessageType::SubsessionAbort => {
+                content.ensure_empty()?;
+                Ok(LpMessage::SubsessionAbort)
+            }
+        }
+    }
+}
+
+/// Helper trait for improving readability to return error if bytes content is not empty
+trait EnsureEmptyContent {
+    fn ensure_empty(&self) -> Result<(), LpError>;
+}
+
+impl EnsureEmptyContent for &[u8] {
+    fn ensure_empty(&self) -> Result<(), LpError> {
+        if !self.is_empty() {
+            return Err(LpError::InvalidPayloadSize {
+                expected: 0,
+                actual: self.len(),
+            });
+        }
+        Ok(())
     }
 }
 

@@ -5,7 +5,6 @@ use super::messages::LpRegistrationRequest;
 use super::registration::process_registration;
 use super::LpHandlerState;
 use crate::error::GatewayError;
-use nym_lp::serialisation::{lp_bincode_serializer, BincodeOptions};
 use nym_lp::{
     codec::OuterAeadKey, keypair::PublicKey, message::ForwardPacketData, packet::LpHeader,
     LpMessage, LpPacket, OuterHeader,
@@ -344,7 +343,7 @@ where
             // Note: Do NOT set binding on collision - client may retry with new receiver_index
             let collision_packet =
                 LpPacket::new(LpHeader::new(receiver_index, 0), LpMessage::Collision);
-            self.send_lp_packet(&collision_packet, None).await?;
+            self.send_lp_packet(collision_packet, None).await?;
 
             return Ok(());
         }
@@ -404,7 +403,7 @@ where
         // Send Ack to confirm ClientHello received
         // No outer key - this is before PSK derivation
         let ack_packet = LpPacket::new(LpHeader::new(receiver_index, 0), LpMessage::Ack);
-        self.send_lp_packet(&ack_packet, None).await?;
+        self.send_lp_packet(ack_packet, None).await?;
 
         Ok(())
     }
@@ -508,7 +507,7 @@ where
 
         // Send response packet if needed
         if let Some((packet, outer_key)) = should_send {
-            self.send_lp_packet(&packet, outer_key.as_ref()).await?;
+            self.send_lp_packet(packet, outer_key.as_ref()).await?;
             trace!(
                 "Sent handshake response to {} (encrypted={})",
                 self.remote_addr,
@@ -586,7 +585,7 @@ where
                     self.remote_addr, receiver_idx
                 );
                 inc!("lp_subsession_kk2_sent");
-                self.send_lp_packet(&response_packet, outer_key.as_ref())
+                self.send_lp_packet(response_packet, outer_key.as_ref())
                     .await?;
                 Ok(())
             }
@@ -632,9 +631,7 @@ where
         let remote = self.remote_addr;
 
         // Try to deserialize as LpRegistrationRequest first (most common case after handshake)
-        if let Ok(request) =
-            lp_bincode_serializer().deserialize::<LpRegistrationRequest>(&decrypted_bytes)
-        {
+        if let Ok(request) = LpRegistrationRequest::try_deserialise(&decrypted_bytes) {
             debug!(
                 "LP registration request from {remote} (receiver_idx={receiver_idx}): mode={:?}",
                 request.mode
@@ -645,9 +642,7 @@ where
         }
 
         // Try to deserialize as ForwardPacketData (entry gateway forwarding to exit)
-        if let Ok(forward_data) =
-            lp_bincode_serializer().deserialize::<ForwardPacketData>(&decrypted_bytes)
-        {
+        if let Ok(forward_data) = ForwardPacketData::decode(&decrypted_bytes) {
             debug!(
                 "LP forward request from {remote} (receiver_idx={receiver_idx}) to {}",
                 forward_data.target_lp_address
@@ -689,7 +684,7 @@ where
 
         // Send SubsessionReady packet if present (for initiator - gateway is responder, so typically None)
         if let Some(packet) = ready_packet {
-            self.send_lp_packet(&packet, outer_key.as_ref()).await?;
+            self.send_lp_packet(packet, outer_key.as_ref()).await?;
         }
 
         // Create new state machine from completed subsession
@@ -759,7 +754,7 @@ where
                 .map_err(|e| GatewayError::LpProtocolError(format!("Session error: {}", e)))?;
 
             // Serialize and encrypt response
-            let response_bytes = lp_bincode_serializer().serialize(&response).map_err(|e| {
+            let response_bytes = response.serialise().map_err(|e| {
                 GatewayError::LpProtocolError(format!("Failed to serialize response: {}", e))
             })?;
 
@@ -777,7 +772,7 @@ where
         };
 
         // Send response (encrypted with outer AEAD)
-        self.send_lp_packet(&response_packet, outer_key.as_ref())
+        self.send_lp_packet(response_packet, outer_key.as_ref())
             .await?;
 
         if response.success {
@@ -834,7 +829,7 @@ where
         };
 
         // Send encrypted response to client (encrypted with outer AEAD)
-        self.send_lp_packet(&response_packet, outer_key.as_ref())
+        self.send_lp_packet(response_packet, outer_key.as_ref())
             .await?;
 
         debug!(
@@ -1223,7 +1218,7 @@ where
     /// * `outer_key` - Optional outer AEAD key for encryption (None for cleartext, Some for encrypted)
     async fn send_lp_packet(
         &mut self,
-        packet: &LpPacket,
+        packet: LpPacket,
         outer_key: Option<&OuterAeadKey>,
     ) -> Result<(), GatewayError> {
         use bytes::BytesMut;
@@ -1231,7 +1226,7 @@ where
 
         // Serialize the packet (encrypted if outer_key provided)
         let mut packet_buf = BytesMut::new();
-        serialize_lp_packet(packet, &mut packet_buf, outer_key).map_err(|e| {
+        serialize_lp_packet(&packet, &mut packet_buf, outer_key).map_err(|e| {
             GatewayError::LpProtocolError(format!("Failed to serialize packet: {}", e))
         })?;
 
@@ -1597,7 +1592,7 @@ mod tests {
                 },
                 LpMessage::Busy,
             );
-            handler.send_lp_packet(&packet, None).await
+            handler.send_lp_packet(packet, None).await
         });
 
         let mut client_stream = TcpStream::connect(addr).await.unwrap();
@@ -1637,7 +1632,7 @@ mod tests {
                 },
                 LpMessage::Handshake(HandshakeData(handshake_data)),
             );
-            handler.send_lp_packet(&packet, None).await
+            handler.send_lp_packet(packet, None).await
         });
 
         let mut client_stream = TcpStream::connect(addr).await.unwrap();
@@ -1678,7 +1673,7 @@ mod tests {
                 },
                 LpMessage::EncryptedData(EncryptedDataPayload(encrypted_payload)),
             );
-            handler.send_lp_packet(&packet, None).await
+            handler.send_lp_packet(packet, None).await
         });
 
         let mut client_stream = TcpStream::connect(addr).await.unwrap();
@@ -1730,7 +1725,7 @@ mod tests {
                 },
                 LpMessage::ClientHello(hello_data),
             );
-            handler.send_lp_packet(&packet, None).await
+            handler.send_lp_packet(packet, None).await
         });
 
         let mut client_stream = TcpStream::connect(addr).await.unwrap();

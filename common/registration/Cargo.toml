@@ -12,6 +12,7 @@ license.workspace = true
 workspace = true
 
 [dependencies]
+bincode = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 tokio-util.workspace = true
 

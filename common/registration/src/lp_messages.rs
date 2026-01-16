@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 use std::net::IpAddr;
 
 use crate::GatewayData;
+use crate::serialisation::{BincodeError, BincodeOptions, lp_bincode_serializer};
 
 /// Registration request sent by client after LP handshake
 /// Aligned with existing authenticator registration flow
@@ -128,6 +129,16 @@ impl LpRegistrationRequest {
 
         (now as i64 - self.timestamp as i64).abs() <= max_skew_secs as i64
     }
+
+    /// Attempt to serialise this `LpRegistrationRequest` into bytes.
+    pub fn serialise(&self) -> Result<Vec<u8>, BincodeError> {
+        lp_bincode_serializer().serialize(self)
+    }
+
+    /// Attempt to deserialise a `LpRegistrationRequest` from bytes.
+    pub fn try_deserialise(b: &[u8]) -> Result<Self, BincodeError> {
+        lp_bincode_serializer().deserialize(b)
+    }
 }
 
 impl LpRegistrationResponse {
@@ -162,6 +173,16 @@ impl LpRegistrationResponse {
             lp_gateway_data: None,
             allocated_bandwidth: 0,
         }
+    }
+
+    /// Attempt to serialise this `LpRegistrationResponse` into bytes.
+    pub fn serialise(&self) -> Result<Vec<u8>, BincodeError> {
+        lp_bincode_serializer().serialize(self)
+    }
+
+    /// Attempt to deserialise a `LpRegistrationResponse` from bytes.
+    pub fn try_deserialise(b: &[u8]) -> Result<Self, BincodeError> {
+        lp_bincode_serializer().deserialize(b)
     }
 }
 

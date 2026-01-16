@@ -75,7 +75,7 @@ pub const NYM_VPN_APIS: &[ApiUrlConst] = &[
 fn serialize_api_urls(urls: &[ApiUrlConst]) -> String {
     serde_json::to_string(urls)
         .inspect_err(|e| tracing::warn!("failed to serialize nym_api_urls for env: {e}"))
-        .unwrap_or(String::new())
+        .unwrap_or_default()
 }
 
 // I'm making clippy mad on purpose, because that url HAS TO be updated and deployed before merging

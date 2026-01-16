@@ -252,7 +252,8 @@ impl NymNetworkDetails {
             set_optional_var(var_names::COCONUT_DKG_CONTRACT_ADDRESS, self.contracts.coconut_dkg_contract_address);
 
             set_optional_var(var_names::NYM_VPN_API, self.nym_vpn_api_url);
-            set_optional_var(var_names::NYM_APIS, nym_vpn_api_urls);
+            set_optional_var(var_names::NYM_VPN_APIS, nym_vpn_api_urls);
+            set_optional_var(var_names::NYM_APIS, nym_api_urls);
 
         }
     }

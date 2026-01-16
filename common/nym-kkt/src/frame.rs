@@ -116,7 +116,7 @@ impl KKTFrame {
         // decode body
         if context.body_len() > 0 {
             let body_bytes = &bytes[KKT_CONTEXT_LEN..KKT_CONTEXT_LEN + context.body_len()];
-            body.extend_from_slice(&body_bytes);
+            body.extend_from_slice(body_bytes);
         }
 
         let session_bytes = &bytes[KKT_CONTEXT_LEN + context.body_len()

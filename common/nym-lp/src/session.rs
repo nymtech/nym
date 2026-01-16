@@ -642,7 +642,7 @@ impl LpSession {
             None => {
                 // Signature-only mode: extract key from response and compute its hash
                 // This effectively bypasses hash validation while keeping signature validation
-                let (frame, _) = decrypt_kkt_response_frame(&session_secret, &response_bytes)
+                let (frame, _) = decrypt_kkt_response_frame(&session_secret, response_bytes)
                     .map_err(|e| {
                         LpError::Internal(format!("Failed to decrypt KKT response: {:?}", e))
                     })?;
@@ -702,7 +702,7 @@ impl LpSession {
         // Handle request and create signed response
         let response_bytes = handle_kem_request(
             &mut rng,
-            &request_bytes,
+            request_bytes,
             Some(&self.remote_ed25519_public), // Verify initiator signature
             &self.local_ed25519_private,       // Sign response
             &self.local_x25519_private,

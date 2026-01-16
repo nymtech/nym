@@ -95,7 +95,7 @@ pub fn create_request(
     // Note: Uses rand 0.9's thread_rng() to match nym-kkt's rand version
     let mut rng = rand09::rng();
     let (session_secret, context, request_bytes) =
-        request_kem_key(&mut rng, ciphersuite, signing_key, &responder_dh_public_key)
+        request_kem_key(&mut rng, ciphersuite, signing_key, responder_dh_public_key)
             .map_err(|e| LpError::KKTError(e.to_string()))?;
 
     Ok((session_secret, context, KKTRequestData(request_bytes)))

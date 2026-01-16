@@ -6,16 +6,18 @@
 // #![warn(clippy::expect_used)]
 // #![warn(clippy::unwrap_used)]
 
-use defguard_wireguard_rs::{WGApi, WireguardInterfaceApi, host::Peer, key::Key, net::IpAddrMask};
+use defguard_wireguard_rs::{
+    WGApi, WireguardInterfaceApi, error::WireguardInterfaceError, host::Peer, key::Key,
+    net::IpAddrMask,
+};
 use nym_crypto::asymmetric::x25519::KeyPair;
+use std::net::IpAddr;
 use std::sync::Arc;
 use tokio::sync::mpsc::{self, Receiver, Sender};
 use tracing::error;
 
 #[cfg(target_os = "linux")]
 use nym_ip_packet_requests::IpPair;
-#[cfg(target_os = "linux")]
-use std::net::IpAddr;
 
 #[cfg(target_os = "linux")]
 use nym_network_defaults::constants::WG_TUN_BASE_NAME;
@@ -33,13 +35,104 @@ pub use peer_controller::{PeerControlRequest, PeerRegistrationData};
 
 pub const CONTROL_CHANNEL_SIZE: usize = 256;
 
+#[derive(Debug, thiserror::Error)]
+pub enum WgApiWrapperError {
+    #[error("WireGuard kernel implementation is not available on this platform")]
+    KernelUnavailable,
+
+    #[error("WireGuard userspace implementation is not available on this platform")]
+    UserspaceUnavailable,
+
+    #[error("WireGuard interface error: {0}")]
+    Interface(#[from] WireguardInterfaceError),
+}
+
 pub struct WgApiWrapper {
-    inner: WGApi,
+    inner: Box<dyn WireguardInterfaceApi + Sync + Send>,
+}
+
+impl WgApiWrapper {
+    /// Create new instance of `WgApiWrapper` choosing internal implementation based on `use_userspace` flag and platform availability.
+    ///
+    /// Falls back to userspace implementation when kernel implementation is requested but not available.
+    pub fn new(ifname: &str, use_userspace: bool) -> Result<Self, WgApiWrapperError> {
+        if use_userspace {
+            Self::userspace(ifname)
+        } else {
+            Self::kernel(ifname).or_else(|err| {
+                if matches!(err, WgApiWrapperError::KernelUnavailable) {
+                    Self::userspace(ifname)
+                } else {
+                    Err(err)
+                }
+            })
+        }
+    }
+
+    /// Create userspace implementation
+    fn userspace(_ifname: &str) -> Result<Self, WgApiWrapperError> {
+        #[cfg(any(
+            target_os = "linux",
+            target_os = "macos",
+            target_os = "freebsd",
+            target_os = "netbsd"
+        ))]
+        {
+            let api = WGApi::<defguard_wireguard_rs::Userspace>::new(_ifname)?;
+            Ok(Self {
+                inner: Box::new(api),
+            })
+        }
+
+        #[cfg(not(any(
+            target_os = "linux",
+            target_os = "macos",
+            target_os = "freebsd",
+            target_os = "netbsd"
+        )))]
+        {
+            Err(WgApiWrapperError::UserspaceUnavailable)
+        }
+    }
+
+    /// Create kernel implementation if available.
+    fn kernel(_ifname: &str) -> Result<Self, WgApiWrapperError> {
+        #[cfg(any(
+            target_os = "linux",
+            target_os = "windows",
+            target_os = "freebsd",
+            target_os = "netbsd"
+        ))]
+        {
+            let api = WGApi::<defguard_wireguard_rs::Kernel>::new(_ifname)?;
+            Ok(Self {
+                inner: Box::new(api),
+            })
+        }
+
+        #[cfg(not(any(
+            target_os = "linux",
+            target_os = "windows",
+            target_os = "freebsd",
+            target_os = "netbsd"
+        )))]
+        {
+            Err(WgApiWrapperError::KernelUnavailable)
+        }
+    }
+}
+
+impl Drop for WgApiWrapper {
+    fn drop(&mut self) {
+        if let Err(e) = self.inner.remove_interface() {
+            error!("Could not remove the wireguard interface: {e:?}");
+        }
+    }
 }
 
 impl WireguardInterfaceApi for WgApiWrapper {
     fn create_interface(
-        &self,
+        &mut self,
     ) -> Result<(), defguard_wireguard_rs::error::WireguardInterfaceError> {
         self.inner.create_interface()
     }
@@ -58,7 +151,6 @@ impl WireguardInterfaceApi for WgApiWrapper {
         self.inner.configure_peer_routing(peers)
     }
 
-    #[cfg(not(target_os = "windows"))]
     fn configure_interface(
         &self,
         config: &defguard_wireguard_rs::InterfaceConfiguration,
@@ -66,17 +158,16 @@ impl WireguardInterfaceApi for WgApiWrapper {
         self.inner.configure_interface(config)
     }
 
-    #[cfg(target_os = "windows")]
-    fn configure_interface(
-        &self,
-        config: &defguard_wireguard_rs::InterfaceConfiguration,
-        dns: &[std::net::IpAddr],
-    ) -> Result<(), defguard_wireguard_rs::error::WireguardInterfaceError> {
-        self.inner.configure_interface(config, dns)
-    }
-
+    #[cfg(not(windows))]
     fn remove_interface(
         &self,
+    ) -> Result<(), defguard_wireguard_rs::error::WireguardInterfaceError> {
+        self.inner.remove_interface()
+    }
+
+    #[cfg(windows)]
+    fn remove_interface(
+        &mut self,
     ) -> Result<(), defguard_wireguard_rs::error::WireguardInterfaceError> {
         self.inner.remove_interface()
     }
@@ -106,24 +197,10 @@ impl WireguardInterfaceApi for WgApiWrapper {
 
     fn configure_dns(
         &self,
-        dns: &[std::net::IpAddr],
+        dns: &[IpAddr],
+        search_domains: &[&str],
     ) -> Result<(), defguard_wireguard_rs::error::WireguardInterfaceError> {
-        self.inner.configure_dns(dns)
-    }
-}
-
-impl WgApiWrapper {
-    pub fn new(wg_api: WGApi) -> Self {
-        WgApiWrapper { inner: wg_api }
-    }
-}
-
-impl Drop for WgApiWrapper {
-    fn drop(&mut self) {
-        if let Err(e) = defguard_wireguard_rs::WireguardInterfaceApi::remove_interface(&self.inner)
-        {
-            error!("Could not remove the wireguard interface: {e:?}");
-        }
+        self.inner.configure_dns(dns, search_domains)
     }
 }
 
@@ -181,7 +258,7 @@ pub async fn start_wireguard(
     use_userspace: bool,
 ) -> Result<std::sync::Arc<WgApiWrapper>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     use base64::{Engine, prelude::BASE64_STANDARD};
-    use defguard_wireguard_rs::{InterfaceConfiguration, WireguardInterfaceApi};
+    use defguard_wireguard_rs::InterfaceConfiguration;
     use ip_network::IpNetwork;
     use peer_controller::PeerController;
     use std::collections::HashMap;
@@ -193,7 +270,7 @@ pub async fn start_wireguard(
         "Initializing WireGuard interface '{}' with use_userspace={}",
         ifname, use_userspace
     );
-    let wg_api = defguard_wireguard_rs::WGApi::new(ifname.clone(), use_userspace)?;
+    let mut wg_api = WgApiWrapper::new(&ifname, use_userspace)?;
     let mut peer_bandwidth_managers = HashMap::with_capacity(peers.len());
 
     for peer in peers.iter() {
@@ -214,14 +291,22 @@ pub async fn start_wireguard(
     let interface_config = InterfaceConfiguration {
         name: ifname.clone(),
         prvkey: BASE64_STANDARD.encode(wireguard_data.inner.keypair().private_key().to_bytes()),
-        address: wireguard_data.inner.config().private_ipv4.to_string(),
-        port: wireguard_data.inner.config().announced_tunnel_port as u32,
+        addresses: vec![IpAddrMask::host(IpAddr::from(
+            wireguard_data.inner.config().private_ipv4,
+        ))],
+        port: wireguard_data.inner.config().announced_tunnel_port,
         peers: peers.clone(), // Clone since we need to use peers later to mark IPs as used
         mtu: None,
     };
     info!(
-        "attempting to configure wireguard interface '{ifname}': address={}, port={}",
-        interface_config.address, interface_config.port
+        "attempting to configure wireguard interface '{ifname}': addresses=[{}], port={}",
+        interface_config
+            .addresses
+            .iter()
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>()
+            .join(", "),
+        interface_config.port
     );
 
     info!("Configuring WireGuard interface...");
@@ -263,7 +348,6 @@ pub async fn start_wireguard(
     wg_api.configure_peer_routing(&[catch_all_peer])?;
 
     let host = wg_api.read_interface_data()?;
-    let wg_api = std::sync::Arc::new(WgApiWrapper::new(wg_api));
 
     // Initialize IP pool from configuration
     info!("Initializing IP pool for WireGuard peer allocation");
@@ -278,13 +362,13 @@ pub async fn start_wireguard(
     for peer in &peers {
         for allowed_ip in &peer.allowed_ips {
             // Extract IPv4 and IPv6 from peer's allowed_ips
-            if let IpAddr::V4(ipv4) = allowed_ip.ip {
+            if let IpAddr::V4(ipv4) = allowed_ip.address {
                 // Find corresponding IPv6
                 if let Some(ipv6_mask) = peer
                     .allowed_ips
                     .iter()
-                    .find(|ip| matches!(ip.ip, IpAddr::V6(_)))
-                    && let IpAddr::V6(ipv6) = ipv6_mask.ip
+                    .find(|ip| matches!(ip.address, IpAddr::V6(_)))
+                    && let IpAddr::V6(ipv6) = ipv6_mask.address
                 {
                     ip_pool.mark_used(IpPair::new(ipv4, ipv6)).await;
                 }
@@ -292,6 +376,7 @@ pub async fn start_wireguard(
         }
     }
 
+    let wg_api = std::sync::Arc::new(wg_api);
     let mut controller = PeerController::new(
         ecash_manager,
         metrics,

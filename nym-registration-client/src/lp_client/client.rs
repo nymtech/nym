@@ -381,10 +381,7 @@ where
         let mut state_machine = LpStateMachine::new(
             receiver_index,
             true, // is_initiator
-            (
-                self.local_ed25519_keypair.private_key(),
-                self.local_ed25519_keypair.public_key(),
-            ),
+            self.local_ed25519_keypair.clone(),
             &self.gateway_ed25519_public_key,
             &salt,
         )?;

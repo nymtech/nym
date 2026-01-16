@@ -16,12 +16,13 @@ use crate::psk::{
 };
 use crate::replay::ReceivingKeyCounterValidator;
 use crate::{LpError, LpMessage, LpPacket};
-use nym_crypto::asymmetric::ed25519;
+use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_kkt::ciphersuite::{DecapsulationKey, EncapsulationKey};
 use nym_kkt::encryption::KKTSessionSecret;
 use nym_kkt::kkt::decrypt_kkt_response_frame;
 use parking_lot::Mutex;
 use snow::Builder;
+use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
@@ -182,17 +183,14 @@ pub struct LpSession {
     psk_injected: AtomicBool,
 
     // PSQ-related keys stored for handshake
-    /// Local Ed25519 private key for PSQ authentication
-    local_ed25519_private: ed25519::PrivateKey,
-
-    /// Local Ed25519 public key for PSQ authentication
-    local_ed25519_public: ed25519::PublicKey,
+    /// Local Ed25519 keys for PSQ authentication
+    local_ed25519: Arc<ed25519::KeyPair>,
 
     /// Remote Ed25519 public key for PSQ authentication
     remote_ed25519_public: ed25519::PublicKey,
 
-    /// Local X25519 private key (Noise static key)
-    local_x25519_private: PrivateKey,
+    /// Local x25519 keys (Noise static key)
+    local_x25519: Arc<x25519::KeyPair>,
 
     /// Remote X25519 public key (Noise static key)
     remote_x25519_public: PublicKey,
@@ -289,12 +287,12 @@ impl LpSession {
             .store(version, std::sync::atomic::Ordering::Release);
     }
 
-    /// Returns the local X25519 public key derived from the private key.
+    /// Returns the local X25519 public key.
     ///
     /// This is used for KKT protocol when the responder needs to send their
     /// KEM public key in the KKT response.
     pub fn local_x25519_public(&self) -> PublicKey {
-        self.local_x25519_private.public_key()
+        *self.local_x25519.public_key()
     }
 
     /// Returns the remote X25519 public key.
@@ -363,7 +361,7 @@ impl LpSession {
     pub fn new(
         id: u32,
         is_initiator: bool,
-        local_ed25519_keypair: (&ed25519::PrivateKey, &ed25519::PublicKey),
+        local_ed25519_keypair: Arc<ed25519::KeyPair>,
         local_x25519_key: &PrivateKey,
         remote_ed25519_key: &ed25519::PublicKey,
         remote_x25519_key: &PublicKey,
@@ -416,18 +414,13 @@ impl LpSession {
             sending_counter: AtomicU64::new(0),
             receiving_counter: Mutex::new(ReceivingKeyCounterValidator::default()),
             psk_injected: AtomicBool::new(false),
-            // Ed25519 keys don't impl Clone, so convert to bytes and reconstruct
-            local_ed25519_private: ed25519::PrivateKey::from_bytes(
-                &local_ed25519_keypair.0.to_bytes(),
-            )
-            .expect("Valid ed25519 private key"),
-            local_ed25519_public: ed25519::PublicKey::from_bytes(
-                &local_ed25519_keypair.1.to_bytes(),
-            )
-            .expect("Valid ed25519 public key"),
-            remote_ed25519_public: ed25519::PublicKey::from_bytes(&remote_ed25519_key.to_bytes())
-                .expect("Valid ed25519 public key"),
-            local_x25519_private: local_x25519_key.clone(),
+            local_ed25519: local_ed25519_keypair.clone(),
+            remote_ed25519_public: *remote_ed25519_key,
+            local_x25519: Arc::new(
+                x25519::PrivateKey::from_bytes(&local_x25519_key.to_bytes())
+                    .expect("Valid x25519 private key")
+                    .into(),
+            ),
             remote_x25519_public: remote_x25519_key.clone(),
             salt: *salt,
             outer_aead_key: Mutex::new(None),
@@ -567,7 +560,7 @@ impl LpSession {
         match request_kem_key(
             &mut rng,
             ciphersuite,
-            &self.local_ed25519_private,
+            self.local_ed25519.private_key(),
             &self.remote_x25519_public,
         ) {
             Ok((session_secret, context, request_bytes)) => {
@@ -704,8 +697,8 @@ impl LpSession {
             &mut rng,
             request_bytes,
             Some(&self.remote_ed25519_public), // Verify initiator signature
-            &self.local_ed25519_private,       // Sign response
-            &self.local_x25519_private,
+            &self.local_ed25519.private_key(), // Sign response
+            &self.local_x25519.private_key(),
             responder_kem_pk,
         )
         .map_err(|e| LpError::Internal(format!("KKT request handling failed: {:?}", e)))?;
@@ -757,11 +750,11 @@ impl LpSession {
             let session_context = self.id.to_le_bytes();
 
             let psq_result = match psq_initiator_create_message(
-                &self.local_x25519_private,
+                &self.local_x25519.private_key(),
                 &self.remote_x25519_public,
                 remote_kem,
-                &self.local_ed25519_private,
-                &self.local_ed25519_public,
+                &self.local_ed25519.private_key(),
+                &self.local_ed25519.public_key(),
                 &self.salt,
                 &session_context,
             ) {
@@ -895,7 +888,7 @@ impl LpSession {
                     let noise_payload = &payload[2 + psq_len..];
 
                     // Convert X25519 local keys to DecapsulationKey/EncapsulationKey (DHKEM)
-                    let local_private_bytes = &self.local_x25519_private.to_bytes();
+                    let local_private_bytes = &self.local_x25519.private_key().to_bytes();
                     let libcrux_private_key = libcrux_kem::PrivateKey::decode(
                         libcrux_kem::Algorithm::X25519,
                         local_private_bytes,
@@ -908,7 +901,7 @@ impl LpSession {
                     })?;
                     let dec_key = DecapsulationKey::X25519(libcrux_private_key);
 
-                    let local_public_key = self.local_x25519_private.public_key();
+                    let local_public_key = self.local_x25519_public();
                     let local_public_bytes = local_public_key.as_bytes();
                     let libcrux_public_key = libcrux_kem::PublicKey::decode(
                         libcrux_kem::Algorithm::X25519,
@@ -926,7 +919,7 @@ impl LpSession {
                     let session_context = self.id.to_le_bytes();
 
                     let psq_result = match psq_responder_process_message(
-                        &self.local_x25519_private,
+                        &self.local_x25519.private_key(),
                         &self.remote_x25519_public,
                         (&dec_key, &enc_key),
                         &self.remote_ed25519_public,
@@ -1185,7 +1178,7 @@ impl LpSession {
         let pattern_name = "Noise_KKpsk0_25519_ChaChaPoly_SHA256";
         let params = pattern_name.parse()?;
 
-        let local_key_bytes = self.local_x25519_private.to_bytes();
+        let local_key_bytes = self.local_x25519.private_key().to_bytes();
         let remote_key_bytes = self.remote_x25519_public.to_bytes();
 
         let builder = Builder::new(params)
@@ -1204,22 +1197,12 @@ impl LpSession {
             noise_state: Mutex::new(NoiseProtocol::new(handshake_state)),
             is_initiator,
             // Copy key material from parent for into_session() conversion
-            local_ed25519_private: ed25519::PrivateKey::from_bytes(
-                &self.local_ed25519_private.to_bytes(),
-            )
-            .expect("Valid Ed25519 private key from parent"),
-            local_ed25519_public: ed25519::PublicKey::from_bytes(
-                &self.local_ed25519_public.to_bytes(),
-            )
-            .expect("Valid Ed25519 public key from parent"),
-            remote_ed25519_public: ed25519::PublicKey::from_bytes(
-                &self.remote_ed25519_public.to_bytes(),
-            )
-            .expect("Valid Ed25519 public key from parent"),
-            local_x25519_private: self.local_x25519_private.clone(),
+            local_ed25519: self.local_ed25519.clone(),
+            remote_ed25519_public: self.remote_ed25519_public,
             remote_x25519_public: self.remote_x25519_public.clone(),
             pq_shared_secret: PqSharedSecret::new(pq_secret),
             subsession_psk,
+            local_x25519: self.local_x25519.clone(),
         })
     }
 }
@@ -1249,14 +1232,15 @@ pub struct SubsessionHandshake {
     is_initiator: bool,
 
     // Key material inherited from parent session for into_session() conversion
-    /// Local Ed25519 private key (for PSQ auth if needed)
-    local_ed25519_private: ed25519::PrivateKey,
-    /// Local Ed25519 public key
-    local_ed25519_public: ed25519::PublicKey,
+    /// Local Ed25519 keys (for PSQ auth if needed)
+    local_ed25519: Arc<ed25519::KeyPair>,
+
+    /// Local x25519 keys (Noise static key)
+    local_x25519: Arc<x25519::KeyPair>,
+
     /// Remote Ed25519 public key
     remote_ed25519_public: ed25519::PublicKey,
-    /// Local X25519 private key (Noise static key)
-    local_x25519_private: PrivateKey,
+
     /// Remote X25519 public key (Noise static key)
     remote_x25519_public: PublicKey,
     /// PQ shared secret inherited from parent (for creating further subsessions)
@@ -1351,10 +1335,9 @@ impl SubsessionHandshake {
             sending_counter: AtomicU64::new(0),
             receiving_counter: Mutex::new(ReceivingKeyCounterValidator::new(0)),
             psk_injected: AtomicBool::new(true), // PSK was in KKpsk0
-            local_ed25519_private: self.local_ed25519_private,
-            local_ed25519_public: self.local_ed25519_public,
+            local_ed25519: self.local_ed25519,
             remote_ed25519_public: self.remote_ed25519_public,
-            local_x25519_private: self.local_x25519_private,
+            local_x25519: self.local_x25519,
             remote_x25519_public: self.remote_x25519_public,
             salt,
             outer_aead_key: Mutex::new(Some(outer_key)),
@@ -1371,18 +1354,20 @@ impl SubsessionHandshake {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::keypair::KeyPair;
     use crate::{replay::ReplayError, sessions_for_tests};
+    use rand::thread_rng;
 
     // Helper function to generate keypairs for tests
-    fn generate_keypair() -> crate::keypair::Keypair {
-        crate::keypair::Keypair::default()
+    fn generate_keypair() -> KeyPair {
+        KeyPair::new(&mut thread_rng())
     }
 
     // Helper function to create a session with real keys for handshake tests
     fn create_handshake_test_session(
         receiver_index: u32,
         is_initiator: bool,
-        local_keys: &crate::keypair::Keypair,
+        local_keys: &KeyPair,
         remote_pub_key: &crate::keypair::PublicKey,
     ) -> LpSession {
         use nym_crypto::asymmetric::ed25519;
@@ -1404,7 +1389,7 @@ mod tests {
         let session = LpSession::new(
             receiver_index,
             is_initiator,
-            (local_ed25519.private_key(), local_ed25519.public_key()),
+            Arc::new(local_ed25519),
             local_keys.private_key(),
             remote_ed25519.public_key(),
             remote_pub_key,
@@ -2186,10 +2171,7 @@ mod tests {
         let initiator_session = LpSession::new(
             receiver_index,
             true,
-            (
-                initiator_ed25519.private_key(),
-                initiator_ed25519.public_key(),
-            ),
+            Arc::new(initiator_ed25519),
             initiator_keys.private_key(),
             wrong_ed25519.public_key(), // Responder expects THIS key
             responder_keys.public_key(),
@@ -2204,10 +2186,7 @@ mod tests {
         let responder_session = LpSession::new(
             receiver_index,
             false,
-            (
-                responder_ed25519.private_key(),
-                responder_ed25519.public_key(),
-            ),
+            Arc::new(responder_ed25519),
             responder_keys.private_key(),
             wrong_ed25519.public_key(), // Expects WRONG key (not initiator's)
             initiator_keys.public_key(),
@@ -2257,10 +2236,7 @@ mod tests {
         let initiator_session = LpSession::new(
             receiver_index,
             true,
-            (
-                initiator_ed25519.private_key(),
-                initiator_ed25519.public_key(),
-            ),
+            Arc::new(initiator_ed25519),
             initiator_keys.private_key(),
             wrong_ed25519_public, // This doesn't matter for initiator
             responder_keys.public_key(),
@@ -2275,10 +2251,7 @@ mod tests {
         let responder_session = LpSession::new(
             receiver_index,
             false,
-            (
-                responder_ed25519.private_key(),
-                responder_ed25519.public_key(),
-            ),
+            Arc::new(responder_ed25519),
             responder_keys.private_key(),
             wrong_ed25519_public, // Responder expects WRONG key
             initiator_keys.public_key(),

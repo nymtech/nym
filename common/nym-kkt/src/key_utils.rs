@@ -1,42 +1,53 @@
-use crate::{
-    ciphersuite::{HashFunction, KEM},
-    error::KKTError,
-};
+use crate::ciphersuite::HashFunction;
 
 use classic_mceliece_rust::keypair_boxed;
-use libcrux_kem::{Algorithm, key_gen};
 
 use libcrux_sha3;
-use nym_crypto::asymmetric::ed25519;
 use rand::{CryptoRng, RngCore};
-pub fn generate_keypair_ed25519<R>(rng: &mut R, index: Option<u32>) -> ed25519::KeyPair
+
+pub fn generate_keypair_ed25519<R>(
+    rng: &mut R,
+    index: Option<u32>,
+) -> nym_crypto::asymmetric::ed25519::KeyPair
 where
     R: RngCore + CryptoRng,
 {
     let mut secret_initiator: [u8; 32] = [0u8; 32];
     rng.fill_bytes(&mut secret_initiator);
-    ed25519::KeyPair::from_secret(secret_initiator, index.unwrap_or(0))
+    nym_crypto::asymmetric::ed25519::KeyPair::from_secret(secret_initiator, index.unwrap_or(0))
 }
 
-pub fn generate_keypair_x25519() -> (nym_sphinx::PrivateKey, nym_sphinx::PublicKey) {
-    let private_key = nym_sphinx::PrivateKey::random();
-    let public_key = nym_sphinx::PublicKey::from(&private_key);
-    (private_key, public_key)
+pub fn generate_keypair_x25519<R>(rng: &mut R) -> nym_crypto::asymmetric::x25519::KeyPair
+where
+    R: RngCore + CryptoRng,
+{
+    let mut secret_initiator: [u8; 32] = [0u8; 32];
+    rng.fill_bytes(&mut secret_initiator);
+
+    let private_key = nym_crypto::asymmetric::x25519::PrivateKey::from_secret(secret_initiator);
+    private_key.into()
 }
 
 // (decapsulation_key, encapsulation_key)
 pub fn generate_keypair_libcrux<R>(
     rng: &mut R,
-    kem: KEM,
-) -> Result<(libcrux_kem::PrivateKey, libcrux_kem::PublicKey), KKTError>
+    kem: crate::ciphersuite::KEM,
+) -> Result<(libcrux_kem::PrivateKey, libcrux_kem::PublicKey), crate::error::KKTError>
 where
     R: RngCore + CryptoRng,
 {
     match kem {
-        KEM::MlKem768 => Ok(key_gen(Algorithm::MlKem768, rng)?),
-        KEM::XWing => Ok(key_gen(Algorithm::XWingKemDraft06, rng)?),
-        KEM::X25519 => Ok(key_gen(Algorithm::X25519, rng)?),
-        _ => Err(KKTError::KEMError {
+        crate::ciphersuite::KEM::MlKem768 => {
+            Ok(libcrux_kem::key_gen(libcrux_kem::Algorithm::MlKem768, rng)?)
+        }
+        crate::ciphersuite::KEM::XWing => Ok(libcrux_kem::key_gen(
+            libcrux_kem::Algorithm::XWingKemDraft06,
+            rng,
+        )?),
+        crate::ciphersuite::KEM::X25519 => {
+            Ok(libcrux_kem::key_gen(libcrux_kem::Algorithm::X25519, rng)?)
+        }
+        _ => Err(crate::error::KKTError::KEMError {
             info: "Key Generation Error: Unsupported Libcrux Algorithm",
         }),
     }

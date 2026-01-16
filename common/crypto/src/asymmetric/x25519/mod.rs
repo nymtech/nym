@@ -4,6 +4,7 @@
 use base64::Engine;
 use nym_pemstore::traits::{PemStorableKey, PemStorableKeyPair};
 use std::fmt::{self, Debug, Display, Formatter};
+use std::ops::Deref;
 use std::str::FromStr;
 use thiserror::Error;
 use zeroize::{Zeroize, ZeroizeOnDrop};
@@ -56,6 +57,15 @@ pub struct KeyPair {
     pub(crate) public_key: PublicKey,
 }
 
+impl Debug for KeyPair {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("KeyPair")
+            .field("private_key", &"<redacted>")
+            .field("public_key", &self.public_key.to_base58_string())
+            .finish()
+    }
+}
+
 impl KeyPair {
     #[cfg(feature = "rand")]
     pub fn new<R: RngCore + CryptoRng>(rng: &mut R) -> Self {
@@ -93,6 +103,15 @@ impl From<PrivateKey> for KeyPair {
     }
 }
 
+impl From<(PrivateKey, PublicKey)> for KeyPair {
+    fn from((private_key, public_key): (PrivateKey, PublicKey)) -> Self {
+        KeyPair {
+            private_key,
+            public_key,
+        }
+    }
+}
+
 impl PemStorableKeyPair for KeyPair {
     type PrivatePemKey = PrivateKey;
     type PublicPemKey = PublicKey;
@@ -115,6 +134,13 @@ impl PemStorableKeyPair for KeyPair {
 
 #[derive(PartialEq, Eq, Hash, Copy, Clone)]
 pub struct PublicKey(x25519_dalek::PublicKey);
+
+impl Deref for PublicKey {
+    type Target = x25519_dalek::PublicKey;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
 
 impl Display for PublicKey {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
@@ -171,6 +197,12 @@ impl PublicKey {
 
     pub fn inner(&self) -> x25519_dalek::PublicKey {
         self.0
+    }
+}
+
+impl From<[u8; PUBLIC_KEY_SIZE]> for PublicKey {
+    fn from(bytes: [u8; PUBLIC_KEY_SIZE]) -> Self {
+        PublicKey(x25519_dalek::PublicKey::from(bytes))
     }
 }
 
@@ -294,6 +326,10 @@ impl PrivateKey {
         let mut bytes = [0; 32];
         bytes.copy_from_slice(&b[..PRIVATE_KEY_SIZE]);
         Ok(Self(x25519_dalek::StaticSecret::from(bytes)))
+    }
+
+    pub fn from_secret(secret: [u8; PRIVATE_KEY_SIZE]) -> Self {
+        Self(x25519_dalek::StaticSecret::from(secret))
     }
 
     pub fn to_base58_string(&self) -> String {

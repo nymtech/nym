@@ -191,10 +191,7 @@ impl NestedLpSession {
         let mut state_machine = LpStateMachine::new(
             receiver_index,
             true, // is_initiator
-            (
-                self.client_keypair.private_key(),
-                self.client_keypair.public_key(),
-            ),
+            self.client_keypair.clone(),
             &self.exit_public_key,
             &salt,
         )?;

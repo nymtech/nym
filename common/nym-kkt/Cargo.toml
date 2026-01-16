@@ -13,7 +13,6 @@ num_enum = { workspace = true }
 
 # internal
 nym-crypto = { path = "../crypto", features = ["asymmetric", "serde"] }
-nym-sphinx = { path = "../nymsphinx" }
 
 libcrux-kem = { git = "https://github.com/cryspen/libcrux" }
 libcrux-sha3 = { git = "https://github.com/cryspen/libcrux" }

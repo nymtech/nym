@@ -64,7 +64,7 @@
 
 use crate::LpError;
 use crate::message::{KKTRequestData, KKTResponseData};
-use nym_crypto::asymmetric::ed25519;
+use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_kkt::ciphersuite::{Ciphersuite, EncapsulationKey};
 use nym_kkt::context::KKTContext;
 use nym_kkt::encryption::KKTSessionSecret;
@@ -90,7 +90,7 @@ use nym_kkt::kkt::{handle_kem_request, request_kem_key, validate_kem_response};
 pub fn create_request(
     ciphersuite: Ciphersuite,
     signing_key: &ed25519::PrivateKey,
-    responder_dh_public_key: &nym_sphinx::PublicKey,
+    responder_dh_public_key: &x25519::PublicKey,
 ) -> Result<(KKTSessionSecret, KKTContext, KKTRequestData), LpError> {
     // Note: Uses rand 0.9's thread_rng() to match nym-kkt's rand version
     let mut rng = rand09::rng();
@@ -163,7 +163,7 @@ pub fn handle_request<'a>(
     request_data: &KKTRequestData,
     initiator_vk: Option<&ed25519::PublicKey>,
     responder_signing_key: &ed25519::PrivateKey,
-    responder_dh_private_key: &nym_sphinx::PrivateKey,
+    responder_dh_private_key: &x25519::PrivateKey,
     responder_kem_key: &EncapsulationKey<'a>,
 ) -> Result<KKTResponseData, LpError> {
     let mut rng = rand09::rng();
@@ -199,7 +199,7 @@ mod tests {
         let initiator_ed25519_keypair = generate_keypair_ed25519(&mut rng, Some(0));
         let responder_ed25519_keypair = generate_keypair_ed25519(&mut rng, Some(1));
 
-        let (responder_x25519_sk, responder_x25519_pk) = generate_keypair_x25519();
+        let responder_x25519 = generate_keypair_x25519(&mut rng);
 
         // Generate responder's KEM keypair (X25519 for testing)
         let (_, responder_kem_pk) = generate_keypair_libcrux(&mut rng, KEM::X25519).unwrap();
@@ -225,7 +225,7 @@ mod tests {
         let (session_secret, context, request_data) = create_request(
             ciphersuite,
             initiator_ed25519_keypair.private_key(),
-            &responder_x25519_pk,
+            responder_x25519.public_key(),
         )
         .unwrap();
 
@@ -234,7 +234,7 @@ mod tests {
             &request_data,
             Some(initiator_ed25519_keypair.public_key()),
             responder_ed25519_keypair.private_key(),
-            &responder_x25519_sk,
+            responder_x25519.private_key(),
             &responder_kem_key,
         )
         .unwrap();
@@ -262,7 +262,7 @@ mod tests {
 
     //     let responder_ed25519_keypair = generate_keypair_ed25519(&mut rng, Some(1));
 
-    //     let (responder_x25519_sk, responder_x25519_pk) = generate_keypair_x25519();
+    //             let responder_x25519 = generate_keypair_x25519(&mut rng);
 
     //     let (_, responder_kem_pk) = generate_keypair_libcrux(&mut rng, KEM::X25519).unwrap();
     //     let responder_kem_key = EncapsulationKey::X25519(responder_kem_pk);
@@ -317,7 +317,7 @@ mod tests {
         let initiator_ed25519_keypair = generate_keypair_ed25519(&mut rng, Some(0));
         let responder_ed25519_keypair = generate_keypair_ed25519(&mut rng, Some(1));
 
-        let (responder_x25519_sk, responder_x25519_pk) = generate_keypair_x25519();
+        let responder_x25519 = generate_keypair_x25519(&mut rng);
 
         // Different keypair for wrong signature
         let mut wrong_secret = [0u8; 32];
@@ -338,7 +338,7 @@ mod tests {
         let (_session_secret, _context, request_data) = create_request(
             ciphersuite,
             initiator_ed25519_keypair.private_key(),
-            &responder_x25519_pk,
+            responder_x25519.public_key(),
         )
         .unwrap();
 
@@ -347,7 +347,7 @@ mod tests {
             &request_data,
             Some(wrong_keypair.public_key()), // Wrong key!
             responder_ed25519_keypair.private_key(),
-            &responder_x25519_sk,
+            responder_x25519.private_key(),
             &responder_kem_key,
         );
 
@@ -368,7 +368,7 @@ mod tests {
         let initiator_ed25519_keypair = generate_keypair_ed25519(&mut rng, Some(0));
         let responder_ed25519_keypair = generate_keypair_ed25519(&mut rng, Some(1));
 
-        let (responder_x25519_sk, responder_x25519_pk) = generate_keypair_x25519();
+        let responder_x25519 = generate_keypair_x25519(&mut rng);
 
         let (_, responder_kem_pk) = generate_keypair_libcrux(&mut rng, KEM::X25519).unwrap();
         let responder_kem_key = EncapsulationKey::X25519(responder_kem_pk);
@@ -387,7 +387,7 @@ mod tests {
         let (session_secret, context, request_data) = create_request(
             ciphersuite,
             initiator_ed25519_keypair.private_key(),
-            &responder_x25519_pk,
+            responder_x25519.public_key(),
         )
         .unwrap();
 
@@ -395,7 +395,7 @@ mod tests {
             &request_data,
             Some(initiator_ed25519_keypair.public_key()),
             responder_ed25519_keypair.private_key(),
-            &responder_x25519_sk,
+            responder_x25519.private_key(),
             &responder_kem_key,
         )
         .unwrap();
@@ -426,7 +426,7 @@ mod tests {
         rng.fill_bytes(&mut responder_secret);
         let responder_ed25519_keypair = generate_keypair_ed25519(&mut rng, Some(1));
 
-        let (responder_x25519_sk, _responder_x25519_pk) = generate_keypair_x25519();
+        let responder_x25519 = generate_keypair_x25519(&mut rng);
 
         let (_, responder_kem_pk) = generate_keypair_libcrux(&mut rng, KEM::X25519).unwrap();
         let responder_kem_key = EncapsulationKey::X25519(responder_kem_pk);
@@ -438,7 +438,7 @@ mod tests {
             &malformed_request,
             None,
             responder_ed25519_keypair.private_key(),
-            &responder_x25519_sk,
+            &responder_x25519.private_key(),
             &responder_kem_key,
         );
 
@@ -459,7 +459,7 @@ mod tests {
         let initiator_ed25519_keypair = generate_keypair_ed25519(&mut rng, Some(0));
         let responder_ed25519_keypair = generate_keypair_ed25519(&mut rng, Some(1));
 
-        let (_responder_x25519_sk, responder_x25519_pk) = generate_keypair_x25519();
+        let responder_x25519 = generate_keypair_x25519(&mut rng);
 
         let ciphersuite = Ciphersuite::resolve_ciphersuite(
             KEM::X25519,
@@ -472,7 +472,7 @@ mod tests {
         let (session_secret, context, _request_data) = create_request(
             ciphersuite,
             initiator_ed25519_keypair.private_key(),
-            &responder_x25519_pk,
+            &responder_x25519.public_key(),
         )
         .unwrap();
 

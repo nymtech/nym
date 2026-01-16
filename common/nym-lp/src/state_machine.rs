@@ -15,7 +15,7 @@
 
 use crate::{
     LpError,
-    keypair::{Keypair, PrivateKey as LpPrivateKey, PublicKey as LpPublicKey},
+    keypair::KeyPair,
     message::{LpMessage, SubsessionKK1Data, SubsessionKK2Data, SubsessionReadyData},
     noise_protocol::NoiseError,
     packet::LpPacket,
@@ -24,6 +24,7 @@ use crate::{
 use bytes::BytesMut;
 use nym_crypto::asymmetric::ed25519;
 use std::mem;
+use std::sync::Arc;
 use tracing::debug;
 
 /// Represents the possible states of the Lewes Protocol connection.
@@ -199,7 +200,7 @@ impl LpStateMachine {
     pub fn new(
         receiver_index: u32,
         is_initiator: bool,
-        local_ed25519_keypair: (&ed25519::PrivateKey, &ed25519::PublicKey),
+        local_ed25519_keypair: Arc<ed25519::KeyPair>,
         remote_ed25519_key: &ed25519::PublicKey,
         salt: &[u8; 32],
     ) -> Result<Self, LpError> {
@@ -213,23 +214,20 @@ impl LpStateMachine {
         // - PSQ ECDH baseline security (pre-quantum)
 
         // Convert Ed25519 keys to X25519 for Noise protocol
-        let local_x25519_private = local_ed25519_keypair.0.to_x25519();
-        let local_x25519_public = local_ed25519_keypair
-            .1
-            .to_x25519()
-            .map_err(LpError::Ed25519RecoveryError)?;
+        let local_x25519_private = local_ed25519_keypair.private_key().to_x25519();
+        let local_x25519_public = local_x25519_private.public_key();
 
         let remote_x25519_public = remote_ed25519_key
             .to_x25519()
             .map_err(LpError::Ed25519RecoveryError)?;
 
         // Convert nym_crypto X25519 types to nym_lp keypair types
-        let lp_private = LpPrivateKey::from_bytes(local_x25519_private.as_bytes());
-        let lp_public = LpPublicKey::from_bytes(local_x25519_public.as_bytes())?;
-        let lp_remote_public = LpPublicKey::from_bytes(remote_x25519_public.as_bytes())?;
+        let lp_private = local_x25519_private;
+        let lp_public = local_x25519_public;
+        let lp_remote_public = remote_x25519_public;
 
         // Create X25519 keypair for Noise
-        let local_x25519_keypair = Keypair::from_keys(lp_private, lp_public);
+        let local_x25519_keypair = KeyPair::from((lp_private, lp_public));
 
         // Create the session with both Ed25519 (for PSQ auth) and derived X25519 keys (for Noise)
         // receiver_index is client-proposed, passed through directly
@@ -1105,6 +1103,8 @@ mod tests {
         let ed25519_keypair_init = ed25519::KeyPair::from_secret([16u8; 32], 0);
         let ed25519_keypair_resp = ed25519::KeyPair::from_secret([17u8; 32], 1);
 
+        let ed25519_pubkey_init = *ed25519_keypair_init.public_key();
+
         // Test salt
         let salt = [51u8; 32];
 
@@ -1113,10 +1113,7 @@ mod tests {
         let initiator_sm = LpStateMachine::new(
             receiver_index,
             true,
-            (
-                ed25519_keypair_init.private_key(),
-                ed25519_keypair_init.public_key(),
-            ),
+            Arc::new(ed25519_keypair_init),
             ed25519_keypair_resp.public_key(),
             &salt,
         );
@@ -1132,11 +1129,8 @@ mod tests {
         let responder_sm = LpStateMachine::new(
             receiver_index,
             false,
-            (
-                ed25519_keypair_resp.private_key(),
-                ed25519_keypair_resp.public_key(),
-            ),
-            ed25519_keypair_init.public_key(),
+            Arc::new(ed25519_keypair_resp),
+            &ed25519_pubkey_init,
             &salt,
         );
         assert!(responder_sm.is_ok());
@@ -1158,6 +1152,8 @@ mod tests {
         let ed25519_keypair_init = ed25519::KeyPair::from_secret([18u8; 32], 0);
         let ed25519_keypair_resp = ed25519::KeyPair::from_secret([19u8; 32], 1);
 
+        let ed25519_pubkey_init = *ed25519_keypair_init.public_key();
+
         // Test salt
         let salt = [52u8; 32];
         let receiver_index: u32 = 88888;
@@ -1166,10 +1162,7 @@ mod tests {
         let mut initiator = LpStateMachine::new(
             receiver_index,
             true, // is_initiator
-            (
-                ed25519_keypair_init.private_key(),
-                ed25519_keypair_init.public_key(),
-            ),
+            Arc::new(ed25519_keypair_init),
             ed25519_keypair_resp.public_key(),
             &salt,
         )
@@ -1178,11 +1171,8 @@ mod tests {
         let mut responder = LpStateMachine::new(
             receiver_index,
             false, // is_initiator
-            (
-                ed25519_keypair_resp.private_key(),
-                ed25519_keypair_resp.public_key(),
-            ),
-            ed25519_keypair_init.public_key(),
+            Arc::new(ed25519_keypair_resp),
+            &ed25519_pubkey_init,
             &salt,
         )
         .unwrap();
@@ -1373,10 +1363,7 @@ mod tests {
         let mut initiator = LpStateMachine::new(
             receiver_index,
             true,
-            (
-                ed25519_keypair_init.private_key(),
-                ed25519_keypair_init.public_key(),
-            ),
+            Arc::new(ed25519_keypair_init),
             ed25519_keypair_resp.public_key(),
             &salt,
         )
@@ -1397,6 +1384,8 @@ mod tests {
         let ed25519_keypair_init = ed25519::KeyPair::from_secret([22u8; 32], 0);
         let ed25519_keypair_resp = ed25519::KeyPair::from_secret([23u8; 32], 1);
 
+        let ed25519_pubkey_init = *ed25519_keypair_init.public_key();
+
         let salt = [54u8; 32];
         let receiver_index: u32 = 99902;
 
@@ -1404,11 +1393,8 @@ mod tests {
         let mut responder = LpStateMachine::new(
             receiver_index,
             false,
-            (
-                ed25519_keypair_resp.private_key(),
-                ed25519_keypair_resp.public_key(),
-            ),
-            ed25519_keypair_init.public_key(),
+            Arc::new(ed25519_keypair_resp),
+            &ed25519_pubkey_init,
             &salt,
         )
         .unwrap();
@@ -1428,6 +1414,8 @@ mod tests {
         let ed25519_keypair_init = ed25519::KeyPair::from_secret([24u8; 32], 0);
         let ed25519_keypair_resp = ed25519::KeyPair::from_secret([25u8; 32], 1);
 
+        let ed25519_pubkey_init = *ed25519_keypair_init.public_key();
+
         let salt = [55u8; 32];
         let receiver_index: u32 = 99903;
 
@@ -1435,10 +1423,7 @@ mod tests {
         let mut initiator = LpStateMachine::new(
             receiver_index,
             true,
-            (
-                ed25519_keypair_init.private_key(),
-                ed25519_keypair_init.public_key(),
-            ),
+            Arc::new(ed25519_keypair_init),
             ed25519_keypair_resp.public_key(),
             &salt,
         )
@@ -1447,11 +1432,8 @@ mod tests {
         let mut responder = LpStateMachine::new(
             receiver_index,
             false,
-            (
-                ed25519_keypair_resp.private_key(),
-                ed25519_keypair_resp.public_key(),
-            ),
-            ed25519_keypair_init.public_key(),
+            Arc::new(ed25519_keypair_resp),
+            &ed25519_pubkey_init,
             &salt,
         )
         .unwrap();
@@ -1500,10 +1482,7 @@ mod tests {
         let mut initiator = LpStateMachine::new(
             receiver_index,
             true,
-            (
-                ed25519_keypair_init.private_key(),
-                ed25519_keypair_init.public_key(),
-            ),
+            Arc::new(ed25519_keypair_init),
             ed25519_keypair_resp.public_key(),
             &salt,
         )
@@ -1532,10 +1511,7 @@ mod tests {
         let mut initiator = LpStateMachine::new(
             receiver_index,
             true,
-            (
-                ed25519_keypair_init.private_key(),
-                ed25519_keypair_init.public_key(),
-            ),
+            Arc::new(ed25519_keypair_init),
             ed25519_keypair_resp.public_key(),
             &salt,
         )
@@ -1570,6 +1546,8 @@ mod tests {
         let ed25519_keypair_a = ed25519::KeyPair::from_secret([30u8; 32], 0);
         let ed25519_keypair_b = ed25519::KeyPair::from_secret([31u8; 32], 1);
 
+        let ed25519_pubkey_a = *ed25519_keypair_a.public_key();
+
         let salt = [60u8; 32];
         let receiver_index: u32 = 111111;
 
@@ -1577,10 +1555,7 @@ mod tests {
         let mut alice = LpStateMachine::new(
             receiver_index,
             true,
-            (
-                ed25519_keypair_a.private_key(),
-                ed25519_keypair_a.public_key(),
-            ),
+            Arc::new(ed25519_keypair_a),
             ed25519_keypair_b.public_key(),
             &salt,
         )
@@ -1589,11 +1564,8 @@ mod tests {
         let mut bob = LpStateMachine::new(
             receiver_index,
             false,
-            (
-                ed25519_keypair_b.private_key(),
-                ed25519_keypair_b.public_key(),
-            ),
-            ed25519_keypair_a.public_key(),
+            Arc::new(ed25519_keypair_b),
+            &ed25519_pubkey_a,
             &salt,
         )
         .unwrap();

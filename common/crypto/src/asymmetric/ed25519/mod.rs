@@ -136,6 +136,16 @@ impl From<PrivateKey> for KeyPair {
     }
 }
 
+impl From<(PrivateKey, PublicKey)> for KeyPair {
+    fn from((private_key, public_key): (PrivateKey, PublicKey)) -> Self {
+        KeyPair {
+            private_key,
+            public_key,
+            index: fake_index(public_key.to_bytes().as_ref()),
+        }
+    }
+}
+
 impl PemStorableKeyPair for KeyPair {
     type PrivatePemKey = PrivateKey;
     type PublicPemKey = PublicKey;

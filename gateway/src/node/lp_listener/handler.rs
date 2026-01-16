@@ -361,10 +361,7 @@ where
         let mut state_machine = LpStateMachine::new(
             receiver_index,
             false, // responder
-            (
-                self.state.local_identity.private_key(),
-                self.state.local_identity.public_key(),
-            ),
+            self.state.local_identity.clone(),
             &client_ed25519_pubkey,
             &salt,
         )
